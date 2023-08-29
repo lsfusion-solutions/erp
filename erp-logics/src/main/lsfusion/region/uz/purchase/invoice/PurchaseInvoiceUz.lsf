@@ -1,0 +1,41 @@
+MODULE PurchaseInvoiceUz;
+
+REQUIRE PurchaseInvoice, InvoiceUz;
+
+NAMESPACE Purchase;
+
+countSelectedInvoice = GROUP SUM 1 IF selected(Invoice i);
+
+printInvoice 'Накладная' (Invoice i)  {
+    IF NOT countSelectedInvoice() THEN {
+        selected(i) <- TRUE;
+        Invoice.selected(i) <- TRUE;
+    } ELSE {
+        Invoice.selected(Invoice ii) <- selected(ii);
+    }
+
+    Invoice.printInvoice(i);
+    selected(Invoice ii) <- NULL;
+} IMAGE 'print.png' IN print;
+
+printInvoiceXLSX 'Накладная (xlsx)' (Invoice i)  {
+    IF NOT countSelectedInvoice() THEN{
+        selected(i) <- TRUE;
+        Invoice.selected(i) <- TRUE;
+    } ELSE {
+        Invoice.selected(Invoice ii) <- selected(ii);
+    }
+
+    Invoice.printInvoiceXLSX(i);
+    selected(Invoice ii) <- NULL;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM invoices
+    PROPERTIES(i) printInvoice, printInvoiceXLSX
+;
+
+DESIGN invoices {
+    printContainer {
+        MOVE GROUP(print, i);
+    }
+}

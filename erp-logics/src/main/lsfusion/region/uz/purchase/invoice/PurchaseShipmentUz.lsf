@@ -15,11 +15,12 @@ barcodesSku (UserInvoiceDetail d) = GROUP CONCAT id(Barcode b) IF sku(b) = sku(d
 globalContract(Invoice i) = descriptionContractSku(i);
 
 FORM acceptanceCertificate 'Акт приёмки'
-    OBJECTS i = Invoice PANEL
+    OBJECTS i = Invoice SUBREPORT 
     PROPERTIES (i) date, seriesNumber, nameCustomerStock, nameCustomer, addressCustomer, numberAccountCustomer, nameBankCustomer, 
                    addressBankCustomer, MFOBankCustomer, addressCustomerStock, nameSupplier, addressSupplier, numberAccountSupplier, nameBankSupplier, 
                    addressBankSupplier, MFOBankSupplier, numberContractSku, dateFromContractSku,
-                   includeOrdersForPrint, globalContract
+                   includeOrdersForPrint, globalContract, countInvoiceDetail
+    FILTERS selected(i)
 
     OBJECTS d = InvoiceDetail
     PROPERTIES (d) index, idSku, barcodesSku, nameSku, nameCountrySku, userInvoice, shortNameUOMSku,
@@ -29,7 +30,11 @@ FORM acceptanceCertificate 'Акт приёмки'
 ;
 
 printAcceptanceCertificateFull 'Акт приёмки (полный)' (Invoice i) {
-    PRINT acceptanceCertificate OBJECTS i = i;
+    IF NOT (GROUP SUM 1 IF selected(Invoice ii)) THEN
+        selected(i) <- TRUE;
+    
+    PRINT acceptanceCertificate;
+    selected(Invoice ii) <- NULL;
 } IMAGE 'print.png' IN print CHARWIDTH 28;
 
 EXTEND FORM invoices
