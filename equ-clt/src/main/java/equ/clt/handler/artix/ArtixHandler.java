@@ -249,7 +249,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                         //scale items
                         for (CashRegisterItem item : transaction.itemsList) {
                             if (!skipItem(item, medicineMode) && item.passScalesItem) {
-                                writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item) + "\n---\n");
+                                String idBarcode = getIdBarcode(item);
+                                if(idBarcode != null) {
+                                    writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
+                                }
                             }
                         }
 
@@ -826,15 +829,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         }
     }
 
-    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItem item) throws JSONException {
+    private String getAddTmcScaleJSON(TransactionCashRegisterInfo transaction, CashRegisterItem item, String idBarcode) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         JSONObject tmcScaleObject = new JSONObject();
         rootObject.put("tmcscale", tmcScaleObject);
-        tmcScaleObject.put("tmcscalecode", trim(item.idBarcode, 5)); //Штрих-код товара на весах
-        tmcScaleObject.put("tmccode", trim(item.idItem, 100)); //код товара
+        tmcScaleObject.put("tmcscalecode", idBarcode); //Штрих-код товара на весах
+        tmcScaleObject.put("tmccode", getIdItem(item)); //код товара
         tmcScaleObject.put("tmcscalegroupcode", 1); //Код ассортиментной группы товаров на весах
-        tmcScaleObject.put("plu", getPluNumber(item)); //Номер ячейки памяти на весах
+        tmcScaleObject.put("plu", getPluNumber(item, idBarcode)); //Номер ячейки памяти на весах
 
         tmcScaleObject.put("ingredients", trim(item.description, 1000)); //Состав весового товара
         tmcScaleObject.put("manufacturer", item.idBrand); //Производитель весового товара
@@ -849,9 +852,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         return rootObject.toString();
     }
 
-    private Integer getPluNumber(ItemInfo item) {
+    private Integer getPluNumber(CashRegisterItem item, String idBarcode) {
         try {
-            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(trim(item.idBarcode, 5));
+            return item.pluNumber != null ? item.pluNumber : Integer.parseInt(idBarcode);
         } catch (Exception e) {
             return 0;
         }
@@ -2054,7 +2057,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     File tmpFile = File.createTempFile("pos", ".aif");
 
                     for (CashRegisterItem item : scalesBarcodeList) {
-                        writeStringToFile(tmpFile, getDeleteTmcScaleJSON(item) + "\n---\n");
+                        String idBarcode = getIdBarcode(item);
+                        if(idBarcode != null) {
+                            writeStringToFile(tmpFile, getDeleteTmcScaleJSON(item, idBarcode) + "\n---\n");
+                        }
                     }
                     Pair<File, File> fileWithFlag = writeFileWithFlag(deleteBarcodeInfo.directoryGroupMachinery, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, deleteBarcodeLogger);
                     List<File> files = new ArrayList<>();
@@ -2070,13 +2076,25 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         return true;
     }
 
-    private String getDeleteTmcScaleJSON(CashRegisterItem item) throws JSONException {
+    private String getDeleteTmcScaleJSON(CashRegisterItem item, String idBarcode) throws JSONException {
         JSONObject rootObject = new JSONObject();
 
         rootObject.put("command", "deleteTmcScale");
-        rootObject.put("tmcscalecode", trim(item.idBarcode, 5)); //Штрих-код товара на весах
-        rootObject.put("tmccode", trim(item.idItem, 100)); //код товара
+        rootObject.put("tmcscalecode", idBarcode); //Штрих-код товара на весах
+        rootObject.put("tmccode", getIdItem(item)); //код товара
         return rootObject.toString();
+    }
+
+    private String getIdItem(CashRegisterItem item) {
+        if(item.idItem == null) {
+            throw new RuntimeException(logPrefix + "no idItem for barcode " + item.idBarcode);
+        }
+        return trim(item.idItem, 100);
+    }
+
+    private String getIdBarcode(CashRegisterItem item) {
+        String idBarcode = item.idBarcode;
+        return idBarcode != null && item.idBarcode.length() <= 5 ? idBarcode.trim() : null;
     }
 
     static String readFile(String path, String encoding) throws IOException {
