@@ -55,12 +55,22 @@ runImportTask(STRING[100] id, STRING[100] file, DATE date)  {
     }
     fileToString(template(), 'UTF-8');
     
-    stringToFile(replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
-                                                       '<FILE>', id + date + '.csv')
-                                                       , 'UTF-8', 'json');
+    LOCAL requestString = TEXT ();
+    requestString() <- replace(replace(resultString(), '<DIRECTORY>', importDirectory()),
+                                                       '<FILE>', id + date + '.csv');
+    logToFile('druid', (CONCAT ' ', 'Run import task', requestString()));
+    stringToFile(requestString(), 'UTF-8', 'json');
     
     LOCAL result = FILE();
-    EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultFile() TO result;
+    TRY {
+        EXTERNAL HTTP 'http://' + host() + ':8090/druid/indexer/v1/task' PARAMS resultFile() TO result;
+    } CATCH {
+        fileToString(result());
+        LOCAL error = TEXT();
+        error() <- CONCAT '\n', 'Ошибка при загрузке в Druid : ', messageCaughtException(), resultString();
+        logToFile('druid', error());
+        throwException(error());
+    }
 }
 
 ingestBatch (STRING[100] id, DATE date)  { 
