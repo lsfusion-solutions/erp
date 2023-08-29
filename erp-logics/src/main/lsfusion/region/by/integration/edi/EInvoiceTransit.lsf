@@ -1,0 +1,221 @@
+MODULE EInvoiceTransit;
+
+REQUIRE EInvoice, ConsignmentEInvoice, SaleEInvoiceLot;
+
+NAMESPACE EDI;
+
+isTransit 'Транзит' = DATA BOOLEAN (EInvoice);
+
+invoiceSeries 'Серия бумажной накладной' = DATA STRING[2] (EInvoice);
+invoiceNumber 'Номер бумажной накладной' = DATA STRING[7] (EInvoice);
+
+countryCodeSupplier 'Код страны поставщика' (EInvoice i) = sidOrigin2(country(supplier(i)));
+countrySupplier 'Страна поставщика' (EInvoice i) = name(country(supplier(i)));
+
+countryCodeCustomer 'Код страны покупателя' (EInvoice i) = sidOrigin2(country(customer(i)));
+countryCustomer 'Страна покупателя' (EInvoice i) = name(country(customer(i)));
+
+EXTEND CLASS EInvoiceMessageType {
+    systemmessage_blrspt 'SYSTEMMESSAGE-BLRSPT',
+    blrapn_blrspt 'BLRAPN-BLRSPT',
+    blrspt 'BLRSPT'
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) BACKGROUND background(e) READONLY isTransit AFTER isTN2(e)
+;
+
+beforeCreateEInvoiceTransit ABSTRACT (Consignment);
+skipCreateEInvoiceTransit = DATA LOCAL BOOLEAN ();
+
+createEInvoiceTransit 'Создать сообщение о транзите' (Consignment invoice)  { 
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        beforeCreateEInvoiceTransit(invoice);
+        IF NOT skipCreateEInvoiceTransit() THEN {
+            NEW ei = EInvoice {
+                invoice(ei) <- invoice;
+                numberSupplier(ei) <- number(invoice);
+                dateSupplier(ei) <- dateTime[Invoice.Invoice](invoice);
+                deliveryNoteDateTime(ei) <- dateTime[Invoice.Invoice](invoice);
+                supplier(ei) <- supplier(invoice);
+                supplierStock(ei) <- supplierStock(invoice);
+                customer(ei) <- customer(invoice);
+                customerStock(ei) <- customerStock(invoice);
+                contractName(ei) <- 'Договор поставки';
+                contractId(ei) <- seriesNumberContractSku[Invoice.Invoice](invoice);
+                contractDate(ei) <- dateFromContractSku[Invoice.Invoice](invoice);
+                currency(ei) <- shortNameCurrency(invoice);
+                isTestDocument(ei) <- isTestEInvoice(invoice);
+                isTransit(ei) <- TRUE;
+                
+                FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+                    eInvoice(ed) <- ei;
+                    invoiceDetail(ed) <- detail;
+                    lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
+                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) >7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
+                    lineItemSupplierID(ed) <- id(sku(detail));
+                    lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
+                    quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
+                    valueVAT(ed) <- STRING[7](NUMERIC[6,2](vat(detail)));
+                    lineItemPrice(ed) <- NUMERIC[12,2](price(detail));
+                    lineItemAmount(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail));
+                    lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
+                    lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
+                    lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+                    overCreate(ed,detail);
+                }
+                
+                overCreate(ei,invoice);
+
+                generateNumber(ei);
+            }
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM Sale.invoices
+    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i))
+;
+DESIGN Sale.invoices {
+    createEI {
+        MOVE PROPERTY(createEInvoiceTransit(i)) AFTER PROPERTY(createEInvoiceTN2(i));
+    }
+}
+
+skipSendSupplier(EInvoice e) += isTransit(e);
+
+exportBlrsptDateTime = DATA LOCAL NESTED DATETIME();
+
+hideMessageHeaderBlrspt = DATA LOCAL BOOLEAN ();
+
+FORM exportBlrspt FORMEXTID 'BLRSPT'
+    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrspt() EXTID 'version'
+    OBJECTS ei = EInvoice PANEL
+
+    OBJECTS eih = EInvoice EXTID 'MessageHeader'
+    FILTERS (eih == ei AND NOT hideMessageHeaderBlrspt()) OR NOT eih IS EInvoice
+    PROPERTIES DRAW eih 
+        messageId = resultMilliseconds() EXTID 'MessageID',
+        msgDateTime = toChar(exportBlrsptDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+        messageType = 'BLRSPT' EXTID 'MessageType',
+        glnSupplier(eih) EXTID 'MsgSenderID',
+        glnCustomer(eih) EXTID 'MsgReceiverID',
+        userIDCustomerStock(eih) EXTID 'UserID',
+        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
+
+    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
+    FILTERS ein == ei
+    PROPERTIES DRAW ein 
+        deliveryNoteType = '400' EXTID 'DeliveryNoteType',
+        documentID = resultMilliseconds() EXTID 'DocumentID',
+        creationDateTime = toChar(exportBlrsptDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+        functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
+        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
+        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
+        contractName(ein) EXTID 'ContractName',
+        contractId(ein) EXTID 'ContractID',
+        contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate',
+        invoiceSeries(ein) EXTID 'InvoiceSeries',
+        invoiceNumber(ein) EXTID 'InvoiceNumber'
+    PROPERTIES DRAW ein IN shipper 
+        glnSupplier(ein) EXTID 'GLN',
+        nameSupplier(ein) EXTID 'Name',
+        addressSupplier(ein) EXTID 'Address',
+        countryCodeSupplier(ein) EXTID 'ShipperCountryCode',
+        countrySupplier(ein) EXTID 'ShipperCountry',
+        unpSupplier(ein) EXTID 'VATRegistrationNumber',
+        contactSupplier(ein) EXTID 'Contact'
+    PROPERTIES DRAW ein IN receiver 
+        nameCustomer(ein) EXTID 'Name',
+        addressCustomer(ein) EXTID 'Address',
+        countryCodeCustomer(ein) EXTID 'ReceiverCountryCode',
+        countryCustomer(ein) EXTID 'ReceiverCountr',
+        unpCustomer(ein) EXTID 'VATRegistrationNumber'
+    PROPERTIES DRAW ein IN shipFrom 
+        glnSupplierStock(ein) EXTID 'GLN',
+        addressSupplierStock(ein) EXTID 'Address',
+        contactSupplierStock(ein) EXTID 'Contact'
+    PROPERTIES DRAW ein IN shipTo 
+        //glnCustomerStock(ein) EXTID 'GLN',
+        addressCustomerStock(ein) EXTID 'Address'
+    PROPERTIES DRAW ein IN carrier 
+        deliveryContact(ein) EXTID 'DeliveryContact',
+        proxyID(ein) EXTID 'ProxyID',
+        proxyDate = toChar(proxyDate(ein),'YYYYMMDD') EXTID 'ProxyDate',
+        partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName'
+    PROPERTIES DRAW ein 
+        orderID(ein) EXTID 'OrderID',
+        currency(ein) EXTID 'Currency'
+    
+    OBJECTS f = ExtraField EXTID 'ExtraField'
+    FILTERS eInvoice(f) == ein AND useExtraFields(ein)
+    PROPERTIES DRAW f 
+        name(f) EXTID 'FieldName',
+        code(f) EXTID 'FieldCode',
+        value(f) EXTID 'FieldValue'
+    
+    OBJECTS d = EInvoiceDetail EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
+    FILTERS eInvoice(d) == ein
+    PROPERTIES DRAW d 
+        lineItemNumber(d) EXTID 'LineItemNumber',
+        lineItemSign(d) EXTID 'LineItemSign',
+        lineItemID(d) EXTID 'LineItemID',
+        itemCustomCode(d) EXTID 'ItemCustomCode',
+        deliveryTypePrev(d) EXTID 'DeliveryTypePrev',
+        deliveryNotePrev(d) EXTID 'DeliveryNotePrev',
+        deliveryNoteDatePrev = toChar(deliveryNoteDatePrev(d),'YYYYMMDDHH24MISS') EXTID 'DeliveryNoteDatePrev',
+        deliveryNotePrevLineID(d) EXTID 'DeliveryNotePrevLineID',
+        lineItemBuyerID(d) EXTID 'LineItemBuyerID',
+        lineItemSupplierID(d) EXTID 'LineItemSupplierID',
+        lineItemName(d) EXTID 'LineItemName',
+        quantityDespatched(d) EXTID 'QuantityDespatched',
+        lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
+        quantityDespatchedSPT(d) EXTID 'QuantityDespatchedSPT',
+        lineItemQuantitySPT(d) EXTID 'LineItemQuantitySPT',
+        expiryDate = toChar(expiryDate(d),'YYYYMMDD') EXTID 'BestBeforeDate',
+        valueVAT(d) EXTID 'TaxRate',
+        additionalInformation(d) EXTID 'AdditionalInformation',
+        manufactureDate = toChar(manufactureDate(d),'YYYYMMDD') EXTID 'LineItemProductDate',
+        lineItemAmountWithoutCharges1 = lineItemAmountWithoutCharges(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemAmountWithoutCharges' ,
+        lineItemAmountWithoutCharges2 = NUMERIC[18,2](lineItemAmountWithoutCharges(d)) IF useRoundNumeric(ein) EXTID 'LineItemAmountWithoutCharges',
+        lineItemAmountCharges1 = lineItemAmountCharges(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemAmountCharges',
+        lineItemAmountCharges2 = NUMERIC[18,2](lineItemAmountCharges(d)) IF useRoundNumeric(ein) EXTID 'LineItemAmountCharges' ,
+        lineItemAmount1 = lineItemAmount(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemAmount',
+        lineItemAmount2 = NUMERIC[18,2](lineItemAmount(d)) IF useRoundNumeric(ein) EXTID 'LineItemAmount',
+        lineItemPrice1 = lineItemPrice(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemPrice',
+        lineItemPrice2 = NUMERIC[12,2](lineItemPrice(d)) IF useRoundNumeric(ein) EXTID 'LineItemPrice',
+        lineItemPriceSPT(d) EXTID 'LineItemPriceSPT',
+        lineItemManufacturerPrice1 = lineItemManufacturerPrice(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemManufacturerPrice',
+        lineItemManufacturerPrice2 = NUMERIC[12,2](lineItemManufacturerPrice(d)) IF useRoundNumeric(ein) EXTID 'LineItemManufacturerPrice',
+        lineItemAmountExcise1 = lineItemAmountExcise(d) IF NOT useRoundNumeric(ein) EXTID 'LineItemAmountExcise',
+        lineItemAmountExcise2 = NUMERIC[18,2](lineItemAmountExcise(d)) IF useRoundNumeric(ein) EXTID 'LineItemAmountExcise'
+
+    OBJECTS i = INTEGER EXTID 'GroupPackingHeader' IN lineItemIdentification
+    FILTERS groupPackingCodeMark(d,i) OR upperLevelCodeMark(d,i)
+    PROPERTIES DRAW i 
+        groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
+        upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
+    PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
+
+    OBJECTS if = ItemExtraField EXTID 'LineItemExtraField'
+    FILTERS eInvoiceDetail(if) == d AND useExtraFields(eInvoice(d))
+    PROPERTIES DRAW if 
+        name(if) EXTID 'FieldName',
+        code(if) EXTID 'FieldCode',
+        value(if) EXTID 'FieldValue'
+
+    OBJECTS eint = EInvoice EXTID 'Total'
+    FILTERS eint == ei
+    PROPERTIES DRAW ein
+        totalAmountWithoutCharges1 = totalAmountWithoutCharges(eint) IF NOT useRoundNumeric(ein) EXTID 'TotalAmountWithoutCharges',
+        totalAmountWithoutCharges2 = NUMERIC[18,2](totalAmountWithoutCharges(eint)) IF useRoundNumeric(ein) EXTID 'TotalAmountWithoutCharges',
+        totalAmountCharges1 = totalAmountCharges(eint) IF NOT useRoundNumeric(ein) EXTID 'TotalAmountCharges',
+        totalAmountCharges2 = NUMERIC[18,2](totalAmountCharges(eint)) IF useRoundNumeric(ein) EXTID 'TotalAmountCharges',
+        totalAmount1 = totalAmount(eint) IF NOT useRoundNumeric(ein) EXTID 'TotalAmount',
+        totalAmount2 = NUMERIC[18,2](totalAmount(eint)) IF useRoundNumeric(ein) EXTID 'TotalAmount',
+        totalLineItem(eint) EXTID 'TotalLineItem',
+        totalLineItemQuantity(eint) EXTID 'TotalLineItemQuantity',
+        totalAmountExcise1 = totalAmountExcise(eint) IF NOT useRoundNumeric(ein) EXTID 'TotalAmountExcise',
+        totalAmountExcise2 = NUMERIC[18,2](totalAmountExcise(eint)) IF useRoundNumeric(ein) EXTID 'TotalAmountExcise'
+;
