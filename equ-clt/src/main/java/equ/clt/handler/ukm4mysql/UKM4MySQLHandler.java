@@ -1128,35 +1128,39 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query;
             if(checkCardType) {
-                query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
+                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
                         + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
                         + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
             } else {
-                query = "select sql_no_cache p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number, p.type "
+                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number, p.type "
                         + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
                         + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
             }
             ResultSet rs = statement.executeQuery(query);
             int count = 0;
             while (rs.next()) {
-                Integer cash_id = rs.getInt(1); //cash_id
-                Integer idReceipt = rs.getInt(2); //receipt_header
+                Integer id = rs.getInt(1);
+                Integer cash_id = rs.getInt(2); //cash_id
+                Integer idReceipt = rs.getInt(3); //receipt_header
                 String key = cash_id + "/" + idReceipt;
-                Integer paymentType = rs.getInt(3);//payment_id
-                BigDecimal amount = rs.getBigDecimal(4);
-                Integer receiptType = rs.getInt(5); //r.type
+                Integer paymentType = rs.getInt(4);//payment_id
+                BigDecimal amount = rs.getBigDecimal(5);
+                Integer receiptType = rs.getInt(6); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                 amount = isReturn ? amount.negate() : amount;
 
                 //если пришёл payment с type = 2, то ищем такой же с type = 0 и удаляем (это аннуляция плате
-                Integer pType = rs.getInt(7); //p.type
+                Integer pType = rs.getInt(8); //p.type
                 if(pType == 2) {
                     paymentMap.remove(key);
                 } else {
 
+                    Map<String, Object> extraFields = new HashMap<>();
+                    extraFields.put("externalId", cash_id + "_" + id);
+
                     if (customPayments.contains(paymentType)) {
                         UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
-                        paymentEntry.payments.add(new Payment(paymentType, amount));
+                        paymentEntry.payments.add(new Payment(String.valueOf(paymentType), amount, extraFields));
                         paymentMap.put(key, paymentEntry);
                     } else {
                         if (cashPayments.contains(paymentType)) //нал
@@ -1165,7 +1169,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             paymentType = 1;
                         else if (giftCardPayments.contains(paymentType)) //сертификат
                             paymentType = 2;
-                        String giftCard = rs.getString(6); //p.card_number
+                        String giftCard = rs.getString(7); //p.card_number
                         if (giftCard.isEmpty()) giftCard = null;
 
                         if (giftCard != null && giftCardList != null) {
@@ -1182,9 +1186,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                         UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
                         if (paymentType == 0) {
-                            paymentEntry.payments.add(Payment.getCash(amount));
+                            paymentEntry.payments.add(Payment.getCash(amount, extraFields));
                         } else if (paymentType == 1) {
-                            paymentEntry.payments.add(Payment.getCard(amount));
+                            paymentEntry.payments.add(Payment.getCard(amount, extraFields));
                         } else { //paymentType == 2
                             BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
                             paymentEntry.sumGiftCardMap.put(giftCard, HandlerUtils.safeAdd(sumGiftCard, amount));
