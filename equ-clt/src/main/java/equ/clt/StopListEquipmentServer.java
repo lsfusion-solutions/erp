@@ -29,7 +29,7 @@ class StopListEquipmentServer {
                     processStopListLogger.info("Sending stop-list to " + entry.getKey());
                     Object clsHandler = EquipmentServer.getHandler(entry.getKey(), remote);
                     if (clsHandler instanceof CashRegisterHandler)
-                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(machineryInfoSet));
+                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, machineryInfoSet);
                     else if (clsHandler instanceof ScalesHandler) {
                         ((ScalesHandler) clsHandler).sendStopListInfo(stopListInfo, machineryInfoSet);
                     }
@@ -43,14 +43,5 @@ class StopListEquipmentServer {
         }
         if(!stopListInfoList.isEmpty())
             processStopListLogger.info(String.format("Processed %s StopListInfo", stopListInfoList.size()));
-    }
-
-    private static Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {
-        Set<String> directorySet = new HashSet<>();
-        for(MachineryInfo machinery : machineryInfoSet) {
-            if(machinery.directory != null)
-                directorySet.add(machinery.directory);
-        }
-        return directorySet;
     }
 }
