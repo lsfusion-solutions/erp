@@ -106,6 +106,11 @@ public class SendSalesEquipmentServer {
 
             try {
 
+                boolean zReportForCashDocument;
+                try (DataSession outerSession = server.createSession()) {
+                    zReportForCashDocument = equipmentCashRegisterLM.findProperty("zReportForCashDocument[]").read(outerSession) != null;
+                }
+
                 List<ImportField> fieldsIncome = new ArrayList<>();
                 List<ImportField> fieldsOutcome = new ArrayList<>();
 
@@ -198,14 +203,24 @@ public class SendSalesEquipmentServer {
 
                 ImportField idZReportField = new ImportField(cashOperationLM.findProperty("id[ZReport]"));
                 ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) cashOperationLM.findClass("ZReport"), cashOperationLM.findProperty("zReport[STRING[100]]").getMapping(idZReportField));
-                zReportKey.skipKey = true;
+                zReportKey.skipKey = !zReportForCashDocument;
 
                 keysIncome.add(zReportKey);
+                if(zReportForCashDocument) {
+                    propsIncome.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                    propsIncome.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                            cashOperationLM.object(cashOperationLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                }
                 propsIncome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[IncomeCashOperation]").getMapping(incomeCashOperationKey),
                         cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
                 fieldsIncome.add(idZReportField);
 
                 keysOutcome.add(zReportKey);
+                if(zReportForCashDocument) {
+                    propsOutcome.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                    propsOutcome.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
+                            cashOperationLM.object(cashOperationLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                }
                 propsOutcome.add(new ImportProperty(idZReportField, cashOperationLM.findProperty("zReport[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
                         cashOperationLM.object(cashOperationLM.findClass("ZReport")).getMapping(zReportKey)));
                 fieldsOutcome.add(idZReportField);
