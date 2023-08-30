@@ -7,6 +7,8 @@ REQUIRE Utils, Time, Authentication, LogTools;
 host 'Хост для подключения' = DATA STRING[100] ();
 port 'Порт для подключения' = DATA STRING[10] ();
 overPort 'Порт для подключения' = OVERRIDE port(), '8082';
+druid2023 'Druid v2023+' = DATA BOOLEAN ();
+
 maxRowCount 'Максимальное количество записей' = DATA INTEGER ();
 approximateDistinct 'Использовать приблизительное значение для COUNT DISTINCT' = DATA BOOLEAN ();
 // ----------------- Загрузка данных ------------------- //
@@ -20,7 +22,7 @@ importDirectory 'Путь для импорта файлов' = DATA STRING[500]
 
 
 EXTEND FORM integrationData
-    PROPERTIES host(), overPort(), maxRowCount(), approximateDistinct(), exportDirectory(), importDirectory()
+    PROPERTIES host(), overPort(), druid2023(), maxRowCount(), approximateDistinct(), exportDirectory(), importDirectory()
     
     OBJECTS dates = (druidFrom = DATE, druidTo = DATE) PANEL
     PROPERTIES druidFrom 'С' = VALUE(druidFrom), druidTo 'По' = VALUE(druidTo)
@@ -34,6 +36,7 @@ DESIGN integrationData {
                 type = CONTAINERH; 
                 MOVE PROPERTY(host());
                 MOVE PROPERTY(overPort());
+                MOVE PROPERTY(druid2023());
             }
             MOVE PROPERTY(maxRowCount());
             MOVE PROPERTY(approximateDistinct());
@@ -48,7 +51,7 @@ DESIGN integrationData {
 runImportTask(STRING[100] id, STRING[100] file, DATE date)  { 
     LOCAL template = FILE();
     TRY {
-        READ 'file://bi/' + file + '.json' TO template;
+        READ 'file://bi/' + file + (IF druid2023() THEN '_n' ELSE '') + '.json' TO template;
     } CATCH {
         readResource('/bi/' + file + '.json');
         template() <- resourceFile();
@@ -104,8 +107,16 @@ loadLookup (STRING[100] id, TEXT json)  {
 //        WRITE resultFile() TO 'file://d:/temp/test';
         TRY { 
             EXTERNAL HTTP DELETE 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id TO result;
-        } 
-        EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultFile() TO result; 
+        }
+        TRY {
+            EXTERNAL HTTP 'http://' + host() + ':8081/druid/coordinator/v1/lookups/config/__default/' + id PARAMS resultFile() TO result;
+        } CATCH {
+            fileToString(result());
+            LOCAL error = TEXT();
+            error() <- CONCAT '\n', 'Ошибка при загрузке lookup ' + id + ' в Druid : ', messageCaughtException(), resultString();
+            logToFile('druid', error());
+            throwException(error());
+        }
         printToLog('' + currentDateTime() + 'Ended Load lookup ' + id);
     }
 }
