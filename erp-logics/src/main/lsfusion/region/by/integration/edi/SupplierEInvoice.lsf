@@ -35,18 +35,23 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     
 }
 
+skipCheckImportedSupplier = DATA BOOLEAN ();
+
 signAndSendSupplierCancelEDI 'Подписать и отправить отмену (поставщик)'() {
     IF askPasswordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
     FOR in(EInvoice i) DO { 
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
-                exportedSupplier(i) <- NULL WHERE exportedSupplier(i) AND NOT isCancel(i); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
-                isCancel(i) <- TRUE;
-                signAndSendSupplier(i);
+            IF skipCheckImportedSupplier() OR NOT importedSupplier(i) THEN {
+                IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
+                    exportedSupplier(i) <- NULL WHERE exportedSupplier(i) AND NOT isCancel(i); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
+                    isCancel(i) <- TRUE;
+                    signAndSendSupplier(i);
+                } ELSE
+                    MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
             } ELSE
-                MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+                MESSAGE 'Запрещена отмена подписанной покупателем накладной: ' + deliveryNoteNumber(i);
         } ELSE
             MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
         in(i) <- NULL;

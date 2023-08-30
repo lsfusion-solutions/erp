@@ -85,12 +85,16 @@ signAndSendSupplierEDI 'Подписать и отправить (поставщ
     }
 }
 cancelSignAndSendSupplierEDI 'Отменить (поставщик)'(Invoice i)  { 
-    NEWSESSION {
-        in(EInvoice e) <- e = eInvoice(i);
-        exportedSupplier(EInvoice e) <- NULL WHERE e = eInvoice(i);
-        isCancel(EInvoice e) <- TRUE WHERE e = eInvoice(i);
-        signAndSendSupplierEDI();
-        IF (GROUP SUM 1 IF exportedSupplier(EInvoice e) AND in(e)) THEN APPLY;
+    IF skipCheckImportedSupplier() OR NOT importedSupplier(eInvoice(i)) THEN {
+        NEWSESSION {
+            in(EInvoice e) <- e = eInvoice(i);
+            exportedSupplier(EInvoice e) <- NULL WHERE e = eInvoice(i);
+            isCancel(EInvoice e) <- TRUE WHERE e = eInvoice(i);
+            signAndSendSupplierEDI();
+            IF (GROUP SUM 1 IF exportedSupplier(EInvoice e) AND in(e)) THEN APPLY;
+        }
+    } ELSE {
+        MESSAGE 'Запрещена отмена подписанной покупателем накладной';
     }
 }
 signAndSendBlrapnSupplierEDI 'Подписать и отправить извещение о прочтении (поставщик)'(Invoice i) { 
