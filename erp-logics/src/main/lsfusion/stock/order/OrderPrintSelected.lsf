@@ -5,24 +5,25 @@ REQUIRE OrderPrint;
 NAMESPACE Order;
 
 FORM printOrderSelected 'Счет-фактура (печать)'
-    OBJECTS o = Order SUBREPORT 
+    OBJECTS o = Order SUBREPORT
     PROPERTIES (o) READONLY nameSupplier, fullNameSupplier, nameSupplierStock, addressSupplier, taxNumberSupplier,
         numberAccountSupplier, nameBankSupplier, addressBankSupplier,
         departmentBankSupplier, CBUBankSupplier, MFOBankSupplier, phoneSupplier,
         nameCustomer, fullNameCustomer, nameCustomerStock, addressCustomer,
         numberAccountCustomer, nameBankCustomer, addressBankCustomer,
         departmentBankCustomer, CBUBankCustomer, MFOBankCustomer, phoneCustomer,
-        number, series, seriesNumber, date, time, closeDate, currency, shortNameCurrency,
-        nameCurrency, note, countOrderDetail, quantityOrderDetail, sumOrderDetail,
-        VATSumOrderDetail, invoiceSumOrderDetail, nameAcquisitionTarget, descriptionContractSku
+        number, series, seriesNumber, date, time, closeDate, currency,
+        nameCurrency, note, countOrderDetail, quantityOrderDetail, packQuantityOrderDetail, sumOrderDetail,
+        VATSumOrderDetail, invoiceSumOrderDetail, shipmentDateTime, shipmentDate, shipmentTime,
+        addressCustomerStock, descriptionContractSku, createdNameUser, nameAcquisitionTarget
     //PROPERTIES() adImage=adImageOrder, adText=adTextOrder
     FILTERS selected(o)
 
     OBJECTS d = OrderDetail
-    PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-        idBarcodeSku, quantity,
+    PROPERTIES (d) READONLY index, nameSku, idSku, idBarcodeSku, shortNameUOMSku,
+        quantity, packQuantity,
         price, sum, numberVAT,
-        valueVAT,  VATSum, invoiceSum
+        valueVAT,  VATSum, invoiceSum, allBarcodesSku
     FILTERS order(d) == o
 ;
 
@@ -35,33 +36,11 @@ printSelected 'Счет-фактура' (Order order) {
     selected(Order ii) <- NULL;
 }IMAGE 'print.png' IN print;
 
-FORM printOrderSelectedXLS 'Заказ'
-    OBJECTS o = Order SUBREPORT
-    PROPERTIES (o) READONLY nameSupplier, fullNameSupplier, nameSupplierStock, addressSupplier,
-        numberAccountSupplier, nameBankSupplier, addressBankSupplier,
-        departmentBankSupplier, CBUBankSupplier, MFOBankSupplier, phoneSupplier,
-        nameCustomer, fullNameCustomer, nameCustomerStock, addressCustomer,
-        numberAccountCustomer, nameBankCustomer, addressBankCustomer,
-        departmentBankCustomer, CBUBankCustomer, MFOBankCustomer, phoneCustomer,
-        number, series, seriesNumber, date, time, closeDate, currency,
-        nameCurrency, note, countOrderDetail, quantityOrderDetail, packQuantityOrderDetail, sumOrderDetail,
-        VATSumOrderDetail, invoiceSumOrderDetail, shipmentDateTime, shipmentDate, shipmentTime,
-        addressCustomerStock, descriptionContractSku, createdNameUser
-    FILTERS selected(o)
-
-    OBJECTS d = OrderDetail
-    PROPERTIES (d) READONLY index, nameSku, idSku, idBarcodeSku, shortNameUOMSku,
-        quantity, packQuantity,
-        price, sum, numberVAT,
-        valueVAT,  VATSum, invoiceSum, allBarcodesSku
-    FILTERS order(d) == o
-;
-
 excelSelected 'Заказ (xls)' (Order order) {
     IF NOT (GROUP SUM 1 IF selected(Order ii)) THEN
         selected(order) <- TRUE;
     
-    PRINT printOrderSelectedXLS XLSX;
+    PRINT printOrderSelected XLSX;
 
     selected(Order ii) <- NULL;
 }IN print;
