@@ -106,8 +106,10 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
         
         OBJECTS re = F2Reg
         PROPERTIES(re) READONLY id, idF1Reg PANEL, fullNameProduct, currentBalance
+        PROPERTIES(re) READONLY PANEL idProduct BACKGROUND NOT in(sku(ed), product(re)),
+                                      descriptionClient BACKGROUND NOT client(re) = client(supplierStock(ed))
         PROPERTIES(ed, re)      quantity, fillQuantity GRID
-        FILTERS matches(ed, re)
+        FILTERS matches(ed, re) OR quantity(ed, re)
     
         FILTERGROUP active
             FILTER 'С остатком' currentBalance(re) > 0 OR quantity(ed, re) DEFAULT 
@@ -124,7 +126,9 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
                     fill = 1;
                     type = SPLITH;
                     MOVE BOX(ed);
-                    MOVE BOX(re);
+                    MOVE BOX(re) {
+                        GROUP(, re) { type = CONTAINERV; }
+                    }
                 }
             }
         }

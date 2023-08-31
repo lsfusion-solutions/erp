@@ -1,6 +1,6 @@
 MODULE EGAISLotAdjustment;
 
-REQUIRE LotAdjustment, EGAISStock, EGAISActWriteOffExchange, EGAISActFixBarCodeExchange;
+REQUIRE LotAdjustment, EGAISStock, EGAISActWriteOffExchange, EGAISActFixBarCodeExchange, EGAISSkuLedgerLot;
 
 PRIORITY Lot;
 
@@ -48,7 +48,9 @@ processFixBarCode 'Отправить в ЕГАИС' (LotAdjustment a) {
 
         LOCAL f2Reg = F2Reg (Lot);
         f2Reg(Lot l) <- (OVERRIDE f2Reg(markCode(id(l))) IF client(f2Reg(markCode(id(l)))) = client(stock(a)),
-                                  GROUP LAST F2Reg r ORDER r WHERE client(r) = client(stock(a)) AND product(r) = product(markCode(id(l)))) WHERE quantity(l); 
+                                  GROUP LAST F2Reg r ORDER (OVERRIDE (currentBalance(r) (-) currentBalanceMarkCode(r)), 0.0 IF r IS F2Reg), r 
+                                        WHERE client(r) = client(stock(a)) AND product(r) = product(markCode(id(l)))) 
+                        WHERE quantity(l); 
 
         IF (GROUP SUM 1 IF quantity(Lot l) > 0) THEN NEW b = ActFixBarCode {
             actFixBarCode(a) <- b;
