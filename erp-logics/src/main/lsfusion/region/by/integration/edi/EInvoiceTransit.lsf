@@ -1,6 +1,6 @@
 MODULE EInvoiceTransit;
 
-REQUIRE EInvoice, ConsignmentEInvoice, SaleEInvoiceLot;
+REQUIRE EInvoice, ConsignmentEInvoice, SaleEInvoiceLot, CustomsGroupItem, PurchaseEInvoice;
 
 NAMESPACE EDI;
 
@@ -46,6 +46,8 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
                 contractDate(ei) <- dateFromContractSku[Invoice.Invoice](invoice);
                 currency(ei) <- shortNameCurrency(invoice);
                 isTestDocument(ei) <- isTestEInvoice(invoice);
+                invoiceSeries(ei) <- series[Invoice.Invoice](invoice);
+                invoiceNumber(ei) <- number[Invoice.Invoice](invoice);
                 isTransit(ei) <- TRUE;
                 
                 FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
@@ -62,6 +64,15 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
                     lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
                     lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
                     lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+                    itemCustomCode(ed) <- codeCustomsGroupDefaultCountry(sku(detail));
+                    deliveryTypePrev(ed) <- (OVERRIDE (IF isTN2(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))) THEN 2 ELSE IF eInvoice(eInvoiceDetail(invoiceDetail(batch(detail)))) THEN 1), 
+                                            (IF isTN2(invoice(invoiceDetail(batch(detail)))) THEN 2 ELSE IF invoice(invoiceDetail(batch(detail))) THEN 1),
+                                            3);
+                    deliveryNotePrev(ed) <- OVERRIDE deliveryNoteNumber(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))), seriesNumber(invoice(invoiceDetail(batch(detail))));
+                    deliveryNoteDatePrev(ed) <- OVERRIDE deliveryNoteDateTime(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))), dateTime(invoice(invoiceDetail(batch(detail))));
+                    deliveryNotePrevLineID(ed) <- OVERRIDE numberEInvoiceDetail(invoiceDetail(batch(detail))), index(invoiceDetail(batch(detail)));
+                    quantityDespatchedSPT(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail));
+                    lineItemPriceSPT(ed) <- OVERRIDE lineItemPriceSPT(eInvoiceDetail(invoiceDetail(batch(detail)))), NUMERIC[12,2](price(detail));
                     overCreate(ed,detail);
                 }
                 
