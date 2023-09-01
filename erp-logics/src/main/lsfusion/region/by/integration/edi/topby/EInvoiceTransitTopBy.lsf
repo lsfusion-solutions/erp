@@ -4,6 +4,17 @@ REQUIRE EInvoiceTopByApi, EInvoiceTransit, SupplierEInvoiceTopByApi;
 
 NAMESPACE EDI;
 
+topByGLN 'GLN провайдера' = DATA STRING[13] ();
+
+EXTEND FORM integrationData
+    PROPERTIES() topByGLN
+;
+DESIGN integrationData {
+    params {
+        MOVE PROPERTY(topByGLN()) BEFORE PROPERTY(archiveDirTopBy());
+    }
+}
+
 overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF lower(blrapnReferenceDocumentType()) == 'blrspt' THEN {
         LOCAL eInvoice = EInvoice();
@@ -282,6 +293,7 @@ signAndSendSupplierEInvoiceTransit (EInvoice ei, STRING[100] login, STRING[100] 
                     IF error() == '' THEN {
                         LOCAL contentSubXML = FILE();
                         exportBlrsptDateTime() <- currentDateTimeMillis();
+                        dataGLNCustomerFirst(ei) <- topByGLN();
                         toMilliseconds(exportBlrsptDateTime());
                         EXPORT exportBlrspt OBJECTS ei = ei XML TO contentSubXML;
                         
