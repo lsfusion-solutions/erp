@@ -1,0 +1,400 @@
+MODULE ShelfSpace;
+
+REQUIRE LogTools, ItemPack, Store, LegalEntity, SkuLedger, ZReport;
+
+NAMESPACE ShelfSpace;
+
+// Astor Планограмщик
+
+@defineLogRotate(planogram, 5, weekly);
+
+exportDirectoryShelfSpace 'Путь для экспорта файлов (XML)' = DATA STRING[500] ();
+formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
+
+CLASS DroppObject;
+TABLE droppObject(DroppObject);
+type = DATA INTEGER (DroppObject) INDEXED;
+
+ID = DATA STRING (DroppObject) ;
+Description = DATA STRING (DroppObject) ;
+//date = DATA DATETIME (DroppObject);
+//BaseUnit= DATA STRING (DroppObject);
+Barcode = DATA STRING (DroppObject) ;
+GROUP shelfSpace 'Экспорт';
+//-- 1.	CatalogList_Brands
+
+WHEN DROPPED (Brand b AS Brand) DO NEW o = DroppObject{
+    type(o)<- 1;
+    ID(o)<- PREV(STRING(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_Brands FORMEXTID '=ShelfSpaceExchange:CatalogList_Brands'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_Brands' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Brand EXTID ':ListElements'
+    PROPERTIES  = STRING(b) EXTID ':ID',
+                =  STRING[50](OVERRIDE name(b),'') EXTID ':Description'
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+                = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+                =  STRING[50](OVERRIDE Description(a),'') EXTID ':Description'  
+    FILTERS type(a)==1
+;
+CatalogList_Brands 'Экспорт брендов (CatalogList_Brands)'(){
+    EXPORT CatalogList_Brands XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Brands' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 3.	CatalogList_ClassifierUnits
+
+WHEN DROPPED (UOM b AS UOM) DO NEW o = DroppObject{
+    type(o)<- 3;
+    ID(o)<- PREV(STRING(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_ClassifierUnits FORMEXTID '=ShelfSpaceExchange:CatalogList_ClassifierUnits'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_ClassifierUnits' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = UOM EXTID ':ListElements'
+    PROPERTIES  = STRING(b) EXTID ':ID',
+        =  STRING[25](OVERRIDE name(b),'') EXTID ':Description'
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+        =  STRING[25](OVERRIDE Description(a),'') EXTID ':Description'
+    FILTERS type(a)==3
+;
+CatalogList_ClassifierUnits 'Экспорт ед. изм. (CatalogList_ClassifierUnits)'(){
+    EXPORT CatalogList_ClassifierUnits XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_ClassifierUnits' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 4.	CatalogList_Countries
+
+WHEN DROPPED (Country b AS Country) DO NEW o = DroppObject{
+    type(o)<- 4;
+    ID(o)<- PREV(STRING(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_Countries FORMEXTID '=ShelfSpaceExchange:CatalogList_Countries'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_Countries' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Country EXTID ':ListElements'
+    PROPERTIES  = STRING(b) EXTID ':ID',
+        =  STRING[25](OVERRIDE name(b),'') EXTID ':Description'
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+                = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+                =  STRING[25](OVERRIDE Description(a),'') EXTID ':Description'
+    FILTERS type(a)==4
+;
+CatalogList_Countries 'Экспорт стран (CatalogList_Countries)'(){
+    EXPORT CatalogList_Countries XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Countries' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 5.	CatalogList_OrgUnits
+WHEN DROPPED (Store b AS Store) DO NEW o = DroppObject{
+    type(o)<- 5;
+    ID(o)<- PREV(id(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_OrgUnits FORMEXTID '=ShelfSpaceExchange:CatalogList_OrgUnits'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_OrgUnits' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Store EXTID ':ListElements'
+    PROPERTIES  = id(b) EXTID ':ID',
+                = IF active(b) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+                = IF b IS Store THEN 'False' ELSE 'True' EXTID ':IsFolder',                
+                //= STRING[36](OVERRIDE parent(b),'') EXTID ':Parent',
+                = STRING[100](OVERRIDE name(b),'') EXTID ':Description',
+                = STRING[150](OVERRIDE address[Store](b),'') EXTID ':Address'
+    
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+        =  STRING[100](OVERRIDE Description(a),'') EXTID ':Description'
+    FILTERS type(a)==5
+;
+CatalogList_OrgUnits 'Экспорт структурных единиц (CatalogList_OrgUnits)'(){
+    EXPORT CatalogList_OrgUnits XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_OrgUnits' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 6.	CatalogList_Warehouses
+WHEN DROPPED (DepartmentStore b AS DepartmentStore) DO NEW o = DroppObject{
+    type(o)<- 6;
+    ID(o)<- PREV(id(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_Warehouses FORMEXTID '=ShelfSpaceExchange:CatalogList_Warehouses'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_Warehouses' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = DepartmentStore EXTID ':ListElements'
+    PROPERTIES  
+        = id(b) EXTID ':ID',
+        = IF active(b) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+        = STRING(store(b)) EXTID ':Owner',
+        = STRING[50](OVERRIDE name(b),'') EXTID ':Description',
+        = STRING[50](phone(b)) EXTID ':PhoneNumber',                   
+        = NUMERIC[10,1](tradingSquare(b)) EXTID ':Square'
+    FILTERS stockGroup(b)==store(b)
+
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+        =  STRING[100](OVERRIDE Description(a),'') EXTID ':Description'
+    FILTERS type(a)==6
+;
+CatalogList_Warehouses 'Экспорт складов (CatalogList_Warehouses)'(){
+    EXPORT CatalogList_Warehouses XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Warehouses' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 9.	CatalogList_Item
+WHEN DROPPED (Item b AS Item) DO NEW o = DroppObject{
+    type(o)<- 9;
+    ID(o)<- PREV(id(b));
+    Description(o)<- PREV(name(b));
+    //BaseUnit(o)<- PREV(UOM(b));
+}
+WHEN DROPPED (ItemGroup b AS ItemGroup) DO NEW o = DroppObject{
+    type(o)<- 9;
+    ID(o)<- PREV(id(b));
+    Description(o)<- PREV(name(b));
+}
+
+FORM CatalogList_Item FORMEXTID '=ShelfSpaceExchange:CatalogList_Item'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_Item' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = ItemGroup EXTID ':ListElements'
+    PROPERTIES  id(b) EXTID ':ID',
+        = 'True' IF b IS ItemGroup EXTID ':IsFolder',
+        = IF active(b) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+        = STRING[50](OVERRIDE id(parent(b)), '') EXTID ':Parent',
+        = STRING[80](OVERRIDE name(b),'') EXTID ':Description'
+
+    OBJECTS i = Item EXTID ':ListElements'
+    PROPERTIES  id(i) EXTID ':ID',
+        = 'False' IF i IS Item EXTID ':IsFolder',
+        = IF active(i) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+        = STRING[50](OVERRIDE id(itemGroup(i)), '') EXTID ':Parent',
+        = STRING[80](OVERRIDE name(i),'') EXTID ':Description',
+        = IF passScales(i) THEN 'True' ELSE 'False'  EXTID ':WeightItem',
+        = STRING(country(i))  EXTID ':Country',
+        = STRING(UOM(i))  EXTID ':BaseUnit',
+        = STRING(brand(i))  EXTID ':Brand'
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+        =  STRING[80](OVERRIDE Description(a),'') EXTID ':Description',
+        = '' IF a IS DroppObject   EXTID ':BaseUnit'
+    FILTERS type(a)==9
+;
+CatalogList_Item 'Экспорт товаров и групп (CatalogList_Item)'(){
+    EXPORT CatalogList_Item XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Item' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 10.	CatalogList_Units
+WHEN DROPPED (Barcode b AS Barcode) DO NEW o = DroppObject{
+    type(o)<- 10;
+    ID(o)<- PREV(STRING(b));
+    Description(o)<- PREV(nameTransportPack(b));
+}
+
+FORM CatalogList_Units FORMEXTID '=ShelfSpaceExchange:CatalogList_Units'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_Units' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Barcode EXTID ':ListElements'
+    PROPERTIES
+        = STRING (b) EXTID ':ID',
+        = IF active(sku(b)) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+        = STRING[50](id(sku(b))) EXTID ':Owner',
+        = STRING[25](OVERRIDE nameTransportPack(b),'') EXTID ':Description',
+        = STRING[50](UOM(b)) EXTID ':ClassifierUnit',
+        = NUMERIC[10,3](amount(b)) EXTID ':Coefficient',
+        = NUMERIC[10,3](height(b)/1000) EXTID ':Height',
+        = NUMERIC[10,3](length(b)/1000) EXTID ':Length',
+        = NUMERIC[10,3](width(b)/1000) EXTID ':Depth',
+        = NUMERIC[15,4](weight(b)/1000) EXTID ':Gross'
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':ID',
+        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+        =  STRING[100](OVERRIDE Description(a),'') EXTID ':Description'
+    FILTERS type(a)==10
+;
+CatalogList_Units 'Экспорт единиц измерения и ВГХ (CatalogList_Units)'(){
+    
+    EXPORT CatalogList_Units XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Units' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 11.	DocumentList_Zreport
+
+WHEN DROPPED (ZReport b AS ZReport) DO NEW o = DroppObject{
+    type(o)<- 11;
+    ID(o)<- STRING (b);
+    Description(o)<- PREV(number(b));
+    //date(o)<- PREV(dateTime(b));
+}
+
+inZ = DATA LOCAL BOOLEAN (Stock,DATE);
+FORM DocumentList_Zreport FORMEXTID '=ShelfSpaceExchange:DocumentList_Zreport'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'DocumentList_Zreport' ATTR EXTID 'xsi:type'
+
+    OBJECTS dd = (st =Stock , dt = DATE ) EXTID ':ListElements'
+
+    PROPERTIES
+                = (CONCAT'_', id(st),toDateISO(dt)) EXTID ':ID', 
+                = 'False' IF st IS Stock AND dt IS DATE EXTID ':DeletionMark', 
+                = toDateISO(dt) EXTID ':Date', 
+                = 'True' IF st IS Stock AND dt IS DATE EXTID ':Posted', 
+                = id(store(st)) EXTID ':OrgUnit'
+    FILTERS inZ(st,dt)
+
+    OBJECTS l = SaleLedger EXTID ':Items'
+    PROPERTIES 
+            = id(sku(l)) EXTID ':Item', 
+            = id(stock(l)) EXTID ':Warehouse', 
+            = NUMERIC[15,3](OVERRIDE quantity(l), 0.0) EXTID ':Quantity', 
+            = NUMERIC[15,2](OVERRIDE sum(l), 0.0) EXTID ':Sum',
+            = NUMERIC[15,2](OVERRIDE costSum(l), 0.0)  EXTID ':CostSum'
+    FILTERS stock(l)==st, 
+            date(l)==dt,
+            active(l)
+;
+
+DocumentList_Zreport 'Экспорт Z-отчетов (DocumentList_Zreport)'(){
+    inZ(Stock st, DATE dt)<- NULL;
+    inZ(Stock st, DATE dt)<- TRUE WHERE dt==sum(currentDate(),-1) AND stockGroup(st) IS Store AND active(st);
+    
+    EXPORT DocumentList_Zreport XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Zreport' +'_'+ formulaDateT(currentDateTime());
+
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    FOR active(DepartmentStore st) AND (id(st)==id(store(st)) OR stockGroup(st) IS Store) DO {
+        inZ(Stock sts,DATE dt) <- NULL;
+        inZ(st,DATE dt) <- TRUE WHERE iterate(dt,sum(currentDate(),-7),sum(currentDate(),-1)) AND dt IS DATE;
+        TRY {
+            EXPORT DocumentList_Zreport XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Zreport' +'_'+ id(st)+'_'+formulaDateT(currentDateTime());
+        } CATCH {
+            logToFile('planogram', CONCAT '\n',  'DocumentList_Zreport' +'_'+ id(st) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте DocumentList_Zreport' +'_'+ id(st) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+
+} IN shelfSpace;
+
+//-- 13.	InformationRegisterRecordSet_Barcode
+
+FORM InformationRegisterRecordSet_Barcode FORMEXTID '=ShelfSpaceExchange:InformationRegisterRecordSet_Barcode'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'InformationRegisterRecordSet_Barcode' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Barcode EXTID ':ListElements'
+    PROPERTIES
+            = STRING(b) EXTID ':Unit',
+            = STRING[20](id(b))  EXTID ':Barcode',
+            = IF primary(b) AND active(b) THEN 'False' ELSE 'True'  EXTID ':Remove'
+
+    FILTERS primary(b) AND active(b)
+;
+InformationRegisterRecordSet_Barcode 'Экспорт штрихкодов (InformationRegisterRecordSet_Barcode)'(){
+    EXPORT InformationRegisterRecordSet_Barcode XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_Barcode' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+
+EXTEND FORM integrationData
+    PROPERTIES () exportDirectoryShelfSpace,
+        CatalogList_Brands,
+        CatalogList_ClassifierUnits,
+        CatalogList_Countries,
+        CatalogList_OrgUnits,
+        CatalogList_Warehouses,
+        CatalogList_Item,
+        CatalogList_Units,
+        DocumentList_Zreport,
+        InformationRegisterRecordSet_Barcode
+
+//    OBJECTS sds = DepartmentStore
+//    PROPERTIES (sds) READONLY name, id, nameLegalEntity
+//    FILTERGROUP activeSDS FILTER 'Активный' active(sds) DEFAULT
+
+//    TREE skuTree sg = SkuGroup PARENT parent(sg)
+//    PROPERTIES READONLY order(sg), name(sg)
+//    PROPERTIES (sg) skipExport BACKGROUND backgroundSkipExport(sg)
+//    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+//    ORDERS order(sg), name(sg)
+//
+//    OBJECTS ra = Range
+//    PROPERTIES (ra) READONLY name, change, dateTimeExport
+//    PROPERTIES READONLY 'id' = STRING[15](LONG(ra))
+//    OBJECTS ri = DeleteRange
+//    PROPERTIES (ri) READONLY id, name
+;
+
+DESIGN integrationData {
+    pane {
+        NEW integrationShelfSpace {
+            //type = SPLITH;
+            fill = 1;
+            caption = 'Планограмщик';
+            MOVE GROUP (shelfSpace) {
+                type = CONTAINERV;
+            }
+//            NEW integrationXMLRight{
+//                fill = 1;
+//                NEW tabExport{
+//                    fill = 1;
+//                    type = TABBED;
+//                    NEW tabExport1{
+//                        fill = 1;
+//                        caption = 'Основные данные';
+//                        type = SPLITV;
+//                        NEW integrationXMLRight1 {
+//                            type = CONTAINERV;
+//                            fill = 1;
+//                            NEW integrationXMLRightPanel{
+//                                type = CONTAINERH;
+//                                MOVE PROPERTY (dateTimeStatusDelete());
+//                                MOVE PROPERTY (dateTimeLevel());
+//                            }
+//                            MOVE BOX(sds);
+//                        }
+//                        MOVE BOX(TREE skuTree);
+//                    }
+//                    NEW tabExport2{
+//                        fill = 1;
+//                        caption = 'Матрицы';
+//                        type = SPLITV;
+//                        MOVE BOX (ra);
+//                        MOVE BOX (ri);
+//                    }
+//
+//                }
+//            }
+        }
+    }
+}
