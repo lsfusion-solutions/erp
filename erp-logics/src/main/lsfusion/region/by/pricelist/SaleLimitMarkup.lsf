@@ -37,11 +37,13 @@ limitSaleMarkupPrice(UserOrderDetail d) += WHEN d IS UserOrderDetail THEN round(
                                               manufacturingPrice(d),
                                               markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 
+setLimitSaleMarkupPrice ABSTRACT CASE (UserOrderDetail);
 WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
            (CHANGED(price(UserOrderDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
            showManufacturingPrice(d) AND limitSaleMarkupPrice(d) < price(d) DO {
     price(d) <- limitSaleMarkupPrice(d);          
     invoicePrice(d) <- round2(limitSaleMarkupPrice(d) * (100.0 (+) valueVAT(d)) / 100.0);
+    setLimitSaleMarkupPrice(d);
 }
 
 EXTEND FORM userOrder
@@ -55,11 +57,13 @@ limitSaleMarkupPrice(UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail THEN ro
                                               manufacturingPrice(d),
                                               markupLimitCalcPriceListType(d)), roundCondition(limitCalcPriceListType(operation(d)))); 
 
+setLimitSaleMarkupPrice ABSTRACT CASE (UserInvoiceDetail);
 WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail]
            (CHANGED(price(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(manufacturingPrice(d)) OR SET(showManufacturingPrice(d))) AND
            showManufacturingPrice(d) AND limitSaleMarkupPrice(d) < price(d) DO {
     price(d) <- limitSaleMarkupPrice(d);          
     invoicePrice(d) <- round2(limitSaleMarkupPrice(d) * (100.0 (+) valueVAT(d)) / 100.0);
+    setLimitSaleMarkupPrice(d);
 }
 
 EXTEND FORM userInvoice
