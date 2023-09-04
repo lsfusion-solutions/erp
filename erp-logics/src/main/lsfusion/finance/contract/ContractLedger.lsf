@@ -420,12 +420,19 @@ FORM costContractLedger 'Разнесение документов'
                   writeLIFOApply DRAW i 
     ORDERS date(o)
     FILTERS active(o) OR costedInContractLedger(o)
+    
+    FILTERS accessCompany(currentUser(), partyB(contract(o))) 
+        OR accessCompany(currentUser(), partyA(contract(o)))
+        OR NOT (isCompany(partyB(contract(o))) OR isCompany(partyA(contract(o))))
 
     PROPERTIES(i) READONLY date BACKGROUND background(i, d),
                            description BACKGROUND background(i, d),
                            debt BACKGROUND background(i, d)
     PROPERTIES(o, i) cost BACKGROUND background(i, d)
     ORDERS date(i)
+    FILTERS accessCompany(currentUser(), legalEntity(supplierStock(i)))
+        OR accessCompany(currentUser(), legalEntity(customerStock(i)))
+        OR NOT (isCompany(legalEntity(supplierStock(i))) OR isCompany(legalEntity(customerStock(i))))
 
     FILTERGROUP filters1
         FILTER 'Неразнесенные' isCosted(o) 'F9' DEFAULT
@@ -436,7 +443,6 @@ FORM costContractLedger 'Разнесение документов'
     FILTERS partyB(contract(o)) == partyB() OR (o IS OutContractLedger AND NOT partyB()),
             partyA(contract(o)) == partyA() OR (o IS OutContractLedger AND NOT partyA()),
             contract(o) == contract(i)
-
 ;
 
 DESIGN costContractLedger {
@@ -476,6 +482,9 @@ FORM contractLedger 'Управление задолженностями'
     PROPERTIES(c, d) READONLY balanceA BACKGROUND backgroundSum(c),
                               balanceAA BACKGROUND backgroundSumA(c)
     PROPERTIES(c) READONLY debtSum BACKGROUND backgroundBonusSum(c)
+    FILTERS accessCompany(currentUser(), partyB(c))
+        OR accessCompany(currentUser(), partyA(c))
+        OR NOT (isCompany(partyB(c)) OR isCompany(partyA(c)))
 
 //    ORDERS seriesNumber(c)
 
@@ -617,6 +626,10 @@ FORM unpaidDocuments 'Неоплаченные документы'
             contract(i) == contractProp() OR (i IS InContractLedger AND NOT seriesNumberContractProp()),
             partyBContract(i) == partyB() OR (i IS InContractLedger AND NOT partyB()),
             partyAContract(i) == partyA() OR (i IS InContractLedger AND NOT partyA())
+    FILTERS accessCompany(currentUser(), legalEntity(supplierStock(i)))
+        OR accessCompany(currentUser(), legalEntity(customerStock(i)))
+        OR NOT (isCompany(legalEntity(supplierStock(i))) OR isCompany(legalEntity(customerStock(i))))
+
     FILTERGROUP filters1
         FILTER 'Неоплаченные' debt(i) 'F10' DEFAULT
     FILTERGROUP filters2        
