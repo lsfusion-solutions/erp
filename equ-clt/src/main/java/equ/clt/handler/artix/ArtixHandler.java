@@ -1713,6 +1713,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             boolean isChange = operationCode.equals(72) || operationCode.equals(76) || operationCode.equals(101) ; //сдача
 
                                             String additionalData = moneyPosition.optString("additionaldata", null);
+                                            String slip = moneyPosition.optString("slip", null);
 
                                             if (paymentType != null && ((isSale && operationCode.equals(70)) || (isReturn && (operationCode.equals(74) || operationCode.equals(100))) || isChange)) {
 
@@ -1760,6 +1761,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                         payment.extraFields = new HashMap<>();
                                                     }
                                                     payment.extraFields.put("additionalData", additionalData);
+                                                    payment.extraFields.put("slip", slip);
                                                     payments.add(payment);
                                                 }
 
