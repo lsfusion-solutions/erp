@@ -11,12 +11,12 @@ sendDiscountCardFit (CashRegister cr) {
             EXPORT CSV '' NOHEADER NOESCAPE CHARSET 'CP866' FROM 
                  codeClient = numeric(INTEGER(OVERRIDE id(DiscountCard dc), number(dc)), 12),                   // 1. Код клиента
                  numberAccount = numeric(0, 12),                                                                // 2. Номер счета
-                 nameClient = alpha(left((CONCAT ' ', lastNameContact(dc), firstNameContact(dc)), 20), 20), // 3. Имя клиента 
+                 nameClient = alpha((OVERRIDE left((CONCAT ' ', lastNameContact(dc), firstNameContact(dc)), 20), ''), 20), // 3. Имя клиента 
                  store = alpha('', 20),                                                                     // 4. Магазин
-                 addressClient = char(left(addressLegalEntity(dc), 25), 25),                                    // 5. Адрес клиента
+                 addressClient = char((OVERRIDE left(addressLegalEntity(dc), 25), ''), 25),                                    // 5. Адрес клиента
                  city = alpha('', 20),                                                                      // 6. Город
                  postIndex = alpha('', 6),                                                                  // 7. Почтовый индекс
-                 phone = alpha(phoneLegalEntity(dc), 14),                                                   // 8. Телефон
+                 phone = alpha((OVERRIDE phoneLegalEntity(dc), ''), 14),                                                   // 8. Телефон
                  fax = alpha('', 14),                                                                       // 9. Факс
                  date = alpha('', 6),                                                                       // 10. Дата
                  codeMovement =  'A',                                                                           // 11. Код движения
@@ -41,9 +41,10 @@ sendDiscountCardFit (CashRegister cr) {
             put(cr, 'client', exportFile());
             APPLY;
         }
-    } ELSE {
-        MESSAGE 'Отсутствуют данные для выгрузки' NOWAIT;          
-    }
+    } 
+//    ELSE {
+//        MESSAGE 'Отсутствуют данные для выгрузки' NOWAIT;          
+//    }
 }
 
 sendDiscountCardFit 'Выгрузить ДК в ФИТ' (GroupCashRegister g) {
