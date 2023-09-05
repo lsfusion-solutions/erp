@@ -699,10 +699,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     //возможность приоритетной подмены
     overVAT = ABSTRACT VALUE Range (UserInvoiceDetail);
     overVAT(UserInvoiceDetail d) += VAT (sku(d), country(supplierStock(d)));
-    changedVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail); 
+    changedVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+    skipSetVAT = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
     
     WHEN LOCAL FORMS userInvoice
-        (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR changedVAT(detail)) AND NOT CHANGED(VAT(detail)) DO {
+        (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR changedVAT(detail)) AND NOT CHANGED(VAT(detail)) AND NOT skipSetVAT(detail) DO {
             VAT(detail) <- overVAT(detail);
             
         } // записываем шкалу
