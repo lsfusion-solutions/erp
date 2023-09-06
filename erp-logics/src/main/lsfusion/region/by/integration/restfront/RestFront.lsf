@@ -681,23 +681,22 @@ createAttribute (MachineryPriceTransaction t, Stock s) + {
 
 // удаление при выгрузке стоп-листа
 WHEN SET(succeeded(Stock st, StopList l)) AND isPosted(l) AND NOT exclude(l) AND idMenuRestFront(st) AND urlAPI(st) DO {
-     getToken(st);
-             
-     LOCAL result = FILE();
+    getToken(st);
+
+    LOCAL result = FILE();
 
     value(STRING key) <- CASE
         WHEN key = 'systemKey' THEN STRING(systemKey(st));
-    
-     logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()));
-     TRY {
-         EXTERNAL HTTP GET (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()) HEADERS httpHeaders TO result;
-         IMPORT importMenuLine JSON FROM result();
-         FOR idMenuLine(INTEGER i) AND count(item(aliasGoodMenuLine(i)),l) DO {
-             deleteMenuLine(st,idMenuLine(i));
-         }
-     }
-     CATCH {
-         logToFile('RestFront', messageCaughtException());
-         logToFile('RestFront', result());
-     } 
+
+    logToFile('RestFront', 'GET: ' + (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()));
+    TRY {
+        EXTERNAL HTTP GET (CONCAT '?', urlAPI(st) + '/api/front/menu/' + idMenuRestFront(st) + '/line', params()) HEADERS httpHeaders TO result;
+        IMPORT importMenuLine JSON FROM result();
+        FOR idMenuLine(INTEGER i) AND count(item(aliasGoodMenuLine(i)), l) DO {
+            deleteMenuLine(st, idMenuLine(i));
+        }
+    } CATCH {
+        logToFile('RestFront', messageCaughtException());
+        logToFile('RestFront', result());
+    }
 }
