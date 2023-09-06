@@ -1,0 +1,379 @@
+MODULE ImportKonfiskat;
+
+REQUIRE KonfiskatData, KonfiskatDocument, KonfiskatCase;
+
+NAMESPACE Konfiskat;
+
+usernameAISKonfiskat 'Логин АИС Конфискат' = DATA STRING[255]();
+passwordAISKonfiskat 'Пароль АИС Конфискат' = DATA STRING[255]() ECHO;
+urlAISKonfiskat 'Путь АИС Конфискат' = DATA STRING[255]();
+
+overWriteKonfiskat 'Перезаписывать данные' = DATA BOOLEAN ();
+
+path 'Организации из АИС «Конфискат»' = DATA STRING[255](KonfiskatEntityType);
+pathKonfiskatDocTypes 'Типы документов из АИС «Конфискат»' = DATA STRING[255]();
+
+code = DATA LOCAL STRING[100](INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+
+FORM importKonfiskatData
+    OBJECTS value = INTEGER
+    PROPERTIES(value) code EXTID 'code', name EXTID 'name'
+    FILTERS imported(value)
+;
+
+importKonfiskatEntities 'Получение справочника огранизаций из АИС «Конфискат»'(KonfiskatEntityType t){
+    NEWSESSION {
+        encodeBase64(CONCAT '', usernameAISKonfiskat(), ':', passwordAISKonfiskat());
+        headers('Authorization') <- 'Basic ' + encodedBase64();
+        headers('Content-Type') <- 'application/json';
+
+        LOCAL result = FILE();
+
+        TRY{
+            EXTERNAL HTTP GET urlAISKonfiskat() + path(t) HEADERS headers TO result;
+        }
+        CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE resultString();
+            RETURN;
+        }
+        
+        IMPORT importKonfiskatData JSON FROM result();      
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY code(i1)](STRING[100] idDep) AND i IS INTEGER AND NOT konfiskatEntity(idDep) NEW s = KonfiskatEntity DO {
+            id(s) <- idDep;
+        }
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY code(i1)](STRING[100] id) AND KonfiskatEntity s = konfiskatEntity(id)
+            AND (overWriteKonfiskat() OR NOT PREV(s IS KonfiskatEntity)) DO {
+            name(s) <- name(i);// WHERE NOT name(s) = name(i);
+            type(s) <- t;// WHERE NOT type(s) = t;
+        }
+        
+        inactive(KonfiskatEntity s) <- NULL WHERE inactive(s) AND [GROUP MAX INTEGER i BY code(i)](id(s));
+        inactive(KonfiskatEntity s) <- TRUE WHERE type(s) = t AND active(s) AND NOT [GROUP MAX INTEGER i BY code(i)](id(s));
+        APPLY;
+    }
+}
+
+importKonfiskatDocTypes 'Получение справочника типов документов из АИС «Конфискат»'(){
+    NEWSESSION {
+        encodeBase64(CONCAT '', usernameAISKonfiskat(), ':', passwordAISKonfiskat());
+        headers('Authorization') <- 'Basic ' + encodedBase64();
+        headers('Content-Type') <- 'application/json';
+
+        LOCAL result = FILE();
+
+        TRY{
+            EXTERNAL HTTP GET urlAISKonfiskat() + pathKonfiskatDocTypes() HEADERS headers TO result;
+        }
+            CATCH {
+            MESSAGE resultString();
+            fileToString(result(), 'UTF-8');
+            MESSAGE resultString();
+            RETURN;
+        }
+
+        IMPORT importKonfiskatData JSON FROM result();
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY code(i1)](STRING[100] id) AND i IS INTEGER AND NOT konfiskatDocType(id) NEW c = KonfiskatDocType DO {
+            id(c) <- id;
+        }
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY code(i1)](STRING[100] id) AND KonfiskatDocType c = konfiskatDocType(id) 
+            AND NOT name(c) = name(i)
+            AND (overWriteKonfiskat() OR NOT PREV(c IS KonfiskatDocType)) DO {
+            name(c) <- name(i);
+        }
+        inactive(KonfiskatDocType c) <- NULL WHERE inactive(c) AND [GROUP MAX INTEGER i BY code(i)](id(c));
+        inactive(KonfiskatDocType c) <- TRUE WHERE active(c) AND NOT [GROUP MAX INTEGER i BY code(i)](id(c));
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() urlAISKonfiskat, usernameAISKonfiskat, passwordAISKonfiskat, overWriteKonfiskat,
+        pathKonfiskatDocTypes, importKonfiskatDocTypes
+        
+    OBJECTS ket = KonfiskatEntityType
+    PROPERTIES(ket) staticCaption READONLY, path, importKonfiskatEntities READONLYIF NOT path(ket)
+;
+
+DESIGN integrationData {
+    pane {
+        NEW confiscatedGoods{
+            fill = 1;
+            caption = 'Конфискат';
+            MOVE PROPERTY (urlAISKonfiskat());
+            MOVE PROPERTY (usernameAISKonfiskat());
+            MOVE PROPERTY (passwordAISKonfiskat());
+            MOVE PROPERTY (overWriteKonfiskat());
+            NEW importServicesConf {
+                type = CONTAINERV;
+                caption = 'Сервисы';
+                NEW importKonfiscatEntities {
+                    fill = 1;
+                    MOVE BOX (ket);
+                }
+                NEW importConfiscatedGoodsDocTypes {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (pathKonfiskatDocTypes());
+                    MOVE PROPERTY (importKonfiskatDocTypes());
+                }
+            }
+        }
+    }
+}
+
+
+////doc
+signature = DATA LOCAL FILE (INTEGER);
+organization_to_name = DATA LOCAL STRING(INTEGER);
+organization_from_name = DATA LOCAL STRING(INTEGER);
+goods = DATA LOCAL STRING(INTEGER);
+valueGoods = DATA LOCAL INTEGER(INTEGER);
+organization_from_code = DATA LOCAL STRING (INTEGER);
+original_data = DATA LOCAL RAWFILE (INTEGER);
+doc_name = DATA LOCAL STRING(INTEGER);
+doc_series_num = DATA LOCAL STRING(INTEGER);
+doc_code = DATA LOCAL STRING (INTEGER);
+doc_date = DATA LOCAL DATE(INTEGER);
+organization_to_code = DATA LOCAL STRING (INTEGER);
+id = DATA LOCAL STRING (INTEGER);
+add_info = DATA LOCAL STRING(INTEGER);
+
+FORM importKonfiskatDocs
+
+    OBJECTS value = INTEGER
+    PROPERTIES(value) //signature, 
+        organization_to_name, organization_from_name, organization_from_code, original_data, 
+        doc_name, doc_series_num, doc_code, doc_date, organization_to_code, id, add_info
+    FILTERS imported(value)
+
+    OBJECTS goods = INTEGER
+    PROPERTIES(goods) goods EXTID 'value'
+    FILTERS imported(goods)
+    FILTERS valueGoods(goods) == value
+;
+
+pathKonfiskatDocs 'Типы документов из АИС «Конфискат»' = DATA STRING[255]();
+
+importKonfiskatDocs 'Получение документов за период'(DATE df, DATE dt){
+    NEWSESSION {
+        encodeBase64(CONCAT '', usernameAISKonfiskat(), ':', passwordAISKonfiskat());
+        headers('Authorization') <- 'Basic ' + encodedBase64();
+        headers('Content-Type') <- 'application/json';
+
+        LOCAL result = FILE();
+
+        TRY{
+            EXTERNAL HTTP GET urlAISKonfiskat() + pathKonfiskatDocs() + 
+                '?doc_date_from=' + toDateISO(df) + '&doc_date_to=' + toDateISO(dt) 
+                HEADERS headers TO result;
+        }
+        CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE resultString();
+            RETURN;
+        }
+
+        IMPORT importKonfiskatDocs JSON FROM result();
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING[100] id) AND i IS INTEGER AND NOT konfiskatDocument(id) NEW c = KonfiskatDocument DO {
+            id(c) <- id;
+        }
+        
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING[100] id) AND KonfiskatDocument c = konfiskatDocument(id)
+            AND (overWriteKonfiskat() OR NOT PREV(c IS KonfiskatDocument)) DO {
+            type(c) <- konfiskatDocType(doc_code(i));
+            name(c) <- doc_name(i);
+            seriesNumber(c) <- doc_series_num(i);
+            date(c) <- doc_date(i);
+            konfiskatEntityFrom(c) <- konfiskatEntity(organization_from_code(i));
+            konfiskatEntityTo(c) <- konfiskatEntity(organization_to_code(i));
+            addInfo(c) <- add_info(i);
+            originalData(c) <- original_data(i);
+            //signature(c) <- signature(i);
+            //goods(c) <- [GROUP CONCAT goods(INTEGER j), ';' ORDER j BY valueGoods(j)](i);
+        }
+        /////////
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY goods(i1)](STRING[100] id) AND i IS INTEGER AND NOT konfiskatGood(id) NEW g = KonfiskatGood DO {
+            id(g) <- id;
+        }
+
+        dataIn(KonfiskatDocument d, KonfiskatGood g) <- TRUE WHERE NOT dataIn(d, g) AND [GROUP MAX INTEGER i1 BY id(valueGoods(i1)), goods(i1)](id(d), id(g));
+        dataIn(KonfiskatDocument d, KonfiskatGood g) <- NULL WHERE NOT dataIn(d, g)
+            AND [GROUP MAX INTEGER i1 BY id(i1)](id(d))
+            AND NOT [GROUP MAX INTEGER i1 BY id(valueGoods(i1)), goods(i1)](id(d), id(g));
+        ////////
+        
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    OBJECTS perKonf = (dfKonf = DATE, dtKonf = DATE) PANEL 
+    PROPERTIES dfKonf 'С' = VALUE(dfKonf), dtKonf 'По' = VALUE(dtKonf), pathKonfiskatDocs(), importKonfiskatDocs(dfKonf, dtKonf)
+;
+
+DESIGN integrationData {
+    importServicesConf {
+        NEW dateKonf {
+            NEW dateKonfDCont {
+                type = CONTAINERH;
+                MOVE PROPERTY (dfKonf);
+                MOVE PROPERTY (dtKonf);
+            }
+            NEW importDocs {
+                type = CONTAINERH;
+                MOVE PROPERTY (pathKonfiskatDocs());
+                MOVE PROPERTY (importKonfiskatDocs(dfKonf, dtKonf));
+            }
+        }
+    }
+}
+
+
+pathKonfiskatCases 'Дела и имущество' = DATA STRING[255]();
+
+transfer_act_date = DATA LOCAL STRING(INTEGER);
+case_date = DATA LOCAL DATE(INTEGER);
+percent_depart = DATA LOCAL STRING(INTEGER);
+first_organization_name = DATA LOCAL STRING(INTEGER);
+organization_unp = DATA LOCAL STRING(INTEGER);
+transfer_act_date1 = DATA LOCAL DATE(INTEGER);
+sub_group = DATA LOCAL STRING(INTEGER);
+first_organization_name1 = DATA LOCAL STRING(INTEGER);
+transfer_act_num = DATA LOCAL STRING(INTEGER);
+unit_type = DATA LOCAL STRING(INTEGER);
+organization_code = DATA LOCAL STRING (INTEGER);
+from_organization_code = DATA LOCAL STRING (INTEGER);
+realization_code = DATA LOCAL STRING (INTEGER);
+first_organization_code = DATA LOCAL STRING(INTEGER);
+arrival_date = DATA LOCAL DATE(INTEGER);
+realization_history = DATA LOCAL STRING(INTEGER);
+goodsRealization_history = DATA LOCAL INTEGER(INTEGER);
+group = DATA LOCAL STRING(INTEGER);
+sub_sub_group = DATA LOCAL STRING(INTEGER);
+detailed_features = DATA LOCAL STRING(INTEGER);
+percent_depart1 = DATA LOCAL NUMERIC(INTEGER);
+count = DATA LOCAL NUMERIC(INTEGER);
+organization_unp1 = DATA LOCAL STRING(INTEGER);
+organization_name = DATA LOCAL STRING(INTEGER);
+unit_price = DATA LOCAL NUMERIC(INTEGER);
+inventory_appraisal_act_date = DATA LOCAL STRING(INTEGER);
+revaluation_history = DATA LOCAL STRING(INTEGER);
+goodsRevaluation_history = DATA LOCAL INTEGER(INTEGER);
+arrival_place = DATA LOCAL STRING(INTEGER);
+percent_realiz_organ = DATA LOCAL NUMERIC(INTEGER);
+percent_budget_or_ao = DATA LOCAL NUMERIC(INTEGER);
+positionInInventoryAppraisalAct = DATA LOCAL STRING(INTEGER);
+inventory_appraisal_act_num = DATA LOCAL STRING(INTEGER);
+from_organization_name = DATA LOCAL STRING(INTEGER);
+organization_name1 = DATA LOCAL STRING(INTEGER);
+transfer_act_num1 = DATA LOCAL STRING(INTEGER);
+inventory_appraisal_act_date1 = DATA LOCAL STRING(INTEGER);
+organization_code1 = DATA LOCAL STRING(INTEGER);
+percent_realiz_organ1 = DATA LOCAL STRING(INTEGER);
+percent_budget_or_ao1 = DATA LOCAL STRING(INTEGER);
+from_organization_code1 = DATA LOCAL STRING(INTEGER);
+first_organization_code1 = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING[100](INTEGER);
+inventory_appraisal_act_num1 = DATA LOCAL STRING(INTEGER);
+case_num = DATA LOCAL STRING(INTEGER);
+from_organization_name1 = DATA LOCAL STRING(INTEGER);
+
+FORM importKonfiskatCases
+
+    OBJECTS value = INTEGER
+    PROPERTIES(value) transfer_act_date, case_date, percent_depart, first_organization_name, organization_unp, organization_name1 EXTID 'organization_name', transfer_act_num1 EXTID 'transfer_act_num', inventory_appraisal_act_date1 EXTID 'inventory_appraisal_act_date', organization_code1 EXTID 'organization_code', percent_realiz_organ1 EXTID 'percent_realiz_organ', percent_budget_or_ao1 EXTID 'percent_budget_or_ao', from_organization_code1 EXTID 'from_organization_code', first_organization_code1 EXTID 'first_organization_code', id1 EXTID 'id', inventory_appraisal_act_num1 EXTID 'inventory_appraisal_act_num', case_num, from_organization_name1 EXTID 'from_organization_name'
+
+    OBJECTS goods = INTEGER
+    FILTERS valueGoods(goods) == value
+    PROPERTIES(goods) transfer_act_date1 EXTID 'transfer_act_date', sub_group, first_organization_name1 EXTID 'first_organization_name', transfer_act_num, unit_type, organization_code, from_organization_code, realization_code, first_organization_code, id, add_info, arrival_date, group, sub_sub_group, detailed_features, percent_depart1 EXTID 'percent_depart', count, organization_unp1 EXTID 'organization_unp', organization_name, unit_price, inventory_appraisal_act_date, arrival_place, percent_realiz_organ, percent_budget_or_ao, name, positionInInventoryAppraisalAct, inventory_appraisal_act_num, from_organization_name
+
+    OBJECTS realization_history = INTEGER
+    PROPERTIES(realization_history) realization_history EXTID 'value'
+    FILTERS goodsRealization_history(realization_history) == goods
+
+    OBJECTS revaluation_history = INTEGER
+    PROPERTIES(revaluation_history) revaluation_history EXTID 'value'
+    FILTERS goodsRevaluation_history(revaluation_history) == goods;
+
+
+importKonfiskatCases 'Получение имущества за период' (KonfiskatEntity l, DATE df, DATE dt){
+    NEWSESSION {
+        encodeBase64(CONCAT '', usernameAISKonfiskat(), ':', passwordAISKonfiskat());
+        headers('Authorization') <- 'Basic ' + encodedBase64();
+        headers('Content-Type') <- 'application/json';
+
+        LOCAL result = FILE();
+        TRY{
+            EXTERNAL HTTP GET urlAISKonfiskat() + pathKonfiskatCases() +
+                '?organ_id=' +id(l) + '&case_date_from=' + toDateISO(df) + '&case_date_to=' + toDateISO(dt)
+                HEADERS headers TO result;
+        }
+        CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE resultString();
+            RETURN;
+        }
+
+        IMPORT importKonfiskatCases JSON FROM result();
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id1(i1)](STRING[100] id) AND i IS INTEGER AND NOT konfiskatCase(id) NEW c = KonfiskatCase DO {
+            id(c) <- id;
+        }
+
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id1(i1)](STRING[100] id) AND KonfiskatCase c = konfiskatCase(id)
+            AND (overWriteKonfiskat() OR NOT PREV(c IS KonfiskatCase)) DO {
+            id(c) <- id1(i);
+            number(c) <- case_num(i);
+            date(c) <- case_date(i);
+            konfiskatEntity(c) <- konfiskatEntity(organization_code1(i));
+            konfiskatEntityFrom(c) <- konfiskatEntity(from_organization_code1(i));
+        }
+        
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING[100] id) AND i IS INTEGER AND NOT konfiskatGood(id) NEW g = KonfiskatGood DO {
+            id(g) <- id;
+        }
+        
+        FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING[100] id) AND KonfiskatGood c = konfiskatGood(id)
+            AND (overWriteKonfiskat() OR NOT PREV(c IS KonfiskatCase)) DO {
+            name(c) <- name(i);
+            detailedFeatures(c) <- detailed_features(i);
+            unitType(c) <- unit_type(i);
+            count(c) <- count(i);
+            unitPrice(c) <- unit_price(i);
+        }
+ 
+        dataIn(KonfiskatCase c, KonfiskatGood g) <- TRUE WHERE NOT dataIn(c, g) AND [GROUP MAX INTEGER i1 BY id1(valueGoods(i1)), id(i1)](id(c), id(g));
+        dataIn(KonfiskatCase c, KonfiskatGood g) <- NULL WHERE NOT dataIn(c, g) 
+            AND [GROUP MAX INTEGER i1 BY id1(i1)](id(c)) 
+            AND NOT [GROUP MAX INTEGER i1 BY id1(valueGoods(i1)), id(i1)](id(c), id(g));
+        APPLY;
+    }
+}
+
+importKonfiskatCases 'Получение имущества за период' (DATE dfKonf, DATE dtKonf) {
+    importKonfiskatCases(konfiskatEntity(), dfKonf, dtKonf);
+}
+
+EXTEND FORM integrationData
+    PROPERTIES nameKonfiskatEntity(), pathKonfiskatCases(), importKonfiskatCases(dfKonf, dtKonf) SHOWIF konfiskatEntity()
+;
+
+DESIGN integrationData {
+    importServicesConf {
+        importServicesConf {
+            dateKonf {
+                NEW importCases {
+                    type = CONTAINERH;
+                    MOVE PROPERTY (pathKonfiskatCases());
+                    MOVE PROPERTY (importKonfiskatCases(dfKonf, dtKonf));
+                    MOVE PROPERTY (nameKonfiskatEntity());
+                }
+            }
+        }
+    }
+}

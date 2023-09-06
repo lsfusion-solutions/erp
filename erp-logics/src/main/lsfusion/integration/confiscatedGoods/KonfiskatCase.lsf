@@ -1,0 +1,48 @@
+MODULE KonfiskatCase;
+
+REQUIRE KonfiskatData, KonfiskatGood;
+
+NAMESPACE Konfiskat;
+
+CLASS KonfiskatCase 'Дело АИС «Конфискат»';
+
+id 'Код' = DATA STRING[100] (KonfiskatCase);
+number 'Номер' =  DATA STRING[100] (KonfiskatCase);
+date 'Дата' = DATA DATE (KonfiskatCase);
+konfiskatEntity = DATA KonfiskatEntity (KonfiskatCase);
+nameKonfiskatEntity 'Организация' (KonfiskatCase e) = name(konfiskatEntity(e));  
+konfiskatEntityFrom = DATA KonfiskatEntity (KonfiskatCase);
+nameKonfiskatEntityFrom 'Организация отправитель' (KonfiskatCase c) = name(konfiskatEntityFrom(c));
+dataIn = DATA BOOLEAN (KonfiskatCase, KonfiskatGood);
+
+konfiskatCase = GROUP AGGR KonfiskatCase konfiskatCase BY id(konfiskatCase);
+
+FORM konfiskatCases 'Дела АИС «Конфискат»'
+    OBJECTS kc = KonfiskatCase
+    PROPERTIES(kc) READONLY id, number, date, nameKonfiskatEntity, nameKonfiskatEntityFrom
+    PROPERTIES(kc) NEWSESSION NEW, EDIT, DELETE GRID
+
+    OBJECTS g = KonfiskatGood
+    PROPERTIES(g) id, name, detailedFeatures, unitType, count, unitPrice
+    FILTERS dataIn(kc, g)
+
+    LIST KonfiskatCase OBJECT kc
+;
+
+FORM konfiskatCase 'Дело АИС «Конфискат»'
+    OBJECTS kc = KonfiskatCase PANEL
+    PROPERTIES(kc) id, number, date, nameKonfiskatEntity, nameKonfiskatEntityFrom
+    
+    OBJECTS g = KonfiskatGood
+    PROPERTIES(g) id, name, detailedFeatures, unitType, count, unitPrice
+    FILTERS dataIn(kc, g)
+    
+    EDIT KonfiskatCase OBJECT kc
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW konfiskatCases;
+    }
+}
+

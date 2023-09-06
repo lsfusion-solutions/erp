@@ -1,0 +1,61 @@
+MODULE KonfiskatData;
+
+REQUIRE Retail, System;
+
+NAMESPACE Konfiskat;
+
+CLASS KonfiskatEntity 'Подразделения Департамента из АИС «Конфискат»';
+id 'Код' = DATA STRING[100] (KonfiskatEntity);
+name 'Наименование' = DATA STRING[255] (KonfiskatEntity);
+inactive 'Неактивный' = DATA BOOLEAN (KonfiskatEntity);
+active 'Активный' (KonfiskatEntity s) = s IS KonfiskatEntity AND NOT inactive(s);
+konfiskatEntity = GROUP AGGR KonfiskatEntity konfiskatEntity BY id(konfiskatEntity);
+
+CLASS KonfiskatEntityType {
+    subDepartment 'Подразделения Департамента',
+    authorizedBody 'Уполномоченные органы',
+    seller 'Реализатор'
+}
+
+type = DATA KonfiskatEntityType (KonfiskatEntity);
+nameType 'Тип организации' (KonfiskatEntity k) = staticCaption(type(k));
+
+FORM konfiskatEntities 'Организации из АИС «Конфискат»'
+    OBJECTS sd = KonfiskatEntity
+    PROPERTIES(sd) READONLY inactive, id, name, nameType
+    PROPERTIES(sd) EDIT NEWSESSION 
+    LIST KonfiskatEntity OBJECT sd
+;
+
+FORM konfiskatEntity 'Организации из АИС «Конфискат»'
+    OBJECTS sd = KonfiskatEntity PANEL 
+    PROPERTIES(sd) inactive, id, name
+    EDIT KonfiskatEntity OBJECT sd
+;
+    
+CLASS KonfiskatDocType 'Типы документов из АИС «Конфискат»';
+id 'Код' = DATA STRING[100] (KonfiskatDocType);
+name 'Наименование'  = DATA STRING (KonfiskatDocType);
+inactive 'Неактивный' = DATA BOOLEAN (KonfiskatDocType);
+active 'Активный' (KonfiskatDocType s) = s IS KonfiskatDocType AND NOT inactive(s);
+konfiskatDocType = GROUP AGGR KonfiskatDocType konfiskatDocType BY id(konfiskatDocType);
+
+FORM konfiskatDocTypes 'Справочник типов документов из АИС «Конфискат»'
+    OBJECTS cgdt = KonfiskatDocType
+    PROPERTIES(cgdt) READONLY inactive, id, name
+    PROPERTIES(cgdt) EDIT NEWSESSION
+    LIST KonfiskatDocType OBJECT cgdt
+;
+
+FORM konfiskatDocType 'Типов документов из АИС «Конфискат»'
+    OBJECTS cgdt = KonfiskatDocType PANEL
+    PROPERTIES(cgdt) inactive, id, name
+    EDIT KonfiskatDocType OBJECT cgdt
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW konfiskatEntities;
+        NEW konfiskatDocTypes;
+    }
+}

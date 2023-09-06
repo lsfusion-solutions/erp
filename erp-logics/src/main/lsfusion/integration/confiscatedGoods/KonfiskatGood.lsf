@@ -1,0 +1,40 @@
+MODULE KonfiskatGood;
+
+REQUIRE KonfiskatData;
+
+NAMESPACE Konfiskat;
+
+CLASS KonfiskatGood 'Имущество АИС «Конфискат»';
+
+id 'Код' = DATA STRING[100] (KonfiskatGood);
+name 'Наименование' = DATA STRING[1000] (KonfiskatGood);
+detailedFeatures '' = DATA STRING[1000] (KonfiskatGood);
+unitType = DATA STRING[50] (KonfiskatGood);
+count = DATA NUMERIC[16,5] (KonfiskatGood);
+unitPrice = DATA NUMERIC[16,5] (KonfiskatGood);
+
+konfiskatGood = GROUP AGGR KonfiskatGood konfiskatGood BY id(konfiskatGood);
+
+FORM konfiskatGoods 'Имущество АИС «Конфискат»'
+    OBJECTS sd = KonfiskatGood
+    PROPERTIES(sd) READONLY id, name, detailedFeatures, unitType, count, unitPrice
+    PROPERTIES(sd) NEWSESSION NEW, EDIT, DELETE GRID 
+    
+    LIST KonfiskatGood OBJECT sd
+;
+
+FORM konfiskatGood 'Имущество АИС «Конфискат»'
+    OBJECTS sd = KonfiskatGood PANEL
+    PROPERTIES(sd) READONLY id, name, detailedFeatures, unitType, count, unitPrice
+    
+    EDIT KonfiskatGood OBJECT sd
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW konfiskatGoods;
+    }
+}
+
+konfiskatEntity = DATA LOCAL KonfiskatEntity();
+nameKonfiskatEntity 'Организация' () = name(konfiskatEntity());

@@ -1,0 +1,83 @@
+MODULE KonfiskatDocument;
+
+REQUIRE KonfiskatCase, KonfiskatGood;
+
+NAMESPACE Konfiskat;
+
+CLASS KonfiskatDocument 'Документ АИС «Конфискат»';
+id 'Код' = DATA STRING[100] (KonfiskatDocument);
+type 'Номер' = DATA KonfiskatDocType (KonfiskatDocument);
+nameType 'Тип документа' (KonfiskatDocument d) = name(type(d));
+name 'Наименование' = DATA STRING[1000] (KonfiskatDocument);
+seriesNumber 'Серия номер' = DATA STRING[100] (KonfiskatDocument);
+date 'Дата' = DATA DATE (KonfiskatDocument);
+konfiskatEntityFrom = DATA KonfiskatEntity (KonfiskatDocument);
+nameKonfiskatEntityFrom 'Отправитель' (KonfiskatDocument d) = name(konfiskatEntityFrom(d));
+konfiskatEntityTo = DATA KonfiskatEntity (KonfiskatDocument);
+nameKonfiskatEntityTo 'Отправитель' (KonfiskatDocument d) = name(konfiskatEntityTo(d));
+addInfo = DATA STRING (KonfiskatDocument);
+originalData = DATA PDFFILE (KonfiskatDocument);//file
+signature 'Подпись' = DATA FILE (KonfiskatDocument);//file
+goods = DATA STRING(KonfiskatDocument);
+konfiskatCase =DATA KonfiskatCase (KonfiskatDocument);
+idKonfiskatCase =DATA KonfiskatCase (KonfiskatDocument);
+dataIn = DATA BOOLEAN (KonfiskatDocument, KonfiskatGood);
+
+konfiskatDocument = GROUP AGGR KonfiskatDocument konfiskatDocument BY id(konfiskatDocument);
+
+openOFile 'Открыть файл' (KonfiskatDocument d) {
+    open(originalData(d));
+}
+loadOFile 'Загрузить файл' (KonfiskatDocument d) {
+    INPUT f = PDFFILE DO {
+        originalData(d) <- f;
+    }
+}
+deleteOFile 'Удалить файл' (KonfiskatDocument d) {
+    signature(d) <- NULL;
+}
+
+openSFile 'Открыть подпись' (KonfiskatDocument d) {
+    open(signature(d));
+}
+loadSFile 'Загрузить подпись' (KonfiskatDocument d) {
+    INPUT f = FILE DO {
+        signature(d) <- f;
+    }
+}
+deleteSFile 'Удалить подпись' (KonfiskatDocument d) {
+    signature(d) <- NULL;
+}
+
+FORM konfiskatDocuments 'Документы АИС «Конфискат»'
+    OBJECTS sd = KonfiskatDocument
+    PROPERTIES(sd) READONLY id, nameType, name, seriesNumber, date, nameKonfiskatEntityFrom, nameKonfiskatEntityTo, addInfo, goods
+    PROPERTIES(sd) READONLY originalData
+    PROPERTIES(sd) READONLY signature
+    PROPERTIES(sd) NEWSESSION NEW, EDIT, DELETE GRID
+
+    OBJECTS g = KonfiskatGood
+    PROPERTIES(g) id, name, detailedFeatures, unitType, count, unitPrice
+    FILTERS dataIn(sd, g)
+
+    LIST KonfiskatDocument OBJECT sd
+;
+
+FORM konfiskatDocument 'Документ АИС «Конфискат»'
+    OBJECTS sd = KonfiskatDocument PANEL
+    PROPERTIES(sd) id, nameType, name, seriesNumber, date, nameKonfiskatEntityFrom, nameKonfiskatEntityTo, addInfo, goods
+    PROPERTIES(sd) TOOLBAR openOFile SHOWIF originalData(sd), loadOFile, deleteOFile SHOWIF originalData(sd) DRAW sd
+    //PROPERTIES(sd) TOOLBAR openSFile SHOWIF originalData(sd), loadSFile, deleteSFile SHOWIF signature(sd)
+
+    OBJECTS g = KonfiskatGood
+    PROPERTIES(g) id, name, detailedFeatures, unitType, count, unitPrice
+    FILTERS dataIn(sd, g)
+    
+    EDIT KonfiskatDocument OBJECT sd
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW konfiskatDocuments;
+    }
+}
