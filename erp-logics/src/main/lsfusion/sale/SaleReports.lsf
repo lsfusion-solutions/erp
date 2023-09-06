@@ -112,6 +112,8 @@ sumStockCompare 'Сумма (сравнение)' = DATA LOCAL NUMERIC[18,4] (Gr
 
 compare 'Сравнить с' = DATA LOCAL BOOLEAN ();
 
+overfillSaleReportFromToCompare  ABSTRACT ( GroupType, DATE, DATE);
+
 fillSaleReportFromToCompare 'Сформировать сравнение' (GroupType gt, DATE df, DATE dt)   { 
     IF compare() THEN {
         quantityStockCompare(Sku sk) <- NULL;           
@@ -137,6 +139,8 @@ fillSaleReportFromToCompare 'Сформировать сравнение' (Group
         sumVATStockCompare(Group g) <- [ GROUP SUM sumVATStockCompare(Sku sk) BY group(GroupType ggt, sk)](g) IF groupType(g) == gt;
         costSumStockCompare(Group g) <- [ GROUP SUM costSumStockCompare(Sku sk) BY group(GroupType ggt, sk)](g) IF groupType(g) == gt;
         markupSumStockCompare(Group g) <- [ GROUP SUM markupSumStockCompare(Sku sk) BY group(GroupType ggt, sk)](g) IF groupType(g) == gt;
+
+        overfillSaleReportFromToCompare(gt, df, dt);
     }                 
 }
 
@@ -865,6 +869,7 @@ FORM salesReport 'Отчет по продажам'
                     sumStockCompare AFTER sumStock(sku) BACKGROUND sumStockColor(sku)
     FILTERS isParent(sk, sku),
             filterStock(sku)
+    ORDERS name(sku)
             
     PROPERTIES(gt,df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGrSalesReport,
                            printGrCustomerSalesReport, printGrCustomerStockSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport, printCustomerStockSalesReport
