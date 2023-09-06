@@ -642,7 +642,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
-        } else return null;
+        } else {
+            processTransactionLogger.info("NO UOM for item " + item.idItem);
+            return null;
+        }
     }
 
     private JSONObject getBarcodeJSON(String barcode, boolean appendBarcode, Integer tmcType, BigDecimal defaultQuantity) {
