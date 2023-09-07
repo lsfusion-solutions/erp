@@ -1126,12 +1126,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM quantity(InvoiceDetail iinvoiceDetail) IF isPosted(iinvoiceDetail) 
         BY invoiceDetail(iinvoiceDetail) CHARWIDTH 7 MATERIALIZED;
     returnQuantityInvoiceDetail 'Кол-во (возвращено)' (invoice) =  GROUP SUM returnQuantity(nsdir.InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) CHARWIDTH 8 MATERIALIZED;
-    toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);    
+    toReturnQuantity 'Кол-во доступно к возврату' (nsdir.InvoiceDetail invoiceDetail)= quantity(invoiceDetail) (-) returnQuantity(invoiceDetail);
+
+    skipCheckReturnQuantity = ABSTRACT BOOLEAN (InvoiceDetail);
     
     skipCheckInvoceReturnSupplier = ABSTRACT BOOLEAN (InvoiceDetail);
     skipCheckInvoceReturnCustomer = ABSTRACT BOOLEAN (InvoiceDetail);
     
-    CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d)))
+    CONSTRAINT returnQuantity(invoiceDetail(InvoiceDetail d)) > quantity((invoiceDetail(d))) AND NOT skipCheckReturnQuantity(d)
         MESSAGE 'Количество строки возврата больше чем количество строки основания';
 
     CONSTRAINT invoiceDetail(UserInvoiceDetail d) AND NOT sku(invoiceDetail(d)) = sku(d) CHECKED BY invoiceDetail[UserInvoiceDetail]
