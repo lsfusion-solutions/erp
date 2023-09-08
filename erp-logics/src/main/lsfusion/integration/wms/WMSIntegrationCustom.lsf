@@ -24,23 +24,23 @@ FORM palletTypes 'Типы паллет'
 palletType = DATA PalletType (Item);
 
 ////////////////////////  Sale.Order
-exportWMS 'Выгрузить файл заказа'  ABSTRACT LIST ( Sale.Order);
+exportWMS 'Выгрузить файл заказа' ABSTRACT LIST ( Sale.Order);
 exportedWMS 'Выгружен в WMS' = DATA BOOLEAN (Sale.Order);
 skipShowExportWMS = ABSTRACT BOOLEAN (Sale.Order);
 showExportWMS(Sale.Order o) = o IS Sale.Order AND NOT skipShowExportWMS(o);
-statusWMS 'WMS статус' = ABSTRACT STRING (Sale.Order); 
+statusWMS 'WMS статус' = ABSTRACT STRING (Sale.Order);
 
 isLogisticsSale = ABSTRACT VALUE BOOLEAN (Sale.Order);
 
-EXTEND FORM Sale.orders 
+EXTEND FORM Sale.orders
     PROPERTIES(o) exportWMS SHOWIF showExportWMS(o)
-; 
+;
 
 DESIGN Sale.orders {
     actionContainer {
         NEW exportContainer {
             caption = 'Экспорт в WMS';
-                MOVE PROPERTY (exportWMS(o));
+            MOVE PROPERTY (exportWMS(o));
         }
     }
 }
@@ -57,13 +57,13 @@ statusWMS 'WMS статус' = ABSTRACT STRING (SaleReturn.Invoice);
 
 //maxPurchaseOrder(Purchase.UserInvoice invoice) = GROUP MAX Purchase.Order order IF include(order, invoice);
 
-exportWMSPurchaseOrder 'Выгрузить файл "Заказ-закупка" на склад от нерезидента/поставщика'  ABSTRACT LIST( Purchase.Order);
+exportWMSPurchaseOrder 'Выгрузить файл "Заказ-закупка" на склад от нерезидента/поставщика' ABSTRACT LIST( Purchase.Order);
 skipShowExportWMSPurchaseOrder = ABSTRACT BOOLEAN (Purchase.Order);
 showExportWMSPurchaseOrder(Purchase.Order o) = o IS Purchase.Order AND NOT skipShowExportWMSPurchaseOrder(o);
 statusWMS 'WMS статус' = ABSTRACT VALUE STRING (Purchase.Order);
 
 EXTEND FORM Purchase.orders
-    PROPERTIES (o)  exportWMSPurchaseOrder  SHOWIF  showExportWMSPurchaseOrder(o)
+    PROPERTIES (o) exportWMSPurchaseOrder SHOWIF showExportWMSPurchaseOrder(o)
 ;
 DESIGN Purchase.orders {
     actionContainer {
@@ -71,19 +71,19 @@ DESIGN Purchase.orders {
             caption = 'Экспорт в WMS';
             MOVE PROPERTY (exportWMSPurchaseOrder(o));
         }
-    }    
+    }
 }
 
 ////////////////////////  Purchase.Invoice
 
-exportWMSPurchaseInvoice 'Выгрузить подтверждение прихода на склад-хранитель'  ABSTRACT LIST (Purchase.Invoice);
-skipShowExportWMSPurchaseInvoice= ABSTRACT BOOLEAN (Purchase.Invoice);
+exportWMSPurchaseInvoice 'Выгрузить подтверждение прихода на склад-хранитель' ABSTRACT LIST (Purchase.Invoice);
+skipShowExportWMSPurchaseInvoice = ABSTRACT BOOLEAN (Purchase.Invoice);
 showExportWMSPurchaseInvoice(Purchase.Invoice o) = o IS Purchase.Invoice AND NOT skipShowExportWMSPurchaseInvoice(o);
 statusWMS 'WMS статус' = ABSTRACT STRING (Purchase.Invoice);
 
-EXTEND FORM Purchase.invoices 
+EXTEND FORM Purchase.invoices
     PROPERTIES(i) exportWMSPurchaseInvoice SHOWIF showExportWMSPurchaseInvoice(i);
-; 
+;
 
 DESIGN Purchase.invoices {
     actionContainer {
@@ -95,7 +95,6 @@ DESIGN Purchase.invoices {
 }
 
 maxPurchaseOrder(Purchase.UserInvoice invoice) = GROUP MAX Purchase.Order order IF include(order, invoice);
-
 
 /////////////////////////// PurchaseReturn.Invoice
 statusWMS 'WMS статус' = ABSTRACT STRING (PurchaseReturn.Invoice); 
