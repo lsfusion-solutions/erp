@@ -623,14 +623,14 @@ disableSetAgreement = DATA LOCAL BOOLEAN();
 META deriveDocumentHeaderAgreement (object, supplierProp, customerProp, caption, NS)
 
     defaultAgreement = ABSTRACT Agreement (###object);
-    changedDefaultAgreement = ABSTRACT Object (###object);
+    changedDefaultAgreement = ABSTRACT BOOLEAN (###object);
     overDefaultAgreement = OVERRIDE
         defaultAgreement(###object o), 
         defaultAgreement(supplierProp(o), customerProp(o), dateTime(o)) 
             IF currency(o) == currency(defaultAgreement(supplierProp(o), customerProp(o), dateTime(o)));
     skipSetAgreement = ABSTRACT BOOLEAN (###object);
     WHEN LOCAL
-        (CHANGED(currency(###object o)) OR CHANGED(customerProp(o)) OR CHANGED(supplierProp(o)) OR  CHANGED(changedDefaultAgreement(o))) 
+        (CHANGED(currency(###object o)) OR CHANGED(customerProp(o)) OR CHANGED(supplierProp(o)) OR changedDefaultAgreement(o)) 
          AND NOT skipSetAgreement(o) AND NOT disableSetAgreement() NOINLINE DO
         agreement (o) <- overDefaultAgreement(o);
         
