@@ -1,0 +1,58 @@
+MODULE PickingOperation;
+
+REQUIRE Picking;
+
+NAMESPACE Picking;
+
+
+@defineOperation(' (комплектация)');
+
+@defineOperationRole();
+
+operation = DATA Operation (PickingOrder) INDEXED;
+idOperation 'Код операции'(PickingOrder b) = id(operation(b));
+nameOperation 'Операция'(PickingOrder b) = name(operation(b));
+
+WHEN LOCAL FORMS userPickingOrder SET (UserPickingOrder o IS UserPickingOrder) AND NOT CHANGED(operation(o)) AND countOperations(currentUser()) == 1 DO
+    operation(o) <- defaultOperation(currentUser());
+
+EXTEND FORM userPickingOrder   
+    PROPERTIES (o) nameOperation
+;
+
+DESIGN userPickingOrder {
+    row1 {
+        MOVE PROPERTY(nameOperation(o)) BEFORE PROPERTY(nameStock(o));
+    }
+}
+
+EXTEND FORM pickingOrders
+    PROPERTIES (o) READONLY nameOperation BEFORE nameStock(o)
+;
+
+operation = DATA Operation (Picking) INDEXED;
+idOperation 'Код операции'(Picking b) = id(operation(b));
+nameOperation 'Операция'(Picking b) = name(operation(b));
+
+WHEN LOCAL FORMS userPicking SET (UserPicking o IS UserPicking) AND NOT CHANGED(operation(o)) AND countOperations(currentUser()) == 1 DO
+    operation(o) <- defaultOperation(currentUser());
+
+EXTEND FORM userPicking
+    PROPERTIES (o) nameOperation
+;
+
+DESIGN userPicking {
+    GROUP(documentPrm,o) {
+        MOVE PROPERTY(nameOperation(o));
+    }
+}
+
+EXTEND FORM pickings
+    PROPERTIES (o) READONLY nameOperation BEFORE nameStock(o)
+;
+
+NAVIGATOR {
+    pickingNavigator {
+        NEW operations FIRST;
+    }
+}
