@@ -8,6 +8,8 @@ NAMESPACE Sale;
 EVATInvoiceDetail 'Строка основания' = DATA SaleReturn.InvoiceDetail (EVATDetail) INDEXED;
 EVATDetail 'Строка ЭСЧФ' = GROUP MAX EVATDetail d BY EVATInvoiceDetail(d) MATERIALIZED;
 
+skipEvatAdditional = ABSTRACT BOOLEAN(SaleReturn.Invoice);
+
 // Для возратных накладных нужно создавать столько ЭСЧФ, сколько есть накладных-оснований в строках
 createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
     extraEVAT() <- TRUE;
@@ -19,7 +21,7 @@ createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
         FOR Invoice si IS Sale.Invoice AND invoice(invoiceDetail(rd)) == si NEW e = EVAT DO {
             createEVATSaleReturnInvoiceHeader(e, i);
             
-            IF EVAT(si) THEN {
+            IF EVAT(si) AND NOT skipEvatAdditional(i) THEN {
                 status(e) <- EVATStatus.additional;
                 invoice(e) <- exportNumber(EVAT(si));        // ссылка на ЭСЧФ накладной-основания   
             } ELSE
