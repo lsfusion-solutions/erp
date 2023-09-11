@@ -17,19 +17,8 @@ discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date) =
 countReceiptSaleDetail (department, sku, date) = GROUP SUM 1 IF isPosted(ReceiptDetail d) AND d IS ReceiptSaleDetail
     BY departmentStore(d), sku(d), date(d);
 
-departmentStore = DATA DepartmentStore (DateSaleSkuLedger) INDEXED;
-sku = DATA Sku (DateSaleSkuLedger);
-date = DATA DATE (DateSaleSkuLedger);
-
-dateSaleSkuLedger (departmentStore, sku, date) =
-    GROUP NAGGR DateSaleSkuLedger dateSaleSkuLedger 
-    WHERE dateSaleSkuLedger IS DateSaleSkuLedger BY departmentStore(dateSaleSkuLedger), sku(dateSaleSkuLedger), date(dateSaleSkuLedger);// MATERIALIZED INDEXED;
-
-countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date) => dateSaleSkuLedger(departmentStore, sku, date) RESOLVE LEFT;
-
-is(DateSaleSkuLedger dateSaleSkuLedger) = dateSaleSkuLedger IS DateSaleSkuLedger;
-is(DateSaleSkuLedger dateSaleSkuLedger) => countReceiptSaleDetail(departmentStore(dateSaleSkuLedger), sku(dateSaleSkuLedger), date(dateSaleSkuLedger)) RESOLVE RIGHT;
-
+dateSaleSkuLedger = AGGR DateSaleSkuLedger WHERE countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date);// MATERIALIZED;
+INDEX departmentStore(DateSaleSkuLedger o);
 INDEX sku(DateSaleSkuLedger o), departmentStore(o);
 INDEX date(DateSaleSkuLedger o), departmentStore(o), sku(o);
 
