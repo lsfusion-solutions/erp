@@ -1,0 +1,37 @@
+MODULE SalePickingOrderOperation;
+
+REQUIRE SalePickingOrder, PickingOperation;
+
+NAMESPACE Sale;
+
+
+pickingOperation  = DATA Picking.Operation (Operation) COMPLEX;
+namePickingOperation 'Операция (комплектация)' (Operation operation)= name(pickingOperation(operation));
+
+EXTEND FORM operation
+    PROPERTIES(o) namePickingOperation
+;
+
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(namePickingOperation(o)) AFTER PROPERTY(createPickingOrder(o));
+    }
+}
+
+@defineDocumentInterfaceOperationPrefix (order, picking, Picking, ' (комплектация)');
+
+// Записываем операцию для закупки по умолчанию из операции
+@deriveDocumentOperationProperty(UserOrder, pickingOperation);
+
+operation(OrderPickingOrder o) += pickingOperation[Order](o);
+
+EXTEND FORM userOrder
+    PROPERTIES(o) namePickingOperation
+;
+
+DESIGN userOrder {
+    headerPicking {
+        MOVE PROPERTY(namePickingOperation(o));
+    }
+}
+

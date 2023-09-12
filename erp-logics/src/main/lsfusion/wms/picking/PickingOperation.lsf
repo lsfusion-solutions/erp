@@ -9,9 +9,12 @@ NAMESPACE Picking;
 
 @defineOperationRole();
 
-operation = DATA Operation (PickingOrder) INDEXED;
+operation = ABSTRACT Operation (PickingOrder) MATERIALIZED;
 idOperation 'Код операции'(PickingOrder b) = id(operation(b));
 nameOperation 'Операция'(PickingOrder b) = name(operation(b));
+
+operation = DATA Operation (UserPickingOrder);
+operation(UserPickingOrder o) += operation(o);
 
 WHEN LOCAL FORMS userPickingOrder SET (UserPickingOrder o IS UserPickingOrder) AND NOT CHANGED(operation(o)) AND countOperations(currentUser()) == 1 DO
     operation(o) <- defaultOperation(currentUser());
@@ -30,9 +33,12 @@ EXTEND FORM pickingOrders
     PROPERTIES (o) READONLY nameOperation BEFORE nameStock(o)
 ;
 
-operation = DATA Operation (Picking) INDEXED;
+operation = ABSTRACT Operation (Picking) MATERIALIZED;
 idOperation 'Код операции'(Picking b) = id(operation(b));
 nameOperation 'Операция'(Picking b) = name(operation(b));
+
+operation = DATA Operation (UserPicking);
+operation(UserPicking o) += operation(o);
 
 WHEN LOCAL FORMS userPicking SET (UserPicking o IS UserPicking) AND NOT CHANGED(operation(o)) AND countOperations(currentUser()) == 1 DO
     operation(o) <- defaultOperation(currentUser());
