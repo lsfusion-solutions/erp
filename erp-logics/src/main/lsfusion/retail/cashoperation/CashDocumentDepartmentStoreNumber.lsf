@@ -1,0 +1,23 @@
+MODULE CashDocumentDepartmentStoreNumber;
+
+REQUIRE CashBookRu, CashIncome, CashInventory, CashOperationCashOrder, CashOperationCashOrder, CashOperationCashOrder, CashOutcome, Collection;
+
+NAMESPACE CashOperation;
+
+cashDocumentNumber 'Номер для кассовых документов' = DATA STRING (DepartmentStore);
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) cashDocumentNumber
+;
+
+DESIGN departmentStore {
+    headerCachParams {
+        MOVE PROPERTY(cashDocumentNumber(d));
+    }
+}
+overNumber(CashIncome c) += BPSTRING[200](CONCAT '', seriesNumber(c), '/'+ cashDocumentNumber(departmentStore(c))) IF seriesNumber(c);
+overNumber(CashInventory c) += BPSTRING[200](CONCAT '', seriesNumber(c), '/'+ cashDocumentNumber(departmentStore(c))) IF seriesNumber(c);
+overNumber(IncomeCashOperation o) += BPSTRING[200](CONCAT '', seriesNumber(o), '/'+ cashDocumentNumber(departmentStore(o))) IF seriesNumber(o);
+overNumber(OutcomeCashOperation o) += BPSTRING[200](CONCAT '', seriesNumber(o), '/'+ cashDocumentNumber(departmentStore(o))) IF seriesNumber(o);
+overNumber(CashOutcome c) += BPSTRING[200](CONCAT '', seriesNumber(c), '/'+ cashDocumentNumber(departmentStore(c))) IF seriesNumber(c);
+overNumber(Collection collection) += BPSTRING[200](CONCAT '', seriesNumber(collection), '/'+ cashDocumentNumber(departmentStore(collection))) IF collection IS Collection AND seriesNumber(collection);
