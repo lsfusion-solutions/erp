@@ -181,8 +181,16 @@ filterMoveDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterMoveDateTo 'Дата по' = DATA LOCAL DATE ();
 
 filterMoveCustomUser  = DATA LOCAL CustomUser ();
-nameFilterMoveCustomUser 'Создан пользователем' = name[Contact](filterMoveCustomUser()) CHARWIDTH 15;          
-    
+nameFilterMoveCustomUser 'Создан пользователем' = name[Contact](filterMoveCustomUser()) CHARWIDTH 15;
+
+overShowEdit = ABSTRACT BOOLEAN (Move);
+overShowDelete = ABSTRACT BOOLEAN (Move);
+skipShowEdit = ABSTRACT VALUE BOOLEAN (Move);
+skipShowDelete = ABSTRACT VALUE BOOLEAN (Move);
+
+overShowEdit (Move i) +=  isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (Move i) += isOpened(i)AND NOT skipShowDelete(i);
+
 FORM moves 'Перемещения между зонами'
 
     PROPERTIES() filterMoveDateFrom, filterMoveDateTo, nameFilterMoveCustomUser
@@ -196,10 +204,10 @@ FORM moves 'Перемещения между зонами'
     PROPERTIES(m) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                  postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES(m) NEWSESSION NEW, EDIT SHOWIF isOpened(m)
+    PROPERTIES(m) NEWSESSION NEW, EDIT SHOWIF overShowEdit(m)
     PROPERTIES(m) close SHOWIF isOpened(m), open SHOWIF isClosed(m)     
     
-    PROPERTIES(m) NEWSESSION deleted = DELETE SHOWIF isOpened(m)
+    PROPERTIES(m) NEWSESSION deleted = DELETE SHOWIF overShowDelete(m)
 
     OBJECTS d = MoveDetail
     PROPERTIES(d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity  
