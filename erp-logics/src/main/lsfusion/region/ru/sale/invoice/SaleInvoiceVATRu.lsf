@@ -12,3 +12,15 @@ overPriceOrder(InvoiceDetail detail) += invoicePrice(orderDetail(detail)) IF wit
 overFill (UserInvoice i, Order o) + {
     withVATPrice(i) <- withVATPrice(o);
 }
+
+skipFillPriceInvoiceOrder (OrderDetail od) += withVATPrice(od);
+
+overFill (UserInvoiceDetail id, OrderDetail od) +{
+    IF NOT notFillPriceInvoiceOrder(operation(od)) THEN {
+        invoicePrice(id) <- invoicePrice(od);
+        invoiceSum(id) <- NUMERIC[18,4](round(quantity(id) * invoicePrice(id), currency(id)));
+        VATSum(id) <- NUMERIC[18,4](round(invoiceSum(id) * valueVAT(id) / (100 (+) valueVAT (id)), currency(id)));
+        sum(id) <- NUMERIC[18,4](invoiceSum(id) (-) VATSum(id));
+        price(id) <- price(od);
+    }
+}
