@@ -14,12 +14,16 @@ import lsfusion.base.DaemonThreadFactory;
 import lsfusion.base.Pair;
 import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.log4j.Appender;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Logger;
 import org.jdom.*;
 import org.jdom.input.SAXBuilder;
 import org.jdom.output.Format;
@@ -155,7 +159,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         List<String> tiList = new ArrayList<>();
                         for(String xml : xmlList) {
                             if(extendedLogs) {
-                                processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ") - " + xml);
+                                processTransactionLogger.info(getLogPrefix() + " sending xml (Transaction " + transaction.id + ")");
+                                logRequestFile("transaction", xml);
                             }
                             String ti = String.valueOf(Instant.now().toEpochMilli());
                             response = sendRequestGoods(directory, xml, ti);
@@ -632,7 +637,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 sendSalesLogger.info(key);
             }
 
-            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+            logRequestFile("sales", docToXMLString(doc));
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
@@ -1309,6 +1314,28 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
     private List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException {
         return remote.readCashRegisterInfo(sidEquipmentServer);
+    }
+
+    private static File requestDirectory = null;
+    private void logRequestFile(String prefix, String request) {
+        if(requestDirectory == null) {
+            Enumeration appenders = Logger.getRootLogger().getAllAppenders();
+            while (appenders.hasMoreElements()) {
+                Appender currAppender = (Appender) appenders.nextElement();
+                if (currAppender instanceof FileAppender && currAppender.getName().equals("stdout")) {
+                    FileAppender fileAppender = (FileAppender) currAppender;
+                    requestDirectory = new File(new File(fileAppender.getFile()).getParent() + "/requests");
+                    requestDirectory.mkdirs();
+                    break;
+                }
+            }
+        }
+
+        try {
+            FileUtils.writeStringToFile(new File(requestDirectory, prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".xml"), request, encoding);
+        } catch (IOException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     private static class Kristal10Transaction {
