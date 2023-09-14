@@ -1,6 +1,6 @@
 MODULE ShelfSpace;
 
-REQUIRE LogTools, ItemPack, Store, LegalEntity, SkuLedger, ZReport;
+REQUIRE LogTools, ItemPack, Store, LegalEntity, SkuLedger, ZReport, Pricing, PriceList, PriceListPromotion, Range;
 
 NAMESPACE ShelfSpace;
 
@@ -8,7 +8,10 @@ NAMESPACE ShelfSpace;
 
 @defineLogRotate(planogram, 5, weekly);
 
-exportDirectoryShelfSpace 'Путь для экспорта файлов (XML)' = DATA STRING[500] ();
+GROUP shelfSpace 'Экспорт';
+exportDirectoryShelfSpace 'Путь для экспорта файлов (XML)' = DATA STRING[500] () IN shelfSpace;
+imagesPathShelfSpace 'Путь для выгрузки изображений' = DATA STRING[250]()IN shelfSpace;
+
 formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
 
 CLASS DroppObject;
@@ -20,7 +23,7 @@ Description = DATA STRING (DroppObject) ;
 //date = DATA DATETIME (DroppObject);
 //BaseUnit= DATA STRING (DroppObject);
 Barcode = DATA STRING (DroppObject) ;
-GROUP shelfSpace 'Экспорт';
+
 //-- 1.	CatalogList_Brands
 
 WHEN DROPPED (Brand b AS Brand) DO NEW o = DroppObject{
@@ -46,6 +49,26 @@ FORM CatalogList_Brands FORMEXTID '=ShelfSpaceExchange:CatalogList_Brands'
 CatalogList_Brands 'Экспорт брендов (CatalogList_Brands)'(){
     EXPORT CatalogList_Brands XML TO System.exportFile;
     WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Brands' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 2.	CatalogList_ItemStatuses
+
+FORM CatalogList_ItemStatuses FORMEXTID '=ShelfSpaceExchange:CatalogList_ItemStatuses'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'CatalogList_ItemStatuses' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = INTEGER EXTID ':ListElements'
+    
+    PROPERTIES  
+        = IF b==1 THEN 'Active' ELSE 'Passive' EXTID ':ID',
+        = IF b==1 THEN 'Active' ELSE 'Passive' EXTID ':Description',
+        = IF b==1 THEN 'True' ELSE 'False' EXTID ':Active'
+    
+    FILTERS iterate(b,0,1)
+;
+CatalogList_ItemStatuses 'Экспорт каталога статусов (CatalogList_ItemStatuses)'(){
+    EXPORT CatalogList_ItemStatuses XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_ItemStatuses' +'_'+ formulaDateT(currentDateTime());
 } IN shelfSpace;
 
 //-- 3.	CatalogList_ClassifierUnits
@@ -284,11 +307,11 @@ FORM DocumentList_Zreport FORMEXTID '=ShelfSpaceExchange:DocumentList_Zreport'
 ;
 
 DocumentList_Zreport 'Экспорт Z-отчетов (DocumentList_Zreport)'(){
-    inZ(Stock st, DATE dt)<- NULL;
-    inZ(Stock st, DATE dt)<- TRUE WHERE dt==sum(currentDate(),-1) AND stockGroup(st) IS Store AND active(st);
-    
-    EXPORT DocumentList_Zreport XML TO System.exportFile;
-    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Zreport' +'_'+ formulaDateT(currentDateTime());
+//    inZ(Stock st, DATE dt)<- NULL;
+//    inZ(Stock st, DATE dt)<- TRUE WHERE dt==sum(currentDate(),-1) AND stockGroup(st) IS Store AND active(st);
+//    
+//    EXPORT DocumentList_Zreport XML TO System.exportFile;
+//    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Zreport' +'_'+ formulaDateT(currentDateTime());
 
     LOCAL NESTED dt = DATETIME();
     dt () <- currentDateTime();
@@ -304,6 +327,60 @@ DocumentList_Zreport 'Экспорт Z-отчетов (DocumentList_Zreport)'(){
         }
     }
 
+} IN shelfSpace;
+
+//-- 12.	DocumentList_Promo
+
+//WHEN DROPPED (PriceList b AS PriceList) AND PREV (in(b,Stock st)) AND st IS DepartmentStore DO NEW o = DroppObject{
+//    type(o)<- 12;
+//    ID(o)<- STRING[50](CONCAT '_', STRING(b), id(st));
+//    Description(o)<- PREV(number(b));
+//    //date(o)<- PREV(dateTime(b));
+//}
+
+inP = DATA LOCAL BOOLEAN (Stock,PriceList);
+
+FORM DocumentList_Promo FORMEXTID '=ShelfSpaceExchange:DocumentList_Promo'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'DocumentList_Promo' ATTR EXTID 'xsi:type'
+
+    OBJECTS dd=(b = PriceList, st=DepartmentStore) EXTID ':ListElements'
+    PROPERTIES  = STRING[50](CONCAT '_', STRING(b), id(st))  EXTID ':ID',
+                = toChar(dateTime(b),'yyyy-MM-ddThh24:mi:ss')  EXTID ':Date',
+                = IF isPosted(b)  THEN 'True' ELSE 'False' EXTID ':Posted',
+                = id(store(st)) EXTID ':OrgUnit',
+                = fromDate(b) EXTID ':DateStart',
+                = OVERRIDE toDate(b), 2039_12_31 EXTID ':DateEnd',
+                = nameOperation(b) EXTID ':Description',
+                = STRING[150](note(b)) EXTID ':Comment'
+
+    FILTERS inP(st,b)
+
+    OBJECTS d= PriceListDetail EXTID ':Items'
+    PROPERTIES = idSku(d) EXTID ':Item'
+    FILTERS priceList(d)==b, 
+            NOT exclude(d)
+            
+;
+
+DocumentList_Promo 'Экспорт Promo (DocumentList_Promo)'(){
+//    inP(Stock sts,PriceList s) <- NULL;
+//    inP(Stock st,PriceList p) <- TRUE WHERE st IS DepartmentStore AND in(p,st) AND isActive(p) AND isPromotion(operation(p)) AND (id(st)==id(store(st)) OR stockGroup(st) IS Store);// todo: Дописать условия
+//
+//    EXPORT DocumentList_Promo XML TO System.exportFile;
+//    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Promo' +'_'+ formulaDateT(currentDateTime());    
+    
+    FOR active(DepartmentStore st) AND (id(st)==id(store(st)) OR stockGroup(st) IS Store) DO {
+        inP(Stock sts,PriceList s) <- NULL;
+        inP(st,PriceList p) <- TRUE WHERE st IS DepartmentStore AND in(p,st) AND isActive(p) AND isPromotion(operation(p));// todo: Дописать условия
+        TRY {
+            EXPORT DocumentList_Promo XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'DocumentList_Promo' +'_'+ id(st)+'_'+formulaDateT(currentDateTime());
+        } CATCH {
+            logToFile('planogram', CONCAT '\n',  'DocumentList_Promo' +'_'+ id(st) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте DocumentList_Promo' +'_'+ id(st) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
 } IN shelfSpace;
 
 //-- 13.	InformationRegisterRecordSet_Barcode
@@ -325,10 +402,191 @@ InformationRegisterRecordSet_Barcode 'Экспорт штрихкодов (Infor
     WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_Barcode' +'_'+ formulaDateT(currentDateTime());
 } IN shelfSpace;
 
+//-- 15.	InformationRegisterRecordSet_PicturesProducts
+
+exportImagesShelfSpace 'Выгрузка изображений в каталог' () {
+    IF exportDirectoryShelfSpace() AND imagesPathShelfSpace() THEN {
+        FOR image(Sku s) AND active(s) DO {
+            WRITE image(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + id(s);
+        }
+    }
+} IN shelfSpace;
+
+dateImageChangedShelfSpace = DATA DATE (Sku);
+
+WHEN SETCHANGED(image(Sku s)) DO {
+    dateImageChangedShelfSpace(s) <- currentDate();
+}
+
+exportChangedImagesShelfSpace 'Выгрузить измененные изображения' () {
+    FOR image(Sku s) AND dateImageChangedShelfSpace(s) == sum(currentDate(), -1) DO {
+        WRITE image(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + id(s);
+    }
+} IN shelfSpace;
+
+WHEN DROPPED (image(Item b)) AND b IS Item DO NEW o = DroppObject{
+    type(o)<- 15;
+    ID(o)<- id(b);
+    Description(o)<- name(b);
+}
+
+WHEN SET(image(Item b)) DO{
+    DELETE  DroppObject o WHERE type(o)== 15 AND ID(o)==id(b);
+}
+ 
+FORM InformationRegisterRecordSet_PicturesProducts FORMEXTID '=ShelfSpaceExchange:InformationRegisterRecordSet_PicturesProducts'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'InformationRegisterRecordSet_PicturesProducts' ATTR EXTID 'xsi:type'
+
+    OBJECTS b = Item EXTID ':ListElements'
+    PROPERTIES
+        = id(b) EXTID ':Unit',
+        = STRING[150](id(b)+'.jpg')  EXTID ':FileName'
+    FILTERS image(b) AND active(b)
+
+    OBJECTS a = DroppObject EXTID ':ListElements'
+    PROPERTIES  = ID(a) EXTID ':Unit',
+        = '' IF a IS DroppObject EXTID ':FileName',
+        = 'True' IF a IS DroppObject EXTID ':Remove'
+    FILTERS type(a)==15
+;
+InformationRegisterRecordSet_PicturesProducts 'Экспорт изображений (InformationRegisterRecordSet_PicturesProducts)'(){
+    EXPORT InformationRegisterRecordSet_PicturesProducts XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_PicturesProducts' +'_'+ formulaDateT(currentDateTime());
+} IN shelfSpace;
+
+//-- 16.	InformationRegisterRecordSet_ItemStatuses
+
+fullUnload = DATA LOCAL BOOLEAN ();
+inR = DATA LOCAL BOOLEAN (Sku,Store);
+
+FORM InformationRegisterRecordSet_ItemStatuses FORMEXTID '=ShelfSpaceExchange:InformationRegisterRecordSet_ItemStatuses'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'InformationRegisterRecordSet_ItemStatuses' ATTR EXTID 'xsi:type'
+
+
+    OBJECTS dd =(s=Sku, st = Store) EXTID ':ListElements'
+    PROPERTIES
+             = id(s) EXTID ':Item', 
+             = id(st) EXTID ':OrgUnit', 
+             =  IF Range.countRange(s,st,currentDate()) THEN 'Active' ELSE 'Passive' EXTID ':Status'
+    FILTERS inR(s,st) //Range.countRange(s,st,currentDate())
+    
+    PROPERTIES = IF fullUnload() THEN  'True' ELSE 'False' EXTID ':FullUnload'    
+;
+
+InformationRegisterRecordSet_ItemStatuses 'Экспорт статусов (InformationRegisterRecordSet_ItemStatuses)'(){
+    inR(Sku s,Store st)<- NULL;
+    inR(Sku s,Store st)<- TRUE WHERE active(st) AND Range.countRange(s,st,currentDate());
+    fullUnload()<- TRUE;
+
+    EXPORT InformationRegisterRecordSet_ItemStatuses XML TO System.exportFile;
+    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_ItemStatuses' +'_'+ formulaDateT(currentDateTime());
+
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    FOR active(Store st) DO {
+        inR(Sku s,Store sts)<- NULL;
+        inR(Sku s,st)<- TRUE WHERE active(st) AND Range.countRange(s,st,currentDate());
+        fullUnload()<- TRUE;
+        TRY {
+            EXPORT InformationRegisterRecordSet_ItemStatuses XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_ItemStatuses' +'_'+ id(st)+'_'+formulaDateT(currentDateTime());
+        } CATCH {
+            logToFile('planogram', CONCAT '\n',  'InformationRegisterRecordSet_ItemStatuses' +'_'+ id(st) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте InformationRegisterRecordSet_ItemStatuses' +'_'+ id(st) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+} IN shelfSpace;
+
+//-- 17.	InformationRegisterRecordSet_Price
+
+inP = DATA LOCAL BOOLEAN (Stock,Sku);
+
+FORM InformationRegisterRecordSet_Price FORMEXTID '=ShelfSpaceExchange:InformationRegisterRecordSet_Price'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'InformationRegisterRecordSet_Price' ATTR EXTID 'xsi:type'
+
+    OBJECTS dd = (st =Stock , s=Sku ) EXTID ':ListElements'
+
+    PROPERTIES
+        = toChar(currentDateTime(),'yyyy-MM-ddThh24:mi:ss') EXTID ':Period',
+        = id(s) EXTID ':Item',
+        = id(store(st)) EXTID ':OrgUnit',
+        = NUMERIC[15,2](currentRetailPricingPrice(s,st)) EXTID ':Price'
+
+    FILTERS currentRetailPricingPrice(s,st),
+        inP(st,s)
+;
+
+InformationRegisterRecordSet_Price 'Экспорт статусов (InformationRegisterRecordSet_Price)'(){
+    //    inB(Stock st, Sku s)<- NULL;
+    //    inB(Stock st, DATE dt)<- TRUE WHERE dt==sum(currentDate(),-1) AND stockGroup(st) IS Store AND active(st);
+    //
+    //    EXPORT InformationRegisterRecordSet_Price XML TO System.exportFile;
+    //    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_Price' +'_'+ formulaDateT(currentDateTime());
+
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    FOR active(DepartmentStore st) AND (id(st)==id(store(st)) OR stockGroup(st) IS Store) DO {
+        inP(Stock sts,Sku s) <- NULL;
+        inP(st,Sku s) <- TRUE WHERE st IS DepartmentStore AND active(s);// todo: Дописать условия
+        TRY {
+            EXPORT InformationRegisterRecordSet_Price XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_Price' +'_'+ id(st)+'_'+formulaDateT(currentDateTime());
+        } CATCH {
+            logToFile('planogram', CONCAT '\n',  'InformationRegisterRecordSet_Price' +'_'+ id(st) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте InformationRegisterRecordSet_Price' +'_'+ id(st) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+} IN shelfSpace;
+
+//-- 18.	InformationRegisterRecordSet_StockBalance
+inB = DATA LOCAL BOOLEAN (Stock,Sku);
+FORM InformationRegisterRecordSet_StockBalance FORMEXTID '=ShelfSpaceExchange:InformationRegisterRecordSet_StockBalance'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES type = 'InformationRegisterRecordSet_StockBalance' ATTR EXTID 'xsi:type'
+
+    OBJECTS dd = (st =Stock , s=Sku ) EXTID ':ListElements'
+
+    PROPERTIES
+        = id(s) EXTID ':Item',
+        = id(st) EXTID ':Warehouse',
+        = currentBalance(s,st) EXTID ':Quantity'
+
+    FILTERS currentBalance(s,st),
+            inB(st,s)     
+;
+
+InformationRegisterRecordSet_StockBalance 'Экспорт остатков (InformationRegisterRecordSet_StockBalance)'(){
+//    inB(Stock st, Sku s)<- NULL;
+//    inB(Stock st, DATE dt)<- TRUE WHERE dt==sum(currentDate(),-1) AND stockGroup(st) IS Store AND active(st);
+//
+//    EXPORT InformationRegisterRecordSet_StockBalance XML TO System.exportFile;
+//    WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_StockBalance' +'_'+ formulaDateT(currentDateTime());
+
+    LOCAL NESTED dt = DATETIME();
+    dt () <- currentDateTime();
+    FOR active(DepartmentStore st) AND (id(st)==id(store(st)) OR stockGroup(st) IS Store) DO {
+        inB(Stock sts,Sku s) <- NULL;
+        inB(st,Sku s) <- TRUE WHERE st IS DepartmentStore AND active(s);// todo: Дописать условия
+        TRY {
+            EXPORT InformationRegisterRecordSet_StockBalance XML TO System.exportFile;
+            WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'InformationRegisterRecordSet_StockBalance' +'_'+ id(st)+'_'+formulaDateT(currentDateTime());
+        } CATCH {
+            logToFile('planogram', CONCAT '\n',  'InformationRegisterRecordSet_StockBalance' +'_'+ id(st) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при экспорте InformationRegisterRecordSet_StockBalance' +'_'+ id(st) +'. Обратитесь к администратору' NOWAIT;
+        }
+    }
+} IN shelfSpace;
 
 EXTEND FORM integrationData
     PROPERTIES () exportDirectoryShelfSpace,
+        imagesPathShelfSpace ,
+        exportImagesShelfSpace,
+        exportChangedImagesShelfSpace,
         CatalogList_Brands,
+        CatalogList_ItemStatuses,
         CatalogList_ClassifierUnits,
         CatalogList_Countries,
         CatalogList_OrgUnits,
@@ -336,7 +594,12 @@ EXTEND FORM integrationData
         CatalogList_Item,
         CatalogList_Units,
         DocumentList_Zreport,
-        InformationRegisterRecordSet_Barcode
+        DocumentList_Promo,
+        InformationRegisterRecordSet_Barcode,
+        InformationRegisterRecordSet_Price,
+        InformationRegisterRecordSet_PicturesProducts,
+        InformationRegisterRecordSet_ItemStatuses,
+        InformationRegisterRecordSet_StockBalance
 
 //    OBJECTS sds = DepartmentStore
 //    PROPERTIES (sds) READONLY name, id, nameLegalEntity
