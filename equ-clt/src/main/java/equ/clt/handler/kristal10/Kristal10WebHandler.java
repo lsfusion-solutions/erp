@@ -624,17 +624,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
         boolean extendedLogs = kristalSettings.isExtendedLogs();
 
-        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null) {
-                String idDepartmentStore = getIdDepartmentStore(c.numberGroup, c.idDepartmentStore, useNumberGroupInShopIndices);
-                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
-
-                List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
-                keyCashRegisterList.add(c);
-                cashRegisterByKeyMap.put(key, keyCashRegisterList);
-            }
-        }
+        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, useNumberGroupInShopIndices, ignoreSalesDepartmentNumber);
 
         if(extendedLogs) {
             sendSalesLogger.info("cashRegisterByKeyMap: ");
@@ -788,7 +778,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     if (departNumber == null)
                         departNumber = positionDepartNumber;
 
-                    String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
+                    String key = getCashRegisterKey(directory, numberCashRegister, ignoreSalesDepartmentNumber, departNumber, useShopIndices, shop);
                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
                     Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
 
@@ -1158,7 +1148,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                 if (purchases) {
                     try {
-                        readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery, extendedLogs);
+                        readSalesInfo(sidEquipmentServer, httpExchange, ignoreSalesWithoutNppGroupMachinery);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading SalesInfo", e);
                         sendSalesLogger.info(getLogPrefix() + "Request body was: " + new String(IOUtils.readBytesFromStream(httpExchange.getRequestBody()), encoding));
@@ -1175,7 +1165,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     }
                 } else if (zreports) {
                     try {
-                        readZReports(sidEquipmentServer, httpExchange, extendedLogs);
+                        readZReports(sidEquipmentServer, httpExchange);
                     } catch (Exception e) {
                         sendSalesLogger.error(getLogPrefix() + "Reading ZReports", e);
                         sendZReportsResponse(httpExchange, e.getMessage());
@@ -1190,7 +1180,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange, boolean ignoreSalesWithoutNppGroupMachinery, boolean extendedLogs) throws IOException, SQLException, JDOMException {
+    private void readSalesInfo(String sidEquipmentServer, HttpExchange httpExchange, boolean ignoreSalesWithoutNppGroupMachinery) throws IOException, SQLException, JDOMException {
         List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "purchases"));
 
@@ -1234,7 +1224,29 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
     }
 
-    private void readZReports(String sidEquipmentServer, HttpExchange httpExchange, boolean extendedLogs) throws IOException, SQLException, JDOMException {
+    private void readZReports(String sidEquipmentServer, HttpExchange httpExchange) throws IOException, SQLException, JDOMException {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
+        boolean ignoreSalesWeightPrefix = kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
+        boolean useShopIndices = kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean ignoreSalesDepartmentNumber = kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
+        boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
+        boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
+        boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
+        boolean extendedLogs = kristalSettings.isExtendedLogs();
+
+        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = null;
+        String directory = null;
+        if(useShopIndices && ignoreSalesDepartmentNumber && useNumberGroupInShopIndices) {
+            List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
+            cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, true, true);
+
+            for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
+                if (fitHandler(cashRegister) && !cashRegister.disableSales) {
+                    directory = cashRegister.directory;
+                    break;
+                }
+            }
+        }
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
@@ -1250,18 +1262,23 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
             Integer numberGroupCashRegister = readIntegerXMLValue(zReportNode, "shopNumber");
 
-            LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"),10), DateTimeFormatter.ISO_DATE);
+            String key = getCashRegisterKey(directory, numberCashRegister, true, null, true, String.valueOf(numberGroupCashRegister));
+            CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
 
-            String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
-            String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+            if (cashRegisterByKeyMap == null || !ignoreSales(cashRegisterByKey, numberGroupCashRegister, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
 
-            BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
-            BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
-            BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
-            if (kristalSum.compareTo(BigDecimal.ZERO) != 0) {
-                zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
+                LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"), 10), DateTimeFormatter.ISO_DATE);
+
+                String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
+                String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport + "_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
+
+                BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
+                BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
+                BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
+                if (kristalSum.compareTo(BigDecimal.ZERO) != 0) {
+                    zReportSumMap.put(idZReport, Arrays.asList(kristalSum, numberCashRegister, numberZReport, idZReport, numberGroupCashRegister));
+                }
             }
-
         }
 
         //вне зависимости от результата отправляем, что запрос обработан успешно

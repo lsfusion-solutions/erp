@@ -602,17 +602,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
         boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
 
-        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
-        for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null) {
-                String idDepartmentStore = getIdDepartmentStore(c.numberGroup, c.idDepartmentStore, useNumberGroupInShopIndices);
-                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
-
-                List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
-                keyCashRegisterList.add(c);
-                cashRegisterByKeyMap.put(key, keyCashRegisterList);
-            }
-        }
+        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, useNumberGroupInShopIndices, ignoreSalesDepartmentNumber);
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -776,7 +766,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                     if (departNumber == null)
                                         departNumber = positionDepartNumber;
 
-                                    String key = directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
+                                    String key = getCashRegisterKey(directory, numberCashRegister, ignoreSalesDepartmentNumber, departNumber, useShopIndices, shop);
                                     CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
                                     Integer nppGroupMachinery = cashRegisterByKey != null ? cashRegisterByKey.numberGroup : null;
 

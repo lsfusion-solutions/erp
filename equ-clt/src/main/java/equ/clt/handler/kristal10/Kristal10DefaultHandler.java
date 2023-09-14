@@ -631,22 +631,43 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value != null && !value.isEmpty();
     }
 
+    protected String getCashRegisterKey(String directory, Integer numberCashRegister, boolean ignoreSalesDepartmentNumber, String departNumber, boolean useShopIndices, String shop) {
+        return directory + "_" + numberCashRegister + (ignoreSalesDepartmentNumber ? "" : ("_" + departNumber)) + (useShopIndices ? ("_" + shop) : "");
+    }
+
+    protected Map<String, List<CashRegisterInfo>>  getCashRegisterByKeyMap(List<CashRegisterInfo> cashRegisterInfoList, boolean useShopIndices, boolean useNumberGroupInShopIndices, boolean ignoreSalesDepartmentNumber) {
+        Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = new HashMap<>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.directory != null && c.number != null) {
+                String idDepartmentStore = getIdDepartmentStore(c.numberGroup, c.idDepartmentStore, useNumberGroupInShopIndices);
+                String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + idDepartmentStore) : "");
+
+                List<CashRegisterInfo> keyCashRegisterList = cashRegisterByKeyMap.getOrDefault(key, new ArrayList<>());
+                keyCashRegisterList.add(c);
+                cashRegisterByKeyMap.put(key, keyCashRegisterList);
+            }
+        }
+        return cashRegisterByKeyMap;
+    }
+
     protected CashRegisterInfo getCashRegister(Map<String, List<CashRegisterInfo>> cashRegisterMap, String key) {
         //ищем кассу без disableSales. Если все с disableSales, берём первую
         CashRegisterInfo cashRegister = null;
-        List<CashRegisterInfo> cashRegisterList = cashRegisterMap.get(key);
-        if(cashRegisterList != null) {
-            for(CashRegisterInfo c : cashRegisterList) {
-                if(!c.disableSales) {
-                    cashRegister = c;
-                    break;
+        if (cashRegisterMap != null) {
+            List<CashRegisterInfo> cashRegisterList = cashRegisterMap.get(key);
+            if (cashRegisterList != null) {
+                for (CashRegisterInfo c : cashRegisterList) {
+                    if (!c.disableSales) {
+                        cashRegister = c;
+                        break;
+                    }
+                }
+                if (cashRegister == null) {
+                    cashRegister = cashRegisterList.get(0);
                 }
             }
-            if(cashRegister == null) {
-                cashRegister = cashRegisterList.get(0);
-            }
         }
-        return  cashRegister;
+        return cashRegister;
     }
 
     protected Set<String> parseStringPayments(String payments) {
