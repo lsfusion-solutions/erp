@@ -246,7 +246,9 @@ public class MettlerToledoTigerHandler extends MultithreadScalesHandler {
         protected SendTransactionResult run() {
             List<String> localErrors = new ArrayList<>();
             boolean cleared = false;
-            TCPPort port = new TCPPort(scales.port, 3001);
+            String[] hostPort = scales.port.split(":");
+            TCPPort port = hostPort.length == 1 ? new TCPPort(scales.port, 3001) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+
             try {
                 port.open();
 
