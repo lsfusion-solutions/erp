@@ -1778,8 +1778,13 @@ backgroundDiffInventoryProp(CollationSheet cs, Sku s) = backgroundDiffInventory(
     ((sumBalance(cs,s) OR sumB(s,stock(cs),dateTime(cs))) AND NOT isPrice(inventory(cs)) AND NOT sumBalance(cs,s)==sumB(s,stock(cs),dateTime(cs))));
     
 background 'Цвет' = ABSTRACT CASE COLOR (Sku, Stock, Inventory);
+
+backgroundDiffInventory = ABSTRACT BOOLEAN (CollationSheet);
+backgroundDiffInventoryColor = ABSTRACT CASE COLOR (CollationSheet, Sku);
+
 backgroundDiffInventory(CollationSheet cs, Sku s) = CASE 
     WHEN backgroundDiffInventoryProp(cs,s) THEN RGB (255,153,153) 
+    WHEN backgroundDiffInventory(cs) AND s IS Sku THEN backgroundDiffInventoryColor(cs,s)
     ELSE background(s, stock(cs), inventory(cs));
 
 hideQuantityPageInventoryDetailSku = ABSTRACT BOOLEAN ();
