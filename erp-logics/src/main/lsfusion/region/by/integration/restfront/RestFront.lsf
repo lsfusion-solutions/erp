@@ -210,19 +210,14 @@ FORM importGoodGroup
     PROPERTIES(value) nameGoodGroup EXTID 'name', cookingTimeGoodGroup EXTID 'cookingTime', parentGoodGroup IN parent EXTID 'name'
 ;
 
-toEncodeUrlCustomGroup 'Кодировать имя группы при передаче' = DATA BOOLEAN (); //remove after upgrade to v5
 putGoodGroup (DepartmentStore ds, CustomGroup g) {
     LOCAL file = TEXT();
     file() <- textGoodGroup(g);
     stringToFile(file(),'UTF-8','json');
-
-    IF toEncodeUrlCustomGroup() THEN {
-        urlEncode(name(g));
-    }
     
     value(STRING key) <- CASE
         WHEN key = 'systemKey' THEN STRING(systemKey(ds))
-        WHEN key = 'name' THEN IF toEncodeUrlCustomGroup() THEN urlEncoded() ELSE name(g);
+        WHEN key = 'name' THEN name(g);
     
     logToFile('RestFront', 'PUT: ' + (CONCAT '?', urlAPI(ds) + '/api/front/goodGroup/name', params()) + '\n' + file());
     LOCAL result = FILE();
