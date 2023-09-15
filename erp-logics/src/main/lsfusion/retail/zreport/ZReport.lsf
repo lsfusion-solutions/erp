@@ -665,7 +665,7 @@ FORM zReport 'Z-отчет'
                   quantity, quantityReturned, price,
                   sum, discountPercent, discountSum ,
                   numberVAT, valueVAT, sumVAT 
-    PROPERTIES(d) NEW, DELETE GRID
+    PROPERTIES(d) DELETE GRID
 
     FILTERS receipt(d)==b
 
@@ -714,6 +714,38 @@ DESIGN zReport {
 }
 
 
+newReceiptSaleDetail 'Строка продажи' (Receipt r) {
+    NEW d = ReceiptSaleDetail {
+        receipt(d) <- r;
+        addedObject() <- d;
+        formClose();
+    }
+}
+newReceiptReturnDetail 'Строка возврата' (Receipt r) {
+    NEW d = ReceiptReturnDetail {
+        receipt(d) <- r;
+        addedObject() <- d;
+        formClose();
+    }
+}
+FORM newReceiptDetail 'Выберите класс'
+    OBJECTS r = Receipt PANEL 
+    PROPERTIES (r) newReceiptSaleDetail, newReceiptReturnDetail
+    PROPERTIES cancel 'Отмена' = formClose()
+;
+DESIGN newReceiptDetail {
+    MOVE BOX(r) {caption = '';};
+    MOVE PROPERTY (cancel);
+    REMOVE TOOLBARBOX;
+}
+
+newReceiptDetail 'Добавить' (Receipt r) {
+    SHOW newReceiptDetail OBJECTS r = r;
+    SEEK zReport.d = addedObject();
+} TOOLBAR IMAGE 'add.png';
+
+EXTEND FORM zReport 
+    PROPERTIES newReceiptDetail(b) DRAW d;
 
 overCopy  ABSTRACT LIST ( ReceiptDetail, ReceiptDetail);
 overCopy  ABSTRACT LIST ( ReceiptDetail, Receipt);    

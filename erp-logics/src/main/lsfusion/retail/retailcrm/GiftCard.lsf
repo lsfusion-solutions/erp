@@ -127,6 +127,17 @@ EXTEND FORM zReports
     PROPERTIES(d) READONLY seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) 
 ;
 
+newReceiptGiftCardSaleDetail 'Строка продажи сертификата' (Receipt r) {
+    NEW d = ReceiptGiftCardSaleDetail {
+        receipt(d) <- r;
+        addedObject() <-d;
+        formClose();
+    }
+}
+
+EXTEND FORM newReceiptDetail
+    PROPERTIES (r) newReceiptGiftCardSaleDetail;
+
 receipt = DATA Receipt (ReceiptGiftCardSaleDetail) NONULL DELETE INDEXED AGGR;
 receipt(ReceiptGiftCardSaleDetail detail) += receipt(detail);
 zReport(ReceiptGiftCardSaleDetail d) = zReport(receipt(d)); 
@@ -432,10 +443,11 @@ EXTEND FORM zReports
     PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumGiftCardPayment    
 ;
 
-addGiftCardpayment 'Добавить ПС' (Receipt r)  { 
+addGiftCardpayment 'Добавить ПС' (Receipt r) { 
     NEW p = PaymentGiftCard {
         receipt(p) <- r; 
-        paymentType(p)<-(GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansGiftCard);
+        paymentType(p) <- (GROUP MAX PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansGiftCard);
+        SEEK zReport.p = p;
     }
 } 
 
