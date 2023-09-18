@@ -1214,7 +1214,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, introductions ? "introductions" :  "withdrawals"));
 
         if(extendedLogs) {
-            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+            logRequestFile("cashDocument", docToXMLString(doc));
         }
 
         List<CashDocument> cashDocumentList = parseCashDocumentXML(doc, introductions);
@@ -1241,9 +1241,18 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = null;
         String directory = null;
+        //todo: remove temp log
+        if(extendedLogs) {
+            sendSalesLogger.info("ReadZReports: " + useShopIndices + "/" + ignoreSalesDepartmentNumber + "/" + useNumberGroupInShopIndices);
+        }
         if(useShopIndices && ignoreSalesDepartmentNumber && useNumberGroupInShopIndices) {
             List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
             cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, true, true);
+
+            //todo: remove temp log
+            if(extendedLogs) {
+                sendSalesLogger.info("ReadZReports cashRegister key: " + cashRegisterByKeyMap.keySet());
+            }
 
             for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
                 if (fitHandler(cashRegister) && !cashRegister.disableSales) {
@@ -1268,9 +1277,18 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             Integer numberGroupCashRegister = readIntegerXMLValue(zReportNode, "shopNumber");
 
             String key = getCashRegisterKey(directory, numberCashRegister, true, null, true, String.valueOf(numberGroupCashRegister));
+            //todo: remove temp log
+            if(extendedLogs) {
+                sendSalesLogger.info("ReadZReports: key = " + key);
+            }
             CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
 
             if (cashRegisterByKeyMap == null || !ignoreSales(cashRegisterByKey, numberGroupCashRegister, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
+
+                //todo: remove temp log
+                if(extendedLogs) {
+                    sendSalesLogger.info("ReadZReports: cashRegisterByKey found " + (cashRegisterByKey != null));
+                }
 
                 LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"), 10), DateTimeFormatter.ISO_DATE);
 
