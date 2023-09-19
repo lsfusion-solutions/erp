@@ -113,9 +113,11 @@ getParameters 'Получить параметры' (LotInit i) {
     exception(i) <- NULL;    
     
     TRY {
-  //      EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
-         EXTERNAL HTTP POST urlEZ() + '/catalogs/' + code()  HEADERS ezHeadersLotOrder TO result; // 
+        EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
+        fileToString(result());
+//         EXTERNAL HTTP POST urlEZ() + '/catalogs/' + code()  HEADERS ezHeadersLotOrder TO result; // 
     } CATCH {
+        fileToString(result());
         handleException(i, result());
         RETURN;
     }       
@@ -187,7 +189,25 @@ markMethod 'Способ маркировки (полиграфическая з
 
 orderTypeProd () = '93';
 orderTypeTest () = '123';
-orderType 'Тип производственного заказа' = IF testWebService() THEN orderTypeTest() ELSE orderTypeTest();
+orderType 'Тип производственного заказа' = IF testWebService() THEN orderTypeTest() ELSE orderTypeProd();
+
+// Режим «Комиссионная торговля» или «Перемаркировка (возврат товара)»
+contractDateProd () = '102';
+contractDateTest () = '136';
+contractDate 'Основание: дата документа' = IF testWebService() THEN contractDateTest() ELSE contractDateProd();
+
+contractNumberProd () = '103';
+contractNumberTest () = '135';
+contractNumber 'Основание: номер документа ' = IF testWebService() THEN contractNumberTest() ELSE contractNumberProd();
+
+reasonMarkProd () = '104';
+reasonMarkTest () = '134';
+reasonMark 'Причина нанесения СИ' = IF testWebService() THEN reasonMarkTest() ELSE reasonMarkProd();
+
+
+reasonRemarkProd () = '124';
+reasonRemarkTest () = '153';
+reasonRemark 'Причина перемаркировки' = IF testWebService() THEN reasonRemarkTest() ELSE reasonRemarkProd();
 
 // разрешено формировать отчтет только по одному GTIN
 addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
@@ -260,10 +280,60 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
                 RETURN;
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
-            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';  
+            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';
+
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}';
+
+            IF contractDate(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + contractDate() + ', "value": "' + toChar(contractDate(i),'YYYY-MM-DD') + '"\}';
+            } ELSE {
+                MESSAGE 'Не задана дата документа основания' NOWAIT;
+            }
+
+            IF contractNumber(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + contractNumber() + ', "value": "' + contractNumber(i) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задан номер документа основания' NOWAIT;
+            }
+
+            IF reasonMark(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + reasonMark() + ', "value": "' + codeReasonMark(i) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задана причина нанесения СИ' NOWAIT;
+            }
+
+            IF NOT codeReasonMark(i) OR NOT contractNumber(i) OR NOT toChar(contractDate(i),'YYYY-MM-DD') THEN
+                RETURN;
         }
         WHEN mode(i) == LotInitMode.REMARK THEN {
-            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';     
+            listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';
+
+            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}';
+
+            IF contractDate(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + contractDate() + ', "value": "' + toChar(contractDate(i),'YYYY-MM-DD') + '"\}';
+            } ELSE {
+                MESSAGE 'Не задана дата документа основания' NOWAIT;
+            }
+
+            IF contractNumber(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + contractNumber() + ', "value": "' + contractNumber(i) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задан номер документа основания' NOWAIT;
+            }
+
+            IF reasonMark(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + reasonMark() + ', "value": "' + codeReasonMark(i) + '"\}';
+            } ELSE {
+                MESSAGE 'Не задана причина нанесения СИ' NOWAIT;
+            }
+
+            IF reasonRemark(i) THEN {
+                listParams() <- listParams() + ', \{ "code": ' + reasonRemark() + ', "value": "' + codeReasonRemark(i) + '"\}';
+            }
+
+            IF NOT codeReasonMark(i) OR NOT contractNumber(i) OR NOT toChar(contractDate(i),'YYYY-MM-DD') THEN
+                RETURN;
         };
         
     strResult() <- '\{' + strResult() + ', "params": [' + listParams() + ']' + '\}';

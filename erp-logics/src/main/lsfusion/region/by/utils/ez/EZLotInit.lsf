@@ -52,6 +52,43 @@ productionType = DATA LotInitProductionType (LotInit);
 codeProductionType (LotInit i) = code(productionType(i));
 nameProductionType 'Тип заказа' (LotInit i) = name(productionType(i));
 
+contractDate 'Основание: дата документа' = DATA DATE (LotInit);
+contractNumber 'Основание: номер документа ' = DATA STRING (LotInit);
+
+CLASS ReasonMark 'Причина нанесения СИ' {
+    INTEGRITY 'Нарушение целостности СИ',
+    ABSENCE 'Отсутствие СИ'
+}
+
+code 'Код' (ReasonMark rm) = CASE
+    WHEN rm == ReasonMark.INTEGRITY THEN 1
+    WHEN rm == ReasonMark.ABSENCE THEN 2;
+
+name '{master.data.name}' (ReasonMark rm) = staticCaption(rm) IF rm IS ReasonMark CHARWIDTH 15;
+
+reasonMark = DATA ReasonMark (LotInit);
+codeReasonMark(LotInit i) = code(reasonMark(i));
+nameReasonMark 'Причина нанесения СИ' (LotInit i) = name(reasonMark(i));
+
+CLASS ReasonRemark 'Причина перемаркировки' {
+    BUYER_RETURN 'Возврат от покупателя',
+    SUPPLIERS_REFUSAL 'Отказ поставщика в приемке товара',
+    SUPPLIER_LIQUIDATION 'Поставщик в стадии ликвидации/ликвидирован',
+    DAMAGE_GOODS 'Порча при обороте товаров'
+}
+
+code 'Код' (ReasonRemark rr) = CASE
+    WHEN rr == ReasonRemark.BUYER_RETURN THEN 1
+    WHEN rr == ReasonRemark.SUPPLIERS_REFUSAL THEN 2
+    WHEN rr == ReasonRemark.SUPPLIER_LIQUIDATION THEN 3
+    WHEN rr == ReasonRemark.DAMAGE_GOODS THEN 4;
+
+name '{master.data.name}' (ReasonRemark rr) = staticCaption(rr) IF rr IS ReasonRemark CHARWIDTH 15;
+
+reasonRemark = DATA ReasonRemark (LotInit);
+codeReasonRemark(LotInit i) = code(reasonRemark(i));
+nameReasonRemark 'Причина перемаркировки' (LotInit i) = name(reasonRemark(i));
+
 CLASS LotInitMarkingMethod 'Способ маркировки (полиграфическая защита)' {
     PROTECTED 'Использование защищенного материального носителя',
     PROTECTION_MARK 'Использование знака защиты',
@@ -77,7 +114,10 @@ codeMethod (LotInit i) = code(method(i));
 nameMethod 'Способ маркировки' (LotInit i) = name(method(i));
 
 EXTEND FORM lotInit
-    PROPERTIES(i) nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i), nameMethod
+    PROPERTIES(i) nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i)
+    PROPERTIES(i) SHOWIF LotInitMode.REMARK == mode(i) OR LotInitMode.COMMISSION == mode(i) contractDate, contractNumber, nameReasonMark
+    PROPERTIES(i) SHOWIF LotInitMode.REMARK == mode(i) nameReasonRemark
+    PROPERTIES(i) nameMethod
 ;
 DESIGN lotInit {
     header {
@@ -86,13 +126,19 @@ DESIGN lotInit {
             alignment = STRETCH;
             MOVE PROPERTY(nameMode(i)) { notNull = TRUE; }
             MOVE PROPERTY(nameProductionType(i)) { notNull = TRUE; }
+            MOVE PROPERTY(contractDate(i)) { notNull = TRUE; }
+            MOVE PROPERTY(contractNumber(i)) { notNull = TRUE; }
+            MOVE PROPERTY(nameReasonMark(i)) { notNull = TRUE; }            
+            MOVE PROPERTY(nameReasonRemark(i)) { notNull = TRUE; }            
             MOVE PROPERTY(nameMethod(i)) { notNull = TRUE; }
         }
     } 
 }
 
 EXTEND FORM lotInits
-    PROPERTIES(i) READONLY nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i), nameMethod
+    PROPERTIES(i) READONLY nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i)
+    PROPERTIES(i) READONLY SHOWIF LotInitMode.REMARK == mode(i) OR LotInitMode.COMMISSION == mode(i) contractDate, contractNumber, reasonMark
+    PROPERTIES(i) READONLY nameMethod
 ;
 
 CLASS ReportEZ 'Отчет ЭЗ';
