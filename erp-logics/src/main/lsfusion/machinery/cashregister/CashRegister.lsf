@@ -90,6 +90,9 @@ startDateGroupCashRegister 'Дата начала продаж' = GROUP MIN star
 notDetailed 'Не детализировать по чекам' = DATA BOOLEAN (GroupCashRegister) IN base; 
 active 'Активный' (CashRegister cashRegister) = active(groupCashRegister(cashRegister));
 
+dataInactive 'Неактивна' = DATA BOOLEAN (CashRegister);
+overInactive (CashRegister cr) += dataInactive(cr);
+
 departmentNumber 'Номер группы касс' = DATA INTEGER (GroupCashRegister) IN id;
 overDepartmentNumberCashRegister 'Номер группы касс' (GroupMachinery gcr) = OVERRIDE departmentNumber(gcr), npp(gcr);
 overDepartmentNumber 'Номер группы касс' (Machinery cr) = overDepartmentNumberCashRegister(groupMachinery(cr));
@@ -171,7 +174,7 @@ changeDirectory(GroupCashRegister group)  {
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister PANEL
     PROPERTIES(c) nameGroupMachinery, npp, shortDescription, description, port, 
-                  logPath, ip, comPort, overBaudRate, flags, disableSales, dataDirectory, 
+                  logPath, ip, comPort, overBaudRate, flags, disableSales, dataInactive, dataDirectory, 
                   date, hostnameComputer
     EDIT CashRegister OBJECT c
 ;
@@ -190,7 +193,7 @@ FORM groupCashRegister 'Группа касс'
                     logPath, ip, comPort SHOWIF ignoreCashRegisterServerCashRegisterModel(grc), 
                     overBaudRate SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     flags,
-                    disableSales,
+                    disableSales, dataInactive,
                     dataDirectory SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     date, hostnameComputer, nameLegalEntity, NEW, DELETE GRID
 
@@ -198,6 +201,9 @@ FORM groupCashRegister 'Группа касс'
     PROPERTIES(cu) login, firstName, lastName, nameMainRole
     PROPERTIES(grc, cu) operatorNumber
 
+    FILTERGROUP active
+        FILTER 'Активные' NOT inactive(c) DEFAULT
+    
     FILTERGROUP filters2
         FILTER 'Показывать только для данной группы' groupCashRegister(c) == grc 'F10' DEFAULT
 
@@ -301,11 +307,14 @@ FORM groupsCashRegister 'Группы касс'
     PROPERTIES(grc)             copy
 
     PROPERTIES(c) READONLY npp, shortDescription, description, port, logPath, ip, comPort, overBaudRate, flags,
-                           disableSales, dataDirectory, date, nameLegalEntity
+                           disableSales, dataInactive, dataDirectory, date, nameLegalEntity
     FILTERS groupCashRegister(c) == grc
     
     FILTERGROUP active1
         FILTER 'Активные' active(grc) 'F6' DEFAULT
+
+    FILTERGROUP active2
+        FILTER 'Активные' NOT inactive(c) DEFAULT
 ;
 @extendFormFilterAccessStock(GroupMachinery, grc, groupsCashRegister, stock, company);
 
