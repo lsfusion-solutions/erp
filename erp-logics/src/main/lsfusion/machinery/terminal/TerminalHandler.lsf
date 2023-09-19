@@ -98,6 +98,11 @@ currentPriceInTerminal 'Текущая цена' (Sku sku, Stock stock) = IF use
     ELSE prevAccountPriceA(sku, stock, currentDateTime());
 currentPriceInTerminal 'Текущая цена' (Barcode barcode, Stock stock) = currentPriceInTerminal(sku(barcode), stock);
 
+overCurrentPriceInTerminal = ABSTRACT NUMERIC[16,4] (Batch, Stock);
+currentPriceInTerminal 'Текущая цена' (Batch batch, Stock stock) = IF useOverPriceInTerminal(stock)
+    THEN overCurrentPriceInTerminal(batch, stock)
+    ELSE cost(batch) IF stock IS Stock;
+
 useCurrentQuantityInTerminal 'Загружать в терминал текущие остатки' = DATA BOOLEAN () PREREAD;
 @addRoleApplicationSetting(blockCurrentQuantityInTerminal, 'Запретить выгрузку остатков в ТСД', BOOLEAN);
 currentBalance (Barcode barcode, Stock st, CustomUser user) = currentBalance(sku(barcode), st) IF NOT blockCurrentQuantityInTerminal(mainRole(user));
