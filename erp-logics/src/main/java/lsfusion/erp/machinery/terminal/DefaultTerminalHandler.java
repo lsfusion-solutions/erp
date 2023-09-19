@@ -543,7 +543,7 @@ public class DefaultTerminalHandler {
             batchQuery.addProperty("date", terminalHandlerLM.findProperty("date[Batch]").getExpr(batchExpr));
             batchQuery.addProperty("number", terminalHandlerLM.findProperty("number[Batch]").getExpr(batchExpr));
             batchQuery.addProperty("idSupplier", terminalHandlerLM.findProperty("idSupplierStock[Batch]").getExpr(batchExpr));
-            batchQuery.addProperty("cost", terminalHandlerLM.findProperty("cost[Batch]").getExpr(batchExpr));
+            batchQuery.addProperty("cost", terminalHandlerLM.findProperty("currentPriceInTerminal[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
             batchQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
 
             batchQuery.and(terminalHandlerLM.findProperty("filterBatch[Batch, Stock]").getExpr(session.getModifier(), batchExpr, stockObject.getExpr()).getWhere());
