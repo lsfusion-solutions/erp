@@ -1283,7 +1283,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             }
             CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
 
-            if (cashRegisterByKeyMap == null || !ignoreSales(cashRegisterByKey, numberGroupCashRegister, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery)) {
+            if (cashRegisterByKeyMap == null || (cashRegisterByKey != null && !ignoreSales(cashRegisterByKey, numberGroupCashRegister, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery))) {
 
                 //todo: remove temp log
                 if(extendedLogs) {
