@@ -179,7 +179,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                     if (error != 0) {
                                                         if (itemErrors != null && !itemErrors.isEmpty())
                                                             localErrors.addAll(itemErrors);
-                                                        logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
+                                                        logError(localErrors, String.format("Shtrih: Load PLU, Item # %s, Error # %s (%s)", item.idBarcode, error, getErrorText(error)));
                                                         //поменяли логику: три товара по 5 попыток не прогрузились - прекращаем загрузку всех последующих
                                                         globalError++;
                                                         if(globalError >= 3)
@@ -191,6 +191,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
 
                                             //зануляем незадействованные pluNumber
                                             if (transaction.snapshot && advancedClearMaxPLU != 0 && globalError < 3) {
+                                                processTransactionLogger.info("Shtrih: resetting item start" );
                                                 String firstLine = "Недопустимый штрих-код!";
                                                 String secondLine = "";
                                                 String message = "";
@@ -204,14 +205,16 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                             attempt++;
                                                             itemErrors = new ArrayList<>();
 
-                                                            int j = 0;
-                                                            while (j < 8) {
-                                                                int result = setMessageData(itemErrors, port, i, j + 1, message);
-                                                                if (result != 0) {
-                                                                    error = result;
-                                                                    break;
+                                                            if (!skipDescription) {
+                                                                int j = 0;
+                                                                while (j < 8) {
+                                                                    int result = setMessageData(itemErrors, port, i, j + 1, message);
+                                                                    if (result != 0) {
+                                                                        error = result;
+                                                                        break;
+                                                                    }
+                                                                    j++;
                                                                 }
-                                                                j++;
                                                             }
 
                                                             if (error == 0) {
@@ -226,7 +229,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                                         if (error != 0) {
                                                             if (itemErrors != null && !itemErrors.isEmpty())
                                                                 localErrors.addAll(itemErrors);
-                                                            logError(localErrors, String.format("Shtrih: Item # %s, Error # %s (%s)", i, error, getErrorText(error)));
+                                                            logError(localErrors, String.format("Shtrih: Clear PLU, Item # %s, Error # %s (%s)", i, error, getErrorText(error)));
                                                             globalError++;
                                                             if(globalError >= 3)
                                                                 break;
