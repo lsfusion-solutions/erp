@@ -6,10 +6,6 @@ NAMESPACE Fit;
 
 formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
 
-createDate 'Дата начала действия' (discountCard) = DATA DATE (DiscountCard) IN discountCardDate;
-
-createDate (DiscountCard discountCard) <- currentDate() WHEN SET(discountCard IS DiscountCard);
-
 sendDiscountCardFit (CashRegister cr) {
     IF isFit(cr) AND NOT inactive(cr) THEN {
         NEWSESSION {
@@ -30,9 +26,9 @@ sendDiscountCardFit (CashRegister cr) {
                  dateNew = alpha('', 8),                                                                    // 13. Новое представление даты
                  codePrice = numeric(0, 2),                                                                     // 14. Код прайса
                  group = numeric(0, 3),                                                                         // 15. Код товарной группы
-                 dateTime = alpha((OVERRIDE formulaDateT(dateTimeToDateTime(createDate(dc),'00:01')), ''), 17),                           // 16. Дата время формирования
-                 beginDateTime = alpha((OVERRIDE formulaDateT(dateTimeToDateTime(date(dc),'00:01')), ''), 12),                            // 17. Дата/Время начала работы с клиентом
-                 finishDateTime = alpha((OVERRIDE formulaDateT(dateTimeToDateTime(dateTo(dc),'23:59')), ''), 12),                         // 18. Дата/Время окончания работы с клиентом
+                 dateTime = currentTimeText(),                                                                  // 16. Дата время формирования
+                 beginDateTime = char((OVERRIDE formulaDateT(dateTimeToDateTime(date(dc),'00:01')), ''), 12),                            // 17. Дата/Время начала работы с клиентом
+                 finishDateTime = char((OVERRIDE formulaDateT(dateTimeToDateTime(dateTo(dc),'23:59')), ''), 12),                         // 18. Дата/Время окончания работы с клиентом
                  maxSum = numeric(0, 9),                                                                        // 19. Суммовой порог
                  expiryDays = numeric(0, 3),                                                                    // 20. Срок действия (в днях)
                  numberProgram = numeric(0, 4),                                                                 // 21. Номер календарной программы
