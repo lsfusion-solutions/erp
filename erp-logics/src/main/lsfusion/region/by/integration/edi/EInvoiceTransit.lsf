@@ -1,6 +1,6 @@
 MODULE EInvoiceTransit;
 
-REQUIRE EInvoice, ConsignmentEInvoice, SaleEInvoiceLot, CustomsGroupItem, PurchaseEInvoice;
+REQUIRE EInvoice, ConsignmentEInvoice, SaleEInvoiceLot, CustomsGroupItem, PurchaseEInvoice, LegalEntityCU;
 
 NAMESPACE EDI;
 
@@ -14,6 +14,7 @@ countrySupplier 'Страна поставщика' (EInvoice i) = name(country(
 
 countryCodeCustomer 'Код страны покупателя' (EInvoice i) = sidOrigin2(country(customer(i)));
 countryCustomer 'Страна покупателя' (EInvoice i) = name(country(customer(i)));
+overUNPCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE UNPForeign(customer(i)), UNP(customer(i));
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrspt 'SYSTEMMESSAGE-BLRSPT',
@@ -142,7 +143,7 @@ FORM exportBlrspt FORMEXTID 'BLRSPT'
         addressCustomer(ein) EXTID 'Address',
         countryCodeCustomer(ein) EXTID 'ReceiverCountryCode',
         countryCustomer(ein) EXTID 'ReceiverCountry',
-        unpCustomer(ein) EXTID 'VATRegistrationNumber'
+        overUNPCustomer(ein) EXTID 'VATRegistrationNumber'
     PROPERTIES DRAW ein IN shipFrom 
         glnSupplierStock(ein) EXTID 'GLN',
         addressSupplierStock(ein) EXTID 'Address',
