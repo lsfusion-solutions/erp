@@ -404,10 +404,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + numberZReport + "/" + (cashIn ? "introduction" : "withdrawal");
 
-            //todo: remove temp log
-            String idZReport = numberGroup + "_" + numberCashRegister + "_" + numberZReport + "_" + dateTimeCashDocument.toLocalDate().format(DateTimeFormatter.ofPattern("ddMMyyyy"));
-            sendSalesLogger.info(getLogPrefix() + "cashDocument = " + idCashDocument + ", idZReport = " + idZReport);
-
             cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
                     numberGroup, numberCashRegister, numberZReport, sumCashDocument));
         }
@@ -632,11 +628,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, useNumberGroupInShopIndices, ignoreSalesDepartmentNumber);
 
         if(extendedLogs) {
-            sendSalesLogger.info("cashRegisterByKeyMap: ");
-            for(String key : cashRegisterByKeyMap.keySet()) {
-                sendSalesLogger.info(key);
-            }
-
+            sendSalesLogger.info("cashRegisterByKeyMap: " + cashRegisterByKeyMap.keySet());
             logRequestFile("sales", docToXMLString(doc));
         }
 
@@ -1241,18 +1233,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = null;
         String directory = null;
-        //todo: remove temp log
-        if(extendedLogs) {
-            sendSalesLogger.info("ReadZReports: " + useShopIndices + "/" + ignoreSalesDepartmentNumber + "/" + useNumberGroupInShopIndices);
-        }
         if(useShopIndices && ignoreSalesDepartmentNumber && useNumberGroupInShopIndices) {
             List<CashRegisterInfo> cashRegisterInfoList = readCashRegisterInfo(sidEquipmentServer);
             cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, true, true);
-
-            //todo: remove temp log
-            if(extendedLogs) {
-                sendSalesLogger.info("ReadZReports cashRegister key: " + cashRegisterByKeyMap.keySet());
-            }
 
             for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
                 if (fitHandler(cashRegister) && !cashRegister.disableSales) {
@@ -1266,7 +1249,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Document doc = xmlStringToDoc(parseHttpRequestHandlerResponse(httpExchange, "zreports"));
         if(extendedLogs) {
-            sendSalesLogger.info(getLogPrefix() + " received xml " + docToXMLString(doc));
+            logRequestFile("zreports", docToXMLString(doc));
         }
         Element rootNode = doc.getRootElement();
         List zReportsList = rootNode.getChildren("zreport");
@@ -1277,18 +1260,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             Integer numberGroupCashRegister = readIntegerXMLValue(zReportNode, "shopNumber");
 
             String key = getCashRegisterKey(directory, numberCashRegister, true, null, true, String.valueOf(numberGroupCashRegister));
-            //todo: remove temp log
-            if(extendedLogs) {
-                sendSalesLogger.info("ReadZReports: key = " + key);
-            }
             CashRegisterInfo cashRegisterByKey = getCashRegister(cashRegisterByKeyMap, key);
 
             if (cashRegisterByKeyMap == null || (cashRegisterByKey != null && !ignoreSales(cashRegisterByKey, numberGroupCashRegister, key, ignoreCashRegisterWithDisableSales, ignoreSalesWithoutNppGroupMachinery))) {
-
-                //todo: remove temp log
-                if(extendedLogs) {
-                    sendSalesLogger.info("ReadZReports: cashRegisterByKey found " + (cashRegisterByKey != null));
-                }
 
                 LocalDate dateZReport = LocalDate.parse(StringUtils.left(readStringXMLValue(zReportNode, "dateOperDay"), 10), DateTimeFormatter.ISO_DATE);
 
@@ -1308,10 +1282,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         sendZReportsResponse(httpExchange, null);
 
         Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap(new HashSet<>(zReportSumMap.keySet()));
-        //if(extendedLogs) {
+        if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
             sendSalesLogger.info(getLogPrefix() + " baseZReportSumMap:" + StringUtils.join(baseZReportSumMap, ','));
-        //}
+        }
 
         ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, baseZReportSumMap);
         if(extraCheckResult != null) {
