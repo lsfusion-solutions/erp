@@ -284,6 +284,7 @@ isStockSku (WriteOffDetail writeOffDetail) = isStock(sku(writeOffDetail));
 isStockSku (UserWriteOffDetail userWriteOffDetail) = isStock(sku(userWriteOffDetail));
 
 // --------------------------- Формы списания ---------------------------------
+backgroundSkuDetail 'Цвет' (d) = ABSTRACT CASE COLOR (WriteOffDetail);
 
 FORM userWriteOff 'Списание'
     OBJECTS w=UserWriteOff PANEL
@@ -293,8 +294,8 @@ FORM userWriteOff 'Списание'
                    sumUserWriteOffDetail, nameReason, nameWriteOffCommittee, nameContact
 
     OBJECTS d=UserWriteOffDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
-                   nameBatch ON CHANGE changeBatch(d), quantity,
+    PROPERTIES (d) BACKGROUND backgroundSkuDetail(d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+    PROPERTIES (d) nameBatch ON CHANGE changeBatch(d), quantity,
                    price, sum, nameStock, NEW, deletewd=DELETE GRID
 
     PROPERTIES(w) DRAW d fillDocument, addDetailDialogSkuStockUserWriteOffDetail,
@@ -485,8 +486,8 @@ FORM writeOffs 'Списания'
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open[UserWriteOff] SHOWIF isClosed[UserWriteOff](w)
     
     OBJECTS d=WriteOffDetail
-    PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
-                   quantity, price, sum, nameStock
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY nameBatch, quantity, price, sum, nameStock
 
     FILTERS writeOff(d) == w
     FILTERS filterDateFrom(w), 
