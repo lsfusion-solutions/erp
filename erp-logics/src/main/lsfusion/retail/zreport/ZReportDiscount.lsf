@@ -1,0 +1,62 @@
+MODULE ZReportDiscount;
+
+REQUIRE ZReport;
+
+NAMESPACE ZReport;
+
+CLASS Discount 'Скидка';
+TABLE discount (Discount);
+TABLE receiptDetailDiscount (ReceiptDetail, Discount);
+
+mode 'Тип' = DATA ISTRING[100] (Discount) IN base;
+name 'Наименование' = DATA ISTRING[100] (Discount) IN base CHARWIDTH 20;
+discount = GROUP AGGR (Discount type) BY name(type);
+
+FORM discount 'Скидка'
+    OBJECTS o = Discount PANEL
+    PROPERTIES(o) name, mode
+
+    EDIT Discount OBJECT o
+;
+
+FORM discounts 'Скидка'
+    OBJECTS o = Discount
+    PROPERTIES(o) READONLY name, mode SHOWIF showIDs()
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogDiscounts 'Скидка'
+    OBJECTS o = Discount
+    PROPERTIES(o) READONLY name
+
+    LIST Discount OBJECT o
+;
+
+NAVIGATOR {
+    ZReportNavigator {
+        NEW discounts;
+    }
+}
+
+discountSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptDetail, Discount);
+
+
+EXTEND FORM zReports 
+    OBJECTS di = Discount
+    PROPERTIES READONLY mode(di), name(di), discountSum(d, di)
+;
+
+DESIGN zReports {
+    firstCase {
+        NEW receipt {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(b) {fill = 3;};
+            MOVE BOX(p);
+        }
+    }
+
+    secondCase {
+        MOVE BOX (di);
+    }
+}
