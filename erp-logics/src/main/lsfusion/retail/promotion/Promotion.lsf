@@ -1,6 +1,6 @@
 MODULE Promotion;
 
-REQUIRE ItemManager, PriceListDashboard, PriceListPromotion, PurchaseOrder, Store, SaleLedger;
+REQUIRE ItemManager, PriceListDashboard, PriceListPromotion, PurchaseOrder, Store, SaleLedger, PromotionType;
 
 NAMESPACE Promotion;
 
@@ -86,39 +86,6 @@ stocks 'Склады' (Promotion promotion) = ISTRING[2000](GROUP
 stocks 'Склады' (PromotionDetail d) = stocks(promotion(d));
 
 
-CLASS PromotionType 'Тип акции';
-TABLE promotionType (PromotionType);
-
-id 'Код' = DATA ISTRING[100] (PromotionType) IN base;
-promotionType(id) = GROUP AGGR (PromotionType type) BY id(type);
-
-name 'Наименование' = DATA ISTRING[100] (PromotionType) IN base CHARWIDTH 20;
-
-FORM promotionType 'Тип акции'
-    OBJECTS o = PromotionType PANEL
-    PROPERTIES(o) name, id SHOWIF showIDs()
-    
-    EDIT PromotionType OBJECT o
-;
-
-FORM promotionTypes 'Тип акции'
-    OBJECTS o = PromotionType
-    PROPERTIES(o) READONLY name, id SHOWIF showIDs()
-    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
-;
-
-FORM dialogPromotionTypes 'Тип акции'
-    OBJECTS o = PromotionType
-    PROPERTIES(o) READONLY name
-    
-    LIST PromotionType OBJECT o
-;
-
-NAVIGATOR {
-    priceListMasterData {
-        NEW promotionTypes;
-    }
-}
 
 promotionType 'Тип акции' = DATA PromotionType (Promotion);
 namePromotionType 'Тип акции' (Promotion promotion) = name(promotionType(promotion));
