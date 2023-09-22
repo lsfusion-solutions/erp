@@ -130,6 +130,8 @@ WHEN LOCAL CHANGED (type(PriceList p)) DO {
     in(p, Competitor c) <- in(type(p), c);
 }
 
+backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (PriceListDetail);
+
 FORM priceList 'Прайс конкурентов'
     OBJECTS p = PriceList PANEL
     PROPERTIES(p) number, series, date, nameType, note, dateTimeCreated READONLY, nameCreatedUser READONLY 
@@ -146,7 +148,8 @@ FORM priceList 'Прайс конкурентов'
     ORDERS order(cc), name(cc)
 
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) idSku SHOWIF showIDs(), idBarcodeSku, nameSku, NEW, DELETE 
+    PROPERTIES (d)  idSku SHOWIF showIDs(), idBarcodeSku BACKGROUND backgroundSku(d), nameSku
+    PROPERTIES (d) NEW, DELETE 
     PROPERTIES promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
     PROPERTIES price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
@@ -195,7 +198,7 @@ FORM priceLists 'Прайсы конкурентов'
     ORDERS order(cc), name(cc)
 
     OBJECTS d = PriceListDetail
-    PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku, nameSku//, NEW, DELETE 
+    PROPERTIES (d) READONLY idSku SHOWIF showIDs(), idBarcodeSku BACKGROUND backgroundSku(d), nameSku//, NEW, DELETE 
     PROPERTIES READONLY promotionPrice(d, cc) COLUMNS (cc) HEADER (name(cc) + ' (акция)') AFTER nameSku(d)
     PROPERTIES READONLY price(d, cc) COLUMNS (cc) HEADER name(cc) AFTER nameSku(d)
     FILTERS priceList(d) == p
