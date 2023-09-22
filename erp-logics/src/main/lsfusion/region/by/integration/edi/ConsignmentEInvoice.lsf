@@ -73,18 +73,18 @@ sendConsignmentEInvoiceAbstract ABSTRACT (Invoice);
 beforeSignAndSendSupplierEDI ABSTRACT (Invoice);
 skipSignAndSendSupplierEDI = DATA LOCAL BOOLEAN () ;
 
-signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i)  { 
+signAndSendSupplierEDI 'Подписать и отправить (поставщик)'(Invoice i) {
     NEWSESSION {
         beforeSignAndSendSupplierEDI(i);
-        IF NOT skipSignAndSendSupplierEDI() THEN{
+        IF NOT skipSignAndSendSupplierEDI() THEN {
             in(EInvoice e) <- e = eInvoice(i);
             signAndSendSupplierEDI();
             in(EInvoice e) <- NULL;
-            IF  exportedSupplier(eInvoice(i)) THEN sendConsignmentEInvoiceAbstract(i);
+            IF exportedSupplier(eInvoice(i)) THEN sendConsignmentEInvoiceAbstract(i);
         }
     }
 }
-cancelSignAndSendSupplierEDI 'Отменить (поставщик)'(Invoice i)  { 
+cancelSignAndSendSupplierEDI 'Отменить (поставщик)'(Invoice i) {
     IF skipCheckImportedSupplier() OR NOT importedSupplier(eInvoice(i)) THEN {
         NEWSESSION {
             in(EInvoice e) <- e = eInvoice(i);
@@ -177,7 +177,7 @@ despatchUnitQuantityDespatched = ABSTRACT NUMERIC[12,5] (ConsignmentDetail);
 beforeCreateEInvoice ABSTRACT (Consignment);
 skipCreateEInvoice = DATA LOCAL BOOLEAN ();
 
-createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  { 
+createEInvoice 'Создать ЭТТН-1' (Consignment invoice) {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         beforeCreateEInvoice(invoice);
         IF NOT skipCreateEInvoice() THEN {
@@ -195,12 +195,12 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
                 contractDate(ei) <- dateFromContractSku(invoice);
                 currency(ei) <- shortNameCurrency(invoice);
                 isTestDocument(ei) <- isTestEInvoice(invoice);
-                
-                FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+
+                FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail DO {
                     eInvoice(ed) <- ei;
                     invoiceDetail(ed) <- detail;
                     lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
-                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) >7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
+                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) > 7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
                     lineItemSupplierID(ed) <- id(sku(detail));
                     lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
                     quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
@@ -212,10 +212,10 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
                     grossWeightValue(ed) <- OVERRIDE grossWeightValue(detail), NUMERIC[12,6](grossWeightTon(detail));
                     lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                     despatchUnitQuantityDespatched(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail)), 1.0;
-                    overCreate(ed,detail);
+                    overCreate(ed, detail);
                 }
-                
-                overCreate(ei,invoice);
+
+                overCreate(ei, invoice);
 
                 generateNumber(ei);
             }
@@ -224,7 +224,7 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice)  {
     }
 }
 
-createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  { 
+createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice) {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         beforeCreateEInvoice(invoice);
         IF NOT skipCreateEInvoice() THEN {
@@ -243,8 +243,8 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
                 contractDate(ei) <- dateFromContractSku(invoice);
                 currency(ei) <- shortNameCurrency(invoice);
                 isTestDocument(ei) <- isTestEInvoice(invoice);
-                
-                FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
+
+                FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail DO {
                     eInvoice(ed) <- ei;
                     invoiceDetail(ed) <- detail;
                     lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
@@ -258,10 +258,10 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice)  {
                     lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
                     lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
                     lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
-                    overCreate(ed,detail);
+                    overCreate(ed, detail);
                 }
-                
-                overCreate(ei,invoice);
+
+                overCreate(ei, invoice);
 
                 generateNumber(ei);
             }
