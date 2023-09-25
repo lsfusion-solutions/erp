@@ -182,7 +182,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
         return  new SalesInfo(false, false, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, null, sumGiftCardMap, payments, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null, discountSumReceiptDetail,
-                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, false, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
+                discountSumReceipt, seriesNumberDiscountCard, null, numberReceiptDetail, filename, idSection, false, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }
 
     @Override
@@ -206,7 +206,7 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
                                          String lastNameContact, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments,
                                          String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                                          BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
-                                         BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
+                                         BigDecimal discountSumReceipt, String seriesNumberDiscountCard, List<Discount> discounts, Integer numberReceiptDetail, String filename,
                                          String idSection, boolean skipReceipt, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         if ((quantityReceiptDetail != null && quantityReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
             (priceReceiptDetail != null && priceReceiptDetail.compareTo(BigDecimal.valueOf(1000000)) > 0) ||
@@ -216,8 +216,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
             sendSalesLogger.error("Too big value for quantity or sum for detail : " + nppMachinery + " / " + nppMachinery + " / " + " receipt number " + numberReceipt + " idItem " + idItem);
         return new SalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                 idEmployee, firstNameContact, lastNameContact, sumGiftCardMap, payments, barcodeItem, idItem, itemObject, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
-                priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename,
-                idSection, skipReceipt, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
+                priceReceiptDetail, sumReceiptDetail, discountPercentReceiptDetail, discountSumReceiptDetail, discountSumReceipt, seriesNumberDiscountCard, discounts,
+                numberReceiptDetail, filename, idSection, skipReceipt, receiptExtraFields, receiptDetailExtraFields, cashRegisterInfo);
     }
 
     @Override

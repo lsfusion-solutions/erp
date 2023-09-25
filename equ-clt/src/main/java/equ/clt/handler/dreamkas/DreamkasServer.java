@@ -341,7 +341,7 @@ public class DreamkasServer {
                         numberReceipt, sqlDateToLocalDate(dateReceipt), sqlTimeToLocalTime(timeReceipt), idEmployee, idEmployee != null ? firstNameContact : null,
                         idEmployee != null ? lastNameContact : null, null, payments,
                         barcodeItem, null, null, null, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, null,
-                        null, null, null, numberReceiptDetail, "", null, isCancel, null, null, null));
+                        null, null, null, null, numberReceiptDetail, "", null, isCancel, null, null, null));
             }
         }
     }

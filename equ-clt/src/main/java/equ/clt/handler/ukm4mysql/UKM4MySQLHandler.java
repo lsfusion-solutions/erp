@@ -1356,7 +1356,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
                                     null, lastNameContact, sumGiftCardMap, paymentEntry.payments, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
-                                    position, null, idSection, false, null, null, cashRegister));
+                                    null, position, null, idSection, false, null, null, cashRegister));
 //                        }
                         receiptSet.add(Pair.create(idReceipt, cash_id));
                     }

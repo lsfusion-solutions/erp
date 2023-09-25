@@ -40,6 +40,7 @@ public class SalesInfo implements Serializable {
     public BigDecimal discountSumReceiptDetail;
     public BigDecimal discountSumReceipt;
     public String seriesNumberDiscountCard;
+    public List<Discount> discounts;
     public Integer numberReceiptDetail;
     public String filename;
     public String idSection;
@@ -53,7 +54,7 @@ public class SalesInfo implements Serializable {
                      String lastNameContact, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments,
                      String barcodeItem, String idItem, Long itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountPercentReceiptDetail, BigDecimal discountSumReceiptDetail,
-                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
+                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, List<Discount> discounts, Integer numberReceiptDetail, String filename,
                      String idSection, boolean skipReceipt, Map<String, Object> receiptExtraFields, Map<String, Object> receiptDetailExtraFields, CashRegisterInfo cashRegisterInfo) {
         this.isGiftCard = isGiftCard;
         this.isReturnGiftCard = isReturnGiftCard;
@@ -81,6 +82,7 @@ public class SalesInfo implements Serializable {
         this.discountSumReceiptDetail = discountSumReceiptDetail;
         this.discountSumReceipt = discountSumReceipt;
         this.seriesNumberDiscountCard = seriesNumberDiscountCard;
+        this.discounts = discounts;
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
         this.idSection = idSection;

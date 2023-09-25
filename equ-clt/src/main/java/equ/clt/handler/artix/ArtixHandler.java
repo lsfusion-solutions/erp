@@ -751,6 +751,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         medicineObject.put("remaindatetime", batch.balanceDate);
         medicineObject.put("countrycode", batch.countryCode);
         medicineObject.put("options", batch.flag);
+        medicineObject.put("dictcode", batch.idDosage);
+        medicineObject.put("dictname", batch.descriptionDosage);
 
         JSONObject infoJSON = getExtInfo(batch.info);
         if (infoJSON != null) {
@@ -1841,16 +1843,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             BigDecimal bonusPaid = null;
                                             boolean fourthPrice = false;
+                                            List<Discount> discounts = new ArrayList<>();
                                             JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
                                             for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                 JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
                                                 String discType = discountPosition.getString("discType");
+                                                BigDecimal discSum = discountPosition.getBigDecimal("discSum");
                                                 if(discType != null && discType.equals("bonus"))
-                                                    bonusPaid = safeAdd(bonusPaid, discountPosition.getBigDecimal("discSum"));
+                                                    bonusPaid = safeAdd(bonusPaid, discSum);
                                                 String discName = discountPosition.optString("discName");
                                                 if(discName.startsWith("СЗТ")) {
                                                     fourthPrice = true;
                                                 }
+                                                String discMode = discountPosition.optString("discMode");
+                                                discounts.add(new Discount(discName, discMode, discSum));
                                             }
 
                                             BigDecimal sumVAT = null;
@@ -1936,7 +1942,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
                                                         sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
+                                                        discounts, numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);

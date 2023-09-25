@@ -1,5 +1,6 @@
 package equ.srv;
 
+import equ.api.Discount;
 import equ.api.GiftCard;
 import equ.api.Payment;
 import equ.api.SalesInfo;
@@ -11,6 +12,7 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
+import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -272,6 +274,54 @@ public class EquipmentServerImport {
             if (!dataPaymentGiftCard.isEmpty())
                 new IntegrationService(session, new ImportTable(paymentGiftCardFields, dataPaymentGiftCard),
                         paymentGiftCardKeys, paymentGiftCardProperties).synchronize(true);
+        }
+    }
+
+    public static void importDiscounts(BusinessLogics BL, DataSession session, List<SalesInfo> data, Set<String> ignoredIdReceipts, EquipmentServer.EquipmentServerOptions options) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ScriptingLogicsModule zReportDiscountLM = BL.getModule("ZReportDiscount");
+        if (zReportDiscountLM != null) {
+
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
+
+            ImportField nameDiscountField = new ImportField(zReportDiscountLM.findProperty("name[Discount]"));
+            ImportKey<?> discountKey = new ImportKey((CustomClass) zReportDiscountLM.findClass("Discount"),
+                    zReportDiscountLM.findProperty("discount[STRING[100]]").getMapping(nameDiscountField));
+            keys.add(discountKey);
+            props.add(new ImportProperty(nameDiscountField, zReportDiscountLM.findProperty("name[Discount]").getMapping(discountKey)));
+            fields.add(nameDiscountField);
+
+            ImportField idReceiptDetailField = new ImportField(zReportDiscountLM.findProperty("id[ReceiptDetail]"));
+            ImportKey<?> receiptDetailKey = new ImportKey((CustomClass) zReportDiscountLM.findClass("ReceiptDetail"),
+                    zReportDiscountLM.findProperty("receiptDetail[STRING[100]]").getMapping(idReceiptDetailField));
+            receiptDetailKey.skipKey = true;
+            keys.add(receiptDetailKey);
+            fields.add(idReceiptDetailField);
+
+            ImportField modeDiscountField = new ImportField(zReportDiscountLM.findProperty("mode[Discount]"));
+            props.add(new ImportProperty(modeDiscountField, zReportDiscountLM.findProperty("mode[Discount]").getMapping(discountKey)));
+            fields.add(modeDiscountField);
+
+            ImportField discountSumField = new ImportField(zReportDiscountLM.findProperty("discountSum[ReceiptDetail,Discount]"));
+            props.add(new ImportProperty(discountSumField, zReportDiscountLM.findProperty("discountSum[ReceiptDetail,Discount]").getMapping(receiptDetailKey, discountKey)));
+            fields.add(discountSumField);
+
+            List<List<Object>> dataDiscount = new ArrayList<>();
+            for (SalesInfo sale : data) {
+                String idReceipt = EquipmentServer.getIdReceipt(sale, options);
+                if (!ignoredIdReceipts.contains(idReceipt)) {
+                    if (sale.discounts != null) {
+                        for (Discount discount : sale.discounts) {
+                            dataDiscount.add(Arrays.asList(discount.name, EquipmentServer.getIdReceiptDetail(sale, options), discount.mode, discount.sum));
+                        }
+                    }
+                }
+            }
+
+            if(!dataDiscount.isEmpty()) {
+                new IntegrationService(session, new ImportTable(fields, dataDiscount), keys, props).synchronize(true);
+            }
         }
     }
 }

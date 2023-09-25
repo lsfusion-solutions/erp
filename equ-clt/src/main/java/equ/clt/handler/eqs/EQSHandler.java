@@ -475,7 +475,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                                         dateReceipt, sqlTimeToLocalTime(timeReceipt), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idCashier,
                                         nameCashier, null, null, null, idBarcode, idItem, null, null, totalQuantity,
                                         price, sum, discountPercent, discountSum, null, discountCard,
-                                        position, null, idSection, false, null, null, cashRegister);
+                                        null, position, null, idSection, false, null, null, cashRegister);
                                 //не слишком красивый хак, распознаём ситуации с продажей и последующей отменой строки
                                 //(на самом деле так кассиры узнают цену). "Аннигилируем" эти две строки.
                                 List<SalesInfo> saleReturnEntryList = saleReturnMap.get(idBarcode);

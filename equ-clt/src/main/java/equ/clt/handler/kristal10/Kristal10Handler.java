@@ -854,7 +854,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                             currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
                                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumGiftCardMap,
                                                     null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
-                                                    discountSumReceiptDetail, discountSumReceipt, discountCard, numberReceiptDetail, fileName,
+                                                    discountSumReceiptDetail, discountSumReceipt, discountCard, null, numberReceiptDetail, fileName,
                                                     useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));
                                         }
                                     }

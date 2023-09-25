@@ -961,6 +961,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             EquipmentServerImport.importPaymentGiftCardMultiThread(getBusinessLogics(), session, salesInfoList, rowsData.ignoredIdReceipts, start, finish, options);
 
+            EquipmentServerImport.importDiscounts(getBusinessLogics(), session, salesInfoList.subList(start, finish), rowsData.ignoredIdReceipts, options);
+
             processExtraFields(session, stack, rowsData);
 
             session.setKeepLastAttemptCountMap(true);
@@ -2590,13 +2592,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             query.addProperty("idBarcode", machineryPriceTransactionBatchLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
 
             String[] names = new String[]{"idBatch", "dateBatch", "expiryDate", "seriesPharmacy", "nameManufacturer", "price",
-                    "nameATCGroup", "balance", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount", "flag", "info"};
+                    "nameATCGroup", "balance", "balanceBlister", "balanceDate", "sidCountry", "nameCountry", "blisterAmount",
+                    "idDosage", "desctiptionDosage", "flag", "info"};
             LP[] properties = machineryPriceTransactionBatchLM.findProperties("id[MachineryPriceTransaction,Barcode,Batch]", "date[MachineryPriceTransaction,Barcode,Batch]",
                     "expiryDate[MachineryPriceTransaction,Barcode,Batch]", "seriesPharmacy[MachineryPriceTransaction,Barcode,Batch]",
                     "nameManufacturer[MachineryPriceTransaction,Barcode,Batch]", "price[MachineryPriceTransaction,Barcode,Batch]",
                     "nameATCGroup[MachineryPriceTransaction,Barcode,Batch]", "balance[MachineryPriceTransaction,Barcode,Batch]", "balanceBlister[MachineryPriceTransaction,Barcode,Batch]",
                     "balanceDate[MachineryPriceTransaction,Barcode,Batch]", "sidCountry[MachineryPriceTransaction,Barcode,Batch]",
                     "nameCountry[MachineryPriceTransaction,Barcode,Batch]", "blisterAmount[MachineryPriceTransaction,Barcode,Batch]",
+                    "idDosage[MachineryPriceTransaction,Barcode,Batch]", "descriptionDosage[MachineryPriceTransaction,Barcode,Batch]",
                     "flag[MachineryPriceTransaction,Barcode,Batch]", "info[MachineryPriceTransaction,Barcode,Batch]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(transactionExpr, barcodeExpr, batchExpr));
@@ -2624,13 +2628,15 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String countryCode = getRowValue(row, "sidCountry");
                 String countryName = getRowValue(row, "nameCountry");
                 Integer blisterAmount = (Integer) row.get("blisterAmount");
+                String idDosage = (String) row.get("idDosage");
+                String desctiptionDosage = (String) row.get("desctiptionDosage");
                 Integer flag = (Integer) row.get("flag");
                 String info = (String) row.get("info");
 
                 List<CashRegisterItemBatch> batchList = result.getOrDefault(barcode, new ArrayList<>());
                 batchList.add(new CashRegisterItemBatch(idBatch, dateBatch, expiryDate, seriesPharmacy, nameManufacturer,
                         price, nameSubstance, balance, balanceBlister, balanceDate, countryCode, countryName, blisterAmount,
-                        flag, info));
+                        idDosage, desctiptionDosage, flag, info));
                 result.put(barcode, batchList);
             }
         }

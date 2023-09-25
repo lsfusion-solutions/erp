@@ -2454,7 +2454,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                 curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                                         idEmployee, nameEmployee, null, sumGiftCardMap, payments, idBarcode, idItem, null,
                                         idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
-                                        null, idDiscountCard, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister));
+                                        null, idDiscountCard, null, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister));
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 prologSum = safeSubtract(prologSum, salesSum);
                                 break;
