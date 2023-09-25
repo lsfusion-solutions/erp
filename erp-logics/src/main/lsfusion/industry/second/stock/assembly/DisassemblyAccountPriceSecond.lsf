@@ -1,0 +1,63 @@
+MODULE DisassemblyAccountPriceSecond;
+
+REQUIRE Disassembly, SkuLedgerCost, DisassemblyAccountLedger, PurchaseShipmentAccountPrice;
+
+NAMESPACE Disassembly;
+
+
+accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (DisassemblyDetail);
+accountLedgerPrice (DisassemblyDetail d) += accountPrice(d);
+
+calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
+calcAccountPriceBalance (DisassemblyDetail d) = calcAccountPriceBalance(sku(d), stock(d), dateTime(d));
+balanceB 'Остаток (до)' (DisassemblyDetail d) = balanceB(sku(d), stock(d), dateTime(d));
+accountPriceB (DisassemblyDetail d) = accountPriceB(sku(d), stock(d), dateTime(d));
+
+calcAccountPrice (DisassemblyDetail d) =
+    NUMERIC[16,4]((calcAccountPriceBalance(d) * accountPriceB(d) +
+        quantity(d) * price(d))/(quantity(d) + calcAccountPriceBalance(d)));
+
+// пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+WHEN (SETCHANGED(sku(DisassemblyDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(dateTime(d)) OR 
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+    accountPrice(d) <- calcAccountPrice(d);
+
+EXTEND FORM currentBalanceSkuStock
+    OBJECTS dd = DisassemblyDetail
+    PROPERTIES (dd) READONLY dateTime, number, quantity, price, accountPrice, balanceB
+    ORDERS dateTime(dd) DESC
+    FILTERS sku(dd) = s, stock(dd) = st
+;
+
+DESIGN currentBalanceSkuStock {
+    ledgerBox {
+        MOVE BOX(dd) {
+            caption = 'Разборки';
+        }
+    }
+}
+
+// считаем кол-во за один момент, чтобы исключить проблемы с одним товаром разными строками за одно время
+// в оперативном расчете пока это не учитываем в целях производительности
+quantityDisassemblyDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(DisassemblyDetail d) BY sku(d), dateTime(d), stock(d);
+
+recalcAccountPrice (DisassemblyDetail d) =
+    NUMERIC[16,4]((calcAccountPriceBalance(d) * accountPriceB(d) +
+        (OVERRIDE quantityDisassemblyDetail(sku(d), dateTime(d), stock(d)), 0.0) * price(d))
+        / ((OVERRIDE quantityDisassemblyDetail(sku(d), dateTime(d), stock(d)), 0.0) + calcAccountPriceBalance(d)));
+
+recalculateCostLedger (DATE dFrom, DATE dTo) + {
+    LOCAL ordered = INTEGER (DisassemblyDetail);
+    ordered (DisassemblyDetail d) <- PARTITION SUM 1 IF date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) ORDER dateTime(d), d BY sku(d), dFrom, dTo;
+
+    FOR iterate(INTEGER i, 1, (GROUP MAX ordered(DisassemblyDetail d))) DO
+        NEWSESSION NESTED (ordered) {
+            APPLY NESTED LOCAL {
+                LOCAL it = BOOLEAN (DisassemblyDetail);
+                it(DisassemblyDetail d) <- ordered(d) == i; // чтобы определились классы
+
+                accountPrice(DisassemblyDetail d) <- recalcAccountPrice(d)
+                    WHERE it(d) AND NOT date(d) < documentsClosedDate(stock(d));
+            }
+        }
+}
