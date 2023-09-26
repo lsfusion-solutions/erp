@@ -1,0 +1,611 @@
+MODULE BOMBakeryCard;
+
+REQUIRE  BOMBy, BOMStorage, BOMNutrition;
+
+NAMESPACE BOM;
+
+info 'Доп. условия (ТК)' = DATA STRING (ExpiryCondition) CHARWIDTH 30;
+
+EXTEND FORM expiryCondition
+    PROPERTIES (t) info
+;
+DESIGN expiryCondition{
+    PROPERTY (info(t)) {fill = 1; alignment = STRETCH;}
+}
+EXTEND FORM expiryConditions
+    PROPERTIES (t) READONLY info
+;
+
+infoExpiryCondition 'Доп. условия хранения (тех.карта)'  (Product p) = info(expiryCondition(p)) CHARWIDTH 30;
+
+EXTEND FORM BOM
+    PROPERTIES(p) SHOWIF showExpiry(b) AFTER nameExpiryCondition(p) infoExpiryCondition
+;
+
+nameExpiryConditionOver 'Условия хранения' (Product p) = CONCAT ' ', nameExpiryCondition(p), infoExpiryCondition(p);
+
+grease 'Подпыл и смазка листов' = DATA BOOLEAN (Component);
+
+water = DATA Sku();
+nameWater 'Вода' () = name(water());
+isWater (Component d) = water() == sku(d);
+isWater (Sku s) = water() == s;
+EXTEND FORM options
+    PROPERTIES () nameWater
+;
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (nameWater());
+    }
+}
+
+
+CLASS Exception 'Тип обработки';
+TABLE exception(Exception);
+
+@defineExternalizable(exception, STRING[100]);
+
+name 'Наименование' = DATA STRING(Exception) IN id;
+exceptionName = GROUP NAGGR Exception b BY name(b);
+
+FORM exception 'Тип обработки'
+    OBJECTS t=Exception PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs()
+    EDIT Exception OBJECT t
+;
+
+FORM exceptions 'Типы обработки'
+    OBJECTS t=Exception
+    PROPERTIES(t) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
+    ORDERS name(t)
+    LIST Exception OBJECT t
+;
+DESIGN exceptions { BOX { size = (600, 400); } }
+
+
+exception = DATA Exception(Component);
+nameException 'Типы обработки' (Component c) = name(exception(c)) CHARWIDTH 20;
+
+EXTEND FORM BOM
+    PROPERTIES (c) nameException
+;
+
+CONSTRAINT (SETCHANGED(material(Component c)) OR SETCHANGED (exception(c))) AND material(c)IS Product AND exception(c)
+    MESSAGE 'Для полуфабриката не может быть задан признак "Тип обработки"';
+
+CONSTRAINT (SETCHANGED(material(Component c)) OR SETCHANGED (exception(c))) AND isWater(c) AND exception(c)
+    MESSAGE 'Для воды не может быть задан признак "Тип обработки"';
+
+greaseOver = ABSTRACT VALUE BOOLEAN (Component);
+greaseOver (Component c) += TRUE IF exception(c);
+greaseOver (Component c) += isWater(c);
+
+CLASS OLProperty 'Органолептические показатели';
+TABLE OLPropery (OLProperty);
+
+name '{master.data.name}' = DATA ISTRING[100] (OLProperty) CHARWIDTH 15;
+
+FORM OLProperty 'Органолептический показатель'
+    OBJECTS o = OLProperty PANEL
+    PROPERTIES(o) name
+
+    EDIT OLProperty OBJECT o
+;
+
+FORM OLProperties 'Органолептические показатели'
+    OBJECTS o = OLProperty
+    PROPERTIES(o) READONLYIF isReadonly() name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+@extendFormEditable(OLProperties);
+
+FORM dialogOLProperties 'Органолептические показатели'
+    OBJECTS o = OLProperty
+    PROPERTIES(o) READONLY name
+
+    LIST OLProperty OBJECT o
+;
+
+NAVIGATOR {
+    manufacturingMasterData {
+        NEW OLProperties;
+    }
+}
+
+value 'Значение' = DATA TEXT (OLProperty, BOM);
+
+CLASS FXProperty 'Физико-химические показатели';
+TABLE FXPropery (FXProperty);
+
+name '{master.data.name}' = DATA ISTRING[100] (FXProperty) CHARWIDTH 15;
+wetness 'Влажность' = DATA BOOLEAN (FXProperty);
+
+FORM FXProperty 'Физико-химический показатель'
+    OBJECTS o = FXProperty PANEL
+    PROPERTIES(o) name, wetness
+
+    EDIT FXProperty OBJECT o
+;
+
+FORM FXProperties 'Физико-химические показатели'
+    OBJECTS o = FXProperty
+    PROPERTIES(o) READONLYIF isReadonly() name, wetness
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+@extendFormEditable(FXProperties);
+
+FORM dialogFXProperties 'Физико-химические показатели'
+    OBJECTS o = FXProperty
+    PROPERTIES(o) READONLY name, wetness
+
+    LIST FXProperty OBJECT o
+;
+
+NAVIGATOR {
+    manufacturingMasterData {
+        NEW FXProperties;
+    }
+}
+
+value 'Значение' = DATA ISTRING[100] (FXProperty, BOM);
+
+EXTEND FORM BOM
+
+    OBJECTS olp = OLProperty
+    PROPERTIES name(olp) READONLY, value(olp, b)
+    ORDERS name(olp)
+
+    OBJECTS fxp = FXProperty
+    PROPERTIES name(fxp) READONLY, value(fxp, b)
+    ORDERS name(fxp)
+;
+
+DESIGN BOM {
+    instruction {
+        MOVE BOX (olp);
+        MOVE BOX (fxp);
+    }
+}
+
+calcNetEnergyGramsQuantityD 'Энергетическая ценность, кДж' (Product p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d) * 4.184);
+netEnergyText 'Энергетическая ценность, ккал/кДж' (Product p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d)) + '/' + calcNetEnergyGramsQuantityD(p, d);
+overNameMaterial 'Наимнование изделия' (Component c) = OVERRIDE nameBOMMaterial(c), nameMaterial(c);
+
+EXTEND FORM productionRecipe
+    PROPERTIES overNameMaterial(ccc)
+    FILTERS [GROUP SUM 1 IF material(Component com) IS Product BY BOM(com)](b) AND ccc IS Component, NOT greaseOver(ccc)
+
+    PROPERTIES nameStateStandart(b), greaseOver(cc)
+;
+
+valueComponent (FXProperty f, BOM b) = GROUP SUM 1 IF value(f, BOM(material(Component cc))) AND material(cc) IS Product BY BOM(cc);
+// добавление в спецификацию сроков хранения
+
+nameExpiryStorage 'Срок хранения'  (BOM b) = GROUP MAX nameExpiryStorage(Product p) BY BOM(p);
+nameExpiryCondition 'Условия хранения' (BOM b) = GROUP MAX nameExpiryConditionOver(Product p) BY BOM(p);
+
+
+netProteinsGramsQuantity  'Белки в рецепте' (BOM b, DATE d) = GROUP MAX netProteinsGramsQuantity(Product p, d) BY BOM(p);
+netFatsGramsQuantity  'Жиры в рецепте' (BOM b,DATE d) = GROUP MAX netFatsGramsQuantity(Product p, d) BY BOM(p);
+netCarbohydratesGramsQuantity 'Углеводы в рецепте' (BOM b,DATE d) = GROUP MAX netCarbohydratesGramsQuantity(Product p, d) BY BOM(p);
+netEnergyGramsQuantity 'Энергетическая ценность в рецепте' (BOM b,DATE d) = GROUP MAX netEnergyGramsQuantity(Product p, d) BY BOM(p);
+calcNetEnergyGramsQuantity 'Энергетическая ценность в рецепте'  (BOM b,DATE d) = GROUP MAX calcNetEnergyGramsQuantity(Product p, d) BY BOM(p);
+calcNetEnergyGramsQuantityD 'Энергетическая ценность, кДж'  (BOM b,DATE d) = GROUP MAX calcNetEnergyGramsQuantityD(Product p, d) BY BOM(p);
+
+netEnergyText 'Энергетическая ценность, ккал/кДж' (BOM p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d)) + '/' + round0(calcNetEnergyGramsQuantityD(p, d));
+
+withProducts 'С полуфабрикатами' (BOM b) = TRUE IF [GROUP SUM 1 IF material(Component com) IS Product BY BOM(com)](b);
+
+wetness 'Влажность' (Component c) = GROUP MAX value(FXProperty p, BOM(material(c))) IF wetness(p);
+
+quantity (Component c, Sku sk) = quantity(c, sk, currentDate());
+quantity (Component c) = quantity(c, currentDate());
+recBruttoQuantity (BOM b) = recBruttoQuantity(b, currentDate());
+
+quantityRound 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantity(component, Sku sku, date));
+drynessQuantity 'Выход готовой продукции в сухих веществах' (Product p) = percentDryness(p) * overNettoNetWeight(p) / 100;
+
+actQuantityBakery 'Кол-во для акта' (BOM b) = OVERRIDE actQuantity(b), 1.0;
+
+quantityH 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/
+    actQuantityBakery(BOM(component))*1000.0
+;
+quantityH 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM quantityH(component, Sku sku, date);
+quantityBomH 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantityH(Component component, sku, date) BY BOM(component);
+drynessQuantityBomH 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomH(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
+quantityRoundH 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantityH(component, Sku sku, date)) IF NOT isWater(sku);
+overBruttoQuantityH 'Выход полуфабрикатов' (Component c,DATE dt)=bruttoQuantity(c,dt)* (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/actQuantityBakery(BOM(c))*1000.0;
+overNettoNetWeightH 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/actQuantityBakery(BOM(c))*1000.0;
+overNettoNetWeightHKg 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE overNetWeight(c), 1.0 IF c IS Component)/actQuantityBakery(BOM(c));
+overNettoNetWeightProductH 'Вес нетто изд. (всего)' (BOM b) = overNettoNetWeightProduct(b)/actQuantityBakery(b)*1000.0;
+overNettoNetWeightProductGr 'Вес нетто изд. (всего)' (BOM b) = overNettoNetWeightProduct(b)*1000.0;
+drynessQuantityH 'Кол-во для комонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) *
+    (OVERRIDE overNetWeight(cc), 1.0 IF cc IS Component) *
+    percentDryness(cc)/100/actQuantityBakery(BOM(cc))*1000.0;
+
+isPack  = GROUP SUM 1 IF isPack(Component c) BY BOM(c),sku(c);
+bruttoQuantityException  = GROUP SUM bruttoQuantity(Component c, DATE date) IF exception(c) BY BOM(c),sku(c), date;
+recBruttoQuantityNotException(BOM, Sku sku, date)  =  recBruttoQuantity(BOM, sku, date) (-)bruttoQuantityException(BOM, sku, date);
+
+recBruttoQuantityH 'Кол-во компонентов в натуре' (BOM BOM, DATE date) =
+    (GROUP SUM (recBruttoQuantityNotException(BOM, Sku sku, date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/actQuantityBakery(BOM)*1000.0) IF NOT (isWater(sku) OR isPack(BOM,sku)));
+
+recBruttoDrynessQuantityNotException 'В сухих веществах' (BOM BOM, Item sku, DATE date)= recBruttoQuantityNotException (BOM, sku, date) *
+    (OVERRIDE netWeight(sku), 1.0 IF sku IS Sku) *
+    percentDryness(sku)/100;
+
+
+recBruttoDrynessQuantityNotWater 'В сухих веществах' (BOM BOM, DATE date) = GROUP SUM recBruttoDrynessQuantityNotException(BOM, Item sku, date) IF NOT (isWater(sku) OR isPack(BOM,sku));
+recBruttoQuantityH 'Кол-во компонентов в натуре' (Product product, DATE date) = recBruttoQuantityH(BOM(product),date);
+recBruttoDrynessQuantityH 'В сухих веществах' (BOM BOM, DATE date) = recBruttoDrynessQuantityNotWater(BOM,date)/actQuantityBakery(BOM)*1000.0;
+recBruttoDrynessQuantityH 'В сухих веществах' (Product product, DATE date) = recBruttoDrynessQuantity(BOM(product),date)/actQuantityBakery(BOM(product))*1000.0;
+overNettoNetWeightH 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE netWeight(sku(p)), 1.0 IF p IS Product)/actQuantityBakery(BOM(p))*1000.0;
+drynessQuantityH 'Выход готовой продукции в сухих веществах' (Product p) = percentDryness(p) * overNettoNetWeightH(p) / 100;
+overNettoNetWeightProductHKg 'Вес нетто изд. (всего)' (BOM b) = overNettoNetWeightProduct(b)/actQuantityBakery(b);
+
+recBruttoQuantityH (BOM b) = recBruttoQuantityH(b, currentDate());
+overNettoNetWeightH 'Вес (нетто)' (BOM b) = overNettoNetWeightH(GROUP MAX Product p IF BOM(p)==b);
+
+EXTEND FORM BOM
+    PROPERTIES (b) actQuantityBakery
+;
+DESIGN BOM {
+    instruction{
+        NEW cookingSemisInstruction BEFORE instructionPrm{
+            fill = 1;
+            caption = 'Приготовление';
+            MOVE PROPERTY (cookingSemisInstruction(b)){caption = 'Описание технологии приготовления изделия';}
+        }
+    }
+    
+    REMOVE PROPERTY (introductionInstruction(b));
+    REMOVE PROPERTY (characteristicsInstruction(b));
+    REMOVE PROPERTY (preparationMaterialInstruction(b));
+    REMOVE PROPERTY (controlProductInstruction(b));
+    REMOVE PROPERTY (safetyRequirementsInstruction(b));
+    REMOVE PROPERTY (sanitaryRequirementsInstruction(b));
+    REMOVE PROPERTY (preparationProductInstruction(b));
+    GROUP(documentSum,b){
+        MOVE PROPERTY (actQuantityBakery(b));
+    }
+    REMOVE PROPERTY (actQuantity(b));
+}
+
+fullEnergy(Product p) =  fats(p) AND carbohydrates(p) AND proteins(p) AND energy(p);
+fatsItem 'Жиры 100г, г (товар)' (Product p) = IF fullEnergy(p) THEN fats(p) ELSE fats(sku(p));
+carbohydratesItem 'Углеводы 100г, г (товар)' (Product p) = IF fullEnergy(p) THEN carbohydrates(p) ELSE carbohydrates(sku(p));
+proteinsItem 'Белки 100г, г (товар)' (Product p) = IF fullEnergy(p) THEN proteins(p) ELSE proteins(sku(p));
+energyItem 'Энерг.ценность на 100г, ккал (товар)' (Product p) = IF fullEnergy(p) THEN energy(p) ELSE energy(sku(p));
+
+maxProduct = GROUP MAX Product p BY BOM(p);
+////////// ценность новая. Если есть из рецепта, иначе из карточки товара
+fatsItem 'Жиры 100г, г (товар)' (BOM p) = fatsItem(maxProduct(p));
+carbohydratesItem 'Углеводы 100г, г (товар)' (BOM p) = carbohydratesItem(maxProduct(p));
+proteinsItem 'Белки 100г, г (товар)' (BOM p) = proteinsItem(maxProduct(p));
+energyItem 'Энерг.ценность на 100г, ккал (товар)' (BOM p) = energyItem(maxProduct(p));
+energyItemkJ 'Энерг.ценность на 100г, кДж (товар)' (BOM p) = INTEGER(energyParamsRound(energyItem(p)*4.184));
+
+netEnergyText 'Энергетическая ценность, ккал/кДж' (BOM p) = INTEGER(energyItem(p)) + '/' + energyItemkJ(p);
+
+isWaterComponent (Product p) = TRUE IF (GROUP SUM 1 IF BOM( p)==BOM(Component c) AND isWater(c));
+
+
+bruttoQuantitySku  (BOM, material, DATE date) = GROUP SUM bruttoQuantity(Component c, date) IF material(c) IS Sku AND NOT exception(c) AND NOT isWater(c) BY BOM(c), material(c);
+bruttoQuantityWater  (BOM, material, DATE date) = GROUP SUM bruttoQuantity(Component c, date) IF isWater(c) AND material(c) IS Sku BY BOM(c), material(c);
+bruttoQuantityException  (BOM, material, Exception e, DATE date) = GROUP SUM bruttoQuantity(Component c, date)  IF material(c) IS Sku BY BOM(c), material(c), exception(c);
+
+quantitySku 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= bruttoQuantitySku (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
+;
+quantityWater 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= bruttoQuantityWater (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
+;
+quantityException 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, Exception e, DATE date)= bruttoQuantityException (BOM(material(component)), sku, e, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)
+;
+
+recBruttoQuantitySku (BOM BOM, Sku sku, DATE date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, BOM childBOM) * bruttoQuantitySku(childBOM, sku, date); //](BOM, sku);
+recBruttoQuantityWater (BOM BOM, Sku sku, DATE date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, BOM childBOM) * bruttoQuantityWater(childBOM, sku, date); //](BOM, sku);
+recBruttoQuantityException (BOM BOM, Sku sku, Exception e, DATE date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, BOM childBOM) * bruttoQuantityException(childBOM, sku, e, date); //](BOM, sku);
+
+
+quantityHSku 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantitySku (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/
+    actQuantityBakery(BOM(component))*1000.0
+;
+quantityRoundHSku 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantityHSku(component, Sku sku, date));
+
+quantityHWater'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantityWater (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/
+    actQuantityBakery(BOM(component))*1000.0
+;
+quantityRoundHWater 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantityHWater(component, Sku sku, date));
+
+quantityHException'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku,  Exception e, DATE date)= recBruttoQuantityException (BOM(material(component)), sku, e,date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/
+    actQuantityBakery(BOM(component))*1000.0
+;
+quantityRoundHException 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantityHException(component, Sku sku, Exception e, date));
+
+quantityBomSku 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantitySku(Component component, sku, date) BY BOM(component);
+quantityBomWater 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantityWater(Component component, sku, date) BY BOM(component);
+quantityBomException 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, Exception e, DATE date) = GROUP SUM quantityException(Component component, sku, e, date) BY BOM(component);
+
+quantityBomWaterIs 'Кол-во по спец. для полуфабрикатов' (BOM b, DATE date) = TRUE IF (GROUP SUM quantityWater(Component component, Sku sku, date) IF BOM(component)==b);
+quantityBomExceptionIs 'Кол-во по спец. для полуфабрикатов' (BOM b, DATE date) = TRUE IF (GROUP SUM quantityException(Component component, Sku sku, Exception e, date) IF BOM(component)==b);
+
+quantityBomHSku 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantityHSku(Component component, sku, date) BY BOM(component);
+quantityBomHWater 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, DATE date) = GROUP SUM quantityHWater(Component component, sku, date) BY BOM(component);
+quantityBomHException 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku, Exception e, DATE date) = GROUP SUM quantityHException(Component component, sku, e, date) BY BOM(component);
+
+drynessQuantityBomSku 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomSku(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
+drynessQuantityBomWater 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomWater(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
+drynessQuantityBomException 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomException(BOM BOM, Item sku, Exception e,DATE date)*percentDryness(sku)/100;
+
+drynessQuantityBomHSku 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomHSku(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
+drynessQuantityBomHWater'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomHWater(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
+drynessQuantityBomHException 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomHException (BOM BOM, Item sku, Exception  e, DATE date)*percentDryness(sku)/100;
+
+FORM technologicalMapBakery 'Технологическая карта'
+
+    OBJECTS dt=DATE PANEL
+    PROPERTIES (dt) date = VALUE
+
+    OBJECTS b=BOM PANEL
+    PROPERTIES(b)  READONLY nameCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
+        overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
+        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b)
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity
+        ,overNettoNetWeightH, drynessQuantityH, isWaterComponent
+    PROPERTIES(b,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
+    PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
+    FILTERS       BOM(p) == b
+
+    // Рецептура              
+    OBJECTS ccc = Component
+    PROPERTIES(ccc) READONLY id, nameMaterial, overNettoNetWeight, overNettoNetWeightH, overNettoNetWeightHKg, overNameMaterial
+    FILTERS       BOM(ccc) == b,
+        withProducts(b) AND ccc IS Component,
+        NOT greaseOver(ccc)
+    // п/ф
+    OBJECTS c = Component GRID
+    FILTERS       BOM(c) == b,
+        material(c) IS Product
+    PROPERTIES quantityBomWaterIs(b,dt), quantityBomExceptionIs(b,dt)
+
+    OBJECTS k = Sku
+    PROPERTIES(k) READONLY name, percentDryness PANEL, isWater
+    PROPERTIES     quantitySku(c,k,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     quantityHSku(c,k,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     READONLY quantityBomSku(b,k,dt), quantityBomHSku(b,k,dt),drynessQuantityBomSku(b,k,dt), drynessQuantityBomHSku(b,k,dt)
+    FILTERS        quantityBomSku(b,k,dt)
+
+    OBJECTS kw = Sku
+    PROPERTIES(kw) READONLY name, percentDryness PANEL, isWater
+    PROPERTIES     quantityWater(c,kw,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     quantityHWater(c,kw,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     READONLY quantityBomWater(b,kw,dt), quantityBomHWater(b,kw,dt),drynessQuantityBomWater(b,kw,dt), drynessQuantityBomHWater(b,kw,dt)
+    FILTERS        quantityBomWater(b,kw,dt)
+
+    OBJECTS ke =(kk= Sku, e=Exception)
+    PROPERTIES(kk) READONLY name, percentDryness PANEL, isWater
+    PROPERTIES(e) name
+    PROPERTIES(c,kk,e,dt) quantityException COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c),
+        quantityHException COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES(b,kk,e,dt)  READONLY quantityBomException, quantityBomHException,drynessQuantityBomException, drynessQuantityBomHException
+    FILTERS        quantityBomException(b,kk,e,dt)
+
+
+    // Перестаем использовать sk. Если все хорошо, то потом удалить
+    OBJECTS sk = Sku
+    PROPERTIES(sk) READONLY name, percentDryness PANEL, isWater
+    PROPERTIES     quantity(c,sk,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     quantityH(c,sk,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
+    PROPERTIES     READONLY quantityBom(b,sk,dt), quantityBomH(b,sk,dt),drynessQuantityBom(b,sk,dt), drynessQuantityBomH(b,sk,dt)
+    FILTERS        quantityBom(b,sk,dt)
+    ORDERS isWater(sk)
+
+    PROPERTIES READONLY overNettoNetWeight(c)  COLUMNS (c) FOOTER nameMaterial(c),
+        quantityRound(c,dt) COLUMNS (c) FOOTER nameMaterial(c),
+        overBruttoQuantity(c,dt) COLUMNS (c) FOOTER nameMaterial(c)
+
+    PROPERTIES READONLY overNettoNetWeightH(c)  COLUMNS (c) FOOTER nameMaterial(c),
+        quantityRoundH(c,dt) COLUMNS (c) FOOTER nameMaterial(c),
+        overBruttoQuantityH(c,dt) COLUMNS (c) FOOTER nameMaterial(c),
+        quantityRoundHSku(c,dt) COLUMNS (c) FOOTER nameMaterial(c),
+        quantityRoundHWater(c,dt) COLUMNS (c) FOOTER nameMaterial(c),
+        quantityRoundHException(c,dt) COLUMNS (c) FOOTER nameMaterial(c)
+
+    // Компоненты, которые SKU
+    OBJECTS cc = Component
+    PROPERTIES(cc) READONLY index, idBarcodeSku, id, nameMaterial, shortNameUOM, overNettoNetWeight, isWater
+    PROPERTIES    READONLY wastage(cc,dt), overBruttoQuantity(cc,dt), overBruttoQuantityH(cc,dt),percentDryness(cc),
+        drynessQuantity(cc,dt), drynessQuantityH(cc,dt)
+    ORDERS        isWater(cc)
+    FILTERS       BOM(cc) == b,
+        material(cc) IS Sku,
+        NOT greaseOver(cc),
+        NOT isPack(cc)
+
+    // Подпыл или вода                      
+    OBJECTS ccg = Component
+    PROPERTIES(ccg) READONLY index, idBarcodeSku, id, nameMaterial, shortNameUOM, overNettoNetWeight, nameException,  isWater
+    PROPERTIES    READONLY wastage(ccg,dt), overBruttoQuantity(ccg,dt), percentDryness(ccg), drynessQuantity(ccg,dt),
+        overBruttoQuantityH(ccg,dt), drynessQuantityH(ccg,dt)
+    ORDERS        isWater(cc)
+    FILTERS       BOM(ccg) == b,
+        material(ccg) IS Sku,
+        greaseOver(ccg),
+        NOT isPack(ccg)
+
+    OBJECTS pack = Component
+    PROPERTIES(pack) READONLY index, idBarcodeSku, id, nameMaterial, shortNameUOM, overNettoNetWeight, nameException,  isWater, nettoQuantity
+    PROPERTIES    READONLY wastage(pack,dt), overBruttoQuantity(pack,dt), percentDryness(pack), drynessQuantity(pack,dt),
+        overBruttoQuantityH(pack,dt), drynessQuantityH(pack,dt)
+    ORDERS        isWater(cc)
+    FILTERS       BOM(pack) == b,
+        isPack(pack)
+
+    OBJECTS c1 = Component GRID
+    PROPERTIES READONLY  overNettoNetWeight(c1)  COLUMNS (c1) FOOTER nameMaterial(c1),
+        overNettoNetWeightH(c1)  COLUMNS (c1) FOOTER nameMaterial(c1)
+    FILTERS       BOM(c1) == b,
+        material(c1) IS Product
+
+    OBJECTS c2 = Component GRID
+    PROPERTIES READONLY  wetness(c2)  COLUMNS (c2) FOOTER nameMaterial(c2)
+    FILTERS       BOM(c2) == b,
+        material(c2) IS Product
+
+    PROPERTIES (b) cookingSemisInstruction, nameStateStandart
+
+    PROPERTIES (b) nameExpiryCondition, nameExpiryStorage
+    PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
+
+    OBJECTS olp = OLProperty
+    PROPERTIES name(olp) READONLY, value(olp, b)
+    ORDERS name(olp)
+    FILTERS value(olp, b)
+
+    OBJECTS fxp = FXProperty
+    PROPERTIES name(fxp) READONLY, value(fxp, b)
+    ORDERS name(fxp)
+    FILTERS value(fxp, b)
+
+    OBJECTS fx = FXProperty
+    OBJECTS cx = Component
+    PROPERTIES (cx) READONLY name, overNameMaterial
+    PROPERTIES value = value(fx, BOM(material(cx))) COLUMNS (fx) HEADER name(fx)
+    FILTERS material(cx) IS Product, BOM(cx) == b, valueComponent(fx, b)
+;
+//////////
+select 'Отм.' = DATA LOCAL BOOLEAN (BOM);
+
+resetSelectBOM 'Сбросить отмеченные' () {
+    select(BOM b) <- NULL;
+}
+
+printTechnologicalMapBakery 'Технологическая Карта на кондит.изделия' (BOM bb) {
+    IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
+    FOR select(BOM b) DO PRINT technologicalMapBakery OBJECTS dt = currentDate(), b = b;
+    select(BOM b) <- NULL;
+
+} IMAGE 'print.png';
+
+EXTEND FORM BOMs PROPERTIES printTechnologicalMapBakery(b);
+
+DESIGN BOMs {
+    printTab{
+        NEW selectPrint{
+            caption = 'Печать отмеченных';
+            type = COLUMNS;
+            lines = 4;
+            MOVE PROPERTY (printTechnologicalMapBakery(b));
+        }
+    }
+}
+overNettoNetWeightComponent(Product p) = overNettoNetWeight(p);
+overNettoNetWeightComponentGr(Product p) = NUMERIC[18,5](overNettoNetWeight(p)*1000.0);
+actBruttoNetWeightD(Component c) = (overBruttoNetWeight(c)*1000.0);
+actNettoNetWeightD(Component c) = (overNettoNetWeight(c) *1000.0);
+actMiddleNetWeightD(Component c, DATE dt) = ((OVERRIDE quantity(c, dt), overNettoNetWeight(c))*1000.0);
+isProduct(Component c) = material(c) IS Product;
+overCurBruttoQuantityBakery 'Кол-во (брутто) с уч. тех-ий' (Component c, DATE dt) = (bruttoQuantity(c, dt)*(OVERRIDE overNetWeight(c), 1.0 IF c IS Component)*1000.0);
+
+textDescription 'Описание'  = DATA STRING[255] (Component) CHARWIDTH 20;
+semifinishedWeight 'Вес полуфабриката'  = DATA NUMERIC[16,5] (Component);
+semifinishedWeightGr(Component c) = semifinishedWeight(c)*1000.0;
+EXTEND FORM BOM
+    PROPERTIES textDescription(c), semifinishedWeight(c)
+;
+bruttoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE dt) = bruttoQuantity(c,dt)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt)*1000;
+nettoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE dt) = nettoQuantity(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt)*1000 IF dt IS DATE;
+semifinishedWeightGr 'Масса п/ф описание' (Component p, Component c, DATE dt) = semifinishedWeightGr(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt);
+
+FORM technologicalMapBakeryGG 'Технологическая карта (кулинария) '
+    OBJECTS dt=DATE PANEL
+    PROPERTIES (dt) date = VALUE
+
+    OBJECTS b=BOM PANEL
+    PROPERTIES(b)  READONLY nameCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
+        overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
+        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b)
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity,
+        overNettoNetWeightH, drynessQuantityH, isWaterComponent, overNettoNetWeightComponent, overNettoNetWeightComponentGr
+    PROPERTIES(b,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
+    PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
+    FILTERS       BOM(p) == b
+
+    OBJECTS c = Component
+    PROPERTIES(c) index, nameMaterial, idBarcodeSku, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr
+    PROPERTIES(c,dt) bruttoQuantity
+    PROPERTIES(c) fats, carbohydrates, proteins, energy
+    PROPERTIES    READONLY  actBruttoNetWeightD(c), actNettoNetWeightD(c), actMiddleNetWeightD(c,dt), overCurBruttoQuantityBakery(c,dt)
+    FILTERS       BOM(p) == BOM(c)
+    //    ORDERS actBruttoNetWeightD(c)
+    ORDERS index(c)
+
+    OBJECTS c1 = Component SUBREPORT
+    PROPERTIES(c1) index, nameMaterial, idBarcodeSku, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight
+    PROPERTIES(c1,dt) bruttoQuantity, actMiddleNetWeightD, overCurBruttoQuantityBakery
+    PROPERTIES(c1) fats, carbohydrates, proteins, energy
+    PROPERTIES (c, c1,dt)  nettoSemifinished, bruttoSemifinished, semifinishedWeightGr
+    FILTERS       BOM(material(c)) == BOM(c1)
+    ORDERS index(c1)
+
+    PROPERTIES (b) cookingSemisInstruction, nameStateStandart
+    PROPERTIES (b) nameExpiryCondition, nameExpiryStorage
+    PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
+
+    OBJECTS olp = OLProperty
+    PROPERTIES name(olp) READONLY, value(olp, b)
+    ORDERS name(olp)
+    FILTERS value(olp, b)
+
+    OBJECTS fx = FXProperty
+    OBJECTS cx = Component
+    PROPERTIES (cx) READONLY name, overNameMaterial
+    PROPERTIES value = value(fx, BOM(material(cx))) COLUMNS (fx) HEADER name(fx)
+    FILTERS material(cx) IS Product, BOM(cx) == b, valueComponent(fx, b)
+;
+printTechnologicalMapBakeryG 'Технологическая Карта на кулинарные изделия' (BOM bb) {
+    IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
+    FOR select(BOM b) DO PRINT technologicalMapBakeryGG OBJECTS dt = currentDate(), b = b;
+    select(BOM b) <- NULL;
+
+} IMAGE 'print.png';
+
+EXTEND FORM BOMs PROPERTIES printTechnologicalMapBakeryG(b);
+
+DESIGN BOMs {
+    selectPrint{
+        MOVE PROPERTY (printTechnologicalMapBakeryG(b));
+    }
+}
