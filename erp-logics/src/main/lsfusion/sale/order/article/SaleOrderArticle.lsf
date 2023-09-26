@@ -26,28 +26,28 @@ defaultOrder(RowType ty) += WHEN ty == RowType.balanceSupplier  THEN 1;
 defaultOrder(RowType ty) += WHEN ty == RowType.inDocument  THEN 3;
 defaultOrder(RowType ty) += WHEN ty == RowType.balanceCustomer  THEN 4;
 
-prevCurrentBalanceCustomer(Article ar, Color co, Size si, UserOrder o)= prevCurrentBalance(ar, co, si, customerStock(o));
+prevCurrentBalanceCustomer(Article ar, Color co, Item.Size si, UserOrder o)= prevCurrentBalance(ar, co, si, customerStock(o));
 
-quantitySupplier = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Size,UserOrder,Stock, RowType);
+quantitySupplier = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Item.Size,UserOrder,Stock, RowType);
 
-quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
-                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Size AND stk IS Stock THEN NUMERIC[14,3](prevCurrentBalance(ar, co, si, stk))
+quantitySupplier (Article ar,Color co,Item.Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Item.Size AND stk IS Stock THEN NUMERIC[14,3](prevCurrentBalance(ar, co, si, stk))
                                           ;
-quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
-                                          WHEN ty == RowType.inDocument AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Size AND stk IS Stock THEN NUMERIC[14,3](quantitySupplier(ar,co,si,o,stk))
+quantitySupplier (Article ar,Color co,Item.Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.inDocument AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Item.Size AND stk IS Stock THEN NUMERIC[14,3](quantitySupplier(ar,co,si,o,stk))
                                           ;
-quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
-                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Size THEN NUMERIC[14,3](prevCurrentBalanceCustomer(ar, co, si, o))
+quantitySupplier (Article ar,Color co,Item.Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Item.Size THEN NUMERIC[14,3](prevCurrentBalanceCustomer(ar, co, si, o))
                                           ;                                          
 
-changeQuantity(Article article, Color color, Size size, UserOrder userOrder, Stock stock, RowType type)  { 
+changeQuantity(Article article, Color color, Item.Size size, UserOrder userOrder, Stock stock, RowType type)  { 
     IF type == RowType.inDocument THEN { 
         INPUT n = NUMERIC[16,5] DO
             changeQuantityValue(article, color, size, userOrder, stock, n);
     }               
 }
 
-backgroundQuantity(Article article, Color color, Size size, UserOrder userOrder, Stock stock, RowType type) = 
+backgroundQuantity(Article article, Color color, Item.Size size, UserOrder userOrder, Stock stock, RowType type) = 
     IF type == RowType.inDocument THEN 
         IF quantitySupplier(article, color, size, userOrder, stock) 
                 AND NOT (quantitySupplier(article, color, size, userOrder, stock) <= prevCurrentBalance(article, color, size, stock)) THEN
@@ -72,7 +72,7 @@ EXTEND FORM userOrder
                       active(stk)
     ORDERS          id(ar), name(stk)
 
-    OBJECTS si=Size
+    OBJECTS si=Item.Size
     PROPERTIES(si) name
     FILTERS count(si,ar)
 
@@ -127,23 +127,23 @@ quantitySold 'Продано за интервал (кол-во)' (article, colo
         quantitySold(Item sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo
         BY article(sku), calcColor(sku), calcSize(sku);
         
-quantitySoldOneWeek 'Продано за последнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),7), date(order));        
-quantitySoldTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),14), subtract(date(order),7));        
+quantitySoldOneWeek 'Продано за последнюю неделю (кол-во)' (Article article, Color color, Item.Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),7), date(order));        
+quantitySoldTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (Article article, Color color, Item.Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),14), subtract(date(order),7));        
 
 //quantitySoldArticleStockDateFromTo 'Продано за интервал (кол-во)' (article, stock, dateFrom, dateTo) = GROUP SUM
 //        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
 //        BY articleItem(sku), stock, dateFrom, dateTo;
 
 EXTEND CLASS RowType { selling7 'Реал-ия скл. пок-ля последняя нед.' }
-quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk, RowType ty) += 
-    WHEN ty ==  RowType.selling7 AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Size 
+quantitySupplier (Article ar,Color co,Item.Size si,UserOrder o,Stock stk, RowType ty) += 
+    WHEN ty ==  RowType.selling7 AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Item.Size 
         THEN NUMERIC[14,3](quantitySoldOneWeek(ar,co,si,o))
     ;     
 
 //-- 
 EXTEND CLASS RowType { selling14 'Реал-ия скл. пок-ля предпоследняя нед.' }
-quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk, RowType ty) += 
-    WHEN ty ==  RowType.selling14 AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Size
+quantitySupplier (Article ar,Color co,Item.Size si,UserOrder o,Stock stk, RowType ty) += 
+    WHEN ty ==  RowType.selling14 AND stk IS Stock AND o IS UserOrder AND ar IS Article AND co IS Color AND si IS Item.Size
         THEN NUMERIC[14,3](quantitySoldTwoWeek(ar,co,si,o))
     ; 
 defaultOrder(RowType ty) += WHEN ty == RowType.selling7  THEN 5; 

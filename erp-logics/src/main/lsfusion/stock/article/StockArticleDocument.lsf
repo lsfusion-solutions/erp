@@ -4,8 +4,8 @@ REQUIRE StockSkuDocument, StockArticle;
 
 NAMESPACE Stock;
 
-nameBalance (Size size) = CONCAT ' ', name(size), ' (остаток/цена)';
-nameQuantity (Size size) = CONCAT ' ', name(size), ' (кол-во)';
+nameBalance (Item.Size size) = CONCAT ' ', name(size), ' (остаток/цена)';
+nameQuantity (Item.Size size) = CONCAT ' ', name(size), ' (кол-во)';
 
 nameBalanceB (Stock stock)= name(stock) + ' (остаток на начало)' CHARWIDTH 15;    
 nameBalanceA (Stock stock)= name(stock) + ' (остаток на конец)' CHARWIDTH 15;  
@@ -29,13 +29,13 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
         IF isParent(group, parent);
                                                  
 
-    priceBalance  (Article article, Color color, Size size, Stock stock, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stock), price(max###skuProp (article,color,size), stock, object);
+    priceBalance  (Article article, Color color, Item.Size size, Stock stock, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stock), price(max###skuProp (article,color,size), stock, object);
 
 
-    backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object, Stock stock) = RGB(255,128,128) IF quantity###stockProp(article, color, size, object, stock) AND NOT
+    backgroundQuantity 'Цвет' (Article article, Color color, Item.Size size, ###object object, Stock stock) = RGB(255,128,128) IF quantity###stockProp(article, color, size, object, stock) AND NOT
         (quantity###stockProp(article, color, size, object, stock) <= prevCurrentBalance(article, color, size, stock));
 
-    changeQuantityValue(Article article, Color color, Size size, ###object object, Stock stock, NUMERIC[16,5] n)  { 
+    changeQuantityValue(Article article, Color color, Item.Size size, ###object object, Stock stock, NUMERIC[16,5] n)  { 
 
         IF detail###stockProp(article, color, size, object, stock) THEN {
             IF n THEN {
@@ -55,7 +55,7 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
             }
         }
     }
-    changeQuantity(Article article, Color color, Size size, ###object object, Stock stock)  { 
+    changeQuantity(Article article, Color color, Item.Size size, ###object object, Stock stock)  { 
         INPUT n = NUMERIC[16,5] DO
             changeQuantityValue(article, color, size, object, stock, n);
     }
@@ -78,7 +78,7 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
                           active(stk)
         ORDERS          id(ar), name(stk)
 
-        OBJECTS si=Size
+        OBJECTS si=Item.Size
         PROPERTIES(si) name
         FILTERS count(si,ar)
 
@@ -130,13 +130,13 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
     recQuantity 'Кол-во товара в документе рек.' (skuGroup, ###object object) = GROUP SUM calcQuantity(###skuProp##Group group, object) 
         IF isParent(group, ###skuProp##Group parent) BY (parent);              
 
-    priceBalance  (Article article, Color color, Size size, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stockProp(object)),price(max###skuProp (article,color,size), object);
+    priceBalance  (Article article, Color color, Item.Size size, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stockProp(object)),price(max###skuProp (article,color,size), object);
 
 
-    backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object) = RGB(255,128,128) IF quantity(article, color, size, object) AND NOT
+    backgroundQuantity 'Цвет' (Article article, Color color, Item.Size size, ###object object) = RGB(255,128,128) IF quantity(article, color, size, object) AND NOT
         (quantity(article, color, size, object) <= prevCurrentBalance(article, color, size, stockProp(object)));
 
-    changeQuantityValue(Article article, Color color, Size size, ###object object, NUMERIC[16,5] n)  { 
+    changeQuantityValue(Article article, Color color, Item.Size size, ###object object, NUMERIC[16,5] n)  { 
 
         IF detail(article, color, size, object) THEN {
             IF n THEN {
@@ -161,7 +161,7 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
               
         }
     }
-    changeQuantity(Article article, Color color, Size size, ###object object)  { 
+    changeQuantity(Article article, Color color, Item.Size size, ###object object)  { 
         INPUT n = NUMERIC[16,5] DO
             changeQuantityValue(article, color, size, object, n);
     }
@@ -182,7 +182,7 @@ META extendFormDocumentArticleCustom(object, form, concrete, legalEntityProp, st
         FILTERS           caption(ar)
         ORDERS          id(ar)
 
-        OBJECTS si=Size
+        OBJECTS si=Item.Size
         PROPERTIES(si) name
         FILTERS count(si,ar)
 

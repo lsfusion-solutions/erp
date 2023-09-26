@@ -116,19 +116,19 @@ changeItemGroupArticle(UserInvoiceArticleDetail detail)  {
 quantity 'Кол-во товара в документе' (cod,sid,detail, stock)=  GROUP SUM  quantity(UserInvoiceDetail userInvoiceDetail)
     BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
         userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
-quantity 'Кол-во товара в документе' (Color color, Size size, UserInvoiceArticleDetail detail) = quantity(color, size, detail, customerStock(userInvoice(detail)));
+quantity 'Кол-во товара в документе' (Color color, Item.Size size, UserInvoiceArticleDetail detail) = quantity(color, size, detail, customerStock(userInvoice(detail)));
 quantity 'Итого по артиклу' (Color color, UserInvoiceArticleDetail detail) = GROUP
-    SUM quantity(color, Size size, detail);
+    SUM quantity(color, Item.Size size, detail);
 quantityUserInvoiceArticleDetails 'Итого' (Color color) = GROUP
-    SUM quantity(color, Size size, UserInvoiceArticleDetail detail);
+    SUM quantity(color, Item.Size size, UserInvoiceArticleDetail detail);
 
 userInvoiceDetail (color, size, detail, stock) = GROUP MAX UserInvoiceDetail userInvoiceDetail
     BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
         userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
 
-userInvoiceDetail (Color color, Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
+userInvoiceDetail (Color color, Item.Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
                        
-changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDetail, NUMERIC[14,3] n)  { 
+changeQuantityValue(Color color, Item.Size size, UserInvoiceArticleDetail articleDetail, NUMERIC[14,3] n)  { 
     IF userInvoiceDetail(color, size, articleDetail) THEN {
         IF n THEN {
             quantity(UserInvoiceDetail d) <- n WHERE d == userInvoiceDetail(color, size, articleDetail);
@@ -167,12 +167,12 @@ changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDeta
           
     }
 }
-changeQuantity(Color color, Size size, UserInvoiceArticleDetail articleDetail)  { 
+changeQuantity(Color color, Item.Size size, UserInvoiceArticleDetail articleDetail)  { 
     INPUT n = NUMERIC[14,3] DO
         changeQuantityValue(color, size, articleDetail, n);
 }                                       
                                      
-order (UserInvoiceArticleDetail detail, Size size) = order(sizeGroup(article(detail)), size);                                         
+order (UserInvoiceArticleDetail detail, Item.Size size) = order(sizeGroup(article(detail)), size);                                         
    
 quantity 'Кол-во' (articleDetail) = GROUP SUM quantity(UserInvoiceDetail d) BY userInvoiceArticleDetail(d);  
 sum 'Сумма' (UserInvoiceArticleDetail articleDetail) = quantity(articleDetail) * price(articleDetail);  
