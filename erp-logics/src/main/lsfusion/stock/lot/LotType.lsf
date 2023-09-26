@@ -55,4 +55,10 @@ explicitLot 'Обязательное указание марки' (SkuGroup sku
 EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) explicitLot;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() explicitLot BACKGROUND RGB(190,190,190) IF dataExplicitLot(g);
 
-explicitLot (Sku s) = explicitLot(skuGroup(s)) AND lotType(s) MATERIALIZED;
+explicitLot 'Обязательное указание марки' = DATA BOOLEAN (LotType);
+
+EXTEND FORM dialogLotTypes
+    PROPERTIES (t) READONLY explicitLot
+;
+
+explicitLot (Sku s) = (explicitLot(skuGroup(s)) AND lotType(s)) OR explicitLot(lotType(s)) MATERIALIZED;
