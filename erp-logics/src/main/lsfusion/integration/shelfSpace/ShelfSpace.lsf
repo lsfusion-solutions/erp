@@ -1,6 +1,6 @@
 MODULE ShelfSpace;
 
-REQUIRE LogTools, ItemPack, Store, LegalEntity, SkuLedger, ZReport, Pricing, PriceList, PriceListPromotion, Range;
+REQUIRE LogTools, ItemPack, Store, LegalEntity, SkuLedger, ZReport, Pricing, PriceList, PriceListPromotion, Range, ItemSize;
 
 NAMESPACE ShelfSpace;
 
@@ -188,29 +188,32 @@ CatalogList_Warehouses 'Экспорт складов (CatalogList_Warehouses)'(
 } IN shelfSpace;
 
 //-- 9.	CatalogList_Item
-WHEN DROPPED (Item b AS Item) DO NEW o = DroppObject{
-    type(o)<- 9;
-    ID(o)<- PREV(id(b));
-    Description(o)<- PREV(name(b));
-    //BaseUnit(o)<- PREV(UOM(b));
-}
-WHEN DROPPED (ItemGroup b AS ItemGroup) DO NEW o = DroppObject{
-    type(o)<- 9;
-    ID(o)<- PREV(id(b));
-    Description(o)<- PREV(name(b));
-}
+//WHEN DROPPED (Item b AS Item) DO NEW o = DroppObject{
+//    type(o)<- 9;
+//    ID(o)<- PREV(id(b));
+//    Description(o)<- PREV(name(b));
+//    //BaseUnit(o)<- PREV(UOM(b));
+//}
+//WHEN DROPPED (ItemGroup b AS ItemGroup) DO NEW o = DroppObject{
+//    type(o)<- 9;
+//    ID(o)<- PREV(id(b));
+//    Description(o)<- PREV(name(b));
+//}
+
+itemGroup = DATA LOCAL ItemGroup(INTEGER);
 
 FORM CatalogList_Item FORMEXTID '=ShelfSpaceExchange:CatalogList_Item'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
     PROPERTIES type = 'CatalogList_Item' ATTR EXTID 'xsi:type'
 
-    OBJECTS b = ItemGroup EXTID ':ListElements'
-    PROPERTIES  id(b) EXTID ':ID',
-        = 'True' IF b IS ItemGroup EXTID ':IsFolder',
-        = IF active(b) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
-        = STRING[50](OVERRIDE id(parent(b)), '') EXTID ':Parent',
-        = STRING[80](OVERRIDE name(b),'') EXTID ':Description'
-
+    OBJECTS b = INTEGER EXTID ':ListElements'
+    PROPERTIES  = id(itemGroup(b)) EXTID ':ID',
+        = 'True' IF itemGroup(b) IS ItemGroup EXTID ':IsFolder',
+        = IF active(itemGroup(b)) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
+        = STRING[50](OVERRIDE id(parent(itemGroup(b))), '') EXTID ':Parent',
+        = STRING[80](OVERRIDE name(itemGroup(b)),'') EXTID ':Description'
+    FILTERS itemGroup(b)
+        
     OBJECTS i = Item EXTID ':ListElements'
     PROPERTIES  id(i) EXTID ':ID',
         = 'False' IF i IS Item EXTID ':IsFolder',
@@ -221,25 +224,33 @@ FORM CatalogList_Item FORMEXTID '=ShelfSpaceExchange:CatalogList_Item'
         = STRING(country(i))  EXTID ':Country',
         = STRING(UOM(i))  EXTID ':BaseUnit',
         = STRING(brand(i))  EXTID ':Brand'
-
-    OBJECTS a = DroppObject EXTID ':ListElements'
-    PROPERTIES  = ID(a) EXTID ':ID',
-        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
-        =  STRING[80](OVERRIDE Description(a),'') EXTID ':Description',
-        = '' IF a IS DroppObject   EXTID ':BaseUnit'
-    FILTERS type(a)==9
+    FILTERS active(i) AND id(i)
+    
+//    OBJECTS a = DroppObject EXTID ':ListElements'
+//    PROPERTIES  = ID(a) EXTID ':ID',
+//        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+//        =  STRING[80](OVERRIDE Description(a),'') EXTID ':Description',
+//        = '' IF a IS DroppObject   EXTID ':BaseUnit'
+//    FILTERS type(a)==9 AND NOT TRUE
 ;
 CatalogList_Item 'Экспорт товаров и групп (CatalogList_Item)'(){
+    itemGroup(INTEGER i)<- NULL;
+    LOCAL int = INTEGER ();
+    int()<- 0;
+    FOR active(ItemGroup g) AND level(g) ORDER level(g), g NOINLINE DO{
+        itemGroup(int())<- g;
+        int()<- int() (+) 1;
+    } 
     EXPORT CatalogList_Item XML TO System.exportFile;
     WRITE System.exportFile() TO 'file://' + exportDirectoryShelfSpace() + '/' + 'CatalogList_Item' +'_'+ formulaDateT(currentDateTime());
 } IN shelfSpace;
 
 //-- 10.	CatalogList_Units
-WHEN DROPPED (Barcode b AS Barcode) DO NEW o = DroppObject{
-    type(o)<- 10;
-    ID(o)<- PREV(STRING(b));
-    Description(o)<- PREV(nameTransportPack(b));
-}
+//WHEN DROPPED (Barcode b AS Barcode) DO NEW o = DroppObject{
+//    type(o)<- 10;
+//    ID(o)<- PREV(STRING(b));
+//    Description(o)<- PREV(nameTransportPack(b));
+//}
 
 FORM CatalogList_Units FORMEXTID '=ShelfSpaceExchange:CatalogList_Units'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xs', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
@@ -250,19 +261,21 @@ FORM CatalogList_Units FORMEXTID '=ShelfSpaceExchange:CatalogList_Units'
         = STRING (b) EXTID ':ID',
         = IF active(sku(b)) THEN 'False' ELSE 'True'  EXTID ':DeletionMark',
         = STRING[50](id(sku(b))) EXTID ':Owner',
-        = STRING[25](OVERRIDE nameTransportPack(b),'') EXTID ':Description',
+        = STRING[25](OVERRIDE name(UOM(b)), '') EXTID ':Description',
         = STRING[50](UOM(b)) EXTID ':ClassifierUnit',
         = NUMERIC[10,3](amount(b)) EXTID ':Coefficient',
-        = NUMERIC[10,3](height(b)/1000) EXTID ':Height',
-        = NUMERIC[10,3](length(b)/1000) EXTID ':Length',
-        = NUMERIC[10,3](width(b)/1000) EXTID ':Depth',
-        = NUMERIC[15,4](weight(b)/1000) EXTID ':Gross'
+        = NUMERIC[10,3](height(sku(b))/1000) EXTID ':Height',
+        = NUMERIC[10,3](length[Item](sku(b))/1000) EXTID ':Length',
+        = NUMERIC[10,3](width(sku(b))/1000) EXTID ':Depth',
+        = NUMERIC[15,4](grossWeight(sku(b))) EXTID ':Gross',
+        = NUMERIC[15,4](netWeight(sku(b))) EXTID ':Net'
+    FILTERS primary(b),UOM(b)
 
-    OBJECTS a = DroppObject EXTID ':ListElements'
-    PROPERTIES  = ID(a) EXTID ':ID',
-        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
-        =  STRING[100](OVERRIDE Description(a),'') EXTID ':Description'
-    FILTERS type(a)==10
+//    OBJECTS a = DroppObject EXTID ':ListElements'
+//    PROPERTIES  = ID(a) EXTID ':ID',
+//        = 'True' IF a IS DroppObject EXTID ':DeletionMark',
+//        =  STRING[100](OVERRIDE Description(a),'') EXTID ':Description'
+//    FILTERS type(a)==10 AND NOT TRUE
 ;
 CatalogList_Units 'Экспорт единиц измерения и ВГХ (CatalogList_Units)'(){
     
