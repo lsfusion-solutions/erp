@@ -5,11 +5,14 @@ REQUIRE TerminalLot, LotAggregate, SkuLedgerLot;
 NAMESPACE Terminal;
 
 
+filter(Lot l, Employee e) = l IS Lot AND e IS Employee
+    AND [GROUP MIN Stock st IF accessCompany(e, st) AND 
+        (currentBalance(l, st)
+        OR [GROUP MIN SkuLedger sl IF date(sl) >= subtract(currentDate(), 50) AND signedQuantity(sl, l) BY stock(sl)](st)
+        OR [GROUP MIN LotLedger sl IF date(sl) >= subtract(currentDate(), 50) AND quantity(sl, l) BY stock(sl)](st)) ]();
+
 filter(Lot l, Stock st, Employee e) += l IS Lot AND st IS Stock AND e IS Employee 
-                                      AND (currentBalance(l, st) 
-                                            OR [GROUP MIN SkuLedger sl IF date(sl) >= subtract(currentDate(), 50) AND signedQuantity(sl, l) BY stock(sl)](st)
-                                            OR [GROUP MIN LotLedger sl IF date(sl) >= subtract(currentDate(), 50) AND quantity(sl, l) BY stock(sl)](st))
-                                      AND accessCompany(e, st);
+                                      AND filter(l, e);
 
 META defineAddDetailDialogTerminalLotSecond(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
