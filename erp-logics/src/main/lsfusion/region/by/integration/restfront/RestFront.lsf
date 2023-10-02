@@ -534,7 +534,8 @@ exportAddition 'Выгрузить добавки' (DepartmentStore ds) {
 textMenuLine (DepartmentStore ds, Item i) = '\{"menuKey":' + TEXT(OVERRIDE idMenuRestFront(ds),-1) +
                                 ',"good":\{"alias":"' + id(i) + '"\}' +
                                 ',"costNcu":' + TEXT(OVERRIDE priceA(priceListTypeRestFront(),i,ds,currentDateTime()),0) + 
-                                ',"isNotShow":' + (IF (additionGroup(i) OR (inStopList(i,ds,currentDateTime()) AND allowMenuLineWithStopList())) THEN 'true' ELSE 'false') + '\}';
+                                (OVERRIDE (',"disabled":' + (IF inStopList(i,ds,currentDateTime()) THEN 'true' ELSE 'false')) IF allowMenuLineWithStopList(),'') +
+                                ',"isNotShow":' + (IF additionGroup(i) THEN 'true' ELSE 'false') + '\}';
 
 idMenuLine = DATA LOCAL NESTED INTEGER (INTEGER);
 aliasGoodMenuLine = DATA LOCAL NESTED STRING[100] (INTEGER);
@@ -604,7 +605,7 @@ exportMenuLine 'Выгрузить цены' (DepartmentStore ds) {
             }
             FOR Item i == item(aliasGoodMenuLine(INTEGER j)) AND priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND (NOT inStopList(i,ds,currentDateTime()) OR allowMenuLineWithStopList()) AND (hasImage(i) OR imageRestFront(groupRestFront(i))) AND NOT
             (costNcuMenuLine(j) == priceA(priceListTypeRestFront(),i,ds,currentDateTime()) AND 
-            ((IF isNotShowMenuLine(j) THEN 'true' ELSE 'false') == (IF (additionGroup(i) OR (inStopList(i,ds,currentDateTime()) AND allowMenuLineWithStopList())) THEN 'true' ELSE 'false'))) DO {
+            ((IF isNotShowMenuLine(j) THEN 'true' ELSE 'false') == (IF additionGroup(i) THEN 'true' ELSE 'false'))) DO {
                 putMenuLine(ds,i);
             }
         }
