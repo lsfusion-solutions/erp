@@ -1118,7 +1118,7 @@ importReplies 'Импортировать подтверждения' ()  {
         
             IMPORT receive_complete XML FROM resultFile();
             
-            IF type() == 'R' THEN {
+            IF (GROUP SUM 1 IF typeSolvoReturn(Sale.Operation o) == type()) THEN {
                 IF NOT SaleReturn.userInvoice(inc_id()) THEN {
                     logToFile('WMS', 'Not found salereturn invoice: ' + inc_id());
                     error() <- 'Накладная не найдена';
@@ -1142,7 +1142,8 @@ importReplies 'Импортировать подтверждения' ()  {
                         done() <- TRUE;
                     }
                 }
-            } ELSE {
+            }
+            IF type() == 'A' THEN {
                 IF NOT Purchase.userInvoice(inc_id()) THEN {
                     logToFile('WMS', 'Not found purchase invoice: ' + inc_id());
                     error() <- 'Накладная не найдена';
@@ -1178,7 +1179,7 @@ importReplies 'Импортировать подтверждения' ()  {
 
             IMPORT XML ATTR FROM resultFile() TO() inc_id, new_status, type;
             
-            IF type() == 'R' THEN {
+            IF (GROUP SUM 1 IF typeSolvoReturn(Sale.Operation o) == type()) THEN {
                 IF NOT SaleReturn.userInvoice(inc_id()) THEN {
                     logToFile('WMS', 'Not found salereturn invoice: ' + inc_id());
                     error() <- 'Накладная не найдена';
@@ -1193,7 +1194,8 @@ importReplies 'Импортировать подтверждения' ()  {
                     APPLY NESTED LOCAL;
                     done() <- TRUE;
                 }
-            } ELSE {
+            }
+            IF type() == 'A' THEN {
                 IF NOT Purchase.userInvoice(inc_id()) THEN {
                     logToFile('WMS', 'Not found purchase invoice: ' + inc_id());
                     error() <- 'Накладная не найдена';
@@ -1218,7 +1220,7 @@ importReplies 'Импортировать подтверждения' ()  {
 
             IMPORT order_status_changed XML FROM resultFile();
             
-            IF type() == 'L' OR type() == 'X' THEN {
+            IF (GROUP SUM 1 IF typeSolvo(WriteOff.Operation o) == type()) THEN {
                 IF NOT userWriteOff(order_id()) THEN {
                     logToFile('WMS', 'Not found writeoff: ' + order_id());
                     error() <- 'Списание не найдено';
@@ -1276,7 +1278,7 @@ importReplies 'Импортировать подтверждения' ()  {
                     done() <- TRUE;
                 }
             }
-            IF type() == 'A' OR type() == 'B' THEN {
+            IF (GROUP SUM 1 IF typeSolvo(Sale.Operation o) == type()) THEN {
                 IF NOT Sale.userOrder(order_id()) THEN {
                     logToFile('WMS', 'Not found sale order: ' + order_id());
                     error() <- 'Заказ не найден';
