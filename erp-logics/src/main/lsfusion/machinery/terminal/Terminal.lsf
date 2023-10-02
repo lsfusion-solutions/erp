@@ -467,6 +467,10 @@ filterStock = DATA LOCAL Stock ();
 
 backgroundTerminalDocumentDetail = ABSTRACT CASE COLOR (TerminalDocumentDetail);
 
+notUsedFilter 'Неиспользованные' = DATA LOCAL BOOLEAN ();
+isOpenedFilter 'Открыт' = DATA LOCAL BOOLEAN ();
+fillTerminalDocumentsFilters ABSTRACT LIST();
+
 FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  include
@@ -484,11 +488,20 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
         comment, dateTimeScan, extraQuantity, extraDate1, extraDate2, extraField1, extraField2, extraField3, batch, ana1, ana2, image
 
     FILTERS terminalDocument(tdd) == td
-    FILTERGROUP filterUse
-        FILTER 'Неиспользованные' notUsed(td) 'F10' DEFAULT
-        
-    FILTERGROUP open FILTER 'Открыт' isOpened(td) 'F6' DEFAULT
+//    FILTERGROUP filterUse
+//        FILTER 'Неиспользованные' IF NOT skipNotUsed() THEN notUsed(td) ELSE TRUE'F10' DEFAULT
+//        
+//    FILTERGROUP open FILTER 'Открыт' IF NOT skipIsOpened() THEN isOpened(td) ELSE TRUE 'F6' DEFAULT
     PROPERTIES terminalDocumentPrint(td)  
+    PROPERTIES () TOOLBAR DRAW td notUsedFilter, isOpenedFilter
+    FILTERS IF notUsedFilter() THEN notUsed(td) ELSE td IS TerminalDocument
+    FILTERS IF isOpenedFilter() THEN isOpened(td) ELSE td IS TerminalDocument
+    
+    EVENTS ON INIT {
+        notUsedFilter()<- TRUE;
+        isOpenedFilter()<- TRUE;
+        fillTerminalDocumentsFilters();
+    }
 ;
 
 @extendFormFilterAccessStock(TerminalDocument, td, terminalDocuments, stock, company);
