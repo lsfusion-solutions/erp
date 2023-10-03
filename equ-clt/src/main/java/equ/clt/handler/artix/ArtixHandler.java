@@ -1360,7 +1360,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                         if(exportClients) {
                             for (DiscountCard d : discountCardList) {
-                                if (d.idDiscountCard != null) {
+                                if (d.numberDiscountCard != null) {
                                     writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
                                 }
                             }
