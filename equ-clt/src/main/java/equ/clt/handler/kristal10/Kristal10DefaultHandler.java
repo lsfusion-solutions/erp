@@ -293,8 +293,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     protected static void addPriceEntryElements(Element parentElement, TransactionCashRegisterInfo transaction, CashRegisterItem item,
                                                 String idItem, JSONObject infoJSON, boolean useSectionAsDepartNumber, String shopIndices) {
-        Object price = item.price == null ? null : (item.price.doubleValue() == 0.0 ? "0.00" : item.price);
-        addPriceEntryElement(parentElement, idItem, price, false, shopIndices, currentDate(), null, 1, getDepartNumber(transaction, item, useSectionAsDepartNumber), false);
+        if (infoJSON == null || !infoJSON.optBoolean("skipPriceEntry")) {
+            Object price = item.price == null ? null : (item.price.doubleValue() == 0.0 ? "0.00" : item.price);
+            addPriceEntryElement(parentElement, idItem, price, false, shopIndices, currentDate(), null, 1, getDepartNumber(transaction, item, useSectionAsDepartNumber), false);
+        }
 
         if(infoJSON != null) {
             Double secondPrice = infoJSON.optDouble("secondPrice");
@@ -319,18 +321,6 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                     addExtraPriceEntryElement(parentElement, idItem, extraPrice.getDouble("price"), extraPrice.optBoolean("deleted"), shopIndices,
                             extraPrice.getString("beginDate"), extraPrice.optString("endDate"), extraPrice.getInt("number"),
                             extraPrice.getInt("departmentNumber"));
-                }
-            }
-
-            int zone = infoJSON.optInt("zone");
-            int countZone = infoJSON.optInt("countZone");
-            if (zone != 0 && countZone != 0) {
-                for (int i = 1; i <= countZone; i++) {
-                    if (i == zone) {
-                        addPriceEntryElement(parentElement, idItem, price, false, currentDate(), null, 1, i);
-                    } else {
-                        addPriceEntryElement(parentElement, idItem, 1, true, null, null, 1, i);
-                    }
                 }
             }
         }
