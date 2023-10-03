@@ -311,6 +311,8 @@ overProcessLot ABSTRACT LIST (Lot);
 overProcessLot ABSTRACT LIST (Lot, Stock);
 overCreateDisassemblyLot ABSTRACT LIST (Disassembly, Lot);
 
+skipPrint = ABSTRACT BOOLEAN();
+
 processLot 'Обработать' (Stock st) {
     IF disassemblyMode() AND lot(ibarcode()) THEN {
         MESSAGE 'Штрихкод уже есть в системе. Используйте вкладку Редактирование';
@@ -364,7 +366,7 @@ processLot 'Обработать' (Stock st) {
         IF canceled() THEN {
             CANCEL NESTED LOCAL;
         } ELSE {
-            IF changedPrint() THEN printLabel(l);
+            IF changedPrint() AND NOT skipPrint() THEN printLabel(l);
             IF editMode() AND goToDisassemblyMode() THEN 
                 dashboardMode() <- 'disassembly';
                 
