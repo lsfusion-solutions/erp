@@ -15,11 +15,22 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
 }
 
 recalculateCostAccountFirst(DATE dFrom, DATE dTo) +{
-    logToFile('cost', 'Начат пересчет цен в разборках (расход)');
+    logToFile('cost', 'Начат пересчет цен в разборках');
     APPLY NESTED LOCAL {
         price(Disassembly d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) AND
             prevAccountPriceB(sku(d), stock(d), dateTime(d)) > 0;
     }
-    logToFile('cost', 'Закончен пересчет цен в разборках (расход)');
+    
+    // в Assembly это делают события, а здесь есть только пересчёт
+    APPLY NESTED LOCAL {
+        FOR date(Disassembly d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) DO {
+            sum(DisassemblyDetail dd) <- (PARTITION UNGROUP sum
+                PROPORTION STRICT ROUND(2) percent(dd)
+                ORDER dd
+                BY disassembly(dd)) WHERE disassembly(dd) = d;
+            price(DisassemblyDetail dd) <- NUMERIC[16,4](sum(dd) / quantity(dd)) WHERE disassembly(dd) = d;
+        }
+    }
+    logToFile('cost', 'Закончен пересчет цен в разборках');
 }
