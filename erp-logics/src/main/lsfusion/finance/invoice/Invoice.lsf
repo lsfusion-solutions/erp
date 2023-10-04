@@ -1273,8 +1273,9 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
         CHANGED(invoiceDetail(UserInvoiceDetail detail)) AND prevCountBatch(invoiceDetail(detail)) == 1 AND NOT skipFillBatch(detail) DO
             batch(detail) <- prevMaxBatch(invoiceDetail(detail));
 
+    skipInBatchInvoiceDetail = ABSTRACT VALUE BOOLEAN(UserInvoiceDetail);   
     CONSTRAINT batch(UserInvoiceDetail detail) AND invoiceDetail(detail) AND
-               NOT in(invoiceDetail(detail), batch(detail))
+               NOT in(invoiceDetail(detail), batch(detail)) AND NOT skipInBatchInvoiceDetail(detail)
                CHECKED BY batch[UserInvoiceDetail], invoiceDetail[UserInvoiceDetail]
                MESSAGE 'Выбрана партия, которая не была списана в соответствующей строке основания';
                
