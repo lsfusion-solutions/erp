@@ -1472,6 +1472,28 @@ EXTEND FORM sendMessage
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderOther, paymentDescription);
 
 
+@defPropObject(recipientDepartment, 'ПодразделениеПолучатель', Department, outcomeCashOrderOther);
+
+//-----------------
+
+@extDocument(outcomeCashOrderOtherEx, 'РКОПрочаяВыдача');
+@defPropObject(currency, 'Валюта', Currency, outcomeCashOrderOtherEx, commonData);
+@defPropSimple(issuedTo, 'Выдать', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(chiefAccounter, 'ГлавныйБухгалтер', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(note, 'Комментарий', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(paymentInformation, 'НазначениеПлатежа', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(reason, 'Основание', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(document, 'ПоДокументу', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(appendix, 'Приложение', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(chief, 'Руководитель', STRING, outcomeCashOrderOtherEx);
+@defPropSimple(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderOtherEx, commonData);
+@defPropObject(department, 'Подразделение', Department, outcomeCashOrderOtherEx, commonData);
+
+@extTable(outcomeCashOrderOtherEx, paymentDescription);
+@defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderOtherEx, paymentDescription);
+
+@defPropObject(recipientDepartment, 'ПодразделениеПолучатель', Department, outcomeCashOrderOtherEx);
+
 //-- Документ.РКОВыплатаЗарплаты
 
 @extDocument(outcomeCashOrderSalary, 'РКОВыплатаЗарплаты');
@@ -1489,10 +1511,16 @@ EXTEND FORM sendMessage
 
 @extTable(outcomeCashOrderSalary, paymentDescription);
 @defPropSimpleDetail(sum, 'Сумма', NUMERIC[15,2], outcomeCashOrderSalary, paymentDescription, settlementData);
+@defProp(datePayroll, 'ДатаВедомостиНаВыплатуЗарплаты', DATE, outcomeCashOrderSalaryPaymentDescription);
+datePayrollOutcomeCashOrderSalaryPaymentDescription 'ДатаВедомостиНаВыплатуЗарплаты' = DATA LOCAL DATE (INTEGER);
+stringDatePayroll 'ДатаВедомостиНаВыплатуЗарплаты' (OutcomeCashOrderSalaryPaymentDescription outcomeCashOrderSalaryPaymentDescription, Configuration configuration) = dateTimeToString(datePayroll(outcomeCashOrderSalaryPaymentDescription, configuration));
 
+EXTEND FORM sendMessage PROPERTIES stringDatePayroll(outcomeCashOrderSalaryPaymentDescription, configuration) IN settlementData EXTID 'ДатаВедомостиНаВыплатуЗарплаты';
+EXTEND FORM receiveMessage PROPERTIES datePayrollOutcomeCashOrderSalaryPaymentDescription(outcomeCashOrderSalaryPaymentDescription) IN settlementData EXTID 'ДатаВедомостиНаВыплатуЗарплаты';
 
-@defKeyPropDate (datePayroll, 'ДатаВедомостиНаВыплатуЗарплаты', settlementData, outcomeCashOrderSalaryPaymentDescription);
 @defPropSimpleDetail(numberPayroll, 'НомерВедомостиНаВыплатуЗарплаты', STRING , outcomeCashOrderSalary, paymentDescription, settlementData);
+
+@defPropSimpleDetail(workAgreement, 'ДоговорПодряда', STRING , outcomeCashOrderSalary, paymentDescription, settlementData);
 
 
 // retail report
