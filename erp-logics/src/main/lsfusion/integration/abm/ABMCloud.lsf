@@ -874,6 +874,7 @@ supplier_uid = DATA LOCAL STRING (Purchase.OrderDetail);
 quantity_ABM = DATA LOCAL NUMERIC[16,5] (Purchase.OrderDetail);
 order_number = DATA LOCAL STRING (Purchase.OrderDetail);
 delivery_date = DATA LOCAL STRING (Purchase.OrderDetail);
+item_notes = DATA LOCAL STRING (Purchase.OrderDetail);
 
 resetOrdered(){
     product_uid (Purchase.OrderDetail d)<- NULL;
@@ -882,10 +883,13 @@ resetOrdered(){
     quantity_ABM (Purchase.OrderDetail d)<- NULL;
     order_number (Purchase.OrderDetail d)<- NULL;
     delivery_date (Purchase.OrderDetail d)<- NULL;
+    item_notes (Purchase.OrderDetail d)<- NULL;
 }
 //-- todo: действие, которое надо перегрузить в логике 
 fillOrdered ABSTRACT (DATE);
 fillOrdered ABSTRACT ();
+orderedCustom ABSTRACT(DATE, BOOLEAN);
+
 ordered 'ordered' (DATE d, BOOLEAN single) {
     IF single THEN {
         resetFilterABM();
@@ -901,10 +905,12 @@ ordered 'ordered' (DATE d, BOOLEAN single) {
             supplier_uid = supplier_uid(dd), 
             quantity = quantity_ABM(dd), 
             order_number = order_number(dd), 
-            delivery_date = delivery_date(dd)
+            delivery_date = delivery_date(dd),
+            item_notes = item_notes(dd)
             WHERE userOrder(dd) == o AND order_number(dd);        
         sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
-    }   
+    }
+    orderedCustom(d,single);
 }
 
 

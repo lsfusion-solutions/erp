@@ -87,6 +87,7 @@ WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) AND
 despatchAdviceDetail (UserOrderDetail d) = GROUP MAX EOrderDespatchAdviceDetail ed IF eOrder(orderDespatchAdvice(ed)) == order(d) AND sku(ed) == sku(d);
 
 /////////------------------- ORDERS
+noteExtra = ABSTRACT STRING (EOrder);
 
 FORM purchaseOrder FORMEXTID 'ORDERS'
     OBJECTS o = EOrder PANEL
@@ -104,7 +105,7 @@ FORM purchaseOrder FORMEXTID 'ORDERS'
         contractNumber(o) EXTID 'contractNumber',
         deliveryDateTimeFirst = toChar(shipmentDateTime(o),'yyyy-MM-ddThh24:mi:ss') EXTID 'deliveryDateTimeFirst',
         lineQuantity = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'lineQuantity',
-        note(o) EXTID 'comment'
+        comment = (CONCAT '; ', note(o), noteExtra(o)) EXTID 'comment'
     OBJECTS d = EOrderDetail EXTID 'line'
     FILTERS order(d) == o
     PROPERTIES READONLY GTINBarcode(d) EXTID 'GTIN',
