@@ -857,8 +857,24 @@ NAVIGATOR {
 }
 
 
-openData 'Открыть содержимое' (Document d) {
+openDataClient 'Открыть содержимое' (Document d) {
     open(data(entity(d)));
+};
+
+openDataWeb 'Открыть содержимое' (Document d) {
+    LOCAL data = FILE ();
+    data() <- data(entity(d));
+    zipping(STRING[1000] s) <- FILE(data()) WHERE s == fileName(entity(d));
+    makeZipFile();
+    open(zipped());
+};
+
+openData 'Открыть содержимое' (Document d) {
+    IF isWebDesktop() THEN {
+        openDataWeb(d);
+    } ELSE {
+        openDataClient(d);
+    }
 } TOOLBAR;
 
 FORM document 'Документ Диадока'
