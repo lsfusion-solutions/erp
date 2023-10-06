@@ -1324,7 +1324,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
 
         try {
-            FileUtils.writeStringToFile(new File(requestDirectory, prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".xml"), request, encoding);
+            FileUtils.writeStringToFile(new File(requestDirectory, prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss-SSS")) + ".xml"), request, encoding);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
