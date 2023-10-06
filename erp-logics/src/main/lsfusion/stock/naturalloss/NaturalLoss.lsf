@@ -586,3 +586,31 @@ overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естес
 loadDefaultNaturalLossGroups 'Загрузить стандартные группы естественной убыли'  ABSTRACT LIST ( ) IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultNaturalLossGroups);
+
+FORM printNaturalLoss 'Ведомость естественной убыли'
+    OBJECTS s=NaturalLoss PANEL SUBREPORT
+    PROPERTIES(s) READONLY SELECTOR number, series, fullNameStock, time,
+        date, dateFrom, dateTo, addressStock,
+        quantityNaturalLossDetail, sum, note
+    OBJECTS d=NaturalLossDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+        nameBatch, quantityLoss, nameSubNaturalLossGroup,
+        code, nameSubNaturalDetail, percent, quantity,
+        price, sum
+
+    FILTERS in(s, d)
+;
+
+print 'Ведомость естественной убыли' (NaturalLoss naturalLoss)  { PRINT printNaturalLoss OBJECTS s = naturalLoss; }   IMAGE 'print.png' IN print;
+printXlsx 'Ведомость естественной убыли (XLSX)' (NaturalLoss naturalLoss)  { PRINT printNaturalLoss OBJECTS s = naturalLoss   XLSX; } IMAGE 'print.png' IN print;
+
+skipPrint = ABSTRACT VALUE BOOLEAN (NaturalLoss);
+EXTEND FORM naturalLosses
+    PROPERTIES(s)  SHOWIF NOT skipPrint(s) print, printXlsx
+;
+
+DESIGN naturalLosses {
+    printTab {
+        MOVE GROUP(print,s);
+    }
+}
