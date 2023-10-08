@@ -36,7 +36,7 @@ quantum (Item i) += IF isCatchWeight(i) = TTRUE THEN (OVERRIDE passScalesQuantum
 currentPrice(Item i, DepartmentStore d) += retailPricingPriceA(i, d);
 oldPrice (Item i, DepartmentStore d) += priceBefore(promotionPriceListDetailA(i, d, currentDateTime()));
 
-available(Item i, DepartmentStore d) += NUMERIC[16,5](currentBalance(i, d));
+available(Item i, DepartmentStore d) += NUMERIC[16,5](OVERRIDE currentBalance(i, d), 0);
 
 inOnlineYandex(Item i, DepartmentStore d) +=
     WHEN customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i) AND d IS DepartmentStore
@@ -44,6 +44,7 @@ inOnlineYandex(Item i, DepartmentStore d) +=
 onlineCategory(Group g) += WHEN g IS CustomGroup AND customGroupType(g) = yandexGroupType() THEN TRUE;
 
 EXTEND FORM nomenclature
+    PROPERTIES IN measure =  IF NOT netWeight(i) THEN 1000 EXTID 'value', = IF NOT netWeight(i) THEN 'GRM' EXTID 'unit'
     FILTERS urlHttpAccess(i) AND hashImage(i) AND currentPrice(i, s);
 
 EXTEND FORM availability
@@ -70,5 +71,42 @@ EXTEND FORM departmentStore
 DESIGN departmentStore{
     headerExtraParams{
         MOVE PROPERTY (idYandex(d));
+    }
+}
+
+useCustomOrderStatus() += TRUE;
+yandexEdaOrderStatusCustom (InternetOrder o) += CASE
+    WHEN status(o) = StatusInternetOrder.new THEN 'ACCEPTED_BY_RESTAURANT'
+    WHEN status(o) = StatusInternetOrder.isPicking THEN 'COOKING'
+    WHEN status(o) = StatusInternetOrder.picked THEN 'COOKING'
+    WHEN status(o) = StatusInternetOrder.agreed THEN 'READY'
+    WHEN status(o) = StatusInternetOrder.delivery THEN 'TAKEN_BY_COURIER'
+    WHEN status(o) = StatusInternetOrder.delivered THEN 'DELIVERED'
+    WHEN status(o) = StatusInternetOrder.closed THEN 'CANCELLED'
+;
+onStarted() +{
+    IF staticCaption(StatusInternetOrder.agreed) != 'Готов к выдаче' THEN 
+        staticCaption(StatusInternetOrder.agreed) <- 'Готов к выдаче';
+}
+
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) pickingSumInternetOrderDetail
+    PROPERTIES (d) pickingSum BEFORE pickingQuantity(d)
+;
+EXTEND FORM internetOrder
+    PROPERTIES (o) pickingSumInternetOrderDetail
+    PROPERTIES (d) pickingSum BEFORE pickingQuantity(d)
+;
+DESIGN internetOrder{
+    REMOVE PROPERTY (idAggregator(o));
+    PROPERTY (paymentERIPSumInternetOrder(o)) {
+        caption = 'Сумма оплаты (online)';
+    }
+    PROPERTY (paymentCashSumInternetOrder(o)) {
+        showIf = paymentCashSumInternetOrder(o);
+    }
+    PROPERTY (paymentCardSumInternetOrder(o)) {
+        showIf = paymentCardSumInternetOrder(o);
     }
 }
