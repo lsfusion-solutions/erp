@@ -561,6 +561,9 @@ META defineOrderInvoice(sign, stockProp)
     
     defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(batch(detail), userInvoice(detail)), defaultOrderDetail(sku(detail), userInvoice(detail));
 
+    isCustomsDialogIncludeOrdersUser = ABSTRACT BOOLEAN (UserInvoice);
+    customsDialogIncludeOrdersUser ABSTRACT LIST (UserInvoice);
+    
     dialogIncludeOrdersUser 'Включить заказы в накладную' (UserInvoice userInvoice)  { 
         DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF countInvoiceDetail(userInvoice) THEN {
@@ -569,13 +572,17 @@ META defineOrderInvoice(sign, stockProp)
             }
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 ASK 'Создать по выбранным заказам строки накладной?' DO {  
-                    FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT relationInvoiceDetail(order, userInvoice) DO {
-                        
-                        createDetail(userInvoice, order);
-                        fillPrice(userInvoice, order);
-   
-                        userInvoice(order) <- userInvoice;                         
-                    }                                   
+                    IF NOT isCustomsDialogIncludeOrdersUser(userInvoice) THEN {
+                        FOR include[Order, UserInvoice](Order order, userInvoice) AND NOT relationInvoiceDetail(order, userInvoice) DO {
+
+                            createDetail(userInvoice, order);
+                            fillPrice(userInvoice, order);
+
+                            userInvoice(order) <- userInvoice;
+                        }
+                    } ELSE {
+                        customsDialogIncludeOrdersUser(userInvoice);
+                    }    
                 }              
             }
             IF notIncludeInvoiceDetailOrder(userInvoice) THEN {
