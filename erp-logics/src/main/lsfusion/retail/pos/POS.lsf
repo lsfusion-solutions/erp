@@ -760,8 +760,13 @@ consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
 preProcessBarcode  ABSTRACT LIST (STRING[200], Receipt);
 overChangeBarcodeSale  ABSTRACT LIST FIRST (STRING[200], Receipt);
 
+recordLogScanPos 'Записывать лог скана в POS' = DATA BOOLEAN ();//временно
+
 changeBarcodeSale(Receipt receipt)  { 
     INPUT s = STRING[200] DO {
+        IF recordLogScanPos() THEN{
+            printToLog(CONCAT ' ', 'POSLogScan: ', s);            
+        }
         consumedChangeBarcodeSaleReceipt() <- NULL;
         LOCAL barcode = STRING[30] ();
         barcode() <- processedBarcode(s);
