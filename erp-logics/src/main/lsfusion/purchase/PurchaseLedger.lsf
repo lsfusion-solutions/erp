@@ -186,7 +186,8 @@ sumVATPurchase (sku, stock, supplier, date) = GROUP SUM sumVAT(PurchaseLedger le
 sumPurchase (sku, stock, supplier, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);   // MATERIALIZED
 
-
+quantityPurchaseShipment (sku, stock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), shipmentDate(ledger);
 quantityPurchase 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), supplier(ledger);  // MATERIALIZED
     
@@ -204,6 +205,11 @@ quantityPurchaseSupplier 'Кол-во закуплено' (stock, supplierStock,
     BY stock(ledger), supplierStock(ledger), sku(ledger);     
 
 //по складу и SKU
+quantityPurchaseShipment 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
+    SUM
+    quantityPurchaseShipment(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+
 quantityPurchase 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
         SUM
         quantityPurchase(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
