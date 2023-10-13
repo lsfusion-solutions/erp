@@ -74,11 +74,11 @@ addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = O
 contactSupplierStock 'Лицо ответственное за передачу груза' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
-stockGLNUserID (STRING[13] GLNLE, STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLN(legalEntity(s)) == GLNLE AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
+stockGLNUserID (STRING[13] GLNLE, STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLNeInvoice(legalEntity(s)) == GLNLE AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
 userIDSupplierStock 'Идентификатор пользователя' (EInvoice i) = userID(supplierStock(i));
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
-glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLN(freightPayer(i)), extraGLN(freightPayer(i));
+glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLNeInvoice(freightPayer(i)), extraGLN(freightPayer(i));
 nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) =  IF useFullNameLegalEntity(i) THEN fullName(freightPayer(i)) ELSE name(freightPayer(i));
 addressFreightPayer 'Адрес заказчика автомобильной перевозки' (EInvoice i) = address(freightPayer(i));
 unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
@@ -86,7 +86,7 @@ unpFreightPayer 'УНП заказчика автомобильной перев
 customer 'Покупатель' = DATA LegalEntity (EInvoice);
 nameCustomer 'Покупатель' (EInvoice i) = IF useFullNameLegalEntity(i) THEN fullName(customer(i)) ELSE name(customer(i));
 dataGLNCustomerFirst = DATA STRING[13] (EInvoice);
-glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerFirst(i), GLN(customer(i)), extraGLN(customer(i));
+glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerFirst(i), GLNeInvoice(customer(i)), extraGLN(customer(i));
 addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
 unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
 
