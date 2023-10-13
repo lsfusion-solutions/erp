@@ -320,7 +320,10 @@ backgroundLevel(Range range, Store store, DATE dateIn) = hasLevel(range, store, 
 
 countRange 'В ассортименте' (Sku s, StoreType t, DATE d) = GROUP SUM 1 IF level(Range range, t, d) >= level(range, s, d);
 
-overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, st, d), level(r, storeType(st), d);  
+TABLE rangeStore (Range, Store);
+skipStoreType 'Исключить назначение по формату' = DATA BOOLEAN (Range, Store);
+
+overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, st, d), level(r, storeType(st), d) IF NOT skipStoreType(r,st);  
 overDate 'Дата включения' (Range r, Store st, DATE d) = OVERRIDE date(r, st, d), date(r, storeType(st), d);  
 nameOverLevel 'Уровень (перегруженный)' (Range r, Store st, DATE d)= name(overLevel(r, st, d));               
 nameLevel 'Уровень' (Range r, Store st, DATE d)= name(level(r, st, d));
@@ -338,6 +341,9 @@ in (Sku s, Range r, Store st, DATE d) += overLevel(r, st, d) >= level(r, s, d) A
 
 countRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, st, d) >= level(r, sk, d);
 countTypeRange (Store st, Sku sk, DATE d) = GROUP SUM 1 IF level(Range r, storeType(st), d) >= level(r, sk, d);
+
+setSkipStoreType 'Исключить назначение по формату' (Range r, Store s){skipStoreType(r,s) <- TRUE;} ASON CONTEXTMENU nameOverLevel[Range, Store, DATE];
+dropSkipStoreType 'Сбросить исключение назначения по формату' (Range r, Store s){skipStoreType(r,s) <- TRUE;} ASON CONTEXTMENU nameOverLevel[Range, Store, DATE];
 
 statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE WHEN countRange(st, s, d) THEN 'Магазин'
     WHEN countTypeRange(st, s, d) THEN 'Формат';
