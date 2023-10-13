@@ -48,6 +48,9 @@ descriptionInvoice 'Накладная' (InvoiceCorrection i) = description(invo
 
 countInvoiceCorrection = GROUP SUM 1 BY invoice(InvoiceCorrection ic);
 
+CONSTRAINT SETCHANGED (countInvoiceCorrection(Invoice i)) AND countInvoiceCorrection(i) >1
+    MESSAGE 'Для одной накладной не может быть больше 1 корректировки';
+
 CONSTRAINT invoice(InvoiceCorrection i) AND NOT operation(i)=operation(invoice(i))
     CHECKED BY invoice[InvoiceCorrection]
     MESSAGE 'Операция корректировки отличается от операции накладной';
@@ -102,7 +105,7 @@ invoicePriceA 'Цена с НДС (после)' = DATA NUMERIC[16,4] (InvoiceCor
 
 quantityB 'Кол-во (до)' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
 quantityA 'Кол-во (после)' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
-quantityDiff 'Кол-во (разница)' (InvoiceCorrectionDetail d) = quantityA(d) (-) quantityB(d);
+quantity 'Кол-во (изменение)' (InvoiceCorrectionDetail d) = quantityA(d) (-) quantityB(d);
 
 sumB 'Сумма (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 sumA 'Сумма (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
@@ -224,7 +227,7 @@ changePrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  {
         changePriceValue(invoiceDetail, invoiceCorrection, n);
 }
 
-changeQuantityValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  {
+changeQuantityValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,5] n)  {
     IF invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) THEN {
         IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
             quantityA(InvoiceCorrectionDetail detail) <- n WHERE detail == invoiceCorrectionDetail(invoiceDetail, invoiceCorrection);
@@ -739,8 +742,8 @@ price[PurchaseLedger] (InvoiceCorrectionDetail ledger) += invoicePriceA(ledger);
 supplier[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplier(ledger);
 supplierStock[PurchaseLedger] (InvoiceCorrectionDetail ledger) += supplierStock(ledger);
 skip[PurchaseLedger] (InvoiceCorrectionDetail ledger) += skipPurchaseLedger(operation(ledger));
-quantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantityDiff(ledger);
-shipmentQuantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantityDiff(ledger);
+quantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantity(ledger);
+shipmentQuantity[PurchaseLedger] (InvoiceCorrectionDetail ledger) += quantity(ledger);
 //numberDocument[PurchaseLedger] (InvoiceCorrectionDetail ledger) += number(ledger);
 
 //-- Запрет на изменение документа другим пользователем

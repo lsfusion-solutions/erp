@@ -1,8 +1,8 @@
-MODULE PurchaseShipmentCorrection;
+MODULE SaleShipmentCorrection;
 
-REQUIRE PurchaseInvoiceCorrection, PurchaseShipment;//, PriceListLedgerAccount;
+REQUIRE  SaleInvoiceCorrection, SaleShipment;
 
-NAMESPACE Purchase;
+NAMESPACE Sale;
 
 createShipment 'Создать поставку' = DATA BOOLEAN (InvoiceCorrection);
 createShipment(InvoiceCorrection i) <- createShipment(invoice(i))
@@ -25,23 +25,23 @@ calcShipmentSumA = ABSTRACT VALUE NUMERIC[18,4] (InvoiceCorrectionDetail);
 calcShipmentSumA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round(quantityA(d) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 
 WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipmentPriceA(detail)) OR CHANGED(currency (detail)) OR CHANGED(invoiceDetail(detail))) DO
-    shipmentSumA (detail) <- calcShipmentSumA(detail); 
+    shipmentSumA (detail) <- calcShipmentSumA(detail);
 
 shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = shipmentSumA(detail) (-) shipmentSumB(detail);
 increaseShipmentSum 'Сумма учетная (увеличение)' (InvoiceCorrectionDetail detail) = shipmentSum(detail) IF shipmentSum(detail)>0.0;
 decreaseShipmentSum 'Сумма учетная (уменьшение)' (InvoiceCorrectionDetail detail) = - shipmentSum(detail) IF shipmentSum(detail)<0.0;
 
-diffShipmentSumInvoiceCorrectionDetail 'Сумма учетная (изменение)' = GROUP SUM shipmentSum(InvoiceCorrectionDetail idetail) 
-    BY invoiceCorrection(idetail) IN documentSum;
+diffShipmentSumInvoiceCorrectionDetail 'Сумма учетная (изменение)' = GROUP SUM shipmentSum(InvoiceCorrectionDetail idetail)
+BY invoiceCorrection(idetail) IN documentSum;
 @defineDocumentHeaderItemSumCustom(invoiceCorrection, invoiceCorrectionDetail, shipment, diffShipment);
 
-    
-increaseShipmentSumInvoiceCorrectionDetail 'Сумма учетная (увеличение)' = GROUP SUM increaseShipmentSum(InvoiceCorrectionDetail idetail) 
+
+increaseShipmentSumInvoiceCorrectionDetail 'Сумма учетная (увеличение)' = GROUP SUM increaseShipmentSum(InvoiceCorrectionDetail idetail)
     BY invoiceCorrection(idetail) IN documentSum;
-decreaseShipmentSumInvoiceCorrectionDetail 'Сумма учетная (уменьшение)' = GROUP SUM decreaseShipmentSum(InvoiceCorrectionDetail idetail) 
+decreaseShipmentSumInvoiceCorrectionDetail 'Сумма учетная (уменьшение)' = GROUP SUM decreaseShipmentSum(InvoiceCorrectionDetail idetail)
     BY invoiceCorrection(idetail) IN documentSum;
-    
-changeShipmentPriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  { 
+
+changeShipmentPriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection, NUMERIC[16,4] n)  {
     IF invoiceCorrectionDetail(invoiceDetail, invoiceCorrection) THEN {
         IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
             shipmentPriceA(InvoiceCorrectionDetail detail) <- n WHERE detail == invoiceCorrectionDetail(invoiceDetail, invoiceCorrection);
@@ -62,12 +62,13 @@ changeShipmentPriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceC
     }
 }
 
-WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) DO {
+WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail))  DO {
     shipmentQuantity(invoiceCorrectionDetail) <- shipmentQuantity(invoiceDetail(invoiceCorrectionDetail));
-    shipmentPriceB(invoiceCorrectionDetail) <- shipmentPrice(invoiceDetail(invoiceCorrectionDetail));
+    shipmentPriceB(invoiceCorrectionDetail) <- shipmentPrice(invoiceDetail(invoiceCorrectionDetail));    
     shipmentSumB(invoiceCorrectionDetail) <- shipmentSum(invoiceDetail(invoiceCorrectionDetail));
 }
-changeShipmentPrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
+
+changeShipmentPrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  {
     INPUT n = NUMERIC[16,4] DO
         changeShipmentPriceValue(invoiceDetail, invoiceCorrection, n);
 }
@@ -75,23 +76,23 @@ changeShipmentPrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrec
 shipmentPriceA 'Цена учетная (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = shipmentPriceA(invoiceCorrectionDetail(detail, invoiceCorrection));
 shipmentSumA 'Сумма учетная (после)' (InvoiceDetail detail, InvoiceCorrection invoiceCorrection) = shipmentSumA(invoiceCorrectionDetail(detail, invoiceCorrection));
 
-EXTEND FORM invoiceCorrection 
+EXTEND FORM invoiceCorrection
     PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
     PROPERTIES(id) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantity(id)
     PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
-    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB 
+    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB
     PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
-    
-    
+
+
     PROPERTIES READONLY AFTER invoiceSumB BACKGROUND backgroundShipped(id)
-               shipmentPriceB 'Цена учетная (до)' = shipmentPrice(id) SHOWIF createShipment(id),
-               shipmentSumB 'Сумма учетная (до)' = shipmentSum(id) SHOWIF createShipment(id)        
+    shipmentPriceB 'Цена учетная (до)' = shipmentPrice(id) SHOWIF createShipment(id),
+        shipmentSumB 'Сумма учетная (до)' = shipmentSum(id) SHOWIF createShipment(id)
     PROPERTIES AFTER invoiceSumA(id, i) BACKGROUND backgroundShipped(id) shipmentPriceA(id, i) ON CHANGE changeShipmentPrice(id, i),
-               shipmentSumA(id, i)    
+        shipmentSumA(id, i)
 ;
-EXTEND FORM invoiceCorrections 
+EXTEND FORM invoiceCorrections
     PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
-    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB 
+    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB
     PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
 ;
 
@@ -109,21 +110,21 @@ EXTEND FORM invoiceCorrections
 //}  
 
 calcShipmentPriceA = ABSTRACT CASE NUMERIC[16,4] (InvoiceCorrectionDetail);
-calcShipmentPriceA (InvoiceCorrectionDetail detail) += WHEN detail IS InvoiceCorrectionDetail THEN priceA(detail);
+calcShipmentPriceA (InvoiceCorrectionDetail detail) += WHEN detail IS InvoiceCorrectionDetail THEN shipmentPriceB(detail);
 
 // Цены учетные
 shipmentPriceA(InvoiceCorrectionDetail detail) <- calcShipmentPriceA(detail) WHEN
     CHANGED(calcShipmentPriceA(detail));
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
-@implementStockDocumentLedgerInc(InvoiceCorrection, customerStock);
-type(InvoiceCorrection l) += STRING[50]('Корректировка закупка)') IF l IS InvoiceCorrection;
+@implementStockDocumentLedgerOut(InvoiceCorrection, customerStock);
+type(InvoiceCorrection l) += STRING[50]('Корректировка продажи)') IF l IS InvoiceCorrection;
 //sumItemInStockDocumentLedger 'Сумма приход, товар' (ledger) = ABSTRACT NUMERIC[18,4] (InvoiceCorrection) MATERIALIZED;
 sumItem (InvoiceCorrection ledger) += diffShipmentSumItemInvoiceCorrectionDetail(ledger);//OVERRIDE sumItemInStockDocumentLedger(ledger), sumItemShipmentDetail(ledger);
 sumContainer (InvoiceCorrection ledger) += diffShipmentSumContainerInvoiceCorrectionDetail(ledger);
 
-legalEntity(InvoiceCorrection ledger) += supplier(ledger);  
-legalEntityStock(InvoiceCorrection ledger) += supplierStock(ledger);  
+legalEntity(InvoiceCorrection ledger) += customer(ledger);
+legalEntityStock(InvoiceCorrection ledger) += customerStock(ledger);
 
 operation[StockDocumentLedger](InvoiceCorrection ledger) += operation(ledger);
 
@@ -132,32 +133,16 @@ close[StockDocumentLedger](InvoiceCorrection l) + {  close(l); }
 skip(InvoiceCorrection l) += l IS InvoiceCorrection AND NOT createShipment(l);
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
-batch(InvoiceCorrectionDetail ledger) = OVERRIDE ledgerBatch(invoiceShipmentDetail(invoiceDetail(ledger))), batch(invoiceDetail(ledger));
+batch(InvoiceCorrectionDetail ledger) = batch(invoiceDetail(ledger));
 
-@implementSkuLedgerInLIFO(InvoiceCorrectionDetail, sku, customerStock);
+@implementSkuLedgerOutFIFO(InvoiceCorrectionDetail, sku, customerStock);
 
-quantity[InLIFOSkuLedger](InvoiceCorrectionDetail ledger) += quantity(ledger);
+quantity[OutFIFOSkuLedger](InvoiceCorrectionDetail ledger) += quantity(ledger);
 batch[SkuLedger](InvoiceCorrectionDetail ledger) += batch(ledger);
 skip[SkuLedger](InvoiceCorrectionDetail ledger) += ledger IS InvoiceCorrectionDetail AND NOT createShipment(invoiceCorrection(ledger));
 @implementSkuLedgerInLIFOBatchBalance(InvoiceCorrectionDetail, supplierStock);
 
-sum[InSkuLedger](InvoiceCorrectionDetail ledger) += shipmentSum(ledger);
+sum[OutFIFOSkuLedger](InvoiceCorrectionDetail ledger) += shipmentSum(ledger);
 stockDocumentLedger(InvoiceCorrectionDetail ledger) += invoiceCorrection(ledger);
-cost(InvoiceCorrectionDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS InvoiceCorrectionDetail; 
+cost(InvoiceCorrectionDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS InvoiceCorrectionDetail;
 show[SkuLedger](InvoiceCorrectionDetail d) + {  show(d); }
-
-// --------------- Проведение по регистру цен ------------- //
-//in (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType account) += WHEN shipmentPriceA(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
-//price (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType account) += WHEN shipmentPriceA(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN shipmentPriceA(ledger);
-in (InvoiceCorrectionDetail ledger, Batch batch) += batch(ledger) == batch; 
-
-
-invoiceCorrectionDetail = GROUP MAX InvoiceCorrectionDetail d BY invoiceDetail(d);
-
-//-- Переопределяем с/с поставки, если была корректировка. Может и не надо
-extraCostPrice(ShipmentDetail d) += shipmentPriceA(invoiceCorrectionDetail(invoiceDetail(d))) IF createShipment(invoiceCorrectionDetail(invoiceDetail(d)));
-
-
-
-
-
