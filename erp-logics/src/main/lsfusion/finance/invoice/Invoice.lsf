@@ -460,11 +460,13 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     sumGrossWeight 'Вес брутто, кг' = DATA NUMERIC[14,3] (UserInvoiceDetail);
     sumGrossWeight(UserInvoiceDetail d) += sumGrossWeight(d);
     sumGrossWeight[Invoice.InvoiceDetail](InvoiceDetail d) += sumGrossWeight(d);
-       
+    
+    skipChangeWeight = ABSTRACT BOOLEAN (InvoiceDetail);
+
     sumNetWeight(UserInvoiceDetail d) <- netWeight(sku(d)) * quantity(d)
-        WHEN CHANGED(sku(d)) OR CHANGED(quantity(d));
+        WHEN (CHANGED(sku(d)) OR CHANGED(quantity(d))) AND NOT skipChangeWeight(d);
     sumGrossWeight(UserInvoiceDetail d) <- grossWeight(sku(d)) * quantity(d)
-        WHEN CHANGED(sku(d)) OR CHANGED(quantity(d));
+        WHEN (CHANGED(sku(d)) OR CHANGED(quantity(d))) AND NOT skipChangeWeight(d);
                   
     @defineDocumentHeaderNetWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');       
     @defineDocumentHeaderNetWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг');  
