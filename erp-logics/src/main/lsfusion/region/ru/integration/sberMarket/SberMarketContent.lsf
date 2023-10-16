@@ -1,0 +1,280 @@
+MODULE SberMarketContent;
+
+REQUIRE Sku, ItemInternet, ItemDescription, Integration, Store, SkuLedger, StockTax, Pricing, PriceListPromotion;
+
+NAMESPACE SberMarket;
+
+//auth
+clientIdSber 'Сlient id СМ' = DATA STRING ();
+clientSecretSber 'Сlient secret СМ' = DATA STRING ();
+accessTokenSber = DATA LOCAL STRING ();
+
+auth(){
+    LOCAL response = FILE();
+    EXTERNAL HTTP POST 'https://merchant-api.sbermarket.ru/auth/token' BODYURL CONCAT '&',
+        'grant_type=client_credentials',
+        'client_id=' + clientIdSber(),
+        'client_secret=' + clientSecretSber()
+        TO response
+    ;
+    IMPORT JSON FROM response() TO () accessTokenSber = access_token;
+    headers('Authorization') <- 'Bearer ' + accessTokenSber();
+}
+
+
+//-----------------------Stores API-----------------------//
+
+idSber 'ID СберМаркет' = DATA STRING[255] (DepartmentStore);
+sberStore = GROUP MAX DepartmentStore d BY idSber(d);
+
+
+EXTEND FORM departmentStore
+    PROPERTIES idSber(d)
+;
+
+DESIGN departmentStore{
+    headerExtraParams{
+        MOVE PROPERTY (idSber(d));
+    }
+}
+
+//-----------------------Content API-----------------------//
+
+//управление категориями
+online = ABSTRACT CASE BOOLEAN (Group);
+groupTypeSberMarket = DATA GroupType ();
+nameGroupTypeSberMarket 'Классификатор СберМаркет' = name(groupTypeSberMarket());
+online(Group g) += WHEN groupType(g) = groupTypeSberMarket() AND groupTypeSberMarket() THEN TRUE;
+
+position = PARTITION SUM 1 BY online(Group g), g;
+
+EXTEND FORM integrationData
+    PROPERTIES() nameGroupTypeSberMarket, clientIdSber, clientSecretSber
+;
+
+DESIGN integrationData{
+    delivery{
+        NEW sberMarket{
+            caption = 'СберМаркет';
+            MOVE PROPERTY (nameGroupTypeSberMarket());
+            MOVE PROPERTY (clientIdSber());
+            MOVE PROPERTY (clientSecretSber());
+        }
+    }
+}
+
+sort = DATA LOCAL INTEGER (Group);
+
+FORM categories FORMEXTID 'null'
+    OBJECTS g = Group EXTID 'data'
+    PROPERTIES id(g), name(g) EXTID 'name', = id(parent(g)) EXTID 'parent_id', position(g)//, sort(g), level(g)
+    FILTERS online(g)
+;
+
+//todo метод обновления категорий    
+sendCategories (){
+    sort(Group g) <- PARTITION SUM 1 IF online(g) ORDER g BY level(g);
+    auth();
+    
+    IF (GROUP SUM 1 IF online(Group g)) >= 1000 THEN {
+        FOR iterate(INTEGER l, 1, (GROUP MAX level(Group g) IF online(g))) DO{
+            LOCAL maxGroup = INTEGER ();
+            LOCAL maxStep = INTEGER ();
+            maxGroup() <- GROUP MAX sort(Group g) IF level(g) = l;
+            maxStep() <- (maxGroup() / 1000) (+) 1 IF mod(maxGroup(), 1000);
+            FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
+                EXPORT categories FILTERS (sort(g) > (i * 1000) AND sort(g) <= ((i + 1) * 1000)) AND level(g) = l;
+                LOCAL response = FILE();
+                TRY {
+                    EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/categories'
+                        HEADERS headers
+                        PARAMS exportFile()
+                        TO response
+                    ;
+                    open(response());
+                } CATCH open(response());
+            }
+            sleep(10000);
+        }
+    } ELSE {
+        EXPORT categories JSON;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/categories'
+                HEADERS headers
+                PARAMS exportFile()
+                TO response
+            ;
+            open(response());
+        } CATCH open(response());
+    }
+}
+
+//Управление ассортиментом товаров
+values = DATA LOCAL STRING(INTEGER);
+attributesValues = DATA LOCAL INTEGER(INTEGER);
+attribute = DATA LOCAL STRING(INTEGER);
+
+value = ABSTRACT CASE STRING (Sku , STRING);
+
+//обязательные атрибуты
+value(Sku i, STRING s) += WHEN s = 'brand' AND brand(i) THEN STRING(name(brand(i)));
+value(Sku i, STRING s) += WHEN s = 'manufacturer' AND Item.manufacturer(i) THEN STRING(name(Item.manufacturer(i)));
+value(Sku i, STRING s) += WHEN s = 'country' AND country(i) THEN STRING(name(country(i)));
+value(Sku i, STRING s) += WHEN s = 'volume_netto' AND volume(i) THEN STRING(round3(volume(i)));
+value(Sku i, STRING s) += WHEN s = 'weight_brutto' AND grossWeight(i) THEN STRING(round3(grossWeight(i)));
+value(Sku i, STRING s) += WHEN s = 'is_private_label' AND i IS Sku THEN (IF level(itemGroup('ТГ-001801'), itemGroup(i)) THEN 'true' ELSE 'false');
+value(Sku i, STRING s) += WHEN s = 'is_own_brand' AND i IS Sku THEN (IF level(itemGroup('ТГ-001801'), itemGroup(i)) THEN 'true' ELSE 'false');
+value(Sku i, STRING s) += WHEN s = 'is_alcohol' AND i IS Sku THEN (IF level(itemGroup('УТ-00003050'), itemGroup(i)) THEN 'true' ELSE 'false');
+
+//подакцизный товар
+useCustomExcisable = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'is_excisable' AND i IS Sku AND NOT useCustomExcisable() THEN 'false';
+
+//value(Sku i, STRING s) += WHEN s = 'is_excisable' AND i IS Sku AND NOT useCustomExcisable() THEN (IF exciseRate(i, currentDate()) THEN 'true' ELSE 'false');
+
+online = ABSTRACT CASE BOOLEAN (Sku);
+online (Sku s) += WHEN groupTypeSberMarket() AND group(groupTypeSberMarket(), s) THEN TRUE;
+
+position = PARTITION SUM 1 ORDER (Sku s) BY online(s);
+
+FORM items FORMEXTID 'null'
+    OBJECTS sku = Sku EXTID 'data'
+    PROPERTIES id(sku) EXTID 'id', = name(sku) EXTID 'name', = IF active(sku) THEN 'ACTIVE' ELSE 'INACTIVE' EXTID 'status',
+        = IF split(sku) THEN 'per_kilo' EXTID 'pack_type', = STRING(netWeight(sku)) EXTID 'weight_netto',
+        description(sku) EXTID 'description', position(sku)
+    FILTERS online(sku), id(sku)
+    
+    OBJECTS image = Sku EXTID 'images'
+    PROPERTIES urlHttpAccess(image) EXTID 'url', =id(image) + '.' + getExtension(image(image)) EXTID 'name'
+    FILTERS image = sku
+
+    OBJECTS b = Barcode.Barcode EXTID 'barcodes'
+    PROPERTIES id(b) EXTID 'value'
+    FILTERS sku(b) = sku, id(b)
+
+    OBJECTS c = CustomGroup EXTID 'categories_ids'
+    PROPERTIES id(c) EXTID 'value'
+    FILTERS c = customGroup[CustomGroupType, Sku](groupTypeSberMarket(), sku) AND groupTypeSberMarket()  
+
+    OBJECTS attributes = STRING
+    PROPERTIES VALUE(attributes) EXTID 'attribute'
+    FILTERS value(sku, attributes)
+
+    OBJECTS attributeValues = STRING EXTID 'values'
+    PROPERTIES value(sku, attributeValues) EXTID 'value'
+    FILTERS attributeValues = attributes
+;
+
+//todo метод обновления товаров 
+
+sort = DATA LOCAL INTEGER (Sku);
+
+sendItems (){
+    sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
+    auth();
+    IF (GROUP SUM 1 IF online(Sku s)) >= 1000 THEN {
+        LOCAL maxSku = INTEGER ();
+        LOCAL maxStep = INTEGER ();
+        maxSku() <- GROUP MAX sort(Sku s);
+        maxStep() <- (maxSku() / 1000) (+) 1 IF mod(maxSku(), 1000);
+        FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
+            EXPORT items FILTERS (sort(sku) > (i * 1000) AND sort(sku) <= ((i + 1) * 1000));
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/offers'
+                    HEADERS headers
+                    PARAMS exportFile()
+                    TO response
+                ;
+                open(response());
+            } CATCH open(response());
+        }
+    } ELSE {
+        EXPORT items JSON;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/offers'
+                HEADERS headers
+                PARAMS exportFile()
+                TO response
+            ;
+            open(response());
+        } CATCH open(response());
+    }
+}
+
+
+//Управление остатками
+stock = ABSTRACT CASE NUMERIC[16,2] (Sku, DepartmentStore);
+useCustomStock = ABSTRACT BOOLEAN ();
+stock (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomStock() THEN NUMERIC[16,2](currentBalance(s, d));
+
+FORM stocks FORMEXTID 'null'
+    OBJECTS stock = (d = DepartmentStore, s = Sku) EXTID 'data'
+    PROPERTIES id(s) EXTID 'offer_id', idSber(d) EXTID 'outlet_id', = OVERRIDE STRING(stock(s, d)), '0' EXTID 'stock'
+    FILTERS online(s), idSber(d)
+;
+
+//todo метод обновления остатков
+
+//Управление ценами
+priceListTypeRegular = DATA PriceListType ();
+namePriceListTypeRegularSM 'Вид цены(СберМаркет)' = name(priceListTypeRegular());
+useCustomPrice = ABSTRACT BOOLEAN ();
+
+
+priceListTypePromo = DATA PriceListType ();
+namePriceListTypePromoSM 'Вид промо цены(СберМаркет)' = name(priceListTypePromo());
+useCustomPromoPrice = ABSTRACT BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES () namePriceListTypeRegularSM SHOWIF NOT useCustomPrice(), 
+        namePriceListTypePromoSM SHOWIF NOT useCustomPromoPrice()
+;
+
+DESIGN integrationData{
+    sberMarket{
+        MOVE PROPERTY (namePriceListTypeRegularSM());
+        MOVE PROPERTY (namePriceListTypePromoSM());
+    }
+}
+
+price = ABSTRACT CASE NUMERIC[16,2](Sku, DepartmentStore);
+price (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomPrice() 
+    THEN NUMERIC[16,2](priceA(priceListTypeRegular(), s, d, currentDateTime()));
+
+promoPrice = ABSTRACT CASE NUMERIC[16,2] (Sku, DepartmentStore);
+
+promoPrice (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomPromoPrice() 
+    THEN NUMERIC[16,2](priceA(priceListTypePromo(), s, d, currentDateTime()));
+
+promoStart = ABSTRACT CASE DATE (Sku, DepartmentStore);
+promoStart (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomPromoPrice() THEN 
+    DATE(fromDateTimeA(priceListTypePromo(), s, d, currentDateTime()));
+
+promoEnd = ABSTRACT CASE DATE (Sku, DepartmentStore);
+promoEnd (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomPromoPrice() THEN
+    DATE(toDateTimeA(priceListTypePromo(), s, d, currentDateTime()));
+
+showPromo (Sku s, DepartmentStore d) = promoPrice(s, d) < price(s, d) AND promoStart(s, d) < promoEnd(s, d);
+
+GROUP price;
+GROUP price_promo;
+
+vat (Sku s) = CASE 
+        WHEN valueVAT(s) = 20 THEN 'VAT20'
+        WHEN valueVAT(s) = 10 THEN 'VAT10'
+        WHEN valueVAT(s) = 0 THEN 'VAT0'
+        WHEN NOT valueVAT(s) THEN 'NO_VAT'
+;
+
+FORM prices FORMEXTID 'null'
+    OBJECTS price = (s = Sku, d = DepartmentStore) EXTID 'data'
+    PROPERTIES id(s) EXTID 'offer_id', idSber(d) EXTID 'outlet_id', vat(s) EXTID 'vat'
+    PROPERTIES IN price price(s, d) EXTID 'amount', = IF price(s, d) THEN 'RUB' EXTID 'currency'
+    PROPERTIES IN price_promo = IF showPromo(s, d) THEN promoPrice(s, d) EXTID 'amount', = IF showPromo(s, d) THEN 'RUB' EXTID 'currency'
+    PROPERTIES = IF showPromo(s, d) THEN promoStart(s, d) EXTID 'promo_start_at', 
+        = IF showPromo(s, d) THEN promoEnd(s, d) EXTID 'promo_end_at'
+    FILTERS online(s), idSber(d)
+;

@@ -1,0 +1,163 @@
+MODULE SberMarketOrders;
+
+REQUIRE SberMarketContent, SaleInternetPicking;
+
+NAMESPACE SberMarket;
+
+useCustomStatus = ABSTRACT BOOLEAN ();
+statusSber = ABSTRACT CASE StatusInternetOrder (STRING);
+statusSber(STRING s) += WHEN s = 'order.created' AND NOT useCustomStatus() THEN StatusInternetOrder.new;
+statusSber(STRING s) += WHEN s = 'order.canceled' AND NOT useCustomStatus() THEN StatusInternetOrder.closed;
+statusSber(STRING s) += WHEN s = 'order.paid' AND NOT useCustomStatus() THEN StatusInternetOrder.agreed;
+
+GROUP payload;
+GROUP delivery : payload;
+GROUP total : payload;
+GROUP address : payload;
+GROUP customer : payload;
+
+event_type = DATA LOCAL NESTED STRING();
+shipmentMethod = DATA LOCAL STRING();
+expectedTo = DATA LOCAL ZDATETIME();
+expectedFrom = DATA LOCAL ZDATETIME();
+totalPrice = DATA LOCAL STRING();
+discountTotalPrice = DATA LOCAL STRING();
+door_phone = DATA LOCAL STRING();
+elevator = DATA LOCAL STRING();
+city = DATA LOCAL STRING();
+street = DATA LOCAL STRING();
+lon = DATA LOCAL STRING();
+full_address = DATA LOCAL STRING();
+floor = DATA LOCAL STRING();
+entrance = DATA LOCAL STRING();
+delivery_to_door = DATA LOCAL STRING();
+lat = DATA LOCAL STRING();
+building = DATA LOCAL STRING();
+apartment = DATA LOCAL STRING();
+clientType = DATA LOCAL STRING();
+originalOrderId = DATA LOCAL NESTED STRING[100]();
+paymentMethods = DATA LOCAL STRING(INTEGER);
+payloadPaymentMethods = DATA LOCAL INTEGER(INTEGER);
+quantity = DATA LOCAL NUMERIC(INTEGER);
+totalPrice = DATA LOCAL STRING(INTEGER);
+originalQuantity = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL STRING(INTEGER);
+discountPrice = DATA LOCAL STRING(INTEGER);
+replacedByID = DATA LOCAL STRING(INTEGER);
+weight = DATA LOCAL STRING(INTEGER);
+totalDiscountPrice = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+comment = DATA LOCAL STRING();
+replacementPolicy = DATA LOCAL STRING();
+storeID = DATA LOCAL STRING();
+short_number = DATA LOCAL STRING();
+phone = DATA LOCAL STRING();
+name = DATA LOCAL STRING[255]();
+key = DATA LOCAL STRING();
+timestamp = DATA LOCAL STRING();
+
+FORM order
+    PROPERTIES() event_type, timestamp
+    PROPERTIES() IN payload shipmentMethod, clientType, originalOrderId, comment, replacementPolicy, storeID
+    PROPERTIES() IN delivery expectedTo, expectedFrom
+    PROPERTIES() IN total totalPrice, discountTotalPrice
+    PROPERTIES() IN address door_phone, elevator, city, street, lon, full_address, floor, entrance, delivery_to_door, lat, building, apartment
+
+    OBJECTS paymentMethods = INTEGER IN payload
+    PROPERTIES(paymentMethods) paymentMethods EXTID 'value'
+
+    OBJECTS positions = INTEGER IN payload
+    PROPERTIES(positions) quantity, totalPrice, originalQuantity, price, discountPrice, replacedByID, weight, totalDiscountPrice, id
+    PROPERTIES() IN customer short_number, phone, name, key;
+
+idDetail (INTEGER i) = STRING[100](originalOrderId() + '_' + id(i));
+
+updateOrder(FILE f){
+    logToFile('sber', f);
+    IMPORT order JSON FROM f;
+    IF NOT internetOrder(originalOrderId()) THEN NEW o = InternetOrder{
+        id(o) <- originalOrderId();
+    }
+    FOR InternetOrder o = internetOrder(originalOrderId()) DO{
+        number(o) <- STRING[48](originalOrderId());
+        supplierStock(o) <- sberStore(storeID()) WHERE storeID();
+        nameInternetCustomer(o) <- name() WHERE name();
+        addressInternetCustomer(o) <- full_address() WHERE full_address();
+        phoneInternetCustomer(o) <- phone() WHERE phone();
+        deliveryDate(o) <- DATE(expectedFrom()) WHERE expectedFrom();
+        deliveryTimeFromInternetOrder(o) <- TIME(expectedFrom()) WHERE expectedFrom();
+        deliveryTimeToInternetOrder(o) <- TIME(expectedTo()) WHERE expectedFrom();
+        customerComment(o) <- comment();
+    }
+    FOR sku(id(INTEGER i)) AND idDetail(i) AND NOT internetOrderDetail(idDetail(i)) NEW d = InternetOrderDetail DO{
+        id(d) <- idDetail(i);
+        internetOrder(d) <- internetOrder(originalOrderId()); 
+    }
+    FOR Sku s = sku(id(INTEGER i)) AND InternetOrderDetail d = internetOrderDetail(idDetail(i)) DO{
+        sku(d) <- s;
+        quantity(d) <- NUMERIC[16,5](originalQuantity(i));
+        price(d) <- NUMERIC[16,4](price(i));
+        discountPrice(d) <- NUMERIC[16,4](discountPrice(i));
+        sum(d) <- NUMERIC[18,4](totalPrice(i));
+        discountSum(d) <- NUMERIC[18,4](totalDiscountPrice(i));
+    }
+    APPLY NESTED LOCAL;
+    IF canceled() THEN{
+        statusHttpTo() <- 500;
+        EXPORT JSON FROM status = 'error', descripton = applyMessage();
+    } ELSE {
+        IF event_type() = 'order.created' THEN 
+            EXPORT JSON FROM status = 'created', number = originalOrderId(), 
+                expectedAssemblyTime = toChar(sumMinutes(currentDateTime(), 60), 'yyyy-MM-ddThh24:mi:ss+03:00');
+    }
+}
+
+
+//sendNotification
+
+GROUP event;
+GROUP payload1 EXTID 'payload' : event;
+GROUP order : payload1;
+
+order_id = DATA LOCAL STRING();
+positionsMarkingCode = DATA LOCAL INTEGER(INTEGER);
+value = DATA LOCAL STRING(INTEGER);
+
+changed = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
+
+eventType (InternetOrder o)= CASE   
+    WHEN status(o) = StatusInternetOrder.isPicking THEN 'order.in_work'
+    WHEN status(o) = StatusInternetOrder.picked THEN 'order.ready_for_delivery'
+;
+
+
+FORM sendNotification
+    OBJECTS o = InternetOrder PANEL
+    PROPERTIES IN event eventType(o) EXTID 'type'
+    PROPERTIES IN payload1 number(o) EXTID 'order_id'
+    PROPERTIES IN order = OVERRIDE id(o) EXTID 'originalOrderId', 
+        = IF o IS InternetOrder THEN TFALSE EXTID 'changed'
+
+    OBJECTS positions = InternetOrderDetail IN order
+    PROPERTIES(positions) quantity EXTID 'originalQuantity', pickingQuantity EXTID 'quantity', idSku EXTID 'id'
+    PROPERTIES = IF pickingQuantity(positions) THEN STRING(round0(pickingQuantity(positions) * 1000))EXTID 'weight'
+        //replacedByID, weight, id
+    FILTERS internetOrder(positions) = o 
+//
+//    OBJECTS markingCode = INTEGER
+//    FILTERS positionsMarkingCode(markingCode) == positions
+//    PROPERTIES(markingCode) value
+//    FILTERS imported(markingCode)
+;
+sendNotification(InternetOrder o){
+    LOCAL f = FILE();
+    headers('Api-Version') <- '3.0';
+    headers('Client-Token') <- '56a17e81-0d1d-4231-b200-b8f5dfabeb3d';
+    headers('Content-Type') <- 'application/json';
+    EXPORT sendNotification OBJECTS o = o JSON;
+    open(exportFile());
+    EXTERNAL HTTP POST 'https://integrations-gw.sbermarket.ru/chapi/v3/notifications'
+        HEADERS headers PARAMS exportFile() TO f;
+    open(f());
+}
