@@ -85,6 +85,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
         boolean specialSplitMode = astronSettings.isSpecialSplitMode();
+        boolean swap10And20VAT = astronSettings.isSwap10And20VAT();
 
         List<DeleteBarcodeInfo> deleteBarcodeList = new ArrayList<>();
         if (!deleteBarcodeInSeparateProcess) {
@@ -126,7 +127,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         SendTransactionBatch batch = exportTransaction(transaction, exception, firstTransaction, lastTransaction, directoryTransactionEntry.getKey(),
                                 exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, transactionCount, itemCount, usePropertyGridFieldInPackTable,
-                                waitSysLogInsteadOfDataPump, specialSplitMode);
+                                waitSysLogInsteadOfDataPump, specialSplitMode, swap10And20VAT);
                         exception = batch.exception;
 
                         currentSendTransactionBatchMap.put(transaction.id, batch);
@@ -154,7 +155,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     for (TransactionCashRegisterInfo transaction : directoryTransactionEntry.getValue()) {
                         SendTransactionBatch batch = exportTransaction(transaction, exception, true, true, directoryTransactionEntry.getKey(),
                                     exportExtraTables, deleteBarcodeList, timeout, maxBatchSize, isVersionalScheme, 1, transaction.itemsList.size(),
-                                usePropertyGridFieldInPackTable, waitSysLogInsteadOfDataPump, specialSplitMode);
+                                usePropertyGridFieldInPackTable, waitSysLogInsteadOfDataPump, specialSplitMode, swap10And20VAT);
                         exception = batch.exception;
 
                         sendTransactionBatchMap.put(transaction.id, batch);
@@ -178,7 +179,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private SendTransactionBatch exportTransaction(TransactionCashRegisterInfo transaction, Throwable exception, boolean firstTransaction, boolean lastTransaction, String directory,
                                         boolean exportExtraTables, List<DeleteBarcodeInfo> deleteBarcodeList,
                                         Integer timeout, Integer maxBatchSize, boolean versionalScheme, int transactionCount, int itemCount, boolean usePropertyGridFieldInPackTable,
-                                        boolean waitSysLogInsteadOfDataPump, boolean specialSplitMode) {
+                                        boolean waitSysLogInsteadOfDataPump, boolean specialSplitMode, boolean swap10And20VAT) {
         Set<String> deleteBarcodeSet = new HashSet<>();
         if(exception == null) {
             AstronConnectionString params = new AstronConnectionString(directory);
@@ -241,7 +242,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                                exportArt(conn, params, transaction.itemsList, false, false, maxBatchSize, artUpdateNum);
+                                exportArt(conn, params, transaction.itemsList, false, swap10And20VAT, false, maxBatchSize, artUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
@@ -438,7 +439,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
+    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean swap10And20VAT, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = getColumns(new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys)) {
@@ -453,7 +454,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         if (params.pgsql) {
                             setObject(ps, idItem, 1); //ARTID
                             setObject(ps, Integer.parseInt(grpId), 2); //GRPID
-                            setObject(ps, getIdVAT(item), 3); //TAXGRPID
+                            setObject(ps, getIdVAT(item, swap10And20VAT), 3); //TAXGRPID
                             setObject(ps, idItem, 4); //ARTCODE
                             setObject(ps, getItemName(item), 5); //ARTNAME
                             setObject(ps, getItemName(item), 6); //ARTSNAME
@@ -461,7 +462,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if (updateNum != null) setObject(ps, updateNum, 8); //UPDATENUM
                         } else {
                             setObject(ps, grpId, 1, offset); //GRPID
-                            setObject(ps, getIdVAT(item), 2, offset); //TAXGRPID
+                            setObject(ps, getIdVAT(item, swap10And20VAT), 2, offset); //TAXGRPID
                             setObject(ps, idItem, 3, offset); //ARTCODE
                             setObject(ps, getItemName(item), 4, offset); //ARTNAME
                             setObject(ps, getItemName(item), 5, offset); //ARTSNAME
@@ -487,7 +488,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private Integer getIdVAT(ItemInfo item) {
+    private Integer getIdVAT(ItemInfo item, boolean swap10And20VAT) {
         JSONObject infoJSON = getExtInfo(item.info);
         if(infoJSON != null && infoJSON.has("idvat")) {
             return infoJSON.getInt("idvat");
@@ -495,9 +496,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             Integer result = 0;
             if (item.vat != null) {
                 if (item.vat.compareTo(BigDecimal.valueOf(10)) == 0) {
-                    result = 1;
+                    result = swap10And20VAT ? 2 : 1;
                 } else if (item.vat.compareTo(BigDecimal.valueOf(20)) == 0) {
-                    result = 2;
+                    result = swap10And20VAT ? 1 : 2;
                 }
             }
             return result;
@@ -1942,6 +1943,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
         boolean specialSplitMode = astronSettings.isSpecialSplitMode();
+        boolean swap10And20VAT = astronSettings.isSwap10And20VAT();
 
         Set<String> usedDirectories = new HashSet<>();
         for (MachineryInfo machinery : machinerySet) {
@@ -1967,7 +1969,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                            exportArt(conn, params, itemsList, true, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
+                            exportArt(conn, params, itemsList, true, swap10And20VAT, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
 
                             Integer unitUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
@@ -2028,6 +2030,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean usePropertyGridFieldInPackTable = astronSettings.isUsePropertyGridFieldInPackTable();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
         boolean specialSplitMode = astronSettings.isSpecialSplitMode();
+        boolean swap10And20VAT = astronSettings.isSwap10And20VAT();
 
         if(deleteBarcodeInSeparateProcess) {
 
@@ -2062,7 +2065,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
-                            exportArt(conn, params, deleteBarcode.barcodeList, false, true, maxBatchSize, artUpdateNum);
+                            exportArt(conn, params, deleteBarcode.barcodeList, false, swap10And20VAT,true, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
 
                             Integer unitUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "UNIT");

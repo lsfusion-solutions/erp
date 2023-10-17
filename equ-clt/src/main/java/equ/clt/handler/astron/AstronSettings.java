@@ -60,6 +60,9 @@ public class AstronSettings implements Serializable {
     //если true, то влияет на поля PACKDTYPE и BARCID таблицы PACK
     private boolean specialSplitMode;
 
+    //если true, меняем местами значения idVAT для 10 и 20
+    private boolean swap10And20VAT;
+
     public AstronSettings() {
     }
 
@@ -205,5 +208,13 @@ public class AstronSettings implements Serializable {
 
     public void setSpecialSplitMode(boolean specialSplitMode) {
         this.specialSplitMode = specialSplitMode;
+    }
+
+    public boolean isSwap10And20VAT() {
+        return swap10And20VAT;
+    }
+
+    public void setSwap10And20VAT(boolean swap10And20VAT) {
+        this.swap10And20VAT = swap10And20VAT;
     }
 }
