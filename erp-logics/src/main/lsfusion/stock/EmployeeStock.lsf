@@ -30,11 +30,15 @@ nearestParentCompany (Employee employee, StockGroup stockGroup) = stockGroup(sto
 nearestInCompany (Employee employee, StockGroup stockGroup) =
     dataAccessCompany(nearestParentCompany (employee, stockGroup), employee) MATERIALIZED;
 
-accessCompany 'Доступ разрешен (компания)' (Employee employee, StockGroup stockGroup) = OVERRIDE
+overSkipAccessCompany = ABSTRACT BOOLEAN (Employee, StockGroup) MATERIALIZED;
+
+accessCompany 'Доступ разрешен (компания)' (Employee employee, StockGroup stockGroup) = (OVERRIDE
     dataAccessCompany(stockGroup, employee),
     nearestInCompany(employee, stockGroup),
     dataAccessCompany(employee) AND stockGroup IS StockGroup,
-    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee); // MATERIALIZED;
+    employee IS Employee  AND stockGroup IS StockGroup AND NOT limitAccess(employee)) 
+        AND NOT overSkipAccessCompany(employee, stockGroup)
+    ; // MATERIALIZED;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Stock stock) = OVERRIDE
     dataAccessCompany(stock, employee),
@@ -64,7 +68,7 @@ countAccessCompany 'Кол-во доступных подразделений (�
     GROUP
           SUM 1 IF accessCompany(employee, Stock stock)
                 AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
-          
+
 dataStock = DATA Stock (Employee);
 stock (Employee e) = OVERRIDE dataStock(e), defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1 MATERIALIZED;
 idStock 'Основной склад' (Employee e) = id(stock(e));
@@ -115,7 +119,7 @@ EXTEND FORM employee
     PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
     ORDERS sgTreeName
     FILTERS stringEqualsAll(a)
-    PROPERTIES(e)  DRAW a dataAccessSupplier, dataAccessCompany, dataAccessCustomer
+    PROPERTIES(e)  DRAW a dataAccessCompany
     PROPERTIES(e,sg)  accessCompany
 
     OBJECTS s = Stock GRID
