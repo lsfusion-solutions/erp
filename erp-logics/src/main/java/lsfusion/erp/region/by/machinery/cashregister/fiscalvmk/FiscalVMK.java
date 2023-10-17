@@ -5,6 +5,8 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.util.TextUtils;
 import org.apache.log4j.*;
 
 import java.io.*;
@@ -15,12 +17,15 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.BitSet;
 import java.util.concurrent.*;
 
 import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalVMK {
+
+    static final int FLG_EXT_SALE = 0; // 1 - Расширенная регистрация покупки
 
     static Logger logger;
     static {
@@ -362,14 +367,37 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItem(ReceiptItem item, Integer giftCardDepartment, Integer chargeDepartment) {
+    public static boolean registerItem(ReceiptItem item, Integer giftCardDepartment, Integer chargeDepartment, Integer flags) {
         try {
             double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
             double sum = item.sumPos - item.articleDiscSum + item.bonusPaid;
             Integer department = item.isCharge ? (chargeDepartment != null ? chargeDepartment : 1) :
                     (item.isGiftCard ? (giftCardDepartment != null ? giftCardDepartment : 2) : (item.numberSection != null ? item.numberSection : 1)); /*отдел*/
-            return vmk_sale(item.barcode, item.name, //articleDiscSum is negative, bonusPaid is positive
-                    price, department, item.quantity, sum);
+
+            BitSet bits = BitSet.valueOf(new long[]{flags});
+            if (bits.get(FLG_EXT_SALE)) {
+
+                // печать наименования товара в несколько строк по 24 символа
+                String name = item.name.replace('№', 'N');
+                while (!TextUtils.isEmpty(name)) {
+                    String line = StringUtils.left(name, 24);
+                    name = StringUtils.mid(name, 24, name.length() - 24);
+
+                    if (!TextUtils.isEmpty(line)) {
+                        if (!printFiscalText(line))
+                            return false;
+                    }
+                }
+
+                // регистрирация покупки
+                String strQuantity = String.format(" %.3fX%.2f", item.quantity, item.price);
+                return vmk_sale(item.barcode, strQuantity, sum, department, 1, sum);
+            }
+            else {
+                return vmk_sale(item.barcode, item.name, //articleDiscSum is negative, bonusPaid is positive
+                        price, department, item.quantity, sum);
+
+            }
         } catch (UnsupportedEncodingException e) {
             return false;
         }

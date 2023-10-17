@@ -62,6 +62,7 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
+                Integer flags = (Integer) findProperty("flagsCurrentCashRegister[]").read(context);
 
                 String UNP = (String) findProperty("UNPCurrentCashRegister[]").read(context);
                 String regNumber = (String) findProperty("regNumberCurrentCashRegister[]").read(context);
@@ -199,7 +200,7 @@ public class FiscalVMKPrintReceiptAction extends InternalAction {
                             new ReceiptInstance(sumDisc, paymentSumMap, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, fiscalVMKExtraReceipt, giftCardAsNotPayment, giftCardAsNotPaymentText,
-                            giftCardDepartment, giftCardPaymentType, chargeDepartment, UNP, regNumber, machineryNumber));
+                            giftCardDepartment, giftCardPaymentType, chargeDepartment, UNP, regNumber, machineryNumber, flags == null ? 0 : flags));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

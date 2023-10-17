@@ -24,11 +24,13 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
     String UNP;
     String regNumber;
     String machineryNumber;
+    Integer flags;
 
     public FiscalVMKPrintReceiptClientAction(boolean isUnix, String logPath, String ip, String comPort, Integer baudRate,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, String extraReceipt,
                                              boolean giftCardAsNotPayment, String giftCardAsNotPaymentText, Integer giftCardDepartment,
-                                             Integer giftCardPaymentType, Integer chargeDepartment, String UNP, String regNumber, String machineryNumber) {
+                                             Integer giftCardPaymentType, Integer chargeDepartment, String UNP, String regNumber, String machineryNumber,
+                                             Integer flags) {
         super(isUnix, logPath, ip, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
@@ -42,6 +44,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         this.UNP = UNP;
         this.regNumber = regNumber;
         this.machineryNumber = machineryNumber;
+        this.flags = flags;
     }
 
 
@@ -168,7 +171,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
         } else {
 
             for (ReceiptItem item : receiptList) {
-                if (!FiscalVMK.registerItem(item, giftCardDepartment, chargeDepartment))
+                if (!FiscalVMK.registerItem(item, giftCardDepartment, chargeDepartment, flags))
                     return null;
                 if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard))
                     return null;
