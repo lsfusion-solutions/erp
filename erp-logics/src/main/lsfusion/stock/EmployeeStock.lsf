@@ -67,7 +67,7 @@ accessCompany 'Доступ разрешен (компания)' (Stock s) = acc
 countAccessCompany 'Кол-во доступных подразделений (компания)' (Employee employee, StockGroup stockGroup) =
     GROUP
           SUM 1 IF accessCompany(employee, Stock stock)
-                AND isParent(stockGroup(stock), stockGroup) MATERIALIZED;
+                AND isParent(stockGroup, stock) AND NOT overSkipAccessCompany(employee, stockGroup) MATERIALIZED;
 
 dataStock = DATA Stock (Employee);
 stock (Employee e) = OVERRIDE dataStock(e), defaultCompanyStock(e) IF countAccessCompanyStock (e) == 1 MATERIALIZED;
