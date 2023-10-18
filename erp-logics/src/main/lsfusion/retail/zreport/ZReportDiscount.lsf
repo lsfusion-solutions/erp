@@ -12,6 +12,8 @@ mode 'Тип' = DATA ISTRING[100] (Discount) IN base;
 name 'Наименование' = DATA ISTRING[100] (Discount) IN base CHARWIDTH 20;
 discount = GROUP AGGR (Discount type) BY name(type);
 
+discountSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptDetail, Discount);
+
 FORM discount 'Скидка'
     OBJECTS o = Discount PANEL
     PROPERTIES(o) name, mode
@@ -20,9 +22,18 @@ FORM discount 'Скидка'
 ;
 
 FORM discounts 'Скидка'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+
     OBJECTS o = Discount
     PROPERTIES(o) READONLY name, mode SHOWIF showIDs()
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    OBJECTS rds = ReceiptDetail
+    PROPERTIES (rds) READONLY nameDepartmentStore, numberZReport, numberReceipt, numberCashRegister, nameEmployee,
+        dateZReport, date, time, number, nameSku, idBarcode, signedQuantity, price, signedSum, signedDiscountSum
+    PROPERTIES READONLY discountSum(rds, o)
+    FILTERS date(rds) >= dFrom, date(rds) <= dTo, discountSum(rds, o)
 ;
 
 FORM dialogDiscounts 'Скидка'
@@ -38,10 +49,7 @@ NAVIGATOR {
     }
 }
 
-discountSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptDetail, Discount);
-
-
-EXTEND FORM zReports 
+EXTEND FORM zReports
     OBJECTS di = Discount
     PROPERTIES READONLY mode(di), name(di), discountSum(d, di)
     FILTERS discountSum(d, di)
