@@ -498,7 +498,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 if (item.vat.compareTo(BigDecimal.valueOf(10)) == 0) {
                     result = swap10And20VAT ? 2 : 1;
                 } else if (item.vat.compareTo(BigDecimal.valueOf(20)) == 0) {
-                    result = swap10And20VAT ? 1 : 2;
+                    result = swap10And20VAT ? 3 : 2;
                 }
             }
             return result;
