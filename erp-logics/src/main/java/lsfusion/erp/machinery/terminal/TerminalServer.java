@@ -365,9 +365,6 @@ public class TerminalServer extends MonitorServer {
                 byte id = inFromClient.readByte();
                 byte command = inFromClient.readByte();
 
-                if (command != TEST)
-                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
-
                 String result = null;
                 List<String> itemInfo = null;
                 RawFileData fileData = null;
@@ -375,7 +372,10 @@ public class TerminalServer extends MonitorServer {
                 String errorText = null;
                 String sessionId = "";
 
-                logger.info(String.format("Command %s", command));
+                if (command != TEST) {
+                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
+                    logger.info(String.format("Command %s", command));
+                }
 
                 switch (command) {
                     case TEST:
