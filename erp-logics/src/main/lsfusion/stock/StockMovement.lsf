@@ -16,8 +16,10 @@ filterSkuLedgerDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (SkuLedger i) = dateTime(i) >= DATETIME(filterSkuLedgerDateFrom()) OR (i IS SkuLedger AND NOT filterSkuLedgerDateFrom());      
 
 filterSkuLedgerDateTo 'Дата по' = DATA LOCAL DATE ();
-filterDateTo (SkuLedger i) = dateTime(i) < DATETIME(sum(filterSkuLedgerDateTo(),1)) OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());   
-backgroundPosted (SkuLedger bil) = RGB(255,204,204) IF bil IS SkuLedger AND NOT isPosted(bil);
+filterDateTo (SkuLedger i) = dateTime(i) < DATETIME(sum(filterSkuLedgerDateTo(),1)) OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());
+
+backgroundMovement 'Цвет' = ABSTRACT CASE COLOR (SkuLedger);
+backgroundMovement (SkuLedger bil) += WHEN bil IS SkuLedger AND NOT isPosted(bil) THEN RGB(255,204,204);
 
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku PANEL
@@ -25,10 +27,10 @@ FORM movementSku 'Движение товара'
     PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
     
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundMovement(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, 
                              signedSum, balanceA
-    PROPERTIES(s,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA   
+    PROPERTIES(s,bil) READONLY BACKGROUND backgroundMovement(bil) accountPriceA   
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)                  
     ORDERS dateTime(bil) DESC
     FILTERS sku(bil) == s,            
@@ -73,10 +75,10 @@ FORM movementSkuStock 'Движение товара по складу'
     PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
     
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundMovement(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
                              signedSum , balanceA, priceA, sumA
-    PROPERTIES(s,st,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA                           
+    PROPERTIES(s,st,bil) READONLY BACKGROUND backgroundMovement(bil) accountPriceA                           
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)
     ORDERS dateTime(bil) DESC
     FILTERS sku(bil) == s,            
@@ -189,10 +191,10 @@ FORM movementBatch 'Движение по партии'
     PROPERTIES(bt) READONLY name, nameSku
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description, nameStock,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundMovement(bil) isPosted, numberDocument, seriesDocument, dateTime, description, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, signedSum
 
-    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceB(bt,bil), cost(bil, bt), balanceA(bt,bil), accountPriceA(bt,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundMovement(bil) balanceB(bt,bil), cost(bil, bt), balanceA(bt,bil), accountPriceA(bt,bil)
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)        
     ORDERS dateTime(bil) DESC
     FILTERS cost(bil, bt) OR batch(bil)==bt,           
@@ -207,10 +209,10 @@ FORM movementBatchStock 'Движение по партии'
     PROPERTIES(st) SELECTOR name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundMovement(bil) isPosted, numberDocument, seriesDocument, dateTime, description,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity,
                              signedPrice, signedSum
-    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceB(bt,bil), cost(bil, bt),  balanceA(bt,bil), accountPriceA(bt,st,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundMovement(bil) balanceB(bt,bil), cost(bil, bt),  balanceA(bt,bil), accountPriceA(bt,st,bil)
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil) 
     ORDERS dateTime(bil) DESC
     FILTERS cost(bil, bt) OR batch(bil)==bt,            
