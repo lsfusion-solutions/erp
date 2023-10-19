@@ -1,0 +1,248 @@
+MODULE SaleShipmentDashboard;
+
+REQUIRE SaleShipmentConsignmentRu, SaleOrderTerminal, SaleShipmentRu;
+
+NAMESPACE Sale;
+
+filterConsignmentDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+
+beforeCreateShipment ABSTRACT LIST ( Order);
+shipmentCreated = DATA LOCAL NESTED BOOLEAN (Order);
+
+TABLE orderUserShipment (Order, UserShipment);
+include 'Вкл. в перемещение' = DATA BOOLEAN (Order, UserShipment) INDEXED CHARWIDTH 10;
+countIncludeOrders(UserShipment i)  = GROUP SUM 1 IF include(Order o,i);
+
+defaultOrderDetail (sku, UserShipment userShipment) = GROUP MAX OrderDetail detail IF include(order(detail), userShipment)
+    BY sku(detail);
+
+defaultOrderDetail(UserShipmentDetail detail) = defaultOrderDetail(sku(detail), userShipment(detail));
+
+connectOrder 'Привязать строку перемещения к заказу'(UserShipmentDetail detail) {
+    orderDetail(detail) <- defaultOrderDetail(detail)
+        WHERE defaultOrderDetail(detail);
+} ASON CONTEXTMENU descriptionOrder[UserShipmentDetail];
+
+connectOrderAll 'Привязать все строки перемещения к заказам'(UserShipmentDetail d)  {
+    FOR userShipment(UserShipmentDetail detail) == userShipment(d) DO {
+        EXEC connectOrder(detail);
+    }
+} ASON CONTEXTMENU descriptionOrder[UserShipmentDetail];
+
+connectOrder 'Привязать все строки перемещения к заказам'(UserShipment i)  {
+    FOR userShipment(UserShipmentDetail detail) == i DO {
+        EXEC connectOrder(detail);
+    }
+};
+
+WHEN LOCAL FORMS userShipment
+    CHANGED(sku(UserShipmentDetail detail)) AND NOT orderDetail(detail)
+    DO EXEC connectOrder(detail);
+
+inTransfer 'Для перемещений'= DATA BOOLEAN (TerminalDocumentType);
+
+EXTEND FORM groupTerminalDocumentType
+    PROPERTIES (tdt) inTransfer;
+EXTEND FORM groupTerminalDocumentTypes
+    PROPERTIES (tdt) READONLY inTransfer;
+
+countTransferDocuments = GROUP SUM 1 IF NOT used(TerminalDocument td) AND NOT isClosed(td) AND inTransfer((terminalDocumentType(td))) BY stock(td);
+
+userShipment = DATA LOCAL UserShipment (Order);
+
+beforeCreateShipment(Order o) + {
+
+    IF countTransferDocuments(supplierStock(o)) AND NOT shipmentCreated(o) THEN {
+        in(TerminalDocumentType t) <- inTransfer(t);
+        filterStock() <- supplierStock(o);
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            NEW i = UserShipment {
+                fillHeader(i, o);
+                userShipment(o) <- i;
+                used(td) <- TRUE;
+                include(o,i) <- TRUE;
+                FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW d = UserShipmentDetail DO {
+                    userShipment(d) <- i;
+                    sku(d) <- sku(tdd);
+                    quantity(d) <- quantity(tdd);
+                }
+                executeLocalEvents('Sale.userShipment');
+            }
+
+            shipmentCreated(o) <- TRUE;
+        }
+    }
+
+}
+
+createBeforeTransfer 'Создать перемещение' (Order order)  {
+        shipmentCreated(order) <- NULL;
+        beforeCreateShipment(order);
+        IF shipmentCreated(order) THEN RETURN;
+
+        userShipment(order) <- NULL;
+        NEW i = UserShipment {
+            fillHeader(i, order);
+            ASK 'Создать по выбранному заказу строки перемещение?' IF useConfimForCreateDetail() DO {
+                createDetail(i, order);
+            }
+            userShipment(order) <- i;
+            include(order,i) <- TRUE;
+        }        
+}
+
+createTransfer 'Создать перемещение' (Order order) {
+    NEWSESSION {
+        createBeforeTransfer(order);
+        SHOW userShipment OBJECTS s = userShipment(order) DOCKED NOCANCEL;
+    }
+}
+
+createTransferShipment 'Создать перемещение' (Order order)  {
+    IF countSelectedOrder() THEN {
+        IF countSelectedFromClass() != 1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass() != 1 OR countSelectedToStockClass() != 1 THEN {
+            MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';
+        } ELSE {
+            IF countSelectedClass() = 1 THEN {
+                createTransfer(minSelectedOrder());
+                SHOW userInvoice OBJECTS i = userShipment(minSelectedOrder()) DOCKED NOCANCEL;
+            } ELSE {
+                MESSAGE 'Выбраны заказы с разными классами';
+            }
+        }
+    } ELSE {
+        createTransfer(order);
+        SHOW userInvoice OBJECTS i = userShipment(order) DOCKED NOCANCEL;
+    }
+} TOOLBAR;
+
+FORM saleShipmentDashboard 'Выписка перемещений' AUTOREFRESH 60
+    PROPERTIES () filterConsignmentDateFrom
+
+    OBJECTS dt = DATE PANEL
+    PROPERTIES(dt) date = VALUE
+
+    OBJECTS o=Order GRID LAST
+    PROPERTIES(o) selected
+    PROPERTIES(o) READONLY number, date, shipmentDate, nameFromStock,
+        nameTo, nameToStock, addressToStock, quantityOrderDetail,
+        note
+    PROPERTIES(o) createTransferShipment
+    FILTERS isPosted (o),
+            forbidInvoice(o)
+    FILTERGROUP toInvoice FILTER 'Не выписаны' NOT shippedOrderDetail(o) 'ctrl F6' DEFAULT
+    FILTERGROUP opened FILTER 'Открыт' isOpened(o) 'F4' DEFAULT
+    FILTERGROUP filters FILTER 'Текущие заказы' date(o)<=dt 'F6' DEFAULT
+        FILTER 'Будущие заказы' date(o)>dt 'F6'
+
+    OBJECTS d = OrderDetail GRID
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameBatch, quantity, invoiced
+    FILTERS order(d) == o,
+        date(o) >= filterConsignmentDateFrom() OR (o IS Order AND NOT filterConsignmentDateFrom())
+    //FILTERGROUP toShipDetail FILTER 'Не выписаны' toShowShipped(d) 'ctrl F6' DEFAULT
+
+    OBJECTS i = Shipment GRID LAST
+    PROPERTIES (i) SHOWIF isOpened(i) PANEL numInv=number, serInv=series
+    PROPERTIES (i) READONLY isPosted
+    PROPERTIES (i) READONLY number, series
+    PROPERTIES (i) READONLY date, time, nameFromStock, nameToStock, addressToStock, nameOperation, countShipmentDetail,
+        quantityShipmentDetail, sumShipmentDetail//, seriesNumberOrder, note, noteOrder
+    PROPERTIES (i) NEWSESSION EDIT SHOWIF overShowEdit(i), deletei = DELETE SHOWIF overShowDelete(i), printSaleInvoiceRu
+
+    FILTERS date(i) >= filterConsignmentDateFrom() OR (i IS Shipment AND NOT filterConsignmentDateFrom()), forbidInvoice(operation(i))
+    FILTERGROUP openedI  FILTER 'Открыт' isOpened(i) DEFAULT
+    FILTERGROUP filters1 FILTER 'Предыдущие перемещения' date(i)<dt 'F7'
+        FILTER 'Перемещения на дату' date(i)==dt 'F8' DEFAULT
+        FILTER 'Будущие перемещения' date(i)>dt 'F9'
+
+    EVENTS ON INIT {
+        IF filterInvoiceInterval() THEN
+            filterConsignmentDateFrom() <- subtract(currentDate(), filterInvoiceInterval());
+    }
+;
+
+DESIGN saleShipmentDashboard {
+    BOX {
+        NEW base1Container {
+            fill = 1;
+
+            NEW base2Container {
+                fill = 4;
+                NEW tabContainer{
+                    tabbed = TRUE;
+                    fill = 1;
+                    MOVE BOX(i){
+                        caption = 'Перемещения';
+                        //                            PROPERTY(nameToInvoice){
+                        //                                charWidth = 40;
+                        //                            }
+                        PROPERTY(addressToStock(o)){
+                            caption = 'Адрес получателя';
+                        }
+                        //                            PROPERTY(nameToStockInvoice){                  
+                        //                                charWidth = 45;
+                        //                            }
+                        PROPERTY(numInv) {
+                            font = 'bold 18';
+                        }
+                        PROPERTY(serInv) {
+                            font = 'bold 18';
+                            valueWidth = 50;
+                        }
+                    }
+                    MOVE BOX(d){
+                        caption = 'Детализация';
+                    }
+                    NEW printContainer {
+                        caption = 'Печать';
+                        MOVE GROUP(numbered,i);
+                    }
+                }
+                NEW secondContainer BEFORE tabContainer {
+                    fill = 1;
+                    MOVE BOX(o){
+                        caption = 'Заказы';
+                        PROPERTY(nameTo(o)){
+                            charWidth = 40;
+                        }
+                        PROPERTY(nameToStock(o)){
+                            charWidth = 45;
+                        }
+                        PROPERTY(date(o)){
+                            caption = 'Дата заказа';
+                        }
+                        PROPERTY(number(o)){
+                            caption = 'Номер заказа';
+                        }
+                        PROPERTY(addressToStock(o)){
+                            caption = 'Адрес получателя';
+                        }
+                    }
+                }
+            }
+        }
+        NEW thirdContainer BEFORE base1Container {
+            horizontal = TRUE;
+            caption = 'Шапка';
+            MOVE PROPERTY(date);
+            MOVE PROPERTY(filterConsignmentDateFrom());
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterRoleAccessNS(order, o, saleShipmentDashboard, Operation);
+@extendFormFilterRoleAccessNS(invoice, i, saleShipmentDashboard, Operation);
+
+@extendFormFilterAccessStockNoNull(order, o, saleShipmentDashboard, fromStock, company);
+@extendFormFilterAccessStockNoNull(invoice, i, saleShipmentDashboard, fromStock, company);
+
+@extendFormFilterRoleAccess(order, o, saleShipmentDashboard);
+@extendFormFilterRoleAccess(invoice, i, saleShipmentDashboard);
+
+
+NAVIGATOR {
+    saleDashboardNavigator {
+        NEW saleShipmentDashboard;
+    }
+}
