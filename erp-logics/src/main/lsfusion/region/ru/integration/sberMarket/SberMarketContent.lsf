@@ -1,6 +1,7 @@
 MODULE SberMarketContent;
 
-REQUIRE Sku, ItemInternet, ItemDescription, Integration, Store, SkuLedger, StockTax, Pricing, PriceListPromotion;
+REQUIRE Sku, ItemInternet, ItemDescription, Integration, Store, SkuLedger, StockTax, Pricing, PriceListPromotion, 
+        Scheduler, SaleInternetOrder, ItemNutrition;
 
 NAMESPACE SberMarket;
 
@@ -56,9 +57,12 @@ DESIGN integrationData{
     delivery{
         NEW sberMarket{
             caption = 'СберМаркет';
-            MOVE PROPERTY (nameGroupTypeSberMarket());
-            MOVE PROPERTY (clientIdSber());
-            MOVE PROPERTY (clientSecretSber());
+            NEW contetApi{
+                caption = 'Content API';
+                MOVE PROPERTY (nameGroupTypeSberMarket());
+                MOVE PROPERTY (clientIdSber());
+                MOVE PROPERTY (clientSecretSber());
+            }
         }
     }
 }
@@ -67,12 +71,11 @@ sort = DATA LOCAL INTEGER (Group);
 
 FORM categories FORMEXTID 'null'
     OBJECTS g = Group EXTID 'data'
-    PROPERTIES id(g), name(g) EXTID 'name', = id(parent(g)) EXTID 'parent_id', position(g)//, sort(g), level(g)
+    PROPERTIES id(g), name(g) EXTID 'name', = id(parent(g)) EXTID 'parent_id', position(g)
     FILTERS online(g)
 ;
-
-//todo метод обновления категорий    
-sendCategories (){
+ 
+sendCategories 'Выгрузить категории'(){
     sort(Group g) <- PARTITION SUM 1 IF online(g) ORDER g BY level(g);
     auth();
     
@@ -92,7 +95,11 @@ sendCategories (){
                         TO response
                     ;
                     open(response());
-                } CATCH open(response());
+                } CATCH {
+                    fileToString(response());
+                    MESSAGE (CONCAT '\n', '[Категории]', 'Ошибка при выгрузке на шаге' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                    RETURN;
+                }
             }
             sleep(10000);
         }
@@ -106,7 +113,11 @@ sendCategories (){
                 TO response
             ;
             open(response());
-        } CATCH open(response());
+        } CATCH {
+            fileToString(response());
+            MESSAGE (CONCAT '\n', '[Категории]', 'Ошибка при выгрузке на шаге 1 из 1', resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
+        }
     }
 }
 
@@ -123,15 +134,35 @@ value(Sku i, STRING s) += WHEN s = 'manufacturer' AND Item.manufacturer(i) THEN 
 value(Sku i, STRING s) += WHEN s = 'country' AND country(i) THEN STRING(name(country(i)));
 value(Sku i, STRING s) += WHEN s = 'volume_netto' AND volume(i) THEN STRING(round3(volume(i)));
 value(Sku i, STRING s) += WHEN s = 'weight_brutto' AND grossWeight(i) THEN STRING(round3(grossWeight(i)));
-value(Sku i, STRING s) += WHEN s = 'is_private_label' AND i IS Sku THEN (IF level(itemGroup('ТГ-001801'), itemGroup(i)) THEN 'true' ELSE 'false');
-value(Sku i, STRING s) += WHEN s = 'is_own_brand' AND i IS Sku THEN (IF level(itemGroup('ТГ-001801'), itemGroup(i)) THEN 'true' ELSE 'false');
-value(Sku i, STRING s) += WHEN s = 'is_alcohol' AND i IS Sku THEN (IF level(itemGroup('УТ-00003050'), itemGroup(i)) THEN 'true' ELSE 'false');
+value(Sku i, STRING s) += WHEN s = 'proteins' AND proteins(i) THEN STRING(proteins(i));
+value(Sku i, STRING s) += WHEN s = 'calories' AND energy(i) THEN STRING(energy(i));
+value(Sku i, STRING s) += WHEN s = 'fats' AND fats(i) THEN STRING(fats(i));
+value(Sku i, STRING s) += WHEN s = 'carbohydrates' AND carbohydrates(i) THEN STRING(carbohydrates(i));
+value(Sku i, STRING s) += WHEN s = 'shelf_life' AND expiryDays(i) THEN STRING(expiryDays(i));
+value(Sku i, STRING s) += WHEN s = 'ingredients' AND description(i) THEN STRING(description(i));
+
+
+META attributeCustomValue(attr, val, caption)
+    ##attr##ItemGroup = DATA ItemGroup ();
+    name###attr##ItemGroup caption = name(##attr##ItemGroup());
+    value(Sku i, STRING s) += WHEN s = val AND i IS Sku THEN (IF level(##attr##ItemGroup(), itemGroup(i)) THEN 'true' ELSE 'false');
+    EXTEND FORM integrationData
+        PROPERTIES name###attr##ItemGroup();
+    DESIGN integrationData{
+        sberMarket{
+            MOVE PROPERTY(name###attr##ItemGroup());
+        }
+    }
+END
+
+@attributeCustomValue(privateLabel, 'is_private_label', 'Группа атрибута Собственное производство');
+@attributeCustomValue(ownBrand, 'is_own_brand', 'Группа атрибута Собственная торговая марка');
+@attributeCustomValue(alcoholProuct, 'is_alcohol', 'Группа атрибута Алкоголь');
 
 //подакцизный товар
 useCustomExcisable = ABSTRACT BOOLEAN ();
 value(Sku i, STRING s) += WHEN s = 'is_excisable' AND i IS Sku AND NOT useCustomExcisable() THEN 'false';
 
-//value(Sku i, STRING s) += WHEN s = 'is_excisable' AND i IS Sku AND NOT useCustomExcisable() THEN (IF exciseRate(i, currentDate()) THEN 'true' ELSE 'false');
 
 online = ABSTRACT CASE BOOLEAN (Sku);
 online (Sku s) += WHEN groupTypeSberMarket() AND group(groupTypeSberMarket(), s) THEN TRUE;
@@ -165,12 +196,9 @@ FORM items FORMEXTID 'null'
     PROPERTIES value(sku, attributeValues) EXTID 'value'
     FILTERS attributeValues = attributes
 ;
-
-//todo метод обновления товаров 
-
 sort = DATA LOCAL INTEGER (Sku);
 
-sendItems (){
+sendItems 'Выгрузить товары'(){
     sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
     auth();
     IF (GROUP SUM 1 IF online(Sku s)) >= 1000 THEN {
@@ -187,8 +215,11 @@ sendItems (){
                     PARAMS exportFile()
                     TO response
                 ;
-                open(response());
-            } CATCH open(response());
+            } CATCH {
+                fileToString(response());
+                MESSAGE (CONCAT '\n', '[Товары]', 'Ошибка при выгрузке на шаге' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                RETURN;
+            }
         }
     } ELSE {
         EXPORT items JSON;
@@ -199,8 +230,11 @@ sendItems (){
                 PARAMS exportFile()
                 TO response
             ;
-            open(response());
-        } CATCH open(response());
+        } CATCH {
+            fileToString(response());
+            MESSAGE (CONCAT '\n', '[Товары]', 'Ошибка при выгрузке на шаге 1 из 1', resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
+        }
     }
 }
 
@@ -216,7 +250,52 @@ FORM stocks FORMEXTID 'null'
     FILTERS online(s), idSber(d)
 ;
 
-//todo метод обновления остатков
+sendStocks 'Выгрузить остатки(по магазину)'(DepartmentStore d){
+    sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
+    auth();
+    IF (GROUP SUM 1 IF online(Sku s)) >= 1000 THEN {
+        LOCAL maxSku = INTEGER ();
+        LOCAL maxStep = INTEGER ();
+        maxSku() <- GROUP MAX sort(Sku s);
+        maxStep() <- (maxSku() / 1000) (+) 1 IF mod(maxSku(), 1000);
+        FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
+            EXPORT stocks OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
+                    HEADERS headers
+                    PARAMS exportFile()
+                    TO response
+                ;
+            } CATCH {
+                fileToString(response());
+                MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                RETURN;
+            }
+        }
+    } ELSE {
+        EXPORT stocks OBJECTS d = d JSON;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'
+                HEADERS headers
+                PARAMS exportFile()
+                TO response
+            ;
+        } CATCH {
+            fileToString(response());
+            MESSAGE (CONCAT '\n', '[Остатки] -' + name(d), 'Ошибка при выгрузке на шаге 1 из 1', resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
+        }
+    }
+}
+
+sendStocks'Выгрузить остатки(по всем)'(){
+    FOR idSber(DepartmentStore d) DO sendStocks(d);
+}
+sendSelectStocks'Выгрузить остатки(отм.)'(){
+    FOR in(DepartmentStore d) AND idSber(d) DO sendStocks(d);
+}
 
 //Управление ценами
 priceListTypeRegular = DATA PriceListType ();
@@ -272,9 +351,202 @@ vat (Sku s) = CASE
 FORM prices FORMEXTID 'null'
     OBJECTS price = (s = Sku, d = DepartmentStore) EXTID 'data'
     PROPERTIES id(s) EXTID 'offer_id', idSber(d) EXTID 'outlet_id', vat(s) EXTID 'vat'
-    PROPERTIES IN price price(s, d) EXTID 'amount', = IF price(s, d) THEN 'RUB' EXTID 'currency'
-    PROPERTIES IN price_promo = IF showPromo(s, d) THEN promoPrice(s, d) EXTID 'amount', = IF showPromo(s, d) THEN 'RUB' EXTID 'currency'
+    PROPERTIES IN price  = STRING(price(s, d)) EXTID 'amount', = IF price(s, d) THEN 'RUB' EXTID 'currency'
+    PROPERTIES IN price_promo = IF showPromo(s, d) THEN STRING(promoPrice(s, d)) EXTID 'amount', = IF showPromo(s, d) THEN 'RUB' EXTID 'currency'
     PROPERTIES = IF showPromo(s, d) THEN promoStart(s, d) EXTID 'promo_start_at', 
         = IF showPromo(s, d) THEN promoEnd(s, d) EXTID 'promo_end_at'
-    FILTERS online(s), idSber(d)
+    FILTERS online(s), idSber(d), price(s, d)
 ;
+
+sendPrices 'Выгрузить цены(по магазину)'(DepartmentStore d){
+    sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
+    auth();
+    IF (GROUP SUM 1 IF online(Sku s)) >= 1000 THEN {
+        LOCAL maxSku = INTEGER ();
+        LOCAL maxStep = INTEGER ();
+        maxSku() <- GROUP MAX sort(Sku s);
+        maxStep() <- (maxSku() / 1000) (+) 1 IF mod(maxSku(), 1000);
+        FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
+            EXPORT prices OBJECTS d = d FILTERS (sort(s) > (i * 1000) AND sort(s) <= ((i + 1) * 1000));
+            LOCAL response = FILE();
+            TRY {
+                EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/prices'
+                    HEADERS headers
+                    PARAMS exportFile()
+                    TO response
+                ;
+            } CATCH {
+                fileToString(response());
+                MESSAGE (CONCAT '\n', '[Цены] -' + name(d), 'Ошибка при выгрузке на шаге' + (i + 1) + ' из ' + maxStep(), resultString(), messageCaughtException()) NOWAIT;
+                RETURN;
+            }
+        }
+    } ELSE {
+        EXPORT prices OBJECTS d = d JSON;
+        LOCAL response = FILE();
+        TRY {
+            EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/prices'
+                HEADERS headers
+                PARAMS exportFile()
+                TO response
+            ;
+        } CATCH {
+            fileToString(response());
+            MESSAGE (CONCAT '\n', '[Цены] -' + name(d), 'Ошибка при выгрузке на шаге 1 из 1', resultString(), messageCaughtException()) NOWAIT;
+            RETURN;
+        }
+    }
+}
+
+sendPrices'Выгрузить цены(по всем)'(){
+    FOR idSber(DepartmentStore d) DO sendStocks(d);
+}
+sendSelectPrices'Выгрузить цены(отм.)'(){
+    FOR in(DepartmentStore d) AND idSber(d) DO sendStocks(d);
+}
+showSelectAction = GROUP SUM 1 IF in(DepartmentStore d) AND idSber(d);
+
+EXTEND FORM internetCatalogs
+    OBJECTS sberDS = DepartmentStore
+    PROPERTIES (sberDS) in, name READONLY, idSber
+    PROPERTIES (sberDS) sendStocks, sendPrices
+    PROPERTIES () sendPrices, sendStocks, sendItems, sendCategories
+    PROPERTIES () SHOWIF showSelectAction() sendSelectStocks, sendSelectPrices
+    FILTERGROUP sberDSF 
+        FILTER 'С ID СберМаркет' idSber(sberDS) DEFAULT
+;
+
+DESIGN internetCatalogs{
+    tabContainer{
+        NEW sberMarket{
+            caption = 'СберМаркет';
+            MOVE BOX(sberDS){
+                caption = 'Склады';
+            }
+            NEW actions{
+                caption = 'Действия';
+                horizontal = TRUE;
+                alignment = STRETCH;
+                NEW masterData{
+                    caption = 'Справочники';
+                    horizontal = TRUE;
+                    MOVE PROPERTY (sendCategories());
+                    MOVE PROPERTY (sendItems());
+                }
+                NEW stocks{
+                    caption = 'Остатки';
+                    horizontal = TRUE;
+                    MOVE PROPERTY (sendStocks(sberDS));
+                    MOVE PROPERTY (sendSelectStocks());
+                    MOVE PROPERTY (sendStocks());
+                }
+                NEW prices{
+                    caption = 'Цены';
+                    horizontal = TRUE;
+                    MOVE PROPERTY (sendPrices(sberDS));
+                    MOVE PROPERTY (sendSelectPrices());
+                    MOVE PROPERTY (sendPrices());
+                }
+            }
+        }
+    }
+}
+
+//планировщик
+@defineStaticObject(TimeInterval, 'Интервал');
+period = ABSTRACT CASE INTEGER (TimeInterval);
+
+META addTimeInterval(name, caption, value)
+    EXTEND CLASS TimeInterval{
+        name caption
+    }
+    period (TimeInterval i) += WHEN i = TimeInterval.##name THEN value;
+END
+@addTimeInterval(onceDay, 'Раз в день', 86400);
+@addTimeInterval(sixHours, 'Каждые 6 часов', 21600);
+
+@addTimeInterval(threeHours, 'Каждые 3 часа', 10800);
+@addTimeInterval(oneHours, 'Каждый час', 3600);
+
+@addTimeInterval(halHour, 'Каждые 30 минут', 1800);
+@addTimeInterval(quarterHour, 'Каждые 15 минут', 900);
+
+sendPeriodMasterData = DATA TimeInterval ();
+namePeriodMasterData 'Выгружать справочники(товары и категории)' = name(sendPeriodMasterData());
+periodMasterData = period(sendPeriodMasterData());
+
+sendPeriodPricesStocks = DATA TimeInterval ();
+namePeriodPricesStocks 'Выгружать остатки и цены' = name(sendPeriodPricesStocks());
+periodPricesStocks = period(sendPeriodPricesStocks());
+
+putScheduledTask '{scheduler.default.data.load.default.scheduled.task}'(STRING[100] iname, DATETIME startTime, INTEGER integer, SchedulerStartType type, BOOLEAN active)  {
+    IF NOT(scheduledTask(iname)) THEN NEW s = UserScheduledTask {
+        name(s) <- iname;
+    }
+    FOR ScheduledTask s = scheduledTask(iname) DO {
+        name(s) <- iname;
+        active(s) <- active;
+        startDate(s) <- startTime;
+        period(s) <- integer;
+        schedulerStartType(s) <- type;
+    }
+}
+scheduledTaskDetail(STRING iname, STRING prop) = GROUP MAX ScheduledTaskDetail d BY name(scheduledTask(d)), canonicalNameAction(d);
+
+putScheduledTaskDetail '{scheduler.default.data.load.default.scheduled.task.detail}'(STRING[100] iname, INTEGER order, STRING prop, BOOLEAN active){
+    IF NOT (scheduledTaskDetail(iname, prop)) THEN NEW d = UserScheduledTaskDetail {
+        action(d) <- actionCanonicalName(prop);
+        scheduledTask(d) <- scheduledTask(iname);
+    }
+    FOR ScheduledTaskDetail d = scheduledTaskDetail(iname, prop) DO{
+        order(d) <- order;
+        active(d) <- active;
+    }
+}
+
+createScheduledTaskSber 'Создать задания планировщика CберМаркет'(){
+    IF NOT periodMasterData() THEN{
+        MESSAGE 'Не выбран период выгрузки справочников';
+        RETURN;
+    }
+    IF NOT periodPricesStocks() THEN {
+        MESSAGE 'Не выбран период выгрузки цен и остатков';
+        RETURN;
+    }
+    IF (NOT GROUP SUM 1 IF online(Sku s)) THEN{
+        MESSAGE 'Не определены товары для выгрузки';
+        RETURN;
+    }
+    IF actionCanonicalName('SberMarket.sendCategories[]') AND actionCanonicalName('SberMarket.sendItems[]')
+        AND actionCanonicalName('SberMarket.sendStocks[]') AND actionCanonicalName('SberMarket.sendPrices[]') THEN {
+
+        //справочники
+        putScheduledTask('SberMarket[Товары и категории]', dateTimeToDateTime(currentDate(), 08:00), periodMasterData(),
+            SchedulerStartType.afterStart, TRUE);
+        putScheduledTaskDetail ('SberMarket[Товары и категории]', 1, 'SberMarket.sendCategories[]', TRUE);
+        putScheduledTaskDetail ('SberMarket[Товары и категории]', 2, 'SberMarket.sendItems[]', TRUE);
+
+        //остатки и цены
+        putScheduledTask('SberMarket[Остатки и цены]', dateTimeToDateTime(currentDate(), 08:00), periodPricesStocks(),
+            SchedulerStartType.afterStart, TRUE);
+        putScheduledTaskDetail ('SberMarket[Остатки и цены]', 1, 'SberMarket.sendPrices[]', TRUE);
+        putScheduledTaskDetail ('SberMarket[Остатки и цены]', 2, 'SberMarket.sendStocks[]', TRUE);
+        APPLY NESTED LOCAL;
+    } ELSE MESSAGE 'Не определены действия для планировщика';
+}
+
+EXTEND FORM internetCatalogs
+    PROPERTIES() namePeriodMasterData, namePeriodPricesStocks, createScheduledTaskSber
+;
+
+DESIGN internetCatalogs{
+    sberMarket{
+        NEW scheduler{
+            caption = 'Планировщик';
+            horizontal = TRUE;
+            MOVE PROPERTY (namePeriodMasterData());
+            MOVE PROPERTY (namePeriodPricesStocks());
+            MOVE PROPERTY (createScheduledTaskSber());
+        }
+    }
+}

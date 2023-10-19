@@ -1,14 +1,28 @@
 MODULE SberMarketOrders;
 
-REQUIRE SberMarketContent, SaleInternetPicking;
+REQUIRE SberMarketContent, SaleInternetPicking, LogTools;
 
 NAMESPACE SberMarket;
 
-useCustomStatus = ABSTRACT BOOLEAN ();
-statusSber = ABSTRACT CASE StatusInternetOrder (STRING);
-statusSber(STRING s) += WHEN s = 'order.created' AND NOT useCustomStatus() THEN StatusInternetOrder.new;
-statusSber(STRING s) += WHEN s = 'order.canceled' AND NOT useCustomStatus() THEN StatusInternetOrder.closed;
-statusSber(STRING s) += WHEN s = 'order.paid' AND NOT useCustomStatus() THEN StatusInternetOrder.agreed;
+@defineLogRotate(sber, 5, weekly);
+
+paid 'Заказ оплачен' = DATA BOOLEAN (InternetOrder);
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) READONLY paid
+;
+EXTEND FORM internetOrder
+    PROPERTIES (o) paid
+;
+DESIGN internetOrder{
+    payment{
+        MOVE PROPERTY (paid(o));
+    }
+}
+
+EXTEND CLASS StatusInternetOrder{
+    closedStore 'Отмена ТО'
+}
 
 GROUP payload;
 GROUP delivery : payload;
@@ -72,14 +86,29 @@ FORM order
 
 idDetail (INTEGER i) = STRING[100](originalOrderId() + '_' + id(i));
 
-updateOrder(FILE f){
-    logToFile('sber', f);
-    IMPORT order JSON FROM f;
-    IF NOT internetOrder(originalOrderId()) THEN NEW o = InternetOrder{
-        id(o) <- originalOrderId();
+paidOrder(STRING id) {
+    paid(internetOrder(id)) <- TRUE;
+}
+cancelOrder(STRING id){
+    status(internetOrder(id)) <- StatusInternetOrder.closed;
+}
+deliveryOrder(STRING id){
+    status(internetOrder(id)) <- StatusInternetOrder.delivery;
+}
+deliveredOrder(STRING id){
+    status(internetOrder(id)) <- StatusInternetOrder.delivered;
+}
+
+isSberMarket (InternetOrder o) = carrier(o) = carrier('sberMarket');
+
+createOrder(STRING id){
+    IF NOT internetOrder(id) THEN NEW o = InternetOrder{
+        id(o) <- id;
     }
-    FOR InternetOrder o = internetOrder(originalOrderId()) DO{
-        number(o) <- STRING[48](originalOrderId());
+    FOR InternetOrder o = internetOrder(id) DO{
+        number(o) <- STRING[48](id);
+        isPosted(o) <- TRUE;
+        carrier(o) <- carrier('sberMarket');
         supplierStock(o) <- sberStore(storeID()) WHERE storeID();
         nameInternetCustomer(o) <- name() WHERE name();
         addressInternetCustomer(o) <- full_address() WHERE full_address();
@@ -91,7 +120,7 @@ updateOrder(FILE f){
     }
     FOR sku(id(INTEGER i)) AND idDetail(i) AND NOT internetOrderDetail(idDetail(i)) NEW d = InternetOrderDetail DO{
         id(d) <- idDetail(i);
-        internetOrder(d) <- internetOrder(originalOrderId()); 
+        internetOrder(d) <- internetOrder(originalOrderId());
     }
     FOR Sku s = sku(id(INTEGER i)) AND InternetOrderDetail d = internetOrderDetail(idDetail(i)) DO{
         sku(d) <- s;
@@ -101,16 +130,63 @@ updateOrder(FILE f){
         sum(d) <- NUMERIC[18,4](totalPrice(i));
         discountSum(d) <- NUMERIC[18,4](totalDiscountPrice(i));
     }
+}
+updated 'Заказ обновлен' = DATA DATETIME (InternetOrder);
+EXTEND FORM internetOrders
+    PROPERTIES READONLY updated(o)
+;
+EXTEND FORM internetOrder
+    PROPERTIES updated(o) SHOWIF updated(o) READONLY BACKGROUND updated(o)
+;
+
+DESIGN internetOrder{
+    payment{
+        MOVE PROPERTY (updated(o));
+    }    
+}
+
+timePickingSkuSber 'Время сборки одного товара(секунд)' = DATA INTEGER ();
+assemblyTimeMinutes (InternetOrder o) = ((GROUP SUM 1 IF (quantity(InternetOrderDetail d) 
+    AND status(internetOrder(d)) = StatusInternetOrder.new OR (internetOrder(d)) = o) AND supplierStock(d) = supplierStock(o))  * timePickingSkuSber()) / 60;
+
+EXTEND FORM integrationData
+    PROPERTIES timePickingSkuSber()
+;
+
+sber_order(FILE f){
+    IMPORT order JSON FROM f;
+    fileToString(f);
+    logToFile('sber', (CONCAT ' : ', event_type(), originalOrderId(), resultString()));
+    CASE 
+        WHEN event_type() = 'order.created' THEN {
+            createOrder(originalOrderId());
+            EXPORT JSON FROM status = 'created', number = originalOrderId(),
+                expectedAssemblyTime = 
+                toChar(sumMinutes(currentDateTime(), (OVERRIDE assemblyTimeMinutes(internetOrder(originalOrderId())), 30)), 'yyyy-MM-ddThh24:mi:ss+03:00')
+            ;
+        }
+        WHEN event_type() = 'order.paid' THEN {
+            paidOrder(originalOrderId());
+        }
+        WHEN event_type() = 'order.canceled' THEN {
+            cancelOrder(originalOrderId());
+        }
+        WHEN event_type() = 'order.delivering' THEN{
+            deliveryOrder(originalOrderId());
+        }
+        WHEN event_type() = 'order.delivered' THEN{
+            deliveredOrder(originalOrderId());
+        }
+        WHEN event_type() = 'order.updated' THEN{
+            createOrder(originalOrderId());
+        }
     APPLY NESTED LOCAL;
+    headersTo('Content-Type') <- 'application/json';
     IF canceled() THEN{
         statusHttpTo() <- 500;
         EXPORT JSON FROM status = 'error', descripton = applyMessage();
-    } ELSE {
-        IF event_type() = 'order.created' THEN 
-            EXPORT JSON FROM status = 'created', number = originalOrderId(), 
-                expectedAssemblyTime = toChar(sumMinutes(currentDateTime(), 60), 'yyyy-MM-ddThh24:mi:ss+03:00');
     }
-}
+}@@api;
 
 
 //sendNotification
@@ -129,8 +205,8 @@ type = DATA LOCAL STRING();
 eventType (InternetOrder o)= CASE   
     WHEN status(o) = StatusInternetOrder.isPicking THEN 'order.in_work'
     WHEN status(o) = StatusInternetOrder.picked THEN 'order.ready_for_delivery'
+    WHEN status(o) = StatusInternetOrder.closedStore THEN 'order.canceled'
 ;
-
 
 FORM sendNotification
     OBJECTS o = InternetOrder PANEL
@@ -141,23 +217,75 @@ FORM sendNotification
 
     OBJECTS positions = InternetOrderDetail IN order
     PROPERTIES(positions) quantity EXTID 'originalQuantity', pickingQuantity EXTID 'quantity', idSku EXTID 'id'
-    PROPERTIES = IF pickingQuantity(positions) THEN STRING(round0(pickingQuantity(positions) * 1000))EXTID 'weight'
-        //replacedByID, weight, id
+    PROPERTIES = IF shortNameUOMSku(positions) = 'кг' THEN STRING(round0(pickingQuantity(positions) * 1000)) ELSE '' EXTID 'weight'
     FILTERS internetOrder(positions) = o 
-//
-//    OBJECTS markingCode = INTEGER
-//    FILTERS positionsMarkingCode(markingCode) == positions
-//    PROPERTIES(markingCode) value
-//    FILTERS imported(markingCode)
+        AND status(internetOrder(positions)) != StatusInternetOrder.isPicking
+        AND status(internetOrder(positions)) != StatusInternetOrder.closed
 ;
-sendNotification(InternetOrder o){
-    LOCAL f = FILE();
-    headers('Api-Version') <- '3.0';
-    headers('Client-Token') <- '56a17e81-0d1d-4231-b200-b8f5dfabeb3d';
-    headers('Content-Type') <- 'application/json';
-    EXPORT sendNotification OBJECTS o = o JSON;
-    open(exportFile());
-    EXTERNAL HTTP POST 'https://integrations-gw.sbermarket.ru/chapi/v3/notifications'
-        HEADERS headers PARAMS exportFile() TO f;
-    open(f());
+
+send = DATA DATETIME (STRING, InternetOrder);
+clientTokenOrderSber 'Client Token Notification СМ' = DATA STRING ();
+urlNotificationSber 'Url Notification СМ' = DATA STRING ();
+
+sendNotification 'Отправить уведомление' (InternetOrder o){
+    IF clientTokenOrderSber() AND urlNotificationSber() THEN{
+        NEWSESSION APPLY {
+            send(eventType(o), o) <- currentDateTime();
+        }
+        LOCAL f = FILE();
+        headers('Api-Version') <- '3.0';
+        headers('Client-Token') <- clientTokenOrderSber();
+        headers('Content-Type') <- 'application/json';
+        EXPORT sendNotification OBJECTS o = o JSON;
+        fileToString(exportFile());
+        logToFile('sber', CONCAT ' : ', '-->', number(o), eventType(o), 'INFO', resultString());
+        TRY{
+            EXTERNAL HTTP POST urlNotificationSber() HEADERS headers PARAMS exportFile() TO f;
+            send(eventType(o), o) <- NULL;
+        }
+        CATCH {
+            fileToString(f());
+            logToFile('sber', CONCAT ' : ', '<--', number(o), eventType(o), 'ERROR', resultString(), messageCaughtException());
+        }
+        
+    } ELSE MESSAGE 'Не заданы параметры отправки вебхуков' NOWAIT;  
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) sendNotification SHOWIF isSberMarket(o)
+;
+DESIGN internetOrders{
+    actionContainer{
+        NEW sberMarket{
+            caption = 'СберМаркет';
+            MOVE PROPERTY (sendNotification(o));
+        }
+    }
+}
+
+useConstraintChangeStatusSber 'Ограничить смену статусов без отпавки вебхука' = DATA BOOLEAN () PREREAD;
+
+CONSTRAINT CHANGED (status(InternetOrder o)) AND useConstraintChangeStatusSber() AND isSberMarket(o) AND (GROUP SUM 1 IF send(STRING s, o)) 
+    CHECKED BY nameStatus[InternetOrder]
+    MESSAGE 'Запрещено изменять статус, пока не отправлен вебхук в СберМаркет';
+autoSendNotificationSber 'Автоматическая отправка уведомлений' = DATA BOOLEAN () PREREAD;
+
+WHEN SETCHANGED (eventType(InternetOrder o)) AND isSberMarket(o) AND clientTokenOrderSber() AND urlNotificationSber() 
+    AND autoSendNotificationSber() DO sendNotification(o);
+
+EXTEND FORM integrationData
+    PROPERTIES () clientTokenOrderSber, urlNotificationSber,
+        useConstraintChangeStatusSber, autoSendNotificationSber
+;
+
+DESIGN integrationData{
+    sberMarket{
+        NEW sberOrders{
+            caption = 'Orders API';
+            MOVE PROPERTY (clientTokenOrderSber());
+            MOVE PROPERTY (urlNotificationSber());
+            MOVE PROPERTY (useConstraintChangeStatusSber());
+            MOVE PROPERTY (autoSendNotificationSber());
+        }
+    }
 }
