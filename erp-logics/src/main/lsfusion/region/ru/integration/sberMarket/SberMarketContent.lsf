@@ -129,17 +129,30 @@ attribute = DATA LOCAL STRING(INTEGER);
 value = ABSTRACT CASE STRING (Sku , STRING);
 
 //обязательные атрибуты
-value(Sku i, STRING s) += WHEN s = 'brand' AND brand(i) THEN STRING(name(brand(i)));
-value(Sku i, STRING s) += WHEN s = 'manufacturer' AND Item.manufacturer(i) THEN STRING(name(Item.manufacturer(i)));
-value(Sku i, STRING s) += WHEN s = 'country' AND country(i) THEN STRING(name(country(i)));
-value(Sku i, STRING s) += WHEN s = 'volume_netto' AND volume(i) THEN STRING(round3(volume(i)));
-value(Sku i, STRING s) += WHEN s = 'weight_brutto' AND grossWeight(i) THEN STRING(round3(grossWeight(i)));
+
+useCustomBrand = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'brand' AND brand(i) AND NOT useCustomBrand() THEN STRING(name(brand(i)));
+
+useCustomManufacturer = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'manufacturer' AND Item.manufacturer(i) AND NOT useCustomManufacturer() THEN STRING(name(Item.manufacturer(i)));
+
+useCustomCountry = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'country' AND country(i) AND NOT useCustomCountry() THEN STRING(name(country(i)));
+
+useCustomVolume = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'volume_netto' AND volume(i) AND NOT useCustomVolume() THEN STRING(round3(volume(i)));
+
+useCustomGrossWeight = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'weight_brutto' AND grossWeight(i) AND NOT useCustomGrossWeight() THEN STRING(round3(grossWeight(i)));
+
+//дополнительные 
 value(Sku i, STRING s) += WHEN s = 'proteins' AND proteins(i) THEN STRING(proteins(i));
 value(Sku i, STRING s) += WHEN s = 'calories' AND energy(i) THEN STRING(energy(i));
 value(Sku i, STRING s) += WHEN s = 'fats' AND fats(i) THEN STRING(fats(i));
 value(Sku i, STRING s) += WHEN s = 'carbohydrates' AND carbohydrates(i) THEN STRING(carbohydrates(i));
 value(Sku i, STRING s) += WHEN s = 'shelf_life' AND expiryDays(i) THEN STRING(expiryDays(i));
-value(Sku i, STRING s) += WHEN s = 'ingredients' AND description(i) THEN STRING(description(i));
+useCustomIngredients = ABSTRACT BOOLEAN ();
+value(Sku i, STRING s) += WHEN s = 'ingredients' AND NOT useCustomIngredients() AND description(i) THEN STRING(description(i));
 
 
 META attributeCustomValue(attr, val, caption)
@@ -169,11 +182,19 @@ online (Sku s) += WHEN groupTypeSberMarket() AND group(groupTypeSberMarket(), s)
 
 position = PARTITION SUM 1 ORDER (Sku s) BY online(s);
 
+useCustomName = ABSTRACT BOOLEAN ();
+nameSber = ABSTRACT CASE ISTRING[255] (Sku);
+nameSber(Sku i) += WHEN name(i) AND NOT useCustomName() THEN name(i);
+
+useCustomDescription = ABSTRACT BOOLEAN ();
+descriptionSber = ABSTRACT CASE STRING (Sku);
+descriptionSber(Sku i) += WHEN description(i) AND NOT useCustomDescription() THEN STRING(description(i));
+
 FORM items FORMEXTID 'null'
     OBJECTS sku = Sku EXTID 'data'
-    PROPERTIES id(sku) EXTID 'id', = name(sku) EXTID 'name', = IF active(sku) THEN 'ACTIVE' ELSE 'INACTIVE' EXTID 'status',
+    PROPERTIES id(sku) EXTID 'id', = nameSber(sku) EXTID 'name', = IF active(sku) THEN 'ACTIVE' ELSE 'INACTIVE' EXTID 'status',
         = IF split(sku) THEN 'per_kilo' EXTID 'pack_type', = STRING(netWeight(sku)) EXTID 'weight_netto',
-        description(sku) EXTID 'description', position(sku)
+        descriptionSber(sku) EXTID 'description', position(sku)
     FILTERS online(sku), id(sku)
     
     OBJECTS image = Sku EXTID 'images'
@@ -535,8 +556,13 @@ createScheduledTaskSber 'Создать задания планировщика 
     } ELSE MESSAGE 'Не определены действия для планировщика';
 }
 
+captionScheduledTaskSber = IF scheduledTask('SberMarket[Товары и категории]') 
+    OR scheduledTask('SberMarket[Товары и категории]') THEN 'Обновить задания планировщика CберМаркет'
+    ELSE 'Создать задания планировщика CберМаркет'
+;
+    
 EXTEND FORM internetCatalogs
-    PROPERTIES() namePeriodMasterData, namePeriodPricesStocks, createScheduledTaskSber
+    PROPERTIES() namePeriodMasterData, namePeriodPricesStocks, createScheduledTaskSber HEADER captionScheduledTaskSber()
 ;
 
 DESIGN internetCatalogs{
