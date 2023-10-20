@@ -8,51 +8,53 @@ NAMESPACE Sale;
 EVATInvoiceDetail 'Строка основания' = DATA SaleReturn.InvoiceDetail (EVATDetail) INDEXED;
 EVATDetail 'Строка ЭСЧФ' = GROUP MAX EVATDetail d BY EVATInvoiceDetail(d) MATERIALIZED;
 
-skipEvatAdditional = ABSTRACT BOOLEAN(SaleReturn.Invoice);
+@defineOption(skipCreateExtraEVATSaleReturnInvoice, 'Не создавать несколько ЭСЧФ продажа-возврат по накладным-основаниям в строках', EVAT);
 
 // Для возратных накладных нужно создавать столько ЭСЧФ, сколько есть накладных-оснований в строках
 createExtraEVATSaleReturnInvoice (EVAT ee, SaleReturn.Invoice i) + {
-    extraEVAT() <- TRUE;
-    DELETE ee;
-    
-    // для строк, у которых есть основание
-    FOR invoice(SaleReturn.InvoiceDetail rd) == i AND (NOT EVATDetail(rd) OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.onAgreementCancel) 
-    AND invoiceDetail(rd) DO {
-        FOR Invoice si IS Sale.Invoice AND invoice(invoiceDetail(rd)) == si NEW e = EVAT DO {
+    IF NOT skipCreateExtraEVATSaleReturnInvoice() THEN {
+        extraEVAT() <- TRUE;
+        DELETE ee;
+
+        // для строк, у которых есть основание
+        FOR invoice(SaleReturn.InvoiceDetail rd) == i AND (NOT EVATDetail(rd) OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(rd))) == EVATServerStatus.onAgreementCancel)
+            AND invoiceDetail(rd) DO {
+            FOR Invoice si IS Sale.Invoice AND invoice(invoiceDetail(rd)) == si NEW e = EVAT DO {
+                createEVATSaleReturnInvoiceHeader(e, i);
+
+                IF EVAT(si) THEN {
+                    status(e) <- EVATStatus.additional;
+                    invoice(e) <- exportNumber(EVAT(si)); // ссылка на ЭСЧФ накладной-основания   
+                } ELSE
+                    status(e) <- EVATStatus.additionalNoRef;
+
+                FOR invoice(SaleReturn.InvoiceDetail id) == i AND invoice(invoiceDetail(id)) == si
+                    AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
+                    AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+                    evat(ed) <- e;
+                    EVATInvoiceDetail(ed) <- id;
+
+                    fillEVATDetailSaleReturn(id, ed);
+                }
+
+                DELETE e WHERE NOT countEVATDetail(e);
+            }
+        }
+
+        // для осташихся строк (у которых нет основания)
+        NEW e = EVAT {
             createEVATSaleReturnInvoiceHeader(e, i);
-            
-            IF EVAT(si) AND NOT skipEvatAdditional(i) THEN {
-                status(e) <- EVATStatus.additional;
-                invoice(e) <- exportNumber(EVAT(si));        // ссылка на ЭСЧФ накладной-основания   
-            } ELSE
-                status(e) <- EVATStatus.additionalNoRef;
-            
-            FOR invoice(SaleReturn.InvoiceDetail id) == i AND invoice(invoiceDetail(id)) == si 
-            AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
-            AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+
+            FOR invoice(SaleReturn.InvoiceDetail id) == i AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
+                AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
                 evat(ed) <- e;
                 EVATInvoiceDetail(ed) <- id;
-                
+
                 fillEVATDetailSaleReturn(id, ed);
-            } 
+            }
 
             DELETE e WHERE NOT countEVATDetail(e);
         }
-    }
-    
-    // для осташихся строк (у которых нет основания)
-    NEW e = EVAT {
-        createEVATSaleReturnInvoiceHeader(e, i);
-
-        FOR invoice(SaleReturn.InvoiceDetail id) == i AND (NOT EVATDetail(id) OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.cancelled OR statusServerStatus(evat(EVATDetail(id))) == EVATServerStatus.onAgreementCancel)
-        AND quantity(id) > 0 AND sum(id) AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
-            evat(ed) <- e;
-            EVATInvoiceDetail(ed) <- id;
-                        
-            fillEVATDetailSaleReturn(id, ed);
-        } 
-
-        DELETE e WHERE NOT countEVATDetail(e);
     }
 }
 
