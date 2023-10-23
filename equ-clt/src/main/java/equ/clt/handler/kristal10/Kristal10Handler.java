@@ -128,12 +128,12 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         Element good = new Element("good");
                         rootElement.addContent(good);
                         fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                                brandIsManufacturer, seasonIsCountry, infoJSON, false);
+                                brandIsManufacturer, seasonIsCountry, infoJSON);
 
                         //parent: good
-                        Element barcode = getBarcodeElement(item, barcodeItem, null, exportAmountForBarcode);
+                        Element barcode = getBarcodeElement(item, barcodeItem, exportAmountForBarcode);
                         good.addContent(barcode);
-                        fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem, false);
+                        fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem);
 
                         addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);
                     }

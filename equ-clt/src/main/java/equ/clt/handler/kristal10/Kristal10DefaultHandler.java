@@ -45,7 +45,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String idItem, String barcodeItem,
                                    List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
-                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON, boolean web) {
+                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON) {
 
         setAttribute(good, "marking-of-the-good", idItem);
 
@@ -80,19 +80,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             good.addContent(measureType);
         }
 
-        if(web) {
-            if(item.splitItem && !item.passScalesItem) {
-                Element pluginProperty = new Element("plugin-property");
-                setAttribute(pluginProperty, "key", "precision");
-                setAttribute(pluginProperty, "value", "0.001");
-                good.addContent(pluginProperty);
-            }
-        } else {
-            Element pluginProperty = new Element("plugin-property");
-            setAttribute(pluginProperty, "key", "precision");
-            setAttribute(pluginProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
-            good.addContent(pluginProperty);
-        }
+
+        Element precisionProperty = new Element("plugin-property");
+        setAttribute(precisionProperty, "key", "precision");
+        setAttribute(precisionProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
+        good.addContent(precisionProperty);
+
 
         if(!skipScalesInfo) {
             //<plugin-property key="plu-number" value="4">
@@ -160,7 +153,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     }
 
     protected void fillBarcodes(Element parent, Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, CashRegisterItem item, String idItem, Element barcode,
-                                List<String> notGTINPrefixes, String barcodeItem, boolean web) {
+                                List<String> notGTINPrefixes, String barcodeItem) {
         List<String> deleteBarcodeList = new ArrayList<>();
         if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
             for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
@@ -173,9 +166,6 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         for(String deleteBarcode : deleteBarcodeList) {
             Element deleteBarcodeElement = new Element("bar-code");
-            if(web) {
-                setAttribute(barcode, "marking-of-the-good", idItem);
-            }
             setAttribute(deleteBarcodeElement, "code", deleteBarcode);
             setAttribute(deleteBarcodeElement, "deleted", true);
             parent.addContent(deleteBarcodeElement);
@@ -231,11 +221,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         rootElement.addContent(maxDiscountRestriction);
     }
 
-    protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, String idItem, boolean exportAmountForBarcode) {
+    protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, boolean exportAmountForBarcode) {
         Element barcodeElement = new Element("bar-code");
         setAttribute(barcodeElement, "code", barcodeItem);
         addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
-        setAttribute(barcodeElement, "marking-of-the-good", idItem);
         if (exportAmountForBarcode && item.amountBarcode != null && BigDecimal.ONE.compareTo(item.amountBarcode) != 0) {
             addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
         }
