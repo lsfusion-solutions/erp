@@ -113,9 +113,10 @@ toCopy = ABSTRACT CASE BOOLEAN (Barcode);
 replace(Sku s, Sku d) + { sku(Barcode barcode) <- d WHERE sku(barcode) == s AND NOT toCopy(barcode);}
 
 overPrimaryBarcode (Sku s) = ABSTRACT Barcode (Sku);
+skipBarcodeSku = ABSTRACT BOOLEAN (Barcode);
 barcode(Sku sku) = OVERRIDE dataBarcode(sku) IF active(dataBarcode(sku)), 
                         overPrimaryBarcode(sku),
-                        [ GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode) BY sku(barcode)](sku) 
+                        [ GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND active(barcode) AND NOT skipBarcodeSku(barcode) BY sku(barcode)](sku) 
                         MATERIALIZED INDEXED;
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
