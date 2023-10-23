@@ -1,0 +1,28 @@
+MODULE SalePurchaseInvoiceShipmentCost;
+
+REQUIRE SalePurchaseInvoiceShipment, SkuLedgerCost, PriceListLedgerAccount;
+
+PRIORITY Sale;
+
+NAMESPACE SalePurchaseInvoiceShipment;
+
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет учётной цены (закупка) в накладных (продажа)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        purchaseShipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = purchaseShipmentPrice(d) AND showPurchaseShipment(d);
+    }
+    logToFile('cost', 'Закончен пересчет учётной цены (закупка) в накладных (продажа)');
+}
+
+recalculateCostAccount(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет учётной цены (закупка) в накладных (продажа)');
+    APPLY NESTED LOCAL {
+        purchaseShipmentPrice(UserInvoiceDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d)) 
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d)) AND NOT prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d)) = purchaseShipmentPrice(d) AND showPurchaseShipment(d);
+    }
+    logToFile('cost', 'Закончен пересчет учётной цены (закупка) в накладных (продажа)');
+}
