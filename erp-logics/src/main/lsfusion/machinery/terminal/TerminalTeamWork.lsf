@@ -277,7 +277,7 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
     }
     WHEN command == 4 OR command == 6 THEN { //добавление строки / обновление
         LOCAL idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment, prevAna1= STRING ();
-        LOCAL quantity, extraQuantity, price, quantityMax = NUMERIC ();
+        LOCAL quantity, extraQuantity, price, quantityMax, newQuantity, newExtraQuantity = NUMERIC ();
         LOCAL date1, date2 = DATE ();
         LOCAL detail = TeamWorkDocumentDetail();
         
@@ -304,7 +304,15 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
                     extraDate2(d) <- date2();
                 }
             } ELSE {
-                IF (quantity(detail()) (+) quantity()) > quantityMax() THEN {
+                IF command == 4 THEN {
+                    newQuantity() <- quantity(detail()) (+) quantity();
+                    newExtraQuantity() <- extraQuantity(detail()) (+) extraQuantity();
+                } ELSE {
+                    newQuantity() <- quantity();
+                    newExtraQuantity() <- extraQuantity();
+                }
+                
+                IF newQuantity() > quantityMax() THEN {
                     error() <- 'Количество превышает максимальное, уже принято: ' + (OVERRIDE quantity(detail()), 0)
                         + ', максимальное: ' + quantityMax();
                 } ELSE {
@@ -315,13 +323,8 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
                     ana1(detail()) <- ana1();
                     ana2(detail()) <- ana2();
                     comment(detail()) <- comment();
-                    IF command == 4 THEN {
-                        quantity(detail()) <- quantity(detail()) (+) quantity();
-                        extraQuantity(detail()) <- extraQuantity(detail()) (+) extraQuantity();
-                    } ELSE {
-                        quantity(detail()) <- quantity();
-                        extraQuantity(detail()) <- extraQuantity();
-                    }
+                    quantity(detail()) <- newQuantity();
+                    extraQuantity(detail()) <- newExtraQuantity();
                     price(detail()) <- price();
                     extraDate1(detail()) <- date1() WHERE date1();
                     extraDate2(detail()) <- date2() WHERE date2();
