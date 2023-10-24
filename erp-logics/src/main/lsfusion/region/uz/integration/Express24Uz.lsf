@@ -1,0 +1,240 @@
+MODULE Express24Uz;
+
+REQUIRE ItemInternet, ItemUz, SaleInternetOrder, Pricing;
+
+NAMESPACE Express24;
+
+
+//----------------------------------Авторизация----------------------------------//
+loginExpress24 'Login Express24' = DATA STRING ();
+passwordExpress24 'Password Express24' = DATA STRING ();
+accessTokenExpress24 = DATA LOCAL STRING ();
+
+expressGroupType = DATA CustomGroupType ();
+nameExpressGroupType 'Классификатор Express24'= name(expressGroupType());
+onlineExpress24 (Item i) = customGroup[Stock.CustomGroupType,Item.Item](expressGroupType(), i);
+
+EXTEND FORM integrationData
+    PROPERTIES () loginExpress24, passwordExpress24, nameExpressGroupType
+;
+
+DESIGN integrationData{
+    delivery{
+        NEW express24{
+            caption = 'Express24';
+            MOVE PROPERTY (loginExpress24());
+            MOVE PROPERTY (passwordExpress24());
+            MOVE PROPERTY (nameExpressGroupType());
+        }
+    }
+}
+
+auth(){
+    LOCAL response = FILE();
+    EXPORT JSON FROM login = loginExpress24(), password = passwordExpress24();
+    EXTERNAL HTTP POST 'https://express24.uz/api/external/auth' PARAMS exportFile() TO response;
+    IMPORT JSON FROM response() TO () accessTokenExpress24 = data;
+}
+
+idExpress24 'ID Express24' = DATA INTEGER (DepartmentStore);
+express24Store = GROUP MAX DepartmentStore d BY idExpress24(d);
+
+
+EXTEND FORM internetCatalogs
+    OBJECTS d = DepartmentStore
+    PROPERTIES (d) READONLY id, name
+    PROPERTIES idExpress24(d), in(d) FIRST 
+;
+
+DESIGN internetCatalogs{
+    tabContainer{
+        NEW express24{
+            caption = 'Express24';
+            MOVE BOX (d);
+        }
+    }
+}
+
+//-----------------------------------Товары-----------------------------------//
+sort = DATA LOCAL INTEGER (Item);
+ 
+GROUP data;
+
+FORM updateProducts
+    OBJECTS s = INTEGER EXTID 'branches' IN data
+    PROPERTIES VALUE (s) EXTID 'value'
+
+    OBJECTS d = DepartmentStore EXTID 'data', products = Item IN data
+    PROPERTIES  = IF currentBalance(products, d) > 0 AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
+        = OVERRIDE currentBalance(products, d), 0 EXTID 'quantity',
+        = OVERRIDE retailPricingPriceA(products, d), 1 EXTID 'price', = id(products) EXTID 'externalId', 
+        = OVERRIDE ikpu(products), '' EXTID 'spicId'
+    FILTERS onlineExpress24(products)
+;
+
+message = DATA LOCAL STRING(INTEGER);
+isAvailable = DATA LOCAL NUMERIC(INTEGER);
+quantity = DATA LOCAL NUMERIC(INTEGER);
+price = DATA LOCAL NUMERIC(INTEGER);
+packageCode = DATA LOCAL NUMERIC(INTEGER);
+externalId = DATA LOCAL STRING(INTEGER);
+spicId = DATA LOCAL STRING(INTEGER);
+
+FORM responseItems
+    OBJECTS failed = INTEGER
+    PROPERTIES(failed) externalId, message
+
+    OBJECTS updated = INTEGER
+    PROPERTIES(updated) isAvailable, quantity, price, packageCode, externalId, spicId
+;
+
+updateProducts 'Обновить продукты(магазин)'(DepartmentStore ds) {
+    LOCAL response = FILE ();
+    auth();
+    headers('Authorization-token') <- 'express24:' + accessTokenExpress24();
+    sort(Sku s) <- PARTITION SUM 1 IF onlineExpress24(s) ORDER s;
+    IF (GROUP SUM 1 IF onlineExpress24(Sku s)) >= 1700 THEN {
+        LOCAL maxSku = INTEGER ();
+        LOCAL maxStep = INTEGER ();
+        maxSku() <- GROUP MAX sort(Sku s);
+        maxStep() <- (maxSku() / 1700) (+) 1 IF mod(maxSku(), 1700);
+        FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
+            EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds), (sort(products) > (i * 1700) AND sort(products) <= ((i + 1) * 1700)) JSON;
+            TRY {
+                EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
+                IMPORT responseItems JSON FROM response();
+                FOR message(INTEGER ii) AND externalId(ii) DO MESSAGE 'Не выгружен ' +  externalId(ii) + ' ' + message(ii) NOWAIT;
+            }
+            CATCH{
+                fileToString(response());
+                MESSAGE CONCAT ' : ', 'Ошибка выгрузки', 'Шаг ' + (i + 1) + ' из ' + maxStep(), messageCaughtException(), resultString();
+            }
+            
+        }
+    } ELSE{
+        EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds) JSON;
+        TRY EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
+        CATCH{
+            fileToString(response());
+            MESSAGE CONCAT ' : ', 'Ошибка выгрузки', 'Шаг 1 из 1', messageCaughtException(), resultString();
+        }
+    }
+}
+
+updateProducts 'Обновить продукты(по всем магазинам)' (){
+    FOR idExpress24(DepartmentStore d) DO updateProducts(d);
+}
+updateProductsSelect 'Обновить продукты(отм)' (){
+    FOR idExpress24(DepartmentStore d) AND in(d) DO updateProducts(d);
+}
+
+EXTEND FORM internetCatalogs
+    PROPERTIES (d) updateProducts TOOLBAR DRAW d
+;
+
+//-----------------------------------Заказы-----------------------------------//
+
+GROUP delivery;
+GROUP address : delivery;
+GROUP region : address;
+GROUP payment;
+GROUP store;
+GROUP branch : store;
+GROUP user;
+
+lon = DATA LOCAL NUMERIC();
+text = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+id = DATA LOCAL NUMERIC();
+lat = DATA LOCAL NUMERIC();
+price = DATA LOCAL NUMERIC();
+comment = DATA LOCAL STRING();
+type = DATA LOCAL NUMERIC();
+total_price = DATA LOCAL NUMERIC();
+order_comment = DATA LOCAL STRING();
+created_at = DATA LOCAL ZDATETIME();
+id1 = DATA LOCAL STRING();
+status = DATA LOCAL NUMERIC();
+id2 = DATA LOCAL STRING[50]();
+external_id = DATA LOCAL NUMERIC ();
+external_id1 = DATA LOCAL STRING();
+name1 = DATA LOCAL STRING();
+status1 = DATA LOCAL STRING();
+price1 = DATA LOCAL NUMERIC(INTEGER);
+qty = DATA LOCAL NUMERIC(INTEGER);
+name2 = DATA LOCAL STRING(INTEGER);
+external_id2 = DATA LOCAL STRING(INTEGER);
+id3 = DATA LOCAL NUMERIC(INTEGER);
+productsParams = DATA LOCAL INTEGER(INTEGER);
+name3 = DATA LOCAL STRING(INTEGER);
+paramsOptions = DATA LOCAL INTEGER(INTEGER);
+price2 = DATA LOCAL NUMERIC(INTEGER);
+name4 = DATA LOCAL STRING(INTEGER);
+external_id3 = DATA LOCAL NUMERIC(INTEGER);
+id4 = DATA LOCAL NUMERIC(INTEGER);
+external_id4 = DATA LOCAL NUMERIC(INTEGER);
+id5 = DATA LOCAL NUMERIC(INTEGER);
+
+FORM webhookOrder
+    PROPERTIES() total_price, order_comment, created_at, id2 EXTID 'id', status1 EXTID 'status'
+    PROPERTIES() IN delivery price, comment, type
+    PROPERTIES() IN address lon, text, lat
+    PROPERTIES() IN region name, id
+    PROPERTIES() IN payment id1 EXTID 'id', status
+    PROPERTIES() IN store external_id
+    PROPERTIES() IN branch external_id1 EXTID 'external_id'
+    PROPERTIES() IN user name1 EXTID 'name'
+
+    OBJECTS products = INTEGER
+    PROPERTIES(products) price1 EXTID 'price', qty, name2 EXTID 'name', external_id2 EXTID 'external_id', id3 EXTID 'id'
+
+    OBJECTS params = INTEGER
+    FILTERS productsParams(params) == products
+    PROPERTIES(params) name3 EXTID 'name', external_id4 EXTID 'external_id', id5 EXTID 'id'
+    FILTERS imported(params)
+
+    OBJECTS options = INTEGER
+    FILTERS paramsOptions(options) == params
+    PROPERTIES(options) price2 EXTID 'price', name4 EXTID 'name', external_id3 EXTID 'external_id', id4 EXTID 'id'
+    FILTERS imported(options)
+;
+
+importOrder(FILE f){
+    IMPORT webhookOrder JSON FROM f;
+    IF status1() = 'courier_accepted' OR status1() = 'courier_profit' AND status() = 1 THEN{
+        logToFile('express24', status1());
+        IF NOT internetOrder(id2()) AND id2() THEN NEW o = InternetOrder{
+            id(o) <- id2();
+        }
+        FOR InternetOrder o = internetOrder(id2()) DO{
+            supplierStock(o) <- express24Store(external_id());
+            carrier(o) <- carrier('express24');
+            deliverySumInternetOrder(o) <- price();
+            customerComment(o) <- order_comment();
+            addressInternetCustomer(o) <- CONCAT ' - ', text(), comment();
+            nameInternetCustomer(o) <- name1();
+        }
+        FOR external_id2(INTEGER i) AND NOT internetOrderDetail(id2() + '_' + external_id2(i))
+            AND InternetOrder o = internetOrder(id2()) NEW d = InternetOrderDetail DO{
+
+            id(d) <- id2() + '_' + external_id2(i);
+            internetOrder(d) <- o;
+
+        }
+        FOR external_id2(INTEGER i) AND InternetOrderDetail d = internetOrderDetail(id2() + '_' + external_id2(i)) AND internetOrder(id2()) = internetOrder(d) DO{
+            sku(d) <- sku(external_id2(i));
+            price(d) <- price1(i);
+            quantity(d) <- qty(i);
+        }
+        APPLY;
+    }
+}
+express24_webhook(FILE f){
+    logToFile('express24', f);
+    LOCAL newOrder = STRING ();
+    LOCAL changedOrder = STRING ();
+    LOCAL eventId = STRING ();
+    IMPORT JSON FROM f TO () eventId = event_id, newOrder = new_order, changedOrder = order_changed;
+    stringToFile( OVERRIDE newOrder(), changedOrder());
+    importOrder(resultFile());
+}
