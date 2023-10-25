@@ -4,6 +4,8 @@ REQUIRE Disassembly, DisassemblyCost, DisassemblyAccountLedger, PurchaseShipment
 
 NAMESPACE Disassembly;
 
+// отличие от обычного модуля, что учитывается опция про положительный остаток 
+// многие товары могут приходить только Разборками
 
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (DisassemblyDetail);
 accountLedgerPrice (DisassemblyDetail d) += accountPrice(d);
@@ -37,27 +39,11 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-// считаем кол-во за один момент, чтобы исключить проблемы с одним товаром разными строками за одно время
-// в оперативном расчете пока это не учитываем в целях производительности
-quantityDisassemblyDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(DisassemblyDetail d) BY sku(d), dateTime(d), stock(d);
-
-recalcAccountPrice (DisassemblyDetail d) =
-    NUMERIC[16,4]((calcAccountPriceBalance(d) * accountPriceB(d) +
-        (OVERRIDE quantityDisassemblyDetail(sku(d), dateTime(d), stock(d)), 0.0) * price(d))
-        / ((OVERRIDE quantityDisassemblyDetail(sku(d), dateTime(d), stock(d)), 0.0) + calcAccountPriceBalance(d)));
-
 recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
-    LOCAL ordered = INTEGER (DisassemblyDetail);
-    ordered (DisassemblyDetail d) <- PARTITION SUM 1 IF date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) ORDER dateTime(d), d BY sku(d), dFrom, dTo;
-
-    FOR iterate(INTEGER i, 1, (GROUP MAX ordered(DisassemblyDetail d))) DO
-        NEWSESSION NESTED (ordered) {
-            APPLY NESTED LOCAL {
-                LOCAL it = BOOLEAN (DisassemblyDetail);
-                it(DisassemblyDetail d) <- ordered(d) == i; // чтобы определились классы
-
-                accountPrice(DisassemblyDetail d) <- recalcAccountPrice(d)
-                    WHERE it(d) AND NOT date(d) < documentsClosedDate(stock(d));
-            }
-        }
+    logToFile('cost', 'Начат пересчет цен в разборках (приход)');
+    APPLY NESTED LOCAL {
+        accountPrice(DisassemblyDetail d) <- calcAccountPrice(d)
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в разборках (приход)');
 }
