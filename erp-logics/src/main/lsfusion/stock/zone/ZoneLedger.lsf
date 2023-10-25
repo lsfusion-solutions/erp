@@ -70,12 +70,19 @@ overPrevCurrentBalance 'Остаток без зон' (Sku s, Stock st) = prevCu
 //-- расчет на дату
 quantityZoneLedgerFromB (Zone z, Stock st, Sku s, DATETIME dt) = 
     GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY fromZone(d), stock(d), sku(d);
+quantityZoneLedgerFromA (Zone z, Stock st, Sku s, DATETIME dt) =
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) > dt BY fromZone(d), stock(d), sku(d);
+
 
 quantityZoneLedgerToB (Zone z, Stock st, Sku s, DATETIME dt) = 
     GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) >= dt BY toZone(d), stock(d), sku(d);
-    
+quantityZoneLedgerToA (Zone z, Stock st, Sku s, DATETIME dt) =
+    GROUP SUM quantity(ZoneLedger d) IF isPosted(d) AND dateTime(d) > dt BY toZone(d), stock(d), sku(d);
+
 signedQuantityB (Zone z, Stock st, Sku s, DATETIME dt) = 
-    quantityZoneLedgerToB(z, st, s, dt) (-) quantityZoneLedgerFromB(z, st, s, dt);  
+    quantityZoneLedgerToB(z, st, s, dt) (-) quantityZoneLedgerFromB(z, st, s, dt);
+signedQuantityA (Zone z, Stock st, Sku s, DATETIME dt) =
+    quantityZoneLedgerToA(z, st, s, dt) (-) quantityZoneLedgerFromA(z, st, s, dt);
 
 balanceB 'Остаток на начало дня' (Stock st, Zone z, Sku s, DATE date) = 
     currentBalance(st, z, s) (-) signedQuantityB(z, st, s, DATETIME(date));
@@ -104,8 +111,12 @@ prevBalanceADiffZone 'Зона расхождения (остаток на ко�
 //-- расчет на дату/время
 balanceB 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = 
     currentBalance(st, z, s) (-) signedQuantityB(z, st, s, dateTime);
-prevBalanceB 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = PREV(balanceB(st, z, s, dateTime)); 
-   
+prevBalanceB 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = PREV(balanceB(st, z, s, dateTime));
+
+balanceA 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) =
+    currentBalance(st, z, s) (-) signedQuantityA(z, st, s, dateTime);
+prevBalanceA 'Остаток на начало' (Stock st, Zone z, Sku s, DATETIME dateTime) = PREV(balanceA(st, z, s, dateTime));
+
 // form
 skipShowBalanceZone = ABSTRACT BOOLEAN (Stock);
 
