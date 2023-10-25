@@ -61,11 +61,14 @@ DESIGN currentBalanceSkuStock {
 // считаем кол-во за один момент, чтобы исключить проблемы с одним товаром разными строками за одно время
 // в оперативном расчете пока это не учитываем в целях производительности
 adjustAccountQuantity = ABSTRACT NUMERIC[16,5] (ShipmentDetail);
-quantityShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM quantity(ShipmentDetail d) + (OVERRIDE adjustAccountQuantity(d), 0.0)  BY sku(d), dateTime(d), customerStock(d);
+adjustedAccountQuantity (ShipmentDetail d) = quantity(d) + (OVERRIDE adjustAccountQuantity(d), 0.0);
+
+quantityShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM adjustedAccountQuantity(ShipmentDetail d) BY sku(d), dateTime(d), customerStock(d);
+sumShipmentDetail (Sku sk, DATETIME dt, Stock st) = GROUP SUM adjustedAccountQuantity(ShipmentDetail d) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)) BY sku(d), dateTime(d), customerStock(d);
 
 calcIntraAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4]((calcAccountPriceBalance(d)*accountPriceB(d) +
-           (OVERRIDE quantityShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), supplierStock(d), dateTime(d)) ELSE price(d)))
+        (OVERRIDE sumShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0))
         / ((OVERRIDE quantityShipmentDetail(sku(d), dateTime(d), customerStock(d)), 0.0) + calcAccountPriceBalance(d)));
 
 recalculateCostLedger (DATE dFrom, DATE dTo) + {

@@ -6,7 +6,7 @@ PRIORITY Sale, Operation;
 
 NAMESPACE SaleReturn;
 
-changeShipmentPrice 'Проводить по регистру изменение учетной цены' = DATA BOOLEAN (Operation);
+changeShipmentPrice 'Проводить по регистру изменение учетной цены (возвраты)' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
     PROPERTIES(o) changeShipmentPrice
 ;
@@ -33,6 +33,9 @@ changeShipmentPrice(InvoiceShipment s) += changeShipmentPrice(invoice(s));
 
 // ------------------------------- Проведение регистру учетных цен ------------------------ //
 
+accountLedgerPrice = ABSTRACT VALUE NUMERIC[16,4] (ShipmentDetail);
+accountLedgerPrice (ShipmentDetail a) += price(a);
+
 EXTEND CLASS ShipmentDetail : PriceListLedger;
 
 fromDateTime (ShipmentDetail ledger) += dateTime(ledger);
@@ -48,7 +51,7 @@ description[PriceListLedger] (ShipmentDetail ledger) += description(ledger);
 company (ShipmentDetail ledger) += supplier(ledger);
 
 in (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN changeShipmentPrice(ledger);
-price (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType AND changeShipmentPrice(ledger) THEN price(ledger);
+price (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType AND changeShipmentPrice(ledger) THEN accountLedgerPrice(ledger);
 
 in (ShipmentDetail ledger, Stock stock) += supplierStock(ledger) == stock;
 in(ShipmentDetail ledger, Batch batch) += batch(ledger) == batch; 

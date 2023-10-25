@@ -1,0 +1,84 @@
+MODULE SaleReturnShipmentAccountPrice;
+
+REQUIRE SaleReturnShipment, SkuLedgerCost, SaleReturnShipmentAccountLedger, PurchaseSaleReturnInvoiceShipment;
+
+NAMESPACE SaleReturn;
+
+// работает при включенных опциях changeShipmentPrice, notUseReturnPriceListType
+// отключить SaleReturnShipmentCost
+
+accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (ShipmentDetail);
+accountLedgerPrice (ShipmentDetail d) += accountPrice(d);
+
+calcAccountPrice (ShipmentDetail d) =
+    NUMERIC[16,4]((balanceB(sku(d), supplierStock(d), dateTime(d))*accountPriceB(sku(d), supplierStock(d), dateTime(d)) +
+        quantity(d) * (IF shipmentDetail(d) THEN accountPriceB(sku(d), customerStock(d), dateTime(d)) ELSE price(d)))/(quantity(d) + balanceB(sku(d), supplierStock(d), dateTime(d))));
+
+// пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(supplierStock(d)) OR SETCHANGED(dateTime(d)) OR 
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() AND changeShipmentPrice(d) DO
+    accountPrice(d) <- calcAccountPrice(d);
+
+recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
+    APPLY NESTED LOCAL {
+        accountPrice(ShipmentDetail d) <- calcAccountPrice(d)
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND changeShipmentPrice(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в поставках (продажа-возврат)');
+}
+
+setPropertiesPurchaseReturnSaleReturn(UserInvoiceDetail d, PurchaseReturn.InvoiceDetail invoiceDetail) + {
+    shipmentPrice (d) <- price(invoiceDetail) IF changeShipmentPrice(userInvoice(d));
+}
+
+overFillInvoice (UserInvoice sd, PurchaseReturn.Invoice id) + { 
+    IF changeShipmentPrice(operation(sd)) THEN {
+        priceListType(sd) <- NULL;
+        changeShipmentPrice(sd) <- TRUE;
+    } 
+}
+
+overFillInvoice(UserInvoiceDetail d, PurchaseReturn.InvoiceDetail invoiceDetail) + {
+    IF changeShipmentPrice(userInvoice(d)) THEN {
+        priceListType(d) <- NULL;
+        shipmentPrice (d) <- price(invoiceDetail) IF NOT stock(batch(invoiceDetail)) = supplierStock(invoiceDetail);
+    }
+}
+
+disableUpdateShipmentPrice(UserInvoiceDetail d) += TRUE IF PurchaseSaleReturnInvoice.invoiceDetail(d);
+
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(UserShipmentDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d);
+    }
+
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d) AND NOT changeShipmentPrice(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа-возврат)');
+}
+
+recalculateCostAccount(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа-возврат)');
+    APPLY NESTED LOCAL {
+        price(UserShipmentDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d))
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
+    }
+
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа-возврат)');
+    APPLY NESTED LOCAL {
+        shipmentPrice(UserInvoiceDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d))
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d)) AND NOT changeShipmentPrice(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа-возврат)');
+}
