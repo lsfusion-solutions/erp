@@ -263,7 +263,7 @@ sendItems 'Выгрузить товары'(){
 //Управление остатками
 stock = ABSTRACT CASE NUMERIC[16,2] (Sku, DepartmentStore);
 useCustomStock = ABSTRACT BOOLEAN ();
-stock (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomStock() THEN NUMERIC[16,2](currentBalance(s, d));
+stock (Sku s, DepartmentStore d) += WHEN s IS Sku AND d IS DepartmentStore AND NOT useCustomStock() THEN NUMERIC[16,2](currentBalance(s, d) IF currentBalance(s, d) > 0) ;
 
 FORM stocks FORMEXTID 'null'
     OBJECTS stock = (d = DepartmentStore, s = Sku) EXTID 'data'
@@ -374,8 +374,8 @@ FORM prices FORMEXTID 'null'
     PROPERTIES id(s) EXTID 'offer_id', idSber(d) EXTID 'outlet_id', vat(s) EXTID 'vat'
     PROPERTIES IN price  = STRING(price(s, d)) EXTID 'amount', = IF price(s, d) THEN 'RUB' EXTID 'currency'
     PROPERTIES IN price_promo = IF showPromo(s, d) THEN STRING(promoPrice(s, d)) EXTID 'amount', = IF showPromo(s, d) THEN 'RUB' EXTID 'currency'
-    PROPERTIES = IF showPromo(s, d) THEN promoStart(s, d) EXTID 'promo_start_at', 
-        = IF showPromo(s, d) THEN promoEnd(s, d) EXTID 'promo_end_at'
+    PROPERTIES = IF showPromo(s, d) THEN toChar(promoStart(s, d), 'yyyy-MM-dd') EXTID 'promo_start_at', 
+        = IF showPromo(s, d) THEN toChar(promoEnd(s, d), 'yyyy-MM-dd') EXTID 'promo_end_at'
     FILTERS online(s), idSber(d), price(s, d)
 ;
 
