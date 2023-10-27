@@ -1843,7 +1843,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             BigDecimal bonusPaid = null;
                                             boolean fourthPrice = false;
-                                            List<Discount> discounts = new ArrayList<>();
+                                            Map<String, Discount> discounts = new HashMap<>();
                                             JSONArray discountPositionsArray = inventPosition.getJSONArray("discountPositions");
                                             for (int j = 0; j < discountPositionsArray.length(); j++) {
                                                 JSONObject discountPosition = discountPositionsArray.getJSONObject(j);
@@ -1856,7 +1856,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                     fourthPrice = true;
                                                 }
                                                 String discMode = discountPosition.optString("discMode");
-                                                discounts.add(new Discount(discName, discMode, discSum));
+
+                                                Discount discount = discounts.getOrDefault(discName, new Discount(discName, discMode, null));
+                                                discount.sum = safeAdd(discount.sum, discSum);
+                                                discounts.put(discName, discount);
                                             }
 
                                             BigDecimal sumVAT = null;
@@ -1942,7 +1945,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
                                                         sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
-                                                        discounts, numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
+                                                        new ArrayList<>(discounts.values()), numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
                                                 salesInfo.detailExtraFields = new HashMap<>();
                                                 if(!bonusesInDiscountPositions) {
                                                     salesInfo.detailExtraFields.put("bonusSum", bonusSum);
