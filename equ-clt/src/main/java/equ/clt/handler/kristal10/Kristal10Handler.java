@@ -454,80 +454,8 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
             if (!stopListInfo.exclude) {
                 processStopListLogger.info(getLogPrefix() + " found " + stopListInfo.stopListItemMap.size() + " items");
-                for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
-                    String idBarcode = entry.getKey();
-                    ItemInfo item = entry.getValue();
-
-                    //parent: rootElement
-                    Element good = new Element("good");
-                    idBarcode = transformBarcode(idBarcode, skipWeightPrefix);
-                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-                    addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
-
-                    addProductType(good, item, tobaccoGroups);
-
-                    rootElement.addContent(good);
-
-                    if (useShopIndices) {
-                        StringBuilder shopIndices = new StringBuilder();
-                        Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
-                        if (machineryInfoSet != null) {
-                            Set<String> stockSet = new HashSet<>();
-                            for (MachineryInfo machineryInfo : machineryInfoSet) {
-                                if (machineryInfo instanceof CashRegisterInfo)
-                                    stockSet.add(getIdDepartmentStore(machineryInfo.numberGroup, ((CashRegisterInfo) machineryInfo).section, useNumberGroupInShopIndices));
-                            }
-                            for (String idStock : stockSet) {
-                                shopIndices.append(idStock).append(" ");
-                            }
-                        }
-                        shopIndices = new StringBuilder((shopIndices.length() == 0) ? shopIndices.toString() : shopIndices.substring(0, shopIndices.length() - 1));
-                        addStringElement(good, "shop-indices", shopIndices.toString());
-                    }
-
-                    //parent: good
-                    Element barcode = new Element("bar-code");
-                    setAttribute(barcode, "code", item.idBarcode);
-                    addStringElement(barcode, "default-code", "true");
-                    good.addContent(barcode);
-
-                    boolean noPriceEntry = true;
-                    Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
-                    if (machineryInfoSet != null) {
-                        Set<Integer> departNumberSet = new HashSet<>();
-                        for (MachineryInfo machineryInfo : machineryInfoSet) {
-                            if (machineryInfo instanceof CashRegisterInfo) {
-                                CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
-                                JSONObject infoJSON = getExtInfo(item.info);
-                                String section = infoJSON != null ? infoJSON.optString("section") : null;
-                                departNumberSet.add(getDepartNumber(section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
-                            }
-                        }
-                        noPriceEntry = departNumberSet.isEmpty();
-
-                        for (Integer departNumber : departNumberSet) {
-
-                            addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, departNumber);
-                        }
-                    }
-                    if(noPriceEntry) {
-                        addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, null);
-                    }
-
-                    Element measureType = new Element("measure-type");
-                    setAttribute(measureType, "id", item.idUOM);
-                    addStringElement(measureType, "name", item.shortNameUOM);
-                    good.addContent(measureType);
-
-                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
-
-                    //parent: good
-                    Element group = new Element("group");
-                    setAttribute(group, "id", item.idItemGroup);
-                    addStringElement(group, "name", item.nameItemGroup);
-                    good.addContent(group);
-
-                }
+                addStopListItems(rootElement, stopListInfo, useShopIndices, idItemInMarkingOfTheGood, skipWeightPrefix,
+                        tobaccoGroups, useNumberGroupInShopIndices, useSectionAsDepartNumber);
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
                     File file = makeExportFile(exchangeDirectory, "catalog-goods_stoplist");

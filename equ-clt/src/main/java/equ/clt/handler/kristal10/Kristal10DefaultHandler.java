@@ -2,6 +2,8 @@ package equ.clt.handler.kristal10;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.api.stoplist.StopListInfo;
+import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.jdom.Attribute;
@@ -53,8 +55,6 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
-        addProductType(good, item, tobaccoGroups);
-
         addStringElement(good, "delete-from-cash", "false");
 
         List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
@@ -80,26 +80,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             good.addContent(measureType);
         }
 
-
-        Element precisionProperty = new Element("plugin-property");
-        setAttribute(precisionProperty, "key", "precision");
-        setAttribute(precisionProperty, "value", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
-        good.addContent(precisionProperty);
-
+        addPluginPropertyElement(good, "precision", (item.splitItem || item.passScalesItem) ? "0.001" : "1.0");
 
         if(!skipScalesInfo) {
-            //<plugin-property key="plu-number" value="4">
-            Element extraPluginProperty = new Element("plugin-property");
-            setAttribute(extraPluginProperty, "key", "plu-number");
-            setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
-            good.addContent(extraPluginProperty);
-
-            //<plugin-property value="1" key="composition"/>
+            addPluginPropertyElement(good, "plu-number", removeZeroes(item.idBarcode));
             if (item.expiryDate != null) {
-                Element expiryDateProperty = new Element("plugin-property");
-                setAttribute(expiryDateProperty, "key", "composition");
-                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
-                good.addContent(expiryDateProperty);
+                addPluginPropertyElement(good, "composition", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
             }
         }
 
@@ -123,13 +109,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             good.addContent(country);
         }
 
+        boolean isProductSetApiEntity = false;
+
         if (infoJSON != null) {
             String ntin = trimToNull(infoJSON.optString("ntin"));
             if(ntin != null) {
-                Element pluginProperty = new Element("plugin-property");
-                setAttribute(pluginProperty, "key", "uz-ffd-spic");
-                setAttribute(pluginProperty, "value", ntin);
-                good.addContent(pluginProperty);
+                addPluginPropertyElement(good, "uz-ffd-spic", ntin);
             }
 
             addStringElement(good, "energy", String.valueOf(infoJSON.optBoolean("energy")));
@@ -141,6 +126,91 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (infoJSON.has("weight")) {
                 addIntegerElement(good, "weight", infoJSON.getInt("weight"));
             }
+
+            if(infoJSON.has("plugin_id")) {
+                isProductSetApiEntity = true;
+                addPluginPropertyElement(good, "plugin_id", infoJSON.getString("plugin_id"));
+            }
+
+        }
+
+        addProductType(good, item, tobaccoGroups, isProductSetApiEntity);
+    }
+
+    protected void addStopListItems(Element parent, StopListInfo stopListInfo,
+                                    boolean useShopIndices, boolean idItemInMarkingOfTheGood,
+                                    boolean skipWeightPrefix, List<String> tobaccoGroups,
+                                    boolean useNumberGroupInShopIndices, boolean useSectionAsDepartNumber) {
+        for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
+            String idBarcode = entry.getKey();
+            ItemInfo item = entry.getValue();
+
+            //parent: rootElement
+            Element good = new Element("good");
+            idBarcode = transformBarcode(idBarcode, skipWeightPrefix);
+            setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+            addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
+
+            addProductType(good, item, tobaccoGroups, false);
+
+            if (useShopIndices) {
+                StringBuilder shopIndices = new StringBuilder();
+                Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
+                if (machineryInfoSet != null) {
+                    Set<String> stockSet = new HashSet<>();
+                    for (MachineryInfo machineryInfo : machineryInfoSet) {
+                        if (machineryInfo instanceof CashRegisterInfo)
+                            stockSet.add(getIdDepartmentStore(machineryInfo.numberGroup, ((CashRegisterInfo) machineryInfo).section, useNumberGroupInShopIndices));
+                    }
+                    for (String idStock : stockSet) {
+                        shopIndices.append(idStock).append(" ");
+                    }
+                }
+                shopIndices = new StringBuilder((shopIndices.length() == 0) ? shopIndices.toString() : shopIndices.substring(0, shopIndices.length() - 1));
+                addStringElement(good, "shop-indices", shopIndices.toString());
+            }
+
+            //parent: good
+            Element barcode = new Element("bar-code");
+            setAttribute(barcode, "code", item.idBarcode);
+            addStringElement(barcode, "default-code", "true");
+            good.addContent(barcode);
+
+            boolean noPriceEntry = true;
+            Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
+            if (machineryInfoSet != null) {
+                Set<Integer> departNumberSet = new HashSet<>();
+                for (MachineryInfo machineryInfo : machineryInfoSet) {
+                    if (machineryInfo instanceof CashRegisterInfo) {
+                        CashRegisterInfo c = (CashRegisterInfo) machineryInfo;
+                        JSONObject infoJSON = getExtInfo(item.info);
+                        String section = infoJSON != null ? infoJSON.optString("section") : null;
+                        departNumberSet.add(getDepartNumber(section, c.overDepartNumber != null ? c.overDepartNumber : c.numberGroup, useSectionAsDepartNumber));
+                    }
+                }
+                noPriceEntry = departNumberSet.isEmpty();
+                for (Integer departNumber : departNumberSet) {
+                    addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, departNumber);
+                }
+            }
+            if (noPriceEntry) {
+                addPriceEntryElement(good, null, 1, true, formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"), null, 1, null);
+            }
+
+            Element measureType = new Element("measure-type");
+            setAttribute(measureType, "id", item.idUOM);
+            addStringElement(measureType, "name", item.shortNameUOM);
+            good.addContent(measureType);
+
+            addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
+
+            //parent: good
+            Element group = new Element("group");
+            setAttribute(group, "id", item.idItemGroup);
+            addStringElement(group, "name", item.nameItemGroup);
+            good.addContent(group);
+
+            parent.addContent(good);
         }
     }
 
@@ -231,9 +301,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return barcodeElement;
     }
 
-    protected static void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups) {
+    protected static void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups, boolean isProductSetApiEntity) {
         String productType;
-        if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
+        if(isProductSetApiEntity) {
+            productType = "ProductSetApiEntity";
+        } else if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
             productType = "ProductCiggyEntity";
         else if (item.passScalesItem)
             productType = item.splitItem && !isPieceUOM(item) ? "ProductWeightEntity" : "ProductPieceWeightEntity";
@@ -263,6 +335,15 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     protected static void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
+    }
+
+    protected static void addPluginPropertyElement(Element parent, String key, String value) {
+        if (value != null) {
+            Element pluginProperty = new Element("plugin-property");
+            setAttribute(pluginProperty, "key", key);
+            setAttribute(pluginProperty, "value", value);
+            parent.addContent(pluginProperty);
+        }
     }
 
     protected static void setAttribute(Element element, String id, Object value) {
