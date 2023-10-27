@@ -126,8 +126,13 @@ CONSTRAINT filterOrderCustomer() AND filterOrderCustomerStock() AND NOT in(filte
     CHECKED BY filterOrderCustomerStock[] MESSAGE 'Покупатель и склад покупателя в фильтре для заказа не имеют связи';            
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
-
-@deriveDocumentLegalEntityDefaultStock(UserOrder, supplier, userOrder);
+skipDeriveDocumentSupplierStock = ABSTRACT VALUE BOOLEAN (UserOrder);
+WHEN LOCAL FORMS userOrder CHANGED(supplier(UserOrder o)) AND NOT CHANGED(supplierStock(o)) AND NOT in(supplier(o), supplierStock(o))   DO {
+    IF NOT skipDeriveDocumentSupplierStock(o) THEN {
+        supplierStock(o) <- defaultStock(supplier(o));
+    }
+}
+//@deriveDocumentLegalEntityDefaultStock(UserOrder, supplier, userOrder);
 
 @defineDocumentLegalEntityStockAccess(UserOrder, customer, company, userOrder);
 
