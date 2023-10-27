@@ -9,7 +9,7 @@ NAMESPACE SberMarket;
 paid 'Заказ оплачен' = DATA BOOLEAN (InternetOrder);
 
 EXTEND FORM internetOrders
-    PROPERTIES (o) READONLY paid
+    PROPERTIES (o) BACKGROUND background(o) READONLY paid
 ;
 EXTEND FORM internetOrder
     PROPERTIES (o) paid
@@ -100,13 +100,14 @@ deliveredOrder(STRING id){
 }
 
 isSberMarket (InternetOrder o) = carrier(o) = carrier('sberMarket');
+useSberNumber 'Использовать номера заказов СберМаркет' = DATA  BOOLEAN ();
 
-createOrder(STRING id){
+createOrder(STRING[100] id){
     IF NOT internetOrder(id) THEN NEW o = InternetOrder{
         id(o) <- id;
     }
     FOR InternetOrder o = internetOrder(id) DO{
-        number(o) <- STRING[48](id);
+        number(o) <- STRING[48](id) WHERE useSberNumber();
         isPosted(o) <- TRUE;
         carrier(o) <- carrier('sberMarket');
         supplierStock(o) <- sberStore(storeID()) WHERE storeID();
@@ -216,8 +217,8 @@ eventType (InternetOrder o)= CASE
 FORM sendNotification
     OBJECTS o = InternetOrder PANEL
     PROPERTIES IN event eventType(o) EXTID 'type'
-    PROPERTIES IN payload1 number(o) EXTID 'order_id'
-    PROPERTIES IN order = OVERRIDE id(o) EXTID 'originalOrderId', 
+    PROPERTIES IN payload1 = IF o IS InternetOrder THEN id(o) EXTID 'order_id'
+    PROPERTIES IN order = OVERRIDE id(o), '' EXTID 'originalOrderId', 
         = IF o IS InternetOrder THEN TFALSE EXTID 'changed'
 
     OBJECTS positions = InternetOrderDetail IN order
@@ -246,7 +247,9 @@ sendNotification 'Отправить уведомление' (InternetOrder o){
         logToFile('sber', CONCAT ' : ', '-->', number(o), eventType(o), 'INFO', resultString());
         TRY{
             EXTERNAL HTTP POST urlNotificationSber() HEADERS headers PARAMS exportFile() TO f;
-            send(eventType(o), o) <- NULL;
+            NEWSESSION APPLY {
+                send(eventType(o), o) <- NULL;
+            }
         }
         CATCH {
             fileToString(f());
