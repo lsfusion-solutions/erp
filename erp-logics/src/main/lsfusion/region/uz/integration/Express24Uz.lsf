@@ -36,7 +36,7 @@ auth(){
     IMPORT JSON FROM response() TO () accessTokenExpress24 = data;
 }
 
-idExpress24 'ID Express24' = DATA INTEGER (DepartmentStore);
+idExpress24 'ID Express24' = DATA STRING (DepartmentStore);
 express24Store = GROUP MAX DepartmentStore d BY idExpress24(d);
 
 
@@ -59,13 +59,14 @@ DESIGN internetCatalogs{
 sort = DATA LOCAL INTEGER (Item);
  
 GROUP data;
+stopList 'Стоп' = DATA BOOLEAN (Item, DepartmentStore);
 
 FORM updateProducts
-    OBJECTS s = INTEGER EXTID 'branches' IN data
+    OBJECTS s = STRING EXTID 'branches' IN data
     PROPERTIES VALUE (s) EXTID 'value'
 
     OBJECTS d = DepartmentStore EXTID 'data', products = Item IN data
-    PROPERTIES  = IF currentBalance(products, d) > 0 AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
+    PROPERTIES  = IF currentBalance(products, d) > 0  AND NOT stopList(products, d) AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
         = OVERRIDE currentBalance(products, d), 0 EXTID 'quantity',
         = OVERRIDE retailPricingPriceA(products, d), 1 EXTID 'price', = id(products) EXTID 'externalId', 
         = OVERRIDE ikpu(products), '' EXTID 'spicId'
@@ -132,6 +133,50 @@ EXTEND FORM internetCatalogs
     PROPERTIES (d) updateProducts TOOLBAR DRAW d
 ;
 
+
+FORM stopList
+    OBJECTS s = STRING EXTID 'branches' IN data
+    PROPERTIES VALUE (s) EXTID 'value'
+
+    OBJECTS d = DepartmentStore EXTID 'data', products = Item EXTID 'options' IN data
+    PROPERTIES  = IF stopList(products, d) THEN 0 ELSE 1 EXTID 'isActive', = id(products) EXTID 'externalId'
+    FILTERS onlineExpress24(products), stopList(products, d)
+;
+
+sendStopList 'Выгрузить стоп-лист'(DepartmentStore ds){
+    LOCAL response = FILE ();
+    auth();
+    headers('Authorization-token') <- 'express24:' + accessTokenExpress24();
+    EXPORT stopList OBJECTS d = ds FILTERS s = idExpress24(ds) JSON;
+    open(exportFile());
+    TRY {
+        EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-offers' HEADERS headers PARAMS exportFile() TO response;
+        open(response());
+    }
+    CATCH {
+        fileToString(response());
+        MESSAGE CONCAT '\n', 'Ошибка выгрузки стоп-листа', name(ds), messageCaughtException(), resultString();
+    }
+}
+
+EXTEND FORM internetCatalogs
+    OBJECTS is = Item
+    PROPERTIES (is) READONLY id, name 
+    PROPERTIES stopList(is, d), currentBalance(is, d)
+    FILTERS onlineExpress24(is)
+;
+
+DESIGN internetCatalogs{
+    express24{
+        BOX (d){
+            fill = 0.5;
+        }
+        fill = 1;
+        MOVE BOX (is);
+    }
+}
+
+
 //-----------------------------------Заказы-----------------------------------//
 
 GROUP delivery;
@@ -156,7 +201,7 @@ created_at = DATA LOCAL ZDATETIME();
 id1 = DATA LOCAL STRING();
 status = DATA LOCAL NUMERIC();
 id2 = DATA LOCAL STRING[50]();
-external_id = DATA LOCAL NUMERIC ();
+external_id = DATA LOCAL STRING ();
 external_id1 = DATA LOCAL STRING();
 name1 = DATA LOCAL STRING();
 status1 = DATA LOCAL STRING();
@@ -207,8 +252,10 @@ importOrder(FILE f){
             id(o) <- id2();
         }
         FOR InternetOrder o = internetOrder(id2()) DO{
-            supplierStock(o) <- express24Store(external_id());
+            supplierStock(o) <- express24Store(external_id1());
             carrier(o) <- carrier('express24');
+            number(o) <- id2();
+            isPosted(o) <- TRUE;
             deliverySumInternetOrder(o) <- price();
             customerComment(o) <- order_comment();
             addressInternetCustomer(o) <- CONCAT ' - ', text(), comment();
