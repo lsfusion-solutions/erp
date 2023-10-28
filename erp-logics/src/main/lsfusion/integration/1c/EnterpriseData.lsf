@@ -196,6 +196,10 @@ overReceive ABSTRACT LIST (Configuration);
 overReceive ABSTRACT LIST (Configuration, XMLFILE, INTEGER);
 overImport ABSTRACT LIST (Configuration);
 
+beforeImport ABSTRACT LIST (Configuration);
+afterImport ABSTRACT LIST (Configuration);
+errorImport ABSTRACT LIST (Configuration);
+
 generateUid 'Генерировать UID' () {
     NEWSESSION {
         FOR EnterpriseData e IS EnterpriseData AND NOT uid(e) DO {
@@ -245,6 +249,7 @@ receiveMessage 'Получить' (Configuration c) {
     NEWSESSION {
         LOCAL f = XMLFILE ();
         TRY {
+            beforeImport(c);
             READ receivePath(c) + '.xml' TO f;
             IMPORT receiveMessage XML FROM f();
             overImport(c);
@@ -283,8 +288,10 @@ receiveMessage 'Получить' (Configuration c) {
                 }
             }
             IF turnOutConstraints(c) THEN setNoCancelInTransaction();
+            afterImport(c);
             APPLY; 
         } CATCH {
+            errorImport(c);
             MESSAGE System.messageCaughtException();
             NEWSESSION APPLY { isReceived(c) <- NULL; }
             IF createImport1CLog(c) THEN NEWSESSION  NESTED LOCAL {
@@ -308,6 +315,7 @@ overSend ABSTRACT LIST (Configuration, XMLFILE);
 beforeSend ABSTRACT LIST (Configuration);
 beforeExport ABSTRACT LIST (Configuration);
 afterExport ABSTRACT LIST (Configuration);
+errorExport ABSTRACT LIST (Configuration);
 
 
 scheme 'Схема' = DATA FILE (Configuration);
@@ -346,6 +354,7 @@ sendMessage 'Передать' (Configuration c) {
             overSend(c, f());
             APPLY NESTED LOCAL;
         } CATCH {
+            errorExport(c);
             packet(c, EnterpriseData e) <- prevPacket(c, e) WHERE inLocalSending(c, e);
             APPLY;
             MESSAGE System.messageCaughtException();
