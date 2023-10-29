@@ -1,0 +1,66 @@
+MODULE UkdDocumentPurchase;
+
+REQUIRE PurchaseShipmentCorrection, UkdDocument, UpdDocumentPurchase;
+
+NAMESPACE Purchase;
+
+ukdDocument = DATA UkdDocument(InvoiceCorrection);
+ukdDocumentDetail = DATA UkdDocumentDetail(InvoiceCorrectionDetail);
+
+invoice =
+    GROUP LAST InvoiceCorrection ui
+        IF ui IS InvoiceCorrection
+    ORDER ukdDocument(ui), ui
+    BY ukdDocument(ui);
+
+skipCreateUserInvoiceDetail = ABSTRACT BOOLEAN (UkdDocumentDetail);
+overCreateInvoice ABSTRACT (InvoiceCorrection, UkdDocument);
+overCreateInvoice ABSTRACT (InvoiceCorrectionDetail, UkdDocumentDetail);
+
+createInvoice 'Создать корректировка накладной'(UkdDocument ukd){
+    NEWSESSION {
+        FOR numberInvoice(UpdDocument upd) = baseInvoiceNumber(ukd) DO
+            NEW invoice = InvoiceCorrection {
+                ukdDocument(invoice) <- ukd;
+                invoice(invoice) <- invoice(upd);
+                date(invoice) <- date(invoice(upd));
+                supplier(invoice) <- supplier(invoice(upd));
+                customer(invoice) <- customer(invoice(upd));
+                operation(invoice) <- operation(invoice(upd));
+                supplierStock(invoice) <- supplierStock(invoice(upd));
+                customerStock(invoice) <- customerStock(invoice(upd));
+                overCreateInvoice(invoice, ukd);
+                FOR ukdDocument(UkdDocumentDetail ukdd) == ukd AND NOT skipCreateUserInvoiceDetail(ukdd) AND
+                    numberUpdDocumentDetail(ukdd) = number(UpdDocumentDetail udd) AND updDocument(udd) = upd
+                    NEW icd = InvoiceCorrectionDetail DO {
+                    ukdDocumentDetail(icd) <- ukdd;
+                    invoiceCorrection(icd) <- invoice;
+                    invoiceDetail(icd) <- invoiceDetail(udd);
+                    sku(icd) <- sku(invoiceDetail(udd));
+                    valueVAT(icd) <- valueVAT(invoiceDetail(udd));
+                    quantityA(icd) <- quantityA(ukdd);
+                    priceA(icd) <- priceA(ukdd);
+                    sumA(icd) <- sumA(ukdd);
+                    VATSumA(icd) <- VATSumA(ukdd);
+                    invoicePriceA(icd) <- priceA(ukdd);
+                    sumA(icd) <- sumA(ukdd);
+                    overCreateInvoice(icd, ukdd);
+                }
+                SHOW invoiceCorrection OBJECTS i = invoice;
+            }
+    }
+}
+
+skipShowCreateInvoice = ABSTRACT BOOLEAN (UkdDocument);
+
+showCreateInvoice (UkdDocument d) = NOT invoice(d) AND NOT skipShowCreateInvoice(d);
+
+EXTEND FORM ukdDocuments
+    PROPERTIES(u) createInvoice SHOWIF showCreateInvoice(u)
+;
+
+DESIGN ukdDocuments{
+    actionContainer{
+        MOVE PROPERTY (createInvoice(u));
+    }
+}
