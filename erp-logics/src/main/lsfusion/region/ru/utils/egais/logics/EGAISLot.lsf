@@ -1,6 +1,6 @@
 MODULE EGAISLot;
 
-REQUIRE Lot, EGAISMarkCode;
+REQUIRE LotAggregate, EGAISMarkCode;
 
 NAMESPACE EGAIS;
 
@@ -12,12 +12,19 @@ EXTEND CLASS LotType {
 
 META defineDocumentInWayBillLot (doc, obj)
     createLots 'Создать марки' (###doc i) {
+        FOR countMarkCodes(WayBillPosition d, Box b) AND wayBill(d) == wayBill(i) AND NOT lot(id(b)) NEW l = Lot DO {
+            id(l) <- id(b);
+            sku(l) <- minItem(product(d));
+            aggregated(l) <- TRUE;
+        }
+        
         LOCAL detail = ###doc##Detail (WayBillMark);
         detail (WayBillMark m) <- (GROUP MAX ###doc##Detail d IF quantity(d, wayBillPosition(m))) WHERE wayBill(wayBillPosition(m)) = wayBill(i); 
     
         FOR Sku sku = sku(detail(WayBillMark m)) AND NOT lot(markCode(m)) NEW l = Lot DO {
             id(l) <- idMarkCode(m);
             sku(l) <- sku;
+            parent(l) <- lot(id(box(m)));
         }
         
         FOR ###doc##Detail d = detail(WayBillMark m) AND idMarkCode(m) = id(Lot l) DO
