@@ -509,12 +509,12 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
     VATSum 'Сумма НДС' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[18,4](round((sum(invoiceCreditNoteDetail) *
     valueVAT (invoiceCreditNoteDetail) / 100), currency(invoiceCreditNoteDetail)));
-
+    
     invoiceSum 'Сумма с НДС' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = VATSum(invoiceCreditNoteDetail) (+)
         sum(invoiceCreditNoteDetail);
-
+    overInvoiceSum = ABSTRACT NUMERIC[18,4](InvoiceCreditNoteDetail);
     VATSum (InvoiceCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail);
-    invoiceSum (InvoiceCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail);
+    invoiceSum (InvoiceCreditNoteDetail creditNoteDetail) += OVERRIDE overInvoiceSum(creditNoteDetail), invoiceSum(creditNoteDetail);
     
     edit(InvoiceCreditNote c) + {  edit(invoice(c)); }
     edit(InvoiceCreditNoteDetail d) + {  edit(invoiceDetail(d)); }
