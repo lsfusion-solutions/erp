@@ -2526,6 +2526,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     terminalQuery.addProperty("clearedMachineryMachineryPriceTransaction",
                             terminalLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
                     terminalQuery.and(terminalLM.findProperty("groupTerminal[Terminal]").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    terminalQuery.and(terminalLM.findProperty("active[Terminal]").getExpr(terminalExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
 
