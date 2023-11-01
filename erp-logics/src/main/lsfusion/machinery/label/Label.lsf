@@ -1223,8 +1223,14 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
             
         DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+        IF [GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+            print(t);
+        } ELSE {
+            DELETE t WHERE t IS LabelTransaction;
+        }
          
-        print(t);                 
+        //print(t);                 
     }
 } TOOLBAR;
 
@@ -1286,8 +1292,14 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
                 DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d)  AND NOT skipDelete(d);
                 
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
-        
-            print(t);
+            
+            IF [GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+                print(t);
+            } ELSE {
+                DELETE t WHERE t IS LabelTransaction;
+                MESSAGE 'Для типа ценника '+ name(labelType) + ' нет подходящих товаров.' NOWAIT;
+            }
+            //print(t);
         }     
     }  
 } TOOLBAR ;
