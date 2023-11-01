@@ -9,7 +9,8 @@ CLASS TeamWorkDocument 'Документ совместной приемки';
 TABLE teamWorkDocument (TeamWorkDocument);
 
 TABLE teamWorkDocumentId(ISTRING[1000]) NODEFAULT;
-TABLE teamWorkDocumentBarcodeAna(TeamWorkDocument, STRING, STRING);
+TABLE teamWorkDocumentBarcode(TeamWorkDocument, STRING[30]);
+TABLE teamWorkDocumentIdLogin(TeamWorkDocument, STRING[100], ISTRING[100]);
 
 id 'Код' = DATA STRING[100] (TeamWorkDocument) IN id INDEXED CHARWIDTH 10;
 teamWorkDocument (id) = GROUP AGGR (TeamWorkDocument td) BY id (td) MATERIALIZED TABLE teamWorkDocumentId;
@@ -45,16 +46,14 @@ teamWorkDocument = DATA TeamWorkDocument(TeamWorkDocumentDetail) NONULL DELETE I
 @deriveDocumentHeaderTimePrefix(TeamWorkDocument, );
 
 
-number 'Номер' = DATA INTEGER (TeamWorkDocumentDetail) IN base;
+id 'Код' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
+login 'Логин' = DATA ISTRING[100] (TeamWorkDocumentDetail) IN base;
+
+teamWorkDocumentDetail = GROUP AGGR TeamWorkDocumentDetail d BY teamWorkDocument(d), id(d), login(d) MATERIALIZED;
 
 barcode 'Штрихкод' = DATA STRING[30] (TeamWorkDocumentDetail) IN base;
-
-ana1 'Аналитика 1' = DATA STRING (TeamWorkDocumentDetail) IN base;
-ana (TeamWorkDocumentDetail d) = OVERRIDE ana1(d), '' IF d IS TeamWorkDocumentDetail MATERIALIZED;
-
-teamWorkDocumentDetail = GROUP AGGR TeamWorkDocumentDetail d BY teamWorkDocument(d), barcode(d), ana(d) MATERIALIZED;
-
 quantity 'Количество' = DATA NUMERIC[14,3] (TeamWorkDocumentDetail) IN base;
+quantity = GROUP SUM quantity(TeamWorkDocumentDetail d) BY teamWorkDocument(d), barcode(d) MATERIALIZED;
 price 'Цена' = DATA NUMERIC[16,4] (TeamWorkDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[18,4] (TeamWorkDocumentDetail) IN base;
 sum(TeamWorkDocumentDetail d) <- round2(quantity(d) * price(d)) WHEN CHANGED(quantity(d)) OR CHANGED(price(d));
@@ -69,6 +68,7 @@ extraField2 'Поле 2' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
 extraField3 'Поле 3' = DATA STRING[100] (TeamWorkDocumentDetail) IN base;
 extraQuantity 'Доп. количество' = DATA NUMERIC[14,3] (TeamWorkDocumentDetail) IN base;
 marking 'Маркировка' = DATA STRING (TeamWorkDocumentDetail) IN base;
+ana1 'Аналитика 1' = DATA STRING (TeamWorkDocumentDetail) IN base;
 ana2 'Аналитика 2' = DATA STRING (TeamWorkDocumentDetail) IN base;
 image 'Изображение' = DATA IMAGEFILE (TeamWorkDocumentDetail) IN base;
 
@@ -126,7 +126,7 @@ FORM teamWorkDocument 'Документ совместной приемки'
         sumTeamWorkDocumentDetail, used, createdNameUser READONLY
 
     OBJECTS tdd = TeamWorkDocumentDetail
-    PROPERTIES(tdd) number, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
+    PROPERTIES(tdd) id, login, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
         extraDate1, extraDate2, extraField1, extraField2, extraField3, ana1, ana2, image,
         NEW, deletetdd = DELETE GRID
 
@@ -160,12 +160,12 @@ DESIGN teamWorkDocument {
 FORM teamWorkDocuments 'Документы совместной приемки'
     OBJECTS td = TeamWorkDocument
     PROPERTIES(td) READONLY id, date, time, number, numberOrders, nameTerminalDocumentType, comment, quantity,
-        countTeamWorkDocumentDetail, quantityTeamWorkDocumentDetail, sumTeamWorkDocumentDetail, createdNameUser PANEL, createdTime PANEL
+        countTeamWorkDocumentDetail, quantityTeamWorkDocumentDetail, sumTeamWorkDocumentDetail, createdNameUser, createdTime
     PROPERTIES(td) NEWSESSION NEW, EDIT, DELETE
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
 
     OBJECTS tdd = TeamWorkDocumentDetail
-    PROPERTIES(tdd) READONLY number, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
+    PROPERTIES(tdd) READONLY id, login, barcode, name, quantity, price, sum, comment, dateTimeScan, extraQuantity,
         extraDate1, extraDate2, extraField1, extraField2, extraField3, ana1, ana2, image
     FILTERS teamWorkDocument(tdd) == td
     FILTERGROUP filterUse
@@ -180,6 +180,18 @@ FORM teamWorkDocuments 'Документы совместной приемки'
     EVENTS 
         ON SCHEDULE PERIOD 60 { formRefresh();}
 ;
+
+DESIGN teamWorkDocuments {
+    OBJECTS {
+        MOVE BOX(td);
+        NEW detail {
+            tabbed =TRUE;
+            fill = 1;
+            MOVE BOX (tdd);
+            MOVE BOX (tdl);
+        }
+    }
+}
 
 @extendFormFilterAccessStock(TeamWorkDocument, td, teamWorkDocuments, stock, company);
 
@@ -201,8 +213,10 @@ FORM exportTeamWork
     OBJECTS document = TeamWorkDocument 
     PROPERTIES (document) IN document id, dateTime EXTID 'date', number, terminalDocumentType EXTID 'vop', comment, numberOrders
     
+    OBJECTS user = ISTRING[100] PANEL
     OBJECTS  d = TeamWorkDocumentDetail EXTID 'detail'
-    PROPERTIES  barcode = barcode(d), 
+    PROPERTIES  id = id(d),
+                barcode = barcode(d), 
                 field1 = extraField1(d), 
                 field2 = extraField2(d), 
                 field3 = extraField3(d), 
@@ -211,18 +225,26 @@ FORM exportTeamWork
                 comment = comment(d), 
                 quantity = quantity(d), 
                 extraQuantity = extraQuantity(d), 
-                quantitySelf = quantity(d), 
-                extraQuantitySelf = extraQuantity(d), 
+                quantityTotal = quantity(document, barcode(d)), 
                 price = price(d), 
                 date1 = extraDate1(d), 
                 date2 = extraDate2(d)
-    FILTERS teamWorkDocument(d) == document
+    FILTERS teamWorkDocument(d) == document, login(d) == user
 ;
 
 process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
 
     fileToString(file);
     logToFile('terminal', 'file: ' + resultString());
+    
+    IF command > 2 THEN {
+        LOCAL idDocument = STRING ();
+        IMPORT JSON FROM file TO () idDocument;
+        IF used(teamWorkDocument(idDocument())) THEN {
+            EXPORT JSON FROM error = 'Документ уже закрыт';
+            RETURN;
+        }
+    }
     
     CASE
     WHEN command == 1 THEN { //создание документа
@@ -260,24 +282,27 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
             WHERE stock(d) == (OVERRIDE stock(idStock), stock(user)) AND notUsed(d);
     }
     WHEN command == 3 THEN { //закрытие документа
-        LOCAL id = STRING ();
-        IMPORT JSON FROM file TO () id = idDocument;
-        
-        FOR id(TeamWorkDocument doc) == id() DO {
-            used(doc) <- TRUE;
-            NEW d = TeamWorkDocumentLog {
-                teamWorkDocument(d) <- doc;
-                dateTime(d) <- currentDateTime();
-                command(d) <- command;
-                user(d) <- user;
+        LOCAL idDocument = STRING ();
+        IMPORT JSON FROM file TO () idDocument;
+
+        APPLY NESTED LOCAL {
+            FOR id(TeamWorkDocument doc) == idDocument() DO {
+                used(doc) <- TRUE;
+                NEW d = TeamWorkDocumentLog {
+                    teamWorkDocument(d) <- doc;
+                    dateTime(d) <- currentDateTime();
+                    command(d) <- command;
+                    user(d) <- user;
+                }
             }
         }
-
-        APPLY;
+        IF canceled() THEN {
+            error() <- applyMessage();
+        }
     }
     WHEN command == 4 OR command == 6 THEN { //добавление строки / обновление
         LOCAL idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment, prevAna1= STRING ();
-        LOCAL quantity, extraQuantity, price, quantityMax, newQuantity, newExtraQuantity = NUMERIC ();
+        LOCAL quantity, extraQuantity, price, quantityMax = NUMERIC ();
         LOCAL date1, date2 = DATE ();
         LOCAL detail = TeamWorkDocumentDetail();
         
@@ -286,48 +311,40 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         
         error() <- NULL;
         APPLY NESTED LOCAL {
-            detail() <- teamWorkDocumentDetail(teamWorkDocument(idDocument()), barcode(), (OVERRIDE prevAna1(), ana1(), ''));
-            IF NOT detail() THEN {
-                NEW d = TeamWorkDocumentDetail {
-                    teamWorkDocument(d) <- teamWorkDocument(idDocument());
-                    barcode(d) <- barcode();
-                    extraField1(d) <- field1();
-                    extraField2(d) <- field2();
-                    extraField3(d) <- field3();
-                    ana1(d) <- ana1();
-                    ana2(d) <- ana2();
-                    comment(d) <- comment();
-                    quantity(d) <- quantity();
-                    extraQuantity(d) <- extraQuantity();
-                    price(d) <- price();
-                    extraDate1(d) <- date1();
-                    extraDate2(d) <- date2();
-                }
+            detail() <- teamWorkDocumentDetail(teamWorkDocument(idDocument()), id(), login(user));
+            IF quantity(teamWorkDocument(idDocument()), barcode()) (-) quantity(detail()) (+) quantity() > quantityMax() THEN {
+                error() <- 'Количество превышает максимальное, уже принято: ' + (OVERRIDE quantity(teamWorkDocument(idDocument()), barcode()), 0)
+                    + ', максимальное: ' + quantityMax();
             } ELSE {
                 IF command == 4 THEN {
-                    newQuantity() <- quantity(detail()) (+) quantity();
-                    newExtraQuantity() <- extraQuantity(detail()) (+) extraQuantity();
-                } ELSE {
-                    newQuantity() <- quantity();
-                    newExtraQuantity() <- extraQuantity();
-                }
-                
-                IF newQuantity() > quantityMax() THEN {
-                    error() <- 'Количество превышает максимальное, уже принято: ' + (OVERRIDE quantity(detail()), 0)
-                        + ', максимальное: ' + quantityMax();
+                    NEW d = TeamWorkDocumentDetail {
+                        teamWorkDocument(d) <- teamWorkDocument(idDocument());
+                        barcode(d) <- barcode();
+                        extraField1(d) <- field1();
+                        extraField2(d) <- field2();
+                        extraField3(d) <- field3();
+                        ana1(d) <- ana1();
+                        ana2(d) <- ana2();
+                        comment(d) <- comment();
+                        quantity(d) <- quantity();
+                        extraQuantity(d) <- extraQuantity();
+                        price(d) <- price();
+                        extraDate1(d) <- date1();
+                        extraDate2(d) <- date2();
+                    }
                 } ELSE {
                     barcode(detail()) <- barcode();
-                    extraField1(detail()) <- field1() WHERE field1();
-                    extraField2(detail()) <- field2() WHERE field2();
-                    extraField3(detail()) <- field3() WHERE field3();
+                    extraField1(detail()) <- field1();
+                    extraField2(detail()) <- field2();
+                    extraField3(detail()) <- field3();
                     ana1(detail()) <- ana1();
                     ana2(detail()) <- ana2();
                     comment(detail()) <- comment();
-                    quantity(detail()) <- newQuantity();
-                    extraQuantity(detail()) <- newExtraQuantity();
+                    quantity(detail()) <- quantity();
+                    extraQuantity(detail()) <- extraQuantity();
                     price(detail()) <- price();
-                    extraDate1(detail()) <- date1() WHERE date1();
-                    extraDate2(detail()) <- date2() WHERE date2();
+                    extraDate1(detail()) <- date1();
+                    extraDate2(detail()) <- date2();
                 }
             }
 
@@ -356,13 +373,13 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
             error() <- applyMessage();
         }
         
-        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()) JSON;
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = login(user) JSON;
     }
     WHEN command == 5 THEN { //выгрузка документа по запросу
-        LOCAL id = STRING ();
-        IMPORT JSON FROM file TO () id = idDocument;
+        LOCAL idDocument = STRING ();
+        IMPORT JSON FROM file TO () idDocument;
 
-        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(id()) JSON;
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = login(user) JSON;
     }
     ELSE {
         EXPORT JSON FROM error = 'Неизвестная команда';
