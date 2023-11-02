@@ -1,0 +1,128 @@
+MODULE InventoryBinLedgerFuel;
+
+REQUIRE InventoryBinLedger, BinLedgerFuel, InventoryFuel;
+
+NAMESPACE Inventory;
+
+volumeBalance 'Объем по остаткам, л' (collationSheet, bin, sku) = DATA NUMERIC[16,5] (CollationSheet, Bin, Sku);
+densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,2] (CollationSheet, Bin, Sku);
+
+WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Bin bin, Sku sk)) OR CHANGED(volumeBalance(cs,bin,sk))) AND NOT CHANGED(densityBalance(cs,bin,sk)) AND isFuel(skuGroup(sk)) AND quantityBalance(cs,bin,sk) AND volumeBalance(cs,bin,sk) DO {
+    densityBalance(cs,bin,sk) <- NUMERIC[8,2](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
+}
+
+fillDensityBalance (CollationSheet cs, Bin bin, Sku sk, NUMERIC[8,2] n) {
+    IF n THEN {
+        densityBalance(cs,bin,sk) <- n;
+        IF NOT quantityBalance(cs,bin,sk) THEN {
+            quantityBalance(cs,bin,sk) <- NUMERIC[16,5](volumeBalance(cs,bin,sk) * densityBalance(cs,bin,sk));
+        } ELSE IF NOT volumeBalance(cs,bin,sk) THEN {
+            volumeBalance(cs,bin,sk) <- NUMERIC[16,5](quantityBalance(cs,bin,sk) / densityBalance(cs,bin,sk));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    volumeBalance(cs,bin,sk) <- NUMERIC[16,5](quantityBalance(cs,bin,sk) / densityBalance(cs,bin,sk));
+                } ELSE {
+                    quantityBalance(cs,bin,sk) <- NUMERIC[16,5](volumeBalance(cs,bin,sk) * densityBalance(cs,bin,sk));
+                }
+            } ELSE {
+                densityBalance(cs,bin,sk) <- PREV(densityBalance(cs,bin,sk));
+            }
+        }
+    } ELSE {
+        densityBalance(cs,bin,sk) <- NUMERIC[8,2](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
+    }
+}
+
+changeDensityBalance (CollationSheet cs, Bin bin, Sku sk) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillDensityBalance(cs,bin,sk,n);
+    }
+}
+
+fillDensityBalance15C 'Заполнить значением плотности при 15°С' (CollationSheet cs, Bin bin, Sku sk) {
+    IF density15C(sk) THEN {
+        fillDensityBalance(cs,bin,sk,density15C(sk));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+volumePageInventoryDetail 'Объем по описям, л' (CollationSheet collationSheet, Bin bin, Sku sku) =
+    GROUP SUM volume(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY collationSheet(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
+volumePageInventoryDetail 'Объем в описи, л' (listInventory, bin, sku) =
+    GROUP SUM volume(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY listInventory(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);
+
+volumeShortage 'Объем недостачи / излишка, л' (CollationSheet collationSheet, Bin bin, Sku sku) =
+    volumeBalance(collationSheet, bin, sku) (-) volumePageInventoryDetail(collationSheet, bin, sku) MATERIALIZED;
+
+EXTEND FORM listInventory
+    PROPERTIES(li,b,s) READONLY SHOWIF useBins(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,b,s)
+;
+
+EXTEND FORM inventory
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bn,st)
+    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) AFTER quantityShortage(cs,bi,sk) volumePageInventoryDetail, volumeShortage
+    PROPERTIES(cs,bi,sk) READONLYIF NOT isFuel(sk) SHOWIF useBins(cs) volumeBalance AFTER volumePageInventoryDetail(cs,bi,sk)
+    PROPERTIES(cs,bi,sk) READONLYIF NOT isFuel(sk) SHOWIF useBins(cs) densityBalance AFTER volumeBalance(cs,bi,sk) ON CHANGE changeDensityBalance(cs,bi,sk) ON CONTEXTMENU fillDensityBalance15C(cs,bi,sk)
+;
+
+EXTEND FORM inventories
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) volumePageInventoryDetail AFTER quantityPageInventoryDetail(li,bn,st)
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) AFTER quantityShortage(cs,bi,sk) volumePageInventoryDetail, volumeBalance, densityBalance, volumeShortage
+;
+
+overRecalculateBalance(Inventory inventory) + {
+    IF useBins(inventory) THEN {
+        volumeBalance(CollationSheet cs, Bin bin, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+        densityBalance(CollationSheet cs, Bin bin, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+        
+        FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {
+            IF isPartly(inventory) AND isRemains(inventory) THEN {
+                volumeBalance(cs, Bin bin, Sku sku)
+                    <- volumeB(sku, bin, dt)
+                    WHERE include(inventory, sku) AND volumeB(sku, bin, dt) AND in(st, bin) AND isFuel(sku);
+            } ELSE {
+                IF isRemains (inventory) THEN {
+                    volumeBalance(cs, Bin bin, Sku sku)
+                        <- volumeB(sku, bin, dt)
+                        WHERE volumeB(sku, bin, dt) AND in(st, bin) AND isFuel(sku);
+                } ELSE {
+                    volumeBalance(cs, Bin bin, Sku sku)
+                        <- volumeB(sku, bin, dt)
+                        WHERE volumeB(sku, bin, dt) AND include(cs, bin, sku) AND in(st, bin) AND isFuel(sku);
+                }
+            }
+        }
+    }
+}
+
+volume[BinLedger] (OutInventorySkuBinLedger ledger) += volumeShortage(collationSheet(ledger),bin(ledger),sku(ledger));
+density[BinLedger] (OutInventorySkuBinLedger ledger) += densityBalance(collationSheet(ledger),bin(ledger),sku(ledger));
+
+volume[BinLedger] (InInventorySkuBinLedger ledger) += -volumeShortage(collationSheet(ledger),bin(ledger),sku(ledger));
+density[BinLedger] (InInventorySkuBinLedger ledger) += densityBalance(collationSheet(ledger),bin(ledger),sku(ledger));
+
+//----------------------------- переименование ячейки в резервуар -----------------------------//
+DESIGN operation {
+    PROPERTY(useBins(o)) { caption = 'Резервуары'; }
+}
+DESIGN listInventory {
+    BOX(bs) { caption = 'Опись-резервуар-товар'; }
+    PROPERTY(nameBin(dp)) { caption = 'Резервуар'; }
+}
+DESIGN inventory {
+    BOX(bst) { caption = 'Опись-резервуар-товар'; }
+    BOX(bs) { caption = 'Резервуар-SKU'; }
+    PROPERTY(useBins(in)) { caption = 'Резервуары'; }
+    PROPERTY(nameBin(dp)) { caption = 'Резервуар'; }
+}
+DESIGN inventories {
+    BOX(bst) { caption = 'Резервуар-SKU'; }
+    BOX(bs) { caption = 'Резервуар-SKU'; }
+    PROPERTY(useBins(in)) { caption = 'Резервуары'; }
+}

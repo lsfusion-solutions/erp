@@ -1,0 +1,270 @@
+MODULE InventoryBinLedger;
+
+REQUIRE BinLedger, Inventory;
+
+NAMESPACE Inventory;
+
+@defineOperationProperty(useBins, 'Ячейки', paramsContainer);
+
+useBins 'Ячейки' = DATA BOOLEAN(Inventory) IN documentPrm;
+
+@deriveDocumentOperationProperty(Inventory, useBins);
+
+CONSTRAINT useBins(Inventory in) AND isBatch(in) MESSAGE 'Запрещена инвентаризация по партиям и ячейкам';
+CONSTRAINT useBins(Inventory in) AND NOT isPrice(in) MESSAGE 'Запрещена инвентаризация по ячейкам без опции "Сумму остатка считать по цене"';
+
+EXTEND FORM inventory
+    PROPERTIES(in) useBins
+;
+EXTEND FORM inventories
+    PROPERTIES(in) READONLY useBins
+;
+
+bin 'Ячейка' = DATA Bin (PageInventoryDetail);
+nameBin 'Ячейка' (PageInventoryDetail pageInventoryDetail) = name(bin(pageInventoryDetail)) CHARWIDTH 20;
+
+setBin (PageInventoryDetail d)  { 
+    DIALOG dialogBinStock OBJECTS s = stock(d), b = bin(d) CHANGE;
+}
+
+//---------------------------- Состав сличительной ведомости (Bin, Sku) ----------------------------//
+
+TABLE collationSheetBinSku (CollationSheet, Bin, Sku);
+//TABLE collationSheetBinSkuGroup (CollationSheet, Bin, SkuGroup);
+
+quantityBalance 'Кол-во по остаткам' (collationSheet, bin, sku) = DATA NUMERIC[16,5] (CollationSheet, Bin, Sku);
+//priceBalance 'Цена по остаткам' (collationSheet, bin, sku) = DATA NUMERIC[16,4] (CollationSheet, Bin, Sku); //цена в ячейке не отличается от цены склада
+sumBalance 'Сумма по остаткам' (collationSheet, bin, sku) = DATA NUMERIC[18,4] (CollationSheet, Bin, Sku);
+
+//---------------------------- Итоги по описям (Bin, Sku) ----------------------------//
+quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Bin bin, Sku sku) = 
+    GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY collationSheet(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
+
+countPageInventoryDetail 'Кол-во по описям' (collationSheet, bin, sku) = GROUP SUM 1 IF NOT skipPageInventoryDetail(PageInventoryDetail pageInventoryDetail)
+    BY collationSheet(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);    
+pricePageInventoryDetail 'Цена по описям' (collationSheet, bin, sku) = GROUP MAX price(PageInventoryDetail pageInventoryDetail) 
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail    
+    BY collationSheet(listInventory(pageInventoryDetail)), bin(pageInventoryDetail), sku(pageInventoryDetail) // ??????? может нодо  priceSkuStockDateTime
+    ;
+priceMinPageInventoryDetail 'Цена по описям' (collationSheet, bin, sku) = GROUP MIN price(PageInventoryDetail pageInventoryDetail) 
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail 
+    BY collationSheet(listInventory(pageInventoryDetail)), bin(pageInventoryDetail), sku(pageInventoryDetail) // ??????? может нодо  priceSkuStockDateTime
+    ;    
+sumPageInventoryDetail 'Сумма по описям' (collationSheet, bin, sku) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY collationSheet(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);
+
+quantityPageInventoryDetail 'Кол-во в описи' (listInventory, bin, sku) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail 
+    BY listInventory(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);
+pricePageInventoryDetail 'Цена в описи' (listInventory, bin, sku) = GROUP MAX price(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY listInventory(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);
+priceMinPageInventoryDetail 'Цена в описи' (listInventory, bin, sku) = GROUP MIN price(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY listInventory(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);    
+sumPageInventoryDetail 'Сумма в описи' (listInventory, bin, sku) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
+    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+    BY listInventory(pageInventoryDetail), bin(pageInventoryDetail), sku(pageInventoryDetail);
+
+differentPrice(CollationSheet collationSheet, Bin bin, Sku sku) = pricePageInventoryDetail(collationSheet, bin, sku) != priceBalance(collationSheet, sku);
+
+index 'Номер строки' (ListInventory listInventory, Bin bin, Sku sku) = PARTITION SUM 1 IF  quantityPageInventoryDetail(listInventory, bin, sku) > 0 ORDER name(sku) BY listInventory;  
+    
+CONSTRAINT pricePageInventoryDetail(CollationSheet collationSheet, Bin bin, Sku sku) != priceMinPageInventoryDetail(collationSheet, bin, sku) AND NOT  isBatch(collationSheet)   
+    MESSAGE 'В описях присутствует одинаковый товар с разными ценами';
+
+// ------------------------------------ Итоги по сличительной ведомости (Bin, Sku) ------------------------------------ //
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet, Bin bin, Sku sku) =
+    quantityBalance(collationSheet, bin, sku) (-) quantityPageInventoryDetail(collationSheet, bin, sku) MATERIALIZED;
+sumShortage 'Сумма недостачи / излишка' (CollationSheet collationSheet, Bin bin, Sku sku) =
+    sumBalance(collationSheet, bin, sku) (-) sumPageInventoryDetail(collationSheet, bin, sku) MATERIALIZED;
+
+// ------------------------------ Определение состава сличительной ведомости (Bin, Sku) ------------------------------------ //
+include(CollationSheet collationSheet, Bin bin, Sku sku) = MULTI
+    collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, bin, sku),
+    (OVERRIDE collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, bin, sku), (in(collationSheet, sku) AND in(stock(collationSheet),bin))),
+    (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, bin, sku) != 0 OR sumBalance(collationSheet, bin, sku) OR quantityPageInventoryDetail(collationSheet, bin, sku)));
+overInclude = ABSTRACT BOOLEAN (CollationSheet, Bin, Sku);
+
+
+backgroundBins 'Цвет' (Inventory inventory) = RGB(255, 224, 255) IF inventory IS Inventory;
+backgroundBins (PageInventoryDetail detail) = backgroundBins(inventory(detail));
+
+useBins (ListInventory listInventory) = useBins(inventory(listInventory));
+useBins (PageInventoryDetail detail) = useBins(inventory(detail));
+useBins (CollationSheet sheet) = useBins(inventory(sheet));
+
+EXTEND FORM listInventory
+    PROPERTIES(dp) SHOWIF useBins(dp) BACKGROUND backgroundBins(dp) nameBin ON CHANGE setBin(dp)
+    
+    OBJECTS bs = (b = Bin, s = Sku) GRID
+    PROPERTIES(li,b,s) READONLY SHOWIF useBins(li) index
+    PROPERTIES(b) READONLY SHOWIF useBins(li) name
+    PROPERTIES(s) READONLY SHOWIF useBins(li) idBarcode, name
+    PROPERTIES(li,b,s) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(li,b,s), //> 0
+            isParent(g,s)
+;
+DESIGN listInventory {
+    detailPageBox {
+        MOVE BOX(bs) {
+            caption = 'Опись-ячейка-товар';
+        }
+    }
+}
+
+EXTEND FORM inventory
+    PROPERTIES(dp) READONLY SHOWIF useBins(dp) BACKGROUND backgroundBins(dp) nameBin
+    OBJECTS bst = (bn = Bin, st = Sku) GRID
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) index
+    PROPERTIES(bn) READONLY SHOWIF useBins(li) name
+    PROPERTIES(st) READONLY SHOWIF useBins(li) idBarcode, stNameSku = name
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(li,bn,st)
+    ORDERS stNameSku
+    
+    OBJECTS bs = (bi = Bin, sk = Sku) GRID
+    PROPERTIES(bi) READONLY SHOWIF useBins(cs) name
+    PROPERTIES(sk) READONLY SHOWIF useBins(cs) idBarcode, skNameSku = name
+    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,sk) READONLY SHOWIF useBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) sumPageInventoryDetail, sumBalance, sumShortage
+    PROPERTIES(sk) READONLY SHOWIF useBins(cs) nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5 
+    FILTERS include(cs,bi,sk) OR overInclude(cs,bi,sk),
+            isParent(g,sk)
+    
+    FILTERGROUP diffBinSku FILTER 'Только расхождения' quantityShortage(cs,bi,sk) OR sumShortage(cs,bi,sk)
+    FILTERGROUP notEqualsPriceBinSkuFilters FILTER 'Товар с разными ценами' differentPrice(cs,bi,sk) 'F10'
+    ORDERS skNameSku
+;
+DESIGN inventory {
+    case1 {
+        MOVE BOX(bst) {
+            caption = 'Опись-ячейка-товар';
+        }
+    }
+    wor11 {
+        MOVE BOX(bs) {
+            caption = 'Ячейка-SKU';
+        }
+    }
+}
+
+EXTEND FORM inventories
+    OBJECTS bst = (bn = Bin, st = Sku) GRID
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) index
+    PROPERTIES(bn) READONLY SHOWIF useBins(li) name
+    PROPERTIES(st) READONLY SHOWIF useBins(li) idBarcode, name, shortNameUOM
+    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(li,bn,st)
+    ORDERS index(li,bn,st)
+    
+    OBJECTS bs = (bi = Bin, sk = Sku) GRID
+    PROPERTIES(bi) READONLY SHOWIF useBins(cs) name
+    PROPERTIES(sk) READONLY SHOWIF useBins(cs) skNameSku = name, idBarcode
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,sk) READONLY SHOWIF useBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) sumPageInventoryDetail, sumBalance, sumShortage 
+    FILTERS include(cs,bi,sk) OR overInclude(cs,bi,sk)
+    ORDERS skNameSku
+;
+DESIGN inventories {
+    wor31 {
+        MOVE BOX(bst) {
+            caption = 'Ячейка-SKU';
+        }
+    }
+    wor41 {
+        MOVE BOX(bs) {
+            caption = 'Ячейка-SKU';
+        }
+    }
+}
+
+//skipRecalculateBalance(Inventory inventory) += useBins(inventory); // если отключить, то нужно делать пересчет свойств 
+
+overRecalculateBalance(Inventory inventory) + {
+    IF useBins(inventory) THEN {
+        quantityBalance(CollationSheet cs, Bin bin, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+        sumBalance(CollationSheet cs, Bin bin, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+        
+        FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {        
+            IF isPartly(inventory) AND isRemains(inventory) THEN {
+                quantityBalance(cs, Bin bin, Sku sku)
+                    <- balanceB(sku, bin, dt)
+                    WHERE include(inventory, sku) AND balanceB(sku, bin, dt) AND in(st, bin);
+                sumBalance(cs, Bin bin, Sku sku)
+                    <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
+                    WHERE include(inventory, sku) AND quantityBalance(cs, bin, sku) AND in(st, bin);
+            } ELSE {
+                IF isRemains (inventory) THEN {
+                    quantityBalance(cs, Bin bin, Sku sku)
+                        <- balanceB(sku, bin, dt)
+                        WHERE balanceB(sku, bin, dt) AND in(st, bin);
+                    sumBalance(cs, Bin bin, Sku sku)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
+                        WHERE quantityBalance(cs, bin, sku) AND in(st, bin);
+                } ELSE {
+                    quantityBalance(cs, Bin bin, Sku sku)
+                        <- balanceB(sku, bin, dt)
+                        WHERE balanceB(sku, bin, dt) AND include(cs, bin, sku) AND in(st, bin);
+                    sumBalance(cs, Bin bin, Sku sku)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
+                        WHERE quantityBalance(cs, bin, sku) AND include(cs, bin, sku) AND in(st, bin);
+                }
+            }
+        }
+    }
+}
+
+//недостача по ячейкам
+CLASS OutInventorySkuBinLedger 'Недостача инвентаризации (по ячейке)' : BinLedger;
+TABLE outInventorySkuBinLedger (OutInventorySkuBinLedger);
+
+needToOutBinLedger (CollationSheet collationSheet, Bin bin, Sku sku) = 
+    quantityShortage(collationSheet, bin, sku) > 0
+    AND include(collationSheet, bin, sku)
+    AND NOT skipSkuLedger(collationSheet) 
+    AND NOT isBatch(collationSheet)
+    AND useBins(collationSheet)
+    AND isPosted(collationSheet);
+
+outInventorySkuBinLedger = AGGR OutInventorySkuBinLedger WHERE needToOutBinLedger(CollationSheet collationSheet, Bin bin, Sku sku) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (OutInventorySkuBinLedger ledger) += dateTime(collationSheet(ledger));
+isPosted[BinLedger] (OutInventorySkuBinLedger ledger) += isPosted(collationSheet(ledger));
+isClosed[BinLedger] (OutInventorySkuBinLedger ledger) += isClosed(collationSheet(ledger));
+sku[BinLedger] (OutInventorySkuBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (OutInventorySkuBinLedger ledger) += quantityShortage(collationSheet(ledger),bin(ledger),sku(ledger));
+stock[BinLedger] (OutInventorySkuBinLedger ledger) += stock(collationSheet(ledger));
+outBin[BinLedger] (OutInventorySkuBinLedger ledger) += bin(ledger);
+description[BinLedger] (OutInventorySkuBinLedger ledger) += STRING[200]('Недостача по инвентаризации ' + name(collationSheet(ledger)) + ' от ' + date(collationSheet(ledger)))IF ledger IS OutInventorySkuBinLedger;
+
+//излишки по ячейкам
+CLASS InInventorySkuBinLedger 'Излишки инвентаризации (по ячейке)' : BinLedger;
+TABLE inInventorySkuBinLedger (InInventorySkuBinLedger);
+
+needToInBinLedger (CollationSheet collationSheet, Bin bin, Sku sku) =
+    quantityShortage(collationSheet, bin, sku) < 0
+    AND include(collationSheet, bin, sku) 
+    AND NOT skipSkuLedger(collationSheet) 
+    AND NOT isBatch(collationSheet)
+    AND useBins(collationSheet)
+    AND isPosted(collationSheet);
+
+inInventorySkuBinLedger = AGGR InInventorySkuBinLedger WHERE needToInBinLedger(CollationSheet collationSheet, Bin bin, Sku sku) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (InInventorySkuBinLedger ledger) += dateTime(collationSheet(ledger));
+isPosted[BinLedger] (InInventorySkuBinLedger ledger) += isPosted(collationSheet(ledger));
+isClosed[BinLedger] (InInventorySkuBinLedger ledger) += isClosed(collationSheet(ledger));
+sku[BinLedger] (InInventorySkuBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (InInventorySkuBinLedger ledger) += -quantityShortage(collationSheet(ledger),bin(ledger),sku(ledger));
+stock[BinLedger] (InInventorySkuBinLedger ledger) += stock(collationSheet(ledger));
+inBin[BinLedger] (InInventorySkuBinLedger ledger) += bin(ledger);
+description[BinLedger] (InInventorySkuBinLedger ledger) += STRING[200]('Излишек по инвентаризации ' + name(collationSheet(ledger)) + ' от ' + date(collationSheet(ledger)))IF ledger IS InInventorySkuBinLedger;
+

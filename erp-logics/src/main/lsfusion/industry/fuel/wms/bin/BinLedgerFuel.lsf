@@ -1,0 +1,113 @@
+MODULE BinLedgerFuel;
+
+REQUIRE BinLedger;
+
+NAMESPACE Bin;
+
+density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[8,2] (BinLedger) MATERIALIZED;
+
+//currentDensity 'Текущая плотность в ячейке, л' = GROUP LAST density(BinLedger ledger) IF isPosted(ledger) ORDER dateTime(ledger), ledger BY sku(ledger), inBin(ledger) MATERIALIZED;
+//prevCurrentDensity 'Текущая плотность в ячейке, л' (Sku sku, Bin bin) = PREV(currentDensity(sku, bin));
+
+volume 'Объем, л' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) MATERIALIZED;
+
+inBinVolume 'Приход в ячейку, л' =
+    GROUP SUM volume(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
+outBinVolume 'Расход из ячейки, л' =
+    GROUP SUM volume(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), outBin(ledger) MATERIALIZED;
+inBinVolumeA 'Приход в ячейку, л' =
+    GROUP SUM volume(BinLedger ledger) IF date(ledger) > DATE date AND isPosted(ledger) BY sku(ledger), inBin(ledger), date;
+outBinVolumeA 'Расход из ячейки, л' =
+    GROUP SUM volume(BinLedger ledger) IF date(ledger) > DATE date AND isPosted(ledger) BY sku(ledger), outBin(ledger), date;
+inBinVolumeB 'Приход в ячейку, л' =
+    GROUP SUM volume(BinLedger ledger) IF date(ledger) >= DATE date AND isPosted(ledger) BY sku(ledger), inBin(ledger), date;
+outBinVolumeB 'Расход из ячейки, л' =
+    GROUP SUM volume(BinLedger ledger) IF date(ledger) >= DATE date AND isPosted(ledger) BY sku(ledger), outBin(ledger), date;
+inBinVolumeA 'Приход в ячейку, л' =
+    GROUP SUM volume(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND isPosted(ledger) BY sku(ledger), inBin(ledger), dateTime;
+outBinVolumeA 'Расход из ячейки, л' =
+    GROUP SUM volume(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND isPosted(ledger) BY sku(ledger), outBin(ledger), dateTime;
+inBinVolumeB 'Приход в ячейку, л' =
+    GROUP SUM volume(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND isPosted(ledger) BY sku(ledger), inBin(ledger), dateTime;
+outBinVolumeB 'Расход из ячейки, л' =
+    GROUP SUM volume(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND isPosted(ledger) BY sku(ledger), outBin(ledger), dateTime;                   
+
+currentVolume 'Текущий объем в ячейке, л' (Sku sku, Bin bin)= inBinVolume(sku, bin) (-) outBinVolume(sku, bin) MATERIALIZED;
+prevCurrentVolume 'Текущий объем в ячейке, л' (Sku sku, Bin bin) = PREV(currentVolume(sku, bin));
+
+volumeB 'Объем в ячейке на начало дня, л' (Sku sku, Bin bin, DATE date) =
+    currentVolume(sku, bin) (-) inBinVolumeB(sku, bin, date) (+) outBinVolumeB(sku, bin, date);
+volumeA 'Объем в ячейке на конец дня, л' (Sku sku, Bin bin, DATE date) =
+    currentVolume(sku, bin) (-) inBinVolumeA(sku, bin, date) (+) outBinVolumeA(sku, bin, date);
+
+// без учета текущей даты/времени
+volumeB 'Объем в ячейке (до), л' (Sku sku, Bin bin, DATETIME dateTime) =
+    currentVolume(sku, bin) (-) inBinVolumeB(sku, bin, dateTime) (+) outBinVolumeB(sku, bin, dateTime);
+prevVolumeB 'Объем (до), л' (Sku sku, Bin bin, DATETIME dateTime) = PREV(volumeB(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+// с учетом текущей даты/времени
+volumeA 'Объем в ячейке (после), л' (Sku sku, Bin bin, DATETIME dateTime) =
+    currentVolume(sku, bin) (-) inBinVolumeA(sku, bin, dateTime) (+) outBinVolumeA(sku, bin, dateTime);
+prevVolumeA 'Объем в ячейке (после), л' (Sku sku, Bin bin, DATETIME dateTime) = PREV(volumeA(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+EXTEND FORM binLedger
+    PROPERTIES(b) READONLY volume AFTER quantity(b)
+    PROPERTIES(b) READONLY density AFTER volume(b)
+;
+
+balanceVolume 'Объем, л' (Bin bin, BinLedger ledger) = IF inBin(ledger)==bin
+    THEN volume(ledger)
+        ELSE IF outBin(ledger)==bin 
+            THEN -volume(ledger);
+
+EXTEND FORM binBalance
+    PROPERTIES(b, l) READONLY balanceVolume
+;
+
+
+//----------------------------- переименование ячейки в резервуар -----------------------------//
+DESIGN binGroup {
+    caption = 'Группа резервуаров';
+    BOX(g) { caption = 'Группа резервуаров';}
+}
+DESIGN binGroups {
+    caption = 'Группы резервуаров';
+}
+DESIGN bin {
+    caption = 'Резервуар';
+    BOX(s) { caption = 'Резервуар'; }
+}
+DESIGN bins {
+    caption = 'Резервуары';
+    BOX(TREE binTree) { caption = 'Группы резервуаров'; }
+    BOX(s) { caption = 'Резервуар'; }
+}
+DESIGN binStocks {
+    caption = 'Резервуары';
+    BOX(TREE binTree) { caption = 'Группы резервуаров'; }
+    BOX(b) { caption = 'Резервуары'; }
+    PROPERTY(nameBin(ts,g)) { caption = 'Резервуар'; }
+    PROPERTY(nameBin(ts,s)) { caption = 'Резервуар'; }
+}
+NAVIGATOR {
+    binNavigator 'Резервуары';
+}
+DESIGN binLedger {
+    caption = 'Регистр изменения остатков по резервуарам';
+    BOX(b) { caption = 'Изменение остатка по резервуарам'; }
+    PROPERTY(nameInBin(b)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(b)) { caption = 'Резервуар (из)'; }
+}
+DESIGN binBalance {
+    caption = 'Остатки по резервуарам';
+    BOX(TREE binTree) { caption = 'Группы резервуаров'; }
+    BOX(b) { caption = 'Резервуар'; }
+    BOX(l) { caption = 'Изменение остатка по резервуарам'; }
+    PROPERTY(currentBalance(s,b)) { caption = 'Текущий остаток в резервуаре'; }
+    PROPERTY(balanceBin(b,l)) { caption = 'Резервуар (из/в)'; }
+}
+DESIGN dialogBinStock {
+    caption = 'Резервуары';
+    BOX(TREE binTree) { caption = 'Группы резервуаров'; }
+    BOX(b) { caption = 'Резервуар'; }
+}

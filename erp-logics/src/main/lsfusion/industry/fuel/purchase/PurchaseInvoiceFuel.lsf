@@ -1,0 +1,89 @@
+MODULE PurchaseInvoiceFuel;
+
+REQUIRE PurchaseInvoice, ItemFuel;
+
+NAMESPACE Purchase;
+
+volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объем, л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
+volume (UserInvoiceDetail invoiceDetail) += volume(invoiceDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[8,2] (UserInvoiceDetail) CHARWIDTH 7;
+density (UserInvoiceDetail invoiceDetail) += density(invoiceDetail);
+
+//quantity[Invoice.InvoiceDetail](InvoiceDetail detail) += quantity(detail);
+CONSTRAINT CHANGED(volume(InvoiceDetail detail)) AND negativeValueInvoices() AND isFuel(skuGroup(sku(detail))) AND volume(detail) < 0
+    MESSAGE 'Объем в строке накладной должен быть не отрицательным';
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+    MESSAGE 'Для строки накладная (закупка) должна быть задана плотность';
+
+WHEN LOCAL (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+}
+
+fillDensity (UserInvoiceDetail d, NUMERIC[8,2] n) {
+    IF n THEN {
+        density(d) <- n;
+        IF NOT quantity(d) THEN {
+            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+        } ELSE IF NOT volume(d) THEN {
+            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+                } ELSE {
+                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+                }
+            } ELSE {
+                density(d) <- PREV(density(d));
+            }
+        }
+    } ELSE {
+        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    }
+}
+
+changeDensity (UserInvoiceDetail d) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillDensity(d,n);
+    }
+}
+
+fillDensity15C 'Заполнить значением плотности при 15°С' (UserInvoiceDetail d) {
+    IF density15C(sku(d)) THEN {
+        fillDensity(d,density15C(sku(d)));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+volumeInvoiceDetail 'Объем (всего), л' (invoice) = GROUP SUM volume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserInvoiceDetail 'Объем (всего), л' (userInvoice) = GROUP SUM volume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) volumeUserInvoiceDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+;
+
+overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY volume AFTER quantity(d)
+    PROPERTIES(d) READONLY density AFTER volume(d)
+;
+
+CONSTRAINT (SETCHANGED(volume(InvoiceDetail d)) OR SETCHANGED(operation(d)) OR SET(isPosted(d))) AND isFuel(skuGroup(sku(d))) AND isPosted(d) AND volume(d) < 0.0
+    AND banNegativeQuantityInvoice(operation(d))
+    MESSAGE 'Запрещено вводить отрицательный объем в накладную'; 

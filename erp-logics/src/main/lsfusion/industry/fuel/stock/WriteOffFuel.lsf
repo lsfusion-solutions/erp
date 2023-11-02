@@ -1,0 +1,78 @@
+MODULE WriteOffFuel;
+
+REQUIRE WriteOff, SkuLedgerFuel;
+
+NAMESPACE WriteOff;
+
+volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (WriteOffDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объем, л' = DATA NUMERIC[16,5] (UserWriteOffDetail) CHARWIDTH 7;
+volume (UserWriteOffDetail writeOffDetail) += volume(writeOffDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (WriteOffDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[8,2] (UserWriteOffDetail) CHARWIDTH 7;
+density (UserWriteOffDetail writeOffDetail) += density(writeOffDetail);
+
+CONSTRAINT (SET(isPosted(UserWriteOffDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+    MESSAGE 'Для строки списания должна быть задана плотность';
+
+WHEN LOCAL (CHANGED(quantity(UserWriteOffDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+}
+
+fillDensity (UserWriteOffDetail d, NUMERIC[8,2] n) {
+    IF n THEN {
+        density(d) <- n;
+        IF NOT quantity(d) THEN {
+            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+        } ELSE IF NOT volume(d) THEN {
+            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+                } ELSE {
+                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+                }
+            } ELSE {
+                density(d) <- PREV(density(d));
+            }
+        }
+    } ELSE {
+        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    }
+}
+
+changeDensity (UserWriteOffDetail d) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillDensity(d,n);
+    }
+}
+
+fillDensity15C 'Заполнить значением плотности при 15°С' (UserWriteOffDetail d) {
+    IF density15C(sku(d)) THEN {
+        fillDensity(d,density15C(sku(d)));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+volumeWriteOffDetail 'Объем (всего), л' (writeOff) = GROUP SUM volume(WriteOffDetail idetail) BY writeOff(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserWriteOffDetail 'Объем (всего), л' (userWriteOff) = GROUP SUM volume(UserWriteOffDetail idetail) BY userWriteOff(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+EXTEND FORM userWriteOff
+    PROPERTIES(w) volumeUserWriteOffDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+;
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) READONLY volumeWriteOffDetail AFTER quantityWriteOffDetail(w)
+    PROPERTIES(d) READONLY volume AFTER quantity(d)
+    PROPERTIES(d) READONLY density AFTER volume(d)
+;
+
+volume[OutFIFOSkuLedger] (WriteOffDetail ledger) += volume(ledger);
+density[OutFIFOSkuLedger] (WriteOffDetail ledger) += density(ledger);
+
+CONSTRAINT (SET (isPosted(UserWriteOffDetail d)) OR CHANGED (volume(d))) AND isPosted(d) AND quantityFillCheck(operation(d)) AND isFuel(skuGroup(sku(d))) AND NOT volume(d) > 0
+    MESSAGE 'Для текущей операции обязательно заполнение поля "Объем, л" положительным значением';

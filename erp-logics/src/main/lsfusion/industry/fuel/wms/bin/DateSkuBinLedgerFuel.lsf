@@ -1,0 +1,51 @@
+MODULE DateSkuBinLedgerFuel;
+
+REQUIRE DateSkuBinLedger, BinLedgerFuel, ZReportFuel, GunFuel;
+
+NAMESPACE Bin;
+
+gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptSaleDetail);
+nameGun 'Пистолет' (ReceiptSaleDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
+gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptReturnDetail);
+nameGun 'Пистолет' (ReceiptReturnDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
+
+gun 'Пистолет' = ABSTRACT Gun (ReceiptDetail) MATERIALIZED;
+nameGun 'Пистолет' (ReceiptDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
+gun(ReceiptReturnDetail detail) += gun(detail);
+gun(ReceiptSaleDetail detail) += gun(detail);
+
+//setGun (ReceiptDetail d)  { 
+//    DIALOG dialogGunStock OBJECTS s = departmentStore(d), g = gun(d) CHANGE;
+//}
+
+//CONSTRAINT gun(ReceiptDetail detail) AND NOT stock(gun(detail)) == departmentStore(detail)
+//    CHECKED BY gun[ReceiptDetail] MESSAGE 'Пистолет не доступeн для отдела магазина';
+
+EXTEND FORM zReport
+    PROPERTIES(d) BACKGROUND backgroundBins(d) nameGun //ON CHANGE setGun(d)
+;
+EXTEND FORM zReports
+    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) nameGun
+;
+
+volumeReceiptSaleDetail 'Объем, л' (department, sku, date, bin) = GROUP SUM volume(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptSaleDetail BY departmentStore(d), sku(d), date(d), bin(d);
+lastReceiptSaleDetail (department, sku, date, bin) = GROUP LAST ReceiptDetail d IF isPosted(d) AND d IS ReceiptSaleDetail ORDER dateTime(d), d BY departmentStore(d), sku(d), date(d), bin(d);
+densityReceiptSaleDetail 'Плотность, кг/л' (DepartmentStore department, Sku sku, DATE date, Bin bin) = density(lastReceiptSaleDetail(department,sku,date,bin));
+
+volume[BinLedger] (DateSaleSkuBinLedger ledger) += volumeReceiptSaleDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+density[BinLedger] (DateSaleSkuBinLedger ledger) += densityReceiptSaleDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+
+volumeReceiptReturnDetail 'Объем, л' (department, sku, date, bin) = GROUP SUM volume(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptReturnDetail BY departmentStore(d), sku(d), date(d), bin(d);
+lastReceiptReturnDetail (department, sku, date, bin) = GROUP LAST ReceiptDetail d IF isPosted(d) AND d IS ReceiptReturnDetail ORDER dateTime(d), d BY departmentStore(d), sku(d), date(d), bin(d);
+densityReceiptReturnDetail 'Плотность, кг/л' (DepartmentStore department, Sku sku, DATE date, Bin bin) = density(lastReceiptReturnDetail(department,sku,date,bin));
+
+volume[BinLedger] (DateReturnSkuBinLedger ledger) += volumeReceiptReturnDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+density[BinLedger] (DateReturnSkuBinLedger ledger) += densityReceiptReturnDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+
+//----------------------------- переименование ячейки в резервуар -----------------------------//
+DESIGN zReport {
+    PROPERTY(nameBin(d)) { caption = 'Резервуар'; }
+}
+DESIGN zReports {
+    PROPERTY(nameBin(d)) { caption = 'Резервуар'; }
+}

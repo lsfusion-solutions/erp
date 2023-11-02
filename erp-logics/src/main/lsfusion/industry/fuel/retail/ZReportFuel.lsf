@@ -1,0 +1,45 @@
+MODULE ZReportFuel;
+
+REQUIRE ZReport, ItemFuel;
+
+NAMESPACE ZReport;
+
+volume 'Объем, л' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptSaleDetail);
+volume 'Объем, л' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptReturnDetail);
+
+volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) MATERIALIZED;
+volume(ReceiptReturnDetail detail) += volume(detail);
+volume(ReceiptSaleDetail detail) += volume(detail);
+
+signedVolume 'Объем, л' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) MATERIALIZED;
+signedVolume(ReceiptReturnDetail detail) += -volume(detail);
+signedVolume(ReceiptSaleDetail detail) += volume(detail);
+
+density 'Плотность, кг/л' (receiptDetail) = DATA NUMERIC[8,2] (ReceiptSaleDetail);
+density 'Плотность, кг/л' (receiptDetail) = DATA NUMERIC[8,2] (ReceiptReturnDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (ReceiptDetail) MATERIALIZED;
+density(ReceiptReturnDetail detail) += density(detail);
+density(ReceiptSaleDetail detail) += density(detail);
+
+volumeReceiptDetail 'Объем (всего), л' (receipt) = GROUP SUM volume(ReceiptDetail idetail) BY receipt(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeReceiptDetail 'Объем (всего), л' (zReport) = GROUP SUM signedVolume(ReceiptDetail detail) BY zReport(detail) IN documentSum MATERIALIZED;
+
+EXTEND FORM zReport
+    PROPERTIES(z) volumeReceiptDetail
+    PROPERTIES(b) volumeReceiptDetail AFTER quantityReceiptDetail(b)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) BACKGROUND background(d) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) BACKGROUND background(d) density AFTER volume(d)
+;
+
+overCopy(ReceiptDetail d, ReceiptDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY volumeReceiptDetail AFTER quantityReceiptDetail(z)
+    PROPERTIES(b) READONLY volumeReceiptDetail AFTER quantityReceiptDetail(b)
+    PROPERTIES(d) READONLY volume AFTER quantity(d)
+    PROPERTIES(d) READONLY density AFTER volume(d)
+;

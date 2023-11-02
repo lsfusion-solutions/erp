@@ -1,0 +1,111 @@
+MODULE SkuLedgerFuel;
+
+REQUIRE SkuLedger, ItemFuel;
+
+NAMESPACE Stock;
+
+// -------------------------------- Плотность ---------------------------- //
+
+density 'Плотность, кг/л' (batch) = ABSTRACT NUMERIC[8,2] (Batch) MATERIALIZED;
+prevDensity 'Плотность, кг/л' (Batch batch) = PREV(density(batch));
+
+density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[8,2] (InLIFOSkuLedger);
+density 'Плотность, кг/л' (InSkuLedger ledger) = MULTI density[Batch](ledger), density[InLIFOSkuLedger](ledger);
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (OutFIFOSkuLedger);
+density 'Плотность, кг/л' (SkuLedger ledger) = MULTI density[InSkuLedger](ledger), density[OutFIFOSkuLedger](ledger) MATERIALIZED;
+
+// -------------------------------- Объем ---------------------------- //
+
+volume 'Объем в партии, л' = ABSTRACT NUMERIC[16,5] (Batch) MATERIALIZED;
+
+extraShippedVolume = ABSTRACT NUMERIC[16,5] (Batch);
+shippedVolume 'Объем в партии (всего), л' (Batch batch) = volume(batch) (+) extraShippedVolume(batch) MATERIALIZED;
+
+volume 'Объем, л' (ledger) = ABSTRACT NUMERIC[16,5] (InLIFOSkuLedger);
+volume 'Объем, л' (InSkuLedger ledger) = MULTI volume[Batch](ledger), volume[InLIFOSkuLedger](ledger);
+volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger);
+volume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), volume[OutFIFOSkuLedger](ledger) MATERIALIZED;
+
+signedVolume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), -volume[OutFIFOSkuLedger](ledger) CHARWIDTH 7 MATERIALIZED;
+
+volume 'Объем, л' (Batch ledger, Batch batch) = volume(ledger) IF batch == ledger;
+volume 'Объем, л' (DataSkuLedger ledger, Batch batch) = cost(ledger,batch) / density(ledger) IF density(ledger) > 0.0;
+volume 'Объем, л' (SkuLedger ledger, Batch batch) = MULTI volume[Batch,Batch](ledger, batch), volume[DataSkuLedger,Batch](ledger, batch) MATERIALIZED;
+
+signedVolume (SkuLedger ledger, Batch batch) = IF ledger IS OutSkuLedger THEN -volume(ledger, batch) ELSE volume(ledger, batch);
+
+signedVolumeActive(SkuLedger ledger) = signedVolume(ledger) IF active(ledger) MATERIALIZED;
+
+currentVolume 'Текущий объем, л' (sku, stock) =
+    GROUP SUM signedVolumeActive(SkuLedger ledger) BY sku(ledger), stock(ledger) CHARWIDTH 7 MATERIALIZED;
+prevCurrentVolume 'Текущий объем, л' (Sku sku, Stock stock) = PREV(currentVolume(sku, stock)) CHARWIDTH 7;
+prevCurrentVolume 'Текущий объем, л' (Sku sku)  = GROUP SUM prevCurrentVolume(sku, Stock stock) CHARWIDTH 7;
+//countLedger 'Кол-во движений' (sku, stock) =
+//    GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) MATERIALIZED TABLE extraSkuStock;
+
+volumeInActive(InSkuLedger ledger) = volume(ledger) IF active(ledger);
+volumeIn (sku, stock, date) =
+    GROUP SUM volumeInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED;
+
+volumeOutActive(OutFIFOSkuLedger ledger) = volume(ledger) IF active(ledger);
+volumeOut (sku, stock, date) =
+    GROUP SUM volumeOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) MATERIALIZED;
+
+volume (Sku sku, Stock stock, DATE date) = volumeIn(sku, stock, date) (+) volumeOut(sku, stock, date) MATERIALIZED;
+
+signedVolume (Sku sku, Stock stock, DATE date) = volumeIn(sku, stock, date) (-) volumeOut(sku, stock, date) MATERIALIZED;
+
+volumeSumIn 'Объем товара пришедшего за период, л' (Sku sku, Stock stock, DATE date1, DATE date2)  =
+    GROUP SUM volumeIn(sku, stock, DATE dateIn) IF dateIn>=date1 IF dateIn<=date2;
+volumeSumIn 'Объем товара пришедшего за период, л' (Group group, Stock stock, DATE date1, DATE date2)  =
+    GROUP SUM volumeSumIn(Sku sku, stock, date1, date2) IF isParent(group, sku);
+
+volumeSumOut 'Объем товара ушедшего за период, л' (Sku sku, Stock stock, DATE date1, DATE date2)  =
+    GROUP SUM quantityOut(sku, stock, DATE dateIn) IF dateIn>=date1 IF dateIn<=date2;
+volumeSumOut 'Объем товара ушедшего за период, л' (Group group, Stock stock, DATE date1, DATE date2)  =
+    GROUP SUM volumeSumOut(Sku sku, stock, date1, date2) IF isParent(group, sku);
+
+// без учета текущей даты/времени
+volumeB 'Объем на начало дня, л' (Sku sku, Stock stock, DATE date) =
+    currentVolume(sku, stock) (-) (GROUP SUM signedVolume(sku, stock, DATE dateIn) IF dateIn >= date) CHARWIDTH 7;
+// с учетом текущей даты/времени
+volumeA 'Объем на конец дня, л' (Sku sku, Stock stock, DATE date) =
+    currentVolume(sku, stock) (-) (GROUP SUM signedVolume(sku, stock, DATE dateIn) IF dateIn > date) CHARWIDTH 7;
+// без учета текущей даты/времени
+volumeB 'Объем (до), л' (Sku sku, Stock stock, DATETIME dateTime) =
+    currentVolume(sku, stock) (-) [ GROUP SUM signedVolumeActive(SkuLedger ledger) IF dateTime(ledger) >= dateTime BY sku(ledger), stock(ledger)](sku, stock) CHARWIDTH 7;
+prevVolumeB 'Объем (до), л' (Sku sku, Stock stock, DATETIME dateTime) = PREV(volumeB(sku, stock, dateTime) IF dateTime IS DATETIME);
+// с учетом текущей даты/времени
+volumeA 'Объем (после), л' (Sku sku, Stock stock, DATETIME dateTime) =
+    currentBalance(sku, stock) (-) [ GROUP SUM signedVolumeActive(SkuLedger ledger) IF dateTime(ledger) > dateTime BY sku(ledger), stock(ledger)](sku, stock) CHARWIDTH 7;
+prevVolumeA 'Объем (после), л' (Sku sku, Stock stock, DATETIME dateTime) = PREV(volumeA(sku, stock, dateTime) IF dateTime IS DATETIME);
+
+signedVolumeActive(SkuLedger ledger, Batch batch) = signedVolume(ledger, batch) IF active(ledger) MATERIALIZED;
+
+currentVolume 'Текущий объем, л' (Batch batch, stock) =
+    GROUP SUM signedVolumeActive(SkuLedger ledger, batch) BY stock(ledger) MATERIALIZED;
+prevCurrentVolume 'Текущий объем, л' (Batch batch, Stock stock) = PREV(currentVolume(batch, stock));
+prevCurrentVolume 'Текущий объем, л' (Batch batch)  = GROUP SUM prevCurrentVolume(batch, Stock stock);
+
+signedVolume = GROUP SUM signedVolume(SkuLedger ledger, Batch batch) IF isPosted(ledger) BY batch, stock(ledger), date(ledger) MATERIALIZED;
+
+// без учета текущей даты/времени
+volumeB 'Объем на начало дня, л' (Batch batch, Stock stock, DATE date) =
+    currentVolume(batch, stock) (-) (GROUP SUM signedVolume(batch, stock, DATE dateIn) IF dateIn >= date);
+// с учетом текущей даты/времени
+volumeA 'Объем на конец дня, л' (Batch batch, Stock stock, DATE date) =
+    currentVolume(batch, stock) (-) (GROUP SUM signedVolume(batch, stock, DATE dateIn) IF dateIn > date);
+// без учета текущей даты/времени
+volumeB 'Объем (до), л' (Batch batch, Stock stock, DATETIME dateTime) =
+    currentVolume(batch, stock) (-) [ GROUP SUM signedVolumeActive(SkuLedger ledger, batch) IF dateTime(ledger) >= dateTime AND sku(ledger) = sku(batch) BY stock(ledger)](stock);
+prevVolumeB 'Объем (до), л' (Batch batch, Stock stock, DATETIME dateTime) = PREV(volumeB(batch,stock,dateTime) IF dateTime IS DATETIME);
+// с учетом текущей даты/времени
+volumeA 'Объем (после), л' (Batch batch, Stock stock, DATETIME dateTime) =
+    currentVolume(batch, stock) (-) [ GROUP SUM signedVolumeActive(SkuLedger ledger, batch) IF dateTime(ledger) > dateTime AND sku(ledger) = sku(batch) BY stock(ledger)](stock);
+prevVolumeA 'Объем (после), л' (Batch batch, Stock stock, DATETIME dateTime) = PREV(volumeA(batch,stock,dateTime) IF dateTime IS DATETIME);
+
+volumeIn 'Приход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
+    GROUP SUM volume(InSkuLedger ledger, batch) IF ledger IS InSkuLedger AND isPosted(ledger) AND date(ledger) >= dateFrom AND date(ledger)<= dateTo BY stock(ledger);
+
+volumeOut 'Расход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
+    GROUP SUM volume(OutSkuLedger ledger, batch) IF ledger IS OutSkuLedger AND isPosted(ledger) AND date(ledger) >= dateFrom AND date(ledger)<= dateTo BY stock(ledger);

@@ -1,0 +1,56 @@
+MODULE GunFuel;
+
+REQUIRE Bin;
+
+CLASS Gun 'Пистолет' ;
+TABLE gun (Gun);
+
+@defineExternalizable(gun, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](Gun) IN id;
+
+stock = DATA Stock(Gun);
+nameStock 'Склад' (Gun gun) = name(stock(gun));
+
+CONSTRAINT stock(Gun gun) AND NOT isCompany(stock(gun))
+    CHECKED BY stock[Gun] MESSAGE 'Для пистолета выбран склад, не являющийся складом компании';
+
+bin = DATA Bin(Gun);
+nameBin 'Резервуар' (Gun gun) = name(bin(gun));
+
+CONSTRAINT stock(Gun gun) AND bin(gun) AND NOT in(stock(gun),bin(gun))
+    CHECKED BY bin[Gun] MESSAGE 'Склад и резервуар для пистолета не имеют связи';
+
+FORM gun 'Пистолет'
+    OBJECTS g = Gun PANEL
+    PROPERTIES(g) name, id SHOWIF showIDs(), nameStock
+    EDIT Gun OBJECT g
+;
+
+FORM guns 'Пистолеты'
+    OBJECTS g = Gun
+    PROPERTIES(g) READONLY name, id SHOWIF showIDs(), nameStock
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(g)
+    LIST Gun OBJECT g
+;
+
+FORM gunBins 'Привязка пистолетов к резервуарам'
+    OBJECTS ts = Stock PANEL
+    PROPERTIES(ts) SELECTOR name
+    FILTERS isCompany(ts)
+    
+    OBJECTS g = Gun
+    PROPERTIES(g) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(g) nameBin
+    FILTERS stock(g) == ts
+    ORDERS name(g)
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+;
+
+NAVIGATOR {
+    binNavigator {
+        NEW guns;
+        NEW gunBins;
+    }
+}

@@ -1,0 +1,69 @@
+MODULE DateSkuBinLedger;
+
+REQUIRE BinLedger, DateSkuLedger;
+
+NAMESPACE Bin;
+
+bin 'Ячейка' (receiptDetail) = DATA Bin (ReceiptSaleDetail);
+nameBin 'Ячейка' (ReceiptSaleDetail receiptDetail) = name(bin(receiptDetail)) CHARWIDTH 20;
+bin 'Ячейка' (receiptDetail) = DATA Bin (ReceiptReturnDetail);
+nameBin 'Ячейка' (ReceiptReturnDetail receiptDetail) = name(bin(receiptDetail)) CHARWIDTH 20;
+
+bin 'Ячейка' = ABSTRACT Bin (ReceiptDetail) MATERIALIZED;
+nameBin 'Ячейка' (ReceiptDetail receiptDetail) = name(bin(receiptDetail)) CHARWIDTH 20;
+bin(ReceiptReturnDetail detail) += bin(detail);
+bin(ReceiptSaleDetail detail) += bin(detail);
+
+setBin (ReceiptDetail d)  { 
+    DIALOG dialogBinStock OBJECTS s = departmentStore(d), b = bin(d) CHANGE;
+}
+
+CONSTRAINT bin(ReceiptDetail detail) AND NOT in(departmentStore(detail), bin(detail))
+    CHECKED BY bin[ReceiptDetail] MESSAGE 'Ячейка не доступна для отдела магазина';
+
+backgroundBins 'Цвет' (ReceiptDetail detail) = RGB(255, 224, 255) IF detail IS ReceiptDetail;
+
+EXTEND FORM zReport
+    PROPERTIES(d) BACKGROUND backgroundBins(d) nameBin ON CHANGE setBin(d)
+;
+EXTEND FORM zReports
+    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) nameBin
+;
+
+//чек продажи по ячейкам
+CLASS DateSaleSkuBinLedger 'Продажа за день (по ячейке)' : BinLedger;
+TABLE DateSaleSkuBinLedger (DateSaleSkuBinLedger);
+
+quantityReceiptSaleDetail 'Кол-во' (department, sku, date, bin) = GROUP SUM quantity(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptSaleDetail
+    BY departmentStore(d), sku(d), date(d), bin(d);
+countReceiptSaleDetail (department, sku, date, bin) = GROUP SUM 1 IF isPosted(ReceiptDetail d) AND d IS ReceiptSaleDetail
+    BY departmentStore(d), sku(d), date(d), bin(d);
+
+dateSaleSkuBinLedger = AGGR DateSaleSkuBinLedger WHERE countReceiptSaleDetail(DepartmentStore departmentStore, Sku sku, DATE date, Bin bin);// MATERIALIZED;
+
+dateTime[BinLedger] (DateSaleSkuBinLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
+isPosted[BinLedger] (DateSaleSkuBinLedger ledger) += ledger IS DateSaleSkuBinLedger;
+sku[BinLedger] (DateSaleSkuBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (DateSaleSkuBinLedger ledger) += quantityReceiptSaleDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+stock[BinLedger] (DateSaleSkuBinLedger ledger) += departmentStore(ledger);
+outBin[BinLedger] (DateSaleSkuBinLedger ledger) += bin(ledger);
+description[BinLedger] (DateSaleSkuBinLedger ledger) += STRING[200]('Продажа за день')IF ledger IS DateSaleSkuBinLedger;
+
+//чек возврата по ячейкам
+CLASS DateReturnSkuBinLedger 'Возврат за день (по ячейке)' : BinLedger;
+TABLE DateReturnSkuBinLedger (DateReturnSkuBinLedger);
+
+quantityReceiptReturnDetail 'Кол-во' (department, sku, date, bin) = GROUP SUM quantity(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptReturnDetail
+    BY departmentStore(d), sku(d), date(d), bin(d);
+countReceiptReturnDetail (department, sku, date, bin) = GROUP SUM 1 IF isPosted(ReceiptDetail d) AND d IS ReceiptReturnDetail
+    BY departmentStore(d), sku(d), date(d), bin(d);
+
+dateReturnSkuBinLedger = AGGR DateReturnSkuBinLedger WHERE countReceiptReturnDetail(DepartmentStore departmentStore, Sku sku, DATE date, Bin bin);// MATERIALIZED;
+
+dateTime[BinLedger] (DateReturnSkuBinLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
+isPosted[BinLedger] (DateReturnSkuBinLedger ledger) += ledger IS DateReturnSkuBinLedger;
+sku[BinLedger] (DateReturnSkuBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (DateReturnSkuBinLedger ledger) += quantityReceiptReturnDetail(departmentStore(ledger),sku(ledger),date(ledger),bin(ledger));
+stock[BinLedger] (DateReturnSkuBinLedger ledger) += departmentStore(ledger);
+inBin[BinLedger] (DateReturnSkuBinLedger ledger) += bin(ledger);
+description[BinLedger] (DateReturnSkuBinLedger ledger) += STRING[200]('Возврат за день')IF ledger IS DateReturnSkuBinLedger;

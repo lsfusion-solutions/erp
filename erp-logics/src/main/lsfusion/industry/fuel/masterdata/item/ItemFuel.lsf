@@ -1,0 +1,48 @@
+MODULE ItemFuel;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+@defineItemGroupValue(isFuel, 'Топливо', BOOLEAN);
+
+isFuel 'Топливо' (Item i) = isFuel(itemGroup(i));
+
+GROUP itemDensity 'Плотность' : public;
+
+density15C 'Плотность при 15°С, кг/л' = DATA NUMERIC[8,2] (Item) IN itemDensity;
+
+@defineItemAttribute(density15C, 'Плотность при 15°С, кг/л', itemDensity);
+
+EXTEND FORM itemGroup PROPERTIES(g) userShowDensity15C;
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showDensity15C BACKGROUND backgroundShowDensity15C(g);
+DESIGN itemGroup {
+    itemGroupDetail1 {
+        MOVE GROUP(itemDensity,g) {
+        }
+    }
+}
+
+overCopy(Item s, Item d) + { 
+    density15C(d) <- density15C(s);
+}
+
+EXTEND FORM item 
+    PROPERTIES(i) SHOWIF showDensity15C(i) density15C
+;
+DESIGN item {
+    itemPrimaryColumn2 {
+        MOVE GROUP(itemDensity,i) {
+            alignment = STRETCH;
+//            lines = 2;
+        }
+    }
+}
+EXTEND FORM items 
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showDensity15C(g) density15C
+;
+
+//----------------------- Переход на новый основной классификатор ---------------------------//
+overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
+    userShowDensity15C(ng) <- userShowDensity15C(itemGroup(g));
+}
