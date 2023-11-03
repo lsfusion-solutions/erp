@@ -5,11 +5,13 @@ REQUIRE Lot;
 NAMESPACE Stock;
 
 aggregated 'Агрегация' = DATA BOOLEAN (Lot);
+mixed 'Микс' = DATA BOOLEAN (Lot);
+skipSku(Lot l) += mixed(l);
 
 parent = DATA Lot (Lot) INDEXED;
 idParent 'Родитель' (Lot l) = id(parent(l));
 
-WHEN LOCAL SETCHANGED(parent(Lot l)) DO sku(l) <- sku(parent(l));
+WHEN LOCAL SETCHANGED(parent(Lot l)) AND sku(parent(l)) DO sku(l) <- sku(parent(l));
 
 TABLE parentLot (Lot, Lot);
 level (Lot child, Lot parent) = RECURSION 1l IF child IS Lot AND parent == child
@@ -23,10 +25,11 @@ dataCount 'Штук' = DATA INTEGER (Lot);
 count(Lot l) += dataCount(l);
 
 EXTEND FORM lot
-    PROPERTIES(l) aggregated, dataCount
+    PROPERTIES(l) aggregated, mixed, dataCount
     
     OBJECTS cl = Lot
-    PROPERTIES(cl) id, NEW, DELETE
+    PROPERTIES(cl) READONLY id, nameSku
+    PROPERTIES(cl) NEW, DELETE
     FILTERS parent(cl) = l
 ;
 
@@ -37,6 +40,7 @@ DESIGN lot {
             NEW aggregateHeader {
                 horizontal = TRUE;
                 MOVE PROPERTY(aggregated(l));
+                MOVE PROPERTY(mixed(l));
                 MOVE PROPERTY(dataCount(l));
             }
             MOVE BOX(cl);

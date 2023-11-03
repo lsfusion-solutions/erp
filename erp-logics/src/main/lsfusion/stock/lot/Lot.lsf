@@ -47,7 +47,10 @@ idToSeries (STRING[200] s) = substr(s, 19, 13);
 gtin 'GTIN' (Lot l) = idToGtin(id(l));
 series 'Серия' (Lot l) = idToSeries(id(l));
 
-sku 'Товар' = DATA Sku (Lot) NONULL DELETE INDEXED;
+sku 'Товар' = DATA Sku (Lot) INDEXED;
+skipSku = ABSTRACT BOOLEAN (Lot);
+CONSTRAINT Lot l IS Lot AND NOT sku(l) AND NOT skipSku(l) MESSAGE 'Для марки должен быть задан товар';
+
 idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
 nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
 idBarcodeSku 'Штрихкод' (Lot l) = idBarcode(sku(l)) IN id;
