@@ -1055,10 +1055,10 @@ public class DefaultTerminalHandler {
                 "(idLot TEXT PRIMARY KEY," +
                 " barcode TEXT DEFAULT('')," +
                 " idSku TEXT DEFAULT('')," +
-                " idParent TEXT DEFAULT('')," +
+                " idParent TEXT DEFAULT NULL," +
                 " numberOrder TEXT DEFAULT('')," +
                 " quantity REAL DEFAULT(0)," +
-                " count INTEGER DEFAULT(0)" +
+                " capacity INTEGER DEFAULT(0)" +
                 ")";
 
         statement.executeUpdate(sql);
@@ -1077,7 +1077,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(1, formatValue(lot.idLot));
                         statement.setObject(2, formatValue(lot.idBarcode));
                         statement.setObject(3, formatValue(lot.idSku));
-                        statement.setObject(4, formatValue(lot.idParent));
+                        statement.setObject(4, lot.idParent);
                         statement.setObject(5, formatValue(lot.numberOrder));
                         statement.setObject(6, formatValue(lot.quantity));
                         statement.setObject(7, formatValue(lot.count));
