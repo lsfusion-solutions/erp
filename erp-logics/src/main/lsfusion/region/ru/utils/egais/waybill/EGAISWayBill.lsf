@@ -361,12 +361,17 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         }
     }
     
+    partitionQuantity (###doc##Detail d, WayBillPosition p) =
+        PARTITION UNGROUP quantityProp
+            LIMIT STRICT quantity(p) IF in(sku(d), product(p)) AND wayBill(p) = wayBill(doc(d))
+            ORDER p
+            BY d;
+    
     fillQuantity 'Заполнить' (###doc i) {
-        quantity(###doc##Detail d, WayBillPosition p) <- quantityProp(d) 
-                IF in(sku(d), product(p))
-                   WHERE doc(d) = i AND wayBill(p) = wayBill(i);
+        quantity(###doc##Detail d, WayBillPosition p) <- partitionQuantity(d, p)
+                   WHERE doc(d) = i;
     }
-
+    
     createDetail 'Создать строки' (###doc i) {
         FOR wayBill(WayBillPosition p) = wayBill(i) ORDER p DO NEW d = UserInvoiceDetail {
             userInvoice(d) <- i;
