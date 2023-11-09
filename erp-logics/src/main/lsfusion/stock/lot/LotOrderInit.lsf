@@ -13,6 +13,8 @@ initializedLot 'Введено в оборот' (LotOrder o) = GROUP SUM initial
 
 toInitialize (LotOrder o) = isPosted(o) AND quantityLot(o) AND NOT initializedLot(o) = quantityLot(o);
 
+overFill ABSTRACT (LotInit, LotOrder);
+
 fill (LotInit i, LotOrder o) {
     FOR lotOrder(LotOrderDetail od) = o NEW id = LotInitDetail DO {
         lotInit(id) <- i;
@@ -21,7 +23,9 @@ fill (LotInit i, LotOrder o) {
         lotOrderDetail(id) <- od;
         
         quantity(id, Lot l) <- quantity(od, l);
-    } 
+    }
+
+    overFill(i, o);
 }
 
 fillFromOrder 'Заполнить из заказа' (LotInit i) {
