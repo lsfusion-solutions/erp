@@ -221,23 +221,10 @@ FORM exportTeamWork
     PROPERTIES (document) IN document id, dateTime EXTID 'date', number, idTerminalDocumentType EXTID 'vop', comment,
         numberOrders, ana1, ana2, ana3
     
-    OBJECTS user = ISTRING[100] PANEL
-    OBJECTS  d = TeamWorkDocumentDetail EXTID 'detail'
-    PROPERTIES  id = id(d),
-                barcode = barcode(d), 
-                field1 = extraField1(d), 
-                field2 = extraField2(d), 
-                field3 = extraField3(d), 
-                ana1 = ana1(d), 
-                ana2 = ana2(d), 
-                comment = comment(d), 
-                quantity = quantity(d), 
-                extraQuantity = extraQuantity(d), 
-                quantityTotal = quantity(document, barcode(d)), 
-                price = price(d), 
-                date1 = extraDate1(d), 
-                date2 = extraDate2(d)
-    FILTERS teamWorkDocument(d) == document, login(d) == user
+    OBJECTS  d = STRING EXTID 'detail'
+    PROPERTIES  barcode = VALUE(d), 
+                quantityTotal = quantity(document, d)
+    FILTERS quantity(document, d)
 ;
 
 process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
@@ -392,13 +379,13 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
             error() <- applyMessage();
         }
         
-        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = login(user) JSON;
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()) JSON;
     }
     WHEN command == 5 THEN { //выгрузка документа по запросу
         LOCAL idDocument = STRING ();
         IMPORT JSON FROM file TO () idDocument;
 
-        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()), user = login(user) JSON;
+        EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()) JSON;
     }
     ELSE {
         EXPORT JSON FROM error = 'Неизвестная команда';
