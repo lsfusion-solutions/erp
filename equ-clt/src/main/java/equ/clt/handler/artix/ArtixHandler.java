@@ -1507,6 +1507,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         boolean receiptIdentifiersToExternalNumber = artixSettings.isReceiptIdentifiersToExternalNumber();
         boolean appendCashierId = artixSettings.isAppendCashierId();
         boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
+        String ignoreDiscountCardPattern = artixSettings.getIgnoreDiscountCardPattern();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1784,8 +1785,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         for (int i = 0; i < cardPositionsArray.length(); i++) {
                                             JSONObject cardPosition = cardPositionsArray.getJSONObject(i);
                                             seriesNumberDiscountCard = cardPosition.getString("number");
-                                            if (seriesNumberDiscountCard != null)
+                                            if (seriesNumberDiscountCard != null) {
                                                 seriesNumberDiscountCard = seriesNumberDiscountCard.replace(" ", "");
+
+                                                if(ignoreDiscountCardPattern != null && seriesNumberDiscountCard.matches(ignoreDiscountCardPattern)) {
+                                                    seriesNumberDiscountCard = null;
+                                                }
+
+                                            }
                                         }
 
                                         LocalDate startDate = cashRegister == null ? null : cashRegister.startDate;
