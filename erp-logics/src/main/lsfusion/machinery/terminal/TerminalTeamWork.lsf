@@ -1,6 +1,6 @@
 MODULE TerminalTeamWork;
 
-REQUIRE Terminal, System;
+REQUIRE Terminal, System, TerminalHandler;
 
 NAMESPACE Terminal;
 
@@ -211,7 +211,6 @@ NAVIGATOR {
 
 error = DATA LOCAL NESTED STRING();
 
-
 GROUP document;
 
 FORM exportTeamWork
@@ -226,6 +225,8 @@ FORM exportTeamWork
                 quantityTotal = quantity(document, d)
     FILTERS quantity(document, d)
 ;
+
+//merge(STRING a, STRING b) = FORMULA STRING '($1)::jsonb||($2)::jsonb';
 
 process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
 
@@ -283,8 +284,8 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         LOCAL idDocument = STRING ();
         IMPORT JSON FROM file TO () idDocument;
 
-        APPLY NESTED LOCAL {
-            FOR id(TeamWorkDocument doc) == idDocument() DO {
+        FOR id(TeamWorkDocument doc) == idDocument() DO {
+            APPLY NESTED LOCAL {
                 used(doc) <- TRUE;
                 NEW d = TeamWorkDocumentLog {
                     teamWorkDocument(d) <- doc;
@@ -293,10 +294,54 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
                     user(d) <- user;
                 }
             }
+            
+            NEW t = TerminalDocument {
+                id(t) <- id(doc);
+                date(t) <- date(doc);
+                time(t) <- time(doc);
+                terminalDocumentType(t) <- terminalDocumentType(doc);
+                title(t) <- number(doc);
+                parentDocument(t) <- numberOrders(doc);
+                createdUser(t) <- user;
+                comment(t) <- comment(doc);
+                idTerminalHandbookType1(t) <- ana1(doc);
+                idTerminalHandbookType2(t) <- ana2(doc);
+                stock(t) <- stock(doc);
+                FOR quantity(doc, STRING bar) NEW d = TerminalDocumentDetail DO {
+                    terminalDocument(d) <- t;
+                    barcode(d) <- bar;
+                    quantity(d) <- quantity(doc, bar);
+                    extraQuantity(d) <- GROUP SUM extraQuantity(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    dateTimeScan(d) <- GROUP MAX dateTimeScan(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    extraField1(d) <- GROUP MAX extraField1(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    extraField2(d) <- GROUP MAX extraField2(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    extraField3(d) <- GROUP MAX extraField3(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    ana1(d) <- GROUP MAX ana1(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    ana2(d) <- GROUP MAX ana2(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    comment(d) <- GROUP MAX comment(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    price(d) <- GROUP MAX price(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    extraDate1(d) <- GROUP MAX extraDate1(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    extraDate2(d) <- GROUP MAX extraDate2(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                    marking(d) <- replace((GROUP CONCAT lots(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar, '' ORDER td), '][', ',');
+                    image(d) <- GROUP MAX image(TeamWorkDocumentDetail td) IF teamWorkDocument(td) == doc AND barcode(td) == bar;
+                }
+                processMessage() <- NULL;
+                process(t);
+                IF processMessage() THEN {
+                    error() <-  processMessage();
+                } ELSE {
+                    APPLY;
+                    IF canceled() THEN {
+                        error() <- applyMessage();
+                    }
+                }
+            }
+
         }
-        IF canceled() THEN {
-            error() <- applyMessage();
+        IF error() THEN {
+            EXPORT JSON FROM error = 'Неизвестная команда';
         }
+
     }
     WHEN command == 4 OR command == 6 THEN { //добавление строки / обновление
         LOCAL idDocument, id, barcode, field1, field2, field3, ana1, ana2, comment, lots = STRING ();
