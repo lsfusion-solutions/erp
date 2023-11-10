@@ -1,0 +1,76 @@
+MODULE DisparityBinLedger;
+
+REQUIRE DisparityOperation, BinLedger;
+
+NAMESPACE Disparity;
+
+@defineOperationProperty(useBins, 'Ячейки', paramsContainer);
+
+@defineInterfaceBin (disparity,,);
+
+@defineDocumentInterfaceProperty (disparity, useBins, 'Ячейки');
+
+@deriveDocumentOperationProperty(UserDisparity, useBins);
+
+@defineInterfaceBin (disparityDetail,,);
+
+setBin (UserDisparity d)  { 
+    DIALOG dialogBinStock OBJECTS s = stock(d), b = bin(d) CHANGE;
+}
+setBin (UserDisparityDetail d)  { 
+    DIALOG dialogBinStock OBJECTS s = stock(d), b = bin(d) CHANGE;
+}
+
+CONSTRAINT bin(UserDisparityDetail detail) AND NOT in(stock(detail), bin(detail))
+           CHECKED BY bin[UserDisparityDetail] MESSAGE 'Ячейка не доступна для склада';
+
+backgroundBins 'Цвет' (Disparity disparity) = RGB(255, 224, 255) IF disparity IS Disparity;
+backgroundBins (DisparityDetail detail) = backgroundBins(disparity(detail));
+
+EXTEND FORM disparity
+    PROPERTIES(dis) useBins, nameBin SHOWIF useBins(dis) ON CHANGE setBin(dis)
+    PROPERTIES(d) SHOWIF useBins(dis) BACKGROUND backgroundBins(d) nameBin ON CHANGE setBin(d)
+;
+DESIGN disparity {
+    headerExtraParams {
+        NEW headerBins {
+            caption = 'Ячейки';
+            MOVE PROPERTY(useBins(dis));
+            MOVE PROPERTY(nameBin(dis));
+        }
+    }
+}
+EXTEND FORM disparities
+    PROPERTIES(d) READONLY SHOWIF useBins(dis) BACKGROUND backgroundBins(d) nameBin
+;
+
+overBin = ABSTRACT Bin (UserDisparityDetail);
+skipSetBin = ABSTRACT BOOLEAN (UserDisparityDetail);
+
+WHEN LOCAL FORMS disparity (CHANGED(bin(userDisparity(UserDisparityDetail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(bin(detail)) AND NOT skipSetBin(detail) DO {
+    bin(detail) <- OVERRIDE overBin(detail), bin(userDisparity(detail));
+}
+
+needToCreate (DisparityDetail disparityDetail) = bin(disparityDetail); 
+
+CLASS OutDisparityBinLedger : BinLedger;
+outDisparityBinLedger = AGGR OutDisparityBinLedger WHERE needToCreate(DisparityDetail disparityDetail) MATERIALIZED INDEXED;
+dateTime[BinLedger] (OutDisparityBinLedger ledger) += dateTime(disparityDetail(ledger));
+isPosted[BinLedger] (OutDisparityBinLedger ledger) += isPosted(disparityDetail(ledger));
+isClosed[BinLedger] (OutDisparityBinLedger ledger) += isClosed(disparityDetail(ledger));
+sku[BinLedger] (OutDisparityBinLedger ledger) += sku(disparityDetail(ledger));
+quantity[BinLedger] (OutDisparityBinLedger ledger) += quantity(disparityDetail(ledger));
+stock[BinLedger] (OutDisparityBinLedger ledger) += stock(disparityDetail(ledger));
+outBin[BinLedger] (OutDisparityBinLedger ledger) += bin(disparityDetail(ledger));
+description[BinLedger] (OutDisparityBinLedger ledger) += description(disparityDetail(ledger));
+
+CLASS InDisparityBinLedger : BinLedger;
+inDisparityBinLedger = AGGR InDisparityBinLedger WHERE needToCreate(DisparityDetail disparityDetail) MATERIALIZED INDEXED;
+dateTime[BinLedger] (InDisparityBinLedger ledger) += dateTime(disparityDetail(ledger));
+isPosted[BinLedger] (InDisparityBinLedger ledger) += isPosted(disparityDetail(ledger));
+isClosed[BinLedger] (InDisparityBinLedger ledger) += isClosed(disparityDetail(ledger));
+sku[BinLedger] (InDisparityBinLedger ledger) += inputSku(disparityDetail(ledger));
+quantity[BinLedger] (InDisparityBinLedger ledger) += inputQuantity(disparityDetail(ledger));
+stock[BinLedger] (InDisparityBinLedger ledger) += stock(disparityDetail(ledger));
+inBin[BinLedger] (InDisparityBinLedger ledger) += bin(disparityDetail(ledger));
+description[BinLedger] (InDisparityBinLedger ledger) += description(disparityDetail(ledger));

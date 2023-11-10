@@ -1,0 +1,142 @@
+MODULE DisparityFuel;
+
+REQUIRE Disparity, SkuLedgerFuel;
+
+NAMESPACE Disparity;
+
+volume 'Объем (расход), л' = ABSTRACT NUMERIC[16,5] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объем (расход), л' = DATA NUMERIC[16,5] (UserDisparityDetail) CHARWIDTH 7;
+volume (UserDisparityDetail disparityDetail) += volume(disparityDetail);
+
+inputVolume 'Объем (приход), л' = ABSTRACT NUMERIC[16,5] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+inputVolume 'Объем (приход), л' = DATA NUMERIC[16,5] (UserDisparityDetail) CHARWIDTH 7;
+inputVolume (UserDisparityDetail disparityDetail) += inputVolume(disparityDetail);
+
+inputVolume(UserDisparityDetail detail) <- volume(detail) WHEN CHANGED(volume(detail));
+
+density 'Плотность (расход), кг/л' = ABSTRACT NUMERIC[8,2] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность (расход), кг/л' = DATA NUMERIC[8,2] (UserDisparityDetail) CHARWIDTH 7;
+density (UserDisparityDetail disparityDetail) += density(disparityDetail);
+
+inputDensity 'Плотность (приход), кг/л' = ABSTRACT NUMERIC[8,2] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+inputDensity 'Плотность (приход), кг/л' = DATA NUMERIC[8,2] (UserDisparityDetail) CHARWIDTH 7;
+inputDensity (UserDisparityDetail disparityDetail) += inputDensity(disparityDetail);
+
+inputDensity(UserDisparityDetail detail) <- density(detail) WHEN CHANGED(density(detail));
+
+CONSTRAINT (SET(isPosted(UserDisparityDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+    MESSAGE 'Для строки изменения сортности должна быть задана плотность (расход)';
+CONSTRAINT (SET(isPosted(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR CHANGED(inputDensity(d))) AND isPosted(d) AND isFuel(skuGroup(inputSku(d))) AND NOT inputDensity(d)
+    MESSAGE 'Для строки изменения сортности должна быть задана плотность (приход)';
+
+WHEN LOCAL (CHANGED(quantity(UserDisparityDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+}
+
+fillDensity (UserDisparityDetail d, NUMERIC[8,2] n) {
+    IF n THEN {
+        density(d) <- n;
+        IF NOT quantity(d) THEN {
+            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+        } ELSE IF NOT volume(d) THEN {
+            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+                } ELSE {
+                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+                }
+            } ELSE {
+                density(d) <- PREV(density(d));
+            }
+        }
+    } ELSE {
+        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    }
+}
+
+changeDensity (UserDisparityDetail d) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillDensity(d,n);
+    }
+}
+
+fillDensity15C 'Заполнить значением плотности при 15°С' (UserDisparityDetail d) {
+    IF density15C(sku(d)) THEN {
+        fillDensity(d,density15C(sku(d)));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+WHEN LOCAL (CHANGED(inputQuantity(UserDisparityDetail d)) OR CHANGED(inputVolume(d))) AND NOT CHANGED(inputDensity(d)) AND isFuel(skuGroup(inputSku(d))) AND inputQuantity(d) AND inputVolume(d) DO {
+    inputDensity(d) <- NUMERIC[8,2](inputQuantity(d) / inputVolume(d));
+}
+
+fillInputDensity (UserDisparityDetail d, NUMERIC[8,2] n) {
+    IF n THEN {
+        inputDensity(d) <- n;
+        IF NOT inputQuantity(d) THEN {
+            inputQuantity(d) <- NUMERIC[16,5](inputVolume(d) * inputDensity(d));
+        } ELSE IF NOT inputVolume(d) THEN {
+            inputVolume(d) <- NUMERIC[16,5](inputQuantity(d) / inputDensity(d));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    inputVolume(d) <- NUMERIC[16,5](inputQuantity(d) / inputDensity(d));
+                } ELSE {
+                    inputQuantity(d) <- NUMERIC[16,5](inputVolume(d) * inputDensity(d));
+                }
+            } ELSE {
+                inputDensity(d) <- PREV(inputDensity(d));
+            }
+        }
+    } ELSE {
+        inputDensity(d) <- NUMERIC[8,2](inputQuantity(d) / inputVolume(d));
+    }
+}
+
+changeInputDensity (UserDisparityDetail d) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillInputDensity(d,n);
+    }
+}
+
+fillInputDensity15C 'Заполнить значением плотности при 15°С' (UserDisparityDetail d) {
+    IF density15C(inputSku(d)) THEN {
+        fillInputDensity(d,density15C(inputSku(d)));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+volumeDisparityDetail 'Объем (всего) (расход), л' (disparity) = GROUP SUM volume(DisparityDetail idetail) BY disparity(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserDisparityDetail 'Объем (всего) (расход), л' (userDisparity) = GROUP SUM volume(UserDisparityDetail idetail) BY userDisparity(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+inputVolumeDisparityDetail 'Объем (всего) (приход), л' (disparity) = GROUP SUM inputVolume(DisparityDetail idetail) BY disparity(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+inputVolumeUserDisparityDetail 'Объем (всего) (приход), л' (userDisparity) = GROUP SUM inputVolume(UserDisparityDetail idetail) BY userDisparity(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+volume[OutFIFOSkuLedger] (DisparityDetail ledger) += volume(ledger);
+density[OutFIFOSkuLedger] (DisparityDetail ledger) += density(ledger);
+
+volume (InputDisparityDetail inputDisparityDetail) = inputVolume(disparityDetail(inputDisparityDetail));
+density (InputDisparityDetail inputDisparityDetail) = inputDensity(disparityDetail(inputDisparityDetail));
+volume (InputDisparityDetail ledger) += volume(ledger);
+density (InputDisparityDetail ledger) += density(ledger);
+
+EXTEND FORM disparity
+    PROPERTIES(dis) volumeDisparityDetail, inputVolumeDisparityDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) inputVolume AFTER inputQuantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) inputDensity AFTER inputVolume(d) ON CHANGE changeInputDensity(d) ON CONTEXTMENU fillInputDensity15C(d)
+;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) READONLY volumeDisparityDetail AFTER quantityDisparityDetail(dis),
+                             inputVolumeDisparityDetail AFTER inputQuantityDisparityDetail(dis)
+    PROPERTIES(d) READONLY volume AFTER quantity(d), inputVolume AFTER inputQuantity(d)
+    PROPERTIES(d) READONLY density AFTER volume(d), inputDensity AFTER inputVolume(d)
+;
+
