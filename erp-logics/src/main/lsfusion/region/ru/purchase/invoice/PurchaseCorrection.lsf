@@ -1,0 +1,62 @@
+MODULE PurchaseCorrection;
+
+REQUIRE PurchaseInvoice, PurchaseInvoiceCorrection, PurchaseCreditNote;
+
+NAMESPACE Purchase;
+
+allowMultiCorrection () += TRUE;
+
+CLASS ABSTRACT CorrectionDetail 'Строка корректировки накладной';
+TABLE correctionDetail(CorrectionDetail);
+
+dateTime = ABSTRACT DATETIME (CorrectionDetail) MATERIALIZED INDEXED;
+quantity = ABSTRACT NUMERIC[16,5] (CorrectionDetail) MATERIALIZED;
+price = ABSTRACT NUMERIC[16,4] (CorrectionDetail) MATERIALIZED;
+sum = ABSTRACT NUMERIC[18,4] (CorrectionDetail) MATERIALIZED;
+VATSum = ABSTRACT NUMERIC[18,4] (CorrectionDetail) MATERIALIZED;
+invoicePrice = ABSTRACT NUMERIC[16,4] (CorrectionDetail) MATERIALIZED;
+invoiceSum = ABSTRACT NUMERIC[18,4] (CorrectionDetail) MATERIALIZED;
+
+invoiceDetail = ABSTRACT InvoiceDetail (CorrectionDetail) MATERIALIZED;
+
+lastCorrectionDetailB  =
+    GROUP LAST CorrectionDetail d
+    ORDER dateTime(d)
+    WHERE dateTime(d) < DATETIME dt
+    BY invoiceDetail(d), dt COMPLEX;
+
+lastQuantity (InvoiceDetail d, DATETIME dt) = quantity(lastCorrectionDetailB(d, dt));
+lastPrice (InvoiceDetail d, DATETIME dt) = price(lastCorrectionDetailB(d, dt));
+lastSum (InvoiceDetail d, DATETIME dt) = sum(lastCorrectionDetailB(d, dt));
+lastVATSum (InvoiceDetail d, DATETIME dt) = VATSum(lastCorrectionDetailB(d, dt));
+lastInvoicePrice (InvoiceDetail d, DATETIME dt) = invoicePrice(lastCorrectionDetailB(d, dt));
+lastInvoiceSum (InvoiceDetail d, DATETIME dt) = invoiceSum(lastCorrectionDetailB(d, dt));
+
+overCorrectionPrice (InvoiceCorrectionDetail d) += lastPrice(invoiceDetail(d), dateTime(d));
+overCorrectionSum (InvoiceCorrectionDetail d) += lastSum(invoiceDetail(d), dateTime(d));
+overCorrectionInvoicePrice (InvoiceCorrectionDetail d) += lastInvoicePrice(invoiceDetail(d), dateTime(d));
+overCorrectionInvoiceSum (InvoiceCorrectionDetail d) += lastInvoiceSum(invoiceDetail(d), dateTime(d));
+overCorrectionVATSum (InvoiceCorrectionDetail d) += lastVATSum(invoiceDetail(d), dateTime(d));
+overCorrectionQuantity (InvoiceCorrectionDetail d) += lastQuantity(invoiceDetail(d), dateTime(d));
+
+EXTEND CLASS InvoiceCorrectionDetail: CorrectionDetail;
+
+dateTime (InvoiceCorrectionDetail detail) += dateTime(detail);
+quantity (InvoiceCorrectionDetail detail) += quantityA(detail);
+price (InvoiceCorrectionDetail detail) += priceA(detail);
+sum (InvoiceCorrectionDetail detail) += sumA(detail);
+VATSum (InvoiceCorrectionDetail detail) += VATSumA(detail);
+invoicePrice (InvoiceCorrectionDetail detail) += invoicePriceA(detail);
+invoiceSum (InvoiceCorrectionDetail detail) += invoiceSumA(detail);
+invoiceDetail (InvoiceCorrectionDetail detail) += invoiceDetail(detail);
+
+EXTEND CLASS CreditNoteDetail: CorrectionDetail;
+
+dateTime (CreditNoteDetail detail) += dateTime(detail);
+quantity (CreditNoteDetail detail) += quantity(invoiceDetail(detail)) (-) quantity(detail);
+price (CreditNoteDetail detail) += price(detail);
+sum (CreditNoteDetail detail) += sum(detail);
+VATSum (CreditNoteDetail detail) += VATSum(detail);
+invoicePrice (CreditNoteDetail detail) += invoicePrice(detail);
+invoiceSum (CreditNoteDetail detail) += invoiceSum(detail);
+invoiceDetail (CreditNoteDetail detail) += invoiceDetail(detail);

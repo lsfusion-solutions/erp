@@ -48,7 +48,9 @@ descriptionInvoice 'Накладная' (InvoiceCorrection i) = description(invo
 
 countInvoiceCorrection = GROUP SUM 1 BY invoice(InvoiceCorrection ic);
 
-CONSTRAINT SETCHANGED (countInvoiceCorrection(Invoice i)) AND countInvoiceCorrection(i) >1
+allowMultiCorrection = ABSTRACT BOOLEAN ();
+
+CONSTRAINT SETCHANGED (countInvoiceCorrection(Invoice i)) AND countInvoiceCorrection(i) >1 AND NOT allowMultiCorrection()
     MESSAGE 'Для одной накладной не может быть больше 1 корректировки';
 
 CONSTRAINT invoice(InvoiceCorrection i) AND NOT operation(i)=operation(invoice(i))
@@ -171,14 +173,21 @@ WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (d
 WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
     invoiceSumA(detail) <- NUMERIC[18,4](invoiceSumA(detail) (+) VATSumA(detail));
 
+overCorrectionPrice = ABSTRACT NUMERIC[16,4] (InvoiceCorrectionDetail);
+overCorrectionSum = ABSTRACT NUMERIC[18,4] (InvoiceCorrectionDetail);
+overCorrectionInvoicePrice = ABSTRACT NUMERIC[16,4] (InvoiceCorrectionDetail);
+overCorrectionInvoiceSum = ABSTRACT NUMERIC[18,4] (InvoiceCorrectionDetail);
+overCorrectionVATSum = ABSTRACT NUMERIC[18,4] (InvoiceCorrectionDetail);
+overCorrectionQuantity = ABSTRACT NUMERIC[16,5] (InvoiceCorrectionDetail);
+
 WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) DO {
     sku(invoiceCorrectionDetail) <- sku(invoiceDetail(invoiceCorrectionDetail));
-    priceB(invoiceCorrectionDetail) <- price(invoiceDetail(invoiceCorrectionDetail));
-    sumB(invoiceCorrectionDetail) <- sum(invoiceDetail(invoiceCorrectionDetail));
-    invoicePriceB(invoiceCorrectionDetail) <- invoicePrice(invoiceDetail(invoiceCorrectionDetail));
-    invoiceSumB(invoiceCorrectionDetail) <- invoiceSum(invoiceDetail(invoiceCorrectionDetail));
-    VATSumB(invoiceCorrectionDetail) <- VATSum(invoiceDetail(invoiceCorrectionDetail));
-    quantityB(invoiceCorrectionDetail) <- quantity(invoiceDetail(invoiceCorrectionDetail));
+    priceB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionPrice(invoiceCorrectionDetail), price(invoiceDetail(invoiceCorrectionDetail));
+    sumB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionSum(invoiceCorrectionDetail), sum(invoiceDetail(invoiceCorrectionDetail));
+    invoicePriceB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionInvoicePrice(invoiceCorrectionDetail), invoicePrice(invoiceDetail(invoiceCorrectionDetail));
+    invoiceSumB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionInvoiceSum(invoiceCorrectionDetail), invoiceSum(invoiceDetail(invoiceCorrectionDetail));
+    VATSumB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionVATSum(invoiceCorrectionDetail), VATSum(invoiceDetail(invoiceCorrectionDetail));
+    quantityB(invoiceCorrectionDetail) <- OVERRIDE overCorrectionQuantity(invoiceCorrectionDetail), quantity(invoiceDetail(invoiceCorrectionDetail));
     VAT(invoiceCorrectionDetail) <- VAT(invoiceDetail(invoiceCorrectionDetail));
     valueVAT(invoiceCorrectionDetail) <- valueVAT(invoiceDetail(invoiceCorrectionDetail));
 }
@@ -213,9 +222,9 @@ changePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrectio
                 invoiceCorrection(d) <- invoiceCorrection;
                 invoiceDetail(d) <- invoiceDetail;
                 sku(d) <- sku(invoiceDetail);
-                quantityB (d) <- quantity(invoiceDetail);
-                quantityA (d) <- quantity(invoiceDetail);
-                priceB (d) <- price(invoiceDetail);
+                quantityB (d) <- OVERRIDE overCorrectionQuantity(d), quantity(invoiceDetail);
+                quantityA (d) <- OVERRIDE overCorrectionQuantity(d), quantity(invoiceDetail);
+                priceB (d) <- OVERRIDE overCorrectionPrice(d), price(invoiceDetail);
                 priceA (d) <- n;
             }
         }
@@ -241,11 +250,11 @@ changeQuantityValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrec
                 invoiceCorrection(d) <- invoiceCorrection;
                 invoiceDetail(d) <- invoiceDetail;
                 sku(d) <- sku(invoiceDetail);
-                priceB(d) <- price(invoiceDetail);
-                priceA(d) <- price(invoiceDetail);
-                invoicePriceB (d) <- invoicePrice(invoiceDetail);
-                invoicePriceA (d) <- invoicePrice(invoiceDetail);
-                quantityB (d) <- quantity(invoiceDetail);
+                priceB(d) <- OVERRIDE overCorrectionPrice(d), price(invoiceDetail);
+                priceA(d) <- OVERRIDE overCorrectionPrice(d), price(invoiceDetail);
+                invoicePriceB (d) <- OVERRIDE overCorrectionInvoicePrice(d), invoicePrice(invoiceDetail);
+                invoicePriceA (d) <- OVERRIDE overCorrectionInvoicePrice(d), invoicePrice(invoiceDetail);
+                quantityB (d) <- OVERRIDE overCorrectionQuantity(d), quantity(invoiceDetail);
                 quantityA (d) <- n;
             }
         }
@@ -271,9 +280,9 @@ changeInvoicePriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCo
                 invoiceCorrection(d) <- invoiceCorrection;
                 invoiceDetail(d) <- invoiceDetail;
                 sku(d) <- sku(invoiceDetail);
-                quantityB (d) <- quantity(invoiceDetail);
-                quantityA (d) <- quantity(invoiceDetail);
-                invoicePriceB (d) <- invoicePrice(invoiceDetail);
+                quantityB (d) <- OVERRIDE overCorrectionQuantity(d), quantity(invoiceDetail);
+                quantityA (d) <- OVERRIDE overCorrectionQuantity(d), quantity(invoiceDetail);
+                invoicePriceB (d) <- OVERRIDE overCorrectionInvoicePrice(d), invoicePrice(invoiceDetail);
                 invoicePriceA (d) <- n;
             }
         }
