@@ -54,6 +54,7 @@ public class DefaultTerminalHandler {
 
     static ScriptingLogicsModule terminalOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
+    static ScriptingLogicsModule terminalHandlerLotLM;
     static ScriptingLogicsModule terminalLotLM;
     static ScriptingLogicsModule ediGtinLM;
     static ScriptingLogicsModule terminalOrderGtinLM;
@@ -79,6 +80,7 @@ public class DefaultTerminalHandler {
     public void init() {
         terminalOrderLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrder");
         terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+        terminalHandlerLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerLot");
         terminalLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalLot");
 
         terminalOrderGtinLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderGTIN");
@@ -164,6 +166,19 @@ public class DefaultTerminalHandler {
 
     private static String formatColor(Color color) {
         return color == null ? null : String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue());
+    }
+
+    public String readLotInfo(DataSession session, String barcode) {
+
+        try {
+            if (terminalHandlerLotLM != null) {
+                String lotInfo = (String) terminalHandlerLotLM.findProperty("lotInfo[STRING]").read(session, new DataObject(barcode));
+                return lotInfo;
+            }
+            return null;
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public String readItemHtml(DataSession session, String barcode, String idStock) {
@@ -1053,7 +1068,7 @@ public class DefaultTerminalHandler {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE lot " +
                 "(idLot TEXT PRIMARY KEY," +
-                " barcode TEXT DEFAULT('')," +
+                " barcode TEXT DEFAULT NULL," +
                 " idSku TEXT DEFAULT('')," +
                 " idParent TEXT DEFAULT NULL," +
                 " numberOrder TEXT DEFAULT('')," +
@@ -1075,7 +1090,7 @@ public class DefaultTerminalHandler {
                 for (TerminalLot lot : terminalLotList) {
                     if (lot.idLot != null) {
                         statement.setObject(1, formatValue(lot.idLot));
-                        statement.setObject(2, formatValue(lot.idBarcode));
+                        statement.setObject(2, lot.idBarcode);
                         statement.setObject(3, formatValue(lot.idSku));
                         statement.setObject(4, lot.idParent);
                         statement.setObject(5, formatValue(lot.numberOrder));

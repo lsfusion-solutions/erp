@@ -63,10 +63,9 @@ public class TerminalServer extends MonitorServer {
     public static String UNKNOWN_COMMAND_TEXT = "Неизвестный запрос";
     public static byte GET_PREFERENCES_NOPREFERENCES = 112;
     public static String GET_PREFERENCES_NOPREFERENCES_TEXT = "Конфигурация для ТСД не определена";
+    public static byte LOT_NOT_FOUND = 104;
+    public static String LOT_NOT_FOUND_TEXT = "Марка не найдена";
 
-    public static byte STOCK_ERROR = 104;
-
-    public static String STOCK_ERROR_TEXT = "Неизвестный идентификатор склада";
 
     public static final byte GET_USER_INFO = 4;
 
@@ -86,12 +85,10 @@ public class TerminalServer extends MonitorServer {
     public static final byte CHECK_ORDER = 10;//0x0A
     public static final byte GET_PREFERENCES = 11;//0x0B
     public static final byte CHANGE_ORDER_STATUS = 12;//0x0C
-
     public static final byte TEAMWORK_DOCUMENT = 13;//0x0D
-
     public static final byte SET_STOCK = 14;
-
     public static final byte GET_MOVES = 15;
+    public static final byte GET_LOT_INFO = 16;
 
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
@@ -310,6 +307,10 @@ public class TerminalServer extends MonitorServer {
 
     protected String readItemHtml(String barcode, String idStock) throws SQLException {
         return terminalHandler.readItemHtml(createSession(), barcode, idStock);
+    }
+
+    protected String readLotInfo(String idLot) throws SQLException {
+        return terminalHandler.readLotInfo(createSession(), idLot);
     }
 
     protected RawFileData readBase(UserInfo userInfo, boolean readBatch) throws SQLException {
@@ -635,6 +636,36 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+                    case GET_LOT_INFO:
+                        try {
+                            logger.info("requested GetLotInfo");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 2) {
+                                sessionId = params[0];
+                                String idLot = params[1];
+
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    priceCheckerLogger.info(String.format("idLot '%s'", params[0]));
+                                    result = readLotInfo(idLot);
+                                    if (result == null) {
+                                        errorCode = LOT_NOT_FOUND;
+                                        errorText = LOT_NOT_FOUND_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            priceCheckerLogger.error("request failed: ", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
                     case GET_ALL_BASE:
                         try {
                             logger.info("requested GetAllBase");
@@ -893,9 +924,9 @@ public class TerminalServer extends MonitorServer {
                             }
                             writeByte(outToClient, etx);
                             break;
-//                        case NEW_DOCUMENT:
                         case SAVE_DOCUMENT:
                         case GET_ITEM_HTML:
+                        case GET_LOT_INFO:
 //                        case SAVE_PALLET:
                         case CHECK_ORDER:
                         case CHANGE_ORDER_STATUS:
