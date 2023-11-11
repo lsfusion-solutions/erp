@@ -1,0 +1,113 @@
+MODULE BinTransferFuel;
+
+REQUIRE BinTransfer, BinLedgerFuel, ItemFuel;
+
+NAMESPACE Bin;
+
+volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (BinTransferDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объем, л' = DATA NUMERIC[16,5] (UserBinTransferDetail) CHARWIDTH 7;
+volume (UserBinTransferDetail binTransferDetail) += volume(binTransferDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (BinTransferDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[8,2] (UserBinTransferDetail) CHARWIDTH 7;
+density (UserBinTransferDetail binTransferDetail) += density(binTransferDetail);
+
+CONSTRAINT (SET(isPosted(UserBinTransferDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+    MESSAGE 'Для строки перемещения по ячейкам должна быть задана плотность';
+
+WHEN LOCAL (CHANGED(quantity(UserBinTransferDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+}
+
+fillDensity (UserBinTransferDetail d, NUMERIC[8,2] n) {
+    IF n THEN {
+        density(d) <- n;
+        IF NOT quantity(d) THEN {
+            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+        } ELSE IF NOT volume(d) THEN {
+            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+        } ELSE {
+            ASK 'Нажмите "Да" для пересчета объема или "Нет" для пересчета количества' yes = YESNO DO {
+                IF yes THEN {
+                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
+                } ELSE {
+                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
+                }
+            } ELSE {
+                density(d) <- PREV(density(d));
+            }
+        }
+    } ELSE {
+        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    }
+}
+
+changeDensity (UserBinTransferDetail d) {
+    INPUT n = NUMERIC[8,2] DO {
+        fillDensity(d,n);
+    }
+}
+
+fillDensity15C 'Заполнить значением плотности при 15°С' (UserBinTransferDetail d) {
+    IF density15C(sku(d)) THEN {
+        fillDensity(d,density15C(sku(d)));
+    } ELSE {
+        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+    }
+}
+
+volumeBinTransferDetail 'Объем (всего), л' (binTransfer) = GROUP SUM volume(BinTransferDetail idetail) BY binTransfer(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+
+EXTEND FORM userBinTransfer
+    PROPERTIES(o) volumeBinTransferDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+;
+
+overCopy(UserBinTransferDetail d, BinTransferDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+overCopy[UserBinTransferDetail,UserBinTransferDetail](UserBinTransferDetail d, UserBinTransferDetail detail) + {
+    volume(d) <- volume(detail);
+    density(d) <- density(detail);
+}
+
+EXTEND FORM binTransfers
+    PROPERTIES(o) READONLY volumeBinTransferDetail AFTER quantityBinTransferDetail(o)
+    PROPERTIES(d) READONLY volume AFTER quantity(d)
+    PROPERTIES(d) READONLY density AFTER volume(d)
+;
+
+volume[BinLedger] (BinTransferDetail ledger) += volume(ledger);
+density[BinLedger] (BinTransferDetail ledger) += density(ledger);
+
+//----------------------------- переименование ячейки в резервуар -----------------------------//
+DESIGN operation {
+    caption = 'Операция (перемещение по резервуарам)';
+    PROPERTY(nameInBin(o,stc)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(o,stc)) { caption = 'Резервуар (из)'; }
+}
+DESIGN operations {
+    caption = 'Операции (перемещение по резервуарам)';
+    BOX(o) { caption = 'Операция (перемещение по резервуарам)'; }
+}
+DESIGN dialogOperations {
+    caption = 'Операции (перемещение по резервуарам)';
+    BOX(o) { caption = 'Операция (перемещение по резервуарам)'; }
+}
+DESIGN userBinTransfer {
+    caption = 'Перемещение по резервуарам (польз.)';
+    PROPERTY(nameInBin(o)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
+    PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+}
+DESIGN binTransfers {
+    caption = 'Перемещения по резервуарам';
+    BOX(o) { caption = 'Перемещение по резервуарам'; }
+    PROPERTY(nameInBin(o)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
+    PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
+    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+}
