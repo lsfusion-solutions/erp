@@ -60,14 +60,17 @@ sort = DATA LOCAL INTEGER (Item);
  
 GROUP data;
 stopList 'Стоп' = DATA BOOLEAN (Item, DepartmentStore);
+useCustomStock = ABSTRACT BOOLEAN ();
+stock 'Остаток' = ABSTRACT CASE NUMERIC[16,5] (Item, DepartmentStore);
+stock(Item i, DepartmentStore d) += WHEN i IS Item AND d IS DepartmentStore AND NOT useCustomStock() THEN currentBalance(i, d);
 
 FORM updateProducts
     OBJECTS s = STRING EXTID 'branches' IN data
     PROPERTIES VALUE (s) EXTID 'value'
 
     OBJECTS d = DepartmentStore EXTID 'data', products = Item IN data
-    PROPERTIES  = IF currentBalance(products, d) > 0  AND NOT stopList(products, d) AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
-        = OVERRIDE currentBalance(products, d), 0 EXTID 'quantity',
+    PROPERTIES  = IF stock(products, d) > 0  AND NOT stopList(products, d) AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
+        = OVERRIDE stock(products, d), 0 EXTID 'quantity',
         = OVERRIDE retailPricingPriceA(products, d), 1 EXTID 'price', = id(products) EXTID 'externalId', 
         = OVERRIDE ikpu(products), '' EXTID 'spicId'
     FILTERS onlineExpress24(products)
@@ -162,7 +165,7 @@ sendStopList 'Выгрузить стоп-лист'(DepartmentStore ds){
 EXTEND FORM internetCatalogs
     OBJECTS is = Item
     PROPERTIES (is) READONLY id, name 
-    PROPERTIES stopList(is, d), currentBalance(is, d)
+    PROPERTIES stopList(is, d), stock(is, d)
     FILTERS onlineExpress24(is)
 ;
 

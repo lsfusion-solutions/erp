@@ -36,7 +36,11 @@ quantum (Item i) += IF isCatchWeight(i) = TTRUE THEN (OVERRIDE passScalesQuantum
 currentPrice(Item i, DepartmentStore d) += retailPricingPriceA(i, d);
 oldPrice (Item i, DepartmentStore d) += priceBefore(promotionPriceListDetailA(i, d, currentDateTime()));
 
-available(Item i, DepartmentStore d) += NUMERIC[16,5](OVERRIDE currentBalance(i, d), 0);
+useCustomAvailable = ABSTRACT BOOLEAN ();
+customAvailable  = ABSTRACT CASE NUMERIC[16,5](Item, DepartmentStore);
+
+available(Item i, DepartmentStore d) += IF useCustomAvailable() THEN customAvailable(i, d) ELSE
+        NUMERIC[16,5](OVERRIDE currentBalance(i, d), 0);
 
 inOnlineYandex(Item i, DepartmentStore d) +=
     WHEN customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i) AND d IS DepartmentStore
