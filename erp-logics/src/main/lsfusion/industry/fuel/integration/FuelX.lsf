@@ -1,0 +1,167 @@
+MODULE FuelX;
+
+REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel;
+
+@defineLogRotate(FuelX, 5, weekly);
+
+url 'URL' = DATA STRING();
+
+EXTEND FORM integrationData
+    PROPERTIES url()
+;
+
+DESIGN integrationData {
+    pane {
+        NEW fuelX {
+            caption = 'FuelX';
+            MOVE PROPERTY(url());
+        }
+    }
+}
+
+//localhost/setdeliverinvoices:9010 json
+//Передать в DataCenterX список накладных на поставку топлива
+
+dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (Purchase.Invoice);
+toFuelX = DATA LOCAL NESTED BOOLEAN (Purchase.Invoice);
+
+FORM setDeliverInvoices
+    OBJECTS s = Stock PANEL
+    PROPERTIES nameLegalEntity(s) EXTID 'Owner',
+               name(s) EXTID 'ObjectName',
+               software = 'FuelX' IF s IS Stock EXTID 'Software'
+    
+    OBJECTS d = Purchase.InvoiceDetail EXTID 'DeliverInvoices'
+    FILTERS customerStock(d) == s AND toFuelX(invoice(d)) AND isFuel(sku(d))
+    PROPERTIES IN base seriesNumber(d) EXTID 'InvoiceNumber',
+               nameForwarder = nameForwarder[Acceptance](invoice(d)) EXTID 'DriverName',
+               sidTruck = sidTruck(invoice(d)) EXTID 'CarNumber',
+               date = toChar((OVERRIDE shipmentDateTime(d), dateTime(d)), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
+               idSku(d) EXTID 'GradeCode',
+               nameInBin(d) EXTID 'TankName',
+               volume(d) EXTID 'Volume',
+               temperature(d) EXTID 'Temperature',
+               density(d) EXTID 'Density',
+               quantity(d) EXTID 'Mass'
+;
+
+setDeliverInvoices () {
+    IF NOT url() THEN {
+        MESSAGE 'Не задан URL' NOWAIT;
+        RETURN;
+    }
+    FOR [GROUP SUM 1 IF toFuelX(Purchase.Invoice i) BY customerStock(i)](Stock stock) DO NEWSESSION {
+        LOCAL response = FILE();
+        TRY {
+            EXPORT setDeliverInvoices OBJECTS s = stock JSON;
+            fileToString(exportFile(),'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + '/setdeliverinvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + '/setdeliverinvoices' PARAMS exportFile() TO response;
+            fileToString(response(), 'UTF-8');
+            logToFile('FuelX', 'Response: ' + resultString());
+            
+            LOCAL ok = BOOLEAN ();
+            IMPORT JSON FROM response() TO() ok = 'OK';
+            dateFuelX(Purchase.Invoice i) <- currentDateTime() WHERE customerStock(i) == stock AND toFuelX(i) AND ok();
+            APPLY;
+        } CATCH {
+            logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+            logToFile('FuelX', response());
+        }
+    }
+}
+
+exportPurchaseFuelX 'Выгрузить в FuelX' (Purchase.Invoice i) {
+    toFuelX(i) <- TRUE;
+    setDeliverInvoices();
+    toFuelX(Purchase.Invoice in) <- NULL;
+}
+
+isFuelXPurchase(Purchase.Invoice invoice) = GROUP SUM 1 IF isFuel(sku(Purchase.InvoiceDetail d)) BY invoice(d);
+
+EXTEND FORM Purchase.invoices 
+    PROPERTIES(i) SHOWIF isFuelXPurchase(i) exportPurchaseFuelX
+    PROPERTIES(i) SHOWIF isFuelXPurchase(i) READONLY PANEL dateFuelX
+;
+
+DESIGN Purchase.invoices {
+    actionContainer {
+        NEW fuelX {
+            caption = 'FuelX';
+            MOVE PROPERTY (exportPurchaseFuelX(i));
+            MOVE PROPERTY (dateFuelX(i));
+        }
+    }    
+}
+
+//localhost/setdraininvoices:9010 json
+//Передать в DataCenterX список накладных на откачку резервуара
+
+dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (Sale.Invoice);
+toFuelX = DATA LOCAL NESTED BOOLEAN (Sale.Invoice);
+
+FORM setDrainInvoices
+    OBJECTS s = Stock PANEL
+    PROPERTIES nameLegalEntity(s) EXTID 'Owner',
+               name(s) EXTID 'ObjectName',
+               software = 'FuelX' IF s IS Stock EXTID 'Software'
+    
+    OBJECTS d = Sale.InvoiceDetail EXTID 'DrainInvoices'
+    FILTERS supplierStock(d) == s AND toFuelX(invoice(d)) AND isFuel(sku(d))
+    PROPERTIES IN base seriesNumber(d) EXTID 'InvoiceNumber',
+               nameForwarder = nameForwarder(invoice(d)) EXTID 'DriverName',
+               vehicleNumber = vehicleNumber(invoice(d)) EXTID 'CarNumber',
+               date = toChar((OVERRIDE shipmentDateTime(d), dateTime(d)), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
+               idSku(d) EXTID 'GradeCode',
+               nameInBin(d) EXTID 'TankName',
+               quantity(d) EXTID 'Mass'
+;
+
+setDrainInvoices () {
+    IF NOT url() THEN {
+        MESSAGE 'Не задан URL' NOWAIT;
+        RETURN;
+    }
+    FOR [GROUP SUM 1 IF toFuelX(Sale.Invoice i) BY supplierStock(i)](Stock stock) DO NEWSESSION {
+        LOCAL response = FILE();
+        TRY {
+            EXPORT setDrainInvoices OBJECTS s = stock JSON;
+            fileToString(exportFile(),'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + '/setdraininvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + '/setdraininvoices' PARAMS exportFile() TO response;
+            fileToString(response(), 'UTF-8');
+            logToFile('FuelX', 'Response: ' + resultString());
+            
+            LOCAL ok = BOOLEAN ();
+            IMPORT JSON FROM response() TO() ok = 'OK';
+            dateFuelX(Sale.Invoice i) <- currentDateTime() WHERE supplierStock(i) == stock AND toFuelX(i) AND ok();
+            APPLY;
+        } CATCH {
+            logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+            logToFile('FuelX', response());
+        }
+    }
+}
+
+exportSaleFuelX 'Выгрузить в FuelX' (Sale.Invoice i) {
+    toFuelX(i) <- TRUE;
+    setDrainInvoices();
+    toFuelX(Sale.Invoice in) <- NULL;
+}
+
+isFuelXSale(Sale.Invoice invoice) = GROUP SUM 1 IF isFuel(sku(Sale.InvoiceDetail d)) BY invoice(d);
+
+EXTEND FORM Sale.invoices 
+    PROPERTIES(i) SHOWIF isFuelXSale(i) exportSaleFuelX
+    PROPERTIES(i) SHOWIF isFuelXSale(i) READONLY PANEL dateFuelX
+;
+
+DESIGN Sale.invoices {
+    actionContainer {
+        NEW fuelX {
+            caption = 'FuelX';
+            MOVE PROPERTY (exportSaleFuelX(i));
+            MOVE PROPERTY (dateFuelX(i));
+        }
+    }    
+}
