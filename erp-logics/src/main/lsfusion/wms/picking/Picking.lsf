@@ -291,12 +291,14 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT STRING[255](de
 overFillUserPicking  ABSTRACT LIST ( UserPickingDetail, PickingOrderDetail);
 overFillUserPicking  ABSTRACT LIST ( UserPicking);
 
+skipCreateOrderPickingDetails = ABSTRACT BOOLEAN (UserPicking);
+
 moveUserPicking 'Комплектация'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    NEW p = UserPicking {
 	        pickingOrder(p) <- pickingOrder;
 	        stock(p) <- stock(pickingOrder);
-	        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
+	        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder AND NOT skipCreateOrderPickingDetails(p) NEW d = UserPickingDetail DO {
 	            userPicking(d) <- p;
 	            sku(d) <- sku(detail);
 	            quantity(d) <- quantity(detail);
@@ -342,7 +344,7 @@ fillUserPickingOrder 'Заполнить на основании заказа н
     DIALOG pickingsOrderPickings OBJECTS s = stock(userPicking), o INPUT DO {
         pickingOrder(userPicking) <- o;
 
-        FOR pickingOrder(PickingOrderDetail detail) == o NEW d = UserPickingDetail DO {
+        FOR pickingOrder(PickingOrderDetail detail) == o AND NOT skipCreateOrderPickingDetails(userPicking) NEW d = UserPickingDetail DO {
             userPicking(d) <- userPicking;
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
