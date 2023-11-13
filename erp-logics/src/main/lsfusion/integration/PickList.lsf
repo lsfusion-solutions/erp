@@ -160,12 +160,24 @@ exportDataPickList(DepartmentStore ds) {
     }
 }
 
+loadOnlyChangedImages 'Выгрудить только изменившиеся изображения (Пик лист)' = DATA BOOLEAN () COMPLEX;
+EXTEND FORM integrationData
+    PROPERTIES loadOnlyChangedImages()
+;
+DESIGN integrationData {
+    kso {
+        MOVE PROPERTY (loadOnlyChangedImages());
+    }
+}
+
 image146x88 = DATA IMAGEFILE (CustomGroup);
 image91x102 = DATA IMAGEFILE (CustomGroup);
 image240x240 = DATA IMAGEFILE (CustomGroup);
+changedImage = DATA BOOLEAN (CustomGroup);
 image146x88 = DATA IMAGEFILE (Item) TABLE itemImage;
 image91x102 = DATA IMAGEFILE (Item) TABLE itemImage;
 image240x240 = DATA IMAGEFILE (Item) TABLE itemImage;
+changedImage = DATA BOOLEAN (Item);
 
 WHEN SETCHANGED (image(CustomGroup g)) DO { 
     TRY {
@@ -175,6 +187,7 @@ WHEN SETCHANGED (image(CustomGroup g)) DO {
         image91x102(g) <- resizedImage();
         resizeImage(image(g), 240, 240);
         image240x240(g) <- resizedImage();
+        changedImage(g) <- TRUE;
     }
 }
 
@@ -186,6 +199,7 @@ WHEN SETCHANGED (image(Item i)) DO {
         image91x102(i) <- resizedImage();
         resizeImage(image(i), 240, 240);
         image240x240(i) <- resizedImage();
+        changedImage(i) <- TRUE;
     }
 }
 exportImagePickListExtra ABSTRACT LIST(DepartmentStore);
@@ -197,19 +211,25 @@ exportImagePickList(DepartmentStore ds) {
         mkdir(exportPickListPath(ds) + '/image/Items');
         exportImagePickListExtra(ds);
         
-        FOR customGroupType(CustomGroup g) == customGroupType(ds) AND extraId(g, ds) AND hasImage(g) AND (isLeaf(g) OR level(g) == 1) DO {
+        FOR customGroupType(CustomGroup g) == customGroupType(ds) AND extraId(g, ds) AND hasImage(g) AND (isLeaf(g) OR level(g) == 1) AND (changedImage(g) OR NOT loadOnlyChangedImages()) DO {
             WRITE image146x88(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + extraId(g, ds) + '_cat';
             WRITE image91x102(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + extraId(g, ds) + '_cat';
             WRITE image240x240(g) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + extraId(g, ds) + '_cat';
+            changedImage(g) <- NULL;
         }
-        FOR filterCSOCustom(ds, Item i) AND idPickList(i) AND hasImage(i) AND customGroup(customGroupType(ds),i) DO {
+        FOR filterCSOCustom(ds, Item i) AND idPickList(i) AND hasImage(i) AND customGroup(customGroupType(ds),i) AND (changedImage(i) OR NOT loadOnlyChangedImages()) DO {
             WRITE image146x88(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/PickList/' + idPickList(i);
             WRITE image91x102(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/QuickPick/' + idPickList(i);
             WRITE image240x240(i) TO 'file://' + exportPickListPath(ds) + '/image/Items/' + idPickList(i);
+            changedImage(i) <- NULL;
         }
         MESSAGE (CONCAT  '', 'Изображения выгружены: ', name(ds)) NOWAIT;
     } CATCH {
         MESSAGE CONCAT '\n', (CONCAT  '', 'Ошибка выгрузки изображений: ', name(ds)), messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException() NOWAIT;
+    } FINALLY {
+        IF (GROUP SUM 1 IF CHANGED(changedImage(CustomGroup g))) OR (GROUP SUM 1 IF CHANGED(changedImage(Item i))) THEN {
+            APPLY;
+        }
     }
 }
 
