@@ -1,0 +1,61 @@
+MODULE SalePurchaseShipmentInvoiceTerminal;
+
+REQUIRE Terminal, SalePurchaseInvoiceShipment;
+
+NAMESPACE Sale;
+
+skipCreateDetailAddToDetailDialogTerminal 'Не создавать строки при импорте поставленного кол-ва из ТСД' = DATA BOOLEAN();
+
+EXTEND FORM options
+    PROPERTIES() SaleskipCreateDetailAddToDetailDialogTerminal = skipCreateDetailAddToDetailDialogTerminal
+;
+
+DESIGN options {
+    invoiceSale {
+        MOVE PROPERTY(SaleskipCreateDetailAddToDetailDialogTerminal);
+    }
+}
+
+inAdd = ABSTRACT BOOLEAN (TerminalDocumentType, UserInvoice);
+overAddDialogTerminalToUserInvoice  ABSTRACT LIST ( UserInvoice, TerminalDocument);
+
+addDetailDialogTerminalToUserInvoiceDetail 'Импорт поставленного(закупка) из ТСД' (UserInvoice userInvoice)  { 
+    in(TerminalDocumentType t) <- inAdd(t, userInvoice);
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
+            include(td) <- TRUE;
+        }
+        used(TerminalDocument t) <- TRUE WHERE include(t);
+        overAddDialogTerminalToUserInvoice(userInvoice, td);
+
+        LOCAL quantity = NUMERIC[16,5] (Sku, UserInvoice);
+        quantity(Sku sku, userInvoice) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);
+        FOR invoice(UserInvoiceDetail o) == userInvoice DO {
+            purchaseShipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP quantity LIMIT STRICT quantity(o) IF invoice(o) == userInvoice ORDER index(o), o BY sku(o), invoice(o)), 0.0;
+        }
+        IF NOT skipCreateDetailAddToDetailDialogTerminal() THEN {
+            FOR quantity(Sku sku, userInvoice) AND NOT (GROUP SUM 1 IF invoice(UserInvoiceDetail o) == userInvoice AND sku(o) == sku) NEW d = UserInvoiceDetail DO {
+                userInvoice(d) <- userInvoice;
+                sku(d) <- sku;
+                quantity(d) <- 0.0;
+                purchaseShipmentQuantity(d) <- quantity(sku, userInvoice);
+            }
+            FOR INTEGER n == (GROUP SUM 1 IF barcode(TerminalDocumentDetail tdd) AND NOT sku(tdd) AND include(terminalDocument(tdd))) DO {
+                MESSAGE 'В системе не найдено ' + n + ' товаров со шрихкодами: ' +
+                    (GROUP CONCAT barcode(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND NOT sku(tdd),', ' ORDER barcode(tdd), tdd);
+            }
+        }
+            
+        include(TerminalDocument t) <- NULL;
+    }  
+} TOOLBAR;
+
+EXTEND FORM userInvoice
+    PROPERTIES(i) addDetailDialogTerminalToUserInvoiceDetail SHOWIF createPurchaseShipment(i) AND accessCompany(currentUser(), customerStock(i))
+;
+
+DESIGN userInvoice {
+    import {
+        MOVE PROPERTY(addDetailDialogTerminalToUserInvoiceDetail(i));
+    }
+}
