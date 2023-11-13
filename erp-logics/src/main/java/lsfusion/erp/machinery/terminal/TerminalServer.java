@@ -649,7 +649,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    priceCheckerLogger.info(String.format("idLot '%s'", params[0]));
+                                    priceCheckerLogger.info(String.format("idLot '%s'", idLot));
                                     result = readLotInfo(idLot);
                                     if (result == null) {
                                         errorCode = LOT_NOT_FOUND;
