@@ -4,6 +4,11 @@ REQUIRE Terminal, System, TerminalHandler;
 
 NAMESPACE Terminal;
 
+CLASS TeamWorkErrors {
+    UNKNOWN_COMMAND 'UNKNOWN_COMMAND;Неизвестная команда',
+    DOCUMENT_ALREADY_CLOSED 'DOCUMENT_ALREADY_CLOSED;Документ уже закрыт',
+    DOCUMENT_ALREADY_EXISTS 'DOCUMENT_ALREADY_EXISTS;Документ уже присутствует в системе'
+}
 
 CLASS TeamWorkDocument 'Документ совместной приемки';
 TABLE teamWorkDocument (TeamWorkDocument);
@@ -237,7 +242,7 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         LOCAL idDocument = STRING ();
         IMPORT JSON FROM file TO () idDocument;
         IF used(teamWorkDocument(idDocument())) THEN {
-            EXPORT JSON FROM error = 'Документ уже закрыт';
+            EXPORT JSON FROM error = staticCaption(TeamWorkErrors.DOCUMENT_ALREADY_CLOSED);
             RETURN;
         }
     }
@@ -250,7 +255,7 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         IMPORT JSON FROM file TO () id, date, number, vop, ana1, ana2, ana3, comment, numberOrders
 
         IF teamWorkDocument(id()) THEN {
-            EXPORT JSON FROM error = 'Документ уже присутствует в системе';
+            EXPORT JSON FROM error = staticCaption(TeamWorkErrors.DOCUMENT_ALREADY_EXISTS);
         } ELSE {
             NEW t = TeamWorkDocument {
                 id(t) <- id();
@@ -339,7 +344,7 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
 
         }
         IF error() THEN {
-            EXPORT JSON FROM error = 'Неизвестная команда';
+            EXPORT JSON FROM error = staticCaption(TeamWorkErrors.UNKNOWN_COMMAND);
         }
 
     }
@@ -436,7 +441,7 @@ process(INTEGER command, FILE file, CustomUser user, STRING[100] idStock) {
         EXPORT exportTeamWork OBJECTS document = teamWorkDocument(idDocument()) JSON;
     }
     ELSE {
-        EXPORT JSON FROM error = 'Неизвестная команда';
+        EXPORT JSON FROM error = staticCaption(TeamWorkErrors.UNKNOWN_COMMAND);
     }
 
 }
