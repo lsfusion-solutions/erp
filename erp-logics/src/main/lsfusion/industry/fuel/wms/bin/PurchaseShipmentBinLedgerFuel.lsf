@@ -7,6 +7,27 @@ NAMESPACE Purchase;
 volume[BinLedger] (ShipmentBinLedger ledger) += volume(shipmentDetail(ledger));
 density[BinLedger] (ShipmentBinLedger ledger) += density(shipmentDetail(ledger));
 
+volumeInBin 'Объем резервуара (в)' (UserInvoiceDetail invoiceDetail) = volume(inBin(invoiceDetail));
+volumeAInBin 'Объем в резервуараe (в) (после), л' (UserInvoiceDetail invoiceDetail) = volumeA(inBin(invoiceDetail), shipmentDateTime(invoiceDetail));
+
+backgroundDiffValueBin (UserInvoiceDetail d) = CASE
+    WHEN volumeAInBin(d) > volumeInBin(d) THEN overColorValueBin()
+    WHEN (GROUP SUM 1 IF volumeA(Sku sku, inBin(d), shipmentDateTime(d))) > 1 THEN overColorValueBin()
+    ELSE backgroundShipped(d);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY AFTER nameInBin(d) volumeInBin BACKGROUND backgroundShipped(d), volumeAInBin BACKGROUND backgroundDiffValueBin(d)
+;
+
+WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
+      AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND volumeAInBin(d) > volumeInBin(d) DO {
+    MESSAGE 'Внимание! Объем резервуара ' + nameInBin(d) + ' превышен!';
+}
+WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
+      AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND (GROUP SUM 1 IF volumeA(Sku sku, inBin(d), shipmentDateTime(d))) > 1 DO {
+    MESSAGE 'Внимание! В резервуар ' + nameInBin(d) + ' залито несколько видов топлива!';
+}
+
 //----------------------------- переименование ячейки в резервуар -----------------------------//
 DESIGN operation {
     PROPERTY(useBins(o)) { caption = 'Резервуары'; }

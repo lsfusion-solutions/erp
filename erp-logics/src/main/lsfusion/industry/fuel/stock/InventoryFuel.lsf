@@ -5,16 +5,16 @@ REQUIRE Inventory, SkuLedgerFuel;
 NAMESPACE Inventory;
 
 volume 'Объем, л' = DATA NUMERIC[16,5] (PageInventoryDetail) CHARWIDTH 7;
-density 'Плотность, кг/л' = DATA NUMERIC[8,2] (PageInventoryDetail) CHARWIDTH 7;
+density 'Плотность, кг/л' = DATA NUMERIC[8,4] (PageInventoryDetail) CHARWIDTH 7;
 
 CONSTRAINT (SET(isPosted(inventory(PageInventoryDetail d))) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(inventory(d)) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
     MESSAGE 'Для строки страницы описи должна быть задана плотность';
 
 WHEN LOCAL (CHANGED(quantity(PageInventoryDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
 }
 
-fillDensity (PageInventoryDetail d, NUMERIC[8,2] n) {
+fillDensity (PageInventoryDetail d, NUMERIC[8,4] n) {
     IF n THEN {
         density(d) <- n;
         IF NOT quantity(d) THEN {
@@ -33,12 +33,12 @@ fillDensity (PageInventoryDetail d, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
     }
 }
 
 changeDensity (PageInventoryDetail d) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillDensity(d,n);
     }
 }
@@ -54,13 +54,13 @@ fillDensity15C 'Заполнить значением плотности при 
 volumePageInventoryDetail 'Объем (всего), л' (pageInventory) = GROUP SUM volume(PageInventoryDetail idetail) BY pageInventory(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
 volumeBalance 'Объем по остаткам, л' (collationSheet, sku) = DATA NUMERIC[16,5] (CollationSheet, Sku);
-densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,2] (CollationSheet, Sku);
+densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,4] (CollationSheet, Sku);
 
 WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Sku sk)) OR CHANGED(volumeBalance(cs,sk))) AND NOT CHANGED(densityBalance(cs,sk)) AND isFuel(skuGroup(sk)) AND quantityBalance(cs,sk) AND volumeBalance(cs,sk) DO {
-    densityBalance(cs,sk) <- NUMERIC[8,2](quantityBalance(cs,sk) / volumeBalance(cs,sk));
+    densityBalance(cs,sk) <- NUMERIC[8,4](quantityBalance(cs,sk) / volumeBalance(cs,sk));
 }
 
-fillDensityBalance (CollationSheet cs, Sku sk, NUMERIC[8,2] n) {
+fillDensityBalance (CollationSheet cs, Sku sk, NUMERIC[8,4] n) {
     IF n THEN {
         densityBalance(cs,sk) <- n;
         IF NOT quantityBalance(cs,sk) THEN {
@@ -79,12 +79,12 @@ fillDensityBalance (CollationSheet cs, Sku sk, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        densityBalance(cs,sk) <- NUMERIC[8,2](quantityBalance(cs,sk) / volumeBalance(cs,sk));
+        densityBalance(cs,sk) <- NUMERIC[8,4](quantityBalance(cs,sk) / volumeBalance(cs,sk));
     }
 }
 
 changeDensityBalance (CollationSheet cs, Sku sk) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillDensityBalance(cs,sk,n);
     }
 }
@@ -98,13 +98,13 @@ fillDensityBalance15C 'Заполнить значением плотности 
 }
 
 volumeBalance 'Объем по остаткам, л' (collationSheet, batch) = DATA NUMERIC[16,5] (CollationSheet, Batch);
-densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,2] (CollationSheet, Batch);
+densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,4] (CollationSheet, Batch);
 
 WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Batch bt)) OR CHANGED(volumeBalance(cs,bt))) AND NOT CHANGED(densityBalance(cs,bt)) AND isFuel(skuGroup(sku(bt))) AND quantityBalance(cs,bt) AND volumeBalance(cs,bt) DO {
-    densityBalance(cs,bt) <- NUMERIC[8,2](quantityBalance(cs,bt) / volumeBalance(cs,bt));
+    densityBalance(cs,bt) <- NUMERIC[8,4](quantityBalance(cs,bt) / volumeBalance(cs,bt));
 }
 
-fillDensityBalance (CollationSheet cs, Batch bt, NUMERIC[8,2] n) {
+fillDensityBalance (CollationSheet cs, Batch bt, NUMERIC[8,4] n) {
     IF n THEN {
         densityBalance(cs,bt) <- n;
         IF NOT quantityBalance(cs,bt) THEN {
@@ -123,12 +123,12 @@ fillDensityBalance (CollationSheet cs, Batch bt, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        densityBalance(cs,bt) <- NUMERIC[8,2](quantityBalance(cs,bt) / volumeBalance(cs,bt));
+        densityBalance(cs,bt) <- NUMERIC[8,4](quantityBalance(cs,bt) / volumeBalance(cs,bt));
     }
 }
 
 changeDensityBalance (CollationSheet cs, Batch bt) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillDensityBalance(cs,bt,n);
     }
 }

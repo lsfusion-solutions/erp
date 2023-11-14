@@ -6,12 +6,12 @@ NAMESPACE Stock;
 
 // -------------------------------- Плотность ---------------------------- //
 
-density 'Плотность, кг/л' (batch) = ABSTRACT NUMERIC[8,2] (Batch) MATERIALIZED;
+density 'Плотность, кг/л' (batch) = ABSTRACT NUMERIC[8,4] (Batch) MATERIALIZED;
 prevDensity 'Плотность, кг/л' (Batch batch) = PREV(density(batch));
 
-density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[8,2] (InLIFOSkuLedger);
+density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[8,4] (InLIFOSkuLedger);
 density 'Плотность, кг/л' (InSkuLedger ledger) = MULTI density[Batch](ledger), density[InLIFOSkuLedger](ledger);
-density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (OutFIFOSkuLedger);
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (OutFIFOSkuLedger);
 density 'Плотность, кг/л' (SkuLedger ledger) = MULTI density[InSkuLedger](ledger), density[OutFIFOSkuLedger](ledger) MATERIALIZED;
 
 // -------------------------------- Объем ---------------------------- //
@@ -29,7 +29,7 @@ volume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), 
 signedVolume 'Объем, л' (SkuLedger ledger) = MULTI volume[InSkuLedger](ledger), -volume[OutFIFOSkuLedger](ledger) CHARWIDTH 7 MATERIALIZED;
 
 volume 'Объем, л' (Batch ledger, Batch batch) = volume(ledger) IF batch == ledger;
-volume 'Объем, л' (DataSkuLedger ledger, Batch batch) = cost(ledger,batch) / density(ledger) IF density(ledger) > 0.0;
+volume 'Объем, л' (DataSkuLedger ledger, Batch batch) = NUMERIC[16,5](cost(ledger,batch) / density(ledger)) IF density(ledger) > 0.0;
 volume 'Объем, л' (SkuLedger ledger, Batch batch) = MULTI volume[Batch,Batch](ledger, batch), volume[DataSkuLedger,Batch](ledger, batch) MATERIALIZED;
 
 signedVolume (SkuLedger ledger, Batch batch) = IF ledger IS OutSkuLedger THEN -volume(ledger, batch) ELSE volume(ledger, batch);
@@ -109,3 +109,12 @@ volumeIn 'Приход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
 
 volumeOut 'Расход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
     GROUP SUM volume(OutSkuLedger ledger, batch) IF ledger IS OutSkuLedger AND isPosted(ledger) AND date(ledger) >= dateFrom AND date(ledger)<= dateTo BY stock(ledger);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(s,st) READONLY BEFORE averagePrice(s,st) currentVolume
+    PROPERTIES(bil) READONLY AFTER signedQuantity(bil) signedVolume, density
+;
+EXTEND FORM balanceSkuStock
+    PROPERTIES(s,st,t) READONLY BEFORE averagePriceB(s,st,t) volumeB
+    PROPERTIES(bil) READONLY AFTER signedQuantity(bil) signedVolume, density
+;

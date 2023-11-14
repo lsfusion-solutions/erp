@@ -7,6 +7,31 @@ NAMESPACE Sale;
 volume[BinLedger] (ShipmentBinLedger ledger) += volume(shipmentDetail(ledger));
 density[BinLedger] (ShipmentBinLedger ledger) += density(shipmentDetail(ledger));
 
+densityBOutBin 'Текущая плотность в резервуаре (из) (до), кг/л' (UserInvoiceDetail invoiceDetail) = densityB(outBin(invoiceDetail), dateTime(invoiceDetail));
+
+fillDensityAOutBin 'Заполнить значением плотности в резервуаре (из) (до)' (UserInvoiceDetail d) {
+    IF densityBOutBin(d) THEN {
+        fillDensity(d,densityBOutBin(d));
+    } ELSE {
+        MESSAGE 'Отстутствует плотность в резервуаре (из) (до)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserInvoiceDetail];
+
+fillShipmentDensityAOutBin 'Заполнить значением плотности в резервуаре (из) (до)' (UserInvoiceDetail d) {
+    IF densityBOutBin(d) THEN {
+        fillShipmentDensity(d,densityBOutBin(d));
+    } ELSE {
+        MESSAGE 'Отстутствует плотность в резервуаре (из) (до)' NOWAIT;
+    }
+} ASON CONTEXTMENU shipmentDensity[UserInvoiceDetail];
+
+overBackgroundDensity(UserInvoiceDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
+overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN shipmentDensity(d) != densityBOutBin(d) THEN RGB(255,154,154);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY AFTER nameOutBin(d) densityBOutBin BACKGROUND backgroundShipped(i)
+;
+
 //----------------------------- переименование ячейки в резервуар -----------------------------//
 DESIGN operation {
     PROPERTY(useBins(o)) { caption = 'Резервуары'; }

@@ -8,8 +8,8 @@ volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (ShipmentDetail) CHARWIDTH 7 MA
 volume 'Объем, л' = DATA NUMERIC[16,5] (UserShipmentDetail) CHARWIDTH 7;
 volume (UserShipmentDetail shipmentDetail) += volume(shipmentDetail);
 
-density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
-density 'Плотность, кг/л' = DATA NUMERIC[8,2] (UserShipmentDetail) CHARWIDTH 7;
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[8,4] (UserShipmentDetail) CHARWIDTH 7;
 density (UserShipmentDetail shipmentDetail) += density(shipmentDetail);
 
 //volume[Shipment.ShipmentDetail](ShipmentDetail detail) += volume(detail);
@@ -18,10 +18,10 @@ CONSTRAINT (SET(isPosted(UserShipmentDetail d)) OR CHANGED(sku(d)) OR CHANGED(de
     MESSAGE 'Для строки поставки (закупка) должна быть задана плотность';
 
 WHEN LOCAL (CHANGED(quantity(UserShipmentDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
 }
 
-fillDensity (UserShipmentDetail d, NUMERIC[8,2] n) {
+fillDensity (UserShipmentDetail d, NUMERIC[8,4] n) {
     IF n THEN {
         density(d) <- n;
         IF NOT quantity(d) THEN {
@@ -40,12 +40,12 @@ fillDensity (UserShipmentDetail d, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
     }
 }
 
 changeDensity (UserShipmentDetail d) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillDensity(d,n);
     }
 }
@@ -88,8 +88,8 @@ shipmentVolume 'Объем (поставлено), л' = ABSTRACT NUMERIC[16,5] 
 shipmentVolume 'Объем (поставлено), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
 shipmentVolume (UserInvoiceDetail invoiceDetail) += shipmentVolume(invoiceDetail);
 
-shipmentDensity 'Плотность (поставлено), кг/л' = ABSTRACT NUMERIC[8,2] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-shipmentDensity 'Плотность (поставлено), кг/л' = DATA NUMERIC[8,2] (UserInvoiceDetail) CHARWIDTH 7;
+shipmentDensity 'Плотность (поставлено), кг/л' = ABSTRACT NUMERIC[8,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+shipmentDensity 'Плотность (поставлено), кг/л' = DATA NUMERIC[8,4] (UserInvoiceDetail) CHARWIDTH 7;
 shipmentDensity (UserInvoiceDetail invoiceDetail) += shipmentDensity(invoiceDetail);
 
 //shipmentVolume[Invoice.InvoiceDetail](InvoiceDetail d) += shipmentVolume(d);
@@ -98,10 +98,10 @@ CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHAN
     MESSAGE 'Для строки накладная (закупка) должна быть задана плотность (поставлено)';
 
 WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail d)) OR CHANGED(shipmentVolume(d))) AND NOT CHANGED(shipmentDensity(d)) AND isFuel(skuGroup(sku(d))) AND shipmentQuantity(d) AND shipmentVolume(d) DO {
-    shipmentDensity(d) <- NUMERIC[8,2](shipmentQuantity(d) / shipmentVolume(d));
+    shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
 }
 
-fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,2] n) {
+fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
     IF n THEN {
         shipmentDensity(d) <- n;
         IF NOT shipmentQuantity(d) THEN {
@@ -120,12 +120,12 @@ fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        shipmentDensity(d) <- NUMERIC[8,2](shipmentQuantity(d) / shipmentVolume(d));
+        shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
     }
 }
 
 changeShipmentDensity (UserInvoiceDetail d) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillShipmentDensity(d,n);
     }
 }

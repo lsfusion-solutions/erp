@@ -8,8 +8,8 @@ volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MAT
 volume 'Объем, л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
 volume (UserInvoiceDetail invoiceDetail) += volume(invoiceDetail);
 
-density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,2] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-density 'Плотность, кг/л' = DATA NUMERIC[8,2] (UserInvoiceDetail) CHARWIDTH 7;
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[8,4] (UserInvoiceDetail) CHARWIDTH 7;
 density (UserInvoiceDetail invoiceDetail) += density(invoiceDetail);
 
 //volume[Invoice.InvoiceDetail](InvoiceDetail detail) += volume(detail);
@@ -20,10 +20,10 @@ CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(den
     MESSAGE 'Для строки накладная (продажа) должна быть задана плотность';
 
 WHEN LOCAL (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
 }
 
-fillDensity (UserInvoiceDetail d, NUMERIC[8,2] n) {
+fillDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
     IF n THEN {
         density(d) <- n;
         IF NOT quantity(d) THEN {
@@ -42,12 +42,12 @@ fillDensity (UserInvoiceDetail d, NUMERIC[8,2] n) {
             }
         }
     } ELSE {
-        density(d) <- NUMERIC[8,2](quantity(d) / volume(d));
+        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
     }
 }
 
 changeDensity (UserInvoiceDetail d) {
-    INPUT n = NUMERIC[8,2] DO {
+    INPUT n = NUMERIC[8,4] DO {
         fillDensity(d,n);
     }
 }
@@ -63,10 +63,12 @@ fillDensity15C 'Заполнить значением плотности при 
 volumeInvoiceDetail 'Объем (всего), л' (invoice) = GROUP SUM volume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 volumeUserInvoiceDetail 'Объем (всего), л' (userInvoice) = GROUP SUM volume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
+overBackgroundDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
+
 EXTEND FORM userInvoice
     PROPERTIES(i) volumeUserInvoiceDetail
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) BACKGROUND overBackgroundDensity(d)
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
