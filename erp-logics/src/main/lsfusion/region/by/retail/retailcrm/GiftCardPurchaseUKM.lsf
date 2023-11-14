@@ -4,8 +4,7 @@ REQUIRE GiftCardUKM, GiftCardPurchase;
 
 NAMESPACE GiftCard;
 
-
-exportGiftCards 'Экспорт в УКМ' (GiftCardPurchase i)  { 
+exportGiftCardsUKM 'Экспорт в УКМ' (GiftCardPurchase i)  { 
     NEWSESSION NESTED (inExportGiftCards[GiftCard]) {
         inExportGiftCards(GiftCard c) <- TRUE WHERE giftCardPurchase(c) == i AND NOT exportedActive(c) AND NOT isSold(c);
 
@@ -15,9 +14,9 @@ exportGiftCards 'Экспорт в УКМ' (GiftCardPurchase i)  {
 
 EXTEND FORM giftCardsDashboard
     PROPERTIES(g) inExportGiftCards BEFORE number(g)
-    PROPERTIES () exportGiftCards DRAW g TOOLBAR
+    PROPERTIES () exportGiftCardsUKM DRAW g TOOLBAR SHOWIF NOT inactiveUKMCustom()
     
-    PROPERTIES(p) TOOLBAR exportGiftCards
+    PROPERTIES(p) TOOLBAR exportGiftCardsUKM SHOWIF NOT inactiveUKMCustom()
 ;
 
 ukmCode 'Код УКМ' = GROUP MIN STRING[10](departmentNumber(GroupCashRegister c)) BY stock(c);

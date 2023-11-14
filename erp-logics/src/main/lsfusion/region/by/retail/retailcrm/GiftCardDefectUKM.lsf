@@ -4,23 +4,24 @@ REQUIRE GiftCardUKM, GiftCardDefect;
 
 NAMESPACE GiftCard;
 
+exportGiftCardsUKM 'Экспорт в УКМ' (DefectGiftCard i)  { 
+    IF NOT inactiveUKMCustom() THEN {
+        NEWSESSION {
 
-exportGiftCards 'Экспорт в УКМ' (DefectGiftCard i)  { 
-    NEWSESSION {
-    
-        inExportGiftCards(GiftCard c) <- TRUE WHERE defectGiftCard(defectGiftCardDetail(c)) == i;
-        
-        MESSAGE  (OVERRIDE (GROUP SUM 1 IF inExportGiftCards(GiftCard c)), 0) + ' Принято к загрузке' NOWAIT;
-        exportGiftCardsUKMCustom();        
+            inExportGiftCards(GiftCard c) <- TRUE WHERE defectGiftCard(defectGiftCardDetail(c)) == i;
+
+            MESSAGE (OVERRIDE (GROUP SUM 1 IF inExportGiftCards(GiftCard c)), 0) + ' Принято к загрузке' NOWAIT;
+            exportGiftCardsUKMCustom();
+        }
     }
 } TOOLBAR ;
 
-EXTEND FORM defectGiftCards
-    PROPERTIES(r) exportGiftCards
-;
+overExportGiftCards(DefectGiftCard i) + {
+    exportGiftCardsUKM(i);
+}
 
-EXTEND FORM defectGiftCard
-    EVENTS 
-        ON APPLY AFTER exportGiftCards(r);
+EXTEND FORM defectGiftCards
+    PROPERTIES(r) exportGiftCardsUKM SHOWIF NOT inactiveUKMCustom()
+;
 
 isDefect(GiftCard giftCard) += defectGiftCardDetail(giftCard) IS DefectGiftCardDetail;

@@ -9,7 +9,7 @@ isSoldInvoice(GiftCard g) += sold(g) IS InvoiceGiftCardSaleDetail;
 
 countInvoiceGiftCardSaleDetail = GROUP SUM 1 BY invoice(InvoiceGiftCardSaleDetail d);
 
-exportGiftCards 'Экспорт в УКМ' (Sale.Invoice i)  { 
+exportGiftCardsUKM 'Экспорт в УКМ' (Sale.Invoice i)  { 
 
     inExportGiftCards(GiftCard c) <- TRUE WHERE invoice(soldInvoice(c)) == i;
     IF NOT GROUP SUM 1 IF inExportGiftCards(GiftCard c) THEN 
@@ -24,11 +24,18 @@ exportGiftCards 'Экспорт в УКМ' (Sale.Invoice i)  {
     exportGiftCardsUKMCustom();
 }
 
-exportGiftCardsForm(Sale.Invoice i )  { 
+overExportGiftCardsForm ABSTRACT LIST (Sale.Invoice);
+overExportGiftCardsForm(Sale.Invoice i) + {
+    IF NOT inactiveUKMCustom() THEN {
+        ASK 'Выгружать подарочные сертификаты в УКМ' DO exportGiftCardsUKM(i);
+    }
+}
+
+exportGiftCardsForm(Sale.Invoice i)  {
     NEWSESSION{
-	    IF isPosted(i) AND createShipment(i) AND isGiftCard(i) THEN 
-	    ASK 'Выгружать подарочные сертификаты в УКМ' DO exportGiftCards(i);
-	}
+        IF isPosted(i) AND createShipment(i) AND isGiftCard(i) THEN
+            overExportGiftCardsForm(i);
+    }
 }
 
 EXTEND FORM Sale.userInvoice 
@@ -36,11 +43,11 @@ EXTEND FORM Sale.userInvoice
         ON APPLY AFTER exportGiftCardsForm(i);
 
 EXTEND FORM saleGiftCardDashboard
-    PROPERTIES(i)  exportGiftCards
+    PROPERTIES(i)  exportGiftCardsUKM SHOWIF NOT inactiveUKMCustom()
 ;
 
 DESIGN saleGiftCardDashboard{
     TOOLBAR(i){
-        MOVE PROPERTY (exportGiftCards(i));
+        MOVE PROPERTY (exportGiftCardsUKM(i));
     }
 }

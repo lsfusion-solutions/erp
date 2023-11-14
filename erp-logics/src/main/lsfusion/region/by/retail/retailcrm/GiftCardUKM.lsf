@@ -4,7 +4,6 @@ REQUIRE GiftCardItem;
 
 NAMESPACE GiftCard;
 
-
 connectionStringExportGiftCards 'Строка подключения' = DATA STRING[255] ();
 userExportGiftCards 'Пользователь' = DATA STRING[255] ();
 passwordExportGiftCards 'Пароль' = DATA STRING[255] ();
@@ -12,15 +11,21 @@ useGiftCardDates 'Использовать дату активации из се
 checkUnderpayExportGiftCards 'check_underpay' = DATA INTEGER ();
 monoAccountExportGiftCards 'mono_account' = DATA INTEGER ();
 
-inExportGiftCards 'Экспорт' = DATA LOCAL BOOLEAN (GiftCard);
-exportedExportGiftCards 'Экспортирован' = DATA BOOLEAN (GiftCard);
-exportedActive 'Экспортирован (активация)' = DATA BOOLEAN (GiftCard) INDEXED;
-exportGiftCardsUKMCustom 'Экспорт в УКМ'  INTERNAL  'lsfusion.erp.region.by.ukm.ExportGiftCardsAction'();
+exportedExportGiftCards 'Экспортирован в УКМ' = DATA BOOLEAN (GiftCard);
+exportedActive 'Экспортирован (активация) УКМ' = DATA BOOLEAN (GiftCard) INDEXED;
+exportGiftCardsUKMCustomJ 'Экспорт в УКМ'  INTERNAL  'lsfusion.erp.region.by.ukm.ExportGiftCardsAction'();
+
+inactiveUKMCustom 'Не выгружать в УКМ' = DATA BOOLEAN ();
+exportGiftCardsUKMCustom 'Экспорт в УКМ' () {
+    IF NOT inactiveUKMCustom() THEN {
+        exportGiftCardsUKMCustomJ();
+    }
+}
 
 overExportGiftCardsUKMCustomBefore ABSTRACT LIST ();
 overExportGiftCardsUKMCustomAfter ABSTRACT LIST ();
 
-exportGiftCardsUKM 'Экспорт в УКМ' () {
+exportGiftCardsUKMBeforeAfter 'Экспорт в УКМ' () {
     overExportGiftCardsUKMCustomBefore();
     exportGiftCardsUKMCustom();
     overExportGiftCardsUKMCustomAfter();
@@ -44,7 +49,7 @@ DESIGN editItemGift {
     }
 }
 
-exportGiftCards 'Экспорт в УКМ' ()  { 
+exportGiftCardsUKM 'Экспорт в УКМ' ()  { 
 
     inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g) AND (exportedActive(g) OR sold(g) IS ReceiptGiftCardSaleDetail);
 
@@ -53,18 +58,19 @@ exportGiftCards 'Экспорт в УКМ' ()  {
 
 EXTEND FORM giftCards
     PROPERTIES(g) BEFORE number(g) inExportGiftCards, exportedExportGiftCards, exportedActive READONLYIF isReadonly() 
-    PROPERTIES() exportGiftCards BEFORE generateGiftCards() DRAW g TOOLBAR
+    PROPERTIES() exportGiftCardsUKM BEFORE generateGiftCards() DRAW g TOOLBAR SHOWIF NOT inactiveUKMCustom()
 ;
 
 
 EXTEND FORM integrationData 
-    PROPERTIES() connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards, useGiftCardDates, checkUnderpayExportGiftCards, monoAccountExportGiftCards
+    PROPERTIES() inactiveUKMCustom, connectionStringExportGiftCards, userExportGiftCards, passwordExportGiftCards, useGiftCardDates, checkUnderpayExportGiftCards, monoAccountExportGiftCards
 ;
 
 DESIGN integrationData {
     pane {
         NEW exportGiftCards {
             caption = 'Экспорт сертификатов';
+            MOVE PROPERTY(inactiveUKMCustom());
             MOVE PROPERTY(connectionStringExportGiftCards());
             MOVE PROPERTY(userExportGiftCards());
             MOVE PROPERTY(passwordExportGiftCards());
