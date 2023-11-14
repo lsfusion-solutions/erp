@@ -132,6 +132,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addPluginPropertyElement(good, "plugin_id", infoJSON.getString("plugin_id"));
             }
 
+            if(infoJSON.has("need_tare")) {
+                addPluginPropertyElement(good, "need_tare", infoJSON.optBoolean("need_tare"));
+            }
+
         }
 
         addProductType(good, item, tobaccoGroups, isProductSetApiEntity);
@@ -337,7 +341,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             parent.addContent(new Element(id).setText(value));
     }
 
-    protected static void addPluginPropertyElement(Element parent, String key, String value) {
+    protected static void addPluginPropertyElement(Element parent, String key, Object value) {
         if (value != null) {
             Element pluginProperty = new Element("plugin-property");
             setAttribute(pluginProperty, "key", key);
