@@ -1,0 +1,13 @@
+MODULE PurchaseShipmentCorrectionAccountLedger;
+
+REQUIRE PurchaseShipmentCorrection, PriceListLedgerAccount;
+
+NAMESPACE Purchase;
+
+
+accountLedgerPrice = ABSTRACT VALUE NUMERIC[16,4] (InvoiceCorrectionDetail);
+accountLedgerPrice (InvoiceCorrectionDetail d) += shipmentPriceA(d);
+
+in (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN accountLedgerPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+price (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN accountLedgerPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN accountLedgerPrice(ledger);
+

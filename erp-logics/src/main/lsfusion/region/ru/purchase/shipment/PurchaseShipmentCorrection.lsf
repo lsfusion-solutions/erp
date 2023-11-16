@@ -1,6 +1,6 @@
 MODULE PurchaseShipmentCorrection;
 
-REQUIRE PurchaseInvoiceCorrection, PurchaseShipment;//, PriceListLedgerAccount;
+REQUIRE PurchaseInvoiceCorrection, PurchaseShipment, PriceListLedgerAccount;
 
 NAMESPACE Purchase;
 
@@ -17,17 +17,28 @@ shipmentPriceB 'Цена учетная (до)' = DATA NUMERIC[16,4] (InvoiceCor
 shipmentPriceA 'Цена учетная (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 
 shipmentSumB 'Сумма учетная (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+shipmentSumBatchB 'Сумма учетная партии (до)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 shipmentSumA 'Сумма учетная (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
+shipmentSumBatchA 'Сумма учетная партии (после)' = DATA NUMERIC[18,4] (InvoiceCorrectionDetail);
 calcShipmentSumA = ABSTRACT VALUE NUMERIC[18,4] (InvoiceCorrectionDetail);
+calcShipmentSumBatchA = ABSTRACT VALUE NUMERIC[18,4] (InvoiceCorrectionDetail);
+
+batch(InvoiceCorrectionDetail ledger) = OVERRIDE ledgerBatch(invoiceShipmentDetail(invoiceDetail(ledger))), batch(invoiceDetail(ledger));
 
 // Считаем, что поставленное количество корректируется вместе с учетным
 //calcShipmentSumA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round(shipmentQuantity(d) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 calcShipmentSumA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round(quantityA(d) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
+calcShipmentSumBatchA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round((balanceB(batch(d), customerStock(d), dateTime(d)) (+) quantity(d)) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 
-WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipmentPriceA(detail)) OR CHANGED(currency (detail)) OR CHANGED(invoiceDetail(detail))) DO
-    shipmentSumA (detail) <- calcShipmentSumA(detail); 
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipmentPriceA(detail)) OR CHANGED(currency (detail)) OR CHANGED(invoiceDetail(detail))) DO {
+    shipmentSumA (detail) <- calcShipmentSumA(detail);
+}
 
-shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = shipmentSumA(detail) (-) shipmentSumB(detail);
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipmentPriceA(detail)) OR CHANGED(currency(detail)) OR CHANGED(invoiceDetail(detail)) OR CHANGED(dateTime(detail))) DO {
+    shipmentSumBatchA(detail) <- calcShipmentSumBatchA(detail);
+}
+
+shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = shipmentSumBatchA(detail) (-) shipmentSumBatchB(detail);
 increaseShipmentSum 'Сумма учетная (увеличение)' (InvoiceCorrectionDetail detail) = shipmentSum(detail) IF shipmentSum(detail)>0.0;
 decreaseShipmentSum 'Сумма учетная (уменьшение)' (InvoiceCorrectionDetail detail) = - shipmentSum(detail) IF shipmentSum(detail)<0.0;
 
@@ -67,6 +78,11 @@ WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail
     shipmentPriceB(invoiceCorrectionDetail) <- shipmentPrice(invoiceDetail(invoiceCorrectionDetail));
     shipmentSumB(invoiceCorrectionDetail) <- shipmentSum(invoiceDetail(invoiceCorrectionDetail));
 }
+
+WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) OR CHANGED(dateTime(invoiceCorrectionDetail)) DO {
+    shipmentSumBatchB(invoiceCorrectionDetail) <- NUMERIC[18,4](accountSumB(batch(invoiceCorrectionDetail), customerStock(invoiceCorrectionDetail), dateTime(invoiceCorrectionDetail)));
+}
+
 changeShipmentPrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
     INPUT n = NUMERIC[16,4] DO
         changeShipmentPriceValue(invoiceDetail, invoiceCorrection, n);
@@ -79,8 +95,8 @@ EXTEND FORM invoiceCorrection
     PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
     //PROPERTIES(id) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantity(id)
    //PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
-    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB 
-    PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
+    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB, shipmentSumBatchB 
+    PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA, shipmentSumBatchA
     
     
     PROPERTIES READONLY AFTER invoiceSumB BACKGROUND backgroundShipped(id)
@@ -91,8 +107,8 @@ EXTEND FORM invoiceCorrection
 ;
 EXTEND FORM invoiceCorrections 
     //PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
-    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB 
-    PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
+    PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB, shipmentSumBatchB 
+    PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA, shipmentSumBatchA
 ;
 
 //WHEN LOCAL CHANGED(invoicePriceA(InvoiceCorrectionDetail invoiceCorrectionDetail)) AND NOT CHANGED(shipmentPriceB(invoiceCorrectionDetail)) DO {
@@ -132,8 +148,6 @@ close[StockDocumentLedger](InvoiceCorrection l) + {  close(l); }
 skip(InvoiceCorrection l) += l IS InvoiceCorrection AND NOT createShipment(l);
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
-batch(InvoiceCorrectionDetail ledger) = OVERRIDE ledgerBatch(invoiceShipmentDetail(invoiceDetail(ledger))), batch(invoiceDetail(ledger));
-
 @implementSkuLedgerInLIFO(InvoiceCorrectionDetail, sku, customerStock);
 
 quantity[InLIFOSkuLedger](InvoiceCorrectionDetail ledger) += quantity(ledger);
