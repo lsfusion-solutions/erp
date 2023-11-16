@@ -624,24 +624,24 @@ public class DefaultTerminalHandler {
     private void createOrderTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE zayavki " +
-                "(dv     TEXT," +
-                " dateshipment   TEXT," +
-                " num   TEXT," +
-                " post  TEXT," +
-                " barcode   TEXT," +
-                " quant   REAL," +
-                " price    REAL," +
-                " minquant    REAL," +
-                " maxquant    REAL," +
-                " minprice    REAL," +
-                " maxprice    REAL," +
+                "(dv TEXT," +
+                " dateshipment TEXT," +
+                " num TEXT," +
+                " post TEXT," +
+                " barcode TEXT," +
+                " quant REAL," +
+                " price REAL," +
+                " minquant REAL DEFAULT NULL," +
+                " maxquant REAL DEFAULT NULL," +
+                " minprice REAL," +
+                " maxprice REAL," +
                 " color TEXT," +
-                " field1   TEXT," +
-                " field2   TEXT," +
-                " field3   TEXT," +
-                " pos_field1   TEXT," +
-                " pos_field2   TEXT," +
-                " pos_field3   TEXT," +
+                " field1 TEXT," +
+                " field2 TEXT," +
+                " field3 TEXT," +
+                " pos_field1 TEXT," +
+                " pos_field2 TEXT," +
+                " pos_field3 TEXT," +
                 " mindate1 TEXT," +
                 " maxdate1 TEXT," +
                 " vop TEXT," +
