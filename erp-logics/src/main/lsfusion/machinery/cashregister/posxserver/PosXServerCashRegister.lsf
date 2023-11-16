@@ -101,13 +101,13 @@ sendToPosXServer (MachineryPriceTransaction t){
                 barcodesString(t)
             );
             IF returnExchange(groupMachinery(t)) THEN {
-                //addMachineryError(t, getWord(System.messageCaughtException(), ':', 1), getWord(System.messageCaughtException(), 'in SQL', 1));
                 addMachineryError(t, System.messageCaughtException());
             } ELSE {
                 succeeded(t) <- TRUE;
                 dateTimeSucceeded(t) <- currentDateTime();
                 isExportedPosXServer(Sku s) <- TRUE WHERE (GROUP SUM 1 IF in(t, Barcode b) AND sku(b) = s);
                 overSendToPosXServer(t);
+                exchangePosX(groupMachinery(t),'UPDATE dbo.tp_v_flag SET flag = 1');
             }
             APPLY;
         }
@@ -119,11 +119,6 @@ zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) 
 receiveFromPosXServer(GroupCashRegister g, DATE date) {
     IF isPosX(g) THEN {
         FOR groupCashRegister(CashRegister cr) == g AND active(cr) AND npp(cr) DO {
-            //ЕСЛИ НЕ ИСПОЛЬЗУЕМ ПРОЦЕДУРУ, ТО НУЖНО ДОБАВИТЬ ДАТУ В ФИЛЬТР
-            //returnExchange(g) <- NULL;
-            //exchangePosX(g,'SELECT dbo.qp_getsalesday(' + npp(cr) + ',' + dateString(date) + ',' + '0,55)');
-            
-            //IF NOT returnExchange(g) THEN 
             NEWSESSION NESTED LOCAL {
                 returnExchange(g) <- NULL;
                 exchangePosX(g,'SELECT tdate, smena FROM dbo.tp_z_report WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
