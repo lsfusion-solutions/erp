@@ -28,7 +28,7 @@ batch(InvoiceCorrectionDetail ledger) = OVERRIDE ledgerBatch(invoiceShipmentDeta
 // Считаем, что поставленное количество корректируется вместе с учетным
 //calcShipmentSumA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round(shipmentQuantity(d) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 calcShipmentSumA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round(quantityA(d) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
-calcShipmentSumBatchA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round((balanceB(batch(d), customerStock(d), dateTime(d)) (+) quantity(d)) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
+calcShipmentSumBatchA(InvoiceCorrectionDetail d) += NUMERIC[18,4](Utils.round((prevBalanceB(batch(d), customerStock(d), dateTime(d)) (+) quantity(d)) * shipmentPriceA(d), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 
 WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipmentPriceA(detail)) OR CHANGED(currency (detail)) OR CHANGED(invoiceDetail(detail))) DO {
     shipmentSumA (detail) <- calcShipmentSumA(detail);
@@ -79,8 +79,8 @@ WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail
     shipmentSumB(invoiceCorrectionDetail) <- shipmentSum(invoiceDetail(invoiceCorrectionDetail));
 }
 
-WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) OR CHANGED(dateTime(invoiceCorrectionDetail)) DO {
-    shipmentSumBatchB(invoiceCorrectionDetail) <- NUMERIC[18,4](prevAccountSumB(batch(invoiceCorrectionDetail), customerStock(invoiceCorrectionDetail), dateTime(invoiceCorrectionDetail)));
+WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail d)) OR CHANGED(dateTime(d)) DO {
+    shipmentSumBatchB(d) <- NUMERIC[18,4](Utils.round(prevAccountSumB(batch(d), customerStock(d), dateTime(d)), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
 }
 
 changeShipmentPrice(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceCorrection)  { 
