@@ -210,7 +210,10 @@ DESIGN options {
 disableUpdateShipmentPrice(UserInvoiceDetail d) += createRepricing(operation(d));
 disableUpdateRetailPrice(UserInvoiceDetail d) += createRepricing(operation(d));
 
-WHEN LOCAL FORMS userInvoice (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(invoicePrice(d)))  AND createRepricing(operation(d)) DO {    
+disableUpdateShipmentRetail = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+WHEN LOCAL FORMS userInvoice (CHANGED(sku(UserInvoiceDetail d)) OR CHANGED(operation(d)) OR CHANGED(invoicePrice(d))) 
+    AND createRepricing(operation(d)) AND NOT disableUpdateShipmentRetail(d) DO {    
     IF NOT CHANGED(shipmentPrice(d)) THEN {
         shipmentPrice(d) <- invoicePrice(d);    
     }
