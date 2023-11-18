@@ -667,8 +667,8 @@ public class DefaultTerminalHandler {
                         statement.setObject(5,formatValue(order.barcode));
                         statement.setObject(6,formatValue(order.quantity));
                         statement.setObject(7,formatValue(order.price));
-                        statement.setObject(8,formatValue(order.minQuantity));
-                        statement.setObject(9,formatValue(order.maxQuantity));
+                        statement.setObject(8, order.minQuantity);
+                        statement.setObject(9, order.maxQuantity);
                         statement.setObject(10,formatValue(order.minPrice));
                         statement.setObject(11,formatValue(order.maxPrice));
                         statement.setObject(12,formatValue(order.color));
