@@ -11,3 +11,6 @@ accountLedgerPrice (InvoiceCorrectionDetail d) += shipmentPriceA(d);
 in (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN accountLedgerPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
 price (InvoiceCorrectionDetail ledger, SystemLedgerPriceListType type) += WHEN accountLedgerPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN accountLedgerPrice(ledger);
 
+WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail d)) OR CHANGED(dateTime(d)) DO {
+    shipmentSumBatchB(d) <- NUMERIC[18,4](Utils.round(prevAccountSumB(batch(d), customerStock(d), dateTime(d)), (OVERRIDE homePriceRound(invoiceDetail(d)), 2)));
+}
