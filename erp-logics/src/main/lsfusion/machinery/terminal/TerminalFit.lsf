@@ -31,10 +31,12 @@ addTerminalDocumentFit(GroupTerminal g) {
 
 fitErrorMessage (GroupTerminal g, STRING message) = OVERRIDE System.messageCaughtException(), CONCAT ' ', 'fit tsd', '(' + name(g) + ')', ': ' + message;
 
+skipImportTerminalDocumentFit = ABSTRACT BOOLEAN (STRING[255]);
+
 importTerminalDocumentFit 'Импортировать из ФИТ' (GroupTerminal g) {
     TRY {
         listFiles(directory(g));
-        FOR STRING[255] fileName = fileName(INTEGER j) AND isISubstring(fileName, 'csv') AND NOT fileIsDirectory(j) DO {
+        FOR STRING[255] fileName = fileName(INTEGER j) AND isISubstring(fileName, 'csv') AND NOT fileIsDirectory(j) AND NOT skipImportTerminalDocumentFit(fileName) DO {
             READ directory(g) + '/' + fileName TO file;
             addTerminalDocumentFit(g, file());
             APPLY NESTED LOCAL;
