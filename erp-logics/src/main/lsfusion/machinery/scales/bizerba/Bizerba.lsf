@@ -11,11 +11,13 @@ loadImages() + {
         IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
             FOR [ GROUP SUM 1 IF select(sku(Barcode barcode), Stock stock) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) BY stock](Stock stock) DO {
                 FOR stock(Scales scales) == stock AND active(groupScales(scales)) AND active(scales) AND sidModel(groupScales(scales)) == 'BizerbaPC' DO {
+                    logToFile('scales',CONCAT ' ', (OVERRIDE login(currentUser()), 'system'), sidModel(groupScales(scales)), npp(groupScales(scales)), 'images', port(scales));
                     FOR select(sku(Barcode barcode), stock) AND pluNumber(groupScales(scales), barcode) AND length(id(barcode)) < 6 AND hasImage(sku(barcode)) DO {
                         TRY {
                             WRITE image(sku(barcode)) TO 'ftp://bizuser:bizerba@' + port(scales) + '//bizstorecard/bizerba/data/add_mediafiles/plu/image/' + idSku(barcode) + '_1';
                         } CATCH {
                             MESSAGE 'Ошибка загрузки изображений в весы' NOWAIT;
+                            logToFile('scales',CONCAT ' ', (OVERRIDE login(currentUser()), 'system'), sidModel(groupScales(scales)), npp(groupScales(scales)), 'images', port(scales), messageCaughtException());
                             BREAK;
                         }
                     }
