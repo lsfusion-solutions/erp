@@ -6,10 +6,12 @@ NAMESPACE Purchase;
 
 dataVAT 'НДС партии, шкала' = DATA Range (Batch);
 numberDataVAT 'НДС партии, шкала' = number(dataVAT(Batch batch));   
-overVAT(Batch bt) += OVERRIDE dataVAT(bt), (VAT(sku(invoiceDetail(shipmentDetail(bt))), country(customerStock(invoiceDetail(shipmentDetail(bt)))))) IF notUseDetailVAT(operation(invoiceDetail(shipmentDetail(bt))));    
+overVAT2 = ABSTRACT Range (Batch); 
+overVAT(Batch bt) += OVERRIDE dataVAT(bt), overVAT2(bt), (VAT(sku(invoiceDetail(shipmentDetail(bt))), country(customerStock(invoiceDetail(shipmentDetail(bt)))))) IF notUseDetailVAT(operation(invoiceDetail(shipmentDetail(bt))));    
 
 dataValueVAT 'НДС, %' (batch) = DATA NUMERIC[10,5](Batch);
-overValueVAT(Batch bt) += OVERRIDE dataValueVAT(bt), (valueVAT(sku(invoiceDetail(shipmentDetail(bt))), country(customerStock(invoiceDetail(shipmentDetail(bt)))))) IF notUseDetailVAT(operation(invoiceDetail(shipmentDetail(bt))));;  
+overValueVAT2 = ABSTRACT NUMERIC[10,5](Batch);
+overValueVAT(Batch bt) += OVERRIDE dataValueVAT(bt), overValueVAT2(bt), (valueVAT(sku(invoiceDetail(shipmentDetail(bt))), country(customerStock(invoiceDetail(shipmentDetail(bt)))))) IF notUseDetailVAT(operation(invoiceDetail(shipmentDetail(bt))));;  
 
 @extendFormEditable(currentBalanceBatchStock);
 
