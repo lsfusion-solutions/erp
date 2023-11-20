@@ -1260,6 +1260,11 @@ public class DefaultTerminalHandler {
                     if (terminalObject instanceof DataObject)
                         terminalHandlerLM.findProperty("createdTerminal[TerminalDocument]").change(terminalObject, session, (DataObject) terminalDocumentObject);
                 }
+                if (userInfo.idStock != null) {
+                    ObjectValue stockObject = terminalHandlerLM.findProperty("stock[STRING[100]]").readClasses(session, new DataObject(userInfo.idStock));
+                    if (stockObject instanceof DataObject)
+                        terminalHandlerLM.findProperty("dataStock[TerminalDocument]").change(stockObject, session, (DataObject) terminalDocumentObject);
+                }
                 terminalHandlerLM.findProperty("processMessage[]").change(NullValue.instance, session);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
                 ERPLoggers.terminalLogger.info("start applying terminal document " + idTerminalDocument);
