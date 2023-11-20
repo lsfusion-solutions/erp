@@ -3,3 +3,27 @@ MODULE PurchaseShipmentCorrectionAccountPrice;
 REQUIRE PurchaseShipmentCorrectionAccountLedger, SkuLedgerCost;
 
 NAMESPACE Purchase;
+
+accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
+accountLedgerPrice (InvoiceCorrectionDetail d) += accountPrice(d);
+
+calcAccountPrice (InvoiceCorrectionDetail d) =
+    NUMERIC[16,4](((balanceB(sku(d), customerStock(d), dateTime(d)) (-) balanceB(batch(d), customerStock(d), dateTime(d))) * // остаток До - это что лежало из других партий 
+        accountPriceB(sku(d), customerStock(d), dateTime(d)) +  
+        (balanceB(batch(d), customerStock(d), dateTime(d)) (+) quantity(d)) * shipmentPriceA(d))/   // учётная цена новая только у этой партии   
+        (quantity(d) (+) balanceB(sku(d), customerStock(d), dateTime(d))));     // в отличие от аналогичных пересчётов (+), т.к. кол-во может не измениться
+
+// пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
+WHEN (SETCHANGED(sku(InvoiceCorrectionDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR 
+    SETCHANGED(quantity(d)) OR SETCHANGED(shipmentPriceA(d))) AND NOT disableCalcAccountPrice() DO
+    accountPrice(d) <- calcAccountPrice(d);
+
+recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в корректировках (закупка)');
+    APPLY NESTED LOCAL {
+        accountPrice(InvoiceCorrectionDetail d) <- calcAccountPrice(d)
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в корректировках (закупка)');
+}
+
