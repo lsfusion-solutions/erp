@@ -53,20 +53,6 @@ nameTaraModeN 'Тарирование на кассе' (Item i) = name(taraModeN
 EXTEND FORM item PROPERTIES(i) nameTaraModeN SHOWIF showItemSSC(i);
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei nameTaraModeN SHOWIF showAnyItemSSC(g);
 
-//
-dataTaraMode 'Тарирование на кассе' = DATA BOOLEAN (Item);
-dataTaraMode 'Тарирование на кассе' = DATA BOOLEAN (ItemGroup);
-migrateTaramode = DATA BOOLEAN ();
-onStarted() + {
-    IF NOT migrateTaramode() THEN NEWSESSION {
-        dataTaraModeN(Item i) <- TaraMode.mode7 WHERE dataTaraMode(i);
-        dataTaraModeN(ItemGroup i) <- TaraMode.mode7 WHERE dataTaraMode(i);
-        
-        migrateTaramode()<- TRUE;
-        APPLY;
-    }
-}
-
 @difineSSCAttribute(BOOLEAN, isTara, 'Упаковка для тарирования на кассе');
 overSplit = ABSTRACT VALUE BOOLEAN (Item);
 
@@ -203,7 +189,7 @@ createFilePickList (GroupCashRegister gm) {
                             (CONCAT ',', 
                                 '"catalogid": "' + idCatalogTara() + '"',
                                 '"catalogname": "Упаковка"',
-                                '"type": 1'
+                                '"type": 0'
                             )
                         + '\}\}') 
                     +'\n---\n';
