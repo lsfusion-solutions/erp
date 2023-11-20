@@ -1,0 +1,77 @@
+MODULE PurchaseShipmentSaleShipment;
+
+REQUIRE PurchaseShipment, SalePurchaseShipment;
+
+NAMESPACE Purchase;
+
+userShipment 'Поставка (продажа)' = DATA Sale.UserShipment (UserShipment);
+descriptionUserShipment 'Поставка (продажа)' (UserShipment shipment) = description(userShipment(shipment)) CHARWIDTH 30 IN shipment;
+
+userShipment = GROUP LAST UserShipment ps ORDER date(ps), ps BY userShipment(ps);
+
+CONSTRAINT userShipment(UserShipment shipment) AND 
+    NOT supplier(shipment)= supplier(userShipment(shipment))
+    CHECKED BY userShipment[UserShipment]
+    MESSAGE 'Поставщик поставки (закупка) не совпадает с поставщиком закупки (продажа)';
+
+CONSTRAINT userShipment(UserShipment shipment) AND
+    NOT customer(shipment)= customer(userShipment(shipment))
+    CHECKED BY userShipment[UserShipment]
+    MESSAGE 'Покупатель поставки (закупка) не совпадает с поставщиком закупки (продажа)';
+
+CONSTRAINT userShipment(UserShipment shipment) AND
+    NOT supplierStock(shipment)= supplierStock(userShipment(shipment))
+    CHECKED BY userShipment[UserShipment]
+    MESSAGE 'Склад поставщика поставки (закупка) не совпадает с поставщиком закупки (продажа)';
+
+CONSTRAINT userShipment(UserShipment shipment) AND
+    NOT customerStock(shipment)= customerStock(userShipment(shipment))
+    CHECKED BY userShipment[UserShipment]
+    MESSAGE 'Склад покупателя поставки (закупка) не совпадает с поставщиком закупки (продажа)';
+
+EXTEND FORM userShipment
+    PROPERTIES (s) descriptionUserShipment
+;
+
+DESIGN userShipment {
+    REMOVE PROPERTY(saleShipments(s));
+}
+
+overCreate (Sale.Shipment sale, UserShipment purchase) + {
+    userShipment(purchase) <- sale;
+}
+
+defaultShipmentDetail = GROUP MAX Sale.ShipmentDetail saleDetail IF shipment(saleDetail)=userShipment(shipment(UserShipmentDetail purchaseDetail))
+    BY batch(saleDetail), purchaseDetail;
+
+defaultShipmentDetail = GROUP MAX Sale.ShipmentDetail saleDetail IF shipment(saleDetail)=userShipment(shipment(UserShipmentDetail purchaseDetail))
+    BY sku(saleDetail), purchaseDetail;
+
+defaultShipmentDetail(UserShipmentDetail detail) = OVERRIDE defaultShipmentDetail(batch(detail), detail), defaultShipmentDetail(sku(detail), detail);
+
+fillPrice (Sale.ShipmentDetail saleDetail, UserShipmentDetail purchaseDetail) {
+    price(purchaseDetail) <- price(saleDetail);
+    manufactureDate(purchaseDetail) <- manufactureDate(saleDetail);
+    expiryDate(purchaseDetail) <- expiryDate(saleDetail);
+}
+
+WHEN LOCAL SETCHANGED (shipmentDetail(UserShipmentDetail detail)) NOINLINE DO {
+    fillPrice(shipmentDetail(detail), detail);
+}
+
+connectShipment 'Привязать строку поставки (закупка) к поставке (продажа)' (UserShipmentDetail detail)  {
+    shipmentDetail(detail) <- defaultShipmentDetail(detail)
+        WHERE defaultShipmentDetail(detail);
+} ASON CONTEXTMENU descriptionIndexShipmentDetail[UserShipmentDetail];
+
+connectShipmentAll 'Привязать все строки поставки (закупка) к поставке (продажа)' (UserShipmentDetail d)  {
+    FOR userShipment(UserShipmentDetail detail) == userShipment(d) DO {
+        EXEC connectShipment(detail);
+    }
+} ASON CONTEXTMENU descriptionIndexShipmentDetail[UserShipmentDetail];
+
+connectShipment 'Привязать все строки поставки (закупка) к поставке (продажа)' (UserShipment i)  {
+    FOR userShipment(UserShipmentDetail detail) == i DO {
+        EXEC connectShipment(detail);
+    }
+};  
