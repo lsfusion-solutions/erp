@@ -74,4 +74,58 @@ connectShipment 'Привязать все строки поставки (зак
     FOR userShipment(UserShipmentDetail detail) == i DO {
         EXEC connectShipment(detail);
     }
-};  
+};
+
+EXTEND FORM userShipment
+    PROPERTIES READONLY SHOWIF userShipment(userShipment(d)) AFTER quantity(d) 
+                               quantitySale 'Кол-во (отгрузка)' = quantity(shipmentDetail(d)) BACKGROUND RGB(255,253,208), 
+                               toShipSale 'Расхождение' = toShip(shipmentDetail(d)) BACKGROUND RGB(255, 224, 255) IF toShip(shipmentDetail(d))
+    FILTERGROUP toShip
+        FILTER 'С расхождениями' shipmentDetail(d) AND toShip(shipmentDetail(d))
+        
+;
+
+DESIGN userShipment {
+    PROPERTY (quantitySale) {
+        charWidth = 7;
+    }
+    PROPERTY (toShipSale) {
+        charWidth = 7;
+    }
+}
+
+EXTEND FORM shipments
+    PROPERTIES READONLY SHOWIF userShipment(userShipment(d)) AFTER quantity(d)
+    quantitySale 'Кол-во (отгрузка)' = quantity(shipmentDetail(d)) BACKGROUND RGB(255,253,208),
+        toShipSale 'Расхождение' = toShip(shipmentDetail(d)) BACKGROUND RGB(255, 224, 255) IF toShip(shipmentDetail(d))
+
+    FILTERGROUP toShip
+        FILTER 'С расхождениями' shipmentDetail(d) AND toShip(shipmentDetail(d))    
+;
+
+DESIGN shipments {
+    PROPERTY (quantitySale) {
+        charWidth = 7;
+    }
+    PROPERTY (toShipSale) {
+        charWidth = 7;
+    }
+}
+
+EXTEND FORM Sale.userShipment
+    PROPERTIES READONLY SHOWIF userShipment(userShipment(d)) AFTER quantity(d)
+                               shipped(d) BACKGROUND RGB(255,253,208),
+                               toShip(d) BACKGROUND RGB(255, 224, 255) IF toShip(d)
+    FILTERGROUP toShip
+        FILTER 'С расхождениями' toShip(d)
+
+;
+
+EXTEND FORM Sale.shipments
+    PROPERTIES READONLY SHOWIF userShipment(userShipment(d)) AFTER quantity(d)
+                               shipped(d) BACKGROUND RGB(255,253,208),
+                               toShip(d) BACKGROUND RGB(255, 224, 255) IF toShip(d)
+    FILTERGROUP toShip
+        FILTER 'С расхождениями' toShip(d)
+
+;

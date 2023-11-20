@@ -79,9 +79,9 @@ saleShipments 'Поставки (продажа)' (Purchase.Shipment purchase) =
 relationPurchase 'Связь' (Purchase.Shipment purchase) = GROUP SUM quantityShipmentDetail (Shipment sale, purchase) MATERIALIZED INDEXED; // для NONULL фильтров
 
 shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(Purchase.ShipmentDetail detail) IF isPosted(detail)
-                                                                   BY shipmentDetail(detail) MATERIALIZED;
+                                                                   BY shipmentDetail(detail) MATERIALIZED CHARWIDTH 7;
 
-toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
+toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail) CHARWIDTH 7;
 toShip 'Не поставлено'  = GROUP SUM toShip(ShipmentDetail detail) BY shipment(detail);
 
 CLASS PurchaseShipment 'Поставка на основе поставки': Purchase.Shipment;
