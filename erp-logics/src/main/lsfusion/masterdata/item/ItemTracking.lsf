@@ -8,14 +8,14 @@ isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Cus
 levelTrackingParent (CustomsGroup customsGroup) = GROUP MIN level(customsGroup, CustomsGroup parent) IF isTrackingData(parent) MATERIALIZED;
 isTrackingParent (CustomsGroup customsGroup) = TRUE IF levelTrackingParent(customsGroup);
 isTracking 'Подлежит прослеживанию' (CustomsGroup customsGroup) = OVERRIDE isTrackingData(customsGroup), isTrackingParent(customsGroup);
-isTracking 'Подлежит прослеживанию' (Sku sku) = isTracking(customsGroup(defaultCountry(), sku));
+isTrackingCustoms 'Подлежит прослеживанию' (Sku sku) = isTracking(customsGroup(defaultCountry(), sku));
 
 dataTrackingUOM 'Ед.изм по ОКРБ 008-95' = DATA STRING[3] (CustomsGroup);
 levelParentTrackingUOM(CustomsGroup child)  = GROUP MIN level(child, CustomsGroup parent) IF dataTrackingUOM(parent) MATERIALIZED;
 nearestParentTrackingUOM (CustomsGroup cg) = customsGroup(cg, levelParentTrackingUOM(cg));
 nearestTrackingUOM (CustomsGroup cg) = dataTrackingUOM(nearestParentTrackingUOM (cg));
 trackingUOM 'Ед.изм по ОКРБ 008-95' (CustomsGroup cg) = OVERRIDE dataTrackingUOM(cg), nearestTrackingUOM (cg) MATERIALIZED;
-trackingUOM 'Ед.изм по ОКРБ 008-95' (Sku sku) = trackingUOM(customsGroup(defaultCountry(), sku));
+trackingUOMCustoms 'Ед.изм по ОКРБ 008-95' (Sku sku) = trackingUOM(customsGroup(defaultCountry(), sku));
 
 EXTEND FORM customsGroup
     PROPERTIES (cg) isTracking, trackingUOM
