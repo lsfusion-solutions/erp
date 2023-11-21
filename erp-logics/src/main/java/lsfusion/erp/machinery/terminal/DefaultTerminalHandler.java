@@ -59,6 +59,7 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule ediGtinLM;
     static ScriptingLogicsModule terminalOrderGtinLM;
     static ScriptingLogicsModule terminalTeamWorkLM;
+    static ScriptingLogicsModule itemInternetLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -87,6 +88,8 @@ public class DefaultTerminalHandler {
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
 
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
+
+        itemInternetLM = getLogicsInstance().getBusinessLogics().getModule("ItemInternet");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -137,9 +140,13 @@ public class DefaultTerminalHandler {
                 String color = formatColor((Color) terminalHandlerLM.findProperty("color[Sku, Stock]").read(session, skuObject, stockObject));
                 String ticket_data = (String) terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").read(session, barcodeObject, stockObject);
                 Long flags = (Long) terminalHandlerLM.findProperty("flags[Barcode, Stock]").read(session, barcodeObject, stockObject);
+
+                String unit = (String) terminalHandlerLM.findProperty("shortNameUOM[Barcode]").read(session, barcodeObject);
+                String category = (String) terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").read(session, barcodeObject);
+
                 return Arrays.asList(barcode, overNameSku, priceValue == null ? "0" : priceValue,
                         quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, "", isWeight,
-                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString());
+                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), category, unit);
             } else return null;
 
         } catch (Exception e) {
@@ -502,6 +509,10 @@ public class DefaultTerminalHandler {
                 if (ediGtinLM != null)
                     barcodeQuery.addProperty("GTIN", ediGtinLM.findProperty("GTIN[Barcode]").getExpr(barcodeExpr));
 
+                if (itemInternetLM != null) {
+                    barcodeQuery.addProperty("fileNameImage", itemInternetLM.findProperty("fileNameImage[Barcode]").getExpr(barcodeExpr));
+                }
+
                 barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
                 barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
@@ -529,6 +540,10 @@ public class DefaultTerminalHandler {
                     String unit = trim((String) entry.get("unit"));
                     Long flags = (Long) entry.get("flags") ;
                     RawFileData image = (RawFileData) entry.get("image");
+                    String fileNameImage = null;
+                    if (itemInternetLM != null)
+                        fileNameImage = (String) entry.get("fileNameImage");
+
                     BigDecimal amount = (BigDecimal) entry.get("amount");
                     BigDecimal capacity = (BigDecimal) entry.get("capacity");
                     String category = trim((String) entry.get("nameSkuGroup"));
@@ -539,7 +554,7 @@ public class DefaultTerminalHandler {
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
-                            nameCountry, amount, capacity, category, GTIN));
+                            nameCountry, amount, capacity, category, GTIN, fileNameImage));
                 }
             }
         }
@@ -736,6 +751,8 @@ public class DefaultTerminalHandler {
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
                         String image = imagesInReadBase && barcode.image != null ? (barcode.idSkuBarcode + ".jpg") : null;
+                        if (barcode.fileNameImage != null)
+                            image = barcode.fileNameImage;
                         if (!usedBarcodes.contains(barcode.idBarcode)) {
                             addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
@@ -1771,12 +1788,13 @@ public class DefaultTerminalHandler {
         BigDecimal capacity;
         String category;
         String GTIN;
+        String fileNameImage;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
                                Long flags, RawFileData image, String nameCountry, BigDecimal amount,
-                               BigDecimal capacity, String category, String GTIN) {
+                               BigDecimal capacity, String category, String GTIN, String fileNameImage) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -1798,6 +1816,7 @@ public class DefaultTerminalHandler {
             this.capacity = capacity;
             this.category = category;
             this.GTIN = GTIN;
+            this.fileNameImage = fileNameImage;
         }
     }
 
