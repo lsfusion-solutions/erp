@@ -994,3 +994,29 @@ WHEN (CHANGED(status(InternetOrder o)) AND PREV(status(o)) AND o IS Document) IF
         customerStock(d) <- customerStock(o);
     }
 }
+//замены
+useReplaseInterntetOrder 'Использовать замены в интернет-заказах' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES useReplaseInterntetOrder()
+;
+DESIGN options{
+    internetOrder{
+        MOVE PROPERTY (useReplaseInterntetOrder());
+    }
+}
+
+changeDetail = DATA InternetOrderDetail (InternetOrderDetail);
+nameSkuChangeDetail 'Замена' (InternetOrderDetail d) = nameSku(changeDetail(d));
+idSkuChangeDetail 'Код замены' (InternetOrderDetail d) = idSku(changeDetail(d));
+changedDetail = GROUP AGGR InternetOrderDetail d BY changeDetail(d);
+idSkuChangedDetail 'Заменяемый товар' (InternetOrderDetail d) = idSku(changedDetail(d));
+countChangeDetail 'Замены' (InternetOrder o) = GROUP SUM 1 IF changeDetail(InternetOrderDetail dd) AND internetOrder(dd) = o;
+
+EXTEND FORM internetOrder
+    PROPERTIES (d) nameSkuChangeDetail SHOWIF useReplaseInterntetOrder()
+;
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) countChangeDetail SHOWIF useReplaseInterntetOrder()
+    PROPERTIES (d) READONLY nameSkuChangeDetail SHOWIF useReplaseInterntetOrder()
+;

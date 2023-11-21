@@ -1,0 +1,40 @@
+MODULE SaleInternetOrderLot;
+
+REQUIRE SaleInternetOrder, LotType;
+
+NAMESPACE Sale;
+
+CLASS InternetOrderDetailLot 'Марки строки интернет заказа';
+
+internetOrderDetail = DATA InternetOrderDetail (InternetOrderDetailLot) NONULL DELETE INDEXED;
+internetOrder (InternetOrderDetailLot d) = internetOrder(internetOrderDetail(d));
+
+id 'Код' = DATA STRING[200] (InternetOrderDetailLot);
+quantity 'Кол-во' = DATA NUMERIC[14,3] (InternetOrderDetailLot);
+quantityLot 'Марок' (InternetOrderDetail td) = GROUP SUM quantity(InternetOrderDetailLot ld) BY internetOrderDetail(ld);
+
+quantityLot 'Марок' (InternetOrder o) = GROUP SUM quantityLot(InternetOrderDetail d) BY internetOrder(d);
+
+
+EXTEND FORM internetOrder
+    OBJECTS dLot = InternetOrderDetail
+    PROPERTIES (dLot) READONLY id, nameSku, quantityLot
+    FILTERS internetOrder(dLot) = o, quantityLot(dLot)
+    
+    OBJECTS lot = InternetOrderDetailLot
+    PROPERTIES (lot) READONLY id, quantity
+    FILTERS internetOrderDetail(lot) = dLot
+;
+
+DESIGN internetOrder{
+    tabbedBox{
+        NEW lots {
+            showIf = quantityLot(o);
+            caption = 'Марки';
+            horizontal = TRUE;
+            MOVE BOX(dLot);
+            MOVE BOX (lot);
+        }
+    }
+}
+

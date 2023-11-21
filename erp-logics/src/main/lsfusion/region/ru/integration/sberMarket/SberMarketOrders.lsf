@@ -221,7 +221,7 @@ FORM sendNotification
     PROPERTIES IN order = OVERRIDE id(o), '' EXTID 'originalOrderId'
 
     OBJECTS positions = InternetOrderDetail IN order
-    PROPERTIES(positions) quantity EXTID 'originalQuantity', pickingQuantity EXTID 'quantity', idSku EXTID 'id'
+    PROPERTIES(positions) quantity EXTID 'originalQuantity', pickingQuantity EXTID 'quantity', idSku EXTID 'id', idSkuChangeDetail EXTID 'replacedByID'
     PROPERTIES = IF shortNameUOMSku(positions) = 'кг' THEN STRING(round0(pickingQuantity(positions) * 1000)) ELSE '' EXTID 'weight'
     FILTERS internetOrder(positions) = o 
         AND status(internetOrder(positions)) != StatusInternetOrder.isPicking
@@ -243,9 +243,11 @@ sendNotification 'Отправить уведомление' (InternetOrder o){
         headers('Content-Type') <- 'application/json';
         EXPORT sendNotification OBJECTS o = o JSON;
         fileToString(exportFile());
+        resultString() <- replace(resultString(), 'value42', 'value');
         logToFile('sber', CONCAT ' : ', '-->', number(o), eventType(o), 'INFO', resultString());
+        stringToFile(resultString());
         TRY{
-            EXTERNAL HTTP POST urlNotificationSber() HEADERS headers PARAMS exportFile() TO f;
+            EXTERNAL HTTP POST urlNotificationSber() HEADERS headers PARAMS resultFile() TO f;
             NEWSESSION APPLY {
                 send(eventType(o), o) <- NULL;
             }
@@ -270,7 +272,7 @@ DESIGN internetOrders{
     }
 }
 
-useConstraintChangeStatusSber 'Ограничить смену статусов без отпавки вебхука' = DATA BOOLEAN () PREREAD;
+useConstraintChangeStatusSber 'Ограничить смену статусов без отправки вебхука' = DATA BOOLEAN () PREREAD;
 
 CONSTRAINT CHANGED (status(InternetOrder o)) AND useConstraintChangeStatusSber() AND isSberMarket(o) AND (GROUP SUM 1 IF send(STRING s, o)) 
     CHECKED BY nameStatus[InternetOrder]
@@ -281,7 +283,7 @@ WHEN SETCHANGED (eventType(InternetOrder o)) AND isSberMarket(o) AND clientToken
     AND autoSendNotificationSber() DO sendNotification(o);
 
 EXTEND FORM integrationData
-    PROPERTIES () clientTokenOrderSber, urlNotificationSber,
+    PROPERTIES () clientTokenOrderSber, urlNotificationSber, useSberNumber,
         useConstraintChangeStatusSber, autoSendNotificationSber
 ;
 
@@ -293,6 +295,7 @@ DESIGN integrationData{
             MOVE PROPERTY (urlNotificationSber());
             MOVE PROPERTY (useConstraintChangeStatusSber());
             MOVE PROPERTY (autoSendNotificationSber());
+            MOVE PROPERTY (useSberNumber());
         }
     }
 }

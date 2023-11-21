@@ -45,6 +45,7 @@ createPickingCustom 'Создать комплектацию ИМ' (InternetOrde
         IF count() THEN MESSAGE 'Комплектация создана: ' + number(o);
     }
 }
+overProcessPickingInternetOrder ABSTRACT LIST (TerminalDocument, InternetOrderDetail);
 
 process(TerminalDocument document) + {
     IF idTerminalDocumentType(document)=='15' THEN {
@@ -57,9 +58,24 @@ process(TerminalDocument document) + {
             LOCAL q = NUMERIC[16,5] (Sku);
             q(Sku sku) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = document BY sku(tdd)](sku);
 
+            FOR raplace(TerminalDocumentDetail detail) IF terminalDocument(detail) = document AND Sku sk = skuBarcode(raplace(detail))
+                NEW id = InternetOrderDetail DO{
+
+                internetOrder(id) <- GROUP MAX InternetOrder o IF number(o) = getWord(parentDocument(document), ',', 1);
+                changeDetail(InternetOrderDetail idd) <- id WHERE sku(idd) = skuBarcode(barcode(detail)) AND internetOrder(idd) = internetOrder(id);
+                sku(id) <- sk;
+                quantity(id) <- 0;
+                price(id) <- price(detail);
+                picking(id) <- GROUP MAX Picking p IF number(p) = getWord(parentDocument(document), ',', 1);
+
+            }
+            
+            
             FOR in(picking(InternetOrderDetail d)) ORDER number(picking(d)), index(d), d DO {
                 pickingQuantity(d) <- OVERRIDE (PARTITION UNGROUP q[Sku] LIMIT STRICT quantity(d) IF in(picking(d)) ORDER number(picking(d)), index(d), d BY sku(d)), 0.0;
+                overProcessPickingInternetOrder(document, d);
             }
+            
             executor(Picking p) <- createdUser(document) WHERE in(p);
             status(Picking p)<- StatusPicking.picked WHERE in(p);
             status(InternetOrder o) <- StatusInternetOrder.picked WHERE (GROUP SUM 1 IF in(Picking p) AND relation(p, o));

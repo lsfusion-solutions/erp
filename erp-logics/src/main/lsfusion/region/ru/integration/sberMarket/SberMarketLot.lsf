@@ -1,0 +1,42 @@
+MODULE SberMarketLot;
+
+REQUIRE SberMarketOrders, LotTypeRu, SaleInternetOrderLot;
+
+NAMESPACE SberMarket;
+
+CLASS MarkingTypeSber 'Тип маркировки СберМаркет'{
+    mercury 'Меркурий',
+    chestny_znak 'Честный Знак'
+}
+
+name (MarkingTypeSber m) = staticCaption(m);
+
+markingTypeSber = DATA MarkingTypeSber (LotType);
+nameMarkingTypeSber 'Тип маркировки СберМаркет' (LotType t) = name(markingTypeSber(t));
+
+EXTEND FORM dialogLotTypes
+    PROPERTIES (t) nameMarkingTypeSber
+;
+
+markingTypeSber (Sku s) = markingTypeSber(lotType(s));
+nameMarkingTypeSber 'Тип маркировки СберМаркет' (Sku s) = name(markingTypeSber(s));
+
+EXTEND FORM Item.items
+    PROPERTIES (i) nameMarkingTypeSber READONLY
+;
+
+value(Sku i, STRING s) += WHEN s = 'marking_systems' AND markingTypeSber(i) THEN IF markingTypeSber(i) = MarkingTypeSber.chestny_znak THEN 'chestny_znak' ELSE 'mercury';
+
+markingCode (InternetOrderDetail d)= JSON FROM value42 = id(InternetOrderDetailLot l) WHERE internetOrderDetail(l) = d;
+
+EXTEND FORM sendNotification
+    PROPERTIES markingCode(positions)
+;
+
+openNotify(InternetOrder o){
+    EXPORT sendNotification OBJECTS o = o;
+    open(exportFile());
+}
+EXTEND FORM internetOrder
+    PROPERTIES openNotify(o)
+;
