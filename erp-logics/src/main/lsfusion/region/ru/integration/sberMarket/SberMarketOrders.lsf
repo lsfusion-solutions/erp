@@ -7,14 +7,26 @@ NAMESPACE SberMarket;
 @defineLogRotate(sber, 5, weekly);
 
 paid 'Заказ оплачен' = DATA BOOLEAN (InternetOrder);
+replacementPolicy 'Политика замен' = DATA STRING[255](InternetOrder);
+
+replacementPolicy (STRING s) = CASE 
+    WHEN s = 'callOrReplace' THEN 'Позвонить. Если не удалось дозвониться, заменить на аналогичный товар'
+    WHEN s = 'callOrCancel' THEN 'Позвонить. Если не удалось дозвониться, убрать товар'
+    WHEN s = 'replace' THEN 'Не звонить. Заменить на аналогичный товар'
+    WHEN s = 'cancel' THEN 'Не звонить. Убрать товар'
+;
 
 EXTEND FORM internetOrders
     PROPERTIES (o) BACKGROUND background(o) READONLY paid
 ;
 EXTEND FORM internetOrder
-    PROPERTIES (o) paid
+    PROPERTIES (o) READONLY paid, replacementPolicy
 ;
+
 DESIGN internetOrder{
+    secondCol{
+        MOVE PROPERTY (replacementPolicy(o));
+    }
     payment{
         MOVE PROPERTY (paid(o));
     }
@@ -114,6 +126,7 @@ createOrder(STRING[100] id){
         nameInternetCustomer(o) <- name() WHERE name();
         addressInternetCustomer(o) <- full_address() WHERE full_address();
         phoneInternetCustomer(o) <- phone() WHERE phone();
+        replacementPolicy(o) <- replacementPolicy(replacementPolicy()) WHERE replacementPolicy();
         deliveryDate(o) <- DATE(expectedFrom()) WHERE expectedFrom();
         deliveryTimeFromInternetOrder(o) <- TIME(expectedFrom()) WHERE expectedFrom();
         deliveryTimeToInternetOrder(o) <- TIME(expectedTo()) WHERE expectedFrom();
