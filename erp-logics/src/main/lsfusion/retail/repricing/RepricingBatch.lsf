@@ -1,6 +1,6 @@
 MODULE RepricingBatch;
 
-REQUIRE RepricingMachineryDashboard;
+REQUIRE RepricingMachineryDashboard, RepricingManufacturingPrice;
 
 NAMESPACE Repricing;
 
@@ -23,6 +23,7 @@ DESIGN options {
 
 //-- поставщика
 supplierPriceBSku 'Цена по товару' (Batch batch, Stock stock, DATETIME dateTime)= prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType, sku(batch), stock, dateTime);
+manufacturingPriceBSku 'Цена по товару' (Batch batch, Stock stock, DATETIME dateTime)= prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, sku(batch), stock, dateTime);
 
 //-- розничная
 priceB 'Цена партии' (Batch batch, Stock stock, DATETIME dateTime)= prevPriceBBatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
@@ -51,6 +52,7 @@ setUserRepricingStock 'Создать акт переоценки по парт�
 	                retailPrice(d) <- priceBSku(batch, stock, dateTime);
 	                
 	                price(d) <- supplierPriceBSku(batch, stock, dateTime) WHERE isSupplierRepricing();
+                    manufacturingPrice(d) <- manufacturingPriceBSku(batch, stock, dateTime) WHERE isSupplierRepricing();
 	            }  
 	            SHOW userRepricing OBJECTS p = p DOCKED NOCANCEL;
 	        }
