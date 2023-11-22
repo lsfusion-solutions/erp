@@ -5,17 +5,43 @@ REQUIRE SkuLedgerCost, StockDocument;
 NAMESPACE Stock;
 
 
-FORM enterDays 'Укажите количество дней назад для пересчёта'
-    OBJECTS i = INTEGER PANEL
-    PROPERTIES VALUE(i)
+FORM recalulateParams 'Укажите параметры пересчёта'
+    OBJECTS d = DATE PANEL
+    PROPERTIES date 'Дата начала пересчёта' = VALUE(d)
+
+    TREE groupTree g = SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), id(g), name(g)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS isp = Sku
+    PROPERTIES(isp) READONLY idBarcode, id, name
+    PROPERTIES recalculateCost(isp)
+    ORDERS name(isp)
+    FILTERS isParent(g, isp)
+    FILTERGROUP activeItem1 FILTER 'Активный' active(isp) DEFAULT
 ;
 
-recalulateCostLedgerAllSkus 'Пересчитать с/с в открытом периоде'() {
-    DIALOG enterDays OBJECTS i = 14 INPUT DO {
-        recalulateCostLedgerAllSkus (i);
+DESIGN recalulateParams {
+    width = 1200;
+    MOVE PROPERTY (date);
+    NEW sku {
+        caption = 'Выбор товаров для пересчёта (если ничего не выбрать галочкой Вкл., то будет по всем)';
+        horizontal = TRUE;
+        fill = 1;
+        MOVE BOX(TREE groupTree) {fill = 1;}
+        MOVE BOX(isp){fill = 3;}
+    }
+    MOVE TOOLBARBOX;
+}
+
+recalulateCostLedger 'Пересчитать с/с в открытом периоде'() {
+    DIALOG recalulateParams OBJECTS d = subtract(currentDate(), 14) INPUT DO {
+        recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku));
+        recalulateCostLedgerSelectedSkus(d, subtract(currentDate(), 1));
     }
 }
 
 EXTEND FORM closingDocuments
-    PROPERTIES () recalulateCostLedgerAllSkus DRAW s TOOLBAR
+    PROPERTIES () recalulateCostLedger DRAW s TOOLBAR
 ;
