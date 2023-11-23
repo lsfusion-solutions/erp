@@ -79,6 +79,31 @@ equipmentServer 'Сервер оборудования (ID)' = DATA EquipmentSer
 
 @defineLog (EquipmentServerLog, 'сервера оборудования', log, toDate);
 
+// ------------------ Ссылка на сервер оборудования для группы оборудования --------------- //
+
+equipmentServer = DATA EquipmentServer (GroupMachinery);
+nameEquipmentServer 'Сервер оборудования' (GroupMachinery groupMachinery) = name(equipmentServer(groupMachinery));
+sidEquipmentServer 'ИД сервера оборудования' (GroupMachinery groupMachinery) = sid(equipmentServer(groupMachinery));
+hasMachinery (RequestExchange r, EquipmentServer e) =
+    GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND active(groupMachinery(m)) AND (stock(m) == stock(r) OR in(stock(m), r));
+machineries 'Оборудование' (EquipmentServer e, RequestExchange r) = GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND dataIn(m, r);
+in (EquipmentServer e, Machinery m, RequestExchange r) = equipmentServer(groupMachinery(m)) == e AND (dataIn(m, r) OR NOT machineries(e, r));
+
+//пока здесь чтобы не делать лишние зависимости
+CONSTRAINT handlerModel(GroupMachinery g) = 'lsf.machinery.scales.rbs.KS4010' AND equipmentServer(g)
+    MESSAGE 'Для данной модели запрещено использовать сервер оборудования';
+
+filter(STRING sidEquipmentServer, Machinery m) = sidEquipmentServer == sidEquipmentServer(groupMachinery(m)) AND handlerModel(m) AND overDirectory(m) AND active(groupMachinery(m));
+
+// ------------------ Подключение к загрузке прайса в оборудование ------------------- //
+
+equipmentServer (MachineryPriceTransaction transaction) = equipmentServer(groupMachinery(transaction));
+sidEquipmentServer (MachineryPriceTransaction transaction) = sid(equipmentServer (transaction));
+
+cashRegister (npp, equipmentServer) = GROUP NAGGR Machinery cashRegister BY npp (cashRegister), sid(equipmentServer(groupMachinery(cashRegister)));
+logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt));
+
+
 //---------------------------- Монитор процессов сервера оборудования ----------------------------//
 
 needLogProcesses = DATA BOOLEAN (EquipmentServer);
@@ -94,9 +119,11 @@ interrupt 'Прервать транзакцию' (EquipmentServer e, MachineryP
         apply();
     }
 }
+WHEN SET (canceled(MachineryPriceTransaction t)) DO {
+    needInterruptTransactions(equipmentServer(t)) <- CONCAT ',', needInterruptTransactions(equipmentServer(t)), t;
+}
 
-processMonitorTaskJSON(STRING sid) = '\{' +(CONCAT ', ', ('"logProcesses": true' IF needLogProcesses(sidTo(sid))), ('"interruptTransactions": "' +needInterruptTransactions(sidTo(sid))+ '"') )+ '\}';
-//JSON FROM 'interruptTransactions' = needInterruptTransactions(sidTo(sid)), 'logProcesses' = needLogProcesses(sidTo(sid));
+processMonitorTaskJSON(STRING sid) = JSON FROM 'interruptTransactions' = needInterruptTransactions(sidTo(sid)), 'logProcesses' = needLogProcesses(sidTo(sid));
 
 finishProcessMonitorTask(STRING sidEquipmentServer, STRING json) {
     stringToFile(json);
@@ -192,30 +219,6 @@ NAVIGATOR {
         NEW equipmentServers;
     }
 }
-
-// ------------------ Ссылка на сервер оборудования для группы оборудования --------------- //
-
-equipmentServer = DATA EquipmentServer (GroupMachinery);
-nameEquipmentServer 'Сервер оборудования' (GroupMachinery groupMachinery) = name(equipmentServer(groupMachinery));
-sidEquipmentServer 'ИД сервера оборудования' (GroupMachinery groupMachinery) = sid(equipmentServer(groupMachinery));
-hasMachinery (RequestExchange r, EquipmentServer e) = 
-    GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND active(groupMachinery(m)) AND (stock(m) == stock(r) OR in(stock(m), r));
-machineries 'Оборудование' (EquipmentServer e, RequestExchange r) = GROUP SUM 1 IF equipmentServer(groupMachinery(Machinery m)) == e AND dataIn(m, r);      
-in (EquipmentServer e, Machinery m, RequestExchange r) = equipmentServer(groupMachinery(m)) == e AND (dataIn(m, r) OR NOT machineries(e, r));
-    
-//пока здесь чтобы не делать лишние зависимости
-CONSTRAINT handlerModel(GroupMachinery g) = 'lsf.machinery.scales.rbs.KS4010' AND equipmentServer(g)
-    MESSAGE 'Для данной модели запрещено использовать сервер оборудования'; 
-    
-filter(STRING sidEquipmentServer, Machinery m) = sidEquipmentServer == sidEquipmentServer(groupMachinery(m)) AND handlerModel(m) AND overDirectory(m) AND active(groupMachinery(m));    
-
-// ------------------ Подключение к загрузке прайса в оборудование ------------------- //
-
-equipmentServer (MachineryPriceTransaction transaction) = equipmentServer(groupMachinery(transaction));
-sidEquipmentServer (MachineryPriceTransaction transaction) = sid(equipmentServer (transaction));
-
-cashRegister (npp, equipmentServer) = GROUP NAGGR Machinery cashRegister BY npp (cashRegister), sid(equipmentServer(groupMachinery(cashRegister))); 
-logStackTrace(MachineryPriceTransaction mpt) = logStackTrace(equipmentServer(mpt));
 
 // ------------------ Запросы обмена данными и сервер оборудования ------------------- //
 
