@@ -65,6 +65,17 @@ volumeA 'Объем в резервуаре (после), л' (Sku sku, Bin bin,
     currentVolume(sku, bin) (-) inBinVolumeA(sku, bin, dateTime) (+) outBinVolumeA(sku, bin, dateTime);
 prevVolumeA 'Объем в резервуаре (после), л' (Sku sku, Bin bin, DATETIME dateTime) = PREV(volumeA(sku, bin, dateTime) IF dateTime IS DATETIME);
 
+volumeIn 'Приход в резервуар, л' (Sku sku, Bin bin, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM volume(BinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo BY sku(ledger), inBin(ledger);
+volumeOut 'Расход из резервуара, л' (Sku sku, Bin bin, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM volume(BinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo BY sku(ledger), outBin(ledger);
+
+quantityIn 'Приход в резервуар' (Sku sku, Bin bin, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo BY sku(ledger), inBin(ledger);
+quantityOut 'Расход из резервуара' (Sku sku, Bin bin, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo BY sku(ledger), outBin(ledger);
+
+
 currentVolume 'Текущий объем в резервуаре, л' (Bin bin)= GROUP SUM currentVolume(Sku sku, bin);
 currentBalance 'Текущий остаток в резервуаре' (Bin bin)= GROUP SUM currentBalance(Sku sku, bin);
 

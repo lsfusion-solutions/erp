@@ -1,0 +1,325 @@
+MODULE StockReportsFuel;
+
+REQUIRE BinLedgerFuel;//, EmployeeStock, Document, Historizable;
+
+NAMESPACE StockReports;
+
+CLASS DailyReport 'Сменный отчет';
+TABLE dailyReport (DailyReport);
+
+@defineDocumentHeaderStock(DailyReport, stock, 'Склад');
+@defineDocumentDialogStocks(DailyReport, stock, company, , );
+@defineDocumentStockAccess(DailyReport, stock, company);
+
+CONSTRAINT stock(DailyReport r) AND NOT isCompany(stock(r))
+    CHECKED BY stock[DailyReport] MESSAGE 'Выбран склад, который не принадлежит компании';
+
+@defineDocumentHeaderTime(DailyReport);
+@deriveDocumentHeaderTime(DailyReport);
+
+fromDate '{document.date.of} c' = DATA DATE (DailyReport) IN documentHeader;
+fromTime '{document.time.of} c' = DATA TIME (DailyReport) IN documentHeader;
+fromDateTime '{document.date.time.of} c' (DailyReport o) = dateTimeToDateTime(fromDate(o), fromTime(o)) MATERIALIZED;
+
+toDate '{document.date.of} по' = DATA DATE (DailyReport) IN documentHeader;
+toTime '{document.time.of} по' = DATA TIME (DailyReport) IN documentHeader;
+toDateTime '{document.date.time.of} по' (DailyReport o) = dateTimeToDateTime(toDate(o), toTime(o)) MATERIALIZED;
+
+//WHEN LOCAL SET(DailyReport o IS DailyReport) DO {
+//    IF o IS DailyReport AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+//    IF o IS DailyReport AND NOT fromTime(o) THEN fromTime(o) <- currentTime();
+//    IF o IS DailyReport AND NOT toDate(o) THEN toDate(o) <- sum(currentDate(),1);
+//    IF o IS DailyReport AND NOT toTime(o) THEN toTime(o) <- 00:00;
+//};
+WHEN LOCAL SETCHANGED(stock(DailyReport o)) DO {
+    LOCAL lastReport = DailyReport();
+    lastReport() <- GROUP LAST DailyReport r IF stock(r) == stock(o) AND NOT r == o ORDER toDateTime(r), r;
+    IF o IS DailyReport AND NOT fromDate(o) THEN fromDate(o) <- OVERRIDE toDate(lastReport()), sum(currentDate(),-1);
+    IF o IS DailyReport AND NOT fromTime(o) THEN fromTime(o) <- OVERRIDE toTime(lastReport()), 00:00;
+    IF o IS DailyReport AND NOT toDate(o) THEN toDate(o) <- OVERRIDE sum(toDate(lastReport()),1), currentDate();
+    IF o IS DailyReport AND NOT toTime(o) THEN toTime(o) <- 00:00;
+}
+
+@defineDocumentHeaderNote(DailyReport);
+@defineDocumentHeaderCreated(DailyReport);
+@defineDocumentHeaderNumber(DailyReport, BPSTRING[2]);
+@defineNumeratedDefault(DailyReport, 'Сменный отчет', 'СО');
+@defineDocumentHeaderDescription (DailyReport, 'Сменный отчет');
+
+employeeBefore 'Смену сдал' = DATA Employee (DailyReport);
+nameEmployeeBefore 'Смену сдал' (DailyReport r) = name(employeeBefore(r)) CHARWIDTH 20;
+
+employeeAfter 'Смену принял' = DATA Employee (DailyReport);
+nameEmployeeAfter 'Смену принял' (DailyReport r) = name(employeeAfter(r)) CHARWIDTH 20;
+
+CONSTRAINT employeeBefore(DailyReport report) AND NOT in(stock(report), employeeBefore(report)) AND NOT allowStockEmployee()
+    CHECKED BY employeeBefore[DailyReport] MESSAGE 'В качестве "Смену сдал" выбран сотрудник, который не является сотрудником склада документа.';                        
+CONSTRAINT employeeAfter(DailyReport report) AND NOT in(stock(report), employeeAfter(report)) AND NOT allowStockEmployee()
+    CHECKED BY employeeAfter[DailyReport] MESSAGE 'В качестве "Смену принял" выбран сотрудник, который не является сотрудником склада документа.'; 
+
+TABLE dailySkuReportBin (DailyReport, Sku, Bin);
+include = DATA BOOLEAN (DailyReport, Sku, Bin);
+volumeB 'Расчетный остаток на начало смены (книжный), л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+balanceB 'Расчетный остаток на начало смены (книжный), т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+volumeIn 'Поступление за смену, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+quantityIn 'Поступление за смену, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+otherVolumeOut 'Прочий расход, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+otherQuantityOut 'Прочий расход, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+volumeOut 'Расход по резервуару, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+quantityOut 'Расход по резервуару, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+level 'Общий уровень нефтепродукта с водой, мм' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
+waterLevel 'Уровень воды, мм' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
+volume 'Общий объем по градуиров. таблице нефтепродукта с водой, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+waterVolume 'Объем по градуиров. таблице воды, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+fuelVolume 'Объем нефтепродукта без воды, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+correctedVolume 'Объем, приведенный к стандартному условию, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+density 'Плотность наблюдаемая, кг/м3' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
+correctedDensity 'Плотность, приведеная к стандарт. условию, кг/м3' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
+temperature 'Температура наблюдаемая, °С' = DATA NUMERIC[5,1] (DailyReport, Sku, Bin);
+correctedTemperature 'Температура, приведеная к стандарт. условию, °С' = DATA NUMERIC[5,1] (DailyReport, Sku, Bin);
+binVolumeA 'Фактический остаток н/п в резервуаре, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+binBalanceA 'Фактический остаток н/п в резервуаре, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+pipeVolumeA 'Фактический остаток н/п в трубопроводе, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+pipeBalanceA 'Фактический остаток н/п в трубопроводе, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+factVolumeA 'Фактический остаток, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+factBalanceA 'Фактический остаток, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+volumeA 'Расчетный (книжный) остаток, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
+balanceA 'Расчетный (книжный) остаток, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+debalanceQuantity 'Дебаланс фактический, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+allowedDebalanceQuantity 'Дебаланс допустимый, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+
+TABLE dailySkuReportBinGun (DailyReport, Sku, Bin, Gun);
+include = DATA BOOLEAN (DailyReport, Sku, Bin, Gun);
+volumeCounterB 'Счетчик объема ТРК на начало смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
+volumeCounterA 'Счетчик объема ТРК на конец смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
+volumeOut 'Объем, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
+quantityOut 'Масса, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
+density 'Средневзвешенная плотность, кг/м3' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin, Gun);
+techVolumeOut 'Технологический отпуск через ТРК, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
+techQuantityOut 'Технологический отпуск через ТРК, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
+errorPercent 'Погрешность ТРК, %' = DATA NUMERIC[5,2] (DailyReport, Sku, Bin, Gun);
+
+beforeFill ABSTRACT LIST (DailyReport);
+
+fill 'Заполнить' (DailyReport r) {
+    IF NOT stock(r) THEN {
+        MESSAGE 'Не задан Склад' NOWAIT;
+        RETURN;
+    }
+    IF NOT fromDate(r) THEN {
+        MESSAGE 'Не задана Дата с' NOWAIT;
+        RETURN;
+    }
+    IF NOT fromTime(r) THEN {
+        MESSAGE 'Не задано Время с' NOWAIT;
+        RETURN;
+    }
+    IF NOT toDate(r) THEN {
+        MESSAGE 'Не задана Дата по' NOWAIT;
+        RETURN;
+    }
+    IF NOT toTime(r) THEN {
+        MESSAGE 'Не задано Время по' NOWAIT;
+        RETURN;
+    }
+    
+    include(r, Sku s, Bin b) <- NULL;
+    volumeB(r, Sku s, Bin b) <- NULL;
+    balanceB(r, Sku s, Bin b) <- NULL;
+    volumeIn(r, Sku s, Bin b) <- NULL;
+    quantityIn(r, Sku s, Bin b) <- NULL;
+    otherVolumeOut(r, Sku s, Bin b) <- NULL;
+    otherQuantityOut(r, Sku s, Bin b) <- NULL;
+    volumeOut(r, Sku s, Bin b) <- NULL;
+    quantityOut(r, Sku s, Bin b) <- NULL;
+    level(r, Sku s, Bin b) <- NULL;
+    waterLevel(r, Sku s, Bin b) <- NULL;
+    volume(r, Sku s, Bin b) <- NULL;
+    waterVolume(r, Sku s, Bin b) <- NULL;
+    fuelVolume(r, Sku s, Bin b) <- NULL;
+    correctedVolume(r, Sku s, Bin b) <- NULL;
+    density(r, Sku s, Bin b) <- NULL;
+    correctedDensity(r, Sku s, Bin b) <- NULL;
+    temperature(r, Sku s, Bin b) <- NULL;
+    correctedTemperature(r, Sku s, Bin b) <- NULL;
+    binVolumeA(r, Sku s, Bin b) <- NULL;
+    binBalanceA(r, Sku s, Bin b) <- NULL;
+    pipeVolumeA(r, Sku s, Bin b) <- NULL;
+    pipeBalanceA(r, Sku s, Bin b) <- NULL;
+    factVolumeA(r, Sku s, Bin b) <- NULL;
+    factBalanceA(r, Sku s, Bin b) <- NULL;
+    volumeA(r, Sku s, Bin b) <- NULL;
+    balanceA(r, Sku s, Bin b) <- NULL;
+    debalanceQuantity(r, Sku s, Bin b) <- NULL;
+    allowedDebalanceQuantity(r, Sku s, Bin b) <- NULL;
+    
+    include(r, Sku s, Bin b, Gun g) <- NULL;
+    volumeCounterB(r, Sku s, Bin b, Gun g) <- NULL;
+    volumeCounterA(r, Sku s, Bin b, Gun g) <- NULL;
+    volumeOut(r, Sku s, Bin b, Gun g) <- NULL;
+    quantityOut(r, Sku s, Bin b, Gun g) <- NULL;
+    density(r, Sku s, Bin b, Gun g) <- NULL;
+    techVolumeOut(r, Sku s, Bin b, Gun g) <- NULL;
+    techQuantityOut(r, Sku s, Bin b, Gun g) <- NULL;
+    errorPercent(r, Sku s, Bin b, Gun g) <- NULL;
+    
+    beforeFill(r);
+    
+    volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r)));
+    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r)) / 1000.0);
+    volumeIn(r, Sku s, Bin b) <- NUMERIC[16,2](volumeIn(s,b,fromDateTime(r),toDateTime(r)));
+    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r)) / 1000.0);
+    volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r)));
+    quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)) / 1000.0);
+    volumeA(r, Sku s, Bin b) <- NUMERIC[16,2](volumeA(s,b,toDateTime(r)));
+    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r)) / 1000.0);
+    
+    include(r, Sku s, Bin b) <- volumeB(r,s,b) OR balanceB(r,s,b) OR volumeIn(r,s,b) OR quantityIn(r,s,b) OR volumeOut(r,s,b) OR quantityOut(r,s,b) OR volumeA(r,s,b) OR balanceA(r,s,b);
+    
+    
+    include(r, Sku s, Bin b, Gun g) <- include(r,s,b) AND bin(g) == b;//изменить на данные
+}
+
+
+
+FORM dailyReport 'Сменный отчет'
+    OBJECTS r = DailyReport PANEL
+    PROPERTIES(r) nameNumerator, number, series, date, time, 
+                  nameStock ON CHANGE changeStockCompany(r),
+                  fromDate, fromTime, toDate, toTime, note,
+                  nameEmployeeBefore, nameEmployeeAfter, fill
+    
+    OBJECTS d = (s = Sku, b = Bin)
+    PROPERTIES READONLY name(s), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), otherVolumeOut(r,s,b),
+                        otherQuantityOut(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b), name(b), level(r,s,b), waterLevel(r,s,b),
+                        volume(r,s,b), waterVolume(r,s,b), fuelVolume(r,s,b), correctedVolume(r,s,b), density(r,s,b), correctedDensity(r,s,b),
+                        temperature(r,s,b), correctedTemperature(r,s,b), binVolumeA(r,s,b), binBalanceA(r,s,b), pipeVolumeA(r,s,b), pipeBalanceA(r,s,b),
+                        factVolumeA(r,s,b), factBalanceA(r,s,b), volumeA(r,s,b), balanceA(r,s,b), debalanceQuantity(r,s,b), allowedDebalanceQuantity(r,s,b)
+    FILTERS include(r,s,b)
+    
+    OBJECTS g = Gun
+    PROPERTIES READONLY name(g), volumeCounterB(r,s,b,g), volumeCounterA(r,s,b,g), volumeOut(r,s,b,g), quantityOut(r,s,b,g),
+                        density(r,s,b,g), techVolumeOut(r,s,b,g), techQuantityOut(r,s,b,g), errorPercent(r,s,b,g)
+    FILTERS include(r,s,b,g)
+    
+    EDIT DailyReport OBJECT r
+;
+DESIGN dailyReport {
+    NEW top {
+        NEW headContainer {
+            caption = 'Шапка документа';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY (nameNumerator(r));
+            MOVE PROPERTY (number(r));
+            MOVE PROPERTY (series(r));
+            MOVE PROPERTY (date(r));
+            MOVE PROPERTY (time(r));
+        }
+        NEW parametersContainer {
+            caption = 'Параметры документа';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            lines = 2;
+            MOVE PROPERTY (fromDate(r));
+            MOVE PROPERTY (toDate(r));
+            MOVE PROPERTY (fromTime(r));
+            MOVE PROPERTY (toTime(r));
+            MOVE PROPERTY (nameEmployeeBefore(r));
+            MOVE PROPERTY (nameEmployeeAfter(r));
+            MOVE PROPERTY (nameStock(r));
+            MOVE PROPERTY (note(r));
+        }
+        MOVE PROPERTY(fill(r));
+    }
+    MOVE BOX(d) {
+        PROPERTY (name(s)) { caption = 'Наименование нефтепродукта'; }
+        PROPERTY (name(b)) { caption = '№ резервуара'; }
+    }
+    MOVE BOX(g) {
+        PROPERTY (name(g)) { caption = '№ ТРК (раздат. пистолета)'; }
+    }
+    MOVE TOOLBARBOX;
+}
+
+@addEventGenerateNumberOnForm(dailyReport, r, dailyReport);
+
+filterDailyReportDateFrom 'Дата с' = DATA LOCAL NESTED DATE ();
+filterDateFrom (DailyReport r) = date(r) >= filterDailyReportDateFrom() OR (r IS DailyReport AND NOT filterDailyReportDateFrom());      
+    
+filterDailyReportDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
+filterDateTo (DailyReport r) = date(r) <= filterDailyReportDateTo() OR (r IS DailyReport AND NOT filterDailyReportDateTo());
+
+filterDailyReportStock = DATA LOCAL NESTED Stock();
+nameFilterDailyReportStock 'Склад' = name(filterDailyReportStock());
+filterStock (DailyReport r) = stock(r) == filterDailyReportStock() OR NOT filterDailyReportStock();
+
+FORM dailyReports 'Сменные отчеты'
+    PROPERTIES () filterDailyReportDateFrom, filterDailyReportDateTo, nameFilterDailyReportStock
+    
+    OBJECTS r = DailyReport LAST
+    PROPERTIES (r) READONLY number, series, date, time, nameStock, fromDate, fromTime, toDate, toTime, nameEmployeeBefore, nameEmployeeAfter, note
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter = DELETE
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    FILTERS filterDateFrom(r), 
+            filterDateTo(r),
+            filterStock(r)
+    
+    OBJECTS d = (s = Sku, b = Bin)
+    PROPERTIES READONLY name(s), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b),
+                        name(b), volumeA(r,s,b), balanceA(r,s,b)
+    FILTERS include(r,s,b)
+    
+    LIST DailyReport OBJECT r
+;
+DESIGN dailyReports {
+    NEW pane {
+        fill = 1;
+        NEW filtersBox {                    
+            fill = 1;
+            NEW topFilters {
+                caption = 'Фильтры';
+                horizontal = TRUE;
+                MOVE PROPERTY(filterDailyReportDateFrom());
+                MOVE PROPERTY(filterDailyReportDateTo());
+                MOVE PROPERTY(nameFilterDailyReportStock());
+        }
+            MOVE BOX(r) {
+                fill = 2;
+            }
+        }
+        NEW documentDetail {
+            fill = 1;
+            tabbed = TRUE;
+            MOVE BOX(d) {
+                caption = 'Итоги по резервуарам';
+                PROPERTY (name(s)) { caption = 'Наименование нефтепродукта'; }
+                PROPERTY (name(b)) { caption = '№ резервуара'; }
+            }
+            NEW documentHistory {
+                caption = 'История';
+                MOVE GROUP(created,r);
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    horizontal = TRUE;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                horizontal = TRUE;
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+@extendFormFilterAccessStock(DailyReport, r, dailyReports, stock, company);
+
+NAVIGATOR {
+    stockReports {
+        NEW dailyReports;
+    }
+}
