@@ -29,6 +29,17 @@ priceB = OVERRIDE priceB(baseAPriceListLedger(OverPriceListType type), Sku sku, 
 priceA = OVERRIDE priceA(baseAPriceListLedger(OverPriceListType type), Sku sku, Stock stock, DATETIME dateTime), 
     priceA(baseBPriceListLedger(type), sku, stock, dateTime), priceA(baseCPriceListLedger(type), sku, stock, dateTime);
 
+// пока в свойствах с поставщиками не добавляем 3го вида цен, так как по факту он не используется
+priceB = OVERRIDE priceB(baseAPriceListLedger(OverPriceListType type), Sku sku, Stock stock, LegalEntity company, DATETIME dateTime),
+    priceB(baseBPriceListLedger(type), sku, stock, company, dateTime);
+priceA = OVERRIDE priceA(baseAPriceListLedger(OverPriceListType type), Sku sku, Stock stock, LegalEntity company, DATETIME dateTime),
+    priceA(baseBPriceListLedger(type), sku, stock, company, dateTime);
+
+priceB = OVERRIDE priceB(baseAPriceListLedger(OverPriceListType type), Sku sku, Stock stock, Stock companyStock, DATETIME dateTime),
+    priceB(baseBPriceListLedger(type), sku, stock, companyStock, dateTime);
+priceA = OVERRIDE priceA(baseAPriceListLedger(OverPriceListType type), Sku sku, Stock stock, Stock companyStock, DATETIME dateTime),
+    priceA(baseBPriceListLedger(type), sku, stock, companyStock, dateTime);
+
 priceB = OVERRIDE priceB(baseAPriceListLedger(OverPriceListType type), Batch batch, Stock stock, DATETIME dateTime), 
     priceB(baseBPriceListLedger(type), batch, stock, dateTime), priceB(baseCPriceListLedger(type), batch, stock, dateTime);
 priceA = OVERRIDE priceA(baseAPriceListLedger(OverPriceListType type), Batch batch, Stock stock, DATETIME dateTime), 
@@ -47,14 +58,26 @@ countIncludeVATTypes(OverPriceListType type) = (1 IF includeVAT(baseAPriceListLe
                                                          (1 IF includeVAT(baseCPriceListLedger(type)));    
 
 CONSTRAINT countTypes(OverPriceListType type) != countIncludeVATTypes(type)
-   MESSAGE 'Виды цен 1, 2, 3 должны быть одновременно или с НДС или без НДС' ;  
+   MESSAGE 'Виды цен 1, 2, 3 должны быть одновременно или с НДС или без НДС' ;
+
+countDifferentOrganizationsTypes(OverPriceListType type) = (1 IF differentOrganizations(baseAPriceListLedger(type))) (+)
+    (1 IF differentOrganizations(baseBPriceListLedger(type))) (+) (1 IF differentOrganizations(baseCPriceListLedger(type)));
+CONSTRAINT countDifferentOrganizationsTypes(OverPriceListType type) != countTypes(type)
+    MESSAGE 'Виды цен 1,2,3 должны быть одновременно или для разных организаций или нет' ;
 
 id(OverPriceListType type) += id(type);
 name(OverPriceListType type) += name(type);
-includeVAT (OverPriceListType type) += countIncludeVATTypes(type) ==countTypes(type);
+includeVAT (OverPriceListType type) += countIncludeVATTypes(type) == countTypes(type);
+differentOrganizations (OverPriceListType type) += countDifferentOrganizationsTypes(type) == countTypes(type);
 
 priceB(OverPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
 priceA(OverPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
+
+priceB(OverPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) += priceB(type, sku, stock, company, dateTime);
+priceA(OverPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) += priceA(type, sku, stock, company, dateTime);
+
+priceB(OverPriceListType type, Sku sku, Stock stock, Stock companyStock, DATETIME dateTime) += priceB(type, sku, stock, companyStock, dateTime);
+priceA(OverPriceListType type, Sku sku, Stock stock, Stock companyStock, DATETIME dateTime) += priceA(type, sku, stock, companyStock, dateTime);
 
 priceB(OverPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceB(type, batch, stock, dateTime); 
 priceA(OverPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
