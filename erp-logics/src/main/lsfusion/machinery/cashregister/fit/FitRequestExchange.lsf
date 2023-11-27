@@ -4,6 +4,8 @@ REQUIRE MachineryPriceTransaction, FitCashRegister;
 
 NAMESPACE Fit;
 
+@addRoleApplicationSetting(isCashierSenior, 'Cтарший кассир', BOOLEAN);
+
 succeeded 'Выгружен' = DATA BOOLEAN (Machinery, RequestExchange);
 notSucceeded 'Не выгружен' (Machinery machinery, RequestExchange requestExchange) = requestExchange IS RequestExchange AND machinery IS Machinery AND NOT succeededNative(requestExchange);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (Machinery, RequestExchange);
@@ -27,7 +29,9 @@ sendToFit (CashRegister cr, RequestExchange re) {
                 FIO = charSpaceR((OVERRIDE shortName(e), 'Кассир'), 20), // 3. ФИО
                 placeholder2 = alpha('', 20),                           // 4. Заполнитель
                 passwordCashier = char(right(id(e), 4), 4),             // 5. Личный пароль кассира 
-                blocking = IF isLocked(e) OR inactive(e) THEN  '1' ELSE '0', // 6. Флаг блокировки
+                blocking = CASE WHEN isLocked(e) OR inactive(e) THEN  '1'
+                                WHEN isCashierSenior(mainRole(e)) THEN 'S'
+                                ELSE '0', // 6. Флаг блокировки
                 placeholder3 = alpha('', 45),                           // 7. Заполнитель 
                 append0D = '\r' IF append0D()
             WHERE in(stock(re), e) AND numeric(INTEGER(right(id(e), 4)), 4) ORDER active(e), e;
