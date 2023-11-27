@@ -245,9 +245,17 @@ NAVIGATOR {
 preOrderDetail 'Резерв' = DATA PreOrderDetail (Sale.OrderDetail) INDEXED;
 seriesNumberPreOrderDetail 'Резерв' (Sale.OrderDetail d) = seriesNumber(preOrder(preOrderDetail(d)));
 
-CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (NOT sku(d) == sku(preOrderDetail(d)) OR dateTime(d) < fromDateTime(preOrderDetail(d)) 
-    OR NOT supplierStock(preOrderDetail(d)) == supplierStock(d) OR NOT (operation(preOrderDetail(d)) == operation(d) OR in(preOrderDetail(d), operation(d))))
-    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки накладной';
+CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (NOT sku(d) == sku(preOrderDetail(d)))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Товар строки резерва должен совпадать с товаром строки заказа';
+
+CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (dateTime(d) < fromDateTime(preOrderDetail(d)))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Дата резерва должна быть меньше даты заказа';
+
+CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (NOT supplierStock(preOrderDetail(d)) == supplierStock(d))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Поставщик резерва должен совпадать с поставщиком заказа';
+
+CONSTRAINT preOrderDetail(Sale.OrderDetail d) AND (NOT (operation(preOrderDetail(d)) == operation(d) OR in(preOrderDetail(d), operation(d))))
+    CHECKED BY preOrderDetail[Sale.OrderDetail] MESSAGE 'Операция резерва должна совпадать с операцией заказа';
 
 preOrderDetail 'Резерв' = DATA PreOrderDetail (WriteOffDetail) INDEXED;
 seriesNumberPreOrderDetail 'Резерв' (WriteOffDetail d) = seriesNumber(preOrder(preOrderDetail(d)));
