@@ -1,6 +1,6 @@
 MODULE BinLedgerFuel;
 
-REQUIRE BinLedger, BinFuel;
+REQUIRE BinLedger, BinFuel, ItemFuel;
 
 NAMESPACE Bin;
 
@@ -190,3 +190,7 @@ DESIGN balanceSkuStock {
     BOX(bin) { caption = 'Резервуары'; }
     PROPERTY(balanceB(s,bin,t)) { caption = 'Остаток в резервуаре (до)'; }
 }
+
+CONSTRAINT (CHANGED(volume(BinLedger l)) OR CHANGED(quantity(l))) AND (volume(l) OR quantity(l)) AND NOT (volume(l) AND quantity(l))
+    AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
+    MESSAGE 'При движении топлива должны быть заданы масса и объём';
