@@ -21,9 +21,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,12 +69,14 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
 
     @Override
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
-        ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : null;
-        boolean capitalLetters = bizerbaSettings != null && bizerbaSettings.isCapitalLetters();
-        boolean notInvertPrices = bizerbaSettings != null && bizerbaSettings.isNotInvertPrices();
-        Integer descriptionLineLength = nvl(bizerbaSettings != null ? bizerbaSettings.getDescriptionLineLength() : null, 1500);
-        boolean useDescriptionOptimizer = bizerbaSettings != null && bizerbaSettings.isUseDescriptionOptimizer();
-        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength, useDescriptionOptimizer);
+        ScalesSettings bizerbaSettings = springContext.containsBean("bizerbaSettings") ? (ScalesSettings) springContext.getBean("bizerbaSettings") : new ScalesSettings();
+        boolean capitalLetters = bizerbaSettings.isCapitalLetters();
+        boolean notInvertPrices = bizerbaSettings.isNotInvertPrices();
+        Integer descriptionLineLength = nvl(bizerbaSettings.getDescriptionLineLength(), 1500);
+        boolean useDescriptionOptimizer = bizerbaSettings.isUseDescriptionOptimizer();
+        long sendCommandTimeout = bizerbaSettings.getSendCommandTimeout();
+        return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength,
+                useDescriptionOptimizer, sendCommandTimeout);
     }
 
     class BizerbaSendTransactionTask extends SendTransactionTask {
@@ -84,14 +84,17 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         boolean notInvertPrices;
         int descriptionLineLength;
         boolean useDescriptionOptimizer;
+        long sendCommandTimeout;
 
         public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters,
-                                          boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer) {
+                                          boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer,
+                                          long sendCommandTimeout) {
             super(transaction, scales);
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
             this.descriptionLineLength = descriptionLineLength;
             this.useDescriptionOptimizer = useDescriptionOptimizer;
+            this.sendCommandTimeout = sendCommandTimeout;
         }
 
         @Override
@@ -124,7 +127,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
                                             result = loadPLU(localErrors, port, scales, item, capitalLetters, notInvertPrices,
-                                                    descriptionLineLength, useDescriptionOptimizer);
+                                                    descriptionLineLength, useDescriptionOptimizer, sendCommandTimeout);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {
@@ -328,6 +331,23 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return "WALO" + flag; //Cancel flag: 0= record is modified or created; 1= record is deleted
     }
 
+    protected void sendCommand(List<String> errors, TCPPort port, String command, String ip, long timeout) {
+        if(timeout > 0) {
+            final Future future = Executors.newSingleThreadExecutor().submit(() -> {
+                sendCommand(errors, port, command, ip);
+            });
+
+            try {
+                future.get(timeout, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException | ExecutionException | InterruptedException e) {
+                future.cancel(true);
+                throw new RuntimeException("Failed to send command due to timeout", e);
+            }
+        } else {
+            sendCommand(errors, port, command, ip);
+        }
+    }
+
     protected void sendCommand(List<String> errors, TCPPort port, String command, String ip) {
         try {
             byte[] commandBytes = command.getBytes(getCharset());
@@ -394,7 +414,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return receiveReply(errors, port, scales.port);
     }
 
-    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap, ScalesItem item, String ip) {
+    private String loadPLUMessages(List<String> errors, TCPPort port, ScalesInfo scales, Map<Integer, String> messageMap,
+                                   ScalesItem item, String ip) {
         for (Map.Entry<Integer, String> entry : messageMap.entrySet()) {
             Integer messageNumber = entry.getKey();
             String messageText = entry.getValue();
@@ -462,7 +483,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
     }
 
     private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItem item, boolean capitalLetters,
-                           boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer) {
+                           boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer,
+                           long sendCommandTimeout) {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -568,7 +590,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
 
         command1 = command1 + "BLK " + separator;
         clearReceiveBuffer(port);
-        sendCommand(errors, port, command1, scales.port);
+        sendCommand(errors, port, command1, scales.port, sendCommandTimeout);
         return receiveReply(errors, port, scales.port);
     }
 

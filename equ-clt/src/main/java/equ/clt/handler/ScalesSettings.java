@@ -18,6 +18,9 @@ public class ScalesSettings implements Serializable{
     //латинские занимают 1 байт вместо 2
     private boolean useDescriptionOptimizer;
 
+    //если задано и больше 0, то команда loadPLU отправляется с заданным таймаутом
+    private Long sendCommandTimeout;
+
     public ScalesSettings() {}
 
     public boolean isAllowParallel() {
@@ -58,5 +61,13 @@ public class ScalesSettings implements Serializable{
 
     public void setUseDescriptionOptimizer(boolean useDescriptionOptimizer) {
         this.useDescriptionOptimizer = useDescriptionOptimizer;
+    }
+
+    public Long getSendCommandTimeout() {
+        return sendCommandTimeout;
+    }
+
+    public void setSendCommandTimeout(Long sendCommandTimeout) {
+        this.sendCommandTimeout = sendCommandTimeout;
     }
 }
