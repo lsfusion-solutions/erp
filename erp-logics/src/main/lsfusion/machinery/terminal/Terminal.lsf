@@ -838,6 +838,8 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
             quantity(Sku sku, object) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);
             FOR invoice(class##Detail o) == object DO {
                 shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP quantity LIMIT STRICT quantity(o) IF invoice(o) == object ORDER index(o), o BY sku(o), invoice(o)), 0.0;
+                manufactureDate(o) <- (GROUP MAX extraDate1(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND sku(tdd) == sku(o));
+                expiryDate(o) <- (GROUP MAX extraDate2(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND sku(tdd) == sku(o));
             }
             IF NOT skipCreateDetailAddToDetailDialogTerminal() THEN {
                 FOR quantity(Sku sku, object) AND NOT (GROUP SUM 1 IF invoice(class##Detail o) == object AND sku(o) == sku) NEW d = UserInvoiceDetail DO {
@@ -845,6 +847,8 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
                     sku(d) <- sku;
                     quantity(d) <- 0.0;
                     shipmentQuantity(d) <- quantity(sku, object);
+                    manufactureDate(d) <- (GROUP MAX extraDate1(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND sku(tdd) == sku);
+                    expiryDate(d) <- (GROUP MAX extraDate2(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND sku(tdd) == sku);
                 }
                 FOR INTEGER n == (GROUP SUM 1 IF barcode(TerminalDocumentDetail tdd) AND NOT skuProp(tdd) AND include(terminalDocument(tdd))) DO {
                     MESSAGE 'В системе не найдено ' + n + ' товаров со шрихкодами: ' +
