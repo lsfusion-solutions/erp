@@ -1,0 +1,169 @@
+MODULE PosXServerSSC;
+
+REQUIRE PosXServerCashRegister;
+
+NAMESPACE PosXServer;
+
+image 'Изображение' = DATA IMAGEFILE (CustomGroup);
+loadImage 'Загрузить изображение' (CustomGroup g)  { INPUT =image(g) CHANGE; }
+openImage 'Открыть изображение' (CustomGroup g)  { open(image(g)); }
+hasImage (CustomGroup g) = TRUE IF image(g) MATERIALIZED;
+
+nullImage 'Сбросить'(CustomGroup g)  { 
+    image(g) <- NULL;
+}
+
+EXTEND FORM customGroup
+    PROPERTIES (g) image, loadImage, nullImage
+;
+DESIGN customGroup {
+    OBJECTS {
+        MOVE BOX(g);
+        NEW itemImage {
+            fill = 1;
+            caption = 'Изображение';
+            MOVE PROPERTY(image(g)) {
+                caption = '';
+                fill = 1;
+            }
+            MOVE PROPERTY(loadImage(g));
+            MOVE PROPERTY(nullImage(g));
+        }        
+    }
+}
+
+
+imagePosX = DATA IMAGEFILE (Item) TABLE itemImage;
+imagePosX = DATA IMAGEFILE (CustomGroup);
+
+WHEN SETCHANGED (image(Item i)) DO { 
+    TRY {
+        resizeImageMaxSize(image(i), 256);
+        imagePosX(i) <- resizedImage();
+    }
+}
+WHEN DROPPED (image(Item i)) DO { 
+    imagePosX(i) <- NULL;
+}
+WHEN SETCHANGED (image(CustomGroup g)) DO { 
+    TRY {
+        resizeImageMaxSize(image(g), 256);
+        imagePosX(g) <- resizedImage();
+    }
+}
+WHEN DROPPED (image(Item g)) DO { 
+    imagePosX(g) <- NULL;
+}
+
+
+customGroupTypePosX = DATA CustomGroupType(GroupCashRegister);
+nameCustomGroupTypePosX 'Тип классификатора КСО'(GroupCashRegister gs) = name(customGroupTypePosX(gs));
+
+encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
+calcmd5 (IMAGEFILE f)= FORMULA STRING[100] 'md5($1)';
+
+//выгрузка
+skipFilterBalance = ABSTRACT BOOLEAN (GroupCashRegister, Sku);
+skipFilterBalance 'Не фильтровать по остаткам' = DATA LOCAL NESTED BOOLEAN ();
+//doClear 'С очисткой' = DATA LOCAL NESTED BOOLEAN ();
+toPosX = DATA LOCAL NESTED BOOLEAN (CustomGroup);
+toPosX = DATA LOCAL NESTED BOOLEAN (Sku);
+
+customGroupImageString (CustomGroup g) = 'INSERT INTO dbo.tp_add_shtmnug(id,grp,img,icrc,ord) VALUES (' + id(g) + ',\'' + escape(name(g)) + '\',\'' + encodeBase64(imagePosX(g)) + '\',\'' + calcmd5(imagePosX(g)) + '\',' + (OVERRIDE order(g),0) + ')';
+customGroupsImageString = GROUP CONCAT customGroupImageString(CustomGroup g), ';' IF toPosX(g) ORDER order(g), g;
+
+skuImageString (Sku s) = 'INSERT INTO dbo.tp_add_shtmnut(barcod,img,icrc) VALUES (\'' + escape(id(s)) + '\',\'' + encodeBase64(imagePosX(s)) + '\',\'' + calcmd5(imagePosX(s)) + '\')';
+skusImageString = GROUP CONCAT skuImageString(Sku s), ';' IF toPosX(s) ORDER name(s), s;
+
+skuCustomGroupImageString (CustomGroup g, Sku s, INTEGER i) = 'INSERT INTO dbo.tp_add_shtmnuacl(barcod,id_grp,kodbo,ord) VALUES (\'' + escape(id(s)) + '\',' + id(g) + ',\'' + i + '\',' + 0 + ')';
+skusCustomGroupImageString (GroupCashRegister gm) = GROUP CONCAT skuCustomGroupImageString(customGroup(customGroupTypePosX(gm),Sku s), s, npp(gm)), ';' IF toPosX(s) ORDER name(s), s;
+
+sendImagesToPosXServer (GroupCashRegister gm) {
+    //захватываем обмен
+    returnExchange(gm) <- NULL;
+    exchangePosX(gm,'SELECT return_value from dbo.qp_add_shtmenulock(1,1)');
+    IF NOT returnExchange(gm) THEN {
+        LOCAL return_value = INTEGER (INTEGER);
+        IMPORT FROM exportFile() TO return_value;
+        IF return_value(0) == 1 THEN {
+            //очищаем все транзитные таблицы
+            exchangePosX(gm,'DELETE FROM dbo.tp_add_shtmnug WHERE err > 0; DELETE FROM dbo.tp_add_shtmnut WHERE err > 0; DELETE FROM dbo.tp_add_shtmnuacl WHERE err > 0;');
+            //выгружаем данные
+            returnExchange(gm) <- NULL;
+            exchangePosX(gm,
+            CONCAT ';',
+                customGroupsImageString(),
+                skusImageString(),
+                skusCustomGroupImageString(gm)
+            );
+            IF NOT returnExchange(gm) THEN {
+                //устанавливаем флаг
+                exchangePosX(gm,'UPDATE dbo.tp_v_flag SET flagsht = 1');
+            }
+            //освобождаем обмен
+            exchangePosX(gm,'SELECT return_value from dbo.qp_add_shtmenulock(1,0)');
+        }
+    }
+}
+
+exportPickList 'Выгрузить' (GroupCashRegister gm) {
+    toPosX(Sku s) <- (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) AND customGroup(customGroupTypePosX(gm), s) AND active(s);
+    toPosX(CustomGroup g) <- customGroupType(g) == customGroupTypePosX(gm) AND (GROUP SUM 1 IF customGroup(customGroupType(g), Sku s) == g AND toPosX(s));
+    
+    IF NOT (GROUP SUM 1 IF toPosX(Sku s)) THEN {
+        MESSAGE name(gm) +': Нет товаров к выгрузке' NOWAIT;
+        RETURN;
+    }
+    
+    sendImagesToPosXServer(gm);
+}
+
+exportPickListAndClose 'Выгрузить' (GroupMachinery gm) {
+    exportPickList(gm);
+    formClose();
+}
+
+FORM exportParams 'Пиклист'
+    OBJECTS gm = GroupCashRegister PANEL
+    PROPERTIES () skipFilterBalance//, doClear
+    PROPERTIES (gm) exportPickListAndClose
+;
+DESIGN exportParams {
+    NEW a{
+        MOVE PROPERTY (skipFilterBalance());
+        //MOVE PROPERTY (doClear());
+        NEW b{
+            horizontal = TRUE;
+            MOVE PROPERTY (exportPickListAndClose(gm));
+            MOVE PROPERTY (formClose());
+        }
+    }
+    REMOVE TOOLBARBOX ;
+}
+
+exportPickListForm 'Выгрузить Пиклист' (GroupCashRegister gm) {
+    SHOW exportParams OBJECTS gm = gm;
+}
+
+
+EXTEND FORM groupCashRegister 
+    PROPERTIES (grc) SHOWIF isPosX(grc) nameCustomGroupTypePosX, exportPickListForm
+;
+    
+DESIGN groupCashRegister {
+    topContainer{
+        MOVE PROPERTY (nameCustomGroupTypePosX(grc));
+        MOVE PROPERTY (exportPickListForm(grc));
+    }
+}
+
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    IF isPosX(gm) AND customGroupTypePosX(gm) THEN {
+        //выгрузка в пиклист
+        toPosX(Sku s) <- (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) AND customGroup(customGroupTypePosX(gm), s) AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b));
+        
+        IF (GROUP SUM 1 IF toPosX(Sku s)) THEN {
+            sendImagesToPosXServer(gm);
+        }
+    }
+}
