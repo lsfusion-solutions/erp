@@ -180,7 +180,9 @@ fill 'Заполнить' (DailyReport r) {
     include(r, Sku s, Bin b, Gun g) <- include(r,s,b) AND bin(g) == b;//изменить на данные
 }
 
+@addRoleApplicationSetting(allowEditDailyReport, 'Разрешить редактировать сменный отчет', BOOLEAN);
 
+readonlyDailyReport (DailyReport r) = r IS DailyReport AND NOT allowEditDailyReport(mainRole(currentUser()));
 
 FORM dailyReport 'Сменный отчет'
     OBJECTS r = DailyReport PANEL
@@ -190,16 +192,18 @@ FORM dailyReport 'Сменный отчет'
                   nameEmployeeBefore, nameEmployeeAfter, fill
     
     OBJECTS d = (s = Sku, b = Bin)
-    PROPERTIES READONLY name(s), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), otherVolumeOut(r,s,b),
-                        otherQuantityOut(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b), name(b), level(r,s,b), waterLevel(r,s,b),
-                        volume(r,s,b), waterVolume(r,s,b), fuelVolume(r,s,b), correctedVolume(r,s,b), density(r,s,b), correctedDensity(r,s,b),
-                        temperature(r,s,b), correctedTemperature(r,s,b), binVolumeA(r,s,b), binBalanceA(r,s,b), pipeVolumeA(r,s,b), pipeBalanceA(r,s,b),
-                        factVolumeA(r,s,b), factBalanceA(r,s,b), volumeA(r,s,b), balanceA(r,s,b), debalanceQuantity(r,s,b), allowedDebalanceQuantity(r,s,b)
+    PROPERTIES READONLYIF readonlyDailyReport(r)
+               name(s) READONLY, volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), otherVolumeOut(r,s,b),
+               otherQuantityOut(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b), name(b) READONLY, level(r,s,b), waterLevel(r,s,b),
+               volume(r,s,b), waterVolume(r,s,b), fuelVolume(r,s,b), correctedVolume(r,s,b), density(r,s,b), correctedDensity(r,s,b),
+               temperature(r,s,b), correctedTemperature(r,s,b), binVolumeA(r,s,b), binBalanceA(r,s,b), pipeVolumeA(r,s,b), pipeBalanceA(r,s,b),
+               factVolumeA(r,s,b), factBalanceA(r,s,b), volumeA(r,s,b), balanceA(r,s,b), debalanceQuantity(r,s,b), allowedDebalanceQuantity(r,s,b)
     FILTERS include(r,s,b)
     
     OBJECTS g = Gun
-    PROPERTIES READONLY name(g), volumeCounterB(r,s,b,g), volumeCounterA(r,s,b,g), volumeOut(r,s,b,g), quantityOut(r,s,b,g),
-                        density(r,s,b,g), techVolumeOut(r,s,b,g), techQuantityOut(r,s,b,g), errorPercent(r,s,b,g)
+    PROPERTIES READONLYIF readonlyDailyReport(r)
+               name(g) READONLY, volumeCounterB(r,s,b,g), volumeCounterA(r,s,b,g), volumeOut(r,s,b,g), quantityOut(r,s,b,g),
+               density(r,s,b,g), techVolumeOut(r,s,b,g), techQuantityOut(r,s,b,g), errorPercent(r,s,b,g)
     FILTERS include(r,s,b,g)
     
     EDIT DailyReport OBJECT r
