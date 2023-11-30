@@ -58,11 +58,12 @@ changeManufacturingPriceUser (OrderDetail detail)  {
     }
 }
 
+backgroundManufacturing 'Цвет' (Order order) = RGB(240, 240, 224) IF order IS Order;
 overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT VALUE COLOR (OrderDetail);
-backgroundManufacturing (OrderDetail d) = OVERRIDE overBackgroundManufacturing(d), RGB(255, 255, 255);
+backgroundManufacturing (OrderDetail d) = OVERRIDE overBackgroundManufacturing(d), backgroundManufacturing(order(d));
 
 EXTEND FORM userOrder
-    PROPERTIES(o)  showManufacturingPrice
+    PROPERTIES(o)  showManufacturingPrice BACKGROUND backgroundManufacturing(o)
     PROPERTIES(d)  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d)
                    manufacturingPrice ON CHANGE changeManufacturingPriceUser(d), wholesaleMarkup READONLY,
                    includeVAT, manufacturingSum
@@ -135,11 +136,12 @@ wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserI
 
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
+backgroundManufacturing 'Цвет' (Invoice invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
 overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT VALUE COLOR (InvoiceDetail);
-backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), RGB(255, 255, 255);
+backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), backgroundManufacturing(invoice(d));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i)  showManufacturingPrice, updateManufacturingPrice
+    PROPERTIES(i)  BACKGROUND backgroundManufacturing(i) showManufacturingPrice, updateManufacturingPrice
     PROPERTIES(d)  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d)
                    manufacturingPrice, wholesaleMarkup READONLY, includeVAT, manufacturingSum
 

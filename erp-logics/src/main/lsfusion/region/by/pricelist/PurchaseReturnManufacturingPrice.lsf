@@ -102,9 +102,13 @@ discountManufacturingSum 'Скидка от цены изг. (сумма)' (Invo
 @defineDocumentInterfaceHeaderItemSum (invoice, discountManufacturing, discountManufacturing);
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
+backgroundManufacturing 'Цвет' (Invoice invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
+overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
+backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), backgroundManufacturing(invoice(d));
+
 EXTEND FORM userInvoice
-    PROPERTIES(i) showManufacturingPrice
-    PROPERTIES(d) SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+    PROPERTIES(i) showManufacturingPrice BACKGROUND backgroundManufacturing(i)
+    PROPERTIES(d) SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d)
                   manufacturingPrice, includeVAT, manufacturingSum 
 ;
 DESIGN userInvoice {
@@ -117,7 +121,7 @@ DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+    PROPERTIES(d) READONLY SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) BACKGROUND backgroundManufacturing(d) 
                   manufacturingPrice, includeVAT, manufacturingSum 
 ;
 
