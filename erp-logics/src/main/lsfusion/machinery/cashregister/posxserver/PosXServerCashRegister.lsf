@@ -67,12 +67,36 @@ onStarted() + {
 
 isExportedPosXServer = DATA BOOLEAN (Sku);
 
-overFsrl = ABSTRACT INTEGER (Sku);
-fsrl(Sku s) = 1 (+) overFsrl(s);
+fsrlAlcohol = ABSTRACT BOOLEAN (Sku);
+fsrlTobacco = ABSTRACT BOOLEAN (Sku);
+fsrlBeer = ABSTRACT BOOLEAN (Sku);
+fsrlFuel = ABSTRACT BOOLEAN (Sku);
+fsrl(Sku s) =
+    (1 IF active(s)) (+) //Активен
+    //(2 IF ) (+) //Есть серийный номер
+    //(4 IF ) (+) //Серийный в serial
+    //(8 IF ) (+) //Онлайн проверка
+    //(16 IF ) (+) //Финмониторинг товара
+    (32 IF isCharge(s)) (+) //Услуга
+    //(64 IF ) (+) //Предоплата
+    //(128 IF ) (+) //Подакцизный товар
+    (256 IF fsrlAlcohol(s)) (+) //Алкогольный товар
+    //(512 IF ) (+) //Ввод серийного номера через DataMatrix
+    (1024 IF fsrlTobacco(s)) (+) //Табак
+    //(2048 IF ) (+) //Без серийного номера по паролю
+    //Тип налогообложения:
+    //Не задан ни один – не определен
+    //(4096 IF ) (+) //ОСН
+    //(8192 IF ) (+) //УСН Доход
+    //(12288 IF ) (+) //УСН Доход-Расход
+    //(16384 IF ) (+) //ЕНВД
+    //(20480 IF ) (+) //ЕСХН
+    //(24576 IF ) (+) //Патент
+    (32768 IF fsrlBeer(s)) (+) //Пиво
+    //(65536 IF ) (+) //продавать по 0
+    (131072 IF fsrlFuel(s)); //Топливо
 
 groupSkuString (SkuGroup g) = 'INSERT INTO dbo.tp_add_grp(kod,grp,ind) VALUES (' + (OVERRIDE kod(g),0) + ',\'' + escape(name(g)) + '\',' + (OVERRIDE order(g),0) + ')';
-//groupSkuStringHierarchy (SkuGroup g) = GROUP CONCAT groupSkuString(Group cg), ';' IF level(g, cg) ORDER DESC level(g, cg), cg;
-//groupsSkuStringHierarchy (MachineryPriceTransaction t) = GROUP CONCAT groupSkuStringHierarchy(Group g), ';' IF in(t, Barcode b) AND g = skuGroup(t, b) ORDER g;
 groupsSkuString (MachineryPriceTransaction t) = GROUP CONCAT groupSkuString(Group g), ';' IF (GROUP SUM 1 IF in(t, Barcode b) AND g = skuGroup(t, b)) ORDER g;
 
 //вопрос по передаче значений nds,nsp,ed (справочники tp_vat и tp_goodsed)
