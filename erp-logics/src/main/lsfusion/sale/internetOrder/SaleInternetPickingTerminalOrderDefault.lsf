@@ -23,16 +23,16 @@ createPickingCustom 'Создать комплектацию ИМ' (InternetOrde
     NEWSESSION {
         LOCAL count = INTEGER ();
 
-        IF  filterDashboard(o) THEN {
+        IF (GROUP SUM 1 IF internetOrder(InternetOrderDetail dd) = o AND NOT picking(dd)) THEN {
             NEW p = Picking{
                 date(p) <- currentDate();
                 time(p) <- currentTime();
-                number(p) <- number(o);
+                number(p) <- CONCAT '_', number(o), GROUP SUM 1 IF relation(Picking pp, o) + 1;
                 stock(p) <- supplierStock(o);
                 carrier(p) <- carrier(o);
                 status(p) <- StatusPicking.new;
 
-                FOR internetOrder(InternetOrderDetail detail) == o DO {
+                FOR internetOrder(InternetOrderDetail detail) == o AND NOT picking(detail) DO {
                     picking(detail) <- p;
                 }
                 status(o) <- StatusInternetOrder.isPicking;
@@ -42,10 +42,10 @@ createPickingCustom 'Создать комплектацию ИМ' (InternetOrde
         }
         select(InternetOrder order) <- NULL;
         APPLY NESTED LOCAL ;
-        IF count() THEN MESSAGE 'Комплектация создана: ' + number(o);
     }
 }
 overProcessPickingInternetOrder ABSTRACT LIST (TerminalDocument, InternetOrderDetail);
+countPicked = GROUP SUM 1 IF status(picking(InternetOrderDetail d)) = StatusPicking.picked BY internetOrder(d);
 
 process(TerminalDocument document) + {
     IF idTerminalDocumentType(document)=='15' THEN {
@@ -78,7 +78,8 @@ process(TerminalDocument document) + {
             
             executor(Picking p) <- createdUser(document) WHERE in(p);
             status(Picking p)<- StatusPicking.picked WHERE in(p);
-            status(InternetOrder o) <- StatusInternetOrder.picked WHERE (GROUP SUM 1 IF in(Picking p) AND relation(p, o));
+            status(InternetOrder o) <- StatusInternetOrder.picked WHERE (GROUP SUM 1 IF in(Picking p) AND relation(p, o)) AND countPicked(o) = countInternetOrderDetail(o);
+            
         }
         used(document) <- TRUE;
     }
@@ -289,3 +290,17 @@ WHEN LOCAL CHANGED (status(InternetOrder o)) AND status(o) = StatusInternetOrder
     MESSAGE 'Запрещено менять статус заказа на "НОВЫЙ", при наличии комплектаций по этому заказу!';
     CANCEL;
 }
+
+autoAddedCreatePicking 'Автоматически создавать комплектации по добавленным позициям' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES autoAddedCreatePicking()
+;
+DESIGN options{
+    internetOrder{
+        MOVE PROPERTY (autoAddedCreatePicking());
+    }
+}
+
+WHEN SETCHANGED (sku(InternetOrderDetail d)) AND NOT picking(d) AND (GROUP SUM 1 IF relation(Picking p, internetOrder(d)))
+    AND autoAddedCreatePicking() AND status(internetOrder(d)) = StatusInternetOrder.isPicking DO createPickingCustom(internetOrder(d));
