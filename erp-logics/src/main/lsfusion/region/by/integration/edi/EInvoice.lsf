@@ -84,11 +84,14 @@ addressFreightPayer 'Адрес заказчика автомобильной п
 unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
 
 customer 'Покупатель' = DATA LegalEntity (EInvoice);
-nameCustomer 'Покупатель' (EInvoice i) = IF useFullNameLegalEntity(i) THEN fullName(customer(i)) ELSE name(customer(i));
+dataNameCustomerFirst = DATA STRING[200] (EInvoice);
+nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE dataNameCustomerFirst(i), IF useFullNameLegalEntity(i) THEN fullName(customer(i)) ELSE name(customer(i));
 dataGLNCustomerFirst = DATA STRING[13] (EInvoice);
 glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerFirst(i), GLNeInvoice(customer(i)), extraGLN(customer(i));
-addressCustomer 'Адрес покупателя' (EInvoice i) = address(customer(i));
-unpCustomer 'УНП покупателя' (EInvoice i) = UNP(customer(i));
+dataAddressCustomerFirst = DATA STRING[150] (EInvoice);
+addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerFirst(i), address(customer(i));
+dataUnpCustomerFirst = DATA STRING[9] (EInvoice);
+unpCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE dataUnpCustomerFirst(i), UNP(customer(i));
 
 customerStock 'Склад покупателя' = DATA Stock (EInvoice);
 overGlnCustomerStock = ABSTRACT STRING[13] (EInvoice);
