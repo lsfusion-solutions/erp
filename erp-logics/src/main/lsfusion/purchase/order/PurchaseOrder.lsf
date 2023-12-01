@@ -256,8 +256,9 @@ CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractS
     MESSAGE 'Для заказа (закупка) обязан быть задан договор';   
     
 skipSalePrice = ABSTRACT BOOLEAN (UserOrderDetail);    
-CONSTRAINT  isPosted(UserOrderDetail d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d) 
-    MESSAGE 'Для строки заказа (закупка) должна быть задана цена';
+CONSTRAINT (SET(isPosted(UserOrderDetail d)) OR  CHANGED (operation(d)) OR CHANGED(price(d))) AND 
+    isPosted(d) AND isPrice(operation(d)) AND NOT price(d) AND NOT skipSalePrice(d) 
+        MESSAGE 'Для строки заказа (закупка) должна быть задана цена';
 
 skipBanPurchaseSku = ABSTRACT VALUE BOOLEAN (Order);
 
