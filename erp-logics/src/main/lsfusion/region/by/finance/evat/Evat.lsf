@@ -175,6 +175,9 @@ captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(s
 
 EVATDocument 'Регистр' = DATA EVATDocument (EVAT) INDEXED;
 EVAT 'ЭСЧФ' (EVATDocument d) = GROUP MAX EVAT e BY EVATDocument(e);
+EVAT 'ЭСЧФ' (EVATDocument d, EVATType et) = GROUP MAX EVAT e BY EVATDocument(e), type(e);
+EVAT 'ЭСЧФ' (EVATDocument d, EVATStatus et) = GROUP MAX EVAT e BY EVATDocument(e), status(e);
+
 
 @defineOption(notNullEVATDocument, 'Запрет на отсутствие исходного документа для ЭСЧФ', EVAT);
 
@@ -230,6 +233,7 @@ padNumber (EVAT e) += STRING[20](lpad(number(e), 10, '0'));
 
 exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + padNumber(e);
 exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + padNumber(e);
+EVATExportNumberMAX = GROUP MAX EVAT e BY exportNumber(e);
 EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
 WHEN SET(exported(EVAT e)) 
