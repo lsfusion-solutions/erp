@@ -53,24 +53,30 @@ GLNeInvoice 'GLN для накладных' (LegalEntity l) = OVERRIDE dataGLNeI
 legalEntityGLNeInvoice (legalEntity) = GROUP AGGR LegalEntity llegalEntity BY GLNeInvoice(llegalEntity);
 
 supplier 'Поставщик' = DATA LegalEntity (EInvoice);
+dataGLNSupplierFirst = DATA STRING[13] (EInvoice);
 dataGLNSupplier = DATA STRING[13] (EInvoice);
-glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE GLNeInvoice(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
+glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE dataGLNSupplierFirst(i), GLNeInvoice(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
+dataNameSupplierFirst = DATA STRING[200] (EInvoice);
 dataNameSupplier = DATA STRING[150] (EInvoice);
-nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE IF useFullNameLegalEntity(i) THEN fullName(supplier(i)) ELSE name(supplier(i)), dataNameSupplier(i);
+nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE dataNameSupplierFirst(i), IF useFullNameLegalEntity(i) THEN fullName(supplier(i)) ELSE name(supplier(i)), dataNameSupplier(i);
+dataAddressSupplierFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplier = DATA STRING[150] (EInvoice);
-addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE address(supplier(i)), dataAddressSupplier(i);
+addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE dataAddressSupplierFirst(i), address(supplier(i)), dataAddressSupplier(i);
+dataUnpSupplierFirst = DATA STRING[9] (EInvoice);
 dataUnpSupplier = DATA STRING[9] (EInvoice);
-unpSupplier 'УНП поставщика' (EInvoice i) = OVERRIDE UNP(supplier(i)), dataUnpSupplier(i);
+unpSupplier 'УНП поставщика' (EInvoice i) = OVERRIDE dataUnpSupplierFirst(i), UNP(supplier(i)), dataUnpSupplier(i);
 contactSupplier 'Отпуск разрешил (должность и ФИО)' = DATA STRING[150] (EInvoice);
 
 supplierStock 'Пункт погрузки' = DATA Stock (EInvoice);
+dataGLNSupplierStockFirst = DATA STRING[13] (EInvoice);
 dataGLNSupplierStock = DATA STRING[13] (EInvoice);
-glnSupplierStock 'GLN пункта погрузки' (EInvoice i) = OVERRIDE GLN(supplierStock(i)), dataGLNSupplierStock(i);
+glnSupplierStock 'GLN пункта погрузки' (EInvoice i) = OVERRIDE dataGLNSupplierStockFirst(i), GLN(supplierStock(i)), dataGLNSupplierStock(i);
 dataNameSupplierStock = DATA STRING[150] (EInvoice);
 nameSupplierStock 'Пункт погрузки' (EInvoice i) = OVERRIDE name(supplierStock(i)), dataNameSupplierStock(i);
+dataAddressSupplierStockFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplierStock = DATA STRING[150] (EInvoice);
 overAddressSupplierStock = ABSTRACT ISTRING[250] (EInvoice);
-addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
+addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE dataAddressSupplierStockFirst(i), overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
 contactSupplierStock 'Лицо ответственное за передачу груза' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
@@ -94,11 +100,13 @@ dataUnpCustomerFirst = DATA STRING[9] (EInvoice);
 unpCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE dataUnpCustomerFirst(i), UNP(customer(i));
 
 customerStock 'Склад покупателя' = DATA Stock (EInvoice);
+dataGLNCustomerStockFirst = DATA STRING[13] (EInvoice);
 overGlnCustomerStock = ABSTRACT STRING[13] (EInvoice);
-glnCustomerStock 'GLN склада покупателя' (EInvoice i) = OVERRIDE overGlnCustomerStock(i), GLN(customerStock(i));
+glnCustomerStock 'GLN склада покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerStockFirst(i), overGlnCustomerStock(i), GLN(customerStock(i));
 nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customerStock(i));
+dataAddressCustomerStockFirst = DATA STRING[150] (EInvoice);
 overAddressCustomerStock = ABSTRACT ISTRING[350] (EInvoice); // иногда пункт разгрузки указан только в атрибутах накладной
-addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE overAddressCustomerStock(i), address(customerStock(i));
+addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerStockFirst(i), overAddressCustomerStock(i), address(customerStock(i));
 contactCustomerStock 'Лицо ответственное за получение груза' = DATA STRING[150] (EInvoice);
 userIDCustomerStock 'Идентификатор пользователя' (EInvoice i) = userID(customerStock(i));
 
