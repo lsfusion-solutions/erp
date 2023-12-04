@@ -131,7 +131,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     bw.write(0x0d);
                     bw.write(0x0a);
                     boolean isWeight = isWeight(item, 1);
-                    String barcodePrefix = isWeight ? nvl(scales.weightCodeGroupScales, "22") : nvl(scales.pieceCodeGroupScales, "21");
+                    String barcodePrefix = (item.idBarcode.length() > 6) ? "" : (isWeight ? nvl(scales.weightCodeGroupScales, "22") : nvl(scales.pieceCodeGroupScales, "21"));
                     String name = escape(trimToEmpty(item.name));
                     String name1 = name.substring(0, Math.min(name.length(), 40));
                     String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : "";
