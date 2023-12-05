@@ -74,7 +74,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         boolean notInvertPrices = bizerbaSettings.isNotInvertPrices();
         Integer descriptionLineLength = nvl(bizerbaSettings.getDescriptionLineLength(), 1500);
         boolean useDescriptionOptimizer = bizerbaSettings.isUseDescriptionOptimizer();
-        long sendCommandTimeout = bizerbaSettings.getSendCommandTimeout();
+        Long sendCommandTimeout = bizerbaSettings.getSendCommandTimeout();
         return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength,
                 useDescriptionOptimizer, sendCommandTimeout);
     }
@@ -84,11 +84,11 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         boolean notInvertPrices;
         int descriptionLineLength;
         boolean useDescriptionOptimizer;
-        long sendCommandTimeout;
+        Long sendCommandTimeout;
 
         public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters,
                                           boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer,
-                                          long sendCommandTimeout) {
+                                          Long sendCommandTimeout) {
             super(transaction, scales);
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
@@ -331,8 +331,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         return "WALO" + flag; //Cancel flag: 0= record is modified or created; 1= record is deleted
     }
 
-    protected void sendCommand(List<String> errors, TCPPort port, String command, String ip, long timeout) {
-        if(timeout > 0) {
+    protected void sendCommand(List<String> errors, TCPPort port, String command, String ip, Long timeout) {
+        if(timeout != null && timeout > 0) {
             final Future future = Executors.newSingleThreadExecutor().submit(() -> {
                 sendCommand(errors, port, command, ip);
             });
@@ -484,7 +484,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
 
     private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItem item, boolean capitalLetters,
                            boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer,
-                           long sendCommandTimeout) {
+                           Long sendCommandTimeout) {
 
         Integer pluNumber = getPluNumber(item);
 
