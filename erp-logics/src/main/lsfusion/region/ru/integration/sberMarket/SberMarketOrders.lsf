@@ -114,6 +114,9 @@ deliveredOrder(STRING id){
 isSberMarket (InternetOrder o) = carrier(o) = carrier('sberMarket');
 useSberNumber 'Использовать номера заказов СберМаркет' = DATA  BOOLEAN ();
 
+originalQuantity = DATA NUMERIC[15,3] (InternetOrderDetail);
+originalPrice = DATA NUMERIC[16,4] (InternetOrderDetail);
+
 createOrder(STRING[100] id){
     IF NOT internetOrder(id) THEN NEW o = InternetOrder{
         id(o) <- id;
@@ -138,9 +141,14 @@ createOrder(STRING[100] id){
     }
     FOR Sku s = sku(id(INTEGER i)) AND InternetOrderDetail d = internetOrderDetail(idDetail(i)) DO{
         sku(d) <- s;
-        quantity(d) <- NUMERIC[16,5](originalQuantity(i));
-        price(d) <- NUMERIC[16,4](price(i));
-        discountPrice(d) <- NUMERIC[16,4](discountPrice(i));
+        originalQuantity(d) <- NUMERIC[15,3](originalQuantity(i));
+        originalPrice(d) <- NUMERIC[16,4](price(i));
+        
+        quantity(d) <- IF NUMERIC(weight(i)) > 0 THEN NUMERIC[16,5](weight(i)) / 1000.0 ELSE NUMERIC[16,5](quantity(i));
+        price(d) <- NUMERIC[16,4](IF quantity(d) = originalQuantity(d) THEN NUMERIC[16,4](price(i))
+            ELSE NUMERIC(price(i)) * NUMERIC (originalQuantity(d)) / NUMERIC (quantity(d)));
+        discountPrice(d) <- NUMERIC[16,4](IF quantity(d) = originalQuantity(d) THEN NUMERIC[16,4](discountPrice(i))
+            ELSE NUMERIC(discountPrice(i)) * NUMERIC (originalQuantity(d)) / NUMERIC (quantity(d)));
         sum(d) <- NUMERIC[18,4](totalPrice(i));
         discountSum(d) <- NUMERIC[18,4](totalDiscountPrice(i));
     }
@@ -235,7 +243,8 @@ FORM sendNotification
     PROPERTIES IN order = OVERRIDE id(o), '' EXTID 'originalOrderId'
 
     OBJECTS positions = InternetOrderDetail IN order
-    PROPERTIES(positions) quantity EXTID 'originalQuantity', pickingQuantity EXTID 'quantity', idSku EXTID 'id', idSkuChangeDetail EXTID 'replacedByID'
+    PROPERTIES = OVERRIDE originalQuantity(positions), quantity(positions) EXTID 'originalQuantity'
+    PROPERTIES(positions) pickingQuantity EXTID 'quantity', idSku EXTID 'id', idSkuChangeDetail EXTID 'replacedByID'
     PROPERTIES = IF shortNameUOMSku(positions) = 'кг' THEN STRING(round0(pickingQuantity(positions) * 1000)) ELSE '' EXTID 'weight'
     FILTERS internetOrder(positions) = o 
         AND status(internetOrder(positions)) != StatusInternetOrder.isPicking
