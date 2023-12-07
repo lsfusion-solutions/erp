@@ -1,13 +1,16 @@
 MODULE FuelX;
 
-REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel;
+REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel, StockReportsFuel;
 
 @defineLogRotate(FuelX, 5, weekly);
 
 url 'URL' = DATA STRING();
+portDataCenterX 'Порт для DataCenterX' = DATA INTEGER();
+portFuelX 'Порт для FuelX' = DATA INTEGER();
+portCafeX 'Порт для CafeX' = DATA INTEGER();
 
 EXTEND FORM integrationData
-    PROPERTIES url()
+    PROPERTIES() url, portDataCenterX, portFuelX, portCafeX
 ;
 
 DESIGN integrationData {
@@ -15,19 +18,24 @@ DESIGN integrationData {
         NEW fuelX {
             caption = 'FuelX';
             MOVE PROPERTY(url());
+            MOVE PROPERTY(portDataCenterX());
+            MOVE PROPERTY(portFuelX());
+            MOVE PROPERTY(portCafeX());
         }
     }
 }
 
-//localhost/setdeliverinvoices:9010 json
+//http://fuelx.online:7004/setdeliverinvoices json
 //Передать в DataCenterX список накладных на поставку топлива
 
 dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (Purchase.Invoice);
 toFuelX = DATA LOCAL NESTED BOOLEAN (Purchase.Invoice);
 
+GROUP license EXTID 'License';
+
 FORM setDeliverInvoices
     OBJECTS s = Stock PANEL
-    PROPERTIES nameLegalEntity(s) EXTID 'Owner',
+    PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
                name(s) EXTID 'ObjectName',
                software = 'FuelX' IF s IS Stock EXTID 'Software'
     
@@ -50,23 +58,30 @@ setDeliverInvoices () {
         MESSAGE 'Не задан URL' NOWAIT;
         RETURN;
     }
+    IF NOT portFuelX() THEN {
+        MESSAGE 'Не задан порт для FuelX' NOWAIT;
+        RETURN;
+    }
     FOR [GROUP SUM 1 IF toFuelX(Purchase.Invoice i) BY customerStock(i)](Stock stock) DO NEWSESSION {
-        LOCAL response = FILE();
+        LOCAL response = STRING();
+        LOCAL file = FILE();
         TRY {
             EXPORT setDeliverInvoices OBJECTS s = stock JSON;
             fileToString(exportFile(),'UTF-8');
-            logToFile('FuelX', 'POST: ' + url() + '/setdeliverinvoices' + '\n' + resultString());
-            EXTERNAL HTTP POST url() + '/setdeliverinvoices' PARAMS exportFile() TO response;
-            fileToString(response(), 'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + ':' + portFuelX() + '/setdeliverinvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + ':' + portFuelX() + '/setdeliverinvoices' PARAMS exportFile() TO response;
+            file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+            fileToString(file(), 'UTF-8');
             logToFile('FuelX', 'Response: ' + resultString());
             
             LOCAL ok = BOOLEAN ();
-            IMPORT JSON FROM response() TO() ok = 'OK';
+            IMPORT JSON FROM file() TO() ok = 'OK';
             dateFuelX(Purchase.Invoice i) <- currentDateTime() WHERE customerStock(i) == stock AND toFuelX(i) AND ok();
             APPLY;
         } CATCH {
             logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
             logToFile('FuelX', response());
+            MESSAGE messageCaughtException() NOWAIT;
         }
     }
 }
@@ -94,7 +109,7 @@ DESIGN Purchase.invoices {
     }    
 }
 
-//localhost/setdraininvoices:9010 json
+//http://fuelx.online:7004/setdraininvoices json
 //Передать в DataCenterX список накладных на откачку резервуара
 
 dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (Sale.Invoice);
@@ -102,7 +117,7 @@ toFuelX = DATA LOCAL NESTED BOOLEAN (Sale.Invoice);
 
 FORM setDrainInvoices
     OBJECTS s = Stock PANEL
-    PROPERTIES nameLegalEntity(s) EXTID 'Owner',
+    PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
                name(s) EXTID 'ObjectName',
                software = 'FuelX' IF s IS Stock EXTID 'Software'
     
@@ -113,7 +128,7 @@ FORM setDrainInvoices
                vehicleNumber = vehicleNumber(invoice(d)) EXTID 'CarNumber',
                date = toChar((OVERRIDE shipmentDateTime(d), dateTime(d)), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
                idSku(d) EXTID 'GradeCode',
-               nameInBin(d) EXTID 'TankName',
+               nameOutBin(d) EXTID 'TankName',
                quantity(d) EXTID 'Mass'
 ;
 
@@ -122,23 +137,30 @@ setDrainInvoices () {
         MESSAGE 'Не задан URL' NOWAIT;
         RETURN;
     }
+    IF NOT portFuelX() THEN {
+        MESSAGE 'Не задан порт для FuelX' NOWAIT;
+        RETURN;
+    }
     FOR [GROUP SUM 1 IF toFuelX(Sale.Invoice i) BY supplierStock(i)](Stock stock) DO NEWSESSION {
-        LOCAL response = FILE();
+        LOCAL response = STRING();
+        LOCAL file = FILE();
         TRY {
             EXPORT setDrainInvoices OBJECTS s = stock JSON;
             fileToString(exportFile(),'UTF-8');
-            logToFile('FuelX', 'POST: ' + url() + '/setdraininvoices' + '\n' + resultString());
-            EXTERNAL HTTP POST url() + '/setdraininvoices' PARAMS exportFile() TO response;
-            fileToString(response(), 'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + ':' + portFuelX() + '/setdraininvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + ':' + portFuelX() + '/setdraininvoices' PARAMS exportFile() TO response;
+            file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+            fileToString(file(), 'UTF-8');
             logToFile('FuelX', 'Response: ' + resultString());
             
             LOCAL ok = BOOLEAN ();
-            IMPORT JSON FROM response() TO() ok = 'OK';
+            IMPORT JSON FROM file() TO() ok = 'OK';
             dateFuelX(Sale.Invoice i) <- currentDateTime() WHERE supplierStock(i) == stock AND toFuelX(i) AND ok();
             APPLY;
         } CATCH {
             logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
             logToFile('FuelX', response());
+            MESSAGE messageCaughtException() NOWAIT;
         }
     }
 }
