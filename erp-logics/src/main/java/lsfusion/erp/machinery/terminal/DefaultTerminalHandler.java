@@ -330,10 +330,11 @@ public class DefaultTerminalHandler {
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
 
                     if (terminalLotLM != null) {
-                        createLotsTable(connection);
-                        updateLotsTable(connection, readLotList(session, stockObject, userInfo));
+                        if (!StringUtils.isEmpty(userInfo.idApplication)) { // Костыль для WINCE (марки в WINCE не грузим)
+                            createLotsTable(connection);
+                            updateLotsTable(connection, readLotList(session, stockObject, userInfo));
+                        }
                     }
-
 
                     createVANTable(connection);
                     updateVANTable(connection, handbookTypeList);
