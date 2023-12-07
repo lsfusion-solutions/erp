@@ -120,15 +120,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return result;
     }
 
+    //defaultPLU has 2 extra fields: PackageWeight and Label1ID
     private int loadDefaultPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
-                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue", "PackageWeight", "Label1ID").iterator(), "\t"));
 
                 bw.write(0x0d);
                 bw.write(0x0a);
-                bw.write(StringUtils.join(Arrays.asList("1", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "0", "60", "240", "0").iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList("1", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "0", "60", "240", "0", "0.001", "7").iterator(), "\t"));
             }
 
             logFile(logDir, file, transaction, "plu");
