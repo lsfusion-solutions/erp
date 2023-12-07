@@ -231,6 +231,7 @@ public class StopListEquipmentServer {
         }
         sldQuery.and(stopListLM.findProperty("idBarcodeSku[StopListDetail]").getExpr(sldExpr).getWhere());
         sldQuery.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        sldQuery.and(stopListLM.findProperty("skip[StopListDetail]").getExpr(sldExpr).getWhere().not());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
         for (int i = 0; i < sldResult.size(); i++) {
             ImMap<Object, ObjectValue> values = sldResult.getValue(i);
