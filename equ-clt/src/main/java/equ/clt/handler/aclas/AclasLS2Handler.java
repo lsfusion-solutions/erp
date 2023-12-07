@@ -75,7 +75,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         AclasSDK.release();
     }
 
-    private int clearData(ScalesInfo scales, long sleep) throws IOException, InterruptedException {
+    private int clearData(TransactionScalesInfo transaction, ScalesInfo scales, String logDir, boolean loadDefaultPLU, long sleep) throws IOException, InterruptedException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
             BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), "cp1251"));
@@ -98,19 +98,18 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             //if(result == 0) {
             //    result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), hotKeyFile);
             //}
+
+            if(result == 0 && loadDefaultPLU) {
+                result = loadDefaultPLU(scales, transaction, logDir, sleep);
+            }
+
             return result;
         } finally {
             safeDelete(clearFile);
         }
     }
 
-    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction) throws IOException, InterruptedException {
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
-        String logDir = aclasLS2Settings.getLogDir();
-        boolean commaDecimalSeparator = aclasLS2Settings.isCommaDecimalSeparator();
-        boolean pluNumberAsPluId = aclasLS2Settings.isPluNumberAsPluId();
-        boolean skipLoadHotKey = aclasLS2Settings.isSkipLoadHotKey();
-        long sleep = aclasLS2Settings.getSleepBetweenLibraryCalls();
+    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, boolean skipLoadHotKey, long sleep) throws IOException, InterruptedException {
         int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
         if (result == 0) {
             result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
@@ -119,6 +118,25 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             result = loadHotKey(scales, transaction, pluNumberAsPluId, logDir, sleep);
         }
         return result;
+    }
+
+    private int loadDefaultPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
+        File file = File.createTempFile("aclas", ".txt");
+        try {
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
+                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+
+                bw.write(0x0d);
+                bw.write(0x0a);
+                bw.write(StringUtils.join(Arrays.asList("1", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "0", "60", "240", "0").iterator(), "\t"));
+            }
+
+            logFile(logDir, file, transaction, "plu");
+
+            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
+        } finally {
+            safeDelete(file);
+        }
     }
 
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, long sleep) throws IOException, InterruptedException {
@@ -342,19 +360,27 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         @Override
         protected SendTransactionResult run() {
+            AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
+            String logDir = aclasLS2Settings.getLogDir();
+            boolean commaDecimalSeparator = aclasLS2Settings.isCommaDecimalSeparator();
+            boolean pluNumberAsPluId = aclasLS2Settings.isPluNumberAsPluId();
+            boolean skipLoadHotKey = aclasLS2Settings.isSkipLoadHotKey();
+            long sleep = aclasLS2Settings.getSleepBetweenLibraryCalls();
+            boolean loadDefaultPLU = aclasLS2Settings.isLoadDefaultPLU();
+
             String error;
             boolean cleared = false;
             try {
                 int result = 0;
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear) {
-                    result = clearData(scales, sleep);
+                    result = clearData(transaction, scales, logDir, loadDefaultPLU, sleep);
                     cleared = result == 0;
                 }
 
                 if (result == 0) {
                     aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
-                    result = loadData(scales, transaction);
+                    result = loadData(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, sleep);
                 }
                 error = getErrorDescription(result);
                 if(error != null) {

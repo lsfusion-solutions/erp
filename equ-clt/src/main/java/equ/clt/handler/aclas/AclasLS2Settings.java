@@ -1,12 +1,27 @@
 package equ.clt.handler.aclas;
 
 public class AclasLS2Settings {
+
+    //папка, в которой находится библиотека
     private String libraryDir;
+
+    //папка для логов
     private String logDir;
+
+    //в ID использовать pluNumber (если он есть) вместо idBarcode
     private boolean pluNumberAsPluId;
+
+    //разделитель в цене - запятая (по умолчанию точка)
     private boolean commaDecimalSeparator;
+
+    //Thread.sleep после каждого обращения к библиотеке
     private long sleepBetweenLibraryCalls;
+
+    //не загружать горячие клавиши
     private boolean skipLoadHotKey;
+
+    //после очистки добавлять товар "список товаров"
+    private boolean loadDefaultPLU;
 
     public String getLibraryDir() {
         return libraryDir;
@@ -54,5 +69,13 @@ public class AclasLS2Settings {
 
     public void setSkipLoadHotKey(boolean skipLoadHotKey) {
         this.skipLoadHotKey = skipLoadHotKey;
+    }
+
+    public boolean isLoadDefaultPLU() {
+        return loadDefaultPLU;
+    }
+
+    public void setLoadDefaultPLU(boolean loadDefaultPLU) {
+        this.loadDefaultPLU = loadDefaultPLU;
     }
 }
