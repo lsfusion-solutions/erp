@@ -129,7 +129,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
                 bw.write(0x0d);
                 bw.write(0x0a);
-                bw.write(StringUtils.join(Arrays.asList("1", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "0", "60", "240", "0", "0.001", "7").iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList("5000", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "3", "60", "240", "0", "0.001", "7").iterator(), "\t"));
             }
 
             logFile(logDir, file, transaction, "plu");
