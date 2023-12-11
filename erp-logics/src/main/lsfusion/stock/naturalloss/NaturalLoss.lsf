@@ -2,6 +2,11 @@ MODULE NaturalLoss;
 
 REQUIRE NaturalLossDefault;
 
+CLASS Type 'Тип отчета'{
+    eu 'Естественная убыль',
+    waste 'Технологические отходы'
+}
+
 CLASS SubNaturalLossGroupDetail 'Строка группы естественной убыли';
 TABLE subNaturalLossGroupDetail(SubNaturalLossGroupDetail);
 
@@ -222,11 +227,26 @@ quantityLoss(NaturalLossDetail naturalLossDetail) <- shippedQuantity(batch(natur
 
 skipOpen = ABSTRACT BOOLEAN (NaturalLoss);
 showClose (NaturalLoss n) = isOpened(n) AND NOT skipClose(n);   
-showOpen (NaturalLoss n) = isClosed(n) AND NOT skipOpen(n);   
+showOpen (NaturalLoss n) = isClosed(n) AND NOT skipOpen(n);
 
-subNaturalDetail = DATA SubNaturalLossGroupDetail(NaturalLossDetail) NONULL;
+dataType = DATA Type(NaturalLoss);
+type (NaturalLoss l) = OVERRIDE dataType(l), Type.eu;
+nameType 'Тип отчета' (NaturalLoss l) = staticCaption(type(l)) CHARWIDTH 20 IN documentPrm;
+type (NaturalLossDetail l) = type(naturalLoss(l));
+
+isEU (NaturalLoss l) = type(l) == Type.eu;
+isWaste(NaturalLoss l) = type(l) == Type.waste;
+
+subNaturalDetail = DATA SubNaturalLossGroupDetail(NaturalLossDetail); //NONULL
+
+CONSTRAINT (SET(NaturalLossDetail d IS NaturalLossDetail) OR CHANGED (subNaturalDetail(d)) OR CHANGED (dataType(naturalLoss(d)))) AND type(d) == Type.eu
+    AND NOT subNaturalDetail(d) 
+    MESSAGE 'Свойство subNaturalDetail [NaturalLoss.subNaturalDetail[NaturalLoss.NaturalLossDetail]] не задано!';
+
 nameSubNaturalDetail 'Период' (NaturalLossDetail naturalLossDetail) =
     castInterval(subNaturalDetail(naturalLossDetail));
+captionPercent = ABSTRACT CASE STRING (NaturalLossDetail);
+captionPercent(NaturalLossDetail d) += WHEN isEU(naturalLoss(d)) THEN 'Норма естественной убыли, %';
 
 percent 'Норма естественной убыли, %' = DATA NUMERIC[10,3] (NaturalLossDetail);
 percent(NaturalLossDetail naturalLossDetail) <- overPercent(subNaturalDetail(naturalLossDetail), stock(naturalLossDetail))
@@ -271,6 +291,7 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
         ASK 'Существующие строки будут удалены.' DO
             DELETE NaturalLossDetail d WHERE naturalLoss(d) == naturalLoss;
     }
+    type(naturalLoss) <- Type.eu;
     FOR quantitySaleDepartment(  Sku sku,
                                                     stock(naturalLoss),
                                                     dateFrom(naturalLoss),
@@ -313,7 +334,7 @@ toPurchaseFillDetail 'Заполнить на основе поступлени�
         ASK 'Существующие строки будут удалены.' DO
             DELETE NaturalLossDetail d WHERE naturalLoss(d) == naturalLoss;
     }
-    
+    type(naturalLoss) <- Type.eu;
     FOR quantityPurchaseDepartment( Sku sku,
                                               stock(naturalLoss),
                                               dateFrom(naturalLoss),
@@ -344,11 +365,11 @@ FORM naturalLoss 'Ведомость естественной убыли'
     OBJECTS s=NaturalLoss PANEL
     PROPERTIES(s) isPosted, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(s), time,
                   date, dateFrom, dateTo, toSaleFillDetail, toPurchaseFillDetail,
-                  quantityNaturalLossDetail, sum, note
+                  quantityNaturalLossDetail, sum, note, nameType READONLY 
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) index, idBarcodeSku, nameSku, shortNameUOMSku,
-                  nameBatch, quantityLoss, nameSubNaturalLossGroup BACKGROUND backgroundNameSubNaturalLossGroup(d),
-                  code, nameSubNaturalDetail, percent, quantity, price,
+                  nameBatch, quantityLoss, nameSubNaturalLossGroup BACKGROUND backgroundNameSubNaturalLossGroup(d) SHOWIF isEU(s),
+                  code SHOWIF isEU(s), nameSubNaturalDetail SHOWIF isEU(s), percent HEADER captionPercent(d), quantity, price,
                   sum, nameStock, NEW, DELETE GRID
 
     PROPERTIES(s) DRAW d addDetailDialogSkuStockNaturalLossDetail,
@@ -462,7 +483,7 @@ FORM naturalLosses 'Ведомости естественной убыли'
     OBJECTS s=NaturalLoss
     PROPERTIES(s) READONLYIF isReadonly() isClosed, isPosted,number, series, date, time,
                            idStock SHOWIF showIDs(), nameStock, dateFrom, dateTo,
-                           quantityNaturalLossDetail, sum, note
+                           quantityNaturalLossDetail, sum, note, nameType
     PROPERTIES (s) close SHOWIF showClose(s), open SHOWIF showOpen(s)
     PROPERTIES(s) NEWSESSION NEW, EDIT SHOWIF showEdit(s), show SHOWIF showToShow(s),  deletes=DELETE SHOWIF showDelete(s)
     PROPERTIES(s) READONLYIF isReadonly() PANEL createdNameUser, createdTime, createdHostnameComputer, 
@@ -473,8 +494,8 @@ FORM naturalLosses 'Ведомости естественной убыли'
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) READONLYIF isReadonly() index, idBarcodeSku, nameSku, shortNameUOMSku,
                            nameBatch, quantityLoss,
-                           nameSubNaturalLossGroup, code, nameSubNaturalDetail,
-                           percent, quantity, price, sum, nameStock
+                           nameSubNaturalLossGroup SHOWIF isEU(s), code SHOWIF isEU(s), nameSubNaturalDetail SHOWIF isEU(s),
+                           percent HEADER captionPercent(d), quantity, price, sum, nameStock
 
     FILTERS in(s, d)
 ;

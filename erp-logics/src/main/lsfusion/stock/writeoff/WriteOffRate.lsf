@@ -1,0 +1,41 @@
+MODULE WriteOffRate;
+
+REQUIRE WriteOff;
+
+NAMESPACE WriteOff;
+
+//---------------------------------- Норма отходов ------------------------------------//
+CLASS WriteOffRate 'Норма отходов';
+TABLE writeOffRate(WriteOffRate);
+
+@defineExternalizable(writeOffRate, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](WriteOffRate);
+
+percent 'Норма,%' = DATA NUMERIC[10,3] (WriteOffRate);
+country = DATA Country (WriteOffRate);
+nameCountry 'Страна' (WriteOffRate writeOffRate) = name(country(writeOffRate)) IN base;
+
+writeOffRateName = GROUP NAGGR WriteOffRate w WHERE w IS WriteOffRate BY name(w), percent(w);
+
+FORM writeOffRate 'Норма отходов'
+    OBJECTS r=WriteOffRate PANEL
+    PROPERTIES(r) name, percent, nameCountry
+    EDIT WriteOffRate OBJECT r
+;
+
+writeOffRate 'Норма отходов' = ABSTRACT WriteOffRate (Country, Sku);
+nameWriteOffRate 'Норма отходов' = name(writeOffRate(Country country, Sku sku));
+percentWriteOffRate 'Норма отходов,%' = percent(writeOffRate(Country country, Sku sku));
+
+FORM writeOffRateDialog 'Нормы отходов'
+    OBJECTS r=WriteOffRate
+    PROPERTIES(r) READONLY name, percent, nameCountry
+    PROPERTIES(r) NEWEDIT, EDIT, DELETE GRID
+    LIST WriteOffRate OBJECT r
+;
+NAVIGATOR {
+    writeOffNavigator  {
+        NEW writeOffRateDialog;
+    }
+}

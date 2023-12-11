@@ -1,0 +1,63 @@
+MODULE NaturalLossWaste;
+
+REQUIRE NaturalLoss, WriteOffRate;
+
+NAMESPACE NaturalLoss;
+
+writeOffRate 'Норма отходов' (userInvoiceDetail) = DATA WriteOffRate (NaturalLossDetail);
+nameWriteOffRate 'Норма отходов' (NaturalLossDetail d) = name(writeOffRate(d));
+captionPercent(NaturalLossDetail d) += WHEN d IS NaturalLossDetail AND NOT isEU(naturalLoss(d)) THEN 'Норма отходов,%';
+
+quantityPurchaseDepartmentWaste 'Поступило'  =
+    GROUP SUM shipmentQuantity(PurchaseLedger ledger) IF active(ledger) AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo  AND NOT skipNatulassLoss(ledger)
+    BY sku(ledger), stock(ledger), dateFrom, dateTo, writeOffRate(country(stock(ledger)), sku(ledger));
+
+toWastePurchaseFillDetail 'Заполнить тех. отходы'(NaturalLoss n)  {
+    IF countNaturalLossDetail(n) THEN {
+        ASK 'Существующие строки будут удалены.' DO
+            DELETE NaturalLossDetail d WHERE naturalLoss(d) == n;
+    }
+    type(n) <- Type.waste;
+    FOR quantityPurchaseDepartmentWaste( Sku sku, stock(n), dateFrom(n), dateTo(n), WriteOffRate rate) ORDER name(sku), rate DO {
+        NEW d = NaturalLossDetail {
+            naturalLoss(d) <- n;
+            sku(d) <- sku;
+            writeOffRate(d) <- rate;
+            quantityLoss(d) <- quantityPurchaseDepartmentWaste(sku,stock(n),dateFrom(n),dateTo(n),rate);
+            percent(d) <- percent(rate);
+            quantity (d) <- percent(d) * quantityLoss(d) /100;
+        }
+    }
+    overPurchaseFillDetail(n);
+} IN fillNaturalLoss;
+
+EXTEND FORM naturalLoss
+    PROPERTIES (s) toWastePurchaseFillDetail
+    PROPERTIES (d) nameWriteOffRate SHOWIF isWaste(s) BEFORE percent(d)
+;
+DESIGN naturalLoss{
+    GROUP(fillNaturalLoss,s) {
+        lines = 5;
+    }
+}
+EXTEND FORM naturalLosses
+    PROPERTIES (d) READONLY nameWriteOffRate SHOWIF isWaste(s) BEFORE percent(d)
+;
+
+FORM printNaturalLossWasteBy 'Ведомость естественной убыли'
+    OBJECTS s=NaturalLoss PANEL SUBREPORT
+    PROPERTIES(s) READONLY SELECTOR number, series, fullNameStock, time,
+        date, dateFrom, dateTo, addressStock,
+        quantityNaturalLossDetail, sum, note
+    OBJECTS d=NaturalLossDetail
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+        nameBatch, quantityLoss, nameWriteOffRate, percent, quantity, price, sum
+    FILTERS in(s, d)
+;
+
+printWasteBy 'Ведомость естественной убыли' (NaturalLoss naturalLoss)  { PRINT printNaturalLossWasteBy OBJECTS s = naturalLoss; }   IMAGE 'print.png' IN print;
+printWasteByXlsx 'Ведомость естественной убыли (XLSX)' (NaturalLoss naturalLoss)  { PRINT printNaturalLossWasteBy OBJECTS s = naturalLoss   XLSX; } IMAGE 'print.png' IN print;
+
+EXTEND FORM naturalLosses
+    PROPERTIES(s)  SHOWIF isWaste(s) printWasteBy, printWasteByXlsx
+;
