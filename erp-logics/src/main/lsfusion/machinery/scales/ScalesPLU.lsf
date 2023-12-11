@@ -8,6 +8,8 @@ dataPluNumber = ABSTRACT INTEGER (GroupScales, Barcode);
 pluNumber 'Номер PLU' = DATA INTEGER (GroupScales, Barcode);
 plu (GroupMachinery g, Barcode b) += OVERRIDE pluNumber(g, b), dataPluNumber(g, b);
 maxPluNumber 'Максимальное значение PLU' = DATA INTEGER (GroupScales);
+dataMinPluNumber 'Минимальное значение PLU' = DATA INTEGER (GroupScales);
+minPluNumber 'Минимальное значение PLU'(GroupScales g) = OVERRIDE dataMinPluNumber(g), 1 IF g IS GroupScales MATERIALIZED;
 
 isScales(Barcode b) = passScales(b) AND length(id(b)) < 6 AND active(b);
 quantityNullPluNumber 'Кол-во не назнач. PLU' (GroupScales g) = GROUP SUM 1 IF isScales(Barcode b) AND active(sku(b)) AND in(g, sku(b)) AND NOT pluNumber(g,b);
@@ -16,13 +18,13 @@ countItemPLU (GroupScales g, INTEGER plu) = GROUP SUM 1 IF plu == pluNumber(g, B
 CONSTRAINT countItemPLU(GroupMachinery gs, INTEGER plu) > 1
     MESSAGE 'PLU уже используется в данной группе весов';
 
-CONSTRAINT CHANGED(pluNumber(GroupScales g, Barcode b)) AND pluNumber(g, b) < 1
+CONSTRAINT (CHANGED(pluNumber(GroupScales g, Barcode b)) OR CHANGED (minPluNumber(g))) AND pluNumber(g, b) < minPluNumber(g)
     MESSAGE 'Номер PLU должен быть больше 0';
 
 CONSTRAINT (CHANGED(pluNumber(GroupScales g, Barcode b)) OR CHANGED (maxPluNumber(g))) AND pluNumber(g,b) > maxPluNumber(g)
     MESSAGE 'Номер PLU превышает максимальный';
 
-minIndex (GroupScales g) = GROUP MIN INTEGER index IF iterate(index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index);
+minIndex (GroupScales g) = GROUP MIN INTEGER index IF iterate(index, minPluNumber(g), maxPluNumber(g)) AND NOT countItemPLU(g, index);
 
 fillPLU 'Проставить PLU' (GroupScales g, Barcode b) { 
     IF NOT pluNumber(g,b) THEN {
@@ -71,7 +73,7 @@ FORM pluDashboard 'Задание PLU'
     
     OBJECTS g = GroupScales
     PROPERTIES(g) READONLY npp, name
-    PROPERTIES(g) maxPluNumber, quantityNullPluNumber READONLY
+    PROPERTIES(g) minPluNumber, maxPluNumber, quantityNullPluNumber READONLY
     FILTERS stock(g) == d
     FILTERGROUP activeGroup FILTER 'Активные' active(g) DEFAULT
     
@@ -130,7 +132,7 @@ fillPLU 'Проставить PLU (по фильтру)' (GroupScales g) {
         MESSAGE 'Не задано максимальное значение PLU' NOWAIT;
         RETURN;
     } ELSE {
-        IF (GROUP SUM 1 IF [ FILTER pluDashboard.b](Barcode b) AND b IS Barcode AND NOT pluNumber(g,b)) > (GROUP SUM 1 IF iterate(INTEGER index, 1, maxPluNumber(g)) AND NOT countItemPLU(g, index)) THEN {
+        IF (GROUP SUM 1 IF [ FILTER pluDashboard.b](Barcode b) AND b IS Barcode AND NOT pluNumber(g,b)) > (GROUP SUM 1 IF iterate(INTEGER index, minPluNumber(g), maxPluNumber(g)) AND NOT countItemPLU(g, index)) THEN {
             MESSAGE 'Счетчик PLU переполнен. Обратитесь к администартору или удалите неиспользуемые номера.' NOWAIT;
         } ELSE FOR [ FILTER pluDashboard.b](Barcode b) AND b IS Barcode AND NOT pluNumber(g,b) DO {
             pluNumber(g,b) <- minIndex(g);
