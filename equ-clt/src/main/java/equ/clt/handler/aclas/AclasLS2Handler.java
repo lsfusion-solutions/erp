@@ -109,8 +109,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, boolean skipLoadHotKey, long sleep) throws IOException, InterruptedException {
-        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, sleep);
+    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, boolean skipLoadHotKey, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
+        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, overBarcodeTypeForPieceItems, sleep);
         if (result == 0) {
             result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
         }
@@ -140,7 +140,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, long sleep) throws IOException, InterruptedException {
+    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
@@ -165,7 +165,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
 
                     Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                    String barcodeType = item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
+                    String barcodeType = !isWeight && overBarcodeTypeForPieceItems != null ? overBarcodeTypeForPieceItems :  item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
                     bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
                 }
             }
@@ -368,6 +368,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             boolean skipLoadHotKey = aclasLS2Settings.isSkipLoadHotKey();
             long sleep = aclasLS2Settings.getSleepBetweenLibraryCalls();
             boolean loadDefaultPLU = aclasLS2Settings.isLoadDefaultPLU();
+            String overBarcodeTypeForPieceItems = aclasLS2Settings.getOverBarcodeTypeForPieceItems();
 
             String error;
             boolean cleared = false;
@@ -381,7 +382,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
                 if (result == 0) {
                     aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
-                    result = loadData(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, sleep);
+                    result = loadData(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, overBarcodeTypeForPieceItems, sleep);
                 }
                 error = getErrorDescription(result);
                 if(error != null) {

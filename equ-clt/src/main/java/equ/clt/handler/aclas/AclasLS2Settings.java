@@ -23,6 +23,9 @@ public class AclasLS2Settings {
     //после очистки добавлять товар "список товаров"
     private boolean loadDefaultPLU;
 
+    //BarcodeType для штучных товаров. По умолчанию barcodeType определяется так же, как и для весовых товаров
+    private String overBarcodeTypeForPieceItems;
+
     public String getLibraryDir() {
         return libraryDir;
     }
@@ -77,5 +80,13 @@ public class AclasLS2Settings {
 
     public void setLoadDefaultPLU(boolean loadDefaultPLU) {
         this.loadDefaultPLU = loadDefaultPLU;
+    }
+
+    public String getOverBarcodeTypeForPieceItems() {
+        return overBarcodeTypeForPieceItems;
+    }
+
+    public void setOverBarcodeTypeForPieceItems(String overBarcodeTypeForPieceItems) {
+        this.overBarcodeTypeForPieceItems = overBarcodeTypeForPieceItems;
     }
 }
