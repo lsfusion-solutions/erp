@@ -67,13 +67,14 @@ onStarted() + {
 
 isExportedPosXServer = DATA BOOLEAN (Sku);
 
+fsrlLot = ABSTRACT BOOLEAN (Sku);
 fsrlAlcohol = ABSTRACT BOOLEAN (Sku);
 fsrlTobacco = ABSTRACT BOOLEAN (Sku);
 fsrlBeer = ABSTRACT BOOLEAN (Sku);
 fsrlFuel = ABSTRACT BOOLEAN (Sku);
 fsrl(Sku s) =
     (1 IF active(s)) (+) //Активен
-    //(2 IF ) (+) //Есть серийный номер
+    (2 IF fsrlLot(s)) (+) //Есть серийный номер
     //(4 IF ) (+) //Серийный в serial
     //(8 IF ) (+) //Онлайн проверка
     //(16 IF ) (+) //Финмониторинг товара
@@ -101,7 +102,7 @@ groupsSkuString (MachineryPriceTransaction t) = GROUP CONCAT groupSkuString(Grou
 
 //вопрос по передаче значений nds,nsp,ed (справочники tp_vat и tp_goodsed)
 //вопрос с передачей цены (обязательное поле, но нужно грузить для всех магазинов)
-skuString (MachineryPriceTransaction t, Sku s) = 'INSERT INTO dbo.tp_add_item(tip,item,shortname,otdel,fullname,modelid,nds,nsp,price,minprice,ed,fsrl) VALUES (1,\'' + escape(id(s)) + '\',\'' + STRING[40](name(t, s)) + '\',' + (OVERRIDE order(skuGroup(s)),0) + ',\'' + STRING[70](name(t, s)) + '\',\'\',' + moneyString(valueVAT(s)) + ',0,' + (OVERRIDE moneyString(price(t,barcode(s))) IF NOT isExportedPosXServer(s),'null') + ',' + (OVERRIDE moneyString(minPrice(t,barcode(s))) IF NOT isExportedPosXServer(s),'null') + ',' + '\'' + (OVERRIDE STRING[2](upper(shortNameUOM(t,barcode(s)))), 'ШТ') + '\'' + ',' + fsrl(s) + ')';
+skuString (MachineryPriceTransaction t, Sku s) = 'INSERT INTO dbo.tp_add_item(tip,item,shortname,otdel,fullname,modelid,nds,nsp,price,minprice,ed,fsrl) VALUES (1,\'' + escape(id(s)) + '\',\'' + STRING[40](name(t, s)) + '\',' + (OVERRIDE kod(skuGroup(s)),0) + ',\'' + STRING[70](name(t, s)) + '\',\'\',' + moneyString(valueVAT(s)) + ',0,' + (OVERRIDE moneyString(price(t,barcode(s))) IF NOT isExportedPosXServer(s),'null') + ',' + (OVERRIDE moneyString(minPrice(t,barcode(s))) IF NOT isExportedPosXServer(s),'null') + ',' + '\'' + (OVERRIDE STRING[2](upper(shortNameUOM(t,barcode(s)))), 'ШТ') + '\'' + ',' + fsrl(s) + ')';
 skusString (MachineryPriceTransaction t) = GROUP CONCAT skuString(t, Sku s), ';' IF in(t, Barcode b) AND sku(b) = s ORDER s;
 
 barcodeString (Barcode b) = 'INSERT INTO dbo.tp_add_itembar(tip,item,barcode) VALUES (0,\'' + escape(id(sku(b))) + '\',\'' + escape(id(b)) + '\')';
