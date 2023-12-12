@@ -254,19 +254,26 @@ nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) =
                                                                                                 positionShortName(overIssuanceExecuted(consignment)) IN issuanceConsignment CHARWIDTH 20;
 overChangeIssuanceExecuted ABSTRACT (Consignment);
 
+customSelectIssuanceExecuted = ABSTRACT BOOLEAN (Consignment);
+overSelectIssuanceExecuted ABSTRACT (Consignment);
+
 changeIssuanceExecuted(Consignment consignment)  {    
     IF notUseIssuanceExecuted(consignment) THEN {
         INPUT s = dataIssuanceExecuted(consignment) DO {
             dataIssuanceExecuted(consignment) <- s;
         } 
         
-    } ELSE { 
-        DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
-            issuanceExecuted(consignment) <- e;
-            IF NOT issuanceExecuted(consignment) THEN {
-                overIssuanceExecuted(consignment) <- e;
+    } ELSE {
+        IF customSelectIssuanceExecuted(consignment) THEN {
+            overSelectIssuanceExecuted(consignment);
+        } ELSE {
+            DIALOG dialogEmployeesConsignment OBJECTS e = issuanceExecuted(consignment) INPUT NULL DO {
+                issuanceExecuted(consignment) <- e;
+                IF NOT issuanceExecuted(consignment) THEN {
+                    overIssuanceExecuted(consignment) <- e;
+                }
             }
-        }               
+        }
     }        
     overChangeIssuanceExecuted(consignment);
 }
