@@ -182,8 +182,12 @@ createFilePickList (GroupCashRegister gm) {
                         ) 
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
-                
-    IF isUseNewTaraMode(gm) THEN {
+
+    IF isUseNewTaraMode(gm) AND doClear() THEN {
+        rezult() <- CONCAT '', rezult(), '\{"command": "clearInventCatalog"\}\n---\n';
+    }
+    
+    IF isUseNewTaraMode(gm) AND (GROUP SUM 1 IF exportTara(Sku s)) THEN {
         rezult() <- CONCAT '', rezult(),
                         ('\{"command": "addCatalog","catalog": \{' + 
                             (CONCAT ',', 
@@ -193,9 +197,6 @@ createFilePickList (GroupCashRegister gm) {
                             )
                         + '\}\}') 
                     +'\n---\n';
-        IF doClear() THEN {
-            rezult() <-'\{"command": "clearInventCatalog"\}\n---\n';
-        }
         rezult() <- CONCAT '', rezult(),
                         (GROUP CONCAT ('\{"command": "addInventCatalog","inventcatalog": \{' + 
                             (CONCAT ',', 
@@ -223,12 +224,12 @@ exportPickList 'Выгрузить' (GroupCashRegister gm) {
     idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) 
                     AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s); 
     
-    export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF isParent(cg, Sku s) AND idParent(s)); 
+    export(CustomGroup cg) <- customGroupType(cg) == dataCustomGroupTypeArtix(gm) AND (GROUP SUM 1 IF isParent(cg, Sku s) AND idParent(s));
+
+    exportTara(Sku s) <- TRUE IF isTara(s) AND (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) AND active(s);
     
     beforeExport(gm);
     beforeFullExport(gm);
-
-    exportTara(Sku s) <- TRUE WHERE idParent(s) AND isTara(s);
     
     IF NOT (GROUP SUM 1 IF idParent(Sku s)) THEN {
         MESSAGE name(gm) +': Нет товаров к выгрузке' NOWAIT;
@@ -293,11 +294,12 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
         
         //выгрузка в пиклист
         idParent(Sku s) <- id(customGroup(dataCustomGroupTypeArtix(gm), s)) IF (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) 
-                        AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b)); 
+                        AND customGroup(dataCustomGroupTypeArtix(gm), s) AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b));
+
+        exportTara(Sku s) <- TRUE IF isTara(s) AND (currentBalance(s, stock(gm)) OR skipFilterBalance(gm, s) OR skipFilterBalance()) 
+                        AND active(s) AND (GROUP SUM 1 IF in(mpt, Barcode b) AND s == sku(b));;
         
         beforeExport(gm);
-        
-        exportTara(Sku s) <- TRUE WHERE idParent(s) AND isTara(s);
          
         IF (GROUP SUM 1 IF idParent(Sku s)) THEN {
             createFilePickList(gm);
