@@ -477,7 +477,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                 //{"extraPrices": [{"id": 2, "name": "VIP", "price": 12.34}, {"id": 3, "name": "OPT", "price": 2.34}]}
                 JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
-                if(extraPrices != null && !extraPrices.isEmpty() && item.price != null && !item.price.equals(BigDecimal.ZERO)) {
+                if(extraPrices != null && !extraPrices.isEmpty() && item.price != null && item.price.compareTo(BigDecimal.ZERO)>0) {
                     JSONArray additionalPrices = new JSONArray();
                     for (int i = 0; i < extraPrices.length(); i++) {
                         JSONObject extraPrice = extraPrices.getJSONObject(i);
