@@ -1,28 +1,8 @@
 MODULE ProductionOrderPurchaseInvoice;
 
-REQUIRE ProductionOrder, ProductionOutput, PurchaseInvoice;
+REQUIRE ProductionOrderPriceListLedger, ProductionOutput, PurchaseInvoice;
 
 NAMESPACE Production;
 
-// --------------- Проведение по регистру цен ------------- //
-
-EXTEND CLASS ProductDetail : PriceListLedger;
-
-fromDateTime (ProductDetail ledger) += dateTime(ledger);
-
-isPosted(ProductDetail ledger) += isPosted(ledger);
-
-sku (ProductDetail ledger) += sku(ledger);
-
-operation (ProductDetail ledger) += operation(ledger);
-
-description (ProductDetail ledger) += ISTRING[200](description(ledger));
-
-company (ProductDetail ledger) += company(order(ledger));
-
-in (ProductDetail ledger, Stock stock) += productsStock(order(ledger)) == stock;
-
 in (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN costPrice(ledger) AND createOutput(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
 price (ProductDetail ledger, SystemLedgerPriceListType type) += WHEN costPrice(ledger) AND createOutput(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN costPrice(ledger);
-
-show[PriceListLedger] (ProductDetail ledger) + { show(ledger);};

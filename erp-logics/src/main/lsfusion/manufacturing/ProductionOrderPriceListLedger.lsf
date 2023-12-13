@@ -1,0 +1,25 @@
+MODULE ProductionOrderPriceListLedger;
+
+REQUIRE ProductionOrder, PriceListLedger;
+
+NAMESPACE Production;
+
+// --------------- Проведение по регистру цен ------------- //
+
+EXTEND CLASS ProductDetail : PriceListLedger;
+
+fromDateTime (ProductDetail ledger) += dateTime(ledger);
+
+isPosted(ProductDetail ledger) += isPosted(ledger);
+
+sku (ProductDetail ledger) += sku(ledger);
+
+operation (ProductDetail ledger) += operation(ledger);
+
+description (ProductDetail ledger) += ISTRING[200](description(ledger));
+
+company (ProductDetail ledger) += company(order(ledger));
+
+in (ProductDetail ledger, Stock stock) += productsStock(order(ledger)) == stock;
+
+show[PriceListLedger] (ProductDetail ledger) + { show(ledger);};
