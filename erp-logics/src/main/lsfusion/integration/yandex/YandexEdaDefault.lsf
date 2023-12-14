@@ -32,8 +32,11 @@ composition(Item i) += STRING(Item.composition(i));
 packageInfo(Item i) += STRING(namePackType(i));
 vendorName(Item i ) += STRING(nameManufacturer(i));
 
+useCustomCurrentPrice = ABSTRACT BOOLEAN ();
+customCurrentPrice = ABSTRACT NUMERIC[16,4] (Item, DepartmentStore);
+
 quantum (Item i) += IF isCatchWeight(i) = TTRUE THEN (OVERRIDE passScalesQuantum(i), 1);
-currentPrice(Item i, DepartmentStore d) += retailPricingPriceA(i, d);
+currentPrice(Item i, DepartmentStore d) += IF useCustomCurrentPrice() THEN customCurrentPrice(i, d) ELSE retailPricingPriceA(i, d);
 oldPrice (Item i, DepartmentStore d) += priceBefore(promotionPriceListDetailA(i, d, currentDateTime()));
 
 useCustomAvailable = ABSTRACT BOOLEAN ();

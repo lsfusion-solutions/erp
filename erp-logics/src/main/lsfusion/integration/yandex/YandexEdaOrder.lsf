@@ -167,10 +167,15 @@ orderNotFound(){
 extraUpdateOrder ABSTRACT LIST (InternetOrder);
 afterUpdateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 afterUpdateDetailsChange ABSTRACT LIST (INTEGER, InternetOrderDetail);
+FORM closeOrder
+    PROPERTIES() eatsId, comment;
+
+customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
+
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
-    order() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
+    order() <- replace(replace(servletPath() + pathInfo(), TEXT('/exec/v1/order/'), TEXT ('')), '/exec/order/', '');
     logToFile('yandex', CONCAT ' : ', 'Update order', order());
     LOCAL tokenClient = STRING ();
     tokenClient() <- OVERRIDE getWord(headers('Authorization'), ' ', 2), getWord(headers('authorization'), ' ', 2);;
@@ -181,6 +186,21 @@ updateOrder(FILE f){
         EXPORT JSON FROM code = 100, description = 'Не найден токен авторизации';
     }
     ELSE {
+        //добавляем отмену заказа через PUT /order/uuid/status
+        IF getWord(order(), '/', 2) = 'status' AND internetOrderByUuid(getWord(order(), '/', 1)) THEN{
+            LOCAL orderLoc = STRING ();
+            orderLoc() <- getWord(order(), '/', 1);
+            IMPORT closeOrder FROM f;
+            customerComment(internetOrderByUuid(orderLoc())) <- comment();
+            status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+            APPLY ;
+            IF canceled() THEN {
+                statusHttpTo() <- 500;
+                EXPORT JSON FROM result = 'error', description = applyMessage();
+            }
+            EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
+            RETURN;
+        }
         IMPORT yandexorder FROM JSONFILE(f);
         FOR InternetOrder io =  internetOrderByUuid(order()) DO{
             carrier(io) <- carrierOrder(aggr());
@@ -196,16 +216,16 @@ updateOrder(FILE f){
                 pickingQuantity(detail) <- NUMERIC[16,5](quantity(items));
                 afterUpdateDetails(items, detail);
             }
-            
+
             FOR id(INTEGER items) AND NOT detailLoc(items)  NEW change = InternetOrderDetail DO {
-                
+
                 internetOrder(change) <- io;
                 sku(change) <- sku(id(items));
                 quantity(change) <- NUMERIC[16,5](quantity(items));
                 pickingQuantity(change) <- NUMERIC[16,5](quantity(items));
                 price(change) <- NUMERIC[16,4](price(items));
                 afterUpdateDetailsChange(items, change);
-                   
+
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
             paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
@@ -219,14 +239,9 @@ updateOrder(FILE f){
             }
             ELSE EXPORT JSON FROM result = 'OK';
         }
-        ELSE orderNotFound(); 
-    }  
+            ELSE orderNotFound();
+    }
 }
-
-FORM closeOrder
-PROPERTIES() eatsId, comment;
-
-customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 
 deleteOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -302,7 +317,7 @@ getOrder (FILE f) {
     }
     ELSE{
         LOCAL path = STRING ();
-        path() <- replace(servletPath() + pathInfo(), TEXT('/exec/order/'), TEXT (''));
+        path() <- replace(replace(servletPath() + pathInfo(), TEXT('/exec/v1/order/'), TEXT ('')), '/exec/order/', '');
         LOCAL orderNumber = STRING ();
         LOCAL param = STRING ();
         orderNumber() <- getWord(path(), '/', 1);
@@ -314,6 +329,7 @@ getOrder (FILE f) {
         IF (param() = 'status') THEN 
         {
             EXPORT statusYandex OBJECTS o = order() JSON;
+            headersTo('Content-Type') <- 'application/json';
         }
         ELSE 
         {
