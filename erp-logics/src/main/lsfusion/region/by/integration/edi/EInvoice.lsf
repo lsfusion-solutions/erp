@@ -292,6 +292,14 @@ CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoice
 CLASS EInvoiceMessage 'Сообщение по накладной EDI';
 TABLE eInvoiceMessage(EInvoiceMessage);
 
+createdUser = DATA CustomUser (EInvoiceMessage);
+createdNameUser '{historizable.created.name.user}' (EInvoiceMessage m) = name[Contact](createdUser(m)) CHARWIDTH 10;
+createdUser (EInvoiceMessage m) <- currentUser() WHEN SET(m IS EInvoiceMessage);
+
+createdComputer = DATA Computer (EInvoiceMessage);
+createdHostnameComputer '{historizable.created.host.name.computer}' (EInvoiceMessage m) = hostname(createdComputer(m)) CHARWIDTH 10;
+createdComputer (EInvoiceMessage m) <- currentComputer() WHEN SET(m IS EInvoiceMessage);
+
 number 'Номер' = DATA STRING[35] (EInvoiceMessage) INDEXED LIKE;
 eInvoice 'Накладная' = DATA EInvoice (EInvoiceMessage) NONULL DELETE;
 numberEInvoice 'Накладная' (EInvoiceMessage m) = deliveryNoteNumber(eInvoice(m));
@@ -353,7 +361,7 @@ FORM eInvoices 'Электронные накладные EDI'
     FILTERS eInvoice(d) == e
 
     OBJECTS m = EInvoiceMessage
-    PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, nameKind, code, description
+    PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, nameKind, code, description, createdNameUser, createdHostnameComputer 
     FILTERS eInvoice(m) == e
     ORDERS dateTime(m);
 ;
