@@ -2129,11 +2129,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             for (Object[] transaction : transactionObjects) {
 
                 count++;
-                logger.info("Reading transaction number " + count + " of " + transactionObjects.size());
                 DataObject groupMachineryObject = (DataObject) transaction[0];
                 Integer nppGroupMachinery = (Integer) transaction[1];
-                if(troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups)
+                if (troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups) {
+                    logger.info("Skipped transaction number " + count + " of " + transactionObjects.size());
                     continue;
+                } else {
+                    logger.info("Reading transaction number " + count + " of " + transactionObjects.size());
+                }
 
                 String nameGroupMachinery = (String) transaction[2];
                 DataObject transactionObject = (DataObject) transaction[3];
@@ -2573,6 +2576,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             nppGroupTerminal, directoryGroupTerminal, infoMPT));
                 }
             }
+            logger.info("Sending " + transactionList.size() + " transactions");
             return transactionList;
         } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
