@@ -1,0 +1,44 @@
+MODULE ItemExcise;
+
+REQUIRE System, Item;
+
+NAMESPACE Item;
+
+CLASS ExciseGroup 'Группа акцизов';
+TABLE exciseGroup (ExciseGroup);
+
+name '{master.data.name}' = DATA STRING[500] (ExciseGroup) CHARWIDTH 30;
+exciseGroupName = GROUP AGGR ExciseGroup exciseGroup BY name(exciseGroup);
+
+FORM exciseGroup 'Группа акцизов'
+    OBJECTS g = ExciseGroup PANEL
+    PROPERTIES(g) name
+
+    EDIT ExciseGroup OBJECT g
+;
+
+FORM exciseGroups 'Группы акцизов'
+    OBJECTS g = ExciseGroup
+    PROPERTIES(g) READONLY name
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+
+    LIST ExciseGroup OBJECT g
+;
+
+NAVIGATOR {
+    skuNavigator {
+        NEW exciseGroups;
+    }
+}
+
+exciseGroup = DATA ExciseGroup (Item);
+nameExciseGroup 'Группа акцизов' (Item i) = name(exciseGroup(i)) IN itemBase;
+
+EXTEND FORM item
+    PROPERTIES (i) nameExciseGroup
+;
+
+EXTEND FORM items
+    PROPERTIES (i) READONLYIF isReadonly() nameExciseGroup
+;
+
