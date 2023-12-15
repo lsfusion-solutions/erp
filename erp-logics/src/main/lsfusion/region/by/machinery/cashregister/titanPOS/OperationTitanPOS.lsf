@@ -1,6 +1,11 @@
 MODULE OperationTitanPOS;
 
 REQUIRE Utils, Time, StructureTitanPOS;
+// принцип работы СКО.
+// Есть три операции для СКО: инициализация (init), открытие сеанса СКО (open) и открытие смены (openShift)
+// перед каждой операцией проверяем открытие сеанса (здесь equGetState) или 
+// открытие смены для финансовых операций (здесь equOpenShift, которая вызывает также equGetState)
+// Если СКО не открыт для работы, будет сделана попытка его открыть или открыть смену.
 
 onShowError 'Сообщение об ошибках' (STRING emsg) { MESSAGE emsg; }
 onShowError 'Сообщение об ошибках' (STRING emsg, INTEGER ecode) { titanECode() <- ecode; MESSAGE emsg; }
@@ -8,7 +13,7 @@ onShowError 'Сообщение об ошибках' (STRING emsg, INTEGER ecode
 
 onFillDataHeaders 'Заполнение стандартного заголовка' (CashRegister o) {
     pin() <- titanPin(o);
-    titanKey() <- titanSid();
+    titanKey() <- titanSid(o);
     sendCashier() <- STRING[16](OVERRIDE name(currentUser()), login(currentUser()), 'Кассир');
 }
 
@@ -29,10 +34,12 @@ onSaveLog 'Запись отдельного лога' (CashRegister o, STRING c
 
 onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) {
     LOCAL emsg, hmsg, smsg, vmsg, omsg = STRING ();
-    titanEMessage() <- NULL; titanECode() <- NULL; status() <- NULL;
+    titanEMessage() <- NULL; 
+    titanECode() <- NULL; 
+    status() <- NULL;
     omsg() <- 'Операция: ' + operation + ', ' + cmsg;
     TRY {
-        EXTERNAL HTTP POST 'http://localhost:' + titanPort(o) +'/' + operation PARAMS exportFile() TO titanResult;
+        EXTERNAL HTTP CLIENT POST 'http://localhost:' + titanPort(o) +'/' + operation PARAMS exportFile() TO titanResult;
         onSaveLog(o, omsg(), NULL);
     } CATCH {
         titanECode() <- IF statusHttp() THEN statusHttp() ELSE 0;
@@ -46,8 +53,8 @@ onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) 
         titanEMessage() <- 'Операция: ' + cmsg + '\n' + repeat('-',40) + '\n' + hmsg();
         CASE
             WHEN titanECode() = 0 THEN {
-                emsg() <- emsg() + ' Ответ от сервера не получен. Проверьте работу службы';
-                titanEMessage() <- titanEMessage() + '\nОтвет от сервера не получен\nПроверьте работу службы';
+                emsg() <- emsg() + ' Ответ от сервера не получен. Проверьте работу программ для СКО';
+                titanEMessage() <- titanEMessage() + '\nОтвет от сервера не получен\nПроверьте работу программ для СКО';
             }
             WHEN titanECode() = 400 THEN {
                 emsg() <- emsg() + ' Ошибка в запросе.';
@@ -70,27 +77,25 @@ onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) 
                 titanEMessage() <- titanEMessage() + '\nОшибка работы с СКО';
             }
         emsg() <- emsg() + (OVERRIDE ' ' + smsg(),'') + (OVERRIDE ' ' + vmsg(),'');
-        titanECode() <- IF status() THEN status() ELSE titanECode();
         titanEMessage() <- titanEMessage() + (OVERRIDE '\n' + smsg(),'') + (OVERRIDE '\n' + vmsg(),'');
         onSaveLog(o, omsg(), emsg());
-    }  ELSE {
-        IF status() = 0 THEN {
-            titanSid() <- titanKey(); // ID сессии - каждый раз новое
-            RETURN ;
-        }
-        titanECode() <- status();
-        titanEMessage() <- (OVERRIDE smsg(),'');
-    }
+    } 
 }
 
 
 eqInit 'Инициализация' (CashRegister o) {
+    titanECode() <- NULL;
+    IF titanSid(o) THEN RETURN;
     titanKey() <- NULL;
     EXPORT sendForm JSON;
     FOR iterate(INTEGER i,1,100) DO {
         onSend(o,'init','Инициализация СКО');
         CASE
-            WHEN NOT titanECode() THEN BREAK;        // нет ошибок
+            WHEN NOT titanECode() THEN {
+                titanSid(o) <- titanKey();
+                APPLY ;
+                BREAK;        // нет ошибок    
+            }
             WHEN titanECode() != 500 THEN BREAK;     // считаем, что идет инициализация СКО, если код = 500
             ELSE
             sleep(100);
@@ -99,7 +104,8 @@ eqInit 'Инициализация' (CashRegister o) {
 
 
 eqOpen 'Открытия сеанса с СКО' (CashRegister o) {
-    IF NOT titanSid() THEN eqInit(o);
+    titanECode() <- NULL;
+    IF NOT titanSid(o) THEN eqInit(o);
     IF titanECode() THEN RETURN;
     onFillDataHeaders(o);
     EXPORT sendOpen JSON;
@@ -108,40 +114,44 @@ eqOpen 'Открытия сеанса с СКО' (CashRegister o) {
 
 
 eqClose 'Закрытие сеанса с СКО' (CashRegister o) {
-    IF NOT titanSid() THEN RETURN;
-    titanKey() <- titanSid();
+    titanECode() <- NULL;
+    IF NOT titanSid(o) THEN eqInit(o);
+    IF titanECode() THEN RETURN;
+    titanKey() <- titanSid(o);
     EXPORT sendForm JSON;
     onSend(o,'close','Закрытие сеанса с СКО');
-    titanSid() <- NULL;
+}
+
+getSate 'Получение статуса СКО' (CashRegister o) {
+    titanKey() <- titanSid(o);
+    EXPORT sendForm JSON;
+    onSend(o,'info','Получение статуса');
 }
 
 
-eqGetState 'Получение статуса СКО' (CashRegister o) {
-    IF NOT titanSid() THEN {
+eqGetState 'Получение и обработка статуса СКО' (CashRegister o) {
+    titanECode() <- NULL;
+    IF NOT titanSid(o) THEN eqOpen(o);
+    IF titanECode() THEN RETURN;
+    getSate(o);
+    IF titanECode() = 406 AND status() = 2 THEN { //СКО не инициализирован
+        titanSid(o) <- NULL;
+        eqInit(o);
+        IF titanECode() THEN RETURN;
+        getSate(o);
+    }
+    IF titanECode() = 406 AND status() = 5 THEN { //Сеанс с СКО не открыт - открываем
         eqOpen(o);
         IF titanECode() THEN RETURN;
-    }
-    titanKey() <- titanSid();
-    EXPORT sendForm JSON;
-    onSend(o,'info','Получение статуса');
-    IF titanECode() = 8 OR titanECode() = 401 THEN {  
-        // не ожидаемое значение сессионного ключа
-        // разные формы, например POS и кассовые операции будут иметь свое значение SID
-        // поэтому при ошибке SID повторим операцию ролучения статуса
-        titanSid() <- NULL;
-        eqOpen(o);
-        IF titanECode() THEN RETURN;
-        titanKey() <- titanSid();
-        EXPORT sendForm JSON;
-        onSend(o,'info','Получение статуса');
-    }
+        getSate(o);
+    }    
 }
 
 
 eqOpenShift 'Открытие смены' (CashRegister o) {
     eqGetState(o);
-    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF shiftOpened() THEN { onShowError('Смена уже открыта',99); RETURN; }
+    IF titanECode() THEN RETURN;
+    IF shiftOpened() THEN RETURN;
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
     onSend(o,'openShift','Открытие смены');
@@ -150,9 +160,8 @@ eqOpenShift 'Открытие смены' (CashRegister o) {
 
 
 eqXReport 'X-отчет' (CashRegister o) {
-    eqGetState(o);
+    eqOpenShift(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта',99); RETURN; }
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
     onSend(o,'xReport','Z-отчет');
@@ -161,9 +170,8 @@ eqXReport 'X-отчет' (CashRegister o) {
 
 
 eqZReport 'Z-отчет' (CashRegister o) {
-    eqGetState(o);
+    eqOpenShift(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта',99); RETURN; }
     IF totalSum() > 0 THEN {
         LOCAL cmsg = STRING ();
         cmsg() <- 'В кассе присутствуют наличные: ' + trim(toChar(totalSum(),'999999999.99')) + 
@@ -175,7 +183,6 @@ eqZReport 'Z-отчет' (CashRegister o) {
     EXPORT sendForm JSON;
     onSend(o,'closeShift','Z-отчет');
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    titanSid() <- NULL;
 }
 
 
@@ -190,9 +197,8 @@ eqCashMoney 'Сумма наличных' (CashRegister o) {
 
 
 eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
-    eqGetState(o);
+    eqOpenShift(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта',99); RETURN; }
     IF NOT suma OR suma = 0.00 THEN { onShowError('Значение суммы не определено',99); RETURN; }
     onFillDataHeaders(o);
     sendTotalSum() <- suma;
@@ -204,9 +210,8 @@ eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
 
 
 eqCashOutCome 'Изъятие' (CashRegister o,NUMERIC[10,2] suma) {
-    eqGetState(o);
+    eqOpenShift(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта',99); RETURN; }
     IF NOT suma OR suma = 0.00 THEN { onShowError('Значение суммы не определено',99); RETURN; }
     IF totalSum() < suma THEN { onShowError('Недостаточно наличных',99); RETURN; }
     onFillDataHeaders(o);
@@ -269,12 +274,13 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
 
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
-    eqGetState(o);
+    return() <- NULL; sale() <- NULL;
+    eqOpenShift(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта',99); RETURN; }
-    sale() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptSaleDetail; // продажа
-    return() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptReturnDetail; // возврат
-    IF sale() AND return() THEN {onShowError('Не допустимые операции\n<Продажа> и <Возврат> в одном чеке',99); RETURN;}
+//    sale() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptSaleDetail; // продажа
+//    return() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptReturnDetail; // возврат
+//    IF sale() AND return() THEN {onShowError('Не допустимые операции\n<Продажа> и <Возврат> в одном чеке',99); RETURN;}
+    IF GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptReturnDetail THEN return() <- 1; ELSE sale() <- 1; 
     onFillDataHeaders(o);
     IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE; 
     receiptTotalSum() <- NULL; receiptDiscountSum() <- NULL;
