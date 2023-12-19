@@ -129,7 +129,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
                 bw.write(0x0d);
                 bw.write(0x0a);
-                bw.write(StringUtils.join(Arrays.asList("50000", "1", "21", "Список товаров", "", "0", "4", "7", "0", "0", "3", "60", "240", "0", "0.001", "7").iterator(), "\t"));
+                bw.write(StringUtils.join(Arrays.asList("50000", "1", "21", "Список товаров", " ", "0", "4", "7", "0", "0", "3", "60", "240", "0", "0.001", "7").iterator(), "\t"));
             }
 
             logFile(logDir, file, transaction, "plu");
@@ -153,7 +153,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     String barcodePrefix = (item.idBarcode.length() > 6) ? "" : (isWeight ? nvl(scales.weightCodeGroupScales, "22") : nvl(scales.pieceCodeGroupScales, "21"));
                     String name = escape(trimToEmpty(item.name));
                     String name1 = name.substring(0, Math.min(name.length(), 40));
-                    String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : "";
+                    String name2 = name.length() > 40 ? name.substring(40, Math.min(name.length(), 80)) : " ";
                     if (item.price == null || item.price.compareTo(BigDecimal.ZERO) == 0) {
                         throw new RuntimeException("Zero price is not allowed");
                     }
