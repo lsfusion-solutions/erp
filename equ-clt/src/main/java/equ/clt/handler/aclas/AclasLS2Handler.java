@@ -141,14 +141,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     }
 
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
-        File file = File.createTempFile("aclas", ".txt");
+        File file1 = File.createTempFile("aclas1", ".txt");
+        File file2 = File.createTempFile("aclas2", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
-                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+            //write 2 files: first is for items with name with length less than 40, need because name2 can't be empty
+            try(BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file1.toPath()), "cp1251"));
+                BufferedWriter bw2 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file2.toPath()), "cp1251"))) {
+                bw1.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+                bw2.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
-                    bw.write(0x0d);
-                    bw.write(0x0a);
                     boolean isWeight = isWeight(item, 1);
                     String barcodePrefix = (item.idBarcode.length() > 6) ? "" : (isWeight ? nvl(scales.weightCodeGroupScales, "22") : nvl(scales.pieceCodeGroupScales, "21"));
                     String name = escape(trimToEmpty(item.name));
@@ -165,16 +167,30 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     String iceValue = item.extraPercent != null ? String.valueOf(safeMultiply(item.extraPercent, 10).intValue()) : "0";
 
                     Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                    String barcodeType = !isWeight && overBarcodeTypeForPieceItems != null ? overBarcodeTypeForPieceItems :  item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
-                    bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
+                    String barcodeType = !isWeight && overBarcodeTypeForPieceItems != null ? overBarcodeTypeForPieceItems : item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
+
+                    if (name.length() <= 40) {
+                        bw1.write(0x0d);
+                        bw1.write(0x0a);
+                        bw1.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
+                    } else {
+                        bw2.write(0x0d);
+                        bw2.write(0x0a);
+                        bw2.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
+                    }
                 }
             }
 
-            logFile(logDir, file, transaction, "plu");
+            logFile(logDir, file1, transaction, "plu1");
+            logFile(logDir, file2, transaction, "plu2");
 
-            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
+            int result = AclasSDK.loadData(scales.port, file1.getAbsolutePath(), pluFile, sleep);
+            if(result == 0)
+                result = AclasSDK.loadData(scales.port, file2.getAbsolutePath(), pluFile, sleep);
+            return result;
         } finally {
-            safeDelete(file);
+            safeDelete(file1);
+            safeDelete(file2);
         }
     }
 
