@@ -21,12 +21,21 @@ EXTEND FORM userInvoice
 
 WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
       AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND volumeAInBin(d) > volumeInBin(d) DO {
-    MESSAGE 'Внимание! Объем резервуара ' + nameInBin(d) + ' превышен!';
+    MESSAGE 'Внимание! Объем резервуара ' + nameInBin(d) + ' превышен!' NOWAIT;
 }
 WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
       AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND (GROUP SUM 1 IF volumeA(Sku sku, inBin(d), shipmentDateTime(d))) > 1 DO {
-    MESSAGE 'Внимание! В резервуар ' + nameInBin(d) + ' залито несколько видов топлива!';
+    MESSAGE 'Внимание! В резервуар ' + nameInBin(d) + ' залито несколько видов топлива!' NOWAIT;
 }
+
+densityBInBin 'Текущая плотность в резервуаре (в) (до), кг/л' (UserInvoiceDetail invoiceDetail) = densityB(inBin(invoiceDetail), dateTime(invoiceDetail));
+
+overBackgroundDensity(UserInvoiceDetail d) += WHEN abs(density(d) (-) densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
+overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN abs(density(d) (-) densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLY AFTER nameInBin(d) densityBInBin BACKGROUND backgroundShipped(i)
+;
 
 //----------------------------- переименование ячейки в резервуар -----------------------------//
 DESIGN operation {

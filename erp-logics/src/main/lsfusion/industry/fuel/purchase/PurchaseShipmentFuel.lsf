@@ -146,9 +146,12 @@ shipmentVolume(UserInvoiceDetail detail) <- volume(detail) IF createShipment(det
 shipmentDensity(UserInvoiceDetail detail) <- density(detail) IF createShipment(detail)
     WHEN (CHANGED(density(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
 
+overBackgroundShipmentDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
+backgroundShipmentDensity (UserInvoiceDetail d) = OVERRIDE overBackgroundShipmentDensity(d), backgroundShipped(d);
+
 EXTEND FORM userInvoice
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentVolume AFTER volume(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentDensity AFTER density(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i) ON CHANGE changeShipmentDensity(d) ON CONTEXTMENU fillShipmentDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentDensity AFTER density(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipmentDensity(d) ON CHANGE changeShipmentDensity(d) ON CONTEXTMENU fillShipmentDensity15C(d)
 ;
 
 EXTEND FORM invoices
