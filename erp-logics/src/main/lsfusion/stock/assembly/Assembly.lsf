@@ -425,3 +425,20 @@ CONSTRAINT (SET (isPosted(AssemblyDetail d)) OR CHANGED (price(d))) AND isPosted
 
 CONSTRAINT (SET (isPosted(Assembly doc)) OR DROPPED (countAssemblyDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countAssemblyDetail(doc)
     MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
+
+@defineOperationProperty(oneDetailCheck, 'Запретить внесение более 1 позиции для сборки', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(Assembly doc)) OR CHANGED(countAssemblyDetail(doc))) AND isPosted(doc) AND oneDetailCheck(operation(doc)) AND countAssemblyDetail(doc) > 1
+    MESSAGE 'Для текущей операции запрещено внесение более 1 позиции для сборки';
+
+@defineOperationProperty(sameGroupCheck, 'Запретить внесение товара не из своей подгруппы товара', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(sku(d)) OR CHANGED(sku(assembly(d)))) AND isPosted(d) AND sameGroupCheck(operation(d)) AND 
+    NOT skuGroup3(sku(d)) == skuGroup3(sku(assembly(d)))
+    MESSAGE 'Для текущей операции запрещено внесение внесение товара не из своей подгруппы товара';
+
+@defineOperationProperty(sameUOMCheck, 'Единицы измерения должны совпадать', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(sku(d)) OR CHANGED(sku(assembly(d)))) AND isPosted(d) AND sameUOMCheck(operation(d)) AND
+    NOT UOM(sku(d)) == UOM(sku(assembly(d)))
+    MESSAGE 'Для текущей операции единицы измерения должны совпадать';
