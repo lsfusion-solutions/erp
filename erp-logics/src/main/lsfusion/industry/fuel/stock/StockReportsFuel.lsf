@@ -1,6 +1,6 @@
 MODULE StockReportsFuel;
 
-REQUIRE BinLedgerFuel;//, EmployeeStock, Document, Historizable;
+REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment;//, EmployeeStock, Document, Historizable;
 
 NAMESPACE StockReports;
 
@@ -44,6 +44,36 @@ WHEN LOCAL SETCHANGED(stock(DailyReport o)) DO {
 @defineDocumentHeaderCreated(DailyReport);
 @defineDocumentHeaderNumber(DailyReport, BPSTRING[2]);
 @defineNumeratedDefault(DailyReport, 'Сменный отчет', 'СО');
+@defineDocumentHeaderPosted(DailyReport);
+isApproved 'Утвержден' (o) = DATA BOOLEAN (DailyReport);
+isNotApproved (DailyReport o) = o IS DailyReport AND NOT isApproved(o) MATERIALIZED;
+
+GROUP approved 'Утвержден' : base;
+
+approvedTime 'Время утверждения' = DATA DATETIME (DailyReport) IN approved;
+approvedTime(DailyReport o) <- currentDateTime() WHEN SET(isApproved(o));
+
+approvedUser = DATA CustomUser (DailyReport);
+approvedUser(DailyReport o) <- currentUser() WHEN SET(isApproved(o));
+approvedNameUser 'Утвержден пользователем' (DailyReport o) = name[Contact](approvedUser(o)) IN approved;
+
+approvedComputer = DATA Computer (DailyReport);
+approvedComputer(DailyReport o) <- currentComputer() WHEN SET(isApproved(o));
+approvedHostnameComputer 'Утвержден на компьютере' (DailyReport o) = hostname(approvedComputer(o)) IN approved;
+
+approve 'Утвердить' (DailyReport o) {
+    NEWSESSION {
+        isApproved(o) <- TRUE;
+        apply();
+    }
+} TOOLBAR CONFIRM;
+unapprove 'Отменить утверждение' (DailyReport o) {
+	NEWSESSION {
+	    isApproved(o) <- NULL;
+	    apply();
+	}
+} TOOLBAR CONFIRM;
+
 @defineDocumentHeaderDescription (DailyReport, 'Сменный отчет');
 
 employeeBefore 'Смену сдал' = DATA Employee (DailyReport);
@@ -57,7 +87,7 @@ CONSTRAINT employeeBefore(DailyReport report) AND NOT in(stock(report), employee
 CONSTRAINT employeeAfter(DailyReport report) AND NOT in(stock(report), employeeAfter(report)) AND NOT allowStockEmployee()
     CHECKED BY employeeAfter[DailyReport] MESSAGE 'В качестве "Смену принял" выбран сотрудник, который не является сотрудником склада документа.'; 
 
-TABLE dailySkuReportBin (DailyReport, Sku, Bin);
+TABLE dailyReportSkuBin (DailyReport, Sku, Bin);
 include = DATA BOOLEAN (DailyReport, Sku, Bin);
 volumeB 'Расчетный остаток на начало смены (книжный), л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
 balanceB 'Расчетный остаток на начало смены (книжный), т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
@@ -88,7 +118,7 @@ balanceA 'Расчетный (книжный) остаток, т' = DATA NUMERIC
 debalanceQuantity 'Дебаланс фактический, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 allowedDebalanceQuantity 'Дебаланс допустимый, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 
-TABLE dailySkuReportBinGun (DailyReport, Sku, Bin, Gun);
+TABLE dailyReportSkuBinGun (DailyReport, Sku, Bin, Gun);
 include = DATA BOOLEAN (DailyReport, Sku, Bin, Gun);
 volumeCounterB 'Счетчик объема ТРК на начало смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
 volumeCounterA 'Счетчик объема ТРК на конец смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
@@ -98,6 +128,13 @@ density 'Средневзвешенная плотность, кг/м3' = DATA N
 techVolumeOut 'Технологический отпуск через ТРК, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
 techQuantityOut 'Технологический отпуск через ТРК, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
 errorPercent 'Погрешность ТРК, %' = DATA NUMERIC[5,2] (DailyReport, Sku, Bin, Gun);
+
+TABLE dailyReportCashRegisterPaymentType (DailyReport, CashRegister, PaymentType);
+include = DATA BOOLEAN (DailyReport, CashRegister, PaymentType);
+sum 'Сумма' = DATA NUMERIC[18,4] (DailyReport, CashRegister, PaymentType);
+TABLE dailyReportCashRegisterPaymentTypeSku (DailyReport, CashRegister, PaymentType, Sku);
+include = DATA BOOLEAN (DailyReport, CashRegister, PaymentType, Sku);
+sum 'Сумма' = DATA NUMERIC[18,4] (DailyReport, CashRegister, PaymentType, Sku);
 
 beforeFill ABSTRACT LIST (DailyReport);
 
@@ -163,6 +200,12 @@ fill 'Заполнить' (DailyReport r) {
     techQuantityOut(r, Sku s, Bin b, Gun g) <- NULL;
     errorPercent(r, Sku s, Bin b, Gun g) <- NULL;
     
+    include(r, CashRegister c, PaymentType t) <- NULL;
+    sum(r, CashRegister c, PaymentType t) <- NULL;
+    
+    include(r, CashRegister c, PaymentType t, Sku s) <- NULL;
+    sum(r, CashRegister c, PaymentType t, Sku s) <- NULL;
+    
     beforeFill(r);
     
     volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r)));
@@ -178,6 +221,14 @@ fill 'Заполнить' (DailyReport r) {
     
     
     include(r, Sku s, Bin b, Gun g) <- include(r,s,b) AND bin(g) == b;//изменить на данные
+    
+    sum(r, CashRegister c, PaymentType t, Sku s) <- GROUP SUM sum(ReceiptDetail d, Payment p) IF isPosted(d) AND isFuel(sku(d))
+                                                    AND sku(d) == s AND paymentType(p) == t AND cashRegister(receipt(d)) == c
+                                                    AND dateTime(d) >= fromDateTime(r) AND dateTime(d) <= toDateTime(r);
+    include(r, CashRegister c, PaymentType t, Sku s) <- sum(r,c,t,s) AND r IS DailyReport;
+    
+    sum(r, CashRegister c, PaymentType t) <- GROUP SUM sum(r,c,t, Sku s);
+    include(r, CashRegister c, PaymentType t) <- sum(r,c,t) AND r IS DailyReport;
 }
 
 @addRoleApplicationSetting(allowEditDailyReport, 'Разрешить редактировать сменный отчет', BOOLEAN);
@@ -189,7 +240,8 @@ FORM dailyReport 'Сменный отчет'
     PROPERTIES(r) nameNumerator, number, series, date, time, 
                   nameStock ON CHANGE changeStockCompany(r),
                   fromDate, fromTime, toDate, toTime, note,
-                  nameEmployeeBefore, nameEmployeeAfter, fill
+                  nameEmployeeBefore, nameEmployeeAfter, isPosted
+    PROPERTIES(r) SHOWIF isDraft(r) fill
     
     OBJECTS d = (s = Sku, b = Bin)
     PROPERTIES READONLYIF readonlyDailyReport(r)
@@ -206,6 +258,15 @@ FORM dailyReport 'Сменный отчет'
                density(r,s,b,g), techVolumeOut(r,s,b,g), techQuantityOut(r,s,b,g), errorPercent(r,s,b,g)
     FILTERS include(r,s,b,g)
     
+    OBJECTS dd = (c = CashRegister, t = PaymentType)
+    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t)
+    FILTERS include(r,c,t)
+    
+    OBJECTS ss = Sku
+    PROPERTIES READONLY name(ss), sum(r,c,t,ss)
+    FILTERS include(r,c,t,ss)
+    
+    EVENTS ON OK prePost(r)
     EDIT DailyReport OBJECT r
 ;
 DESIGN dailyReport {
@@ -214,6 +275,7 @@ DESIGN dailyReport {
             caption = 'Шапка документа';
             horizontal = TRUE;
             alignment = STRETCH;
+            MOVE PROPERTY (isPosted(r));
             MOVE PROPERTY (nameNumerator(r));
             MOVE PROPERTY (number(r));
             MOVE PROPERTY (series(r));
@@ -236,13 +298,34 @@ DESIGN dailyReport {
         }
         MOVE PROPERTY(fill(r));
     }
-    MOVE BOX(d) {
-        PROPERTY (name(s)) { caption = 'Наименование нефтепродукта'; }
-        PROPERTY (name(b)) { caption = '№ резервуара'; }
+    NEW tabs {
+        fill = 1;
+        tabbed = TRUE;
+        
+        NEW bins {
+            fill = 1;
+            caption = 'Данные по резервуарам';
+            MOVE BOX(d) {
+                PROPERTY (name(s)) { caption = 'Наименование нефтепродукта'; }
+                PROPERTY (name(b)) { caption = '№ резервуара'; }
+            }
+            MOVE BOX(g) {
+                PROPERTY (name(g)) { caption = '№ ТРК (раздат. пистолета)'; }
+            }
+        }
+        NEW cashRegisters {
+            fill = 1;
+            caption = 'Данные по кассам';
+            MOVE BOX(dd) {
+                PROPERTY (overNpp(c)) { caption = '№ кассы'; }
+                PROPERTY (name(t)) { caption = 'Тип платежа'; }
+            }
+            MOVE BOX(ss) {
+                PROPERTY (name(ss)) { caption = 'Наименование нефтепродукта'; }
+            }
+        }
     }
-    MOVE BOX(g) {
-        PROPERTY (name(g)) { caption = '№ ТРК (раздат. пистолета)'; }
-    }
+    
     MOVE TOOLBARBOX;
 }
 
@@ -258,13 +341,27 @@ filterDailyReportStock = DATA LOCAL NESTED Stock();
 nameFilterDailyReportStock 'Склад' = name(filterDailyReportStock());
 filterStock (DailyReport r) = stock(r) == filterDailyReportStock() OR NOT filterDailyReportStock();
 
+background 'Цвет' (DailyReport r)= ABSTRACT CASE COLOR (DailyReport);
+background(DailyReport r) += WHEN isDraft(r) THEN RGB(212,255,212);
+
+overShowEdit = ABSTRACT BOOLEAN (DailyReport);
+overShowDelete = ABSTRACT BOOLEAN (DailyReport);
+
+overShowEdit (DailyReport r) += isNotApproved(r);
+overShowDelete (DailyReport r) += isNotApproved(r);
+
 FORM dailyReports 'Сменные отчеты'
     PROPERTIES () filterDailyReportDateFrom, filterDailyReportDateTo, nameFilterDailyReportStock
     
     OBJECTS r = DailyReport LAST
-    PROPERTIES (r) READONLY number, series, date, time, nameStock, fromDate, fromTime, toDate, toTime, nameEmployeeBefore, nameEmployeeAfter, note
-    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter = DELETE
-    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES (r) READONLY BACKGROUND background(r) isPosted, isApproved
+    PROPERTIES (r) READONLY BACKGROUND background(r) number, series, date, time, nameStock, fromDate, fromTime, toDate, toTime,
+                                                     nameEmployeeBefore, nameEmployeeAfter, note
+    PROPERTIES (r) approve SHOWIF (isPosted(r) AND isNotApproved(r)), unapprove SHOWIF isApproved(r)
+    PROPERTIES (r) NEWSESSION NEW, editr = EDIT SHOWIF overShowEdit(r), deleter = DELETE SHOWIF overShowDelete(r)
+    PROPERTIES (r) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
+                                  postedNameUser, postedTime, postedHostnameComputer,
+                                  approvedNameUser, approvedTime, approvedHostnameComputer
     FILTERS filterDateFrom(r), 
             filterDateTo(r),
             filterStock(r)
@@ -273,6 +370,10 @@ FORM dailyReports 'Сменные отчеты'
     PROPERTIES READONLY name(s), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b),
                         name(b), volumeA(r,s,b), balanceA(r,s,b)
     FILTERS include(r,s,b)
+    
+    OBJECTS dd = (c = CashRegister, t = PaymentType)
+    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t)
+    FILTERS include(r,c,t)
     
     LIST DailyReport OBJECT r
 ;
@@ -300,9 +401,16 @@ DESIGN dailyReports {
                 PROPERTY (name(s)) { caption = 'Наименование нефтепродукта'; }
                 PROPERTY (name(b)) { caption = '№ резервуара'; }
             }
+            MOVE BOX(dd) {
+                caption = 'Итоги по кассам';
+                PROPERTY (overNpp(c)) { caption = '№ кассы'; }
+                PROPERTY (name(t)) { caption = 'Тип платежа'; }
+            }
             NEW documentHistory {
                 caption = 'История';
                 MOVE GROUP(created,r);
+                MOVE GROUP(posted,r);
+                MOVE GROUP(approved,r);
             }
             NEW printTab {
                 caption = 'Печатные формы';
@@ -325,5 +433,249 @@ DESIGN dailyReports {
 NAVIGATOR {
     stockDashboardNavigator {
         NEW dailyReports;
+    }
+}
+
+//----------------- Логирование изменений в отчетах ------------------- //
+
+CLASS ReportLog 'Запись лога отчета';
+TABLE reportLog(ReportLog);
+
+disableReportLog 'Отключить запись лога отчетов' = DATA BOOLEAN ();
+enableReportLog = TRUE AND NOT disableReportLog();
+
+EXTEND FORM options
+    PROPERTIES() disableReportLog
+;
+
+DESIGN options {
+    log {
+        MOVE PROPERTY(disableReportLog()) FIRST;
+    }
+}
+
+reportId = DATA LONG (ReportLog);
+INDEX reportId(ReportLog l), l;
+
+numberReport 'Номер документа' = DATA STRING[48] (ReportLog) IN id CHARWIDTH 8 INDEXED;
+seriesReport 'Серия документа' = DATA BPSTRING[2] (ReportLog) IN id CHARWIDTH 3 NOFLEX;
+dateReport 'Дата документа' = DATA DATE(ReportLog) IN id;
+fromDateTime 'Дата/время с' = DATA DATETIME(ReportLog);
+toDateTime 'Дата/время по' = DATA DATETIME(ReportLog);
+
+hostnameComputer 'Имя компьютера' = DATA ISTRING[100] (ReportLog) CHARWIDTH 20;
+userLogin 'Логин пользователя' = DATA STRING[100] (ReportLog) CHARWIDTH 20;
+nameContact 'Имя пользователя' =  DATA STRING[100] (ReportLog) IN id;
+dateTimeSession 'Время изменения' = DATA DATETIME (ReportLog) IN id;
+dateSession 'Дата изменения' (ReportLog d) = DATE(dateTimeSession(d));
+timeSession 'Время изменения' (ReportLog d) = TIME(dateTimeSession(d));
+
+stock = DATA Stock(ReportLog);
+nameStock 'Склад'(ReportLog d) = name(stock(d));
+
+@defineLog(ReportLog, 'изменений отчетов', log, dateSession);
+
+CLASS TypeReportChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    changeSeriesNumber 'Изменение серии/номера',
+    changeStock 'Изменение склада',
+    changeFrom 'Изменение даты/времени с',
+    changeTo 'Изменение даты/времени по',
+    changePosted 'Проведение/Распроведение',
+    changeApproved 'Утверждение/Отмена утверждения',
+    changeDate 'Изменение даты'
+}
+
+typeChange= DATA TypeReportChange (ReportLog);
+nameTypeChange 'Тип изменения' (ReportLog l) = staticCaption(typeChange(l)) IN id CHARWIDTH 25;
+
+note 'Примечание' = DATA STRING[255] (ReportLog) CHARWIDTH 30;
+
+WHEN SET(DailyReport r IS DailyReport) IF NOT disableReportLog() DO {
+    NEW l = ReportLog { 
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.add;
+        note(l) <- STRING[255]('Добавлен отчет');
+    }
+}
+WHEN DROPPED(DailyReport r IS DailyReport) IF NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(PREV(r AS DailyReport));
+        numberReport(l) <- PREV(number(r));
+        seriesReport(l) <- PREV(series(r));
+        dateReport(l) <- PREV(date(r));
+        fromDateTime(l) <- PREV(fromDateTime(r));
+        toDateTime(l) <- PREV(toDateTime(r));
+        stock(l) <- PREV(stock(r));
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.delete;
+        note(l) <- STRING[255]('Удален отчет');
+    }
+}
+WHEN (CHANGED(number(DailyReport r)) OR CHANGED(series(r))) AND r IS DailyReport AND NOT SET(r IS DailyReport) AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeSeriesNumber;
+        note(l) <- STRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(series(r)), PREV(number(r))));
+    }
+}
+WHEN CHANGED(stock(DailyReport r)) AND r IS DailyReport AND NOT SET(r IS DailyReport) AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeStock;
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', name(PREV(stock(r))));
+    }
+}
+WHEN CHANGED(fromDateTime(DailyReport r)) AND r IS DailyReport AND NOT SET(r IS DailyReport) AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeFrom;
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', STRING(PREV(fromDateTime(r))));
+    }
+}
+WHEN CHANGED(toDateTime(DailyReport r)) AND r IS DailyReport AND NOT SET(r IS DailyReport) AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeTo;
+        note(l) <- STRING[255](CONCAT '','Предыдущее значение: ', STRING(PREV(toDateTime(r))));
+    }
+}
+
+WHEN (CHANGED(isPosted(DailyReport r))) AND r IS DailyReport AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changePosted;
+        note(l) <- STRING[255](IF isPosted(r) THEN 'Проведен' ELSE 'Распроведен');
+    }
+}
+
+WHEN (CHANGED(isApproved(DailyReport r))) AND r IS DailyReport AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeApproved;
+        note(l) <- STRING[255](IF isApproved(r) THEN 'Утвержден' ELSE 'Отменено утверждение');
+    }
+}
+    
+WHEN CHANGED(date(DailyReport r)) AND r IS DailyReport AND NOT SET(r IS DailyReport) AND NOT disableReportLog() DO {
+    NEW l = ReportLog {
+        reportId(l) <- LONG(r);
+        numberReport(l) <- number(r);
+        seriesReport(l) <- series(r);
+        dateReport(l) <- date(r);
+        fromDateTime(l) <- fromDateTime(r);
+        toDateTime(l) <- toDateTime(r);
+        stock(l) <- stock(r);
+        hostnameComputer(l) <- hostnameCurrentComputer();
+        userLogin(l) <- login(currentUser());
+        nameContact(l) <- STRING[100](name(currentUser()));
+        dateTimeSession(l) <- currentDateTime();
+        typeChange(l) <- TypeReportChange.changeDate;
+        note(l) <- STRING[255]('Предыдущее значение Даты: '+toDateDDMMYYYY(PREV(date(r))));
+    }
+}
+
+FORM ReportLogs 'Журнал изменения отчетов'
+    OBJECTS l = ReportLog
+    PROPERTIES(l) READONLY numberReport, seriesReport, dateReport, stock, fromDateTime, toDateTime,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+;
+
+DESIGN ReportLogs {
+    BOX {
+        MOVE BOX(l);
+        MOVE TOOLBARBOX;        
+    }
+}
+
+NAVIGATOR {
+    logs {
+        NEW ReportLogs;
+    }
+}
+
+EXTEND FORM dailyReports
+    OBJECTS l = ReportLog
+    PROPERTIES(l) SHOWIF enableReportLog() READONLY numberReport, seriesReport, stock, fromDateTime, toDateTime,
+                                           hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+    FILTERS reportId(l) == LONG(r)
+;
+DESIGN dailyReports {
+    documentHistory {
+        MOVE BOX(l);
     }
 }
