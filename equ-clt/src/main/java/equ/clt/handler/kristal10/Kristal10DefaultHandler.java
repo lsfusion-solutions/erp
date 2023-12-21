@@ -53,7 +53,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
-        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
+        addVATElement(good, item);
 
         addStringElement(good, "delete-from-cash", "false");
 
@@ -206,7 +206,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             addStringElement(measureType, "name", item.shortNameUOM);
             good.addContent(measureType);
 
-            addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
+            addVATElement(good, item);
 
             //parent: good
             Element group = new Element("group");
@@ -339,6 +339,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     protected static void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
+    }
+
+    protected static void addVATElement(Element good, ItemInfo item) {
+        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "-1" : String.valueOf(item.vat.intValue()));
     }
 
     protected static void addPluginPropertyElement(Element parent, String key, Object value) {
