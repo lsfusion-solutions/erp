@@ -14,7 +14,7 @@ DESIGN groupCashRegister{
         MOVE PROPERTY(usePriceList(grc));
     }
 }
-overCopy(GroupCashRegister old, GroupCashRegister new ) + {  usePriceList(new) <- usePriceList(old); } 
+overCopy(GroupCashRegister old, GroupCashRegister new ) + {  usePriceList(new) <- usePriceList(old); }
 
 // ----------------------------- Кассовый модуль ---------------- //
 
@@ -34,12 +34,12 @@ cashDepartmentStore (Receipt r) = departmentStore(zReport(r)) PREREAD;
 
 overPrice = ABSTRACT NUMERIC[16,4] (Sku, Receipt, DATETIME);
 
-usePriceList (Receipt receipt) = usePriceList(groupCashRegister(receipt)) COMPLEX; 
+usePriceList (Receipt receipt) = usePriceList(groupCashRegister(receipt)) COMPLEX;
 POSPrice 'Цена в кассе' (Sku sku, Receipt receipt, DATETIME dateTime) =
     IF usePriceList(receipt) THEN
         prevPriceA(POSPriceListType(receipt), sku, cashDepartmentStore(receipt), dateTime)
     ELSE
-        overPrice(sku, receipt, dateTime); 
+        overPrice(sku, receipt, dateTime);
 currentPOSPrice 'Текущая цена' (Sku sku, Receipt receipt) = POSPrice(sku, receipt, currentDateTime());
 
 overPrice = ABSTRACT NUMERIC[16,4] (Batch, Receipt, DATETIME);
@@ -48,7 +48,7 @@ POSPrice 'Цена в кассе' (Batch batch, Receipt receipt, DATETIME dateTi
     IF usePriceList(receipt) THEN
         prevPriceA(POSPriceListType(receipt), batch, cashDepartmentStore(receipt), dateTime)
     ELSE
-        overPrice(batch, receipt, dateTime); 
+        overPrice(batch, receipt, dateTime);
 currentPOSPrice 'Текущая цена' (Batch batch, Receipt receipt) = POSPrice(batch, receipt, currentDateTime());
 currentPOSPrice 'Текущая цена' (Batch batch, ReceiptDetail receiptDetail) = POSPrice(batch, receipt(receiptDetail), currentDateTime());
 
@@ -91,12 +91,12 @@ closedCurrentZReport() = NOT currentZReport();
 setUserPromotion (receipt) = GROUP SUM 1 IF setUserPromotion (ReceiptSaleDetail receiptSaleDetail, PromotionCondition promotionCondition)  BY receipt (receiptSaleDetail);
 
 promotionSum (ReceiptSaleDetail detail) = GROUP
-                                               SUM promotionSum(detail, PromotionCondition condition) IF NOT useBonus(condition);
+    SUM promotionSum(detail, PromotionCondition condition) IF NOT useBonus(condition);
 
 promotionDiscountSum (ReceiptSaleDetail detail) = GROUP
-                                               SUM promotionSum(detail, PromotionCondition condition) IF NOT useBonus(condition);
+    SUM promotionSum(detail, PromotionCondition condition) IF NOT useBonus(condition);
 promotionBonusSum (ReceiptSaleDetail detail) = GROUP
-                                               SUM promotionSum(detail, PromotionCondition condition) IF useBonus(condition);
+    SUM promotionSum(detail, PromotionCondition condition) IF useBonus(condition);
 
 dataDate 'Дата документа' = DATA DATE (Receipt);
 dataTime 'Время документа' = DATA TIME (Receipt);
@@ -114,19 +114,19 @@ promotionSumReceipt = DATA LOCAL NUMERIC[16,4] () PREREAD;
 
 skip (Promotion promotion) = DATA LOCAL BOOLEAN (Promotion);
 inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
-                                          overDate(receipt) >= dateFrom(promotion) AND overDate(receipt) <= dateTo(promotion) AND
-                                          NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
-                                          NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0))  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)) > maxSumBill(promotion)
-                                          AND NOT skip(promotion, extractDOW(overDate(receipt)))
-                                          AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
-                                          AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
-                                          AND NOT (noDiscountCard(promotion) AND discountCard(receipt)) COMPLEX;
+    overDate(receipt) >= dateFrom(promotion) AND overDate(receipt) <= dateTo(promotion) AND
+    NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
+    NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0))  < minSumBill(promotion) AND NOT (sumReceiptDetail(receipt) - (OVERRIDE promotionSumReceipt(), 0.0) + (OVERRIDE bonusPaidReceiptDetail(receipt), 0.0)) > maxSumBill(promotion)
+    AND NOT skip(promotion, extractDOW(overDate(receipt)))
+    AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
+    AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
+    AND NOT (noDiscountCard(promotion) AND discountCard(receipt)) COMPLEX;
 
 in (Receipt receipt, Promotion promotion) = inCalc(receipt, promotion) AND NOT skip(promotion);
 
 inReceiptSale (ReceiptDetail receiptDetail, PromotionCondition promotionCondition) =
     in(receipt(receiptDetail), promotion(promotionCondition))
-    AND in(promotionCondition, receiptDetail);
+        AND in(promotionCondition, receiptDetail);
 
 //maxSalePriceReceiptSku (receipt, sku) = GROUP MAX priceReceiptSaleDetail(detail) BY receiptReceiptSaleDetail(detail), skuReceiptSaleDetail(detail);
 
@@ -134,8 +134,8 @@ skipAllPromotion 'Запретить скидки' = ABSTRACT BOOLEAN (ReceiptSa
 
 isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receiptSaleDetail, PromotionCondition promotionCondition) =
     CASE WHEN promotionCondition IS PromotionCondition AND skipAllPromotion(receiptSaleDetail) THEN NULL
-         WHEN userSet(promotionCondition) THEN setUserPromotion(receiptSaleDetail, promotionCondition)
-    ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
+        WHEN userSet(promotionCondition) THEN setUserPromotion(receiptSaleDetail, promotionCondition)
+        ELSE receiptSaleDetail IS ReceiptSaleDetail AND promotionCondition IS PromotionCondition;
 
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, ReceiptSaleDetail detail) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
@@ -143,20 +143,20 @@ possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, ReceiptSaleD
 beforeCalculatePromotions  ABSTRACT LIST ( Receipt);
 overCalculatePromotions  ABSTRACT LIST ( Receipt);
 overCalculatePromotion  ABSTRACT LIST (ReceiptSaleDetail,PromotionCondition,NUMERIC[14,3],NUMERIC[16,3]);
-calculatePromotions 'Рассчитать акции'(Receipt receipt)  { 
+calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
     promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
     discountSum(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
 
-//    LOCAL maxSalePriceSku = NUMERIC[16,4] (Sku);
-//    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
+    //    LOCAL maxSalePriceSku = NUMERIC[16,4] (Sku);
+    //    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
 
     beforeCalculatePromotions(receipt);
-    
+
     FOR PromotionGroup promotionGroup IS PromotionGroup AND active(promotionGroup) ORDER order (promotionGroup) DO {
-//        LOCAL leftSku = NUMERIC[14,3] (Sku);
-//        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
+        //        LOCAL leftSku = NUMERIC[14,3] (Sku);
+        //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
         promotionSumReceipt() <- GROUP SUM promotionSum(ReceiptSaleDetail rd) IF receipt(rd) = receipt;
         LOCAL leftQuantity = NUMERIC[14,3] (ReceiptSaleDetail);
         leftQuantity(ReceiptSaleDetail detail) <- quantity(detail) WHERE receipt(detail) == receipt;
@@ -167,117 +167,117 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
         FOR promotionGroup(Promotion promotion) == promotionGroup AND in(receipt, promotion) AND possible(receipt, promotion) ORDER order(promotion) DO {
             LOCAL quantity = NUMERIC[14,3] (PromotionCondition);
             quantity(PromotionCondition promotionCondition) <- (GROUP
-                                                                     SUM leftQuantity(ReceiptSaleDetail detail)
-                                                                         IF in(promotionCondition, detail)) IF
-                                                                        promotion(promotionCondition) == promotion;
+                SUM leftQuantity(ReceiptSaleDetail detail)
+                    IF in(promotionCondition, detail)) IF
+                promotion(promotionCondition) == promotion;
 
             LOCAL sum = NUMERIC[20,5] (PromotionCondition);
             sum(PromotionCondition promotionCondition) <- (GROUP
-                                                                    SUM leftQuantity(ReceiptSaleDetail detail) * price(detail)
-                                                                    IF in(promotionCondition, detail)) IF
-                                                                       promotion(promotionCondition) == promotion;
+                SUM leftQuantity(ReceiptSaleDetail detail) * price(detail)
+                    IF in(promotionCondition, detail)) IF
+                promotion(promotionCondition) == promotion;
 
-            LOCAL count = INTEGER (PromotionCondition);
-            count(PromotionCondition promotionCondition) <- MIN divideInteger(quantity (promotionCondition), minQuantity (promotionCondition)),
-                                                               divideInteger(sum(promotionCondition), minSum(promotionCondition));
+            LOCAL count = NUMERIC[14,3] (PromotionCondition);
+            count(PromotionCondition promotionCondition) <- INTEGER (MIN floor(NUMERIC[14,3](quantity (promotionCondition) / minQuantity (promotionCondition))),
+                floor(NUMERIC[14,3](sum(promotionCondition) / minSum(promotionCondition))));
 
             LOCAL countPromotion = INTEGER ();
             countPromotion () <- (GROUP MIN count(PromotionCondition promotionCondition));
 
             // Если все условия сработали хотя бы один раз
             IF countPromotion() > 0 AND (GROUP SUM 1 IF count(PromotionCondition promotionCondition) > 0) == countPromotionCondition(promotion) THEN {
-//
+                //
                 // Считаем сколько раз должны применить условие
                 LOCAL taken = NUMERIC[14,3] (PromotionCondition);
-                taken(PromotionCondition promotionCondition) <- IF quantityDiscount(promotionCondition) THEN 
+                taken(PromotionCondition promotionCondition) <- IF quantityDiscount(promotionCondition) THEN
                                                                   min(countPromotion() * quantityDiscount(promotionCondition), quantity(promotionCondition))
-                                                               ELSE
-                                                                  quantity(promotionCondition);
-                                                                  
+                    ELSE
+                    quantity(promotionCondition);
+
                 LOCAL use = NUMERIC[14,3] (PromotionCondition);
                 IF useAllQuantity(promotion) THEN {
                     use(PromotionCondition promotionCondition) <- min(countPromotion() * minQuantity(promotionCondition), quantity(promotionCondition));
                 }
 
                 // Размазываем его по "Sku"
-//                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
-//                takenSkuPromotionCondition(sku, promotionCondition) <- [ PARTITION UNGROUP takenPromotionCondition
-//                                                                                  LIMIT leftSku (sku)
-//                                                                                        IF inPromotionConditionSku(promotionCondition, sku)
-//                                                                                  BY promotionCondition
-//                                                                                  ORDER maxSalePriceSku(sku), sku] (sku, promotionCondition);
+                //                LOCAL takenSkuPromotionCondition = NUMERIC[14,3] (Sku, PromotionCondition);
+                //                takenSkuPromotionCondition(sku, promotionCondition) <- [ PARTITION UNGROUP takenPromotionCondition
+                //                                                                                  LIMIT leftSku (sku)
+                //                                                                                        IF inPromotionConditionSku(promotionCondition, sku)
+                //                                                                                  BY promotionCondition
+                //                                                                                  ORDER maxSalePriceSku(sku), sku] (sku, promotionCondition);
 
                 // Размазываем его по строкам чека
                 LOCAL taken = NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition);
                 LOCAL use = NUMERIC[14,3] (ReceiptSaleDetail, PromotionCondition);
-                
-                CASE 
+
+                CASE
                     //-- начиная с самой дешевой и по умолчанию                                                                                  
-                    WHEN orderPromotionType(promotion) == OrderPromotionType.ascending OR (promotion IS Promotion AND NOT orderPromotionType(promotion)) THEN {                                                                        
-                               
+                    WHEN orderPromotionType(promotion) == OrderPromotionType.ascending OR (promotion IS Promotion AND NOT orderPromotionType(promotion)) THEN {
+
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
-                                                                                                   LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, detail)  
-                                                                                                         AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER leftSum(detail)/quantity(detail), detail
-                                                                                                   BY condition);
+                            LIMIT leftQuantity(detail)
+                                IF in(condition, detail)
+                                    AND isAppliedPromotion(detail, condition)
+                            ORDER leftSum(detail)/quantity(detail), detail
+                            BY condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
-                                                                                                       LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, detail)  
-                                                                                                             AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER leftSum(detail)/quantity(detail), detail
-                                                                                                       BY condition);
+                                LIMIT leftQuantity(detail)
+                                    IF in(condition, detail)
+                                        AND isAppliedPromotion(detail, condition)
+                                ORDER leftSum(detail)/quantity(detail), detail
+                                BY condition);
                         }
                     }
                     //-- начиная с самой дорогой
-                    WHEN orderPromotionType(promotion) == OrderPromotionType.descending  THEN {                
+                    WHEN orderPromotionType(promotion) == OrderPromotionType.descending  THEN {
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
-                                                                                                   LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, detail)  
-                                                                                                         AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER DESC leftSum(detail)/quantity(detail), detail
-                                                                                                   BY condition);
+                            LIMIT leftQuantity(detail)
+                                IF in(condition, detail)
+                                    AND isAppliedPromotion(detail, condition)
+                            ORDER DESC leftSum(detail)/quantity(detail), detail
+                            BY condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
-                                                                                                       LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, detail)  
-                                                                                                             AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER DESC leftSum(detail)/quantity(detail), detail
-                                                                                                       BY condition);
+                                LIMIT leftQuantity(detail)
+                                    IF in(condition, detail)
+                                        AND isAppliedPromotion(detail, condition)
+                                ORDER DESC leftSum(detail)/quantity(detail), detail
+                                BY condition);
                         }
-                    }                        
+                    }
                     //-- по позиции в чеке
-                    WHEN orderPromotionType(promotion) == OrderPromotionType.index THEN {   
+                    WHEN orderPromotionType(promotion) == OrderPromotionType.index THEN {
                         taken (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP taken
-                                                                                                   LIMIT leftQuantity(detail) 
-                                                                                                         IF in(condition, detail)  
-                                                                                                         AND isAppliedPromotion(detail, condition)
-                                                                                                   ORDER detail
-                                                                                                   BY condition);   
+                            LIMIT leftQuantity(detail)
+                                IF in(condition, detail)
+                                    AND isAppliedPromotion(detail, condition)
+                            ORDER detail
+                            BY condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- (PARTITION UNGROUP use
-                                                                                                       LIMIT leftQuantity(detail) 
-                                                                                                             IF in(condition, detail)  
-                                                                                                             AND isAppliedPromotion(detail, condition)
-                                                                                                       ORDER detail
-                                                                                                       BY condition);
+                                LIMIT leftQuantity(detail)
+                                    IF in(condition, detail)
+                                        AND isAppliedPromotion(detail, condition)
+                                ORDER detail
+                                BY condition);
                         }
-                    }                                                                                        
+                    }
                 // Считаем сколько товара использовали из каждой строки чека
                 LOCAL taken = NUMERIC[14,3] (ReceiptSaleDetail);
-                IF useAllQuantity(promotion) THEN { 
+                IF useAllQuantity(promotion) THEN {
                     taken(ReceiptSaleDetail detail) <- (GROUP SUM use(detail, PromotionCondition condition));
                 } ELSE {
                     FOR promotion(PromotionCondition condition) == promotion AND PriceListType pt == priceListType(condition) NOINLINE (pt) DO {
-                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND NOT prevPriceA(pt, sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
+                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND NOT prevPriceA(pt, sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail);
                     }
                     taken(ReceiptSaleDetail detail) <- (GROUP SUM taken(detail, PromotionCondition condition));
                 }
 
                 // Считаем сколько использовали каждый товар
-//                LOCAL takenSku = NUMERIC[14,3] (Sku);
-//                takenSku(sku) <- [ GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
+                //                LOCAL takenSku = NUMERIC[14,3] (Sku);
+                //                takenSku(sku) <- [ GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
 
                 IF useAllQuantity(promotion) THEN
                     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- use(detail, condition)
@@ -294,25 +294,25 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
                     PARTITION UNGROUP leftSum
-                            PROPORTION STRICT ROUND(2) leftSum(detail) IF taken(detail, condition)
-                            ORDER detail
-                            BY condition
+                        PROPORTION STRICT ROUND(2) leftSum(detail) IF taken(detail, condition)
+                        ORDER detail
+                        BY condition
                     WHERE taken(detail, condition) AND (sumReceipt(condition) OR sumReceiptDiscount(condition));
 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
                     CASE WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
-                         WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
-                         WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
-                         WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - prevPriceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
-                         WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
+                        WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
+                        WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
+                        WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - prevPriceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
+                        WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
                     WHERE taken(detail, condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition);
-                
+
                 FOR taken(ReceiptSaleDetail detail, PromotionCondition condition) AND NOT sumReceipt(condition) AND NOT sumReceiptDiscount(condition) DO
                     overCalculatePromotion(detail, condition,taken(detail, condition),leftSum(detail));
-                
+
                 // Отнимаем использованные
                 leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);
-//                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
+                //                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
             }
         }
         promotionSumReceipt() <- NULL;
@@ -323,20 +323,20 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
     IF useBonus() THEN
         bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
-        
+
     overCalculatePromotions(receipt);
 }
 
 WHEN LOCAL FORMS zReport
     CHANGED(discountCard(Receipt r)) DO {
-        calculatePromotions(r);
-//        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
-        bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r AND useBonus();    
-    }
+    calculatePromotions(r);
+    //        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
+    bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r AND useBonus();
+}
 
 // Операции с чеками
- 
-createCurrentReceipt 'Создать новый чек'()  { 
+
+createCurrentReceipt 'Создать новый чек'()  {
     NEW r = Receipt {
         seek(r);
         number(r) <- maxNumberReceipt(currentZReport()) (+) 1;
@@ -355,8 +355,8 @@ fiscalCancel 'Отменить чек'  ABSTRACT LIST( Receipt);
 
 allowZeroSumReceipt 'Печатать чеки с 0 суммой' = DATA BOOLEAN ();
 
-EXTEND FORM options 
-    PROPERTIES () allowZeroSumReceipt 
+EXTEND FORM options
+    PROPERTIES () allowZeroSumReceipt
 ;
 DESIGN options {
     pane {
@@ -364,13 +364,13 @@ DESIGN options {
             caption = 'POS';
             MOVE PROPERTY (allowZeroSumReceipt());
         }
-    }    
+    }
 }
 
 GROUP receiptAction 'Оплата' : public;
 
 postPrint 'Напечатать фискальный чек'  ABSTRACT LIST ( Receipt);
-noFiscalPostPrint 'Создать чек (без фискального регистратора)'(Receipt receipt)  { 
+noFiscalPostPrint 'Создать чек (без фискального регистратора)'(Receipt receipt)  {
     IF receipt IS Receipt THEN {
         apply();
         IF NOT canceled() THEN
@@ -384,7 +384,7 @@ paymentTerminalModel (Receipt receipt) = paymentTerminalModel(cashRegister(recei
 sidPaymentTerminalModel 'Код модели' (Receipt receipt) = sid(paymentTerminalModel(receipt));
 
 postPaymentTerminal 'Оплата через платёжный терминал'  ABSTRACT LIST ( Receipt);
-postPaymentTerminalReceiptResult = DATA LOCAL STRING[100] (); 
+postPaymentTerminalReceiptResult = DATA LOCAL STRING[100] ();
 
 FORM postReceiptPayment 'Оплата по чеку'
     OBJECTS r = Receipt PANEL
@@ -431,7 +431,7 @@ DESIGN postReceiptPayment {
 
 allowPaymentGiftCard = DATA LOCAL BOOLEAN();
 
-prePost(Receipt receipt)  { 
+prePost(Receipt receipt)  {
     allowPaymentGiftCard() <- TRUE;
     DELETE Payment payment WHERE receipt(payment) == receipt;
     date(receipt) <- currentDate();
@@ -447,24 +447,24 @@ afterPostPrint  ABSTRACT LIST ( Receipt);
 overCreatePayment ABSTRACT LIST ( Receipt);
 returnPost = DATA LOCAL BOOLEAN();
 
-post 'Смешанная'(Receipt receipt)  { 
+post 'Смешанная'(Receipt receipt)  {
     returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
-        MESSAGE 'Выберите дисконтную карту';      
-        RETURN;   
-    } 
-    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
-        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
+        MESSAGE 'Выберите дисконтную карту';
         RETURN;
-    } 
+    }
+    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN {
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';
+        RETURN;
+    }
     IF incorrectReceipt(receipt) THEN {
         MESSAGE incorrectReceipt(receipt);
         RETURN;
-    } 
+    }
     prePost(receipt);
     overPostCash(receipt);
     IF returnPost() THEN RETURN;
-    
+
     IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
@@ -488,32 +488,32 @@ post 'Смешанная'(Receipt receipt)  {
             } ELSE {
                 MESSAGE postPaymentTerminalReceiptResult();
             }
-        } 
+        }
         IF NOT printed() THEN {
             DELETE Payment p WHERE receipt(p) == receipt;
         }
-    } 
+    }
 } CHANGEKEY 'F9' IN receiptAction;
 
-postCard 'Карточкой'(Receipt receipt)  { 
+postCard 'Карточкой'(Receipt receipt)  {
     returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
-        MESSAGE 'Выберите дисконтную карту';      
-        RETURN;   
-    } 
-    IF signedBonusPaid(receipt) > 0 AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
-        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';    
+        MESSAGE 'Выберите дисконтную карту';
         RETURN;
-    } 
+    }
+    IF signedBonusPaid(receipt) > 0 AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN {
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';
+        RETURN;
+    }
     IF incorrectReceipt(receipt) THEN {
         MESSAGE incorrectReceipt(receipt);
         RETURN;
     }
-     
+
     prePost(receipt);
     overPostCard(receipt);
     IF returnPost() THEN RETURN;
-    
+
     IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
@@ -529,28 +529,28 @@ postCard 'Карточкой'(Receipt receipt)  {
             MESSAGE postPaymentTerminalReceiptResult();
         }
     }
-        
+
 } CHANGEKEY 'F10' CONFIRM IN receiptAction;
 
-postCash 'Наличными'(Receipt receipt)  { 
+postCash 'Наличными'(Receipt receipt)  {
     returnPost()<- NULL;
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
-        MESSAGE 'Выберите дисконтную карту';      
-        RETURN;   
-    } 
-    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN { 
-        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
+        MESSAGE 'Выберите дисконтную карту';
+        RETURN;
+    }
+    IF signedBonusPaid(receipt) AND NOT (OVERRIDE totalBonuses(receipt), 0.0) >= signedBonusPaid(receipt) THEN {
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';
         RETURN;
     }
     IF incorrectReceipt(receipt) THEN {
         MESSAGE incorrectReceipt(receipt);
         RETURN;
-    } 
-    
+    }
+
     prePost(receipt);
     overPostCash(receipt);
     IF returnPost() THEN RETURN;
-    
+
     IF sumReceiptDetail(receipt) OR (allowZeroSumReceipt() AND quantityReceiptDetail(receipt)) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
@@ -567,34 +567,34 @@ postCash 'Наличными'(Receipt receipt)  {
         }
         IF NOT printed() THEN
             DELETE Payment p WHERE receipt(p) == receipt;
-    }  
+    }
 } CHANGEKEY 'F11' IN receiptAction;
 
 //Оплата бонусами
 
 toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[18,4] (Receipt);
 
-changeToPayBonuses (Receipt r)  { 
+changeToPayBonuses (Receipt r)  {
     INPUT n = NUMERIC[18,4] DO
         IF n THEN {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
-            CASE WHEN n < 0.0 THEN 
-                    MESSAGE 'Сумма бонусов не может быть отрицательной';
-                 WHEN sumReceiptDetail(r) (-) minBonusSum() * countReceiptDetail(r) < round(n, roundCondition(departmentStore(r))) THEN
-                    MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека';                 
-                 WHEN NOT round(n, roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
-                    MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных';
-                 ELSE toPayBonuses(r) <- round(n, roundCondition(departmentStore(r)));
+            CASE WHEN n < 0.0 THEN
+            MESSAGE 'Сумма бонусов не может быть отрицательной';
+                WHEN sumReceiptDetail(r) (-) minBonusSum() * countReceiptDetail(r) < round(n, roundCondition(departmentStore(r))) THEN
+                MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека';
+                WHEN NOT round(n, roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
+                MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных';
+                ELSE toPayBonuses(r) <- round(n, roundCondition(departmentStore(r)));
         } ELSE {
             toPayBonuses(r) <- NULL;
-        } 
+        }
 }
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
         PROPORTION STRICT ROUND(2) min((sum(detail) (-) minBonusSum()), ((sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))))) IF sum(detail) > minBonusSum()
-        ORDER detail 
-        BY receipt(detail); 
+        ORDER detail
+        BY receipt(detail);
 //    PARTITION UNGROUP toPayBonuses
 //        LIMIT min((sum(detail) (-) minBonusSum()), round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail)))))
 //        BY receipt(detail)
@@ -603,11 +603,11 @@ sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
 bonusBackground (DiscountCard d) = RGB(255,128,128) IF NOT totalBonuses(d) >= 0.0;
 
 FORM bonusPayment 'Оплата бонусами'
-    OBJECTS r = Receipt PANEL 
+    OBJECTS r = Receipt PANEL
     PROPERTIES(r) toPayBonuses ON CHANGE changeToPayBonuses(r)
-        
-    OBJECTS d = DiscountCard PANEL 
-    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses DRAW r 
+
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses DRAW r
 ;
 
 DESIGN bonusPayment {
@@ -617,29 +617,29 @@ DESIGN bonusPayment {
             pattern = '#,##0.00';
             font = 'bold 48';
             panelCaptionVertical = TRUE;
-        }  
+        }
         MOVE PROPERTY(prevTotalBonuses(d)){
             pattern = '#,##0.00';
             font = 'bold 48';
-            panelCaptionVertical = TRUE;        
-        }          
+            panelCaptionVertical = TRUE;
+        }
     }
     REMOVE BOX(d);
     MOVE TOOLBARBOX;
 }
 
-overPostBonus  ABSTRACT LIST( Receipt); 
-overPostBonusExtra  ABSTRACT LIST ( Receipt); 
-postBonus 'Бонусами'(Receipt receipt) { 
+overPostBonus  ABSTRACT LIST( Receipt);
+overPostBonusExtra  ABSTRACT LIST ( Receipt);
+postBonus 'Бонусами'(Receipt receipt) {
     returnPost()<- NULL;
     overPostBonusExtra(receipt);
     IF returnPost() THEN RETURN;
-        
+
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
         DIALOG bonusPayment OBJECTS d = discountCard(receipt), r = receipt DO {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
-            bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
-            overPostBonus(receipt);        
+            bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;
+            overPostBonus(receipt);
         }
     }
 } CHANGEKEY 'F8' IN receiptAction;
@@ -648,7 +648,7 @@ resetBoard 'Сбросить текст на дисплее'  ABSTRACT LIST( Rec
 overCancelReceipt = ABSTRACT CASE BOOLEAN (Receipt);
 
 overCancel ABSTRACT (Receipt);
-cancel 'Обнулить'(Receipt receipt)  { 
+cancel 'Обнулить'(Receipt receipt)  {
     resetBoard(receipt);
     overCancel(receipt);
     IF sumReceiptDetail(receipt) OR quantityReceiptDetail(receipt) OR overCancelReceipt(receipt) THEN {
@@ -671,15 +671,15 @@ FORM chooseBatchReceipt 'Выбор партии'
     PROPERTIES(bt, d) READONLY currentPOSPrice
     ORDERS dateTime(bt) DESC
     FILTERS sku(bt) == sku(d),
-            currentPOSPrice(bt, d)
+        currentPOSPrice(bt, d)
     FILTERGROUP balance
-        FILTER 'Партии с остатком' prevCurrentBalance(bt, st) 'F10' DEFAULT 
-        
+        FILTER 'Партии с остатком' prevCurrentBalance(bt, st) 'F10' DEFAULT
+
 ;
 
 overChangeBatch  ABSTRACT LIST ( ReceiptDetail);
 
-changeBatch 'Изменить партию строки чека'(ReceiptDetail detail)  { 
+changeBatch 'Изменить партию строки чека'(ReceiptDetail detail)  {
     IF explicitBatchLedger(receipt(detail)) THEN {
         DIALOG chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail, bt = batch(detail) INPUT NULL DO{
             batch(detail) <- bt;
@@ -689,31 +689,31 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
     }
 }
 
-focusQuantity  ABSTRACT LIST ( ReceiptDetail); 
+focusQuantity  ABSTRACT LIST ( ReceiptDetail);
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, STRING[30] barcode)  { 
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, STRING[30] barcode)  {
     NEW d = ReceiptSaleDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         sku(d) <- sku(batch);
         quantity(d) <- 1.0;
-//        VATReceiptSaleDetail(d) <- VATSkuStockDate(skuBatch(batch), departmentStoreReceipt(receipt), currentDate());
+        //        VATReceiptSaleDetail(d) <- VATSkuStockDate(skuBatch(batch), departmentStoreReceipt(receipt), currentDate());
         batch(d) <- batch;
         price(d) <- currentPOSPrice(batch, receipt);
         focusQuantity(d);
     }
 }
 
-countBatch (sk, Stock st, Receipt r) = GROUP SUM 1 
-                                                  IF (currentBalance(Batch batch, st) (-) 
-                                                      [ GROUP SUM quantity(ReceiptSaleDetail d) 
-                                                              BY batch(d), receipt(d)] (batch, r)) > 0
-                                              BY sku(batch); 
-defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt receipt) = 
+countBatch (sk, Stock st, Receipt r) = GROUP SUM 1
+    IF (currentBalance(Batch batch, st) (-)
+        [ GROUP SUM quantity(ReceiptSaleDetail d)
+        BY batch(d), receipt(d)] (batch, r)) > 0
+BY sku(batch);
+defaultBatch 'Партия по умолчанию' (sku, Stock stock, Receipt receipt) =
     GROUP MIN Batch batch IF (currentBalance(batch, stock) (-)
-                        [ GROUP SUM quantity(ReceiptSaleDetail d) 
-                                 BY batch(d), receipt(d)] (batch, receipt)) > 0
-          BY sku(batch); 
+        [ GROUP SUM quantity(ReceiptSaleDetail d)
+        BY batch(d), receipt(d)] (batch, receipt)) > 0
+    BY sku(batch);
 
 setSaleDetailBatch (ReceiptSaleDetail d, Receipt receipt) {
     IF countBatch(sku(d), departmentStore(receipt(d)), receipt) == 1 THEN {
@@ -733,19 +733,19 @@ setSaleDetailBatch (ReceiptSaleDetail d, Receipt receipt) {
     }
 }
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[30] barcode)  { 
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[30] barcode)  {
     NEW d = ReceiptSaleDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         sku(d) <- sku;
         quantity(d) <- 1.0;
         price(d) <- currentPOSPrice(sku, receipt);
-//        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
+        //        VATReceiptSaleDetail(d) <- VATSkuStockDate(sku, departmentStoreReceipt(receipt), currentDate());
         focusQuantity(d);
         IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d)) = SkuType.skuTypeCharge THEN {
             setSaleDetailBatch(d, receipt);
         }
-        overChangeBatch(d);    
+        overChangeBatch(d);
     }
 }
 
@@ -760,10 +760,10 @@ overChangeBarcodeSale  ABSTRACT LIST FIRST (STRING[200], Receipt);
 
 recordLogScanPos 'Записывать лог скана в POS' = DATA BOOLEAN ();//временно
 
-changeBarcodeSale(Receipt receipt)  { 
+changeBarcodeSale(Receipt receipt)  {
     INPUT s = STRING[200] DO {
         IF recordLogScanPos() THEN{
-            printToLog(CONCAT ' ', 'POSLogScan: ', s);            
+            printToLog(CONCAT ' ', 'POSLogScan: ', s);
         }
         consumedChangeBarcodeSaleReceipt() <- NULL;
         LOCAL barcode = STRING[30] ();
@@ -780,7 +780,7 @@ changeBarcodeSale(Receipt receipt)  {
                 } ELSE {
                     MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
                 }
-                
+
             } ELSE
                 MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + s + ')';
         }
@@ -789,10 +789,10 @@ changeBarcodeSale(Receipt receipt)  {
 
 overFilterSearch = ABSTRACT BOOLEAN (Sku, Stock);
 
-filterSearchSale = prevCurrentBalance(Sku s, Stock st) 
-            OR (currentPOSPrice(s, Receipt r) AND skuType[Item](s) == SkuType.skuTypeCharge)
-            OR overFilterSearch(s, st);
-            
+filterSearchSale = prevCurrentBalance(Sku s, Stock st)
+    OR (currentPOSPrice(s, Receipt r) AND skuType[Item](s) == SkuType.skuTypeCharge)
+    OR overFilterSearch(s, st);
+
 // Поиск подбором SKU
 FORM searchSkuSaleReceipt 'Поиск SKU'
     OBJECTS st = DepartmentStore PANEL
@@ -806,15 +806,15 @@ FORM searchSkuSaleReceipt 'Поиск SKU'
     OBJECTS           s = Sku GRID
     PROPERTIES        READONLY name(s)
     PROPERTIES(s, st) READONLY prevCurrentBalance
-    PROPERTIES(s, r)  READONLY currentPOSPrice    
+    PROPERTIES(s, r)  READONLY currentPOSPrice
     PROPERTIES        READONLY idBarcode(s)
     FILTERS           isParent(sk, s),
-                      name(s)
+        name(s)
     ORDERS          name(s)
 
     FILTERGROUP filters
         FILTER 'Доступные для продажи' filterSearchSale(s, st, r) 'F10' DEFAULT
-        
+
     FILTERGROUP inactiveSku FILTER 'Активные' active(s) 'F11' DEFAULT
 
 ;
@@ -825,10 +825,10 @@ DESIGN searchSkuSaleReceipt {
         NEW top BEFORE TOOLBARBOX {
             fill = 1;
             horizontal = TRUE;
-            NEW itemImage {               
+            NEW itemImage {
                 fill = 1;
-                MOVE BOX(TREE skuTree) { caption = 'Группы'; }               
-            }            
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+            }
             MOVE BOX(s) {
                 fill = 4;
                 GRID(s) {
@@ -843,7 +843,7 @@ DESIGN searchSkuSaleReceipt {
     }
 }
 
-searchSkuSale 'Поиск'(Receipt receipt)  { 
+searchSkuSale 'Поиск'(Receipt receipt)  {
     DIALOG searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, s INPUT DO {
         createSaleDetail[Receipt,Sku,BPSTRING[15]](receipt, s, idBarcode[Sku](s));
     }
@@ -861,10 +861,10 @@ FORM searchBatchSaleReceipt 'Поиск партии'
 
     OBJECTS           b = Batch GRID
     PROPERTIES        READONLY documentNameSku(b)
-    
+
     PROPERTIES(b, st) READONLY prevCurrentBalance
     PROPERTIES(b, r)  READONLY currentPOSPrice
-        
+
     PROPERTIES        READONLY idBarcodeSku(b), name(b)
     FILTERS           isParent(sk, sku(b))
     ORDERS          documentNameSku(b)
@@ -892,12 +892,12 @@ DESIGN searchBatchSaleReceipt {
             PROPERTY(prevCurrentBalance(b, st)) { font = '16'; charWidth = 3;}
             PROPERTY(currentPOSPrice(b, r)) { font = '16'; }
             PROPERTY(idBarcodeSku(b)) { font = '16'; charWidth = 14;}
-            PROPERTY(name(b)) { font = '16'; charWidth = 20;}           
+            PROPERTY(name(b)) { font = '16'; charWidth = 20;}
         }
     }
 }
 
-searchBatchSale 'Поиск'(Receipt receipt)  { 
+searchBatchSale 'Поиск'(Receipt receipt)  {
     DIALOG searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, b INPUT DO {
         createSaleDetail[Receipt,Batch,BPSTRING[15]](receipt, b, idBarcodeSku[Batch](b));
     }
@@ -909,8 +909,8 @@ searchBatchSale 'Поиск'(Receipt receipt)  {
 allReceiptReturn 'Возврат чека целиком' = DATA BOOLEAN ();
 selectiveReturn = TRUE AND NOT allReceiptReturn();
 
-EXTEND FORM options 
-    PROPERTIES () allReceiptReturn 
+EXTEND FORM options
+    PROPERTIES () allReceiptReturn
 ;
 DESIGN options {
     pos {
@@ -923,7 +923,7 @@ returnQuantity 'Количество возврата' (receiptDetail) = ABSTRAC
 
 overCreateReturn  ABSTRACT LIST ( ReceiptReturnDetail);
 
-createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[30] barcode)  { 
+createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[30] barcode)  {
     NEW d = ReceiptReturnDetail {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -940,17 +940,17 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
 }
 
 overCreateReturn  ABSTRACT LIST ( ReceiptReturnDetail, ReceiptSaleDetail);
-createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn)  { 
+createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn)  {
     FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn NEW d = ReceiptReturnDetail DO {
-        receipt(d) <- receipt;        
-        idBarcode(d) <- idBarcode(sku(receiptSaleDetail));        
+        receipt(d) <- receipt;
+        idBarcode(d) <- idBarcode(sku(receiptSaleDetail));
         receiptSaleDetail(d) <- receiptSaleDetail;
         sku(d) <- sku(receiptSaleDetail);
         quantity(d) <- quantity(receiptSaleDetail);
         price(d) <- price(receiptSaleDetail);
         VAT(d) <- VAT(receiptSaleDetail);
         batch(d) <- batch(receiptSaleDetail);
-        discountCard(receipt) <- discountCard(receiptSaleDetail);        
+        discountCard(receipt) <- discountCard(receiptSaleDetail);
         overCreateReturn(d,receiptSaleDetail);
     }
 }
@@ -966,14 +966,14 @@ FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
 
     OBJECTS r = ReceiptSaleDetail GRID
     PROPERTIES(r) READONLY numberReceipt, dateTime, nameBatch SHOWIF explicitBatchLedger(d),
-                           numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, sumCashPayment, sumCardPayment,
-                           index, quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
-                           sum[ReceiptDetail], discountPercent , discountSum[ReceiptDetail]
+        numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, sumCashPayment, sumCardPayment,
+        index, quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
+        sum[ReceiptDetail], discountPercent , discountSum[ReceiptDetail]
     FILTERS departmentStore(r) == d,
-            sku(r) == s
-            
+        sku(r) == s
+
     FILTERGROUP filter
-        FILTER 'Невозвращенные'  quantity[ReceiptDetail](r) (-) quantityReturned(r) > 0.0 DEFAULT             
+        FILTER 'Невозвращенные'  quantity[ReceiptDetail](r) (-) quantityReturned(r) > 0.0 DEFAULT
 ;
 
 DESIGN scanBarcodeReturnReceipt {
@@ -985,26 +985,26 @@ DESIGN scanBarcodeReturnReceipt {
     }
 }
 
-changeDescriptionSale(ReceiptReturnDetail d) + { 
-    DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(d), s = sku(d), r = receiptSaleDetail(d) CHANGE;   
+changeDescriptionSale(ReceiptReturnDetail d) + {
+    DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(d), s = sku(d), r = receiptSaleDetail(d) CHANGE;
 }
 
-forbidNullSaleDetail 'Запретить возврат не по чеку' = DATA BOOLEAN (); 
+forbidNullSaleDetail 'Запретить возврат не по чеку' = DATA BOOLEAN ();
 
 EXTEND FORM options
     PROPERTIES () forbidNullSaleDetail
 ;
-    
+
 DESIGN options {
     pos {
         MOVE PROPERTY(forbidNullSaleDetail());
-    }    
-}   
+    }
+}
 
 barcodeConsumed = DATA LOCAL BOOLEAN ();
 overBarcodeInput ABSTRACT LIST (Receipt);
 
-scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  { 
+scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  {
     DIALOG barcodeInput DO {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
@@ -1017,7 +1017,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  {
                 created() <- TRUE;
             }
             IF NOT created() THEN {
-                IF NOT forbidNullSaleDetail() THEN {                        
+                IF NOT forbidNullSaleDetail() THEN {
                     NEW d = ReceiptReturnDetail {
                         receipt(d) <- receipt;
                         idBarcode(d) <- barcodeInput();
@@ -1044,7 +1044,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  {
         } ELSE {
             barcodeConsumed() <- NULL;
             overBarcodeInput(receipt);
-            
+
             IF NOT barcodeConsumed() THEN
                 MESSAGE CONCAT ' ', 'Не найден штрихкод', barcodeInput();
         }
@@ -1060,31 +1060,31 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
     OBJECTS st = DepartmentStore PANEL
     OBJECTS c = CashRegister PANEL
 
-    OBJECTS s = Receipt GRID LAST 
+    OBJECTS s = Receipt GRID LAST
     PROPERTIES(s) READONLY  number, date, time, nameEmployee,
-                            numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, discountSumReceiptDetail,
-                            countReceiptDetail, quantityReceiptDetail
+        numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, discountSumReceiptDetail,
+        countReceiptDetail, quantityReceiptDetail
     FILTERS departmentStore(s) == st,
-            countReceiptSaleDetail(s) 
+        countReceiptSaleDetail(s)
     FILTERGROUP filter
-        FILTER 'Невозвращенные' unreturned(s)              
+        FILTER 'Невозвращенные' unreturned(s)
 
     OBJECTS r = ReceiptSaleDetail GRID
     PROPERTIES(r) READONLY  idBarcode, nameSku[ReceiptDetail], nameBatch SHOWIF explicitBatchLedger(st),
-                            quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
-                            sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
-    PROPERTIES(r) READONLY SHOWIF useBonus() bonusPaid, bonusSum                            
+        quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
+        sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
+    PROPERTIES(r) READONLY SHOWIF useBonus() bonusPaid, bonusSum
     FILTERS receipt(r) == s
     FILTERGROUP filterDetail
-        FILTER 'Невозвращенные' unreturned(r) > 0.0 DEFAULT           
+        FILTER 'Невозвращенные' unreturned(r) > 0.0 DEFAULT
 ;
 DESIGN searchSkuReturnReceipt {
     size = (1024, 768);
 }
 
-createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d)  { 
+createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d)  {
     IF receiptReturn IS Receipt AND d IS ReceiptSaleDetail THEN {
-        IF selectiveReturn() THEN {        
+        IF selectiveReturn() THEN {
             createReturn(receipt, d, idBarcode(sku[ReceiptSaleDetail](d)));
         } ELSE {
             createReturn(receipt, receiptReturn);
@@ -1092,20 +1092,20 @@ createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d)  {
     }
 }
 
-searchSkuReturn 'Поиск'(Receipt receipt)  { 
+searchSkuReturn 'Поиск'(Receipt receipt)  {
     DIALOG searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt), s INPUT, r INPUT DO
         createReturn(receipt, s, r);
 } CHANGEKEY 'F6' IN receiptReturnAction;
 
 // Дисконтные карты
 
-overChangeBarcodeDiscountCard(STRING[30] string, Receipt receipt)  { 
+overChangeBarcodeDiscountCard(STRING[30] string, Receipt receipt)  {
     IF discountString(string) AND receipt IS Receipt AND string IS STRING[30] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
         IF dateTo(discountString(string)) < date(receipt) THEN
             MESSAGE 'Закончился срок действия карты';
         ELSE
-            discountCard(receipt) <- discountString(string); 
-            consumedChangeBarcodeSaleReceipt() <- TRUE;
+            discountCard(receipt) <- discountString(string);
+        consumedChangeBarcodeSaleReceipt() <- TRUE;
     }
 } TOOLBAR;
 
@@ -1124,10 +1124,10 @@ DESIGN inputDiscountCardNumberReceipt {
     }
 }
 
-inputDiscountCardNumber 'Ввести номер'(Receipt receipt)  { 
+inputDiscountCardNumber 'Ввести номер'(Receipt receipt)  {
     DIALOG inputDiscountCardNumberReceipt OBJECTS s INPUT, n INPUT DO {
         LOCAL discountCard = DiscountCard();
-        discountCard() <- discountString(CONCAT '', s, n);         
+        discountCard() <- discountString(CONCAT '', s, n);
         IF discountCard() THEN {
             IF dateTo(discountCard()) < date(receipt) THEN
                 MESSAGE 'Закончился срок действия карты';
@@ -1138,13 +1138,13 @@ inputDiscountCardNumber 'Ввести номер'(Receipt receipt)  {
     }
 } IN receiptDiscount CHANGEKEY 'F6';
 
-clearDiscountCard 'Сбросить'(Receipt receipt)  { 
+clearDiscountCard 'Сбросить'(Receipt receipt)  {
     discountCard(receipt) <- NULL;
 } IN receiptDiscount CHANGEKEY 'shift F5';
 
 // Операции с Z-отчетами
 
-openZReport 'Открыть Z-отчет' (CashRegister cashRegister)  { 
+openZReport 'Открыть Z-отчет' (CashRegister cashRegister)  {
     NEW z = ZReport {
         isPosted(z) <- TRUE;
         number(z) <- BPSTRING[255](z);
@@ -1160,7 +1160,7 @@ fiscalOpenZReport 'Открыть Z-отчет' ()  ABSTRACT LIST ( );
 
 overOpen  ABSTRACT LIST ( ZReport);
 
-openCurrentZReport 'Открыть Z-отчет'()  { 
+openCurrentZReport 'Открыть Z-отчет'()  {
     NEW z = ZReport {
         isPosted(z) <- TRUE;
         number(z) <- BPSTRING[255](z);
@@ -1176,7 +1176,7 @@ openCurrentZReport 'Открыть Z-отчет'()  {
 
 overClose  ABSTRACT LIST ( ZReport);
 
-closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister)  { 
+closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister)  {
     cancel();
     FOR ZReport z == zReport(cashRegister) DO {
         time(z) <- currentTime();
@@ -1188,7 +1188,7 @@ closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister)  {
 } CONFIRM IN receiptZReport;
 
 fiscalNumber = DATA LOCAL STRING[48] (ZReport);
-closeCurrentZReport 'Закрыть Z-отчет'()  { 
+closeCurrentZReport 'Закрыть Z-отчет'()  {
     CANCEL NESTED(fiscalNumber[ZReport]);
     time(ZReport z) <- currentTime() WHERE z == currentZReport();
     //dateZReport(z) <- currentDate() WHERE z == currentZReport();
@@ -1217,12 +1217,12 @@ backgroundQuantity = ABSTRACT COLOR (ReceiptDetail);
 
 changeQuantity 'Изменить кол-во строки чека'  ABSTRACT CASE OVERRIDE FIRST ( ReceiptDetail);
 
-changeQuantity(ReceiptDetail detail) + WHEN detail IS ReceiptDetail THEN{ 
+changeQuantity(ReceiptDetail detail) + WHEN detail IS ReceiptDetail THEN{
     INPUT n = NUMERIC[16,5] DO
         IF n THEN
             quantity(detail) <- n;
         ELSE
-            DELETE detail; 
+            DELETE detail;
 }
 
 notBackgroundPOS 'Не подсвечивать форму POS' = DATA BOOLEAN ();
@@ -1233,43 +1233,43 @@ EXTEND FORM options
 DESIGN options {
     pos {
         MOVE PROPERTY (notBackgroundPOS());
-    }  
+    }
 }
 
 //background(Receipt r, ReceiptDetail d) = RGB(255, 128, 128) 
 //    IF ((posNotExplicitBatchLedger(r) AND prevCurrentBalanceSku(d) < quantity(d)) OR 
 //       (posExplicitBatchLedger(r) AND prevCurrentBalanceBatch(d) < quantity(d))) AND NOT notBackgroundPOS();
-       
+
 background = ABSTRACT VALUE COLOR (Receipt, ReceiptSaleDetail);
-background(Receipt r, ReceiptSaleDetail d) += RGB(255, 128, 128) IF d IS ReceiptSaleDetail AND ((posNotExplicitBatchLedger(r) AND NOT prevCurrentBalanceSku(d) >= quantity(d)) OR 
-                                                 (posExplicitBatchLedger(r) AND NOT prevCurrentBalanceBatch(d) >= quantity(d))) AND NOT notBackgroundPOS();
-                                                 
+background(Receipt r, ReceiptSaleDetail d) += RGB(255, 128, 128) IF d IS ReceiptSaleDetail AND ((posNotExplicitBatchLedger(r) AND NOT prevCurrentBalanceSku(d) >= quantity(d)) OR
+    (posExplicitBatchLedger(r) AND NOT prevCurrentBalanceBatch(d) >= quantity(d))) AND NOT notBackgroundPOS();
+
 currentZReportUseBonus() = currentZReport() AND useBonus();
 
 bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) <= totalBonuses(r));
 
-changeBonusPaid (ReceiptDetail d)  { 
-    INPUT n = NUMERIC[18,4] DO 
+changeBonusPaid (ReceiptDetail d)  {
+    INPUT n = NUMERIC[18,4] DO
         IF n THEN {
-            CASE WHEN n < 0.0 THEN 
-                    MESSAGE 'Сумма бонусов не может быть отрицательной';
-                 WHEN sum(d) < round(n, roundCondition(departmentStore(d))) THEN
-                    MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека';         
-                 WHEN sum(d) (-) minBonusSum() < round(n, roundCondition(departmentStore(d))) THEN
-                    MESSAGE 'Сумма платежа по строке чека должна быть больше минимальной';                                       
-                 ELSE bonusPaid(d) <- round(n, roundCondition(departmentStore(d)));        
+            CASE WHEN n < 0.0 THEN
+            MESSAGE 'Сумма бонусов не может быть отрицательной';
+                WHEN sum(d) < round(n, roundCondition(departmentStore(d))) THEN
+                MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека';
+                WHEN sum(d) (-) minBonusSum() < round(n, roundCondition(departmentStore(d))) THEN
+                MESSAGE 'Сумма платежа по строке чека должна быть больше минимальной';
+                ELSE bonusPaid(d) <- round(n, roundCondition(departmentStore(d)));
         } ELSE {
             bonusPaid(d) <- NULL;
-        }  
+        }
 }
 
 //задание акций кассиром для всего чека
 
-setUserPromotionReceipt 'Применить для чека' (Receipt receipt, PromotionCondition pc)  { 
+setUserPromotionReceipt 'Применить для чека' (Receipt receipt, PromotionCondition pc)  {
     setUserPromotion(ReceiptSaleDetail detail, pc) <- TRUE WHERE receipt(detail) == receipt;
 }
 
-dropUserPromotionReceipt 'Сбросить для чека' (Receipt receipt, PromotionCondition pc)  { 
+dropUserPromotionReceipt 'Сбросить для чека' (Receipt receipt, PromotionCondition pc)  {
     setUserPromotion(ReceiptSaleDetail detail, pc) <- NULL WHERE receipt(detail) == receipt;
 }
 
@@ -1289,14 +1289,14 @@ DESIGN options {
 
 readonlyDiscountSumReceipt() = NOT useDiscountSumReceipt();
 
-changeDiscountSumReceipt (Receipt receipt)  { 
+changeDiscountSumReceipt (Receipt receipt)  {
     IF useDiscountSumReceipt() THEN {
         INPUT n = NUMERIC[18,4] DO{
             LOCAL input = NUMERIC[18,4](Receipt);
             input(receipt) <- n;
             FOR receipt(ReceiptSaleDetail detail) == receipt DO {
                 discountSum(detail) <- PARTITION UNGROUP input PROPORTION STRICT ROUND(2) quantity(detail)*price(detail) ORDER index(detail), detail BY receipt(detail);
-            }    
+            }
         }
     }
 }
@@ -1310,34 +1310,34 @@ FORM POS
     PROPERTIES() READONLY SHOWIF closedCurrentZReport() closedCurrentZReportMessage
 
     OBJECTS r = Receipt PANEL
-    PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetail ON CHANGE changeDiscountSumReceipt(r) READONLYIF readonlyDiscountSumReceipt(), 
-                                          sumReceiptDetail, searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
-                                          searchBatchSale SHOWIF posExplicitBatchLedger(r),
-                                          searchSkuReturn, scanBarcodeReturn,
-                                          post, postCard, postCash, postBonus SHOWIF (showBonus() AND NOT skipShowBonus(r)), cancel,
-                                          clearDiscountCard, fiscalSkip
-    PROPERTIES SHOWIF currentZReport() transferDiscountCards() DRAW r TOOLBAR  
+    PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetail ON CHANGE changeDiscountSumReceipt(r) READONLYIF readonlyDiscountSumReceipt(),
+        sumReceiptDetail, searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
+        searchBatchSale SHOWIF posExplicitBatchLedger(r),
+        searchSkuReturn, scanBarcodeReturn,
+        post, postCard, postCash, postBonus SHOWIF (showBonus() AND NOT skipShowBonus(r)), cancel,
+        clearDiscountCard, fiscalSkip
+    PROPERTIES SHOWIF currentZReport() transferDiscountCards() DRAW r TOOLBAR
     PROPERTIES(r) READONLY SHOWIF currentZReport() numberDiscountCard, nameLegalEntityDiscountCard, prevTotalSum, bonusPaid BACKGROUND bonusBackground(r) SHOWIF showBonus()
-    PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
+    PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)
 
     OBJECTS d = ReceiptDetail GRID
-    PROPERTIES(d) SHOWIF currentZReport() READONLY BACKGROUND background(r, d)  
-                        index, type, idBarcodeGrid = idBarcode, nameSkuGrid = nameSku,
-                        prevCurrentBalanceSku SHOWIF posNotExplicitBatchLedger(r),
-                        prevCurrentBalanceBatch SHOWIF posExplicitBatchLedger(r)
-    PROPERTIES(d) SHOWIF currentZReport() BACKGROUND background(r, d) 
-                        quantityGrid = quantity ON CHANGE changeQuantity(d) BACKGROUND backgroundQuantity(d), priceGrid = price, sumGrid = sum, discountPercent,
-                        discountSum, valueVAT, calcSumVAT//, numberVATReceiptDetail,
-    PROPERTIES(d) SHOWIF currentZReport() READONLY PANEL BACKGROUND background(r, d) 
-                        idBarcodePanel = idBarcode,
-                        nameSkuPanel = nameSku,
-                        quantityPanel = quantity CHANGEABLE EVENTID 'SCALES',
-                        shortNameUOMSkuPanel = shortNameUOMSku,
-                        pricePanel = price,
-                        sumPanel = sum
-    PROPERTIES(d) SHOWIF currentZReportUseBonus() BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d) READONLYIF is[ReceiptReturnDetail](d), bonusSum READONLY                        
-    PROPERTIES(d) SHOWIF currentZReport() PANEL BACKGROUND background(r, d) 
-                        nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
+    PROPERTIES(d) SHOWIF currentZReport() READONLY BACKGROUND background(r, d)
+    index, type, idBarcodeGrid = idBarcode, nameSkuGrid = nameSku,
+        prevCurrentBalanceSku SHOWIF posNotExplicitBatchLedger(r),
+        prevCurrentBalanceBatch SHOWIF posExplicitBatchLedger(r)
+    PROPERTIES(d) SHOWIF currentZReport() BACKGROUND background(r, d)
+    quantityGrid = quantity ON CHANGE changeQuantity(d) BACKGROUND backgroundQuantity(d), priceGrid = price, sumGrid = sum, discountPercent,
+        discountSum, valueVAT, calcSumVAT//, numberVATReceiptDetail,
+    PROPERTIES(d) SHOWIF currentZReport() READONLY PANEL BACKGROUND background(r, d)
+    idBarcodePanel = idBarcode,
+        nameSkuPanel = nameSku,
+        quantityPanel = quantity CHANGEABLE EVENTID 'SCALES',
+        shortNameUOMSkuPanel = shortNameUOMSku,
+        pricePanel = price,
+        sumPanel = sum
+    PROPERTIES(d) SHOWIF currentZReportUseBonus() BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d) READONLYIF is[ReceiptReturnDetail](d), bonusSum READONLY
+    PROPERTIES(d) SHOWIF currentZReport() PANEL BACKGROUND background(r, d)
+    nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
 
     OBJECTS bs = STRING[30] PANEL
@@ -1354,15 +1354,15 @@ FORM POS
     PROPERTIES(r, pcu) PANEL setUserPromotionReceipt, dropUserPromotionReceipt
     FILTERS userSet(pcu) AND (inReceiptSale(d, pcu) OR setUserPromotion(d,pcu))
 
-    PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r), 
-    fiscalCutReceipt READONLYIF fiscalSkip(r), fiscalCashSum READONLYIF fiscalSkip(r)
-    
+    PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r),
+        fiscalCutReceipt READONLYIF fiscalSkip(r), fiscalCashSum READONLYIF fiscalSkip(r)
+
     OBJECTS s = DepartmentStore GRID
     PROPERTIES(s) READONLY SHOWIF currentZReport() nameStore
     PROPERTIES READONLY SHOWIF currentZReport() prevCurrentBalanceSku(d, s)
 
     FILTERS accessCompany(currentUser(), s),
-            prevCurrentBalanceSku(d, s)
+        prevCurrentBalanceSku(d, s)
 
     EVENTS
         ON INIT createCurrentReceipt()
@@ -1401,8 +1401,8 @@ DESIGN POS {
             NEW receiptDiscountRow3 {
                 fill = 1;
                 horizontal = TRUE;
-                MOVE PROPERTY(clearDiscountCard(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }             
-                MOVE PROPERTY(transferDiscountCards()) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }             
+                MOVE PROPERTY(clearDiscountCard(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+                MOVE PROPERTY(transferDiscountCards()) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
             }
         }
         MOVE PROPERTY(closedCurrentZReportMessage()) {
@@ -1425,21 +1425,21 @@ DESIGN POS {
         PROPERTY(sumGrid) { font = '18'; pattern = '#,##0.00'; }
         PROPERTY(discountPercent(d)) { font = '18'; charWidth = 3;}
         PROPERTY(discountSum(d)) { font = '18'; pattern = '#,##0.00'; }
-//        PROPERTY(numberVATReceiptDetail(d)) { font = '18'; charWidth = 3; }
+        //        PROPERTY(numberVATReceiptDetail(d)) { font = '18'; charWidth = 3; }
         PROPERTY(valueVAT(d)) { font = '18'; charWidth = 3;}
         PROPERTY(calcSumVAT(d)) { font = '18'; pattern = '#,##0.00';}
         PROPERTY(bonusPaid(d)) { font = '18'; pattern = '#,##0.00';}
         PROPERTY(bonusSum(d)) { font = '18'; pattern = '#,##0.00';}
-//        PROPERTY(deleted) { focusable = FALSE; font = '18'; }
+        //        PROPERTY(deleted) { focusable = FALSE; font = '18'; }
         REMOVE TOOLBARLEFT(d);
     }
     NEW center {
         alignment = STRETCH;
         horizontal = TRUE;
-        NEW imageContainer;        
+        NEW imageContainer;
         NEW details {
             fill = 1;
-//            size = ( -1, 100);
+            //            size = ( -1, 100);
             MOVE PANEL(d) {
                 MOVE PROPERTY(nameSkuPanel) {
                     alignment = STRETCH;
@@ -1474,22 +1474,22 @@ DESIGN POS {
                 }
             }
             FILTERS(d) {
-                visible = FALSE; 
+                visible = FALSE;
             }
             NEW pane {
                 fill = 1;
                 tabbed = TRUE;
                 MOVE BOX(pc) {
                     REMOVE TOOLBARLEFT(pc);
-                    PROPERTY(promotionSum(d, pc)) {pattern = '#,##0.00';}                    
+                    PROPERTY(promotionSum(d, pc)) {pattern = '#,##0.00';}
                 }
                 NEW manualPromotions {
                     fill = 1;
                     caption = 'Возможные акции';
                     horizontal = TRUE;
                     MOVE BOX(pcu) {
-                        REMOVE TOOLBARLEFT(pcu); 
-                        caption = ''; 
+                        REMOVE TOOLBARLEFT(pcu);
+                        caption = '';
                     }
                     NEW manualPromotionActions {
                         alignment = STRETCH;
@@ -1559,30 +1559,30 @@ DESIGN POS {
     REMOVE TOOLBARBOX;
 }
 
-focusQuantity(ReceiptDetail d) + { 
+focusQuantity(ReceiptDetail d) + {
     ACTIVATE PROPERTY POS.quantityGrid;
     SEEK POS.d = d;
 };
 
-recalculatedPrice 'Пересчитать цены чека'(Receipt receipt)  { 
+recalculatedPrice 'Пересчитать цены чека'(Receipt receipt)  {
     FOR receipt(ReceiptSaleDetail detail) == receipt DO {
-        IF posNotExplicitBatchLedger(receipt) THEN 
+        IF posNotExplicitBatchLedger(receipt) THEN
             price(detail) <- currentPOSPrice(sku(detail), receipt);
-        ELSE 
-            price(detail) <- currentPOSPrice(batch(detail), receipt);        
+        ELSE
+            price(detail) <- currentPOSPrice(batch(detail), receipt);
     }
 }
 
-WHEN LOCAL FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR 
-                       CHANGED(discountCard(receipt)) OR 
-                       CHANGED(setUserPromotion(receipt)) OR 
-                       CHANGED(discountPercent(receipt)) OR
-                       CHANGED(signedBonusPaid(receipt))
+WHEN LOCAL FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR
+    CHANGED(discountCard(receipt)) OR
+    CHANGED(setUserPromotion(receipt)) OR
+    CHANGED(discountPercent(receipt)) OR
+    CHANGED(signedBonusPaid(receipt))
     DO calculatePromotions(receipt);
-    
-WHEN LOCAL FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO 
+
+WHEN LOCAL FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO
     fiscalDisplayText(receiptDetail);
-    
+
 WHEN LOCAL FORMS POS CHANGED(discountCard(Receipt receipt)) DO recalculatedPrice(receipt);
 
 WHEN LOCAL FORMS POS CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO {
@@ -1603,12 +1603,12 @@ EXTEND FORM options
 DESIGN options {
     pos {
         MOVE PROPERTY (onlyPossitivePriceReceipDetail());
-    }  
+    }
 }
 
 CONSTRAINT onlyPossitivePriceReceipDetail() AND ReceiptDetail detail IS ReceiptDetail AND NOT price(detail) > 0.0
     MESSAGE 'Цена для строки чека должна быть задана и быть больше 0';
-    
+
 onlyPossitiveQuantityReceipSaleDetail 'Требовать, чтобы количество в продаже было больше нуля' = DATA BOOLEAN ();
 
 EXTEND FORM options
@@ -1617,7 +1617,7 @@ EXTEND FORM options
 DESIGN options {
     pos {
         MOVE PROPERTY (onlyPossitiveQuantityReceipSaleDetail());
-    }  
+    }
 }
 
 CONSTRAINT onlyPossitiveQuantityReceipSaleDetail() AND ReceiptSaleDetail detail IS ReceiptSaleDetail AND NOT quantity(detail) >= 0.0
@@ -1648,53 +1648,53 @@ EXTEND FORM scanBarcodeReturnReceipt
 ;
 
 FORM zReportDialog 'Z-отчет'
-    OBJECTS z = ZReport PANEL 
+    OBJECTS z = ZReport PANEL
     OBJECTS b = Receipt
-    PROPERTIES(b) READONLY number, date, time, nameEmployee, sumReceiptDetail, discountSumReceiptDetail, 
-                           countReceiptDetail, quantityReceiptDetail, sumCashPayment, sumCardPayment
+    PROPERTIES(b) READONLY number, date, time, nameEmployee, sumReceiptDetail, discountSumReceiptDetail,
+        countReceiptDetail, quantityReceiptDetail, sumCashPayment, sumCardPayment
     FILTERS zReport(b) == z
     OBJECTS d = ReceiptDetail
     PROPERTIES(d) READONLY idBarcode, nameSku, nameBatch, quantity, price, sum, discountSum
-    FILTERS receipt(d) == b, 
-            NOT resetted(b)
+    FILTERS receipt(d) == b,
+        NOT resetted(b)
 ;
 
 DESIGN zReportDialog{
-    BOX { 
-        size = (800, 600); 
+    BOX {
+        size = (800, 600);
     }
 }
 
 fiscalResetReceiptCashRegister  ABSTRACT LIST ( Receipt) CONFIRM;
-fiscalResetReceipt 'Аннулировать чек' ()  { 
+fiscalResetReceipt 'Аннулировать чек' ()  {
     IF currentZReport() THEN {
         DIALOG zReportDialog OBJECTS z = currentZReport(), b INPUT DO{
             fiscalResetReceiptCashRegister(b);
-        }           
+        }
     }
 } CONFIRM;
 
 showifFiscalResetReceipt = ABSTRACT BOOLEAN ();
 
 EXTEND FORM operationCashRegister
-    PROPERTIES SHOWIF currentCashRegister() READONLY curSumCurrentCashRegister() DRAW interval 
+    PROPERTIES SHOWIF currentCashRegister() READONLY curSumCurrentCashRegister() DRAW interval
     PROPERTIES() READONLY numberCurrentZReport SHOWIF (stockCurrentCashRegister() AND currentZReport())
     PROPERTIES() fiscalXReport SHOWIF currentCashRegister()
     PROPERTIES() fiscalZReport SHOWIF currentZReportDepartmentStore()
     PROPERTIES() openCurrentZReport SHOWIF closedCurrentZReportDepartmentStore()
     PROPERTIES() SHOWIF (currentZReportDepartmentStore() AND showifElectronicJournal()) fiscalElectronicJournal, fiscalElectronicJournalToFile
     PROPERTIES() fiscalResetReceipt SHOWIF (currentZReportDepartmentStore() AND showifFiscalResetReceipt())
-    
+
     PROPERTIES addIncomeCashOperationForm() DRAW c TOOLBAR  SHOWIF currentZReportDepartmentStore()
     PROPERTIES addOutcomeCashOperationForm() DRAW c TOOLBAR SHOWIF currentZReportDepartmentStore()
 
     OBJECTS z = ZReport
     PROPERTIES(z) READONLY isPosted, number, date, time, nameDepartmentStore,
-                           overNumberCashRegister, sumCash, sumReceiptDetail, basis
+        overNumberCashRegister, sumCash, sumReceiptDetail, basis
     ORDERS date(z), time(z)
     FILTERS date(z) >= dFrom,
-            date(z) <= dTo,
-            cashRegister(z) == currentCashRegister()
+        date(z) <= dTo,
+        cashRegister(z) == currentCashRegister()
 ;
 
 DESIGN operationCashRegister {
@@ -1733,7 +1733,7 @@ DESIGN operationCashRegister{
 }
 
 //-- 
-changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu) { 
+changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu) {
     INPUT b = BOOLEAN DO {
         setUserPromotion(d, pcu) <- b;
         quantity(d, pcu) <- quantity(d) IF b;
@@ -1743,11 +1743,11 @@ changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu) {
 EXTEND FORM zReport
 
     OBJECTS pcu = PromotionCondition GRID
-    PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom, 
-                    dateTo, percent
+    PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom,
+        dateTo, percent
     PROPERTIES(d, pcu)  quantity,
-                    promotionSum, 
-                    setUserPromotion ON CHANGE changeUserPromotion(d, pcu)
+        promotionSum,
+        setUserPromotion ON CHANGE changeUserPromotion(d, pcu)
     FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
 ;
 
@@ -1783,7 +1783,7 @@ DESIGN zReports {
             MOVE BOX(pcu) {
                 caption = 'Акции, применённые для строки чека';
                 PROPERTY (namePromotion(pcu)) { charWidth = 15;}
-                PROPERTY (name(pcu)) { charWidth = 15;}                
+                PROPERTY (name(pcu)) { charWidth = 15;}
             }
         }
     }
@@ -1793,20 +1793,20 @@ DESIGN zReports {
 
 maxSumPaymentReceipt 'Максимальная сумма платежа по чеку' = DATA NUMERIC[18,4] ();
 
-EXTEND FORM options 
-    PROPERTIES () maxSumPaymentReceipt 
+EXTEND FORM options
+    PROPERTIES () maxSumPaymentReceipt
 ;
 DESIGN options {
     pane {
         pos {
             MOVE PROPERTY (maxSumPaymentReceipt());
         }
-    }    
+    }
 }
 
-CONSTRAINT maxSumPaymentReceipt() AND sumPayment(Receipt r) > maxSumPaymentReceipt() AND date(r) >= 2016_07_01 
+CONSTRAINT maxSumPaymentReceipt() AND sumPayment(Receipt r) > maxSumPaymentReceipt() AND date(r) >= 2016_07_01
     MESSAGE 'Нельзя вводить сумму платежа по чеку больше разрешенной';
-    
+
 WHEN LOCAL FORMS POS SETCHANGED(countReceiptDetail(Receipt receipt)) DO {
-    time(receipt) <- currentTime();   
+    time(receipt) <- currentTime();
 }    
