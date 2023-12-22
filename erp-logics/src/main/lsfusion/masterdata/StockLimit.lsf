@@ -1,0 +1,16 @@
+MODULE StockLimit;
+
+REQUIRE SkuLedger, Store, Warehouse;
+
+NAMESPACE Stock;
+
+mxcnds 'Максимально разрешённое кол-во отделов магазинов' = DATA INTEGER () PREREAD;
+
+CONSTRAINT (GROUP SUM 1 IF [GROUP SUM 1 IF currentBalance(Sku s, DepartmentStore st) AND st IS DepartmentStore BY st](DepartmentStore st)) > mxcnds()
+    MESSAGE 'Превышено количество магазинов для которых приобретена лицензия';
+
+mxcnwh 'Максимально разрешённое кол-во отделов магазинов' = DATA INTEGER () PREREAD;
+
+CONSTRAINT (GROUP SUM 1 IF [GROUP SUM 1 IF currentBalance(Sku s, Warehouse st) AND st IS Warehouse BY st](Warehouse st)) > mxcnwh()
+    MESSAGE 'Превышено количество складов для которых приобретена лицензия';
+
