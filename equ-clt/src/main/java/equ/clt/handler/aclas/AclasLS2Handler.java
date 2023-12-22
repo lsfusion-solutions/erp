@@ -134,7 +134,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     File extraFile = null;
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
-                        FileUtils.writeStringToFile(extraFile, new String(Base64.decodeBase64(base64)));
+                        FileUtils.writeStringToFile(extraFile, new String(Base64.decodeBase64(base64)), "cp1251");
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
                     } finally {
