@@ -1,6 +1,6 @@
 MODULE StockReportsFuel;
 
-REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment;//, EmployeeStock, Document, Historizable;
+REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment, ZReportFuel;//, EmployeeStock, Document, Historizable;
 
 NAMESPACE StockReports;
 
@@ -90,13 +90,13 @@ CONSTRAINT employeeAfter(DailyReport report) AND NOT in(stock(report), employeeA
 TABLE dailyReportSkuBin (DailyReport, Sku, Bin);
 include = DATA BOOLEAN (DailyReport, Sku, Bin);
 volumeB 'Расчетный остаток на начало смены (книжный), л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-balanceB 'Расчетный остаток на начало смены (книжный), т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+balanceB 'Расчетный остаток на начало смены (книжный), кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 volumeIn 'Поступление за смену, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-quantityIn 'Поступление за смену, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+quantityIn 'Поступление за смену, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 otherVolumeOut 'Прочий расход, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-otherQuantityOut 'Прочий расход, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+otherQuantityOut 'Прочий расход, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 volumeOut 'Расход по резервуару, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-quantityOut 'Расход по резервуару, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+quantityOut 'Расход по резервуару, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 level 'Общий уровень нефтепродукта с водой, мм' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
 waterLevel 'Уровень воды, мм' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin);
 volume 'Общий объем по градуиров. таблице нефтепродукта с водой, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
@@ -108,33 +108,38 @@ correctedDensity 'Плотность, приведеная к стандарт. 
 temperature 'Температура наблюдаемая, °С' = DATA NUMERIC[5,1] (DailyReport, Sku, Bin);
 correctedTemperature 'Температура, приведеная к стандарт. условию, °С' = DATA NUMERIC[5,1] (DailyReport, Sku, Bin);
 binVolumeA 'Фактический остаток н/п в резервуаре, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-binBalanceA 'Фактический остаток н/п в резервуаре, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+binBalanceA 'Фактический остаток н/п в резервуаре, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 pipeVolumeA 'Фактический остаток н/п в трубопроводе, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-pipeBalanceA 'Фактический остаток н/п в трубопроводе, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+pipeBalanceA 'Фактический остаток н/п в трубопроводе, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 factVolumeA 'Фактический остаток, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-factBalanceA 'Фактический остаток, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+factBalanceA 'Фактический остаток, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 volumeA 'Расчетный (книжный) остаток, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin);
-balanceA 'Расчетный (книжный) остаток, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
-debalanceQuantity 'Дебаланс фактический, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
-allowedDebalanceQuantity 'Дебаланс допустимый, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+balanceA 'Расчетный (книжный) остаток, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+debalanceQuantity 'Дебаланс фактический, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
+allowedDebalanceQuantity 'Дебаланс допустимый, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 
 TABLE dailyReportSkuBinGun (DailyReport, Sku, Bin, Gun);
 include = DATA BOOLEAN (DailyReport, Sku, Bin, Gun);
 volumeCounterB 'Счетчик объема ТРК на начало смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
 volumeCounterA 'Счетчик объема ТРК на конец смены, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
 volumeOut 'Объем, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
-quantityOut 'Масса, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
+quantityOut 'Масса, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
 density 'Средневзвешенная плотность, кг/м3' = DATA NUMERIC[8,1] (DailyReport, Sku, Bin, Gun);
 techVolumeOut 'Технологический отпуск через ТРК, л' = DATA NUMERIC[16,2] (DailyReport, Sku, Bin, Gun);
-techQuantityOut 'Технологический отпуск через ТРК, т' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
+techQuantityOut 'Технологический отпуск через ТРК, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin, Gun);
 errorPercent 'Погрешность ТРК, %' = DATA NUMERIC[5,2] (DailyReport, Sku, Bin, Gun);
 
 TABLE dailyReportCashRegisterPaymentType (DailyReport, CashRegister, PaymentType);
 include = DATA BOOLEAN (DailyReport, CashRegister, PaymentType);
 sum 'Сумма' = DATA NUMERIC[18,4] (DailyReport, CashRegister, PaymentType);
+quantity 'Масса, кг' = DATA NUMERIC[16,6] (DailyReport, CashRegister, PaymentType);
+volume 'Обьем, л' = DATA NUMERIC[16,5] (DailyReport, CashRegister, PaymentType);
+
 TABLE dailyReportCashRegisterPaymentTypeSku (DailyReport, CashRegister, PaymentType, Sku);
 include = DATA BOOLEAN (DailyReport, CashRegister, PaymentType, Sku);
 sum 'Сумма' = DATA NUMERIC[18,4] (DailyReport, CashRegister, PaymentType, Sku);
+quantity 'Масса, кг' = DATA NUMERIC[16,6] (DailyReport, CashRegister, PaymentType, Sku);
+volume 'Обьем, л' = DATA NUMERIC[16,5] (DailyReport, CashRegister, PaymentType, Sku);
 
 beforeFill ABSTRACT LIST (DailyReport);
 
@@ -202,20 +207,24 @@ fill 'Заполнить' (DailyReport r) {
     
     include(r, CashRegister c, PaymentType t) <- NULL;
     sum(r, CashRegister c, PaymentType t) <- NULL;
+    quantity(r, CashRegister c, PaymentType t) <- NULL;
+    volume(r, CashRegister c, PaymentType t) <- NULL;
     
     include(r, CashRegister c, PaymentType t, Sku s) <- NULL;
     sum(r, CashRegister c, PaymentType t, Sku s) <- NULL;
+    quantity(r, CashRegister c, PaymentType t, Sku s) <- NULL;
+    volume(r, CashRegister c, PaymentType t, Sku s) <- NULL;
     
     beforeFill(r);
     
     volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r)));
-    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r)) / 1000.0);
+    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r)));// / 1000.0);
     volumeIn(r, Sku s, Bin b) <- NUMERIC[16,2](volumeIn(s,b,fromDateTime(r),toDateTime(r)));
-    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r)) / 1000.0);
+    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0);
     volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r)));
-    quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)) / 1000.0);
+    quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0);
     volumeA(r, Sku s, Bin b) <- NUMERIC[16,2](volumeA(s,b,toDateTime(r)));
-    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r)) / 1000.0);
+    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r)));// / 1000.0);
     
     include(r, Sku s, Bin b) <- volumeB(r,s,b) OR balanceB(r,s,b) OR volumeIn(r,s,b) OR quantityIn(r,s,b) OR volumeOut(r,s,b) OR quantityOut(r,s,b) OR volumeA(r,s,b) OR balanceA(r,s,b);
     
@@ -225,9 +234,17 @@ fill 'Заполнить' (DailyReport r) {
     sum(r, CashRegister c, PaymentType t, Sku s) <- GROUP SUM sum(ReceiptDetail d, Payment p) IF isPosted(d) AND isFuel(sku(d))
                                                     AND sku(d) == s AND paymentType(p) == t AND cashRegister(receipt(d)) == c
                                                     AND dateTime(d) >= fromDateTime(r) AND dateTime(d) <= toDateTime(r);
+    quantity(r, CashRegister c, PaymentType t, Sku s) <- NUMERIC[16,6](GROUP SUM quantity(ReceiptDetail d) * sum(d, Payment p) / sum(d) IF isPosted(d) AND isFuel(sku(d))
+                                                         AND sku(d) == s AND paymentType(p) == t AND cashRegister(receipt(d)) == c
+                                                         AND dateTime(d) >= fromDateTime(r) AND dateTime(d) <= toDateTime(r));
+    volume(r, CashRegister c, PaymentType t, Sku s) <- NUMERIC[16,5](GROUP SUM volume(ReceiptDetail d) * sum(d, Payment p) / sum(d) IF isPosted(d) AND isFuel(sku(d))
+                                                       AND sku(d) == s AND paymentType(p) == t AND cashRegister(receipt(d)) == c
+                                                       AND dateTime(d) >= fromDateTime(r) AND dateTime(d) <= toDateTime(r));
     include(r, CashRegister c, PaymentType t, Sku s) <- sum(r,c,t,s) AND r IS DailyReport;
     
     sum(r, CashRegister c, PaymentType t) <- GROUP SUM sum(r,c,t, Sku s);
+    quantity(r, CashRegister c, PaymentType t) <- GROUP SUM quantity(r,c,t, Sku s);
+    volume(r, CashRegister c, PaymentType t) <- GROUP SUM volume(r,c,t, Sku s);
     include(r, CashRegister c, PaymentType t) <- sum(r,c,t) AND r IS DailyReport;
 }
 
@@ -259,11 +276,11 @@ FORM dailyReport 'Сменный отчет'
     FILTERS include(r,s,b,g)
     
     OBJECTS dd = (c = CashRegister, t = PaymentType)
-    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t)
+    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t), quantity(r,c,t), volume(r,c,t)
     FILTERS include(r,c,t)
     
     OBJECTS ss = Sku
-    PROPERTIES READONLY name(ss), sum(r,c,t,ss)
+    PROPERTIES READONLY name(ss), sum(r,c,t,ss), quantity(r,c,t,ss), volume(r,c,t,ss)
     FILTERS include(r,c,t,ss)
     
     EVENTS ON OK prePost(r)
@@ -372,7 +389,7 @@ FORM dailyReports 'Сменные отчеты'
     FILTERS include(r,s,b)
     
     OBJECTS dd = (c = CashRegister, t = PaymentType)
-    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t)
+    PROPERTIES READONLY overNpp(c), name(t), sum(r,c,t), quantity(r,c,t), volume(r,c,t)
     FILTERS include(r,c,t)
     
     LIST DailyReport OBJECT r
