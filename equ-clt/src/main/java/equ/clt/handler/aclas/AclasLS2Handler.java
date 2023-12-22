@@ -7,8 +7,12 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
@@ -22,6 +26,7 @@ import java.util.concurrent.Callable;
 import static equ.clt.handler.HandlerUtils.*;
 import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.isRedundantString;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
 
@@ -116,6 +121,27 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
         if (result == 0 && !skipLoadHotKey) {
             result = loadHotKey(scales, transaction, pluNumberAsPluId, logDir, sleep);
+        }
+        //load extra files
+        if(result == 0 && !isRedundantString(transaction.info)) {
+            JSONObject extraInfo = new JSONObject(transaction.info);
+            JSONArray files = extraInfo.optJSONArray("files");
+            if(files != null) {
+                for(int i = 0; i < files.length(); i++) {
+                    JSONObject fileObject = files.getJSONObject(i);
+                    Integer dataType = fileObject.getInt("id");
+                    String base64 = fileObject.getString("file");
+                    File extraFile = null;
+                    try {
+                        extraFile = File.createTempFile("aclas", ".txt");
+                        FileUtils.writeStringToFile(extraFile, new String(Base64.decodeBase64(base64)));
+                        logFile(logDir, extraFile, transaction, String.valueOf(dataType));
+                        result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
+                    } finally {
+                        safeDelete(extraFile);
+                    }
+                }
+            }
         }
         return result;
     }
