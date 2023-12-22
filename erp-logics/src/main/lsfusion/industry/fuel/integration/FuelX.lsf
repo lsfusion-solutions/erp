@@ -187,3 +187,487 @@ DESIGN Sale.invoices {
         }
     }    
 }
+
+
+//http://fuelx.online:9010/getreports/2021-11-05-23-55-44/2025-11-05-23-55-44 json
+//Запросить все отчеты за период дат
+
+owner = DATA LOCAL STRING(INTEGER); //Владелец объекта
+objectName = DATA LOCAL STRING(INTEGER); //Объект отчета
+software = DATA LOCAL STRING(INTEGER); //Программное обеспечение
+date = DATA LOCAL DATETIME(INTEGER); //Время формирования отчета в локальном времени АЗС
+referenceTemperature = DATA LOCAL NUMERIC[5,1](INTEGER); //Опорная температура для расчета нормированных значений
+
+reportsReportFPs = DATA LOCAL INTEGER(INTEGER); //Отчет по счетчикам ТРК
+nameFP = DATA LOCAL STRING(INTEGER); //Название ТРК
+numberFP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
+nozzleNumberFP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
+gradeFP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
+gradeCodeFP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
+tankFP = DATA LOCAL STRING(INTEGER); //Название резервуара
+moneyCounterFP = DATA LOCAL STRING(INTEGER); //Счетчик суммы ТРК по пистолету (программный, так как некоторое оборудование не считает по пистолету, а считает только в общем)
+volumeCounterFP = DATA LOCAL STRING(INTEGER); //Счетчик объема ТРК по пистолету (программный, так как некоторое оборудование не считает по пистолету, а считает только в общем)
+
+reportsReportTanks = DATA LOCAL INTEGER(INTEGER); //Отчет по остаткам в резервуарах
+nameT = DATA LOCAL STRING(INTEGER); //Название резервуара
+numberT = DATA LOCAL INTEGER(INTEGER); //Номер резервуара
+gradeT = DATA LOCAL STRING(INTEGER); //Топливо резервуара
+gradeCodeT = DATA LOCAL STRING(INTEGER); //Код топлива резервуара
+levelT = DATA LOCAL NUMERIC[8,1](INTEGER); //Уровень в резервуаре, мм
+temperatureT = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
+densityT = DATA LOCAL NUMERIC[8,1](INTEGER); //Плотность в резервуаре, кг/м3
+volumeT = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный объем по паспортной градуировке в резервуаре, л
+massT = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная масса по объему и плотности в резервуаре, кг
+correctedVolumeT = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный нормированный объем по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+correctedMassT = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная нормированная масса по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+waterLevelT = DATA LOCAL NUMERIC[8,1](INTEGER); //Уровень подтоварной воды в резервуаре, мм
+waterVolumeT = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный объем подтоварной воды по паспортной градуировке в резервуаре, л
+waterMassT = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная масса подтоварной воды по объему и плотности в резервуаре, кг
+correctedWaterVolumeT = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный нормированный объем подтоварной воды по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+correctedWaterMassT = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная нормированная масса подтоварной воды по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+
+reportsReportDelivers = DATA LOCAL INTEGER(INTEGER); //Отчет по поставкам в резервуары
+nameDl = DATA LOCAL STRING(INTEGER); //Название резервуара
+numberDl = DATA LOCAL INTEGER(INTEGER); //Номер резервуара
+gradeDl = DATA LOCAL STRING(INTEGER); //Топливо резервуара
+gradeCodeDl = DATA LOCAL STRING(INTEGER); //Код топлива резервуара
+startTimeDl = DATA LOCAL DATETIME(INTEGER); //Время начала поставки
+endTimeDl = DATA LOCAL DATETIME(INTEGER); //Время завершения поставки
+invoiceDl = DATA LOCAL STRING(INTEGER); //Номер документа на поставку (номер накладной)
+startLevelDl = DATA LOCAL NUMERIC[8,1](INTEGER); //Начальный Уровень в резервуаре, мм
+startTemperatureDl = DATA LOCAL NUMERIC[5,1](INTEGER); //Начальная Температура в резервуаре, `C
+startDensityDl = DATA LOCAL NUMERIC[8,1](INTEGER); //Начальная Плотность в резервуаре, кг/м3
+startVolumeDl = DATA LOCAL NUMERIC[16,2](INTEGER); //Начальный расчетный объем по паспортной градуировке в резервуаре, л
+startMassDl = DATA LOCAL NUMERIC[16,3](INTEGER); //Начальная расчетная масса по объему и плотности в резервуаре, кг
+startCorrectedVolumeDl = DATA LOCAL NUMERIC[16,2](INTEGER); //Начальный расчетный нормированный объем по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+startCorrectedMassDl = DATA LOCAL NUMERIC[16,3](INTEGER); //Начальная расчетная нормированная масса по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+endLevelDl = DATA LOCAL NUMERIC[8,1](INTEGER); //Конечный Уровень в резервуаре, мм
+endTemperatureDl = DATA LOCAL NUMERIC[5,1](INTEGER); //Конечная Температура в резервуаре, `C
+endDensityDl = DATA LOCAL NUMERIC[8,1](INTEGER); //Конечная Плотность в резервуаре, кг/м3
+endVolumeDl = DATA LOCAL NUMERIC[16,2](INTEGER); //Конечный расчетный объем по паспортной градуировке в резервуаре, л
+endMassDl = DATA LOCAL NUMERIC[16,3](INTEGER); //Конечная расчетная масса по объему и плотности в резервуаре, кг
+endCorrectedVolumeDl = DATA LOCAL NUMERIC[16,2](INTEGER); //Конечный расчетный нормированный объем по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+endCorrectedMassDl = DATA LOCAL NUMERIC[16,3](INTEGER); //Конечная расчетная нормированная масса по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+
+reportsReportDrains = DATA LOCAL INTEGER(INTEGER); //Отчет по очисткам резервуаров
+nameDr = DATA LOCAL STRING(INTEGER); //Название резервуара
+numberDr = DATA LOCAL INTEGER(INTEGER); //Номер резервуара
+gradeDr = DATA LOCAL STRING(INTEGER); //Топливо резервуара
+gradeCodeDr = DATA LOCAL STRING(INTEGER); //Код топлива резервуара
+startTimeDr = DATA LOCAL DATETIME(INTEGER); //Время начала очистки
+endTimeDr = DATA LOCAL DATETIME(INTEGER); //Время завершения очистки
+invoiceDr = DATA LOCAL STRING(INTEGER); //Номер документа на очистку (номер накладной)
+startLevelDr = DATA LOCAL NUMERIC[8,1](INTEGER); //Начальный Уровень в резервуаре, мм
+startTemperatureDr = DATA LOCAL NUMERIC[5,1](INTEGER); //Начальная Температура в резервуаре, `C
+startDensityDr = DATA LOCAL NUMERIC[8,1](INTEGER); //Начальная Плотность в резервуаре, кг/м3
+startVolumeDr = DATA LOCAL NUMERIC[16,2](INTEGER); //Начальный расчетный объем по паспортной градуировке в резервуаре, л
+startMassDr = DATA LOCAL NUMERIC[16,3](INTEGER); //Начальная расчетная масса по объему и плотности в резервуаре, кг
+startCorrectedVolumeDr = DATA LOCAL NUMERIC[16,2](INTEGER); //Начальный расчетный нормированный объем по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+startCorrectedMassDr = DATA LOCAL NUMERIC[16,3](INTEGER); //Начальная расчетная нормированная масса по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+endLevelDr = DATA LOCAL NUMERIC[8,1](INTEGER); //Конечный Уровень в резервуаре, мм
+endTemperatureDr = DATA LOCAL NUMERIC[5,1](INTEGER); //Конечная Температура в резервуаре, `C
+endDensityDr = DATA LOCAL NUMERIC[8,1](INTEGER); //Конечная Плотность в резервуаре, кг/м3
+endVolumeDr = DATA LOCAL NUMERIC[16,2](INTEGER); //Конечный расчетный объем по паспортной градуировке в резервуаре, л
+endMassDr = DATA LOCAL NUMERIC[16,3](INTEGER); //Конечная расчетная масса по объему и плотности в резервуаре, кг
+endCorrectedVolumeDr = DATA LOCAL NUMERIC[16,2](INTEGER); //Конечный расчетный нормированный объем по паспортной градуировке в резервуаре, скорректированный к опорной температуре (+15), л
+endCorrectedMassDr = DATA LOCAL NUMERIC[16,3](INTEGER); //Конечная расчетная нормированная масса по паспортной градуировке в резервуаре, скорректированная к опорной температуре (+15), л
+
+reportsReportFuellings = DATA LOCAL INTEGER(INTEGER); //Отчет по отгрузкам ТРК
+nameF = DATA LOCAL STRING(INTEGER); //Название ТРК
+numberF = DATA LOCAL INTEGER(INTEGER); //Номер колонки
+nozzleNumberF = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
+gradeF = DATA LOCAL STRING(INTEGER); //Топливо пистолета
+gradeCodeF = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
+startTimeF = DATA LOCAL DATETIME(INTEGER); //Время начала отгрузки
+endTimeF = DATA LOCAL DATETIME(INTEGER); //Время завершения отгрузки
+speedF = DATA LOCAL NUMERIC[8,2](INTEGER); //Скорость отгрузки л/сек
+tankF = DATA LOCAL STRING(INTEGER); //Название резервуара
+moneyF = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
+volumeF = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
+temperatureF = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
+densityF = DATA LOCAL NUMERIC[8,1](INTEGER); //Плотность в резервуаре, кг/м3
+massF = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная масса по отгруженному объему и плотности в резервуаре, кг
+correctedVolumeF = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный нормированный отгруженный объем, скорректированный к опорной температуре (+15), л
+correctedMassF = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная нормированная отгруженная масса, скорректированная к опорной температуре (+15), л
+transNoF = DATA LOCAL INTEGER(INTEGER); //Номер транзакции (для стыковки с журналом оплат, где порядок отгрузки и оплаты может быть какой угодно, для предоплаты сначала оплата, потом отгрузка, для постоплаты наоборот)
+payModeF = DATA LOCAL INTEGER(INTEGER); //Режим оплаты ТРК. 1 — предоплата, 2 — постоплата, 3 — смешанный режим (предоплата с возможностью полного бака)
+startNozzleFpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик суммы пистолета на начало отгрузки (программный/контроллерный)
+startNozzlePumpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик суммы пистолета ТРК на начало отгрузки
+startNozzleFpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик объема пистолета на начало отгрузки (программный/контроллерный)
+startNozzlePumpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик объема пистолета ТРК на начало отгрузки
+startTotalFpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик суммы на начало отгрузки (программный/контроллерный)
+startTotalPumpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Общий  счетчик суммы ТРК на начало отгрузки
+startTotalFpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик объема на начало отгрузки (программный/контроллерный)
+startTotalPumpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик объема ТРК на начало отгрузки
+endNozzleFpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик суммы пистолета на конец отгрузки (программный/контроллерный)
+endNozzlePumpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик суммы пистолета ТРК на конец отгрузки
+endNozzleFpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик объема пистолета на конец отгрузки (программный/контроллерный)
+endNozzlePumpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Счетчик объема пистолета ТРК на конец отгрузки
+endTotalFpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик суммы на конец отгрузки (программный/контроллерный)
+endTotalPumpMoneyCounterF = DATA LOCAL INTEGER(INTEGER); //Общий  счетчик суммы ТРК на конец отгрузки
+endTotalFpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик объема на конец отгрузки (программный/контроллерный)
+endTotalPumpVolumeCounterF = DATA LOCAL INTEGER(INTEGER); //Общий счетчик объема ТРК на конец отгрузки
+
+reportsReportPayments = DATA LOCAL INTEGER(INTEGER); //Отчет по оплатам отгрузок ТРК через кассу
+nameP = DATA LOCAL STRING(INTEGER); //Название ТРК
+numberP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
+nozzleNumberP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
+gradeP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
+gradeCodeP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
+tankP = DATA LOCAL STRING(INTEGER); //Название резервуара
+moneyP = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
+volumeP = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
+posMoneyP = DATA LOCAL STRING(INTEGER); //Сумма налива согласно кассе (может отличаться при несинхронных ценах кассы и топливного сервера)
+paidMoneyP = DATA LOCAL STRING(INTEGER); //Внесенная оплата клиентом за отгрузку топлива
+isReturnCashP = DATA LOCAL BOOLEAN(INTEGER); //Признак чека возврата (сдачи)
+temperatureP = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
+densityP = DATA LOCAL NUMERIC[8,1](INTEGER); //Плотность в резервуаре, кг/м3
+massP = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная масса по отгруженному объему и плотности в резервуаре, кг
+correctedVolumeP = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный нормированный отгруженный объем, скорректированный к опорной температуре (+15), л
+correctedMassP = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная нормированная отгруженная масса, скорректированная к опорной температуре (+15), л
+transNoP = DATA LOCAL INTEGER(INTEGER); //Номер транзакции (для стыковки с журналом оплат, где порядок отгрузки и оплаты может быть какой угодно, для предоплаты сначала оплата, потом отгрузка, для постоплаты наоборот)
+posTransNoP = DATA LOCAL INTEGER(INTEGER); //Номер чека кассы
+payModeP = DATA LOCAL INTEGER(INTEGER); //Режим оплаты ТРК. 1 — предоплата, 2 — постоплата, 3 — смешанный режим (предоплата с возможностью полного бака)
+isCashPayP = DATA LOCAL BOOLEAN(INTEGER); //Признак оплаты наличными true, иначе — оплата иная и возможно смешанная
+posNameP = DATA LOCAL STRING(INTEGER); //Имя кассы, на которой была оплата
+operatorP = DATA LOCAL STRING(INTEGER); //Имя оператора (кассира) совершившего оплату. Имя — из FuelX
+fuellingTypeP = DATA LOCAL INTEGER(INTEGER); //Тип налива: 1 — на объем, 2 — на сумму, 3 — полный бак
+shiftNumberP = DATA LOCAL INTEGER(INTEGER); //Номер смены кассы
+payStateP = DATA LOCAL INTEGER(INTEGER); //Статус оплаты — 1 — OK, 2 — чек возврата (сдача), 3 — таймаут обращения к кассе, 4 — неверный ответ кассы, 5 — без оплаты, 6 — аннуляция чека
+posErrorP = DATA LOCAL STRING(INTEGER); //Ошибка, возвращенная кассой
+
+reportsReportNoPays = DATA LOCAL INTEGER(INTEGER); //Отчет по неоплаченным отгрузкам ТРК через кассу
+nameNP = DATA LOCAL STRING(INTEGER); //Название ТРК
+numberNP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
+nozzleNumberNP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
+gradeNP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
+gradeCodeNP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
+tankNP = DATA LOCAL STRING(INTEGER); //Название резервуара
+moneyNP = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
+volumeNP = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
+temperatureNP = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
+densityNP = DATA LOCAL NUMERIC[8,1](INTEGER); //Плотность в резервуаре, кг/м3
+massNP = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная масса по отгруженному объему и плотности в резервуаре, кг
+correctedVolumeNP = DATA LOCAL NUMERIC[16,2](INTEGER); //Расчетный нормированный отгруженный объем, скорректированный к опорной температуре (+15), л
+correctedMassNP = DATA LOCAL NUMERIC[16,3](INTEGER); //Расчетная нормированная отгруженная масса, скорректированная к опорной температуре (+15), л
+transNoNP = DATA LOCAL INTEGER(INTEGER); //Номер транзакции (для стыковки с журналом оплат, где порядок отгрузки и оплаты может быть какой угодно, для предоплаты сначала оплата, потом отгрузка, для постоплаты наоборот)
+operatorNP = DATA LOCAL STRING(INTEGER); //Имя оператора (кассира) совершившего оплату. Имя — из FuelX
+fuellingTypeNP = DATA LOCAL INTEGER(INTEGER); //Тип налива: 1 — на объем, 2 — на сумму, 3 — полный бак
+noPayTypeNP = DATA LOCAL INTEGER(INTEGER); //Тип неоплаты. 1 — тарировка, 2 — техпролив, 3 — заправка ДЭС, 4 - отмена сдачи клиенту (когда уехал не взяв сдачу), 5 - клиент отказался платить в принципе
+
+GROUP reportDebalance EXTID 'ReportDebalance'; //Отчет по дебалансу АЗС
+gradeD = DATA LOCAL STRING(INTEGER); //Топливо
+gradeCodeD = DATA LOCAL STRING(INTEGER); //Код топлива
+debalanceVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Дебаланс объем
+debalanceCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Дебаланс скорректированный объем к опорной температуре
+debalanceMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Дебаланс масса
+debalanceCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Дебаланс скорректированная масса к опорной температуре
+debalancePayedMoneyValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Дебаланс суммы оплаты по кассе
+debalancePayedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Дебаланс объема оплаты по кассе
+deliverVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Приход объем
+deliverCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Приход скорректированный объем к опорной температуре
+deliverMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Приход масса
+deliverCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Приход скорректированная масса к опорной температуре
+outcomeVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Расход объем
+outcomeCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Расход скорректированный объем к опорной температуре
+outcomeMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Расход масса
+outcomeCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Расход скорректированная масса к опорной температуре
+drainVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Очистка объем
+drainCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Очистка скорректированный объем к опорной температуре
+drainMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Очистка масса
+drainCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Очистка скорректированная масса к опорной температуре
+remainsStartVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Остатки объема на начало периода
+remainsStartCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Остатки скорректированного объем к опорной температуре на начало периода
+remainsStartMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки массы на начало периода
+remainsStartCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки скорректированной массы к опорной температуре на начало периода
+remainsEndVolumeValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки объема на конец периода
+remainsEndCorrectedVolumeValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки скорректированного объем к опорной температуре на конец периода
+remainsEndMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки скорректированной массы к опорной температуре на конец периода
+remainsEndCorrectedMassValueD = DATA LOCAL NUMERIC[16,3](INTEGER); //Остатки скорректированной массы к опорной температуре на конец периода
+trkMoneyValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Изменение счетчика суммы ТРК
+trkVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Изменение счетчика объема ТРК
+payedMoneyValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Сумма, оплаченная по кассе
+payedVolumeValueD = DATA LOCAL NUMERIC[16,2](INTEGER); //Объем, оплаченный по кассе
+referenceTemperatureD = DATA LOCAL NUMERIC[5,1](INTEGER); //Опорная температура для скорректированных значений
+
+FORM reports
+    OBJECTS reports = INTEGER EXTID 'Reports'
+    PROPERTIES(reports) owner EXTID 'Owner',
+                        objectName EXTID 'ObjectName',
+                        software EXTID 'Software',
+                        date EXTID 'Date',
+                        referenceTemperature EXTID 'ReferenceTemperature'
+    FILTERS imported(reports)
+
+
+    OBJECTS reportFPs = INTEGER EXTID 'ReportFPs'
+    FILTERS reportsReportFPs(reportFPs) == reports
+    PROPERTIES(reportFPs) nameFP EXTID 'Name',
+                          numberFP EXTID 'Number',
+                          nozzleNumberFP EXTID 'NozzleNumber',
+                          gradeFP EXTID 'Grade',
+                          gradeCodeFP EXTID 'GradeCode',
+                          tankFP EXTID 'Tank',
+                          moneyCounterFP EXTID 'MoneyCounter',
+                          volumeCounterFP EXTID 'VolumeCounter'
+    FILTERS imported(reportFPs)
+
+    OBJECTS reportTanks = INTEGER EXTID 'ReportTanks'
+    FILTERS reportsReportTanks(reportTanks) == reports
+    PROPERTIES(reportTanks) nameT EXTID 'Name',
+                            numberT EXTID 'Number',
+                            gradeT EXTID 'Grade',
+                            gradeCodeT EXTID 'GradeCode',
+                            levelT EXTID 'Level',
+                            temperatureT EXTID 'Temperature',
+                            densityT EXTID 'Density',
+                            volumeT EXTID 'Volume',
+                            massT EXTID 'Mass',
+                            correctedVolumeT EXTID 'CorrectedVolume',
+                            correctedMassT EXTID 'CorrectedMass',
+                            waterLevelT EXTID 'WaterLevel',
+                            waterVolumeT EXTID 'WaterVolume',
+                            waterMassT EXTID 'WaterMass',
+                            correctedWaterVolumeT EXTID 'CorrectedWaterVolume',
+                            correctedWaterMassT EXTID 'CorrectedWaterMass'
+    FILTERS imported(reportTanks)
+
+    OBJECTS reportDelivers = INTEGER EXTID 'ReportDelivers'
+    FILTERS reportsReportDelivers(reportDelivers) == reports
+    PROPERTIES(reportDelivers) nameDl EXTID 'Name',
+                               numberDl EXTID 'Number',
+                               gradeDl EXTID 'Grade',
+                               gradeCodeDl EXTID 'GradeCode',
+                               startTimeDl EXTID 'StartTime',
+                               endTimeDl EXTID 'EndTime',
+                               invoiceDl EXTID 'Invoice',
+                               startLevelDl EXTID 'StartLevel',
+                               startTemperatureDl EXTID 'StartTemperature',
+                               startDensityDl EXTID 'StartDensity',
+                               startVolumeDl EXTID 'StartVolume',
+                               startMassDl EXTID 'StartMass',
+                               startCorrectedVolumeDl EXTID 'StartCorrectedVolume',
+                               startCorrectedMassDl EXTID 'StartCorrectedMass',
+                               endLevelDl EXTID 'EndLevel',
+                               endTemperatureDl EXTID 'EndTemperature',
+                               endDensityDl EXTID 'EndDensity',
+                               endVolumeDl EXTID 'EndVolume',
+                               endMassDl EXTID 'EndMass',
+                               endCorrectedVolumeDl EXTID 'EndCorrectedVolume',
+                               endCorrectedMassDl EXTID 'EndCorrectedMass'
+    FILTERS imported(reportDelivers)
+    
+    OBJECTS reportDrains = INTEGER EXTID 'ReportDrains'
+    FILTERS reportsReportDrains(reportDrains) == reports
+    PROPERTIES(reportDrains) nameDr EXTID 'Name',
+                             numberDr EXTID 'Number',
+                             gradeDr EXTID 'Grade',
+                             gradeCodeDr EXTID 'GradeCode',
+                             startTimeDr EXTID 'StartTime',
+                             endTimeDr EXTID 'EndTime',
+                             invoiceDr EXTID 'Invoice',
+                             startLevelDr EXTID 'StartLevel',
+                             startTemperatureDr EXTID 'StartTemperature',
+                             startDensityDr EXTID 'StartDensity',
+                             startVolumeDr EXTID 'StartVolume',
+                             startMassDr EXTID 'StartMass',
+                             startCorrectedVolumeDr EXTID 'StartCorrectedVolume',
+                             startCorrectedMassDr EXTID 'StartCorrectedMass',
+                             endLevelDr EXTID 'EndLevel',
+                             endTemperatureDr EXTID 'EndTemperature',
+                             endDensityDr EXTID 'EndDensity',
+                             endVolumeDr EXTID 'EndVolume',
+                             endMassDr EXTID 'EndMass',
+                             endCorrectedVolumeDr EXTID 'EndCorrectedVolume',
+                             endCorrectedMassDr EXTID 'EndCorrectedMass'
+    FILTERS imported(reportDrains)
+    
+    OBJECTS reportFuellings = INTEGER EXTID 'ReportFuellings'
+    FILTERS reportsReportFuellings(reportFuellings) == reports
+    PROPERTIES(reportFuellings) nameF EXTID 'Name',
+                                numberF EXTID 'Number',
+                                nozzleNumberF EXTID 'NozzleNumber',
+                                gradeF EXTID 'Grade',
+                                gradeCodeF EXTID 'GradeCode',
+                                startTimeF EXTID 'StartTime',
+                                endTimeF EXTID 'EndTime',
+                                speedF EXTID 'Speed',
+                                tankF EXTID 'Tank',
+                                moneyF EXTID 'Money',
+                                volumeF EXTID 'Volume',
+                                temperatureF EXTID 'Temperature',
+                                densityF EXTID 'Density',
+                                massF EXTID 'Mass',
+                                correctedVolumeF EXTID 'CorrectedVolume',
+                                correctedMassF EXTID 'CorrectedMass',
+                                transNoF EXTID 'TransNo',
+                                payModeF EXTID 'PayMode',
+                                startNozzleFpMoneyCounterF EXTID 'StartNozzleFpMoneyCounter',
+                                startNozzlePumpMoneyCounterF EXTID 'StartNozzlePumpMoneyCounter',
+                                startNozzleFpVolumeCounterF EXTID 'StartNozzleFpVolumeCounter',
+                                startNozzlePumpVolumeCounterF EXTID 'StartNozzlePumpVolumeCounter',
+                                startTotalFpMoneyCounterF EXTID 'StartTotalFpMoneyCounter',
+                                startTotalPumpMoneyCounterF EXTID 'StartTotalPumpMoneyCounter',
+                                startTotalFpVolumeCounterF EXTID 'StartTotalFpVolumeCounter',
+                                startTotalPumpVolumeCounterF EXTID 'StartTotalPumpVolumeCounter',
+                                endNozzleFpMoneyCounterF EXTID 'EndNozzleFpMoneyCounter',
+                                endNozzlePumpMoneyCounterF EXTID 'EndNozzlePumpMoneyCounter',
+                                endNozzleFpVolumeCounterF EXTID 'EndNozzleFpVolumeCounter',
+                                endNozzlePumpVolumeCounterF EXTID 'EndNozzlePumpVolumeCounter',
+                                endTotalFpMoneyCounterF EXTID 'EndTotalFpMoneyCounter',
+                                endTotalPumpMoneyCounterF EXTID 'EndTotalPumpMoneyCounter',
+                                endTotalFpVolumeCounterF EXTID 'EndTotalFpVolumeCounter',
+                                endTotalPumpVolumeCounterF EXTID 'EndTotalPumpVolumeCounter'
+    FILTERS imported(reportFuellings)
+    
+    OBJECTS reportPayments = INTEGER EXTID 'ReportPayments'
+    FILTERS reportsReportPayments(reportPayments) == reports
+    PROPERTIES(reportPayments) nameP EXTID 'Name',
+                               numberP EXTID 'Number',
+                               nozzleNumberP EXTID 'NozzleNumber',
+                               gradeP EXTID 'Grade',
+                               gradeCodeP EXTID 'GradeCode',
+                               tankP EXTID 'Tank',
+                               moneyP EXTID 'Money',
+                               volumeP EXTID 'Volume',
+                               posMoneyP EXTID 'PosMoney',
+                               paidMoneyP EXTID 'PaidMoney',
+                               isReturnCashP EXTID 'IsReturnCash',
+                               temperatureP EXTID 'Temperature',
+                               densityP EXTID 'Density',
+                               massP EXTID 'Mass',
+                               correctedVolumeP EXTID 'CorrectedVolume',
+                               correctedMassP EXTID 'CorrectedMass',
+                               transNoP EXTID 'TransNo',
+                               posTransNoP EXTID 'PosTransNo',
+                               payModeP EXTID 'PayMode',
+                               isCashPayP EXTID 'IsCashPay',
+                               posNameP EXTID 'PosName',
+                               operatorP EXTID 'Operator',
+                               fuellingTypeP EXTID 'FuellingType',
+                               shiftNumberP EXTID 'ShiftNumber',
+                               payStateP EXTID 'PayState',
+                               posErrorP EXTID 'PosError'
+    FILTERS imported(reportPayments)
+
+    OBJECTS reportNoPays = INTEGER EXTID 'ReportNoPays'
+    FILTERS reportsReportNoPays(reportNoPays) == reports
+    PROPERTIES(reportNoPays) nameNP EXTID 'Name',
+                             numberNP EXTID 'Number',
+                             nozzleNumberNP EXTID 'NozzleNumber',
+                             gradeNP EXTID 'Grade',
+                             gradeCodeNP EXTID 'GradeCode',
+                             tankNP EXTID 'Tank',
+                             moneyNP EXTID 'Money',
+                             volumeNP EXTID 'Volume',
+                             temperatureNP EXTID 'Temperature',
+                             densityNP EXTID 'Density',
+                             massNP EXTID 'Mass',
+                             correctedVolumeNP EXTID 'CorrectedVolume',
+                             correctedMassNP EXTID 'CorrectedMass',
+                             transNoNP EXTID 'TransNo',
+                             operatorNP EXTID 'Operator',
+                             fuellingTypeNP EXTID 'FuellingType',
+                             noPayTypeNP EXTID 'NoPayType'
+    FILTERS imported(reportNoPays)
+    
+    PROPERTIES(reports) IN reportDebalance
+                        gradeD EXTID 'Grade',
+                        gradeCodeD EXTID 'GradeCode',
+                        debalanceVolumeValueD EXTID 'DebalanceVolumeValue',
+                        debalanceCorrectedVolumeValueD EXTID 'DebalanceCorrectedVolumeValue',
+                        debalanceMassValueD EXTID 'DebalanceMassValue',
+                        debalanceCorrectedMassValueD EXTID 'DebalanceCorrectedMassValue',
+                        debalancePayedMoneyValueD EXTID 'DebalancePayedMoneyValue',
+                        debalancePayedVolumeValueD EXTID 'DebalancePayedVolumeValue',
+                        deliverVolumeValueD EXTID 'DeliverVolumeValue',
+                        deliverCorrectedVolumeValueD EXTID 'DeliverCorrectedVolumeValue',
+                        deliverMassValueD EXTID 'DeliverMassValue',
+                        deliverCorrectedMassValueD EXTID 'DeliverCorrectedMassValue',
+                        outcomeVolumeValueD EXTID 'OutcomeVolumeValue',
+                        outcomeCorrectedVolumeValueD EXTID 'OutcomeCorrectedVolumeValue',
+                        outcomeMassValueD EXTID 'OutcomeMassValue',
+                        outcomeCorrectedMassValueD EXTID 'OutcomeCorrectedMassValue',
+                        drainVolumeValueD EXTID 'DrainVolumeValue',
+                        drainCorrectedVolumeValueD EXTID 'DrainCorrectedVolumeValue',
+                        drainMassValueD EXTID 'DrainMassValue',
+                        drainCorrectedMassValueD EXTID 'DrainCorrectedMassValue',
+                        remainsStartVolumeValueD EXTID 'RemainsStartVolumeValue',
+                        remainsStartCorrectedVolumeValueD EXTID 'RemainsStartCorrectedVolumeValue',
+                        remainsStartMassValueD EXTID 'RemainsStartMassValue',
+                        remainsStartCorrectedMassValueD EXTID 'RemainsStartCorrectedMassValue',
+                        remainsEndVolumeValueD EXTID 'RemainsEndVolumeValue',
+                        remainsEndCorrectedVolumeValueD EXTID 'RemainsEndCorrectedVolumeValue',
+                        remainsEndMassValueD EXTID 'RemainsEndMassValue',
+                        remainsEndCorrectedMassValueD EXTID 'RemainsEndCorrectedMassValue',
+                        trkMoneyValueD EXTID 'TrkMoneyValue',
+                        trkVolumeValueD EXTID 'TrkVolumeValue',
+                        payedMoneyValueD EXTID 'PayedMoneyValue',
+                        payedVolumeValueD EXTID 'PayedVolumeValue',
+                        referenceTemperatureD EXTID 'ReferenceTemperature'
+;
+
+getReports (DATETIME df, DATETIME dt) { //+ фильтр по ObjectName
+    IF NOT url() THEN {
+        MESSAGE 'Не задан URL' NOWAIT;
+        RETURN;
+    }
+    IF NOT portDataCenterX() THEN {
+        MESSAGE 'Не задан порт для DataCenterX' NOWAIT;
+        RETURN;
+    }
+    LOCAL response = FILE();
+    TRY {
+        logToFile('FuelX', 'GET: ' + url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS'));
+        EXTERNAL HTTP GET url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS') TO response;
+        fileToString(response(), 'UTF-8');
+        logToFile('FuelX', 'Response: ' + resultString());
+        
+        IMPORT reports JSON FROM response();
+    } CATCH {
+        logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+        logToFile('FuelX', response());
+    }
+}
+
+beforeFill(DailyReport r) + {
+    getReports(fromDateTime(r),toDateTime(r));
+    
+    LOCAL prevReport = INTEGER();
+    LOCAL report = INTEGER();
+    
+    prevReport() <- GROUP LAST INTEGER i IF objectName(i) == nameStock(r) ORDER DESC date(i);
+    report() <-  GROUP LAST INTEGER i IF objectName(i) == nameStock(r) ORDER date(i);
+    
+    fromDate(r) <- DATE(date(prevReport())) WHERE prevReport();
+    fromTime(r) <- TIME(date(prevReport())) WHERE prevReport();
+    toDate(r) <- DATE(date(report())) WHERE report();
+    toTime(r) <- TIME(date(report())) WHERE report();
+        
+    volumeCounterB(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == id(b) AND STRING(nozzleNumberFP(i)) == id(g) AND reportsReportFPs(i) == prevReport() ORDER i);
+    volumeCounterA(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == id(b) AND STRING(nozzleNumberFP(i)) == id(g) AND reportsReportFPs(i) == report() ORDER i);
+    volumeOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report());
+    quantityOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report());
+    density(r, Sku s, Bin b, Gun g) <- NUMERIC[8,1]((GROUP SUM densityF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report()) /
+                                       (GROUP SUM 1 IF gradeCodeF(INTEGER i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report()));
+    volumeOut(r, Sku s, Bin b) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
+    quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
+    level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i) /
+                                         (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i));
+    temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    //pipeVolumeA(r, Sku s, Bin b) <- NULL;
+    //pipeBalanceA(r, Sku s, Bin b) <- NULL;
+    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    //debalanceQuantity(r, Sku s, Bin b) <- NULL;
+    //allowedDebalanceQuantity(r, Sku s, Bin b) <- NULL;
+}
+
