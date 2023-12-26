@@ -83,8 +83,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int clearData(TransactionScalesInfo transaction, ScalesInfo scales, String logDir, boolean loadDefaultPLU, long sleep) throws IOException, InterruptedException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), "UTF-8"));
-            bw.write('\ufeff');
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), "cp1251"));
             bw.close();
 
             int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile, sleep);
@@ -135,7 +134,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     File extraFile = null;
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
-                        FileUtils.writeStringToFile(extraFile, '\ufeff' + new String(Base64.decodeBase64(base64)), "UTF-8");
+                        FileUtils.writeStringToFile(extraFile, new String(Base64.decodeBase64(base64)), "cp1251");
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
                     } finally {
@@ -151,8 +150,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadDefaultPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "UTF-8"))) {
-                bw.write('\ufeff');
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue", "PackageWeight", "Label1ID").iterator(), "\t"));
 
                 bw.write(0x0d);
@@ -173,11 +171,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         File file2 = File.createTempFile("aclas2", ".txt");
         try {
             //write 2 files: first is for items with name with length less than 40, need because name2 can't be empty
-            try(BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file1.toPath()), "UTF-8"));
-                BufferedWriter bw2 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file2.toPath()), "UTF-8"))) {
-                bw1.write('\ufeff');
+            try(BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file1.toPath()), "cp1251"));
+                BufferedWriter bw2 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file2.toPath()), "cp1251"))) {
                 bw1.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
-                bw2.write('\ufeff');
                 bw2.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
@@ -250,8 +246,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadNote(ScalesInfo scales, List<List<Object>> noteData, TransactionScalesInfo transaction, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "UTF-8"))) {
-                bw.write('\ufeff');
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
                 for (List<Object> noteEntry : noteData) {
@@ -300,8 +295,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "UTF-8"))) {
-                bw.write('\ufeff');
+            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
                 bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
@@ -505,7 +499,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
 
         private static byte[] getBytes(String value) throws UnsupportedEncodingException {
-            return (value + "\0").getBytes("UTF-8");
+            return (value + "\0").getBytes("cp1251");
         }
     }
 }
