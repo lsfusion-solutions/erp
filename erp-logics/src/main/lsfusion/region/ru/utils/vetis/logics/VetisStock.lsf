@@ -38,6 +38,16 @@ DESIGN departmentStore {
     }
 }
 
+FORM requestWayBillNumber 'Запрос номера накладной в Меркурий'
+    OBJECTS s = STRING PANEL
+    PROPERTIES(s) number '' = VALUE
+;
+DESIGN requestWayBillNumber {
+    OBJECTS {
+        MOVE PROPERTY(number);
+    }
+}
+
 // META 
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
     volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
@@ -52,9 +62,11 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
         productItem(vtd) = productItem(sku(vd));
     
     fillVolume 'Заполнить' (###doc d) {
-        volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd) 
-                IF seriesNumber(vd) = issueSeriesNumberWaybill(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
-                   WHERE doc(vd) = d;
+        DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
+            volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd)
+                IF s = issueSeriesNumberWaybill(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
+                WHERE doc(vd) = d;
+        }
     }
     
     uuidVetDocument 'Коды ВСД' (###doc##Detail d) =
