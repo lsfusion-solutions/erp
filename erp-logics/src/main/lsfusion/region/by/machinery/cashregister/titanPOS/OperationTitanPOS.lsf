@@ -148,20 +148,28 @@ eqGetState 'Получение и обработка статуса СКО' (Cas
 }
 
 
-eqOpenShift 'Открытие смены' (CashRegister o) {
+eqOpenShift 'Открытие смены' (CashRegister o,STRING cashier) {
     eqGetState(o);
     IF titanECode() THEN RETURN;
-    IF shiftOpened() THEN RETURN;
+    IF NOT shiftOpened() THEN {
+        onFillDataHeaders(o);
+        EXPORT sendForm JSON;
+        onSend(o,'openShift','Открытие смены');
+        IF titanECode() THEN RETURN;
+    }
+    // меняем кассира
     onFillDataHeaders(o);
-    EXPORT sendForm JSON;
-    onSend(o,'openShift','Открытие смены');
-    IF titanECode() THEN onShowError(titanEMessage());
+    IF cashier THEN sendCashier() <- cashier;
+    EXPORT sendOpen JSON;
+    onSend(o,'open','Открытие сеанса с СКО');
 }
 
 
+
 eqXReport 'X-отчет' (CashRegister o) {
-    eqOpenShift(o);
+    eqGetState(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; } 
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
     onSend(o,'xReport','Z-отчет');
@@ -170,8 +178,9 @@ eqXReport 'X-отчет' (CashRegister o) {
 
 
 eqZReport 'Z-отчет' (CashRegister o) {
-    eqOpenShift(o);
+    eqGetState(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; }
     IF totalSum() > 0 THEN {
         LOCAL cmsg = STRING ();
         cmsg() <- 'В кассе присутствуют наличные: ' + trim(toChar(totalSum(),'999999999.99')) + 
@@ -197,7 +206,7 @@ eqCashMoney 'Сумма наличных' (CashRegister o) {
 
 
 eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
-    eqOpenShift(o);
+    eqOpenShift(o,NULL);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
     IF NOT suma OR suma = 0.00 THEN { onShowError('Значение суммы не определено',99); RETURN; }
     onFillDataHeaders(o);
@@ -210,7 +219,7 @@ eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
 
 
 eqCashOutCome 'Изъятие' (CashRegister o,NUMERIC[10,2] suma) {
-    eqOpenShift(o);
+    eqOpenShift(o,NULL);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
     IF NOT suma OR suma = 0.00 THEN { onShowError('Значение суммы не определено',99); RETURN; }
     IF totalSum() < suma THEN { onShowError('Недостаточно наличных',99); RETURN; }
@@ -275,20 +284,16 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
     return() <- NULL; sale() <- NULL;
-    eqOpenShift(o);
+    eqOpenShift(o,nameEmployee(r));
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-//    sale() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptSaleDetail; // продажа
-//    return() <- GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptReturnDetail; // возврат
-//    IF sale() AND return() THEN {onShowError('Не допустимые операции\n<Продажа> и <Возврат> в одном чеке',99); RETURN;}
-    IF GROUP SUM 1 IF receipt(ReceiptDetail d) = r AND d IS ReceiptReturnDetail THEN return() <- 1; ELSE sale() <- 1; 
-    onFillDataHeaders(o);
-    IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE; 
     receiptTotalSum() <- NULL; receiptDiscountSum() <- NULL;
-    FOR (ReceiptDetail d IS ReceiptDetail) AND receipt(d) = r DO {
+    FOR (ReceiptDetail d IS ReceiptDetail) AND receipt(d) = r ORDER d DO {
+        IF type(d) = 'Продажа' THEN sale() <-1; ELSE return() <- 1;
         receiptTotalSum() <- receiptTotalSum() (+) sum(d);
-        receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(d);
+        receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(d) (+) bonusPaid(d);
     }
     receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(r);
+    IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE;
     EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
     onSend(o,'check',IF sale() THEN 'Чек продажи' ELSE 'Возврат товара');
     IF titanECode() THEN onShowError(titanEMessage());

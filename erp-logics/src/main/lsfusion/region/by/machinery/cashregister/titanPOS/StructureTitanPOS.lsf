@@ -86,6 +86,9 @@ FORM sendCopyDocNumber 'Копия документа'
     PROPERTIES () copyDocNumber EXTID 'ChequeNumber', copyZReport EXTID 'Number';
 
 // Чек продажи / возврат
+// Особенности:
+// detailDiscountLabel: как DiscountLabel - не используем, возможно отменят в 24г., используем как Footer 
+// в КСА 3 счктчика оплаты: 1 - наличные, 2 - банковская карта, 3 - прочие
 GROUP goods EXTID 'Goods';
 
 receiptRefund 'Признак: false - продажа, true - возврат' = DATA LOCAL TBOOLEAN ();
@@ -98,11 +101,13 @@ receiptEmail 'Почтовый адрес' = DATA LOCAL STRING();
 paymentTypeFlag 'Тип расчета' (Payment p) = 
     IF namePaymentType(p) = 'Наличные' THEN 1 ELSE IF namePaymentType(p) = 'Карточка' THEN 2 ELSE 3;                                                    
 paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
+paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); 
 // ---------------------------------------------------
 detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
 detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
-detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) = IF discountSum(o) THEN 'скидка на товар' ELSE '';
-detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o);
+detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) =     
+    IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL; 
+detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o) (+) bonusPaid(o);
 detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
 detailName 'Название товара' (ReceiptDetail o) = overNameSku(o);
 detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
@@ -117,12 +122,14 @@ FORM saleForm
                  receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email'
 
     OBJECTS payments = Payment EXTID 'Payments'
-    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',  paymentSum EXTID 'Sum'
+    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',  
+                paymentSum EXTID 'Sum', 
+                paymentDescription EXTID 'Description'
 
     OBJECTS lines = ReceiptDetail EXTID 'Lines'
     PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
                       detailTax EXTID 'Tax',  
-                      detailDiscountSum EXTID 'DiscountSum', 
+                      detailDiscountSum EXTID 'DiscountSum', detailDiscountLabel EXTID 'Footer',
                       detailTotalSum EXTID 'TotalSum'
     
     PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
