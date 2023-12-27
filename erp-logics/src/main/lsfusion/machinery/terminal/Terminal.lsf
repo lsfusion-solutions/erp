@@ -823,7 +823,8 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
     }
     
     inAdd = ABSTRACT BOOLEAN (TerminalDocumentType, class);
-    overAddDialogTerminalTo##class  ABSTRACT LIST ( class, TerminalDocument);
+    overAddDialogTerminalTo##class  ABSTRACT LIST (class, TerminalDocument);
+    afterAddDialogTerminalTo##class  ABSTRACT LIST (class, TerminalDocument);
 
     addDetailDialogTerminalTo##class##Detail 'Импорт из ТСД' (class object)  { 
         in(TerminalDocumentType t) <- inAdd(t, object);
@@ -832,7 +833,7 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
                 include(td) <- TRUE;
             }
             used(TerminalDocument t) <- TRUE WHERE include(t);
-            overAddDialogTerminalTo##class(userInvoice, td);
+            overAddDialogTerminalTo##class(object, td);
     
             LOCAL quantity = NUMERIC[16,5] (Sku, class);
             quantity(Sku sku, object) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY skuProp(tdd)](sku);
@@ -843,7 +844,7 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
             }
             IF NOT skipCreateDetailAddToDetailDialogTerminal() THEN {
                 FOR quantity(Sku sku, object) AND NOT (GROUP SUM 1 IF invoice(class##Detail o) == object AND sku(o) == sku) NEW d = UserInvoiceDetail DO {
-                    userInvoice(d) <- userInvoice;
+                    object(d) <- object;
                     sku(d) <- sku;
                     quantity(d) <- 0.0;
                     shipmentQuantity(d) <- quantity(sku, object);
@@ -855,7 +856,8 @@ META defineAddToDetailDialogTerminalInner (object, class, skuProp, stockProp, NS
                         (GROUP CONCAT barcode(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) AND NOT skuProp(tdd),', ' ORDER barcode(tdd), tdd);
                 }
             }
-                
+
+            afterAddDialogTerminalTo##class(object, td);
             include(TerminalDocument t) <- NULL;
         }  
     } TOOLBAR;        
