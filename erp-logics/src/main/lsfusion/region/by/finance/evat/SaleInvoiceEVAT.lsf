@@ -95,17 +95,20 @@ createEVATSaleInvoiceHeader(EVAT e, Sale.Invoice i) {
     overCreateEVATSaleInvoice(e,i);
 }
 
+overExtraEVATQuantity = ABSTRACT NUMERIC[16,5] (Sale.InvoiceDetail);
+overEVATQuantity (Sale.InvoiceDetail d) = quantity(d) (+) overExtraEVATQuantity(d);
+
 createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
     createEVATSaleInvoiceHeader(e,i);
     
-    FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+    FOR invoice(InvoiceDetail id) == i AND overEVATQuantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
         evat(ed) <- e;
 
         name(ed) <- nameSku(id);
         sku(ed) <- sku(id);
         code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
         UOM(ed) <- UOM(sku(id));
-        quantity(ed) <- quantity(id); 
+        quantity(ed) <- overEVATQuantity(id); 
         price(ed) <- price(id);
         sum(ed) <- sum(id);
         exciseSum(ed) <- 0;
