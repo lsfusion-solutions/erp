@@ -1,6 +1,6 @@
 MODULE VetisStock;
 
-REQUIRE Stock, VetisEnterprise,
+REQUIRE Stock, VetisEnterprise, VetisDocument,
         Warehouse, Store,
         VetisLegalEntity;
 
@@ -10,31 +10,48 @@ enterprise = DATA Enterprise (Stock) INDEXED;
 guidEnterprise 'Код площадки' (Stock st) = guid(enterprise(st));
 nameEnterprise 'Наименование площадки' (Stock st) = name(enterprise(st));
 
+useAllEnterprises 'Использовать все площадки владельца' = DATA BOOLEAN (Stock);
+
+TABLE stockEnterprise (Stock, Enterprise);
+in (Stock s, Enterprise e) = enterprise(s) = e OR (useAllEnterprises(s) AND owner(e) = owner(enterprise(s))) MATERIALIZED;
+
 CONSTRAINT enterprise(Stock st) AND NOT owner(enterprise(st)) = businessEntity(legalEntity(st))
     CHECKED BY enterprise[Stock]
     MESSAGE 'ХС организации склада должен совпадать с владельцем площадки склада'; 
 
+stocks 'Склады' (Enterprise e) = GROUP CONCAT name(Stock s) IF enterprise(s) = e, ', ' ORDER s;
+
 // warehouse
 EXTEND FORM warehouse
-    PROPERTIES(w) guidEnterprise, nameEnterprise
+    PROPERTIES(w) 'Код' = guidEnterprise, 'Имя' = nameEnterprise, useAllEnterprises
 ;
 
 DESIGN warehouse {
-    headerExtraParams {
-        MOVE PROPERTY(guidEnterprise(w));
-        MOVE PROPERTY(nameEnterprise(w));
+    headerLeft {
+        NEW vetis {
+            caption = 'Ветис';
+            horizontal = TRUE;
+            MOVE PROPERTY(guidEnterprise(w));
+            MOVE PROPERTY(nameEnterprise(w));
+            MOVE PROPERTY(useAllEnterprises(w));
+        }
     }
 }
 
 // store
 EXTEND FORM departmentStore
-    PROPERTIES(d) guidEnterprise, nameEnterprise
+    PROPERTIES(d) 'Код' = guidEnterprise, 'Имя' = nameEnterprise, useAllEnterprises
 ;
 
 DESIGN departmentStore {
-    headerExtraParams {
-        MOVE PROPERTY(guidEnterprise(d));
-        MOVE PROPERTY(nameEnterprise(d));
+    headerLeft {
+        NEW vetis {
+            caption = 'Ветис';
+            lines = 3;
+            MOVE PROPERTY(guidEnterprise(d));
+            MOVE PROPERTY(nameEnterprise(d));
+            MOVE PROPERTY(useAllEnterprises(d));
+        }
     }
 }
 
@@ -48,6 +65,13 @@ DESIGN requestWayBillNumber {
     }
 }
 
+stocksConsignorEnterprise 'Склады отправителя' (VetDocument d) = stocks(consignorEnterprise(d));
+stocksConsigneeEnterprise 'Склады получателя' (VetDocument d) = stocks(consigneeEnterprise(d));
+EXTEND FORM vetDocuments
+    PROPERTIES(o) READONLY stocksConsignorEnterprise AFTER guidConsignorEnterprise(o),
+                           stocksConsigneeEnterprise AFTER guidConsigneeEnterprise(o)
+;
+
 // META 
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
     volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
@@ -57,8 +81,8 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     
     matches (###doc##Detail vd, VetDocument vtd) = 
         consignorBusinessEntity(vtd) = businessEntity(consignor(vd)) AND
-        consignorEnterprise(vtd) = enterprise(consignor##Stock(vd)) AND
-        consigneeEnterprise(vtd) = enterprise(consignee##Stock(vd)) AND
+        in(consignor##Stock(vd), consignorEnterprise(vtd)) AND
+        in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
         productItem(vtd) = productItem(sku(vd));
     
     fillVolume 'Заполнить' (###doc d) {
@@ -120,7 +144,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
     quantity (###doc##Detail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
     
-    matches (###doc##Detail vd, StockEntry s) = enterprise(s) = enterprise(stock(vd)) AND in(s, productItem(sku(vd))) AND active(s);
+    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, productItem(sku(vd))) AND active(s);
     
     calcQuantity(###doc##Detail vd, StockEntry s) = 
         PARTITION UNGROUP quantity LIMIT quantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
