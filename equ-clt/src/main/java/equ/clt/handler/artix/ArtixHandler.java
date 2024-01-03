@@ -1291,11 +1291,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 LocalDate dateCashDocument = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                                 LocalTime timeCashDocument = timeEnd != null ? sqlTimeToLocalTime(new Time(timeEnd)) : null;
 
+                                                Map<String, Object> extraFields = null;
+                                                String backReason = documentObject.optString("backreason", null);
+                                                if(backReason != null) {
+                                                    extraFields = new HashMap<>();
+                                                    extraFields.put("backreason", backReason);
+                                                }
+
                                                 if (cashRegister.number.equals(numberCashRegister)) {
                                                     if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
                                                         cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
-                                                                cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee));
+                                                                cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee, extraFields));
                                                     }
                                                 }
                                                 count++;

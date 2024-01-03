@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Map;
 
 public class CashDocument implements Serializable {
     public String idCashDocument;
@@ -15,6 +16,7 @@ public class CashDocument implements Serializable {
     public String numberZReport;
     public BigDecimal sumCashDocument;
     public String idEmployee;
+    public Map<String, Object> extraFields;
 
     public CashDocument(String idCashDocument, String numberCashDocument, LocalDate dateCashDocument, LocalTime timeCashDocument, Integer nppGroupMachinery,
                         Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument) {
@@ -23,6 +25,13 @@ public class CashDocument implements Serializable {
 
     public CashDocument(String idCashDocument, String numberCashDocument, LocalDate dateCashDocument, LocalTime timeCashDocument, Integer nppGroupMachinery,
                         Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument, String idEmployee) {
+        this(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument, nppGroupMachinery, nppMachinery, numberZReport,
+                sumCashDocument, idEmployee, null);
+    }
+
+    public CashDocument(String idCashDocument, String numberCashDocument, LocalDate dateCashDocument, LocalTime timeCashDocument,
+                        Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, BigDecimal sumCashDocument,
+                        String idEmployee, Map<String, Object> extraFields) {
         this.idCashDocument = idCashDocument;
         this.numberCashDocument = numberCashDocument;
         this.dateCashDocument = dateCashDocument;
@@ -32,5 +41,10 @@ public class CashDocument implements Serializable {
         this.numberZReport = numberZReport;
         this.sumCashDocument = sumCashDocument;
         this.idEmployee = idEmployee;
+        this.extraFields = extraFields;
+    }
+
+    public boolean isIncome() {
+        return sumCashDocument.compareTo(BigDecimal.ZERO) >= 0;
     }
 }

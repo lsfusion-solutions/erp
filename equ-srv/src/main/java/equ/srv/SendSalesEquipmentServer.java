@@ -23,6 +23,8 @@ import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.physics.dev.integration.service.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -228,7 +230,7 @@ public class SendSalesEquipmentServer {
                 for (CashDocument cashDocument : cashDocumentList) {
                     if (cashDocument.sumCashDocument != null) {
                         String idZReport = cashDocument.nppGroupMachinery + "_" + cashDocument.nppMachinery + "_" + cashDocument.numberZReport + "_" + cashDocument.dateCashDocument.format(DateTimeFormatter.ofPattern("ddMMyyyy"));
-                        if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
+                        if (cashDocument.isIncome())
                             dataIncome.add(Arrays.asList(cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
                                     cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument, cashDocument.idEmployee, idZReport));
                         else
@@ -244,6 +246,12 @@ public class SendSalesEquipmentServer {
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
                     service.synchronize(true, false);
+
+                    JSONObject extraFields = getExtraFields(cashDocumentList, true);
+                    if (!extraFields.isEmpty() && equipmentCashRegisterLM.findProperty("executeProcessCashDocumentExtraFields[]").read(session) != null) {
+                        equipmentCashRegisterLM.findAction("processCashDocumentExtraFields[STRING]").execute(session, stack, new DataObject(extraFields.toString()));
+                    }
+
                     resultIncome = session.applyMessage(BL, stack);
                     session.popVolatileStats();
                 }
@@ -257,6 +265,12 @@ public class SendSalesEquipmentServer {
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
                     service.synchronize(true, false);
+
+                    JSONObject extraFields = getExtraFields(cashDocumentList, false);
+                    if (!extraFields.isEmpty() && equipmentCashRegisterLM.findProperty("executeProcessCashDocumentExtraFields[]").read(session) != null) {
+                        equipmentCashRegisterLM.findAction("processCashDocumentExtraFields[STRING]").execute(session, stack, new DataObject(extraFields.toString()));
+                    }
+
                     resultOutcome = session.applyMessage(BL, stack);
                     session.popVolatileStats();
                 }
@@ -266,6 +280,27 @@ public class SendSalesEquipmentServer {
                 throw Throwables.propagate(e);
             }
         } else return null;
+    }
+
+    private static JSONObject getExtraFields(List<CashDocument> cashDocumentList, boolean income) {
+        JSONObject extraFields = new JSONObject();
+        for (CashDocument cashDocument : cashDocumentList) {
+            if(cashDocument.extraFields != null && (income == cashDocument.isIncome())) {
+                for(Map.Entry<String, Object> extraField : cashDocument.extraFields.entrySet()) {
+                    JSONArray dataArray = extraFields.optJSONArray(extraField.getKey());
+                    if(dataArray == null) {
+                        dataArray = new JSONArray();
+                    }
+                    JSONObject fieldReceipt = new JSONObject();
+                    fieldReceipt.put("id", cashDocument.idCashDocument);
+                    fieldReceipt.put("value", extraField.getValue());
+                    dataArray.put(fieldReceipt);
+
+                    extraFields.put(extraField.getKey(), dataArray);
+                }
+            }
+        }
+        return extraFields;
     }
 
     public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, EquipmentServer server, ExecutionStack stack, String idStock, LocalDate dateFrom, LocalDate dateTo) {
