@@ -179,12 +179,13 @@ public class EquipmentServerImport {
                     if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
                         int i = 0;
                         for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
-                            String idPayment = idReceipt + String.valueOf(3 + i);
+                            int numberPayment = 3 + i;
+                            String idPayment = getIdPayment(idReceipt, numberPayment);
                             String numberGiftCard = giftCardEntry.getKey();
                             BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
                             BigDecimal priceGiftCard = giftCardEntry.getValue().price;
                             if (!ids.contains(idPayment) && sumGiftCard != null) {
-                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
+                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, numberPayment, numberGiftCard, priceGiftCard));
                                 ids.add(idPayment);
                                 i++;
                             }
@@ -257,12 +258,13 @@ public class EquipmentServerImport {
                     if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
                         int i = 0;
                         for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
-                            String idPayment = idReceipt + String.valueOf(3 + i);
+                            int numberPayment = 3 + i;
+                            String idPayment = getIdPayment(idReceipt, numberPayment);
                             String numberGiftCard = giftCardEntry.getKey();
                             BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
                             BigDecimal priceGiftCard = giftCardEntry.getValue().price;
                             if (!ids.contains(idPayment) && sumGiftCard != null) {
-                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
+                                dataPaymentGiftCard.add(Arrays.asList(idPayment, idReceipt, "giftcard", sumGiftCard, numberPayment, numberGiftCard, priceGiftCard));
                                 ids.add(idPayment);
                                 i++;
                             }
@@ -323,5 +325,11 @@ public class EquipmentServerImport {
                 new IntegrationService(session, new ImportTable(fields, dataDiscount), keys, props).synchronize(true);
             }
         }
+    }
+
+    //need to differ payments when number of payments is greater than 10
+    //backward compatibility with old ids without slash
+    private static String getIdPayment(String idReceipt, int numberPayment) {
+        return idReceipt + (numberPayment > 10 ? ("/" + numberPayment) : numberPayment);
     }
 }
