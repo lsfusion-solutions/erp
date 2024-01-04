@@ -91,6 +91,13 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     okpoSupplier 'ОКПО продавца' = DATA STRING[10] (###docType##Document); //ОКПО
     
     //--ИдСв
+    //---СвИП
+    innSupplierIE 'ИННФЛ' = DATA STRING[12] (###docType##Document); //ИННФЛ
+    //----ФИО
+    supplierIELastName 'Фамилия' = DATA STRING[60] (###docType##Document);//Фамилия
+    supplierIEFirstName 'Имя' = DATA STRING[60] (###docType##Document);//Имя
+    supplierIEMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+        
     //---СвЮЛУч
     nameSupplier 'Продавец' = DATA STRING[1000] (###docType##Document) CHARWIDTH 20; //НаимОрг
     innSupplier 'ИНН продавца' = DATA STRING[10] (###docType##Document); //ИННЮЛ
@@ -181,6 +188,13 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     supplierSignerMiddleName 'Отчество (продавец)' = DATA STRING[60](###docType##Document); //Отчество
     isSupplierSigner (###docType##Document d) = supplierSignerLastName(d) AND supplierSignerFirstName(d);
     
+    //-ИП
+    supplierSelfEmployedInn 'ИНН ФЛ-подписанта' = DATA STRING[12] (###docType##Document);//ИННФЛ
+    //--ФИО    
+    supplierSelfEmployedLastName 'Фамилия подписанта' = DATA STRING[60] (###docType##Document);//Фамилия
+    supplierSelfEmployedFirstName 'Имя подписанта' = DATA STRING[60] (###docType##Document);//Имя
+    supplierSelfEmployedMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
+    
     //-ЮЛ
     supplierSignerInn 'ИНН организации-подписанта (продавец)' = DATA STRING[10] (###docType##Document);//ИННЮЛ
     supplierSignerPosition 'Должность подписанта (продавец)' = DATA STRING[128] (###docType##Document);//Должн
@@ -211,7 +225,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     customerSignerMiddleName 'Отчество' = DATA STRING[60](###docType##Document); //Отчество
     
     //-ИП
-    customerSelfEmployedInn 'ИНН ФЛ-подписанда' = DATA STRING[10] (###docType##Document);//ИННФЛ
+    customerSelfEmployedInn 'ИНН ФЛ-подписанта' = DATA STRING[12] (###docType##Document);//ИННФЛ
     //--ФИО    
     customerSelfEmployedLastName 'Фамилия подписанта' = DATA STRING[60] (###docType##Document);//Фамилия
     customerSelfEmployedFirstName 'Имя подписанта' = DATA STRING[60] (###docType##Document);//Имя
@@ -289,7 +303,10 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PROPERTIES (u) uuid, idConsignor, idConsignee, nameStatus, businessNameDocument, supplierNameDocument
         PROPERTIES (u) nameOperatorConsignor, innOperatorConsignor, codeOperatorConsignor
                     
-        PROPERTIES (u) nameSupplier, innSupplier, kppSupplier, okpoSupplier, nameOriginatorSupplier
+        PROPERTIES (u) nameSupplier
+        PROPERTIES (u) SHOWIF (NOT typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) innSupplier, kppSupplier, okpoSupplier
+        PROPERTIES (u) SHOWIF (typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) innSupplierIE, supplierIELastName, supplierIEFirstName, supplierIEMiddleName
+        PROPERTIES (u) nameOriginatorSupplier
         PROPERTIES (u) dateSupplier, timeSupplier
         PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency
         PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, addressSupplier, codeAddressSupplier
@@ -302,6 +319,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
         PROPERTIES (u) nameSupplierSignerCredentials, nameSupplierSignerStatus, supplierSignerCredentialsBase
         PROPERTIES (u) supplierSignerLastName, supplierSignerFirstName, supplierSignerMiddleName
+        PROPERTIES (u) supplierSelfEmployedInn, supplierSelfEmployedLastName, supplierSelfEmployedFirstName, supplierSelfEmployedMiddleName
         PROPERTIES (u) supplierSignerInn, supplierSignerPosition
         PROPERTIES (u) supplierSignerAgentLastName, supplierSignerAgentFirstName, supplierSignerAgentMiddleName
         
@@ -387,6 +405,10 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                         MOVE PROPERTY(innSupplier(u));
                                         MOVE PROPERTY(kppSupplier(u));
                                         MOVE PROPERTY(okpoSupplier(u));
+                                        MOVE PROPERTY(innSupplierIE(u));
+                                        MOVE PROPERTY(supplierIELastName(u));
+                                        MOVE PROPERTY(supplierIEFirstName(u));
+                                        MOVE PROPERTY(supplierIEMiddleName(u));
                                         MOVE PROPERTY(nameOriginatorSupplier(u));
                                     }
                                     NEW supplierAddress {
@@ -457,6 +479,14 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                             MOVE PROPERTY(supplierSignerAgentFirstName(u));
                                             MOVE PROPERTY(supplierSignerAgentMiddleName(u));                                
                                         }                            
+                                    }
+                                    NEW selfEmployedSupplier {
+                                        caption = 'Подписант (ИП)';
+                                        fill = 1;
+                                        MOVE PROPERTY(supplierSelfEmployedInn(u));
+                                        MOVE PROPERTY(supplierSelfEmployedLastName(u));
+                                        MOVE PROPERTY(supplierSelfEmployedFirstName(u));
+                                        MOVE PROPERTY(supplierSelfEmployedMiddleName(u));
                                     }
                                 }                            
                             }

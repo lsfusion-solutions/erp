@@ -66,6 +66,13 @@ NAVIGATOR {
 nameConsignorCompany 'Грузоотправитель' = DATA STRING[1000] (UpdDocument) CHARWIDTH 50; //НаимОрг
 innConsignorCompany 'ИНН грузоотправителя' = DATA STRING[10] (UpdDocument);//ИННЮЛ
 
+//---СвИП
+innConsignorCompanyIE 'ИННФЛ' = DATA STRING[12] (UpdDocument); //ИННФЛ
+//----ФИО
+consignorCompanyIELastName 'Фамилия' = DATA STRING[60] (UpdDocument);//Фамилия
+consignorCompanyIEFirstName 'Имя' = DATA STRING[60] (UpdDocument);//Имя
+consignorCompanyIEMiddleName 'Отчество' = DATA STRING[60](UpdDocument); //Отчество
+
 //-ГрузОт (только в УПД)
 //--ГрузОтпр
 //---Адрес
@@ -264,7 +271,8 @@ idFile 'ИдФайл' (UpdDocument d) =
 EXTEND FORM updDocument
     PROPERTIES (u) idFile
     PROPERTIES (u) isConsignerSupplier
-    PROPERTIES (u) READONLYIF isConsignerSupplier(u) nameConsignorCompany, innConsignorCompany
+    PROPERTIES (u) SHOWIF (NOT typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) READONLYIF isConsignerSupplier(u) nameConsignorCompany, innConsignorCompany
+    PROPERTIES (u) SHOWIF (typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) READONLYIF isConsignerSupplier(u) innConsignorCompanyIE, consignorCompanyIELastName, consignorCompanyIEFirstName, consignorCompanyIEMiddleName
     PROPERTIES (u) READONLYIF isConsignerSupplier(u) countryCodeAddressConsignorCompany, addressConsignorCompany
     PROPERTIES (u) SHOWIF (NOT typeCompany(customer(u))=TypeCompany.individualEntrepreneur) nameReceiverCompany, innReceiverCompany
     PROPERTIES (u) SHOWIF (typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innReceiverCompanyIE, receiverCompanyIELastName, receiverCompanyIEFirstName, receiverCompanyIEMiddleName  
@@ -311,6 +319,10 @@ DESIGN updDocument {
                                     caption = 'Реквизиты';
                                     MOVE PROPERTY(nameConsignorCompany(u));
                                     MOVE PROPERTY(innConsignorCompany(u));
+                                    MOVE PROPERTY(innConsignorCompanyIE(u));
+                                    MOVE PROPERTY(consignorCompanyIELastName(u));
+                                    MOVE PROPERTY(consignorCompanyIEFirstName(u));
+                                    MOVE PROPERTY(consignorCompanyIEMiddleName(u));
                                 }
                                 NEW companyConsignorAddress {
                                     caption = 'Адрес грузоотправителя';
