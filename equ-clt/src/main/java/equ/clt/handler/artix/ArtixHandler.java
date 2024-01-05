@@ -1292,7 +1292,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 LocalTime timeCashDocument = timeEnd != null ? sqlTimeToLocalTime(new Time(timeEnd)) : null;
 
                                                 Map<String, Object> extraFields = null;
-                                                String backReason = documentObject.optString("backreason", null);
+                                                String backReason = documentObject.optString("backReason", null);
                                                 if(backReason != null) {
                                                     extraFields = new HashMap<>();
                                                     extraFields.put("backreason", backReason);
