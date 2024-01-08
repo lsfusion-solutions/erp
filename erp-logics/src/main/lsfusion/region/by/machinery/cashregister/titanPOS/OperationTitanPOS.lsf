@@ -54,7 +54,9 @@ onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) 
         CASE
             WHEN titanECode() = 0 THEN {
                 emsg() <- emsg() + ' Ответ от сервера не получен. Проверьте работу программ для СКО';
+                emsg() <- emsg() + IF NOT(titanPort(o) AND titanPin(o)) THEN '. См. настройки оборудования: Порт и PIN' ELSE '';
                 titanEMessage() <- titanEMessage() + '\nОтвет от сервера не получен\nПроверьте работу программ для СКО';
+                titanEMessage() <- titanEMessage() + IF NOT(titanPort(o) AND titanPin(o)) THEN '\nСм. настройки оборудования: Порт и PIN' ELSE '';
             }
             WHEN titanECode() = 400 THEN {
                 emsg() <- emsg() + ' Ошибка в запросе.';
@@ -172,7 +174,7 @@ eqXReport 'X-отчет' (CashRegister o) {
     IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; } 
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
-    onSend(o,'xReport','Z-отчет');
+    onSend(o,'xReport','Х-отчет');
     IF titanECode() THEN onShowError(titanEMessage());
 }
 
@@ -192,6 +194,11 @@ eqZReport 'Z-отчет' (CashRegister o) {
     EXPORT sendForm JSON;
     onSend(o,'closeShift','Z-отчет');
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    IF NOT titanECode() AND number() THEN {
+        fiscalNumber(currentZReport()) <- STRING[48](number());
+        time(currentZReport()) <- TIME(position()); // меняем время, чтобы совпадало с чеком отчета
+        
+    }
 }
 
 
@@ -280,15 +287,14 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
     }
 }
 
-
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
     return() <- NULL; sale() <- NULL;
-    eqOpenShift(o,nameEmployee(r));
+    eqOpenShift(o, nameEmployee(r));
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
     receiptTotalSum() <- NULL; receiptDiscountSum() <- NULL;
     FOR (ReceiptDetail d IS ReceiptDetail) AND receipt(d) = r ORDER d DO {
-        IF type(d) = 'Продажа' THEN sale() <-1; ELSE return() <- 1;
+        IF type(d) = 'Продажа' OR type(d) = 'Сертификат' THEN sale() <- 1; ELSE return() <- 1;
         receiptTotalSum() <- receiptTotalSum() (+) sum(d);
         receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(d) (+) bonusPaid(d);
     }
@@ -297,5 +303,8 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
     onSend(o,'check',IF sale() THEN 'Чек продажи' ELSE 'Возврат товара');
     IF titanECode() THEN onShowError(titanEMessage());
+    number(r) <- INTEGER(number());
+    // Дату чека не меняем, так как действует Ограничение: Дата чека должна быть равна дате Z отчета
+    time(r) <- TIME(position()); // меняем время, чтобы совпадало с чеком
 }
 

@@ -7,9 +7,10 @@ titanPin  'PIN код (titanPOS)'          = DATA STRING[10] (CashRegister);
 titanBarcode 'Код в чеке (titanPOS)'    = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
 titanTax 'НДС в чеке (titanPOS)'        = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
 titanSid 'ID сессии'                    = DATA STRING (CashRegister)  CHARWIDTH 10;
+titanCnt2 'Оплата 2'                    = DATA STRING (CashRegister); // Счетчик 2
 
 EXTEND FORM groupCashRegister
-    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanBarcode, titanTax, titanSid 
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanCnt2, titanBarcode, titanTax, titanSid 
 ;
 
 
@@ -44,7 +45,8 @@ eventsCount 'Количество неотправленных событий п
 docsCount ' Количество не отправленных документов программной кассы' = DATA LOCAL NUMERIC();
 documentsSenderStatus 'Пустая строка или текст ошибки отправки документов' = DATA LOCAL STRING();
 eventsSenderStatus 'Пустая строка или текст ошибки отправки документов' = DATA LOCAL STRING();
-
+number 'Номер Z отчета или чека' = DATA LOCAL STRING ();
+position 'Дата и время документа' = DATA LOCAL DATETIME ();
 
 FORM receiveForm 'Принятые данные'
     PROPERTIES() status EXTID 'Status', error EXTID 'Error', titanKey EXTID 'TitanKey'
@@ -52,7 +54,8 @@ FORM receiveForm 'Принятые данные'
         eventsCount EXTID 'EventsCount', firstDocNumber EXTID 'FirstDocNumber', shiftOpened EXTID 'ShiftOpened',
         receiveCashier EXTID 'Cashier', docsCount EXTID 'DocsCount', documentsSenderStatus EXTID 'DocumentsSenderStatus',
         serial EXTID 'Serial', certExpDate EXTID 'CertExpDate', totalSum EXTID 'TotalSum', docNumber EXTID 'DocNumber',
-        model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus'
+        model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus', 
+        number EXTID 'Number', position EXTID 'Position'
 ;
 
 // ПЕРЕДАЧА ДАННЫХ
@@ -64,7 +67,7 @@ sendCashier = DATA LOCAL STRING ();
 FORM sendOpen 'Открытие сеанса с СКО'
     PROPERTIES () titanKey EXTID 'TitanKey',pin EXTID 'Pin', sendCashier EXTID 'Cashier';
 
-FORM sendForm 'Передача: init, info, close, openshift'
+FORM sendForm 'Передача: init, info, close, openshift, closeShift'
     PROPERTIES () titanKey EXTID 'TitanKey';
 
 
@@ -98,10 +101,13 @@ receiptTotalSum 'Общая сумма чека с учетом скидок' = 
 receiptSendEmail 'Флаг отправки почты' = DATA LOCAL TBOOLEAN ();
 receiptEmail 'Почтовый адрес' = DATA LOCAL STRING();
 // ---------------------------------------------------
-paymentTypeFlag 'Тип расчета' (Payment p) = 
-    IF namePaymentType(p) = 'Наличные' THEN 1 ELSE IF namePaymentType(p) = 'Карточка' THEN 2 ELSE 3;                                                    
+//paymentTypeFlag 'Тип расчета' (Payment p) = 
+//    IF namePaymentType(p) = 'Наличные' THEN 1 ELSE IF namePaymentType(p) = 'Карточка' THEN 2 ELSE 3;                                                    
+//paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); отладка 
 paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
-paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); 
+paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p);
+paymentTypeFlag 'Тип расчета' (Payment p) = IF sidPaymentType(p) = 'cash' THEN 1 ELSE
+                                                       IF isISubstring(titanCnt2(currentCashRegister()),sidPaymentType(p)) THEN 2 ELSE 3;
 // ---------------------------------------------------
 detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
 detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
@@ -109,7 +115,7 @@ detailDiscountLabel 'Описание скидки на товара' (ReceiptDe
     IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL; 
 detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o) (+) bonusPaid(o);
 detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
-detailName 'Название товара' (ReceiptDetail o) = overNameSku(o);
+detailName 'Название товара' (ReceiptDetail o) = IF type(o) = 'Сертификат' THEN 'Подарочный сертификат' ELSE overNameSku(o);
 detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
 detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
 detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN 
