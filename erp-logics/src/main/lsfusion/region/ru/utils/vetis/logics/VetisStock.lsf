@@ -85,11 +85,25 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
         in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
         productItem(vtd) = productItem(sku(vd));
     
-    fillVolume 'Заполнить' (###doc d) {
+    fillExpiryDate 'Заполнить сроки годности' (###doc d) {
+        ASK 'Заполнить сроки годности из ВСД ?' DO
+            expiryDate(###doc##Detail vd) <- (GROUP MAX expiryDate(VetDocument vtd) IF volume(vd, vtd)) 
+                                             WHERE doc(vd) = d AND (GROUP MAX expiryDate(VetDocument vtd) IF volume(vd, vtd)); 
+    }
+
+    fillVolumeDate 'Заполнить по дате' (###doc d) {
+        volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd)
+            IF date(vd) = issueDate(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
+            WHERE doc(vd) = d;
+        fillExpiryDate(d);
+    } CONFIRM;
+    
+    fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
             volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd)
                 IF s = issueSeriesNumberWaybill(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
                 WHERE doc(vd) = d;
+            fillExpiryDate(d);
         }
     }
     
@@ -106,7 +120,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
         FILTERS doc(vd) = obj,
                 productItem(sku(vd)) OR volumeVetDocument(vd)
 
-        PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
+        PROPERTIES(obj) DRAW vd TOOLBAR fillVolume, fillVolumeDate
         
         OBJECTS vtd = VetDocument
         PROPERTIES(vtd) READONLY nameStatus, uuid, issueDate, issueSeriesNumberWaybill, nameProductItem, volume, expiryDate
