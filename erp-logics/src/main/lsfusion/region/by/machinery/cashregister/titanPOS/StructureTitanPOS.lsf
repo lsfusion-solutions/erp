@@ -101,11 +101,10 @@ receiptTotalSum 'Общая сумма чека с учетом скидок' = 
 receiptSendEmail 'Флаг отправки почты' = DATA LOCAL TBOOLEAN ();
 receiptEmail 'Почтовый адрес' = DATA LOCAL STRING();
 // ---------------------------------------------------
-//paymentTypeFlag 'Тип расчета' (Payment p) = 
-//    IF namePaymentType(p) = 'Наличные' THEN 1 ELSE IF namePaymentType(p) = 'Карточка' THEN 2 ELSE 3;                                                    
-//paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); отладка 
+// см. POSElemaRB - типы платежей, строка 188
 paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
 paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p);
+//paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); // отладка 
 paymentTypeFlag 'Тип расчета' (Payment p) = IF sidPaymentType(p) = 'cash' THEN 1 ELSE
                                                        IF isISubstring(titanCnt2(currentCashRegister()),sidPaymentType(p)) THEN 2 ELSE 3;
 // ---------------------------------------------------
@@ -131,6 +130,7 @@ FORM saleForm
     PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',  
                 paymentSum EXTID 'Sum', 
                 paymentDescription EXTID 'Description'
+    FILTERS IF paymentSum(payments) AND abs(paymentSum(payments)) > 0 THEN TRUE ELSE NULL 
 
     OBJECTS lines = ReceiptDetail EXTID 'Lines'
     PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
