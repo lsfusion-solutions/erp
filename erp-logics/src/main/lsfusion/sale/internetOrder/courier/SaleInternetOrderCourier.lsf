@@ -1,0 +1,163 @@
+MODULE SaleInternetOrderCourier;
+
+REQUIRE SaleInternetPickingDetail, ItemInternet;
+
+dateTimeFrom 'Доставка' (InternetOrder o) = dateTimeToDateTime(deliveryDate(o), deliveryTimeFromInternetOrder(o));
+
+FORM setDeliveryTime 'Установка времени доставки'
+    OBJECTS o = InternetOrder PANEL
+    PROPERTIES (o) deliveryDate, deliveryTimeFromInternetOrder, deliveryTimeToInternetOrder
+    EVENTS ON OK{ APPLY; }
+;
+setDeliveryTime 'Выбрать время доставки' (InternetOrder o){
+    SHOW setDeliveryTime OBJECTS o = o;
+} ASON CONTEXTMENU nameStatus[InternetOrder];
+
+
+captionDelivery (InternetOrder o) = CONCAT ' ', 'Заказ', '№' + number(o), 'c ' + deliveryTimeFromInternetOrder(o),
+    'по ' + deliveryTimeToInternetOrder(o) IN id;
+
+filterCourier = ABSTRACT CASE BOOLEAN (InternetOrder);
+
+FORM printInternetOrderDelivery
+    OBJECTS o = InternetOrder
+    PROPERTIES (o) number, pickingSumInternetOrderDetail, nameInternetCustomer, phoneInternetCustomer, customerComment,
+        addressInternetCustomer, captionDelivery
+
+    OBJECTS d = InternetOrderDetail
+    PROPERTIES (d) nameSku, pickingQuantity, price, pickingSum
+    FILTERS internetOrder(d) = o
+
+    FILTERS filterCourier(o);
+;
+FORM dialogDates 'Печать ведомости'
+    OBJECTS dates = (dateFrom = DATE, dateTo = DATE) PANEL
+    PROPERTIES df = VALUE(dateFrom), dt = VALUE(dateTo)
+;
+
+DESIGN dialogDates {
+    NEW date BEFORE TOOLBARBOX {
+        fill = 1;
+        horizontal = TRUE;
+        MOVE PROPERTY (df) {
+            fill = 1;
+            caption = 'Введите дату c';
+            font = 'bold 64';
+            panelCaptionVertical = TRUE;
+        }
+        MOVE PROPERTY (dt) {
+            fill = 1;
+            caption = 'Введите дату на';
+            font = 'bold 64';
+            panelCaptionVertical = TRUE;
+        }
+    }
+}
+
+useDeliveryCalendar 'Календарь доставки' = DATA BOOLEAN (Carrier);
+
+showDeliveryCalendar 'Отображать в календаре' = DATA BOOLEAN (Carrier, StatusInternetOrder);
+
+EXTEND FORM internetCatalogs
+    PROPERTIES (carrier) useDeliveryCalendar
+;
+EXTEND FORM carrier
+    OBJECTS statusDelivery = StatusInternetOrder
+    PROPERTIES SHOWIF useDeliveryCalendar(c) showDeliveryCalendar(c, statusDelivery), name(statusDelivery) READONLY
+;
+
+printInternetOrderDelivery 'Печать ведомости'(){
+    DIALOG dialogDates OBJECTS dateFrom INPUT, dateTo INPUT  DO {
+        IF NOT dateFrom OR NOT dateTo THEN {
+            MESSAGE 'Не задан период';
+            RETURN;
+        }
+        PRINT printInternetOrderDelivery FILTERS deliveryDate(o) >= dateFrom AND deliveryDate(o) <= dateTo AND filterCourier(o)  PREVIEW;
+           // isMinsk(o) AND useDeliveryCalendar(carrier(o)) AND showDeliveryCalendar(carrier(o), status(o));
+    }
+}
+
+FORM deliveryCalendar 'Календарь доставки'
+    OBJECTS o = InternetOrder CALENDAR
+    PROPERTIES (o) dateTimeFrom, captionDelivery, number = number
+    PROPERTIES (o) PANEL READONLY number, nameStatus, addressInternetCustomer, deliveryDate, deliveryTimeFromInternetOrder,
+        deliveryTimeToInternetOrder
+    PROPERTIES setDeliveryTime(o), edit(o), printInternetOrderDelivery() TOOLBAR
+
+    FILTERS filterCourier(o)
+;   
+
+DESIGN deliveryCalendar{
+    GRID (o){
+        NEW popup{
+            MOVE PROPERTY (number(o));
+            MOVE PROPERTY (nameStatus(o));
+            MOVE PROPERTY (addressInternetCustomer(o));
+            MOVE PROPERTY (deliveryDate(o));
+            MOVE PROPERTY (deliveryDate(o));
+            MOVE PROPERTY (deliveryTimeFromInternetOrder(o));
+            MOVE PROPERTY (deliveryTimeToInternetOrder(o));
+            NEW action{
+                horizontal = TRUE;
+                MOVE PROPERTY (setDeliveryTime(o));
+                MOVE PROPERTY (edit(o));
+            }
+        }
+    }
+}
+
+CLASS CourierEmployee 'Курьер';
+TABLE courierEmployee (CourierEmployee);
+
+@defineExternalizable(courierEmployee, STRING[100]);
+firstName 'Имя' = DATA ISTRING[100] (CourierEmployee) CHARWIDTH 10 IN id;
+lastName 'Фамилия' = DATA ISTRING[100] (CourierEmployee) CHARWIDTH 15 IN id;
+fullName 'Полное имя' (CourierEmployee c) = CONCAT ' ', firstName(c), lastName(c) IN id CHARWIDTH 20;
+phone 'Телефон' = DATA STRING[100] (CourierEmployee) CHARWIDTH 10;
+created 'Создан' = DATA DATETIME (CourierEmployee);
+updated 'Обновлен' = DATA DATETIME (CourierEmployee);
+inactive 'Неактивный' = DATA BOOLEAN (CourierEmployee);
+
+FORM couriers 'Курьеры'
+    OBJECTS c = CourierEmployee
+    PROPERTIES (c) READONLY fullName, phone, inactive
+    PROPERTIES (c) NEWSESSION NEW, EDIT, DELETE
+
+    LIST CourierEmployee OBJECT c
+;
+
+
+courier = DATA CourierEmployee (InternetOrder);
+fullNameCourier 'Курьер' (InternetOrder o) = fullName(courier(o));
+courierStatus 'Статус доставки' = ABSTRACT STRING (InternetOrder);
+backgroundCourier = ABSTRACT CASE COLOR (InternetOrder);
+
+EXTEND FORM internetOrders
+    PROPERTIES (o) READONLY BACKGROUND backgroundCourier(o) fullNameCourier, courierStatus
+;
+
+assignCourier 'Назначить курьера' (InternetOrder o){
+    DIALOG couriers OBJECTS c INPUT c DO NEWSESSION {
+        courier(o) <- c;
+        APPLY;
+    }
+}
+
+EXTEND FORM deliveryCalendar
+    PROPERTIES (o) PANEL fullNameCourier SHOWIF courier(o) READONLY, assignCourier
+;
+DESIGN deliveryCalendar{
+    popup{
+        MOVE PROPERTY (fullNameCourier(o)) BEFORE action;
+        action{
+            MOVE PROPERTY (assignCourier(o));
+        }
+    }
+}
+
+
+
+
+
+
+

@@ -1,6 +1,6 @@
 MODULE IkassaCourier;
 
-REQUIRE SaleInternetPicking, ZReport, ItemInternet;
+REQUIRE SaleInternetPicking, ZReport, ItemInternet, SaleInternetOrderCourier;
 
 NAMESPACE Ikassa;
 
@@ -355,4 +355,14 @@ DESIGN internetOrders{
 //для планировщика
 getInfoOrders 'Обработка заказов ikassa' (){
     FOR orderSent(InternetOrder o) AND NOT filtered(o) AND NOT isCancelled(o) DO NEWSESSION getOrderInfo(o);
+}
+
+EXTEND FORM deliveryCalendar
+    PROPERTIES sendOrderToCashRegister(o) SHOWIF canSend(o)
+;
+
+DESIGN deliveryCalendar{
+    action{
+        MOVE PROPERTY (sendOrderToCashRegister(o)) {background = RGB(102, 176, 194); }
+    }
 }
