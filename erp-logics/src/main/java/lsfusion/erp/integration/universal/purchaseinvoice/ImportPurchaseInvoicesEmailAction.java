@@ -85,7 +85,6 @@ public class ImportPurchaseInvoicesEmailAction extends ImportDocumentAction {
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImportEmail[ImportType]").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("name[ImportType]").getExpr(importTypeKey).compare(new DataObject("Доминанта").getExpr(), Compare.EQUALS));
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(context);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
