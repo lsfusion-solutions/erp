@@ -43,6 +43,8 @@ DESIGN Inventory.operation{
 createZeroDetailData = ABSTRACT BOOLEAN (ListInventory);
 createZeroDetail(ListInventory li) = OVERRIDE createZeroDetailData(li), createZeroDetail(operation(inventory(li)));
 
+afterAddInventoryDetails  ABSTRACT LIST (TerminalDocument, ListInventory);
+
 addInventoryDetails(TerminalDocument td,ListInventory li)  { 
 
     LOCAL quantity = NUMERIC[16,5](TerminalDocumentDetail, Batch);
@@ -81,6 +83,8 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
     
     pageInventory(PageInventoryDetail pid) <- pageInventoryIndex(li, ((index(pid) - 1)/countDetail()) + 1) WHERE index(pid);
     DELETE PageInventory p WHERE  listInventory(p) == li AND NOT countPageInventoryDetail(p);
+
+    afterAddInventoryDetails(td, li);
 }
 
 inOneListInventoryDetails =  GROUP SUM 1 IF include(terminalDocument(TerminalDocumentDetail tdd)) BY sku(tdd);
