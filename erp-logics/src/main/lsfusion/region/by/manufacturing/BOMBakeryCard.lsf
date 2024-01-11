@@ -22,7 +22,7 @@ EXTEND FORM BOM
     PROPERTIES(p) SHOWIF showExpiry(b) AFTER nameExpiryCondition(p) infoExpiryCondition
 ;
 
-nameExpiryConditionOver 'Условия хранения' (Product p) = CONCAT ' ', nameExpiryCondition(p), infoExpiryCondition(p);
+nameExpiryConditionOver 'Условия хранения' (Product p) = CONCAT ' ', infoExpiryCondition(p), nameExpiryCondition(p);
 
 grease 'Подпыл и смазка листов' = DATA BOOLEAN (Component);
 
@@ -170,6 +170,11 @@ DESIGN BOM {
     }
 }
 
+overCopy(BOM from, BOM to)+{
+    value (OLProperty o, to)<- value(o,from);
+    value (FXProperty o, to)<- value(o,from);
+}
+
 calcNetEnergyGramsQuantityD 'Энергетическая ценность, кДж' (Product p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d) * 4.184);
 netEnergyText 'Энергетическая ценность, ккал/кДж' (Product p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d)) + '/' + calcNetEnergyGramsQuantityD(p, d);
 overNameMaterial 'Наимнование изделия' (Component c) = OVERRIDE nameBOMMaterial(c), nameMaterial(c);
@@ -187,6 +192,22 @@ valueComponent (FXProperty f, BOM b) = GROUP SUM 1 IF value(f, BOM(material(Comp
 nameExpiryStorage 'Срок хранения'  (BOM b) = GROUP MAX nameExpiryStorage(Product p) BY BOM(p);
 nameExpiryCondition 'Условия хранения' (BOM b) = GROUP MAX nameExpiryConditionOver(Product p) BY BOM(p);
 
+DESIGN BOM{
+    PROPERTY (nameExpiryStorage(p)){hide = TRUE;}
+}
+
+daysEx 'Срок годности в днях' = DATA INTEGER (Product);
+hoursEx 'Срок годности в часах' = DATA INTEGER (Product);
+
+EXTEND FORM BOM
+    PROPERTIES (p) SHOWIF showExpiry(b) AFTER nameExpiryCondition(p) hoursEx, daysEx
+;
+
+
+fillExpiryItem(Product p)+{
+    expiryDays(Item i) <-  daysEx(p) WHERE sku(p)==i;
+    hoursExpiryPack(Item i) <-  hoursEx(p) WHERE sku(p)==i;
+}
 
 netProteinsGramsQuantity  'Белки в рецепте' (BOM b, DATE d) = GROUP MAX netProteinsGramsQuantity(Product p, d) BY BOM(p);
 netFatsGramsQuantity  'Жиры в рецепте' (BOM b,DATE d) = GROUP MAX netFatsGramsQuantity(Product p, d) BY BOM(p);
@@ -364,16 +385,74 @@ drynessQuantityBomHSku 'Кол-во по спец. для полуфабрика
 drynessQuantityBomHWater'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomHWater(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
 drynessQuantityBomHException 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomHException (BOM BOM, Item sku, Exception  e, DATE date)*percentDryness(sku)/100;
 
+approver = DATA Employee(BOM);
+nameApprover 'Утверждающий' (BOM b) =  shortName(approver(b)) CHARWIDTH 20;
+namePositionApprover 'Утверждающий' (BOM b) =  namePosition(approver(b) )CHARWIDTH 20;
+positionShortNameApprover 'Утверждающий' (BOM b) =  positionShortName(approver(b)) CHARWIDTH 50;
+
+shortNameResponsiblePerson 'Ответсвенное лицо' (BOM b) = shortName(responsiblePerson(b));
+
+dateApprover 'Дата утверждения' = DATA DATE (BOM);
+dateApproverOver 'Дата утверждения' (BOM b) = OVERRIDE  dateApprover(b), currentDate() IF b IS BOM;
+
+EXTEND FORM BOM
+    PROPERTIES (b) nameApprover, dateApprover, shortNameResponsiblePerson HEADER 'Разаработал ТК'
+;
+
+DESIGN BOM {
+    instructionPrm {
+        NEW responsible{
+            caption = 'Разработка';
+            MOVE PROPERTY (shortNameResponsiblePerson(b));
+        }
+        
+        NEW approver{            
+            caption = 'Утверждение';
+            horizontal = TRUE;
+            MOVE PROPERTY (nameApprover(b));
+            MOVE PROPERTY (dateApprover(b));
+        }
+    }
+}
+
+
+in 'Вкл' = DATA BOOLEAN (StateStandart , BOM);
+descriptionStateStandarts 'СТБ' =  GROUP CONCAT nameNumber(StateStandart s) IF in(s, BOM b), ', ' ORDER s BY b CHARWIDTH 20;
+countStateStandarts = GROUP SUM 1 IF in(StateStandart s, BOM b) BY b;
+
+FORM selectStateStandarts 'СТБ'
+    OBJECTS b = BOM PANEL 
+    OBJECTS s = StateStandart
+    PROPERTIES in(s,b) BACKGROUND (RGB(204, 255, 204))
+    PROPERTIES (s) READONLY id, name, number, note
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+;
+DESIGN selectStateStandarts { BOX { size = (600, 400); } }
+
+changeDescriptionStateStandarts(BOM b) {
+    SHOW selectStateStandarts OBJECTS b=b;
+}
+EXTEND FORM BOM
+    PROPERTIES(b) descriptionStateStandarts ON CHANGE changeDescriptionStateStandarts(b)
+;
+DESIGN BOM{
+    kitchen {
+        MOVE PROPERTY(descriptionStateStandarts(b));        
+    }
+    REMOVE PROPERTY(numberStateStandart(b));
+}
+
 FORM technologicalMapBakery 'Технологическая карта'
 
     OBJECTS dt=DATE PANEL
     PROPERTIES (dt) date = VALUE
 
     OBJECTS b=BOM PANEL
-    PROPERTIES(b)  READONLY nameCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
+    PROPERTIES(b)  READONLY nameCompany, shortNameOwnershipCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
         overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
-        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes
-    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b)
+        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
+        nameApprover, dateApproverOver, namePositionApprover
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
     OBJECTS p = Product
     PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity
         ,overNettoNetWeightH, drynessQuantityH, isWaterComponent
@@ -479,7 +558,7 @@ FORM technologicalMapBakery 'Технологическая карта'
     FILTERS       BOM(c2) == b,
         material(c2) IS Product
 
-    PROPERTIES (b) cookingSemisInstruction, nameStateStandart
+    PROPERTIES (b) cookingSemisInstruction, nameStateStandart, descriptionStateStandarts
 
     PROPERTIES (b) nameExpiryCondition, nameExpiryStorage
     PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
@@ -543,27 +622,98 @@ bruttoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE
 nettoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE dt) = nettoQuantity(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt)*1000 IF dt IS DATE;
 semifinishedWeightGr 'Масса п/ф описание' (Component p, Component c, DATE dt) = semifinishedWeightGr(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt);
 
+bruttoQuantityLoc 'Кол-во (брутто)' = DATA LOCAL NUMERIC[16,5](Component);
+
+oneRow 'Показывать в документах одной строкой' = DATA BOOLEAN (Component);
+
+FORM calcComponents 'Состав п/ф  по к-ву'
+    OBJECTS gg=(b=BOM, cd=Component) PANEL
+    OBJECTS c = Component
+    PROPERTIES (cd) oneRow
+    PROPERTIES(c) READONLY BACKGROUND background(c) index
+    PROPERTIES(c) READONLY BACKGROUND background(c) idBarcodeSku , id , nameMaterial, shortNameUOM
+    PROPERTIES(c) READONLY BACKGROUND background(c) bruttoQuantityLoc
+
+    ORDERS index(c)
+    FILTERS BOM(c) == b
+;
+DESIGN calcComponents{
+    size = (800, 600);
+}
+
+
+showCalcComponents 'Показать состав п/ф по к-ву' (Component c){
+    bruttoQuantityLoc(Component cc)<- NULL;
+    bruttoQuantityLoc(Component cc)<- NUMERIC[16,5](overCurBruttoQuantity(cc)/quantityProduct(BOM(cc))*overCurBruttoQuantity(c)) WHERE BOM(cc)==BOM(material(c));
+    NEWSESSION SHOW calcComponents OBJECTS b = BOM(material(c)), cd = c READONLY;
+} ASON CONTEXTMENU nameMaterial[Component];
+
+
+isAddRow 'Доп.сырье' = DATA BOOLEAN (Component);
+EXTEND FORM BOM
+    PROPERTIES (c) oneRow, isAddRow
+;
+
+actTotal1 = GROUP CONCAT  (rtrim(rtrim(TEXT(round3(actMiddleNetWeightD(Component c, DATE dt))),'0'),'.')) IF isAddRow(c), '/' ORDER index(c), c BY BOM(c),dt;
+
+actTotal2 (Product p, DATE dt) = STRING (CONCAT '/', rtrim(rtrim(TEXT(round3(overNettoNetWeightComponentGr(p))),'0'),'.'), actTotal1(BOM(p),dt));
+
+CLASS ComponentROW 'Строка доп. информации';
+TABLE componentROW(ComponentROW);
+
+name 'Название' = DATA STRING (ComponentROW);
+bruttoQuantity 'Кол-во (брутто), грамм' = DATA NUMERIC[16,5](ComponentROW);
+nettoQuantity 'Кол-во (нетто), грамм' = DATA NUMERIC[16,5](ComponentROW);
+
+component = DATA Component(ComponentROW) NONULL DELETE INDEXED;
+@defineDocumentDetailIndex(component, ComponentROW);
+nameConcat 'Доп. информация' (ComponentROW c) = STRING(CONCAT ' ', index(c)+'.', name(c), 'нетто - '+rtrim(rtrim(TEXT(nettoQuantity(c)),'0'),'.')+'г', 'брутто - '+rtrim(rtrim(TEXT(bruttoQuantity(c)),'0'),'.')+'г.');
+descriptionRow 'Доп. информация'  = GROUP CONCAT nameConcat(ComponentROW r), '; ' ORDER index(r) BY component(r) CHARWIDTH 30;
+
+componentROW = GROUP AGGR ComponentROW r BY component(r), index(r);
+
+FORM componentROW 'Строка доп. информации'
+    OBJECTS  c = Component PANEL
+    OBJECTS r = ComponentROW
+    PROPERTIES (r) index, name, nettoQuantity, bruttoQuantity, NEW, DELETE GRID
+    FILTERS component(r)==c
+;
+DESIGN componentROW{
+    size = (800, 600);
+}
+
+changeDescriptionRow (Component c) {
+    SHOW componentROW OBJECTS c=c;
+}
+EXTEND FORM BOM
+    PROPERTIES (c) descriptionRow ON CHANGE changeDescriptionRow(c)
+;
+DESIGN BOM{
+    REMOVE PROPERTY (nameResponsiblePerson(b));
+}
+
 FORM technologicalMapBakeryGG 'Технологическая карта (кулинария) '
     OBJECTS dt=DATE PANEL
     PROPERTIES (dt) date = VALUE
 
     OBJECTS b=BOM PANEL
-    PROPERTIES(b)  READONLY nameCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
+    PROPERTIES(b)  READONLY nameCompany, shortNameOwnershipCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
         overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
-        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes
-    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b)
+        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
+        nameApprover, dateApproverOver, namePositionApprover, shortNameResponsiblePerson
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
 
     OBJECTS p = Product
     PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity,
         overNettoNetWeightH, drynessQuantityH, isWaterComponent, overNettoNetWeightComponent, overNettoNetWeightComponentGr
     PROPERTIES(b,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
     PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
-    PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH, actTotal2
     PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
     FILTERS       BOM(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) index, nameMaterial, idBarcodeSku, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr
+    PROPERTIES(c) oneRow, index, nameMaterial, idBarcodeSku, id, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr
     PROPERTIES(c,dt) bruttoQuantity
     PROPERTIES(c) fats, carbohydrates, proteins, energy
     PROPERTIES    READONLY  actBruttoNetWeightD(c), actNettoNetWeightD(c), actMiddleNetWeightD(c,dt), overCurBruttoQuantityBakery(c,dt)
@@ -572,14 +722,14 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
     ORDERS index(c)
 
     OBJECTS c1 = Component SUBREPORT
-    PROPERTIES(c1) index, nameMaterial, idBarcodeSku, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight
+    PROPERTIES(c1) index, nameMaterial, idBarcodeSku, id, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight
     PROPERTIES(c1,dt) bruttoQuantity, actMiddleNetWeightD, overCurBruttoQuantityBakery
     PROPERTIES(c1) fats, carbohydrates, proteins, energy
     PROPERTIES (c, c1,dt)  nettoSemifinished, bruttoSemifinished, semifinishedWeightGr
     FILTERS       BOM(material(c)) == BOM(c1)
     ORDERS index(c1)
 
-    PROPERTIES (b) cookingSemisInstruction, nameStateStandart
+    PROPERTIES (b) cookingSemisInstruction, nameStateStandart, descriptionStateStandarts
     PROPERTIES (b) nameExpiryCondition, nameExpiryStorage
     PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
 
@@ -594,6 +744,7 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
     PROPERTIES value = value(fx, BOM(material(cx))) COLUMNS (fx) HEADER name(fx)
     FILTERS material(cx) IS Product, BOM(cx) == b, valueComponent(fx, b)
 ;
+
 printTechnologicalMapBakeryG 'Технологическая Карта на кулинарные изделия' (BOM bb) {
     IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
     FOR select(BOM b) DO PRINT technologicalMapBakeryGG OBJECTS dt = currentDate(), b = b;
@@ -608,3 +759,17 @@ DESIGN BOMs {
         MOVE PROPERTY (printTechnologicalMapBakeryG(b));
     }
 }
+
+META componentROW(params)
+    isComponentROW##params (Component c) = TRUE IF componentROW(c,params);
+    nameComponentROW##params (Component c) = name(componentROW(c,params));
+    bruttoQuantityComponentROW##params (Component c) = bruttoQuantity(componentROW(c,params));
+    nettoQuantityComponentROW##params (Component c) = nettoQuantity(componentROW(c,params));
+    EXTEND FORM technologicalMapBakeryGG
+        PROPERTIES (c) isComponentROW##params, nameComponentROW##params, bruttoQuantityComponentROW##params, nettoQuantityComponentROW##params
+    ;
+END
+@componentROW(1);
+@componentROW(2);
+@componentROW(3);
+@componentROW(4);
