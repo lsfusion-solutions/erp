@@ -16,6 +16,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -134,7 +135,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
                         try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), "cp1251"))) {
-                            bw.write(new String(Base64.decodeBase64(base64)));
+                            bw.write(new String(Base64.decodeBase64(base64),StandardCharsets.UTF_8)); //если не указать кодировку, то некорректно устанавливается кодировка при выгрузке из собранной jar
                         }
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
