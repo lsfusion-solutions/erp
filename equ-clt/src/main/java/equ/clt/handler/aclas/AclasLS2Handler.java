@@ -8,7 +8,6 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.JSONArray;
@@ -134,7 +133,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     File extraFile = null;
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
-                        FileUtils.writeStringToFile(extraFile, new String(Base64.decodeBase64(base64)), "cp1251");
+                        try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), "cp1251"))) {
+                            bw.write(new String(Base64.decodeBase64(base64)));
+                        }
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
                     } finally {
