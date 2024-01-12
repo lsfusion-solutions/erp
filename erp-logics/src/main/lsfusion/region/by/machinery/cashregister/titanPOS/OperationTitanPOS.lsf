@@ -302,9 +302,21 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE;
     EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
     onSend(o,'check',IF sale() THEN 'Чек продажи' ELSE 'Возврат товара');
-    IF titanECode() THEN onShowError(titanEMessage());
+    IF titanECode() THEN {
+        onShowError(titanEMessage());
+        RETURN; 
+    }
     number(r) <- INTEGER(number());
     // Дату чека не меняем, так как действует Ограничение: Дата чека должна быть равна дате Z отчета
     time(r) <- TIME(position()); // меняем время, чтобы совпадало с чеком
 }
 
+eqPrntText 'Печать текста' (Receipt r, TEXT text) {
+    IF NOT text THEN RETURN;
+    eqGetState(currentCashRegister());
+    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    text() <- text;
+    EXPORT textForm JSON;
+    onSend(currentCashRegister(),'printText','Печать прозвольного текста');
+    IF titanECode() THEN onShowError(titanEMessage());
+}
