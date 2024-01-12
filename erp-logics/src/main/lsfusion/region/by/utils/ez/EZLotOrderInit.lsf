@@ -1,6 +1,6 @@
 MODULE EZLotOrderInit;
 
-REQUIRE LotOrderInitBy, EZLotOrder, EZLotInit, EZPurchaseInvoice;
+REQUIRE LotOrderInitBy, EZLotOrder, EZLotInit;
 
 NAMESPACE EZ;
 
@@ -148,11 +148,6 @@ gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), STRING[14](lpad(gtin(sku(d
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
-registrationNumberDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE registrationNumberDeclaration(i), registrationNumberDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-dateDeclaration(LotInit i, STRING[14] gtin) = OVERRIDE dateDeclaration(i), dateDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-sidOrigin2CountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidOrigin2CountryDeclaration(i), sidOrigin2CountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-sidCountryDeclaration(LotInit i, STRING[14] gtin)= OVERRIDE sidCountryDeclaration(i), sidCountryDeclaration(lotOrderDetail(lastLotInitDetail(i, gtin)));
-
 quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF isSend(l);
 isSend 'Отправлен' (LotInitDetail d) = quantitySendLot(d) == quantityLot(d) AND quantitySendLot(d);
 quantitySendLot 'Кол-во марок' (LotInit i) = GROUP SUM quantitySendLot(LotInitDetail d) IF lotInit(d) = i;
@@ -170,18 +165,6 @@ isSend 'Отправлен' (LotInit i) = quantitySendLot(i) == quantityLot(i) A
 markTargetProd () = '101';
 markTargetTest () = '137';
 markTarget 'Цель маркировки' () = IF testWebService() THEN markTargetTest() ELSE markTargetProd();
-
-exportCountryProd () = '100';
-exportCountryTest () = '130';
-exportCountry 'Страна экспорта' () = IF testWebService() THEN exportCountryTest() ELSE exportCountryProd();
-
-declarationReleaseDateProd () = '97';
-declarationReleaseDateTest () = '127';
-declarationReleaseDate 'Дата выпуска товаров по декларации' = IF testWebService() THEN declarationReleaseDateTest() ELSE declarationReleaseDateProd();
-
-declarationNumberProd () = '96';
-declarationNumberTest ()= '126';
-declarationNumber 'Регистрационный номер декларации на товары' = IF testWebService() THEN declarationNumberTest() ELSE declarationNumberProd();
 
 markMethodProd () = '95';
 markMethodTest () = '124';
@@ -210,6 +193,9 @@ reasonRemarkTest () = '153';
 reasonRemark 'Причина перемаркировки' = IF testWebService() THEN reasonRemarkTest() ELSE reasonRemarkProd();
 
 // разрешено формировать отчтет только по одному GTIN
+addMarkImport ABSTRACT (LotInit, STRING[14]);
+listParams = DATA LOCAL STRING();
+
 addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     lotInit() <- i;
     gtin() <- gtin;
@@ -231,8 +217,6 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     strResult() <- replace(strResult(),'\}','');
     
     // add "params"
-    LOCAL listParams = STRING ();
-    
     listParams() <- '';
     
     // !!!смотреть список параметров и коды к ним по действию getParameters
@@ -254,30 +238,8 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
             IF codeProductionType(i) THEN listParams() <- listParams() + ', \{ "code": ' + orderType() + ', "value": "' + codeProductionType(i) + '"\}'; 
             IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}';            
         }
-        WHEN mode(i) == LotInitMode.IMPORT_ THEN {            
-            listParams() <- listParams() + '  \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}'; 
-            IF codeMethod(i) THEN listParams() <- listParams() + ', \{ "code": ' + markMethod() + ', "value": "' + codeMethod(i) + '"\}'; 
-            
-            IF sidCountryDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": ' + exportCountry() + ', "value": "' + sidCountryDeclaration(i, gtin) + '"\}';
-            } ELSE {
-                MESSAGE 'Не задана страна экспорта'NOWAIT;
-            }
-            
-            IF registrationNumberDeclaration(i, gtin) THEN {
-                listParams() <- listParams() + ', \{ "code": ' + declarationNumber() + ', "value": "' + registrationNumberDeclaration(i, gtin) + '"\}';
-            } ELSE {
-                MESSAGE 'Не задан номер декларации' NOWAIT;
-            }
-            
-            IF toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN {
-                listParams() <- listParams() + ', \{ "code": ' + declarationReleaseDate() + ', "value": "' + toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') + '"\}';      
-            } ELSE {
-                MESSAGE 'Не задана дата декларации' NOWAIT;
-            }       
-
-            IF NOT sidCountryDeclaration(i, gtin) OR NOT registrationNumberDeclaration(i, gtin) OR NOT toChar(dateDeclaration(i, gtin),'YYYY-MM-DD') THEN
-                RETURN;
+        WHEN mode(i) == LotInitMode.IMPORT_ THEN {
+            addMarkImport(i, gtin);
         }
         WHEN mode(i) == LotInitMode.COMMISSION THEN {
             listParams() <- listParams() + ' \{ "code": ' + markTarget() + ', "value": "' + codeMode(i) + '"\}';
@@ -450,9 +412,4 @@ DESIGN lotInit {
             }
         }
     }   
-}
-
-
-overFill (LotInit i, LotOrder o) + {
-    declaration(i) <- declaration(GROUP MIN LotOrderDetail od IF lotOrder(od) = o AND declaration(od) IS Declaration) WHERE declaration(GROUP MIN LotOrderDetail od IF lotOrder(od) = o AND declaration(od) IS Declaration);
 }
