@@ -76,19 +76,24 @@ quantityOut 'Расход из резервуара' (Sku sku, Bin bin, DATETIME
     GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo BY sku(ledger), outBin(ledger);
 
 
-currentVolume 'Текущий объем в резервуаре, л' (Bin bin)= GROUP SUM currentVolume(Sku sku, bin);
-currentBalance 'Текущий остаток в резервуаре' (Bin bin)= GROUP SUM currentBalance(Sku sku, bin);
+currentVolume 'Текущий объем, л' (Bin bin)= GROUP SUM currentVolume(Sku sku, bin) IF isFuel(sku);
+currentBalance 'Текущий остаток, кг' (Bin bin)= GROUP SUM currentBalance(Sku sku, bin) IF isFuel(sku);
 
-currentDensity 'Текущая плотность в резервуаре, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4](currentBalance(sku,bin) / currentVolume(sku,bin));
-currentDensity 'Текущая плотность в резервуаре, кг/л' (Bin bin) = NUMERIC[8,4](currentBalance(bin) / currentVolume(bin));
+currentDensity 'Текущая плотность, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4](currentBalance(sku,bin) / currentVolume(sku,bin));
+currentDensity 'Текущая плотность, кг/л' (Bin bin) = NUMERIC[8,4](currentBalance(bin) / currentVolume(bin));
 
-volumeB 'Объем в резервуаре (до), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeB(Sku sku, bin, dateTime);
-balanceB 'Остаток в резервуаре (до)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceB(Sku sku, bin, dateTime);
-densityB 'Плотность в резервуаре (до), кг/л' (Bin bin, DATETIME dateTime) = NUMERIC[8,4](balanceB(bin,dateTime) / volumeB(bin,dateTime));
+volumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeB(Sku sku, bin, dateTime) IF isFuel(sku);
+prevVolumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = PREV(volumeB(bin, dateTime));
 
-volumeA 'Объем в резервуаре (после), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeA(Sku sku, bin, dateTime);
-balanceA 'Остаток в резервуаре (после)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceA(Sku sku, bin, dateTime);
-densityA 'Плотность в резервуаре (после), кг/л' (Bin bin, DATETIME dateTime) = NUMERIC[8,4](balanceA(bin,dateTime) / volumeA(bin,dateTime));
+balanceB 'Остаток (до), кг' (Bin bin, DATETIME dateTime) = GROUP SUM balanceB(Sku sku, bin, dateTime) IF isFuel(sku);
+prevBalanceB 'Остаток (до), кг' (Bin bin, DATETIME dateTime) = PREV(balanceB(bin, dateTime));
+
+densityB 'Плотность (до), кг/л' (Bin bin, DATETIME dateTime) = NUMERIC[8,4](balanceB(bin,dateTime) / volumeB(bin,dateTime));
+prevDensityB 'Плотность (до), кг/л' (Bin bin, DATETIME dateTime) = NUMERIC[8,4](prevBalanceB(bin,dateTime) / prevVolumeB(bin,dateTime));
+
+volumeA 'Объем (после), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeA(Sku sku, bin, dateTime) IF isFuel(sku);
+balanceA 'Остаток (после), кг' (Bin bin, DATETIME dateTime) = GROUP SUM balanceA(Sku sku, bin, dateTime) IF isFuel(sku);
+densityA 'Плотность (после), кг/л' (Bin bin, DATETIME dateTime) = NUMERIC[8,4](balanceA(bin,dateTime) / volumeA(bin,dateTime));
 
 EXTEND FORM binLedger
     PROPERTIES(b) READONLY volume AFTER quantity(b)
@@ -109,6 +114,10 @@ EXTEND FORM binBalance
     PROPERTIES(s,b) READONLY currentVolume, currentDensity
     PROPERTIES(b,l) READONLY balanceVolume
     PROPERTIES(l) READONLY density
+;
+
+EXTEND FORM dialogBinStock
+    PROPERTIES(b) READONLY volume, currentVolume, currentDensity
 ;
 
 EXTEND FORM currentBalanceSkuStock

@@ -7,31 +7,31 @@ NAMESPACE Purchase;
 volume[BinLedger] (ShipmentBinLedger ledger) += volume(shipmentDetail(ledger));
 density[BinLedger] (ShipmentBinLedger ledger) += density(shipmentDetail(ledger));
 
-volumeInBin 'Объем резервуара (в)' (UserInvoiceDetail invoiceDetail) = volume(inBin(invoiceDetail));
-volumeAInBin 'Объем в резервуарe (в) (после), л' (UserInvoiceDetail invoiceDetail) = volumeA(inBin(invoiceDetail), shipmentDateTime(invoiceDetail));
+volumeInBin 'Объем резервуара' (UserInvoiceDetail invoiceDetail) = volume(inBin(invoiceDetail));
+volumeBInBin 'Объем в резервуарe (до), л' (UserInvoiceDetail invoiceDetail) = prevVolumeB(inBin(invoiceDetail), shipmentDateTime(invoiceDetail));
 
 backgroundDiffValueBin (UserInvoiceDetail d) = CASE
-    WHEN volumeAInBin(d) > volumeInBin(d) THEN overColorValueBin()
-    WHEN (GROUP SUM 1 IF volumeA(Sku sku, inBin(d), shipmentDateTime(d))) > 1 THEN overColorValueBin()
+    WHEN volumeBInBin(d) (+) shipmentVolume(d) > volumeInBin(d) THEN overColorValueBin()
+    WHEN volumeBInBin(d) AND NOT prevVolumeB(sku(d), inBin(d), shipmentDateTime(d)) THEN overColorValueBin()
     ELSE backgroundShipped(d);
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) READONLY AFTER nameInBin(d) volumeInBin BACKGROUND backgroundShipped(d), volumeAInBin BACKGROUND backgroundDiffValueBin(d)
+    PROPERTIES(d) READONLY AFTER nameInBin(d) volumeInBin BACKGROUND backgroundShipped(d), volumeBInBin BACKGROUND backgroundDiffValueBin(d)
 ;
 
 WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
-      AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND volumeAInBin(d) > volumeInBin(d) DO {
+      AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND volumeBInBin(d) (+) shipmentVolume(d) > volumeInBin(d) DO {
     MESSAGE 'Внимание! Объем резервуара ' + nameInBin(d) + ' превышен!' NOWAIT;
 }
-WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)))
-      AND isPosted(d) AND createShipment(d) AND inBin(d) AND isFuel(sku(d)) AND (GROUP SUM 1 IF volumeA(Sku sku, inBin(d), shipmentDateTime(d))) > 1 DO {
+WHEN (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(inBin(d)) OR CHANGED(shipmentDateTime(d)) OR CHANGED(shipmentVolume(d)) OR CHANGED(sku(d)))
+      AND isPosted(d) AND createShipment(d) AND volumeBInBin(d) AND isFuel(sku(d)) AND NOT prevVolumeB(sku(d), inBin(d), shipmentDateTime(d)) DO {
     MESSAGE 'Внимание! В резервуар ' + nameInBin(d) + ' залито несколько видов топлива!' NOWAIT;
 }
 
-densityBInBin 'Текущая плотность в резервуаре (в) (до), кг/л' (UserInvoiceDetail invoiceDetail) = densityB(inBin(invoiceDetail), dateTime(invoiceDetail));
+densityBInBin 'Плотность в резервуаре (до), кг/л' (UserInvoiceDetail invoiceDetail) = prevDensityB(inBin(invoiceDetail), dateTime(invoiceDetail));
 
-overBackgroundDensity(UserInvoiceDetail d) += WHEN abs(density(d) (-) densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
-overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN abs(density(d) (-) densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
+overBackgroundDensity(UserInvoiceDetail d) += WHEN abs(density(d) - densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
+overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN abs(density(d) - densityBInBin(d)) > (OVERRIDE invoiceDensityDeviation(), 0.0) THEN RGB(255,154,154);
 
 EXTEND FORM userInvoice
     PROPERTIES(d) READONLY AFTER nameInBin(d) densityBInBin BACKGROUND backgroundShipped(i)
@@ -46,16 +46,16 @@ DESIGN operation {
 DESIGN userInvoice {
     headerBins { caption = 'Резервуары'; }
     PROPERTY(useBins(i)) { caption = 'Резервуары'; }
-    PROPERTY(nameInBin(i)) { caption = 'Резервуар (в)'; }
-    PROPERTY(nameOutBin(i)) { caption = 'Резервуар (из)'; }
-    PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
-    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    REMOVE PROPERTY(nameInBin(i)); // { caption = 'Резервуар (в)'; }
+    REMOVE PROPERTY(nameOutBin(i)); // { caption = 'Резервуар (из)'; }
+    PROPERTY(nameInBin(d)) { caption = 'Резервуар'; }
+    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; hide = TRUE;}
 }
 DESIGN invoices {
-    PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
-    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(nameInBin(d)) { caption = 'Резервуар'; }
+    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; hide = TRUE;}
 }
 DESIGN invoiceDetails {
-    PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
-    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(nameInBin(d)) { caption = 'Резервуар'; }
+    PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; hide = TRUE;}
 }
