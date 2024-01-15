@@ -131,11 +131,13 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     JSONObject fileObject = files.getJSONObject(i);
                     Integer dataType = fileObject.getInt("id");
                     String base64 = fileObject.getString("file");
+                    String str = new String(Base64.decodeBase64(base64),StandardCharsets.UTF_8);//если не указать кодировку, то некорректно устанавливается кодировка при выгрузке из собранной jar
+                    str = str.replace("{npp}", String.valueOf(scales.number));
                     File extraFile = null;
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
                         try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), "cp1251"))) {
-                            bw.write(new String(Base64.decodeBase64(base64),StandardCharsets.UTF_8)); //если не указать кодировку, то некорректно устанавливается кодировка при выгрузке из собранной jar
+                            bw.write(str);
                         }
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
