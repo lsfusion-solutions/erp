@@ -47,13 +47,13 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String idItem, String barcodeItem,
                                    List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
-                                   boolean brandIsManufacturer, boolean seasonIsCountry, JSONObject infoJSON) {
+                                   boolean brandIsManufacturer, boolean seasonIsCountry, boolean minusOneForEmptyVAT, JSONObject infoJSON) {
 
         setAttribute(good, "marking-of-the-good", idItem);
 
         addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
-        addVATElement(good, item);
+        addVATElement(good, item, minusOneForEmptyVAT);
 
         addStringElement(good, "delete-from-cash", "false");
 
@@ -144,7 +144,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     protected void addStopListItems(Element parent, StopListInfo stopListInfo,
                                     boolean useShopIndices, boolean idItemInMarkingOfTheGood,
                                     boolean skipWeightPrefix, List<String> tobaccoGroups,
-                                    boolean useNumberGroupInShopIndices, boolean useSectionAsDepartNumber) {
+                                    boolean useNumberGroupInShopIndices, boolean useSectionAsDepartNumber,
+                                    boolean minusOneForEmptyVAT) {
         for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
             String idBarcode = entry.getKey();
             ItemInfo item = entry.getValue();
@@ -206,7 +207,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             addStringElement(measureType, "name", item.shortNameUOM);
             good.addContent(measureType);
 
-            addVATElement(good, item);
+            addVATElement(good, item, minusOneForEmptyVAT);
 
             //parent: good
             Element group = new Element("group");
@@ -341,8 +342,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             parent.addContent(new Element(id).setText(value));
     }
 
-    protected static void addVATElement(Element good, ItemInfo item) {
-        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "0" : String.valueOf(item.vat.intValue()));
+    protected static void addVATElement(Element good, ItemInfo item, boolean minusOneForEmptyVAT) {
+        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? (minusOneForEmptyVAT ? "-1" : "0") : String.valueOf(item.vat.intValue()));
     }
 
     protected static void addPluginPropertyElement(Element parent, String key, Object value) {

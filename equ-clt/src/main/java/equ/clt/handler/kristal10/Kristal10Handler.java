@@ -84,6 +84,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 String sftpPath = kristalSettings.getSftpPath();
                 List<String> sftpDepartmentStoresList = kristalSettings.getSftpDepartmentStoresList();
                 boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
+                boolean minusOneForEmptyVAT = kristalSettings.isMinusOneForEmptyVAT();
 
                 List<String> directoriesList = new ArrayList<>();
                 for (CashRegisterInfo cashRegisterInfo : transaction.machineryInfoList) {
@@ -128,7 +129,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         Element good = new Element("good");
                         rootElement.addContent(good);
                         fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                                brandIsManufacturer, seasonIsCountry, infoJSON);
+                                brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, infoJSON);
 
                         //parent: good
                         Element barcode = getBarcodeElement(item, barcodeItem, exportAmountForBarcode);
@@ -428,6 +429,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
         boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
         boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+        boolean minusOneForEmptyVAT = kristalSettings.isMinusOneForEmptyVAT();
 
         for (String directory : directorySet) {
             processStopListLogger.info(getLogPrefix() + " start sending to " + directory);
@@ -455,7 +457,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
             if (!stopListInfo.exclude) {
                 processStopListLogger.info(getLogPrefix() + " found " + stopListInfo.stopListItemMap.size() + " items");
                 addStopListItems(rootElement, stopListInfo, useShopIndices, idItemInMarkingOfTheGood, skipWeightPrefix,
-                        tobaccoGroups, useNumberGroupInShopIndices, useSectionAsDepartNumber);
+                        tobaccoGroups, useNumberGroupInShopIndices, useSectionAsDepartNumber, minusOneForEmptyVAT);
 
                 if (!stopListInfo.stopListItemMap.isEmpty()) {
                     File file = makeExportFile(exchangeDirectory, "catalog-goods_stoplist");

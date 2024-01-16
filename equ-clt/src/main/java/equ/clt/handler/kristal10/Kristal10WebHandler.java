@@ -119,6 +119,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
         boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
         boolean exportAmountForBarcode = kristalSettings.isExportAmountForBarcode();
+        boolean minusOneForEmptyVAT = kristalSettings.isMinusOneForEmptyVAT();
 
         boolean extendedLogs = kristalSettings.isExtendedLogs();
 
@@ -147,7 +148,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         List<String> xmlList = new ArrayList<>();
                         xmlList.addAll(generateCatalogGoodsItemsXML(transaction, brandIsManufacturer, seasonIsCountry, idItemInMarkingOfTheGood, skipWeightPrefix,
                                 skipScalesInfo, useShopIndices, weightShopIndices, tobaccoGroups, useNumberGroupInShopIndices, deleteBarcodeDirectoryMap.get(directory),
-                                usedDeleteBarcodes, notGTINPrefixes, exportAmountForBarcode));
+                                usedDeleteBarcodes, notGTINPrefixes, exportAmountForBarcode, minusOneForEmptyVAT));
                         xmlList.addAll(generateCatalogGoodsPricesXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useSectionAsDepartNumber, useShopIndices,
                                 weightShopIndices, useNumberGroupInShopIndices));
                         xmlList.addAll(generateCatalogGoodsRestrictionsXML(transaction, idItemInMarkingOfTheGood, skipWeightPrefix, useShopIndices, skipUseShopIndicesMinPrice,
@@ -223,7 +224,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private List<String> generateCatalogGoodsItemsXML(TransactionCashRegisterInfo transaction, boolean brandIsManufacturer, boolean seasonIsCountry,
                                                   boolean idItemInMarkingOfTheGood, boolean skipWeightPrefix, boolean skipScalesInfo, boolean useShopIndices,
                                                   String weightShopIndices, List<String> tobaccoGroups, boolean useNumberGroupInShopIndices,
-                                                  Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes, boolean exportAmountForBarcode) {
+                                                  Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes,
+                                                  boolean exportAmountForBarcode, boolean minusOneForEmptyVAT) {
         processTransactionLogger.info(getLogPrefix() + "creating catalog-goods file with items and barcodes (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
 
         List<String> xmlList = new ArrayList<>();
@@ -244,7 +246,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             Element good = new Element("good");
             rootElement.addContent(good);
             fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                    brandIsManufacturer, seasonIsCountry, infoJSON);
+                    brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, infoJSON);
 
             Element barcode = getBarcodeElement(item, barcodeItem, exportAmountForBarcode);
             good.addContent(barcode);
@@ -447,6 +449,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings.getTobaccoGroup());
         boolean useNumberGroupInShopIndices = kristalSettings.useNumberGroupInShopIndices();
         boolean useSectionAsDepartNumber = kristalSettings.useSectionAsDepartNumber();
+        boolean minusOneForEmptyVAT = kristalSettings.isMinusOneForEmptyVAT();
 
         if (stopListInfo.dateFrom == null || stopListInfo.timeFrom == null) {
             String error = getLogPrefix() + "Error! Start DateTime not specified for stopList " + stopListInfo.number;
@@ -463,7 +466,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         Document doc = new Document(rootElement);
 
         addStopListItems(rootElement, stopListInfo, useShopIndices, idItemInMarkingOfTheGood, skipWeightPrefix,
-                tobaccoGroups, useNumberGroupInShopIndices, useSectionAsDepartNumber);
+                tobaccoGroups, useNumberGroupInShopIndices, useSectionAsDepartNumber, minusOneForEmptyVAT);
         return doc;
     }
 

@@ -128,6 +128,8 @@ public class Kristal10Settings implements Serializable{
     //если true, то включается расширенное логирование (может быстро забивать файлы лога)
     private boolean extendedLogs;
 
+    private boolean minusOneForEmptyVAT;
+
     public Kristal10Settings() {
     }
 
@@ -407,5 +409,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setExtendedLogs(boolean extendedLogs) {
         this.extendedLogs = extendedLogs;
+    }
+
+    public boolean isMinusOneForEmptyVAT() {
+        return minusOneForEmptyVAT;
+    }
+
+    public void setMinusOneForEmptyVAT(boolean minusOneForEmptyVAT) {
+        this.minusOneForEmptyVAT = minusOneForEmptyVAT;
     }
 }
