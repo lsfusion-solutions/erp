@@ -173,6 +173,7 @@ DESIGN BOM {
 overCopy(BOM from, BOM to)+{
     value (OLProperty o, to)<- value(o,from);
     value (FXProperty o, to)<- value(o,from);
+    cookingSemisInstruction(to)<- cookingSemisInstruction(from);
 }
 
 calcNetEnergyGramsQuantityD 'Энергетическая ценность, кДж' (Product p, DATE d) = round0(calcNetEnergyGramsQuantity(p, d) * 4.184);
@@ -304,7 +305,7 @@ carbohydratesItem 'Углеводы 100г, г (товар)' (Product p) = IF ful
 proteinsItem 'Белки 100г, г (товар)' (Product p) = IF fullEnergy(p) THEN proteins(p) ELSE proteins(sku(p));
 energyItem 'Энерг.ценность на 100г, ккал (товар)' (Product p) = IF fullEnergy(p) THEN energy(p) ELSE energy(sku(p));
 
-maxProduct = GROUP MAX Product p BY BOM(p);
+maxProduct = GROUP MAX Product p BY BOM(p) MATERIALIZED;
 ////////// ценность новая. Если есть из рецепта, иначе из карточки товара
 fatsItem 'Жиры 100г, г (товар)' (BOM p) = fatsItem(maxProduct(p));
 carbohydratesItem 'Углеводы 100г, г (товар)' (BOM p) = carbohydratesItem(maxProduct(p));
@@ -395,6 +396,11 @@ shortNameResponsiblePerson 'Ответсвенное лицо' (BOM b) = shortNa
 dateApprover 'Дата утверждения' = DATA DATE (BOM);
 dateApproverOver 'Дата утверждения' (BOM b) = OVERRIDE  dateApprover(b), currentDate() IF b IS BOM;
 
+overCopy(BOM from, BOM to)+{
+    approver(to)<- approver(from);
+    dateApprover(to)<- dateApprover(from);
+}
+
 EXTEND FORM BOM
     PROPERTIES (b) nameApprover, dateApprover, shortNameResponsiblePerson HEADER 'Разаработал ТК'
 ;
@@ -442,6 +448,94 @@ DESIGN BOM{
     REMOVE PROPERTY(numberStateStandart(b));
 }
 
+image = DATA IMAGEFILE (Product);
+loadImage 'Загрузить изображение ' (Product p)  { INPUT =image(p) CHANGE; }
+openImage 'Открыть изображение ' (Product p)  { open(image(p)); }
+nullImage 'Сбросить'(Product p)  {
+    image(p) <- NULL;
+} ASON CONTEXTMENU image[Product];
+fillItemImage 'Загрузить из карточки'(Product p) {
+    image(p) <- image(sku(p));
+}
+
+EXTEND FORM BOM
+    PROPERTIES (p) PANEL image, loadImage, fillItemImage
+;
+DESIGN BOM{
+    instruction{
+        NEW itemImage {
+            caption = 'Изображение';
+            MOVE PROPERTY(image(p)) {
+                caption = '';
+                fill = 1;
+            }
+            NEW paramsImage{
+                horizontal = TRUE;
+                MOVE PROPERTY(loadImage(p));
+                MOVE PROPERTY(fillItemImage(p));                
+            }
+
+        }
+    }
+}
+
+CLASS PreparationRow 'Пошаговое приготовлениие';
+TABLE preparationRow(PreparationRow);
+
+BOM = DATA BOM(PreparationRow) NONULL DELETE INDEXED;
+@defineDocumentDetailIndex(BOM, PreparationRow);
+
+image 'Фотография' = DATA IMAGEFILE (PreparationRow);
+
+loadImage 'Загрузить фото' (PreparationRow p)  { INPUT =image(p) CHANGE; }
+nullImage 'Сбросить фото'(PreparationRow p)  {
+    image(p) <- NULL;
+} ASON CONTEXTMENU image[PreparationRow];
+
+description 'Описание техпроцесса' = DATA TEXT (PreparationRow);
+
+FORM printPreparationRow 'Пошаговое приготовлениие'
+    OBJECTS b = BOM PANEL
+    PROPERTIES (b) name, seriesNumber, series, number
+    OBJECTS pr = PreparationRow
+    PROPERTIES (pr) index, image, description
+    ORDERS index(pr)
+    FILTERS BOM(pr)==b
+;
+
+printPreparationRow 'Печать' (BOM b){
+    PRINT printPreparationRow OBJECTS  b = b;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM BOM
+    OBJECTS  pr = PreparationRow
+    
+    PROPERTIES (pr) index, image, description
+    //PROPERTIES (pr) nullImage GRID 
+    PROPERTIES (pr) NEW, DELETE 
+    PROPERTIES (b) printPreparationRow TOOLBAR DRAW pr
+    FILTERS BOM(pr)==b
+;
+DESIGN BOM{
+    instruction{
+        MOVE BOX(pr) AFTER cookingSemisInstruction {
+            //caption = 'Пошаговое приготовление';
+            PROPERTY (index(pr)) {charHeight = 5; fill=1;}
+            PROPERTY (image(pr)){fill=10;}
+            PROPERTY (description(pr)){fill=10;}
+        }
+    }
+}
+EXTEND FORM BOMs
+    PROPERTIES (b) printPreparationRow HEADER 'Пошаговое приготовлениие'
+;
+overCopy(BOM from, BOM to)+{
+    FOR BOM(PreparationRow r) == from ORDER index(r), r DO NEW p = PreparationRow {
+        BOM(p) <- to;
+        image(p)<- image(r);
+        description(p)<- description(r);
+    }
+}
 FORM technologicalMapBakery 'Технологическая карта'
 
     OBJECTS dt=DATE PANEL
@@ -692,6 +786,8 @@ DESIGN BOM{
     REMOVE PROPERTY (nameResponsiblePerson(b));
 }
 
+image(BOM b) = image(maxProduct(b));
+
 FORM technologicalMapBakeryGG 'Технологическая карта (кулинария) '
     OBJECTS dt=DATE PANEL
     PROPERTIES (dt) date = VALUE
@@ -700,7 +796,8 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
     PROPERTIES(b)  READONLY nameCompany, shortNameOwnershipCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
         overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
         nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
-        nameApprover, dateApproverOver, namePositionApprover, shortNameResponsiblePerson
+        nameApprover, dateApproverOver, namePositionApprover, shortNameResponsiblePerson,
+        image
     PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
 
     OBJECTS p = Product

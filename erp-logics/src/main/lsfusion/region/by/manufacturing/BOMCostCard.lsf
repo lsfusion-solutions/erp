@@ -1,0 +1,171 @@
+MODULE BOMCostCard;
+
+REQUIRE BOMBakeryCard, Substitute;
+
+NAMESPACE  BOM;
+
+priceStock = DATA Stock (BOM);
+namePriceStock 'Склад цены' (BOM b) = name(priceStock(b));
+
+CONSTRAINT SETCHANGED (priceStock(BOM b)) AND NOT isCompany(priceStock(b))
+    MESSAGE 'Склад цены должен принадлежать компании';
+
+priceDate 'Дата цены' = DATA DATE (BOM);
+WHEN LOCAL SET( BOM b IS BOM) AND NOT CHANGED (priceDate(b)) DO {
+    priceDate(b) <- currentDate();  
+}
+priceDate 'Дата цены' (Component c) = priceDate(BOM(c));
+
+priceListType = DATA  PriceListType(BOM);
+namePriceListType 'Вид цены (с/с компонентов)' (BOM b) = name(priceListType(b));
+
+overCopy(BOM from, BOM to)+{
+    priceStock(to) <- priceStock(from);
+    priceListType(to) <- priceListType(from);
+}
+
+price 'Цена' = DATA NUMERIC[16,4](Component);
+sum 'Сумма' = DATA NUMERIC[18,5](Component);
+
+bruttoQuantityPriceDate 'Кол-во (брутто) с уч. тех-ий' (Component c) = bruttoQuantity(c, priceDate(c));
+
+sum (Component p)  <- round2(price(p)*bruttoQuantityPriceDate(p))
+    WHEN CHANGED(price(p)) OR CHANGED (bruttoQuantityPriceDate(p));
+
+GROUP total 'Итоги';
+sumComponent 'Общая стоимость сырьевого набора, руб.'  = GROUP SUM sum(Component c) BY BOM(c) MATERIALIZED;
+sumComponent 'Общая стоимость сырьевого набора, руб.' (Product p) = sumComponent(BOM(p)) IN total;
+priceComponent 'Стоимость одной порции, руб.' (Product p) = round2(sumComponent(BOM(p))/quantity(p)) IN total;
+overNettoNetWeightGr 'Выход в готовом виде, грамм' (Product p) = round0(overNettoNetWeight(p)*1000) IN total;
+
+price 'Продажная цена (основная цена), руб.' = DATA NUMERIC[16,4](Product) IN total;
+prevPrice (Product p) = PREV(price(p));
+markup 'Процент наценки, %' = DATA NUMERIC[16,5](Product) IN total;
+markupPrice 'Сумма наценки, руб.' (Product p) =  price(p) - priceComponent(p) IN total;
+calcMarkup (Product p) = NUMERIC[16,5]([ (min(((X/Z)-1)*100,99999))](price(p),priceComponent(p)));
+calcPrice (Product p) = NUMERIC[16,4](round2(NUMERIC[16,4]([ X*(Y+100)/100](priceComponent(p),markup(p)))));
+
+changePrice(Product p) {
+    INPUT n = NUMERIC[16,4] DO{
+        price(p) <- n;
+        markup(p)<- calcMarkup(p);
+    }
+}
+
+changeMarkup(Product p) {
+    INPUT n = NUMERIC[16,5] DO{        
+        markup(p)<- n;
+        price(p) <- calcPrice(p);
+    }
+}
+
+changeMarkupPrice(Product p) {
+    INPUT n = NUMERIC[16,4] DO {       
+        price(p) <- (priceComponent(p)+n);
+        markup(p)<- calcMarkup(p);
+    }
+}
+
+FORM showBomCalculation 'Калькуляция'
+    OBJECTS b=BOM PANEL 
+    OBJECTS p = Product PANEL     
+    PROPERTIES (b) READONLY  name
+    
+    OBJECTS ct = Component
+    PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial, shortNameUOM, bruttoQuantityPriceDate, price, sum
+    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
+                    markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
+    
+    FILTERS maxProduct(b)==p
+    FILTERS BOM(ct)==b
+;
+DESIGN showBomCalculation {
+    size = (800, 600);
+    OBJECTS {
+        NEW calcBox{
+            fill = 1;
+            caption = 'Калькуляция';
+            horizontal = TRUE;
+            MOVE BOX(ct){fill = 4;}
+            MOVE GROUP (total,p){
+                lines = 1;
+            }
+        }  
+    }
+}
+
+showCalculation 'Показать калькуляцию' (Component c) {
+    IF isProduct(c) THEN {
+        NEWSESSION  SHOW showBomCalculation OBJECTS b = BOM(material(c)) READONLY;
+    } ELSE{
+        MESSAGE 'Данный компонент не является полуфабрикатом' NOWAIT;
+    }
+}
+
+changePrice(Component p) {
+    INPUT n = NUMERIC[16,4] DO{
+        price(p) <- n;
+        markup(maxProduct(BOM(p)))<- calcMarkup(maxProduct(BOM(p)));
+    }
+}
+
+EXTEND FORM BOM
+    PROPERTIES (b) namePriceStock, priceDate, namePriceListType
+    OBJECTS ct=Component
+    PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial ON CONTEXTMENU showCalculation(ct), 
+                    shortNameUOM, bruttoQuantityPriceDate, price CHANGEABLE ON CHANGE changePrice(ct), sum
+    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
+                    markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
+    FILTERS BOM(ct)==b
+;
+DESIGN BOM{
+    specificationBox {
+        NEW calcBox{
+            fill = 1;
+            caption = 'Калькуляция';
+            NEW calcBoxPanel{
+                horizontal = TRUE;   
+                MOVE PROPERTY (namePriceStock(b));
+                MOVE PROPERTY (priceDate(b));
+                MOVE PROPERTY (namePriceListType(b));
+            }
+            NEW calcBoxHeader{
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(ct){fill = 4;}
+                MOVE GROUP (total,p){
+                    lines = 1;
+                }
+            }            
+
+        }
+    }  
+}
+
+fillPrice 'Заполнить цены' (BOM b) {
+    IF NOT priceDate(b) THEN {
+        MESSAGE 'Не задана дата для цены' NOWAIT;
+        RETURN;
+    }
+    IF NOT priceStock(b) THEN {
+        MESSAGE 'Не задана склад для цены' NOWAIT;
+        RETURN;
+    }
+    IF NOT priceListType(b) THEN {
+        MESSAGE 'Не задан вид цены (с/с компонентов)' NOWAIT;
+        RETURN;
+    }
+    FOR BOM(Component c)==b AND isProduct(c) DO{
+        price(c)<- prevPrice(material(c));
+    }
+    LOCAL to = BOOLEAN (Sku);
+    to(Sku s) <- TRUE WHERE (GROUP SUM 1 IF sku(Component c)==s AND BOM(c)==b AND NOT isProduct(c));
+    
+    LOCAL price = NUMERIC[16,4](Substitute);
+    price(Substitute s)<- NUMERIC[16,4](prevPriceA(priceListType(b),toSku(s),priceStock(b), DATETIME(priceDate(b)))/multiplier(s)) WHERE to(fromSku(s));
+    price(Component c) <- [GROUP MAX price(Substitute s) BY fromSku(s)](sku(c)) WHERE BOM(c)==b AND NOT isProduct(c);
+}
+
+EXTEND FORM BOM
+    PROPERTIES (b) fillPrice TOOLBAR DRAW ct
+;
