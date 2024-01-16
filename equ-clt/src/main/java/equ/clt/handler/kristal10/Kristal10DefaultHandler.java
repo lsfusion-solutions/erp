@@ -343,7 +343,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     }
 
     protected static void addVATElement(Element good, ItemInfo item, boolean minusOneForEmptyVAT) {
-        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? (minusOneForEmptyVAT ? "-1" : "0") : String.valueOf(item.vat.intValue()));
+        addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? (minusOneForEmptyVAT ? "-1" : "20") : String.valueOf(item.vat.intValue()));
     }
 
     protected static void addPluginPropertyElement(Element parent, String key, Object value) {
