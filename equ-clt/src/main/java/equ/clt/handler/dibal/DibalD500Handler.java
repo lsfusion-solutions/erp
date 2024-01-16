@@ -227,7 +227,7 @@ public class DibalD500Handler extends MultithreadScalesHandler {
         bytes.put(getBytes("00"));
 
         //ean 13 format, 2 bytes
-        bytes.put(getBytes("00"));
+        bytes.put(getBytes(isWeight(item, 0) ? "00" : "01"));
 
         //ean 128 format, 2 bytes
         bytes.put(getBytes("00"));
