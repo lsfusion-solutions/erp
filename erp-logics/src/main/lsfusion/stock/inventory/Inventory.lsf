@@ -2336,8 +2336,10 @@ lastOrderNotExcludeBatchB(Inventory inventory, sku, Stock stock, DATETIME dateTi
               WHERE prevDateTime(batch, stock) < dateTimeIn AND prevCountLedger(batch, stock, dateTimeIn) AND NOT excludeBatch(inventory, batch)
               BY prevSkuLedger(batch, stock);                 
 
+skipFillPartitionQuantity = ABSTRACT BOOLEAN (CollationSheet);
+
 overRecalculateBalance(Inventory inventory) + { 
-    FOR inventory(CollationSheet cs) = inventory AND Stock st = stock(cs) AND DATETIME dt = dateTime(cs) NOINLINE DO {
+    FOR inventory(CollationSheet cs) = inventory AND Stock st = stock(cs) AND DATETIME dt = dateTime(cs) AND NOT skipFillPartitionQuantity(cs) NOINLINE DO {
         IF isSkuBatch(cs) THEN {
             
             partitionQuantity(cs, Batch bt) <- NULL WHERE partitionQuantity(cs, bt) AND (NOT calcPartitionQuantity(cs, bt) OR excludeBatch(inventory,bt));
