@@ -52,8 +52,10 @@ sku[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += sku(ledger);
 stock[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += departmentStore(ledger);
 description[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += STRING[200]('Продажа за день')IF ledger IS ReceiptSaleSkuLedger;
 
+overSkip = ABSTRACT BOOLEAN (ReceiptSaleSkuLedger);
+
 skip[SkuLedger] (ReceiptSaleSkuLedger ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger)) OR
-                           skuType(sku(ledger)) == SkuType.skuTypeCharge;
+                           skuType(sku(ledger)) == SkuType.skuTypeCharge OR overSkip(ledger);
 
 quantity[OutFIFOSkuLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 
@@ -114,8 +116,10 @@ sku[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += sku(ledger);
 stock[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += departmentStore(ledger);
 description[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += STRING[200]('Возврат за день')IF ledger IS ReceiptReturnSkuLedger;
 
+overSkip = ABSTRACT BOOLEAN (ReceiptReturnSkuLedger);
+
 skip[SkuLedger] (ReceiptReturnSkuLedger ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger)) OR
-                            skuType(sku(ledger)) == SkuType.skuTypeCharge;
+                            skuType(sku(ledger)) == SkuType.skuTypeCharge OR overSkip(ledger);
 
 quantity[InLIFOSkuLedger] (ReceiptReturnSkuLedger ledger) += NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 
