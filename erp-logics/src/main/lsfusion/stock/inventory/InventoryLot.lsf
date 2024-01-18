@@ -17,9 +17,16 @@ isPosted '{document.posted}' (PageInventoryDetail d) = isPosted(inventory(listIn
 
 quantityLot 'Кол-во марок' (ListInventory i) = GROUP SUM quantityLot(PageInventory d) IF listInventory(d) = i MATERIALIZED;
 
+useOverChangeQuantityLot = ABSTRACT BOOLEAN (PageInventoryDetail);
+overChangeQuantityLot ABSTRACT LIST (PageInventoryDetail);
+
 changeQuantityLot (PageInventoryDetail d) {
-    quantity(Lot l) <- quantity(d, l);
-    SHOW dialogInLots;    
+    IF useOverChangeQuantityLot(d) THEN
+        overChangeQuantityLot(d);
+    ELSE {
+        quantity(Lot l) <- quantity(d, l);
+        SHOW dialogInLots;
+    }
 }
 
 EXTEND FORM listInventory
