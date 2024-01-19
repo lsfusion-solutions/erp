@@ -17,6 +17,13 @@ countDisassembly (Stock st, CustomUser cu) = GROUP SUM 1 IF inProcess(Disassembl
 dsku = DATA LOCAL NESTED Sku ();
 nameSku 'Микс' = name(dsku()) CHARWIDTH 10;
 
+iweight 'Вес' = DATA LOCAL NUMERIC[11,5] ();
+
+isku = DATA LOCAL Sku ();
+inameSku 'Товар' () = name(isku()) CHARWIDTH 15;
+
+iprice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
+
 postLotDashboard (Disassembly a) {
     date(a) <- currentDate();
     time(a) <- currentTime();
@@ -109,6 +116,8 @@ changeNameSku (Stock st) {
 balanceMix 'Остаток микса' (Stock st) = IF split(dsku()) THEN currentBalance(dsku(), st) (-) weightDisassemblyLot(disassembly(st, currentUser(), dsku()))
                                                     ELSE currentBalance(dsku(), st) (-) countDisassemblyLot(disassembly(st, currentUser(), dsku()));
 
+balanceMixCurrent 'Остаток микса' (Stock st) = balanceMix(st) (-) (IF split(dsku()) THEN iweight() ELSE 1);
+
 FORM disassemblyLotDashboard 'Разукомплектация'
     PROPERTIES NEWSESSION userComputerSettings()
 
@@ -196,13 +205,6 @@ DESIGN item {
         MOVE GROUP(itemLotDashboard,i) { lines = 3; }
     }
 }
-
-iweight 'Вес' = DATA LOCAL NUMERIC[11,5] ();
-
-isku = DATA LOCAL Sku ();
-inameSku 'Товар' () = name(isku()) CHARWIDTH 15;
-
-iprice 'Цена' = DATA LOCAL NUMERIC[16,4] ();
 
 // image
 iimage 'Изображение' = DATA LOCAL NESTED IMAGEFILE ();
