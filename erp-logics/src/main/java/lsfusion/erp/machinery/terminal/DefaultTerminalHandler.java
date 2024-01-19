@@ -377,6 +377,13 @@ public class DefaultTerminalHandler {
                                 }
                             }
 
+                            FileData licFile = (FileData) terminalHandlerLM.findProperty("licFile[]").read(session);
+                            if (licFile != null) {
+                                try (InputStream is = licFile.getRawFile().getInputStream()) {
+                                    writeInputStreamToZip(is, zos, "lic");
+                                }
+                            }
+
                         }
                         return new RawFileData(zipFile);
                     } finally {
