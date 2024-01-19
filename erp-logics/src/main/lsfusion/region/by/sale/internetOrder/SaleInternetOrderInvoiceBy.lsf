@@ -1,0 +1,86 @@
+MODULE SaleInternetOrderInvoiceBy;
+
+REQUIRE SaleInternetOrderInvoice, WarehouseConsignmentBy;
+
+NAMESPACE Sale;
+
+EXTEND FORM  deliveryDashboard
+    PROPERTIES(i)  editAttributes
+    PROPERTIES(i) SHOWIF showTTN1(i) READONLYIF banPrint(i)
+    printVerticalA, printVerticalAB, printHorizontalA,
+        printVerticalB, printHorizontalB, printAttach, printVerticalABAttach,
+        printVertical, printHorizontal, printHorizontalAB, printAttachXLS, printSimpleAttachXLS,
+        printVerticalAttach, printHorizontalAttach
+    PROPERTIES(i) SHOWIF showTN2(i) READONLYIF banPrint(i)
+    printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
+;
+
+DESIGN deliveryDashboard {
+    PANEL(i) {
+        NEW consignmentRow1 {
+            align = START;
+            horizontal = TRUE;
+
+            NEW contOne {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(i));
+                MOVE PROPERTY(printSimpleHorizontal(i));
+                MOVE PROPERTY(printSimpleAttach(i));
+                MOVE PROPERTY(printSimpleVerticalAttach(i));
+                MOVE PROPERTY(printSimpleHorizontalAttach(i));
+            }
+        }
+        NEW consignmentRow2 {
+            align = START;
+            lines = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(i));
+            MOVE PROPERTY(printVerticalAB(i));
+            MOVE PROPERTY(printHorizontalA(i));
+            MOVE PROPERTY(printVerticalB(i));
+            MOVE PROPERTY(printHorizontalB(i));
+            MOVE PROPERTY(printAttach(i));
+            MOVE PROPERTY(printVertical(i));
+            MOVE PROPERTY(printHorizontal(i));
+            MOVE PROPERTY(printHorizontalAB(i));
+            MOVE PROPERTY(printVerticalAttach(i));
+            MOVE PROPERTY(printVerticalABAttach(i));
+            MOVE PROPERTY(printHorizontalAttach(i));
+        }
+        NEW consignmentRow3 {
+            horizontal = TRUE;
+            NEW export {
+                horizontal = TRUE;
+                caption = 'Экспорт';
+                MOVE PROPERTY(printAttachXLS(i));
+                MOVE PROPERTY(printSimpleAttachXLS(i));
+            }
+        }
+    }
+}
+overCreateRetailInvoiceStore(DeliveryReport r, UserInvoice i) +{
+    dataPayer(i) <- legalEntity(internetStock());
+    arrivalTime(i) <- dateTimeToDateTime(currentDate(), 16:00);
+    downtime(i) <- 60;
+}
+DESIGN deliveryDashboard {
+    consignmentRow3 {
+        horizontal = TRUE;
+        NEW order {
+            horizontal = TRUE;
+            caption = 'Заказ';
+            MOVE PROPERTY(internetOrderPickingPrint(i));
+        }
+    }
+
+}
