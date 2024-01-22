@@ -56,7 +56,11 @@ CONSTRAINT SETCHANGED (countInvoiceCorrection(Invoice i)) AND countInvoiceCorrec
 CONSTRAINT invoice(InvoiceCorrection i) AND NOT operation(i)=operation(invoice(i))
     CHECKED BY invoice[InvoiceCorrection]
     MESSAGE 'Операция корректировки отличается от операции накладной';
-    
+
+CONSTRAINT (SETCHANGED (invoice(InvoiceCorrection c)) OR SETCHANGED (dateTime(c))) AND dateTime(c) <= dateTime(invoice(c))
+    CHECKED BY invoice[InvoiceCorrection]
+    MESSAGE 'Дата время корректировки не может быть раньше даты и времени выбранной накладной';
+
 WHEN LOCAL CHANGED(invoice(InvoiceCorrection invoiceCorrection)) DO {
     supplier(invoiceCorrection) <- supplier(invoice(invoiceCorrection));
     supplierStock(invoiceCorrection) <- supplierStock(invoice(invoiceCorrection));

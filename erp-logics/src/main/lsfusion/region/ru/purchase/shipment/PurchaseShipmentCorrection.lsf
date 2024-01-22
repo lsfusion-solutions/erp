@@ -38,7 +38,8 @@ WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(shipme
     shipmentSumBatchA(detail) <- calcShipmentSumBatchA(detail);
 }
 
-shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = (OVERRIDE shipmentSumBatchA(detail), shipmentSumA(detail)) (-) (OVERRIDE shipmentSumBatchB(detail), shipmentSumB(detail));
+//shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = (OVERRIDE shipmentSumBatchA(detail), shipmentSumA(detail)) (-) (OVERRIDE shipmentSumBatchB(detail), shipmentSumB(detail));
+shipmentSum 'Сумма учетная (изменение)' (InvoiceCorrectionDetail detail) = shipmentSumA(detail) (-) shipmentSumB(detail);
 increaseShipmentSum 'Сумма учетная (увеличение)' (InvoiceCorrectionDetail detail) = shipmentSum(detail) IF shipmentSum(detail)>0.0;
 decreaseShipmentSum 'Сумма учетная (уменьшение)' (InvoiceCorrectionDetail detail) = - shipmentSum(detail) IF shipmentSum(detail)<0.0;
 
@@ -166,8 +167,4 @@ invoiceCorrectionDetail = GROUP MAX InvoiceCorrectionDetail d BY invoiceDetail(d
 
 //-- Переопределяем с/с поставки, если была корректировка. Может и не надо
 extraCostPrice(ShipmentDetail d) += shipmentPriceA(invoiceCorrectionDetail(invoiceDetail(d))) IF createShipment(invoiceCorrectionDetail(invoiceDetail(d)));
-
-
-
-
 
