@@ -9,8 +9,11 @@ NAMESPACE Integration;
 connectionStringABM 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
 exportPostABMPath 'POST запрос' = DATA STRING[250] ();
 
+pathLocalCopies 'Путь для локальных копий (с /)' = DATA STRING[250]();
+countDaysLocalCopies 'К-во дней для хранения локальных копий' = DATA INTEGER ();
+
 EXTEND FORM integrationData
-    PROPERTIES() connectionStringABM, exportPostABMPath
+    PROPERTIES() connectionStringABM, exportPostABMPath, pathLocalCopies, countDaysLocalCopies
     
     OBJECTS single = BOOLEAN PANEL
     EVENTS ON INIT { SEEK integrationData.single = TRUE; }
@@ -24,6 +27,8 @@ DESIGN integrationData {
         NEW ABMInventory {
             caption = 'ABMCloud';
             MOVE PROPERTY(connectionStringABM());
+            MOVE PROPERTY(pathLocalCopies());
+            MOVE PROPERTY(countDaysLocalCopies());
             MOVE PROPERTY(exportPostABMPath());
             NEW paneABM {
                 tabbed = TRUE;
@@ -1064,10 +1069,50 @@ exportAll 'Все файлы' (DATE d) {
     sentABM(d, NULL);
     
     makeZipFile();
-    WRITE zipped() TO connectionStringABM() + (CONCAT'_',exportPrefix(),toDateYYYYMMDD(d));
+    LOCAL NESTED message = TEXT ();
+    IF pathLocalCopies() THEN {
+        TRY {
+            WRITE zipped() TO pathLocalCopies() + (CONCAT'_',exportPrefix(),toDateYYYYMMDD(d));    
+        } CATCH {
+            message()<- CONCAT '\n', 'Ошибка при выгрузке файла в каталог локальных копий:', messageCaughtException();
+        }
+    }
+    TRY {
+        WRITE zipped() TO connectionStringABM() + (CONCAT'_',exportPrefix(),toDateYYYYMMDD(d));
+    } CATCH {
+        message()<- CONCAT '\n', message(),'Ошибка при выгрузке файла на ftp:', messageCaughtException();
+    }
     deleteZippingPath(); 
+    IF message() THEN {
+        MESSAGE message() NOWAIT;
+    } ELSE {
+        MESSAGE  'Выполнено' NOWAIT;
+    }
 }
 
+deleteLocalCopies 'Очистить локальные копии' (DATE  d) {
+    LOCAL NESTED message = TEXT ();
+    IF pathLocalCopies() AND countDaysLocalCopies() THEN {               
+        listFiles( pathLocalCopies());
+        FOR STRING[255] fileName = fileName(INTEGER j) AND DATETIME fileModifiedDateTime = fileModifiedDateTime(j) AND NOT fileIsDirectory(j) AND DATE(fileModifiedDateTime) < sum(d, -countDaysLocalCopies()) NOINLINE DO {
+            TRY {
+                delete( pathLocalCopies() + fileName);
+            } CATCH {
+                message()<- (CONCAT '\n', message(),'Файл: '+pathLocalCopies() + fileName, messageCaughtException());    
+            }
+        }
+        IF message() THEN {
+            MESSAGE (CONCAT '\n', 'Ошибка очистки локальныйх копий:', message()) NOWAIT;
+        } ELSE {
+            MESSAGE  'Выполнено' NOWAIT;
+        }
+    } ELSE {
+        MESSAGE  'Не задан путь для локальных копий или не указано к-во дней хранения.';
+    }
+}
+deleteLocalCopiesCurrent 'Очистить локальные копии' () {
+    deleteLocalCopies(currentDate());
+}
 
 EXTEND FORM integrationData   
     PROPERTIES exportAll(d), sendABMSelected(d, dToABM, single)
