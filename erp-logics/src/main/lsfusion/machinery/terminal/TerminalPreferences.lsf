@@ -81,7 +81,7 @@ FORM dialogObmen 'Формат обмена'
 
 CLASS PreferenceType {
     TYPE_STRING,
-    TYPE_NUMERIC,
+    TYPE_INTEGER,
     TYPE_YESNO,
     TYPE_TEXT
 }
@@ -110,7 +110,7 @@ FORM dialogYesNo 'Значение'
 getType(STRING s) = CASE 
     WHEN s = '0' THEN PreferenceType.TYPE_STRING
     WHEN s = '1' THEN PreferenceType.TYPE_YESNO
-    WHEN s = '2' THEN PreferenceType.TYPE_NUMERIC
+    WHEN s = '2' THEN PreferenceType.TYPE_INTEGER
     WHEN s = '3' THEN PreferenceType.TYPE_TEXT
     ELSE PreferenceType.TYPE_STRING;
 
@@ -145,7 +145,7 @@ FORM dialogText 'Текст'
 DESIGN dialogText {
 	BOX {
 		size = (300, 150); 
-        MOVE PROPERTY(objValue) { fill = 1; caption = ''; focusable = FALSE; font = 'bold 16'; }                  
+        MOVE PROPERTY(objValue) { fill = 1; caption = ''; focusable = FALSE; font = 'bold 16'; }
 	}
 	MOVE TOOLBARBOX; 
 }
@@ -167,8 +167,8 @@ changePreferenceValue(Preference p)  {
                 value(p) <- s;
             }
         }
-        WHEN type(p) == PreferenceType.TYPE_NUMERIC THEN {
-            INPUT s = NUMERIC DO {
+        WHEN type(p) == PreferenceType.TYPE_INTEGER THEN {
+            INPUT s = INTEGER DO {
                 value(p) <- trim(TEXT(s));
             }
         }
@@ -188,7 +188,7 @@ FORM preferences 'Конфигурация ТСД'
 jsonValue(Preference p) = CASE
     WHEN p = Preference.OBMEN_TYPE THEN value(obmen(overValue(p))) 
     WHEN type(p) = PreferenceType.TYPE_YESNO THEN value(stringToYesNo(overValue(p)))
-    WHEN type(p) = PreferenceType.TYPE_NUMERIC THEN overValue(p)
+    WHEN type(p) = PreferenceType.TYPE_INTEGER THEN overValue(p)
     ELSE '"' + overValue(p) + '"'
 ;
 
