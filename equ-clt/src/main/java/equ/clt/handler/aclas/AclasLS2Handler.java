@@ -83,7 +83,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int clearData(TransactionScalesInfo transaction, ScalesInfo scales, String logDir, boolean loadDefaultPLU, long sleep) throws IOException, InterruptedException {
         File clearFile = File.createTempFile("aclas", ".txt");
         try {
-            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), "cp1251"));
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(clearFile.toPath()), StandardCharsets.UTF_8));
+            bw.write('\ufeff');
             bw.close();
 
             int result = AclasSDK.clearData(scales.port, clearFile.getAbsolutePath(), pluFile, sleep);
@@ -136,8 +137,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     File extraFile = null;
                     try {
                         extraFile = File.createTempFile("aclas", ".txt");
-                        try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), "cp1251"))) {
-                            bw.write(str);
+                        try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), StandardCharsets.UTF_8))) {
+                            bw.write('\ufeff'+str);
                         }
                         logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
@@ -154,7 +155,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadDefaultPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
+                bw.write('\ufeff');
                 bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue", "PackageWeight", "Label1ID").iterator(), "\t"));
 
                 bw.write(0x0d);
@@ -171,14 +173,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     }
 
     private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
-        File file1 = File.createTempFile("aclas1", ".txt");
-        File file2 = File.createTempFile("aclas2", ".txt");
+        File file = File.createTempFile("aclas", ".txt");
         try {
-            //write 2 files: first is for items with name with length less than 40, need because name2 can't be empty
-            try(BufferedWriter bw1 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file1.toPath()), "cp1251"));
-                BufferedWriter bw2 = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file2.toPath()), "cp1251"))) {
-                bw1.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
-                bw2.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
+                bw.write('\ufeff');
+                bw.write(StringUtils.join(Arrays.asList("ID", "ItemCode", "DepartmentID", "Name1", "Name2", "Price", "UnitID", "BarcodeType1", "FreshnessDate", "ValidDate", "PackageType", "Flag1", "Flag2", "IceValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
                     boolean isWeight = isWeight(item, 1);
@@ -199,28 +198,21 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     Object id = pluNumberAsPluId && item.pluNumber != null ? item.pluNumber : item.idBarcode;
                     String barcodeType = !isWeight && overBarcodeTypeForPieceItems != null ? overBarcodeTypeForPieceItems : item.idBarcode.length() == 6 ? "6" : "7"; //7 - для 5-значных, 6 - для 6-значных
 
-                    if (name.length() <= 40) {
-                        bw1.write(0x0d);
-                        bw1.write(0x0a);
-                        bw1.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
-                    } else {
-                        bw2.write(0x0d);
-                        bw2.write(0x0a);
-                        bw2.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
-                    }
+                    bw.write(0x0d);
+                    bw.write(0x0a);
+                    bw.write(StringUtils.join(Arrays.asList(id, item.idBarcode, barcodePrefix, name1, name2, price, unitID, barcodeType, freshnessDate, freshnessDate, packageType, "60", "240", iceValue).iterator(), "\t"));
+
                 }
             }
 
-            logFile(logDir, file1, transaction, "plu1");
-            logFile(logDir, file2, transaction, "plu2");
+            logFile(logDir, file, transaction, "plu");
 
-            int result = AclasSDK.loadData(scales.port, file1.getAbsolutePath(), pluFile, sleep);
+            int result = AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
             if(result == 0)
-                result = AclasSDK.loadData(scales.port, file2.getAbsolutePath(), pluFile, sleep);
+                result = AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
             return result;
         } finally {
-            safeDelete(file1);
-            safeDelete(file2);
+            safeDelete(file);
         }
     }
 
@@ -250,7 +242,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadNote(ScalesInfo scales, List<List<Object>> noteData, TransactionScalesInfo transaction, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
+            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
+                bw.write('\ufeff');
                 bw.write(StringUtils.join(Arrays.asList("PLUID", "Value").iterator(), "\t"));
 
                 for (List<Object> noteEntry : noteData) {
@@ -299,7 +292,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, String logDir, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
-            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), "cp1251"))) {
+            try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
+                bw.write('\ufeff');
                 bw.write(StringUtils.join(Arrays.asList("ButtonIndex", "ButtonValue").iterator(), "\t"));
 
                 for (ScalesItem item : transaction.itemsList) {
@@ -502,8 +496,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             }
         }
 
-        private static byte[] getBytes(String value) throws UnsupportedEncodingException {
-            return (value + "\0").getBytes("cp1251");
+        private static byte[] getBytes(String value) {
+            return (value + "\0").getBytes(StandardCharsets.UTF_8);
         }
     }
 }
