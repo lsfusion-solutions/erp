@@ -1,6 +1,6 @@
 MODULE ePass;
 
-REQUIRE Barcode, EDI;
+REQUIRE Barcode, EDIGTIN;
     
 NAMESPACE ePass;
 
@@ -88,11 +88,12 @@ DESIGN ePass {
 //-------------------------- Подключение --------------------------//
 username 'Логин ePass' = DATA STRING[255]();
 password 'Пароль ePass' = DATA STRING[255]() ECHO;
-url 'Путь ePass' = DATA STRING[255](); //http://www.epass.by/BEPTGlobalService
+url 'Путь ePass' = DATA STRING[255](); //v1: http://www.epass.by/BEPTGlobalService v2: https://test.epass.by/ws-openapi
+useV2 'Использовать API 2.0' = DATA BOOLEAN ();
 
 EXTEND FORM integrationData
     PROPERTIES  urlEPass = url()
-    PROPERTIES () username, password, skipCheckEPass
+    PROPERTIES () username, password, skipCheckEPass, useV2
 ;
 
 DESIGN integrationData {
@@ -104,6 +105,7 @@ DESIGN integrationData {
             MOVE PROPERTY (username());
             MOVE PROPERTY (password());
             MOVE PROPERTY (skipCheckEPass());
+            MOVE PROPERTY (useV2());
         }
     }
 }
@@ -123,25 +125,33 @@ FORM envelopeA FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Enve
 ;
 
 //--  Получение токена
-//GROUP body EXTID 'S:Body';
-//GROUP loginResponse EXTID 'ns2:LoginResponse' : body;
-//GROUP return : loginResponse;
-//GROUP header : return;
-//
+
 errorCode = DATA LOCAL STRING();
-errorCode1 = DATA LOCAL STRING();
-sessiontoken = DATA LOCAL STRING();
-//
-//FORM envelope1 FORMEXTID 'S=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-//    PROPERTIES ATTR IN loginResponse ='http://globalservice.ws.bept.ids.by/' EXTID 'xmlns:ns2'
-//    PROPERTIES() IN return errorCode
-//    PROPERTIES() IN header errorCode1 EXTID 'errorCode', sessiontoken
-//;
+sessiontoken = DATA LOCAL NESTED STRING();
+
+getToken_v1() {
+    LOCAL file = XMLFILE ();
+    LOCAL result = XMLFILE ();
+    EXPORT envelopeA XML TO file;
+    EXTERNAL HTTP POST 'http://' + url() PARAMS file() TO result;
+
+    IMPORT XML ROOT 'header' FROM result() TO () errorCode, sessiontoken;
+
+    IF errorCode() != 'OK' THEN sessiontoken() <- NULL;
+}
+
+
+getToken_v2() {
+    LOCAL result = XMLFILE ();
+    EXPORT JSON FROM login = username(), password = password();
+    TRY {
+        EXTERNAL HTTP POST url()+'/auth/login' PARAMS exportFile() TO result;
+    }
+
+    IMPORT JSON FROM result() TO () errorCode = error, sessiontoken = authToken;
+}
 
 //-- Отсылка GTIN
-include = DATA LOCAL BOOLEAN (Item);
-countInclude = GROUP SUM 1 IF include(Item i);
-
 GROUP body2 EXTID 'soapenv:Body';
 GROUP getFunctionalnameByGTIN EXTID 'glob:getFunctionalnameByGTIN' : body2;
 GROUP request2 EXTID 'request': getFunctionalnameByGTIN ;
@@ -160,28 +170,14 @@ FORM envelope2 FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Enve
     PROPERTIES() IN header21 sessiontoken
 ;
 
-//-- Ответ по GTIN
-//GROUP body3 EXTID 'S:Body';
-//GROUP getFunctionalnameByGTINResponse EXTID 'ns2:getFunctionalnameByGTINResponse' : body3;
-//GROUP return3 EXTID 'return' : getFunctionalnameByGTINResponse;
-//GROUP header3 EXTID 'header': return3;
-//
 name = DATA LOCAL STRING();
-//
-//FORM envelope3 FORMEXTID 'S=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-//    PROPERTIES ATTR IN getFunctionalnameByGTINResponse ='http://globalservice.ws.bept.ids.by/' EXTID 'xmlns:ns2'
-//    PROPERTIES() IN return3 errorCode , name
-//    PROPERTIES() IN header3 errorCode1 EXTID 'errorCode', 
-//                    sessiontoken
-//;
 
-getFunctionalnameByGTINCustom 'Проверить ePass' (Item i) {
+getFunctionalnameByGTINCustom_v1 'Проверить ePass' (Item i) {
     LOCAL file = XMLFILE ();
     LOCAL result = XMLFILE ();       
     
     EXPORT envelope2 XML TO file;
-    EXTERNAL HTTP POST 'http://'+url() PARAMS file() TO result;        
-    //IMPORT envelope3 XML FROM result();  
+    EXTERNAL HTTP POST 'http://'+url() PARAMS file() TO result;
     IMPORT XML ROOT 'return' FROM result() TO () errorCode, name;          
     NEWSESSION NESTED LOCAL {    
         IF upper(errorCode()) == 'OK' THEN {
@@ -252,6 +248,51 @@ getFunctionalnameByGTINCustom 'Проверить ePass' (Item i) {
         APPLY NESTED LOCAL;
     }      
 }
+headersEPass(STRING id) = IF id == 'AUTHTOKEN' THEN sessiontoken();
+
+getFunctionalnameByGTINCustom_v2 'Проверить ePass' (Item i) {
+    LOCAL result = XMLFILE ();
+    EXPORT JSON FROM gtin = gtin();
+    LOCAL mce = STRING ();
+
+    TRY {
+        EXTERNAL HTTP POST url() + '/tradeitem/get/functionalnamebygtin' HEADERS headersEPass PARAMS exportFile() TO result;
+    } CATCH {
+        mce() <- messageCaughtException() IF failedHttp() AND statusHttp() != 400;
+    }
+
+    IMPORT JSON FROM result() TO () errorCode = error, name = functionalName;
+
+    NEWSESSION NESTED LOCAL {
+        IF name() THEN {
+            IF isGTIN() THEN {
+                registeredGTIN(i) <- TRUE;
+                registeredTimeGTIN(i) <- currentDateTime();
+                nameGTIN(i) <- name();
+                errorGTIN(i) <- NULL;
+            } ELSE {
+                registeredBarcode(i) <- TRUE;
+                registeredTimeBarcode(i) <- currentDateTime();
+                nameBarcode(i) <- name();
+                errorBarcode(i) <- NULL;
+            }
+        } ELSE {
+            IF isGTIN() THEN {
+                registeredGTIN(i) <- NULL;
+                registeredTimeGTIN(i) <- currentDateTime();
+                nameGTIN(i) <- NULL;
+                errorGTIN(i) <- OVERRIDE (errorCode() IF errorCode() != 'TRADE_ITEM_NOT_FOUND'), mce();
+            } ELSE {
+                registeredBarcode(i) <- NULL;
+                registeredTimeBarcode(i) <- currentDateTime();
+                nameBarcode(i) <- NULL;
+                errorBarcode(i) <- OVERRIDE (errorCode() IF errorCode() != 'TRADE_ITEM_NOT_FOUND'), mce();
+            }
+        }
+        APPLY;
+    }
+}
+
 checkBarcode 'Проверять' = DATA BOOLEAN (INTEGER);
 
 EXTEND FORM integrationData
@@ -274,9 +315,6 @@ onStarted()+{
     }
 }
 
-//isLength13(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==13 AND onlyDigits(GTIN(i))));
-//isLength8(Item i) = ((length(idBarcode(i))==8 AND onlyDigits(idBarcode(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)))) AND checkBarcode8();
-
 isLengthCheckBarcode(Item i) = checkBarcode(length(idBarcode(i))) AND onlyDigits(idBarcode(i));
 isLengthCheckGTIN(Item i) = checkBarcode(length(GTIN(i))) AND onlyDigits(GTIN(i));
 
@@ -285,90 +323,81 @@ isLengthCheck(Item i) = isLengthCheckBarcode(i) OR isLengthCheckGTIN(i);
 checkBarcode(Item i) = isLengthCheckBarcode(i) AND (IF skipCheckEPass() THEN NOT registeredTimeBarcode(i) ELSE TRUE);
 checkGTIN(Item i) = isLengthCheckGTIN(i) AND (IF skipCheckEPass() THEN NOT registeredTimeGTIN(i) ELSE TRUE);
 
-//checkBarcode(Item i) = ((length(idBarcode(i))==13 AND onlyDigits(idBarcode(i))) OR (length(idBarcode(i))==8 AND onlyDigits(idBarcode(i)) AND checkBarcode8()))
-//    AND (IF skipCheckEPass() THEN NOT registeredTimeBarcode(i) ELSE TRUE);
-//checkGTIN(Item i) = ((length(GTIN(i))==13 AND onlyDigits(GTIN(i))) OR (length(GTIN(i))==8 AND onlyDigits(GTIN(i)) AND checkBarcode8()))
-//    AND (IF skipCheckEPass() THEN NOT registeredTimeGTIN(i) ELSE TRUE);
 
-
-getFunctionalnameByGTIN 'Проверить ePass' (Item i) {
-    IF username() AND password() AND url() THEN {
-        include(Item ii)<- TRUE IF ii==i;
-        IF countInclude() THEN {
-            LOCAL file = XMLFILE ();                       
-            LOCAL result = XMLFILE ();               
+getFunctionalnameByGTIN 'Проверить ePass' (Item i) {   
+    IF isLengthCheck(i)  THEN {
+        IF (checkBarcode(i) OR checkGTIN(i)) THEN {     
+            NEWSESSION NESTED LOCAL {
+                registeredGTIN(i)<- NULL;
+                registeredTimeGTIN(i)<- NULL;
+                nameGTIN(i)<- NULL; 
+                errorGTIN(i)<- NULL;
             
-            IF isLengthCheck(i)  THEN {
-                IF (checkBarcode(i) OR checkGTIN(i)) THEN {     
-                    NEWSESSION NESTED LOCAL {
-                        registeredGTIN(i)<- NULL;
-                        registeredTimeGTIN(i)<- NULL;
-                        nameGTIN(i)<- NULL; 
-                        errorGTIN(i)<- NULL;
-                    
-                        registeredBarcode(i)<- NULL;
-                        registeredTimeBarcode(i)<- NULL;
-                        nameBarcode(i)<- NULL;
-                        errorBarcode(i)<- NULL;                
-                        APPLY NESTED LOCAL ;
-                    }          
-                
-                    EXPORT envelopeA XML TO file;
-                    EXTERNAL HTTP POST 'http://'+url() PARAMS file() TO result;    
-                    //IMPORT envelope1 XML FROM result();                                    
-                    IMPORT XML ROOT 'header' FROM result() TO () errorCode, sessiontoken;           
-                    
-                    IF upper(errorCode()) == 'OK' AND sessiontoken() THEN {    
-                        IF checkGTIN(i) THEN {
-                            isGTIN()<- TRUE;
-                            gtin()<- OVERRIDE STRING (lpad(GTIN(i), 13,'0') IF length(GTIN(i))<13), GTIN(i);
-                            getFunctionalnameByGTINCustom(i);                    
-                        }
-                        IF checkBarcode(i) THEN {
-                            isGTIN()<- NULL;
-                            gtin()<- OVERRIDE STRING(lpad(idBarcode(i), 13,'0') IF length(idBarcode(i))<13), idBarcode(i);
-                            getFunctionalnameByGTINCustom(i);                       
-                        }                                                  
-                    } ELSE {
-                        NEWSESSION NESTED LOCAL {
-                            errorBarcode(i)<- (CONCAT ': ', 'ERROR Password', errorCode());
-                            errorGTIN(i)<- (CONCAT ': ', 'ERROR Password', errorCode());
-                            registeredTimeGTIN(i)<- currentDateTime();
-                            registeredTimeBarcode(i)<- currentDateTime();
-                            
-                            APPLY NESTED LOCAL;
-                        }
-                        //logToFile('ePass', (CONCAT ': ', 'ERROR Password', errorCode(), '\n'+result()));  
-                        MESSAGE 'Ошибка при логине ' + (OVERRIDE errorCode(), 'NULL')  NOWAIT;                    
-                    }  
-                }          
-            
-            } ELSE {  
-                IF (idBarcode(i) OR GTIN(i)) THEN {
-                    NEWSESSION NESTED LOCAL {
-                        IF GTIN(i) THEN {
-                            registeredGTIN(i)<- NULL;
-                            registeredTimeGTIN(i)<- currentDateTime();
-                            nameGTIN(i)<- NULL;
-                            //errorGTIN(i)<- 'GTIN должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
-                            errorGTIN(i)<- CONCAT '', 'GTIN должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
-                        }
-                        IF idBarcode(i) THEN {
-                            registeredBarcode(i)<- NULL;
-                            registeredTimeBarcode(i)<- currentDateTime();
-                            nameBarcode(i)<- NULL;
-                            //errorBarcode(i)<- 'Штрихкод должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
-                            errorBarcode(i)<- CONCAT '', 'Штрихкод должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
-                        }            
-                        APPLY NESTED LOCAL ;
-                    }
-                }                      
+                registeredBarcode(i)<- NULL;
+                registeredTimeBarcode(i)<- NULL;
+                nameBarcode(i)<- NULL;
+                errorBarcode(i)<- NULL;                
+                APPLY NESTED LOCAL ;
             }
-        } ELSE {
-            MESSAGE 'Нет товаров для отправки' NOWAIT;
-        }
-    } ELSE {
-        MESSAGE 'Не задан логин и пароль и путь' NOWAIT;
+            
+            IF sessiontoken() THEN {    
+                IF checkGTIN(i) THEN {
+                    isGTIN()<- TRUE;
+                    gtin()<- OVERRIDE STRING (lpad(GTIN(i), 13,'0') IF length(GTIN(i))<13), GTIN(i);
+                    IF useV2() THEN {
+                        getFunctionalnameByGTINCustom_v2(i);
+                    } ELSE {
+                        getFunctionalnameByGTINCustom_v1(i);
+                    }
+                }
+                IF checkBarcode(i) THEN {
+                    isGTIN()<- NULL;
+                    gtin()<- OVERRIDE STRING(lpad(idBarcode(i), 13,'0') IF length(idBarcode(i))<13), idBarcode(i);
+                    IF useV2() THEN {
+                        getFunctionalnameByGTINCustom_v2(i);
+                    } ELSE {
+                        getFunctionalnameByGTINCustom_v1(i);
+                    }                 
+                }                                                  
+            } ELSE {
+                NEWSESSION NESTED LOCAL {
+                    errorBarcode(i)<- (CONCAT ': ', 'ERROR Password', errorCode()) IF checkBarcode(i);
+                    errorGTIN(i)<- (CONCAT ': ', 'ERROR Password', errorCode()) IF checkGTIN(i);
+                    registeredTimeGTIN(i)<- currentDateTime();
+                    registeredTimeBarcode(i)<- currentDateTime();
+                    
+                    APPLY NESTED LOCAL;
+                }
+                MESSAGE 'Ошибка при логине ' + (OVERRIDE errorCode(), 'NULL')  NOWAIT;                    
+            }  
+        }          
+    
+    } ELSE {  
+        IF (idBarcode(i) OR GTIN(i)) THEN {
+            NEWSESSION NESTED LOCAL {
+                IF GTIN(i) THEN {
+                    registeredGTIN(i)<- NULL;
+                    registeredTimeGTIN(i)<- currentDateTime();
+                    nameGTIN(i)<- NULL;
+                    //errorGTIN(i)<- 'GTIN должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
+                    errorGTIN(i)<- CONCAT '', 'GTIN должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
+                }
+                IF idBarcode(i) THEN {
+                    registeredBarcode(i)<- NULL;
+                    registeredTimeBarcode(i)<- currentDateTime();
+                    nameBarcode(i)<- NULL;
+                    //errorBarcode(i)<- 'Штрихкод должны состоять из 13' +(CONCAT '',' или 8' IF checkBarcode8(),'' )+' цифр';
+                    errorBarcode(i)<- CONCAT '', 'Штрихкод должен состоять из: ',(OVERRIDE '('+(GROUP CONCAT STRING (INTEGER t) IF checkBarcode( t),', ' ORDER t)+') цифр', 'ЗНАЧЕНИЕ НЕ ЗАДАНО');
+                }            
+                APPLY NESTED LOCAL ;
+            }
+        }                      
+    }
+}
+
+logout_v2() {
+    TRY {
+        EXTERNAL HTTP POST url() + '/auth/logout' HEADERS headersEPass PARAMS exportFile();
     }
 }
 
@@ -386,21 +415,36 @@ DESIGN integrationData {
     }
 }
 getFunctionalnameByGTINSelect 'Проверить ePass' (Item i) {
-    IF (GROUP SUM 1 IF inSession(Item ii) ) THEN {
-        LOCAL ok = BOOLEAN ();
-        ASK (CONCAT '\n','Отмечено: '+(GROUP SUM 1 IF inSession(Item ii) )+' позиций.','Вы действительно хотите столько товаров проверить?') IF (GROUP SUM 1 IF inSession(Item ii) )>countSelectAsk() DO {
-            ok()<- TRUE;
-        }
-        IF ok() OR NOT ((GROUP SUM 1 IF inSession(Item ii) )>countSelectAsk()) THEN {
-            FOR inSession(Item ii) DO {
-                getFunctionalnameByGTIN(ii);
-            } 
-            dataInSession(ItemGroup g)<- NULL;   
-            dataInSession(Item g)<- NULL;       
-        }
 
+    IF username() AND password() AND url() THEN {
+        IF useV2() THEN {
+            getToken_v2();
+        } ELSE {
+            getToken_v1();
+        }
+        
+        IF (GROUP SUM 1 IF inSession(Item ii) ) THEN {
+            LOCAL ok = BOOLEAN ();
+            ASK (CONCAT '\n','Отмечено: '+(GROUP SUM 1 IF inSession(Item ii) )+' позиций.','Вы действительно хотите столько товаров проверить?') IF (GROUP SUM 1 IF inSession(Item ii) )>countSelectAsk() DO {
+                ok()<- TRUE;
+            }
+            IF ok() OR NOT ((GROUP SUM 1 IF inSession(Item ii) )>countSelectAsk()) THEN {
+                FOR inSession(Item ii) DO {
+                    getFunctionalnameByGTIN(ii);
+                } 
+                dataInSession(ItemGroup g)<- NULL;   
+                dataInSession(Item g)<- NULL;       
+            }
+    
+        } ELSE {
+            getFunctionalnameByGTIN(i);
+        }
+        
+        IF useV2() THEN {
+            logout_v2();
+        }
     } ELSE {
-        getFunctionalnameByGTIN(i);
+        MESSAGE 'Не задан логин, пароль или путь' NOWAIT;
     }
 }
 
