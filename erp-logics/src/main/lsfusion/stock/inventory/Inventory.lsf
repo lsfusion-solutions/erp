@@ -487,6 +487,12 @@ quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet coll
     GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
     IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
+//overQuantityPageInventoryDetail = ABSTRACT NUMERIC[16,5](CollationSheet, Sku);
+//quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Sku sku) =
+//    overQuantityPageInventoryDetail(collationSheet, sku) (+)
+//    [GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+//        IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
+//        BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail)](collationSheet, sku) MATERIALIZED;
 
 countPageInventoryDetail 'Кол-во по описям' (collationSheet, sku) = GROUP SUM 1 IF NOT skipPageInventoryDetail(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail);    
@@ -1191,7 +1197,7 @@ outInventorySkuDetail = AGGR OutInventorySkuDetail WHERE needToOutLedger(Collati
 inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(CollationSheet collationSheet, Sku sku) MATERIALIZED INDEXED;
 
 collationSheet(InventorySkuDetail inventorySkuDetail) = MULTI collationSheet[OutInventorySkuDetail](inventorySkuDetail),
-                                                             collationSheet[InInventorySkuDetail](inventorySkuDetail);
+    collationSheet[InInventorySkuDetail](inventorySkuDetail);
 
 inventory(InventorySkuDetail inventorySkuDetail) = inventory(collationSheet(inventorySkuDetail)) MATERIALIZED;
 
@@ -1295,7 +1301,7 @@ outInventoryBatchDetail = AGGR OutInventoryBatchDetail WHERE needToOutLedger(Col
 inInventoryBatchDetail = AGGR InInventoryBatchDetail WHERE needToInLedger(CollationSheet collationSheet, Batch batch) MATERIALIZED INDEXED;
 
 collationSheet(InventoryBatchDetail inventoryBatchDetail) = MULTI collationSheet[OutInventoryBatchDetail](inventoryBatchDetail),
-                                                                 collationSheet[InInventoryBatchDetail](inventoryBatchDetail);
+    collationSheet[InInventoryBatchDetail](inventoryBatchDetail);
 
 inventory(InventoryBatchDetail inventoryBatchDetail) = inventory(collationSheet(inventoryBatchDetail)) MATERIALIZED;
 
@@ -1679,7 +1685,7 @@ EXTEND FORM listInventory
 sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
     SUM sumPageInventoryDetail(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);
 sumBalance 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
-    SUM sumBalance(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);    
+    SUM sumBalance(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);
 sumShortage 'Сумма по описям' (CollationSheet cs, SkuGroup group) = GROUP
     SUM sumShortage(cs,Sku sku) IF isParent(group, sku) AND include(cs, sku);    
     
@@ -1698,10 +1704,14 @@ sumPageInventoryDetail 'Сумма по описям' = DATA LOCAL NUMERIC[18,4]
 sumBalance 'Сумма по остаткам' = DATA LOCAL NUMERIC[18,4] (SkuGroup);
 sumShortage 'Сумма недостачи / излишка' = DATA LOCAL NUMERIC[18,4] (SkuGroup);
 
+overFillGroupSums ABSTRACT (CollationSheet);
+
 fillGroupSums 'Заполнить суммы' (CollationSheet cs) {
     sumPageInventoryDetail(SkuGroup g) <- overSumPageInventoryDetail(cs, g);
     sumBalance(SkuGroup g) <- overSumBalance(cs, g);
     sumShortage(SkuGroup g) <- overSumShortage(cs, g);
+    
+    overFillGroupSums(cs);
 }
 
 saved 'Сохранена' (Inventory i) = PREV(i IS Inventory);
@@ -1863,10 +1873,10 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          i=Sku GRID
     PROPERTIES(i) READONLY                      BACKGROUND backgroundDiffInventory(cs,i) idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i) ON CONTEXTMENU movementDocumentDetailSku(i,cs), id
-    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i) SHOWIF NOT hideQuantityPageInventoryDetailSku(), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
+    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i)  SHOWIF NOT hideQuantityPageInventoryDetailSku(), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i) SHOWIF NOT hideQuantityPageInventoryDetailSku()
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
-    PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail, sumBalance, sumShortage
+    PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail SHOWIF NOT hideQuantityPageInventoryDetailSku(), sumBalance, sumShortage SHOWIF NOT hideQuantityPageInventoryDetailSku()
     PROPERTIES(i) READONLY                      nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5 
     FILTERS                                     include(cs, i) OR overInclude(cs,i),
                                                 isParent(g, i)
@@ -2278,7 +2288,7 @@ EXTEND FORM dialogStockInventory
 
 CONSTRAINT include(Stock stock,Inventory inventory) AND operation(inventory) AND NOT 
     in(stock,operation(inventory))
-        MESSAGE 'В инвентаризацию включены склады, которые не включены в операцию';
+    MESSAGE 'В инвентаризацию включены склады, которые не включены в операцию';
 
 
 NAVIGATOR {
@@ -2292,7 +2302,7 @@ NAVIGATOR {
 @defineOperationChangesDocument(inventory, UserInventory, preventChangesDocument, created);
 
 overShowEdit (Inventory i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
-overShowDelete (Inventory i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowDelete(i); 
+overShowDelete (Inventory i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowDelete(i);
 
 skipClose (Inventory i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
 
