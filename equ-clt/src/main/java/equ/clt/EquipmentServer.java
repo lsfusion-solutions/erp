@@ -80,6 +80,7 @@ public class EquipmentServer {
     private Integer transactionThreadCount;
     private boolean mergeBatches = false;
     private boolean disableSales = false;
+    private boolean disableStopLists = false;
     private Integer loginTimeout;
     private Integer waitForThreadDeath;
 
@@ -152,7 +153,7 @@ public class EquipmentServer {
                         if (remote != null) {
                             processTransactionConsumer.scheduleIfNotScheduledYet();
 
-                            if(remote.enabledStopListInfo())
+                            if(!disableStopLists && remote.enabledStopListInfo())
                                 processStopListConsumer.scheduleIfNotScheduledYet();
 
                             if(remote.enabledDeleteBarcodeInfo())
@@ -259,25 +260,27 @@ public class EquipmentServer {
             }));
         }
 
-        processStopListConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    if(isTimeToRun())
-                        StopListEquipmentServer.processStopListInfo(remote);
-                } catch (ConnectException e) {
-                    processStopListLogger.error("Connect Exception: ", e);
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        processStopListLogger.error("API changed! InvalidClassException");
-                    throw e;
+        if(!disableStopLists) {
+            processStopListConsumer = new Consumer() {
+                @Override
+                void runTask() throws Exception {
+                    try {
+                        if (isTimeToRun())
+                            StopListEquipmentServer.processStopListInfo(remote);
+                    } catch (ConnectException e) {
+                        processStopListLogger.error("Connect Exception: ", e);
+                        needReconnect = true;
+                    } catch (UnmarshalException e) {
+                        if (e.getCause() instanceof InvalidClassException)
+                            processStopListLogger.error("API changed! InvalidClassException");
+                        throw e;
+                    }
                 }
-            }
-        };
-        processStopListThread = new Thread(processStopListConsumer);
-        processStopListThread.setDaemon(true);
-        processStopListThread.start();
+            };
+            processStopListThread = new Thread(processStopListConsumer);
+            processStopListThread.setDaemon(true);
+            processStopListThread.start();
+        }
 
         processDeleteBarcodeConsumer = new Consumer() {
             @Override
@@ -463,6 +466,10 @@ public class EquipmentServer {
 
     public void setDisableSales(boolean disableSales) {
         this.disableSales = disableSales;
+    }
+
+    public void setDisableStopLists(boolean disableStopLists) {
+        this.disableStopLists = disableStopLists;
     }
 
     public void setLoginTimeout(Integer loginTimeout) {
