@@ -207,10 +207,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             logFile(logDir, file, transaction, "plu");
 
-            int result = AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
-            if(result == 0)
-                result = AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
-            return result;
+            return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
         } finally {
             safeDelete(file);
         }
@@ -362,6 +359,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 return "Code page error";
             case 269:
                 return "Unable to create output file";
+            case 270:
+                return "Invalid protocol type";
             default:
                 return "error " + error;
         }
@@ -471,7 +470,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             interrupted = false;
         }
 
-        public static int clearData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
+        public static int clearData(String ip, String filePath, Integer dataType, long sleep) throws InterruptedException {
             if (!interrupted) {
                 int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
                 if (sleep > 0) {
@@ -483,7 +482,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             }
         }
 
-        public static int loadData(String ip, String filePath, Integer dataType, long sleep) throws UnsupportedEncodingException, InterruptedException {
+        public static int loadData(String ip, String filePath, Integer dataType, long sleep) throws InterruptedException {
             if (!interrupted) {
                 int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
                 if (sleep > 0) {
