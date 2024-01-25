@@ -1,0 +1,71 @@
+MODULE ItemFashionTextile;
+
+REQUIRE ItemFashion;
+
+NAMESPACE Item;
+
+
+// Переименование Артикул в Модель
+
+DESIGN articles 'Модели' {
+    BOX(a) {caption = 'Модели';}
+    PROPERTY (id(a)){charWidth = 20; caption = 'Код модели';}
+}
+
+DESIGN article 'Модель' {
+    BOX(a) {caption = 'Модель';}
+    PROPERTY (id(a)){charWidth = 30; caption = 'Код модели';}
+    GROUP(itemArticle,a) {caption = 'Модель';}
+}
+
+NAVIGATOR {
+    articles 'Модели';
+}
+
+DESIGN items {
+    PROPERTY (idArticle(i)){caption = 'Модель';}
+}
+
+DESIGN item {
+    PROPERTY (idArticle(i)){caption = 'Модель';}
+    GROUP(itemArticle, i) {
+        caption = 'Модель';
+    }
+}
+
+DESIGN itemGroup {
+    GROUP(itemArticle,g) {caption = 'Модель';}
+}
+
+DESIGN confirmReplaceArticle 'Объединяемые модели'{
+    BOX(a){
+        caption = 'Основная модель';
+    }
+    BOX(a2){
+        caption = 'Удаляемая модель';
+    }
+}
+
+DESIGN batches {
+    PROPERTY (idArticle(bt)){caption = 'Модель';}
+}
+
+
+model 'Артикул' = DATA STRING[40](Article) CHARWIDTH 20;
+model 'Артикул' (Item i) = model(article(i)) IN itemArticle;
+
+EXTEND FORM article
+    PROPERTIES (a) model
+;
+
+EXTEND FORM articles
+    PROPERTIES (a) READONLYIF isReadonly() BEFORE canonicalNameItemGroup(a) model
+;
+
+EXTEND FORM item
+    PROPERTIES (i) READONLY model
+;
+
+EXTEND FORM items
+    PROPERTIES (i) READONLY AFTER idArticle(i) model
+;
