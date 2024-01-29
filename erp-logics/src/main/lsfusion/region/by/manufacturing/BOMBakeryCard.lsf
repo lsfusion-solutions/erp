@@ -716,14 +716,14 @@ bruttoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE
 nettoSemifinished 'Масса нетто п/ф' (Component p, Component c, DATE dt) = nettoQuantity(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt)*1000 IF dt IS DATE;
 semifinishedWeightGr 'Масса п/ф описание' (Component p, Component c, DATE dt) = semifinishedWeightGr(c)/(GROUP SUM quantity(Product pp) IF BOM(pp)==BOM(c))*bruttoQuantity(p,dt);
 
-bruttoQuantityLoc 'Кол-во (брутто)' = DATA LOCAL NUMERIC[16,5](Component);
+bruttoQuantityLoc 'Кол-во (брутто)' = DATA LOCAL NESTED NUMERIC[16,5](Component);
 
 oneRow 'Показывать в документах одной строкой' = DATA BOOLEAN (Component);
 
 FORM calcComponents 'Состав п/ф  по к-ву'
-    OBJECTS gg=(b=BOM, cd=Component) PANEL
+    OBJECTS b=BOM PANEL
     OBJECTS c = Component
-    PROPERTIES (cd) oneRow
+    PROPERTIES READONLY name(b)
     PROPERTIES(c) READONLY BACKGROUND background(c) index
     PROPERTIES(c) READONLY BACKGROUND background(c) idBarcodeSku , id , nameMaterial, shortNameUOM
     PROPERTIES(c) READONLY BACKGROUND background(c) bruttoQuantityLoc
@@ -735,11 +735,24 @@ DESIGN calcComponents{
     size = (800, 600);
 }
 
+showCalcComponentsEdit = DATA LOCAL BOOLEAN ();
+
+EXTEND FORM BOM
+    EVENTS ON INIT {
+        showCalcComponentsEdit() <- TRUE;    
+    }
+    EVENTS ON APPLY AFTER {
+        showCalcComponentsEdit() <- TRUE;
+    }
+;
 
 showCalcComponents 'Показать состав п/ф по к-ву' (Component c){
     bruttoQuantityLoc(Component cc)<- NULL;
     bruttoQuantityLoc(Component cc)<- NUMERIC[16,5](overCurBruttoQuantity(cc)/quantityProduct(BOM(cc))*overCurBruttoQuantity(c)) WHERE BOM(cc)==BOM(material(c));
-    NEWSESSION SHOW calcComponents OBJECTS b = BOM(material(c)), cd = c READONLY;
+
+    FOR BOM b == BOM(material(c)) AND Component cd == c DO {
+        NEWSESSION SHOW calcComponents OBJECTS b = b READONLY;
+    }
 } ASON CONTEXTMENU nameMaterial[Component];
 
 
