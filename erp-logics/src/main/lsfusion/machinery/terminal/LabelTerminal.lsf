@@ -30,54 +30,52 @@ description (TerminalDocument document) += STRING[200](Terminal.description(docu
 
 createAttribute  ABSTRACT LIST ( TerminalDocumentDetail, LabelTransactionDetail);
 
-createLabelTransaction 'Распечатать ценники'(TerminalDocument terminalDocument)  { 
-	NEWSESSION {           
-	
-	    LOCAL in = BOOLEAN (Sku);
-	    in(Sku sku) <- TRUE IF countTerminalDocumentDetail(sku, terminalDocument);
-	
-	    // бежим по всем типам ценников из управленческих параметров
-	    // для каждого создаем по операции печати ценников
-	    FOR ([ GROUP SUM 1 IF in(Sku sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(terminalDocument)))
-	        NEW t = LabelTransaction DO {
-	            departmentStore(t) <- stock(terminalDocument);
-	            priceTransactionDocument(t) <- terminalDocument;
-	            labelType(t) <- labelType;
-	            
-	            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND 
-	                quantity(dd) > 0 AND
-	                in(Sku sku) AND sku == sku(dd) AND 
-	                inPrint(labelType, sku, stock(terminalDocument)) AND 
-	                PriceListType pt == overPriceListType(t) ORDER dateTimeScan(dd), dd NOINLINE (pt)
-	                NEW d = LabelTransactionDetail DO {
-	                labelTransaction(d) <- t;
-	                sku(d) <- sku;
-	
-	                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
-	                createAttribute(d);
-	
-	                quantity(d) <- INTEGER(quantity(dd));
-	
-	                price(d) <- calcPrice(pt, d);
-	                retailPrice(d) <- overRetailPrice(d);
-	                createAttribute(dd, d);
-	            }
-	            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-	                
-                IF notCheckEqualRetailPrice() THEN
-                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
-                ELSE
-                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+createLabelTransaction 'Распечатать ценники'(TerminalDocument terminalDocument)  {
+    NEWSESSION {
+        // бежим по всем типам ценников из управленческих параметров
+        // для каждого создаем по операции печати ценников
+        FOR Stock stock == stock(terminalDocument) NOINLINE DO {
+            select(Sku sku, LabelType labelType, stock) <- TRUE IF countTerminalDocumentDetail(sku, terminalDocument) AND inPrint(labelType, sku, stock);
+        }
+
+        FOR [GROUP SUM 1 IF select(Sku s, LabelType l, stock(terminalDocument)) BY l](LabelType labelType) ORDER labelType NEW t = LabelTransaction DO {
+            departmentStore(t) <- stock(terminalDocument);
+            priceTransactionDocument(t) <- terminalDocument;
+            labelType(t) <- labelType;
+
+            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND
+                quantity(dd) > 0 AND
+                select(sku(dd), labelType, stock(terminalDocument)) AND
+                PriceListType pt == overPriceListType(t) ORDER dateTimeScan(dd), dd NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
                 
-                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
-	                    
-	            print(t);
-	    }
-	    printed(terminalDocument) <- TRUE WHERE is(terminalDocument);    
-	    used(terminalDocument) <- TRUE WHERE is(terminalDocument); 
-	       
-	    apply();
-	}
+                labelTransaction(d) <- t;
+                sku(d) <- sku(dd);
+
+                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+                createAttribute(d);
+
+                quantity(d) <- INTEGER(quantity(dd));
+
+                price(d) <- calcPrice(pt, d);
+                retailPrice(d) <- overRetailPrice(d);
+                createAttribute(dd, d);
+            }
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+            IF notCheckEqualRetailPrice() THEN
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+            ELSE
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+            print(t);
+        }
+        printed(terminalDocument) <- TRUE WHERE is(terminalDocument);
+        used(terminalDocument) <- TRUE WHERE is(terminalDocument);
+
+        apply();
+    }
 } TOOLBAR CONFIRM;
 
 in = DATA LOCAL BOOLEAN (Sku);   
