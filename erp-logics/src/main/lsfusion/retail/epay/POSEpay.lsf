@@ -5,7 +5,7 @@ REQUIRE POSEpayHttpForm;
 NAMESPACE POS;
 
 onStarted() + { 
-    IF NOT minEpayPaymentType() THEN APPLY { loadDefaultType('О!плати', PaymentMeans.paymentMeansEpay, 'epay'); }
+    //IF NOT minEpayPaymentType() THEN APPLY { loadDefaultType('О!плати', PaymentMeans.paymentMeansEpay, 'epay'); }
 }
 
 EXTEND FORM options
@@ -41,14 +41,14 @@ EXTEND FORM groupCashRegister
 
 paymentMode (CashRegister c) = paymentMode() IF c IS CashRegister;
 
-showEpay (ZReport z) = minEpayPaymentType() AND regNum(cashRegister(z)) AND calcAddressRequest();
+showEpay (ZReport z) = regNum(cashRegister(z)) AND calcAddressRequest();
 showEpay (Receipt r) = showEpay (zReport(r));
 
 overCreatePayment(Receipt r) + {
     IF showEpay(r) THEN {
         NEW p = Payment {
             receipt(p) <- r;
-            paymentType(p) <- minEpayPaymentType();
+            //paymentType(p) <- minEpayPaymentType();
             sum(p) <- NULL;
         }
     }
@@ -96,7 +96,7 @@ postPaymentEpayConsumerPresented (Receipt r) {
     barcodeInput() <- NULL;
     DIALOG barcodeInput DO {
         authCode() <- [FORMULA TEXT PG 'translate($1, $2, $3)'](barcodeInput(), 'йцукенгшщзхъфывапролджячсмитьбю.ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЯЧСМИТЬБЮ', 'qwertyuiop[]asdfghjkl;zxcvbnm,./QWERTYUIOP\{\}ASDFGHJKL;ZXCVBNM');
-        paymentEpay(epay(r));
+        //paymentEpay(epay(r));
         IF NOT currentStatusPayment() = StatusPayment.ok THEN {
             deletePayment(r);
         } 
@@ -108,7 +108,7 @@ postPaymentEpayConsumerPresented (Receipt r) {
 postPaymentEpayStaticQR (Receipt r) {
     demandPayment(cashRegister(r));
     IF isConsumerReady() THEN {
-        paymentEpay(epay(r));
+        //paymentEpay(epay(r));
     } ELSE {
         returnPost() <- TRUE;
     }
@@ -131,7 +131,7 @@ postPaymentEpay (Receipt r) {
                     }
             }
             WHEN NOT countReceiptSaleDetail(r) AND countReceiptReturnDetail(r) THEN {
-                FOR receipt(Payment p) = r AND paymentType(p) = minEpayPaymentType() DO {
+                FOR receipt(Payment p) = r DO {
                     reversalEpay(p);
                 }
             }
@@ -142,9 +142,9 @@ postPaymentEpay (Receipt r) {
 }
 
 prePostPrint(Receipt r) + {
-    IF epay(r) THEN {
+    //IF epay(r) THEN {
         postPaymentEpay(r);
-    } 
+    //} 
 }
 
 
@@ -173,7 +173,7 @@ postEpay 'О!плати' (Receipt receipt) {
     IF sumReceiptDetail(receipt) THEN {
         NEW p = Payment {
             receipt(p) <- receipt;
-            paymentType(p) <- minEpayPaymentType();
+            //paymentType(p) <- minEpayPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
         }
         IF NOT returnPost() THEN {

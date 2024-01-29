@@ -56,9 +56,9 @@ EXTEND FORM zReports
     PROPERTIES (p) paymentId
 ;    
 
-minEpayPaymentType () = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansEpay;
+minEpayPaymentType = DATA PaymentType();//GROUP MIN PaymentType paymentType IF paymentMeans(paymentType);
 
-epay (Receipt r) = GROUP LAST Payment p ORDER p IF paymentType(p) = minEpayPaymentType() AND sum(p) AND receipt(p) = r;
+epay (Receipt r) = GROUP LAST Payment p ORDER p;
 
 CLASS ReceiptPaymentType {
     epay 'О!плати',
@@ -78,7 +78,7 @@ index (ReceiptPaymentType t) = CASE
 ;
 receiptPaymentType(INTEGER i) = GROUP AGGR ReceiptPaymentType t BY index(t);
 receiptPaymentType(PaymentType t) = CASE
-    WHEN t = minEpayPaymentType() THEN ReceiptPaymentType.epay
+    //WHEN t = minEpayPaymentType() THEN ReceiptPaymentType.epay
     WHEN t = minCashPaymentType() THEN ReceiptPaymentType.cash
     WHEN t = minCardPaymentType() THEN ReceiptPaymentType.card
     ELSE ReceiptPaymentType.other
@@ -198,7 +198,8 @@ absSumReceiptDetail(Receipt r) = abs(sumReceiptDetail(r));
 indexPaymentType (Payment p) = index(receiptPaymentType(paymentType(p)));
 namePaymentType (Payment p) = namePaymentType(p) IF receiptPaymentType(paymentType(p)) = ReceiptPaymentType.other;
 absSum(Payment p) = abs(sum(p));
-absSum(Receipt r) = abs(sum(epay(r)));
+epay2 = DATA Payment(Receipt);
+absSum(Receipt r) = abs(sum(epay2(r)));
 
 GROUP details;
 
