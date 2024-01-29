@@ -84,7 +84,7 @@ receiptPaymentType(PaymentType t) = CASE
     ELSE ReceiptPaymentType.other
 ;
 
-currentRegNum = DATA LOCAL STRING[20] ();
+currentRegNum = DATA LOCAL STRING[23] ();
 currentToken = DATA LOCAL STRING[36] ();
 currentPin 'Код подтверждения' = DATA LOCAL STRING[2] ();
 currentSessionId = DATA LOCAL INTEGER ();
@@ -158,11 +158,13 @@ getToken 'Получить токен' (CashRegister c) {
         TRY {
             currentRegNum() <- regNum(c);
             statusHttp() <- NULL;
-            EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers;
+            EXTERNAL HTTP GET 'https://' + calcAddressRequest() + '/tokens' HEADERS httpHeadersToken HEADERSTO headers TO file;
             IF statusHttp() = 200 THEN {
                 setToken(c, headers('token'));
             }
         } CATCH {
+            fileToString(file());
+            logToFile('epay', 'getToken status '+statusHttp()+'\n'+resultString());
             CASE  
                 WHEN statusHttp() = 400 THEN MESSAGE 'Ошибка получения токена: возможно токен уже получен';
                 WHEN statusHttp() = 500 THEN MESSAGE 'Ошибка получения токена: внутренняя ошибка сервера';
