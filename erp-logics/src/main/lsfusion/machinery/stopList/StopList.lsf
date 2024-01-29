@@ -63,7 +63,7 @@ overIn 'Вкл.' (GroupMachinery gm, StopList sl) = OVERRIDE in(gm,sl), in(stock
 
 overIdSku(StopListDetail d) = overId(sku(d));
 
-idSkuGroup (StopListDetail stopListDetail) = idSkuGroup(sku(stopListDetail));
+idSkuGroup (StopListDetail stopListDetail) = overId(skuGroup(sku(stopListDetail)));
 nameSkuGroup (StopListDetail stopListDetail) = nameSkuGroup(sku(stopListDetail));
 idUOM (StopListDetail stopListDetail) = id(UOM(sku(stopListDetail)));
 innerIdUOM (StopListDetail stopListDetail) = INTEGER(UOM(sku(stopListDetail)));
@@ -72,6 +72,7 @@ splitSku (StopListDetail stopListDetail) = split(sku(stopListDetail));
 passScalesSku (StopListDetail stopListDetail) = passScales(sku(stopListDetail));
 flagsSku (StopListDetail stopListDetail) = flags(barcode(sku(stopListDetail)));
 valueVATSku (StopListDetail stopListDetail) = valueVAT(sku(stopListDetail), country(sku(stopListDetail)), date(stopListDetail));
+price(StopListDetail d) = (GROUP MAX transactionPrice(sku(d), Stock st) IF in(st, stopList(d))) IF exclude(d); //пока только для исключающих чтобы не было 0 цена если исключение загружается в кассу
 
 barcodes (StopListDetail d) = GROUP CONCAT STRING(value(Barcode b)) IF id(b) AND active(b) AND sku(b) == sku(d), ',' ORDER b;
 

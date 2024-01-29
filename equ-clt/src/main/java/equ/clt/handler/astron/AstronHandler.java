@@ -242,12 +242,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                                exportArt(conn, params, transaction.itemsList, false, swap10And20VAT, false, maxBatchSize, artUpdateNum);
+                                exportArt(conn, params, transaction.itemsList, swap10And20VAT, maxBatchSize, artUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
-                                exportUnit(conn, params, transaction.itemsList, null, false, maxBatchSize, unitUpdateNum);
+                                exportUnit(conn, params, transaction.itemsList, null, maxBatchSize, unitUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
@@ -439,7 +439,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean zeroGrpId, boolean swap10And20VAT, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
+    private void exportArt(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean swap10And20VAT, Integer maxBatchSize, Integer updateNum) throws SQLException, UnsupportedEncodingException {
         String[] keys = new String[]{"ARTID"};
         String[] columns = getColumns(new String[]{"ARTID", "GRPID", "TAXGRPID", "ARTCODE", "ARTNAME", "ARTSNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "ART", columns, keys)) {
@@ -449,7 +449,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (ItemInfo item : itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
                     Integer idItem = parseIdItem(item);
-                    String grpId = getExtIdItemGroup(item, zeroGrpId);
+                    String grpId = getExtIdItemGroup(item);
                     if (grpId != null && !grpId.isEmpty()) {
                         if (params.pgsql) {
                             setObject(ps, idItem, 1); //ARTID
@@ -458,7 +458,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, idItem, 4); //ARTCODE
                             setObject(ps, getItemName(item), 5); //ARTNAME
                             setObject(ps, getItemName(item), 6); //ARTSNAME
-                            setObject(ps, delFlag ? 1 : 0, 7); //DELFLAG
+                            setObject(ps, 0, 7); //DELFLAG
                             if (updateNum != null) setObject(ps, updateNum, 8); //UPDATENUM
                         } else {
                             setObject(ps, grpId, 1, offset); //GRPID
@@ -466,7 +466,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, idItem, 3, offset); //ARTCODE
                             setObject(ps, getItemName(item), 4, offset); //ARTNAME
                             setObject(ps, getItemName(item), 5, offset); //ARTSNAME
-                            setObject(ps, delFlag ? "1" : "0", 6, offset); //DELFLAG
+                            setObject(ps, "0", 6, offset); //DELFLAG
                             if (updateNum != null) setObject(ps, updateNum, 7, offset); //UPDATENUM
 
                             setObject(ps, idItem, updateNum != null ? 8 : 7, keys.length); //ARTID
@@ -656,7 +656,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
+    private void exportUnit(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"UNITID"};
         String[] columns = getColumns(new String[]{"UNITID", "UNITNAME", "UNITFULLNAME", "DELFLAG"}, updateNum);
         try (PreparedStatement ps = getPreparedStatement(conn, params, "UNIT", columns, keys)) {
@@ -673,14 +673,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, idUOM, 1); //UNITID
                             setObject(ps, item.shortNameUOM, 2); //UNITNAME
                             setObject(ps, item.shortNameUOM, 3); //UNITFULLNAME
-                            setObject(ps, delFlag ? 1 : 0, 4); //DELFLAG
+                            setObject(ps, 0, 4); //DELFLAG
                             if(updateNum != null)
                                 setObject(ps, updateNum, 5); //UNITFULLNAME
 
                         } else {
                             setObject(ps, item.shortNameUOM, 1, offset); //UNITNAME
                             setObject(ps, item.shortNameUOM, 2, offset); //UNITFULLNAME
-                            setObject(ps, delFlag ? "1" : "0", 3, offset); //DELFLAG
+                            setObject(ps, "0", 3, offset); //DELFLAG
                             if(updateNum != null)
                                 setObject(ps, updateNum, 4, offset); //UNITFULLNAME
 
@@ -1969,19 +1969,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             Integer artUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
-                            exportArt(conn, params, itemsList, true, swap10And20VAT, !stopListInfo.exclude, maxBatchSize, artUpdateNum);
+                            exportArt(conn, params, itemsList, swap10And20VAT, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
 
                             Integer unitUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
-                            exportUnit(conn, params, itemsList, machinery, !stopListInfo.exclude, maxBatchSize, unitUpdateNum);
+                            exportUnit(conn, params, itemsList, machinery, maxBatchSize, unitUpdateNum);
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
-                            exportPack(conn, params, itemsList, machinery, !stopListInfo.exclude, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
+                            exportPack(conn, params, itemsList, machinery, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                             outputUpdateNums.put("PACK", packUpdateNum);
 
                             Integer exBarcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
-                            exportExBarc(conn, params, itemsList, !stopListInfo.exclude, maxBatchSize, exBarcUpdateNum);
+                            exportExBarc(conn, params, itemsList, false, maxBatchSize, exBarcUpdateNum);
                             outputUpdateNums.put("EXBARC", exBarcUpdateNum);
 
                             Integer packPrcUpdateNum = getStopListUpdateNum(stopListInfo, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
@@ -2065,11 +2065,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
 
                             Integer artUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "ART");
-                            exportArt(conn, params, deleteBarcode.barcodeList, false, swap10And20VAT,true, maxBatchSize, artUpdateNum);
+                            exportArt(conn, params, deleteBarcode.barcodeList, swap10And20VAT, maxBatchSize, artUpdateNum);
                             outputUpdateNums.put("ART", artUpdateNum);
 
                             Integer unitUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "UNIT");
-                            exportUnit(conn, params, deleteBarcode.barcodeList, null, true, maxBatchSize, unitUpdateNum);
+                            exportUnit(conn, params, deleteBarcode.barcodeList, null, maxBatchSize, unitUpdateNum);
                             outputUpdateNums.put("UNIT", unitUpdateNum);
 
                             Integer packUpdateNum = getTransactionUpdateNum(versionalScheme, inputUpdateNums, "PACK");
@@ -2670,8 +2670,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return conn;
     }
 
-    private String getExtIdItemGroup(ItemInfo item, boolean zeroGrpId) {
-        return item instanceof CashRegisterItem ? parseGroup(((CashRegisterItem) item).extIdItemGroup) : (zeroGrpId ? "0" : null);
+    private String getExtIdItemGroup(ItemInfo item) {
+        if (item instanceof CashRegisterItem) return parseGroup(((CashRegisterItem) item).extIdItemGroup);
+        if (item instanceof StopListItem) return parseGroup(item.idItemGroup);
+        return null;
     }
 
     private String parseGroup(String idItemGroup) {

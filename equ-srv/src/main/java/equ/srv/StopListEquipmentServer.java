@@ -216,11 +216,11 @@ public class StopListEquipmentServer {
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOM", "innerIdUOM", "shortNameUOMSkuStopListDetail", "infoStopListDetail",
-                "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail",
+                "splitSkuStopListDetail", "passScalesSkuStopListDetail", "flagsSkuStopListDetail", "valueVATSkuStopListDetail", "priceStopListDetail",
                 "barcodes"};
         LP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "overIdSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
                 "nameSkuGroup[StopListDetail]", "idUOM[StopListDetail]", "innerIdUOM[StopListDetail]", "shortNameUOMSku[StopListDetail]", "info[StopListDetail]",
-                "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]",
+                "splitSku[StopListDetail]", "passScalesSku[StopListDetail]", "flagsSku[StopListDetail]", "valueVATSku[StopListDetail]", "price[StopListDetail]",
                 "barcodes[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
@@ -249,13 +249,14 @@ public class StopListEquipmentServer {
             boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
             Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
             BigDecimal valueVAT = (BigDecimal) values.get("valueVATSkuStopListDetail").getValue();
+            BigDecimal price = (BigDecimal) values.get("priceStopListDetail").getValue();
             List<Long> barcodeObjectList = getBarcodeObjectList(trimToEmpty((String) values.get("barcodes").getValue()));
             Map<String, Integer> stockPluNumberMap = new HashMap();
             for(String idStock : idStockSet) {
                 Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[STRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
-            stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, null, split,
+            stopListItemList.put(idBarcode, new StopListItem(stockPluNumberMap, idItem, idBarcode, nameItem, price, split,
                     null, null, null, passScales, valueVAT, null, flags, idSkuGroup,
                     nameSkuGroup, idUOM, shortNameUOM, info, null, barcodeObjectList, innerIdUOM));
         }
