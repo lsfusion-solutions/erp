@@ -39,9 +39,14 @@ CLASS TaraMode 'Режим использования тары' {
     mode7 '7 - отнимать значение веса тары', 
     mode8 '8 – игнорировать вес тары' 
 }
-id(TaraMode t) = CASE
+
+id = ABSTRACT CASE INTEGER (TaraMode);
+id(TaraMode t) += CASE
     WHEN t == TaraMode.mode7 THEN 7
     WHEN t == TaraMode.mode8 THEN 8;
+
+forceLoad = ABSTRACT CASE BOOLEAN (TaraMode);
+
 name(TaraMode t) = staticCaption(t) IF t IS TaraMode;
 
 overTaraModeN 'Тарирование на кассе' = ABSTRACT TaraMode (Item);
@@ -82,8 +87,8 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                     '"requirequantitymanual":1' IF requireQuantityManual(sku(b)) AND NOT skipLoadSSC(gm),
                     '"requirequantityscales":1' IF requireQuantityScales(sku(b)) AND NOT skipLoadSSC(gm),
                     ('"taracapacity":' + taraCapacity(sku(b))) IF NOT skipLoadTaraCapacity(gm) AND taraModeN(sku(b)) AND NOT isTara(sku(b)) ,
-                    ('"taramode":' + id(taraModeN(sku(b)))) IF isUseNewTaraMode(groupMachinery(mpt)),
-                    ('"cquant":' + taraCapacity(sku(b))) IF isTara(sku(b)) AND isUseNewTaraMode(groupMachinery(mpt)),
+                    ('"taramode":' + id(taraModeN(sku(b)))) IF isUseNewTaraMode(groupMachinery(mpt)) OR forceLoad(taraModeN(sku(b))),
+                    ('"cquant":' + taraCapacity(sku(b))) IF isTara(sku(b)) AND (isUseNewTaraMode(groupMachinery(mpt)) OR forceLoad(taraModeN(sku(b)))),
                     '"defaultquantity" : 0.0' IF zeroDefaultQuantityScales(model(groupMachinery(mpt))) AND (split(b) AND NOT requireQuantityScales(sku(b)) OR overSplit(sku(b))),
                     overArtixInfo(mpt,b)
                 )
