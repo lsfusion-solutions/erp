@@ -141,14 +141,14 @@ sendToPosXServer (MachineryPriceTransaction t){
 
 zReport (CashRegister cr, STRING n) = GROUP LAST ZReport z ORDER z IF number(z) = n AND cashRegister(z) = cr;
 
-overReceiveFromPosXServer ABSTRACT LIST (CashRegister,DATE);
+overReceiveFromPosXServer ABSTRACT LIST (CashRegister,DATE,DATE);
 
-receiveFromPosXServer(GroupCashRegister g, DATE date) {
+receiveFromPosXServer(GroupCashRegister g, DATE from, DATE to) {
     IF isPosX(g) THEN {
         FOR groupCashRegister(CashRegister cr) == g AND active(cr) AND npp(cr) DO {
             NEWSESSION NESTED LOCAL {
                 returnExchange(g) <- NULL;
-                exchangePosX(g,'SELECT tdate, smena FROM dbo.tp_z_report WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+                exchangePosX(g,'SELECT tdate, smena FROM dbo.tp_z_report WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
                 IF NOT returnExchange(g) THEN {
                     LOCAL tdate = DATETIME (INTEGER);
                     LOCAL smena = INTEGER (INTEGER);
@@ -164,7 +164,7 @@ receiveFromPosXServer(GroupCashRegister g, DATE date) {
                     }
                 }
                 returnExchange(g) <- NULL;
-                exchangePosX(g,'SELECT tdate, nomer, cashid, smena FROM dbo.tp_hz_kassa WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+                exchangePosX(g,'SELECT tdate, nomer, cashid, smena FROM dbo.tp_hz_kassa WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
                 IF NOT returnExchange(g) THEN {
                     LOCAL tdate = DATETIME (INTEGER);
                     LOCAL nomer = INTEGER (INTEGER);
@@ -185,7 +185,7 @@ receiveFromPosXServer(GroupCashRegister g, DATE date) {
                     }
                 }
                 returnExchange(g) <- NULL;
-                exchangePosX(g,'SELECT tdate, line, payment, summa FROM dbo.tp_payments WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+                exchangePosX(g,'SELECT tdate, line, payment, summa FROM dbo.tp_payments WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
                 IF NOT returnExchange(g) THEN {
                     LOCAL tdate = DATETIME (INTEGER);
                     LOCAL line = INTEGER (INTEGER);
@@ -208,7 +208,7 @@ receiveFromPosXServer(GroupCashRegister g, DATE date) {
                     }
                 }
                 returnExchange(g) <- NULL;
-                exchangePosX(g,'SELECT tdate, barcod, barcod2, how, price, summa, baseprice, line FROM dbo.tp_z_kassa WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+                exchangePosX(g,'SELECT tdate, barcod, barcod2, how, price, summa, baseprice, line FROM dbo.tp_z_kassa WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
                 IF NOT returnExchange(g) THEN {
                     LOCAL tdate = DATETIME (INTEGER);
                     LOCAL barcod = STRING[40] (INTEGER);
@@ -249,7 +249,7 @@ receiveFromPosXServer(GroupCashRegister g, DATE date) {
                     }
                 }
                 returnExchange(g) <- NULL;
-                exchangePosX(g,'SELECT tdate, line, cardcli FROM dbo.tp_disc WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+                exchangePosX(g,'SELECT tdate, line, cardcli FROM dbo.tp_disc WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
                 IF NOT returnExchange(g) THEN {
                     LOCAL tdate = DATETIME (INTEGER);
                     LOCAL line = INTEGER (INTEGER);
@@ -263,7 +263,7 @@ receiveFromPosXServer(GroupCashRegister g, DATE date) {
                         discountCard(r) <- discountCard(cardcli(i));
                     }
                 }
-                overReceiveFromPosXServer(cr,date);
+                overReceiveFromPosXServer(cr,from,to);
                 APPLY;
             }
         }
@@ -274,6 +274,16 @@ sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
     sendToPosXServer(t);
 }
 
+daysReceiveFromPosXServer 'Дней для получения чеков из PosXServer' = DATA INTEGER ();
+EXTEND FORM options
+    PROPERTIES() daysReceiveFromPosXServer
+;
+DESIGN options {
+    zReport {
+        MOVE PROPERTY(daysReceiveFromPosXServer());
+    }
+}
+
 receiveGroupMachinery(GroupCashRegister g) + {
-    receiveFromPosXServer(g, currentDate());
+    receiveFromPosXServer(g, sum(currentDate(), (OVERRIDE - daysReceiveFromPosXServer(), -1)), currentDate());
 }

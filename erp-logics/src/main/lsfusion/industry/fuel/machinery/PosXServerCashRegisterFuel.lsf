@@ -9,9 +9,9 @@ extraLoad(Sku s)+=TRUE IF isCharge(s); //для выгрузки услуг
 
 fsrlFuel(Sku s) += isFuel(s); //Топливо
 
-overReceiveFromPosXServer(CashRegister cr, DATE date) +{
+overReceiveFromPosXServer(CashRegister cr, DATE from, DATE to) +{
     returnExchange(groupCashRegister(cr)) <- NULL;
-    exchangePosX(groupCashRegister(cr),'SELECT tdate, line, param, val FROM dbo.tp_attrib WHERE tdate BETWEEN \'' + toDateISO(date) + '\' AND \'' + toDateISO(date) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+    exchangePosX(groupCashRegister(cr),'SELECT tdate, line, param, val FROM dbo.tp_attrib WHERE tdate BETWEEN \'' + toDateISO(from) + '\' AND \'' + toDateISO(to) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
     IF NOT returnExchange(groupCashRegister(cr)) THEN {
         LOCAL tdate = DATETIME (INTEGER);
         LOCAL line = INTEGER (INTEGER);
@@ -23,7 +23,7 @@ overReceiveFromPosXServer(CashRegister cr, DATE date) +{
         idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
         id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
         FOR receipt(ReceiptDetail d) = receipt(idR(INTEGER i)) AND id(d) = id(i) AND param(i) AND isFuel(sku(d)) DO {
-            volume(d) <- quantity(d);
+            volume(d) <- quantity(d) WHERE param(i) == 'fp_mass';
             quantity(d) <- NUMERIC[16,5](val(i)) WHERE param(i) == 'fp_mass';
             density(d) <- NUMERIC[8,4](val(i)) WHERE param(i) == 'fp_density';
             bin(d) <- bin(val(i)) WHERE param(i) == 'fp_tankNumber';
