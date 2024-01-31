@@ -557,7 +557,7 @@ public class DefaultTerminalHandler {
                     String category = trim((String) entry.get("nameSkuGroup"));
 
                     String GTIN = null;
-                    if (ediGtinLM != null)
+                    if (ediGtinLM != null && idBarcode.equals(mainBarcode) ) //чтобы для GTIN параметры брались из основного штрихкода, особенно amount
                         GTIN = trim((String) entry.get("GTIN"));
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
