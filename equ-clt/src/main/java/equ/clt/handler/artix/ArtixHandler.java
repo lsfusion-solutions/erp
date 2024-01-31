@@ -557,7 +557,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 }
 
                 if(infoJSON.has("fuzzyweight")) {
-                    enableQuantityScales = infoJSON.optInt("fuzzyweight");
+                    inventObject.put("fuzzyweight", infoJSON.optInt("fuzzyweight"));
                 }
             }
 
