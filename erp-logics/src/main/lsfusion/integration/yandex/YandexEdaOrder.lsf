@@ -100,6 +100,7 @@ EXTEND FORM internetOrder
 afterCreateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 defaultNameCustomer = ABSTRACT STRING[255] ();
 notUseRoundPrice = ABSTRACT CASE BOOLEAN (Carrier);
+logOrder ABSTRACT LIST (InternetOrder, FILE);
 
 createOrder(FILE f){
     LOCAL tokenClient = STRING ();
@@ -120,6 +121,7 @@ createOrder(FILE f){
             RETURN;
         }
         NEW order = InternetOrder {
+            logOrder(order, f);
             carrier(order) <- carrierOrder(aggr());
             number(order) <- eatsId();
             idAggregator(order) <- eatsId();
