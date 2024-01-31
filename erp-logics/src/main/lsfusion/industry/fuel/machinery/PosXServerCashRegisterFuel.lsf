@@ -31,3 +31,29 @@ overReceiveFromPosXServer(CashRegister cr, DATE from, DATE to) +{
         }
     }
 }
+
+overReceiveFromPosXServer(CashRegister cr, RequestExchange re) +{
+    returnExchange(groupCashRegister(cr)) <- NULL;
+    exchangePosX(groupCashRegister(cr),'SELECT tdate, line, param, val FROM dbo.tp_attrib WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+    IF NOT returnExchange(groupCashRegister(cr)) THEN {
+        LOCAL tdate = DATETIME (INTEGER);
+        LOCAL line = INTEGER (INTEGER);
+        LOCAL param = STRING[50] (INTEGER);
+        LOCAL val = STRING[800] (INTEGER);
+        LOCAL idR = STRING[100] (INTEGER);
+        LOCAL id = STRING[100] (INTEGER);
+        IMPORT FROM exportFile() TO tdate, line, param, val;
+        idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
+        id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
+        FOR receipt(ReceiptDetail d) = receipt(idR(INTEGER i)) AND id(d) = id(i) AND param(i) AND isFuel(sku(d)) DO {
+            volume(d) <- quantity(d) WHERE param(i) == 'fp_mass';
+            quantity(d) <- NUMERIC[16,5](val(i)) WHERE param(i) == 'fp_mass';
+            density(d) <- NUMERIC[8,4](val(i)) WHERE param(i) == 'fp_density';
+            bin(d) <- bin(val(i)) WHERE param(i) == 'fp_tankNumber';
+            gun(d) <- gun(val(i)) WHERE param(i) == 'fp_nozzleNumber';
+        }
+    } ELSE {
+        addMachineryError(re, System.messageCaughtException());
+        countMachineryErrors() <- countMachineryErrors() (+) 1;
+    }
+}

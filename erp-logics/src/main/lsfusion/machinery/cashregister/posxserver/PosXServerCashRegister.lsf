@@ -287,3 +287,162 @@ DESIGN options {
 receiveGroupMachinery(GroupCashRegister g) + {
     receiveFromPosXServer(g, sum(currentDate(), (OVERRIDE - daysReceiveFromPosXServer(), -1)), currentDate());
 }
+
+overReceiveFromPosXServer ABSTRACT LIST (CashRegister,RequestExchange);
+
+countMachineryErrors = DATA LOCAL INTEGER ();
+
+receiveFromPosXServer (CashRegister cr, RequestExchange re) {
+    NEWSESSION {
+        countMachineryErrors() <- NULL;
+        returnExchange(groupCashRegister(cr)) <- NULL;
+        exchangePosX(groupCashRegister(cr),'SELECT tdate, smena FROM dbo.tp_z_report WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+        IF NOT returnExchange(groupCashRegister(cr)) THEN {
+            LOCAL tdate = DATETIME (INTEGER);
+            LOCAL smena = INTEGER (INTEGER);
+            IMPORT FROM exportFile() TO tdate, smena;
+            FOR smena(INTEGER i) AND NOT zReport(cr, STRING(smena(i))) DO NEW z = ZReport {
+                cashRegister(z) <- cr;
+                number(z) <- STRING(smena(i));
+            }
+            FOR ZReport z = zReport(cr, STRING(smena(INTEGER i))) DO {
+                date(z) <- DATE(tdate(i));
+                time(z) <- TIME(tdate(i));
+                isPosted(z) <- TRUE; 
+            }
+        } ELSE {
+            addMachineryError(re, System.messageCaughtException());
+            countMachineryErrors() <- countMachineryErrors() (+) 1;
+        }
+        returnExchange(groupCashRegister(cr)) <- NULL;
+        exchangePosX(groupCashRegister(cr),'SELECT tdate, nomer, cashid, smena FROM dbo.tp_hz_kassa WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+        IF NOT returnExchange(groupCashRegister(cr)) THEN {
+            LOCAL tdate = DATETIME (INTEGER);
+            LOCAL nomer = INTEGER (INTEGER);
+            LOCAL cashid = STRING[10] (INTEGER);
+            LOCAL smena = INTEGER (INTEGER);
+            LOCAL id = STRING[100] (INTEGER);
+            IMPORT FROM exportFile() TO tdate, nomer, cashid, smena;
+            id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
+            FOR nomer(INTEGER i) AND ZReport z = zReport(cr, STRING(smena(i))) AND NOT receipt(id(i)) DO NEW r = Receipt {
+                zReport(r) <- z;
+                id(r) <- id(i);
+            }
+            FOR Receipt r = receipt(id(INTEGER i)) DO {
+                number(r) <- nomer(i);
+                date(r) <- DATE(tdate(i));
+                time(r) <- TIME(tdate(i));
+                employee(r) <- employee(cashid(i));    
+            }
+        } ELSE {
+            addMachineryError(re, System.messageCaughtException());
+            countMachineryErrors() <- countMachineryErrors() (+) 1;
+        }
+        returnExchange(groupCashRegister(cr)) <- NULL;
+        exchangePosX(groupCashRegister(cr),'SELECT tdate, line, payment, summa FROM dbo.tp_payments WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+        IF NOT returnExchange(groupCashRegister(cr)) THEN {
+            LOCAL tdate = DATETIME (INTEGER);
+            LOCAL line = INTEGER (INTEGER);
+            LOCAL payment = STRING[1] (INTEGER);
+            LOCAL summa = NUMERIC[18,4] (INTEGER);
+            LOCAL idR = STRING[100] (INTEGER);
+            LOCAL id = STRING[100] (INTEGER);
+            IMPORT FROM exportFile() TO tdate, line, payment, summa;
+            idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
+            id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
+            FOR summa(INTEGER i) AND Receipt r = receipt(idR(i)) AND NOT payment(id(i)) DO NEW p = Payment {
+                receipt(p) <- r;
+                id(p) <- id(i);
+            }
+            FOR summa(INTEGER i) AND Receipt r = receipt(idR(i)) AND Payment p = payment(id(i)) DO {
+                sum(p) <- -summa(i);
+                paymentType(p) <- CASE
+                    WHEN lower(payment(i)) == 'p' THEN typePaymentSID('cash')
+                    WHEN lower(payment(i)) == 'h' THEN typePaymentSID('card');
+            }
+        } ELSE {
+            addMachineryError(re, System.messageCaughtException());
+            countMachineryErrors() <- countMachineryErrors() (+) 1;
+        }
+        returnExchange(groupCashRegister(cr)) <- NULL;
+        exchangePosX(groupCashRegister(cr),'SELECT tdate, barcod, barcod2, how, price, summa, baseprice, line FROM dbo.tp_z_kassa WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+        IF NOT returnExchange(groupCashRegister(cr)) THEN {
+            LOCAL tdate = DATETIME (INTEGER);
+            LOCAL barcod = STRING[40] (INTEGER);
+            LOCAL barcod2 = STRING[40] (INTEGER);
+            LOCAL how = NUMERIC[16,5] (INTEGER);
+            LOCAL price = NUMERIC[16,4] (INTEGER);
+            LOCAL summa = NUMERIC[18,4] (INTEGER);
+            LOCAL baseprice = NUMERIC[16,4] (INTEGER);
+            LOCAL line = INTEGER (INTEGER);
+            LOCAL idR = STRING[100] (INTEGER);
+            LOCAL id = STRING[100] (INTEGER);
+            IMPORT FROM exportFile() TO tdate, barcod, barcod2, how, price, summa, baseprice, line;
+            idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
+            id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
+            FOR Receipt r = receipt(idR(INTEGER i)) AND how(i) < 0 AND NOT receiptDetail(id(i)) DO NEW d = ReceiptSaleDetail {
+                id(d) <- id(i);
+                receipt(d) <- r;
+            }
+            FOR receipt(ReceiptSaleDetail d) = receipt(idR(INTEGER i)) AND how(i) < 0 AND id(d) = id(i) DO {
+                sku(d) <- sku(barcod(i));
+                price(d) <- price(i);
+                quantity(d) <- -how(i);
+                sum(d) <- -summa(i);
+                discountSum(d) <- NUMERIC[18,4]((baseprice(i) (-) price(i)) * (-how(i)));
+                idBarcode(d) <- barcod2(i);
+            }
+            FOR Receipt r = receipt(idR(INTEGER i)) AND how(i) > 0 AND NOT receiptDetail(id(i)) DO NEW d = ReceiptReturnDetail {
+                id(d) <- id(i);
+                receipt(d) <- r;
+            }
+            FOR receipt(ReceiptReturnDetail d) = receipt(idR(INTEGER i)) AND how(i) > 0 AND id(d) = id(i) DO {
+                sku(d) <- sku(barcod(i));
+                price(d) <- price(i);
+                quantity(d) <- how(i);
+                sum(d) <- summa(i);
+                discountSum(d) <- NUMERIC[18,4]((baseprice(i) (-) price(i)) * how(i));
+                idBarcode(d) <- barcod2(i);
+            }
+        } ELSE {
+            addMachineryError(re, System.messageCaughtException());
+            countMachineryErrors() <- countMachineryErrors() (+) 1;
+        }
+        returnExchange(groupCashRegister(cr)) <- NULL;
+        exchangePosX(groupCashRegister(cr),'SELECT tdate, line, cardcli FROM dbo.tp_disc WHERE tdate BETWEEN \'' + toDateISO(dateFrom(re)) + '\' AND \'' + toDateISO(dateTo(re)) + ' 23:59:59\' AND id_cassa = ' + npp(cr)); 
+        IF NOT returnExchange(groupCashRegister(cr)) THEN {
+            LOCAL tdate = DATETIME (INTEGER);
+            LOCAL line = INTEGER (INTEGER);
+            LOCAL cardcli = STRING[40] (INTEGER);
+            LOCAL idR = STRING[100] (INTEGER);
+            LOCAL id = STRING[100] (INTEGER);
+            IMPORT FROM exportFile() TO tdate, line, cardcli;
+            idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
+            id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
+            FOR Receipt r = receipt(idR(INTEGER i)) AND cardcli(i) DO {
+                discountCard(r) <- discountCard(cardcli(i));
+            }
+        } ELSE {
+            addMachineryError(re, System.messageCaughtException());
+            countMachineryErrors() <- countMachineryErrors() (+) 1;
+        }
+        overReceiveFromPosXServer(cr,re);
+        IF NOT countMachineryErrors() THEN {
+            succeededNative(re) <- TRUE;
+            dateTimeSucceededNative(re) <- currentDateTime();
+            
+        }
+        APPLY;
+        IF canceled() THEN {
+            CANCEL;
+            addMachineryError(re, applyMessage());
+            APPLY;
+        }
+    }
+}
+
+sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchangeType(re) = RequestExchangeType.salesInfo AND cr IS CashRegister THEN {
+    IF isPosX(cr) AND active(cr) AND npp(cr) THEN {
+        receiveFromPosXServer(cr, re);
+    }
+}
