@@ -103,7 +103,7 @@ updateProducts 'Обновить продукты(магазин)'(DepartmentSto
         maxSku() <- GROUP MAX sort(Sku s);
         maxStep() <- (maxSku() / 1700) (+) 1 IF mod(maxSku(), 1700);
         FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
-            EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds), (sort(products) > (i * 1700) AND sort(products) <= ((i + 1) * 1700)) JSON;
+            EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds), retailPricingPriceA(products, ds), (sort(products) > (i * 1700) AND sort(products) <= ((i + 1) * 1700)) JSON;
             TRY {
                 EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
                 IMPORT responseItems JSON FROM response();
@@ -116,7 +116,7 @@ updateProducts 'Обновить продукты(магазин)'(DepartmentSto
             
         }
     } ELSE{
-        EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds) JSON;
+        EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds),  retailPricingPriceA(products, ds) JSON;
         TRY EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
         CATCH{
             fileToString(response());
