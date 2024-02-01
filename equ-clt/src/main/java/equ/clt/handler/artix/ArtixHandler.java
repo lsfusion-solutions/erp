@@ -465,6 +465,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer requireQuantityManual = null;
             Integer requireQuantityScales = null;
             Integer enableQuantityScales = null;
+            Integer fuzzyweight = null;
 
             if (infoJSON != null) {
                 if(infoJSON.has("requiresalerestrict")) {
@@ -522,6 +523,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 if(infoJSON.has("enablequantityscales")) {
                     enableQuantityScales = infoJSON.optInt("enablequantityscales");
                 }
+                if(infoJSON.has("fuzzyweight")) {
+                    fuzzyweight = infoJSON.optInt("fuzzyweight");
+                }
 
                 if (infoJSON.has("taramode")){
                     inventObject.put("taramode", infoJSON.optInt("taramode"));
@@ -555,15 +559,45 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 if (defaultQuantity != null) {
                     inventObject.put("defaultquantity", defaultQuantity);
                 }
+            }
 
-                if(infoJSON.has("fuzzyweight")) {
-                    inventObject.put("fuzzyweight", infoJSON.optInt("fuzzyweight"));
+            if (capacity != null && !capacity.isEmpty())
+                inventObject.put("taracapacity", Double.valueOf(capacity));
+
+            if (alcVolume != null && !alcVolume.isEmpty())
+                inventObject.put("alcoholpercent", Double.valueOf(alcVolume));
+
+            if(medicineModeNewScheme) {
+                if (!medicineMode) {
+                    Integer blisterAmount = getMaxBlisterAmount(item);
+                    if (blisterAmount != null) {
+                        inventObject.put("cquant", blisterAmount);
+                    }
+                }
+            } else {
+                Integer blisterAmount = getMaxBlisterAmount(item);
+                if(blisterAmount != null) {
+                    inventObject.put("cquant", blisterAmount);
                 }
             }
 
             JSONObject itemOptions = new JSONObject();
+            inventObject.put("options", itemOptions);
+
+            if (autoGetQuantity) {
+                if (!itemOptions.has("quantityoptions")) itemOptions.put("quantityoptions", new JSONObject());
+                itemOptions.optJSONObject("quantityoptions").put("autogetquantityfromscales", true);
+            }
+
+            if (exciseMarkPrice != null) {
+                JSONObject priceOptions = new JSONObject();
+                priceOptions.put("enableexcisemarkprice", exciseMarkPrice);
+                itemOptions.put("priceoptions", priceOptions);
+            }
 
             JSONObject inventItemOptions = new JSONObject();
+            itemOptions.put("inventitemoptions", inventItemOptions);
+
             inventItemOptions.put("disableinventback", disableInventBack ? 1 : 0);
             inventItemOptions.put("disableinventsale", disableInventSale ? 1 : 0);
             inventItemOptions.put("ageverify", ageVerify);
@@ -590,11 +624,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 itemOptions.put("quantityoptions", quantityoptions);
             }
 
-            if (autoGetQuantity) {
-                if (!itemOptions.has("quantityoptions")) itemOptions.put("quantityoptions", new JSONObject());
-                itemOptions.optJSONObject("quantityoptions").put("autogetquantityfromscales", true);
-            }
-
             if (tobacco)
                 inventItemOptions.put("tobacco", true);
 
@@ -603,46 +632,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 inventObject.put("alctypecode", Long.valueOf(alcTypeCode));
             }
 
-            if (capacity != null && !capacity.isEmpty())
-                inventObject.put("taracapacity", Double.valueOf(capacity));
-
-            if (alcVolume != null && !alcVolume.isEmpty())
-                inventObject.put("alcoholpercent", Double.valueOf(alcVolume));
-
-            itemOptions.put("inventitemoptions", inventItemOptions);
-
-            if (exciseMarkPrice != null) {
-                JSONObject priceOptions = new JSONObject();
-                priceOptions.put("enableexcisemarkprice", exciseMarkPrice);
-                itemOptions.put("priceoptions", priceOptions);
-            }
-
-            inventObject.put("options", itemOptions);
-
-            if(medicineModeNewScheme) {
-                if (!medicineMode) {
-                    Integer blisterAmount = getMaxBlisterAmount(item);
-                    if (blisterAmount != null) {
-                        inventObject.put("cquant", blisterAmount);
-                    }
-                }
-            } else {
-                Integer blisterAmount = getMaxBlisterAmount(item);
-                if(blisterAmount != null) {
-                    inventObject.put("cquant", blisterAmount);
-                }
-            }
-
-
-//            "additionalprices": [ {
-//                "pricecode": 2,
-//                        "price": 2.50,
-//                        "name": "VIP"}, {
-//                "pricecode": 3,
-//                        "price": 1.50,
-//                        "name": "Опт"
-//            }
-//]
+            inventItemOptions.put("fuzzyweight", fuzzyweight);
 
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
