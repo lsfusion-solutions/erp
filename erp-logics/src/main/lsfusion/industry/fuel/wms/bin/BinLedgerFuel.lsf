@@ -203,3 +203,13 @@ DESIGN balanceSkuStock {
 CONSTRAINT (CHANGED(volume(BinLedger l)) OR CHANGED(quantity(l))) AND (volume(l) OR quantity(l)) AND NOT (volume(l) AND quantity(l))
     AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
     MESSAGE 'При движении топлива по резервуарам должны быть заданы масса и объём';
+
+skipCheckBinsBinLedger 'Разрешить не указывать резервуар при движении топлива' = DATA BOOLEAN (Stock);
+
+EXTEND FORM options
+    PROPERTIES skipCheckBinsBinLedger(s)
+;
+
+CONSTRAINT (SET(BinLedger l IS BinLedger) OR CHANGED(inBin(l)) OR CHANGED(outBin(l))) AND NOT (inBin(l) OR outBin(l))
+    AND isFuel(sku(l)) AND NOT skipCheckBinsBinLedger(stock(l))
+    MESSAGE 'При движении топлива должен быть задан резервуар';
