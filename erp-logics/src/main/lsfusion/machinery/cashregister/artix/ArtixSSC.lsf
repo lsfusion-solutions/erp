@@ -34,6 +34,7 @@ DESIGN groupCashRegister {
 }
 
 isUseNewTaraMode 'Тарирование на кассе' (GroupCashRegister cr) = useNewTaraMode(cashRegisterModel(cr)) AND useNewTaraMode(cr);
+isUseNewTaraMode 'Тарирование на кассе' = ABSTRACT VALUE BOOLEAN (Sku);
 //
 CLASS TaraMode 'Режим использования тары' {
     mode7 '7 - отнимать значение веса тары', 
@@ -87,8 +88,8 @@ createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
                     '"requirequantitymanual":1' IF requireQuantityManual(sku(b)) AND NOT skipLoadSSC(gm),
                     '"requirequantityscales":1' IF requireQuantityScales(sku(b)) AND NOT skipLoadSSC(gm),
                     ('"taracapacity":' + taraCapacity(sku(b))) IF NOT skipLoadTaraCapacity(gm) AND taraModeN(sku(b)) AND NOT isTara(sku(b)) ,
-                    ('"taramode":' + id(taraModeN(sku(b)))) IF isUseNewTaraMode(groupMachinery(mpt)) OR forceLoad(taraModeN(sku(b))),
-                    ('"cquant":' + taraCapacity(sku(b))) IF isTara(sku(b)) AND (isUseNewTaraMode(groupMachinery(mpt)) OR forceLoad(taraModeN(sku(b)))),
+                    ('"taramode":' + id(taraModeN(sku(b)))) IF isUseNewTaraMode(groupMachinery(mpt)) OR isUseNewTaraMode(sku(b)),
+                    ('"cquant":' + taraCapacity(sku(b))) IF isTara(sku(b)) AND (isUseNewTaraMode(groupMachinery(mpt)) OR isUseNewTaraMode(sku(b))),
                     '"defaultquantity" : 0.0' IF zeroDefaultQuantityScales(model(groupMachinery(mpt))) AND (split(b) AND NOT requireQuantityScales(sku(b)) OR overSplit(sku(b))),
                     overArtixInfo(mpt,b)
                 )
@@ -188,11 +189,11 @@ createFilePickList (GroupCashRegister gm) {
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
 
-    IF isUseNewTaraMode(gm) AND doClear() THEN {
+    IF (isUseNewTaraMode(gm) OR (GROUP SUM 1 IF isUseNewTaraMode(Sku s) AND exportTara(s))) AND doClear() THEN {
         rezult() <- CONCAT '', rezult(), '\{"command": "clearInventCatalog"\}\n---\n';
     }
     
-    IF isUseNewTaraMode(gm) AND (GROUP SUM 1 IF exportTara(Sku s)) THEN {
+    IF (isUseNewTaraMode(gm) OR (GROUP SUM 1 IF isUseNewTaraMode(Sku s) AND exportTara(s))) AND (GROUP SUM 1 IF exportTara(Sku s)) THEN {
         rezult() <- CONCAT '', rezult(),
                         ('\{"command": "addCatalog","catalog": \{' + 
                             (CONCAT ',', 
