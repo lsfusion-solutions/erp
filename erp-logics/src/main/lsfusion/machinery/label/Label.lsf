@@ -915,7 +915,11 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
     createLabelTransactionParam (cls document)  {       
         // бежим по всем типам ценников из управленческих параметров
         // для каждого создаем по операции печати ценников
-        FOR ([ GROUP SUM 1 IF inLabel(###skuProp sku) AND inPrint(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document))) ORDER labelType
+        FOR DepartmentStore departmentStore == stockProp(document) NOINLINE DO {
+            select(###skuProp sku, LabelType labelType, departmentStore) <- inLabel(sku) AND inPrint(labelType, sku, departmentStore);
+        }
+
+        FOR [GROUP SUM 1 IF select(Sku s, LabelType l, stockProp(document)) BY l](LabelType labelType) ORDER labelType
             NEW t = LabelTransaction DO {
                 departmentStore(t) <- stockProp(document);
                 priceTransactionDocument(t) <- document;
@@ -926,9 +930,8 @@ META defineDocumentLabelTransaction (document, cls, detailProp, skuProp, batchPr
                 LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
                 
                 FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
-                    FOR document(###detailProp##Detail dd) == document AND 
-                        inLabel(skuProp(dd)) AND 
-                        inPrint(labelType, skuProp(dd), stockProp(document)) ORDER index(dd), dd INLINE 
+                    FOR document(###detailProp##Detail dd) == document AND
+                        select(skuProp(dd), labelType, stockProp(document)) ORDER index(dd), dd INLINE 
                         NEW d = LabelTransactionDetail DO {
         
                         IF notChangePrintPrice(t) THEN {
