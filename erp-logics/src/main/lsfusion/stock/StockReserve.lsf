@@ -75,6 +75,12 @@ fillReserveFromTo 'Проставить кол-во исходя из прода
     }
 } TOOLBAR CONFIRM;
 
+fillReserveFromTo 'Проставить кол-во исходя из продаж в день и запаса(дн.) '(StockGroup sg, DATE date)  {
+    FOR stockReserveDays(Stock stock, Sku s) AND averageSold(s,stock) AND isParent(sg, stock) DO {
+        dataStockReserve(stock, s, date) <- averageSold(s,stock)*stockReserveDays(stock,s);
+    }
+} TOOLBAR CONFIRM;
+
 // Вид цены
 filterPriceListTypeStock = DATA LOCAL PriceListType ();
 nameFilterPriceListTypeStock 'Вид цены' () = name(filterPriceListTypeStock());
@@ -95,36 +101,58 @@ filterPriceListType (Sku sku, Stock stock, DATE date, TIME time) =
     prevPriceB (filterPriceListTypeStock(), sku, stock, dateTimeToDateTime(date, time)) OR
     (sku IS Sku AND stock IS Stock AND date IS DATE AND time IS TIME AND NOT filterPriceListTypeStock());
 
+multipleStoresNested 'Несколько складов' = DATA LOCAL NESTED BOOLEAN ();
+singleStoreNested = NOT multipleStoresNested();
+
 FORM stockReserve 'Страховые запасы'
+    PROPERTIES() multipleStoresNested
+
+    OBJECTS ss = Stock PANEL
+    PROPERTIES(ss) name SELECTOR SHOWIF singleStoreNested()
+    FILTERS isCompany(ss)
+    
     OBJECTS dt = DATE PANEL
     PROPERTIES valDt = VALUE(dt) BACKGROUND dateDiffersCurrent(dt)
     OBJECTS t = TIME PANEL
     PROPERTIES valT = VALUE(t)
-
-    OBJECTS st = Stock PANEL
-    PROPERTIES SELECTOR nameSt = name(st)
-    FILTERS isCompany(st)
 
     PROPERTIES()  nameFilterPriceListTypeStock
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
 
+    TREE stockTree tr = BPSTRING[3], sg = StockGroup PARENT parent(sg), ts = Stock
+    PROPERTIES SHOWIF multipleStoresNested() READONLY VALUE(tr), sgTreeName = name(sg), tsTreeName = name(ts)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(tr),
+        stockGroup(ts) == sg OR extraStockGroup(ts) = sg,
+        isCompany(ts)
+    FILTERGROUP tsinactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    
     TREE skuTree sk = SkuGroup PARENT parent(sk)
-    PROPERTIES order(sk) READONLY, skuTreeName = name(sk) READONLY, stockReserveDays(st,sk)
+    PROPERTIES order(sk) READONLY, skuTreeName = name(sk) READONLY, stockReserveDays(ss,sk) SHOWIF singleStoreNested()
     ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
-
-    OBJECTS s = Sku
-    PROPERTIES READONLY name(s), id(s) SHOWIF showIDs(), idBarcode(s), shortNameUOM(s), nameBrand(s)
+    
+    OBJECTS sts = (s = Sku, st = Stock)
+    PROPERTIES READONLY stockName 'Склад' = name(st) SHOWIF multipleStoresNested(),
+        name(s), id(s) SHOWIF showIDs(), idBarcode(s), shortNameUOM(s), nameBrand(s)
     PROPERTIES overStockReserve(st,s,dt), stockReserveDays(st,s), quantitySold(s,st,dFrom,dTo) READONLY, averageSold(s,st) READONLY
-    PROPERTIES fillReserveFromTo(st,dt) DRAW s
+    PROPERTIES fillReserveFromTo(st,dt) DRAW sts SHOWIF singleStoreNested()
+    PROPERTIES fillReserveFromTo(sg,dt) DRAW sts SHOWIF multipleStoresNested() AND sg IS StockGroup
     ORDERS          name(s)
+
+    FILTERS IF multipleStoresNested() THEN
+            st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts OR overFilterStock(st)
+            ELSE
+            st == ss,
+        isCompany(st) OR NOT multipleStoresNested()    
     FILTERS           isParent(sk, s),
                       filterPriceListType(s,st,dt,t)
-
-    FILTERGROUP active
-        FILTER 'Активные' active(s) 'F11' DEFAULT
+    
+    FILTERGROUP inactiveStock
+        FILTER 'Активный' (active(st) OR NOT multipleStoresNested()) AND active(s) 'F11' DEFAULT
+        FILTER 'Неактивный' inactive(s) 'shift F10'
             
     FILTERGROUP soldFilter
         FILTER 'Только с реализацией' quantitySold(s,st,dFrom,dTo) 'F10'     
@@ -139,7 +167,8 @@ DESIGN stockReserve {
     BOX {
         NEW row1 {
             horizontal = TRUE;
-            MOVE BOX(st);
+            MOVE PROPERTY (multipleStoresNested());
+            MOVE BOX(ss);
             MOVE BOX(dt);
             MOVE BOX(t);
             MOVE BOX(dates) { caption = 'Интервал для реализации'; }
@@ -151,11 +180,16 @@ DESIGN stockReserve {
         NEW row2  {
             horizontal = TRUE;
             fill = 1;
-            MOVE BOX(TREE skuTree) { caption = 'Товарные группы'; }
+            NEW firstBottom {
+                fill = 1;
+                width = 100;
+                MOVE BOX(TREE stockTree) { caption = 'Склады'; }
+                MOVE BOX(TREE skuTree) { caption = 'Товарные группы'; }
+            }
             NEW tabContainer{
                 fill = 4;
                 tabbed = TRUE;
-                MOVE BOX(s) {caption='Товары';};
+                MOVE BOX(sts) {caption='Товары';};
             }            
         }
         MOVE TOOLBARBOX;
