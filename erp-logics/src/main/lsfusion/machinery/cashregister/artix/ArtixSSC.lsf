@@ -35,6 +35,7 @@ DESIGN groupCashRegister {
 
 isUseNewTaraMode 'Тарирование на кассе' (GroupCashRegister cr) = useNewTaraMode(cashRegisterModel(cr)) AND useNewTaraMode(cr);
 isUseNewTaraMode 'Тарирование на кассе' = ABSTRACT VALUE BOOLEAN (Sku);
+isUseNewTaraMode(GroupCashRegister cr, Sku s) = (isUseNewTaraMode(cr) AND s IS Sku) OR isUseNewTaraMode(s);
 //
 CLASS TaraMode 'Режим использования тары' {
     mode7 '7 - отнимать значение веса тары', 
@@ -189,11 +190,11 @@ createFilePickList (GroupCashRegister gm) {
                     + '\}\}') IF idParent(s), '\n---\n' ORDER s)
                 +'\n---\n';
 
-    IF (isUseNewTaraMode(gm) OR (GROUP SUM 1 IF isUseNewTaraMode(Sku s) AND exportTara(s))) AND doClear() THEN {
+    IF doClear() THEN {
         rezult() <- CONCAT '', rezult(), '\{"command": "clearInventCatalog"\}\n---\n';
     }
     
-    IF (isUseNewTaraMode(gm) OR (GROUP SUM 1 IF isUseNewTaraMode(Sku s) AND exportTara(s))) AND (GROUP SUM 1 IF exportTara(Sku s)) THEN {
+    IF (GROUP SUM 1 IF isUseNewTaraMode(gm, Sku s) AND exportTara(s)) THEN {
         rezult() <- CONCAT '', rezult(),
                         ('\{"command": "addCatalog","catalog": \{' + 
                             (CONCAT ',', 
@@ -211,7 +212,7 @@ createFilePickList (GroupCashRegister gm) {
                                 '"tmcprice": ' + (GROUP MAX price(Barcode b) IF s == sku(b)) + '',
                                 '"image": "' + encodeBase64(imageArtix(s)) + '"'
                             ) 
-                        + '\}\}') IF exportTara(s), '\n---\n' ORDER s)
+                        + '\}\}') IF isUseNewTaraMode(gm, s) AND exportTara(s), '\n---\n' ORDER s)
                     +'\n---\n';
     }
                 
