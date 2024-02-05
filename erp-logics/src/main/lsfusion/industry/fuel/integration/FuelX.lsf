@@ -191,7 +191,7 @@ DESIGN Sale.invoices {
 }
 
 
-//http://fuelx.online:9010/getreports/2021-11-05-23-55-44/2025-11-05-23-55-44 json
+//http://fuelx.online:9010/getreports/2021-11-05-23-55-44/2025-11-05-23-55-44/%D0%90%D0%97%D0%A1%205 json
 //Запросить все отчеты за период дат
 
 owner = DATA LOCAL STRING(INTEGER); //Владелец объекта
@@ -609,7 +609,7 @@ FORM reports
                         referenceTemperatureD EXTID 'ReferenceTemperature'
 ;
 
-getReports (DATETIME df, DATETIME dt) { //+ фильтр по ObjectName
+getReports (DATETIME df, DATETIME dt, STRING name) {
     IF NOT url() THEN {
         MESSAGE 'Не задан URL' NOWAIT;
         RETURN;
@@ -620,8 +620,8 @@ getReports (DATETIME df, DATETIME dt) { //+ фильтр по ObjectName
     }
     LOCAL response = FILE();
     TRY {
-        logToFile('FuelX', 'GET: ' + url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS'));
-        EXTERNAL HTTP GET url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS') TO response;
+        logToFile('FuelX', 'GET: ' + url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS') + '/' + name);
+        EXTERNAL HTTP GET url() + ':' + portDataCenterX() + '/getreports/' + toChar(df,'YYYY-MM-DD-HH24-MI-SS') + '/' + toChar(dt,'YYYY-MM-DD-HH24-MI-SS') + '/' + name TO response;
         fileToString(response(), 'UTF-8');
         logToFile('FuelX', 'Response: ' + resultString());
         
@@ -634,13 +634,13 @@ getReports (DATETIME df, DATETIME dt) { //+ фильтр по ObjectName
 }
 
 beforeFill(DailyReport r) + {
-    getReports(fromDateTime(r),toDateTime(r));
+    getReports(fromDateTime(r),toDateTime(r),nameStock(r));
     
     LOCAL prevReport = INTEGER();
     LOCAL report = INTEGER();
     
-    prevReport() <- GROUP LAST INTEGER i IF objectName(i) == nameStock(r) ORDER DESC date(i);
-    report() <-  GROUP LAST INTEGER i IF objectName(i) == nameStock(r) ORDER date(i);
+    prevReport() <- GROUP LAST INTEGER i IF objectName(i) ORDER DESC date(i);
+    report() <-  GROUP LAST INTEGER i IF objectName(i) ORDER date(i);
     
     fromDate(r) <- DATE(date(prevReport())) WHERE prevReport();
     fromTime(r) <- TIME(date(prevReport())) WHERE prevReport();
