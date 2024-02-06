@@ -647,29 +647,29 @@ beforeFill(DailyReport r) + {
     toDate(r) <- DATE(date(report())) WHERE report();
     toTime(r) <- TIME(date(report())) WHERE report();
         
-    volumeCounterB(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == id(b) AND STRING(nozzleNumberFP(i)) == id(g) AND reportsReportFPs(i) == prevReport() ORDER i);
-    volumeCounterA(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == id(b) AND STRING(nozzleNumberFP(i)) == id(g) AND reportsReportFPs(i) == report() ORDER i);
-    volumeOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report());
-    quantityOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report());
-    density(r, Sku s, Bin b, Gun g) <- NUMERIC[8,1]((GROUP SUM densityF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report()) /
-                                       (GROUP SUM 1 IF gradeCodeF(INTEGER i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report()));
-    volumeOut(r, Sku s, Bin b) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
-    quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
-    level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i) /
-                                         (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i));
-    temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    volumeCounterB(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberFP(i) == number(g) AND stock(g) == stock(r) AND reportsReportFPs(i) == prevReport() ORDER i);
+    volumeCounterA(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](GROUP LAST volumeCounterFP(INTEGER i) IF gradeCodeFP(i) == id(s) AND tankFP(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberFP(i) == number(g) AND stock(g) == stock(r) AND reportsReportFPs(i) == report() ORDER i);
+    volumeOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report());
+    quantityOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report());
+    density(r, Sku s, Bin b, Gun g) <- NUMERIC[8,1]((GROUP SUM densityF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report()) /
+                                       (GROUP SUM 1 IF gradeCodeF(INTEGER i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND numberFP(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report()));
+    volumeOut(r, Sku s, Bin b) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
+    quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == STRING(number(b)) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
+    level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) /
+                                         (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i));
+    temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     //pipeVolumeA(r, Sku s, Bin b) <- NULL;
     //pipeBalanceA(r, Sku s, Bin b) <- NULL;
-    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     //debalanceQuantity(r, Sku s, Bin b) <- NULL;
     //allowedDebalanceQuantity(r, Sku s, Bin b) <- NULL;
 }

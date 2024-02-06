@@ -4,16 +4,45 @@ REQUIRE Bin;
 
 NAMESPACE Bin;
 
+number 'Номер' = DATA INTEGER (Bin);
 volume 'Объем, л' = DATA NUMERIC[16,5] (Bin) CHARWIDTH 7;
 
 EXTEND FORM bin
-    PROPERTIES(s) volume
+    PROPERTIES(s) number, volume
 ;
 EXTEND FORM bins
-    PROPERTIES(s) READONLY volume
+    PROPERTIES(s) READONLY number, volume
 ;
 EXTEND FORM binStocks
-    PROPERTIES(b) READONLY volume AFTER canonicalName(b)
+    PROPERTIES(b) READONLY AFTER canonicalName(b) number, volume
+;
+
+CLASS Pump 'ТРК';
+TABLE pump (Pump);
+
+@defineExternalizable(pump, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](Pump) IN id;
+number 'Номер' = DATA INTEGER (Pump);
+
+stock = DATA Stock(Pump);
+nameStock 'Склад' (Pump pump) = name(stock(pump));
+
+CONSTRAINT stock(Pump pump) AND NOT isCompany(stock(pump))
+    CHECKED BY stock[Pump] MESSAGE 'Для ТРК выбран склад, не являющийся складом компании';
+
+FORM pump 'ТРК'
+    OBJECTS p = Pump PANEL
+    PROPERTIES(p) name, id SHOWIF showIDs(), number, nameStock
+    EDIT Pump OBJECT p
+;
+
+FORM pumps 'ТРК'
+    OBJECTS p = Pump
+    PROPERTIES(p) READONLY name, id SHOWIF showIDs(), number, nameStock
+    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(p)
+    LIST Pump OBJECT p
 ;
 
 CLASS Gun 'Пистолет' ;
@@ -22,6 +51,7 @@ TABLE gun (Gun);
 @defineExternalizable(gun, STRING[100]);
 
 name 'Наименование' = DATA ISTRING[100](Gun) IN id;
+number 'Номер' = DATA INTEGER (Gun);
 
 stock = DATA Stock(Gun);
 nameStock 'Склад' (Gun gun) = name(stock(gun));
@@ -29,34 +59,43 @@ nameStock 'Склад' (Gun gun) = name(stock(gun));
 CONSTRAINT stock(Gun gun) AND NOT isCompany(stock(gun))
     CHECKED BY stock[Gun] MESSAGE 'Для пистолета выбран склад, не являющийся складом компании';
 
+pump = DATA Pump(Gun);
+namePump 'ТРК' (Gun gun) = name(pump(gun));
+
+CONSTRAINT stock(Gun gun) AND pump(gun) AND NOT stock(gun) == stock(pump(gun))
+    CHECKED BY pump[Gun] MESSAGE 'Склад и ТРК для пистолета не имеют связи';
+
 bin = DATA Bin(Gun);
 nameBin 'Резервуар' (Gun gun) = name(bin(gun));
 
 CONSTRAINT stock(Gun gun) AND bin(gun) AND NOT in(stock(gun),bin(gun))
     CHECKED BY bin[Gun] MESSAGE 'Склад и резервуар для пистолета не имеют связи';
 
+documentNumber 'Номер (для документов)' (Gun gun) = CONCAT '/', number(pump(gun)), number(gun);
+documentName 'Наименование (для документов)' (Gun gun) = 'Пистолет ' + documentNumber(gun);
+
 FORM gun 'Пистолет'
     OBJECTS g = Gun PANEL
-    PROPERTIES(g) name, id SHOWIF showIDs(), nameStock
+    PROPERTIES(g) name, id SHOWIF showIDs(), number, nameStock
     EDIT Gun OBJECT g
 ;
 
 FORM guns 'Пистолеты'
     OBJECTS g = Gun
-    PROPERTIES(g) READONLY name, id SHOWIF showIDs(), nameStock
+    PROPERTIES(g) READONLY name, id SHOWIF showIDs(), number, nameStock
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(g)
     LIST Gun OBJECT g
 ;
 
-FORM gunBins 'Привязка пистолетов к резервуарам'
+FORM gunBins 'Привязка пистолетов к резервуарам и ТРК'
     OBJECTS ts = Stock PANEL
     PROPERTIES(ts) SELECTOR name
     FILTERS isCompany(ts)
     
     OBJECTS g = Gun
-    PROPERTIES(g) READONLY name, id SHOWIF showIDs()
-    PROPERTIES(g) nameBin
+    PROPERTIES(g) READONLY name, id SHOWIF showIDs(), number, documentNumber
+    PROPERTIES(g) nameBin, namePump
     FILTERS stock(g) == ts
     ORDERS name(g)
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
@@ -64,6 +103,7 @@ FORM gunBins 'Привязка пистолетов к резервуарам'
 
 NAVIGATOR {
     binNavigator {
+        NEW pumps;
         NEW guns;
         NEW gunBins;
     }

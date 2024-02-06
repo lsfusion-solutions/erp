@@ -228,16 +228,16 @@ fill 'Заполнить' (DailyReport r) {
     
     beforeFill(r);
     
-    volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r)));
-    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r)));// / 1000.0);
-    volumeIn(r, Sku s, Bin b) <- NUMERIC[16,2](volumeIn(s,b,fromDateTime(r),toDateTime(r)));
-    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0);
-    volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r)));
-    quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0);
-    volumeA(r, Sku s, Bin b) <- NUMERIC[16,2](volumeA(s,b,toDateTime(r)));
-    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r)));// / 1000.0);
+    volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r))) WHERE in(stock(r),b);
+    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
+    volumeIn(r, Sku s, Bin b) <- NUMERIC[16,2](volumeIn(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
+    //volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    //quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0) WHERE in(stock(r),b);
+    volumeA(r, Sku s, Bin b) <- NUMERIC[16,2](volumeA(s,b,toDateTime(r))) WHERE in(stock(r),b);
+    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
     
-    include(r, Sku s, Bin b) <- volumeB(r,s,b) OR balanceB(r,s,b) OR volumeIn(r,s,b) OR quantityIn(r,s,b) OR volumeOut(r,s,b) OR quantityOut(r,s,b) OR volumeA(r,s,b) OR balanceA(r,s,b);
+    include(r, Sku s, Bin b) <- volumeB(r,s,b) OR balanceB(r,s,b) OR volumeIn(r,s,b) OR quantityIn(r,s,b) OR volumeOut(r,s,b) OR quantityOut(r,s,b) OR volumeA(r,s,b) OR balanceA(r,s,b) OR binVolumeA(r,s,b) OR binBalanceA(r,s,b);
     
     
     include(r, Sku s, Bin b, Gun g) <- volumeCounterB(r,s,b,g) OR volumeCounterA(r,s,b,g) OR volumeOut(r,s,b,g) OR quantityOut(r,s,b,g);//(include(r,s,b) AND bin(g) == b)
