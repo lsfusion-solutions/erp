@@ -206,7 +206,7 @@ numberFP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
 nozzleNumberFP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
 gradeFP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
 gradeCodeFP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
-tankFP = DATA LOCAL STRING(INTEGER); //Название резервуара
+tankFP = DATA LOCAL STRING(INTEGER); //Номер резервуара
 moneyCounterFP = DATA LOCAL STRING(INTEGER); //Счетчик суммы ТРК по пистолету (программный, так как некоторое оборудование не считает по пистолету, а считает только в общем)
 volumeCounterFP = DATA LOCAL STRING(INTEGER); //Счетчик объема ТРК по пистолету (программный, так как некоторое оборудование не считает по пистолету, а считает только в общем)
 
@@ -283,7 +283,7 @@ gradeCodeF = DATA LOCAL STRING(INTEGER); //Код топлива пистоле�
 startTimeF = DATA LOCAL DATETIME(INTEGER); //Время начала отгрузки
 endTimeF = DATA LOCAL DATETIME(INTEGER); //Время завершения отгрузки
 speedF = DATA LOCAL NUMERIC[8,2](INTEGER); //Скорость отгрузки л/сек
-tankF = DATA LOCAL STRING(INTEGER); //Название резервуара
+tankF = DATA LOCAL STRING(INTEGER); //Номер резервуара
 moneyF = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
 volumeF = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
 temperatureF = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
@@ -316,7 +316,7 @@ numberP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
 nozzleNumberP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
 gradeP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
 gradeCodeP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
-tankP = DATA LOCAL STRING(INTEGER); //Название резервуара
+tankP = DATA LOCAL STRING(INTEGER); //Номер резервуара
 moneyP = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
 volumeP = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
 posMoneyP = DATA LOCAL STRING(INTEGER); //Сумма налива согласно кассе (может отличаться при несинхронных ценах кассы и топливного сервера)
@@ -344,7 +344,7 @@ numberNP = DATA LOCAL INTEGER(INTEGER); //Номер колонки
 nozzleNumberNP = DATA LOCAL INTEGER(INTEGER); //Номер пистолета ТРК
 gradeNP = DATA LOCAL STRING(INTEGER); //Топливо пистолета
 gradeCodeNP = DATA LOCAL STRING(INTEGER); //Код топлива пистолета
-tankNP = DATA LOCAL STRING(INTEGER); //Название резервуара
+tankNP = DATA LOCAL STRING(INTEGER); //Номер резервуара
 moneyNP = DATA LOCAL STRING(INTEGER); //Отгруженная сумма топлива ТРК (по информации от ТРК)
 volumeNP = DATA LOCAL STRING(INTEGER); //Отгруженный объем топлива ТРК (по информации от ТРК)
 temperatureNP = DATA LOCAL NUMERIC[5,1](INTEGER); //Температура в резервуаре, `C
@@ -655,21 +655,21 @@ beforeFill(DailyReport r) + {
                                        (GROUP SUM 1 IF gradeCodeF(INTEGER i) == id(s) AND tankF(i) == id(b) AND STRING(nozzleNumberF(i)) == id(g) AND reportsReportFuellings(i) == report()));
     volumeOut(r, Sku s, Bin b) <- (GROUP SUM NUMERIC[16,2](volumeF(INTEGER i)) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
     quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == id(b) AND reportsReportFuellings(i) == report());
-    level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i) /
-                                         (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i));
-    temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i) /
+                                         (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i));
+    temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
     //pipeVolumeA(r, Sku s, Bin b) <- NULL;
     //pipeBalanceA(r, Sku s, Bin b) <- NULL;
-    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
-    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND nameT(i) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
+    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND STRING(numberT(i)) == id(b) AND reportsReportTanks(i) == report() ORDER i);
     //debalanceQuantity(r, Sku s, Bin b) <- NULL;
     //allowedDebalanceQuantity(r, Sku s, Bin b) <- NULL;
 }
