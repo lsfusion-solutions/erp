@@ -125,6 +125,7 @@ FORM stockReserve 'Страховые запасы'
     PROPERTIES SHOWIF multipleStoresNested() READONLY VALUE(tr), sgTreeName = name(sg), tsTreeName = name(ts)
     ORDERS sgTreeName
     FILTERS stringEqualsAll(tr),
+        countCompanyStock(sg),
         stockGroup(ts) == sg OR extraStockGroup(ts) = sg,
         isCompany(ts)
     FILTERGROUP tsinactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
@@ -138,9 +139,9 @@ FORM stockReserve 'Страховые запасы'
     PROPERTIES READONLY stockName 'Склад' = name(st) SHOWIF multipleStoresNested(),
         name(s), id(s) SHOWIF showIDs(), idBarcode(s), shortNameUOM(s), nameBrand(s)
     PROPERTIES overStockReserve(st,s,dt), stockReserveDays(st,s), quantitySold(s,st,dFrom,dTo) READONLY, averageSold(s,st) READONLY
-    PROPERTIES fillReserveFromTo(st,dt) DRAW sts SHOWIF singleStoreNested()
-    PROPERTIES fillReserveFromTo(sg,dt) DRAW sts SHOWIF multipleStoresNested() AND sg IS StockGroup
-    ORDERS          name(s)
+    PROPERTIES fillReserveFromTo(st,dt) DRAW sts SHOWIF singleStoreNested() OR st = ts AND sg IS StockGroup
+    PROPERTIES fillReserveFromTo(sg,dt) DRAW sts SHOWIF multipleStoresNested() AND sg IS StockGroup AND NOT ts
+    ORDERS          name(s), idBarcode(s), stockName
 
     FILTERS IF multipleStoresNested() THEN
             st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts OR overFilterStock(st)
@@ -150,10 +151,13 @@ FORM stockReserve 'Страховые запасы'
     FILTERS           isParent(sk, s),
                       filterPriceListType(s,st,dt,t)
     
-    FILTERGROUP inactiveStock
-        FILTER 'Активный' (active(st) OR NOT multipleStoresNested()) AND active(s) 'F11' DEFAULT
-        FILTER 'Неактивный' inactive(s) 'shift F10'
-            
+    FILTERGROUP activeStock
+        FILTER 'Активные склады' active(st) 'F8' DEFAULT
+        FILTER 'Неактивный' inactive(s) 'shift F8'
+
+    FILTERGROUP activeSku
+        FILTER 'Активные' active(s) 'F11' DEFAULT
+    
     FILTERGROUP soldFilter
         FILTER 'Только с реализацией' quantitySold(s,st,dFrom,dTo) 'F10'     
     
