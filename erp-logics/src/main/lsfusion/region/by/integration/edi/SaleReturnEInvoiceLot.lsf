@@ -6,7 +6,8 @@ NAMESPACE SaleReturn;
 
 overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
     FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(str) DO NEW l = Lot {
-        id(l) <- str;
+        id(l) <- barcodeToId(str);
+        tail(l) <- barcodeToTail(str);
         sku(l) <- sku(id);
         dataCount(l) <- (GROUP SUM quantity(EInvoiceLotDetail dd) IF eInvoiceDetail(dd) == eid AND id(dd) == str)
             IF (GROUP SUM quantity(EInvoiceLotDetail dd) IF eInvoiceDetail(dd) == eid AND id(dd) == str) != 1;
