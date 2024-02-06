@@ -1,0 +1,129 @@
+MODULE ArtixLot;
+
+REQUIRE ArtixSettings, SkuLedgerLot, MachineryPriceTransaction;
+
+NAMESPACE Artix;
+
+transferLot 'Передавать марки' = DATA BOOLEAN (GroupCashRegister);
+transferLot = GROUP SUM 1 IF transferLot(GroupCashRegister g) BY stock(g) MATERIALIZED ;
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Artix' transferLot;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (transferLot(grc));
+    }
+}
+EXTEND FORM groupsCashRegister
+    PROPERTIES (grc) READONLY transferLot
+;
+
+
+toJson = DATA LOCAL BOOLEAN (Lot);
+toJson = DATA LOCAL BOOLEAN (Barcode);
+
+jsonAddLot (Lot l) =  JSON FROM  
+                                    command = 'addExciseMarksWhite', 
+                                    excisemarkswhite = (JSON FROM                                         
+                                        barcodes = (JSON FROM value = id(Barcode b) IF sku(l)==sku(b) AND toJson(b)),
+                                        excisemarkid = id(l)
+                                    ) 
+;
+
+createAttributeLot(MachineryPriceTransaction mpt, GroupMachinery gm)  {
+
+    toJson(Lot l) <- NULL;
+    toJson(Barcode l) <- NULL;
+    IF sidModel(gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) THEN {
+        toJson(Barcode l) <- in(mpt, l);
+        toJson(Lot l) <- TRUE WHERE [GROUP SUM 1 IF in(mpt, Barcode b) BY sku(b)](sku(l)) AND currentBalance(l, stock(gm));
+
+        LOCAL rezult = TEXT ();
+
+        IF snapshot(mpt) THEN {
+            rezult()<- TEXT(JSON FROM  command = 'clearExciseMarkWhite');
+        }
+        rezult() <- CONCAT '\n---\n', rezult(), (GROUP CONCAT TEXT(jsonAddLot(Lot l)) IF toJson(l), '\n---\n' ORDER l);
+        createFilesArtix(rezult(), directoryPickList(gm));
+    }
+}
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    createAttributeLot(mpt,gm);
+}
+
+stock (SkuLedger ledger, Lot lot) = stock(ledger) IF signedQuantityActive(ledger, lot) MATERIALIZED;
+dateTime (SkuLedger ledger, Lot lot) = dateTime(ledger) IF signedQuantityActive(ledger, lot) MATERIALIZED; 
+
+lastStockLot = GROUP LAST stock(SkuLedger ledger, Lot lot)
+    ORDER dateTime(ledger, lot), ledger 
+    BY lot;
+
+jsonDropLot (Lot l) =  JSON FROM  command = 'deleteExciseMarkWhite', excisemarkid = id(l);
+
+deleteExciseMarkWhite  'Удалить марку из оборудования' (Lot l) {
+    FOR  sidModel(GroupMachinery gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) AND stock(gm)==lastStockLot(l) DO {
+        LOCAL rezult = TEXT ();
+        rezult()<- TEXT(jsonDropLot(l));
+        createFilesArtix(rezult(), directoryPickList(gm));
+        IF NOT artixError() THEN {
+            MESSAGE (CONCAT '', 'Выполнено: ',name(gm)) NOWAIT;
+        }
+    }
+}
+
+transferLotDrop 'Включить отслеживание остатков по маркам (для удаления их из оборудования)' = DATA BOOLEAN PREREAD;
+EXTEND FORM options
+    PROPERTIES () transferLotDrop
+;
+DESIGN options{
+    lot{
+        MOVE PROPERTY (transferLotDrop());
+    }    
+}
+
+toDrop 'Удалить' = DATA BOOLEAN (Lot,Stock);
+
+WHEN DROPPED(currentBalance(Lot l, Stock st)) AND transferLot(st) AND l IS Lot AND transferLotDrop() DO {
+    toDrop(l,st) <- TRUE;  
+}
+
+deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' () {
+    LOCAL NESTED drop = BOOLEAN (Lot,Stock);
+    drop(Lot l, Stock st) <- toDrop(l,st);
+    FOR  [GROUP SUM 1 IF drop(Lot l, Stock st) BY st](Stock st) AND  sidModel(GroupMachinery gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) AND stock(gm)==st DO {
+        LOCAL rezult = TEXT ();
+        rezult()<- (GROUP CONCAT TEXT(jsonDropLot(Lot l)) IF drop(l,st) , '\n---\n' ORDER l);
+        createFilesArtix(rezult(), directoryPickList(gm));
+        IF NOT artixError() THEN {
+            MESSAGE (CONCAT '', 'Выполнено: ',name(gm)) NOWAIT;
+            NEWSESSION {
+                toDrop(Lot l,st) <- NULL WHERE drop(l,st);
+                APPLY;    
+            }
+        }    
+    }
+}
+EXTEND FORM options
+    PROPERTIES () deleteExciseMarkWhite SHOWIF transferLotDrop()
+;
+DESIGN options{
+    lot{
+        MOVE PROPERTY (deleteExciseMarkWhite());
+    }
+}
+EXTEND FORM lots
+    PROPERTIES (l) deleteExciseMarkWhite TOOLBAR
+;
+DESIGN lots{
+    tabbedPane{
+        NEW actionContainer {
+            caption = 'Действия';
+            horizontal = TRUE;            
+            NEW dropContainer {
+                caption = 'Очистка';
+                MOVE PROPERTY(deleteExciseMarkWhite(l)) { alignment = STRETCH; }
+            }
+        }
+    }
+}
