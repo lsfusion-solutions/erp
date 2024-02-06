@@ -11,6 +11,8 @@ overNumber 'Номер' = ABSTRACT STRING[48] (TerminalOrder);
 dataNumber 'Номер' = ABSTRACT STRING[48] (TerminalOrder);
 number 'Номер' (TerminalOrder o) = OVERRIDE overNumber(o), dataNumber(o);
 idSupplier 'Код поставщика' = ABSTRACT STRING[100] (TerminalOrder);
+overIdSupplier 'Код поставщика' = ABSTRACT STRING[100] (TerminalOrder, Stock);
+idSupplier 'Код поставщика'(TerminalOrder o, Stock s) = OVERRIDE  overIdSupplier(o, s), idSupplier(o) IF s IS Stock;
 isOpened 'Не закрыт' = ABSTRACT BOOLEAN (TerminalOrder);
 
 filter = ABSTRACT VALUE BOOLEAN (TerminalOrder, Stock); 
@@ -54,7 +56,9 @@ maxDeviationDate 'Макс. дата' = ABSTRACT DATE (TerminalOrderDetail);
 minDeviationDate 'Мин. дата' = ABSTRACT DATE (TerminalOrderDetail); 
 
 color 'Цвет' = ABSTRACT COLOR (TerminalOrderDetail);
-vop = ABSTRACT CASE STRING (TerminalOrderDetail); 
+vop = ABSTRACT CASE STRING (TerminalOrderDetail);
+overVop = ABSTRACT CASE STRING (TerminalOrderDetail, Stock);//один и тот же документ может быть разной оперции в зависимости от того поставщик или покупатель его обрабатывает
+vop(TerminalOrderDetail d, Stock s) = OVERRIDE overVop(d, s), vop(d) IF s IS Stock;
 
 headField1 'Дополнительное поле шапки 1' = ABSTRACT ISTRING[250] (TerminalOrderDetail);
 headField2 'Дополнительное поле шапки 2' = ABSTRACT ISTRING[250] (TerminalOrderDetail);

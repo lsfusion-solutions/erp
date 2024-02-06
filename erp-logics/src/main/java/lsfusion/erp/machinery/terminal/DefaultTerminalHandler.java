@@ -1427,28 +1427,31 @@ public class DefaultTerminalHandler {
                 KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
-                String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]", "idSupplier[TerminalOrder]");
+                String[] orderNames = new String[]{"dateOrder", "numberOrder"};
+                LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
+                orderQuery.addProperty("idSupplierOrder", terminalOrderLM.findProperty("idSupplier[TerminalOrder,Stock]").getExpr(orderExpr, customerStockObject.getExpr()));
+
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
-                        "minDeviationDate", "maxDeviationDate", "vop", "dateShipment", "extraBarcodes", "sortTerminal"};
+                        "minDeviationDate", "maxDeviationDate", "dateShipment", "extraBarcodes", "sortTerminal"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
                         "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
                         "posField1[TerminalOrderDetail]", "posField2[TerminalOrderDetail]", "posField3[TerminalOrderDetail]",
-                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "vop[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
+                        "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
                         "extraBarcodes[TerminalOrderDetail]", "sortTerminal[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
                 orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
+                orderQuery.addProperty("vop", terminalOrderLM.findProperty("vop[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
 
                 if (terminalOrderGtinLM != null)
                     orderQuery.addProperty("GTIN", terminalOrderGtinLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(orderDetailExpr));
