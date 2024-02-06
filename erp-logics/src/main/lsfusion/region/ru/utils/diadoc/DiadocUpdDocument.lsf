@@ -233,7 +233,7 @@ DESIGN dialogUpdBuyerTitle {
 }
 overMessageSignatureUpd ABSTRACT (Box, Document);
 overMessageSignature (User u, Box b, Document d) + {
-    IF typeNamedId(d) == 'UniversalTransferDocument' THEN NEWSESSION {
+    IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') THEN NEWSESSION {
         box() <- b;
         message() <- message(d);
         parentEntity(0) <- entity(d);
@@ -614,10 +614,10 @@ FORM importUPD FORMEXTID 'Файл'
 ;
 
 
-showCreateDocument(Document d) += WHEN typeNamedId(d) == 'UniversalTransferDocument' AND NOT updDocument(d) THEN TRUE;
+showCreateDocument(Document d) += WHEN (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN TRUE;
 
 createDocument(Document d) + {
-    IF typeNamedId(d) == 'UniversalTransferDocument' AND NOT updDocument(d) THEN NEWSESSION {
+    IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN NEWSESSION {
         IMPORT importUPD FROM data(entity(d));
 
         NEW upd = UpdDocument {
