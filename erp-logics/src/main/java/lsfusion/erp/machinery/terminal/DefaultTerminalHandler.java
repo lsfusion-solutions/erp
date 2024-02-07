@@ -791,7 +791,7 @@ public class DefaultTerminalHandler {
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.barcode,
                                             null, null, null,
-                                            order.flags, null, BigDecimal.ZERO, null);
+                                            order.flags, null, BigDecimal.ZERO, order.category);
                                     usedBarcodes.add(extraBarcode);
                                 }
                             }
@@ -800,7 +800,7 @@ public class DefaultTerminalHandler {
                                 addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.barcode,
                                         null, null, null, order.flags, null, BigDecimal.ZERO,
-                                        null);
+                                        order.category);
                                 usedBarcodes.add(order.barcode);
                             }
                         }
@@ -809,7 +809,7 @@ public class DefaultTerminalHandler {
                                     order.idItem, order.manufacturer, null, null, null,
                                     image, order.weight, order.barcode,
                                     null, null, null,
-                                    order.flags, null, BigDecimal.ZERO, null);
+                                    order.flags, null, BigDecimal.ZERO, order.category);
                             usedBarcodes.add(order.GTIN);
                         }
                     }
@@ -822,7 +822,7 @@ public class DefaultTerminalHandler {
                 }
 
                 statement.executeBatch();
-                if (userInfo.idApplication.equals("")) {
+                if (userInfo.idApplication.isEmpty()) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX goods_naim ON goods (naim ASC);");
                     }
@@ -1434,13 +1434,13 @@ public class DefaultTerminalHandler {
                 }
                 orderQuery.addProperty("idSupplierOrder", terminalOrderLM.findProperty("idSupplier[TerminalOrder,Stock]").getExpr(orderExpr, customerStockObject.getExpr()));
 
-                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "nameSkuGroupOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "minDeviationQuantityOrderDetail",
                         "maxDeviationQuantityOrderDetail", "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail",
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
                         "minDeviationDate", "maxDeviationDate", "dateShipment", "extraBarcodes", "sortTerminal"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
-                        "nameSku[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
+                        "nameSku[TerminalOrderDetail]", "nameSkuGroup[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
@@ -1471,6 +1471,7 @@ public class DefaultTerminalHandler {
 
                     String idItem = StringUtils.trim((String) entry.get("idSkuOrderDetail"));
                     String name = StringUtils.trim((String) entry.get("nameSkuOrderDetail"));
+                    String category = trim((String) entry.get("nameSkuGroupOrderDetail"));
                     BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
                     BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
                     BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
@@ -1505,7 +1506,7 @@ public class DefaultTerminalHandler {
                         terminalOrder.minQuantity = safeAdd(terminalOrder.minQuantity, minQuantity);
                         terminalOrder.maxQuantity = safeAdd(terminalOrder.maxQuantity, maxQuantity);
                     } else
-                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, price,
+                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, category, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
                                 extraBarcodeList, flags, GTIN));
@@ -1929,6 +1930,7 @@ public class DefaultTerminalHandler {
         public String barcode;
         public String idItem;
         public String name;
+        public String category;
         public BigDecimal price;
         public BigDecimal quantity;
         public BigDecimal minQuantity;
@@ -1955,7 +1957,7 @@ public class DefaultTerminalHandler {
 
         public String GTIN;
 
-        public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name,
+        public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name, String category,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
@@ -1967,6 +1969,7 @@ public class DefaultTerminalHandler {
             this.barcode = barcode;
             this.idItem = idItem;
             this.name = name;
+            this.category = category;
             this.price = price;
             this.quantity = quantity;
             this.minQuantity = minQuantity;
