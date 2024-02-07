@@ -22,12 +22,12 @@ overReceiveFromPosXServer(CashRegister cr, DATE from, DATE to) +{
         IMPORT FROM exportFile() TO tdate, line, param, val;
         idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
         id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
-        FOR receipt(ReceiptDetail d) = receipt(idR(INTEGER i)) AND id(d) = id(i) AND param(i) AND isFuel(sku(d)) DO {
-            volume(d) <- quantity(d) WHERE param(i) == 'fp_mass';
-            quantity(d) <- NUMERIC[16,5](val(i)) WHERE param(i) == 'fp_mass';
-            density(d) <- NUMERIC[8,4](val(i)) WHERE param(i) == 'fp_density';
-            bin(d) <- bin(val(i)) WHERE param(i) == 'fp_tankNumber';
-            gun(d) <- gun(val(i)) WHERE param(i) == 'fp_nozzleNumber';
+        FOR [GROUP SUM 1 IF imported(INTEGER i) BY idR(i), id(i)](STRING[100] idR, STRING[100] id) AND receipt(ReceiptDetail d) = receipt(idR) AND id(d) = id AND isFuel(sku(d)) DO {
+            volume(d) <- quantity(d);
+            quantity(d) <- NUMERIC[16,5](GROUP MAX val(INTEGER i) IF param(i) == 'fp_mass' AND idR(i) == idR AND id(i) == id);
+            density(d) <- NUMERIC[8,4](GROUP MAX val(INTEGER i) IF param(i) == 'fp_density' AND idR(i) == idR AND id(i) == id);
+            bin(d) <- GROUP MAX Bin b IF in(departmentStore(d),b) AND number(b) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_tankNumber' AND idR(i) == idR AND id(i) == id);
+            gun(d) <- GROUP MAX Gun g IF departmentStore(d) == stock(g) AND number(pump(g)) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_trk' AND idR(i) == idR AND id(i) == id) AND number(g) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_nozzleNumber' AND idR(i) == idR AND id(i) == id);
         }
     }
 }
@@ -45,12 +45,12 @@ overReceiveFromPosXServer(CashRegister cr, RequestExchange re) +{
         IMPORT FROM exportFile() TO tdate, line, param, val;
         idR(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i)) IF imported(i);
         id(INTEGER i) <- (CONCAT '_', npp(cr), tdate(i), line(i)) IF imported(i);
-        FOR receipt(ReceiptDetail d) = receipt(idR(INTEGER i)) AND id(d) = id(i) AND param(i) AND isFuel(sku(d)) DO {
-            volume(d) <- quantity(d) WHERE param(i) == 'fp_mass';
-            quantity(d) <- NUMERIC[16,5](val(i)) WHERE param(i) == 'fp_mass';
-            density(d) <- NUMERIC[8,4](val(i)) WHERE param(i) == 'fp_density';
-            bin(d) <- bin(val(i)) WHERE param(i) == 'fp_tankNumber';
-            gun(d) <- gun(val(i)) WHERE param(i) == 'fp_nozzleNumber';
+        FOR [GROUP SUM 1 IF imported(INTEGER i) BY idR(i), id(i)](STRING[100] idR, STRING[100] id) AND receipt(ReceiptDetail d) = receipt(idR) AND id(d) = id AND isFuel(sku(d)) DO {
+            volume(d) <- quantity(d);
+            quantity(d) <- NUMERIC[16,5](GROUP MAX val(INTEGER i) IF param(i) == 'fp_mass' AND idR(i) == idR AND id(i) == id);
+            density(d) <- NUMERIC[8,4](GROUP MAX val(INTEGER i) IF param(i) == 'fp_density' AND idR(i) == idR AND id(i) == id);
+            bin(d) <- GROUP MAX Bin b IF in(departmentStore(d),b) AND number(b) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_tankNumber' AND idR(i) == idR AND id(i) == id);
+            gun(d) <- GROUP MAX Gun g IF departmentStore(d) == stock(g) AND number(pump(g)) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_trk' AND idR(i) == idR AND id(i) == id) AND number(g) == INTEGER(GROUP MAX val(INTEGER i) IF param(i) == 'fp_nozzleNumber' AND idR(i) == idR AND id(i) == id);
         }
     } ELSE {
         addMachineryError(re, System.messageCaughtException());
