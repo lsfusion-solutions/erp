@@ -114,7 +114,7 @@ createTransferShipment 'Создать перемещение' (Order order)  {
         createTransfer(order);
         SHOW userInvoice OBJECTS i = userShipment(order) DOCKED NOCANCEL;
     }
-} TOOLBAR;
+} TOOLBAR CONFIRM;
 
 FORM saleShipmentDashboard 'Выписка перемещений' AUTOREFRESH 60
     PROPERTIES () filterConsignmentDateFrom
@@ -130,7 +130,7 @@ FORM saleShipmentDashboard 'Выписка перемещений' AUTOREFRESH 6
     PROPERTIES(o) createTransferShipment
     FILTERS isPosted (o),
             forbidInvoice(o)
-    FILTERGROUP toInvoice FILTER 'Не выписаны' NOT shippedOrderDetail(o) 'ctrl F6' DEFAULT
+    FILTERGROUP toInvoice FILTER 'Не выписаны' toShipOrderDetail(supplierStock(o), o) 'ctrl F6' DEFAULT
     FILTERGROUP opened FILTER 'Открыт' isOpened(o) 'F4' DEFAULT
     FILTERGROUP filters FILTER 'Текущие заказы' date(o)<=dt 'F6' DEFAULT
         FILTER 'Будущие заказы' date(o)>dt 'F6'
