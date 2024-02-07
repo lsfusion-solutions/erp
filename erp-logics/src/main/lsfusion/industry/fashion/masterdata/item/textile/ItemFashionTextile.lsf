@@ -69,3 +69,11 @@ EXTEND FORM item
 EXTEND FORM items
     PROPERTIES (i) READONLY AFTER idArticle(i) model
 ;
+
+CONSTRAINT DROPPED(Article a IS Article) AND [GROUP SUM 1 IF NOT article(Item io) BY PREV(article(io))](a)
+    MESSAGE 'Запрещено удалять модель при наличии товаров по ней';
+
+@defineOption(allowNullIdArticle, 'Разрешить пустой код модели', items);
+
+CONSTRAINT (SET(Article a IS Article) OR DROPPED(id(a))) AND NOT id(a) AND NOT allowNullIdArticle()
+    MESSAGE 'Код модели не должен быть пустым';  
