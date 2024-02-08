@@ -88,28 +88,63 @@ WHEN DROPPED(currentBalance(Lot l, Stock st)) AND transferLot(st) AND l IS Lot A
     toDrop(l,st) <- TRUE;  
 }
 
-deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' () {
-    LOCAL NESTED drop = BOOLEAN (Lot,Stock);
-    drop(Lot l, Stock st) <- toDrop(l,st);
-    FOR  [GROUP SUM 1 IF drop(Lot l, Stock st) BY st](Stock st) AND  sidModel(GroupMachinery gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) AND stock(gm)==st DO {
+deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' (Stock st, BOOLEAN message) {
+    LOCAL NESTED drop = BOOLEAN (Lot, Stock);
+    drop(Lot l, st) <- toDrop(l,st);
+
+    LOCAL NESTED error = BOOLEAN ();
+    FOR sidModel(GroupMachinery gm) == 'Artix' AND directoryPickList(gm) AND transferLot(gm) AND stock(gm) == st DO {
         LOCAL rezult = TEXT ();
-        rezult()<- (GROUP CONCAT TEXT(jsonDropLot(Lot l)) IF drop(l,st) , '\n---\n' ORDER l);
-        createFilesArtix(rezult(), directoryPickList(gm));
+        rezult() <- (GROUP CONCAT TEXT(jsonDropLot(Lot l)) IF drop(l,st), '\n---\n' ORDER l);
+        createFilesArtix(rezult(), directoryPickList(gm), message);
         IF NOT artixError() THEN {
-            MESSAGE (CONCAT '', 'Выполнено: ',name(gm)) NOWAIT;
-            NEWSESSION {
-                toDrop(Lot l,st) <- NULL WHERE drop(l,st);
-                APPLY;    
+            IF message THEN {
+                MESSAGE (CONCAT '', 'Выполнено: ', name(gm)) NOWAIT;
             }
-        }    
+        } ELSE {
+            error () <- TRUE;
+        }
+    }
+    IF NOT error() THEN {
+        NEWSESSION {
+            toDrop(Lot l, st) <- NULL WHERE drop(l, st);
+            APPLY;
+        }
+    }    
+}
+
+deleteExciseMarkWhite  'Удалить марки из оборудования (без остатка)' () {
+    FOR  [GROUP SUM 1 IF toDrop(Lot l, Stock st) BY st](Stock st) AND transferLot(st) AND transferLotDrop() DO {
+        deleteExciseMarkWhite(st,TRUE);
     }
 }
+
+countMachineryPriceTransactionLotOver = DATA INTEGER ();
+countMachineryPriceTransactionLot 'К-во потоков для выгрузки марок на кассу' = OVERRIDE countMachineryPriceTransactionLotOver(), 8;
+
 EXTEND FORM options
-    PROPERTIES () deleteExciseMarkWhite SHOWIF transferLotDrop()
+    PROPERTIES () countMachineryPriceTransactionLot
+;
+DESIGN options{
+    lot{
+        MOVE PROPERTY(countMachineryPriceTransactionLot());
+    }
+}
+deleteExciseMarkWhiteMultithread  'Удалить марки из оборудования (без остатка) многопоточно' () {
+    NEWEXECUTOR
+        FOR [GROUP SUM 1 IF toDrop(Lot l, Stock st) BY st](Stock st) AND transferLot(st) AND transferLotDrop() DO NEWTHREAD NEWSESSION NEWSQL {
+            deleteExciseMarkWhite(st, NULL);
+        }
+        THREADS countMachineryPriceTransactionLot();
+}
+
+EXTEND FORM options
+    PROPERTIES () SHOWIF transferLotDrop() deleteExciseMarkWhite, deleteExciseMarkWhiteMultithread 
 ;
 DESIGN options{
     lot{
         MOVE PROPERTY (deleteExciseMarkWhite());
+        MOVE PROPERTY (deleteExciseMarkWhiteMultithread());
     }
 }
 EXTEND FORM lots
@@ -119,7 +154,7 @@ DESIGN lots{
     tabbedPane{
         NEW actionContainer {
             caption = 'Действия';
-            horizontal = TRUE;            
+            horizontal = TRUE;
             NEW dropContainer {
                 caption = 'Очистка';
                 MOVE PROPERTY(deleteExciseMarkWhite(l)) { alignment = STRETCH; }

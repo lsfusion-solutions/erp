@@ -19,10 +19,13 @@ DESIGN cashRegisterModel{
 }
 
 artixError = DATA LOCAL NESTED BOOLEAN ();
-createFilesArtix(STRING data, STRING directory) {
+
+createFilesArtix(STRING data, STRING directory, BOOLEAN message) {
 
     IF NOT directory THEN {
-        MESSAGE 'Каталог не задан.';
+        IF message THEN {
+            MESSAGE 'Каталог не задан.';
+        }
         RETURN;
     }
 
@@ -42,10 +45,16 @@ createFilesArtix(STRING data, STRING directory) {
         WRITE aif() TO directory + '/' + name();
         WRITE flz() TO directory + '/' + name();
     } CATCH {
-        MESSAGE 'Ошибка при записи файла в каталог ' + directory NOWAIT;
+        IF message THEN {
+            MESSAGE 'Ошибка при записи файла в каталог ' + directory NOWAIT;
+        }
         artixError() <- TRUE;
     }
 }
+createFilesArtix(STRING data, STRING directory){
+    createFilesArtix(data,directory,TRUE);
+}
+
 
 directoryPickList 'Директория для пиклиста' = DATA STRING[250](GroupCashRegister);
 
