@@ -374,8 +374,8 @@ public class TerminalServer extends MonitorServer {
                 String sessionId = "";
 
                 if (command != TEST) {
-                    logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
-                    logger.info(String.format("Command %s", command));
+                    logger.info(getLogPrefix(socket) + "submitting task for socket : " + socket);
+                    logger.info(getLogPrefix(socket) + String.format("Command %s", command));
                 }
 
                 switch (command) {
@@ -383,10 +383,10 @@ public class TerminalServer extends MonitorServer {
                         break;
                     case GET_USER_INFO:
                         try {
-                            logger.info("requested getUserInfo");
+                            logger.info(getLogPrefix(socket) + "requested getUserInfo");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 3) {
-                                logger.info("logging user " + params[0]);
+                                logger.info(getLogPrefix(socket) + "logging user " + params[0]);
 
                                 String idApplication = "";
                                 String applicationVersion = "";
@@ -407,7 +407,7 @@ public class TerminalServer extends MonitorServer {
                                             createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion, deviceModel);
                                     if (loginResult instanceof DataObject) {
                                         result = getSessionId((DataObject) loginResult, params[0], params[1], params[2], idApplication, idStock);
-                                        logger.info(String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s', idStock '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion, idStock));
+                                        logger.info(getLogPrefix(socket) + String.format("successfull login, idTerminal %s, idApplication '%s', applicationVersion '%s', idStock '%s'", userMap.get(result).idTerminal, userMap.get(result).idApplication, applicationVersion, idStock));
                                     } else if (loginResult instanceof String) {
                                         errorCode = LOGIN_ERROR;
                                         errorText = (String) loginResult;
@@ -424,17 +424,17 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("GetUserInfo Unknown error: ", e);
+                            logger.error(getLogPrefix(socket) + "GetUserInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case SET_STOCK:
                         try {
-                            logger.info("requested setStock");
+                            logger.info(getLogPrefix(socket) + "requested setStock");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
-                                logger.info("id stock: " + params[1]);
+                                logger.info(getLogPrefix(socket) + "id stock: " + params[1]);
                                 sessionId = params[0];
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
@@ -448,14 +448,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("setStock Unknown error: ", e);
+                            logger.error(getLogPrefix(socket) + "setStock Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_ITEM_INFO:
                         try {
-                            logger.info("requested GetItemInfo");
+                            logger.info(getLogPrefix(socket) + "requested GetItemInfo");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
                                 sessionId = params[0];
@@ -469,7 +469,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(String.format("barcode '%s', vop '%s'", barcode, vop));
+                                    logger.info(getLogPrefix(socket) + String.format("barcode '%s', vop '%s'", barcode, vop));
                                     Object readItemResult = readItem(userInfo, barcode, vop);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
@@ -486,14 +486,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("GetItemInfo Unknown error: ", e);
+                            logger.error(getLogPrefix(socket) + "GetItemInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case SAVE_DOCUMENT:
                         try {
-                            logger.info("requested SaveDocument");
+                            logger.info(getLogPrefix(socket) + "requested SaveDocument");
                             List<String[]> params = readDocumentParams(inFromClient);
                             if (params.size() >= 1) {
                                 String[] document = params.get(0);
@@ -555,7 +555,7 @@ public class TerminalServer extends MonitorServer {
                                                         markDocumentDetail, replaceDocumentDetail, ana1DocumentDetail, ana2DocumentDetail, imageDocumentDetail));
                                             }
                                         }
-                                        logger.info("receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
+                                        logger.info(getLogPrefix(socket) + "receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
@@ -571,7 +571,7 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("SaveDocument Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "SaveDocument Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -579,7 +579,7 @@ public class TerminalServer extends MonitorServer {
 
                     case TEAMWORK_DOCUMENT:
                         try {
-                            logger.info("requested TeamWorkDocument");
+                            logger.info(getLogPrefix(socket) + "requested TeamWorkDocument");
 
                             String[] params = readParams(inFromClient);
                             if (params.length > 0) {
@@ -594,7 +594,7 @@ public class TerminalServer extends MonitorServer {
                                         String json = null;
                                         if (params.length > 2)
                                             json = params[2];
-                                        logger.info(String.format("idCommand=%d, json: '%s'", idCommand, json));
+                                        logger.info(getLogPrefix(socket) + String.format("idCommand=%d, json: '%s'", idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
@@ -603,7 +603,7 @@ public class TerminalServer extends MonitorServer {
                                 }
                             }
                         } catch (Exception e) {
-                            logger.error("TeamWorkDocument Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "TeamWorkDocument Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -611,7 +611,7 @@ public class TerminalServer extends MonitorServer {
 
                     case GET_ITEM_HTML:
                         try {
-                            logger.info("requested GetItemHtml");
+                            logger.info(getLogPrefix(socket) + "requested GetItemHtml");
                             String[] params = readParams(inFromClient);
                             String idApplication = "";
                             if (params.length >= 2) {
@@ -620,7 +620,7 @@ public class TerminalServer extends MonitorServer {
                                 if (params.length >= 3)
                                     idApplication = params[2];
 
-                                priceCheckerLogger.info(String.format("barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
+                                priceCheckerLogger.info(getLogPrefix(socket) + String.format("barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
                                 result = readItemHtml(barcode, idStock);
                                 if (result == null) {
                                     errorCode = ITEM_NOT_FOUND;
@@ -631,14 +631,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            priceCheckerLogger.error("request failed: ", e);
+                            priceCheckerLogger.error(getLogPrefix(socket) + "request failed: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_LOT_INFO:
                         try {
-                            logger.info("requested GetLotInfo");
+                            logger.info(getLogPrefix(socket) + "requested GetLotInfo");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
                                 sessionId = params[0];
@@ -649,7 +649,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    priceCheckerLogger.info(String.format("idLot '%s'", idLot));
+                                    priceCheckerLogger.info(getLogPrefix(socket) + String.format("idLot '%s'", idLot));
                                     result = readLotInfo(idLot);
                                     if (result == null) {
                                         errorCode = LOT_NOT_FOUND;
@@ -661,14 +661,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            priceCheckerLogger.error("request failed: ", e);
+                            priceCheckerLogger.error(getLogPrefix(socket) + "request failed: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_ALL_BASE:
                         try {
-                            logger.info("requested GetAllBase");
+                            logger.info(getLogPrefix(socket) + "requested GetAllBase");
                             String[] params = readParams(inFromClient);
                             if (params.length > 0) {
                                 sessionId = params[0];
@@ -679,7 +679,7 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
                                     if (readBatch)
-                                        logger.info("requested readBatch");
+                                        logger.info(getLogPrefix(socket) + "requested readBatch");
                                     fileData = readBase(userInfo, readBatch);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
@@ -691,14 +691,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("GetAllBase Unknown error: ", e);
+                            logger.error(getLogPrefix(socket) + "GetAllBase Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
 //                    case SAVE_PALLET:
 //                        try {
-//                            logger.info("received pallet");
+//                            logger.info(getLogPrefix(socket) + "received pallet");
 //                            String[] params = readParams(inFromClient);
 //                            if (params.length >= 3) {
 //                                sessionId = params[0];
@@ -709,7 +709,7 @@ public class TerminalServer extends MonitorServer {
 //                                    errorCode = AUTHORISATION_REQUIRED;
 //                                    errorText = AUTHORISATION_REQUIRED_TEXT;
 //                                } else {
-//                                    logger.info(String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
+//                                    logger.info(getLogPrefix(socket) + String.format("%s, idTerminal '%s', idApplication '%s'", command, userInfo.idTerminal, userInfo.idApplication));
 //                                    result = savePallet(userInfo, numberPallet, nameBin);
 //                                    if (result != null) {
 //                                        errorCode = SAVE_PALLET_ERROR;
@@ -721,14 +721,14 @@ public class TerminalServer extends MonitorServer {
 //                                errorText = WRONG_PARAMETER_COUNT_TEXT;
 //                            }
 //                        } catch (Exception e) {
-//                            logger.error("SavePallet Unknown error", e);
+//                            logger.error(getLogPrefix(socket) + "SavePallet Unknown error", e);
 //                            errorCode = UNKNOWN_ERROR;
 //                            errorText = getUnknownErrorText(e);
 //                        }
 //                        break;
                     case CHECK_ORDER:
                         try {
-                            logger.info("requested CheckOrder");
+                            logger.info(getLogPrefix(socket) + "requested CheckOrder");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
                                 sessionId = params[0];
@@ -749,14 +749,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("CheckOrder Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "CheckOrder Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case CHANGE_ORDER_STATUS:
                         try {
-                            logger.info("requested ChangeOrderStatus");
+                            logger.info(getLogPrefix(socket) + "requested ChangeOrderStatus");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 4) {
                                 sessionId = params[0];
@@ -775,14 +775,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("ChangeOrderStatus Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "ChangeOrderStatus Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_PREFERENCES:
                         try {
-                            logger.info("GetPreferences");
+                            logger.info(getLogPrefix(socket) + "GetPreferences");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 1) {
                                 sessionId = params[0];
@@ -802,14 +802,14 @@ public class TerminalServer extends MonitorServer {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("GetPreferences Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "GetPreferences Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
                         break;
                     case GET_MOVES: {
                         try {
-                            logger.info("GetMoves");
+                            logger.info(getLogPrefix(socket) + "GetMoves");
 
                             String[] params = readParams(inFromClient);
                             if (params.length > 0) {
@@ -821,7 +821,7 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     if (params.length >= 2) {
                                         String barcode = params[1];
-                                        logger.info(String.format("%s, barcode='%s'", command, barcode));
+                                        logger.info(getLogPrefix(socket) + String.format("%s, barcode='%s'", command, barcode));
                                         fileData = getMoves(barcode, userInfo);
                                         if (fileData == null) {
                                             errorCode = UNKNOWN_ERROR;
@@ -834,7 +834,7 @@ public class TerminalServer extends MonitorServer {
                                 }
                             }
                         } catch (Exception e) {
-                            logger.error("GetMoves Unknown error", e);
+                            logger.error(getLogPrefix(socket) + "GetMoves Unknown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = getUnknownErrorText(e);
                         }
@@ -848,10 +848,10 @@ public class TerminalServer extends MonitorServer {
                 }
 
                 if (command != TEST)
-                    logger.info(String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
+                    logger.info(getLogPrefix(socket) + String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
 
                 if (errorText != null)
-                    logger.info("error: " + errorText);
+                    logger.info(getLogPrefix(socket) + "error: " + errorText);
 
                 writeByte(outToClient, stx);
                 writeByte(outToClient, id);
@@ -888,7 +888,7 @@ public class TerminalServer extends MonitorServer {
                                 }
                             }
                             catch (Exception e) {
-                                logger.error("getUserInfo Unknown error", e);
+                                logger.error(getLogPrefix(socket) + "getUserInfo Unknown error", e);
                                 errorText = getUnknownErrorText(e);
                                 write(outToClient, errorText);
                                 writeByte(outToClient, etx);
@@ -956,12 +956,12 @@ public class TerminalServer extends MonitorServer {
                 }
 
                 if (command != TEST)
-                    logger.info(String.format("Command %s: answer sent", command));
+                    logger.info(getLogPrefix(socket) + String.format("Command %s: answer sent", command));
 
                 Thread.sleep(1000);
                 return null;
             } catch (Throwable e) {
-                logger.error("Error occurred: ", e);
+                logger.error(getLogPrefix(socket) + "Error occurred for socket " + socket + " :", e);
             } finally {
                 try {
                     if (outToClient != null)
@@ -969,7 +969,7 @@ public class TerminalServer extends MonitorServer {
                     if (inFromClient != null)
                         inFromClient.close();
                 } catch (IOException e) {
-                    logger.error("Error occurred: ", e);
+                    logger.error(getLogPrefix(socket) + "Error occurred: ", e);
                 }
             }
             return null;
@@ -1010,5 +1010,9 @@ public class TerminalServer extends MonitorServer {
         else if(errorText.contains("\n"))
             errorText = errorText.substring(0, errorText.indexOf('\n'));
         return errorText;
+    }
+
+    private String getLogPrefix(Socket socket) {
+        return System.identityHashCode(socket)+" ";
     }
 }
