@@ -39,11 +39,28 @@ FORM pump 'ТРК'
     EDIT Pump OBJECT p
 ;
 
+filterStock = DATA LOCAL NESTED Stock();
+nameFilterStock 'Склад' () = name(filterStock());
+
+filterPump = DATA LOCAL NESTED Pump();
+nameFilterPump 'ТРК' () = name(filterPump());
+
+CONSTRAINT filterStock() AND NOT isCompany(filterStock())
+    CHECKED BY filterStock[] MESSAGE 'Для фильтра выбран склад, который не принадлежит компании';
+CONSTRAINT filterPump() AND NOT isCompany(stock(filterPump()))
+    CHECKED BY filterPump[] MESSAGE 'Для фильтра выбран ТРК, который не принадлежит компании';
+CONSTRAINT filterStock() AND filterPump() AND NOT stock(filterPump()) == filterStock()
+    CHECKED BY filterPump[] MESSAGE 'Для фильтра выбран ТРК, который не принадлежит выбранному складу'; 
+
 FORM pumps 'ТРК'
     OBJECTS p = Pump
     PROPERTIES(p) READONLY name, id SHOWIF showIDs() AND showIDsFuel(), number, nameStock
     PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(p)
+    
+    PROPERTIES() nameFilterStock
+    FILTERS stock(p) == filterStock() OR NOT filterStock()
+    
     LIST Pump OBJECT p
 ;
 
@@ -78,30 +95,56 @@ documentName 'Наименование (для документов)' (Gun gun) 
 
 FORM gun 'Пистолет'
     OBJECTS g = Gun PANEL
-    PROPERTIES(g) name, id SHOWIF showIDs() AND showIDsFuel(), number, nameStock
+    PROPERTIES(g) name, id SHOWIF showIDs() AND showIDsFuel(), number, nameStock, namePump, nameBin
     EDIT Gun OBJECT g
 ;
 
 FORM guns 'Пистолеты'
     OBJECTS g = Gun
-    PROPERTIES(g) READONLY name, id SHOWIF showIDs() AND showIDsFuel(), number, documentName, documentNumber, nameStock
+    PROPERTIES(g) READONLY name, id SHOWIF showIDs() AND showIDsFuel(), number, documentName, documentNumber, nameStock, namePump, nameBin
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(g)
+    
+    PROPERTIES() nameFilterStock, nameFilterPump
+    FILTERS stock(g) == filterStock() OR NOT filterStock(),
+            pump(g) == filterPump() OR NOT filterPump()
+    
     LIST Gun OBJECT g
 ;
 
-FORM gunBins 'Привязка пистолетов к резервуарам и ТРК'
+FORM gunBins 'Привязка пистолетов'
     OBJECTS ts = Stock PANEL
     PROPERTIES(ts) SELECTOR name
     FILTERS isCompany(ts)
     
+    OBJECTS p = Pump
+    PROPERTIES(p) READONLY name, number
+    FILTERS stock(p) == ts
+    ORDERS name(p)
+    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
+    
     OBJECTS g = Gun
-    PROPERTIES(g) READONLY name, number, documentName, documentNumber
-    PROPERTIES(g) nameBin, namePump
-    FILTERS stock(g) == ts
+    PROPERTIES(g) READONLY name, number, documentName, documentNumber, nameBin
+    FILTERS stock(g) == ts, pump(g) == p
     ORDERS name(g)
     PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
 ;
+
+DESIGN gunBins {
+    OBJECTS {
+        NEW tables AFTER BOX(ts) {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(p) {
+                fill = 1;
+            }
+            MOVE BOX(g) {
+                fill = 3;
+            }
+            
+        }
+    }
+}
 
 NAVIGATOR {
     binNavigator {

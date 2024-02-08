@@ -4,6 +4,16 @@ REQUIRE DateSkuBinLedger, BinLedgerFuel, ZReportFuel, BinFuel;
 
 NAMESPACE Bin;
 
+pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptSaleDetail);
+namePump 'ТРК' (ReceiptSaleDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
+pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptReturnDetail);
+namePump 'ТРК' (ReceiptReturnDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
+
+pump 'ТРК' = ABSTRACT Pump (ReceiptDetail) MATERIALIZED;
+namePump 'ТРК' (ReceiptDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
+pump(ReceiptReturnDetail detail) += pump(detail);
+pump(ReceiptSaleDetail detail) += pump(detail);
+
 gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptSaleDetail);
 nameGun 'Пистолет' (ReceiptSaleDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
 gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptReturnDetail);
@@ -22,10 +32,10 @@ gun(ReceiptSaleDetail detail) += gun(detail);
 //    CHECKED BY gun[ReceiptDetail] MESSAGE 'Пистолет не доступeн для отдела магазина';
 
 EXTEND FORM zReport
-    PROPERTIES(d) BACKGROUND backgroundBins(d) nameGun //ON CHANGE setGun(d)
+    PROPERTIES(d) BACKGROUND backgroundBins(d) namePump, nameGun //ON CHANGE setGun(d)
 ;
 EXTEND FORM zReports
-    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) nameGun
+    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) namePump, nameGun
 ;
 
 volumeReceiptSaleDetail 'Объем, л' (department, sku, date, bin) = GROUP SUM volume(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptSaleDetail BY departmentStore(d), sku(d), date(d), bin(d);
