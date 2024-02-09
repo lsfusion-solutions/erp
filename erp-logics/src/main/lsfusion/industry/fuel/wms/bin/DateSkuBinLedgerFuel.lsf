@@ -5,24 +5,28 @@ REQUIRE DateSkuBinLedger, BinLedgerFuel, ZReportFuel, BinFuel;
 NAMESPACE Bin;
 
 pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptSaleDetail);
-namePump 'ТРК' (ReceiptSaleDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
 pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptReturnDetail);
-namePump 'ТРК' (ReceiptReturnDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
 
 pump 'ТРК' = ABSTRACT Pump (ReceiptDetail) MATERIALIZED;
-namePump 'ТРК' (ReceiptDetail receiptDetail) = name(pump(receiptDetail)) CHARWIDTH 20;
+namePump 'ТРК' (ReceiptDetail receiptDetail) = fullName(pump(receiptDetail)) CHARWIDTH 20;
+numberPump 'Номер ТРК' (ReceiptDetail receiptDetail) = number(pump(receiptDetail));
 pump(ReceiptReturnDetail detail) += pump(detail);
 pump(ReceiptSaleDetail detail) += pump(detail);
 
 gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptSaleDetail);
-nameGun 'Пистолет' (ReceiptSaleDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
 gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptReturnDetail);
-nameGun 'Пистолет' (ReceiptReturnDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
 
 gun 'Пистолет' = ABSTRACT Gun (ReceiptDetail) MATERIALIZED;
-nameGun 'Пистолет' (ReceiptDetail receiptDetail) = name(gun(receiptDetail)) CHARWIDTH 20;
+nameGun 'Пистолет' (ReceiptDetail receiptDetail) = fullName(gun(receiptDetail)) CHARWIDTH 20;
+fullNumberGun 'Номер пистолета' (ReceiptDetail receiptDetail) = fullNumber(gun(receiptDetail)) CHARWIDTH 20;
 gun(ReceiptReturnDetail detail) += gun(detail);
 gun(ReceiptSaleDetail detail) += gun(detail);
+
+CONSTRAINT DROPPED(Gun a IS Gun) AND [GROUP SUM 1 IF NOT gun(ReceiptDetail d) BY PREV(gun(d))](a)
+    MESSAGE 'Запрещено удалять пистолет при наличии строк чеков с ним';
+
+CONSTRAINT DROPPED(Pump a IS Pump) AND [GROUP SUM 1 IF NOT pump(ReceiptDetail d) BY PREV(pump(d))](a)
+    MESSAGE 'Запрещено удалять ТРК при наличии строк чеков с ним';
 
 //setGun (ReceiptDetail d)  { 
 //    DIALOG dialogGunStock OBJECTS s = departmentStore(d), g = gun(d) CHANGE;
@@ -32,10 +36,10 @@ gun(ReceiptSaleDetail detail) += gun(detail);
 //    CHECKED BY gun[ReceiptDetail] MESSAGE 'Пистолет не доступeн для отдела магазина';
 
 EXTEND FORM zReport
-    PROPERTIES(d) BACKGROUND backgroundBins(d) namePump, nameGun //ON CHANGE setGun(d)
+    PROPERTIES(d) BACKGROUND backgroundBins(d)  numberPump, fullNumberGun //ON CHANGE setGun(d)
 ;
 EXTEND FORM zReports
-    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) namePump, nameGun
+    PROPERTIES(d) READONLY BACKGROUND backgroundBins(d) numberPump, fullNumberGun
 ;
 
 volumeReceiptSaleDetail 'Объем, л' (department, sku, date, bin) = GROUP SUM volume(ReceiptDetail d) IF isPosted(d) AND d IS ReceiptSaleDetail BY departmentStore(d), sku(d), date(d), bin(d);
