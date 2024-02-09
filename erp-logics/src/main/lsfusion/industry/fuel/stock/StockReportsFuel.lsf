@@ -25,19 +25,13 @@ toDate '{document.date.of} по' = DATA DATE (DailyReport) IN documentHeader;
 toTime '{document.time.of} по' = DATA TIME (DailyReport) IN documentHeader;
 toDateTime '{document.date.time.of} по' (DailyReport o) = dateTimeToDateTime(toDate(o), toTime(o)) MATERIALIZED;
 
-//WHEN LOCAL SET(DailyReport o IS DailyReport) DO {
-//    IF o IS DailyReport AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
-//    IF o IS DailyReport AND NOT fromTime(o) THEN fromTime(o) <- currentTime();
-//    IF o IS DailyReport AND NOT toDate(o) THEN toDate(o) <- sum(currentDate(),1);
-//    IF o IS DailyReport AND NOT toTime(o) THEN toTime(o) <- 00:00;
-//};
 WHEN LOCAL SETCHANGED(stock(DailyReport o)) DO {
     LOCAL lastReport = DailyReport();
     lastReport() <- GROUP LAST DailyReport r IF stock(r) == stock(o) AND NOT r == o ORDER toDateTime(r), r;
-    IF o IS DailyReport AND NOT fromDate(o) THEN fromDate(o) <- OVERRIDE toDate(lastReport()), sum(currentDate(),-1);
-    IF o IS DailyReport AND NOT fromTime(o) THEN fromTime(o) <- OVERRIDE toTime(lastReport()), 00:00;
+    IF o IS DailyReport AND NOT fromDate(o) THEN fromDate(o) <- OVERRIDE DATE(sumSeconds(toDateTime(lastReport()),1)), sum(currentDate(),-1);
+    IF o IS DailyReport AND NOT fromTime(o) THEN fromTime(o) <- OVERRIDE TIME(sumSeconds(toDateTime(lastReport()),1)), 00:00;
     IF o IS DailyReport AND NOT toDate(o) THEN toDate(o) <- OVERRIDE sum(toDate(lastReport()),1), currentDate();
-    IF o IS DailyReport AND NOT toTime(o) THEN toTime(o) <- 00:00;
+    IF o IS DailyReport AND NOT toTime(o) THEN toTime(o) <- TIME('23:59:59');
 }
 
 @defineDocumentHeaderNote(DailyReport);

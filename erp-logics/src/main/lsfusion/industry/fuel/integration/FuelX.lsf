@@ -8,9 +8,10 @@ url 'URL' = DATA STRING();
 portDataCenterX 'Порт для DataCenterX' = DATA INTEGER();
 portFuelX 'Порт для FuelX' = DATA INTEGER();
 portCafeX 'Порт для CafeX' = DATA INTEGER();
+software 'Software' = DATA STRING[50]();
 
 EXTEND FORM integrationData
-    PROPERTIES() url, portDataCenterX, portFuelX, portCafeX
+    PROPERTIES() url, portDataCenterX, portFuelX, portCafeX, software
 ;
 
 DESIGN integrationData {
@@ -21,6 +22,7 @@ DESIGN integrationData {
             MOVE PROPERTY(portDataCenterX());
             MOVE PROPERTY(portFuelX());
             MOVE PROPERTY(portCafeX());
+            MOVE PROPERTY(software());
         }
     }
 }
@@ -37,7 +39,7 @@ FORM setDeliverInvoices
     OBJECTS s = Stock PANEL
     PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
                name(s) EXTID 'ObjectName',
-               software = 'FuelX' IF s IS Stock EXTID 'Software'
+               software = (OVERRIDE software(), 'FuelX') IF s IS Stock EXTID 'Software'
     
     OBJECTS d = Purchase.InvoiceDetail EXTID 'DeliverInvoices'
     FILTERS customerStock(d) == s AND toFuelX(invoice(d)) AND isFuel(sku(d))
@@ -120,7 +122,7 @@ FORM setDrainInvoices
     OBJECTS s = Stock PANEL
     PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
                name(s) EXTID 'ObjectName',
-               software = 'FuelX' IF s IS Stock EXTID 'Software'
+               software = (OVERRIDE software(), 'FuelX') IF s IS Stock EXTID 'Software'
     
     OBJECTS d = Sale.InvoiceDetail EXTID 'DrainInvoices'
     FILTERS supplierStock(d) == s AND toFuelX(invoice(d)) AND isFuel(sku(d))
@@ -636,7 +638,7 @@ getReports (DATETIME df, DATETIME dt, STRING name) {
 }
 
 beforeFill(DailyReport r) + {
-    getReports(fromDateTime(r),toDateTime(r),nameStock(r));
+    getReports(subtractSeconds(fromDateTime(r),1),toDateTime(r),nameStock(r));
     
     LOCAL prevReport = INTEGER();
     LOCAL report = INTEGER();
@@ -644,8 +646,13 @@ beforeFill(DailyReport r) + {
     prevReport() <- GROUP LAST INTEGER i IF objectName(i) ORDER DESC date(i);
     report() <-  GROUP LAST INTEGER i IF objectName(i) ORDER date(i);
     
-    fromDate(r) <- DATE(date(prevReport())) WHERE prevReport();
-    fromTime(r) <- TIME(date(prevReport())) WHERE prevReport();
+    IF (date(prevReport()) == date(report())) OR NOT prevReport() OR NOT report() THEN {
+        MESSAGE 'Не найдены отчеты за данный период. Возможно, не закрыта смена в FuelX' NOWAIT;
+        RETURN;
+    }
+    
+    fromDate(r) <- DATE(sumSeconds(date(prevReport()),1)) WHERE prevReport();
+    fromTime(r) <- TIME(sumSeconds(date(prevReport()),1)) WHERE prevReport();
     toDate(r) <- DATE(date(report())) WHERE report();
     toTime(r) <- TIME(date(report())) WHERE report();
         
