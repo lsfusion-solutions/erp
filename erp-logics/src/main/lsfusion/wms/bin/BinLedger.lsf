@@ -437,3 +437,21 @@ META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stock
     
     @deriveFormBinsProperty (form, object);
 END
+
+allowDeleteBins 'Разрешить удалять ячейки при наличии движения по ним' = DATA BOOLEAN () COMPLEX;
+
+EXTEND FORM options
+    PROPERTIES () allowDeleteBins
+;
+
+DESIGN options {
+    pane {
+        NEW WMS {
+            caption = 'WMS';
+            MOVE PROPERTY(allowDeleteBins());
+        }
+    }
+}
+
+CONSTRAINT DROPPED(Bin a IS Bin) AND ([GROUP SUM 1 IF NOT inBin(BinLedger d) BY PREV(inBin(d))](a) OR [GROUP SUM 1 IF NOT outBin(BinLedger d) BY PREV(outBin(d))](a))
+    MESSAGE 'Запрещено удалять ячейку при наличии движения по ней';
