@@ -288,3 +288,44 @@ express24_webhook(FILE f){
     stringToFile( OVERRIDE newOrder(), changedOrder());
     importOrder(resultFile());
 }@@noauth;
+
+//управление филиалами
+isActive 'Вкл.' = DATA BOOLEAN (DepartmentStore);
+
+getStatusBranches 'Получить данные о филиалах'() {
+    NEWSESSION {
+        LOCAL response = FILE ();
+        auth();
+        headers('Authorization-token') <- 'express24:' + accessTokenExpress24();
+        EXTERNAL HTTP GET 'https://express24.uz/api/external/branches' HEADERS headers TO response;
+        LOCAL branch = STRING(INTEGER);
+        LOCAL status = STRING (INTEGER);
+        IMPORT JSON FROM response() TO branch = branch_id, status = is_active;
+        FOR DepartmentStore ds = express24Store(branch(INTEGER i)) DO
+            isActive(ds) <- TRUE WHERE status(i) = 'Y';
+        APPLY;
+    }
+}
+
+isActive = DATA LOCAL STRING();
+
+FORM changeStatus
+    OBJECTS s = STRING EXTID 'branches' IN data
+    PROPERTIES VALUE (s) EXTID 'value', isActive()
+;
+
+changeStatus(DepartmentStore ds){
+    LOCAL response = FILE ();
+    auth();
+    headers('Authorization-token') <- 'express24:' + accessTokenExpress24();
+    isActive(ds) <- NOT isActive(ds);
+    isActive() <- IF isActive(ds) THEN 'Y' ELSE 'N';
+    EXPORT changeStatus FILTERS s = idExpress24(ds) JSON;
+    EXTERNAL HTTP PUT 'https://express24.uz/api/external/branches' HEADERS headers PARAMS exportFile() TO response;
+}
+captionChangeStatus (DepartmentStore ds) = IF isActive(ds) THEN 'Отключить' ELSE 'Включить';
+
+EXTEND FORM internetCatalogs
+    PROPERTIES (d) isActive READONLY, changeStatus HEADER captionChangeStatus(d) TOOLBAR DRAW d
+    PROPERTIES getStatusBranches() TOOLBAR DRAW d
+;
