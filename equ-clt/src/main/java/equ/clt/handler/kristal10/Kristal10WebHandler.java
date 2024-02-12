@@ -572,6 +572,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         for (Element purchaseNode : purchasesList) {
 
+            String status = readStringXMLAttribute(purchaseNode, "status");
+            if (status.equals("CANCELLED")) {
+                continue;
+            }
+
             String operationType = readStringXMLAttribute(purchaseNode, "operationType");
             Boolean isSale = operationType == null || operationType.equals("true");
             Integer numberCashRegister = readIntegerXMLAttribute(purchaseNode, "cash");
@@ -596,12 +601,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
             LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
-            String operDay = readStringXMLAttribute(purchaseNode, "operDay");
-            if (operDay == null) {
-                sendSalesLogger.info(getLogPrefix() + String.format("Empty operDay: %s %s %s %s", shop, numberCashRegister, numberZReport, numberReceipt));
-                throw new RuntimeException("operDay is empty");
+            LocalDate dateZReport = null ;
+            if (!status.equals("CANCELLED")) {
+                dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ISO_DATE);
             }
-            LocalDate dateZReport = LocalDate.parse(operDay, DateTimeFormatter.ISO_DATE);
 
             Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
 
