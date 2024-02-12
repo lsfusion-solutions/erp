@@ -490,40 +490,40 @@ public class DefaultTerminalHandler {
                 ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev("barcode", barcodeExpr);
 
                 QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
-                barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("overNameSku", terminalHandlerLM.findProperty("overNameSku[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("overNameSku", terminalHandlerLM.findProperty("overNameSku[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentPriceInTerminal[Barcode,Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
                 if (currentQuantity) {
-                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock,CustomUser]").getExpr(barcodeExpr, stockObject.getExpr(), user.getExpr()));
+                    barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock,CustomUser]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr(), user.getExpr()));
                 }
-                barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("nameCountry", terminalHandlerLM.findProperty("nameCountry[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("isWeight", terminalHandlerLM.findProperty("isWeight[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("fld5", terminalHandlerLM.findProperty("fld5[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
-                barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("flags", terminalHandlerLM.findProperty("flags[Barcode, Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("nameCountry", terminalHandlerLM.findProperty("nameCountry[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("isWeight", terminalHandlerLM.findProperty("isWeight[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("mainBarcode", terminalHandlerLM.findProperty("idMainBarcode[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("color", terminalHandlerLM.findProperty("color[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("extInfo", terminalHandlerLM.findProperty("extInfo[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld3", terminalHandlerLM.findProperty("fld3[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld4", terminalHandlerLM.findProperty("fld4[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("fld5", terminalHandlerLM.findProperty("fld5[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.addProperty("unit", terminalHandlerLM.findProperty("shortNameUOM[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("flags", terminalHandlerLM.findProperty("flags[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
                 if(imagesInReadBase) {
-                    barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(barcodeExpr));
+                    barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 }
-                barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
-                barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(barcodeExpr));
+                barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(session.getModifier(), barcodeExpr));
 
                 if (ediGtinLM != null)
-                    barcodeQuery.addProperty("GTIN", ediGtinLM.findProperty("GTIN[Barcode]").getExpr(barcodeExpr));
+                    barcodeQuery.addProperty("GTIN", ediGtinLM.findProperty("GTIN[Barcode]").getExpr(session.getModifier(), barcodeExpr));
 
                 if (itemInternetLM != null) {
-                    barcodeQuery.addProperty("fileNameImage", itemInternetLM.findProperty("fileNameImage[Barcode]").getExpr(barcodeExpr));
+                    barcodeQuery.addProperty("fileNameImage", itemInternetLM.findProperty("fileNameImage[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 }
 
                 barcodeQuery.and(terminalHandlerLM.findProperty("filterGoods[Barcode,Stock,User]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr(), user.getExpr()).getWhere());
-                barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
-                barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(barcodeExpr).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(session.getModifier(), barcodeExpr).getWhere());
+                barcodeQuery.and(terminalHandlerLM.findProperty("active[Barcode]").getExpr(session.getModifier(), barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
                 for (ImMap<Object, Object> entry : barcodeResult.values()) {
@@ -577,12 +577,12 @@ public class DefaultTerminalHandler {
             ImRevMap<Object, KeyExpr> batchKeys = MapFact.singletonRev("batch", batchExpr);
 
             QueryBuilder<Object, Object> batchQuery = new QueryBuilder<>(batchKeys);
-            batchQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcodeSku[Batch]").getExpr(batchExpr));
-            batchQuery.addProperty("date", terminalHandlerLM.findProperty("date[Batch]").getExpr(batchExpr));
-            batchQuery.addProperty("number", terminalHandlerLM.findProperty("number[Batch]").getExpr(batchExpr));
-            batchQuery.addProperty("idSupplier", terminalHandlerLM.findProperty("idSupplierStock[Batch]").getExpr(batchExpr));
-            batchQuery.addProperty("cost", terminalHandlerLM.findProperty("currentPriceInTerminal[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
-            batchQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[Batch, Stock]").getExpr(batchExpr, stockObject.getExpr()));
+            batchQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcodeSku[Batch]").getExpr(session.getModifier(), batchExpr));
+            batchQuery.addProperty("date", terminalHandlerLM.findProperty("date[Batch]").getExpr(session.getModifier(), batchExpr));
+            batchQuery.addProperty("number", terminalHandlerLM.findProperty("number[Batch]").getExpr(session.getModifier(), batchExpr));
+            batchQuery.addProperty("idSupplier", terminalHandlerLM.findProperty("idSupplierStock[Batch]").getExpr(session.getModifier(), batchExpr));
+            batchQuery.addProperty("cost", terminalHandlerLM.findProperty("currentPriceInTerminal[Batch, Stock]").getExpr(session.getModifier(), batchExpr, stockObject.getExpr()));
+            batchQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[Batch, Stock]").getExpr(session.getModifier(), batchExpr, stockObject.getExpr()));
 
             batchQuery.and(terminalHandlerLM.findProperty("filterBatch[Batch, Stock]").getExpr(session.getModifier(), batchExpr, stockObject.getExpr()).getWhere());
 
@@ -613,12 +613,12 @@ public class DefaultTerminalHandler {
         ImRevMap<Object, KeyExpr> lotKeys = MapFact.singletonRev("lot", lotExpr);
 
         QueryBuilder<Object, Object> lotQuery = new QueryBuilder<>(lotKeys);
-        lotQuery.addProperty("idLot", terminalLotLM.findProperty("id[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("barcode", terminalLotLM.findProperty("idBarcodeSku[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("idSku", terminalLotLM.findProperty("idSku[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("idParent", terminalLotLM.findProperty("idParent[Lot]").getExpr(lotExpr));
-        lotQuery.addProperty("numberOrder", terminalLotLM.findProperty("number[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
-        lotQuery.addProperty("quantity", terminalLotLM.findProperty("quantity[Lot,Stock,Employee]").getExpr(lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("idLot", terminalLotLM.findProperty("id[Lot]").getExpr(session.getModifier(), lotExpr));
+        lotQuery.addProperty("barcode", terminalLotLM.findProperty("idBarcodeSku[Lot]").getExpr(session.getModifier(), lotExpr));
+        lotQuery.addProperty("idSku", terminalLotLM.findProperty("idSku[Lot]").getExpr(session.getModifier(), lotExpr));
+        lotQuery.addProperty("idParent", terminalLotLM.findProperty("idParent[Lot]").getExpr(session.getModifier(), lotExpr));
+        lotQuery.addProperty("numberOrder", terminalLotLM.findProperty("number[Lot,Stock,Employee]").getExpr(session.getModifier(), lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+        lotQuery.addProperty("quantity", terminalLotLM.findProperty("quantity[Lot,Stock,Employee]").getExpr(session.getModifier(), lotExpr, stockObject.getExpr(), userInfo.user.getExpr()));
         lotQuery.addProperty("count", terminalLotLM.findProperty("count[Lot]").getExpr(lotExpr));
 
         lotQuery.and(terminalLotLM.findProperty("filter[Lot,Stock,Employee]").getExpr(session.getModifier(), lotExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1396,9 +1396,9 @@ public class DefaultTerminalHandler {
                 KeyExpr skuExpr = new KeyExpr("sku");
                 ImRevMap<Object, KeyExpr> skuKeys = MapFact.singletonRev("Sku", skuExpr);
                 QueryBuilder<Object, Object> skuQuery = new QueryBuilder<>(skuKeys);
-                skuQuery.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
-                skuQuery.addProperty("nameSku", terminalHandlerLM.findProperty("name[Sku]").getExpr(skuExpr));
-                skuQuery.addProperty("extraBarcodes", terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(skuExpr, customerStockObject.getExpr()));
+                skuQuery.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(session.getModifier(), skuExpr));
+                skuQuery.addProperty("nameSku", terminalHandlerLM.findProperty("name[Sku]").getExpr(session.getModifier(), skuExpr));
+                skuQuery.addProperty("extraBarcodes", terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(session.getModifier(), skuExpr, customerStockObject.getExpr()));
                 skuQuery.and(terminalHandlerLM.findProperty("extraBarcodes[Sku,Stock]").getExpr(session.getModifier(), skuExpr, customerStockObject.getExpr()).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
@@ -1430,9 +1430,9 @@ public class DefaultTerminalHandler {
                 String[] orderNames = new String[]{"dateOrder", "numberOrder"};
                 LP<?>[] orderProperties = terminalOrderLM.findProperties("date[TerminalOrder]", "number[TerminalOrder]");
                 for (int i = 0; i < orderProperties.length; i++) {
-                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
+                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(session.getModifier(), orderExpr));
                 }
-                orderQuery.addProperty("idSupplierOrder", terminalOrderLM.findProperty("idSupplier[TerminalOrder,Stock]").getExpr(orderExpr, customerStockObject.getExpr()));
+                orderQuery.addProperty("idSupplierOrder", terminalOrderLM.findProperty("idSupplier[TerminalOrder,Stock]").getExpr(session.getModifier(), orderExpr, customerStockObject.getExpr()));
 
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "nameSkuGroupOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "nameManufacturerSkuOrderDetail", "isWeighSkuOrderDetail", "minDeviationQuantityOrderDetail",
@@ -1448,13 +1448,13 @@ public class DefaultTerminalHandler {
                         "minDeviationDate[TerminalOrderDetail]", "maxDeviationDate[TerminalOrderDetail]", "dateShipment[TerminalOrderDetail]",
                         "extraBarcodes[TerminalOrderDetail]", "sortTerminal[TerminalOrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
-                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
+                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(session.getModifier(), orderDetailExpr));
                 }
-                orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
-                orderQuery.addProperty("vop", terminalOrderLM.findProperty("vop[TerminalOrderDetail,Stock]").getExpr(orderDetailExpr, customerStockObject.getExpr()));
+                orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(session.getModifier(), orderDetailExpr, customerStockObject.getExpr()));
+                orderQuery.addProperty("vop", terminalOrderLM.findProperty("vop[TerminalOrderDetail,Stock]").getExpr(session.getModifier(), orderDetailExpr, customerStockObject.getExpr()));
 
                 if (terminalOrderGtinLM != null)
-                    orderQuery.addProperty("GTIN", terminalOrderGtinLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(orderDetailExpr));
+                    orderQuery.addProperty("GTIN", terminalOrderGtinLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1528,10 +1528,10 @@ public class DefaultTerminalHandler {
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
 
-                orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(orderDetailExpr));
-                orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(orderDetailExpr));
+                orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
 
-                orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(orderDetailExpr).getWhere());
+                orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr).getWhere());
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
 
@@ -1559,16 +1559,16 @@ public class DefaultTerminalHandler {
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("Sku", skuExpr, "Stock", supplierExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-            query.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr));
-            query.addProperty("idSupplier", terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr));
-            query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
-            query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
-            query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
-            query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
-            query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("idSupplier[Sku,Stock,Stock]").getExpr(skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(session.getModifier(), skuExpr));
+            query.addProperty("idSupplier", terminalHandlerLM.findProperty("id[Stock]").getExpr(session.getModifier(), supplierExpr));
+            query.addProperty("price", terminalHandlerLM.findProperty("price[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("minPrice", terminalHandlerLM.findProperty("minDeviationPrice[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("maxPrice", terminalHandlerLM.findProperty("maxDeviationPrice[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("quantity", terminalHandlerLM.findProperty("quantity[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr));
+            query.addProperty("idOriginalSupplier", terminalHandlerLM.findProperty("idSupplier[Sku,Stock,Stock]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr));
 
-            query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(supplierExpr).getWhere());
-            query.and(terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(skuExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("id[Stock]").getExpr(session.getModifier(), supplierExpr).getWhere());
+            query.and(terminalHandlerLM.findProperty("overIdBarcode[Sku]").getExpr(session.getModifier(), skuExpr).getWhere());
             query.and(terminalHandlerLM.findProperty("filterAssortment[Sku,Stock,Stock,STRING[1]]").getExpr(session.getModifier(), skuExpr, stockObject.getExpr(), supplierExpr, new DataObject(userInfo.idApplication).getExpr()).getWhere());
 
 
