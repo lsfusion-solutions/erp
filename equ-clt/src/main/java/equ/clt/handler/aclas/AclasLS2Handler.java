@@ -14,19 +14,19 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Callable;
 
-import static equ.clt.handler.HandlerUtils.*;
-import static lsfusion.base.BaseUtils.nvl;
-import static lsfusion.base.BaseUtils.trimToEmpty;
-import static lsfusion.base.BaseUtils.isRedundantString;
+import static equ.clt.handler.HandlerUtils.safeDelete;
+import static equ.clt.handler.HandlerUtils.safeMultiply;
+import static lsfusion.base.BaseUtils.*;
 
 public class AclasLS2Handler extends MultithreadScalesHandler {
 
@@ -111,13 +111,13 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, boolean skipLoadHotKey, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
-        int result = loadPLU(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, overBarcodeTypeForPieceItems, sleep);
+    private int loadData(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, boolean commaDecimalSeparator, boolean skipLoadHotKey, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
+        int result = loadPLU(scales, transaction, pluNumberAsPluId, commaDecimalSeparator, overBarcodeTypeForPieceItems, sleep);
         if (result == 0) {
-            result = loadNotes(scales, transaction, logDir, pluNumberAsPluId, sleep);
+            result = loadNotes(scales, transaction, pluNumberAsPluId, sleep);
         }
         if (result == 0 && !skipLoadHotKey) {
-            result = loadHotKey(scales, transaction, pluNumberAsPluId, logDir, sleep);
+            result = loadHotKey(scales, transaction, pluNumberAsPluId, sleep);
         }
         //load extra files
         if(result == 0 && !isRedundantString(transaction.info)) {
@@ -136,7 +136,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                         try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(extraFile.toPath()), StandardCharsets.UTF_8))) {
                             bw.write('\ufeff'+str);
                         }
-                        logFile(logDir, extraFile, transaction, String.valueOf(dataType));
                         result = AclasSDK.loadData(scales.port, extraFile.getAbsolutePath(), dataType, sleep);
                     } finally {
                         safeDelete(extraFile);
@@ -147,7 +146,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return result;
     }
 
-    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, boolean commaDecimalSeparator, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
+    private int loadPLU(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, boolean commaDecimalSeparator, String overBarcodeTypeForPieceItems, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
@@ -180,38 +179,36 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
             }
 
-            logFile(logDir, file, transaction, "plu");
-
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), pluFile, sleep);
         } finally {
             safeDelete(file);
         }
     }
 
-    private int loadNotes(ScalesInfo scales, TransactionScalesInfo transaction, String logDir, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
+    private int loadNotes(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
         List<List<List<Object>>> data = getDataNotes(transaction, pluNumberAsPluId);
 
         int result = 0;
         if(!data.get(0).isEmpty()) {
-            result = loadNote(scales, data.get(0), transaction, logDir, sleep, note1File);
+            result = loadNote(scales, data.get(0), sleep, note1File);
         }
 
         if(result == 0 && !data.get(1).isEmpty()) {
-            result = loadNote(scales, data.get(1), transaction, logDir, sleep, note2File);
+            result = loadNote(scales, data.get(1), sleep, note2File);
         }
 
         if(result == 0 && !data.get(2).isEmpty()) {
-            result = loadNote(scales, data.get(2), transaction, logDir, sleep, note3File);
+            result = loadNote(scales, data.get(2), sleep, note3File);
         }
 
         if(result == 0 && !data.get(3).isEmpty()) {
-            result = loadNote(scales, data.get(3), transaction, logDir, sleep, note4File);
+            result = loadNote(scales, data.get(3), sleep, note4File);
         }
 
         return result;
     }
 
-    private int loadNote(ScalesInfo scales, List<List<Object>> noteData, TransactionScalesInfo transaction, String logDir, long sleep, int noteFile) throws IOException, InterruptedException {
+    private int loadNote(ScalesInfo scales, List<List<Object>> noteData, long sleep, int noteFile) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
@@ -224,8 +221,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     bw.write(StringUtils.join(Arrays.asList(noteEntry.get(0), noteEntry.get(1)).iterator(), "\t"));
                 }
             }
-
-            logFile(logDir, file, transaction, "note");
 
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), noteFile, sleep);
         } finally {
@@ -261,7 +256,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return Arrays.asList(dataNote1, dataNote2, dataNote3, dataNote4);
     }
 
-    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, String logDir, long sleep) throws IOException, InterruptedException {
+    private int loadHotKey(ScalesInfo scales, TransactionScalesInfo transaction, boolean pluNumberAsPluId, long sleep) throws IOException, InterruptedException {
         File file = File.createTempFile("aclas", ".txt");
         try {
             try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8))) {
@@ -281,19 +276,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                 }
             }
 
-            logFile(logDir, file, transaction, "hotkey");
-
             return AclasSDK.loadData(scales.port, file.getAbsolutePath(), hotKeyFile, sleep);
         } finally {
             safeDelete(file);
-        }
-    }
-
-    private void logFile(String logDir, File file, TransactionScalesInfo transaction, String prefix) {
-        if (logDir != null) {
-            if (new File(logDir).exists() || new File(logDir).mkdirs()) {
-                copyWithTimeout(file, new File(logDir + "/" + transaction.id + "-" + prefix + "-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + ".txt"));
-            }
         }
     }
 
@@ -376,7 +361,6 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         @Override
         protected SendTransactionResult run() {
             AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
-            String logDir = aclasLS2Settings.getLogDir();
             boolean commaDecimalSeparator = aclasLS2Settings.isCommaDecimalSeparator();
             boolean pluNumberAsPluId = aclasLS2Settings.isPluNumberAsPluId();
             boolean skipLoadHotKey = aclasLS2Settings.isSkipLoadHotKey();
@@ -395,7 +379,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
                 if (result == 0) {
                     aclasls2Logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
-                    result = loadData(scales, transaction, logDir, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, overBarcodeTypeForPieceItems, sleep);
+                    result = loadData(scales, transaction, pluNumberAsPluId, commaDecimalSeparator, skipLoadHotKey, overBarcodeTypeForPieceItems, sleep);
                 }
                 error = getErrorDescription(result);
                 if(error != null) {

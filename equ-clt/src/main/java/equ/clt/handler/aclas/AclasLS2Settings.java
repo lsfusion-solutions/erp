@@ -34,10 +34,12 @@ public class AclasLS2Settings {
         this.libraryDir = libraryDir;
     }
 
+    @Deprecated
     public String getLogDir() {
         return logDir;
     }
 
+    @Deprecated
     public void setLogDir(String logDir) {
         this.logDir = logDir;
     }
@@ -74,10 +76,12 @@ public class AclasLS2Settings {
         this.skipLoadHotKey = skipLoadHotKey;
     }
 
+    @Deprecated
     public boolean isLoadDefaultPLU() {
         return loadDefaultPLU;
     }
 
+    @Deprecated
     public void setLoadDefaultPLU(boolean loadDefaultPLU) {
         this.loadDefaultPLU = loadDefaultPLU;
     }
