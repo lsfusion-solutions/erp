@@ -142,6 +142,7 @@ public class AstronSettings implements Serializable {
         return itemsAtATime != null ? itemsAtATime : 0;
     }
 
+    @SuppressWarnings("unused")
     public void setItemsAtATime(Integer itemsAtATime) {
         this.itemsAtATime = itemsAtATime;
     }

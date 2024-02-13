@@ -125,6 +125,7 @@ public class UKM4MySQLSettings implements Serializable{
         return giftCardList;
     }
 
+    @SuppressWarnings("unused")
     public void setGiftCardsList(String giftCards) {
         giftCardList = new ArrayList<>();
         if(!giftCards.isEmpty())
@@ -239,6 +240,7 @@ public class UKM4MySQLSettings implements Serializable{
         return forceGroupsList;
     }
 
+    @SuppressWarnings("unused")
     public void setForceGroups(String forceGroups) {
         this.forceGroups = forceGroups;
         this.forceGroupsList.addAll(Arrays.asList(forceGroups.split(",\\s?")));
@@ -248,6 +250,7 @@ public class UKM4MySQLSettings implements Serializable{
         return cashRegisterByStoreAndNumber;
     }
 
+    @SuppressWarnings("unused")
     public void setCashRegisterByStoreAndNumber(boolean cashRegisterByStoreAndNumber) {
         this.cashRegisterByStoreAndNumber = cashRegisterByStoreAndNumber;
     }
@@ -256,6 +259,7 @@ public class UKM4MySQLSettings implements Serializable{
         return tareWeightFieldInVarTable;
     }
 
+    @SuppressWarnings("unused")
     public void setTareWeightFieldInVarTable(boolean tareWeightFieldInVarTable) {
         this.tareWeightFieldInVarTable = tareWeightFieldInVarTable;
     }
@@ -264,6 +268,7 @@ public class UKM4MySQLSettings implements Serializable{
         return useLocalNumber;
     }
 
+    @SuppressWarnings("unused")
     public void setUseLocalNumber(boolean useLocalNumber) {
         this.useLocalNumber = useLocalNumber;
     }
@@ -272,6 +277,7 @@ public class UKM4MySQLSettings implements Serializable{
         return useStoreInIdEmployee;
     }
 
+    @SuppressWarnings("unused")
     public void setUseStoreInIdEmployee(boolean useStoreInIdEmployee) {
         this.useStoreInIdEmployee = useStoreInIdEmployee;
     }
@@ -280,6 +286,7 @@ public class UKM4MySQLSettings implements Serializable{
         return useCashNumberInsteadOfCashId;
     }
 
+    @SuppressWarnings("unused")
     public void setUseCashNumberInsteadOfCashId(boolean useCashNumberInsteadOfCashId) {
         this.useCashNumberInsteadOfCashId = useCashNumberInsteadOfCashId;
     }
@@ -288,6 +295,7 @@ public class UKM4MySQLSettings implements Serializable{
         return usePieceCode;
     }
 
+    @SuppressWarnings("unused")
     public void setUsePieceCode(boolean usePieceCode) {
         this.usePieceCode = usePieceCode;
     }

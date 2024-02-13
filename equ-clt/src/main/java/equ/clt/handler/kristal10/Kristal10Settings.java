@@ -161,6 +161,7 @@ public class Kristal10Settings implements Serializable{
         return skipWeightPrefix;
     }
 
+    @SuppressWarnings("unused")
     public void setSkipWeightPrefix(Boolean skipWeightPrefix) {
         this.skipWeightPrefix = skipWeightPrefix;
     }
@@ -169,6 +170,7 @@ public class Kristal10Settings implements Serializable{
         return skipScalesInfo;
     }
 
+    @SuppressWarnings("unused")
     public void setSkipScalesInfo(Boolean skipScalesInfo) {
         this.skipScalesInfo = skipScalesInfo;
     }
@@ -185,6 +187,7 @@ public class Kristal10Settings implements Serializable{
         return skipUseShopIndicesMinPrice;
     }
 
+    @SuppressWarnings("unused")
     public void setSkipUseShopIndicesMinPrice(Boolean skipUseShopIndicesMinPrice) {
         this.skipUseShopIndicesMinPrice = skipUseShopIndicesMinPrice;
     }
@@ -193,6 +196,7 @@ public class Kristal10Settings implements Serializable{
         return weightShopIndices;
     }
 
+    @SuppressWarnings("unused")
     public void setWeightShopIndices(String weightShopIndices) {
         this.weightShopIndices = weightShopIndices;
     }
@@ -209,6 +213,7 @@ public class Kristal10Settings implements Serializable{
         return useIdItemInRestriction;
     }
 
+    @SuppressWarnings("unused")
     public void setUseIdItemInRestriction(Boolean useIdItemInRestriction) {
         this.useIdItemInRestriction = useIdItemInRestriction;
     }
@@ -241,6 +246,7 @@ public class Kristal10Settings implements Serializable{
         return tobaccoGroup;
     }
 
+    @SuppressWarnings("unused")
     public void setTobaccoGroup(String tobaccoGroup) {
         this.tobaccoGroup = tobaccoGroup;
     }
@@ -277,6 +283,7 @@ public class Kristal10Settings implements Serializable{
         return ignoreSalesWeightPrefix;
     }
 
+    @SuppressWarnings("unused")
     public void setIgnoreSalesWeightPrefix(Boolean ignoreSalesWeightPrefix) {
         this.ignoreSalesWeightPrefix = ignoreSalesWeightPrefix;
     }
@@ -285,6 +292,7 @@ public class Kristal10Settings implements Serializable{
         return cleanOldFilesDays;
     }
 
+    @SuppressWarnings("unused")
     public void setCleanOldFilesDays(Integer cleanOldFilesDays) {
         this.cleanOldFilesDays = cleanOldFilesDays;
     }
@@ -309,6 +317,7 @@ public class Kristal10Settings implements Serializable{
         return notGTINPrefixesList;
     }
 
+    @SuppressWarnings("unused")
     public void setNotGTINPrefixes(String notGTINPrefixes) {
         this.notGTINPrefixes = notGTINPrefixes;
         this.notGTINPrefixesList.addAll(Arrays.asList(notGTINPrefixes.split(",\\s?")));
@@ -342,6 +351,7 @@ public class Kristal10Settings implements Serializable{
         return sftpPath;
     }
 
+    @SuppressWarnings("unused")
     public void setSftpPath(String sftpPath) {
         this.sftpPath = sftpPath;
     }
@@ -350,6 +360,7 @@ public class Kristal10Settings implements Serializable{
         return sftpDepartmentStoresList;
     }
 
+    @SuppressWarnings("unused")
     public void setSftpDepartmentStores(String sftpDepartmentStores) {
         this.sftpDepartmentStores = sftpDepartmentStores;
         this.sftpDepartmentStoresList.addAll(Arrays.asList(sftpDepartmentStores.split(",\\s?")));
@@ -367,6 +378,7 @@ public class Kristal10Settings implements Serializable{
         return sidEquipmentServer;
     }
 
+    @SuppressWarnings("unused")
     public void setSidEquipmentServer(String sidEquipmentServer) {
         this.sidEquipmentServer = sidEquipmentServer;
     }

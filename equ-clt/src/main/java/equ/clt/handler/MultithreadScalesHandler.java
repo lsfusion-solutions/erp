@@ -7,7 +7,6 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
 import org.apache.commons.lang3.StringUtils;
 
-import java.io.File;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -132,8 +131,7 @@ public abstract class MultithreadScalesHandler extends DefaultScalesHandler {
 
         @Override
         public SendTransactionResult call() throws Exception {
-            SendTransactionResult result = run();
-            return result;
+            return run();
         }
 
     }

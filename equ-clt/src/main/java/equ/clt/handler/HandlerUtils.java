@@ -70,16 +70,8 @@ public class HandlerUtils {
         return input == null ? defaultValue : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
 
-    public static BigDecimal getJSONBigDecimal(String json, String objectKey, String valueKey) {
-        return getJSONBigDecimal(getJSONObject(json, objectKey), valueKey);
-    }
-
     public static JSONObject getJSONObject(String json, String objectKey) {
         return json != null ? new JSONObject(json).optJSONObject(objectKey) : null;
-    }
-
-    public static BigDecimal getJSONBigDecimal(JSONObject jsonObject, String valueKey) {
-        return jsonObject != null && jsonObject.has(valueKey) ? jsonObject.getBigDecimal(valueKey) : null;
     }
 
     public static String appendSpaces(Object value, int length) {

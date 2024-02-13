@@ -7,7 +7,6 @@ import com.sun.net.httpserver.HttpServer;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItem;
 import equ.clt.EquipmentServer;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.DaemonThreadFactory;
@@ -39,7 +38,10 @@ import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
-import java.time.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -524,6 +526,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     @Override
     public Kristal10SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
+        String canceledReceipts = null;
         if(httpRequestHandler != null) {
             try {
                 List<String> requestSalesInfoEntry = requestSalesInfoMap.get(directory);
@@ -532,17 +535,19 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     sendSalesLogger.info(getLogPrefix() + "sending request for directory : " + directory + ", Request: " + requestSalesInfoEntry.get(0) );
                     String response = parseResponsePurchasesByParams(sendRequest(directory + "/FiscalInfoExport", requestSalesInfoEntry.remove(0)));
                     Document doc = xmlStringToDoc(response);
-                    salesInfoList.addAll(parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>()));
+                    Pair<List<SalesInfo>, String> salesData = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
+                    salesInfoList.addAll(salesData.first);
+                    canceledReceipts = salesData.second;
                     sendSalesLogger.info(getLogPrefix() + "found " + salesInfoList.size());
                 }
             } catch (Throwable e) {
                 sendSalesLogger.error(getLogPrefix() + "readSalesInfo", e);
             }
         }
-        return salesInfoList.isEmpty() ? null : new Kristal10SalesBatch(salesInfoList, null);
+        return salesInfoList.isEmpty() && canceledReceipts == null ? null : new Kristal10SalesBatch(salesInfoList, canceledReceipts, null);
     }
 
-    private List<SalesInfo> parseSalesInfoXML(Document doc, String directory, List<CashRegisterInfo> cashRegisterInfoList, Set<String> usedBarcodes) {
+    private Pair<List<SalesInfo>, String> parseSalesInfoXML(Document doc, String directory, List<CashRegisterInfo> cashRegisterInfoList, Set<String> usedBarcodes) {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : new Kristal10Settings();
         String transformUPCBarcode = kristalSettings.getTransformUPCBarcode();
         boolean ignoreSalesWeightPrefix = kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
@@ -570,10 +575,12 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         List<Element> purchasesList = rootNode.getChildren("purchase");
         sendSalesLogger.info(getLogPrefix() + " purchase count: " + purchasesList.size());
 
+        List<Element> canceledReceipts = new ArrayList<>();
         for (Element purchaseNode : purchasesList) {
 
             String status = readStringXMLAttribute(purchaseNode, "status");
             if (status.equals("CANCELLED")) {
+                canceledReceipts.add(purchaseNode);
                 continue;
             }
 
@@ -601,10 +608,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             LocalDate dateReceipt = dateTimeReceipt.toLocalDate();
             LocalTime timeReceipt = dateTimeReceipt.toLocalTime();
 
-            LocalDate dateZReport = null ;
-            if (!status.equals("CANCELLED")) {
-                dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ISO_DATE);
-            }
+            LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ISO_DATE);
 
             Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
 
@@ -809,7 +813,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             salesInfoList.addAll(currentSalesInfoList);
         }
-        return salesInfoList;
+        Element canceledReceiptsElement = new Element("canceledReceipts");
+        for(Element canceledReceipt : canceledReceipts) {
+            canceledReceiptsElement.addContent(canceledReceipt);
+        }
+        return Pair.create(salesInfoList, canceledReceiptsElement.getChildren().isEmpty() ? null : elementToXMLString(canceledReceiptsElement));
     }
 
     private void sendPurchasesResponse(HttpExchange httpExchange, String error) throws IOException {
@@ -954,7 +962,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     Element importElement = xmlGetstatusElement.getChild("import");
                     if(importElement != null) {
                         Integer status = Integer.parseInt(importElement.getAttributeValue("status"));
-                        return Pair.create(status, new XMLOutputter().outputString(importElement));
+                        return Pair.create(status, elementToXMLString(importElement));
                     }
 
                 }
@@ -1056,6 +1064,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
     }
 
+    private String elementToXMLString(Element element) {
+        return new XMLOutputter().outputString(element);
+    }
+
     private class HttpRequestHandler implements HttpHandler {
 
         //пока рассматриваем только случай с 1 SetRetail сервером на 1 equ
@@ -1131,12 +1143,17 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         //assert directorySet.size() == 1
         for (String directory : directorySet) {
-            List<SalesInfo> salesInfoList = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
-            if (!salesInfoList.isEmpty() || ignoreSalesWithoutNppGroupMachinery) {
-                sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesInfoList.size());
-                String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, directory);
+            Pair<List<SalesInfo>, String> salesData = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
+            if (!salesData.first.isEmpty() || ignoreSalesWithoutNppGroupMachinery || salesData.second != null) {
+                sendSalesLogger.info(getLogPrefix() + "Sending SalesInfo: " + salesData.first.size());
+                String result = remote.sendSalesInfo(salesData.first, sidEquipmentServer, directory);
                 if (result != null) {
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                } else {
+                    result = remote.sendExtraData(salesData.second);
+                    if (result != null) {
+                        EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
+                    }
                 }
                 sendPurchasesResponse(httpExchange, result);
             }

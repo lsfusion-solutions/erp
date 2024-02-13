@@ -2,6 +2,7 @@ package equ.clt.handler;
 
 import java.io.Serializable;
 
+//actually is BizerbaSettings
 public class ScalesSettings implements Serializable{
     
     private boolean allowParallel; //todo: not used, remove
@@ -23,6 +24,7 @@ public class ScalesSettings implements Serializable{
 
     public ScalesSettings() {}
 
+    @Deprecated
     public boolean isAllowParallel() {
         return allowParallel;
     }
@@ -51,6 +53,7 @@ public class ScalesSettings implements Serializable{
         return descriptionLineLength;
     }
 
+    @SuppressWarnings("unused")
     public void setDescriptionLineLength(Integer descriptionLineLength) {
         this.descriptionLineLength = descriptionLineLength;
     }
@@ -59,6 +62,7 @@ public class ScalesSettings implements Serializable{
         return useDescriptionOptimizer;
     }
 
+    @SuppressWarnings("unused")
     public void setUseDescriptionOptimizer(boolean useDescriptionOptimizer) {
         this.useDescriptionOptimizer = useDescriptionOptimizer;
     }
@@ -67,6 +71,7 @@ public class ScalesSettings implements Serializable{
         return sendCommandTimeout;
     }
 
+    @SuppressWarnings("unused")
     public void setSendCommandTimeout(Long sendCommandTimeout) {
         this.sendCommandTimeout = sendCommandTimeout;
     }

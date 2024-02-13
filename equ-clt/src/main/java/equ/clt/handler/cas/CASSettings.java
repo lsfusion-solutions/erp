@@ -45,6 +45,7 @@ public class CASSettings implements Serializable{
         return disableStopLists;
     }
 
+    @SuppressWarnings("unused")
     public void setDisableStopLists(boolean disableStopLists) {
         this.disableStopLists = disableStopLists;
     }

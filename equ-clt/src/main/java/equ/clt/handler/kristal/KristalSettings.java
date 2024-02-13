@@ -175,6 +175,7 @@ public class KristalSettings implements Serializable{
         return idPositionCashier;
     }
 
+    @SuppressWarnings("unused")
     public void setIdPositionCashier(String idPositionCashier) {
         this.idPositionCashier = idPositionCashier;
     }
@@ -183,6 +184,7 @@ public class KristalSettings implements Serializable{
         return zeroesInItemGroup;
     }
 
+    @SuppressWarnings("unused")
     public void setZeroesInItemGroup(boolean zeroesInItemGroup) {
         this.zeroesInItemGroup = zeroesInItemGroup;
     }

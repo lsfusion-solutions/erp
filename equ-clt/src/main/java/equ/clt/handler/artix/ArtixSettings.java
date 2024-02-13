@@ -101,6 +101,7 @@ public class ArtixSettings implements Serializable{
         return globalExchangeDirectory;
     }
 
+    @SuppressWarnings("unused")
     public void setGlobalExchangeDirectory(String globalExchangeDirectory) {
         this.globalExchangeDirectory = globalExchangeDirectory;
     }
@@ -189,14 +190,17 @@ public class ArtixSettings implements Serializable{
         return notDeleteEmptyFiles;
     }
 
+    @SuppressWarnings("unused")
     public void setNotDeleteEmptyFiles(boolean notDeleteEmptyFiles) {
         this.notDeleteEmptyFiles = notDeleteEmptyFiles;
     }
 
+    @Deprecated
     public int getPriorityDirectoriesCount() {
         return priorityDirectoriesCount;
     }
 
+    @Deprecated
     public void setPriorityDirectoriesCount(int priorityDirectoriesCount) {
         this.priorityDirectoriesCount = priorityDirectoriesCount;
     }
@@ -213,6 +217,7 @@ public class ArtixSettings implements Serializable{
         return cashPayments;
     }
 
+    @SuppressWarnings("unused")
     public void setCashPayments(String cashPayments) {
         this.cashPayments = cashPayments;
     }
@@ -221,6 +226,7 @@ public class ArtixSettings implements Serializable{
         return cardPayments;
     }
 
+    @SuppressWarnings("unused")
     public void setCardPayments(String cardPayments) {
         this.cardPayments = cardPayments;
     }
@@ -229,6 +235,7 @@ public class ArtixSettings implements Serializable{
         return giftCardPayments;
     }
 
+    @SuppressWarnings("unused")
     public void setGiftCardPayments(String giftCardPayments) {
         this.giftCardPayments = giftCardPayments;
     }
@@ -245,6 +252,7 @@ public class ArtixSettings implements Serializable{
         return oplatiPayments;
     }
 
+    @SuppressWarnings("unused")
     public void setOplatiPayments(String oplatiPayments) {
         this.oplatiPayments = oplatiPayments;
     }
@@ -261,6 +269,7 @@ public class ArtixSettings implements Serializable{
         return externalSumType;
     }
 
+    @SuppressWarnings("unused")
     public void setExternalSumType(int externalSumType) {
         this.externalSumType = externalSumType;
     }
@@ -269,6 +278,7 @@ public class ArtixSettings implements Serializable{
         return medicineMode;
     }
 
+    @SuppressWarnings("unused")
     public void setMedicineMode(boolean medicineMode) {
         this.medicineMode = medicineMode;
     }
@@ -309,6 +319,7 @@ public class ArtixSettings implements Serializable{
         return russian;
     }
 
+    @SuppressWarnings("unused")
     public void setRussian(boolean russian) {
         this.russian = russian;
     }
@@ -333,6 +344,7 @@ public class ArtixSettings implements Serializable{
         return ignoreDiscountCardPattern;
     }
 
+    @SuppressWarnings("unused")
     public void setIgnoreDiscountCardPattern(String ignoreDiscountCardPattern) {
         this.ignoreDiscountCardPattern = ignoreDiscountCardPattern;
     }

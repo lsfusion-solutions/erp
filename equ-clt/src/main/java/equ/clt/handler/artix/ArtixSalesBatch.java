@@ -20,6 +20,7 @@ public class ArtixSalesBatch extends SalesBatch<ArtixSalesBatch> {
     @Override
     public void merge(ArtixSalesBatch mergeSalesBatch) {
         this.salesInfoList.addAll(mergeSalesBatch.salesInfoList);
+        //now extraData is not merged, so data can be lost
         this.cashierTimeList.addAll(mergeSalesBatch.cashierTimeList);
         this.readFiles.addAll(mergeSalesBatch.readFiles);
     }

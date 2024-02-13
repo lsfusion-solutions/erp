@@ -60,6 +60,7 @@ public class EQSSettings implements Serializable{
         return forceIdDepartmentStoresList;
     }
 
+    @SuppressWarnings("unused")
     public void setForceIdDepartmentStores(String forceIdDepartmentStores) {
         this.forceIdDepartmentStores = forceIdDepartmentStores;
         this.forceIdDepartmentStoresList.addAll(Arrays.asList(forceIdDepartmentStores.split(",\\s?")));

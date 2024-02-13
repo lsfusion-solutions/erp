@@ -805,7 +805,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
             }
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
-                new Kristal10SalesBatch(salesInfoList, filePathList);
+                new Kristal10SalesBatch(salesInfoList, null, filePathList);
     }
 
     @Override
