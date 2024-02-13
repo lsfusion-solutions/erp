@@ -75,5 +75,13 @@ CONSTRAINT DROPPED(Article a IS Article) AND [GROUP SUM 1 IF NOT article(Item io
 
 @defineOption(allowNullIdArticle, 'Разрешить пустой код модели', items);
 
-CONSTRAINT (SET(Article a IS Article) OR DROPPED(id(a))) AND NOT id(a) AND NOT allowNullIdArticle()
-    MESSAGE 'Код модели не должен быть пустым';  
+CONSTRAINT (SET(Article a IS Article) OR DROPPED(id(a))) AND a IS Article AND NOT id(a) AND NOT allowNullIdArticle()
+    MESSAGE 'Код модели не должен быть пустым';
+
+isOwn 'Собственные' = ABSTRACT VALUE BOOLEAN (Item) MATERIALIZED;
+
+EXTEND FORM items
+    FILTERGROUP isOwn
+        FILTER 'Собственные' isOwn(i)
+        FILTER 'Не собственные' NOT isOwn(i)
+;
