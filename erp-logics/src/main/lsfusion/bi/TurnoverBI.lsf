@@ -35,7 +35,6 @@ accountPriceRB (Sku sk, Stock st) = IF revertAccountPrice() THEN accountPrice(sk
 
 exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, DATE dTo)  {
     CANCEL; // на всякий случай
-     
     balance(Batch b, Stock st) <- balanceA(b, st, dTo);
     IF exportBalanceB() THEN
         balanceB(Batch b, Stock st) <- balance(b, st) (-) signedQuantity(b, st, dTo);
@@ -282,6 +281,9 @@ isCost 'Себестоимость' = DATA LOCAL BOOLEAN ();
 isVATSupplier 'НДС поставщика' = DATA LOCAL BOOLEAN ();
 isCostVAT 'Себестоимость с НДС' = DATA LOCAL BOOLEAN ();
 isMarkup 'Надбавка' = DATA LOCAL BOOLEAN ();
+overOverIsMarkup = ABSTRACT BOOLEAN();
+overIsMarkup 'Надбавка' = OVERRIDE isMarkup(), overOverIsMarkup();
+
 isSum 'Сумма' = DATA LOCAL BOOLEAN ();
 isTurnover 'Оборачиваемость' = DATA LOCAL BOOLEAN ();
 isDaysOnStock 'Дней на складе' = DATA LOCAL BOOLEAN ();
@@ -289,10 +291,11 @@ isDaysOnStock 'Дней на складе' = DATA LOCAL BOOLEAN ();
 extraIsBalanceA 'Остаток на конец' = ABSTRACT BOOLEAN ();
 extraIsQuantity 'Количество' = ABSTRACT BOOLEAN ();
 
-overIsOut 'Продажа' = OVERRIDE isOut(), (isMarkup() OR isTurnover());
+overIsOut 'Продажа' = OVERRIDE isOut(), (overIsMarkup() OR isTurnover());
 overIsBalanceA 'Остаток на конец' = OVERRIDE isBalanceA(), extraIsBalanceA();
 overIsQuantity 'Количество' = OVERRIDE isQuantity(), extraIsQuantity();
-overIsCost 'Себестоимость' = OVERRIDE isCost(), (isMarkup() OR isTurnover());
+
+overIsCost 'Себестоимость' = OVERRIDE isCost(), (overIsMarkup() OR isTurnover());
 
 //------- Группы складов -------
 dataInclude 'Вкл' = DATA LOCAL BOOLEAN (StockGroup);
@@ -649,8 +652,8 @@ filter() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stock s) 
 values() = (IF overIsOut() AND overIsQuantity() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
                             + (IF overIsOut() AND overIsCost() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
                             + (IF overIsOut() AND isCostVAT() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')
-                            + (IF overIsOut() AND isMarkup() THEN 'SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, ' ELSE '')
-                            + (IF overIsOut() AND isMarkup() THEN '(SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, ' ELSE '')
+                            + (IF overIsOut() AND overIsMarkup() THEN 'SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold) AS markupSumSold, ' ELSE '')
+                            + (IF overIsOut() AND overIsMarkup() THEN '(SUM(sumSold)-SUM(sumVATSold)-SUM(costSumSold))*100/SUM(costSumSold) AS percMarkupSumSold, ' ELSE '')
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumVATSold) AS sumVATSold, ' ELSE '')
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumSold) AS sumSold, ' ELSE '')
                             + (IF overIsOut() AND isSum() THEN 'SUM(sumPriceSold) AS sumPriceSold, ' ELSE '')
@@ -936,8 +939,8 @@ FORM printTurnoverReport 'Оборачиваемость'
     PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND overIsQuantity()),
                            costSumSold SHOWIF (overIsOut() AND overIsCost()),
                            costSumVATSold SHOWIF (overIsOut() AND isCostVAT()),
-                           markupSumSold SHOWIF (overIsOut() AND isMarkup()),
-                           percMarkupSumSold SHOWIF (overIsOut() AND isMarkup()),
+                           markupSumSold SHOWIF (overIsOut() AND overIsMarkup()),
+                           percMarkupSumSold SHOWIF (overIsOut() AND overIsMarkup()),
                            sumVATSold SHOWIF (overIsOut() AND isSum()),
                            sumSold SHOWIF (overIsOut() AND isSum()),
                            sumPriceSold SHOWIF (overIsOut() AND isSum())
@@ -992,8 +995,8 @@ FORM printTurnoverReportTable 'Оборачиваемость'
     PROPERTIES(i) READONLY quantitySold SHOWIF (overIsOut() AND overIsQuantity()),
                            costSumSold SHOWIF (overIsOut() AND overIsCost()),
                            costSumVATSold SHOWIF (overIsOut() AND isCostVAT()),
-                           markupSumSold SHOWIF (overIsOut() AND isMarkup()),
-                           percMarkupSumSold SHOWIF (overIsOut() AND isMarkup()),
+                           markupSumSold SHOWIF (overIsOut() AND overIsMarkup()),
+                           percMarkupSumSold SHOWIF (overIsOut() AND overIsMarkup()),
                            sumVATSold SHOWIF (overIsOut() AND isSum()),
                            sumSold SHOWIF (overIsOut() AND isSum()),
                            sumPriceSold SHOWIF (overIsOut() AND isSum())
@@ -1037,7 +1040,7 @@ hideGroup5Turnover() += TRUE IF NOT showGroup5();
 
 EXTEND FORM turnoverReport    
     PROPERTIES() isBalanceB, isIn, overIsOut, overIsBalanceA,
-                 overIsQuantity, overIsCost, isCostVAT, isMarkup, isSum, isTurnover, isDaysOnStock
+                 overIsQuantity, overIsCost, isCostVAT, overIsMarkup, isSum, isTurnover, isDaysOnStock
     
     PROPERTIES nameIncludeStockGroups() ON CHANGE changeIncludeStockGroupsStock()
     PROPERTIES nameIncludeStocks() ON CHANGE changeIncludeStockGroupsStock()
@@ -1076,7 +1079,7 @@ DESIGN turnoverReport {
             MOVE PROPERTY(overIsQuantity());
             MOVE PROPERTY(overIsCost());
             MOVE PROPERTY(isCostVAT());
-            MOVE PROPERTY(isMarkup());
+            MOVE PROPERTY(overIsMarkup());
             MOVE PROPERTY(isSum());
             MOVE PROPERTY(isTurnover());
             MOVE PROPERTY(isDaysOnStock());
