@@ -3,9 +3,6 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
-import java.io.IOException;
-
-
 public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
     int comPort;
     int baudRate;
@@ -15,7 +12,7 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
     Integer giftCardType;
     boolean sendSKNO;
     boolean resetTypeOfGoods;
-    
+
     public FiscalEpsonPrintReceiptClientAction(Integer comPort, Integer baudRate, Boolean isReturn, ReceiptInstance receipt, Integer cardType, Integer giftCardType,
                                                boolean sendSKNO, boolean resetTypeOfGoods) {
         this.comPort = comPort == null ? 0 : comPort;
@@ -38,11 +35,14 @@ public class FiscalEpsonPrintReceiptClientAction implements ClientAction {
             return FiscalEpson.printReceipt(receipt, !isReturn, cardType, giftCardType, sendSKNO, resetTypeOfGoods);
 
         } catch (RuntimeException e) {
+            Exception cancelException = null;
             try {
                 FiscalEpson.cancelReceipt(false);
-            } catch (Exception ignored) { //Нам важна первая ошибка
+            } catch (Exception ce) {
+                cancelException = ce;
             }
-            return new PrintReceiptResult(e.getMessage());
+            return new PrintReceiptResult(e.getMessage() +
+                    (cancelException != null ? ("\nCancel exception: " + cancelException.getMessage()) : ""));
         } finally {
             FiscalEpson.closePort();
         }
