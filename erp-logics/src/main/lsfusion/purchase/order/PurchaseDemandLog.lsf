@@ -113,23 +113,26 @@ DESIGN options {
 }
 
 overFill ABSTRACT LIST (PurchaseDemandLog);
+overFill ABSTRACT LIST (PurchaseDemandLog, Sku,UserOrder);
 
+overFill(PurchaseDemandLog l, Sku sku, UserOrder userOrder )+{
+    dateTime(l) <- currentDateTime();
+    userOrder(l) <- userOrder;
+    supplier(l) <- supplier(userOrder);
+    customerStock(l) <- customerStock(userOrder);
+    sku(l) <- sku;
+    quantitySold(l) <- quantitySold(sku,userOrder);
+    purchaseReserve(l) <- purchaseReserve(sku,customerStock(userOrder),userOrder);
+    insuranceReserve(l) <- insuranceReserve(sku,userOrder);
+    recommendedQuantity(l) <- recommendedQuantity(sku,userOrder);
+    currentBalance(l) <- prevCurrentBalance(sku,customerStock(userOrder));
+    currentReservePurchase(l) <- prevCurrentReservePurchase(sku,customerStock(userOrder));
+    currentReserveSale(l) <- prevCurrentReserveSale(sku,customerStock(userOrder));    
+};
 overFillRecommended (UserOrder userOrder) + {
     IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku)) <= limitPurchaseDemandLog() THEN {
         FOR in(Sku sku) INLINE NEW l = PurchaseDemandLog DO {
-            dateTime(l) <- currentDateTime();
-            userOrder(l) <- userOrder;
-            supplier(l) <- supplier(userOrder);
-            customerStock(l) <- customerStock(userOrder);
-            sku(l) <- sku;
-            quantitySold(l) <- quantitySold(sku,userOrder);
-            purchaseReserve(l) <- purchaseReserve(sku,customerStock(userOrder),userOrder);
-            insuranceReserve(l) <- insuranceReserve(sku,userOrder);
-            recommendedQuantity(l) <- recommendedQuantity(sku,userOrder);
-            currentBalance(l) <- prevCurrentBalance(sku,customerStock(userOrder));
-            currentReservePurchase(l) <- prevCurrentReservePurchase(sku,customerStock(userOrder));
-            currentReserveSale(l) <- prevCurrentReserveSale(sku,customerStock(userOrder));
-            
+            overFill(l, sku, userOrder);            
             overFill(l);
         }
     }
