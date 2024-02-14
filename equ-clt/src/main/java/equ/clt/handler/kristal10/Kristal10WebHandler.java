@@ -1149,7 +1149,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 String result = remote.sendSalesInfo(salesData.first, sidEquipmentServer, directory);
                 if (result != null) {
                     EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
-                } else {
+                } else if (salesData.second != null) {
                     result = remote.sendExtraData(salesData.second);
                     if (result != null) {
                         EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result, directory);
