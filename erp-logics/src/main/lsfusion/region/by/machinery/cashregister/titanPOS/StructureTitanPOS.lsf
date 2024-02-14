@@ -10,7 +10,7 @@ titanSid 'ID сессии (titanPOS)'         = DATA STRING (CashRegister)  CHAR
 titanCnt2 'Оплата 2 (titanPOS)'         = DATA STRING (CashRegister); // Счетчик 2
 
 EXTEND FORM groupCashRegister
-    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanCnt2, titanBarcode, titanTax, titanSid 
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanCnt2, titanBarcode, titanTax, titanSid
 ;
 
 
@@ -54,7 +54,7 @@ FORM receiveForm 'Принятые данные'
         eventsCount EXTID 'EventsCount', firstDocNumber EXTID 'FirstDocNumber', shiftOpened EXTID 'ShiftOpened',
         receiveCashier EXTID 'Cashier', docsCount EXTID 'DocsCount', documentsSenderStatus EXTID 'DocumentsSenderStatus',
         serial EXTID 'Serial', certExpDate EXTID 'CertExpDate', totalSum EXTID 'TotalSum', docNumber EXTID 'DocNumber',
-        model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus', 
+        model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus',
         number EXTID 'Number', position EXTID 'Position'
 ;
 
@@ -100,46 +100,49 @@ receiptDiscountSum 'Сумма скидки на чек' = DATA LOCAL NUMERIC();
 receiptTotalSum 'Общая сумма чека с учетом скидок' = DATA LOCAL NUMERIC();
 receiptSendEmail 'Флаг отправки почты' = DATA LOCAL TBOOLEAN ();
 receiptEmail 'Почтовый адрес' = DATA LOCAL STRING();
+receiptHeader 'Текст перед чеком'= DATA LOCAL STRING();
+receiptFooter 'Текст после чека'= DATA LOCAL STRING();
 // ---------------------------------------------------
 // см. POSElemaRB - типы платежей, строка 188
 paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
 paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p);
 //paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); // отладка 
 paymentTypeFlag 'Тип расчета' (Payment p) = IF sidPaymentType(p) = 'cash' THEN 1 ELSE
-                                                       IF isISubstring(titanCnt2(currentCashRegister()),sidPaymentType(p)) THEN 2 ELSE 3;
+    IF isISubstring(titanCnt2(currentCashRegister()),sidPaymentType(p)) THEN 2 ELSE 3;
 // ---------------------------------------------------
 detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
 detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
-detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) =     
-    IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL; 
+detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) =
+    IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL;
 detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o) (+) bonusPaid(o);
 detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
 detailName 'Название товара' (ReceiptDetail o) = IF type(o) = 'Сертификат' THEN 'Подарочный сертификат' ELSE overNameSku(o);
 detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
 detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
-detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN 
+detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
     IF valueVAT(o) = 20 THEN 1 ELSE IF valueVAT(o) = 10 THEN 2 ELSE NULL;
 
 FORM saleForm
     PROPERTIES () titanKey EXTID 'TitanKey'
     PROPERTIES() receiptRefund EXTID 'Refund',
-                 receiptDiscountSum EXTID 'DiscountSum',
-                 receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email'
+        receiptDiscountSum EXTID 'DiscountSum',
+        receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email',
+        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'  // нет ограничений по длине
 
     OBJECTS payments = Payment EXTID 'Payments'
-    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',  
-                paymentSum EXTID 'Sum', 
-                paymentDescription EXTID 'Description'
-    FILTERS IF paymentSum(payments) AND abs(paymentSum(payments)) > 0 THEN TRUE ELSE NULL 
+    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',
+        paymentSum EXTID 'Sum',
+        paymentDescription EXTID 'Description'
+    FILTERS IF paymentSum(payments) AND abs(paymentSum(payments)) > 0 THEN TRUE ELSE NULL
 
     OBJECTS lines = ReceiptDetail EXTID 'Lines'
     PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
-                      detailTax EXTID 'Tax',  
-                      detailDiscountSum EXTID 'DiscountSum', detailDiscountLabel EXTID 'Footer',
-                      detailTotalSum EXTID 'TotalSum'
-    
+        detailTax EXTID 'Tax',
+        detailDiscountSum EXTID 'DiscountSum', detailDiscountLabel EXTID 'Footer',
+        detailTotalSum EXTID 'TotalSum'
+
     PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
-;    
+;
 
 text 'Произвольный текст' = DATA TEXT ();
 FORM textForm

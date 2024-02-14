@@ -28,14 +28,16 @@ onSaveLog 'Запись отдельного лога' (CashRegister o, STRING c
         ctxt() <- ctxt() + resultString() + repeat('=',70) +'\n';
 
     } ELSE ctxt() <- ctxt() +  cmsg2 + '\n' + repeat('=',70) +'\n';
-    appendToFile(logPath(o),ctxt());
+    stringToFile(ctxt());
+    //    appendToFile(logPath(o),ctxt()); // на сервере
+    WRITE CLIENT TEXTFILE(resultFile()) TO logPath(o) APPEND;
 }
 
 
 onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) {
     LOCAL emsg, hmsg, smsg, vmsg, omsg = STRING ();
-    titanEMessage() <- NULL; 
-    titanECode() <- NULL; 
+    titanEMessage() <- NULL;
+    titanECode() <- NULL;
     status() <- NULL;
     omsg() <- 'Операция: ' + operation + ', ' + cmsg;
     TRY {
@@ -81,7 +83,7 @@ onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) 
         emsg() <- emsg() + (OVERRIDE ' ' + smsg(),'') + (OVERRIDE ' ' + vmsg(),'');
         titanEMessage() <- titanEMessage() + (OVERRIDE '\n' + smsg(),'') + (OVERRIDE '\n' + vmsg(),'');
         onSaveLog(o, omsg(), emsg());
-    } 
+    }
 }
 
 
@@ -146,7 +148,7 @@ eqGetState 'Получение и обработка статуса СКО' (Cas
         eqOpen(o);
         IF titanECode() THEN RETURN;
         getSate(o);
-    }    
+    }
 }
 
 
@@ -171,7 +173,7 @@ eqOpenShift 'Открытие смены' (CashRegister o,STRING cashier) {
 eqXReport 'X-отчет' (CashRegister o) {
     eqGetState(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; } 
+    IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; }
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
     onSend(o,'xReport','Х-отчет');
@@ -185,8 +187,8 @@ eqZReport 'Z-отчет' (CashRegister o) {
     IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; }
     IF totalSum() > 0 THEN {
         LOCAL cmsg = STRING ();
-        cmsg() <- 'В кассе присутствуют наличные: ' + trim(toChar(totalSum(),'999999999.99')) + 
-                    ' руб.\nНеобходимо выполнить операцию < Изъятие >';
+        cmsg() <- 'В кассе присутствуют наличные: ' + trim(toChar(totalSum(),'999999999.99')) +
+            ' руб.\nНеобходимо выполнить операцию < Изъятие >';
         onShowError(cmsg(),99);
         RETURN;
     }
@@ -197,7 +199,7 @@ eqZReport 'Z-отчет' (CashRegister o) {
     IF NOT titanECode() AND number() THEN {
         fiscalNumber(currentZReport()) <- STRING[48](number());
         time(currentZReport()) <- TIME(position()); // меняем время, чтобы совпадало с чеком отчета
-        
+
     }
 }
 
@@ -263,8 +265,8 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
     eqGetState(o);
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
     selectOperation() <- GROUP MAX (SelectOperation s) IF left(staticCaption(s),1) = '1';
-    numberDoc() <- NULL; 
-    IF shiftOpened() AND docNumber() > 0 THEN lastNumberDoc() <- docNumber() - 1;  
+    numberDoc() <- NULL;
+    IF shiftOpened() AND docNumber() > 0 THEN lastNumberDoc() <- docNumber() - 1;
     DIALOG copyDocs DO {
         onFillDataHeaders(o);
         copyDocNumber() <- NULL; copyZReport() <- NULL;
@@ -287,6 +289,21 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
     }
 }
 
+tsum (NUMERIC[10,2] s) = lpad(trim((IF s THEN (IF s < 1 THEN toChar(s,'0.00') ELSE toChar(s,'9999999.00')) ELSE '0.00')),10,' ') + '\n';
+
+bonusText 'Текст для расчетов по бонусам' (Receipt r) {
+    receiptFooter() <- NULL;
+    IF NOT numberDiscountCard(r) THEN RETURN;
+    receiptFooter() <-
+    '----------------------------------------\n' +
+        'ИТОГИ ПРИ РАСЧЕТЕ БОНУСАМИ\n' +
+        'ФИО: ' + (OVERRIDE trim(nameLegalEntityDiscountCard(r)),'') + '\n' +
+        'Начислено с продажи:   ' + tsum(signedBonusSum(r)) +
+        'Оплачено при продаже:  ' + tsum(bonusPaidReceiptDetail(r)) +
+        'Доступно для расчетов: ' + tsum(totalBonuses(r) (-) bonusPaidReceiptDetail(r)) +
+        '----------------------------------------';
+}
+
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
     return() <- NULL; sale() <- NULL;
@@ -294,17 +311,18 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
     receiptTotalSum() <- NULL; receiptDiscountSum() <- NULL;
     FOR (ReceiptDetail d IS ReceiptDetail) AND receipt(d) = r ORDER d DO {
-        IF type(d) = 'Продажа' OR type(d) = 'Сертификат' THEN sale() <- 1; ELSE return() <- 1;
+        IF type(d) = 'Продажа' OR type(d) = 'Сертификат' THEN sale() <- 1; ELSE return() <- 1; // тип продажи
         receiptTotalSum() <- receiptTotalSum() (+) sum(d);
         receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(d) (+) bonusPaid(d);
     }
     receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(r);
+    bonusText(r); // расчет по бонусам
     IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE;
     EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
     onSend(o,'check',IF sale() THEN 'Чек продажи' ELSE 'Возврат товара');
     IF titanECode() THEN {
         onShowError(titanEMessage());
-        RETURN; 
+        RETURN;
     }
     number(r) <- INTEGER(number());
     // Дату чека не меняем, так как действует Ограничение: Дата чека должна быть равна дате Z отчета
