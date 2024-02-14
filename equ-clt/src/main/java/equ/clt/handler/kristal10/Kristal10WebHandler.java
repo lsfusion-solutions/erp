@@ -815,7 +815,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
         Element canceledReceiptsElement = new Element("canceledReceipts");
         for(Element canceledReceipt : canceledReceipts) {
-            canceledReceiptsElement.addContent(canceledReceipt);
+            Element elemCopy = (Element)canceledReceipt.clone();
+            elemCopy.detach();
+            canceledReceiptsElement.addContent(elemCopy);
         }
         return Pair.create(salesInfoList, canceledReceiptsElement.getChildren().isEmpty() ? null : elementToXMLString(canceledReceiptsElement));
     }
