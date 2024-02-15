@@ -116,6 +116,7 @@ useSberNumber 'Использовать номера заказов СберМа
 
 originalQuantity = DATA NUMERIC[15,3] (InternetOrderDetail);
 originalPrice = DATA NUMERIC[16,4] (InternetOrderDetail);
+afterCreateOrder ABSTRACT LIST (InternetOrder);
 
 createOrder(STRING[100] id){
     IF NOT internetOrder(id) THEN NEW o = InternetOrder{
@@ -134,6 +135,7 @@ createOrder(STRING[100] id){
         deliveryTimeFromInternetOrder(o) <- TIME(expectedFrom()) WHERE expectedFrom();
         deliveryTimeToInternetOrder(o) <- TIME(expectedTo()) WHERE expectedFrom();
         customerComment(o) <- comment();
+        afterCreateOrder(o);
     }
     FOR sku(id(INTEGER i)) AND idDetail(i) AND NOT internetOrderDetail(idDetail(i)) NEW d = InternetOrderDetail DO{
         id(d) <- idDetail(i);
