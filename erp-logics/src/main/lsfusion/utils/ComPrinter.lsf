@@ -1,6 +1,6 @@
 MODULE ComPrinter;
 
-REQUIRE Authentication, SerialPort, EmployeeComputer;
+REQUIRE Authentication, SerialPort, EmployeeComputer, QZTray;
 
 NAMESPACE Utils;
 
@@ -59,21 +59,28 @@ DESIGN computer {
     }
 } 
 
+useQZTray 'Использовать QZ Tray (qz.io)' = DATA BOOLEAN (Computer);
 localFileName 'Печатать в файл' = DATA STRING (Computer) CHARWIDTH 20;
-EXTEND FORM computer PROPERTIES(c) localFileName; 
+EXTEND FORM computer PROPERTIES(c) useQZTray, localFileName; 
 
 DESIGN computer {
     comPrinter {
         NEW comPrinterRow2 {
             horizontal = TRUE;
             alignment = STRETCH;
+            MOVE PROPERTY(useQZTray(c));
             MOVE PROPERTY(localFileName(c));
         }
     }
 } 
 
 printComPort (TEXT t) {
-    IF localFileName(userComputer()) THEN {
+    IF useQZTray(userComputer()) THEN {
+        IF localFileName(userComputer()) THEN
+            QZPrintCommand(localFileName(userComputer()), t);
+        ELSE
+            QZPrintDefaultCommand(t);
+    } ELSE IF localFileName(userComputer()) THEN {
         stringToFile(t, (OVERRIDE codePageComPort(userComputer()), 'UTF-8'), 'prl');
         open(resultFile(), localFileName(userComputer()));
     } ELSE
