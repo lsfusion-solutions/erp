@@ -1810,6 +1810,27 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataGiftCard = new ArrayList<>();
         Map<Object, String> barcodeMap = new HashMap<>();
 
+        //todo: refactor old usages of zReportExtraFields (sumCashEnd, sumProtectedEnd, sumBack, externalSum, beginShift, endShift)
+        // to processZReportExtraFields
+        JSONObject zReportExtraFields = new JSONObject();
+        for (int i = start; i < finish; i++) {
+            SalesInfo sale = data.get(i);
+            if(sale.zReportExtraFields != null) {
+                for(Map.Entry<String, Object> zReportExtraField : sale.zReportExtraFields.entrySet()) {
+                    JSONArray dataArray = zReportExtraFields.optJSONArray(zReportExtraField.getKey());
+                    if(dataArray == null) {
+                        dataArray = new JSONArray();
+                    }
+                    JSONObject fieldReceipt = new JSONObject();
+                    fieldReceipt.put("id", getIdZReport(sale, options));
+                    fieldReceipt.put("value", zReportExtraField.getValue());
+                    dataArray.put(fieldReceipt);
+
+                    zReportExtraFields.put(zReportExtraField.getKey(), dataArray);
+                }
+            }
+        }
+
         JSONObject receiptExtraFields = new JSONObject();
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
@@ -1898,24 +1919,26 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 ignoredReceiptDetailCount++;
             }
         }
-        return new RowsData(dataSale, dataReturn, dataGiftCard, receiptExtraFields, receiptDetailExtraFields, ignoredIdReceipts, ignoredReceiptDetailCount);
+        return new RowsData(dataSale, dataReturn, dataGiftCard, zReportExtraFields, receiptExtraFields, receiptDetailExtraFields, ignoredIdReceipts, ignoredReceiptDetailCount);
     }
 
     private class RowsData {
         List<List<Object>> dataSale;
         List<List<Object>> dataReturn;
         List<List<Object>> dataGiftCard;
+        JSONObject zReportExtraFields;
         JSONObject receiptExtraFields;
         JSONObject receiptDetailExtraFields;
         Set<String> ignoredIdReceipts;
         int ignoredReceiptDetailCount;
 
         public RowsData(List<List<Object>> dataSale, List<List<Object>> dataReturn, List<List<Object>> dataGiftCard,
-                        JSONObject receiptExtraFields, JSONObject receiptDetailExtraFields,
+                        JSONObject zReportExtraFields, JSONObject receiptExtraFields, JSONObject receiptDetailExtraFields,
                         Set<String> ignoredIdReceipts, int ignoredReceiptDetailCount) {
             this.dataSale = dataSale;
             this.dataReturn = dataReturn;
             this.dataGiftCard = dataGiftCard;
+            this.zReportExtraFields = zReportExtraFields;
             this.receiptExtraFields = receiptExtraFields;
             this.receiptDetailExtraFields = receiptDetailExtraFields;
             this.ignoredIdReceipts = ignoredIdReceipts;
@@ -1943,6 +1966,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     private void processExtraFields(DataSession session, ExecutionStack stack, RowsData rowsData) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(cashRegisterLM != null) {
+            if (rowsData.zReportExtraFields != null && cashRegisterLM.findProperty("executeProcessZReportExtraFields[]").read(session) != null) {
+                cashRegisterLM.findAction("processZReportExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.zReportExtraFields.toString()));
+            }
             if (rowsData.receiptExtraFields != null && cashRegisterLM.findProperty("executeProcessReceiptExtraFields[]").read(session) != null) {
                 cashRegisterLM.findAction("processReceiptExtraFields[STRING]").execute(session, stack, new DataObject(rowsData.receiptExtraFields.toString()));
             }
