@@ -1,0 +1,18 @@
+MODULE FuelPumpPriceTransaction;
+
+REQUIRE FuelPump, MachineryPriceTransaction;
+
+NAMESPACE FuelPump;
+// ----------------------------------------- Загрузка в ВУ -------------------------------------- //
+
+CLASS FuelPumpPriceTransaction 'Загрузка прайса в ТРК' : MachineryPriceTransaction;
+groupFuelPump 'Группа ТРК' = DATA GroupFuelPump (FuelPumpPriceTransaction);
+groupMachinery (FuelPumpPriceTransaction transaction) += groupFuelPump(transaction);
+
+createMachineryPriceTransaction (GroupFuelPump groupMachinery) + {
+    IF groupMachinery IS GroupFuelPump THEN
+        NEW o = FuelPumpPriceTransaction
+        addedTransaction() <- o;
+}
+
+skipSnapshot(FuelPumpPriceTransaction t) += groupFuelPump(t) AND skipSnapshotMachinery(mainRole(currentUser()));

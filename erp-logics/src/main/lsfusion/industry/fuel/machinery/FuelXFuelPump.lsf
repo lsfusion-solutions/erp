@@ -1,0 +1,95 @@
+MODULE FuelXFuelPump;
+
+REQUIRE NativeMachinery, FuelPump, FuelX;
+
+NAMESPACE FuelX;
+
+loadDefaultFuelPumpModels() + {  EXEC loadDefaultFuelPumpModel('Топливный сервер FuelX', 'FuelX', 'lsf.machinery.FuelX'); };
+
+isFuelX (FuelPumpModel m) = handler(m) == 'lsf.machinery.FuelX';
+isFuelX (GroupFuelPump g) = isFuelX(fuelPumpModel(g));
+
+overDirectory (GroupFuelPump g) += IF isFuelX(g) THEN STRING[200](url() + ':' + portFuelX());
+
+//http://fuelx.online:7004/setgrades json
+//Обновить на АЗС сорта топлива и коды
+
+FORM setGrades
+    OBJECTS t = MachineryPriceTransaction PANEL
+    PROPERTIES IN license owner = nameLegalEntity(stock(t)) EXTID 'Owner',
+        nameStock(t) EXTID 'ObjectName',
+        software = (OVERRIDE software(), 'FuelX') IF t IS MachineryPriceTransaction EXTID 'Software'
+    PROPERTIES referenceTemperature = 15.0 IF t IS MachineryPriceTransaction EXTID 'ReferenceTemperature'
+
+    OBJECTS s = Sku EXTID 'Grades'
+    FILTERS (GROUP SUM 1 IF in(t, Barcode b) AND sku(b) == s)
+    PROPERTIES IN base name(s) EXTID 'Grade',
+        id(s) EXTID 'GradeCode',
+        density = (density15C(s) * 1000.0) EXTID 'Density',
+        ktr(s) EXTID 'KTR'
+;
+
+//http://fuelx.online:7004/setprices json
+//Изменить цены на топливо
+
+FORM setPrices
+    OBJECTS t = MachineryPriceTransaction PANEL
+    PROPERTIES IN license owner = nameLegalEntity(stock(t)) EXTID 'Owner',
+        nameStock(t) EXTID 'ObjectName',
+        software = (OVERRIDE software(), 'FuelX') IF t IS MachineryPriceTransaction EXTID 'Software'
+
+    OBJECTS b = Barcode EXTID 'Prices'
+    FILTERS in(t,b)
+    PROPERTIES IN base gradeCode = id(sku(b)) EXTID 'GradeCode',
+        price(t,b) EXTID 'Price'
+;
+
+sendToFuelXServer (MachineryPriceTransaction t){
+    NEWSESSION {
+        IF isFuelX(groupMachinery(t)) AND notSucceeded(t) AND NOT canceled(t) AND directory(groupMachinery(t)) THEN {
+            NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
+            LOCAL response = STRING();
+            LOCAL file = FILE();
+            TRY {
+                EXPORT setGrades OBJECTS t = t JSON;
+                fileToString(exportFile(),'UTF-8');
+                logToFile('FuelX', 'POST: ' + directory(groupMachinery(t)) + '/setgrades' + '\n' + resultString());
+                EXTERNAL HTTP POST directory(groupMachinery(t)) + '/setgrades' PARAMS exportFile() TO response;
+                file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+                fileToString(file(), 'UTF-8');
+                logToFile('FuelX', 'Response: ' + resultString());
+
+                response() <- NULL;
+                LOCAL okG = BOOLEAN ();
+                IMPORT JSON FROM file() TO() okG = 'OK';
+
+                EXPORT setPrices OBJECTS t = t JSON;
+                fileToString(exportFile(),'UTF-8');
+                logToFile('FuelX', 'POST: ' + directory(groupMachinery(t)) + '/setprices' + '\n' + resultString());
+                EXTERNAL HTTP POST directory(groupMachinery(t)) + '/setprices' PARAMS exportFile() TO response;
+                file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+                fileToString(file(), 'UTF-8');
+                logToFile('FuelX', 'Response: ' + resultString());
+
+                LOCAL okP = BOOLEAN ();
+                IMPORT JSON FROM file() TO() okP = 'OK';
+                
+                IF okG() AND okP() THEN {
+                    succeeded(t) <- TRUE;
+                    dateTimeSucceeded(t) <- currentDateTime();
+                }
+            } CATCH {
+                addMachineryError(t, System.messageCaughtException());
+                logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+                logToFile('FuelX', response());
+                MESSAGE messageCaughtException() NOWAIT;
+            } FINALLY {
+                APPLY;
+            }
+        }
+    }
+}
+
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    sendToFuelXServer(t);
+}

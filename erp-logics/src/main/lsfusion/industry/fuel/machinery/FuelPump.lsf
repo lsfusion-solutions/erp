@@ -1,0 +1,157 @@
+MODULE FuelPump;
+
+REQUIRE System, Machinery;
+
+// Группы
+CLASS GroupFuelPump 'Группы ТРК' : GroupMachinery;
+
+stock = DATA Stock (GroupFuelPump);
+stock (GroupFuelPump groupMachinery) += stock(groupMachinery);
+
+CONSTRAINT stock(GroupFuelPump p) AND NOT isCompany(stock(p))
+    CHECKED BY stock[GroupFuelPump] MESSAGE 'Склад для группы ТРК должен принадлежать компании';
+
+dataDirectory 'Каталог обмена' = DATA STRING[200] (GroupFuelPump) IN base;
+overDirectory = ABSTRACT STRING[200] (GroupFuelPump);
+directory 'Каталог обмена' (GroupFuelPump groupMachinery) = OVERRIDE dataDirectory(groupMachinery), overDirectory(groupMachinery);
+directory (GroupFuelPump groupMachinery) += directory(groupMachinery);
+
+inactive 'Неактивный' = DATA BOOLEAN (GroupFuelPump);
+active 'Активный' (GroupFuelPump group) = group IS GroupFuelPump AND NOT inactive(group);
+inactive(GroupFuelPump g) += inactive(g);
+
+priority 'Приоритет' = DATA INTEGER (GroupFuelPump);
+priority(GroupFuelPump g) += priority(g);
+
+// Модели
+CLASS FuelPumpModel 'Модель ТРК' : Model;
+
+name 'Наименование' = DATA ISTRING[110](FuelPumpModel);
+
+name(FuelPumpModel model) += name(model) IF model IS FuelPumpModel;
+
+FORM fuelPumpModel 'Модель ТРК'
+    OBJECTS m = FuelPumpModel PANEL
+    PROPERTIES(m) name, sid, note, handler, maxProduct
+    EDIT FuelPumpModel OBJECT m
+;
+
+FORM fuelPumpModels 'Модели ТРК'
+    OBJECTS m = FuelPumpModel
+    PROPERTIES(m) READONLY name, sid, note, handler, maxProduct
+    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE
+    LIST FuelPumpModel OBJECT m
+;
+
+fuelPumpModel = DATA FuelPumpModel (GroupFuelPump);
+model(GroupFuelPump groupMachinery) += fuelPumpModel(groupMachinery);
+
+groupFuelPump(npp) = GROUP AGGR GroupFuelPump groupFuelPump WHERE groupFuelPump IS GroupFuelPump BY npp(groupFuelPump);
+
+FORM groupFuelPump 'Группа ТРК'
+    OBJECTS grp = GroupFuelPump PANEL
+    PROPERTIES(grp) npp, nameStock, name,
+        nameModel, directory,
+        filterSku, showFilterSku SHOWIF filterSku(grp),
+        namePriceListType, inactive, priority
+
+    EDIT GroupFuelPump OBJECT grp
+;
+
+DESIGN groupFuelPump {
+    OBJECTS {
+        NEW header {
+            horizontal = TRUE;
+            MOVE GROUP(,grp){
+                lines = 2;
+            };
+            NEW items {
+                MOVE PROPERTY (filterSku(grp));
+                MOVE PROPERTY (showFilterSku(grp));
+            }
+        }
+    }
+}
+
+FORM groupsFuelPump 'Группы ТРК'
+    OBJECTS grp = GroupFuelPump
+    PROPERTIES(grp) READONLY active, npp, nameStock, name,
+        filterSku, nameModel, directory, priority
+    PROPERTIES(grp) NEWSESSION NEW, EDIT, DELETE
+
+    FILTERGROUP active1
+        FILTER 'Активные' active(grp) 'F6' DEFAULT
+;
+
+DESIGN groupsFuelPump {
+    NEW topContainer BEFORE TOOLBARBOX {
+        fill = 1;
+
+        MOVE BOX(grp);
+        NEW detail {
+            fill = 1;
+            tabbed = TRUE;
+
+            NEW actionContainer {
+                caption = 'Действия';
+            }
+        }
+    }
+}
+
+@extendFormEditable(groupsFuelPump);
+@extendFormFilterAccessStock(GroupScales, grp, groupsFuelPump, stock, company);
+
+// ------------------------------------------------ Стандартные значения ------------------------------------ //
+fuelPumpSID (model) = GROUP MAX FuelPumpModel fpmodel BY sid(fpmodel) IF fpmodel IS FuelPumpModel;
+
+loadDefaultFuelPumpModel 'Добавить модель ТРК'(ISTRING[110] iname,  STRING[100] isid, STRING[200] ihandler)  {
+    IF NOT fuelPumpSID(isid) THEN {
+        NEW fpm = FuelPumpModel {
+            name(fpm) <- iname;
+            sid(fpm) <- isid;
+            handler(fpm) <- ihandler;
+        }
+    }
+}
+
+loadDefaultFuelPumpModels 'Загрузить стандартные модели ТРК'()  ABSTRACT LIST ( ) IN loadDefault;
+@implementLoadDefaultData(loadDefaultFuelPumpModels);
+
+// --------------------------------------- Генерация групп ТРК -------------------------------- //
+loadDefaultGroup 'Сгенерировать группу ТРК' (PriceListType priceListType, Stock stock, FuelPumpModel model) {
+    NEW g = GroupFuelPump {
+        npp(g) <- (GROUP MAX npp(GroupMachinery gg)) (+) 1;
+        stock(g) <- stock;
+        priceListType(g) <- priceListType;
+        name(g) <- 'Группа ТРК по умолчанию';
+    }
+};
+
+EXTEND FORM defaultData
+    OBJECTS fpm = FuelPumpModel PANEL
+    PROPERTIES(fpm) SELECTOR name
+    PROPERTIES(pt,s,fpm) loadDefaultGroup
+;
+
+DESIGN defaultData {
+    PROPERTY(name(fpm)) {
+        caption = 'Модель ТРК';
+    }
+    machinery {
+        NEW pump {
+            caption = 'ТРК';
+            MOVE PROPERTY(name(fpm));
+            MOVE PROPERTY(loadDefaultGroup(pt,s,fpm));
+        }
+    }
+}
+
+NAVIGATOR {
+    machineryNavigator {
+        NEW FOLDER pumpNavigator 'ТРК' {
+            NEW groupsFuelPump;
+            NEW fuelPumpModels;
+        }
+    }
+}

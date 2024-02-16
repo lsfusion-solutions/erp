@@ -11,6 +11,7 @@ isFuel 'Топливо' (Item i) = isFuel(itemGroup(i)) MATERIALIZED;
 GROUP itemDensity 'Плотность' : public;
 
 density15C 'Плотность при 15°С, кг/л' = DATA NUMERIC[8,4] (Item) IN itemDensity;
+ktr 'КТР' = DATA NUMERIC[8,5] (Item) IN itemDensity;
 
 @defineItemAttribute(density15C, 'Плотность при 15°С, кг/л', itemDensity);
 
@@ -25,10 +26,11 @@ DESIGN itemGroup {
 
 overCopy(Item s, Item d) + { 
     density15C(d) <- density15C(s);
+    ktr(d) <- ktr(s);
 }
 
 EXTEND FORM item 
-    PROPERTIES(i) SHOWIF showDensity15C(i) density15C
+    PROPERTIES(i) SHOWIF showDensity15C(i) density15C, ktr
 ;
 DESIGN item {
     itemPrimaryColumn2 {
@@ -39,7 +41,7 @@ DESIGN item {
     }
 }
 EXTEND FORM items 
-    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showDensity15C(g) density15C
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showDensity15C(g) density15C, ktr
 ;
 
 //----------------------- Переход на новый основной классификатор ---------------------------//

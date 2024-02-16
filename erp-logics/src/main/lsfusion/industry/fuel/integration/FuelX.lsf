@@ -52,7 +52,7 @@ FORM setDeliverInvoices
                nameInBin(d) EXTID 'TankName',
                volume(d) EXTID 'Volume',
                temperature(d) EXTID 'Temperature',
-               density(d) EXTID 'Density',
+               density = (density(d) * 1000.0) EXTID 'Density',
                quantity(d) EXTID 'Mass'
 ;
 
@@ -669,7 +669,7 @@ beforeFill(DailyReport r) + {
     fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) /
+    correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) * 1000.0 /
                                          (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i));
     temperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
