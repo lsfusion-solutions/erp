@@ -579,7 +579,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         for (Element purchaseNode : purchasesList) {
 
             String status = readStringXMLAttribute(purchaseNode, "status");
-            if (status.equals("CANCELLED")) {
+            if (status != null && status.equals("CANCELLED")) {
                 canceledReceipts.add(purchaseNode);
                 continue;
             }
