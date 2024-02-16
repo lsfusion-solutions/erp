@@ -1576,12 +1576,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                     BigDecimal sumProtectedBeg = null;
                                     BigDecimal sumProtectedEnd = null;
                                     BigDecimal sumBack = null;
+                                    String serialNum = null;
                                     for (int i = 0; i < kkms.length(); i++) {
                                         JSONObject kkmsObject = kkms.getJSONObject(i);
                                         sumCashEnd = getBigDecimal(kkmsObject, "sumCashEnd");
                                         sumProtectedBeg = getBigDecimal(kkmsObject, "sumProtectedBeg");
                                         sumProtectedEnd = getBigDecimal(kkmsObject, "sumProtectedEnd");
                                         sumBack = getBigDecimal(kkmsObject, "sumBack");
+                                        serialNum = kkmsObject.getString("serialNum");
                                     }
 
                                     Long timeBeg = parseDateTime(documentObject.get("timeBeg"));
@@ -1599,6 +1601,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         if(timeEnd != null) {
                                             zReportExtraFields.put("endShift", sqlTimestampToLocalDateTime(new Timestamp(timeEnd)));
                                         }
+                                        zReportExtraFields.put("serialNum", serialNum);
+
                                         externalSumMap.put(numberCashRegister + "/" + numberZReport, zReportExtraFields);
                                         shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
                                     }
