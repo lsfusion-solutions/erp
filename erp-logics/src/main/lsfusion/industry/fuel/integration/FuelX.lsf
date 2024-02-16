@@ -1,6 +1,6 @@
 MODULE FuelX;
 
-REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel, StockReportsFuel;
+REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel, WriteOffBinLedgerFuel, StockReportsFuel;
 
 @defineLogRotate(FuelX, 5, weekly);
 
@@ -190,6 +190,83 @@ DESIGN Sale.invoices {
             MOVE PROPERTY (dateFuelX(i));
         }
     }    
+}
+
+dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (WriteOff);
+toFuelX = DATA LOCAL NESTED BOOLEAN (WriteOff);
+
+FORM setDrainWriteOffs
+    OBJECTS s = Stock PANEL
+    PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
+        name(s) EXTID 'ObjectName',
+        software = (OVERRIDE software(), 'FuelX') IF s IS Stock EXTID 'Software'
+
+    OBJECTS d = WriteOffDetail EXTID 'DrainInvoices'
+    FILTERS stock(d) == s AND toFuelX(writeOff(d)) AND isFuel(sku(d))
+    PROPERTIES IN base seriesNumber(d) EXTID 'InvoiceNumber',
+        //nameForwarder = nameForwarder(writeOff(d)) EXTID 'DriverName',
+        //vehicleNumber = vehicleNumber(writeOff(d)) EXTID 'CarNumber',
+        date = toChar(dateTime(d), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
+        nameSku(d) EXTID 'Grade',
+        idSku(d) EXTID 'GradeCode',
+        nameOutBin(d) EXTID 'TankName',
+        quantity(d) EXTID 'Mass'
+;
+
+setDrainWriteOffs () {
+    IF NOT url() THEN {
+        MESSAGE 'Не задан URL' NOWAIT;
+        RETURN;
+    }
+    IF NOT portFuelX() THEN {
+        MESSAGE 'Не задан порт для FuelX' NOWAIT;
+        RETURN;
+    }
+    FOR [GROUP SUM 1 IF toFuelX(WriteOff w) BY stock(w)](Stock stock) DO NEWSESSION {
+        LOCAL response = STRING();
+        LOCAL file = FILE();
+        TRY {
+            EXPORT setDrainWriteOffs OBJECTS s = stock JSON;
+            fileToString(exportFile(),'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + ':' + portFuelX() + '/setdraininvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + ':' + portFuelX() + '/setdraininvoices' PARAMS exportFile() TO response;
+            file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+            fileToString(file(), 'UTF-8');
+            logToFile('FuelX', 'Response: ' + resultString());
+
+            LOCAL ok = BOOLEAN ();
+            IMPORT JSON FROM file() TO() ok = 'OK';
+            dateFuelX(WriteOff w) <- currentDateTime() WHERE stock(w) == stock AND toFuelX(w) AND ok();
+            APPLY;
+        } CATCH {
+            logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+            logToFile('FuelX', response());
+            MESSAGE messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+exportSaleFuelX 'Выгрузить в FuelX' (WriteOff w) {
+    toFuelX(w) <- TRUE;
+    setDrainWriteOffs();
+    toFuelX(WriteOff wo) <- NULL;
+}
+
+isFuelXSale(WriteOff writeOff) = GROUP SUM 1 IF isFuel(sku(WriteOffDetail d)) BY writeOff(d);
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) SHOWIF isFuelXSale(w) exportSaleFuelX
+    PROPERTIES(w) SHOWIF isFuelXSale(w) READONLY PANEL dateFuelX
+;
+
+DESIGN writeOffs {
+    actionContainer {
+        NEW fuelX {
+            caption = 'FuelX';
+            MOVE PROPERTY (exportSaleFuelX(w));
+            MOVE PROPERTY (dateFuelX(w));
+        }
+    }
 }
 
 
