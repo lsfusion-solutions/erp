@@ -7,17 +7,26 @@ NAMESPACE WriteOff;
 volume[BinLedger] (WriteOffBinLedger ledger) += volume(writeOffDetail(ledger));
 density[BinLedger] (WriteOffBinLedger ledger) += density(writeOffDetail(ledger));
 
-densityBOutBin 'Плотность в резервуаре (из) (до), кг/л' (UserWriteOffDetail writeOffDetail) = prevDensityB(outBin(writeOffDetail), dateTime(writeOffDetail));
+densityBOutBin 'Плотность расчётная в резервуаре (до), кг/л' (UserWriteOffDetail writeOffDetail) = prevDensityB(outBin(writeOffDetail), dateTime(writeOffDetail));
+lastDailyReportDensityOutBin 'Плотность наблюдаемая в резервуаре (из), кг/л' (UserWriteOffDetail writeOffDetail) = lastDailyReportDensity(sku(writeOffDetail), outBin(writeOffDetail));
 
-fillDensityAOutBin 'Заполнить значением плотности в резервуаре (из) (до)' (UserWriteOffDetail d) {
-    IF densityBOutBin(d) THEN {
-        fillDensity(d,densityBOutBin(d));
+fillDensityDailyReportOutBin 'Заполнить плотностью наблюдаемой (из последнего сменного отчёта)' (UserWriteOffDetail d) {
+    IF lastDailyReportDensityOutBin(d) THEN {
+        fillDensity(d, lastDailyReportDensityOutBin(d));
     } ELSE {
-        MESSAGE 'Отстутствует плотность в резервуаре (из) (до)' NOWAIT;
+        MESSAGE 'Отсутствует плотность наблюдаемая (из последнего сменного отчёта)' NOWAIT;
     }
 } ASON CONTEXTMENU density[UserWriteOffDetail];
 
-overBackgroundDensity(UserWriteOffDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
+fillDensityAOutBin 'Заполнить расчётным значением плотности в резервуаре (до)' (UserWriteOffDetail d) {
+    IF densityBOutBin(d) THEN {
+        fillDensity(d,densityBOutBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность расчётная в резервуаре (до)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserWriteOffDetail];
+
+//overBackgroundDensity(UserWriteOffDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
 
 EXTEND FORM userWriteOff
     PROPERTIES(d) READONLY AFTER nameOutBin(d) densityBOutBin BACKGROUND backgroundBins(w)

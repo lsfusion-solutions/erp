@@ -7,26 +7,35 @@ NAMESPACE Sale;
 volume[BinLedger] (ShipmentBinLedger ledger) += volume(shipmentDetail(ledger));
 density[BinLedger] (ShipmentBinLedger ledger) += density(shipmentDetail(ledger));
 
-densityBOutBin 'Плотность в резервуаре (из) (до), кг/л' (UserInvoiceDetail invoiceDetail) = prevDensityB(outBin(invoiceDetail), dateTime(invoiceDetail));
+densityBOutBin 'Плотность расчётная в резервуаре (из), кг/л' (UserInvoiceDetail invoiceDetail) = prevDensityB(outBin(invoiceDetail), dateTime(invoiceDetail));
+lastDailyReportDensityOutBin 'Плотность наблюдаемая в резервуаре (из), кг/л' (UserInvoiceDetail d) = lastDailyReportDensity(sku(d), outBin(d));
 
-fillDensityAOutBin 'Заполнить значением плотности в резервуаре (из) (до)' (UserInvoiceDetail d) {
-    IF densityBOutBin(d) THEN {
-        fillDensity(d,densityBOutBin(d));
+fillDensityDailyReportOutBin 'Заполнить плотностью наблюдаемой (из последнего сменного отчёта)' (UserInvoiceDetail d) {
+    IF lastDailyReportDensityOutBin(d) THEN {
+        fillDensity(d, lastDailyReportDensityOutBin(d));
     } ELSE {
-        MESSAGE 'Отстутствует плотность в резервуаре (из) (до)' NOWAIT;
+        MESSAGE 'Отсутствует плотность наблюдаемая (из последнего сменного отчёта)' NOWAIT;
     }
 } ASON CONTEXTMENU density[UserInvoiceDetail];
 
-fillShipmentDensityAOutBin 'Заполнить значением плотности в резервуаре (из) (до)' (UserInvoiceDetail d) {
+fillDensityAOutBin 'Заполнить расчётным значением плотности в резервуаре (из)' (UserInvoiceDetail d) {
+    IF densityBOutBin(d) THEN {
+        fillDensity(d,densityBOutBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность расчётная в резервуаре (из)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserInvoiceDetail];
+
+fillShipmentDensityAOutBin 'Заполнить расчётным значением плотности в резервуаре (из)' (UserInvoiceDetail d) {
     IF densityBOutBin(d) THEN {
         fillShipmentDensity(d,densityBOutBin(d));
     } ELSE {
-        MESSAGE 'Отстутствует плотность в резервуаре (из) (до)' NOWAIT;
+        MESSAGE 'Отсутствует плотность расчётная в резервуаре (из)' NOWAIT;
     }
 } ASON CONTEXTMENU shipmentDensity[UserInvoiceDetail];
 
-overBackgroundDensity(UserInvoiceDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
-overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN shipmentDensity(d) != densityBOutBin(d) THEN RGB(255,154,154);
+//overBackgroundDensity(UserInvoiceDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
+//overBackgroundShipmentDensity(UserInvoiceDetail d) += WHEN shipmentDensity(d) != densityBOutBin(d) THEN RGB(255,154,154);
 
 EXTEND FORM userInvoice
     PROPERTIES(d) READONLY AFTER nameOutBin(d) densityBOutBin BACKGROUND backgroundShipped(i)

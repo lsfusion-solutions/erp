@@ -79,8 +79,11 @@ quantityOut 'Расход из резервуара' (Sku sku, Bin bin, DATETIME
 currentVolume 'Текущий объем, л' (Bin bin)= GROUP SUM currentVolume(Sku sku, bin) IF isFuel(sku);
 currentBalance 'Текущий остаток, кг' (Bin bin)= GROUP SUM currentBalance(Sku sku, bin) IF isFuel(sku);
 
-currentDensity 'Текущая плотность, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4](currentBalance(sku,bin) / currentVolume(sku,bin));
-currentDensity 'Текущая плотность, кг/л' (Bin bin) = NUMERIC[8,4](currentBalance(bin) / currentVolume(bin));
+currentDensity 'Расчётная плотность, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4](currentBalance(sku,bin) / currentVolume(sku,bin));
+currentDensity 'Расчётная плотность, кг/л' (Bin bin) = NUMERIC[8,4](currentBalance(bin) / currentVolume(bin));
+
+lastDailyReportDensity 'Плотность наблюдаемая, кг/м3' = ABSTRACT NUMERIC[8,1](Stock, Sku, Bin);
+lastDailyReportDensity 'Плотность наблюдаемая, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4]([GROUP MAX lastDailyReportDensity(Stock st, sku, bin) IF in(st, bin)]() / 1000.0);
 
 volumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeB(Sku sku, bin, dateTime) IF isFuel(sku);
 prevVolumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = PREV(volumeB(bin, dateTime));
@@ -109,15 +112,17 @@ backgroundDiffValueBin (Bin b) = CASE
     WHEN currentVolume(b) > volume(b) THEN overColorValueBin()
     WHEN (GROUP SUM 1 IF currentVolume(Sku sku, b)) > 1 THEN overColorValueBin();
 
+fullVolumePercent 'Занято по объёму, %' (Bin b) = round2(currentVolume(b) / volume(b) * 100.0);
+
 EXTEND FORM binBalance
-    PROPERTIES(b) READONLY volume, currentBalance, currentVolume BACKGROUND backgroundDiffValueBin(b), currentDensity
+    PROPERTIES(b) READONLY volume, currentBalance, currentVolume BACKGROUND backgroundDiffValueBin(b), fullVolumePercent, currentDensity
     PROPERTIES(s,b) READONLY currentVolume, currentDensity
     PROPERTIES(b,l) READONLY balanceVolume
     PROPERTIES(l) READONLY density
 ;
 
 EXTEND FORM dialogBinStock
-    PROPERTIES(b) READONLY volume, currentVolume, currentDensity
+    PROPERTIES(b) READONLY volume, currentVolume, fullVolumePercent, currentDensity
 ;
 
 EXTEND FORM currentBalanceSkuStock
@@ -199,15 +204,18 @@ DESIGN binLedger {
     BOX(b) { caption = 'Изменение остатка по резервуарам'; }
     PROPERTY(nameInBin(b)) { caption = 'Резервуар (в)'; }
     PROPERTY(nameOutBin(b)) { caption = 'Резервуар (из)'; }
+    PROPERTY(quantity(b)) { caption = 'Кол-во, кг'; }
 }
+
 DESIGN binBalance {
     caption = 'Остатки по резервуарам';
     BOX(TREE binTree) { caption = 'Группы резервуаров'; }
     BOX(b) { caption = 'Резервуар'; }
     BOX(l) { caption = 'Изменение остатка по резервуарам'; }
-    PROPERTY(currentBalance(b)) { caption = 'Текущий остаток в резервуаре'; }
-    PROPERTY(currentBalance(s,b)) { caption = 'Текущий остаток в резервуаре'; }
+    PROPERTY(currentBalance(b)) { caption = 'Текущий остаток в резервуаре, кг'; }
+    PROPERTY(currentBalance(s,b)) { caption = 'Текущий остаток в резервуаре, кг'; }
     PROPERTY(balanceBin(b,l)) { caption = 'Резервуар (из/в)'; }
+    PROPERTY(balanceQuantity(b,l)) { caption = 'Кол-во, кг'; }
 }
 DESIGN dialogBinStock {
     caption = 'Резервуары';
@@ -216,7 +224,7 @@ DESIGN dialogBinStock {
 }
 DESIGN currentBalanceSkuStock {
     BOX(bin) { caption = 'Резервуары'; }
-    PROPERTY(currentBalance(s,bin)) { caption = 'Текущий остаток в резервуаре'; }
+    PROPERTY(currentBalance(s,bin)) { caption = 'Текущий остаток в резервуаре, кг'; }
 }
 DESIGN balanceSkuStock {
     BOX(bin) { caption = 'Резервуары'; }
