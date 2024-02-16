@@ -28,3 +28,22 @@ DESIGN disparity {
 DESIGN disparities {
     PROPERTY(nameBin(d)) { caption = 'Резервуар'; }
 }
+
+densityBBin 'Плотность расчётная в резервуаре (до), кг/л' (UserDisparityDetail d) = prevDensityB(bin(d), dateTime(d));
+lastDailyReportDensityBin 'Плотность наблюдаемая в резервуаре, кг/л' (UserDisparityDetail d) = lastDailyReportDensity(sku(d), bin(d));
+
+fillDensityDailyReportBin 'Заполнить плотностью наблюдаемой (из последнего сменного отчёта)' (UserDisparityDetail d) {
+    IF lastDailyReportDensityBin(d) THEN {
+        fillDensity(d, lastDailyReportDensityBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность наблюдаемая (из последнего сменного отчёта)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserDisparityDetail];
+
+fillDensityABin 'Заполнить расчётным значением плотности в резервуаре (до)' (UserDisparityDetail d) {
+    IF densityBBin(d) THEN {
+        fillDensity(d,densityBBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность расчётная в резервуаре (до)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserDisparityDetail];
