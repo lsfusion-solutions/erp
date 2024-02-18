@@ -7,10 +7,9 @@ titanPin  'PIN код (titanPOS)'          = DATA STRING[10] (CashRegister);
 titanBarcode 'Код в чеке (titanPOS)'    = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
 titanTax 'НДС в чеке (titanPOS)'        = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
 titanSid 'ID сессии (titanPOS)'         = DATA STRING (CashRegister)  CHARWIDTH 10;
-titanCnt2 'Оплата 2 (titanPOS)'         = DATA STRING (CashRegister); // Счетчик 2
 
 EXTEND FORM groupCashRegister
-    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanCnt2, titanBarcode, titanTax, titanSid
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanBarcode, titanTax, titanSid
 ;
 
 
@@ -107,8 +106,8 @@ receiptFooter 'Текст после чека'= DATA LOCAL STRING();
 paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
 paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p);
 //paymentDescription 'Название оплаты' (Payment p) = namePaymentType(p) + ', ' + sidPaymentType(p); // отладка 
-paymentTypeFlag 'Тип расчета' (Payment p) = IF sidPaymentType(p) = 'cash' THEN 1 ELSE
-    IF isISubstring(titanCnt2(currentCashRegister()),sidPaymentType(p)) THEN 2 ELSE 3;
+paymentTypeFlag 'Тип расчета' = ABSTRACT VALUE INTEGER(Payment);
+paymentTypeFlag (Payment p) += IF sidPaymentType(p) = 'cash' THEN 1 ELSE IF sidPaymentType(p) = 'card' THEN 2 ELSE 3; 
 // ---------------------------------------------------
 detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
 detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
@@ -116,12 +115,18 @@ detailDiscountLabel 'Описание скидки на товара' (ReceiptDe
     IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL;
 detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o) (+) bonusPaid(o);
 detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
-detailName 'Название товара' (ReceiptDetail o) = IF type(o) = 'Сертификат' THEN 'Подарочный сертификат' ELSE overNameSku(o);
+
+detailName 'Название товара' (ReceiptDetail o) = 
+    IF type(o) = 'Сертификат' THEN 'Подарочный сертификат' ELSE overNameSku(o);
+
 detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
 detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
+
 detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
     IF valueVAT(o) = 20 THEN 1 ELSE IF valueVAT(o) = 10 THEN 2 ELSE NULL;
 
+detailDepartament 'Код отдела КСА' = ABSTRACT VALUE INTEGER (ReceiptDetail);
+   
 FORM saleForm
     PROPERTIES () titanKey EXTID 'TitanKey'
     PROPERTIES() receiptRefund EXTID 'Refund',
@@ -139,7 +144,8 @@ FORM saleForm
     PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
         detailTax EXTID 'Tax',
         detailDiscountSum EXTID 'DiscountSum', detailDiscountLabel EXTID 'Footer',
-        detailTotalSum EXTID 'TotalSum'
+        detailTotalSum EXTID 'TotalSum',
+        detailDepartament EXTID 'Departament'
 
     PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
 ;
