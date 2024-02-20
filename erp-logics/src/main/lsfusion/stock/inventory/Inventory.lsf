@@ -450,24 +450,19 @@ endTimeRecalculateBalance 'Остатки конец' (CollationSheet cs)= endTi
 //----------------------------------------------------- Итоги -------------------------------------------------------- //
 
 //---------------------------- Итоги по описям (Sku) ----------------------------//
-skipPageInventory = ABSTRACT BOOLEAN (PageInventory);
-skipPageInventoryDetail = ABSTRACT BOOLEAN (PageInventoryDetail);
 
 countListInventory 'К-во описей' (collationSheet) =
     GROUP SUM 1 IF ListInventory listInventory IS ListInventory BY collationSheet(listInventory);
 countPageInventory 'К-во страниц' (collationSheet) =
     GROUP SUM 1 IF PageInventory pageInventory IS PageInventory BY collationSheet(listInventory(pageInventory));
 
-countPageInventoryDetail 'Кол-во строк' (listInventory) = GROUP SUM countPageInventoryDetail(PageInventory pageInventory) 
-    IF NOT skipPageInventory(pageInventory) AND pageInventory IS PageInventory
+countPageInventoryDetail 'Кол-во строк' (listInventory) = GROUP SUM countPageInventoryDetail(PageInventory pageInventory)
     BY listInventory(pageInventory) IN documentSum;
 quantityPageInventoryDetail 'Кол-во товара' (listInventory) = 
     GROUP SUM quantityPageInventoryDetail(PageInventory pageInventory)
-    IF NOT skipPageInventory(pageInventory) AND pageInventory IS PageInventory
     BY listInventory(pageInventory) IN documentSum CHARWIDTH 12;
 sumPageInventoryDetail 'Сумма товара' (listInventory) = 
     GROUP SUM sumPageInventoryDetail(PageInventory pageInventory)
-    IF NOT skipPageInventory(pageInventory) AND pageInventory IS PageInventory
     BY listInventory(pageInventory) IN documentSum CHARWIDTH 12;
 
 countPageInventoryDetail 'Кол-во строк' (stock, inventory) =
@@ -485,34 +480,26 @@ overChangeQuantityPageInventoryDetail  ABSTRACT LIST ( CollationSheet, Batch);
 
 quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Sku sku) = 
     GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
 
-countPageInventoryDetail 'Кол-во по описям' (collationSheet, sku) = GROUP SUM 1 IF NOT skipPageInventoryDetail(PageInventoryDetail pageInventoryDetail)
-    BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail);    
-pricePageInventoryDetail 'Цена по описям' (collationSheet, sku) = GROUP MAX price(PageInventoryDetail pageInventoryDetail) 
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail    
+countPageInventoryDetail 'Кол-во по описям' (collationSheet, sku) = GROUP SUM 1
+    BY collationSheet(PageInventoryDetail pageInventoryDetail), sku(pageInventoryDetail);    
+pricePageInventoryDetail 'Цена по описям' (collationSheet, sku) = GROUP MAX price(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(listInventory(pageInventoryDetail)), sku(pageInventoryDetail) // ??????? может нодо  priceSkuStockDateTime
     ;
-priceMinPageInventoryDetail 'Цена по описям' (collationSheet, sku) = GROUP MIN price(PageInventoryDetail pageInventoryDetail) 
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail 
+priceMinPageInventoryDetail 'Цена по описям' (collationSheet, sku) = GROUP MIN price(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(listInventory(pageInventoryDetail)), sku(pageInventoryDetail) // ??????? может нодо  priceSkuStockDateTime
     ;    
 sumPageInventoryDetail 'Сумма по описям' (collationSheet, sku) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail);
 
 quantityPageInventoryDetail 'Кол-во в описи' (listInventory, sku) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail 
     BY listInventory(pageInventoryDetail), sku(pageInventoryDetail);
 pricePageInventoryDetail 'Цена в описи' (listInventory, sku) = GROUP MAX price(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY listInventory(pageInventoryDetail), sku(pageInventoryDetail);
 priceMinPageInventoryDetail 'Цена в описи' (listInventory, sku) = GROUP MIN price(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY listInventory(pageInventoryDetail), sku(pageInventoryDetail);    
 sumPageInventoryDetail 'Сумма в описи' (listInventory, sku) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY listInventory(pageInventoryDetail), sku(pageInventoryDetail);
 
 differentPrice(CollationSheet collationSheet, Sku sku) = pricePageInventoryDetail(collationSheet, sku) != priceBalance(collationSheet, sku);

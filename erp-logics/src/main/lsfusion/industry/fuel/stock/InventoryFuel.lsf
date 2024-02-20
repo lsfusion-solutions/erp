@@ -143,18 +143,15 @@ fillDensityBalance15C 'Заполнить значением плотности 
 
 volumePageInventoryDetail 'Объем товара, л' (listInventory) =
     GROUP SUM volumePageInventoryDetail(PageInventory pageInventory)
-    IF NOT skipPageInventory(pageInventory) AND pageInventory IS PageInventory
     BY listInventory(pageInventory) IN documentSum CHARWIDTH 12;
 volumePageInventoryDetail 'Объем по описям, л' (stock, inventory) =
     GROUP SUM volumePageInventoryDetail(ListInventory listInventory)
     BY stock(listInventory), inventory(listInventory) IN documentSum;
 volumePageInventoryDetail 'Объем по описям, л' (CollationSheet collationSheet, Sku sku) =
     GROUP SUM volume(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY collationSheet(pageInventoryDetail), sku(pageInventoryDetail) MATERIALIZED;
 volumePageInventoryDetail 'Объем в описи, л' (listInventory, sku) =
     GROUP SUM volume(PageInventoryDetail pageInventoryDetail)
-    IF NOT skipPageInventoryDetail(pageInventoryDetail) AND pageInventoryDetail IS PageInventoryDetail
     BY listInventory(pageInventoryDetail), sku(pageInventoryDetail);
 
 notBatchVolumePageInventoryDetail (CollationSheet cs, Sku sku) = GROUP SUM volume(PageInventoryDetail d) IF NOT batch(d) BY collationSheet(d), sku(d);
