@@ -26,6 +26,7 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeMap;
 
 import static lsfusion.base.BaseUtils.trim;
 
@@ -63,6 +64,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                 String cashier = trim((String) findProperty("currentUserName[]").read(context));
                 String comment = (String) findProperty("fiscalEpsonComment[Receipt]").read(context, receiptObject);
 
+                TreeMap<Integer, BigDecimal> paymentSumMap = new TreeMap<>();
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
                 BigDecimal sumGiftCard = null;
@@ -73,6 +75,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("idTypeRegister", findProperty("idTypeRegister[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
@@ -80,6 +83,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                     DataObject paymentMeansCashObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCash");
                     DataObject paymentMeansCardObject = ((ConcreteCustomClass) findClass("PaymentMeans")).getDataObject("paymentMeansCard");
                     DataObject paymentMeansGiftCardObject = giftCardLM == null ? null : ((ConcreteCustomClass) giftCardLM.findClass("PaymentMeans")).getDataObject("paymentMeansGiftCard");
+                    Integer idTypeRegister = (Integer) paymentValues.get("idTypeRegister");
                     BigDecimal sumPayment = (BigDecimal) paymentValues.get("sumPayment");
                     if (paymentMeansCashObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                         sumCash = sumCash == null ? sumPayment : sumCash.add(sumPayment);
@@ -87,6 +91,9 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                         sumCard = sumCard == null ? sumPayment : sumCard.add(sumPayment);
                     } else if (giftCardLM != null && paymentMeansGiftCardObject.getValue().equals(paymentValues.get("paymentMeansPayment"))) {
                         sumGiftCard = sumGiftCard == null ? sumPayment : sumGiftCard.add(sumPayment);
+                    } else if (idTypeRegister != null) {
+                        BigDecimal sum = paymentSumMap.get(idTypeRegister);
+                        paymentSumMap.put(idTypeRegister, safeAdd(sum, sumPayment));
                     }
                 }
 
@@ -157,10 +164,10 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                     context.requestUserInteraction(new MessageClientAction("В чеке обнаружены одновременно продажа и возврат", "Ошибка"));
                 else {
                     if (context.checkApply()) {
-                        Boolean isReturn = receiptReturnItemList.size() > 0;
+                        Boolean isReturn = !receiptReturnItemList.isEmpty();
                         PrintReceiptResult result = (PrintReceiptResult) context.requestUserInteraction(
                                 new FiscalEpsonPrintReceiptClientAction(comPort, baudRate, isReturn,
-                                        new ReceiptInstance(sumCash == null ? null : sumCash.abs(),
+                                        new ReceiptInstance(paymentSumMap, sumCash == null ? null : sumCash.abs(),
                                                 sumCard == null ? null : sumCard.abs(),
                                                 sumGiftCard == null ? null : sumGiftCard.abs(), cashier,
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList, comment), cardType, giftCardType,
@@ -204,5 +211,11 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 }

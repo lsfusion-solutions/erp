@@ -14,6 +14,7 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Map;
 
 public class FiscalEpson {
 
@@ -273,6 +274,13 @@ public class FiscalEpson {
             Dispatch.call(epsonDispatch, sale ? "PayCash" : "RepayCash");
             checkErrors(true);
         }
+        for (Map.Entry<Integer, BigDecimal> payment : receipt.paymentSumMap.entrySet()) {
+            epsonActiveXComponent.setProperty("Amount", new Variant(payment.getValue()));
+            epsonActiveXComponent.setProperty("NoncashType", new Variant(payment.getKey()));
+            Dispatch.call(epsonDispatch, sale ? "PayNoncash" : "Repaynoncash");
+            checkErrors(true);
+        }
+
         ReceiptInfo receiptInfo = getReceiptInfo();
         closeReceipt();
         return receiptInfo;
