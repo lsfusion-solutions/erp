@@ -1,0 +1,43 @@
+MODULE PacketTextile;
+
+REQUIRE Packet;
+
+NAMESPACE Packet;
+
+
+DESIGN packet 'Пакет'{
+    BOX(s) {caption = 'Пакет';}
+}
+
+DESIGN packets 'Пакеты'{
+    BOX(s) {caption = 'Пакет';}
+    PROPERTY (name(s)) { hide = TRUE; }
+}
+
+
+NAVIGATOR {
+    packetNavigator 'Пакеты' {
+        packets 'Пакеты';
+    }
+}
+
+numerator '{numerator.id.numerator}' = DATA Numerator (Packet);
+nameNumerator '{numerator.numerator}' (Packet o) = name(numerator(o)) IN numbered CHARWIDTH 7;
+
+generateId '{numerator.generate.number}'(Packet o)  {
+    id(o) <- curStringValue(numerator(o));
+    incrementValueSession(numerator(o));
+}
+
+WHEN SETCHANGED(numerator(Packet o)) AND
+    NOT CHANGED(id(o))
+    DO generateId(o) ;
+
+defaultNumeratorPacket = DATA Numerator ();
+nameDefaultNumeratorPacket 'Пакеты' = name(defaultNumeratorPacket()) IN defaultNumerator;
+
+numerator(Packet o) <- defaultNumeratorPacket() WHEN SET(o IS Packet);
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameDefaultNumeratorPacket = nameDefaultNumeratorPacket
+;
