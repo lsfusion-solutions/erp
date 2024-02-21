@@ -1,6 +1,6 @@
 MODULE FuelX;
 
-REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel, WriteOffBinLedgerFuel, StockReportsFuel;
+REQUIRE PurchaseInvoiceAcceptanceRu, PurchaseShipmentBinLedgerFuel, SaleInvoiceConsignmentRu, SaleShipmentBinLedgerFuel, WriteOffBinLedgerFuel, StockReportsFuel, BinTransferFuel;
 
 @defineLogRotate(FuelX, 5, weekly);
 
@@ -111,6 +111,30 @@ DESIGN Purchase.invoices {
         }
     }    
 }
+
+dateFuelX 'Время выгрузки FuelX' = DATA DATETIME (BinTransfer);
+toFuelX = DATA LOCAL NESTED BOOLEAN (BinTransfer);
+
+FORM setDeliverBinTransfers
+    OBJECTS s = Stock PANEL
+    PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
+        name(s) EXTID 'ObjectName',
+        software = (OVERRIDE software(), 'FuelX') IF s IS Stock EXTID 'Software'
+
+    OBJECTS d = BinTransferDetail EXTID 'DeliverInvoices'
+    FILTERS stock(d) == s AND toFuelX(binTransfer(d)) AND isFuel(sku(d))
+    PROPERTIES IN base seriesNumber(d) EXTID 'InvoiceNumber',
+        //nameForwarder = nameForwarder[Acceptance](binTransfer(d)) EXTID 'DriverName',
+        //sidTruck = sidTruck(binTransfer(d)) EXTID 'CarNumber',
+        date = toChar(dateTime(d), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
+        nameSku(d) EXTID 'Grade',
+        idSku(d) EXTID 'GradeCode',
+        nameInBin(d) EXTID 'TankName',
+        volume(d) EXTID 'Volume',
+        //temperature(d) EXTID 'Temperature',
+        density = (density(d) * 1000.0) EXTID 'Density',
+        quantity(d) EXTID 'Mass'
+;
 
 //http://fuelx.online:7004/setdraininvoices json
 //Передать в DataCenterX список накладных на откачку резервуара
@@ -269,6 +293,90 @@ DESIGN writeOffs {
     }
 }
 
+FORM setDrainBinTransfers
+    OBJECTS s = Stock PANEL
+    PROPERTIES IN license nameLegalEntity(s) EXTID 'Owner',
+        name(s) EXTID 'ObjectName',
+        software = (OVERRIDE software(), 'FuelX') IF s IS Stock EXTID 'Software'
+
+    OBJECTS d = BinTransferDetail EXTID 'DrainInvoices'
+    FILTERS stock(d) == s AND toFuelX(binTransfer(d)) AND isFuel(sku(d))
+    PROPERTIES IN base seriesNumber(d) EXTID 'InvoiceNumber',
+        //nameForwarder = nameForwarder(writeOff(d)) EXTID 'DriverName',
+        //vehicleNumber = vehicleNumber(writeOff(d)) EXTID 'CarNumber',
+        date = toChar(dateTime(d), 'yyyy-MM-ddThh24:mi:ss') EXTID 'Date',
+        nameSku(d) EXTID 'Grade',
+        idSku(d) EXTID 'GradeCode',
+        nameOutBin(d) EXTID 'TankName',
+        quantity(d) EXTID 'Mass'
+;
+
+setDeliverDrainBinTransfers () {
+    IF NOT url() THEN {
+        MESSAGE 'Не задан URL' NOWAIT;
+        RETURN;
+    }
+    IF NOT portFuelX() THEN {
+        MESSAGE 'Не задан порт для FuelX' NOWAIT;
+        RETURN;
+    }
+    FOR [GROUP SUM 1 IF toFuelX(BinTransfer t) BY stock(t)](Stock stock) DO NEWSESSION {
+        LOCAL response = STRING();
+        LOCAL file = FILE();
+        TRY {
+            EXPORT setDeliverBinTransfers OBJECTS s = stock JSON;
+            fileToString(exportFile(),'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + ':' + portFuelX() + '/setdeliverinvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + ':' + portFuelX() + '/setdeliverinvoices' PARAMS exportFile() TO response;
+            file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+            fileToString(file(), 'UTF-8');
+            logToFile('FuelX', 'Response: ' + resultString());
+
+            LOCAL okDeliver = BOOLEAN ();
+            IMPORT JSON FROM file() TO() okDeliver = 'OK';
+            
+            EXPORT setDrainBinTransfers OBJECTS s = stock JSON;
+            fileToString(exportFile(),'UTF-8');
+            logToFile('FuelX', 'POST: ' + url() + ':' + portFuelX() + '/setdraininvoices' + '\n' + resultString());
+            EXTERNAL HTTP POST url() + ':' + portFuelX() + '/setdraininvoices' PARAMS exportFile() TO response;
+            file() <- FILE(decode(replace(response(),'"',''), 'base64'));
+            fileToString(file(), 'UTF-8');
+            logToFile('FuelX', 'Response: ' + resultString());
+
+            LOCAL okDrain = BOOLEAN ();
+            IMPORT JSON FROM file() TO() okDrain = 'OK';
+            dateFuelX(BinTransfer t) <- currentDateTime() WHERE stock(t) == stock AND toFuelX(t) AND okDeliver() AND okDrain();
+            APPLY;
+        } CATCH {
+            logToFile('FuelX',  CONCAT '\n', 'ERROR:', messageCaughtException());
+            logToFile('FuelX', response());
+            MESSAGE messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+isFuelX(BinTransfer t) = GROUP SUM 1 IF isFuel(sku(BinTransferDetail d)) BY binTransfer(d);
+
+exportFuelX 'Выгрузить в FuelX' (BinTransfer t) {
+    toFuelX(t) <- TRUE;
+    setDeliverDrainBinTransfers();
+    toFuelX(BinTransfer bt) <- NULL;
+}
+
+EXTEND FORM binTransfers
+    PROPERTIES(o) SHOWIF isFuelX(o) exportFuelX
+    PROPERTIES(o) SHOWIF isFuelX(o) READONLY PANEL dateFuelX
+;
+
+DESIGN binTransfers {
+    actionContainer {
+        NEW fuelX {
+            caption = 'FuelX';
+            MOVE PROPERTY (exportFuelX(o));
+            MOVE PROPERTY (dateFuelX(o));
+        }
+    }
+}
 
 //http://fuelx.online:9010/getreports/2021-11-05-23-55-44/2025-11-05-23-55-44/%D0%90%D0%97%D0%A1%205 json
 //Запросить все отчеты за период дат

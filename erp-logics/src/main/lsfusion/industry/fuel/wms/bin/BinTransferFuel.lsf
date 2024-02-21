@@ -4,6 +4,21 @@ REQUIRE BinTransfer, BinLedgerFuel, ItemFuel;
 
 NAMESPACE Bin;
 
+DESIGN operation{
+    tabContainer {
+        NEW constraintContainer {
+            caption = 'Ограничения';
+        }
+    }
+}
+
+@defineOperationProperty(isBin, 'Должены быть заданы резервуары (в/из)', constraintContainer);
+
+CONSTRAINT  isPosted(BinTransferDetail d) AND isBin(operation(d)) AND NOT inBin(d)
+    MESSAGE 'Для строки перемещения по резервуарам обязан быть задан резервуар (в)';
+CONSTRAINT  isPosted(BinTransferDetail d) AND isBin(operation(d)) AND NOT outBin(d)
+    MESSAGE 'Для строки перемещения по резервуарам обязан быть задан резервуар (из)';
+
 volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (BinTransferDetail) CHARWIDTH 7 MATERIALIZED;
 volume 'Объем, л' = DATA NUMERIC[16,5] (UserBinTransferDetail) CHARWIDTH 7;
 volume (UserBinTransferDetail binTransferDetail) += volume(binTransferDetail);
@@ -47,6 +62,25 @@ changeDensity (UserBinTransferDetail d) {
         fillDensity(d,n);
     }
 }
+
+densityBOutBin 'Плотность расчётная в резервуаре (из), кг/л' (UserBinTransferDetail d) = prevDensityB(outBin(d), dateTime(d));
+lastDailyReportDensityOutBin 'Плотность наблюдаемая в резервуаре (из), кг/л' (UserBinTransferDetail d) = lastDailyReportDensity(sku(d), outBin(d));
+
+fillDensityDailyReportOutBin 'Заполнить плотностью наблюдаемой (из последнего сменного отчёта)' (UserBinTransferDetail d) {
+    IF lastDailyReportDensityOutBin(d) THEN {
+        fillDensity(d, lastDailyReportDensityOutBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность наблюдаемая (из последнего сменного отчёта)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserBinTransferDetail];
+
+fillDensityAOutBin 'Заполнить расчётным значением плотности в резервуаре (из)' (UserBinTransferDetail d) {
+    IF densityBOutBin(d) THEN {
+        fillDensity(d,densityBOutBin(d));
+    } ELSE {
+        MESSAGE 'Отсутствует плотность расчётная в резервуаре (из)' NOWAIT;
+    }
+} ASON CONTEXTMENU density[UserBinTransferDetail];
 
 fillDensity15C 'Заполнить значением плотности при 15°С' (UserBinTransferDetail d) {
     IF density15C(sku(d)) THEN {
@@ -103,6 +137,8 @@ DESIGN userBinOrder {
     PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
     PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
     PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(sumGrossWeightUserBinOrderDetail(o)) { hide = TRUE; }
+    PROPERTY(sumGrossWeight(d)) { hide = TRUE; }
 }
 
 DESIGN userBinTransfer {
@@ -111,6 +147,8 @@ DESIGN userBinTransfer {
     PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
     PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
     PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(sumGrossWeightUserBinTransferDetail(o)) { hide = TRUE; }
+    PROPERTY(sumGrossWeight(d)) { hide = TRUE; }
 }
 
 DESIGN binOrders {
@@ -120,6 +158,8 @@ DESIGN binOrders {
     PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
     PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
     PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(sumGrossWeightBinOrderDetail(o)) { hide = TRUE; }
+    PROPERTY(grossWeight(d)) { hide = TRUE; }
 }
 
 DESIGN binTransfers {
@@ -129,6 +169,8 @@ DESIGN binTransfers {
     PROPERTY(nameOutBin(o)) { caption = 'Резервуар (из)'; }
     PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; }
     PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
+    PROPERTY(sumGrossWeightUserBinTransferDetail(o)) { hide = TRUE; }
+    PROPERTY(sumGrossWeight(d)) { hide = TRUE; }
 }
 
 NAVIGATOR {
