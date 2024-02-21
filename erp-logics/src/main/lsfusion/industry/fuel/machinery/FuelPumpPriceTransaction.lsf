@@ -1,6 +1,6 @@
 MODULE FuelPumpPriceTransaction;
 
-REQUIRE FuelPump, MachineryPriceTransaction;
+REQUIRE FuelPump, MachineryPriceTransaction, Item;
 
 NAMESPACE FuelPump;
 // ----------------------------------------- Загрузка в ВУ -------------------------------------- //
@@ -16,3 +16,8 @@ createMachineryPriceTransaction (GroupFuelPump groupMachinery) + {
 }
 
 skipSnapshot(FuelPumpPriceTransaction t) += groupFuelPump(t) AND skipSnapshotMachinery(mainRole(currentUser()));
+
+createAttribute(MachineryPriceTransaction transaction, GroupFuelPump groupMachinery) + {
+    IF groupMachinery IS GroupFuelPump THEN
+        name(transaction, Barcode barcode) <- titleCashRegister(barcode) WHERE in(transaction, barcode);
+}
