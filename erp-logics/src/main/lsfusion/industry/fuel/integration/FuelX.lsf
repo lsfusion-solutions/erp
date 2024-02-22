@@ -50,10 +50,10 @@ FORM setDeliverInvoices
                nameSku(d) EXTID 'Grade',
                idSku(d) EXTID 'GradeCode',
                nameInBin(d) EXTID 'TankName',
-               volume(d) EXTID 'Volume',
+               volume = (OVERRIDE shipmentVolume(d), volume(d)) EXTID 'Volume',
                temperature(d) EXTID 'Temperature',
-               density = (density(d) * 1000.0) EXTID 'Density',
-               quantity(d) EXTID 'Mass'
+               density = ((OVERRIDE shipmentDensity(d), density(d)) * 1000.0) EXTID 'Density',
+               mass = (OVERRIDE shipmentQuantity(d), quantity(d)) EXTID 'Mass'
 ;
 
 setDeliverInvoices () {
@@ -98,7 +98,7 @@ exportPurchaseFuelX 'Выгрузить в FuelX' (Purchase.Invoice i) {
 isFuelXPurchase(Purchase.Invoice invoice) = GROUP SUM 1 IF isFuel(sku(Purchase.InvoiceDetail d)) BY invoice(d);
 
 EXTEND FORM Purchase.invoices 
-    PROPERTIES(i) SHOWIF isFuelXPurchase(i) exportPurchaseFuelX
+    PROPERTIES(i) SHOWIF isFuelXPurchase(i) READONLYIF isDraft(i) exportPurchaseFuelX
     PROPERTIES(i) SHOWIF isFuelXPurchase(i) READONLY PANEL dateFuelX
 ;
 
@@ -181,7 +181,7 @@ FORM setDrainInvoices
                nameSku(d) EXTID 'Grade',
                idSku(d) EXTID 'GradeCode',
                nameOutBin(d) EXTID 'TankName',
-               quantity(d) EXTID 'Mass'
+               mass = (OVERRIDE shipmentQuantity(d), quantity(d)) EXTID 'Mass'
 ;
 
 setDrainInvoices () {
@@ -226,7 +226,7 @@ exportSaleFuelX 'Выгрузить в FuelX' (Sale.Invoice i) {
 isFuelXSale(Sale.Invoice invoice) = GROUP SUM 1 IF isFuel(sku(Sale.InvoiceDetail d)) BY invoice(d);
 
 EXTEND FORM Sale.invoices 
-    PROPERTIES(i) SHOWIF isFuelXSale(i) exportSaleFuelX
+    PROPERTIES(i) SHOWIF isFuelXSale(i) READONLYIF isDraft(i) exportSaleFuelX
     PROPERTIES(i) SHOWIF isFuelXSale(i) READONLY PANEL dateFuelX
 ;
 
@@ -303,7 +303,7 @@ exportSaleFuelX 'Выгрузить в FuelX' (WriteOff w) {
 isFuelXSale(WriteOff writeOff) = GROUP SUM 1 IF isFuel(sku(WriteOffDetail d)) BY writeOff(d);
 
 EXTEND FORM writeOffs
-    PROPERTIES(w) SHOWIF isFuelXSale(w) exportSaleFuelX
+    PROPERTIES(w) SHOWIF isFuelXSale(w) READONLYIF isDraft(w) exportSaleFuelX
     PROPERTIES(w) SHOWIF isFuelXSale(w) READONLY PANEL dateFuelX
 ;
 
@@ -388,7 +388,7 @@ exportFuelX 'Выгрузить в FuelX' (BinTransfer t) {
 }
 
 EXTEND FORM binTransfers
-    PROPERTIES(o) SHOWIF isFuelX(o) exportFuelX
+    PROPERTIES(o) SHOWIF isFuelX(o) READONLYIF isDraft(o) exportFuelX
     PROPERTIES(o) SHOWIF isFuelX(o) READONLY PANEL dateFuelX
 ;
 
@@ -473,7 +473,7 @@ exportFuelX 'Выгрузить в FuelX' (Disparity d) {
 }
 
 EXTEND FORM disparities
-    PROPERTIES(dis) SHOWIF isFuelX(dis) exportFuelX
+    PROPERTIES(dis) SHOWIF isFuelX(dis) READONLYIF isDraft(dis) exportFuelX
     PROPERTIES(dis) SHOWIF isFuelX(dis) READONLY PANEL dateFuelX
 ;
 
