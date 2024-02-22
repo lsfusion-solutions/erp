@@ -628,7 +628,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 inventItemOptions.put("tobacco", true);
 
             if (alcTypeCode != null && !alcTypeCode.isEmpty()) {
-                inventItemOptions.put("egaisverify", true);
+                inventItemOptions.put("egaisverify", !"beer".equals(lotType));
                 inventObject.put("alctypecode", Long.valueOf(alcTypeCode));
             }
 
