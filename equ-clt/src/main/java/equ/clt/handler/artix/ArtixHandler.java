@@ -1667,7 +1667,15 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                         Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
-                                        String nameEmployee = cashiersMap.get(idEmployee);
+                                        String fullNameEmployee = cashiersMap.get(idEmployee);
+                                        String nameEmployee;
+                                        String lastNameEmployee = null;
+                                        if(fullNameEmployee.contains(" ")){
+                                            lastNameEmployee = fullNameEmployee.split(" ", 2)[0];
+                                            nameEmployee = fullNameEmployee.split(" ", 2)[1];
+                                        } else {
+                                            nameEmployee = fullNameEmployee;
+                                        }
 
                                         CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
                                         if (cashRegister == null)
@@ -1954,7 +1962,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 }
 
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
-                                                        dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, null,
+                                                        dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, lastNameEmployee,
                                                         sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
                                                         discountPercentReceiptDetail, discountSumReceiptDetail, null, seriesNumberDiscountCard,
                                                         new ArrayList<>(discounts.values()), numberReceiptDetail, fileName, null, isSkip, receiptExtraFields, receiptDetailExtraFields, cashRegister);
