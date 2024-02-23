@@ -3,6 +3,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 import com.google.common.base.Throwables;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import lsfusion.base.SystemUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.EnhancedPatternLayout;
 import org.apache.log4j.FileAppender;
@@ -32,7 +33,7 @@ public class FiscalSento {
             logger = Logger.getLogger("cashRegisterLog");
             logger.setLevel(Level.INFO);
             FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");   
+                    SystemUtils.getUserFile("cashregister.log").getAbsolutePath());
             logger.removeAllAppenders();
             logger.addAppender(fileAppender);
             
