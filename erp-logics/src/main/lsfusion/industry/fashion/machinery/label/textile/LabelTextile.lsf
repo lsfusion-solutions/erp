@@ -1,0 +1,42 @@
+MODULE LabelTextile;
+
+REQUIRE Label;
+
+NAMESPACE Label;
+
+
+CLASS PrintLabelType 'Тип этикетки (печать)';
+TABLE printLabelType (PrintLabelType);
+
+@defineExternalizable(printLabelType, STRING[20]);
+
+name 'Наименование' = DATA STRING[50](PrintLabelType) CHARWIDTH 25;
+namePrint 'Наименование (печать)' = DATA STRING[50](PrintLabelType) CHARWIDTH 25;
+showPrint 'Отображать при печати' = DATA BOOLEAN (PrintLabelType);
+
+labelType = DATA LabelType(PrintLabelType);
+nameLabelType 'Шаблон по умолчанию'(PrintLabelType t) = name(labelType(t));
+
+note 'Примечание' = DATA STRING[100](PrintLabelType);
+
+FORM printLabelType 'Тип этикетки (печать)'
+    OBJECTS t=PrintLabelType PANEL
+    PROPERTIES(t) id, namePrint, name, showPrint, nameLabelType, note
+
+    EDIT PrintLabelType OBJECT t
+;
+
+FORM printLabelTypes 'Типы этикеток (печать)'
+    OBJECTS t=PrintLabelType
+    PROPERTIES(t) READONLY id, namePrint, name, showPrint, nameLabelType, note
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
+    ORDERS id(t)
+;
+
+FORM printLabelTypesList 'Типы этикеток (печать)'
+    OBJECTS t=PrintLabelType
+    PROPERTIES(t) READONLY id, namePrint, name, nameLabelType, note
+    ORDERS id(t)
+
+    LIST PrintLabelType OBJECT t
+;

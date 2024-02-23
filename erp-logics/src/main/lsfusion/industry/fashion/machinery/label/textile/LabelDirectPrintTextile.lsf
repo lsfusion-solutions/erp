@@ -1,0 +1,25 @@
+MODULE LabelDirectPrintTextile;
+
+REQUIRE LabelDirectPrint;
+
+NAMESPACE Label;
+
+
+CLASS StickerTransaction 'Печать этикеток';
+TABLE stickerTransaction(StickerTransaction);
+
+@defineCreated(StickerTransaction);
+
+date 'Дата' = DATA DATE (StickerTransaction);
+date (StickerTransaction transaction) <- currentDate() WHEN SET(transaction IS StickerTransaction);
+
+time 'Время' = DATA TIME (StickerTransaction);
+time (StickerTransaction transaction) <- currentTime() WHEN SET(transaction IS StickerTransaction);
+
+dateTime 'Дата/время' (StickerTransaction t) = dateTimeToDateTime(date(t), time(t)) MATERIALIZED IN id;
+
+stock = DATA Stock (StickerTransaction); // где напечатано
+nameStock 'Склад' (StickerTransaction transaction) = name(stock(transaction)) IN id;
+
+labelType 'Шаблон этикетки' = DATA LabelType (StickerTransaction) NONULL;
+nameLabelType 'Шаблон этикетки' (StickerTransaction transaction) = name(labelType(transaction)) IN id;

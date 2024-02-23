@@ -1,0 +1,78 @@
+MODULE Packeting;
+
+REQUIRE PacketSkuLedger;
+
+NAMESPACE Packet;
+
+
+CLASS PacketingDetail 'Строка комплектации нового пакета' : PacketSkuLedger;
+TABLE packetingDetail (PacketingDetail);
+
+dateTime 'Дата/время' = DATA DATETIME (PacketingDetail) INDEXED;
+dateProduction 'Дата производства' = DATA DATE (PacketingDetail);
+
+stock = DATA Stock (PacketingDetail) INDEXED;
+nameStock 'Склад' (PacketingDetail ledger) = name(stock(ledger)) IN id  CHARWIDTH 10;
+
+packet = DATA Packet (PacketingDetail) NONULL DELETE INDEXED;
+idPacket 'Пакет' (PacketingDetail ledger) = id(packet(ledger)) IN id CHARWIDTH 10;
+
+sku = DATA Sku (PacketingDetail) INDEXED;
+idBarcodeSku 'Штрихкод' (PacketingDetail ledger) = id(barcode(sku(ledger))) IN id;
+nameSku 'Товар' (PacketingDetail ledger) = name(sku(ledger)) IN id  CHARWIDTH 20;
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (PacketingDetail);
+
+INDEX packet(PacketingDetail d), sku(d), dateTime(d);
+
+// по PacketSkuLedger
+dateTime (PacketingDetail ledger) += dateTime(ledger);
+dateProduction (PacketingDetail ledger) += dateProduction(ledger);
+stock (PacketingDetail ledger) += stock(ledger);
+packet (PacketingDetail ledger) += packet(ledger);
+sku (PacketingDetail ledger) += sku(ledger);
+quantity (PacketingDetail ledger) += quantity(ledger);
+
+WHEN LOCAL SET (PacketingDetail l IS PacketingDetail) DO {
+    dateTime(l) <- currentDateTime();
+}
+
+maxPacketingDetail= GROUP MAX PacketingDetail d BY packet(d) MATERIALIZED INDEXED;
+
+stock 'Цех комплектации' (Packet b) = stock(maxPacketingDetail(b)) MATERIALIZED INDEXED;
+nameStock 'Цех комплектации' (Packet b) = nameStock(maxPacketingDetail(b));
+dateProduction 'Дата производства' (Packet b) = dateProduction(maxPacketingDetail(b)) MATERIALIZED INDEXED;
+
+idArticleSku 'Модель'(PacketingDetail d) = idArticle(sku(d)) CHARWIDTH 10;
+nameSizeSku 'Размер'(PacketingDetail d) = nameSize(sku(d)) CHARWIDTH 10;
+nameSortSku 'Сорт'(PacketingDetail d) = nameSort(sku(d)) CHARWIDTH 5;
+
+FORM packetings 'Регистр комплектаций пакетов'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+
+    OBJECTS l = PacketingDetail
+    PROPERTIES(l) READONLY dateTime, nameStock, idPacket, idArticleSku, idBarcodeSku, nameSku, nameSizeSku, quantity
+    FILTERS date(l) >= dFrom AND date(l) <= dTo
+;
+
+DESIGN packetings {
+    NEW top {
+        horizontal = TRUE;
+        NEW dates {
+            caption = 'Период';
+            horizontal = TRUE;
+            MOVE PROPERTY (valFrom){caption = 'Дата (с)';}
+            MOVE PROPERTY (valTo){caption = 'Дата (по)';}
+        }
+    }
+
+    MOVE BOX (l);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    packetNavigator {
+        NEW packetings;
+    }
+}

@@ -1,0 +1,43 @@
+MODULE PacketSkuLedger;
+
+REQUIRE PacketTextile, Sku, ItemDescription, ItemFashionTextile;
+
+NAMESPACE Packet;
+
+
+CLASS ABSTRACT PacketSkuLedger 'Изменение остатка в пакетах';
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (PacketSkuLedger);
+date 'Дата' (PacketSkuLedger ledger) = toDate(dateTime(ledger)) IN id;
+time 'Время' (PacketSkuLedger ledger) = toTime(dateTime(ledger));
+
+dateProduction 'Дата производства' = ABSTRACT DATE (PacketSkuLedger);
+
+stock = ABSTRACT Stock (PacketSkuLedger);
+
+packet = ABSTRACT Packet (PacketSkuLedger);
+sku = ABSTRACT Sku (PacketSkuLedger);
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (PacketSkuLedger);
+
+TABLE skuPacket(Sku,Packet);
+currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY sku(l), packet(l) MATERIALIZED;
+currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY packet(l);
+
+quantityB 'Количество в пакете (до)' (Sku s, Packet b, DATETIME d) = (currentQuantity(s, b) IF d IS DATETIME)
+    (-) [ GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) >= d
+    BY sku(l), packet(l)](s, b);
+
+quantityA 'Количество в пакете (после)' (Sku s, Packet b, DATETIME d) = currentQuantity(s, b)
+    (-) [ GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) > d
+    BY sku(l), packet(l)](s, b);
+
+quantityA 'Количество в пакете (после)' = GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) <= DATETIME d BY packet(l), d;
+
+currentSkuList 'Товары в пакете' (Packet b) = GROUP CONCAT name(Sku s) IF currentQuantity(s, b), ', ' ORDER s CHARWIDTH 50 MATERIALIZED IN id;
+skuListA 'Товары в пакете (после)' (Packet b,DATETIME d) = GROUP CONCAT name(Sku s)  IF quantityA(s, b, d), ', ' ORDER s CHARWIDTH 50 IN id;
+currentSkuColorList 'Цвета в пакете' (Packet b) = GROUP CONCAT idColor(Sku s) IF currentQuantity(s, b), ', ' ORDER s CHARWIDTH 8;
+
+EXTEND FORM packets
+    PROPERTIES(s) READONLY currentSkuList
+;
