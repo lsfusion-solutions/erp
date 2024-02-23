@@ -3,10 +3,6 @@ package lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit;
 import com.google.common.base.Throwables;
 import jssc.SerialPort;
 import jssc.SerialPortException;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigDecimal;
@@ -21,6 +17,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
+
 public class FiscalPirit {
 
     private static byte dataDelimiter = 0x1C;
@@ -28,20 +26,6 @@ public class FiscalPirit {
     private static short packetId = 0x27;
 
     private static Charset charset = Charset.forName("cp866");
-
-    static Logger logger;
-
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"), "logs/cashregister.log");
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-
-        } catch (Exception ignored) {
-        }
-    }
 
     public static SerialPort openPort(String comPort, Integer baudRate, boolean isUnix) {
         try {
@@ -301,7 +285,7 @@ public class FiscalPirit {
     }
 
     private static PiritReply sendCommand(SerialPort serialPort, String commandID, String commandDescription, byte[] data, boolean throwException) {
-        logger.info(String.format("Command %s (%s), data %s", commandID, commandDescription, Hex.toHexString(data)));
+        cashRegisterlogger.info(String.format("Command %s (%s), data %s", commandID, commandDescription, Hex.toHexString(data)));
         ByteBuffer command = ByteBuffer.allocate(11 + data.length);
         command.put((byte) 0x02); //stx, 1 byte
         command.put("PIRI".getBytes()); //Пароль связи, 4 bytes
@@ -319,7 +303,7 @@ public class FiscalPirit {
         String crc = getCRC(command.array());
         command.put(crc.getBytes()); //crc, 2 bytes
         byte[] reply = sendBytesToPort(serialPort, command.array(), true);
-        logger.info("Reply: " + Hex.toHexString(reply));
+        cashRegisterlogger.info("Reply: " + Hex.toHexString(reply));
 
         PiritReply result = new PiritReply(Hex.decode(Arrays.copyOfRange(reply, 4, 6))[0], Arrays.copyOfRange(reply, 6, reply.length - 3));
         if (result.error != 0 && throwException) {

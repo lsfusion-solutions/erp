@@ -4,29 +4,13 @@ import jssc.SerialPort;
 import jssc.SerialPortException;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
 import java.nio.charset.Charset;
 
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
+
 
 public class FiscalBoardDisplayTextClientAction implements ClientAction {
-
-    static Logger logger;
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-
-        } catch (Exception ignored) {
-        }
-    }
 
     String line1;
     String line2;
@@ -70,7 +54,7 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     private boolean writeToPort() {
         long time = System.currentTimeMillis();
         try {
-            logger.info("Board writeToPort started");
+            cashRegisterlogger.info("Board writeToPort started");
             SerialPort serialPort = new SerialPort("COM" + comPortBoard);
             serialPort.openPort();
             serialPort.setParams(baudRateBoard, 8, 1, 0);
@@ -79,10 +63,10 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
             serialPort.closePort();
 
         } catch (SerialPortException e) {
-            logger.info(String.format("Board writeToPort failed: %s ms", (System.currentTimeMillis() - time)), e);
+            cashRegisterlogger.info(String.format("Board writeToPort failed: %s ms", (System.currentTimeMillis() - time)), e);
             return false;
         }
-        logger.info(String.format("Board writeToPort finished: %s ms", (System.currentTimeMillis() - time)));
+        cashRegisterlogger.info(String.format("Board writeToPort finished: %s ms", (System.currentTimeMillis() - time)));
         return true;
     }
 }

@@ -7,9 +7,11 @@ import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.util.TextUtils;
-import org.apache.log4j.*;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -20,26 +22,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.BitSet;
 import java.util.concurrent.*;
 
-import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
 
 public class FiscalVMK {
 
     static final int FLG_EXT_SALE = 0; // 1 - Расширенная регистрация покупки
-
-    static Logger logger;
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");   
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-            
-        } catch (Exception ignored) {
-        }
-    }
     
     public interface vmkDLL extends Library {
 
@@ -109,7 +97,7 @@ public class FiscalVMK {
         if (closePort)
             closePort();
         String error = Native.toString(lastErrorText, "cp1251");
-        logger.info(String.format("Ошибка %s: %s", lastError, error));
+        cashRegisterlogger.info(String.format("Ошибка %s: %s", lastError, error));
         return error;
     }
 
@@ -195,7 +183,7 @@ public class FiscalVMK {
     }
 
     static void simpleLogAction(String msg) {
-        logger.info(msg);
+        cashRegisterlogger.info(msg);
     }
 
     public static boolean printMultilineFiscalText(String msg) {
@@ -552,14 +540,14 @@ public class FiscalVMK {
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
         } catch (IOException e) {
-            logger.error("FiscalVMK Error: ", e);
+            cashRegisterlogger.error("FiscalVMK Error: ", e);
         } finally {
             if (sw != null) {
                 try {
                     sw.flush();
                     sw.close();
                 } catch (IOException e) {
-                    logger.error("FiscalVMK Error: ", e);
+                    cashRegisterlogger.error("FiscalVMK Error: ", e);
                 }
             }
         }
@@ -569,7 +557,7 @@ public class FiscalVMK {
         String pattern = "";
         for(Object param : actionParams)
             pattern += "%s;";
-        logger.info(String.format(pattern, actionParams));
+        cashRegisterlogger.info(String.format(pattern, actionParams));
     }
 
     private static String trim(BigDecimal value) {

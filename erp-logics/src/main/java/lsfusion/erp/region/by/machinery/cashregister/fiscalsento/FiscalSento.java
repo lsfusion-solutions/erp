@@ -3,14 +3,11 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 import com.google.common.base.Throwables;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import lsfusion.base.SystemUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.Charset;
@@ -22,24 +19,11 @@ import java.util.BitSet;
 import java.util.concurrent.*;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
 
 public class FiscalSento {
 
     static final int FLG_EXT_SALE = 0; // 1 - Расширенная регистрация покупки
-
-    static Logger logger;
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    SystemUtils.getUserFile("cashregister.log").getAbsolutePath());
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-            
-        } catch (Exception ignored) {
-        }
-    }
     
     public interface sentoDLL extends Library {
 
@@ -92,7 +76,7 @@ public class FiscalSento {
         logAction("errorString");
         sentoDLL.sento.errorString(lastError, lastErrorText, length);
         String error = Native.toString(lastErrorText, "cp1251");
-        logger.info(String.format("Ошибка %s: %s", lastError, error));
+        cashRegisterlogger.info(String.format("Ошибка %s: %s", lastError, error));
         return error;
     }
 
@@ -343,7 +327,7 @@ public class FiscalSento {
         logAction("errorString");
         sentoDLL.sento.errorString(lastError, lastErrorText, length);
         String error = Native.toString(lastErrorText, "cp1251");
-        logger.info(String.format("Ошибка %s: %s", lastError, error));
+        cashRegisterlogger.info(String.format("Ошибка %s: %s", lastError, error));
         if (!error.isEmpty()) {
             throw new RuntimeException("Sento Exception: " + error);
         }
@@ -369,14 +353,14 @@ public class FiscalSento {
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
         } catch (IOException e) {
-            logger.error("FiscalSento Error: ", e);
+            cashRegisterlogger.error("FiscalSento Error: ", e);
         } finally {
             if (sw != null) {
                 try {
                     sw.flush();
                     sw.close();
                 } catch (IOException e) {
-                    logger.error("FiscalSento Error: ", e);
+                    cashRegisterlogger.error("FiscalSento Error: ", e);
                 }
             }
         }
@@ -386,7 +370,7 @@ public class FiscalSento {
         String pattern = "";
         for(Object param : actionParams)
             pattern += "%s;";
-        logger.info(String.format(pattern, actionParams));
+        cashRegisterlogger.info(String.format(pattern, actionParams));
     }
 
     private static String trim(BigDecimal value) {

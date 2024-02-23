@@ -2,12 +2,11 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -18,22 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
 
 public class FiscalAbsolut {
 
-    static Logger logger;
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");   
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-            
-        } catch (Exception ignored) {
-        }
-    }
     static int lineLength = 30;
     
     public interface absolutDLL extends Library {
@@ -161,7 +148,7 @@ public class FiscalAbsolut {
                 checkErrors(false);
                 return parseCheckNumber(Native.toString(buffer, "cp1251"));
             } catch (Exception e) {
-                logger.error("FiscalAbsolut Error: ", e);
+                cashRegisterlogger.error("FiscalAbsolut Error: ", e);
             }
         }
         return null;
@@ -182,7 +169,7 @@ public class FiscalAbsolut {
     }
 
     static void simpleLogAction(String msg) {
-        logger.info(msg);
+        cashRegisterlogger.info(msg);
     }
 
     static boolean printBarcode(String barcode) {
@@ -563,14 +550,14 @@ public class FiscalAbsolut {
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
         } catch (IOException e) {
-            logger.error("FiscalAbsolut Error: ", e);
+            cashRegisterlogger.error("FiscalAbsolut Error: ", e);
         } finally {
             if (sw != null) {
                 try {
                     sw.flush();
                     sw.close();
                 } catch (IOException e) {
-                    logger.error("FiscalAbsolut Error: ", e);
+                    cashRegisterlogger.error("FiscalAbsolut Error: ", e);
                 }
             }
         }
@@ -580,7 +567,7 @@ public class FiscalAbsolut {
         String pattern = "";
         for(Object param : actionParams)
             pattern += "%s;";
-        logger.info(String.format(pattern, actionParams));
+        cashRegisterlogger.info(String.format(pattern, actionParams));
     }
 
     private static String trim(BigDecimal value) {

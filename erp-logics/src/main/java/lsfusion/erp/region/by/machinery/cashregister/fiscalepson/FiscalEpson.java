@@ -4,10 +4,6 @@ import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComFailException;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -16,24 +12,12 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
 
+import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
+
 public class FiscalEpson {
 
     static ActiveXComponent epsonActiveXComponent;
     static Dispatch epsonDispatch;
-
-    static Logger logger;
-    static {
-        try {
-            logger = Logger.getLogger("cashRegisterLog");
-            logger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");
-            logger.removeAllAppenders();
-            logger.addAppender(fileAppender);
-
-        } catch (Exception ignored) {
-        }
-    }
 
     static void init() {
         try {
@@ -52,48 +36,48 @@ public class FiscalEpson {
 
         epsonActiveXComponent.setProperty("ComPort", new Variant(comPort));
         epsonActiveXComponent.setProperty("BaudRate", new Variant(baudRate));
-        logger.info(String.format("Epson Connect comPort %s, baudRate %s", comPort, baudRate));
+        cashRegisterlogger.info(String.format("Epson Connect comPort %s, baudRate %s", comPort, baudRate));
         Dispatch.call(epsonDispatch, "Connect");
         checkErrors(true);
     }
 
     public static void closePort() throws RuntimeException {
         if(epsonDispatch != null) {
-            logger.info("Epson Disconnect");
+            cashRegisterlogger.info("Epson Disconnect");
             Dispatch.call(epsonDispatch, "Disconnect");
         }
     }
 
     public static void openReceipt(String cashier, int type) throws RuntimeException {
         setCashier(cashier);
-        logger.info("Epson OpenReceipt type " + type);
+        cashRegisterlogger.info("Epson OpenReceipt type " + type);
         epsonActiveXComponent.setProperty("ReceiptType", new Variant(type));
         Dispatch.call(epsonDispatch, "OpenReceipt");
         checkErrors(true);
     }
 
     public static Integer getElectronicJournalReadOffset() throws RuntimeException {
-        logger.info("Epson ElectronicJournalReadOffset");
+        cashRegisterlogger.info("Epson ElectronicJournalReadOffset");
         return toInt(epsonActiveXComponent.getProperty("ElectronicJournalReadOffset"));
     }
 
     public static void closeReceipt() {
         boolean checkErrors = true;
         try {
-            logger.info("Epson CloseReceipt started");
+            cashRegisterlogger.info("Epson CloseReceipt started");
             long time = System.currentTimeMillis();
             Dispatch.call(epsonDispatch, "CloseReceipt");
-            logger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
+            cashRegisterlogger.info(String.format("Epson CloseReceipt finished: %s ms", (System.currentTimeMillis() - time)));
         } catch (ComFailException e) {
             if (e.getMessage() != null && e.getMessage().contains("ФБ: таймаут связи с СКНО")) {
                 checkErrors = false;
-                logger.info("Epson CloseReceipt error: ФБ: таймаут связи с СКНО");
+                cashRegisterlogger.info("Epson CloseReceipt error: ФБ: таймаут связи с СКНО");
             } else {
-                logger.error("Epson CloseReceipt error: ", e);
+                cashRegisterlogger.error("Epson CloseReceipt error: ", e);
                 throw e;
             }
         } catch (Exception e) {
-            logger.error("Epson CloseReceipt error: ", e);
+            cashRegisterlogger.error("Epson CloseReceipt error: ", e);
             throw e;
         }
         if (checkErrors) {
@@ -192,7 +176,7 @@ public class FiscalEpson {
         Integer department = item.section != null ? item.section : 0;
         double price = useBlisters ? item.blisterPrice.doubleValue() : item.price.doubleValue();
         double quantity = useBlisters ? item.blisterQuantity.doubleValue() : item.quantity.doubleValue();
-        logger.info(String.format("Epson Sale: department %s, name %s, price %s, quantity %s", department, item.name, price, quantity));
+        cashRegisterlogger.info(String.format("Epson Sale: department %s, name %s, price %s, quantity %s", department, item.name, price, quantity));
         epsonActiveXComponent.setProperty("Article", new Variant(getMultilineName(item.name)));
         epsonActiveXComponent.setProperty("Price", new Variant(price));
         epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
@@ -235,7 +219,7 @@ public class FiscalEpson {
     public static void discountItem(ReceiptItem item, Boolean isReturn, DecimalFormat formatter) throws RuntimeException {
         if (item.discount != null && item.discount.doubleValue() != 0.0) {
             double correctionAmount = Math.abs(isReturn ? item.quantity.multiply(item.discount).doubleValue() : item.discount.doubleValue());
-            logger.info(String.format("Epson Discount: quantity %s, discount %s, total discount %s", item.quantity, item.discount, correctionAmount));
+            cashRegisterlogger.info(String.format("Epson Discount: quantity %s, discount %s, total discount %s", item.quantity, item.discount, correctionAmount));
             epsonActiveXComponent.setProperty("Article", new Variant(""));
             epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(correctionAmount));
             Dispatch.call(epsonDispatch, item.discount.doubleValue() > 0 ? "Surcharge" : "Discount");
@@ -246,7 +230,7 @@ public class FiscalEpson {
 
     public static void printLine(String line) throws RuntimeException {
         if (line != null) {
-            logger.info("Epson PrintLine " + line);
+            cashRegisterlogger.info("Epson PrintLine " + line);
             epsonActiveXComponent.setProperty("StringToPrint", new Variant(line.isEmpty() ? " " : line));
             Dispatch.call(epsonDispatch, "PrintLine");
             checkErrors(true);
@@ -254,7 +238,7 @@ public class FiscalEpson {
     }
 
     public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) throws RuntimeException {
-        logger.info(String.format("Epson CompleteReceipt: sumCard %s, sumGiftCard %s, sumCash %s", receipt.sumCard, receipt.sumGiftCard, receipt.sumCash));
+        cashRegisterlogger.info(String.format("Epson CompleteReceipt: sumCard %s, sumGiftCard %s, sumCash %s", receipt.sumCard, receipt.sumGiftCard, receipt.sumCash));
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
         if(receipt.sumCard != null) {
