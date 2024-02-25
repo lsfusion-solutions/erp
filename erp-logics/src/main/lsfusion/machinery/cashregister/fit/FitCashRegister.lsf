@@ -390,3 +390,25 @@ receiveGroupMachinery(GroupMachinery g) + {
 EXTEND FORM machineryPriceTransaction
     PROPERTIES (m) READONLY SHOWIF isFit(m) AND ignoreCashRegisterServerCashRegisterModel(groupCashRegister(m)) inactive
 ;
+groupScheduler 'Группа для планировщика'= DATA INTEGER (GroupCashRegister);
+overGroupScheduler (GroupCashRegister g)= OVERRIDE groupScheduler(g), 1;
+
+EXTEND FORM groupCashRegister 
+    PROPERTIES(grc) SHOWIF isFit(grc) groupScheduler
+;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (groupScheduler(grc));
+    }
+}
+
+receiveGroupMachinery 'Получение данных из оборудования (native) по группе' (INTEGER i) {
+    FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) AND overGroupScheduler(g) = i NOINLINE DO{
+        TRY {
+            receiveGroupMachinery(g);
+        } CATCH {
+            MESSAGE CONCAT '/n', 'error: ' + System.messageCaughtException(), 'on: ' + name(g) NOWAIT;
+        }
+    }
+}
