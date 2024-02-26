@@ -1,10 +1,10 @@
 package lsfusion.erp;
 
 import lsfusion.base.SystemUtils;
-import org.apache.log4j.EnhancedPatternLayout;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import lsfusion.base.log.FlushableRollingFileAppender;
+import org.apache.log4j.*;
+import org.apache.log4j.rolling.FixedWindowRollingPolicy;
+import org.apache.log4j.rolling.SizeBasedTriggeringPolicy;
 
 public class ERPLoggers {
     public static final Logger importLogger = Logger.getLogger("ImportLogger");
@@ -18,11 +18,18 @@ public class ERPLoggers {
         try {
             cashRegisterlogger = Logger.getLogger("cashRegisterLog");
             cashRegisterlogger.setLevel(Level.INFO);
-            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    SystemUtils.getUserFile("logs/cashregister.log").getAbsolutePath());
+            FlushableRollingFileAppender fileAppender = new FlushableRollingFileAppender();
+            fileAppender.setFile(SystemUtils.getUserFile("logs/cashregister.log").getAbsolutePath());
+            FixedWindowRollingPolicy rollingPolicy = new FixedWindowRollingPolicy();
+            rollingPolicy.setMinIndex(1);
+            rollingPolicy.setMaxIndex(5);
+            rollingPolicy.setFileNamePattern(SystemUtils.getUserFile("logs/cashregister-%i.log.zip").getAbsolutePath());
+            fileAppender.setRollingPolicy(rollingPolicy);
+            fileAppender.setTriggeringPolicy(new SizeBasedTriggeringPolicy(10485760)); //10MB
+            fileAppender.setLayout(new SimpleLayout());
+            fileAppender.activateOptions();
             cashRegisterlogger.removeAllAppenders();
             cashRegisterlogger.addAppender(fileAppender);
-
         } catch (Exception ignored) {
         }
     }
