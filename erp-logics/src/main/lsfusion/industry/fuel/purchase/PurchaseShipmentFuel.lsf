@@ -4,6 +4,10 @@ REQUIRE PurchaseShipment, PurchaseInvoiceFuel, SkuLedgerFuel, ItemFuel;
 
 NAMESPACE Purchase;
 
+temperature 'Температура, °С' = ABSTRACT NUMERIC[5,1] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
+temperature 'Температура, °С' = DATA NUMERIC[5,1] (UserShipmentDetail) CHARWIDTH 7;
+temperature (UserShipmentDetail shipmentDetail) += temperature(shipmentDetail);
+
 volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
 volume 'Объем, л' = DATA NUMERIC[16,5] (UserShipmentDetail) CHARWIDTH 7;
 volume (UserShipmentDetail shipmentDetail) += volume(shipmentDetail);
@@ -65,24 +69,32 @@ EXTEND FORM userShipment
     PROPERTIES(s) volumeUserShipmentDetail
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) temperature SHOWIF showTemperatureInvoice()
 ;
 
 overCopy(UserShipmentDetail d, ShipmentDetail detail) + {
     volume(d) <- volume(detail);
     density(d) <- density(detail);
+    temperature(d) <- temperature(detail) IF showTemperatureInvoice();
 }
 overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) + {
     volume(d) <- volume(detail);
     density(d) <- density(detail);
+    temperature(d) <- temperature(detail) IF showTemperatureInvoice();
 }
 
 EXTEND FORM shipments
     PROPERTIES(s) READONLY volumeShipmentDetail AFTER quantityShipmentDetail(s)
     PROPERTIES(d) READONLY volume AFTER quantity(d)
     PROPERTIES(d) READONLY density AFTER volume(d)
+    PROPERTIES(d) READONLY temperature SHOWIF showTemperatureInvoice()
 ;
 
 overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) + { density(sd) <- density(id); }
+
+shipmentTemperature 'Температура (поставлено), °С' = ABSTRACT NUMERIC[5,1] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+shipmentTemperature 'Температура (поставлено), °С' = DATA NUMERIC[5,1] (UserInvoiceDetail) CHARWIDTH 7;
+shipmentTemperature (UserInvoiceDetail invoiceDetail) += shipmentTemperature(invoiceDetail);
 
 shipmentVolume 'Объем (поставлено), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 shipmentVolume 'Объем (поставлено), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
@@ -141,6 +153,8 @@ fillShipmentDensity15C 'Заполнить значением плотности
 shipmentVolumeInvoiceDetail 'Объем (всего) (поставлено), л' (invoice) = GROUP SUM shipmentVolume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 shipmentVolumeUserInvoiceDetail 'Объем (всего) (поставлено), л' (userInvoice) = GROUP SUM shipmentVolume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
+shipmentTemperature(UserInvoiceDetail detail) <- temperature(detail) IF createShipment(detail)
+    WHEN (CHANGED(temperature(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
 shipmentVolume(UserInvoiceDetail detail) <- volume(detail) IF createShipment(detail)
     WHEN (CHANGED(volume(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
 shipmentDensity(UserInvoiceDetail detail) <- density(detail) IF createShipment(detail)
@@ -152,12 +166,14 @@ backgroundShipmentDensity (UserInvoiceDetail d) = OVERRIDE overBackgroundShipmen
 EXTEND FORM userInvoice
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentVolume AFTER volume(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentDensity AFTER density(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipmentDensity(d) ON CHANGE changeShipmentDensity(d) ON CONTEXTMENU fillShipmentDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentTemperature AFTER temperature(d) SHOWIF (showTemperatureInvoice() AND showShipmentQuantity(i)) BACKGROUND backgroundShipped(i)
 ;
 
 EXTEND FORM invoices
     PROPERTIES(i) READONLY BACKGROUND backgroundShipped(i) shipmentVolumeInvoiceDetail AFTER shipmentQuantityInvoiceDetail(i)
     PROPERTIES(d) READONLY shipmentVolume AFTER volume(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
     PROPERTIES(d) READONLY shipmentDensity AFTER density(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
+    PROPERTIES(d) READONLY shipmentTemperature AFTER temperature(d) SHOWIF (showTemperatureInvoice() AND createShipment(i)) BACKGROUND backgroundShipped(i)
 ;
 
 volume(ShipmentBatch batch) = volume(shipmentDetail(batch));
@@ -165,6 +181,7 @@ volume(ShipmentBatch b) += volume(b);
 density(ShipmentBatch batch) = density(shipmentDetail(batch));
 density(ShipmentBatch b) += density(b);
 
+temperature(InvoiceShipmentDetail shipmentDetail) += shipmentTemperature(invoiceDetail(shipmentDetail));
 volume(InvoiceShipmentDetail shipmentDetail) += shipmentVolume(invoiceDetail(shipmentDetail));
 volume(ShipmentSkuLedger ledger) = volume(shipmentDetail(ledger));
 volumeShipmentSkuLedger (batch) = GROUP SUM volume(ShipmentSkuLedger ledger) IF NOT isCompanySupplier(shipmentDetail(ledger)) BY batch(ledger);

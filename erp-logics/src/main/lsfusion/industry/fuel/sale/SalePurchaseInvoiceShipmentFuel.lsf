@@ -1,0 +1,33 @@
+MODULE SalePurchaseInvoiceShipmentFuel;
+
+REQUIRE SalePurchaseInvoiceShipment, PurchaseShipmentFuel, SaleShipmentFuel;
+
+PRIORITY Sale;
+
+purchaseShipmentVolume 'Объем поставлено (закупка), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+purchaseShipmentVolume 'Объем поставлено (закупка), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
+purchaseShipmentVolume (UserInvoiceDetail invoiceDetail) += purchaseShipmentVolume(invoiceDetail);
+
+purchaseShipmentDensity 'Плотность поставлено (закупка), кг/л' = ABSTRACT NUMERIC[8,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+purchaseShipmentDensity 'Плотность поставлено (закупка), кг/л' = DATA NUMERIC[8,4] (UserInvoiceDetail) CHARWIDTH 7;
+purchaseShipmentDensity (UserInvoiceDetail invoiceDetail) += purchaseShipmentDensity(invoiceDetail);
+
+purchaseShipmentQuantity(UserInvoiceDetail detail) <- shipmentQuantity(detail) WHEN CHANGED(shipmentQuantity(detail)) AND NOT skipChangedPurchaseShipmentQuantity(detail);
+
+purchaseShipmentVolume(UserInvoiceDetail detail) <- shipmentVolume(detail) IF createShipment(detail)
+    WHEN (CHANGED(shipmentVolume(detail)) OR CHANGED(createPurchaseShipment(detail))) AND NOT skipChangedPurchaseShipmentQuantity(detail);
+purchaseShipmentDensity(UserInvoiceDetail detail) <- shipmentDensity(detail) IF createShipment(detail)
+    WHEN (CHANGED(shipmentDensity(detail)) OR CHANGED(createPurchaseShipment(detail))) AND NOT skipChangedPurchaseShipmentQuantity(detail);
+
+shipmentVolume(PurchaseInvoiceDetail detail) += purchaseShipmentVolume(invoiceDetail(detail));
+shipmentDensity(PurchaseInvoiceDetail detail) += purchaseShipmentDensity(invoiceDetail(detail));
+
+EXTEND FORM userInvoice
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) purchaseShipmentVolume AFTER volume(d) SHOWIF createPurchaseShipment[Invoice](i) BACKGROUND backgroundPurchaseShipment(i)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) purchaseShipmentDensity AFTER density(d) SHOWIF createPurchaseShipment[Invoice](i) BACKGROUND backgroundPurchaseShipment(i)
+;
+
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY purchaseShipmentVolume AFTER volume(d) SHOWIF createPurchaseShipment(i) BACKGROUND backgroundPurchaseShipment(i)
+    PROPERTIES(d) READONLY purchaseShipmentDensity AFTER density(d) SHOWIF createPurchaseShipment(i) BACKGROUND backgroundPurchaseShipment(i)
+;
