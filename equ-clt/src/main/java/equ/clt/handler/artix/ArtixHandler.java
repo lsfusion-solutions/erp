@@ -394,7 +394,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             BigDecimal defaultQuantity = null;
             Integer tmcType = null;
 
-            if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty())) tmcType = 7;
+            if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty() || lotType.equals("beer"))) tmcType = 7;
 
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
             if (tobacco) tmcType = 3;
