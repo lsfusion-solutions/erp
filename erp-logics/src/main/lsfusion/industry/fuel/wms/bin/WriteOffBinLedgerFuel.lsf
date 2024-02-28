@@ -29,7 +29,7 @@ fillDensityAOutBin 'Заполнить расчётным значением п�
 //overBackgroundDensity(UserWriteOffDetail d) += WHEN density(d) != densityBOutBin(d) THEN RGB(255,154,154);
 
 EXTEND FORM userWriteOff
-    PROPERTIES(d) READONLY AFTER nameOutBin(d) densityBOutBin BACKGROUND backgroundBins(w)
+    PROPERTIES(d) SHOWIF useBins(w) READONLY AFTER nameOutBin(d) densityBOutBin BACKGROUND backgroundBins(w)
 ;
 
 //----------------------------- переименование ячейки в резервуар -----------------------------//
@@ -50,3 +50,35 @@ DESIGN writeOffs {
     PROPERTY(nameInBin(d)) { caption = 'Резервуар (в)'; hide = TRUE; }
     PROPERTY(nameOutBin(d)) { caption = 'Резервуар (из)'; }
 }
+
+//----------------------------- Технологический отпуск из ТРК -----------------------------//
+
+onStarted() + {
+    IF NOT reason('Технологический отпуск из ТРК') THEN NEW r = Reason {
+        name(r) <- 'Технологический отпуск из ТРК';
+    }
+}
+
+outGun 'Пистолет (из)' = DATA Gun(UserWriteOffDetail);
+outGun 'Пистолет (из)' = ABSTRACT Gun(WriteOffDetail) MATERIALIZED;
+outGun (UserWriteOffDetail writeOffDetail) += outGun(writeOffDetail);
+
+nameOutGun 'Пистолет (из)' (WriteOffDetail writeOffDetail) = fullNumber(outGun(writeOffDetail)) CHARWIDTH 12;
+nameOutGun 'Пистолет (из)' (UserWriteOffDetail writeOffDetail) = fullNumber(outGun(writeOffDetail)) CHARWIDTH 12;
+
+CONSTRAINT outGun(WriteOffDetail detail) AND outBin(detail) AND NOT bin(outGun(detail)) == outBin(detail)
+    CHECKED BY outGun[WriteOffDetail] MESSAGE 'Пистолет (из) и резервуар (из) не имеют связи';
+
+checkOutGun (WriteOffDetail detail) = reason(detail) == reason('Технологический отпуск из ТРК');
+
+CONSTRAINT isPosted(WriteOffDetail d) AND checkOutGun(d) AND NOT outGun(d)
+    MESSAGE 'Для строки списания обязан быть задан пистолет (из)';
+
+EXTEND FORM userWriteOff
+    PROPERTIES(d) SHOWIF useBins(w) AFTER nameOutBin(d) nameOutGun BACKGROUND backgroundBins(w)
+;
+
+volumeOutTechFuel 'Расход из резервуара (технологический), л' (Sku sku, Bin bin, Gun gun, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM volume(WriteOffBinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo AND reason(writeOffDetail(ledger)) == reason('Технологический отпуск из ТРК') BY sku(ledger), outBin(ledger), outGun(writeOffDetail(ledger));
+quantityOutTechFuel 'Расход из резервуара (технологический)' (Sku sku, Bin bin, Gun gun, DATETIME dateTimeFrom, DATETIME dateTimeTo) =
+    GROUP SUM quantity(WriteOffBinLedger ledger) IF isPosted(ledger) AND dateTime(ledger) >= dateTimeFrom AND dateTime(ledger)<= dateTimeTo AND reason(writeOffDetail(ledger)) == reason('Технологический отпуск из ТРК') BY sku(ledger), outBin(ledger), outGun(writeOffDetail(ledger));

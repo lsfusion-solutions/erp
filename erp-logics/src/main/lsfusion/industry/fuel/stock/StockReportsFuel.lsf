@@ -1,8 +1,20 @@
 MODULE StockReportsFuel;
 
-REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment, ZReportFuel, SkuLedgerFuel;//, EmployeeStock, Document, Historizable;
+REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment, ZReportFuel, SkuLedgerFuel, WriteOffBinLedgerFuel;
 
 NAMESPACE StockReports;
+
+dataAllowedDebalancePercent 'Процент допустимого дебаланса, %' = DATA NUMERIC[5,2] ();
+allowedDebalancePercent 'Процент допустимого дебаланса, %' = OVERRIDE dataAllowedDebalancePercent(), 0.65;
+
+EXTEND FORM options
+    PROPERTIES allowedDebalancePercent()
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(allowedDebalancePercent());
+    }
+}
 
 CLASS DailyReport 'Сменный отчет';
 TABLE dailyReport (DailyReport);
@@ -120,7 +132,7 @@ balanceATon 'Расчетный (книжный) остаток, т' (DailyRepor
 debalanceQuantity 'Дебаланс фактический, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
 debalanceQuantityTon 'Дебаланс фактический, т' (DailyReport r, Sku s, Bin b) = NUMERIC[16,6](debalanceQuantity(r,s,b) / 1000);
 allowedDebalanceQuantity 'Дебаланс допустимый, кг' = DATA NUMERIC[16,6] (DailyReport, Sku, Bin);
-allowedDebalanceQuantityTon 'Дебаланс фактическийдопустимый, т' (DailyReport r, Sku s, Bin b) = NUMERIC[16,6](allowedDebalanceQuantity(r,s,b) / 1000);
+allowedDebalanceQuantityTon 'Дебаланс допустимый, т' (DailyReport r, Sku s, Bin b) = NUMERIC[16,6](allowedDebalanceQuantity(r,s,b) / 1000);
 
 lastDailyReportDensity (Stock st, Sku s, Bin b) += density([GROUP LAST DailyReport r IF isPosted(r) ORDER dateTime(r), r BY stock(r)](st), s, b);
 
@@ -224,19 +236,26 @@ fill 'Заполнить' (DailyReport r) {
     
     beforeFill(r);
     
+    techVolumeOut(r, Sku s, Bin b, Gun g) <- NUMERIC[16,2](volumeOutTechFuel(s,b,g,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    techQuantityOut(r, Sku s, Bin b, Gun g) <- NUMERIC[16,6](quantityOutTechFuel(s,b,g,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    //errorPercent(r, Sku s, Bin b, Gun g) <- 
+    
+    include(r, Sku s, Bin b, Gun g) <- volumeCounterB(r,s,b,g) OR volumeCounterA(r,s,b,g) OR volumeOut(r,s,b,g) OR quantityOut(r,s,b,g) OR techVolumeOut(r,s,b,g) OR techQuantityOut(r,s,b,g);//(include(r,s,b) AND bin(g) == b) не проверяем чисто на галки т.к. пистолет могут переключить на другой резервуар и тогда данные будут в двух строках
+
     volumeB(r, Sku s, Bin b) <- NUMERIC[16,2](volumeB(s,b,fromDateTime(r))) WHERE in(stock(r),b);
-    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
+    balanceB(r, Sku s, Bin b) <- NUMERIC[16,6](balanceB(s,b,fromDateTime(r))) WHERE in(stock(r),b);
     volumeIn(r, Sku s, Bin b) <- NUMERIC[16,2](volumeIn(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
-    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
-    //volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
-    //quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r)));// / 1000.0) WHERE in(stock(r),b);
+    quantityIn(r, Sku s, Bin b) <- NUMERIC[16,6](quantityIn(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    volumeOut(r, Sku s, Bin b) <- NUMERIC[16,2](volumeOut(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    quantityOut(r, Sku s, Bin b) <- NUMERIC[16,6](quantityOut(s,b,fromDateTime(r),toDateTime(r))) WHERE in(stock(r),b);
+    otherVolumeOut(r, Sku s, Bin b) <- volumeOut(r,s,b) (-) (GROUP SUM volumeOut(r,s,b, Gun g)) (-) (GROUP SUM techVolumeOut(r,s,b, Gun g));
+    otherQuantityOut(r, Sku s, Bin b) <- quantityOut(r,s,b) (-) (GROUP SUM quantityOut(r,s,b, Gun g)) (-) (GROUP SUM techQuantityOut(r,s,b, Gun g));
     volumeA(r, Sku s, Bin b) <- NUMERIC[16,2](volumeA(s,b,toDateTime(r))) WHERE in(stock(r),b);
-    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r))) WHERE in(stock(r),b);// / 1000.0);
+    balanceA(r, Sku s, Bin b) <- NUMERIC[16,6](balanceA(s,b,toDateTime(r))) WHERE in(stock(r),b);
+    debalanceQuantity(r, Sku s, Bin b) <- factBalanceA(r,s,b) (-) balanceA(r,s,b);
+    allowedDebalanceQuantity(r, Sku s, Bin b) <- NUMERIC[16,6](binBalanceA(r,s,b) * allowedDebalancePercent() / 100.0);
     
     include(r, Sku s, Bin b) <- volumeB(r,s,b) OR balanceB(r,s,b) OR volumeIn(r,s,b) OR quantityIn(r,s,b) OR volumeOut(r,s,b) OR quantityOut(r,s,b) OR volumeA(r,s,b) OR balanceA(r,s,b) OR binVolumeA(r,s,b) OR binBalanceA(r,s,b);
-    
-    
-    include(r, Sku s, Bin b, Gun g) <- volumeCounterB(r,s,b,g) OR volumeCounterA(r,s,b,g) OR volumeOut(r,s,b,g) OR quantityOut(r,s,b,g);//(include(r,s,b) AND bin(g) == b) не проверяем чисто на галки т.к. пистолет могут переключить на другой резервуар и тогда данные будут в двух строках
     
     sum(r, CashRegister c, PaymentType t, Sku s) <- GROUP SUM sum(ReceiptDetail d, Payment p) IF isPosted(d) AND isFuel(sku(d))
                                                     AND sku(d) == s AND paymentType(p) == t AND cashRegister(receipt(d)) == c

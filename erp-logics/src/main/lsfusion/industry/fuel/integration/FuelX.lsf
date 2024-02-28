@@ -825,12 +825,16 @@ beforeFill(DailyReport r) + {
     quantityOut(r, Sku s, Bin b, Gun g) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND numberF(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report());
     density(r, Sku s, Bin b, Gun g) <- NUMERIC[8,1]((GROUP SUM densityF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND numberF(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report()) /
                                        (GROUP SUM 1 IF gradeCodeF(INTEGER i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND numberF(i) == number(pump(g)) AND nozzleNumberF(i) == number(g) AND stock(g) == stock(r) AND reportsReportFuellings(i) == report()));
-    volumeOut(r, Sku s, Bin b) <- (GROUP SUM volumeF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
-    quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
+    //volumeOut(r, Sku s, Bin b) <- (GROUP SUM volumeF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
+    //quantityOut(r, Sku s, Bin b) <- (GROUP SUM massF(INTEGER i) IF gradeCodeF(i) == id(s) AND tankF(i) == number(b) AND in(stock(r),b) AND reportsReportFuellings(i) == report());
     level(r, Sku s, Bin b) <- (GROUP LAST levelT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     waterLevel(r, Sku s, Bin b) <- (GROUP LAST waterLevelT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    volume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    waterVolume(r, Sku s, Bin b) <- (GROUP LAST waterVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    fuelVolume(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) (-)
+                                   (GROUP LAST waterVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
+    correctedVolume(r, Sku s, Bin b) <- (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) (-)
+                                        (GROUP LAST correctedWaterVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     density(r, Sku s, Bin b) <- (GROUP LAST densityT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     correctedDensity(r, Sku s, Bin b) <- NUMERIC[8,1]((GROUP LAST correctedMassT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i) * 1000.0 /
                                          (GROUP LAST correctedVolumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i));
@@ -838,11 +842,9 @@ beforeFill(DailyReport r) + {
     correctedTemperature(r, Sku s, Bin b) <- (GROUP LAST temperatureT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     binVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
     binBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    //pipeVolumeA(r, Sku s, Bin b) <- NULL;
-    //pipeBalanceA(r, Sku s, Bin b) <- NULL;
-    factVolumeA(r, Sku s, Bin b) <- (GROUP LAST volumeT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    factBalanceA(r, Sku s, Bin b) <- (GROUP LAST massT(INTEGER i) IF gradeCodeT(i) == id(s) AND numberT(i) == number(b) AND in(stock(r),b) AND reportsReportTanks(i) == report() ORDER i);
-    //debalanceQuantity(r, Sku s, Bin b) <- NULL;
-    //allowedDebalanceQuantity(r, Sku s, Bin b) <- NULL;
+    pipeVolumeA(r, Sku s, Bin b) <- NUMERIC[16,2](pipeVolume(b)) WHERE binVolumeA(r,s,b);
+    pipeBalanceA(r, Sku s, Bin b) <- NUMERIC[16,6](pipeVolumeA(r,s,b) * density(r,s,b) / 1000.0);
+    factVolumeA(r, Sku s, Bin b) <- binVolumeA(r,s,b) (+) pipeVolumeA(r,s,b);
+    factBalanceA(r, Sku s, Bin b) <- binBalanceA(r,s,b) (+) pipeBalanceA(r,s,b);
 }
 
