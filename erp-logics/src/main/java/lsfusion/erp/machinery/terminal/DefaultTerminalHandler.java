@@ -436,7 +436,7 @@ public class DefaultTerminalHandler {
         return null;
     }
 
-    public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+    public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(terminalTeamWorkLM != null) {
             FileData jsonFile = null;
             if (!TextUtils.isEmpty(json))
@@ -450,7 +450,7 @@ public class DefaultTerminalHandler {
         return null;
     }
 
-    public RawFileData getMoves(DataSession session, ExecutionStack stack, String barcode, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
+    public RawFileData getMoves(DataSession session, ExecutionStack stack, String barcode, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if (terminalHandlerLM != null) {
 
             ObjectValue stockObject;
@@ -708,7 +708,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.equals("")) {
+                if (userInfo.idApplication.isEmpty()) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX zayavki_post ON zayavki (post);");
                     }
@@ -899,7 +899,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.equals("")) {
+                if (userInfo.idApplication.isEmpty()) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX assort_k ON assort (post,barcode);");
                     }
@@ -979,7 +979,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.equals("")) {
+                if (userInfo.idApplication.isEmpty()) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX ana_naim ON ana (naim ASC);");
                     }
@@ -1076,7 +1076,7 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
-                if (userInfo.idApplication.equals("")) {
+                if (userInfo.idApplication.isEmpty()) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX batch_k ON batch (idbatch,barcode);");
                     }
