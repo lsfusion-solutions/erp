@@ -1491,6 +1491,9 @@ public class DefaultTerminalHandler {
                     String minDeviationDate = formatDate((LocalDate) entry.get("minDeviationDate"));
                     String maxDeviationDate = formatDate((LocalDate) entry.get("maxDeviationDate"));
                     String vop = (String) entry.get("vop");
+                    if (vop != null && vop.contains(",") && userInfo.idApplication.isEmpty() ) {
+                        vop = vop.split(",", 2)[0]; //старые ТСД не поддерживают несколько vop. грузим только первый
+                    }
                     String extraBarcodes = (String) entry.get("extraBarcodes");
                     List<String> extraBarcodeList = extraBarcodes != null ? Arrays.asList(extraBarcodes.split(",")) : new ArrayList<>();
                     Long flags = (Long) entry.get("flags");
