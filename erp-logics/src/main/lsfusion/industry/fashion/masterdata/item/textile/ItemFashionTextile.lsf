@@ -1,15 +1,34 @@
 MODULE ItemFashionTextile;
 
-REQUIRE ItemFashion;
+REQUIRE ItemFashion, ItemDescription;
 
 NAMESPACE Item;
 
 
 // Переименование Артикул в Модель
 
+EXTEND FORM articles
+    PROPERTIES (i) READONLY idBarcode BEFORE caption(i), nameSort
+;
+
 DESIGN articles 'Модели' {
     BOX(a) {caption = 'Модели';}
     PROPERTY (id(a)){charWidth = 20; caption = 'Код модели';}
+
+    BOX {size = (1152, 768);}
+    articleItemBox {
+        NEW tabs {
+            fill = 1;
+            tabbed = TRUE;
+            MOVE BOX(i){
+                caption = 'Товары';
+                PROPERTY (composition(i)){charWidth = 30;}
+                PROPERTY (nameColor(i)){charWidth = 15;}
+                PROPERTY (nameSize(i)){charWidth = 15;}
+                PROPERTY (nameSort(i)){charWidth = 5;}
+            }
+        }
+    }
 }
 
 DESIGN article 'Модель' {
@@ -54,14 +73,6 @@ DESIGN batches {
 model 'Артикул' = DATA STRING[40](Article) CHARWIDTH 20;
 model 'Артикул' (Item i) = model(article(i)) IN itemArticle;
 
-EXTEND FORM article
-    PROPERTIES (a) model
-;
-
-EXTEND FORM articles
-    PROPERTIES (a) READONLYIF isReadonly() BEFORE canonicalNameItemGroup(a) model
-;
-
 EXTEND FORM item
     PROPERTIES (i) READONLY model
 ;
@@ -85,3 +96,84 @@ EXTEND FORM items
         FILTER 'Собственные' isOwn(i)
         FILTER 'Не собственные' NOT isOwn(i)
 ;
+
+CLASS GOST 'ГОСТ' ;
+TABLE gost (GOST);
+
+name 'Наименование' = DATA ISTRING[30](GOST) CHARWIDTH 15;
+description 'Описание' = DATA ISTRING[100](GOST);
+
+FORM GOST 'ГОСТ'
+    OBJECTS s = GOST PANEL
+    PROPERTIES(s) name, description
+    EDIT GOST OBJECT s
+;
+
+FORM GOSTs 'ГОСТы'
+    OBJECTS s = GOST
+    PROPERTIES(s) READONLYIF isReadonly() name, description
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(s)
+
+    LIST GOST OBJECT s
+;
+
+@extendFormEditable(GOSTs);
+
+CLASS ArticleKind 'Вид изделия';
+TABLE articleKind (ArticleKind);
+
+name 'Наименование' = DATA ISTRING[120](ArticleKind) IN id;
+fullName 'Полное наименование (для заявки на EAN)' = DATA ISTRING[120](ArticleKind);
+
+articleKind = DATA ArticleKind (Article) INDEXED;
+nameArticleKind 'Вид изделия'(Article a) = name(articleKind(a));
+
+CONSTRAINT DROPPED(ArticleKind a IS ArticleKind) AND [GROUP SUM 1 IF NOT articleKind(Article io) BY PREV(articleKind(io))](a)
+    MESSAGE 'Запрещено удалять вид изделия при наличии моделей по нему';
+
+WHEN LOCAL FORMS article CHANGED(articleKind(Article a)) AND NOT CHANGED(caption(a)) DO
+    caption(a) <- name(articleKind(a));
+
+articleKind(Item i) = articleKind(article(i));
+nameArticleKind 'Вид изделия'(Item i) = nameArticleKind(article(i));
+
+FORM articleKind 'Вид изделия'
+    OBJECTS t = ArticleKind PANEL
+    PROPERTIES(t) name, fullName
+    EDIT ArticleKind OBJECT t
+;
+
+FORM articleKinds 'Виды изделий'
+    OBJECTS t = ArticleKind
+    PROPERTIES(t) READONLYIF isReadonly() name, fullName
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(t)
+
+    OBJECTS a = Article
+    PROPERTIES (a) READONLY id, model, caption
+    FILTERS articleKind(a) == t
+
+    LIST ArticleKind OBJECT t
+;
+
+DESIGN articleKinds {
+    BOX(a){
+        caption = 'Модель';
+    }
+}
+
+EXTEND FORM article
+    PROPERTIES (a) model, nameArticleKind
+;
+
+EXTEND FORM articles
+    PROPERTIES (a) READONLYIF isReadonly() BEFORE canonicalNameItemGroup(a) model, nameArticleKind
+;
+
+NAVIGATOR {
+    skuNavigator{
+        NEW articleKinds;
+        NEW GOSTs;
+    }
+}
