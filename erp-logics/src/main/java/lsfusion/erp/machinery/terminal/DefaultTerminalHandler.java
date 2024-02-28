@@ -303,6 +303,7 @@ public class DefaultTerminalHandler {
                 List<TerminalBatch> batchList = null;
                 if (userInfo.idApplication.equalsIgnoreCase(ID_APPLICATION_TSD) && readBatch)
                     batchList = readBatchList(session, stockObject);
+                List<TerminalBatch> extraBatchList = readExtraBatchList(session, stockObject);
 
                 List<TerminalOrder> orderList = readTerminalOrderList(session, stockObject, userInfo);
                 List<SkuExtraBarcode> skuExtraBarcodeList = readSkuExtraBarcodeList(session, stockObject);
@@ -321,7 +322,7 @@ public class DefaultTerminalHandler {
                     updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, userInfo);
 
                     createBatchesTable(connection);
-                    updateBatchesTable(connection, batchList, prefix, userInfo);
+                    updateBatchesTable(connection, batchList, extraBatchList, prefix, userInfo);
 
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix, userInfo);
@@ -601,6 +602,36 @@ public class DefaultTerminalHandler {
                 String extraField = trim((String) entry.get("extraField").getValue());
 
                 result.add(new TerminalBatch(String.valueOf(idBatch), idBarcode, idSupplier, date, number, cost, extraField));
+            }
+        }
+        return result;
+    }
+
+    private List<TerminalBatch> readExtraBatchList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalBatch> result = new ArrayList<>();
+        if(terminalHandlerLM != null) {
+
+            KeyExpr seriesExpr = new KeyExpr("series");
+            KeyExpr skuExpr = new KeyExpr("sku");
+            ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap("series", seriesExpr, "sku", skuExpr);
+            QueryBuilder<Object, Object> extBatckQuery = new QueryBuilder<>(keys);
+
+            extBatckQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(session.getModifier(),skuExpr));
+            extBatckQuery.addProperty("cost", terminalHandlerLM.findProperty("priceOverBatch[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
+
+            extBatckQuery.and(terminalHandlerLM.findProperty("filterOverBatch[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()).getWhere());
+
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> extBatchResult = extBatckQuery.executeClasses(session);
+            for (int i = 0; i < extBatchResult.size(); i++) {
+
+                String series = (String) extBatchResult.getKey(i).get("series").getValue();
+
+                ImMap<Object, ObjectValue> entry = extBatchResult.getValue(i);
+
+                String idBarcode = trim((String) entry.get("idBarcode").getValue());
+                BigDecimal cost = (BigDecimal) entry.get("cost").getValue();
+
+                result.add(new TerminalBatch(series, idBarcode, null, null, null, cost, null));
             }
         }
         return result;
@@ -1052,26 +1083,38 @@ public class DefaultTerminalHandler {
         statement.close();
     }
 
-    private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, String prefix, UserInfo userInfo) throws SQLException {
-        if (terminalBatchList != null && !terminalBatchList.isEmpty()) {
+    private void updateBatchesTable(Connection connection, List<TerminalBatch> terminalBatchList, List<TerminalBatch> terminalExtraBatchList, String prefix, UserInfo userInfo) throws SQLException {
+        if ((terminalBatchList != null && !terminalBatchList.isEmpty()) || (terminalExtraBatchList != null && !terminalExtraBatchList.isEmpty())){
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO batch VALUES(?,?,?,?,?,?,?);";
                 statement = connection.prepareStatement(sql);
-                for (TerminalBatch batch : terminalBatchList) {
-                    if (batch.idBatch != null && batch.idBarcode != null) {
-                        statement.setObject(1, formatValue(batch.idBatch));
-                        statement.setObject(2, formatValue(batch.idBarcode));
-                        statement.setObject(3, formatValue(batch.date));
-                        statement.setObject(4, formatValue(batch.number));
-                        String idSupplier = null;
-                        if (batch.idSupplier != null && prefix != null)
-                            idSupplier = prefix + batch.idSupplier;
-                        statement.setObject(5, formatValue(idSupplier));
-                        statement.setObject(6, formatValue(batch.price));
-                        statement.setObject(7, formatValue(batch.extraField));
-                        statement.addBatch();
+                if (terminalBatchList != null) {
+                    for (TerminalBatch batch : terminalBatchList) {
+                        if (batch.idBatch != null && batch.idBarcode != null) {
+                            statement.setObject(1, formatValue(batch.idBatch));
+                            statement.setObject(2, formatValue(batch.idBarcode));
+                            statement.setObject(3, formatValue(batch.date));
+                            statement.setObject(4, formatValue(batch.number));
+                            String idSupplier = null;
+                            if (batch.idSupplier != null && prefix != null)
+                                idSupplier = prefix + batch.idSupplier;
+                            statement.setObject(5, formatValue(idSupplier));
+                            statement.setObject(6, formatValue(batch.price));
+                            statement.setObject(7, formatValue(batch.extraField));
+                            statement.addBatch();
+                        }
+                    }
+                }
+                if (terminalExtraBatchList != null) {
+                    for (TerminalBatch batch : terminalExtraBatchList) {
+                        if (batch.idBatch != null && batch.idBarcode != null) {
+                            statement.setObject(1, formatValue(batch.idBatch));
+                            statement.setObject(2, formatValue(batch.idBarcode));
+                            statement.setObject(6, formatValue(batch.price));
+                            statement.addBatch();
+                        }
                     }
                 }
                 statement.executeBatch();
