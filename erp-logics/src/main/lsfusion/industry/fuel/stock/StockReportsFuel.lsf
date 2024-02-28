@@ -1,6 +1,6 @@
 MODULE StockReportsFuel;
 
-REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment, ZReportFuel;//, EmployeeStock, Document, Historizable;
+REQUIRE BinLedgerFuel, ZReportReceiptDetailPayment, ZReportFuel, SkuLedgerFuel;//, EmployeeStock, Document, Historizable;
 
 NAMESPACE StockReports;
 
@@ -772,5 +772,146 @@ EXTEND FORM dailyReports PROPERTIES dailyReportPrint(r);
 DESIGN dailyReports {
     printContainer {
         MOVE PROPERTY(dailyReportPrint(r));
+    }
+}
+
+volume(Stock st, Bin b) = volume(b) IF in(st, b);
+currentBalance(Stock st, Bin b) =currentBalance(b) IF in(st, b);
+currentVolume(Stock st, Bin b) =currentVolume(b) IF in(st, b);
+FORM stockFuelBalance 'Остатки по АЗС'
+    OBJECTS le = LegalEntity PANEL
+    PROPERTIES(le) name
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a), [GROUP SUM 1 IF isParent(StockGroup sg1, Stock st1) BY sg1, legalEntity(st1)](sg, le)
+
+    OBJECTS tsb = (ts = Stock, b = Bin)
+    PROPERTIES READONLY name(ts)
+    PROPERTIES name(b), volume(b), currentBalance(b), currentVolume(b)
+    ORDERS name(ts), name(b)
+    FILTERS isParent(sg, ts) OR (ts IS Stock AND NOT sg), legalEntity(ts) = le, in(ts, b)
+
+    FILTERGROUP balanceBin 
+        FILTER 'С остатком (резервуар)' currentBalance(b)
+        FILTER 'С движением (резервуар)' OVERRIDE [GROUP MAX BinLedger l1 BY inBin(l1)](b), [GROUP MAX BinLedger l1 BY outBin(l1)](b)
+
+    FILTERGROUP balanceStock
+        FILTER 'С остатком (АЗС)' GROUP SUM 1 IF currentBalance(Sku s, ts)
+        FILTER 'С движением (АЗС)' GROUP SUM 1 IF countLedger(Sku s, ts)
+    
+    TREE treeGroup g=SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(ts)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS s1 = Sku
+    PROPERTIES(s1) READONLY name, idBarcode
+    PROPERTIES (s1, b) READONLY currentBalance, currentVolume
+    ORDERS name(s1)
+    FILTERS isParent(g, s1) OR s1 IS Sku AND NOT g
+    FILTERGROUP isFuels1 FILTER 'Топливо' isFuel(s1) DEFAULT
+
+    OBJECTS l = BinLedger
+    PROPERTIES (l) READONLY dateTime, isPosted, description
+    PROPERTIES(b, l) READONLY balanceBin, balanceQuantity, balanceVolume//, density
+    ORDERS dateTime(l) DESC
+    FILTERS inBin(l)==b OR outBin(l)==b, sku(l)==s1
+    FILTERGROUP postedl
+        FILTER 'Проведен' isPosted(l) DEFAULT
+
+    OBJECTS s2 = Sku
+    PROPERTIES(s2) READONLY name, idBarcode
+    PROPERTIES (s2, ts) READONLY currentBalance, currentVolume
+    ORDERS name(s2)
+    FILTERS isParent(g, s2) OR s2 IS Sku AND NOT g
+    FILTERGROUP isFuels2 FILTER 'Топливо' isFuel(s2) DEFAULT
+
+    OBJECTS sl = SkuLedger
+    PROPERTIES (sl) READONLY dateTime, isPosted, description
+    PROPERTIES (sl) READONLY quantity, volume
+    ORDERS dateTime(sl) DESC
+    FILTERS stock(sl) = ts, sku(sl) = s2
+    FILTERGROUP postedsl
+        FILTER 'Проведен' isPosted(sl) DEFAULT
+
+;
+
+DESIGN stockFuelBalance {
+    BOX {
+        size = (1024, 768);
+        MOVE BOX(le);
+        NEW topContainer {
+            fill = 1;
+            horizontal = TRUE;
+            NEW groupCont {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                    width = 0;
+                }
+                MOVE BOX(TREE treeGroup) {
+                    caption = 'Группы Sku';
+                    width = 0;
+                }
+
+            }
+            NEW itemCont {
+                fill = 3;
+                MOVE BOX(tsb) {
+                    fill = 2.5;
+                    PROPERTY(name(b)) {caption = 'Резервуар';}
+                    PROPERTY(volume(b)) { caption = 'Объем резервуара, л'; }
+                    PROPERTY(currentBalance(b)) { caption = 'Текущий остаток в резервуаре, кг'; }
+                    PROPERTY(currentVolume(b)) { caption = 'Текущий объем в резервуаре, л'; }
+                    GRID(tsb) {
+                        defaultComponent = TRUE;
+                    }
+                }
+                NEW skusTabs {
+                    fill = 2.5;
+                    tabbed = TRUE;
+                    NEW skusStocks {
+                        caption = 'АЗС';
+                        MOVE BOX(s2) {
+                            fill = 2;
+                            BOX(sl);
+                            PROPERTY(currentBalance(s2, ts)) { caption = 'Текущий остаток, кг'; }
+                            PROPERTY(currentVolume(s2, ts));
+                            GRID(s1) {
+                                defaultComponent = TRUE;
+                            }
+                        }
+                        MOVE BOX(sl) {
+                            PROPERTY(quantity(sl)) { caption = 'Кол-во, кг'; }
+                        };
+                    }
+
+                    NEW skusBins {
+                        caption = 'Резервуары';
+                        MOVE BOX(s1) {
+                            fill = 2;
+                            BOX(l) { caption = 'Изменение остатка по резервуарам'; }
+                            PROPERTY(currentBalance(s1, b)) { caption = 'Текущий остаток, кг'; }
+                            PROPERTY(balanceBin(b, l)) { caption = 'Резервуар (из/в)'; }
+                            PROPERTY(balanceQuantity(b, l)) { caption = 'Кол-во, кг'; }
+                            GRID(s1) {
+                                defaultComponent = TRUE;
+                            }
+                        }
+                        MOVE BOX(l);
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    WMSReports {
+        NEW stockFuelBalance;
     }
 }

@@ -114,11 +114,38 @@ backgroundDiffValueBin (Bin b) = CASE
 
 fullVolumePercent 'Занято по объёму, %' (Bin b) = round2(currentVolume(b) / volume(b) * 100.0);
 
+CLASS FullVolumePercentInterval 'Интервал % занятости по объему';
+TABLE fullVolumePercentInterval(FullVolumePercentInterval);
+
+volumeFrom 'От' = DATA NUMERIC[8,2] (FullVolumePercentInterval);
+color 'Подсветка % занятости по объему ' = DATA COLOR (FullVolumePercentInterval);
+
+colorFullVolumePercent(NUMERIC[8,2] f) = GROUP LAST color(FullVolumePercentInterval i)
+    ORDER volumeFrom(i), i
+    WHERE f >= volumeFrom(i);
+
+EXTEND FORM options
+    OBJECTS fvpi = FullVolumePercentInterval
+    PROPERTIES(fvpi) volumeFrom, color, NEW, DELETE GRID 
+    ORDERS volumeFrom(fvpi)
+;
+DESIGN options {
+    commons {
+        MOVE BOX (fvpi);
+    }
+}
+
+backgroundFullVolumePercent (Bin b) = colorFullVolumePercent(fullVolumePercent(b));
+
 EXTEND FORM binBalance
-    PROPERTIES(b) READONLY volume, currentBalance, currentVolume BACKGROUND backgroundDiffValueBin(b), fullVolumePercent, currentDensity
+    PROPERTIES(b) READONLY volume, currentBalance, currentVolume BACKGROUND backgroundDiffValueBin(b), fullVolumePercent BACKGROUND backgroundFullVolumePercent(b), currentDensity
     PROPERTIES(s,b) READONLY currentVolume, currentDensity
     PROPERTIES(b,l) READONLY balanceVolume
     PROPERTIES(l) READONLY density
+    FILTERGROUP isFuel FILTER 'Топливо' isFuel(s) DEFAULT
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(b)
+        FILTER 'С движением' OVERRIDE [GROUP MAX BinLedger l1 BY inBin(l1)](b), [GROUP MAX BinLedger l1 BY outBin(l1)](b)
 ;
 
 EXTEND FORM dialogBinStock
@@ -182,6 +209,11 @@ DESIGN bins {
     BOX(TREE binTree) { caption = 'Группы резервуаров'; }
     BOX(s) { caption = 'Резервуар'; }
 }
+
+EXTEND FORM binStocks
+    FILTERGROUP isFuel FILTER 'Топливо' isFuel(s) DEFAULT
+;
+
 DESIGN binStocks {
     caption = 'Резервуары';
     BOX(TREE binTree) { caption = 'Группы резервуаров'; }
