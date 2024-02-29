@@ -10,7 +10,14 @@ idClient 'Код организации ЕГАИС' (Stock st) = id(client(st));
 shortNameClient 'Организация ЕГАИС' (Stock st) = shortName(client(st));
 descriptionClient 'Описание организации ЕГАИС' (Stock st) = description(client(st));
 
-stock 'Склад' = GROUP AGGR Stock s BY client(s) MATERIALIZED INDEXED;
+multipleStock 'Несколько складов' = DATA BOOLEAN (Client);
+EXTEND FORM client PROPERTIES(o) multipleStock;
+DESIGN client { parametersRow1 { MOVE PROPERTY(multipleStock(o)); }}
+
+CONSTRAINT [GROUP SUM 1 BY client(Stock st)](Client c) > 1 AND NOT multipleStock(c)
+    MESSAGE 'Запрещено привязывать несколько складов к одной организации ЕГАИС';
+
+stock 'Склад' = GROUP MIN Stock s BY client(s) MATERIALIZED INDEXED;
 
 // warehouse
 EXTEND FORM warehouse
