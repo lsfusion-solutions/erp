@@ -276,7 +276,7 @@ fill 'Заполнить' (DailyReport r) {
 
 @addRoleApplicationSetting(allowEditDailyReport, 'Разрешить редактировать сменный отчет', BOOLEAN);
 
-readonlyDailyReport (DailyReport r) = r IS DailyReport AND NOT allowEditDailyReport(mainRole(currentUser()));
+readonlyDailyReport (DailyReport r) = (r IS DailyReport AND NOT allowEditDailyReport(mainRole(currentUser()))) OR isPosted(r);
 
 FORM dailyReport 'Сменный отчет'
     OBJECTS r = DailyReport PANEL
@@ -288,11 +288,11 @@ FORM dailyReport 'Сменный отчет'
     
     OBJECTS d = (s = Sku, b = Bin)
     PROPERTIES READONLYIF readonlyDailyReport(r)
-               name(s) READONLY, volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), otherVolumeOut(r,s,b),
-               otherQuantityOut(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b), name(b) READONLY, level(r,s,b), waterLevel(r,s,b),
+               name(s) READONLY, name(b) READONLY, volumeB(r,s,b) READONLY, balanceB(r,s,b) READONLY, volumeIn(r,s,b) READONLY, quantityIn(r,s,b) READONLY, otherVolumeOut(r,s,b) READONLY,
+               otherQuantityOut(r,s,b) READONLY, volumeOut(r,s,b) READONLY, quantityOut(r,s,b) READONLY, level(r,s,b), waterLevel(r,s,b),
                volume(r,s,b), waterVolume(r,s,b), fuelVolume(r,s,b), correctedVolume(r,s,b), density(r,s,b), correctedDensity(r,s,b),
-               temperature(r,s,b), correctedTemperature(r,s,b), binVolumeA(r,s,b), binBalanceA(r,s,b), pipeVolumeA(r,s,b), pipeBalanceA(r,s,b),
-               factVolumeA(r,s,b), factBalanceA(r,s,b), volumeA(r,s,b), balanceA(r,s,b), debalanceQuantity(r,s,b), allowedDebalanceQuantity(r,s,b)
+               temperature(r,s,b), correctedTemperature(r,s,b), binVolumeA(r,s,b), binBalanceA(r,s,b), pipeVolumeA(r,s,b) READONLY, pipeBalanceA(r,s,b) READONLY,
+               factVolumeA(r,s,b), factBalanceA(r,s,b), volumeA(r,s,b) READONLY, balanceA(r,s,b) READONLY, debalanceQuantity(r,s,b)
     FILTERS include(r,s,b)
     
     OBJECTS g = Gun
@@ -408,8 +408,8 @@ FORM dailyReports 'Сменные отчеты'
             filterStock(r)
     
     OBJECTS d = (s = Sku, b = Bin)
-    PROPERTIES READONLY name(s), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b),
-                        name(b), volumeA(r,s,b), balanceA(r,s,b)
+    PROPERTIES READONLY name(s), name(b), volumeB(r,s,b), balanceB(r,s,b), volumeIn(r,s,b), quantityIn(r,s,b), volumeOut(r,s,b), quantityOut(r,s,b),
+                        volumeA(r,s,b), balanceA(r,s,b), factVolumeA(r,s,b), factBalanceA(r,s,b), debalanceQuantity(r,s,b)
     FILTERS include(r,s,b)
     
     OBJECTS dd = (c = CashRegister, t = PaymentType)
