@@ -15,6 +15,17 @@ useAllEnterprises 'Использовать все площадки владел
 TABLE stockEnterprise (Stock, Enterprise);
 in (Stock s, Enterprise e) = enterprise(s) = e OR (useAllEnterprises(s) AND owner(e) = owner(enterprise(s))) MATERIALIZED;
 
+accessCompany = GROUP SUM 1 IF accessCompany(Employee employee, Stock stock) AND in(stock, Enterprise e) BY employee, e;
+
+accessVetDocument (Employee employee, VetDocument vet) = 
+    accessCompany(employee, consignorEnterprise(vet)) OR
+    accessCompany(employee, consigneeEnterprise(vet)) OR
+    (NOT consignorEnterprise(vet) AND accessCompany(employee, consigneeEnterprise(vet))) OR
+    (NOT consigneeEnterprise(vet) AND accessCompany(employee, consignorEnterprise(vet))) OR
+    (NOT consignorEnterprise(vet) AND NOT consigneeEnterprise(vet));
+
+EXTEND FORM vetDocuments FILTERS accessVetDocument(currentUser(), o) OR NOT limitAccess(currentUser());
+
 CONSTRAINT enterprise(Stock st) AND NOT owner(enterprise(st)) = businessEntity(legalEntity(st))
     CHECKED BY enterprise[Stock]
     MESSAGE 'ХС организации склада должен совпадать с владельцем площадки склада'; 
