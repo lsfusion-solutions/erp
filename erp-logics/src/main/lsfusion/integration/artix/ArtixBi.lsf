@@ -1,0 +1,40 @@
+MODULE ArtixBi;
+
+REQUIRE ZReport;
+
+NAMESPACE Artix;
+
+countReceipt(DepartmentStore ds, DATE d) = GROUP SUM countReceipt(ZReport z) IF departmentStore(z) == ds AND date(z) == d;
+
+artixGetCheques(FILE f) {
+    IF method() == 'POST' THEN {
+        LOCAL dateStart, dateEnd = DATE ();
+        IMPORT JSON FROM f TO () dateStart, dateEnd;
+        IF dateStart() AND dateEnd() THEN {
+            EXPORT JSON 
+                FROM store = name(DepartmentStore ds), date = DATE d, quantity = countReceipt(ds, d)
+                WHERE countReceipt(ds, d) AND iterate(d, dateStart(), dateEnd());
+        } ELSE {
+            statusHttpTo() <- 400;
+        }
+    } ELSE {
+        statusHttpTo() <- 405;
+    }
+} @@api;
+
+artixGetSales(FILE f) {
+    IF method() == 'POST' THEN {
+        LOCAL dateStart, dateEnd = DATE ();
+        IMPORT JSON FROM f TO () dateStart, dateEnd;
+        IF dateStart() AND dateEnd() THEN {
+            EXPORT JSON 
+                FROM store = name(DepartmentStore ds), date = DATE d, category = nameSkuGroup(Sku s), sku = name(s),
+                    quantity = quantitySold(s, ds, d), amount = sumSold(s, ds, d)
+                WHERE quantitySold(s, ds, d) AND iterate(d, dateStart(), dateEnd());
+        } ELSE {
+            statusHttpTo() <- 400;
+        }
+    } ELSE {
+        statusHttpTo() <- 405;
+    }
+} @@api;
