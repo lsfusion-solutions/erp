@@ -470,16 +470,9 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(sqlDateToLocalDate(userPriceListDetailList.get(i).dateVAT));
 
-                ImportField countryVATField = new ImportField(findProperty("name[Country]"));
-                ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
-                        findProperty("countryName[ISTRING[50]]").getMapping(countryVATField));
-                keys.add(countryKey);
-                props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VAT[Item,Country]").getMapping(itemKey, countryKey),
+                ObjectValue defaultCountryObject = getDefaultCountryObject(context);
+                props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VAT[Item,Country]").getMapping(itemKey, defaultCountryObject),
                         object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
-                fields.add(countryVATField);
-                String defaultCountry = getDefaultCountry(context);
-                for (int i = 0; i < userPriceListDetailList.size(); i++)
-                    data.get(i).add(defaultCountry);
             }
 
             if (itemAlcoholLM != null && showField(userPriceListDetailList, "alcoholSupplierType")) {

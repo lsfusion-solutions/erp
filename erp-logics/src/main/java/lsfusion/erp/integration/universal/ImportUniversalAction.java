@@ -8,6 +8,8 @@ import lsfusion.base.Pair;
 import lsfusion.base.file.IOUtils;
 import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -1385,10 +1387,11 @@ public abstract class ImportUniversalAction extends DefaultImportAction {
         return result;
     }
 
-    protected String getDefaultCountry(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String defaultCountry = (String) findProperty("nameDefaultCountry[]").read(context);
-        if (defaultCountry == null)
-            defaultCountry = "БЕЛАРУСЬ";
-        return defaultCountry;
+    protected ObjectValue getDefaultCountryObject(ExecutionContext<ClassPropertyInterface> context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        ObjectValue defaultCountry = findProperty("defaultCountry[]").readClasses(context);
+        if(defaultCountry instanceof DataObject) {
+            return defaultCountry;
+        }
+        return findProperty("countryName[STRING]").readClasses(context, new DataObject("БЕЛАРУСЬ"));
     }
 }
