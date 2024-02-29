@@ -75,9 +75,9 @@ idF2Reg 'Справка Б' (ActWriteOffMark p) = idF2Reg(actWriteOffPosition(p)
 
 markCode 'Код маркировки' = DATA MarkCode (ActWriteOffMark) NONULL INDEXED;
 idMarkCode 'Код маркировки' (ActWriteOffMark m) = id(markCode(m));
-
+dataQuantity = DATA INTEGER (ActWriteOffPosition);
 quantity 'Кол-во' (ActWriteOffPosition p) = GROUP SUM 1 IF actWriteOffPosition(ActWriteOffMark m) = p MATERIALIZED;
-
+overQuantity 'Кол-во' (ActWriteOffPosition p) = OVERRIDE dataQuantity(p), quantity(p);
 // header properties
 
 FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
@@ -87,7 +87,7 @@ FORM actWriteOff 'Акт о списании с баланса ЕГАИС'
                   idType, note
 
     OBJECTS p = ActWriteOffPosition
-    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, quantity,
+    PROPERTIES(p) idProduct, fullNameProduct, idF2Reg, overQuantity,
         NEW, DELETE
     FILTERS actWriteOff(p) = w
 
@@ -117,7 +117,7 @@ FORM actWriteOffs 'Списания с баланса'
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
 
     OBJECTS p = ActWriteOffPosition
-    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, quantity
+    PROPERTIES(p) READONLY idProduct, fullNameProduct, idF2Reg, overQuantity
     FILTERS actWriteOff(p) = d
 
     OBJECTS m = ActWriteOffMark

@@ -1,0 +1,68 @@
+MODULE EGAISZReportNotLotAlcohol;
+
+REQUIRE EGAISZReportLot, EGAISItem;
+
+NAMESPACE EGAIS;
+
+soldNotLot 'Продано за день' (Client c, Sku l, DATE d) =
+    [GROUP SUM quantity(ReceiptSaleDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d) (-)
+        [GROUP SUM quantity(ReceiptReturnDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d);
+
+notLot 'Без марок' = DATA BOOLEAN (ActWriteOff);
+EXTEND FORM actWriteOffs
+    PROPERTIES (d) READONLY notLot
+;
+
+EXTEND FORM actWriteOff
+    PROPERTIES (w) READONLY notLot
+;
+
+skipCreateActLot  (ActWriteOff w) += notLot(w);
+actWriteOffNotLot = GROUP MAX ActWriteOff a IF skipCreateActLot(a) BY client(a), date(a), type(a);
+
+createActWriteOffNotLot 'Создать списание на основе реализации' (Client c, DATE d) {
+    NEWSESSION {
+        LOCAL q = NUMERIC[16,5](Sku);
+        LOCAL to = NUMERIC[16,5](F2Reg);
+        q(Sku s) <- soldNotLot(c, s, d) IF soldNotLot(c, s, d) > 0;
+
+        LOCAL q = NUMERIC[16,5](Sku, F2Reg);
+        LOCAL balance = NUMERIC[16,5](F2Reg);
+        balance(F2Reg f) <- currentBalance(f) WHERE (GROUP SUM 1 IF q(Sku s) AND client(f) == c AND in(s, product(f))) AND currentBalance(f)>0;
+        
+        FOR q(Sku s) DO {
+            
+            q(s, F2Reg f) <- (PARTITION UNGROUP q
+                LIMIT (balance(f) (-) (GROUP SUM q(Sku ss, f))) IF client(f) == c AND in(s, product(f))
+                ORDER f
+                BY s)
+                WHERE balance(f) AND client(f) == c AND in(s, product(f));
+        }
+        to(F2Reg f) <- (GROUP SUM q(Sku ss, f));
+
+        IF (GROUP SUM 1 IF to(F2Reg l)) THEN NEW a = ActWriteOff {
+            posted(a) <- TRUE;
+            notLot(a) <- TRUE;
+
+            client(a) <- c;
+            dateTime(a) <- dateTimeToDateTime(d, 23:59);
+            type(a) <- writeOffType('Розничная продажа');
+            note(a) <- 'Списание на основе реализации';
+
+            FOR to(F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
+                actWriteOff(ps) <- a;
+
+                product(ps) <- product(f);
+                f2Reg(ps) <- f;
+                dataQuantity(ps) <- to(f);
+            }
+            APPLY;
+        }
+    }
+}
+
+createActWriteOffNotLot 'Создать списание ЕГАИС на основе реализации (без марок)' () {
+    FOR iterate(DATE d, sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)), sum(currentDate(), -1)) DO {
+        FOR own(Client c) AND NOT actWriteOffNotLot(c, d, writeOffType('Розничная продажа')) DO createActWriteOffNotLot(c, d);
+    }
+}

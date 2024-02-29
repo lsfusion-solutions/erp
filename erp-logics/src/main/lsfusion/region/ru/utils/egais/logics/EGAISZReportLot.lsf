@@ -9,7 +9,9 @@ sold 'Продано за день' (Client c, Lot l, DATE d) =
     [GROUP SUM quantity(ReceiptSaleDetail sd) IF isPosted(sd) BY client(departmentStore(sd)), lot(sd), date(sd)](c, l, d) (-)
     [GROUP SUM quantity(ReceiptReturnDetail sd) IF isPosted(sd) BY client(departmentStore(sd)), lot(sd), date(sd)](c, l, d);
 
-actWriteOff = GROUP MAX ActWriteOff a BY client(a), date(a), type(a);
+skipCreateActLot 'Без марок' = ABSTRACT VALUE BOOLEAN (ActWriteOff);
+
+actWriteOff = GROUP MAX ActWriteOff a IF a IS ActWriteOff AND NOT skipCreateActLot(a) BY client(a), date(a), type(a);
 
 createActWriteOff 'Создать списание на основе реализации' (Client c, DATE d) {
     NEWSESSION {
