@@ -1,0 +1,120 @@
+MODULE MapFuel;
+
+REQUIRE Geo, Icon, 
+        Dashboard, Security, Utils, WMS, Store, Warehouse, ZReportReport, BinLedgerFuel, Transport;
+
+description 'Описание' = ABSTRACT TEXT (POI);
+color 'Цвет' = ABSTRACT COLOR (POI);
+skip = ABSTRACT BOOLEAN (POI);
+icon = ABSTRACT STRING (POI);
+
+CLASS DataFuelPOI : POI;
+latitude 'Широта' = DATA NUMERIC[11,6] (DataFuelPOI);
+longitude 'Долгота' = DATA NUMERIC[11,6] (DataFuelPOI);
+name 'Наименование' = DATA ISTRING[200] (DataFuelPOI);
+description 'Описание' = DATA TEXT (DataFuelPOI);
+dataColor 'Цвет' = DATA COLOR (DataFuelPOI);
+icon = DATA STRING (DataFuelPOI);
+icon(DataFuelPOI e) += icon(e);
+
+overColor 'Цвет'(DataFuelPOI e) = OVERRIDE dataColor(e), RGB(255,0,0);
+
+latitude(DataFuelPOI e) += latitude(e);
+longitude(DataFuelPOI e) += longitude(e);
+name(DataFuelPOI e) += name(e);
+description(DataFuelPOI e) += description(e);
+color(DataFuelPOI e) += overColor(e);
+
+FORM DataFuelPOI
+    OBJECTS de = DataFuelPOI
+    PROPERTIES(de) latitude, longitude, name, description, overColor
+
+    EDIT DataFuelPOI OBJECT de
+;
+
+FORM mapFuel 'Карта'
+    OBJECTS o = POI MAP// 'yandex' если есть ключ api указываем yandex или google
+    PROPERTIES (o) READONLYIF NOT o IS DataFuelPOI AND NOT o IS Truck longitude, latitude
+    PROPERTIES (o) READONLYIF NOT o IS DataFuelPOI name BACKGROUND color(o), color, icon BACKGROUND color(o)
+    PROPERTIES(o) READONLYIF NOT o IS DataFuelPOI AND NOT o IS Truck description
+    PROPERTIES(o) PANEL READONLYIF NOT o IS DataFuelPOI name1 'Наименование' = name BACKGROUND color(o)
+    PROPERTIES(o) PANEL READONLYIF NOT o IS DataFuelPOI AND NOT o IS Truck description1 'Описание' = description
+
+    PROPERTIES(o) 'Добавить точку' = NEW[DataFuelPOI]
+    PROPERTIES(o) SHOWIF o IS DataFuelPOI DELETE, EDIT[DataFuelPOI]
+    FILTERS NOT skip(o)
+;
+
+DESIGN mapFuel {
+    GRID(o) { 
+        MOVE PROPERTY (name1) {width = 230;}
+        MOVE PROPERTY (description1) {width = 230;}
+    }
+}
+
+NAVIGATOR {
+    WMSNavigator {
+        NEW mapFuel;
+    }
+}
+
+colorWarehouse 'Цвет оптового склада' = DATA COLOR ();
+color(Warehouse e) += colorWarehouse();
+dataWarehouseIcon 'Изображение хранилища на карте' = DATA STRING ();
+icon(Warehouse e) += (OVERRIDE dataWarehouseIcon(), '$R{fuelWarehouse64.png}')  IF e IS Warehouse;
+description(Warehouse w) += TEXT (CONCAT '\n', address(w));
+
+EXTEND FORM warehouse
+    PROPERTIES (w) color
+;
+DESIGN warehouse {
+    secondRowHeaderLocationParams{
+        MOVE PROPERTY(color(w));
+    }
+}
+
+skip(Store e) += TRUE;
+
+lastDate(DepartmentStore ds) = [GROUP LAST date(ZReport z) IF isPosted(z) ORDER date(z), z BY departmentStore(z)](ds);
+description(DepartmentStore ds) += TEXT (CONCAT '\n',
+    address(ds),
+    (CONCAT '', (CONCAT '', 'Кол-во чеков', ' за (' + toDateDDMMYYYY(lastDate(ds)) + ')'),':    ',  countFiscalReceipt(ds, lastDate(ds))),
+    (CONCAT ':    ','Средний чек ', averageSumReceipt(ds, lastDate(ds))),
+    (CONCAT '', (CONCAT '', 'Кол-во чеков', ' за (' + toDateDDMMYYYY(sum(lastDate(ds),-7)) + ')'),':    ',  countFiscalReceipt(ds, sum(lastDate(ds),-7))),
+    (CONCAT ':    ','Средний чек ', averageSumReceipt(ds, sum(lastDate(ds), -7))));
+
+fullVolumePercent(Stock st) = round2(GROUP SUM currentVolume(Bin b) IF in(st, b)) / (GROUP SUM volume(Bin b) IF in(st, b)) * 100.0;
+color(DepartmentStore e) += colorFullVolumePercent(fullVolumePercent(e));
+dataDepartmentStoreIcon 'Изображение магазина на карте' = DATA STRING ();
+icon(DepartmentStore e) +=  (OVERRIDE dataDepartmentStoreIcon(), '$R{fuelStore64.png}')  IF e IS DepartmentStore;
+
+
+EXTEND CLASS  Truck : POI;
+latitude 'Широта' = DATA NUMERIC[11,6] (Truck);
+longitude 'Долгота' = DATA NUMERIC[11,6] (Truck);
+color 'Цвет (карта АЗС)' = DATA COLOR (Truck);
+
+EXTEND FORM truck
+    PROPERTIES (t) latitude, longitude, color
+;
+
+DESIGN truck {
+    params {
+        NEW mapCont {
+            caption = 'Координаты';
+            horizontal = TRUE;
+            MOVE PROPERTY(latitude(t));
+            MOVE PROPERTY(longitude(t));
+            MOVE PROPERTY(color(t));
+        }
+    }
+
+}
+
+latitude(Truck e) += latitude(e);
+longitude(Truck e) += longitude(e);
+name(Truck e) += name(e);
+description(Truck t) += TEXT (CONCAT '\n', nameTruckModel(t), 'Владелец: ' + owner(t));
+color(Truck e) += color(e);
+dataTruckIcon 'Изображение авто на карте' = DATA STRING ();
+icon(Truck e) += (OVERRIDE dataTruckIcon(), '$R{fuelTruck64.png}')  IF e IS Truck;
