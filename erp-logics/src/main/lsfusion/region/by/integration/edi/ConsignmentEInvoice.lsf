@@ -69,6 +69,13 @@ WHEN LOCAL CHANGED(isTestEInvoice(Invoice i)) AND isEInvoice(i) DO {
     isTestDocument(eInvoice(i)) <- isTestEInvoice(i);
 }
 
+@defineOption(skipChangeReplaceNumber, 'Не заполнять номер заменяемой накладной', EDI);
+prevEinvoice(EInvoice e) = PARTITION PREV e ORDER e BY invoice(e);
+
+WHEN LOCAL CHANGED(invoice(EInvoice e)) AND NOT skipChangeReplaceNumber() DO {
+    changeReplaceNumber(e, deliveryNoteNumber(prevEinvoice(e)));
+}
+
 sendConsignmentEInvoiceAbstract ABSTRACT (Invoice);
 beforeSignAndSendSupplierEDI ABSTRACT LIST (Invoice);
 skipSignAndSendSupplierEDI = DATA LOCAL BOOLEAN () ;
