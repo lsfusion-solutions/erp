@@ -618,6 +618,7 @@ public class DefaultTerminalHandler {
 
             extBatckQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(session.getModifier(),skuExpr));
             extBatckQuery.addProperty("cost", terminalHandlerLM.findProperty("priceOverBatch[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
+            extBatckQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
 
             extBatckQuery.and(terminalHandlerLM.findProperty("filterOverBatch[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()).getWhere());
 
@@ -630,8 +631,9 @@ public class DefaultTerminalHandler {
 
                 String idBarcode = trim((String) entry.get("idBarcode").getValue());
                 BigDecimal cost = (BigDecimal) entry.get("cost").getValue();
+                String extraField = (String) entry.get("extraField").getValue();
 
-                result.add(new TerminalBatch(series, idBarcode, null, null, null, cost, null));
+                result.add(new TerminalBatch(series, idBarcode, null, null, null, cost, extraField));
             }
         }
         return result;
@@ -1113,6 +1115,7 @@ public class DefaultTerminalHandler {
                             statement.setObject(1, formatValue(batch.idBatch));
                             statement.setObject(2, formatValue(batch.idBarcode));
                             statement.setObject(6, formatValue(batch.price));
+                            statement.setObject(7, formatValue(batch.extraField));
                             statement.addBatch();
                         }
                     }
