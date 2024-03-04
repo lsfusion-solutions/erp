@@ -1,15 +1,17 @@
 package equ.clt.handler.dreamkas;
 
-import org.apache.http.Consts;
-import org.apache.http.client.methods.*;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPatch;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -21,11 +23,6 @@ public class DreamkasHttp {
     public String eMessage = "";                             // Текст ошибки
     private String cAHeader = "";                               // Строка заголовков см. addHeader()
     private String[] tQuery = {"GET", "POST", "DELETE", "PATCH"};  // Массив типов обрабатываемых запросов
-
-    //    Очищает строку заголовков
-    public void clsHeader() {
-        cAHeader = "";
-    }
 
     // Создает строку заголовков
     public void addHeader(String cName, String cValue) {
@@ -48,11 +45,10 @@ public class DreamkasHttp {
         boolean lRet = true;
         HttpGet ob_get = null;
         HttpPost ob_post = null;
-        HttpDeleteWithBody ob_del = null;
+        HttpDelete ob_del = null;
         HttpPatch ob_patch = null;
         CloseableHttpResponse response = null;
-        try {
-            CloseableHttpClient httpclient = HttpClients.createDefault();
+        try(CloseableHttpClient httpclient = HttpClients.createDefault()) {
             switch (cMethod) {
                 case "GET":
                     ob_get = new HttpGet(cURL);
@@ -61,7 +57,7 @@ public class DreamkasHttp {
                     ob_post = new HttpPost(cURL);
                     break;
                 case "DELETE":
-                    ob_del = new HttpDeleteWithBody(cURL);
+                    ob_del = new HttpDelete(cURL);
                     break;
                 case "PATCH":
                     ob_patch = new HttpPatch(cURL);
@@ -70,7 +66,7 @@ public class DreamkasHttp {
                     return false;
             }
             // добавляем заголовки к запросу
-            if (cAHeader.length() > 0) {
+            if (!cAHeader.isEmpty()) {
                 for (String c1 : cAHeader.split("\n")) {
                     String[] c2 = c1.split("\t");
                     switch (cMethod) {
@@ -93,8 +89,9 @@ public class DreamkasHttp {
             if (cMethod.equals("GET")) {
                 response = httpclient.execute(ob_get);
             } else {
-                StringEntity entity = new StringEntity(cData, ContentType.create("plain/text", Consts.UTF_8));
-                entity.setChunked(true);
+                StringEntity entity = new StringEntity(cData, ContentType.create("plain/text", StandardCharsets.UTF_8));
+                //there is no method setChunked in httpClient5, suppose that it's unnecessary
+                //entity.setChunked(true);
                 switch (cMethod) {
                     case "POST":
                         ob_post.setEntity(entity);
@@ -110,8 +107,8 @@ public class DreamkasHttp {
                         break;
                 }
             }
-            nStatus = response.getStatusLine().getStatusCode();
-            cStatus = response.getStatusLine().toString();
+            nStatus = response.getCode();
+            cStatus = response.getReasonPhrase();
             //  читаем ответ
             if (!cStatus.toUpperCase().contains("NO CONTENT")) {
                 BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent(), StandardCharsets.UTF_8));
@@ -133,26 +130,4 @@ public class DreamkasHttp {
         eMessage = eMsg;
         return false;
     }
-}
-
-class HttpDeleteWithBody extends HttpEntityEnclosingRequestBase {
-    public static final String METHOD_NAME = "DELETE";
-
-    public String getMethod() {
-        return METHOD_NAME;
-    }
-
-    public HttpDeleteWithBody(final String uri) {
-        super();
-        setURI(URI.create(uri));
-    }
-
-//    public HttpDeleteWithBody(final URI uri) {
-//        super();
-//        setURI(uri);
-//    }
-//
-//    public HttpDeleteWithBody() {
-//        super();
-//    }
 }

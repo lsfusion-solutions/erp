@@ -15,11 +15,13 @@ import lsfusion.base.file.IOUtils;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.config.RequestConfig;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.core5.http.HttpResponse;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.log4j.Appender;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Logger;
@@ -45,6 +47,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -909,9 +912,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         HttpPost httpPost = new HttpPost(url);
         httpPost.addHeader("Content-Type", "text/xml");
         httpPost.setEntity(new StringEntity(xml, encoding));
-        RequestConfig.Builder configBuilder = RequestConfig.custom().setSocketTimeout(300000).setConnectTimeout(300000).setConnectionRequestTimeout(300000);//5 min
-        HttpResponse response = HttpClientBuilder.create().setDefaultRequestConfig(configBuilder.build()).build().execute(httpPost);
-        return inputStreamToDoc(response.getEntity().getContent());
+        RequestConfig.Builder configBuilder = RequestConfig.custom().setConnectTimeout(5, TimeUnit.MINUTES).setConnectionRequestTimeout(5, TimeUnit.MINUTES).setResponseTimeout(5, TimeUnit.MINUTES);
+        try (CloseableHttpClient client = HttpClientBuilder.create().setDefaultRequestConfig(configBuilder.build()).build()) {
+            return inputStreamToDoc(client.execute(httpPost).getEntity().getContent());
+        }
     }
 
     private String getStatusMessage(String url, String ti) throws IOException, JDOMException, InterruptedException {
@@ -1062,7 +1066,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private String docToXMLString(Document doc) {
-        return new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding)).outputString(doc);
+        return new XMLOutputter(Format.getPrettyFormat().setEncoding(encoding.name())).outputString(doc);
     }
 
     private String elementToXMLString(Element element) {

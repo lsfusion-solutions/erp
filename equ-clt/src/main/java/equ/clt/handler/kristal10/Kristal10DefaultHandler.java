@@ -14,6 +14,8 @@ import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -28,7 +30,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     protected static Map<String, Map<String, String>> deleteBarcodeDirectoryMap = new HashMap<>();
     protected FileSystemXmlApplicationContext springContext;
-    String encoding = "utf-8";
+    Charset encoding = StandardCharsets.UTF_8;
 
     public Kristal10DefaultHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;

@@ -876,7 +876,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
     private void exportXML(Document doc, File file) throws IOException {
         XMLOutputter xmlOutput = new XMLOutputter();
-        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+        xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding.name()));
         PrintWriter fw = new PrintWriter(new OutputStreamWriter(Files.newOutputStream(file.toPath()), encoding));
         xmlOutput.output(doc, fw);
         fw.close();
