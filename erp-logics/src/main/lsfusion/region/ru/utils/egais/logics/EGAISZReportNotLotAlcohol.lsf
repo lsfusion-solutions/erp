@@ -7,7 +7,9 @@ NAMESPACE EGAIS;
 soldNotLot 'Продано за день' (Client c, Sku l, DATE d) =
     [GROUP SUM quantity(ReceiptSaleDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d) (-)
         [GROUP SUM quantity(ReceiptReturnDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d);
-
+sumSoldNotLot 'Продано за день' (Client c, Sku l, DATE d) =
+    [GROUP SUM sum(ReceiptSaleDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d) (-)
+        [GROUP SUM sum(ReceiptReturnDetail sd) IF isPosted(sd) AND minProduct(sku(sd)) AND NOT lot(sd) BY client(departmentStore(sd)), sku(sd), date(sd)](c, l, d);
 notLot 'Без марок' = DATA BOOLEAN (ActWriteOff);
 EXTEND FORM actWriteOffs
     PROPERTIES (d) READONLY notLot
@@ -25,6 +27,8 @@ createActWriteOffNotLot 'Создать списание на основе ре�
         LOCAL q = NUMERIC[16,5](Sku);
         LOCAL to = NUMERIC[16,5](F2Reg);
         q(Sku s) <- soldNotLot(c, s, d) IF soldNotLot(c, s, d) > 0;
+        LOCAL price = NUMERIC[16,4](Sku);
+        price(Sku s) <-  round0(NUMERIC[16,4](sumSoldNotLot(c,s,d)/q(s))) WHERE q(s);
 
         LOCAL q = NUMERIC[16,5](Sku, F2Reg);
         LOCAL balance = NUMERIC[16,5](F2Reg);
@@ -38,8 +42,10 @@ createActWriteOffNotLot 'Создать списание на основе ре�
                 BY s)
                 WHERE balance(f) AND client(f) == c AND in(s, product(f));
         }
+        LOCAL price = NUMERIC[16,4](F2Reg);
         to(F2Reg f) <- (GROUP SUM q(Sku ss, f));
-
+        price(F2Reg f) <- (GROUP MAX price(Sku ss) IF q(ss, f));
+        
         IF (GROUP SUM 1 IF to(F2Reg l)) THEN NEW a = ActWriteOff {
             posted(a) <- TRUE;
             notLot(a) <- TRUE;
@@ -55,6 +61,7 @@ createActWriteOffNotLot 'Создать списание на основе ре�
                 product(ps) <- product(f);
                 f2Reg(ps) <- f;
                 dataQuantity(ps) <- to(f);
+                sumSale(ps)<- round0(NUMERIC[18,4](price(f)*to(f)));
             }
             APPLY;
         }
