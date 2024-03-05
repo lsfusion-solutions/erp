@@ -118,10 +118,15 @@ postPaymentEpay (Receipt r) {
     deletePayment(r);
     IF NOT lastPayment(cashRegister(r)) THEN {
         CASE 
-            WHEN countReceiptSaleDetail(r) AND countReceiptReturnDetail(r) THEN {
+            WHEN countReceiptReturnDetail(r) != countReceiptDetail(r) THEN {
                 MESSAGE 'В системе О!плати не допускается оплата и возврат в одном чеке';
             }
-            WHEN countReceiptSaleDetail(r) AND NOT countReceiptReturnDetail(r) THEN {
+            WHEN countReceiptReturnDetail(r) == countReceiptDetail(r) THEN {
+                FOR receipt(Payment p) = r AND paymentType(p) = minEpayPaymentType() DO {
+                    reversalEpay(p);
+                }
+            }
+            ELSE {
                 CASE 
                     WHEN paymentMode(cashRegister(r)) = PaymentMode.staticQR THEN {
                         postPaymentEpayStaticQR(r);    
@@ -129,11 +134,6 @@ postPaymentEpay (Receipt r) {
                     WHEN paymentMode(cashRegister(r)) = PaymentMode.consumerPresented THEN {
                         postPaymentEpayConsumerPresented(r);    
                     }
-            }
-            WHEN NOT countReceiptSaleDetail(r) AND countReceiptReturnDetail(r) THEN {
-                FOR receipt(Payment p) = r AND paymentType(p) = minEpayPaymentType() DO {
-                    reversalEpay(p);
-                }
             }
     } ELSE {
         returnPost() <- TRUE;
