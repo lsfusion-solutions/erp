@@ -68,9 +68,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     private static final Namespace ns2ProductsNamespace = Namespace.getNamespace("ns2", "http://plugins.products.ERPIntegration.crystals.ru/");
     private static final Namespace feedbackNamespace = Namespace.getNamespace("feed", "http://feedback.ERPIntegration.crystals.ru/");
 
-    private static final String goodsUrl = "/SET/WSGoodsCatalogImport";
-    private static final String cardsUrl = "/SET/WSCardsCatalogImport";
-    private static final String feedbackUrl = "/SET/FeedbackWS";
+    private static final String goodsUrl = "SET/WSGoodsCatalogImport";
+    private static final String cardsUrl = "SET/WSCardsCatalogImport";
+    private static final String feedbackUrl = "SET/FeedbackWS";
 
     private final Map<String, List<String>> requestSalesInfoMap = new HashMap<>();
     // ----------------- http server ----------------- //
@@ -536,7 +536,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                 if (requestSalesInfoEntry != null && !requestSalesInfoEntry.isEmpty()) {
                     //обрабатываем запросы перезагрузки продаж
                     sendSalesLogger.info(getLogPrefix() + "sending request for directory : " + directory + ", Request: " + requestSalesInfoEntry.get(0) );
-                    String response = parseResponsePurchasesByParams(sendRequest(directory + "/FiscalInfoExport", requestSalesInfoEntry.remove(0)));
+                    String response = parseResponsePurchasesByParams(sendRequest(getUrl(directory, "FiscalInfoExport"), requestSalesInfoEntry.remove(0)));
                     Document doc = xmlStringToDoc(response);
                     Pair<List<SalesInfo>, String> salesData = parseSalesInfoXML(doc, directory, cashRegisterInfoList, new HashSet<>());
                     salesInfoList.addAll(salesData.first);
@@ -904,7 +904,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         Document doc = new Document(envelopeElement);
 
-        Document responseDoc = sendRequest(baseUrl + url, docToXMLString(doc));
+        Document responseDoc = sendRequest(getUrl(baseUrl, url), docToXMLString(doc));
         return parseResponse(responseDoc, getCatalogWithTiResponseTag, responseNamespace);
     }
 
@@ -922,7 +922,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         String getStatusXML = getStatusXML(ti);
         int count = 0;
         while (true) {
-            Document responseDoc = sendRequest(url + feedbackUrl, getStatusXML);
+            Document responseDoc = sendRequest(getUrl(url, feedbackUrl), getStatusXML);
             Pair<Integer, String> response = parseStatusResponse(responseDoc);
             if (response.first != 2) //2 = пакет в обработке
                 return response.first == 3 ? null : response.second; // 3 = пакет обработан успешно
@@ -931,6 +931,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             else
                 Thread.sleep(1000);
         }
+    }
+
+    private String getUrl(String baseUrl, String url) {
+        return baseUrl + (baseUrl.endsWith("/") ? "" : "/") + url;
     }
 
     private String getStatusXML(String ti) {
