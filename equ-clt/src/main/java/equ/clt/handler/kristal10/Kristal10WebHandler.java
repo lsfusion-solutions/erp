@@ -1058,7 +1058,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document inputStreamToDoc(InputStream is) throws IOException, JDOMException {
-        return xmlStringToDoc(new String(IOUtils.readBytesFromStream(is), encoding));
+
+        String xml = new String(IOUtils.readBytesFromStream(is), encoding);
+
+        //todo: remove temp log
+        sendSalesLogger.info(getLogPrefix() + " inputStreamToDoc: " + xml);
+
+        return xmlStringToDoc(xml);
     }
 
     private Document xmlStringToDoc(String xml) throws JDOMException, IOException {
