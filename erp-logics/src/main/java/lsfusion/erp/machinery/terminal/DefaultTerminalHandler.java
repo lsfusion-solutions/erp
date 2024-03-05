@@ -617,6 +617,9 @@ public class DefaultTerminalHandler {
             QueryBuilder<Object, Object> extBatckQuery = new QueryBuilder<>(keys);
 
             extBatckQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(session.getModifier(),skuExpr));
+            extBatckQuery.addProperty("date", terminalHandlerLM.findProperty("date[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
+            extBatckQuery.addProperty("number", terminalHandlerLM.findProperty("number[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
+            extBatckQuery.addProperty("idSupplier", terminalHandlerLM.findProperty("idSupplier[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
             extBatckQuery.addProperty("cost", terminalHandlerLM.findProperty("priceOverBatch[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
             extBatckQuery.addProperty("extraField", terminalHandlerLM.findProperty("extraField[STRING, Sku, Stock]").getExpr(session.getModifier(), seriesExpr, skuExpr, stockObject.getExpr()));
 
@@ -630,10 +633,13 @@ public class DefaultTerminalHandler {
                 ImMap<Object, ObjectValue> entry = extBatchResult.getValue(i);
 
                 String idBarcode = trim((String) entry.get("idBarcode").getValue());
+                String date = formatDate((LocalDate) entry.get("date").getValue());
+                String number = trim((String) entry.get("number").getValue());
+                String idSupplier = trim((String) entry.get("idSupplier").getValue());
                 BigDecimal cost = (BigDecimal) entry.get("cost").getValue();
                 String extraField = (String) entry.get("extraField").getValue();
 
-                result.add(new TerminalBatch(series, idBarcode, null, null, null, cost, extraField));
+                result.add(new TerminalBatch(series, idBarcode, idSupplier, date, number, cost, extraField));
             }
         }
         return result;
@@ -1094,30 +1100,12 @@ public class DefaultTerminalHandler {
                 statement = connection.prepareStatement(sql);
                 if (terminalBatchList != null) {
                     for (TerminalBatch batch : terminalBatchList) {
-                        if (batch.idBatch != null && batch.idBarcode != null) {
-                            statement.setObject(1, formatValue(batch.idBatch));
-                            statement.setObject(2, formatValue(batch.idBarcode));
-                            statement.setObject(3, formatValue(batch.date));
-                            statement.setObject(4, formatValue(batch.number));
-                            String idSupplier = null;
-                            if (batch.idSupplier != null && prefix != null)
-                                idSupplier = prefix + batch.idSupplier;
-                            statement.setObject(5, formatValue(idSupplier));
-                            statement.setObject(6, formatValue(batch.price));
-                            statement.setObject(7, formatValue(batch.extraField));
-                            statement.addBatch();
-                        }
+                        addBatch(prefix, batch, statement);
                     }
                 }
                 if (terminalExtraBatchList != null) {
                     for (TerminalBatch batch : terminalExtraBatchList) {
-                        if (batch.idBatch != null && batch.idBarcode != null) {
-                            statement.setObject(1, formatValue(batch.idBatch));
-                            statement.setObject(2, formatValue(batch.idBarcode));
-                            statement.setObject(6, formatValue(batch.price));
-                            statement.setObject(7, formatValue(batch.extraField));
-                            statement.addBatch();
-                        }
+                        addBatch(prefix, batch, statement);
                     }
                 }
                 statement.executeBatch();
@@ -1132,6 +1120,22 @@ public class DefaultTerminalHandler {
                     statement.close();
                 connection.setAutoCommit(true);
             }
+        }
+    }
+
+    private void addBatch(String prefix, TerminalBatch batch, PreparedStatement statement) throws SQLException {
+        if (batch.idBatch != null && batch.idBarcode != null) {
+            statement.setObject(1, formatValue(batch.idBatch));
+            statement.setObject(2, formatValue(batch.idBarcode));
+            statement.setObject(3, formatValue(batch.date));
+            statement.setObject(4, formatValue(batch.number));
+            String idSupplier = null;
+            if (batch.idSupplier != null && prefix != null)
+                idSupplier = prefix + batch.idSupplier;
+            statement.setObject(5, formatValue(idSupplier));
+            statement.setObject(6, formatValue(batch.price));
+            statement.setObject(7, formatValue(batch.extraField));
+            statement.addBatch();
         }
     }
 
