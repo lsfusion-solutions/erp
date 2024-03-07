@@ -52,7 +52,7 @@ createActWriteOffNotLot 'Создать списание на основе ре�
 
             client(a) <- c;
             dateTime(a) <- dateTimeToDateTime(d, 23:59);
-            type(a) <- writeOffType('Розничная продажа');
+            type(a) <- writeOffType('Реализация');
             note(a) <- 'Списание на основе реализации';
 
             FOR to(F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
@@ -70,6 +70,14 @@ createActWriteOffNotLot 'Создать списание на основе ре�
 
 createActWriteOffNotLot 'Создать списание ЕГАИС на основе реализации (без марок)' () {
     FOR iterate(DATE d, sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)), sum(currentDate(), -1)) DO {
-        FOR own(Client c) AND NOT actWriteOffNotLot(c, d, writeOffType('Розничная продажа')) DO createActWriteOffNotLot(c, d);
+        FOR own(Client c) AND NOT actWriteOffNotLot(c, d, writeOffType('Реализация')) DO createActWriteOffNotLot(c, d);
+    }
+}
+processCurrent 'Отправить в ЕГАИС' (){
+    LOCAL NESTED to = BOOLEAN (ActWriteOff);
+    to (ActWriteOff a) <- TRUE WHERE posted(a) AND date(a) >=sum(currentDate(), (OVERRIDE -actWriteOffDays(), -1)) AND date(a)<=sum(currentDate(), -1) 
+            AND notLot(a) AND NOT notRejected(actWriteOffOutDoc(a));//AND NOT countTickets(a);
+    FOR to (ActWriteOff a) ORDER dateTime(a), a DO {
+        process(a);
     }
 }
