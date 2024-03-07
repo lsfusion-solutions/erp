@@ -1,0 +1,114 @@
+MODULE BarcodeRequestExcel;
+
+REQUIRE BarcodeRequest, Excel;
+
+NAMESPACE BarcodeRequest;
+
+
+createRequestProceed(BarcodeRequest b)  {
+    value(TemplateEntry detail) <- NULL;
+
+    DIALOG dialogTemplates OBJECTS t INPUT DO {
+        LOCAL quantityStr = TEXT();
+        LOCAL codeGLN = TEXT();
+        LOCAL name = TEXT();
+        LOCAL minTemperatureStr = TEXT();
+        LOCAL maxTemperatureStr = TEXT();
+        LOCAL minHumidityStr = TEXT();
+        LOCAL maxHumidityStr = TEXT();
+        LOCAL conditionsStr = TEXT();
+        LOCAL requirementsStr = TEXT();
+        quantityStr() <- quantityDefault();
+        codeGLN() <- codeGLNCompany();
+        name() <- nameCompany();
+        minTemperatureStr() <- minTemperature();
+        maxTemperatureStr() <- maxTemperature();
+        minHumidityStr() <- minHumidity();
+        maxHumidityStr() <- maxHumidity();
+        conditionsStr() <- conditions();
+        requirementsStr() <- requirements();
+
+        FOR iterate(INTEGER i, 1, countBarcodeRequestDetail(b)-1) AND countBarcodeRequestDetail(b)-1 > 0 DO{
+            quantityStr() <- CONCAT '\n', quantityStr(), quantityDefault();
+            codeGLN() <- CONCAT '\n', codeGLN(), codeGLNCompany();
+            name() <- CONCAT '\n', name(), nameCompany();
+            minTemperatureStr() <- CONCAT '\n', minTemperatureStr(), minTemperature();
+            maxTemperatureStr() <- CONCAT '\n', maxTemperatureStr(), maxTemperature();
+            minHumidityStr() <- CONCAT '\n', minHumidityStr(), minHumidity();
+            maxHumidityStr() <- CONCAT '\n', maxHumidityStr(), maxHumidity();
+            conditionsStr() <- CONCAT '\n', conditionsStr(), conditions();
+            requirementsStr() <- CONCAT '\n', requirementsStr(), requirements();
+        }
+
+        FOR template (TemplateEntry detail) == t DO {
+            value(detail) <- toDateDDMMYYYY(dateTime(b)) WHERE key(detail) == 'dateRequest';
+            value(detail) <- (CONCAT ', ', (CONCAT ' ', lastName(currentUser()), (OVERRIDE firstName(currentUser()), initialsEmployee(currentUser()))), phone(currentUser())) WHERE key(detail) == 'userRequest';
+            value(detail) <- (OVERRIDE registerNumber(), substr(codeGLNCompany(),4,4)) WHERE key(detail) == 'registerNumber';
+
+            value(detail) <- [ GROUP CONCAT TEXT(nameArticleKind(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'articleKind';
+            value(detail) <- [ GROUP CONCAT TEXT(nameBrand(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'brand';
+            value(detail) <- [ GROUP CONCAT TEXT(itemKindString(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'itemKind';
+            value(detail) <- [ GROUP CONCAT TEXT(codeOKRB(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeOKRB';
+            value(detail) <- [ GROUP CONCAT TEXT(codeCustomsGroup(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeCustoms';
+            value(detail) <- [ GROUP CONCAT TEXT(compositionItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'composition';
+            value(detail) <- [ GROUP CONCAT TEXT(codeGPC1(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC1';
+            value(detail) <- [ GROUP CONCAT TEXT(codeGPC2(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC2';
+            value(detail) <- [ GROUP CONCAT TEXT(codeGPC3(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC3';
+            value(detail) <- [ GROUP CONCAT TEXT(codeGPC4(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC4';
+            value(detail) <- [ GROUP CONCAT TEXT(netWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'netWeight';
+            value(detail) <- [ GROUP CONCAT TEXT(grossWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'grossWeight';
+            value(detail) <- quantityStr() WHERE key(detail) == 'quantity';
+            value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN1';
+            value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN2';
+            value(detail) <- name() WHERE key(detail) == 'name1';
+            value(detail) <- name() WHERE key(detail) == 'name2';
+            value(detail) <- minTemperatureStr() WHERE key(detail) == 'minTemperature';
+            value(detail) <- maxTemperatureStr() WHERE key(detail) == 'maxTemperature';
+            value(detail) <- minHumidityStr() WHERE key(detail) == 'minHumidity';
+            value(detail) <- maxHumidityStr() WHERE key(detail) == 'maxHumidity';
+            value(detail) <- conditionsStr() WHERE key(detail) == 'conditions';
+            value(detail) <- requirementsStr() WHERE key(detail) == 'requirements';
+        }
+
+        DIALOG template OBJECTS t = t DO {
+            process(t);
+            excel(b) <- resultTemplate();
+            openExcel(b);
+        }
+    }
+
+    APPLY NESTED LOCAL;
+}
+
+createRequestTemplate 'Создать Excel-файл по шаблону'(BarcodeRequest b)  {
+    IF [ GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'Не во всех товарах заполнен код ТН ВЭД. Файл не создан.';
+        RETURN;
+    }
+    IF [ GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'Не во всех товарах заполнен состав. Файл не создан.';
+        RETURN;
+    }
+    IF [ GROUP SUM 1 IF NOT codeOKRB(BarcodeRequestDetail d) OR codeOKRB(d) == '' BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'Не во всех товарах заполнен код ОКРБ. Файл не создан.';
+        RETURN;
+    }
+
+    IF excel(b) THEN {
+        ASK 'У заявки уже есть сохраненный исходящий Excel-файл. Создать файл заново?' DO {
+            createRequestProceed(b);
+        }
+    } ELSE createRequestProceed(b);
+
+} IMAGE 'editReport.png';
+
+EXTEND FORM barcodeRequests
+    PROPERTIES (p) SHOWIF NOT (isClosed(p) OR needCreateNewRequest(p)) createRequestTemplate
+;
+
+DESIGN barcodeRequests {
+    outFile {
+        MOVE PROPERTY(createRequestTemplate(p)) FIRST;
+    }
+}
+

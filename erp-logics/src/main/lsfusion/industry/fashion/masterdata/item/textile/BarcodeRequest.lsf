@@ -1,0 +1,546 @@
+MODULE BarcodeRequest;
+
+REQUIRE ItemFashionTextile, ItemDescription, CustomsGroupItem, EDIGTIN; 
+
+PRIORITY Item;
+
+
+@defineOperation(' (заявка на EAN)');
+
+@defineOperationRole();
+
+CLASS BarcodeRequest 'Заявка на EAN';
+TABLE barcodeRequest (BarcodeRequest);
+
+dateTime 'Дата/время' = DATA DATETIME (BarcodeRequest);
+date 'Дата' (BarcodeRequest p) = toDate(dateTime(p)) IN id;
+time 'Время' (BarcodeRequest p) = toTime(dateTime(p));
+
+number 'Номер' = DATA STRING[30](BarcodeRequest) IN id;
+series 'Серия' = DATA BPSTRING[2](BarcodeRequest);
+
+isSent 'Отправлен' = DATA BOOLEAN (BarcodeRequest);
+dateTimeSent 'Дата/время отправки' = DATA DATETIME (BarcodeRequest);
+
+isReceived 'Получен' = DATA BOOLEAN (BarcodeRequest);
+dateTimeReceived 'Дата/время получения' = DATA DATETIME (BarcodeRequest);
+
+operation = DATA Operation (BarcodeRequest);
+nameOperation 'Операция'(BarcodeRequest b) = name(operation(b));
+
+isClosed 'Закрыт' = DATA BOOLEAN (BarcodeRequest);
+
+close 'Закрыть' (BarcodeRequest o)  {
+    NEWSESSION { isClosed(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (BarcodeRequest o)  {
+    NEWSESSION { isClosed(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+@defineNumeratedDefault(BarcodeRequest, 'Заявки на EAN', 'Е');
+
+CLASS BarcodeRequestDetail 'Cтрока заявки на EAN';
+TABLE barcodeRequestDetail (BarcodeRequestDetail);
+
+barcodeRequest = DATA BarcodeRequest (BarcodeRequestDetail) NONULL DELETE INDEXED;
+
+isClosed(BarcodeRequestDetail d) = isClosed(barcodeRequest(d));
+dateTime 'Дата/время'= DATA DATETIME (BarcodeRequestDetail);
+
+operation(BarcodeRequestDetail d) = operation(barcodeRequest(d));
+
+@defineDocumentDetailIndex(barcodeRequest, BarcodeRequestDetail);
+
+item = DATA Item (BarcodeRequestDetail);
+nameItem 'Товар'(BarcodeRequestDetail d) = name(item(d)) IN id;
+idArticleItem 'Модель'(BarcodeRequestDetail d) = id(article(item(d)));
+idBarcodeItem 'Штрихкод товара'(BarcodeRequestDetail d) = idBarcode(item(d));
+
+nameSizeItem 'Размер'(BarcodeRequestDetail d) = nameSize(item(d));
+idColorItem 'Код цвета'(BarcodeRequestDetail d) = idColor(item(d));
+nameColorItem 'Цвет'(BarcodeRequestDetail d) = nameColor(item(d));
+nameSortItem 'Сорт'(BarcodeRequestDetail d) = nameSort(item(d));
+nameArticleKind 'Вид изделия'(BarcodeRequestDetail d) = fullName(articleKind(article(item(d))));
+
+nameBrand 'Бренд' = ABSTRACT STRING (BarcodeRequestDetail);
+itemKindString 'Разновидность' = ABSTRACT STRING (BarcodeRequestDetail);
+
+codeOKRB 'Код ОКРБ' (BarcodeRequestDetail d) = codeOKRB(articleKind(item(d)));
+codeCustomsGroup 'Код ТН ВЭД' (BarcodeRequestDetail d) = codeCustomsGroupDefaultCountry(item(d));
+compositionItem 'Состав'(BarcodeRequestDetail d) = composition(item(d));
+
+barcodeString 'Полученный штрихкод' = DATA STRING[15](BarcodeRequestDetail);
+
+countBarcodeRequestDetail 'Кол-во строк' (o) = GROUP SUM 1 BY barcodeRequest(BarcodeRequestDetail d) IN documentSum;
+countNotBarcodeItem 'Кол-во товаров без штрихкодов' (o) = GROUP SUM 1 IF item(BarcodeRequestDetail d) AND NOT idBarcode(item(d)) BY barcodeRequest(d);
+
+codeGPC1 'Код сегмента' = ABSTRACT STRING[10](BarcodeRequestDetail);
+codeGPC2 'Код семейства' = ABSTRACT STRING[10](BarcodeRequestDetail);
+codeGPC3 'Код класса' = ABSTRACT STRING[10](BarcodeRequestDetail);
+codeGPC4 'Код брика' = ABSTRACT STRING[10](BarcodeRequestDetail);
+
+CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND [ GROUP SUM 1 BY item(BarcodeRequestDetail bd), barcodeRequest(bd)](item(d), barcodeRequest(d)) > 1
+    MESSAGE 'В заявке на штрихкод товар не должен повторяться';
+
+CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
+    MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
+
+writeBarcodes 'Записать штрихкоды из заявки в товары'(BarcodeRequest br)  {
+    NEWSESSION {
+        LOCAL count = INTEGER();
+        count() <- [GROUP SUM 1 IF barcodeString(BarcodeRequestDetail d) AND NOT (incorrectBarcode(barcodeString(d)) AND NOT allowIncorrectBarcode()) BY barcodeRequest(d)](br);
+        LOCAL countNotBarcode = INTEGER();
+        countNotBarcode() <- [GROUP SUM 1 IF barcodeString(BarcodeRequestDetail d) AND (incorrectBarcode(barcodeString(d)) AND NOT allowIncorrectBarcode()) BY barcodeRequest(d)](br);
+
+        FOR barcodeString(BarcodeRequestDetail d) AND barcodeRequest(d) == br AND NOT (incorrectBarcode(barcodeString(d)) AND NOT allowIncorrectBarcode()) DO {
+            IF NOT barcode(barcodeString(d)) THEN {
+                NEW b = Barcode {
+                    id(b) <- barcodeString(d);
+                    sku(b) <- item(d);
+                    barcode(item(d)) <- b;
+                }
+            }
+            ELSE {
+                barcode(item(d)) <- barcode(barcodeString(d));
+            }
+            GTIN(item(d)) <- STRING[14](barcodeString(d)) WHERE substr(barcodeString(d), 1, 2) != '25';
+        }
+
+        ASK CONCAT ' ', 'Записано', (OVERRIDE count(), 0), 'штрихкодов.',
+                IF countNotBarcode() > 0 THEN '\nВ заявке найдено ' + countNotBarcode() + ' некорректных штрихкодов.',
+                IF countNotBarcodeItem(br) > 0 THEN '\nВ заявке осталось ' + countNotBarcodeItem(br) + ' товаров без штрихкодов.',
+            '\nЗакрыть заявку?'  DO {
+            isClosed(br) <- TRUE;
+        }
+
+        APPLY;
+    }
+}
+
+barcodeStringBackground(BarcodeRequestDetail d) = CASE WHEN incorrectBarcode(barcodeString(d)) THEN RGB(255,200,216)
+    WHEN [ GROUP SUM 1 BY id(Barcode b) ](barcodeString(d)) AND NOT barcodeString(d) == idBarcodeItem(d) THEN RGB(255,200,216)
+    WHEN barcodeString(d) AND NOT barcodeString(d) == idBarcodeItem(d) THEN RGB(255,255,128);
+
+FORM barcodeRequest 'Заявка на EAN'
+    OBJECTS p 'Шапка документа' = BarcodeRequest PANEL
+    PROPERTIES (p) number, dateTime, nameOperation, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail
+
+    OBJECTS d = BarcodeRequestDetail
+    PROPERTIES (d) index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem READONLY, nameItem, idArticleItem
+    PROPERTIES (d) READONLY idColorItem, nameColorItem, nameSizeItem, nameSortItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+    PROPERTIES (d) NEW, deleted = DELETE GRID
+    FILTERS  barcodeRequest(d) == p
+
+    EDIT BarcodeRequest OBJECT p
+;
+
+DESIGN barcodeRequest {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            tabbed = TRUE;
+            fill = 1;
+            NEW documentBox {
+                fill = 1;
+                caption = 'Заявка на EAN';
+                NEW headerDocumentBox {
+                    horizontal = TRUE;
+
+                    NEW headerRow {
+                        fill = 1;
+                        NEW mainAttributes {
+                            horizontal = TRUE;
+                            MOVE PROPERTY(number(p));
+                            MOVE PROPERTY(dateTime(p));
+                            MOVE PROPERTY(nameOperation(p));
+                            MOVE PROPERTY(countBarcodeRequestDetail(p));
+                        }
+                        NEW sentReceived {
+                            horizontal = TRUE;
+                            NEW sent {
+                                caption = 'Отправка';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(isSent(p));
+                                MOVE PROPERTY(dateTimeSent(p));
+                            }
+                            NEW received {
+                                caption = 'Получение';
+                                horizontal = TRUE;
+                                MOVE PROPERTY(isReceived(p));
+                                MOVE PROPERTY(dateTimeReceived(p));
+                            }
+                        }
+                    }
+                }
+
+                NEW specificationBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(d) {
+                        caption = 'Товары';
+                        PROPERTY (nameSortItem(d)){charWidth = 5;}
+                    }
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+WHEN LOCAL SET (BarcodeRequest p IS BarcodeRequest) AND NOT CHANGED (dateTime(p)) DO
+    dateTime(p) <- currentDateTime();
+
+WHEN LOCAL SET (BarcodeRequestDetail d IS BarcodeRequestDetail) AND NOT CHANGED (dateTime(d)) DO
+    dateTime(d) <- dateTime(barcodeRequest(d));
+
+WHEN SET (isSent(BarcodeRequest b)) AND NOT CHANGED (dateTimeSent(b))DO
+    dateTimeSent(b) <- currentDateTime();
+
+WHEN DROPPED (isSent(BarcodeRequest b)) DO
+    dateTimeSent(b) <- NULL;
+
+WHEN SET (isReceived(BarcodeRequest b)) AND NOT CHANGED (dateTimeReceived(b))DO
+    dateTimeReceived(b) <- currentDateTime();
+
+WHEN DROPPED (isReceived(BarcodeRequest b)) DO
+    dateTimeReceived(b) <- NULL;
+
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (BarcodeRequest s) = date(s) >= filterDateFrom() OR NOT filterDateFrom();
+
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (BarcodeRequest s) = date(s) <= filterDateTo() OR NOT filterDateTo();
+
+filterBarcodeRequestOperation  = DATA LOCAL Operation ();
+nameFilterBarcodeRequestOperation 'Операция' = name(filterBarcodeRequestOperation()) CHARWIDTH 15;
+filterOperation (BarcodeRequest i) = operation(i) == filterBarcodeRequestOperation() OR NOT filterBarcodeRequestOperation();
+
+FORM barcodeRequests 'Заявки на EAN'
+    PROPERTIES() filterDateFrom, filterDateTo, nameFilterBarcodeRequestOperation
+
+    OBJECTS p = BarcodeRequest
+    PROPERTIES (p) isClosed
+    PROPERTIES (p) READONLY number, date, time, nameOperation, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail
+    PROPERTIES (p) SHOWIF NOT isClosed(p) writeBarcodes
+    PROPERTIES (p) close SHOWIF NOT isClosed(p), open SHOWIF isClosed(p)
+    PROPERTIES (p) NEWSESSION NEW
+    PROPERTIES (p) NEWSESSION SHOWIF NOT isClosed(p) EDIT, DELETE
+    FILTERS filterDateFrom(p), filterDateTo(p),
+        filterOperation(p)
+
+    OBJECTS d = BarcodeRequestDetail
+    PROPERTIES (d) READONLY index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem, nameItem, idArticleItem,
+        idColorItem, nameColorItem, nameSizeItem, nameSortItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+    FILTERS  barcodeRequest(d) == p
+
+    FILTERGROUP open FILTER 'Открытые' NOT isClosed(p) DEFAULT
+;
+
+DESIGN barcodeRequests {
+    NEW mainBox  BEFORE TOOLBARBOX {
+        fill = 1;
+        NEW top{
+            fill = 1;
+            NEW topFilters{
+                horizontal = TRUE;
+                NEW dates {
+                    caption = 'Период';
+                    horizontal = TRUE;
+                    MOVE PROPERTY (filterDateFrom());
+                    MOVE PROPERTY (filterDateTo());
+                }
+                NEW filters {
+                    caption = 'Фильтры';
+                    horizontal = TRUE;
+                    MOVE PROPERTY (nameFilterBarcodeRequestOperation());
+                }
+            }
+            NEW first {
+                fill = 1;
+                MOVE BOX (p);
+            }
+        }
+        NEW second {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX (d){
+                PROPERTY (nameSortItem(d)){charWidth = 5;}
+            }
+
+            NEW action {
+                caption = 'Действия';
+                fill = 1;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER barcode 'Заявки на EAN'{
+            NEW BarcodeRequest.operations;
+            NEW barcodeRequests;
+        }
+    }
+}
+
+CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND barcode(item(d)) MESSAGE 'В заявку на EAN можно добавлять только товары без штрихкода';
+
+excel 'Исходящий файл заявки на EAN' (BarcodeRequest) = DATA EXCELFILE (BarcodeRequest);
+
+saveExcel 'Загрузить исходящий файл' (BarcodeRequest b)  {
+    NEWSESSION {
+        IF excel(b) THEN {
+            ASK 'У заявки уже есть сохраненный исходящий Excel-файл. Загрузить другой файл?' DO {
+                INPUT = excel(b) CHANGE;
+            }
+        } ELSE INPUT = excel(b) CHANGE;
+        APPLY;
+    }
+}
+
+openExcel 'Просмотреть исходящий файл' (BarcodeRequest b)  { open(excel(b)); }
+
+inExcel 'Полученный файл заявки на EAN' (BarcodeRequest) = DATA EXCELFILE (BarcodeRequest);
+openInExcel 'Просмотреть полученный файл' (BarcodeRequest b)  { open(inExcel(b)); }
+
+quantityDefault 'Количество товара' = DATA STRING[5]();
+codeGLNCompany 'Код GLN организации' = DATA STRING[15]();
+nameCompany 'Наименование организации' = DATA STRING[20]();
+minTemperature 'Минимальная температура хранения' = DATA STRING[5]();
+maxTemperature 'Максимальная температура хранения' = DATA STRING[5]();
+minHumidity 'Минимальная влажность хранения' = DATA STRING[5]();
+maxHumidity 'Максимальная влажность хранения' = DATA STRING[5]();
+conditions 'Другие условия хранения' = DATA STRING[60]() CHARWIDTH 50;
+requirements 'Требования' = DATA STRING[80]() CHARWIDTH 65;
+emailFromBarcodeRequest 'Адрес отправителя e-mail для заявки на EAN' = DATA STRING[100]();
+emailHeaderBarcodeRequest 'Заголовок e-mail для заявки на EAN' = DATA STRING[100]();
+emailToBarcodeRequest 'Адрес получателя e-mail для заявки на EAN' = DATA STRING[100]();
+emailBCCBarcodeRequest 'Адрес получателя BCC копии e-mail заявки на EAN' = DATA STRING[100]();
+registerNumber 'Регистрационный номер пользователя системы ГС1 Беларуси' = DATA STRING[15]() CHARWIDTH 4 NOFLEX;
+
+EXTEND FORM options
+    PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
+        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest
+;
+
+DESIGN options {
+    barcodeBox {
+        NEW barcodeRequest {
+            caption = 'Значения по умолчанию для заявки на штрихкод';
+            MOVE PROPERTY(codeGLNCompany());
+            MOVE PROPERTY(nameCompany());
+            MOVE PROPERTY(quantityDefault());
+            MOVE PROPERTY(minTemperature());
+            MOVE PROPERTY(maxTemperature());
+            MOVE PROPERTY(minHumidity());
+            MOVE PROPERTY(maxHumidity());
+            MOVE PROPERTY(conditions());
+            MOVE PROPERTY(requirements());
+            MOVE PROPERTY(registerNumber());
+        }
+        MOVE PROPERTY(emailFromBarcodeRequest());
+        MOVE PROPERTY(emailToBarcodeRequest());
+        MOVE PROPERTY(emailHeaderBarcodeRequest());
+        MOVE PROPERTY(emailBCCBarcodeRequest());
+    }
+}
+
+netWeight 'Масса нетто'(BarcodeRequestDetail d) = OVERRIDE netWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
+grossWeight 'Масса брутто'(BarcodeRequestDetail d) = OVERRIDE grossWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
+
+sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
+    IF [ GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'Не во всех товарах заполнен код ТН ВЭД. Файл не отправлен.';
+        RETURN;
+    }
+    IF [ GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'Не во всех товарах заполнен состав. Файл не отправлен.';
+        RETURN;
+    }
+
+    IF excel(b) THEN {
+        NEWSESSION NESTED LOCAL{
+            EMAIL
+                FROM emailFromBarcodeRequest()
+                SUBJECT emailHeaderBarcodeRequest()
+                TO emailToBarcodeRequest()
+                BCC emailBCCBarcodeRequest()
+                ATTACH excel(b) NAME OVERRIDE ltrim(number(b),'0'), '00000';
+
+            isSent(b) <- TRUE;
+            APPLY;
+        }
+    }
+    ELSE MESSAGE 'Файл не найден';
+}
+
+importFromFile 'Загрузить полученный файл' ABSTRACT (BarcodeRequest);
+
+needCreateNewRequest(BarcodeRequestDetail d) = d IS BarcodeRequestDetail AND NOT
+    (nameArticleKind(d) AND codeOKRB(d) != '' AND codeCustomsGroup(d) AND compositionItem(d) AND codeGPC3(d) AND codeGPC4(d));
+
+needCreateNewRequest = GROUP SUM 1 IF needCreateNewRequest(BarcodeRequestDetail d) BY barcodeRequest(d);
+
+EXTEND FORM barcodeRequests
+    PROPERTIES (p) SHOWIF NOT (isClosed(p) OR needCreateNewRequest(p)) saveExcel
+    PROPERTIES (p) SHOWIF NOT isClosed(p) importFromFile
+    PROPERTIES (p) SHOWIF excel(p) openExcel
+    PROPERTIES (p) SHOWIF (NOT isClosed(p) AND NOT isSent(p) AND excel(p)) sendExcel
+    PROPERTIES (p) SHOWIF inExcel(p) openInExcel
+;
+
+DESIGN barcodeRequests {
+    action {
+        NEW action1 {
+            horizontal = TRUE;
+            NEW outFile {
+                caption = 'Исходящий Excel-файл';
+                MOVE PROPERTY(saveExcel(p));
+                MOVE PROPERTY(openExcel(p));
+                MOVE PROPERTY(sendExcel(p));
+            }
+            NEW inFile {
+                caption = 'Полученный Excel-файл';
+                MOVE PROPERTY(openInExcel(p));
+                MOVE PROPERTY(importFromFile(p));
+            }
+            MOVE PROPERTY(writeBarcodes(p));
+        }
+    }
+}
+
+name = DATA LOCAL TEXT();
+path = DATA LOCAL STRING[255]();
+
+filter1 = DATA LOCAL BOOLEAN();
+filter2 = DATA LOCAL BOOLEAN();
+filter3 = DATA LOCAL BOOLEAN();
+filter4 = DATA LOCAL BOOLEAN();
+filter5 = DATA LOCAL BOOLEAN();
+filter6 = DATA LOCAL BOOLEAN();
+
+FORM detailsList
+    OBJECTS r = BarcodeRequest PANEL
+    OBJECTS d = BarcodeRequestDetail
+    PROPERTIES (d) index, nameItem
+    ORDERS index(d)
+    FILTERS barcodeRequest(d) == r,
+        (NOT nameArticleKind(d) AND filter1()) OR NOT filter1(),
+        (NOT codeOKRB(d) != '' AND filter2()) OR NOT filter2(),
+        (NOT codeCustomsGroup(d) AND filter3()) OR NOT filter3(),
+        (NOT compositionItem(d) AND filter4()) OR NOT filter4(),
+        (NOT codeGPC3(d) AND filter5()) OR NOT filter5(),
+        (NOT codeGPC4(d) AND filter6()) OR NOT filter6()
+;
+
+writeEANFileNewRequest(BarcodeRequest r) {
+    name() <- NULL;
+    IF [GROUP SUM 1 IF NOT nameArticleKind(BarcodeRequestDetail d) AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Не указан вид изделия';
+        filter1() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter1() <- NULL;
+    }
+    IF [GROUP SUM 1 IF NOT codeOKRB(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Пустой код ОКРБ';
+        filter2() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter2() <- NULL;
+    }
+    IF [GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Нет кода ТН ВЭД';
+        filter3() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter3() <- NULL;
+    }
+    IF [GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Нет состава';
+        filter4() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter4() <- NULL;
+    }
+    IF [GROUP SUM 1 IF NOT codeGPC3(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Нет кода класса';
+        filter5() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter5() <- NULL;
+    }
+    IF [GROUP SUM 1 IF NOT codeGPC4(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
+        name() <- 'Нет кода брика';
+        filter6() <- TRUE;
+        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
+        WRITE CLIENT file() TO path() APPEND;
+        filter6() <- NULL;
+    }
+}
+
+exportNewRequestLog ABSTRACT (BarcodeRequest);
+
+createNewRequest 'Товары с неполными данными в новую заявку' (BarcodeRequest br)  {
+    IF br IS BarcodeRequest AND NOT isClosed(br) AND NOT isSent(br) AND (GROUP SUM 1 IF needCreateNewRequest(BarcodeRequestDetail d) AND barcodeRequest(d) ==br) THEN {
+        NEWSESSION  {
+            NEW b = BarcodeRequest {
+                operation(b) <- operation(br);
+
+                FOR barcodeRequest(BarcodeRequestDetail d) == br AND needCreateNewRequest(d) NEW detail = BarcodeRequestDetail DO {
+                    barcodeRequest(detail) <-  b;
+                    item(detail) <- item(d);
+                }
+
+                exportNewRequestLog(br);    
+
+                DELETE BarcodeRequestDetail dd WHERE barcodeRequest(dd) == br AND needCreateNewRequest(dd);
+                SHOW barcodeRequest OBJECTS p = b MANAGESESSION DOCKED;
+            }
+        }
+    } ELSE {
+        MESSAGE 'Для создания новой заявки нет данных';
+    }
+}
+EXTEND FORM barcodeRequest
+    FILTERGROUP diff FILTER 'Несоответствие'  needCreateNewRequest(d) 'F9'
+;
+EXTEND FORM barcodeRequests
+    PROPERTIES (p) createNewRequest PANEL SHOWIF [ GROUP MIN BarcodeRequestDetail dd IF needCreateNewRequest(dd) BY barcodeRequest(dd)](p) AND NOT isSent(p)
+    FILTERGROUP diff FILTER 'Несоответствие'  needCreateNewRequest(d) 'F9'
+;
+DESIGN barcodeRequests {
+    action {
+        NEW actionNew {
+            caption = 'Новая заявка';
+            MOVE PROPERTY (createNewRequest(p));
+        }
+    }
+}
+
+overIdBarcode 'Штрихкод'(Item i) = OVERRIDE idBarcode(i),
+    'В заявке на EAN' IF [ GROUP SUM 1 IF NOT(isClosed(BarcodeRequestDetail d)) BY item(d)](i);
+
+EXTEND FORM item
+    PROPERTIES(i) overIdBarcode ON CHANGE changeBarcode(i) EVENTID 'SCANNER'
+;
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY (overIdBarcode(i));
+        REMOVE PROPERTY (idBarcode(i));
+    }
+}
+EXTEND FORM items
+    PROPERTIES(i) READONLY overIdBarcode AFTER idBarcode(i)
+;
+DESIGN items {
+    PROPERTY (idBarcode(i)) {
+        hide = TRUE;
+    }
+}
+
+dateTimeBarcode 'Дата/время получения ЕАН' (Item i) = GROUP LAST dateTimeReceived(barcodeRequest(BarcodeRequestDetail d)) ORDER dateTime(d), d BY item(d);
+
+EXTEND FORM items PROPERTIES dateTimeBarcode(i);
