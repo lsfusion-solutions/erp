@@ -9,6 +9,19 @@ NAMESPACE EGAIS;
 actWriteOff = DATA ActWriteOff (LotAdjustment);
 actFixBarCode = DATA ActFixBarCode (LotAdjustment);
 
+defaultLotAdjustmentWriteOffType = DATA WriteOffType ();
+idDefaultLotAdjustmentWriteOffType 'Тип списания ЕГАИС для инвентаризации марок (по умолчанию)' () = id (defaultLotAdjustmentWriteOffType());
+
+EXTEND FORM integrationData
+    PROPERTIES idDefaultLotAdjustmentWriteOffType()
+;
+
+DESIGN integrationData {
+    EGAISParams {
+        MOVE PROPERTY(idDefaultLotAdjustmentWriteOffType());
+    }
+}
+
 processWriteOff 'Отправить в ЕГАИС' (LotAdjustment a) {
     NEWSESSION {
         quantity(Lot l) <- GROUP SUM quantity(LotAdjustmentDetail d) IF lotAdjustment(d) == a AND lot(d) == l;
@@ -19,7 +32,7 @@ processWriteOff 'Отправить в ЕГАИС' (LotAdjustment a) {
             number(w) <- seriesNumber(a);
             client(w) <- client(stock(a));
             dateTime(w) <- dateTime(a);
-            type(w) <- writeOffType('Изменение остатка');
+            type(w) <- OVERRIDE defaultLotAdjustmentWriteOffType(), writeOffType('Недостача');
             note(w) <- 'Списание продукции на основе изменения остатков';
 
             FOR [GROUP SUM 1 IF quantity(Lot l) < 0 BY f2Reg(markCode(id(l)))](F2Reg f) INLINE NEW ps = ActWriteOffPosition DO {
