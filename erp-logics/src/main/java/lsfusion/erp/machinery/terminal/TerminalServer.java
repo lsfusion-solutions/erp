@@ -297,7 +297,7 @@ public class TerminalServer extends MonitorServer {
 
     public String getSessionId(DataObject customUser, String login, String password, String idTerminal, String idApplication, String idStock) {
         String sessionId = String.valueOf((login + password + idTerminal).hashCode());
-        userMap.put(sessionId, new UserInfo(customUser, idTerminal, idApplication, idStock));
+        userMap.put(sessionId, new UserInfo(customUser, login, idTerminal, idApplication, idStock));
         return sessionId;
     }
 
@@ -434,13 +434,13 @@ public class TerminalServer extends MonitorServer {
                             logger.info(getLogPrefix(socket) + "requested setStock");
                             String[] params = readParams(inFromClient);
                             if (params.length >= 2) {
-                                logger.info(getLogPrefix(socket) + "id stock: " + params[1]);
                                 sessionId = params[0];
                                 UserInfo userInfo = userMap.get(sessionId);
                                 if (userInfo == null || userInfo.user == null) {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
+                                    logger.info(getLogPrefix(socket, userInfo) + "id stock: " + params[1]);
                                     userInfo.idStock = params[1];
                                 }
                             } else {
@@ -469,7 +469,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    logger.info(getLogPrefix(socket) + String.format("barcode '%s', vop '%s'", barcode, vop));
+                                    logger.info(getLogPrefix(socket, userInfo) + String.format("barcode '%s', vop '%s'", barcode, vop));
                                     Object readItemResult = readItem(userInfo, barcode, vop);
                                     if (readItemResult == null) {
                                         errorCode = ITEM_NOT_FOUND;
@@ -555,7 +555,7 @@ public class TerminalServer extends MonitorServer {
                                                         markDocumentDetail, replaceDocumentDetail, ana1DocumentDetail, ana2DocumentDetail, imageDocumentDetail));
                                             }
                                         }
-                                        logger.info(getLogPrefix(socket) + "receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
+                                        logger.info(getLogPrefix(socket, userInfo) + "receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if (emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
@@ -594,7 +594,7 @@ public class TerminalServer extends MonitorServer {
                                         String json = null;
                                         if (params.length > 2)
                                             json = params[2];
-                                        logger.info(getLogPrefix(socket) + String.format("idCommand=%d, json: '%s'", idCommand, json));
+                                        logger.info(getLogPrefix(socket, userInfo) + String.format("idCommand=%d, json: '%s'", idCommand, json));
                                         fileData = teamWorkDocument(idCommand, json, userInfo);
                                     } else {
                                         errorCode = WRONG_PARAMETER_COUNT;
@@ -649,7 +649,7 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    priceCheckerLogger.info(getLogPrefix(socket) + String.format("idLot '%s'", idLot));
+                                    priceCheckerLogger.info(getLogPrefix(socket, userInfo) + String.format("idLot '%s'", idLot));
                                     result = readLotInfo(idLot);
                                     if (result == null) {
                                         errorCode = LOT_NOT_FOUND;
@@ -679,7 +679,7 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     boolean readBatch = (params.length > 1 && params[1].equalsIgnoreCase("1"));
                                     if (readBatch)
-                                        logger.info(getLogPrefix(socket) + "requested readBatch");
+                                        logger.info(getLogPrefix(socket, userInfo) + "requested readBatch");
                                     fileData = readBase(userInfo, readBatch);
                                     if (fileData == null) {
                                         errorCode = GET_ALL_BASE_ERROR;
@@ -821,7 +821,7 @@ public class TerminalServer extends MonitorServer {
                                 } else {
                                     if (params.length >= 2) {
                                         String barcode = params[1];
-                                        logger.info(getLogPrefix(socket) + String.format("%s, barcode='%s'", command, barcode));
+                                        logger.info(getLogPrefix(socket, userInfo) + String.format("%s, barcode='%s'", command, barcode));
                                         fileData = getMoves(barcode, userInfo);
                                         if (fileData == null) {
                                             errorCode = UNKNOWN_ERROR;
@@ -1010,6 +1010,10 @@ public class TerminalServer extends MonitorServer {
         else if(errorText.contains("\n"))
             errorText = errorText.substring(0, errorText.indexOf('\n'));
         return errorText;
+    }
+
+    private String getLogPrefix(Socket socket, UserInfo userInfo) {
+        return getLogPrefix(socket) + userInfo.login + " / " + userInfo.idTerminal + " ";
     }
 
     private String getLogPrefix(Socket socket) {
