@@ -13,8 +13,9 @@ import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.entity.StringEntity;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -108,7 +109,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         if (settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
-        HttpDeleteWithBody request = new HttpDeleteWithBody(requestURL);
+        HttpDelete request = new HttpDelete(requestURL);
         request.setEntity(new StringEntity(requestBody));
         LoyaResponse response = executeRequestWithRelogin(context, request);
         if (!response.succeeded)

@@ -16,10 +16,11 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
-import org.apache.http.entity.StringEntity;
+import org.apache.hc.client5.http.classic.methods.HttpDelete;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpPut;
+import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -212,7 +213,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         if(settings.logRequests) {
             ERPLoggers.importLogger.info(String.format("Log Request to URL %s: %s", requestURL, requestBody));
         }
-        HttpDeleteWithBody deleteRequest = new HttpDeleteWithBody(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
+        HttpDelete deleteRequest = new HttpDelete(settings.url + "goodgroup/" + settings.partnerId + "/" + idItemGroup);
         deleteRequest.setEntity(new StringEntity(requestBody));
         LoyaResponse response = executeRequestWithRelogin(context, deleteRequest);
         boolean succeeded = response.succeeded;
