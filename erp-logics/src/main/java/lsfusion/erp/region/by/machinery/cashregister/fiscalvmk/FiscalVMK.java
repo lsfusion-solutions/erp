@@ -5,8 +5,8 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.ByReference;
 import com.sun.jna.ptr.IntByReference;
+import lsfusion.base.BaseUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.util.TextUtils;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -367,11 +367,11 @@ public class FiscalVMK {
 
                 // печать наименования товара в несколько строк по 24 символа
                 String name = item.name.replace('№', 'N');
-                while (!TextUtils.isEmpty(name)) {
+                while (!BaseUtils.isEmpty(name)) {
                     String line = StringUtils.left(name, 24);
                     name = StringUtils.mid(name, 24, name.length() - 24);
 
-                    if (!TextUtils.isEmpty(line)) {
+                    if (!BaseUtils.isEmpty(line)) {
                         if (!printFiscalText(line))
                             return false;
                     }

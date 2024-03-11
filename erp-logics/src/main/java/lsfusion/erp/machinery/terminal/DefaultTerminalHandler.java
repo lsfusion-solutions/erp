@@ -1,6 +1,7 @@
 package lsfusion.erp.machinery.terminal;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -31,7 +32,6 @@ import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.util.TextUtils;
 
 import java.awt.*;
 import java.io.*;
@@ -440,7 +440,7 @@ public class DefaultTerminalHandler {
     public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(terminalTeamWorkLM != null) {
             FileData jsonFile = null;
-            if (!TextUtils.isEmpty(json))
+            if (!BaseUtils.isEmpty(json))
                 jsonFile = new FileData(new RawFileData(json.getBytes()), "json");
 
             terminalTeamWorkLM.findAction("process[INTEGER, FILE, CustomUser, STRING[100]]").execute(session, stack, new DataObject(idCommand), new DataObject(jsonFile, DynamicFormatFileClass.get()), userInfo.user, new DataObject(userInfo.idStock));
@@ -808,7 +808,7 @@ public class DefaultTerminalHandler {
                                     barcode.flags, barcode.nameCountry, barcode.amount, barcode.category);
                             usedBarcodes.add(barcode.idBarcode);
                         }
-                        if (!TextUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
+                        if (!BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
                             addGoodsRow(statement, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     image, barcode.isWeight, barcode.mainBarcode,
@@ -843,7 +843,7 @@ public class DefaultTerminalHandler {
                                 usedBarcodes.add(order.barcode);
                             }
                         }
-                        if (!TextUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
+                        if (!BaseUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
                             addGoodsRow(statement, order.GTIN, order.name, order.price, null,
                                     order.idItem, order.manufacturer, null, null, null,
                                     image, order.weight, order.barcode,
@@ -879,7 +879,7 @@ public class DefaultTerminalHandler {
                              String fld3, String fld4, String fld5, String image, String weight, String mainBarcode, String color, String ticketData, String unit,
                              Long flags, String nameCountry, BigDecimal amountPack, String category) throws SQLException {
         statement.setObject(1, format(idBarcode)); //idBarcode
-        statement.setObject(2, !TextUtils.isEmpty(name) ? name.toUpperCase() : ""); //name
+        statement.setObject(2, !BaseUtils.isEmpty(name) ? name.toUpperCase() : ""); //name
         statement.setObject(3, format(price)); //price
         statement.setObject(4, format(quantity)); //quantity
         statement.setObject(5, format(idItem)); //idItem, fld1
