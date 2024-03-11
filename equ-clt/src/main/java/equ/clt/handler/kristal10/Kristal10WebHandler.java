@@ -18,9 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.log4j.Appender;
 import org.apache.log4j.FileAppender;
@@ -1010,7 +1008,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         return error;
     }
 
-    private String parseResponsePurchasesByParams(Document responseDoc) throws IOException {
+    private String parseResponsePurchasesByParams(Document responseDoc) {
         String result = null;
         String error = null;
 
@@ -1062,13 +1060,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     private Document inputStreamToDoc(InputStream is) throws IOException, JDOMException {
-
-        String xml = new String(IOUtils.readBytesFromStream(is), encoding);
-
-        //todo: remove temp log
-        sendSalesLogger.info(getLogPrefix() + " inputStreamToDoc: " + xml);
-
-        return xmlStringToDoc(xml);
+        return xmlStringToDoc(new String(IOUtils.readBytesFromStream(is), encoding));
     }
 
     private Document xmlStringToDoc(String xml) throws JDOMException, IOException {
