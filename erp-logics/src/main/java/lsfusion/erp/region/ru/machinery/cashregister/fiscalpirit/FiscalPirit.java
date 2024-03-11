@@ -3,7 +3,7 @@ package lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit;
 import com.google.common.base.Throwables;
 import jssc.SerialPort;
 import jssc.SerialPortException;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
