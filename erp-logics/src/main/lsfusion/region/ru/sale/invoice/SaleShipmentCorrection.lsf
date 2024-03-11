@@ -11,8 +11,6 @@ createShipment 'Создать поставку' (InvoiceCorrectionDetail d) = c
 backgroundShipped 'Цвет' (InvoiceCorrection invoice) = RGB(255, 224, 255) IF invoice IS InvoiceCorrection;
 backgroundShipped (InvoiceCorrectionDetail detail) = backgroundShipped(invoiceCorrection(detail));
 
-shipmentQuantity 'Кол-во (поставлено)' = DATA NUMERIC[16,5] (InvoiceCorrectionDetail);
-
 shipmentPriceB 'Цена учетная (до)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 shipmentPriceA 'Цена учетная (после)' = DATA NUMERIC[16,4] (InvoiceCorrectionDetail);
 
@@ -63,7 +61,6 @@ changeShipmentPriceValue(InvoiceDetail invoiceDetail, InvoiceCorrection invoiceC
 }
 
 WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail))  DO {
-    shipmentQuantity(invoiceCorrectionDetail) <- shipmentQuantity(invoiceDetail(invoiceCorrectionDetail));
     shipmentPriceB(invoiceCorrectionDetail) <- shipmentPrice(invoiceDetail(invoiceCorrectionDetail));    
     shipmentSumB(invoiceCorrectionDetail) <- shipmentSum(invoiceDetail(invoiceCorrectionDetail));
 }
@@ -79,7 +76,6 @@ shipmentSumA 'Сумма учетная (после)' (InvoiceDetail detail, Inv
 EXTEND FORM invoiceCorrection
     PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
     PROPERTIES(id) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantity(id)
-    PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
     PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB
     PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
 
@@ -91,7 +87,6 @@ EXTEND FORM invoiceCorrection
         shipmentSumA(id, i)
 ;
 EXTEND FORM invoiceCorrections
-    PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentQuantity AFTER quantityB(d)
     PROPERTIES (d) READONLY AFTER invoiceSumB(d) BACKGROUND backgroundShipped(i) shipmentPriceB, shipmentSumB
     PROPERTIES (d) READONLY AFTER invoiceSumA(d) BACKGROUND backgroundShipped(i) shipmentPriceA, shipmentSumA
 ;
@@ -135,7 +130,7 @@ skip(InvoiceCorrection l) += l IS InvoiceCorrection AND NOT createShipment(l);
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 batch(InvoiceCorrectionDetail ledger) = batch(invoiceDetail(ledger));
 
-@implementSkuLedgerOutFIFO(InvoiceCorrectionDetail, sku, customerStock);
+@implementSkuLedgerOutFIFO(InvoiceCorrectionDetail, sku, supplierStock);
 
 quantity[OutFIFOSkuLedger](InvoiceCorrectionDetail ledger) += quantity(ledger);
 batch[SkuLedger](InvoiceCorrectionDetail ledger) += batch(ledger);
