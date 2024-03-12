@@ -268,9 +268,9 @@ WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
                                                                                                   dateTime(detail));
 
 // Автоматический расчет розничной надбавки
-WHEN LOCAL CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
+WHEN LOCAL (CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
               CHANGED (valueRetailVAT(userWriteOffDetail)) OR
-              CHANGED(supplierPrice(userWriteOffDetail)) DO
+              CHANGED(supplierPrice(userWriteOffDetail))) AND NOT skipCalcRetailMarkup(userWriteOffDetail) DO
     retailMarkup(userWriteOffDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
         retailPrice(userWriteOffDetail),
         valueRetailVAT(userWriteOffDetail),
