@@ -112,7 +112,13 @@ backgroundDiffValueBin (Bin b) = CASE
     WHEN currentVolume(b) > volume(b) THEN overColorValueBin()
     WHEN (GROUP SUM 1 IF currentVolume(Sku sku, b)) > 1 THEN overColorValueBin();
 
+binVolume 'Общий объем резервуаров содержащих этот товар, л' (Sku sku) = GROUP SUM volume(Bin b) IF currentVolume(sku, b);
+binVolume 'Общий объем резервуаров АЗС содержащих этот товар, л' (Sku sku, Stock st) = GROUP SUM volume(Bin b) IF in(st, b) AND currentVolume(sku, b);
+binVolume 'Общий объем резервуаров АЗС, л' (Stock st) = GROUP SUM volume(Bin b) IF in(st, b);
+
 fullVolumePercent 'Занято по объёму, %' (Bin b) = round2(currentVolume(b) / volume(b) * 100.0);
+fullVolumePercent 'Занято по объёму, %' (Sku sku, Bin b) = round2(currentVolume(sku, b) / volume(b) * 100.0);
+fullVolumePercent 'Занято по объёму, %' (Stock st) = round2((GROUP SUM currentVolume(Bin b) IF in(st, b)) / binVolume(st) * 100.0);
 
 CLASS FullVolumePercentInterval 'Интервал % занятости по объему';
 TABLE fullVolumePercentInterval(FullVolumePercentInterval);
@@ -136,6 +142,7 @@ DESIGN options {
 }
 
 backgroundFullVolumePercent (Bin b) = colorFullVolumePercent(fullVolumePercent(b));
+backgroundFullVolumePercent (Sku sku, Bin b) = colorFullVolumePercent(fullVolumePercent(sku, b));
 
 EXTEND FORM binBalance
     PROPERTIES(b) READONLY volume, currentBalance, currentVolume BACKGROUND backgroundDiffValueBin(b), fullVolumePercent BACKGROUND backgroundFullVolumePercent(b), currentDensity

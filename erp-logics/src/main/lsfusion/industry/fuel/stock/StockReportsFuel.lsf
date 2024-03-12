@@ -794,130 +794,245 @@ DESIGN dailyReports {
     }
 }
 
+fullVolumePercent 'Занято по объёму, %' (Sku sku, Stock st) = round2(currentVolume(sku,st) / binVolume(sku, st)) * 100.0;
+backgroundFullVolumePercent (Sku sku, Stock st) = colorFullVolumePercent(fullVolumePercent(sku, st));
+
 FORM stockFuelBalance 'Остатки по АЗС'
     OBJECTS le = LegalEntity PANEL
-    PROPERTIES(le) name
-
-    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY VALUE(a), name(sg)
-    ORDERS name(sg)
-    FILTERS stringEqualsAll(a), [GROUP SUM 1 IF isParent(StockGroup sg1, Stock st1) BY sg1, legalEntity(st1)](sg, le)
-
-    OBJECTS tsb = (ts = Stock, b = Bin)
-    PROPERTIES READONLY name(ts)
-    PROPERTIES READONLY name(b), volume(b), currentBalance(b), currentVolume(b) BACKGROUND backgroundDiffValueBin(b), fullVolumePercent(b) BACKGROUND backgroundFullVolumePercent(b)
-    ORDERS name(ts), name(b)
-    FILTERS isParent(sg, ts) OR (ts IS Stock AND NOT sg), legalEntity(ts) = le, in(ts, b)
-
-    FILTERGROUP balanceBin 
-        FILTER 'С остатком (резервуар)' currentBalance(b)
-        FILTER 'С движением (резервуар)' OVERRIDE [GROUP MAX BinLedger l1 BY inBin(l1)](b), [GROUP MAX BinLedger l1 BY outBin(l1)](b)
-
-    FILTERGROUP balanceStock
-        FILTER 'С остатком (АЗС)' GROUP SUM 1 IF currentBalance(Sku s, ts)
-        FILTER 'С движением (АЗС)' GROUP SUM 1 IF countLedger(Sku s, ts)
+    PROPERTIES(le) name     
     
-    TREE treeGroup g=SkuGroup PARENT parent(g)
-    PROPERTIES READONLY order(g), name(g)
-    FILTERS groupType(g) == groupType(ts)
-    ORDERS order(g), name(g)
-    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+    //группировка - товар
+    TREE skuTreeGroup skuSg=SkuGroup PARENT parent(skuSg)
+    PROPERTIES READONLY order(skuSg), name(skuSg)
+    ORDERS order(skuSg), name(skuSg)
+    FILTERGROUP skuInactiveSg FILTER 'Активные' active(skuSg) 'F6' DEFAULT
 
-    OBJECTS s1 = Sku
-    PROPERTIES(s1) READONLY name, idBarcode
-    PROPERTIES (s1, b) READONLY currentBalance, currentVolume
-    ORDERS name(s1)
-    FILTERS isParent(g, s1) OR s1 IS Sku AND NOT g
-    FILTERGROUP isFuels1 FILTER 'Топливо' isFuel(s1) DEFAULT
+    OBJECTS skuS = Sku
+    PROPERTIES(skuS) READONLY name, idBarcode
+    PROPERTIES currentBalance(skuS, le), binVolume(skuS), currentVolume(skuS, le)
+    ORDERS name(skuS)
+    FILTERS isParent(skuSg, skuS) OR skuS IS Sku AND NOT skuSg
+    FILTERGROUP skuIsFuels FILTER 'Топливо' isFuel(skuS) DEFAULT
+    FILTERGROUP skuBalance
+        FILTER 'С остатком' GROUP SUM 1 IF currentBalance(skuS, Stock st11)
+        FILTER 'С движением' GROUP SUM 1 IF countLedger(skuS, Stock st11)
+       
+    TREE skuStockTree skuA = BPSTRING[3], skuStg = StockGroup PARENT parent(skuStg)
+    PROPERTIES READONLY VALUE(skuA), name(skuStg)
+    ORDERS name(skuStg)
+    FILTERS stringEqualsAll(skuA), [GROUP SUM 1 IF isParent(StockGroup sg1, Stock st1) BY sg1, legalEntity(st1)](skuStg, le)
 
-    OBJECTS l = BinLedger
-    PROPERTIES (l) READONLY dateTime, isPosted, description
-    PROPERTIES(b, l) READONLY balanceBin, balanceQuantity, balanceVolume//, density
-    ORDERS dateTime(l) DESC
-    FILTERS inBin(l)==b OR outBin(l)==b, sku(l)==s1
-    FILTERGROUP postedl
-        FILTER 'Проведен' isPosted(l) DEFAULT
+    OBJECTS skuSt1 = Stock
+    PROPERTIES READONLY name(skuSt1)
+    PROPERTIES (skuS, skuSt1) READONLY currentBalance, currentVolume, binVolume, fullVolumePercent BACKGROUND backgroundFullVolumePercent(skuS, skuSt1)
+    ORDERS name(skuSt1)
+    FILTERS isParent(skuStg, skuSt1) OR (skuSt1 IS Stock AND NOT skuStg), legalEntity(skuSt1) = le,
+        groupType(skuSt1) = groupType(skuSg)
 
-    OBJECTS s2 = Sku
-    PROPERTIES(s2) READONLY name, idBarcode
-    PROPERTIES (s2, ts) READONLY currentBalance, currentVolume
-    ORDERS name(s2)
-    FILTERS isParent(g, s2) OR s2 IS Sku AND NOT g
-    FILTERGROUP isFuels2 FILTER 'Топливо' isFuel(s2) DEFAULT
+    OBJECTS skuSl = SkuLedger
+    PROPERTIES (skuSl) READONLY dateTime, isPosted, description
+    PROPERTIES (skuSl) READONLY quantity, volume
+    ORDERS dateTime(skuSl) DESC
+    FILTERS stock(skuSl) = skuSt1, sku(skuSl) = skuS
+    FILTERGROUP skuPostedsl
+        FILTER 'Проведен' isPosted(skuSl) DEFAULT
+    
+    OBJECTS skuStb = (skuSt2 = Stock, skuB = Bin)
+    PROPERTIES READONLY name(skuSt2)
+    PROPERTIES READONLY name(skuB), volume(skuB)    
+    PROPERTIES (skuS, skuB) READONLY currentBalance, currentVolume, fullVolumePercent BACKGROUND backgroundFullVolumePercent(skuS, skuB)
+    ORDERS name(skuSt2), name(skuB)
+    FILTERS isParent(skuStg, skuSt2) OR (skuSt2 IS Stock AND NOT skuStg), legalEntity(skuSt2) = le, in(skuSt2, skuB),
+        groupType(skuSt2) = groupType(skuSg)
 
-    OBJECTS sl = SkuLedger
-    PROPERTIES (sl) READONLY dateTime, isPosted, description
-    PROPERTIES (sl) READONLY quantity, volume
-    ORDERS dateTime(sl) DESC
-    FILTERS stock(sl) = ts, sku(sl) = s2
-    FILTERGROUP postedsl
-        FILTER 'Проведен' isPosted(sl) DEFAULT
+    OBJECTS skuBl = BinLedger
+    PROPERTIES (skuBl) READONLY dateTime, isPosted, description
+    PROPERTIES(skuB, skuBl) READONLY balanceBin, balanceQuantity, balanceVolume//, density
+    ORDERS dateTime(skuBl) DESC
+    FILTERS inBin(skuBl)==skuB OR outBin(skuBl)==skuB, sku(skuBl)==skuS
+    FILTERGROUP skuPostedbl
+        FILTER 'Проведен' isPosted(skuBl) DEFAULT
 
+    //группировка склад-резервуар
+    TREE binStockTree binA = BPSTRING[3], binStg = StockGroup PARENT parent(binStg)
+    PROPERTIES READONLY VALUE(binA), name(binStg)
+    ORDERS name(binStg)
+    FILTERS stringEqualsAll(binA), [GROUP SUM 1 IF isParent(StockGroup sg1, Stock st1) BY sg1, legalEntity(st1)](binStg, le)
+
+    OBJECTS binStB = (binSt = Stock, binB = Bin)
+    PROPERTIES READONLY name(binSt)
+    PROPERTIES READONLY name(binB), volume(binB), currentBalance(binB), currentVolume(binB) BACKGROUND backgroundDiffValueBin(binB), fullVolumePercent(binB) BACKGROUND backgroundFullVolumePercent(binB)
+    ORDERS name(binSt), name(binB)
+    FILTERS isParent(binStg, binSt) OR (binSt IS Stock AND NOT binStg), legalEntity(binSt) = le, in(binSt, binB)
+
+    FILTERGROUP binBalanceBin
+        FILTER 'С остатком (резервуар)' currentBalance(binB)
+        FILTER 'С движением (резервуар)' OVERRIDE [GROUP MAX BinLedger l1 BY inBin(l1)](binB), [GROUP MAX BinLedger l1 BY outBin(l1)](binB)
+
+    FILTERGROUP binBalanceStock
+        FILTER 'С остатком (АЗС)' GROUP SUM 1 IF currentBalance(Sku s, binSt)
+        FILTER 'С движением (АЗС)' GROUP SUM 1 IF countLedger(Sku s, binSt)
+
+    TREE binTreeGroup binSg=SkuGroup PARENT parent(binSg)
+    PROPERTIES READONLY order(binSg), name(binSg)
+    FILTERS groupType(binSg) == groupType(binSt)
+    ORDERS order(binSg), name(binSg)
+    FILTERGROUP inactiveBinSg FILTER 'Активные' active(binSg) 'F6' DEFAULT
+
+    OBJECTS binS1 = Sku
+    PROPERTIES(binS1) READONLY name, idBarcode
+    PROPERTIES (binS1, binSt) READONLY currentBalance, currentVolume, binVolume, fullVolumePercent BACKGROUND backgroundFullVolumePercent(binS1, binSt)
+    ORDERS name(binS1)
+    FILTERS isParent(binSg, binS1) OR binS1 IS Sku AND NOT binSg
+    FILTERGROUP binIsFuels2 FILTER 'Топливо' isFuel(binS1) DEFAULT
+
+    OBJECTS binSl = SkuLedger
+    PROPERTIES (binSl) READONLY dateTime, isPosted, description
+    PROPERTIES (binSl) READONLY quantity, volume
+    ORDERS dateTime(binSl) DESC
+    FILTERS stock(binSl) = binSt, sku(binSl) = binS1
+    FILTERGROUP binPostedsl
+        FILTER 'Проведен' isPosted(binSl) DEFAULT
+
+    OBJECTS binS2 = Sku
+    PROPERTIES(binS2) READONLY name, idBarcode
+    PROPERTIES (binS2, binB) READONLY currentBalance, currentVolume, fullVolumePercent BACKGROUND backgroundFullVolumePercent(binS2, binB)
+    ORDERS name(binS2)
+    FILTERS isParent(binSg, binS2) OR binS2 IS Sku AND NOT binSg
+    FILTERGROUP binIsFuels1 FILTER 'Топливо' isFuel(binS2) DEFAULT
+
+    OBJECTS binBl = BinLedger
+    PROPERTIES (binBl) READONLY dateTime, isPosted, description
+    PROPERTIES(binB, binBl) READONLY balanceBin, balanceQuantity, balanceVolume//, density
+    ORDERS dateTime(binBl) DESC
+    FILTERS inBin(binBl)==binB OR outBin(binBl)==binB, sku(binBl)==binS2
+    FILTERGROUP binPostedbl
+        FILTER 'Проведен' isPosted(binBl) DEFAULT
+    
 ;
 
 DESIGN stockFuelBalance {
     BOX {
         size = (1024, 768);
         MOVE BOX(le);
-        NEW topContainer {
+        NEW tabCont {
             fill = 1;
-            horizontal = TRUE;
-            NEW groupCont {
+            tabbed = TRUE;
+            NEW skuContainer {
                 fill = 1;
-                MOVE BOX(TREE stockTree) {
-                    caption = 'Группы складов';
-                    width = 0;
-                }
-                MOVE BOX(TREE treeGroup) {
-                    caption = 'Группы Sku';
-                    width = 0;
-                }
+                horizontal = TRUE;
+                caption = 'Товары';
+                NEW skuGroupCont {
+                    fill = 1;
+                    MOVE BOX(TREE skuTreeGroup) {
+                        caption = 'Группы Sku';
+                        width = 0;
+                    }
+                    MOVE BOX(TREE skuStockTree) {
+                        caption = 'Группы складов';
+                        width = 0;
+                    }
 
+                }
+                NEW skuItemCont {
+                    fill = 3;
+                    MOVE BOX(skuS) {
+                        fill = 2.5;
+                        GRID(skuS) {
+                            defaultComponent = TRUE;
+                        }
+                    }
+                    NEW skuSkusTabs {
+                        fill = 2.5;
+                        tabbed = TRUE;
+                        NEW skuskusStocks {
+                            caption = 'АЗС';
+                            MOVE BOX(skuSt1) {
+                                fill = 2;
+                                PROPERTY(currentBalance(skuS, skuSt1)) { caption = 'Текущий остаток, кг'; }
+                                PROPERTY(currentVolume(skuS, skuSt1));
+                                GRID(skuS) {
+                                    defaultComponent = TRUE;
+                                }
+                            }
+                            MOVE BOX(skuSl) {
+                                PROPERTY(quantity(skuSl)) { caption = 'Кол-во, кг'; }
+                            };
+                        }
+
+                        NEW skuSkusBins {
+                            caption = 'Резервуары';
+                            MOVE BOX(skuStb) {
+                                fill = 2;
+                                PROPERTY(currentBalance(skuS, skuB)) { caption = 'Текущий остаток, кг'; }
+                                GRID(skuStb) {
+                                    defaultComponent = TRUE;
+                                }
+                            }
+                            MOVE BOX(skuBl){ caption = 'Изменение остатка по резервуарам'; };
+                        }
+                    }
+                }
             }
-            NEW itemCont {
-                fill = 3;
-                MOVE BOX(tsb) {
-                    fill = 2.5;
-                    PROPERTY(name(b)) {caption = 'Резервуар';}
-                    PROPERTY(volume(b)) { caption = 'Объем резервуара, л'; }
-                    PROPERTY(currentBalance(b)) { caption = 'Текущий остаток в резервуаре, кг'; }
-                    PROPERTY(currentVolume(b)) { caption = 'Текущий объем в резервуаре, л'; }
-                    GRID(tsb) {
-                        defaultComponent = TRUE;
+            NEW binContainer {
+                horizontal = TRUE;
+                caption = 'Резервуары';
+                fill = 1;
+                horizontal = TRUE;
+                NEW groupCont {
+                    fill = 1;
+                    MOVE BOX(TREE binStockTree) {
+                        caption = 'Группы складов';
+                        width = 0;
                     }
-                }
-                NEW skusTabs {
-                    fill = 2.5;
-                    tabbed = TRUE;
-                    NEW skusStocks {
-                        caption = 'АЗС';
-                        MOVE BOX(s2) {
-                            fill = 2;
-                            BOX(sl);
-                            PROPERTY(currentBalance(s2, ts)) { caption = 'Текущий остаток, кг'; }
-                            PROPERTY(currentVolume(s2, ts));
-                            GRID(s1) {
-                                defaultComponent = TRUE;
-                            }
-                        }
-                        MOVE BOX(sl) {
-                            PROPERTY(quantity(sl)) { caption = 'Кол-во, кг'; }
-                        };
+                    MOVE BOX(TREE binTreeGroup) {
+                        caption = 'Группы Sku';
+                        width = 0;
                     }
 
-                    NEW skusBins {
-                        caption = 'Резервуары';
-                        MOVE BOX(s1) {
-                            fill = 2;
-                            BOX(l) { caption = 'Изменение остатка по резервуарам'; }
-                            PROPERTY(currentBalance(s1, b)) { caption = 'Текущий остаток, кг'; }
-                            PROPERTY(balanceBin(b, l)) { caption = 'Резервуар (из/в)'; }
-                            PROPERTY(balanceQuantity(b, l)) { caption = 'Кол-во, кг'; }
-                            GRID(s1) {
-                                defaultComponent = TRUE;
-                            }
+                }
+                NEW itemCont {
+                    fill = 3;
+                    MOVE BOX(binStB) {
+                        fill = 2.5;
+                        PROPERTY(name(binB)) {caption = 'Резервуар';}
+                        PROPERTY(volume(binB)) { caption = 'Объем резервуара, л'; }
+                        PROPERTY(currentBalance(binB)) { caption = 'Текущий остаток в резервуаре, кг'; }
+                        PROPERTY(currentVolume(binB)) { caption = 'Текущий объем в резервуаре, л'; }
+                        GRID(binStB) {
+                            defaultComponent = TRUE;
                         }
-                        MOVE BOX(l);
+                    }
+                    NEW binSkusTabs {
+                        fill = 2.5;
+                        tabbed = TRUE;
+                        NEW skusStocks {
+                            caption = 'АЗС';
+                            MOVE BOX(binS1) {
+                                fill = 2;
+                                PROPERTY(currentBalance(binS1, binSt)) { caption = 'Текущий остаток, кг'; }
+                                GRID(binS2) {
+                                    defaultComponent = TRUE;
+                                }
+                            }
+                            MOVE BOX(binSl) {
+                                PROPERTY(quantity(binSl)) { caption = 'Кол-во, кг'; }
+                            };
+                        }
+
+                        NEW skusBins {
+                            caption = 'Резервуары';
+                            MOVE BOX(binS2) {
+                                fill = 2;
+                                PROPERTY(currentBalance(binS2, binB)) { caption = 'Текущий остаток, кг'; }
+                                PROPERTY(balanceBin(binB, binBl)) { caption = 'Резервуар (из/в)'; }
+                                PROPERTY(balanceQuantity(binB, binBl)) { caption = 'Кол-во, кг'; }
+                                GRID(binS2) {
+                                    defaultComponent = TRUE;
+                                }
+                            }
+                            MOVE BOX(binBl) { caption = 'Изменение остатка по резервуарам'; };
+                        }
                     }
                 }
             }

@@ -38,6 +38,9 @@ signedVolumeActive(SkuLedger ledger) = signedVolume(ledger) IF active(ledger) MA
 
 currentVolume 'Текущий объем, л' (sku, stock) =
     GROUP SUM signedVolumeActive(SkuLedger ledger) BY sku(ledger), stock(ledger) CHARWIDTH 7 MATERIALIZED;
+currentVolume 'Текущий объем, л' (Sku sku, LegalEntity le) =
+    [GROUP SUM currentVolume(Sku sku1, Stock st) BY sku1, legalEntity(st)](sku, le) CHARWIDTH 7;
+
 prevCurrentVolume 'Текущий объем, л' (Sku sku, Stock stock) = PREV(currentVolume(sku, stock)) CHARWIDTH 7;
 prevCurrentVolume 'Текущий объем, л' (Sku sku)  = GROUP SUM prevCurrentVolume(sku, Stock stock) CHARWIDTH 7;
 //countLedger 'Кол-во движений' (sku, stock) =
@@ -126,3 +129,5 @@ EXTEND FORM skuLedger
 CONSTRAINT (CHANGED(signedVolume(SkuLedger l)) OR CHANGED(signedQuantity(l))) AND (signedVolume(l) OR signedQuantity(l)) AND NOT (signedVolume(l) AND signedQuantity(l))            
     AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
     MESSAGE 'При движении топлива должны быть заданы масса и объём';
+
+currentBalance 'Текущий остаток, кг' (Sku skus, LegalEntity le) = [GROUP SUM currentBalance(Sku s1, Stock st) BY legalEntity(st), s1](le, skus);
