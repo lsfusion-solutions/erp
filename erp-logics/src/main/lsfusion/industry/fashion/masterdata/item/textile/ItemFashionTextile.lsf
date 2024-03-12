@@ -140,15 +140,28 @@ WHEN LOCAL FORMS article CHANGED(articleKind(Article a)) AND NOT CHANGED(caption
 articleKind(Item i) = articleKind(article(i));
 nameArticleKind 'Вид изделия'(Item i) = nameArticleKind(article(i));
 
+VAT = DATA Range(ArticleKind);
+valueVAT 'НДС, %' (ArticleKind a) = valueCurrentRate(VAT(a));
+
+skipSetArticleKindVAT = ABSTRACT BOOLEAN ();
+
+WHEN SETCHANGED(articleKind(Item i)) AND VAT(articleKind(i)) AND NOT CHANGED(VAT(i, defaultCountry())) AND NOT skipSetArticleKindVAT() DO {
+    VAT(i, defaultCountry()) <- VAT(articleKind(i));
+}
+
+WHEN SETCHANGED (VAT(ArticleKind a)) AND NOT skipSetArticleKindVAT() DO {
+    VAT(Item i, defaultCountry()) <- VAT(a) WHERE a == articleKind(i);
+}
+
 FORM articleKind 'Вид изделия'
     OBJECTS t = ArticleKind PANEL
-    PROPERTIES(t) name, fullName, codeOKRB
+    PROPERTIES(t) name, valueVAT, fullName, codeOKRB
     EDIT ArticleKind OBJECT t
 ;
 
 FORM articleKinds 'Виды изделий'
     OBJECTS t = ArticleKind
-    PROPERTIES(t) READONLYIF isReadonly() name, fullName, codeOKRB
+    PROPERTIES(t) READONLYIF isReadonly() name, valueVAT, fullName, codeOKRB
     PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(t)
 
