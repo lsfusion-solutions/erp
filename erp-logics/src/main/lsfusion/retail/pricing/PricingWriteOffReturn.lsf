@@ -15,6 +15,18 @@ roundCondition(UserWriteOffDetail userWriteOffDetail) = roundCondition(stock(use
 @defineDocumentInterfaceDetailDataSumPrefix (writeOff, supplier, ' поставщика');
 @deriveDocumentDetailSumPrefix(userWriteOff, supplier, currency, quantity);
 
+// Базовая цена
+overPricingPrice = ABSTRACT VALUE NUMERIC[16,4] (WriteOffDetail) ;
+overPricingPrice = ABSTRACT VALUE NUMERIC[16,4] (UserWriteOffDetail);
+overPricingPrice (UserWriteOffDetail detail) += overPricingPrice(detail);
+
+extraPricingPrice = ABSTRACT NUMERIC[16,4] (WriteOffDetail);
+extraPricingPrice = ABSTRACT NUMERIC[16,4] (UserWriteOffDetail);
+extraPricingPrice (UserWriteOffDetail detail) += extraPricingPrice(detail);
+
+pricingPrice 'Цена входная' (UserWriteOffDetail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) CHARWIDTH 7;
+pricingPrice 'Цена входная' (WriteOffDetail detail) = (OVERRIDE overPricingPrice(detail), price(detail)) (+) extraPricingPrice(detail) CHARWIDTH 7;
+
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (writeOff, retail, );
 
@@ -256,9 +268,9 @@ WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
                                                                                                   dateTime(detail));
 
 // Автоматический расчет розничной надбавки
-WHEN LOCAL CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
+WHEN LOCAL (CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
               CHANGED (valueRetailVAT(userWriteOffDetail)) OR
-              CHANGED(supplierPrice(userWriteOffDetail)) DO
+              CHANGED(supplierPrice(userWriteOffDetail))) AND NOT skipCalcRetailMarkup(userWriteOffDetail) DO
     retailMarkup(userWriteOffDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
         retailPrice(userWriteOffDetail),
         valueRetailVAT(userWriteOffDetail),
