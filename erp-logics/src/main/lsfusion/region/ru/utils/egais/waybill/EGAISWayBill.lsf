@@ -393,17 +393,17 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
         PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantityProp,
-                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed) SHOWIF NOT isExport(i)
+                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
         ORDERS index(ed)
         FILTERS doc(ed) = i
     
-        PROPERTIES(i) DRAW ed TOOLBAR SHOWIF NOT isExport(i) createDetail, fillQuantity
-        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i) SHOWIF NOT isExport(i)
+        PROPERTIES(i) DRAW ed TOOLBAR createDetail, fillQuantity
+        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
         
         OBJECTS wp = WayBillPosition
-        PROPERTIES(wp) READONLY SHOWIF NOT isExport(wp) idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL, 
+        PROPERTIES(wp) READONLY idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL, 
                                 idConsigneeF2Reg PANEL, bottlingDate PANEL
-        PROPERTIES(ed, wp) SHOWIF NOT isExport(wp) quantity, fillQuantity GRID
+        PROPERTIES(ed, wp) quantity, fillQuantity GRID
         FILTERS wayBill(wp) = wayBill(i)
         
         FILTERGROUP sku
@@ -420,15 +420,19 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         specificationBox {
             NEW EGAIS {
                 caption = 'ЕГАИС';
-                NEW EGAISHeader {
-                    horizontal = TRUE;
-                    MOVE PROPERTY(numberDateWayBill(i));
-                }
-                NEW EGAISDetail {
+                NEW EGAISWayBill {
                     fill = 1;
-                    horizontal = TRUE;
-                    MOVE BOX(ed);
-                    MOVE BOX(wp);
+                    showIf = NOT isExport(i);
+                    NEW EGAISHeader {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(numberDateWayBill(i));
+                    }
+                    NEW EGAISDetail {
+                        fill = 1;
+                        horizontal = TRUE;
+                        MOVE BOX(ed);
+                        MOVE BOX(wp);
+                    }
                 }
             }
         }

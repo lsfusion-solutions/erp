@@ -66,36 +66,44 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
 
 EXTEND FORM userInvoice
     OBJECTS rp = RepImportedProductPosition
-    PROPERTIES(rp) READONLY SHOWIF isExport(wp) idProduct PANEL, fullNameProduct, quantity, idF1Reg PANEL, idF2Reg PANEL,
+    PROPERTIES(rp) READONLY idProduct PANEL, fullNameProduct, quantity, idF1Reg PANEL, idF2Reg PANEL,
         idConsigneeF2Reg PANEL
     FILTERS repImportedProduct(rp) = repImportedProduct(i)
 ;
 
 DESIGN userInvoice {
-    EGAISDetail {
-        MOVE BOX(rp);
+    EGAIS {
+        NEW EGAISRepImport {
+            fill = 1;
+            showIf = isExport(i);
+            MOVE BOX(rp);
+        }
     }
 }
 
 EXTEND FORM invoices
     OBJECTS r = RepImportedProduct PANEL
-    PROPERTIES(r) READONLY SHOWIF isExport(w) accepted, canceled, number, date, shippingDate//, nameStatus
+    PROPERTIES(r) READONLY accepted, canceled, number, date, shippingDate//, nameStatus
     FILTERS r = repImportedProduct(i)
 
     OBJECTS rp = RepImportedProductPosition
-    PROPERTIES(rp) READONLY SHOWIF isExport(wp) idProduct, fullNameProduct, quantity, idF1Reg, idF2Reg,
+    PROPERTIES(rp) READONLY idProduct, fullNameProduct, quantity, idF1Reg, idF2Reg,
         idConsigneeF2Reg
     FILTERS repImportedProduct(rp) = r
 
-    PROPERTIES READONLY SHOWIF isExport(w) commentsRepImportedProduct 'Комментарий' = comments(repImportedProductOutDoc(r)) PANEL
-    PROPERTIES(i) DRAW r TOOLBAR
+    PROPERTIES READONLY commentsRepImportedProduct 'Комментарий' = comments(repImportedProductOutDoc(r)) PANEL
+    PROPERTIES(i) DRAW rp TOOLBAR
                     processEGAISImport = processImport SHOWIF isPosted(i) AND NOT activeRepImportedProductOutDoc(r) AND isExport(i)
 ;
 
 DESIGN invoices {
     EGAIS {
-        MOVE BOX(r);
-        MOVE BOX(rp);
-        MOVE PROPERTY(commentsRepImportedProduct) { panelCaptionVertical = TRUE; fill = 0.2; }
+        NEW EGAISRepImport {
+            fill = 1;
+            showIf = isExport(i);
+            MOVE BOX(r);
+            MOVE BOX(rp);
+            MOVE PROPERTY(commentsRepImportedProduct) { panelCaptionVertical = TRUE; fill = 0.2; }
+        }
     }
 }
