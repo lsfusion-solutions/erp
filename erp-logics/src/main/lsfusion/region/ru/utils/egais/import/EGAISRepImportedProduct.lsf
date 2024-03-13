@@ -1,0 +1,251 @@
+MODULE EGAISRepImportedProduct;
+
+REQUIRE EGAISInDoc, EGAISProduct, EGAISFReg, EGAISMarkCode;
+
+NAMESPACE EGAISImport;
+
+CLASS RepImportedProduct 'ТТН (Импорт)';
+
+id 'Код' = DATA STRING (RepImportedProduct) INDEXED IN id;
+
+number 'Номер' = DATA STRING (RepImportedProduct) IN id;
+date 'Дата' = DATA DATE (RepImportedProduct) IN id;
+numberDate (RepImportedProduct w) = CONCAT ' от ', number(w), toDateDDMMYY(date(w));
+
+shippingDate 'Дата поставки' = DATA DATE (RepImportedProduct);
+
+// status
+
+canceled 'Отменена' = DATA BOOLEAN (RepImportedProduct);
+accepted 'Принята получателем' = DATA BOOLEAN (RepImportedProduct);
+
+toAccept 'К приемке' (RepImportedProduct w) = w IS RepImportedProduct AND NOT accepted(w) AND NOT canceled(w) MATERIALIZED INDEXED;
+
+// properties
+
+importer = DATA Client (RepImportedProduct) INDEXED;
+idImporter 'Код импортера' (RepImportedProduct w) = id(importer(w)) IN id;
+shortNameImporter 'Импортер' (RepImportedProduct w) = shortName(importer(w)) IN id;
+fullNameImporter 'Импортер' (RepImportedProduct w) = fullName(importer(w)) IN id;
+innImporter 'ИНН импортера' (RepImportedProduct w) = INN(importer(w)) IN id;
+kppImporter 'КПП импортера' (RepImportedProduct w) = KPP(importer(w)) IN id;
+sidCountryImporter 'Код страны импортера' (RepImportedProduct w) = sidCountry(importer(w)) IN id;
+regionCodeImporter 'Код региона импортера' (RepImportedProduct w) = regionCode(importer(w)) IN id;
+nameCountryImporter 'Страна импортера' (RepImportedProduct w) = nameCountry(importer(w)) IN id;
+descriptionImporter 'Описание' (RepImportedProduct w) = description(importer(w)) IN id;
+
+supplier = DATA Client (RepImportedProduct) INDEXED;
+idSupplier 'Код поставщика' (RepImportedProduct w) = id(supplier(w)) IN id;
+shortNameSupplier 'Поставщик' (RepImportedProduct w) = shortName(supplier(w)) IN id;
+fullNameSupplier 'Поставщик' (RepImportedProduct w) = fullName(supplier(w)) IN id;
+innSupplier 'ИНН поставщика' (RepImportedProduct w) = INN(supplier(w)) IN id;
+kppSupplier 'КПП поставщика' (RepImportedProduct w) = KPP(supplier(w)) IN id;
+tsNumSupplier 'Код участника ЕАЭС поставщика' (RepImportedProduct w) = tsNumber(supplier(w)) IN id;
+sidCountrySupplier 'Код страны поставщика' (RepImportedProduct w) = sidCountry(supplier(w)) IN id;
+nameCountrySupplier 'Страна поставщика' (RepImportedProduct w) = nameCountry(supplier(w)) IN id;
+descriptionSupplier 'Описание' (RepImportedProduct w) = description(supplier(w)) IN id;
+
+contractNumber 'Номер договора' = DATA STRING[50] (RepImportedProduct);
+contractDate 'Дата договора' = DATA DATE (RepImportedProduct);
+
+declarationNumber 'Номер декларации' = DATA STRING[50] (RepImportedProduct);
+declarationDate 'Дата декларации' = DATA DATE (RepImportedProduct);
+
+note 'Примечание' = DATA STRING (RepImportedProduct);
+
+CLASS RepImportedProductPosition 'Строка ТТН (Импорт)';
+
+repImportedProduct 'ТТН' = DATA RepImportedProduct (RepImportedProductPosition) NONULL DELETE;
+
+product 'Продукция' = DATA Product (RepImportedProductPosition) NONULL INDEXED;
+idProduct 'Код продукции' (RepImportedProductPosition p) = id(product(p)) IN id;
+fullNameProduct 'Продукция' (RepImportedProductPosition p) = fullName(product(p));
+
+identity 'Код' = DATA STRING (RepImportedProductPosition) IN id;
+repImportedProductPosition = GROUP MAX RepImportedProductPosition p BY repImportedProduct(p), identity(p);
+
+INDEX repImportedProduct(RepImportedProductPosition p), identity(p);
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (RepImportedProductPosition);
+nameBatch 'Партия' = DATA STRING (RepImportedProductPosition);
+
+descriptionImporter 'Описание импортера' (RepImportedProductPosition p) = shortName(importer(repImportedProduct(p)));
+descriptionSupplier 'Описание отправителя' (RepImportedProductPosition p) = shortName(supplier(repImportedProduct(p)));
+descriptionClient 'Описание получателя' (RepImportedProductPosition p) = shortName(importer(repImportedProduct(p)));
+
+f1Reg 'Справка A' = DATA F1Reg (RepImportedProductPosition);
+idF1Reg 'Справка A' (RepImportedProductPosition p) = id(f1Reg(p));
+
+f2Reg 'Справка Б' = DATA F2Reg (RepImportedProductPosition) INDEXED;
+idF2Reg 'Справка Б' (RepImportedProductPosition p) = id(f2Reg(p));
+
+edit(RepImportedProductPosition p) + { edit(repImportedProduct(p)); }
+
+consigneeF2Reg 'Справка Б получателя' = DATA F2Reg (RepImportedProductPosition);
+idConsigneeF2Reg 'Справка Б получателя' (RepImportedProductPosition p) = id(consigneeF2Reg(p));
+
+CLASS RepImportedProductMark 'Строка маркировки ТТН (Экспорт)';
+
+repImportedProductPosition = DATA RepImportedProductPosition (RepImportedProductMark) NONULL DELETE INDEXED;
+
+markCode 'Код маркировки' = DATA MarkCode (RepImportedProductMark) NONULL INDEXED;
+idMarkCode 'Код маркировки' (RepImportedProductMark m) = id(markCode(m));
+
+countMarkCodes 'Кол-во марок' (RepImportedProductPosition p) = GROUP SUM 1 IF repImportedProductPosition(RepImportedProductMark m) = p MATERIALIZED;
+
+accepted 'Принята получателем' = DATA BOOLEAN (RepImportedProductMark);
+canceled 'Отменена' (RepImportedProductMark p) = canceled(repImportedProduct(repImportedProductPosition(p)));
+
+edit(RepImportedProductMark p) + { edit(repImportedProductPosition(p)); }
+
+number 'Номер' (RepImportedProductMark p) = number(repImportedProduct(repImportedProductPosition(p)));
+date 'Дата' (RepImportedProductMark p) = date(repImportedProduct(repImportedProductPosition(p)));
+
+shortNameImporter 'Импортер' (RepImportedProductMark w) = shortNameImporter(repImportedProduct(repImportedProductPosition(w)));
+descriptionImporter 'Описание импортера' (RepImportedProductMark w) = descriptionImporter(repImportedProduct(repImportedProductPosition(w)));
+shortNameSupplier 'Импортер' (RepImportedProductMark w) = shortNameSupplier(repImportedProduct(repImportedProductPosition(w)));
+descriptionSupplier 'Описание поставщика' (RepImportedProductMark w) = descriptionSupplier(repImportedProduct(repImportedProductPosition(w)));
+
+idConsigneeF2Reg 'Справка Б получателя' (RepImportedProductMark p) = idConsigneeF2Reg(repImportedProductPosition(p));
+
+FORM repImportedProduct 'ТТН (Импорт)'
+    OBJECTS w = RepImportedProduct PANEL
+    PROPERTIES(w) accepted, canceled,
+        id, number, date, shippingDate, note,
+
+        shortNameImporter, innImporter, kppImporter,
+        nameCountryImporter, descriptionImporter,
+
+        shortNameSupplier, innSupplier, kppSupplier, 
+        nameCountrySupplier, descriptionSupplier
+
+    OBJECTS p = RepImportedProductPosition
+    PROPERTIES(p) identity, idProduct, fullNameProduct, quantity, nameBatch, idF1Reg, idF2Reg,
+        countMarkCodes READONLY BACKGROUND RGB(212,255,212) IF quantity(p) = countMarkCodes(p),
+        NEW, DELETE
+    FILTERS repImportedProduct(p) = w
+
+    OBJECTS m = RepImportedProductMark
+    PROPERTIES(m) accepted, idMarkCode, NEW, DELETE
+    FILTERS repImportedProduct(repImportedProductPosition(m)) = w
+
+    FILTERGROUP position
+        FILTER 'По позиции' repImportedProductPosition(m) = p DEFAULT
+
+    EDIT RepImportedProduct OBJECT w
+;
+
+DESIGN repImportedProduct {
+    OBJECTS {
+        NEW header {
+            alignment = STRETCH;
+            NEW statuses {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                caption = 'Статусы';
+                MOVE PROPERTY(accepted(w));
+                MOVE PROPERTY(canceled(w));
+            }
+            NEW base {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                caption = 'Основные';
+                MOVE PROPERTY(id(w));
+                MOVE PROPERTY(number(w));
+                MOVE PROPERTY(date(w));
+                MOVE PROPERTY(shippingDate(w));
+            }
+            NEW legalEntities {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                caption = 'Контрагенты';
+                NEW supplier {
+                    caption = 'Поставщик';
+                    fill = 1;
+                    MOVE PROPERTY(shortNameSupplier(w));
+                    MOVE PROPERTY(innSupplier(w));
+                    MOVE PROPERTY(kppSupplier(w));
+                    MOVE PROPERTY(nameCountrySupplier(w));
+                    MOVE PROPERTY(descriptionSupplier(w));
+                }
+                NEW importer {
+                    caption = 'Импортер';
+                    fill = 1;
+                    MOVE PROPERTY(shortNameImporter(w));
+                    MOVE PROPERTY(innImporter(w));
+                    MOVE PROPERTY(kppImporter(w));
+                    MOVE PROPERTY(nameCountryImporter(w));
+                    MOVE PROPERTY(descriptionImporter(w));
+                }
+            }
+            NEW notes {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                caption = 'Примечания';
+                MOVE PROPERTY(note(w));
+            }
+        }
+        NEW detail {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(p) { fill = 1; }
+            NEW detailBox {
+                fill = 0.5;
+                MOVE BOX(m);
+            }
+        }
+    }
+}
+
+show 'Просмотреть' (RepImportedProduct w) {
+    NEWSESSION {
+        SHOW repImportedProduct OBJECTS w = w READONLY DOCKED;
+    }
+}
+
+FORM repImportedProducts 'ТТН (Импорт)'
+    OBJECTS w = RepImportedProduct
+    PROPERTIES(w) READONLY accepted, canceled, id, number, date, shippingDate,
+        shortNameSupplier, descriptionSupplier, shortNameImporter, descriptionImporter, note
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE, show TOOLBAR
+
+    OBJECTS p = RepImportedProductPosition
+    PROPERTIES(p) READONLY identity, idProduct, fullNameProduct, quantity, nameBatch, idF1Reg, idF2Reg,
+        countMarkCodes
+    FILTERS repImportedProduct(p) = w
+
+    LIST RepImportedProduct OBJECT w
+;
+
+DESIGN repImportedProducts {
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(p) { caption = 'Позиции'; }
+        }
+    }
+}
+
+NAVIGATOR {
+    EGAISReg {
+        NEW repImportedProducts;
+    }
+}
+
+EXTEND FORM markCodes
+    OBJECTS rip = RepImportedProductMark
+    PROPERTIES(rip) READONLY accepted, canceled, number, date,
+        shortNameSupplier, descriptionSupplier,
+        shortNameImporter, descriptionImporter,
+        
+        idConsigneeF2Reg
+    PROPERTIES(rip) EDIT
+    FILTERS markCode(rip) = m
+;
+
+DESIGN markCodes {
+    pane {
+        MOVE BOX(rip) { caption = 'ТТН (Импорт)'; }
+    }
+}

@@ -354,6 +354,9 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     wayBill 'ТТН ЕГАИС' = DATA WayBill (###doc) INDEXED;
     numberDateWayBill 'ТТН ЕГАИС' (###doc i) = numberDate(wayBill(i));
     seriesNumber###doc captionDocs (WayBill w) = GROUP CONCAT seriesNumber(###doc d), ', ' ORDER d BY wayBill(d);
+    ##doc = GROUP MAX ###doc i BY wayBill(i);
+    isExport (WayBill w) = isExport(##doc(w));
+    isExport (WayBillPosition p) = isExport(wayBill(p));
     
     changeNumberDateWayBill (###doc d) {
         DIALOG wayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
@@ -390,17 +393,17 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
     EXTEND FORM doc
         OBJECTS ed = ###doc##Detail
         PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantityProp,
-                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
+                                quantityWayBill BACKGROUND backgroundQuantityWayBill(ed) SHOWIF NOT isExport(i)
         ORDERS index(ed)
         FILTERS doc(ed) = i
     
-        PROPERTIES(i) DRAW ed TOOLBAR createDetail, fillQuantity
-        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i)
+        PROPERTIES(i) DRAW ed TOOLBAR SHOWIF NOT isExport(i) createDetail, fillQuantity
+        PROPERTIES(i) numberDateWayBill ON CHANGE changeNumberDateWayBill(i) SHOWIF NOT isExport(i)
         
         OBJECTS wp = WayBillPosition
-        PROPERTIES(wp) READONLY idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL, 
+        PROPERTIES(wp) READONLY SHOWIF NOT isExport(wp) idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL, 
                                 idConsigneeF2Reg PANEL, bottlingDate PANEL
-        PROPERTIES(ed, wp)      quantity, fillQuantity GRID
+        PROPERTIES(ed, wp) SHOWIF NOT isExport(wp) quantity, fillQuantity GRID
         FILTERS wayBill(wp) = wayBill(i)
         
         FILTERGROUP sku

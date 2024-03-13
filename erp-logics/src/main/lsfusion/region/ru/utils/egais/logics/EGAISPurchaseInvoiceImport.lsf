@@ -1,0 +1,101 @@
+MODULE EGAISPurchaseInvoiceImport;
+
+REQUIRE EGAISPurchaseInvoice, PurchaseDeclaration, EGAISRepImportedProductExchange;
+
+PRIORITY Purchase;
+
+NAMESPACE EGAISPurchase;
+
+repImportedProduct 'ТТН ЕГАИС Импорт' = DATA RepImportedProduct (UserInvoice) INDEXED;
+numberDateRepImportedProduct 'ТТН ЕГАИС Импорт' (UserInvoice i) = numberDate(repImportedProduct(i));
+seriesNumberUserInvoice 'Накладные (закупка)' (RepImportedProduct w) = GROUP CONCAT seriesNumber(UserInvoice d), ', ' ORDER d BY repImportedProduct(d);
+
+repImportedProduct = ABSTRACT RepImportedProduct (Invoice);
+repImportedProduct (UserInvoice i) += repImportedProduct(i);
+
+invoiceDetail = DATA InvoiceDetail (RepImportedProductPosition) INDEXED;
+
+processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
+    NEWSESSION {
+        NEW r = RepImportedProduct {
+            repImportedProduct(i) <- r;
+            id(r) <- STRING(r);
+            number(r) <- seriesNumber(i);
+
+            date(r) <- date(i);
+            shippingDate(r) <- date(i);
+
+            supplier(r) <- client(supplierStock(i));
+            importer(r) <- client(customerStock(i));
+
+            contractNumber(r) <- seriesNumberContractSku(i);
+            contractDate(r) <- dateFromContractSku(i);
+
+            declarationNumber(r) <- STRING[50](seriesNumber(declaration(i)));
+            declarationDate(r) <- date(declaration(i));
+
+            FOR quantity(ShipmentDetail d, Lot l) IF invoice(invoiceDetail(d)) == i AND NOT markCode(id(l)) DO NEW m = MarkCode {
+                id(m) <- id(l);
+            }
+            
+            FOR quantity(ShipmentDetail d) > 0 AND invoice(invoiceDetail(d)) == i AND minProduct(sku(d)) DO NEW p = RepImportedProductPosition {
+                repImportedProduct(p) <- r;
+                invoiceDetail(p) <- invoiceDetail(d);
+
+                product(p) <- minProduct(sku(d));
+                identity(p) <- STRING(p);
+
+                quantity(p) <- quantity(d);
+                nameBatch(p) <- (CONCAT '/ ', BPSTRING[10](date(d)), seriesNumber(d), fullNameSupplier(d));
+
+                FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) INLINE NEW m = RepImportedProductMark DO {
+                    repImportedProductPosition(m) <- p;
+                    markCode(m) <- mc;
+                }
+            }
+        }
+
+        check();
+
+        IF NOT canceled() THEN {
+            submitRepImportedProduct(repImportedProduct(i));
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM userInvoice
+    OBJECTS rp = RepImportedProductPosition
+    PROPERTIES(rp) READONLY SHOWIF isExport(wp) idProduct PANEL, fullNameProduct, quantity, idF1Reg PANEL, idF2Reg PANEL,
+        idConsigneeF2Reg PANEL
+    FILTERS repImportedProduct(rp) = repImportedProduct(i)
+;
+
+DESIGN userInvoice {
+    EGAISDetail {
+        MOVE BOX(rp);
+    }
+}
+
+EXTEND FORM invoices
+    OBJECTS r = RepImportedProduct PANEL
+    PROPERTIES(r) READONLY SHOWIF isExport(w) accepted, canceled, number, date, shippingDate//, nameStatus
+    FILTERS r = repImportedProduct(i)
+
+    OBJECTS rp = RepImportedProductPosition
+    PROPERTIES(rp) READONLY SHOWIF isExport(wp) idProduct, fullNameProduct, quantity, idF1Reg, idF2Reg,
+        idConsigneeF2Reg
+    FILTERS repImportedProduct(rp) = r
+
+    PROPERTIES READONLY SHOWIF isExport(w) commentsRepImportedProduct 'Комментарий' = comments(repImportedProductOutDoc(r)) PANEL
+    PROPERTIES(i) DRAW r TOOLBAR
+                    processEGAISImport = processImport SHOWIF isPosted(i) AND NOT activeRepImportedProductOutDoc(r) AND isExport(i)
+;
+
+DESIGN invoices {
+    EGAIS {
+        MOVE BOX(r);
+        MOVE BOX(rp);
+        MOVE PROPERTY(commentsRepImportedProduct) { panelCaptionVertical = TRUE; fill = 0.2; }
+    }
+}

@@ -1,0 +1,20 @@
+MODULE EGAISRepImportedProductLedger;
+
+REQUIRE EGAISRepImportedProduct, EGAISFRegLedger;
+
+NAMESPACE EGAIS;
+
+// in
+CLASS RepImportedProductInLedger 'Приход по ТТН (Импорт)' : FRegLedger;
+
+repImportedProductInLedger = AGGR RepImportedProductInLedger WHERE quantity(RepImportedProductPosition position) IF accepted(repImportedProduct(position)) 
+    AND NOT canceled(repImportedProduct(position)) MATERIALIZED INDEXED;
+
+posted(RepImportedProductInLedger l) += l IS RepImportedProductInLedger;
+
+date(RepImportedProductInLedger l) += date(repImportedProduct(position(l)));
+number(RepImportedProductInLedger l) += number(repImportedProduct(position(l)));
+
+f2Reg(RepImportedProductInLedger l) += consigneeF2Reg(position(l));
+
+quantity(RepImportedProductInLedger l) += quantity(position(l));

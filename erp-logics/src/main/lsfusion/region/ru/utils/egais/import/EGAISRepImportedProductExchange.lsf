@@ -1,0 +1,110 @@
+MODULE EGAISRepImportedProductExchange;
+
+REQUIRE EGAISRepImportedProduct, EGAISTicket;
+
+NAMESPACE EGAISImport;
+
+// out doc
+repImportedProduct = DATA RepImportedProduct (OutDoc) INDEXED;
+countOutDocs 'Исходящие документы' (RepImportedProduct w) = GROUP SUM 1 IF repImportedProduct(OutDoc o) = w MATERIALIZED;
+
+EXTEND FORM repImportedProducts
+    OBJECTS o = OutDoc
+    PROPERTIES(o) READONLY nameUtm, id, idDocType, nameDocType, dateTime, createdNameUser, document PANEL
+    FILTERS repImportedProduct(o) = w
+;
+
+DESIGN repImportedProducts {
+    tabbedPane {
+        NEW outDocs {
+            caption = CONCAT '', 'Исходящие документы', '(' + countOutDocs(w) +  ')';
+            horizontal = TRUE;
+            MOVE BOX(o);
+            NEW outDocument {
+                caption = 'Документ';
+                fill = 1;
+                size = (1, 1);
+                MOVE PROPERTY(document(o)) { caption = ''; autoSize = TRUE; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+}
+
+EXTEND CLASS DocType { RepImportedProduct_v4 'ТТН Импорт (версия 4)' }
+
+CLASS RepImportedProductOutDoc 'ТТН' : OutDoc;
+docType(RepImportedProductOutDoc r) += DocType.RepImportedProduct_v4 IF r IS RepImportedProductOutDoc;
+
+repImportedProductOutDoc = GROUP LAST RepImportedProductOutDoc a ORDER a WHERE a IS RepImportedProductOutDoc BY repImportedProduct(a);
+commentsRepImportedProductOutDoc 'Комментарий отправки' (RepImportedProduct t) = comments(repImportedProductOutDoc(t));
+
+activeRepImportedProductOutDoc (RepImportedProduct w) = notRejected(repImportedProductOutDoc(w)) AND NOT canceled(w);
+
+GROUP repImportedProduct_v4 EXTID 'ns:RepImportedProduct_v4';
+GROUP header EXTID 'rpp:Header';// : repImportedProduct_v4;
+GROUP importer EXTID 'rpp:Importer' : header;
+GROUP UL EXTID 'oref:UL' : importer;
+GROUP address EXTID 'oref:address' : UL;
+GROUP supplier EXTID 'rpp:Supplier' : header;
+GROUP TS EXTID 'oref:TS' : supplier;
+GROUP address1 EXTID 'oref:address' : TS;
+GROUP content EXTID 'rpp:Content';// : repImportedProduct_v4;
+
+GROUP markInfo EXTID 'rpp:MarkInfo';
+
+FORM repImportedProduct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:RepImportedProduct_v4'
+
+    OBJECTS w = RepImportedProductOutDoc PANEL
+
+    PROPERTIES  =id(repImportedProduct(w)) EXTID 'rpp:Identity'
+    PROPERTIES IN header = number(repImportedProduct(w)) EXTID 'rpp:NUMBER', 
+                         = date(repImportedProduct(w)) EXTID 'rpp:Date',
+                         = shippingDate(repImportedProduct(w)) EXTID 'rpp:ImportedDate', 
+                         = contractNumber(repImportedProduct(w)) EXTID 'rpp:ContractNUMBER', 
+                         = contractDate(repImportedProduct(w)) EXTID 'rpp:ContractDate', 
+                         = declarationNumber(repImportedProduct(w))  EXTID 'rpp:GTDNUMBER', 
+                         = declarationDate(repImportedProduct(w)) EXTID 'rpp:GTDDate', 
+                         = sidCountryImporter(repImportedProduct(w)) EXTID 'rpp:Country', 
+                         = note(repImportedProduct(w)) EXTID 'rpp:Note'
+    PROPERTIES IN UL = idImporter(repImportedProduct(w)) EXTID 'oref:ClientRegId', 
+                     = fullNameImporter(repImportedProduct(w)) EXTID 'oref:FullName', 
+                     = shortNameImporter(repImportedProduct(w)) EXTID 'oref:ShortName', 
+                     = innImporter(repImportedProduct(w)) EXTID 'oref:INN', 
+                     = kppImporter(repImportedProduct(w)) EXTID 'oref:KPP'
+    PROPERTIES IN address = sidCountryImporter(repImportedProduct(w)) EXTID 'oref:Country', 
+                          = regionCodeImporter(repImportedProduct(w)) EXTID 'oref:RegionCode', 
+                          = descriptionImporter(repImportedProduct(w)) EXTID 'oref:description'
+    PROPERTIES IN TS = idSupplier(repImportedProduct(w)) EXTID 'oref:ClientRegId', 
+                     = fullNameSupplier(repImportedProduct(w)) EXTID 'oref:FullName', 
+                     = tsNumSupplier(repImportedProduct(w)) EXTID 'oref:TSNUM'
+    PROPERTIES IN address1 = sidCountrySupplier(repImportedProduct(w)) EXTID 'oref:Country',
+                           = descriptionSupplier(repImportedProduct(w)) EXTID 'oref:description'
+
+    OBJECTS p = RepImportedProductPosition EXTID 'rpp:Position' IN content
+
+    PROPERTIES(p) idProduct EXTID 'rpp:ProductCode', 
+                  quantity EXTID 'rpp:Quantity', 
+                  nameBatch EXTID 'rpp:Party', 
+                  identity EXTID 'rpp:Identity', 
+                  descriptionImporter EXTID 'rpp:Comment1', 
+                  descriptionSupplier EXTID 'rpp:Comment2', 
+                  descriptionClient EXTID 'rpp:Comment3'
+    FILTERS repImportedProduct(p) = repImportedProduct(w)
+
+    OBJECTS amc = RepImportedProductMark EXTID 'ce:amc' IN markInfo
+    PROPERTIES(amc) idMarkCode EXTID 'value'
+    FILTERS repImportedProductPosition(amc) = p
+;
+
+submitRepImportedProduct (RepImportedProductOutDoc w) {
+    EXPORT repImportedProduct_v4 OBJECTS w = w XML;
+    submit(w, resultFile());
+}
+
+submitRepImportedProduct (RepImportedProduct w) {
+    NEW wd = RepImportedProductOutDoc {
+        client(wd) <- importer(w);
+        repImportedProduct(wd) <- w;
+        submitRepImportedProduct(wd);
+    }
+}

@@ -49,18 +49,18 @@ END
 META defineDocumentInWayBillActForm (doc, obj)
     EXTEND FORM doc##s
         OBJECTS w = WayBill PANEL
-        PROPERTIES(w) READONLY accepted, canceled, number, date, shippingDate, nameStatus
+        PROPERTIES(w) READONLY SHOWIF NOT isExport(w) accepted, canceled, number, date, shippingDate, nameStatus
         FILTERS w = wayBill(obj)
     
         OBJECTS wp = WayBillPosition
-        PROPERTIES(wp) READONLY idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
+        PROPERTIES(wp) READONLY SHOWIF NOT isExport(wp) idProduct, fullNameProduct, quantity, price, idF1Reg, idF2Reg, 
                                 idConsigneeF2Reg, realQuantity BACKGROUND backgroundRealQuantity(wp), bottlingDate
         FILTERS wayBill(wp) = w
     
-        PROPERTIES READONLY commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
+        PROPERTIES READONLY SHOWIF NOT isExport(w) commentsWayBillAct 'Комментарий' = comments(wayBillActOutDoc(wayBillAct(w))) PANEL     
         PROPERTIES(obj) DRAW wp TOOLBAR 
-                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w),
-                        cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND 
+                        processEGAIS = process SHOWIF isPosted(obj) AND NOT activeWayBillAct(w) AND NOT isExport(w),
+                        cancelEGAIS = cancel SHOWIF accepted(w) AND NOT canceled(w) AND NOT isExport(w) AND
                                                     activeWayBillAct(w) AND
                                                     NOT (notRejected(requestRepealWBOutDoc(wayBillAct(w))) AND hasRRWB(wayBillAct(w)))
     ;
