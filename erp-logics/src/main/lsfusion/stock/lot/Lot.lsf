@@ -63,6 +63,7 @@ CONSTRAINT Lot l IS Lot AND NOT sku(l) AND NOT skipSku(l) MESSAGE 'Для мар
 idSku 'Код товара' (Lot l) = id(sku(l)) IN id;
 nameSku 'Наименование товара' (Lot l) = name(sku(l)) IN id;
 idBarcodeSku 'Штрихкод' (Lot l) = idBarcode(sku(l)) IN id;
+note 'Описание' = DATA ISTRING[200] (Lot) IN id;
 
 batch = ABSTRACT Batch (Lot) MATERIALIZED INDEXED;
 
@@ -71,6 +72,7 @@ overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s))))
 changeSku 'Заменить товар' (Lot l) {
     DIALOG skus OBJECTS s INPUT DO {
         ASK 'Вы уверены, что хотите изменить товар для контрольной марки ' + id(l) + ' на ' + name(s) + '?\n Все ограничения будут временно отключены. Во всех существущих документах останется предыдущий товар.' DO {
+            note(l) <- 'Замена товара с ' + idSku(l) + ' на ' + id(s);
             sku(l) <- s;
             setNoCancelInTransaction();
             APPLY;
@@ -83,7 +85,7 @@ count (Lot l) += 1 IF l IS Lot;
 
 FORM lot 'Марка'
     OBJECTS l = Lot PANEL
-    PROPERTIES(l) id, tail, idSku, idBarcodeSku, nameSku
+    PROPERTIES(l) id, tail, idSku, idBarcodeSku, nameSku, note
     
     EDIT Lot OBJECT l 
 ;
@@ -105,6 +107,7 @@ DESIGN lot {
                 MOVE PROPERTY(idSku(l));
                 MOVE PROPERTY(idBarcodeSku(l));
                 MOVE PROPERTY(nameSku(l));
+                MOVE PROPERTY(note(l));
             }
             NEW params {
                 horizontal = TRUE;
