@@ -4,29 +4,28 @@ REQUIRE Stock, Barcode, WMS;
 
 //------------------------- Ячейка -----------------------------//
 
+CLASS DataBinGroup 'Группа ячеек';
+TABLE binGroup (DataBinGroup);
 
-CLASS  BinGroup 'Группа ячеек';
-TABLE binGroup (BinGroup);
+@defineExternalizable(dataBinGroup, STRING[100]);
 
-@defineExternalizable(binGroup, STRING[100]);
+name 'Наименование' = DATA ISTRING[100](DataBinGroup);
 
-name 'Наименование' = DATA ISTRING[100](BinGroup);
-
-TABLE binGroupBinGroup(BinGroup, BinGroup);
-@defineHierarchy(binGroup, BinGroup);
+TABLE binGroupBinGroup(DataBinGroup, DataBinGroup);
+@defineHierarchy(binGroup, DataBinGroup);
 
 FORM binGroup 'Группа ячеек'
-    OBJECTS g=BinGroup PANEL
+    OBJECTS g=DataBinGroup PANEL
     PROPERTIES(g) name, id SHOWIF showIDs(), nameParent
-    EDIT BinGroup OBJECT g
+    EDIT DataBinGroup OBJECT g
 ;
 
 FORM binGroups 'Группы ячеек'
-    TREE treeGroups g=BinGroup PARENT parent(g)
+    TREE treeGroups g=DataBinGroup PARENT parent(g)
     PROPERTIES READONLY name(g), canonicalName (g)
     PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE 
     ORDERS canonicalName(g)
-    LIST BinGroup OBJECT g
+    LIST DataBinGroup OBJECT g
 ;
 
 CLASS Bin 'Ячейка' ;
@@ -35,11 +34,11 @@ TABLE bin (Bin);
 @defineExternalizable(bin, STRING[100]);
 
 name 'Наименование' = DATA ISTRING[100](Bin) IN id;
-binGroup = DATA BinGroup (Bin) AUTOSET;
+binGroup = DATA DataBinGroup (Bin) AUTOSET;
 nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
 
-TABLE binGroupBin(BinGroup, Bin);
-isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
+TABLE binGroupBin(DataBinGroup, Bin);
+isParent (DataBinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
 canonicalName 'Каноническое имя' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
 
 FORM bin 'Ячейка'
@@ -49,7 +48,7 @@ FORM bin 'Ячейка'
 ;
 
 FORM bins 'Ячейки'
-    TREE binTree sg = BinGroup PARENT parent(sg)
+    TREE binTree sg = DataBinGroup PARENT parent(sg)
     PROPERTIES READONLY name(sg)
 
     OBJECTS s = Bin
@@ -88,24 +87,24 @@ DESIGN bins {
 
 // ---------------------  Склады с указанием ячеек ----------------------- //
 
-TABLE stockBinGroup(Stock, BinGroup);
-dataIn 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
+TABLE stockBinGroup(Stock, DataBinGroup);
+dataIn 'Отм.' = DATA BOOLEAN (Stock, DataBinGroup);
 
 TABLE stockBin(Stock, Bin);
 dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
 
-levelParent (Stock stock, BinGroup binGroup) = GROUP
-                                                               MIN level(binGroup, BinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
-nearestParent (Stock stock, BinGroup binGroup) =
+levelParent (Stock stock, DataBinGroup binGroup) = GROUP
+                                                               MIN level(binGroup, DataBinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
+nearestParent (Stock stock, DataBinGroup binGroup) =
     binGroup(binGroup, levelParent(stock, binGroup));
-nearestIn (Stock stock, BinGroup binGroup) =
+nearestIn (Stock stock, DataBinGroup binGroup) =
     dataIn(stock, nearestParent(stock, binGroup));
 
-in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
+in 'Отм.' (Stock stock, DataBinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
 
 in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
 
-countIn (Stock stock, BinGroup parent) = GROUP SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
+countIn (Stock stock, DataBinGroup parent) = GROUP SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
 
 bins 'Ячейки' (Stock stock) = GROUP
                                        CONCAT name(Bin bin) IF in(stock, bin) , ', '
@@ -153,7 +152,7 @@ FORM binStocks 'Ячейки'
     PROPERTIES(ts) nameGroupType
     FILTERS isCompany(ts)
 
-    TREE binTree bg = BinGroup PARENT parent(bg)
+    TREE binTree bg = DataBinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg)
     PROPERTIES(ts, bg) in
     PROPERTIES(bg) NEWSESSION NEW, EDIT, DELETE 
@@ -164,7 +163,7 @@ FORM binStocks 'Ячейки'
     OBJECTS b = Bin
     PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName
     PROPERTIES(ts, b) in
-    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
+    FILTERS b IS Bin AND NOT bg IS DataBinGroup OR isParent(bg, b)
     ORDERS name(b)
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE 
 
