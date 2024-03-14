@@ -1,6 +1,6 @@
 MODULE VolumeAccountLotRu;
 
-REQUIRE PurchaseShipmentLot, SaleShipmentLot, WriteOffLot, GISMTDocument;
+REQUIRE PurchaseShipmentLot, SaleShipmentLot, GISMTDocument;
 
 NAMESPACE Stock;
 
@@ -78,54 +78,4 @@ WHEN LOCAL FORMS Sale.userInvoice (DROPPED(Sale.quantity(Sale.UserInvoiceDetail 
     OR (CHANGED(quantity(detail)) AND quantity(detail)=0.0) 
     AND volumeAccount(detail) AND explicitLot(sku(detail)) DO {
         quantity(detail, Lot l) <- NULL;
-}
-
-idVolumeAccountLot (WriteOffDetail detail) = idVolumeAccountLot(WriteOff.sku(detail), WriteOff.quantity(detail));
-
-volumeAccount (WriteOffDetail detail) = volumeAccount(WriteOff.sku(detail));
-skipCheckDocumentLot(UserWriteOffDetail detail) += volumeAccount(detail);
-
-setVolumeLot (WriteOffDetail detail)  {
-    FOR Lot l = lot(idVolumeAccountLot(detail)) DO {
-        IF NOT quantity(detail, l) THEN {
-            quantity(detail, Lot l1) <- NULL;
-            quantity(detail, l) <- 1.0;
-        }
-    } ELSE {
-        NEW l = Lot {
-            id(l) <- idVolumeAccountLot(detail);
-            sku(l) <- WriteOff.sku(detail);
-            quantity(detail, Lot l1) <- NULL;
-            quantity(detail, l) <- 1.0;
-        }
-    }
-}
-
-setVolumeAccountLot 'Заполнить марки по ОСУ' (WriteOffDetail detail) {
-    IF volumeAccount(detail) THEN {
-        setVolumeLot(detail);
-    }
-} ASON CONTEXTMENU quantityLot[UserWriteOffDetail];
-
-setVolumeAccountLotUserInvoice 'Заполнить марки по ОСУ (все строки)' (WriteOffDetail detail) {
-    FOR writeOff(detail)=writeOff(WriteOffDetail detail1) AND volumeAccount(detail1) DO {
-        setVolumeLot(detail1);
-    }
-} ASON CONTEXTMENU quantityLot[UserWriteOffDetail];
-
-setVolumeAccountLot 'Заполнить марки по ОСУ' (UserWriteOff writeOff) {
-    FOR volumeAccount(UserWriteOffDetail detail) AND writeOff(detail)=writeOff DO {
-        setVolumeLot(detail);
-    }
-}
-
-WHEN LOCAL FORMS userWriteOff (SETCHANGED(WriteOff.quantity(UserWriteOffDetail detail)) OR CHANGED(WriteOff.sku(detail)))
-    AND volumeAccount(detail) AND WriteOff.quantity(detail)>0.0 DO {
-    setVolumeAccountLot(detail);
-}
-
-WHEN LOCAL FORMS userWriteOff (DROPPED(WriteOff.quantity(UserWriteOffDetail detail)) OR DROPPED(explicitLot(WriteOff.sku(detail))))
-    OR (CHANGED(WriteOff.quantity(detail)) AND WriteOff.quantity(detail)=0.0)
-        AND volumeAccount(detail) DO {
-    quantity(detail, Lot l) <- NULL;
 }
