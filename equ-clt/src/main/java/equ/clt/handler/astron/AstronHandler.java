@@ -52,6 +52,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private static String BINPROPERTY = "BINPROPERTY";
     private static String EXTGRP = "EXTGRP";
     private static String ARTEXTGRP = "ARTEXTGRP";
+    private static String ARTPRNGRP = "ARTPRNGRP";
 
     private static DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     private static DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -204,7 +205,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         Map<String, List<JSONObject>> jsonTables = getJsonTables(transaction);
 
                         //Читаем статус и чистим все таблицы с которыми можем в теории работать
-                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP));
+                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP, ARTPRNGRP));
                         if(exportExtraTables) {
                             truncateTables.add("PRCLEVEL");
                             truncateTables.add("SAREA");
@@ -325,6 +326,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if(!artExtGrpJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, ARTEXTGRP);
                                 exportArtExtGrp(conn, params, artExtGrpJsonTable, updateNum);
+                            }
+
+                            List<JSONObject> artPrnGrpJsonTable = jsonTables.get(ARTPRNGRP);
+                            if(!artPrnGrpJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, ARTPRNGRP);
+                                exportArtPrnGrp(conn, params, artPrnGrpJsonTable, updateNum);
                             }
 
                             if (lastTransaction) {
@@ -651,6 +658,37 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, extGrpId, updateNum != null ? 5 : 4, keys.length); //EXTGRPID
                     }
                     ps.addBatch();
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportArtPrnGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"ARTID","PRNGRPID"};
+        String[] columns = getColumns(new String[]{"ARTID", "PRNGRPID", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, ARTPRNGRP, columns, keys)) {
+            int offset = columns.length + keys.length;
+
+            for (JSONObject jsonObject : jsonTable) {
+                Integer artId = jsonObject.getInt("idItem"); //добавляется вручную на этапе чтения json
+                Integer prnGrpId = jsonObject.getInt("prnGrpId");
+                if (params.pgsql) {
+                    setObject(ps, artId, 1); //ARTID
+                    setObject(ps, prnGrpId, 2); //PRNGRPID
+                    setObject(ps, 0, 3); //DELFLAG
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4); //UPDATENUM
+                    }
+                } else {
+                    setObject(ps, 0, 2, offset); //DELFLAG
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 3, offset); //UPDATENUM
+                    }
+
+                    setObject(ps, artId, updateNum != null ? 4 : 3, keys.length); //ARTID
+                    setObject(ps, prnGrpId, updateNum != null ? 5 : 4, keys.length); //PRNGRPID
+                }
+                ps.addBatch();
             }
             executeAndCommitBatch(ps, conn);
         }
@@ -1151,6 +1189,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         List<JSONObject> binPropertyList = new ArrayList<>();
         List<JSONObject> extGrpList = new ArrayList<>();
         List<JSONObject> artExtGrpList = new ArrayList<>();
+        List<JSONObject> artPrnGrpList = new ArrayList<>();
         for (CashRegisterItem item : transaction.itemsList) {
             JSONObject infoJSON = getExtInfo(item.info);
             if (infoJSON != null) {
@@ -1164,6 +1203,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 List<JSONObject> artExtGrps = getJSONObjectList(infoJSON, "artExtGrp");
                 artExtGrps.forEach(artExtGrp -> artExtGrp.put("idItem", parseIdItem(item)));
                 artExtGrpList.addAll(artExtGrps);
+
+                List<JSONObject> artPrnGrps = getJSONObjectList(infoJSON, "artPrnGrp");
+                artPrnGrps.forEach(artPrnGrp -> artPrnGrp.put("idItem", parseIdItem(item)));
+                artPrnGrpList.addAll(artPrnGrps);
             }
         }
         jsonTables.put(PROPERTYGRP, getUniqueList(propertyGrpList));
@@ -1173,6 +1216,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         jsonTables.put(BINPROPERTY, getUniqueList(binPropertyList));
         jsonTables.put(EXTGRP, getUniqueList(extGrpList));
         jsonTables.put(ARTEXTGRP, getUniqueList(artExtGrpList));
+        jsonTables.put(ARTPRNGRP, getUniqueList(artPrnGrpList));
         return jsonTables;
     }
 
