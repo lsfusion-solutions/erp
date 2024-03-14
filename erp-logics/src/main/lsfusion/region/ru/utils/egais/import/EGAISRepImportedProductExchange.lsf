@@ -64,12 +64,12 @@ FORM repImportedProduct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01
 
     PROPERTIES  =id(repImportedProduct(w)) EXTID 'rpp:Identity'
     PROPERTIES IN header = number(repImportedProduct(w)) EXTID 'rpp:NUMBER', 
-                         = date(repImportedProduct(w)) EXTID 'rpp:Date',
-                         = shippingDate(repImportedProduct(w)) EXTID 'rpp:ImportedDate', 
+                         = toDateISO(date(repImportedProduct(w))) EXTID 'rpp:Date',
+                         = toDateISO(shippingDate(repImportedProduct(w))) EXTID 'rpp:ImportedDate', 
                          = contractNumber(repImportedProduct(w)) EXTID 'rpp:ContractNUMBER', 
-                         = contractDate(repImportedProduct(w)) EXTID 'rpp:ContractDate', 
+                         = toDateISO(contractDate(repImportedProduct(w))) EXTID 'rpp:ContractDate', 
                          = declarationNumber(repImportedProduct(w))  EXTID 'rpp:GTDNUMBER', 
-                         = declarationDate(repImportedProduct(w)) EXTID 'rpp:GTDDate', 
+                         = toDateISO(declarationDate(repImportedProduct(w))) EXTID 'rpp:GTDDate', 
                          = sidCountryImporter(repImportedProduct(w)) EXTID 'rpp:Country', 
                          = note(repImportedProduct(w)) EXTID 'rpp:Note'
     PROPERTIES IN UL = idImporter(repImportedProduct(w)) EXTID 'oref:ClientRegId', 
@@ -112,5 +112,27 @@ submitRepImportedProduct (RepImportedProduct w) {
         client(wd) <- importer(w);
         repImportedProduct(wd) <- w;
         submitRepImportedProduct(wd);
+    }
+}
+
+@defineOutDocTicket(repImportedProduct, w, tabbedPane);
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'RepImportedProduct_v4' THEN {
+        FOR RepImportedProduct r = repImportedProduct(outDoc(t)) DO {
+            IF conclusion(t) = 'Rejected' THEN
+                canceled(r) <- TRUE;
+            processed() <- TRUE;
+            
+            IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+                accepted(r) <- TRUE;
+                processed() <- TRUE;
+            }
+            IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+                canceled(r) <- TRUE;
+                processed() <- TRUE;
+            }
+        }
     }
 }
