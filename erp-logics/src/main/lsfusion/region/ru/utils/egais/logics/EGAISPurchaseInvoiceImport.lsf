@@ -64,6 +64,19 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
     }
 }
 
+overProcessImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
+    IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT minProduct(sku(d))) THEN {
+        ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
+            (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT minProduct(sku(d)), '\n' ORDER d) + '\nПродолжить?' YESNO DO {
+            processImport(i);
+        } ELSE {
+            RETURN;
+        }
+    } ELSE {
+        processImport(i);
+    }
+}
+
 EXTEND FORM userInvoice
     OBJECTS rp = RepImportedProductPosition
     PROPERTIES(rp) READONLY idProduct PANEL, fullNameProduct, quantity, idF1Reg PANEL, idF2Reg PANEL
@@ -91,7 +104,7 @@ EXTEND FORM invoices
 
     PROPERTIES READONLY commentsRepImportedProduct 'Комментарий' = comments(repImportedProductOutDoc(r)) PANEL
     PROPERTIES(i) DRAW rp TOOLBAR
-                    processEGAISImport = processImport SHOWIF isPosted(i) AND NOT activeRepImportedProductOutDoc(r) AND isExport(i)
+                    processEGAISImport = overProcessImport SHOWIF isPosted(i) AND NOT activeRepImportedProductOutDoc(r) AND isExport(i)
 ;
 
 DESIGN invoices {
