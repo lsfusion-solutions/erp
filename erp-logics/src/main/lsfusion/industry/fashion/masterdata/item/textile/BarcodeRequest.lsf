@@ -130,7 +130,7 @@ FORM barcodeRequest 'Заявка на EAN'
 
     OBJECTS d = BarcodeRequestDetail
     PROPERTIES (d) index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem READONLY, nameItem, idArticleItem
-    PROPERTIES (d) READONLY idColorItem, nameColorItem, nameSizeItem, nameSortItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+    PROPERTIES (d) READONLY nameSizeItem, nameSortItem, codeCustomsGroup, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
     PROPERTIES (d) NEW, deleted = DELETE GRID
     FILTERS  barcodeRequest(d) == p
 
@@ -233,7 +233,7 @@ FORM barcodeRequests 'Заявки на EAN'
 
     OBJECTS d = BarcodeRequestDetail
     PROPERTIES (d) READONLY index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem, nameItem, idArticleItem,
-        idColorItem, nameColorItem, nameSizeItem, nameSortItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+        nameSizeItem, nameSortItem, codeCustomsGroup, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
     FILTERS  barcodeRequest(d) == p
 
     FILTERGROUP open FILTER 'Открытые' NOT isClosed(p) DEFAULT
@@ -384,8 +384,10 @@ sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
 
 importFromFile 'Загрузить полученный файл' ABSTRACT (BarcodeRequest);
 
+extraNoNeedCreateNewRequest = ABSTRACT BOOLEAN(BarcodeRequestDetail);
+
 needCreateNewRequest(BarcodeRequestDetail d) = d IS BarcodeRequestDetail AND NOT
-    (nameArticleKind(d) AND codeOKRB(d) != '' AND codeCustomsGroup(d) AND compositionItem(d) AND codeGPC3(d) AND codeGPC4(d));
+    (nameArticleKind(d) AND codeOKRB(d) != '' AND codeCustomsGroup(d) AND codeGPC3(d) AND codeGPC4(d) AND extraNoNeedCreateNewRequest(d));
 
 needCreateNewRequest = GROUP SUM 1 IF needCreateNewRequest(BarcodeRequestDetail d) BY barcodeRequest(d);
 
@@ -414,76 +416,6 @@ DESIGN barcodeRequests {
             }
             MOVE PROPERTY(writeBarcodes(p));
         }
-    }
-}
-
-name = DATA LOCAL TEXT();
-path = DATA LOCAL STRING[255]();
-
-filter1 = DATA LOCAL BOOLEAN();
-filter2 = DATA LOCAL BOOLEAN();
-filter3 = DATA LOCAL BOOLEAN();
-filter4 = DATA LOCAL BOOLEAN();
-filter5 = DATA LOCAL BOOLEAN();
-filter6 = DATA LOCAL BOOLEAN();
-
-FORM detailsList
-    OBJECTS r = BarcodeRequest PANEL
-    OBJECTS d = BarcodeRequestDetail
-    PROPERTIES (d) index, nameItem
-    ORDERS index(d)
-    FILTERS barcodeRequest(d) == r,
-        (NOT nameArticleKind(d) AND filter1()) OR NOT filter1(),
-        (NOT codeOKRB(d) != '' AND filter2()) OR NOT filter2(),
-        (NOT codeCustomsGroup(d) AND filter3()) OR NOT filter3(),
-        (NOT compositionItem(d) AND filter4()) OR NOT filter4(),
-        (NOT codeGPC3(d) AND filter5()) OR NOT filter5(),
-        (NOT codeGPC4(d) AND filter6()) OR NOT filter6()
-;
-
-writeEANFileNewRequest(BarcodeRequest r) {
-    name() <- NULL;
-    IF [GROUP SUM 1 IF NOT nameArticleKind(BarcodeRequestDetail d) AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Не указан вид изделия';
-        filter1() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter1() <- NULL;
-    }
-    IF [GROUP SUM 1 IF NOT codeOKRB(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Пустой код ОКРБ';
-        filter2() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter2() <- NULL;
-    }
-    IF [GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Нет кода ТН ВЭД';
-        filter3() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter3() <- NULL;
-    }
-    IF [GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Нет состава';
-        filter4() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter4() <- NULL;
-    }
-    IF [GROUP SUM 1 IF NOT codeGPC3(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Нет кода класса';
-        filter5() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter5() <- NULL;
-    }
-    IF [GROUP SUM 1 IF NOT codeGPC4(BarcodeRequestDetail d) != '' AND d IS BarcodeRequestDetail BY barcodeRequest(d)](r) THEN {
-        name() <- 'Нет кода брика';
-        filter6() <- TRUE;
-        PRINT detailsList OBJECTS r = r XLS SHEET name() TO file;
-        WRITE CLIENT file() TO path() APPEND;
-        filter6() <- NULL;
     }
 }
 
@@ -532,15 +464,18 @@ overIdBarcode 'Штрихкод'(Item i) = OVERRIDE idBarcode(i),
 EXTEND FORM item
     PROPERTIES(i) overIdBarcode ON CHANGE changeBarcode(i) EVENTID 'SCANNER'
 ;
+
 DESIGN item {
     itemHeader {
         MOVE PROPERTY (overIdBarcode(i));
         REMOVE PROPERTY (idBarcode(i));
     }
 }
+
 EXTEND FORM items
     PROPERTIES(i) READONLY overIdBarcode AFTER idBarcode(i)
 ;
+
 DESIGN items {
     PROPERTY (idBarcode(i)) {
         hide = TRUE;
