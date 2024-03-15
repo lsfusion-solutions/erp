@@ -136,3 +136,29 @@ process (Ticket t) + {
         }
     }
 }
+
+// in doc
+repImportedProduct = DATA RepImportedProduct (InDoc) INDEXED;
+countInDocs 'Входящие документы' (RepImportedProduct w) = GROUP SUM 1 IF repImportedProduct(InDoc i) = w MATERIALIZED;
+
+EXTEND FORM repImportedProducts
+    OBJECTS i = InDoc
+    PROPERTIES(i) READONLY nameUtm, idOutDoc, idDocType, nameDocType, dateTime, url, document PANEL
+    FILTERS repImportedProduct(i) = w
+;
+
+DESIGN repImportedProducts {
+    tabbedPane {
+        NEW inDocs {
+            caption = CONCAT '', 'Входящие документы', '(' + countInDocs(w) +  ')';
+            horizontal = TRUE;
+            MOVE BOX(i);
+            NEW inDocument {
+                caption = 'Документ';
+                fill = 1;
+                size = (1, 1);
+                MOVE PROPERTY(document(i)) { caption = ''; autoSize = TRUE; panelCaptionVertical = TRUE; }
+            }
+        }
+    }
+}

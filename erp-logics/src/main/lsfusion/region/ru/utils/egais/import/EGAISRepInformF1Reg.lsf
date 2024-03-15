@@ -6,3 +6,60 @@ NAMESPACE EGAIS;
 
 EXTEND CLASS DocType { Form1RegInfo 'Информация по справке 1' }
 transportId (DocType t) += WHEN t = DocType.Form1RegInfo THEN 'Form1RegInfo';
+
+GROUP repInformF1Reg EXTID 'ns:RepInformF1Reg' : document;
+GROUP header EXTID 'wbr:Header' : repInformF1Reg;
+GROUP client EXTID 'wbr:Client' : header;
+GROUP UL EXTID 'oref:UL' : client;
+GROUP address EXTID 'oref:address' : UL;
+GROUP content EXTID 'wbr:Content' : repInformF1Reg;
+
+repRegId = DATA LOCAL STRING();
+clientRegId = DATA LOCAL STRING();
+INN = DATA LOCAL STRING();
+KPP = DATA LOCAL STRING();
+fullName = DATA LOCAL STRING();
+shortName = DATA LOCAL STRING();
+country = DATA LOCAL STRING();
+regionCode = DATA LOCAL STRING();
+description = DATA LOCAL STRING();
+identity1 = DATA LOCAL STRING(INTEGER);
+
+FORM form1RegInfo FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref', ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref', ='http://fsrar.ru/WEGAIS/RepInformF1Reg' EXTID 'xmlns:wbr', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES() IN header identity EXTID 'wbr:Identity', repRegId EXTID 'wbr:RepRegId'
+    PROPERTIES() IN UL clientRegId EXTID 'oref:ClientRegId', INN EXTID 'oref:INN', KPP EXTID 'oref:KPP', fullName EXTID 'oref:FullName', shortName EXTID 'oref:ShortName'
+    PROPERTIES() IN address country EXTID 'oref:Country', regionCode EXTID 'oref:RegionCode', description EXTID 'oref:description'
+
+    OBJECTS position = INTEGER EXTID 'wbr:Position' IN content
+    PROPERTIES(position) identity1 EXTID 'wbr:Identity', informF1RegId EXTID 'wbr:InformF1RegId', informF2RegId EXTID 'wbr:InformF2RegId'
+    FILTERS imported(position);
+
+process (InDoc d) + {
+    IF docType(d) = DocType.Form1RegInfo THEN {
+        NEWSESSION {
+            stringToFile(document(d));
+            IMPORT form1RegInfo XML FROM resultFile();
+
+            FOR STRING(RepImportedProduct b) = identity() DO {
+
+                repImportedProduct(d) <- b;
+                regId(b) <- repRegId();
+
+                FOR informF2RegId(INTEGER i) AND NOT f2Reg(informF2RegId(i)) DO NEW r = F2Reg {
+                    id(r) <- informF2RegId(i);
+                    f1Reg(r) <- f1Reg(repImportedProductPosition(b, positionIdentity(i)));
+                    client(r) <- importer(b);
+                }
+
+                FOR RepImportedProductPosition p = repImportedProductPosition(b, identity1(INTEGER i)) DO {
+                    consigneeF2Reg(p) <- f2Reg(informF2RegId(i));
+                }
+
+                processed(d) <- TRUE;
+                APPLY;
+            }
+        }
+    }
+}
