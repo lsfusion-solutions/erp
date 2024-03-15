@@ -66,9 +66,11 @@ nameArticleKind 'Вид изделия'(BarcodeRequestDetail d) = fullName(artic
 nameBrand 'Бренд' = ABSTRACT STRING (BarcodeRequestDetail);
 itemKindString 'Разновидность' = ABSTRACT STRING (BarcodeRequestDetail);
 
+nameGOST 'ГОСТ' = ABSTRACT ISTRING[30] (BarcodeRequestDetail);
+
 codeOKRB 'Код ОКРБ' (BarcodeRequestDetail d) = codeOKRB(articleKind(item(d)));
 codeCustomsGroup 'Код ТН ВЭД' (BarcodeRequestDetail d) = codeCustomsGroupDefaultCountry(item(d));
-compositionItem 'Состав'(BarcodeRequestDetail d) = composition(item(d));
+compositionItem 'Состав'(BarcodeRequestDetail d) = composition(item(d)) CHARWIDTH 20;
 
 barcodeString 'Полученный штрихкод' = DATA STRING[15](BarcodeRequestDetail);
 
@@ -318,11 +320,12 @@ emailFromBarcodeRequest 'Адрес отправителя e-mail для зая�
 emailHeaderBarcodeRequest 'Заголовок e-mail для заявки на EAN' = DATA STRING[100]();
 emailToBarcodeRequest 'Адрес получателя e-mail для заявки на EAN' = DATA STRING[100]();
 emailBCCBarcodeRequest 'Адрес получателя BCC копии e-mail заявки на EAN' = DATA STRING[100]();
-registerNumber 'Регистрационный номер пользователя системы ГС1 Беларуси' = DATA STRING[15]() CHARWIDTH 4 NOFLEX;
+registerNumber 'Регистрационный номер пользователя системы ГС1 Беларуси' = DATA STRING[15]();
+dataRequestUser 'Заявку подготовил' = DATA STRING();
 
 EXTEND FORM options
     PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
-        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest
+        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser
 ;
 
 DESIGN options {
@@ -347,8 +350,11 @@ DESIGN options {
     }
 }
 
-netWeight 'Масса нетто'(BarcodeRequestDetail d) = OVERRIDE netWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
-grossWeight 'Масса брутто'(BarcodeRequestDetail d) = OVERRIDE grossWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
+overNetWeight = ABSTRACT NUMERIC[12,6](BarcodeRequestDetail);
+netWeight 'Масса нетто'(BarcodeRequestDetail d) = OVERRIDE overNetWeight(d), netWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
+
+overGrossWeight = ABSTRACT NUMERIC[12,6](BarcodeRequestDetail);
+grossWeight 'Масса брутто'(BarcodeRequestDetail d) = OVERRIDE overGrossWeight(d), grossWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
 
 sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
     IF [ GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {

@@ -5,6 +5,8 @@ REQUIRE BarcodeRequest, Excel;
 NAMESPACE BarcodeRequest;
 
 
+setExtraValue ABSTRACT LIST(BarcodeRequest, TemplateEntry);
+
 createRequestProceed(BarcodeRequest b)  {
     value(TemplateEntry detail) <- NULL;
 
@@ -42,12 +44,13 @@ createRequestProceed(BarcodeRequest b)  {
 
         FOR template (TemplateEntry detail) == t DO {
             value(detail) <- toDateDDMMYYYY(dateTime(b)) WHERE key(detail) == 'dateRequest';
-            value(detail) <- (CONCAT ', ', (CONCAT ' ', lastName(currentUser()), (OVERRIDE firstName(currentUser()), initialsEmployee(currentUser()))), phone(currentUser())) WHERE key(detail) == 'userRequest';
-            value(detail) <- (OVERRIDE registerNumber(), substr(codeGLNCompany(),4,4)) WHERE key(detail) == 'registerNumber';
+            value(detail) <- (OVERRIDE dataRequestUser(), (CONCAT ', ', (CONCAT ' ', lastName(currentUser()), (OVERRIDE firstName(currentUser()), initialsEmployee(currentUser()))), phone(currentUser()))) WHERE key(detail) == 'userRequest';
+            value(detail) <- registerNumber() WHERE key(detail) == 'registerNumber';
 
             value(detail) <- [ GROUP CONCAT TEXT(nameArticleKind(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'articleKind';
             value(detail) <- [ GROUP CONCAT TEXT(nameBrand(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'brand';
             value(detail) <- [ GROUP CONCAT TEXT(itemKindString(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'itemKind';
+            value(detail) <- [ GROUP CONCAT TEXT(nameGOST(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gost';
             value(detail) <- [ GROUP CONCAT TEXT(codeOKRB(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeOKRB';
             value(detail) <- [ GROUP CONCAT TEXT(codeCustomsGroup(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeCustoms';
             value(detail) <- [ GROUP CONCAT TEXT(compositionItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'composition';
@@ -68,6 +71,8 @@ createRequestProceed(BarcodeRequest b)  {
             value(detail) <- maxHumidityStr() WHERE key(detail) == 'maxHumidity';
             value(detail) <- conditionsStr() WHERE key(detail) == 'conditions';
             value(detail) <- requirementsStr() WHERE key(detail) == 'requirements';
+            
+            setExtraValue(b, detail);
         }
 
         DIALOG template OBJECTS t = t DO {
