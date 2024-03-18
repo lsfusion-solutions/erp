@@ -267,6 +267,9 @@ group (StatisticGroupType statisticGroupType, Sku sku) += WHEN statisticGroupTyp
 
 skipStatistic 'Исключить из розн. статистики' = ABSTRACT VALUE BOOLEAN (SaleLedger) MATERIALIZED;
 
+overVolumeSaleStatistics = ABSTRACT NUMERIC[9,3] (Sku);
+volumeSaleStatistics (Sku s) = OVERRIDE overVolumeSaleStatistics(s), volume(s);
+
 quantitySoldStatistic(sku, stock, DATE dateFrom, DATE dateTo) = GROUP SUM quantity(SaleLedger ledger) 
     IF active(ledger) AND NOT skipStatistic(ledger) AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
         BY sku(ledger), stock(ledger);
@@ -283,7 +286,7 @@ sumSoldStatistic(sku, stock, DATE date) = GROUP SUM sum(SaleLedger ledger)
 netWeightSoldStatistic 'Вес проданного товара, кг' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
     quantitySoldStatistic(sku, stock, dateFrom, dateTo) * netWeight(sku);
 volumeSoldStatistic 'Объем проданного товара, л' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
-    quantitySoldStatistic(sku, stock, dateFrom, dateTo) * volume(sku);
+    quantitySoldStatistic(sku, stock, dateFrom, dateTo) * volumeSaleStatistics(sku);
 
 //---------------------------------------------- Предподсчет ---------------------------------------------//
 useCalcData 'Использовать заранее рассчитанные данные' = DATA BOOLEAN () COMPLEX;
@@ -403,13 +406,13 @@ retailSumSoldResidentBy 'Продано, сум.' (StatisticGroup group, Stock s
 netWeightBalanceALedger 'Вес товара на конец , кг' (Sku sku, Stock stock, DATE date) =
     balanceA (sku, stock, date) * netWeight(sku);
 volumeBalanceALedger 'Объем товара на конец , л' (Sku sku, Stock stock, DATE date) =
-    balanceA (sku, stock, date) * volume(sku);
+    balanceA (sku, stock, date) * volumeSaleStatistics(sku);
 
 //-- на начало
 netWeightBalanceBLedger 'Вес товара на начало , кг' (Sku sku, Stock stock, DATE date) =
     balanceB (sku, stock, date) * netWeight(sku);
 volumeBalanceBLedger 'Объем товара на начало , л' (Sku sku, Stock stock, DATE date) =
-    balanceB (sku, stock, date) * volume(sku);
+    balanceB (sku, stock, date) * volumeSaleStatistics(sku);
     
 //sumASkuStockDate (sku, stock, dateTo) -  сумма на конец
 
@@ -1138,13 +1141,13 @@ retailSumSoldResidentBy 'Продано, сум.' (StatisticGroup group, DATE da
 netWeightBalanceALedger 'Вес товара на конец , кг' (Sku sku, DATE date) 
    = GROUP SUM balanceA (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);   
 volumeBalanceALedger 'Объем товара на конец , л' (Sku sku, DATE date) =
-    GROUP SUM balanceA (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
+    GROUP SUM balanceA (sku, Stock stock, date) * volumeSaleStatistics(sku) IF inStat(stock);;
 
 //-- на начало
 netWeightBalanceBLedger 'Вес товара на начало , кг' (Sku sku, DATE date) =
     GROUP SUM balanceB (sku, Stock stock, date) * netWeight(sku) IF inStat(stock);;
 volumeBalanceBLedger 'Объем товара на начало , л' (Sku sku, DATE date) =
-    GROUP SUM balanceB (sku, Stock stock, date) * volume(sku) IF inStat(stock);;
+    GROUP SUM balanceB (sku, Stock stock, date) * volumeSaleStatistics(sku) IF inStat(stock);;
 
 
 valueBy 'Продано' (StatisticGroup group, DATE dateFrom, DATE dateTo) =
