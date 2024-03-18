@@ -21,7 +21,9 @@ key 'Ключ' (WayBill b) = CONCAT '/', id(b), number(b), date(b);
 canceled 'Отменена' = DATA BOOLEAN (WayBill);
 accepted 'Принята получателем' = DATA BOOLEAN (WayBill);
 
-toAccept 'К приемке' (WayBill w) = w IS WayBill AND NOT accepted(w) AND NOT canceled(w) MATERIALIZED INDEXED; 
+toAccept 'К приемке' (WayBill w) = w IS WayBill AND NOT accepted(w) AND NOT canceled(w) MATERIALIZED INDEXED;
+
+skipOutLedger 'Не проводить расход по регистру' = DATA BOOLEAN (WayBill);
 
 // properties
 
@@ -87,6 +89,8 @@ idF2Reg 'Справка Б' (WayBillPosition p) = id(f2Reg(p));
 
 canceled 'Отменена' (WayBillPosition p) = canceled(wayBill(p));
 accepted 'Принята получателем' (WayBillPosition p) = accepted(wayBill(p));
+
+skipOutLedger 'Импортирована из ЕГАИС' (WayBillPosition p) = skipOutLedger(wayBill(p));
 
 shipper (WayBillPosition p) = shipper(wayBill(p));
 shortNameShipper 'Отправитель' (WayBillPosition p) = shortNameShipper(wayBill(p));
@@ -173,7 +177,7 @@ bottlingDate 'Дата розлива' = DATA DATE (WayBillPosition);
 
 FORM wayBill 'ТТН ЕГАИС'
     OBJECTS w = WayBill PANEL
-    PROPERTIES(w) accepted, canceled, 
+    PROPERTIES(w) accepted, canceled, skipOutLedger, 
                   id, number, date, shippingDate, regId,
                   shortNameShipper, descriptionShipper, shortNameConsignee, descriptionConsignee, 
                   base, note,
@@ -218,6 +222,7 @@ DESIGN wayBill {
                 caption = 'Статусы';
                 MOVE PROPERTY(accepted(w));
                 MOVE PROPERTY(canceled(w));
+                MOVE PROPERTY(skipOutLedger(w));
             }
             NEW base {
                 horizontal = TRUE;

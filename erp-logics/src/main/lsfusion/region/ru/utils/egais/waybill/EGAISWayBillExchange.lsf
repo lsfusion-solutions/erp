@@ -154,6 +154,10 @@ FORM inWayBill_v4 FORMEXTID '=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
     FILTERS boxposAmc(amc) = boxpos                              
 ;
 
+skipOutLedgerWaybill 'Не проводить расход импортированных ТТН по регистру' = DATA BOOLEAN ();
+EXTEND FORM integrationData PROPERTIES() skipOutLedgerWaybill;
+DESIGN integrationData { EGAIS { MOVE PROPERTY(skipOutLedgerWaybill()); } }
+
 process (InDoc d) + {
     IF docType(d) = DocType.WayBill_v3 OR docType(d) = DocType.WayBill_v4 THEN {
         NEWSESSION {
@@ -173,7 +177,9 @@ process (InDoc d) + {
                         
                         importClient(shipper());
                         shipper(w) <- client(clientRegId());
-                        
+
+                        skipOutLedger(w) <- skipOutLedgerWaybill();
+
                         importClient(consignee());
                         consignee(w) <- client(clientRegId());
                         

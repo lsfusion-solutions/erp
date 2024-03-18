@@ -8,7 +8,9 @@ NAMESPACE EGAIS;
 CLASS WayBillOutLedger 'Расход по ТТН' : FRegLedger;
  
 resultQuantity (WayBillPosition p) = IF accepted(p) THEN realQuantity(p) ELSE quantity(p);
-wayBillOutLedger = AGGR WayBillOutLedger WHERE resultQuantity(WayBillPosition position) IF own(shipper(position)) AND NOT canceled(position) MATERIALIZED INDEXED;
+wayBillOutLedger = AGGR WayBillOutLedger WHERE resultQuantity(WayBillPosition position) 
+        IF own(shipper(position)) AND NOT skipOutLedger(position) // то, что пришло из ЕГАИС не проводим, так как оттуда могут приходить наши ТТН, которые потом будут давать отрицательный остаток
+        AND NOT canceled(position) MATERIALIZED INDEXED;
 
 posted(WayBillOutLedger l) += l IS WayBillOutLedger;
 
