@@ -89,13 +89,38 @@ FORM dataBinGroup 'Группа ячеек'
     EDIT DataBinGroup OBJECT g
 ;
 
-FORM binGroups 'Группы ячеек'
+DESIGN dataBinGroup {
+    NEW mainContainer {
+        caption = 'Основные свойства';
+        alignment = STRETCH;
+        lines = 2;
+        MOVE PROPERTY(inactive(g));
+        MOVE PROPERTY(name(g));
+        MOVE PROPERTY(id(g));
+        MOVE PROPERTY(nameParent(g));
+        MOVE PROPERTY(nameStock(g));
+    }
+    NEW additionalContainer {
+        caption = 'Дополнительные свойства';
+        lines = 5;
+    }    
+    MOVE TOOLBARBOX;
+}
+
+FORM dialogBinGroups 'Группы ячеек'
     TREE treeGroups g=BinGroup PARENT parent(g)
     PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
-    PROPERTIES(g) NEWSESSION NEW[DataBinGroup], EDIT, deleteg=DELETE 
     ORDERS canonicalName(g)
     FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
     LIST BinGroup OBJECT g
+;
+
+FORM binGroups 'Группы ячеек'
+    TREE treeGroups g=BinGroup PARENT parent(g)
+    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
+    PROPERTIES(g) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF g IS DataBinGroup, deleteg=DELETE SHOWIF g IS DataBinGroup
+    ORDERS canonicalName(g)
+    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
 ;
 
 CLASS Bin 'Ячейка' ;
@@ -116,13 +141,69 @@ nameStock 'Склад' (Bin bin) = name[Stock](stock(bin));
 
 FORM bin 'Ячейка'
     OBJECTS s = Bin PANEL
-    PROPERTIES(s) name, id SHOWIF showIDs(), nameBinGroup, nameStock READONLY 
+    PROPERTIES(s) name, id SHOWIF showIDs(), canonicalName, nameStock READONLY 
     EDIT Bin OBJECT s
 ;
+
+DESIGN bin {
+    NEW mainContainer {
+        caption = 'Основные свойства';
+        alignment = STRETCH;
+        lines = 2;
+        MOVE PROPERTY(name(s));
+        MOVE PROPERTY(id(s));
+        MOVE PROPERTY(canonicalName(s));
+        MOVE PROPERTY(nameStock(s));
+    }
+    NEW additionalContainer {
+        caption = 'Дополнительные свойства';
+        lines = 5;
+    }
+    MOVE TOOLBARBOX;
+}
+
+FORM dialogBins 'Ячейки'
+    TREE binTree sg = BinGroup PARENT parent(sg)
+    PROPERTIES READONLY name(sg), nameStock(sg)
+    FILTERGROUP active FILTER 'Активный' active(sg) DEFAULT
+
+    OBJECTS s = Bin
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), canonicalName, nameStock READONLY
+
+    FILTERS isParent(sg, s)
+    ORDERS name(s)
+
+    LIST Bin OBJECT s
+;
+
+DESIGN dialogBins {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+            }
+
+            MOVE BOX(s) {
+                fill = 2;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
 
 FORM bins 'Ячейки'
     TREE binTree sg = BinGroup PARENT parent(sg)
     PROPERTIES READONLY name(sg), nameStock(sg)
+    FILTERGROUP active FILTER 'Активный' active(sg) DEFAULT
 
     OBJECTS s = Bin
     PROPERTIES(s) READONLY name, id SHOWIF showIDs(), canonicalName, nameStock READONLY 
@@ -130,8 +211,6 @@ FORM bins 'Ячейки'
 
     FILTERS isParent(sg, s)
     ORDERS name(s)
-
-    LIST Bin OBJECT s
 ;
 
 DESIGN bins {
@@ -228,7 +307,8 @@ FORM binStocks 'Ячейки'
     TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg), nameStock(bg)
     PROPERTIES(ts, bg) in
-    PROPERTIES(bg) NEWSESSION NEW[DataBinGroup], EDIT, DELETE
+    PROPERTIES(bg) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF bg IS DataBinGroup, DELETE SHOWIF bg IS DataBinGroup
+    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
 
     FILTERGROUP filters2
         FILTER 'Отмеченные' in(ts, bg)
@@ -422,40 +502,71 @@ onStarted() + {
     }
 }
 
-//// ----
-//
-//dataPicking 'Комплектация' = DATA BOOLEAN (DataBinGroup);
-//
-//levelParentDataPicking (BinGroup binGroup) = GROUP MIN level(binGroup, DataBinGroup parent) IF dataPicking(parent) MATERIALIZED;
-//nearestParentDataPicking (BinGroup binGroup) = binGroup(binGroup, levelParentDataPicking(binGroup));
-//nearestDataPicking (BinGroup binGroup) = dataPicking(nearestParentDataPicking(binGroup)) MATERIALIZED;
-//
-//picking 'Комплектация' (BinGroup binGroup) =
-//    OVERRIDE dataPicking(binGroup),
-//             nearestDataPicking(binGroup) MATERIALIZED;
-//
-//EXTEND FORM dataBinGroup
-//    PROPERTIES(g) dataPicking 
-//;
-//
-//EXTEND FORM binGroups
-//    PROPERTIES(g) READONLY picking
-//;
-//
-//dataPicking 'Комплектация' = DATA BOOLEAN (Bin);
-//
-//picking 'Комплектация' (Bin bin) =
-//    OVERRIDE dataPicking(bin),
-//        picking(binGroup(bin)) MATERIALIZED;
-//
-//EXTEND FORM bin
-//    PROPERTIES(s) picking
-//;
-//
-//EXTEND FORM bins
-//    PROPERTIES(s) READONLY picking
-//;
-//
-//EXTEND FORM binStocks
-//    PROPERTIES(b) READONLY picking 
-//;
+// ----
+
+META defineBinAttribute(attribute, caption)
+    
+    data###attribute caption = DATA BOOLEAN (DataBinGroup);
+    
+    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, DataBinGroup parent) IF data###attribute(parent) MATERIALIZED;
+    nearestParentData###attribute (BinGroup binGroup) = binGroup(binGroup, levelParentData###attribute(binGroup));
+    nearestData###attribute (BinGroup binGroup) = data###attribute(nearestParentData###attribute(binGroup)) MATERIALIZED;
+    
+    attribute caption (BinGroup binGroup) =
+        OVERRIDE data###attribute(binGroup),
+            nearestData###attribute(binGroup) MATERIALIZED;
+    
+    EXTEND FORM dataBinGroup
+        PROPERTIES(g) data###attribute
+    ;
+    
+    DESIGN dataBinGroup {
+        additionalContainer{
+            MOVE PROPERTY(data###attribute(g));   
+        }
+    }
+
+    EXTEND FORM dialogBinGroups
+        PROPERTIES(g) READONLY attribute
+    ;
+    
+    EXTEND FORM binGroups
+        PROPERTIES(g) READONLY attribute
+    ;
+    
+    data###attribute caption = DATA BOOLEAN (Bin);
+    
+    attribute caption (Bin bin) =
+        OVERRIDE data###attribute(bin),
+            attribute(binGroup(bin)) MATERIALIZED;
+    
+    EXTEND FORM bin
+        PROPERTIES(s) attribute
+    ;
+
+    DESIGN bin {
+        additionalContainer{
+            MOVE PROPERTY(attribute(s));
+        }
+    }    
+
+    EXTEND FORM dialogBins
+        PROPERTIES(s) READONLY attribute
+    ;
+    
+    EXTEND FORM bins
+        PROPERTIES(s) READONLY attribute
+    ;
+    
+    EXTEND FORM binStocks
+        PROPERTIES(b) READONLY attribute
+    ;    
+END
+
+@defineBinAttribute(receiving, 'Приемка');
+
+@defineBinAttribute(shipping, 'Отгрузка');
+
+@defineBinAttribute(storage, 'Хранение');
+
+@defineBinAttribute(picking, 'Комплектация');
