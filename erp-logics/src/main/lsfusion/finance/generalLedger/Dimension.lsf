@@ -306,14 +306,16 @@ id = ABSTRACT ISTRING[100](Dimension) MATERIALIZED;
 //idDimension(dimension) += idGLAccount(dimension);
 id(UserDimension dimension) += ISTRING[20](staticCaption(dimension)) IF dimension IS UserDimension;
 
+dataIdDebit = DATA ISTRING[100](GeneralLedger, DimensionType);
 overIdDebit = ABSTRACT CASE EXCLUSIVE ISTRING[100](GeneralLedger, DimensionType) MATERIALIZED;
 idDebit 'Субконто (дебет)' (GeneralLedger generalLedger, DimensionType dimensionType) =
-    OVERRIDE overIdDebit(generalLedger, dimensionType),
+    OVERRIDE dataIdDebit(generalLedger, dimensionType), overIdDebit(generalLedger, dimensionType),
              id(debit(generalLedger, dimensionType));
 
+dataIdCredit = DATA ISTRING[100](GeneralLedger, DimensionType);
 overIdCredit = ABSTRACT CASE EXCLUSIVE ISTRING[100](GeneralLedger, DimensionType) MATERIALIZED;
 idCredit 'Субконто (кредит)' (GeneralLedger generalLedger, DimensionType dimensionType) =
-    OVERRIDE overIdCredit(generalLedger, dimensionType),
+    OVERRIDE dataIdCredit(generalLedger, dimensionType), overIdCredit(generalLedger, dimensionType),
              id(credit(generalLedger, dimensionType));
 
 idDimensionsDebit 'Субконто (дебет)' (GeneralLedger ledger) = GROUP
