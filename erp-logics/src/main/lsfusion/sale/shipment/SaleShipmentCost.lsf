@@ -21,11 +21,12 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
 }
 
-recalculateCostAccount(DATE dFrom, DATE dTo) +{
+skipRecalculateCost = ABSTRACT VALUE BOOLEAN (UserShipment);
+recalculateCostAccount(DATE dFrom, DATE dTo) + {
     logToFile('cost', 'Начат пересчет цен в поставках (продажа)');
     APPLY NESTED LOCAL {
         price(UserShipmentDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) 
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND NOT skipRecalculateCost(userShipment(d))
             AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
     }
 
