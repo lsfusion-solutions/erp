@@ -86,19 +86,11 @@ createRequestProceed(BarcodeRequest b)  {
 }
 
 createRequestTemplate 'Создать Excel-файл по шаблону'(BarcodeRequest b)  {
-    IF [ GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
-        MESSAGE 'Не во всех товарах заполнен код ТН ВЭД. Файл не создан.';
+    IF needCreateNewRequest(b) THEN {
+        MESSAGE 'Не во всех строках заполнены необходимые поля. Файл не создан.';
         RETURN;
     }
-    IF [ GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
-        MESSAGE 'Не во всех товарах заполнен состав. Файл не создан.';
-        RETURN;
-    }
-    IF [ GROUP SUM 1 IF NOT codeOKRB(BarcodeRequestDetail d) OR codeOKRB(d) == '' BY barcodeRequest(d)](b) THEN {
-        MESSAGE 'Не во всех товарах заполнен код ОКРБ. Файл не создан.';
-        RETURN;
-    }
-
+    
     IF excel(b) THEN {
         ASK 'У заявки уже есть сохраненный исходящий Excel-файл. Создать файл заново?' DO {
             createRequestProceed(b);
