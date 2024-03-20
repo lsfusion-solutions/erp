@@ -130,6 +130,9 @@ public class Kristal10Settings implements Serializable{
 
     private boolean minusOneForEmptyVAT;
 
+    //в readSalesInfo, если задан то шлем ExternalBankTerminalPayment с таким кодом
+    private String externalBankTerminalPaymentId;
+
     public Kristal10Settings() {
     }
 
@@ -429,5 +432,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setMinusOneForEmptyVAT(boolean minusOneForEmptyVAT) {
         this.minusOneForEmptyVAT = minusOneForEmptyVAT;
+    }
+
+    public String getExternalBankTerminalPaymentId() {
+        return externalBankTerminalPaymentId;
+    }
+
+    public void setExternalBankTerminalPaymentId(String externalBankTerminalPaymentId) {
+        this.externalBankTerminalPaymentId = externalBankTerminalPaymentId;
     }
 }

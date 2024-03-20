@@ -563,6 +563,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         boolean ignoreCashRegisterWithDisableSales = kristalSettings.isIgnoreCashRegisterWithDisableSales();
         boolean ignoreSalesWithoutNppGroupMachinery = kristalSettings.isIgnoreSalesWithoutNppGroupMachinery();
         boolean extendedLogs = kristalSettings.isExtendedLogs();
+        String externalBankTerminalPaymentId = kristalSettings.getExternalBankTerminalPaymentId();
 
         Map<String, List<CashRegisterInfo>> cashRegisterByKeyMap = getCashRegisterByKeyMap(cashRegisterInfoList, useShopIndices, useNumberGroupInShopIndices, ignoreSalesDepartmentNumber);
 
@@ -637,7 +638,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     sumCash = HandlerUtils.safeSubtract(sumCash, sum);
                                     break;
                                 case "ExternalBankTerminalPaymentEntity":
-                                    payments.add(Payment.getCard(sum));
+                                    if (externalBankTerminalPaymentId != null)  {
+                                        payments.add(new Payment(externalBankTerminalPaymentId, sum));
+                                    } else{
+                                        payments.add(Payment.getCard(sum));
+                                    }
                                     break;
                                 case "BankCardPaymentEntity":
                                     payments.add(Payment.getCard(sum, "paymentCard", getPluginPropertyValue(paymentEntryNode, "card.number")));
