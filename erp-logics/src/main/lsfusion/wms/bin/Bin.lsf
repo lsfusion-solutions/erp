@@ -30,7 +30,7 @@ inactive 'Неактивный' = DATA BOOLEAN (DataBinGroup);
 
 TABLE dataBinGroupDataBinGroup(DataBinGroup, DataBinGroup);
 //@defineHierarchy(binGroup, DataBinGroup);
-parent = DATA BinGroup (DataBinGroup) AUTOSET;// NONULL DELETE;
+parent = DATA BinGroup (DataBinGroup) AUTOSET NONULL;// DELETE;
 
 nameParent '{hierarchy.name.parent}' = name(parent(DataBinGroup binGroup)) IN base;
 
@@ -80,8 +80,9 @@ inactive[BinGroup](StockBinGroup binGroup) += Stock.inactive(stock(binGroup));
 
 edit(StockBinGroup binGroup) + {};
 
-stock(BinGroup binGroup) = stock[StockBinGroup](binGroupRoot(binGroup, 1)) MATERIALIZED INDEXED;
-nameStock 'Склад' (BinGroup binGroup) = name[Stock](stock(binGroup));
+stock(DataBinGroup binGroup) = stock[StockBinGroup](binGroupRoot(binGroup, 1));
+stock(BinGroup binGroup) = MULTI stock[DataBinGroup](binGroup), stock[StockBinGroup](binGroup);
+nameStock 'Склад' (BinGroup binGroup) = name(stock(binGroup));
 
 FORM dataBinGroup 'Группа ячеек'
     OBJECTS g=DataBinGroup PANEL
@@ -129,7 +130,7 @@ TABLE bin (Bin);
 @defineExternalizable(bin, STRING[100]);
 
 name 'Наименование' = DATA ISTRING[100](Bin) IN id;
-binGroup = DATA BinGroup (Bin) AUTOSET; //NONULL DELETE;
+binGroup = DATA BinGroup (Bin) AUTOSET NONULL;// DELETE;
 nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
 
 TABLE binGroupBin(BinGroup, Bin);
@@ -137,7 +138,7 @@ isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
 canonicalName 'Каноническое имя' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
 
 stock(Bin bin) = stock(binGroupRoot(binGroup(bin), 1)) MATERIALIZED INDEXED;
-nameStock 'Склад' (Bin bin) = name[Stock](stock(bin));
+nameStock 'Склад' (Bin bin) = name(stock(bin));
 
 FORM bin 'Ячейка'
     OBJECTS s = Bin PANEL
@@ -240,23 +241,23 @@ DESIGN bins {
 // ---------------------  Склады с указанием ячеек ----------------------- //
 
 TABLE stockDataBinGroup(Stock, DataBinGroup);
-dataIn 'Отм.' = DATA BOOLEAN (Stock, DataBinGroup);
+dataIn 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
 
 TABLE stockBin(Stock, Bin);
 dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
 
-levelParent (Stock stock, DataBinGroup binGroup) = GROUP
-                                                               MIN level(binGroup, DataBinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
-nearestParent (Stock stock, DataBinGroup binGroup) =
+levelParent (Stock stock, BinGroup binGroup) = GROUP
+                                                               MIN level(binGroup, BinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
+nearestParent (Stock stock, BinGroup binGroup) =
     binGroup(binGroup, levelParent(stock, binGroup));
-nearestIn (Stock stock, DataBinGroup binGroup) =
+nearestIn (Stock stock, BinGroup binGroup) =
     dataIn(stock, nearestParent(stock, binGroup));
 
-in 'Отм.' (Stock stock, DataBinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
+in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
 
 in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
 
-countIn (Stock stock, DataBinGroup parent) = GROUP SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
+countIn (Stock stock, BinGroup parent) = GROUP SUM 1 IF isParent(binGroup(Bin bin) , parent) AND in(stock, bin);
 
 bins 'Ячейки' (Stock stock) = GROUP
                                        CONCAT name(Bin bin) IF in(stock, bin) , ', '
@@ -486,7 +487,7 @@ setRootBinGroup() = DATA BOOLEAN ();
 
 onStarted() + {
     IF setUseBins() AND NOT setRootBinGroup() THEN {
-        FOR in(Stock stock, DataBinGroup bingroup) AND NOT parent(bingroup) AND useBins(stock) AND stock(StockBinGroup group)==stock DO {
+        FOR in(Stock stock, BinGroup bingroup) AND NOT parent(bingroup) AND useBins(stock) AND stock(StockBinGroup group)==stock DO {
             parent(bingroup) <- group;
         }
         setRootBinGroup() <- TRUE;
@@ -495,7 +496,7 @@ onStarted() + {
 
 onStarted() + {
     IF NOT setUseBins() THEN {
-        FOR [GROUP SUM 1 IF in(Stock stock, DataBinGroup bingroup) BY stock](Stock st) DO {
+        FOR [GROUP SUM 1 IF in(Stock stock, BinGroup bingroup) BY stock](Stock st) DO {
             useBins(st) <- TRUE;
         }
         setUseBins() <- TRUE;
@@ -505,10 +506,12 @@ onStarted() + {
 // ----
 
 META defineBinAttribute(attribute, caption)
-    
+
+    data###attribute caption = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
     data###attribute caption = DATA BOOLEAN (DataBinGroup);
+    data###attribute(DataBinGroup binGroup) += data###attribute(binGroup); 
     
-    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, DataBinGroup parent) IF data###attribute(parent) MATERIALIZED;
+    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF data###attribute(parent) MATERIALIZED;
     nearestParentData###attribute (BinGroup binGroup) = binGroup(binGroup, levelParentData###attribute(binGroup));
     nearestData###attribute (BinGroup binGroup) = data###attribute(nearestParentData###attribute(binGroup)) MATERIALIZED;
     
