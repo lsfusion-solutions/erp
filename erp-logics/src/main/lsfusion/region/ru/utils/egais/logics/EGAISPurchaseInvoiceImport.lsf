@@ -15,6 +15,9 @@ repImportedProduct (UserInvoice i) += repImportedProduct(i);
 
 invoiceDetail = DATA InvoiceDetail (RepImportedProductPosition) INDEXED;
 
+in (Product p, Client c) = TRUE IF (OVERRIDE startsWith(id(p), id(c)), producer(p) == c);
+minProduct (Item i, Client c) = GROUP MIN Product p IF in(i, p) AND type(p) AND in(p, c);
+
 processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
     NEWSESSION {
         NEW r = RepImportedProduct {
@@ -38,11 +41,11 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
                 id(m) <- id(l);
             }
             
-            FOR quantity(ShipmentDetail d) > 0 AND invoice(invoiceDetail(d)) == i AND minProduct(sku(d)) DO NEW p = RepImportedProductPosition {
+            FOR quantity(ShipmentDetail d) > 0 AND invoice(invoiceDetail(d)) == i AND minProduct(sku(d), client(customerStock(d))) DO NEW p = RepImportedProductPosition {
                 repImportedProduct(p) <- r;
                 invoiceDetail(p) <- invoiceDetail(d);
 
-                product(p) <- minProduct(sku(d));
+                product(p) <- minProduct(sku(d), client(customerStock(d)));
                 identity(p) <- STRING(p);
 
                 quantity(p) <- quantity(d);
@@ -65,9 +68,9 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
 }
 
 overProcessImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
-    IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT minProduct(sku(d))) THEN {
+    IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT minProduct(sku(d), client(customerStock(d)))) THEN {
         ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
-            (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT minProduct(sku(d)), '\n' ORDER d) + '\nПродолжить?' DO {
+            (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT minProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO {
             processImport(i);
         }
     } ELSE {
