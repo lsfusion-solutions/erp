@@ -83,7 +83,7 @@ currentDensity 'Расчётная плотность, кг/л' (Sku sku, Bin bi
 currentDensity 'Расчётная плотность, кг/л' (Bin bin) = NUMERIC[8,4](currentBalance(bin) / currentVolume(bin));
 
 lastDailyReportDensity 'Плотность наблюдаемая, кг/м3' = ABSTRACT NUMERIC[8,1](Stock, Sku, Bin);
-lastDailyReportDensity 'Плотность наблюдаемая, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4]([GROUP MAX lastDailyReportDensity(Stock st, sku, bin) IF in(st, bin)]() / 1000.0);
+lastDailyReportDensity 'Плотность наблюдаемая, кг/л' (Sku sku, Bin bin) = NUMERIC[8,4]([GROUP MAX lastDailyReportDensity(Stock st, sku, bin) IF st==stock(bin)]() / 1000.0);
 
 volumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = GROUP SUM volumeB(Sku sku, bin, dateTime) IF isFuel(sku);
 prevVolumeB 'Объем (до), л' (Bin bin, DATETIME dateTime) = PREV(volumeB(bin, dateTime));
@@ -113,12 +113,12 @@ backgroundDiffValueBin (Bin b) = CASE
     WHEN (GROUP SUM 1 IF currentVolume(Sku sku, b)) > 1 THEN overColorValueBin();
 
 binVolume 'Общий объем резервуаров, содержащих этот товар, л' (Sku sku) = GROUP SUM volume(Bin b) IF currentVolume(sku, b);
-binVolume 'Общий объем резервуаров АЗС, содержащих этот товар, л' (Sku sku, Stock st) = GROUP SUM volume(Bin b) IF in(st, b) AND currentVolume(sku, b);
-binVolume 'Общий объем резервуаров АЗС, л' (Stock st) = GROUP SUM volume(Bin b) IF in(st, b);
+binVolume 'Общий объем резервуаров АЗС, содержащих этот товар, л' (Sku sku, Stock st) = GROUP SUM volume(Bin b) IF st==stock(b) AND currentVolume(sku, b);
+binVolume 'Общий объем резервуаров АЗС, л' (Stock st) = GROUP SUM volume(Bin b) IF st==stock(b);
 
 fullVolumePercent 'Занято по объёму, %' (Bin b) = round2(currentVolume(b) / volume(b) * 100.0);
 fullVolumePercent 'Занято по объёму, %' (Sku sku, Bin b) = round2(currentVolume(sku, b) / volume(b) * 100.0);
-fullVolumePercent 'Занято по объёму, %' (Stock st) = round2((GROUP SUM currentVolume(Bin b) IF in(st, b)) / binVolume(st) * 100.0);
+fullVolumePercent 'Занято по объёму, %' (Stock st) = round2((GROUP SUM currentVolume(Bin b) IF st==stock(b)) / binVolume(st) * 100.0);
 
 CLASS FullVolumePercentInterval 'Интервал % занятости по объему';
 TABLE fullVolumePercentInterval(FullVolumePercentInterval);
@@ -163,7 +163,7 @@ EXTEND FORM currentBalanceSkuStock
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY name
     PROPERTIES(s,bin) READONLY currentBalance, currentVolume, currentDensity
-    FILTERS in(st,bin)
+    FILTERS st==stock(bin)
 ;
 DESIGN currentBalanceSkuStock {
     ledgerBox {
@@ -175,7 +175,7 @@ EXTEND FORM balanceSkuStock
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY name
     PROPERTIES(s,bin,t) READONLY balanceB, volumeB, densityB
-    FILTERS in(st,bin)
+    FILTERS st==stock(bin)
 ;
 DESIGN balanceSkuStock {
     ledgerBox {

@@ -159,13 +159,13 @@ FORM binBalance 'Остатки по ячейкам'
     PROPERTIES(ts) SELECTOR name
     FILTERS isCompany(ts)
 
-    TREE binTree bg = DataBinGroup PARENT parent(bg)
+    TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg)
-    FILTERS countIn(ts, bg)
+    FILTERS ts==stock(bg)
 
     OBJECTS b = Bin
     PROPERTIES(b) READONLY name, canonicalName
-    FILTERS b IS Bin AND NOT bg IS DataBinGroup OR isParent(bg, b), in(ts, b)
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b), ts==stock(b)
     ORDERS name(b)
 
     TREE treeGroup g=SkuGroup PARENT parent(g)
@@ -253,9 +253,9 @@ NAVIGATOR {
 FORM dialogBinStock 'Ячейки'
     OBJECTS s = Stock PANEL
     
-    TREE binTree bg = DataBinGroup PARENT parent(bg)
+    TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg)
-    FILTERS countIn(s, bg)
+    FILTERS s==stock(bg)
 
     OBJECTS b = Bin
     PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName
@@ -328,10 +328,10 @@ META setBinDocument (object)
 END
 
 META defineBinConstraints(object, stockProp)
-    CONSTRAINT inBin(object detail) AND NOT in(stockProp(detail), inBin(detail))
+    CONSTRAINT inBin(object detail) AND NOT stockProp(detail)==stock(inBin(detail))
                CHECKED BY inBin[object] MESSAGE 'Ячейка не доступна для склада';
                
-    CONSTRAINT outBin(object detail) AND NOT in(stockProp(detail), outBin(detail))
+    CONSTRAINT outBin(object detail) AND NOT stockProp(detail)==stock(outBin(detail))
                CHECKED BY outBin[object] MESSAGE 'Ячейка не доступна для склада';
 END
 

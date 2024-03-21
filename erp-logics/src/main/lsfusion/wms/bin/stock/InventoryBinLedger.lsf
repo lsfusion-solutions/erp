@@ -77,7 +77,7 @@ sumShortage 'Сумма недостачи / излишка' (CollationSheet col
 // ------------------------------ Определение состава сличительной ведомости (Bin, Sku) ------------------------------------ //
 include(CollationSheet collationSheet, Bin bin, Sku sku) = MULTI
     collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, bin, sku),
-    (OVERRIDE collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, bin, sku), (in(collationSheet, sku) AND in(stock(collationSheet),bin))),
+    (OVERRIDE collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, bin, sku), (in(collationSheet, sku) AND stock(collationSheet)==stock(bin))),
     (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, bin, sku) != 0 OR sumBalance(collationSheet, bin, sku) OR quantityPageInventoryDetail(collationSheet, bin, sku)));
 overInclude = ABSTRACT BOOLEAN (CollationSheet, Bin, Sku);
 
@@ -189,25 +189,25 @@ overRecalculateBalance(Inventory inventory) + {
             IF isPartly(inventory) AND isRemains(inventory) THEN {
                 quantityBalance(cs, Bin bin, Sku sku)
                     <- balanceB(sku, bin, dt)
-                    WHERE include(inventory, sku) AND balanceB(sku, bin, dt) AND in(st, bin);
+                    WHERE include(inventory, sku) AND balanceB(sku, bin, dt) AND st==stock(bin);
                 sumBalance(cs, Bin bin, Sku sku)
                     <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
-                    WHERE include(inventory, sku) AND quantityBalance(cs, bin, sku) AND in(st, bin);
+                    WHERE include(inventory, sku) AND quantityBalance(cs, bin, sku) AND st==stock(bin);
             } ELSE {
                 IF isRemains (inventory) THEN {
                     quantityBalance(cs, Bin bin, Sku sku)
                         <- balanceB(sku, bin, dt)
-                        WHERE balanceB(sku, bin, dt) AND in(st, bin);
+                        WHERE balanceB(sku, bin, dt) AND st==stock(bin);
                     sumBalance(cs, Bin bin, Sku sku)
                         <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
-                        WHERE quantityBalance(cs, bin, sku) AND in(st, bin);
+                        WHERE quantityBalance(cs, bin, sku) AND st==stock(bin);
                 } ELSE {
                     quantityBalance(cs, Bin bin, Sku sku)
                         <- balanceB(sku, bin, dt)
-                        WHERE balanceB(sku, bin, dt) AND include(cs, bin, sku) AND in(st, bin);
+                        WHERE balanceB(sku, bin, dt) AND include(cs, bin, sku) AND st==stock(bin);
                     sumBalance(cs, Bin bin, Sku sku)
                         <- NUMERIC[18,4](round(quantityBalance(cs, bin, sku)*priceBalance(cs, sku),currency(st)))
-                        WHERE quantityBalance(cs, bin, sku) AND include(cs, bin, sku) AND in(st, bin);
+                        WHERE quantityBalance(cs, bin, sku) AND include(cs, bin, sku) AND st==stock(bin);
                 }
             }
         }
