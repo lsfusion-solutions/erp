@@ -21,7 +21,7 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
     quantityWayBill 'Кол-во (ЕГАИС)' (###doc###Detail d) = GROUP SUM quantity(d, WayBillPosition p) IF NOT canceled(p);
 
     process 'Отправить в ЕГАИС' (###doc d) {
-        IF (GROUP SUM 1 IF doc(###doc##Detail dd) = d AND quantityProp(dd) > 0 AND NOT quantityProp(dd) = quantityWayBill(dd)) THEN {
+        IF (GROUP SUM 1 IF doc(###doc##Detail dd) = d AND minProduct(sku(dd)) AND quantityProp(dd) > 0 AND NOT quantityProp(dd) = quantityWayBill(dd)) THEN {
             MESSAGE 'Не для всех строк документа выбраны строки ТТН ЕГАИС. Отправка невозможна.';
             RETURN;
         }
