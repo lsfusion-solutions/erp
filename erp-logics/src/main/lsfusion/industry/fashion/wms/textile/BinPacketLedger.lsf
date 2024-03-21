@@ -1,0 +1,278 @@
+MODULE BinPacketLedger;
+
+REQUIRE Bin, PacketSkuLedger;
+
+NAMESPACE Bin;
+
+
+CLASS ABSTRACT BinPacketLedger 'Размещение пакета в ячейку';
+TABLE binPacketLedger(BinPacketLedger);
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (BinPacketLedger) MATERIALIZED; // индекс составной ниже
+date 'Дата' (BinPacketLedger ledger) = toDate(dateTime(ledger)) IN id;
+
+description 'Название документа' (ledger) = ABSTRACT STRING[250] (BinPacketLedger) CHARWIDTH 35 MATERIALIZED;
+numberDocument 'Номер документа' (ledger) = ABSTRACT STRING[48] (BinPacketLedger) MATERIALIZED IN id;
+seriesDocument 'Серия документа' (ledger) = ABSTRACT BPSTRING[2] (BinPacketLedger) MATERIALIZED;
+seriesNumberDocument 'Серия/Номер документа' (BinPacketLedger o) =
+    CONCAT '', seriesDocument(o), numberDocument(o)
+    CHARWIDTH 7 MATERIALIZED;
+
+createdUser 'Пользователь' (ledger) = ABSTRACT CustomUser (BinPacketLedger) MATERIALIZED;
+nameCreatedUser 'Пользователь' (BinPacketLedger ledger) = name[Contact](createdUser(ledger));
+
+isPosted 'Проведен' = ABSTRACT BOOLEAN (BinPacketLedger) MATERIALIZED;
+
+bin = ABSTRACT Bin (BinPacketLedger) MATERIALIZED INDEXED;
+idBin 'Ячейка в' (BinPacketLedger ledger) = id(bin(ledger)) IN id;
+
+packet = ABSTRACT Packet (BinPacketLedger) MATERIALIZED NONULL;
+INDEX packet(BinPacketLedger l), dateTime(l), l;
+idPacket 'Пакет' (BinPacketLedger ledger) = id(packet(ledger)) IN id;
+nameSkuList 'Товары в пакете' (BinPacketLedger ledger) = currentSkuList(packet(ledger)) IN id;
+
+filterPacket 'Пакет' = DATA LOCAL NESTED STRING[20]() PREREAD;
+filterPacket (BinPacketLedger l) = idPacket(l) == filterPacket() OR NOT filterPacket();
+
+filterBinPacketLedgerDateFrom 'Дата с' = DATA LOCAL NESTED DATE () PREREAD;
+filterDateFrom (BinPacketLedger l) = date(l) >= filterBinPacketLedgerDateFrom() OR NOT filterBinPacketLedgerDateFrom();
+
+filterBinPacketLedgerDateTo 'Дата по' = DATA LOCAL NESTED DATE () PREREAD;
+filterDateTo (BinPacketLedger l) = date(l) <= filterBinPacketLedgerDateTo() OR NOT filterBinPacketLedgerDateTo();
+backgroundPosted (BinPacketLedger l) = RGB(255,204,204) IF l IS BinPacketLedger AND NOT isPosted(l);
+
+currentQuantity 'Количество в пакете' (Sku s, BinPacketLedger l) = currentQuantity(s, packet(l));
+
+FORM binPacketLedger 'Движение пакетов по ячейкам'
+    PROPERTIES () filterPacket, filterBinPacketLedgerDateFrom, filterBinPacketLedgerDateTo
+
+    OBJECTS l = BinPacketLedger LAST
+    PROPERTIES (l) READONLY isPosted, dateTime, idPacket, idBin, seriesNumberDocument, description, nameCreatedUser
+    ORDERS dateTime(l)
+    FILTERS filterPacket(l),
+        filterDateFrom(l),
+        filterDateTo(l)
+
+    FILTERGROUP selected FILTER 'По указанному пакету' filterPacket() AND l IS BinPacketLedger DEFAULT
+    FILTERGROUP posted FILTER 'Проведённые' isPosted(l)
+
+    OBJECTS sk = Sku
+    PROPERTIES (sk) READONLY idBarcode, name, idArticle, nameSize, nameSort, idColor, nameColor
+    PROPERTIES (sk,l) READONLY currentQuantity
+    ORDERS name(sk)
+    FILTERS currentQuantity(sk,l)
+
+    EVENTS ON INIT {
+        filterBinPacketLedgerDateFrom() <- subtract(currentDate(), 90);
+        filterBinPacketLedgerDateTo() <- currentDate();
+    }
+;
+
+DESIGN binPacketLedger {
+    BOX {
+        NEW filter {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            MOVE PROPERTY (filterBinPacketLedgerDateFrom());
+            MOVE PROPERTY (filterBinPacketLedgerDateTo());
+            MOVE PROPERTY (filterPacket());
+        }
+        MOVE BOX (l){fill = 3;}
+        MOVE BOX (sk){
+            caption = 'Товары в пакете';
+            PROPERTY (idArticle(sk)){caption = 'Модель';}
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+
+currentBinPacketLedger = GROUP LAST BinPacketLedger l ORDER dateTime(l), l WHERE isPosted(l) BY packet(l) MATERIALIZED INDEXED;
+currentBin 'Текущая ячейка' (Packet packet)= bin(currentBinPacketLedger(packet)) MATERIALIZED INDEXED;
+idCurrentBin 'Текущая ячейка' (Packet packet) = id(currentBin(packet)) CHARWIDTH 10;
+dateTimeLastMoved 'Последнее движение' (Packet packet) = dateTime(currentBinPacketLedger(packet));
+
+countBinPacketLedgerNotPosted = GROUP SUM 1 IF NOT isPosted(BinPacketLedger l) AND id(stock(bin(l))) = '00' BY packet(l);
+
+binPacketLedgerA = GROUP LAST BinPacketLedger l ORDER dateTime(l), l WHERE dateTime(l) <= DATETIME d AND isPosted(l) BY packet(l), d;
+binA 'Ячейка на дату/время' (Packet packet, DATETIME d)=  bin(binPacketLedgerA(packet, d));
+idBinA 'Ячейка на дату/время' (Packet packet, DATETIME d) = id(binA(packet, d));
+dateTimeLastMovedA 'Последнее движение на дату/время'(Packet packet, DATETIME d) = dateTime(binPacketLedgerA(packet,d));
+
+binPacketLedgerB = GROUP LAST BinPacketLedger l ORDER dateTime(l), l WHERE dateTime(l) < DATETIME d AND isPosted(l) BY packet(l), d;
+binB 'Ячейка на дату/время (до)' (Packet packet, DATETIME d)=  bin(binPacketLedgerB(packet, d));
+
+quantityB 'Oстаток в ячейке' = GROUP SUM quantityB(Sku s, Packet p, DATETIME d) BY s, currentBin(p), d;
+
+EXTEND FORM packets
+    PROPERTIES(s) READONLY idCurrentBin, dateTimeLastMoved
+
+    FILTERGROUP currentBin FILTER 'С текущей ячейкой' currentBin(s)
+    FILTERGROUP notCurrentBin FILTER 'Без текущей ячейки' NOT currentBin(s)
+    FILTERGROUP shipmentDate FILTER 'С датой отгрузки' shipmentDate(s)
+;
+
+FORM binPacketMovement 'Размещения пакета в ячейки'
+    OBJECTS p = Packet PANEL
+    PROPERTIES(p) READONLY id
+
+    PROPERTIES () filterBinPacketLedgerDateFrom, filterBinPacketLedgerDateTo
+
+    OBJECTS l = BinPacketLedger
+    PROPERTIES(l) READONLY BACKGROUND backgroundPosted(l) isPosted, seriesNumberDocument, dateTime, description, nameCreatedUser, idBin
+    ORDERS dateTime(l) DESC
+    FILTERS packet(l) == p,
+        filterDateFrom(l),
+        filterDateTo(l)
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(l) 'F9' DEFAULT
+;
+
+DESIGN binPacketMovement {
+    NEW topContainer{
+        horizontal = TRUE;
+        MOVE BOX(p){caption = 'Пакет';}
+        NEW filter {
+            caption = 'Период';
+            horizontal = TRUE;
+            MOVE PROPERTY (filterBinPacketLedgerDateFrom());
+            MOVE PROPERTY (filterBinPacketLedgerDateTo());
+        }
+    }
+    MOVE BOX(l);
+    MOVE TOOLBARBOX;
+}
+
+
+showBinPacketMovement 'Показать размещения пакета в ячейки' (BinPacketLedger detail)  {
+    SHOW binPacketMovement OBJECTS p = packet(detail) NEWSESSION;
+} ASON CONTEXTMENU idPacket[BinPacketLedger];
+
+showBinPacketMovement 'Показать размещения пакета в ячейки' (Packet p)  {
+    SHOW binPacketMovement OBJECTS p = p NEWSESSION;
+} ASON CONTEXTMENU id[Packet];
+
+FORM currentBalancePacketStock 'Текущие остатки'
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR
+    FILTERS isCompany(st)
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg)
+    FILTERS st==stock(bg) OR st==stock(bg)
+
+    OBJECTS b = Packet
+    PROPERTIES(b) READONLY id, idCurrentBin, currentSkuList, currentSkuColorList, dateTimeLastMoved, currentQuantity
+    ORDERS id(b)
+    FILTERS isParent(bg, currentBin(b))
+
+    OBJECTS l 'Движение пакета по ячейкам' = BinPacketLedger LAST
+    PROPERTIES (l) READONLY idBin, dateTime, isPosted
+    ORDERS dateTime(l)
+    FILTERS packet(l) == b
+
+    FILTERGROUP posted FILTER 'Проведённые' isPosted(l) DEFAULT
+;
+
+DESIGN currentBalancePacketStock {
+    BOX {
+        NEW filter {
+            caption = 'Склад';
+            horizontal = TRUE;
+            MOVE PROPERTY (name(st));
+        }
+
+        NEW mainContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+            }
+
+            NEW rightContainer {
+                fill = 3;
+                MOVE BOX(b){caption = 'Пакеты';}
+
+                NEW tabs {
+                    tabbed = TRUE;
+                    fill = 1;
+                    MOVE BOX(l);
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+FORM balancePacketStock 'Остатки на дату'
+    OBJECTS d = DATETIME PANEL
+    PROPERTIES valD = VALUE(d)
+
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR
+    FILTERS isCompany(st)
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg)
+    FILTERS st==stock(bg) OR st==stock(bg)
+
+    OBJECTS b = Packet
+    PROPERTIES(b) READONLY id
+    PROPERTIES (b, d) READONLY idBinA, dateTimeLastMovedA, quantityA
+    ORDERS id(b)
+    FILTERS isParent(bg, binA(b,d))
+
+    OBJECTS l 'Движение пакета по ячейкам' = BinPacketLedger LAST
+    PROPERTIES (l) READONLY idBin, dateTime, isPosted
+    ORDERS dateTime(l)
+    FILTERS packet(l) == b
+
+    FILTERGROUP posted FILTER 'Проведённые' isPosted(l) DEFAULT
+;
+
+DESIGN balancePacketStock {
+    BOX {
+        NEW filter {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            MOVE PROPERTY (valD);
+            MOVE PROPERTY (name(st)){caption = 'Склад';}
+        }
+
+        NEW mainContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+            }
+
+            NEW rightContainer {
+                fill = 3;
+                MOVE BOX(b){caption = 'Пакеты';}
+
+                NEW tabs {
+                    tabbed = TRUE;
+                    fill = 1;
+                    MOVE BOX(l);
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    packetNavigator {
+        NEW binPacketLedger;
+    }
+
+    WMSNavigator{
+        NEW FOLDER balancePacket 'Остатки пакетов по ячейкам'{
+            NEW currentBalancePacketStock;
+            NEW balancePacketStock;
+        }
+    }
+}
