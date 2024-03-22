@@ -135,7 +135,7 @@ nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
 
 TABLE binGroupBin(BinGroup, Bin);
 isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
-canonicalName 'Каноническое имя' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
+canonicalName 'Каноническое имя группы' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
 
 stock(Bin bin) = stock(binGroupRoot(binGroup(bin), 1)) MATERIALIZED INDEXED;
 nameStock 'Склад' (Bin bin) = name(stock(bin));
@@ -153,7 +153,7 @@ DESIGN bin {
         lines = 2;
         MOVE PROPERTY(name(s));
         MOVE PROPERTY(id(s));
-        MOVE PROPERTY(canonicalName(s));
+        MOVE PROPERTY(canonicalName(s)){caption = 'Группа';}
         MOVE PROPERTY(nameStock(s));
     }
     NEW additionalContainer {
@@ -162,6 +162,7 @@ DESIGN bin {
     }
     MOVE TOOLBARBOX;
 }
+
 
 FORM dialogBins 'Ячейки'
     TREE binTree sg = BinGroup PARENT parent(sg)
@@ -193,6 +194,7 @@ DESIGN dialogBins {
                 fill = 2;
                 GRID(s) {
                     defaultComponent = TRUE;
+                    PROPERTY(canonicalName(s)) {caption = 'Группа';}
                 }
             }
         }
@@ -230,6 +232,7 @@ DESIGN bins {
                 fill = 2;
                 GRID(s) {
                     defaultComponent = TRUE;
+                    PROPERTY(canonicalName(s)) {caption = 'Группа';}
                 }
             }
         }
@@ -256,6 +259,153 @@ in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup)
 
 in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
 
+// ---------------------  Соотносение товаров и ячеек  ------------------- //
+
+TABLE skuGroupBinGroup(SkuGroup, BinGroup);
+dataIn 'Отм.' = DATA BOOLEAN (SkuGroup, BinGroup);
+
+levelParentSkuGroupDataIn (SkuGroup group, BinGroup binGroup) = 
+    GROUP MIN level(group, SkuGroup parent) IF dataIn(parent, binGroup) MATERIALIZED;
+nearestParentSkuGroupDataIn (SkuGroup group, BinGroup binGroup) = skuGroup(group, levelParentSkuGroupDataIn(group, binGroup));
+
+levelParentBinGroupDataIn (SkuGroup group, BinGroup binGroup) =
+    GROUP MIN level(binGroup, BinGroup parent) IF dataIn(group, parent) MATERIALIZED;
+nearestParentBinGroupDataIn (SkuGroup group, BinGroup binGroup) = binGroup(binGroup, levelParentBinGroupDataIn(group, binGroup));
+
+nearestDataIn (SkuGroup group, BinGroup binGroup) = 
+    dataIn(nearestParentSkuGroupDataIn(group, binGroup), binGroup) OR dataIn(group, nearestParentBinGroupDataIn(group, binGroup)) MATERIALIZED;
+
+in 'Отм.' (SkuGroup group, BinGroup binGroup) = OVERRIDE dataIn(group, binGroup), nearestDataIn(group, binGroup) MATERIALIZED INDEXED;
+
+TABLE skuGroupBin(SkuGroup, Bin);
+dataIn 'Отм.' = DATA BOOLEAN (SkuGroup, Bin);
+
+levelParentDataIn (SkuGroup group, Bin bin) =
+    GROUP MIN level(group, SkuGroup parent) IF dataIn(parent, bin) MATERIALIZED;
+
+nearestParentDataIn (SkuGroup group, Bin bin) = skuGroup(group, levelParentDataIn(group, bin));
+nearestDataIn (SkuGroup group, Bin bin) = dataIn(nearestParentDataIn(group, bin), bin) MATERIALIZED;
+
+in 'Отм.' (SkuGroup group, Bin bin) = OVERRIDE dataIn(group, bin), nearestDataIn(group, bin), in(group, binGroup(bin)) MATERIALIZED INDEXED;
+
+TABLE skuBinGroup(Sku, BinGroup);
+dataIn 'Отм.' = DATA BOOLEAN (Sku, BinGroup);
+
+levelParentDataIn (Sku sku, BinGroup binGroup) =
+    GROUP MIN level(binGroup, BinGroup parent) IF dataIn(sku, parent) MATERIALIZED;
+
+nearestParentDataIn (Sku sku, BinGroup binGroup) = binGroup(binGroup, levelParentDataIn(sku, binGroup));
+nearestDataIn (Sku sku, BinGroup binGroup) = dataIn(sku, nearestParentDataIn(sku, binGroup)) MATERIALIZED;
+
+in 'Отм.' (Sku sku, BinGroup binGroup) = OVERRIDE dataIn(sku, binGroup), nearestDataIn(sku, binGroup), in(skuGroup(sku), binGroup) MATERIALIZED INDEXED;
+
+TABLE skuBin(Sku, Bin);
+dataIn 'Отм.' = DATA BOOLEAN (Sku, Bin);
+
+in 'Отм.' (Sku sku, Bin bin) = OVERRIDE dataIn(sku, bin), in(skuGroup(sku), bin), in(sku, binGroup(bin)), in(skuGroup(sku), binGroup(bin)) MATERIALIZED INDEXED;
+
+changeDataIn (SkuGroup group, Bin bin) {
+    NEWSESSION {
+        INPUT b = BOOLEAN DO{
+            dataIn(group, bin) <- b; 
+        }
+        APPLY;
+    }
+}
+
+changeDataIn (Sku sku, Bin bin) {
+    NEWSESSION {
+        INPUT b = BOOLEAN DO{
+            dataIn(sku, bin) <- b;
+        }
+        APPLY;
+    }
+}
+
+bins 'Ячейки' (SkuGroup group) = 
+    GROUP CONCAT name(Bin bin) IF in(group, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+
+FORM changeBinsSkuGroup 'Выбор ячеек'
+    OBJECTS g=SkuGroup PANEL 
+    PROPERTIES(g) READONLY canonicalName
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES in(g, bg)
+    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' in(g, bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, nameStock
+    PROPERTIES in(g, b)
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
+    ORDERS name(b)    
+    FILTERGROUP inSku FILTER 'Отмеченные' in(g, b)
+;
+
+DESIGN changeBinsSkuGroup {
+    MOVE BOX(g);
+    NEW binContainer{
+        horizontal = TRUE;
+        fill = 1;
+        MOVE BOX(TREE binTree);
+        MOVE BOX(b) {
+            fill = 2.5;
+            PROPERTY(canonicalName(b)) {caption = 'Группа';}
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+changeBins (SkuGroup group) {
+    NEWSESSION {
+        SHOW changeBinsSkuGroup OBJECTS g=group MANAGESESSION;
+        APPLY;
+    }   
+}
+
+bins 'Ячейки' (Sku sku) =
+    GROUP CONCAT name(Bin bin) IF in(sku, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+
+FORM changeBinsSku 'Выбор ячеек'
+    OBJECTS s=Sku PANEL
+    PROPERTIES(s) READONLY name
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES in(s, bg)
+    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    FILTERGROUP in FILTER 'Отмеченные' in(s, bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, nameStock
+    PROPERTIES in(s, b)
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
+    ORDERS name(b)
+    FILTERGROUP inSku FILTER 'Отмеченные' in(s, b)
+;
+
+DESIGN changeBinsSku {
+    MOVE BOX(s);
+    NEW binContainer{
+        horizontal = TRUE;
+        fill = 1;
+        MOVE BOX(TREE binTree);
+        MOVE BOX(b) {
+            fill = 2.5;
+            PROPERTY(canonicalName(b)) {caption = 'Группа';}
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+changeBins (Sku sku) {
+    NEWSESSION {
+        SHOW changeBinsSku OBJECTS s=sku MANAGESESSION;
+        APPLY;
+    }
+}
+
 // ---------------- Ячейка по классификатору ------------------- //
 
 groupType = DATA GroupType (Stock);
@@ -267,8 +417,8 @@ nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)
 dataBin = DATA Bin (Stock, Sku);
 nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) CHARWIDTH 10;
 
-levelParentBin (Stock stock, Group group) = GROUP
-                                                              MIN level(group, Group parent) IF dataBin(stock, parent) MATERIALIZED;
+levelParentBin (Stock stock, Group group) = 
+    GROUP MIN level(group, Group parent) IF dataBin(stock, parent) MATERIALIZED;
 
 nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock, group));
 nearestInBin  (Stock stock, Group group) =
@@ -305,17 +455,30 @@ FORM binStocks 'Ячейки'
     PROPERTIES(ts) nameGroupType
     FILTERS isCompany(ts)
     
-    TREE treeGroup g=Group PARENT parent(g)
-    PROPERTIES READONLY order(g), name(g)
-    FILTERS groupType(g) == groupType(ts)
+    TREE treeGroup og=Group PARENT parent(og)
+    PROPERTIES READONLY order(og), name(og)
+    FILTERS groupType(og) == groupType(ts)
+    ORDERS order(og), name(og)
+    PROPERTIES(ts, og) nameBin
+    FILTERGROUP inactive FILTER 'Активные' active(og) 'F6' DEFAULT
+
+    OBJECTS os = Sku
+    PROPERTIES(os) READONLY name, idBarcode
+    FILTERS isParent(og, os) OR os IS Sku AND NOT og
+    PROPERTIES(ts, os) nameBin
+
+    TREE groupTree g=SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), id(g), name(g)
+    PROPERTIES in(g, b) ON CHANGE changeDataIn(g, b), bins(g) ON CHANGE changeBins(g)
     ORDERS order(g), name(g)
-    PROPERTIES(ts, g) nameBin
-    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
+    FILTERGROUP in FILTER 'Отмесенные' in(g, b)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name, idBarcode
+    PROPERTIES in(s, b) ON CHANGE changeDataIn(s, b), bins(s) ON CHANGE changeBins(s)
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(ts, s) nameBin
+    FILTERGROUP inSku FILTER 'Отмесенные' in(s, b)
 ;
 
 DESIGN binStocks {
@@ -338,24 +501,40 @@ DESIGN binStocks {
                     caption = 'Ячейки';
                     GRID(b) {
                         defaultComponent = TRUE;
+                        PROPERTY(canonicalName(b)) {caption = 'Группа';}
                     }
                 }
             }
 
-            MOVE BOX(ts);            
-            NEW skuGroup {
-                horizontal = TRUE;
+            NEW tabContainer {
+                tabbed=TRUE;
                 fill = 1;
+                NEW oldContainer{
+                    caption = 'Ячейки по складам';
+                    fill = 1;
+                    MOVE BOX(ts);
+                    NEW skuGroup {
+                        horizontal = TRUE;
+                        fill = 1;
 
-                MOVE BOX(TREE treeGroup) {
-                    caption = 'Группы Sku';
+                        MOVE BOX(TREE treeGroup) {
+                            caption = 'Группы Sku';
+                        }
+
+                        MOVE BOX(os) {
+                            fill = 2.5;
+                            GRID(os) {
+                                defaultComponent = TRUE;
+                            }
+                        }
+                    }                    
                 }
-
-                MOVE BOX(s) {
-                    fill = 2.5;
-                    GRID(s) {
-                        defaultComponent = TRUE;
-                    }
+                NEW newContainer{
+                    caption = 'Ячейки по товарам';
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(TREE groupTree);
+                    MOVE BOX(s) {fill = 2.5;}
                 }
             }
         }
