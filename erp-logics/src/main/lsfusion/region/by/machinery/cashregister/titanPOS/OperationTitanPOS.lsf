@@ -338,3 +338,13 @@ eqPrntText 'Печать текста' (Receipt r, TEXT text) {
     onSend(currentCashRegister(),'printText','Печать прозвольного текста');
     IF titanECode() THEN onShowError(titanEMessage());
 }
+
+eqReset 'Аннулировать чек' (CashRegister o, Receipt r) {
+    eqOpenShift(o,NULL);
+    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    onFillDataHeaders(o);
+    resetDocNumber() <- number(r);
+    EXPORT sendResetDocNumber JSON;
+    onSend(o,'rollback','Операция: Аннулирование чека');
+    IF titanECode() THEN onShowError(titanEMessage());
+}
