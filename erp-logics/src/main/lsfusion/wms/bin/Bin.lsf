@@ -435,6 +435,29 @@ CONSTRAINT dataBin(Stock stock, Group group) AND NOT stock==stock(dataBin(stock,
 
 CONSTRAINT dataBin(Stock stock, Sku sku) AND NOT stock==stock(dataBin(stock, sku))
            CHECKED BY dataBin[Stock,Sku] MESSAGE 'Ячейка (для sku) не включена для склада';
+
+setDataBins = DATA BOOLEAN ();
+
+onStarted() +{
+    IF NOT setDataBins() THEN {
+        FOR [GROUP SUM 1 IF dataBin(Stock stock, SkuGroup group) BY stock, group](Stock st, SkuGroup g) DO {
+            dataIn(g, Bin bin) <- TRUE WHERE bin==dataBin(st, g);
+        }
+        FOR [GROUP SUM 1 IF dataBin(Stock stock, Sku sku) BY stock, sku](Stock st, Sku s) DO {
+            dataIn(s, Bin bin) <- TRUE WHERE bin==dataBin(st, s);
+        }
+        setDataBins() <- TRUE;    
+    }
+}
+
+WHEN CHANGED(dataBin(Stock st, SkuGroup g)) DO {
+    dataIn(g, Bin bin) <- TRUE WHERE bin==dataBin(st, g);    
+}
+
+WHEN CHANGED(dataBin(Stock st, Sku s)) DO {
+    dataIn(s, Bin bin) <- TRUE WHERE bin==dataBin(st, s);
+}
+
 // ------------------------------------- Формы ---------------------------------- //
 
 FORM binStocks 'Ячейки'
