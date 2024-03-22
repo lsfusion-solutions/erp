@@ -1670,7 +1670,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         String fullNameEmployee = cashiersMap.get(idEmployee);
                                         String nameEmployee;
                                         String lastNameEmployee = null;
-                                        if(fullNameEmployee.contains(" ")){
+                                        if(fullNameEmployee != null && fullNameEmployee.contains(" ")){
                                             lastNameEmployee = fullNameEmployee.split(" ", 2)[0];
                                             nameEmployee = fullNameEmployee.split(" ", 2)[1];
                                         } else {
