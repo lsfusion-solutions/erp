@@ -70,12 +70,11 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
 overProcessImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
     IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT overMinProduct(sku(d), client(customerStock(d)))) THEN {
         ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
-            (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT overMinProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO {
-            processImport(i);
-        }
-    } ELSE {
-        processImport(i);
+            (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT overMinProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO { }
+            ELSE RETURN;
     }
+
+    processImport(i);
 }
 
 EXTEND FORM userInvoice

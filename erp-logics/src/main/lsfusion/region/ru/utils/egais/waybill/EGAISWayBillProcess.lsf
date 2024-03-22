@@ -26,6 +26,12 @@ META defineDocumentInWayBillActProcess (doc, quantityProp)
             RETURN;
         }
 
+        IF (GROUP SUM 1 IF doc(###doc##Detail dd) == d AND NOT minProduct(sku(dd))) THEN {
+            ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
+                (GROUP CONCAT name(sku(###doc##Detail dd)) IF doc(dd) == d AND NOT minProduct(sku(dd)), '\n' ORDER dd) + '\nПродолжить?' DO { } 
+                ELSE RETURN;
+        }
+
         FOR WayBill w = wayBill(d) DO {
             NEWSESSION {
                 realQuantity(WayBillPosition p) <- quantity###doc(p) WHERE wayBill(p) = w;
@@ -97,6 +103,13 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
             MESSAGE 'Не по всем строкам накладной выбраны справки Б в ЕГАИС. Отправка в ЕГАИС невозможна';
             RETURN;
         }
+
+        IF (GROUP SUM 1 IF doc(###doc##Detail dd) == i AND NOT minProduct(sku(dd))) THEN {
+            ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
+                (GROUP CONCAT name(sku(###doc##Detail dd)) IF doc(dd) == i AND NOT minProduct(sku(dd)), '\n' ORDER dd) + '\nПродолжить?' DO { }
+            ELSE RETURN;
+        }
+
         NEWSESSION {
             NEW w = WayBill {
                 wayBill(i) <- w;
