@@ -117,19 +117,30 @@ paymentTypeFlag (Payment p) += IF sidPaymentType(p) = 'cash' THEN 1 ELSE IF sidP
 // ---------------------------------------------------
 detailQuantity 'Количество товара' (ReceiptDetail o) = quantity(o);
 detailPrice 'Цена товара' (ReceiptDetail o) = price(o);
-detailDiscountLabel 'Описание скидки на товара' (ReceiptDetail o) =
-    IF discountSum(o) THEN 'акционная' ELSE IF bonusPaid(o) THEN 'бонусами' ELSE NULL;
+
+// печатается, как Footer, возможно не будет поддерживаться, как и DiscountLabel
+detailDiscountLabel 'Описание скидки на товара'  = ABSTRACT VALUE STRING(ReceiptDetail); 
+
 detailDiscountSum 'Сумма скидки на товар' (ReceiptDetail o) = discountSum(o) (+) bonusPaid(o);
 detailTotalSum 'Сумма товара' (ReceiptDetail o) = sum(o);
 
 detailName 'Название товара' (ReceiptDetail o) = 
     IF type(o) = 'Сертификат' THEN 'Подарочный сертификат' ELSE overNameSku(o);
 
-detailCodeType 'Вид кода товара: 0 - без кода; 1 - EAN13; 2 - услуга' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
+// Вид кода товара: 0 - без кода, 1 - EAN13 (товар), 2 - услуга, 4 - сертификат
+//detailCodeType  'Вид кода товара' (ReceiptDetail o) = IF idBarcode(o) THEN 1 ELSE 1;
+detailCodeType  'Вид кода товара' (ReceiptDetail o) = 
+    IF type(o) = 'Сертификат' THEN 4 ELSE                       // продажа сертификат
+    IF skuType(sku(o)) = SkuType.skuTypeItem THEN 1 ELSE        // товар
+    IF skuType(sku(o)) = SkuType.skuTypeCharge THEN 2 ELSE 0;   // услага, иначе 0 
+
 detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
 
-detailTax 'Ставка НДС' (ReceiptDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
-    IF valueVAT(o) = 20 THEN 1 ELSE IF valueVAT(o) = 10 THEN 2 ELSE NULL;
+detailTax 'Ставка НДС' = ABSTRACT VALUE INTEGER(ReceiptDetail); 
+detailTax (ReceiptDetail o) += IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
+    IF valueVAT(o) = 20 THEN 1 ELSE 
+    IF valueVAT(o) = 10 THEN 2 ELSE 
+    IF valueVAT(o) =  0 THEN 3 ELSE NULL;
 
 detailDepartament 'Код отдела КСА' = ABSTRACT VALUE INTEGER (ReceiptDetail);
    
