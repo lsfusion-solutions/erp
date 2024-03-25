@@ -21,7 +21,7 @@ overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipme
     bin(d) <- bin(detail);
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
-bin(UserShipmentDetail detail) <- bin(customerStock(detail), sku(detail)) IF NOT dontSetBinPurchase() 
+bin(UserShipmentDetail detail) <- (GROUP MAX Bin bin IF in(sku(detail), bin) AND stock(bin)==customerStock(detail)) IF NOT dontSetBinPurchase() 
     WHEN (CHANGED(customerStock(detail)) OR
          CHANGED(sku(detail))) AND NOT allowReplaceItem();
 
@@ -30,7 +30,7 @@ bin(UserShipmentDetail detail) <- bin(customerStock(detail), sku(detail)) IF NOT
 //-- invoice
 @defineInvoiceShipmentBin(customerStock);
 
-bin(UserInvoiceDetail detail) <- bin(customerStock(detail), sku(detail)) IF NOT dontSetBinPurchase()
+bin(UserInvoiceDetail detail) <- (GROUP MAX Bin bin IF in(sku(detail), bin) AND stock(bin)==customerStock(detail)) IF NOT dontSetBinPurchase()
     WHEN (CHANGED(customerStock(detail)) OR
           CHANGED(sku(detail))) AND NOT allowReplaceItem();
 

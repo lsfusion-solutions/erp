@@ -12,7 +12,7 @@ overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipme
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
 @deriveDocumentOperationProperty(UserShipment, showBin);
-bin(UserShipmentDetail detail) <- bin(supplierStock(detail), sku(detail))
+bin(UserShipmentDetail detail) <- (GROUP MAX Bin bin IF in(sku(detail), bin) AND stock(bin)==supplierStock(detail))
     WHEN CHANGED(supplierStock(detail)) OR
          CHANGED(sku(detail));
 
@@ -20,7 +20,7 @@ bin(UserShipmentDetail detail) <- bin(supplierStock(detail), sku(detail))
 @defineInvoiceShipmentBin(supplierStock);
 @deriveDocumentOperationProperty(UserInvoice, showBin);
 
-bin(UserInvoiceDetail detail) <- bin(supplierStock(detail), sku(detail))
+bin(UserInvoiceDetail detail) <- (GROUP MAX Bin bin IF in(sku(detail), bin) AND stock(bin)==supplierStock(detail))
     WHEN CHANGED(supplierStock(detail)) OR
          CHANGED(sku(detail));
 

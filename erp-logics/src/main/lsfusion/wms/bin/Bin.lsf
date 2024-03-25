@@ -406,58 +406,6 @@ changeBins (Sku sku) {
     }
 }
 
-// ---------------- Ячейка по классификатору ------------------- //
-
-groupType = DATA GroupType (Stock);
-nameGroupType 'Тип классификатора' (Stock stock) = name(groupType(stock));
-
-dataBin = DATA Bin (Stock, Group);
-nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)) CHARWIDTH 10;
-
-dataBin = DATA Bin (Stock, Sku);
-nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) CHARWIDTH 10;
-
-levelParentBin (Stock stock, Group group) = 
-    GROUP MIN level(group, Group parent) IF dataBin(stock, parent) MATERIALIZED;
-
-nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock, group));
-nearestInBin  (Stock stock, Group group) =
-    dataBin(stock, nearestParentBin (stock, group)) MATERIALIZED;
-
-bin (Stock stock, Group group) = OVERRIDE dataBin(stock, group), nearestInBin(stock, group) MATERIALIZED;
-nameBin 'Ячейка'= name(bin(Stock stock, Group group)) CHARWIDTH 10;
-
-bin (Stock stock, Sku sku) = OVERRIDE dataBin(stock, sku), bin(stock, group(groupType(stock), sku)) MATERIALIZED;
-nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) CHARWIDTH 10;
-
-CONSTRAINT dataBin(Stock stock, Group group) AND NOT stock==stock(dataBin(stock, group))
-           CHECKED BY dataBin[Stock,Group] MESSAGE 'Ячейка (для группы sku) не включена для склада';
-
-CONSTRAINT dataBin(Stock stock, Sku sku) AND NOT stock==stock(dataBin(stock, sku))
-           CHECKED BY dataBin[Stock,Sku] MESSAGE 'Ячейка (для sku) не включена для склада';
-
-setDataBins = DATA BOOLEAN ();
-
-onStarted() +{
-    IF NOT setDataBins() THEN {
-        FOR [GROUP SUM 1 IF dataBin(Stock stock, SkuGroup group) BY stock, group](Stock st, SkuGroup g) DO {
-            dataIn(g, Bin bin) <- TRUE WHERE bin==dataBin(st, g);
-        }
-        FOR [GROUP SUM 1 IF dataBin(Stock stock, Sku sku) BY stock, sku](Stock st, Sku s) DO {
-            dataIn(s, Bin bin) <- TRUE WHERE bin==dataBin(st, s);
-        }
-        setDataBins() <- TRUE;    
-    }
-}
-
-WHEN CHANGED(dataBin(Stock st, SkuGroup g)) DO {
-    dataIn(g, Bin bin) <- TRUE WHERE bin==dataBin(st, g);    
-}
-
-WHEN CHANGED(dataBin(Stock st, Sku s)) DO {
-    dataIn(s, Bin bin) <- TRUE WHERE bin==dataBin(st, s);
-}
-
 // ------------------------------------- Формы ---------------------------------- //
 
 FORM binStocks 'Ячейки'
@@ -472,23 +420,6 @@ FORM binStocks 'Ячейки'
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
     ORDERS name(b)
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
-
-    OBJECTS ts = Stock PANEL
-    PROPERTIES(ts) SELECTOR name
-    PROPERTIES(ts) nameGroupType
-    FILTERS isCompany(ts)
-    
-    TREE treeGroup og=Group PARENT parent(og)
-    PROPERTIES READONLY order(og), name(og)
-    FILTERS groupType(og) == groupType(ts)
-    ORDERS order(og), name(og)
-    PROPERTIES(ts, og) nameBin
-    FILTERGROUP inactive FILTER 'Активные' active(og) 'F6' DEFAULT
-
-    OBJECTS os = Sku
-    PROPERTIES(os) READONLY name, idBarcode
-    FILTERS isParent(og, os) OR os IS Sku AND NOT og
-    PROPERTIES(ts, os) nameBin
 
     TREE groupTree g=SkuGroup PARENT parent(g)
     PROPERTIES READONLY order(g), id(g), name(g)
@@ -528,44 +459,33 @@ DESIGN binStocks {
                     }
                 }
             }
-
-            NEW tabContainer {
-                tabbed=TRUE;
+            NEW skuGroup{
+                caption = 'Ячейки по товарам';
                 fill = 1;
-                NEW oldContainer{
-                    caption = 'Ячейки по складам';
-                    fill = 1;
-                    MOVE BOX(ts);
-                    NEW skuGroup {
-                        horizontal = TRUE;
-                        fill = 1;
-
-                        MOVE BOX(TREE treeGroup) {
-                            caption = 'Группы Sku';
-                        }
-
-                        MOVE BOX(os) {
-                            fill = 2.5;
-                            GRID(os) {
-                                defaultComponent = TRUE;
-                            }
-                        }
-                    }                    
-                }
-                NEW newContainer{
-                    caption = 'Ячейки по товарам';
-                    fill = 1;
-                    horizontal = TRUE;
-                    MOVE BOX(TREE groupTree);
-                    MOVE BOX(s) {fill = 2.5;}
-                }
+                horizontal = TRUE;
+                MOVE BOX(TREE groupTree);
+                MOVE BOX(s) {fill = 2.5;}
             }
         }
 
         MOVE TOOLBARBOX;
     }
 }
-@extendFormFilterStockAccess(ts, binStocks);
+
+accessCompany 'Доступ разрешен (компания)' (Employee employee, BinGroup group) = accessCompany(employee, stock(group));
+accessCompany 'Доступ разрешен (компания)' (Employee employee, Bin bin) = accessCompany(employee, stock(bin));
+
+@extendFormFilterStockAccess(g, binGroups);
+
+@extendFormFilterStockAccess(g, dialogBinGroups);
+
+@extendFormFilterStockAccess(sg, bins);
+
+@extendFormFilterStockAccess(sg, dialogBins);
+
+@extendFormFilterStockAccess(bg, binStocks);
+
+@extendFormFilterStockAccess(b, binStocks);
 
 //--------------------------------------------------Ячейка для Detail--------------------------------------//
 
