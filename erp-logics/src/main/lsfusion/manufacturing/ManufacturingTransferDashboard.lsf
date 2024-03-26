@@ -107,14 +107,19 @@ calcRetailMarkup 'Надбавка, %' = IF markup(priceLimitPriceListType(custo
     THEN 0.0
     ELSE retailMarkup(detail);
 
+wholeCatering = ABSTRACT BOOLEAN (Sale.Invoice);// Без расценки, оптовые склады
+wholeCatering (Sale.InvoiceDetail d) = wholeCatering(invoice(d));
+
+
 FORM selectParams 'Перемещение на цех'
     OBJECTS si = Sale.Invoice PANEL
     
     OBJECTS sd = Sale.InvoiceDetail
-    PROPERTIES(sd) READONLY index, nameSku, price, calcRetailMarkup, retailPrice
+    PROPERTIES(sd) READONLY index, nameSku, price, calcRetailMarkup SHOWIF NOT wholeCatering(si), retailPrice SHOWIF NOT wholeCatering(si)
     FILTERS invoice(sd) == si
     
-    PROPERTIES(sd) BACKGROUND backgroundSelectParams() namePurchaseSku ON CHANGE changePurchaseSku(sd), coeffPurchase, productionCoeffPurchase, sessionCateringMarkup 
+    PROPERTIES(sd) BACKGROUND backgroundSelectParams() namePurchaseSku ON CHANGE changePurchaseSku(sd), coeffPurchase, 
+                    productionCoeffPurchase SHOWIF NOT wholeCatering(si), sessionCateringMarkup  SHOWIF NOT wholeCatering(si)
 ;
 DESIGN selectParams{
     BOX {
@@ -139,9 +144,7 @@ createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.Invoice, Purchase.UserI
 substituteToOver = ABSTRACT Substitute(Sku);
 lastSubstituteToOver (Sku s) = OVERRIDE  substituteToOver(s), lastSubstituteTo(s);
 
-wholeCatering = ABSTRACT BOOLEAN (Sale.Invoice);// Без расценки, оптовые склады
-wholeCatering (Sale.InvoiceDetail d) = wholeCatering(invoice(d));
-
+okManufacturingPurchaseSale = DATA LOCAL BOOLEAN ();
 createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si)  { 
 	NEWSESSION {
 	    FOR invoice(Sale.InvoiceDetail sd)==si DO {
@@ -156,67 +159,72 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	                                                    netWeight(sku(sd)) WHERE invoice(sd) == si;
 	        }
 	    }
+        okManufacturingPurchaseSale() <- NULL;
 	    DIALOG selectParams OBJECTS si = si NOMANAGESESSION DO {
-	        FOR NUMERIC[10,5] coeff = [ GROUP MAX coeffPurchase(Sale.InvoiceDetail ssd) BY invoice(ssd), purchaseSku(ssd), sku(ssd)](si, Sku psku,  Sku sku) AND NOT uniqueSubstituteFromTo(psku, sku) NEW s = Substitute DO {
+            okManufacturingPurchaseSale() <- TRUE;
+	    }
+        IF okManufacturingPurchaseSale() THEN {
+            FOR NUMERIC[10,5] coeff = [ GROUP MAX coeffPurchase(Sale.InvoiceDetail ssd) BY invoice(ssd), purchaseSku(ssd), sku(ssd)](si, Sku psku,  Sku sku) AND NOT uniqueSubstituteFromTo(psku, sku) NEW s = Substitute DO {
                 fromSku(s) <- psku;
                 toSku(s) <- sku;
                 multiplier(s) <- coeff;
-	        } 
-	        NEW pi = UserInvoice {
-	            supplier(pi) <- supplier(si);
-	            customer(pi) <- customer(si);
-	            supplierStock(pi) <- supplierStock(si);
-	            customerStock(pi) <- customerStock(si);
-	            number(pi) <- number(si);
-	            series(pi) <- series(si);
-	            note(pi) <- note(si);
-	            currency(pi) <- currency(si);
-	            IF NOT wholeCatering(si) THEN {
+            }
+            NEW pi = UserInvoice {
+                supplier(pi) <- supplier(si);
+                customer(pi) <- customer(si);
+                supplierStock(pi) <- supplierStock(si);
+                customerStock(pi) <- customerStock(si);
+                number(pi) <- number(si);
+                series(pi) <- series(si);
+                note(pi) <- note(si);
+                currency(pi) <- currency(si);
+                IF NOT wholeCatering(si) THEN {
                     operation(pi) <- cateringPurchaseOperation();
-                    showCatering(pi) <- TRUE;	            
-	            }
-	            createManufacturingPurchaseSaleOver(si,pi);
-	            
-	            FOR invoice(Sale.InvoiceDetail sd) == si NEW pd = UserInvoiceDetail DO {
-	    
-	                userInvoice(pd) <- pi;
-	                invoiceDetail(pd) <- sd;
-	    
-	                sku(pd) <- purchaseSku(sd);
-	                quantity (pd) <- NUMERIC[16,5](quantity(sd) * coeffPurchase(sd));
-	                VAT (pd) <- IF valueVAT(sd) == 0 THEN VAT(sku[Sale.UserInvoiceDetail](sd), country(supplierStock[Sale.UserInvoiceDetail](sd))) ELSE VAT(sd);
-	                valueVAT (pd) <- IF valueVAT(sd) == 0 THEN valueRate(VAT (pd), date(pd)) ELSE valueVAT(sd);
+                    showCatering(pi) <- TRUE;
+                }
+                createManufacturingPurchaseSaleOver(si,pi);
 
-	                price (pd) <- NUMERIC[16,4](price(sd) / coeffPurchase(sd));
-	                invoicePrice (pd) <- NUMERIC[16,4](invoicePrice(sd) / coeffPurchase(sd));
-	                IF NOT wholeCatering(si) THEN {
+                FOR invoice(Sale.InvoiceDetail sd) == si NEW pd = UserInvoiceDetail DO {
+
+                    userInvoice(pd) <- pi;
+                    invoiceDetail(pd) <- sd;
+
+                    sku(pd) <- purchaseSku(sd);
+                    quantity (pd) <- NUMERIC[16,5](quantity(sd) * coeffPurchase(sd));
+                    VAT (pd) <- IF valueVAT(sd) == 0 THEN VAT(sku[Sale.UserInvoiceDetail](sd), country(supplierStock[Sale.UserInvoiceDetail](sd))) ELSE VAT(sd);
+                    valueVAT (pd) <- IF valueVAT(sd) == 0 THEN valueRate(VAT (pd), date(pd)) ELSE valueVAT(sd);
+
+                    price (pd) <- NUMERIC[16,4](price(sd) / coeffPurchase(sd));
+                    invoicePrice (pd) <- NUMERIC[16,4](invoicePrice(sd) / coeffPurchase(sd));
+                    IF NOT wholeCatering(si) THEN {
                         retailVAT (pd) <- retailVAT(sd);
-                        valueRetailVAT (pd) <- valueRetailVAT(sd);	                
+                        valueRetailVAT (pd) <- valueRetailVAT(sd);
                         cateringMarkup (pd) <- sessionCateringMarkup(sd);
-    
+
                         IF NOT calcFromSupplierPriceCatering() THEN {
                             retailPrice (pd) <- NUMERIC[16,4](retailPrice(sd) / coeffPurchase(sd));
                             cateringPrice(pd) <- IF useCateringRoundCondition()
-                                    THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
-                                    ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
-                            retailSum(pd) <- retailSum(sd);     
-                            shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);  
-                                        
+                                THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
+                                ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
+                            retailSum(pd) <- retailSum(sd);
+                            shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);
+
                         } ELSE {
-                            retailMarkup(pd) <- cateringMarkup(pd);	  
+                            retailMarkup(pd) <- cateringMarkup(pd);
                             retailPrice(pd) <- IF useCateringRoundCondition()
                                 THEN round([ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd)),roundCondition(cateringCalcPriceListType()))
                                 ELSE [ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd));
-                            cateringPrice(pd) <- retailPrice(pd);  	                                           
-                        }  
-	                }                  	                	                    	                
-	                    
-	                productionCoeff (pd) <- productionCoeffPurchase(sd);
-	                createManufacturingPurchaseSaleOver(sd,pd);
-	            }
-	            SHOW Purchase.userInvoice OBJECTS i = pi DOCKED NOCANCEL; 
-	        }
-	    }
+                            cateringPrice(pd) <- retailPrice(pd);
+                        }
+                    }
+
+                    productionCoeff (pd) <- productionCoeffPurchase(sd);
+                    createManufacturingPurchaseSaleOver(sd,pd);
+                }
+                SHOW Purchase.userInvoice OBJECTS i = pi DOCKED NOCANCEL;
+            }    
+        }
+        
 	}
 } TOOLBAR;
 
