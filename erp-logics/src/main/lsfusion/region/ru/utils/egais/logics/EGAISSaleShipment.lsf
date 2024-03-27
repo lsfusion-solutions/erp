@@ -30,6 +30,9 @@ beforeInputLotBarcode (UserShipmentDetail d, STRING[200] s) +{
 
 quantity (InvoiceShipmentDetail d, F2Reg r) += quantity(invoiceDetail(d), r);
 
+quantityF2Reg 'Кол-во (ЕГАИС)' (InvoiceShipmentDetail d) = GROUP SUM quantity(d, F2Reg s) MATERIALIZED;
+quantityF2Reg(InvoiceShipmentDetail d) += quantityF2Reg(d);
+
 process 'Отправить в ЕГАИС' (Invoice i) { process(invoiceShipment(i)); }
 cancel 'Отменить' (Invoice i) { cancel(invoiceShipment(i)); }
 confirm 'Ответить на акт разногласий' (Invoice i) { confirm(invoiceShipment(i)); }
