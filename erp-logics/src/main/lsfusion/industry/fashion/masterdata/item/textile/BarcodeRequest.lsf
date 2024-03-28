@@ -1,6 +1,6 @@
 MODULE BarcodeRequest;
 
-REQUIRE ItemFashionTextile, ItemDescription, CustomsGroupItem, EDIGTIN; 
+REQUIRE ItemFashionTextile, ItemDescription, CustomsGroupItem, EDIGTIN, ItemTracking; 
 
 PRIORITY Item;
 
@@ -39,6 +39,8 @@ open 'Открыть' (BarcodeRequest o)  {
 } TOOLBAR CONFIRM;
 
 @defineNumeratedDefault(BarcodeRequest, 'Заявки на EAN', 'Е');
+
+@defineOperationProperty(isTrackingItem, 'Подлежащие прослеживанию товары', propertyContainer);
 
 CLASS BarcodeRequestDetail 'Cтрока заявки на EAN';
 TABLE barcodeRequestDetail (BarcodeRequestDetail);
@@ -89,6 +91,9 @@ CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND [ GROUP SUM 1 BY item(B
 
 CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
     MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
+
+CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR CHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroup(item(d))
+    MESSAGE 'В заявке с данной операцией должны быть только подлежащие прослеживанию товары';
 
 writeBarcodes 'Записать штрихкоды из заявки в товары'(BarcodeRequest br)  {
     NEWSESSION {
@@ -324,14 +329,16 @@ emailToBarcodeRequest 'Адрес получателя e-mail для заявк�
 emailBCCBarcodeRequest 'Адрес получателя BCC копии e-mail заявки на EAN' = DATA STRING[100]();
 registerNumber 'Регистрационный номер пользователя системы ГС1 Беларуси' = DATA STRING[15]();
 dataRequestUser 'Заявку подготовил' = DATA STRING();
+splitIsTracking 'Отделять товары, подлежащие прослеживанию, в другую заявку на EAN' = DATA BOOLEAN() PREREAD;
 
 EXTEND FORM options
     PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
-        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser
+        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser, splitIsTracking
 ;
 
 DESIGN options {
     barcodeBox {
+        MOVE PROPERTY(splitIsTracking());
         NEW barcodeRequest {
             caption = 'Значения по умолчанию для заявки на штрихкод';
             MOVE PROPERTY(codeGLNCompany());
