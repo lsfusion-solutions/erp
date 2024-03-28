@@ -1,6 +1,6 @@
 MODULE ItemFashionTextile;
 
-REQUIRE ItemFashion, ItemDescription;
+REQUIRE ItemFashion, ItemDescription, CustomsGroupArticle;
 
 NAMESPACE Item;
 
@@ -171,7 +171,7 @@ FORM articleKinds 'Виды изделий'
     ORDERS name(t)
 
     OBJECTS a = Article
-    PROPERTIES (a) READONLY id, model, caption
+    PROPERTIES (a) READONLY id, model, caption, codeCustomsGroupDefaultCountry
     ORDERS id(a)
     FILTERS articleKind(a) == t
 
@@ -204,3 +204,27 @@ NAVIGATOR {
         NEW GOSTs;
     }
 }
+
+WHEN LOCAL CHANGED(customsGroup(defaultCountry(), article(Item i))) AND NOT CHANGED(customsGroup(defaultCountry(), i)) AND NOT useDiffProperty() DO
+    customsGroup(defaultCountry(), i) <- customsGroup(defaultCountry(), article(i));
+
+CLASS TechnicalRegulation 'Технический регламент ТС' ;
+TABLE technicalRegulation (TechnicalRegulation);
+
+name 'Наименование' = DATA ISTRING[30](TechnicalRegulation) CHARWIDTH 25;
+description 'Описание' = DATA ISTRING[100](TechnicalRegulation);
+
+FORM technicalRegulation 'Технический регламент ТС'
+    OBJECTS s = TechnicalRegulation PANEL
+    PROPERTIES(s) name, description
+    EDIT TechnicalRegulation OBJECT s
+;
+
+FORM technicalRegulations 'Технические регламенты ТС'
+    OBJECTS s = TechnicalRegulation
+    PROPERTIES(s) READONLYIF isReadonly() name, description
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE GRID
+    ORDERS name(s)
+
+    LIST TechnicalRegulation OBJECT s
+;
