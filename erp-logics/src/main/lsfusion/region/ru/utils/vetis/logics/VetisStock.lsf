@@ -85,16 +85,23 @@ EXTEND FORM vetDocuments
 
 // META 
 META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, container)
+    noConsignorEnterprise 'Отсутствует площадка отправителя' = ABSTRACT BOOLEAN (###doc##Detail) PREREAD;
+    
     volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
     
     volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](MIN (quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0), volume(vtd)); 
     fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
     
-    matches (###doc##Detail vd, VetDocument vtd) = 
-        consignorBusinessEntity(vtd) = businessEntity(consignor(vd)) AND
-        in(consignor##Stock(vd), consignorEnterprise(vtd)) AND
-        in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
-        productItem(vtd) = productItem(sku(vd));
+    matches (###doc##Detail vd, VetDocument vtd) = IF noConsignorEnterprise(vd) THEN
+            consignorBusinessEntity(vtd) = consigneeBusinessEntity(vtd) AND NOT consignorEnterprise(vtd) AND
+            issueDate(vtd) == date(vd) AND
+            in(customerStock(vd), consigneeEnterprise(vtd)) AND
+            productItem(vtd) = productItem(sku(vd))
+        ELSE
+            consignorBusinessEntity(vtd) = businessEntity(consignor(vd)) AND
+            in(consignor##Stock(vd), consignorEnterprise(vtd)) AND
+            in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
+            productItem(vtd) = productItem(sku(vd));
     
     fillExpiryDate 'Заполнить сроки годности' (###doc d) {
         ASK 'Заполнить сроки годности из ВСД ?' DO
