@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.ukm;
 
+import lsfusion.base.file.IOUtils;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -9,7 +10,6 @@ import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.config.ConnectionConfig;
@@ -24,9 +24,7 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
@@ -102,7 +100,7 @@ public class LoyaAction extends InternalAction {
             if (headers.length > 0) {
                 String header = headers[0].getValue();
                 if (header != null) {
-                    String[] splittedHeader = header.split("=|;");
+                    String[] splittedHeader = header.split("[=;]");
                     return splittedHeader.length > 1 ? splittedHeader[1] : null;
                 }
             }
@@ -111,13 +109,7 @@ public class LoyaAction extends InternalAction {
     }
 
     protected String getResponseMessage(CloseableHttpResponse response) throws IOException {
-        StringBuilder result = new StringBuilder();
-        BufferedReader br = new BufferedReader(new InputStreamReader((response.getEntity().getContent()), StandardCharsets.UTF_8));
-        String output;
-        while ((output = br.readLine()) != null) {
-            result.append(output);
-        }
-        return result.toString();
+        return IOUtils.readStreamToString(response.getEntity().getContent(), "UTF-8");
     }
 
     protected boolean requestSucceeded(CloseableHttpResponse response) {
@@ -155,7 +147,7 @@ public class LoyaAction extends InternalAction {
                 postRequest.addHeader("content-type", "application/json");
                 postRequest.setEntity(input);
 
-                ERPLoggers.importLogger.info("Loya login request: " + IOUtils.toString(postRequest.getEntity().getContent()));
+                ERPLoggers.importLogger.info("Loya login request: " + IOUtils.readStreamToString(postRequest.getEntity().getContent(), "UTF-8"));
 
                 try(CloseableHttpClient httpClient = HttpClients.createDefault()) {
                     CloseableHttpResponse response = httpClient.execute(postRequest, classicHttpResponse -> null);
