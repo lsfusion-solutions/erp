@@ -1,6 +1,6 @@
 MODULE LabelDirectPrintTextile;
 
-REQUIRE LabelDirectPrint;
+REQUIRE LabelDirectPrint, LabelTextile, PacketTextile;
 
 NAMESPACE Label;
 
@@ -23,3 +23,71 @@ nameStock 'Склад' (StickerTransaction transaction) = name(stock(transaction
 
 labelType 'Шаблон этикетки' = DATA LabelType (StickerTransaction) NONULL;
 nameLabelType 'Шаблон этикетки' (StickerTransaction transaction) = name(labelType(transaction)) IN id;
+text 'Текст шаблона (для принтера)' (StickerTransaction stickerTrans) = replace(textTemplate(labelType(stickerTrans)),'\n','\r');
+
+printLabelType = DATA PrintLabelType (StickerTransaction) NONULL;
+idPrintLabelType 'Код типа этикетки' (StickerTransaction transaction) = id(printLabelType(transaction));
+namePrintLabelType 'Тип этикетки' (StickerTransaction transaction) = namePrint(printLabelType(transaction)) IN id;
+
+quantity 'Кол-во этикеток' = DATA INTEGER (StickerTransaction);
+
+stickerTransaction = DATA StickerTransaction (Packet) INDEXED NONULL;
+
+skipReports 'Не учитывать в отчетах' = DATA BOOLEAN (StickerTransaction);
+printText 'Текст для принтера' = DATA TEXT (StickerTransaction);
+
+DESIGN labelType {
+    PROPERTY(textTemplate(l)){
+        notSelectAll = TRUE;
+        valueSize = (100, 100);
+        fill = 1;
+    }
+    specification {
+        MOVE itemtextCase FIRST;
+    }
+    PROPERTY (lpad1Char(l)){hide = TRUE;}
+    PROPERTY (lpad2Char(l)){hide = TRUE;}
+    PROPERTY (lpad3Char(l)){hide = TRUE;}
+    PROPERTY (lpad4Char(l)){hide = TRUE;}
+}
+
+filterDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (StickerTransaction s) = date(s) >= filterDateFrom() OR NOT filterDateFrom();
+
+filterDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (StickerTransaction s) = date(s) <= filterDateTo() OR NOT filterDateTo();
+
+FORM stickerTransactions 'Реестр печати этикеток'
+    PROPERTIES () filterDateFrom, filterDateTo
+
+    OBJECTS l = StickerTransaction
+    PROPERTIES skipReports(l)
+    PROPERTIES(l) READONLY namePrintLabelType, nameLabelType, date, time, quantity
+    PROPERTIES(l) READONLY createdNameUser, createdHostnameComputer, printText
+    ORDERS date(l), time(l)
+
+    FILTERS filterDateFrom(l), filterDateTo(l)
+;
+
+DESIGN stickerTransactions{
+    NEW topFilters FIRST{
+        horizontal = TRUE;
+        NEW dates {
+            caption = 'Период';
+            horizontal = TRUE;
+            MOVE PROPERTY (filterDateFrom());
+            MOVE PROPERTY (filterDateTo());
+        }
+    }
+    PROPERTY (printText(l)){valueHeight = 20;}
+}
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER stickerPrint 'Печать этикеток'{
+            NEW stickerTransactions;
+            NEW stickerTypes;
+            MOVE networkPrintersList;
+        }
+    }
+}

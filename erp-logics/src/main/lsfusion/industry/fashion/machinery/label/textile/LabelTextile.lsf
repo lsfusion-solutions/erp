@@ -40,3 +40,58 @@ FORM printLabelTypesList 'Типы этикеток (печать)'
 
     LIST PrintLabelType OBJECT t
 ;
+
+printLabelType = DATA PrintLabelType(LabelType);
+namePrintLabelType 'Тип этикетки (печать)'(LabelType l) = name(printLabelType(l));
+
+forTesting 'Тестовый' = DATA BOOLEAN (LabelType);
+lotPrint 'Печать марки' = DATA BOOLEAN (LabelType);
+
+EXTEND FORM labelType
+    PROPERTIES(l) namePrintLabelType, forTesting, lotPrint
+;
+
+DESIGN labelType 'Тип ценника/Шаблон этикетки '{
+    BOX(l) {caption = 'Тип ценника/Шаблон этикетки';}
+    PROPERTY(width(l)){charWidth = 5;}
+    PROPERTY(height(l)){charWidth = 5;}
+    PROPERTY(nameOrientation(l)){charWidth = 10;}
+    PROPERTY(fileTemplate(l)){charWidth = 25;}
+    PROPERTY(namePriceListType(l)){charWidth = 10;}
+
+    wor1 {
+        MOVE PROPERTY(inactive(l));
+        MOVE PROPERTY(forTesting(l));
+    }
+    wor2 {
+        MOVE PROPERTY(namePrintLabelType(l));
+    }
+}
+
+EXTEND FORM labelTypes
+    FILTERGROUP withFile FILTER 'С файлом' fileTemplate(l) DEFAULT
+;
+
+DESIGN labelTypes {
+    BOX(l) {caption = 'Тип ценника/Шаблон этикетки';}
+}
+
+FORM stickerTypes 'Шаблоны этикеток'
+    OBJECTS l = LabelType
+    PROPERTIES(l) READONLY id, name, active
+    PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
+
+    PROPERTIES(l) READONLY forTesting
+    PROPERTIES(l) READONLYIF isReadonly() namePrintLabelType, lotPrint
+    ORDERS name(l)
+
+    FILTERS NOT fileTemplate(l)
+;
+
+@extendFormEditable(stickerTypes);
+
+
+DESIGN stickerTypes {
+    BOX(l) {caption = 'Шаблон этикетки';}
+}
