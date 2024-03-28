@@ -37,10 +37,6 @@ import static org.apache.commons.lang.StringUtils.trim;
 public class SynchronizeLoyaAction extends LoyaAction {
     String failCaption = "Loya: Ошибка при синхронизации";
 
-    public SynchronizeLoyaAction(ScriptingLogicsModule LM) {
-        super(LM);
-    }
-
     public SynchronizeLoyaAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
     }

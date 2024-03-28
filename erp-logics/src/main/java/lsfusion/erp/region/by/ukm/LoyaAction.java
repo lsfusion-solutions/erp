@@ -12,11 +12,13 @@ import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONException;
@@ -85,10 +87,12 @@ public class LoyaAction extends InternalAction {
     protected CloseableHttpResponse executeRequest(HttpUriRequestBase request, String sessionKey) throws IOException {
         request.setHeader("content-type", "application/json");
         request.setHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
-
-        RequestConfig.Builder configBuilder = RequestConfig.custom().setConnectTimeout(5, TimeUnit.MINUTES).setConnectionRequestTimeout(5, TimeUnit.MINUTES).setResponseTimeout(5, TimeUnit.MINUTES);
-        try (CloseableHttpClient httpClient = HttpClientBuilder.create().setDefaultRequestConfig(configBuilder.build()).build()) {
-            return httpClient.execute(request);
+        try(PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager()) {
+            connectionManager.setDefaultConnectionConfig(ConnectionConfig.custom().setConnectTimeout(5, TimeUnit.MINUTES).build());
+            RequestConfig.Builder configBuilder = RequestConfig.custom().setConnectionRequestTimeout(5, TimeUnit.MINUTES).setResponseTimeout(5, TimeUnit.MINUTES);
+            try (CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager).setDefaultRequestConfig(configBuilder.build()).build()) {
+                return httpClient.execute(request, classicHttpResponse -> null);
+            }
         }
     }
 
@@ -154,7 +158,7 @@ public class LoyaAction extends InternalAction {
                 ERPLoggers.importLogger.info("Loya login request: " + IOUtils.toString(postRequest.getEntity().getContent()));
 
                 try(CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                    CloseableHttpResponse response = httpClient.execute(postRequest);
+                    CloseableHttpResponse response = httpClient.execute(postRequest, classicHttpResponse -> null);
                     int statusCode = response.getCode();
                     sessionKey = getCookieResponse(response, statusCode);
                     if (sessionKey == null) {
