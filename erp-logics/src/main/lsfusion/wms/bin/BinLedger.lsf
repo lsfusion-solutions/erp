@@ -21,53 +21,64 @@ idBarcodeSku 'Штрих-код' (BinLedger ledger)= idBarcode(sku(ledger)) IN i
 stock = ABSTRACT Stock (BinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
 
-inBin = ABSTRACT Bin (BinLedger) MATERIALIZED;
+inBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameInBin 'Ячейка (в)' (BinLedger ledger) = name(inBin(ledger)) IN id;
 
 INDEX inBin(BinLedger l), sku(l), dateTime(l);
 
-outBin = ABSTRACT Bin (BinLedger) MATERIALIZED;
+outBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameOutBin 'Ячейка (из)' (BinLedger ledger) = name(outBin(ledger)) IN id;
 INDEX outBin(BinLedger l), sku(l), dateTime(l);
 
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) MATERIALIZED;
 
-description 'Название документа' = ABSTRACT ISTRING[200] (BinLedger);
+description 'Название документа' = ABSTRACT ISTRING[200] (BinLedger) MATERIALIZED;
 
 changed = ABSTRACT BOOLEAN (BinLedger);
 
 skip 'Не проводить по учету' = ABSTRACT BOOLEAN (BinLedger) MATERIALIZED;
 active 'Активен' (BinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
+countInLedger 'Кол-во приходов' = 
+    GROUP SUM 1 IF active(BinLedger ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
+
+countOutLedger 'Кол-во расходов' =
+    GROUP SUM 1 IF active(BinLedger ledger) BY sku(ledger), outBin(ledger) MATERIALIZED;
+
+countLedger 'Кол-во движений' (Sku sku, Bin bin) =
+    countInLedger(sku, bin) (+) countOutLedger(sku, bin) MATERIALIZED;
+
+countLedger 'Кол-во движений' = GROUP SUM countLedger(Sku sku, Bin bin) BY bin;
+
 inBinTotal 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
     
 outBinTotal 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF isPosted(ledger) BY sku(ledger), outBin(ledger) MATERIALIZED;
+    GROUP SUM quantity(BinLedger ledger) IF active(ledger) BY sku(ledger), outBin(ledger) MATERIALIZED;
     
 inBinTotalA 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND isPosted(ledger) BY sku(ledger), inBin(ledger), date;
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) BY sku(ledger), inBin(ledger), date;
     
 outBinTotalA 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND isPosted(ledger) BY sku(ledger), outBin(ledger), date;
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date AND active(ledger) BY sku(ledger), outBin(ledger), date;
         
 inBinTotalB 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND isPosted(ledger) BY sku(ledger), inBin(ledger), date;
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) BY sku(ledger), inBin(ledger), date;
     
 outBinTotalB 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND isPosted(ledger) BY sku(ledger), outBin(ledger), date;
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date AND active(ledger) BY sku(ledger), outBin(ledger), date;
                 
 inBinTotalA 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND isPosted(ledger) BY sku(ledger), inBin(ledger), dateTime;
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) BY sku(ledger), inBin(ledger), dateTime;
     
 outBinTotalA 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND isPosted(ledger) BY sku(ledger), outBin(ledger), dateTime;
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime AND active(ledger) BY sku(ledger), outBin(ledger), dateTime;
         
 inBinTotalB 'Приход в ячейку' =
-    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND isPosted(ledger) BY sku(ledger), inBin(ledger), dateTime;
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) BY sku(ledger), inBin(ledger), dateTime;
     
 outBinTotalB 'Расход из ячейки' =
-    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND isPosted(ledger) BY sku(ledger), outBin(ledger), dateTime;                   
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime AND active(ledger) BY sku(ledger), outBin(ledger), dateTime;                   
         
 currentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin)=
     inBinTotal(sku, bin) (-) outBinTotal(sku, bin) MATERIALIZED;
@@ -125,10 +136,9 @@ FORM binLedger 'Регистр изменения остатков по ячей
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
     
     OBJECTS b = BinLedger
-    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, nameOutBin, description
-    FILTERS isPosted(b)
-    
-    FILTERS date(b) >= dFrom, date(b) <= dTo
+    PROPERTIES(b) READONLY dateTime, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, nameOutBin, description, skip
+    FILTERS isPosted(b),     
+            date(b) >= dFrom, date(b) <= dTo
 ;
 
 @extendFormFilterAccessStock(BinLedger, b, binLedger, stock, company);
@@ -141,15 +151,16 @@ DESIGN binLedger {
     MOVE TOOLBARBOX;
 }
 
-balanceQuantity 'Кол-во' (Bin bin, BinLedger ledger) = IF inBin(ledger)==bin
-    THEN quantity(ledger)
-        ELSE IF outBin(ledger)==bin 
-            THEN -quantity(ledger);
-            
-balanceBin 'Ячейка (из/в)' (Bin bin, BinLedger ledger) = IF inBin(ledger)==bin
-    THEN nameOutBin(ledger)
-        ELSE IF outBin(ledger)==bin 
-            THEN nameInBin(ledger);            
+quantityIn(Bin bin, BinLedger ledger) = quantity(ledger) IF inBin(ledger)==bin;
+quantityOut(Bin bin, BinLedger ledger) = quantity(ledger) IF outBin(ledger)==bin;
+
+balanceQuantity 'Кол-во' (Bin bin, BinLedger ledger) = quantityIn(bin, ledger) (-) quantityOut(bin, ledger);
+
+inBin(Bin bin, BinLedger ledger) = inBin(ledger) IF outBin(ledger)==bin; 
+outBin(Bin bin, BinLedger ledger) = outBin(ledger) IF inBin(ledger)==bin; 
+bin(Bin bin, BinLedger ledger) = OVERRIDE inBin(bin, ledger), outBin(bin, ledger); 
+
+balanceBin 'Ячейка (из/в)' (Bin bin, BinLedger ledger) = name(bin(bin, ledger));            
 
 FORM binBalance 'Остатки по ячейкам'
 
@@ -179,14 +190,15 @@ FORM binBalance 'Остатки по ячейкам'
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
     FILTERGROUP balance
         FILTER 'С остатком' currentBalance(s, b) DEFAULT
+        FILTER 'С движением' countLedger(s, b)
         
     OBJECTS l = BinLedger
-    PROPERTIES (l) READONLY dateTime, isPosted, description
+    PROPERTIES (l) READONLY dateTime, description, skip
     PROPERTIES(b, l) READONLY balanceBin, balanceQuantity
     ORDERS dateTime(l) DESC
-    FILTERS inBin(l)==b OR outBin(l)==b, sku(l)==s
-    FILTERGROUP posted
-        FILTER 'Проведен' isPosted(l) DEFAULT
+    FILTERS isPosted(l), 
+            inBin(l)==b OR outBin(l)==b, 
+            sku(l)==s
 ;
 
 @extendFormFilterStockAccess(ts, binBalance);
@@ -451,5 +463,5 @@ DESIGN options {
     }
 }
 
-CONSTRAINT DROPPED(Bin a IS Bin) AND ([GROUP SUM 1 IF NOT inBin(BinLedger d) BY PREV(inBin(d))](a) OR [GROUP SUM 1 IF NOT outBin(BinLedger d) BY PREV(outBin(d))](a))
+CONSTRAINT DROPPED(Bin bin IS Bin) AND PREV(countLedger(bin))
     MESSAGE 'Запрещено удалять ячейку при наличии движения по ней';
