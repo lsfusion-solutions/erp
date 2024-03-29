@@ -1,0 +1,350 @@
+MODULE SkuLedgerTextile;
+
+REQUIRE OrderLedger, PriceList, ItemFashionTextile, StockArticle, BinPacketLedger;
+
+NAMESPACE Stock;
+
+prevPriceWholesaleA 'Цена оптовая, руб.'(Sku s, Stock st) = prevPriceA(dataPriceListType('wholesale_BYN'), s, st,currentDateTime());
+sumWholesaleA 'Сумма остатка оптовая, руб.'(Sku s, Stock st) = prevPriceWholesaleA(s, st) * currentBalance(s, st);
+
+prevPriceWholesaleB 'Цена оптовая, руб.'(Sku s, Stock st, DATETIME t) = prevPriceB(dataPriceListType('wholesale_BYN'), s, st, t);
+sumWholesaleB 'Сумма остатка оптовая, руб.'(Sku s, Stock st, DATETIME t) = prevPriceWholesaleB(s, st, t) * balanceB(s, st, t);
+
+currentReserve 'Текущий резерв' (article, Stock stock) = GROUP SUM currentReserve(Item sku, stock) BY article(sku);
+prevCurrentReserve 'Текущий резерв' (article, Stock stock) = GROUP SUM prevCurrentReserve(Item sku, stock) BY article(sku);
+
+availableQuantity 'Доступно' (article, Stock stock) = GROUP SUM availableQuantity(Item sku, stock) BY article(sku);
+prevAvailableQuantity 'Доступно' (article, Stock stock) = GROUP SUM prevAvailableQuantity(Item sku, stock) BY article(sku);
+
+currentBalance 'Текущий остаток' (article, sort, Stock stock) = GROUP SUM currentBalance(Item sku, stock) BY article(sku), sort(sku);
+prevCurrentBalance 'Текущий остаток' (Article article, Sort sort, Stock stock) = PREV(currentBalance(article, sort, stock));
+
+currentReserve 'Текущий резерв' (article, sort, Stock stock) = GROUP SUM currentReserve(Item sku, stock) BY article(sku), sort(sku);
+prevCurrentReserve 'Текущий резерв' (article, sort, Stock stock) = GROUP SUM prevCurrentReserve(Item sku, stock) BY article(sku), sort(sku);
+
+availableQuantity 'Доступно' (article, sort, Stock stock) = GROUP SUM availableQuantity(Item sku, stock) BY article(sku), sort(sku);
+prevAvailableQuantity 'Доступно' (Article article, Sort sort, Stock stock) = PREV(availableQuantity(article, sort, stock)) IF PREV(availableQuantity(article, sort, stock)) > 0;
+
+currentBalanceCaption(Sort s) = 'Текущий остаток (' + name(s) + ' сорт)';
+currentReserveCaption(Sort s) = 'Текущий резерв (' + name(s) + ' сорт)';
+availableQuantityCaption(Sort s) = 'Доступно (' + name(s) + ' сорт)';
+
+backgroundCurrentBalance = #FFEEEE;
+backgroundCurrentReserve = #f4e5ff;
+backgroundAvailableQuantity = #F4FFBD;
+
+selected 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+countSelectedStocks () = GROUP SUM 1 IF selected(Stock st);
+selectedStocks 'Склады' () = GROUP CONCAT name(Stock st) IF selected(st), ', ' ORDER name(st) CHARWIDTH 50;
+
+FORM dialogStocks 'Склады'
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) selected
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, address
+    ORDERS stockName
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg), isCompany(s)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP selected FILTER 'Отмеченные' selected(s)
+;
+
+DESIGN dialogStocks {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(stockName){
+                    charWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+lastOrderBatch(Article article, Stock stock) = GROUP LAST Batch batch ORDER dateTime(batch, stock), batch BY article(skuLedger(batch, stock));
+dateLastOrderBatch 'Дата последней партии' (Article article, Stock stock) = date(lastOrderBatch(article, stock));
+
+defaultStockTextile 'Склад остатков по умолчанию' = DATA Stock ();
+nameDefaultStockTextile 'Склад остатков по умолчанию' = name(defaultStockTextile());
+
+EXTEND FORM options PROPERTIES() nameDefaultStockTextile;
+DESIGN options { stock1 { MOVE PROPERTY(nameDefaultStockTextile()); } }
+
+backgroundArticle 'Цвет' = ABSTRACT COLOR (Article, Stock);
+
+FORM currentBalanceArticleStock 'Текущие остатки по моделям'
+    PROPERTIES selectedStocks() ON CHANGE { SHOW dialogStocks; }
+
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
+
+    OBJECTS ast = (a = Article, st = Stock)
+    PROPERTIES READONLY BACKGROUND backgroundArticle(a, st) id(a), caption(a), model(a), name(st) SHOWIF (countSelectedStocks() > 1)
+    FILTERS isParent(sk, a)
+    FILTERS selected(st)
+    ORDERS id(a), caption(a), name(st)
+
+    OBJECTS so = Sort
+    PROPERTIES READONLY prevCurrentBalance(a, so, st) COLUMNS 'so' (so) HEADER currentBalanceCaption(so) DRAW ast BACKGROUND backgroundCurrentBalance()
+    PROPERTIES READONLY prevCurrentReserve(a, so, st) COLUMNS 'so' (so) HEADER currentReserveCaption(so) DRAW ast BACKGROUND backgroundCurrentReserve()
+    PROPERTIES READONLY prevAvailableQuantity(a, so, st) COLUMNS 'so' (so) HEADER availableQuantityCaption(so) DRAW ast BACKGROUND backgroundAvailableQuantity()
+
+    PROPERTIES READONLY prevCurrentBalance(a, st) BACKGROUND backgroundCurrentBalance(), prevCurrentReserve(a, st) BACKGROUND backgroundCurrentReserve(),
+        prevAvailableQuantity(a, st) BACKGROUND backgroundAvailableQuantity()
+
+    PROPERTIES READONLY dateLastOrderBatch(a, st)
+
+    FILTERGROUP filters
+        FILTER 'Модели с остатком' currentBalance(a, st) 'F10' DEFAULT
+
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY name, idBarcode, nameSize, nameSort, nameColor
+    PROPERTIES READONLY prevCurrentBalance(i, st) BACKGROUND backgroundCurrentBalance(),
+        prevCurrentReserve(i, st) BACKGROUND backgroundCurrentReserve(),
+        prevAvailableQuantity(i, st) BACKGROUND backgroundAvailableQuantity()
+    PROPERTIES(i, st) READONLY prevPriceWholesaleA, sumWholesaleA
+    FILTERS article(i) == a
+
+    FILTERGROUP filterI
+        FILTER 'Товары с остатком' currentBalance(i, st) 'F9' DEFAULT
+
+    OBJECTS l = SkuLedger
+    PROPERTIES(l) READONLY dateTime, description, nameBatch,
+        signedQuantity, signedPrice, signedSum, skip
+    FILTERS isPosted(l) AND article(sku(l)) == a AND stock(l) == st
+    ORDERS dateTime(l) DESC
+
+    OBJECTS pl = OrderLedger
+    PROPERTIES(pl) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
+        quantity, toShipQuantity
+    FILTERS activeStock(pl) == st,
+        article(activeSku(pl)) == a,
+        activePurchase(pl)
+
+    OBJECTS sl = OrderLedger
+    PROPERTIES(sl) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
+        quantity, toShipQuantity
+
+    FILTERS activeStock(sl) == st,
+        article(activeSku(sl)) == a,
+        activeSale(sl)
+
+    OBJECTS b = Packet
+    PROPERTIES(b) READONLY id, idCurrentBin, dateTimeLastMoved
+    ORDERS id(b)
+    FILTERS st == stock(currentBin(b))
+
+    EVENTS ON INIT {
+        selected(Stock stock) <- TRUE WHERE stock == OVERRIDE stock(currentUser()), defaultStockTextile();
+    }
+;
+
+DESIGN currentBalanceArticleStock {
+    BOX {
+        size = (1024, 768);
+        NEW top {
+            horizontal = TRUE;
+            MOVE PROPERTY(selectedStocks());
+        }
+        NEW topContainer {
+            fill = 1;
+            horizontal = TRUE;
+
+            NEW firstBottom {
+                fill = 1;
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+            }
+
+            NEW secondCase {
+                fill = 3;
+                NEW skuBox {
+                    fill = 2;
+                    MOVE BOX(ast) {
+                        caption = 'Модель';
+                        fill = 2;
+                        PROPERTY(id(a)) { caption = 'Код модели'; }
+                    }
+                }
+                NEW ledgerBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(i) {
+                        PROPERTY(nameSize(i)) { charWidth = 10; }
+                        PROPERTY(nameSort(i)) { charWidth = 5; }
+                        PROPERTY(nameColor(i)) { charWidth = 10; }
+                    }
+                    MOVE BOX(l);
+                    MOVE BOX(pl) { caption = 'Резерв (закупки)'; }
+                    MOVE BOX(sl) { caption = 'Резерв (продажи)'; }
+                    MOVE BOX(b) { caption = 'Пакеты'; }
+                    NEW actionsContainer { caption = 'Действия'; }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterStockAccess(st, currentBalanceArticleStock);
+
+balanceB 'Остаток (до)' (article, sort, Stock stock, DATETIME dateTime) = GROUP SUM balanceB(Item sku, stock, dateTime) BY article(sku), sort(sku);
+balanceB 'Остаток (до)' (article, Stock stock, DATETIME dateTime) = GROUP SUM balanceB(Item sku, stock, dateTime) BY article(sku);
+
+reserveA 'Резерв (после)' (article, sort, Stock stock, DATETIME dateTime) = GROUP SUM reserveA(Item sku, stock,dateTime) BY article(sku), sort(sku);
+reserveA 'Резерв (после)' (article, Stock stock, DATETIME dateTime) = GROUP SUM reserveA(Item sku, stock, dateTime) BY article(sku);
+
+prevAvailableQuantity 'Доступное к-во' (article, sort, Stock stock, DATETIME dateTime) = GROUP SUM prevAvailableQuantity(Item sku, stock,dateTime) BY article(sku), sort(sku);
+prevAvailableQuantity 'Доступное к-во' (article, Stock stock, DATETIME dateTime) = GROUP SUM prevAvailableQuantity(Item sku, stock,dateTime) BY article(sku);
+
+balanceBCaption(Sort s) = 'Остаток до (' + name(s) + ' сорт)';
+reserveACaption(Sort s) = 'Резерв после (' + name(s) + ' сорт)';
+prevAvailableQuantityCaption(Sort s) = 'Доступное к-во (' + name(s) + ' сорт)';
+
+backgroundArticle 'Цвет' = ABSTRACT COLOR (Article, DATETIME);
+
+FORM balanceArticleStock 'Остатки по моделям на дату'
+    OBJECTS t = DATETIME PANEL
+    PROPERTIES valT = VALUE(t)
+
+    PROPERTIES selectedStocks() ON CHANGE { SHOW dialogStocks; }
+
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
+
+    OBJECTS ast = (a = Article, st = Stock)
+    PROPERTIES READONLY BACKGROUND backgroundArticle(a, t) id(a), caption(a), model(a), name(st) SHOWIF (countSelectedStocks() > 1)
+    FILTERS isParent(sk, a)
+    FILTERS selected(st)
+    ORDERS id(a), caption(a), name(st)
+
+    OBJECTS so = Sort
+    PROPERTIES READONLY balanceB(a, so, st, t) COLUMNS 'so' (so) HEADER balanceBCaption(so) DRAW ast BACKGROUND backgroundCurrentBalance()
+    PROPERTIES READONLY reserveA(a, so, st, t) COLUMNS 'so' (so) HEADER reserveACaption(so) DRAW ast BACKGROUND backgroundCurrentReserve()
+    PROPERTIES READONLY prevAvailableQuantity(a, so, st, t) COLUMNS 'so' (so) HEADER prevAvailableQuantityCaption(so) DRAW ast BACKGROUND backgroundAvailableQuantity()
+
+    PROPERTIES READONLY balanceB(a, st, t) BACKGROUND backgroundCurrentBalance(), reserveA(a, st, t) BACKGROUND backgroundCurrentReserve(),
+        prevAvailableQuantity(a, st, t) BACKGROUND backgroundAvailableQuantity()
+
+    FILTERGROUP filters
+        FILTER 'Модели с остатком' balanceB(a, st, t) 'F10' DEFAULT
+
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY name, idBarcode, nameSize, nameSort, nameColor
+    PROPERTIES READONLY balanceB(i, st, t) BACKGROUND backgroundCurrentBalance(), reserveA(i, st, t) BACKGROUND backgroundCurrentReserve(),
+        prevAvailableQuantity(i,st,t) BACKGROUND backgroundAvailableQuantity()
+    PROPERTIES(i, st, t) READONLY prevPriceWholesaleB, sumWholesaleB
+    FILTERS article(i) == a
+
+    FILTERGROUP filterI
+        FILTER 'Товары с остатком' balanceB(i, st, t) 'F9' DEFAULT
+
+    OBJECTS l=SkuLedger
+    PROPERTIES(l) READONLY dateTime, description, nameBatch,
+        signedQuantity, signedPrice, signedSum, skip
+    FILTERS isPosted(l) AND article(sku(l)) == a AND stock(l) == st
+    ORDERS dateTime(l) DESC
+
+    OBJECTS pl = OrderLedger
+    PROPERTIES(pl) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
+        quantity, toShipQuantity
+    FILTERS activeStock(pl) == st,
+        article(activeSku(pl)) == a,
+        activePurchase(pl),
+        activeDateTime(pl) <= t
+
+    OBJECTS sl = OrderLedger
+    PROPERTIES(sl) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
+        quantity, toShipQuantity
+    PROPERTIES(sl) NEWSESSION EDIT
+
+    FILTERS activeStock(sl) == st,
+        article(activeSku(sl)) == a,
+        activeSale(sl),
+        activeDateTime(sl) <= t
+
+    OBJECTS b = Packet
+    PROPERTIES READONLY id(b), idBinA(b, t), dateTimeLastMoved(b)
+    ORDERS id(b)
+    FILTERS st == stock(binA(b, t))
+
+    EVENTS ON INIT {
+        selected(Stock stock) <- TRUE WHERE stock == OVERRIDE stock(currentUser()), defaultStockTextile();
+    }
+;
+
+DESIGN balanceArticleStock {
+    BOX {
+        size = (1024, 768);
+        NEW top {
+            horizontal = TRUE;
+            horizontal = TRUE;
+            MOVE PROPERTY(valT);
+            MOVE PROPERTY(selectedStocks());
+        }
+        NEW topContainer {
+            fill = 1;
+            horizontal = TRUE;
+
+            NEW firstBottom {
+                fill = 1;
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+            }
+
+            NEW secondCase {
+                fill = 3;
+                NEW skuBox {
+                    fill = 2;
+                    MOVE BOX(ast) {
+                        fill = 2;
+                    }
+                }
+                NEW ledgerBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(i) {
+                        PROPERTY(nameSize(i)) { charWidth = 10; }
+                        PROPERTY(nameSort(i)) { charWidth = 5; }
+                        PROPERTY(nameColor(i)) { charWidth = 10; }
+                    }
+                    MOVE BOX(l);
+                    MOVE BOX(pl) { caption = 'Резерв (закупки)'; }
+                    MOVE BOX(sl) { caption = 'Резерв (продажи)'; }
+                    MOVE BOX(b) { caption = 'Пакеты'; }
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterStockAccess(st, balanceArticleStock);
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER balanceArticle 'Остатки по моделям' AFTER balanceSku {
+            NEW currentBalanceArticleStock;
+            NEW balanceArticleStock;
+        }
+    }
+}
