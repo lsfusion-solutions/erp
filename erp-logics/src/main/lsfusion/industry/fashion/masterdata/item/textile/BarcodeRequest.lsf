@@ -1,6 +1,6 @@
 MODULE BarcodeRequest;
 
-REQUIRE ItemFashionTextile, ItemDescription, CustomsGroupItem, EDIGTIN, ItemTracking; 
+REQUIRE ItemFashionTextile, ItemDescription, CustomsGroupItem, EDIGTIN; 
 
 PRIORITY Item;
 
@@ -42,6 +42,8 @@ open 'Открыть' (BarcodeRequest o)  {
 
 @defineOperationProperty(isTrackingItem, 'Подлежащие прослеживанию товары', propertyContainer);
 
+isTrackingItem(BarcodeRequest b) = isTrackingItem(operation(b));
+
 CLASS BarcodeRequestDetail 'Cтрока заявки на EAN';
 TABLE barcodeRequestDetail (BarcodeRequestDetail);
 
@@ -54,7 +56,7 @@ operation(BarcodeRequestDetail d) = operation(barcodeRequest(d));
 
 @defineDocumentDetailIndex(barcodeRequest, BarcodeRequestDetail);
 
-item = DATA Item (BarcodeRequestDetail);
+item = DATA Item (BarcodeRequestDetail) NONULL;
 nameItem 'Товар'(BarcodeRequestDetail d) = name(item(d)) IN id;
 idArticleItem 'Модель'(BarcodeRequestDetail d) = id(article(item(d)));
 idBarcodeItem 'Штрихкод товара'(BarcodeRequestDetail d) = idBarcode(item(d));
@@ -63,6 +65,7 @@ nameSizeItem 'Размер'(BarcodeRequestDetail d) = nameSize(item(d));
 idColorItem 'Код цвета'(BarcodeRequestDetail d) = idColor(item(d));
 nameColorItem 'Цвет'(BarcodeRequestDetail d) = nameColor(item(d));
 nameSortItem 'Сорт'(BarcodeRequestDetail d) = nameSort(item(d));
+nameGenderItem 'Пол'(BarcodeRequestDetail d) = nameGender(item(d));
 nameArticleKind 'Вид изделия'(BarcodeRequestDetail d) = fullName(articleKind(article(item(d))));
 
 nameBrand 'Бренд' = ABSTRACT STRING (BarcodeRequestDetail);
@@ -92,7 +95,7 @@ CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND [ GROUP SUM 1 BY item(B
 CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
     MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
 
-CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR CHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroup(item(d))
+CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroup(item(d))
     MESSAGE 'В заявке с данной операцией должны быть только подлежащие прослеживанию товары';
 
 writeBarcodes 'Записать штрихкоды из заявки в товары'(BarcodeRequest br)  {
@@ -137,7 +140,7 @@ FORM barcodeRequest 'Заявка на EAN'
 
     OBJECTS d = BarcodeRequestDetail
     PROPERTIES (d) index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem READONLY, nameItem, idArticleItem
-    PROPERTIES (d) READONLY nameSizeItem, nameSortItem, codeCustomsGroup, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+    PROPERTIES (d) READONLY nameSizeItem, nameColorItem, nameSortItem, nameGenderItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
     PROPERTIES (d) NEW, deleted = DELETE GRID
     FILTERS  barcodeRequest(d) == p
 
@@ -240,7 +243,7 @@ FORM barcodeRequests 'Заявки на EAN'
 
     OBJECTS d = BarcodeRequestDetail
     PROPERTIES (d) READONLY index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem, nameItem, idArticleItem,
-        nameSizeItem, nameSortItem, codeCustomsGroup, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
+        nameSizeItem, nameColorItem, nameSortItem, nameGenderItem, codeCustomsGroup, compositionItem, nameArticleKind, codeOKRB, codeGPC3, codeGPC4
     FILTERS  barcodeRequest(d) == p
 
     FILTERGROUP open FILTER 'Открытые' NOT isClosed(p) DEFAULT
@@ -317,6 +320,7 @@ openInExcel 'Просмотреть полученный файл' (BarcodeReque
 quantityDefault 'Количество товара' = DATA STRING[5]();
 codeGLNCompany 'Код GLN организации' = DATA STRING[15]();
 nameCompany 'Наименование организации' = DATA STRING[20]();
+taxIdCompany 'Идентификатор налогоплательщика организации' = DATA STRING[15]();
 minTemperature 'Минимальная температура хранения' = DATA STRING[5]();
 maxTemperature 'Максимальная температура хранения' = DATA STRING[5]();
 minHumidity 'Минимальная влажность хранения' = DATA STRING[5]();
@@ -332,7 +336,7 @@ dataRequestUser 'Заявку подготовил' = DATA STRING();
 splitIsTracking 'Отделять товары, подлежащие прослеживанию, в другую заявку на EAN' = DATA BOOLEAN() PREREAD;
 
 EXTEND FORM options
-    PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
+    PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, taxIdCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
         emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser, splitIsTracking
 ;
 
@@ -343,6 +347,7 @@ DESIGN options {
             caption = 'Значения по умолчанию для заявки на штрихкод';
             MOVE PROPERTY(codeGLNCompany());
             MOVE PROPERTY(nameCompany());
+            MOVE PROPERTY(taxIdCompany());
             MOVE PROPERTY(quantityDefault());
             MOVE PROPERTY(minTemperature());
             MOVE PROPERTY(maxTemperature());
@@ -396,8 +401,13 @@ importFromFile 'Загрузить полученный файл' ABSTRACT (Barc
 
 extraNoNeedCreateNewRequest = ABSTRACT BOOLEAN(BarcodeRequestDetail);
 
+technicalRegulation = ABSTRACT TechnicalRegulation (Item);
+technicalRegulation = ABSTRACT TechnicalRegulation (Article);
+
+extraTrackingNoNeedCreateNewRequest (BarcodeRequestDetail d) = color(item(d)) AND technicalRegulation(item(d)) AND gender(item(d));
+
 needCreateNewRequest(BarcodeRequestDetail d) = d IS BarcodeRequestDetail AND NOT
-    (nameArticleKind(d) AND codeOKRB(d) != '' AND codeCustomsGroup(d) AND codeGPC3(d) AND codeGPC4(d) AND extraNoNeedCreateNewRequest(d));
+    (nameArticleKind(d) AND codeOKRB(d) != '' AND codeCustomsGroup(d) AND codeGPC3(d) AND codeGPC4(d) AND extraNoNeedCreateNewRequest(d) AND (extraTrackingNoNeedCreateNewRequest(d) OR NOT isTrackingItem(barcodeRequest(d))));
 
 needCreateNewRequest = GROUP SUM 1 IF needCreateNewRequest(BarcodeRequestDetail d) BY barcodeRequest(d);
 
