@@ -666,7 +666,10 @@ isSuitableTNVEDClothes 'Соответствие по ТНВЭД' (Sku sku) =
     GROUP SUM 1 IF isParent(customsGroup(defaultCountry(), sku), CustomsGroup g) AND 
                    (code(g) == '6201' OR code(g) == '6202' OR code(g) == '6302');
 
+skipCheckLotTypeClothes = ABSTRACT BOOLEAN (LotOrderDetail);
+
 CONSTRAINT (SETCHANGED(sku(LotOrderDetail d)) OR SETCHANGED(type(lotOrder(d)))) AND type(lotOrder(d)) == LotType.clothes AND NOT isSuitableTNVEDClothes(sku(d))
+    AND NOT skipCheckLotTypeClothes(d)
     CHECKED BY sku[LotOrderDetail] 
     MESSAGE 'Товар с типом маркировки "Легкая промышленность" не соответствует кодам ТН ВЭД 6201, 6202 или 6302';
 
