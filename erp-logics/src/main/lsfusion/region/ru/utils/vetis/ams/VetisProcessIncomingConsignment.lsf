@@ -78,8 +78,9 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     OBJECTS rd = VetReferenceDocument IN deliveryAccompanyingForms EXTID 'vd:waybill' 
     PROPERTIES issueSeries(rd) EXTID 'vd:issueSeries', issueNumber(rd) EXTID 'vd:issueNumber', =toDateISO(issueDate(rd)) EXTID 'vd:issueDate', 
                type(rd) EXTID 'vd:type'
-    FILTERS vetDocument(rd) = vetDocument(incomingConsignment(r)),
-            relationshipType(rd) = 1 AND type(rd) = 1
+    FILTERS rd = (GROUP MIN VetReferenceDocument vrd IF relationshipType(vrd) = 1 AND vetDocument(vrd) = vetDocument(incomingConsignment(r)))
+//    FILTERS vetDocument(rd) = vetDocument(incomingConsignment(r)),
+//            relationshipType(rd) = 1 AND type(rd) = 1
     
     PROPERTIES IN deliveryVetCertificate =uuid(vetDocument(incomingConsignment(r))) EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid'
 
