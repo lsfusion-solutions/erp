@@ -11,14 +11,14 @@ EXTEND CLASS DocType { QueryAP_v2 'Запрос на справочник про
 docType (QueryAPv2 r) += DocType.QueryAP_v2 IF r IS QueryAPv2; 
 
 producer = DATA Client (QueryAPv2);
-idClient 'Код производителя' (QueryAPv2 q) = id(producer(q));
-shortNameClient 'Производитель' (QueryAPv2 q) = shortName(producer(q));
+idProducer 'Код производителя' (QueryAPv2 q) = id(producer(q));
+shortNameProducer 'Производитель' (QueryAPv2 q) = shortName(producer(q));
 
 GROUP parameters EXTID 'qp:Parameters';
 GROUP parameter EXTID 'qp:Parameter' : parameters;
 
 name (INTEGER i) = CASE WHEN i = 0 THEN 'СИО';  
-value (QueryAPv2 r, INTEGER i) = CASE WHEN i = 0 THEN idClient(r);
+value (QueryAPv2 r, INTEGER i) = CASE WHEN i = 0 THEN idProducer(r);
 
 FORM queryAPv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryAP_v2'
     PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
@@ -32,11 +32,12 @@ FORM queryAPv2 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:QueryAP_v2'
 
 FORM queryAPv2Params 'Параметры запроса'
     OBJECTS r = QueryAPv2 PANEL
-    PROPERTIES(r) idClient, shortNameClient, nameUtm
+    PROPERTIES(r) idProducer, shortNameProducer, nameUtm
 ;
 
 queryAPv2 (QueryAPv2 r) {
     EXPORT queryAPv2 OBJECTS r = r XML;
+    client(r) <- firstClient(utm(r));
     submit(r, exportFile());
 }
 
