@@ -89,7 +89,7 @@ public class LoyaAction extends InternalAction {
             connectionManager.setDefaultConnectionConfig(ConnectionConfig.custom().setConnectTimeout(5, TimeUnit.MINUTES).build());
             RequestConfig.Builder configBuilder = RequestConfig.custom().setConnectionRequestTimeout(5, TimeUnit.MINUTES).setResponseTimeout(5, TimeUnit.MINUTES);
             try (CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager).setDefaultRequestConfig(configBuilder.build()).build()) {
-                return httpClient.execute(request, classicHttpResponse -> null);
+                return httpClient.execute(request);
             }
         }
     }
@@ -150,7 +150,7 @@ public class LoyaAction extends InternalAction {
                 ERPLoggers.importLogger.info("Loya login request: " + IOUtils.readStreamToString(postRequest.getEntity().getContent(), "UTF-8"));
 
                 try(CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                    CloseableHttpResponse response = httpClient.execute(postRequest, classicHttpResponse -> null);
+                    CloseableHttpResponse response = httpClient.execute(postRequest);
                     int statusCode = response.getCode();
                     sessionKey = getCookieResponse(response, statusCode);
                     if (sessionKey == null) {
