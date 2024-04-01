@@ -1,5 +1,7 @@
 package lsfusion.erp.region.by.ukm;
 
+import lsfusion.base.Pair;
+import lsfusion.base.Result;
 import lsfusion.base.file.IOUtils;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -19,7 +21,9 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,8 +70,8 @@ public class LoyaAction extends InternalAction {
 
     protected LoyaResponse executeRequestWithRelogin(ExecutionContext<ClassPropertyInterface> context, HttpUriRequestBase request, int count) throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException, JSONException {
         assert settings != null;
-        CloseableHttpResponse response = executeRequest(request, settings.sessionKey);
-        String responseMessage = getResponseMessage(response);
+        Pair<String, Boolean> response = executeRequest(request, settings.sessionKey);
+        String responseMessage = response.first;
         if(authenticationFailed(responseMessage)) {
             settings = login(context, true);
             if(count > 0) {
@@ -75,26 +79,34 @@ public class LoyaAction extends InternalAction {
             } else {
                 if (settings.error == null) {
                     response = executeRequest(request, settings.sessionKey);
-                    responseMessage = getResponseMessage(response);
+                    responseMessage = response.first;
                 }
             }
         }
-        return new LoyaResponse(responseMessage, requestSucceeded(response));
+        return new LoyaResponse(responseMessage, response.second);
     }
 
-    protected CloseableHttpResponse executeRequest(HttpUriRequestBase request, String sessionKey) throws IOException {
+    protected Pair<String, Boolean> executeRequest(HttpUriRequestBase request, String sessionKey) throws IOException {
         request.setHeader("content-type", "application/json");
         request.setHeader("Cookie", "PLAY2AUTH_SESS_ID=" + sessionKey);
         try(PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager()) {
             connectionManager.setDefaultConnectionConfig(ConnectionConfig.custom().setConnectTimeout(5, TimeUnit.MINUTES).build());
             RequestConfig.Builder configBuilder = RequestConfig.custom().setConnectionRequestTimeout(5, TimeUnit.MINUTES).setResponseTimeout(5, TimeUnit.MINUTES);
+
+            Result<String> responseMessage = new Result<>();
+            Result<Boolean> requestSucceeded = new Result<>();
             try (CloseableHttpClient httpClient = HttpClientBuilder.create().setConnectionManager(connectionManager).setDefaultRequestConfig(configBuilder.build()).build()) {
-                return httpClient.execute(request);
+                httpClient.execute(request, (HttpClientResponseHandler<CloseableHttpResponse>) response -> {
+                    responseMessage.set(getResponseMessage(response));
+                    requestSucceeded.set(requestSucceeded(response));
+                    return null;
+                });
+                return Pair.create(responseMessage.result, requestSucceeded.result);
             }
         }
     }
 
-    protected String getCookieResponse(CloseableHttpResponse response, int statusCode) {
+    protected String getCookieResponse(ClassicHttpResponse response, int statusCode) {
         if (statusCode >= 200 && statusCode < 300) {
             Header[] headers = response.getHeaders("set-cookie");
             if (headers.length > 0) {
@@ -108,11 +120,11 @@ public class LoyaAction extends InternalAction {
         return null;
     }
 
-    protected String getResponseMessage(CloseableHttpResponse response) throws IOException {
+    protected String getResponseMessage(ClassicHttpResponse response) throws IOException {
         return IOUtils.readStreamToString(response.getEntity().getContent(), "UTF-8");
     }
 
-    protected boolean requestSucceeded(CloseableHttpResponse response) {
+    protected boolean requestSucceeded(ClassicHttpResponse response) {
         return response.getCode() == 200;
     }
 
@@ -150,11 +162,18 @@ public class LoyaAction extends InternalAction {
                 ERPLoggers.importLogger.info("Loya login request: " + IOUtils.readStreamToString(postRequest.getEntity().getContent(), "UTF-8"));
 
                 try(CloseableHttpClient httpClient = HttpClients.createDefault()) {
-                    CloseableHttpResponse response = httpClient.execute(postRequest);
-                    int statusCode = response.getCode();
-                    sessionKey = getCookieResponse(response, statusCode);
+                    Result<String> sessionKeyResult = new Result<>();
+                    Result<String> errorResult = new Result<>();
+                    httpClient.execute(postRequest, (HttpClientResponseHandler<CloseableHttpResponse>) response -> {
+                        sessionKeyResult.set(getCookieResponse(response, response.getCode()));
+                        if(sessionKeyResult.result == null) {
+                            errorResult.set(getResponseMessage(response));
+                        }
+                        return null;
+                    });
+                    sessionKey = sessionKeyResult.result;
                     if (sessionKey == null) {
-                        error = getResponseMessage(response);
+                        error = errorResult.result;
                     } else {
                         try (ExecutionContext.NewSession newContext = context.newSession()) {
                             findProperty("sessionKey[]").change(sessionKey, newContext);
