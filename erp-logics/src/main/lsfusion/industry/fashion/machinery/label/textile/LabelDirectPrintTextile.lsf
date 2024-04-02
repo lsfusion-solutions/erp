@@ -1,6 +1,6 @@
 MODULE LabelDirectPrintTextile;
 
-REQUIRE LabelDirectPrint, LabelTextile, PacketTextile;
+REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile;
 
 NAMESPACE Label;
 
@@ -29,7 +29,23 @@ printLabelType = DATA PrintLabelType (StickerTransaction) NONULL;
 idPrintLabelType 'Код типа этикетки' (StickerTransaction transaction) = id(printLabelType(transaction));
 namePrintLabelType 'Тип этикетки' (StickerTransaction transaction) = namePrint(printLabelType(transaction)) IN id;
 
+packetFrom = DATA Packet (StickerTransaction);
+idPacketFrom 'Пакет c' (StickerTransaction d) = id(packetFrom(d));
+packetTo = DATA Packet (StickerTransaction);
+idPacketTo 'Пакет по' (StickerTransaction d) = id(packetTo(d));
+
+item = DATA Item (StickerTransaction);
+nameItem 'Товар' (StickerTransaction d) = name(item(d));
+
+overIdBarcode = ABSTRACT STRING[15](StickerTransaction);
+useOverIdBarcode = ABSTRACT BOOLEAN(StickerTransaction);
+idBarcodeItem 'Штрихкод' (StickerTransaction d) = OVERRIDE idBarcode(item(d)) IF length(idBarcode(item(d))) == 13, overIdBarcode(d) IF useOverIdBarcode(d);
+
+article = ABSTRACT Article (StickerTransaction);
+idArticle 'Модель'(StickerTransaction d) = id(article(d));
+
 quantity 'Кол-во этикеток' = DATA INTEGER (StickerTransaction);
+quantityInPacket 'Кол-во в пакете' = DATA NUMERIC[16,5](StickerTransaction);
 
 stickerTransaction = DATA StickerTransaction (Packet) INDEXED NONULL;
 
@@ -62,7 +78,7 @@ FORM stickerTransactions 'Реестр печати этикеток'
 
     OBJECTS l = StickerTransaction
     PROPERTIES skipReports(l)
-    PROPERTIES(l) READONLY namePrintLabelType, nameLabelType, date, time, quantity
+    PROPERTIES(l) READONLY namePrintLabelType, nameLabelType, date, time, idBarcodeItem, nameItem, idArticle, idPacketFrom, idPacketTo, quantity
     PROPERTIES(l) READONLY createdNameUser, createdHostnameComputer, printText
     ORDERS date(l), time(l)
 
