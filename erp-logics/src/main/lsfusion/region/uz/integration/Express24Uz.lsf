@@ -64,14 +64,19 @@ useCustomStock = ABSTRACT BOOLEAN ();
 stock 'Остаток' = ABSTRACT CASE NUMERIC[16,5] (Item, DepartmentStore);
 stock(Item i, DepartmentStore d) += WHEN i IS Item AND d IS DepartmentStore AND NOT useCustomStock() THEN currentBalance(i, d);
 
+useCustomCurrentPrice = ABSTRACT BOOLEAN ();
+currentPrice = ABSTRACT NUMERIC[16,4] (Item, DepartmentStore);
+customCurrentPrice = ABSTRACT NUMERIC[16,4] (Item, DepartmentStore);
+currentPrice(Item i, DepartmentStore d) += IF useCustomCurrentPrice() THEN customCurrentPrice(i, d) ELSE retailPricingPriceA(i, d);
+
 FORM updateProducts
     OBJECTS s = STRING EXTID 'branches' IN data
     PROPERTIES VALUE (s) EXTID 'value'
 
     OBJECTS d = DepartmentStore EXTID 'data', products = Item IN data
-    PROPERTIES  = IF stock(products, d) > 0  AND NOT stopList(products, d) AND retailPricingPriceA(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
+    PROPERTIES  = IF stock(products, d) > 0  AND NOT stopList(products, d) AND currentPrice(products, d) THEN 1 ELSE 0 EXTID 'isAvailable', 
         = OVERRIDE stock(products, d), 0 EXTID 'quantity',
-        = OVERRIDE retailPricingPriceA(products, d), 1 EXTID 'price', = id(products) EXTID 'externalId', 
+        = OVERRIDE currentPrice(products, d), 1 EXTID 'price', = id(products) EXTID 'externalId', 
         = OVERRIDE ikpu(products), '' EXTID 'spicId'
     FILTERS onlineExpress24(products)
 ;
@@ -103,7 +108,7 @@ updateProducts 'Обновить продукты(магазин)'(DepartmentSto
         maxSku() <- GROUP MAX sort(Sku s);
         maxStep() <- (maxSku() / 1700) (+) 1 IF mod(maxSku(), 1700);
         FOR iterate(INTEGER i, 0, maxStep() - 1) DO{
-            EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds), retailPricingPriceA(products, ds), (sort(products) > (i * 1700) AND sort(products) <= ((i + 1) * 1700)) JSON;
+            EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds), currentPrice(products, ds), (sort(products) > (i * 1700) AND sort(products) <= ((i + 1) * 1700)) JSON;
             TRY {
                 EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
                 IMPORT responseItems JSON FROM response();
@@ -116,7 +121,7 @@ updateProducts 'Обновить продукты(магазин)'(DepartmentSto
             
         }
     } ELSE{
-        EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds),  retailPricingPriceA(products, ds) JSON;
+        EXPORT updateProducts OBJECTS d = ds FILTERS s = idExpress24(ds),  currentPrice(products, ds) JSON;
         TRY EXTERNAL HTTP PUT 'https://express24.uz/api/external/update-products' HEADERS headers PARAMS exportFile() TO response;
         CATCH{
             fileToString(response());
