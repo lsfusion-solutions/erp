@@ -1,19 +1,17 @@
 MODULE FiscalVMKInvoicePayment;
 
-REQUIRE FiscalVMK, FiscalSento, InvoicePaymentCashRegister;
+REQUIRE FiscalVMK, FiscalInvoicePayment;
 
 fiscalVMKPrint 'Напечатать оплату'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintInvoicePaymentAction' (Sale.Invoice, Payment.Payment, BOOLEAN);
-fiscalSentoPrint 'Напечатать оплату'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoPrintInvoicePaymentAction' (Sale.Invoice, Payment.Payment, BOOLEAN);
-printReceipt(Sale.Invoice invoice, Payment.Payment payment) { IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrint(invoice, payment, NULL); ELSE fiscalSentoPrint(invoice, payment, NULL); }
-printReceiptWithDetail(Sale.Invoice invoice, Payment.Payment payment)  {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrint(invoice, payment, TRUE); ELSE fiscalSentoPrint(invoice, payment, NULL); }
+printReceipt[Sale.Invoice, Payment.Payment](Sale.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS Sale.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrint(invoice, payment, NULL);}
+printReceiptWithDetail[Sale.Invoice, Payment.Payment](Sale.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS Sale.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrint(invoice, payment, TRUE);}
 
 fiscalVMKPrintReturn 'Напечатать возврат'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintReturnInvoicePaymentAction' (Sale.Invoice, Payment.Payment, BOOLEAN);
-fiscalSentoPrintReturn 'Напечатать возврат'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalsento.FiscalSentoPrintReturnInvoicePaymentAction' (Sale.Invoice, Payment.Payment, BOOLEAN);
-printReturnReceipt(Sale.Invoice invoice, Payment.Payment payment)  {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrintReturn(invoice, payment, NULL); ELSE fiscalSentoPrintReturn(invoice, payment, NULL); }
-printReturnReceiptWithDetail(Sale.Invoice invoice, Payment.Payment payment)  {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrintReturn(invoice, payment, TRUE); ELSE fiscalSentoPrintReturn(invoice, payment, NULL); }
+printReturnReceipt[Sale.Invoice, Payment.Payment](Sale.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS Sale.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrintReturn(invoice, payment, NULL);}
+printReturnReceiptWithDetail[Sale.Invoice, Payment.Payment](Sale.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS Sale.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrintReturn(invoice, payment, TRUE);}
 
 fiscalVMKPrintSaleReturn  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintSaleReturnInvoicePaymentAction' (SaleReturn.Invoice, Payment.Payment, BOOLEAN);
-printSaleReturnReceipt(SaleReturn.Invoice invoice, Payment.Payment payment)  {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrintSaleReturn(invoice, payment, NULL); }
-printSaleReturnReceiptWithDetail(SaleReturn.Invoice invoice, Payment.Payment payment)  {  IF sidModelCurrentCashRegister() == 'VMK' THEN fiscalVMKPrintSaleReturn(invoice, payment, TRUE); }
+printSaleReturnReceipt[SaleReturn.Invoice, Payment.Payment](SaleReturn.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS SaleReturn.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrintSaleReturn(invoice, payment, NULL); }
+printSaleReturnReceiptWithDetail[SaleReturn.Invoice, Payment.Payment](SaleReturn.Invoice invoice, Payment.Payment payment) + WHEN sidModelCurrentCashRegister() == 'VMK' AND invoice AS SaleReturn.Invoice AND payment AS Payment.Payment THEN {fiscalVMKPrintSaleReturn(invoice, payment, TRUE); }
 
 paymentType 'Тип платежа' (Payment.Payment p) = IF fiscalType(p)==1 THEN 'Карточка' ELSE 'Наличные';   
