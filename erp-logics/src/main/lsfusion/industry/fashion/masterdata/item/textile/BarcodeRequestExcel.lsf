@@ -74,13 +74,16 @@ createRequestProceed(BarcodeRequest b)  {
             value(detail) <- maxHumidityStr() WHERE key(detail) == 'maxHumidity';
             value(detail) <- conditionsStr() WHERE key(detail) == 'conditions';
             value(detail) <- requirementsStr() WHERE key(detail) == 'requirements';
-            value(detail) <- [ GROUP CONCAT TEXT(nameSizeItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE isTrackingItem(b) AND key(detail) == 'size';
-            value(detail) <- [ GROUP CONCAT TEXT(nameColorItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE isTrackingItem(b) AND key(detail) == 'color';
-            value(detail) <- [ GROUP CONCAT TEXT(nameGenderItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE isTrackingItem(b) AND key(detail) == 'gender';
-            value(detail) <- [ GROUP CONCAT TEXT(idArticleItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE isTrackingItem(b) AND key(detail) == 'idArticle';
-            value(detail) <- [ GROUP CONCAT TEXT(technicalRegulation(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE isTrackingItem(b) AND key(detail) == 'technicalRegulation';
-            value(detail) <- taxIdCompanyStr() WHERE key(detail) == 'taxIdCompany';
-            
+
+            IF isTrackingItem(b) THEN {
+                value(detail) <- [ GROUP CONCAT TEXT(nameSizeItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'size';
+                value(detail) <- [ GROUP CONCAT TEXT(nameColorItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'color';
+                value(detail) <- [ GROUP CONCAT TEXT(nameGenderItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gender';
+                value(detail) <- [ GROUP CONCAT TEXT(idArticleItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'idArticle';
+                value(detail) <- [ GROUP CONCAT TEXT(technicalRegulation(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'technicalRegulation';
+                value(detail) <- taxIdCompanyStr() WHERE key(detail) == 'taxIdCompany';
+            }            
+
             setExtraValue(b, detail);
         }
 
