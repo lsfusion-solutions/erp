@@ -1695,6 +1695,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             receiptExtraFields.put("uid", uid);
                                         }
 
+                                        String cashtype = documentObject.optString("cashtype");
+                                        if (cashtype != null) {
+                                            receiptExtraFields.put("cashtype", cashtype);
+                                        }
+
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                         LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                         Time timeReceipt = timeEnd != null ? new Time(timeEnd) : null;
