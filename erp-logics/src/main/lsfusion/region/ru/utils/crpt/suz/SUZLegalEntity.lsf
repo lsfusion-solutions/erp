@@ -1,16 +1,19 @@
 MODULE SUZLegalEntity;
 
-REQUIRE SUZAuthentication, LegalEntity;
+REQUIRE SUZAuthentication, LegalEntity, CryptoProLegalEntity;
 
 NAMESPACE SUZ;
 
 dataOmsId 'OMS ID' = DATA STRING (LegalEntity);
 dataToken 'Токен' = DATA STRING(LegalEntity);
 
+idConnection 'ID соединения' = DATA STRING (LegalEntity);
+expiredTokenTime 'Дейcтвие токена' = DATA DATETIME (LegalEntity);
+
 EXTEND FORM integrationData
     OBJECTS scp = LegalEntity
     PROPERTIES(scp) READONLY id, name
-    PROPERTIES(scp) dataOmsId, dataToken
+    PROPERTIES(scp) dataOmsId, dataToken, idConnection, expiredTokenTime READONLY
     FILTERS isCompany(scp)
 ;
 
@@ -22,3 +25,30 @@ DESIGN integrationData {
 
 omsId(LegalEntity l) = OVERRIDE dataOmsId(l), (omsId() IF l IS LegalEntity);
 token(LegalEntity l) = OVERRIDE dataToken(l), (token() IF l IS LegalEntity);
+
+//получение динамического токена
+getToken(LegalEntity l){
+    IF expiredTokenTime(l) < currentDateTime() OR NOT expiredTokenTime(l) THEN NEWSESSION {
+        LOCAL result = JSONFILE ();
+        EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v3/true-api/auth/key' TO result;
+
+        LOCAL uuid = STRING();
+        LOCAL data = STRING();
+
+        IMPORT JSON FROM result() TO() uuid, data;
+
+        stringToFile(data());
+        IF signCustom(l) THEN signCustom(resultFile(), l);
+
+        EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+
+        EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/auth/simpleSignIn/' + idConnection(l) PARAMS exportFile() TO result;
+
+        LOCAL token = STRING ();
+        IMPORT JSON FROM result() TO() token;
+        
+        dataToken(l) <- token();
+        expiredTokenTime(l) <- sumMinutes(currentDateTime(), 600);
+        APPLY;
+    }
+}
