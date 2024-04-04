@@ -1,0 +1,266 @@
+MODULE PickingTextile;
+
+REQUIRE Picking, BinPacketLedger, Packeting, OrderPickingOrder, SaleOrder;
+
+PRIORITY Sale;
+
+NAMESPACE Picking;
+
+isPosted 'Проведен' = ABSTRACT BOOLEAN (Picking);
+isPosted 'Проведен' (o) = DATA BOOLEAN (UserPicking) IN documentHeader;
+isPosted(UserPicking o) += isPosted(o);
+isPosted[Document](Picking picking) += isPosted(picking);
+
+isDraft 'Не проведен' (UserPicking o) = o IS UserPicking AND NOT isPosted(o);
+
+postedTime 'Время проведения' = DATA DATETIME (UserPicking) IN posted;
+postedTime(UserPicking o) <- currentDateTime() WHEN SET(isPosted(o));
+
+postedUser = DATA CustomUser (UserPicking);
+postedUser(UserPicking o) <- currentUser() WHEN SET(isPosted(o));
+postedNameUser 'Проведен пользователем' (UserPicking o) = name[Contact](postedUser(o)) IN posted;
+
+postedComputer = DATA Computer (UserPicking);
+postedComputer(UserPicking o) <- currentComputer() WHEN SET(isPosted(o));
+postedHostnameComputer 'Проведен на компьютере' (UserPicking o) = hostname(postedComputer(o)) IN posted;
+
+prePost 'Провести' (UserPicking o) { isPosted(o) <- TRUE; }
+
+post 'Провести' (UserPicking o)
+{
+    NEWSESSION { isPosted(o) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+unpost 'Распровести' (UserPicking o)
+{
+    NEWSESSION { isPosted(o) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+isPosted 'Проведен' (PickingDetail d) = isPosted(picking(d));
+isPosted 'Проведен' (UserPickingDetail d) = isPosted(userPicking(d));
+
+show 'Просмотреть' (UserPicking p) {
+    NEWSESSION{
+        SHOW userPicking OBJECTS o = p DOCKED READONLY;
+    }
+
+}TOOLBAR;
+
+EXTEND FORM userPicking
+    PROPERTIES (o) isPosted
+
+    EVENTS
+        ON OK prePost(o)
+;
+
+EXTEND FORM pickings
+    PROPERTIES (o) READONLYIF isReadonly() isPosted BEFORE number(o)
+
+    FILTERS legalEntity(stock(o)) == legalEntity(currentUser()) OR NOT legalEntity(currentUser())
+
+    FILTERGROUP opened FILTER 'Открыт заказ' isOpened(pickingOrder(o)) OR NOT pickingOrder(o) DEFAULT
+;
+
+CONSTRAINT DROPPED(PickingOrder o IS PickingOrder) AND [ GROUP MAX Picking p BY PREV(pickingOrder(p))](o)
+    MESSAGE 'Запрещено удалять заказ на комплектацию при наличии по нему комплектации';
+
+DESIGN userPicking {
+    headerRow1 {
+        GROUP(documentHeader,o) {
+            horizontal = FALSE;
+            NEW documentHeaderRow1 {
+                horizontal = TRUE;
+                MOVE PROPERTY(isPosted(o));
+                MOVE PROPERTY(nameStock(o));
+            }
+            NEW documentHeaderRow2 {
+                horizontal = TRUE;
+                MOVE PROPERTY(nameNumerator(o));
+                MOVE PROPERTY(number(o));
+                MOVE PROPERTY(series(o));
+                MOVE PROPERTY(date(o));
+                MOVE PROPERTY(time(o));
+            }
+        }
+    }
+    PROPERTY(formOk()) {
+        caption = 'Провести';
+    }
+}
+
+WHEN SET (isPosted(Picking p)) AND calcFull(pickingOrder(p)) DO {
+    isClosed(PickingOrder po) <- TRUE WHERE po == pickingOrder(p);
+}
+
+CLASS UserPickingPacketDetail 'Строка комплектации (пакеты)' : BinPacketLedger;
+TABLE userPickingPacketDetail (UserPickingPacketDetail);
+
+userPicking = DATA UserPicking (UserPickingPacketDetail) NONULL DELETE INDEXED;
+orderDocument(UserPicking p) = order(pickingOrder(p));
+orderDocument(UserPickingPacketDetail d) = orderDocument(userPicking(d));
+numberOrderDocument 'Номер заказа'(UserPicking p) = number(orderDocument(p));
+
+number 'Номер'(UserPickingPacketDetail d) = number(userPicking(d));
+dateTime 'Дата/время' (UserPickingPacketDetail d) = dateTime(userPicking(d));
+isPosted 'Проведен'(UserPickingPacketDetail d) = isPosted(userPicking(d));
+stock (UserPickingPacketDetail d) = stock(userPicking(d));
+
+packet = DATA Packet (UserPickingPacketDetail) INDEXED;
+bin = DATA Bin (UserPickingPacketDetail);
+
+packetSkuList 'Товары в пакете'(UserPickingPacketDetail d) = skuListA(packet(d), dateTime(d));
+
+@defineDocumentDetailIndex(userPicking, UserPickingPacketDetail);
+
+countPickingPacketDetail 'Кол-во пакетов' = GROUP SUM 1 BY userPicking(UserPickingPacketDetail d) MATERIALIZED;
+
+// по BinPacketLedger
+dateTime (UserPickingPacketDetail ledger) += dateTime(ledger);
+packet (UserPickingPacketDetail ledger) += packet(ledger);
+bin (UserPickingPacketDetail ledger) += bin(ledger);
+isPosted (UserPickingPacketDetail ledger) += isPosted(ledger);
+numberDocument(UserPickingPacketDetail ledger) += number(ledger);
+seriesDocument(UserPickingPacketDetail ledger) += series(userPicking(ledger));
+overDescription = ABSTRACT STRING[250] (UserPickingPacketDetail);
+description(UserPickingPacketDetail ledger) += OVERRIDE overDescription(ledger),
+    'Комплектация (пакеты) № ' + number(userPicking(ledger)) + ', строка № ' + index(ledger);
+createdUser(UserPickingPacketDetail ledger) += createdUser(userPicking(ledger));
+
+userPickingPacketDetail = DATA UserPickingPacketDetail(UserPickingDetail) INDEXED;
+idPacket 'Пакет'(UserPickingDetail d) = idPacket(userPickingPacketDetail(d));
+indexPacketDetail 'Номер строки (пакеты)'(UserPickingDetail d) = index(userPickingPacketDetail(d));
+
+modelSku 'Модель базовая'(UserPickingDetail d) = idArticle(sku(d));
+nameSizeSku 'Размер'(UserPickingDetail d) = nameSize(sku(d)) CHARWIDTH 10;
+nameSortSku 'Сорт'(UserPickingDetail d) = nameSort(sku(d)) CHARWIDTH 5;
+idColorSku 'Код цвета'(UserPickingDetail d) = idColor(sku(d));
+nameColorSku 'Цвет'(UserPickingDetail d) = nameColor(sku(d));
+
+quantityOrder 'Кол-во (заказ на продажу)' (Sku s, PickingOrder po)= quantity([ GROUP MIN OrderDetail d BY sku(d), order(d)](s,order(po)));
+quantityPickingOrder 'Кол-во (заказ на компл.)' = GROUP SUM quantity(PickingOrderDetail d) BY sku(d), pickingOrder(d);
+quantityPickingOrder 'Кол-во (заказано)'(Sku s, Picking p) = quantityPickingOrder(s, pickingOrder(p));
+quantityPickingOrder 'Кол-во (заказано)'(Picking p) = quantityPickingOrderDetail(pickingOrder(p)) IN documentSum;
+
+quantityPicking 'Кол-во (отобрано)'= GROUP SUM quantity(PickingDetail d) BY sku(d), picking(d);
+packetsListPicking 'Пакеты в комплектации'= GROUP CONCAT idPacket(PickingDetail d),', ' ORDER idPacket(d),d BY sku(d), picking(d) CHARWIDTH 30;
+
+diffQuantity(Sku s, Picking p) = CASE WHEN (NOT quantityPicking(s,p) OR quantityPickingOrder(s,p) > quantityPicking(s,p)) THEN RGB(255,255,128)
+    WHEN (NOT quantityPickingOrder(s,p) OR quantityPickingOrder(s,p) < quantityPicking(s,p)) THEN RGB(255,200,216);
+
+diffQuantity (UserPickingPacketDetail d) = GROUP MIN diffQuantity(Sku s, userPicking(d)) IF currentQuantity(s, packet(d));
+
+CONSTRAINT (SET(isPosted(Picking p)) OR DROPPED(countPickingDetail(p))) AND isPosted(p) AND NOT countPickingDetail(p)
+    MESSAGE 'Запрещено проводить пустые комплектации';
+
+dropAllPacketsPicking 'Удалить все пакеты из комплектации'(Sku sku, UserPicking p) {
+    DELETE UserPickingPacketDetail d WHERE userPicking(d) == p AND currentQuantity(sku, packet(d));
+    APPLY;
+} IMAGE 'delete.png';
+
+dropAllPacketsWithoutPickingOrder 'Удалить все пакеты без заказа'(UserPicking p) {
+    FOR NOT [ GROUP SUM 1 IF pickingOrder(PickingOrderDetail d) == pickingOrder(p) BY sku(d)](Sku sku) AND quantityPicking(sku,p) DO
+        DELETE UserPickingPacketDetail d WHERE userPicking(d) == p AND currentQuantity(sku, packet(d));
+    APPLY;
+} IMAGE 'delete.png';
+
+availableQuantity 'Доступный остаток' (Sku sk, Picking p) = availableQuantity(sk, stock(p));
+overAvailableQuantity 'Превышение доступного остатка' (Sku sk, Picking p) = min(quantityPicking(sk,p) (-) quantityPickingOrder(sk,p) (-) availableQuantity(sk, stock(p)), quantityPicking(sk,p) (-) quantityPickingOrder(sk,p));
+
+EXTEND FORM userPicking
+    PROPERTIES (o) quantityPickingOrder READONLY
+
+    PROPERTIES (d) READONLY BEFORE idBarcodeSku(d) idPacket
+    PROPERTIES (d) READONLY BEFORE quantity(d) modelSku, nameSizeSku, nameSortSku, idColorSku, nameColorSku
+
+    OBJECTS bd = UserPickingPacketDetail
+    PROPERTIES (bd) BACKGROUND diffQuantity(bd) READONLY index, idPacket
+    PROPERTIES (bd) packetSkuList
+    PROPERTIES (bd) idBin
+    PROPERTIES (bd) DELETE GRID
+    ORDERS index(bd)
+    FILTERS userPicking(bd) == o
+
+    OBJECTS s = Sku
+    PROPERTIES (s) BACKGROUND diffQuantity(s,o) READONLY idBarcode, name, shortNameUOM, idArticle, nameSize, nameSort, idColor, nameColor
+    PROPERTIES (s,o) BACKGROUND diffQuantity(s,o) READONLY packetsListPicking, quantityPickingOrder, quantityPicking, availableQuantity
+    PROPERTIES (s,o) dropAllPacketsPicking GRID
+    PROPERTIES (o) DRAW s TOOLBAR dropAllPacketsWithoutPickingOrder
+    ORDERS name(s)
+    FILTERS quantityPickingOrder(s,o) OR quantityPicking(s,o)
+
+    FILTERGROUP diffQuantity FILTER 'Несоответствия' NOT quantityPickingOrder(s,o) >= quantityPicking(s,o)
+    FILTERGROUP diffQuantity2 FILTER 'Частично скомплектовано' quantityPickingOrder(s,o) > quantityPicking(s,o)
+;
+
+DESIGN userPicking {
+    REMOVE itemBox;
+    specificationBox {
+        tabbed = TRUE;
+        MOVE BOX(bd) BEFORE BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(bd)){focusable = TRUE;}
+        }
+
+        MOVE BOX(s){
+            caption = 'Контроль отбора';
+            PROPERTY (nameSort(s)){charWidth = 5;}
+            PROPERTY (nameColor(s)){charWidth = 15;}
+            PROPERTY (idArticle(s)){caption = 'Модель';}
+        }
+    }
+}
+
+EXTEND FORM pickings
+    PROPERTIES (o) READONLY countPickingPacketDetail BEFORE countPickingDetail(o), quantityPickingOrder BEFORE packQuantity(o)
+    PROPERTIES (d) READONLY BEFORE nameSku(d) idPacket, idBarcodeSku
+    PROPERTIES (d) READONLY BEFORE quantity(d) modelSku, nameSizeSku, nameSortSku, idColorSku, nameColorSku
+
+    OBJECTS bd = UserPickingPacketDetail
+    PROPERTIES (bd) READONLY index, idPacket, packetSkuList, idBin
+    ORDERS index(bd)
+    FILTERS userPicking(bd) == o
+
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY idBarcode, name, shortNameUOM, idArticle, nameSize, nameSort, idColor, nameColor
+    PROPERTIES (s,o) READONLY quantityPickingOrder, quantityPicking BACKGROUND diffQuantity(s,o)
+    ORDERS name(s)
+    FILTERS quantityPickingOrder(s,o) OR quantityPicking(s,o)
+
+    FILTERGROUP diffQuantity FILTER 'Несоответствия' NOT quantityPickingOrder(s,o) >= quantityPicking(s,o)
+    FILTERGROUP diffQuantity2 FILTER 'Частично скомплектовано' quantityPickingOrder(s,o) > quantityPicking(s,o)
+;
+
+DESIGN pickings {
+    documentDetail {
+        MOVE BOX(bd) AFTER BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(bd)){focusable = TRUE;}
+        }
+        MOVE BOX(s) AFTER BOX(bd) {
+            caption = 'Контроль отбора';
+            PROPERTY (nameSort(s)){charWidth = 5;}
+        }
+    }
+}
+
+CONSTRAINT SETCHANGED(packet(UserPickingPacketDetail d)) AND [ GROUP SUM 1 BY packet(UserPickingPacketDetail ud), userPicking(ud)](packet(d), userPicking(d)) > 1
+    MESSAGE 'Запрещено добавлять пакет в комплектацию несколько раз';
+
+CONSTRAINT UserPickingPacketDetail d IS UserPickingPacketDetail AND NOT packet(d)
+    MESSAGE 'Строка с пакетом в документе не может быть пустой';
+
+EXTEND FORM userOrder
+    OBJECTS pd = UserPickingDetail
+    PROPERTIES (pd) READONLY dateTime, index, idBarcodeSku, nameSku, idPacket, shortNameUOMSku, quantity
+    ORDERS index(pd)
+    FILTERS order(pd) == o,
+        isPosted(pd)
+;
+
+DESIGN userOrder {
+    specificationBox {
+        MOVE BOX(pd) {
+            caption = 'Комплектация';
+        }
+    }
+}
