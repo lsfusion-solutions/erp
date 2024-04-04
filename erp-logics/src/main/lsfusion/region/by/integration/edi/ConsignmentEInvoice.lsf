@@ -119,16 +119,19 @@ backgroundStatusDescription (Invoice i) = RGB(255,238,238) IF currentOrderMessag
 WHEN SETCHANGED(payer(invoice(EInvoice e))) AND NOT (CHANGED(freightPayer(e))) AND NOT isTN2(e) DO {
     freightPayer(e) <- payer(invoice(e));    
 }
-WHEN SETCHANGED(nameDriver(invoice(EInvoice e))) AND NOT (CHANGED(transportContact(e))) AND NOT isTN2(e) DO {
+WHEN (SETCHANGED(dataNameDriver(invoice(EInvoice e))) OR SETCHANGED(dataEmployee(invoice(e))) OR SETCHANGED(driver(invoice(e)))) 
+        AND NOT (CHANGED(transportContact(e)))  DO {
     transportContact(e) <- STRING[150](nameDriver(invoice(e)));    
 }
 WHEN SETCHANGED(overWaybill(invoice(EInvoice e))) AND NOT (CHANGED(waybillId(e))) AND NOT isTN2(e) DO {
     waybillId(e) <- STRING[70](trim(overWaybill(invoice(e)))); 
 }
-WHEN SETCHANGED(nameIssuanceAllowed(invoice(EInvoice e))) AND NOT (CHANGED(contactSupplier(e)))  DO {
+WHEN (SETCHANGED(dataIssuanceAllowed(invoice(EInvoice e))) OR SETCHANGED(issuanceAllowed(invoice(e))) OR SETCHANGED(overIssuanceAllowed(invoice(e)))) 
+        AND NOT (CHANGED(contactSupplier(e)))  DO {
     contactSupplier(e) <- STRING[150](nameIssuanceAllowed(invoice(e)));     
 }
-WHEN SETCHANGED(forwarder(invoice(EInvoice e))) AND NOT (CHANGED(deliveryContact(e)))  DO {
+WHEN (SETCHANGED(dataNameForwarder(invoice(EInvoice e))) OR SETCHANGED(overNameForwarder(invoice(e))) OR SETCHANGED(dataForwarder(invoice(e)))) 
+        AND NOT CHANGED(deliveryContact(e)) DO {
     deliveryContact(e) <- STRING[150](forwarder(invoice(e)));
 }
 
@@ -149,7 +152,7 @@ WHEN SETCHANGED(nameTruck(invoice(EInvoice e))) AND NOT (CHANGED(transportID(e))
 WHEN SETCHANGED (trailer(invoice(EInvoice e))) AND NOT (CHANGED(trailerID(e))) AND NOT isTN2(e) DO {
     trailerID(e) <- STRING[35](trailer(invoice(e)));
 }
-WHEN SETCHANGED (overGoodsAccepted(invoice(EInvoice e))) AND NOT (CHANGED(contactCustomerStock(e)))  DO {
+WHEN (SETCHANGED(goodsAccepted(invoice(EInvoice e))) OR SETCHANGED(dataGoodsAccepted(invoice(e)))) AND NOT (CHANGED(contactCustomerStock(e)))  DO {
     contactCustomerStock(e) <- STRING[150](overGoodsAccepted(invoice(e)));
 }
 
@@ -157,8 +160,9 @@ WHEN SETCHANGED (sealNumberSupplier(invoice(EInvoice e))) AND NOT (CHANGED(sealI
     sealIDReceiver(e) <- STRING[35](sealNumberSupplier(invoice(e)));
 }
 
-WHEN SETCHANGED (nameIssuanceExecuted(invoice(EInvoice e))) AND NOT (CHANGED(contactSupplierStock(e)))  DO {
-    contactSupplierStock(e) <- STRING[150](nameIssuanceExecuted(invoice(e)));    
+WHEN (SETCHANGED (dataIssuanceExecuted(invoice(EInvoice e))) OR SETCHANGED(issuanceExecuted(invoice(e))) OR SETCHANGED(overIssuanceExecuted(invoice(e)))) 
+            AND NOT (CHANGED(contactSupplierStock(e)))  DO {
+    contactSupplierStock(e) <- STRING[150](nameIssuanceExecuted(invoice(e)));
 }
 
 WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail ed))) AND NOT (CHANGED(grossWeightValue(ed))) AND NOT isTN2(eInvoice(ed)) DO {
