@@ -1,6 +1,6 @@
 MODULE Packeting;
 
-REQUIRE PacketSkuLedger;
+REQUIRE PacketSkuLedger, BarcodeRequest, LabelDirectPrintTextile;
 
 NAMESPACE Packet;
 
@@ -84,3 +84,117 @@ EXTEND FORM packet
 EXTEND FORM packets
     PROPERTIES(s) READONLY nameStock, dateProduction, shipmentDate
 ;
+
+packetsQuantity 'Количество этикеток' = DATA LOCAL NESTED INTEGER();
+overChangePacketsQuantity  ABSTRACT( );
+
+@defineOption(maxPacketingQuantity, 'Максимальное кол-во этикеток при печати (если не указано, то 5000)', INTEGER, label);
+
+overMaxPacketingQuantity() = OVERRIDE maxPacketingQuantity(), 5000;
+
+changePacketsQuantity()  {
+    INPUT q = INTEGER DO {
+        packetsQuantity() <- OVERRIDE q IF q <= overMaxPacketingQuantity(), 1;
+    }
+    overChangePacketsQuantity();
+}
+
+setSort ABSTRACT (PrintLabelType, LabelType, Sort);
+setYear ABSTRACT ();
+
+FORM createPacketingDetail 'Печать этикеток'
+    OBJECTS plt = PrintLabelType PANEL
+    PROPERTIES namePrint(plt) SELECTOR
+    FILTERS showPrint(plt)
+
+    OBJECTS lt = LabelType PANEL
+    PROPERTIES name(lt) SELECTOR
+    FILTERS plt == printLabelType(lt) OR NOT printLabelType(lt),
+        active(lt), NOT fileTemplate(lt)
+
+    OBJECTS sr = Sort PANEL
+    PROPERTIES name(sr) ON CHANGE setSort(plt, lt, sr)
+
+    OBJECTS dt = DATE PANEL
+    PROPERTIES year = VALUE(dt) ON CHANGE setYear()
+
+    PROPERTIES packetsQuantity() ON CHANGE changePacketsQuantity()
+
+    OBJECTS np = NetworkPrinter
+    PROPERTIES (np) READONLY name, path, nameStock, namePrintLabelType
+    FILTERS in(np, currentUser())
+
+    EVENTS
+        ON INIT { 
+            SEEK createPacketingDetail.sr = sortName('1');
+            SEEK createPacketingDetail.dt = currentDate();
+            packetsQuantity() <- 1;
+        }
+;
+
+DESIGN createPacketingDetail {
+    BOX {
+        size = (1024, 768);
+        NEW tabs BEFORE TOOLBARBOX {
+            tabbed = TRUE;
+            fill = 1;
+            NEW mainTab {
+                caption = 'Печать';
+                NEW topRow1 {
+                    horizontal = TRUE;
+                    NEW printLabelType {
+                        caption = 'Тип этикетки';
+                        MOVE PROPERTY(namePrint(plt)) {
+                            caption = '';
+                            font = 'bold 14';
+                            charWidth = 15;
+                        }
+                    }
+                    NEW labelType {
+                        caption = 'Шаблон этикетки';
+                        MOVE PROPERTY (name(lt)){
+                            caption = '';
+                            font = 'bold 14';
+                            charWidth = 20;
+                        }
+                    }
+                }
+                NEW topRow2 {
+                    horizontal = TRUE;
+                    MOVE BOX(sr) {
+                        caption = 'Сорт';
+                         PROPERTY(name(sr)) {
+                            caption = '';
+                            charWidth = 4;
+                            font = 'bold 14';
+                        }
+                    }
+                    NEW datePrint {
+                        caption = 'Дата печати';
+                        MOVE PROPERTY(year) {
+                            caption = '';
+                            font = 'bold 14';
+                        }
+                    }
+                    NEW quantityP {
+                        caption = 'Кол-во этикеток';
+                        MOVE PROPERTY (packetsQuantity()) {
+                            caption = '';
+                            font = 'bold 14';
+                        }
+                    }
+                }
+            }
+            NEW printers {
+                caption = 'Принтеры';
+                MOVE BOX (np);
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW createPacketingDetail;
+    }
+}    
