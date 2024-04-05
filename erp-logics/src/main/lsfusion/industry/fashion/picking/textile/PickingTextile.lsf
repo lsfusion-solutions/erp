@@ -88,8 +88,8 @@ DESIGN userPicking {
     }
 }
 
-WHEN SET (isPosted(Picking p)) AND calcFull(pickingOrder(p)) DO {
-    isClosed(PickingOrder po) <- TRUE WHERE po == pickingOrder(p);
+WHEN SET (isPosted(Picking p)) AND calcFull(pickingOrder(p)) AND pickingOrder(p) IS UserPickingOrder DO {
+    isClosed(pickingOrder(p)) <- TRUE;
 }
 
 CLASS UserPickingPacketDetail 'Строка комплектации (пакеты)' : BinPacketLedger;
@@ -166,6 +166,8 @@ dropAllPacketsWithoutPickingOrder 'Удалить все пакеты без з�
 availableQuantity 'Доступный остаток' (Sku sk, Picking p) = availableQuantity(sk, stock(p));
 overAvailableQuantity 'Превышение доступного остатка' (Sku sk, Picking p) = min(quantityPicking(sk,p) (-) quantityPickingOrder(sk,p) (-) availableQuantity(sk, stock(p)), quantityPicking(sk,p) (-) quantityPickingOrder(sk,p));
 
+backgroundName = ABSTRACT COLOR (UserPickingPacketDetail);
+
 EXTEND FORM userPicking
     PROPERTIES (o) quantityPickingOrder READONLY
 
@@ -174,7 +176,7 @@ EXTEND FORM userPicking
 
     OBJECTS bd = UserPickingPacketDetail
     PROPERTIES (bd) BACKGROUND diffQuantity(bd) READONLY index, idPacket
-    PROPERTIES (bd) packetSkuList
+    PROPERTIES (bd) packetSkuList BACKGROUND backgroundName(bd)
     PROPERTIES (bd) idBin
     PROPERTIES (bd) DELETE GRID
     ORDERS index(bd)
