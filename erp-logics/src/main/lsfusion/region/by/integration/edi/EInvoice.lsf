@@ -34,8 +34,7 @@ dataReportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 reportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 overReportName 'Вид  акта' (EInvoice e) = OVERRIDE dataReportName(e), reportName(e);
 
-deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[70] (EInvoice) INDEXED IN id CHARWIDTH 30;
-deliveryNoteNumber48 'Серия и номер бумажной накладной' (EInvoice ei) = STRING[48](right(deliveryNoteNumber(ei), 48));
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30;
 eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
 deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EInvoice) INDEXED;
 sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA STRING[35] (EInvoice);
@@ -44,9 +43,6 @@ contractName 'Документ, который служит основанием
 contractId 'Номер документа, служащего основанием отпуска' = DATA STRING[70] (EInvoice);
 contractDate 'Дата документа, служащего основанием отпуска' = DATA DATE (EInvoice);
 waybillId 'Номер путевого листа' = DATA STRING[70] (EInvoice);
-
-useFullNameLegalEntity = DATA BOOLEAN (EInvoice); //временно для перехода чтобы для старых документов не ругалось при отмене 
-useFullNameLegalEntity(EInvoice i) <- TRUE WHEN SET(i IS EInvoice);
 
 dataGLNeInvoice 'GLN для накладных' = DATA STRING[13] (LegalEntity);
 GLNeInvoice 'GLN для накладных' (LegalEntity l) = OVERRIDE dataGLNeInvoice(l), GLN(l);
@@ -58,7 +54,7 @@ dataGLNSupplier = DATA STRING[13] (EInvoice);
 glnSupplier 'GLN поставщика' (EInvoice i) = OVERRIDE dataGLNSupplierFirst(i), GLNeInvoice(supplier(i)), extraGLN(supplier(i)), dataGLNSupplier(i);
 dataNameSupplierFirst = DATA STRING[200] (EInvoice);
 dataNameSupplier = DATA STRING[150] (EInvoice);
-nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE dataNameSupplierFirst(i), IF useFullNameLegalEntity(i) THEN fullName(supplier(i)) ELSE name(supplier(i)), dataNameSupplier(i);
+nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE dataNameSupplierFirst(i), fullName(supplier(i)), dataNameSupplier(i);
 dataAddressSupplierFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplier = DATA STRING[150] (EInvoice);
 addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE dataAddressSupplierFirst(i), address(supplier(i)), dataAddressSupplier(i);
@@ -85,13 +81,13 @@ userIDSupplierStock 'Идентификатор пользователя' (EInvo
 
 freightPayer 'Заказчик автомобильной перевозки (плательщик)' = DATA LegalEntity (EInvoice);
 glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLNeInvoice(freightPayer(i)), extraGLN(freightPayer(i));
-nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) =  IF useFullNameLegalEntity(i) THEN fullName(freightPayer(i)) ELSE name(freightPayer(i));
+nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) = fullName(freightPayer(i));
 addressFreightPayer 'Адрес заказчика автомобильной перевозки' (EInvoice i) = address(freightPayer(i));
 unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
 
 customer 'Покупатель' = DATA LegalEntity (EInvoice);
 dataNameCustomerFirst = DATA STRING[200] (EInvoice);
-nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE dataNameCustomerFirst(i), IF useFullNameLegalEntity(i) THEN fullName(customer(i)) ELSE name(customer(i));
+nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE dataNameCustomerFirst(i), fullName(customer(i));
 dataGLNCustomerFirst = DATA STRING[13] (EInvoice);
 glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerFirst(i), GLNeInvoice(customer(i)), extraGLN(customer(i));
 dataAddressCustomerFirst = DATA STRING[150] (EInvoice);
@@ -137,18 +133,8 @@ orderID 'Номер заказа' = DATA STRING[35] (EInvoice);
 currency '3-х буквенный код валюты' = DATA STRING[3] (EInvoice);
 
 isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
-blrwblCancel'Ссылка на ЭТТН отмены' = DATA STRING[35] (EInvoice);
-blrdnrCancel'Ссылка на ЭТН отмены' = DATA STRING[35] (EInvoice);
-isCancelNumber (EInvoice e) = IF isCancel(e) THEN 1 ELSE 0;
-eInvoiceDeliveryNoteNumberIsCancel (number, isCancel) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e), isCancelNumber(e);
 
-isReturn 'Возврат' = DATA BOOLEAN (EInvoice);
 isTestDocument 'Тестовый документ' = DATA BOOLEAN (EInvoice);
-
-replaceNumber 'Номер заменяемой накладной' = DATA STRING[70] (EInvoice) INDEXED;
-
-useExtraFields = DATA BOOLEAN (EInvoice); //временно для перехода чтобы для старых документов не ругалось при отмене 
-useExtraFields(EInvoice i) <- TRUE WHEN SET(i IS EInvoice);
 
 CLASS ExtraField 'Дополнительное поле';
 TABLE extraField(ExtraField);
@@ -166,25 +152,21 @@ extraFieldValueByName (EInvoice ei, STRING[255] name) = value(extraFieldByName(e
 extraFieldByCode (EInvoice ei, STRING[6] code) = GROUP MAX ExtraField f BY eInvoice(f), code(f);
 extraFieldValueByCode (EInvoice ei, STRING[6] code) = value(extraFieldByCode(ei,code));
 
-overIsReturn 'Возврат' (EInvoice ei) = IF useExtraFields(ei) THEN extraFieldValueByCode(ei,'PW0013') == '1' ELSE isReturn(ei);
-overReplaceNumber 'Номер заменяемой накладной' (EInvoice ei) = IF useExtraFields(ei) THEN STRING[70](extraFieldValueByCode(ei,'PW0014')) ELSE replaceNumber(ei);
+overIsReturn 'Возврат' (EInvoice ei) = extraFieldValueByCode(ei,'PW0013') == '1' MATERIALIZED;
+overReplaceNumber 'Номер заменяемой накладной' (EInvoice ei) = STRING[70](extraFieldValueByCode(ei,'PW0014')) MATERIALIZED;
 
 changeReplaceNumber (EInvoice e, STRING[70] s) {
-    IF useExtraFields(e) THEN {
-        IF extraFieldByCode(e,'PW0014') AND NOT s THEN {
-            DELETE ExtraField f WHERE eInvoice(f) == e AND code(f) == 'PW0014';
-        } ELSE IF extraFieldByCode(e,'PW0014') AND s THEN {
-            value(ExtraField f) <- s WHERE eInvoice(f) == e AND code(f) == 'PW0014';
-        } ELSE IF NOT extraFieldByCode(e,'PW0014') AND s THEN {
-            NEW f = ExtraField {
-                name(f) <- 'Номер заменяемой накладной';
-                code(f) <- 'PW0014';
-                value(f) <- s;
-                eInvoice(f) <- e;
-            }
+    IF extraFieldByCode(e,'PW0014') AND NOT s THEN {
+        DELETE ExtraField f WHERE eInvoice(f) == e AND code(f) == 'PW0014';
+    } ELSE IF extraFieldByCode(e,'PW0014') AND s THEN {
+        value(ExtraField f) <- s WHERE eInvoice(f) == e AND code(f) == 'PW0014';
+    } ELSE IF NOT extraFieldByCode(e,'PW0014') AND s THEN {
+        NEW f = ExtraField {
+            name(f) <- 'Номер заменяемой накладной';
+            code(f) <- 'PW0014';
+            value(f) <- s;
+            eInvoice(f) <- e;
         }
-    } ELSE {
-        replaceNumber(e) <- s;
     }
 }
 changeReplaceNumber (EInvoice e) {
@@ -201,11 +183,6 @@ TABLE sessionEInvoiceDetail(Session, EInvoiceDetail);
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 
 eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE INDEXED;
-
-//временно для перехода чтобы для старых документов проходила отмена
-useRoundNumeric = DATA BOOLEAN (EInvoice); 
-useRoundNumeric(EInvoice i) <- TRUE WHEN SET(i IS EInvoice);
-//
 
 dataIndex = DATA INTEGER (EInvoiceDetail) ;
 defaultIndex (EInvoiceDetail d) = PARTITION SUM 1 ORDER d BY eInvoice(d);
@@ -246,13 +223,6 @@ lineItemManufacturerPrice 'Цена изготовителя за единицу
 lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
 lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
 lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[18,4] (EInvoiceDetail);
-lineItemExtraFields 'Дополнительная информация' = DATA STRING (EInvoiceDetail);
-
-//получение информации из доп поля по имени
-lineItemExtraField (EInvoiceDetail d, STRING[255] name) =
-    GROUP MAX (getWord(getWord(lineItemExtraFields(d), ', ', INTEGER i), ': ', 2)) IF lineItemExtraFields(d)
-        AND getWord(getWord(lineItemExtraFields(d), ', ', i), ': ', 1) == name
-        AND iterate(i, 1, wordCount(lineItemExtraFields(d), ', '));
 
 CLASS ItemExtraField 'Дополнительное поле, описывающее товар';
 TABLE itemExtraField(ItemExtraField);
@@ -270,10 +240,10 @@ extraFieldValueByName (EInvoiceDetail ed, STRING[255] name) = value(extraFieldBy
 extraFieldByCode (EInvoiceDetail ed, STRING[6] code) = GROUP MAX ItemExtraField f BY eInvoiceDetail(f), code(f);
 extraFieldValueByCode (EInvoiceDetail ed, STRING[6] code) = value(extraFieldByCode(ed,code));
 
-itemExtraFields (EInvoiceDetail d) = GROUP CONCAT (CONCAT ': ', name(ItemExtraField f), value(f)) IF eInvoiceDetail(f) == d, ', ' ORDER name(f);
+itemExtraFields (EInvoiceDetail d) = GROUP CONCAT STRING(CONCAT ': ', name(ItemExtraField f), value(f)) IF eInvoiceDetail(f) == d, ', ' ORDER name(f);
 
-overLineItemExtraFields 'Дополнительная информация' (EInvoiceDetail d) = IF useExtraFields(eInvoice(d)) THEN STRING(itemExtraFields(d)) ELSE lineItemExtraFields(d);
-overLineItemExtraField (EInvoiceDetail d, STRING[255] name) = IF useExtraFields(eInvoice(d)) THEN extraFieldValueByName(d,name) ELSE lineItemExtraField(d,name);
+overLineItemExtraFields 'Дополнительная информация' (EInvoiceDetail d) = itemExtraFields(d);
+overLineItemExtraField (EInvoiceDetail d, STRING[255] name) = extraFieldValueByName(d,name);
 
 groupPackingCodeMark 'Код маркировки групповой упаковки' = DATA STRING[130] (EInvoiceDetail, INTEGER);
 upperLevelCodeMark 'Код маркировки групповой упаковки, в которую вложена описываемая упаковка' = DATA STRING[130] (EInvoiceDetail, INTEGER);
@@ -358,7 +328,7 @@ FORM eInvoices 'Электронные накладные EDI'
     OBJECTS d = EInvoiceDetail
     PROPERTIES(d) READONLY lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
         lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
-        grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, lineItemExtraFields,
+        grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
         fieldCodeMark
 
     FILTERS eInvoice(d) == e
@@ -422,16 +392,18 @@ FORM eInvoice 'Электронная накладная EDI'
 
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount,
-        lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, lineItemExtraFields,
+        lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
         fieldCodeMark
     FILTERS eInvoice(ed) == e
     
     OBJECTS ef = ExtraField
-    PROPERTIES (ef) name, code, value
+    PROPERTIES (ef) READONLY name, code
+    PROPERTIES (ef) value
     FILTERS eInvoice(ef) == e
     
     OBJECTS ief = ItemExtraField
-    PROPERTIES (ief) name, code, value
+    PROPERTIES (ief) READONLY name, code
+    PROPERTIES (ief) value
     FILTERS eInvoiceDetail(ief) == ed
 ;
 
@@ -454,8 +426,8 @@ DESIGN eInvoice {
             tabbed = TRUE;
             fill = 1;
             MOVE BOX(ed);
-            MOVE BOX(ef);
             MOVE BOX(ief);
+            MOVE BOX(ef);
         }
     }
 }
