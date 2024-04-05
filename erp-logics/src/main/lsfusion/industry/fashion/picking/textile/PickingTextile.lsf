@@ -168,14 +168,20 @@ overAvailableQuantity 'Превышение доступного остатка'
 
 backgroundName = ABSTRACT COLOR (UserPickingPacketDetail);
 
+dateProduction 'Дата производства' (UserPickingPacketDetail d) = dateProduction(packet(d));
+
+createUserPickingDetails 'Обновить спецификацию из пакетов' ABSTRACT (UserPicking) TOOLBAR;
+disableAutoCreateDetails = ABSTRACT BOOLEAN (UserPicking);
+
 EXTEND FORM userPicking
     PROPERTIES (o) quantityPickingOrder READONLY
+    PROPERTIES (o) createUserPickingDetails DRAW d
 
     PROPERTIES (d) READONLY BEFORE idBarcodeSku(d) idPacket
     PROPERTIES (d) READONLY BEFORE quantity(d) modelSku, nameSizeSku, nameSortSku, idColorSku, nameColorSku
 
     OBJECTS bd = UserPickingPacketDetail
-    PROPERTIES (bd) BACKGROUND diffQuantity(bd) READONLY index, idPacket
+    PROPERTIES (bd) BACKGROUND diffQuantity(bd) READONLY index, idPacket, dateProduction
     PROPERTIES (bd) packetSkuList BACKGROUND backgroundName(bd)
     PROPERTIES (bd) idBin
     PROPERTIES (bd) DELETE GRID
@@ -192,6 +198,10 @@ EXTEND FORM userPicking
 
     FILTERGROUP diffQuantity FILTER 'Несоответствия' NOT quantityPickingOrder(s,o) >= quantityPicking(s,o)
     FILTERGROUP diffQuantity2 FILTER 'Частично скомплектовано' quantityPickingOrder(s,o) > quantityPicking(s,o)
+
+    EVENTS ON APPLY BEFORE {
+        IF NOT disableAutoCreateDetails(o) THEN createUserPickingDetails(o);
+    }
 ;
 
 DESIGN userPicking {
@@ -218,7 +228,7 @@ EXTEND FORM pickings
     PROPERTIES (d) READONLY BEFORE quantity(d) modelSku, nameSizeSku, nameSortSku, idColorSku, nameColorSku
 
     OBJECTS bd = UserPickingPacketDetail
-    PROPERTIES (bd) READONLY index, idPacket, packetSkuList, idBin
+    PROPERTIES (bd) READONLY index, idPacket, dateProduction, packetSkuList, idBin
     ORDERS index(bd)
     FILTERS userPicking(bd) == o
 
