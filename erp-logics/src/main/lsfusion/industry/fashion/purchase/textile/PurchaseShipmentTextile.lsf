@@ -1,0 +1,187 @@
+MODULE PurchaseShipmentTextile;
+
+REQUIRE PurchaseShipment, Packeting, BinPacketLedger, WarehouseTextile, StockTextile;
+
+NAMESPACE Purchase;
+
+
+@defineOperationProperty(packets, 'Пакеты', commonContainer);
+
+@defineDocumentHeaderProperty (userShipment, packets, 'Пакеты');
+
+@deriveDocumentOperationProperty(UserShipment, packets);
+
+EXTEND FORM userShipment
+    PROPERTIES (s) READONLY packets
+;
+
+DESIGN userShipment {
+    headerExtraParams {
+        NEW headerPackets {
+            caption = 'Пакеты';
+            MOVE PROPERTY(packets(s));
+        }
+    }
+}
+
+CLASS UserShipmentPacketDetail 'Строка поставки в пакете (закупка)' : BinPacketLedger;
+TABLE userShipmentPacketDetail (UserShipmentPacketDetail);
+
+userShipment = DATA UserShipment (UserShipmentPacketDetail) NONULL DELETE INDEXED;
+
+number 'Номер'(UserShipmentPacketDetail d) = number(userShipment(d));
+dateTime 'Дата/время' (UserShipmentPacketDetail d) = dateTime(userShipment(d));
+
+isPosted 'Проведен'(UserShipmentPacketDetail d) = isPosted(userShipment(d));
+operation (UserShipmentPacketDetail d) = operation(userShipment(d));
+customerStock (UserShipmentPacketDetail d) = customerStock(userShipment(d));
+supplierStock (UserShipmentPacketDetail d) = supplierStock(userShipment(d));
+
+packet = DATA Packet (UserShipmentPacketDetail) INDEXED;
+bin = DATA Bin (UserShipmentPacketDetail);
+
+overDefaultBin = ABSTRACT Bin (UserShipmentPacketDetail);
+defaultBin (UserShipmentPacketDetail d) = OVERRIDE overDefaultBin(d), defaultBin(customerStock(d));
+
+@defineConstraintBinPacketDetail(UserShipment, customerStock, 'покупателя');
+
+packetSkuList 'Товары в пакете'(UserShipmentPacketDetail d) = skuListA(packet(d), dateTime(d));
+
+@defineDocumentDetailIndex(userShipment, UserShipmentPacketDetail);
+
+countShipmentPacketDetail 'Кол-во строк (пакеты)' = GROUP SUM 1 BY userShipment(UserShipmentPacketDetail d) MATERIALIZED;
+
+isPrinted 'Передано' = DATA BOOLEAN (UserShipment);
+backgroundShipment 'Цвет' (UserShipment s) = CASE WHEN NOT isPrinted(s) THEN RGB(212,255,212)
+    WHEN isPrinted(s) AND NOT isPosted(s) THEN RGB(150,255,150);
+
+isAccepted 'Принято' = DATA BOOLEAN (UserShipmentPacketDetail);
+dateTimeAccepted 'Дата/время приёмки' = DATA DATETIME (UserShipmentPacketDetail);
+
+// по BinPacketLedger
+dateTime (UserShipmentPacketDetail ledger) += OVERRIDE dateTimeAccepted(ledger), dateTime(ledger);
+packet (UserShipmentPacketDetail ledger) += packet(ledger);
+bin (UserShipmentPacketDetail ledger) += bin(ledger);
+isPosted (UserShipmentPacketDetail ledger) += isPosted(ledger);
+numberDocument(UserShipmentPacketDetail ledger) += number(ledger);
+seriesDocument(UserShipmentPacketDetail ledger) += series(userShipment(ledger));
+description(UserShipmentPacketDetail ledger) += 'Перемещение пакетов на склад № ' +  seriesNumber(userShipment(ledger)) + ', строка № ' + index(ledger);
+createdUser(UserShipmentPacketDetail ledger) += createdUser(userShipment(ledger));
+
+dateProduction 'Дата производства' (UserShipmentPacketDetail d) = dateProduction(packet(d));
+
+EXTEND FORM userShipment
+    OBJECTS bd = UserShipmentPacketDetail
+    PROPERTIES (bd) SHOWIF packets(s) index READONLY, idPacket, isAccepted, dateProduction, packetSkuList, idBin
+    PROPERTIES (bd) SHOWIF packets(s) DELETE GRID
+    FILTERS userShipment(bd) == s
+;
+
+DESIGN userShipment {
+    specificationBox{
+        MOVE BOX(bd) FIRST {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(bd)){focusable = TRUE;}
+        }
+    }
+}
+
+EXTEND FORM shipments
+    OBJECTS bd = UserShipmentPacketDetail
+    PROPERTIES (bd) SHOWIF packets(s) READONLY index, idPacket, isAccepted, dateProduction, packetSkuList, idBin
+    FILTERS userShipment(bd) == s
+;
+
+DESIGN shipments {
+    documentDetail {
+        MOVE BOX(bd) AFTER BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(bd)){focusable = TRUE;}
+        }
+    }
+}
+
+userShipmentPacketDetail = DATA UserShipmentPacketDetail(UserShipmentDetail) INDEXED;
+idPacket 'Пакет'(UserShipmentDetail d) = idPacket(userShipmentPacketDetail(d));
+indexPacketDetail 'Номер строки (пакеты)'(UserShipmentDetail d) = index(userShipmentPacketDetail(d));
+
+setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh)  {
+    packQuantity(UserShipmentDetail d) <- 0 WHERE userShipment(d) == sh;
+    FOR sh == userShipment(UserShipmentPacketDetail d) DO {
+        FOR UserShipmentDetail cd == GROUP LAST UserShipmentDetail dd ORDER dd WHERE (dd IS UserShipmentDetail AND userShipmentPacketDetail(dd) == d) DO {
+            packQuantity(cd) <- packQuantity(cd) (+) 1;
+        }
+    }
+}
+
+createUserShipmentDetails 'Обновить спецификацию из пакетов' ABSTRACT (UserShipment) TOOLBAR;
+
+EXTEND FORM userShipment
+    PROPERTIES (s) SHOWIF packets(s) createUserShipmentDetails DRAW d
+    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER idBatch(d)
+
+    EVENTS
+        ON APPLY BEFORE createUserShipmentDetails(s)
+;
+
+EXTEND FORM shipments
+    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER idBatch(d)
+;
+
+WHEN LOCAL SET (isAccepted(UserShipmentPacketDetail d)) DO {
+    dateTimeAccepted(d) <- currentDateTime();
+    bin(d) <- defaultBin(d);
+}
+
+WHEN LOCAL DROPPED (isAccepted(UserShipmentPacketDetail d)) DO {
+    dateTimeAccepted(d) <- NULL;
+    bin(d) <- NULL;
+}
+
+isNotAccepted 'Есть непринятые строки' = GROUP SUM 1 IF NOT isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
+acceptedDetails 'Есть принятые строки' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
+isAccepted 'Принято' (UserShipment s) = NOT isNotAccepted(s);
+
+isAccepted 'Принято' (UserShipmentDetail d) = isAccepted(userShipmentPacketDetail(d));
+
+countAcceptedShipmentPacketDetail 'Кол-во пакетов (принято)' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d) MATERIALIZED;
+quantityAcceptedShipmentDetail 'Кол-во изделий (принято)' = GROUP SUM quantity(UserShipmentDetail d) IF isAccepted(d) BY shipment(d);
+
+unprinted 'Вернуть со склада' (UserShipment o)  {
+    NEWSESSION {
+        isPrinted(o) <- NULL;
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
+defaultTransferToStockOperation  = DATA Operation ();
+nameDefaultTransferToStockOperation 'Операция по умолчанию' = name(defaultTransferToStockOperation());
+defaultTransferStockTo  = DATA Stock ();
+nameDefaultTransferStockTo 'Склад по умолчанию' = name(defaultTransferStockTo());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultTransferToStockOperation, nameDefaultTransferStockTo
+;
+
+DESIGN options {
+    shipments {
+        NEW transfer {
+            caption = 'Перемещения из цеха на склад';
+            MOVE PROPERTY(nameDefaultTransferToStockOperation());
+            MOVE PROPERTY(nameDefaultTransferStockTo());
+        }
+    }
+}
+
+CONSTRAINT SET (isPosted(UserShipment s)) AND operation(s) == defaultTransferToStockOperation() AND NOT isAccepted(s)
+    MESSAGE 'Запрещено проводить перемещение, пока есть непринятые строки';
+
+WHEN LOCAL FORMS userShipment CHANGED (operation(UserShipment s)) AND operation(s) == defaultTransferToStockOperation() DO {
+    supplierStock(s) <- stock(currentComputer());
+    supplier(s) <- defaultCompany();
+    customerStock(s) <- defaultTransferStockTo();
+    customer(s) <- defaultCompany();
+    packets(s) <- TRUE;
+}
+
+
