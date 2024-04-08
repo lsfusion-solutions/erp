@@ -1,0 +1,176 @@
+MODULE EZLotShipsAdd;
+
+REQUIRE LotInit, LotTypeBy, EInvoiceLot, EZAuthentication;
+
+NAMESPACE EZ;
+
+// Вид сопроводительного документа (shipping_doc)
+//akt Акт списания
+//aktnedost Акт недостачи
+//aktreorg Акт передачи
+//invoice Инвойс, счёт, счёт-фактура
+//customs Таможенная декларация
+//statdeclaracia Статистическая декларация
+//ttn ТТН – товарно-транспортная накладная
+//tnttn ТН – товарная накладная
+//ettn ЭТТН – электронная товарно-транспортная накладная
+//etn ЭТН – электронная товарная накладная
+shipping_doc (EInvoice ei) = OVERRIDE IF isTN2(ei) THEN 'etn', IF ei IS EInvoice THEN 'ettn' ;
+nomer_tn (EInvoice ei) = deliveryNoteNumber(ei);
+idEZ = DATA LOCAL STRING (LegalEntity);
+agent(EInvoice ei) = INTEGER(idEZ(customer(ei)));
+count(EInvoice ei) = GROUP SUM 1 IF eInvoice(eInvoiceDetail(EInvoiceLotDetail eld)) == ei;
+comment(EInvoice ei) = '' IF ei IS EInvoice;
+country(EInvoice ei) = sid(country(customer(ei)));
+price(EInvoice ei) =  GROUP SUM lineItemPrice(eInvoiceDetail(EInvoiceLotDetail eld)) IF eInvoice(eInvoiceDetail(eld)) == ei;
+operation_date(EInvoice ei) = toChar(deliveryNoteDateTime(ei), 'YYYY-MM-DD');
+
+// byn933 
+currencyCode = DATA LOCAL NESTED STRING (INTEGER);
+currencyCode (EInvoice ei) = GROUP MIN currencyCode(INTEGER i) IF lower(currency(ei)) == substr(currencyCode(i), 1, 3);
+
+exception 'Сообщение' = DATA TEXT (LegalEntity);
+handleException (LegalEntity o, FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ /contracts/agent', messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+exception 'Сообщение' = DATA TEXT (EInvoice, LotType);
+handleException (EInvoice o, LotType lt, FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ /ships/add', 'ЭТТН - ' + nomer_tn(o), 'Товарная группа - ' + name(lt), messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o, lt) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+exception 'Сообщение' = DATA TEXT ();
+handleException (FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+}
+
+getIdEZ (LegalEntity le) {
+    LOCAL result = FILE ();
+    LOCAL id = STRING ();
+    
+    EXPORT JSON FROM unp = UNP(le);
+
+    fileToString(exportFile());
+
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/contracts/agent' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(le, result());
+        RETURN;
+    }
+
+    fileToString(result());
+
+    IMPORT JSON FROM result() TO() id;
+    idEZ(le) <- id();    
+}
+
+FORM currency 'Валюта'    
+    OBJECTS inner = INTEGER 
+    PROPERTIES (inner) currencyCode EXTID 'code'
+;
+
+getCurrencyEZ () {
+    // если справочник уже получен
+    IF GROUP MIN currencyCode(INTEGER i) THEN RETURN;
+
+    LOCAL result = FILE ();
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/directories/currency' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        handleException(result());
+        RETURN;
+    }
+
+    fileToString(result());
+
+    IMPORT currency FROM JSONFILE (result());
+}
+
+ship = DATA INTEGER (EInvoice, LotType);
+lot (EInvoiceLotDetail eld) = lot(barcodeToId(id(eld)));
+lotType(EInvoiceLotDetail eld) = lotType(sku(lot(eld)));
+
+shippedEZ 'Отгрузка кодов, ЭЗ' = DATA BOOLEAN (EInvoiceLotDetail);
+
+existLotDetail(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotType(eld);
+existNotSentLotDetail(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotType(eld) AND NOT shippedEZ(eld);
+existLotDetail(EInvoice ei) = GROUP MIN existLotDetail(ei, LotType lt) IF ei IS EInvoice AND lt IS LotType;
+existNotSentLotDetail(EInvoice ei) = GROUP MIN existNotSentLotDetail(ei, LotType lt) IF ei IS EInvoice AND lt IS LotType;
+shippedEZ 'Отгрузка кодов, ЭЗ' (EInvoice ei) = ei IS EInvoice AND NOT existNotSentLotDetail(ei) AND existLotDetail(ei);
+
+barcodeToId(EInvoiceLotDetail eld) = barcodeToId(id(eld));
+
+FORM shipsAdd 'Отгрузка кодов'
+    OBJECTS ei = EInvoice EXTID 'value'    
+    PROPERTIES (ei) shipping_doc, nomer_tn, agent, count, country, price, currencyCode EXTID 'currency', operation_date
+    
+    OBJECTS labels = (eld = EInvoiceLotDetail, lt = LotType)
+    PROPERTIES (eld) id EXTID 'value'
+    FILTERS eld IS EInvoiceLotDetail AND NOT shippedEZ(eld) AND eInvoice(eld) = ei AND lotType(eld) == lt
+;
+
+shipsAdd (EInvoice ei) {   
+    NEWSESSION {
+        getIdEZ(customer(ei));
+        getCurrencyEZ();
+
+        LOCAL result = FILE ();
+        LOCAL ship = INTEGER ();
+
+        FOR existNotSentLotDetail(ei, LotType lt) AND lt IS LotType DO {
+            EXPORT shipsAdd OBJECTS ei = ei, lt = lt JSON ;
+
+            fileToString(exportFile());
+            
+            TRY {
+                EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            } CATCH {
+                handleException(ei, lt, result());
+                RETURN;
+            }
+
+            ship() <- NULL;
+            IMPORT JSON FROM result() TO() ship;
+            ship(ei, lt) <- ship();
+            shippedEZ (EInvoiceLotDetail eld) <- TRUE WHERE ship(eInvoice(eld), lotType(eld));
+        }
+
+        APPLY;
+    }
+}
+
+shipsAdd (DATE dFrom) {    
+    FOR DATE(deliveryNoteDateTime(EInvoice ei)) >= dFrom AND existNotSentLotDetail(ei) AND
+        (code(currentOrderMessage(ei)) == '2550' OR code(currentOrderMessage(ei)) == '2650') DO {
+        shipsAdd(ei);
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) shippedEZ
+
+    PROPERTIES(eld) READONLY shippedEZ
+;
