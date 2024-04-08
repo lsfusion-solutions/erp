@@ -1,0 +1,24 @@
+MODULE PickingOrderTextile;
+
+REQUIRE PickingOrder, WarehouseTextile;
+
+//PRIORITY Sale;
+
+NAMESPACE Picking;
+
+
+defaultPickingBin = DATA Bin (Stock);
+idDefaultPickingBin 'Ячейка комплектации' (Stock st) = id(defaultPickingBin(st));
+
+CONSTRAINT defaultPickingBin(Stock stock) AND NOT stock == stock(defaultPickingBin(stock))
+    CHECKED BY defaultPickingBin[Stock] MESSAGE 'Ячейка недоступна для склада';
+
+EXTEND FORM warehouse
+    PROPERTIES(w) idDefaultPickingBin SHOWIF isCompany(w)
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(idDefaultPickingBin(w));
+    }
+}
