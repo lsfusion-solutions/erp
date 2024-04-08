@@ -4,20 +4,19 @@ REQUIRE PurchaseReturnOrder, BinLedger, PurchaseBinLedger;
 
 NAMESPACE PurchaseReturn;
 
-@defineDocumentBins(order);
+@defineDocumentBins(order, out, ' (из)');
 
-CLASS OrderBinLedger : BinLedger;
-needToCreate (OrderDetail orderDetail) = (inBin(orderDetail) OR outBin(orderDetail)) AND NOT (isClosed(orderDetail) AND NOT shipped(orderDetail)); 
-orderBinLedger = AGGR OrderBinLedger WHERE needToCreate(OrderDetail orderDetail) MATERIALIZED INDEXED;
-@implementBinLedger(orderBinLedger, orderDetail, sku, quantity, customerStock, inBin, outBin);
-    
-@setBinDocument(UserOrder, customerStock);
-@defineBinDocumentConstraints(userOrder, customerStock);
+@implementAggregationBinLedger(orderDetail, order, Order, sku, quantity, customerStock);
+@implementBinLedger(orderBinLedger, orderDetail, sku, quantity, customerStock, outBin);
+needToCreate (OrderDetail orderDetail) += outBin(orderDetail) AND NOT (isClosed(orderDetail) AND NOT shipped(orderDetail));
+
+@setBinDocument(UserOrder, customerStock, out);
+@defineBinDocumentConstraintsType(userOrder, customerStock, out);
 
 backgroundBins 'Цвет' (UserOrder order) = RGB(255, 224, 255) IF order IS UserOrder;
 backgroundBins (UserOrderDetail detail) = backgroundBins(order(detail));
 
-@extendObjectFormsBins(userOrder, orders, o, customerStock, backgroundBins);
+@extendObjectFormsBins(userOrder, orders, o, customerStock, backgroundBins, out);
 
 DESIGN userOrder {
     headerExtraParams {
@@ -27,4 +26,4 @@ DESIGN userOrder {
 
 @deriveDocumentOperationProperty(UserOrder, useBins);
 
-@deriveDocumentBins (userOrder, userOrder, inBin, outBin, outBin, inBin, customerStock);
+@deriveDocumentBins (userOrder, userOrder, outBin, outBin, customerStock);

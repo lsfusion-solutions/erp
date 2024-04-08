@@ -241,24 +241,6 @@ DESIGN bins {
     }
 }
 
-// ---------------------  Склады с указанием ячеек ----------------------- //
-
-dataIn 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
-
-TABLE stockBin(Stock, Bin);
-dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
-
-levelParent (Stock stock, BinGroup binGroup) = GROUP
-                                                               MIN level(binGroup, BinGroup parent) IF dataIn(stock, parent) MATERIALIZED;
-nearestParent (Stock stock, BinGroup binGroup) =
-    binGroup(binGroup, levelParent(stock, binGroup));
-nearestIn (Stock stock, BinGroup binGroup) =
-    dataIn(stock, nearestParent(stock, binGroup));
-
-in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE dataIn(stock, binGroup), nearestIn (stock, binGroup) MATERIALIZED;
-
-in 'Отм.' (Stock stock, Bin bin) = OVERRIDE dataIn(stock, bin), in(stock, binGroup(bin)) MATERIALIZED;
-
 // ---------------------  Соотносение товаров и ячеек  ------------------- //
 
 TABLE skuGroupBinGroup(SkuGroup, BinGroup);
@@ -325,6 +307,9 @@ changeDataIn (Sku sku, Bin bin) {
 bins 'Ячейки' (SkuGroup group) = 
     GROUP CONCAT name(Bin bin) IF in(group, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
 
+bins 'Ячейки(по складу)' (BinGroup binGroup, SkuGroup group) =
+    GROUP CONCAT name(Bin bin) IF in(group, bin) AND stock(bin)==stock(binGroup) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+
 FORM changeBinsSkuGroup 'Выбор ячеек'
     OBJECTS g=SkuGroup PANEL 
     PROPERTIES(g) READONLY canonicalName
@@ -366,6 +351,9 @@ changeBins (SkuGroup group) {
 
 bins 'Ячейки' (Sku sku) =
     GROUP CONCAT name(Bin bin) IF in(sku, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+
+bins 'Ячейки(по складу)' (BinGroup binGroup, Sku sku) =
+    GROUP CONCAT name(Bin bin) IF in(sku, bin) AND stock(bin)==stock(binGroup) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
 
 FORM changeBinsSku 'Выбор ячеек'
     OBJECTS s=Sku PANEL
@@ -423,14 +411,14 @@ FORM binStocks 'Ячейки'
 
     TREE groupTree g=SkuGroup PARENT parent(g)
     PROPERTIES READONLY order(g), id(g), name(g)
-    PROPERTIES in(g, b) ON CHANGE changeDataIn(g, b), bins(g) ON CHANGE changeBins(g)
+    PROPERTIES in(g, b) ON CHANGE changeDataIn(g, b), bins(g) ON CHANGE changeBins(g), bins(bg, g) ON CHANGE changeBins(g)
     ORDERS order(g), name(g)
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' in(g, b)
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name, idBarcode
-    PROPERTIES in(s, b) ON CHANGE changeDataIn(s, b), bins(s) ON CHANGE changeBins(s)
+    PROPERTIES in(s, b) ON CHANGE changeDataIn(s, b), bins(s) ON CHANGE changeBins(s), bins(bg, s) ON CHANGE changeBins(s)
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
     FILTERGROUP inSku FILTER 'Отмеченные' in(s, b)
 ;
@@ -584,74 +572,3 @@ NAVIGATOR {
         }
     }
 }
-
-// ----
-
-META defineBinAttribute(attribute, caption)
-
-    data###attribute caption = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
-    data###attribute caption = DATA BOOLEAN (DataBinGroup);
-    data###attribute(DataBinGroup binGroup) += data###attribute(binGroup); 
-    
-    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF data###attribute(parent) MATERIALIZED;
-    nearestParentData###attribute (BinGroup binGroup) = binGroup(binGroup, levelParentData###attribute(binGroup));
-    nearestData###attribute (BinGroup binGroup) = data###attribute(nearestParentData###attribute(binGroup)) MATERIALIZED;
-    
-    attribute caption (BinGroup binGroup) =
-        OVERRIDE data###attribute(binGroup),
-            nearestData###attribute(binGroup) MATERIALIZED;
-    
-    EXTEND FORM dataBinGroup
-        PROPERTIES(g) data###attribute
-    ;
-    
-    DESIGN dataBinGroup {
-        additionalContainer{
-            MOVE PROPERTY(data###attribute(g));   
-        }
-    }
-
-    EXTEND FORM dialogBinGroups
-        PROPERTIES(g) READONLY attribute
-    ;
-    
-    EXTEND FORM binGroups
-        PROPERTIES(g) READONLY attribute
-    ;
-    
-    data###attribute caption = DATA BOOLEAN (Bin);
-    
-    attribute caption (Bin bin) =
-        OVERRIDE data###attribute(bin),
-            attribute(binGroup(bin)) MATERIALIZED;
-    
-    EXTEND FORM bin
-        PROPERTIES(s) attribute
-    ;
-
-    DESIGN bin {
-        additionalContainer{
-            MOVE PROPERTY(attribute(s));
-        }
-    }    
-
-    EXTEND FORM dialogBins
-        PROPERTIES(s) READONLY attribute
-    ;
-    
-    EXTEND FORM bins
-        PROPERTIES(s) READONLY attribute
-    ;
-    
-    EXTEND FORM binStocks
-        PROPERTIES(b) READONLY attribute
-    ;    
-END
-
-@defineBinAttribute(receiving, 'Приемка');
-
-@defineBinAttribute(shipping, 'Отгрузка');
-
-@defineBinAttribute(storage, 'Хранение');
-
-@defineBinAttribute(picking, 'Комплектация');

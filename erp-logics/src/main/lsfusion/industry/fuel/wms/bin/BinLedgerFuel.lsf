@@ -150,10 +150,17 @@ EXTEND FORM binBalance
     PROPERTIES(b,l) READONLY balanceVolume
     PROPERTIES(l) READONLY density
     FILTERGROUP isFuel FILTER 'Топливо' isFuel(s) DEFAULT
-    FILTERGROUP balance
+    EXTEND FILTERGROUP balance
+        FILTER 'Все' s IS Sku DEFAULT
+    FILTERGROUP lbalance
         FILTER 'С остатком' currentBalance(b)
-        FILTER 'С движением' OVERRIDE [GROUP MAX BinLedger l1 BY inBin(l1)](b), [GROUP MAX BinLedger l1 BY outBin(l1)](b)
+        FILTER 'С движением' [GROUP SUM countLedger(Sku sku, Bin bin) BY bin](b)
 ;
+
+DESIGN binBalance {
+    PROPERTY (currentBalance(s,b)){hide = TRUE;}
+    REMOVE FILTERGROUP(balance);
+}
 
 EXTEND FORM dialogBinStock
     PROPERTIES(b) READONLY volume, currentVolume, fullVolumePercent, currentDensity
@@ -226,15 +233,18 @@ DESIGN bins {
 }
 
 EXTEND FORM binStocks
-    FILTERGROUP isFuel FILTER 'Топливо' isFuel(os) DEFAULT
+    FILTERGROUP isFuel FILTER 'Топливо' isFuel(s) DEFAULT
 ;
 
 DESIGN binStocks {
     caption = 'Резервуары';
     BOX(TREE binTree) { caption = 'Группы резервуаров'; }
     BOX(b) { caption = 'Резервуары'; }
-    PROPERTY(nameBin(ts,og)) { caption = 'Резервуар'; }
-    PROPERTY(nameBin(ts,os)) { caption = 'Резервуар'; }
+    skuGroup { caption = 'Резервуары по товарам'; }
+    PROPERTY(bins(g)) { caption = 'Резервуар'; }
+    PROPERTY(bins(bg, g)) { caption = 'Резервуар(по складу)'; }
+    PROPERTY(bins(s)) { caption = 'Резервуар'; }
+    PROPERTY(bins(bg, s)) { caption = 'Резервуар(по складу)'; }
 }
 
 NAVIGATOR {

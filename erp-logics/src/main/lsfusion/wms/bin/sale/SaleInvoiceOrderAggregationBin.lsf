@@ -4,20 +4,21 @@ REQUIRE SaleInvoiceOrderAggregation, BinLedger, SaleBinLedger;
 
 NAMESPACE Sale;
 
-@defineDocumentBins(order);
+@defineDocumentBins(order, out, ' (из)');
 
-inBin(OrderInvoiceDetail detail) = inBin(orderDetail(detail));
 outBin(OrderInvoiceDetail detail) = outBin(orderDetail(detail));
 
-@implementAggregationBinLedger(orderInvoiceDetail, orderInvoice, OrderInvoice, sku, quantity, supplierStock, inBin, outBin);
+@implementAggregationBinLedger(orderInvoiceDetail, orderInvoice, OrderInvoice, sku, quantity, supplierStock);
+@implementBinLedger(orderInvoiceBinLedger, orderInvoiceDetail, sku, quantity, supplierStock, outBin);
+needToCreate(OrderInvoiceDetail detail) += TRUE IF outBin(detail);
 
-@setBinDocument(UserOrder, supplierStock);
-@defineBinDocumentConstraints(userOrder, supplierStock);
+@setBinDocument(UserOrder, supplierStock, out);
+@defineBinDocumentConstraintsType(userOrder, supplierStock, out);
 
 backgroundBins 'Цвет' (UserOrder order) = RGB(255, 224, 255) IF order IS UserOrder;
 backgroundBins (UserOrderDetail detail) = backgroundBins(order(detail));
 
-@extendObjectFormsBins(userOrder, orders, o, supplierStock, backgroundBins);
+@extendObjectFormsBins(userOrder, orders, o, supplierStock, backgroundBins, out);
 
 DESIGN userOrder {
     headerExtraParams {
@@ -27,4 +28,4 @@ DESIGN userOrder {
 
 @deriveDocumentOperationProperty(UserOrder, useBins);
 
-@deriveDocumentBins (userOrder, userOrder, inBin, inBin, outBin, outBin, supplierStock);
+@deriveDocumentBins (userOrder, userOrder, outBin, outBin, supplierStock);

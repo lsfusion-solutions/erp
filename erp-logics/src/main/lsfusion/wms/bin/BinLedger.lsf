@@ -104,10 +104,12 @@ META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinPr
     skuProp[BinLedger] (###class ledger) += skuProp(object(ledger));
     quantity[BinLedger] (###class ledger) += quantityProp(object(ledger));
     stock[BinLedger] (###class ledger) += stockProp(object(ledger));
-    inBin[BinLedger] (###class ledger) += inBinProp(object(ledger));
-    outBin[BinLedger] (###class ledger) += outBinProp(object(ledger));
     description[BinLedger] (###class ledger) += description(object(ledger));
-END       
+END
+
+META implementBinLedger(class, object, skuProp, quantityProp, stockProp, binProp)
+    binProp[BinLedger] (###class ledger) += binProp(object(ledger));    
+END    
 
 META implementBinLedger(class, stockProp)
     dateTime[BinLedger] (###class ledger) += dateTime(ledger);
@@ -124,12 +126,12 @@ END
 META createClassBinLedger (classPref)
     CLASS classPref##BinLedger : BinLedger;
 END
-META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
+META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp)
     @createClassBinLedger(###classPrefix);
-    needToCreate (###object object) = inBinProp(object) OR outBin(object); 
+    needToCreate = ABSTRACT BOOLEAN (###object); 
     classPrefix##BinLedger = AGGR ###classPrefix##BinLedger WHERE needToCreate(###object object) MATERIALIZED INDEXED;
     @implementBinLedger(classPrefix##BinLedger, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp);
-END
+END 
 
 FORM binLedger 'Регистр изменения остатков по ячейкам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -318,6 +320,15 @@ META defineDocumentBins (object)
     @defineInterfaceBin (object###detail, out, ' (из)');  
 END
 
+META defineDocumentBins (object, binType, caption)
+    @defineInterfaceBin (object, binType, caption);
+
+    @defineDocumentInterfaceProperty (object, useBins, 'Ячейки');
+
+    @defineInterfaceBin (object###detail, binType, caption);
+
+END
+
 META setBinObject (object, stockProp)
     setInBin (object d)  { 
         DIALOG dialogBinStock OBJECTS s = stockProp(d), b = inBin(d) CHANGE;
@@ -333,9 +344,38 @@ META setBinDocument (object, stockProp)
     @setBinObject (object###detail, stockProp);
 END
 
+META setBinObject (object, stockProp, binType)
+    set###binType##Bin (object d)  {
+        DIALOG dialogBinStock OBJECTS s = stockProp(d), b = binType##Bin(d) CHANGE;
+    }
+END
+
+META setBinDocument (object, stockProp, binType)
+    @setBinObject (object, stockProp, binType);
+    @setBinObject (object###detail, stockProp, binType);
+END
+
 META setBinDocument (object)
     @setBinDocument (###object, stock);
 END
+
+META defineBinConstraintsType(object, stockProp, binType)
+    CONSTRAINT binType##Bin(object detail) AND NOT stockProp(detail)==stock(binType##Bin(detail))
+        CHECKED BY binType##Bin[object] MESSAGE 'Ячейка недоступна для склада';
+END
+
+META defineBinConstraintsType(object, binType)
+    @defineBinConstraintsType(###object, stock, binType);
+END
+
+META defineBinDocumentConstraintsType(object, stockProp, binType)
+    @defineBinConstraintsType(###object, stockProp, binType);
+    @defineBinConstraintsType(###object##Detail, stockProp, binType);
+END
+
+META defineBinDocumentConstraintsType(object, binType)
+    @defineBinDocumentConstraintsType(object, stock, binType);
+END    
 
 META defineBinConstraints(object, stockProp)
     CONSTRAINT inBin(object detail) AND NOT stockProp(detail)==stock(inBin(detail))
@@ -381,33 +421,50 @@ META extendObjectFormsBins(form, forms, obj, stockProp, background)
     ;
 END
 
-META defineInvoiceShipmentBins(stockProp)
+META extendObjectFormsBins(form, forms, obj, stockProp, background, binType)
+    EXTEND FORM form
+        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF useBins(obj) ON CHANGE set###binType##Bin(obj)
+        PROPERTIES(d) SHOWIF useBins(obj) BACKGROUND background(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
+    ;
+    DESIGN form {
+        headerExtraParams {
+            NEW headerBins {
+                caption = 'Ячейки';
+                MOVE PROPERTY(useBins(obj));
+                MOVE PROPERTY(name###binType##Bin(obj));
+            }
+        }
+    }
 
-    @defineDocumentBins(invoice);
-    inBin [ShipmentDetail] (InvoiceShipmentDetail detail) += inBin(invoiceDetail(detail));
-    outBin [ShipmentDetail] (InvoiceShipmentDetail detail) += outBin(invoiceDetail(detail));
+    EXTEND FORM forms
+        PROPERTIES(d) READONLY SHOWIF useBins(obj) BACKGROUND background(obj) name###binType##Bin
+    ;
+END
+
+META defineInvoiceShipmentBins(stockProp, binType, caption)
+
+    @defineDocumentBins(invoice, binType, caption);
+    binType##Bin [ShipmentDetail] (InvoiceShipmentDetail detail) += binType##Bin(invoiceDetail(detail));
     
-    @setBinDocument(UserInvoice, stockProp);
-    @defineBinConstraints(UserShipmentDetail, stockProp);
-    @defineBinConstraints(UserInvoiceDetail, stockProp);      
+    @setBinDocument(UserInvoice, stockProp, binType);
+    @defineBinDocumentConstraintsType(UserShipment, stockProp, binType);
+    @defineBinDocumentConstraintsType(UserInvoice, stockProp, binType);      
     
-    @extendObjectFormsBins(userInvoice, invoices, i, stockProp, backgroundShipped);                          
+    @extendObjectFormsBins(userInvoice, invoices, i, stockProp, backgroundShipped, binType);                          
 
     EXTEND FORM invoiceDetails
-        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d)
-                      nameInBin, nameOutBin
+        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d) name###binType##Bin
     ;
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {       
-        inBin(d) <- inBin(detail);
-        outBin(d) <- outBin(detail);
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {
+        binType##Bin(d) <- binType##Bin(detail);
     }
     
 END
 
-META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
-    over###readProp = ABSTRACT Bin (###object);
-    writeProp (###object o) <- OVERRIDE over###readProp(o), readProp(operation(o), stockProp(o)) IF useBins(o)
+META deriveDocumentBinsProperty(object, readBin, writeBin, stockProp)
+    over###readBin = ABSTRACT Bin (###object);
+    writeBin (###object o) <- OVERRIDE over###readBin(o), readBin(operation(o), stockProp(o)) IF useBins(o)
         WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o)) OR SETCHANGED(useBins(o));    
 END
 
@@ -418,7 +475,7 @@ META deriveFormBinsProperty (form, object)
     skipSetOutBin = ABSTRACT BOOLEAN (###object###detail);
     
     WHEN LOCAL FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBin(detail) DO {
-             inBin(detail) <- OVERRIDE overInBin(detail), inBin(form(detail));
+        inBin(detail) <- OVERRIDE overInBin(detail), inBin(form(detail));
     }
 
     WHEN LOCAL FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBin(detail) DO {
@@ -426,25 +483,38 @@ META deriveFormBinsProperty (form, object)
     }    
 END
 
-META deriveFormBinsProperty (object) 
-    @deriveFormBinsProperty (object, object);
+META deriveFormSetBinsProperty (form, object, binProp)
+    over###binProp = ABSTRACT Bin (###object###detail);
+    skipSet###binProp = ABSTRACT BOOLEAN (###object###detail);
+
+    WHEN LOCAL FORMS form (CHANGED(binProp(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(binProp(detail)) AND NOT skipSet###binProp(detail) DO {
+        binProp(detail) <- OVERRIDE over###binProp(detail), binProp(form(detail));
+    }
 END
 
-META deriveInvoiceBins (inRead, inWrite, outRead, outWrite, stockProp)
+META deriveFormSetBinsProperty (object, binProp) 
+    @deriveFormSetBinsProperty (object, object, binProp) ;
+END
+
+META deriveInvoiceBins (readBin, writeBin, stockProp)
     @deriveDocumentOperationProperty(UserShipment, useBins);
-    @deriveDocumentBinsProperty(UserShipment, inRead, inWrite, stockProp);
-    @deriveDocumentBinsProperty(UserShipment, outRead, outWrite, stockProp);
+    @deriveDocumentBinsProperty(UserShipment, readBin, writeBin, stockProp);
     @deriveDocumentOperationProperty(UserInvoice, useBins);
-    @deriveDocumentBinsProperty(UserInvoice, inRead, inWrite, stockProp);
-    @deriveDocumentBinsProperty(UserInvoice, outRead, outWrite, stockProp);
-    
-    @deriveFormBinsProperty (userInvoice);
+    @deriveDocumentBinsProperty(UserInvoice, readBin, writeBin, stockProp);
+
+    @deriveFormSetBinsProperty (userInvoice, writeBin);
 END
 
+META deriveDocumentBins (object, form, readBin, writeBin, stockProp)
+    @deriveDocumentBinsProperty(object, readBin, writeBin, stockProp);
+
+    @deriveFormSetBinsProperty (form, object, writeBin);
+END    
+    
 META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentBinsProperty(object, inRead, inWrite, stockProp);
     @deriveDocumentBinsProperty(object, outRead, outWrite, stockProp);
-    
+
     @deriveFormBinsProperty (form, object);
 END
 
@@ -465,3 +535,70 @@ DESIGN options {
 
 CONSTRAINT DROPPED(Bin bin IS Bin) AND PREV(countLedger(bin))
     MESSAGE 'Запрещено удалять ячейку при наличии движения по ней';
+
+// ----
+
+META defineBinAttribute(attribute, caption)
+
+    data###attribute caption = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
+    data###attribute caption = DATA BOOLEAN (DataBinGroup);
+    data###attribute(DataBinGroup binGroup) += data###attribute(binGroup);
+
+    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF data###attribute(parent) MATERIALIZED;
+    nearestParentData###attribute (BinGroup binGroup) = binGroup(binGroup, levelParentData###attribute(binGroup));
+    nearestData###attribute (BinGroup binGroup) = data###attribute(nearestParentData###attribute(binGroup)) MATERIALIZED;
+
+    attribute caption (BinGroup binGroup) =
+        OVERRIDE data###attribute(binGroup),
+            nearestData###attribute(binGroup) MATERIALIZED;
+
+    EXTEND FORM dataBinGroup
+        PROPERTIES(g) data###attribute
+    ;
+
+    DESIGN dataBinGroup {
+        additionalContainer{
+            MOVE PROPERTY(data###attribute(g));
+        }
+    }
+
+    EXTEND FORM dialogBinGroups
+        PROPERTIES(g) READONLY attribute
+    ;
+
+    EXTEND FORM binGroups
+        PROPERTIES(g) READONLY attribute
+    ;
+
+    data###attribute caption = DATA BOOLEAN (Bin);
+
+    attribute caption (Bin bin) =
+        OVERRIDE data###attribute(bin),
+            attribute(binGroup(bin)) MATERIALIZED;
+
+    EXTEND FORM bin
+        PROPERTIES(s) attribute
+    ;
+
+    DESIGN bin {
+        additionalContainer{
+            MOVE PROPERTY(attribute(s));
+        }
+    }
+
+    EXTEND FORM dialogBins
+        PROPERTIES(s) READONLY attribute
+    ;
+
+    EXTEND FORM bins
+        PROPERTIES(s) READONLY attribute
+    ;
+
+    EXTEND FORM binStocks
+        PROPERTIES(b) READONLY attribute
+    ;
+END
+
+@defineBinAttribute(storage, 'Хранение');
+
+@defineBinAttribute(picking, 'Комплектация');

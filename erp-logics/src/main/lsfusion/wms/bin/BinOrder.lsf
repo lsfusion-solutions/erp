@@ -52,6 +52,8 @@ INDEX outBin(BinOrderDetail d), sku(d);
 
 @setBinDocument(UserBinOrder, stock);
 
+@defineBinDocumentConstraints(userBinOrder);
+
 @implementDocument(binOrder);
 supplierStock[Document](BinOrder binOrder) += stock(binOrder);
 
@@ -409,6 +411,9 @@ nameInBin 'Ячейка (в)' (Operation operation, Stock stock) = name(inBin(op
 setInBin (Operation operation, Stock stock)  { 
     DIALOG dialogBinStock OBJECTS s = stock, b = inBin(operation, stock) CHANGE;
 }
+
+CONSTRAINT inBin(Operation o, Stock st) AND NOT stock(inBin(o, st)) == st
+    CHECKED BY inBin[Operation, Stock] MESSAGE 'Ячейка недоступна для склада';
     
 outBin 'Ячейка (из)' = DATA Bin (Operation, Stock);
 nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBin(operation, stock)) CHARWIDTH 10;;
@@ -416,6 +421,9 @@ nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBi
 setOutBin (Operation operation, Stock stock)  { 
     DIALOG dialogBinStock OBJECTS s = stock, b = outBin(operation, stock) CHANGE;
 }
+
+CONSTRAINT outBin(Operation o, Stock st) AND NOT stock(outBin(o, st)) == st
+    CHECKED BY outBin[Operation, Stock] MESSAGE 'Ячейка недоступна для склада';
 
 TABLE stockOperation(Stock, Operation);
 TABLE stockGroupOperation(StockGroup, Operation);

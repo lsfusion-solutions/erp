@@ -4,9 +4,11 @@ REQUIRE SaleShipment, Item, BinLedger, SaleBinLedger;
 
 NAMESPACE Sale;
 
-@defineDocumentBins(shipment);
-@defineInvoiceShipmentBins(supplierStock);
+@defineDocumentBins(shipment, out, ' (из)');
+@defineInvoiceShipmentBins(supplierStock, out, ' (из)');
 
-@deriveInvoiceBins(inBin, inBin, outBin, outBin, supplierStock);
+@deriveInvoiceBins(outBin, outBin, supplierStock);
 
-@implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, supplierStock, inBin, outBin);
+@implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, supplierStock);
+@implementBinLedger(shipmentBinLedger, shipmentDetail, sku, quantity, supplierStock, outBin);
+needToCreate(ShipmentDetail detail) += TRUE IF outBin(detail);

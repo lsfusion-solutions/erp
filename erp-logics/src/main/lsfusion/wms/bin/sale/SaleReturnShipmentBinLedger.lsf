@@ -4,9 +4,11 @@ REQUIRE SaleReturnShipment, Item, BinLedger, SaleBinLedger;
 
 NAMESPACE SaleReturn;
 
-@defineDocumentBins(shipment);
-@defineInvoiceShipmentBins(supplierStock);
+@defineDocumentBins(shipment, in, ' (в)');
+@defineInvoiceShipmentBins(supplierStock, in, ' (в)');
 
-@deriveInvoiceBins(outBin, inBin, inBin, outBin, supplierStock);
+@deriveInvoiceBins(inBin, inBin, supplierStock);
 
-@implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, supplierStock, inBin, outBin);
+@implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, supplierStock);
+@implementBinLedger(shipmentBinLedger, shipmentDetail, sku, quantity, supplierStock, inBin);
+needToCreate(ShipmentDetail detail) += TRUE IF inBin(detail);
