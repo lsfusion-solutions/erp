@@ -6,10 +6,11 @@ NAMESPACE EDI;
 
 EXTEND CLASS EDSApplication {
     edsService '(СТТ) EDSService',
-    edsSign '(СТТ) ЭЦП REST-сервисы'
+    edsSign '(СТТ) ЭЦП REST-сервисы',
+    sccp '(СТТ) SC-CryptoProxy'
 }
 
-isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplication.edsSign; 
+isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplication.edsSign OR a == EDSApplication.sccp; 
 
 aliasEDSService 'Контейнер ключа' = DATA STRING[150] (LegalEntity);
 passwordEDSService 'Пароль ключа' = DATA STRING[100] (LegalEntity) ECHO;
@@ -92,7 +93,7 @@ FORM getEDSResponse
 ;
 
 //CTT-EDS-SIGN
-alias = DATA LOCAL STRING[150](INTEGER);
+alias 'Идентификатор ключа' = DATA LOCAL STRING[150](INTEGER) CHARWIDTH 25;
 
 FORM listAliases 'Список ключей'
     OBJECTS value = INTEGER
@@ -102,27 +103,61 @@ FORM listAliases 'Список ключей'
 DESIGN listAliases {
     width = 600;
 }
+notBeforeISO8601 'Действителен с' = DATA LOCAL DATETIME (INTEGER);
+subjectName 'Владелец' = DATA LOCAL STRING(INTEGER) CHARWIDTH 50;
+notAfterISO8601 'Действителен до' = DATA LOCAL DATETIME(INTEGER);
+
+FORM certificates 'Список ключей'
+    OBJECTS certificates = INTEGER EXTID 'Certificates'
+    PROPERTIES(certificates) READONLY subjectName EXTID 'SubjectName', alias EXTID 'PubKeyID',
+        notBeforeISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime() EXTID 'NotBeforeISO8601', 
+        notAfterISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime()  EXTID 'NotAfterISO8601'
+    FILTERS imported(certificates);
+
+
+getCN(STRING s) = FORMULA '(regexp_matches($1,\'^CN=(.+?),\'))[1]';
+
 selected = DATA LOCAL INTEGER ();
 
 listAliases 'Получить список ключей' (EDSService s) {
-    //sendRequestEDI('eds', 'eds', ('http://' + host(s) + ':' + port(s) + '/token/listAliases'), NULL, TRUE, client(s));
-
-    basic() <- encodeText('eds:eds', 'base64');
-    timeoutHttp() <- 300000;
-    IF client(s) THEN {
-        EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-    } ELSE {
-        EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-    }
-
-    IF statusHttp() == 200 THEN {
-        IMPORT listAliases JSON FROM sendRequestEDIResponse();
-        DIALOG listAliases OBJECTS value INPUT DO {
-            selected() <- value;
+    
+    IF edsApplication(s) == EDSApplication.edsSign THEN {
+        basic() <- encodeText('eds:eds', 'base64');
+        timeoutHttp() <- 300000;
+        IF client(s) THEN {
+            EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+        } ELSE {
+            EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
         }
-    } ELSE {
-        MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
-        logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+
+        IF statusHttp() == 200 THEN {
+            IMPORT listAliases JSON FROM sendRequestEDIResponse();
+            DIALOG listAliases OBJECTS value INPUT DO {
+                selected() <- value;
+            }
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+            logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+        }
+    }
+    IF edsApplication(s) == EDSApplication.sccp THEN {
+        timeoutHttp() <- 300000;
+        IF client(s) THEN {
+            EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/SCCrypto/ra/certs' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+        } ELSE {
+            EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/SCCrypto/ra/certs' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+        }
+
+        IF statusHttp() == 200 THEN {
+            IMPORT certificates JSON FROM sendRequestEDIResponse();
+            subjectName(INTEGER r) <- getCN(subjectName(r));
+            DIALOG certificates OBJECTS certificates INPUT DO {
+                selected() <- certificates;
+            }
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+            logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+        }
     }
 }
 
@@ -140,37 +175,7 @@ changeAlias 'Получить список ключей' (Employee l) {
 } TOOLBAR;
 
 EXTEND FORM integrationData
-    PROPERTIES(le) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign)
-    PROPERTIES(seds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(seds)) == EDSApplication.edsSign)
-    PROPERTIES(eeds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.edsSign)
+    PROPERTIES(le) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(le)) == EDSApplication.sccp)
+    PROPERTIES(seds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(seds)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(seds)) == EDSApplication.sccp)
+    PROPERTIES(eeds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.sccp)
 ;
-
-
-FORM signRespone
-    PROPERTIES signError() EXTID 'errorMessage'
-;
-
-migratedEDSTopBy = DATA BOOLEAN();
-onStarted()+{
-    IF NOT migratedEDSTopBy() THEN NEWSESSION {
-        
-        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSServiceTopBy(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Stock ls)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Employee e)))
-            AND NOT edsApplication(eds) DO {
-            edsApplication(eds) <- EDSApplication.edsService;
-        }
-        FOR EDSService eds IS EDSService AND ((GROUP SUM 1 IF eds == EDSServiceTopBy(LegalEntity l)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Stock ls)) OR (GROUP SUM 1 IF eds == EDSServiceTopBy(Employee e)))
-            AND NOT edsApplication(eds) == EDSApplication.edsService NEW nEds = EDSService DO {
-            edsApplication(nEds) <- EDSApplication.edsService;
-            host(nEds) <- host(eds);
-            port(nEds) <- port(eds);
-            name(nEds) <- name(eds);
-            client(nEds) <- client(eds);
-            EDSServiceTopBy(LegalEntity l) <- nEds WHERE EDSServiceTopBy(l) == eds;
-            EDSServiceTopBy(Stock l) <- nEds WHERE EDSServiceTopBy(l) == eds;
-            EDSServiceTopBy(Employee l) <- nEds WHERE EDSServiceTopBy(l) == eds;
-        }
-
-        migratedEDSTopBy() <- TRUE;
-        APPLY;
-    }
-}

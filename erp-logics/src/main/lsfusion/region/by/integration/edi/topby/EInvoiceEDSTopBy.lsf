@@ -162,3 +162,101 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         RETURN;
     }
 }
+
+//SC-CryptoProxy
+GROUP auth EXTID 'Auth';
+
+keyID = DATA LOCAL STRING();
+password = DATA LOCAL STRING();
+
+FORM sccpSign
+    PROPERTIES =TRUE EXTID 'OptAddAllCert', encodedBase64() EXTID 'DataB64', =TRUE EXTID 'OptAddCert' //=RAWFILE(resultFile()) 
+    PROPERTIES IN auth keyID() EXTID 'KeyID', password() EXTID 'Password', = 1 EXTID 'CryptoType';
+
+GROUP signInfo EXTID 'SignInfo';
+
+issuerSerial = DATA LOCAL STRING();
+subjectName = DATA LOCAL STRING();
+signDateTimeISO8601 = DATA LOCAL DATETIME ();
+issuerName = DATA LOCAL STRING();
+serial = DATA LOCAL STRING();
+errorCode = DATA LOCAL INTEGER();
+resultB64 = DATA LOCAL STRING();
+
+FORM sccpSignResult
+    PROPERTIES() errorCode EXTID 'ErrorCode', signError EXTID 'ErrorMessage', resultB64 EXTID 'ResultB64'
+    PROPERTIES() IN signInfo issuerSerial EXTID 'IssuerSerial', subjectName EXTID 'SubjectName', signDateTimeISO8601 EXTID 'SignDateTimeISO8601', issuerName EXTID 'IssuerName', serial EXTID 'Serial'
+;
+
+getAcknowledgement(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<Acknowledgement>.*</Acknowledgement>).*\'))[1]';
+getDeliveryNote(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<DeliveryNote>.*</DeliveryNote>).*\'))[1]';
+insertSignature(STRING e, STRING s) = FORMULA '(regexp_matches($1, \'(.*)(</.*)$\'))[1] || $2 || (regexp_matches($1, \'(.*)(</.*)$\'))[2]';
+
+sign(FILE contentSubXML, STRING socket, BOOLEAN client) {
+    signError() <- NULL;
+    signResult() <- NULL;
+
+    
+    fileToString(contentSubXML);
+    LOCAL baseXml = STRING ();
+    baseXml() <- regexpReplace(resultString(), '\\r?\\\n\\s*', '', 'g');
+
+    IF documentType() == 'BLRAPN' THEN {
+        encodeBase64(getAcknowledgement(baseXml()));
+    } ELSE {
+        encodeBase64(getDeliveryNote(baseXml()));
+    }
+
+    EXPORT sccpSign JSON;
+
+    sendRequestEDI(NULL, NULL, 'http://' + socket + '/SCCrypto/ra/signd', exportFile(), NULL, client);
+
+    IMPORT sccpSignResult JSON FROM sendRequestEDIResponse();
+    
+    IF errorCode() == 0 THEN {
+        baseXml() <- insertSignature(baseXml(), '<SpecialPart><Signature><SecurityID>1</SecurityID><CertificateID>'+serial()
+            +'</CertificateID><CertificateSubject>'+getCN(subjectName())+'</CertificateSubject><SecurityPartyID>'+issuerSerial()
+            +'</SecurityPartyID><SecurityPartyName>'+getCN(issuerName())+'</SecurityPartyName><SignatureDateTime>'+toChar(signDateTimeISO8601(),'YYYYMMDDHH24MISS')
+            +'</SignatureDateTime><SignatureValue>'+replace(resultB64(),'\\/','/')+'</SignatureValue></Signature></SpecialPart>');
+        IF NOT baseXml() THEN {
+            signError() <- 'Не полная информация о подписи документа';
+            logToFile('edi', 'SC-CryptoProxy error in sign result');
+            logToFile('edi', sendRequestEDIResponse());
+        } ELSE {
+            encodeBase64(baseXml());
+            signResult() <- encodedBase64();
+        }
+    }
+}
+
+getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceSupplier(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice)) THEN {
+            keyID() <- aliasEDSServiceSupplier(eInvoice);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));
+            sign(contentSubXML,host(EDSServiceSupplier(provider,eInvoice)) + ':' + port(EDSServiceSupplier(provider,eInvoice)), client(EDSServiceSupplier(provider,eInvoice)));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceCustomer(eInvoice) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice)) THEN {
+            keyID() <- aliasEDSServiceCustomer(eInvoice);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
+            sign(contentSubXML,host(EDSServiceCustomer(provider,eInvoice)) + ':' + port(EDSServiceCustomer(provider,eInvoice)), client(EDSServiceSupplier(provider,eInvoice)));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(eInvoice) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
