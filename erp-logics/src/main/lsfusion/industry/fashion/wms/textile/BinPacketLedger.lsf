@@ -276,3 +276,19 @@ NAVIGATOR {
         }
     }
 }
+
+META defineConstraintBinPacketDetail (document, stockDocument, message)
+    CONSTRAINT (SET(isPosted(###document##PacketDetail d)) OR SETCHANGED(bin(d))) AND isPosted(d) AND bin(d) AND NOT stockDocument(d)==stock(bin(d))
+        CHECKED BY bin[###document##PacketDetail]
+        MESSAGE CONCAT ' ', 'Выбранная ячейка должна относиться к выбранному складу', message;
+END
+
+META defineConstraintDoublePacketDetail (document, caption)
+    CONSTRAINT SETCHANGED(packet(###document##PacketDetail d)) AND [ GROUP SUM 1 BY packet(###document##PacketDetail ud), ##document(ud)](packet(d), ##document(d)) > 1
+        MESSAGE caption;
+END
+
+META defineConstraintEmptyPacketDetail (document)
+    CONSTRAINT ###document##PacketDetail d IS ###document##PacketDetail AND NOT packet(d)
+        MESSAGE 'Строка с пакетом в документе не может быть пустой';
+END
