@@ -278,7 +278,25 @@ DESIGN writeOffs {
 @defineFilterIsOpened (writeOff, writeOffs, w);
 @defineDocumentLogForm(writeOffs, w);
 //----------------------------------------------- Операции -----------------------------------------------------//
-@defineDocumentInterfaceOperation (writeOff, WriteOff, );
+// добавлен overName т.к. тут Return
+    operation = ABSTRACT WriteOff.Operation (WriteOff) MATERIALIZED;
+    nameOperation 'Операция' = overName(operation(WriteOff writeOff));
+    idOperation 'ID операции' = id(operation(WriteOff writeOff));
+
+    operation = DATA WriteOff.Operation (UserWriteOff);
+    nameOperation 'Операция' = overName(operation(UserWriteOff userWriteOff));
+    idOperation 'ID операции' = id(operation(UserWriteOff userWriteOff));
+
+    operation(UserWriteOff writeOff) += operation(writeOff);
+
+    operation (WriteOffDetail idetail) = operation(writeOff(idetail));
+    nameOperation 'Операция' (WriteOffDetail idetail) = overName(operation(idetail));
+    idOperation 'ID операции' (WriteOffDetail idetail) = id(operation(idetail));
+
+    operation (UserWriteOffDetail idetail) = operation(userWriteOff(idetail));
+    nameOperation 'Операция' (UserWriteOffDetail idetail) = overName(operation(idetail));
+    idOperation 'ID операции' (UserWriteOffDetail idetail) = id(operation(idetail));
+
 @extendFormFilterRoleAccessNS(writeOff, w, writeOffs,Operation);
 
 @defineDocumentOperationRolePrefix(userWriteOff, );
