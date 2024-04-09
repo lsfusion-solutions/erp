@@ -1695,7 +1695,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             receiptExtraFields.put("uid", uid);
                                         }
 
-                                        String cashtype = documentObject.optString("cashtype");
+                                        String cashtype = documentObject.optString("cashType");
                                         if (cashtype != null) {
                                             receiptExtraFields.put("cashtype", cashtype);
                                         }
