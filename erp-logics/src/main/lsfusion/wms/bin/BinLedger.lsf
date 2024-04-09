@@ -483,17 +483,17 @@ META deriveFormBinsProperty (form, object)
     }    
 END
 
-META deriveFormSetBinsProperty (form, object, binProp)
-    over###binProp = ABSTRACT Bin (###object###detail);
+META deriveFormSetBinsProperty (form, object, binProp, stockProp)
+    over###binProp = ABSTRACT VALUE OVERRIDE FIRST Bin (###object###detail);
     skipSet###binProp = ABSTRACT BOOLEAN (###object###detail);
 
     WHEN LOCAL FORMS form (CHANGED(binProp(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(binProp(detail)) AND NOT skipSet###binProp(detail) DO {
-        binProp(detail) <- OVERRIDE over###binProp(detail), binProp(form(detail));
+        binProp(detail) <- OVERRIDE over###binProp(detail), binProp(form(detail)), (GROUP MAX Bin bin IF in(sku(detail), bin) AND stock(bin)==stockProp(detail));
     }
 END
 
-META deriveFormSetBinsProperty (object, binProp) 
-    @deriveFormSetBinsProperty (object, object, binProp) ;
+META deriveFormSetBinsProperty (object, binProp, stockProp) 
+    @deriveFormSetBinsProperty (object, object, binProp, stockProp);
 END
 
 META deriveInvoiceBins (readBin, writeBin, stockProp)
@@ -502,13 +502,13 @@ META deriveInvoiceBins (readBin, writeBin, stockProp)
     @deriveDocumentOperationProperty(UserInvoice, useBins);
     @deriveDocumentBinsProperty(UserInvoice, readBin, writeBin, stockProp);
 
-    @deriveFormSetBinsProperty (userInvoice, writeBin);
+    @deriveFormSetBinsProperty (userInvoice, writeBin, stockProp);
 END
 
 META deriveDocumentBins (object, form, readBin, writeBin, stockProp)
     @deriveDocumentBinsProperty(object, readBin, writeBin, stockProp);
 
-    @deriveFormSetBinsProperty (form, object, writeBin);
+    @deriveFormSetBinsProperty (form, object, writeBin, stockProp);
 END    
     
 META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stockProp)
