@@ -1492,6 +1492,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 if (notInterrupted()) {
                     Integer clientId = getClientId(discountCard);
                     boolean isPayment = isSocial(discountCard);
+                    int locked = 0;
+                    JSONObject infoJSON = getExtInfo(discountCard.extInfo);
+                    if(infoJSON != null) {
+                        locked = infoJSON.optInt("locked");
+
+                    }
                     if(params.pgsql) {
                         setObject(ps, discountCard.numberDiscountCard, 1); //DCARDID
                         setObject(ps, clientId, 2); //CLNTID
@@ -1499,7 +1505,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, discountCard.numberDiscountCard, 4); //DCARDNAME
                         setObject(ps, isPayment ? 1 : 0, 5); //ISPAYMENT
                         setObject(ps, 0, 6); //DELFLAG
-                        setObject(ps, 0, 7); //LOCKED
+                        setObject(ps, locked, 7); //LOCKED
                         if(updateNum != null)
                             setObject(ps, updateNum, 8);
                     } else {
@@ -1508,7 +1514,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, discountCard.numberDiscountCard, 3, offset); //DCARDNAME
                         setObject(ps, isPayment, 4, offset); //ISPAYMENT
                         setObject(ps, "0", 5, offset); //DELFLAG
-                        setObject(ps, 0, 6, offset); //LOCKED
+                        setObject(ps, locked, 6, offset); //LOCKED
 
                         if(updateNum != null)
                             setObject(ps, updateNum, 7, offset);
