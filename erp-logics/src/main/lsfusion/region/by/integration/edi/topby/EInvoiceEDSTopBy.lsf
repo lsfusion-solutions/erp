@@ -177,7 +177,7 @@ GROUP signInfo EXTID 'SignInfo';
 
 issuerSerial = DATA LOCAL STRING();
 subjectName = DATA LOCAL STRING();
-signDateTimeISO8601 = DATA LOCAL DATETIME ();
+signDateTimeISO8601 = DATA LOCAL STRING ();
 issuerName = DATA LOCAL STRING();
 serial = DATA LOCAL STRING();
 errorCode = DATA LOCAL INTEGER();
@@ -216,7 +216,7 @@ sign(FILE contentSubXML, STRING socket, BOOLEAN client) {
     IF errorCode() == 0 THEN {
         baseXml() <- insertSignature(baseXml(), '<SpecialPart><Signature><SecurityID>1</SecurityID><CertificateID>'+serial()
             +'</CertificateID><CertificateSubject>'+getCN(subjectName())+'</CertificateSubject><SecurityPartyID>'+issuerSerial()
-            +'</SecurityPartyID><SecurityPartyName>'+getCN(issuerName())+'</SecurityPartyName><SignatureDateTime>'+toChar(signDateTimeISO8601(),'YYYYMMDDHH24MISS')
+            +'</SecurityPartyID><SecurityPartyName>'+getCN(issuerName())+'</SecurityPartyName><SignatureDateTime>'+toChar(DATETIME(signDateTimeISO8601()),'YYYYMMDDHH24MISS')
             +'</SignatureDateTime><SignatureValue>'+replace(resultB64(),'\\/','/')+'</SignatureValue></Signature></SpecialPart>');
         IF NOT baseXml() THEN {
             signError() <- 'Не полная информация о подписи документа';

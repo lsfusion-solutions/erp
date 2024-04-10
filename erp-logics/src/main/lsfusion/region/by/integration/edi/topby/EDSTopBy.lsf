@@ -103,15 +103,15 @@ FORM listAliases 'Список ключей'
 DESIGN listAliases {
     width = 600;
 }
-notBeforeISO8601 'Действителен с' = DATA LOCAL DATETIME (INTEGER);
+notBeforeISO8601 'Действителен с' = DATA LOCAL STRING (INTEGER) CHARWIDTH 15;
 subjectName 'Владелец' = DATA LOCAL STRING(INTEGER) CHARWIDTH 50;
-notAfterISO8601 'Действителен до' = DATA LOCAL DATETIME(INTEGER);
+notAfterISO8601 'Действителен до' = DATA LOCAL STRING(INTEGER) CHARWIDTH 15;
 
 FORM certificates 'Список ключей'
     OBJECTS certificates = INTEGER EXTID 'Certificates'
     PROPERTIES(certificates) READONLY subjectName EXTID 'SubjectName', alias EXTID 'PubKeyID',
-        notBeforeISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime() EXTID 'NotBeforeISO8601', 
-        notAfterISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime()  EXTID 'NotAfterISO8601'
+        notBeforeISO8601 BACKGROUND RGB(255,124,124) IF DATETIME(notBeforeISO8601(certificates)) > currentDateTime() OR DATETIME(notAfterISO8601(certificates)) < currentDateTime() EXTID 'NotBeforeISO8601', 
+        notAfterISO8601 BACKGROUND RGB(255,124,124) IF DATETIME(notBeforeISO8601(certificates)) > currentDateTime() OR DATETIME(notAfterISO8601(certificates)) < currentDateTime()  EXTID 'NotAfterISO8601'
     FILTERS imported(certificates);
 
 
@@ -150,6 +150,9 @@ listAliases 'Получить список ключей' (EDSService s) {
 
         IF statusHttp() == 200 THEN {
             IMPORT certificates JSON FROM sendRequestEDIResponse();
+            subjectName(INTEGER r) <- getCN(subjectName(r));
+            notBeforeISO8601(INTEGER r) <- STRING(DATETIME(notBeforeISO8601(r)));
+            notAfterISO8601(INTEGER r) <- STRING(DATETIME(notAfterISO8601(r)));
             subjectName(INTEGER r) <- getCN(subjectName(r));
             DIALOG certificates OBJECTS certificates INPUT DO {
                 selected() <- certificates;
