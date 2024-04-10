@@ -27,10 +27,10 @@ eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDe
 numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
 
 overPrevList = ABSTRACT NUMERIC[16,4] (EInvoiceDetail);
-prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), lineItemPrice(eInvoiceDetail(d)));
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), NUMERIC[16,4](lineItemPrice(eInvoiceDetail(d))));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
-filterDate (EInvoice i) = DATE(deliveryNoteDateTime(i)) == filterDate() OR NOT filterDate();      
+filterDate (EInvoice i) = deliveryNoteDate(i) == filterDate() OR NOT filterDate();      
 
 filterSupplier = DATA LOCAL LegalEntity ();
 overFilterSupplier = ABSTRACT LegalEntity(EInvoice);
@@ -79,8 +79,8 @@ copyData(EInvoice ei, Invoice i)  {
     supplierStock(i) <- OVERRIDE supplierStock(ei), defaultStock(supplier(ei));
     customer(i) <- customer(ei);
     customerStock(i) <- customerStock(ei);
-    date(i) <- DATE(deliveryNoteDateTime(ei));
-    time(i) <- TIME(deliveryNoteDateTime(ei));
+    date(i) <- deliveryNoteDate(ei);
+    time(i) <- 00:00;
     overCopy(ei,i);
     
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) NEW id = UserInvoiceDetail DO {
@@ -122,7 +122,7 @@ importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
 }
 
 createInvoice 'Создать на основе накладных EDI' (DATE d) {
-    FOR DATE(deliveryNoteDateTime(EInvoice ei)) == d AND NOT invoice(ei) DO {
+    FOR deliveryNoteDate(EInvoice ei) == d AND NOT invoice(ei) DO {
         NEWSESSION NEW i = UserInvoice {
             copyData(ei, i);
             IF [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i]() == [GROUP SUM 1 IF invoice(UserInvoiceDetail id) == i AND prevPriceB(priceListType('own'), sku(id), customerStock(id), dateTime(id))]() THEN {

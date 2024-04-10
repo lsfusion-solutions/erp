@@ -37,7 +37,7 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
                 Consignment.invoice(ei) <- invoice;
                 numberSupplier(ei) <- number(invoice);
                 dateSupplier(ei) <- dateTime[Invoice.Invoice](invoice);
-                deliveryNoteDateTime(ei) <- dateTime[Invoice.Invoice](invoice);
+                deliveryNoteDate(ei) <- date[Invoice.Invoice](invoice);
                 supplier(ei) <- supplier(invoice);
                 supplierStock(ei) <- supplierStock(invoice);
                 customer(ei) <- customer(invoice);
@@ -70,7 +70,7 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
                                             (IF isTN2(invoice(invoiceDetail(batch(detail)))) THEN 2 ELSE IF invoice(invoiceDetail(batch(detail))) THEN 1),
                                             3);
                     deliveryNotePrev(ed) <- OVERRIDE deliveryNoteNumber(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))), seriesNumber(invoice(invoiceDetail(batch(detail))));
-                    deliveryNoteDatePrev(ed) <- OVERRIDE deliveryNoteDateTime(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))), dateTime(invoice(invoiceDetail(batch(detail))));
+                    deliveryNoteDatePrev(ed) <- OVERRIDE DATETIME(deliveryNoteDate(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail)))))), dateTime(invoice(invoiceDetail(batch(detail))));
                     deliveryNotePrevLineID(ed) <- OVERRIDE numberEInvoiceDetail(invoiceDetail(batch(detail))), index(invoiceDetail(batch(detail)));
                     quantityDespatchedSPT(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail));
                     lineItemPriceSPT(ed) <- OVERRIDE lineItemPriceSPT(eInvoiceDetail(invoiceDetail(batch(detail)))), NUMERIC[12,2](price(detail));
@@ -124,7 +124,7 @@ FORM exportBlrspt FORMEXTID 'BLRSPT'
         creationDateTime = toChar(exportBlrsptDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
         functionCode = (IF isCancel(ein) THEN '1' ELSE '9') EXTID 'FunctionCode',
         deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-        deliveryNoteDateTime = toChar(deliveryNoteDateTime(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
+        deliveryNoteDateTime = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate',
         contractName(ein) EXTID 'ContractName',
         contractId(ein) EXTID 'ContractID',
         contractDate = toChar(contractDate(ein),'YYYYMMDD') EXTID 'ContractDate',

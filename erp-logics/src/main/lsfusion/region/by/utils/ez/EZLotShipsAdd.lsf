@@ -23,7 +23,7 @@ count(EInvoice ei) = GROUP SUM 1 IF eInvoice(eInvoiceDetail(EInvoiceLotDetail el
 comment(EInvoice ei) = '' IF ei IS EInvoice;
 country(EInvoice ei) = sid(country(customer(ei)));
 price(EInvoice ei) =  GROUP SUM lineItemPrice(eInvoiceDetail(EInvoiceLotDetail eld)) IF eInvoice(eInvoiceDetail(eld)) == ei;
-operation_date(EInvoice ei) = toChar(deliveryNoteDateTime(ei), 'YYYY-MM-DD');
+operation_date(EInvoice ei) = toChar(deliveryNoteDate(ei), 'YYYY-MM-DD');
 
 // byn933 
 currencyCode = DATA LOCAL NESTED STRING (INTEGER);
@@ -163,7 +163,7 @@ shipsAdd (EInvoice ei) {
 }
 
 shipsAdd (DATE dFrom) {    
-    FOR DATE(deliveryNoteDateTime(EInvoice ei)) >= dFrom AND existNotSentLotDetail(ei) AND
+    FOR deliveryNoteDate(EInvoice ei) >= dFrom AND existNotSentLotDetail(ei) AND
         (code(currentOrderMessage(ei)) == '2550' OR code(currentOrderMessage(ei)) == '2650') DO {
         shipsAdd(ei);
     }

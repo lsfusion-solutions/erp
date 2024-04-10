@@ -27,7 +27,7 @@ numberEInvoiceDetail 'Строка ЭТТН' (InvoiceDetail d) = lineItemNumber(
 //prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN lineItemPrice(eInvoiceDetail(d));
 
 filterDate 'Дата' = DATA LOCAL DATE ();
-filterDate (EInvoice i) = DATE(deliveryNoteDateTime(i)) == filterDate() OR NOT filterDate();      
+filterDate (EInvoice i) = deliveryNoteDate(i) == filterDate() OR NOT filterDate();      
 
 filterSupplier = DATA LOCAL LegalEntity ();
 filterSupplier (EInvoice i) = supplier(i)= filterSupplier() OR (i IS EInvoice AND NOT filterSupplier()) OR NOT supplier(i);
@@ -74,8 +74,8 @@ copyData(EInvoice ei, Invoice i)  {
     supplierStock(i) <- customerStock(ei);
     customer(i) <- supplier(ei);
     customerStock(i) <- supplierStock(ei);
-    date(i) <- DATE(deliveryNoteDateTime(ei));
-    time(i) <- TIME(deliveryNoteDateTime(ei));
+    date(i) <- deliveryNoteDate(ei);
+    time(i) <- 00:00;
     overCopy(ei,i);
     
     FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) NEW id = UserInvoiceDetail DO {

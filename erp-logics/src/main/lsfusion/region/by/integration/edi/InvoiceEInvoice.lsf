@@ -5,11 +5,11 @@ REQUIRE Invoice, CustomerEInvoice;
 NAMESPACE EDI;
 
 invoice = DATA Invoice(EInvoice);
-INDEX invoice(EInvoice i), deliveryNoteDateTime(i), i;
-eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDateTime(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
+INDEX invoice(EInvoice i), deliveryNoteDate(i), i;
+eInvoice = GROUP LAST EInvoice ei IF NOT isCancel(ei) ORDER deliveryNoteDate(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
 numberInvoice 'Номер накладной EDI (приход)' (EInvoice i) = number(invoice(i));
 
-eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER deliveryNoteDateTime(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
+eInvoiceAll = GROUP LAST EInvoice ei AS EInvoice IF ei IS EInvoice ORDER deliveryNoteDate(ei), ei BY invoice(ei) MATERIALIZED INDEXED;
 
 numberEInvoice 'Серия и номер'(Invoice i) = deliveryNoteNumber(eInvoice(i));
 
@@ -43,6 +43,6 @@ WHEN SETCHANGED (receiver(Invoice i)) OR SETCHANGED (eInvoice(i)) DO
 
 isReceived 'Принят' (EInvoice e) = isPosted(invoice(e));
 EXTEND FORM eInvoices
-    PROPERTIES (e) READONLY isReceived BEFORE deliveryNoteDateTime(e)
+    PROPERTIES (e) READONLY isReceived BEFORE deliveryNoteDate(e)
     FILTERGROUP isReceived FILTER 'Принятые' isReceived(e) 
 ;
