@@ -4,7 +4,6 @@ REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile;
 
 NAMESPACE Label;
 
-
 CLASS StickerTransaction 'Печать этикеток';
 TABLE stickerTransaction(StickerTransaction);
 
@@ -111,3 +110,17 @@ NAVIGATOR {
 
 printLabelType = DATA PrintLabelType (NetworkPrinter);
 namePrintLabelType 'Тип этикеток' (NetworkPrinter p) = namePrint(printLabelType(p));
+
+countPrinters = GROUP SUM 1 IF in(NetworkPrinter p, currentUser()) BY stock(p), printLabelType(p);
+currentPrinter = GROUP MIN NetworkPrinter p IF in(p, currentUser()) BY stock(p), printLabelType(p);
+
+FORM networkPrintersLabel 'Выбор принтера'
+    OBJECTS s = Stock PANEL
+    OBJECTS l = PrintLabelType PANEL
+
+    OBJECTS p = NetworkPrinter
+    PROPERTIES (p) READONLY name, path, nameNetworkPrinterType
+    FILTERS s == stock(p),
+        l = printLabelType(p),
+        in(p, currentUser())
+;
