@@ -87,7 +87,8 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         if(!skipScalesInfo) {
             addPluginPropertyElement(good, "plu-number", removeZeroes(item.idBarcode));
             if (item.expiryDate != null) {
-                addPluginPropertyElement(good, "composition", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
+//                addPluginPropertyElement(good, "composition", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
+                addPluginPropertyElement(good, "best-before", formatDate(item.expiryDate, "yyyy-MM-dd"));
             }
         }
 
