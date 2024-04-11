@@ -4,11 +4,14 @@ REQUIRE OrderLedger, PriceList, ItemFashionTextile, StockArticle, BinPacketLedge
 
 NAMESPACE Stock;
 
-prevPriceWholesaleA 'Цена оптовая, руб.'(Sku s, Stock st) = prevPriceA(dataPriceListType('wholesale_BYN'), s, st,currentDateTime());
-sumWholesaleA 'Сумма остатка оптовая, руб.'(Sku s, Stock st) = prevPriceWholesaleA(s, st) * currentBalance(s, st);
+currentQuantityPacketStock 'Текущий остаток (по пакетам)' = GROUP SUM currentQuantity(Sku sku, Packet p) BY sku, stock(currentBin(p)) MATERIALIZED;
 
-prevPriceWholesaleB 'Цена оптовая, руб.'(Sku s, Stock st, DATETIME t) = prevPriceB(dataPriceListType('wholesale_BYN'), s, st, t);
-sumWholesaleB 'Сумма остатка оптовая, руб.'(Sku s, Stock st, DATETIME t) = prevPriceWholesaleB(s, st, t) * balanceB(s, st, t);
+checkCurrentQuantityPacket 'Проверять совпадение Текущего остатка по пакетам' = DATA BOOLEAN (Stock);
+EXTEND FORM options PROPERTIES checkCurrentQuantityPacket(s);
+
+CONSTRAINT SET ((currentQuantityPacketStock(Sku sk, Stock st) OR currentBalance(sk, st)) AND NOT currentQuantityPacketStock(sk, st) == currentBalance(sk, st))
+    AND checkCurrentQuantityPacket(st)
+    MESSAGE 'Текущий остаток товара не совпадает с текущим остатком по пакетам';
 
 currentReserve 'Текущий резерв' (article, Stock stock) = GROUP SUM currentReserve(Item sku, stock) BY article(sku);
 prevCurrentReserve 'Текущий резерв' (article, Stock stock) = GROUP SUM prevCurrentReserve(Item sku, stock) BY article(sku);
@@ -120,7 +123,6 @@ FORM currentBalanceArticleStock 'Текущие остатки по моделя
     PROPERTIES READONLY prevCurrentBalance(i, st) BACKGROUND backgroundCurrentBalance(),
         prevCurrentReserve(i, st) BACKGROUND backgroundCurrentReserve(),
         prevAvailableQuantity(i, st) BACKGROUND backgroundAvailableQuantity()
-    PROPERTIES(i, st) READONLY prevPriceWholesaleA, sumWholesaleA
     FILTERS article(i) == a
 
     FILTERGROUP filterI
@@ -252,7 +254,6 @@ FORM balanceArticleStock 'Остатки по моделям на дату'
     PROPERTIES(i) READONLY name, idBarcode, nameSize, nameSort, nameColor
     PROPERTIES READONLY balanceB(i, st, t) BACKGROUND backgroundCurrentBalance(), reserveA(i, st, t) BACKGROUND backgroundCurrentReserve(),
         prevAvailableQuantity(i,st,t) BACKGROUND backgroundAvailableQuantity()
-    PROPERTIES(i, st, t) READONLY prevPriceWholesaleB, sumWholesaleB
     FILTERS article(i) == a
 
     FILTERGROUP filterI
