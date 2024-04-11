@@ -124,3 +124,29 @@ FORM networkPrintersLabel 'Выбор принтера'
         l = printLabelType(p),
         in(p, currentUser())
 ;
+
+fillFormattedTextData ABSTRACT (StickerTransaction);
+sendToPrinter ABSTRACT (StickerTransaction);
+
+customPrint (StickerTransaction stickerTrans) {
+    fullFormattedText() <- NULL;
+    formattedText() <- text(stickerTrans);
+
+    fillFormattedTextData(stickerTrans);
+
+    fullFormattedText() <- formattedText();
+    printText(stickerTrans) <- formattedText();
+
+    printed() <- NULL;
+
+    sendToPrinter(stickerTrans);
+
+    IF NOT printed() THEN {
+        DELETE stickerTrans;
+    }
+}
+
+print 'Печать этикеток'(StickerTransaction t)  {
+    IF textTemplate(labelType(t)) THEN
+        customPrint(t);
+}
