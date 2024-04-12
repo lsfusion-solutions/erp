@@ -9,7 +9,10 @@ GROUP humidity 'Влажность' : base;
 showHumidity 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
 
 percentHumidity 'Влажность, %' = DATA NUMERIC[8,2] (Product) IN itemHumidity;
-percentDryness 'Массовая доля сухих веществ, %' (Product p) = 100 - (OVERRIDE percentHumidity(p), 0 IF p IS Product) IN itemHumidity; 
+
+dataPercentDryness = DATA NUMERIC[12,2] (Product);
+percentDryness 'Массовая доля сухих веществ, %' (Product p) = OVERRIDE dataPercentDryness(p),
+    (100 - (OVERRIDE percentHumidity(p), 0 IF p IS Product)) IN itemHumidity; 
 percentHumidityItem 'Влажность, % (товар)' (Product p) = percentHumidity(sku(p));
 percentDrynessItem 'Массовая доля сухих веществ, % (товар)' (Product p) = percentDryness(sku(p));
 
@@ -169,7 +172,10 @@ energyGramsQuantity 'Энергетическая ценность в рецеп
 //-- по всему изделию
 netGramsQuantity  'Кол-во на 100 гр. изделия в натуре всего' (Product p,DATE d) = GROUP SUM netGramsQuantity(p,Sku sku,d);
 netGramsDrynessQuantity  'Кол-во на 100 гр. изделия в сухих веществах всего' (Product p,DATE d) = GROUP SUM netGramsDrynessQuantity(p,Item sku,d);
-gramsQuantityComponents 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (Product p)= drynessQuantityComponents(BOM(p))/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10;
+
+overGramsQuantityComponents = ABSTRACT NUMERIC[80,32] (Product);
+gramsQuantityComponents 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (Product p)= OVERRIDE
+    overGramsQuantityComponents(p), (drynessQuantityComponents(BOM(p))/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10);
 
 coeffGramsDrynessQuantity 'Коэффициент' (Product p,DATE d) = gramsQuantityComponents(p)/netGramsDrynessQuantity(p,d);
 
@@ -240,6 +246,7 @@ WHEN LOCAL FORMS BOM CHANGED(percentHumidity(Product p))  AND fillHumidityItem()
 }
 
 overFillNutrition ABSTRACT LIST (Product);
+customFillNutrition ABSTRACT LIST (BOM);
 isFillNutrition = ABSTRACT BOOLEAN (Product);
 
 netGramsQuantity = DATA LOCAL NUMERIC[16,5](Item);          
@@ -284,7 +291,8 @@ fillNutrition 'Рассчитать ценность' (BOM BOM)  {
         }
         IF showHumidity(BOM) THEN {
             percentHumidity(p) <-  NUMERIC[8,2](round2(gramsQuantityComponents(p)));    
-        } 
+        }
+        customFillNutrition(BOM);
     }
 } TOOLBAR;    
 
