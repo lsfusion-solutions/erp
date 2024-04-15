@@ -1,0 +1,115 @@
+MODULE SaleInvoiceTextile;
+
+REQUIRE SaleOperationTextile, SaleInvoice, BinPacketLedger, PurchaseShipmentTextile, PickingTextile;
+
+NAMESPACE Sale;
+
+
+@defineDocumentHeaderProperty (userInvoice, packets, 'Пакеты');
+
+packets 'Пакеты' = ABSTRACT BOOLEAN (Invoice);
+packets(UserInvoice i) += packets(i);
+
+@deriveDocumentOperationProperty(UserInvoice, packets);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) READONLY packets
+;
+
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW headerPackets {
+            caption = 'Пакеты';
+            MOVE PROPERTY(packets(i));
+        }
+    }
+}
+
+CLASS UserInvoicePacketDetail 'Строка накладной (пакеты, продажа)' : BinPacketLedger;
+TABLE userInvoicePacketDetail (UserInvoicePacketDetail);
+
+userInvoice = DATA UserInvoice (UserInvoicePacketDetail) NONULL DELETE INDEXED;
+
+number 'Номер'(UserInvoicePacketDetail d) = number(userInvoice(d));
+dateTime 'Дата/время' (UserInvoicePacketDetail d) = dateTime(userInvoice(d));
+
+ledgerDateTime 'Дата/время' (UserInvoicePacketDetail d) = OVERRIDE postedTime(userInvoice(d)), dateTime(d);
+date 'Дата' (UserInvoicePacketDetail d) = toDate(ledgerDateTime(d)) MATERIALIZED INDEXED;
+
+isPosted 'Проведен'(UserInvoicePacketDetail d) = isPosted(userInvoice(d)) MATERIALIZED;
+
+operation (UserInvoicePacketDetail d) = operation(userInvoice(d));
+supplierStock (UserInvoicePacketDetail d) = supplierStock(userInvoice(d));
+customerStock (UserInvoicePacketDetail d) = customerStock(userInvoice(d));
+
+packet = DATA Packet (UserInvoicePacketDetail) INDEXED ;
+bin = DATA Bin (UserInvoicePacketDetail);
+
+packetSkuList 'Товары в пакете'(UserInvoicePacketDetail d) = skuListA(packet(d), dateTime(d));
+
+countPacketsUserInvoice 'Кол-во пакетов' = GROUP SUM 1 BY userInvoice(UserInvoicePacketDetail d) MATERIALIZED;
+
+@defineDocumentDetailIndex(userInvoice, UserInvoicePacketDetail);
+
+useBinInLedger = ABSTRACT BOOLEAN (UserInvoicePacketDetail);
+
+// по BinPacketLedger
+dateTime (UserInvoicePacketDetail ledger) += ledgerDateTime(ledger);
+packet (UserInvoicePacketDetail ledger) += packet(ledger);
+bin (UserInvoicePacketDetail ledger) += bin(ledger) IF useBinInLedger(ledger);
+isPosted (UserInvoicePacketDetail ledger) += isPosted(ledger);
+numberDocument(UserInvoicePacketDetail ledger) += number(ledger);
+seriesDocument(UserInvoicePacketDetail ledger) += series(userInvoice(ledger));
+description(UserInvoicePacketDetail ledger) += 'Накладная (продажа) № ' +  seriesNumber(userInvoice(ledger)) + ' (' + STRING[50](nameCustomer(userInvoice(ledger))) + '), строка № ' + index(ledger);
+createdUser(UserInvoicePacketDetail ledger) += createdUser(userInvoice(ledger));
+
+nameStock 'Цех комплектации' (UserInvoicePacketDetail d) = nameStock(packet(d));
+dateProduction 'Дата производства' (UserInvoicePacketDetail d) = dateProduction(packet(d));
+
+CONSTRAINT (SETCHANGED (packet(UserInvoicePacketDetail d)) OR CHANGED(isPosted(d))) AND
+    ((isPosted(d) AND countBinPacketLedgerNotPosted(packet(d))) OR (NOT isPosted(d) AND countBinPacketLedgerNotPosted(packet(d)) > 1))
+    CHECKED BY packet
+    MESSAGE 'Пакет есть в другом непроведённом документе';
+
+backgroundPacketSkuList = ABSTRACT COLOR (UserInvoicePacketDetail);
+
+EXTEND FORM userInvoice
+    OBJECTS bd = UserInvoicePacketDetail
+    PROPERTIES (bd) SHOWIF packets(i) READONLY index, idPacket, nameStock, dateProduction, packetSkuList BACKGROUND backgroundPacketSkuList(bd)
+    PROPERTIES (bd) SHOWIF packets(i) DELETE GRID
+    ORDERS index(bd)
+    FILTERS userInvoice(bd) == i
+;
+
+EXTEND FORM invoices
+    OBJECTS bd = UserInvoicePacketDetail
+    PROPERTIES (bd) SHOWIF packets(i) READONLY index, idPacket, nameStock, dateProduction, packetSkuList
+    ORDERS index(bd)
+    FILTERS userInvoice(bd) == i
+;
+
+DESIGN invoices {
+    documentDetail {
+        MOVE BOX(bd) AFTER BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(bd)){focusable = TRUE;}
+        }
+    }
+}
+
+@defineConstraintDoublePacketDetail(userInvoice, 'Запрещено добавлять пакет в накладную несколько раз');
+
+@defineConstraintEmptyPacketDetail(userInvoice);
+
+updateUserInvoiceDetails 'Обновить спецификацию из пакетов' ABSTRACT (UserInvoice);
+showUpdateUserInvoiceDetails = ABSTRACT BOOLEAN (UserInvoice);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) SHOWIF showUpdateUserInvoiceDetails(i) updateUserInvoiceDetails DRAW d TOOLBAR
+;
+
+CONSTRAINT DROPPED (isPosted(Purchase.UserShipmentPacketDetail d)) AND dateTime([ GROUP MAX UserInvoicePacketDetail ud BY packet(ud)](PREV(packet(d)))) > PREV(dateTime(d))
+    MESSAGE 'Пакет из перемещения добавлен в накладную (продажа)';
+
+CONSTRAINT DROPPED (UserPickingPacketDetail pd IS UserPickingPacketDetail) AND dateTime([ GROUP MAX UserInvoicePacketDetail d BY packet(d)](PREV(packet(pd)))) > PREV(dateTime(pd))
+    MESSAGE 'Пакет из комплектации добавлен в накладную (продажа)';  
