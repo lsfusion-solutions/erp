@@ -26,8 +26,10 @@ setComplianceGroup 'Заполнить группы сертификации'(Us
    }
 } TOOLBAR;
 
+skipCheckComplianceGroup = ABSTRACT BOOLEAN ();
+
 CONSTRAINT complianceGroup(UserInvoiceDetail detail) AND countComplianceGroup(dataCompliance(detail))
-           AND NOT in(complianceGroup(detail), dataCompliance(detail))
+           AND NOT in(complianceGroup(detail), dataCompliance(detail)) AND NOT skipCheckComplianceGroup()
     CHECKED BY dataCompliance[UserInvoiceDetail] MESSAGE 'Сертификат должен соответствовать группе сертификации';
 
 // сертификаты для групп сертификаций по всему инвойсу
@@ -38,11 +40,11 @@ descriptionCompliance 'Сертификат' (UserInvoice invoice, ComplianceGro
 nameComplianceTypeCompliance 'Тип сертификата' (UserInvoice invoice, ComplianceGroup complianceGroup) = nameComplianceType(compliance(invoice, complianceGroup));
 
 CONSTRAINT countComplianceGroup(compliance(UserInvoice invoice, ComplianceGroup group))
-           AND NOT in(group, compliance(invoice, group))
+           AND NOT in(group, compliance(invoice, group)) AND NOT skipCheckComplianceGroup()
     CHECKED BY compliance[UserInvoice,ComplianceGroup] MESSAGE 'Сертификат должен соответствовать группе сертификации';
 
 CONSTRAINT SETCHANGED(compliance(UserInvoice invoice, ComplianceGroup group))
-    AND NOT in(group, compliance(invoice, group))
+    AND NOT in(group, compliance(invoice, group)) AND NOT skipCheckComplianceGroup()
     CHECKED BY compliance[UserInvoice, ComplianceGroup] 
     MESSAGE 'Сертификат должен соответствовать группе сертификации';
 
