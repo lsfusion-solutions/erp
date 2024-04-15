@@ -350,7 +350,7 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         IF NOT lineItemID(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'GTIN товара\'\n';
                         IF NOT length(lineItemSign(d)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
                         IF NOT grossWeightValue(d) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Масса груза\'\n';
-                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Единица измерения количества товара\'\n';
                         IF NOT despatchUnitQuantityDespatched(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Количество в грузовых местах\'\n';
                         IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
                     }
@@ -359,7 +359,11 @@ signAndSendSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                         LOCAL contentSubXML = FILE();
                         exportBlrwblDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrwblDateTime());
-                        EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
+                        IF isNewFormat(ei) THEN {
+                            EXPORT exportBlrwblNew OBJECTS ei = ei XML TO contentSubXML;
+                        } ELSE {
+                            EXPORT exportBlrwbl OBJECTS ei = ei XML TO contentSubXML;
+                        }
                         
                         name() <- 'blrwbl-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrwblDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         documentType() <- 'BLRWBL';
@@ -460,7 +464,7 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
                     IF NOT length(currency(ei)) > 0 THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
                     FOR eInvoice(EInvoiceDetail d) == ei DO {
                         IF NOT length(lineItemSign(d)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
-                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Единица измерения количества товара\'\n';
                         IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
                     }
                     

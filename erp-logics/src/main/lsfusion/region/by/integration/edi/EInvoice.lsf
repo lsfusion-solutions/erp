@@ -140,6 +140,8 @@ isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
 
 isTestDocument 'Тестовый документ' = DATA BOOLEAN (EInvoice);
 
+isNewFormat 'Новый формат(2024)' = DATA BOOLEAN (EInvoice);
+
 CLASS ExtraField 'Дополнительное поле';
 TABLE extraField(ExtraField);
 
@@ -182,7 +184,9 @@ changeReplaceNumber (EInvoice e) {
 
 CLASS EInvoiceDetail 'Строка электронной накладной EDI';
 TABLE eInvoiceDetail(EInvoiceDetail);
+TABLE eInvoiceDetailPriceControl(EInvoiceDetail);
 TABLE sessionEInvoiceDetail(Session, EInvoiceDetail);
+
 @defineExternalizable(eInvoiceDetail, STRING[100]);
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
@@ -204,16 +208,14 @@ deliveryNotePrev 'Номер приходного документа' = DATA STR
 deliveryNoteDatePrev 'Дата и время создания приходного документа' = DATA DATETIME (EInvoiceDetail);
 deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (EInvoiceDetail);
 
-lineItemSupplierID 'Код товара в ERP системе поставщика (грузоотправителя)'= DATA STRING[100] (EInvoiceDetail);
+lineItemSupplierID 'Код товара, присвоенный поставщиком'= DATA STRING[100] (EInvoiceDetail);
 lineItemName 'Наименование товара' = DATA STRING[500] (EInvoiceDetail) IN id;
 grossWeightValue 'Масса груза, тонн' = DATA NUMERIC[12,6] (EInvoiceDetail);
-lineItemQuantityUOM 'Код единицы измерения' = DATA STRING[3] (EInvoiceDetail);
-despatchUnitQuantityDespatched 'Количество в грузовых местах' = DATA NUMERIC[12,5] (EInvoiceDetail);
-additionalInformation 'Примечание, дополнительная информация о товаре' = DATA STRING[512] (EInvoiceDetail);
-lineItemAmountExcise 'Сумма акциза' = DATA NUMERIC[12,5] (EInvoiceDetail);
-
 quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);
-manufactureDate 'Дата изготовления' = DATA DATE (EInvoiceDetail);
+lineItemQuantityUOM 'Код единицы измерения' = DATA STRING[3] (EInvoiceDetail);
+mapToNewUOM(STRING[3] s) = IF s == 'PCE' THEN 'H87' ELSE s; 
+despatchUnitQuantityDespatched 'Количество в грузовых местах' = DATA NUMERIC[12,5] (EInvoiceDetail);
+countryOfOrigin 'Страна происхождения (производства)' = DATA DATE (EInvoiceDetail);
 expiryDate 'Годен до' = DATA DATE (EInvoiceDetail);
 
 quantityDespatchedSPT 'Количество в единицах прослеживаемости' = DATA NUMERIC[12,5] (EInvoiceDetail);
@@ -224,17 +226,42 @@ changeValueVAT(EInvoiceDetail ed) {
     INPUT n = NUMERIC[6,2] DO
         valueVAT(ed) <- STRING[7](n);
 }
+additionalInformation 'Примечание, дополнительная информация о товаре' = DATA STRING[512] (EInvoiceDetail);
 
+lineItemPartyNumber 'Номер партии' = DATA STRING[50](EInvoiceDetail);
+manufactureDate 'Дата изготовления' = DATA DATE (EInvoiceDetail);
+
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
+lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
+lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
 lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
 lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC[12,2] (EInvoiceDetail);
-lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
-lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
-lineItemAmount 'Стоимость товарной позиции с НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
-lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[18,2] (EInvoiceDetail);
+lineItemAmountExcise 'Сумма акциза' = DATA NUMERIC[12,5] (EInvoiceDetail);
 
+lineItemManufacturerOutputPrice 'Отпускная цена производителя(импортера)' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+typeDiscount 'Вид скидки' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+bulkDiscountRate 'Оптовая скидка, %' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+outputPriceIncludingShippingCoast 'Условия доставки товара' = DATA STRING[80](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+outputPriceShippingCoast 'Сумма расходов по доставке товаров' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+outputPricePackingCoast 'Сумма расходов по фасовке товаров' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+bulkMarginRate 'Оптовая надбавка в белорусских рублях или процентах' = DATA STRING[70](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+cutRate 'Сниженная цена субъекта торговли, осуществляющего оптовую торговлю' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+additionalInformationPrice 'Иные сведения, необходимые для установления цены' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+additionalInformationNote 'Примечание' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+
+lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
+
+//устаревшее
 upperLevelCodeMark 'Код упаковки верхнего уровня' = DATA STRING[300] (EInvoiceDetail, INTEGER);
 groupPackingCodeMark 'Код упаковки, которая вложена в упаковку верхнего уровня' = DATA STRING[130] (EInvoiceDetail, INTEGER);
 fieldCodeMark 'Перечень кодов маркировки' = DATA STRING[130000] (EInvoiceDetail) CHARWIDTH 100;
+///
+
+CLASS ItemIdentification 'Информация о средствах идентификации';
+TABLE itemIdentification(ItemIdentification);
+
+eInvoiceDetail = DATA EInvoiceDetail(ItemIdentification) NONULL DELETE INDEXED;
+
 
 CLASS ItemExtraField 'Дополнительное поле, описывающее товар';
 TABLE itemExtraField(ItemExtraField);
@@ -336,7 +363,7 @@ FORM eInvoices 'Электронные накладные EDI'
     PROPERTIES(d) READONLY lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
         lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
         grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
-        fieldCodeMark
+        fieldCodeMark, lineItemPartyNumber, countryOfOrigin 
 
     FILTERS eInvoice(d) == e
 
@@ -400,7 +427,7 @@ FORM eInvoice 'Электронная накладная EDI'
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount,
         lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
-        fieldCodeMark
+        fieldCodeMark, lineItemPartyNumber, countryOfOrigin
     FILTERS eInvoice(ed) == e
     
     OBJECTS ef = ExtraField
