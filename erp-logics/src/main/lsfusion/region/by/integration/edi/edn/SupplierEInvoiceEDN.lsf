@@ -368,7 +368,11 @@ signAndSendSupplierEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
                     exportBlrdlnDateTime() <- currentDateTimeMillis();
                     toMilliseconds(exportBlrdlnDateTime());
                     hideMessageHeaderBlrdln() <- TRUE;
-                    EXPORT exportBlrdln OBJECTS ei = ei XML TO contentSubXML;
+                    IF isNewFormat(ei) THEN {
+                        EXPORT exportBlrdlnNew OBJECTS ei = ei XML TO contentSubXML;
+                    } ELSE {
+                        EXPORT exportBlrdln OBJECTS ei = ei XML TO contentSubXML;
+                    }
                     LOCAL filePath = STRING();
                     IF outputDirEDN() THEN {
                         filePath() <- OVERRIDE overInvoiceOutputDirEDN(ei),outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd');  
