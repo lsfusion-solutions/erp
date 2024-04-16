@@ -537,6 +537,11 @@ actDifNumber 'Номер акта приемки' = DATA STRING[35] (ECreditNote
 eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
 actDifDate 'Дата акта приемки' = DATA DATE (ECreditNote);
 
+isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
+
+eInvoice = DATA EInvoice(ECreditNote) INDEXED;
+eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY eInvoice(ec) MATERIALIZED INDEXED;
+
 deliveryNoteNumber 'Серия и номер накладной, к которой относится акт' = DATA STRING[70] (ECreditNote) IN id;
 eCreditNoteDeliveryNoteNumber (number) = GROUP NAGGR ECreditNote e BY deliveryNoteNumber(e);
 deliveryNoteDate 'Дата накладной в формате ГГГГММДД, к которой относится акт приемки' = DATA DATE (ECreditNote);
@@ -560,10 +565,6 @@ nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(custo
 addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
 
 currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (ECreditNote);
-
-isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
-isCancelNumber (ECreditNote c) = IF isCancel(c) THEN 1 ELSE 0;
-eCreditNoteActDifNumberIsCancel (number, isCancel) = GROUP NAGGR ECreditNote c BY actDifNumber(c), isCancelNumber(c);
 
 CLASS ECreditNoteDetail 'Строка электронного акта приемки';
 TABLE eCreditNoteDetail(ECreditNoteDetail);

@@ -461,7 +461,8 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
 
     OBJECTS eih = EInvoice EXTID 'MessageHeader'
     FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbr()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih messageId = resultMilliseconds() EXTID 'MessageID',
+    PROPERTIES DRAW eih 
+        messageId = resultMilliseconds() EXTID 'MessageID',
         msgDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
         messageType = 'BLRWBR' EXTID 'MessageType',
         glnCustomer(eih) EXTID 'MsgSenderID',
@@ -471,29 +472,35 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
 
     OBJECTS ein = EInvoice EXTID 'DeliveryNote'
     FILTERS ein == ei
-    PROPERTIES DRAW ein deliveryNoteType = '700' EXTID 'DeliveryNoteType',
+    PROPERTIES DRAW ein 
+        deliveryNoteType = '700' EXTID 'DeliveryNoteType',
         documentID = resultMilliseconds() EXTID 'DocumentID',
         creationDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        functionCode = '11' EXTID 'FunctionCode',
+        functionCode = IF eCreditNote(ei) THEN '31' ELSE '11' EXTID 'FunctionCode',
         referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
         date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
         deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
         deliveryNoteDateTime = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ein IN report reportId(ein) EXTID 'ReportID',
+    PROPERTIES DRAW ein IN report 
+        reportId(ein) EXTID 'ReportID',
         reportDate = toChar(reportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
         reportName(ein) EXTID 'ReportName'
-    PROPERTIES DRAW ein IN shipper glnSupplier(ein) EXTID 'GLN',
+    PROPERTIES DRAW ein IN shipper 
+        glnSupplier(ein) EXTID 'GLN',
         nameSupplier(ein) EXTID 'Name',
         addressSupplier(ein) EXTID 'Address',
         unpSupplier(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN receiver glnCustomer(ein) EXTID 'GLN',
+    PROPERTIES DRAW ein IN receiver 
+        glnCustomer(ein) EXTID 'GLN',
         nameCustomer(ein) EXTID 'Name',
         addressCustomer(ein) EXTID 'Address',
         unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipTo glnCustomerStock(ein) EXTID 'GLN',
+    PROPERTIES DRAW ein IN shipTo 
+        glnCustomerStock(ein) EXTID 'GLN',
         addressCustomerStock(ein) EXTID 'Address',
         contactCustomerStock(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein sealIDReceiver(ein) EXTID 'SealIDReceiver'
+    PROPERTIES DRAW ein 
+        sealIDReceiver(ein) EXTID 'SealIDReceiver'
 ;
 
 exportBlrdnrDateTime = DATA LOCAL NESTED DATETIME();
