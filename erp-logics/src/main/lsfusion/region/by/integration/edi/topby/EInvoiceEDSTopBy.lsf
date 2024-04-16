@@ -260,3 +260,47 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
         RETURN;
     }
 }
+
+//акты
+aliasEDSServiceCustomer (ECreditNote i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
+passwordEDSServiceCustomer (ECreditNote i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
+
+aliasEDSServiceSupplier (ECreditNote i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplier(i)); //aliasEDSService(supplierStock(i)), 
+passwordEDSServiceSupplier (ECreditNote i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplier(i));//passwordEDSService(supplierStock(i)), 
+
+EDSServiceCustomer(STRING[100] provider, ECreditNote i) += WHEN provider == 'TopBy' AND i IS ECreditNote
+    THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(customerStock(i)), EDSServiceTopBy(customer(i));
+EDSServiceSupplier(STRING[100] provider, ECreditNote i) += WHEN provider == 'TopBy' AND i IS ECreditNote
+    THEN OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplier(i)); //EDSServiceTopBy(supplierStock(i)), 
+
+getSignedDocumentCustomer(STRING[100] provider, ECreditNote e, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceCustomer(provider, e)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
+            keyID() <- aliasEDSServiceCustomer(e);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
+            sign(contentSubXML,host(EDSServiceCustomer(provider,e)) + ':' + port(EDSServiceCustomer(provider,e)), client(EDSServiceSupplier(provider,e)));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}
+
+getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceSupplier(provider, e)) == EDSApplication.sccp THEN {
+        IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
+            keyID() <- aliasEDSServiceSupplier(e);
+            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
+            sign(contentSubXML,host(EDSServiceSupplier(provider,e)) + ':' + port(EDSServiceSupplier(provider,e)), client(EDSServiceSupplier(provider,e)));
+        } ELSE {
+            IF interactive THEN {
+                MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            logToFile('edi', provider + ' error: Alias or Password for key not found');
+        }
+        RETURN;
+    }
+}

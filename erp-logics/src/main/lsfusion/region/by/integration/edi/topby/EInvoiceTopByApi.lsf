@@ -396,3 +396,77 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
 }
 
 good(EInvoiceMessage m) += WHEN (code(m) == '1250' OR code(m) == '2550' OR code(m) == '2560' OR code(m) == '2551' OR code(m) == '2571' OR code(m) == '2650') THEN TRUE ;
+
+
+overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF (lower(blrapnReferenceDocumentType()) == 'blrapn' AND blradfDate(eCreditNoteActDifNumber(blrapnDeliveryNoteId())) == DATE(blrapnDeliveryNoteDate())) OR lower(blrapnReferenceDocumentType()) == 'blradf' THEN {
+        NEWSESSION NESTED LOCAL {
+            LOCAL eCreditNote = ECreditNote();
+            eCreditNote() <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
+            IF NOT eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+                number(m) <- blrapnDocumentNumber();
+                eCreditNote(m) <- eCreditNote();
+            }
+            FOR ECreditNoteMessage m == eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) DO {
+                dateTime(m) <- blrapnDateTime();
+                code(m) <- blrapnCode();
+                description(m) <- OVERRIDE blrapnDescription(), description(blrapnCode());
+                eCreditNote(m) <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
+                type(m) <- CASE
+                    WHEN lower(blrapnReferenceDocumentType()) == 'blrapn' THEN ECreditNoteMessageType.blrapn_blrapn
+                    WHEN lower(blrapnReferenceDocumentType()) == 'blradf' THEN ECreditNoteMessageType.blrapn_blradf;
+                XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                APPLY NESTED LOCAL;
+                IF canceled() THEN {
+                    IF NOT disableConfirmation AND sendReplies THEN {
+                        LOCAL contentSubXML = FILE();
+                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
+                        fileToString(contentSubXML());
+                        encodeBase64(resultString());
+                        LOCAL xml = XMLFILE();
+                        envelopeLogin() <- login;
+                        envelopePassword() <- password;
+                        envelopeDocumentDate() <- currentDateTime();
+                        envelopeDocumentNumber() <- id(i);
+                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                        envelopeContent() <- encodedBase64();
+                        EXPORT envelope XML TO xml;
+                        sendRequestEDI(url, xml());
+                        logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                        IF requestError() THEN {
+                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                            logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                        } ELSE {
+                            logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
+                        }
+                    }
+                    logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' failed: ' + applyMessage());
+                    creditNoteMessagesFailed() <- creditNoteMessagesFailed() + 1;
+                } ELSE {
+                    IF NOT disableConfirmation THEN {
+                        LOCAL xml = XMLFILE();
+                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                        sendRequestEDI(url, xml());
+                        logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                        IF requestError() THEN {
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                        } ELSE {
+                            IF archiveDir THEN {
+                                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                                WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                            }
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                        }
+                    }
+                    logToFile('edi', provider + ' Import ECreditNoteMessage ' + id(i) + ' succeeded');
+                    creditNoteMessagesSucceeded() <- creditNoteMessagesSucceeded() + 1;
+                }
+            }
+        }
+        RETURN;
+    }
+}

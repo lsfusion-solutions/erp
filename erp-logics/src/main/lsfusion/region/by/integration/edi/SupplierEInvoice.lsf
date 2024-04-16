@@ -519,3 +519,102 @@ FORM exportBlrdln FORMEXTID 'BLRDLN'
         totalLineItemQuantity(eint) EXTID 'TotalLineItemQuantity',
         totalAmountExcise2 = NUMERIC[18,2](totalAmountExcise(eint)) EXTID 'TotalAmountExcise'
 ;
+
+
+//акты
+
+importedSupplier 'Импортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+exportedSupplier 'Экспортирован (поставщик)' = DATA BOOLEAN (ECreditNote);
+
+customerADF 'blradf от покупателя' = DATA XMLFILE (ECreditNote);
+//Подпись покупателя
+securityID = DATA STRING[14](ECreditNote);
+certificateID = DATA STRING[256](ECreditNote);
+securityPartyID = DATA STRING[512](ECreditNote);
+creationSignatureDate = DATA STRING[8](ECreditNote);
+creationSignatureTime = DATA STRING[15](ECreditNote);
+signatureValue = DATA TEXT(ECreditNote);
+
+signAndSendSupplier 'Подписать и отправить (поставщик)'  ABSTRACT LIST (ECreditNote);
+signAndSendSupplierCreditNoteEDI 'Подписать и отправить (поставщик)'()  {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(ECreditNote c) DO {
+        IF EDIProvider(supplier(c)) THEN
+            signAndSendSupplier(c);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+        in(c) <- NULL;
+    }
+        ELSE
+    MESSAGE 'Не выбрано ни одного акта приемки';
+
+}
+
+EXTEND FORM eCreditNotes
+    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() importedSupplier, exportedSupplier
+    EXTEND FILTERGROUP notExported
+        FILTER 'Не экспортированы (поставщик)' NOT exportedSupplier(c) 'F8'
+        FILTER 'Не импортированы (поставщик)' NOT importedSupplier(c) 'F11'
+    PROPERTIES() DRAW c TOOLBAR signAndSendSupplierCreditNoteEDI
+;
+
+GROUP actDif EXTID 'ActDif';
+blradfDocumentNumber = DATA LOCAL NESTED STRING[35]();
+blradfActDifNumber = DATA LOCAL NESTED STRING[35]();
+blradfDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
+blradfFunctionCode = DATA LOCAL NESTED STRING[3]();
+GROUP blradfSupplier EXTID 'Supplier' : actDif;
+blradfSupplierGLN = DATA LOCAL NESTED STRING[13]();
+GROUP blradfBuyer EXTID 'Buyer' : actDif;
+blradfCustomerGLN = DATA LOCAL NESTED STRING[13]();
+GROUP blradfShipTo EXTID 'ShipTo' : actDif;
+blradfCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
+GROUP actDifLineItemActDif EXTID 'ActDifLineItem' : actDif;
+blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
+blradfLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
+blradfLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
+blradfQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfQuantityReceived = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfValueVAT = DATA LOCAL NESTED NUMERIC[4,2](INTEGER);
+blradfLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
+blradfAmountOrdered = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+blradfAmountReceived = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+blradfAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
+
+FORM blradf
+    PROPERTIES IN messageHeader blradfMsgSenderID() EXTID 'MsgSenderID',
+        blradfMsgReceiverID() EXTID 'MsgReceiverID'
+    PROPERTIES IN securityBuyer blradfSecurityID() EXTID 'SecurityID',
+        blradfCertificateID() EXTID 'CertificateID',
+        blradfSecurityPartyID() EXTID 'SecurityPartyID',
+        blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
+        blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
+        blradfSignatureValue() EXTID 'SignatureValue'
+    PROPERTIES IN actDif blradfDocumentNumber() EXTID 'DocumentID',
+        blradfActDifNumber() EXTID 'ActDifID',
+        blradfDeliveryNoteNumber() EXTID 'DeliveryNoteID',
+        blradfCreationDateTime() EXTID 'CreationDateTime',
+        blradfDate() EXTID 'ActDifDate',
+        blradfFunctionCode() EXTID 'FunctionCode'
+    PROPERTIES IN blradfSupplier blradfSupplierGLN() EXTID 'GLN'
+    PROPERTIES IN blradfBuyer blradfCustomerGLN() EXTID 'GLN'
+    PROPERTIES IN blradfShipTo blradfCustomerStockGLN() EXTID 'GLN'
+
+    OBJECTS i = INTEGER EXTID 'LineItem' IN actDifLineItemActDif
+    PROPERTIES(i) blradfLineItemNumber EXTID 'LineItemNumber',
+        blradfLineItemID EXTID 'LineItemID',
+        blradfLineItemBuyerID EXTID 'LineItemBuyerID',
+        blradfLineItemSupplierID EXTID 'LineItemSupplierID',
+        blradfLineItemName EXTID 'LineItemName',
+        blradfQuantityOrdered EXTID 'QuantityOrdered',
+        blradfQuantityReceived EXTID 'QuantityReceived',
+        blradfValueVAT EXTID 'TaxRate',
+        blradfLineItemPrice EXTID 'LineItemPrice',
+        blradfAmountOrdered EXTID 'AmountOrdered',
+        blradfAmountReceived EXTID 'AmountReceived',
+        blradfAdditionalInformation EXTID 'AdditionalInformation'
+;

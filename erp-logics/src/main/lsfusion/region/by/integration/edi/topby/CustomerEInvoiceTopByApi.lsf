@@ -1129,3 +1129,100 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] l
         MESSAGE provider + ' (' + login + ') error: ' + 'SendNoticeEInvoice disabled, change serverComputer() to enable' NOWAIT;
     }
 }
+
+//акты
+signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
+    checkIsServer();
+    IF isServer() THEN {
+        TRY {
+            IF login AND password AND url THEN {
+                IF EDSServiceCustomer(provider,c) THEN {
+                    LOCAL error = TEXT();
+                    error() <- '';
+                    IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
+                    IF NOT length(addressSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес поставщика\'\n';
+                    IF NOT length(glnCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN покупателя\'\n';
+                    IF NOT length(addressCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес покупателя\'\n';
+                    IF NOT length(glnCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN склада покупателя\'\n';
+                    IF NOT length(addressCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес склада покупателя\'\n';
+                    IF NOT length(currency(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
+                    FOR eCreditNote(ECreditNoteDetail d) == c DO {
+                        IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
+                    }
+
+                    IF error() == '' THEN {
+                        LOCAL contentSubXML = FILE();
+                        blradfCreationDateTime() <- currentDateTimeMillis();
+                        blradfMsgSenderID() <- glnCustomer(c);
+                        blradfMsgReceiverID() <- glnSupplier(c);
+                        toMilliseconds(blradfCreationDateTime());
+                        EXPORT exportBlradf OBJECTS ec = c XML TO contentSubXML;
+                        IF outputDir THEN {
+                            TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
+                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfCreationDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        }
+                        name() <- 'blradf-' + toChar(exportBlrdnrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                        documentType() <- 'BLRADF';
+                        getSignedDocumentCustomer(provider, c, contentSubXML(), TRUE);
+                        IF signError() THEN {
+                            logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                        }
+                        ELSE IF signResult() THEN {
+                            LOCAL ixml = XMLFILE();
+                            envelopeLogin() <- login;
+                            envelopePassword() <- password;
+                            envelopeFilename() <- CONCAT '', 'creditnote', number(c);
+                            envelopeDocumentDate() <- DATETIME(blradfDate());
+                            envelopeDocumentNumber() <- number(c);
+                            envelopeSender() <- glnCustomer(c);
+                            envelopeReceiver() <- glnCustomer(c);
+                            envelopeDeliveryPoint() <- glnCustomerStock(c);
+                            envelopeDocumentType() <- 'BLRADF';
+                            envelopeContent() <- signResult();
+                            EXPORT envelope XML TO ixml;
+                            sendRequestEDI(url, ixml());
+                            logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                            IF requestError() THEN {
+                                logToFile('edi', provider + ' SendECreditNote ' + number(c) + ': ' + requestError());
+                                MESSAGE provider + ' Акт приемки ' + number(c) + ' не выгружен: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
+                                MESSAGE provider + ' Акт приемки ' + number(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                                exportedCustomer(c) <- TRUE;
+                                blradf(c) <- STRING[14](resultMilliseconds());
+                                blradfDate(c) <- blradfDate();
+                                NEW em = ECreditNoteMessage {
+                                    number(em) <- STRING[35](resultMilliseconds());
+                                    eCreditNote(em) <- c;
+                                    dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
+                                    code(em) <- (IF isCancel(c) THEN '1' ELSE '9');
+                                    type(em) <- ECreditNoteMessageType.blradf;
+                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfCreationDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                }
+                                APPLY NESTED LOCAL;
+                            }
+                        }
+                    } ELSE {
+                        logToFile('edi', provider + ' SendECreditNote: Не все поля заполнены. ' + error());
+                        MESSAGE provider + ' Акт приемки не выгружен: Не все поля заполнены ' + error() NOWAIT;
+                    }
+
+                } ELSE {
+                    logToFile('edi', provider + ' SendECreditNote: не заданы параметры EDSService');
+                    MESSAGE provider + ' Акт приемки не выгружен: не заданы параметры EDSService' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' SendECreditNote: не заданы имя пользователя / пароль / хост / порт');
+                MESSAGE provider + ' Акт приемки не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Акт приемки не выгружен. Обратитесь к администратору' NOWAIT;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' error: ' + 'SendECreditNote disabled, change serverComputer() to enable');
+        MESSAGE  provider + ' error: ' + 'SendECreditNote disabled, change serverComputer() to enable' NOWAIT;
+    }
+}

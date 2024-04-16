@@ -534,3 +534,106 @@ FORM exportBlrdnr FORMEXTID 'BLRDNR'
         unpCustomer(ein) EXTID 'VATRegistrationNumber'
     PROPERTIES DRAW ein IN shipTo contactCustomerStock(ein) EXTID 'Contact'
 ;
+
+//акты
+exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
+importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
+
+signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST (ECreditNote);
+signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'()  {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
+    }
+    FOR in(ECreditNote c) DO {
+        IF EDIProviderInvoice(supplier(c), customer(c)) THEN
+            signAndSendCustomer(c);
+        ELSE
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+        in(c) <- NULL;
+    }
+        ELSE
+    MESSAGE 'Не выбрано ни одного акта приемки';
+}
+
+EXTEND FORM eCreditNotes
+    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() exportedCustomer, importedCustomer
+    EXTEND FILTERGROUP notExported
+        FILTER 'Не импортированы (покупатель)' NOT importedCustomer(c) 'F9'
+        FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(c) 'F10'
+    PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNoteEDI
+;
+
+GROUP actDifLineItem EXTID 'ActDifLineItem';
+GROUP supplier EXTID 'Supplier';
+GROUP buyer EXTID 'Buyer';
+
+FORM exportBlradf FORMEXTID 'BLRADF'
+    PROPERTIES ATTR ='0.1' EXTID 'version'
+    OBJECTS ec = ECreditNote PANEL
+
+    OBJECTS ech = ECreditNote EXTID 'MessageHeader'
+    FILTERS ech == ec
+    PROPERTIES DRAW ech messageId = resultMilliseconds() EXTID 'MessageID',
+        msgDateTime = toChar(blradfDate(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+        messageType = 'BLRADF' EXTID 'MessageType',
+        blradfMsgSenderID() EXTID 'MsgSenderID',
+        blradfMsgReceiverID() EXTID 'MsgReceiverID'
+
+    OBJECTS ecs = ECreditNote EXTID 'SecurityBuyer'
+    FILTERS ecs == ec AND blradfSecurityID()
+    PROPERTIES DRAW ecs blradfSecurityID() EXTID 'SecurityID',
+        blradfCertificateID() EXTID 'CertificateID',
+        blradfSecurityPartyID() EXTID 'SecurityPartyID',
+        blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
+        blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
+        blradfSignatureValue() EXTID 'SignatureValue'
+
+    OBJECTS ecn = ECreditNote EXTID 'ActDif'
+    FILTERS ecn == ec
+    PROPERTIES DRAW ecn documentID = (IF blradfMsgSenderID() == glnCustomer(ecn) THEN STRING[14](resultMilliseconds()) ELSE (OVERRIDE blradf(ec), STRING[14](resultMilliseconds()))) EXTID 'DocumentID',
+        creationDateTime = toChar(dateTime(ecn),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+        functionCode = (IF isCancel(ecn) THEN '1' ELSE '9') EXTID 'FunctionCode',
+        actDifNumber(ecn) EXTID 'ActDifID',
+        actDifDate = toChar(actDifDate(ecn),'YYYYMMDD') EXTID 'ActDifDate',
+        contractId(ecn) EXTID 'ContractID',
+        contractDate = toChar(contractDate(ecn),'YYYYMMDD') EXTID 'ContractDate',
+        deliveryNoteNumber(ecn) EXTID 'DeliveryNoteID',
+        deliveryNoteDateTime = toChar(deliveryNoteDate(ecn),'YYYYMMDD') EXTID 'DeliveryNoteDate'
+    PROPERTIES DRAW ecn IN supplier glnSupplier(ecn) EXTID 'GLN',
+        nameSupplier(ecn) EXTID 'Name',
+        addressSupplier(ecn) EXTID 'Address'
+    PROPERTIES DRAW ecn IN buyer glnCustomer(ecn) EXTID 'GLN',
+        nameCustomer(ecn) EXTID 'Name',
+        addressCustomer(ecn) EXTID 'Address'
+    PROPERTIES DRAW ecn IN shipTo glnCustomerStock(ecn) EXTID 'GLN',
+        addressCustomerStock(ecn) EXTID 'Address'
+    PROPERTIES DRAW ecn currency(ecn) EXTID 'Currency'
+
+    OBJECTS d = ECreditNoteDetail EXTID 'LineItem' IN actDifLineItem
+    FILTERS eCreditNote(d) == ecn
+    PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
+        lineItemID(d) EXTID 'LineItemID',
+        lineItemBuyerID(d) EXTID 'LineItemBuyerID',
+        lineItemSupplierID(d) EXTID 'LineItemSupplierID',
+        lineItemName(d) EXTID 'LineItemName',
+        lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
+        lineItemPrice(d) EXTID 'LineItemPrice',
+        valueVAT(d) EXTID 'TaxRate',
+        quantityOrdered(d) EXTID 'QuantityOrdered',
+        amountOrdered(d) EXTID 'AmountOrdered',
+        quantityReceived(d) EXTID 'QuantityReceived',
+        amountReceived(d) EXTID 'AmountReceived',
+        additionalInformation(d) EXTID 'AdditionalInformation'
+
+    OBJECTS ecnt = ECreditNote EXTID 'Total'
+    FILTERS ecnt == ec
+    PROPERTIES DRAW ecn totalLineItem(ecnt) EXTID 'TotalLineItem',
+        totalQuantityOrdered(ecnt) EXTID 'TotalQuantityOrdered',
+        totalAmountOrdered(ecnt) EXTID 'TotalAmountOrdered',
+        totalQuantityReceived(ecnt) EXTID 'TotalQuantityReceived',
+        totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
+
+    OBJECTS ecse = ECreditNote EXTID 'SecurityEnd'
+    FILTERS ecse == ec AND blradfSecurityID()
+    PROPERTIES DRAW ecse securityIDEnd = blradfSecurityID() EXTID 'SecurityID'
+;
