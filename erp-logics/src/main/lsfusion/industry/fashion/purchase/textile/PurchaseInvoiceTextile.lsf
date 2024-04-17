@@ -1,0 +1,89 @@
+MODULE PurchaseInvoiceTextile;
+
+REQUIRE PurchaseInvoice, WarehouseTextile, BinPacketLedger, PurchaseShipmentTextile;
+
+NAMESPACE Purchase;
+
+packets 'Пакеты' (UserInvoice i) = packets(operation(i));
+
+CLASS UserInvoicePacketDetail 'Строка накладной в пакете (закупка)' : BinPacketLedger;
+TABLE userInvoicePacketDetail (UserInvoicePacketDetail);
+
+userInvoice = DATA UserInvoice (UserInvoicePacketDetail) NONULL DELETE INDEXED;
+
+number 'Номер'(UserInvoicePacketDetail d) = number(userInvoice(d));
+
+dateTime 'Дата/время' (UserInvoicePacketDetail d) = dateTime(userInvoice(d));
+ledgerDateTime 'Дата/время' (UserInvoicePacketDetail d) = OVERRIDE postedTime(userInvoice(d)), dateTime(d);
+
+isPosted 'Проведен'(UserInvoicePacketDetail d) = isPosted(userInvoice(d));
+operation (UserInvoicePacketDetail d) = operation(userInvoice(d));
+customerStock (UserInvoicePacketDetail d) = customerStock(userInvoice(d));
+supplierStock (UserInvoicePacketDetail d) = supplierStock(userInvoice(d));
+
+packet = DATA Packet (UserInvoicePacketDetail) INDEXED;
+bin = DATA Bin (UserInvoicePacketDetail);
+
+WHEN (SET(UserInvoicePacketDetail d IS UserInvoicePacketDetail) OR SETCHANGED(customerStock(d))) AND customerStock(d) IS Warehouse DO
+    bin(d) <- defaultBin(customerStock(d));
+
+@defineDocumentDetailIndex(userInvoice, UserInvoicePacketDetail);
+
+countInvoicePacketDetail 'Кол-во строк (пакеты)' = GROUP SUM 1 BY userInvoice(UserInvoicePacketDetail d) MATERIALIZED;
+
+// по BinPacketLedger
+dateTime (UserInvoicePacketDetail ledger) += ledgerDateTime(ledger);
+packet (UserInvoicePacketDetail ledger) += packet(ledger);
+bin (UserInvoicePacketDetail ledger) += bin(ledger);
+isPosted (UserInvoicePacketDetail ledger) += isPosted(ledger);
+numberDocument(UserInvoicePacketDetail ledger) += number(ledger);
+seriesDocument(UserInvoicePacketDetail ledger) += series(userInvoice(ledger));
+description(UserInvoicePacketDetail ledger) += 'Поступление пакетов от поставщика № ' + seriesNumber(userInvoice(ledger)) + ', строка № ' + index(ledger);
+createdUser(UserInvoicePacketDetail ledger) += createdUser(userInvoice(ledger));
+
+overShowPackets = ABSTRACT BOOLEAN (UserInvoice);
+showPackets (UserInvoice i) = OVERRIDE overShowPackets(i), i IS UserInvoice AND packets(i);
+
+EXTEND FORM userInvoice
+    OBJECTS ipd = UserInvoicePacketDetail
+    PROPERTIES (ipd) SHOWIF showPackets(i) READONLY index, idPacket, idBin
+    PROPERTIES (ipd) SHOWIF showPackets(i) DELETE GRID
+    FILTERS userInvoice(ipd) == i
+;
+
+DESIGN userInvoice {
+    specificationBox {
+        MOVE BOX(ipd) AFTER BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(ipd)) { focusable = TRUE; }
+        }
+    }
+}
+
+EXTEND FORM invoices
+    OBJECTS ipd = UserInvoicePacketDetail
+    PROPERTIES (ipd) SHOWIF showPackets(i) READONLY index, idPacket, idBin
+    FILTERS userInvoice(ipd) == i
+;
+
+DESIGN invoices {
+    documentDetail {
+        MOVE BOX(ipd) AFTER BOX(d) {
+            caption = 'Пакеты';
+            PROPERTY (idPacket(ipd)) { focusable = TRUE; }
+        }
+    }
+}
+
+@defineConstraintEmptyPacketDetail(userInvoice);
+
+@defineConstraintDoublePacketDetail(userInvoice, 'Запрещено добавлять пакет в накладную (закупка) несколько раз');
+
+@defineConstraintBinPacketDetail(userInvoice, customerStock, 'покупателя');
+
+createUserInvoiceDetails 'Обновить спецификацию из пакетов' ABSTRACT (UserInvoice) TOOLBAR;
+showUpdateUserInvoiceDetails = ABSTRACT BOOLEAN (UserInvoice);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) SHOWIF showUpdateUserInvoiceDetails(i) createUserInvoiceDetails DRAW d TOOLBAR
+;
