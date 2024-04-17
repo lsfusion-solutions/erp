@@ -140,7 +140,9 @@ isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
 
 isTestDocument 'Тестовый документ' = DATA BOOLEAN (EInvoice);
 
-isNewFormat 'Новый формат(2024)' = DATA BOOLEAN (EInvoice);
+@defineOption(isNewFormatEInvoice, 'Создавать электронные накладные в новом формате (2024)', EDI);
+isNewFormat 'Новый формат (2024)' = DATA BOOLEAN (EInvoice);
+isNewFormat(EInvoice e) <- TRUE WHEN SET(e IS EInvoice) AND isNewFormatEInvoice();
 
 CLASS ExtraField 'Дополнительное поле';
 TABLE extraField(ExtraField);
@@ -238,16 +240,16 @@ lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,2] (
 lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC[12,2] (EInvoiceDetail);
 lineItemAmountExcise 'Сумма акциза' = DATA NUMERIC[12,5] (EInvoiceDetail);
 
-lineItemManufacturerOutputPrice 'Отпускная цена производителя(импортера)' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-typeDiscount 'Вид скидки' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-bulkDiscountRate 'Оптовая скидка, %' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-outputPriceIncludingShippingCoast 'Условия доставки товара' = DATA STRING[80](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+lineItemManufacturerOutputPrice 'Отпускная цена производителя (импортера)' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+typeDiscount 'Вид скидки' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
+bulkDiscountRate 'Оптовая скидка, %' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
+outputPriceIncludingShippingCoast 'Условия доставки товара' = DATA STRING[80](EInvoiceDetail) CHARWIDTH 15 TABLE eInvoiceDetailPriceControl;
 outputPriceShippingCoast 'Сумма расходов по доставке товаров' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
 outputPricePackingCoast 'Сумма расходов по фасовке товаров' = DATA NUMERIC[18,2] (EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-bulkMarginRate 'Оптовая надбавка в белорусских рублях или процентах' = DATA STRING[70](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-cutRate 'Сниженная цена субъекта торговли, осуществляющего оптовую торговлю' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-additionalInformationPrice 'Иные сведения, необходимые для установления цены' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
-additionalInformationNote 'Примечание' = DATA STRING[512](EInvoiceDetail) TABLE eInvoiceDetailPriceControl;
+bulkMarginRate 'Оптовая надбавка в белорусских рублях или процентах' = DATA STRING[70](EInvoiceDetail) CHARWIDTH 15 TABLE eInvoiceDetailPriceControl;
+cutRate 'Сниженная цена субъекта торговли, осуществляющего оптовую торговлю' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
+additionalInformationPrice 'Иные сведения, необходимые для установления цены' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
+additionalInformationNote 'Примечание' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
 
 lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
 
@@ -360,10 +362,14 @@ FORM eInvoices 'Электронные накладные'
     FILTERGROUP notExported
 
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
+    PROPERTIES(d) READONLY lineItemNumber, lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, 
+        quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
         lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
-        grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
-        fieldCodeMark, lineItemPartyNumber, countryOfOrigin 
+        grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, 
+        overLineItemExtraFields, fieldCodeMark, lineItemPartyNumber, countryOfOrigin 
+    PROPERTIES (d) READONLY BACKGROUND RGB(224, 255, 255) lineItemManufacturerOutputPrice, typeDiscount, bulkDiscountRate, 
+        outputPriceIncludingShippingCoast, outputPriceShippingCoast, outputPricePackingCoast, bulkMarginRate, cutRate, 
+        additionalInformationPrice, additionalInformationNote
 
     FILTERS eInvoice(d) == e
 
@@ -425,20 +431,33 @@ FORM eInvoice 'Электронная накладная'
         sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, overReplaceNumber ON CHANGE changeReplaceNumber(e), isTestDocument
 
     OBJECTS ed = EInvoiceDetail
-    PROPERTIES (ed) lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount,
-        lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, overLineItemExtraFields READONLY,
-        fieldCodeMark, lineItemPartyNumber, countryOfOrigin
+    PROPERTIES (ed) lineItemNumber, lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, 
+        manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), 
+        lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), 
+        lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, 
+        overLineItemExtraFields READONLY, fieldCodeMark, lineItemPartyNumber, countryOfOrigin
     FILTERS eInvoice(ed) == e
+
+    OBJECTS edc = EInvoiceDetail
+    PROPERTIES (edc) READONLY lineItemNumber, lineItemID, lineItemName
+    PROPERTIES (edc) BACKGROUND RGB(224, 255, 255) lineItemManufacturerOutputPrice, typeDiscount, bulkDiscountRate,
+        outputPriceIncludingShippingCoast, outputPriceShippingCoast, outputPricePackingCoast, bulkMarginRate, cutRate,
+        additionalInformationPrice, additionalInformationNote
+    FILTERS eInvoice(edc) == e
+
+    OBJECTS edf = EInvoiceDetail
+    PROPERTIES (edf) READONLY lineItemNumber, lineItemID, lineItemName
+    FILTERS eInvoice(edf) == e
+    
+    OBJECTS ief = ItemExtraField
+    PROPERTIES (ief) READONLY name, code
+    PROPERTIES (ief) value
+    FILTERS eInvoiceDetail(ief) == edf
     
     OBJECTS ef = ExtraField
     PROPERTIES (ef) READONLY name, code
     PROPERTIES (ef) value
     FILTERS eInvoice(ef) == e
-    
-    OBJECTS ief = ItemExtraField
-    PROPERTIES (ief) READONLY name, code
-    PROPERTIES (ief) value
-    FILTERS eInvoiceDetail(ief) == ed
 ;
 
 DESIGN eInvoice {
@@ -460,7 +479,14 @@ DESIGN eInvoice {
             tabbed = TRUE;
             fill = 1;
             MOVE BOX(ed);
-            MOVE BOX(ief);
+            MOVE BOX(edc) {caption = 'Сведения по регулированию ценообразования';};
+            NEW itemExtra{
+                caption = 'Дополнительне поля, описывающие товар';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(edf);
+                MOVE BOX(ief);
+            }
             MOVE BOX(ef);
         }
     }

@@ -295,7 +295,11 @@ signAndSendSupplierEInvoiceTransit (EInvoice ei, STRING[100] login, STRING[100] 
                         exportBlrsptDateTime() <- currentDateTimeMillis();
                         dataGLNCustomerFirst(ei) <- topByGLN();
                         toMilliseconds(exportBlrsptDateTime());
-                        EXPORT exportBlrspt OBJECTS ei = ei XML TO contentSubXML;
+                        IF isNewFormat(ei) THEN {
+                            EXPORT exportBlrsptNew OBJECTS ei = ei XML TO contentSubXML;
+                        } ELSE {
+                            EXPORT exportBlrspt OBJECTS ei = ei XML TO contentSubXML;
+                        }
                         
                         name() <- 'blrspt-' + OVERRIDE overInvoiceOutputFileName(ei), toChar(exportBlrsptDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         documentType() <- 'BLRSPT';
