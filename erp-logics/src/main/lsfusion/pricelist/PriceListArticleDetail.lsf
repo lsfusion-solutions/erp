@@ -1,26 +1,9 @@
 MODULE PriceListArticleDetail;
 
-REQUIRE PriceList, ItemArticle;
+REQUIRE PriceListArticleDetailMain;
 
 NAMESPACE PriceList;
 
-CLASS UserAPriceListDetail 'Строка прайса (артикул)';
-TABLE userAPriceListDetail (UserAPriceListDetail);
-
-@defineExternalizable(userAPriceListDetail, STRING[100]);
-
-@defineDocumentRelation(userPriceList, UserAPriceListDetail, 'Строка прайса (артикул)');
-
-@defineDocumentDetailIndex(userPriceList, UserAPriceListDetail);
-@defineDocumentDetailPosted(userPriceList, UserAPriceListDetail);
-
-@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, from, ' с');
-@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, to, ' по');
-
-article 'Артикул' = DATA Article (UserAPriceListDetail);
-idArticle 'Код' (UserAPriceListDetail d) = id(article(d));
-captionArticle 'Наименование' (UserAPriceListDetail d) = caption(article(d));
-nameBrandArticle 'Бренд' (UserAPriceListDetail d) = nameBrand(article(d));
 // Цены
 TABLE userAPriceListDetailDataPriceListType(UserAPriceListDetail, DataPriceListType);
 TABLE sessionUserAPriceListDetailDataPriceListType(Session, UserAPriceListDetail, DataPriceListType);
@@ -60,19 +43,6 @@ prevPriceB 'Цена до' (UserAPriceListDetail d, DataPriceListType t) = PREV(
 
 
 EXTEND FORM userPriceList
-    OBJECTS ad = UserAPriceListDetail
-    PROPERTIES(ad) index, idArticle, captionArticle, nameBrandArticle
-    PROPERTIES SHOWIF showDateTimeUser(p) fromDate(ad), fromTime(ad), toDate(ad), toTime(ad)
-    PROPERTIES(ad, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
-    PROPERTIES(ad, to) READONLY prevPriceB COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) DRAW ad 
-    PROPERTIES(ad) NEW, DELETE GRID
-    FILTERS userPriceList(ad) == p
+    PROPERTIES(ad, tc) AFTER toTime(ad) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
+    PROPERTIES(ad, to) AFTER price(ad, tc) READONLY prevPriceB COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) DRAW ad 
 ;
-
-DESIGN userPriceList {
-    detailContainer {
-        MOVE BOX(ad) FIRST {
-            caption = 'Спецификация (артикул)';
-        }
-    }
-}

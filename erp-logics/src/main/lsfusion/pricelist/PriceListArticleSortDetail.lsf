@@ -1,0 +1,221 @@
+MODULE PriceListArticleSortDetail;
+
+REQUIRE PriceListOperation, ItemArticle, ItemDescription, PriceListArticleDetailMain;
+
+NAMESPACE PriceList;
+
+
+TABLE OperationSort(Operation, Sort);
+in 'Вкл.' = DATA BOOLEAN (Operation, Sort);
+
+countSorts (Operation o) = GROUP SUM 1 IF in(o, Sort s);
+nameSorts 'Сорта' (Operation o)  = GROUP CONCAT name(Sort s) IF in (o, s), ', ' ORDER name(s), s CHARWIDTH 20;
+
+FORM selectSort 'Выбор сорта'
+    OBJECTS o = Operation PANEL
+
+    OBJECTS s = Sort
+    PROPERTIES (s) READONLY name
+    PROPERTIES (o,s)  in
+
+;
+
+selectSort (Operation o) {
+    SHOW selectSort OBJECTS o = o NOMANAGESESSION;
+}
+
+EXTEND FORM operation
+    PROPERTIES(o) nameSorts ON CHANGE selectSort(o)
+;
+
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(nameSorts(o));
+    }
+}
+
+TABLE userPriceListSort(UserPriceList, Sort);
+in 'Вкл' = ABSTRACT BOOLEAN (PriceList, Sort);
+in 'Вкл' = DATA BOOLEAN (UserPriceList, Sort);
+
+in(UserPriceList p, Sort s) += in(p, s);
+countSorts (PriceList p) = GROUP SUM 1 IF in(p, Sort s);
+nameSorts 'Сорта' (UserPriceList o)  = GROUP CONCAT name(Sort s) IF in (o, s), ', ' ORDER name(s), s CHARWIDTH 20;
+
+FORM selectSortP 'Выбор сорта'
+    OBJECTS o = UserPriceList PANEL
+
+    OBJECTS s = Sort
+    PROPERTIES (s) READONLY name
+    PROPERTIES (o,s)  in
+;
+
+selectSort (UserPriceList o) {
+    SHOW selectSortP OBJECTS o = o NOMANAGESESSION;
+}
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) nameSorts ON CHANGE selectSort(p)
+;
+
+DESIGN userPriceList{
+    param{
+        MOVE PROPERTY(nameSorts(p));
+    }
+}
+
+in(UserPriceList o, Sort s) <- in(operation(o), s) WHEN CHANGED(operation(o));
+
+exclude 'Исключить' = DATA BOOLEAN (UserAPriceListDetail);
+
+// Цены
+TABLE userAPriceListDetailDataPriceListTypeSort (UserAPriceListDetail, DataPriceListType, Sort);
+price 'Цена (новая)' = DATA NUMERIC[16,4] (UserAPriceListDetail, DataPriceListType, Sort);
+
+in (UserAPriceListDetail detail, DataPriceListType type, Sort sort) = in(userPriceList(detail), type) AND in(userPriceList(detail), sort);
+
+price(UserAPriceListDetail detail, DataPriceListType type, Sort sort) => in (detail, type, sort) RESOLVE RIGHT;
+
+CLASS APriceListDetail 'Строка прайса по товару на основе артикула и сорта' : PriceListDetail;
+in (UserAPriceListDetail d, Item i) = article(d) == article(i) AND in(userPriceList(d),sort(i)) AND NOT exclude(d);
+aPriceListDetail = AGGR APriceListDetail WHERE in(UserAPriceListDetail userAPriceListDetail, Item item) MATERIALIZED INDEXED;
+
+priceList (APriceListDetail d) += userPriceList(userAPriceListDetail(d));
+sku (APriceListDetail d) += item(d);
+exclude(APriceListDetail detail) = exclude(userAPriceListDetail(detail));
+price(APriceListDetail d, DataPriceListType t) += price(userAPriceListDetail(d), t, sort(item(d)));
+
+fromDataDate(APriceListDetail d) += fromDataDate(userAPriceListDetail(d));
+fromDataTime(APriceListDetail d) += fromDataTime(userAPriceListDetail(d));
+toDataDate(APriceListDetail d) += toDataDate(userAPriceListDetail(d));
+toDataTime(APriceListDetail d) += toDataTime(userAPriceListDetail(d));
+
+in (UserAPriceListDetail detail, Stock stock) = in(userPriceList(detail), stock);
+
+TABLE userAPriceListDetailDataPriceListType (UserAPriceListDetail, DataPriceListType);
+priceExistsPosted = GROUP MIN price(UserAPriceListDetail detail, DataPriceListType t, Sort s) IF isPosted(detail) BY detail, t MATERIALIZED;
+
+// Действующие цены
+
+priceB 'Цена' =
+    GROUP LAST price(UserAPriceListDetail detail, DataPriceListType type, Sort sort)
+    ORDER fromDateTime(detail), detail
+    WHERE isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND
+        fromDateTime(detail) < DATETIME dateTimeIn AND NOT toDateTime(detail) < dateTimeIn
+    BY type, sort, article(detail), dateTimeIn COMPLEX;
+
+prevPriceB 'Цена' (DataPriceListType type, Sort sort, Article article, DATETIME dateTime) = PREV(priceB(type, sort, article, dateTime));
+
+priceInclude (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
+    price(detail, type, sort) IF isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND NOT company(userPriceList(detail)) MATERIALIZED;
+
+fromDateTime (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
+    fromDateTime(detail) IF priceInclude(detail, type, sort) MATERIALIZED;
+
+toDateTime (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
+    toDateTime(detail) IF priceInclude(detail, type, sort) MATERIALIZED;
+
+article (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
+    article(detail) IF priceInclude(detail, type, sort) MATERIALIZED;
+
+INDEX DataPriceListType type, Sort sort, article(UserAPriceListDetail detail, type, sort), fromDateTime(detail, type, sort), detail;
+
+priceANotCompany 'Цена' =
+    GROUP LAST priceInclude(UserAPriceListDetail detail, DataPriceListType type, Sort sort)
+    ORDER fromDateTime(detail, type, sort), detail
+    WHERE fromDateTime(detail, type, sort) <= DATETIME dateTimeIn AND NOT toDateTime(detail, type, sort) < dateTimeIn
+    BY type, sort, article(detail, type, sort), dateTimeIn COMPLEX;
+
+prevPriceANotCompany 'Цена' (Article article, Sort sort, DataPriceListType type, DATETIME dateTime) = PREV(priceANotCompany(type, sort, article, dateTime));
+
+priceA 'Цена' =
+    GROUP LAST price(UserAPriceListDetail detail, DataPriceListType type, Sort sort)
+    ORDER fromDateTime(detail), detail
+    WHERE isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND
+        company(userPriceList(detail)) AND in(detail,Stock stock) AND
+        fromDateTime(detail) <= DATETIME dateTimeIn AND NOT toDateTime(detail) < dateTimeIn
+    BY type, sort, article(detail), stock, dateTimeIn COMPLEX;
+
+// и company тоже проверяется выше, т.е. это действительно прайс покупателя
+prevPriceA 'Цена' (Article article, Sort sort, DataPriceListType type, Stock stock, DATETIME dateTime) = PREV(priceA(type, sort, article, stock, dateTime));
+
+priceB 'Цена до' (UserAPriceListDetail d, DataPriceListType t, Sort sort) = priceB(t, sort, article(d), fromDateTime(d));
+prevPriceB 'Цена до' (UserAPriceListDetail d, DataPriceListType t, Sort sort) = PREV(priceB(d, t, sort));
+
+headerNameData (PriceListType dataPriceListType, Sort sort) =
+    CONCAT ' ', name(dataPriceListType), 'с. '+name(sort) CHARWIDTH 30;
+headerNameCurrentData (PriceListType dataPriceListType, Sort sort) =
+    CONCAT ' ',name(dataPriceListType),'с. '+name(sort)+ ' (старая)' CHARWIDTH 30;
+
+@defineOption(sort2Coeff, 'Коэффициент для 2 сорта (от 0 до 1)', NUMERIC[5,3], price);
+
+@defineOption(sort3Coeff, 'Коэффициент для 3 сорта (от 0 до 1)', NUMERIC[5,3], price);
+
+WHEN LOCAL FORMS userPriceList CHANGED(price(UserAPriceListDetail d, DataPriceListType t, sortName('1'))) AND in(userPriceList(d), sortName('2')) AND sort2Coeff() DO
+    price(d, t, sortName('2')) <- round2(NUMERIC[16,4](price(d, t, sortName('1')) * sort2Coeff()));
+
+WHEN LOCAL FORMS userPriceList CHANGED(price(UserAPriceListDetail d, DataPriceListType t, sortName('1'))) AND in(userPriceList(d), sortName('3')) AND sort3Coeff() DO
+    price(d, t, sortName('3')) <- round2(NUMERIC[16,4](price(d, t, sortName('1')) * sort3Coeff()));
+
+recalculateSortPrices 'Пересчитать цены для 2 и 3 сорта' (UserPriceList p)  {
+    IF in(p, sortName('2')) AND sort2Coeff() THEN
+        price(UserAPriceListDetail d, DataPriceListType t, sortName('2')) <- round2(NUMERIC[16,4](price(d, t, sortName('1')) * sort2Coeff())) WHERE in(userPriceList(d), t) AND userPriceList(d) == p;
+    IF in(p, sortName('3')) AND sort3Coeff() THEN
+        price(UserAPriceListDetail d, DataPriceListType t, sortName('3')) <- round2(NUMERIC[16,4](price(d, t, sortName('1')) * sort3Coeff())) WHERE in(userPriceList(d), t) AND userPriceList(d) == p;
+}
+
+EXTEND FORM userPriceList
+    PROPERTIES (p) recalculateSortPrices SHOWIF (countSorts(p) > 1 AND in(p, sortName('1'))) TOOLBAR DRAW ad
+
+    OBJECTS tcs = (tc1 = DataPriceListType, so = Sort) GRID
+    FILTERS in(p, tc1),
+        in(p,so),
+        (currency(p) == currency[PriceListType](tc1)) OR
+            NOT currency[PriceListType](tc1) OR NOT currency(p)
+
+    OBJECTS tos = (to1 = PriceListType,so1 = Sort) GRID
+    FILTERS show[PriceList,PriceListType](p, to1),
+        in(p,so1)
+
+    PROPERTIES(ad) AFTER toTime(ad) exclude
+    PROPERTIES(ad, tc1, so) AFTER exclude(ad) price COLUMNS (tcs) HEADER headerNameData(tc1,so) BACKGROUND background(tc1)
+    PROPERTIES(ad, to1, so1) AFTER price(ad, tc1, so) READONLY prevPriceB COLUMNS 'type' (tos) HEADER headerNameCurrentData(to1,so1) BACKGROUND backgroundCurrent(to1) DRAW ad
+
+;
+
+DESIGN userPriceList {
+    BOX(ad) {
+        caption = 'Спецификация (артикул/сорт)';
+        showIf = countSorts(p);
+    }
+}
+
+nameSortSku 'Сорт' (PriceListDetail priceListDetail) = nameSort(sku(priceListDetail)) IN id;
+
+EXTEND FORM priceLists
+    PROPERTIES(d) READONLYIF isReadonly() BACKGROUND background(d) nameSortSku AFTER nameCompany(d)
+
+    OBJECTS tcs = (tc1 = DataPriceListType, so = Sort) GRID
+    FILTERS in(p, tc1),
+        in(p,so),
+        (currency(p) == currency[PriceListType](tc1)) OR
+            NOT currency[PriceListType](tc1) OR NOT currency(p)
+
+    OBJECTS tos = (to1 = PriceListType,so1 = Sort) GRID
+    FILTERS show[PriceList,PriceListType](p, to1),
+        in(p,so1)
+
+    OBJECTS ad = UserAPriceListDetail GRID
+    PROPERTIES(ad) READONLY index, idArticle, captionArticle, exclude
+    PROPERTIES(ad, tc1, so) READONLY price COLUMNS (tcs) HEADER headerNameData(tc1,so)
+    FILTERS userPriceList(ad) == p
+;
+
+DESIGN priceLists {
+    detailContainer {
+        MOVE BOX(ad) FIRST {
+            caption = 'Спецификация (артикул/сорт';
+            showIf = countSorts(p);
+        }
+    }
+}

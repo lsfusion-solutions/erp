@@ -1,0 +1,74 @@
+MODULE PriceListArticleDetailMain;
+
+REQUIRE PriceList, ItemArticle;
+
+NAMESPACE PriceList;
+
+
+CLASS UserAPriceListDetail 'Строка прайса (артикул)';
+TABLE userAPriceListDetail (UserAPriceListDetail);
+
+@defineExternalizable(userAPriceListDetail, STRING[100]);
+
+@defineDocumentRelation(userPriceList, UserAPriceListDetail, 'Строка прайса (артикул)');
+
+@defineDocumentDetailIndex(userPriceList, UserAPriceListDetail);
+
+@defineDocumentDetailPosted(userPriceList, UserAPriceListDetail);
+
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, from, ' с');
+
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, to, ' по');
+
+article = DATA Article (UserAPriceListDetail) INDEXED;
+idArticle 'Код' (UserAPriceListDetail d) = id(article(d));
+captionArticle 'Наименование' (UserAPriceListDetail d) = caption(article(d));
+nameBrandArticle 'Бренд' (UserAPriceListDetail d) = nameBrand(article(d));
+
+EXTEND FORM userPriceList
+    OBJECTS ad = UserAPriceListDetail
+    PROPERTIES(ad) index, idArticle, captionArticle, nameBrandArticle
+    PROPERTIES(ad) SHOWIF showDateTimeUser(p) fromDate, fromTime, toDate, toTime
+    PROPERTIES(ad) NEW, DELETE GRID
+    FILTERS userPriceList(ad) == p
+;
+
+DESIGN userPriceList {
+    detailContainer {
+        MOVE BOX(ad) FIRST {
+            caption = 'Спецификация (артикул)';
+        }
+    }
+}
+
+// Подбор 
+detail = GROUP SUM 1 BY article(UserAPriceListDetail detail), userPriceList(detail);
+
+in 'Вкл.' (Article a, UserPriceList p) = TRUE IF detail(a, p);
+
+changeIn(Article a, UserPriceList priceList) {
+    INPUT b = BOOLEAN DO
+        IF detail(a, priceList) THEN {
+            IF NOT b THEN
+                DELETE UserAPriceListDetail detail WHERE a == article(detail) AND priceList == userPriceList(detail);
+        } ELSE
+            IF b THEN
+                NEW d = UserAPriceListDetail {
+                    userPriceList(d) <- priceList;
+                    article(d) <- a;
+                }
+}
+
+EXTEND FORM userPriceList
+    OBJECTS ar = Article
+    PROPERTIES in(ar, p) ON CHANGE changeIn(ar, p)
+    PROPERTIES(ar) READONLY id, caption
+    FILTERS isParent(sk2, ar)
+    ORDERS caption(ar)
+;
+
+DESIGN userPriceList {
+    tabContainer {
+        MOVE BOX(ar) FIRST {caption = 'Артикулы';}
+    }
+}
