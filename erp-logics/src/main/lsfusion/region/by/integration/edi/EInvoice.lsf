@@ -31,10 +31,10 @@ reportDate 'Дата составления акта' = DATA DATE (EInvoice);
 dataReportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 reportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 
-deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30;
+deliveryNoteNumber 'Номер накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30;
 eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
-deliveryNoteDate 'Дата бумажной накладной' = DATA DATE (EInvoice) INDEXED;
-sealIDReceiver 'Номер пломбы (грузоотправитель)' = DATA STRING[35] (EInvoice);
+deliveryNoteDate 'Дата накладной' = DATA DATE (EInvoice) INDEXED;
+sealIDReceiver 'Номер пломбы' = DATA STRING[35] (EInvoice);
 
 contractName 'Документ, который служит основанием отпуска' = DATA STRING[70] (EInvoice);
 contractId 'Номер документа, служащего основанием отпуска' = DATA STRING[70] (EInvoice);
@@ -70,7 +70,7 @@ dataAddressSupplierStockFirst = DATA STRING[150] (EInvoice);
 dataAddressSupplierStock = DATA STRING[150] (EInvoice);
 overAddressSupplierStock = ABSTRACT ISTRING[250] (EInvoice);
 addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE dataAddressSupplierStockFirst(i), overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
-contactSupplierStock 'Лицо ответственное за передачу груза' = DATA STRING[150] (EInvoice) INDEXED MATCH;
+contactSupplierStock 'Сдал грузоотправитель (должность и ФИО)' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 
 userID 'Идентификатор пользователя' = ABSTRACT STRING[35] (Stock);
 stockGLNUserID (STRING[13] GLNLE, STRING[13] GLN, STRING[35] userID) = GROUP MIN Stock s IF active(s) AND GLNeInvoice(legalEntity(s)) == GLNLE AND GLN(s) == GLN AND (OVERRIDE userID(s), '') == userID;
@@ -100,7 +100,7 @@ nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customer
 dataAddressCustomerStockFirst = DATA STRING[150] (EInvoice);
 overAddressCustomerStock = ABSTRACT ISTRING[350] (EInvoice); // иногда пункт разгрузки указан только в атрибутах накладной
 addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerStockFirst(i), overAddressCustomerStock(i), address(customerStock(i));
-contactCustomerStock 'Лицо ответственное за получение груза' = DATA STRING[150] (EInvoice);
+contactCustomerStock 'Принял грузополучатель (должность и ФИО)' = DATA STRING[150] (EInvoice);
 userIDCustomerStock 'Идентификатор пользователя' (EInvoice i) = userID(customerStock(i));
 
 customSelectContactCustomerStock = ABSTRACT BOOLEAN (EInvoice);
@@ -121,16 +121,16 @@ glnTransporter 'GLN автомобильного перевозчика' (EInvoi
 nameTransporter 'Автомобильный перевозчик' (EInvoice i) = fullName(transporter(i));
 unpTransporter 'УНП автомобильного перевозчика' (EInvoice i) = UNP(freightPayer(i));
 
-transportContact 'ФИО водителя' = DATA STRING[150] (EInvoice) INDEXED MATCH;
+transportContact 'Водитель' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 proxyID 'Номер доверенности' = DATA STRING[70] (EInvoice);
 proxyDate 'Дата доверенности' = DATA DATE (EInvoice);
-partyIssuingProxyName 'Название организации, выдавшей доверенность' = DATA STRING[175] (EInvoice);
+partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[175] (EInvoice);
 
 quantityTrip 'Количество ездок' = DATA STRING[70] (EInvoice);
 transportOwnerName 'Владелец автомобиля' = DATA STRING[175] (EInvoice) INDEXED MATCH;
-transportID 'Марка и гос. номер автомобиля' = DATA STRING[35] (EInvoice) INDEXED MATCH;
-trailerID 'Марка и гос. номер прицепа' = DATA STRING[35] (EInvoice);
+transportID 'Марка и рег. номер автомобиля' = DATA STRING[35] (EInvoice) INDEXED MATCH;
+trailerID 'Марка и рег. номер прицепа' = DATA STRING[35] (EInvoice);
 
 orderID 'Номер заказа' = DATA STRING[35] (EInvoice);
 cancelDeliveryNoteId 'Номер отмененной накладной' = DATA STRING[43] (EInvoice);
@@ -200,8 +200,8 @@ defaultIndex (EInvoiceDetail d) = PARTITION SUM 1 ORDER d BY eInvoice(d);
 lineItemNumber 'Порядковый номер' (EInvoiceDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) MATERIALIZED;
 
 lineItemSign 'Признак вида товарной позиции' = DATA STRING[4] (EInvoiceDetail);
-lineItemID 'GTIN товара' = DATA STRING[100] (EInvoiceDetail) IN id;
-lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA STRING[100] (EInvoiceDetail);
+lineItemID 'GTIN товара' = DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15 IN id;
+lineItemBuyerID 'Код товара, присвоенный покупателем'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15 ;
 itemCustomCode 'Код ТНВЭД' = DATA STRING[10] (EInvoiceDetail);
 itemCustomCodeOther 'Дополнительный таможенный код' = DATA STRING[4] (EInvoiceDetail);
 
@@ -210,8 +210,8 @@ deliveryNotePrev 'Номер приходного документа' = DATA STR
 deliveryNoteDatePrev 'Дата и время создания приходного документа' = DATA DATETIME (EInvoiceDetail);
 deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (EInvoiceDetail);
 
-lineItemSupplierID 'Код товара, присвоенный поставщиком'= DATA STRING[100] (EInvoiceDetail);
-lineItemName 'Наименование товара' = DATA STRING[500] (EInvoiceDetail) IN id;
+lineItemSupplierID 'Код товара, присвоенный поставщиком'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15 ;
+lineItemName 'Наименование товара' = DATA STRING[500] (EInvoiceDetail) CHARWIDTH 30 IN id;
 grossWeightValue 'Масса груза, тонн' = DATA NUMERIC[12,6] (EInvoiceDetail);
 quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);
 lineItemQuantityUOM 'Код единицы измерения' = DATA STRING[3] (EInvoiceDetail);
@@ -251,9 +251,10 @@ cutRate 'Сниженная цена субъекта торговли, осущ
 additionalInformationPrice 'Иные сведения, необходимые для установления цены' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
 additionalInformationNote 'Примечание' = DATA STRING[512](EInvoiceDetail) CHARWIDTH 20 TABLE eInvoiceDetailPriceControl;
 
-lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
 
 //устаревшее
+lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
+
 upperLevelCodeMark 'Код упаковки верхнего уровня' = DATA STRING[300] (EInvoiceDetail, INTEGER);
 groupPackingCodeMark 'Код упаковки, которая вложена в упаковку верхнего уровня' = DATA STRING[130] (EInvoiceDetail, INTEGER);
 fieldCodeMark 'Перечень кодов маркировки' = DATA STRING[130000] (EInvoiceDetail) CHARWIDTH 100;
@@ -362,7 +363,7 @@ FORM eInvoices 'Электронные накладные'
     FILTERGROUP notExported
 
     OBJECTS d = EInvoiceDetail
-    PROPERTIES(d) READONLY lineItemNumber, lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, 
+    PROPERTIES(d) READONLY lineItemNumber, lineItemID, lineItemName, lineItemSign, lineItemBuyerID, itemCustomCode, lineItemSupplierID,
         quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
         lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
         grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, 
@@ -423,15 +424,16 @@ FORM eInvoice 'Электронная накладная'
     PROPERTIES(e) BACKGROUND background(e) dateSupplier, numberSupplier,
         deliveryNoteNumber, deliveryNoteDate, dateTimeCreated,
         contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
-        nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, contactSupplierStock,
-        nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
+        nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, addressSupplierStock, contactSupplierStock,
+        nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, addressCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
         nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
-        transportContact SHOWIF NOT isTN2(e), deliveryContact, proxyID, proxyDate, partyIssuingProxyName,
+        nameTransporter SHOWIF NOT isTN2(e), unpTransporter SHOWIF NOT isTN2(e), transportContact SHOWIF NOT isTN2(e), 
+        deliveryContact HEADER 'Товар к ' + (IF isTN2(e) THEN 'доставке' ELSE 'перевозке') + ' принял (должность и ФИО)', proxyID, proxyDate, partyIssuingProxyName,
         quantityTrip SHOWIF NOT isTN2(e), transportOwnerName SHOWIF NOT isTN2(e), transportID SHOWIF NOT isTN2(e), trailerID SHOWIF NOT isTN2(e),
         sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, overReplaceNumber ON CHANGE changeReplaceNumber(e), isTestDocument
 
     OBJECTS ed = EInvoiceDetail
-    PROPERTIES (ed) lineItemNumber, lineItemSign, lineItemID, lineItemBuyerID, itemCustomCode, lineItemSupplierID, lineItemName, quantityDespatched, 
+    PROPERTIES (ed) lineItemNumber, lineItemID, lineItemName, lineItemSign, lineItemBuyerID, itemCustomCode, lineItemSupplierID, quantityDespatched, 
         manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), 
         lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), 
         lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, 
@@ -461,33 +463,112 @@ FORM eInvoice 'Электронная накладная'
 ;
 
 DESIGN eInvoice {
-    GROUP (, e) {
-        lines = 2;
-    }
-    PROPERTY (contractId(e)){notNull = TRUE;}
-    PROPERTY (contractDate(e)){notNull = TRUE;}
-    PROPERTY (waybillId(e)){notNull = TRUE;} //(TRUE IF NOT isTN2(e));
-    PROPERTY (contactSupplier(e)){notNull = TRUE;}
-    PROPERTY (contactSupplierStock(e)){notNull = TRUE;}
-    PROPERTY (transportContact(e)){notNull = TRUE;} //(TRUE IF NOT isTN2(e));
-    PROPERTY (deliveryContact(e)){notNull = TRUE;}
-    PROPERTY (transportID(e)){notNull = TRUE;} //(TRUE IF NOT isTN2(e));
-    PROPERTY (currency(e)){notNull = TRUE;}
-    
     OBJECTS {
-        NEW tabs {
+        NEW mainTabs {
             tabbed = TRUE;
             fill = 1;
-            MOVE BOX(ed);
-            MOVE BOX(edc) {caption = 'Сведения по регулированию ценообразования';};
-            NEW itemExtra{
-                caption = 'Дополнительне поля, описывающие товар';
-                horizontal = TRUE;
+            NEW main {
+                caption = 'Данные накладной';
                 fill = 1;
-                MOVE BOX(edf);
-                MOVE BOX(ief);
+                NEW mainPanel{
+                    lines = 2;
+                    MOVE PROPERTY (deliveryNoteNumber(e));
+                    MOVE PROPERTY (deliveryNoteDate(e));
+                    NEW shipper {
+                        align = STRETCH;
+                        caption = 'Информация о грузоотправителе';
+                        MOVE PROPERTY (nameSupplier(e));
+                        MOVE PROPERTY (addressSupplier(e));
+                        MOVE PROPERTY (unpSupplier(e));
+                        MOVE PROPERTY (contactSupplier(e)){notNull = TRUE;};
+                    }
+                    NEW receiver {
+                        align = STRETCH;
+                        caption = 'Информация о грузополучателе';
+                        MOVE PROPERTY (nameCustomer(e));
+                        MOVE PROPERTY (addressCustomer(e));
+                        MOVE PROPERTY (unpCustomer(e));
+                    }
+                    NEW shipFrom {
+                        align = STRETCH;
+                        caption = 'Информация о пункте погрузки';
+                        MOVE PROPERTY (nameSupplierStock(e));
+                        MOVE PROPERTY (addressSupplierStock(e));
+                        MOVE PROPERTY (contactSupplierStock(e)){notNull = TRUE;};
+                    }
+                    NEW shipTo {
+                        align = STRETCH;
+                        caption = 'Информация о пункте разгрузки';
+                        MOVE PROPERTY (nameCustomerStock(e));
+                        MOVE PROPERTY (addressCustomerStock(e));
+                        MOVE PROPERTY (contactCustomerStock(e));
+                    }
+                    NEW carrier1 {
+                        align = STRETCH;
+                        caption = 'Информация о транспортировке';
+                        MOVE PROPERTY (transportContact(e)){notNull = TRUE;};
+                        MOVE PROPERTY (deliveryContact(e)){notNull = TRUE;};
+                        MOVE PROPERTY (proxyID(e));
+                        MOVE PROPERTY (proxyDate(e));
+                        MOVE PROPERTY (partyIssuingProxyName(e));
+                    }
+                    NEW carrier2 {
+                        align = STRETCH;
+                        caption = 'Информация о транспортировке';
+                        MOVE PROPERTY (waybillId(e)){notNull = TRUE;};
+                        MOVE PROPERTY (quantityTrip(e));
+                        MOVE PROPERTY (transportOwnerName(e));
+                        MOVE PROPERTY (transportID(e)){notNull = TRUE;};
+                        MOVE PROPERTY (trailerID(e));
+                    }
+                    MOVE PROPERTY (sealIDReceiver(e));
+                    NEW contract {
+                        align = STRETCH;
+                        MOVE PROPERTY (contractName(e));
+                        MOVE PROPERTY (contractId(e)){notNull = TRUE;};
+                        MOVE PROPERTY (contractDate(e)){notNull = TRUE;};
+                    }
+                }
+                NEW tabs {
+                    tabbed = TRUE;
+                    fill = 1;
+                    MOVE BOX(ed);
+                    MOVE BOX(edc) {caption = 'Сведения по регулированию ценообразования';};
+                    NEW itemExtra {
+                        caption = 'Дополнительне поля, описывающие товар';
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX(edf);
+                        MOVE BOX(ief);
+                    }
+                }
             }
-            MOVE BOX(ef);
+            NEW add {
+                caption = 'Дополнительная информация';
+                fill = 1;
+                NEW addPanel{
+                    lines = 2;
+                    MOVE PROPERTY (dateSupplier(e));
+                    MOVE PROPERTY (numberSupplier(e));
+                    MOVE PROPERTY (dateTimeCreated(e));
+                    NEW payer {
+                        caption = 'Информация о заказчике автомобильной перевозки';
+                        MOVE PROPERTY (nameFreightPayer(e));
+                        MOVE PROPERTY (addressFreightPayer(e));
+                        MOVE PROPERTY (unpFreightPayer(e));
+                    }
+                    NEW transporter {
+                        caption = 'Информация об автомобильном перевозчике';
+                        MOVE PROPERTY (nameTransporter(e));
+                        MOVE PROPERTY (unpTransporter(e));
+                    }
+                    MOVE PROPERTY (isTestDocument(e));
+                    MOVE PROPERTY (orderID(e));
+                    MOVE PROPERTY (overReplaceNumber(e));
+                    MOVE PROPERTY (currency(e)){notNull = TRUE;};
+                }
+                MOVE BOX(ef);
+            }
         }
     }
 }
