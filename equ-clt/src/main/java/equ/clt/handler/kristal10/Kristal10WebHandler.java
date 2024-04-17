@@ -1258,10 +1258,11 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         }
 
         ExtraCheckZReportBatch extraCheckResult = compareExtraCheckZReport(zReportSumMap, baseZReportSumMap);
-        if(extraCheckResult != null) {
-            if (extraCheckResult.message.isEmpty()) {
+        if (extraCheckResult != null) {
+            if (!extraCheckResult.idZReportSet.isEmpty()) {
                 remote.succeedExtraCheckZReport(extraCheckResult.idZReportSet);
-            } else {
+            }
+            if (!extraCheckResult.message.isEmpty()) {
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message, null);
             }
         }
