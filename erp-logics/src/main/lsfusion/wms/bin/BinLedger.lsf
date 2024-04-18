@@ -16,7 +16,7 @@ isClosed 'Закрыт' = ABSTRACT BOOLEAN (BinLedger);
 
 sku = ABSTRACT Sku (BinLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (BinLedger ledger) = name(sku(ledger)) IN id;
-idBarcodeSku 'Штрих-код' (BinLedger ledger)= idBarcode(sku(ledger)) IN id;
+idBarcodeSku 'Штрихкод' (BinLedger ledger)= idBarcode(sku(ledger)) IN id;
 
 stock = ABSTRACT Stock (BinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
@@ -84,6 +84,8 @@ currentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin
     inBinTotal(sku, bin) (-) outBinTotal(sku, bin) MATERIALIZED;
 prevCurrentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin) = PREV(currentBalance(sku, bin));
 
+prevCurrentBalance 'Текущий остаток в ячейке' = GROUP SUM prevCurrentBalance(Sku sku, Bin bin) BY bin;
+
 balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, date) (+) outBinTotalA(sku, bin, date);
 
@@ -96,6 +98,10 @@ prevBalanceB 'Остаток (до)' (Sku sku, Bin bin, DATETIME dateTime) = PRE
 balanceA 'Остаток в ячейке (после)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
 prevBalanceA 'Остаток в ячейке (после)'(Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceA(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+// статус ячейки
+
+status 'Статус' (Bin bin) = IF prevCurrentBalance(bin) THEN 'Занята' ELSE 'Свободна';
 
 META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
     dateTime[BinLedger] (###class ledger) += dateTime(object(ledger));
@@ -176,7 +182,7 @@ FORM binBalance 'Остатки по ячейкам'
     FILTERS ts==stock(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, canonicalName
+    PROPERTIES(b) READONLY name, canonicalName, status
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b), ts==stock(b)
     ORDERS name(b)
 
@@ -270,7 +276,7 @@ FORM dialogBinStock 'Ячейки'
     FILTERS s==stock(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, status
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE 
 
     FILTERS isParent(bg, b)

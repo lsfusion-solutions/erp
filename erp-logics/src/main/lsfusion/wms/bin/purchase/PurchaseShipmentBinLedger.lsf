@@ -12,3 +12,8 @@ NAMESPACE Purchase;
 @implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, customerStock);
 @implementBinLedger(shipmentBinLedger, shipmentDetail, sku, quantity, customerStock, inBin);
 needToCreate(ShipmentDetail detail) += TRUE IF inBin(detail);
+
+EXTEND CLASS ReceivingType {
+    inEmptyBin 'В свободную ячейку'
+}
+overInBin (UserInvoiceDetail detail) += (GROUP LAST Bin bin ORDER DESC in(sku(detail), bin), bin WHERE bin IS Bin AND NOT prevCurrentBalance(bin) AND stock(bin)==customerStock(detail)) IF defaultReceivingType()==ReceivingType.inEmptyBin;
