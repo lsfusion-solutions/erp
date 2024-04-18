@@ -31,8 +31,8 @@ TABLE fileQualityCertificate (QualityCertificate);
 file 'Файл сертификата'  = DATA FILE (QualityCertificate) TABLE fileQualityCertificate;
 saveFile 'Загрузить сертификат' (QualityCertificate qualityCertificate) { 
     INPUT = file(qualityCertificate) CHANGE; 
-    IF NOT (lower(getFileExtension(file(qualityCertificate))) = 'pdf' OR lower(getFileExtension(file(qualityCertificate))) = 'jpg' OR 
-        lower(getFileExtension(file(qualityCertificate))) = 'jpeg') THEN {
+    IF NOT (lower(extension(file(qualityCertificate))) = 'pdf' OR lower(extension(file(qualityCertificate))) = 'jpg' OR 
+        lower(extension(file(qualityCertificate))) = 'jpeg') THEN {
             MESSAGE 'Некорректный формат файла';
             file(qualityCertificate) <- NULL;
         }
@@ -64,9 +64,9 @@ TABLE fileExtraPageQualityCertificateDetail (ExtraPageQualityCertificateDetail);
 file 'Файл сертификата'  = DATA FILE (ExtraPageQualityCertificateDetail) TABLE fileExtraPageQualityCertificateDetail;
 saveFile 'Загрузить сертификат' (ExtraPageQualityCertificateDetail extraPageQualityCertificateDetail) { 
     INPUT = file(extraPageQualityCertificateDetail) CHANGE; 
-    IF NOT (lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'pdf' OR 
-        lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'jpg' OR 
-        lower(getFileExtension(file(extraPageQualityCertificateDetail))) = 'jpeg') THEN {
+    IF NOT (lower(extension(file(extraPageQualityCertificateDetail))) = 'pdf' OR 
+        lower(extension(file(extraPageQualityCertificateDetail))) = 'jpg' OR 
+        lower(extension(file(extraPageQualityCertificateDetail))) = 'jpeg') THEN {
             MESSAGE 'Некорректный формат файла';
             file(extraPageQualityCertificateDetail) <- NULL;
         }
@@ -85,26 +85,26 @@ FORM imageCertificateExtra 'Сертификат качества'
 
 printCertificate 'Печать сертификата' (QualityCertificate q) {
     IF file(q) THEN {
-        IF lower(getFileExtension(file(q))) == 'pdf' THEN 
+        IF lower(extension(file(q))) == 'pdf' THEN 
             printFile(PDFFILE(file(q)));
             ELSE PRINT imageCertificate OBJECTS o = q; 
         MESSAGE 'Cертификат №'+number(q) +' отправлен на принтер' NOWAIT;
     }
     FOR file(ExtraPageQualityCertificateDetail dd) AND qualityCertificate(dd) == q DO {
-        IF lower(getFileExtension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)));
+        IF lower(extension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)));
         ELSE PRINT imageCertificateExtra OBJECTS o = dd;
     }
 } IMAGE 'print.png';
 
 printCertificateDuplex 'Печать сертификата (двухсторонняя)' (QualityCertificate q) {
     IF file(q) THEN {
-        IF lower(getFileExtension(file(q))) == 'pdf' THEN 
+        IF lower(extension(file(q))) == 'pdf' THEN 
             printFile(PDFFILE(file(q)), NULL, NULL, TRUE);
             ELSE PRINT imageCertificate OBJECTS o = q; 
         MESSAGE 'Cертификат №'+number(q) +' отправлен на принтер' NOWAIT;
     }
     FOR file(ExtraPageQualityCertificateDetail dd) AND qualityCertificate(dd) == q DO {
-        IF lower(getFileExtension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)), NULL, NULL, TRUE);
+        IF lower(extension(file(dd))) == 'pdf' THEN printFile(PDFFILE(file(dd)), NULL, NULL, TRUE);
         ELSE PRINT imageCertificateExtra OBJECTS o = dd;
     }
 } IMAGE 'print.png';
