@@ -2,12 +2,12 @@ MODULE Barcode;
 
 REQUIRE System, Integration, Numerator, SkuLedger, Utils, Document, BarcodeLog;
 
-CLASS Barcode 'Штрих-код';
+CLASS Barcode 'Штрихкод';
 TABLE barcode (Barcode);
 TABLE sessionBarcode (Session, Barcode);
 
 // After moving to 5.0 'CONTAINS' should be replaced with '=@' (SEARCH)
-id 'Штрих-код' = DATA STRING[15] (Barcode) IN id CHARWIDTH 15 NOFLEX INDEXED DEFAULTCOMPARE 'CONTAINS';
+id 'Штрихкод' = DATA STRING[15] (Barcode) IN id CHARWIDTH 15 NOFLEX INDEXED DEFAULTCOMPARE 'CONTAINS';
 WHEN SETCHANGED (id(Barcode b)) INLINE DO id(b) <- replace(id(b), ' ','');
 @defineExternalizable(barcode, STRING[200], ext);
 extValue = ABSTRACT INTEGER (Barcode);
@@ -126,7 +126,7 @@ changePrimary(Barcode barcode, Sku sku)  {
             dataBarcode(sku) <- barcode;
 }
 
-allBarcodes 'Все штрих-коды' = GROUP CONCAT id(Barcode b) IF active(b), ',' ORDER id(b), b BY sku(b);
+allBarcodes 'Все штрихкоды' = GROUP CONCAT id(Barcode b) IF active(b), ',' ORDER id(b), b BY sku(b);
 
 idBarcode 'Штрихкод' (Sku sku) = id(barcode(sku)) IN base MATERIALIZED INDEXED;
 backgroundBarcode = ABSTRACT CASE COLOR (Sku);
@@ -188,7 +188,7 @@ generateBarcode 'Сгенерировать штрихкод'(Sku sku)  {
     };
 } TOOLBAR CONFIRM;
 
-FORM barcodeDialog 'Штрих-код'
+FORM barcodeDialog 'Штрихкод'
     OBJECTS b = Barcode
     PROPERTIES (b) READONLY id, nameSku, caption, date, shortNameUOM, amount, active, primary
     LIST Barcode OBJECT b
