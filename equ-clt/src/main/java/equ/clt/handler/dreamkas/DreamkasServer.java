@@ -319,7 +319,7 @@ public class DreamkasServer {
                 oHeader.getPathJson("positions[" + i + "]");
                 oLines.load(oHeader.cResult);
                 Integer numberReceiptDetail = i + 1;                                        // Номер строки чека
-                oLines.getPathValue("barcode");                              // Штрих код
+                oLines.getPathValue("barcode");                              // Штрихкод
                 String barcodeItem = oLines.cResult;
                 oLines.getPathValue("quantity");                             // Кол-во товаров
                 BigDecimal quantityReceiptDetail = getBigDecimal(oLines.cResult, 3);

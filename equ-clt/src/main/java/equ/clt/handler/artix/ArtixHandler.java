@@ -430,7 +430,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             int ageVerify = item.flags != null && (item.flags & 64) != 0 ? 1 : 0;
             boolean disableInventSale = item.flags != null && (item.flags & 128) != 0;
 
-            //основной штрих-код
+            //основной штрихкод
             inventObject.put("deptcode", nvl(deptCode, 1)); //код отдела
             inventObject.put("price", item.price); //цена
             inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
@@ -688,7 +688,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         rootObject.put("invent", inventObject);
         inventObject.put("inventcode", "9999"); //код товара
         inventObject.put("name", "Приходная накладная");
-        inventObject.put("barcode", "9999"); //основной штрих-код
+        inventObject.put("barcode", "9999"); //основной штрихкод
 
         JSONObject inventItemOptions = new JSONObject();
         inventItemOptions.put("freesale", 1);
@@ -833,7 +833,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
         JSONObject tmcScaleObject = new JSONObject();
         rootObject.put("tmcscale", tmcScaleObject);
-        tmcScaleObject.put("tmcscalecode", idBarcode); //Штрих-код товара на весах
+        tmcScaleObject.put("tmcscalecode", idBarcode); //Штрихкод товара на весах
         tmcScaleObject.put("tmccode", getIdItem(item)); //код товара
         tmcScaleObject.put("tmcscalegroupcode", 1); //Код ассортиментной группы товаров на весах
         tmcScaleObject.put("plu", getPluNumber(item, idBarcode)); //Номер ячейки памяти на весах
@@ -841,7 +841,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         tmcScaleObject.put("ingredients", trim(item.description, 1000)); //Состав весового товара
         tmcScaleObject.put("manufacturer", item.idBrand); //Производитель весового товара
         if(transaction.weightCodeGroupCashRegister != null)
-            tmcScaleObject.put("prefix", Integer.parseInt(transaction.weightCodeGroupCashRegister)); //Префикс штрих-кода
+            tmcScaleObject.put("prefix", Integer.parseInt(transaction.weightCodeGroupCashRegister)); //Префикс штрихкода
 
         tmcScaleObject.put("produceddate", item.manufactureDays); //Дата производства, в сутках, вычитается из даты упаковки, Дата упаковки - текущая дата взвешивания и печати этикетки
         tmcScaleObject.put("sellbydate", item.daysExpiry); //Срок годности, в сутках, прибавляется к дате упаковки
@@ -2119,7 +2119,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         JSONObject rootObject = new JSONObject();
 
         rootObject.put("command", "deleteTmcScale");
-        rootObject.put("tmcscalecode", idBarcode); //Штрих-код товара на весах
+        rootObject.put("tmcscalecode", idBarcode); //Штрихкод товара на весах
         rootObject.put("tmccode", getIdItem(item)); //код товара
         return rootObject.toString();
     }

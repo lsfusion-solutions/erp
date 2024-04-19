@@ -120,7 +120,7 @@ public class BelCoopSoyuzSQLHandler extends DefaultCashRegisterHandler<BelCoopSo
                     String ceuniref0 = item.section != null && item.section.contains(" ") ? item.section.split(" ")[0] : null;
                     ps.setString(2, trim(ceuniref0, 25)); //CEUNIREF0, УНП предприятия
                     ps.setString(3, "ПРАЙС"); //CEDOCCOD, тип записи
-                    ps.setString(4, trim(barcode, 25)); //CEOBIDE, Штрих-код товара
+                    ps.setString(4, trim(barcode, 25)); //CEOBIDE, Штрихкод товара
                     ps.setString(5, trim(item.shortNameUOM, 25)); //CEOBMEA, единица измерения
                     ps.setString(6, trim(item.name, 100)); //MEOBNAM, Наименование товара
                     ps.setDouble(7, item.price.doubleValue()); //NERECOST, роз.цена

@@ -116,7 +116,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     String energValue = splittedDescription != null && splittedDescription.length > 1 ? splittedDescription[1] : null;
 
                     ps.setString(1, skipIdDepartmentStore ? "" : trim(transaction.idDepartmentStoreGroupCashRegister, 10)); //store, код торговой точки
-                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
+                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрихкод товара
                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
@@ -176,7 +176,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                             if (item.idBarcode != null) {
                                 for (String idStock : stopListInfo.idStockSet) {
                                     ps.setString(1, trim(idStock, 10)); //store, код торговой точки
-                                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрих-код товара
+                                    ps.setString(2, removeCheckDigitFromBarcode(trim(item.idBarcode, 20), appendBarcode)); //barcode, Штрихкод товара
                                     ps.setString(3, trim(item.idItem, 20)); //art, Артикул
                                     ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                                     ps.setLong(5, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
@@ -404,7 +404,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                             CashRegisterInfo cashRegister = machineryMap.get(cash_id);
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                            String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 5, appendBarcode); //barcode, Штрих-код товара
+                            String idBarcode = appendCheckDigitToBarcode(rs.getString(4), 5, appendBarcode); //barcode, Штрихкод товара
                             String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
                             BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                             BigDecimal price = rs.getBigDecimal(7); //price, Цена

@@ -192,7 +192,7 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
                                             //зануляем незадействованные pluNumber
                                             if (transaction.snapshot && advancedClearMaxPLU != 0 && globalError < 3) {
                                                 processTransactionLogger.info("Shtrih: resetting item start" );
-                                                String firstLine = "Недопустимый штрих-код!";
+                                                String firstLine = "Недопустимый штрихкод!";
                                                 String secondLine = "";
                                                 String message = "";
                                                 for (int i = 1; i <= advancedClearMaxPLU; i++)
