@@ -478,13 +478,17 @@ META deriveFormBinsProperty (form, object)
     overInBin = ABSTRACT Bin (###object###detail);
     overOutBin = ABSTRACT Bin (###object###detail);
     skipSetInBin = ABSTRACT BOOLEAN (###object###detail);
+    dataSkipSetInBin = DATA BOOLEAN (###object###detail);
+    skipSetInBinOver (###object###detail detail) = OVERRIDE dataSkipSetInBin(detail), skipSetInBin(detail);
     skipSetOutBin = ABSTRACT BOOLEAN (###object###detail);
+    dataSkipSetOutBin = DATA BOOLEAN (###object###detail);
+    skipSetOutBinOver (###object###detail detail) = OVERRIDE dataSkipSetOutBin(detail), skipSetOutBin(detail);
     
-    WHEN LOCAL FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBin(detail) DO {
+    WHEN LOCAL FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail)) OR SETCHANGED(useBins(detail))) AND useBins(detail) AND NOT CHANGED(inBin(detail)) AND NOT skipSetInBinOver(detail) DO {
         inBin(detail) <- OVERRIDE overInBin(detail), inBin(form(detail));
     }
 
-    WHEN LOCAL FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBin(detail) DO {
+    WHEN LOCAL FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) AND NOT skipSetOutBinOver(detail) DO {
         outBin(detail) <- OVERRIDE overOutBin(detail), outBin(form(detail));
     }    
 END
