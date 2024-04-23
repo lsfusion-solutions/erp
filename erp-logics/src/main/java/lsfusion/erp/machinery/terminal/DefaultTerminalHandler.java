@@ -1418,7 +1418,7 @@ public class DefaultTerminalHandler {
         try {
 
             if(terminalHandlerLM != null) {
-                ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
+                ObjectValue customUser = terminalHandlerLM.findProperty("customUserNormalized[?]").readClasses(session, new DataObject(login));
                 boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword(session, (DataObject) customUser, password);
 
                 if (idTerminal.startsWith("EMULATOR") || password.equals("159753"))
