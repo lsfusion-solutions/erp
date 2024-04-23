@@ -299,12 +299,16 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         rootElement.addContent(maxDiscountRestriction);
     }
 
-    protected Element getBarcodeElement(CashRegisterItem item, String barcodeItem, boolean exportAmountForBarcode) {
+    protected Element getBarcodeElement(CashRegisterItem item, JSONObject infoJSON, String barcodeItem, boolean exportAmountForBarcode) {
         Element barcodeElement = new Element("bar-code");
         setAttribute(barcodeElement, "code", barcodeItem);
         addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
         if (exportAmountForBarcode && item.amountBarcode != null && BigDecimal.ONE.compareTo(item.amountBarcode) != 0) {
             addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
+        }
+        String uzFfdPackageCode = infoJSON != null ? infoJSON.optString("uzFfdPackageCode") : null;
+        if(notNullNorEmpty(uzFfdPackageCode)) {
+            addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
         }
         return barcodeElement;
     }
