@@ -1359,6 +1359,8 @@ FORM selectLabelTypes 'Доступные типы ценников'
 
 DESIGN selectLabelTypes { BOX { size = (800, 600); } }  
 
+beforeCreateSnapshotLabelTransactionDepartmentStore ABSTRACT LIST ();
+
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники'()  { 
     IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {            
         NEWSESSION NESTED (select[Sku,Stock]) {
@@ -1368,7 +1370,8 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
                     select(Sku sku) <- select(sku, stock);     
                     IF NOT countSelectType() THEN {
                         select(l) <- TRUE;
-                    }            
+                    }
+                    beforeCreateSnapshotLabelTransactionDepartmentStore();
                     FOR select(LabelType type) DO {
                         createSnapshotLabelTransactionDepartmentStore(stock, type);
                     }                     
