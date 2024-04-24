@@ -128,8 +128,11 @@ WHEN LOCAL SETCHANGED(updateManufacturingPrice(UserInvoiceDetail detail)) AND NO
 
 skipCalcWholesaleMarkup = ABSTRACT BOOLEAN (InvoiceDetail);
 
-wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (InvoiceDetail detail) = round2([ (X/Y-1)*100](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail)!= 0.0)) IF NOT skipCalcWholesaleMarkup(detail);
-wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserInvoiceDetail detail) = round2([ (X/Y-1)*100](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail)!= 0.0))  IF NOT skipCalcWholesaleMarkup(detail);;
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' = ABSTRACT VALUE NUMERIC[8,3](InvoiceDetail);
+wholesaleMarkup (InvoiceDetail detail) += NUMERIC[8,3](round2([ (X/Y-1)*100](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail)!= 0.0))) IF NOT skipCalcWholesaleMarkup(detail);
+
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' = ABSTRACT VALUE NUMERIC[8,3](UserInvoiceDetail);
+wholesaleMarkup[UserInvoiceDetail](UserInvoiceDetail detail) += NUMERIC[8,3](round2([ (X/Y-1)*100](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail)!= 0.0))) IF NOT skipCalcWholesaleMarkup(detail);;
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
 @deriveDocumentDetailSumPrefix(userInvoice, manufacturing, currency, quantity); // записываем сумму изготовителя
