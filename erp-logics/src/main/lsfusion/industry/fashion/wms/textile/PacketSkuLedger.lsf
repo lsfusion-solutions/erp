@@ -22,15 +22,23 @@ quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (PacketSkuLedger);
 
 TABLE skuPacket(Sku,Packet);
 currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY sku(l), packet(l) MATERIALIZED;
-currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY packet(l);
+currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY article(sku(l)), packet(l) MATERIALIZED;
+currentQuantity 'Количество в пакете' = GROUP SUM quantity(PacketSkuLedger l) BY packet(l) MATERIALIZED;
+
+// Во многих местах используем current, независимо от времени. Чтобы быстре выполнялось.
+// Поэтому если понадобится добавлять или доставать товары из пакета, то нужно пересмотреть все использования current
 
 quantityB 'Количество в пакете (до)' (Sku s, Packet b, DATETIME d) = (currentQuantity(s, b) IF d IS DATETIME)
-    (-) [ GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) >= d
-    BY sku(l), packet(l)](s, b);
+    (-) [GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) >= d BY sku(l), packet(l)](s, b);
 
 quantityA 'Количество в пакете (после)' (Sku s, Packet b, DATETIME d) = currentQuantity(s, b)
-    (-) [ GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) > d
-    BY sku(l), packet(l)](s, b);
+    (-) [GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) > d BY sku(l), packet(l)](s, b);
+
+quantityB 'Количество в пакете (до)' (Article a, Packet b, DATETIME d) = currentQuantity(a, b)
+    (-) [GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) >= d BY article(sku(l)), packet(l)](a, b);
+
+quantityA 'Количество в пакете (после)' (Article a, Packet b, DATETIME d) = currentQuantity(a, b)
+    (-) [GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) > d BY article(sku(l)), packet(l)](a, b);
 
 quantityA 'Количество в пакете (после)' = GROUP SUM quantity(PacketSkuLedger l) IF dateTime(l) <= DATETIME d BY packet(l), d;
 
