@@ -140,9 +140,13 @@ isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
 
 isTestDocument 'Тестовый документ' = DATA BOOLEAN (EInvoice);
 
-@defineOption(isNewFormatEInvoice, 'Создавать электронные накладные в новом формате (2024)', EDI);
+@defineOption(overIsNewFormatEInvoice, 'Создавать электронные накладные в новом формате (2024)', EDI);
+
+dataIsNewFormatEInvoice 'Создавать электронные накладные в новом формате (2024)' = DATA BOOLEAN (LegalEntity);
+isNewFormatEInvoice 'Создавать электронные накладные в новом формате (2024)' (LegalEntity l) = OVERRIDE dataIsNewFormatEInvoice(l), overIsNewFormatEInvoice() IF l IS LegalEntity;
+
 isNewFormat 'Новый формат (2024)' = DATA BOOLEAN (EInvoice);
-isNewFormat(EInvoice e) <- TRUE WHEN SET(e IS EInvoice) AND isNewFormatEInvoice();
+isNewFormat(EInvoice e) <- TRUE WHEN SET(e IS EInvoice) AND overIsNewFormatEInvoice();
 
 CLASS ExtraField 'Дополнительное поле';
 TABLE extraField(ExtraField);
@@ -603,6 +607,7 @@ EDIProviderInvoice 'EDI-провайдер для накладных' (LegalEnti
 nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderInvoice(legalEntity, company));
 
 EXTEND FORM legalEntity
+    PROPERTIES isNewFormatEInvoice(l)
     PROPERTIES (eCom) READONLY UNP
     PROPERTIES nameEDIProviderInvoice(l, eCom), GLNeInvoice(l) DRAW eCom;
 
@@ -610,6 +615,7 @@ DESIGN legalEntity {
     EDI {
         NEW EInvoice {
             caption = 'Накладные';
+            MOVE PROPERTY (isNewFormatEInvoice(l));
         }
     }   
 }
