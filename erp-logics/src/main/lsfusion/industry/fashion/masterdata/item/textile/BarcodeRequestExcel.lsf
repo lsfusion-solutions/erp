@@ -4,100 +4,121 @@ REQUIRE BarcodeRequest, Excel;
 
 NAMESPACE BarcodeRequest;
 
+template 'Шаблон Excel' = DATA Template (Operation);
+nameTemplate 'Шаблон Excel' (Operation operation) = name(template(operation));
+
+EXTEND FORM operation PROPERTIES nameTemplate(o);
+
+DESIGN operation {
+    tabContainer {
+        NEW paramsContainer {
+            caption = 'Параметры';
+            MOVE PROPERTY(isTrackingItem(o));
+            MOVE PROPERTY(nameTemplate(o));
+        }
+    }
+}
+
+EXTEND FORM operations PROPERTIES READONLY nameTemplate(o) AFTER id(o);
 
 setExtraValue ABSTRACT LIST(BarcodeRequest, TemplateEntry);
 
-createRequestProceed(BarcodeRequest b)  {
+createRequestProceed(BarcodeRequest b) {
     value(TemplateEntry detail) <- NULL;
+    
+    LOCAL template = Template ();
+    template() <- template(operation(b));
+    
+    IF NOT template() THEN DIALOG dialogTemplates OBJECTS t INPUT DO {
+        template() <- t;
+    }
+    
+    LOCAL quantityStr = TEXT();
+    LOCAL codeGLN = TEXT();
+    LOCAL name = TEXT();
+    LOCAL minTemperatureStr = TEXT();
+    LOCAL maxTemperatureStr = TEXT();
+    LOCAL minHumidityStr = TEXT();
+    LOCAL maxHumidityStr = TEXT();
+    LOCAL conditionsStr = TEXT();
+    LOCAL requirementsStr = TEXT();
+    LOCAL taxIdCompanyStr = TEXT();
+    quantityStr() <- quantityDefault();
+    codeGLN() <- codeGLNCompany();
+    name() <- nameCompany();
+    minTemperatureStr() <- minTemperature();
+    maxTemperatureStr() <- maxTemperature();
+    minHumidityStr() <- minHumidity();
+    maxHumidityStr() <- maxHumidity();
+    conditionsStr() <- conditions();
+    requirementsStr() <- requirements();
+    taxIdCompanyStr() <- taxIdCompany();
 
-    DIALOG dialogTemplates OBJECTS t INPUT DO {
-        LOCAL quantityStr = TEXT();
-        LOCAL codeGLN = TEXT();
-        LOCAL name = TEXT();
-        LOCAL minTemperatureStr = TEXT();
-        LOCAL maxTemperatureStr = TEXT();
-        LOCAL minHumidityStr = TEXT();
-        LOCAL maxHumidityStr = TEXT();
-        LOCAL conditionsStr = TEXT();
-        LOCAL requirementsStr = TEXT();
-        LOCAL taxIdCompanyStr = TEXT();
-        quantityStr() <- quantityDefault();
-        codeGLN() <- codeGLNCompany();
-        name() <- nameCompany();
-        minTemperatureStr() <- minTemperature();
-        maxTemperatureStr() <- maxTemperature();
-        minHumidityStr() <- minHumidity();
-        maxHumidityStr() <- maxHumidity();
-        conditionsStr() <- conditions();
-        requirementsStr() <- requirements();
-        taxIdCompanyStr() <- taxIdCompany();
-
-        FOR iterate(INTEGER i, 1, countBarcodeRequestDetail(b)-1) AND countBarcodeRequestDetail(b)-1 > 0 DO{
-            quantityStr() <- CONCAT '\n', quantityStr(), quantityDefault();
-            codeGLN() <- CONCAT '\n', codeGLN(), codeGLNCompany();
-            name() <- CONCAT '\n', name(), nameCompany();
-            minTemperatureStr() <- CONCAT '\n', minTemperatureStr(), minTemperature();
-            maxTemperatureStr() <- CONCAT '\n', maxTemperatureStr(), maxTemperature();
-            minHumidityStr() <- CONCAT '\n', minHumidityStr(), minHumidity();
-            maxHumidityStr() <- CONCAT '\n', maxHumidityStr(), maxHumidity();
-            conditionsStr() <- CONCAT '\n', conditionsStr(), conditions();
-            requirementsStr() <- CONCAT '\n', requirementsStr(), requirements();
-            taxIdCompanyStr() <- CONCAT '\n', taxIdCompanyStr(), taxIdCompany();
-        }
-
-        FOR template (TemplateEntry detail) == t DO {
-            value(detail) <- toDateDDMMYYYY(dateTime(b)) WHERE key(detail) == 'dateRequest';
-            value(detail) <- (OVERRIDE dataRequestUser(), (CONCAT ', ', (CONCAT ' ', lastName(currentUser()), (OVERRIDE firstName(currentUser()), initialsEmployee(currentUser()))), phone(currentUser()))) WHERE key(detail) == 'userRequest';
-            value(detail) <- registerNumber() WHERE key(detail) == 'registerNumber';
-
-            value(detail) <- [ GROUP CONCAT TEXT(nameArticleKind(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'articleKind';
-            value(detail) <- [ GROUP CONCAT TEXT(nameBrand(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'brand';
-            value(detail) <- [ GROUP CONCAT TEXT(itemKindString(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'itemKind';
-            value(detail) <- [ GROUP CONCAT TEXT(nameGOST(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gost';
-            value(detail) <- [ GROUP CONCAT TEXT(codeOKRB(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeOKRB';
-            value(detail) <- [ GROUP CONCAT TEXT(codeCustomsGroup(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeCustoms';
-            value(detail) <- [ GROUP CONCAT TEXT(compositionItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'composition';
-            value(detail) <- [ GROUP CONCAT TEXT(codeGPC1(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC1';
-            value(detail) <- [ GROUP CONCAT TEXT(codeGPC2(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC2';
-            value(detail) <- [ GROUP CONCAT TEXT(codeGPC3(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC3';
-            value(detail) <- [ GROUP CONCAT TEXT(codeGPC4(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC4';
-            value(detail) <- [ GROUP CONCAT TEXT(netWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'netWeight';
-            value(detail) <- [ GROUP CONCAT TEXT(grossWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'grossWeight';
-            value(detail) <- quantityStr() WHERE key(detail) == 'quantity';
-            value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN1';
-            value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN2';
-            value(detail) <- name() WHERE key(detail) == 'name1';
-            value(detail) <- name() WHERE key(detail) == 'name2';
-            value(detail) <- minTemperatureStr() WHERE key(detail) == 'minTemperature';
-            value(detail) <- maxTemperatureStr() WHERE key(detail) == 'maxTemperature';
-            value(detail) <- minHumidityStr() WHERE key(detail) == 'minHumidity';
-            value(detail) <- maxHumidityStr() WHERE key(detail) == 'maxHumidity';
-            value(detail) <- conditionsStr() WHERE key(detail) == 'conditions';
-            value(detail) <- requirementsStr() WHERE key(detail) == 'requirements';
-
-            IF isTrackingItem(b) THEN {
-                value(detail) <- [ GROUP CONCAT TEXT(nameSizeItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'size';
-                value(detail) <- [ GROUP CONCAT TEXT(nameColorItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'color';
-                value(detail) <- [ GROUP CONCAT TEXT(nameGenderItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gender';
-                value(detail) <- [ GROUP CONCAT TEXT(idArticleItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'idArticle';
-                value(detail) <- [ GROUP CONCAT TEXT(technicalRegulation(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'technicalRegulation';
-                value(detail) <- taxIdCompanyStr() WHERE key(detail) == 'taxIdCompany';
-            }            
-
-            setExtraValue(b, detail);
-        }
-
-        DIALOG template OBJECTS t = t DO {
-            process(t);
-            excel(b) <- resultTemplate();
-            openExcel(b);
-        }
+    FOR iterate(INTEGER i, 1, countBarcodeRequestDetail(b)-1) AND countBarcodeRequestDetail(b)-1 > 0 DO{
+        quantityStr() <- CONCAT '\n', quantityStr(), quantityDefault();
+        codeGLN() <- CONCAT '\n', codeGLN(), codeGLNCompany();
+        name() <- CONCAT '\n', name(), nameCompany();
+        minTemperatureStr() <- CONCAT '\n', minTemperatureStr(), minTemperature();
+        maxTemperatureStr() <- CONCAT '\n', maxTemperatureStr(), maxTemperature();
+        minHumidityStr() <- CONCAT '\n', minHumidityStr(), minHumidity();
+        maxHumidityStr() <- CONCAT '\n', maxHumidityStr(), maxHumidity();
+        conditionsStr() <- CONCAT '\n', conditionsStr(), conditions();
+        requirementsStr() <- CONCAT '\n', requirementsStr(), requirements();
+        taxIdCompanyStr() <- CONCAT '\n', taxIdCompanyStr(), taxIdCompany();
     }
 
+    FOR template (TemplateEntry detail) == template() DO {
+        value(detail) <- toDateDDMMYYYY(dateTime(b)) WHERE key(detail) == 'dateRequest';
+        value(detail) <- (OVERRIDE dataRequestUser(), (CONCAT ', ', (CONCAT ' ', lastName(currentUser()), (OVERRIDE firstName(currentUser()), initialsEmployee(currentUser()))), phone(currentUser()))) WHERE key(detail) == 'userRequest';
+        value(detail) <- registerNumber() WHERE key(detail) == 'registerNumber';
+
+        value(detail) <- [ GROUP CONCAT TEXT(nameArticleKind(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'articleKind';
+        value(detail) <- [ GROUP CONCAT TEXT(nameBrand(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'brand';
+        value(detail) <- [ GROUP CONCAT TEXT(itemKindString(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'itemKind';
+        value(detail) <- [ GROUP CONCAT TEXT(nameGOST(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gost';
+        value(detail) <- [ GROUP CONCAT TEXT(codeOKRB(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeOKRB';
+        value(detail) <- [ GROUP CONCAT TEXT(codeCustomsGroup(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeCustoms';
+        value(detail) <- [ GROUP CONCAT TEXT(compositionItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'composition';
+        value(detail) <- [ GROUP CONCAT TEXT(codeGPC1(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC1';
+        value(detail) <- [ GROUP CONCAT TEXT(codeGPC2(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC2';
+        value(detail) <- [ GROUP CONCAT TEXT(codeGPC3(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC3';
+        value(detail) <- [ GROUP CONCAT TEXT(codeGPC4(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'codeGPC4';
+        value(detail) <- [ GROUP CONCAT TEXT(netWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'netWeight';
+        value(detail) <- [ GROUP CONCAT TEXT(grossWeight(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'grossWeight';
+        value(detail) <- quantityStr() WHERE key(detail) == 'quantity';
+        value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN';
+        value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN1';
+        value(detail) <- codeGLN() WHERE key(detail) == 'codeGLN2';
+        value(detail) <- name() WHERE key(detail) == 'name1';
+        value(detail) <- name() WHERE key(detail) == 'name2';
+        value(detail) <- minTemperatureStr() WHERE key(detail) == 'minTemperature';
+        value(detail) <- maxTemperatureStr() WHERE key(detail) == 'maxTemperature';
+        value(detail) <- minHumidityStr() WHERE key(detail) == 'minHumidity';
+        value(detail) <- maxHumidityStr() WHERE key(detail) == 'maxHumidity';
+        value(detail) <- conditionsStr() WHERE key(detail) == 'conditions';
+        value(detail) <- requirementsStr() WHERE key(detail) == 'requirements';
+
+        IF isTrackingItem(b) THEN {
+            value(detail) <- [ GROUP CONCAT TEXT(nameSizeItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'size';
+            value(detail) <- [ GROUP CONCAT TEXT(nameColorItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'color';
+            value(detail) <- [ GROUP CONCAT TEXT(nameGenderItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'gender';
+            value(detail) <- [ GROUP CONCAT TEXT(idArticleItem(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'idArticle';
+            value(detail) <- [ GROUP CONCAT TEXT(technicalRegulation(BarcodeRequestDetail d)), '\n' ORDER index(d), d BY barcodeRequest(d)](b) WHERE key(detail) == 'technicalRegulation';
+            value(detail) <- taxIdCompanyStr() WHERE key(detail) == 'taxIdCompany';
+        }
+
+        setExtraValue(b, detail);
+    }
+
+    DIALOG template OBJECTS t = template() DO {
+        process(template());
+        excel(b) <- resultTemplate();
+        openExcel(b);
+    }
     APPLY NESTED LOCAL;
 }
 
-createRequestTemplate 'Создать Excel-файл по шаблону'(BarcodeRequest b)  {
+createRequestTemplate 'Создать Excel-файл по шаблону'(BarcodeRequest b) {
     IF needCreateNewRequest(b) THEN {
         MESSAGE 'Не во всех строках заполнены необходимые поля. Файл не создан.';
         RETURN;
