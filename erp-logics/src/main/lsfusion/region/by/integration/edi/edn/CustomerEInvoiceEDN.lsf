@@ -17,6 +17,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
             overImportBlrwbl(i);
             IF NOT skipBlrwbl() THEN {
                 IMPORT blrwbl XML FROM data(i);
+                validate('BLRWBL', FILE(data(i)));
                 NEWSESSION NESTED LOCAL {
                     LOCAL isCancel = BOOLEAN();
                     isCancel() <- TRUE IF blrwblFunctionCode() == '1';
@@ -31,6 +32,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             exportedBlrapnCustomer(ei) <- NULL;
                         }
                     } ELSE NEW ei = EInvoice {
+                        isNewFormat(ei) <- NOT validateError();
                         importedCustomer(ei) <- TRUE;
                         isTestDocument(ei) <- TRUE IF blrwblTestIndicator() == '1';
                         id(ei) <- blrwblSupplierGLN() + '/' + blrwblDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
@@ -263,6 +265,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
             overImportBlrdln(i);
             IF NOT skipBlrdln() THEN {
                 IMPORT blrdln XML FROM data(i);
+                validate('BLRDLN', FILE(data(i)));
                 NEWSESSION NESTED LOCAL {
                     LOCAL isCancel = BOOLEAN();
                     isCancel() <- TRUE IF blrdlnFunctionCode() == '1';
@@ -277,6 +280,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                             exportedBlrapnCustomer(ei) <- NULL;
                         }
                     } ELSE NEW ei = EInvoice {
+                        isNewFormat(ei) <- NOT validateError();
                         importedCustomer(ei) <- TRUE;
                         isTestDocument(ei) <- TRUE IF blrdlnTestIndicator() == '1';
                         isTN2(ei) <- TRUE;
@@ -638,7 +642,11 @@ signAndSendCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                         exportBlrwbrDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrwbrDateTime());
                         hideMessageHeaderBlrwbr() <- TRUE;
-                        EXPORT exportBlrwbr OBJECTS ei = ei XML TO contentSubXML;
+                        IF isNewFormat(ei) THEN {
+                            EXPORT exportBlrwbrNew OBJECTS ei = ei XML TO contentSubXML;
+                        } ELSE {
+                            EXPORT exportBlrwbr OBJECTS ei = ei XML TO contentSubXML;
+                        }
                         IF outputDirEDN() THEN {
                             TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrwbr_' + LONG(resultMilliseconds() + 1);
@@ -709,7 +717,11 @@ signAndSendCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
                         exportBlrdnrDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrdnrDateTime());
                         hideMessageHeaderBlrdnr() <- TRUE;
-                        EXPORT exportBlrdnr OBJECTS ei = ei XML TO contentSubXML;
+                        IF isNewFormat(ei) THEN {
+                            EXPORT exportBlrdnrNew OBJECTS ei = ei XML TO contentSubXML;
+                        } ELSE {
+                            EXPORT exportBlrdnr OBJECTS ei = ei XML TO contentSubXML;
+                        }
                         IF outputDirEDN() THEN {
                             TRY{ mkdir(outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
                             WRITE contentSubXML() TO outputDirEDN() + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blrdnr_' + LONG(resultMilliseconds() + 1);

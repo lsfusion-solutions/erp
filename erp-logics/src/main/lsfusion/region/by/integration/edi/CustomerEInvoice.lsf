@@ -1,6 +1,6 @@
 MODULE CustomerEInvoice;
 
-REQUIRE EInvoice, EDS;
+REQUIRE EInvoice, EDS, XMLUtils;
 
 NAMESPACE EDI;
 
@@ -137,6 +137,17 @@ DESIGN eInvoices{
             MOVE PROPERTY (signAndSendNoticeCustomerEDI()) { alignment = STRETCH; };
         }
     }
+}
+
+afterImportEInvoice ABSTRACT LIST (EInvoice);
+
+validate(STRING type, BOOLEAN interactive, FILE doc) {
+    readResource('region/by/integration/edi/xsd/'+type+'.xsd');
+    validateXML(resourceFile(),doc);
+    IF interactive THEN MESSAGE validateError() NOWAIT;
+}
+validate(STRING type, FILE doc) {
+    validate(type, NULL, doc);
 }
 
 //--------------------------------формы----------------------------------
@@ -541,6 +552,53 @@ FORM exportBlrwbr FORMEXTID 'BLRWBR'
         sealIDReceiver(ein) EXTID 'SealIDReceiver'
 ;
 
+FORM exportBlrwbrNew FORMEXTID 'BLRWBR'
+    OBJECTS ei = EInvoice PANEL
+
+    OBJECTS eih = EInvoice EXTID 'MessageHeader'
+    FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbr()) OR NOT eih IS EInvoice
+    PROPERTIES DRAW eih
+        messageId = resultMilliseconds() EXTID 'MessageID',
+        msgDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+        messageType = 'BLRWBR' EXTID 'MessageType',
+        glnCustomer(eih) EXTID 'MsgSenderID',
+        glnSupplier(eih) EXTID 'MsgReceiverID',
+        userIDSupplierStock(eih) EXTID 'UserID',
+        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
+
+    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
+    FILTERS ein == ei
+    PROPERTIES DRAW ein
+        deliveryNoteType = '700' EXTID 'DeliveryNoteType',
+        documentID = resultMilliseconds() EXTID 'DocumentID',
+        creationDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+        functionCode = IF eCreditNote(ei) THEN '31' ELSE '11' EXTID 'FunctionCode',
+        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
+        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
+        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
+        deliveryNoteDate = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
+    PROPERTIES DRAW ein IN report
+        reportId(ein) EXTID 'ReportID',
+        reportDate = toChar(reportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
+        reportName(ein) EXTID 'ReportName'
+    PROPERTIES DRAW ein IN shipper
+        glnSupplier(ein) EXTID 'GLN',
+        nameSupplier(ein) EXTID 'Name',
+        addressSupplier(ein) EXTID 'Address',
+        unpSupplier(ein) EXTID 'VATRegistrationNumber'
+    PROPERTIES DRAW ein IN receiver
+        glnCustomer(ein) EXTID 'GLN',
+        nameCustomer(ein) EXTID 'Name',
+        addressCustomer(ein) EXTID 'Address',
+        unpCustomer(ein) EXTID 'VATRegistrationNumber'
+    PROPERTIES DRAW ein IN shipTo
+        glnCustomerStock(ein) EXTID 'GLN',
+        addressCustomerStock(ein) EXTID 'Address',
+        contactCustomerStock(ein) EXTID 'Contact'
+    PROPERTIES DRAW ein
+        sealIDReceiver(ein) EXTID 'SealIDReceiver'
+;
+
 exportBlrdnrDateTime = DATA LOCAL NESTED DATETIME();
 
 hideMessageHeaderBlrdnr = DATA LOCAL BOOLEAN ();
@@ -589,7 +647,49 @@ FORM exportBlrdnr FORMEXTID 'BLRDNR'
         contactCustomerStock(ein) EXTID 'Contact'
 ;
 
-afterImportEInvoice ABSTRACT LIST (EInvoice);
+FORM exportBlrdnrNew FORMEXTID 'BLRDNR'
+    OBJECTS ei = EInvoice PANEL
+
+    OBJECTS eih = EInvoice EXTID 'MessageHeader'
+    FILTERS (eih == ei AND NOT hideMessageHeaderBlrdnr()) OR NOT eih IS EInvoice
+    PROPERTIES DRAW eih
+        messageId = resultMilliseconds() EXTID 'MessageID',
+        msgDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+        messageType = 'BLRDNR' EXTID 'MessageType',
+        glnCustomer(eih) EXTID 'MsgSenderID',
+        glnSupplier(eih) EXTID 'MsgReceiverID',
+        userIDSupplierStock(eih) EXTID 'UserID',
+        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
+
+    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
+    FILTERS ein == ei
+    PROPERTIES DRAW ein
+        deliveryNoteType = '270' EXTID 'DeliveryNoteType',
+        documentID = resultMilliseconds() EXTID 'DocumentID',
+        creationDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
+        functionCode = IF eCreditNote(ei) THEN '31' ELSE '11' EXTID 'FunctionCode',
+        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
+        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
+        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
+        deliveryNoteDate = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
+    PROPERTIES DRAW ein IN report
+        reportId(ein) EXTID 'ReportID',
+        reportDate = toChar(reportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
+        reportName(ein) EXTID 'ReportName'
+    PROPERTIES DRAW ein IN shipper
+        glnSupplier(ein) EXTID 'GLN',
+        nameSupplier(ein) EXTID 'Name',
+        addressSupplier(ein) EXTID 'Address',
+        unpSupplier(ein) EXTID 'VATRegistrationNumber'
+    PROPERTIES DRAW ein IN receiver
+        glnCustomer(ein) EXTID 'GLN',
+        nameCustomer(ein) EXTID 'Name',
+        addressCustomer(ein) EXTID 'Address',
+        unpCustomer(ein) EXTID 'VATRegistrationNumber'
+    PROPERTIES DRAW ein IN shipTo
+        contactCustomerStock(ein) EXTID 'Contact'
+;
+
 
 //акты
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
