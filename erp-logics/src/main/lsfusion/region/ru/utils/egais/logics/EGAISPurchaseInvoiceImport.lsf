@@ -73,6 +73,10 @@ overProcessImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) 
             (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT overMinProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO { }
             ELSE RETURN;
     }
+    IF NOT shipped(i) THEN {
+        MESSAGE 'Для накладной необходимо создать поставку. Отправка отменена';
+        RETURN;
+    }
 
     processImport(i);
 }
