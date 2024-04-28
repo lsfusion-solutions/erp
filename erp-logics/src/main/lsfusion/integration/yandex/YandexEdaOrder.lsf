@@ -65,8 +65,13 @@ carrierOrder (YandexEdaAuth a) = ABSTRACT Carrier;
 
 
 yandexCarrier = GROUP MAX Carrier r IF id(r) = 'yandex';
-paymentTypeOrder (STRING type) = IF type = 'CASH' THEN PaymentTypeInternetOrder.inFact ELSE PaymentTypeInternetOrder.prepayment;
+paymentTypeOrder = ABSTRACT CASE PaymentTypeInternetOrder (STRING);
+paymentTypeOrder(STRING type) += WHEN type = 'CASH' THEN PaymentTypeInternetOrder.inFact;
+paymentTypeOrder(STRING type) += WHEN type = 'CARD' THEN PaymentTypeInternetOrder.prepayment;
 
+//paymentTypeOrder (STRING type) = CASE 
+//    WHEN type = 'CASH' THEN PaymentTypeInternetOrder.
+ 
 //статусы заказа
 useCustomOrderStatus = ABSTRACT BOOLEAN ();
 yandexEdaOrderStatusCustom = ABSTRACT STRING (InternetOrder);
@@ -230,9 +235,9 @@ updateOrder(FILE f){
 
             }
             paymentTypeInternetOrder(io) <- paymentTypeOrder(paymentType());
-            paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CARD';
-            paymentCashSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'CASH';
-            paymentERIPSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) WHERE paymentType() = 'ONLINE';
+            paymentCardSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) IF paymentType() = 'CARD';
+            paymentCashSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) IF paymentType() = 'CASH';
+            paymentERIPSumInternetOrder(io) <- NUMERIC[18,4](itemsCost()) IF paymentType() = 'ONLINE';
             afterCreateOrder(io);
             APPLY ;
             IF canceled() THEN {
