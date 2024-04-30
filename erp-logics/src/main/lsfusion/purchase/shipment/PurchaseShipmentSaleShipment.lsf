@@ -51,12 +51,20 @@ defaultShipmentDetail(UserShipmentDetail detail) = OVERRIDE defaultShipmentDetai
 
 fillPrice (Sale.ShipmentDetail saleDetail, UserShipmentDetail purchaseDetail) {
     price(purchaseDetail) <- price(saleDetail);
-    manufactureDate(purchaseDetail) <- manufactureDate(saleDetail);
-    expiryDate(purchaseDetail) <- expiryDate(saleDetail);
+//    manufactureDate(purchaseDetail) <- manufactureDate(saleDetail);
+//    expiryDate(purchaseDetail) <- expiryDate(saleDetail);
 }
 
 WHEN LOCAL SETCHANGED (shipmentDetail(UserShipmentDetail detail)) NOINLINE DO {
     fillPrice(shipmentDetail(detail), detail);
+}
+
+WHEN LOCAL SETCHANGED (shipmentDetail(UserShipmentDetail detail)) AND NOT CHANGED(manufactureDate(detail)) NOINLINE DO {
+    manufactureDate(detail) <- manufactureDate(shipmentDetail(detail));
+}
+
+WHEN LOCAL SETCHANGED (shipmentDetail(UserShipmentDetail detail)) AND NOT CHANGED(expiryDate(detail)) NOINLINE DO {
+    expiryDate(detail) <- expiryDate(shipmentDetail(detail));
 }
 
 connectShipment 'Привязать строку поставки (закупка) к поставке (продажа)' (UserShipmentDetail detail)  {
