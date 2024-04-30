@@ -1,6 +1,6 @@
 MODULE Packeting;
 
-REQUIRE PacketSkuLedger, BarcodeRequest, LabelDirectPrintTextile;
+REQUIRE PacketSkuLedger, BarcodeRequest, LabelDirectPrintTextile, Numerator;
 
 NAMESPACE Packet;
 
@@ -197,4 +197,24 @@ NAVIGATOR {
     stockDashboardNavigator {
         NEW createPacketingDetail;
     }
-}    
+}
+
+incrementedPacketingValue = DATA LOCAL NESTED STRING[48] ();
+incrementedPacketingIntValue = DATA LOCAL NESTED LONG ();
+
+reservePacketingPackets 'Зарезервировать номера пакетов' (INTEGER quantity) {
+    NEWSESSION {
+        incrementedPacketingValue() <- NULL;
+        incrementedPacketingIntValue() <- NULL;
+
+        IF curValue(defaultNumeratorPacket()) + quantity >= maxValue(defaultNumeratorPacket()) THEN
+            MESSAGE 'Счетчик нумератора ' + name(defaultNumeratorPacket()) + ' достиг максимального значения. Обратитесь к администратору.';
+        ELSE {
+            APPLY {
+                incrementedPacketingValue() <- curStringValue(defaultNumeratorPacket());
+                incrementedPacketingIntValue() <- curValue(defaultNumeratorPacket());
+                curValue(Numerator n) <- curValue(n) + quantity WHERE n == defaultNumeratorPacket();
+            }
+        }
+    }
+}

@@ -1,6 +1,6 @@
 MODULE LabelDirectPrintTextile;
 
-REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile;
+REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile, StockTextile;
 
 NAMESPACE Label;
 
@@ -150,3 +150,11 @@ print 'Печать этикеток'(StickerTransaction t)  {
     IF textTemplate(labelType(t)) THEN
         customPrint(t);
 }
+
+EXTEND FORM networkPrintersList
+    PROPERTIES (p) namePrintLabelType AFTER nameNetworkPrinterType(p)
+    FILTERGROUP stockPrinter
+        FILTER 'По текущему складу' stock(p) == stock(currentComputer())
+    FILTERGROUP inEmployee
+        FILTER 'Отмеченные' in(p,e) DEFAULT
+;
