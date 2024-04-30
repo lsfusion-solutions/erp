@@ -1,6 +1,7 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.file.FileData;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -43,38 +44,41 @@ public class ValidateXMLAction extends InternalAction {
             FileData xmlFileData = (FileData) context.getKeyValue(xmlInterface).getValue();
 
             File schemaFile = File.createTempFile("validate", ".xsd");
-            FileUtils.writeByteArrayToFile(schemaFile, xsdFileData.getRawFile().getBytes());
+            try {
+                FileUtils.writeByteArrayToFile(schemaFile, xsdFileData.getRawFile().getBytes());
 
+                Schema schema = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).newSchema(schemaFile);
+                Validator validator = schema.newValidator();
 
-            Schema schema = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).newSchema(schemaFile);
-            Validator validator = schema.newValidator();
+                final List<SAXParseException> exceptions = new ArrayList<>();
+                validator.setErrorHandler(new ErrorHandler() {
+                    @Override
+                    public void warning(SAXParseException exception) {
+                        exceptions.add(exception);
+                    }
 
-            final List<SAXParseException> exceptions = new ArrayList<>();
-            validator.setErrorHandler(new ErrorHandler() {
-                @Override
-                public void warning(SAXParseException exception) {
-                    exceptions.add(exception);
+                    @Override
+                    public void fatalError(SAXParseException exception) {
+                        exceptions.add(exception);
+                    }
+
+                    @Override
+                    public void error(SAXParseException exception) {
+                        exceptions.add(exception);
+                    }
+                });
+
+                validator.validate(new StreamSource(new ByteArrayInputStream(xmlFileData.getRawFile().getBytes())));
+
+                String validateError = "";
+                for (SAXParseException exception : exceptions) {
+                    validateError += exception.getMessage() + "\n";
                 }
 
-                @Override
-                public void fatalError(SAXParseException exception) {
-                    exceptions.add(exception);
-                }
-
-                @Override
-                public void error(SAXParseException exception) {
-                    exceptions.add(exception);
-                }
-            });
-
-            validator.validate(new StreamSource(new ByteArrayInputStream(xmlFileData.getRawFile().getBytes())));
-
-            String validateError = "";
-            for(SAXParseException exception : exceptions) {
-                validateError += exception.getMessage() + "\n";
+                findProperty("validateError[]").change(validateError.isEmpty() ? null : validateError, context);
+            } finally {
+                BaseUtils.safeDelete(schemaFile);
             }
-
-            findProperty("validateError[]").change(validateError.isEmpty() ? null : validateError, context);
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
