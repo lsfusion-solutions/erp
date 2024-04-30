@@ -1251,6 +1251,14 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         //вне зависимости от результата отправляем, что запрос обработан успешно
         sendZReportsResponse(httpExchange, null);
 
+        try {
+            //часто zreports приходит сразу после purchases - и суммы не сходятся.
+            //Поэтому даём чекам время на то, чтобы обработаться
+            Thread.sleep(60000); //1 minute
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
         Map<String, BigDecimal> baseZReportSumMap = remote.readZReportSumMap(new HashSet<>(zReportSumMap.keySet()));
         if(extendedLogs) {
             sendSalesLogger.info(getLogPrefix() + " zReportSumMap:" + StringUtils.join(zReportSumMap, ','));
