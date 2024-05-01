@@ -1,7 +1,6 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.BaseUtils;
 import lsfusion.base.file.FileData;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -77,12 +76,17 @@ public class ValidateXMLAction extends InternalAction {
 
                 findProperty("validateError[]").change(validateError.isEmpty() ? null : validateError, context);
             } finally {
-                BaseUtils.safeDelete(schemaFile);
+                safeDelete(schemaFile);
             }
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
 
+    }
+    public static void safeDelete(File file) {
+        if (file != null && !file.delete()) {
+            file.deleteOnExit();
+        }
     }
 }

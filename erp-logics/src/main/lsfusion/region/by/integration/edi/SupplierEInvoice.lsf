@@ -326,12 +326,12 @@ FORM exportBlrwblNew FORMEXTID 'BLRWBL'
         deliveryContact(ein) EXTID 'DeliveryContact',
         proxyID(ein) EXTID 'ProxyID',
         proxyDate = toChar(proxyDate(ein),'YYYYMMDD') EXTID 'ProxyDate',
-        partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName'
-    PROPERTIES DRAW ein 
+        partyIssuingProxyName(ein) EXTID 'PartyIssuingProxyName',
         quantityTrip(ein) EXTID 'QuantityTrip',
         transportOwnerName(ein) EXTID 'TransportOwnerName',
         transportID(ein) EXTID 'TransportID',
-        trailerID(ein) EXTID 'TrailerID',
+        trailerID(ein) EXTID 'TrailerID'
+    PROPERTIES DRAW ein 
         sealIDReceiver(ein) EXTID 'SealID',
         orderID(ein) EXTID 'OrderID',
         cancelDeliveryNoteId(ein) EXTID 'CancelDeliveryNoteID',
@@ -666,7 +666,7 @@ signAndSendSupplierCreditNoteEDI 'Подписать и отправить (по
         IF EDIProvider(supplier(c)) THEN
             signAndSendSupplier(c);
         ELSE
-            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
         in(c) <- NULL;
     }
         ELSE
@@ -683,8 +683,9 @@ EXTEND FORM eCreditNotes
 ;
 
 GROUP actDif EXTID 'ActDif';
-blradfDocumentNumber = DATA LOCAL NESTED STRING[35]();
+blradfID = DATA LOCAL NESTED STRING[35]();
 blradfActDifNumber = DATA LOCAL NESTED STRING[35]();
+blradfDeliveryNoteDate = DATA LOCAL NESTED DATE();
 blradfDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
 blradfFunctionCode = DATA LOCAL NESTED STRING[3]();
 GROUP blradfSupplier EXTID 'Supplier' : actDif;
@@ -708,20 +709,23 @@ blradfAmountReceived = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
 blradfAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
 
 FORM blradf
-    PROPERTIES IN messageHeader blradfMsgSenderID() EXTID 'MsgSenderID',
+    PROPERTIES IN messageHeader 
+        blradfMsgSenderID() EXTID 'MsgSenderID',
         blradfMsgReceiverID() EXTID 'MsgReceiverID'
-    PROPERTIES IN securityBuyer blradfSecurityID() EXTID 'SecurityID',
+    PROPERTIES IN securityBuyer 
+        blradfSecurityID() EXTID 'SecurityID',
         blradfCertificateID() EXTID 'CertificateID',
         blradfSecurityPartyID() EXTID 'SecurityPartyID',
         blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
         blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
         blradfSignatureValue() EXTID 'SignatureValue'
-    PROPERTIES IN actDif blradfDocumentNumber() EXTID 'DocumentID',
+    PROPERTIES IN actDif 
+        blradfID() EXTID 'ID',
+        blradfCreationDateTime() EXTID 'CreationDateTime',
+        blradfFunctionCode() EXTID 'FunctionCode',
         blradfActDifNumber() EXTID 'ActDifID',
         blradfDeliveryNoteNumber() EXTID 'DeliveryNoteID',
-        blradfCreationDateTime() EXTID 'CreationDateTime',
-        blradfDate() EXTID 'ActDifDate',
-        blradfFunctionCode() EXTID 'FunctionCode'
+        blradfDate() EXTID 'ActDifDate'
     PROPERTIES IN blradfSupplier blradfSupplierGLN() EXTID 'GLN'
     PROPERTIES IN blradfBuyer blradfCustomerGLN() EXTID 'GLN'
     PROPERTIES IN blradfShipTo blradfCustomerStockGLN() EXTID 'GLN'

@@ -134,9 +134,15 @@ errorCode = DATA LOCAL INTEGER(INTEGER);
 
 requestError = DATA LOCAL NESTED TEXT();
 // todo : нужно переделать без входа xml и status
+newNS = DATA LOCAL BOOLEAN ();
 importRequestResult(FILE xml, INTEGER status, TEXT root) {
     IF status == 200 THEN {
-        IMPORT XML ROOT root FROM xml TO succesful = 'Succesful', message = 'Message', errorCode = 'ErrorCode';
+        IF newNS() THEN {
+            IMPORT XML ROOT root FROM xml TO succesful = 'ns2:Succesful', message = 'ns2:Message', errorCode = 'ns2:ErrorCode';
+
+        } ELSE {
+            IMPORT XML ROOT root FROM xml TO succesful = 'Succesful', message = 'Message', errorCode = 'ErrorCode';
+        }
         IF succesful(0) == 'true' THEN {
             requestError() <- NULL;
         } ELSE {

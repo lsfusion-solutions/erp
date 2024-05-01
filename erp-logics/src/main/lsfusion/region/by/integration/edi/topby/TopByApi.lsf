@@ -9,13 +9,14 @@ GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
 GROUP getDocuments EXTID 'top:GetDocuments' : body;
 GROUP confirmDocumentReceived EXTID 'top:ConfirmDocumentReceived' : body;
-
 FORM receiveMessagesRequest
-    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    PROPERTIES ATTR = IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
     OBJECTS login = TEXT, password = TEXT
     PROPERTIES IN getDocuments VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
+
+useNewFormat = DATA BOOLEAN(STRING[100]); 
 
 beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
@@ -32,7 +33,11 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
                 MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
-                IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
+                IF newNS() THEN {
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'ns6:Data', id = 'ns6:Id',documentType = 'ns6:DocumentType';
+                } ELSE {
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
+                }
                 
                 sendRecipientErrorFailed() <- 0;
                 supplierOrdersSucceeded() <- 0;
@@ -117,7 +122,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
 
 
 FORM confirmDocument
-    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    PROPERTIES ATTR =IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
     OBJECTS login = TEXT, password = TEXT, documentId = TEXT
     PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
@@ -141,7 +146,7 @@ envelopeDocumentType = DATA LOCAL NESTED STRING[13]();
 envelopeContent = DATA LOCAL NESTED TEXT();
 
 FORM envelope
-    PROPERTIES ATTR ='http://topby.by/' EXTID 'xmlns:top'
+    PROPERTIES ATTR =IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
     PROPERTIES IN sendDocument envelopeLogin() EXTID 'top:username',
                                envelopePassword() EXTID 'top:password',
                                envelopeFilename() EXTID 'top:filename',

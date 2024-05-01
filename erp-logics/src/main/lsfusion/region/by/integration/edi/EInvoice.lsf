@@ -633,21 +633,19 @@ GROUP shipTo EXTID 'ShipTo';
 CLASS ECreditNote 'Электронный акт приемки';
 TABLE eCreditNote(ECreditNote);
 
-dateTimeCreated 'Создан' = DATA DATETIME (ECreditNote);
-dateTimeCreated(ECreditNote c) <- currentDateTime() WHEN (c IS ECreditNote);
+blrapn = DATA STRING[35] (ECreditNote);
 
 @defineExternalizable(eCreditNote, STRING[100]);
-dateTime 'Дата/время документа' = DATA DATETIME (ECreditNote);
-number 'Номер' = DATA STRING[35] (ECreditNote);
-eCreditNoteNumber (number) = GROUP NAGGR ECreditNote e BY number(e);
+documentId 'Номер сообщения грузополучателя' = DATA STRING[35] (ECreditNote);
+dateTime 'Дата и время создания акта' = DATA DATETIME (ECreditNote);
+eCreditNoteNumber (number) = GROUP NAGGR ECreditNote e BY documentId(e);
 
-blrapn = DATA STRING[35] (ECreditNote);
-blradf = DATA STRING[35] (ECreditNote);
-blradfDate = DATA DATE (ECreditNote);
-
-actDifNumber 'Номер акта приемки' = DATA STRING[35] (ECreditNote) IN id;
+actDifNumber 'Номер акта приемки' = DATA STRING[46] (ECreditNote) IN id;
 eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
 actDifDate 'Дата акта приемки' = DATA DATE (ECreditNote);
+
+contractNumber 'Номер Договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
+contractDate 'Дата договора, на основании которого выставляется акт приемки' = DATA DATE (ECreditNote);
 
 isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
 
@@ -658,22 +656,21 @@ deliveryNoteNumber 'Серия и номер накладной, к которо
 eCreditNoteDeliveryNoteNumber (number) = GROUP NAGGR ECreditNote e BY deliveryNoteNumber(e);
 deliveryNoteDate 'Дата накладной в формате ГГГГММДД, к которой относится акт приемки' = DATA DATE (ECreditNote);
 
-contractId 'Номер Договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
-contractDate 'Дата договора в формате ГГГГММДД, на основании которого выставляется акт приемки' = DATA DATE (ECreditNote);
-
 supplier 'Поставщик' = DATA LegalEntity (ECreditNote);
-glnSupplier 'GLN поставщика' (ECreditNote c) = GLN(supplier(c));
+unpSupplier 'УНП поставщика' (ECreditNote c) = UNP(supplier(c));
 nameSupplier 'Поставщик' (ECreditNote c) = name(supplier(c));
 addressSupplier 'Адрес поставщика' (ECreditNote c) = address(supplier(c));
+glnSupplier 'GLN поставщика' (ECreditNote c) = GLN(supplier(c));
 
 customer 'Покупатель' = DATA LegalEntity (ECreditNote);
+unpCustomer 'УНП покупателя' (ECreditNote c) = UNP(customer(c));
 nameCustomer 'Покупатель' (ECreditNote c) = name(customer(c));
-glnCustomer 'GLN покупателя' (ECreditNote c) = GLN(customer(c));
 addressCustomer 'Адрес покупателя' (ECreditNote c) = address(customer(c));
+glnCustomer 'GLN покупателя' (ECreditNote c) = GLN(customer(c));
 
 customerStock 'Склад покупателя' = DATA Stock (ECreditNote);
-glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(customerStock(c));
 nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(customerStock(c));
+glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(customerStock(c));
 addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
 
 currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (ECreditNote);
@@ -710,7 +707,7 @@ totalAmountReceived 'Общая стоимость с учетом НДС пос
 
 FORM dialogECreditNote 'Выбор электронного акта приемки'
     OBJECTS c = ECreditNote
-    PROPERTIES(c) READONLY dateTime, number, actDifNumber, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+    PROPERTIES(c) READONLY dateTime, documentId, actDifNumber, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
 
     LIST ECreditNote OBJECT c
 ;
@@ -722,7 +719,7 @@ TABLE eCreditNoteMessage(ECreditNoteMessage);
 number 'Номер' = DATA STRING[24] (ECreditNoteMessage);
 eCreditNote 'Акт приемки' = DATA ECreditNote (ECreditNoteMessage) NONULL DELETE INDEXED;
 eCreditNoteMessage (eCreditNote, number) = GROUP AGGR ECreditNoteMessage e BY eCreditNote(e), number(e);
-numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = number(eCreditNote(m));
+numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = documentId(eCreditNote(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMessage);
 code 'Код сообщения' = DATA STRING[10] (ECreditNoteMessage);
 description 'Текст сообщения' = DATA STRING[1000] (ECreditNoteMessage);
@@ -747,8 +744,8 @@ FORM eCreditNotes 'Электронные акты приемки'
     OBJECTS c = ECreditNote
     PROPERTIES(c) in
     PROPERTIES(c) READONLYIF isReadonly() isCancel
-    PROPERTIES(c) READONLY dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber,deliveryNoteDate,
-        glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, nameCustomerStock, dateTimeCreated, contractDate, contractId
+    PROPERTIES(c) READONLY dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber,deliveryNoteDate,
+        glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, nameCustomerStock, contractDate, contractNumber
     FILTERGROUP notExported
 
     OBJECTS d = ECreditNoteDetail
@@ -786,9 +783,9 @@ NAVIGATOR {
 
 FORM eCreditNote 'Электронный акт приемки'
     OBJECTS c = ECreditNote PANEL
-    PROPERTIES(c) dateTime BACKGROUND background(c), number BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber, deliveryNoteDate,
+    PROPERTIES(c) dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber, deliveryNoteDate,
         nameSupplier, addressSupplier, nameCustomer, addressCustomer, nameCustomerStock,
-        dateTimeCreated, contractDate, contractId, currency
+        contractDate, contractNumber, currency
 
     OBJECTS ed = ECreditNoteDetail
     PROPERTIES(ed) BACKGROUND background(ed) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT, lineItemPrice,
@@ -812,37 +809,6 @@ editAttributesECreditNote 'Заполнить атрибуты' (ECreditNote c) 
 EXTEND FORM eCreditNotes
     PROPERTIES (c) editAttributesECreditNote
 ;
-
-
-defaultNumeratorActDifNumber = DATA Numerator ();
-nameDefaultNumeratorActDif 'ActDifNumber электронные акты приемки' = name(defaultNumeratorActDifNumber()) IN defaultNumerator;
-
-EXTEND FORM defaultNumerators
-    PROPERTIES() nameDefaultNumeratorActDif
-;
-
-loadDefaultNumerators() + {
-    NEW n = Numerator {
-        name(n) <- 'ActDifNumber электронные акты приемки ';
-        series(n) <- '';
-        minValue(n) <- 1L;
-        maxValue(n) <- 9999999999L;
-        stringLength(n) <- 10;
-
-        defaultNumeratorActDifNumber() <- n;
-    }
-}
-
-generateSeriesNumber 'Сгенерировать номер' (ECreditNote o)  {
-    actDifNumber(o) <- prefix(EDIProvider(supplier(o))) + GLN(customer(o)) + '-' + curStringValue(defaultNumeratorActDifNumber()); //ССС-GGGGGGGGGGGGG-NNNNNNNNNN
-    incrementValueSession(defaultNumeratorActDifNumber());
-}
-
-skipGenerateActDifNumber = ABSTRACT BOOLEAN (ECreditNote);
-
-WHEN CHANGED (customer(ECreditNote o)) AND NOT actDifNumber(o) AND NOT skipGenerateActDifNumber(o) DO {
-    generateSeriesNumber(o);
-}
 
 @openXML(ECreditNote,c,eCreditNotes);
 @openXML(ECreditNoteMessage,m,eCreditNotes);

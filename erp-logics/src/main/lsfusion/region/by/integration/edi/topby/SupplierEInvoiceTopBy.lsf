@@ -4,6 +4,7 @@ REQUIRE EInvoiceTopBy, SupplierEInvoiceTopByApi, EInvoiceEDSTopBy;
 
 
 signAndSendSupplier(EInvoice e) + {
+    newNS() <- useNewFormat(loginTopBy(supplier(e)));
     IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.topBy AND NOT skipSendSupplier(e) THEN
         IF exportedSupplier(e) THEN MESSAGE 'Накладная (поставщик) уже отправлена';
         ELSE IF isTN2(e) THEN {
@@ -14,6 +15,7 @@ signAndSendSupplier(EInvoice e) + {
 }
 
 signAndSendBlrapnSupplier(EInvoice e) + {
+    newNS() <- useNewFormat(loginTopBy(supplier(e)));
     IF EDIProviderInvoice(customer(e), supplier(e)) == EDIProvider.topBy AND NOT skipSendSupplier(e) THEN
         IF exportedBlrapnSupplier(e) THEN MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
         ELSE IF isTN2(e) THEN {
@@ -24,7 +26,8 @@ signAndSendBlrapnSupplier(EInvoice e) + {
 }
 
 
-signAndSendSupplier(ECreditNote c) + { 
+signAndSendSupplier(ECreditNote c) + {
+    newNS() <- useNewFormat(loginTopBy(supplier(c)));
     IF EDIProvider(customer(c)) == EDIProvider.topBy THEN 
         IF exportedSupplier(c) THEN MESSAGE 'Акт приемки (поставщик) уже отправлен'; 
         ELSE signAndSendSupplierECreditNote(c,loginTopBy(supplier(c)), passwordTopBy(supplier(c)), ('http://' + hostTopBy(supplier(c)) +':' + portTopBy(supplier(c)) + '/DmcService'), outputDirTopBy(), 'TopBy'); 

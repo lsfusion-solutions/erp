@@ -281,15 +281,18 @@ createECreditNote 'Создать электронный акт приемки' 
     IF NOT eCreditNote(c) THEN NEWSESSION {
         NEW ec = ECreditNote {
             creditNote(ec) <- c;
-            number(ec) <- number(c);
-            dateTime(ec) <- dateTime(c);
+            eInvoice(ec) <- GROUP MAX eInvoice(Invoice i) IF quantity(i, c);
+            dateTime(ec) <- currentDateTime();
+            toMilliseconds(dateTime(ec));
+            documentId(ec) <- STRING[14](resultMilliseconds());
+            actDifNumber(ec) <- STRING[46](deliveryNoteNumber(eInvoice(ec)) + '-' + lpad(STRING(GROUP SUM 1 IF eInvoice(ec) == eInvoice(ECreditNote ecc)),2,'0'));
             actDifDate(ec) <- date(c);
-            deliveryNoteNumber(ec) <- GROUP MAX deliveryNoteNumber(eInvoice(Invoice i)) IF quantity(i, c);
-            deliveryNoteDate(ec) <- GROUP MAX deliveryNoteDate(eInvoice(Invoice i)) IF quantity(i, c);
+            deliveryNoteNumber(ec) <- deliveryNoteNumber(eInvoice(ec));
+            deliveryNoteDate(ec) <- deliveryNoteDate(eInvoice(ec));
             supplier(ec) <- supplier(c);
             customer(ec) <- customer(c);
             customerStock(ec) <- customerStock(c);
-            contractId(ec) <- seriesNumberContractSku(c);
+            contractNumber(ec) <- seriesNumberContractSku(c);
             contractDate(ec) <- dateFromContractSku(c);
             currency(ec) <- shortNameCurrency(c);
 
@@ -307,8 +310,6 @@ createECreditNote 'Создать электронный акт приемки' 
                 lineItemPrice(ed) <- price(d);
                 amountOrdered(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)), 0.0;
                 amountReceived(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
-                //amountReceived(ed) <- NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) (+)
-                //round((NUMERIC[18,4](Utils.round(quantityReceived(ed) * price(d), priceRound(invoiceDetail(d)))) * calcValueVAT(invoiceDetail(d)) / 100), currency(invoiceDetail(d)));
                 overCreate(ed,d);
             }
 
@@ -320,7 +321,7 @@ createECreditNote 'Создать электронный акт приемки' 
 
 EXTEND FORM creditNotes
     PROPERTIES READONLY PANEL numberECreditNote(c)
-    PROPERTIES(c) createECreditNote SHOWIF (NOT eCreditNote(c) AND NOT hideCreateECreditNote(c)),// statusDescription SHOWIF eInvoice(i) PANEL, 
+    PROPERTIES(c) createECreditNote SHOWIF (eInvoice(invoice(c)) AND NOT eCreditNote(c) AND NOT hideCreateECreditNote(c)),// statusDescription SHOWIF eInvoice(i) PANEL, 
         signAndSendCustomerCreditNoteEDI SHOWIF (eCreditNote(c) AND NOT exportedCustomer(eCreditNote(c))),
         cancelSignAndSendCustomerCreditNoteEDII SHOWIF (eCreditNote(c) AND exportedCustomer(eCreditNote(c)))
 ;
@@ -359,7 +360,7 @@ createECreditNote 'Создать электронный акт приемки' 
 
 EXTEND FORM invoices
     PROPERTIES READONLY PANEL numberECreditNote(i) SHOWIF invoiceCreditNote(i)
-    PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND NOT eCreditNote(invoiceCreditNote(i)) AND NOT hideCreateECreditNote(invoiceCreditNote(i))),// statusDescription SHOWIF eInvoice(i) PANEL, 
+    PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND eInvoice(i) AND NOT eCreditNote(invoiceCreditNote(i)) AND NOT hideCreateECreditNote(invoiceCreditNote(i))),// statusDescription SHOWIF eInvoice(i) PANEL, 
         signAndSendCustomerCreditNoteEDI SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND NOT exportedCustomer(eCreditNote(invoiceCreditNote(i)))),
         cancelSignAndSendCustomerCreditNoteEDII SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND exportedCustomer(eCreditNote(invoiceCreditNote(i))))
 ;

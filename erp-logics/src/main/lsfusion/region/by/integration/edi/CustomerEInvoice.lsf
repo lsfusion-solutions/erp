@@ -704,7 +704,7 @@ signAndSendCustomerCreditNoteEDI 'Подписать и отправить (по
         IF EDIProviderInvoice(supplier(c), customer(c)) THEN
             signAndSendCustomer(c);
         ELSE
-            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + number(c);
+            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
         in(c) <- NULL;
     }
         ELSE
@@ -722,14 +722,16 @@ EXTEND FORM eCreditNotes
 GROUP actDifLineItem EXTID 'ActDifLineItem';
 GROUP supplier EXTID 'Supplier';
 GROUP buyer EXTID 'Buyer';
+exportBlradfDateTime = DATA LOCAL NESTED DATETIME();
 
 FORM exportBlradf FORMEXTID 'BLRADF'
     OBJECTS ec = ECreditNote PANEL
 
     OBJECTS ech = ECreditNote EXTID 'MessageHeader'
     FILTERS ech == ec
-    PROPERTIES DRAW ech messageId = resultMilliseconds() EXTID 'MessageID',
-        msgDateTime = toChar(blradfDate(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
+    PROPERTIES DRAW ech 
+        messageId = resultMilliseconds() EXTID 'MessageID',
+        msgDateTime = toChar(exportBlradfDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
         messageType = 'BLRADF' EXTID 'MessageType',
         blradfMsgSenderID() EXTID 'MsgSenderID',
         blradfMsgReceiverID() EXTID 'MsgReceiverID'
@@ -745,12 +747,13 @@ FORM exportBlradf FORMEXTID 'BLRADF'
 
     OBJECTS ecn = ECreditNote EXTID 'ActDif'
     FILTERS ecn == ec
-    PROPERTIES DRAW ecn documentID = (IF blradfMsgSenderID() == glnCustomer(ecn) THEN STRING[14](resultMilliseconds()) ELSE (OVERRIDE blradf(ec), STRING[14](resultMilliseconds()))) EXTID 'DocumentID',
+    PROPERTIES DRAW ecn 
+        ID = (IF blradfMsgSenderID() == glnCustomer(ecn) THEN STRING[14](resultMilliseconds()) ELSE (OVERRIDE documentId(ec), STRING[14](resultMilliseconds()))) EXTID 'ID',
         creationDateTime = toChar(dateTime(ecn),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
         functionCode = (IF isCancel(ecn) THEN '1' ELSE '9') EXTID 'FunctionCode',
         actDifNumber(ecn) EXTID 'ActDifID',
         actDifDate = toChar(actDifDate(ecn),'YYYYMMDD') EXTID 'ActDifDate',
-        contractId(ecn) EXTID 'ContractID',
+        contractNumber(ecn) EXTID 'ContractID',
         contractDate = toChar(contractDate(ecn),'YYYYMMDD') EXTID 'ContractDate',
         deliveryNoteNumber(ecn) EXTID 'DeliveryNoteID',
         deliveryNoteDate = toChar(deliveryNoteDate(ecn),'YYYYMMDD') EXTID 'DeliveryNoteDate'

@@ -767,11 +767,11 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     } ELSE NEW ec = ECreditNote {
                         importedSupplier(ec) <- TRUE;
                         id(ec) <- blradfCustomerGLN() + '/' + blradfActDifNumber() + (IF isCancel() THEN '_cancel' ELSE '');
-                        number(ec) <- blradfDocumentNumber();
+                        documentId(ec) <- blradfID();
                         dateTime(ec) <- blradfCreationDateTime();
-                        blradfDate(ec) <- blradfDate();
+                        actDifDate(ec) <- blradfDate();
                         actDifNumber(ec) <- blradfActDifNumber();
-                        deliveryNoteDate(ec) <- blradfDate();
+                        deliveryNoteDate(ec) <- blradfDeliveryNoteDate();
                         deliveryNoteNumber(ec) <- blradfDeliveryNoteNumber();
                         isCancel(ec) <- isCancel();
                         supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
@@ -839,8 +839,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 blrapnDeliveryNoteId() <- actDifNumber(c);
                                 blrapnDeliveryNoteDate() <- actDifDate(c);
                                 blrapnReferenceDocumentType() <- 'BLRADF';
-                                blrapnReferenceDocumentId() <- blradfDocumentNumber();
-                                blrapnReferenceDocumentDate() <- DATETIME(blradfDate());
+                                blrapnReferenceDocumentId() <- blradfID();
+                                blrapnReferenceDocumentDate() <- blradfCreationDateTime();
                                 blrapnShipper() <- glnSupplier(c);
                                 blrapnReceiver() <- glnCustomer(c);
                                 blrapnCode() <- '2650';
@@ -862,9 +862,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         LOCAL ixml = XMLFILE();
                                         envelopeLogin() <- login;
                                         envelopePassword() <- password;
-                                        envelopeFilename() <- CONCAT '', 'creditnote', number(c);
+                                        envelopeFilename() <- CONCAT '', 'creditnote', documentId(c);
                                         envelopeDocumentDate() <- blrapnDateTime();
-                                        envelopeDocumentNumber() <- number(c);
+                                        envelopeDocumentNumber() <- documentId(c);
                                         envelopeSender() <- glnSupplier(c);
                                         envelopeReceiver() <- glnCustomer(c);
                                         envelopeDeliveryPoint() <- glnCustomerStock(c);
@@ -872,15 +872,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO ixml;
                                         sendRequestEDI(url, ixml());
-                                        logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
+                                        logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
-                                            logToFile('edi', provider + ' SendECreditNote ' + number(c) + ': ' + requestError());
-                                            MESSAGE provider + ' Акт приемки ' + number(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
+                                            MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
                                         } ELSE {
                                             toMilliseconds(blrapnDateTime());
                                             blrapn(c) <- STRING[14](resultMilliseconds());
-                                            logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
+                                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
                                             IF NOT disableConfirmation THEN {
                                                 LOCAL cxml = XMLFILE();
                                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
@@ -1007,16 +1007,16 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                             documentType() <- 'BLRADF';
                             getSignedDocumentSupplier(provider, c, contentSubXML(), TRUE);
                             IF signError() THEN {
-                                logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError());
-                                MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + documentId(c) + ' error: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError());
+                                MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                             }
                             ELSE IF signResult() THEN {
                                 LOCAL ixml = XMLFILE();
                                 envelopeLogin() <- login;
                                 envelopePassword() <- password;
-                                envelopeFilename() <- CONCAT '', 'creditnote', number(c);
-                                envelopeDocumentDate() <- DATETIME(blradfDate());
-                                envelopeDocumentNumber() <- number(c);
+                                envelopeFilename() <- CONCAT '', 'creditnote', documentId(c);
+                                envelopeDocumentDate() <- blradfCreationDateTime();
+                                envelopeDocumentNumber() <- documentId(c);
                                 envelopeSender() <- glnSupplier(c);
                                 envelopeReceiver() <- glnCustomer(c);
                                 envelopeDeliveryPoint() <- glnCustomerStock(c);
@@ -1024,14 +1024,14 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                                 envelopeContent() <- signResult();
                                 EXPORT envelope XML TO ixml;
                                 sendRequestEDI(url, ixml());
-                                logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
+                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
-                                    logToFile('edi', provider + ' SendECreditNote ' + number(c) + ': ' + requestError());
-                                    MESSAGE provider + ' Акт приемки ' + number(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
+                                    MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
                                 } ELSE {
-                                    logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
-                                    MESSAGE provider + ' Акт приемки ' + number(c) + ' выгружен' NOWAIT;
+                                    logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
+                                    MESSAGE provider + ' Акт приемки ' + documentId(c) + ' выгружен' NOWAIT;
                                     exportedSupplier(c) <- TRUE;
                                     NEW em = ECreditNoteMessage {
                                         number(em) <- STRING[35](resultMilliseconds());

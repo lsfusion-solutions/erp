@@ -1197,29 +1197,29 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
 
                     IF error() == '' THEN {
                         LOCAL contentSubXML = FILE();
-                        blradfCreationDateTime() <- currentDateTimeMillis();
+                        exportBlradfDateTime() <- currentDateTimeMillis();
                         blradfMsgSenderID() <- glnCustomer(c);
                         blradfMsgReceiverID() <- glnSupplier(c);
-                        toMilliseconds(blradfCreationDateTime());
+                        toMilliseconds(exportBlradfDateTime());
                         EXPORT exportBlradf OBJECTS ec = c XML TO contentSubXML;
                         IF outputDir THEN {
                             TRY{ mkdir(outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd')); }
-                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfCreationDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                            WRITE contentSubXML() TO outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(exportBlradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
                         name() <- 'blradf-' + toChar(exportBlrdnrDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                         documentType() <- 'BLRADF';
                         getSignedDocumentCustomer(provider, c, contentSubXML(), TRUE);
                         IF signError() THEN {
-                            logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + number(c) + ' error: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError());
-                            MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + number(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + documentId(c) + ' error: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         ELSE IF signResult() THEN {
                             LOCAL ixml = XMLFILE();
                             envelopeLogin() <- login;
                             envelopePassword() <- password;
-                            envelopeFilename() <- CONCAT '', 'creditnote', number(c);
-                            envelopeDocumentDate() <- DATETIME(blradfDate());
-                            envelopeDocumentNumber() <- number(c);
+                            envelopeFilename() <- CONCAT '', 'creditnote', documentId(c);
+                            envelopeDocumentDate() <- exportBlradfDateTime();
+                            envelopeDocumentNumber() <- documentId(c);
                             envelopeSender() <- glnCustomer(c);
                             envelopeReceiver() <- glnCustomer(c);
                             envelopeDeliveryPoint() <- glnCustomerStock(c);
@@ -1227,24 +1227,22 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                             envelopeContent() <- signResult();
                             EXPORT envelope XML TO ixml;
                             sendRequestEDI(url, ixml());
-                            logToFile('edi', provider + ' SendECreditNote ' + number(c) +' request sent');
+                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' SendECreditNote ' + number(c) + ': ' + requestError());
-                                MESSAGE provider + ' Акт приемки ' + number(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
+                                MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
                             } ELSE {
-                                logToFile('edi', provider + ' SendECreditNote ' + number(c) + ' request succeeded');
-                                MESSAGE provider + ' Акт приемки ' + number(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
+                                MESSAGE provider + ' Акт приемки ' + documentId(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 exportedCustomer(c) <- TRUE;
-                                blradf(c) <- STRING[14](resultMilliseconds());
-                                blradfDate(c) <- blradfDate();
                                 NEW em = ECreditNoteMessage {
                                     number(em) <- STRING[35](resultMilliseconds());
                                     eCreditNote(em) <- c;
-                                    dateTime(em) <- toDateTimeFormat(toChar(blrapnDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
+                                    dateTime(em) <- toDateTimeFormat(toChar(exportBlradfDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
                                     code(em) <- (IF isCancel(c) THEN '1' ELSE '9');
                                     type(em) <- ECreditNoteMessageType.blradf;
-                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(blradfCreationDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
+                                    XMLPath(em) <- outputDir + '/sent/invoices/' + toChar(currentDate(),'yyyyMMdd') + '/' + 'blradf-' + toChar(exportBlradfDateTime(),'YYYY-MM-DD-HH24-MI-SS-MS');
                                 }
                                 APPLY NESTED LOCAL;
                             }
