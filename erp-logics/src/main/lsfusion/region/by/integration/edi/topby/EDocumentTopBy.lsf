@@ -679,13 +679,14 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
 }
 
 signAndSendSender(EDocument d) + {
-    newNS() <- useNewFormat(loginTopBy(sender(d)));
-    IF EDIProviderDocument(receiver(d), sender(d)) == EDIProvider.topBy THEN
+    IF EDIProviderDocument(receiver(d), sender(d)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(sender(d)));
         IF exportedSender(d) THEN
             MESSAGE 'Документ (отправитель) уже отправлен';
-            ELSE {
-                signAndSendSenderEDocument(d, loginTopBy(sender(d)), passwordTopBy(sender(d)), ('http://' + hostTopBy(sender(d)) +':' + portTopBy(sender(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
-            }
+        ELSE {
+            signAndSendSenderEDocument(d, loginTopBy(sender(d)), passwordTopBy(sender(d)), ('http://' + hostTopBy(sender(d)) +':' + portTopBy(sender(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        }
+    }
 }
 
 signAndSendBlrapnReceiverEDocument (EDocument ed, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
@@ -775,13 +776,14 @@ signAndSendBlrapnReceiverEDocument (EDocument ed, STRING[100] login, STRING[100]
 }
 
 signAndSendBlrapnReceiver(EDocument d) + {
-    newNS() <- useNewFormat(loginTopBy(receiver(d)));
-    IF EDIProviderDocument(sender(d), receiver(d)) == EDIProvider.topBy THEN
+    IF EDIProviderDocument(sender(d), receiver(d)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(receiver(d)));
         IF exportedBlrapnReceiver(d) THEN
             MESSAGE 'Извещение о прочтении отмены (получатель) уже отправлено';
-            ELSE {
-                signAndSendBlrapnReceiverEDocument(d, loginTopBy(receiver(d)), passwordTopBy(receiver(d)), ('http://' + hostTopBy(receiver(d)) +':' + portTopBy(receiver(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
-            }
+        ELSE {
+            signAndSendBlrapnReceiverEDocument(d, loginTopBy(receiver(d)), passwordTopBy(receiver(d)), ('http://' + hostTopBy(receiver(d)) +':' + portTopBy(receiver(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        }
+    }
 }
 
 signAndSendReceiverEDocument (EDocument ed, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir , STRING[100] provider) {
@@ -893,11 +895,12 @@ signAndSendReceiverEDocument (EDocument ed, STRING[100] login, STRING[100] passw
 }
 
 signAndSendReceiver(EDocument d) + {
-    newNS() <- useNewFormat(loginTopBy(receiver(d)));
-    IF EDIProviderDocument(sender(d), receiver(d)) == EDIProvider.topBy THEN
-        IF exportedReceiver(d) THEN 
+    IF EDIProviderDocument(sender(d), receiver(d)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(receiver(d)));
+        IF exportedReceiver(d) THEN
             MESSAGE 'Документ (получатель) уже отправлен';
-            ELSE {
-                signAndSendReceiverEDocument(d, loginTopBy(receiver(d)), passwordTopBy(receiver(d)), ('http://' + hostTopBy(receiver(d)) +':' + portTopBy(receiver(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
-            }
+        ELSE {
+            signAndSendReceiverEDocument(d, loginTopBy(receiver(d)), passwordTopBy(receiver(d)), ('http://' + hostTopBy(receiver(d)) +':' + portTopBy(receiver(d)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        }
+    }
 }

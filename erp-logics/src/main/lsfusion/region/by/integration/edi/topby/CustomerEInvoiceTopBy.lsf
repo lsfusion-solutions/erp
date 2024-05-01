@@ -4,42 +4,49 @@ REQUIRE EInvoiceTopBy, CustomerEInvoiceTopByApi, EInvoiceEDSTopBy;
 
 
 signAndSendBlrapnCustomer(EInvoice e) + {
-    newNS() <- useNewFormat(loginTopBy(customer(e)));
-    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN
+    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(customer(e)));
         IF exportedBlrapnCustomer(e) THEN
             MESSAGE 'Извещение о прочтении (покупатель) уже отправлено';
-            ELSE IF isTN2(e) THEN {
-                signAndSendBlrapnCustomerEInvoiceTN2(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
-            } ELSE {
-                signAndSendBlrapnCustomerEInvoice(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
-            }
+        ELSE IF isTN2(e) THEN {
+            signAndSendBlrapnCustomerEInvoiceTN2(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        } ELSE {
+            signAndSendBlrapnCustomerEInvoice(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        }
+    }
 }
 
 signAndSendCustomer(EInvoice e) + {
-    newNS() <- useNewFormat(loginTopBy(customer(e)));
-    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN
-        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
+    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(customer(e)));
+        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN 
+            MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE IF isTN2(e) THEN {
             signAndSendCustomerEInvoiceTN2(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
         } ELSE {
             signAndSendCustomerEInvoice(e, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
         }
+    }
 }
 
 signAndSendNoticeCustomer(EInvoice e, STRING[1000] d) + {
-    newNS() <- useNewFormat(loginTopBy(customer(e)));
-    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN
-        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
+    IF EDIProviderInvoice(signSupplier(e), customer(e)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(customer(e)));
+        IF (exportedCustomer(e) OR exportedNoticeCustomer(e)) THEN 
+            MESSAGE 'Накладная (покупатель) или уведомление об изменении уже отправлены';
         ELSE IF isTN2(e) THEN {
             signAndSendNoticeCustomerEInvoiceTN2(e, d, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
         } ELSE {
             signAndSendNoticeCustomerEInvoice(e, d, loginTopBy(customer(e)), passwordTopBy(customer(e)), ('http://' + hostTopBy(customer(e)) +':' + portTopBy(customer(e)) + '/DmcService'), outputDirTopBy(), 'TopBy');
         }
+    }
 }
 
 signAndSendCustomer(ECreditNote c) + {
-    newNS() <- useNewFormat(loginTopBy(customer(c)));
-    IF EDIProvider(supplier(c)) == EDIProvider.topBy THEN
-        IF exportedCustomer(c) THEN MESSAGE 'Акт приемки (покупатель) уже отправлен'; 
-        ELSE signAndSendCustomerECreditNote(c, loginTopBy(customer(c)), passwordTopBy(customer(c)), ('http://' + hostTopBy(customer(c)) +':' + portTopBy(customer(c)) + '/DmcService'), outputDirTopBy(), 'TopBy'); 
+    IF EDIProvider(supplier(c)) == EDIProvider.topBy THEN {
+        newNS() <- useNewFormat(loginTopBy(customer(c)));
+        IF exportedCustomer(c) THEN 
+            MESSAGE 'Акт приемки (покупатель) уже отправлен';
+        ELSE signAndSendCustomerECreditNote(c, loginTopBy(customer(c)), passwordTopBy(customer(c)), ('http://' + hostTopBy(customer(c)) +':' + portTopBy(customer(c)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+    }
 }
