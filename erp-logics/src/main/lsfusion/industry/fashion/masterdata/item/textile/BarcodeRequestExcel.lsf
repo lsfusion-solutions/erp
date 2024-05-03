@@ -17,7 +17,9 @@ DESIGN operation {
 
 EXTEND FORM operations PROPERTIES READONLY nameTemplate(o) AFTER id(o);
 
-setExtraValue ABSTRACT LIST(BarcodeRequest, TemplateEntry);
+setExtraValue ABSTRACT LIST (BarcodeRequest, TemplateEntry);
+afterRequestProceed ABSTRACT LIST (BarcodeRequest);
+disableOpenExcelAfterRequestProceed = ABSTRACT BOOLEAN (BarcodeRequest);
 
 createRequestProceed(BarcodeRequest b) {
     value(TemplateEntry detail) <- NULL;
@@ -109,7 +111,8 @@ createRequestProceed(BarcodeRequest b) {
     DIALOG template OBJECTS t = template() DO {
         process(template());
         excel(b) <- resultTemplate();
-        openExcel(b);
+        IF NOT disableOpenExcelAfterRequestProceed(b) THEN openExcel(b);
+        afterRequestProceed(b);
     }
     APPLY NESTED LOCAL;
 }
