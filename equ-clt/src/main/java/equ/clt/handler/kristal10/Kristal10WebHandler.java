@@ -1254,7 +1254,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         try {
             //часто zreports приходит сразу после purchases - и суммы не сходятся.
             //Поэтому даём чекам время на то, чтобы обработаться
-            Thread.sleep(60000); //1 minute
+            Thread.sleep(120000); //1 minute
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
