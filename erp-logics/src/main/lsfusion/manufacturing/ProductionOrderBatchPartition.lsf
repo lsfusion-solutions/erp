@@ -220,6 +220,9 @@ lack 'Не хватает' = DATA LOCAL NUMERIC[16,5] (Sku, BOM);
 replaceSub 'Заменить' = DATA LOCAL NUMERIC[16,5] (Substitute, BOM);
 replaceSub 'Заменить' (Sku s, BOM bm) = GROUP SUM replaceSub(Substitute sb, bm) IF toSku(sb) = s;
 
+originalSubQuantity = DATA LOCAL NUMERIC[16,5] (BOM, Substitute);
+originalSubQuantity = GROUP  SUM originalSubQuantity(BOM b, Substitute s) BY b, fromSku(s);
+
 createBatchComponentDetailNew 'Рассчитать партии по FIFO new' (Order o) {
     returnCreateBatch(o)<- NULL;
     createBatchComponentDetailFirst(o);
@@ -242,18 +245,26 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         brutto (Sku s, BOM bm) <-   GROUP SUM bruttoQuantity(ComponentDetail cd) IF bruttoSku(cd)==s AND order(cd)==o AND BOM(cd)==bm;
 
         LOCAL originalSubQuantity = NUMERIC[16,5] (BOM, Substitute);
-        originalSubQuantity(BOM bm,  Substitute sb) <- PARTITION UNGROUP brutto
-            LIMIT originalSubQuantity(o,sb) IF use(sb,bm)
-            ORDER bm
-            BY fromSku(sb),bm;
+
+        FOR originalSubQuantity(o, Substitute sb) DO {
+            originalSubQuantity(BOM bm, sb) <- PARTITION UNGROUP originalSubQuantity
+                LIMIT (brutto(fromSku(sb),bm) (-) originalSubQuantity(bm,fromSku(sb))) IF use(sb,bm)
+                ORDER bm
+                BY o,sb;            
+        }
+
+        //        originalSubQuantity(BOM bm,  Substitute sb) <- PARTITION UNGROUP brutto
+//            LIMIT originalSubQuantity(o,sb) IF use(sb,bm)
+//            ORDER bm, sb
+//            BY fromSku(sb),bm;
+        
         LOCAL originalSubQuantity = NUMERIC[16,5] (Sku, BOM);
         originalSubQuantity(Sku s, BOM bm) <- GROUP SUM originalSubQuantity(bm,  Substitute sb) IF fromSku(sb)==s;
-
-
+        
         LOCAL prevBalance = NUMERIC[16,5] (Sku, BOM);
         prevBalance(Sku s, BOM bm) <- PARTITION UNGROUP prevBalance
             LIMIT (brutto(s,bm) (-) originalSubQuantity(s, bm))
-            ORDER bm
+            ORDER bm, s
             BY s;
 
         lack (Sku s, BOM bm) <- (brutto(s,bm) (-) originalSubQuantity(s, bm) (-) prevBalance(s, bm)) WHERE (brutto(s, bm) OR originalSubQuantity(s, bm));
@@ -271,7 +282,7 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         FOR lack(Sku s, BOM bm) DO {
             replaceSub (Substitute sb, bm) <- PARTITION UNGROUP lack
                 LIMIT (subBalance(sb, bm) (-) replaceSub(toSku(sb), bm) (-) brutto (toSku(sb), bm)) IF use(sb,bm)
-                ORDER subDateTime(sb, bm), sb
+                ORDER subDateTime(sb, bm), sb, bm
                 BY fromSku(sb), bm
                 WHERE fromSku(sb) = s AND NOT replaceSub(sb,bm);
         }
@@ -280,12 +291,6 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         // расписываем замены по BOM'ам (many to many, поэтому без FOR не получится)
         quantity(Substitute s, BOM bm) <- NULL;
         quantity(Substitute s, BOM bm) <- replaceSub(s,bm);
-        //        FOR replaceSub(Substitute s) DO {
-        //            quantity(s, BOM bm) <- PARTITION UNGROUP replaceSub
-        //                LIMIT STRICT (quantity(fromSku(s), bm) (-) taken(fromSku(s), bm)) IF use(s, bm)
-        //                ORDER bm
-        //                BY s;
-        //        }
 
         // запоминаем коэффициент
         multiplier(Sku s, BOM b, Sku r) <- GROUP MAX multiplier(Substitute sb) IF quantity(sb, b) AND fromSku(sb) = s AND toSku(sb) = r;
