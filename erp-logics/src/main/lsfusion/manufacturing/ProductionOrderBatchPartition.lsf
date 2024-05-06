@@ -244,7 +244,7 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         LOCAL brutto = NUMERIC[16,5] (Sku, BOM);
         brutto (Sku s, BOM bm) <-   GROUP SUM bruttoQuantity(ComponentDetail cd) IF bruttoSku(cd)==s AND order(cd)==o AND BOM(cd)==bm;
 
-        LOCAL originalSubQuantity = NUMERIC[16,5] (BOM, Substitute);
+        //LOCAL originalSubQuantity = NUMERIC[16,5] (BOM, Substitute);
 
         FOR originalSubQuantity(o, Substitute sb) DO {
             originalSubQuantity(BOM bm, sb) <- PARTITION UNGROUP originalSubQuantity
@@ -252,12 +252,6 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
                 ORDER bm
                 BY o,sb;            
         }
-
-        //        originalSubQuantity(BOM bm,  Substitute sb) <- PARTITION UNGROUP brutto
-//            LIMIT originalSubQuantity(o,sb) IF use(sb,bm)
-//            ORDER bm, sb
-//            BY fromSku(sb),bm;
-        
         LOCAL originalSubQuantity = NUMERIC[16,5] (Sku, BOM);
         originalSubQuantity(Sku s, BOM bm) <- GROUP SUM originalSubQuantity(bm,  Substitute sb) IF fromSku(sb)==s;
         
