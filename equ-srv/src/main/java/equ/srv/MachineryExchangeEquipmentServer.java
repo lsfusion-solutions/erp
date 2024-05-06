@@ -243,8 +243,6 @@ public class MachineryExchangeEquipmentServer {
                         DataObject requestExchangeObject = new DataObject(request, (ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchange"));
                         equLM.findProperty("succeeded[RequestExchange, EquipmentServer]").change(true, session, requestExchangeObject, (DataObject) equipmentServerObject);
                         equLM.findProperty("dateTimeSucceeded[RequestExchange, EquipmentServer]").change(LocalDateTime.now(), session, requestExchangeObject, (DataObject) equipmentServerObject);
-                        equLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
-                        equLM.findProperty("dateTimeSucceeded[RequestExchange]").change(LocalDateTime.now(), session, requestExchangeObject);
                     }
                 }
                 session.applyException(BL, stack);

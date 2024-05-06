@@ -224,14 +224,13 @@ NAVIGATOR {
 
 succeeded 'Выгружен' = DATA BOOLEAN (RequestExchange, EquipmentServer);
 dateTimeSucceeded 'Время выгрузки' = DATA DATETIME (RequestExchange, EquipmentServer);
-overSucceeded(RequestExchange r, EquipmentServer e) = succeeded(r) AND succeeded(r, e);
-notOverSucceeded(RequestExchange r, EquipmentServer e) = NOT overSucceeded(r, e) AND r IS RequestExchange;
-overSucceeded(RequestExchange r, STRING sidEquipmentServer) = overSucceeded(r, sidTo(sidEquipmentServer));
+notOverSucceeded(RequestExchange r, EquipmentServer e) = NOT succeeded(r, e) AND r IS RequestExchange;
+overSucceeded(RequestExchange r, STRING sidEquipmentServer) = succeeded(r, sidTo(sidEquipmentServer));
 
 equipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND hasMachinery(r, e);
-succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND hasMachinery(r, e) AND overSucceeded(r, e);
+succededEquipmentServerCount(RequestExchange r) = GROUP SUM 1 IF NOT inactive(EquipmentServer e) AND hasMachinery(r, e) AND succeeded(r, e);
 
-allSucceeded(RequestExchange r) = succeeded(r) AND succededEquipmentServerCount(r) = equipmentServerCount(r);
+allSucceeded(RequestExchange r) = succededEquipmentServerCount(r) = equipmentServerCount(r);
 partiallySucceeded(RequestExchange r) = succededEquipmentServerCount(r) AND succededEquipmentServerCount(r) < equipmentServerCount(r);
 statusSucceeded 'Статус загрузки' (RequestExchange r) = CASE 
     WHEN allSucceeded(r) THEN 'Успешно загружен'
@@ -245,20 +244,8 @@ backgroundStatusSucceeded(RequestExchange r) = CASE
 
 quantityRequestExchangeError 'Количество ошибок' (RequestExchange r) = GROUP SUM 1 IF requestExchange(RequestExchangeError e) == r;
 
-migratedSucceeded = DATA BOOLEAN();
-onStarted() + {
-    IF NOT migratedSucceeded() THEN {
-        NEWSESSION {
-            migratedSucceeded() <- TRUE;
-            succeeded(RequestExchange r, EquipmentServer e) <- succeeded(r);
-            dateTimeSucceeded(RequestExchange r, EquipmentServer e) <- dateTimeSucceeded(r);
-            APPLY; 
-        }
-    }
-}
-
 EXTEND FORM requestExchanges
-    PROPERTIES (r) AFTER dateTimeSucceeded(r) statusSucceeded BACKGROUND backgroundStatusSucceeded(r), quantityRequestExchangeError BACKGROUND quantityRequestExchangeError(r)
+    PROPERTIES (r) AFTER captionRequestExchangeType(r) statusSucceeded BACKGROUND backgroundStatusSucceeded(r), quantityRequestExchangeError BACKGROUND quantityRequestExchangeError(r)
     
     OBJECTS es = EquipmentServer 
     PROPERTIES(es) name, sid
@@ -284,7 +271,7 @@ DESIGN requestExchanges {
 }
 
 EXTEND FORM requestExchange
-    PROPERTIES(r) AFTER succeeded(r) statusSucceeded
+    PROPERTIES(r) AFTER captionRequestExchangeType(r) statusSucceeded
     OBJECTS es = EquipmentServer BEFORE m
     PROPERTIES(es) name, sid
     PROPERTIES(r, es) succeeded, dateTimeSucceeded
@@ -296,7 +283,7 @@ EXTEND FORM requestExchange
 
 DESIGN requestExchange {
     secondRow {
-        MOVE PROPERTY(statusSucceeded(r)) AFTER PROPERTY(succeeded(r));
+        MOVE PROPERTY(statusSucceeded(r)) BEFORE PROPERTY(note(r));
     }
     tabbedPanel {
         NEW machineryTab {

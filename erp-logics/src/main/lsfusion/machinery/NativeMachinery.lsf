@@ -14,24 +14,12 @@ hasNativeMachinery(RequestExchange r) = GROUP SUM 1 IF hasNativeMachinery(Stock 
 succeededNative 'Выгружен (Native)' = DATA BOOLEAN (RequestExchange);
 dateTimeSucceededNative 'Время выгрузки (Native)' = DATA DATETIME (RequestExchange);
 
-migratedNativeSucceeded = DATA BOOLEAN();
-onStarted() + {
-    IF NOT migratedNativeSucceeded() THEN {
-        NEWSESSION {
-            migratedNativeSucceeded() <- TRUE;
-            succeededNative(RequestExchange r) <- succeeded(r);
-            dateTimeSucceededNative(RequestExchange r) <- dateTimeSucceeded(r);
-            APPLY; 
-        }
-    }
-}
-
 EXTEND FORM requestExchanges
-    PROPERTIES AFTER dateTimeSucceeded(r) SHOWIF hasNativeMachinery(r) succeededNative(r), dateTimeSucceededNative(r)//, hasNativeMachinery(r)
+    PROPERTIES AFTER captionRequestExchangeType(r) SHOWIF hasNativeMachinery(r) succeededNative(r), dateTimeSucceededNative(r)//, hasNativeMachinery(r)
 ;
 
 EXTEND FORM requestExchange
-PROPERTIES AFTER succeeded(r) SHOWIF hasNativeMachinery(r) succeededNative(r);
+PROPERTIES AFTER captionRequestExchangeType(r) SHOWIF hasNativeMachinery(r) succeededNative(r);
 
 DESIGN requestExchange {
     secondRow {
