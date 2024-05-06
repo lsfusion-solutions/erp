@@ -77,18 +77,28 @@ labelNameSku (Lot l) += nameSku(l);
 labelText = DATA LOCAL TEXT();
 processLabelText ABSTRACT LIST (Lot);
 
+formattedPrice (Lot l) = '' + INTEGER(price(l));
+formattedDate (Lot l) = toDateDDMMYY(currentDate()) IF l IS Lot;
+
 processLabelText(Lot l) + {
     labelText() <- replace(labelText(), '@NAME@', labelNameSku(l));
     labelText() <- replace(labelText(), '@BARCODE@', id(l));
-    labelText() <- replace(labelText(), '@PRICE@', '' + INTEGER(price(l)));
-    labelText() <- replace(labelText(), '@DATE@', toDateDDMMYY(currentDate()));
+    labelText() <- replace(labelText(), '@PRICE@', formattedPrice(l));
+    labelText() <- replace(labelText(), '@DATE@', formattedDate(l));
 }
 
+overPrintLabel = ABSTRACT BOOLEAN ();
+overPrintLabel ABSTRACT (Lot);
+
 printLabel 'Печать' (Lot l) {
-    labelText() <- template(itemGroup(sku(l)));
-    processLabelText(l);
-    
-    printComPort(labelText());
+    IF overPrintLabel() THEN
+        overPrintLabel(l);
+    ELSE {
+        labelText() <- template(itemGroup(sku(l)));
+        processLabelText(l);
+
+        printComPort(labelText());
+    }
 }
 
 //^XA
