@@ -168,10 +168,16 @@ GROUP auth EXTID 'Auth';
 
 keyID = DATA LOCAL STRING();
 password = DATA LOCAL STRING();
+OID = DATA LOCAL STRING(INTEGER);
+text = DATA LOCAL STRING(INTEGER);
 
 FORM sccpSign
-    PROPERTIES =TRUE EXTID 'OptAddAllCert', encodedBase64() EXTID 'DataB64', =TRUE EXTID 'OptAddCert' //=RAWFILE(resultFile()) 
-    PROPERTIES IN auth keyID() EXTID 'KeyID', password() EXTID 'Password', = 1 EXTID 'CryptoType';
+    PROPERTIES =TRUE EXTID 'OptAddAllCert', =TRUE EXTID 'OptAddCert', =TRUE EXTID 'OptCheckPrivateKey', encodedBase64() EXTID 'DataB64' 
+    PROPERTIES IN auth keyID() EXTID 'KeyID', password() EXTID 'Password', = 1 EXTID 'CryptoType'
+    
+    OBJECTS attributes = INTEGER EXTID 'Attributes'
+    PROPERTIES(attributes) text EXTID 'Text', OID
+    FILTERS OID(attributes);
 
 GROUP signInfo EXTID 'SignInfo';
 
@@ -206,6 +212,8 @@ sign(FILE contentSubXML, STRING socket, BOOLEAN client, BOOLEAN isNew) {
     } ELSE {
         encodeBase64(getDeliveryNote(baseXml()));
     }
+    
+    OID(0) <- '1.2.112.1.2.1.1.1.1.2';
 
     EXPORT sccpSign JSON;
 
