@@ -20,6 +20,7 @@ EXTEND FORM operations PROPERTIES READONLY nameTemplate(o) AFTER id(o);
 setExtraValue ABSTRACT LIST (BarcodeRequest, TemplateEntry);
 afterRequestProceed ABSTRACT LIST (BarcodeRequest);
 disableOpenExcelAfterRequestProceed = ABSTRACT BOOLEAN (BarcodeRequest);
+externalRequestProceed = DATA LOCAL BOOLEAN ();
 
 createRequestProceed(BarcodeRequest b) {
     value(TemplateEntry detail) <- NULL;
@@ -27,6 +28,7 @@ createRequestProceed(BarcodeRequest b) {
     LOCAL template = Template ();
     template() <- template(operation(b));
     
+    IF NOT template() AND externalRequestProceed() THEN RETURN;
     IF NOT template() THEN DIALOG dialogTemplates OBJECTS t INPUT DO {
         template() <- t;
     }
@@ -108,13 +110,18 @@ createRequestProceed(BarcodeRequest b) {
         setExtraValue(b, detail);
     }
 
-    DIALOG template OBJECTS t = template() DO {
+    IF NOT externalRequestProceed() THEN {
+        DIALOG template OBJECTS t = template() DO {
+            process(template());
+            excel(b) <- resultTemplate();
+            IF NOT disableOpenExcelAfterRequestProceed(b) THEN openExcel(b);
+            afterRequestProceed(b);
+        }
+        APPLY NESTED LOCAL;
+    } ELSE {
         process(template());
         excel(b) <- resultTemplate();
-        IF NOT disableOpenExcelAfterRequestProceed(b) THEN openExcel(b);
-        afterRequestProceed(b);
     }
-    APPLY NESTED LOCAL;
 }
 
 createRequestTemplate 'Создать Excel-файл по шаблону'(BarcodeRequest b) {
