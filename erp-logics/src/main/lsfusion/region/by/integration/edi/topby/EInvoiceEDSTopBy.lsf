@@ -198,10 +198,9 @@ getAcknowledgement(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<Acknowledgem
 getDeliveryNote(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<DeliveryNote>.*</DeliveryNote>).*\'))[1]';
 insertSignature(STRING e, STRING s) = FORMULA '(regexp_matches($1, \'(.*)(</.*)$\'))[1] || $2 || (regexp_matches($1, \'(.*)(</.*)$\'))[2]';
 
-sign(FILE contentSubXML, STRING socket, BOOLEAN client, BOOLEAN isNew) {
+sign(FILE contentSubXML, EDSService e, BOOLEAN isNew) {
     signError() <- NULL;
     signResult() <- NULL;
-
     
     fileToString(contentSubXML);
     LOCAL baseXml = STRING ();
@@ -213,11 +212,12 @@ sign(FILE contentSubXML, STRING socket, BOOLEAN client, BOOLEAN isNew) {
         encodeBase64(getDeliveryNote(baseXml()));
     }
     
-    //OID(0) <- '1.2.112.1.2.1.1.1.1.2';
+    OID(0) <- '1.2.112.1.2.1.1.1.1.2' IF useAttribute(e);
+    text(0) <- unpLegalEntity(e) IF useAttribute(e);
 
     EXPORT sccpSign JSON;
 
-    sendRequestEDI(NULL, NULL, 'http://' + socket + '/SCCrypto/ra/signd', exportFile(), NULL, client);
+    sendRequestEDI(NULL, NULL, 'http://' + host(e) + ':' + port(e) + '/SCCrypto/ra/signd', exportFile(), NULL, client(e));
 
     IMPORT sccpSignResult JSON FROM sendRequestEDIResponse();
     
@@ -249,7 +249,7 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice e, FILE contentSubXML, 
         IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
             keyID() <- aliasEDSServiceSupplier(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
-            sign(contentSubXML,host(EDSServiceSupplier(provider,e)) + ':' + port(EDSServiceSupplier(provider,e)), client(EDSServiceSupplier(provider,e)), isNewFormat(e));
+            sign(contentSubXML, EDSServiceSupplier(provider,e), isNewFormat(e));
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -265,7 +265,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice e, FILE contentSubXML, 
         IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
             keyID() <- aliasEDSServiceCustomer(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(contentSubXML,host(EDSServiceCustomer(provider,e)) + ':' + port(EDSServiceCustomer(provider,e)), client(EDSServiceSupplier(provider,e)), isNewFormat(e));
+            sign(contentSubXML, EDSServiceCustomer(provider,e), isNewFormat(e));
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -293,7 +293,7 @@ getSignedDocumentCustomer(STRING[100] provider, ECreditNote e, FILE contentSubXM
         IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
             keyID() <- aliasEDSServiceCustomer(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(contentSubXML,host(EDSServiceCustomer(provider,e)) + ':' + port(EDSServiceCustomer(provider,e)), client(EDSServiceSupplier(provider,e)), TRUE);
+            sign(contentSubXML, EDSServiceCustomer(provider,e), TRUE);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -309,7 +309,7 @@ getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXM
         IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
             keyID() <- aliasEDSServiceSupplier(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
-            sign(contentSubXML,host(EDSServiceSupplier(provider,e)) + ':' + port(EDSServiceSupplier(provider,e)), client(EDSServiceSupplier(provider,e)), TRUE);
+            sign(contentSubXML, EDSServiceSupplier(provider,e), TRUE);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;

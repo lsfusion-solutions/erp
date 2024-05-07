@@ -1,6 +1,6 @@
 MODULE EDSTopBy;
 
-REQUIRE EDS, TopBy;
+REQUIRE EDS, TopBy, LegalEntityBy;
 
 NAMESPACE EDI;
 
@@ -8,6 +8,25 @@ EXTEND CLASS EDSApplication {
     edsService '(СТТ) EDSService',
     edsSign '(СТТ) ЭЦП REST-сервисы',
     sccp '(СТТ) SC-CryptoProxy'
+}
+
+useAttribute 'Использовать атрибутный сертификат' = DATA BOOLEAN (EDSService);
+legalEntity = DATA LegalEntity(EDSService);
+unpLegalEntity 'УНП' (EDSService e) = UNP(legalEntity(e));
+
+CONSTRAINT legalEntity(EDSService e) AND NOT isCompany(legalEntity(e))
+    CHECKED BY legalEntity[EDSService]
+    MESSAGE 'Должны быть выбрана организация являющаяся компаниеей';
+
+CONSTRAINT useAttribute(EDSService e) AND NOT unpLegalEntity(e) 
+    MESSAGE 'Не задан УНП для атрибутного сертификата';
+
+EXTEND FORM EDSService 
+    PROPERTIES useAttribute(o) SHOWIF edsApplication(o) == EDSApplication.sccp,
+               unpLegalEntity(o) SHOWIF useAttribute(o)
+;
+DESIGN EDSService{
+    PROPERTY (unpLegalEntity(o)) {notNull = TRUE;}
 }
 
 isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplication.edsSign OR a == EDSApplication.sccp; 
