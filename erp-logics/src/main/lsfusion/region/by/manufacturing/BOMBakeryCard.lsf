@@ -763,7 +763,8 @@ EXTEND FORM BOM
 
 actTotal1 = GROUP CONCAT  (rtrim(rtrim(TEXT(round3(actMiddleNetWeightD(Component c, DATE dt))),'0'),'.')) IF isAddRow(c), '/' ORDER index(c), c BY BOM(c),dt;
 
-actTotal2 (Product p, DATE dt) = STRING (CONCAT '/', rtrim(rtrim(TEXT(round3(overNettoNetWeightComponentGr(p))),'0'),'.'), actTotal1(BOM(p),dt));
+//actTotal2 (Product p, DATE dt) = STRING (CONCAT '/', rtrim(rtrim(TEXT(round3(overNettoNetWeightComponentGr(p))),'0'),'.'), actTotal1(BOM(p),dt));
+actTotal2 (Product p, DATE dt) = STRING(replace((STRING (CONCAT '/', rtrim(rtrim(TEXT(round3(overNettoNetWeightComponentGr(p))),'0'),'.'), actTotal1(BOM(p),dt))),'.',','));
 
 CLASS ComponentROW 'Строка доп. информации';
 TABLE componentROW(ComponentROW);
@@ -801,7 +802,11 @@ DESIGN BOM{
 
 image(BOM b) = image(maxProduct(b));
 
-FORM technologicalMapBakeryGG 'Технологическая карта (кулинария) '
+EXTEND FORM technologicalMapBakery
+    PROPERTIES (b) image
+;
+
+FORM technologicalMapBakeryGG 'Технологическая карта (кулинария)'
     OBJECTS dt=DATE PANEL
     PROPERTIES (dt) date = VALUE
 
@@ -823,7 +828,7 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
     FILTERS       BOM(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) oneRow, index, nameMaterial, idBarcodeSku, id, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr
+    PROPERTIES(c) oneRow, index, nameMaterial, idBarcodeSku, id, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr, overNettoNetWeightH
     PROPERTIES(c,dt) bruttoQuantity
     PROPERTIES(c) fats, carbohydrates, proteins, energy
     PROPERTIES    READONLY  actBruttoNetWeightD(c), actNettoNetWeightD(c), actMiddleNetWeightD(c,dt), overCurBruttoQuantityBakery(c,dt)
@@ -862,11 +867,51 @@ printTechnologicalMapBakeryG 'Технологическая Карта на к�
 
 } IMAGE 'print.png';
 
-EXTEND FORM BOMs PROPERTIES printTechnologicalMapBakeryG(b);
+descriptionBOM (Component c) = description(BOM(material(c)));
+
+FORM technologicalMapBakeryGGShort 'ТК на кулинарные изделия (кратко)'
+    OBJECTS dt=DATE PANEL
+    PROPERTIES (dt) date = VALUE
+
+    OBJECTS b=BOM PANEL
+    PROPERTIES(b)  READONLY nameCompany, shortNameOwnershipCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
+        overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
+        nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
+        nameApprover, dateApproverOver, namePositionApprover, shortNameResponsiblePerson,
+        image, cookingSemisInstruction
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
+
+    OBJECTS p = Product
+    PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity,
+        overNettoNetWeightH, drynessQuantityH, isWaterComponent, overNettoNetWeightComponent, overNettoNetWeightComponentGr
+    PROPERTIES(b,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
+    PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH, actTotal2
+    PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
+    FILTERS       BOM(p) == b
+
+    OBJECTS c = Component
+    PROPERTIES(c) oneRow, index, nameMaterial, idBarcodeSku, id, shortNameUOM, nettoQuantity, isProduct, textDescription, semifinishedWeight, semifinishedWeightGr, overNettoNetWeightH, descriptionBOM
+    PROPERTIES(c,dt) bruttoQuantity
+    PROPERTIES(c) fats, carbohydrates, proteins, energy
+    PROPERTIES    READONLY  actBruttoNetWeightD(c), actNettoNetWeightD(c), actMiddleNetWeightD(c,dt), overCurBruttoQuantityBakery(c,dt)
+    FILTERS       BOM(p) == BOM(c)
+    //    ORDERS actBruttoNetWeightD(c)
+    ORDERS index(c)    
+;
+printTechnologicalMapBakeryGShort 'ТК на кулинарные изделия (кратко)' (BOM bb) {
+    IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
+    FOR select(BOM b) DO PRINT technologicalMapBakeryGGShort OBJECTS dt = currentDate(), b = b;
+    select(BOM b) <- NULL;
+
+} IMAGE 'print.png';
+
+EXTEND FORM BOMs PROPERTIES printTechnologicalMapBakeryG(b), printTechnologicalMapBakeryGShort(b);
 
 DESIGN BOMs {
     selectPrint{
         MOVE PROPERTY (printTechnologicalMapBakeryG(b));
+        MOVE PROPERTY (printTechnologicalMapBakeryGShort(b));
     }
 }
 
@@ -878,8 +923,13 @@ META componentROW(params)
     EXTEND FORM technologicalMapBakeryGG
         PROPERTIES (c) isComponentROW##params, nameComponentROW##params, bruttoQuantityComponentROW##params, nettoQuantityComponentROW##params
     ;
+    EXTEND FORM technologicalMapBakeryGGShort
+        PROPERTIES (c) isComponentROW##params, nameComponentROW##params, bruttoQuantityComponentROW##params, nettoQuantityComponentROW##params
+    ;    
 END
 @componentROW(1);
 @componentROW(2);
 @componentROW(3);
 @componentROW(4);
+
+

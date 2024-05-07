@@ -4,6 +4,32 @@ REQUIRE BOMBakeryCard, Substitute;
 
 NAMESPACE  BOM;
 
+CLASS ABSTRACT CalculationDetail 'Строка калькуляции';
+
+EXTEND CLASS Component: CalculationDetail;
+
+CLASS ExtraComponent 'Компонент (доп.)' :CalculationDetail;
+TABLE extraComponent (ExtraComponent);
+
+@defineExternalizable(extraComponent, STRING[100],);
+@defineDocumentRelation (BOM, ExtraComponent, ' (компонент)');
+
+BOM(CalculationDetail d) = MULTI BOM[Component](d), BOM[ExtraComponent](d);
+
+@defineDocumentDetailIndexPersistent (BOM, CalculationDetail);
+
+sku 'Sku'  = DATA Sku (ExtraComponent);
+material(CalculationDetail d) = MULTI material[Component](d), sku[ExtraComponent](d);
+nameMaterial 'Материал' (CalculationDetail d) = name(material(d)) IN id;
+idBarcodeSku 'Штрихкод' (CalculationDetail d)= idBarcode(material(d)) IN id;
+id 'Код компонента' (CalculationDetail d)= id(material(d)) IN id;
+sku 'Sku' (CalculationDetail c) = sku(material(c)) MATERIALIZED INDEXED;
+
+UOM = DATA UOM (ExtraComponent);
+UOM(CalculationDetail d) = MULTI UOM[Component](d), UOM[ExtraComponent](d);
+UOM(ExtraComponent d) <- UOM(sku(d)) WHEN CHANGED (sku(d));
+shortNameUOM 'Ед. изм.' (CalculationDetail d) = shortName(UOM(d));
+
 priceStock = DATA Stock (BOM);
 namePriceStock 'Склад цены' (BOM b) = name(priceStock(b));
 
@@ -16,6 +42,11 @@ WHEN LOCAL SET( BOM b IS BOM) AND NOT CHANGED (priceDate(b)) DO {
 }
 priceDate 'Дата цены' (Component c) = priceDate(BOM(c));
 
+bruttoQuantityPriceDate 'Кол-во (брутто) с уч. тех-ий' (Component c) = bruttoQuantity(c, priceDate(c));
+bruttoQuantity 'Кол-во (брутто)' = DATA NUMERIC[16,5](ExtraComponent);
+bruttoQuantity 'Кол-во (брутто) с уч. тех-ий' (CalculationDetail d) = MULTI bruttoQuantity[ExtraComponent](d), bruttoQuantityPriceDate[Component](d);
+
+
 priceListType = DATA  PriceListType(BOM);
 namePriceListType 'Вид цены (с/с компонентов)' (BOM b) = name(priceListType(b));
 
@@ -24,16 +55,14 @@ overCopy(BOM from, BOM to)+{
     priceListType(to) <- priceListType(from);
 }
 
-price 'Цена' = DATA NUMERIC[16,4](Component);
-sum 'Сумма' = DATA NUMERIC[18,5](Component);
+price 'Цена' = DATA NUMERIC[16,4](CalculationDetail);
+sum 'Сумма' = DATA NUMERIC[18,5](CalculationDetail);
 
-bruttoQuantityPriceDate 'Кол-во (брутто) с уч. тех-ий' (Component c) = bruttoQuantity(c, priceDate(c));
-
-sum (Component p)  <- round2(price(p)*bruttoQuantityPriceDate(p))
+sum (CalculationDetail p)  <- round2(price(p)*bruttoQuantityPriceDate(p))
     WHEN CHANGED(price(p)) OR CHANGED (bruttoQuantityPriceDate(p));
 
 GROUP total 'Итоги';
-sumComponent 'Общая стоимость сырьевого набора, руб.'  = GROUP SUM sum(Component c) BY BOM(c) MATERIALIZED;
+sumComponent 'Общая стоимость сырьевого набора, руб.'  = GROUP SUM sum(CalculationDetail c) BY BOM(c) MATERIALIZED;
 sumComponent 'Общая стоимость сырьевого набора, руб.' (Product p) = sumComponent(BOM(p)) IN total;
 priceComponent 'Стоимость одной порции, руб.' (Product p) = round2(sumComponent(BOM(p))/quantity(p)) IN total;
 overNettoNetWeightGr 'Выход в готовом виде, грамм' (Product p) = round0(overNettoNetWeight(p)*1000) IN total;
@@ -65,13 +94,16 @@ changeMarkupPrice(Product p) {
         markup(p)<- calcMarkup(p);
     }
 }
+background 'Цвет'  = ABSTRACT CASE COLOR (CalculationDetail);
+background (CalculationDetail c) += WHEN material(c) IS Product THEN RGB(255,255,229);
+background (CalculationDetail c) += WHEN c IS ExtraComponent THEN RGB(204, 204, 255);
 
 FORM showBomCalculation 'Калькуляция'
     OBJECTS b=BOM PANEL 
     OBJECTS p = Product PANEL     
     PROPERTIES (b) READONLY  name
     
-    OBJECTS ct = Component
+    OBJECTS ct = CalculationDetail
     PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial, shortNameUOM, bruttoQuantityPriceDate, price, sum
     PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
                     markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
@@ -102,18 +134,35 @@ showCalculation 'Показать калькуляцию' (Component c) {
     }
 }
 
-changePrice(Component p) {
+changePrice(CalculationDetail p) {
     INPUT n = NUMERIC[16,4] DO{
         price(p) <- n;
         markup(maxProduct(BOM(p)))<- calcMarkup(maxProduct(BOM(p)));
     }
 }
+addExtraComponent 'Добавить' (BOM b){
+    NEW c = ExtraComponent {
+        BOM(c) <- b;
+    }   
+} TOOLBAR IMAGE 'add.png';
+
+delete 'Удалить' (CalculationDetail c){
+    DELETE c WHERE c IS ExtraComponent;  
+} TOOLBAR IMAGE 'delete.png';
+
+isComponent(CalculationDetail c) = c IS Component;
 
 EXTEND FORM BOM
     PROPERTIES (b) namePriceStock, priceDate, namePriceListType
-    OBJECTS ct=Component
-    PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial ON CONTEXTMENU showCalculation(ct), 
-                    shortNameUOM, bruttoQuantityPriceDate, price CHANGEABLE ON CHANGE changePrice(ct), sum
+    OBJECTS ct=CalculationDetail
+    PROPERTIES (ct) BACKGROUND background(ct) index
+    PROPERTIES (ct) BACKGROUND background(ct) READONLYIF isComponent(ct) idBarcodeSku , id , nameMaterial ON CONTEXTMENU showCalculation(ct), shortNameUOM, bruttoQuantity
+    PROPERTIES (ct) BACKGROUND background(ct) price CHANGEABLE ON CHANGE changePrice(ct), sum READONLY 
+//    PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial ON CONTEXTMENU showCalculation(ct), 
+//                    shortNameUOM, bruttoQuantityPriceDate, price CHANGEABLE ON CHANGE changePrice(ct), sum
+    
+    PROPERTIES addExtraComponent(b) TOOLBAR DRAW ct
+    PROPERTIES delete(ct) SHOWIF ct IS ExtraComponent
     PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
                     markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
     FILTERS BOM(ct)==b
