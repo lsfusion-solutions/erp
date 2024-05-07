@@ -7,30 +7,21 @@ NAMESPACE Sale;
 CONSTRAINT SET([GROUP SUM 1 BY sku(OrderDetail detail), order(detail)](Sku sku, Order order) > 1) AND supplierStock(order) IS Warehouse
     MESSAGE 'Запрещено дублировать товары в заказе (продажа)';   //ограничение нужно для корректности столбцов Кол-во скомплектовано и Кол-во в блоках отгрузки, пересчёта из типов пакетов
 
-//image 'Изображение' (OrderDetail d) = image(sku(d));
-//hasImage (OrderDetail d) = hasImage(sku(d));
-
-notShowImageOrder 'Не показывать изображение в заказах (продажа)' = DATA BOOLEAN (DepartmentStore);
-
-EXTEND FORM departmentStore
-    PROPERTIES(d) notShowImageOrder;
-
-DESIGN departmentStore { headerExtraParams { MOVE PROPERTY(notShowImageOrder(d)); } }
+notShowImageOrder 'Не показывать изображение в заказах (продажа)' = DATA BOOLEAN (Stock);
 
 EXTEND FORM options
     PROPERTIES notShowImageOrder(s) 
 ;
 
 EXTEND FORM userOrder
-    PROPERTIES(ks) READONLY image PANEL //SHOWIF (hasImage(ks) AND NOT notShowImageOrder(st))
+    PROPERTIES(ks) READONLY image PANEL SHOWIF ACTIVE TAB userOrder.BOX(sts) AND NOT notShowImageOrder(st)
 ;
 
 DESIGN userOrder{
     BOX(TREE skuTree) {
         MOVE PROPERTY (image(ks)) {
             fill = 0.6;
-            caption = 'Т';
-            showIf = [VIEW userOrder.sts](st,ks);
+            caption = '';
         }
     }
 }
