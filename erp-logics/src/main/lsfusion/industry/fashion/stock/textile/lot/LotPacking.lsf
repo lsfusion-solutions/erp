@@ -1,0 +1,85 @@
+MODULE LotPacking;
+
+REQUIRE Lot, PacketTextile, BinPacketLedger, LabelDirectPrintTextileLot;
+
+NAMESPACE Lot;
+
+
+packet = DATA Packet (Lot) INDEXED;
+idPacket 'Пакет' (Lot lot) = id(packet(lot)) IN id CHARWIDTH 10;
+
+EXTEND FORM lots
+    PROPERTIES(l) READONLY idPacket AFTER nameSku(l)
+;
+
+isClosed 'Закрыт' = DATA BOOLEAN (Packet);
+isOpened 'Открыт' (Packet packet) = packet IS Packet AND NOT isClosed(packet) MATERIALIZED;
+
+EXTEND FORM packets
+    PROPERTIES READONLY isClosed(s)
+;
+
+isClosedPacket 'Закрыт' (Lot lot) = isClosed(packet(lot));
+isOpenedPacket 'Открыт' (Lot lot) = isOpened(packet(lot));
+
+CONSTRAINT SET(packet(Lot lot)) AND notPrinted(lot)
+    MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
+
+CONSTRAINT SETCHANGED(packet(Lot lot)) AND isClosedPacket(lot)
+    MESSAGE 'Запрещено добавлять марки в закрытый пакет';
+
+countLotsPacket 'Кол-во марок' (Packet packet) = GROUP SUM 1 IF packet(Lot lot) == packet;
+countLotsPacket 'Кол-во марок' (Sku sku, Packet packet) = GROUP SUM 1 IF packet(Lot lot) == packet AND sku(lot) == sku;
+remainingLotsQuantity 'Нераспределенное количество' (Sku sku, Packet packet) = currentQuantity(sku, packet) (-) countLotsPacket(sku, packet);
+countIncompleteSku 'Товары с расхождениями' (Packet packet) = GROUP SUM 1 IF remainingLotsQuantity(Sku sku, packet);
+
+CONSTRAINT SET(isClosed(Packet packet)) AND NOT countLotsPacket(packet)
+    MESSAGE 'Запрещено закрывать пустой пакет';
+
+CONSTRAINT SET(isClosed(Packet packet)) AND countIncompleteSku(packet)
+    MESSAGE 'Запрещено закрытие пакета при наличии расхождений количества марок и товара';
+
+CONSTRAINT SETCHANGED(packet(Lot lot)) AND NOT currentQuantity(sku(lot), packet(lot))
+    MESSAGE 'Запрещено добавлять в пакет марки товара, отсутствующего в пакете';
+
+META defineAfterCreateDocumentPacketDetailsLot (object)
+    afterCreate###object##Details(###object o) + {
+        IF useLot(o) AND packets(o) THEN {
+            FOR o == ##object(###object##Detail d) DO {
+                FOR packet(Lot l) == packet(object##PacketDetail(d)) AND sku(l) == sku(d) DO {
+                    quantity(d, l) <- count(l);
+                }
+            }
+        }
+    }
+END;
+
+META defineAfterUpdateDocumentPacketDetailsLot (object)
+    afterUpdate###object##Details(###object o) + {
+        LOCAL lotsSkuInPackets = BOOLEAN (Sku, Lot);
+
+        FOR o = object(###object##PacketDetail d) DO {
+            FOR packet(Lot l) == packet(d) DO {
+                lotsSkuInPackets(sku(l), l) <- TRUE;
+            }
+        }
+
+        FOR lotsSkuInPackets(Sku s, Lot l) AND ###object##Detail d == [ GROUP MAX ###object##Detail ud BY object(ud), sku(ud)](o,s) DO {
+            quantity(d, l) <- count(l);
+        }
+    }
+END;
+
+META defineConstraintStateDocumentPacketDetailLotIn (object)
+    CONSTRAINT SETCHANGED(packet(###object##PacketDetail d))
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
+END;
+
+@defineOption(allowIncorrectPacketDetailLotOut, 'Разрешить отгрузку открытых пакетов с марками', stock1);
+
+META defineConstraintStateDocumentPacketDetailLotOut (object)
+    CONSTRAINT SETCHANGED(packet(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
+END;
