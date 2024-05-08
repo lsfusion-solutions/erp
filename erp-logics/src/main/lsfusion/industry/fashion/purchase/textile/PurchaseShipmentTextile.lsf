@@ -47,7 +47,7 @@ nameStock 'Цех комплектации' (UserShipmentPacketDetail d) = nameS
 
 @defineConstraintBinPacketDetail(UserShipment, customerStock, 'покупателя');
 
-packetSkuList 'Товары в пакете'(UserShipmentPacketDetail d) = skuListA(packet(d), dateTime(d));
+packetSkuList 'Товары в пакете'(UserShipmentPacketDetail d) = currentSkuList(packet(d));
 
 @defineDocumentDetailIndex(userShipment, UserShipmentPacketDetail);
 
@@ -119,7 +119,7 @@ setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh
 createUserShipmentDetailsInner ABSTRACT (UserShipment);
 afterCreateUserShipmentDetails ABSTRACT LIST (UserShipment);
 
-createUserShipmentDetails (UserShipment s) {
+createUserShipmentDetails 'Обновить спецификацию из пакетов' (UserShipment s) {
     IF packets(s) THEN {
         quantity(UserShipmentDetail sd) <- currentQuantity(sku(sd), packet(userShipmentPacketDetail(sd))) WHERE userShipment(sd) == s;
 
