@@ -25,10 +25,10 @@ outputDirTopBy 'Папка отправленных сообщений' = DATA S
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
 receiveSupplierMessagesTopBy 'Получать сообщения для поставщика' = DATA BOOLEAN ();
 
-lockedTopBy = DATA User (LegalEntity) TABLE legalEntityEDI;
+lockedTopBy = DATA User (STRING) TABLE stringEDI;
 lockResultTopBy = DATA LOCAL NESTED BOOLEAN ();
 
-lockTopBy(LegalEntity object)  { 
+lockTopBy(STRING object)  { 
     NEWSESSION {    
         lockResultTopBy() <- NULL;
         APPLY SERIALIZABLE {
@@ -44,7 +44,7 @@ lockTopBy(LegalEntity object)  {
     }
 }
 
-unlockTopBy(LegalEntity object)  { 
+unlockTopBy(STRING object)  { 
     NEWSESSION { 
         APPLY lockedTopBy(object) <- NULL;
     }
@@ -52,7 +52,7 @@ unlockTopBy(LegalEntity object)  {
 
 onStarted()+ { 
     NEWSESSION {
-        lockedTopBy(LegalEntity l) <- NULL WHERE lockedTopBy(l) AND l IS LegalEntity;
+        lockedTopBy(STRING l) <- NULL WHERE lockedTopBy(l);
         APPLY;      
     }
 }
@@ -60,13 +60,13 @@ onStarted()+ {
 receiveMessagesTopBy () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginTopBy(l)](STRING login) AND passwordTopBy(le) DO {
         NEWSESSION {
-            lockTopBy(le);
+            lockTopBy(login);
             IF lockResultTopBy() THEN {
                 TRY {
                     newNS() <- useNewFormat(login);
                     receiveMessages(login, passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), NULL, 'TopBy');
                 } FINALLY {
-                    unlockTopBy(le);
+                    unlockTopBy(login);
                 }
             } ELSE {
                 MESSAGE 'Уже выполняется получение сообщений TopBy для ' + login + '. Подождите...' NOWAIT;

@@ -39,10 +39,10 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
     }
 }
 
-lockedEDN = DATA User (LegalEntity) TABLE legalEntityEDI;
+lockedEDN = DATA User (STRING) TABLE stringEDI;
 lockResultEDN = DATA LOCAL NESTED BOOLEAN ();
 
-lockEDN(LegalEntity object)  { 
+lockEDN(STRING object)  { 
     NEWSESSION {    
         lockResultEDN() <- NULL;
         APPLY SERIALIZABLE {
@@ -58,7 +58,7 @@ lockEDN(LegalEntity object)  {
     }
 }
 
-unlockEDN(LegalEntity object)  { 
+unlockEDN(STRING object)  { 
     NEWSESSION { 
         APPLY lockedEDN(object) <- NULL;
     }
@@ -66,7 +66,7 @@ unlockEDN(LegalEntity object)  {
 
 onStarted()+ { 
     NEWSESSION {
-        lockedEDN(LegalEntity l) <- NULL WHERE lockedEDN(l) AND l IS LegalEntity;
+        lockedEDN(STRING l) <- NULL WHERE lockedEDN(l);
         APPLY;      
     }
 }
@@ -75,13 +75,13 @@ overReceiveMessagesEDN ABSTRACT LIST(LegalEntity);
 receiveMessagesEDN () {
     FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
         NEWSESSION {
-            lockEDN(le);
+            lockEDN(login);
             IF lockResultEDN() THEN {
                 TRY {
                     overReceiveMessagesEDN(le);
                     receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
                 } FINALLY {
-                    unlockEDN(le);
+                    unlockEDN(login);
                 }
             } ELSE {
                 MESSAGE 'Уже выполняется получение сообщений EDN для ' + login + '. Подождите...' NOWAIT;
