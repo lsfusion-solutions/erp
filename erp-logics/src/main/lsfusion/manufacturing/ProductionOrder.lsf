@@ -1050,6 +1050,9 @@ fillPriceProducts 'Заполнить цены для изделий'(Order orde
 
 //-- Замены для компонентов
 
+substituteQuantityCalc = ABSTRACT CASE NUMERIC[16,5](ComponentDetail, Sku);
+substituteQuantityCalc(ComponentDetail detail, Sku sk) += WHEN detail IS ComponentDetail AND sk IS Sku THEN NUMERIC[14,3](multiplierSubstituteTo(bruttoSku(detail), sk)* bruttoQuantity(detail));
+
 chooseSubstitute 'Выбрать замену'(ComponentDetail detail)   { 
     stockSubstitutesSku() <- NULL;
     BOMSubstitutesSku()<- NULL;
@@ -1059,7 +1062,7 @@ chooseSubstitute 'Выбрать замену'(ComponentDetail detail)   {
 
     DIALOG substitutesSku OBJECTS o= order(detail), s = bruttoSku(detail), sk = substituteSku(detail) INPUT NULL DO {
         substituteSku(detail) <- sk; 
-        substituteQuantity(detail) <- NUMERIC[14,3](multiplierSubstituteTo(bruttoSku(detail), sk)* bruttoQuantity(detail));           
+        substituteQuantity(detail) <- substituteQuantityCalc(detail, sk);           
     }    
 }
 
@@ -1488,11 +1491,14 @@ WHEN LOCAL FORMS order CHANGED(bruttoSubstituteQuantity(Sku sku,Order order))
 WHEN LOCAL FORMS order 
     CHANGED(substitute(Sku s, Order o)) DO {
         substituteSku (ComponentDetail detail) <- substitute(s, o) WHERE bruttoSku(detail) == s AND order(detail) == o AND useSubstitute(detail); 
-    }                       
-                    
+    }
+
+substituteQuantityCalcForms = ABSTRACT CASE NUMERIC[16,5](ComponentDetail,Sku);
+
+substituteQuantityCalcForms(ComponentDetail detail,Sku s) += WHEN detail IS ComponentDetail AND s IS Sku THEN  NUMERIC[14,3](multiplier(s, order(detail)) * bruttoQuantity(detail));
 WHEN LOCAL FORMS order
     CHANGED(multiplier(Sku s, Order o)) DO {
-        substituteQuantity (ComponentDetail detail) <- NUMERIC[14,3](multiplier(s, o) * bruttoQuantity(detail)) WHERE bruttoSku(detail) == s AND order(detail) == o AND useSubstitute(detail);
+        substituteQuantity (ComponentDetail detail) <- substituteQuantityCalcForms(detail,s) WHERE bruttoSku(detail) == s AND order(detail) == o AND useSubstitute(detail);
     }
 //WHEN LOCAL FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), order(detail))) DO {
 //        substituteSku (detail) <- NULL WHERE usePrevSubstitute(detail); 
