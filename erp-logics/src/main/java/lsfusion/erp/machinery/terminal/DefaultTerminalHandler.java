@@ -61,6 +61,7 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule terminalOrderGtinLM;
     static ScriptingLogicsModule terminalTeamWorkLM;
     static ScriptingLogicsModule itemInternetLM;
+    static ScriptingLogicsModule machineryPriceTransactionLM;
 
     static String ID_APPLICATION_TSD = "1";
     static String ID_APPLICATION_ORDER = "2";
@@ -92,6 +93,8 @@ public class DefaultTerminalHandler {
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
 
         itemInternetLM = getLogicsInstance().getBusinessLogics().getModule("ItemInternet");
+
+        machineryPriceTransactionLM = getLogicsInstance().getBusinessLogics().getModule("MachineryPriceTransaction");
     }
 
     public List<Object> readHostPort(DataSession session) {
@@ -201,7 +204,12 @@ public class DefaultTerminalHandler {
                     if (nameSkuBarcode != null /*&& !stop*/) {
                         if (nameSkuBarcode.length() > 100)
                             nameSkuBarcode = nameSkuBarcode.substring(0,100) + "...";
-                        BigDecimal price = (BigDecimal) terminalHandlerLM.findProperty("transactionPriceIdBarcodeId[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock));
+                        BigDecimal price;
+                        if (machineryPriceTransactionLM != null) {
+                            price = (BigDecimal) machineryPriceTransactionLM.findProperty("transactionPriceIdBarcodeId[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock));
+                        } else {
+                            price = (BigDecimal) terminalHandlerLM.findProperty("currentPriceInTerminalIdBarcodeId[STRING[15],STRING[100]]").read(session, new DataObject(barcode), new DataObject(idStock));
+                        }
                         Integer leftPrice = price == null ? null : price.intValue();
                         Integer rightPrice = price == null ? null : (price.multiply(BigDecimal.valueOf(100))).intValue() % 100;
 
