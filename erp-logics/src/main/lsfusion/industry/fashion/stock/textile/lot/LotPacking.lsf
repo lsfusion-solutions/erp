@@ -83,3 +83,19 @@ META defineConstraintStateDocumentPacketDetailLotOut (object)
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
 END;
+
+onStock = ABSTRACT BOOLEAN (Packet);
+
+CONSTRAINT DROPPED(packet(Lot lot)) AND PREV(packet(lot)) AND PREV(isClosedPacket(lot))
+    AND (onStock(PREV(packet(lot))) OR NOT shipmentDate(PREV(packet(lot))))
+    MESSAGE 'Запрещено изъятие марок из закрытого пакета';
+
+CONSTRAINT SETCHANGED(packet(Lot lot)) AND PREV(packet(lot))
+    AND (onStock(PREV(packet(lot))) OR NOT shipmentDate(PREV(packet(lot))))
+    MESSAGE 'Запрещено перемещение марок между пакетами без изъятия';
+
+CONSTRAINT DROPPED(isClosed(Packet packet)) AND onStock(packet)
+    MESSAGE 'Запрещено открытие пакета, находящегося на складе';
+
+CONSTRAINT CHANGED(packet(Lot lot)) AND onStock(packet(lot))
+    MESSAGE 'Запрещено изменять марки в пакете, находящемся на складе';
