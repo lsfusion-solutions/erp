@@ -1,0 +1,62 @@
+MODULE PickingDashboardTextile;
+
+REQUIRE PickingDashboard, PickingTextile, SaleInvoice;
+
+NAMESPACE Picking;
+
+
+beforePicked ABSTRACT LIST (PickingOrder);
+defaultPickingOperation = ABSTRACT Operation(PickingOrder);
+
+picked 'Собран' (PickingOrder order)  {
+    beforePicked(order);
+    NEWSESSION{
+        finishDate(order) <- currentDate();
+        finishTime(order) <- currentTime();
+        performer(order) <- currentUser();
+        NEW p = UserPicking {
+            pickingOrder(p) <- order;
+            stock(p) <- stock(order);
+            operation(p) <- defaultPickingOperation(order);
+            number(p) <- overNumber(p);
+            SHOW userPicking OBJECTS o=p DOCKED;
+        }
+    }
+} TOOLBAR CHANGEKEY 'F9';
+
+showPicked = ABSTRACT BOOLEAN (PickingOrder);
+readonlyPicked = ABSTRACT BOOLEAN (PickingOrder);
+
+invoiced(PickingOrder po) = TRUE IF [GROUP MIN UserInvoice i IF Sale.include[Sale.Order,UserInvoice](order(po),i)]();
+
+EXTEND FORM pickingDashboard
+    PROPERTIES (po) READONLY BACKGROUND backgroundStatusPicking(po) AFTER quantityPickingOrderDetail(po) quantityPickingDetail
+    PROPERTIES (po) SHOWIF showPicked(po) picked READONLYIF readonlyPicked(po)
+
+    FILTERGROUP notShipped FILTER 'Неотгруженные' po IS PickingOrder AND NOT invoiced(po) DEFAULT
+    FILTERGROUP opened FILTER 'Открытые' po IS PickingOrder AND isOpened(po) DEFAULT
+
+    EXTEND FILTERGROUP filters1 FILTER 'Все' p IS Picking DEFAULT
+    EXTEND FILTERGROUP pickingFilters  FILTER 'Полностью собранные' calcFull(po)
+        FILTER 'Все' po IS PickingOrder DEFAULT
+
+    FILTERGROUP byOrder FILTER 'По заказу' po == pickingOrder(p) DEFAULT
+;
+
+DESIGN pickingDashboard {
+    REMOVE PROPERTY(fully);
+    REMOVE PROPERTY(partially);
+    PROPERTY(acceptPrint(po)) { font = 'bold 12';}
+    PROPERTY(picked(po)) { font = 'bold 12';}
+
+    TOOLBARRIGHT(po) {
+        horizontal = FALSE;
+        FILTERGROUPS (po){
+            alignment = STRETCH;
+        }
+        TOOLBAR(po) {
+            alignment = STRETCH;
+            childrenAlignment = END;
+        }
+    }
+}

@@ -1,6 +1,6 @@
 MODULE PickingTextile;
 
-REQUIRE Picking, BinPacketLedger, Packeting, OrderPickingOrder, PickingOrderTextile, SaleOrder;
+REQUIRE PickingOperation, BinPacketLedger, Packeting, OrderPickingOrder, PickingOrderTextile, SaleOrder;
 
 PRIORITY Sale;
 
@@ -11,6 +11,7 @@ isPosted 'Проведен' (o) = DATA BOOLEAN (UserPicking) IN documentHeader;
 isPosted(UserPicking o) += isPosted(o);
 isPosted[Document](Picking picking) += isPosted(picking);
 
+isDraft 'Не проведен' (Picking o) = o IS Picking AND NOT isPosted(o);
 isDraft 'Не проведен' (UserPicking o) = o IS UserPicking AND NOT isPosted(o);
 
 postedTime 'Время проведения' = DATA DATETIME (UserPicking) IN posted;
@@ -105,7 +106,7 @@ stock (UserPickingPacketDetail d) = stock(userPicking(d));
 packet = DATA Packet (UserPickingPacketDetail) INDEXED;
 bin = DATA Bin (UserPickingPacketDetail);
 
-packetSkuList 'Товары в пакете'(UserPickingPacketDetail d) = skuListA(packet(d), dateTime(d));
+packetSkuList 'Товары в пакете'(UserPickingPacketDetail d) = currentSkuList(packet(d));
 
 @defineDocumentDetailIndex(userPicking, UserPickingPacketDetail);
 
