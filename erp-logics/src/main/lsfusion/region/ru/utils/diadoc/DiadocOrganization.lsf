@@ -272,6 +272,8 @@ NAVIGATOR {
 
 
 
+totalCountOrg = DATA LOCAL INTEGER();
+indexKey = DATA LOCAL STRING(INTEGER);
 orgId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
 inn 'ИНН' = DATA LOCAL STRING[12] (INTEGER);
 kpp 'КПП' = DATA LOCAL STRING[9] (INTEGER);
@@ -530,8 +532,10 @@ GROUP russianAddressO EXTID 'RussianAddress': addressO;
 GROUP foreignAddressO EXTID 'ForeignAddress': addressO;
 
 FORM importCounteragents
+    PROPERTIES() totalCountOrg EXTID 'TotalCount'
     OBJECTS o = INTEGER EXTID 'Counteragents'
-    PROPERTIES(o) currentStatus EXTID 'CurrentStatus'
+    PROPERTIES(o) currentStatus EXTID 'CurrentStatus',
+                  indexKey EXTID 'IndexKey'
     PROPERTIES(o) IN organization
                   orgId EXTID 'OrgId',
                   inn EXTID 'Inn',
@@ -603,9 +607,12 @@ getCounteragents 'Получить список контрагентов орг�
         getToken(u);
         
         LOCAL result = FILE ();
+        LOCAL lastCounteragents = STRING ();
+
         TRY {
             EXTERNAL HTTP GET url() + '/GetCounteragents?myOrgId=' + orgId(organization) HEADERS httpHeadersToken TO result;
             IMPORT importCounteragents JSON FROM result();
+            lastCounteragents() <- GROUP LAST indexKey(INTEGER i) ORDER i;
         } CATCH {
             fileToString(result(), 'UTF-8');
             MESSAGE 'Ошибка получения контрагентов ' + statusHttp() + ' ' + resultString();
@@ -677,6 +684,84 @@ getCounteragents 'Получить список контрагентов орг�
             address(d) <- addressD(i);
             addressCode(d) <- addressCodeD(i);
             organization(d) <- organization(orgId(organizationDepartment(i)));
+        }
+        FOR iterate(INTEGER k, 1, INTEGER(totalCountOrg()/100)) DO {
+            TRY {
+                EXTERNAL HTTP GET url() + '/GetCounteragents?myOrgId=' + orgId(organization) + '&afterIndexKey=' + lastCounteragents() HEADERS httpHeadersToken TO result;
+                IMPORT importCounteragents JSON FROM result();
+                lastCounteragents() <- GROUP LAST indexKey(INTEGER i) ORDER i;
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка получения контрагентов ' + statusHttp() + ' ' + resultString();
+            }
+
+            FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
+                orgId(o) <- orgId(i);
+            }
+            FOR Organization o == organization(orgId(INTEGER i)) DO {
+                inn(o) <- inn(i);
+                kpp(o) <- kpp(i);
+                fullName(o) <- fullName(i);
+                shortName(o) <- shortName(i);
+                ogrn(o) <- ogrn(i);
+                fnsParticipantId(o) <- fnsParticipantId(i);
+                ifnsCode(o) <- ifnsCode(i);
+                isPilot(o) <- isPilot(i);
+                isActive(o) <- isActive(i);
+                isTest(o) <- isTest(i);
+                isBranch(o) <- isBranch(i);
+                isRoaming(o) <- isRoaming(i);
+                sociability(o) <- sociability(sociability(i));
+                liquidationDate(o) <- liquidationDate(i);
+                certificateOfRegistryInfo(o) <- certificateOfRegistryInfo(i);
+                isForeign(o) <- isForeign(i);
+                hasCertificateToSign(o) <- hasCertificateToSign(i);
+                zipCode(o) <- zipCode(i);
+                region(o) <- region(i);
+                territory(o) <- territory(i);
+                city(o) <- city(i);
+                locality(o) <- locality(i);
+                street(o) <- street(i);
+                building(o) <- building(i);
+                block(o) <- block(i);
+                apartment(o) <- apartment(i);
+                country(o) <- country(i);
+                address(o) <- address(i);
+                addressCode(o) <- addressCode(i);
+                organizationType(o) <- OrganizationType.type1 WHERE NOT organizationType(o);
+                counteragentStatus(organization,o) <- counteragentStatus(currentStatus(i));
+            }
+            FOR boxId(INTEGER i) AND NOT box(boxId(i)) NEW b = Box DO {
+                boxId(b) <- boxId(i);
+            }
+            FOR Box b == box(boxId(INTEGER i)) DO {
+                title(b) <- title(i);
+                organization(b) <- organization(orgId(organizationBox(i)));
+                invoiceFormatVersion(b) <- organizationInvoiceFormatVersion(invoiceFormatVersion(i));
+                encryptedDocumentsAllowed(b) <- encryptedDocumentsAllowed(i);
+            }
+            FOR departmentId(INTEGER i) AND NOT department(departmentId(i)) NEW d = Department DO {
+                departmentId(d) <- departmentId(i);
+            }
+            FOR Department d == department(departmentId(INTEGER i)) DO {
+                parentDepartment(d) <- department(parentDepartmentId(i));
+                name(d) <- name(i);
+                abbreviation(d) <- abbreviation(i);
+                kpp(d) <- kppD(i);
+                zipCode(d) <- zipCodeD(i);
+                region(d) <- regionD(i);
+                territory(d) <- territoryD(i);
+                city(d) <- cityD(i);
+                locality(d) <- localityD(i);
+                street(d) <- streetD(i);
+                building(d) <- buildingD(i);
+                block(d) <- blockD(i);
+                apartment(d) <- apartmentD(i);
+                country(d) <- countryD(i);
+                address(d) <- addressD(i);
+                addressCode(d) <- addressCodeD(i);
+                organization(d) <- organization(orgId(organizationDepartment(i)));
+            }            
         }
         APPLY;
     }
