@@ -5,5 +5,20 @@ REQUIRE Set10PriceTransaction, LotTypeRu, EGAISLot;
 NAMESPACE Set10;
 
 productType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'ProductCiggyEntity';
-productType(Sku s) += WHEN lotType(s) = LotType.alcohol THEN 'ProductSpiritsEntity';
+productType(Sku s) += WHEN lotType(s) = LotType.alcohol OR lotType(s) = LotType.beer THEN 'ProductSpiritsEntity';
 productType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'ProductClothingEntity ';
+
+markType  = ABSTRACT CASE STRING (Sku);
+markType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'TOBACCO';
+markType(Sku s) += WHEN lotType(s) = LotType.shoes THEN 'FOOTWEAR';
+markType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'LIGHT_INDUSTRY';
+markType(Sku s) += WHEN lotType(s) = LotType.dairy THEN 'MILK';
+markType(Sku s) += WHEN lotType(s) = LotType.perfumery THEN 'PERFUMES';
+markType(Sku s) += WHEN lotType(s) = LotType.photos THEN 'PHOTO';
+markType(Sku s) += WHEN lotType(s) = LotType.tyres THEN 'TYRES';
+markType(Sku s) += WHEN lotType(s) = LotType.water THEN 'WATER';
+markType(Sku s) += WHEN lotType(s) = LotType.beer THEN 'BEER';
+
+EXTEND FORM goodsCatalog
+    PROPERTIES = IF lotType(sku(good)) = LotType.alcohol THEN TRUE EXTID 'excise',  = markType(sku(good)) EXTID 'mark-type'
+;
