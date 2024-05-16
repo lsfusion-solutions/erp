@@ -572,6 +572,11 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                         for (Element purchaseNode : purchasesList) {
 
+                            String status = readStringXMLAttribute(purchaseNode, "status");
+                            if (status != null && status.equals("CANCELLED")) {
+                                continue;
+                            }
+
                             String operationType = readStringXMLAttribute(purchaseNode, "operationType");
                             Boolean isSale = operationType == null || operationType.equals("true");
                             Integer numberCashRegister = readIntegerXMLAttribute(purchaseNode, "cash");
