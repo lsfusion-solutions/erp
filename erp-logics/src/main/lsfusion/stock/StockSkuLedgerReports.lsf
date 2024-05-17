@@ -65,6 +65,29 @@ nameGroup2 = DATA LOCAL STRING[255] (SkuLedger);
 nameGroup3 = DATA LOCAL STRING[255] (SkuLedger);
 barcodeSku = DATA LOCAL STRING[15] (SkuLedger);
 
+
+valueGroup1 = DATA LOCAL STRING[255] (SkuLedger);
+valueGroup2 = DATA LOCAL STRING[255] (SkuLedger);
+valueGroup3 = DATA LOCAL STRING[255] (SkuLedger);
+nameValueGroup1 = DATA LOCAL STRING[255] (STRING[255]);
+nameValueGroup2 = DATA LOCAL STRING[255] (STRING[255]);
+nameValueGroup3 = DATA LOCAL STRING[255] (STRING[255]);
+overNameGroup1(STRING[255] s) = OVERRIDE nameValueGroup1(s), s IF s IS STRING[255];
+overNameGroup2(STRING[255] s) = OVERRIDE nameValueGroup2(s), s IF s IS STRING[255];
+overNameGroup3(STRING[255] s) = OVERRIDE nameValueGroup3(s), s IF s IS STRING[255];
+
+
+notGroutSkuGroupOperation 'Не группировать товары по наименованию в отчете по операциям' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES notGroutSkuGroupOperation()
+;
+DESIGN options {
+    stock {
+        MOVE PROPERTY(notGroutSkuGroupOperation());
+    }
+}
+
 META setNameGroup(number)
     setNameGroup##number () { 
         nameGroup##number(SkuLedger sl) <- NULL;
@@ -79,6 +102,14 @@ META setNameGroup(number)
         }
         IF order(4) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSku(sl), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
+            IF notGroutSkuGroupOperation() THEN {
+                valueGroup##number(SkuLedger sl) <- NULL;
+                nameValueGroup##number(STRING[255] s) <- NULL;
+                FOR inSkuLedger(SkuLedger sl) AND sl IS SkuLedger DO {
+                    valueGroup##number(sl) <- STRING[255](sku(sl));
+                    nameValueGroup##number(STRING[255](sku(sl))) <- (OVERRIDE nameSku(sl), 'Не задано');
+                }
+            }
         }
         IF order(5) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
@@ -94,8 +125,8 @@ META setNameGroup(number)
         }
         IF order(9) == number THEN {
             nameGroup##number(SkuLedger sl) <- (OVERRIDE nameSkuGroup3((sku(sl))), 'Не задано') IF sl IS SkuLedger WHERE inSkuLedger(sl);
-        }        
-    }   
+        }
+    }
 END 
 
 @setNameGroup(1);
@@ -157,14 +188,22 @@ DESIGN options {
     }
 }
 
-barcodeSku(STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP MAX barcodeSku(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-sum 'Сумма' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-sumVAT 'Сумма НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costSumVAT 'Сумма НДС поставщика' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSumVAT(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costSum 'Сумма поставщика без НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-costVATSum 'Сумма поставщика с НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costVATSum(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-markup 'Торговая надбавка' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
-quantity 'Количество' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl) BY (OVERRIDE nameGroup1(sl),''), (OVERRIDE nameGroup2(sl),''), (OVERRIDE nameGroup3(sl),'');
+barcodeSku(STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP MAX barcodeSku(SkuLedger sl) IF inSkuLedger(sl) 
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+sum 'Сумма' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sum(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+sumVAT 'Сумма НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM sumVAT(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+costSumVAT 'Сумма НДС поставщика' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSumVAT(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+costSum 'Сумма поставщика без НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costSum(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+costVATSum 'Сумма поставщика с НДС' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM costVATSum(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+markup 'Торговая надбавка' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM markup(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
+quantity 'Количество' (STRING[255] g1, STRING[255] g2, STRING[255] g3) = GROUP SUM quantity(SkuLedger sl) IF inSkuLedger(sl)
+    BY (OVERRIDE valueGroup1(sl), nameGroup1(sl),''), (OVERRIDE valueGroup2(sl), nameGroup2(sl),''), (OVERRIDE valueGroup3(sl), nameGroup3(sl),'');
 
 inBackSheetGroup () = GROUP CONCAT name(Group g) IF dataInSession(g) ,';' ORDER g;
 
@@ -180,7 +219,7 @@ FORM printGroupOperationNew 'Отчет по операциям'
     PROPERTIES() inBackSheetGroup, inBackSheetOperation, dFrom, dTo 
     
     OBJECTS d = (g1 = STRING[255], g2 = STRING[255], g3 = STRING[255]) SUBREPORT
-    PROPERTIES nameGroup1 = VALUE(g1), nameGroup2 = VALUE(g2), nameGroup3 = VALUE(g3)
+    PROPERTIES nameGroup1 = overNameGroup1(g1), nameGroup2 = overNameGroup2(g2), nameGroup3 = overNameGroup3(g3)
     PROPERTIES(g1,g2,g3) barcodeSku SHOWIF gSku(),
                          sum, sumVAT, costSumVAT, costSum, costVATSum, markup, quantity
     FILTERS sum(g1,g2,g3) OR quantity(g1,g2,g3)
