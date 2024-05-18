@@ -113,7 +113,13 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get( fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        RawFileData file = (RawFileData) objectValue.getValue();
+                        RawFileData file;
+                        //todo: bugfix for version 5. remove after upgrading erp to version 6
+                        if(objectValue.getValue() instanceof FileData) {
+                            file = ((FileData) objectValue.getValue()).getRawFile();
+                        } else {
+                            file = (RawFileData) objectValue.getValue();
+                        }
                         List<List<PurchaseInvoiceDetail>> userInvoiceDetailData = importUserInvoicesFromFile(context, 
                                 userInvoiceObject, importColumns.get(0), importColumns.get(1), purchaseInvoiceSet, completeIdItemAsEAN, allowIncorrectBarcode,
                                 checkInvoiceExistence, file, fileExtension, importSettings, staticNameImportType, staticCaptionImportType);
