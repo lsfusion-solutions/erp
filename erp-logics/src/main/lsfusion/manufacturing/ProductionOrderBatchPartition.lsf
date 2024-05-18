@@ -222,6 +222,7 @@ replaceSub 'Заменить' (Sku s, BOM bm) = GROUP SUM replaceSub(Substitute 
 
 originalSubQuantity = DATA LOCAL NUMERIC[16,5] (BOM, Substitute);
 originalSubQuantity = GROUP  SUM originalSubQuantity(BOM b, Substitute s) BY b, fromSku(s);
+replaceSubBom 'Заменить' (Sku s) = GROUP SUM replaceSub(Substitute sb, BOM bm) IF toSku(sb) = s;
 
 createBatchComponentDetailNew 'Рассчитать партии по FIFO new' (Order o) {
     returnCreateBatch(o)<- NULL;
@@ -275,7 +276,7 @@ createBatchComponentDetailNew 'Рассчитать партии по FIFO new' 
         replaceSub (Substitute s, BOM bm) <- NUMERIC[16,5](originalSubQuantity(bm,s)*multiplier(s));
         FOR lack(Sku s, BOM bm) DO {
             replaceSub (Substitute sb, bm) <- PARTITION UNGROUP lack
-                LIMIT (subBalance(sb, bm) (-) replaceSub(toSku(sb)) (-) brutto (toSku(sb))) IF use(sb,bm)
+                LIMIT (subBalance(sb, bm) (-) replaceSubBom(toSku(sb)) (-) brutto (toSku(sb))) IF use(sb,bm)
                 ORDER subDateTime(sb, bm), sb, bm
                 BY fromSku(sb), bm
                 WHERE fromSku(sb) = s AND NOT replaceSub(sb,bm) AND use(sb,bm);
