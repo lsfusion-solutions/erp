@@ -1,0 +1,101 @@
+MODULE OkrbGroup;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+
+CLASS OkrbGroup 'Позиция ОКРБ';
+TABLE okrbGroup (OkrbGroup);
+
+name 'Наименование' = DATA ISTRING[1000](OkrbGroup) CHARWIDTH 30;
+code 'Код ОКРБ' = DATA STRING[20](OkrbGroup) IN base CHARWIDTH 10;
+
+okrbGroup (code) = GROUP AGGR OkrbGroup okrbGroup WHERE okrbGroup IS OkrbGroup BY code(okrbGroup);
+number 'Номер строки' = DATA INTEGER(OkrbGroup) IN base;
+
+TABLE okrbGroupOkrbGroup (OkrbGroup, OkrbGroup);
+@defineHierarchy(okrbGroup);
+
+FORM okrbGroup 'Позиция ОКРБ'
+    OBJECTS cg = OkrbGroup PANEL
+    PROPERTIES(cg) code, name, nameParent, canonicalName, number
+
+    EDIT OkrbGroup OBJECT cg
+;
+
+DESIGN okrbGroup {
+    BOX {
+        NEW topContainer {
+            NEW genContainer {
+                horizontal = TRUE;
+                caption = 'Основные';
+                MOVE PROPERTY(code(cg));
+                MOVE PROPERTY(name(cg));
+                MOVE PROPERTY(nameParent(cg));
+                MOVE PROPERTY(canonicalName(cg));
+            }
+
+            NEW dateContainer {
+                horizontal = TRUE;
+                caption = 'Дополнительные';
+                MOVE PROPERTY(number(cg));
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+add 'Добавить'(OkrbGroup okrbGroup)  {
+    NEWSESSION {
+        NEW cg = OkrbGroup {
+            parent(cg) <- okrbGroup;
+            SHOW okrbGroup OBJECTS cg=cg DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+FORM okrbGroups 'Позиции ОКРБ'
+    TREE treeGroups a = BPSTRING[3], gcg = OkrbGroup PARENT parent(gcg)
+    PROPERTIES READONLY VALUE(a), name(gcg), code(gcg)
+    PROPERTIES(gcg) add, EDIT NEWSESSION
+    ORDERS code(gcg)
+
+    OBJECTS cg = OkrbGroup
+    PROPERTIES(cg) READONLY code, name, canonicalName, number
+    PROPERTIES(cg) NEWSESSION NEW, EDIT, deleteg = DELETE
+    ORDERS number(cg)
+
+    FILTERS stringEqualsAll(a)
+
+    FILTERGROUP filters
+        FILTER 'Все листья' isParentLeaf(cg, gcg) OR (cg IS OkrbGroup AND isLeaf(cg) AND NOT gcg) 'F10'
+        FILTER 'Всех потомков' isParent(cg, gcg) OR (cg IS OkrbGroup AND NOT gcg) 'F9' DEFAULT
+        FILTER 'Только непосредственных потомков' parent(cg) == gcg OR (cg IS OkrbGroup AND NOT parent(cg) AND NOT gcg) 'F8'
+
+    LIST OkrbGroup OBJECT cg
+;
+
+DESIGN okrbGroups {
+    BOX {
+        NEW split {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE treeGroups);
+            MOVE BOX(cg) {
+                fill = 2;
+                GRID(cg) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    skuNavigator {
+        NEW okrbGroups;
+    }
+}
