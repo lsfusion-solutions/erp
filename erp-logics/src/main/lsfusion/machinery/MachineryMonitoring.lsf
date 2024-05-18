@@ -1,0 +1,71 @@
+MODULE MachineryMonitoring;
+
+REQUIRE CashRegisterPriceTransaction, Messenger;
+
+NAMESPACE Machinery;
+
+CLASS TimeNotifications 'Время уведомлений';
+TABLE timeNotifications (TimeNotifications);
+
+time 'Время' = DATA TIME (TimeNotifications);
+checked 'Проверено' = DATA BOOLEAN (DATE, TimeNotifications);
+
+chatIdNotifications 'ID чата' = DATA STRING ();
+tokenBotNotifications 'Токен бота' = DATA STRING ();
+countErrorTransaction 'Количество ошибок(прайсы)' = DATA INTEGER ();
+
+EXTEND FORM System.options
+    OBJECTS timeN = TimeNotifications
+    PROPERTIES (timeN) time, NEW, DELETE
+    PROPERTIES () chatIdNotifications, tokenBotNotifications, countErrorTransaction
+;
+
+DESIGN System.options{
+    machinery{
+        NEW timeNotification{
+            caption = 'Уведомления';
+            horizontal = TRUE;
+            NEW settingsTimeN {
+                MOVE PROPERTY (chatIdNotifications());
+                MOVE PROPERTY (tokenBotNotifications());
+                MOVE PROPERTY (countErrorTransaction());
+            }
+            MOVE BOX (timeN);
+        }
+    }
+}
+
+inNotifications 'Вкл.уведомления' = DATA BOOLEAN (CashRegisterModel);
+
+EXTEND FORM cashRegistersModels
+    PROPERTIES inNotifications(c)
+;
+
+monitoringMachinery 'Мониторинг оборудования' ABSTRACT LIST ();
+
+monitoringPriceTransactions 'Мониторинг загрузки в кассы'(){
+    LOCAL actualTime = TimeNotifications();
+    actualTime() <- GROUP MAX TimeNotifications t IF
+        currentTime() >= sumMinutes(time(t), -10) AND currentTime() <= sumMinutes(time(t), 10) AND NOT checked(currentDate(), t);
+    IF actualTime() THEN{
+        LOCAL stockLoc = Stock(MachineryPriceTransaction);
+        stockLoc(MachineryPriceTransaction t) <- stock(t) WHERE notSucceeded(t) AND NOT canceled(t)
+            AND quantityMachineryPriceTransactionError(t) >= countErrorTransaction() AND inNotifications(model(groupMachinery(t)))
+            AND t IS CashRegisterPriceTransaction;
+        LOCAL message = STRING[4096]();
+
+        FOR INTEGER m = [GROUP SUM 1 BY stockLoc(MachineryPriceTransaction t)](Stock c) DO message() <- CONCAT '\n', message(), name(c) + ' ```- прайсов : ' + m  +'```\n\n';
+        IF message() THEN{
+            LOCAL send = STRING();
+            LOCAL f = FILE();
+            send() <- CONCAT '\n', '⚡⚡⚡По следующим складам не выгружаются прайсы в кассы: \n', message();
+            EXTERNAL HTTP POST CONCAT '', 'https://api.telegram.org/bot', tokenBotNotifications(),
+                '/sendMessage?chat_id=', chatIdNotifications()
+                BODYURL '&text=$1&parse_mode=Markdown' PARAMS STRING[4000](send()) TO f;
+        }
+        checked(currentDate(), actualTime()) <- TRUE;
+    }
+    APPLY;
+}
+
+monitoringMachinery()+{ monitoringPriceTransactions(); }
