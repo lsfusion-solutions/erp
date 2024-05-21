@@ -87,7 +87,13 @@ countStocks (StopList list)  = GROUP SUM 1 IF in(Stock stock, list) MATERIALIZED
 
 succeeded = countSucceededStocks(StopList l) == countStocks(l);
 
-toExport 'К загрузке' = countStocks(StopList l) AND NOT succeeded(l);  
+useScheduledStopLists 'Использовать отложенные стоп-листы' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() useScheduledStopLists;
+DESIGN options { machinery { MOVE PROPERTY (useScheduledStopLists()); } }
+
+scheduled (StopList l) = useScheduledStopLists() AND fromDateTime(l) > currentDateTime();
+
+toExport 'К загрузке' = countStocks(StopList l) AND NOT succeeded(l) AND NOT scheduled(l);  
 
 statusSucceededStocks 'Статус загрузки' = CASE 
     WHEN succeeded(StopList l) AND isPosted(l) THEN 'Успешно загружен'
