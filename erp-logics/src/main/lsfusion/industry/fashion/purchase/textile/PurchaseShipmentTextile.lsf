@@ -116,27 +116,15 @@ setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh
     }
 }
 
-createUserShipmentDetailsInner ABSTRACT (UserShipment);
-afterCreateUserShipmentDetails ABSTRACT LIST (UserShipment);
-
-createUserShipmentDetails 'Обновить спецификацию из пакетов' (UserShipment s) {
-    IF packets(s) THEN {
-        quantity(UserShipmentDetail sd) <- currentQuantity(sku(sd), packet(userShipmentPacketDetail(sd))) WHERE userShipment(sd) == s;
-
-        createUserShipmentDetailsInner(s);
-
-        DELETE UserShipmentDetail d WHERE d IS UserShipmentDetail AND userShipment(d) = s AND NOT [GROUP SUM 1 BY userShipment(userShipmentPacketDetail(d))](s);
-        setPackQuantity(s);
-        afterCreateUserShipmentDetails(s);
-    }
-} TOOLBAR;
+createUserShipmentDetails ABSTRACT (UserShipment) TOOLBAR;
+showCreateUserShipmentDetails = ABSTRACT BOOLEAN (UserShipment);
 
 WHEN LOCAL DROPCHANGED(packet(userShipmentPacketDetail(UserShipmentDetail d))) DO {
     userShipmentPacketDetail(d) <- NULL;
 }
 
 EXTEND FORM userShipment
-    PROPERTIES (s) SHOWIF packets(s) createUserShipmentDetails DRAW d
+    PROPERTIES (s) SHOWIF showCreateUserShipmentDetails(s) createUserShipmentDetails DRAW d
     PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER idBatch(d)
 
     EVENTS
