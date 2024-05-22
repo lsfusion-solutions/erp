@@ -16,16 +16,20 @@ EXTEND FORM lots
 
 @defineOption(testDatamatrix, 'Тестовый datamatrix для печати', STRING, items);
 
-@defineOption(printTestDatamartix, 'Печатать тестовый datamatrix', STRING, items);
+@defineOption(printTestDatamartix, 'Печатать тестовый datamatrix', BOOLEAN, items);
 
-replaceDatamatrix ABSTRACT (Lot);
+@defineOption(datamartixTag, 'Тег datamatrix в шаблонах этикеток (с префиксом и постфиксом)', STRING, items);
 
+// пока усложнять резервированием марок через APPLY не будем, поэтому на 2х рабочих местах на 1 товар лучше не печатать
 preparePrintLot(StickerTransaction stickerTrans) {
     LOCAL lotToPrint = Lot();
     lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND sku(l) = item(stickerTrans);
     stickerTransaction(lotToPrint()) <- stickerTrans;
 
-    replaceDatamatrix(lotToPrint());
+    IF code(lotToPrint()) THEN
+        fullFormattedText() <- replace(formattedText(), datamartixTag(), code(lotToPrint()));
+    ELSE
+        fullFormattedText() <- replace(formattedText(), datamartixTag(), '');
 }
 
 sendToPrinter (StickerTransaction stickerTrans) + {
@@ -48,6 +52,7 @@ sendToPrinter (StickerTransaction stickerTrans) + {
                 }
             }
             ELSE {
+                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                 writeToComPort(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
                 printed() <- TRUE;
@@ -64,6 +69,7 @@ sendToPrinter (StickerTransaction stickerTrans) + {
                 }
             }
             ELSE {
+                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                 WRITE CLIENT resultFile() TO path(printer());
                 printed() <- TRUE;
@@ -78,6 +84,7 @@ sendToPrinter (StickerTransaction stickerTrans) + {
                 }
             }
             ELSE {
+                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
                 writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
                 printed() <- TRUE;
             }
