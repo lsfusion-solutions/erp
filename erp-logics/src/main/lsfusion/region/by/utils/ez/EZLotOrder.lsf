@@ -6,7 +6,7 @@ NAMESPACE EZ;
 
 quantityLotLimit 'Лимит количества заказываемых марок по строке' = DATA INTEGER ();
 CONSTRAINT quantity(LotOrderDetail d) > quantityLotLimit()
-    MESSAGE 'Коливество заказываемых марок превышает лимит';
+    MESSAGE 'Количество заказываемых марок превышает лимит';
     
 idOrderEZ 'Код заказа ЭЗ' = DATA STRING[100] (LotOrderDetail) CHARWIDTH 36;
 
@@ -584,6 +584,8 @@ getStatusApply 'Получить статус' (Lot l) {
     APPLY;
 }
 
+overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
+
 importLotCodes 'Получить марки' (LotOrder o) {
     NEWSESSION {
         initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o;
@@ -617,6 +619,8 @@ importLotCodes 'Получить марки' (LotOrder o) {
                     sku(l) <- sku(d);
                     quantity(d, l) <- 1;
                     quantity(d) <- quantity(d) + 1;
+                    
+                    overNewLot(d, l);
                 } 
                 getStatus(l); 
             } 
