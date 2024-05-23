@@ -1126,7 +1126,7 @@ DESIGN userPriceList{
 
 copyAbstractData  ABSTRACT LIST ( PriceList, UserPriceList);
 copyAbstractData  ABSTRACT LIST ( UserPriceListDetail, UserPriceListDetail);
-
+copyAbstractDataAfter  ABSTRACT LIST ( PriceList, UserPriceList);
 copyData(PriceList priceList, UserPriceList userPriceList)  { 
         currency(userPriceList) <- currency[UserPriceList](priceList);
         company(userPriceList) <- company[UserPriceList](priceList);
@@ -1135,7 +1135,7 @@ copyData(PriceList priceList, UserPriceList userPriceList)  {
         dataIn(userPriceList, StockGroup stockGroup) <- dataIn[UserPriceList,StockGroup](priceList, stockGroup);
         allStocks(userPriceList) <- allStocks[UserPriceList](priceList);
         in(userPriceList, DataPriceListType priceListType) <- in[UserPriceList,DataPriceListType](priceList, priceListType);
-        EXEC copyAbstractData(priceList, userPriceList);
+        copyAbstractData(priceList, userPriceList);
         FOR userPriceList(UserPriceListDetail detail) == priceList DO {
             NEW d = UserPriceListDetail {
                 userPriceList(d) <- userPriceList;
@@ -1144,6 +1144,7 @@ copyData(PriceList priceList, UserPriceList userPriceList)  {
                 copyAbstractData(detail, d);
             }
         }
+    copyAbstractDataAfter(priceList, userPriceList);
 }
 
 copySession 'Копировать'(PriceList priceList)  { 
