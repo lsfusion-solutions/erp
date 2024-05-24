@@ -6,11 +6,13 @@ NAMESPACE CryptoPro;
 
 dataKeyAlias 'Имя ключа УКЭП' = DATA STRING(LegalEntity);
 dataKeyPassword 'Пароль ключа УКЭП' = DATA STRING(LegalEntity) ECHO;
+attachedSign 'Присоединенная подпись' = DATA BOOLEAN (LegalEntity);
+algorithmSign 'Алгоритм подписи' = DATA INTEGER (LegalEntity);
 
 EXTEND FORM integrationData
     OBJECTS lcp = LegalEntity
     PROPERTIES(lcp) READONLY id, name
-    PROPERTIES(lcp) dataKeyAlias, dataKeyPassword
+    PROPERTIES(lcp) dataKeyAlias, dataKeyPassword, attachedSign, algorithmSign
     FILTERS isCompany(lcp)
 ;
 
@@ -29,5 +31,5 @@ signCustom ABSTRACT LIST (FILE, LegalEntity);
 
 sign (FILE f, BOOLEAN detached, LegalEntity l) { 
     IF signCustom(l) THEN signCustom(f, l);
-    ELSE sign(RAWFILE(f), detached, NULL, NULL, keyAlias(l), keyPassword(l)); 
+    ELSE sign(RAWFILE(f), detached AND NOT attachedSign(l), NULL, NULL, keyAlias(l), keyPassword(l), algorithmSign(l)); 
 }

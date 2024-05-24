@@ -38,6 +38,7 @@ public class SignAction extends InternalAction {
     private final ClassPropertyInterface storePasswordInterface;
     private final ClassPropertyInterface aliasInterface;
     private final ClassPropertyInterface passwordInterface;
+    private final ClassPropertyInterface algorithmInterface;
 
     public SignAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -49,6 +50,7 @@ public class SignAction extends InternalAction {
         storePasswordInterface = i.next();
         aliasInterface = i.next();
         passwordInterface = i.next();
+        algorithmInterface = i.next();
     }
 
     @Override
@@ -64,9 +66,11 @@ public class SignAction extends InternalAction {
             String alias = (String) context.getKeyValue(aliasInterface).getValue();
             String password = (String) context.getKeyValue(passwordInterface).getValue();
 
+            Integer algorithm = (Integer) context.getKeyValue(algorithmInterface).getValue();
+
             byte[] signature = CryptoPro.sign(inputFile.getBytes(), detached,
                                     storeFile, storePassword == null ? null : storePassword.toCharArray(),
-                                    alias, password == null ? null : password.toCharArray());
+                                    alias, password == null ? null : password.toCharArray(), algorithm);
 
 //            try {
 //                FileOutputStream fos = new FileOutputStream(new File("D:\\Req\\sgn.txt"));

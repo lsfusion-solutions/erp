@@ -70,7 +70,7 @@ public class CryptoPro {
         return privateKey;
     }
 
-    public static byte[] sign(byte[] data, boolean detached, String storeFile, char[] storePassword, String alias, char[] password) {
+    public static byte[] sign(byte[] data, boolean detached, String storeFile, char[] storePassword, String alias, char[] password, Integer algorithm) {
         try {
             List<Certificate> certs = new ArrayList<Certificate>();
             List<X509CertificateHolder> chain = new ArrayList<X509CertificateHolder>();
@@ -86,7 +86,7 @@ public class CryptoPro {
                     null,
                     privateKey,
                     certs,
-                    CAdESType.CAdES_BES,
+                    (algorithm == null ? CAdESType.CAdES_BES : algorithm),
                     null,
                     false,
                     null,
