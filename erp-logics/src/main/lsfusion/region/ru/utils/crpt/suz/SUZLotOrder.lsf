@@ -83,7 +83,7 @@ suzHeaders (TEXT name) = CASE
     WHEN name = 'clientToken' THEN suzToken();
 
 suzSignedHeaders (TEXT name) = CASE
-    WHEN name = 'X-Signature' AND signature() THEN encodedSignature()
+    WHEN name = 'X-Signature' AND signature() THEN replace(replace(encodedSignature(), '\n', ''), ' ', '');
     ELSE suzHeaders(name);
 
 // export
@@ -122,6 +122,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
         sign(exportFile(), TRUE, legalEntityStock(o));
         
         LOCAL result = FILE();
+        getToken(legalEntityStock(o));
         suzToken() <- token(legalEntityStock(o));
 
         exception(o) <- NULL; 
@@ -170,6 +171,7 @@ checkStatus 'Проверить статус' (LotOrder o) {
     NEWSESSION {
         FOR quantity(o, STRING[14] gtin) DO {
             LOCAL result = FILE();
+            getToken(legalEntityStock(o));
             suzToken() <- token(legalEntityStock(o));
             
             exception(o) <- NULL;
@@ -255,6 +257,7 @@ getLots 'Получить марки' (LotOrder o) {
             WHILE left(o, gtin) > 0 DO {
             
                 LOCAL result = FILE();
+                getToken(legalEntityStock(o));
                 suzToken() <- token(legalEntityStock(o));
                 
                 exception(o) <- NULL;

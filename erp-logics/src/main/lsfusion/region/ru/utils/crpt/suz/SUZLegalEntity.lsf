@@ -38,11 +38,20 @@ getToken(LegalEntity l){
         IMPORT JSON FROM result() TO() uuid, data;
 
         stringToFile(data());
-        IF signCustom(l) THEN signCustom(resultFile(), l);
+        sign(resultFile(), NULL, l);
 
-        EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
+        EXPORT JSON FROM uuid = uuid(), data = replace(replace(encodedSignature(), '\n', ''), ' ', '');
 
-        EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/auth/simpleSignIn/' + idConnection(l) PARAMS exportFile() TO result;
+        TRY {
+            EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/auth/simpleSignIn/' + idConnection(l) PARAMS exportFile() TO result;
+        } CATCH {
+            logToFile('suz', messageCaughtException());
+
+            logToFile('suz', FILE(result()));
+            fileToString(FILE(result()));
+            MESSAGE CONCAT ' ', 'Ошибка при получения токена к СУЗ', messageCaughtException();
+            RETURN;
+        }
 
         LOCAL token = STRING ();
         IMPORT JSON FROM result() TO() token;
