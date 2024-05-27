@@ -28,6 +28,7 @@ dateTimeReceived 'Дата/время получения' = DATA DATETIME (Barco
 operation = DATA Operation (BarcodeRequest);
 nameOperation 'Операция'(BarcodeRequest b) = name(operation(b));
 
+isDraft 'Предварительная' = DATA BOOLEAN (BarcodeRequest);
 isClosed 'Закрыт' = DATA BOOLEAN (BarcodeRequest);
 
 close 'Закрыть' (BarcodeRequest o)  {
@@ -109,7 +110,15 @@ CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
     MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
 
 CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroup(item(d))
-    MESSAGE 'В заявке с данной операцией должны быть только подлежащие прослеживанию товары';
+    MESSAGE 'В заявке на EAN с данной операцией должны быть только подлежащие прослеживанию товары';
+
+@defineOption(allowBarcodeRequestNotOperation, 'Разрешить отправку заявок на EAN без операции', barcodeBox);
+
+@defineOption(allowTrackingItemsNotSplit, 'Разрешить добавлять прослеживаемые товары в заявки на EAN без такого признака', barcodeBox);
+
+CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND operation(d) AND NOT isTrackingItem(operation(d)) AND isTrackingCustomsGroup(item(d))
+    AND NOT allowTrackingItemsNotSplit()
+    MESSAGE 'В заявке на EAN с данной операцией должны быть только не подлежащие прослеживанию товары';
 
 writeBarcodes 'Записать штрихкоды из заявки в товары'(BarcodeRequest br)  {
     NEWSESSION {
@@ -149,7 +158,7 @@ barcodeStringBackground(BarcodeRequestDetail d) = CASE WHEN incorrectBarcode(bar
 
 FORM barcodeRequest 'Заявка на EAN'
     OBJECTS p 'Шапка документа' = BarcodeRequest PANEL
-    PROPERTIES (p) number, dateTime, nameOperation, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail
+    PROPERTIES (p) number, dateTime, nameOperation, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail, isDraft
 
     OBJECTS d = BarcodeRequestDetail
     PROPERTIES (d) index, dateTime, barcodeString BACKGROUND barcodeStringBackground(d), idBarcodeItem READONLY, nameItem, idArticleItem
@@ -180,6 +189,7 @@ DESIGN barcodeRequest {
                             MOVE PROPERTY(dateTime(p));
                             MOVE PROPERTY(nameOperation(p));
                             MOVE PROPERTY(countBarcodeRequestDetail(p));
+                            MOVE PROPERTY(isDraft(p));
                         }
                         NEW sentReceived {
                             horizontal = TRUE;
@@ -246,8 +256,8 @@ FORM barcodeRequests 'Заявки на EAN'
 
     OBJECTS p = BarcodeRequest
     PROPERTIES (p) READONLY isClosed
-    PROPERTIES (p) READONLY number, date, time, nameOperation, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail
-    PROPERTIES (p) SHOWIF NOT isClosed(p) writeBarcodes
+    PROPERTIES (p) READONLY number, date, time, nameOperation, isDraft, isSent, dateTimeSent, isReceived, dateTimeReceived, countBarcodeRequestDetail
+    PROPERTIES (p) SHOWIF (isSent(p) AND NOT isClosed(p)) writeBarcodes
     PROPERTIES (p) close SHOWIF NOT isClosed(p), open SHOWIF isClosed(p)
     PROPERTIES (p) NEWSESSION NEW
     PROPERTIES (p) NEWSESSION SHOWIF NOT isClosed(p) EDIT, DELETE
@@ -349,16 +359,14 @@ emailToBarcodeRequest 'Адрес получателя e-mail для заявк�
 emailBCCBarcodeRequest 'Адрес получателя BCC копии e-mail заявки на EAN' = DATA STRING[100]();
 registerNumber 'Регистрационный номер пользователя системы ГС1 Беларуси' = DATA STRING[15]();
 dataRequestUser 'Заявку подготовил' = DATA STRING();
-splitIsTracking 'Отделять товары, подлежащие прослеживанию, в другую заявку на EAN' = DATA BOOLEAN() PREREAD;
 
 EXTEND FORM options
     PROPERTIES() quantityDefault, codeGLNCompany, nameCompany, taxIdCompany, minTemperature, maxTemperature, minHumidity, maxHumidity, conditions, requirements,
-        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser, splitIsTracking
+        emailFromBarcodeRequest, emailToBarcodeRequest, emailBCCBarcodeRequest, registerNumber, emailHeaderBarcodeRequest, dataRequestUser
 ;
 
 DESIGN options {
     barcodeBox {
-        MOVE PROPERTY(splitIsTracking());
         NEW barcodeRequest {
             caption = 'Значения по умолчанию для заявки на штрихкод';
             MOVE PROPERTY(codeGLNCompany());
@@ -388,12 +396,24 @@ overGrossWeight = ABSTRACT NUMERIC[12,6](BarcodeRequestDetail);
 grossWeight 'Масса брутто'(BarcodeRequestDetail d) = OVERRIDE overGrossWeight(d), grossWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
 
 sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
+    IF b IS BarcodeRequest AND NOT operation(b) AND NOT allowBarcodeRequestNotOperation() THEN {
+        MESSAGE 'У заявки не выбрана операция';
+        RETURN;
+    }
     IF [ GROUP SUM 1 IF NOT codeCustomsGroup(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
         MESSAGE 'Не во всех товарах заполнен код ТН ВЭД. Файл не отправлен.';
         RETURN;
     }
     IF [ GROUP SUM 1 IF NOT compositionItem(BarcodeRequestDetail d) BY barcodeRequest(d)](b) THEN {
         MESSAGE 'Не во всех товарах заполнен состав. Файл не отправлен.';
+        RETURN;
+    }
+    IF [GROUP SUM 1 IF isTrackingItem(operation(BarcodeRequestDetail d)) AND NOT isTrackingCustomsGroup(item(d)) BY barcodeRequest(d)](b) THEN {
+        MESSAGE 'В заявке с данной операцией должны быть только подлежащие прослеживанию товары';
+        RETURN;
+    }
+    IF [GROUP SUM 1 IF NOT isTrackingItem(operation(BarcodeRequestDetail d)) AND operation(d) AND isTrackingCustomsGroup(item(d)) BY barcodeRequest(d)](b) AND NOT allowTrackingItemsNotSplit() THEN {
+        MESSAGE 'В заявке с данной операцией должны быть только не подлежащие прослеживанию товары';
         RETURN;
     }
 
@@ -431,10 +451,10 @@ needCreateNewRequest(BarcodeRequestDetail d) = d IS BarcodeRequestDetail AND NOT
 needCreateNewRequest = GROUP SUM 1 IF needCreateNewRequest(BarcodeRequestDetail d) BY barcodeRequest(d);
 
 EXTEND FORM barcodeRequests
-    PROPERTIES (p) SHOWIF NOT (isClosed(p) OR needCreateNewRequest(p)) saveExcel
-    PROPERTIES (p) SHOWIF NOT isClosed(p) importFromFile
+    PROPERTIES (p) SHOWIF NOT (isClosed(p) OR needCreateNewRequest(p) OR isDraft(p)) saveExcel
+    PROPERTIES (p) SHOWIF NOT (isClosed(p) OR isDraft(p)) importFromFile
     PROPERTIES (p) SHOWIF excel(p) openExcel
-    PROPERTIES (p) SHOWIF (NOT isClosed(p) AND NOT isSent(p) AND excel(p)) sendExcel
+    PROPERTIES (p) SHOWIF (NOT isClosed(p) AND NOT isSent(p) AND excel(p) AND NOT isDraft(p)) sendExcel
     PROPERTIES (p) SHOWIF inExcel(p) openInExcel
 ;
 
@@ -453,7 +473,14 @@ DESIGN barcodeRequests {
                 MOVE PROPERTY(openInExcel(p));
                 MOVE PROPERTY(importFromFile(p));
             }
+        }
+        NEW actionProcess {
+            horizontal = TRUE;
+            caption = 'Обработка выбранной заявки';
             MOVE PROPERTY(writeBarcodes(p));
+        }
+        NEW actionOther {
+            horizontal = TRUE;
         }
     }
 }
@@ -465,7 +492,8 @@ createNewRequest 'Товары с неполными данными в нову�
         NEWSESSION  {
             NEW b = BarcodeRequest {
                 operation(b) <- operation(br);
-
+                isDraft(b) <- isDraft(br);
+                
                 FOR barcodeRequest(BarcodeRequestDetail d) == br AND needCreateNewRequest(d) NEW detail = BarcodeRequestDetail DO {
                     barcodeRequest(detail) <-  b;
                     item(detail) <- item(d);
@@ -489,11 +517,8 @@ EXTEND FORM barcodeRequests
     FILTERGROUP diff FILTER 'Несоответствие'  needCreateNewRequest(d) 'F9'
 ;
 DESIGN barcodeRequests {
-    action {
-        NEW actionNew {
-            caption = 'Новая заявка';
-            MOVE PROPERTY (createNewRequest(p));
-        }
+    actionProcess {
+        MOVE PROPERTY (createNewRequest(p));
     }
 }
 
