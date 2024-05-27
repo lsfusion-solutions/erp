@@ -810,19 +810,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
     }
 
-    protected Map<String, Object> getReceiptExtraFields(Element purchaseNode, String numberZReport) {
+    protected Map<String, Object> getReceiptExtraFields(Element purchaseNode) {
         Map<String, Object> receiptExtraFields = new HashMap<>();
         receiptExtraFields.put("uid", getPluginPropertyValue(purchaseNode, "iKassa_document_uid"));
         receiptExtraFields.put("fiscalNumber", getPluginPropertyValue(purchaseNode, "FISCAL_DOC_ID"));
-
-        Element originalPurchase = purchaseNode.getChild("original-purchase");
-        if(originalPurchase != null) {
-            String originalNumberZReport = readStringXMLAttribute(originalPurchase, "shift");
-            if(numberZReport.equals(originalNumberZReport)) {
-                receiptExtraFields.put("skipReceipt", true);
-            }
-        }
-
         return receiptExtraFields;
     }
 
