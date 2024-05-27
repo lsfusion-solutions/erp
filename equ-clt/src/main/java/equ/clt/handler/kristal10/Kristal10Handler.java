@@ -603,7 +603,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                             LocalDate dateZReport = LocalDate.parse(readStringXMLAttribute(purchaseNode, "operDay"), DateTimeFormatter.ofPattern("yyyy-MM-ddXXX"));
 
-                            Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode);
+                            Map<String, Object> receiptExtraFields = getReceiptExtraFields(purchaseNode, numberZReport);
 
                             BigDecimal sumCash = null;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
