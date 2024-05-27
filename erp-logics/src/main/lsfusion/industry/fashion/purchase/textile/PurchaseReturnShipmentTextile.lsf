@@ -1,11 +1,10 @@
-MODULE PurchaseShipmentTextile;
+MODULE PurchaseReturnShipmentTextile;
 
-REQUIRE PurchaseShipment, Packeting, BinPacketLedger, WarehouseTextile, StockTextile;
+REQUIRE PurchaseReturnShipment, PurchaseShipmentTextile;
 
-NAMESPACE Purchase;
+PRIORITY Purchase;
 
-
-@defineOperationProperty(packets, 'Пакеты', commonContainer);
+NAMESPACE PurchaseReturn;
 
 @defineDocumentHeaderProperty (userShipment, packets, 'Пакеты');
 
@@ -24,7 +23,7 @@ DESIGN userShipment {
     }
 }
 
-CLASS UserShipmentPacketDetail 'Строка поставки в пакете (закупка)' : BinPacketLedger;
+CLASS UserShipmentPacketDetail 'Строка поставки в пакете (закупка-возврат)' : BinPacketLedger;
 TABLE userShipmentPacketDetail (UserShipmentPacketDetail);
 
 userShipment = DATA UserShipment (UserShipmentPacketDetail) NONULL DELETE INDEXED;
@@ -38,16 +37,7 @@ customerStock (UserShipmentPacketDetail d) = customerStock(userShipment(d));
 supplierStock (UserShipmentPacketDetail d) = supplierStock(userShipment(d));
 
 packet = DATA Packet (UserShipmentPacketDetail) INDEXED;
-bin = DATA Bin (UserShipmentPacketDetail);
-
-overDefaultBin = ABSTRACT Bin (UserShipmentPacketDetail);
-defaultBin (UserShipmentPacketDetail d) = OVERRIDE overDefaultBin(d), defaultBin(customerStock(d));
-
-nameStock 'Цех комплектации' (UserShipmentPacketDetail d) = nameStock(packet(d));
-
-@defineConstraintBinPacketDetail(UserShipment, customerStock, 'покупателя');
-
-packetSkuList 'Товары в пакете'(UserShipmentPacketDetail d) = currentSkuList(packet(d));
+packetSkuList 'Товары в пакете'(UserShipmentPacketDetail d) = skuListA(packet(d), dateTime(d));
 
 @defineDocumentDetailIndex(userShipment, UserShipmentPacketDetail);
 
@@ -63,19 +53,19 @@ dateTimeAccepted 'Дата/время приёмки' = DATA DATETIME (UserShipm
 // по BinPacketLedger
 dateTime (UserShipmentPacketDetail ledger) += OVERRIDE dateTimeAccepted(ledger), dateTime(ledger);
 packet (UserShipmentPacketDetail ledger) += packet(ledger);
-bin (UserShipmentPacketDetail ledger) += bin(ledger);
 isPosted (UserShipmentPacketDetail ledger) += isPosted(ledger);
 numberDocument(UserShipmentPacketDetail ledger) += number(ledger);
 seriesDocument(UserShipmentPacketDetail ledger) += series(userShipment(ledger));
-description(UserShipmentPacketDetail ledger) += 'Перемещение пакетов на склад № ' +  seriesNumber(userShipment(ledger)) + ', строка № ' + index(ledger);
+description(UserShipmentPacketDetail ledger) += 'Возврат пакетов в цех № ' + seriesNumber(userShipment(ledger)) + ', строка № ' + index(ledger);
 createdUser(UserShipmentPacketDetail ledger) += createdUser(userShipment(ledger));
 
+nameStock 'Цех комплектации' (UserShipmentPacketDetail d) = nameStock(packet(d));
 dateProduction 'Дата производства' (UserShipmentPacketDetail d) = dateProduction(packet(d));
 
 EXTEND FORM userShipment
     OBJECTS bd = UserShipmentPacketDetail
-    PROPERTIES (bd) SHOWIF packets(s) index READONLY, idPacket, isAccepted, dateProduction, packetSkuList, idBin
-    PROPERTIES (bd) SHOWIF packets(s) DELETE GRID
+    PROPERTIES(bd) SHOWIF packets(s) index READONLY, idPacket, isAccepted, dateProduction, packetSkuList
+    PROPERTIES(bd) SHOWIF packets(s) DELETE GRID
     FILTERS userShipment(bd) == s
 ;
 
@@ -83,14 +73,14 @@ DESIGN userShipment {
     specificationBox{
         MOVE BOX(bd) FIRST {
             caption = 'Пакеты';
-            PROPERTY (idPacket(bd)){focusable = TRUE;}
+            PROPERTY(idPacket(bd)) { focusable = TRUE; }
         }
     }
 }
 
 EXTEND FORM shipments
     OBJECTS bd = UserShipmentPacketDetail
-    PROPERTIES (bd) SHOWIF packets(s) READONLY index, idPacket, isAccepted, dateProduction, packetSkuList, idBin
+    PROPERTIES(bd) SHOWIF packets(s) READONLY index, idPacket, isAccepted, dateProduction, packetSkuList
     FILTERS userShipment(bd) == s
 ;
 
@@ -98,16 +88,16 @@ DESIGN shipments {
     documentDetail {
         MOVE BOX(bd) AFTER BOX(d) {
             caption = 'Пакеты';
-            PROPERTY (idPacket(bd)){focusable = TRUE;}
+            PROPERTY(idPacket(bd)) { focusable = TRUE; }
         }
     }
 }
 
-userShipmentPacketDetail = DATA UserShipmentPacketDetail(UserShipmentDetail) INDEXED;
+userShipmentPacketDetail = DATA UserShipmentPacketDetail(UserShipmentDetail);
 idPacket 'Пакет'(UserShipmentDetail d) = idPacket(userShipmentPacketDetail(d));
 indexPacketDetail 'Номер строки (пакеты)'(UserShipmentDetail d) = index(userShipmentPacketDetail(d));
 
-setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh)  {
+setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh) {
     packQuantity(UserShipmentDetail d) <- 0 WHERE userShipment(d) == sh;
     FOR sh == userShipment(UserShipmentPacketDetail d) DO {
         FOR UserShipmentDetail cd == GROUP LAST UserShipmentDetail dd ORDER dd WHERE (dd IS UserShipmentDetail AND userShipmentPacketDetail(dd) == d) DO {
@@ -124,25 +114,23 @@ WHEN LOCAL DROPCHANGED(packet(userShipmentPacketDetail(UserShipmentDetail d))) D
 }
 
 EXTEND FORM userShipment
-    PROPERTIES (s) SHOWIF showCreateUserShipmentDetails(s) createUserShipmentDetails DRAW d
-    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER idBatch(d)
+    PROPERTIES(s) SHOWIF showCreateUserShipmentDetails(s) createUserShipmentDetails DRAW d
+    PROPERTIES(d) SHOWIF packets(s) READONLY idPacket AFTER nameBatch(d)
 
     EVENTS
         ON APPLY BEFORE createUserShipmentDetails(s)
 ;
 
 EXTEND FORM shipments
-    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER idBatch(d)
+    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER nameBatch(d)
 ;
 
 WHEN LOCAL SET (isAccepted(UserShipmentPacketDetail d)) DO {
     dateTimeAccepted(d) <- currentDateTime();
-    bin(d) <- defaultBin(d);
 }
 
 WHEN LOCAL DROPPED (isAccepted(UserShipmentPacketDetail d)) DO {
     dateTimeAccepted(d) <- NULL;
-    bin(d) <- NULL;
 }
 
 isNotAccepted 'Есть непринятые строки' = GROUP SUM 1 IF NOT isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
@@ -150,48 +138,30 @@ acceptedDetails 'Есть принятые строки' = GROUP SUM 1 IF isAcce
 isAccepted 'Принято' (UserShipment s) = NOT isNotAccepted(s);
 
 isAccepted 'Принято' (UserShipmentDetail d) = isAccepted(userShipmentPacketDetail(d));
+dateTimeAccepted 'Дата/время приёмки'(UserShipmentDetail d) = dateTimeAccepted(userShipmentPacketDetail(d));
 
-countAcceptedShipmentPacketDetail 'Кол-во пакетов (принято)' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d) MATERIALIZED;
+countAcceptedShipmentPacketDetail 'Кол-во пакетов (принято)' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
 quantityAcceptedShipmentDetail 'Кол-во изделий (принято)' = GROUP SUM quantity(UserShipmentDetail d) IF isAccepted(d) BY shipment(d);
 
 reprintTransfer 'Печать накладной' ABSTRACT (UserShipment) IMAGE 'print.png' TOOLBAR;
 
-printTransfer 'Передать на склад' (UserShipment s)  {
+printTransfer 'Передать в цех' (UserShipment s) {
     isPrinted(s) <- TRUE;
     APPLY;
 } TOOLBAR CONFIRM;
 
-dropPrinted 'Вернуть со склада' (UserShipment o)  {
+dropPrinted 'Вернуть из цеха' (UserShipment o) {
     NEWSESSION {
         isPrinted(o) <- NULL;
         APPLY;
     }
 } TOOLBAR CONFIRM;
 
-defaultTransferToStockOperation  = DATA Operation ();
-nameDefaultTransferToStockOperation 'Операция по умолчанию' = name(defaultTransferToStockOperation());
-defaultTransferStockTo  = DATA Stock ();
-nameDefaultTransferStockTo 'Склад по умолчанию' = name(defaultTransferStockTo());
-
-EXTEND FORM options
-    PROPERTIES() nameDefaultTransferToStockOperation, nameDefaultTransferStockTo
-;
-
-DESIGN options {
-    shipments {
-        NEW transfer {
-            caption = 'Перемещения из цеха на склад';
-            MOVE PROPERTY(nameDefaultTransferToStockOperation());
-            MOVE PROPERTY(nameDefaultTransferStockTo());
-        }
-    }
-}
 
 CONSTRAINT SET (isPosted(UserShipment s)) AND operation(s) == defaultTransferToStockOperation() AND NOT isAccepted(s)
-    MESSAGE 'Запрещено проводить перемещение, пока есть непринятые строки';
+    MESSAGE 'Запрещено проводить возврат, пока есть непринятые строки';
 
 WHEN LOCAL FORMS userShipment CHANGED (operation(UserShipment s)) AND operation(s) == defaultTransferToStockOperation() DO {
-    supplierStock(s) <- stock(currentComputer());
     supplier(s) <- defaultCompany();
     customerStock(s) <- defaultTransferStockTo();
     customer(s) <- defaultCompany();
@@ -204,19 +174,23 @@ filterDateFromT(Shipment s) = date(s) >= filterTransferDateFrom() OR NOT filterT
 filterTransferDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
 filterDateToT (Shipment s) = date(s) <= filterTransferDateTo() OR NOT filterTransferDateTo();
 
-filterTransferCustomer  = DATA LOCAL NESTED LegalEntity ();
+filterTransferCustomer = DATA LOCAL NESTED LegalEntity ();
 nameFilterTransferCustomer 'Покупатель' = name(filterTransferCustomer()) CHARWIDTH 20;
 filterCustomerT (Shipment s) = customer(s) == filterTransferCustomer() OR NOT filterTransferCustomer() OR NOT customer(s);
 
-filterTransferCustomerStock  = DATA LOCAL NESTED Stock ();
-nameFilterTransferCustomerStock 'Склад покупателя' = name(filterTransferCustomerStock())  CHARWIDTH 30;
+filterTransferCustomerStock = DATA LOCAL NESTED Stock ();
+nameFilterTransferCustomerStock 'Склад покупателя' = name(filterTransferCustomerStock()) CHARWIDTH 30;
 filterCustomerStockT (Shipment s) = customerStock(s) == filterTransferCustomerStock() OR NOT filterTransferCustomerStock() OR NOT customerStock(s);
 
-filterTransferSupplierStock  = DATA LOCAL NESTED Stock ();
-nameFilterTransferSupplierStock 'Цех' = name(filterTransferSupplierStock())  CHARWIDTH 30;
-filterSupplierStockT (Shipment s) = customerStock(s) == filterTransferSupplierStock() OR NOT filterTransferSupplierStock() OR NOT supplierStock(s);
+filterTransferSupplier = DATA LOCAL NESTED LegalEntity ();
+nameFilterTransferSupplier 'Поставщик' = name(filterTransferSupplier()) CHARWIDTH 20;
+filterSupplierT (Shipment s) = supplier(s) == filterTransferSupplier() OR NOT filterTransferSupplier() OR NOT supplier(s);
 
-filterTransferOperation  = DATA LOCAL NESTED Operation ();
+filterTransferSupplierStock = DATA LOCAL NESTED Stock ();
+nameFilterTransferSupplierStock 'Склад поставщика' = name(filterTransferSupplierStock()) CHARWIDTH 30;
+filterSupplierStockT (Shipment s) = supplierStock(s) == filterTransferSupplierStock() OR NOT filterTransferSupplierStock() OR NOT supplierStock(s);
+
+filterTransferOperation = DATA LOCAL NESTED Operation ();
 nameFilterTransferOperation 'Операция' = name(filterTransferOperation()) CHARWIDTH 40;
 filterOperationT (UserShipment s) = operation(s) == filterTransferOperation() OR NOT filterTransferOperation() OR NOT operation(s);
 
@@ -224,7 +198,7 @@ afterSetTransferFilters ABSTRACT LIST ();
 
 setTransferFilters() {
     filterTransferOperation() <- defaultTransferToStockOperation();
-    filterTransferCustomer() <- defaultCompany();
+    filterTransferCustomer() <- defaultCompany();;
     filterTransferCustomerStock() <- defaultTransferStockTo();
     filterTransferDateFrom() <- currentDate();
     filterTransferDateTo() <- currentDate();
@@ -234,12 +208,17 @@ setTransferFilters() {
 
 notEqualPacketDetails(UserShipment s) = RGB(255,150,150) IF NOT countAcceptedShipmentPacketDetail(s) == countShipmentPacketDetail(s);
 
-changeSupplierStock(UserShipment sh)  {
+CONSTRAINT (SETCHANGED (packet(UserShipmentPacketDetail d)) OR CHANGED(isPosted(d))) AND
+    ((isPosted(d) AND countBinPacketLedgerNotPosted(packet(d))) OR (NOT isPosted(d) AND countBinPacketLedgerNotPosted(packet(d)) > 1))
+    CHECKED BY packet
+    MESSAGE 'Пакет есть в другом непроведённом документе';
+
+changeSupplierStock(UserShipment sh) {
     DIALOG stocks OBJECTS s = supplierStock(sh) CHANGE;
     APPLY;
 }
 
-FORM transferFromProduction 'Передача из цеха на склад'
+FORM transferFromStock 'Возврат со склада в цех'
     PROPERTIES() filterTransferDateFrom, filterTransferDateTo
 
     OBJECTS s = UserShipment LAST
@@ -247,14 +226,14 @@ FORM transferFromProduction 'Передача из цеха на склад'
     PROPERTIES(s) READONLYIF isPrinted(s) BACKGROUND backgroundShipment(s) number, series, date, time, nameSupplierStock ON CHANGE changeSupplierStock(s)
     PROPERTIES(s) READONLY BACKGROUND backgroundShipment(s) nameCustomerStock, note
     
-    PROPERTIES(s) reprintTransfer,
+    PROPERTIES(s) reprintTransfer SHOWIF supplierStock(s),
         dropPrinted SHOWIF (isPrinted(s) AND NOT acceptedDetails(s)), // хоть 1 строка принята - вернуть нельзя
-        printTransfer SHOWIF NOT isPrinted(s)
+        printTransfer SHOWIF (NOT isPrinted(s) AND supplierStock(s))
 
     FILTERS filterDateFromT(s), filterDateToT(s), filterOperationT(s), filterCustomerT(s), filterCustomerStockT(s)
 
     FILTERGROUP notPosted FILTER 'Приёмка не завершена' NOT isPosted(s) DEFAULT
-
+    
     OBJECTS bd = UserShipmentPacketDetail
     PROPERTIES(bd) READONLY index, idPacket, isAccepted, dateTimeAccepted, nameStock, dateProduction
     FILTERS userShipment(bd) == s
@@ -266,154 +245,145 @@ FORM transferFromProduction 'Передача из цеха на склад'
     EVENTS ON INIT setTransferFilters()
 ;
 
-DESIGN transferFromProduction {
-    NEW topFilters {
-        caption = 'Фильтры';
-        MOVE PROPERTY(filterTransferDateFrom()){ font = 'bold 16'; alignment = STRETCH;}
-        MOVE PROPERTY(filterTransferDateTo()){ font = 'bold 16'; alignment = STRETCH;}
-        
+DESIGN transferFromStock {
+    NEW topPacket {
+        horizontal = TRUE;
+        NEW top {
+            NEW topFilters {
+                caption = 'Период';
+                MOVE PROPERTY(filterTransferDateFrom()) { font = 'bold 16'; alignment = STRETCH; }
+                MOVE PROPERTY(filterTransferDateTo()) { font = 'bold 16'; }
+            }
+        }
     }
     NEW documentContainer {
         fill = 1;
-
         MOVE BOX(s) {
             fill = 2;
             caption = 'Перемещение (польз.)';
-            PROPERTY (nameSupplierStock(s)) {caption = 'Цех';}
-            PROPERTY (nameCustomerStock(s)) {caption = 'Склад';}
-            PROPERTY (isPosted(s)) {caption = 'Принято';}
+            PROPERTY(nameSupplierStock(s)) { caption = 'Цех'; }
+            PROPERTY(nameCustomerStock(s)) { caption = 'Склад'; }
+            PROPERTY(isPosted(s)) { caption = 'Принято'; }
         }
         NEW documentDetail {
             fill = 1;
             tabbed = TRUE;
-            MOVE BOX(bd){
+            MOVE BOX(bd) {
                 caption = 'Пакеты';
-                PROPERTY (idPacket(bd)){focusable = TRUE;}
+                PROPERTY(idPacket(bd)) { focusable = TRUE; }
             }
             MOVE BOX(d) {
                 caption = 'Спецификация по пакетам';
             }
         }
     }
-
     MOVE TOOLBARBOX;
 }
 
 afterPostAccept ABSTRACT LIST (UserShipment);
 
-postAccept 'Завершить приёмку' (UserShipment s)  {
+postAccept 'Завершить приёмку' (UserShipment s) {
     APPLY;
     post(s);
     afterPostAccept(s);
 } CHANGEKEY 'F6';
 
-dropAccept 'Отменить накладную' (UserShipment s)  {
+dropAccept 'Отменить накладную' (UserShipment s) {
     isAccepted(UserShipmentPacketDetail bd) <- NULL WHERE userShipment(bd) = s;
     APPLY;
 } TOOLBAR CONFIRM;
 
-FORM transferToStock 'Приёмка из цеха на склад'
+FORM transferToProduction 'Приёмка со склада в цех'
     PROPERTIES() filterTransferDateFrom, filterTransferDateTo
 
     OBJECTS s = UserShipment LAST
     PROPERTIES(s) READONLY BACKGROUND background(s) isPosted, number, series, date, time
-    PROPERTIES(s) READONLY nameSupplierStock, nameCustomerStock
-    PROPERTIES(s) READONLY note
+    PROPERTIES(s) READONLY nameSupplierStock, nameCustomerStock, note
     PROPERTIES(s) reprintTransfer, postAccept SHOWIF (isDraft(s) AND isAccepted(s)) DRAW s TOOLBAR
     PROPERTIES(s) dropAccept SHOWIF isDraft(s)
 
     FILTERS filterDateFromT(s), filterDateToT(s), filterOperationT(s), filterCustomerT(s), filterCustomerStockT(s),
-            isPrinted(s)
-
+        isPrinted(s)
+    
     FILTERGROUP notPosted FILTER 'Приёмка не завершена' NOT isPosted(s) DEFAULT
- 
+
     OBJECTS bd = UserShipmentPacketDetail
     PROPERTIES(bd) READONLY index, idPacket
     PROPERTIES(bd) READONLYIF isPosted(s) isAccepted, dateTimeAccepted
     PROPERTIES(bd) READONLY nameStock, dateProduction
+
     FILTERS userShipment(bd) == s
 
     FILTERGROUP acceptedPacket FILTER 'Принятые' isAccepted(bd)
     FILTERGROUP notAcceptedPacket FILTER 'Непринятые' NOT isAccepted(bd)
 
     OBJECTS d = UserShipmentDetail
-    PROPERTIES (d) READONLY indexPacketDetail, idPacket, isAccepted, idBarcodeSku, nameSku, quantity
+    PROPERTIES(d) READONLY indexPacketDetail, idPacket, isAccepted, idBarcodeSku, nameSku, quantity
     FILTERS userShipment(d) == s
 
     FILTERGROUP accepted FILTER 'Принятые' isAccepted(d)
     FILTERGROUP notAccepted FILTER 'Непринятые' NOT isAccepted(d)
 
-    EVENTS ON INIT setTransferFilters();
+    EVENTS ON INIT setTransferFilters()
 ;
 
-DESIGN transferToStock {
-    NEW topFilters {
-        caption = 'Фильтры';
-        MOVE PROPERTY(filterTransferDateFrom()){ font = 'bold 16'; alignment = STRETCH;}
-        MOVE PROPERTY(filterTransferDateTo()){ font = 'bold 16'; alignment = STRETCH;}
+DESIGN transferToProduction {
+    NEW topPacket {
+        horizontal = TRUE;
+        NEW topFilters {
+            caption = 'Период';
+            MOVE PROPERTY(filterTransferDateFrom()) { font = 'bold 16'; alignment = STRETCH; }
+            MOVE PROPERTY(filterTransferDateTo()) { font = 'bold 16'; }
+        }
     }
     NEW documentContainer {
         fill = 1;
-
         MOVE BOX(s) {
             fill = 2;
             caption = 'Перемещение (польз.)';
-            PROPERTY (nameSupplierStock(s)) {caption = 'Цех';}
-            PROPERTY (nameCustomerStock(s)) {caption = 'Склад';}
-            PROPERTY (isPosted(s)) {caption = 'Принято';}
+            PROPERTY(nameSupplierStock(s)) { caption = 'Цех'; }
+            PROPERTY(nameCustomerStock(s)) { caption = 'Склад'; }
+            PROPERTY(isPosted(s)) { caption = 'Принято'; }
         }
         NEW documentDetail {
             fill = 1;
             tabbed = TRUE;
-            MOVE BOX(bd){
+            MOVE BOX(bd) {
                 caption = 'Пакеты';
-                PROPERTY (idPacket(bd)){focusable = TRUE;}
+                PROPERTY (idPacket(bd)) { focusable = TRUE; }
             }
-            MOVE BOX(d){
+            MOVE BOX(d) {
                 caption = 'Спецификация по пакетам';
             }
         }
     }
-
     MOVE TOOLBARBOX;
 }
 
 NAVIGATOR {
     dashboardNavigator {
-        NEW FOLDER transferDashboardNavigator 'Перемещения склад' {
-            NEW transferFromProduction;
-            NEW transferToStock;
+        transferDashboardNavigator {
+            NEW transferFromStock;
+            NEW transferToProduction;
         }
     }
 }
 
 WHEN SET (isPosted(UserShipmentPacketDetail d)) DO {
     FOR packet(PacketingDetail pd) == packet(d) DO
-        dateProduction(pd) <- currentDate();
-}
-
-WHEN DROPPED (isPosted(UserShipmentPacketDetail d)) DO {
-    FOR packet(PacketingDetail pd) == packet(d) DO
         dateProduction(pd) <- NULL;
+    shipmentDate(Packet p) <- NULL WHERE p == packet(d);
 }
 
-EXTEND FORM currentBalancePacketStock
-    PROPERTIES READONLY dateProduction(b) BEFORE dateTimeLastMoved(b)
-;
-
-EXTEND FORM balancePacketStock
-    PROPERTIES READONLY dateProduction(b) BEFORE dateTimeLastMovedA(b,d)
-;
+CONSTRAINT DROPPED(UserShipment s IS UserShipment) AND operation(s) == defaultTransferToStockOperation() AND (PREV(isPosted(s)) OR PREV(acceptedDetails(s)))
+    MESSAGE 'Запрещено удалять уже принятое перемещение';
 
 @defineConstraintDoublePacketDetail(userShipment, 'Запрещено добавлять пакет в перемещение несколько раз');
 
 @defineConstraintEmptyPacketDetail(userShipment);
 
-CONSTRAINT DROPPED(UserShipment s IS UserShipment) AND operation(s) == defaultTransferToStockOperation() AND (PREV(isPosted(s)) OR PREV(acceptedDetails(s)))
-    MESSAGE 'Запрещено удалять уже принятое перемещение';
-
 CONSTRAINT (SET(isPosted(UserShipment s)) OR DROPPED(isPrinted(s))) AND isPosted(s) AND operation(s) == defaultTransferToStockOperation() AND NOT isPrinted(s)
-    MESSAGE 'Перемещение возвращено в цех, провести невозможно';
+    MESSAGE 'Перемещение возвращено на склад, провести невозможно';
 
 CONSTRAINT DROPPED (UserShipmentPacketDetail d IS UserShipmentPacketDetail) AND PREV(isAccepted(d))
     MESSAGE 'Запрещено удалять уже принятую строку перемещения';
