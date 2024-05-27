@@ -791,6 +791,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                         if (startDate == null || !dateReceipt.isBefore(startDate)) {
                             String idSaleReceiptReceiptReturnDetail = null;
+                            boolean skipReceipt = false;
                             Element originalPurchase = purchaseNode.getChild("original-purchase");
                             if(originalPurchase != null) {
                                 Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
@@ -799,6 +800,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 LocalDate dateReceiptOriginal = LocalDate.parse(readStringXMLAttribute(originalPurchase, "saletime"), DateTimeFormatter.ISO_DATE_TIME);
                                 idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
                                         + dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceiptOriginal;
+
+                                skipReceipt = numberZReport.equals(numberZReportOriginal);
                             }
 
                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
@@ -807,7 +810,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumGiftCardMap,
                                     null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                     discountSumReceiptDetail, discountSumReceipt, discountCard, null, numberReceiptDetail, null,
-                                    useSectionAsDepartNumber ? positionDepartNumber : null, false, receiptExtraFields, null, cashRegisterByKey));
+                                    useSectionAsDepartNumber ? positionDepartNumber : null, skipReceipt, receiptExtraFields, null, cashRegisterByKey));
                         }
                     }
                     count++;
