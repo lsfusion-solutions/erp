@@ -217,9 +217,10 @@ DESIGN options {
                                                          
 overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
 overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
-                                                                                                                      
-skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
-           
+
+skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);
+skipMaxDeviationPrice = ABSTRACT BOOLEAN (OrderDetail);
+
 banNotAgreementsPrice'Запретить оприходование накладных без прайса' = DATA BOOLEAN (Agreement);
 EXTEND FORM agreement
     PROPERTIES (a) banNotAgreementsPrice
@@ -239,7 +240,7 @@ CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED
         MESSAGE 'Запрещено оприходование накладных без прайса';
                    
 CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
-    isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d)
+    isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d) AND NOT skipMaxDeviationPrice(d)
         MESSAGE 'Запрещен ввод заказа без прайса';                       
 
 CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
