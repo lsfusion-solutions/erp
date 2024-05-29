@@ -1,6 +1,6 @@
 MODULE Set10LotRu;
 
-REQUIRE Set10PriceTransaction, LotTypeRu, EGAISLot;
+REQUIRE Set10WebServer, LotTypeRu, EGAISLot, ZReportLot;
 
 NAMESPACE Set10;
 
@@ -21,4 +21,22 @@ markType(Sku s) += WHEN lotType(s) = LotType.beer THEN 'BEER';
 
 EXTEND FORM goodsCatalog
     PROPERTIES = IF lotType(sku(good)) = LotType.alcohol THEN TRUE EXTID 'excise',  = markType(sku(good)) EXTID 'mark-type'
+;
+
+EXTEND FORM barcodesCatalog
+    PROPERTIES = IF lotType(sku(good)) THEN TRUE EXTID 'marked'
+;
+
+overCreateReceiptDetail(ReceiptDetail d, INTEGER i) +{
+    IF key(i) = 'excise-token'  THEN lot(d) <- lot(value(i));
+}
+
+//МРЦ для алкоголя и табака
+
+EXTEND FORM priceEntry
+    OBJECTS mrp = Barcode.Barcode EXTID 'min-price-restriction'
+    PROPERTIES = idSku(mrp) EXTID 'id' ATTR, = OVERRIDE round2(minPrice(m, mrp)), round2(price(m, mrp)) EXTID 'value' ATTR,
+        = IF in(m, mrp) THEN 'GOOD' EXTID 'subject-type' ATTR, = IF in(m, mrp) THEN 'MIN_PRICE' EXTID 'type' ATTR,
+        = IF in(m, mrp) THEN idSku(m, mrp) EXTID 'subject-code' ATTR 
+    FILTERS minPrice(m, mrp) OR ((productType(sku(mrp)) = 'ProductSpiritsEntity' OR productType(sku(mrp)) = 'ProductCiggyEntity') AND in(m, mrp))
 ;
