@@ -1,0 +1,134 @@
+MODULE Set10CashDocuments;
+
+REQUIRE Set10WebServer, CashDocument, CashOperation;
+
+NAMESPACE Set10;
+
+regtime = DATA LOCAL ZDATETIME(INTEGER);
+currency = DATA LOCAL STRING(INTEGER);
+cashierName = DATA LOCAL STRING(INTEGER);
+cashierTabNumber = DATA LOCAL STRING(INTEGER);
+
+crIntroduction (INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shop(i) AND idCashRegisterSet(c) = cash(i) AND NOT disableSales(c);
+
+FORM introductions
+    PROPERTIES() count1 EXTID 'count' ATTR
+
+    OBJECTS introduction = INTEGER
+    PROPERTIES(introduction) amount ATTR, regtime ATTR, number ATTR, shift ATTR, cash ATTR, 
+        shop ATTR, operDay ATTR, currency ATTR, userName ATTR, tabNumber ATTR, cashierName ATTR, cashierTabNumber ATTR
+    FILTERS imported(introduction)
+;
+
+idCashDocument(INTEGER i) = DATE(operDay(i)) + '_' + shop(i) + '_' + cash(i) + '_' + shift(i) + '_' + number(i);
+
+importIntroductions(FILE f){
+    IMPORT introductions XML FROM f;
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND NOT cashDocument(id) DO NEW o = OutcomeCashOperation{
+        id(o) <- id;
+    }
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND  OutcomeCashOperation o = cashDocument(id) AND o IS OutcomeCashOperation DO{
+        number(o) <- number(x);
+        cashRegister(o) <- crIntroduction(x);
+        date(o) <- DATE(regtime(x));
+        time(o) <- TIME(regtime(x));
+        sumCash (o) <- NUMERIC[18,4](amount(x));
+    }
+    APPLY NESTED LOCAL;
+}
+
+
+GROUP processIntroductions EXTID 'ns2=http://introductions.erpi.crystals.ru:processIntroductions' : bodyAnswer;
+
+introductions = DATA LOCAL STRING();
+FORM introductionsRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN processIntroductions introductions, version
+;
+
+set_introductions(FILE file){
+    TRY{
+        fileToString(file);
+        IF useInSet10Log() THEN logToFile('set10', CONCAT 'introductions request', resultString());
+        IMPORT introductionsRequest XML FROM file;
+        IF introductions() THEN {
+            decodeBase64(introductions());
+            IF useInSet10Log() THEN logToFile('set10Introductions', (CONCAT ' ', 'introductions', decodedBase64()));
+            stringToFile(decodedBase64());
+            importIntroductions(resultFile());
+            IF canceled() THEN {
+                logToFile('set10Introductions', (CONCAT ' : ', 'introductions canceled', applyMessage()));
+                statusHttpTo() <- 500;
+            }
+            ELSE
+                logToFile('set10Introductions', (CONCAT ' : ', 'introductions imported', count1()));
+        }
+        ELSE statusHttpTo() <- 500;
+    }
+        CATCH {
+        logToFile('set10Introductions', (CONCAT ' : ', 'introductions exception', messageCaughtException()));
+        statusHttpTo() <- 500;
+    }
+}@@noauth;
+
+
+GROUP processWithdrawals EXTID 'ns2=http://withdrawals.erpi.crystals.ru:processWithdrawals' : bodyAnswer;
+withdrawals = DATA LOCAL STRING();
+
+FORM withdrawalsRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN processWithdrawals withdrawals, version
+;
+withdrawalPlugin_property = DATA LOCAL INTEGER(INTEGER);
+exchangeResidue = DATA LOCAL STRING(INTEGER);
+
+FORM withdrawals
+    PROPERTIES() count1 EXTID 'count' ATTR
+
+    OBJECTS withdrawal = INTEGER
+    PROPERTIES(withdrawal) amount ATTR, regtime ATTR, number ATTR, shift ATTR, cash ATTR, shop ATTR, operDay ATTR, 
+        currency ATTR, userName ATTR, tabNumber ATTR, exchangeResidue ATTR, cashierName ATTR, cashierTabNumber ATTR
+    FILTERS imported(withdrawal)
+
+    OBJECTS plugin_property = INTEGER EXTID 'plugin-property'
+    FILTERS withdrawalPlugin_property(plugin_property) == withdrawal
+    PROPERTIES(plugin_property) key ATTR, value ATTR
+;
+
+importWithdrawals(FILE f){
+    IMPORT withdrawals XML FROM f;
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND NOT cashDocument(id) DO NEW o = IncomeCashOperation{
+        id(o) <- id;
+    }
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND  IncomeCashOperation o = cashDocument(id) AND o IS IncomeCashOperation DO{
+        number(o) <- number(x);
+        cashRegister(o) <- crIntroduction(x);
+        date(o) <- DATE(regtime(x));
+        time(o) <- TIME(regtime(x));
+        sumCash (o) <- NUMERIC[18,4](amount(x));
+    }
+    APPLY NESTED LOCAL;
+}
+
+set_withdrawals(FILE file){
+    TRY{
+        fileToString(file);
+        IF useInSet10Log() THEN logToFile('set10', CONCAT 'withdrawals request', resultString());
+        IMPORT withdrawalsRequest XML FROM file;
+        IF withdrawals() THEN {
+            decodeBase64(withdrawals());
+            IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'withdrawals', decodedBase64()));
+            stringToFile(decodedBase64());
+            importWithdrawals(resultFile());
+            IF canceled() THEN {
+                logToFile('set10', (CONCAT ' : ', 'withdrawals canceled', applyMessage()));
+                statusHttpTo() <- 500;
+            }
+            ELSE
+                logToFile('set10', (CONCAT ' : ', 'withdrawals imported', count1()));
+        }
+        ELSE statusHttpTo() <- 500;
+    }
+        CATCH {
+        logToFile('set10', (CONCAT ' : ', 'withdrawals exception', messageCaughtException()));
+        statusHttpTo() <- 500;
+    }
+}@@noauth;

@@ -1,0 +1,110 @@
+MODULE Set10ZReportExternal;
+
+REQUIRE Set10WebServer, ZReportExternal;
+
+NAMESPACE Set10;
+
+GROUP zreport;
+GROUP paymentsZ EXTID 'payments': zreport;
+
+reportType = DATA LOCAL STRING(INTEGER);
+shiftNumber = DATA LOCAL STRING(INTEGER);
+shopNumber = DATA LOCAL STRING(INTEGER);
+docNumber = DATA LOCAL STRING(INTEGER);
+cashNumber = DATA LOCAL STRING(INTEGER);
+serialCashNumber = DATA LOCAL STRING(INTEGER);
+userTabNumber = DATA LOCAL STRING(INTEGER);
+dateOperDay = DATA LOCAL DATETIME(INTEGER);
+dateShiftClose = DATA LOCAL DATETIME(INTEGER);
+dateShiftOpen = DATA LOCAL DATETIME(INTEGER);
+countCashPurchase = DATA LOCAL STRING(INTEGER);
+countCashlessPurchase = DATA LOCAL STRING(INTEGER);
+countPurchase = DATA LOCAL STRING(INTEGER);
+countCashReturn = DATA LOCAL STRING(INTEGER);
+countCashlessReturn = DATA LOCAL STRING(INTEGER);
+countReturn = DATA LOCAL STRING(INTEGER);
+counterIncoming = DATA LOCAL STRING(INTEGER);
+counterWithdrawal = DATA LOCAL STRING(INTEGER);
+amountByCashPurchase = DATA LOCAL STRING(INTEGER);
+amountByCashlessPurchase = DATA LOCAL STRING(INTEGER);
+amountByPurchaseFiscal = DATA LOCAL STRING(INTEGER);
+amountByCashReturn = DATA LOCAL STRING(INTEGER);
+amountByCashlessReturn = DATA LOCAL STRING(INTEGER);
+amountByReturnFiscal = DATA LOCAL STRING(INTEGER);
+amountCashIn = DATA LOCAL STRING(INTEGER);
+amountCashOut = DATA LOCAL STRING(INTEGER);
+amountCashDiscount = DATA LOCAL STRING(INTEGER);
+returnDiscountCashPay = DATA LOCAL STRING(INTEGER);
+incresentTotalStart = DATA LOCAL STRING(INTEGER);
+incresentTotalFinish = DATA LOCAL STRING(INTEGER);
+incresentTotalReturnStart = DATA LOCAL STRING(INTEGER);
+incresentTotalReturnFinish = DATA LOCAL STRING(INTEGER);
+factoryCashNumber = DATA LOCAL STRING(INTEGER);
+cashName = DATA LOCAL STRING(INTEGER);
+zreportPayment = DATA LOCAL INTEGER(INTEGER);
+amountReturn = DATA LOCAL STRING(INTEGER);
+amountPurchase = DATA LOCAL STRING(INTEGER);
+
+
+FORM reports
+    PROPERTIES count1() EXTID 'count' ATTR
+    OBJECTS zreport = INTEGER
+    PROPERTIES(zreport) reportType, shiftNumber, shopNumber, docNumber, cashNumber, serialCashNumber, 
+        userTabNumber, userName, dateOperDay, dateShiftClose, dateShiftOpen, countCashPurchase, countCashlessPurchase, 
+        countPurchase, countCashReturn, countCashlessReturn, countReturn, counterIncoming, counterWithdrawal,
+        amountByCashPurchase, amountByCashlessPurchase, amountByPurchaseFiscal, amountByCashReturn, amountByCashlessReturn, 
+        amountByReturnFiscal, amountCashIn, amountCashOut, amountCashDiscount, returnDiscountCashPay, incresentTotalStart, 
+        incresentTotalFinish, incresentTotalReturnStart, incresentTotalReturnFinish, factoryCashNumber, cashName, inn
+    FILTERS imported(zreport)
+;
+
+
+idZReport(INTEGER i) = DATE(dateOperDay(i)) + '_' + shopNumber(i) + '_' + cashNumber(i) + '_' + shiftNumber(i);
+cr(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shopNumber(i) AND idCashRegisterSet(c) = cashNumber(i) AND NOT disableSales(c);
+
+importZReports(FILE f){
+    IMPORT reports XML FROM f;
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) AND cr(x) NEW z = ZReport DO{
+        id(z) <- id;
+    }
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND cr(x) AND ZReport z =  zReport(id) DO{
+        cashRegister(z) <- cr(x);
+        beginShift(z) <- dateShiftOpen(x);
+        endShift(z) <- dateShiftClose(x);
+        externalSum(z) <- NUMERIC[18,4](amountByPurchaseFiscal(x));
+    }
+    APPLY NESTED LOCAL;
+}@@noauth;
+
+GROUP processZReports EXTID 'ns2=http://zreports.erpi.crystals.ru:processZReports' : bodyAnswer;
+
+zreports = DATA LOCAL STRING();
+
+FORM zReportsRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN processZReports zreports, version
+;
+
+set_zreports(FILE file){
+    TRY{
+        fileToString(file);
+        IF useInSet10Log() THEN logToFile('set10', CONCAT 'zReports request', resultString());
+        IMPORT zReportsRequest XML FROM file;
+        IF zreports() THEN {
+            decodeBase64(zreports());
+            IF useInSet10Log() THEN logToFile('set10Zrepots', (CONCAT ' ', 'zReports', decodedBase64()));
+            stringToFile(decodedBase64());
+            importZReports(resultFile());
+            IF canceled() THEN {
+                logToFile('set10Zrepots', (CONCAT ' : ', 'zReports canceled', applyMessage()));
+                statusHttpTo() <- 500;
+            }
+            ELSE
+                logToFile('set10Zrepots', (CONCAT ' : ', 'zReports imported', count1()));
+        }
+        ELSE statusHttpTo() <- 500;
+    }
+    CATCH {
+        logToFile('set10Zrepots', (CONCAT ' : ', 'zReports exception', messageCaughtException()));
+        statusHttpTo() <- 500;
+    }
+}
