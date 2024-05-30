@@ -1,0 +1,131 @@
+MODULE Set10Cashier;
+
+REQUIRE Set10WebServer, EmployeeCashier, EmployeeBarcode;
+
+NAMESPACE Set10;
+
+tabNumCashier 'ИД кассира' = DATA STRING[15](Employee);
+cashierTabNumber= GROUP AGGR Employee e BY tabNumCashier(e);
+passwordCashier 'Пароль кассира' = DATA STRING[15] (Employee);
+
+EXTEND FORM employee
+    PROPERTIES (e) SHOWIF isCashier(e) tabNumCashier, passwordCashier
+;
+DESIGN employee{
+    authentication{
+        NEW cashier{
+            caption = 'Данные кассира';
+            MOVE PROPERTY(tabNumCashier(e));
+            MOVE PROPERTY(passwordCashier(e));
+        }
+    }
+}
+
+defaultNumeratorCashierTN = DATA Numerator ();
+nameDefaultNumeratorCashierTN 'Табельный номер кассира' = name(defaultNumeratorCashierTN()) IN defaultNumerator;
+
+WHEN SET(isCashier(Employee e) AND e IS Employee) AND defaultNumeratorCashierTN() AND NOT tabNumCashier(e) DO {
+    tabNumCashier(e) <- STRING[15](curStringValue(defaultNumeratorCashierTN()));
+    incrementValueSession(defaultNumeratorCashierTN());
+}
+
+EXTEND FORM defaultNumerators PROPERTIES() defaultNumeratorCashierTN;
+
+onStarted()+{
+    IF NOT (GROUP MAX Numerator num IF name(num) = 'Табельный номер кассира')
+        AND NOT defaultNumeratorCashierTN() THEN NEW n = Numerator{
+        name(n) <- 'Табельный номер кассира';
+        series(n) <- '';
+        minValue(n) <- 100L;
+        maxValue(n) <- 200000L;
+        stringLength(n) <- 6;
+        defaultNumeratorCashierTN() <- n;
+    }
+}
+
+loadDefaultNumerators() + {
+    NEW n = Numerator {
+        name(n) <- 'Табельный номер кассира';
+        series(n) <- '';
+        minValue(n) <- 100L;
+        maxValue(n) <- 200000L;
+        stringLength(n) <- 6;
+        defaultNumeratorCashierTN() <- n;
+    }
+}
+
+activeCashier (Employee e) = tabNumCashier(e) AND passwordCashier(e) AND isCashier(e);
+countActiveCasiers = GROUP SUM 1 IF activeCashier(Employee e);
+
+FORM cashUsers
+    OBJECTS c = Employee EXTID 'cashUser'
+    PROPERTIES tn = tabNumCashier(c) EXTID 'tabNum',
+               fn = firstName(c) EXTID 'firstName',
+               ln = lastName(c) EXTID 'lastName',
+               pc = passwordCashier(c) EXTID 'password',
+               np = namePosition(c) EXTID 'role',
+               bc = idBarcode(c) EXTID 'barcode',
+               bd = IF isLocked(c) THEN TTRUE ELSE TFALSE EXTID 'Blocked'
+    FILTERS activeCashier(c) 
+;
+
+GROUP importCashiersWithTiResponse EXTID 'ns2=http://ws.cashiers.ERPIntegration.crystals.ru/:importCashiersWithTiResponse' : bodyAnswer;
+
+FORM cashierAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN importCashiersWithTiResponse return
+;
+exportCashiers 'Экспорт кассиров Set10' (){
+    IF urlServerSet10() THEN{
+        IF NOT countActiveCasiers() THEN{
+            MESSAGE 'Нет активных кассиров';
+            RETURN;
+        }
+        EXPORT cashUsers XML;
+        generateUUID();
+        fileToString(exportFile());
+
+        LOCAL xml = STRING();
+        xml() <- '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ws="http://ws.cashiers.ERPIntegration.crystals.ru/">
+                <soapenv:Header/>
+                    <soapenv:Body>
+                        <ws:importCashiersWithTi>
+                            <xml><![CDATA[' + resultString() + ']]></xml>
+                            <TI>' + generatedUUID() + '</TI>
+                        </ws:importCashiersWithTi>
+                    </soapenv:Body>
+                </soapenv:Envelope>';
+        stringToFile(xml(), 'utf-8', 'xml');
+
+        LOCAL response = FILE();
+        EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/CashiersImport' PARAMS resultFile() TO response;
+        IMPORT cashierAnswer XML FROM response();
+        IF return() THEN
+            MESSAGE 'Пакет успешно обработан';
+        ELSE
+            MESSAGE 'Пакет не обработан';
+    } ELSE MESSAGE 'Не задан адрес сервера Set10';
+}
+
+FORM cashiersSet 'Кассиры Set10'
+    OBJECTS c = Employee
+    PROPERTIES (c) name, 'Роль' = namePosition, tabNumCashier, idBarcode, passwordCashier, isLocked
+    PROPERTIES (c) NEWSESSION NEW, EDIT
+    PROPERTIES exportCashiers() TOOLBAR
+    FILTERS isCashier(c)
+    FILTERGROUP cashiers
+        FILTER 'Активные' tabNumCashier(c) AND passwordCashier(c) DEFAULT
+;
+
+//прием реализации
+
+skipCashierImport() += TRUE;
+
+overCreateReceipt(Receipt r, INTEGER i)+{
+    employee(r) <- cashierTabNumber(tabNumber(i));
+}
+
+NAVIGATOR {
+    machineryMasterData{
+        NEW cashiersSet;
+    }
+}

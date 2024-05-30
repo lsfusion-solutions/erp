@@ -116,19 +116,22 @@ startDateValid(INTEGER i) = TRUE IF (DATE(saletime1(i)) >= startDate(shop(shop1(
 
 skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
+
 afterCancelledTransaction ABSTRACT LIST (STRING);
 
 extraPaymentType = ABSTRACT CASE PaymentType (STRING);
 cashRegister(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
 
 idCashier (INTEGER i) = tabNumber(i) + '_' + userName(i);
+overCreateReceipt ABSTRACT LIST (Receipt, INTEGER);
+skipCashierImport = ABSTRACT BOOLEAN ();
 
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
         
-        FOR INTEGER x = [GROUP MAX INTEGER i BY idCashier(i)](STRING id) AND NOT employee(id) NEW e = Employee DO{
+        FOR INTEGER x = [GROUP MAX INTEGER i BY idCashier(i)](STRING id) AND NOT employee(id) AND NOT skipCashierImport() NEW e = Employee DO{
             id(e) <- id;
             lastName(e) <- ISTRING[100](getWord(userName(x), ' ', 1));
             firstName(e) <- ISTRING[100](replace(userName(x), getWord(userName(x), ' ', 1), ''));
@@ -138,10 +141,11 @@ importReceipt(STRING purchases){
             AND cashRegister(i) DO NEW r = Receipt{
             
             id(r) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i));
-            employee(r) <- employee(idCashier(i));
+            employee(r) <- employee(idCashier(i)) WHERE NOT skipCashierImport();
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
             number(r) <- INTEGER (number2(i));
+            overCreateReceipt(r, i);
             IF zReportById(i) THEN zReport(r) <- zReportById(i);
             ELSE NEW z = ZReport{
                 id(z) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
@@ -243,8 +247,9 @@ reImportReceipt(STRING purchases){
         FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) DO{
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
-            employee(r) <- employee(idCashier(i));
+            employee(r) <- employee(idCashier(i)) WHERE NOT skipCashierImport();
             number(r) <- INTEGER (number2(i));
+            overCreateReceipt(r, i);
             IF zReportById(i) THEN zReport(r) <- zReportById(i);
             ELSE NEW z = ZReport{
                 id(z) <- (operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
