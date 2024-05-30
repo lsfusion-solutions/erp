@@ -40,6 +40,7 @@ isPosted 'Проведен'(UserInvoicePacketDetail d) = isPosted(userInvoice(d)
 
 operation (UserInvoicePacketDetail d) = operation(userInvoice(d));
 supplierStock (UserInvoicePacketDetail d) = supplierStock(userInvoice(d));
+customer (UserInvoicePacketDetail d) = customer(userInvoice(d));
 customerStock (UserInvoicePacketDetail d) = customerStock(userInvoice(d));
 
 packet = DATA Packet (UserInvoicePacketDetail) INDEXED ;
@@ -109,6 +110,7 @@ fillAllInvoicePacketDetail 'Проставить основание для вс�
 
 FORM baseUserInvoicePacketDetail 'Строки накладной (пакеты, продажа)'
     OBJECTS st = Stock PANEL
+    OBJECTS c = LegalEntity PANEL
     OBJECTS cst = Stock PANEL
     OBJECTS sk = Sku PANEL
 
@@ -118,15 +120,18 @@ FORM baseUserInvoicePacketDetail 'Строки накладной (пакеты,
 
     FILTERGROUP filter11
         FILTER  'По складу' supplierStock(d) == st DEFAULT
+    FILTERGROUP filter12
+        FILTER  'По покупателю' customer(d) == c DEFAULT
     FILTERGROUP filter13
-        FILTER  'По складу контрагента' customerStock(d) == cst DEFAULT
+        FILTER  'По складу покупателя' customerStock(d) == cst DEFAULT
 ;
 
 changeSaleInvoicePacketDetail(UserInvoicePacketDetail detail)  {
     DIALOG baseUserInvoicePacketDetail OBJECTS
         st = supplierStock(detail),
+        c = customer(detail),                                   
         cst = customerStock(detail),
-        sk = [GROUP MIN Sku sk IF quantityA(sk, packet(detail), dateTime(detail))](),
+        sk = [GROUP MIN Sku sk IF currentQuantity(sk, packet(detail))](),
         d = userInvoicePacketDetail(detail) INPUT NULL NEWSESSION DO {
         userInvoicePacketDetail(detail) <- d;
     }
