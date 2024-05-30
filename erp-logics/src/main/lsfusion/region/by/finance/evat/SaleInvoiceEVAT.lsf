@@ -101,7 +101,7 @@ overEVATQuantity (Sale.InvoiceDetail d) = quantity(d) (+) overExtraEVATQuantity(
 createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
     createEVATSaleInvoiceHeader(e,i);
     
-    FOR invoice(InvoiceDetail id) == i AND overEVATQuantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+    FOR invoice(InvoiceDetail id) == i AND overEVATQuantity(id) > 0 AND NOT skipCreateEVAT(id) INLINE NEW ed = EVATDetail DO {
         evat(ed) <- e;
 
         name(ed) <- nameSku(id);
@@ -118,7 +118,8 @@ createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
         
         IF valueVAT(id) == 0 THEN
             in(ed, DescriptionType.vatExcemption) <- TRUE;
-        ELSE
+            
+        IF NOT valueVAT(id) == 0 THEN 
             in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
 
         overEVATDetailSaleInvoiceDetail(ed,id);
