@@ -771,8 +771,9 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         dateTime(ec) <- blradfCreationDateTime();
                         actDifDate(ec) <- blradfDate();
                         actDifNumber(ec) <- blradfActDifNumber();
-                        deliveryNoteDate(ec) <- blradfDeliveryNoteDate();
-                        deliveryNoteNumber(ec) <- blradfDeliveryNoteNumber();
+                        typeEInvoice(ec) <- blradfDeliveryNoteType();
+                        dateEInvoice(ec) <- blradfDeliveryNoteDate();
+                        numberEInvoice(ec) <- blradfDeliveryNoteNumber();
                         isCancel(ec) <- isCancel();
                         supplier(ec) <- legalEntityGLN(blradfSupplierGLN());
                         customer(ec) <- legalEntityGLN(blradfCustomerGLN());
@@ -789,15 +790,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                             eCreditNote(ed) <- ec;
                             lineItemNumber(ed) <- blradfLineItemNumber(l);
                             lineItemID(ed) <- blradfLineItemID(l);
-                            lineItemBuyerID(ed) <- blradfLineItemBuyerID(l);
-                            lineItemSupplierID(ed) <- blradfLineItemSupplierID(l);
+                            lineItemReceiverID(ed) <- blradfLineItemBuyerID(l);
+                            lineItemShipperID(ed) <- blradfLineItemSupplierID(l);
                             lineItemName(ed) <- blradfLineItemName(l);
-                            quantityOrdered(ed) <- blradfQuantityOrdered(l);
+                            quantityDespatched(ed) <- blradfQuantityOrdered(l);
                             quantityReceived(ed) <- blradfQuantityReceived(l);
                             valueVAT(ed) <- blradfValueVAT(l);
-                            lineItemPrice(ed) <- blradfLineItemPrice(l);
-                            amountOrdered(ed) <- blradfAmountOrdered(l);
-                            amountReceived(ed) <- blradfAmountReceived(l);
+                            priceDespatched(ed) <- blradfLineItemPrice(l);
+                            invoiceSumDespatched(ed) <- blradfAmountOrdered(l);
+                            invoiceSumReceived(ed) <- blradfAmountReceived(l);
                             additionalInformation(ed) <- blradfAdditionalInformation(l);
                         }
                     }
@@ -856,7 +857,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                     documentType() <- 'BLRAPN';
                                     getSignedDocumentSupplier(provider, c, contentSubXML(), NULL);
                                     IF signError() THEN {
-                                        logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + deliveryNoteNumber(c) + ' не подписан. Ошибка: ' + signError());
+                                        logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' error: BLRAPN ' + actDifNumber(c) + ' не подписан. Ошибка: ' + signError());
                                     }
                                     ELSE IF signResult() THEN {
                                         LOCAL ixml = XMLFILE();
@@ -872,15 +873,15 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         envelopeContent() <- encodedBase64();
                                         EXPORT envelope XML TO ixml;
                                         sendRequestEDI(url, ixml());
-                                        logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
+                                        logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) +' request sent');
                                         importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                         IF requestError() THEN {
-                                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
-                                            MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                            logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ': ' + requestError());
+                                            MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + ' не выгружен: ' + requestError() NOWAIT;
                                         } ELSE {
                                             toMilliseconds(blrapnDateTime());
                                             blrapn(c) <- STRING[14](resultMilliseconds());
-                                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
+                                            logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ' request succeeded');
                                             IF NOT disableConfirmation THEN {
                                                 LOCAL cxml = XMLFILE();
                                                 EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
@@ -1007,8 +1008,8 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                             documentType() <- 'BLRADF';
                             getSignedDocumentSupplier(provider, c, contentSubXML(), TRUE);
                             IF signError() THEN {
-                                logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + documentId(c) + ' error: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError());
-                                MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                                logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + actDifNumber(c) + ' error: BLRADF не подписан. Ошибка: ' + signError());
+                                MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + actDifNumber(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                             }
                             ELSE IF signResult() THEN {
                                 LOCAL ixml = XMLFILE();
@@ -1024,14 +1025,14 @@ signAndSendSupplierECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                                 envelopeContent() <- signResult();
                                 EXPORT envelope XML TO ixml;
                                 sendRequestEDI(url, ixml());
-                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
+                                logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) +' request sent');
                                 importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                                 IF requestError() THEN {
-                                    logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
-                                    MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                    logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ': ' + requestError());
+                                    MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + ' не выгружен: ' + requestError() NOWAIT;
                                 } ELSE {
-                                    logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
-                                    MESSAGE provider + ' Акт приемки ' + documentId(c) + ' выгружен' NOWAIT;
+                                    logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ' request succeeded');
+                                    MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + ' выгружен' NOWAIT;
                                     exportedSupplier(c) <- TRUE;
                                     NEW em = ECreditNoteMessage {
                                         number(em) <- STRING[35](resultMilliseconds());

@@ -642,11 +642,11 @@ documentId 'Номер сообщения грузополучателя' = DATA
 dateTime 'Дата и время создания акта' = DATA DATETIME (ECreditNote);
 eCreditNoteNumber (number) = GROUP NAGGR ECreditNote e BY documentId(e);
 
-actDifNumber 'Номер акта приемки' = DATA STRING[46] (ECreditNote) IN id;
+actDifNumber 'Номер электронного акта приемки' = DATA STRING[46] (ECreditNote) IN id;
 eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
-actDifDate 'Дата акта приемки' = DATA DATE (ECreditNote);
+actDifDate 'Дата электронного акта приемки' = DATA DATE (ECreditNote);
 
-contractNumber 'Номер Договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
+contractNumber 'Номер договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
 contractDate 'Дата договора, на основании которого выставляется акт приемки' = DATA DATE (ECreditNote);
 
 isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
@@ -654,9 +654,9 @@ isCancel 'Отмена акта приемки' = DATA BOOLEAN (ECreditNote);
 eInvoice = DATA EInvoice(ECreditNote) INDEXED;
 eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY eInvoice(ec) MATERIALIZED INDEXED;
 
-deliveryNoteNumber 'Серия и номер накладной, к которой относится акт' = DATA STRING[70] (ECreditNote) IN id;
-eCreditNoteDeliveryNoteNumber (number) = GROUP NAGGR ECreditNote e BY deliveryNoteNumber(e);
-deliveryNoteDate 'Дата накладной в формате ГГГГММДД, к которой относится акт приемки' = DATA DATE (ECreditNote);
+typeEInvoice 'Код вида товаросопроводительного документа' = DATA NUMERIC[3,0] (ECreditNote);
+numberEInvoice 'Номер документа, к которой относится акт' = DATA STRING[70] (ECreditNote) IN id;
+dateEInvoice 'Дата документа, к которой относится акт приемки' = DATA DATE (ECreditNote);
 
 supplier 'Поставщик' = DATA LegalEntity (ECreditNote);
 unpSupplier 'УНП поставщика' (ECreditNote c) = UNP(supplier(c));
@@ -675,7 +675,36 @@ nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(custo
 glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(customerStock(c));
 addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
 
-currency '3-х буквенный код валюты, в которой указаны ценовые значения' = DATA STRING[3] (ECreditNote);
+//CLASS ECreditNoteSupplierContact 'Представители электронного акта приемки';
+//TABLE eCreditNoteSupplierContact(ECreditNoteSupplierContact);
+//eCreditNote = DATA ECreditNote (ECreditNoteSupplierContact) NONULL DELETE INDEXED AGGR;
+//contact 'Должность и ФИО представителя грузоотправителя' = DATA STRING[150] (ECreditNoteSupplierContact);
+//proxyID 'Номер доверенности' = DATA STRING[70] (ECreditNoteSupplierContact);
+//proxyDate 'Дата доверенности' = DATA DATE (ECreditNoteSupplierContact);
+//partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[275] (ECreditNoteSupplierContact);
+//
+//CLASS ECreditNoteCustomerContact 'Представители электронного акта приемки';
+//TABLE eCreditNoteCustomerContact(ECreditNoteCustomerContact);
+//
+//eCreditNote = DATA ECreditNote (ECreditNoteCustomerContact) NONULL DELETE INDEXED AGGR;
+//contact 'Должность и ФИО представителя грузоотправителя' = DATA STRING[150] (ECreditNoteCustomerContact);
+//proxyID 'Номер доверенности' = DATA STRING[70] (ECreditNoteCustomerContact);
+//proxyDate 'Дата доверенности' = DATA DATE (ECreditNoteCustomerContact);
+//partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[275] (ECreditNoteCustomerContact);
+
+currency 'Код валюты' = DATA STRING[3] (ECreditNote);
+
+CLASS ECreditNoteExtraField 'Дополнительное поле';
+TABLE eCreditNoteextraField(ECreditNoteExtraField);
+
+name 'Название' = DATA STRING[255] (ECreditNoteExtraField) NONULL CHARWIDTH 20;
+code 'Код' = DATA STRING[6] (ECreditNoteExtraField);
+value 'Значение' = DATA STRING[2560] (ECreditNoteExtraField) NONULL CHARWIDTH 20;
+
+eCreditNote = DATA ECreditNote(ECreditNoteExtraField) NONULL DELETE INDEXED;
+
+correctField 'Поле накладной которое требует изменения' = DATA STRING[2560] (ECreditNote);
+cancelDeliveryNoteId 'Номер отмененного электронного акта приемки' = DATA STRING[46] (ECreditNote);
 
 CLASS ECreditNoteDetail 'Строка электронного акта приемки';
 TABLE eCreditNoteDetail(ECreditNoteDetail);
@@ -686,33 +715,49 @@ in 'Вкл.' = DATA LOCAL BOOLEAN (ECreditNote);
 eCreditNote = DATA ECreditNote(ECreditNoteDetail) NONULL DELETE INDEXED;
 
 lineItemNumber 'Порядковый номер товара' = DATA INTEGER (ECreditNoteDetail);
-lineItemID 'GTIN товара' = DATA STRING[100] (ECreditNoteDetail);
-lineItemBuyerID 'Код товара в ERP системе покупателя (грузополучателя)'= DATA STRING[100] (ECreditNoteDetail);
-lineItemSupplierID 'Код товара в ERP системе поставщика (грузоотправителя)'= DATA STRING[100] (ECreditNoteDetail);
+lineItemID 'GTIN товара' = DATA STRING[14] (ECreditNoteDetail);
+lineItemShipperID 'Код товара присвоенный поставщиком'= DATA STRING[100] (ECreditNoteDetail);
+lineItemReceiverID 'Код товара присвоенный покупателем'= DATA STRING[100] (ECreditNoteDetail);
 lineItemName 'Наименование товара' = DATA STRING[500] (ECreditNoteDetail);
-lineItemQuantityUOM 'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета' = DATA STRING[3] (ECreditNoteDetail);
+itemCustomCode 'Код ТНВЭД' = DATA STRING[10] (ECreditNoteDetail);
+itemCustomCodeOther 'Дополнительный таможенный код' = DATA STRING[4] (ECreditNoteDetail);
+lineItemQuantityUOM 'Код единицы измерения' = DATA STRING[3] (ECreditNoteDetail);
 additionalInformation 'Примечание, дополнительная информация о товаре' = DATA STRING[512] (ECreditNoteDetail);
 
-quantityOrdered 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
-quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
-valueVAT 'НДС, %' = DATA NUMERIC[10,4] (ECreditNoteDetail);
+valueVAT 'НДС, %' = DATA STRING[7] (ECreditNoteDetail);
+changeValueVAT(ECreditNoteDetail ed) {
+    INPUT n = NUMERIC[6,2] DO
+        valueVAT(ed) <- STRING[7](n);
+}
 
-lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (ECreditNoteDetail);
-amountOrdered 'Стоимость с учетом НДС товара по документам' = DATA NUMERIC[18,4] (ECreditNoteDetail);
-amountReceived 'Стоимость с учетом НДС фактически поставленного товара' = DATA NUMERIC[18,4] (ECreditNoteDetail);
+quantityDespatched 'Кол-во товара по документам' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+priceDespatched 'Цена за единицу товара' = DATA NUMERIC[16,2] (ECreditNoteDetail);
+sumDespatched 'Стоимость товара по документам' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+invoiceSumDespatched 'Стоимость товара по документам (с НДС)' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+
+quantityReceived 'Кол-во фактически поставленного товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+priceReceived 'Цена фактически поставленного товара' = DATA NUMERIC[16,2] (ECreditNoteDetail);
+sumReceived 'Стоимость фактически поставленного товара' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+invoiceSumReceived 'Стоимость фактически поставленного товара (с НДС)' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+
+quantityAccepted 'Принятое количество товара' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+priceAccepted 'Цена за единицу принятого поставленного товара' = DATA NUMERIC[16,2] (ECreditNoteDetail);
+sumAccepted 'Стоимость принятого товара' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+invoiceSumAccepted 'Стоимость принятого товара (с НДС)' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+
+quantityNotAccepted 'Непринятое количество товара всего' = DATA NUMERIC[16,5] (ECreditNoteDetail);
+priceNotAccepted 'Цена за единицу непринятого поставленного товара' = DATA NUMERIC[16,2] (ECreditNoteDetail);
+sumNotAccepted 'Стоимость непринятого товара' = DATA NUMERIC[18,2] (ECreditNoteDetail);
+invoiceSumNotAccepted 'Стоимость непринятого товара (с НДС)' = DATA NUMERIC[18,2] (ECreditNoteDetail);
 
 totalLineItem 'Общее кол-во товарных позиций' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM 1 BY eCreditNote(ECreditNoteDetail d)](eCreditNote), 0;
-totalQuantityOrdered 'Всего кол-во товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM quantityOrdered(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
-totalAmountOrdered 'Общая стоимость с учетом НДС товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM amountOrdered(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalQuantityDespatched 'Всего кол-во товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM quantityDespatched(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalSumDespached 'Общая стоимость товара по документам' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM sumDespatched(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalInvoiceSumDespatched 'Общая стоимость товара по документам (с НДС)' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM invoiceSumDespatched(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+
 totalQuantityReceived 'Всего кол-во поставленного товара' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM quantityReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
-totalAmountReceived 'Общая стоимость с учетом НДС посталенного товара' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM amountReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
-
-FORM dialogECreditNote 'Выбор электронного акта приемки'
-    OBJECTS c = ECreditNote
-    PROPERTIES(c) READONLY dateTime, documentId, actDifNumber, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
-
-    LIST ECreditNote OBJECT c
-;
+totalSumReceived 'Общая стоимость фактически поставленных товаров' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM sumReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
+totalInvoiceSumReceived 'Общая стоимость фактически поставленных товаров' (ECreditNote eCreditNote) = OVERRIDE [GROUP SUM invoiceSumReceived(ECreditNoteDetail d) BY eCreditNote(d)](eCreditNote), 0.0;
 
 //-----------------------------------------Сообщение по акту приемки -----------------------------------------//
 CLASS ECreditNoteMessage 'Сообщение по электронному акту приемки';
@@ -726,7 +771,7 @@ dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMe
 code 'Код сообщения' = DATA STRING[10] (ECreditNoteMessage);
 description 'Текст сообщения' = DATA STRING[1000] (ECreditNoteMessage);
 
-backgroundVAT 'Цвет' (ECreditNoteDetail d) = IF sku(lineItemBuyerID(d)) AND NOT valueVAT(d) == valueVAT(sku(lineItemBuyerID(d)))
+backgroundVAT 'Цвет' (ECreditNoteDetail d) = IF sku(lineItemReceiverID(d)) AND NOT NUMERIC[10,5](valueVAT(d)) == valueVAT(sku(lineItemReceiverID(d)))
     THEN RGB(255,0,0);
 background = ABSTRACT CASE COLOR (ECreditNote);
 
@@ -746,14 +791,18 @@ FORM eCreditNotes 'Электронные акты приемки'
     OBJECTS c = ECreditNote
     PROPERTIES(c) in
     PROPERTIES(c) READONLYIF isReadonly() isCancel
-    PROPERTIES(c) READONLY dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber,deliveryNoteDate,
-        glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, nameCustomerStock, contractDate, contractNumber
+    PROPERTIES(c) READONLY dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, 
+        numberEInvoice, dateEInvoice, glnSupplier, nameSupplier, addressSupplier, nameCustomer, glnCustomer, addressCustomer, 
+        nameCustomerStock, contractDate, contractNumber
     FILTERGROUP notExported
 
     OBJECTS d = ECreditNoteDetail
-    PROPERTIES(d) READONLY BACKGROUND background(d) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT BACKGROUND backgroundVAT(d),
-        lineItemPrice, amountOrdered, amountReceived, lineItemQuantityUOM, additionalInformation
-
+    PROPERTIES(d) READONLY BACKGROUND background(d) lineItemNumber, lineItemID, lineItemShipperID, lineItemReceiverID,
+        lineItemName, itemCustomCode, itemCustomCodeOther, lineItemQuantityUOM, additionalInformation,
+        valueVAT BACKGROUND backgroundVAT(d), quantityDespatched, priceDespatched, sumDespatched,
+        invoiceSumDespatched, quantityReceived, priceReceived, sumReceived, invoiceSumReceived,
+        quantityAccepted, priceAccepted, sumAccepted, invoiceSumAccepted, quantityNotAccepted,
+        priceNotAccepted, sumNotAccepted, invoiceSumNotAccepted 
     FILTERS eCreditNote(d) == c
 
     OBJECTS m = ECreditNoteMessage
@@ -785,13 +834,17 @@ NAVIGATOR {
 
 FORM eCreditNote 'Электронный акт приемки'
     OBJECTS c = ECreditNote PANEL
-    PROPERTIES(c) dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, deliveryNoteNumber, deliveryNoteDate,
+    PROPERTIES(c) dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, numberEInvoice, dateEInvoice,
         nameSupplier, addressSupplier, nameCustomer, addressCustomer, nameCustomerStock,
         contractDate, contractNumber, currency
 
     OBJECTS ed = ECreditNoteDetail
-    PROPERTIES(ed) BACKGROUND background(ed) lineItemNumber, lineItemID, lineItemBuyerID, lineItemSupplierID, lineItemName, quantityOrdered, quantityReceived, valueVAT, lineItemPrice,
-        amountOrdered, amountReceived, lineItemQuantityUOM, additionalInformation
+    PROPERTIES(ed) BACKGROUND background(ed) lineItemNumber, lineItemID, lineItemShipperID, lineItemReceiverID,
+        lineItemName, itemCustomCode, itemCustomCodeOther, lineItemQuantityUOM, additionalInformation,
+        valueVAT BACKGROUND backgroundVAT(ed) ON CHANGE changeValueVAT(ed), quantityDespatched, priceDespatched, sumDespatched,
+        invoiceSumDespatched, quantityReceived, priceReceived, sumReceived, invoiceSumReceived,
+        quantityAccepted, priceAccepted, sumAccepted, invoiceSumAccepted, quantityNotAccepted,
+        priceNotAccepted, sumNotAccepted, invoiceSumNotAccepted
     FILTERS eCreditNote(ed) == c
 ;
 

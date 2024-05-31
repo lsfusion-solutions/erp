@@ -287,8 +287,9 @@ createECreditNote 'Создать электронный акт приемки' 
             documentId(ec) <- STRING[14](resultMilliseconds());
             actDifNumber(ec) <- STRING[46](deliveryNoteNumber(eInvoice(ec)) + '-' + lpad(STRING(GROUP SUM 1 IF eInvoice(ec) == eInvoice(ECreditNote ecc)),2,'0'));
             actDifDate(ec) <- date(c);
-            deliveryNoteNumber(ec) <- deliveryNoteNumber(eInvoice(ec));
-            deliveryNoteDate(ec) <- deliveryNoteDate(eInvoice(ec));
+            typeEInvoice(ec) <- IF isTN2(eInvoice(ec)) THEN 270 ELSE 700;
+            numberEInvoice(ec) <- deliveryNoteNumber(eInvoice(ec));
+            dateEInvoice(ec) <- deliveryNoteDate(eInvoice(ec));
             supplier(ec) <- supplier(c);
             customer(ec) <- customer(c);
             customerStock(ec) <- customerStock(c);
@@ -300,16 +301,31 @@ createECreditNote 'Создать электронный акт приемки' 
                 eCreditNote(ed) <- ec;
                 creditNoteDetail(ed) <- d;
                 lineItemNumber(ed) <- index(d);
-                lineItemID(ed) <- id(barcode(sku(d))) IF length(id(barcode(sku(d)))) > 7;
-                lineItemBuyerID(ed) <- id(sku(d));
+                lineItemID(ed) <- OVERRIDE GTIN(sku(d)), (id(barcode(sku(d))) IF length(id(barcode(sku(d)))) > 7);
+                lineItemReceiverID(ed) <- id(sku(d));
                 lineItemName(ed) <- STRING[500](nameSku(d));
                 lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(d))), 'PCE';
-                quantityOrdered(ed) <- OVERRIDE quantity(invoiceDetail(d)), 0.0;
+                quantityDespatched(ed) <- OVERRIDE quantity(invoiceDetail(d)), 0.0;
+                priceDespatched(ed) <- price(d);
+                valueVAT(ed) <- STRING[7](NUMERIC[8,2](valueVAT(d)));
+                sumDespatched(ed) <- OVERRIDE sum(invoiceDetail(d)), 0.0;
+                invoiceSumDespatched(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)), 0.0;
+
                 quantityReceived(ed) <- OVERRIDE shipped(invoiceDetail(d)), 0.0;
-                valueVAT(ed) <- NUMERIC[8,2](valueVAT(d));
-                lineItemPrice(ed) <- price(d);
-                amountOrdered(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)), 0.0;
-                amountReceived(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
+                priceReceived(ed) <- price(d);
+                sumReceived(ed) <- OVERRIDE sum(invoiceDetail(d)) (-) sum(d), 0.0;
+                invoiceSumReceived(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
+
+                quantityAccepted(ed) <- OVERRIDE shipped(invoiceDetail(d)), 0.0;
+                priceAccepted(ed) <- price(d);
+                sumAccepted(ed) <- OVERRIDE sum(invoiceDetail(d)) (-) sum(d), 0.0;
+                invoiceSumAccepted(ed) <- OVERRIDE invoiceSum(invoiceDetail(d)) (-) invoiceSum(d), 0.0;
+
+                quantityNotAccepted(ed) <- OVERRIDE quantity(d), 0.0;
+                priceAccepted(ed) <- price(d);
+                sumAccepted(ed) <- OVERRIDE sum(d), 0.0;
+                invoiceSumAccepted(ed) <- OVERRIDE invoiceSum(d), 0.0;
+                                
                 overCreate(ed,d);
             }
 

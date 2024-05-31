@@ -735,8 +735,6 @@ EXTEND FORM eCreditNotes
 ;
 
 GROUP actDifLineItem EXTID 'ActDifLineItem';
-GROUP supplier EXTID 'Supplier';
-GROUP buyer EXTID 'Buyer';
 exportBlradfDateTime = DATA LOCAL NESTED DATETIME();
 
 FORM exportBlradf FORMEXTID 'BLRADF'
@@ -751,62 +749,85 @@ FORM exportBlradf FORMEXTID 'BLRADF'
         blradfMsgSenderID() EXTID 'MsgSenderID',
         blradfMsgReceiverID() EXTID 'MsgReceiverID'
 
-    OBJECTS ecs = ECreditNote EXTID 'SecurityBuyer'
-    FILTERS ecs == ec AND blradfSecurityID()
-    PROPERTIES DRAW ecs blradfSecurityID() EXTID 'SecurityID',
-        blradfCertificateID() EXTID 'CertificateID',
-        blradfSecurityPartyID() EXTID 'SecurityPartyID',
-        blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
-        blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
-        blradfSignatureValue() EXTID 'SignatureValue'
-
-    OBJECTS ecn = ECreditNote EXTID 'ActDif'
+    OBJECTS ecn = ECreditNote EXTID 'Actdif'
     FILTERS ecn == ec
     PROPERTIES DRAW ecn 
-        ID = (IF blradfMsgSenderID() == glnCustomer(ecn) THEN STRING[14](resultMilliseconds()) ELSE (OVERRIDE documentId(ec), STRING[14](resultMilliseconds()))) EXTID 'ID',
+        ID = documentId(ec) EXTID 'ID',
         creationDateTime = toChar(dateTime(ecn),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
         functionCode = (IF isCancel(ecn) THEN '1' ELSE '9') EXTID 'FunctionCode',
-        actDifNumber(ecn) EXTID 'ActDifID',
+        actDifNumber(ecn) EXTID 'ActDifNumber',
         actDifDate = toChar(actDifDate(ecn),'YYYYMMDD') EXTID 'ActDifDate',
-        contractNumber(ecn) EXTID 'ContractID',
-        contractDate = toChar(contractDate(ecn),'YYYYMMDD') EXTID 'ContractDate',
-        deliveryNoteNumber(ecn) EXTID 'DeliveryNoteID',
-        deliveryNoteDate = toChar(deliveryNoteDate(ecn),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ecn IN supplier glnSupplier(ecn) EXTID 'GLN',
+        contractNumber(ecn) EXTID 'ContractNumber',
+        contractDate = toChar(contractDate(ecn),'YYYYMMDD') EXTID 'ContractDate'
+    PROPERTIES DRAW ecn IN referenceDocument
+        typeEInvoice(ecn) EXTID 'Type',
+        numberEInvoice(ecn) EXTID 'ID',
+        deliveryNoteDate = toChar(dateEInvoice(ecn),'YYYYMMDD') EXTID 'Date'
+    PROPERTIES DRAW ecn IN shipper 
+        unpSupplier(ecn) EXTID 'VATRegistrationNumber',
         nameSupplier(ecn) EXTID 'Name',
-        addressSupplier(ecn) EXTID 'Address'
-    PROPERTIES DRAW ecn IN buyer glnCustomer(ecn) EXTID 'GLN',
+        addressSupplier(ecn) EXTID 'Address',
+        glnSupplier(ecn) EXTID 'GLN'
+    PROPERTIES DRAW ecn IN receiver
+        unpCustomer(ecn) EXTID 'VATRegistrationNumber',
         nameCustomer(ecn) EXTID 'Name',
-        addressCustomer(ecn) EXTID 'Address'
-    PROPERTIES DRAW ecn IN shipTo glnCustomerStock(ecn) EXTID 'GLN',
+        addressCustomer(ecn) EXTID 'Address',
+        glnCustomer(ecn) EXTID 'GLN'
+    PROPERTIES DRAW ecn IN shipTo
+        glnCustomerStock(ecn) EXTID 'GLN',
         addressCustomerStock(ecn) EXTID 'Address'
-    PROPERTIES DRAW ecn currency(ecn) EXTID 'Currency'
+    PROPERTIES DRAW ecn
+        currency(ecn) EXTID 'Currency'
 
-    OBJECTS d = ECreditNoteDetail EXTID 'LineItem' IN actDifLineItem
+    OBJECTS f = ECreditNoteExtraField EXTID 'ExtraField'
+    FILTERS eCreditNote(f) == ecn
+    PROPERTIES DRAW f
+        name(f) EXTID 'FieldName',
+        code(f) EXTID 'FieldCode',
+        value(f) EXTID 'FieldValue'
+
+    PROPERTIES DRAW ecn
+        correctField(ecn) EXTID 'CorrectField',
+        cancelDeliveryNoteId(ecn) EXTID 'CancelDeliveryNoteId'
+
+    OBJECTS d = ECreditNoteDetail EXTID 'LineItem' //IN actDifLineItem
     FILTERS eCreditNote(d) == ecn
-    PROPERTIES DRAW d lineItemNumber(d) EXTID 'LineItemNumber',
+    PROPERTIES DRAW d 
+        lineItemNumber(d) EXTID 'LineItemNumber',
         lineItemID(d) EXTID 'LineItemID',
-        lineItemBuyerID(d) EXTID 'LineItemBuyerID',
-        lineItemSupplierID(d) EXTID 'LineItemSupplierID',
+        lineItemShipperID(d) EXTID 'LineItemShipperID',
+        lineItemReceiverID(d) EXTID 'LineItemReceiverID',
         lineItemName(d) EXTID 'LineItemName',
-        lineItemQuantityUOM(d) EXTID 'LineItemQuantityUOM',
-        lineItemPrice(d) EXTID 'LineItemPrice',
+        itemCustomCode(d) EXTID 'ItemCustomCode',
+        itemCustomCodeOther(d) EXTID 'ItemCustomCodeOther',
+        quantityDespatched(d) EXTID 'QuantityDespatched',
+        additionalInformation(d) EXTID 'AdditionalInformation',
+        lineItemQuantityUOM = mapToNewUOM(lineItemQuantityUOM(d))  EXTID 'LineItemQuantityUOM',
+        priceDespatched(d) EXTID 'LineItemPriceWithoutCharges',
+        sumDespatched(d) EXTID 'LineItemAmountWithoutCharges',
         valueVAT(d) EXTID 'TaxRate',
-        quantityOrdered(d) EXTID 'QuantityOrdered',
-        amountOrdered(d) EXTID 'AmountOrdered',
-        quantityReceived(d) EXTID 'QuantityReceived',
-        amountReceived(d) EXTID 'AmountReceived',
-        additionalInformation(d) EXTID 'AdditionalInformation'
-
+        invoiceSumDespatched(d) EXTID 'LineItemAmountOrdered',
+        quantityReceived(d) EXTID 'QuantityReceivedFact',
+        priceReceived(d) EXTID 'LineItemFactPrice',
+        sumReceived(d) EXTID 'LineItemAmountWithoutChargesReceivedFact',
+        invoiceSumReceived(d) EXTID 'LineItemAmountReceivedFact',
+        quantityAccepted(d) EXTID 'QuantityAccepted',
+        priceAccepted(d) EXTID 'LineItemPriceAccepted',
+        sumAccepted(d) EXTID 'LineItemAmountAcceptedWithoutCharges',
+        invoiceSumAccepted(d) EXTID 'AmountAccepted',
+        quantityNotAccepted(d) EXTID 'QuantityNotAccepted',
+        priceNotAccepted(d) EXTID 'LineItemPriceDeliveredNotAccepted',
+        sumNotAccepted(d) EXTID 'AmountReceivedDeliveredNotAcceptedWithoutCharges',
+        invoiceSumNotAccepted(d) EXTID 'AmountNotAccepted'
+    
     OBJECTS ecnt = ECreditNote EXTID 'Total'
     FILTERS ecnt == ec
-    PROPERTIES DRAW ecn totalLineItem(ecnt) EXTID 'TotalLineItem',
-        totalQuantityOrdered(ecnt) EXTID 'TotalQuantityOrdered',
-        totalAmountOrdered(ecnt) EXTID 'TotalAmountOrdered',
-        totalQuantityReceived(ecnt) EXTID 'TotalQuantityReceived',
-        totalAmountReceived(ecnt) EXTID 'TotalAmountReceived'
-
-    OBJECTS ecse = ECreditNote EXTID 'SecurityEnd'
-    FILTERS ecse == ec AND blradfSecurityID()
-    PROPERTIES DRAW ecse securityIDEnd = blradfSecurityID() EXTID 'SecurityID'
+    PROPERTIES DRAW ecn 
+        totalLineItem(ecnt) EXTID 'TotalLineItem',
+        totalQuantityDespatched(ecnt) EXTID 'TotalLineItemQuantity',
+        totalSumDespached(ecnt) EXTID 'TotalAmountWithoutCharges',
+        totalInvoiceSumDespatched(ecnt) EXTID 'TotalLineItemAmountOrdered',
+        totalQuantityReceived(ecnt) EXTID 'TotalQuantityReceivedFact',
+        totalSumReceived(ecnt) EXTID 'TotalAmountReceivedWithoutCharges',
+        totalInvoiceSumReceived(ecnt) EXTID 'TotalAmountReceived'
 ;

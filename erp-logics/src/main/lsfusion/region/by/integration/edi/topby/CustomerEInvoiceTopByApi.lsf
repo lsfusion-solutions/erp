@@ -1184,12 +1184,12 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                 IF EDSServiceCustomer(provider,c) THEN {
                     LOCAL error = TEXT();
                     error() <- '';
-                    IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
-                    IF NOT length(addressSupplier(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес поставщика\'\n';
-                    IF NOT length(glnCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN покупателя\'\n';
-                    IF NOT length(addressCustomer(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес покупателя\'\n';
-                    IF NOT length(glnCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'GLN склада покупателя\'\n';
-                    IF NOT length(addressCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'Адрес склада покупателя\'\n';
+                    IF NOT length(glnSupplier(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'GLN поставщика\'\n';
+                    IF NOT length(addressSupplier(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'Адрес поставщика\'\n';
+                    IF NOT length(glnCustomer(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'GLN покупателя\'\n';
+                    IF NOT length(addressCustomer(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'Адрес покупателя\'\n';
+                    IF NOT length(glnCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'GLN склада покупателя\'\n';
+                    IF NOT length(addressCustomerStock(c)) > 0 THEN error() <- error() + 'ECreditNote ' + actDifNumber(c) + ': Не заполнено поле \'Адрес склада покупателя\'\n';
                     IF NOT length(currency(c)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + actDifNumber(c) + ': Не заполнено поле \'3-х буквенный код валюты, в которой указаны ценовые значения\'\n';
                     FOR eCreditNote(ECreditNoteDetail d) == c DO {
                         IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'ECreditNoteDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Международный 3-х буквенный код единицы измерения из справочника ОКРБ 008-95 Единицы измерения и счета\'\n';
@@ -1210,8 +1210,8 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                         documentType() <- 'BLRADF';
                         getSignedDocumentCustomer(provider, c, contentSubXML(), TRUE);
                         IF signError() THEN {
-                            logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + documentId(c) + ' error: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError());
-                            MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + documentId(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                            logToFile('edi', provider + ' (' + login + ') SendECreditNote ' + actDifNumber(c) + ' error: BLRADF не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + login + ') Акт приемки не выгружен: BLRADF ' + actDifNumber(c) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         ELSE IF signResult() THEN {
                             LOCAL ixml = XMLFILE();
@@ -1227,14 +1227,14 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                             envelopeContent() <- signResult();
                             EXPORT envelope XML TO ixml;
                             sendRequestEDI(url, ixml());
-                            logToFile('edi', provider + ' SendECreditNote ' + documentId(c) +' request sent');
+                            logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) +' request sent');
                             importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
                             IF requestError() THEN {
-                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ': ' + requestError());
-                                MESSAGE provider + ' Акт приемки ' + documentId(c) + ' не выгружен: ' + requestError() NOWAIT;
+                                logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ': ' + requestError());
+                                MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + ' не выгружен: ' + requestError() NOWAIT;
                             } ELSE {
-                                logToFile('edi', provider + ' SendECreditNote ' + documentId(c) + ' request succeeded');
-                                MESSAGE provider + ' Акт приемки ' + documentId(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
+                                logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ' request succeeded');
+                                MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 exportedCustomer(c) <- TRUE;
                                 NEW em = ECreditNoteMessage {
                                     number(em) <- STRING[35](resultMilliseconds());
