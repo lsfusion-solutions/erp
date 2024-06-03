@@ -1,0 +1,35 @@
+MODULE EGAISSaleUserPurchaseShipment;
+
+REQUIRE EGAISSaleShipment, EGAISPurchaseShipment, PurchaseShipmentSaleShipment;
+
+NAMESPACE EGAISSale;
+
+relation = GROUP SUM 1 BY shipment(shipmentDetail(Purchase.UserShipmentDetail d)), userShipment(d);//sale,purchase
+maxSaleShipment = GROUP MAX Sale.Shipment sale IF relation( sale, Purchase.UserShipment purchase) BY purchase;
+minSaleShipment = GROUP MIN Sale.Shipment sale IF relation( sale, Purchase.UserShipment purchase) BY purchase;
+
+skipOneShipment = DATA BOOLEAN ();
+CONSTRAINT (SETCHANGED(maxSaleShipment(Purchase.UserShipment s)) OR SETCHANGED(minSaleShipment(s))) AND maxSaleShipment(s) != minSaleShipment(s) AND NOT skipOneShipment()
+    MESSAGE 'Запрещено включать в одну поставку (закупка) несколько поставок (продажа)';
+
+wayBill(Purchase.UserShipment s) += wayBill(OVERRIDE userShipment(s), maxSaleShipment(s));
+partitionQuantity (Purchase.UserShipmentDetail d, WayBillPosition p) =
+    PARTITION UNGROUP quantity
+        LIMIT STRICT quantity(p) IF in(sku(d), product(p)) AND wayBill(p) = wayBill(shipment(d))
+        ORDER p
+        BY d;
+
+quantity = DATA NUMERIC[16,5] (Purchase.UserShipmentDetail, WayBillPosition);
+fillQuantity 'Заполнить' (Purchase.UserShipment i) {
+    quantity(Purchase.UserShipmentDetail d, WayBillPosition p) <- partitionQuantity(d, p)
+        WHERE userShipment(d) = i;
+}
+
+BEFORE process(Purchase.Shipment s) DO {
+    IF s IS Purchase.UserShipment AND wayBill(s) THEN NEWSESSION {
+        fillQuantity(s);
+        APPLY;
+    }
+}
+
+quantity(Purchase.UserShipmentDetail d, WayBillPosition p) += quantity(d,p) IF shipmentDetail(d) == shipmentDetail(p);
