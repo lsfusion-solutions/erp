@@ -673,30 +673,34 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     }
     
     overCopy  ABSTRACT LIST ( ScheduleOrder, ScheduleOrder);
+
+    copy 'Копировать'(ScheduleOrder scheduleOrder, ScheduleOrder o)  {
+        supplier(o) <- supplier(scheduleOrder);
+        supplierStock(o) <- supplierStock(scheduleOrder);
+        customer(o) <- customer(scheduleOrder);
+        //            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
+        type(o) <- type(scheduleOrder);
+        dayBefore(o) <- dayBefore(scheduleOrder);
+        dayLastOrder(o) <- dayLastOrder(scheduleOrder);
+        dayAfter(o) <- dayAfter(scheduleOrder);
+        startDate(o) <- startDate(scheduleOrder);
+        endDate(o) <- endDate(scheduleOrder);
+        stringNumber(o) <- stringNumber(scheduleOrder);
+        transferDay(o) <- transferDay(scheduleOrder);
+
+        FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder NEW sot=ScheduleOrderTime DO {
+            scheduleOrder(sot) <- o;
+            orderDOW(sot) <- orderDOW(scheduleOrderTime);
+            shipmentDOW(sot) <- shipmentDOW(scheduleOrderTime);
+        }
+
+        EXEC overCopy(scheduleOrder, o);
+    }
+    
     copy 'Копировать'(ScheduleOrder scheduleOrder)  { 
 	NEWSESSION {
 	        NEW o = ScheduleOrder {
-	            supplier(o) <- supplier(scheduleOrder);
-	            supplierStock(o) <- supplierStock(scheduleOrder);
-	            customer(o) <- customer(scheduleOrder);
-	//            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
-	            type(o) <- type(scheduleOrder);
-	            dayBefore(o) <- dayBefore(scheduleOrder);
-	            dayLastOrder(o) <- dayLastOrder(scheduleOrder);
-	            dayAfter(o) <- dayAfter(scheduleOrder);
-	            startDate(o) <- startDate(scheduleOrder);
-	            endDate(o) <- endDate(scheduleOrder);
-	            stringNumber(o) <- stringNumber(scheduleOrder);
-	            transferDay(o) <- transferDay(scheduleOrder);  
-	            
-	            FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder NEW sot=ScheduleOrderTime DO {
-	                scheduleOrder(sot) <- o;
-	                orderDOW(sot) <- orderDOW(scheduleOrderTime);
-	                shipmentDOW(sot) <- shipmentDOW(scheduleOrderTime); 
-	            }          
-	                   
-	            EXEC overCopy(scheduleOrder, o);
-	
+                copy(scheduleOrder, o);	
 	            SHOW scheduleOrder OBJECTS s = o DOCKED;
 	        }
 	    }
