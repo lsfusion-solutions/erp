@@ -10,7 +10,8 @@ process (TerminalDocument document) + {
     DELETE TerminalLotDetail l WHERE terminalDocument(terminalDocumentDetail(l)) == document;
 
     FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) AND STRING mark = jsonArrayElement(marking(d), i, 'id') DO NEW l = TerminalLotDetail {
-        id(l) <- STRING[200](mark);
+        id(l) <- STRING[200](barcodeToId(mark));
+        tail(l) <- STRING[200](barcodeToTail(mark));
         quantity(l) <- NUMERIC[14,3](jsonArrayElement(marking(d), i, 'quantity'));
         terminalDocumentDetail(l) <- d;
         overProcessMarking(d, l, i);

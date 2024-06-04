@@ -10,6 +10,7 @@ terminalDocumentDetail = DATA TerminalDocumentDetail (TerminalLotDetail) AUTOSET
 terminalDocument (TerminalLotDetail d) = terminalDocument(terminalDocumentDetail(d));
 
 id 'Код' = DATA STRING[200] (TerminalLotDetail);
+tail 'Хвост' = DATA STRING[200] (TerminalLotDetail);
 quantity 'Кол-во' = DATA NUMERIC[14,3] (TerminalLotDetail);
 
 quantityLot 'Марок' (TerminalDocumentDetail td) = GROUP SUM quantity(TerminalLotDetail ld) IF terminalDocumentDetail(ld) = td; 
@@ -40,6 +41,7 @@ META defineAddDetailDialogTerminalLot(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
         FOR id(TerminalLotDetail tl) AND terminalDocumentDetail(tl) = td AND NOT lot(id(tl)) DO NEW l = Lot {
             id(l) <- id(tl);
+            tail(l) <- tail(tl);
             sku(l) <- sku(td);
             dataCount(l) <- quantity(tl) IF quantity(tl) != 1;
         }
