@@ -1,0 +1,21 @@
+MODULE SaleInvoiceConsignmentByTextile;
+
+REQUIRE SaleInvoiceConsignmentBy, ConsignmentByTextile, SaleInvoiceTextile;
+
+NAMESPACE Sale;
+
+textileNameSku = ABSTRACT STRING[255] (Invoice, Range);
+
+nameSku 'Наименование' (Invoice i, Range r) = IF [GROUP SUM 1 IF NOT isTransport(sku(InvoiceDetail d)) AND NOT isContainer(sku(d)) BY invoice(d), VAT(d)](i,r) == 1
+    THEN [GROUP MIN nameSku(InvoiceDetail d) IF NOT isTransport(sku(d)) AND NOT isContainer(sku(d)) BY invoice(d), VAT(d)](i,r)
+    ELSE textileNameSku(i, r);
+nameSku(Invoice i, Range r) += nameSku(i,r);
+
+VAT[ConsignmentDetail](InvoiceDetail d) += VAT(d);
+
+META defineReportFilePrintConsignmentCustom(report, postfix, reportfile)
+    reportFilePrintConsignment###report###postfix (Consignment c) = 'Consignment_consignment'###report###postfix##_##reportfile##'.jrxml' IF isWholesale(c);
+    EXTEND FORM consignment###report
+        REPORTFILES ##reportfile reportFilePrintConsignment###report###postfix(##reportfile)
+    ;
+END

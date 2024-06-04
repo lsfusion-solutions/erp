@@ -1,0 +1,70 @@
+MODULE ConsignmentByTextile;
+
+REQUIRE ConsignmentBy, ItemFashionTextile;
+
+NAMESPACE Consignment;
+
+nameSku 'Наименование' = ABSTRACT ISTRING[255](Consignment, Range);
+note 'Примечание' = ABSTRACT STRING (Consignment, Range);
+
+isWholesale 'Оптовая продажа' = ABSTRACT BOOLEAN(Consignment);
+VAT 'НДС' = ABSTRACT Range(ConsignmentDetail);
+
+shortNameUOM 'Ед. изм.' = GROUP MIN shortNameUOM(ConsignmentDetail d) IF NOT isTransport(sku(d)) AND NOT isContainer(sku(d)) BY consignment(d), VAT(d);
+quantityInvoiceDetailNoTransport 'Кол-во' = GROUP SUM quantity(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT(detail);
+
+sumInvoiceDetailNoTransport 'Сумма' = GROUP SUM sum(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT(detail);
+VATSumInvoiceDetailNoTransport 'Сумма НДС' = GROUP SUM sumVAT(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT(detail);
+invoiceSumInvoiceDetailNoTransport 'Сумма с НДС' = GROUP SUM sumInvoice(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT(detail);
+
+packQuantityInvoiceDetailNoTransport 'Количество грузовых мест' = GROUP SUM packQuantity(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT[ConsignmentDetail](detail);
+grossWeightInvoiceDetailNoTransport 'Масса груза, кг.' = GROUP SUM grossWeight(ConsignmentDetail detail) IF NOT isTransport(sku(detail)) AND NOT isContainer(sku(detail)) BY consignment(detail), VAT(detail);
+
+price 'Цена' (Consignment i, Range r) = IF [GROUP SUM 1 IF NOT isTransport(sku(ConsignmentDetail d)) AND NOT isContainer(sku(d)) BY consignment(d), VAT(d)](i,r) == 1
+    THEN [GROUP MIN price(ConsignmentDetail d) IF NOT isTransport(sku(d)) AND NOT isContainer(sku(d)) BY consignment(d), VAT(d)](i,r)
+    ELSE NULL;
+
+EXTEND FORM consignmentHorizontalA
+    PROPERTIES(a) grossWeightConsignmentDetail
+    PROPERTIES(ad) grossWeight
+
+    OBJECTS r = Range BEFORE ad
+    PROPERTIES(r) valueCurrentRate
+    PROPERTIES(a,r) quantityInvoiceDetailNoTransport
+    PROPERTIES(a,r) nameSku, shortNameUOM, price, sumInvoiceDetailNoTransport, VATSumInvoiceDetailNoTransport, invoiceSumInvoiceDetailNoTransport,
+        packQuantityInvoiceDetailNoTransport, grossWeightInvoiceDetailNoTransport, note
+    ORDERS valueCurrentRate(r)
+    FILTERS quantityInvoiceDetailNoTransport(a,r)
+        AND a IS Consignment AND ad IS ConsignmentDetail
+;
+
+EXTEND FORM consignmentHorizontalAB
+    PROPERTIES(a) grossWeightConsignmentDetail
+    PROPERTIES(ad) grossWeight
+
+    OBJECTS r = Range BEFORE ad
+    PROPERTIES(r) valueCurrentRate
+    PROPERTIES(a,r) quantityInvoiceDetailNoTransport
+    PROPERTIES(a,r) nameSku, shortNameUOM, price, sumInvoiceDetailNoTransport, VATSumInvoiceDetailNoTransport, invoiceSumInvoiceDetailNoTransport,
+        packQuantityInvoiceDetailNoTransport, grossWeightInvoiceDetailNoTransport, note
+    ORDERS valueCurrentRate(r)
+    FILTERS quantityInvoiceDetailNoTransport(a,r)
+        AND a IS Consignment AND ad IS ConsignmentDetail
+;
+
+EXTEND FORM consignmentSimpleVertical
+    OBJECTS r = Range BEFORE d
+    PROPERTIES(r) valueCurrentRate
+    PROPERTIES(c,r) quantityInvoiceDetailNoTransport
+    PROPERTIES(c,r) nameSku, shortNameUOM, price, sumInvoiceDetailNoTransport, VATSumInvoiceDetailNoTransport, invoiceSumInvoiceDetailNoTransport,
+        packQuantityInvoiceDetailNoTransport, grossWeightInvoiceDetailNoTransport, note
+    ORDERS valueCurrentRate(r)
+    FILTERS ((quantityInvoiceDetailNoTransport(c,r) AND isWholesale(c)) OR (r == [GROUP MIN Range rr IF quantityInvoiceDetailNoTransport(c,rr)]() AND NOT isWholesale(c))) // т.к. нет своего обычного шаблона  
+        AND c IS Consignment AND d IS ConsignmentDetail
+;
+
+notIsOwn 'Не собственные' (Consignment c) = TRUE IF (GROUP SUM 1 IF ConsignmentDetail d IS ConsignmentDetail AND NOT isOwn(sku(d)) AND consignment(d) == c);
+isOwn 'Собственные' (Consignment c) = NOT notIsOwn(c);
+
+EXTEND FORM consignmentAttach PROPERTIES isOwn(c);
+EXTEND FORM consignmentSimpleAttach PROPERTIES isOwn(c);
