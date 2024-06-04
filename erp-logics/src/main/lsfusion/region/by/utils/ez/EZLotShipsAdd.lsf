@@ -1,6 +1,6 @@
 MODULE EZLotShipsAdd;
 
-REQUIRE LotInit, LotTypeBy, EInvoiceLot, EZAuthentication;
+REQUIRE LotInit, LotTypeBy, EInvoiceLot, EZLegalEntity;
 
 NAMESPACE EZ;
 
@@ -65,13 +65,14 @@ handleException (FILE exception) {
     MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
 }
 
-getIdEZ (LegalEntity le) {
+getIdEZ (LegalEntity company, LegalEntity le) {
     LOCAL result = FILE ();
     LOCAL id = STRING ();
     
     EXPORT JSON FROM unp = UNP(le);
 
     fileToString(exportFile());
+    ezToken() <- token(company);
 
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/contracts/agent' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
@@ -91,12 +92,13 @@ FORM currency 'Валюта'
     PROPERTIES (inner) currencyCode EXTID 'code'
 ;
 
-getCurrencyEZ () {
+getCurrencyEZ (LegalEntity company) {
     // если справочник уже получен
     IF GROUP MIN currencyCode(INTEGER i) THEN RETURN;
 
     LOCAL result = FILE ();
-    
+    ezToken() <- token(company);
+
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/directories/currency' HEADERS ezHeadersLotOrder TO result;
     } CATCH {
@@ -134,8 +136,8 @@ FORM shipsAdd 'Отгрузка кодов'
 
 shipsAdd (EInvoice ei) {   
     NEWSESSION {
-        getIdEZ(customer(ei));
-        getCurrencyEZ();
+        getIdEZ(supplier(ei), customer(ei));
+        getCurrencyEZ(supplier(ei));
 
         LOCAL result = FILE ();
         LOCAL ship = INTEGER ();
@@ -144,6 +146,7 @@ shipsAdd (EInvoice ei) {
             EXPORT shipsAdd OBJECTS ei = ei, lt = lt JSON ;
 
             fileToString(exportFile());
+            ezToken() <- token(supplier(ei));
             
             TRY {
                 EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;

@@ -1,6 +1,6 @@
 MODULE EZLotOrder;
 
-REQUIRE EZAuthentication, LotOrder, LotBy, CustomsGroupItem;
+REQUIRE EZLegalEntity, EZLotStatus, LotOrder, LotBy, CustomsGroupItem;
 
 NAMESPACE EZ;
 
@@ -30,21 +30,6 @@ DESIGN lotOrders {
     }
 }
 
-jsonAttributeCount (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
-jsonAttributeKey (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-
-// для 1 уровня вложенности
-jsonAttributeCount1(STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
-jsonAttributeKey1 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue1 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-
-// для 2 уровня вложенности
-jsonAttributeCount2 (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
-jsonAttributeKey2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
-
-
 ezHeadersAuthorization (TEXT name) = CASE
     WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'; 
 
@@ -69,16 +54,37 @@ authorization 'Авторизация в ЭЗ' () {
     }
 }
 
+authorization 'Авторизация в ЭЗ' (LegalEntity l) {
+    NEWSESSION {
+        LOCAL result = FILE();
+        LOCAL localToken = STRING();
+
+        TRY {
+            EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization
+                PARAMS CONCAT '&',
+                'username=' + usernameEZ(l),
+                'password=' + passwordEZ(l),
+                'is_rules_agree=True'
+                TO result;
+        } CATCH {
+
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() localToken;
+        dataToken(l) <- localToken();
+        
+        APPLY;
+    }
+}
+
 EXTEND FORM integrationData
     PROPERTIES() authorization
+    PROPERTIES(lez) authorization GRID
 ;
 
 DESIGN integrationData {
-    pane {
-        EZ {
-            caption = 'ЭЗ';
-            MOVE PROPERTY(authorization());
-        }
+    EZ {
+        MOVE PROPERTY(authorization()) BEFORE PROPERTY(useEZLegalEntity());
     }
 }
 
@@ -133,7 +139,8 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     
     LOCAL result = FILE();   
     
-    exception(o) <- NULL;    
+    exception(o) <- NULL;
+    ezToken() <- token(legalEntityStock(o));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
@@ -158,7 +165,8 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
     
     LOCAL result = FILE();   
     
-    exception(o) <- NULL;    
+    exception(o) <- NULL;
+    ezToken() <- token(legalEntityStock(o));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/items/addByGtin' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
@@ -224,7 +232,8 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
                
         LOCAL result = FILE();    
           
-        exception(o) <- NULL;  
+        exception(o) <- NULL;
+        ezToken() <- token(legalEntityStock(o));
         
         TRY {
             EXTERNAL HTTP POST urlEZ() + '/items/checkGtin' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
@@ -303,7 +312,8 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
             LOCAL result = FILE();
             fileToString(resultFile());
 //            MESSAGE resultString();
-            exception(o) <- NULL;                     
+            exception(o) <- NULL;
+            ezToken() <- token(legalEntityStock(o));
         
             TRY {
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
@@ -419,7 +429,8 @@ checkStatus 'Проверить статус' (LotOrder o) {
 
             LOCAL result = FILE();
                         
-            exception(o) <- NULL;   
+            exception(o) <- NULL;
+            ezToken() <- token(legalEntityStock(o));
 
             TRY {
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
@@ -503,87 +514,6 @@ checkStatus 'Проверить статус' (LotOrder o) {
     MESSAGE statusMessage();
 }
 
-getStatus 'Получить статус' (Lot l) {    
-    EXPORT JSON FROM label = code(l);         
-          
-    LOCAL result = FILE();   
-    
-    exception(l) <- NULL;    
-    
-    TRY {
-        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-    } CATCH {
-        handleException(l, result());
-        RETURN;
-    }       
-    fileToString(result());
-    //MESSAGE resultString();
-    
-    LOCAL statusCode = INTEGER ();
-    
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
-        LOCAL subJson1 = STRING (); 
-        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
-        
-        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {         
-         
-            //получение статуса
-            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
-                LOCAL subJson2 = STRING ();
-                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
-                
-                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
-                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k))); 
-                }
-            };   
-        }
-    }
-    status(l) <- statusLot(statusCode());
-}
-
-statusLot = DATA LOCAL NESTED LotStatus (STRING);
-
-getStatus 'Получить статус' (STRING codeLot) {
-    EXPORT JSON FROM label = codeLot;
-
-    LOCAL result = FILE();
-
-    TRY {
-        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-    } CATCH {
-        fileToString(result());        
-        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ. Проверьте корректность кода.', resultString() NOWAIT;
-        RETURN;
-    }
-    fileToString(result());
-    
-    LOCAL statusCode = INTEGER ();
-
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
-        LOCAL subJson1 = STRING ();
-        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
-
-        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
-
-            //получение статуса
-            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
-                LOCAL subJson2 = STRING ();
-                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
-
-                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
-                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k)));
-                }
-            };
-        }
-    }
-    statusLot(codeLot) <- statusLot(statusCode());
-}
-
-getStatusApply 'Получить статус' (Lot l) {
-    getStatus(l);
-    APPLY;
-}
-
 overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
 
 importLotCodes 'Получить марки' (LotOrder o) {
@@ -599,6 +529,8 @@ importLotCodes 'Получить марки' (LotOrder o) {
             LOCAL result = FILE();
             
             exception(o) <- NULL;
+            ezToken() <- token(legalEntityStock(o));
+            
             TRY {
                 EXTERNAL HTTP GET urlEZ() + '/downloads/' + fileName() HEADERS ezHeadersLotOrder TO result;
             } CATCH {
@@ -621,8 +553,12 @@ importLotCodes 'Получить марки' (LotOrder o) {
                     quantity(d) <- quantity(d) + 1;
                     
                     overNewLot(d, l);
-                } 
-                getStatus(l); 
+                }
+
+                IF EZActive(legalEntityStock(o)) THEN
+                    getStatus(l, legalEntityStock(o));
+                ELSE
+                    getStatus(l);
             } 
         } 
         
@@ -658,7 +594,8 @@ existDifferentGtin (LotOrderDetail d) = (GROUP SUM 1 IF lotOrder(LotOrderDetail 
 //    MESSAGE 'Одному заказу могут соответствовать позиции только одного GTIN';    
     
 EXTEND FORM lots 
-    PROPERTIES (l) getStatusApply TOOLBAR
+    PROPERTIES (l) getStatusApply TOOLBAR SHOWIF NOT useEZLegalEntity()
+    PROPERTIES (l, lez) getStatusApply TOOLBAR SHOWIF useEZLegalEntity()
 ;
 
 isSuitableTNVEDClothes 'Соответствие по ТНВЭД' (Sku sku) = 

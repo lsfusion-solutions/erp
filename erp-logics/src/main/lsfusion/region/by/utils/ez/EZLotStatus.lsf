@@ -1,0 +1,150 @@
+MODULE EZLotStatus;
+
+REQUIRE EZLegalEntity, LotBy;
+
+NAMESPACE EZ;
+
+status 'Статус (по организации)' = DATA LotStatus (Lot, LegalEntity);
+codeStatus 'Код статуса (по организации)' (Lot l, LegalEntity le) = code(status(l, le));
+nameStatus 'Статус (по организации)' (Lot l, LegalEntity le) = name(status(l, le));
+
+EXTEND FORM lots
+    OBJECTS lez = LegalEntity PANEL BEFORE l
+    PROPERTIES(lez) SHOWIF useEZLegalEntity() name SELECTOR
+    FILTERS dataToken(lez)
+
+    PROPERTIES(l, lez) READONLY SHOWIF useEZLegalEntity() AFTER nameStatus(l) nameStatus
+;
+
+showLotStatus = DATA BOOLEAN();
+
+DESIGN lots {
+    PROPERTY (nameStatus(l)) { showIf = NOT useEZLegalEntity() OR showLotStatus(); }
+}
+
+jsonAttributeCount (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
+jsonAttributeKey (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+
+// для 1 уровня вложенности
+jsonAttributeCount1(STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
+jsonAttributeKey1 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue1 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+
+// для 2 уровня вложенности
+jsonAttributeCount2 (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
+jsonAttributeKey2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
+
+getStatus 'Получить статус' (Lot l) {
+    EXPORT JSON FROM label = code(l);
+
+    LOCAL result = FILE();
+
+    exception(l) <- NULL;
+    ezToken() <- token();
+    
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(l, result());
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    LOCAL statusCode = INTEGER ();
+
+    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
+        LOCAL subJson1 = STRING ();
+        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
+
+        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
+
+            //получение статуса
+            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
+                LOCAL subJson2 = STRING ();
+                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
+
+                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
+                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k)));
+                }
+            };
+        }
+    }
+    status(l) <- statusLot(statusCode());
+}
+
+getStatusApply 'Получить статус' (Lot l) {
+    getStatus(l);
+    APPLY;
+}
+
+exception 'Сообщение (по организации)' = DATA TEXT (Lot, LegalEntity);
+
+handleException (Lot l, LegalEntity le, FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(l, le) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+EXTEND FORM lots
+    PROPERTIES(l, lez) READONLY exception PANEL SHOWIF exception(l, lez)
+;
+
+DESIGN lots {
+    ez {
+        MOVE PROPERTY(exception(l, lez)) { panelCaptionVertical = TRUE; fill = 1; };
+    }
+}
+
+getStatus 'Получить статус' (Lot l, LegalEntity le) {
+    EXPORT JSON FROM label = code(l);
+
+    LOCAL result = FILE();
+
+    exception(l, le) <- NULL;
+    ezToken() <- token(le);
+
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(l, le, result());
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    LOCAL statusCode = INTEGER ();
+
+    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
+        LOCAL subJson1 = STRING ();
+        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
+
+        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
+
+            //получение статуса
+            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
+                LOCAL subJson2 = STRING ();
+                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
+
+                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
+                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k)));
+                }
+            };
+        }
+    }
+    status(l, le) <- statusLot(statusCode());
+}
+
+getStatusApply 'Получить статус' (Lot l, LegalEntity le) {
+    getStatus(l, le);
+    APPLY;
+}

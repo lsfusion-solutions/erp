@@ -1,7 +1,5 @@
 MODULE EZAuthentication;
 
-//EQUIRE CryptoPro;
-
 NAMESPACE EZ;
 
 urlEZ 'Url к Web-сервису ГИС "Электронный знак"' = DATA STRING ();
@@ -11,14 +9,16 @@ passwordEZ 'Пароль для API' = DATA STRING() ECHO;
 hostEZ 'Host' = DATA STRING ();
 token 'Токен' = DATA STRING ();
 
+ezToken = DATA LOCAL STRING ();
+
+// при всех использованиях сначала заполнять ezToken
 ezHeadersLotOrder (TEXT name) = CASE
     WHEN name = 'Content-Type' THEN 'application/json; charset=utf-8'
     WHEN name = 'Host' THEN hostEZ()
-    WHEN name = 'Token' THEN token();
+    WHEN name = 'Token' THEN ezToken();
 
 EXTEND FORM integrationData
-    PROPERTIES() urlEZ, testWebService, usernameEZ, passwordEZ
-    PROPERTIES() hostEZ
+    PROPERTIES() urlEZ, hostEZ, testWebService, usernameEZ, passwordEZ
     PROPERTIES() READONLY EZtoken = token
 ;
 
@@ -27,10 +27,10 @@ DESIGN integrationData {
         NEW EZ {
             caption = 'ЭЗ';
             MOVE PROPERTY(urlEZ());
+            MOVE PROPERTY(hostEZ());
             MOVE PROPERTY(testWebService());
             MOVE PROPERTY(usernameEZ());
             MOVE PROPERTY(passwordEZ());
-            MOVE PROPERTY(hostEZ());
             MOVE PROPERTY(EZtoken);
         }
     }

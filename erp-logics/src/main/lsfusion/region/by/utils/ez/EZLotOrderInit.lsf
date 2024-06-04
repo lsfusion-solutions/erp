@@ -8,11 +8,16 @@ NAMESPACE EZ;
 lotInit  = DATA LOCAL LotInit ();
 gtin  = DATA LOCAL STRING[14] ();
 isSend 'Отправлен' (Lot l) = status(l) == LotStatus.MARKED;
+isSend 'Отправлен' (LotInit i, Lot l) = status(l, legalEntityStock(i)) == LotStatus.MARKED;
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (LotInitDetail);
 select 'Отм.' (Lot l) = TRUE IF (GROUP SUM 1 IF quantity(LotInitDetail d, l) AND select(d));
 
-filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l) AND NOT isSend(l) AND
+EZActiveLegalEntity (LotInit i) = EZActive(legalEntityStock(i));
+EZActiveLegalEntity (LotInitDetail d) = EZActiveLegalEntity(lotInit(d));
+
+filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l) 
+    AND NOT (isSend(l) AND NOT EZActiveLegalEntity(lotInit())) AND NOT (isSend(lotInit(), l) AND EZActiveLegalEntity(lotInit())) AND
     (NOT (GROUP SUM 1 IF select(LotInitDetail d)) OR select(l));
     
 exception 'Сообщение' = DATA TEXT (LotInit);
@@ -46,7 +51,8 @@ getStatusReport 'Получить статус' (ReportEZ r) {
               
     LOCAL result = FILE();   
     
-    exception(lotInit(r)) <- NULL;    
+    exception(lotInit(r)) <- NULL;
+    ezToken() <- token(legalEntityStock(lotInit(r)));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
@@ -92,8 +98,9 @@ nameSku(LotInit i) = nameSku(GROUP MAX LotInitDetail d IF lotInit(d) == i);
 
 getLabesTypes 'Типы кодов' (LotInit i) {          
     LOCAL result = FILE();       
-    exception(i) <- NULL;    
-    
+    exception(i) <- NULL;
+    ezToken() <- token(legalEntityStock(i));
+
     TRY { 
         EXTERNAL HTTP GET urlEZ() + '/labels/types' HEADERS ezHeadersLotOrder TO result;
     } CATCH {
@@ -110,7 +117,8 @@ getParameters 'Получить параметры' (LotInit i) {
           
     LOCAL result = FILE();   
     
-    exception(i) <- NULL;    
+    exception(i) <- NULL;
+    ezToken() <- token(legalEntityStock(i));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
@@ -129,7 +137,8 @@ getCatalogs 'Разделы каталога товаров' (LotInit i) {
           
     LOCAL result = FILE();
     
-    exception(i) <- NULL;    
+    exception(i) <- NULL;
+    ezToken() <- token(legalEntityStock(i));
     
     TRY {
   //      EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
@@ -148,7 +157,7 @@ gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), STRING[14](lpad(gtin(sku(d
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
-quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF isSend(l);
+quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF (isSend(l) AND NOT EZActiveLegalEntity(d)) OR (isSend(lotInit(d), l) AND EZActiveLegalEntity(d));
 isSend 'Отправлен' (LotInitDetail d) = quantitySendLot(d) == quantityLot(d) AND quantitySendLot(d);
 quantitySendLot 'Кол-во марок' (LotInit i) = GROUP SUM quantitySendLot(LotInitDetail d) IF lotInit(d) = i;
 isSend 'Отправлен' (LotInit i) = quantitySendLot(i) == quantityLot(i) AND quantityLot(i);
@@ -201,7 +210,12 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     gtin() <- gtin;
     
     // обновление статусов перед отправкой
-    FOR filterLot (Lot l) DO getStatus(l);           
+    FOR filterLot (Lot l) DO {
+        IF EZActive(legalEntityStock(i)) THEN
+            getStatus(l, legalEntityStock(i));
+        ELSE
+            getStatus(l);
+    }           
     
     IF (NOT GROUP SUM 1 IF filterLot (Lot l)) THEN {
         RETURN;
@@ -304,7 +318,8 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
       
     LOCAL result = FILE();      
 
-    exception(i) <- NULL;   
+    exception(i) <- NULL;
+    ezToken() <- token(legalEntityStock(i));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/v2/reports/addMark' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
@@ -334,12 +349,20 @@ addMark 'Отправить отчет'(LotInit i) {
     }
 
     // получение статусов для марок
-    FOR lotInit(LotInitDetail d) == i DO {
-        FOR quantity(d, Lot l) AND NOT isSend(l) DO {
-           getStatus(l);
+    IF EZActive(legalEntityStock(i)) THEN {
+        FOR lotInit(LotInitDetail d) == i DO {
+            FOR quantity(d, Lot l) AND NOT isSend(i, l) DO {
+                getStatus(l, legalEntityStock(i));
+            }
+        }
+    } 
+    ELSE {
+        FOR lotInit(LotInitDetail d) == i DO {
+            FOR quantity(d, Lot l) AND NOT isSend(l) DO {
+                getStatus(l);
+            }
         }
     }
-
     APPLY;
 }
 
@@ -370,12 +393,20 @@ DESIGN lotInit {
     }
 }
 
+getStatusApply 'Получить статус' (LotInit i, Lot l) {
+    getStatusApply(l, legalEntityStock(i));
+}
+
+nameStatus 'Статус' (LotInit i, Lot l) = nameStatus(l, legalEntityStock(i));
+
 EXTEND FORM lotInit   
     PROPERTIES(r) getStatusReport TOOLBAR
     PROPERTIES(i) getStatusReport DRAW r TOOLBAR
     PROPERTIES(d) READONLY isSend, quantitySendLot
-    PROPERTIES(l) READONLY nameStatus, isSend
-    PROPERTIES(l) getStatusApply
+    PROPERTIES(l) READONLY SHOWIF NOT EZActiveLegalEntity(i) nameStatus, isSend
+    PROPERTIES(i, l) READONLY SHOWIF EZActiveLegalEntity(i) nameStatus, isSend
+    PROPERTIES(l) getStatusApply TOOLBAR SHOWIF NOT EZActiveLegalEntity(i)
+    PROPERTIES(i, l) getStatusApply TOOLBAR DRAW l SHOWIF EZActiveLegalEntity(i)
 ;
 
 EXTEND FORM lotInits   
@@ -383,9 +414,9 @@ EXTEND FORM lotInits
     PROPERTIES(d) READONLY isSend
 ;
 
-EXTEND FORM lots
-    PROPERTIES(l) READONLY isSend
-;
+//EXTEND FORM lots
+//    PROPERTIES(l) READONLY isSend
+//;
 
 addMark 'Отправить отчет'(LotInitDetail d) {
     IF (NOT GROUP SUM 1 IF select(LotInitDetail dd) AND lotInit(d) == lotInit(dd)) THEN select(d) <- TRUE;
