@@ -93,36 +93,14 @@ DESIGN shipments {
     }
 }
 
-userShipmentPacketDetail = DATA UserShipmentPacketDetail(UserShipmentDetail);
-idPacket 'Пакет'(UserShipmentDetail d) = idPacket(userShipmentPacketDetail(d));
-indexPacketDetail 'Номер строки (пакеты)'(UserShipmentDetail d) = index(userShipmentPacketDetail(d));
-
-setPackQuantity 'Заполнить кол-во пакетов' (UserShipment sh) {
-    packQuantity(UserShipmentDetail d) <- 0 WHERE userShipment(d) == sh;
-    FOR sh == userShipment(UserShipmentPacketDetail d) DO {
-        FOR UserShipmentDetail cd == GROUP LAST UserShipmentDetail dd ORDER dd WHERE (dd IS UserShipmentDetail AND userShipmentPacketDetail(dd) == d) DO {
-            packQuantity(cd) <- packQuantity(cd) (+) 1;
-        }
-    }
-}
-
 createUserShipmentDetails 'Обновить спецификацию из пакетов' ABSTRACT (UserShipment) TOOLBAR;
 showCreateUserShipmentDetails = ABSTRACT BOOLEAN (UserShipment);
 
-WHEN LOCAL DROPCHANGED(packet(userShipmentPacketDetail(UserShipmentDetail d))) DO {
-    userShipmentPacketDetail(d) <- NULL;
-}
-
 EXTEND FORM userShipment
     PROPERTIES(s) SHOWIF showCreateUserShipmentDetails(s) createUserShipmentDetails DRAW d
-    PROPERTIES(d) SHOWIF packets(s) READONLY idPacket AFTER nameBatch(d)
 
     EVENTS
         ON APPLY BEFORE createUserShipmentDetails(s)
-;
-
-EXTEND FORM shipments
-    PROPERTIES (d) SHOWIF packets(s) READONLY idPacket AFTER nameBatch(d)
 ;
 
 WHEN LOCAL SET (isAccepted(UserShipmentPacketDetail d)) DO {
@@ -133,15 +111,13 @@ WHEN LOCAL DROPPED (isAccepted(UserShipmentPacketDetail d)) DO {
     dateTimeAccepted(d) <- NULL;
 }
 
+idArticleSku 'Модель' (UserShipmentDetail d) = idArticle(sku(d));
+
 isNotAccepted 'Есть непринятые строки' = GROUP SUM 1 IF NOT isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
 acceptedDetails 'Есть принятые строки' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
 isAccepted 'Принято' (UserShipment s) = NOT isNotAccepted(s);
 
-isAccepted 'Принято' (UserShipmentDetail d) = isAccepted(userShipmentPacketDetail(d));
-dateTimeAccepted 'Дата/время приёмки'(UserShipmentDetail d) = dateTimeAccepted(userShipmentPacketDetail(d));
-
 countAcceptedShipmentPacketDetail 'Кол-во пакетов (принято)' = GROUP SUM 1 IF isAccepted(UserShipmentPacketDetail d) BY userShipment(d);
-quantityAcceptedShipmentDetail 'Кол-во изделий (принято)' = GROUP SUM quantity(UserShipmentDetail d) IF isAccepted(d) BY shipment(d);
 
 reprintTransfer 'Печать накладной' ABSTRACT (UserShipment) IMAGE 'print.png' TOOLBAR;
 
@@ -238,10 +214,6 @@ FORM transferFromStock 'Возврат со склада в цех'
     PROPERTIES(bd) READONLY index, idPacket, isAccepted, dateTimeAccepted, nameStock, dateProduction
     FILTERS userShipment(bd) == s
 
-    OBJECTS d = UserShipmentDetail
-    PROPERTIES(d) READONLY indexPacketDetail, idPacket, isAccepted, idBarcodeSku, nameSku, quantity
-    FILTERS userShipment(d) == s
-
     EVENTS ON INIT setTransferFilters()
 ;
 
@@ -271,9 +243,6 @@ DESIGN transferFromStock {
             MOVE BOX(bd) {
                 caption = 'Пакеты';
                 PROPERTY(idPacket(bd)) { focusable = TRUE; }
-            }
-            MOVE BOX(d) {
-                caption = 'Спецификация по пакетам';
             }
         }
     }
@@ -317,13 +286,6 @@ FORM transferToProduction 'Приёмка со склада в цех'
     FILTERGROUP acceptedPacket FILTER 'Принятые' isAccepted(bd)
     FILTERGROUP notAcceptedPacket FILTER 'Непринятые' NOT isAccepted(bd)
 
-    OBJECTS d = UserShipmentDetail
-    PROPERTIES(d) READONLY indexPacketDetail, idPacket, isAccepted, idBarcodeSku, nameSku, quantity
-    FILTERS userShipment(d) == s
-
-    FILTERGROUP accepted FILTER 'Принятые' isAccepted(d)
-    FILTERGROUP notAccepted FILTER 'Непринятые' NOT isAccepted(d)
-
     EVENTS ON INIT setTransferFilters()
 ;
 
@@ -351,9 +313,6 @@ DESIGN transferToProduction {
             MOVE BOX(bd) {
                 caption = 'Пакеты';
                 PROPERTY (idPacket(bd)) { focusable = TRUE; }
-            }
-            MOVE BOX(d) {
-                caption = 'Спецификация по пакетам';
             }
         }
     }
