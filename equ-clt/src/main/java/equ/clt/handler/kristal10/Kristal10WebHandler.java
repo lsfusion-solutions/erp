@@ -580,6 +580,17 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
         List<Element> canceledReceipts = new ArrayList<>();
         for (Element purchaseNode : purchasesList) {
 
+            boolean skipReceipt = false;
+            List<Element> pluginProperties = purchaseNode.getChildren("plugin-property");
+            for (Element pluginProperty : pluginProperties) {
+                String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                String valuePluginProperty = pluginProperty.getAttributeValue("value");
+
+                if (keyPluginProperty.equals("SKNO_ANNUL") && valuePluginProperty.equals("1")) {
+                    skipReceipt = true;
+                }
+            }
+
             String status = readStringXMLAttribute(purchaseNode, "status");
             if (status != null && status.equals("CANCELLED")) {
                 canceledReceipts.add(purchaseNode);
@@ -648,7 +659,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     payments.add(Payment.getCard(sum, "paymentCard", getPluginPropertyValue(paymentEntryNode, "card.number")));
                                     break;
                                 case "GiftCardPaymentEntity": {
-                                    List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
+                                    pluginProperties = paymentEntryNode.getChildren("plugin-property");
                                     boolean found = false;
                                     String giftCardNumber = null;
                                     BigDecimal giftCardPrice = null;
@@ -737,7 +748,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                         //обнаруживаем продажу сертификатов
                         boolean isGiftCard = false;
-                        List<Element> pluginProperties = positionEntryNode.getChildren("plugin-property");
+                        pluginProperties = positionEntryNode.getChildren("plugin-property");
                         for (Element pluginProperty : pluginProperties) {
                             String keyPluginProperty = pluginProperty.getAttributeValue("key");
                             String valuePluginProperty = pluginProperty.getAttributeValue("value");
@@ -791,7 +802,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         LocalDate startDate = cashRegisterByKey != null ? cashRegisterByKey.startDate : null;
                         if (startDate == null || !dateReceipt.isBefore(startDate)) {
                             String idSaleReceiptReceiptReturnDetail = null;
-                            boolean skipReceipt = false;
                             Element originalPurchase = purchaseNode.getChild("original-purchase");
                             if(originalPurchase != null) {
                                 Integer numberCashRegisterOriginal = readIntegerXMLAttribute(originalPurchase, "cash");
@@ -800,8 +810,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 LocalDate dateReceiptOriginal = LocalDate.parse(readStringXMLAttribute(originalPurchase, "saletime"), DateTimeFormatter.ISO_DATE_TIME);
                                 idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
                                         + dateReceiptOriginal.format(DateTimeFormatter.ofPattern("ddMMyyyy")) + "_" + numberReceiptOriginal;
-
-                                skipReceipt = numberZReport.equals(numberZReportOriginal);
                             }
 
                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
