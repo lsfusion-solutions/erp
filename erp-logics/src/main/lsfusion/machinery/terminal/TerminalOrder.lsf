@@ -61,6 +61,8 @@ vop = ABSTRACT CASE STRING (TerminalOrderDetail);
 overVop = ABSTRACT CASE STRING (TerminalOrderDetail, Stock);//один и тот же документ может быть разной оперции в зависимости от того поставщик или покупатель его обрабатывает
 vop(TerminalOrderDetail d, Stock s) = OVERRIDE overVop(d, s), vop(d) IF s IS Stock;
 
+checkVop(TerminalOrderDetail d, Stock s, Employee e) = NOT vop(d, s) OR (GROUP SUM 1 IF notSkip(TerminalDocumentType t, e) AND isWordInCSV(id(t), vop(d, s)));
+
 headField1 'Дополнительное поле шапки 1' = ABSTRACT ISTRING[250] (TerminalOrderDetail);
 headField2 'Дополнительное поле шапки 2' = ABSTRACT ISTRING[250] (TerminalOrderDetail);
 headField3 'Дополнительное поле шапки 3' = ABSTRACT ISTRING[250] (TerminalOrderDetail);
@@ -70,4 +72,6 @@ posField2 'Дополнительное поле строки 2' = ABSTRACT ISTR
 posField3 'Дополнительное поле строки 3' = ABSTRACT ISTRING[250] (TerminalOrderDetail);
 
 sortTerminal = ABSTRACT INTEGER (TerminalOrderDetail);
-filterTerminal (TerminalOrder o, TerminalOrderDetail d, Stock s, Employee e) = filter(o, s) AND checkUser(o, e) AND isOpened(o) AND order(d) == o;
+skipFilterTerminal = ABSTRACT VALUE BOOLEAN (TerminalOrderDetail, Employee);
+filterTerminal (TerminalOrder o, TerminalOrderDetail d, Stock s, Employee e) = filter(o, s) AND checkUser(o, e) AND checkVop(d, s, e) 
+    AND isOpened(o) AND order(d) == o AND NOT skipFilterTerminal(d,e);
