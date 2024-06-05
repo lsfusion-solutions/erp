@@ -466,6 +466,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer requireQuantityScales = null;
             Integer enableQuantityScales = null;
             Integer fuzzyweight = null;
+            Integer ignoremarking = null;
 
             if (infoJSON != null) {
                 if(infoJSON.has("requiresalerestrict")) {
@@ -525,6 +526,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 }
                 if(infoJSON.has("fuzzyweight")) {
                     fuzzyweight = infoJSON.optInt("fuzzyweight");
+                }
+                if(infoJSON.has("ignoremarking")) {
+                    fuzzyweight = infoJSON.optInt("ignoremarking");
                 }
 
                 if (infoJSON.has("taramode")){
@@ -633,6 +637,8 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             }
 
             inventItemOptions.put("fuzzyweight", fuzzyweight);
+
+            inventItemOptions.put("ignoremarking", ignoremarking);
 
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
