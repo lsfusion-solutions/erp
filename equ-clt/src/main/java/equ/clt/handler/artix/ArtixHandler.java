@@ -528,7 +528,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     fuzzyweight = infoJSON.optInt("fuzzyweight");
                 }
                 if(infoJSON.has("ignoremarking")) {
-                    fuzzyweight = infoJSON.optInt("ignoremarking");
+                    ignoremarking = infoJSON.optInt("ignoremarking");
                 }
 
                 if (infoJSON.has("taramode")){
