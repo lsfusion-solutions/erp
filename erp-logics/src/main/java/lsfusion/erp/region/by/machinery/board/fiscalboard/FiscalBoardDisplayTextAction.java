@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
 import com.google.common.base.Throwables;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.nvl;
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
@@ -41,21 +43,19 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
             BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(context, receiptDetailObject);
             BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
 
-            String[] lines = generateText(price, quantity == null ? BigDecimal.ZERO : quantity, sum, name);
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, null));
+
+            String firstLine = " " + toStr(nvl(quantity, BigDecimal.ZERO)) + "x" + toStr(price);
+            if(firstLine.length() > lineLength) {
+                context.requestUserInteraction(new MessageClientAction("Проверьте цену и количество: " + firstLine, "Ошибка"));
+            } else {
+                firstLine = fillSpaces(name, lineLength - firstLine.length(), true) + firstLine;
+                String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
+
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(firstLine, secondLine, baudRateBoard, comPortBoard, uppercase, null));
+            }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    private String[] generateText(BigDecimal price, BigDecimal quantity, BigDecimal sum, String nameItem) {
-        String firstLine = " " + toStr(quantity) + "x" + toStr(price);
-        if(firstLine.length() > lineLength) {
-            throw new RuntimeException("Проверьте цену и количество: " + firstLine);
-        }
-        firstLine = fillSpaces(nameItem, lineLength - firstLine.length(), true) + firstLine;
-        String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
-        return new String[]{firstLine, secondLine};
     }
 }
