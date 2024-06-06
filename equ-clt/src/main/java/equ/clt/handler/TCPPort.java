@@ -77,4 +77,13 @@ public class TCPPort {
     public int getPort() {
         return this.ipPort;
     }
+    
+    public void setSoTimeout(int timeout) throws CommunicationException {
+        try {
+            if (this.socket != null)
+                this.socket.setSoTimeout(timeout);
+        } catch (Exception e) {
+            throw new CommunicationException(e.toString());
+        }
+    }
 }
