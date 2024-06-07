@@ -1135,3 +1135,32 @@ EXTEND FORM zReports
 sumCashEnd 'Сумма наличных на конец' = DATA NUMERIC[18,4] (ZReport);
 sumProtectedEnd 'Накопительная выручка' = DATA NUMERIC[18,4] (ZReport);
 sumBack 'Накопительный возврат' = DATA NUMERIC[18,4] (ZReport);
+
+// --------- Очистка id
+
+lastDateClearReceiptIDS 'Дата очистки кодов чеков' = DATA DATE ();
+maxPeriodClearReceiptIDS 'За сколько дней хранить коды чеков' = DATA INTEGER ();
+
+EXTEND FORM options
+    PROPERTIES() lastDateClearReceiptIDS, maxPeriodClearReceiptIDS 
+;
+
+DESIGN options {
+    zReport {
+        MOVE PROPERTY(lastDateClearReceiptIDS());
+        MOVE PROPERTY(maxPeriodClearReceiptIDS());
+    }
+}
+
+//lastDateClearReceiptIDS () <- subtract(GROUP MIN date(ReceiptDetail d) IF date(d) AND id(d) AND date(d) >= 2018_01_01, 1);
+
+clearReceiptIDs (DATE d) {
+    IF d < subtract(currentDate(), maxPeriodClearReceiptIDS()) THEN {
+        APPLY { id (ZReport.Payment p) <- NULL WHERE date(receipt(p)) = d; }
+        APPLY { id (Receipt r) <- NULL WHERE date(r) = d; }
+        APPLY { id (ReceiptDetail rd) <- NULL WHERE date(rd) = d; }
+        APPLY { lastDateClearReceiptIDS() <- d; }
+    }
+}
+
+clearLastDateReceiptIDs () { clearReceiptIDs(sum(lastDateClearReceiptIDS(), 1)); }
