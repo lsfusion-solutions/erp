@@ -1,0 +1,50 @@
+MODULE SaleCondition;
+
+REQUIRE SaleInvoice;
+
+NAMESPACE Sale;
+
+CLASS ShipmentCondition 'Условие отгрузки';
+TABLE shipmentCondition (ShipmentCondition);
+
+name 'Наименование' = DATA ISTRING[100] (ShipmentCondition) CHARWIDTH 15;
+
+FORM shipmentCondition 'Условие отгрузки'
+    OBJECTS o = ShipmentCondition PANEL
+    PROPERTIES(o) name
+
+    EDIT ShipmentCondition OBJECT o
+;
+
+FORM shipmentConditions 'Условия отгрузки'
+    OBJECTS o = ShipmentCondition
+    PROPERTIES(o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogShipmentConditions 'Условия отгрузки'
+    OBJECTS o = ShipmentCondition
+    PROPERTIES(o) READONLY name
+
+    LIST ShipmentCondition OBJECT o
+;
+
+NAVIGATOR {
+    saleMasterData {
+        NEW shipmentConditions;
+    }
+}
+
+shipCondition 'Условие отгрузки' = DATA ShipmentCondition (UserInvoice);
+nameShipCondition 'Условие отгрузки' (UserInvoice i) = name(shipCondition(i)) IN documentPrm;
+
+EXTEND FORM userInvoice PROPERTIES nameShipCondition(i);
+
+dialogSetShipCondition (UserInvoice i) {
+    IF NOT shipCondition(i) THEN {
+        DIALOG dialogShipmentConditions OBJECTS o INPUT DO {
+            shipCondition(i) <- o;
+            APPLY;
+        }
+    }
+} 
