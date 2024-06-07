@@ -45,34 +45,6 @@ CONSTRAINT SET(isClosed(Packet packet)) AND countIncompleteSku(packet)
 CONSTRAINT SETCHANGED(packet(Lot lot)) AND NOT currentQuantity(sku(lot), packet(lot))
     MESSAGE 'Запрещено добавлять в пакет марки товара, отсутствующего в пакете';
 
-META defineAfterCreateDocumentPacketDetailsLot (object)
-    afterCreate###object##Details(###object o) + {
-        IF useLot(o) AND packets(o) THEN {
-            FOR o == ##object(###object##Detail d) DO {
-                FOR packet(Lot l) == packet(object##PacketDetail(d)) AND sku(l) == sku(d) DO {
-                    quantity(d, l) <- count(l);
-                }
-            }
-        }
-    }
-END;
-
-META defineAfterUpdateDocumentPacketDetailsLot (object)
-    afterUpdate###object##Details(###object o) + {
-        LOCAL lotsSkuInPackets = BOOLEAN (Sku, Lot);
-
-        FOR o = object(###object##PacketDetail d) DO {
-            FOR packet(Lot l) == packet(d) DO {
-                lotsSkuInPackets(sku(l), l) <- TRUE;
-            }
-        }
-
-        FOR lotsSkuInPackets(Sku s, Lot l) AND ###object##Detail d == [ GROUP MAX ###object##Detail ud BY object(ud), sku(ud)](o,s) DO {
-            quantity(d, l) <- count(l);
-        }
-    }
-END;
-
 META defineConstraintStateDocumentPacketDetailLotIn (object)
     CONSTRAINT SETCHANGED(packet(###object##PacketDetail d))
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
