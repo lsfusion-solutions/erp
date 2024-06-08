@@ -1,6 +1,6 @@
 MODULE PurchaseShipmentTextile;
 
-REQUIRE PurchaseShipment, Packeting, BinPacketLedger, WarehouseTextile, StockTextile;
+REQUIRE PurchaseShipment, Packeting, BinPacketLedger, WarehouseTextile, StockTextile, Sound, ScannerDaemon;
 
 NAMESPACE Purchase;
 
@@ -150,18 +150,32 @@ nameDefaultTransferToStockOperation 'Операция по умолчанию' =
 defaultTransferStockTo  = DATA Stock ();
 nameDefaultTransferStockTo 'Склад по умолчанию' = name(defaultTransferStockTo());
 
+errorSoundToCom 'Отправлять звук ошибки на сканер' = DATA BOOLEAN() PREREAD;
+
+errorSoundFile = DATA FILE();
+loadErrorSoundFile 'Файл звука ошибки' ()  { INPUT = errorSoundFile() CHANGE; }
+
 EXTEND FORM options
-    PROPERTIES() nameDefaultTransferToStockOperation, nameDefaultTransferStockTo
+    PROPERTIES() nameDefaultTransferToStockOperation, nameDefaultTransferStockTo, loadErrorSoundFile, errorSoundToCom
 ;
 
 DESIGN options {
-    shipments {
-        NEW transfer {
+    WMS {
+        NEW transfers {
             caption = 'Перемещения из цеха на склад';
             MOVE PROPERTY(nameDefaultTransferToStockOperation());
             MOVE PROPERTY(nameDefaultTransferStockTo());
+            MOVE PROPERTY(loadErrorSoundFile());
+            MOVE PROPERTY(errorSoundToCom());
         }
     }
+}
+
+soundToCom()  {
+    stringToFile('2', 'CP866', '');
+    writeToComPort(resultFile(), 9600, scannerComPort(currentComputer()));
+    sleep(10);
+    writeToComPort(errorSoundFile(), 9600, scannerComPort(currentComputer()));
 }
 
 CONSTRAINT SET (isPosted(UserShipment s)) AND operation(s) == defaultTransferToStockOperation() AND NOT isAccepted(s)

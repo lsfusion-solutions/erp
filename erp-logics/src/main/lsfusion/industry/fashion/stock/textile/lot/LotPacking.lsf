@@ -51,12 +51,36 @@ META defineConstraintStateDocumentPacketDetailLotIn (object)
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
 END;
 
+META defineConstraintStateDocumentPacketDetailLotInAccepted (object)
+    CONSTRAINT SET(isAccepted(###object##PacketDetail d))
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (приёмка)';
+END;
+
+META defineConstraintStateDocumentPacketDetailLotInPosted (object)
+    CONSTRAINT SET(isPosted(###object##PacketDetail d))
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (проведение)';
+END;
+
 @defineOption(allowIncorrectPacketDetailLotOut, 'Разрешить отгрузку открытых пакетов с марками', stock1);
 
 META defineConstraintStateDocumentPacketDetailLotOut (object)
     CONSTRAINT SETCHANGED(packet(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
+END;
+
+META defineConstraintStateDocumentPacketDetailLotOutAccepted (object)
+    CONSTRAINT SET(isAccepted(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (приёмка)';
+END;
+
+META defineConstraintStateDocumentPacketDetailLotOutPosted (object)
+    CONSTRAINT SET(isPosted(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
+        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
+        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (проведение)';
 END;
 
 onStock = ABSTRACT BOOLEAN (Packet);
