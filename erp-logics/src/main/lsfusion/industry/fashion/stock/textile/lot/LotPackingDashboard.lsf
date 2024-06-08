@@ -1,0 +1,245 @@
+MODULE LotPackingDashboard;
+
+REQUIRE LotPacking, ItemFashionTextile, PurchaseReturnShipmentTextile;
+
+NAMESPACE Lot;
+
+close 'Закрыть' (Packet packet)  {
+    APPLY;
+    NEWSESSION { isClosed(packet) <- TRUE; apply(); }
+} TOOLBAR CONFIRM;
+
+open 'Открыть' (Packet packet)  {
+    APPLY;
+    NEWSESSION { isClosed(packet) <- NULL; apply(); }
+} TOOLBAR CONFIRM;
+
+idArticleSku 'Модель' (Lot l) = id(article(sku(l)));
+
+in 'Вкл' = DATA LOCAL BOOLEAN (Lot);
+
+FORM dialogAddPacketLots 'Марки'
+    OBJECTS p = Packet PANEL
+
+    OBJECTS l = Lot
+    PROPERTIES(l) in
+    PROPERTIES(l) READONLY id, idSku, nameSku
+    FILTERS NOT packet(l), remainingLotsQuantity(sku(l), p)
+    FILTERGROUP in FILTER 'Отмеченные' in(l)
+;
+
+addPacketLots 'Добавить марки' (Packet packet) {
+    DIALOG dialogAddPacketLots OBJECTS p = packet DO {
+        FOR in(Lot lot) DO {
+            packet(lot) <- packet;
+        }
+        in(Lot lot) <- NULL;
+    }
+} TOOLBAR IMAGE 'add.png';
+
+deletePacketLot 'Удалить марку из пакета' (Lot lot) {
+    packet(lot) <- NULL;
+} TOOLBAR IMAGE 'delete.png';
+
+clearPacketLots 'Очистить пакет' (Packet p) {
+    packet(Lot l) <- NULL WHERE packet(l) == p;
+} TOOLBAR;
+
+completeLotPacket 'Укомплектован' (Packet p) = TRUE IF NOT countIncompleteSku(p);
+
+checkFilterForm ABSTRACT (Packet);
+checkedPacketForm = DATA LOCAL BOOLEAN();
+filterPacketForm = DATA LOCAL BOOLEAN();
+
+allowReturnFromBuyer 'Возврат от покупателя' = DATA LOCAL BOOLEAN();
+
+
+seekPacket 'Поиск пакета/марки' (Packet p) {
+    INPUT s = STRING[200] DO {
+        IF NOT s THEN RETURN;
+        IF length(s) <= 15 THEN { // это пакет
+            LOCAL id = STRING[100]();
+            id() <- OVERRIDE substr(s, 4, 8) IF length(s) == 12, ltrim(s, '0'); // в 1 случае без ведущих 0 и контрольной цифры (UPC-A), а если Code93 и длина 8, то перейдёт на 2
+
+            LOCAL dialogPacket = Packet();
+            dialogPacket() <- packet(id());
+
+            IF NOT dialogPacket() THEN {
+                MESSAGE 'Пакет не существует';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+            seek(dialogPacket());  // если пакет на форме не нашёлся, то перейдёт на какой-то другой и подсветит розовым
+            checkFilterForm(dialogPacket());
+
+            IF NOT filterPacketForm() THEN {
+                MESSAGE 'Пакет не найден среди доступных';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+
+            IF dialogPacket() == p THEN { // если курсор был на другом, то сразу сюда не зайдёт, а только станет на пакет
+                IF isClosed(p) THEN {
+                    open(p);
+                } ELSE {
+                    IF completeLotPacket(p) THEN
+                        close(p);
+                    ELSE {
+                        MESSAGE 'Пакет ещё не укомплектован, закрытие невозможно';
+                        IF errorSoundToCom() THEN soundToCom();
+                    }
+                }
+            }
+        } ELSE { // это марка
+            LOCAL inputId = STRING[200]();
+            inputId() <- extractGS1(s);
+            IF NOT lot(inputId()) THEN {
+                MESSAGE 'Марка не найдена';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+            IF isClosed(p) THEN {
+                MESSAGE 'Запрещено изменять марки в закрытом пакете';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+
+            IF notPrinted(lot(inputId())) THEN {
+                MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+            IF packet(lot(inputId())) != p AND ((isParentLeaf(binGroup(currentBin(packet(lot(inputId())))), binGroup('00'))
+                OR NOT shipmentDate(packet(lot(inputId())))) OR NOT allowReturnFromBuyer()) THEN {
+                MESSAGE 'Запрещено перемещение марок между пакетами без изъятия';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+            IF NOT packet(lot(inputId())) AND NOT remainingLotsQuantity(sku(lot(inputId())), p) THEN {  // если выполняется первое, значит хотят достать эту марку
+                MESSAGE 'Пакет уже укомплектован марками по товару, либо марка не подходит';
+                IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+
+            IF packet(lot(inputId())) = p THEN
+                packet(lot(inputId())) <- NULL;
+            ELSE
+                packet(lot(inputId())) <- p;
+        }
+    }
+}
+
+backgroundPacketPanel (Packet p) = CASE WHEN isClosed(p) THEN RGB(150,255,150)
+    WHEN completeLotPacket(p) THEN RGB(224,255,224)
+    WHEN checkedPacketForm() AND NOT filterPacketForm() THEN RGB(255,200,216);
+
+filterLotPacking = DATA LOCAL NESTED BOOLEAN (Packet);
+
+fillFilterLotPacket 'Обновить'(DATE dt) {
+    checkedPacketForm() <- NULL;
+    filterPacketForm() <- NULL;
+
+    filterLotPacking(Packet p) <- NULL;
+    filterLotPacking(Packet p) <- TRUE WHERE (NOT currentBinPacketLedger(p) OR currentBinPacketLedger(p) IS PurchaseReturn.UserShipmentPacketDetail)
+        AND (dateTime(maxPacketingDetail(p)) >= DATETIME(dt) OR dateTime(currentBinPacketLedger(p)) >= DATETIME(dt));
+    formRefresh();
+}
+
+@defineOption(quantityDaysLotPacking, 'Кол-во дней назад на форме упаковки марок в пакеты (если не указано, то 14)', INTEGER, WMS);
+
+FORM lotPacking 'Упаковка марок в пакеты'
+    OBJECTS dt = DATE PANEL
+    PROPERTIES date 'Дата с' = VALUE(dt)
+    PROPERTIES allowReturnFromBuyer()
+
+    OBJECTS p = Packet
+    PROPERTIES(p) READONLY isClosed, id, currentSkuList, currentQuantity, countLotsPacket, completeLotPacket
+    PROPERTIES(p) open SHOWIF isClosed(p), close SHOWIF isOpened(p)
+    FILTERS filterLotPacking(p)
+
+    PROPERTIES SHOWIF isOpened(p) clearPacketLots(p), addPacketLots(p)
+    PROPERTIES fillFilterLotPacket(dt) DRAW p TOOLBAR
+
+    FILTERGROUP openP FILTER 'Открыт' isOpened(p) 'F6' DEFAULT
+
+    OBJECTS is = STRING[200] PANEL
+    PROPERTIES idScanLotPacking = VALUE(is) ON CHANGE seekPacket(p) EVENTID 'SCANNER'
+
+    OBJECTS pp = Packet PANEL
+    PROPERTIES(pp) READONLY id BACKGROUND backgroundPacketPanel(pp), currentQuantity, countLotsPacket // BACKGROUND backgroundCountLotsPacketPanel(pp)
+    FILTERS pp = p
+
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, idBarcodeSku, idArticleSku, nameSku
+    PROPERTIES SHOWIF isOpened(p) deletePacketLot(l)
+    FILTERS packet(l) == p
+
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY idBarcode, name
+    PROPERTIES (s) READONLY idArticle, nameSize, nameSort, idColor, nameColor
+    PROPERTIES (s, p) READONLY currentQuantity, countLotsPacket
+    FILTERGROUP notEquals FILTER 'С расхождениями' NOT (countLotsPacket(s, p) == currentQuantity(s, p))
+    FILTERS currentQuantity(s, p)
+
+    EVENTS ON INIT {
+        SEEK lotPacking.dt = subtract(currentDate(), (OVERRIDE quantityDaysLotPacking(), 14));
+        fillFilterLotPacket(dt);
+    }
+    EVENTS ON CHANGE dt fillFilterLotPacket(dt);
+;
+
+checkFilterForm(Packet p) + {
+    checkedPacketForm() <- TRUE;
+    filterPacketForm() <- [FILTER lotPacking.p](p);
+}
+
+DESIGN lotPacking {
+    NEW header {
+        alignment = STRETCH;
+        horizontal = TRUE;
+        caption = 'Фильтры';
+        MOVE PROPERTY(date);
+        MOVE PROPERTY(allowReturnFromBuyer());
+    }
+    NEW packetLine {
+        alignment = STRETCH;
+        horizontal = TRUE;
+        MOVE PROPERTY(id(pp)){ font = 'bold 80'; caption = ''; charWidth = 9;}
+        MOVE PROPERTY(currentQuantity(pp)){ font = 'bold 80'; caption = 'Товаров'; charWidth = 3;}
+        MOVE PROPERTY(countLotsPacket(pp)){ font = 'bold 80'; caption = 'Марок' ;charWidth = 3;}
+    }
+    MOVE BOX(p) {
+        fill = 1;
+        caption = 'Доступные пакеты';
+        PROPERTY(fillFilterLotPacket(dt)) { font = 'bold 12';}
+    }
+    NEW tabContainer {
+        tabbed = TRUE;
+        fill = 1;
+        NEW lotTab {
+            caption = 'Марки';
+            MOVE BOX(l) {
+                TOOLBAR(l) {
+                    MOVE PROPERTY(idScanLotPacking) {
+                        fill = 1;
+                        caption = 'Ввод кода пакета или марки';
+                        focusable = FALSE;
+                        changeKey = 'F4';
+                        charWidth = 25;
+                    }
+                }
+            }
+        }
+        NEW skuTab {
+            caption = 'Товары в пакете';
+            MOVE BOX(s);
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW lotPacking;
+    }
+}
