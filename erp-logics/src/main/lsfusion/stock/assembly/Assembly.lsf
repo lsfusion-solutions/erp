@@ -442,3 +442,17 @@ CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(sku(d)) OR CHANGED(sku(as
 CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(sku(d)) OR CHANGED(sku(assembly(d)))) AND isPosted(d) AND sameUOMCheck(operation(d)) AND
     NOT UOM(sku(d)) == UOM(sku(assembly(d)))
     MESSAGE 'Для текущей операции единицы измерения должны совпадать';
+
+@defineOperationProperty(quantityCheck, 'Запретить расхождение по кол-ву', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(UOM(sku(d))) OR CHANGED(UOM(sku(assembly(d)))) OR CHANGED(quantityAssemblyDetail(assembly(d))) 
+    OR CHANGED(quantity(assembly(d)))) AND isPosted(d) AND quantityCheck(operation(d)) AND
+    (GROUP SUM 1 IF UOM(sku(AssemblyDetail dd)) == UOM(sku(assembly(dd))) AND assembly(dd) == assembly(d)) == countAssemblyDetail(assembly(d)) AND NOT 
+    quantity(assembly(d)) == quantityAssemblyDetail(assembly(d))
+        MESSAGE 'Для текущей операции запрещено расхождение по кол-ву в документе и в строках';
+
+@defineOperationProperty(skuCheck, 'Запретить одинаковые товары', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(AssemblyDetail d)) OR CHANGED(sku(d)) OR CHANGED(sku(assembly(d)))) AND isPosted(d) AND
+    skuCheck(operation(d)) AND sku(d) == sku(assembly(d))
+    MESSAGE 'Для текущей операции запрещены одинаковые товары в документе и в строках';
