@@ -117,17 +117,28 @@ FORM addItemsEZ 'Добавление товара по GTIN'
 ;
 
 exception 'Сообщение' = DATA TEXT (LotOrder);
-handleException (LotOrder o, FILE exception) {
+
+
+
+handleException (LotOrder o, FILE exception, STRING[14] gtin) {
     logToFile('ez', messageCaughtException());
     
     logToFile('ez', exception);
+    LOCAL message, error = STRING();
+    
+    IMPORT JSON FROM exception TO() error, message;
+    
     fileToString(exception);
     MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
-
-    NEWSESSION NESTED (messageCaughtException, resultString) {
-        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+    
+    NEWSESSION NESTED (messageCaughtException, error, message) {
+        exception(o) <- CONCAT '\n', exception(o) + '\n', currentDateTime(), messageCaughtException(), CONCAT '; ', 'GTIN: ' + gtin, 'Код ошибки: ' + error(), 'Описание: ' + message();
         APPLY;
     }
+}
+
+handleException (LotOrder o, FILE exception) {
+    handleException (o, exception, NULL);
 }
 
 findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
@@ -139,13 +150,14 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     
     LOCAL result = FILE();   
     
-    exception(o) <- NULL;
+//    exception(o) <- NULL;
     ezToken() <- token(legalEntityStock(o));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
-        handleException(o, result());
+        handleException(o, result(), gtin);
+        CANCEL;
         RETURN;
     }       
     fileToString(result());
@@ -165,13 +177,14 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
     
     LOCAL result = FILE();   
     
-    exception(o) <- NULL;
+//    exception(o) <- NULL;
     ezToken() <- token(legalEntityStock(o));
     
     TRY {
         EXTERNAL HTTP POST urlEZ() + '/items/addByGtin' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
-        handleException(o, result());
+        handleException(o, result(), gtin);
+        CANCEL;
         RETURN;
     }       
     fileToString(result());
@@ -221,6 +234,7 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
         
         IF (GROUP SUM 1 IF notFound(STRING[14] gtin)) THEN {
             MESSAGE ('Не найдены товары со следующими GTIN: ' + GROUP CONCAT STRING[14] gtin IF notFound(gtin), ', ' ORDER gtin) NOWAIT;
+            CANCEL;
             RETURN;
         }
             
@@ -232,13 +246,14 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
                
         LOCAL result = FILE();    
           
-        exception(o) <- NULL;
+//        exception(o) <- NULL;
         ezToken() <- token(legalEntityStock(o));
         
         TRY {
             EXTERNAL HTTP POST urlEZ() + '/items/checkGtin' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
         } CATCH {
             handleException(o, result());
+            CANCEL;
             RETURN;
         }       
         fileToString(result());       
@@ -254,6 +269,7 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
     
     IF (GROUP SUM 1 IF notCheck(STRING[14] gtin)) THEN {
         MESSAGE ('Отсутствует признак регистрации для следующих GTIN: ' + GROUP CONCAT STRING[14] gtin IF notCheck(gtin), ', ' ORDER gtin) NOWAIT;
+        CANCEL;
         RETURN;
     }
 }
@@ -264,7 +280,7 @@ countImportedLotOrder () =  DATA LOCAL INTEGER ();
 GROUP file;
 
 EXTEND FORM lotOrders
-    PROPERTIES(o) READONLY exception PANEL SHOWIF exception(o)
+    PROPERTIES(o) READONLY PANEL SHOWIF exception(o) exception
 ;
 DESIGN lotOrders {
     ez {
@@ -289,19 +305,23 @@ addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + cod
 indexGtin(LotOrderDetail d) = indexGtin(lotOrder(d), gtin(d));
 indexGtin100(LotOrderDetail d) = indexGtin100(lotOrder(d), gtin(d));
 
-addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {    
+addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
+    exception(o) <- NULL;
+    APPLY;
     checkGTINEZ(o);
     
     IF NOT (GROUP SUM 1 IF isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;    
     IF (GROUP SUM 1 IF NOT isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;   
 
     IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
-        MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT; 
+        MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT;
+        CANCEL;
         RETURN;
     }
 
     IF NOT identificationMeansType(o) THEN {
         MESSAGE 'В документе не заполнен Вид средства идентификации' NOWAIT;
+        CANCEL;
         RETURN;
     }
 
@@ -312,13 +332,14 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
             LOCAL result = FILE();
             fileToString(resultFile());
 //            MESSAGE resultString();
-            exception(o) <- NULL;
+//            exception(o) <- NULL;
             ezToken() <- token(legalEntityStock(o));
         
             TRY {
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
             } CATCH {
                 handleException(o, result());
+                CANCEL;
                 RETURN;
             }
             
@@ -436,6 +457,7 @@ checkStatus 'Проверить статус' (LotOrder o) {
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
             } CATCH {
                 handleException(o, result());
+                CANCEL;
                 RETURN;
             }
             
@@ -535,6 +557,7 @@ importLotCodes 'Получить марки' (LotOrder o) {
                 EXTERNAL HTTP GET urlEZ() + '/downloads/' + fileName() HEADERS ezHeadersLotOrder TO result;
             } CATCH {
                 handleException(o, result());
+                CANCEL;
                 RETURN;
             }
             LOCAL idLoc = STRING (INTEGER); 
