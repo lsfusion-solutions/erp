@@ -1,0 +1,104 @@
+MODULE PurchaseShipmentLotInitBy;
+
+REQUIRE PurchaseShipmentLot, ShipmentLotInit, LotBy, EZLotInitTextile;
+
+NAMESPACE Purchase;
+
+lotInit 'Документ маркировки' (UserShipment s) = GROUP LAST LotInit l ORDER l BY documentLotInit(l) MATERIALIZED;
+editLotInit 'Редактировать документ маркировки' (UserShipment s) { SHOW EDIT LotInit = lotInit(s) MANAGESESSION DOCKED; }
+descriptionLotInit 'Документ маркировки' (UserShipment s) = description(lotInit(s)) IF lotInit(s);
+
+CONSTRAINT (SETCHANGED(quantity(LotInitDetail d, Lot l)) OR SET(isPosted(d))) AND isPosted(d) AND quantity(d, l) AND NOT isBY(l)
+    AND documentLotInit(d) IS UserShipment
+    MESSAGE 'Запрещено вводить в оборот не РБ марки по документу Поставка(закупка)';
+
+autoCreateLotInit = DATA LOCAL BOOLEAN();
+
+overCreateLotInit  ABSTRACT LIST (UserShipment, LotInit);
+
+quantityBYLot = GROUP SUM 1 IF quantity(UserShipmentDetail sd, Lot l) AND isBY(l) BY userShipment(sd);
+quantityBYLot (UserShipmentDetail sd) = GROUP SUM 1 IF quantity(sd, Lot l) AND isBY(l);
+
+createLotInit 'Создать ввод марок в оборот' (UserShipment s) {
+    IF autoCreateLotInit() AND (NOT defaultDataLotInitFilled() OR lotInit(s) OR NOT quantityLot(s)) THEN RETURN;
+    ELSE {
+        IF NOT defaultDataLotInitFilled() THEN { MESSAGE 'Для ввода марок в оборот должны быть заполнены значения маркировки по умолчанию' NOWAIT; RETURN; }
+        IF lotInit(s) THEN { MESSAGE 'Документ поставки уже содержит документ маркировки' NOWAIT; RETURN; }
+        IF NOT quantityBYLot(s) THEN { MESSAGE 'Документ не содержит марок РБ, ввод в оборот невозможен' NOWAIT; RETURN; }
+    }
+
+    NEWSESSION NESTED (autoCreateLotInit) NEW i = LotInit {
+        documentLotInit(i) <- s;
+        skipLotLedger(i) <- TRUE;
+        isPosted(i) <- TRUE;
+        date(i) <- currentDate();
+        time(i) <- currentTime();
+        type(i) <- defaultLotType();
+        stock(i) <- customerStock(s);
+        mode(i) <- defaultLotInitMode();
+        method(i) <- defaultLotInitMarkingMethod();
+
+        overCreateLotInit(s, i);
+
+        FOR userShipment(UserShipmentDetail sd) == s AND quantityBYLot(sd) NEW id = LotInitDetail DO {
+            lotInit(id) <- i;
+            sku(id) <- sku(sd);
+            FOR quantity(sd, Lot l) AND isBY(l) AND NOT lastLotInit(l) DO {
+                quantity(id, l) <- quantity(sd, l);
+            }
+            quantity(id) <- GROUP SUM count(Lot l) IF quantity(id, l);
+        }
+        FOR lotInit(LotInitDetail id) == i AND NOT quantityLot(id) DO DELETE id;
+        IF NOT countLotInitDetail(i) THEN {
+            IF NOT autoCreateLotInit() THEN MESSAGE 'Отсутствуют марки, соответствующие условиям ввода в оборот';
+            DELETE i;
+        }
+        APPLY;
+    }
+}
+
+createLotInitAuto(UserShipment s) {
+    autoCreateLotInit() <- TRUE;
+    createLotInit(s);
+}
+
+deleteLotInit 'Удалить ввод марок в оборот' (UserShipment s) {
+    IF lotInit(s) THEN NEWSESSION {
+        DELETE LotInit l WHERE documentLotInit(l) == s;
+        APPLY;
+    }
+} CONFIRM;
+
+EXTEND FORM userShipment
+    PROPERTIES(s) createLotInit SHOWIF NOT lotInit(s) AND quantityBYLot(s), deleteLotInit SHOWIF lotInit(s),
+        descriptionLotInit SHOWIF lotInit(s) ON CHANGE editLotInit(s)
+;
+
+DESIGN userShipment {
+    headerExtraParams {
+        NEW headerLotInit {
+            caption = 'Маркировка';
+            horizontal = TRUE;
+            showIf = useLot(s);
+            MOVE PROPERTY(createLotInit(s));
+            MOVE PROPERTY(descriptionLotInit(s)) { caption = ''; }
+            MOVE PROPERTY(deleteLotInit(s));
+        }
+    }
+}
+
+EXTEND FORM shipments
+    PROPERTIES(s) READONLY descriptionLotInit
+;
+
+WHEN SET(isPosted(UserShipment s)) AND defaultDataLotInitFilled() AND quantityBYLot(s) AND useLot(s) AND NOT lotInit(s) DO {
+    createLotInitAuto(s);
+}
+
+WHEN DROPPED(isPosted(UserShipment s)) AND lotInit(s) DO {
+    deleteLotInit(s);
+}
+
+CONSTRAINT DROPPED(isPosted(UserShipment s)) AND hasReportActions(lotInit(s))
+    MESSAGE 'Запрещено распроводить поставку-закупка, к которой есть документ маркировки, по которому уже был отчёт';
+

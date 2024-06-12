@@ -1,0 +1,45 @@
+MODULE EZLotInitTextile;
+
+REQUIRE EZLotInit, LotTextile, LotInitLedger;
+
+NAMESPACE Lot;
+
+skipLotLedger = DATA BOOLEAN (LotInit);
+skipLotLedger(LotInitDetail d) += skipLotLedger(lotInit(d));
+
+defaultLotType 'Тип маркировки по умолчанию' = DATA LotType ();
+defaultLotInitMode 'Режим маркировки по умолчанию' = DATA LotInitMode ();
+defaultLotInitMarkingMethod 'Способ маркировки по умолчанию' = DATA LotInitMarkingMethod ();
+
+nameDefaultLotType 'Тип маркировки по умолчанию' = name(defaultLotType());
+nameDefaultLotInitMode 'Режим маркировки по умолчанию' = name(defaultLotInitMode());
+nameDefaultLotInitMarkingMethod 'Способ маркировки по умолчанию' = name(defaultLotInitMarkingMethod());
+
+extraDefaultLotInit = ABSTRACT BOOLEAN ();
+needExtraDefaultLotInit = ABSTRACT BOOLEAN ();
+
+defaultDataLotInitFilled 'Значения по умолчанию заполнены' () = TRUE IF
+    (defaultLotType() AND defaultLotInitMode() AND defaultLotInitMarkingMethod()) AND (extraDefaultLotInit() OR NOT needExtraDefaultLotInit());
+
+EXTEND FORM options
+    PROPERTIES nameDefaultLotType(), nameDefaultLotInitMode(),
+        nameDefaultLotInitMarkingMethod()
+;
+
+DESIGN options {
+    lotInit {
+        NEW defaultContainer {
+            caption = 'Значения по умолчанию для документа Маркировка';
+            MOVE PROPERTY(nameDefaultLotType());
+            MOVE PROPERTY(nameDefaultLotInitMode());
+            MOVE PROPERTY(nameDefaultLotInitMarkingMethod());
+        }
+        NEW additionContainer { caption = 'Дополнительные параметры'; }
+    }
+}
+
+lastLotInit 'В обороте' (Lot l) = GROUP LAST LotInit i IF quantity(i, l) ORDER i MATERIALIZED;
+
+countReportEZ 'Кол-во строк отчета ЭЗ' (LotInit i) = GROUP SUM 1 IF lotInit(ReportEZ r) == i;
+isEZLotInit 'Совершены действия с ЭЗ' (LotInit i) = TRUE IF countReportEZ(i);
+hasReportActions 'Совершены действия с отчетом' = ABSTRACT BOOLEAN (LotInit);
