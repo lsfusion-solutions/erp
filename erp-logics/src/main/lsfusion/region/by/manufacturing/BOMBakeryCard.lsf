@@ -4,6 +4,25 @@ REQUIRE  BOMBy, BOMStorage, BOMNutrition;
 
 NAMESPACE BOM;
 
+text 'Выдержка из нормативного документа' = DATA TEXT (StateStandart);
+EXTEND FORM stateStandart
+    PROPERTIES (s) text
+;
+DESIGN stateStandart{
+    OBJECTS {
+        NEW text{
+            //fill = 1;
+            alignment = STRETCH;
+            MOVE PROPERTY (text(s)){
+                fill = 1;
+                //alignment = STRETCH;
+                panelCaptionVertical = TRUE;
+            }
+        }
+    }
+}
+
+
 info 'Доп. условия (ТК)' = DATA STRING (ExpiryCondition) CHARWIDTH 30;
 
 EXTEND FORM expiryCondition
@@ -85,17 +104,19 @@ CLASS OLProperty 'Органолептические показатели';
 TABLE OLPropery (OLProperty);
 
 name '{master.data.name}' = DATA ISTRING[100] (OLProperty) CHARWIDTH 15;
+orderCooking 'Порядок размещения в ТК на кулинарные изделия'  = DATA INTEGER (OLProperty);
+orderConfectionery 'Порядок размещения в ТК на кондитерские изделия'  = DATA INTEGER (OLProperty);
 
 FORM OLProperty 'Органолептический показатель'
     OBJECTS o = OLProperty PANEL
-    PROPERTIES(o) name
+    PROPERTIES(o) name, orderCooking, orderConfectionery
 
     EDIT OLProperty OBJECT o
 ;
 
 FORM OLProperties 'Органолептические показатели'
     OBJECTS o = OLProperty
-    PROPERTIES(o) READONLYIF isReadonly() name
+    PROPERTIES(o) READONLYIF isReadonly() name, orderCooking, orderConfectionery
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -103,7 +124,7 @@ FORM OLProperties 'Органолептические показатели'
 
 FORM dialogOLProperties 'Органолептические показатели'
     OBJECTS o = OLProperty
-    PROPERTIES(o) READONLY name
+    PROPERTIES(o) READONLY name, orderCooking, orderConfectionery
 
     LIST OLProperty OBJECT o
 ;
@@ -230,7 +251,7 @@ recBruttoQuantity (BOM b) = recBruttoQuantity(b, currentDate());
 quantityRound 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantity(component, Sku sku, date));
 drynessQuantity 'Выход готовой продукции в сухих веществах' (Product p) = percentDryness(p) * overNettoNetWeight(p) / 100;
 
-actQuantityBakery 'Кол-во для акта' (BOM b) = OVERRIDE actQuantity(b), 1.0;
+actQuantityBakery 'Кол-во для акта' (BOM b) = OVERRIDE actQuantity(b), 1.0 IF b IS BOM;
 
 quantityH 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity (BOM(material(component)), sku, date) *
     bruttoQuantity(component, date)/
@@ -536,6 +557,12 @@ overCopy(BOM from, BOM to)+{
         description(p)<- description(r);
     }
 }
+companyLocal = DATA LOCAL LegalEntity(BOM);
+nameCompanyLocal 'Компания' (BOM b) = name(companyLocal(b));
+shortNameOwnershipCompanyLocal 'Форма собственности (сокр.)' (BOM BOM)  = shortNameOwnership(companyLocal(BOM));
+
+textStateStandart 'Выдержка из нормативного документа' =  TEXT ([GROUP CONCAT text(StateStandart s) IF in(s, BOM b), '\n' ORDER s BY b](BOM b));
+
 FORM technologicalMapBakery 'Технологическая карта'
 
     OBJECTS dt=DATE PANEL
@@ -545,7 +572,7 @@ FORM technologicalMapBakery 'Технологическая карта'
     PROPERTIES(b)  READONLY nameCompany, shortNameOwnershipCompany, products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightProductGr,
         overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
         nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
-        nameApprover, dateApproverOver, namePositionApprover
+        nameApprover, dateApproverOver, namePositionApprover, nameCompanyLocal, shortNameOwnershipCompanyLocal, textStateStandart
     PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
     OBJECTS p = Product
     PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity
@@ -658,8 +685,8 @@ FORM technologicalMapBakery 'Технологическая карта'
     PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
 
     OBJECTS olp = OLProperty
-    PROPERTIES name(olp) READONLY, value(olp, b)
-    ORDERS name(olp)
+    PROPERTIES name(olp) READONLY, value(olp, b),orderCooking(olp), orderConfectionery(olp)
+    ORDERS orderConfectionery(olp), name(olp)
     FILTERS value(olp, b)
 
     OBJECTS fxp = FXProperty
@@ -680,8 +707,23 @@ resetSelectBOM 'Сбросить отмеченные' () {
     select(BOM b) <- NULL;
 }
 
+
+
+FORM selectCompany 'Организации'
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+        nameLegalEntityGroup
+    PROPERTIES(l) READONLY address, phone, email
+    ORDERS name(l)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERS isCompany(l)
+;
+
 printTechnologicalMapBakery 'Технологическая Карта на кондит.изделия' (BOM bb) {
     IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
+    DIALOG selectCompany OBJECTS l = company(bb) INPUT DO {
+        companyLocal(BOM b) <- l WHERE select(b);
+    }
     FOR select(BOM b) DO PRINT technologicalMapBakery OBJECTS dt = currentDate(), b = b;
     select(BOM b) <- NULL;
 
@@ -815,7 +857,7 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
         overNettoNetWeightProductH, overNettoNetWeightProductHKg, overNettoNetWeightComponent, pricePercent, note, withProducts, overNettoNetWeightH,
         nameResponsiblePerson, fatsItem, carbohydratesItem, proteinsItem, energyItem, energyItemkJ, netEnergyText, recipes,
         nameApprover, dateApproverOver, namePositionApprover, shortNameResponsiblePerson,
-        image
+        image, nameCompanyLocal, shortNameOwnershipCompanyLocal, textStateStandart
     PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b), currentDate()
 
     OBJECTS p = Product
@@ -849,8 +891,8 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
     PROPERTIES (b, dt) netProteinsGramsQuantity, netFatsGramsQuantity, netCarbohydratesGramsQuantity, calcNetEnergyGramsQuantity, calcNetEnergyGramsQuantityD, netEnergyText
 
     OBJECTS olp = OLProperty
-    PROPERTIES name(olp) READONLY, value(olp, b)
-    ORDERS name(olp)
+    PROPERTIES name(olp) READONLY, value(olp, b), orderCooking(olp), orderConfectionery(olp)
+    ORDERS orderCooking(olp), name(olp)
     FILTERS value(olp, b)
 
     OBJECTS fx = FXProperty
@@ -861,7 +903,11 @@ FORM technologicalMapBakeryGG 'Технологическая карта (кул
 ;
 
 printTechnologicalMapBakeryG 'Технологическая Карта на кулинарные изделия' (BOM bb) {
+    companyLocal(BOM b) <- NULL;
     IF NOT (GROUP SUM 1 IF select(BOM b)) THEN select(bb) <- TRUE;
+    DIALOG selectCompany OBJECTS l = company(bb) INPUT DO {
+         companyLocal(BOM b) <- l WHERE select(b);
+    }
     FOR select(BOM b) DO PRINT technologicalMapBakeryGG OBJECTS dt = currentDate(), b = b;
     select(BOM b) <- NULL;
 
