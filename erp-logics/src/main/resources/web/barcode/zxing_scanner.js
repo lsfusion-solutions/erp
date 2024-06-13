@@ -69,6 +69,8 @@ function barcodeRender() {
     return {
         render: function (element) {
             element.id = "videoRenderId";
+            var error = document.createElement("div");
+            error.setAttribute('style', 'text-align: center;font-size: 1.25em;');
             var video = document.createElement("video");
             video.innerText = 'Video stream not available.';
             video.setAttribute('autoplay', '');
@@ -76,6 +78,7 @@ function barcodeRender() {
             video.setAttribute('playsinline', '');
             element.video = video;
             element.appendChild(video);
+            element.appendChild(error);
             navigator.mediaDevices.getUserMedia({ 
                 video: 
                     {
@@ -91,6 +94,7 @@ function barcodeRender() {
             })
             .catch(function(err) {
                 console.log("An error occurred: " + err);
+                error.innerText = 'Нет доступа к видеопотоку.';
             });
             //
             stateFlash = false;
@@ -134,8 +138,8 @@ function stopStreamedVideo() {
     let videoElem = document.getElementById('videoRenderId');
     if (videoElem){
         const stream = videoElem.video.srcObject;
-        const tracks = stream.getTracks();
-        tracks.forEach((track) => {
+        const tracks = stream?.getTracks();
+        tracks?.forEach((track) => {
             track.stop();
         });
         videoElem.video.srcObject = null;
