@@ -1,8 +1,39 @@
 MODULE MachineryPriceTransactionLot;
 
-REQUIRE MachineryPriceTransactionInfo, Lot;
+REQUIRE MachineryPriceTransactionInfo, Lot, SkuLedgerLot;
 
 NAMESPACE Machinery;
 
 info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'lottype';
 
+lotUpload 'Выгружать марки' = DATA BOOLEAN (GroupMachinery);
+lotUpload = GROUP SUM 1 IF lotUpload(GroupMachinery g) BY stock(g) MATERIALIZED ;
+
+in = DATA BOOLEAN (MachineryPriceTransaction, Lot);
+countLot 'Кол-во марок' (MachineryPriceTransaction t) = GROUP SUM 1 IF in(t, Lot l) MATERIALIZED;
+lotType (Lot l) = lotType(sku(l));
+nameLotType 'Тип' (Lot l) = name(lotType(l)) IN itemBase;
+
+EXTEND FORM machineryPriceTransactions
+    OBJECTS lot = Lot
+    PROPERTIES (lot) READONLY id, nameSku, nameLotType
+    FILTERS in(t, lot)
+;
+
+DESIGN machineryPriceTransactions{
+    specContainer{
+        NEW lots{
+            caption = 'Марки';
+            MOVE BOX(lot);
+        }
+    }
+}
+
+createAttributeLot(MachineryPriceTransaction mpt, GroupMachinery gm)  {
+    IF lotUpload(gm) THEN {
+        in(mpt, Lot l) <- TRUE WHERE [GROUP SUM 1 IF in(mpt, Barcode b) BY sku(b)](sku(l)) AND currentBalance(l, stock(gm));
+    }
+}
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    createAttributeLot(mpt,gm);
+}

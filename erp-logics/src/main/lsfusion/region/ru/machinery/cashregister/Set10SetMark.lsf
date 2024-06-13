@@ -1,0 +1,102 @@
+MODULE Set10SetMark;
+
+REQUIRE Set10LotRu, CashRegisterPriceTransactionLot;
+
+NAMESPACE Set10;
+
+urlSetMark 'Url SetMark' = DATA STRING (GroupCashRegister);
+urlSetMark(CashRegisterPriceTransaction t) = urlSetMark(groupCashRegister(t));
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) SHOWIF isSet10(grc) urlSetMark
+;
+
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY(urlSetMark(grc));
+    }
+}
+
+countLot 'Марок' (MachineryPriceTransaction mpt, LotType t) = GROUP SUM 1 IF in(mpt, Lot l) AND lotType(l) = t; 
+uploaded 'Выгружен' = DATA DATETIME (MachineryPriceTransaction, LotType);
+
+productType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'ProductCiggyEntity';
+productType(Sku s) += WHEN lotType(s) = LotType.alcohol OR lotType(s) = LotType.beer THEN 'ProductSpiritsEntity';
+productType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'ProductClothingEntity ';
+
+setCode 'Тип товара' (LotType t) = ABSTRACT CASE INTEGER (LotType);
+setCode(LotType t) += WHEN t = LotType.alcohol THEN 1;
+setCode(LotType t) += WHEN t = LotType.tobacco THEN 2;
+setCode(LotType t) += WHEN t = LotType.shoes THEN 3;
+setCode(LotType t) += WHEN t = LotType.perfumery THEN 4;
+setCode(LotType t) += WHEN t = LotType.lp THEN 5;
+setCode(LotType t) += WHEN t = LotType.tyres THEN 6;
+setCode(LotType t) += WHEN t = LotType.photos THEN 7;
+setCode(LotType t) += WHEN t = LotType.dairy THEN 8;
+setCode(LotType t) += WHEN t = LotType.water THEN 10;
+setCode(LotType t) += WHEN t = LotType.beer THEN 19;
+
+id 'ID' (MachineryPriceTransaction mpt, LotType t) = LONG(mpt) + '_' + setCode(t);
+
+needUpload (MachineryPriceTransaction cpt) = GROUP SUM 1 IF countLot(cpt, LotType t) AND NOT uploaded(cpt, t) AND id(cpt, t) AND NOT canceled(cpt);
+isSetMark(CashRegisterPriceTransaction t) = countLot(t) AND isSet10(groupCashRegister(t)) AND urlSetMark(t);
+
+currentIdSetMark = DATA LONG (GroupMachinery);
+
+FORM setLots
+    OBJECTS m = MachineryPriceTransaction PANEL, t = LotType PANEL
+    PROPERTIES = currentIdSetMark(groupMachinery(m)) EXTID 'id', = IF t IS LotType THEN 1 EXTID 'version',
+        = IF t IS LotType THEN 1 EXTID 'operationType', setCode(t) EXTID 'productType',
+        = idStoreSet(groupMachinery(m)) EXTID 'shop'
+    
+    OBJECTS al = Lot EXTID 'data'
+    PROPERTIES = IF lotType(al) = LotType.alcohol THEN id(al) EXTID 'excise', 
+        = IF lotType(al) != LotType.alcohol AND al IS Lot THEN id(al) EXTID 'mark', 
+        = IF al IS Lot THEN idBarcodeSku(al) EXTID 'barcode'
+    FILTERS lotType(al) = t AND in(m, al)
+    
+;
+
+sendMark 'Выгрузить в SetMark' (CashRegisterPriceTransaction cpt, LotType t){
+    IF urlSetMark(cpt) THEN NEWSESSION {
+        NEWSESSION {currentIdSetMark(groupMachinery(cpt)) <- currentIdSetMark(groupMachinery(cpt)) (+) 1; APPLY; }
+        LOCAL response = FILE ();
+        EXPORT setLots OBJECTS m = cpt, t = t JSON;
+        EXTERNAL HTTP POST urlSetMark(cpt) + '/erp/add_mark' PARAMS exportFile() TO response;
+        uploaded(cpt, t) <- currentDateTime();
+        APPLY;
+    }
+}  
+
+sendMark 'Выгрузить в SetMark' (CashRegisterPriceTransaction cpt){
+    IF countLot(cpt) THEN {
+        FOR countLot(cpt, LotType t) AND id(cpt, t) AND NOT uploaded(cpt, t) DO {
+            sendMark(cpt, t);
+        }
+    }
+}
+sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
+    IF needUpload(t) AND isSetMark(t) THEN NEWSESSION {
+        sendMark(t);
+    }
+}
+
+
+EXTEND FORM machineryPriceTransaction
+    OBJECTS lt = LotType
+    PROPERTIES READONLY id(t, lt), name(lt), countLot(t, lt), setCode(lt)
+    PROPERTIES READONLYIF isReadonly() uploaded(t, lt) 
+    PROPERTIES sendMark(t, lt) TOOLBAR 
+    FILTERS countLot(t, lt)
+;
+
+DESIGN machineryPriceTransaction{
+    pane{
+        NEW setMark{
+            showIf = isSetMark(t);
+            caption = 'SetMark';
+            MOVE BOX (lt);
+        }
+    }
+}
+
