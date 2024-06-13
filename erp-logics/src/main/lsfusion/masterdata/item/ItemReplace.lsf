@@ -17,6 +17,30 @@ newSkuName 'Заменяющий' (ItemReplace rep) = name(newSku(rep));
 newSkuBarcode 'Штрихкод' (ItemReplace rep) = idBarcode(newSku(rep));
 
 isActive 'Акт' = DATA BOOLEAN (ItemReplace);
+notActiveItemReplace 'Не проставлять признак активности на новые замены' = ABSTRACT BOOLEAN (ItemReplace);
+denyChangeIsActive 'Запрет изменения признака активности на форме' = ABSTRACT BOOLEAN (ItemReplace);
+
+afterActivate ABSTRACT LIST (ItemReplace);
+activate 'Активировать' (ItemReplace rep) {
+    NEWSESSION {
+        isActive(rep) <- TRUE;
+        afterActivate(rep);
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
+afterDeactivate ABSTRACT LIST (ItemReplace);
+deactivate 'Деактивировать' (ItemReplace rep) {
+    NEWSESSION {
+        isActive(rep) <- NULL;
+        afterDeactivate(rep);
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
+showActivateActions 'Показать действия активации' = ABSTRACT BOOLEAN (ItemReplace);
+showActivate 'Показ активации' (ItemReplace rep) = showActivateActions(rep) AND NOT isActive(rep);
+showDeactivate 'Показ деактивации' (ItemReplace rep) = showActivateActions(rep) AND isActive(rep);
 
 INDEX oldSku(ItemReplace r), newSku(r);
 INDEX newSku(ItemReplace r), oldSku(r);
@@ -130,7 +154,7 @@ DESIGN selectOldItem {
     REMOVE TOOLBARBOX;
 }
 
-WHEN LOCAL SET(ItemReplace rep IS ItemReplace) DO { date(rep) <- currentDate(); isActive(rep) <- TRUE; }
+WHEN LOCAL SET(ItemReplace rep IS ItemReplace) DO { date(rep) <- currentDate(); isActive(rep) <- TRUE IF NOT notActiveItemReplace(rep); }
 
 FORM itemReplaces 'Замещение товаров'
     OBJECTS gt=GroupType PANEL
@@ -143,7 +167,8 @@ FORM itemReplaces 'Замещение товаров'
     FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
 
     OBJECTS rep = ItemReplace
-    PROPERTIES (rep) oldSkuName, oldSkuBarcode, oldSkuBalance READONLY, isActive, date READONLY, newSkuName ON CHANGE selectNewSku(rep, gt), newSkuBarcode, newSkuBalance READONLY
+    PROPERTIES (rep) oldSkuName, oldSkuBarcode, oldSkuBalance READONLY, isActive READONLYIF denyChangeIsActive(rep), date READONLY, newSkuName ON CHANGE selectNewSku(rep, gt), newSkuBarcode, newSkuBalance READONLY
+    PROPERTIES(rep) activate SHOWIF showActivate(rep), deactivate SHOWIF showDeactivate(rep)
     PROPERTIES (rep) NEW, DELETE
     FILTERS isParent(g, oldSku(rep)) OR isParent(g, newSku(rep)) OR NOT group(gt,oldSku(rep))  
 ;
@@ -182,7 +207,8 @@ NAVIGATOR {
 EXTEND FORM items
     OBJECTS rep = ItemReplace
     PROPERTIES (rep) READONLY oldSkuBarcode, oldSkuName, oldSkuBalance, newSkuBarcode, newSkuName, newSkuBalance   
-    PROPERTIES (rep) isActive AFTER oldSkuBalance(rep)
+    PROPERTIES (rep) isActive READONLYIF denyChangeIsActive(rep) AFTER oldSkuBalance(rep)
+    PROPERTIES(rep) activate SHOWIF showActivate(rep), deactivate SHOWIF showDeactivate(rep)
     FILTERS oldSku(rep) = i OR newSku(rep) = i
     
     FILTERGROUP replaced       
@@ -202,7 +228,7 @@ replaceItem 'Заменить товар' (Item item, GroupType gt)  {
             ELSE { 
                 DIALOG selectNewItem OBJECTS itNew = item INPUT, gt = gt, itOld = item DO {
                     NEW rep = ItemReplace {
-                        isActive(rep) <- TRUE;
+                        isActive(rep) <- TRUE IF NOT notActiveItemReplace(rep);
                         oldSku(rep) <- item;
                         newSku(rep) <- itNew;
                         date(rep) <- currentDate();
