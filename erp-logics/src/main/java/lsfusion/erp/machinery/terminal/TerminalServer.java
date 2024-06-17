@@ -14,6 +14,7 @@ import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 
@@ -372,7 +373,9 @@ public class TerminalServer extends MonitorServer {
                 byte errorCode = 0;
                 String errorText = null;
                 String sessionId = "";
-
+    
+                String idApplication = "";
+                
                 if (command != TEST) {
                     logger.info(getLogPrefix(socket) + "submitting task for socket : " + socket);
                     logger.info(getLogPrefix(socket) + String.format("Command %s", command));
@@ -388,7 +391,6 @@ public class TerminalServer extends MonitorServer {
                             if (params.length >= 3) {
                                 logger.info(getLogPrefix(socket) + "logging user " + params[0]);
 
-                                String idApplication = "";
                                 String applicationVersion = "";
                                 String idStock = "";
                                 String deviceModel = "";
@@ -613,14 +615,14 @@ public class TerminalServer extends MonitorServer {
                         try {
                             logger.info(getLogPrefix(socket) + "requested GetItemHtml");
                             String[] params = readParams(inFromClient);
-                            String idApplication = "";
+                            String idApp = "";
                             if (params.length >= 2) {
                                 String barcode = params[0];
                                 String idStock = params[1];
                                 if (params.length >= 3)
-                                    idApplication = params[2];
+                                    idApp = params[2];
 
-                                priceCheckerLogger.info(getLogPrefix(socket) + String.format("barcode '%s', stock '%s', application '%s'", params[0], params[1], idApplication));
+                                priceCheckerLogger.info(getLogPrefix(socket) + String.format("barcode '%s', stock '%s', application '%s'", params[0], params[1], idApp));
                                 result = readItemHtml(barcode, idStock);
                                 if (result == null) {
                                     errorCode = ITEM_NOT_FOUND;
@@ -898,7 +900,10 @@ public class TerminalServer extends MonitorServer {
                             if (result != null) {
                                 writeBytes(outToClient, result);
                                 writeByte(outToClient, esc);
-                                write(outToClient, String.valueOf(System.currentTimeMillis()));
+                                if (StringUtils.isEmpty(idApplication))
+                                    write(outToClient, String.valueOf(System.currentTimeMillis()));
+                                else
+                                    write(outToClient, getLogicsInstance().getBusinessLogics().topModule);
                                 writeByte(outToClient, esc);
                                 writeBytes(outToClient, String.valueOf(flags));
                                 writeByte(outToClient, esc);
