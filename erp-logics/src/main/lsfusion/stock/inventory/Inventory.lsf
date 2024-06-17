@@ -773,6 +773,12 @@ recalculatePrice 'Пересчитать цены в сличительной в
                 priceBalance(collationSheet, Batch batch)
                     <- prevAccountPriceB(batch, st, dt)
                 WHERE include(inventory(collationSheet), skuLedger(batch, st));
+
+                IF isPrice(inventory(collationSheet)) OR NOT explicitBatchLedger(st) THEN {
+                    sumBalance(collationSheet, Batch batch)
+                        <- NUMERIC[18,4](round(quantityBalance((collationSheet), batch) * priceBalance((collationSheet), batch), currency(st)))
+                        WHERE include(inventory(collationSheet), skuLedger(batch, st));
+                }
             }        
         }
         ELSE {
@@ -789,6 +795,11 @@ recalculatePrice 'Пересчитать цены в сличительной в
                 IF isBatch (collationSheet) THEN {
                     priceBalance(collationSheet, Batch batch)
                         <- prevAccountPriceB(batch, st, dt);
+
+                    IF isPrice(inventory(collationSheet)) OR NOT explicitBatchLedger(st) THEN {
+                        sumBalance(collationSheet, Batch batch)
+                            <- NUMERIC[18,4](round(quantityBalance((collationSheet), batch) * priceBalance((collationSheet), batch), currency(st)));
+                    }
                 }
                 
             } ELSE {
@@ -808,6 +819,12 @@ recalculatePrice 'Пересчитать цены в сличительной в
                 IF isBatch (collationSheet) THEN {
                     priceBalance(collationSheet, Batch batch)
                         <- prevAccountPriceB(batch, st, dt) WHERE include(collationSheet, skuLedger(batch, st));
+
+                    IF isPrice(inventory(collationSheet)) OR NOT explicitBatchLedger(st) THEN {
+                        sumBalance(collationSheet, Batch batch)
+                            <- NUMERIC[18,4](round(quantityBalance((collationSheet), batch) * priceBalance((collationSheet), batch), currency(st)))
+                            WHERE include(inventory(collationSheet), skuLedger(batch, st));
+                    }
                 }
             }
         }
