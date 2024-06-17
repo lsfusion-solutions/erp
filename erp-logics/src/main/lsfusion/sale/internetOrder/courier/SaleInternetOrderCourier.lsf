@@ -14,7 +14,7 @@ setDeliveryTime 'Выбрать время доставки' (InternetOrder o){
 } ASON CONTEXTMENU nameStatus[InternetOrder];
 
 
-captionDelivery (InternetOrder o) = CONCAT ' ', 'Заказ', '№' + number(o), 'c ' + deliveryTimeFromInternetOrder(o),
+captionDelivery 'Описание' (InternetOrder o) = CONCAT ' ', 'Заказ', '№' + number(o), 'c ' + deliveryTimeFromInternetOrder(o),
     'по ' + deliveryTimeToInternetOrder(o) IN id;
 
 filterCourier = ABSTRACT CASE BOOLEAN (InternetOrder);
@@ -106,29 +106,33 @@ DESIGN deliveryCalendar{
     }
 }
 
-CLASS CourierEmployee 'Курьер';
-TABLE courierEmployee (CourierEmployee);
+CLASS Courier 'Курьер' : Employee;
+TABLE courier (Courier);
 
-@defineExternalizable(courierEmployee, STRING[100]);
-firstName 'Имя' = DATA ISTRING[100] (CourierEmployee) CHARWIDTH 10 IN id;
-lastName 'Фамилия' = DATA ISTRING[100] (CourierEmployee) CHARWIDTH 15 IN id;
-fullName 'Полное имя' (CourierEmployee c) = CONCAT ' ', firstName(c), lastName(c) IN id CHARWIDTH 20;
-phone 'Телефон' = DATA STRING[100] (CourierEmployee) CHARWIDTH 10;
-created 'Создан' = DATA DATETIME (CourierEmployee);
-updated 'Обновлен' = DATA DATETIME (CourierEmployee);
-inactive 'Неактивный' = DATA BOOLEAN (CourierEmployee);
+phone 'Телефон' = DATA STRING[100] (Courier) CHARWIDTH 10;
+created 'Создан' = DATA DATETIME (Courier);
 
 FORM couriers 'Курьеры'
-    OBJECTS c = CourierEmployee
-    PROPERTIES (c) READONLY fullName, phone, inactive
+    OBJECTS c = Courier
+    PROPERTIES (c) READONLY name, phone, login, inactive
     PROPERTIES (c) NEWSESSION NEW, EDIT, DELETE
 
-    LIST CourierEmployee OBJECT c
+    LIST Courier OBJECT c
+;
+FORM courier 'Курьер'
+    OBJECTS c = Courier PANEL
+    PROPERTIES(c) objectClassName, lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition, login,
+        sha256Password ON CHANGE changeSHA256Password(c),
+        email, nameMainRole, limitAccess, isLocked, inactive,
+        useClientLocale, userLanguage SHOWIF NOT useClientLocale(c), userCountry SHOWIF NOT useClientLocale(c),
+        userTimeZone, userTwoDigitYearStart
+    
+    EDIT Courier OBJECT  c
 ;
 
 
-courier = DATA CourierEmployee (InternetOrder);
-fullNameCourier 'Курьер' (InternetOrder o) = fullName(courier(o));
+courier = DATA Courier (InternetOrder);
+fullNameCourier 'Курьер' (InternetOrder o) = name(courier(o));
 courierStatus 'Статус доставки' = ABSTRACT STRING (InternetOrder);
 backgroundCourier = ABSTRACT CASE COLOR (InternetOrder);
 
@@ -158,6 +162,10 @@ DESIGN deliveryCalendar{
 
 
 
-
+NAVIGATOR {
+    eShop{
+        NEW couriers;
+    }
+}
 
 
