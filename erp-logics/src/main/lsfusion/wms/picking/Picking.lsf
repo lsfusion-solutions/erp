@@ -382,7 +382,9 @@ countEqualPickingOrderSku 'Кол-во наименований с равным 
 
 quantityPickingDetail 'Кол-во в комплектациях' = GROUP SUM quantity(PickingDetail d) IF NOT notCount(picking(d)) BY pickingOrder(d);
 
-calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder);
+diffQuantityPicking 'Расхождение' = ABSTRACT NUMERIC[16,5](PickingOrder);
+
+calcFull 'Полностью собран' (PickingOrder pickingOrder) = countPickingOrderSku(pickingOrder) == countEqualPickingOrderSku(pickingOrder) AND NOT diffQuantityPicking(pickingOrder);
 calcPart 'Частично собран' (PickingOrder pickingOrder) = quantityPickings(pickingOrder) AND NOT calcFull(pickingOrder);
 
 packQuantity 'Кол-во собранных мест' (pickingOrder) = GROUP SUM packQuantity(Picking picking) BY pickingOrder(picking);
