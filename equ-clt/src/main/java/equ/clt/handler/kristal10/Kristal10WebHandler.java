@@ -706,6 +706,10 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                 }
                                 case "apelsinpay.payment.plugin": {
                                     payments.add(new Payment("apelsinpay", sum));
+                                    break;
+                                }
+                                case "anorbankqr.payment.plugin": {
+                                    payments.add(new Payment("anorbankqr", sum));
                                 }
                             }
                         }
