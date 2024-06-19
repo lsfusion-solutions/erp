@@ -13,7 +13,7 @@ loadDefaultStaticOwnership 'Добавить Формы собственност
 }
 
 loadDefaultOwnership 'Добавить Формы собственности'(ISTRING[100] iname, BPSTRING[10] isname, BPSTRING[3] sidCountry)  { 
-    NEW t = Ownership {
+    FOR isname IS ISTRING[100] AND NOT ownershipShortName(isname) INLINE NEW t = Ownership DO {
         name(t) <- iname;
         shortName(t) <- isname;
         country(t) <- country(sidCountry);
@@ -29,14 +29,14 @@ loadDefaultOwnerships 'Загрузить стандартные формы со
 //--
 
 loadDefaultLegalEntityGroup 'Добавить группы организаций'(ISTRING[100] iname, STRING[100] id)  { 
-    NEW lg = LegalEntityGroup {
+    FOR id IS STRING[100] AND NOT legalEntityGroup(id) INLINE NEW lg = LegalEntityGroup DO {
         name(lg) <- iname;
         id(lg) <- id;
 
     }
 }
-loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)'(ISTRING[100] iname, STRING[100] id, STRING[100] idParent)  { 
-    NEW lg = LegalEntityGroup {
+loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)'(ISTRING[100] iname, STRING[100] id, STRING[100] idParent)  {
+    FOR id IS STRING[100] AND NOT legalEntityGroup(id) INLINE NEW lg = LegalEntityGroup DO {
         name(lg) <- iname;
         id(lg) <- id;
         parent(lg) <- legalEntityGroup(idParent);
@@ -53,7 +53,7 @@ loadDefaultLegalEntityGroups () + {
     loadDefaultRecLegalEntityGroup ('Покупатели', 'customers', 'all');
     loadDefaultRecLegalEntityGroup ('Компании', 'companies', 'all');
     
-    NEW l = LegalEntity {
+    IF NOT legalEntity('company') THEN NEW l = LegalEntity {
         name(l) <- 'Моя организация';
         id(l) <- 'company';
         legalEntityGroup(l) <- legalEntityGroup('companies');
