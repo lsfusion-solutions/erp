@@ -1,0 +1,234 @@
+MODULE EZLotShipsAddSaleInvoice;
+
+REQUIRE LotInit, LotTypeBy, EZLegalEntity, SaleInvoiceConsignmentBy, SaleShipmentLot;
+
+PRIORITY Sale;
+
+NAMESPACE EZ;
+
+// Вид сопроводительного документа (shipping_doc)
+//akt Акт списания
+//aktnedost Акт недостачи
+//aktreorg Акт передачи
+//invoice Инвойс, счёт, счёт-фактура
+//customs Таможенная декларация
+//statdeclaracia Статистическая декларация
+//ttn ТТН – товарно-транспортная накладная
+//tnttn ТН – товарная накладная
+//ettn ЭТТН – электронная товарно-транспортная накладная
+//etn ЭТН – электронная товарная накладная
+
+shipLotPaperInvoiceType 'Тип бумажной накладной при отгрузке марок' = DATA ConsignmentType (Operation);
+nameShipLotPaperInvoiceType 'Тип бумажной накладной при отгрузке марок' (Operation o) = staticCaption(shipLotPaperInvoiceType(o));
+
+EXTEND FORM operation
+    PROPERTIES(o) nameShipLotPaperInvoiceType
+;
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(nameShipLotPaperInvoiceType(o));
+    }
+}
+
+shipping_doc (Invoice i) = IF shipLotPaperInvoiceType(operation(i)) == ConsignmentType.tn2 THEN 'tnttn' ELSE IF shipLotPaperInvoiceType(operation(i)) == ConsignmentType.ttn1 THEN 'ttn' ;
+nomer_tn (Invoice i) = CONCAT '', series(i) ,number(i);
+idEZ = DATA LOCAL NESTED STRING (LegalEntity);
+agent(Invoice i) = INTEGER(idEZ(customer(i)));
+
+shippedEZ 'Отгрузка кодов, ЭЗ' = DATA BOOLEAN (Invoice, Lot);
+
+count(Invoice i, LotType lt) = GROUP SUM quantity(i, Lot lot) IF lt == lotType(sku(lot)) AND quantity(i, lot) AND NOT shippedEZ(i, lot);
+comment(Invoice i) = '' IF i IS Invoice;
+country(Invoice i) = sid(country(customer(i)));
+price(Invoice i, LotType lt ) =  GROUP SUM quantity(InvoiceDetail d, Lot lot) * price(d) IF invoice(d) == i AND lt == lotType(sku(lot)) AND quantity(i, lot) AND NOT shippedEZ(i, lot);
+operation_date(Invoice i) = toChar(date(i), 'YYYY-MM-DD');
+
+// byn933 
+currencyCode = DATA LOCAL NESTED STRING (INTEGER);
+currencyCode (Invoice i) = GROUP MIN currencyCode(INTEGER ii) IF lower(shortName(currency(i))) == substr(currencyCode(ii), 1, 3);
+
+exception 'Сообщение' = DATA TEXT (LegalEntity);
+handleException (LegalEntity o, FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ /contracts/agent', messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+exception 'Сообщение' = DATA TEXT (Invoice, LotType);
+handleException (Invoice o, LotType lt, FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ /ships/add', 'ЭТТН - ' + nomer_tn(o), 'Товарная группа - ' + name(lt), messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o, lt) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+exception 'Сообщение' = DATA TEXT ();
+handleException (FILE exception) {
+    logToFile('ez', messageCaughtException());
+
+    logToFile('ez', exception);
+    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+}
+
+overUNPGetIdEZ = ABSTRACT VALUE STRING (LegalEntity);
+
+getIdEZ (LegalEntity company, LegalEntity le) {
+    LOCAL result = FILE ();
+    LOCAL id = STRING ();
+
+    EXPORT JSON FROM unp = (OVERRIDE overUNPGetIdEZ(le), UNP(le));
+
+    fileToString(exportFile());
+    ezToken() <- token(company);
+
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/contracts/agent' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(le, result());
+        RETURN;
+    }
+
+    fileToString(result());
+
+    IMPORT JSON FROM result() TO() id;
+    idEZ(le) <- id();
+}
+
+FORM currency 'Валюта'
+    OBJECTS inner = INTEGER
+    PROPERTIES (inner) currencyCode EXTID 'code'
+;
+
+getCurrencyEZ (LegalEntity company) {
+    // если справочник уже получен
+    IF GROUP MIN currencyCode(INTEGER i) THEN RETURN;
+
+    LOCAL result = FILE ();
+    ezToken() <- token(company);
+
+    TRY {
+        EXTERNAL HTTP POST urlEZ() + '/directories/currency' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        handleException(result());
+        RETURN;
+    }
+
+    fileToString(result());
+
+    IMPORT currency FROM JSONFILE (result());
+}
+
+ship = DATA INTEGER (Invoice, LotType);
+lotType (InvoiceDetail d) = lotType(sku(d));
+
+existLotDetail(Invoice i, LotType lt) = GROUP MIN Lot lot IF quantity(i, lot) AND lt == lotType(sku(lot));
+existNotSentLotDetail(Invoice i, LotType lt) = GROUP MIN Lot lot IF quantity(i, lot) AND lt == lotType(sku(lot)) AND NOT shippedEZ(i, lot);
+existLotDetail(Invoice i) = GROUP MIN existLotDetail(i, LotType lt) IF i IS Invoice AND lt IS LotType;
+existNotSentLotDetail(Invoice i) = GROUP MIN existNotSentLotDetail(i, LotType lt) IF i IS Invoice AND lt IS LotType;
+shippedEZ 'Отгрузка кодов, ЭЗ' (Invoice i) = i IS Invoice AND NOT existNotSentLotDetail(i) AND existLotDetail(i);
+
+existLotDetail(InvoiceDetail d, LotType lt) = GROUP MIN Lot lot IF quantity(d, lot) AND lt == lotType(sku(lot));
+existNotSentLotDetail(InvoiceDetail d, LotType lt) = GROUP MIN Lot lot IF quantity(d, lot) AND lt == lotType(sku(lot)) AND NOT shippedEZ(invoice(d), lot);
+existLotDetail(InvoiceDetail d) = GROUP MIN existLotDetail(d, LotType lt) IF d IS InvoiceDetail AND lt IS LotType;
+existNotSentLotDetail(InvoiceDetail d) = GROUP MIN existNotSentLotDetail(d, LotType lt) IF d IS InvoiceDetail AND lt IS LotType;
+shippedEZ 'Отгрузка кодов, ЭЗ' (InvoiceDetail d) = d IS InvoiceDetail AND NOT existNotSentLotDetail(d) AND existLotDetail(d);
+
+existLotNotShippedEZ(Invoice i, Sku sku) = GROUP MIN Lot l IF quantity(i, l) AND sku(l) == sku AND NOT shippedEZ(i, l);
+invoiceDetail(Invoice i, Sku sku) = GROUP MIN InvoiceDetail d BY invoice(d), sku(d);
+invoicePrice(Invoice i, Sku sku) = invoicePrice(invoiceDetail(i, sku));
+invoicePriceVAT(Invoice i, Sku sku) = invoicePrice(invoiceDetail(i, sku)) - price(invoiceDetail(i,  sku));
+
+trunc = FORMULA INTEGER 'trunc($1)';
+
+rub 'Рубли (цена за базовую единицу до)' (NUMERIC n) = trunc(n);
+kop 'Копейки (цена за базовую единицу до)' (NUMERIC n) = lpad((OVERRIDE STRING[2](round0(abs(rub(n) (-) n) * 100.0)), '' IF n), 2, '0');
+
+product_cost (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePrice(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePrice(i, sku))), '00');
+product_tax (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePriceVAT(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePriceVAT(i, sku))), '00');
+
+addInfoShipsAdd(Invoice i, Sku sku) = '"' + lpad(gtin(sku), 14, '0') + '"' + ': \{' + '"product_cost":"' + product_cost(i, sku) + '",' +'"product_tax":"' + product_tax(i, sku) +'"\}';
+
+addInfoShipsAdd (Invoice i, LotType lt) =
+    '"eas_products": \{' +
+        (GROUP CONCAT addInfoShipsAdd(i, Sku sku) IF existLotNotShippedEZ(i, sku) AND lotType(sku) == lt, ', ' ORDER gtin(sku),sku) +
+        '\}';
+
+FORM shipsAdd 'Отгрузка кодов'
+    OBJECTS ilt = (i = Invoice, lt = LotType) EXTID 'value'
+    PROPERTIES (i) shipping_doc, nomer_tn, agent, country, currencyCode EXTID 'currency', operation_date
+    PROPERTIES (i, lt) count, price
+
+    OBJECTS labels = (lot = Lot)
+    PROPERTIES (lot) code EXTID 'value'
+    FILTERS lot IS Lot AND NOT shippedEZ(i, lot) AND quantity(i, lot) AND lotType(sku(lot)) == lt
+;
+
+shipsAddAPIEZ 'Отгрузка марок в ЭЗ' (Invoice i) {
+    NEWSESSION {
+        getIdEZ(supplier(i), customer(i));
+        getCurrencyEZ(supplier(i));
+
+        LOCAL result = FILE ();
+        LOCAL ship = INTEGER ();
+
+        FOR existNotSentLotDetail(i, LotType lt) AND lt IS LotType DO {
+            EXPORT shipsAdd OBJECTS i = i, lt = lt JSON;
+
+            LOCAL strResult = STRING ();
+            fileToString(exportFile());
+            strResult() <- replace(replace(STRING(resultString()),'\{',''),'\}','');
+            strResult() <- CONCAT '', '\{', strResult(), ', ' + addInfoShipsAdd(i, lt), '\}';
+            stringToFile(strResult());
+
+            ezToken() <- token(supplier(i));
+
+            TRY {
+                EXTERNAL HTTP PUT urlEZ() + '/ships/add' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+            } CATCH {
+                fileToString(result());
+                handleException(i, lt, result());
+                RETURN;
+            }
+
+            ship() <- NULL;
+            IMPORT JSON FROM result() TO() ship;
+            ship(i, lt) <- ship();
+            shippedEZ (i, Lot lot) <- TRUE WHERE ship(i, lt) AND quantity(i, lot) AND lt == lotType(sku(lot));
+
+            APPLY;
+        }
+    }
+}
+
+toShipEZ(Invoice i) = shipLotPaperInvoiceType(operation(i)) AND existNotSentLotDetail(i) AND isPosted(i);
+
+shipsAddEZ 'Отгрузка марок в ЭЗ' (DATE dFrom) {
+    FOR date(Invoice i) >= dFrom AND toShipEZ(i) DO {
+        shipsAddAPIEZ(i);
+    }
+}
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY shippedEZ, quantityLot
+    PROPERTIES(i) shipsAddAPIEZ SHOWIF toShipEZ(i)
+    PROPERTIES(d) READONLY shippedEZ, quantityLot
+;
+
+DESIGN invoices {
+    actionContainer {
+        MOVE PROPERTY(shipsAddAPIEZ(i));
+    }
+}
