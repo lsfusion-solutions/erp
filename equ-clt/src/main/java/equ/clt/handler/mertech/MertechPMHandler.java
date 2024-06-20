@@ -30,32 +30,30 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static equ.clt.handler.HandlerUtils.safeMultiply;
-
 public class MertechPMHandler extends MultithreadScalesHandler {
     
     private class ProductFileClass {
         @JsonProperty("categories")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         List<Category> categories; //Список категорий
-        //List<LabelTemplate> labelTemplates; //Список шаблонов этикетки
         @JsonProperty("messages")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         List<Message> messages; //Список сообщений (для состава или описания товара)
-        //List<ProductRate> productRates; //Список рейтингов товаров
         @JsonProperty("products")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         List<Product> products; //Список товаров
-        //List<LotOfProduct> lotsOfProduct; //Список партий товаров
     }
 
     private class Category {
+        @JsonProperty("idCategory")
+        int idCategory; //ID категории
+        @JsonProperty("name")
+        String name; //Название категории
+        
         Category(int idCategory, String name) {
             this.idCategory = idCategory;
             this.name = name;
         }
-        int idCategory; //ID категории
-        String name; //Название категории
     }
 
 /*
@@ -74,46 +72,20 @@ public class MertechPMHandler extends MultithreadScalesHandler {
 */
 
     private class Message {
+        @JsonProperty("id")
+        int id; //ID сообщения
+        @JsonProperty("value")
+        String value; //Текст сообщения (для состава или описания товара)
+        @JsonProperty("deleted")
+        boolean deleted; //Признак удалёного элемента
+    
         Message(int id, String value, boolean deleted) {
             this.id = id;
             this.value = value;
             this.deleted = deleted;
         }
-        int id; //ID сообщения
-        String value; //Текст сообщения (для состава или описания товара)
-        boolean deleted; //Признак удалёного элемента
     }
-
-/*
-    private class ProductRate {
-        ProductRate(int idProduct, String startDate, String updateDate, Float rate) {
-            this.idProduct = idProduct;
-            this.startDate = startDate;
-            this.updateDate = updateDate;
-            this.rate = rate;
-        }
-        int idProduct; //ID товара
-        String startDate; //С какой даты ведётся подсчёт
-        String updateDate; //Дата последнего обновления рейтинга
-        Float rate; //Рейтинг
-    }
-*/
-
-/*
-    private class LotOfProduct {
-        LotOfProduct(int id, int productCode, String manufactureDate, String shelfLifeDateTime) {
-            this.id = id;
-            this.productCode = productCode;
-            this.manufactureDate = manufactureDate;
-            this.shelfLifeDateTime = shelfLifeDateTime;
-        }
-        int id; //ID партии товара
-        int productCode; //Код товара
-        String manufactureDate; //Дата производства
-        String shelfLifeDateTime; //Дата и время срока годности
-    }
-*/
-
+    
     private class Product {
         //Идентификаторы
         @JsonProperty("id")
@@ -125,11 +97,9 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("pluNumber")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         String pluNumber; //? ПЛУ товара
-/*
         @JsonProperty("buttonNumber")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer buttonNumber; //? Номер кнопки
-*/
 /*
         @JsonProperty("gtin")
         @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -138,11 +108,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         //Цены
         @JsonProperty("price")
         Double price; //Цена
-/*
         @JsonProperty("discountPrice")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Double discountPrice; //? Цена со скидкой
-*/
+        
         //Датирование
         @JsonProperty("manufactureDate")
         @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -187,6 +156,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("labelTemplate")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer labelTemplate; //? Приоритетный шаблон этикетки
+
 /*
         @JsonProperty("labelDiscountTemplate")
         @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -212,12 +182,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("maxWeight")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Double maxWeight; //? Максимальный вес для печати этикетки
-*/
-        //Распознавание
-/*
-        @JsonProperty("learningModeEnabled")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Boolean learningModeEnabled; //? Флаг дообучения товара.
 */
     }
     
@@ -441,22 +405,13 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    
-    
     @Override
     protected String getLogPrefix() {
-        return "Mertech: ";
+        return "Mertech PM: ";
     }
     
     protected byte[] getPassword() {
-        String pass = "1234";
-        if(pass.length() > 4) {
-            pass = pass.substring(0, 4);
-        }
-        while (pass.length() < 4) {
-            pass = pass + '\u0000';
-        }
-        return pass.getBytes();
+        return "1234".getBytes();
     }
     
     private Result sendPacket(Packet packet) {
@@ -480,7 +435,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             bytes.put(packet.commandBytes.array());
         
         try {
-            System.out.println(Hex.encodeHexString(bytes.array()));
+            mertechLogger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), Hex.encodeHexString(bytes.array())));
             
             port.getOutputStream().write(bytes.array());
             port.getOutputStream().flush();
@@ -524,16 +479,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                     
                     result.write(buffer[0]);
                     
-                    //System.out.println(Arrays.toString(result.toByteArray()));
-                    
                     if (result.size() > 4 && result.toByteArray()[4] == stx) {
                         
                         LittleEndianDataInputStream stream = new LittleEndianDataInputStream(new ByteArrayInputStream(result.toByteArray()));
+                        
                         int totalLength = stream.readInt();
-                        //System.out.println("totalLength: " + totalLength);
+                        
                         if (result.size() - 4 == totalLength) {
-                            
-                            System.out.println(Hex.encodeHexString(result.toByteArray()));
+    
+                            mertechLogger.info(getLogPrefix() + String.format("ip: %s, << %s", port.getAddress(), Hex.encodeHexString(result.toByteArray())));
                             
                             // 32020000 02 ff ff17 00 2b027b22616e64726f696456657273696f6e223a22362e302e31222c22696d616765457874656e73696f6e5072696f72697479223a226a70672f6a7065672f706e672f626d70222c226d616e756661637475726572223a224d657274656368222c226e6574776f726b496e666f223a5b7b2269704c697374223a5b223139322e3136382e34322e3735225d2c226d6163223a2262302d35382d36372d38302d63332d6638222c226e616d65223a2265746830222c2275736564223a747275657d2c7b2269704c697374223a5b5d2c226d6163223a2264342d39632d64642d39352d38312d3535222c226e616d65223a22776c616e30222c2275736564223a747275657d5d2c2270726f746f636f6c56657273696f6e223a22302e3136222c2272657461696c426f74496e666f223a7b22636c69656e744964223a2230303030222c22656e67696e6556657273696f6e223a22392e322e30222c226669726d7761726556657273696f6e223a22372e392e312e3135227d2c227265766973696f6e223a2231222c227363616c6541707056657273696f6e223a22312e322e33222c227363616c654d6f64656c223a224d2d45522037323520504d2d31352e32222c2273646b56657273696f6e223a223233222c2273657269616c4e756d626572223a223231423630383437222c22736572766963654170704275696c6444617465223a2232392e30332e3234222c227365727669636541707056657273696f6e223a22312e322e352e353632227d
                             stream.readByte(); // stx
@@ -615,7 +569,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return result;
             
         } catch (Exception e) {
-            System.out.println(String.format("error: %s", e));
             return new Result.Error(-1, e.getMessage());
         } finally {
             try {
@@ -789,11 +742,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             product.name = item.name;
             product.code = strPluNumber; //Код товара
             product.pluNumber = strPluNumber; //? ПЛУ товара
-//            product.buttonNumber = null; //? Номер кнопки
+            product.buttonNumber = pluNumber; //? Номер кнопки
 //            product.gtin = null; // ? GTIN
+            
             //Цены
-            product.price = item.price.doubleValue(); //Цена
-//            product.discountPrice = null; //? Цена со скидкой
+            Double price = item.price == null ? 0 : item.price.doubleValue();
+            Double retailPrice = item.retailPrice == null ? null : item.retailPrice.doubleValue();
+            product.price = price; //Цена
+            product.discountPrice = retailPrice; //? Цена со скидкой
+            
             //Датирование
             product.manufactureDate = null; //? Дата производства. Формат "DD-MM-YY"
             product.sellByDate = item.expiryDate == null ? null : item.expiryDate.format(DateTimeFormatter.ofPattern("dd-MM-yy")); //? Дата срока годности. Формат "DD-MM-YY"
@@ -841,7 +798,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             product.deleted = false; //Признак удалёного элемента
             //Этикетка
             product.labelTemplate = item.labelFormat; //? Приоритетный шаблон этикетки
-//            product.labelDiscountTemplate = null; //? Приоритетный шаблон этикетки, если указана цена со скидкой
+            //product.labelDiscountTemplate = null; //? Приоритетный шаблон этикетки, если указана цена со скидкой
             //Штрихкоды
 //            product.barcodePrefixType = null; //? Приоритетный тип префикса штрихкода
 //            product.barcodeStructure = null; //? JSON приоритетных структур штрихкодов
@@ -859,6 +816,8 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             productFileClass.products = products;
         if (!messages.isEmpty())
             productFileClass.messages = messages;
+        if (!categories.isEmpty())
+            productFileClass.categories = categories;
     
         ObjectMapper objectMapper = new ObjectMapper(); //.enable(SerializationFeature.INDENT_OUTPUT);
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
@@ -871,11 +830,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     
     private int getPluNumber(ScalesItem item) {
         return item.pluNumber != null ? item.pluNumber : Integer.parseInt(item.idBarcode);
-    }
-    
-    private void logError(List<String> errors, String errorText, Throwable t) {
-        errors.add(errorText + (t == null ? "" : ('\n' + ExceptionUtils.getStackTraceString(t))));
-        processTransactionLogger.error(errorText, t);
     }
     
     @Override
@@ -905,7 +859,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 cleared = needToClear;
-        
+                
                 mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
                 result = sendProductFile(transaction, needToClear);
                 
