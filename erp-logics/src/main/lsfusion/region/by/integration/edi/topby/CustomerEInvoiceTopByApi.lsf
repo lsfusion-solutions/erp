@@ -1246,8 +1246,15 @@ signAndSendCustomerECreditNote (ECreditNote c, STRING[100] login, STRING[100] pa
                                 logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(c) + ' request succeeded');
                                 MESSAGE provider + ' Акт приемки ' + actDifNumber(c) + (IF isCancel(c) THEN ' (отмена)' ELSE '') + ' выгружена' NOWAIT;
                                 exportedCustomer(c) <- TRUE;
+                                IF isCancel(c) THEN {
+                                    dateTimeCancel(c) <- exportBlradfDateTime();
+                                    documentIdCancel(c) <- STRING[14](resultMilliseconds());
+                                } ELSE {
+                                    dateTime(c) <- exportBlradfDateTime();
+                                    documentId(c) <- STRING[14](resultMilliseconds());
+                                }
                                 NEW em = ECreditNoteMessage {
-                                    number(em) <- STRING[35](resultMilliseconds());
+                                    number(em) <- STRING[14](resultMilliseconds());
                                     eCreditNote(em) <- c;
                                     dateTime(em) <- toDateTimeFormat(toChar(exportBlradfDateTime(),'yyyy-MM-ddThh24:mi:ss'),'yyyy-MM-ddThh24:mi:ss');
                                     code(em) <- (IF isCancel(c) THEN '1' ELSE '9');
