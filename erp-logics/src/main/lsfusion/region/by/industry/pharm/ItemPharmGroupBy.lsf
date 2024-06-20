@@ -92,10 +92,7 @@ TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceI
 
 wholesaleMarkup 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
 retailMarkup 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
-eurCurrency = currencyShortName('EUR') MATERIALIZED;
-usdCurrency = currencyShortName('USD') MATERIALIZED;
-blrCurrency = currencyShortName('BYN') MATERIALIZED;
-pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), usdCurrency(), date);
+pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), currencyShortName('БВ'), date);
 
 wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
     GROUP LAST wholesaleMarkup(PharmacyPriceInterval interval)
@@ -327,3 +324,22 @@ loadDefaultPharmacyPriceGroups 'Загрузить стандартные тип
 }IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPharmacyPriceGroups);
+
+migratePharmRateExchange = DATA BOOLEAN ();
+onStarted() +{
+    IF NOT migratePharmRateExchange() THEN {
+        IF NOT currencyShortName('БВ') THEN NEW c = Currency {
+            shortName(c) <- 'БВ';
+            name(c) <- 'Базовая величина';
+        }
+        FOR TypeExchange t==pharmacyTypeExchange() DO {
+            name(t) <- 'Базовая величина';
+            currency(t) <- currencyShortName('BYN');
+        }
+        FOR rate(pharmacyTypeExchange(), currencyShortName('USD'), DATE date) DO {
+            rate(pharmacyTypeExchange(), currencyShortName('БВ'), date) <- rate(pharmacyTypeExchange(), currencyShortName('USD'), date);
+            rate(pharmacyTypeExchange(), currencyShortName('USD'), date) <- NULL WHERE rate(pharmacyTypeExchange(), currencyShortName('USD'), date);
+        }
+        migratePharmRateExchange() <- TRUE; 
+    }
+}
