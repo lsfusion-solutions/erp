@@ -1,6 +1,6 @@
 MODULE PurchaseEInvoiceLot;
 
-REQUIRE PurchaseEInvoice, PurchaseShipmentLot, EInvoiceLot, LotAggregate;
+REQUIRE PurchaseEInvoice, PurchaseShipmentLot, LotAggregate;
 
 NAMESPACE Purchase;
 
@@ -9,9 +9,6 @@ overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
         id(l) <- barcodeToId(str);
         tail(l) <- barcodeToTail(str);
         sku(l) <- sku(id);
-        dataCount(l) <- (GROUP SUM quantity(EInvoiceLotDetail dd) IF eInvoiceDetail(dd) == eid AND id(dd) == str)
-            IF (GROUP SUM quantity(EInvoiceLotDetail dd) IF eInvoiceDetail(dd) == eid AND id(dd) == str) != 1;
-        //status(l) <- status(tl);
     }
-    quantity(id, Lot l) <- (GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail dd) == eid AND l == lot(id(dd)));
+    quantity(id, Lot l) <- (GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail dd) == eid AND id(l) == barcodeToId(id(dd)));
 }

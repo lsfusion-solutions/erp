@@ -263,10 +263,14 @@ groupPackingCodeMark 'Код упаковки, которая вложена в 
 fieldCodeMark 'Перечень кодов маркировки' = DATA STRING[130000] (EInvoiceDetail) CHARWIDTH 100;
 ///
 
-CLASS ItemIdentification 'Информация о средствах идентификации';
-TABLE itemIdentification(ItemIdentification);
+CLASS EInvoiceLotDetail 'Марки электронной накладной EDI';
+TABLE eInvoiceLotDetail (EInvoiceLotDetail);
 
-eInvoiceDetail = DATA EInvoiceDetail(ItemIdentification) NONULL DELETE INDEXED;
+eInvoiceDetail = DATA EInvoiceDetail (EInvoiceLotDetail) NONULL DELETE INDEXED;
+eInvoice (EInvoiceLotDetail d) = eInvoice(eInvoiceDetail(d));
+
+id 'Код маркировки единицы товара' = DATA STRING[400] (EInvoiceLotDetail);
+quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
 
 
 CLASS ItemExtraField 'Дополнительное поле, описывающее товар';
@@ -380,7 +384,15 @@ FORM eInvoices 'Электронные накладные'
     OBJECTS m = EInvoiceMessage
     PROPERTIES(m) READONLY numberEInvoice, dateTime, nameType, nameKind, code, description, createdNameUser, createdHostnameComputer 
     FILTERS eInvoice(m) == e
-    ORDERS dateTime(m);
+    ORDERS dateTime(m)
+
+    OBJECTS dl = EInvoiceDetail
+    PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
+    FILTERS eInvoice(dl) == e
+
+    OBJECTS eld = EInvoiceLotDetail
+    PROPERTIES(eld) READONLY id, quantity
+    FILTERS eInvoiceDetail(eld) = dl
 ;
 @extendFormEditable(eInvoices);
 
@@ -392,6 +404,13 @@ DESIGN eInvoices {
             tabbed = TRUE;
             MOVE BOX(d);
             MOVE BOX(m);
+            NEW eLotDetail {
+                caption = 'Маркировка';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX(dl);
+                MOVE BOX(eld);
+            }
             NEW actionContainer {
                 caption = 'Действия';
                 horizontal = TRUE;
@@ -459,10 +478,20 @@ FORM eInvoice 'Электронная накладная'
     PROPERTIES (ief) value
     FILTERS eInvoiceDetail(ief) == edf
     
+    OBJECTS dl = EInvoiceDetail
+    PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
+    FILTERS eInvoice(dl) == e
+
+    OBJECTS eld = EInvoiceLotDetail
+    PROPERTIES(eld) READONLY id, quantity
+    FILTERS eInvoiceDetail(eld) = dl
+    
     OBJECTS ef = ExtraField
     PROPERTIES (ef) READONLY name, code
     PROPERTIES (ef) value
     FILTERS eInvoice(ef) == e
+    
+    EDIT EInvoice OBJECT e
 ;
 
 DESIGN eInvoice {
@@ -543,6 +572,13 @@ DESIGN eInvoice {
                         fill = 1;
                         MOVE BOX(edf);
                         MOVE BOX(ief);
+                    }
+                    NEW eLotDetail {
+                        caption = 'Маркировка';
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX(dl);
+                        MOVE BOX(eld);
                     }
                 }
             }
@@ -629,6 +665,8 @@ GROUP shipper EXTID 'Shipper';
 GROUP receiver EXTID 'Receiver';
 GROUP shipTo EXTID 'ShipTo';
 
+GROUP lineItemIdentification EXTID 'LineItemIdentification';
+GROUP fieldCodeMarkHeader EXTID 'FieldCodeMarkHeader' : lineItemIdentification;
 GROUP fieldCostControl EXTID 'FieldCostControl';
 
 //-----------------------------------------Электронный акт приемки----------------------------------------------//
