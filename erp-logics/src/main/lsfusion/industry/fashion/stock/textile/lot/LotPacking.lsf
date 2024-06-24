@@ -1,6 +1,6 @@
 MODULE LotPacking;
 
-REQUIRE Lot, PacketTextile, BinPacketLedger, LabelDirectPrintTextileLot;
+REQUIRE Lot, PacketTextile, BinPacketLedger;
 
 NAMESPACE Lot;
 
@@ -22,16 +22,8 @@ EXTEND FORM packets
 isClosedPacket 'Закрыт' (Lot lot) = isClosed(packet(lot));
 isOpenedPacket 'Открыт' (Lot lot) = isOpened(packet(lot));
 
-skipCheckPrinted = ABSTRACT BOOLEAN (Lot);
-
-CONSTRAINT SET(packet(Lot lot)) AND notPrinted(lot) AND NOT skipCheckPrinted(lot)
-    MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
-
 CONSTRAINT SETCHANGED(packet(Lot lot)) AND isClosedPacket(lot)
     MESSAGE 'Запрещено добавлять марки в закрытый пакет';
-
-CONSTRAINT DROPPED(printed(Lot lot)) AND lot IS Lot AND packet(lot)
-    MESSAGE 'Запрещено отменять признак "Напечатана" у марки, которая в пакете';
 
 countLotsPacket 'Кол-во марок' (Packet packet) = GROUP SUM 1 IF packet(Lot lot) == packet;
 countLotsPacket 'Кол-во марок' (Sku sku, Packet packet) = GROUP SUM 1 IF packet(Lot lot) == packet AND sku(lot) == sku;

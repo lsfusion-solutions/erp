@@ -54,6 +54,8 @@ filterPacketForm = DATA LOCAL BOOLEAN();
 
 allowReturnFromBuyer 'Возврат от покупателя' = DATA LOCAL BOOLEAN();
 
+extraCheckPacking ABSTRACT (Lot);
+extraReturn = DATA LOCAL BOOLEAN ();
 
 seekPacket 'Поиск пакета/марки' (Packet p) {
     INPUT s = STRING[200] DO {
@@ -105,11 +107,6 @@ seekPacket 'Поиск пакета/марки' (Packet p) {
                 RETURN;
             }
 
-            IF notPrinted(lot(inputId())) AND NOT skipCheckPrinted(lot(inputId())) THEN {
-                MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
-                IF errorSoundToCom() THEN soundToCom();
-                RETURN;
-            }
             IF packet(lot(inputId())) != p AND ((isParentLeaf(binGroup(currentBin(packet(lot(inputId())))), binGroup('00'))
                 OR NOT shipmentDate(packet(lot(inputId())))) OR NOT allowReturnFromBuyer()) THEN {
                 MESSAGE 'Запрещено перемещение марок между пакетами без изъятия';
@@ -119,6 +116,12 @@ seekPacket 'Поиск пакета/марки' (Packet p) {
             IF NOT packet(lot(inputId())) AND NOT remainingLotsQuantity(sku(lot(inputId())), p) THEN {  // если выполняется первое, значит хотят достать эту марку
                 MESSAGE 'Пакет уже укомплектован марками по товару, либо марка не подходит';
                 IF errorSoundToCom() THEN soundToCom();
+                RETURN;
+            }
+
+            extraCheckPacking(lot(inputId()));
+            IF extraReturn() THEN {
+                extraReturn() <- NULL;
                 RETURN;
             }
 

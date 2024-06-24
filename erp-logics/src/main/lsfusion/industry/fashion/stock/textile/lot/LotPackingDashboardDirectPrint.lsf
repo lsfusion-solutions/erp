@@ -1,0 +1,19 @@
+MODULE LotPackingDashboardDirectPrint;
+
+REQUIRE LotPackingDashboard, LabelDirectPrintTextileLot;
+
+NAMESPACE Lot;
+
+CONSTRAINT SET(packet(Lot lot)) AND notPrinted(lot)
+    MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
+
+CONSTRAINT DROPPED(printed(Lot lot)) AND lot IS Lot AND packet(lot)
+    MESSAGE 'Запрещено отменять признак "Напечатана" у марки, которая в пакете';
+
+extraCheckPacking (Lot l) + {
+    IF notPrinted(l) THEN {
+        MESSAGE 'Запрещено добавлять в пакет ненапечатанную марку';
+        IF errorSoundToCom() THEN soundToCom();
+        extraReturn() <- TRUE;
+    }
+}
