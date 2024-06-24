@@ -4,14 +4,15 @@ REQUIRE LabelDirectPrintTextile, Lot;
 
 NAMESPACE Label;
 
-stickerTransaction = DATA StickerTransaction(Lot);
+stickerTransaction = DATA StickerTransaction(Lot) INDEXED;
+dateTimeStickerTransaction 'Дата/время печати' (Lot l) = dateTime(stickerTransaction(l));
 printed 'Напечатана' (Lot l) = stickerTransaction(l) AND NOT skipReports(stickerTransaction(l)) MATERIALIZED;
 notPrinted (Lot l) = l IS Lot AND NOT printed(l) MATERIALIZED INDEXED;
 
 countNotPrintedLot 'Кол-во ненапечатанных марок' = GROUP SUM 1 IF notPrinted(Lot l) BY sku(l) MATERIALIZED;
 
 EXTEND FORM lots
-    PROPERTIES(l) READONLY printed AFTER nameSku(l)
+    PROPERTIES(l) READONLY AFTER nameSku(l) printed, dateTimeStickerTransaction
 ;
 
 @defineOption(testDatamatrix, 'Тестовый datamatrix для печати', STRING, items);
