@@ -38,6 +38,7 @@ date 'Дата' (UserInvoicePacketDetail d) = toDate(ledgerDateTime(d)) MATERIAL
 isPosted 'Проведен'(UserInvoicePacketDetail d) = isPosted(userInvoice(d)) MATERIALIZED;
 
 operation (UserInvoicePacketDetail d) = operation(userInvoice(d));
+supplier (UserInvoicePacketDetail d) = supplier(userInvoice(d));
 supplierStock (UserInvoicePacketDetail d) = supplierStock(userInvoice(d));
 customer (UserInvoicePacketDetail d) = customer(userInvoice(d));
 customerStock (UserInvoicePacketDetail d) = customerStock(userInvoice(d));
@@ -122,3 +123,14 @@ CONSTRAINT DROPPED (isPosted(Purchase.UserShipmentPacketDetail d)) AND dateTime(
 
 CONSTRAINT DROPPED (UserPickingPacketDetail pd IS UserPickingPacketDetail) AND dateTime([ GROUP MAX UserInvoicePacketDetail d BY packet(d)](PREV(packet(pd)))) > PREV(dateTime(pd))
     MESSAGE 'Пакет из комплектации добавлен в накладную (продажа)';
+
+skipChangeShipmentDatePosted = ABSTRACT BOOLEAN ();
+
+WHEN SET (isPosted(UserInvoice i)) AND packets(i) AND supplier(i) != customer(i) AND NOT skipChangeShipmentDatePosted() DO {
+    FOR userInvoice(UserInvoicePacketDetail d) == i DO
+        shipmentDate(packet(d)) <- shipmentDate(i);
+}
+
+WHEN DROPPED (isPosted(UserInvoice i)) AND packets(i) AND supplier(i) != customer(i) AND NOT skipChangeShipmentDatePosted() DO
+    FOR userInvoice(UserInvoicePacketDetail d) == i DO
+        shipmentDate(packet(d)) <- NULL;

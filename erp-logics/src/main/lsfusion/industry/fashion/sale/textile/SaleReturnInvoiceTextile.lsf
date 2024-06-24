@@ -176,3 +176,17 @@ WHEN SET (isPosted(UserInvoicePacketDetail d)) AND NOT dateProduction(packet(d))
     FOR packet(PacketingDetail pd) == packet(d) DO
         dateProduction(pd) <- currentDate();
 }
+
+skipChangeShipmentDatePosted = ABSTRACT BOOLEAN ();
+
+WHEN SET (isPosted(UserInvoice i)) AND packets(i) AND supplier(i) != customer(i) AND NOT skipChangeShipmentDatePosted() DO {
+    FOR userInvoice(UserInvoicePacketDetail d) == i DO
+        shipmentDate(packet(d)) <- NULL;
+}
+
+prevSaleInvoicePacketDetailCustomer (UserInvoicePacketDetail rd) = [GROUP LAST Sale.UserInvoicePacketDetail pd IF ledgerDateTime(pd) < ledgerDateTime(rd) AND supplier(pd) != customer(pd) 
+                                                                        ORDER ledgerDateTime(pd), pd BY packet(pd), supplierStock(pd)](packet(rd), supplierStock(rd));
+
+WHEN DROPPED (isPosted(UserInvoice i)) AND packets(i) AND supplier(i) != customer(i) AND NOT skipChangeShipmentDatePosted() DO
+    FOR userInvoice(UserInvoicePacketDetail d) == i DO
+        shipmentDate(packet(d)) <- shipmentDate(userInvoice(prevSaleInvoicePacketDetailCustomer(d)));
