@@ -16,6 +16,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.*;
@@ -46,31 +47,16 @@ public class MertechPMHandler extends MultithreadScalesHandler {
 
     private class Category {
         @JsonProperty("idCategory")
-        int idCategory; //ID категории
+        Integer idCategory; //ID категории
         @JsonProperty("name")
         String name; //Название категории
         
-        Category(int idCategory, String name) {
+        Category(Integer idCategory, String name) {
             this.idCategory = idCategory;
             this.name = name;
         }
     }
-
-/*
-    private class LabelTemplate {
-        LabelTemplate(int id, String name, int height, boolean deleted) {
-            this.id = id;
-            this.name = name;
-            this.height = height;
-            this.deleted = deleted;
-        }
-        int id; //ID шаблона этикетки
-        String name; //? Название
-        int height; //Высота
-        boolean deleted; //Признак удалёного элемента
-    }
-*/
-
+    
     private class Message {
         @JsonProperty("id")
         int id; //ID сообщения
@@ -139,16 +125,11 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("message")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer message; //? ID сообщения (для состава или описания товара)
-/*
+
         @JsonProperty("wrappingType")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer wrappingType; //? Тип упаковки для ленты Мёбиуса
-*/
-/*
-        @JsonProperty("rostestCode")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        String rostestCode; //? Код РОСТЕСТа
-*/
+        
         @JsonProperty("deleted")
         boolean deleted; //Признак удалёного элемента
         
@@ -156,12 +137,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("labelTemplate")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer labelTemplate; //? Приоритетный шаблон этикетки
-
-/*
+        
         @JsonProperty("labelDiscountTemplate")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer labelDiscountTemplate; //? Приоритетный шаблон этикетки, если указана цена со скидкой
-*/
         
         //Штрихкоды
         @JsonProperty("barcodePrefixType")
@@ -170,19 +149,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("barcodeStructure")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         String barcodeStructure; //? JSON приоритетных структур штрихкодов
-
-        //Взвешивание
-/*
-        @JsonProperty("tare")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Double tare; //? Тара
-        @JsonProperty("minWeight")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Double minWeight; //? Минимальный вес для печати этикетки
-        @JsonProperty("maxWeight")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Double maxWeight; //? Максимальный вес для печати этикетки
-*/
     }
     
     private static class Result {
@@ -224,6 +190,18 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 return "statusCode: " + statusCode + ", statusMessage: " + (StringUtils.isEmpty(statusMessage) ? "null" : statusMessage);
             }
         }
+    
+        static class Data extends Result {
+            Object result;
+            
+            public Data(Object result) {
+                super(false, 0, null);
+                this.result = result;
+            }
+            public String toString() {
+                return String.valueOf(result);
+            }
+        }
         
         static class Error extends Result {
             public Error(int errorCode, String errorMessage) {
@@ -247,19 +225,21 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     
     protected final static Logger mertechLogger = Logger.getLogger("MertechLogger");
     
-    private static byte stx = 0x02;
-    private static final byte[] scaleInfo = new byte[] {(byte)0xff, (byte)0x17};
+    private static final byte stx = 0x02;
+    //private static final byte[] scaleInfo = new byte[] {(byte)0xff, (byte)0x17};
     private static final byte[] productFile = new byte[] {(byte)0xff, (byte)0x13};
-    private static final byte[] clearPluAndMessage = new byte[] {(byte)0x18}; // очистка базы товаров и сообщений
-    private static final byte[] clearPlu = new byte[] {(byte)0xB9}; // очистка базы товаров
-    private static final byte[] clearMessage = new byte[] {(byte)0xBA}; // очистка базы сообщений
-    
-    private static final String SUCCESS = "";
-    private static final String SOCKET_READ_TIMEOUT = "Socket read timeout";
-    private static final String SOCKET_READ_ERROR = "Socket read error";
-    private static final String SOCKET_WRITE_ERROR = "Socket read error";
+    //private static final byte[] clearPluAndMessage = new byte[] {(byte)0x18}; // очистка базы товаров и сообщений
+    //private static final byte[] clearPlu = new byte[] {(byte)0xB9}; // очистка базы товаров
+    //private static final byte[] clearMessage = new byte[] {(byte)0xBA}; // очистка базы сообщений
     
     private TCPPort port;
+    private MertechSettings mertechSettings;
+    
+    protected FileSystemXmlApplicationContext springContext;
+    
+    public MertechPMHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
+    }
     
     private static String errorString(int code) {
         switch (code) {
@@ -518,18 +498,24 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     
     public Result sendProductFile(TransactionScalesInfo transaction, boolean needToClear) {
         
+        File tmpFile = null;
+        
         try {
     
-            String json = makeProductsFile(transaction);
+            port.open();
             
-            File tmpFile = File.createTempFile("products", ".json");
+            Result result;
+            
+            result = makeProductsFile(transaction);
+            if (!(result instanceof Result.Data))
+                return result;
+    
+            tmpFile = File.createTempFile("products", ".json");
             FileOutputStream fos = new FileOutputStream(tmpFile);
+            Result.Data data = (Result.Data)result;
+            String json = data.toString();
             fos.write(json.getBytes());
             fos.close();
-            
-            port.open();
-    
-            Result result;
             
             if ((result = sendHashProductFile(tmpFile.getPath(), needToClear)).success()) {
                 
@@ -539,10 +525,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                     int offset = 0;
                     while ((read = fis.read(buffer, 0, buffer.length)) > 0) {
                         if (!(result = sendPartProductFile(fis.available() == 0, offset, read, buffer)).success()) {
+                            if (tmpFile.exists())
+                                tmpFile.delete();
                             return  result;
                         }
                         offset += read;
                     }
+                    
+                    if (tmpFile.exists())
+                        tmpFile.delete();
                     
                     while (true) {
                         result = checkProductFile();
@@ -565,12 +556,21 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                     }
                 }
             }
+    
+            if (tmpFile.exists())
+                tmpFile.delete();
             
             return result;
             
         } catch (Exception e) {
+    
+            if (tmpFile != null && tmpFile.exists())
+                tmpFile.delete();
+            
             return new Result.Error(-1, e.getMessage());
+            
         } finally {
+            
             try {
                 port.close();
             } catch (CommunicationException ignored) {}
@@ -712,19 +712,29 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    private Result clearPluAndMessage() {
-        return clear(clearPluAndMessage);
-    }
+    //private Result clearPluAndMessage() {
+    //    return clear(clearPluAndMessage);
+    //}
+    //private Result clearPlu() {
+    //    return clear(clearPlu);
+    //}
+    //private Result clearMessage() {
+    //    return clear(clearMessage);
+    //}
     
-    private Result clearPlu() {
-        return clear(clearPlu);
-    }
-    
-    private Result clearMessage() {
-        return clear(clearMessage);
-    }
-    
-    private String makeProductsFile(TransactionScalesInfo transaction) throws IOException {
+    private Result makeProductsFile(TransactionScalesInfo transaction) {
+        
+        String barcodeStructureFile = mertechSettings.getBarcodeStructureFile();
+        String barcodeStructureJSON = null;
+        if (!StringUtils.isBlank(barcodeStructureFile)) {
+            try {
+                Path path = Paths.get(barcodeStructureFile);
+                byte[] barcodeStructureData = Files.readAllBytes(path);
+                barcodeStructureJSON = new String(barcodeStructureData, StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                mertechLogger.error(getLogPrefix() + e.getMessage());
+            }
+        }
     
         ProductFileClass productFileClass = new ProductFileClass();
         
@@ -743,13 +753,17 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             product.code = strPluNumber; //Код товара
             product.pluNumber = strPluNumber; //? ПЛУ товара
             product.buttonNumber = pluNumber; //? Номер кнопки
-//            product.gtin = null; // ? GTIN
+            //product.gtin = null; // ? GTIN
             
             //Цены
             Double price = item.price == null ? 0 : item.price.doubleValue();
             Double retailPrice = item.retailPrice == null ? null : item.retailPrice.doubleValue();
             product.price = price; //Цена
-            product.discountPrice = retailPrice; //? Цена со скидкой
+            
+            if (retailPrice != null) {
+                product.price = retailPrice; //? Цена
+                product.discountPrice = price; //? Цена со скидкой
+            }
             
             //Датирование
             product.manufactureDate = null; //? Дата производства. Формат "DD-MM-YY"
@@ -765,24 +779,28 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             }
             
             //Характеристики
-            product.productType = "WEIGHT"; //Тип продукта
+            product.productType = item.splitItem ? "WEIGHT" : "PIECE"; //Тип продукта
             product.pieceWeight = null; //? Вес 1 штуки
             
-            try {
-                Category category = categories.stream()
-                            .filter(it -> it.name.equalsIgnoreCase(item.nameItemGroup))
+            product.category = null;
+            
+            if (item.idItemGroup != null) {
+                try {
+                    int idCategory = Integer.valueOf(item.idItemGroup);
+                    
+                    Category category = categories.stream()
+                            .filter(it -> it.idCategory == idCategory)
                             .findAny()
                             .orElse(null);
-    
-                if (category == null) {
-                    category = new Category(pluNumber, item.nameItemGroup);
-                    categories.add(category);
-                    product.category = pluNumber;
+                    
+                    if (category == null)
+                        categories.add(new Category(idCategory, item.nameItemGroup));
+                    
+                    product.category = idCategory;
                 }
-                else
-                    product.category = category.idCategory;
-                
-            } catch (Exception ignored) {}
+                catch (Exception ignored) {
+                }
+            }
             
             Integer idMessage = null;
             if (!StringUtils.isEmpty(item.description)) {
@@ -790,24 +808,17 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 Message message = new Message(idMessage, item.description, false);
                 messages.add(message);
             }
-            
             product.message = idMessage; //? ID сообщения (для состава или описания товара)
             
-//            product.wrappingType = null; //? Тип упаковки для ленты Мёбиуса
-//            product.rostestCode = null; //? Код РОСТЕСТа
             product.deleted = false; //Признак удалёного элемента
+            
             //Этикетка
-            product.labelTemplate = item.labelFormat; //? Приоритетный шаблон этикетки
-            //product.labelDiscountTemplate = null; //? Приоритетный шаблон этикетки, если указана цена со скидкой
+            product.labelTemplate = mertechSettings.getLabelTemplate(); //? Приоритетный шаблон этикетки
+            product.labelDiscountTemplate = mertechSettings.getLabelDiscountTemplate(); //? Приоритетный шаблон этикетки, если указана цена со скидкой
+            
             //Штрихкоды
-//            product.barcodePrefixType = null; //? Приоритетный тип префикса штрихкода
-//            product.barcodeStructure = null; //? JSON приоритетных структур штрихкодов
-            //Взвешивание
-//            product.tare = null; //? Тара
-//            product.minWeight = null; //? Минимальный вес для печати этикетки
-//            product.maxWeight = null; //? Максимальный вес для печати этикетки
-            //Распознавание
-//            product.learningModeEnabled = null; //? Флаг дообучения товара.
+            product.barcodePrefixType = StringUtils.isBlank(mertechSettings.getBarcodePrefixType()) ? null : mertechSettings.getBarcodePrefixType(); //? Приоритетный тип префикса штрихкода
+            product.barcodeStructure = barcodeStructureJSON; //? JSON приоритетных структур штрихкодов
             
             products.add(product);
         }
@@ -824,8 +835,13 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         //SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm");
         //objectMapper.setDateFormat(df);
         
-        String json = objectMapper.writeValueAsString(productFileClass);
-        return json;
+        try {
+            String json = objectMapper.writeValueAsString(productFileClass);
+            return new Result.Data(json);
+        }
+        catch (Exception e) {
+            return new Result.Error(-1, e.getMessage());
+        }
     }
     
     private int getPluNumber(ScalesItem item) {
@@ -842,6 +858,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     class MertechSendTransactionTask extends SendTransactionTask {
         public MertechSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
             super(transaction, scales);
+            initSettings();
         }
         
         @Override
@@ -874,6 +891,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             }
             mertechLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), interrupted, cleared);
+        }
+    
+        protected void initSettings() {
+            mertechSettings = springContext.containsBean("mertechSettings") ? (MertechSettings) springContext.getBean("mertechSettings") : new MertechSettings();
         }
     }
 }
