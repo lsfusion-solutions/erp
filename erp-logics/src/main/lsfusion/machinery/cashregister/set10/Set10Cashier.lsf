@@ -4,22 +4,40 @@ REQUIRE Set10WebServer, EmployeeCashier, EmployeeBarcode;
 
 NAMESPACE Set10;
 
+CLASS RoleSet10 'Роль Set10';
+name 'Наименование' = DATA STRING (RoleSet10);
+
+role = DATA RoleSet10 (Employee);
+nameRole 'Роль' (Employee e) = name(role(e));
+
 tabNumCashier 'ИД кассира' = DATA STRING[15](Employee);
 cashierTabNumber= GROUP AGGR Employee e BY tabNumCashier(e);
 passwordCashier 'Пароль кассира' = DATA STRING[15] (Employee);
 
 EXTEND FORM employee
-    PROPERTIES (e) SHOWIF isCashier(e) tabNumCashier, passwordCashier
+    PROPERTIES (e) SHOWIF isCashier(e) tabNumCashier, passwordCashier, nameRole
 ;
+
 DESIGN employee{
     authentication{
         NEW cashier{
             caption = 'Данные кассира';
             MOVE PROPERTY(tabNumCashier(e));
             MOVE PROPERTY(passwordCashier(e));
+            MOVE PROPERTY(nameRole(e));
         }
     }
 }
+
+FORM set10Roles 'Роли Set10'
+    OBJECTS r = RoleSet10
+    PROPERTIES (r) name, NEW, DELETE
+
+    LIST RoleSet10 OBJECT r
+;
+
+CONSTRAINT DROPPED(RoleSet10 r IS RoleSet10) AND (GROUP SUM 1 IF role(Employee e) = r) 
+    MESSAGE 'Запрещено удалять роли, которые назначены сотрудникам';
 
 defaultNumeratorCashierTN = DATA Numerator ();
 nameDefaultNumeratorCashierTN 'Табельный номер кассира' = name(defaultNumeratorCashierTN()) IN defaultNumerator;
@@ -56,7 +74,7 @@ loadDefaultNumerators() + {
 mainStockShopIndex (Employee e) = GROUP CONCAT idStoreSet(GroupCashRegister gcr) IF isSet10(gcr)
     AND stock(gcr) = stock(e), ' ' ORDER idStoreSet(gcr);
 
-activeCashier (Employee e) = tabNumCashier(e) AND passwordCashier(e) AND isCashier(e);
+activeCashier (Employee e) = tabNumCashier(e) AND passwordCashier(e) AND isCashier(e) AND role(e);
 countActiveCasiers = GROUP SUM 1 IF activeCashier(Employee e);
 
 FORM cashUsers
@@ -66,7 +84,7 @@ FORM cashUsers
                ln = lastName(c) EXTID 'lastName',
                pc = passwordCashier(c) EXTID 'password',
                si = mainStockShopIndex(c) EXTID 'shop-index',   
-               np = namePosition(c) EXTID 'role',
+               np = nameRole(c) EXTID 'role',
                bc = idBarcode(c) EXTID 'barcode',
                bd = IF isLocked(c) THEN TTRUE ELSE TFALSE EXTID 'Blocked'
     FILTERS activeCashier(c) 
@@ -110,14 +128,34 @@ exportCashiers 'Экспорт кассиров Set10' (){
     } ELSE MESSAGE 'Не задан адрес сервера Set10';
 }
 
-FORM cashiersSet 'Кассиры Set10'
+in 'Отм' = DATA LOCAL BOOLEAN (Employee);
+
+FORM printCashier
     OBJECTS c = Employee
-    PROPERTIES (c) name, 'Роль' = namePosition, tabNumCashier, idBarcode, passwordCashier, isLocked
+    PROPERTIES (c) shortName, idBarcode
+;
+
+printCashier 'Печать' (Employee e){
+    IF NOT (GROUP SUM 1 IF in(Employee ee)) THEN {
+        in(e) <- TRUE;
+    }
+    PRINT printCashier FILTERS in(c);
+    in(Employee ee) <- NULL; 
+}
+
+FORM cashiersSet 'Кассиры Set10'
+    OBJECTS s = Store PANEL 
+    PROPERTIES name(s) SELECTOR 
+    
+    OBJECTS c = Employee
+    PROPERTIES (c) in, name, 'Роль' = nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
     PROPERTIES (c) NEWSESSION NEW, EDIT
-    PROPERTIES exportCashiers() TOOLBAR
+    PROPERTIES TOOLBAR exportCashiers(), printCashier(c)
     FILTERS isCashier(c)
     FILTERGROUP cashiers
         FILTER 'Активные' tabNumCashier(c) AND passwordCashier(c) DEFAULT
+    FILTERS store(stock(c)) = s
+    FILTERS accessCompany(currentUser(), s)
 ;
 
 //прием реализации
