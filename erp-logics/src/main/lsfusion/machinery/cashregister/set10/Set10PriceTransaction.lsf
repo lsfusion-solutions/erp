@@ -96,7 +96,8 @@ FORM priceEntry FORMEXTID 'goods-catalog'
     
     OBJECTS good = Barcode.Barcode EXTID 'price-entry'
     PROPERTIES = idSku(good) EXTID 'marking-of-the-good' ATTR, = round2(price(m, good)) EXTID 'price' ATTR,
-        = IF in(m, good) THEN 'false' EXTID 'deleted' ATTR, = IF in(m, good) THEN '1' EXTID 'number'
+        = IF in(m, good) THEN 'false' EXTID 'deleted' ATTR, = IF in(m, good) THEN '1' EXTID 'number',
+        = IF in(m, good) THEN idStoreSet(groupMachinery(m)) EXTID 'shop-indices'
     PROPERTIES IN department = IF in(m, good) THEN '1' EXTID 'number'
     FILTERS in(m, good)
 ;
@@ -132,7 +133,7 @@ isCorrect (MachineryPriceTransaction t) = IF (GROUP SUM 1 IF statusTransaction(t
 
 getFeedback(MachineryPriceTransaction t){
     LOCAL message = STRING ();
-    FOR statusTransaction(t, STRING s) DO{
+    FOR statusTransaction(t, STRING s) != 'correct' DO{
         LOCAL answer = FILE ();
         TRY{
             ti() <- statusTransaction(t, s);
