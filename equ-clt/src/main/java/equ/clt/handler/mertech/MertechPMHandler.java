@@ -14,6 +14,7 @@ import equ.clt.handler.TCPPort;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -511,11 +512,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 return result;
     
             tmpFile = File.createTempFile("products", ".json");
+            
             FileOutputStream fos = new FileOutputStream(tmpFile);
             Result.Data data = (Result.Data)result;
             String json = data.toString();
             fos.write(json.getBytes());
             fos.close();
+    
+            File copyFile = new File(tmpFile.getParent() + "/mertech_products.json");
+            FileUtils.copyFile(tmpFile, copyFile);
             
             if ((result = sendHashProductFile(tmpFile.getPath(), needToClear)).success()) {
                 
@@ -525,12 +530,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                     int offset = 0;
                     while ((read = fis.read(buffer, 0, buffer.length)) > 0) {
                         if (!(result = sendPartProductFile(fis.available() == 0, offset, read, buffer)).success()) {
+                            fis.close();
                             if (tmpFile.exists())
                                 tmpFile.delete();
                             return  result;
                         }
                         offset += read;
                     }
+    
+                    fis.close();
                     
                     if (tmpFile.exists())
                         tmpFile.delete();
