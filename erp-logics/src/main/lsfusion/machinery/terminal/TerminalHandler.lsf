@@ -35,8 +35,9 @@ portTerminalServer 'Порт' = DATA INTEGER ();
 restrictLockedUsers 'Запретить доступ заблокированным пользователям' = DATA BOOLEAN ();
 restricted (CustomUser user) = isLocked(user) AND restrictLockedUsers();
 
+overAccess = ABSTRACT BOOLEAN (Employee, Stock);
 accessList (Employee e) = '[' + (GROUP CONCAT ('\{"id":"'+id(Stock s)+'","name":"'+escapeJSONValue(name(s))+'","main":'+(IF stock(e) == s THEN 'true' ELSE 'false')+'\}') 
-                                        IF (limitAccess(e) AND accessCompany(e, s) OR stock(e) == s) AND id(s),
+                                        IF (limitAccess(e) AND (accessCompany(e, s) OR overAccess(e,s)) OR stock(e) == s) AND id(s),
                                         ',' ORDER s) + ']';
 
 //товары
