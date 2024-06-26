@@ -1,6 +1,6 @@
 MODULE EZLotShipsAddEInvoice;
 
-REQUIRE LotInit, LotTypeBy, EInvoice, EZLegalEntity;
+REQUIRE LotInit, LotTypeBy, EInvoice, EZLegalEntity, ConsignmentEInvoice;
 
 NAMESPACE EZ;
 
@@ -164,7 +164,7 @@ shipsAdd (EInvoice ei) {
 }
 
 shipsAdd (DATE dFrom) {    
-    FOR deliveryNoteDate(EInvoice ei) >= dFrom AND existNotSentLotDetail(ei) AND
+    FOR deliveryNoteDate(EInvoice ei) >= dFrom AND existNotSentLotDetail(ei) AND (Consignment.invoice(ei) OR overIsReturn(ei)) AND 
         (code(currentOrderMessage(ei)) == '2550' OR code(currentOrderMessage(ei)) == '2650') DO {
         shipsAdd(ei);
     }
