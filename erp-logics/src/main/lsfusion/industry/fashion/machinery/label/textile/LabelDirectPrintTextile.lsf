@@ -131,7 +131,42 @@ FORM networkPrintersLabel 'Выбор принтера'
 ;
 
 fillFormattedTextData ABSTRACT (StickerTransaction);
-sendToPrinter ABSTRACT (StickerTransaction);
+
+useCustomSendToPrinter = ABSTRACT BOOLEAN ();
+customSendToPrinter ABSTRACT (StickerTransaction);
+
+sendToPrinter (StickerTransaction stickerTrans) {
+    IF useCustomSendToPrinter() THEN
+        customSendToPrinter(stickerTrans);
+    ELSE {
+        IF countNetworkPrinter(stock(stickerTrans)) THEN {
+            IF countPrinters(stock(stickerTrans),printLabelType(stickerTrans)) == 1 AND notShowNetworkPrinterDialog() THEN {
+                printer() <- currentPrinter(stock(stickerTrans), printLabelType(stickerTrans));
+            } ELSE {
+                DIALOG networkPrintersLabel OBJECTS s = stock(stickerTrans), l = printLabelType(stickerTrans), p INPUT NOMANAGESESSION DO
+                    printer() <- p;
+            }
+
+            IF networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
+                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
+                writeToComPort(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
+                printed() <- TRUE;
+            }
+            IF networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
+                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
+                WRITE CLIENT resultFile() TO path(printer());
+                printed() <- TRUE;
+            }
+            IF networkPrinterType(printer()) == NetworkPrinterType.clientPrintService THEN {
+                writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
+                printed() <- TRUE;
+            }
+        }
+        ELSE
+            MESSAGE 'Принтеры не найдены' NOWAIT;
+        
+    }
+}
 
 customPrint (StickerTransaction stickerTrans) {
     fullFormattedText() <- NULL;

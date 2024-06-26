@@ -33,7 +33,10 @@ preparePrintLot(StickerTransaction stickerTrans) {
         fullFormattedText() <- replace(formattedText(), datamartixTag(), '');
 }
 
-sendToPrinter (StickerTransaction stickerTrans) + {
+extraPreparePrintLot ABSTRACT LIST (StickerTransaction, INTEGER);
+
+useCustomSendToPrinter () += TRUE;
+customSendToPrinter (StickerTransaction stickerTrans) + {
     IF countNetworkPrinter(stock(stickerTrans)) THEN {
 
         IF countPrinters(stock(stickerTrans),printLabelType(stickerTrans)) == 1 AND notShowNetworkPrinterDialog() THEN {
@@ -47,6 +50,8 @@ sendToPrinter (StickerTransaction stickerTrans) + {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
                 FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
                     preparePrintLot(stickerTrans);
+                    extraPreparePrintLot(stickerTrans, i);
+                    
                     stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                     writeToComPort(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
                     printed() <- TRUE; // внутри цикла, т.к. если хоть одна отправилась - уже считаем транзакцию напечатанной
@@ -64,6 +69,8 @@ sendToPrinter (StickerTransaction stickerTrans) + {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
                 FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
                     preparePrintLot(stickerTrans);
+                    extraPreparePrintLot(stickerTrans, i);
+
                     stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                     WRITE CLIENT resultFile() TO path(printer());
                     printed() <- TRUE;
@@ -80,6 +87,8 @@ sendToPrinter (StickerTransaction stickerTrans) + {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
                 FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
                     preparePrintLot(stickerTrans);
+                    extraPreparePrintLot(stickerTrans, i);
+
                     writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
                     printed() <- TRUE;
                 }
