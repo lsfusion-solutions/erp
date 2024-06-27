@@ -32,6 +32,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import lsfusion.base.BaseUtils;
+
 public class MertechPMHandler extends MultithreadScalesHandler {
     
     private class ProductFileClass {
@@ -765,13 +767,19 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             
             //Цены
             Double price = item.price == null ? 0 : item.price.doubleValue();
-            Double retailPrice = item.retailPrice == null ? null : item.retailPrice.doubleValue();
+            //Double retailPrice = item.retailPrice == null ? null : item.retailPrice.doubleValue();
             product.price = price; //Цена
             
-            if (retailPrice != null) {
-                product.price = retailPrice; //? Цена
-                product.discountPrice = price; //? Цена со скидкой
+            // Для демонстрации цены со скидкой
+            double percentDiscount = BaseUtils.nvl(mertechSettings.getPercentDiscount(), mertechSettings.getPercentDiscount().doubleValue());
+            if (percentDiscount > 0) {
+                product.discountPrice = price - (price * percentDiscount/100); //? Цена со скидкой
             }
+            
+            //if (retailPrice != null) {
+            //    product.price = retailPrice; //? Цена
+            //    product.discountPrice = price; //? Цена со скидкой
+            //}
             
             //Датирование
             product.manufactureDate = null; //? Дата производства. Формат "DD-MM-YY"
@@ -817,6 +825,8 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 messages.add(message);
             }
             product.message = idMessage; //? ID сообщения (для состава или описания товара)
+            
+            product.wrappingType = mertechSettings.getWrappingType();
             
             product.deleted = false; //Признак удалёного элемента
             

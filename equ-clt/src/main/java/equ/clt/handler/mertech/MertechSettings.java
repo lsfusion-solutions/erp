@@ -10,6 +10,7 @@ public class MertechSettings implements Serializable{
     private Integer labelDiscountTemplate;
     private Integer wrappingType;
     private String barcodePrefixType;
+    private Double percentDiscount;
     
     public MertechSettings() {
     }
@@ -51,5 +52,13 @@ public class MertechSettings implements Serializable{
     
     public void setBarcodePrefixType(String barcodePrefixType) {
         this.barcodePrefixType = barcodePrefixType;
+    }
+    
+    public Double getPercentDiscount() {
+        return percentDiscount;
+    }
+    
+    public void setPercentDiscount(Double percentDiscount) {
+        this.percentDiscount = percentDiscount;
     }
 }

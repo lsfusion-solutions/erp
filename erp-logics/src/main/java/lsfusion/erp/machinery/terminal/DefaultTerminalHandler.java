@@ -521,6 +521,7 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("flags", terminalHandlerLM.findProperty("flags[Barcode, Stock]").getExpr(session.getModifier(), barcodeExpr, stockObject.getExpr()));
                 if (terminalHandlerLotLM != null)
                     barcodeQuery.addProperty("trustAcceptPercent", terminalHandlerLotLM.findProperty("trustAcceptPercent[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                barcodeQuery.addProperty("hasImage", terminalHandlerLM.findProperty("hasImage[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 if(imagesInReadBase) {
                     barcodeQuery.addProperty("image", terminalHandlerLM.findProperty("image[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 }
@@ -560,7 +561,9 @@ public class DefaultTerminalHandler {
                     String fld5 = trim((String) entry.get("fld5"));
                     String unit = trim((String) entry.get("unit"));
                     Long flags = (Long) entry.get("flags") ;
-                    RawFileData image = (RawFileData) entry.get("image");
+                    
+                    Boolean hasImage = (Boolean) entry.get("hasImage");
+                    RawFileData image = (RawFileData) entry.get("image"); // small image
                     String fileNameImage = null;
                     if (itemInternetLM != null)
                         fileNameImage = (String) entry.get("fileNameImage");
@@ -577,7 +580,7 @@ public class DefaultTerminalHandler {
 
                     result.add(new TerminalBarcode(idBarcode, overNameSku, price, quantityBarcodeStock, idSkuBarcode,
                             nameManufacturer, isWeight, mainBarcode, color, extInfo, fld3, fld4, fld5, unit, flags, image,
-                            nameCountry, amount, capacity, category, GTIN, fileNameImage, trustAcceptPercent));
+                            nameCountry, amount, capacity, category, GTIN, fileNameImage, trustAcceptPercent, nvl(hasImage, false)));
                 }
             }
         }
@@ -812,13 +815,14 @@ public class DefaultTerminalHandler {
 
                 for (TerminalBarcode barcode : barcodeList) {
                     if (barcode.idBarcode != null) {
-                        String image = imagesInReadBase && barcode.image != null ? (barcode.idSkuBarcode + ".jpg") : null;
+                        String imageFileName = barcode.hasImage ? (barcode.idSkuBarcode + ".jpg") : null;
                         if (barcode.fileNameImage != null)
-                            image = barcode.fileNameImage;
+                            imageFileName = barcode.fileNameImage;
+                        
                         if (!usedBarcodes.contains(barcode.idBarcode)) {
                             addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
-                                    image, barcode.isWeight, barcode.mainBarcode,
+                                    imageFileName, barcode.isWeight, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
                                     barcode.flags, barcode.nameCountry, barcode.amount, barcode.category, barcode.trustAcceptPercent);
                             usedBarcodes.add(barcode.idBarcode);
@@ -826,7 +830,7 @@ public class DefaultTerminalHandler {
                         if (!BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
                             addGoodsRow(statement, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
-                                    image, barcode.isWeight, barcode.mainBarcode,
+                                    imageFileName, barcode.isWeight, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
                                     barcode.flags, barcode.nameCountry, barcode.amount, barcode.category, barcode.trustAcceptPercent);
                             usedBarcodes.add(barcode.GTIN);
@@ -1876,12 +1880,14 @@ public class DefaultTerminalHandler {
         String GTIN;
         String fileNameImage;
         BigDecimal trustAcceptPercent;
+        boolean hasImage;
 
         public TerminalBarcode(String idBarcode, String nameSku, BigDecimal price, BigDecimal quantityBarcodeStock,
                                String idSkuBarcode, String nameManufacturer, String isWeight, String mainBarcode,
                                String color, String extInfo, String fld3, String fld4, String fld5, String unit,
                                Long flags, RawFileData image, String nameCountry, BigDecimal amount,
-                               BigDecimal capacity, String category, String GTIN, String fileNameImage, BigDecimal trustAcceptPercent) {
+                               BigDecimal capacity, String category, String GTIN, String fileNameImage,
+                               BigDecimal trustAcceptPercent, boolean hasImage) {
             this.idBarcode = idBarcode;
             this.nameSku = nameSku;
             this.price = price;
@@ -1905,6 +1911,7 @@ public class DefaultTerminalHandler {
             this.GTIN = GTIN;
             this.fileNameImage = fileNameImage;
             this.trustAcceptPercent = trustAcceptPercent;
+            this.hasImage = hasImage;
         }
     }
 
@@ -2027,6 +2034,7 @@ public class DefaultTerminalHandler {
         public String maxDate1;
         public String vop;
         public List<String> extraBarcodeList;
+        
         public RawFileData image;
 
         public Long flags;
