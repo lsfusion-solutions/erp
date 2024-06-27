@@ -507,8 +507,9 @@ differentPrice(CollationSheet collationSheet, Sku sku) = pricePageInventoryDetai
 index 'Номер строки' (ListInventory listInventory, Sku sku) = PARTITION SUM 1 IF  quantityPageInventoryDetail(listInventory, sku) > 0 ORDER name(sku) BY listInventory;
 countIndex 'Количество наименований товара'(ListInventory listInventory) = GROUP
     SUM 1 IF quantityPageInventoryDetail(listInventory, Sku sku) > 0 IN documentSum;  
-    
-CONSTRAINT pricePageInventoryDetail(CollationSheet collationSheet, Sku sku) != priceMinPageInventoryDetail(collationSheet, sku) AND NOT  isBatch(collationSheet)   
+skipCheckPrice = ABSTRACT BOOLEAN (CollationSheet);
+CONSTRAINT (SETCHANGED(pricePageInventoryDetail(CollationSheet collationSheet, Sku sku)) OR SETCHANGED(priceMinPageInventoryDetail(collationSheet, sku)) OR CHANGED(isBatch(collationSheet)))
+    AND pricePageInventoryDetail(collationSheet, sku) != priceMinPageInventoryDetail(collationSheet, sku) AND NOT isBatch(collationSheet) AND NOT skipCheckPrice(collationSheet)
     MESSAGE 'В описях присутствует одинаковый товар с разными ценами';
 //---------------------------- Итоги по описям (Batch) ----------------------------//
 notBatchQuantityPageInventoryDetail (CollationSheet cs, Sku sku) = GROUP SUM quantity(PageInventoryDetail d) IF NOT batch(d) BY collationSheet(d), sku(d);
