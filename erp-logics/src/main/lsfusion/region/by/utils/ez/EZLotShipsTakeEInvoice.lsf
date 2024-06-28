@@ -1,0 +1,128 @@
+MODULE EZLotShipsTakeEInvoice;
+
+REQUIRE LotInit, LotTypeBy, EInvoice, EZLegalEntity, ConsignmentEInvoice;
+
+NAMESPACE EZ;
+
+codeEZ = DATA LOCAL NESTED INTEGER (EInvoice);
+takenEZ '«Оприходование кодов, ЭЗ' = DATA BOOLEAN (EInvoiceLotDetail);
+
+lotToTake (EInvoiceLotDetail eld) = lot(barcodeToId(id(eld)));
+lotTypeToTake(EInvoiceLotDetail eld) = lotType(sku(lotToTake(eld)));
+existLotDetailToTake(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotTypeToTake(eld);
+existNotSentLotDetailToTake(EInvoice ei, LotType lt) = GROUP MIN EInvoiceLotDetail eld IF eInvoice(eld) = ei AND lt == lotTypeToTake(eld) AND NOT takenEZ(eld);
+existLotDetailToTake(EInvoice ei) = GROUP MIN existLotDetailToTake(ei, LotType lt) IF ei IS EInvoice AND lt IS LotType;
+existNotSentLotDetailToTake(EInvoice ei) = GROUP MIN existNotSentLotDetailToTake(ei, LotType lt) IF ei IS EInvoice AND lt IS LotType;
+takenEZ '«Оприходование кодов, ЭЗ' (EInvoice ei) = ei IS EInvoice AND NOT existNotSentLotDetailToTake(ei) AND existLotDetailToTake(ei);
+
+nomerTnToTake (EInvoice ei) = deliveryNoteNumber(ei);
+
+exception 'Сообщение' = DATA TEXT (EInvoice);
+handleException (EInvoice o, FILE exception, STRING message) {
+    logToFile('ez', messageCaughtException());
+    logToFile('ez', exception);
+    fileToString(exception);
+    MESSAGE CONCAT ' ', message, messageCaughtException() NOWAIT;
+
+    NEWSESSION NESTED (messageCaughtException, resultString) {
+        exception(o) <- CONCAT ', ', messageCaughtException(), resultString();
+        APPLY;
+    }
+}
+
+maxCountPageShipList = DATA INTEGER ();
+maxCountDaysShipList = DATA INTEGER ();
+
+code = DATA LOCAL INTEGER (INTEGER);
+name = DATA LOCAL STRING (INTEGER);
+
+
+FORM shipsListForm 'Список отгрузок'
+    OBJECTS ships_list = INTEGER 
+    PROPERTIES (ships_list) code, name
+;
+
+shipsList 'Список отгрузок и вытягивание кода' (DATE fromDate, DATE toDate, STRING sidCountry, INTEGER pageShipList, EInvoice ei) {
+    NEWSESSION {
+        LOCAL result = FILE ();
+
+        EXPORT JSON FROM date_from = toChar(fromDate, 'YYYY-MM-DD'), date_to = toChar(toDate, 'YYYY-MM-DD'), country = sidCountry, page = pageShipList;
+
+        fileToString(exportFile());
+        ezToken() <- token(customer(ei));
+
+        TRY {
+            EXTERNAL HTTP POST urlEZ() + '/ships/list' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        } CATCH {
+            LOCAL message = STRING ();
+            message() <- CONCAT '. ', 'Ошибка при обращении к ЭЗ /ships/list', 'Электронная накладная - ' + nomerTnToTake(ei);
+            handleException(ei, result(), message());
+            RETURN;
+        }
+
+        IMPORT shipsListForm JSON FROM result();
+        fileToString(result());
+        codeEZ(ei) <- GROUP MIN code(INTEGER i) IF name(i) == nomerTnToTake(ei);
+        
+        APPLY;
+    }
+}
+
+FORM shipsTake 'Оприходование кодов'
+    OBJECTS ei = EInvoice EXTID 'value'
+    PROPERTIES (ei) codeEZ EXTID 'code'
+
+    OBJECTS labels = (eld = EInvoiceLotDetail, lt = LotType)
+    PROPERTIES (eld) id EXTID 'value'
+    FILTERS eld IS EInvoiceLotDetail AND NOT takenEZ(eld) AND eInvoice(eld) = ei AND lotTypeToTake(eld) == lt
+;
+
+shipsTake (EInvoice ei) {
+    FOR iterate(INTEGER page, 0, maxCountPageShipList()) AND ei IS EInvoice AND NOT codeEZ(ei) DO {
+        shipsList (subtract(currentDate(), 100), currentDate(), sid(country(customer(ei))), page, ei);
+        IF codeEZ(ei) THEN BREAK;
+    }
+
+    IF NOT codeEZ(ei) THEN
+        MESSAGE 'Не удалось получить код ЭЗ для электронной накладной - ' + nomerTnToTake(ei) NOWAIT;
+        
+    LOCAL result = FILE ();
+
+    FOR existNotSentLotDetailToTake(ei, LotType lt) AND lt IS LotType DO {
+        EXPORT shipsTake OBJECTS ei = ei, lt = lt JSON ;
+
+        fileToString(exportFile());
+        ezToken() <- token(supplier(ei));
+
+        TRY {
+            EXTERNAL HTTP POST urlEZ() + '/ships/take' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        } CATCH {
+            LOCAL message = STRING ();
+            message() <- CONCAT '. ', 'Ошибка при обращении к ЭЗ /ships/add', 'Электронная накладная - ' + nomerTnToTake(ei);
+            handleException(ei, result(), message());
+            RETURN;
+        }
+        fileToString(result());
+        takenEZ (EInvoiceLotDetail eld) <- TRUE WHERE eInvoice(eld) == ei AND lotTypeToTake(eld) == lt;
+    }
+
+    APPLY;
+}
+
+shipsTake (DATE dFrom) {
+    FOR deliveryNoteDate(EInvoice ei) >= dFrom AND existNotSentLotDetailToTake(ei) AND NOT (Consignment.invoice(ei) OR overIsReturn(ei)) AND
+        (code(currentOrderMessage(ei)) == '2550' OR code(currentOrderMessage(ei)) == '2650') DO {
+        shipsTake(ei);
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) takenEZ
+
+    PROPERTIES(eld) READONLY takenEZ
+;
+
+onStarted() + {
+    IF NOT maxCountPageShipList() THEN maxCountPageShipList() <- 100;
+    IF NOT maxCountDaysShipList() THEN maxCountDaysShipList() <- 30;
+}
