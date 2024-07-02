@@ -201,3 +201,27 @@ prevSaleInvoicePacketDetailCustomer (UserInvoicePacketDetail rd) = [GROUP LAST S
 WHEN DROPPED (isPosted(UserInvoice i)) AND packets(i) AND supplier(i) != customer(i) AND NOT skipChangeShipmentDatePosted() DO
     FOR userInvoice(UserInvoicePacketDetail d) == i DO
         shipmentDate(packet(d)) <- shipmentDate(userInvoice(prevSaleInvoicePacketDetailCustomer(d)));
+
+defaultReturnBin = DATA Bin (Stock);
+idDefaultReturnBin 'Ячейка приёмки возвратов' (Stock st) = id(defaultReturnBin(st));
+
+CONSTRAINT defaultReturnBin(Stock stock) AND NOT stock == stock(defaultReturnBin(stock))
+    CHECKED BY defaultReturnBin[Stock] MESSAGE 'Ячейка недоступна для склада';
+
+EXTEND FORM warehouse
+    PROPERTIES(w) idDefaultReturnBin SHOWIF isCompany(w)
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(idDefaultReturnBin(w));
+    }
+}
+
+WHEN SET (isPosted(UserInvoicePacketDetail d)) DO {
+    bin(d) <- OVERRIDE defaultReturnBin(supplierStock(d)), defaultBin(supplierStock(d));
+}
+
+WHEN DROPPED (isPosted(UserInvoicePacketDetail d)) DO {
+    bin(d) <- NULL;
+}
