@@ -89,11 +89,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         @JsonProperty("buttonNumber")
         @JsonInclude(JsonInclude.Include.NON_NULL)
         Integer buttonNumber; //? Номер кнопки
-/*
-        @JsonProperty("gtin")
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Integer gtin; // ? GTIN
-*/
+        
         //Цены
         @JsonProperty("price")
         Double price; //Цена
@@ -229,11 +225,11 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     protected final static Logger mertechLogger = Logger.getLogger("MertechLogger");
     
     private static final byte stx = 0x02;
-    //private static final byte[] scaleInfo = new byte[] {(byte)0xff, (byte)0x17};
     private static final byte[] productFile = new byte[] {(byte)0xff, (byte)0x13};
     //private static final byte[] clearPluAndMessage = new byte[] {(byte)0x18}; // очистка базы товаров и сообщений
     //private static final byte[] clearPlu = new byte[] {(byte)0xB9}; // очистка базы товаров
     //private static final byte[] clearMessage = new byte[] {(byte)0xBA}; // очистка базы сообщений
+    private static final byte[] setBarcodePrefix = new byte[] {(byte)0x77}; // Задать значение префикса
     
     private TCPPort port;
     private MertechSettings mertechSettings;
@@ -499,7 +495,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendProductFile(TransactionScalesInfo transaction, boolean needToClear) {
+    public Result sendProductFile(ScalesInfo scales, TransactionScalesInfo transaction, boolean needToClear) {
         
         File tmpFile = null;
         
@@ -508,6 +504,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             port.open();
             
             Result result;
+    
+            if (!(result = sendBarcodePrefexes(scales)).success()) {
+                return result;
+            }
             
             result = makeProductsFile(transaction);
             if (!(result instanceof Result.Data))
@@ -585,6 +585,23 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 port.close();
             } catch (CommunicationException ignored) {}
         }
+    }
+    
+    public Result sendBarcodePrefexes(ScalesInfo scales) {
+        
+        Result result = new Result.Success();
+        // Шлем префикс для весового штрихкода
+        if (!StringUtils.isBlank(scales.weightCodeGroupScales)) {
+            int weightCodeGroupScales = Integer.parseInt(scales.weightCodeGroupScales);
+            if ((result = sendBarcodePrefix((byte)0x00, (byte)weightCodeGroupScales)).success()) {
+                if (!StringUtils.isBlank(scales.pieceCodeGroupScales)) {
+                    int pieceCodeGroupScales = Integer.parseInt(scales.pieceCodeGroupScales);
+                    result = sendBarcodePrefix((byte)0x01, (byte)pieceCodeGroupScales);
+                }
+            }
+        }
+        
+        return result;
     }
     
     public Result sendHashProductFile(String filePath, boolean needToClear) {
@@ -700,6 +717,33 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return new Result.Error(-1, e.getMessage());
         }
     }
+    
+    private Result sendBarcodePrefix(byte type, byte value) {
+        
+        try {
+            
+            Packet packet = new Packet();
+            packet.commandId = setBarcodePrefix;
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
+            
+            outputStream.write(getPassword()); // пароль
+            outputStream.write(type); // Тип задаваемого префикса: 0 – весовой товар, 1 – штучный товар, 2 – итоговая этикетка
+            outputStream.write(value); // Значение префикса. Диапазон 0-99
+            outputStream.flush();
+    
+            packet.commandBytes = ByteBuffer.allocate(baos.size());
+            packet.commandBytes.put(baos.toByteArray());
+            
+            return sendPacket(packet);
+            
+        } catch (Exception e) {
+            System.out.println(String.format("error: %s", e));
+            return new Result.Error(-1, e.getMessage());
+        }
+    }
+    
     
     private Result clear(byte[] commandId) {
         
@@ -892,11 +936,14 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 
                 Result result;
                 
+                
+                
+                
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 cleared = needToClear;
                 
                 mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
-                result = sendProductFile(transaction, needToClear);
+                result = sendProductFile(scales, transaction, needToClear);
                 
                 if (!result.success()) {
                     error = result.errorMessage;
