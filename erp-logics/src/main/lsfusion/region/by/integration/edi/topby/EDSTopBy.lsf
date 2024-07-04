@@ -34,10 +34,16 @@ isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplicatio
 
 aliasEDSService 'Контейнер ключа' = DATA STRING[150] (LegalEntity);
 passwordEDSService 'Пароль ключа' = DATA STRING[100] (LegalEntity) ECHO;
+edsFrom 'Действителен с' = DATA DATETIME (LegalEntity);
+edsTo 'Действителен по' = DATA DATETIME (LegalEntity);
 aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Stock);
 passwordEDSService 'Пароль ключа' = DATA STRING[100] (Stock) ECHO;
+edsFrom 'Действителен с' = DATA DATETIME (Stock);
+edsTo 'Действителен по' = DATA DATETIME (Stock);
 aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Employee);
 passwordEDSService 'Пароль ключа' = DATA STRING[100] (Employee) ECHO;
+edsFrom 'Действителен с' = DATA DATETIME (Employee);
+edsTo 'Действителен по' = DATA DATETIME (Employee);
 
 EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (LegalEntity);
 descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (LegalEntity o) = description(EDSServiceTopBy(o));
@@ -62,14 +68,15 @@ EXTEND FORM integrationData
     PROPERTIES () askPasswordEDSService
     OBJECTS le = LegalEntity
     FILTERS isCompany(le)
-    PROPERTIES(le) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    PROPERTIES(le) name READONLY, descriptionEDSServiceTopBy, aliasEDSService, passwordEDSService, edsFrom, edsTo
     
     OBJECTS seds = Stock
-    PROPERTIES(seds) name READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    PROPERTIES(seds) name READONLY, descriptionEDSServiceTopBy, aliasEDSService, passwordEDSService, edsFrom, edsTo
     FILTERS isCompany(seds)
     
     OBJECTS eeds = Employee
-    PROPERTIES(eeds) lastName READONLY, firstName READONLY, namePosition READONLY, aliasEDSService, passwordEDSService, descriptionEDSServiceTopBy
+    PROPERTIES(eeds) READONLY lastName, firstName, namePosition, nameStock 
+    PROPERTIES(eeds) descriptionEDSServiceTopBy, aliasEDSService, passwordEDSService, edsFrom, edsTo
     FILTERS active(eeds)
 ;
 
@@ -183,15 +190,27 @@ listAliases 'Получить список ключей' (EDSService s) {
 
 changeAlias 'Получить список ключей' (LegalEntity l) {
     listAliases(EDSServiceTopBy(l));
-    aliasEDSService(l) <- alias(selected()) WHERE selected();
+    IF selected() THEN {
+        aliasEDSService(l) <- alias(selected());
+        edsFrom(l) <- notBeforeISO8601(selected());
+        edsTo(l) <- notAfterISO8601(selected());
+    }
 } TOOLBAR;
 changeAlias 'Получить список ключей' (Stock l) {
     listAliases(EDSServiceTopBy(l));
-    aliasEDSService(l) <- alias(selected()) WHERE selected();
+    IF selected() THEN {
+        aliasEDSService(l) <- alias(selected());
+        edsFrom(l) <- notBeforeISO8601(selected());
+        edsTo(l) <- notAfterISO8601(selected());
+    }
 } TOOLBAR;
 changeAlias 'Получить список ключей' (Employee l) {
     listAliases(EDSServiceTopBy(l));
-    aliasEDSService(l) <- alias(selected()) WHERE selected();
+    IF selected() THEN {
+        aliasEDSService(l) <- alias(selected());
+        edsFrom(l) <- notBeforeISO8601(selected());
+        edsTo(l) <- notAfterISO8601(selected());
+    }
 } TOOLBAR;
 
 EXTEND FORM integrationData
