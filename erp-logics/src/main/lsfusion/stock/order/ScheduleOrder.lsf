@@ -82,7 +82,7 @@ DESIGN options {
 
 META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
-    CLASS ScheduleOrder 'График поставок'##sign : ScheduleOrder.ScheduleOrder;
+    CLASS ScheduleOrder 'График заказов'##sign : ScheduleOrder.ScheduleOrder;
     CLASS ScheduleOrderDetail 'Заказ по графику'##sign : ScheduleOrder.ScheduleOrderDetail;
     
     @defineExternalizable(scheduleOrder, STRING[100]);
@@ -197,7 +197,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     @defineExternalizable(scheduleOrderTime, STRING[100]);
         
-    scheduleOrder 'График поставок' = DATA ScheduleOrder (ScheduleOrderTime) NONULL DELETE;
+    scheduleOrder 'График заказов' = DATA ScheduleOrder (ScheduleOrderTime) NONULL DELETE;
     
     orderDOW 'День недели заказа' = DATA DOW (ScheduleOrderTime) NONULL;
     orderNameDOW 'День недели заказа' (ScheduleOrderTime d) = staticCaption(orderDOW(d)) IN id;
@@ -234,7 +234,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
-    scheduleOrder 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NONULL DELETE INDEXED;
+    scheduleOrder 'График заказов' = DATA ScheduleOrder(ScheduleOrderDetail) NONULL DELETE INDEXED;
     scheduleOrder(ScheduleOrderDetail d) += scheduleOrder(d);
     
     operation = DATA Operation (ScheduleOrder);
@@ -275,7 +275,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                scheduleOrderDetail1 == scheduleOrderDetail2 MESSAGE 'Совпадение даты заказа и даты поставки';    
                    
     CONSTRAINT scheduleOrder(ScheduleOrderDetail d) AND customerStock(d) AND isOpened(d) AND NOT in[ScheduleOrder, Stock](scheduleOrder(d), customerStock(d))
-        MESSAGE 'Для предварительного заказа выбран склад покупателя, который не включен в график поставок.';                                     
+        MESSAGE 'Для предварительного заказа выбран склад покупателя, который не включен в график заказов.';                                     
 
     timeToOrder 'Время, до которого сделать заказ' = DATA TIME (ScheduleOrderTime);
     timeToOrder 'Время, до которого сделать заказ' = DATA TIME (ScheduleOrderDetail);
@@ -513,7 +513,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                 DELETE ScheduleOrderTime t WHERE t IS ScheduleOrderTime AND scheduleOrder(t) == scheduleOrder AND shipmentDOW(t) == dow;
     }    
     
-    FORM scheduleOrder 'График поставок'##sign
+    FORM scheduleOrder 'График заказов'##sign
         OBJECTS s=ScheduleOrder PANEL
         PROPERTIES (s) nameSupplier ON CHANGE changeSupplier###supplierFilter(s), 
                        nameSupplierStock ON CHANGE changeSupplierStock###supplierFilter(s), 
@@ -655,7 +655,6 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
                     NEW days {
                         fill = 1;
-                        horizontal = TRUE;
                         MOVE BOX(dow) {
                             PROPERTY (staticCaption(dow)) { caption = 'День недели поставки';}
                         }
@@ -833,7 +832,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     @extendFormFilterAccessStock(Order, o, scheduleOrderDetails, stockFilter##Stock, company);
 
-    FORM scheduleOrders 'Графики поставок'
+    FORM scheduleOrders 'Графики заказов'
 
         OBJECTS d=DATE PANEL
         PROPERTIES dv=VALUE(d)
