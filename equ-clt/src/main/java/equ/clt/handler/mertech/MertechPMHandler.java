@@ -815,7 +815,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             product.price = price; //Цена
             
             // Для демонстрации цены со скидкой
-            double percentDiscount = BaseUtils.nvl(mertechSettings.getPercentDiscount(), mertechSettings.getPercentDiscount().doubleValue());
+            double percentDiscount = BaseUtils.nvl(mertechSettings.getPercentDiscount(), 0.0);
             if (percentDiscount > 0) {
                 product.discountPrice = price - (price * percentDiscount/100); //? Цена со скидкой
             }
@@ -935,9 +935,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             try {
                 
                 Result result;
-                
-                
-                
                 
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 cleared = needToClear;
