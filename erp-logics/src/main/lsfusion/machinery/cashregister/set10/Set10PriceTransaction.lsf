@@ -164,6 +164,8 @@ getFeedback(MachineryPriceTransaction t){
     IF (GROUP SUM 1 IF statusTransaction(t, STRING s) = 'fault') THEN statusTransaction(t, STRING s) <- NULL;
     APPLY;
 }
+customSend = ABSTRACT CASE BOOLEAN (MachineryPriceTransaction);
+customSend ABSTRACT LIST (MachineryPriceTransaction);
 
 sendSet10Transaction(MachineryPriceTransaction t){
     EXPORT goodsCatalog OBJECTS m = t XML;
@@ -181,7 +183,8 @@ sendPriceTransaction (MachineryPriceTransaction t){
         IF (GROUP SUM 1 IF statusTransaction(t, STRING s)) THEN getFeedback(t);
         ELSE {
             NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
-            sendSet10Transaction(t);
+            IF customSend(t) THEN customSend(t);
+            ELSE sendSet10Transaction(t);
         }
     }
     CATCH {
