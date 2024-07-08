@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 public class DataPrintWaspSettings implements Serializable{
     
+    private Boolean debugMode;
     private Integer descriptionLineLength;
     private Integer labelBill1;
     private Integer barcodeBill1;
@@ -11,6 +12,14 @@ public class DataPrintWaspSettings implements Serializable{
     private Integer barcodeBill2;
     
     public DataPrintWaspSettings() {
+    }
+    
+    public Boolean getDebugMode() {
+        return debugMode;
+    }
+    
+    public void setDebugMode(Boolean debugMode) {
+        this.debugMode = debugMode;
     }
     
     public Integer getDescriptionLineLength() {

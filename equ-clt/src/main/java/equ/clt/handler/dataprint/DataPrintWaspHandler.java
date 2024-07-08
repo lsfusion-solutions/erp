@@ -78,6 +78,9 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     private DataPrintWaspSettings settings;
     protected FileSystemXmlApplicationContext springContext;
     
+    //включить для вывода в лог отправляемых запросов
+    private boolean debugMode = false;
+    
     public DataPrintWaspHandler(FileSystemXmlApplicationContext springContext) {
         this.springContext = springContext;
     }
@@ -97,7 +100,9 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         line += ENDL;
         
         try {
-            logger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), line));
+            
+            if (debugMode)
+                logger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), line));
             
             port.getOutputStream().write(line.getBytes());
             port.getOutputStream().flush();
@@ -159,7 +164,8 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                             
                             data.segments = new LinkedList<>(Arrays.asList(line.split(TAB)));
     
-                            logger.info(getLogPrefix() + String.format("ip: %s, << %s", port.getAddress(), data.segments));
+                            if (debugMode)
+                                logger.info(getLogPrefix() + String.format("ip: %s, << %s", port.getAddress(), data.segments));
                             
                             return new Result.Success();
                         }
@@ -314,7 +320,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     
     String specialFloat(double value) {
         if (value > 0)
-            return String.format("%.2f", value).replace(",", "") + ",2";
+            return String.format("%.2f", value).replace(",", "").replace(".", "") + ",2";
         return "0,0";
     }
     
@@ -395,6 +401,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     
         protected void initSettings() {
             settings = springContext.containsBean("dataPrintWaspSettings") ? (DataPrintWaspSettings) springContext.getBean("dataPrintWaspSettings") : new DataPrintWaspSettings();
+            debugMode = nvl(settings.getDebugMode(), false);
         }
         
     }
