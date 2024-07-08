@@ -7,24 +7,33 @@ NAMESPACE Set10;
 customGroupPicList = DATA CustomGroupType();
 nameCustomGroupPicList 'Классификатор пиклиста' = name(customGroupPicList());
 
+in = DATA LOCAL BOOLEAN (Group, DepartmentStore);
+in = DATA LOCAL BOOLEAN (Item, DepartmentStore);
+
 in(CustomGroup g, Item s) = group(groupType(g), s);
 isNotParrent(CustomGroup g) = TRUE IF NOT parent(g) AND g IS CustomGroup;
 
-index =  PARTITION SUM 1 ORDER name(Item i) BY in(i), customGroup(customGroupPicList(),i);
-maxIndex(CustomGroup g) = GROUP MAX index(Item i) BY customGroup(customGroupPicList(),i);
+index =  PARTITION SUM 1 ORDER name(Item i) BY in(i, DepartmentStore ds), customGroup(customGroupPicList(),i), ds;
+maxIndex(CustomGroup g, DepartmentStore ds) = GROUP MAX index(Item i, ds) BY customGroup(customGroupPicList(),i);
 
-indexNULL (CustomGroup g) = PARTITION SUM 1 ORDER name(g) BY in(g), isNotParrent(g);
-maxIndexNULL() = GROUP MAX indexNULL(CustomGroup gg) IF in(gg) AND isNotParrent(gg);
-indexNoNULL (CustomGroup g) = PARTITION SUM 1 ORDER name(g) BY in(g), parent(g);
+useCustomOrderGroup = ABSTRACT BOOLEAN ();
+customOrderGroup = ABSTRACT STRING (CustomGroup);
+orderGroup (CustomGroup g) = IF useCustomOrderGroup() THEN customOrderGroup(g) ELSE name(g);
 
-indexGroup(CustomGroup g) = IF parent(g) THEN indexNoNULL(g) ELSE indexNULL(g);
-maxIndexGroup(CustomGroup g) = GROUP MAX indexGroup(CustomGroup gg) IF in(gg) BY parent(gg);
 
-indexItem(Item i) = maxIndexGroup(customGroup(customGroupPicList(),i)) (+) index(i);
-maxIndexItem(CustomGroup g) = maxIndexGroup(g) (+) maxIndex(g);
+indexNULL (CustomGroup g, DepartmentStore ds) = PARTITION SUM 1 ORDER orderGroup(g) BY in(g, ds), ds;
+maxIndexNULL() = GROUP MAX indexNULL(CustomGroup gg, DepartmentStore ds) IF in(gg, ds) AND isNotParrent(gg);
+indexNoNULL (CustomGroup g, DepartmentStore ds) = PARTITION SUM 1 ORDER orderGroup(g) BY in(g, ds), parent(g);
 
-inPage(Item i, INTEGER index) = indexItem(i) AND indexItem(i) - 1 >= index * 16 AND indexItem(i) - 1 < (index + 1) * 16;
-inPage(CustomGroup g, INTEGER index) =  indexGroup(g) AND indexGroup(g) - 1 >= index * 16 AND indexGroup(g) - 1 < (index + 1) * 16;
+indexGroup(CustomGroup g, DepartmentStore ds) = IF parent(g) THEN indexNoNULL(g, ds) ELSE indexNULL(g, ds);
+maxIndexGroup(CustomGroup g, DepartmentStore ds) = GROUP MAX indexGroup(CustomGroup gg, ds) IF in(gg, ds) BY parent(gg);
+
+indexItemExt(Item i, DepartmentStore ds) = IF mod(index(i, ds), 16) = 0 THEN 16 ELSE mod(index(i, ds), 16);
+indexItem(Item i, DepartmentStore ds) = maxIndexGroup(customGroup(customGroupPicList(),i), ds) (+) index(i, ds);
+maxIndexItem(CustomGroup g, DepartmentStore ds) = maxIndexGroup(g, ds) (+) maxIndex(g, ds);
+
+inPage(Item i, INTEGER index, DepartmentStore ds) = indexItem(i, ds) AND indexItem(i, ds) - 1 >= index * 16 AND indexItem(i, ds) - 1 < (index + 1) * 16;
+inPage(CustomGroup g, INTEGER index, DepartmentStore ds) =  indexGroup(g, ds) AND indexGroup(g, ds) - 1 >= index * 16 AND indexGroup(g, ds) - 1 < (index + 1) * 16;
 
 usePrefixCSIAPI 'Использовать префикс при выгрузке ШК для пиклистов (API CSI-K)' = DATA BOOLEAN ();
 prefixCSIAPI 'Префикс ШК' = DATA STRING () CHARWIDTH 10;
@@ -33,135 +42,76 @@ overPrefixCSIAPI (Item i) = IF istartsWith(shortNameUOM(barcode(i)), 'шт') THE
 
 contentBarcode (Item i) = CONCAT '', overPrefixCSIAPI(i) IF usePrefixCSIAPI() AND passScales(i), idBarcode(i);
 replaceNameAPI (Item i) = replace(replace(replace(Stock.name(i), '\\', '/'), '"', '\''), '\n', '');
-content (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexItem(i) - 1),
+content (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i, ds) THEN '\{' + (CONCAT ',' ,
+    '"index": ' + (indexItemExt(i, ds) - 1),
     '"name": "' + replaceNameAPI(i) + '"',
     '"barcode": "' + contentBarcode(i) + '"',
     '"sku": "' + overSet10Id(i, ds) + '"'
     ) + '\}';
 
 tilesGroup4(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
-    (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index), ', ' ORDER i))
+    (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index, ds), ', ' ORDER i))
     + ']\}';
 
-contentPage4 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexGroup(g) - 1),
+contentPage4 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + Stock.name(g) + '"',
-    '"sortType": "alphabetic"',
-    '"pages": [' + (GROUP CONCAT tilesGroup4(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g) / 16), ', ' ORDER i) + ']'
+    '"sortType": "manual"',
+    '"pages": [' + (GROUP CONCAT tilesGroup4(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
     ) + '\}';
 
 tilesGroup3(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
     (CONCAT ',',
-        (CONCAT ',' , (GROUP CONCAT contentPage4(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 3 AND inPage(cg, index), ', ' ORDER index, cg)),
-        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index), ', ' ORDER i))
+        (CONCAT ',' , (GROUP CONCAT contentPage4(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 3 AND inPage(cg, index, ds), ', ' ORDER index, cg)),
+        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index, ds), ', ' ORDER i))
         )
     + ']\}';
 
-contentPage3 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexGroup(g) - 1),
+contentPage3 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + Stock.name(g) + '"',
-    '"sortType": "alphabetic"',
-    '"pages": [' + (GROUP CONCAT tilesGroup3(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g) / 16), ', ' ORDER i) + ']'
+    '"sortType": "manual"',
+    '"pages": [' + (GROUP CONCAT tilesGroup3(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
     ) + '\}';
 
 tilesGroup2(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
     (CONCAT ',',
-        (CONCAT ',' , (GROUP CONCAT contentPage3(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 2 AND inPage(cg, index), ', ' ORDER index, cg)),
-        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index), ', ' ORDER i))
+        (CONCAT ',' , (GROUP CONCAT contentPage3(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 2 AND inPage(cg, index, ds), ', ' ORDER index, cg)),
+        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index, ds), ', ' ORDER i))
         )
     + ']\}';
 
-contentPage2 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexGroup(g) - 1),
+contentPage2 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"index": ' + (indexGroup(g, ds) - 1),
     '"name": "' + Stock.name(g) + '"',
-    '"sortType": "alphabetic"',
-    '"pages": [' + (GROUP CONCAT tilesGroup2(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g) / 16), ', ' ORDER i) + ']'
+    '"sortType": "manual"',
+    '"pages": [' + (GROUP CONCAT tilesGroup2(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
     ) + '\}';
 
 tilesGroup1(CustomGroup g, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
     (CONCAT ',',
-        (CONCAT ',' , (GROUP CONCAT contentPage2(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 1 AND inPage(cg, index), ', ' ORDER index, cg)),
-        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index), ', ' ORDER i))
+        (CONCAT ',' , (GROUP CONCAT contentPage2(CustomGroup cg, ds) IF parent(cg) = g AND level(g) == 1 AND inPage(cg, index, ds), ', ' ORDER index, cg)),
+        (CONCAT ',' , (GROUP CONCAT content(Item i, ds) IF in(g, i) == g AND inPage(i, index, ds), ', ' ORDER i))
         )
     + ']\}';
 
-contentPage1 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexGroup(g) - 1),
-    '"maxIndex": ' + maxIndexItem(g),
+contentPage1 (CustomGroup g, DepartmentStore ds) = IF in(g, ds) THEN '\{' + (CONCAT ',' ,
+    '"index": ' + (indexGroup(g, ds) - 1),
+    '"maxIndex": ' + maxIndexItem(g, ds),
     '"name": "' + Stock.name(g) + '"',
-    '"sortType": "alphabetic"',
-    '"pages": [' + (GROUP CONCAT tilesGroup1(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g) / 16), ', ' ORDER i) + ']'
+    '"sortType": "manual"',
+    '"pages": [' + (GROUP CONCAT tilesGroup1(g, INTEGER i, ds) IF iterate(i, 0, maxIndexItem(g, ds) / 16), ', ' ORDER i) + ']'
     ) + '\}';
 
 tilesGroup(CustomGroupType gt, INTEGER index, DepartmentStore ds) = '\{ "tiles": [' +
-    (CONCAT ',' , (GROUP CONCAT contentPage1(CustomGroup cg, ds) IF groupType(cg) = gt AND NOT parent(cg) AND inPage(cg, index), ', ' ORDER indexGroup(cg)))
+    (CONCAT ',' , (GROUP CONCAT contentPage1(CustomGroup cg, ds) IF groupType(cg) = gt AND NOT parent(cg) AND inPage(cg, index, ds), ', ' ORDER indexGroup(cg, ds)))
     + ']\}';
 
 content (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
-    '"sortType": "alphabetic"',
+    '"sortType": "manual"',
     '"pages": [' + (GROUP CONCAT tilesGroup(gt, INTEGER i, ds) IF iterate(i, 0, maxIndexNULL() / 16), ', ' ORDER i) + ']'
     ) + '\}';
 
-
-contentTouchAll = DATA BOOLEAN ();
-
-contentTouch (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i) THEN '\{' + (CONCAT ',' ,
-    '"index": ' + (indexItem(i) - 1),
-    '"name": "' + replaceNameAPI(i) + '"',
-    '"tiles": []',
-    '"img": "' + contentBarcode(i) + '"',
-    '"itemId": "' + overSet10Id(i, ds) + '"',
-    '"barcode": "' + contentBarcode(i) + '"'
-    ) + '\}';
-
-contentCustomGroupTouch3 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' +
-    (CONCAT ',' ,
-        '"index": "' + (indexGroup(g) - 1) + '"',
-        '"name": "' + Stock.name(g) + '"',
-        '"tiles": [' + (CONCAT ',',
-            (CONCAT ',' , (GROUP CONCAT contentTouch(Item i, ds) IF in(g, i) == g, ', ' ORDER indexItem(i)))
-            ) + ']',
-        '"img": ""',
-        '"iconId": "DIR"'
-        ) + '\}';
-
-contentCustomGroupTouch2 (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' +
-    (CONCAT ',' ,
-        '"index": "' + (indexGroup(g) - 1) + '"',
-        '"name": "' + Stock.name(g) + '"',
-        '"tiles": [' + (CONCAT ',',
-            (CONCAT ',' , (GROUP CONCAT contentCustomGroupTouch3(CustomGroup cg, ds) IF parent(cg) = g, ', ' ORDER indexGroup(cg))),
-            (CONCAT ',' , (GROUP CONCAT contentTouch(Item i, ds) IF in(g, i) == g, ', ' ORDER indexItem(i)))
-            ) + ']',
-        '"img": ""',
-        '"iconId": "DIR"'
-        ) + '\}';
-
-contentCustomGroupTouch (CustomGroup g, DepartmentStore ds) = IF in(g) THEN '\{' +
-    (CONCAT ',' ,
-        '"index": "' + (indexGroup(g) - 1) + '"',
-        '"name": "' + Stock.name(g) + '"',
-        '"tiles": [' + (CONCAT ',',
-            (CONCAT ',' , (GROUP CONCAT contentCustomGroupTouch2(CustomGroup cg, ds) IF parent(cg) = g, ', ' ORDER indexGroup(cg))),
-            (CONCAT ',' , (GROUP CONCAT contentTouch(Item i, ds) IF in(g, i) == g, ', ' ORDER indexItem(i)))
-            ) + ']',
-        '"img": ""',
-        '"iconId": "DIR"'
-        ) + '\}';
-
-tilesTab(CustomGroup g, DepartmentStore ds) = (CONCAT ',',
-    (CONCAT ',' , (GROUP CONCAT contentCustomGroupTouch(CustomGroup cg, ds) IF parent(cg) = g, ', ' ORDER indexGroup(cg))),
-    (CONCAT ',' , (GROUP CONCAT contentTouch(Item i, ds) IF in(g, i) == g, ', ' ORDER i)));
-
-contentTab (CustomGroup g, DepartmentStore ds) = IF in(g) THEN
-    '\{ "name": "' + Stock.name(g) + '", "columns": 6, "type": "GT", "tiles": [' + tilesTab(g, ds) + '] \}';
-
-contentTouch (CustomGroupType gt, DepartmentStore ds) =
-    '[' + (GROUP CONCAT contentTab(CustomGroup g, ds) IF customGroupType(g) == gt AND level(g) == 1, ', ' ORDER indexGroup(g)) + ']';
-
-contentTouchAll (CustomGroupType gt, DepartmentStore ds) =
-    '[\{ "name": "Все", "columns": 6, "type": "GT", "tiles": [' + (GROUP CONCAT contentCustomGroupTouch(CustomGroup g, ds) IF customGroupType(g) == gt AND level(g) == 1, ', ' ORDER indexGroup(g)) + '] \}]';
 
 templateGuid 'GUID шаблона пиклиста' = DATA STRING ();
 cashTemplates 'Код шаблона касс' = DATA STRING ();
@@ -195,31 +145,29 @@ DESIGN integrationData {
 }
 
 
-cashType = DATA LOCAL NESTED STRING ();
-content = DATA LOCAL NESTED STRING ();
-shopNumber 'Номер магазина' = DATA LOCAL NESTED INTEGER ();
+
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT',
         templateGuid = templateGuid(),
         cashTemplates = '[' + cashTemplates() + ']'
-    OBJECTS i = INTEGER EXTID 'menuTemplates'
-    PROPERTIES cashType = cashType() IF i IS INTEGER,
-        menuName = ('' + shopNumber()) IF i IS INTEGER AND isUseShopNumber(),
-        shopNumbers = ('[' + shopNumber() + ']') IF i IS INTEGER AND isUseShopNumber(),
-        content = content() IF i IS INTEGER EXTID 'content:escapeInnerJSON'
-    FILTERS i == 1
+    
+    OBJECTS g = GroupCashRegister EXTID 'menuTemplates'
+    PROPERTIES = IF isSet10(g) THEN 'CSI_K' EXTID 'cashType',
+        menuName = ('CSI-K ТО ' + idStoreSet(g)),
+        shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
+        content = content(customGroupPicList(), stock(g)) EXTID 'content:escapeInnerJSON'
+    FILTERS isSet10(g)
 ;
 
+idStoreSet(DepartmentStore ds) = idStoreSet(GROUP MAX GroupCashRegister g IF isSet10(g) AND stock(g) = ds);
 
-exportCSIAPI 'Экспорт пиклиста CSI' (GroupMachinery g) {
+exportCSIAPI 'Экспорт пиклиста CSI' () {
     IF exportCSIAPIurl() THEN {
-        in(Item i) <- IF currentBalance(i, stock(g)) THEN TRUE;
-        in(CustomGroup cg) <- TRUE IF groupType(cg) == customGroupPicList() AND GROUP SUM 1 IF isParent(cg, Item sku) AND in(sku);
+        in(Item i, DepartmentStore ds) <- TRUE WHERE currentBalance(i, ds) AND idStoreSet(ds);
+        in(CustomGroup g, DepartmentStore ds) <- TRUE WHERE groupType(g) == customGroupPicList()
+            AND GROUP SUM 1 IF isParent(g, Item sku) AND in(sku, ds);
         
-        content() <- content(customGroupPicList(), stock(g));
-        shopNumber() <- INTEGER(idStoreSet(g));
-        cashType() <- 'CSI_K';
-        IF GROUP SUM 1 IF in(Item sku) AND in(customGroup(customGroupPicList(), sku)) THEN {
+        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND  customGroupPicList() THEN {
             EXPORT exportCSIformAPI JSON;
 
             timeoutHttp() <- 60000;
@@ -229,26 +177,26 @@ exportCSIAPI 'Экспорт пиклиста CSI' (GroupMachinery g) {
             EXTERNAL HTTP POST exportCSIAPIurl() PARAMS exportFile() TO result;
             IMPORT JSON FROM result() TO() errorCode, description;
             IF NOT errorCode() THEN {
-               MESSAGE CONCAT '\n', 'Пиклист успешно выгружен', name(g)  NOWAIT ;
+               MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
             }
             ELSE {
-                MESSAGE (CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description(), name(g)) NOWAIT;
-            }
+                MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
+            } 
         }
         ELSE {
-           MESSAGE CONCAT '\n', (CONCAT  '', 'Нет данных для выгрузки: ', name(g)) NOWAIT ;
+           MESSAGE  'Нет данных для выгрузки' NOWAIT ;
         }
     }
     ELSE
-        MESSAGE ('Не указан адресc для API запросов CSI-K (Touch) ' + name(g)) NOWAIT;
+        MESSAGE 'Не указан адресc для API запросов CSI-K (Touch)' NOWAIT;
 }
 EXTEND FORM groupCashRegister
-    PROPERTIES (grc) exportCSIAPI SHOWIF isSet10(grc)
+    PROPERTIES () exportCSIAPI SHOWIF isSet10(grc)
 ;
 
 
 DESIGN groupCashRegister{
     topContainer{
-        MOVE PROPERTY (exportCSIAPI(grc));
+        MOVE PROPERTY (exportCSIAPI());
     }
 }
