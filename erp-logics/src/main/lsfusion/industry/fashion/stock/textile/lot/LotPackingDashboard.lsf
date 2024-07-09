@@ -57,9 +57,26 @@ allowReturnFromBuyer 'Возврат от покупателя' = DATA LOCAL BOO
 extraCheckPacking ABSTRACT (Lot);
 extraReturn = DATA LOCAL BOOLEAN ();
 
+lastSeekString 'Последнее отсканированное значение' = DATA LOCAL STRING[200] ();
+enableLastSeekString 'Отображать последнее отсканированное значение' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() enableLastSeekString
+;
+
+DESIGN options {
+    WMS {
+        NEW lotPacking {
+            caption = 'Упаковка марок в пакеты';
+            MOVE PROPERTY(enableLastSeekString());
+        }
+    }
+}
+
 seekPacket 'Поиск пакета/марки' (Packet p) {
     INPUT s = STRING[200] DO {
         IF NOT s THEN RETURN;
+        IF enableLastSeekString() THEN lastSeekString() <- s;
         IF length(s) <= 15 THEN { // это пакет
             LOCAL id = STRING[100]();
             id() <- OVERRIDE substr(s, 4, 8) IF length(s) == 12, ltrim(s, '0'); // в 1 случае без ведущих 0 и контрольной цифры (UPC-A), а если Code93 и длина 8, то перейдёт на 2
@@ -141,7 +158,7 @@ backgroundPacketPanel (Packet p) = CASE WHEN isClosed(p) THEN RGB(150,255,150)
 
 filterLotPacking = DATA LOCAL NESTED BOOLEAN (Packet);
 
-fillFilterLotPacket 'Обновить'(DATE dt) {
+fillFilterLotPacket 'Обновить' (DATE dt) {
     checkedPacketForm() <- NULL;
     filterPacketForm() <- NULL;
 
@@ -168,6 +185,8 @@ FORM lotPacking 'Упаковка марок в пакеты'
 
     FILTERGROUP openP FILTER 'Открыт' isOpened(p) 'F6' DEFAULT
 
+    PROPERTIES READONLY lastSeekString() SHOWIF enableLastSeekString()
+    
     OBJECTS is = STRING[200] PANEL
     PROPERTIES idScanLotPacking = VALUE(is) ON CHANGE seekPacket(p) EVENTID 'SCANNER'
 
@@ -225,6 +244,11 @@ DESIGN lotPacking {
         NEW lotTab {
             caption = 'Марки';
             MOVE BOX(l) {
+                NEW logBar {
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(lastSeekString());
+                }
                 TOOLBAR(l) {
                     MOVE PROPERTY(idScanLotPacking) {
                         fill = 1;
