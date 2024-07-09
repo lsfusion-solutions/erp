@@ -347,7 +347,8 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             boolean cleared = false;
             
             try {
-                
+    
+                logger.info(getLogPrefix() + String.format("Connect, ip %s, transaction %s", scales.port, transaction.id));
                 port.open();
                 
                 Result result = new Result.Success();
@@ -380,7 +381,8 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                         }
                     }
                 }
-                
+    
+                logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                 port.close();
                 
             } catch (Throwable t) {
@@ -389,8 +391,8 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                 logger.error(error);
             }
             finally {
-                logger.info(getLogPrefix() + "Finally disconnecting..." + scales.port);
                 try {
+                    logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                     port.close();
                 } catch (CommunicationException ignored) {}
             }
