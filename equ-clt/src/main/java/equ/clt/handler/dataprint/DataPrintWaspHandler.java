@@ -93,16 +93,23 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     private Result sendData(Data data) {
         
         String line = "";
-        if (data.segments != null)
+        if (data.segments != null) {
+
+            if (debugMode)
+                logger.info(getLogPrefix() + String.format("ip: %s segments: %s", port.getAddress(), data.segments));
+            
             line = StringUtils.join(data.segments, TAB);
-        if (!line.isEmpty())
+        }
+        if (!StringUtils.isBlank(line))
             line += TAB;
         line += ENDL;
         
         try {
             
-            if (debugMode)
-                logger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), line));
+            if (debugMode) {
+                String printableLine = line.replace("\t", "<09>").replace("\n", "<0A>").replace("\r", "<0D>");
+                logger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), printableLine));
+            }
             
             port.getOutputStream().write(line.getBytes());
             port.getOutputStream().flush();
@@ -216,7 +223,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     
             int descriptionLineLength = nvl(settings.getDescriptionLineLength(), 270);
             String line = item.description;
-            for (int i = 0; i <= 7; ++i) {
+            for (int i = 0; i < 7; ++i) {
                 String subLine = "";
                 if (!StringUtils.isBlank(line)) {
                     subLine = StringUtils.left(line, descriptionLineLength);
@@ -280,7 +287,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add("0"); //66 PLU Flag 0 Number type
             data.segments.add("0"); //67 PLU Flag Value 0 Number type
             data.segments.add("0"); //68 Bitmap
-        
+            
             sendData(data);
         
             data.clear();
