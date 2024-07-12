@@ -37,3 +37,16 @@ trustAcceptPercent (Barcode b) = trustAcceptPercent(sku(b));
 EXTEND FORM itemGroup PROPERTIES(g) trustAcceptPercent;
 EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() trustAcceptPercent BACKGROUND RGB(190,190,190) IF dataTrustAcceptPercent(g);
 EXTEND FORM item PROPERTIES (i) trustAcceptPercent;
+
+//
+sendAllLots 'Загружать в терминал все марки' = DATA BOOLEAN () PREREAD;
+EXTEND FORM options
+    PROPERTIES() sendAllLots;
+DESIGN options {
+    terminalServer {
+        MOVE PROPERTY(sendAllLots());
+    }
+}
+
+filter(Lot l, Stock st, Employee e) += l IS Lot AND st IS Stock AND e IS Employee
+    AND (currentBalance(l) OR NOT batch(l)) AND sendAllLots();
