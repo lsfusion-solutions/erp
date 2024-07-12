@@ -117,7 +117,6 @@ changeAddressLegalEntity (DiscountCard d) {
 
 middleNameHttpServerContact = ABSTRACT ISTRING[100] (DiscountCard);
 numberSexHttpServerContact = ABSTRACT INTEGER (DiscountCard);
-skipLoad = ABSTRACT BOOLEAN (DiscountCard);
 
 //тип карты
 CLASS DiscountCardType 'Тип дисконтной карты' : StaticObject;
@@ -173,6 +172,10 @@ percent 'Процент скидки' (discountCard) = DATA NUMERIC[18,4] (Disco
 
 inactive 'Неактивный' = DATA BOOLEAN (DiscountCard);
 isActive 'Активный' (DiscountCard g) = g IS DiscountCard AND NOT inactive(g);
+
+skipLoad = ABSTRACT BOOLEAN (DiscountCard);
+sendInactiveDiscountCard 'Загружать в оборудование неактивные дисконтные карты' = DATA BOOLEAN () PREREAD;
+send(DiscountCard d) = number(d) AND (isActive(d) OR sendInactiveDiscountCard()) AND NOT skipLoad(d);
 
 // Генерация дисконтных карт
 FORM generationDiscountCards 'Генерация дисконтных карт'
@@ -338,13 +341,14 @@ NAVIGATOR {
     }
 }
 EXTEND FORM options
-    PROPERTIES notFillDate()
+    PROPERTIES notFillDate(), sendInactiveDiscountCard()
 ;
 DESIGN options {
     pane {        
         NEW discountCards {
             caption = 'Дисконтные карты';
             MOVE PROPERTY (notFillDate());
+            MOVE PROPERTY (sendInactiveDiscountCard());
         }
     }
 }

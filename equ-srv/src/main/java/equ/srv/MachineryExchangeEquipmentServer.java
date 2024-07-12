@@ -273,9 +273,7 @@ public class MachineryExchangeEquipmentServer {
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
-                discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
-                discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                discountCardQuery.and(discountCardLM.findProperty("isActive[DiscountCard]").getExpr(discountCardExpr).getWhere());
+                discountCardQuery.and(discountCardLM.findProperty("send[DiscountCard]").getExpr(discountCardExpr).getWhere());
 
                 DataObject requestExchangeObject = new DataObject(requestExchange.requestExchange, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
 
