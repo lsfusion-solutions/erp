@@ -158,6 +158,43 @@ exportLedgerUKMAllGiftCards 'Экспорт списаний УКМ все' () {
     }
 }
 
+exportLedgerSelectedUKMGiftCards 'Экспорт списаний УКМ выбранные' () {
+    IF connectionStringExportGiftCards() AND NOT inactiveUKMCustom() THEN {
+        LOCAL versionLoc = INTEGER (INTEGER);
+        versionLoc(INTEGER i) <- NULL;
+        LOCAL NESTED versionLoc = INTEGER ();
+        LOCAL NESTED connectionStringUKMLoc = STRING[255]();
+        LOCAL NESTED inExportGiftCardsLoc = BOOLEAN (GiftCard);
+
+        connectionStringUKMLoc() <- (connectionStringExportGiftCards() + '?user='+userExportGiftCards()+'&password='+passwordExportGiftCards());
+
+        EXTERNAL SQL connectionStringUKMLoc() EXEC 'SELECT MAX(version) FROM `signal`' TO file;
+        IMPORT TABLE FROM file() TO versionLoc;
+        versionLoc() <- (GROUP MAX versionLoc(INTEGER i)) (+) 100;
+
+        inExportGiftCardsLoc(GiftCard g) <- NULL;
+        inExportGiftCardsLoc(GiftCard g) <- TRUE WHERE inExportGiftCards(g);
+
+        NEWSESSION {
+            FOR inExportGiftCardsLoc(GiftCard gen) AND dateSold(gen) AND expireDate(gen) >= currentDate() AND inActiveUKM(gen)
+                AND giftCard(PaymentGiftCard gl) = gen AND gl IS PaymentGiftCard AND NOT exportedUKM(gl) ORDER dateTime(gl), gl DO {
+                EXTERNAL SQL connectionStringUKMLoc() EXEC
+                'INSERT INTO certificate_operations (number, amount, version, deleted) VALUES('
+                    + number(gen) + ','
+                    + TEXT(signedSum(gl)) + ','
+                    + TEXT(versionLoc()) + ','
+                    + '0)';
+                dataExportedUKM(gl) <- TRUE;
+            }
+            IF (GROUP MAX dataExportedUKM(PaymentGiftCard gl) IF inExportGiftCardsLoc(giftCard(gl)) AND gl IS PaymentGiftCard AND NOT PREV(dataExportedUKM(gl))) THEN {
+                EXTERNAL SQL connectionStringUKMLoc() EXEC 'INSERT INTO `signal` (`signal`, version) VALUES(\'incr\', ' + TEXT(versionLoc()) + ') '
+                    + 'ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);' ;
+                APPLY;
+            }
+        }
+    }
+}
+
 integrationUKMSold (){
     IF NOT inactiveUKMCustom() THEN {
         inExportGiftCards(GiftCard g) <- TRUE WHERE sold(g) IS ReceiptGiftCardSaleDetail AND NOT isUKMSold(g) AND NOT exportedActive(g);
