@@ -6,6 +6,8 @@ NAMESPACE Purchase;
 
 @defineOperationProperty(showOriginalSupplier, 'Показывать внешнего поставщика', showContainer);
 
+@defineOperationProperty(skipOriginalSupplier, 'Не проставлять внешнего поставщика', showContainer);
+
 originalSupplier = ABSTRACT LegalEntity (InvoiceDetail);
 nameOriginalSupplier 'Поставщик (внешний)' = name(originalSupplier(InvoiceDetail d));
 originalSupplier = DATA LegalEntity (UserInvoiceDetail);
@@ -24,6 +26,6 @@ EXTEND FORM invoices
 
 overSupplier(ShipmentBatch ledger) += originalSupplier(invoiceDetail(shipmentDetail(ledger)));// IF showOriginalSupplier(invoice(invoiceDetail(shipmentDetail(ledger))));
 
-WHEN LOCAL (SETCHANGED(sku(UserInvoiceDetail d)) OR SETCHANGED(supplierStock(d))) AND NOT CHANGED(originalSupplier(d)) AND NOT skipUpdatePriceAccount() DO {
+WHEN LOCAL (SETCHANGED(sku(UserInvoiceDetail d)) OR SETCHANGED(supplierStock(d))) AND NOT CHANGED(originalSupplier(d)) AND NOT skipUpdatePriceAccount() AND NOT skipOriginalSupplier(operation(d)) DO {
     originalSupplier(d) <- prevSupplierLastOrderBatch(sku(d),supplierStock(d));
 }
