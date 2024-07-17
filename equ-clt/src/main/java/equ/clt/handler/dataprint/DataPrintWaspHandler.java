@@ -8,15 +8,11 @@ import equ.clt.handler.TCPPort;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.ExceptionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
-import java.time.Duration;
-import java.time.LocalDate;
-import java.time.Period;
 import java.util.*;
 
 import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
@@ -186,15 +182,14 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     }
     
     private Result sendPLU(ScalesInfo scales, ScalesItem item) {
-        Result result = new Result.Success();
     
         Data data = new Data();
-        data.segments.add("DWL");
-        data.segments.add("PLU");
+        //data.segments.add("DWL");
+        //data.segments.add("PLU");
     
-        if ((result = sendData(data)).success()) {
+        //if ((result = sendData(data)).success()) {
     
-            data.clear();
+            //data.clear();
     
             String pluNumber = getPluNumber(item);
             
@@ -203,7 +198,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add(pluNumber);     // 3 Item Code 0 Number type (articul)
             data.segments.add("");      //4 Index Barcode String type
             data.segments.add(item.splitItem ? "3" : "2");     //5 Unit number of PLU. 3 Number : 1=weight,2=pcs, 3=kg, 4=g, 5=ton,6=lb,7=500g,8=100g, 9=1/4lb
-            data.segments.add(specialFloat(item.price != null ? item.price.doubleValue() : 0)); //6 Price 0,0 SPECIAL FLOAT
+            data.segments.add(floatValue(item.price != null ? item.price.doubleValue() : 0)); //6 Price 0,0 SPECIAL FLOAT
             data.segments.add("0,0");   // 7 Cost 0,0 SPECIAL FLOAT
             data.segments.add("0,0");   // 8 Tare 0,0 SPECIAL FLOAT
             
@@ -219,10 +214,10 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add(String.valueOf(barcodeBill2)); //13 Barcode in bill 2 0 Number type
             data.segments.add("0"); //14 PLU Flag in Barcode in bill 2 0 Number type
             data.segments.add("9"); //15 Class 9 Number type
-            data.segments.add(item.name); //16 PLU name String type
+            data.segments.add(stringValue(item.name)); //16 PLU name String type
     
-            int descriptionLineLength = nvl(settings.getDescriptionLineLength(), 270);
-            String line = item.description;
+            int descriptionLineLength = nvl(settings.getDescriptionLineLength(), 510);
+            String line = stringValue(item.description);
             for (int i = 0; i < 7; ++i) {
                 String subLine = "";
                 if (!StringUtils.isBlank(line)) {
@@ -288,16 +283,15 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add("0"); //67 PLU Flag Value 0 Number type
             data.segments.add("0"); //68 Bitmap
             
-            sendData(data);
+            return sendData(data);
         
-            data.clear();
-            data.segments.add("END");
-            data.segments.add("PLU");
-        
-            sendData(data);
-        }
+//            data.clear();
+//            data.segments.add("END");
+//            data.segments.add("PLU");
+//            sendData(data);
+        //}
     
-        return result;
+        //return result;
     }
     
     private Result clearPLU() {
@@ -325,10 +319,16 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         return item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode != null ? item.idBarcode : "";
     }
     
-    String specialFloat(double value) {
+    String floatValue(double value) {
         if (value > 0)
             return String.format("%.2f", value).replace(",", "").replace(".", "") + ",2";
         return "0,0";
+    }
+    
+    String stringValue(String value) {
+        if (StringUtils.isBlank(value))
+            return "";
+        return value.replace("\t", "").replace('\n', (char)0x0b).replace("\r", "");
     }
     
     private static boolean interrupted = false; //прерываем загрузку в рамках одной транзакции. Устанавливается при interrupt exception и сбрасывается при release
@@ -371,20 +371,42 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                     
                     if (result.success()) {
                         
-                        int count = 0;
-                        for (ScalesItem item : transaction.itemsList) {
-                            count ++;
-                            if (notInterruptedTransaction(transaction.id)) {
-                                logger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
-                                
-                                result = sendPLU(scales, item);
+                        Data data = new Data();
+                        data.segments.add("DWL");
+                        data.segments.add("PLU");
     
-                                if (!result.success()) {
-                                    error = result.errorMessage;
-                                    logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
-                                    break;
+                        if ((result = sendData(data)).success()) {
+    
+                            int count = 0;
+    
+                            for (ScalesItem item : transaction.itemsList) {
+                                count++;
+                                if (notInterruptedTransaction(transaction.id)) {
+                                    logger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+            
+                                    result = sendPLU(scales, item);
+            
+                                    if (!result.success()) {
+                                        error = result.errorMessage;
+                                        logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                        break;
+                                    }
                                 }
-                            } else break;
+                                else break;
+                            }
+
+                            data.clear();
+                            data.segments.add("END");
+                            data.segments.add("PLU");
+    
+                            if (!(result = sendData(data)).success()) {
+                                error = result.errorMessage;
+                                logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                            }
+                        }
+                        else {
+                            error = result.errorMessage;
+                            logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                         }
                     }
                 }
