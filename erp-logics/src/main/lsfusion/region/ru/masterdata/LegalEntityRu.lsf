@@ -106,3 +106,25 @@ DESIGN legalEntity{
         }
     }
 }
+
+skipKpp = DATA BOOLEAN (LegalEntity);
+
+isFillKpp 'Должен быть заполнен КПП у организации' = DATA BOOLEAN (Country) PREREAD;
+withoutFillKpp 'Не проверять КПП' = DATA BOOLEAN (Ownership) PREREAD;
+
+EXTEND FORM country
+    PROPERTIES (c) isFillKpp
+;
+EXTEND FORM countries
+    PROPERTIES (c) READONLY isFillKpp
+;
+
+EXTEND FORM ownership
+    PROPERTIES (o) withoutFillKpp
+;
+EXTEND FORM ownerships
+    PROPERTIES (o) READONLY withoutFillKpp
+;
+
+CONSTRAINT (SETCHANGED (country(LegalEntity l)) OR SETCHANGED (ownership(l)) OR CHANGED (kpp(l))) AND isFillKpp(country(l)) AND NOT withoutFillKpp(ownership(l)) AND NOT kpp(l) AND NOT skipKpp(l)
+    MESSAGE 'Должен быть заполнен КПП у организации';
