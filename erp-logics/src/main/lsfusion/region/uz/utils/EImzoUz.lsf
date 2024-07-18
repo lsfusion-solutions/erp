@@ -1,0 +1,181 @@
+MODULE EImzoUz;
+
+REQUIRE Utils, SystemEvents, LegalEntityUz;
+
+NAMESPACE EImzo;
+
+CLASS Certificate 'Сертификат EImzo';
+TABLE certificate (Certificate);
+
+user = DATA CustomUser (Certificate) INDEXED;
+legalEntity = DATA LegalEntity (Certificate) INDEXED;
+nameLegalEntity 'Компания' (Certificate c) = name(legalEntity(c));
+serial 'С/Н'= DATA STRING[255] (Certificate) INDEXED;
+certificate = GROUP AGGR Certificate c BY serial(c), user(c);
+certificate = GROUP AGGR Certificate c BY legalEntity(c), user(c);
+
+type 'Тип' = DATA STRING (Certificate);
+disk 'Диск' = DATA STRING (Certificate);
+path 'Путь' = DATA STRING (Certificate);
+name 'Наименование' = DATA STRING (Certificate);
+alias 'Алиас' = DATA STRING (Certificate);
+organization 'Организация' = DATA STRING (Certificate);
+owner 'Владелец' = DATA STRING (Certificate);
+dateFrom 'Дата от' = DATA DATE (Certificate);
+dateTo 'Дата до' = DATA DATE (Certificate);
+isValid 'Действующий' (Certificate c) = TRUE IF dateTo(c) >= currentDate();
+
+serialNumber = DATA LOCAL STRING(INTEGER);
+validFrom = DATA LOCAL ZDATETIME(INTEGER);
+CN = DATA LOCAL STRING(INTEGER);
+type = DATA LOCAL STRING(INTEGER);
+o = DATA LOCAL STRING(INTEGER);
+path = DATA LOCAL STRING(INTEGER);
+UID = DATA LOCAL STRING(INTEGER);
+disk = DATA LOCAL STRING(INTEGER);
+t = DATA LOCAL STRING(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+TIN = DATA LOCAL STRING(INTEGER);
+alias = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING(INTEGER);
+validTo = DATA LOCAL ZDATETIME(INTEGER);
+
+FORM importCert
+    OBJECTS value = INTEGER
+    PROPERTIES(value) serialNumber, validFrom, CN, type, o EXTID 'O', path, 
+        UID, disk, t EXTID 'T', name, TIN, alias, id, validTo
+    FILTERS imported(value)
+;
+
+importUserCertificate(TEXT f){
+    stringToFile(f);
+    IMPORT importCert JSON FROM resultFile();
+    LOCAL count = INTEGER();
+    
+    FOR imported(INTEGER i) AND NOT certificate(serialNumber(i), currentUser()) NEW c = Certificate DO{
+        serial(c) <- serialNumber(i);
+        user(c) <- currentUser();
+        name(c) <- name(i);
+        alias(c) <- alias(i);
+        dateFrom(c) <- DATE(validFrom(i));
+        dateTo(c) <- DATE(validTo(i));
+        alias(c) <- alias(i);
+        disk(c) <- disk(i);
+        path(c) <- path(i);
+        organization(c) <- o(i);
+        owner(c) <- CN(i);
+        type(c) <- type(i);
+        count() <- count() (+) 1;
+        MESSAGE 'Сертификат ' + serial(c) + ' добавлен\n' + alias(c) NOWAIT;
+    }
+    IF count() THEN APPLY NESTED LOCAL;
+}
+
+signature = DATA LOCAL RAWFILE ();
+encodedSignature = encode(signature(), 'base64');
+
+dataToSign = DATA LOCAL TEXT ();
+errorSignature = DATA LOCAL TEXT ();
+description = DATA LOCAL TEXT ();
+resultText = DATA LOCAL TEXT ();
+signData(JSON f){ INTERNAL CLIENT 'signData' PARAMS f; }
+checkSign(STRING id){ INTERNAL CLIENT 'checkSign' PARAMS id TO resultText; }
+maxAttemptSign 'Максимальное колво поыток подписи(секунд)' = DATA INTEGER();
+
+signClientAction(Certificate c, RAWFILE f, BOOLEAN attach){
+    IF attach THEN{
+        fileToString(FILE(f));
+        dataToSign() <- resultString();
+    }
+    ELSE{
+        dataToSign() <- encode(f, 'base64');
+    }
+    generateUUID();
+    LOCAL result = STRING();
+    LOCAL id = STRING ();
+    LOCAL attach = INTEGER();
+    attach() <- IF attach THEN 1 ELSE 0;
+    signData(
+            JSON FROM 
+                data = dataToSign(), 
+                vo = (JSON FROM type(c), disk(c), path(c), name(c), alias(c), serial(c)), 
+            id = generatedUUID(),
+                attach = attach()
+    );
+    logToFile('eImzo', 'Транзакция ' + generatedUUID() + ' началась подпись');
+    LOCAL count = INTEGER();
+    WHILE (TRUE) DO{
+        IF count() >= OVERRIDE maxAttemptSign(), 10 THEN throwException('Превышен таймаут подписи');
+        sleep(1000);
+        checkSign(generatedUUID());
+        stringToFile(resultText());
+        logToFile('eImzo', CONCAT ' : ', generatedUUID(), resultText());
+        IMPORT JSON FROM resultFile() TO () result = sign, errorSignature = error, description = description, id = id;
+        IF errorSignature() THEN throwException(OVERRIDE description(), 'Неизвестная ошибка');
+        IF id() != generatedUUID() THEN throwException('Не совпадают id транзакций');
+        IF result() THEN {
+            signature() <- decode(result(), 'base64');
+            BREAK;
+        }
+        count() <- count() (+) 1;
+    }
+}
+signClientAction(RAWFILE f, LegalEntity l, BOOLEAN attach) {
+    FOR Certificate c = certificate(l, currentUser()) DO{
+        signClientAction(c, f, attach);
+    }
+    ELSE throwException(CONCAT ' ', 'Не найден сертификат EImzo для', name(l));
+}
+
+testSignAttach 'Тест подписи (append_pkcs7_attached)' (Certificate c){
+    INPUT f = RAWFILE DO{
+        signClientAction(c, f, TRUE);
+        MESSAGE signature();
+    }
+}
+testSign 'Тест подписи (create_pkcs7)' (Certificate c){
+    INPUT f = RAWFILE DO{
+        signClientAction(c, f, NULL);
+        MESSAGE signature();
+    }
+}
+
+FORM certificates 'Сертфикаты EImzo'
+    OBJECTS c = Certificate
+    PROPERTIES (c) READONLY type, disk, path, name, organization, owner, serial, dateFrom, dateTo, alias, isValid
+    PROPERTIES nameLegalEntity(c), testSign(c), testSignAttach(c)
+    PROPERTIES (c) DELETE
+    FILTERS user(c) = currentUser()
+
+    PROPERTIES fill = JSON FROM caption = 'Заполнить сертификаты' CUSTOM 'fillCertAsync' TOOLBAR DRAW c
+    ON CHANGE {
+        INPUT f = TEXT DO {
+            NEWSESSION importUserCertificate(f);
+        }
+    }
+;
+
+EXTEND FORM options
+    PROPERTIES maxAttemptSign()
+;
+
+DESIGN options{
+    pane{
+        NEW eImzo{
+            caption = 'EImzo';
+            MOVE PROPERTY (maxAttemptSign());
+        }
+    }
+}
+NAVIGATOR {
+    dashboardNavigator{
+        NEW certificates;
+    }
+}
+
+onWebClientLoad() +{
+    IF permit(currentUser(), navigatorElementCanonicalName('EImzo.certificates')) THEN{
+        INTERNAL CLIENT 'eimzo.js';
+        INTERNAL CLIENT 'eimzo_sign.js';
+    }
+} 
