@@ -28,10 +28,11 @@ public class FiscalBoardResetTextAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
+            boolean useJSerialComm = findProperty("useJSerialCommCurrentCashRegister[]").read(context) != null;
             String defaultTextBoard = (String) findProperty("defaultTextBoard[]").read(context);
 
             String[] lines = generateText(defaultTextBoard);
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, timeout));
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, useJSerialComm, timeout));
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

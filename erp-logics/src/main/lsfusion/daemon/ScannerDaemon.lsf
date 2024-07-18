@@ -6,12 +6,14 @@ scannerComPort 'Com-port сканнера' = DATA INTEGER (Computer);
 currentScannerComPort = scannerComPort(currentComputer());
 scannerSingleRead 'Одно событие на весь штрихкод' = DATA BOOLEAN (Computer);
 currentScannerSingleRead = scannerSingleRead(currentComputer());
-EXTEND FORM computer PROPERTIES(c) scannerComPort, scannerSingleRead;
-EXTEND FORM computers PROPERTIES(c) AFTER hostname(c) READONLY scannerComPort, scannerSingleRead;
-EXTEND FORM computersDialog PROPERTIES(c) scannerComPort, scannerSingleRead;
+useJSerialComm 'Использовать библиотеку jSerialComm вместо jssc' = DATA BOOLEAN (Computer);
+currentUseJSerialComm = useJSerialComm(currentComputer());
+EXTEND FORM computer PROPERTIES(c) scannerComPort, scannerSingleRead, useJSerialComm;
+EXTEND FORM computers PROPERTIES(c) AFTER hostname(c) READONLY scannerComPort, scannerSingleRead, useJSerialComm;
+EXTEND FORM computersDialog PROPERTIES(c) scannerComPort, scannerSingleRead, useJSerialComm;
 
-scannerDaemon INTERNAL  'lsfusion.erp.daemon.ScannerDaemonAction' (INTEGER, BOOLEAN);
+scannerDaemon INTERNAL  'lsfusion.erp.daemon.ScannerDaemonAction' (INTEGER, BOOLEAN, BOOLEAN);
 onDesktopClientStarted() + {
     IF currentScannerComPort() THEN
-        scannerDaemon(currentScannerComPort(), currentScannerSingleRead());
+        scannerDaemon(currentScannerComPort(), currentScannerSingleRead(), currentUseJSerialComm());
 }

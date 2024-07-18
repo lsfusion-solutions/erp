@@ -16,13 +16,15 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     String line2;
     Integer baudRateBoard;
     Integer comPortBoard;
+    boolean useJSerialComm;
     Integer timeout;
 
-    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, Integer timeout) {
+    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, boolean useJSerialComm, Integer timeout) {
         this.line1 = uppercase(line1, uppercase);
         this.line2 = uppercase(line2, uppercase);
         this.baudRateBoard = baudRateBoard;
         this.comPortBoard = comPortBoard;
+        this.useJSerialComm = useJSerialComm;
         this.timeout = timeout;
     }
 
@@ -55,12 +57,15 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
         long time = System.currentTimeMillis();
         try {
             cashRegisterlogger.info("Board writeToPort started");
-            SerialPort serialPort = new SerialPort("COM" + comPortBoard);
-            serialPort.openPort();
-            serialPort.setParams(baudRateBoard, 8, 1, 0);
-            serialPort.writeBytes(line1.getBytes(Charset.forName("cp866")));
-            serialPort.writeBytes(line2.getBytes(Charset.forName("cp866")));
-            serialPort.closePort();
+            String comPort = "COM" + comPortBoard;
+            byte[] line1Bytes = line1.getBytes(Charset.forName("cp866"));
+            byte[] line2Bytes = line2.getBytes(Charset.forName("cp866"));
+            if(useJSerialComm) {
+                writeJSerialComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
+            } else {
+                writeJssc(comPort, baudRateBoard, line1Bytes, line2Bytes);
+            }
+
 
         } catch (SerialPortException e) {
             cashRegisterlogger.info(String.format("Board writeToPort failed: %s ms", (System.currentTimeMillis() - time)), e);
@@ -68,5 +73,26 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
         }
         cashRegisterlogger.info(String.format("Board writeToPort finished: %s ms", (System.currentTimeMillis() - time)));
         return true;
+    }
+
+    private void writeJSerialComm(String comPort, Integer baudRate, byte[] line1, byte[] line2) {
+        com.fazecast.jSerialComm.SerialPort serialPort = com.fazecast.jSerialComm.SerialPort.getCommPort(comPort);
+        try {
+            serialPort.openPort();
+            serialPort.setBaudRate(baudRate);
+            serialPort.writeBytes(line1, line1.length);
+            serialPort.writeBytes(line2, line2.length);
+        } finally {
+            serialPort.closePort();
+        }
+    }
+
+    private void writeJssc(String comPort, Integer baudRate, byte[] line1, byte[] line2) throws SerialPortException {
+        SerialPort serialPort = new SerialPort(comPort);
+        serialPort.openPort();
+        serialPort.setParams(baudRate, 8, 1, 0);
+        serialPort.writeBytes(line1);
+        serialPort.writeBytes(line2);
+        serialPort.closePort();
     }
 }

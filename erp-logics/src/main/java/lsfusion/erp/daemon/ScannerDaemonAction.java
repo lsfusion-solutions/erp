@@ -12,6 +12,7 @@ import java.util.Iterator;
 public class ScannerDaemonAction extends InternalAction {
     private final ClassPropertyInterface comPortInterface;
     private final ClassPropertyInterface singleReadInterface;
+    private final ClassPropertyInterface useJSerialCommInterface;
 
     public ScannerDaemonAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -19,13 +20,15 @@ public class ScannerDaemonAction extends InternalAction {
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         comPortInterface = i.next();
         singleReadInterface = i.next();
+        useJSerialCommInterface = i.next();
     }
 
     @Override
     protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
-        String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead));
+        boolean useJSerialComm = context.getKeyValue(useJSerialCommInterface).getValue() != null;
+        String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, useJSerialComm));
         if(result != null && !result.isEmpty()) {
             context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
         }
