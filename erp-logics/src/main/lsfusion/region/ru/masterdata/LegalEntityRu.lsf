@@ -56,8 +56,8 @@ corrAccount 'Корр. счет' = DATA STRING[20](LegalEntity) IN law;
 isNotVATPayer 'Неплательщик НДС' = DATA BOOLEAN (LegalEntity);
 isVATPayer (LegalEntity l) = l IS LegalEntity AND NOT isNotVATPayer(l) MATERIALIZED;
 
-EXTEND FORM legalEntity PROPERTIES (l) kpp, okdp, corrAccount, isNotVATPayer;
-EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() kpp, okdp, corrAccount, isNotVATPayer;
+EXTEND FORM legalEntity PROPERTIES (l) okdp, corrAccount, isNotVATPayer;
+EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() okdp, corrAccount, isNotVATPayer;
 
 DESIGN legalEntity {
     column2 {
@@ -126,5 +126,27 @@ EXTEND FORM ownerships
     PROPERTIES (o) READONLY withoutFillKpp
 ;
 
-CONSTRAINT (SETCHANGED (country(LegalEntity l)) OR SETCHANGED (ownership(l)) OR CHANGED (kpp(l))) AND isFillKpp(country(l)) AND NOT withoutFillKpp(ownership(l)) AND NOT kpp(l) AND NOT skipKpp(l)
+necessaryKpp (LegalEntity l) = isFillKpp(country(l)) AND NOT withoutFillKpp(ownership(l));
+
+CONSTRAINT (SETCHANGED (country(LegalEntity l)) OR SETCHANGED (ownership(l)) OR CHANGED (kpp(l))) AND necessaryKpp(l) AND NOT kpp(l) AND NOT skipKpp(l)
     MESSAGE 'Должен быть заполнен КПП у организации';
+
+banNotNecessaryKpp 'Запретить задание КПП для организаций, если его задание не обязательно' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () banNotNecessaryKpp
+;
+
+DESIGN options {
+    legalEntity {
+        MOVE PROPERTY(banNotNecessaryKpp());
+    }
+}
+
+showKpp (LegalEntity l) = necessaryKpp(l) OR NOT banNotNecessaryKpp();
+
+CONSTRAINT banNotNecessaryKpp() AND SETCHANGED(kpp(LegalEntity l)) AND NOT necessaryKpp(l) AND banNotNecessaryKpp()
+    MESSAGE 'Для данной организации запрещено задавать КПП';
+
+EXTEND FORM legalEntity PROPERTIES (l) kpp BEFORE okdp(l) SHOWIF showKpp(l);
+EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() kpp BEFORE okdp(l) SHOWIF showKpp(l);
