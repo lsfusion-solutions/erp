@@ -27,7 +27,7 @@ name(NetworkPrinterType t) = staticCaption(t) IF t IS NetworkPrinterType IN id;
 
 networkPrinterType = DATA NetworkPrinterType (NetworkPrinter);
 overNetworkPrinterType(NetworkPrinter p) = OVERRIDE networkPrinterType(p), NetworkPrinterType.clientPrintService IF p IS NetworkPrinter;
-nameNetworkPrinterType 'Тип печати' (NetworkPrinter p) = name(overNetworkPrinterType(p));
+nameOverNetworkPrinterType 'Тип печати' (NetworkPrinter p) = name(overNetworkPrinterType(p));
 
 CONSTRAINT stock(NetworkPrinter p) AND NOT isCompany(stock(p)) CHECKED BY stock[NetworkPrinter] MESSAGE 'Склад для принтера не является складом компании'; 
 
@@ -38,13 +38,13 @@ in 'Отм' = DATA BOOLEAN (NetworkPrinter, Employee);
 FORM networkPrinters 'Выбор принтера'
     OBJECTS s = Stock PANEL
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) READONLY name, path, nameNetworkPrinterType
+    PROPERTIES (p) READONLY name, path, nameOverNetworkPrinterType
     FILTERS s == stock(p), in(p, currentUser())
 ;
 
 FORM networkPrintersList 'Принтеры этикеток'
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) id, name, path, nameStock, nameNetworkPrinterType, NEW, DELETE GRID
+    PROPERTIES (p) id, name, path, nameStock, nameOverNetworkPrinterType, NEW, DELETE GRID
     PROPERTIES () getAvailablePrinters TOOLBAR DRAW p
 
     OBJECTS e = Employee
@@ -263,7 +263,7 @@ sendToNetworkPrinter (Stock st) {
                     WRITE CLIENT resultFile() TO path(printer());
                     printed() <- TRUE;
                 }
-        ELSE writeToPrinter(fullFormattedText(), charset(), path(printer())) ;
+            ELSE writeToPrinter(fullFormattedText(), charset(), path(printer())) ; // в том числе, для NetworkPrinterType.clientPrintService
     } FINALLY {
         printer() <- NULL;
     }

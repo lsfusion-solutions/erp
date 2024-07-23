@@ -124,7 +124,7 @@ FORM networkPrintersLabel 'Выбор принтера'
     OBJECTS l = PrintLabelType PANEL
 
     OBJECTS p = NetworkPrinter
-    PROPERTIES (p) READONLY name, path, nameNetworkPrinterType
+    PROPERTIES (p) READONLY name, path, nameOverNetworkPrinterType
     FILTERS s == stock(p),
         l = printLabelType(p),
         in(p, currentUser())
@@ -147,17 +147,17 @@ sendToPrinter (StickerTransaction stickerTrans) {
                     printer() <- p;
             }
 
-            IF networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
+            CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                 writeToComPort(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
                 printed() <- TRUE;
             }
-            IF networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
+            WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
                 WRITE CLIENT resultFile() TO path(printer());
                 printed() <- TRUE;
             }
-            IF networkPrinterType(printer()) == NetworkPrinterType.clientPrintService THEN {
+            ELSE { // в том числе, для NetworkPrinterType.clientPrintService
                 writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
                 printed() <- TRUE;
             }
@@ -192,7 +192,7 @@ print 'Печать этикеток'(StickerTransaction t)  {
 }
 
 EXTEND FORM networkPrintersList
-    PROPERTIES (p) namePrintLabelType AFTER nameNetworkPrinterType(p)
+    PROPERTIES (p) namePrintLabelType AFTER nameOverNetworkPrinterType(p)
     FILTERGROUP stockPrinter
         FILTER 'По текущему складу' stock(p) == stock(currentComputer())
     FILTERGROUP inEmployee
