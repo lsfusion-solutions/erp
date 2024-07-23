@@ -125,6 +125,11 @@ dataExportedUKM = DATA BOOLEAN (PaymentGiftCard) INDEXED;
 exportedUKM 'Загружен в УКМ' (PaymentGiftCard c) = OVERRIDE dataExportedUKM(c), c IS PaymentGiftCard AND isUKM(c);
 inActiveUKM 'Загружен в УКМ (активный)' (GiftCard g) = OVERRIDE exportedActive(g), sold(g) IS ReceiptGiftCardSaleDetail AND isUKMSold(g);
 
+finishExportUKM (STRING[255] connectionStringUKMLoc, INTEGER version){
+    EXTERNAL SQL connectionStringUKMLoc EXEC 'INSERT INTO `signal` (`signal`, version) VALUES(\'incr\', ' + TEXT(version) + ') '
+        + 'ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);' ;
+}
+
 exportLedgerUKMAllGiftCards 'Экспорт списаний УКМ все' () {
     IF connectionStringExportGiftCards() AND NOT inactiveUKMCustom() THEN {
         LOCAL versionLoc = INTEGER (INTEGER);
@@ -150,8 +155,7 @@ exportLedgerUKMAllGiftCards 'Экспорт списаний УКМ все' () {
                 dataExportedUKM(gl) <- TRUE;
             }
             IF (GROUP MAX dataExportedUKM(PaymentGiftCard gl) IF gl IS PaymentGiftCard AND NOT PREV(dataExportedUKM(gl))) THEN {
-                EXTERNAL SQL connectionStringUKMLoc() EXEC 'INSERT INTO `signal` (`signal`, version) VALUES(\'incr\', ' + TEXT(versionLoc()) + ') '
-                    + 'ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);' ;
+                finishExportUKM(connectionStringUKMLoc(), versionLoc());
                 APPLY;
             }
         }
@@ -187,8 +191,7 @@ exportLedgerSelectedUKMGiftCards 'Экспорт списаний УКМ выб�
                 dataExportedUKM(gl) <- TRUE;
             }
             IF (GROUP MAX dataExportedUKM(PaymentGiftCard gl) IF inExportGiftCardsLoc(giftCard(gl)) AND gl IS PaymentGiftCard AND NOT PREV(dataExportedUKM(gl))) THEN {
-                EXTERNAL SQL connectionStringUKMLoc() EXEC 'INSERT INTO `signal` (`signal`, version) VALUES(\'incr\', ' + TEXT(versionLoc()) + ') '
-                    + 'ON DUPLICATE KEY UPDATE `signal`=VALUES(`signal`);' ;
+                finishExportUKM(connectionStringUKMLoc(), versionLoc());
                 APPLY;
             }
         }
@@ -200,5 +203,88 @@ integrationUKMSold (){
         inExportGiftCards(GiftCard g) <- TRUE WHERE sold(g) IS ReceiptGiftCardSaleDetail AND NOT isUKMSold(g) AND NOT exportedActive(g);
         exportGiftCardsUKMOnly();
         exportLedgerUKMAllGiftCards();
+    }
+}
+
+exportCertificate 'Перевыгрузить в УКМ' () {
+    IF connectionStringExportGiftCards() AND NOT inactiveUKMCustom() THEN {
+        LOCAL versionLoc = INTEGER (INTEGER);
+        versionLoc(INTEGER i) <- NULL;
+        LOCAL NESTED versionLoc = INTEGER ();
+        LOCAL NESTED connectionStringUKMLoc = STRING[255]();
+        LOCAL NESTED inExportGiftCardsLoc = BOOLEAN (GiftCard);
+
+        connectionStringUKMLoc() <- (connectionStringExportGiftCards() + '?user='+userExportGiftCards()+'&password='+passwordExportGiftCards());
+
+        EXTERNAL SQL connectionStringUKMLoc() EXEC 'SELECT MAX(version) FROM `signal`' TO file;
+        IMPORT TABLE FROM file() TO versionLoc;
+        versionLoc() <- (GROUP MAX versionLoc(INTEGER i)) (+) 100;
+
+        inExportGiftCardsLoc(GiftCard g) <- NULL;
+        inExportGiftCardsLoc(GiftCard g) <- TRUE WHERE inExportGiftCards(g) AND (exportedExportGiftCards(g) OR inActiveUKM(g));
+
+        NEWSESSION {
+            FOR inExportGiftCardsLoc(GiftCard gen) ORDER gen DO {
+                EXTERNAL SQL connectionStringUKMLoc() EXEC
+                'INSERT INTO certificate (account_type_id, number, active, date_from, date_to, '
+                    + 'days_from_after_activate, days_to_after_activate, version, deleted) VALUES('
+                    + INTEGER('11' + idBarcode(gen)) + ','
+                    + number(gen) + ','
+                    + (IF active(gen) THEN 'true,' ELSE 'false')
+                    + (IF dateSold(gen) THEN '\'' +dateSold(gen) + '\',' ELSE 'NULL, ')
+                    + (IF expireDate(gen) THEN '\'' +expireDate(gen) + '\',' ELSE 'NULL, ')
+                    + '0,'
+                    + TEXT(expiryDays(gen)) + ','
+                    + TEXT(versionLoc()) + ','
+                    + '0) ON DUPLICATE KEY UPDATE '
+                    + 'active=' + (IF active(gen) THEN 'true,' ELSE 'false, ')
+                    + 'date_from=' + (IF dateSold(gen) THEN '\'' + dateSold(gen) + '\', ' ELSE 'NULL, ')
+                    + 'date_to=' + (IF expireDate(gen) THEN '\'' + expireDate(gen) + '\', ' ELSE 'NULL, ')
+                    + 'days_from_after_activate=VALUES(days_from_after_activate), '
+                    + 'days_to_after_activate=' + TEXT(expiryDays(gen)) + ', '
+                    + 'version=VALUES(version), deleted=VALUES(deleted);';
+                exportedActive(gen) <- dateSold(gen) AND NOT exportedActive(gen);
+            }
+            IF (GROUP MAX inExportGiftCardsLoc(GiftCard gen)) THEN {
+                finishExportUKM(connectionStringUKMLoc(), versionLoc());
+            }
+            IF GROUP MAX inExportGiftCardsLoc(GiftCard gen) IF exportedActive(gen) AND NOT PREV(exportedActive(gen)) THEN APPLY;
+        }
+        inExportGiftCards(GiftCard g) <- NULL;
+    }
+}
+
+changeExportCertificateOperations 'Изменить цену и отправить в УКМ' () {
+    IF connectionStringExportGiftCards() AND NOT inactiveUKMCustom() THEN {
+        LOCAL versionLoc = INTEGER (INTEGER);
+        versionLoc(INTEGER i) <- NULL;
+        LOCAL NESTED versionLoc = INTEGER ();
+        LOCAL NESTED connectionStringUKMLoc = STRING[255]();
+        LOCAL NESTED inExportGiftCardsLoc = BOOLEAN (GiftCard);
+
+        connectionStringUKMLoc() <- (connectionStringExportGiftCards() + '?user='+userExportGiftCards()+'&password='+passwordExportGiftCards());
+
+        EXTERNAL SQL connectionStringUKMLoc() EXEC 'SELECT MAX(version) FROM `signal`' TO file;
+        IMPORT TABLE FROM file() TO versionLoc;
+        versionLoc() <- (GROUP MAX versionLoc(INTEGER i)) (+) 100;
+
+        inExportGiftCardsLoc(GiftCard g) <- NULL;
+        inExportGiftCardsLoc(GiftCard g) <- TRUE WHERE inExportGiftCards(g) AND (exportedExportGiftCards(g) OR inActiveUKM(g));
+        DIALOG dialogNumeric OBJECTS n INPUT DO NEWSESSION {
+            FOR inExportGiftCardsLoc(GiftCard gen) ORDER gen DO {
+                EXTERNAL SQL connectionStringUKMLoc() EXEC
+                'INSERT INTO certificate_operations (number, amount, version, deleted) VALUES('
+                    + number(gen) + ','
+                    + TEXT(NUMERIC[16,4](n)(-)price(gen)) + ','
+                    + TEXT(versionLoc()) + ','
+                    + '0)';
+                price(gen) <- n;
+            }
+            IF (GROUP MAX inExportGiftCardsLoc(GiftCard gen) IF price(gen) != PREV(price(gen))) THEN {
+                finishExportUKM(connectionStringUKMLoc(), versionLoc());
+                APPLY;
+            }
+        }
+        inExportGiftCards(GiftCard g) <- NULL;
     }
 }
