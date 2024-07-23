@@ -1,0 +1,89 @@
+MODULE EDIUz;
+
+REQUIRE  EDI, Item, Warehouse, LegalEntityUz;
+
+NAVIGATOR {
+    financeNavigator {
+        NEW FOLDER edi 'EDI';
+    }
+}
+
+//-------------------------- Send Request ------------------------------//
+sendRequestEDIResponse = DATA LOCAL FILE();
+sendRequestEDIStatus = DATA LOCAL INTEGER();
+
+basic = DATA LOCAL TEXT ();
+encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
+decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';
+httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic();
+
+sendGetRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
+    logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
+    basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
+    timeoutHttp() <- 300000;
+    IF client THEN {
+        EXTERNAL HTTP CLIENT GET url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
+    } ELSE {
+        EXTERNAL HTTP GET url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
+    }
+    sendRequestEDIStatus() <- statusHttp();
+}
+
+sendGetRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, BOOLEAN basicAuthorization, BOOLEAN client) {
+    logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
+    basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
+    timeoutHttp() <- 300000;
+    IF client THEN {
+        EXTERNAL HTTP CLIENT GET url HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+    } ELSE {
+        EXTERNAL HTTP GET url HEADERS httpHeadersEDI TO sendRequestEDIResponse;
+    }
+    sendRequestEDIStatus() <- statusHttp();
+}
+
+sendPostRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
+    logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
+    basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
+    timeoutHttp() <- 300000;
+    IF client THEN {
+        EXTERNAL HTTP CLIENT POST url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
+    } ELSE {
+        EXTERNAL HTTP POST url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
+    }
+    sendRequestEDIStatus() <- statusHttp();
+}
+
+// Provider Soliq
+loginSoliq 'Имя пользователя Soliq' = DATA STRING[100] (LegalEntity);
+passwordSoliq 'Пароль Soliq' = DATA STRING[100] (LegalEntity) ECHO;
+hostSoliq 'Хост' = DATA STRING[100] (LegalEntity);
+portSoliq 'Порт' = DATA INTEGER (LegalEntity);
+ipSoliq 'IP' = DATA STRING[100] (LegalEntity);
+appendPkcs7Attached'Добавить подпись в существующий документ' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() appendPkcs7Attached
+    
+    OBJECTS lSoliq = LegalEntity
+    FILTERS isCompany(lSoliq)
+    PROPERTIES(lSoliq) name READONLY, loginSoliq, passwordSoliq, hostSoliq, portSoliq, ipSoliq
+;
+
+DESIGN integrationData {
+    edi {
+        NEW vsSoliq {
+            caption = 'Soliq';
+            horizontal = TRUE;
+            NEW col1EDN {
+                NEW params {
+                    caption = 'Общие'; 
+                    MOVE PROPERTY (appendPkcs7Attached());
+                }
+            }
+            NEW col2EDN {
+                fill = 1;
+                MOVE BOX(lSoliq);
+            }
+        }
+    }
+}

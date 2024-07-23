@@ -1,0 +1,147 @@
+MODULE PurchaseEInvoiceUz;
+
+REQUIRE InvoiceEInvoiceUz, PurchaseInvoice;
+
+NAMESPACE Purchase;
+
+eOperation = DATA Operation(LegalEntity);
+nameEOperation 'Операция (Закупка) для электронных накладных'(LegalEntity l) = name(eOperation(l));
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) PurchaseInvoiceNameEOperation = nameEOperation;
+
+DESIGN legalEntity {
+    EDI {
+         NEW EInvoice {
+            caption = 'Накладные';
+            MOVE PROPERTY (PurchaseInvoiceNameEOperation);
+        }
+    }
+}
+
+eInvoiceDetail 'Строка ЭТТН' = DATA EInvoiceDetail (Purchase.InvoiceDetail) INDEXED;
+numberEInvoiceDetail 'Строка ЭТТН' (Purchase.InvoiceDetail d) = lineItemNumber(eInvoiceDetail(d));
+
+overPrevList = ABSTRACT NUMERIC[16,4] (EInvoiceDetail);
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND eInvoiceDetail(d) THEN (OVERRIDE overPrevList(eInvoiceDetail(d)), NUMERIC[16,4](lineItemPrice(eInvoiceDetail(d))));
+
+filterDate 'Дата' = DATA LOCAL DATE ();
+filterDate (EInvoice i) = deliveryNoteDate(i) == filterDate() OR NOT filterDate();
+
+filterSupplier = DATA LOCAL LegalEntity ();
+overFilterSupplier = ABSTRACT LegalEntity(EInvoice);
+filterSupplier (EInvoice i) = (OVERRIDE overFilterSupplier(i), supplier(i)) = filterSupplier() OR (i IS EInvoice AND NOT filterSupplier()) OR NOT supplier(i);
+
+filterCustomer = DATA LOCAL LegalEntity ();
+filterCustomer (EInvoice i) = customer(i)= filterCustomer() OR (i IS EInvoice AND NOT filterCustomer()) OR NOT customer(i);
+
+filterStock = DATA LOCAL Stock ();
+filterStock (EInvoice i) = customerStock(i)= filterStock() OR (i IS EInvoice AND NOT filterStock()) OR NOT customerStock(i);
+
+FORM selectEInvoice 'Накладные EDI'
+    PROPERTIES filterDate()
+
+    OBJECTS ei = EInvoice
+    PROPERTIES(ei) READONLY deliveryNoteNumber, nameSupplier, nameCustomer
+    FILTERS filterDate(ei),
+        filterSupplier(ei),
+        filterCustomer(ei),
+        filterStock(ei),
+        NOT invoice(ei)
+;
+
+DESIGN selectEInvoice {
+    NEW filter {
+        caption = 'Фильтр';
+        MOVE PROPERTY (filterDate());
+    }
+
+    MOVE BOX(ei);
+    MOVE TOOLBARBOX;
+}
+
+overCopy ABSTRACT LIST ( EInvoice, UserInvoice);
+overCopy  ABSTRACT LIST ( EInvoiceDetail, UserInvoiceDetail);
+ignoreDetail = ABSTRACT BOOLEAN (EInvoiceDetail);
+
+skuName (STRING name) = GROUP MAX Sku s BY name(s);
+
+copyData(EInvoice ei, Invoice i)  {
+    invoice(EInvoice e) <- NULL WHERE invoice(e) == i AND NOT isCancelled(e) AND NOT isRejected(e);
+    invoice(ei) <- i;
+    number(i) <- deliveryNoteNumber(ei);
+    series(i) <- NULL;
+    operation(i) <- eOperation(supplier(ei)) WHERE eOperation(supplier(ei));
+    supplier(i) <- supplier(ei);
+    supplierStock(i) <- OVERRIDE supplierStock(ei), defaultStock(supplier(ei));
+    customer(i) <- customer(ei);
+    customerStock(i) <- customerStock(ei);
+    date(i) <- deliveryNoteDate(ei);
+    time(i) <- 00:00;
+    overCopy(ei,i);
+    
+    FOR eInvoice(EInvoiceDetail eid) == eInvoice(i) AND NOT ignoreDetail(eid) NEW id = UserInvoiceDetail DO {
+        userInvoice(id) <- i;
+        sku(id) <- OVERRIDE sku(lineItemCatalogCode(eid)), sku(lineItemPackageCode(eid)), skuName(lineItemProductName(eid)), skuGTIN(lineItemCatalogCode(eid)), skuGTIN(lineItemPackageCode(eid));
+        quantity(id) <- quantityDespatched(eid);
+        price(id) <- lineItemPrice(eid);
+        invoicePrice(id) <- round2(price(id) * (100 + valueVAT(id))/100);
+        invoiceSum(id) <- lineItemDeliverySum(eid);
+        eInvoiceDetail(id) <- eid;
+
+        overCopy(eid,id);
+    }
+}
+
+
+overImportFromEInvoice  ABSTRACT LIST (UserInvoice);
+importFromEInvoice 'Импорт из накладной EDI' (UserInvoice i)  {
+    IF isPosted(i) THEN {
+        MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+        RETURN;
+    }
+
+    filterDate() <- date(i);
+    filterSupplier() <- supplier(i);
+    filterCustomer() <- customer(i);
+    filterStock() <- customerStock(i);
+
+    DIALOG selectEInvoice OBJECTS ei INPUT DO {
+        IF ei THEN {
+            copyData(ei,i);
+            overImportFromEInvoice(i);
+        }
+    }
+}
+
+FORM dialogEInvoiceCustomer 'Выбор электронной накладной'
+    OBJECTS i = EInvoice
+    PROPERTIES(i) READONLY deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock
+;
+@extendFormFilterAccessStock(dialogEInvoiceCustomer, i, dialogEInvoiceCustomer, customerStock, Company);
+
+overChangeEInvoiceCustomer ABSTRACT LIST (EInvoice, UserInvoice);
+
+changeEInvoiceCustomer(Invoice in) {
+    DIALOG dialogEInvoiceCustomer OBJECTS i = eInvoice(in) NULL INPUT NULL DO {
+        invoice(EInvoice e) <- NULL WHERE e == eInvoice(in) AND NOT isCancelled(e) AND NOT isRejected(e);
+        invoice(i) <- in;
+        overChangeEInvoiceCustomer(i,in);
+    }
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES seriesNumberEInvoice(i) ON CHANGE changeEInvoiceCustomer(i)
+    PROPERTIES(i) importFromEInvoice
+;
+
+DESIGN userInvoice {
+    import {
+        NEW importEDI {
+            caption = 'Накладная EDI';
+            flex = 1;
+            MOVE PROPERTY(seriesNumberEInvoice(i));
+            MOVE PROPERTY(importFromEInvoice(i));
+        }
+    }
+}

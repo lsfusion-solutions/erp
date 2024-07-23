@@ -1,0 +1,397 @@
+MODULE EInvoiceUz;
+
+REQUIRE EDIUz, LegalEntityUz;
+
+NAMESPACE EDI;
+
+//-----------------------------------------Электронная накладная----------------------------------------------//
+CLASS EInvoice 'Электронная накладная';
+TABLE eInvoice(EInvoice);
+
+waybillJSON = DATA JSONFILE (EInvoice);
+
+dateTimeCreated 'Создана' = DATA DATETIME (EInvoice);
+dateTimeCreated(EInvoice i) <- currentDateTime() WHEN (i IS EInvoice);
+
+externalId 'Внешний id' = DATA STRING (EInvoice) IN id INDEXED CHARWIDTH 10;
+eInvoiceByExternalId (STRING externalId) = GROUP AGGR EInvoice eInvoice BY externalId(eInvoice);
+
+
+@defineExternalizable(eInvoice, STRING[100]);
+
+isCancelled 'Отменена' = DATA BOOLEAN (EInvoice);
+isAccepted 'Принята ' = DATA BOOLEAN (EInvoice);
+isRejected 'Отклонена' = DATA BOOLEAN (EInvoice);
+
+// WaybillDoc
+deliveryNoteNumber 'Номер накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30; // WaybillNo
+eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
+deliveryNoteDate 'Дата накладной' = DATA DATE (EInvoice) INDEXED; // WaybillDate
+
+//Contract
+contractNumber 'Документ, который служит основанием отпуска' = DATA STRING[70] (EInvoice); //ContractNo
+contractDate 'Дата документа, служащего основанием отпуска' = DATA DATE (EInvoice); // ContractDate
+
+legalEntityByInn = GROUP MAX LegalEntity le BY INN(le);
+
+//Consignor (Грузоотправитель)
+dataSupplier 'Поставщик' = DATA LegalEntity (EInvoice);
+dataNameSupplierFirst = DATA STRING[200] (EInvoice); 
+dataNameSupplier = DATA STRING[275] (EInvoice);
+
+dataAddressSupplierFirst = DATA STRING[150] (EInvoice);
+dataAddressSupplier = DATA STRING[150] (EInvoice);
+
+dataInnSupplier = DATA STRING[9] (EInvoice);
+
+supplier 'Покупатель' (EInvoice e) = OVERRIDE dataSupplier(e), legalEntityByInn(dataInnSupplier(e));
+nameSupplier 'Поставщик' (EInvoice i) = OVERRIDE dataNameSupplierFirst(i), fullName(supplier(i)), dataNameSupplier(i); // Name
+addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE dataAddressSupplierFirst(i), address(supplier(i)), dataAddressSupplier(i);
+innSupplier 'ИНН поставщика' (EInvoice i) = OVERRIDE INN(supplier(i)), dataInnSupplier(i); //TinOrPinfl
+
+// Склад погрузки (выбор вручную)
+supplierStock 'Пункт погрузки' = DATA Stock (EInvoice);
+dataNameSupplierStock = DATA STRING[150] (EInvoice);
+nameSupplierStock 'Пункт погрузки' (EInvoice i) = OVERRIDE name(supplierStock(i)), dataNameSupplierStock(i);
+dataAddressSupplierStockFirst = DATA STRING[150] (EInvoice);
+dataAddressSupplierStock = DATA STRING[150] (EInvoice);
+overAddressSupplierStock = ABSTRACT ISTRING[250] (EInvoice);
+addressSupplierStock 'Адрес пункта погрузки' (EInvoice i) = OVERRIDE dataAddressSupplierStockFirst(i), overAddressSupplierStock(i), address(supplierStock(i)), dataAddressSupplierStock(i);
+
+// Consignee (Грузополучатель)
+dataCustomer 'Покупатель' = DATA LegalEntity (EInvoice);
+dataNameCustomer = DATA STRING[9] (EInvoice);
+
+dataAddressCustomerFirst = DATA STRING[150] (EInvoice);
+
+dataInnCustomer = DATA STRING[9] (EInvoice);
+
+customer 'Покупатель' (EInvoice e) = OVERRIDE dataCustomer(e), legalEntityByInn(dataInnCustomer(e));
+innCustomer 'ИНН покупателя' (EInvoice i) = OVERRIDE dataInnCustomer(i), INN(customer(i));// TinOrPinfl
+addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerFirst(i), address(customer(i));
+nameCustomer 'Покупатель' (EInvoice i) = OVERRIDE fullName(customer(i)), dataNameCustomer(i); // Name
+
+// Склад разгрузки (выбор вручную)
+customerStock 'Склад покупателя' = DATA Stock (EInvoice);
+nameCustomerStock 'Склад покупателя' (EInvoice i) = name(customerStock(i));
+dataAddressCustomerStockFirst = DATA STRING[150] (EInvoice);
+overAddressCustomerStock = ABSTRACT ISTRING[350] (EInvoice); // иногда пункт разгрузки указан только в атрибутах накладной
+addressCustomerStock 'Адрес склада покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerStockFirst(i), overAddressCustomerStock(i), address(customerStock(i));
+
+// Carrier (Перевозчик)
+transporter 'Автомобильный перевозчик' = DATA LegalEntity (EInvoice);
+dataNameTransporter = DATA STRING[9] (EInvoice);
+nameTransporter 'Автомобильный перевозчик' (EInvoice i) = OVERRIDE fullName(transporter(i)), dataNameTransporter(i); // Name
+dataInnTransporter = DATA STRING[9] (EInvoice);
+innTransporter 'ИНН автомобильного перевозчика' (EInvoice i) = OVERRIDE dataInnTransporter(i), INN(transporter(i)); // TinOrPinfl
+
+// Driver
+pinflTransportContact'id водителя' = DATA STRING[100] (EInvoice); // Pinfl
+transportContact 'Водитель' = DATA STRING[150] (EInvoice) INDEXED MATCH; // FullName
+
+// Truck
+transportRegNo 'Рег. номер автомобиля' = DATA STRING[35] (EInvoice); 
+transportModel 'Марка' = DATA STRING[35] (EInvoice);
+
+// Trailer
+trailerRegNo 'Марка и рег. номер автомобиля' = DATA STRING[35] (EInvoice);
+trailerModel 'Марка и рег. номер автомобиля' = DATA STRING[35] (EInvoice);
+
+CLASS EInvoiceDetailGroup 'Группа строк электронной накладной';
+eInvoice = DATA EInvoice(EInvoiceDetailGroup) NONULL DELETE INDEXED;
+
+//LoadingPoint (пункт погрузки)
+districtCodeLoadingPoint 'Код округа погрузки' = DATA STRING[100] (EInvoiceDetailGroup); // DistrictCode
+districtNameLoadingPoint 'Наименование округа погрузки' = DATA STRING[150] (EInvoiceDetailGroup); // DistrictName
+
+mahallaIdLoadingPoint 'Код района погрузки' = DATA STRING[100] (EInvoiceDetailGroup); // MahallaId
+mahallaNameLoadingPoint 'Наименование района погрузки' = DATA STRING[150] (EInvoiceDetailGroup); // MahallaName
+
+regionIdLoadingPoint 'Код района погрузки' = DATA STRING[100] (EInvoiceDetailGroup); // RegionId
+regionNameLoadingPoint 'Наименование района погрузки' = DATA STRING[150] (EInvoiceDetailGroup); // RegionName
+
+addressLoadingPoint 'Адрес погрузки' = DATA STRING[150] (EInvoiceDetailGroup); // Address
+
+//LoadingTrustee
+pinflLoadingTrustee 'id доверенного лица погрузки' = DATA STRING[100] (EInvoiceDetailGroup); // Pinfl
+fullLoadingTrustee 'Доверенное лицо погрузки' = DATA STRING[150] (EInvoiceDetailGroup); // FullName
+
+// UnloadingPoint (пункт разгрузки)
+districtCodeUnloadingPoint 'Код округа разгрузки' = DATA STRING[100] (EInvoiceDetailGroup); // DistrictCode
+districtUnloadingPoint 'Наименование округа разгрузки' = DATA STRING[150] (EInvoiceDetailGroup); // DistrictName
+
+mahallaIdUnloadingPoint 'Код района разгрузки' = DATA STRING[100] (EInvoiceDetailGroup); // MahallaId
+mahallaNameUnloadingPoint 'Наименование района разгрузки' = DATA STRING[150] (EInvoiceDetailGroup); // MahallaName
+
+regionIdUnloadingPoint 'Код района разгрузки' = DATA STRING[100] (EInvoiceDetailGroup); // RegionId
+regionNameUnloadingPoint 'Наименование района разгрузки' = DATA STRING[150] (EInvoiceDetailGroup); // RegionName
+
+addressUnloadingPoint 'Адрес разгрузки'  = DATA STRING[150] (EInvoiceDetailGroup); // Address
+
+// UnloadingTrustee
+pinflUnloadingTrustee 'id доверенного лица разгрузки' = DATA STRING[100] (EInvoiceDetailGroup); // Pinfl
+fullUnloadingTrustee 'Доверенное лицо разгрузки' = DATA STRING[150] (EInvoiceDetailGroup); // FullName
+
+CLASS EInvoiceDetail 'Строка электронной накладной';
+TABLE eInvoiceDetail(EInvoiceDetail);
+
+@defineExternalizable(eInvoiceDetail, STRING[100]);
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
+
+eInvoice = DATA EInvoice(EInvoiceDetail) NONULL DELETE INDEXED;
+eInvoiceDetailGroup = DATA EInvoiceDetailGroup(EInvoiceDetail) NONULL DELETE;
+
+// Products
+dataIndex = DATA INTEGER (EInvoiceDetail) ; // "OrdNo":1,
+defaultIndex (EInvoiceDetail d) = PARTITION SUM 1 ORDER d BY eInvoice(d);
+lineItemNumber 'Порядковый номер' (EInvoiceDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) MATERIALIZED;
+
+committent 'Комитент' = DATA LegalEntity (EInvoiceDetail);
+dataNameCommittentFirst = DATA STRING[200] (EInvoiceDetail);
+dataNameCommittent = DATA STRING[275] (EInvoiceDetail);
+nameCommittent 'Комитент' (EInvoiceDetail d) = OVERRIDE dataNameCommittentFirst(d), fullName(committent(d)), dataNameCommittent(d); // CommittentName
+dataInnCommittent = DATA STRING[9] (EInvoiceDetail);
+innCommittent 'ИНН комитента' (EInvoiceDetail d) = OVERRIDE dataInnCommittent(d), INN(committent(d));// CommittentTinOrPinfl
+
+//lineItemSupplierID 'Код товара, присвоенный поставщиком'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15 ;
+lineItemProductName 'Наименование товара' = DATA STRING[500] (EInvoiceDetail) CHARWIDTH 30 IN id; // ProductName
+lineItemCatalogCode 'Код товара (каталог)'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15 IN id; // CatalogCode
+lineItemCatalogName 'Наименование товара (каталог)' = DATA STRING[500] (EInvoiceDetail) CHARWIDTH 30 IN id; //CatalogName
+lineItemPackageCode 'Код товара (упаковка)'= DATA STRING[100] (EInvoiceDetail) CHARWIDTH 15; // PackageCode
+lineItemPackageName 'Наименование товара (упаковка)' = DATA STRING[500] (EInvoiceDetail) CHARWIDTH 30 IN id; // PackageName
+
+grossWeightValue 'Масса груза брутто' = DATA NUMERIC[12,6] (EInvoiceDetail); // WeightBrutto
+netWeightValue 'Масса груза нетто' = DATA NUMERIC[12,6] (EInvoiceDetail); // WeightNetto
+quantityDespatched 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EInvoiceDetail);// Amount
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail); // Price
+lineItemDeliverySum 'Cумма товарной позиции' = DATA NUMERIC[18,2] (EInvoiceDetail);// DeliverySum
+
+//Итого
+totalDeliverySum 'Общая сумма' (eInvoice) = GROUP SUM lineItemDeliverySum(EInvoiceDetail d) BY eInvoice(d);
+totalLineItem 'Всего количество товарных позиций' (eInvoice) = GROUP SUM 1 BY eInvoice(EInvoiceDetail d);
+totalLineItemQuantity 'Всего количество единиц' (eInvoice) = GROUP SUM quantityDespatched(EInvoiceDetail d) BY eInvoice(d);
+totalGrossWeight 'Всего масса груза брутто' (eInvoice) = GROUP SUM grossWeightValue(EInvoiceDetail d) BY eInvoice(d);
+totalNetWeight 'Всего масса груза нетто' (eInvoice) = GROUP SUM netWeightValue(EInvoiceDetail d) BY eInvoice(d);
+
+CONSTRAINT SET(EInvoice i IS EInvoice) AND NOT (GROUP SUM 1 IF eInvoice(EInvoiceDetail d) == i)
+    MESSAGE 'Запрещено создавать электронную накладную без строк';
+
+background = ABSTRACT CASE COLOR (EInvoice);
+
+FORM eInvoices 'Электронные накладные'
+    OBJECTS e = EInvoice LAST
+    PROPERTIES(e) in
+    PROPERTIES(e) BACKGROUND background(e) READONLY deliveryNoteNumber, deliveryNoteDate, contractNumber, contractDate,
+        nameSupplier, addressSupplier, innSupplier,
+        nameSupplierStock, addressSupplierStock,
+        nameCustomer, addressCustomer, innCustomer,        
+        nameCustomerStock, addressCustomerStock,
+        nameTransporter, innTransporter,
+        transportContact,
+        transportRegNo, transportModel, 
+        trailerRegNo, trailerModel,
+        totalDeliverySum, totalLineItem, totalLineItemQuantity, totalGrossWeight, totalNetWeight,
+        isAccepted, isRejected, isCancelled
+
+    OBJECTS eg = EInvoiceDetailGroup
+    PROPERTIES(eg) READONLY districtNameLoadingPoint, mahallaNameLoadingPoint, regionNameLoadingPoint, fullLoadingTrustee, addressLoadingPoint,
+        districtUnloadingPoint, mahallaNameUnloadingPoint, regionNameUnloadingPoint, fullUnloadingTrustee, addressUnloadingPoint
+    FILTERS eInvoice(eg) == e
+    
+    OBJECTS ed = EInvoiceDetail
+    PROPERTIES(ed) READONLY lineItemNumber, 
+        nameCommittent, innCommittent,
+        lineItemProductName, lineItemCatalogCode, lineItemCatalogName, lineItemPackageCode, lineItemPackageName,
+        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum
+                               
+    FILTERS eInvoice(ed) == e, eInvoiceDetailGroup(ed) == eg
+;
+@extendFormEditable(eInvoices);
+
+DESIGN eInvoices {
+    BOX {
+        NEW topContainer {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(e);
+        }
+        TOOLBARBOX (e){
+            horizontal = TRUE;
+        }
+        NEW tab {
+            fill = 1;
+            tabbed = TRUE;
+            NEW detail {
+                fill = 1;
+                caption = 'Спецификация';
+                MOVE BOX(eg);
+                MOVE BOX(ed);
+            }
+            
+            NEW actionContainer {
+                caption = 'Действия';
+                horizontal = TRUE;
+            }
+            NEW printTab {
+                fill = 1;
+                caption = 'Печатные формы';
+                NEW printEI {
+                    horizontal = TRUE;
+                }
+                NEW exportEI {
+                    horizontal = TRUE;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX {
+            TOOLBAR(e) {
+                lines = 3;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    edi 'EDI' {
+        NEW eInvoices;
+    }
+}
+
+FORM eInvoice 'Электронная накладная'
+    OBJECTS e = EInvoice PANEL
+    PROPERTIES(e) BACKGROUND background(e) deliveryNoteNumber, deliveryNoteDate, contractNumber, contractDate,
+        nameSupplier, addressSupplier, innSupplier,
+        nameSupplierStock, addressSupplierStock,
+        nameCustomer, addressCustomer, innCustomer,
+        nameCustomerStock, addressCustomerStock,
+        nameTransporter, innTransporter,
+        transportContact,
+        transportRegNo, transportModel,
+        trailerRegNo, trailerModel,
+        totalDeliverySum, totalLineItem, totalLineItemQuantity, totalGrossWeight, totalNetWeight,
+        isAccepted, isRejected, isCancelled
+
+    OBJECTS g = EInvoiceDetailGroup
+    PROPERTIES(g) READONLY districtNameLoadingPoint, mahallaNameLoadingPoint, regionNameLoadingPoint, fullLoadingTrustee, addressLoadingPoint,
+        districtUnloadingPoint, mahallaNameUnloadingPoint, regionNameUnloadingPoint, fullUnloadingTrustee, addressUnloadingPoint
+    FILTERS eInvoice(g) == e
+    
+    OBJECTS ed = EInvoiceDetail
+    PROPERTIES (ed) lineItemNumber,
+        nameCommittent, innCommittent,
+        lineItemProductName, lineItemCatalogCode, lineItemCatalogName, lineItemPackageCode, lineItemPackageName,
+        grossWeightValue, netWeightValue, quantityDespatched, lineItemPrice, lineItemDeliverySum
+    FILTERS eInvoice(ed) == e,  eInvoiceDetailGroup(ed) == g
+    
+    EDIT EInvoice OBJECT e
+;
+
+DESIGN eInvoice {
+    OBJECTS {
+        NEW mainTabs {
+            tabbed = TRUE;
+            fill = 1;
+            NEW main {
+                caption = 'Данные накладной';
+                fill = 1;
+                NEW mainPanel{
+                    lines = 2;
+                    MOVE PROPERTY (deliveryNoteNumber(e));
+                    MOVE PROPERTY (deliveryNoteDate(e));
+                    MOVE PROPERTY (isAccepted(e));
+                    MOVE PROPERTY (isRejected(e));
+                    MOVE PROPERTY (isCancelled(e));
+                    
+                    NEW shipper {
+                        align = STRETCH;
+                        caption = 'Информация о грузоотправителе';
+                        
+                        MOVE PROPERTY (nameSupplier(e));
+                        MOVE PROPERTY (addressSupplier(e));
+                        MOVE PROPERTY (innSupplier(e));
+                    }
+                    NEW receiver {
+                        align = STRETCH;
+                        caption = 'Информация о грузополучателе';
+                        MOVE PROPERTY (nameCustomer(e));
+                        MOVE PROPERTY (addressCustomer(e));
+                        MOVE PROPERTY (innCustomer(e));
+                    }
+                    NEW shipFrom {
+                        align = STRETCH;
+                        caption = 'Информация о пункте погрузки';                       
+                        MOVE PROPERTY (nameSupplierStock(e));
+                        MOVE PROPERTY (addressSupplierStock(e));
+                    }
+                    NEW shipTo {
+                        align = STRETCH;
+                        caption = 'Информация о пункте разгрузки';                       
+                        
+                        MOVE PROPERTY (nameCustomerStock(e));
+                        MOVE PROPERTY (addressCustomerStock(e));
+                    }
+                    NEW carrier1 {
+                        align = STRETCH;
+                        caption = 'Информация о транспортировке';
+                        MOVE PROPERTY (transportContact(e));                      
+                    }
+                    NEW carrier2 {
+                        align = STRETCH;
+                        caption = 'Информация о транспортировке';
+                        MOVE PROPERTY (nameTransporter(e));
+                        MOVE PROPERTY (innTransporter(e));
+                        MOVE PROPERTY (transportRegNo(e));
+                        MOVE PROPERTY (transportModel(e));
+                        MOVE PROPERTY (trailerRegNo(e));
+                        MOVE PROPERTY (trailerModel(e));
+                    }
+                    NEW contract {
+                        align = STRETCH;
+                        MOVE PROPERTY (contractNumber(e));
+                        MOVE PROPERTY (contractDate(e));
+                    }
+                }                
+                NEW tabs {
+                    tabbed = TRUE;
+                    fill = 1;
+                    NEW detail {
+                        fill = 1;
+                        MOVE BOX(g);
+                        MOVE BOX(ed);
+                    }
+                }
+            }
+            NEW add {
+                caption = 'Дополнительная информация';
+                fill = 1;
+            }
+        }
+    }
+}
+
+// -------
+isNotEDI = DATA BOOLEAN (EInvoice);
+isEDI 'EDI' (EInvoice e) = NOT isNotEDI(e) IF e IS EInvoice;
+
+changeIsEDI (EInvoice e) {
+    INPUT b = BOOLEAN DO {
+        isNotEDI(e) <- NOT b;
+    }
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES READONLYIF isReadonly() isEDI(e) ON CHANGE changeIsEDI(e)
+;
+
+editAttributesEInvoice 'Заполнить атрибуты ЭТТН' (EInvoice i) {
+    NEWSESSION {
+        SHOW eInvoice OBJECTS e = i DOCKED;
+    }
+} TOOLBAR IMAGE 'edit.png';
+
+EXTEND FORM eInvoices
+    PROPERTIES (e) editAttributesEInvoice
+;
+

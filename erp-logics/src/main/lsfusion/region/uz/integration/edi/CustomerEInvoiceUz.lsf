@@ -1,0 +1,381 @@
+MODULE CustomerEInvoiceUz;
+
+REQUIRE EInvoiceUz, EDIUz, EImzoUz;
+
+NAMESPACE EDI;
+
+contractDocNo = DATA LOCAL STRING ();
+docNo = DATA LOCAL STRING ();
+docStatuses = DATA LOCAL STRING ();
+docType = DATA LOCAL STRING ();
+limit = DATA LOCAL INTEGER ();
+fromDate = DATA LOCAL DATE ();//2023-03-01
+fromDocDate = DATA LOCAL DATE ();
+toDate = DATA LOCAL DATE ();
+toDocDate = DATA LOCAL DATE ();
+ownerTin  = DATA LOCAL STRING ();
+partnerTin  = DATA LOCAL STRING ();
+
+docId 'id документа' = DATA LOCAL STRING[150](INTEGER, LegalEntity);
+
+clearParamsGetDocs () {
+    contractDocNo() <- NULL;
+    docNo() <- NULL;
+    docStatuses() <- NULL;
+    docType() <- NULL;
+    limit() <- NULL;
+    fromDate() <- NULL;
+    fromDocDate() <- NULL;
+    toDate() <- NULL;
+    toDocDate() <- NULL;
+    ownerTin() <- NULL;
+    partnerTin() <- NULL;
+}
+
+getDocs() {
+    LOCAL params = STRING ();
+    params() <- CONCAT '&',
+        'contractDocNo=' + contractDocNo(),
+        'docNo=' + docNo(),
+        'docStatuses=' + docStatuses(),
+        'docType=' + docType(),
+        'limit=' + limit(),
+        'fromDate=' + toChar(fromDate(), 'YYYY-MM-DD'),
+        'fromDocDate=' + toChar(fromDocDate(), 'YYYY-MM-DD'),
+        'toDate=' + toChar(toDate(), 'YYYY-MM-DD'),
+        'toDocDate=' + toChar(toDocDate(), 'YYYY-MM-DD'),
+        'ownerTin=' + ownerTin(),
+        'partnerTin='  + partnerTin(); 
+    
+    FOR (loginSoliq(LegalEntity le)) DO {
+        sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/get-all-docs') + '?' + params(), TRUE, NULL);
+
+        LOCAL docId = STRING (INTEGER);
+        
+        IF statusHttp() == 200 THEN {
+            IMPORT JSON FROM sendRequestEDIResponse() TO docId;
+            docId(INTEGER i, le) <- docId(i) WHERE docId(i);
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+            logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+        }
+    }
+}
+
+// EInvoice
+GROUP data EXTID 'data';
+GROUP waybill EXTID 'Waybill': data;
+GROUP waybillDoc EXTID 'WaybillDoc': waybill;
+GROUP contractDoc EXTID 'ContractDoc': waybill;
+GROUP consignor EXTID 'Consignor': waybill;
+GROUP consignee EXTID 'Consignee': waybill;
+GROUP carrier EXTID 'Carrier': waybill;
+GROUP roadway EXTID 'Roadway': waybill;
+GROUP driver EXTID 'Driver': roadway;
+GROUP truck EXTID 'Truck': roadway;
+GROUP trailer EXTID 'Trailer': roadway;
+
+// EInvoiceDetailGroup
+GROUP loadingPoint EXTID 'LoadingPoint';
+GROUP loadingTrustee EXTID 'LoadingTrustee';
+GROUP unloadingPoint EXTID 'UnloadingPoint';
+GROUP unloadingTrustee EXTID 'UnloadingTrustee';
+GROUP productInfo EXTID 'ProductInfo';
+
+// EInvoiceDetailGroup
+//GROUP unloadingTrustee EXTID 'UnloadingTrustee';
+
+deliveryNoteNumber = DATA LOCAL STRING[43] ();
+deliveryNoteDate = DATA LOCAL DATE ();
+contractNumber = DATA LOCAL STRING[70] ();
+contractDate = DATA LOCAL DATE ();
+dataNameSupplier = DATA LOCAL STRING[275] ();
+dataInnSupplier = DATA LOCAL STRING[9] ();
+dataNameCustomer = DATA LOCAL STRING[9] ();
+dataInnCustomer = DATA LOCAL STRING[9] ();
+dataNameTransporter = DATA LOCAL STRING[9] ();
+dataInnTransporter = DATA LOCAL STRING[9] ();
+pinflTransportContact = DATA LOCAL STRING[100] ();
+transportContact = DATA LOCAL STRING[150] ();
+transportRegNo = DATA LOCAL STRING[35] ();
+transportModel = DATA LOCAL STRING[35] ();
+trailerRegNo = DATA LOCAL STRING[35] ();
+trailerModel = DATA LOCAL STRING[35] ();
+
+
+// EInvoiceDetailGroup
+districtCodeLoadingPoint = DATA LOCAL STRING[100] (INTEGER);
+districtNameLoadingPoint = DATA LOCAL STRING[150] (INTEGER);
+mahallaIdLoadingPoint = DATA LOCAL STRING[100] (INTEGER);
+mahallaNameLoadingPoint  = DATA LOCAL STRING[150] (INTEGER);
+regionIdLoadingPoint = DATA LOCAL STRING[100] (INTEGER);
+regionNameLoadingPoint = DATA LOCAL STRING[150] (INTEGER);
+addressLoadingPoint = DATA LOCAL STRING[150] (INTEGER);
+pinflLoadingTrustee = DATA LOCAL STRING[100] (INTEGER);
+fullLoadingTrustee = DATA LOCAL STRING[150] (INTEGER);
+districtCodeUnloadingPoint = DATA LOCAL STRING[100] (INTEGER);
+districtUnloadingPoint = DATA LOCAL STRING[150] (INTEGER);
+mahallaIdUnloadingPoint = DATA LOCAL STRING[100] (INTEGER);
+mahallaNameUnloadingPoint = DATA LOCAL STRING[150] (INTEGER);
+regionIdUnloadingPoint = DATA LOCAL STRING[100] (INTEGER);
+regionNameUnloadingPoint = DATA LOCAL STRING[150] (INTEGER);
+addressUnloadingPoint = DATA LOCAL STRING[150] (INTEGER);
+pinflUnloadingTrustee = DATA LOCAL STRING[100] (INTEGER);
+fullUnloadingTrustee = DATA LOCAL STRING[150] (INTEGER);
+refGroup = DATA LOCAL INTEGER (INTEGER);
+
+// EInvoiceDetail
+dataIndex = DATA INTEGER (INTEGER);
+dataNameCommittent = DATA STRING[275] (INTEGER);
+dataInnCommittent = DATA STRING[9] (INTEGER);
+lineItemProductName = DATA STRING[500] (INTEGER);
+lineItemCatalogCode = DATA STRING[100] (INTEGER);
+lineItemCatalogName = DATA STRING[500] (INTEGER);
+lineItemPackageCode = DATA STRING[100] (INTEGER);
+lineItemPackageName  = DATA STRING[500] (INTEGER);
+grossWeightValue = DATA NUMERIC[12,6] (INTEGER);
+netWeightValue = DATA NUMERIC[12,6] (INTEGER);
+quantityDespatched = DATA NUMERIC[16,5] (INTEGER);
+lineItemPrice = DATA NUMERIC[16,2] (INTEGER);
+lineItemDeliverySum = DATA NUMERIC[18,2] (INTEGER);
+
+FORM importEInvoice
+    PROPERTIES()  IN waybillDoc
+        deliveryNoteNumber EXTID 'WaybillNo', 
+        deliveryNoteDate EXTID 'WaybillDate'
+    
+    PROPERTIES() IN contractDoc
+        contractNumber EXTID 'ContractNo',
+        contractDate EXTID 'ContractDate'
+
+    PROPERTIES() IN consignor
+        dataNameSupplier EXTID 'Name',
+        dataInnSupplier EXTID 'TinOrPinfl'
+
+    PROPERTIES() IN consignee
+        dataNameCustomer EXTID 'Name',
+        dataInnCustomer EXTID 'TinOrPinfl'
+
+    PROPERTIES() IN carrier
+        dataNameTransporter EXTID 'Name', 
+        dataInnTransporter EXTID 'TinOrPinfl'
+
+    PROPERTIES() IN driver
+        pinflTransportContact EXTID 'Pinfl',
+        transportContact EXTID 'FullName'
+
+    PROPERTIES() IN truck
+        transportRegNo EXTID 'RegNo',
+        transportModel EXTID 'Model'
+
+    PROPERTIES() IN trailer
+        trailerRegNo EXTID 'RegNo',
+        trailerModel EXTID 'Model'
+
+    // EInvoiceDetailGroup
+    OBJECTS g = INTEGER EXTID 'ProductGroups' IN roadway
+    PROPERTIES(g) IN loadingPoint
+        districtCodeLoadingPoint EXTID 'DistrictCode',
+        districtNameLoadingPoint EXTID 'DistrictName',
+        mahallaIdLoadingPoint EXTID 'MahallaId',
+        mahallaNameLoadingPoint EXTID 'MahallaName',
+        regionIdLoadingPoint EXTID 'RegionId',
+        regionNameLoadingPoint EXTID 'RegionName',
+        addressLoadingPoint EXTID 'Address'
+
+    PROPERTIES(g) IN loadingTrustee 
+        pinflLoadingTrustee EXTID 'Pinfl',
+        fullLoadingTrustee EXTID 'FullName'
+
+    PROPERTIES(g) IN unloadingPoint
+        districtCodeUnloadingPoint EXTID 'DistrictCode',
+        districtUnloadingPoint EXTID 'DistrictName',
+        mahallaIdUnloadingPoint EXTID 'MahallaId',
+        mahallaNameUnloadingPoint EXTID 'MahallaName',
+        regionIdUnloadingPoint EXTID 'RegionId',
+        regionNameUnloadingPoint EXTID 'RegionName',
+        addressUnloadingPoint EXTID 'Address'
+
+    PROPERTIES(g) IN unloadingTrustee
+        pinflUnloadingTrustee EXTID 'Pinfl',
+        fullUnloadingTrustee EXTID 'FullName'
+
+    FILTERS imported(g)
+
+    // EInvoiceDetail
+    OBJECTS d = INTEGER EXTID 'Products' IN productInfo
+        PROPERTIES(d)
+            dataIndex EXTID 'OrdNo',
+            dataInnCommittent EXTID 'CommittentTinOrPinfl',
+            dataNameCommittent EXTID 'CommittentName',
+            lineItemProductName EXTID 'ProductName',
+            lineItemCatalogCode EXTID 'CatalogCode', 
+            lineItemCatalogName EXTID 'CatalogName', 
+            lineItemPackageCode EXTID 'PackageCode', 
+            lineItemPackageName EXTID 'PackageName', 
+            grossWeightValue EXTID 'WeightBrutto',
+            netWeightValue EXTID 'WeightNetto',
+            quantityDespatched EXTID 'Amount',
+            lineItemPrice EXTID 'Price',
+            lineItemDeliverySum EXTID 'DeliverySum'
+    FILTERS refGroup(d) = g
+;
+
+importWaybill(STRING id, FILE f){
+    IMPORT importEInvoice JSON FROM f;
+//    SHOW importEInvoice;
+
+    IF deliveryNoteNumber() THEN {
+        NEW ei = EInvoice {
+            externalId(ei) <- id;
+            waybillJSON (ei) <- JSONFILE(f);
+            deliveryNoteNumber (ei) <- deliveryNoteNumber();
+            deliveryNoteDate (ei) <- deliveryNoteDate();
+            contractNumber (ei) <- contractNumber();
+            contractDate (ei) <- contractDate();
+            dataNameSupplier (ei) <- dataNameSupplier();
+            dataInnSupplier (ei) <- dataInnSupplier();
+            dataNameCustomer (ei) <- dataNameCustomer();
+            dataInnCustomer (ei) <- dataInnCustomer();
+            dataNameTransporter (ei) <- dataNameTransporter();
+            dataInnTransporter (ei) <- dataInnTransporter();
+            pinflTransportContact (ei) <- pinflTransportContact();
+            transportContact (ei) <- transportContact();
+            transportRegNo (ei) <- transportRegNo();
+            transportModel (ei) <- transportModel();
+            trailerRegNo (ei) <- trailerRegNo();
+            trailerModel (ei) <- trailerModel();
+            
+            FOR imported(INTEGER g) AND districtCodeLoadingPoint(g) DO NEW eg = EInvoiceDetailGroup {
+                eInvoice(eg) <- ei;
+                districtCodeLoadingPoint(eg) <- districtCodeLoadingPoint(g);
+                districtNameLoadingPoint(eg) <- districtNameLoadingPoint(g);
+                mahallaIdLoadingPoint(eg) <- mahallaIdLoadingPoint(g);
+                mahallaNameLoadingPoint(eg) <- mahallaNameLoadingPoint(g);
+                regionIdLoadingPoint(eg) <- regionIdLoadingPoint(g);
+                regionNameLoadingPoint(eg) <- regionNameLoadingPoint(g);
+                addressLoadingPoint(eg) <- addressLoadingPoint(g);
+
+                pinflLoadingTrustee(eg) <- pinflLoadingTrustee(g);
+                fullLoadingTrustee(eg) <- fullLoadingTrustee(g);
+
+                districtCodeUnloadingPoint(eg) <- districtCodeUnloadingPoint(g);
+                districtUnloadingPoint(eg) <- districtUnloadingPoint(g);
+                mahallaIdUnloadingPoint(eg) <- mahallaIdUnloadingPoint(g);
+                mahallaNameUnloadingPoint(eg) <- mahallaNameUnloadingPoint(g);
+                regionIdUnloadingPoint(eg) <- regionIdUnloadingPoint(g);
+                regionNameUnloadingPoint(eg) <- regionNameUnloadingPoint(g);
+                addressUnloadingPoint(eg) <- addressUnloadingPoint(g);
+
+                pinflUnloadingTrustee(eg) <- pinflUnloadingTrustee(g);
+                fullUnloadingTrustee(eg) <- fullUnloadingTrustee(g);
+                
+                FOR refGroup(INTEGER d) == g DO NEW ed = EInvoiceDetail {
+                    eInvoice(ed) <- ei;
+                    eInvoiceDetailGroup(ed) <- eg;
+                    dataIndex(ed) <- dataIndex(d);
+                    dataInnCommittent(ed) <- dataInnCommittent(d);
+                    dataNameCommittent(ed) <- dataNameCommittent(d);
+                    lineItemProductName(ed) <- lineItemProductName(d);
+                    lineItemCatalogCode(ed) <- lineItemCatalogCode(d);
+                    lineItemCatalogName(ed) <- lineItemCatalogName(d);
+                    lineItemPackageCode(ed) <- lineItemPackageCode(d);
+                    lineItemPackageName(ed) <- lineItemPackageName(d);
+                    grossWeightValue(ed) <- grossWeightValue(d);
+                    netWeightValue(ed) <- netWeightValue(d);
+                    quantityDespatched(ed) <- quantityDespatched(d);
+                    lineItemPrice(ed) <- lineItemPrice(d);
+                    lineItemDeliverySum(ed) <- lineItemDeliverySum(d);
+                }
+            }
+            
+        }
+        
+        APPLY;
+    }
+}
+
+importDoc(STRING id, LegalEntity le) {
+
+    sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/waybill2-get/' + '\{' + id + '\}'), TRUE, NULL);
+    
+    IF statusHttp() == 200 THEN {
+        importWaybill(id, sendRequestEDIResponse() AS JSONFILE);        
+    } ELSE {
+        MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+        logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+    }
+}
+
+importAllDocs() {
+    getDocs();
+    
+    FOR docId(INTEGER i, LegalEntity le) DO {
+        importDoc(docId(i, le), le);
+    }
+}
+
+importDocs(DATE fromDate, DATE toDate, STRING docType) {
+    clearParamsGetDocs();
+
+    fromDate() <- fromDate;
+    toDate() <- toDate;
+    docType() <- docType;
+
+    importAllDocs();
+}
+
+waybillCancel 'Отменить' (EInvoice ei, LegalEntity le) {
+    signClientAction(waybillJSON(ei), le, appendPkcs7Attached());    
+    EXPORT JSON FROM id = externalId(ei), ip = ipSoliq(le), sign = signature();
+    fileToString(exportFile());
+    sendPostRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/waybill2-cancel-basic'), exportFile(), TRUE, NULL);
+
+    IF statusHttp() == 200 THEN {
+        isCancelled(ei) <- TRUE;
+    } ELSE {
+        MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+        logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+    }
+}
+
+waybillConsignee (EInvoice ei, LegalEntity le, STRING status) {
+    signClientAction(waybillJSON(ei), le, appendPkcs7Attached());
+    EXPORT JSON FROM id = externalId(ei), ip = ipSoliq(le), sign = signature();
+    fileToString(exportFile());
+    sendPostRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/waybill2-consignee-basic/' + '\{' + status + '\}'), exportFile(), TRUE, NULL);
+
+    IF statusHttp() == 200 THEN {
+        isAccepted(ei) <- TRUE IF status = 'accept';
+        isRejected(ei) <- TRUE IF status = 'reject';        
+    } ELSE {
+        MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
+        logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
+    }
+}
+
+defaultCustomer() = GROUP MIN LegalEntity le IF isCompany(le) AND loginSoliq(le); 
+
+waybillConsigneeAccept 'Принять' (EInvoice ei) {
+    waybillConsignee(ei, defaultCustomer(), 'accept');
+}
+
+waybillConsignee 'Отклонить' (EInvoice ei) {
+    waybillConsignee(ei, defaultCustomer(), 'reject');
+}
+
+waybillCancel 'Отменить' (EInvoice ei) {
+    waybillCancel(ei, defaultCustomer());
+}
+
+EXTEND FORM eInvoices
+    PROPERTIES(e) SHOWIF NOT isAccepted(e) AND NOT isRejected(e) waybillConsigneeAccept, waybillConsignee//, waybillCancel
+;
+
+DESIGN eInvoices{
+    TOOLBARBOX (e) {
+        horizontal = TRUE;
+        MOVE PROPERTY (waybillConsigneeAccept(e)) { alignment = STRETCH; };
+        MOVE PROPERTY (waybillConsignee(e)) { alignment = STRETCH; };
+    }
+}
