@@ -447,16 +447,40 @@ META extendObjectFormsBins(form, forms, obj, stockProp, background, binType)
     ;
 END
 
+META extendObjectFormsBins(form, forms, obj, binType)
+    EXTEND FORM form
+        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF useBins(obj) ON CHANGE set###binType##Bin(obj)
+        PROPERTIES(d) SHOWIF useBins(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
+    ;
+    DESIGN form {
+        headerExtraParams {
+            NEW headerBins {
+                caption = 'Ячейки';
+                MOVE PROPERTY(useBins(obj));
+                MOVE PROPERTY(name###binType##Bin(obj));
+            }
+        }
+    }
+
+    EXTEND FORM forms
+        PROPERTIES(d) READONLY SHOWIF useBins(obj) name###binType##Bin
+    ;
+END
+
 META defineInvoiceShipmentBins(stockProp, binType, caption)
 
     @defineDocumentBins(invoice, binType, caption);
     binType##Bin [ShipmentDetail] (InvoiceShipmentDetail detail) += binType##Bin(invoiceDetail(detail));
     
     @setBinDocument(UserInvoice, stockProp, binType);
+    @setBinDocument(UserShipment, stockProp, binType);
+
     @defineBinDocumentConstraintsType(UserShipment, stockProp, binType);
     @defineBinDocumentConstraintsType(UserInvoice, stockProp, binType);      
     
-    @extendObjectFormsBins(userInvoice, invoices, i, stockProp, backgroundShipped, binType);                          
+    @extendObjectFormsBins(userInvoice, invoices, i, stockProp, backgroundShipped, binType);
+
+    @extendObjectFormsBins(userShipment, shipments, s, binType);
 
     EXTEND FORM invoiceDetails
         PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d) name###binType##Bin
