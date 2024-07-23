@@ -24,7 +24,7 @@ name(DataFuelPOI e) += name(e);
 description(DataFuelPOI e) += description(e);
 color(DataFuelPOI e) += overColor(e);
 
-FORM DataFuelPOI
+FORM DataFuelPOI 'Точка на карте (польз.)'
     OBJECTS de = DataFuelPOI
     PROPERTIES(de) latitude, longitude, name, description, overColor
 
@@ -57,18 +57,23 @@ NAVIGATOR {
     }
 }
 
-colorWarehouse 'Цвет оптового склада' = DATA COLOR ();
-color(Warehouse e) += colorWarehouse();
-dataWarehouseIcon 'Изображение хранилища на карте' = DATA STRING ();
+colorWarehouse 'Цвет оптового склада (карта АЗС)' = DATA COLOR ();
+dataColor 'Цвет (карта АЗС)' = DATA COLOR (Warehouse);
+color(Warehouse e) += OVERRIDE dataColor(e), colorWarehouse();
+dataWarehouseIcon 'Изображение оптового склада (карта АЗС)' = DATA STRING ();
 icon(Warehouse e) += (OVERRIDE dataWarehouseIcon(), '$R{fuelWarehouse64.png}')  IF e IS Warehouse;
 description(Warehouse w) += TEXT (CONCAT '\n', address(w));
 
+showOnMapFuel 'Отображать на карте АЗС' = DATA BOOLEAN (Warehouse);
+skip(Warehouse w) += w IS Warehouse AND NOT showOnMapFuel(w);
+
 EXTEND FORM warehouse
-    PROPERTIES (w) color
+    PROPERTIES (w) showOnMapFuel, dataColor 
 ;
 DESIGN warehouse {
     secondRowHeaderLocationParams{
-        MOVE PROPERTY(color(w));
+        MOVE PROPERTY(showOnMapFuel(w));
+        MOVE PROPERTY(dataColor(w));
     }
 }
 
