@@ -57,7 +57,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         addVATElement(good, item, minusOneForEmptyVAT);
 
-        addStringElement(good, "delete-from-cash", "false");
+        boolean deleteFromCash = false;
+        if (infoJSON != null && infoJSON.has("deleteFromCash")) {
+            deleteFromCash = infoJSON.getBoolean("deleteFromCash");
+        }
+        addStringElement(good, "delete-from-cash", String.valueOf(deleteFromCash));
 
         List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
         if (hierarchyItemGroup != null) {
