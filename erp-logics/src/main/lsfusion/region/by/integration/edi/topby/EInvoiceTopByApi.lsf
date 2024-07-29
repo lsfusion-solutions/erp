@@ -407,11 +407,12 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
         NEWSESSION NESTED LOCAL {
             LOCAL eCreditNote = ECreditNote();
             eCreditNote() <- eCreditNoteActDifNumber(blrapnDeliveryNoteId());
-            IF NOT eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) THEN NEW m = ECreditNoteMessage {
+            IF NOT eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = ECreditNoteMessage {
                 number(m) <- blrapnDocumentNumber();
                 eCreditNote(m) <- eCreditNote();
+                kind(m) <- EInvoiceMessageKind.in;
             }
-            FOR ECreditNoteMessage m == eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber()) DO {
+            FOR ECreditNoteMessage m == eCreditNoteMessage(eCreditNote(), blrapnDocumentNumber(), EInvoiceMessageKind.in) DO {
                 dateTime(m) <- blrapnDateTime();
                 code(m) <- blrapnCode();
                 description(m) <- OVERRIDE blrapnDescription(), description(blrapnCode());

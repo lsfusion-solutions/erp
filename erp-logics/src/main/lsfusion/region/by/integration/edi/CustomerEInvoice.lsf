@@ -718,9 +718,10 @@ FORM exportBlrdnrNew FORMEXTID 'BLRDNR'
 //акты
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
 importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (ECreditNote);
+exportedBlrapnCustomer 'Экспортировано извещение о получении (покупатель)' = DATA BOOLEAN (ECreditNote);
 
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST (ECreditNote);
-signAndSendCustomerCreditNoteEDI 'Подписать и отправить (покупатель)'()  {
+signAndSendCustomerCreditNote 'Подписать и отправить (покупатель)'()  {
     IF askPasswordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
@@ -730,17 +731,35 @@ signAndSendCustomerCreditNoteEDI 'Подписать и отправить (по
         ELSE
             MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
         in(c) <- NULL;
+    } ELSE
+        MESSAGE 'Не выбрано ни одного акта приемки';
+}
+
+signAndSendBlrapnCustomer 'Подписать и отправить извещение о прочтении (поставщик)'  ABSTRACT LIST (ECreditNote);
+signAndSendBlrapnCustomerCreditNote 'Подписать и отправить извещение о прочтении (поставщик)'() {
+    IF askPasswordEDSService() THEN {
+        DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
-        ELSE
-    MESSAGE 'Не выбрано ни одного акта приемки';
+    FOR in(ECreditNote i) DO {
+        IF EDIProviderInvoice(customer(i), supplier(i)) THEN {
+            IF importedCustomer(i) THEN {
+                signAndSendBlrapnCustomer(i);
+            } ELSE
+                MESSAGE 'Не получен ответ от поставщика по акта приемки: ' + actDifNumber(i);
+        } ELSE
+            MESSAGE 'Не выбран EDI провайдер для акта приемки: ' + actDifNumber(i);
+
+        in(i) <- NULL;
+    } ELSE
+        MESSAGE 'Не выбрано ни одного акта приемки';
 }
 
 EXTEND FORM eCreditNotes
-    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() exportedCustomer, importedCustomer
+    PROPERTIES(c) BEFORE isCancel(c) READONLYIF isReadonly() exportedCustomer, importedCustomer, exportedBlrapnCustomer
     EXTEND FILTERGROUP notExported
         FILTER 'Не импортированы (покупатель)' NOT importedCustomer(c) 'F9'
         FILTER 'Не экспортированы (покупатель)' NOT exportedCustomer(c) 'F10'
-    PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNoteEDI
+    PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNote, signAndSendBlrapnCustomerCreditNote
 ;
 
 GROUP actDifLineItem EXTID 'ActDifLineItem';

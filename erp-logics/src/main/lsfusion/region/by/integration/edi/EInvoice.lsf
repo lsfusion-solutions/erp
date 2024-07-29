@@ -808,7 +808,10 @@ TABLE eCreditNoteMessage(ECreditNoteMessage);
 
 number 'Номер' = DATA STRING[24] (ECreditNoteMessage);
 eCreditNote 'Акт приемки' = DATA ECreditNote (ECreditNoteMessage) NONULL DELETE INDEXED;
-eCreditNoteMessage (eCreditNote, number) = GROUP AGGR ECreditNoteMessage e BY eCreditNote(e), number(e);
+kind 'Вид' = DATA EInvoiceMessageKind (ECreditNoteMessage);
+nameKind 'Вид' (ECreditNoteMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
+
+eCreditNoteMessage= GROUP AGGR ECreditNoteMessage e BY eCreditNote(e), number(e), kind(e);
 numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = documentId(eCreditNote(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMessage);
 code 'Код сообщения' = DATA STRING[10] (ECreditNoteMessage);
@@ -849,7 +852,7 @@ FORM eCreditNotes 'Электронные акты приемки'
     FILTERS eCreditNote(d) == c
 
     OBJECTS m = ECreditNoteMessage
-    PROPERTIES(m) READONLY numberECreditNote, dateTime, nameType, code, description
+    PROPERTIES(m) READONLY numberECreditNote, dateTime, nameType, nameKind, code, description
     FILTERS eCreditNote(m) == c
     ORDERS dateTime(m);
 ;
