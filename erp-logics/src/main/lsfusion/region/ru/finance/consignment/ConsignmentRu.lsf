@@ -16,7 +16,8 @@ REQUIRE System,
         Barcode,
         StatusUpd,
         BankRu,
-        UpdPrintParams;
+        UpdPrintParams,
+        ItemRu;
 
 NAMESPACE Consignment;
 
@@ -205,6 +206,8 @@ shipmentSum 'Учетная сумма' (ConsignmentDetail d)= OVERRIDE overShip
 
 dataSumConsignment 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
 sumConsignment 'Сумма с НДС' (ConsignmentDetail d) = dataSumConsignment(d);
+
+VATagent 'НДС исчисляется налоговым агентом' (ConsignmentDetail d) = VATagent(sku(d));
 
 dataSumConsignmentDetail 'Сумма с НДС' = ABSTRACT NUMERIC[18,4] (Consignment);
 sumConsignmentDetail 'Сумма с НДС' (Consignment consignment) = dataSumConsignmentDetail(consignment);
@@ -1122,3 +1125,8 @@ printConsignmentTTNABRuNew 'Транспортная накладная (сто�
     PRINT consignmentTTNARuNew OBJECTS c = c XLS;
     PRINT consignmentTTNBRuNEW OBJECTS c = c  XLS;
 } IMAGE 'print.png' IN print;
+
+
+EXTEND FORM consignmentUpd
+    PROPERTIES(d) VATagent
+;
