@@ -32,7 +32,7 @@ dataReportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 reportName 'Вид  акта' = DATA STRING[512] (EInvoice);
 
 deliveryNoteNumber 'Номер накладной' = DATA STRING[43] (EInvoice) INDEXED IN id CHARWIDTH 30;
-eInvoiceDeliveryNoteNumber (number) = GROUP NAGGR EInvoice e BY deliveryNoteNumber(e);
+eInvoiceDeliveryNoteNumber (number) = GROUP AGGR EInvoice e BY deliveryNoteNumber(e);
 deliveryNoteDate 'Дата накладной' = DATA DATE (EInvoice) INDEXED;
 sealIDReceiver 'Номер пломбы' = DATA STRING[35] (EInvoice);
 
@@ -683,7 +683,7 @@ documentIdCancel 'Номер сообщения грузополучателя' 
 dateTimeCancel 'Дата и время создания акта' = DATA DATETIME (ECreditNote);
 
 actDifNumber 'Номер электронного акта приемки' = DATA STRING[46] (ECreditNote) IN id;
-eCreditNoteActDifNumber (number) = GROUP NAGGR ECreditNote e BY actDifNumber(e);
+eCreditNoteActDifNumber (number) = GROUP AGGR ECreditNote e BY actDifNumber(e);
 actDifDate 'Дата электронного акта приемки' = DATA DATE (ECreditNote);
 
 contractNumber 'Номер договора, на основании которого выставляется акт приемки' = DATA STRING[70] (ECreditNote);
@@ -812,7 +812,7 @@ kind 'Вид' = DATA EInvoiceMessageKind (ECreditNoteMessage);
 nameKind 'Вид' (ECreditNoteMessage o) = staticCaption(kind(o)) CHARWIDTH 20;
 
 eCreditNoteMessage= GROUP AGGR ECreditNoteMessage e BY eCreditNote(e), number(e), kind(e);
-numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = documentId(eCreditNote(m));
+numberECreditNote 'Акт приемки' (ECreditNoteMessage m) = actDifNumber(eCreditNote(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (ECreditNoteMessage);
 code 'Код сообщения' = DATA STRING[10] (ECreditNoteMessage);
 description 'Текст сообщения' = DATA STRING[1000] (ECreditNoteMessage);
@@ -825,7 +825,7 @@ CLASS ECreditNoteMessageType 'Тип сообщения по электронн�
     systemmessage_blradf 'SYSTEMMESSAGE-BLRADF',
     blrapn_blrapn 'BLRAPN-BLRAPN',
     blrapn_blradf 'BLRAPN-BLRADF',
-    blradf 'BLRAPN-BLRADF'
+    blradf 'BLRADF'
 }
 
 type 'Тип' = DATA ECreditNoteMessageType (ECreditNoteMessage);

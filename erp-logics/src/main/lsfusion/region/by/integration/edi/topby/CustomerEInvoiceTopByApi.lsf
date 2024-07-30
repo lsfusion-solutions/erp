@@ -1362,6 +1362,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                         }
                                     }
                                     NEWSESSION NESTED LOCAL {
+                                        exportedBlrapnCustomer(ec) <- TRUE;
                                         NEW em = ECreditNoteMessage {
                                             number(em) <- STRING[35](resultMilliseconds());
                                             eCreditNote(em) <- ec;
@@ -1380,8 +1381,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             kind(m) <- EInvoiceMessageKind.in;
                                         }
                                         FOR ECreditNoteMessage m == eCreditNoteMessage(ec, 'adf' + blradfID(), EInvoiceMessageKind.in) DO {
-                                            dateTime(m) <- blrdnrDateTime();
-                                            code(m) <- blrdnrFunctionCode();
+                                            dateTime(m) <- blradfMsgDateTime();
+                                            code(m) <- blradfFunctionCode();
                                             type(m) <- ECreditNoteMessageType.blradf;
                                             XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
                                         }
@@ -1420,8 +1421,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 kind(m) <- EInvoiceMessageKind.in;
                             }
                             FOR ECreditNoteMessage m == eCreditNoteMessage(ec, 'adf' + blradfID(), EInvoiceMessageKind.in) DO {
-                                dateTime(m) <- blrdnrDateTime();
-                                code(m) <- blrdnrFunctionCode();
+                                dateTime(m) <- blradfMsgDateTime();
+                                code(m) <- blradfFunctionCode();
                                 type(m) <- ECreditNoteMessageType.blradf;
                                 XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                             }
@@ -1451,8 +1452,8 @@ signAndSendBlrapnCustomerECreditNote(ECreditNote ec, STRING[100] login, STRING[1
                     blrapnDeliveryNoteId() <- actDifNumber(ec);
                     blrapnDeliveryNoteDate() <- actDifDate(ec);
                     blrapnReferenceDocumentType() <- 'BLRADF';
-                    blrapnReferenceDocumentId() <- blradfID();
-                    blrapnReferenceDocumentDate() <- blradfCreationDateTime();
+                    blrapnReferenceDocumentId() <- documentId(ec);
+                    blrapnReferenceDocumentDate() <- dateTime(ec);
                     blrapnShipper() <- glnSupplier(ec);
                     blrapnReceiver() <- glnCustomer(ec);
                     blrapnCode() <- '2650';
@@ -1494,6 +1495,7 @@ signAndSendBlrapnCustomerECreditNote(ECreditNote ec, STRING[100] login, STRING[1
                             blrapn(ec) <- STRING[14](resultMilliseconds());
                             logToFile('edi', provider + ' SendECreditNote ' + actDifNumber(ec) + ' request succeeded');
                             NEWSESSION NESTED LOCAL {
+                                exportedBlrapnCustomer(ec) <- TRUE;
                                 NEW em = ECreditNoteMessage {
                                     number(em) <- STRING[35](resultMilliseconds());
                                     eCreditNote(em) <- ec;
