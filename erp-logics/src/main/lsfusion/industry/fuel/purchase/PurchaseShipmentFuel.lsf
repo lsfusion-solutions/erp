@@ -121,7 +121,7 @@ fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
         } ELSE IF NOT shipmentVolume(d) THEN {
             shipmentVolume(d) <- NUMERIC[16,5](shipmentQuantity(d) / shipmentDensity(d));
         } ELSE {
-            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
+            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг) поставлено' yes = YESNO DO {
                 IF yes THEN {
                     shipmentVolume(d) <- NUMERIC[16,5](shipmentQuantity(d) / shipmentDensity(d));
                 } ELSE {
@@ -157,8 +157,13 @@ shipmentTemperature(UserInvoiceDetail detail) <- temperature(detail) IF createSh
     WHEN (CHANGED(temperature(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
 shipmentVolume(UserInvoiceDetail detail) <- volume(detail) IF createShipment(detail)
     WHEN (CHANGED(volume(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
-shipmentDensity(UserInvoiceDetail detail) <- density(detail) IF createShipment(detail)
-    WHEN (CHANGED(density(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
+
+WHEN LOCAL (SETCHANGED(density(UserInvoiceDetail detail)) OR SETCHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail) AND density(detail) AND createShipment(detail) DO {
+    IF PREV(shipmentDensity(detail)) THEN
+        fillShipmentDensity (detail, density(detail));
+    ELSE
+        shipmentDensity(detail) <- density(detail);
+}
 
 overBackgroundShipmentDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 backgroundShipmentDensity (UserInvoiceDetail d) = OVERRIDE overBackgroundShipmentDensity(d), backgroundShipped(d);
