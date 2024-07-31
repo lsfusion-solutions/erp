@@ -814,7 +814,7 @@ FORM stockFuelBalance 'Остатки по АЗС'
     FILTERS isParent(skuSg, skuS) OR skuS IS Sku AND NOT skuSg
     FILTERGROUP skuIsFuels FILTER 'Топливо' isFuel(skuS) DEFAULT
     FILTERGROUP skuBalance
-        FILTER 'С остатком' GROUP SUM 1 IF currentBalance(skuS, Stock st11)
+        FILTER 'С остатком' GROUP SUM 1 IF currentBalance(skuS, Stock st11) DEFAULT
         FILTER 'С движением' GROUP SUM 1 IF countLedger(skuS, Stock st11)
        
     TREE skuStockTree skuA = BPSTRING[3], skuStg = StockGroup PARENT parent(skuStg)
@@ -827,6 +827,9 @@ FORM stockFuelBalance 'Остатки по АЗС'
     PROPERTIES (skuS, skuSt1) READONLY currentBalance, currentVolume, binVolume, fullVolumePercent BACKGROUND backgroundFullVolumePercent(skuS, skuSt1)
     ORDERS name(skuSt1)
     FILTERS isParent(skuStg, skuSt1) OR (skuSt1 IS Stock AND NOT skuStg), legalEntity(skuSt1) = le
+
+    FILTERGROUP stockBalance
+        FILTER 'С остатком' GROUP SUM 1 IF currentBalance(Sku sku11, skuSt1) DEFAULT
 
     OBJECTS skuSl = SkuLedger
     PROPERTIES (skuSl) READONLY dateTime, isPosted, description
