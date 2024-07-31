@@ -234,8 +234,11 @@ type (NaturalLoss l) = OVERRIDE dataType(l), Type.eu IF l IS NaturalLoss;
 nameType 'Тип отчета' (NaturalLoss l) = staticCaption(type(l)) CHARWIDTH 20 IN documentPrm;
 type (NaturalLossDetail l) = type(naturalLoss(l));
 
+overIsEU = ABSTRACT CASE BOOLEAN (NaturalLoss);
 isEU (NaturalLoss l) = type(l) == Type.eu;
 isWaste(NaturalLoss l) = type(l) == Type.waste;
+
+overIsEU(NaturalLoss l) += WHEN isEU(l) THEN TRUE;
 
 subNaturalDetail = DATA SubNaturalLossGroupDetail(NaturalLossDetail); //NONULL
 
@@ -368,8 +371,8 @@ FORM naturalLoss 'Ведомость естественной убыли'
                   quantityNaturalLossDetail, sum, note, nameType READONLY 
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) index, idBarcodeSku, nameSku, shortNameUOMSku,
-                  nameBatch, quantityLoss, nameSubNaturalLossGroup BACKGROUND backgroundNameSubNaturalLossGroup(d) SHOWIF isEU(s),
-                  code SHOWIF isEU(s), nameSubNaturalDetail SHOWIF isEU(s), percent HEADER captionPercent(d), quantity, price,
+                  nameBatch, quantityLoss, nameSubNaturalLossGroup BACKGROUND backgroundNameSubNaturalLossGroup(d) SHOWIF overIsEU(s),
+                  code SHOWIF overIsEU(s), nameSubNaturalDetail SHOWIF overIsEU(s), percent HEADER captionPercent(d), quantity, price,
                   sum, nameStock, NEW, DELETE GRID
 
     PROPERTIES(s) DRAW d addDetailDialogSkuStockNaturalLossDetail,
@@ -494,7 +497,7 @@ FORM naturalLosses 'Ведомости естественной убыли'
     OBJECTS d=NaturalLossDetail
     PROPERTIES(d) READONLYIF isReadonly() index, idBarcodeSku, nameSku, shortNameUOMSku,
                            nameBatch, quantityLoss,
-                           nameSubNaturalLossGroup SHOWIF isEU(s), code SHOWIF isEU(s), nameSubNaturalDetail SHOWIF isEU(s),
+                           nameSubNaturalLossGroup SHOWIF overIsEU(s), code SHOWIF overIsEU(s), nameSubNaturalDetail SHOWIF overIsEU(s),
                            percent HEADER captionPercent(d), quantity, price, sum, nameStock
 
     FILTERS in(s, d)
