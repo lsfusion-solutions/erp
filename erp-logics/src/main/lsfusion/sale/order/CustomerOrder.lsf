@@ -11,6 +11,7 @@ CLASS CustomerOrderDetail 'Строка предварительного зак�
 
 
 saleOrder= DATA Sale.Order (CustomerOrder) INDEXED;
+descriptionSaleOrder 'Заказ (продажа)' (CustomerOrder o) = description(saleOrder(o));
 countSaleOrders =  GROUP SUM 1 BY saleOrder(CustomerOrder o);
 
 @defineDocument(customerOrder);
@@ -442,3 +443,40 @@ overChangeQuantityValueSku(CustomerOrderDetail detail) + {
 }
 
 @deriveDocumentOperationProperty(CustomerOrder, showPack);
+
+createSaleOrder 'Создать заказ (продажа)' (CustomerOrder order) {
+    NEWSESSION {
+        NEW o = UserOrder {
+            saleOrder(order) <- o;
+            operation(o) <- operation(order);
+            supplier(o) <- supplier(order);
+            supplierStock(o) <- supplierStock(order) IF active(supplierStock(order));
+            customer(o) <- customer(order);
+            customerStock(o) <- customerStock(order) IF active(customerStock(order));
+
+            shipmentDate(o) <- shipmentDate(order);
+            shipmentTime(o) <- shipmentTime(order);
+            closeDate(o) <- closeDate(order);
+            showPack(o) <- showPack(order);
+            note(o) <- note(order);
+
+            FOR customerOrder(CustomerOrderDetail orderDetail) == order DO {
+                NEW d = UserOrderDetail {
+                    userOrder(d) <- o;
+                    sku(d) <- sku(orderDetail);
+                    quantity(d) <- quantity(orderDetail);
+                    barcodePack(d) <- barcodePack(orderDetail);
+                    amountPack(d) <- amountPack(orderDetail);
+                    packQuantity(d) <- packQuantity(orderDetail);
+                }
+            }
+
+            SHOW userOrder OBJECTS o = o DOCKED;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM customerOrders
+    PROPERTIES (o) READONLY descriptionSaleOrder
+    PROPERTIES (o) createSaleOrder SHOWIF NOT saleOrder(o)
+;
