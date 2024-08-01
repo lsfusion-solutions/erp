@@ -298,13 +298,10 @@ setPaymentStatus(Payment p, JSONFILE f) {
         createdDate(p) <- DATETIME(createdDate());
         paidDate(p) <- DATETIME(paidDate());
         currentStatusPayment() <- statusPayment(status());
-        IF currentStatusPayment() = StatusPayment.inProgress THEN {
+        IF currentStatusPayment() = StatusPayment.inProgress OR currentStatusPayment() = StatusPayment.ok THEN {
             setLastPayment(cashRegister(receipt(p)), STRING(p));
         } ELSE {
-            returnPost() <- NOT currentStatusPayment() == StatusPayment.ok;
-            IF returnPost() THEN {
-                setLastPayment(cashRegister(receipt(p)), NULL);
-            }
+            setLastPayment(cashRegister(receipt(p)), NULL);
         }
     } ELSE {
         currentStatusPayment() <- NULL;
@@ -399,6 +396,8 @@ paymentEpay (Payment p) {
             logToFile('epay', CONCAT ' ', 'Регистрационный номер:', regNum(cashRegister(receipt(p))));
             fileToString(exportFile());
             logToFile('epay', CONCAT ' ', 'Тело запроса:', resultString());
+            fileToString(FILE(result()));
+            logToFile('epay', CONCAT ' ', 'Тело ответа:', resultString());
         
         setToken(cashRegister(receipt(p)), headers('token'));
         setPaymentStatus(p, result());
