@@ -58,6 +58,15 @@ sidCurrency 'Код валюты' (Consignment consignment) = sid(currency(consi
 managerSupplier 'Руководитель, ФИО' = ABSTRACT Employee (Consignment);
 accountantSupplier 'Главный бухгалтер, ФИО' = ABSTRACT Employee (Consignment);
 
+overNameShipper = ABSTRACT ISTRING[150] (Consignment);
+nameShipper 'Грузоотправитель' (Consignment consignment) =
+    OVERRIDE overNameShipper(consignment), fullNameSupplier(consignment) CHARWIDTH 30;
+
+overAddressShipper = ABSTRACT ISTRING[200] (Consignment);
+addressShipper 'Адрес грузоотправителя' (Consignment consignment) =
+    OVERRIDE overAddressShipper(consignment), addressSupplier(consignment) CHARWIDTH 30;
+
+
 // ------------------------------------- Отпуск товара --------------------------------- //
     
 overINNCustomer 'ИНН получателя' = ABSTRACT STRING[50] (Consignment);
@@ -464,7 +473,7 @@ dateAttrUpd 'Дата' (Consignment c) = OVERRIDE overDateAttrUpd(c), dataDateAt
 overNumberCorrectionUpd 'Номер исправления' = ABSTRACT INTEGER (Consignment) CHARWIDTH 7;
 overDateCorrectionUpd 'Дата исправления' (Consignment consignment) = ABSTRACT DATE (Consignment);
 
-dataDescriptionContractAttrUpd 'Описание договора' = DATA STRING[50](Consignment) CHARWIDTH 30;
+dataDescriptionContractAttrUpd 'Описание договора' = DATA STRING[80](Consignment) CHARWIDTH 40;
 descriptionContractAttrUpd 'Описание договора' (Consignment c) = OVERRIDE dataDescriptionContractAttrUpd(c), descriptionContract(c);
 
 dataManagerSupplierAttrUpd 'Руководитель, ФИО' = DATA STRING[48] (Consignment);
@@ -615,7 +624,7 @@ changeAccountantSupplierAttrUpd(Consignment consignment)  {
 }
 
 changeDescriptionContractAttrUpd(Consignment consignment)  {    
-    INPUT description = STRING[50] DO {
+    INPUT description = STRING[80] DO {
         dataDescriptionContractAttrUpd(consignment) <- description;
     }  
 }
@@ -731,7 +740,7 @@ doubleSided 'Двухсторонний' = DATA LOCAL BOOLEAN ();
 FORM consignmentUpd 'Универсальный передаточный документ'
     OBJECTS dd = (c=Consignment,i=INTEGER ) 
 
-    PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier,
+    PROPERTIES (c) fullNameSupplier, addressSupplier, INNSupplier, KPPSupplier, nameShipper, addressShipper,
                    fullNameCustomer, addressCustomer, INNCustomer, KPPCustomer, nameCustomerStock, nameCustomerStore,
                    date, numberAttrUpd, dateAttrUpd, overNumberCorrectionUpd, overDateCorrectionUpd, 
                    descriptionContractAttrUpd,
