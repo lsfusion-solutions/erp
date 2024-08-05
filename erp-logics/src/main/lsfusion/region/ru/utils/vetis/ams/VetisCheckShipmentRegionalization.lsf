@@ -112,15 +112,16 @@ toProcessCheck 'Получить условия регионализации' (O
 
 processCheckOutgoingConsignment () {
     NEWSESSION NESTED (in[OutgoingConsignment]) {
-        FOR in(OutgoingConsignment oc) DO
+        IF GROUP SUM 1 IF in(OutgoingConsignment c) THEN {
             NEW r = CheckShipmentRegionalization {
-                businessEntity(r) <- consignorBusinessEntity(oc);
-                in(r, oc) <- TRUE;
+                businessEntity(r) <- GROUP MAX consignorBusinessEntity(OutgoingConsignment oc) IF in(oc);
+                in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
                 EXPORT checkShipmentRegionalization OBJECTS r = r XML;
 
                 submit(r, exportFile());
             }
-        APPLY;
+            APPLY;
+        }
     }
 }
 
