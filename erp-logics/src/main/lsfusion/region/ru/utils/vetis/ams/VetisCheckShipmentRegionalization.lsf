@@ -1,0 +1,262 @@
+MODULE VetisCheckShipmentRegionalization;
+
+REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionalization;
+
+NAMESPACE Vetis;
+
+CLASS CheckShipmentRegionalization 'Получение данных об условиях регионализации' : ApplicationRequest;
+
+in = DATA BOOLEAN (CheckShipmentRegionalization, OutgoingConsignment);
+
+GROUP body1 EXTID 'SOAP-ENV:Body';
+GROUP submitApplicationRequest1 EXTID 'apldef=http://api.vetrf.ru/schema/cdm/application/ws-definitions:submitApplicationRequest' : body1;
+GROUP application EXTID 'apl=http://api.vetrf.ru/schema/cdm/application:application' : submitApplicationRequest1;
+GROUP data EXTID 'apl:data' : application;
+GROUP checkShipmentRegionalizationRequest EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:checkShipmentRegionalizationRequest' : data;
+GROUP initiator1 EXTID 'merc:initiator' : checkShipmentRegionalizationRequest;
+GROUP shipmentRoute EXTID 'vd:shipmentRoute' : checkShipmentRegionalizationRequest;
+
+GROUP enterprise EXTID 'vd:enterprise';
+GROUP routePoint EXTID 'vd:routePoint';
+GROUP location EXTID 'vd:location';
+GROUP address EXTID 'dt:address' : location;
+GROUP district EXTID 'dt:district' : address;
+GROUP country EXTID 'dt:country' : address;
+GROUP region EXTID 'dt:region' : address;
+GROUP locality EXTID 'dt:locality' : address;
+
+
+serviceId1 = 'mercury-g2b.service:2.0';
+localTransactionId (CheckShipmentRegionalization r) = LONG(r AS CheckShipmentRegionalization);
+
+guid1 = DATA LOCAL STRING(INTEGER);
+guid2 = DATA LOCAL STRING(INTEGER);
+guid3 = DATA LOCAL STRING(INTEGER);
+guid4 = DATA LOCAL STRING(INTEGER);
+guid5 = DATA LOCAL STRING(INTEGER);
+
+in (CheckShipmentRegionalization c, SubProduct p) = 
+    [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p);
+in (CheckShipmentRegionalization c, Enterprise e) = 
+    GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND consigneeEnterprise(oc) == e;
+
+index (CheckShipmentRegionalization c, Enterprise e) = IF in(c, e) THEN 1;
+
+FORM checkShipmentRegionalization FORMEXTID 'SOAP-ENV=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR 
+        ='http://api.vetrf.ru/schema/cdm/dictionary/v2' EXTID 'xmlns:dt',
+        ='http://api.vetrf.ru/schema/cdm/base' EXTID 'xmlns:bs',
+        ='http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2' EXTID 'xmlns:merc',
+        ='http://api.vetrf.ru/schema/cdm/application/ws-definitions' EXTID 'xmlns:apldef',
+        ='http://api.vetrf.ru/schema/cdm/application' EXTID 'xmlns:apl',
+        ='http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2' EXTID 'xmlns:vd'
+    
+    OBJECTS r = CheckShipmentRegionalization PANEL
+    
+    PROPERTIES = (OVERRIDE header(), '') EXTID 'SOAP-ENV:Header'
+    PROPERTIES IN submitApplicationRequest1 apiKey(r) EXTID 'apldef:apiKey'
+    PROPERTIES IN application serviceId1() EXTID 'apl:serviceId', issuerId(r) EXTID 'apl:issuerId', issueDate(r) EXTID 'apl:issueDate'
+    PROPERTIES IN checkShipmentRegionalizationRequest localTransactionId(r) EXTID 'merc:localTransactionId'
+    PROPERTIES IN initiator1 loginMercury(r) EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:login'
+
+    OBJECTS cargoType = SubProduct EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:cargoType' IN checkShipmentRegionalizationRequest
+    PROPERTIES(cargoType) guid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:guid'
+    FILTERS in(r, cargoType)
+
+    OBJECTS routePoint = Enterprise EXTID 'vd:routePoint' IN shipmentRoute
+    PROPERTIES(r, routePoint) index EXTID 'vd:sqnId'
+    PROPERTIES(routePoint) IN enterprise guid EXTID 'bs:guid'
+    FILTERS in(r, routePoint)
+
+    //пока только enterprise
+//    OBJECTS location = INTEGER EXTID 'vd:location'
+//
+//    OBJECTS address = INTEGER EXTID 'dt:address' IN location
+//    PROPERTIES(routePoint) IN district guid2 EXTID 'bs:guid'
+//    PROPERTIES(routePoint) IN country guid3 EXTID 'bs:guid'
+//    PROPERTIES(routePoint) IN region guid4 EXTID 'bs:guid'
+//    PROPERTIES(routePoint) IN locality guid5 EXTID 'bs:guid'
+;
+
+@defineStaticObject(CheckRequestStatus, 'Тип статуса получения условий регионализации Ветис');
+EXTEND CLASS CheckRequestStatus {
+    ALLOWED 'Перемещение разрешено',
+    ALLOWEDCONDITION 'Перемещение разрешено при обязательном соблюдении условий',
+    REJECTED 'Перемещение запрещено'
+}
+
+id 'Код' (CheckRequestStatus o) = CASE
+                                                WHEN o == CheckRequestStatus.ALLOWED THEN 1
+                                                WHEN o == CheckRequestStatus.ALLOWEDCONDITION THEN 2
+                                                WHEN o == CheckRequestStatus.REJECTED THEN 3;
+checkRequestStatus = GROUP MAX CheckRequestStatus o BY id(o);
+
+checkStatus = DATA CheckRequestStatus (ApplicationRequest, OutgoingConsignment);
+nameCheckStatus 'Статус получения условий регионализации' (ApplicationRequest r, OutgoingConsignment o) = name(checkStatus(r, o));
+
+lastCheckRequest (OutgoingConsignment o) = GROUP LAST CheckShipmentRegionalization r ORDER r WHERE in(r, o) MATERIALIZED;
+issueDateLastCheckRequest 'Время получения данных об условиях регионализации' (OutgoingConsignment o) = issueDate(lastCheckRequest(o));
+nameStatusLastCheckRequest 'Статус получения данных об условиях регионализации' (OutgoingConsignment o) = nameCheckStatus(lastCheckRequest(o), o);
+errorLastCheckRequest 'Ошибка получения данных об условиях регионализации' (OutgoingConsignment o) = error(lastCheckRequest(o));
+
+succeededCheck 'Успешна' (ApplicationRequest r, OutgoingConsignment o) = 
+    (checkStatus(r, o) = CheckRequestStatus.ALLOWED OR checkStatus(r, o) = CheckRequestStatus.ALLOWEDCONDITION);
+rejectedCheck 'Отмена' (ApplicationRequest r, OutgoingConsignment o) =
+    checkStatus(r, o) = CheckRequestStatus.REJECTED OR checkStatus(r, o) = CheckRequestStatus.REJECTED;
+
+toProcessCheck 'Получить условия регионализации' (OutgoingConsignment o) = o IS OutgoingConsignment AND
+    NOT notCompleted(lastCheckRequest(o)) AND // не обрабатывается заявка 
+    (NOT succeededCheck(lastCheckRequest(o), o) OR // не успешно обработана заявка 
+        rejectedCheck(lastCheckRequest(o), o)) // или Отмена
+            MATERIALIZED INDEXED;
+
+processCheckOutgoingConsignment () {
+    NEWSESSION NESTED (in[OutgoingConsignment]) {
+        FOR in(OutgoingConsignment oc) DO
+            NEW r = CheckShipmentRegionalization {
+                businessEntity(r) <- consignorBusinessEntity(oc);
+                in(r, oc) <- TRUE;
+                EXPORT checkShipmentRegionalization OBJECTS r = r XML;
+
+                submit(r, exportFile());
+            }
+        APPLY;
+    }
+}
+
+processCheck 'Получить условия регионализации' (OutgoingConsignment c) {
+    IF NOT GROUP SUM 1 IF in(OutgoingConsignment oc) THEN
+        in(c) <- TRUE;
+    processCheckOutgoingConsignment();
+    in(OutgoingConsignment oc) <- NULL;
+}
+
+EXTEND FORM outgoingConsignments
+    PROPERTIES(c) READONLY issueDateLastCheckRequest, nameStatusLastCheckRequest
+    
+    PROPERTIES(c) processCheck READONLYIF NOT toProcessCheck(c) GRID
+
+    FILTERGROUP statusCheck
+        FILTER 'Получить условия регионализации' toProcessCheck(c)
+;
+
+// process
+
+GROUP body2 EXTID 'env:Body';
+GROUP receiveApplicationResultResponse2 EXTID 'apldef=http://api.vetrf.ru/schema/cdm/application/ws-definitions:receiveApplicationResultResponse' : body2;
+GROUP application2 EXTID 'apl=http://api.vetrf.ru/schema/cdm/application:application' : receiveApplicationResultResponse2;
+GROUP result EXTID 'apl:result' : application2;
+GROUP checkShipmentRegionalizationResponse EXTID 'merc=http://api.vetrf.ru/schema/cdm/mercury/g2b/applications/v2:checkShipmentRegionalizationResponse' : result;
+GROUP r13nRouteSection EXTID 'vd:r13nRouteSection';
+GROUP appliedR13nRule EXTID 'dt:appliedR13nRule';
+GROUP requirement EXTID 'dt:requirement';
+GROUP relatedDisease EXTID 'dt:relatedDisease' : requirement;
+GROUP conditionGroup EXTID 'dt:conditionGroup' : requirement;
+
+GROUP relatedDisease1 EXTID 'dt:relatedDisease';
+GROUP cargoType EXTID 'dt:cargoType';
+
+
+issuerId = DATA LOCAL STRING();
+rcvDate = DATA LOCAL ZDATETIME();
+prdcRsltDate = DATA LOCAL ZDATETIME();
+sqnId = DATA LOCAL STRING(INTEGER);
+r13nRouteSectionAppliedR13nRule = DATA LOCAL INTEGER(INTEGER);
+uuid = DATA LOCAL STRING(INTEGER);
+appliedR13nRuleCondition = DATA LOCAL INTEGER(INTEGER);
+previous = DATA LOCAL STRING(INTEGER);
+uuid1 = DATA LOCAL STRING(INTEGER);
+active1 = DATA LOCAL STRING(INTEGER);
+last = DATA LOCAL STRING(INTEGER);
+status1 = DATA LOCAL STRING(INTEGER);
+createDate = DATA LOCAL ZDATETIME(INTEGER);
+updateDate = DATA LOCAL ZDATETIME(INTEGER);
+referenceNumber = DATA LOCAL STRING(INTEGER);
+text = DATA LOCAL STRING(INTEGER);
+strict = DATA LOCAL STRING(INTEGER);
+uuid2 = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+decision = DATA LOCAL STRING(INTEGER);
+
+FORM responceCheckShipmentRegionalization FORMEXTID 'env=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() header EXTID 'env:Header'
+    PROPERTIES() IN application2 applicationId EXTID 'apl:applicationId', status EXTID 'apl:status', serviceId EXTID 'apl:serviceId', issuerId EXTID 'apl:issuerId', issueDate EXTID 'apl:issueDate', rcvDate EXTID 'apl:rcvDate', prdcRsltDate EXTID 'apl:prdcRsltDate'
+
+    OBJECTS r13nRouteSection = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:r13nRouteSection' IN checkShipmentRegionalizationResponse
+    PROPERTIES(r13nRouteSection) sqnId EXTID 'vd:sqnId'
+    FILTERS imported(r13nRouteSection)
+
+    OBJECTS appliedR13nRule = INTEGER EXTID 'vd:appliedR13nRule'
+    FILTERS r13nRouteSectionAppliedR13nRule(appliedR13nRule) == r13nRouteSection
+
+    PROPERTIES(appliedR13nRule) decision EXTID 'dt:decision'
+
+    OBJECTS requirement = INTEGER EXTID 'dt=http://api.vetrf.ru/schema/cdm/dictionary/v2:requirement'
+    PROPERTIES(appliedR13nRule) IN requirement type EXTID 'dt:type'
+    PROPERTIES(appliedR13nRule) IN relatedDisease uuid EXTID 'bs=http://api.vetrf.ru/schema/cdm/base:uuid', guid EXTID 'bs:guid', name EXTID 'dt:name'
+    FILTERS imported(appliedR13nRule)
+
+    OBJECTS condition = INTEGER EXTID 'dt:condition' IN conditionGroup
+    FILTERS appliedR13nRuleCondition(condition) == appliedR13nRule
+    PROPERTIES(condition) previous EXTID 'bs:previous', uuid1 EXTID 'bs:uuid', guid1 EXTID 'bs:guid', active1 EXTID 'bs:active', last EXTID 'bs:last', 
+        status1 EXTID 'bs:status', createDate EXTID 'bs:createDate', updateDate EXTID 'bs:updateDate', referenceNumber EXTID 'dt:referenceNumber', 
+        text EXTID 'dt:text', strict EXTID 'dt:strict'
+    PROPERTIES(condition) IN relatedDisease1 uuid2 EXTID 'bs:uuid', guid2 EXTID 'bs:guid', name1 EXTID 'dt:name'
+    FILTERS imported(condition)
+    PROPERTIES(appliedR13nRule) IN cargoType guid3 EXTID 'bs:guid'
+;
+
+in = DATA BOOLEAN (CheckShipmentRegionalization, OutgoingConsignment, Condition);
+hasRegionalization (OutgoingConsignment c) = GROUP SUM 1 IF in(lastCheckRequest(c), c, Condition con);
+
+process (CheckShipmentRegionalization r) + {
+    NEWSESSION {
+        stringToFile(response(r));
+        IMPORT responceCheckShipmentRegionalization XML FROM resultFile();
+
+        FOR INTEGER k = [GROUP MAX INTEGER i IF imported(i) AND guid2(i) AND NOT desease(guid2(i)) BY guid2(i)](STRING guid) DO NEW d = Desease {
+            guid(d) <- guid;
+            name(d) <- name1(k);
+        }
+        FOR INTEGER k = [GROUP MAX INTEGER i IF imported(i) AND guid1(i) AND NOT condition(guid1(i)) BY guid1(i)](STRING guid) DO NEW c = Condition {
+            guid(c) <- guid;
+            name(c) <- text(k);
+            active(c) <- TRUE IF active1(k) == 'true';
+            createDate(c) <- DATETIME(createDate(k));
+            strict(c) <- TRUE IF strict(k) == 'true';
+            desease(c) <- desease(guid2(k));
+        }
+
+        in (r, OutgoingConsignment c, Condition con) <- NULL WHERE in(r, c) AND con IS Condition;
+        FOR imported(INTEGER routeSection) AND sqnId(routeSection) DO {
+            FOR imported(INTEGER i) AND r13nRouteSectionAppliedR13nRule(i) == routeSection AND subProduct(guid3(i)) AND INTEGER(decision(i)) == 2 AND INTEGER(sqnId(routeSection)) == 1 DO {
+                FOR imported(INTEGER con) AND appliedR13nRuleCondition(con) == i AND condition(guid1(con)) DO {
+                    in (r, OutgoingConsignment c, condition(guid1(con))) <- TRUE WHERE
+                        in(r, c) AND [GROUP SUM 1 IF in(stockEntry(c), ProductItem pi) BY subProduct(pi)](subProduct(guid3(i)));
+                }
+            }
+            FOR imported(INTEGER i) AND r13nRouteSectionAppliedR13nRule(i) == routeSection AND subProduct(guid3(i)) AND INTEGER(sqnId(routeSection)) == 1 DO {
+                checkStatus(r, OutgoingConsignment c) <- checkRequestStatus(INTEGER(decision(i))) WHERE
+                    in(r, c) AND [GROUP SUM 1 IF in(stockEntry(c), ProductItem pi) BY subProduct(pi)](subProduct(guid3(i)));
+            }
+        }
+        
+
+        processed(r) <- TRUE;
+        APPLY;
+    }
+}
+
+FORM regionalizationConditions 'Условия регионализации'
+    OBJECTS c = OutgoingConsignment PANEL
+    
+    OBJECTS con = Condition
+    PROPERTIES name(con), strict(con)
+    FILTERS in(lastCheckRequest(c), c, con)
+;
+
+showRegionalizationConditions 'Показать условия регионализации' (OutgoingConsignment c) {
+    SHOW regionalizationConditions OBJECTS c = c;
+}
+
+EXTEND FORM outgoingConsignments PROPERTIES(c) showRegionalizationConditions DRAW c GRID READONLYIF NOT hasRegionalization(c);

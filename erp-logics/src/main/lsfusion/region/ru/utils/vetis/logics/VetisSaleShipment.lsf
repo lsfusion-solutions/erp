@@ -2,7 +2,7 @@ MODULE VetisSaleShipment;
 
 REQUIRE VetisOutgoingConsignment, VetisLegalEntity, VetisSaleInvoice, 
         SaleShipment, TripSaleShipment,
-        VetisPrepareOutgoingConsignment, VetisWithdrawVetDocument;
+        VetisCheckShipmentRegionalization, VetisWithdrawVetDocument;
 
 PRIORITY Sale;
 
@@ -83,3 +83,32 @@ showDialogPrepareOutgoingConsignmentRequest 'Показать историю з�
         showDialogPrepareOutgoingConsignmentRequest(o);
     }
 } ASON CONTEXTMENU nameStatusLastRequest[InvoiceDetail, StockEntry];
+
+toProcessCheck (ShipmentDetail vd, StockEntry se) = toProcessCheck(outgoingConsignment(vd, se));
+toProcessCheck (Shipment i) = GROUP SUM 1 IF toProcessCheck(ShipmentDetail vd, StockEntry se) AND shipment(vd) = i;
+toProcessCheck 'Отправить в Ветис' (ShipmentDetail vd, StockEntry se) { processCheck(outgoingConsignment(vd, se)); }
+
+processCheck 'Получить условия регионализации' (Shipment i) {
+    in(OutgoingConsignment c) <- toProcessCheck(c) IF
+        GROUP SUM 1 IF outgoingConsignment(ShipmentDetail d, StockEntry se) = c AND
+            shipment(d) = i;
+    IF GROUP SUM 1 IF in(OutgoingConsignment c) THEN
+        processCheckOutgoingConsignment();
+}
+
+showRegionalizationConditions 'Показать условия регионализации' (ShipmentDetail vd, StockEntry se) {
+    showRegionalizationConditions(outgoingConsignment(vd, se));
+}
+
+hasRegionalization(ShipmentDetail vd, StockEntry se) = hasRegionalization(outgoingConsignment(vd, se));
+
+issueDateLastCheckRequest 'Время получения данных об условиях регионализации' (ShipmentDetail vd, StockEntry se) = 
+    issueDateLastCheckRequest(outgoingConsignment(vd, se));
+nameStatusLastCheckRequest 'Статус получения данных об условиях регионализации' (ShipmentDetail vd, StockEntry se) =
+    nameStatusLastCheckRequest(outgoingConsignment(vd, se));
+
+EXTEND FORM shipments
+    PROPERTIES(s) processCheck DRAW vse TOOLBAR SHOWIF toProcessCheck(s)
+    PROPERTIES(vd, se) issueDateLastCheckRequest, nameStatusLastCheckRequest,
+        showRegionalizationConditions DRAW vse TOOLBAR SHOWIF hasRegionalization(vd, se)
+;

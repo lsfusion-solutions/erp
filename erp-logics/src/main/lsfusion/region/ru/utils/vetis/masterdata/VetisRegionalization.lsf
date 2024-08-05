@@ -1,0 +1,70 @@
+MODULE VetisRegionalization;
+
+REQUIRE Vetis;
+
+NAMESPACE Vetis;
+
+CLASS Desease 'Заболевание';
+TABLE desease (Desease);
+
+guid 'Код' = DATA STRING (Desease) CHARWIDTH 36 INDEXED NONULL;
+desease 'Заболевание' = GROUP AGGR Desease u BY guid(u);
+
+name 'Наименование' = DATA ISTRING (Desease) CHARWIDTH 6;
+
+FORM desease 'Заболевание Ветис'
+    OBJECTS o = Desease PANEL
+    PROPERTIES(o) guid, name
+
+    EDIT Desease OBJECT o
+;
+
+FORM deseases 'Заболевания'
+    OBJECTS o = Desease
+    PROPERTIES(o) READONLY guid, name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    LIST Desease OBJECT o
+;
+
+NAVIGATOR {
+    vetisMasterData {
+        NEW deseases;
+    }
+}
+
+CLASS Condition 'Условие регионализации';
+TABLE condition (Condition);
+
+guid 'Код' = DATA STRING (Condition) CHARWIDTH 36 INDEXED NONULL;
+condition 'Условие регионализации' = GROUP AGGR Condition u BY guid(u);
+
+active 'Активная' = DATA BOOLEAN (Condition);
+createDate 'Дата создания' = DATA DATETIME (Condition);
+
+name 'Условие' = DATA ISTRING (Condition) CHARWIDTH 200;
+strict 'Обязательность соблюдения' = DATA BOOLEAN (Condition);
+
+desease = DATA Desease (Condition);
+nameDesease 'Заболевание' (Condition c) = name(desease(c));
+
+FORM condition 'Условие регионализации Ветис'
+    OBJECTS o = Condition PANEL
+    PROPERTIES(o) guid, name, active, createDate, strict, nameDesease
+
+    EDIT Condition OBJECT o
+;
+
+FORM conditions 'Условия регионализации'
+    OBJECTS o = Condition
+    PROPERTIES(o) READONLY guid, name, active, createDate, strict, nameDesease
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    LIST Condition OBJECT o
+;
+
+NAVIGATOR {
+    vetisMasterData {
+        NEW conditions;
+    }
+}
