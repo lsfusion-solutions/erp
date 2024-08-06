@@ -4,4 +4,16 @@ REQUIRE Set10WebServer, ZReportQR;
 
 NAMESPACE Set10;
 
-extraPaymentType(STRING s) += WHEN s = 'BankQRPaymentEntity' THEN typePaymentSID('QR');
+qrSetPaymentType = DATA PaymentType ();
+nameQrSetPaymentType 'Тип платежа QR' = name(qrSetPaymentType());
+
+EXTEND FORM integrationData
+    PROPERTIES nameQrSetPaymentType()
+;
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (nameQrSetPaymentType());
+    }
+}
+
+extraPaymentType(STRING s) += WHEN s = 'BankQRPaymentEntity' THEN OVERRIDE qrSetPaymentType(), typePaymentSID('QR');
