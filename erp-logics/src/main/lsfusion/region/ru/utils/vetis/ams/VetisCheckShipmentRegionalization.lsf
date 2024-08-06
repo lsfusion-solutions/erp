@@ -4,7 +4,7 @@ REQUIRE VetisAMSReceiveResponse, VetisPrepareOutgoingConsignment, VetisRegionali
 
 NAMESPACE Vetis;
 
-CLASS CheckShipmentRegionalization 'Получение данных об условиях регионализации' : ApplicationRequest;
+CLASS CheckShipmentRegionalization 'Получение условий регионализации' : ApplicationRequest;
 
 in = DATA BOOLEAN (CheckShipmentRegionalization, OutgoingConsignment);
 
@@ -38,9 +38,11 @@ guid5 = DATA LOCAL STRING(INTEGER);
 in (CheckShipmentRegionalization c, SubProduct p) = 
     [GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND in(stockEntry(oc), ProductItem pi) BY subProduct(pi)](p);
 in (CheckShipmentRegionalization c, Enterprise e) = 
-    GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND consigneeEnterprise(oc) == e;
+    GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND (consignorEnterprise(oc) == e OR consigneeEnterprise(oc) == e);
 
-index (CheckShipmentRegionalization c, Enterprise e) = IF in(c, e) THEN 1;
+index (CheckShipmentRegionalization c, Enterprise e) = 
+    IF GROUP SUM 1 IF in(c, OutgoingConsignment oc) AND consignorEnterprise(oc) == e THEN 1
+    ELSE 2;
 
 FORM checkShipmentRegionalization FORMEXTID 'SOAP-ENV=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES ATTR 
@@ -66,6 +68,7 @@ FORM checkShipmentRegionalization FORMEXTID 'SOAP-ENV=http://schemas.xmlsoap.org
     OBJECTS routePoint = Enterprise EXTID 'vd:routePoint' IN shipmentRoute
     PROPERTIES(r, routePoint) index EXTID 'vd:sqnId'
     PROPERTIES(routePoint) IN enterprise guid EXTID 'bs:guid'
+    ORDERS index(r, routePoint)
     FILTERS in(r, routePoint)
 
     //пока только enterprise
@@ -95,9 +98,9 @@ checkStatus = DATA CheckRequestStatus (ApplicationRequest, OutgoingConsignment);
 nameCheckStatus 'Статус получения условий регионализации' (ApplicationRequest r, OutgoingConsignment o) = name(checkStatus(r, o));
 
 lastCheckRequest (OutgoingConsignment o) = GROUP LAST CheckShipmentRegionalization r ORDER r WHERE in(r, o) MATERIALIZED;
-issueDateLastCheckRequest 'Время получения данных об условиях регионализации' (OutgoingConsignment o) = issueDate(lastCheckRequest(o));
-nameStatusLastCheckRequest 'Статус получения данных об условиях регионализации' (OutgoingConsignment o) = nameCheckStatus(lastCheckRequest(o), o);
-errorLastCheckRequest 'Ошибка получения данных об условиях регионализации' (OutgoingConsignment o) = error(lastCheckRequest(o));
+issueDateLastCheckRequest 'Время получения условий регионализации' (OutgoingConsignment o) = issueDate(lastCheckRequest(o));
+nameStatusLastCheckRequest 'Статус получения условий регионализации' (OutgoingConsignment o) = nameCheckStatus(lastCheckRequest(o), o);
+errorLastCheckRequest 'Ошибка получения условий регионализации' (OutgoingConsignment o) = error(lastCheckRequest(o));
 
 succeededCheck 'Успешна' (ApplicationRequest r, OutgoingConsignment o) = 
     (checkStatus(r, o) = CheckRequestStatus.ALLOWED OR checkStatus(r, o) = CheckRequestStatus.ALLOWEDCONDITION);
