@@ -1,0 +1,361 @@
+MODULE SaleDemandOrder;
+
+REQUIRE PurchaseOrderIntra, Store;
+
+NAMESPACE Sale;
+
+notProportionIntraDemand 'Не использовать пропорциональное распределение при дефицитах' = DATA BOOLEAN () PREREAD;
+useReservePurchase 'Учитывать резерв (закупка) по текущий день' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options 
+    PROPERTIES() notProportionIntraDemand, useReservePurchase
+;
+
+DESIGN options { 
+    intra {
+        MOVE PROPERTY(notProportionIntraDemand());
+        MOVE PROPERTY(useReservePurchase());
+    } 
+}
+
+amountPackIntra 'Кол-во в упаковке' (Sku sk) = OVERRIDE Purchase.amountPack(sk), 1.0 IF sk IS Sku; // для отгрузки со склада
+
+dataPriorityIntraDemand 'Приоритет при распределении дефицитов' = DATA INTEGER (StockGroup);
+levelParentPriorityIntraDemand(StockGroup child)  = GROUP MIN level(child, StockGroup parent) IF dataPriorityIntraDemand(parent);
+nearestParentPriorityIntraDemand (StockGroup stockGroup) = stockGroup(stockGroup, levelParentPriorityIntraDemand(stockGroup));
+nearestPriorityIntraDemand (StockGroup stockGroup) = dataPriorityIntraDemand(nearestParentPriorityIntraDemand (stockGroup));
+
+priorityIntraDemand 'Приоритет при распределении дефицитов' (StockGroup stockGroup) = OVERRIDE dataPriorityIntraDemand(stockGroup), nearestPriorityIntraDemand (stockGroup);
+countPriorityIntraDemandStockGroup = GROUP SUM 1 IF priorityIntraDemand(StockGroup g);
+
+quantityChildWithPriorityIntraDemand(StockGroup stockGroup) = GROUP SUM 1 IF dataPriorityIntraDemand(StockGroup childItemGroup) AND isParent(childItemGroup, stockGroup);
+quantityParentWithPriorityIntraDemand(StockGroup stockGroup) = GROUP SUM 1 IF dataPriorityIntraDemand(StockGroup parentItemGroup) AND isParent(stockGroup, parentItemGroup);
+
+backgroundShowPriorityIntraDemand (StockGroup stockGroup) =
+    IF dataPriorityIntraDemand(stockGroup) THEN
+        RGB(150,150,160) IF stockGroup IS StockGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithPriorityIntraDemand (stockGroup) != descendantNumber(stockGroup)
+            AND NOT quantityParentWithPriorityIntraDemand (stockGroup);
+
+dataPriorityIntraDemand 'Приоритет при распределении дефицитов' = DATA INTEGER (Stock);
+priorityIntraDemand 'Приоритет при распределении дефицитов' (Stock st) = OVERRIDE dataPriorityIntraDemand(st), priorityIntraDemand(stockGroup(st)), 999 IF st IS Stock;
+
+EXTEND FORM options
+    PROPERTIES priorityIntraDemand(sg) BACKGROUND backgroundShowPriorityIntraDemand(sg)
+    PROPERTIES (s) priorityIntraDemand
+;
+
+filterDemand(Stock ds) = active(ds) AND ds IS DepartmentStore;
+
+inDemand 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
+countInDemandStock = GROUP SUM 1 IF inDemand(Stock ds);
+
+dataInDemand 'Отм.' = DATA LOCAL NESTED BOOLEAN (SkuGroup);
+levelParentInDemand(SkuGroup child)  = GROUP MIN level(child, SkuGroup parent) IF dataInDemand(parent);    
+nearestParentInDemand (SkuGroup itemGroup) = itemGroup(itemGroup, levelParentInDemand(itemGroup));
+nearestInDemand (SkuGroup itemGroup) = dataInDemand(nearestParentInDemand (itemGroup));
+
+inDemand 'Отм.' (SkuGroup itemGroup) = OVERRIDE dataInDemand(itemGroup), nearestInDemand (itemGroup);
+countInDemandSkuGroup = GROUP SUM 1 IF inDemand(SkuGroup g);
+
+quantityChildWithInDemand(SkuGroup itemGroup) = GROUP SUM 1 IF dataInDemand(SkuGroup childItemGroup) AND isParent(childItemGroup, itemGroup);
+quantityParentWithInDemand(SkuGroup itemGroup) = GROUP SUM 1 IF dataInDemand(SkuGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup);
+
+backgroundShowInDemand (SkuGroup itemGroup) =
+    IF dataInDemand(itemGroup) THEN
+        RGB(0,0,0) IF itemGroup IS SkuGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithInDemand (itemGroup) != descendantNumber(itemGroup)
+                         AND NOT quantityParentWithInDemand (itemGroup);
+
+dataInDemand 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku);
+inDemand 'Отм.' (Sku sk) = OVERRIDE dataInDemand(sk), inDemand(skuGroup(sk));
+countInDemandSku = GROUP SUM 1 IF inDemand(Sku sk);
+
+prevAvailableQuantityWarehouse(Sku sku, Stock stock, DATE date) = max( 
+        0.0,
+        floor((prevCurrentBalance(sku, stock) IF date IS DATE) (+) (reserveAPurchase(sku, stock, date) IF useReservePurchase()) (-) (prevCurrentReserveSale(sku, stock) IF date IS DATE), amountPackIntra(sku))
+    );  // дробный остаток упаковок за рамками алгоритма
+
+currentBalanceFree 'Распределяемое кол-во'(Sku sk, Warehouse st) =  prevAvailableQuantityWarehouse(sk, st, currentDate()) IF prevAvailableQuantityWarehouse(sk, st, currentDate()) > 0;
+
+quantityOpenPurchaseOrders 'Внутренних заказов (закупка) на период'  = GROUP SUM quantity(Purchase.OrderDetail d) IF isOpened(d) AND isPosted(d)
+    AND shipmentDate(d) >= DATE df AND shipmentDate(d) <= DATE dt AND inDemand(customerStock(d)) BY sku(d), supplierStock(d), df, dt;
+quantityToOrderOpenPurchaseOrders 'Не создано заказов (продажа) по внутренним заказам на период'  = GROUP SUM quantityToOrder(Purchase.OrderDetail d) IF isOpened(d) AND isPosted(d)
+    AND shipmentDate(d) >= DATE df AND shipmentDate(d) <= DATE dt BY sku(d), supplierStock(d), customerStock(d), df, dt;
+quantityToOrder 'Создать заказы (продажа)' (Sku sku, Warehouse stock, Stock ds, DATE df, DATE dt) = max(quantityToOrderOpenPurchaseOrders(sku, stock, ds, df, dt), 0.0);
+
+quantityToPick 'Распределено по заказам (закупка)' = GROUP SUM quantityToPick(Purchase.UserOrderDetail d, UserOrderDetail dd) BY dd;
+seriesNumbersPurchaseOrders 'Заказы (закупка)' (UserOrderDetail dd) =
+    GROUP CONCAT seriesNumber(Purchase.Order o) IF [GROUP SUM quantityToPick(Purchase.OrderDetail d, dd) BY userOrder(d)](o), ', ' ORDER dateTime(o), o CHARWIDTH 15;
+
+quantityToOrder 'Создать заказы (продажа)'(Sku sku, Warehouse w, DATE df, DATE dt) = GROUP SUM quantityToOrder(sku, w, Stock st, df, dt) IF inDemand(st);
+numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = GROUP SUM 1 IF quantityToOrder(Sku sk, Warehouse st, Stock ds, DATE df, DATE dt) > 0 AND inDemand(sk) BY st, ds, df, dt;
+numberSkuCurrentBalance 'Свободный остаток (кол-во товаров)' = GROUP SUM 1 IF currentBalanceFree(Sku sk, Warehouse st) AND inDemand(sk) AND quantityToOrder(sk, st, Stock ds, DATE df, DATE dt) > 0 BY st, ds, df, dt;
+
+createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df, DATE dt) {
+    NEWSESSION NESTED LOCAL {
+        LOCAL NESTED count = INTEGER();
+        LOCAL quantityToOrderDate = NUMERIC[16,5](Sku, Stock);
+        LOCAL quantityToOrder = NUMERIC[16,5](Sku, Stock);
+        LOCAL quantityToOrderAdd = NUMERIC[16,5](Sku, Stock);
+        LOCAL currentBalanceFreeLocal = NUMERIC[16,5](Sku);
+        LOCAL currentBalanceNotOrdered = NUMERIC[16,5](Sku);
+
+        quantityToOrderDate(Sku sk, Stock ds) <- quantityToOrder(sk, st, ds, df, dt) WHERE inDemand(sk) AND inDemand(ds);
+        currentBalanceFreeLocal(Sku sk) <- currentBalanceFree(sk, st) WHERE inDemand(sk);
+
+        FOR [GROUP SUM quantityToOrderDate(Sku sku, Stock ds) BY sku](Sku sk) > 0 AND currentBalanceFreeLocal(sk) DO {
+            IF [GROUP SUM ceil(quantityToOrderDate(sk, Stock ds), amountPackIntra(sk))]() <= currentBalanceFreeLocal(sk) THEN {
+                quantityToOrder(sk, Stock ds) <- ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk)) WHERE quantityToOrderDate(sk, ds);
+            }
+            ELSE {  // распределение дефицита
+                IF notProportionIntraDemand() THEN { // тогда закрываем потребность по приоритету магазинов и времени заказов
+                    quantityToOrder(sk, Stock ds) <- PARTITION UNGROUP currentBalanceFreeLocal
+                        LIMIT ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk))
+                        ORDER priorityIntraDemand(ds), dateTimeFirstOrderIntra(sk, st, ds), ds
+                        BY sk;
+                }
+                ELSE {
+                    quantityToOrder(sk, Stock ds) <- PARTITION UNGROUP currentBalanceFreeLocal  // сначала пропорционально с округлением вниз
+                        PROPORTION ROUND(2) quantityToOrderDate(sk, ds)
+                        BY sk;
+
+                    quantityToOrder(sk, Stock ds) <- floor(quantityToOrder(sk, ds), amountPackIntra(sk));
+                    quantityToOrder(sk, Stock ds) <- NULL WHERE quantityToOrder(sk,ds) == 0.0;
+
+                    currentBalanceNotOrdered(sk) <- currentBalanceFreeLocal(sk) (-) [GROUP SUM quantityToOrder(sk,Stock ds)]();
+
+                    quantityToOrderAdd(sk, Stock ds) <- PARTITION UNGROUP currentBalanceNotOrdered  // добавляем по 1 упаковке по приоритету
+                        LIMIT amountPackIntra(sk) IF quantityToOrderDate(sk, ds)
+                        ORDER priorityIntraDemand(ds), dateTimeFirstOrderIntra(sk, st, ds), ds
+                        BY sk;
+
+                    quantityToOrder(sk, Stock ds) <- quantityToOrder(sk, ds) (+) quantityToOrderAdd(sk, ds);
+                }
+            }
+        }
+
+        count() <- GROUP SUM 1 IF inDemand(Stock ds) AND [GROUP SUM 1 IF quantityToOrder(Sku sku, ds) > 0]();
+            
+        FOR inDemand(Stock ds) AND [GROUP SUM 1 IF quantityToOrder(Sku sku, ds) > 0]() NEW o = UserOrder DO {
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            supplier(o) <- legalEntity(st);
+            supplierStock(o) <- st;
+            customer(o) <- legalEntity(ds);
+            customerStock(o) <- ds;
+
+            operation(o) <- saleIntraOperation();
+            shipmentDate(o) <- df;  // если на несколько дат создавали, то будет первая
+            priceListType(o) <- defaultPriceListType(operation(o));
+            isPosted(o) <- TRUE;
+
+            FOR quantityToOrder(Sku sku, ds) INLINE NEW od = UserOrderDetail DO {
+                userOrder(od) <- o;
+                sku(od) <- sku;
+                amountPack(od) <- amountPackIntra(sku);
+                quantity(od) <- quantityToOrder(sku, ds);
+            }
+            price(UserOrderDetail od) <- prevPriceB[LedgerPriceListType, Sku, Stock, DATETIME](priceListType(o), sku(od), supplierStock(od), dateTime(od)) WHERE od IS UserOrderDetail AND userOrder(od) == o;
+            executeLocalEvents(); // без 'Sale.userOrder'
+        }
+
+        APPLY;
+
+        IF NOT canceled() AND count() > 0 THEN
+            MESSAGE (CONCAT ' ', 'Создано', count(), 'заказов (продажа)') NOWAIT;
+        ELSE 
+            MESSAGE 'Заказы (продажа) не созданы' NOWAIT;
+    }
+}
+
+createIntraDemandUserOrders 'Создать заказы' (Warehouse st, Stock d, DATE df, DATE dt) {
+    IF NOT countInDemandStock() THEN
+        inDemand(d) <- TRUE;
+
+    createIntraDemandUserOrders(st, df, dt);
+}
+
+numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = DATA LOCAL INTEGER (Stock);
+numberSkuCurrentBalance 'Свободный остаток (кол-во товаров)' = DATA LOCAL INTEGER (Stock);
+
+recalculateNumberSkuToOrder 'Обновить' (Warehouse st, DATE df, DATE dt) {
+    numberSkuToOrder(Stock ds) <- NULL;
+    numberSkuCurrentBalance(Stock ds) <- NULL;
+    numberSkuToOrder(Stock ds) <- numberSkuToOrder(st, ds, df, dt) WHERE inDemand(ds);
+    numberSkuCurrentBalance(Stock ds) <- numberSkuCurrentBalance(st, ds, df, dt) WHERE inDemand(ds);
+}
+
+FORM saleDemandIntra 'Обработка внутренних заказов'
+    OBJECTS st = Warehouse PANEL
+    PROPERTIES (st) SELECTOR name
+    FILTERS isCompany(st)
+
+    OBJECTS dateFrom = DATE PANEL
+    PROPERTIES valDateFrom = VALUE(dateFrom)
+
+    OBJECTS dateTo = DATE PANEL
+    PROPERTIES valDateTo = VALUE(dateTo)
+
+    OBJECTS ds = Stock GRID
+    PROPERTIES(ds) inDemand
+    PROPERTIES (ds) READONLY name, numberSkuToOrder, numberSkuCurrentBalance
+    PROPERTIES DRAW ds TOOLBAR recalculateNumberSkuToOrder(st, dateFrom, dateTo)
+    PROPERTIES DRAW ds TOOLBAR createIntraDemandUserOrders(st, ds, dateFrom, dateTo)
+    ORDERS name(ds)
+    FILTERS filterDemand(ds)
+
+    FILTERGROUP filtersStock
+        FILTER 'Свободный остаток' numberSkuCurrentBalance(ds) > 0
+
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES inDemand(sk) BACKGROUND backgroundShowInDemand(sk)
+    PROPERTIES order(sk) READONLY, skuTreeName = name(sk) READONLY
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES inDemand(s)
+    PROPERTIES READONLY idBarcode(s), id(s), name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s, st)
+    PROPERTIES READONLY shortNameUOM(s), amountPackIntra(s), prevCurrentBalance(s, st)
+    PROPERTIES READONLY reserveA 'Резерв закупки' = reserveAPurchase(s, st, currentDate()) SHOWIF useReservePurchase(), prevCurrentReserveSale(s, st), dateTimeLastOrderBatch(s, st)
+    PROPERTIES (s, st, dateFrom, dateTo) READONLY quantityOpenPurchaseOrders, quantityToOrder
+    PROPERTIES (s, st) READONLY currentBalanceFree
+    ORDERS name(s)
+    FILTERS isParent(sk, s), active(s)
+
+    FILTERGROUP filterdiff
+        FILTER 'С внутренними заказами (закупка)' quantityOpenPurchaseOrders(s, st, dateFrom, dateTo) > 0 DEFAULT
+        FILTER 'Создать заказы (продажа)' quantityToOrder(s, st, dateFrom, dateTo)
+        FILTER 'Свободный остаток' currentBalanceFree(s, st)
+        FILTER 'Создать заказы (продажа) и свободный остаток' currentBalanceFree(s, st) AND quantityToOrder(s, st, dateFrom, dateTo)
+
+    OBJECTS o = UserOrder
+    PROPERTIES (o) READONLY BACKGROUND overBackgroundDraft(o) isClosed, isPosted, number, series, date, time
+    PROPERTIES (o) READONLY nameSupplierStock, nameCustomerStock, nameOperation, countOrderDetail, quantityOrderDetail, sumOrderDetail,
+        VATSumOrderDetail, invoiceSumOrderDetail, shipmentDate, shipmentTime, closeDate, note
+    PROPERTIES (o) NEWSESSION EDIT SHOWIF overShowEdit(o), deleteo = DELETE SHOWIF overShowDelete(o)
+    PROPERTIES (o) open SHOWIF isClosed(o)
+    PROPERTIES (o) post SHOWIF isOpened(o) AND isDraft(o), unpost SHOWIF isOpened(o) AND isPosted(o)
+    FILTERS supplierStock(o) == st        
+
+    FILTERGROUP opened FILTER 'Открытые' isOpened(o) DEFAULT
+    FILTERGROUP dateFilter FILTER 'Заказы на дату' date(o) == currentDate()
+    FILTERGROUP customerFilter
+        FILTER 'По отмеченным' inDemand(customerStock(o)) DEFAULT
+        FILTER 'По выбранному магазину' customerStock(o) == ds
+
+    OBJECTS d = UserOrderDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, amountPack, packQuantity, quantity, price, sum, invoiceSum, quantityToPick, seriesNumbersPurchaseOrders
+    ORDERS index(d)
+    FILTERS userOrder(d) == o
+
+    OBJECTS od = Purchase.OrderDetail
+    PROPERTIES (od) READONLY number, series, dateTime, shipmentDate, index, idBarcodeSku, nameSku, nameSupplierStock, nameCustomerStock, quantity, quantityToOrder
+    ORDERS dateTime(od), index(od)
+    FILTERS supplierStock(od) == st,
+        sku(od) == s,
+        isOpened(od), isPosted(od),
+        quantityToOrder(od)
+
+    FILTERGROUP dateOrder FILTER 'По датам поставки' shipmentDate(od) >= dateFrom AND shipmentDate(od) <= dateTo DEFAULT
+    FILTERGROUP customerFilterOrder
+        FILTER 'По отмеченным' inDemand(customerStock(od)) DEFAULT
+        FILTER 'По выбранному магазину' customerStock(od) == ds
+
+    EVENTS ON INIT {
+        SEEK saleDemandIntra.dateFrom = sum(currentDate(), 1);
+        SEEK saleDemandIntra.dateTo = sum(currentDate(), 1);
+        inDemand(Stock dts) <- TRUE WHERE filterDemand(dts);
+        inDemand(SkuGroup g) <- TRUE WHERE active(g);
+    }
+;
+
+DESIGN saleDemandIntra {
+    PROPERTY(currentBalanceFree(s, st)) { background = #F4FFBD; }
+    PROPERTY(quantityToOrder(s, st, dateFrom, dateTo)) { background = #D4FFD4; }
+    PROPERTY(quantityToOrder(od)) { background = #D4FFD4; }
+    PROPERTY(createIntraDemandUserOrders(st, ds, dateFrom, dateTo)) {font = 'bold 12';}
+    PROPERTY(quantityToPick(d)) { background = RGB(255,209,153); }
+    PROPERTY(seriesNumbersPurchaseOrders(d)) { background = RGB(255,209,153); }
+
+    BOX {
+        NEW mainPane {
+            fill = 1;
+            NEW header {
+                fill = 1;
+                horizontal = TRUE;
+
+                NEW left {
+                    fill = 1;
+                    MOVE BOX(st) {
+                        MOVE PROPERTY(name(st)) {
+                            alignment = STRETCH;
+                        }
+                    }
+                    NEW dates {
+                        caption = 'Даты поставки на магазин';
+                        horizontal = TRUE;
+                        MOVE PROPERTY(valDateFrom) { caption = 'c'; }
+                        MOVE PROPERTY(valDateTo) { caption = 'по'; }
+                    }
+                }
+                NEW right {
+                    fill = 2.5;
+                    MOVE BOX(ds) {
+                        caption = 'Магазин';
+                    }
+                }
+            }
+
+            NEW tabs {
+                fill = 3;
+                tabbed = TRUE;
+                NEW column1 {
+                    caption = 'Товары';
+                    horizontal = TRUE;
+                    MOVE BOX(TREE skuTree);
+                    NEW skuBox {
+                        fill = 3.5;
+                        MOVE BOX(s) {
+                            fill = 2;
+                        }
+                        MOVE BOX(od) {
+                            caption = 'Строки заказов (закупка)';
+                            PROPERTY (nameSku(od)){charWidth = 20;}
+                            PROPERTY (dateTime(od)){charWidth = 17;}
+                            PROPERTY (nameCustomerStock(od)){charWidth = 30;}
+                            PROPERTY (quantityToOrder(od)){ caption = 'Создать заказы';}
+                        }
+                    }
+                }
+                NEW supplier {
+                    caption = 'Заказы (продажа)';
+                    MOVE BOX(o){
+                        PROPERTY (nameCustomerStock(o)){charWidth = 30;}
+                    }
+                    NEW ordersTab {
+                        fill = 1;
+                        tabbed = TRUE;
+                        MOVE BOX(d) {
+                            caption = 'Строка заказа (продажа)';
+                        }
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+@extendFormFilterRoleAccess(order, od, saleDemandIntra);
+
+@extendFormFilterStockAccess(st, saleDemandIntra);
+
+NAVIGATOR {
+    saleDashboardNavigator {
+        NEW saleDemandIntra;
+    }
+}

@@ -1,0 +1,80 @@
+MODULE PurchaseOrderIntra;
+
+REQUIRE PurchaseOrder, SaleOrder, Warehouse;
+
+NAMESPACE Purchase;
+
+purchaseIntraOperation 'Операция (закупка) для внутренних заказов по умолчанию' = DATA Operation ();
+namePurchaseIntraOperation 'Операция (закупка) для внутренних заказов по умолчанию' () = name(purchaseIntraOperation());
+
+isWarehouseStoreIntra = ABSTRACT VALUE BOOLEAN (Operation) MATERIALIZED;
+isWarehouseStoreIntra(Operation o) += o == purchaseIntraOperation();
+
+isWarehouseStoreIntra = ABSTRACT VALUE BOOLEAN (UserOrder);
+isWarehouseStoreIntra(UserOrder o) += operation(o) == purchaseIntraOperation();
+
+saleIntraOperation 'Операция (продажа) для внутренних заказов по умолчанию' = DATA Sale.Operation ();
+nameSaleIntraOperation 'Операция (продажа) для внутренних заказов по умолчанию' () = name(saleIntraOperation());
+
+isWarehouseStoreIntra = ABSTRACT VALUE BOOLEAN (Sale.Operation) MATERIALIZED;
+isWarehouseStoreIntra(Sale.Operation o) += o == saleIntraOperation();
+
+EXTEND FORM options
+    PROPERTIES() namePurchaseIntraOperation, nameSaleIntraOperation
+;
+
+DESIGN options {
+    orders {
+        NEW intra {
+            caption = 'Внутренние заказы';
+            MOVE PROPERTY(namePurchaseIntraOperation());
+            MOVE PROPERTY(nameSaleIntraOperation());
+        }
+    }
+}
+
+TABLE warehouseUserOrder (UserOrder);
+TABLE warehouseUserOrderDetail (UserOrderDetail);
+
+TABLE userOrderDetailsaleUserOrderDetail(UserOrderDetail, Sale.UserOrderDetail);
+quantityToPick 'Кол-во на отбор на складе по строке внутреннего заказа' = DATA NUMERIC[16,5](UserOrderDetail, Sale.UserOrderDetail);
+quantityToPick 'Кол-во на отбор на складе' = GROUP SUM quantityToPick(UserOrderDetail d, Sale.UserOrderDetail dd) BY d MATERIALIZED TABLE warehouseUserOrderDetail CHARWIDTH 8;
+quantityToOrder 'Кол-во не передано в отбор'(UserOrderDetail d) = quantity(d) (-) quantityToPick(d);
+
+seriesNumbersWarehouseOrders 'Заказы (продажа) со склада' (UserOrderDetail d) =
+    GROUP CONCAT seriesNumber(Sale.UserOrder o) IF [GROUP SUM quantityToPick(d, Sale.UserOrderDetail dd) BY userOrder(dd)](o), ', ' ORDER dateTime(o), o CHARWIDTH 15;
+
+EXTEND FORM userOrder
+    PROPERTIES (d) READONLY SHOWIF isWarehouseStoreIntra(o) BEFORE namePriceListType(d) quantityToPick BACKGROUND RGB(255,209,153)
+;
+
+EXTEND FORM orders
+    PROPERTIES (d) READONLY SHOWIF isWarehouseStoreIntra(o) BEFORE namePriceListType(d) quantityToPick BACKGROUND RGB(255,209,153)
+    PROPERTIES (d) READONLY SHOWIF isWarehouseStoreIntra(o) BACKGROUND RGB(255,209,153) seriesNumbersWarehouseOrders
+;
+
+WHEN SET(isPosted(Sale.UserOrderDetail d)) AND isWarehouseStoreIntra(operation(d)) DO {
+    quantityToPick(Purchase.UserOrderDetail pd, d) <- PARTITION UNGROUP quantity LIMIT quantityToOrder(pd)
+        IF isOpened[Purchase.Order](userOrder(pd)) AND isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
+            AND sku(pd) == sku(d) AND customerStock(pd) == customerStock(d) AND supplierStock(pd) == supplierStock(d)
+            AND shipmentDate(pd) >= date(d) AND date(pd) <= date(d)
+        ORDER shipmentDate(pd), dateTime(pd), pd
+        BY d;
+}
+
+WHEN SETCHANGED(quantity(Sale.UserOrderDetail d)) AND isPosted(d) AND PREV(isPosted(d)) AND isWarehouseStoreIntra(operation(d)) DO {
+    quantityToPick(Purchase.UserOrderDetail pd, d) <- PARTITION UNGROUP quantity LIMIT quantityToOrder(pd) (+) PREV(quantityToPick(pd, d))
+        IF (isOpened[Purchase.Order](userOrder(pd)) OR PREV(quantityToPick(pd, d))) AND
+            isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
+            AND sku(pd) == sku(d) AND customerStock(pd) == customerStock(d) AND supplierStock(pd) == supplierStock(d)
+            AND shipmentDate(pd) >= date(d) AND date(pd) <= date(d)
+        ORDER shipmentDate(pd), dateTime(pd), pd
+        BY d;
+}
+
+WHEN DROPPED (isPosted(Sale.UserOrderDetail d)) AND d IS Sale.UserOrderDetail AND isWarehouseStoreIntra(operation(d)) DO {
+    quantityToPick(Purchase.UserOrderDetail pd, d) <- NULL;
+}
+
+firstOrderIntra 'Первый активный заказ' = GROUP LAST OrderDetail d IF isOpened(d) AND isPosted(d) AND quantityToOrder(d) ORDER DESC dateTime(d), d BY sku(d), supplierStock(d), customerStock(d);
+dateTimeFirstOrderIntra (Sku sku, Warehouse st, Stock ds) = dateTime(firstOrderIntra(sku,st,ds));
