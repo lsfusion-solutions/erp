@@ -218,6 +218,28 @@ toShipEZ(Invoice i) = shipLotPaperInvoiceType(operation(i)) AND existNotSentLotD
 shipsAddEZ 'Отгрузка марок в ЭЗ' (DATE dFrom) {
     FOR date(Invoice i) >= dFrom AND toShipEZ(i) DO {
         shipsAddAPIEZ(i);
+        sleep(60000); // на стороне ЭЗ ошибка, если прошлая ещё не обработалась
+    }
+}
+
+dateFromShipsAdd 'Дата с' = DATA DATE ();
+
+shipsAddEZ 'Отгрузка марок в ЭЗ' () {
+    shipsAddEZ(dateFromShipsAdd());
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() dateFromShipsAdd, shipsAddEZ
+;
+
+DESIGN integrationData {
+    EZ {
+        NEW shipsAdd {
+            caption = 'Отгрузка марок';
+            horizontal = TRUE;
+            MOVE PROPERTY(dateFromShipsAdd());
+            MOVE PROPERTY(shipsAddEZ());
+        }
     }
 }
 
