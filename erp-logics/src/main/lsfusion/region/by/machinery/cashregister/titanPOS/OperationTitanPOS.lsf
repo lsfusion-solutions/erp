@@ -204,8 +204,18 @@ eqZReport 'Z-отчет' (CashRegister o) {
 }
 
 
+eqOpenCashDrawer 'Открыть денежный ящик' (CashRegister o) {
+    IF titanCashDrawer(o) THEN {
+        onFillDataHeaders(o);
+        EXPORT sendForm JSON;
+        onSend(o,'openbox','Операция: открытие денежного ящика');
+    }
+}
+
+
 FORM sumCashDrawer 'Сумма наличных' PROPERTIES () READONLY totalSum;
 DESIGN sumCashDrawer {PROPERTY (totalSum()) {caption = 'Сумма';} }
+
 
 eqCashMoney 'Сумма наличных' (CashRegister o) {
     eqGetState(o);
@@ -223,7 +233,8 @@ eqCashInCome 'Внесение' (CashRegister o,NUMERIC[10,2] suma) {
     isDeposit() <- TTRUE;
     EXPORT sendInOutMoney JSON;
     onSend(o,'moneyOrder','Операция: Внесение');
-    IF titanECode() THEN onShowError(titanEMessage());
+    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    eqOpenCashDrawer(o);
 }
 
 
@@ -237,7 +248,8 @@ eqCashOutCome 'Изъятие' (CashRegister o,NUMERIC[10,2] suma) {
     isDeposit() <- TFALSE;
     EXPORT sendInOutMoney JSON;
     onSend(o,'moneyOrder','Операция: Изъятие');
-    IF titanECode() THEN onShowError(titanEMessage());
+    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    eqOpenCashDrawer(o);
 }
 
 
@@ -327,6 +339,7 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     number(r) <- INTEGER(number());
     // Дату чека не меняем, так как действует Ограничение: Дата чека должна быть равна дате Z отчета
     time(r) <- TIME(position()); // меняем время, чтобы совпадало с чеком 
+    eqOpenCashDrawer(o);
 }
 
 eqPrntText 'Печать текста' (Receipt r, TEXT text) {
@@ -348,3 +361,4 @@ eqReset 'Аннулировать чек' (CashRegister o, Receipt r) {
     onSend(o,'rollback','Операция: Аннулирование чека');
     IF titanECode() THEN onShowError(titanEMessage());
 }
+
