@@ -1,4 +1,4 @@
-MODULE SaleDemandOrder;
+MODULE SaleDemandOrderDashboard;
 
 REQUIRE PurchaseOrderIntra, Store;
 
@@ -266,14 +266,14 @@ FORM saleDemandIntraDashboard 'Обработка внутренних зака�
         FILTER 'По выбранному магазину' customerStock(od) == ds
 
     EVENTS ON INIT {
-        SEEK saleDemandIntra.dateFrom = sum(currentDate(), 1);
-        SEEK saleDemandIntra.dateTo = sum(currentDate(), 1);
+        SEEK saleDemandIntraDashboard.dateFrom = sum(currentDate(), 1);
+        SEEK saleDemandIntraDashboard.dateTo = sum(currentDate(), 1);
         inDemand(Stock dts) <- TRUE WHERE filterDemand(dts);
         inDemand(SkuGroup g) <- TRUE WHERE active(g);
     }
 ;
 
-DESIGN saleDemandIntra {
+DESIGN saleDemandIntraDashboard {
     PROPERTY(currentBalanceFree(s, st)) { background = #F4FFBD; }
     PROPERTY(quantityToOrder(s, st, dateFrom, dateTo)) { background = #D4FFD4; }
     PROPERTY(quantityToOrder(od)) { background = #D4FFD4; }
@@ -350,12 +350,20 @@ DESIGN saleDemandIntra {
     }
 }
 
-@extendFormFilterRoleAccess(order, od, saleDemandIntra);
+@extendFormFilterRoleAccess(order, od, saleDemandIntraDashboard){
+    @extendFormFilterRoleAccessPrefix(order, od, saleDemandIntraDashboard, ){
+    EXTEND FORM saleDemandIntraDashboard FILTERS in(currentUser(), operation(od));
+};    
+};
 
-@extendFormFilterStockAccess(st, saleDemandIntra);
+@extendFormFilterStockAccess(st, saleDemandIntraDashboard){ // по умолчанию для компании
+    @extendFormFilterStockAccess(st, saleDemandIntraDashboard, company){
+    EXTEND FORM saleDemandIntraDashboard FILTERS accessCompany(currentUser(), st);
+};
+};
 
 NAVIGATOR {
     saleDashboardNavigator {
-        NEW saleDemandIntra;
+        NEW saleDemandIntraDashboard;
     }
 }
