@@ -6,10 +6,33 @@ NAMESPACE Purchase;
 
 packets 'Пакеты' (UserInvoice i) = packets(operation(i));
 
-CLASS UserInvoicePacketDetail 'Строка накладной в пакете (закупка)' : BinPacketLedger;
+CLASS ABSTRACT InvoicePacketDetail 'Строка накладной (пакеты, продажа)' : BinPacketLedger;
+TABLE invoicePacketDetail (InvoicePacketDetail);
+
+invoice = ABSTRACT Invoice (InvoicePacketDetail) MATERIALIZED INDEXED AGGR;
+
+number 'Номер'(InvoicePacketDetail d) = number(invoice(d));
+
+dateTime 'Дата/время' (InvoicePacketDetail d) = dateTime(invoice(d));
+ledgerDateTime 'Дата/время' (InvoicePacketDetail d) = OVERRIDE postedTime(invoice(d)), dateTime(d);
+
+isPosted 'Проведен'(InvoicePacketDetail d) = isPosted(invoice(d));
+operation (InvoicePacketDetail d) = operation(invoice(d));
+customerStock (InvoicePacketDetail d) = customerStock(invoice(d));
+supplierStock (InvoicePacketDetail d) = supplierStock(invoice(d));
+
+packet = ABSTRACT Packet (InvoicePacketDetail) MATERIALIZED INDEXED;
+bin = ABSTRACT Bin (InvoicePacketDetail);
+
+index '{document.index.detail.class}' (d) = ABSTRACT INTEGER (InvoicePacketDetail) IN base MATERIALIZED;
+
+countInvoicePacketDetail 'Кол-во строк (пакеты)' = GROUP SUM 1 BY invoice(InvoicePacketDetail d) MATERIALIZED;
+
+CLASS UserInvoicePacketDetail 'Строка накладной (польз.) (пакеты, продажа)' : InvoicePacketDetail;
 TABLE userInvoicePacketDetail (UserInvoicePacketDetail);
 
 userInvoice = DATA UserInvoice (UserInvoicePacketDetail) NONULL DELETE INDEXED;
+invoice(UserInvoicePacketDetail d) += userInvoice(d);
 
 number 'Номер'(UserInvoicePacketDetail d) = number(userInvoice(d));
 
@@ -24,25 +47,28 @@ supplierStock (UserInvoicePacketDetail d) = supplierStock(userInvoice(d));
 packet = DATA Packet (UserInvoicePacketDetail) INDEXED;
 bin = DATA Bin (UserInvoicePacketDetail);
 
+packet(UserInvoicePacketDetail d) += packet(d);
+bin(UserInvoicePacketDetail d) += bin(d);
+
 WHEN (SET(UserInvoicePacketDetail d IS UserInvoicePacketDetail) OR SETCHANGED(customerStock(d))) AND customerStock(d) IS Warehouse DO
     bin(d) <- defaultBin(customerStock(d));
 
 @defineDocumentDetailIndex(userInvoice, UserInvoicePacketDetail);
 
-countInvoicePacketDetail 'Кол-во строк (пакеты)' = GROUP SUM 1 BY userInvoice(UserInvoicePacketDetail d) MATERIALIZED;
+index(UserInvoicePacketDetail d) += index(d);
 
 // по BinPacketLedger
-dateTime (UserInvoicePacketDetail ledger) += ledgerDateTime(ledger);
-packet (UserInvoicePacketDetail ledger) += packet(ledger);
-bin (UserInvoicePacketDetail ledger) += bin(ledger);
-isPosted (UserInvoicePacketDetail ledger) += isPosted(ledger);
-numberDocument(UserInvoicePacketDetail ledger) += number(ledger);
-seriesDocument(UserInvoicePacketDetail ledger) += series(userInvoice(ledger));
-description(UserInvoicePacketDetail ledger) += 'Поступление пакетов от поставщика № ' + seriesNumber(userInvoice(ledger)) + ', строка № ' + index(ledger);
-createdUser(UserInvoicePacketDetail ledger) += createdUser(userInvoice(ledger));
+dateTime [BinPacketLedger](UserInvoicePacketDetail ledger) += ledgerDateTime(ledger);
+packet [BinPacketLedger](UserInvoicePacketDetail ledger) += packet(ledger);
+bin [BinPacketLedger](UserInvoicePacketDetail ledger) += bin(ledger);
+isPosted [BinPacketLedger](UserInvoicePacketDetail ledger) += isPosted(ledger);
+numberDocument [BinPacketLedger](UserInvoicePacketDetail ledger) += number(ledger);
+seriesDocument [BinPacketLedger](UserInvoicePacketDetail ledger) += series(userInvoice(ledger));
+description [BinPacketLedger](UserInvoicePacketDetail ledger) += 'Поступление пакетов от поставщика № ' + seriesNumber(userInvoice(ledger)) + ', строка № ' + index(ledger);
+createdUser [BinPacketLedger](UserInvoicePacketDetail ledger) += createdUser(userInvoice(ledger));
 
-overShowPackets = ABSTRACT BOOLEAN (UserInvoice);
-showPackets (UserInvoice i) = OVERRIDE overShowPackets(i), i IS UserInvoice AND packets(i);
+overShowPackets = ABSTRACT BOOLEAN (Invoice);
+showPackets (Invoice i) = OVERRIDE overShowPackets(i), i IS UserInvoice AND packets(i);
 
 EXTEND FORM userInvoice
     OBJECTS ipd = UserInvoicePacketDetail
@@ -61,9 +87,9 @@ DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
-    OBJECTS ipd = UserInvoicePacketDetail
+    OBJECTS ipd = InvoicePacketDetail
     PROPERTIES (ipd) SHOWIF showPackets(i) READONLY index, idPacket, currentQuantityPacket, idBin
-    FILTERS userInvoice(ipd) == i
+    FILTERS invoice(ipd) == i
 ;
 
 DESIGN invoices {
