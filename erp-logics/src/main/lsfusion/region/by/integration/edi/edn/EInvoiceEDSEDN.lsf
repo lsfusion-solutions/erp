@@ -70,3 +70,69 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentS
         RETURN;
     }
 }
+
+//акты
+aliasEDSServiceCustomer (ECreditNote i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(customerStock(i)), aliasEDSService(customer(i));
+passwordEDSServiceCustomer (ECreditNote i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(customerStock(i)), passwordEDSService(customer(i));
+
+EDSServiceCustomer(STRING[100] provider, ECreditNote i) += WHEN provider == 'EDN' AND i IS ECreditNote AND NOT useExternalApplication()
+    THEN OVERRIDE EDSService(currentUser()), EDSService(customerStock(i)), EDSService(customer(i));
+
+sendRequestEDSCustomer(STRING[100] provider, ECreditNote e, FILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,e)) + ':' + port(EDSServiceCustomer(provider,e))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,e)) );
+}
+getSignedDocumentCustomer(STRING[100] provider, ECreditNote e, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceCustomer(provider, e)) == EDSApplication.docudriveProxy THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+
+        LOCAL xml = FILE();
+        data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceCustomer(e);
+        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSCustomer(provider, e, xml());
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}
+
+aliasEDSServiceSupplier (ECreditNote i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplier(i)); 
+passwordEDSServiceSupplier (ECreditNote i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplier(i));
+
+EDSServiceSupplier(STRING[100] provider, ECreditNote i) += WHEN provider == 'EDN' AND i IS ECreditNote AND NOT useExternalApplication()
+    THEN OVERRIDE EDSService(currentUser()), EDSService(supplier(i));
+
+sendRequestEDSSupplier(STRING[100] provider, ECreditNote e, FILE file) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,e)) + ':' + port(EDSServiceSupplier(provider,e)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSupplier(provider,e)) );
+}
+
+getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXML, BOOLEAN interactive) + {
+    IF edsApplication(EDSServiceSupplier(provider, e)) == EDSApplication.docudriveProxy THEN {
+        signError() <- NULL;
+        signResult() <- NULL;
+
+        LOCAL xml = FILE();
+        data() <- XMLFILE(contentSubXML);
+        cryptoContainerId() <- aliasEDSServiceSupplier(e);
+        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
+        EXPORT envelopeEDN XML TO xml;
+        sendRequestEDSSupplier(provider, e, xml());
+        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+        IF fileData() THEN {
+            fileToString(FILE(fileData()));
+            encodeBase64(resultString());
+            signResult() <- encodedBase64();
+        }
+        RETURN;
+    }
+}
