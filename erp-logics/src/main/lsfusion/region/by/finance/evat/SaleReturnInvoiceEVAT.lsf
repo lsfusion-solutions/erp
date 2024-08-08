@@ -1,0 +1,120 @@
+MODULE SaleReturnInvoiceEVAT;
+
+REQUIRE SaleInvoiceEvat, SaleReturnInvoice, SaleReturnBlankCodeEVAT;
+
+NAMESPACE Sale;
+
+
+EXTEND CLASS SaleReturn.Invoice : EVATDocument;
+name(SaleReturn.Invoice document) += description(document);
+isPosted[EVATDocument](SaleReturn.Invoice document) += isPosted(document);
+number[EVATDocument](SaleReturn.Invoice document) += STRING[48](number(document));
+series[EVATDocument](SaleReturn.Invoice document) += STRING[2](series(document));
+dateTime[EVATDocument](SaleReturn.Invoice document) += dateTime(document);
+
+skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.Invoice);
+
+skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.InvoiceDetail);
+
+type[EVATDocument](SaleReturn.Invoice i) += EVATType.saleReturn IF i IS SaleReturn.Invoice;
+
+EXTEND CLASS EVATType { saleReturn 'Продажа-возврат'}
+
+overCreateEVATSaleReturnInvoice  ABSTRACT LIST ( EVAT, SaleReturn.Invoice);
+overEVATDetailSaleReturnInvoiceDetail  ABSTRACT LIST ( EVATDetail, SaleReturn.InvoiceDetail);
+
+needCreateEVAT[EVATDocument](SaleReturn.Invoice i) += WHEN eVAT(operation(i)) AND quantityInvoiceDetail(i) AND NOT skipCreateEVAT(i) THEN TRUE;
+
+VATSum[EVATDocument] (SaleReturn.Invoice i) += NUMERIC[18,4](-VATSumInvoiceDetail(i));
+
+VATSumRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [ GROUP SUM -VATSum(SaleReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+sumWithVATRange[EVATDocument, Range](SaleReturn.Invoice i, Range r) += [ GROUP SUM -invoiceSum(SaleReturn.InvoiceDetail d) BY invoice(d), VAT(d)](i,r);
+customer[EVATDocument](SaleReturn.Invoice i) += customer(i);
+
+extraCode 'Код ТНВЭД' = ABSTRACT STRING[10] (SaleReturn.InvoiceDetail);
+
+createEVATSaleReturnInvoiceHeader(EVAT e, SaleReturn.Invoice i) {
+    EVATDocument(e) <- i;
+    type(e) <- EVATType.saleReturn;
+    status(e) <- EVATStatus.additionalNoRef;
+
+    date(e) <- date(i);
+
+    numberContract (e) <- number(contractSku(i));
+    dateContract (e) <- dateFrom(contractSku(i));
+    codeDocType (e) <- 603;
+    blankCodeDoc (e) <- OVERRIDE idBlankCode(i), blankCodeReturnDoc() IF i IS SaleReturn.Invoice, blankCodeDefault() IF i IS SaleReturn.Invoice;
+    seriesDoc(e) <- series(i);
+    numberDoc(e) <- number(i);
+    unpSender(e) <- UNP(supplier(i));
+
+    //Поставщик
+    supplier(e) <- supplier(i);
+    branchCodeSupplier(e) <- branchCode(supplierStock(i));
+
+    //Получатель
+    customer(e) <- customer(i);
+    branchCodeCustomer(e) <- branchCode(customerStock(i));
+
+    //Грузоотправитель
+    consignor(e) <- ISTRING[200](OVERRIDE fullName(customer(i)), name(customer(i)));
+    countryCodeConsignor (e) <- sid(country(customer(i)));
+    unpConsignor (e) <- OVERRIDE UNPForeign(customer(i)), UNP(customer(i));
+    shippingAddressConsignor(e) <- OVERRIDE dataAddressCustomerStock (i), address(customerStock(i));
+
+    //Грузополучатель
+    consignee(e) <- ISTRING[200](OVERRIDE fullName(supplier(i)), name(supplier(i)));
+    countryCodeConsignee (e) <- sid(country(supplier(i)));
+    unpConsignee (e) <- OVERRIDE UNPForeign(supplier(i)), UNP(supplier(i));
+    shippingAddressConsignee(e) <- OVERRIDE dataAddressSupplierStock (i), address(supplierStock(i));
+
+    //    noCustomer(e) <- NOT VATSumInvoiceDetail(i);
+
+    overCreateEVATSaleReturnInvoice(e,i);
+}
+
+fillEVATDetailSaleReturn (SaleReturn.InvoiceDetail id, EVATDetail ed) {
+    name(ed) <- nameSku(id);
+    sku(ed) <- sku(id);
+    code(ed) <- OVERRIDE extraCode(id), codeCustomsGroup(defaultCountry(), sku(id));
+    UOM(ed) <- UOM(sku(id));
+    quantity(ed) <- -quantity(id);
+    price(ed) <- price(id);
+    sum(ed) <- -sum(id);
+    exciseSum(ed) <- 0;
+    vatRate(ed) <- valueVAT(id);
+    vatSum(ed) <- -VATSum(id);
+    sumWithVAT(ed) <- -invoiceSum(id);
+
+    IF valueVAT(id) == 0 THEN
+        in(ed, DescriptionType.vatExcemption) <- TRUE;
+    ELSE
+        in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
+
+    overEVATDetailSaleReturnInvoiceDetail(ed, id);
+}
+
+createEVATSaleReturnInvoice(EVAT e, SaleReturn.Invoice i) {
+    createEVATSaleReturnInvoiceHeader(e,i);
+
+    FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 AND NOT skipCreateEVAT(id) NEW ed = EVATDetail DO {
+        evat(ed) <- e;
+        fillEVATDetailSaleReturn(id, ed);
+    }
+}
+
+extraEVAT = DATA LOCAL BOOLEAN();
+
+createExtraEVATSaleReturnInvoice ABSTRACT (EVAT, SaleReturn.Invoice);
+
+AFTER createEVATSaleInvoice (DATE dFrom, DATE dTo) DO {
+    FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND
+        NOT [ GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo
+        NEW e = EVAT DO {
+        createExtraEVATSaleReturnInvoice(e, i);
+        IF NOT extraEVAT() THEN {
+            createEVATSaleReturnInvoice(e, i);
+        }
+    }
+    APPLY;
+}
