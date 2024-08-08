@@ -55,6 +55,20 @@ sendMachineryPriceTransactions 'Загрузка прайса в оборудо�
         }
 }
 
+sendMachineryPriceTransactionsMultithread 'Загрузка прайса в оборудование (Multithread native)' () {
+    NEWEXECUTOR {
+        FOR [GROUP SUM 1 IF process(MachineryPriceTransaction t) AND isNative(t) BY stock(t)](Stock st) DO NEWTHREAD NEWSESSION NEWSQL {
+            brokenIp(STRING s) <- NULL;
+            FOR process(MachineryPriceTransaction t) AND isNative(t) AND stock(t) == st ORDER dateTime(t), t NOINLINE DO
+                TRY {
+                    sendMachineryPriceTransaction(t);
+                } CATCH {
+                    addMachineryError(t);
+                }
+        }
+    } THREADS 8;
+}
+
 receiveGroupsMachinery 'Получение данных из оборудования (native)' () {
     FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) NOINLINE DO
         TRY {
