@@ -17,7 +17,6 @@ VAT[SaleLedger] (ReceiptSaleDetail ledger) += VAT(ledger);
 price[SaleLedger] (ReceiptSaleDetail ledger) += price(ledger);
 sum[SaleLedger] (ReceiptSaleDetail ledger) += OVERRIDE overTotalSum(ledger), sum(ledger);
 discountSum[SaleLedger] (ReceiptSaleDetail ledger) += OVERRIDE overDiscountSum(ledger), (discountSum(ledger) (+) addDiscountSum(ledger));
-costSum (ReceiptSaleDetail ledger) += WHEN ledger IS ReceiptSaleDetail THEN costSum[SkuLedger](ledger);
 skip[SaleLedger](ReceiptSaleDetail ledger) += WHEN ledger IS ReceiptSaleDetail THEN skip(receipt(ledger));
 
 @implementSaleLedger(ReceiptReturn, sku, departmentStore);
@@ -28,7 +27,6 @@ VAT[SaleLedger] (ReceiptReturnDetail ledger) += VAT(ledger);
 sum[SaleLedger] (ReceiptReturnDetail ledger) += OVERRIDE -overTotalSum(ledger), -sum(ledger);
 price[SaleLedger] (ReceiptReturnDetail ledger) += price(ledger);
 discountSum[SaleLedger] (ReceiptReturnDetail ledger) += OVERRIDE -overDiscountSum(ledger), (-discountSum(ledger) (-) addDiscountSum(receiptSaleDetail(ledger)));
-costSum (ReceiptReturnDetail ledger) += WHEN ledger IS ReceiptReturnDetail THEN -costSum[SkuLedger](ledger);
 skip[SaleLedger](ReceiptReturnDetail ledger) += WHEN ledger IS ReceiptReturnDetail THEN skip(receipt(ledger));
 
 // -------------Проведение по регистрам --------------------- //
@@ -40,14 +38,14 @@ extraSum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (ReceiptSaleDetail);
 quantity[OutFIFOSkuLedger] (ReceiptSaleDetail ledger) += quantity(ledger);
 batch[SkuLedger](ReceiptSaleDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(receiptSaleDetail, departmentStore);
-sum[OutSkuLedger] (ReceiptSaleDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
+
 skip[SkuLedger](ReceiptSaleDetail ledger) += skip(ledger);
 
 @implementSkuLedgerInLIFO(ReceiptReturnDetail, sku, departmentStore);
 quantity[InLIFOSkuLedger] (ReceiptReturnDetail ledger) += quantity(ledger);
 batch[SkuLedger](ReceiptReturnDetail ledger) += batch(ledger);
 @implementSkuLedgerInLIFOBatchBalance(receiptReturnDetail, departmentStore);
-sum[InSkuLedger] (ReceiptReturnDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
+
 skip[SkuLedger](ReceiptReturnDetail ledger) += skip(ledger);
 
 show[SkuLedger](ReceiptReturnDetail d) + {  show(d); }
