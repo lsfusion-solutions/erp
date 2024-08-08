@@ -1,0 +1,23 @@
+MODULE StockAdjustmentLot;
+
+REQUIRE StockAdjustment, Lot;
+
+NAMESPACE Stock;
+
+@defineOperationProperty(useLot, 'Марки', paramsContainer);
+
+useLot(Adjustment a) = useLot(operation(a));
+
+@defineDocumentLotOut(userAdjustment, stock, quantity, i, isPosted);
+
+@defineDocumentLotType(adjustment);
+
+quantity = ABSTRACT NUMERIC[16,5] (AdjustmentDetail, Lot);
+quantity(UserAdjustmentDetail d, Lot l) += quantity(d, l);
+
+quantity (OutAdjustmentSkuDetail adjustmentSkuDetail, Lot lot) = quantity(adjustmentDetail(adjustmentSkuDetail), lot);
+quantity (InAdjustmentSkuDetail adjustmentSkuDetail, Lot lot) = quantity(adjustmentDetail(adjustmentSkuDetail), lot);
+quantity 'Кол-во изменения' (AdjustmentSkuDetail adjustmentSkuDetail, Lot lot) = MULTI quantity[OutAdjustmentSkuDetail, Lot](adjustmentSkuDetail, lot),
+    quantity[InAdjustmentSkuDetail, Lot](adjustmentSkuDetail, lot);
+
+
