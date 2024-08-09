@@ -31,13 +31,13 @@ public class FiscalBoardPostPrintAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-            boolean useJSerialComm = findProperty("useJSerialCommCurrentCashRegister[]").read(context) != null;
+            boolean useJssc = findProperty("useJsscCurrentCashRegister[]").read(context) != null;
 
             BigDecimal sum = (BigDecimal) findProperty("sumPayment[Receipt]").read(context, receiptObject);
             BigDecimal change = (BigDecimal) findProperty("changePayment[Receipt]").read(context, receiptObject);
 
             String[] lines = generateText(sum, change);
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, useJSerialComm, null));
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, useJssc, null));
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

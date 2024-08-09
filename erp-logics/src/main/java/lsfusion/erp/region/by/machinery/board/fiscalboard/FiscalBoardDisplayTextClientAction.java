@@ -16,15 +16,15 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     String line2;
     Integer baudRateBoard;
     Integer comPortBoard;
-    boolean useJSerialComm;
+    boolean useJssc;
     Integer timeout;
 
-    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, boolean useJSerialComm, Integer timeout) {
+    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, boolean useJssc, Integer timeout) {
         this.line1 = uppercase(line1, uppercase);
         this.line2 = uppercase(line2, uppercase);
         this.baudRateBoard = baudRateBoard;
         this.comPortBoard = comPortBoard;
-        this.useJSerialComm = useJSerialComm;
+        this.useJssc = useJssc;
         this.timeout = timeout;
     }
 
@@ -60,10 +60,10 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
             String comPort = "COM" + comPortBoard;
             byte[] line1Bytes = line1.getBytes(Charset.forName("cp866"));
             byte[] line2Bytes = line2.getBytes(Charset.forName("cp866"));
-            if(useJSerialComm) {
-                writeJSerialComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
-            } else {
+            if(useJssc) {
                 writeJssc(comPort, baudRateBoard, line1Bytes, line2Bytes);
+            } else {
+                writeJSerialComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
             }
 
 

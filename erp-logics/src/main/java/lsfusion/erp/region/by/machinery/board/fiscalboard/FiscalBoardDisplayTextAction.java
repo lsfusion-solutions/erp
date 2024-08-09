@@ -37,7 +37,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-            boolean useJSerialComm = findProperty("useJSerialCommCurrentCashRegister[]").read(context) != null;
+            boolean useJssc = findProperty("useJsscCurrentCashRegister[]").read(context) != null;
 
             String name = trimToEmpty((String) findProperty("overNameSku[ReceiptDetail]").read(context, receiptDetailObject));
             BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
@@ -52,7 +52,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
                 firstLine = fillSpaces(name, lineLength - firstLine.length(), true) + firstLine;
                 String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(firstLine, secondLine, baudRateBoard, comPortBoard, uppercase, useJSerialComm, null));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(firstLine, secondLine, baudRateBoard, comPortBoard, uppercase, useJssc, null));
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

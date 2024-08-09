@@ -10,22 +10,22 @@ import java.util.Iterator;
 
 public class WeightDaemonAction extends InternalAction {
     private final ClassPropertyInterface comPortInterface;
-    private final ClassPropertyInterface useJSerialCommInterface;
+    private final ClassPropertyInterface useJsscInterface;
 
     public WeightDaemonAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         comPortInterface = i.next();
-        useJSerialCommInterface = i.next();
+        useJsscInterface = i.next();
     }
 
 
     @Override
     protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
-        boolean useJSerialComm = context.getKeyValue(useJSerialCommInterface).getValue() != null;
-        context.requestUserInteraction(new WeightDaemonClientAction(comPort, useJSerialComm));
+        boolean useJssc = context.getKeyValue(useJsscInterface).getValue() != null;
+        context.requestUserInteraction(new WeightDaemonClientAction(comPort, useJssc));
     }
 
     @Override
