@@ -232,7 +232,7 @@ DESIGN agreement {
 }
 
 EXTEND FORM agreements
-    PROPERTIES (a) READONLY banNotAgreementsPrice AFTER toDateTime(a)
+    PROPERTIES (a) READONLYIF isReadonly() banNotAgreementsPrice AFTER toDateTime(a)
 ;
 extraMessagebanNotAgreementsPrice = ABSTRACT STRING ();
 CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
@@ -256,6 +256,10 @@ CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED
 deviationNotOrderInvoice 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement);
 EXTEND FORM agreement 
     PROPERTIES(a) deviationNotOrderInvoice 
+;
+
+EXTEND FORM agreements
+    PROPERTIES(a) READONLYIF isReadonly() deviationNotOrderInvoice AFTER banNotAgreementsPrice(a)
 ;
 
 CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR CHANGED(agreement(invoice(d)))) AND isPosted(d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(orderDetail(d))    
