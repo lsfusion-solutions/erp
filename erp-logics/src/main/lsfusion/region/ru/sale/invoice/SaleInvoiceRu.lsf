@@ -1,6 +1,6 @@
 MODULE SaleInvoiceRu;
 
-REQUIRE SaleInvoice, InvoiceVATRu, OperationRu;
+REQUIRE SaleInvoice, InvoiceVATRu, OperationRu, LegalEntityRu, InvoiceRu;
 
 NAMESPACE Sale;
 
@@ -21,3 +21,9 @@ DESIGN userInvoice {
         }
     }
 }
+//EXTEND FORM invoices
+//    FILTERS (NOT isEditable() OR (isEditable() AND NOT date(i) < documentsClosedDate(customerStock(i)))) AND NOT allowChangeStockDocumentClosed(currentUser()) OR allowChangeStockDocumentClosed(currentUser())
+//    FILTERS (NOT isEditable() OR (isEditable() AND NOT date(i) < documentsClosedDate(supplierStock(i)))) AND NOT allowChangeStockDocumentClosed(currentUser()) OR allowChangeStockDocumentClosed(currentUser())
+//;
+
+overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
