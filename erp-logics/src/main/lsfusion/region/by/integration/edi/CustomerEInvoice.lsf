@@ -765,11 +765,14 @@ EXTEND FORM eCreditNotes
 GROUP actDifLineItem EXTID 'ActDifLineItem';
 exportBlradfDateTime = DATA LOCAL NESTED DATETIME();
 
+hideMessageHeaderBlradf = DATA LOCAL BOOLEAN ();
+
 FORM exportBlradf FORMEXTID 'BLRADF'
+    PROPERTIES ATTR ='2.0' IF hideMessageHeaderBlradf() EXTID 'version'
     OBJECTS ec = ECreditNote PANEL
 
     OBJECTS ech = ECreditNote EXTID 'MessageHeader'
-    FILTERS ech == ec
+    FILTERS (ech == ec AND NOT hideMessageHeaderBlradf())
     PROPERTIES DRAW ech 
         messageId = resultMilliseconds() EXTID 'MessageID',
         msgDateTime = toChar(exportBlradfDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',

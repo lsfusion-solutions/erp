@@ -950,7 +950,10 @@ signAndSendCustomer(ECreditNote c) + {
     IF EDIProvider(supplier(c)) == EDIProvider.edn AND NOT useDocuDrive() THEN {
         IF exportedCustomer(c) THEN
             MESSAGE 'Акт приемки (покупатель) уже отправлен';
-        ELSE signAndSendCustomerECreditNote(c, loginEDN(customer(c)), passwordEDN(customer(c)), ('https://' + hostEDN(customer(c)) +':' + portEDN(customer(c)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        ELSE {
+            hideMessageHeaderBlradf() <- extractEDN(customer(c));
+            signAndSendCustomerECreditNote(c, loginEDN(customer(c)), passwordEDN(customer(c)), ('https://' + hostEDN(customer(c)) +':' + portEDN(customer(c)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        }
     }
 }
 
@@ -958,7 +961,9 @@ signAndSendBlrapnCustomer(ECreditNote c) + {
     IF EDIProvider(supplier(c)) == EDIProvider.edn AND NOT useDocuDrive() THEN {
         IF exportedBlrapnCustomer(c) THEN
             MESSAGE 'Извещение о прочтении (покупатель) уже отправлено';
-        ELSE
+        ELSE {
+            hideMessageHeaderBlradf() <- extractEDN(customer(c));
             signAndSendBlrapnCustomerECreditNote(c, loginEDN(customer(c)), passwordEDN(customer(c)), ('https://' + hostEDN(customer(c)) +':' + portEDN(customer(c)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        }
     }
 }
