@@ -1,0 +1,58 @@
+MODULE PurchaseInvoiceSaleShipment;
+
+REQUIRE PurchaseSaleInvoice, PurchaseShipment, SaleShipment, PurchaseSaleOperation;
+
+PRIORITY Purchase;
+
+invoiceDetail = ABSTRACT InvoiceDetail (Sale.ShipmentDetail) MATERIALIZED INDEXED;
+invoiceDetail = DATA InvoiceDetail (Sale.UserShipmentDetail);
+invoiceDetail(Sale.UserShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
+
+overCopy[Sale.UserShipmentDetail,Sale.UserShipmentDetail](Sale.UserShipmentDetail d, Sale.UserShipmentDetail detail) + {
+    invoiceDetail(d) <- invoiceDetail(detail);
+}
+
+overFillInvoice  ABSTRACT LIST (Sale.UserShipment, Invoice);
+overFillInvoice  ABSTRACT LIST (Sale.UserShipmentDetail, InvoiceDetail);
+
+addSaleUserShipment 'Поставка (продажа)'(Invoice invoice) {
+    NEWSESSION{
+        NEW s = Sale.UserShipment {
+            supplier(s) <- customer(invoice);
+            supplierStock(s) <- customerStock(invoice);
+            //customer(s) <- supplier(invoice);
+            //customerStock(s) <- supplierStock(invoice);
+            currency(s) <- currency(invoice);
+            number(s) <- number(invoice);
+            series(s) <- series(invoice);
+            note(s) <- note(invoice);
+            operation(s) <- saleOperation(operation(invoice));
+            overFillInvoice(s, invoice);
+
+            FOR invoice(InvoiceDetail detail) == invoice NEW d = Sale.UserShipmentDetail DO {
+                userShipment(d) <- s;
+                invoiceDetail(d) <- detail;
+
+                sku(d) <- sku(detail);
+                quantity(d) <- quantity(detail);
+                price(d) <- invoicePrice(detail);
+                
+                batch(d) <- overBatch(detail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice)) OR skipFillBatch(d));
+                expiryDate(d) <- expiryDate(detail);
+                
+                overFillInvoice(d, detail);
+            }
+
+            SHOW Sale.userShipment OBJECTS s = s DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND FORM invoices
+    PROPERTIES(i) addSaleUserShipment
+;
+DESIGN invoices {
+    createdContainer{
+        MOVE PROPERTY(addSaleUserShipment(i)) { alignment = STRETCH; }
+    }
+}
