@@ -4,3 +4,77 @@ REQUIRE ReceiptDetailSkuLedger;
 
 NAMESPACE ZReport;
 
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ReceiptSaleDetail);
+
+WHEN SET (ReceiptSaleDetail l IS ReceiptSaleDetail) AND NOT batch(l) DO
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(l));
+
+WHEN SET (ReceiptSaleDetail l IS ReceiptSaleDetail) AND batch(l) DO
+    accountPrice(l) <- prevCurrentAccountPrice(batch(l), departmentStore(l));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ReceiptSaleDetail);
+accountSum(ReceiptSaleDetail l) <- round2(quantity[OutFIFOSkuLedger](l) * accountPrice(l)) 
+    WHEN CHANGED(quantity[OutFIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[OutSkuLedger](ReceiptSaleDetail ledger) += accountSum(ledger);
+
+costSum(ReceiptSaleDetail ledger) += WHEN ledger IS ReceiptSaleDetail THEN NUMERIC[16,3](accountSum(ledger));
+
+accountPrice 'Учетная цена' = DATA NUMERIC[16,4] (ReceiptReturnDetail);
+
+WHEN SET (ReceiptReturnDetail l IS ReceiptReturnDetail) AND NOT batch(l) DO
+    accountPrice(l) <- prevCurrentAccountPrice(sku(l), departmentStore(l));
+
+WHEN SET (ReceiptReturnDetail l IS ReceiptReturnDetail) AND batch(l) DO
+    accountPrice(l) <- prevCurrentAccountPrice(batch(l), departmentStore(l));
+
+accountSum 'Учетная сумма' = DATA NUMERIC[18,4] (ReceiptReturnDetail);
+accountSum(ReceiptReturnDetail l) <- round2(quantity[InLIFOSkuLedger](l) * accountPrice(l)) 
+    WHEN CHANGED(quantity[InLIFOSkuLedger](l)) OR CHANGED(accountPrice(l));
+
+sum[InSkuLedger] (ReceiptReturnDetail ledger) += accountSum(ledger);
+
+costSum (ReceiptReturnDetail ledger) += WHEN ledger IS ReceiptReturnDetail THEN NUMERIC[16,3](-accountSum(ledger));
+
+signedAccountSum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) MATERIALIZED;
+signedAccountSum(ReceiptReturnDetail detail) += -accountSum(detail);
+signedAccountSum(ReceiptSaleDetail detail) += accountSum(detail);
+
+accountSum 'Сумма' = GROUP SUM signedAccountSum(ReceiptDetail detail) BY zReport(detail) MATERIALIZED;
+
+dataCountDaysToRecalculateAccountPrice 'Кол-во дней для пересчёта учётных цен в реализации' = DATA INTEGER ();
+countDaysToRecalculateAccountPrice 'Кол-во дней для пересчёта учётных цен в реализации' () = OVERRIDE dataCountDaysToRecalculateAccountPrice(), 30; 
+
+EXTEND FORM options
+    PROPERTIES countDaysToRecalculateAccountPrice()
+;
+
+DESIGN options {
+    zReport {
+        MOVE PROPERTY(countDaysToRecalculateAccountPrice());   
+    }
+}
+
+recalculateAccountPrice 'Пересчёт учётных цен в реализации' () {
+    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+        NOT batch(l) AND NOT accountPrice(l)==accountPriceA(sku(l), departmentStore(l), dateTime(l)) INLINE DO {
+        accountPrice(l) <- accountPriceA(sku(l), departmentStore(l), dateTime(l));
+    }
+
+    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() 
+        AND NOT batch(l) AND NOT accountPrice(l)==accountPriceA(sku(l), departmentStore(l), dateTime(l)) INLINE DO {
+        accountPrice(l) <- accountPriceA(sku(l), departmentStore(l), dateTime(l));    
+    }
+
+    FOR ReceiptSaleDetail l IS ReceiptSaleDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+        batch(l) AND NOT accountPrice(l)==accountPriceA(batch(l), departmentStore(l), dateTime(l)) INLINE DO {
+        accountPrice(l) <- accountPriceA(batch(l), departmentStore(l), dateTime(l));
+    }
+
+    FOR ReceiptReturnDetail l IS ReceiptReturnDetail AND sum(date(l), countDaysToRecalculateAccountPrice())>=currentDate() AND 
+        batch(l) AND NOT accountPrice(l)==accountPriceA(batch(l), departmentStore(l), dateTime(l)) INLINE DO {
+        accountPrice(l) <- accountPriceA(batch(l), departmentStore(l), dateTime(l));
+    }
+    
+    APPLY;
+}

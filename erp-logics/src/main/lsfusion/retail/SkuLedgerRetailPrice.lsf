@@ -1,0 +1,27 @@
+MODULE SkuLedgerRetailPrice;
+
+REQUIRE SkuLedger, Pricing, PricingBatch, PriceListAccount, PriceListLedgerAccount;
+
+NAMESPACE Stock;
+
+currentRetailPricingSum 'Розничная сумма' (Sku sku, Stock stock)= currentRetailPricingPrice(sku,stock) * currentBalance(sku,stock);
+retailPricingSumA 'Розничная сумма' (Sku sku, Stock stock, DATETIME dt)= retailPricingPriceA(sku, stock, dt) * balanceA(sku, stock, dt);
+
+currentRetailPricingSum 'Розничная сумма' (Batch batch, Stock stock)= currentRetailPricingPrice(batch, stock) * currentBalance(batch, stock);
+retailPricingSumA 'Розничная сумма' (Batch batch, Stock stock, DATETIME dt)= retailPricingPriceA(batch, stock, dt) * balanceA(batch, stock, dt);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES READONLY AFTER currentSum(s, st) currentRetailPricingPrice(s, st), currentRetailPricingSum(s, st)
+;
+
+EXTEND FORM balanceSkuStock
+    PROPERTIES READONLY AFTER sumB(s, st, t) retailPricingPriceA(s, st, t), retailPricingSumA(s, st, t)
+;
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES READONLY AFTER sumB(bt, st) currentRetailPricingPrice(bt, st), currentRetailPricingSum(bt, st)
+;
+
+EXTEND FORM balanceBatchStock
+    PROPERTIES READONLY AFTER sumB(bt, st, t) retailPricingPriceA(bt, st, t), retailPricingSumA(bt, st, t)
+;
