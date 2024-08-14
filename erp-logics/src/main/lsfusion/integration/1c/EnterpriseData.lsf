@@ -354,10 +354,14 @@ sendMessage 'Передать' (Configuration c) {
             overSend(c, f());
             APPLY NESTED LOCAL;
         } CATCH {
+            MESSAGE System.messageCaughtException() NOWAIT;
             errorExport(c);
             packet(c, EnterpriseData e) <- prevPacket(c, e) WHERE inLocalSending(c, e);
+            
             APPLY;
-            MESSAGE System.messageCaughtException();
+            IF System.applyMessage() THEN {
+                MESSAGE System.applyMessage() NOWAIT;
+            }
             NEWSESSION APPLY { isSended(c) <- NULL; }
             CANCEL;
         }
