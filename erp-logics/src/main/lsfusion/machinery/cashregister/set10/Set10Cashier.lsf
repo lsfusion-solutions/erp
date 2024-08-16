@@ -145,13 +145,13 @@ printCashier 'Печать' (Employee e){
 
 showStore (Employee e, Store s) = GROUP SUM 1 IF accessCompany(e, Stock stock) AND store(stock) = s;
 
+
 FORM cashiersSet 'Кассиры Set10'
     OBJECTS s = Store PANEL 
     PROPERTIES name(s) SELECTOR 
     
     OBJECTS c = Employee
-    PROPERTIES (c) in, name, 'Роль' = nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
-    PROPERTIES (c) NEWSESSION NEW, EDIT
+    PROPERTIES (c) READONLY in CHANGEABLE, name, 'Роль' = nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
     PROPERTIES TOOLBAR exportCashiers(), printCashier(c)
     FILTERS isCashier(c)
     FILTERGROUP cashiers
@@ -160,6 +160,26 @@ FORM cashiersSet 'Кассиры Set10'
     FILTERS showStore(currentUser(),s)
 ;
 
+FORM cashierSet 'Касссир'
+    OBJECTS c = Employee PANEL
+    PROPERTIES (c) firstName, lastName, nameRole, tabNumCashier, idBarcode, passwordCashier, nameStock, isLocked
+;
+
+newCashier 'Добавить'(Store s){
+    NEW e = Employee{
+        dataStock(e) <- GROUP MAX DepartmentStore d IF id(d) = id(s) AND store(d) = s;
+        position(e) <- GROUP MIN Position p IF isCashier(p);
+        SHOW cashierSet OBJECTS c = e DOCKED ;
+    }
+} IMAGE 'add.png';
+
+editCashier 'Редактировать' (Employee e){
+    SHOW cashierSet OBJECTS c = e DOCKED ;
+}IMAGE 'edit.png' TOOLBAR CHANGEMOUSE 'DBLCLK';
+
+EXTEND FORM cashiersSet
+    PROPERTIES NEWSESSION newCashier(s) TOOLBAR DRAW c, editCashier(c) TOOLBAR 
+;
 //прием реализации
 
 skipCashierImport() += TRUE;
