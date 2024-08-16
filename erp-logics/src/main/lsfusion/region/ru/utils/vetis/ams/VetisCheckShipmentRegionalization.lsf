@@ -121,7 +121,26 @@ processCheckOutgoingConsignment () {
                 in(r, OutgoingConsignment oc) <- TRUE WHERE in(oc);
                 EXPORT checkShipmentRegionalization OBJECTS r = r XML;
 
-                submit(r, exportFile());
+                fileToString(exportFile());
+                request(r) <- rtrim(ltrim(replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', ''), '\n'), '\n');
+
+                LOCAL response = FILE();
+                httpBusinessEntity() <- businessEntity(r);
+
+                TRY {
+                    EXTERNAL HTTP POST urlAMS() HEADERS httpHeaders PARAMS exportFile() TO response;
+                } CATCH {
+                    fileToString(response());
+                    error(r) <- CONCAT '\n', 'Ошибка при формировании запроса к Ветис :', messageCaughtException(), resultString();
+                    logToFile('vetis', error(r));
+                    MESSAGE error(r);
+                    RETURN;
+                }
+
+                applicationId() <- NULL;
+                IMPORT submitApplicationResponse XML FROM response();
+
+                id(r) <- applicationId();
             }
             APPLY;
         }
@@ -183,10 +202,7 @@ name1 = DATA LOCAL STRING(INTEGER);
 decision = DATA LOCAL STRING(INTEGER);
 
 FORM responceCheckShipmentRegionalization FORMEXTID 'env=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
-    PROPERTIES() header EXTID 'env:Header'
-    PROPERTIES() IN application2 applicationId EXTID 'apl:applicationId', status EXTID 'apl:status', serviceId EXTID 'apl:serviceId', issuerId EXTID 'apl:issuerId', issueDate EXTID 'apl:issueDate', rcvDate EXTID 'apl:rcvDate', prdcRsltDate EXTID 'apl:prdcRsltDate'
-
-    OBJECTS r13nRouteSection = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:r13nRouteSection' IN checkShipmentRegionalizationResponse
+    OBJECTS r13nRouteSection = INTEGER EXTID 'vd=http://api.vetrf.ru/schema/cdm/mercury/vet-document/v2:r13nRouteSection'
     PROPERTIES(r13nRouteSection) sqnId EXTID 'vd:sqnId'
     FILTERS imported(r13nRouteSection)
 
