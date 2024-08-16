@@ -48,7 +48,7 @@ getDocs() {
         'partnerTin='  + partnerTin(); 
     
     FOR (loginSoliq(LegalEntity le)) DO {
-        sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/get-all-docs') + '?' + params(), TRUE, NULL);
+        sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('https://' + hostSoliq(le) + ':' + portSoliq(le) + '/get-all-docs') + '?' + params(), TRUE, NULL);
 
         LOCAL docId = STRING (INTEGER);
         
@@ -297,10 +297,10 @@ importWaybill(STRING id, FILE f){
 
 importDoc(STRING id, LegalEntity le) {
 
-    sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('http://' + hostSoliq(le) + ':' + portSoliq(le) + '/waybill2-get/' + '\{' + id + '\}'), TRUE, NULL);
+    sendGetRequestEDI(loginSoliq(le), passwordSoliq(le), ('https://' + hostSoliq(le) + ':' + portSoliq(le) + '/waybill2-get/' + '\{' + id + '\}'), TRUE, NULL);
     
     IF statusHttp() == 200 THEN {
-        importWaybill(id, sendRequestEDIResponse() AS JSONFILE);        
+        importWaybill(id, sendRequestEDIResponse());        
     } ELSE {
         MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
         logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
