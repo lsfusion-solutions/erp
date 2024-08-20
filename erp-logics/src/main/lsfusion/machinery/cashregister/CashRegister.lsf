@@ -137,6 +137,20 @@ hostnameComputer 'Компьютер' (CashRegister cashRegister) = hostname(com
 
 cashRegister (computer) = GROUP AGGR CashRegister cashRegister WHERE cashRegister IS CashRegister BY computer(cashRegister) MATERIALIZED;
 
+descriptionCashRegister 'Касса' (Computer computer) = 
+    OVERRIDE description(cashRegister(computer)), shortDescription(cashRegister(computer)), 
+             'Группа касс: ' + nameGroupMachinery(cashRegister(computer)), 'Не задано описание кассы' IF cashRegister(computer) IS CashRegister;// MATERIALIZED;
+
+EXTEND FORM computer
+    PROPERTIES READONLY descriptionCashRegister(c)
+;
+
+EXTEND FORM computers
+    PROPERTIES READONLY descriptionCashRegister(c)
+    FILTERGROUP cashRegister
+        FILTER 'С кассой' cashRegister(c)
+;
+
 currentCashRegister 'Текущая касса' = cashRegister(currentComputer());
 
 stockCurrentCashRegister 'Подразделение' = stock(currentCashRegister());
