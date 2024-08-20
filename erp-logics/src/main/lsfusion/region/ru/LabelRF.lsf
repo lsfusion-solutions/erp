@@ -1,0 +1,25 @@
+MODULE LabelRF;
+
+REQUIRE LabelItem;
+
+NAMESPACE Label;
+
+
+price1kg 'Цена за 1 кг' (LabelTransactionDetail d) = round2(price(d) / netWeight(sku(d)));
+price100 'Цена за 100 г' (LabelTransactionDetail d) = round2(price1kg(d) / 10);
+price100Rub 'Рубли 100 г' (LabelTransactionDetail d) = trunc(price100(d));
+price100Kop 'Копейки 100 г' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER((price100(d) (-) price100Rub(d)) * 100)), 2, '0');
+
+retailPrice1kg 'Цена за 1 кг' (LabelTransactionDetail d) = round2(retailPrice(d) / netWeight(sku(d)));
+retailPrice100 'Цена за 100 г' (LabelTransactionDetail d) = round2(retailPrice1kg(d) / 10);
+retailPrice100Rub 'Рубли 100 г (розн.)' (LabelTransactionDetail d) = trunc(retailPrice100(d));
+retailPrice100Kop 'Копейки 100 г (розн.)' (LabelTransactionDetail d) = lpad(STRING[2](INTEGER((retailPrice100(d) (-) retailPrice100Rub(d)) * 100)), 2, '0');
+
+EXTEND FORM printLabelTransaction
+    PROPERTIES(d) price100Rub, price100Kop, retailPrice100Rub, retailPrice100Kop
+;
+
+EXTEND FORM labelTransactions
+    PROPERTIES(dt) READONLY price100Rub, price100Kop, retailPrice100Rub, retailPrice100Kop
+    PROPERTIES(dts) READONLY price100Rub, price100Kop, retailPrice100Rub, retailPrice100Kop
+;
