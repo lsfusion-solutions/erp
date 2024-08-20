@@ -1,0 +1,34 @@
+MODULE StoreRu;
+
+REQUIRE Store, LegalEntityRu, CashRegister;
+
+NAMESPACE Store;
+
+adressControl 'Адрес обязателен при создании магазина' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES adressControl()
+;
+
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY (adressControl());
+    }
+}
+
+CONSTRAINT (SET(Store s IS Store) OR CHANGED(address(s))) AND s IS Store AND adressControl() AND NOT address(s)
+    MESSAGE 'Необходимо указать адрес магазина';
+
+WHEN LOCAL SET (Store s IS Store AND address(s) AND adressControl() AND NOT countDepartmentStore(s)) DO {
+    NEW ds=DepartmentStore {
+        store(ds) <- s;
+        name(ds) <- name(s);
+        fullName(ds) <- name(s);
+        id(ds) <- CONCAT ' ', id(s) + '-1';
+    }
+}
+
+WHEN CHANGED(inactive(Store s)) DO {
+    inactive(DepartmentStore ds) <- inactive(s) WHERE s == store(ds);
+    inactive(GroupCashRegister g) <- inactive(s) WHERE s == store(stock(g));
+}   
