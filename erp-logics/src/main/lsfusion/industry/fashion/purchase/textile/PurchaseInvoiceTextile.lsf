@@ -11,22 +11,12 @@ TABLE invoicePacketDetail (InvoicePacketDetail);
 
 invoice = ABSTRACT Invoice (InvoicePacketDetail) MATERIALIZED INDEXED AGGR;
 
-number 'Номер'(InvoicePacketDetail d) = number(invoice(d));
-
-dateTime 'Дата/время' (InvoicePacketDetail d) = dateTime(invoice(d));
-ledgerDateTime 'Дата/время' (InvoicePacketDetail d) = OVERRIDE postedTime(invoice(d)), dateTime(d);
-
-isPosted 'Проведен'(InvoicePacketDetail d) = isPosted(invoice(d));
 operation (InvoicePacketDetail d) = operation(invoice(d));
-customerStock (InvoicePacketDetail d) = customerStock(invoice(d));
-supplierStock (InvoicePacketDetail d) = supplierStock(invoice(d));
 
 packet = ABSTRACT Packet (InvoicePacketDetail) MATERIALIZED INDEXED;
 bin = ABSTRACT Bin (InvoicePacketDetail);
 
 index '{document.index.detail.class}' (d) = ABSTRACT INTEGER (InvoicePacketDetail) IN base MATERIALIZED;
-
-countInvoicePacketDetail 'Кол-во строк (пакеты)' = GROUP SUM 1 BY invoice(InvoicePacketDetail d) MATERIALIZED;
 
 CLASS UserInvoicePacketDetail 'Строка накладной (польз.) (пакеты, закупка)' : InvoicePacketDetail;
 TABLE userInvoicePacketDetail (UserInvoicePacketDetail);

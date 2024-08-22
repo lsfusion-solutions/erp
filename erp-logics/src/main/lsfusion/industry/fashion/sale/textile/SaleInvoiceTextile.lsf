@@ -67,8 +67,10 @@ createdUser(UserInvoicePacketDetail ledger) += createdUser(userInvoice(ledger));
 nameStock 'Цех комплектации' (UserInvoicePacketDetail d) = nameStock(packet(d));
 dateProduction 'Дата производства' (UserInvoicePacketDetail d) = dateProduction(packet(d));
 
+extraCheckedNotPosted = ABSTRACT BOOLEAN (UserInvoicePacketDetail);
+
 CONSTRAINT (SETCHANGED (packet(UserInvoicePacketDetail d)) OR CHANGED(isPosted(d))) AND
-    ((isPosted(d) AND countBinPacketLedgerNotPosted(packet(d))) OR (NOT isPosted(d) AND countBinPacketLedgerNotPosted(packet(d)) > 1))
+    ((isPosted(d) AND countBinPacketLedgerNotPosted(packet(d))) OR (NOT isPosted(d) AND countBinPacketLedgerNotPosted(packet(d)) > 1 AND NOT extraCheckedNotPosted(d)))
     CHECKED BY packet
     MESSAGE 'Пакет есть в другом непроведённом документе';  // иначе пакет может размножиться
 
