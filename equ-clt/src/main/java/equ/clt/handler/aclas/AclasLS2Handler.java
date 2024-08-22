@@ -45,8 +45,13 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         this.springContext = springContext;
     }
 
+    private static boolean enableParallel = false;
+
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) {
+        if(enableParallel) {
+            return super.getGroupId(transactionInfo);
+        }
         return "aclasls2"; //параллелить нельзя, так как работаем с одной dll/so
     }
 
@@ -56,6 +61,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     @Override
     protected int getThreadPoolSize(Collection<Callable<SendTransactionResult>> taskList) {
+        if(enableParallel) {
+            return super.getThreadPoolSize(taskList);
+        }
         return 1; //отключаем распараллеливание
     }
 
@@ -335,8 +343,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
     @Override
     protected void beforeStartTransactionExecutor() {
         aclasls2Logger.info(getLogPrefix() + "Connecting to library...");
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-        String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
+        String libraryDir = aclasLS2Settings.getLibraryDir();
         init(libraryDir);
     }
 
@@ -348,9 +356,10 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
     @Override
     protected SendTransactionTask getTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales) {
-        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : null;
-        String libraryDir = aclasLS2Settings == null ? null : aclasLS2Settings.getLibraryDir();
-        long sleep = aclasLS2Settings == null ? 0 : aclasLS2Settings.getSleepBetweenLibraryCalls();
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
+        String libraryDir = aclasLS2Settings.getLibraryDir();
+        long sleep = aclasLS2Settings.getSleepBetweenLibraryCalls();
+        AclasLS2Handler.enableParallel = aclasLS2Settings.isEnableParallel();
         return new AClasLS2SendTransactionTask(transaction, scales, libraryDir, sleep);
     }
 

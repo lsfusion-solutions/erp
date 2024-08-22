@@ -15,7 +15,7 @@ public class AclasLS2Settings {
     private boolean commaDecimalSeparator;
 
     //Thread.sleep после каждого обращения к библиотеке
-    private long sleepBetweenLibraryCalls;
+    private long sleepBetweenLibraryCalls = 0;
 
     //не загружать горячие клавиши
     private boolean skipLoadHotKey;
@@ -92,5 +92,16 @@ public class AclasLS2Settings {
 
     public void setOverBarcodeTypeForPieceItems(String overBarcodeTypeForPieceItems) {
         this.overBarcodeTypeForPieceItems = overBarcodeTypeForPieceItems;
+    }
+
+    //если true, включается распараллеливание. По умолчанию false
+    private boolean enableParallel;
+
+    public boolean isEnableParallel() {
+        return enableParallel;
+    }
+
+    public void setEnableParallel(boolean enableParallel) {
+        this.enableParallel = enableParallel;
     }
 }
