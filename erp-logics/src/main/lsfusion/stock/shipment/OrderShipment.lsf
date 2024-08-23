@@ -54,10 +54,16 @@ META defineOrderShipment(sign, stockProp)
 
 //-- Подсчет поставленного к-ва по заказу
 
-    shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                                                                                    BY orderDetail(shipmentDetail) CHARWIDTH 7 MATERIALIZED;
-                                                              
-    shipped(OrderDetail d) += shipped(d);
+//    shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
+//                                                                                                                    BY orderDetail(shipmentDetail) CHARWIDTH 7 MATERIALIZED;
+
+    shipped 'Кол-во (поставлено)' = ABSTRACT NUMERIC[16,5] (OrderDetail) CHARWIDTH 7 MATERIALIZED;     
+    overShipped = ABSTRACT NUMERIC[16,5] (OrderDetail);
+    dataShiped = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail) BY orderDetail(shipmentDetail);
+    shipped(OrderDetail d) += OVERRIDE overShipped(d), dataShiped(d);
+    
+    shipped[Order.OrderDetail](OrderDetail d) += shipped(d);
+    
     quantityCustom = ABSTRACT NUMERIC[16,5] (OrderDetail);
     toShip 'Не поставлено' (OrderDetail d) = MAX ((OVERRIDE quantityCustom(d), quantity (d)) - (OVERRIDE shipped(d), 0.0)), 0.0;
     prevToShip 'Не поставлено' (OrderDetail orderDetail) = PREV(toShip(orderDetail));
