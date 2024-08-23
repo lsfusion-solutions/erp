@@ -103,3 +103,46 @@ process (Ticket t) + {
         processed() <- TRUE;
     }
 }
+
+idProduct 'Код продукции' = DATA STRING (QueryAPv2);
+
+FORM queryAPv2CodeParams 'Параметры запроса'
+    OBJECTS r = QueryAPv2 PANEL
+    PROPERTIES(r) idProducer, shortNameProducer, nameUtm, idProduct
+;
+
+GROUP queryAP_v2 EXTID 'ns:QueryAP_v2' : document;
+GROUP parameters2 EXTID 'qp=http://fsrar.ru/WEGAIS/QueryParameters:Parameters' : queryAP_v2;
+GROUP parameter2 EXTID 'qp:Parameter' : parameters2;
+
+FORM queryAPv2Code FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES ATTR ='http://fsrar.ru/WEGAIS/QueryParameters' EXTID 'xmlns:qp'
+    PROPERTIES ='1.0' EXTID 'Version' ATTR
+
+    OBJECTS r = QueryAPv2 PANEL
+
+    PROPERTIES IN owner idClient(r) EXTID 'ns:FSRAR_ID'
+    PROPERTIES IN parameter2 = 'КОД' EXTID 'qp:Name', idProduct(r) EXTID 'qp:Value'
+;
+
+queryAPv2Code (QueryAPv2 r) {
+    EXPORT queryAPv2Code OBJECTS r = r XML;
+    client(r) <- firstClient(utm(r));
+    submit(r, exportFile());
+}
+
+queryAPv2Code 'Запрос алкогольной продукции по алкокоду' () {
+    NEWSESSION {
+        NEW r = QueryAPv2 {
+            DIALOG queryAPv2CodeParams OBJECTS r = r NOMANAGESESSION DO {
+                queryAPv2Code(r);
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM products
+    PROPERTIES() queryAPv2Code DRAW o TOOLBAR BEFORE queryAPv2()
+;
