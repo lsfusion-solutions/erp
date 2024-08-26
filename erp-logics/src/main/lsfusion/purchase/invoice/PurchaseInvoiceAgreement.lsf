@@ -261,9 +261,11 @@ EXTEND FORM agreement
 EXTEND FORM agreements
     PROPERTIES(a) READONLYIF isReadonly() deviationNotOrderInvoice AFTER banNotAgreementsPrice(a)
 ;
+skipDeviationNotOrderInvoice = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
 
-CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR CHANGED(agreement(invoice(d)))) AND isPosted(d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(orderDetail(d))    
-    MESSAGE 'Накладную запрещено оприходовать без заказа';   
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR CHANGED(agreement(invoice(d)))) AND isPosted(d) AND deviationNotOrderInvoice(agreement(invoice(d))) 
+    AND NOT isPosted(orderDetail(d))  AND NOT skipDeviationNotOrderInvoice(d)
+        MESSAGE 'Накладную запрещено оприходовать без заказа';   
 
 
 //--------------------------- Минимальная сумма заказа для поставщика --------------------------------------//
