@@ -2355,7 +2355,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 Integer sAreaId = rs.getInt("SAREAID");
                 int salesRefund = rs.getInt("SALESREFUND");
                 int priceLevelId = rs.getInt("PRCLEVELID");
-                int salesAttri = rs.getInt("SALESATTRI");
+                long salesAttri = rs.getLong("SALESATTRI");
                 String sessStart = rs.getString("SESSSTART");
 
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);

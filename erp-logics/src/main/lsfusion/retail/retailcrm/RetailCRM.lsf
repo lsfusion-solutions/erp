@@ -473,6 +473,8 @@ copy 'Копировать'(Promotion promotion)  {
 
 background 'Цвет' (Promotion promotion) = CASE WHEN dateFrom(promotion) > currentDate() THEN RGB(224,255,224)
                                               WHEN dateTo(promotion) < currentDate() THEN RGB(255,224,224);
+skipShowEdit = ABSTRACT BOOLEAN (Promotion);
+skipShowDelete = ABSTRACT BOOLEAN (Promotion);
 
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
@@ -482,7 +484,7 @@ FORM promotions 'Акции'
                     hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                     useCurrentReceipt, allDiscountCard
     PROPERTIES(sh)             copy 
-    PROPERTIES(sh)  NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(sh)  NEWSESSION NEW, EDIT SHOWIF NOT skipShowEdit(sh), DELETE SHOWIF NOT skipShowDelete(sh)
     ORDERS        order(sh)
 
     PROPERTIES (sh) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
