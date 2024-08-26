@@ -66,7 +66,9 @@ quantityResponseEDI = GROUP SUM quantityResponseEDI(Purchase.OrderDetail d) BY o
 backgroundQuantityResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
 
 priceResponseEDI 'Подтвержденная цена (EDI)'(Purchase.OrderDetail d) = price(responseDetail(d));
-backgroundPriceResponseEDI(Purchase.OrderDetail d) = RGB(255,0,0) IF priceResponseEDI(d) != price(d);
+overPriceForBackground = ABSTRACT VALUE NUMERIC[16,4] (Purchase.OrderDetail);
+overPriceForBackground(Purchase.OrderDetail d) += price(d);
+backgroundPriceResponseEDI(Purchase.OrderDetail d) = RGB(255,0,0) IF priceResponseEDI(d) != overPriceForBackground(d);
 
 EXTEND FORM userOrder
     PROPERTIES (o) READONLY SHOWIF isEOrder(o) responseNote 
