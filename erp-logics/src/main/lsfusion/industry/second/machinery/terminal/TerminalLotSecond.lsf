@@ -1,6 +1,6 @@
 MODULE TerminalLotSecond;
 
-REQUIRE TerminalLot, LotAggregate, SkuLedgerLot;
+REQUIRE TerminalLot, LotAggregate, SkuLedgerLot, LotExtra;
 
 NAMESPACE Terminal;
 
@@ -27,4 +27,15 @@ META defineAddDetailDialogTerminalLotSecond(object)
             quantity(d) <- IF [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td) THEN [GROUP SUM quantity(d, Lot l) IF l IS Lot]() ELSE 0.0; 
     }
 END
+
+sumLotWeight 'Вес, кг' (TerminalDocument t) = GROUP SUM weight(Lot l) IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocument(d)](l, t); // MATERIALIZED не нужен; 
+quantityLot 'Кол-во марок' (TerminalDocument t) = GROUP SUM 1 IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocument(d)](Lot l, t); // MATERIALIZED замедляет оценку; 
+quantityLotSecond 'Кол-во марок' (TerminalDocumentDetail t) = GROUP SUM 1 IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocumentDetail(d)](Lot l, t); // MATERIALIZED замедляет оценку;
+
+backgroundTerminalDocumentDetail (TerminalDocumentDetail d) += WHEN quantityLotSecond(d) != quantity(d) THEN RGB(255,150,50);
+
+EXTEND FORM terminalDocuments
+    PROPERTIES (td) READONLY AFTER quantityTerminalDocumentDetail(td) quantityLot, sumLotWeight
+    PROPERTIES (tdd) READONLY AFTER quantity(tdd) quantityLotSecond
+;
 
