@@ -1506,15 +1506,16 @@ WHEN LOCAL FORMS order
 //    }   
  
 calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail))), 
-                                                              dataBruttoPrice(sku(detail), order(detail));
+                                                              dataBruttoPrice(sku(detail), order(detail)) IF pt IS PriceListType;
 
 calcPrice = ABSTRACT VALUE NUMERIC[16,4] (PriceListType, ComponentDetail);
 calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[16,4](calc(pt,d)); 
-
+changeComponentDetail = ABSTRACT VALUE BOOLEAN (ComponentDetail);
 WHEN LOCAL FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
                           CHANGED(batch(detail)) OR 
                           CHANGED(componentsStock(order(detail))) OR 
-                          CHANGED(dateTime(order(detail)))) AND
+                          CHANGED(dateTime(order(detail))) OR
+                          changeComponentDetail(detail)) AND
                           PriceListType pt == priceListType(order(detail)) NOINLINE (pt) DO
     price (detail) <- calcPrice(pt, detail); 
 
