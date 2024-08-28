@@ -1,0 +1,84 @@
+MODULE PurchaseAutoOrderMinMax;
+
+REQUIRE PurchaseAutoOrder;
+
+NAMESPACE Purchase;
+
+dataMinDaysLeft 'Минимальный остаток (дней)' = DATA NUMERIC[10,2] (Item, Stock);
+minDaysLeft 'Минимальный остаток (дней)' = DATA NUMERIC[10,2] (Item) IN itemBase;
+
+dataMinDaysLeft 'Минимальный остаток (дней)' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
+levelParentMinDaysLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMinDaysLeft(parent) MATERIALIZED;    
+nearestParentMinDaysLeft (SkuGroup g) = skuGroup(g, levelParentMinDaysLeft(g));
+nearestMinDaysLeft (SkuGroup g) = dataMinDaysLeft(nearestParentMinDaysLeft (g));
+minDaysLeft 'Минимальный остаток (дней)' (SkuGroup g) =
+    OVERRIDE dataMinDaysLeft(g), nearestMinDaysLeft (g) MATERIALIZED;
+
+dataMinDaysLeft 'Минимальный остаток (дней)' = DATA NUMERIC[10,2] (SkuGroup, Stock);
+levelParentMinDaysLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMinDaysLeft(parent, st) MATERIALIZED;
+nearestParentMinDaysLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMinDaysLeft(g, st));
+nearestMinDaysLeft (SkuGroup g, Stock st) = dataMinDaysLeft(nearestParentMinDaysLeft(g, st), st);
+minDaysLeft 'Минимальный остаток (дней)' (SkuGroup g, Stock st) =
+    OVERRIDE dataMinDaysLeft(g, st), nearestMinDaysLeft (g, st) MATERIALIZED;
+
+dataMaxDaysLeft 'Максимальный остаток (дней)' = DATA NUMERIC[10,2] (Item, Stock);
+maxDaysLeft 'Максимальный остаток (дней)' = DATA NUMERIC[10,2] (Item) IN itemBase;
+
+dataMaxDaysLeft 'Максимальный остаток (дней)' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
+levelParentMaxDaysLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMaxDaysLeft(parent) MATERIALIZED;
+nearestParentMaxDaysLeft (SkuGroup g) = skuGroup(g, levelParentMaxDaysLeft(g));
+nearestMaxDaysLeft (SkuGroup g) = dataMaxDaysLeft(nearestParentMaxDaysLeft (g));
+maxDaysLeft 'Максимальный остаток (дней)' (SkuGroup g) =
+    OVERRIDE dataMaxDaysLeft(g), nearestMaxDaysLeft (g) MATERIALIZED;
+
+dataMaxDaysLeft 'Максимальный остаток (дней)' = DATA NUMERIC[10,2] (SkuGroup, Stock);
+levelParentMaxDaysLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMaxDaysLeft(parent, st) MATERIALIZED;
+nearestParentMaxDaysLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMaxDaysLeft(g, st));
+nearestMaxDaysLeft (SkuGroup g, Stock st) = dataMaxDaysLeft(nearestParentMaxDaysLeft(g, st), st);
+maxDaysLeft 'Максимальный остаток (дней)' (SkuGroup g, Stock st) =
+    OVERRIDE dataMaxDaysLeft(g, st), nearestMaxDaysLeft (g, st) MATERIALIZED;
+
+EXTEND FORM item PROPERTIES(i) minDaysLeft, maxDaysLeft;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() minDaysLeft, maxDaysLeft;
+
+EXTEND FORM itemGroup PROPERTIES(g) dataMinDaysLeft, dataMaxDaysLeft;
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() dataMinDaysLeft, dataMaxDaysLeft;
+
+minDaysLeft 'Минимальный остаток (дней)' (Item s, Stock st) = OVERRIDE dataMinDaysLeft(s, st), 
+    minDaysLeft(skuGroup(s), st), minDaysLeft(s), minDaysLeft(skuGroup(s));
+maxDaysLeft 'Максимальный остаток (дней)' (Item s, Stock st) = OVERRIDE dataMaxDaysLeft(s, st),
+    maxDaysLeft(skuGroup(s), st), maxDaysLeft(s), maxDaysLeft(skuGroup(s));
+
+EXTEND FORM soldParams
+    OBJECTS st = Stock PANEL
+    PROPERTIES(st) name SELECTOR 
+    
+    TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
+    PROPERTIES READONLY order(sk2), skuTreeName2 = name(sk2)
+    ORDERS order(sk2), skuTreeName2
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
+    PROPERTIES minDaysLeft(sk2, st), maxDaysLeft(sk2, st)
+
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY idBarcode, nameAttribute, id, canonicalNameItemGroup
+    PROPERTIES minDaysLeft(i, st), maxDaysLeft(i, st)
+    FILTERS isParent(sk2, i)
+;
+
+DESIGN soldParams {
+    OBJECTS {
+        tabbed = TRUE;
+        MOVE BOX(TREE skuTree) { fill = 1; caption = 'Параметры'; }
+        NEW minmax {
+            fill = 1;
+            caption = 'Остаток в днях';
+            MOVE BOX(st);
+            NEW tree {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(TREE skuTree2) { fill = 1;}
+                MOVE BOX(i) { fill = 3; }
+            }
+        }
+    }
+}
