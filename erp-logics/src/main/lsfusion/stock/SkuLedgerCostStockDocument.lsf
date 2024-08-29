@@ -5,9 +5,12 @@ REQUIRE SkuLedgerCost, StockDocument;
 NAMESPACE Stock;
 
 
-FORM recalulateParams 'Пересчёт производится по всем местам хранения! Укажите параметры'
-    OBJECTS d = DATE PANEL
-    PROPERTIES date 'Дата начала пересчёта' = VALUE(d)
+FORM recalulateParams 'Пересчёт производится по всем местам хранения. Укажите параметры'
+    OBJECTS df = DATE PANEL
+    PROPERTIES dateF 'Дата с' = VALUE(df)
+
+    OBJECTS dt = DATE PANEL
+    PROPERTIES dateT 'Дата по' = VALUE(dt)
 
     TREE groupTree g = SkuGroup PARENT parent(g)
     PROPERTIES READONLY order(g), id(g), name(g)
@@ -24,7 +27,12 @@ FORM recalulateParams 'Пересчёт производится по всем �
 
 DESIGN recalulateParams {
     width = 1200;
-    MOVE PROPERTY (date);
+    NEW dates {
+        horizontal = TRUE;
+        caption = 'Период пересчёта';
+        MOVE PROPERTY (dateF);
+        MOVE PROPERTY (dateT);
+    }
     NEW sku {
         caption = 'Выбор товаров для пересчёта (если ничего не выбрать галочкой Вкл., то будет по всем)';
         horizontal = TRUE;
@@ -36,9 +44,9 @@ DESIGN recalulateParams {
 }
 
 recalulateCostLedger 'Пересчитать с/с в открытом периоде'() {
-    DIALOG recalulateParams OBJECTS d = subtract(currentDate(), 14) INPUT DO {
+    DIALOG recalulateParams OBJECTS df = subtract(currentDate(), 14) INPUT, dt = currentDate() INPUT DO {
         recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku));
-        recalulateCostLedgerSelectedSkus(d, subtract(currentDate(), 1));
+        recalulateCostLedgerSelectedSkus(df, dt);
     }
 }
 
