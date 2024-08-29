@@ -1,0 +1,188 @@
+MODULE LotSecondExtra;
+
+REQUIRE LotSecond, StockSecond, LotExtra;
+
+NAMESPACE Stock;
+
+setAside 'Отложен' = DATA BOOLEAN (Lot);
+
+CLASS AsideCategory 'Категория отложенных товаров';
+TABLE asideCategory (AsideCategory);
+
+name '{master.data.name}' = DATA ISTRING[100] (AsideCategory) CHARWIDTH 15;
+
+FORM asideCategory 'Категория отложенных товаров'
+    OBJECTS o = AsideCategory PANEL
+    PROPERTIES(o) name
+
+    EDIT AsideCategory OBJECT o
+;
+
+FORM asideCategories 'Категории отложенных товаров'
+    OBJECTS o = AsideCategory
+    PROPERTIES(o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM dialogAsideCategories 'Категории отложенных товаров'
+    OBJECTS o = AsideCategory
+    PROPERTIES(o) READONLY name
+
+    LIST AsideCategory OBJECT o
+;
+
+NAVIGATOR {
+    skuNavigator {
+        NEW asideCategories;
+    }
+}
+
+asideCategory = DATA AsideCategory (Lot);
+nameAsideCategory 'Категория отложенных товаров' (Lot l) = name(asideCategory(l));
+
+cycle = DATA Cycle (Lot) INDEXED;
+descriptionCycle 'Цикл' (Lot l) = description(cycle(l));
+fullDescriptionCycle 'Цикл' (Lot l) = fullDescription(cycle(l));
+
+costForeign 'Себестоимость (евро)' = DATA NUMERIC[16,4] (Lot);
+
+mix = DATA Sku (Lot) INDEXED;
+captionMix 'Микс' (Lot l) = caption(mix(l));
+
+EXTEND FORM lot
+    PROPERTIES(l) setAside, nameAsideCategory, fullDescriptionCycle
+;
+
+DESIGN lot {
+    caption = 'Оценённый товар';
+    BOX(l) { caption = 'Оценённый товар';}
+
+    params {
+        MOVE PROPERTY(setAside(l));
+        MOVE PROPERTY(nameAsideCategory(l));
+        MOVE PROPERTY(fullDescriptionCycle(l));
+    }
+}
+
+filterCreatedDateFrom 'Дата создания с' = DATA LOCAL DATE();
+filterCreatedDateFrom(Lot l) = createdDate(l) >= filterCreatedDateFrom() OR NOT filterCreatedDateFrom();
+
+filterCreatedDateTo 'Дата создания по' = DATA LOCAL DATE();
+filterCreatedDateTo(Lot l) = createdDate(l) <= filterCreatedDateTo() OR NOT filterCreatedDateTo();
+
+filterCycle = DATA LOCAL Cycle();
+fullDescriptionFilterCycle 'Цикл' = fullDescription(filterCycle());
+filterCycle(Lot l) = cycle(l) == filterCycle() OR NOT filterCycle();
+
+filterMix = DATA LOCAL Sku();
+captionFilterMix 'Микс' = caption(filterMix());
+filterMix(Lot l) = mix(l) == filterMix() OR NOT filterMix();
+
+EXTEND FORM lots
+    PROPERTIES() filterCreatedDateFrom, filterCreatedDateTo, captionFilterMix, fullDescriptionFilterCycle
+
+    PROPERTIES(l) READONLY AFTER nameSku(l) setAside, nameAsideCategory
+    PROPERTIES(l) READONLY fullDescriptionCycle BEFORE nameSku(l)
+    PROPERTIES(l) NEWSESSION DELETE
+    FILTERS filterCreatedDateFrom(l),
+        filterCreatedDateTo(l),
+        filterCycle(l),
+        filterMix(l)
+;
+
+DESIGN lots {
+    caption = 'Оценённые товары';
+    BOX(l) { caption = 'Оценённые товары';}
+    PROPERTY (id(l)) { charWidth = 15; }
+    PROPERTY (fullDescriptionCycle(l)) { charWidth = 35; }
+    REMOVE PROPERTY (changeSku(l));
+    OBJECTS {
+        NEW filters BEFORE BOX(l) {
+            horizontal = TRUE;
+            caption = 'Фильтры';
+            MOVE PROPERTY(filterCreatedDateFrom());
+            MOVE PROPERTY(filterCreatedDateTo());
+            MOVE PROPERTY(captionFilterMix());
+            MOVE PROPERTY(fullDescriptionFilterCycle());
+        }
+    }
+}
+
+DESIGN dialogLots {
+    caption = 'Оценённые товары';
+}
+
+NAVIGATOR {
+    lots 'Оценённые товары';
+}
+
+META defineDocumentLotDetail(doc, obj)
+    numberDetail 'Номер строки спецификации' = GROUP MAX index(###doc##Detail d) IF quantity(d, Lot l) BY doc(d), l;
+
+    EXTEND FORM doc
+        OBJECTS l = Lot
+        PROPERTIES(l) READONLY id, nameSku, fullDescriptionCycle, captionMix, weight, price, costForeign
+        PROPERTIES(##obj, l) READONLY numberDetail
+        FILTERS quantity(##obj, l)
+    ;
+
+    DESIGN doc {
+        specificationBox {
+            MOVE BOX(l) {
+                showIf = useLot(##obj);
+                caption = 'Оценённые товары';
+            }
+        }
+        PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров'; }
+    }
+END
+
+EXTEND FORM dialogInLots
+    PROPERTIES(l) removeLot
+;
+
+DESIGN dialogInLots {
+    caption = 'Список оценённых товаров';
+    REMOVE PROPERTY (delete);
+}
+
+DESIGN dialogOutLots {
+    caption = 'Список оценённых товаров';
+}
+
+CONSTRAINT DROPPED(Cycle c IS Cycle) AND PREV([GROUP MIN Lot l BY cycle(l)](c))
+    MESSAGE 'Запрещено удалять цикл, по которому есть оценённые товары';
+
+META defineCycleFrom(doc, obj, oper, form, form2, container)
+    cycleFrom = DATA Cycle (###doc) INDEXED;
+    descriptionCycleFrom 'Цикл из' (###doc i) = description(cycleFrom(i));
+
+    WHEN LOCAL FORMS ##form CHANGED(stock(###doc i)) DO
+        cycleFrom(i) <- NULL;
+
+    CONSTRAINT (SET(isPosted(###doc i)) OR CHANGED(stock(i))) AND isPosted(i) AND stock(i) IS DepartmentStore AND NOT stock(cycleFrom(i)) == stock(i)
+        AND id(operation(i)) == ##oper AND [GROUP MIN ###doc##Detail d IF isSecond(sku(d)) BY ##doc(d)](i)
+        MESSAGE 'Должен быть указан цикл, из которого товары';
+
+    CONSTRAINT SETCHANGED(cycleFrom(###doc i)) AND (stock(cycleFrom(i)) != stock(i) OR fromDate(cycleFrom(i)) > currentDate())
+        CHECKED BY cycleFrom[###doc]
+        MESSAGE 'Выбран цикл другого магазина, либо цикл ещё не начался';
+
+    changeDescriptionCycleFrom(###doc o)  {
+        DIALOG dialogCycles OBJECTS c = cycleFrom(o) CHANGE LIST description(c);
+    }
+
+    EXTEND FORM ##form
+        PROPERTIES (##obj) descriptionCycleFrom ON CHANGE changeDescriptionCycleFrom(##obj) SHOWIF (id(operation(##obj)) == ##oper AND stock(##obj) IS DepartmentStore)
+    ;
+
+    EXTEND FORM ##form2
+        PROPERTIES (##obj) READONLY descriptionCycleFrom AFTER nameStock(##obj)
+    ;
+
+    DESIGN ##form {
+        container {
+            MOVE PROPERTY (descriptionCycleFrom(##obj));
+        }
+    }
+END

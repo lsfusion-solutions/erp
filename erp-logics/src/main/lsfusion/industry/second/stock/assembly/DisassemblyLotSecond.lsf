@@ -1,6 +1,6 @@
 MODULE DisassemblyLotSecond;
 
-REQUIRE DisassemblyLot, LotExtraSecond, LotPrice, LotSecond;
+REQUIRE DisassemblyLot, LotExtraSecond, LotPrice, ItemSecond, LotSecondExtra, SkuLedgerLot;
 
 NAMESPACE Disassembly;
 
@@ -137,4 +137,356 @@ CONSTRAINT SETCHANGED(weight(Lot l)) AND weight(l) > maximumWeightLot()
 @defineOption(maximumPriceLot, 'Максимально допустимая цена марки, руб', NUMERIC[10,2], disassembly);
 
 CONSTRAINT SETCHANGED(price(Lot l)) AND price(l) > maximumPriceLot()
-    MESSAGE 'Цена выше максимально допустимой. Убедитесь, что значение правильное, либо обратитесь к администратору.';        
+    MESSAGE 'Цена выше максимально допустимой. Убедитесь, что значение правильное, либо обратитесь к администратору.';
+
+setAside 'Отложен' (DisassemblyLot l) = setAside(lot(l));
+asideCategory 'Категория отложенных' (DisassemblyLot l) = asideCategory(lot(l));
+nameAsideCategory 'Категория отложенных' (DisassemblyLot l) = nameAsideCategory(lot(l));
+
+cycle 'Цикл' (DisassemblyLot l) = cycle(lot(l));
+descriptionCycle 'Цикл' (DisassemblyLot l) = descriptionCycle(lot(l));
+
+mix 'Микс' (DisassemblyLot l) = mix(lot(l));
+captionMix 'Микс' (DisassemblyLot l) = captionMix(lot(l));
+
+EXTEND FORM disassembly
+    PROPERTIES(dl) READONLYIF sid(mainRole(currentUser())) != 'admin' AFTER id(dl) descriptionCycle
+    PROPERTIES(dl) READONLY AFTER nameSku(dl) setAside, nameAsideCategory
+    PROPERTIES(dl) NEW, DELETE GRID
+;
+
+DESIGN disassembly {
+    lot {
+        caption = 'Оценённые товары';
+    }
+}
+
+EXTEND FORM disassemblies
+    PROPERTIES(dl) READONLY AFTER id(dl) descriptionCycle
+    PROPERTIES(dl) READONLY AFTER nameSku(dl) setAside, nameAsideCategory
+;
+
+DESIGN disassemblies {
+    lot {
+        caption = 'Оценённые товары';
+    }
+    PROPERTY (nameSku(a)) { charWidth = 15; }
+    PROPERTY (note(a)) { charWidth = 15; }
+    PROPERTY (weightDisassemblyLot(a)) { caption = 'Вес, кг'; }
+}
+
+disassemblyLot = GROUP MAX DisassemblyLot al IF al IS DisassemblyLot BY lot(al) MATERIALIZED INDEXED;
+disassembly (Lot l) = disassembly(disassemblyLot(l));
+dateTime 'Дата/время оценки' (Lot l) = dateTime(disassemblyLot(l));
+
+stockBalance 'Текущее место хранения' (Lot l) = GROUP MAX Stock st IF currentBalance(l, st) > 0;
+nameStockBalance 'Текущее место хранения' (Lot l) = name(stockBalance(l));
+
+filterStockBalance = DATA LOCAL Stock();
+nameFilterStockBalance 'Текущее место хранения' = name(filterStockBalance());
+filterStockBalance(Lot l) = stockBalance(l) == filterStockBalance() OR NOT filterStockBalance();
+
+EXTEND FORM lots
+    PROPERTIES() nameFilterStockBalance
+    PROPERTIES(l) READONLY captionMix BEFORE currentBalance(l), nameStockBalance AFTER currentBalance(l), costForeign, dateTime AFTER createdDate(l)
+    FILTERS filterStockBalance(l)
+
+    FILTERGROUP balance FILTER 'С текущим остатком' currentBalance(l) DEFAULT
+;
+
+DESIGN lots {
+    filters {
+        MOVE PROPERTY(nameFilterStockBalance());
+    }
+}
+
+EXTEND FORM lot
+    PROPERTIES(l) captionMix, costForeign
+;
+
+DESIGN lot {
+    sku {
+        MOVE PROPERTY(captionMix(l));
+    }
+    params {
+        MOVE PROPERTY(costForeign(l));
+    }
+}
+
+// Отчёт по оценённым товарам
+
+disassemblyLotReportUser = DATA LOCAL CustomUser ();
+nameDisassemblyLotReportUser 'Пользователь' = name(disassemblyLotReportUser()) CHARWIDTH 20;
+
+inLotReport 'Вкл.' = DATA LOCAL BOOLEAN (Cycle);
+inLotReportCycles 'Циклы' () =
+    GROUP CONCAT STRING(fullDescription(Cycle st)) IF inLotReport(st) ,', ' ORDER nameStock(st),st CHARWIDTH 60;
+
+resetLotReportCycles 'Сбросить отм.' (){
+    inLotReport(Cycle st)<- NULL;
+}
+
+FORM dialogCyclesLotReport 'Циклы'
+    OBJECTS c = Cycle
+    PROPERTIES(c) inLotReport
+    PROPERTIES (c) READONLY nameStock, number, fromDate, toDate
+    PROPERTIES resetLotReportCycles() DRAW c TOOLBAR
+    ORDERS nameStock(c), fromDate(c)
+    FILTERS accessCompany(currentUser(), stock(c)),
+        active(stock(c))
+
+    FILTERGROUP activePlus FILTER 'Актуальные' activePlus(c) DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inLotReport(c) 'F9'
+;
+
+DESIGN dialogCycles {
+    BOX { size = (600, 600); }
+}
+
+inLotReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+inLotReportStocks 'Магазины' () =
+    GROUP CONCAT STRING(name(DepartmentStore st)) IF inLotReport(st) ,', ' ORDER name(st),st CHARWIDTH 60;
+
+resetLotReportStocks 'Сбросить отм.' (){
+    inLotReport(Stock st)<- NULL;
+}
+
+FORM dialogStocksLotReport 'Выбор магазинов'
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = DepartmentStore
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inLotReport
+    PROPERTIES resetLotReportStocks() DRAW s TOOLBAR
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg),
+        accessCompany(currentUser(), s),
+        (GROUP SUM 1 IF inLotReport(Cycle c) AND stock(c) == s) OR NOT inLotReportCycles()
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inLotReport(s) 'F9'
+;
+
+EXTEND FORM dialogCyclesLotReport
+    FILTERS inLotReport(stock(c)) OR NOT inLotReportStocks()
+;
+
+DESIGN dialogStocksLotReport {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeLotReportStocks() {
+    DIALOG dialogStocksLotReport;
+}
+
+changeLotReportCycles() {
+    DIALOG dialogCyclesLotReport;
+    inLotReport(Stock st) <- TRUE WHERE (GROUP SUM 1 IF inLotReport(Cycle c) AND stock(c) == st);
+}
+
+fixedLotDashboardSku = ABSTRACT BOOLEAN (Lot);
+fixedLotDashboardSku = ABSTRACT BOOLEAN (DisassemblyLot);
+
+filter(DisassemblyLot l, DATE df, DATE dt, Stock st) = date(l) >= df AND date(l) <= dt AND
+    stock(l) == st AND (user(l) == disassemblyLotReportUser() OR NOT disassemblyLotReportUser())
+    AND (inLotReport(cycle(lot(l))) OR NOT inLotReportCycles()) AND NOT fixedLotDashboardSku(l);
+
+disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st);
+disassemblyLotSkuSum 'Сумма' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM price(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
+disassemblyLotSkuWeight 'Вес' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM weight(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
+
+disassemblyLotSkuQuantityNew 'Кол-во (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st) AND NOT isRemains(mix(l));
+disassemblyLotSkuSumNew 'Сумма (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM price(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st) AND NOT isRemains(mix(l));
+disassemblyLotSkuAvPrice 'Средневзвешенная цена' (Sku s, DATE df, DATE dt, Stock st) = round2(
+        disassemblyLotSkuSumNew(s, df, dt, st) / disassemblyLotSkuQuantityNew(s, df, dt, st));
+
+disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuQuantity(s, df, dt, Stock st) IF inLotReport(st);
+disassemblyLotSkuSum 'Сумма' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuSum(s, df, dt, Stock st) IF inLotReport(st);
+disassemblyLotSkuWeight 'Вес' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuWeight(s, df, dt, Stock st) IF inLotReport(st);
+
+disassemblyLotSkuQuantityNew 'Кол-во (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuQuantityNew(s, df, dt, Stock st) IF inLotReport(st);
+disassemblyLotSkuSumNew 'Сумма (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuSumNew(s, df, dt, Stock st) IF inLotReport(st);
+disassemblyLotSkuAvPrice 'Средневзвешенная цена' (Sku s, DATE df, DATE dt) = round2(
+        disassemblyLotSkuSumNew(s, df, dt) / disassemblyLotSkuQuantityNew(s, df, dt));
+
+disassemblyLotQuantity 'Кол-во, шт' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st);
+disassemblyLotSum 'Сумма, руб' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st);
+disassemblyLotWeight 'Вес, кг' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st);
+
+disassemblyLotQuantityNew 'Кол-во, шт (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT isRemains(mix(l));
+disassemblyLotWeightNew 'Вес, кг (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT isRemains(mix(l));
+disassemblyLotSumNew 'Сумма, руб (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT isRemains(mix(l));
+averagePrice 'Средневзвеш. цена (за ед.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotQuantityNew(df, dt, st));
+averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotWeightNew(df, dt, st));
+
+costForeign 'С/с, евро' (DisassemblyLot l) = costForeign(lot(l));
+disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt, Stock st) =
+    GROUP SUM costForeign(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
+disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt) =
+    GROUP SUM disassemblyLotSkuCostForeign(s, df, dt, Stock st) IF inLotReport(st);
+disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st);
+
+disassemblyLotSkuQuantity 'Кол-во' (DATE df, DATE dt, Stock st, Sku mix) =
+    GROUP SUM 1 IF mix(DisassemblyLot l) == mix AND filter(l, df, dt, st);
+disassemblyLotSkuSum 'Сумма' (DATE df, DATE dt, Stock st, Sku mix) =
+    GROUP SUM price(DisassemblyLot l) IF mix(l) == mix AND filter(l, df, dt, st);
+disassemblyLotSkuWeight 'Вес' (DATE df, DATE dt, Stock st, Sku mix) =
+    GROUP SUM weight(DisassemblyLot l) IF mix(l) == mix AND filter(l, df, dt, st);
+disassemblyLotSkuAvPrice 'Средневзвешенная цена' (DATE df, DATE dt, Stock st, Sku mix) = round2(
+        disassemblyLotSkuSum(df, dt, st, mix) / disassemblyLotSkuQuantity(df, dt, st, mix));
+disassemblyLotSkuCostForeign 'С/с, евро' (DATE df, DATE dt, Stock st, Sku mix) =
+    GROUP SUM costForeign(DisassemblyLot l) IF mix(l) == mix AND filter(l, df, dt, st);
+
+disassemblyLotSkuQuantity 'Кол-во' (DATE df, DATE dt, Sku mix) =
+    GROUP SUM 1 IF mix(DisassemblyLot l) == mix AND inLotReport(stock(l)) AND
+        date(l) >= df AND date(l) <= dt AND
+        (user(l) == disassemblyLotReportUser() OR NOT disassemblyLotReportUser()) AND
+        (inLotReport(cycle(lot(l))) OR NOT inLotReportCycles()) AND NOT fixedLotDashboardSku(l);
+
+disassemblyLotSkuSum 'Сумма' (DATE df, DATE dt, Sku mix) =
+    GROUP SUM disassemblyLotSkuSum(df, dt, Stock st, mix) IF inLotReport(st);
+disassemblyLotSkuWeight 'Вес' (DATE df, DATE dt, Sku mix) =
+    GROUP SUM disassemblyLotSkuWeight(df, dt, Stock st, mix) IF inLotReport(st);
+disassemblyLotSkuAvPrice 'Средневзвешенная цена' (DATE df, DATE dt, Sku mix) = round2(
+        disassemblyLotSkuSum(df, dt, mix) / disassemblyLotSkuQuantity(df, dt, mix));
+disassemblyLotSkuCostForeign 'С/с, евро' (DATE df, DATE dt, Sku mix) =
+    GROUP SUM disassemblyLotSkuCostForeign(df, dt, Stock st, mix) IF inLotReport(st);
+
+disassemblyLotQuantity(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuQuantity(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
+disassemblyLotQuantityTree 'Кол-во, шт' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotQuantity(SkuGroup child, df, dt) IF isParent(child, parent);
+disassemblyLotWeight(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuWeight(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
+disassemblyLotWeightTree 'Вес, кг' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotWeight(SkuGroup child, df, dt) IF isParent(child, parent);
+disassemblyLotSum(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuSum(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
+disassemblyLotSumTree 'Сумма, руб' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotSum(SkuGroup child, df, dt) IF isParent(child, parent);
+disassemblyLotCostForeign(SkuGroup g, DATE df, DATE dt) = GROUP SUM disassemblyLotSkuCostForeign(Sku sk, df, dt, Stock st) IF inLotReport(st) BY skuGroup(sk);
+disassemblyLotCostForeignTree 'С/с, евро' (SkuGroup parent, DATE df, DATE dt) = GROUP SUM disassemblyLotCostForeign(SkuGroup child, df, dt) IF isParent(child, parent);
+
+FORM disassemblyLotReport 'Отчёт по оценённым товарам'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt)
+
+    PROPERTIES inLotReportStocks() ON CHANGE changeLotReportStocks(), nameDisassemblyLotReportUser(),
+        inLotReportCycles() ON CHANGE changeLotReportCycles()
+
+    OBJECTS s = DepartmentStore
+    FILTERS inLotReport(s)
+    PROPERTIES READONLY name(s)
+    PROPERTIES (df, dt, s) READONLY disassemblyLotQuantity, disassemblyLotWeight, disassemblyLotSum, averagePrice, averagePriceWeight, disassemblyLotCostForeign
+
+    OBJECTS l = DisassemblyLot
+    PROPERTIES(l) READONLY isPosted, dateTime, id, nameStock, descriptionCycle, captionMix, weight, nameSku, setAside, nameAsideCategory, defect,
+        price, costForeign, image PANEL
+    PROPERTIES openImage(l)
+    FILTERS date(l) >= df AND date(l) <= dt,
+        inLotReport(stock(l)),
+        user(l) == disassemblyLotReportUser() OR NOT disassemblyLotReportUser(),
+        inLotReport(cycle(lot(l))) OR NOT inLotReportCycles(),
+        NOT fixedLotDashboardSku(l)
+
+    TREE groupTree g = SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), id(g), name(g), disassemblyLotQuantityTree(g, df, dt), disassemblyLotWeightTree(g, df, dt), disassemblyLotSumTree(g, df, dt), disassemblyLotCostForeignTree(g, df, dt)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS sk = Sku
+    PROPERTIES READONLY id(sk), name(sk)
+    PROPERTIES(sk, df, dt) READONLY disassemblyLotSkuQuantity, disassemblyLotSkuWeight, disassemblyLotSkuSum, disassemblyLotSkuAvPrice,
+        disassemblyLotSkuCostForeign
+    FILTERS disassemblyLotSkuQuantity(sk, df, dt),
+        isParent(g, sk)
+
+    OBJECTS  mix = Sku
+    PROPERTIES READONLY 'Микс' = name(mix)
+    PROPERTIES(df, dt, mix) READONLY disassemblyLotSkuQuantity, disassemblyLotSkuWeight, disassemblyLotSkuSum, disassemblyLotSkuAvPrice,
+        disassemblyLotSkuCostForeign
+    FILTERS isMix(mix),
+        disassemblyLotSkuQuantity(df, dt, mix)
+;
+
+DESIGN disassemblyLotReport {
+    OBJECTS {
+        NEW header {
+            fill = 1;
+            NEW filters {
+                align = STRETCH;
+                caption = 'Фильтры';
+                horizontal = FALSE;
+                NEW filters1 {
+                    horizontal = TRUE;
+                    align = STRETCH;
+                    REMOVE BOX(dates);
+                    MOVE PROPERTY(df);
+                    MOVE PROPERTY(dt);
+                    MOVE PROPERTY(inLotReportStocks());
+                    MOVE PROPERTY(nameDisassemblyLotReportUser());
+                }
+                NEW filters2 {
+                    horizontal = TRUE;
+                    align = STRETCH;
+                    MOVE PROPERTY(inLotReportCycles());
+                }
+            }
+
+            MOVE BOX(s) { caption = 'Итоги по магазинам'; fill = 1; height = 1; }
+        }
+        NEW tabbed {
+            fill = 2;
+            tabbed = TRUE;
+            NEW tab1 {
+                caption = 'Оценённые товары';
+                horizontal = TRUE;
+                MOVE BOX(l) {fill = 3; }
+                MOVE PROPERTY(image(l)) { fill = 1; panelCaptionVertical = TRUE; }
+            }
+
+            NEW category {
+                caption = 'По категориям';
+                horizontal = TRUE;
+                MOVE BOX(TREE groupTree) { fill = 1; caption = 'Группы';}
+                MOVE BOX(sk) { fill = 3; }
+            }
+
+            MOVE BOX(mix) { caption = 'По миксам'; }
+        }
+    }
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW disassemblyLotReport;
+    }
+}

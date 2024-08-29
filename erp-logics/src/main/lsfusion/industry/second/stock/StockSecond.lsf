@@ -1,0 +1,168 @@
+MODULE StockSecond;
+
+REQUIRE Stock, Store;
+
+NAMESPACE Stock;
+
+CLASS Cycle 'Цикл';
+TABLE cycle(Cycle);
+
+stock = DATA Stock (Cycle) NONULL DELETE;
+nameStock 'Отдел магазина' (Cycle c) = name(stock(c)) IN id;
+
+number 'Номер' = DATA INTEGER (Cycle);
+
+CONSTRAINT SET([GROUP SUM 1 BY number(Cycle c), stock(c)](INTEGER i, Stock st) > 1)
+    MESSAGE 'Запрещено несколько циклов с одним номером на 1 магазине';
+
+fromDate 'Дата с' = DATA DATE (Cycle) NONULL;
+toDate 'Дата по' = DATA DATE (Cycle) NONULL;
+
+cycleStockDate = GROUP AGGR Cycle c BY stock(c), fromDate(c);
+
+INDEX fromDate(Cycle c), toDate(c), stock(c);
+
+CONSTRAINT toDate(Cycle c1) <= toDate(Cycle c2) AND toDate(c1) >= fromDate(c2) AND stock(c1) == stock(c2) AND c1 != c2
+    MESSAGE 'Циклы по одному складу не должны пересекаться';
+
+CONSTRAINT (SETCHANGED (toDate(Cycle c)) OR SETCHANGED (fromDate(c))) AND toDate(c) <= fromDate(c)
+    MESSAGE 'Дата по у цикла должна быть больше, чем дата с';
+
+CONSTRAINT SETCHANGED(stock(Cycle c)) AND NOT (isCompany(stock(c)) AND stock(c) IS DepartmentStore)
+    CHECKED BY stock[Cycle]
+    MESSAGE 'Цикл может быть только для своего магазина';
+
+fullDescription 'Описание' (Cycle c) = CONCAT ' ', name(stock(c)), 'цикл' IF c IS Cycle, number(c), 'завоз' IF c IS Cycle, toDateDDMMYY(fromDate(c)) MATERIALIZED IN id CHARWIDTH 30;
+description 'Короткое описание' (Cycle c) = CONCAT ' ', number(c), 'цикл, завоз' IF c IS Cycle, toDateDDMMYY(fromDate(c)) MATERIALIZED IN id;
+
+minNextCycle = GROUP LAST Cycle c ORDER DESC fromDate(c), c WHERE fromDate(c) > currentDate() BY stock(c);
+
+FORM cycle 'Цикл'
+    OBJECTS c = Cycle PANEL
+    PROPERTIES (c) nameStock, number, fromDate, toDate
+
+    EDIT Cycle OBJECT c
+;
+
+@defineOption(defaultCycleDays, 'Кол-во дней в цикле по умолчанию', INTEGER, stock);
+
+addForAll 'Добавить новый для всех' () {
+    NEWSESSION {
+        FOR active(DepartmentStore d) AND d IS DepartmentStore DO NEW c = Cycle {
+            stock(c) <- d;
+            number(c) <- [GROUP MAX number(Cycle cl) BY stock(cl)](d) (+) 1;
+            fromDate(c) <- OVERRIDE sum(toDate(GROUP LAST Cycle cc IF stock(cc) == d ORDER toDate(cc), cc), 1),
+                GROUP LAST DATE date IF date >= currentDate() AND extractDOW(date) == DOW.saturday AND iterate(date, currentDate(), sum(currentDate(), defaultCycleDays())) ORDER DESC date;
+            toDate(c) <- sum(fromDate(c), defaultCycleDays()-1);
+        }
+        APPLY;
+    }
+} CONFIRM;
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (DepartmentStore);
+
+lastCycle = GROUP LAST Cycle c ORDER fromDate(c), c BY stock(c);
+descriptionLastCycle 'Последний внесённый цикл' (Stock st) = description(lastCycle(st));
+currentCycle = GROUP MIN Cycle c IF fromDate(c) <= currentDate() AND toDate(c) >= currentDate() BY stock(c);
+descriptionCurrentCycle 'Текущий цикл' (Stock st) = description(currentCycle(st));
+
+FORM dialogDepartmentStores 'Магазины'
+    OBJECTS s = DepartmentStore
+    PROPERTIES (s) in
+    PROPERTIES(s) READONLY id, name, nameLegalEntity, address, descriptionCurrentCycle, descriptionLastCycle BACKGROUND (IF s IS DepartmentStore AND NOT fromDate(lastCycle(s)) > currentDate() THEN RGB(255,150,150))
+    ORDERS name(s)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' in(s) 'F9'
+;
+
+addForSelected 'Добавить новый для выбранных' () {
+    NEWSESSION {
+        DIALOG dialogDepartmentStores DO {
+            FOR in(DepartmentStore d) DO NEW c = Cycle {
+                stock(c) <- d;
+                number(c) <- [GROUP MAX number(Cycle cl) BY stock(cl)](d) (+) 1;
+                fromDate(c) <- OVERRIDE sum(toDate(GROUP LAST Cycle cc IF stock(cc) == d ORDER toDate(cc), cc), 1),
+                    GROUP LAST DATE date IF date >= currentDate() AND extractDOW(date) == DOW.saturday AND iterate(date, currentDate(), sum(currentDate(), defaultCycleDays())) ORDER DESC date;
+                toDate(c) <- sum(fromDate(c), defaultCycleDays()-1);
+            }
+            APPLY;
+        }
+    }
+}
+
+createNewCycle(StoreType t) {
+    FOR storeType(DepartmentStore d) == t AND active(d) DO NEW c = Cycle {
+        stock(c) <- d;
+        number(c) <- [GROUP MAX number(Cycle cl) BY stock(cl)](d) (+) 1;
+        fromDate(c) <- OVERRIDE sum(toDate(GROUP LAST Cycle cc IF stock(cc) == d ORDER toDate(cc), cc), 1),
+            GROUP LAST DATE date IF date >= currentDate() AND extractDOW(date) == DOW.saturday AND iterate(date, currentDate(), sum(currentDate(), defaultCycleDays())) ORDER DESC date;
+        toDate(c) <- sum(fromDate(c), defaultCycleDays()-1);
+    }
+    APPLY;
+}
+
+addForStoreType 'Добавить новый для группы магазинов' () {
+    NEWSESSION {
+        DIALOG storeTypes OBJECTS t INPUT DO {
+            createNewCycle(t);
+        }
+    }
+}
+
+active 'Активный'(Cycle c) = c IS Cycle AND NOT toDate(c) < currentDate();
+activePlus 'Актуальный'(Cycle c) = c IS Cycle AND NOT toDate(c) < subtract(currentDate(), defaultCycleDays());
+
+FORM cycles 'Циклы'
+    OBJECTS st = Stock
+    PROPERTIES (st) READONLY id, name, nameStoreType, address, nameLegalEntity, descriptionCurrentCycle, descriptionLastCycle BACKGROUND (IF st IS DepartmentStore AND NOT fromDate(lastCycle(st)) > currentDate() THEN RGB(255,150,150))
+    ORDERS name(st)
+    FILTERS accessCompany(currentUser(), st),
+        st IS DepartmentStore
+
+    FILTERGROUP activeSt FILTER 'Активные' active(st) DEFAULT
+
+    PROPERTIES () DRAW st TOOLBAR addForAll, addForSelected, addForStoreType
+
+    OBJECTS c = Cycle
+    PROPERTIES (c) nameStock, number, fromDate, toDate
+    PROPERTIES (c) NEW, DELETE GRID
+    FILTERS stock(c) == st
+
+    FILTERGROUP active FILTER 'Активные' active(c) DEFAULT
+;
+
+DESIGN cycles {
+    BOX(st) { caption = 'Отделы магазинов'; }
+}
+
+FORM dialogCycles 'Циклы'
+    OBJECTS c = Cycle
+    PROPERTIES (c) READONLY nameStock, number, fromDate, toDate
+    ORDERS nameStock(c), fromDate(c)
+    FILTERS accessCompany(currentUser(), stock(c)),
+        active(stock(c))
+
+    FILTERGROUP activePlus FILTER 'Актуальные' activePlus(c) DEFAULT
+
+    LIST Cycle OBJECT c
+;
+
+DESIGN dialogCycles {
+    BOX { size = (400, 300); }
+}
+
+FORM dialogCyclesStock 'Циклы'
+    OBJECTS st = Stock PANEL
+    OBJECTS c = Cycle
+    PROPERTIES (c) READONLY nameStock, number, fromDate, toDate
+    ORDERS fromDate(c)
+    FILTERS stock(c) = st,
+        active(c)
+;
+
+NAVIGATOR {
+    stockMasterData {
+        NEW cycles;
+    }
+}

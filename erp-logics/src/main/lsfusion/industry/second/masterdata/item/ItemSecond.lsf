@@ -1,8 +1,97 @@
 MODULE ItemSecond;
 
-REQUIRE Item;
+REQUIRE ItemPart, LotSecond;
 
 NAMESPACE Item;
 
 scrap 'Брак' = DATA BOOLEAN (Item) IN itemBase;
 EXTEND FORM item PROPERTIES(i) scrap;
+
+isMix(Item i) = id(itemGroup(i)) == 'mixMain' MATERIALIZED;
+isSecond(Item i) = lotType(i) == LotType.second MATERIALIZED;
+isRemains(Item i) = isSubstring(caption(i), 'ОСТАТКИ') MATERIALIZED;
+
+itemName = GROUP MIN Item it BY caption(it);
+
+CONSTRAINT (SETCHANGED(itemGroup(Item i)) OR CHANGED(caption(i))) AND isSecond(i) AND [GROUP SUM 1 IF isSecond(Item ii) BY caption(ii)](caption(i)) > 1
+    MESSAGE 'Запрещено несколько одинаковых наименований секонд-хенда';
+
+partSetItem = GROUP MIN Part p BY set(p), item(p);
+
+addParts 'Добавить отмеченные' (Item item) {
+    DIALOG items FILTERS isSecond(i) DO {
+        FOR in(Item i) AND NOT [GROUP MIN Part p BY set(p), item(p)](item, i) DO NEW p = Part {
+            item(p) <- i;
+            set(p) <- item;
+        }
+        in(Item i) <- NULL;
+    }
+}
+
+CONSTRAINT SET([GROUP SUM 1 BY set(Part p), item(p)](Item set, Item item) > 1)
+    MESSAGE 'Запрещено добавлять товар в состав микса несколько раз';
+
+EXTEND FORM item
+    PROPERTIES addParts(i) DRAW ip TOOLBAR
+
+    OBJECTS is = Item
+    PROPERTIES(is) READONLY id, name
+    ORDERS name(is)
+    FILTERS partSetItem(is, i)
+;
+
+DESIGN item {
+    itemDetail {
+        BOX(ip) {
+            caption = 'Состав микса';
+            showIf = isMix(i);
+        }
+        MOVE BOX(is) {
+            caption = 'Миксы';
+            showIf = isSecond(i);
+        }
+    }
+}
+
+EXTEND FORM items
+    OBJECTS ip = Part
+    PROPERTIES(ip) READONLY idItem, nameItem
+    ORDERS nameItem(ip)
+    FILTERS set(ip) = i
+
+    OBJECTS is = Item
+    PROPERTIES(is) READONLY id, name
+    ORDERS name(is)
+    FILTERS partSetItem(is, i)
+
+    PROPERTIES (i) READONLY countPart
+;
+
+DESIGN items {
+    tab {
+        MOVE BOX(ip) {
+            caption = 'Состав микса';
+            showIf = isMix(i);
+        }
+        MOVE BOX(is) {
+            caption = 'Миксы';
+            showIf = isSecond(i);
+        }
+    }
+}
+
+WHEN GOAFTER id[Item] SETCHANGED(Item i IS Item) AND isSecond(i) DO {
+    IF barcode(id(i)) THEN {
+        sku(barcode(id(i))) <- i;
+        dataBarcode(i) <- barcode(id(i));
+    } ELSE {
+        NEW b = Barcode {
+            id(b) <- id(i);
+            sku(b) <- i;
+            dataBarcode(i) <- b;
+        }
+    }
+}
+
+CONSTRAINT DROPPED(Item i IS Item) AND PREV([GROUP MIN SkuLedger g BY sku(g)](i) OR [GROUP MIN Lot l BY sku(l)](i))
+    MESSAGE 'Запрещено удалять этот товар';
