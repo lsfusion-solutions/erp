@@ -475,6 +475,8 @@ background 'Цвет' (Promotion promotion) = CASE WHEN dateFrom(promotion) > cu
                                               WHEN dateTo(promotion) < currentDate() THEN RGB(255,224,224);
 skipShowEdit = ABSTRACT BOOLEAN (Promotion);
 skipShowDelete = ABSTRACT BOOLEAN (Promotion);
+skipShowEdit = ABSTRACT BOOLEAN (PromotionGroup);
+skipShowDelete = ABSTRACT BOOLEAN (PromotionGroup);
 
 FORM promotions 'Акции'
     OBJECTS sh=Promotion
@@ -509,7 +511,7 @@ FORM promotionGroup 'Группа акций'
                                 hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                                 useCurrentReceipt, allDiscountCard
     PROPERTIES(sh)                copy 
-    PROPERTIES(sh)     NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(sh)     NEWSESSION NEW, EDIT SHOWIF NOT skipShowEdit(sh), DELETE SHOWIF NOT skipShowDelete(sh)
     ORDERS order(sh)
 
     FILTERS promotionGroup(sh)==st
@@ -524,7 +526,7 @@ FORM promotionGroup 'Группа акций'
 FORM promotionGroups 'Группы акций'
     OBJECTS st=PromotionGroup
     PROPERTIES(st)     READONLY order, name
-    PROPERTIES(st)     NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(st)     NEWSESSION NEW, EDIT SHOWIF NOT skipShowEdit(st), DELETE SHOWIF NOT skipShowDelete(st)
 
     FILTERGROUP activeGroup
         FILTER 'Активные' active(st) DEFAULT
@@ -535,7 +537,7 @@ FORM promotionGroups 'Группы акций'
                                 timeOfFrom, timeOfTo, minSumBill, maxSumBill,
                                 hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                                 useCurrentReceipt, allDiscountCard
-    PROPERTIES(sh)     NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(sh)     NEWSESSION NEW, EDIT SHOWIF NOT skipShowEdit(sh), DELETE SHOWIF NOT skipShowDelete(sh)
     ORDERS order(sh)
 
     FILTERS promotionGroup(sh)==st
