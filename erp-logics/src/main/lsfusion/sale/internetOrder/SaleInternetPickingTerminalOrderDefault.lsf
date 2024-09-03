@@ -18,11 +18,13 @@ DESIGN options {
 filter(Picking o, Stock s) += (status(o) == StatusPicking.new AND stock(o) == s);
 vop(TerminalOrderDetail d) += WHEN d IS InternetOrderDetail AND useTerminalOrderDetailVop() THEN '15';
 maxDeviationQuantity(InternetOrderDetail d) += quantity(d);
+beforeCreatePicking ABSTRACT LIST (InternetOrder);
 
 createPickingCustom 'Создать комплектацию ИМ' (InternetOrder o)  {
+    beforeCreatePicking(o);
     NEWSESSION {
         LOCAL count = INTEGER ();
-
+        
         IF (GROUP SUM 1 IF internetOrder(InternetOrderDetail dd) = o AND NOT picking(dd)) THEN {
             NEW p = Picking{
                 date(p) <- currentDate();
