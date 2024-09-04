@@ -1,0 +1,44 @@
+MODULE ProductionOrderRu;
+
+REQUIRE ProductionOrder, OperationRu, LegalEntityRu;
+
+NAMESPACE Production;
+
+EXTEND FORM Production.operation PROPERTIES nameStatusUpd(o);
+DESIGN Production.operation { paramsContainer { MOVE PROPERTY(nameStatusUpd(o)); } }
+
+statusUpd 'Статус УПД' = DATA StatusUpd(Order);
+nameStatusUpd 'Статус УПД' (Order i) = name(statusUpd(i)) IN documentPrm;
+
+WHEN SET (Order i IS Order) DO statusUpd(i) <- statusUpd(operation(i));
+
+EXTEND FORM order
+    PROPERTIES (o) nameStatusUpd
+;
+
+DESIGN order {
+    options2 {
+        NEW statusUpd {
+            caption = 'УПД';
+            MOVE PROPERTY (nameStatusUpd(o));
+        }
+    }
+}
+
+
+//overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
+//
+//notNullQuantityInvoices 'Запретить в накладных строки с пустым количеством'  = DATA BOOLEAN ();
+//
+//EXTEND FORM options
+//    PROPERTIES() notNullQuantityInvoices
+//;
+//
+//DESIGN options {
+//    topInvoicesContainer {
+//        MOVE PROPERTY(notNullQuantityInvoices());
+//    }
+//}
+//
+//CONSTRAINT CHANGED (sku(InvoiceDetail d)) AND sku(d) AND notNullQuantityInvoices() AND NOT (quantity(d))
+//    MESSAGE 'Количество в строке накладной должно быть заполнено';

@@ -1,0 +1,136 @@
+MODULE ProductionOrderConsignmentRu;
+
+REQUIRE ConsignmentRu, PricingProductionOutput, ProductionOrderRu;
+
+NAMESPACE Production;
+
+EXTEND CLASS Order : Consignment;
+
+dataDate[Consignment] (Order consignment) += date(consignment);
+number[Consignment] (Order consignment) += number(consignment);
+series[Consignment] (Order consignment) += series(consignment);
+
+dataSupplierStock[Consignment] (Order consignment) += componentsStock(consignment);
+dataCustomerStock[Consignment] (Order consignment) += productsStock(consignment);
+
+dataSupplier (Order consignment) += componentsLegalEntityStock(consignment);
+skipStoreAddress = ABSTRACT BOOLEAN (Order);
+overAddressSupplier (Order consignment) += address(store(dataSupplierStock(consignment))) IF NOT skipStoreAddress(consignment);
+
+dataCustomer (Order consignment) += productsLegalEntityStock(consignment);
+overAddressCustomer (Order consignment) += address(dataCustomer(consignment));
+
+overAddressCustomerStock (Order consignment) += address(dataCustomerStock(consignment));
+
+currency[Consignment] (Order consignment) += currencyProduct(consignment);
+
+overManagerSupplier = ABSTRACT Employee (Order);
+managerSupplier[Consignment] (Order consignment)  += OVERRIDE overManagerSupplier(consignment), chief(supplier(consignment), date(consignment));
+overAccountantSupplier = ABSTRACT Employee (Order);
+accountantSupplier[Consignment] (Order consignment) += OVERRIDE overAccountantSupplier(consignment), booker(supplier(consignment),date(consignment));
+
+//contract[Consignment](Order consignment) += contractSku(consignment);
+
+statusUpd[Consignment](Order consignment) += statusUpd(consignment);
+
+dataQuantityCustom = ABSTRACT NUMERIC[16,5](ProductDetail);
+dataQuantityOver (ProductDetail d) = (OVERRIDE dataQuantityCustom(d), outputQuantity (d));
+
+EXTEND CLASS ProductDetail : ConsignmentDetail;
+
+index[ConsignmentDetail] (ProductDetail d) += index (d);
+consignment[ConsignmentDetail] (ProductDetail d) += order (d);
+skip[ConsignmentDetail](ProductDetail d) += d IS ProductDetail AND NOT dataQuantityOver(d)>0;
+dataSku[ConsignmentDetail] (ProductDetail d) += sku (d);
+batch[ConsignmentDetail] (ProductDetail d) += orderOutputDetail (d);    
+dataQuantity[ConsignmentDetail] (ProductDetail d) += dataQuantityOver (d);
+dataAmountPack (ProductDetail d) += 1.0 IF dataQuantityOver (d);
+dataPackQuantity (ProductDetail d) += dataQuantityOver(d);
+dataGrossWeight (ProductDetail d) += NUMERIC[16,5](dataQuantityOver (d)*overGrossWeight(sku(d)));
+dataNetWeight (ProductDetail d) += NUMERIC[16,5](dataQuantityOver (d)*overNetWeight(sku(d))); 
+dataPrice (ProductDetail detail) += WHEN detail IS ProductDetail THEN price(detail);
+dataSumCustom = ABSTRACT NUMERIC[18,4](ProductDetail);
+dataSum (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN (OVERRIDE dataSumCustom(detail), outputProductsSum(detail));
+dataVAT (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN valueVAT(detail);
+retVATSumCustom = ABSTRACT NUMERIC[18,4](ProductDetail);
+dataSumVAT (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN (OVERRIDE retVATSumCustom(detail), retVATSum(detail));
+dataSumConsignment (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN (OVERRIDE dataSumCustom(detail), outputProductsSum(detail));
+dataShipmentPrice (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN price(detail);
+dataShipmentSum (ProductDetail detail) +=  WHEN detail IS ProductDetail THEN (OVERRIDE dataSumCustom(detail), outputProductsSum(detail));
+
+dataSumConsignmentDetail (Order consignment) += outputProductsSumProductDetail(consignment);
+dataVATSumConsignmentDetail (Order consignment) += outputProductsSumProductDetail(consignment);
+
+//includeOrders (Order consignment) += includeOrders(consignment);
+descriptionBaseDocPayment(Order consignment) += CONCAT '', 'Производственный заказ №', seriesNumber(consignment);
+
+EXTEND FORM  orders
+    PROPERTIES (o) incl BEFORE isClosed(o)
+    PROPERTIES(o) SHOWIF isOpened(o) editAttributes, editAttributesUpd SHOWIF NOT hideCreateUpdDocument(o)
+    PROPERTIES(o) READONLYIF banPrint(o) printConsignmentCustomerRu, 
+        printConsignmentTTNARu, printConsignmentTTNBRu, printConsignmentTTNABRu,
+        printConsignmentTorg13, printConsignmentTorg12, 
+        printConsignmentUpd SHOWIF NOT hideCreateUpdDocument(o), 
+        printConsignmentUpdBreake SHOWIF NOT hideCreateUpdDocument(o), 
+        printConsignmentUpdBreakeAuto SHOWIF NOT hideCreateUpdDocument(o),
+        printConsignmentM15, consignmentPayment, printInvoiceRu, printConsignment1TAll, printConsignment1TAllXls
+;
+
+DESIGN orders {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            horizontal = TRUE;
+
+            NEW contOne {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(o)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentCustomerRu(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNARu(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNBRu(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNABRu(o)) { alignment = STRETCH; }                
+                MOVE PROPERTY(printConsignmentTorg13(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTorg12(o)) { alignment = STRETCH; }      
+                MOVE PROPERTY(printConsignmentM15(o)) { alignment = STRETCH; }
+                MOVE PROPERTY (printConsignment1TAll(o)){ alignment = STRETCH; }
+                MOVE PROPERTY (printConsignment1TAllXls(o)){ alignment = STRETCH; }
+                MOVE PROPERTY(consignmentPayment(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printInvoiceRu(o)) { alignment = STRETCH; }
+            }            
+        }
+        
+        NEW consignmentUPD{
+            align = START;
+            horizontal = TRUE;
+            
+            NEW contUPD {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'УПД';
+                MOVE PROPERTY(editAttributesUpd(o)) {
+                    alignment = STRETCH;
+                }
+            }
+            
+            NEW upd {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentUpd(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentUpdBreake(o)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentUpdBreakeAuto(o)) { alignment = STRETCH; }
+            }
+        }
+    }
+}
+
+useEmptyVAT(ProductDetail d) += WHEN isNotVATPayer(supplier(d)) THEN TRUE;
