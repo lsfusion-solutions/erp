@@ -26,6 +26,8 @@ operation 'Операция' (AssemblyDetail assemblyDetail) = operation(assembl
 
 @defineDocumentDataStock (assembly, stock, 'Склад', );
 
+countryStock (Assembly a) = country(stock(a));
+
 @defineExternalizable(assembly, STRING[100]);
 
 @defineDocumentDialogStocks(assembly, stock, company, , );
@@ -49,7 +51,11 @@ CONSTRAINT isPosted(Assembly a) AND NOT sku(a)
 @defineDocumentDetailPriceCustomPrefix (assembly, , );
 
 @defineDocumentDetailDataSumCustomPrefix(assembly, ,);
-price(Assembly a) <- NUMERIC[16,4](sum(a) / quantity(a)) WHEN CHANGED(sum(a)) OR CHANGED(quantity(a));
+
+calcPrice = ABSTRACT CASE NUMERIC[16,4] (Assembly);
+calcPrice(Assembly assembly) += WHEN (sum(assembly) AND quantity(assembly)) THEN NUMERIC[16,4](round(sum(assembly) / quantity(assembly), currency(assembly)));
+
+price(Assembly a) <- calcPrice(a) WHEN CHANGED(calcPrice(a));
 
 // detail
 @defineDocumentDetailSku(assembly, sku);
@@ -145,7 +151,7 @@ FORM assembly 'Сборка'
 
     PROPERTIES(a) DRAW d addDetailDialogSkuStockAssemblyDetail, addDetailInputBarcodeAssemblyDetail
 
-    PROPERTIES(d) NEW, DELETE GRID
+    PROPERTIES(d) NEW, deleted = DELETE GRID
     FILTERS assembly(d) = a
 
     EVENTS
@@ -247,8 +253,8 @@ FORM assemblies 'Сборки товаров'
 
     OBJECTS a = Assembly LAST
     PROPERTIES(a) READONLY isClosed, isPosted, nameOperation, number, series, date, time, nameStock,
-                           idBarcodeSku, idSku, nameSku,
-                           countAssemblyDetail, quantityAssemblyDetail, sumAssemblyDetail
+                           idBarcodeSku, idSku, nameSku, quantity, sum,
+                           countAssemblyDetail, quantityAssemblyDetail
                              
     PROPERTIES(a) READONLY note
 
@@ -313,14 +319,17 @@ WHEN LOCAL (CHANGED(sku(AssemblyDetail d)) OR
             AND NOT CHANGED(price(d)) DO
     price(d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d));
 
-WHEN LOCAL (CHANGED(sumAssemblyDetail(Assembly a))) AND 
+calcSum = ABSTRACT CASE NUMERIC[18,4] (Assembly);
+calcSum(Assembly assembly) += WHEN sumAssemblyDetail(assembly) THEN sumAssemblyDetail(assembly);
+
+WHEN LOCAL (CHANGED(calcSum(Assembly a))) AND 
             NOT CHANGED(sum(a)) DO
-    sum(a) <- sumAssemblyDetail(a);
+    sum(a) <- calcSum(a);
 
 // делаем и без LOCAL, чтобы срабатывало событие при пересчете sum внутри APPLY
-WHEN (CHANGED(sumAssemblyDetail(Assembly a))) AND
+WHEN (CHANGED(calcSum(Assembly a))) AND
     NOT CHANGED(sum(a)) DO
-    sum(a) <- sumAssemblyDetail(a);
+    sum(a) <- calcSum(a);
 
 // -- Сборка
    

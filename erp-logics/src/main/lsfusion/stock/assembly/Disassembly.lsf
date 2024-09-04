@@ -29,6 +29,8 @@ operation 'Операция' (DisassemblyDetail disassemblyDetail) = operation(d
 
 @defineDocumentDataStock (disassembly, stock, 'Склад', );
 
+countryStock (Disassembly a) = country(stock(a));
+
 @defineExternalizable(disassembly, STRING[100]);
 
 @defineDocumentDialogStocks(disassembly, stock, company, , );
@@ -70,7 +72,10 @@ CONSTRAINT isPosted(DisassemblyDetail d) AND NOT sku(d)
 @defineDocumentDetailPrice (disassembly);
 
 @defineDocumentDetailDataSum(disassembly);
-@deriveDocumentDetailSum(disassembly, quantity);
+
+calcSum = ABSTRACT CASE NUMERIC[18,4] (DisassemblyDetail);
+calcSum(DisassemblyDetail disassemblyDetail) += WHEN quantity(disassemblyDetail) AND price(disassemblyDetail) THEN NUMERIC[18,4](round(quantity(disassemblyDetail) * price(disassemblyDetail), currency(disassemblyDetail))); 
+sum (DisassemblyDetail disassemblyDetail) <- calcSum(disassemblyDetail) WHEN CHANGED(calcSum(disassemblyDetail));
 
 @defineDocumentHeaderQuantity(disassembly);
 @defineDocumentHeaderSum(disassembly);
@@ -143,7 +148,7 @@ FORM disassembly 'Разборка'
 
     PROPERTIES(a) DRAW d addDetailDialogSkuStockDisassemblyDetail, addDetailInputBarcodeDisassemblyDetail
 
-    PROPERTIES(d) NEW, DELETE GRID
+    PROPERTIES(d) NEW, deleted = DELETE GRID
     FILTERS disassembly(d) = a
 
     EVENTS
@@ -325,14 +330,23 @@ WHEN LOCAL (CHANGED(sku(Disassembly a)) OR
 dataPercent 'Процент цены' = DATA NUMERIC[16,2] (DisassemblyDetail);
 percent 'Процент цены' (DisassemblyDetail d) = OVERRIDE dataPercent(d), NUMERIC[18,4](weight(d)), 1 IF d IS DisassemblyDetail;
 
+calcPrice = ABSTRACT CASE NUMERIC[16,4] (DisassemblyDetail);
+calcPrice(DisassemblyDetail d) += WHEN (sum(d) AND quantity(d)) THEN NUMERIC[16,4](round(sum(d) / quantity(d), currency(d)));
+
+useOverSum = ABSTRACT BOOLEAN (DisassemblyDetail);
+overSum = ABSTRACT NUMERIC[18,4] (DisassemblyDetail);
+
+extraCalculatePrice ABSTRACT LIST (Disassembly);
 calculatePrice 'Рассчитать цены' (Disassembly a) {
     price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
     
-    sum(DisassemblyDetail d) <- (PARTITION UNGROUP sum
+    sum(DisassemblyDetail d) <- IF useOverSum(d) THEN overSum(d) ELSE (PARTITION UNGROUP sum
                                         PROPORTION STRICT ROUND(2) percent(d)
                                         ORDER d
                                         BY disassembly(d)) WHERE disassembly(d) = a;
-    price(DisassemblyDetail d) <- NUMERIC[16,4](sum(d) / quantity(d)) WHERE disassembly(d) = a;
+    price(DisassemblyDetail d) <- calcPrice(d) WHERE disassembly(d) = a;
+
+    extraCalculatePrice(a);
 }
 
 EXTEND FORM disassembly

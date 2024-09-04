@@ -1,0 +1,320 @@
+MODULE PricingAssembly;
+
+REQUIRE Assembly, PricingSum;
+
+NAMESPACE Assembly;
+
+createPricing 'Создать акт расценки' = DATA BOOLEAN (Operation) PREREAD;
+
+pricingOperation = DATA Pricing.Operation (Operation);
+namePricingOperation 'Операция (расценка)' = name(pricingOperation(Operation operation)) CHARWIDTH 30;
+
+supplierPriceListType = DATA PriceListType (Operation);
+nameSupplierPriceListType 'Вид цен (входная)' (Operation o) = name(supplierPriceListType(o)) CHARWIDTH 20;
+
+retailPriceListType = DATA PriceListType (Operation);
+nameRetailPriceListType 'Вид цен (розничная)' (Operation o) = name(retailPriceListType(o)) CHARWIDTH 20;
+
+EXTEND FORM operation
+    PROPERTIES(o) createPricing, namePricingOperation, nameSupplierPriceListType, nameRetailPriceListType
+;
+
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(createPricing(o));
+        MOVE PROPERTY(namePricingOperation(o));
+        MOVE PROPERTY(nameSupplierPriceListType(o));
+        MOVE PROPERTY(nameRetailPriceListType(o));
+    }
+}
+
+@defineDocumentHeaderPricingCommittee (assembly, stock, );
+
+@defineDocumentHeaderProperty (assembly, createPricing, 'Создать акт расценки');
+
+@defineDocumentOperationHeaderPrefix(assembly, pricing, Pricing, ' (расценка)');
+
+@defineDocumentDetailPriceCustomPrefix(assembly, supplier, ' входная');
+
+@defineDocumentDetailPriceCustomPrefix(assemblyDetail, supplier, ' входная');
+
+supplierPriceListType = DATA PriceListType (Assembly);
+nameSupplierPriceListType 'Вид цен (входная)' (Assembly o) = name(supplierPriceListType(o)) CHARWIDTH 20;
+
+@deriveDocumentOperationProperty(Assembly, supplierPriceListType);
+
+retailPriceListType = DATA PriceListType (Assembly);
+nameRetailPriceListType 'Вид цен (розничная)' (Assembly o) = name(retailPriceListType(o)) CHARWIDTH 20;
+
+@deriveDocumentOperationProperty(Assembly, retailPriceListType);
+
+supplierPrice(AssemblyDetail d) <- prevPriceA(supplierPriceListType(assembly(d)), sku(d), stock(d), dateTime(d))
+    WHEN CHANGED(sku(d)) OR CHANGED(stock(d)) OR CHANGED(dateTime(d));
+
+@defineDocumentDetailDataSumCustomPrefix(assemblyDetail, supplier, ' входная');
+
+@defineDocumentDetailDataSumCustomPrefix(assembly, supplier, ' входная');
+
+calcSupplierSum(AssemblyDetail assemblyDetail) = NUMERIC[18,4](round(quantity(assemblyDetail) * supplierPrice(assemblyDetail), currency(assemblyDetail))); 
+supplierSum (AssemblyDetail assemblyDetail) <- calcSupplierSum(assemblyDetail) WHEN CHANGED(calcSupplierSum(assemblyDetail));
+
+calcSupplierPrice(Assembly assembly) = NUMERIC[16,4](round(supplierSum(assembly) / quantity(assembly), currency(assembly)));
+supplierPrice (Assembly assembly) <- calcSupplierPrice(assembly) WHEN CHANGED(calcSupplierPrice(assembly));
+
+supplierSumAssemblyDetail '{document.sum.of} входная' (assembly) = GROUP SUM supplierSum(AssemblyDetail idetail) BY assembly(idetail) CHARWIDTH 10;
+
+calcSupplierSum(Assembly assembly) = NUMERIC[18,4](round(supplierSumAssemblyDetail(assembly), currency(assembly)));
+supplierSum (Assembly assembly) <- calcSupplierSum(assembly) WHEN CHANGED(calcSupplierSum(assembly));
+
+retailPrice '{document.price} розничная' = DATA NUMERIC[16,4] (Assembly) CHARWIDTH 10 PATTERN '#,##0.00##';
+
+retailPrice(Assembly assembly) <- prevPriceA(retailPriceListType(assembly), sku(assembly), stock(assembly), dateTime(assembly))
+    WHEN CHANGED(sku(assembly)) OR CHANGED(stock(assembly)) OR CHANGED(dateTime(assembly));
+
+retailSum '{document.sum.of} розничная' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 10 PATTERN '#,##0.00##';
+
+calcRetailSum(Assembly assembly) = NUMERIC[18,4](round(quantity(assembly) * retailPrice(assembly), currency(assembly)));
+retailSum (Assembly assembly) <- calcRetailSum(assembly) WHEN CHANGED(calcRetailSum(assembly));
+
+// с НДС пока упрощённо
+retailVAT = DATA Range (Assembly);
+numberRetailVAT 'НДС розничный, номер' (Assembly assembly) = number(retailVAT(assembly));
+valueRetailVAT 'НДС розничный, %' = DATA NUMERIC[10,5] (Assembly) CHARWIDTH 7;
+
+CONSTRAINT tax(retailVAT(Assembly assembly)) != Tax.taxVAT OR
+           country(retailVAT(assembly)) != countryStock(assembly)
+           CHECKED BY retailVAT[Assembly]
+           MESSAGE 'ошибка: Шкала и страна Сборки должна соответствовать шкале и строке НДС: Tax';
+
+retailVAT(Assembly a) <- VAT(sku(a), countryStock(a)) 
+    WHEN CHANGED(sku(a)) OR CHANGED(stock(a)); 
+
+valueRetailVAT(Assembly a) <- valueRate(retailVAT(a), date(a))
+    WHEN CHANGED(retailVAT(a)) OR CHANGED(date(a));
+
+retailMarkup '{document.markup}' = DATA NUMERIC[8,3] (Assembly);
+retailVATSum 'Сумма НДС розничная' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 8;
+retailMarkupSum '{document.markup.sum}' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 8;
+
+recalcRetailMarkup(Assembly a) = NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+            retailPrice(a),
+            supplierPrice(a),
+            valueRetailVAT(a)));
+
+changeValueRetailVAT (Assembly a)  {
+    INPUT n = NUMERIC[10,5] DO {
+        valueRetailVAT(a) <- n;
+        retailVAT(a) <- valueCurrentVAT(countryStock(a), n);
+        retailMarkup(a) <- recalcRetailMarkup(a);
+    }
+}
+
+VATMarkupSum 'НДС и надбавка' (Assembly assembly) =  retailSum(assembly) (-) supplierSum(assembly);
+
+retailVATSum(Assembly assembly) <- round([ X*Y/(100+Y)](retailSum(assembly), valueRetailVAT(assembly)), currency(assembly))
+    WHEN CHANGED(retailSum(assembly)) OR CHANGED(valueRetailVAT(assembly)) OR CHANGED(currency(assembly));
+
+retailMarkupSum (Assembly assembly) <- retailSum(assembly) (-) retailVATSum(assembly) (-) supplierSum(assembly)
+    WHEN CHANGED(retailSum(assembly)) OR CHANGED(retailVATSum(assembly)) OR CHANGED(supplierSum(assembly));
+
+retailMarkup(Assembly assembly) <-[ round2(X*100/Y)](retailMarkupSum(assembly), supplierSum(assembly))
+    WHEN CHANGED(retailMarkupSum(assembly)) OR CHANGED(supplierSum(assembly));
+
+@deriveDocumentOperationProperty(Assembly, createPricing);
+
+pricingOperation (Assembly o) <- pricingOperation(operation(o))
+    WHEN CHANGED(operation(o));
+
+backgroundRetail 'Цвет' (Assembly assembly) = RGB(224, 255, 255) IF assembly IS Assembly;
+
+retailPriceB 'Розничная цена (до)' (Assembly a) = prevRetailPricingPriceB(sku(a), stock(a), dateTime(a));
+
+//componentsPrice 'Цена по спецификации' (Assembly a) = NUMERIC[16,4](round(sumAssemblyDetail(a) / quantity(a), currency(a)));
+//componentsSum 'Сумма по спецификации' (Assembly a) = sumAssemblyDetail(a);
+
+backgroundRetailPriceB (Assembly d) = CASE
+    WHEN retailPriceB(d) > retailPrice(d) THEN RGB(250,150,150)
+    WHEN retailPriceB(d) < retailPrice(d) THEN RGB(150,250,200);
+
+calcRetailPrice(Assembly assembly) = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
+    supplierPrice(assembly),
+    retailMarkup(assembly),
+    valueRetailVAT(assembly))), currency(assembly));
+
+changeRetailMarkup(Assembly a)  {
+    INPUT n = NUMERIC[8,3] DO {
+        retailMarkup(a) <- n;
+        retailPrice(a) <- calcRetailPrice(a) WHERE calcRetailPrice(a);
+    }
+}
+
+calcRetailMarkup(Assembly assembly) = NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+        retailPrice(assembly),
+        supplierPrice(assembly),
+        valueRetailVAT(assembly)));
+
+changeRetailPrice(Assembly assembly)  {
+    INPUT n = NUMERIC[16,4] DO {
+        retailPrice(assembly) <- n;
+        retailMarkup(assembly) <- calcRetailMarkup(assembly) WHERE calcRetailMarkup(assembly);
+    }
+}
+
+recalculateRetailPrice 'Пересчитать розн. цену' () {
+    FOR sku(Assembly assembly) AND [FILTER assembly.a](assembly) INLINE DO {
+        retailPrice(assembly) <- prevPriceA(retailPriceListType(assembly), sku(assembly), stock(assembly), dateTime(assembly));
+        retailMarkup(assembly) <- recalcRetailMarkup(assembly);
+    }
+} ASON CONTEXTMENU retailPrice[Assembly];
+
+EXTEND FORM assembly
+    PROPERTIES(a) BACKGROUND backgroundRetail(a) createPricing
+    PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) namePricingOperation, namePricingCommittee, nameSupplierPriceListType, nameRetailPriceListType
+
+    PROPERTIES(d) BEFORE deleted SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum
+    PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum, retailMarkup ON CHANGE changeRetailMarkup(a), retailMarkupSum,
+                  valueRetailVAT ON CHANGE changeValueRetailVAT(a), retailVATSum, retailPrice ON CHANGE changeRetailPrice(a), retailSum 
+    PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetailPriceB(a) READONLY retailPriceB
+//    PROPERTIES(a) SHOWIF createPricing(a) READONLY componentsPrice, componentsSum    
+;
+
+DESIGN assembly {
+    headerLeft {
+        NEW headerPricing BEFORE PROPERTY(note(a)) {
+            caption = 'Расценка';
+            NEW headerPricingRow1 {
+                horizontal = TRUE;
+                MOVE PROPERTY(createPricing(a));
+                MOVE PROPERTY(namePricingOperation(a));
+                MOVE PROPERTY(namePricingCommittee(a));
+                MOVE PROPERTY(nameSupplierPriceListType(a));
+                MOVE PROPERTY(nameRetailPriceListType(a));
+            }
+            NEW headerPricingRow2 {
+                horizontal = TRUE;
+                MOVE PROPERTY(supplierPrice(a));
+                MOVE PROPERTY(supplierSum(a));
+                MOVE PROPERTY(retailMarkup(a));
+                MOVE PROPERTY(retailMarkupSum(a));
+                MOVE PROPERTY(valueRetailVAT(a));
+                MOVE PROPERTY(retailVATSum(a));
+            }
+            NEW headerPricingRow3 {
+                horizontal = TRUE;
+                MOVE PROPERTY(retailPrice(a));
+                MOVE PROPERTY(retailSum(a));
+                MOVE PROPERTY(retailPriceB(a));
+//                MOVE PROPERTY(componentsPrice(a));
+//                MOVE PROPERTY(componentsSum(a));
+            }
+        }
+    }
+}
+
+EXTEND FORM assemblies
+    PROPERTIES(d) READONLY SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum
+    PROPERTIES(a) READONLY SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum, retailMarkup, retailMarkupSum,
+                  valueRetailVAT, retailVATSum, retailPrice, retailSum
+;
+
+CLASS AssemblyPricing 'Акт расценки на основе сборки' : Pricing;
+CLASS AssemblyPricingDetail 'Строка акта расценки на основе сборки' : PricingDetail;
+
+@defineDocumentTables(assemblyPricing);
+
+@defineDocumentAggregationHeader(assembly, assemblyPricing, createPricing);
+
+assemblyPricingDetail = AGGR AssemblyPricingDetail WHERE createPricing(Assembly assembly) MATERIALIZED INDEXED;
+assemblyPricing (AssemblyPricingDetail detail) = assemblyPricing(assembly(detail));
+
+index '{document.index.detail.class}' (AssemblyPricingDetail d) = INTEGER(1) IF d IS AssemblyPricingDetail IN public;
+date '{document.date.object}' (AssemblyPricingDetail d) = date(assembly(d));
+time '{document.time.object}' (AssemblyPricingDetail d) = time(assembly(d));
+dateTime '{document.date.time.object}' (AssemblyPricingDetail d) = dateTime(assembly(d));
+
+@defineDocumentHeaderCount(assemblyPricing);
+
+printPricing 'Акт расценки' (Assembly assembly)  { print(assemblyPricing(assembly)); } IMAGE 'print.png' IN print;
+
+EXTEND FORM assemblies
+    PROPERTIES(a) printPricing SHOWIF createPricing(a)
+;
+
+DESIGN assemblies { print { MOVE GROUP(print, a) {align = START;}}}
+
+pricing(AssemblyPricingDetail detail) += assemblyPricing(detail);
+
+index(AssemblyPricingDetail detail) += index(detail);
+
+date(AssemblyPricing pricing) += date(pricing);
+time(AssemblyPricing pricing) += time(pricing);
+
+departmentStore(AssemblyPricing pricing) += stock(assembly(pricing)) AS DepartmentStore;
+
+supplier(AssemblyPricing pricing) += legalEntityStock(assembly(pricing));
+
+isPosted '{document.posted}' (AssemblyPricing o) = isPosted(assembly(o));
+isPosted '{document.posted}' (AssemblyPricingDetail o) = isPosted(assembly(o));
+isPosted(AssemblyPricing pricing) += isPosted(pricing);
+
+isClosed '{documents.is.closed}' (AssemblyPricing o) = isClosed(assembly(o));
+isClosed '{documents.is.closed}' (AssemblyPricingDetail o) = isClosed(assembly(o));
+isClosed(AssemblyPricing pricing) += isClosed(pricing);
+
+number 'Номер документа' (AssemblyPricing assemblyPricing) = number(assembly(assemblyPricing));
+number(AssemblyPricing pricing) += number(pricing);
+series 'Серия документа' (AssemblyPricing assemblyPricing) = series(assembly(assemblyPricing));
+series(AssemblyPricing pricing) += series(pricing);
+seriesNumber 'Серия/номер документа' (AssemblyPricing assemblyPricing) = seriesNumber(assembly(assemblyPricing));
+
+
+note(AssemblyPricing pricing) += note(assembly(pricing));
+currency (AssemblyPricing pricing) += currency(assembly(pricing));
+pricingCommittee(AssemblyPricing pricing) += pricingCommittee(assembly(pricing));
+dataFormedMan (AssemblyPricing pricing) += dataFormedMan(assembly(pricing));
+dataCheckedMan (AssemblyPricing pricing) += dataCheckedMan(assembly(pricing));
+dataLabeledMan (AssemblyPricing pricing) += dataLabeledMan(assembly(pricing));
+dataAccountantMan (AssemblyPricing pricing) += dataAccountantMan(assembly(pricing));
+dataHeadMan (AssemblyPricing pricing) += dataHeadMan(assembly(pricing));
+
+operation(AssemblyPricing pricing) += pricingOperation(assembly(pricing));
+
+@defineDocumentDescription(assemblyPricing, AssemblyPricingDetail, 'Акт расценки на основе сборки товаров');
+description (AssemblyPricing pricing) += description(pricing);
+
+sku(AssemblyPricingDetail pricingDetail) += sku(assembly(pricingDetail));
+batch(AssemblyPricingDetail pricingDetail) += assemblyInSkuLedger(assembly(pricingDetail));
+quantity(AssemblyPricingDetail pricingDetail) += quantity(assembly(pricingDetail));
+
+show[PricingDetail](AssemblyPricingDetail d) + {  show(assembly(d)); }
+
+//-------------------------- Ценовые характеристики------------------------------------------
+supplierPrice 'Цена входная' (AssemblyPricingDetail detail) = supplierPrice(assembly(detail)) MATERIALIZED;
+price(AssemblyPricingDetail pricingDetail) += supplierPrice(pricingDetail);
+
+supplierSum 'Сумма входная' (AssemblyPricingDetail detail) = supplierSum(assembly(detail)) MATERIALIZED;
+sum(AssemblyPricingDetail pricingDetail) += supplierSum(pricingDetail);
+
+retailPrice 'Цена розничная' (AssemblyPricingDetail detail) = retailPrice(assembly(detail)) MATERIALIZED;
+retailPrice(AssemblyPricingDetail pricingDetail) += retailPrice(pricingDetail);
+
+retailSum 'Сумма розничная' (AssemblyPricingDetail detail) = retailSum(assembly(detail)) MATERIALIZED;
+retailSum(AssemblyPricingDetail pricingDetail) += retailSum(pricingDetail);
+
+retailMarkup 'Надбавка' (AssemblyPricingDetail detail) = retailMarkup(assembly(detail)) MATERIALIZED;
+retailMarkup(AssemblyPricingDetail pricingDetail) += retailMarkup(pricingDetail);
+
+retailMarkupSum 'Сумма надбавки' (AssemblyPricingDetail detail) = retailMarkupSum(assembly(detail)) MATERIALIZED;
+retailMarkupSum(AssemblyPricingDetail pricingDetail) += retailMarkupSum(pricingDetail);
+
+valueRetailVAT 'НДС, %' (AssemblyPricingDetail detail) = valueRetailVAT(assembly(detail)) MATERIALIZED;
+valueRetailVAT(AssemblyPricingDetail pricingDetail) += valueRetailVAT(pricingDetail);
+
+retailVATSum 'Сумма НДС' (AssemblyPricingDetail detail) = retailVATSum(assembly(detail)) MATERIALIZED;
+retailVATSum(AssemblyPricingDetail pricingDetail) += retailVATSum(pricingDetail);
+
+edit (AssemblyPricingDetail d) + { edit(assembly(d)); }
+edit (AssemblyPricing p) + { edit(assembly(p)); }
+
+calcPrice(Assembly a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailPrice(a);
+calcSum(Assembly a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailSum(a); 
