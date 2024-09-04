@@ -1,0 +1,145 @@
+MODULE ReceiptDetailReportSecond;
+
+REQUIRE ReceiptDetailReport, ZReportLot, LotSecondExtra, ItemSecond;
+
+NAMESPACE ZReport;
+
+weightLot 'Вес, кг' (ReceiptDetail d) = weight(lot(d)) * signedQuantity(d);
+captionMixLot 'Микс' (ReceiptDetail d) = captionMix(lot(d));
+costForeignLot 'С/с, евро' (ReceiptDetail d) = costForeign(lot(d)) * signedQuantity(d);
+
+EXTEND FORM receiptDetailReport
+    PROPERTIES (rd) READONLY captionMixLot, weightLot, costForeignLot
+;
+
+DESIGN receiptDetailReport {
+    NEW main BEFORE TOOLBARBOX {
+        tabbed = TRUE;
+        fill = 1;
+        MOVE BOX(rd);
+    }
+}
+
+DESIGN zReports {
+    PROPERTY (idLot(d)) {caption = 'Код оценённого товара';}
+}
+
+filtersMix (ReceiptDetail rd) =  NOT date(rd) < filterDateFrom() AND NOT date(rd) > filterDateTo() AND Stock.in[Stock](departmentStore(rd));
+
+filterCycleCurrent 'Основной цикл' = DATA LOCAL NESTED BOOLEAN () PREREAD;
+filterCyclesPrev 'Другие циклы' = DATA LOCAL NESTED BOOLEAN () PREREAD;
+
+filterCycle(ReceiptDetail rd) = (date(rd) >= fromDate(cycle(lot(rd))) AND date(rd) <= toDate(cycle(lot(rd))) AND filterCycleCurrent())
+    OR (NOT (date(rd) >= fromDate(cycle(lot(rd))) AND date(rd) <= toDate(cycle(lot(rd)))) AND filterCyclesPrev());
+
+weightLotReceiptMix 'Вес, кг' = GROUP SUM weightLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY date(rd), mix(lot(rd)), departmentStore(rd);
+sumReceiptMix 'Сумма, руб' = GROUP SUM signedSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY date(rd), mix(lot(rd)), departmentStore(rd);
+discountSumReceiptMix 'Сумма скидки, руб' = GROUP SUM signedDiscountSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY date(rd), mix(lot(rd)), departmentStore(rd);
+costForeignLotReceiptMix 'С/с, евро' = GROUP SUM costForeignLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY date(rd), mix(lot(rd)), departmentStore(rd);
+
+weightLotReceiptMix 'Вес, кг' = GROUP SUM weightLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY mix(lot(rd)), departmentStore(rd);
+sumReceiptMix 'Сумма, руб' = GROUP SUM signedSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY mix(lot(rd)), departmentStore(rd);
+discountSumReceiptMix 'Сумма скидки, руб' = GROUP SUM signedDiscountSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY mix(lot(rd)), departmentStore(rd);
+costForeignLotReceiptMix 'С/с, евро' = GROUP SUM costForeignLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY mix(lot(rd)), departmentStore(rd);
+
+weightLotReceiptMix 'Вес, кг' = GROUP SUM weightLotReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) BY ds;
+sumReceiptMix 'Сумма, руб' = GROUP SUM sumReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) BY ds;
+discountSumReceiptMix 'Сумма скидки, руб' = GROUP SUM discountSumReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) BY ds;
+costForeignLotReceiptMix 'С/с, евро' = GROUP SUM costForeignLotReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) BY ds;
+
+weightLotReceiptMix 'Вес, кг' = GROUP SUM weightLotReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) AND Stock.in[Stock](ds);
+sumReceiptMix 'Сумма, руб' = GROUP SUM sumReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) AND Stock.in[Stock](ds);
+discountSumReceiptMix 'Сумма скидки, руб' = GROUP SUM discountSumReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) AND Stock.in[Stock](ds);
+costForeignLotReceiptMix 'С/с, евро' = GROUP SUM costForeignLotReceiptMix(Sku s, DepartmentStore ds) IF isMix(s) AND Stock.in[Stock](ds);
+
+weightLotReceiptSku 'Вес, кг' = GROUP SUM weightLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY sku(lot(rd)), departmentStore(rd);
+sumReceiptSku 'Сумма, руб' = GROUP SUM signedSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY sku(lot(rd)), departmentStore(rd);
+discountSumReceiptSku 'Сумма скидки, руб' = GROUP SUM signedDiscountSum(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY sku(lot(rd)), departmentStore(rd);
+costForeignLotReceiptSku 'С/с, евро' = GROUP SUM costForeignLot(ReceiptDetail rd) IF filtersMix(rd) AND filterCycle(rd) BY sku(lot(rd)), departmentStore(rd);
+
+FORM receiptDetailReportMix 'Продажи по строкам чеков'
+    PROPERTIES() 'Магазины' = namesStocks ON CHANGE { DIALOG departmentStores; }, filterDateFrom, filterDateTo, filterCycleCurrent, filterCyclesPrev
+
+    OBJECTS dtdm = (dt = DATE, dd = DepartmentStore, sk = Sku)
+    PROPERTIES date 'Дата' = VALUE(dt), name(dd), name(sk)
+    PROPERTIES (dt, sk, dd) READONLY weightLotReceiptMix, sumReceiptMix, discountSumReceiptMix, costForeignLotReceiptMix
+    ORDERS date, name(dd), name(sk)
+    FILTERS isMix(sk), weightLotReceiptMix(dt, sk, dd)
+
+    OBJECTS dm = (d = DepartmentStore, m = Sku)
+    PROPERTIES name(d), name(m)
+    PROPERTIES (m, d) READONLY weightLotReceiptMix, sumReceiptMix, discountSumReceiptMix, costForeignLotReceiptMix
+    ORDERS name(d), name(m)
+    FILTERS isMix(m), weightLotReceiptMix(m, d)
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES name(ds)
+    PROPERTIES (ds) READONLY weightLotReceiptMix, sumReceiptMix, discountSumReceiptMix, costForeignLotReceiptMix
+    ORDERS name(ds)
+    FILTERS Stock.in[Stock](ds)
+
+    OBJECTS ds1s = (ds1 = DepartmentStore, s = Sku)
+    PROPERTIES name(ds1), name(s)
+    PROPERTIES (s, ds1) READONLY weightLotReceiptSku, sumReceiptSku, discountSumReceiptSku, costForeignLotReceiptSku
+    ORDERS name(ds1), name(s)
+    FILTERS isSecond(s), weightLotReceiptSku(s, ds1)
+
+    PROPERTIES() weightLotReceiptMix, sumReceiptMix, discountSumReceiptMix, costForeignLotReceiptMix
+
+    EVENTS
+        ON INIT {
+            filterDateFrom() <- currentDate();
+            filterDateTo() <- currentDate();
+            filterCycleCurrent() <- TRUE;
+            filterCyclesPrev() <- TRUE;
+        }
+;
+
+DESIGN receiptDetailReportMix {
+    BOX {
+        NEW dates {
+            horizontal = TRUE;
+            caption = 'Период';
+            MOVE PROPERTY(filterDateFrom());
+            MOVE PROPERTY(filterDateTo());
+        }
+        NEW filters {
+            horizontal = TRUE;
+            caption = 'Фильтры';
+            MOVE PROPERTY(namesStocks());
+            MOVE PROPERTY(filterCycleCurrent());
+            MOVE PROPERTY(filterCyclesPrev());
+        }
+        NEW total {
+            horizontal = TRUE;
+            caption = 'Итого';
+            MOVE PROPERTY(weightLotReceiptMix());
+            MOVE PROPERTY(sumReceiptMix());
+            MOVE PROPERTY(discountSumReceiptMix());
+            MOVE PROPERTY(costForeignLotReceiptMix());
+        }
+        NEW main {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX (dtdm) {
+                caption = 'По датам';
+            }
+            MOVE BOX (dm) {
+                caption = 'По миксам';
+            }
+            MOVE BOX (ds) {
+                caption = 'По магазинам';
+            }
+            MOVE BOX (ds1s) {
+                caption = 'По номеклатуре';
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    retailReports {
+        NEW receiptDetailReportMix AFTER receiptDetailReport;
+    }
+}
