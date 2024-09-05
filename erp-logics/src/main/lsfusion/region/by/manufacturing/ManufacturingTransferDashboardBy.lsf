@@ -1,0 +1,142 @@
+MODULE ManufacturingTransferDashboardBy;
+
+REQUIRE ManufacturingTransferDashboard, ConsignmentBy, PricingSale, PricingPurchase, PurchaseInvoiceCatering, PriceLimit;
+
+NAMESPACE Purchase;
+
+
+EXTEND FORM  manufacturingTransfer
+    PROPERTIES(si)  editAttributes
+    PROPERTIES(si) SHOWIF showTTN1(si)
+    printVerticalA, printVerticalAB, printHorizontalA,
+        printVerticalB, printHorizontalB, printAttach,
+        printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS
+    PROPERTIES(si) SHOWIF showTN2(si)
+    printSimpleHorizontal, printSimpleVertical, printSimpleAttach
+;
+
+DESIGN manufacturingTransfer {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            horizontal = TRUE;
+
+            NEW contOne {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(si)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(si));
+                MOVE PROPERTY(printSimpleHorizontal(si));
+                MOVE PROPERTY(printSimpleAttach(si));
+            }
+        }
+        NEW consignmentRow2 {
+            align = START;
+            lines = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(si));
+            MOVE PROPERTY(printVerticalAB(si));
+            MOVE PROPERTY(printHorizontalA(si));
+            MOVE PROPERTY(printVerticalB(si));
+            MOVE PROPERTY(printHorizontalB(si));
+            MOVE PROPERTY(printAttach(si));
+            MOVE PROPERTY(printVertical(si));
+            MOVE PROPERTY(printHorizontal(si));
+        }
+        NEW consignmentRow3 {
+            horizontal = TRUE;
+            NEW export {
+                horizontal = TRUE;
+                caption = 'Экспорт';
+                MOVE PROPERTY(printAttachXLS(si));
+                MOVE PROPERTY(printSimpleAttachXLS(si));
+            }
+        }
+    }
+}
+
+calcRetailMarkup 'Надбавка, %' = IF markup(priceLimitPriceListType(customerStock(Sale.InvoiceDetail detail)), sku(detail)) == 0.0
+    THEN 0.0
+    ELSE retailMarkup(detail);
+EXTEND FORM selectParams
+    PROPERTIES(sd) READONLY  calcRetailMarkup SHOWIF NOT wholeCatering(si), retailPrice SHOWIF NOT wholeCatering(si)
+;
+
+DESIGN options {
+    manufacturing {        
+        MOVE PROPERTY (calcFromSupplierPriceCatering());
+    }
+}
+
+// Наценка общепита
+cateringCalcPriceListType = DATA CalcPriceListType();
+nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType());
+
+cateringCalcPriceListType = DATA CalcPriceListType (DepartmentStore);
+nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType(DepartmentStore department)) CHARWIDTH 20;
+
+overCateringCalcPriceListType  = OVERRIDE cateringCalcPriceListType(DepartmentStore department), cateringCalcPriceListType() IF department IS DepartmentStore;
+
+EXTEND FORM options
+    PROPERTIES() nameCateringCalcPriceListType
+;
+DESIGN options {
+    manufacturing {
+        MOVE PROPERTY(nameCateringCalcPriceListType()) BEFORE PROPERTY(nameCateringSaleOperation());
+    }
+}
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) nameCateringCalcPriceListType
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(nameCateringCalcPriceListType(d));
+    }
+}
+
+sessionCateringMarkup 'Наценка общепита' = DATA LOCAL NUMERIC[8,3] (Sale.InvoiceDetail);
+WHEN LOCAL CHANGED(purchaseSku(Sale.InvoiceDetail d)) AND NOT CHANGED(sessionCateringMarkup(d)) DO {
+    sessionCateringMarkup(d) <- markup(overCateringCalcPriceListType(customerStock(d)), purchaseSku(d));
+}
+
+EXTEND FORM selectParams
+    PROPERTIES(sd) BACKGROUND backgroundSelectParams() sessionCateringMarkup  SHOWIF NOT wholeCatering(si) 
+;
+
+createManufacturingPurchaseSaleOver(Sale.Invoice si, Purchase.UserInvoice pi) + {
+    showCatering(pi) <- TRUE;
+}
+
+createManufacturingPurchaseSaleBefore(Sale.InvoiceDetail sd, Purchase.UserInvoiceDetail pd) + {
+    IF NOT wholeCatering(invoice(sd)) THEN {
+        retailVAT (pd) <- retailVAT(sd);
+        valueRetailVAT (pd) <- valueRetailVAT(sd);
+        cateringMarkup (pd) <- sessionCateringMarkup(sd);
+
+        IF NOT calcFromSupplierPriceCatering() THEN {
+            retailPrice (pd) <- NUMERIC[16,4](retailPrice(sd) / coeffPurchase(sd));
+            cateringPrice(pd) <- IF useCateringRoundCondition()
+                THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
+                ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
+            retailSum(pd) <- retailSum(sd);
+            shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);
+
+        } ELSE {
+            retailMarkup(pd) <- cateringMarkup(pd);
+            retailPrice(pd) <- IF useCateringRoundCondition()
+                THEN round([ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd)),roundCondition(cateringCalcPriceListType()))
+                ELSE [ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd));
+            cateringPrice(pd) <- retailPrice(pd);
+        }
+    }
+}

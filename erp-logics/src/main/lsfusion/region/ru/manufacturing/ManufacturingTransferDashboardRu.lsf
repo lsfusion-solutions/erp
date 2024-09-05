@@ -1,0 +1,78 @@
+MODULE ManufacturingTransferDashboardRu;
+
+REQUIRE ManufacturingTransferDashboard, ConsignmentRu;
+
+NAMESPACE Purchase;
+
+EXTEND FORM  manufacturingTransfer
+
+    PROPERTIES(si) SHOWIF isOpened(si) editAttributes, editAttributesUpd SHOWIF NOT hideCreateUpdDocument(si)
+    PROPERTIES(si) READONLYIF banPrint(si) printConsignmentCustomerRu,
+        printConsignmentTTNARu, printConsignmentTTNBRu, printConsignmentTTNABRu,
+        printConsignmentTorg13, printConsignmentTorg12,
+        printConsignmentUpd SHOWIF NOT hideCreateUpdDocument(si),
+        printConsignmentUpdBreake SHOWIF NOT hideCreateUpdDocument(si),
+        printConsignmentUpdBreakeAuto SHOWIF NOT hideCreateUpdDocument(si),
+        printConsignmentM15, consignmentPayment, printInvoiceRu, printConsignment1TAll, printConsignment1TAllXls
+;
+
+DESIGN manufacturingTransfer {
+    printTab {
+        NEW consignmentRow1 {
+            align = START;
+            horizontal = TRUE;
+
+            NEW contOne {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(si)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentCustomerRu(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNARu(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNBRu(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTTNABRu(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTorg13(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentTorg12(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentM15(si)) { alignment = STRETCH; }
+                MOVE PROPERTY (printConsignment1TAll(si)){ alignment = STRETCH; }
+                MOVE PROPERTY (printConsignment1TAllXls(si)){ alignment = STRETCH; }
+                MOVE PROPERTY(consignmentPayment(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printInvoiceRu(si)) { alignment = STRETCH; }
+            }
+        }
+
+        NEW consignmentUPD{
+            align = START;
+            horizontal = TRUE;
+
+            NEW contUPD {
+                alignment = STRETCH;
+                horizontal = TRUE;
+                caption = 'УПД';
+                MOVE PROPERTY(editAttributesUpd(si)) {
+                    alignment = STRETCH;
+                }
+            }
+
+            NEW upd {
+                alignment = STRETCH;
+                lines = 3;
+                caption = 'Отчеты';
+                MOVE PROPERTY(printConsignmentUpd(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentUpdBreake(si)) { alignment = STRETCH; }
+                MOVE PROPERTY(printConsignmentUpdBreakeAuto(si)) { alignment = STRETCH; }
+            }
+        }
+    }
+}
+
+createManufacturingPurchaseSaleOver(Sale.Invoice si, Purchase.UserInvoice pi) + {
+    operation(pi) <- cateringPurchaseOperation();
+}

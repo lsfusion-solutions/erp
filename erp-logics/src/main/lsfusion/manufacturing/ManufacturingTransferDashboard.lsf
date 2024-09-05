@@ -1,17 +1,8 @@
 MODULE ManufacturingTransferDashboard;
 
-REQUIRE SalePurchaseInvoice, PricingSale, PricingPurchase, BOM, Substitute, PurchaseInvoiceCatering, ProductionOrderPurchaseShipment, PriceLimit, SaleOrder, ConsignmentBy;
+REQUIRE SalePurchaseInvoice,  BOM, Substitute,  ProductionOrderPurchaseShipment,  SaleOrder, Store;
 
 NAMESPACE Purchase;
-
-// Наценка общепита
-cateringCalcPriceListType = DATA CalcPriceListType();
-nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType());
-
-cateringCalcPriceListType = DATA CalcPriceListType (DepartmentStore);
-nameCateringCalcPriceListType 'Вид цены(надбавка общепита)' = name(cateringCalcPriceListType(DepartmentStore department)) CHARWIDTH 20;
-
-overCateringCalcPriceListType  = OVERRIDE cateringCalcPriceListType(DepartmentStore department), cateringCalcPriceListType() IF department IS DepartmentStore; 
 
 cateringSaleOperation = DATA Sale.Operation();
 nameCateringSaleOperation 'Операция (расход на цех)' = name(cateringSaleOperation());
@@ -20,23 +11,12 @@ cateringPurchaseOperation = DATA Purchase.Operation();
 nameCateringPurchaseOperation 'Операция (приход на цех)' = name(cateringPurchaseOperation());
 
 EXTEND FORM options
-    PROPERTIES() nameCateringCalcPriceListType, nameCateringSaleOperation, nameCateringPurchaseOperation
+    PROPERTIES() nameCateringSaleOperation, nameCateringPurchaseOperation
 ;
 DESIGN options {
-    manufacturing {
-        MOVE PROPERTY(nameCateringCalcPriceListType());
+    manufacturing {        
         MOVE PROPERTY(nameCateringSaleOperation());
         MOVE PROPERTY(nameCateringPurchaseOperation());
-    }
-}
-
-EXTEND FORM departmentStore
-    PROPERTIES (d) nameCateringCalcPriceListType
-;
-
-DESIGN departmentStore {
-    headerExtraParams {
-        MOVE PROPERTY(nameCateringCalcPriceListType(d));
     }
 }
 
@@ -52,13 +32,8 @@ CONSTRAINT purchaseSku(Sale.InvoiceDetail d) AND NOT isComponentGroup(purchaseSk
 
 coeffPurchase 'Коэфф.' = DATA LOCAL NUMERIC[10,5] (Sale.InvoiceDetail);
 productionCoeffPurchase 'Параметры партии' = DATA LOCAL NUMERIC[8,3] (Sale.InvoiceDetail);
-sessionCateringMarkup 'Наценка общепита' = DATA LOCAL NUMERIC[8,3] (Sale.InvoiceDetail);
 
 backgroundSelectParams = RGB(212, 255, 255);
-
-WHEN LOCAL CHANGED(purchaseSku(Sale.InvoiceDetail d)) AND NOT CHANGED(sessionCateringMarkup(d)) DO {
-    sessionCateringMarkup(d) <- markup(overCateringCalcPriceListType(customerStock(d)), purchaseSku(d));
-}
 
 FORM skusTransfer 'Sku'
     TREE skuTree sg = SkuGroup PARENT parent(sg)
@@ -103,9 +78,6 @@ changePurchaseSku(Sale.InvoiceDetail d)  {
     DIALOG skusTransfer OBJECTS s = purchaseSku(d) CHANGE;
 }
 
-calcRetailMarkup 'Надбавка, %' = IF markup(priceLimitPriceListType(customerStock(Sale.InvoiceDetail detail)), sku(detail)) == 0.0
-    THEN 0.0
-    ELSE retailMarkup(detail);
 
 wholeCatering = ABSTRACT BOOLEAN (Sale.Invoice);// Без расценки, оптовые склады
 wholeCatering (Sale.InvoiceDetail d) = wholeCatering(invoice(d));
@@ -115,11 +87,11 @@ FORM selectParams 'Перемещение на цех'
     OBJECTS si = Sale.Invoice PANEL
     
     OBJECTS sd = Sale.InvoiceDetail
-    PROPERTIES(sd) READONLY index, nameSku, price, calcRetailMarkup SHOWIF NOT wholeCatering(si), retailPrice SHOWIF NOT wholeCatering(si)
+    PROPERTIES(sd) READONLY index, nameSku, price
     FILTERS invoice(sd) == si
     
     PROPERTIES(sd) BACKGROUND backgroundSelectParams() namePurchaseSku ON CHANGE changePurchaseSku(sd), coeffPurchase, 
-                    productionCoeffPurchase SHOWIF NOT wholeCatering(si), sessionCateringMarkup  SHOWIF NOT wholeCatering(si)
+                    productionCoeffPurchase SHOWIF NOT wholeCatering(si)
 ;
 DESIGN selectParams{
     BOX {
@@ -136,9 +108,9 @@ EXTEND FORM options
 DESIGN options {
     manufacturing {
         MOVE PROPERTY(useCateringRoundCondition());
-        MOVE PROPERTY (calcFromSupplierPriceCatering());
     }
 }
+createManufacturingPurchaseSaleBefore  ABSTRACT LIST (Sale.InvoiceDetail, Purchase.UserInvoiceDetail);
 createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.InvoiceDetail, Purchase.UserInvoiceDetail);
 createManufacturingPurchaseSaleOver  ABSTRACT LIST (Sale.Invoice, Purchase.UserInvoice);
 substituteToOver = ABSTRACT Substitute(Sku);
@@ -180,7 +152,6 @@ createManufacturingPurchaseSale 'Создать поступление на це
                 currency(pi) <- currency(si);
                 IF NOT wholeCatering(si) THEN {
                     operation(pi) <- cateringPurchaseOperation();
-                    showCatering(pi) <- TRUE;
                 }
                 createManufacturingPurchaseSaleOver(si,pi);
 
@@ -196,35 +167,14 @@ createManufacturingPurchaseSale 'Создать поступление на це
 
                     price (pd) <- NUMERIC[16,4](price(sd) / coeffPurchase(sd));
                     invoicePrice (pd) <- NUMERIC[16,4](invoicePrice(sd) / coeffPurchase(sd));
-                    IF NOT wholeCatering(si) THEN {
-                        retailVAT (pd) <- retailVAT(sd);
-                        valueRetailVAT (pd) <- valueRetailVAT(sd);
-                        cateringMarkup (pd) <- sessionCateringMarkup(sd);
-
-                        IF NOT calcFromSupplierPriceCatering() THEN {
-                            retailPrice (pd) <- NUMERIC[16,4](retailPrice(sd) / coeffPurchase(sd));
-                            cateringPrice(pd) <- IF useCateringRoundCondition()
-                                THEN NUMERIC[16,4](round( retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0), roundCondition(cateringCalcPriceListType())))
-                                ELSE NUMERIC[16,4](retailPrice(sd) * (100.0 + cateringMarkup (pd)) / (coeffPurchase(sd) * 100.0)); // делаем так, чтобы выше точность была	     
-                            retailSum(pd) <- retailSum(sd);
-                            shipmentSum(pd) <- NUMERIC[18,4](shipmentSum(sd) * (100.0 + cateringMarkup (pd))  / 100.0);
-
-                        } ELSE {
-                            retailMarkup(pd) <- cateringMarkup(pd);
-                            retailPrice(pd) <- IF useCateringRoundCondition()
-                                THEN round([ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd)),roundCondition(cateringCalcPriceListType()))
-                                ELSE [ X*(Y+100)*(Z+100)/10000](pricingPrice(pd),retailMarkup(pd),valueRetailVAT(pd));
-                            cateringPrice(pd) <- retailPrice(pd);
-                        }
-                    }
+                    createManufacturingPurchaseSaleBefore(sd,pd);
 
                     productionCoeff (pd) <- productionCoeffPurchase(sd);
                     createManufacturingPurchaseSaleOver(sd,pd);
                 }
                 SHOW Purchase.userInvoice OBJECTS i = pi DOCKED NOCANCEL;
             }    
-        }
-        
+        }        
 	}
 } TOOLBAR;
 
@@ -286,63 +236,6 @@ DESIGN manufacturingTransfer {
     MOVE TOOLBARBOX;
 }
 
-EXTEND FORM  manufacturingTransfer
-    PROPERTIES(si)  editAttributes
-    PROPERTIES(si) SHOWIF showTTN1(si)
-                     printVerticalA, printVerticalAB, printHorizontalA,
-                     printVerticalB, printHorizontalB, printAttach,
-                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS 
-    PROPERTIES(si) SHOWIF showTN2(si)
-                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
-;
-
-DESIGN manufacturingTransfer {
-    printTab {   
-        NEW consignmentRow1 {
-            align = START;
-            horizontal = TRUE;
-
-            NEW contOne {
-                alignment = STRETCH;
-                horizontal = TRUE;
-                caption = 'Накладная';
-                MOVE PROPERTY(editAttributes(si)) {
-                    alignment = STRETCH;
-                }
-            }
-            NEW tn2 {
-                alignment = STRETCH;
-                lines = 3;
-                caption = 'ТН-2';
-                MOVE PROPERTY(printSimpleVertical(si));
-                MOVE PROPERTY(printSimpleHorizontal(si));
-                MOVE PROPERTY(printSimpleAttach(si));
-            }
-        }
-        NEW consignmentRow2 {
-            align = START;
-            lines = 3;
-            caption = 'ТТН-1';
-            MOVE PROPERTY(printVerticalA(si));
-            MOVE PROPERTY(printVerticalAB(si));
-            MOVE PROPERTY(printHorizontalA(si));
-            MOVE PROPERTY(printVerticalB(si));
-            MOVE PROPERTY(printHorizontalB(si));
-            MOVE PROPERTY(printAttach(si));      
-            MOVE PROPERTY(printVertical(si));  
-            MOVE PROPERTY(printHorizontal(si));
-        }
-        NEW consignmentRow3 {
-            horizontal = TRUE;            
-            NEW export {
-                horizontal = TRUE;
-                caption = 'Экспорт';  
-                MOVE PROPERTY(printAttachXLS(si));  
-                MOVE PROPERTY(printSimpleAttachXLS(si));                
-            }
-        }    
-    }
-}
 
 saleIdSku 'Код товара (исходный)' (InvoiceDetail d) = idSku(invoiceDetail(d));
 saleNameSku 'Товар (исходный)' (InvoiceDetail d) = nameSku(invoiceDetail(d));
