@@ -59,6 +59,9 @@ overNameSku (Barcode b, Stock s, User u, STRING vop) = overNameSku(b, s) IF NOT 
 color 'Цвет' = ABSTRACT COLOR (Sku, Stock);
 color(Barcode b, Stock s) = color(sku(b), s);
 
+background_color 'Цвет фона' = ABSTRACT COLOR (Sku, Stock);
+background_color(Barcode b, Stock s) = background_color(sku(b), s);
+
 extInfo 'Дополнительная информация' = ABSTRACT TEXT (Barcode, Stock);
 fld3 = ABSTRACT TEXT (Barcode, Stock);
 fld4 = ABSTRACT TEXT (Barcode, Stock);
@@ -83,8 +86,9 @@ flag (TerminalBarcodeFlags f) = LONG(power(2l, order(f)));
 flags(Sku s, Stock st) = GROUP SUM flag(TerminalBarcodeFlags f) IF in(s, st, f);
 flags(Barcode b, Stock st) = flags(sku(b), st);
 
+//sendImagesName 'Выгружать имена изображений' = DATA BOOLEAN () PREREAD;
 image(Barcode b) = smallImage(sku(b)) IF hasImage(sku(b));
-hasImage(Barcode b) = hasImage(sku(b));
+hasImage(Barcode b) = hasImage(sku(b)); // AND sendImagesName();
 
 amountPack (Barcode b) = amountPack(sku(b));
 
@@ -189,7 +193,7 @@ changeStatusTerminalOrder ABSTRACT LIST (STRING, STRING, STRING);
 EXTEND FORM options
     PROPERTIES() hostTerminalServer, portTerminalServer, restrictLockedUsers,
     sendAllItems, sendOnlyActiveItems, useCurrentQuantityInTerminal, filterCurrentQuantityInTerminal, 
-    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, baseZipDirectory, countDaysFilterBatches
+    namePriceListTypeTerminal, skipGoodsInReadBase, imagesInReadBase, /*sendImagesName,*/ baseZipDirectory, countDaysFilterBatches
 ;
 DESIGN options {
     machinery {
@@ -208,6 +212,7 @@ DESIGN options {
             MOVE PROPERTY(namePriceListTypeTerminal());
             MOVE PROPERTY(skipGoodsInReadBase());
             MOVE PROPERTY(imagesInReadBase());
+            /*MOVE PROPERTY(sendImagesName());*/
             MOVE PROPERTY(baseZipDirectory());
             MOVE PROPERTY(countDaysFilterBatches());
         }
