@@ -1,0 +1,502 @@
+MODULE InventorySchedule;
+
+REQUIRE InventoryOrder, InventoryTerminal, SkuList;
+
+NAMESPACE Inventory;
+
+CLASS ScheduleInventory 'График инвентаризаций';
+
+legalEntity 'Организация' = DATA LegalEntity (ScheduleInventory);
+nameLegalEntity 'Организация' (ScheduleInventory schedule) = name(legalEntity(schedule));
+
+startDate 'Дата начала' = DATA DATE (ScheduleInventory);
+endDate 'Дата начала' = DATA DATE (ScheduleInventory);
+single 'Однократная' = DATA BOOLEAN (ScheduleInventory);
+
+operation 'Операция' = DATA Operation (ScheduleInventory);
+nameOperation 'Операция' (ScheduleInventory schedule) = name(operation(schedule));
+note 'Примечание' = DATA ISTRING[100] (ScheduleInventory) CHARWIDTH 30;
+
+CLASS ScheduleInventoryDate 'Дата';
+date 'Дата' = DATA DATE (ScheduleInventoryDate) NONULL;
+scheduleInventory = DATA ScheduleInventory (ScheduleInventoryDate) NONULL;
+scheduleInventoryDate = DATA ScheduleInventoryDate(ScheduleInventoryDetail);
+
+allStocks 'Отм' = DATA BOOLEAN (ScheduleInventory);
+
+TABLE ScheduleOrderStockGroup(ScheduleInventory, StockGroup);
+dataIn 'Отм' = DATA BOOLEAN (ScheduleInventory, StockGroup);
+
+TABLE ScheduleOrderStock(ScheduleInventory, Stock);
+dataIn 'Отм' = DATA BOOLEAN (ScheduleInventory, Stock);
+
+levelParent(ScheduleInventory scheduleOrder, StockGroup stockGroup)  = GROUP
+    MIN level(stockGroup, StockGroup parent) IF dataIn(scheduleOrder, parent) MATERIALIZED;
+
+inParent (ScheduleInventory scheduleOrder, StockGroup stockGroup) = TRUE IF levelParent (scheduleOrder, stockGroup) MATERIALIZED;
+
+in 'Отм' (ScheduleInventory scheduleOrder, StockGroup stockGroup) = OVERRIDE
+    dataIn(scheduleOrder, stockGroup),
+    inParent (scheduleOrder, stockGroup),
+    allStocks(scheduleOrder) AND stockGroup IS StockGroup;
+
+in 'Отм' (ScheduleInventory scheduleOrder, Stock stock) =
+    (OVERRIDE dataIn(scheduleOrder, stock),
+        in(scheduleOrder, stockGroup(stock)))
+        AND isCompany(stock)
+    MATERIALIZED;
+
+backgroundAllStocks 'Цвет' (ScheduleInventory scheduleOrder) = RGB(0,0,0) IF allStocks(scheduleOrder);
+
+background 'Цвет' (ScheduleInventory scheduleOrder, StockGroup stockGroup) = IF dataIn(scheduleOrder, stockGroup) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250)
+        IF (OVERRIDE inParent (scheduleOrder, stockGroup), allStocks(scheduleOrder) AND stockGroup IS StockGroup);
+
+background'Цвет' (ScheduleInventory scheduleOrder, Stock stock) = IF dataIn(scheduleOrder, stock) AND isCompany(stock) AND in(legalEntity(scheduleOrder), stock) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250)
+        IF in(scheduleOrder, stockGroup(stock)) AND isCompany(stock) AND in(legalEntity(scheduleOrder), stock);
+
+
+stocks 'Склады' (ScheduleInventory scheduleOrder) = STRING[500]((GROUP
+    CONCAT name(Stock stock) IF in(scheduleOrder, stock) , ', '
+    ORDER stock)) CHARWIDTH 20 MATERIALIZED IN id;
+
+dataInclude 'Вкл' = DATA BOOLEAN (ScheduleInventory, SkuGroup);
+
+levelParentInclude (ScheduleInventory inventory, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataInclude(inventory, parent) MATERIALIZED;
+nearestParentInclude (ScheduleInventory inventory, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(inventory, skuGroup));
+nearestInclude (ScheduleInventory inventory, SkuGroup skuGroup) = dataInclude(inventory, nearestParentInclude (inventory, skuGroup));
+
+include 'Вкл' (ScheduleInventory inventory, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(inventory, skuGroup),
+        nearestInclude (inventory, skuGroup) MATERIALIZED;
+
+overInclude = ABSTRACT BOOLEAN (ScheduleInventory, Sku);
+
+skipInclude = ABSTRACT BOOLEAN (ScheduleInventory, Sku);
+
+list 'Список SKU' = DATA List (ScheduleInventory);
+canonicalNameList 'Список SKU' (ScheduleInventory d) = canonicalName(list(d));
+
+include 'Вкл' (ScheduleInventory inventory, Sku sku) = (OVERRIDE overInclude(inventory, sku), include(inventory, skuGroup(sku)), in(list(inventory), sku)) AND NOT skipInclude(inventory, sku);
+countIncludeSkuGroup 'Вкл' (ScheduleInventory inventory) = GROUP SUM 1 IF include(inventory, SkuGroup sku);
+
+countIncludeSku 'Вкл' (ScheduleInventory inventory) = GROUP SUM 1 IF include(inventory, Sku sku);
+
+nameIncludeSkuGroups 'Группы товаров' (ScheduleInventory document)=
+    GROUP
+        CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', '
+        ORDER skuGroup
+    CHARWIDTH 20;
+
+resetIncludeSkuGroups  'Сбросить отмеченные'(ScheduleInventory in)  {
+    dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;
+}
+
+FORM selectSkuGroupsScheduleInventory 'Выбор групп'
+
+    OBJECTS in = ScheduleInventory PANEL
+
+    TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(in,sk2)
+    ORDERS order(sk2), name(sk2)
+    PROPERTIES (in) resetIncludeSkuGroups TOOLBAR DRAW sk2 SHOWIF countIncludeSku(in)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
+;
+DESIGN selectSkuGroupsScheduleInventory {
+    BOX {
+        size = (1024, 768);
+    }
+}
+
+changeSkuGroups (ScheduleInventory in)  {
+    SHOW selectSkuGroupsScheduleInventory OBJECTS in = in ;
+}
+
+CLASS ScheduleInventoryDetail 'Инвентаризация по графику';
+
+scheduleInventory = DATA ScheduleInventory(ScheduleInventoryDetail);
+date 'Дата' = DATA DATE (ScheduleInventoryDetail);
+stock 'Склад' = DATA Stock (ScheduleInventoryDetail);
+nameStock 'Склад' (ScheduleInventoryDetail d) = name(stock(d));
+operation 'Операция' = DATA Operation (ScheduleInventoryDetail);
+nameOperation 'Операция' (ScheduleInventoryDetail d) = name(operation(d));
+
+isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleInventoryDetail);
+isOpened  'Не аннулирован' (ScheduleInventoryDetail o) = o IS ScheduleInventoryDetail  AND NOT isClosed (o) MATERIALIZED;
+
+inventory = DATA Inventory (ScheduleInventoryDetail);
+numberInventory 'Инвентаризация' (ScheduleInventoryDetail d) = number(inventory(d));
+
+order = DATA Order (ScheduleInventoryDetail);
+numberOrder 'Заказ' (ScheduleInventoryDetail d) = number(order(d));
+
+note 'Примечание' = DATA ISTRING[100] (ScheduleInventoryDetail) CHARWIDTH 30;
+
+dataInclude 'Вкл' = DATA BOOLEAN (ScheduleInventoryDetail, SkuGroup);
+
+levelParentInclude (ScheduleInventoryDetail inventory, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataInclude(inventory, parent) MATERIALIZED;
+nearestParentInclude (ScheduleInventoryDetail inventory, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(inventory, skuGroup));
+nearestInclude (ScheduleInventoryDetail inventory, SkuGroup skuGroup) = dataInclude(inventory, nearestParentInclude (inventory, skuGroup));
+
+include 'Вкл' (ScheduleInventoryDetail inventory, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(inventory, skuGroup),
+        nearestInclude (inventory, skuGroup) MATERIALIZED;
+
+overInclude = ABSTRACT BOOLEAN (ScheduleInventoryDetail, Sku);
+
+skipInclude = ABSTRACT BOOLEAN (ScheduleInventoryDetail, Sku);
+
+CLASS InventoryStatus 'Статус' {
+    new 'Новая',
+    inProcess 'В работе',
+    completed 'Выполнена'
+}
+
+status 'Статус' (ScheduleInventoryDetail d) = CASE
+    WHEN d IS ScheduleInventoryDetail AND NOT inventory(d) THEN InventoryStatus.new
+    WHEN inventory(d) AND NOT isPosted(inventory(d)) THEN InventoryStatus.inProcess
+    WHEN isPosted(inventory(d)) THEN InventoryStatus.completed
+;       
+    
+nameStatus 'Статус' (ScheduleInventoryDetail d) = staticCaption(status(d)) CHARWIDTH 8;
+
+backgroundStatus (ScheduleInventoryDetail d) = CASE
+    WHEN status(d)=InventoryStatus.new THEN RGB(255,238,165)
+    WHEN status(d)=InventoryStatus.inProcess THEN RGB(212,255,212)
+    WHEN status(d)=InventoryStatus.completed THEN RGB(204, 204, 255)
+;
+
+list 'Список SKU' = DATA List (ScheduleInventoryDetail);
+canonicalNameList 'Список SKU' (ScheduleInventoryDetail d) = canonicalName(list(d));
+
+include 'Вкл' (ScheduleInventoryDetail inventory, Sku sku) = (OVERRIDE overInclude(inventory, sku), include(inventory, skuGroup(sku)), in(list(inventory), sku)) AND NOT skipInclude(inventory, sku);
+countIncludeSkuGroup 'Вкл' (ScheduleInventoryDetail inventory) = GROUP SUM 1 IF include(inventory, SkuGroup sku);
+
+countIncludeSku 'Вкл' (ScheduleInventoryDetail inventory) = GROUP SUM 1 IF include(inventory, Sku sku);
+
+nameIncludeSkuGroups 'Группы товаров' (ScheduleInventoryDetail document)=
+    GROUP
+        CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', '
+        ORDER skuGroup
+    CHARWIDTH 20;
+
+resetIncludeSkuGroups 'Сбросить отмеченные'(ScheduleInventoryDetail in)  {
+    dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;
+}
+
+FORM selectSkuGroupsScheduleInventoryDetail 'Выбор групп'
+
+    OBJECTS in = ScheduleInventoryDetail PANEL
+
+    TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(in,sk2)
+    ORDERS order(sk2), name(sk2)
+    PROPERTIES (in) resetIncludeSkuGroups TOOLBAR DRAW sk2 SHOWIF countIncludeSku(in)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
+;
+DESIGN selectSkuGroupsScheduleInventoryDetail {
+    BOX {
+        size = (1024, 768);
+    }
+}
+
+changeSkuGroups (ScheduleInventoryDetail in)  {
+    SHOW selectSkuGroupsScheduleInventoryDetail OBJECTS in = in ;
+}
+
+scheduleInventoryDetail = GROUP LAST ScheduleInventoryDetail detail ORDER detail BY scheduleInventory(detail), stock(detail), scheduleInventoryDate(detail);
+
+createScheduleInventoryDetail 'Заполнить' (ScheduleInventory schedule) {
+    FOR scheduleInventory(ScheduleInventoryDate date) = schedule AND in(schedule, Stock stock) AND NOT scheduleInventoryDetail(schedule, stock, date) DO NEW d = ScheduleInventoryDetail {
+        scheduleInventory(d) <- schedule;
+        scheduleInventoryDate(d) <- date;
+        stock(d) <- stock;
+    }
+    FOR scheduleInventory(ScheduleInventoryDetail d) = schedule DO {
+        operation(d) <- operation(schedule);
+        date(d) <- date(scheduleInventoryDate(d)) WHERE scheduleInventoryDate(d);
+        include(d, SkuGroup group) <- TRUE WHERE include(schedule, group);
+        list(d) <- list(schedule);
+        note(d) <- note(schedule);
+    }
+    IF NOT canceled() THEN {
+        MESSAGE 'График инвентаризаций заполнен';
+    } ELSE CANCEL;
+} CONFIRM TOOLBAR;
+
+FORM scheduleInventory 'График инвентаризаций'
+    OBJECTS s = ScheduleInventory PANEL
+    PROPERTIES (s) nameLegalEntity, startDate, endDate, nameOperation, canonicalNameList, nameIncludeSkuGroups ON CHANGE changeSkuGroups(s)
+
+    TREE stockTree a=BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES(s) allStocks DRAW a BACKGROUND backgroundAllStocks(s)
+    PROPERTIES(s, sg) in BACKGROUND background(s, sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+    FILTERS countCompanyStock(sg)
+
+    OBJECTS ts = Stock
+    PROPERTIES READONLY  name(ts)
+    PROPERTIES(s, ts) in BACKGROUND background(s, ts)
+    FILTERS ts IS Stock AND NOT sg IS StockGroup OR isParent(sg, ts),
+        in(legalEntity(s), ts),
+        isCompany(ts)
+    FILTERGROUP filters2
+        FILTER 'Выбранные склады' in(s, ts) 'F11'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    
+    OBJECTS dt = ScheduleInventoryDate
+    PROPERTIES (dt) date, NEW, DELETE
+    FILTERS scheduleInventory(dt)=s
+
+    OBJECTS d = ScheduleInventoryDetail
+    PROPERTIES (d) isClosed, date, nameStatus BACKGROUND backgroundStatus(d), nameStock, nameOperation, nameIncludeSkuGroups ON CHANGE changeSkuGroups(d), 
+                    canonicalNameList, note, numberInventory READONLY
+    PROPERTIES NEW (d), DELETE (d)
+    PROPERTIES (s) createScheduleInventoryDetail DRAW d
+    FILTERS scheduleInventory(d)=s
+    EDIT ScheduleInventory OBJECT s
+;
+
+DESIGN scheduleInventory {
+    BOX {
+        size = (1024, 768);
+        NEW header {
+            horizontal = TRUE;
+            NEW secondContainer{
+                NEW suppContainer {
+                    caption = 'Компания';
+                    MOVE PROPERTY(nameLegalEntity(s));
+                }
+                NEW operationContainer {
+                    caption = 'Операция';
+                    MOVE PROPERTY(nameOperation(s));
+                }
+                NEW skuContainer {
+                    caption = 'Товары';
+                    MOVE PROPERTY(canonicalNameList(s));
+                    MOVE PROPERTY(nameIncludeSkuGroups(s));
+                }
+            }
+
+            NEW dateContainer {
+                caption = 'Сроки';
+                MOVE PROPERTY(startDate(s));
+                MOVE PROPERTY(endDate(s));
+                MOVE BOX(dt);
+            }
+        }
+
+        NEW bottomContainer {
+            fill = 1;
+            tabbed = TRUE;
+            NEW stocksContainer {
+                fill = 1;
+                caption = 'Склады';
+                horizontal = TRUE;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+                MOVE BOX(ts) {
+                    fill = 2;
+                }
+            }
+
+            MOVE BOX(d) {
+                caption = 'Инвентаризации по графику';
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+FORM scheduleInventories 'Графики инвентаризаций'
+    OBJECTS s = ScheduleInventory
+    PROPERTIES (s) nameLegalEntity, startDate, endDate, canonicalNameList, nameIncludeSkuGroups
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+;
+
+FORM scheduleInventoryDetails 'График инвентаризаций'
+    OBJECTS d = ScheduleInventoryDetail
+    PROPERTIES (d) isClosed, date, nameStatus BACKGROUND backgroundStatus(d), nameStock, nameOperation, nameIncludeSkuGroups ON CHANGE changeSkuGroups(d), 
+                    canonicalNameList, note, numberInventory READONLY
+    PROPERTIES NEW (d), DELETE (d)
+;
+
+NAVIGATOR {
+    inventoryNavigator {
+        NEW scheduleInventories;
+    }
+}
+
+stock = DATA LOCAL Stock();
+nameStock 'Склад ' = name(stock());
+
+createInventory 'Начать инвентаризацию' (ScheduleInventoryDetail d) {
+    NEWSESSION {
+        NEW o = UserOrder {
+            order(d) <- o;
+            isPosted(o) <- TRUE;
+            operation(o) <- operation(d);
+            stock(o) <- stock(d);
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            note(o) <- note(d);
+            FOR include(d, Sku sku) DO NEW dd = UserOrderDetail {
+                order(dd) <- o;
+                sku(dd) <- sku;
+            }
+        }
+        NEW i = Inventory {
+            inventory(d) <- i;
+            operation(i) <- operation(d);
+            date(i) <- currentDate();
+            time(i) <- currentTime();
+            note(i) <- note(d);
+            include(Stock st, i) <- TRUE WHERE st=stock(d);
+            APPLY;
+        }
+        IF NOT canceled() THEN {
+            MESSAGE 'Список товаров для инвентаризации сформирован';
+        } ELSE CANCEL;        
+    }
+} TOOLBAR CONFIRM;
+
+createListInventory 'Внести результаты вручную' (ScheduleInventoryDetail d) {
+    NEW l = ListInventory {
+        inventory(l) <- inventory(d);
+        note(l) <- note(d);
+        stock(l) <- stock(d);
+        NEW p = PageInventory {
+            listInventory(p) <-l; 
+            FOR order(OrderDetail od)=order(d) DO NEW pd = PageInventoryDetail {
+                pageInventory(pd) <- p;
+                sku(pd) <- sku(od);
+                quantity(pd) <- OVERRIDE balanceB(sku(od), stock(od), dateTime(od)), 0.0;
+            }            
+        }
+    }
+    APPLY;
+} TOOLBAR CONFIRM;
+
+addListInventoryDialogTerminal 'Заполнить из документов ТСД' (ScheduleInventoryDetail d) {
+    NEWSESSION {
+        addListInventoryDialogTerminal(stock(d), inventory(d));
+        APPLY;
+        IF NOT canceled() THEN {
+            MESSAGE 'Опись инвентаризации сформирована';
+        } ELSE CANCEL;
+    }        
+} TOOLBAR CONFIRM;
+
+editListInventory 'Изменить количество' (PageInventoryDetail d) {
+    NEWSESSION {
+        FOR ListInventory l = listInventory(d) DO {
+            edit(l);
+        }
+    }        
+} TOOLBAR CONFIRM;
+
+calculateBalance 'Сформировать расхождения' (Inventory inventory) {
+    NEWSESSION {
+        recalculateBalance(inventory);
+        APPLY;
+        IF NOT canceled() THEN {
+            MESSAGE 'Расхождения по инвентаризации посчитаны';
+        } ELSE CANCEL;
+    }       
+}
+
+FORM scheduleInventorDashboard 'Инвентаризации по графику'
+
+    OBJECTS d=DATE PANEL
+    PROPERTIES dv=VALUE(d)
+    PROPERTIES () nameStock
+
+    OBJECTS sd=ScheduleInventoryDetail
+    PROPERTIES (sd) READONLY date, nameStatus BACKGROUND backgroundStatus(sd), nameStock, nameOperation, nameIncludeSkuGroups, canonicalNameList, note
+    PROPERTIES createInventory(sd) SHOWIF NOT order(sd), 
+                createListInventory(sd) SHOWIF inventory(sd) AND NOT countListInventory(inventory(sd)),
+                addListInventoryDialogTerminal(sd) SHOWIF inventory(sd) AND NOT countListInventory(inventory(sd))
+
+    ORDERS date(sd)
+
+    FILTERS stock(sd) == stock() OR (sd IS ScheduleInventoryDetail AND NOT stock())
+
+    FILTERGROUP countFilter
+        FILTER 'На дату' date(sd) <= d DEFAULT
+    
+    FILTERGROUP openedSchedule
+        FILTER 'Открыт' isOpened(sd) DEFAULT
+    
+    OBJECTS o = Order 
+    FILTERS o = order(sd)
+    
+    OBJECTS od = OrderDetail
+    PROPERTIES (od) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
+    FILTERS order(od)=o
+
+    OBJECTS pid = PageInventoryDetail
+    PROPERTIES (pid) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), quantity, price, sum
+    PROPERTIES (pid) editListInventory
+    FILTERS inventory(pid)=inventory(sd)
+    
+    OBJECTS cs = CollationSheet
+    FILTERS inventory(cs)=inventory(sd)
+
+    OBJECTS sk = Sku GRID
+    PROPERTIES(sk) READONLY BACKGROUND backgroundDiffInventory(cs,sk) idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,sk) ON CONTEXTMENU movementDocumentDetailSku(sk,cs), id
+    PROPERTIES(cs, sk) quantityPageInventoryDetail READONLYIF disallowEditQuantityPageInventoryDetail() ON CHANGE overChangeQuantityPageInventoryDetail(cs,sk) BACKGROUND backgroundQuantity(cs,sk), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, sk)
+    PROPERTIES(cs, sk) priceBalance 
+    PROPERTIES(cs, sk) sumPageInventoryDetail, sumBalance, sumShortage
+    FILTERS include(cs, sk) OR overInclude(cs,sk)
+    
+    OBJECTS i = Inventory
+    PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                            nameStock, name, note, quantityShortage, sumShortage
+    PROPERTIES (i) post SHOWIF showPost(i), unpost SHOWIF showUnpost(i), EDIT
+    PROPERTIES calculateBalance(i) DRAW sk TOOLBAR
+    FILTERS inventory(sd)=i
+;
+
+DESIGN scheduleInventorDashboard {
+    NEW header {
+        horizontal = TRUE;
+        MOVE PROPERTY(dv);
+        MOVE PROPERTY(nameStock());
+    }
+    MOVE BOX(sd);
+    NEW documentDetail {
+        fill = 1;
+        tabbed = TRUE;
+        MOVE BOX(od) {
+            fill = 1;
+            caption = 'Товары для инвентаризации';
+        }
+        MOVE BOX(pid) {
+            fill = 1;
+            caption = 'Товары посчитанные';
+        }
+        MOVE BOX(sk) {
+            fill = 1;
+            caption = 'Расхождения';
+        }
+        MOVE BOX(i) {
+            fill = 1;
+            caption = 'Документ инвентаризации';
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW scheduleInventorDashboard;
+    }
+}
