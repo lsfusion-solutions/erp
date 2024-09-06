@@ -315,6 +315,8 @@ filter(DisassemblyLot l, DATE df, DATE dt, Stock st) = date(l) >= df AND date(l)
     stock(l) == st AND (user(l) == disassemblyLotReportUser() OR NOT disassemblyLotReportUser())
     AND (inLotReport(cycle(lot(l))) OR NOT inLotReportCycles()) AND NOT fixedLotDashboardSku(l);
 
+skipDisassemblyLotReport = ABSTRACT BOOLEAN (DisassemblyLot);
+
 disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st);
 disassemblyLotSkuSum 'Сумма' (Sku s, DATE df, DATE dt, Stock st) =
@@ -323,11 +325,9 @@ disassemblyLotSkuWeight 'Вес' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM weight(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
 
 disassemblyLotSkuQuantityNew 'Кол-во (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
-    GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st) AND NOT isRemains(mix(l));
+    GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
 disassemblyLotSkuSumNew 'Сумма (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
-    GROUP SUM price(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st) AND NOT isRemains(mix(l));
-disassemblyLotSkuAvPrice 'Средневзвешенная цена' (Sku s, DATE df, DATE dt, Stock st) = round2(
-        disassemblyLotSkuSumNew(s, df, dt, st) / disassemblyLotSkuQuantityNew(s, df, dt, st));
+    GROUP SUM price(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
 
 disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt) =
     GROUP SUM disassemblyLotSkuQuantity(s, df, dt, Stock st) IF inLotReport(st);
@@ -347,9 +347,9 @@ disassemblyLotQuantity 'Кол-во, шт' (DATE df, DATE dt, Stock st) = GROUP 
 disassemblyLotSum 'Сумма, руб' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st);
 disassemblyLotWeight 'Вес, кг' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st);
 
-disassemblyLotQuantityNew 'Кол-во, шт (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT isRemains(mix(l));
-disassemblyLotWeightNew 'Вес, кг (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT isRemains(mix(l));
-disassemblyLotSumNew 'Сумма, руб (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT isRemains(mix(l));
+disassemblyLotQuantityNew 'Кол-во, шт (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotWeightNew 'Вес, кг (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotSumNew 'Сумма, руб (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
 averagePrice 'Средневзвеш. цена (за ед.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotQuantityNew(df, dt, st));
 averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotWeightNew(df, dt, st));
 
