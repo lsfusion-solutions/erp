@@ -4,23 +4,29 @@ REQUIRE PriceListCalc, Store;
 
 //------------------ Предельные надбавки ----------------------//
 
+priceLimitPriceListType 'Вид цен (предельные надбавки)' = DATA CalcPriceListType(StoreType);
+namePriceLimitPriceListType 'Вид цен (предельные надбавки)' (StoreType t) = name(priceLimitPriceListType(t));
+EXTEND FORM chainStores
+    PROPERTIES(s) namePriceLimitPriceListType AFTER name(s);
+
 priceLimitPriceListType= DATA CalcPriceListType (Store);
-namePriceLimitPriceListType 'Вид цен (предельные надбавки)' (Store store) = name[PriceListType](priceLimitPriceListType(store));
-priceLimitPriceListType (DepartmentStore department)= priceLimitPriceListType(store(department)) MATERIALIZED;
-namePriceLimitPriceListType 'Вид цен (предельные надбавки)' (DepartmentStore department)= name[PriceListType](priceLimitPriceListType(department));
+overPriceLimitPriceListType (Store s) = OVERRIDE priceLimitPriceListType(s), priceLimitPriceListType(storeType(s));
+nameOverPriceLimitPriceListType 'Вид цен (предельные надбавки)' (Store store) = name(overPriceLimitPriceListType(store));
+priceLimitPriceListType (DepartmentStore department)= overPriceLimitPriceListType(store(department)) MATERIALIZED;
+namePriceLimitPriceListType 'Вид цен (предельные надбавки)' (DepartmentStore department)= name(priceLimitPriceListType(department));
 
 basePriceLimitPriceListType (DepartmentStore d) = basePriceListType(priceLimitPriceListType(d)) MATERIALIZED;
 
 EXTEND FORM store
-    PROPERTIES(s) namePriceLimitPriceListType
+    PROPERTIES(s) nameOverPriceLimitPriceListType
 ;
 DESIGN store {
     headerPriceParams{
-        MOVE PROPERTY(namePriceLimitPriceListType(s));
+        MOVE PROPERTY(nameOverPriceLimitPriceListType(s));
     }
 }
 EXTEND FORM stores
-    PROPERTIES(s) READONLYIF isReadonly() namePriceLimitPriceListType
+    PROPERTIES(s) READONLYIF isReadonly() nameOverPriceLimitPriceListType
 ;
 
 @defineOption(limitMarkupValue, 'Значение дополнительной предельной надбавки, %', NUMERIC[8,3], price);

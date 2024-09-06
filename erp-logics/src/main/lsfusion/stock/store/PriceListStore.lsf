@@ -11,6 +11,7 @@ dataRetailPriceListType 'Розничная цена (управленческа
 nameDataRetailPriceListType 'Розничная цена (управленческая)' (Store s) = name(dataRetailPriceListType(s));
 
 retailPriceListType (Store s) = OVERRIDE dataRetailPriceListType(s), retailPriceListType(storeType(s)) MATERIALIZED;
+nameRetailPriceListType 'Розничная цена (управленческая)' (Store s) = name(retailPriceListType(s));
 retailPriceListType (DepartmentStore d) = retailPriceListType(store(d)) MATERIALIZED;
 
 retailPriceA 'Розничная цена (управленческая)' (Sku s, DepartmentStore d, DATETIME t) =  
@@ -25,9 +26,10 @@ retailCalcPriceListType 'Розничная цена (расчетная)' = DAT
 nameRetailCalcPriceListType 'Розничная цена (расчетная)' (StoreType t) = name(retailCalcPriceListType(t)); 
 
 dataRetailCalcPriceListType 'Розничная цена (расчетная)' = DATA CalcPriceListType(Store);
-nameDataRetailCalcPriceListType 'Розничная цена (расчетная)' (Store s) = name[PriceListType](dataRetailCalcPriceListType(s));
+nameDataRetailCalcPriceListType 'Розничная цена (расчетная)' (Store s) = name(dataRetailCalcPriceListType(s));
 
 retailCalcPriceListType (Store s) = OVERRIDE dataRetailCalcPriceListType(s), retailCalcPriceListType(storeType(s)) MATERIALIZED;
+nameRetailCalcPriceListType 'Розничная цена (расчетная)' (Store s) = name(retailCalcPriceListType(s));
 retailCalcPriceListType (DepartmentStore d) = retailCalcPriceListType(store(d)) MATERIALIZED;
 
 markup 'Надбавка, % (расчетная)' (Sku s, DepartmentStore st) =
@@ -44,15 +46,15 @@ EXTEND FORM chainStores
 ;
 
 EXTEND FORM store
-    PROPERTIES(s) nameDataRetailPriceListType, nameDataRetailCalcPriceListType
+    PROPERTIES(s) nameRetailPriceListType, nameRetailCalcPriceListType
 ;
 
 DESIGN store {
     headerPriceParams {
-        MOVE PROPERTY(nameDataRetailPriceListType(s));
-        MOVE PROPERTY(nameDataRetailCalcPriceListType(s));
+        MOVE PROPERTY(nameRetailPriceListType(s));
+        MOVE PROPERTY(nameRetailCalcPriceListType(s));
     }
 }
 EXTEND FORM stores
-    PROPERTIES(s) READONLYIF isReadonly() nameDataRetailPriceListType, nameDataRetailCalcPriceListType
+    PROPERTIES(s) READONLYIF isReadonly() nameRetailPriceListType, nameRetailCalcPriceListType
 ;
