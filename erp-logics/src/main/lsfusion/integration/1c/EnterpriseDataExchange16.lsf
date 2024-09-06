@@ -708,6 +708,20 @@ EXTEND FORM receiveMessage
 @extDocument(purchaseInvoice, 'ПоступлениеТоваровУслуг');
 // Для обратной совместимости 1.6 -> 1.5
 
+//услуги, транспортные расходы
+hasService 'Есть услуги' = ABSTRACT BOOLEAN (EnterpriseData, Configuration);
+hasTransportationCost 'Есть транспортные расходы' = ABSTRACT BOOLEAN (PurchaseInvoiceDetail, Configuration);
+
+EXTEND FORM sendMessage
+    OBJECTS purchaseInvoiceService = PurchaseInvoice EXTID 'Строка' IN service
+    FILTERS purchaseInvoiceService == purchaseInvoice,
+            hasService(purchaseInvoiceService, configuration)
+
+    OBJECTS purchaseInvoiceProductTransport = PurchaseInvoiceProduct EXTID 'Строка' IN transportationCost
+    FILTERS in(purchaseInvoice, purchaseInvoiceProductTransport, configuration),
+            hasTransportationCost(purchaseInvoiceProductTransport, configuration)
+;
+
 @defProp(numberInnerDocument, 'НомерВходящегоДокумента', STRING, purchaseInvoice);
 @defProp(dateInnerDocument, 'ДатаВходящегоДокумента', DATE, purchaseInvoice);
 @defProp(nameInnerDocument, 'НаименованиеВходящегоДокумента', STRING, purchaseInvoice);
