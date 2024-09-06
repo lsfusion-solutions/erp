@@ -1,6 +1,6 @@
 MODULE ManufacturingTransferDashboardReturn;
 
-REQUIRE PurchaseSaleReturnInvoice, ConsignmentBy, ManufacturingTransferDashboard, PricingPurchaseReturn;
+REQUIRE PurchaseSaleReturnInvoice, ManufacturingTransferDashboard;
 
 NAMESPACE SaleReturn;
 
@@ -37,7 +37,7 @@ FORM manufacturingTransferReturn 'Возврат с цеха производс�
 
 @extendFormFilterAccessStock(Invoice, sri, manufacturingTransferReturn, supplierStock, company);
 
-@extendFormFilterAccessStock(UserInvoice, pri, manufacturingTransferReturn, supplierStock, company);
+@extendFormFilterAccessStock(UserInvoice, pri, manufacturingTransferReturn, customerStock, company);
 
 DESIGN manufacturingTransferReturn {
     MOVE BOX(d);
@@ -62,76 +62,15 @@ DESIGN manufacturingTransferReturn {
     MOVE TOOLBARBOX;
 }
 
-EXTEND FORM  manufacturingTransferReturn
-    PROPERTIES(sri)  editAttributes
-    PROPERTIES(sri) SHOWIF showTTN1(sri)
-                     printVerticalA, printVerticalAB, printHorizontalA,
-                     printVerticalB, printHorizontalB, printAttach,
-                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS 
-    PROPERTIES(sri) SHOWIF showTN2(sri)
-                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
-;
 
-DESIGN manufacturingTransferReturn {
-    PANEL(sri) {
-        MOVE printTab {   
-            NEW print {
-                horizontal = TRUE;
-                caption = 'Печать';
-            } 
-            NEW consignmentRow1 {
-                align = START;
-                horizontal = TRUE;
-    
-                NEW contOne {
-                    alignment = STRETCH;
-                    horizontal = TRUE;
-                    caption = 'Накладная';
-                    MOVE PROPERTY(editAttributes(sri)) {
-                        alignment = STRETCH;
-                    }
-                }
-                NEW tn2 {
-                    alignment = STRETCH;
-                    lines = 3;
-                    caption = 'ТН-2';
-                    MOVE PROPERTY(printSimpleVertical(sri));
-                    MOVE PROPERTY(printSimpleHorizontal(sri));
-                    MOVE PROPERTY(printSimpleAttach(sri));
-                }
-            }
-            NEW consignmentRow2 {
-                align = START;
-                lines = 3;
-                caption = 'ТТН-1';
-                MOVE PROPERTY(printVerticalA(sri));
-                MOVE PROPERTY(printVerticalAB(sri));
-                MOVE PROPERTY(printHorizontalA(sri));
-                MOVE PROPERTY(printVerticalB(sri));
-                MOVE PROPERTY(printHorizontalB(sri));
-                MOVE PROPERTY(printAttach(sri));      
-                MOVE PROPERTY(printVertical(sri));  
-                MOVE PROPERTY(printHorizontal(sri));
-            }
-            NEW consignmentRow3 {
-                horizontal = TRUE;            
-                NEW export {
-                    horizontal = TRUE;
-                    caption = 'Экспорт';  
-                    MOVE PROPERTY(printAttachXLS(sri));      
-                    MOVE PROPERTY(printSimpleAttachXLS(sri));          
-                }
-            }    
-        }    
-    }
-    
-}
 NAVIGATOR {
     manufacturingDashboardNavigator {
         NEW manufacturingTransferReturn AFTER manufacturingTransfer;
     }
 }
-   
+
+createManufacturingPurchaseSaleReturn  ABSTRACT LIST (PurchaseReturn.InvoiceDetail, SaleReturn.UserInvoiceDetail);
+
 createManufacturingPurchaseSaleReturn 'Создать возврат с цеха'(PurchaseReturn.Invoice pri)  { 
 	NEWSESSION {
 	
@@ -157,8 +96,8 @@ createManufacturingPurchaseSaleReturn 'Создать возврат с цеха
 	                VAT (srid) <- VAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
 	                valueVAT (srid) <- valueVAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
 	                price (srid) <- price(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
-	                invoicePrice (srid) <- invoicePrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
-	                retailPrice (srid) <- retailPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                invoicePrice (srid) <- invoicePrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));	                
+                    createManufacturingPurchaseSaleReturn(prid,srid);
 	                shipmentPrice (srid) <- shipmentPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
 	            }
 	            SHOW SaleReturn.userInvoice OBJECTS i = sri DOCKED NOCANCEL; 

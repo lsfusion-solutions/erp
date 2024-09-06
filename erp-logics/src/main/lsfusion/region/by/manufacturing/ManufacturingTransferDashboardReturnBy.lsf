@@ -1,0 +1,74 @@
+MODULE ManufacturingTransferDashboardReturnBy;
+
+REQUIRE ManufacturingTransferDashboardReturn, ConsignmentBy, PricingPurchaseReturn;
+
+NAMESPACE SaleReturn;
+
+EXTEND FORM  manufacturingTransferReturn
+    PROPERTIES(sri)  editAttributes
+    PROPERTIES(sri) SHOWIF showTTN1(sri)
+    printVerticalA, printVerticalAB, printHorizontalA,
+        printVerticalB, printHorizontalB, printAttach,
+        printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS
+    PROPERTIES(sri) SHOWIF showTN2(sri)
+    printSimpleHorizontal, printSimpleVertical, printSimpleAttach
+;
+
+DESIGN manufacturingTransferReturn {
+    PANEL(sri) {
+        MOVE printTab {
+            NEW print {
+                horizontal = TRUE;
+                caption = 'Печать';
+            }
+            NEW consignmentRow1 {
+                align = START;
+                horizontal = TRUE;
+
+                NEW contOne {
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    caption = 'Накладная';
+                    MOVE PROPERTY(editAttributes(sri)) {
+                        alignment = STRETCH;
+                    }
+                }
+                NEW tn2 {
+                    alignment = STRETCH;
+                    lines = 3;
+                    caption = 'ТН-2';
+                    MOVE PROPERTY(printSimpleVertical(sri));
+                    MOVE PROPERTY(printSimpleHorizontal(sri));
+                    MOVE PROPERTY(printSimpleAttach(sri));
+                }
+            }
+            NEW consignmentRow2 {
+                align = START;
+                lines = 3;
+                caption = 'ТТН-1';
+                MOVE PROPERTY(printVerticalA(sri));
+                MOVE PROPERTY(printVerticalAB(sri));
+                MOVE PROPERTY(printHorizontalA(sri));
+                MOVE PROPERTY(printVerticalB(sri));
+                MOVE PROPERTY(printHorizontalB(sri));
+                MOVE PROPERTY(printAttach(sri));
+                MOVE PROPERTY(printVertical(sri));
+                MOVE PROPERTY(printHorizontal(sri));
+            }
+            NEW consignmentRow3 {
+                horizontal = TRUE;
+                NEW export {
+                    horizontal = TRUE;
+                    caption = 'Экспорт';
+                    MOVE PROPERTY(printAttachXLS(sri));
+                    MOVE PROPERTY(printSimpleAttachXLS(sri));
+                }
+            }
+        }
+    }
+
+}
+
+createManufacturingPurchaseSaleReturn  (PurchaseReturn.InvoiceDetail prid, SaleReturn.UserInvoiceDetail srid) +{
+    retailPrice (srid) <- retailPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+}
