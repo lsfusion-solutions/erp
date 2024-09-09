@@ -665,15 +665,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (JSONObject jsonObject : jsonTable) {
                     Integer artId = jsonObject.getInt("idItem"); //добавляется вручную на этапе чтения json
                     Integer extGrpId = jsonObject.getInt("extGrpId");
+                    Integer delFlag = jsonObject.optInt("delFlag", 0);
                     if (params.pgsql) {
                         setObject(ps, artId, 1); //ARTID
                         setObject(ps, extGrpId, 2); //EXTGRPID
-                        setObject(ps, 0, 3); //DELFLAG
+                        setObject(ps, delFlag, 3); //DELFLAG
                         if (updateNum != null) {
                             setObject(ps, updateNum, 4); //UPDATENUM
                         }
                     } else {
-                        setObject(ps, 0, 2, offset); //DELFLAG
+                        setObject(ps, delFlag, 2, offset); //DELFLAG
                         if (updateNum != null) {
                             setObject(ps, updateNum, 3, offset); //UPDATENUM
                         }
