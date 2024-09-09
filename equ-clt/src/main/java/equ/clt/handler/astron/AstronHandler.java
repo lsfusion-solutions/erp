@@ -47,6 +47,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private static String PROPERTYGRP = "PROPERTYGRP";
     private static String NUMPROPERTY = "NUMPROPERTY";
+    private static String STRINGS = "STRINGS";
     private static String NUMBERS = "NUMBERS";
     private static String BINARYDATA = "BINARYDATA";
     private static String BINPROPERTY = "BINPROPERTY";
@@ -205,7 +206,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         Map<String, List<JSONObject>> jsonTables = getJsonTables(transaction);
 
                         //Читаем статус и чистим все таблицы с которыми можем в теории работать
-                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", PROPERTYGRP, NUMPROPERTY, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP, ARTPRNGRP));
+                        Set<String> truncateTables = new HashSet<>(Arrays.asList("GRP", "ART", "UNIT", "PACK", "EXBARC", "PACKPRC", PROPERTYGRP, NUMPROPERTY, STRINGS, NUMBERS, BINARYDATA, BINPROPERTY, EXTGRP, ARTEXTGRP, ARTPRNGRP));
                         if(exportExtraTables) {
                             truncateTables.add("PRCLEVEL");
                             truncateTables.add("SAREA");
@@ -296,6 +297,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if(!numPropertyJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMPROPERTY);
                                 exportNumProperty(conn, numPropertyJsonTable, updateNum);
+                            }
+
+                            List<JSONObject> stringsJsonTable = jsonTables.get(STRINGS);
+                            if (!stringsJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, STRINGS);
+                                exportStrings(conn, stringsJsonTable, updateNum);
                             }
 
                             List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
@@ -536,6 +543,23 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 setObject(ps, jsonObject.getInt("numberId"), 1);
                 setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
                 setObject(ps, jsonObject.getInt("numPropertyKey"), 3);
+                setObject(ps, 0, 4);
+                if (updateNum != null) {
+                    setObject(ps, updateNum, 5);
+                }
+                ps.addBatch();
+            }
+            executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    private void exportStrings(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] columns = getColumns(new String[]{"STRINGID", "STRINGVALUE", "STRINGNAME", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, STRINGS, columns)) {
+            for (JSONObject jsonObject : jsonTable) {
+                setObject(ps, jsonObject.getInt("stringId"), 1);
+                setObject(ps, trim(jsonObject.getString("stringValue"), 1024), 2);
+                setObject(ps, trim(jsonObject.getString("stringName"), 50), 3);
                 setObject(ps, 0, 4);
                 if (updateNum != null) {
                     setObject(ps, updateNum, 5);
@@ -1184,6 +1208,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         Map<String, List<JSONObject>> jsonTables = new HashMap<>();
         List<JSONObject> propertyGrpList = new ArrayList<>();
         List<JSONObject> numPropertyList = new ArrayList<>();
+        List<JSONObject> stringsList = new ArrayList<>();
         List<JSONObject> numbersList = new ArrayList<>();
         List<JSONObject> binaryDataList = new ArrayList<>();
         List<JSONObject> binPropertyList = new ArrayList<>();
@@ -1195,6 +1220,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             if (infoJSON != null) {
                 propertyGrpList.addAll(getJSONObjectList(infoJSON, "propertyGrp"));
                 numPropertyList.addAll(getJSONObjectList(infoJSON, "numProperty"));
+                stringsList.addAll(getJSONObjectList(infoJSON, "strings"));
                 numbersList.addAll(getJSONObjectList(infoJSON, "numbers"));
                 binaryDataList.addAll(getJSONObjectList(infoJSON, "binaryData"));
                 binPropertyList.addAll(getJSONObjectList(infoJSON, "binProperty"));
@@ -1211,6 +1237,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
         jsonTables.put(PROPERTYGRP, getUniqueList(propertyGrpList));
         jsonTables.put(NUMPROPERTY, getUniqueList(numPropertyList));
+        jsonTables.put(STRINGS, getUniqueList(stringsList));
         jsonTables.put(NUMBERS, getUniqueList(numbersList));
         jsonTables.put(BINARYDATA, getUniqueList(binaryDataList));
         jsonTables.put(BINPROPERTY, getUniqueList(binPropertyList));
