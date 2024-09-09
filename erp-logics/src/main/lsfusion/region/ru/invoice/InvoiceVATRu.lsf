@@ -59,7 +59,7 @@ META defineWithVATInvoice (part)
     
     skipChangeInvoiceSum = ABSTRACT BOOLEAN (UserInvoiceDetail);
     ON LOCAL {
-        FOR (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) AND NOT skipChangeInvoiceSum(d) AND NOT CHANGED(invoiceSum(d)) INLINE DO
+        FOR (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(currency (d))) AND withVATPrice(d) AND NOT skipChangeInvoiceSum(d) AND (NOT CHANGED(invoiceSum(d)) OR SET(d IS UserInvoiceDetail)) INLINE DO
             invoiceSum(d) <- NUMERIC[18,4](round(quantity(d) * invoicePrice(d), currency(d))); 
         FOR (CHANGED(invoiceSum(UserInvoiceDetail d)) OR CHANGED(valueVAT (d)) OR CHANGED(currency (d))) AND withVATPrice(d) AND NOT skipChangeInvoiceSum(d) INLINE DO 
             VATSum(d) <- NUMERIC[18,4](round(invoiceSum(d) * valueVAT(d) / (100 (+) valueVAT (d)), currency(d)));
