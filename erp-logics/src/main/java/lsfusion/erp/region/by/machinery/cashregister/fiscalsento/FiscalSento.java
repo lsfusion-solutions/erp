@@ -44,7 +44,9 @@ public class FiscalSento {
         boolean openRefundDocument(int department, byte[] plu, int vat, double price, double quant, double amount, byte[] name);
 
         boolean cancelDocument();
-
+    
+        boolean annulDocument(int documentNumber);
+        
         boolean sale(int operation, int department, byte[] plu, int vat, double price, double quant, double amount, byte[] naim, byte[] comment);
 
         boolean discount(int operation, double value);
@@ -155,6 +157,12 @@ public class FiscalSento {
     public static void cancelReceipt() {
         logAction("cancelDocument");
         if(!sentoDLL.sento.cancelDocument())
+            checkErrors();
+    }
+    
+    public static void annulDocument(int documentNumber) {
+        logAction("annulDocument", documentNumber);
+        if(!sentoDLL.sento.annulDocument(documentNumber))
             checkErrors();
     }
 
