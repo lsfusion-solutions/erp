@@ -1,0 +1,109 @@
+MODULE PriceListDashboardTextile;
+
+REQUIRE PriceListTextile, ItemFashionTextile, PriceListDashboard, SkuLedgerTextile;
+
+TABLE userAPriceListDetailDataPriceListTypeStock (UserAPriceListDetail, DataPriceListType, Stock);
+article(UserAPriceListDetail ledger, DataPriceListType type, Stock stock) =
+    article(ledger) IF in(ledger, stock) AND NOT skip(type, stock) AND isPosted(ledger) AND in(userPriceList(ledger), type) MATERIALIZED;
+
+description 'Прайс' (UserAPriceListDetail pl) = description(userPriceList(pl));
+note 'Примечание' (UserAPriceListDetail pl) = note(userPriceList(pl));
+price1 'Цена с.1' (UserAPriceListDetail detail, DataPriceListType type) = price(detail, type, sortName('1'));
+price2 'Цена с.2' (UserAPriceListDetail detail, DataPriceListType type) = price(detail, type, sortName('2'));
+price3 'Цена с.3' (UserAPriceListDetail detail, DataPriceListType type) = price(detail, type, sortName('3'));
+
+show 'Просмотреть прайс' (UserAPriceListDetail d) {
+    NEWSESSION {
+        SHOW userPriceList OBJECTS p = userPriceList(d), ad = d DOCKED READONLY;
+    }
+} TOOLBAR;
+
+edit 'Изменить прайс' (UserAPriceListDetail d) {
+    NEWSESSION {
+        SHOW userPriceList OBJECTS p = userPriceList(d), ad = d DOCKED;
+    }
+} TOOLBAR;
+
+filterPriceListType = DATA LOCAL DataPriceListType ();
+nameFilterPriceListType 'Вид цены' () = name(filterPriceListType());
+
+allowChangeExclude 'Разрешить исключать из прайса' = ABSTRACT BOOLEAN ();
+
+FORM priceListArticle 'Текущие цены по моделям'
+    OBJECTS dt = DATETIME PANEL
+    PROPERTIES objValue = VALUE(dt)
+
+    PROPERTIES() nameFilterPriceListType
+
+    TREE skuTree sg = ItemGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6'
+    ORDERS order(sg), name(sg)
+
+    OBJECTS tcs = (tc = DataPriceListType, so = Sort)
+    FILTERS NOT id(tc) == 'retail'
+
+    OBJECTS a = Article
+    PROPERTIES(a) READONLY caption, id, model
+    ORDERS caption(a)
+    FILTERS isParent(sg, a)
+
+    PROPERTIES(a, so, tc, dt) READONLY prevPriceANotCompany COLUMNS (tcs) HEADER headerNameData(tc, so)
+    FILTERS tc == filterPriceListType() OR NOT filterPriceListType()
+
+    OBJECTS pp0 = (pt0 = DataPriceListType, pl0 = UserAPriceListDetail)
+    PROPERTIES READONLY name(pt0), description(pl0), note(pl0)
+    PROPERTIES READONLYIF NOT allowChangeExclude() exclude(pl0)
+    PROPERTIES READONLY fromDateTime(pl0), toDateTime(pl0), price1(pl0, pt0), price2(pl0, pt0), price3(pl0, pt0)
+    PROPERTIES(pl0) show, edit
+    ORDERS name(pt0), fromDateTime(pl0) DESC
+
+    FILTERGROUP active0 FILTER 'Активные' NOT exclude(pl0) AND pl0 IS UserAPriceListDetail
+
+    FILTERS article(pl0, pt0, defaultStockTextile()) == a,
+        (pt0 IS PriceListType AND NOT filterPriceListType()) OR filterPriceListType() == pt0
+;
+
+DESIGN priceListArticle {
+    NEW params {
+        horizontal = TRUE;
+        MOVE BOX(dt) {
+            PROPERTY (objValue) { caption = 'Дата/время'; }
+        }
+        NEW filters {
+            horizontal = TRUE;
+            caption = 'Фильтры';
+            MOVE PROPERTY(nameFilterPriceListType());
+        }
+    }
+    NEW mainBox {
+        fill = 1;
+        horizontal = TRUE;
+        MOVE BOX(TREE skuTree) {
+            caption = 'Товарные группы';
+            PROPERTY(name(sg)) { charWidth = 20; }
+        }
+        NEW priceBox {
+            fill = 4;
+            MOVE BOX(a) {
+                caption = 'Модель';
+                PROPERTY(model(a)) { charWidth = 15; }
+            }
+            NEW bottomBox{
+                fill = 2;
+                MOVE BOX(pp0) {
+                    caption = 'Прайсы по модели';
+                    PROPERTY(name(pt0)) { caption = 'Вид цен'; charWidth = 20; }
+                    PROPERTY(note(pl0)) { charWidth = 20; }
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    priceListDashboardNavigator {
+        NEW priceListArticle;
+    }
+}
