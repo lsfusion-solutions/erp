@@ -36,12 +36,14 @@ META defineBlankCode(NS, cap)
     showBlankCode = ABSTRACT BOOLEAN (NS.UserInvoice);
     
     isBlankCode (NS.UserInvoice i) = isBlankCode###cap(operation(i)) OR showBlankCode(i);
-    
+
+    backgroundBlankCode = ABSTRACT CASE COLOR (NS.UserInvoice);
+        
     CONSTRAINT (SET(isPosted(NS.UserInvoice i)) OR SETCHANGED(operation(i))) AND isPosted(i) AND isBlankCode###cap(operation(i)) AND NOT blankCode(i)
                MESSAGE 'Для накладной должнен быть задан "Код типа бланка".';    
     
     EXTEND FORM NS.userInvoice
-        PROPERTIES (i) idBlankCode SHOWIF isBlankCode(i)
+        PROPERTIES (i) idBlankCode SHOWIF isBlankCode(i) BACKGROUND backgroundBlankCode(i)
     ;
     DESIGN NS.userInvoice {
         second {

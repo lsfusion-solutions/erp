@@ -1,0 +1,53 @@
+MODULE CheckBlankCode;
+
+REQUIRE PurchaseBlankCodeEVAT;
+
+validBlankCode 'Найден' = DATA BOOLEAN (Purchase.UserInvoice);
+invalidBlankCode 'Не найден' = DATA BOOLEAN (Purchase.UserInvoice);
+
+backgroundBlankCode(Purchase.UserInvoice i)+= WHEN i IS Purchase.UserInvoice AND validBlankCode(i) THEN RGB(200,255,200);
+backgroundBlankCode(Purchase.UserInvoice i)+= WHEN i IS Purchase.UserInvoice AND invalidBlankCode(i) THEN RGB(255,135,135);
+
+headers(TEXT name) = CASE
+    WHEN name = 'Content-Type' THEN 'text/xml';
+
+GROUP rel EXTID 'Rel';
+GROUP WSRel : rel;
+
+isFound = DATA LOCAL INTEGER ();
+date = DATA LOCAL DATE();
+name = DATA LOCAL STRING();
+UNP = DATA LOCAL STRING();
+pas = DATA LOCAL STRING();
+sp = DATA LOCAL STRING();
+
+FORM WSAnswer
+    PROPERTIES() isFound EXTID 'IsFound', pas EXTID 'Pas', sp EXTID 'Sp'
+    PROPERTIES() IN WSRel date EXTID 'Date', name EXTID 'Name', UNP
+;
+
+checkBlankWSHttp 'Проверить БСО'(Purchase.Invoice i)  {
+    LOCAL result = FILE();
+    LOCAL outerXML = TEXT();
+   
+    TRY {
+        EXTERNAL HTTP GET (CONCAT '', 'http://ws.blank.bisc.by/FindBlankWSHttp.aspx?method=FindBlankWS&pTB=', idBlankCode(i), '&pSB=', series(i),'&pNB=', number(i))
+            HEADERS headers TO result;
+        
+        fileToString(result());
+        IMPORT WSAnswer XML FROM result();
+
+        validBlankCode(i) <- TRUE IF isFound() = 1;
+        invalidBlankCode(i) <- NOT validBlankCode(i);
+        
+        APPLY;
+    } CATCH {
+        fileToString(result());
+        logToFile('FindBlankWSHttp', messageCaughtException());
+    }    
+};
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES (i) READONLY idBlankCode SHOWIF isBlankCode(i) BACKGROUND backgroundBlankCode(i)
+    PROPERTIES (i) checkBlankWSHttp SHOWIF isBlankCode(i) TOOLBAR 
+;
