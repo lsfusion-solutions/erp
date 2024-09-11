@@ -1,6 +1,6 @@
 MODULE ItemSSC;
 
-REQUIRE Item;
+REQUIRE Item, PriceListPromotion;
 
 NAMESPACE Item;
 
@@ -25,13 +25,19 @@ META difineSSCAttribute (class, param, title)
     EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei param SHOWIF showAnyItemSSC(g);
 END;
 
+@difineSSCAttribute(BOOLEAN, antiTheftDevice, 'Товар оснащен устройством против кражи');
 @difineSSCAttribute(INTEGER, age, 'Возраст');
 @difineSSCAttribute(BOOLEAN, ageVerify, 'Необходимо подтверждение возраста');
 @difineSSCAttribute(BOOLEAN, visualVerify, 'Необходима визуальная проверка товара');
 @difineSSCAttribute(BOOLEAN, lowWeight, 'Легкий товар');
 @difineSSCAttribute(BOOLEAN, weightControlBypass, 'Пропускать товар при контроле веса');
+@difineSSCAttribute(BOOLEAN, inaccurateReferenceWeight, 'Неточный контрольный вес');
 @difineSSCAttribute(BOOLEAN, requireQuantityManual, 'Обязательный ввод количества');
 @difineSSCAttribute(BOOLEAN, requireQuantityScales, 'Обязательное взвешивание товара');
+
+hasPromotionPrice 'Акционный товар' (Item i, Stock st) = GROUP SUM 1 IF promotionPriceListDetailA(i, st, currentDate()) AND active(st);
+
+@difineSSCAttribute(BOOLEAN, requireProductSelection, 'Товар требует выбора ');
 
 // Установка параметра для единицы измерения
 requireQuantityScales 'Обязательное взвешивание товара' =  DATA BOOLEAN (UOM);
