@@ -145,7 +145,7 @@ FORM materials 'Материалы'
     FILTERS filterComponent(sg)
     
     OBJECTS m = Material
-    PROPERTIES(m) READONLY id SHOWIF showIDs(), name, shortNameUOM, objectClassName    
+    PROPERTIES(m) READONLY id SHOWIF showIDs(), name, idBarcode, shortNameUOM, objectClassName    
     PROPERTIES() addMaterial DRAW m
     PROPERTIES(m) EDIT NEWSESSION, copy
     FILTERS isParent(sg, m)
@@ -164,10 +164,12 @@ DESIGN materials {
 
             MOVE BOX(TREE skuTree) {
                 caption = 'Группы Материалов';
+                width = 200;
             }
 
             MOVE BOX(m) {
                 fill = 2;
+                width = 400;
                 GRID(m) {
                     defaultComponent = TRUE;
                 }
@@ -578,16 +580,32 @@ DESIGN options {
 }
            
 useChangeMaterialCustom = ABSTRACT BOOLEAN (Component);  
-changeMaterialCustom  ABSTRACT  (Component);  
+changeMaterialCustom  ABSTRACT  (Component);
 
-changeMaterial(Component c) {
+changeMaterialBarcode(Component c) {
     IF NOT useChangeMaterialCustom(c) THEN {
-        DIALOG materials OBJECTS m =material(c) CHANGE;
+        DIALOG materials OBJECTS m = material(c) CHANGE LIST idBarcode(m);
     } ELSE {
         changeMaterialCustom(c);
     }
-}               
-                                                                                        
+}
+
+changeMaterialId(Component c) {
+    IF NOT useChangeMaterialCustom(c) THEN {
+        DIALOG materials OBJECTS m = material(c) CHANGE LIST id(m);
+    } ELSE {
+        changeMaterialCustom(c);
+    }
+}
+
+changeMaterialName(Component c) {
+    IF NOT useChangeMaterialCustom(c) THEN {
+        DIALOG materials OBJECTS m = material(c) CHANGE LIST name(m);
+    } ELSE {
+        changeMaterialCustom(c);
+    }
+}
+
 FORM BOM 'Спецификация'
 
     OBJECTS b=BOM PANEL
@@ -608,7 +626,7 @@ FORM BOM 'Спецификация'
 
     OBJECTS c = Component
     PROPERTIES(c) BACKGROUND background(c) index 
-    PROPERTIES(c) BACKGROUND background(c) ON EDIT editMaterial(c) idBarcodeSku ON CHANGE changeMaterial(c), id SHOWIF showIDs() ON CHANGE changeMaterial(c), nameMaterial ON CHANGE changeMaterial(c), 
+    PROPERTIES(c) BACKGROUND background(c) ON EDIT editMaterial(c) idBarcodeSku ON CHANGE changeMaterialBarcode(c), id SHOWIF showIDs() ON CHANGE changeMaterialId(c), nameMaterial ON CHANGE changeMaterialName(c), 
                   shortNameUOM 
     PROPERTIES(c) BACKGROUND background(c) 
                   nettoQuantity ON CHANGE changeNettoQuantity(c), overNettoNetWeight READONLY,
