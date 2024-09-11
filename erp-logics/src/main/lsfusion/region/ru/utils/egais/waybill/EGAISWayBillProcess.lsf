@@ -95,8 +95,22 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
     EXTEND FORM wayBills
         PROPERTIES(w) READONLY prefix##SeriesNumber###doc = seriesNumber###doc
     ;
+
+    quantity = GROUP SUM quantity(###doc##Detail detail, F2Reg r) BY ##doc(detail), r;
     
+    quantity = DATA NUMERIC[16,5] (###doc##Detail, WayBillPosition);
     doc##Detail = DATA ###doc##Detail (WayBillPosition) INDEXED;
+
+    migratedWayBillPositionQuantity = DATA BOOLEAN ();
+    
+    onStarted() +{
+        IF NOT migratedWayBillPositionQuantity() THEN {
+            quantity(###doc##Detail d, WayBillPosition p) <- quantity(p) WHERE d = doc##Detail(p);
+            migratedWayBillPositionQuantity() <- TRUE;
+        }
+    }
+    
+    price = GROUP MAX price(###doc##Detail detail) IF quantity(detail, F2Reg reg) BY ##doc(detail), reg; 
     
     process 'Отправить в ЕГАИС' (###doc i) {
         IF GROUP SUM 1 IF doc(###doc##Detail d) = i AND minProduct(sku(d)) AND NOT quantity(d) = quantityF2Reg(d) THEN {
@@ -152,22 +166,22 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
                     dataF2Reg(m) <- GROUP MAX F2Reg r IF quantity(d, r); 
                 }
                 
-                FOR quantity(###doc##Detail d, F2Reg r) IF doc(d) = i INLINE NEW p = WayBillPosition DO {
+                FOR quantity(i, F2Reg r) INLINE NEW p = WayBillPosition DO {
                     wayBill(p) <- w;
-                    
-                    doc##Detail(p) <- d;
-                    
+
                     product(p) <- product(r);
                     
                     identity(p) <- STRING(p);
                     
-                    quantity(p) <- quantity(d, r);
-                    price(p) <- OVERRIDE egaisPrice(d), price(d);
+                    quantity(p) <- quantity(i, r);
+                    price(p) <- OVERRIDE egaisPrice(i, r), price(i, r);
+
+                    quantity(###doc##Detail d, p) <- quantity(d, r) WHERE ##doc(d)=i;
                     
                     f1Reg(p) <- f1Reg(r);
                     f2Reg(p) <- r;
 
-                    FOR quantity(d, Lot l) IF MarkCode mc = markCode(id(l)) AND (OVERRIDE prevF2Reg(mc), dataF2Reg(mc)) = r INLINE NEW m = WayBillMark DO {
+                    FOR quantity(###doc##Detail d, Lot l) IF MarkCode mc = markCode(id(l)) AND ##doc(d)=i AND (OVERRIDE prevF2Reg(mc), dataF2Reg(mc)) = r INLINE NEW m = WayBillMark DO {
                         wayBillPosition(m) <- p;
                         markCode(m) <- mc;
                         box(m) <- OVERRIDE prevBox(mc), box(boxId());
