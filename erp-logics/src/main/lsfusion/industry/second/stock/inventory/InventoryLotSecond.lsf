@@ -1,0 +1,218 @@
+MODULE InventoryLotSecond;
+
+REQUIRE InventoryLot, LotSecondExtra, SaleShipmentLotSecond, DisassemblyLotSecond;
+
+NAMESPACE Inventory;
+
+skuGroup 'Группа товаров' = DATA SkuGroup (Operation);
+nameSkuGroup 'Группа товаров' (Operation o) = name(skuGroup(o));
+
+isSecond 'Секонд-хенд' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) nameSkuGroup SHOWIF isPartly(o), isSecond
+;
+
+DESIGN operation {
+    paramsContainer {
+        MOVE PROPERTY(nameSkuGroup(o));
+        MOVE PROPERTY(isSecond(o));
+    }
+}
+
+WHEN LOCAL CHANGED(operation(Inventory o)) DO
+    include(o, SkuGroup g) <- TRUE IF g == skuGroup(operation(o));
+
+cycle = DATA Cycle (Inventory);
+descriptionCycle 'Цикл' (Inventory i) = fullDescription(cycle(i)) IN documentPrm;
+
+CONSTRAINT SETCHANGED (cycle(Inventory i)) AND NOT include(stock(cycle(i)), i)
+    CHECKED BY cycle[Inventory]
+    MESSAGE 'В инвентаризации выбран цикл другого магазина';
+
+isSecond(Inventory i) = isSecond(operation(i));
+
+recalculateBalanceSecond 'Заполнить остатки' (Inventory i)  {
+    IF isSecond(i) AND NOT cycle(i) THEN {
+        MESSAGE 'Выберите Цикл в параметрах документа';
+        RETURN;
+    }
+    recalculateBalance(i);
+} CONFIRM IN inventoryAction;
+
+weightShortage 'Вес недостачи / излишка' (CollationSheet collationSheet, Lot lot) = quantityShortage(collationSheet, lot) * weight(lot) MATERIALIZED;
+weightShortage 'Вес недостачи / излишка' (CollationSheet cs, Sku sku) = IF isSecond(inventory(cs)) THEN [GROUP SUM weightShortage(cs, Lot l) BY sku(l)](sku) MATERIALIZED;
+weight 'Вес недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = weightShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) MATERIALIZED;
+
+weightShortage 'Вес недостачи / излишка' (CollationSheet cs)= GROUP SUM weightShortage(cs, Sku sk) MATERIALIZED;
+weightShortage 'Вес недостачи / излишка' (Inventory in) = GROUP SUM weightShortage(CollationSheet cs) BY inventory(cs);
+
+filterDateFrom 'Дата с' = DATA LOCAL DATE();
+filterDateFrom(Inventory in) = date(in) >= filterDateFrom() OR NOT filterDateFrom();
+
+filterDateTo 'Дата по' = DATA LOCAL DATE();
+filterDateTo(Inventory in) = date(in) <= filterDateTo() OR NOT filterDateTo();
+
+filterStock = DATA LOCAL Stock();
+nameFilterStock 'Склад' () = name(filterStock());
+filterStock(Inventory in) = include(filterStock(), in) OR NOT filterStock();
+
+filterCycle = DATA LOCAL Cycle();
+fullDescriptionFilterCycle 'Цикл' = fullDescription(filterCycle());
+filterCycle(Inventory in) = cycle(in) == filterCycle() OR NOT filterCycle();
+
+CONSTRAINT stock(filterCycle()) != filterStock()
+    CHECKED
+    MESSAGE 'Цикл должен быть только выбранного склада';
+
+EXTEND FORM inventories
+    PROPERTIES() filterDateFrom, filterDateTo, nameFilterStock, fullDescriptionFilterCycle
+    PROPERTIES (in) READONLY descriptionCycle, weightShortage AFTER sumShortage(in)
+
+    PROPERTIES(il) READONLY SHOWIF isSku(in) weight AFTER sum(il)
+    PROPERTIES(cs, it) READONLY SHOWIF isSku(cs) weightShortage AFTER sumShortage(cs,it)
+
+    FILTERS filterDateFrom(in),
+        filterDateTo(in),
+        filterStock(in),
+        filterCycle(in)
+;
+
+DESIGN inventories {
+    NEW filters BEFORE topContainer {
+        horizontal = TRUE;
+        caption = 'Фильтры';
+        MOVE PROPERTY(filterDateFrom());
+        MOVE PROPERTY(filterDateTo());
+        MOVE PROPERTY(nameFilterStock());
+        MOVE PROPERTY(fullDescriptionFilterCycle());
+    }
+    wor41 {
+        fill = 3;
+    }
+}
+
+EXTEND FORM inventory
+    PROPERTIES (in) descriptionCycle SHOWIF isSecond(in)
+    PROPERTIES (in) recalculateBalanceSecond
+
+    PROPERTIES (l) READONLY weight, price, dateTime AFTER id(l), image PANEL CHANGEABLE ON CHANGE openImage(l)
+    PROPERTIES (cs) READONLY weightShortage PANEL
+    PROPERTIES (cs, i) SHOWIF isSku(in) weightShortage AFTER sumShortage(cs, i)
+;
+
+DESIGN inventory {
+    REMOVE PROPERTY(recalculateBalance(in));
+    wor11 {
+        NEW lots {
+            caption = 'Оценённые товары';
+            horizontal = TRUE;
+            MOVE BOX(l) {
+                fill = 2;
+                caption = '';
+                PROPERTY (idBarcodeSku(l)) {hide = TRUE;}
+            }
+            NEW imageLot {
+                fill = 1;
+                width = 0;
+                MOVE PROPERTY(image(l)) { fill = 1; caption = ''; }
+            }
+        }
+    }
+    case1 {
+        fill = 2;
+    }
+}
+
+EXTEND FORM inventories
+    PROPERTIES (l) READONLY weight, price, dateTime AFTER id(l), image PANEL CHANGEABLE ON CHANGE openImage(l)
+
+    OBJECTS itl = Lot GRID
+    PROPERTIES(itl) READONLY id, dateTime
+    PROPERTIES(cs,itl) READONLY quantityShortage
+    PROPERTIES(itl) READONLY weight, price, image PANEL CHANGEABLE ON CHANGE openImage(itl)
+    FILTERS include(cs, itl), sku(itl) = it
+;
+
+DESIGN inventories {
+    PROPERTY (sumShortage(in)) { caption = 'Сумма учётная недостачи/излишка'; }
+    PROPERTY (sumShortage(cs, it)) { caption = 'Сумма учётная недостачи/излишка'; }
+    wor4 {
+        NEW cs BEFORE wor41 {
+            fill = 0.2;
+            MOVE BOX(cs) {
+                REMOVE PROPERTY(sumItemPageInventoryDetail(cs));
+                REMOVE PROPERTY(sumContainerPageInventoryDetail(cs));
+                REMOVE PROPERTY(sumItemBalance(cs));
+                REMOVE PROPERTY(sumContainerBalance(cs));
+                REMOVE PROPERTY(sumItemShortage(cs));
+                REMOVE PROPERTY(sumContainerShortage(cs));
+            }
+        }
+        wor41 {
+            NEW items {
+                caption = 'SKU';
+                MOVE BOX(it) { caption = ''; }
+                NEW itemLots {
+                    caption = 'Оценённые товары (по SKU)';
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(itl) {
+                        fill = 2;
+                        caption = '';
+                    }
+                    NEW imageItemLot {
+                        fill = 1;
+                        width = 0;
+                        MOVE PROPERTY(image(itl)) { fill = 1; caption = ''; }
+                    }
+                }
+            }
+            NEW lots {
+                caption = 'Оценённые товары';
+                horizontal = TRUE;
+                MOVE BOX(l) {
+                    fill = 2;
+                    caption = '';
+                    PROPERTY (idBarcodeSku(l)) {hide = TRUE;}
+                }
+                NEW imageLot {
+                    fill = 1;
+                    width = 0;
+                    MOVE PROPERTY(image(l)) { fill = 1; caption = ''; }
+                }
+            }
+        }
+    }
+    BOX(l) {
+        caption = 'Оценённые товары';
+        PROPERTY (idBarcodeSku(l)) {hide = TRUE;}
+    }
+}
+
+numberInventory 'Номер инвентаризации'(ListInventory li) = number(inventory(li));
+
+EXTEND FORM listInventory
+    PROPERTIES (li) numberInventory READONLY
+;
+
+DESIGN listInventory {
+    REMOVE PROPERTY(nameInventory(li));
+    GROUP(documentHeader,li) {
+        MOVE PROPERTY(numberInventory(li)) BEFORE PROPERTY(name(li));
+    }
+}
+
+overRecalculateBalance (Inventory i) + {
+    IF isSecond(i) THEN {
+        quantityBalance(CollationSheet cs, Lot lot) <- NULL WHERE inventory(cs) == i AND isSecond(sku(lot)) AND (NOT toDate(cycle(lot)) <= toDate(cycle(i))  // NOT - чтобы Lot с пустым циклом не попадали
+            OR [GROUP MIN Sale.UserShipment si IF quantity(si, lot) AND include(stock(cycle(si)), i) AND toDate(cycle(si)) > toDate(cycle(i))]());
+
+        quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == i;
+        sumBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == i;
+
+        quantityBalance(CollationSheet cs, Sku sku) <- [GROUP SUM quantityBalance(cs, Lot lot) BY sku(lot)](sku) WHERE inventory(cs) == i AND include(i, sku);
+        priceBalance(CollationSheet cs, Sku sku) <- prevAccountPriceB(sku, stock(cs), dateTime(cs)) WHERE inventory(cs) == i AND quantityBalance(cs, sku);
+        sumBalance(CollationSheet cs, Sku sku) <- NUMERIC[18,4](round2(quantityBalance(cs, sku) * priceBalance(cs, sku))) WHERE inventory(cs) == i AND quantityBalance(cs, sku);
+    }
+}

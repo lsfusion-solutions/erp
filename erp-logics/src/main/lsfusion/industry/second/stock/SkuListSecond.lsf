@@ -1,0 +1,111 @@
+MODULE SkuListSecond;
+
+REQUIRE SkuLedgerLotSecond, SkuListLot, LotSecondExtra;
+
+NAMESPACE Sku;
+
+index '№' (ListDetail d) = PARTITION SUM 1 ORDER nameSku(d), d BY list(d) CHARWIDTH 4 MATERIALIZED;
+
+numberDetail 'Номер строки спецификации' = GROUP MAX index(ListDetail d) IF quantity(d, Lot l) BY list(d), l;
+
+departmentStore = DATA DepartmentStore(List);
+nameDepartmentStore 'Магазин' (List l) = name(departmentStore(l));
+
+dateTime 'Дата/время' = DATA DATETIME (List);
+dateTimeCycle 'Цикл изменён' = DATA DATETIME (List);
+
+changeCycle 'Изменить цикл' (List l) {
+    IF [GROUP SUM 1 IF [GROUP MIN Lot lt IF quantity(l, lt) BY stock(cycle(lt))](Stock st)]() > 1 THEN {
+        MESSAGE 'Ошибка: в документе выбраны оценённые товары более, чем из 1 магазина';
+        RETURN;
+    }
+    IF [GROUP MIN Lot lt IF quantity(l, lt) AND stock(cycle(lt)) != departmentStore(l)]() THEN {
+        MESSAGE 'Ошибка: в документе выбраны оценённые товары из другого магазина';
+        RETURN;
+    }
+
+    DIALOG dialogCycles OBJECTS c INPUT DO {
+        cycle(Lot lot) <- c WHERE quantity(l, lot);
+        dateTimeCycle(l) <- currentDateTime();
+    }
+}
+
+EXTEND FORM list
+    PROPERTIES (l) BEFORE name(l) dateTime, nameDepartmentStore, quantityLot READONLY, dateTimeCycle READONLY
+    PROPERTIES(d) READONLY index FIRST
+    ORDERS index(d)
+
+    OBJECTS lot = Lot
+    PROPERTIES(lot) READONLY id, nameSku, fullDescriptionCycle, defect, setAside, nameAsideCategory, weight, price, costForeign,
+        currentBalance BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
+    PROPERTIES(l, lot) READONLY numberDetail
+    PROPERTIES changeCycle(l) TOOLBAR
+    ORDERS nameSku(lot)
+    FILTERS quantity(l, lot)
+;
+
+DESIGN list {
+    OBJECTS {
+        NEW actions BEFORE tab {
+            horizontal = TRUE;
+            caption = 'Действия';
+            MOVE PROPERTY(changeCycle(l));
+        }
+    }
+    tab {
+        MOVE BOX(lot) {
+            showIf = quantityLot(l);
+            caption = 'Оценённые товары';
+        }
+    }
+    PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров'; }
+    PROPERTY (quantityLot(l)) { caption = 'Кол-во оценённых товаров'; }
+    PROPERTY (name(l)) { caption = 'Комментарий'; }
+    REMOVE PROPERTY(nameParent(l));
+    REMOVE PROPERTY(order(l));
+    REMOVE PROPERTY(id(l));
+    PROPERTY(nameBrandSku(d)) { hide = TRUE; }
+    PROPERTY(nameCountrySku(d)) { hide = TRUE; }
+    PROPERTY(nameManufacturerSku(d)){ hide = TRUE; }
+}
+
+WHEN LOCAL SET(List l IS List) DO {
+    dataAccess(Stock s, l) <- accessCompany(currentUser(), s);
+    dataAccess(StockGroup g, l) <- accessCompany(currentUser(), g);
+    departmentStore(l) <- stock(currentUser()) IF stock(currentUser()) IS DepartmentStore;
+    dateTime(l) <- currentDateTime();
+    parent(l) <- NULL;
+}
+
+FORM changeCycles 'Изменение цикла'
+    OBJECTS l = List
+    PROPERTIES(l) READONLY dateTime, nameDepartmentStore, name, quantityLot, dateTimeCycle
+    PROPERTIES(l) NEWSESSION NEW, EDIT
+    FILTERS accessStock(l)
+
+    OBJECTS d = ListDetail
+    PROPERTIES(d) READONLY idSku, idBarcodeSku, nameSku, shortNameUOMSku, canonicalNameSkuGroup, quantityLot
+    ORDERS nameSku(d)
+    FILTERS list(d) == l
+
+    OBJECTS lot = Lot
+    PROPERTIES(lot) READONLY id, nameSku, fullDescriptionCycle, defect, setAside, nameAsideCategory, weight, price, costForeign,
+        currentBalance BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
+    PROPERTIES(l, lot) READONLY numberDetail
+    ORDERS nameSku(lot)
+    FILTERS quantity(l, lot)
+;
+
+DESIGN changeCycles {
+    PROPERTY (quantityLot(l)) { caption = 'Кол-во оценённых товаров'; }
+    PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров'; }
+    PROPERTY (name(l)) { caption = 'Комментарий'; }
+    OBJECTS {
+        NEW tab AFTER BOX(l) {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(d);
+            MOVE BOX(lot) { showIf = quantityLot(l); caption = 'Оценённые товары'; }
+        }
+    }
+}

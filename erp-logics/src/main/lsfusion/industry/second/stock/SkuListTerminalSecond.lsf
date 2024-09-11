@@ -1,0 +1,48 @@
+MODULE SkuListTerminalSecond;
+
+REQUIRE SkuListSecond, TerminalLot;
+
+NAMESPACE Sku;
+
+in (TerminalDocumentType t, List s) = id(t) == '04' IF s IS List;
+
+addDetailDialogTerminalListDetail 'Импорт из ТСД' (List list)  {
+    IF dateTimeCycle(list) THEN {
+        MESSAGE 'Вы пытаетесь импортировать в завершённый документ. Создайте новый.';
+    } ELSE {
+        in(TerminalDocumentType t) <- in(t, list);
+        filterStock() <- departmentStore(list);
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            IF NOT (GROUP SUM 1 IF include(TerminalDocument ttd)) THEN {
+                include(td) <- TRUE;
+            }
+            used(td) <- TRUE;
+
+            FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NOT processed(td) ORDER number(tdd) NEW d = ListDetail DO {
+                list(d) <- list;
+                sku(d) <- sku(tdd);
+
+                LOCAL countNew = INTEGER();
+                countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocumentDetail(tl)](tdd);
+
+                LOCAL double = BOOLEAN(Lot);
+                double(Lot l) <- TRUE WHERE [GROUP MIN TerminalLotDetail tl BY terminalDocumentDetail(tl), lot(id(tl))](tdd, l) AND quantity(list(d), l);
+
+                quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, tdd) AND NOT double(l);
+            }
+
+            include(TerminalDocument t) <- NULL;
+        }
+    }
+} TOOLBAR;
+
+
+EXTEND FORM list
+    PROPERTIES(l) addDetailDialogTerminalListDetail TOOLBAR
+;
+
+DESIGN list {
+    actions {
+        MOVE PROPERTY(addDetailDialogTerminalListDetail(l)) FIRST;
+    }
+}

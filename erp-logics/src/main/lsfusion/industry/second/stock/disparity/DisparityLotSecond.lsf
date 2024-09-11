@@ -1,0 +1,56 @@
+MODULE DisparityLotSecond;
+
+REQUIRE DisparityLot, DisparityTerminal, LotSecondExtra;
+
+NAMESPACE Disparity;
+
+@defineDocumentLotDetail(disparity, dis);
+
+WHEN LOCAL FORMS disparity SETCHANGED(dataIndex(UserDisparityDetail d)) AND index(d) > 1000000 DO {
+    MESSAGE 'ОШИБКА! Сканирование произведено в номер строки.\nПовторите сканирование этого товара!';
+    dataIndex(d) <- PREV(dataIndex(d));
+}
+
+sumLotWeight 'Вес оценённых товаров, кг' (UserDisparityDetail d)= GROUP SUM weight(Lot l) IF quantity(d, l);
+sumLotWeightDisparityDetail 'Вес оценённых товаров, кг' (Disparity i)= GROUP SUM weight(Lot l) IF quantity(i, l) IN documentSum MATERIALIZED;
+
+EXTEND FORM disparity
+    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail
+;
+
+EXTEND FORM disparities
+    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail AFTER quantityDisparityDetail(dis)
+;
+
+DESIGN disparity {
+    REMOVE PROPERTY (changeSkuLot(dis));
+    REMOVE PROPERTY (statusLot(dis));
+    PROPERTY (costBatch(d)) { hide = TRUE; }
+
+    headerTabbedPane {
+        NEW import {
+            caption = 'Импорт';
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY(addDetailDialogTerminalUserDisparityDetail(dis));
+        }
+    }
+}
+
+WHEN LOCAL FORMS disparity SETCHANGED (sumLotWeight(UserDisparityDetail d)) AND id(operation(d)) == 'vetosh' DO {
+    inputQuantity(d) <- sumLotWeight(d);
+    inputSum(d) <- 0.0;
+}
+
+WHEN LOCAL FORMS disparity SETCHANGED (sku(UserDisparityDetail d)) AND id(operation(d)) == 'vetosh' DO {
+    inputSku(d) <- item('0723');
+    inputPrice(d) <- 0.0;
+}
+
+@defineCycleFrom(userDisparity, dis, 'vetosh', disparity, disparities, headerMainParams);
+
+DESIGN disparity {
+    GROUP(documentPrm,dis) {
+        MOVE PROPERTY (descriptionCycleFrom(dis)) FIRST;
+    }
+}

@@ -1,0 +1,75 @@
+MODULE StockReportsSecond;
+
+REQUIRE StockReports, SkuLedgerLot, SaleLedger, LotSecondExtra;
+
+NAMESPACE StockReports;
+
+weightBalanceB 'Вес, кг' = GROUP SUM weight(Lot l) * balanceB(l, Stock st, DATETIME dt) IF balanceB(l, st, dt) AND inBackSheet(st) BY sku(l), cycle(l), dt;
+weightBalanceB 'Вес, кг' = GROUP SUM weight(Lot l) * balanceB(l, Stock st, DATETIME dt) IF balanceB(l, st, dt) AND inBackSheet(st) BY cycle(l), dt;
+weightBalanceB 'Вес, кг' = GROUP SUM weight(Lot l) * balanceB(l, Stock st, DATETIME dt) IF balanceB(l, st, dt) AND inBackSheet(st) BY sku(l), dt;
+
+FORM balanceSecondCycle 'Остатки оценённых товаров по циклам'
+    OBJECTS dt = DATETIME PANEL
+    PROPERTIES val = VALUE(dt)
+
+    OBJECTS c = Cycle
+    PROPERTIES READONLY fullDescription(c), weightBalanceB(c, dt)
+    FILTERS weightBalanceB(c, dt)
+
+    OBJECTS sk = Sku
+    PROPERTIES READONLY name(sk), weightBalanceB(sk, c, dt)
+    FILTERS isSecond(sk),
+        weightBalanceB(sk, c, dt)
+;
+
+showBalanceSecondCycle 'По циклам' (DATETIME dt) {
+    SHOW balanceSecondCycle OBJECTS dt = dt;
+}
+
+EXTEND FORM reportBalanceStock
+    PROPERTIES (d) showBalanceSecondCycle
+;
+
+DESIGN reportBalanceStock {
+    printSkuContainer {
+        MOVE PROPERTY (showBalanceSecondCycle(d));
+    }
+}
+
+quantitySold 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (Sku);
+sumSold 'Продано (сумма розничная)' = DATA LOCAL NUMERIC[18,4] (Sku);
+costSumSold 'Себестоимость продажи' = DATA LOCAL NUMERIC[18,4] (Sku);
+markupSumSold 'Надбавка, руб.' = DATA LOCAL NUMERIC[18,4] (Sku);
+markupPercentSold 'Рентабельность, %' = DATA LOCAL NUMERIC[18,4] (Sku);
+sumVATSold 'Сумма НДС' = DATA LOCAL NUMERIC[18,4] (Sku);
+
+overFillReportBackSheetFromTo(GroupType gt, DATE df, DATE dt) + {
+    quantitySold(Sku sk) <- NULL;
+    sumSold(Sku sk) <- NULL;
+    costSumSold(Sku sk) <- NULL;
+    markupSumSold(Sku sk) <- NULL;
+    markupPercentSold(Sku sk) <- NULL;
+    sumVATSold(Sku sk) <- NULL;
+
+    quantitySold(Sku sk) <- GROUP SUM quantitySold(sk, Stock stock, df, dt) IF inBackSheet(stock);
+    sumSold(Sku sk) <- GROUP SUM sumSold(sk, Stock stock, df, dt) IF inBackSheet(stock);
+    sumVATSold(Sku sk) <- NUMERIC[18,4](GROUP SUM sumVATSold(sk, Stock stock, df, dt) IF inBackSheet(stock));
+    costSumSold(Sku sk) <- NUMERIC[18,4](GROUP SUM costSumSold(sk, Stock stock, df, dt) IF inBackSheet(stock));
+    markupSumSold(Sku sk) <- sumSold(sk) (-) sumVATSold(sk) (-) costSumSold(sk);
+    markupPercentSold(Sku sk) <- NUMERIC[8,2](markupSumSold(sk) / costSumSold(sk) * 100);
+}
+
+detailedSold 'Показать детализацию продаж' = DATA LOCAL BOOLEAN () PREREAD;
+
+EXTEND FORM reportBackSheet
+    PROPERTIES () detailedSold
+    PROPERTIES(s) READONLY quantitySold, sumSold
+    PROPERTIES(s) READONLY SHOWIF detailedSold() costSumSold, sumVATSold, markupSumSold
+    PROPERTIES(s) READONLY markupPercentSold
+;
+
+DESIGN reportBackSheet {
+    sumContainer {
+        MOVE PROPERTY (detailedSold());
+    }
+}

@@ -1,0 +1,107 @@
+MODULE SaleShipmentLotSecond;
+
+REQUIRE SaleShipmentLot, LotSecondExtra, ItemSecond;
+
+NAMESPACE Sale;
+
+@defineDocumentLotDetail(userInvoice, i);
+
+sumLotWeightInvoiceDetail 'Вес оценённых товаров, кг' (Invoice i)= GROUP SUM weight(Lot l) IF quantity(i, l) IN documentSum MATERIALIZED;
+
+cycle = DATA Cycle (UserInvoice);
+descriptionCycle 'Цикл' (UserInvoice i) = description(cycle(i));
+
+WHEN LOCAL FORMS userInvoice CHANGED(customerStock(UserInvoice i)) DO
+    cycle(i) <- NULL;
+
+CONSTRAINT (SET(isPosted(UserInvoice i)) OR CHANGED(customerStock(i))) AND isPosted(i) AND customerStock(i) IS DepartmentStore AND NOT stock(cycle(i)) == customerStock(i)
+    AND id(operation(i)) == 'saleStoreStore' AND [GROUP MIN UserInvoiceDetail d IF isSecond(sku(d)) BY userInvoice(d)](i)
+    MESSAGE 'Должен быть указан цикл магазина-получателя, в который добавляются товары';
+
+CONSTRAINT SETCHANGED(cycle(UserInvoice i)) AND (stock(cycle(i)) != customerStock(i) OR toDate(cycle(i)) < currentDate())
+    CHECKED BY cycle[UserInvoice]
+    MESSAGE 'Выбран цикл другого магазина, либо цикл уже завершён';
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) READONLY sumLotWeightInvoiceDetail
+    PROPERTIES (i) descriptionCycle SHOWIF (id(operation(i)) == 'saleStoreStore' AND customerStock(i) IS DepartmentStore)
+;
+
+EXTEND FORM invoices
+    PROPERTIES (i) READONLY sumLotWeightInvoiceDetail AFTER quantityInvoiceDetail(i)
+;
+
+DESIGN userInvoice {
+    REMOVE PROPERTY(sumGrossWeightInvoiceDetail(i));
+    REMOVE PROPERTY(sumNetWeightInvoiceDetail(i));
+    headerCustomer {
+        MOVE PROPERTY (descriptionCycle(i));
+    }
+}
+
+@defineDocumentLotDetail(userShipment, s);
+
+sumLotWeightShipmentDetail 'Вес оценённых товаров, кг' (Shipment i)= GROUP SUM weight(Lot l) IF quantity(i, l) IN documentSum MATERIALIZED;
+
+cycle = DATA Cycle (UserShipment) INDEXED;
+descriptionCycle 'Цикл в' (UserShipment i) = description(cycle(i));
+
+WHEN LOCAL FORMS userShipment CHANGED(customerStock(UserShipment i)) DO
+    cycle(i) <- NULL;
+
+CONSTRAINT (SET(isPosted(UserShipment i)) OR CHANGED(customerStock(i))) AND isPosted(i) AND customerStock(i) IS DepartmentStore AND NOT stock(cycle(i)) == customerStock(i)
+    AND id(operation(i)) == 'saleStoreStore' AND [GROUP MIN UserShipmentDetail d IF isSecond(sku(d)) BY userShipment(d)](i)
+    MESSAGE 'Должен быть указан цикл магазина-получателя, в который добавляются товары';
+
+CONSTRAINT SETCHANGED(cycle(UserShipment i)) AND stock(cycle(i)) != customerStock(i)
+    CHECKED BY cycle[UserShipment]
+    MESSAGE 'Выбран цикл другого магазина-получателя';
+
+CONSTRAINT SETCHANGED(cycle(UserShipment i)) AND toDate(cycle(i)) < currentDate() AND sid(mainRole(currentUser())) != 'admin'
+    CHECKED BY cycle[UserShipment]
+    MESSAGE 'Цикл уже завершён';
+
+changeDescriptionCycle(UserShipment o)  {
+    DIALOG dialogCycles OBJECTS c = cycle(o) CHANGE LIST description(c);
+}
+
+cycleFrom = DATA Cycle (UserShipment) INDEXED;
+descriptionCycleFrom 'Цикл из' (UserShipment i) = description(cycleFrom(i));
+
+WHEN LOCAL FORMS userShipment CHANGED(supplierStock(UserShipment i)) DO
+    cycleFrom(i) <- NULL;
+
+CONSTRAINT (SET(isPosted(UserShipment i)) OR CHANGED(supplierStock(i))) AND isPosted(i) AND supplierStock(i) IS DepartmentStore AND NOT stock(cycleFrom(i)) == supplierStock(i)
+    AND id(operation(i)) == 'saleStoreStore' AND [GROUP MIN UserShipmentDetail d IF isSecond(sku(d)) BY userShipment(d)](i)
+    MESSAGE 'Должен быть указан цикл магазина-отправителя, из которого товары';
+
+CONSTRAINT SETCHANGED(cycleFrom(UserShipment i)) AND (stock(cycleFrom(i)) != supplierStock(i) OR fromDate(cycleFrom(i)) > currentDate())
+    CHECKED BY cycleFrom[UserShipment]
+    MESSAGE 'Выбран цикл другого магазина-отправителя, либо цикл ещё не начался';
+
+changeDescriptionCycleFrom(UserShipment o)  {
+    DIALOG dialogCycles OBJECTS c = cycleFrom(o) CHANGE LIST description(c);
+}
+
+EXTEND FORM userShipment
+    PROPERTIES (s) READONLY sumLotWeightShipmentDetail
+    PROPERTIES (s) descriptionCycle ON CHANGE changeDescriptionCycle(s) SHOWIF (id(operation(s)) == 'saleStoreStore' AND customerStock(s) IS DepartmentStore)
+    PROPERTIES (s) descriptionCycleFrom ON CHANGE changeDescriptionCycleFrom(s) SHOWIF (id(operation(s)) == 'saleStoreStore' AND supplierStock(s) IS DepartmentStore)
+;
+
+EXTEND FORM shipments
+    PROPERTIES (s) READONLY sumLotWeightShipmentDetail AFTER quantityShipmentDetail(s), descriptionCycleFrom AFTER nameSupplierStock(s), descriptionCycle AFTER nameCustomerStock(s)
+;
+
+DESIGN userShipment {
+    headerRow111 {
+        MOVE PROPERTY (descriptionCycleFrom(s));
+    }
+    headerRow112 {
+        MOVE PROPERTY (descriptionCycle(s));
+    }
+}
+
+overCopy(UserShipmentDetail d, UserShipmentDetail detail) + {
+    quantity(d, Lot l) <- quantity(detail, l) WHERE quantity(detail, l);
+}

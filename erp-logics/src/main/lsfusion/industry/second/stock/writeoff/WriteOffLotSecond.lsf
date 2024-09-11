@@ -1,0 +1,57 @@
+MODULE WriteOffLotSecond;
+
+REQUIRE WriteOffLot, WriteOffTerminal, LotSecondExtra;
+
+NAMESPACE WriteOff;
+
+@defineDocumentLotDetail(userWriteOff, w);
+
+WHEN LOCAL FORMS userWriteOff SETCHANGED(dataIndex(UserWriteOffDetail d)) AND index(d) > 1000000 DO {
+    MESSAGE 'ОШИБКА! Сканирование произведено в номер строки.\nПовторите сканирование этого товара!';
+    dataIndex(d) <- PREV(dataIndex(d));
+}
+
+sumLotWeightWriteOffDetail 'Вес оценённых товаров, кг' (WriteOff i)= GROUP SUM weight(Lot l) IF quantity(i, l) IN documentSum MATERIALIZED;
+
+EXTEND FORM userWriteOff
+    PROPERTIES (w) READONLY sumLotWeightWriteOffDetail
+;
+
+EXTEND FORM writeOffs
+    PROPERTIES (w) READONLY sumLotWeightWriteOffDetail AFTER quantityWriteOffDetail(w)
+;
+
+importLotXLSX 'Импорт из xlsx' (UserWriteOff s) {
+    LOCAL barcode = STRING (INTEGER);
+    LOCAL count = INTEGER();
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f TO barcode = B;
+
+        FOR barcode(INTEGER i) DO {
+            IF lot(barcode(i)) THEN
+                processInputBarcodeUserWriteOffDetail(s, barcode(i));
+            ELSE
+                count() <- count() (+) 1;
+        }
+        IF count() > 0 THEN
+            MESSAGE CONCAT ' ', 'Не найдено кодов:', count();
+    }
+}
+
+EXTEND FORM userWriteOff
+    PROPERTIES (w) importLotXLSX
+;
+
+DESIGN userWriteOff {
+    headerTabbedPane {
+        NEW import {
+            caption = 'Импорт';
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY(addDetailDialogTerminalUserWriteOffDetail(w));
+            MOVE PROPERTY(importLotXLSX(w));
+        }
+    }
+}
+
+@defineCycleFrom(userWriteOff, w, 'second', userWriteOff, writeOffs, first);
