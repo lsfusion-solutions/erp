@@ -85,7 +85,7 @@ quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY
 quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), commission(d), sku(d);
 countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
 overToQuantity (Inventory i,Zone z,Sku s) = GROUP MIN NUMERIC[14,3] q IF countValue( q, i, z, s) >= countCommissions(i); 
-
+filterCommissionZone = GROUP SUM 1 IF quantity(Inventory i, Zone z, Commission c, Sku s) BY c,z;
 toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  dataQuantity(i,z,s), overToQuantity(i,z,s);
 
 background (Inventory i, Zone z, Sku s) =  CASE
@@ -275,14 +275,14 @@ printDiffZone 'Расхождения (зона)' (Inventory in, Zone z)  {
     select(Zone zz) <- NULL;
     select (z) <- TRUE;
     overName (Commission co) <- name(co) + ' (' + commissionDocumentTitles(in,z,id(co)) + ')';
-    PRINT diffZone OBJECTS in = in;
+    PRINT diffZone OBJECTS in = in FILTERS filterCommissionZone(co,z);
 } IMAGE 'print.png' IN print;
 
 printDiffZoneXLSX 'Расхождения (зона) XLSX' (Inventory in, Zone z)  { 
     select(Zone zz) <- NULL;
     select (z) <- TRUE;
     overName (Commission co) <- name(co) + ' (' + commissionDocumentTitles(in,z,id(co)) + ')';
-    PRINT diffZone OBJECTS in = in XLSX;
+    PRINT diffZone OBJECTS in = in FILTERS filterCommissionZone(co,z) XLSX ;
 } IMAGE 'print.png' IN print;
 
 printDiffZone 'Расхождения (все)' (Inventory in)  { 
@@ -340,7 +340,7 @@ EXTEND FORM inventory
         FILTER 'Разногласия' diffFilter (in,zz,ls)  'F10'     
       
     PROPERTIES (in) TOOLBAR DRAW ds createListInventoryZones 
-    PROPERTIES TOOLBAR  DRAW ls printDiffZone(in,zz), printDiffZoneXLSX(in,zz), printDiffZone(in)
+    PROPERTIES TOOLBAR  DRAW ls SHOWIF countCommissions(in)>1 printDiffZone(in,zz) , printDiffZoneXLSX(in,zz), printDiffZone(in)
 ;
 DESIGN inventory {
     topContainer {
