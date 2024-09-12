@@ -18,8 +18,13 @@ public class FiscalEpsonResetReceiptClientAction implements ClientAction {
     BigDecimal sumGiftCard;
     Integer cardType;
     Integer giftCardType;
+    boolean version116;
+    ReceiptInstance receipt;
+    boolean sendSKNO;
+    boolean resetTypeOfGoods;
 
-    public FiscalEpsonResetReceiptClientAction(Integer comPort, Integer baudRate, String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, Integer cardType, Integer giftCardType) {
+
+    public FiscalEpsonResetReceiptClientAction(Integer comPort, Integer baudRate, String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, Integer cardType, Integer giftCardType, boolean version116, ReceiptInstance receipt, boolean sendSKNO, boolean resetTypeOfGoods) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.cashier = cashier;
@@ -30,6 +35,10 @@ public class FiscalEpsonResetReceiptClientAction implements ClientAction {
         this.sumGiftCard = sumGiftCard;
         this.cardType = cardType;
         this.giftCardType = giftCardType;
+        this.version116 = version116;
+        this.receipt = receipt;
+        this.sendSKNO = sendSKNO;
+        this.resetTypeOfGoods = resetTypeOfGoods;
     }
 
 
@@ -39,7 +48,8 @@ public class FiscalEpsonResetReceiptClientAction implements ClientAction {
             FiscalEpson.init();
 
             FiscalEpson.openPort(comPort, baudRate);
-            FiscalEpson.resetReceipt(cashier, documentNumberReceipt, totalSum, sumCash, sumCard, sumGiftCard, cardType, giftCardType);
+
+            FiscalEpson.resetReceipt(cashier, documentNumberReceipt, totalSum, sumCash, sumCard, sumGiftCard, cardType, giftCardType, version116, receipt, sendSKNO, resetTypeOfGoods);
 
         } catch (RuntimeException e) {
             FiscalEpson.cancelReceipt(false);

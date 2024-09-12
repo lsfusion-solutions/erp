@@ -1,6 +1,22 @@
 MODULE FiscalEpson;
 
-REQUIRE POS, POSSection;
+REQUIRE POS, POSSection, ZReportLot;
+
+// версия для работы с марками, 2024
+version116 'Новая версия' = DATA BOOLEAN (CashRegister) IN base;
+version116CurrentCashRegister 'Epson TFP 116' = BOOLEAN (version116(currentCashRegister()));
+epsonCurrencyCode 'Код валюты' = DATA STRING[3] (CashRegister) IN base;
+epsonCurrencyCodeCashRegister 'Код валюты' = (epsonCurrencyCode(currentCashRegister()));
+
+EXTEND FORM groupCashRegister PROPERTIES (c) SHOWIF sidModel(grc) = 'Epson' version116, epsonCurrencyCode;
+
+epsonSkuType 'Тип товара' (ReceiptDetail o) = 
+    IF skuType(sku(o)) = SkuType.skuTypeItem THEN 1 ELSE // товар 
+        IF skuType(sku(o)) =  SkuType.skuTypeCharge THEN 3 ELSE // услуга
+            IF skuType(sku(o)) = SkuType.skuTypeContainer THEN 5 ELSE 1; // тара  
+
+epsonIdLot 'Марка' (ReceiptDetail o) = idLot(o);
+epsonTailLot 'Хвост марки' (ReceiptDetail o) = tailLot(o); 
 
 customImplementationEpson = ABSTRACT BOOLEAN();
 
@@ -36,6 +52,15 @@ fiscalElectronicJournalToFile() + {  IF sidModelCurrentCashRegister() == 'Epson'
 
 fiscalEpsonService 'Перемещение денег'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonServiceInOutAction' (CashOperation);
 fiscalService(CashOperation cashOperation) + {  IF sidCashRegisterModel(cashOperation) == 'Epson' THEN fiscalEpsonService(cashOperation); }
+
+fiscalEpsonCashSum 'Сумма наличных' INTERNAL 'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCashSumAction' ();
+fiscalCashSum() + { IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCashSum(); }
+
+// отрезать чек
+fiscalCutReceipt() + { IF sidModelCurrentCashRegister() == 'Epson' THEN MESSAGE 'Операция не поддерживается'; }
+
+// прогон ленты
+fiscalAdvancePaper() + { IF sidModelCurrentCashRegister() == 'Epson' THEN MESSAGE 'Операция не поддерживается'; }
 
 fiscalEpsonCancel 'Отменить чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCancelReceiptAction' (Receipt);
 fiscalCancel(Receipt receipt) + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCancel(receipt); }

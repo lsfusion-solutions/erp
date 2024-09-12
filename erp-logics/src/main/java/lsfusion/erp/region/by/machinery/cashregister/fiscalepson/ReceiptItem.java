@@ -19,9 +19,15 @@ public class ReceiptItem implements Serializable {
     public Integer section;
     public String comment;
 
+    public BigDecimal bonusPaid;
+    public Integer skuType;
+    public String idLot;
+    public String tailLot;
+
     public ReceiptItem(boolean isGiftCard, boolean isCommission, BigDecimal price, BigDecimal quantity, boolean useBlisters,
                        BigDecimal blisterPrice, BigDecimal blisterQuantity, String barcode, String name, BigDecimal sumPos,
-                       BigDecimal discount, String vatString, Integer section, String comment) {
+                       BigDecimal discount, BigDecimal bonusPaid, String vatString, Integer section, String comment,
+                       Integer skuType, String idLot, String tailLot) {
         this.isGiftCard = isGiftCard;
         this.isCommission = isCommission;
         this.price = price;
@@ -33,8 +39,12 @@ public class ReceiptItem implements Serializable {
         this.name = name;
         this.sumPos = sumPos;
         this.discount = discount;
+        this.bonusPaid = bonusPaid;
         this.vatString = vatString;
         this.section = section;
         this.comment = comment;
+        this.skuType = skuType;
+        this.idLot = idLot;
+        this.tailLot = tailLot;
     }
 }

@@ -23,9 +23,10 @@ public class FiscalEpsonElectronicJournalToFileAction extends InternalAction {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             Integer offsetBefore = (Integer) findProperty("fiscalEpsonElectronicJournalReadOffsetCurrentZReport[]").read(context);
+            boolean version116 = findProperty("version116CurrentCashRegister[]").read(context) != null;
 
             if (offsetBefore != null) {
-               String result = (String)context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(9, comPort, baudRate, offsetBefore));
+               String result = (String)context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(9, comPort, baudRate, offsetBefore, null, version116));
                 if (result != null) {
                     context.requestUserInteraction(new OpenFileClientAction(new RawFileData(result.getBytes()), "epson", "txt"));
                 }

@@ -6,6 +6,7 @@ import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Calendar;
@@ -92,11 +93,19 @@ public class FiscalEpson {
         }
     }
 
-    public static void resetReceipt(String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard, Integer cardType, Integer giftCardType) throws RuntimeException {
+    public static void resetReceipt(String cashier, Integer documentNumberReceipt, BigDecimal totalSum, BigDecimal sumCash, BigDecimal sumCard, BigDecimal sumGiftCard,
+                                    Integer cardType, Integer giftCardType, boolean version116, ReceiptInstance receipt, boolean sendSKNO, boolean resetTypeOfGoods) throws RuntimeException {
         boolean sale = totalSum.doubleValue() > 0;
         epsonActiveXComponent.setProperty("CancellationDocumentNumber", new Variant(documentNumberReceipt));
-        epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
+        if (!version116)
+            epsonActiveXComponent.setProperty("CancellationAmount", new Variant(totalSum));
         openReceipt(cashier, 5);
+
+        if (version116) { // анулируем документ построчно
+            for (ReceiptItem item : receipt.receiptList) {
+                registerItem(item, sendSKNO, resetTypeOfGoods, true, 3);
+            }
+        }
 
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
@@ -122,7 +131,7 @@ public class FiscalEpson {
 
     public static Integer zReport() throws RuntimeException {
         openDayIfClosed();
-        Integer zReportNumber = getReceiptInfo().sessionNumber;
+        Integer zReportNumber = getReceiptInfo(false).sessionNumber;
         Dispatch.call(epsonDispatch, "PrintZReport");
         checkErrors(true);
         return zReportNumber;
@@ -134,9 +143,13 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static String readElectronicJournal(Integer offsetBefore) throws RuntimeException {
-        Integer offset = getElectronicJournalReadOffset();
+    public static String readElectronicJournal(Integer offsetBefore, boolean version116) throws RuntimeException {
+        Integer offset = getElectronicJournalReadOffset(); // возвращает ElectronicJournalReadOffset
         checkErrors(true);
+
+        if (version116) {
+            offsetBefore = 0;
+        }
 
         epsonActiveXComponent.setProperty("ElectronicJournalReadOffset", offsetBefore);
         epsonActiveXComponent.setProperty("ElectronicJournalReadSize", offset - offsetBefore);
@@ -167,8 +180,9 @@ public class FiscalEpson {
         checkErrors(true);
     }
 
-    public static void registerItem(ReceiptItem item, boolean sendSKNO, boolean resetTypeOfGoods) throws RuntimeException {
-        printLine(sendSKNO && item.isGiftCard ? ("1 " + item.barcode) : item.barcode);
+    public static void registerItem(ReceiptItem item, boolean sendSKNO, boolean resetTypeOfGoods, boolean version116, int operation) throws RuntimeException {
+        if (!version116)
+            printLine(sendSKNO && item.isGiftCard ? ("1 " + item.barcode) : item.barcode);
 
         boolean isGiftCardOrComission = item.isGiftCard || item.isCommission;
 
@@ -184,20 +198,100 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
         epsonActiveXComponent.setProperty("Department", department);
 
-        if(sendSKNO && isGiftCardOrComission) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
-            epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
-            epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes(item.barcode)));
-        }
+        if (version116) {
 
-        Dispatch.call(epsonDispatch, "Sale");
+            // соответствует не маркированному товару без GTIN (barcode)
+            Integer typeOfGoods = 0;                // Тип маркировки
+            String barcodeOfGoods = "";             // GTIN
+            String firstMarkingOfGoods = "";        // СИ (средство индентификации ЕАЭС), для ERP только СИ
+            String secondMarkingOfGoods = "";       // УКЗ (унифицированный контрольный знак РБ), для ERP не используется
 
-        if (sendSKNO && isGiftCardOrComission && resetTypeOfGoods) {
-            epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(0));
-            epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes("")));
+            if (isGiftCardOrComission) { // авансовый платеж - продажа подарочного сертификата
+                typeOfGoods = 4;
+            } else if (item.skuType == 3) { // услуга
+                typeOfGoods = 3;
+            } else if (item.skuType == 1 && item.barcode != null && item.idLot == null) { // простой товар с GTIN
+                Integer tg = getTypeOfGoods(item.barcode);
+                if (tg > 0) {
+                    typeOfGoods = tg;
+                    barcodeOfGoods = item.barcode;
+                }
+            } else if (item.skuType == 1 && item.barcode != null && item.idLot != null) { // GTIN + СИ + Криптохвост
+                Integer tg = getTypeOfGoods(item.barcode);
+                if (tg > 0) {
+                    typeOfGoods = 20;
+                    barcodeOfGoods = item.barcode;
+                    if (item.tailLot.charAt(0)!=0x1d) item.tailLot = 0x1d + item.tailLot;
+                    firstMarkingOfGoods = item.idLot + item.tailLot;
+                }
+            }
+
+            epsonActiveXComponent.setProperty("TypeOfGoods", new Variant( typeOfGoods));
+            epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(barcodeOfGoods));
+            epsonActiveXComponent.setProperty("FirstMarkingOfGoods", new Variant(firstMarkingOfGoods));
+            epsonActiveXComponent.setProperty("SecondMarkingOfGoods", new Variant(secondMarkingOfGoods));
+
+            // обработка скидок
+            BigDecimal dsc = safeAdd(item.discount,item.bonusPaid);
+            if (dsc != null && dsc.compareTo(BigDecimal.ZERO) > 0) {
+                if (operation == 1 || operation == 3) { // продажа, аннулирование
+                    cashRegisterlogger.info(String.format("Epson Discount: quantity %s, discount %s, bonusPaid %s, total discount %s", item.quantity, item.discount, item.bonusPaid, dsc));
+                    epsonActiveXComponent.setProperty("CorrectionAmount", new Variant(dsc));
+                    Dispatch.call(epsonDispatch, "DiscountSale");
+                } else if (operation == 2) { // возврат
+                    // скидки  в чеке запрещены, поэтому продаем, как 1 единицу по цене суммы,
+                    // в комментарии указываем количество, цену, размер скидки
+                    // отнимать скидку от цены плохо, могут возникнуть проблемы с округлением
+                    epsonActiveXComponent.setProperty("Quantity", new Variant(1));
+                    epsonActiveXComponent.setProperty("Price", new Variant(item.sumPos));
+                    Dispatch.call(epsonDispatch, "Sale");
+                    printLine(String.format("возврат %s единиц товара\nпо цене %s с учетом скидки %s",item.quantity.stripTrailingZeros(),item.price.stripTrailingZeros(),dsc.stripTrailingZeros()));
+                }
+            } else {
+                Dispatch.call(epsonDispatch, "Sale");
+            }
+
+        } else {
+
+            if(sendSKNO && isGiftCardOrComission) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
+                epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
+                epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes(item.barcode)));
+            }
+
+            Dispatch.call(epsonDispatch, "Sale");
+
+            if (sendSKNO && isGiftCardOrComission && resetTypeOfGoods) {
+                epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(0));
+                epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes("")));
+            }
+
         }
 
         checkErrors(true);
 
+    }
+
+
+    private static Integer getTypeOfGoods(String code) {
+        if (code == null)
+            return 0;
+        code = code.trim();
+        if (code.isEmpty())
+            return 0;
+        if (!code.matches("-?\\d+(\\.\\d+)?"))
+            return 0; // если не цифры
+        if (code.length() == 14) {
+            return 16;
+        } else {
+            return 1;
+        }
+    }
+
+
+    private static BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
 
     private static String appendZeroes(String barcode) {
@@ -237,7 +331,7 @@ public class FiscalEpson {
         }
     }
 
-    public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType) throws RuntimeException {
+    public static ReceiptInfo closeReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean version116) throws RuntimeException {
         cashRegisterlogger.info(String.format("Epson CompleteReceipt: sumCard %s, sumGiftCard %s, sumCash %s", receipt.sumCard, receipt.sumGiftCard, receipt.sumCash));
         Dispatch.call(epsonDispatch, "CompleteReceipt");
         checkErrors(true);
@@ -265,17 +359,24 @@ public class FiscalEpson {
             checkErrors(true);
         }
 
-        ReceiptInfo receiptInfo = getReceiptInfo();
+        ReceiptInfo receiptInfo = getReceiptInfo(version116);
         closeReceipt();
         return receiptInfo;
     }
 
-    public static ReceiptInfo getReceiptInfo() {
+    public static ReceiptInfo getReceiptInfo(boolean version116) {
         Dispatch.call(epsonDispatch, "ReadDocumentNumber");
         checkErrors(true);
-        Variant documentNumber = Dispatch.get(epsonDispatch, "DocumentNumber");
-        Variant receiptNumber = Dispatch.get(epsonDispatch, "ReceiptNumber");
         Variant sessionNumber = Dispatch.get(epsonDispatch, "SessionNumber");
+        Variant documentNumber;
+        Variant receiptNumber;
+        if (version116) {
+            receiptNumber = Dispatch.get(epsonDispatch, "DocumentThroughNumber");
+            documentNumber = receiptNumber;
+        } else {
+            documentNumber = Dispatch.get(epsonDispatch, "DocumentNumber");
+            receiptNumber = Dispatch.get(epsonDispatch, "ReceiptNumber");;
+        }
         return new ReceiptInfo(toInt(documentNumber), toInt(receiptNumber), toInt(sessionNumber));
     }
 
@@ -290,19 +391,20 @@ public class FiscalEpson {
         } else return null;
     }
 
-    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean sendSKNO, boolean resetTypeOfGoods) {
+    public static PrintReceiptResult printReceipt(ReceiptInstance receipt, boolean sale, Integer cardType, Integer giftCardType, boolean sendSKNO, boolean resetTypeOfGoods, boolean version116) {
         Integer offsetBefore = getElectronicJournalReadOffset();
         openReceipt(receipt.cashier, sale ? 1 : 2);
         DecimalFormat formatter = getFormatter();
         printLine(receipt.comment);
         for (ReceiptItem item : receipt.receiptList) {
-            registerItem(item, sendSKNO, resetTypeOfGoods);
-            discountItem(item, !sale, formatter);
-            printLine(item.vatString);
-            printLine(item.comment);
-
+            registerItem(item, sendSKNO, resetTypeOfGoods, version116, sale ? 1 : 2);
+            if (!version116) {
+                discountItem(item, !sale, formatter);
+                printLine(item.vatString);
+                printLine(item.comment);
+            }
         }
-        ReceiptInfo receiptInfo = closeReceipt(receipt, sale, cardType, giftCardType);
+        ReceiptInfo receiptInfo = closeReceipt(receipt, sale, cardType, giftCardType, version116);
         Integer offsetAfter = getElectronicJournalReadOffset();
         return new PrintReceiptResult(receiptInfo.documentNumber, receiptInfo.receiptNumber, offsetBefore, offsetAfter - offsetBefore, receiptInfo.sessionNumber);
     }
@@ -398,6 +500,15 @@ public class FiscalEpson {
             this.receiptNumber = receiptNumber;
             this.sessionNumber = sessionNumber;
         }
+    }
+
+    public static BigDecimal cashSum(String currencyCode) throws RuntimeException {
+        epsonActiveXComponent.setProperty("RequestSession",new Variant(0));
+        epsonActiveXComponent.setProperty("RequestCurrency",currencyCode);
+        Dispatch.call(epsonDispatch,"RequestSessionCollectedAmounts");
+        checkErrors(true);
+        BigDecimal dResult = BigDecimal.valueOf(Dispatch.get(epsonDispatch,"CollectedAmount").getCurrency().longValue()).divide(BigDecimal.valueOf(10000), 2, RoundingMode.HALF_UP);
+        return dResult;
     }
 }
 
