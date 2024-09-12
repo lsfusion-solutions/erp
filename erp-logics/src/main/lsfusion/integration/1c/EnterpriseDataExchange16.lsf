@@ -709,17 +709,18 @@ EXTEND FORM receiveMessage
 // Для обратной совместимости 1.6 -> 1.5
 
 //услуги, транспортные расходы
-hasService 'Есть услуги' = ABSTRACT BOOLEAN (EnterpriseData, Configuration);
-hasTransportationCost 'Есть транспортные расходы' = ABSTRACT BOOLEAN (PurchaseInvoiceDetail, Configuration);
+inService 'Есть услуги' = ABSTRACT BOOLEAN (EnterpriseData, Configuration);
+
+CLASS ABSTRACT TransportProduct;
+inService = ABSTRACT BOOLEAN (PurchaseInvoice, TransportProduct, Configuration);
 
 EXTEND FORM sendMessage
     OBJECTS purchaseInvoiceService = PurchaseInvoice EXTID 'Строка' IN service
     FILTERS purchaseInvoiceService == purchaseInvoice,
-            hasService(purchaseInvoiceService, configuration)
+            inService(purchaseInvoiceService, configuration)
 
-    OBJECTS purchaseInvoiceProductTransport = PurchaseInvoiceProduct EXTID 'Строка' IN transportationCost
-    FILTERS in(purchaseInvoice, purchaseInvoiceProductTransport, configuration),
-            hasTransportationCost(purchaseInvoiceProductTransport, configuration)
+    OBJECTS purchaseInvoiceProductTransport = TransportProduct EXTID 'Строка' IN transportationCost
+    FILTERS inService(purchaseInvoice, purchaseInvoiceProductTransport, configuration)
 ;
 
 @defProp(numberInnerDocument, 'НомерВходящегоДокумента', STRING, purchaseInvoice);
@@ -746,6 +747,9 @@ EXTEND FORM sendMessage
 ;
 
 @extTable(purchaseInvoice, product);
+
+EXTEND CLASS PurchaseInvoiceProduct: TransportProduct;
+
 @defPropSimpleDetail(index, 'НомерСтрокиДокумента', INTEGER, purchaseInvoice, product);
 @defPropDetail(item, 'Номенклатура', Item, purchaseInvoice);
 @defPropObjectDetail(item, 'Номенклатура', Item, purchaseInvoice, product, itemData);
@@ -1211,6 +1215,9 @@ EXTEND FORM receiveMessage
 ;
 
 @extTable(shipment, product);
+
+EXTEND CLASS ShipmentProduct: TransportProduct;
+
 @defPropObjectDetail(item, 'Номенклатура', Item, shipment, product, itemData);
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipment, product);
 @defPropObjectDetail(specification, 'Характеристика', Specification, shipment, product, itemData);
