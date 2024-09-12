@@ -42,8 +42,8 @@ beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) 
 lockedEDN = DATA User (STRING) TABLE stringEDI;
 lockResultEDN = DATA LOCAL NESTED BOOLEAN ();
 
-lockEDN(STRING object)  { 
-    NEWSESSION {    
+lockEDN(STRING object) {
+    NEWSESSION {
         lockResultEDN() <- NULL;
         APPLY SERIALIZABLE {
             IF NOT object THEN
@@ -58,16 +58,16 @@ lockEDN(STRING object)  {
     }
 }
 
-unlockEDN(STRING object)  { 
-    NEWSESSION { 
+unlockEDN(STRING object) {
+    NEWSESSION {
         APPLY lockedEDN(object) <- NULL;
     }
 }
 
-onStarted()+ { 
+onStarted() + {
     NEWSESSION {
         lockedEDN(STRING l) <- NULL WHERE lockedEDN(l);
-        APPLY;      
+        APPLY;
     }
 }
 
@@ -79,7 +79,7 @@ receiveMessagesEDN () {
             IF lockResultEDN() THEN {
                 TRY {
                     overReceiveMessagesEDN(le);
-                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + ':' + portEDN(le) + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + (IF portEDN(le) THEN ':' + portEDN(le) ELSE '') + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
                 } FINALLY {
                     unlockEDN(login);
                 }
@@ -180,8 +180,8 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
 lockedDocuDrive = DATA User ();
 lockResultDocuDrive = DATA LOCAL NESTED BOOLEAN ();
 
-lockDocuDrive()  { 
-    NEWSESSION {    
+lockDocuDrive() {
+    NEWSESSION {
         lockResultDocuDrive() <- NULL;
         APPLY SERIALIZABLE {
             IF lockedDocuDrive() THEN {
@@ -194,16 +194,16 @@ lockDocuDrive()  {
     }
 }
 
-unlockDocuDrive()  { 
-    NEWSESSION { 
+unlockDocuDrive() {
+    NEWSESSION {
         APPLY lockedDocuDrive() <- NULL;
     }
 }
 
-onStarted()+ { 
+onStarted() + {
     NEWSESSION {
         lockedDocuDrive() <- NULL WHERE lockedDocuDrive();
-        APPLY;      
+        APPLY;
     }
 }
 
