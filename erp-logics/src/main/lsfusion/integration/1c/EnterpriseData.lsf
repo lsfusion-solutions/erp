@@ -105,6 +105,7 @@ WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO in(Confi
 
 inLocalSending = DATA LOCAL BOOLEAN (Configuration, EnterpriseData); 
 prevPacket = DATA LOCAL INTEGER (Configuration, EnterpriseData);
+prevMessageNumber = DATA LOCAL INTEGER (Configuration);
 
 skip = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
  
@@ -330,6 +331,7 @@ hasScheme 'Схема задана' (Configuration c) = TRUE IF scheme(c) MATERI
 sendMessage 'Передать' (Configuration c) {
     NEWSESSION {
         TRY {
+            prevMessageNumber(c) <- messageNo(c);
             idSended(c) <- messageNo(c) (+) 1;
             LOCAL f = XMLFILE ();
             inLocalSending(c, EnterpriseData e) <- NULL WHERE e IS EnterpriseData;
@@ -358,6 +360,7 @@ sendMessage 'Передать' (Configuration c) {
             MESSAGE System.messageCaughtException() NOWAIT;
             errorExport(c);
             packet(c, EnterpriseData e) <- prevPacket(c, e) WHERE inLocalSending(c, e);
+            idSended(c) <- prevMessageNumber(c);
             
             APPLY;
             IF System.applyMessage() THEN {
