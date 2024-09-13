@@ -1,0 +1,101 @@
+MODULE Set10Second;
+
+REQUIRE Set10CustomLot, Set10QR, LotSecondExtra, DisassemblyLotSecond;
+
+NAMESPACE Set10;
+
+chatIdNotificationSet 'ID чата для уведомлений' = DATA STRING ();
+tokenBotNotificationSet 'Токен бота для уведомлений' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES() chatIdNotificationSet, tokenBotNotificationSet
+;
+
+DESIGN integrationData {
+    set10 {
+        MOVE PROPERTY (chatIdNotificationSet());
+        MOVE PROPERTY (tokenBotNotificationSet());
+    }
+}
+
+receipt(INTEGER i) = CONCAT '\n', 'Чек ' + IF operationType(i) = 'true' THEN 'продажи' ELSE 'возврата',
+    '№' + number2(i) + '  от ' + DATE(saletime1(i)), 'Касса ' + cash1(i) + ' Смена ' + shift1(i),
+    nameStock(GROUP MAX GroupCashRegister g IF idStoreSet(g) = shop1(i)), 'Сумма ' + amount(i);
+
+afterCancelledTransaction(STRING a) + {
+    LOCAL f = FILE();
+    TRY {
+        LOCAL receipts = STRING ();
+        receipts() <- GROUP CONCAT receipt(INTEGER i), '\n-------\n' IF imported(i) ORDER i;
+        LOCAL message = STRING[3000]();
+        message() <- CONCAT '\n', 'Ошибка при созданнии чека\n',  applyMessage(), receipts(),
+            '\nОбратите внимание: расхождения в суммах кассовых отчётов','\n' + errorTelegramUserNames();
+        EXTERNAL HTTP POST CONCAT '', 'https://api.telegram.org/bot', tokenBotNotificationSet(),
+            '/sendMessage?chat_id=', chatIdNotificationSet() BODYURL '&text=$1' PARAMS message() TO f;
+    }
+        CATCH {
+        fileToString(f());
+        logToFile('set10', CONCAT ' : ', 'ERROR afterCancelledTransaction', resultString(), messageCaughtException());
+    }
+}
+
+//удаление марок
+
+CLASS CashRegisterPriceTransactionLotDelete 'Удаление марок в кассах' : CashRegisterPriceTransactionLot;
+
+deletedFromCash = DATA DATETIME (Lot);
+
+customSend(CashRegisterPriceTransactionLotDelete t) += WHEN t IS CashRegisterPriceTransactionLotDelete THEN TRUE;
+
+WHEN SETCHANGED (succeeded(CashRegisterPriceTransactionLotDelete t)) AND t IS CashRegisterPriceTransactionLotDelete AND countItems(t)
+    DO deletedFromCash(Lot l) <- currentDateTime() WHERE in(t, l);
+
+idStoreSet(Lot l) = idStoreSet(groupCashRegister(GROUP LAST CashRegisterPriceTransactionLot t ORDER date(t) IF  in(t, l) AND succeeded(t)));
+toDeleteFromCash(Lot l, DATE d) = l IS Lot AND idStoreSet(l) AND NOT [GROUP SUM 1 IF currentBalance(l, Stock st)]()
+    AND NOT [GROUP MAX date(SkuLedger s) IF signedQuantity(s, l)]() > subtract(d, defaultCycleDays()*2) AND NOT deletedFromCash(l)
+    AND NOT toDate(cycle(l)) > subtract(currentDate(), defaultCycleDays()) AND NOT setAside(l) AND NOT fixedLotDashboardSku(l)
+;
+
+FORM lotsDeleteFromCash FORMEXTID 'goods-catalog'
+    OBJECTS t = CashRegisterPriceTransactionLotDelete PANEL
+
+    OBJECTS good = Lot
+    PROPERTIES nameSku(good) EXTID 'name', = OVERRIDE valueVAT(sku(good)), 0 EXTID 'vat',
+        = id(good) EXTID 'marking-of-the-good' ATTR, = IF isLot(good) THEN 'true' EXTID 'delete-from-cash',
+        = IF isLot(good) THEN 'ProductPieceEntity' EXTID 'product-type',
+        = IF good IS Lot THEN idStoreSet(good) EXTID 'shop-indices'
+    PROPERTIES IN measure_type = shortNameUOM(sku(good)) EXTID 'id' ATTR, = shortNameUOM(sku(good)) EXTID 'name'
+
+
+    FILTERS in(t, good)
+;
+
+groupCashRegisterDeleteLots = DATA GroupCashRegister ();
+
+createBalanceMachineryPriceTransactionLotDelete 'Удалить марки' (DATE d) {
+    LOCAL message = TEXT();
+    LOCAL sentSomething = BOOLEAN();
+    message() <- TEXT('Принято к удалению : \n');
+    IF groupCashRegisterDeleteLots()  AND (GROUP SUM 1 IF toDeleteFromCash(Lot l, d)) THEN
+        NEW t = CashRegisterPriceTransactionLotDelete{
+
+            groupCashRegister(t) <- groupCashRegisterDeleteLots();
+            in(t, Lot l) <- TRUE IF toDeleteFromCash(l, d);
+            LOCAL countLots = INTEGER ();
+            countLots() <- GROUP SUM 1 IF in(t, Lot l);
+            message() <- message() + 'Запрос на удаление на дату'+ ' - ' + (OVERRIDE countLots() + ' марок.\n', ' ');
+            sentSomething() <- TRUE;
+            APPLY NESTED LOCAL;
+
+        }
+    IF sentSomething() THEN
+        MESSAGE message() NOWAIT;
+    ELSE
+        IF NOT supressNoNeedMessage() THEN
+            MESSAGE 'Удаление марок не требуется' NOWAIT;
+}
+
+customSend(CashRegisterPriceTransactionLotDelete t) + {
+    EXPORT lotsDeleteFromCash OBJECTS t = t XML;
+    sendRequsetGoods(exportFile(), 'deleteLots', t);
+}
