@@ -6,9 +6,13 @@ NAMESPACE Purchase;
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
 
+autoDeriveLastCertificateCompliance = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+autoDeriveLastCertificateCompliance(UserInvoiceDetail detail) += autoDeriveLastCertificate() AND detail IS UserInvoiceDetail;
+
 WHEN LOCAL (CHANGED(batch(UserInvoiceDetail detail)) OR
               CHANGED (sku(detail)) OR
-              CHANGED (customerStock(detail))) AND NOT CHANGED(dataCompliance(detail)) AND NOT autoDeriveLastCertificate() DO {
+              CHANGED (customerStock(detail))) AND NOT CHANGED(dataCompliance(detail)) AND NOT autoDeriveLastCertificateCompliance(detail) DO {
     dataCompliance(detail)  <- IF batch(detail) 
                                   THEN prevCompliance(batch(detail))
                                   ELSE prevCompliance(prevLastOrderBatch(sku(detail), customerStock(detail)));
