@@ -47,6 +47,10 @@ FORM getStockEntryListRequest FORMEXTID 'merc=http://api.vetrf.ru/schema/cdm/mer
 ;
 
 // dialog
+beginDate 'Дата с' = DATA LOCAL DATETIME();
+endDate 'Дата по' = DATA LOCAL DATETIME();
+enterpriseStockEntry = DATA LOCAL Enterprise();
+nameEnterpriseStockEntry 'Площадка' () = name(enterpriseStockEntry());
 FORM getStockEntryListRequestParams 'Параметры списка документов'
     OBJECTS r = StockEntryListRequest PANEL
     PROPERTIES(r) beginDate, endDate, nameEnterprise, offset, count
@@ -55,20 +59,56 @@ DESIGN getStockEntryListRequestParams {
     PROPERTY(nameEnterprise(r)) { notNull = TRUE; }
 }
 
+FORM getStockEntryListRequestParamsEx 'Параметры списка документов'
+    PROPERTIES() beginDate, endDate, nameEnterpriseStockEntry, offset, count
+;
+DESIGN getStockEntryListRequestParamsEx {
+    PROPERTY(nameEnterpriseStockEntry()) { notNull = TRUE; }
+}
+
 getStockEntryListRequest 'Получить список записей журнала' (StockEntryListRequest r) {
     EXPORT getStockEntryListRequest OBJECTS r = r XML;
     submit(r, exportFile());
 }
 
+countStockEntry 'Кол-во записей журнала (по умолчанию)' = DATA INTEGER();
+
+EXTEND FORM integrationData
+    PROPERTIES() countStockEntry
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(countStockEntry());
+    }
+}
+
 getStockEntryListRequest 'Получить список записей журнала' () {
     NEWSESSION {
-        NEW r = StockEntryListRequest {
-            offset(r) <- 0;
-            count(r) <- 1000;
-            DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
-                businessEntity(r) <- owner(enterprise(r));
-                getStockEntryListRequest(r);
+        IF countStockEntry() THEN {
+            offset() <- 0;
+            count() <- OVERRIDE countStockEntry(), 1000;
+            DIALOG getStockEntryListRequestParamsEx DO {
+                FOR iterate(INTEGER i, 0, (INTEGER(count()) - 1) / 1000) DO NEW r = StockEntryListRequest {
+                    offset(r) <- i * 1000;
+                    count(r) <- 1000;
+                    beginDate(r) <- beginDate();
+                    endDate(r) <- endDate();
+                    enterprise(r) <- enterpriseStockEntry();
+                    businessEntity(r) <- owner(enterprise(r));
+                    getStockEntryListRequest(r);
+                }
                 APPLY;
+            }
+        } ELSE {
+            NEW r = StockEntryListRequest {
+                offset(r) <- 0;
+                count(r) <- 1000;
+                DIALOG getStockEntryListRequestParams OBJECTS r = r DO {
+                    businessEntity(r) <- owner(enterprise(r));
+                    getStockEntryListRequest(r);
+                    APPLY;
+                }
             }
         }
     }
