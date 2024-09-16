@@ -211,17 +211,20 @@ public class FiscalEpson {
             } else if (item.skuType == 3) { // услуга
                 typeOfGoods = 3;
             } else if (item.skuType == 1 && item.barcode != null && item.idLot == null) { // простой товар с GTIN
-                Integer tg = getTypeOfGoods(item.barcode);
+                // исходим из того что, item.barcode - это GTIN
+                Integer tg = getTypeOfGoods(item.barcode); // 0 - не GTIN, 1 - до 13 символов, 16 - 14 символов
                 if (tg > 0) {
                     typeOfGoods = tg;
                     barcodeOfGoods = item.barcode;
                 }
             } else if (item.skuType == 1 && item.barcode != null && item.idLot != null) { // GTIN + СИ + Криптохвост
-                Integer tg = getTypeOfGoods(item.barcode);
-                if (tg > 0) {
-                    typeOfGoods = 20;
-                    barcodeOfGoods = item.barcode;
-                    if (item.tailLot.charAt(0)!=0x1d) item.tailLot = 0x1d + item.tailLot;
+                // из idLot выделяем GTIN - 14 символов и удаляем лидирующии нули
+                String gtin = item.idLot.substring(2,16).replaceFirst("^0+(?!$)", "");
+                typeOfGoods = 20; // Товар имеет одну маркировку (СКАН-1)
+                barcodeOfGoods = gtin;
+                if (item.tailLot.charAt(0)!=0x1d) {
+                    firstMarkingOfGoods = item.idLot + 0x1d + item.tailLot;
+                } else {
                     firstMarkingOfGoods = item.idLot + item.tailLot;
                 }
             }
@@ -270,7 +273,6 @@ public class FiscalEpson {
         checkErrors(true);
 
     }
-
 
     private static Integer getTypeOfGoods(String code) {
         if (code == null)
