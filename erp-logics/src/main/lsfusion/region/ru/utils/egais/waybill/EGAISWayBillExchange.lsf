@@ -17,6 +17,8 @@ commentsWayBillOutDoc 'Комментарий отправки' (WayBill t) = co
 
 activeWayBillOutDoc (WayBill w) = notRejected(wayBillOutDoc(w)) AND NOT canceled(w);
 
+wbType = ABSTRACT CASE STRING (WayBill);
+
 GROUP header EXTID 'wb:Header';
 
 GROUP transport EXTID 'wb:Transport' : header;
@@ -37,7 +39,7 @@ FORM wayBill_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:WayBill_v4
     PROPERTIES IN header =number(wayBill(w)) EXTID 'wb:NUMBER', 
                          =toDateISO(date(wayBill(w))) EXTID 'wb:Date', 
                          =toDateISO(shippingDate(wayBill(w))) EXTID 'wb:ShippingDate', 
-                         ='WBInvoiceFromMe' EXTID 'wb:Type', 
+                         = (OVERRIDE wbType(wayBill(w)), 'WBInvoiceFromMe') EXTID 'wb:Type', 
                          =base(wayBill(w)) EXTID 'wb:Base', 
                          =note(wayBill(w)) EXTID 'wb:Note',
                          
