@@ -4,7 +4,9 @@ REQUIRE MachineryPriceTransactionInfo, Lot, SkuLedgerLot;
 
 NAMESPACE Machinery;
 
-info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'lottype';
+skipInfoLottype = ABSTRACT BOOLEAN (MachineryPriceTransaction, Barcode);
+
+info (MachineryPriceTransaction t, Barcode b, STRING key) += idLotType(sku(b)) IF in(t, b) AND key = 'lottype' AND NOT skipInfoLottype(t,b);
 
 lotUpload 'Выгружать марки' = DATA BOOLEAN (GroupMachinery);
 lotUpload = GROUP SUM 1 IF lotUpload(GroupMachinery g) BY stock(g) MATERIALIZED ;
