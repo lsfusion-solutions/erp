@@ -55,6 +55,7 @@ getStatusReport 'Получить статус' (ReportEZ r) {
     ezToken() <- token(legalEntityStock(lotInit(r)));
     
     TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
         
@@ -101,7 +102,8 @@ getLabesTypes 'Типы кодов' (LotInit i) {
     exception(i) <- NULL;
     ezToken() <- token(legalEntityStock(i));
 
-    TRY { 
+    TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP GET urlEZ() + '/labels/types' HEADERS ezHeadersLotOrder TO result;
     } CATCH {
         handleException(i, result());
@@ -111,16 +113,15 @@ getLabesTypes 'Типы кодов' (LotInit i) {
     MESSAGE resultString();
 }
 
-code 'Код раздела товаров' = DATA LOCAL STRING ();
 
-getParameters 'Получить параметры' (LotInit i) {
-          
+getParameters 'Получить параметры' (LotInit i) {          
     LOCAL result = FILE();   
     
     exception(i) <- NULL;
     ezToken() <- token(legalEntityStock(i));
     
     TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
         fileToString(result());
 //         EXTERNAL HTTP POST urlEZ() + '/catalogs/' + code()  HEADERS ezHeadersLotOrder TO result; // 
@@ -128,9 +129,7 @@ getParameters 'Получить параметры' (LotInit i) {
         fileToString(result());
         handleException(i, result());
         RETURN;
-    }       
-    fileToString(result());
-    MESSAGE resultString();
+    }  
 }    
 
 getCatalogs 'Разделы каталога товаров' (LotInit i) {
@@ -141,6 +140,7 @@ getCatalogs 'Разделы каталога товаров' (LotInit i) {
     ezToken() <- token(legalEntityStock(i));
     
     TRY {
+        insecureSSL() <- TRUE;
   //      EXTERNAL HTTP POST urlEZ() + '/catalogs/10002' HEADERS ezHeadersLotOrder TO result; // Обувь
          EXTERNAL HTTP POST urlEZ() + '/catalogs/'  HEADERS ezHeadersLotOrder TO result; // 
     } CATCH {
@@ -210,12 +210,12 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     gtin() <- gtin;
     
     // обновление статусов перед отправкой
-    FOR filterLot (Lot l) DO {
-        IF EZActive(legalEntityStock(i)) THEN
-            getStatus(l, legalEntityStock(i));
-        ELSE
-            getStatus(l);
-    }           
+    in(Lot l) <- filterLot(l);
+    
+    IF EZActive(legalEntityStock(i)) THEN
+        getStatus(legalEntityStock(i));
+    ELSE
+        getStatus();
     
     IF (NOT GROUP SUM 1 IF filterLot (Lot l)) THEN {
         RETURN;
@@ -322,6 +322,7 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     ezToken() <- token(legalEntityStock(i));
     
     TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP POST urlEZ() + '/v2/reports/addMark' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
         //isSend(i) <- TRUE;
     } CATCH {
@@ -348,20 +349,14 @@ addMark 'Отправить отчет'(LotInit i) {
         addMark(i, gtin);
     }
 
+    in(Lot l) <- lotInit(l) == i AND NOT isSend(i, l) WHERE lotInit(l) == i;
+    
     // получение статусов для марок
     IF EZActive(legalEntityStock(i)) THEN {
-        FOR lotInit(LotInitDetail d) == i DO {
-            FOR quantity(d, Lot l) AND NOT isSend(i, l) DO {
-                getStatus(l, legalEntityStock(i));
-            }
-        }
+        getStatus(legalEntityStock(i));
     } 
     ELSE {
-        FOR lotInit(LotInitDetail d) == i DO {
-            FOR quantity(d, Lot l) AND NOT isSend(l) DO {
-                getStatus(l);
-            }
-        }
+        getStatus();
     }
     APPLY;
 }

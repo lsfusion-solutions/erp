@@ -36,43 +36,77 @@ jsonAttributeCount2 (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_eac
 jsonAttributeKey2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 
-getStatus 'Получить статус' (Lot l) {
-    EXPORT JSON FROM label = code(l);
+labels = DATA LOCAL STRING(INTEGER);
 
+inExport = DATA LOCAL BOOLEAN (Lot);
+
+FORM exportLots
+    OBJECTS labels = Lot
+    PROPERTIES(labels) code EXTID 'value'
+    FILTERS inExport(labels)
+;
+
+label = DATA LOCAL STRING(INTEGER);
+found = DATA LOCAL BOOLEAN(INTEGER);
+
+GROUP status EXTID 'status';
+lotCode = DATA LOCAL INTEGER(INTEGER);
+
+FORM importLotStatus
+    OBJECTS labels = INTEGER
+    PROPERTIES(labels) label
+
+    PROPERTIES(labels) IN status
+        lotCode EXTID 'code'
+;
+
+exportIndex(Lot l) = PARTITION SUM 1 IF in(l) ORDER l;
+
+// ЭЗ принимает не больше 1000
+getStatus 'Получить статус' () {
     LOCAL result = FILE();
+    LOCAL exportIndex = INTEGER (Lot);
 
-    exception(l) <- NULL;
     ezToken() <- token();
-    
-    TRY {
-        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-    } CATCH {
-        handleException(l, result());
-        RETURN;
-    }
-    fileToString(result());
-    //MESSAGE resultString();
+    timeoutHttp() <- 300000;
 
-    LOCAL statusCode = INTEGER ();
+    WHILE (countInLot()) NOINLINE DO {
+        exportIndex(Lot l) <- PARTITION SUM 1 IF in(l) ORDER l;
+        inExport(Lot l) <- TRUE WHERE exportIndex(l) <= 900;
+        in(Lot l) <- NULL WHERE inExport(l);
+        exception(Lot l) <- NULL WHERE inExport(l);
 
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
-        LOCAL subJson1 = STRING ();
-        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
+        EXPORT exportLots JSON;
 
-        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/v2/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            fileToString(result());
+            
 
-            //получение статуса
-            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
-                LOCAL subJson2 = STRING ();
-                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
+            IMPORT importLotStatus JSON FROM result();
+            status(Lot l) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
+            inExport(Lot l) <- NULL;
+        } CATCH {
+            logToFile('ez', messageCaughtException());
 
-                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
-                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k)));
-                }
-            };
+            logToFile('ez', result());
+            fileToString(result());
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+
+            NEWSESSION NESTED (messageCaughtException, resultString) {
+                exception(Lot l) <- CONCAT ', ', messageCaughtException(), resultString() WHERE inExport(l);
+                APPLY;
+            }
+            RETURN;
         }
     }
-    status(l) <- statusLot(statusCode());
+}
+getStatus 'Получить статус' (Lot lot) {
+    IF NOT countInLot() THEN {
+        in(lot) <- TRUE;
+    }
+    getStatus();
 }
 
 getStatusApply 'Получить статус' (Lot l) {
@@ -105,43 +139,50 @@ DESIGN lots {
     }
 }
 
-getStatus 'Получить статус' (Lot l, LegalEntity le) {
-    EXPORT JSON FROM label = code(l);
-
+getStatus 'Получить статус' (LegalEntity le) {
     LOCAL result = FILE();
+    LOCAL exportIndex = INTEGER (Lot);
 
-    exception(l, le) <- NULL;
     ezToken() <- token(le);
+    timeoutHttp() <- 300000;
 
-    TRY {
-        EXTERNAL HTTP POST urlEZ() + '/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-    } CATCH {
-        handleException(l, le, result());
-        RETURN;
-    }
-    fileToString(result());
-    //MESSAGE resultString();
+    WHILE (countInLot()) NOINLINE DO {
+        exportIndex(Lot l) <- PARTITION SUM 1 IF in(l) ORDER l;
+        inExport(Lot l) <- TRUE WHERE exportIndex(l) <= 900;
+        in(Lot l) <- NULL WHERE inExport(l);
+        exception(Lot l, le) <- NULL WHERE inExport(l);
 
-    LOCAL statusCode = INTEGER ();
+        EXPORT exportLots JSON;
 
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'label' == jsonAttributeKey(resultString(),i) DO {
-        LOCAL subJson1 = STRING ();
-        subJson1() <- STRING(jsonAttributeValue(resultString(),i));
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/v2/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;            
 
-        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
+            IMPORT importLotStatus JSON FROM result();
+            status(Lot l, le) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
+            inExport(Lot l) <- NULL;
+        } CATCH {
+            logToFile('ez', messageCaughtException());
 
-            //получение статуса
-            IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
-                LOCAL subJson2 = STRING ();
-                subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
+            logToFile('ez', result());
+            fileToString(result());
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
 
-                FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) AND 'code' == jsonAttributeKey2(subJson2(),k) DO {
-                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k)));
-                }
-            };
+            NEWSESSION NESTED (messageCaughtException, resultString) {
+                exception(Lot l, le) <- CONCAT ', ', messageCaughtException(), resultString() WHERE inExport(l);
+                APPLY;
+            }
+            RETURN;
         }
     }
-    status(l, le) <- statusLot(statusCode());
+}
+
+getStatus 'Получить статус' (Lot lot, LegalEntity le) {
+    IF NOT countInLot() THEN {
+        in(lot) <- TRUE;
+    }
+
+    getStatus(le);
 }
 
 getStatusApply 'Получить статус' (Lot l, LegalEntity le) {

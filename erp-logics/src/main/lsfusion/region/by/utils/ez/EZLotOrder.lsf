@@ -31,22 +31,41 @@ DESIGN lotOrders {
 }
 
 ezHeadersAuthorization (TEXT name) = CASE
-    WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'; 
+    WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'
+    WHEN name = 'Host' THEN hostEZ();
 
 //авторизация
 authorization 'Авторизация в ЭЗ' () {
-    NEWSESSION {        
+    NEWSESSION {
         LOCAL result = FILE();
-                
-        TRY {        
-        EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization 
-            PARAMS CONCAT '&',
+        // Вариант 1
+        TRY {
+            headers('Host') <- hostEZ();
+            headers('Content-Type') <- 'multipart/form-data; boundary=...';
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(), passwordEZ() TO result;
+        } CATCH {
+            MESSAGE messageCaughtException() NOWAIT;
+            fileToString(result());
+            MESSAGE resultString() NOWAIT;
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() token;
+        APPLY;
+                   
+        IF token() THEN RETURN;
+
+        // Вариант 2
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization
+                PARAMS CONCAT '&',
                 'username=' + usernameEZ(),
                 'password=' + passwordEZ(),
-                'is_rules_agree=True'                
-            TO result;
+                'is_rules_agree=True'
+                TO result;
         } CATCH {
-        
+
         }
         fileToString(result());
         IMPORT JSON FROM result() TO() token;
@@ -59,7 +78,25 @@ authorization 'Авторизация в ЭЗ' (LegalEntity l) {
         LOCAL result = FILE();
         LOCAL token = STRING();
 
+        // Вариант 1
         TRY {
+            headers('Host') <- hostEZ();
+            headers('Content-Type') <- 'multipart/form-data; boundary=...';
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(l), passwordEZ(l) TO result;
+        } CATCH {
+            MESSAGE messageCaughtException() NOWAIT;
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() token;
+        dataToken(l) <- token();
+        
+        APPLY;
+
+        IF token() THEN RETURN;
+        
+        TRY {
+            insecureSSL() <- TRUE;
             EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization
                 PARAMS CONCAT '&',
                 'username=' + usernameEZ(l),
@@ -67,7 +104,7 @@ authorization 'Авторизация в ЭЗ' (LegalEntity l) {
                 'is_rules_agree=True'
                 TO result;
         } CATCH {
-
+            MESSAGE messageCaughtException() NOWAIT;
         }
         fileToString(result());
         IMPORT JSON FROM result() TO() token;
@@ -154,6 +191,7 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     ezToken() <- token(legalEntityStock(o));
     
     TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
         handleException(o, result(), gtin);
@@ -181,6 +219,7 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
     ezToken() <- token(legalEntityStock(o));
     
     TRY {
+        insecureSSL() <- TRUE;
         EXTERNAL HTTP POST urlEZ() + '/items/addByGtin' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
         handleException(o, result(), gtin);
@@ -250,6 +289,7 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
         ezToken() <- token(legalEntityStock(o));
         
         TRY {
+            insecureSSL() <- TRUE;
             EXTERNAL HTTP POST urlEZ() + '/items/checkGtin' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
         } CATCH {
             handleException(o, result());
@@ -336,6 +376,7 @@ addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
             ezToken() <- token(legalEntityStock(o));
         
             TRY {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
             } CATCH {
                 handleException(o, result());
@@ -454,6 +495,7 @@ checkStatus 'Проверить статус' (LotOrder o) {
             ezToken() <- token(legalEntityStock(o));
 
             TRY {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
             } CATCH {
                 handleException(o, result());
@@ -554,6 +596,7 @@ importLotCodes 'Получить марки' (LotOrder o) {
             ezToken() <- token(legalEntityStock(o));
             
             TRY {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP GET urlEZ() + '/downloads/' + fileName() HEADERS ezHeadersLotOrder TO result;
             } CATCH {
                 handleException(o, result());
@@ -566,6 +609,7 @@ importLotCodes 'Получить марки' (LotOrder o) {
 //            MESSAGE resultString();
             
             IMPORT CSV '|' NOESCAPE FROM result() TO idLoc;
+            in(Lot l) <-NULL;
             
             FOR idLoc(INTEGER i) NOINLINE DO NEW l = Lot {
                 FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) ORDER DESC dd) DO {
@@ -574,15 +618,16 @@ importLotCodes 'Получить марки' (LotOrder o) {
                     sku(l) <- sku(d);
                     quantity(d, l) <- 1;
                     quantity(d) <- quantity(d) + 1;
-                    
+                    in(l) <- TRUE;
+
                     overNewLot(d, l);
                 }
-
-                IF EZActive(legalEntityStock(o)) THEN
-                    getStatus(l, legalEntityStock(o));
-                ELSE
-                    getStatus(l);
-            } 
+            }
+            
+            IF EZActive(legalEntityStock(o)) THEN
+                getStatus(legalEntityStock(o));
+            ELSE
+                getStatus();
         } 
         
         APPLY;
