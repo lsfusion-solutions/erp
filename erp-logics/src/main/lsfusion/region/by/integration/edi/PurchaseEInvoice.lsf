@@ -326,6 +326,11 @@ createECreditNote 'Создать электронный акт приемки' 
                 overCreate(ed,d);
             }
 
+            IF contactCustomerStock(eInvoice(ec)) THEN NEW cc = ECreditNoteCustomerContact {
+                eCreditNote(cc) <- ec;
+                contact(cc) <- contactCustomerStock(eInvoice(invoice(c)));
+            }           
+
             overCreate(ec,c);
         }
         APPLY;
@@ -364,6 +369,10 @@ signAndSendCustomerCreditNoteEDI 'Подписать и отправить (по
     signAndSendCustomerCreditNoteEDI(invoiceCreditNote(i));
 }
 
+editAttributesECreditNote 'Заполнить атрибуты' (Invoice i)  {
+    editAttributesECreditNote(eCreditNote(invoiceCreditNote(i)));
+}
+
 cancelSignAndSendCustomerCreditNoteEDII 'Отменить (покупатель)'(Invoice i)  {
     cancelSignAndSendCustomerCreditNoteEDII(invoiceCreditNote(i));
 }
@@ -375,6 +384,7 @@ EXTEND FORM invoices
     PROPERTIES READONLY PANEL numberECreditNote(i) SHOWIF (invoiceCreditNote(i) AND useECriditNote(supplier(invoiceCreditNote(i)))) 
     PROPERTIES(i) createECreditNote SHOWIF (invoiceCreditNote(i) AND eInvoice(i) AND NOT eCreditNote(invoiceCreditNote(i)) AND NOT hideCreateECreditNote(invoiceCreditNote(i)) AND useECriditNote(supplier(invoiceCreditNote(i)))),// statusDescription SHOWIF eInvoice(i) PANEL, 
         signAndSendCustomerCreditNoteEDI SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND NOT exportedCustomer(eCreditNote(invoiceCreditNote(i)))),
+        editAttributesECreditNote SHOWIF (invoiceCreditNote(i) AND useECriditNote(supplier(invoiceCreditNote(i)))),
         cancelSignAndSendCustomerCreditNoteEDII SHOWIF (invoiceCreditNote(i) AND eCreditNote(invoiceCreditNote(i)) AND exportedCustomer(eCreditNote(invoiceCreditNote(i))) )
 ;
 
@@ -387,6 +397,7 @@ DESIGN invoices {
                 MOVE PROPERTY(numberECreditNote(i));
                 MOVE PROPERTY(createECreditNote(i));
                 MOVE PROPERTY(signAndSendCustomerCreditNoteEDI(i));
+                MOVE PROPERTY(editAttributesECreditNote(i));
                 MOVE PROPERTY(cancelSignAndSendCustomerCreditNoteEDII(i));
             }
         }

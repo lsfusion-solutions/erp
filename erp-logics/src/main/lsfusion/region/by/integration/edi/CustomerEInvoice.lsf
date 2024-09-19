@@ -726,13 +726,17 @@ signAndSendCustomerCreditNote 'Подписать и отправить (пок�
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
     FOR in(ECreditNote c) DO {
-        IF EDIProviderInvoice(supplier(c), customer(c)) THEN
-            signAndSendCustomer(c);
-        ELSE
-            MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
-        in(c) <- NULL;
+        IF NOT exportedCustomer(eInvoice(c)) THEN {
+            MESSAGE 'Акт приемки не может быть отправлен. Не подписан ЭТТН';
+        } ELSE {
+            IF EDIProviderInvoice(supplier(c), customer(c)) THEN
+                signAndSendCustomer(c);
+            ELSE
+                MESSAGE 'Не выбран EDI провайдер для акта приемки : ' + documentId(c);
+            in(c) <- NULL;
+        } 
     } ELSE
-        MESSAGE 'Не выбрано ни одного акта приемки';
+    MESSAGE 'Не выбрано ни одного акта приемки';
 }
 
 signAndSendBlrapnCustomer 'Подписать и отправить извещение о прочтении (покупатель)'  ABSTRACT LIST (ECreditNote);
@@ -808,6 +812,17 @@ FORM exportBlradf FORMEXTID 'BLRADF'
     PROPERTIES DRAW ecn IN shipTo
         glnCustomerStock(ecn) EXTID 'GLN',
         addressCustomerStock(ecn) EXTID 'Address'
+
+    OBJECTS ecnsc = ECreditNoteSupplierContact EXTID 'ShipperContact'
+    FILTERS eCreditNote(ecnsc) == ecn
+    PROPERTIES DRAW ecnsc
+        contact(ecnsc) EXTID 'Contact'
+
+    OBJECTS ecncc = ECreditNoteCustomerContact  EXTID 'ReceiverContact'
+    FILTERS eCreditNote(ecncc) == ecn
+    PROPERTIES DRAW ecncc
+        contact(ecncc) EXTID 'Contact'
+
     PROPERTIES DRAW ecn
         currency(ecn) EXTID 'Currency'
 

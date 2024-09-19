@@ -720,19 +720,19 @@ nameCustomerStock 'Склад покупателя' (ECreditNote c) = name(custo
 glnCustomerStock 'GLN склада покупателя' (ECreditNote c) = GLN(customerStock(c));
 addressCustomerStock 'Адрес склада покупателя' (ECreditNote c) = address(customerStock(c));
 
-//CLASS ECreditNoteSupplierContact 'Представители электронного акта приемки';
-//TABLE eCreditNoteSupplierContact(ECreditNoteSupplierContact);
-//eCreditNote = DATA ECreditNote (ECreditNoteSupplierContact) NONULL DELETE INDEXED AGGR;
-//contact 'Должность и ФИО представителя грузоотправителя' = DATA STRING[150] (ECreditNoteSupplierContact);
+CLASS ECreditNoteSupplierContact 'Представители грузоотправителя электронного акта приемки';
+TABLE eCreditNoteSupplierContact(ECreditNoteSupplierContact);
+eCreditNote = DATA ECreditNote (ECreditNoteSupplierContact) NONULL DELETE INDEXED AGGR;
+contact 'Должность и ФИО представителя грузоотправителя' = DATA STRING[150] (ECreditNoteSupplierContact);
 //proxyID 'Номер доверенности' = DATA STRING[70] (ECreditNoteSupplierContact);
 //proxyDate 'Дата доверенности' = DATA DATE (ECreditNoteSupplierContact);
 //partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[275] (ECreditNoteSupplierContact);
 //
-//CLASS ECreditNoteCustomerContact 'Представители электронного акта приемки';
-//TABLE eCreditNoteCustomerContact(ECreditNoteCustomerContact);
-//
-//eCreditNote = DATA ECreditNote (ECreditNoteCustomerContact) NONULL DELETE INDEXED AGGR;
-//contact 'Должность и ФИО представителя грузоотправителя' = DATA STRING[150] (ECreditNoteCustomerContact);
+CLASS ECreditNoteCustomerContact 'Представители грузополучателя электронного акта приемки';
+TABLE eCreditNoteCustomerContact(ECreditNoteCustomerContact);
+
+eCreditNote = DATA ECreditNote (ECreditNoteCustomerContact) NONULL DELETE INDEXED AGGR;
+contact 'Должность и ФИО представителя грузополучателя' = DATA STRING[150] (ECreditNoteCustomerContact);
 //proxyID 'Номер доверенности' = DATA STRING[70] (ECreditNoteCustomerContact);
 //proxyDate 'Дата доверенности' = DATA DATE (ECreditNoteCustomerContact);
 //partyIssuingProxyName 'Наименование организации, выдавшей доверенность' = DATA STRING[275] (ECreditNoteCustomerContact);
@@ -856,7 +856,15 @@ FORM eCreditNotes 'Электронные акты приемки'
     OBJECTS m = ECreditNoteMessage
     PROPERTIES(m) READONLY numberECreditNote, dateTime, nameType, nameKind, code, description
     FILTERS eCreditNote(m) == c
-    ORDERS dateTime(m);
+    ORDERS dateTime(m)
+
+    OBJECTS sc = ECreditNoteSupplierContact
+    PROPERTIES(sc) contact
+    FILTERS eCreditNote(sc) == c
+    
+    OBJECTS cc = ECreditNoteCustomerContact
+    PROPERTIES(cc) contact
+    FILTERS eCreditNote(cc) == c
 ;
 
 @extendFormEditable(eCreditNotes);
@@ -867,8 +875,11 @@ DESIGN eCreditNotes {
         NEW tab {
             fill = 1;
             tabbed = TRUE;
+            
             MOVE BOX(d);
             MOVE BOX(m);
+            MOVE BOX(sc);
+            MOVE BOX(cc);
         }
         MOVE TOOLBARBOX;
     }
@@ -884,8 +895,8 @@ FORM eCreditNote 'Электронный акт приемки'
     OBJECTS c = ECreditNote PANEL
     PROPERTIES(c) dateTime BACKGROUND background(c), documentId BACKGROUND background(c), actDifNumber, actDifDate, numberEInvoice, dateEInvoice,
         nameSupplier, addressSupplier, nameCustomer, addressCustomer, nameCustomerStock,
-        contractDate, contractNumber, currency, isTestDocument
-
+        contractDate, contractNumber, currency, isTestDocument 
+    
     OBJECTS ed = ECreditNoteDetail
     PROPERTIES(ed) BACKGROUND background(ed) lineItemNumber, lineItemID, lineItemShipperID, lineItemReceiverID,
         lineItemName, itemCustomCode, itemCustomCodeOther, lineItemQuantityUOM, additionalInformation,
@@ -894,6 +905,14 @@ FORM eCreditNote 'Электронный акт приемки'
         quantityAccepted, priceAccepted, sumAccepted, invoiceSumAccepted, quantityNotAccepted,
         priceNotAccepted, sumNotAccepted, invoiceSumNotAccepted
     FILTERS eCreditNote(ed) == c
+
+    OBJECTS sc = ECreditNoteSupplierContact
+    PROPERTIES(sc) contact, NEW, DELETE
+    FILTERS eCreditNote(sc) == c
+
+    OBJECTS cc = ECreditNoteCustomerContact
+    PROPERTIES(cc) contact, NEW, DELETE
+    FILTERS eCreditNote(cc) == c
 ;
 
 DESIGN eCreditNote {
@@ -901,6 +920,15 @@ DESIGN eCreditNote {
         lines = 2;
         fill = 1;
     }
+    
+    NEW tab {
+        fill = 1;
+        tabbed = TRUE;
+        MOVE BOX(ed);
+        MOVE BOX(sc);
+        MOVE BOX(cc);
+    }
+    MOVE TOOLBARBOX;
 }
 
 editAttributesECreditNote 'Заполнить атрибуты' (ECreditNote c)  {
