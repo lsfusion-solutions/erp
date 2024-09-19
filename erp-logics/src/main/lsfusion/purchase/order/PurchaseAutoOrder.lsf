@@ -292,6 +292,39 @@ skipAutoClosed = ABSTRACT BOOLEAN ();
 autoClosed ABSTRACT LIST(ScheduleOrderDetail);
 createAutoOrdersBefore ABSTRACT LIST();
 createExtraLog  ABSTRACT (ScheduleOrderDetail);
+
+CLASS TypeProcess 'Стадия обработки' {
+    start 'Старт обработки',
+    end 'Финиш обработки',
+    error 'Ошибка',
+    createOrder 'Заказ создан' 
+}
+typeProcess = DATA TypeProcess(ScheduleOrderDetail);
+nameTypeProcess 'Стадия обработки' (ScheduleOrderDetail d) = staticCaption(typeProcess(d)) CHARWIDTH 15;
+noteProcess 'Лог обработки'  = DATA TEXT(ScheduleOrderDetail);
+EXTEND FORM scheduleOrder 
+    PROPERTIES (sd) READONLY  nameTypeProcess, noteProcess PANEL 
+;
+DESIGN scheduleOrder{
+    detail{
+        NEW boxSd BEFORE BOX (log){
+            caption = 'Основные';
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(sd){fill = 6;}
+            NEW panelSd{
+                fill = 1; 
+                alignment = STRETCH; 
+                MOVE PROPERTY(noteProcess(sd)) {
+                    panelCaptionVertical = TRUE;
+                    fill = 1;
+                    alignment = STRETCH;
+                }
+            }
+        }
+    }
+}
+
 createAutoOrders 'Создание автозаказов' () {    
     toCreate(ScheduleOrderDetail d)<- NULL;
     toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
@@ -299,7 +332,12 @@ createAutoOrders 'Создание автозаказов' () {
             AND NOT dateOrder(d)>endDate(scheduleOrder(d));
     createAutoOrdersBefore();
     
-    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {                 
+    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {      
+        NEWSESSION NESTED LOCAL{
+            typeProcess(scheduleOrderDetail) <- TypeProcess.start;
+            noteProcess(scheduleOrderDetail) <- (CONCAT ' ', currentDateTime(),'Старт обработки');
+            APPLY NESTED LOCAL;
+        }
         NEWSESSION {
             printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail));
             IF NOT skipAutoClosed() THEN {
@@ -346,13 +384,39 @@ createAutoOrders 'Создание автозаказов' () {
                 
                 IF NOT useCreateAutoAfter(o) THEN {                                      
                     DELETE o WHERE NOT countUserOrderDetail(o);                     
-                    IF countUserOrderDetail(o) THEN {
+                    IF countUserOrderDetail(o) THEN { 
                         generateNumber(o); 
                         APPLY;
                         IF canceled() THEN {
                             printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
-                            createExtraLog(scheduleOrderDetail); 
+                            createExtraLog(scheduleOrderDetail);
+                            NEWSESSION NESTED LOCAL{
+                                typeProcess(scheduleOrderDetail) <- TypeProcess.error;
+                                noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                                    noteProcess(scheduleOrderDetail),
+                                    (CONCAT ' ', currentDateTime(), 'Количество строк -',countUserOrderDetail(o)),
+                                    (CONCAT ' ', currentDateTime(), 'Номер заказа -', seriesNumber(o)),
+                                    applyMessage());
+                                APPLY NESTED LOCAL;
+                            }
+                        } ELSE {
+                            NEWSESSION NESTED LOCAL{
+                                typeProcess(scheduleOrderDetail) <- TypeProcess.createOrder;
+                                noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                                    noteProcess(scheduleOrderDetail),
+                                    (CONCAT ' ', currentDateTime(), 'Количество строк -',countUserOrderDetail(o)),
+                                    (CONCAT ' ', currentDateTime(), 'Номер заказа -' , seriesNumber(o)));
+                                APPLY NESTED LOCAL;
+                            }                           
                         }                
+                    } ELSE {
+                        NEWSESSION NESTED LOCAL{
+                            typeProcess(scheduleOrderDetail) <- TypeProcess.end;                            
+                            noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                                noteProcess(scheduleOrderDetail),
+                                (CONCAT ' ', currentDateTime(), 'Количество строк - 0','Заказ не создан'));
+                            APPLY NESTED LOCAL;
+                        }
                     }
                 } ELSE {
                     createAutoAfter(o);
