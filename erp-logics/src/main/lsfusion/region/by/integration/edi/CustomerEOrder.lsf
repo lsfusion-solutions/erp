@@ -48,12 +48,14 @@ DESIGN departmentStore {
     }
 }
 
-skipEDI = ABSTRACT BOOLEAN (Stock);
+skipEDI = ABSTRACT BOOLEAN (Stock) MATERIALIZED;
 skipEDI(Warehouse w) += skipEDI(w);
 skipEDI(DepartmentStore d) += skipEDI(d);
 
-isEOrder(Purchase.Order o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
-isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+skipEDI = ABSTRACT VALUE BOOLEAN (LegalEntity);
+
+isEOrder(Purchase.Order o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplier(o)) AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplier(o)) AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
 isEOrder(Purchase.OrderDetail d) = isEOrder(order(d));
 isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 
