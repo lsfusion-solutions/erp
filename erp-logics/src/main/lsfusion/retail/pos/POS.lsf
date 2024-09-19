@@ -678,7 +678,7 @@ FORM chooseBatchReceipt 'Выбор партии'
 ;
 
 overChangeBatch  ABSTRACT LIST ( ReceiptDetail);
-
+overCreateSaleDetail ABSTRACT LIST ( ReceiptDetail);
 changeBatch 'Изменить партию строки чека'(ReceiptDetail detail)  {
     IF explicitBatchLedger(receipt(detail)) THEN {
         DIALOG chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail, bt = batch(detail) INPUT NULL DO{
@@ -701,6 +701,7 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
         batch(d) <- batch;
         price(d) <- currentPOSPrice(batch, receipt);
         focusQuantity(d);
+        overCreateSaleDetail(d);
     }
 }
 
@@ -745,6 +746,7 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
         IF explicitBatchLedger(receipt(d)) AND NOT skuType(sku(d)) = SkuType.skuTypeCharge THEN {
             setSaleDetailBatch(d, receipt);
         }
+        overCreateSaleDetail(d);
         overChangeBatch(d);
     }
 }
