@@ -78,6 +78,18 @@ receiveGroupsMachinery 'Получение данных из оборудова�
         }
 }
 
+receiveGroupsMachineryMultithread 'Получение данных из оборудования (Multithread native)' () {
+    NEWEXECUTOR {
+        FOR GroupMachinery g IS GroupMachinery AND isNative(g) AND active(g) NOINLINE DO NEWTHREAD NEWSESSION NEWSQL {
+            TRY {
+                receiveGroupMachinery(g);
+            } CATCH {
+                MESSAGE CONCAT '/n', 'error: ' + System.messageCaughtException(), 'on: ' + name(g) NOWAIT;
+            }
+        }
+    } THREADS 8;
+}
+
 addMachineryError (MachineryPriceTransaction t, STRING data, TEXT errorTrace) + {
     NEW e = MachineryPriceTransactionError {
         machineryPriceTransaction(e) <- t;
