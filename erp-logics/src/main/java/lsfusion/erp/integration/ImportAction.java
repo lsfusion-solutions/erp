@@ -849,7 +849,7 @@ public class ImportAction extends DefaultImportAction {
                 if (showField(dataUserInvoiceDetail, "idBin")) {
                     ImportField binUserInvoiceDetailField = new ImportField(findProperty("id[Bin]"));
                     ImportKey<?> binKey = new ImportKey((CustomClass) findClass("Bin"),
-                            findProperty("bin[STRING[100]]").getMapping(binUserInvoiceDetailField));
+                            findProperty("maxBin[STRING[100]]").getMapping(binUserInvoiceDetailField));
                     keys.add(binKey);
                     props.add(new ImportProperty(binUserInvoiceDetailField, findProperty("id[Bin]").getMapping(binKey)));
                     props.add(new ImportProperty(binUserInvoiceDetailField, findProperty("name[Bin]").getMapping(binKey)));
