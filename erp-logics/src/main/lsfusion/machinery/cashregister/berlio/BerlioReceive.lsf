@@ -1,6 +1,6 @@
 MODULE BerlioReceive;
 
-REQUIRE NativeMachinery, ItemBerlio, ZReport, GiftCard;
+REQUIRE NativeMachinery, ItemBerlio, ZReportSection, GiftCard;
 
 NAMESPACE Berlio;
 
@@ -39,14 +39,15 @@ receiveFromBerlio (GroupCashRegister gcr) {
             LOCAL shiftDate, date = DATE (INTEGER);
             LOCAL time = TIME (INTEGER);
             LOCAL shiftIime = TIME ();
-            LOCAL npp, vid, kind, receipt, skno, index = INTEGER (INTEGER);
+            LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
             LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
             LOCAL idZReport, idReceipt, idReceiptDetail = STRING (INTEGER);
             LOCAL qty, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
             
             IMPORT DBF FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
-                    price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT, cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM,
-                    skno = SKNO, item = NOMNUM, mixCash = MIXCASH, mixBank = MIXBANK, mixOther = MIXOTHER;
+                    price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT, cardNum = CARDNUM, 
+                    receipt = CHECKNUM, npp = KKM, dep = DEPNO, skno = SKNO, item = NOMNUM, mixCash = MIXCASH, mixBank = MIXBANK, 
+                    mixOther = MIXOTHER;
 
             FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegister(npp) ORDER npp DO NEW c = CashRegister {
                 groupCashRegister(c) <- gcr;
@@ -104,6 +105,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     sum(d) <- sum(r);
                     discountPercent(d) <- -discount(r);
                     discountSum(d) <- -discountSum(r);
+                    section(d) <- section(dep(r));
                 }
 
                 //сертификат
