@@ -4,16 +4,6 @@ REQUIRE NativeMachinery, ItemBerlio, ZReport, GiftCard;
 
 NAMESPACE Berlio;
 
-npp = DATA LOCAL INTEGER (INTEGER);
-shift = DATA LOCAL STRING[48](INTEGER);
-shiftDate = DATA LOCAL DATE (INTEGER);
-receipt = DATA LOCAL INTEGER (INTEGER);
-index = DATA LOCAL INTEGER (INTEGER);
-
-idZReport(CashRegister cr, INTEGER r) = (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF index(r) AND npp(cr) == npp(r);
-idReceipt(CashRegister cr, INTEGER r) = (CONCAT '_', idZReport(cr, r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
-idReceiptDetail(CashRegister cr, INTEGER r) = (CONCAT '_', idReceipt(cr, r), index(r)) IF index(r) AND npp(cr) == npp(r);
-
 CLASS KindOperation 'Вид операции в Берлио';
 TABLE kindOperation(KindOperation);
 
@@ -46,11 +36,12 @@ receiveFromBerlio (GroupCashRegister gcr) {
         NEWSESSION {
             READ directory(gcr) +'/S/'+ fn TO file;
                 
-            LOCAL date = DATE (INTEGER);
+            LOCAL shiftDate, date = DATE (INTEGER);
             LOCAL time = TIME (INTEGER);
             LOCAL shiftIime = TIME ();
-            LOCAL vid, kind, skno = INTEGER (INTEGER);
-            LOCAL lDate, code, cardNum, item = STRING (INTEGER);
+            LOCAL npp, vid, kind, receipt, skno, index = INTEGER (INTEGER);
+            LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
+            LOCAL idZReport, idReceipt, idReceiptDetail = STRING (INTEGER);
             LOCAL qty, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
             
             IMPORT DBF FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
@@ -68,10 +59,14 @@ receiveFromBerlio (GroupCashRegister gcr) {
                 shiftDate(INTEGER r) <- date(open) WHERE imported(r);
                 shiftIime() <- time(open);
             }
-
+            
             FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) DO {
+                
+                idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF index(r) AND npp(cr) == npp(r);
+                idReceipt(INTEGER r) <- (CONCAT '_', idZReport(r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
+                idReceiptDetail(INTEGER r) <- (CONCAT '_', idReceipt(r), index(r)) IF index(r) AND npp(cr) == npp(r);
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idZReport(cr, rr)](STRING idZreport) AND NOT zReport(idZreport) NEW z = ZReport DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idZReport(rr)](STRING idZreport) AND NOT zReport(idZreport) NEW z = ZReport DO {
                     id(z) <- idZreport;
                     isPosted(z) <- TRUE;
                     date(z) <- date(r);
@@ -81,27 +76,27 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     berlioFile(z) <- fn;
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(cr, rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
                     id(rc) <- idReceipt;
-                    zReport(rc) <- zReport(idZReport(cr, r));
+                    zReport(rc) <- zReport(idZReport(r));
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
                     time(rc) <- time(r);
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(cr, rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
                     AND vid(r) == 1 ORDER index(r) NEW d = ReceiptSaleDetail DO {
                     id(d) <- idReceiptDetail;
-                    receipt(d) <- receipt(idReceipt(cr, r));
+                    receipt(d) <- receipt(idReceipt(r));
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(cr, rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
                     AND vid(r) == 2 ORDER index(r) NEW d = ReceiptReturnDetail DO {
                     id(d) <- idReceiptDetail;
-                    receipt(d) <- receipt(idReceipt(cr, r));
+                    receipt(d) <- receipt(idReceipt(r));
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(cr, rr)](STRING idReceiptDetail) AND ReceiptDetail d == receiptDetail(idReceiptDetail) DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND ReceiptDetail d == receiptDetail(idReceiptDetail) DO {
                     idBarcode(d) <- code(r);
                     sku(d) <- OVERRIDE itemIdBerlio(INTEGER(item(r))), itemIdBarcodeBerlio(INTEGER(code(r))), skuBarcode(code(r)) IF length(code(r)) > 3;
                     quantity(d) <- IF vid(r) == 2 THEN -qty(r) ELSE qty(r);
@@ -117,7 +112,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     number(g) <- giftCard;
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(cr, rr)](STRING idReceipt) AND paymentType(kindOperation(kind(r))) == minGiftCardPaymentType() AND NOT payment(idReceipt + '_' + kind(r)) NEW p = PaymentGiftCard DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND paymentType(kindOperation(kind(r))) == minGiftCardPaymentType() AND NOT payment(idReceipt + '_' + kind(r)) NEW p = PaymentGiftCard DO {
                     id(p) <- idReceipt + '_' + kind(r);
                     receipt(p) <- receipt(idReceipt);
                     paymentType(p) <- minGiftCardPaymentType();
@@ -126,7 +121,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                 }
 
                 //смешаная оплата
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(cr, rr)](STRING idReceipt) AND kind(r) == 88 DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND kind(r) == 88 DO {
                     IF NOT payment(idReceipt + '_' + kind(r) +'_'+ 1) AND mixCash(r) !=0 THEN NEW p = Payment {
                         id(p) <- idReceipt + '_' + kind(r) +'_'+ 1;
                         receipt(p) <- receipt(idReceipt);
@@ -148,7 +143,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                 }
 
                 //other
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(cr, rr)](STRING idReceipt) AND (kind(r) != 88 AND NOT paymentType(kindOperation(kind(r))) == minGiftCardPaymentType()) AND NOT payment(idReceipt + '_' + kind(r)) NEW p = Payment DO {
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND (kind(r) != 88 AND NOT paymentType(kindOperation(kind(r))) == minGiftCardPaymentType()) AND NOT payment(idReceipt + '_' + kind(r)) NEW p = Payment DO {
                     id(p) <- idReceipt + '_' + kind(r);
                     receipt(p) <- receipt(idReceipt);
                     kindOperation(p) <- kindOperation(kind(r));
