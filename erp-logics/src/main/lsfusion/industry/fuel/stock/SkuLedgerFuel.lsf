@@ -1,6 +1,6 @@
 MODULE SkuLedgerFuel;
 
-REQUIRE SkuLedger, ItemFuel;
+REQUIRE SkuLedger, ItemFuel, StockFuel;
 
 NAMESPACE Stock;
 
@@ -113,13 +113,15 @@ volumeIn 'Приход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
 volumeOut 'Расход' (Batch batch, stock, DATE dateFrom, DATE dateTo) =
     GROUP SUM volume(OutSkuLedger ledger, batch) IF ledger IS OutSkuLedger AND isPosted(ledger) AND date(ledger) >= dateFrom AND date(ledger)<= dateTo BY stock(ledger);
 
+notShowFuelVolume = ABSTRACT BOOLEAN (Stock);
+
 EXTEND FORM currentBalanceSkuStock
-    PROPERTIES(s,st) READONLY BEFORE averagePrice(s,st) currentVolume
-    PROPERTIES(bil) READONLY AFTER signedQuantity(bil) signedVolume, density
+    PROPERTIES(s,st) READONLY SHOWIF NOT notShowFuelVolume(st) BEFORE averagePrice(s,st) currentVolume
+    PROPERTIES(bil) READONLY SHOWIF NOT notShowFuelVolume(st) AFTER signedQuantity(bil) signedVolume, density
 ;
 EXTEND FORM balanceSkuStock
-    PROPERTIES(s,st,t) READONLY BEFORE averagePriceB(s,st,t) volumeB
-    PROPERTIES(bil) READONLY AFTER signedQuantity(bil) signedVolume, density
+    PROPERTIES(s,st,t) READONLY SHOWIF NOT notShowFuelVolume(st) BEFORE averagePriceB(s,st,t) volumeB
+    PROPERTIES(bil) READONLY SHOWIF NOT notShowFuelVolume(st) AFTER signedQuantity(bil) signedVolume, density
 ;
 
 EXTEND FORM skuLedger
@@ -129,5 +131,3 @@ EXTEND FORM skuLedger
 CONSTRAINT (CHANGED(signedVolume(SkuLedger l)) OR CHANGED(signedQuantity(l))) AND (signedVolume(l) OR signedQuantity(l)) AND NOT (signedVolume(l) AND signedQuantity(l))            
     AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
     MESSAGE 'При движении топлива должны быть заданы масса и объём';
-
-currentBalance 'Текущий остаток, кг' (Sku skus, LegalEntity le) = [GROUP SUM currentBalance(Sku s1, Stock st) BY legalEntity(st), s1](le, skus);

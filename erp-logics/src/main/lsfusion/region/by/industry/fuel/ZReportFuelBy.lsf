@@ -1,0 +1,46 @@
+MODULE ZReportFuelBy;
+
+REQUIRE ZReport, ItemFuelBy;  // без ZReportFuel
+
+NAMESPACE ZReport;
+
+weight 'Масса, кг' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptSaleDetail);
+weight 'Масса, кг' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptReturnDetail);
+
+weight 'Масса, кг' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) MATERIALIZED;
+weight(ReceiptReturnDetail detail) += weight(detail);
+weight(ReceiptSaleDetail detail) += weight(detail);
+
+signedWeight 'Масса, кг' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) MATERIALIZED;
+signedWeight(ReceiptReturnDetail detail) += -weight(detail);
+signedWeight(ReceiptSaleDetail detail) += weight(detail);
+
+density 'Плотность, кг/л' (receiptDetail) = DATA NUMERIC[8,4] (ReceiptSaleDetail);
+density 'Плотность, кг/л' (receiptDetail) = DATA NUMERIC[8,4] (ReceiptReturnDetail);
+
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (ReceiptDetail) MATERIALIZED;
+density(ReceiptReturnDetail detail) += density(detail);
+density(ReceiptSaleDetail detail) += density(detail);
+
+weightReceiptDetail 'Масса (всего), кг' (receipt) = GROUP SUM weight(ReceiptDetail idetail) BY receipt(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+weightReceiptDetail 'Масса (всего), кг' (zReport) = GROUP SUM signedWeight(ReceiptDetail detail) BY zReport(detail) IN documentSum MATERIALIZED;
+
+EXTEND FORM zReport
+    PROPERTIES(z) weightReceiptDetail
+    PROPERTIES(b) weightReceiptDetail AFTER quantityReceiptDetail(b)
+    PROPERTIES(d) READONLYIF NOT isFuelBY(sku(d)) BACKGROUND background(d) weight AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuelBY(sku(d)) BACKGROUND background(d) density AFTER weight(d)
+;
+
+overCopy(ReceiptDetail d, ReceiptDetail detail) + {
+    weight(d) <- weight(detail);
+    density(d) <- density(detail);
+}
+
+EXTEND FORM zReports
+    PROPERTIES(z) READONLY weightReceiptDetail AFTER quantityReceiptDetail(z)
+    PROPERTIES(b) READONLY weightReceiptDetail AFTER quantityReceiptDetail(b)
+    PROPERTIES(d) READONLY weight AFTER quantity(d)
+    PROPERTIES(d) READONLY density AFTER weight(d)
+;
+

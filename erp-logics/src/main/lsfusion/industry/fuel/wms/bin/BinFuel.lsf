@@ -1,6 +1,6 @@
 MODULE BinFuel;
 
-REQUIRE Bin;
+REQUIRE Bin, PumpFuel;
 
 NAMESPACE Bin;
 
@@ -36,141 +36,28 @@ DESIGN binStocks {
     PROPERTY (bins(s)){hide = TRUE;}
 }
 
-CLASS Pump 'ТРК';
-TABLE pump (Pump);
-
-@defineExternalizable(pump, STRING[100]);
-
-name 'Наименование (ручной ввод)' = DATA ISTRING[100](Pump);
-number 'Номер' = DATA INTEGER (Pump) NONULL IN id;
-fullName 'Наименование полное' (Pump p) = CONCAT ' ', 'ТРК', number(p);
-
-stock = DATA Stock(Pump);
-nameStock 'Склад' (Pump pump) = name(stock(pump)) IN id;
-
-CONSTRAINT stock(Pump pump) AND NOT isCompany(stock(pump))
-    CHECKED BY stock[Pump] MESSAGE 'Для ТРК выбран склад, не являющийся складом компании';
-
-showIDsFuel = DATA BOOLEAN();
-
-FORM pump 'ТРК'
-    OBJECTS p = Pump PANEL
-    PROPERTIES(p) nameStock, number, fullName, name, id SHOWIF showIDs() AND showIDsFuel()
-    EDIT Pump OBJECT p
-;
-
-filterStock = DATA LOCAL NESTED Stock();
-nameFilterStock 'Склад' () = name(filterStock());
-
-filterPump = DATA LOCAL NESTED Pump();
-numberFilterPump 'Номер ТРК' () = number(filterPump());
-
-CONSTRAINT filterStock() AND NOT isCompany(filterStock())
-    CHECKED BY filterStock[] MESSAGE 'Для фильтра выбран склад, который не принадлежит компании';
-CONSTRAINT filterPump() AND NOT isCompany(stock(filterPump()))
-    CHECKED BY filterPump[] MESSAGE 'Для фильтра выбран ТРК, который не принадлежит компании';
-CONSTRAINT filterStock() AND filterPump() AND NOT stock(filterPump()) == filterStock()
-    CHECKED BY filterPump[] MESSAGE 'Для фильтра выбран ТРК, который не принадлежит выбранному складу'; 
-
-FORM pumps 'ТРК'
-    OBJECTS p = Pump
-    PROPERTIES(p) READONLY nameStock, number, fullName, name, id SHOWIF showIDs() AND showIDsFuel()
-    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
-    ORDERS nameStock(p), number(p)
-    
-    PROPERTIES() nameFilterStock
-    FILTERS stock(p) == filterStock() OR NOT filterStock()
-    
-    LIST Pump OBJECT p
-;
-
-CLASS Gun 'Пистолет' ;
-TABLE gun (Gun);
-
-@defineExternalizable(gun, STRING[100]);
-
-name 'Наименование (ручной ввод)' = DATA ISTRING[100](Gun);
-number 'Номер пистолета' = DATA INTEGER (Gun) NONULL IN id;
-
-stock = DATA Stock(Gun);
-nameStock 'Склад' (Gun gun) = name(stock(gun)) IN id;
-
-CONSTRAINT stock(Gun gun) AND NOT isCompany(stock(gun))
-    CHECKED BY stock[Gun] MESSAGE 'Для пистолета выбран склад, не являющийся складом компании';
-
-pump = DATA Pump(Gun);
-numberPump 'Номер ТРК' (Gun gun) = number(pump(gun)) IN id;
-fullNamePump 'ТРК' (Gun gun) = fullName(pump(gun));
-
-fullNumber 'Номер полный (ТРК/пистолет)' (Gun gun) = CONCAT '/', number(pump(gun)), number(gun);
-fullName 'Наименование полное' (Gun gun) = CONCAT ' ', 'Пистолет', fullNumber(gun);
-
-CONSTRAINT stock(Gun gun) AND pump(gun) AND NOT stock(gun) == stock(pump(gun))
-    CHECKED BY pump[Gun] MESSAGE 'Склад и ТРК для пистолета не имеют связи';
-
 bin = DATA Bin(Gun);
 nameBin 'Резервуар' (Gun gun) = name(bin(gun));
 
 CONSTRAINT stock(Gun gun) AND bin(gun) AND NOT stock(gun)==stock(bin(gun))
     CHECKED BY bin[Gun] MESSAGE 'Склад и резервуар для пистолета не имеют связи';
 
-FORM gun 'Пистолет'
-    OBJECTS g = Gun PANEL
-    PROPERTIES(g) nameStock, fullNamePump, number, fullName, nameBin, name, id SHOWIF showIDs() AND showIDsFuel()
-    EDIT Gun OBJECT g
+EXTEND FORM gun
+    PROPERTIES(g) nameBin BEFORE name(g)
 ;
 
-FORM guns 'Пистолеты'
-    OBJECTS g = Gun
-    PROPERTIES(g) READONLY nameStock, numberPump, number, fullNumber, fullName, nameBin, name, id SHOWIF showIDs() AND showIDsFuel()
-    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
-    ORDERS nameStock(g), numberPump(g), number(g)
-    
-    PROPERTIES() nameFilterStock, numberFilterPump
-    FILTERS stock(g) == filterStock() OR NOT filterStock(),
-            pump(g) == filterPump() OR NOT filterPump()
-    
-    LIST Gun OBJECT g
+EXTEND FORM guns
+    PROPERTIES(g) READONLY nameBin BEFORE name(g)
 ;
 
-FORM gunBins 'Привязка пистолетов'
-    OBJECTS ts = Stock PANEL
-    PROPERTIES(ts) SELECTOR name
-    FILTERS isCompany(ts)
-    
-    OBJECTS p = Pump
-    PROPERTIES(p) READONLY number, fullName 
-    FILTERS stock(p) == ts
-    ORDERS number(p)
-    PROPERTIES(p) NEWSESSION NEW, EDIT, DELETE
-    
-    OBJECTS g = Gun
-    PROPERTIES(g) READONLY number, fullNumber, fullName, nameBin
-    FILTERS stock(g) == ts, pump(g) == p
-    ORDERS number(g)
-    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+EXTEND FORM gunBins
+    PROPERTIES(g) READONLY nameBin AFTER fullName(g)
 ;
-
-DESIGN gunBins {
-    OBJECTS {
-        NEW tables AFTER BOX(ts) {
-            fill = 1;
-            horizontal = TRUE;
-            MOVE BOX(p) {
-                fill = 1;
-            }
-            MOVE BOX(g) {
-                fill = 3;
-            }
-            
-        }
-    }
-}
 
 NAVIGATOR {
     binNavigator {
-        NEW pumps;
-        NEW guns;
-        NEW gunBins;
+        MOVE pumps;
+        MOVE guns;
+        MOVE gunBins;
     }
 }

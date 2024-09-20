@@ -1,0 +1,45 @@
+MODULE ZReportPumpFuel;
+
+REQUIRE ZReport, PumpFuel;
+
+NAMESPACE Bin;
+
+pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptSaleDetail);
+pump 'ТРК' (receiptDetail) = DATA Pump (ReceiptReturnDetail);
+
+pump 'ТРК' = ABSTRACT Pump (ReceiptDetail) MATERIALIZED;
+namePump 'ТРК' (ReceiptDetail receiptDetail) = fullName(pump(receiptDetail)) CHARWIDTH 20;
+numberPump 'Номер ТРК' (ReceiptDetail receiptDetail) = number(pump(receiptDetail));
+pump(ReceiptReturnDetail detail) += pump(detail);
+pump(ReceiptSaleDetail detail) += pump(detail);
+
+gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptSaleDetail);
+gun 'Пистолет' (receiptDetail) = DATA Gun (ReceiptReturnDetail);
+
+gun 'Пистолет' = ABSTRACT Gun (ReceiptDetail) MATERIALIZED;
+nameGun 'Пистолет' (ReceiptDetail receiptDetail) = fullName(gun(receiptDetail)) CHARWIDTH 20;
+fullNumberGun 'Номер пистолета' (ReceiptDetail receiptDetail) = fullNumber(gun(receiptDetail)) CHARWIDTH 20;
+gun(ReceiptReturnDetail detail) += gun(detail);
+gun(ReceiptSaleDetail detail) += gun(detail);
+
+CONSTRAINT DROPPED(Gun a IS Gun) AND [GROUP SUM 1 IF NOT gun(ReceiptDetail d) BY PREV(gun(d))](a)
+    MESSAGE 'Запрещено удалять пистолет при наличии строк чеков с ним';
+
+CONSTRAINT DROPPED(Pump a IS Pump) AND [GROUP SUM 1 IF NOT pump(ReceiptDetail d) BY PREV(pump(d))](a)
+    MESSAGE 'Запрещено удалять ТРК при наличии строк чеков с ним';
+
+//setGun (ReceiptDetail d)  { 
+//    DIALOG dialogGunStock OBJECTS s = departmentStore(d), g = gun(d) CHANGE;
+//}
+
+//CONSTRAINT gun(ReceiptDetail detail) AND NOT stock(gun(detail)) == departmentStore(detail)
+//    CHECKED BY gun[ReceiptDetail] MESSAGE 'Пистолет не доступeн для отдела магазина';
+
+backgroundFuel 'Цвет' (ReceiptDetail detail) = RGB(255, 224, 255) IF detail IS ReceiptDetail;
+
+EXTEND FORM zReport
+    PROPERTIES(d) BACKGROUND backgroundFuel(d)  numberPump, fullNumberGun //ON CHANGE setGun(d)
+;
+EXTEND FORM zReports
+    PROPERTIES(d) READONLY BACKGROUND backgroundFuel(d) numberPump, fullNumberGun
+;
