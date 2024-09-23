@@ -10,46 +10,7 @@ density 'Плотность, кг/л' = DATA NUMERIC[8,4] (PageInventoryDetail) 
 CONSTRAINT (SET(isPosted(inventory(PageInventoryDetail d))) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(inventory(d)) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
     MESSAGE 'Для строки страницы описи должна быть задана плотность';
 
-WHEN LOCAL (CHANGED(quantity(PageInventoryDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-}
-
-fillDensity (PageInventoryDetail d, NUMERIC[8,4] n) {
-    IF n THEN {
-        density(d) <- n;
-        IF NOT quantity(d) THEN {
-            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-        } ELSE IF NOT volume(d) THEN {
-            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-        } ELSE {
-            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
-                IF yes THEN {
-                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-                } ELSE {
-                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-                }
-            } ELSE {
-                density(d) <- PREV(density(d));
-            }
-        }
-    } ELSE {
-        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-    }
-}
-
-changeDensity (PageInventoryDetail d) {
-    INPUT n = NUMERIC[8,4] DO {
-        fillDensity(d,n);
-    }
-}
-
-fillDensity15C 'Заполнить значением плотности при 15°С' (PageInventoryDetail d) {
-    IF density15C(sku(d)) THEN {
-        fillDensity(d,density15C(sku(d)));
-    } ELSE {
-        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
-    }
-}
+@fuelDensityActions(pageInventoryDetail);
 
 volumePageInventoryDetail 'Объем (всего), л' (pageInventory) = GROUP SUM volume(PageInventoryDetail idetail) BY pageInventory(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 

@@ -227,26 +227,32 @@ DESIGN shipmentShipments {
     }
 }
 
+setPropertiesPurchaseSale ABSTRACT LIST (Purchase.UserShipmentDetail, ShipmentDetail);
+setPropertiesPurchaseSale ABSTRACT LIST (Purchase.UserShipment);
+setPropertiesPurchaseSale ABSTRACT LIST (Purchase.UserShipment, Shipment);
 
 fillShipment 'Заполнить на основе поставки'(Purchase.UserShipment userShipment)   {       // подставляем все количество ???
     DIALOG shipmentShipments OBJECTS s = supplier(userShipment), c = customer(userShipment),
                                    ss = supplierStock(userShipment), cs = customerStock(userShipment), o INPUT DO {
+        setPropertiesPurchaseSale(userShipment, o);
         FOR shipment(ShipmentDetail shipmentDetail) == o NEW d = Purchase.UserShipmentDetail DO {
             userShipment(d) <- userShipment;
             shipmentDetail(d) <- shipmentDetail;
-
-            price(d) <- price(shipmentDetail);
-
-            sku(d) <- sku(shipmentDetail);
-            batch(d) <- batch(shipmentDetail);
-            quantity (d) <- quantity(shipmentDetail);
-
-            barcodePack(d) <- barcodePack(shipmentDetail);
-            amountPack(d) <- amountPack(shipmentDetail);
-            packQuantity(d) <- packQuantity(shipmentDetail);
+            setPropertiesPurchaseSale(d, shipmentDetail);
         }
+        setPropertiesPurchaseSale(userShipment);
     }
 } IN shipment;
+
+setPropertiesPurchaseSale(Purchase.UserShipmentDetail d, ShipmentDetail shipmentDetail) + {
+    price(d) <- price(shipmentDetail);
+    sku(d) <- sku(shipmentDetail);
+    batch(d) <- batch(shipmentDetail);
+    quantity (d) <- quantity(shipmentDetail);
+    barcodePack(d) <- barcodePack(shipmentDetail);
+    amountPack(d) <- amountPack(shipmentDetail);
+    packQuantity(d) <- packQuantity(shipmentDetail);
+}
 
 EXTEND FORM Purchase.userShipment
     PROPERTIES(s) fillShipment, saleShipments READONLY

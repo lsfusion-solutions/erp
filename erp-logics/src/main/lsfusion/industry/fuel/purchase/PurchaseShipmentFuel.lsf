@@ -16,51 +16,7 @@ density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (ShipmentDetail) C
 density 'Плотность, кг/л' = DATA NUMERIC[8,4] (UserShipmentDetail) CHARWIDTH 7;
 density (UserShipmentDetail shipmentDetail) += density(shipmentDetail);
 
-//volume[Shipment.ShipmentDetail](ShipmentDetail detail) += volume(detail);
-
-CONSTRAINT (SET(isPosted(UserShipmentDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
-    MESSAGE 'Для строки поставки (закупка) должна быть задана плотность';
-
-WHEN LOCAL (CHANGED(quantity(UserShipmentDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-}
-
-fillDensity (UserShipmentDetail d, NUMERIC[8,4] n) {
-    IF n THEN {
-        density(d) <- n;
-        IF NOT quantity(d) THEN {
-            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-        } ELSE IF NOT volume(d) THEN {
-            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-        } ELSE {
-            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
-                IF yes THEN {
-                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-                } ELSE {
-                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-                }
-            } ELSE {
-                density(d) <- PREV(density(d));
-            }
-        }
-    } ELSE {
-        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-    }
-}
-
-changeDensity (UserShipmentDetail d) {
-    INPUT n = NUMERIC[8,4] DO {
-        fillDensity(d,n);
-    }
-}
-
-fillDensity15C 'Заполнить значением плотности при 15°С' (UserShipmentDetail d) {
-    IF density15C(sku(d)) THEN {
-        fillDensity(d,density15C(sku(d)));
-    } ELSE {
-        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
-    }
-}
+@fuelDensity(userShipmentDetail, 'поставка (закупка)');
 
 volumeShipmentDetail 'Объем (всего), л' (shipment) = GROUP SUM volume(ShipmentDetail idetail) BY shipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 volumeUserShipmentDetail 'Объем (всего), л' (userShipment) = GROUP SUM volume(UserShipmentDetail idetail) BY userShipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
@@ -117,15 +73,15 @@ fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
     IF n THEN {
         shipmentDensity(d) <- n;
         IF NOT shipmentQuantity(d) THEN {
-            shipmentQuantity(d) <- NUMERIC[16,5](shipmentVolume(d) * shipmentDensity(d));
+            shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
         } ELSE IF NOT shipmentVolume(d) THEN {
-            shipmentVolume(d) <- NUMERIC[16,5](shipmentQuantity(d) / shipmentDensity(d));
+            shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
         } ELSE {
             ASK 'Нажмите "Да" для пересчета объема поставлено (л) или "Нет" для пересчета кол-ва поставлено (кг)' yes = YESNO DO {
                 IF yes THEN {
-                    shipmentVolume(d) <- NUMERIC[16,5](shipmentQuantity(d) / shipmentDensity(d));
+                    shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
                 } ELSE {
-                    shipmentQuantity(d) <- NUMERIC[16,5](shipmentVolume(d) * shipmentDensity(d));
+                    shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
                 }
             } ELSE {
                 shipmentDensity(d) <- PREV(shipmentDensity(d));

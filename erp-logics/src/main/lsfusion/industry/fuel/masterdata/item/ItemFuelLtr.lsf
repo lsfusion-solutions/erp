@@ -1,0 +1,70 @@
+MODULE ItemFuelLtr;
+
+REQUIRE ItemFuel;
+
+NAMESPACE Item;
+
+EXTEND CLASS SkuType {
+    skuTypeFuelLtr 'Топливо (в литрах)'
+}
+
+isFuelLtr 'Топливо (в литрах)' (Item i) = skuType(i) = SkuType.skuTypeFuelLtr;
+
+CONSTRAINT (SETCHANGED(isFuelLtr(Item i)) OR SETCHANGED(isFuel(i))) AND isFuelLtr(i) AND isFuel(i)
+    MESSAGE 'Товар не может быть одновременно топливом (в кг) и топливом (в литрах)';
+
+DESIGN itemGroup {
+    PROPERTY(prevIsFuel(g)) { caption = 'Топливо (в кг)'; }
+}
+
+itemFuel 'Товар - топливо (в кг)' = DATA Item (Item);
+nameItemFuel 'Товар - топливо (в кг)' (Item i) = name(itemFuel(i));
+
+itemFuelLtr 'Товар - топливо (в литрах)' = GROUP MAX Item i BY itemFuel(i) MATERIALIZED;
+nameItemFuelLtr 'Товар - топливо (в литрах)' (Item i) = name(itemFuelLtr(i));
+
+CONSTRAINT SET([GROUP SUM 1 BY itemFuel(Item i)](Item ii) > 1)
+    MESSAGE 'Соответствие товаров - топлива в литрах и кг должно быть однозначным';
+
+CONSTRAINT SETCHANGED(itemFuel(Item i)) AND NOT isFuel(itemFuel(i))
+    CHECKED BY itemFuel[Item]
+    MESSAGE 'Для соответствия можно выбрать только товар - топливо в кг';
+
+EXTEND FORM item
+    PROPERTIES (i) SHOWIF isFuel(i) READONLY nameItemFuelLtr
+    PROPERTIES (i) SHOWIF isFuelLtr(i) nameItemFuel
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY (nameItemFuelLtr(i));
+        MOVE PROPERTY (nameItemFuel(i));
+    }
+}
+
+FORM fuelMatch 'Соответствие топлива'
+    OBJECTS i1 = Item
+    PROPERTIES (i1) name READONLY, nameItemFuel BACKGROUND RGB(255, 224, 255)
+    ORDERS name(i1)
+    FILTERS isFuelLtr(i1)
+    
+    FILTERGROUP active1 FILTER 'Активные' active(i1) DEFAULT 
+
+    OBJECTS i2 = Item
+    PROPERTIES (i2) READONLY name, nameItemFuelLtr
+    ORDERS name(i2)
+    FILTERS isFuel(i2)
+
+    FILTERGROUP active2 FILTER 'Активные' active(i2) DEFAULT
+;
+
+DESIGN fuelMatch {
+    BOX(i1) { caption = 'Топливо (в литрах)'; }
+    BOX(i2) { caption = 'Топливо (в кг)'; }
+}
+
+NAVIGATOR {
+    skuNavigator {
+        NEW fuelMatch;
+    }
+}

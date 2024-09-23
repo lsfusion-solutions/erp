@@ -29,46 +29,7 @@ CONSTRAINT (SET(isPosted(UserDisparityDetail d)) OR CHANGED(sku(d)) OR CHANGED(d
 CONSTRAINT (SET(isPosted(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR CHANGED(inputDensity(d))) AND isPosted(d) AND isFuel(skuGroup(inputSku(d))) AND NOT inputDensity(d)
     MESSAGE 'Для строки изменения сортности должна быть задана плотность (приход)';
 
-WHEN LOCAL (CHANGED(quantity(UserDisparityDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-}
-
-fillDensity (UserDisparityDetail d, NUMERIC[8,4] n) {
-    IF n THEN {
-        density(d) <- n;
-        IF NOT quantity(d) THEN {
-            quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-        } ELSE IF NOT volume(d) THEN {
-            volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-        } ELSE {
-            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
-                IF yes THEN {
-                    volume(d) <- NUMERIC[16,5](quantity(d) / density(d));
-                } ELSE {
-                    quantity(d) <- NUMERIC[16,5](volume(d) * density(d));
-                }
-            } ELSE {
-                density(d) <- PREV(density(d));
-            }
-        }
-    } ELSE {
-        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
-    }
-}
-
-changeDensity (UserDisparityDetail d) {
-    INPUT n = NUMERIC[8,4] DO {
-        fillDensity(d,n);
-    }
-}
-
-fillDensity15C 'Заполнить значением плотности при 15°С' (UserDisparityDetail d) {
-    IF density15C(sku(d)) THEN {
-        fillDensity(d,density15C(sku(d)));
-    } ELSE {
-        MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
-    }
-}
+@fuelDensityActions(userDisparityDetail);
 
 WHEN LOCAL (CHANGED(inputQuantity(UserDisparityDetail d)) OR CHANGED(inputVolume(d))) AND NOT CHANGED(inputDensity(d)) AND isFuel(skuGroup(inputSku(d))) AND inputQuantity(d) AND inputVolume(d) DO {
     inputDensity(d) <- NUMERIC[8,4](inputQuantity(d) / inputVolume(d));

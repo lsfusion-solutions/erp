@@ -131,3 +131,56 @@ EXTEND FORM skuLedger
 CONSTRAINT (CHANGED(signedVolume(SkuLedger l)) OR CHANGED(signedQuantity(l))) AND (signedVolume(l) OR signedQuantity(l)) AND NOT (signedVolume(l) AND signedQuantity(l))            
     AND isFuel(sku(l)) AND NOT skipCheckVolumeSkuLedger(stock(l))
     MESSAGE 'При движении топлива должны быть заданы масса и объём';
+
+META fuelDesnityConstraints(object, caption)
+    CONSTRAINT (SET(isPosted(###object d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+        MESSAGE 'Для строки '##caption##' должна быть задана плотность';
+END
+
+META fuelDensityActions(object)
+    WHEN LOCAL (CHANGED(quantity(###object d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+    }
+
+    fillDensity (###object d, NUMERIC[8,4] n) {
+        IF n THEN {
+            density(d) <- n;
+            IF NOT quantity(d) THEN {
+                quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
+            } ELSE IF NOT volume(d) THEN {
+                volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
+            } ELSE {
+                ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
+                    IF yes THEN {
+                        volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
+                    } ELSE {
+                        quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
+                    }
+                } ELSE {
+                    density(d) <- PREV(density(d));
+                }
+            }
+        } ELSE {
+            density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+        }
+    }
+
+    changeDensity (###object d) {
+        INPUT n = NUMERIC[8,4] DO {
+            fillDensity(d, n);
+        }
+    }
+
+    fillDensity15C 'Заполнить значением плотности при 15°С' (###object d) {
+        IF density15C(sku(d)) THEN {
+            fillDensity(d, density15C(sku(d)));
+        } ELSE {
+            MESSAGE 'В карточке товара не задано значение плотности при 15°С' NOWAIT;
+        }
+    }
+END
+
+META fuelDensity(object, caption)
+    @fuelDesnityConstraints(object, caption);
+    @fuelDensityActions(object);
+END
