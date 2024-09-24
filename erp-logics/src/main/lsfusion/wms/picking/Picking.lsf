@@ -409,27 +409,51 @@ namePerformer 'Комплектовщик' (PickingOrder pickingOrder) = name[Co
 performer = performer(pickingOrder(Picking picking));
 namePerformer 'Комплектовщик' (Picking picking) = name[Contact](performer(picking));
 
-overBackground = ABSTRACT BOOLEAN(PickingOrder);
-overColor = ABSTRACT COLOR(PickingOrder);
+CLASS StatusPicking 'Статус'{
+    completely 'Полностью собран',
+    partly 'Частично собран',
+    accepted 'В комплектации',
+    wait 'Ожидает комплектацию',
+    notCreated 'Без комплектации',
+    closed 'Закрыт'
+}
 
-statusPicking 'Статус комплектации' (PickingOrder order) = CASE
-                                          WHEN calcPart(order) THEN 'Частично собран'
-                                          WHEN calcFull(order) THEN 'Полностью собран'
-                                          WHEN accepted(order) THEN 'В комплектации'
-                                          WHEN isClosed(order) THEN 'Закрыт'
-                                          WHEN order IS PickingOrder THEN 'Ожидает комплектацию'
-                                          CHARWIDTH 22
-                                      ;
+TABLE statusPicking(StatusPicking);
+name 'Наименование' (StatusPicking t) = staticCaption(t) IF t IS StatusPicking CHARWIDTH 15;
+
+FORM statusPicking 'Статус комплектации заказа'
+    OBJECTS c = StatusPicking
+    PROPERTIES(c) READONLY name
+    LIST StatusPicking OBJECT c
+;
+DESIGN statusPicking{
+    BOX {
+        size = (800, 600);
+    }
+}
+
+statusPicking= ABSTRACT CASE StatusPicking (PickingOrder) MATERIALIZED ;
+nameStatusPicking 'Статус комплектации' (PickingOrder o) = name(statusPicking(o)) CHARWIDTH 22;
+
+overBackground = ABSTRACT BOOLEAN(PickingOrder) MATERIALIZED;
+overColor = ABSTRACT COLOR(PickingOrder) MATERIALIZED;
+calcStatusPicking 'Статус комплектации' (PickingOrder order) = CASE
+      WHEN calcPart(order) THEN StatusPicking.partly
+      WHEN calcFull(order) THEN StatusPicking.completely
+      WHEN accepted(order) THEN StatusPicking.accepted
+      WHEN isClosed(order) THEN StatusPicking.partly
+      WHEN order IS PickingOrder THEN StatusPicking.wait;
+statusPicking(PickingOrder o) += WHEN o IS PickingOrder THEN calcStatusPicking(o);
+
 backgroundStatusPicking 'Цвет' (PickingOrder order) =  CASE
-                                          WHEN overBackground(order) THEN overColor(order)  
-                                          WHEN calcPart(order) THEN RGB(255,238,165)
-                                          WHEN calcFull(order) THEN RGB(212,255,212)
-                                          WHEN accepted(order) THEN RGB(255,238,165)
-                                          WHEN isClosed(order) THEN RGB(255,255,255)
-                                          WHEN order IS PickingOrder THEN RGB(255,200,216)
-                                      ;
+      WHEN overBackground(order) THEN overColor(order)  
+      WHEN statusPicking(order)==StatusPicking.partly THEN RGB(255,238,165)
+      WHEN statusPicking(order)==StatusPicking.completely THEN RGB(212,255,212)
+      WHEN statusPicking(order)==StatusPicking.accepted THEN RGB(255,238,165)
+      WHEN statusPicking(order)==StatusPicking.closed THEN RGB(255,255,255)
+      WHEN order IS PickingOrder THEN RGB(255,200,216);
 
-status 'Статус' = statusPicking(pickingOrder(Picking picking));
+nameStatus 'Статус' = nameStatusPicking(pickingOrder(Picking picking));
 backgroundStatus = backgroundStatusPicking(pickingOrder(Picking picking));
 
 accept 'Принять'(PickingOrder pickingOrder)  { 
@@ -517,7 +541,7 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  {
 
 EXTEND FORM pickingOrders
     PROPERTIES(o) READONLYIF isReadonly() namePerformer, startDate, startTime
-    PROPERTIES(o) READONLY statusPicking BACKGROUND backgroundStatusPicking(o)
+    PROPERTIES(o) READONLY nameStatusPicking BACKGROUND backgroundStatusPicking(o)
     PROPERTIES(o) READONLYIF isReadonly() finishDate, finishTime
     PROPERTIES(o) READONLY packQuantity
     PROPERTIES(o) accept, unaccept, fullyAssembled, partiallyAssembled
@@ -550,7 +574,7 @@ FORM printPickingOrder 'Заказ на комплектацию'
                    fullNameStock
 
     PROPERTIES (o) READONLY countPickingOrderDetail, quantityPickingOrderDetail,
-                   namePerformer, startDate, startTime, statusPicking,
+                   namePerformer, startDate, startTime, nameStatusPicking,
                    finishDate, finishTime
 
     OBJECTS d=PickingOrderDetail

@@ -165,22 +165,26 @@ extCalcFull = ABSTRACT BOOLEAN (Order);
 extCalcPart = ABSTRACT BOOLEAN (Order);
 extAccepted = ABSTRACT BOOLEAN (Order);
 
-statusPicking 'Статус комплектации' (Order order) = CASE
-    WHEN calcFull(order) OR extCalcFull(order) THEN 'Полностью собран'
-    WHEN calcPart(order) OR extCalcPart(order) THEN 'Частично собран'
-    WHEN accepted(order) OR extAccepted(order) THEN 'В комплектации'
-    WHEN countPickingOrder(order) THEN 'Ожидает комплектацию' 
-    WHEN order IS Order THEN 'Без комплектации';
+statusPicking= ABSTRACT CASE StatusPicking (Order) MATERIALIZED ;
+nameStatusPicking 'Статус комплектации заказа' (Order o) = name(statusPicking(o));
+
+calcStatusPicking 'Статус комплектации' (Order order) = CASE
+    WHEN calcFull(order) OR extCalcFull(order) THEN StatusPicking.completely
+    WHEN calcPart(order) OR extCalcPart(order) THEN StatusPicking.partly
+    WHEN accepted(order) OR extAccepted(order) THEN StatusPicking.accepted
+    WHEN countPickingOrder(order) THEN StatusPicking.wait 
+    WHEN order IS Order THEN StatusPicking.notCreated;
+statusPicking(Order o) += WHEN o IS Order THEN calcStatusPicking(o);
 
 backgroundStatusPicking 'Цвет' (Order order) = CASE
-    WHEN calcFull(order) OR extCalcFull(order) THEN RGB(212,255,212)
-    WHEN calcPart(order) OR extCalcPart(order) THEN RGB(255,238,165)
-    WHEN accepted(order) OR extAccepted(order) THEN RGB(255,238,165)
-    WHEN countPickingOrder(order) THEN RGB(212,212,255) 
-    WHEN order IS Order THEN RGB(255,200,216);
+    WHEN statusPicking(order)==StatusPicking.completely THEN RGB(212,255,212)
+    WHEN statusPicking(order)==StatusPicking.partly THEN RGB(255,238,165)
+    WHEN statusPicking(order)==StatusPicking.accepted THEN RGB(255,238,165)
+    WHEN statusPicking(order)==StatusPicking.wait THEN RGB(212,212,255) 
+    WHEN statusPicking(order)==StatusPicking.notCreated THEN RGB(255,200,216);
     
-statusPickingOrder = statusPicking(order(OrderDetail orderDetail));
-backgroundStatusPickingOrder = backgroundStatusPicking(order(OrderDetail orderDetail));
+statusPicking = statusPicking(order(OrderDetail orderDetail));
+backgroundStatusPicking = backgroundStatusPicking(order(OrderDetail orderDetail));
     
 packQuantity 'Кол-во собранных мест' (order) = GROUP SUM packQuantity(PickingOrder o) BY order(o);
 grossWeightOrderPicking 'Вес заказа' (order) = GROUP SUM grossWeightPickingOrderDetail(PickingOrder o) BY order(o); 
@@ -222,7 +226,7 @@ META defineOrderPickingOrder(sign, stockProp)
 
     EXTEND FORM orders
         PROPERTIES(o) READONLY PANEL namePerformer, startDateTime, finishDateTime, packQuantity                       
-        PROPERTIES(o) READONLY statusPicking BACKGROUND backgroundStatusPicking(o) BEFORE countOrderDetail(o)             
+        PROPERTIES(o) READONLY nameStatusPicking BACKGROUND backgroundStatusPicking(o) BEFORE countOrderDetail(o)             
     ;
     DESIGN orders {
         documentHistory {
