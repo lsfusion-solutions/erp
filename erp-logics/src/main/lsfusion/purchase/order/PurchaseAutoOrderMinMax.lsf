@@ -4,38 +4,38 @@ REQUIRE PurchaseAutoOrder;
 
 NAMESPACE Purchase;
 
-dataMinDaysLeft 'Min' = DATA NUMERIC[10,2] (Item, Stock);
-minDaysLeft 'Max' = DATA NUMERIC[10,2] (Item) IN itemBase;
+dataMinDaysLeft 'Min, дней' = DATA NUMERIC[10,2] (Item, Stock);
+minDaysLeft 'Max, дней' = DATA NUMERIC[10,2] (Item) IN itemBase;
 
-dataMinDaysLeft 'Min' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
+dataMinDaysLeft 'Min, дней' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
 levelParentMinDaysLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMinDaysLeft(parent) MATERIALIZED;    
 nearestParentMinDaysLeft (SkuGroup g) = skuGroup(g, levelParentMinDaysLeft(g));
 nearestMinDaysLeft (SkuGroup g) = dataMinDaysLeft(nearestParentMinDaysLeft (g));
-minDaysLeft 'Min' (SkuGroup g) =
+minDaysLeft 'Min, дней' (SkuGroup g) =
     OVERRIDE dataMinDaysLeft(g), nearestMinDaysLeft (g) MATERIALIZED;
 
-dataMinDaysLeft 'Min' = DATA NUMERIC[10,2] (SkuGroup, Stock);
+dataMinDaysLeft 'Min, дней' = DATA NUMERIC[10,2] (SkuGroup, Stock);
 levelParentMinDaysLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMinDaysLeft(parent, st) MATERIALIZED;
 nearestParentMinDaysLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMinDaysLeft(g, st));
 nearestMinDaysLeft (SkuGroup g, Stock st) = dataMinDaysLeft(nearestParentMinDaysLeft(g, st), st);
-minDaysLeft 'Min' (SkuGroup g, Stock st) =
+minDaysLeft 'Min, дней' (SkuGroup g, Stock st) =
     OVERRIDE dataMinDaysLeft(g, st), nearestMinDaysLeft (g, st) MATERIALIZED;
 
-dataMaxDaysLeft 'Max' = DATA NUMERIC[10,2] (Item, Stock);
-maxDaysLeft 'Max' = DATA NUMERIC[10,2] (Item) IN itemBase;
+dataMaxDaysLeft 'Max, дней' = DATA NUMERIC[10,2] (Item, Stock);
+maxDaysLeft 'Max, дней' = DATA NUMERIC[10,2] (Item) IN itemBase;
 
-dataMaxDaysLeft 'Max' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
+dataMaxDaysLeft 'Max, дней' = DATA NUMERIC[10,2] (SkuGroup) IN paramsItemGroup;
 levelParentMaxDaysLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMaxDaysLeft(parent) MATERIALIZED;
 nearestParentMaxDaysLeft (SkuGroup g) = skuGroup(g, levelParentMaxDaysLeft(g));
 nearestMaxDaysLeft (SkuGroup g) = dataMaxDaysLeft(nearestParentMaxDaysLeft (g));
-maxDaysLeft 'Max' (SkuGroup g) =
+maxDaysLeft 'Max, дней' (SkuGroup g) =
     OVERRIDE dataMaxDaysLeft(g), nearestMaxDaysLeft (g) MATERIALIZED;
 
-dataMaxDaysLeft 'Max' = DATA NUMERIC[10,2] (SkuGroup, Stock);
+dataMaxDaysLeft 'Max, дней' = DATA NUMERIC[10,2] (SkuGroup, Stock);
 levelParentMaxDaysLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMaxDaysLeft(parent, st) MATERIALIZED;
 nearestParentMaxDaysLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMaxDaysLeft(g, st));
 nearestMaxDaysLeft (SkuGroup g, Stock st) = dataMaxDaysLeft(nearestParentMaxDaysLeft(g, st), st);
-maxDaysLeft 'Max' (SkuGroup g, Stock st) =
+maxDaysLeft 'Max, дней' (SkuGroup g, Stock st) =
     OVERRIDE dataMaxDaysLeft(g, st), nearestMaxDaysLeft (g, st) MATERIALIZED;
 
 EXTEND FORM item PROPERTIES(i) minDaysLeft, maxDaysLeft;
@@ -44,13 +44,53 @@ EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() minDaysLeft, maxDaysLeft
 //EXTEND FORM itemGroup PROPERTIES(g) dataMinDaysLeft, dataMaxDaysLeft;
 //EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() dataMinDaysLeft, dataMaxDaysLeft;
 
-minDaysLeft 'Min' (Item s, Stock st) = OVERRIDE dataMinDaysLeft(s, st), 
+minDaysLeft 'Min, дней' (Item s, Stock st) = OVERRIDE dataMinDaysLeft(s, st),
     minDaysLeft(skuGroup(s), st), minDaysLeft(s), minDaysLeft(skuGroup(s));
-maxDaysLeft 'Max' (Item s, Stock st) = OVERRIDE dataMaxDaysLeft(s, st),
+maxDaysLeft 'Max, дней' (Item s, Stock st) = OVERRIDE dataMaxDaysLeft(s, st),
     maxDaysLeft(skuGroup(s), st), maxDaysLeft(s), maxDaysLeft(skuGroup(s));
 
+
+dataMinQuantityLeft 'Min, количество' = DATA NUMERIC[14,3] (Item, Stock);
+minQuantityLeft 'Max, количество' = DATA NUMERIC[14,3] (Item) IN itemBase;
+
+dataMinQuantityLeft 'Min, количество' = DATA NUMERIC[14,3] (SkuGroup) IN paramsItemGroup;
+levelParentMinQuantityLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMinQuantityLeft(parent) MATERIALIZED;
+nearestParentMinQuantityLeft (SkuGroup g) = skuGroup(g, levelParentMinQuantityLeft(g));
+nearestMinQuantityLeft (SkuGroup g) = dataMinQuantityLeft(nearestParentMinQuantityLeft (g));
+minQuantityLeft 'Min, количество' (SkuGroup g) =
+    OVERRIDE dataMinQuantityLeft(g), nearestMinQuantityLeft (g) MATERIALIZED;
+
+dataMinQuantityLeft 'Min, количество' = DATA NUMERIC[14,3] (SkuGroup, Stock);
+levelParentMinQuantityLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMinQuantityLeft(parent, st) MATERIALIZED;
+nearestParentMinQuantityLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMinQuantityLeft(g, st));
+nearestMinQuantityLeft (SkuGroup g, Stock st) = dataMinQuantityLeft(nearestParentMinQuantityLeft(g, st), st);
+minQuantityLeft 'Min, количество' (SkuGroup g, Stock st) =
+    OVERRIDE dataMinQuantityLeft(g, st), nearestMinQuantityLeft (g, st) MATERIALIZED;
+
+dataMaxQuantityLeft 'Max, количество' = DATA NUMERIC[14,3] (Item, Stock);
+maxQuantityLeft 'Max, количество' = DATA NUMERIC[14,3] (Item) IN itemBase;
+
+dataMaxQuantityLeft 'Max, количество' = DATA NUMERIC[14,3] (SkuGroup) IN paramsItemGroup;
+levelParentMaxQuantityLeft (SkuGroup child) = GROUP MIN level(child, SkuGroup parent) IF dataMaxQuantityLeft(parent) MATERIALIZED;
+nearestParentMaxQuantityLeft (SkuGroup g) = skuGroup(g, levelParentMaxQuantityLeft(g));
+nearestMaxQuantityLeft (SkuGroup g) = dataMaxQuantityLeft(nearestParentMaxQuantityLeft (g));
+maxQuantityLeft 'Max, количество' (SkuGroup g) =
+    OVERRIDE dataMaxQuantityLeft(g), nearestMaxQuantityLeft (g) MATERIALIZED;
+
+dataMaxQuantityLeft 'Max, количество' = DATA NUMERIC[14,3] (SkuGroup, Stock);
+levelParentMaxQuantityLeft (SkuGroup child, Stock st) = GROUP MIN level(child, SkuGroup parent) IF dataMaxQuantityLeft(parent, st) MATERIALIZED;
+nearestParentMaxQuantityLeft (SkuGroup g, Stock st) = skuGroup(g, levelParentMaxQuantityLeft(g, st));
+nearestMaxQuantityLeft (SkuGroup g, Stock st) = dataMaxQuantityLeft(nearestParentMaxQuantityLeft(g, st), st);
+maxQuantityLeft 'Max, количество' (SkuGroup g, Stock st) =
+    OVERRIDE dataMaxQuantityLeft(g, st), nearestMaxQuantityLeft (g, st) MATERIALIZED;
+
+minQuantityLeft 'Min, количество' (Item s, Stock st) = OVERRIDE dataMinQuantityLeft(s, st),
+    minQuantityLeft(skuGroup(s), st), minQuantityLeft(s), minQuantityLeft(skuGroup(s));
+maxQuantityLeft 'Max, количество' (Item s, Stock st) = OVERRIDE dataMaxQuantityLeft(s, st),
+    maxQuantityLeft(skuGroup(s), st), maxQuantityLeft(s), maxQuantityLeft(skuGroup(s));
+
 EXTEND FORM soldParams
-    PROPERTIES (sk) minDaysLeft, maxDaysLeft
+    PROPERTIES (sk) minDaysLeft, maxDaysLeft, minQuantityLeft, maxQuantityLeft
     
     OBJECTS st = Stock PANEL
     PROPERTIES 'Склад' = name(st) SELECTOR 
@@ -59,11 +99,11 @@ EXTEND FORM soldParams
     PROPERTIES READONLY order(sk2), skuTreeName2 = name(sk2)
     ORDERS order(sk2), skuTreeName2
     FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
-    PROPERTIES minDaysLeft(sk2, st), maxDaysLeft(sk2, st)
+    PROPERTIES minDaysLeft(sk2, st), maxDaysLeft(sk2, st), minQuantityLeft(sk2, st), maxQuantityLeft(sk2, st)
 
     OBJECTS i=Item
     PROPERTIES(i) READONLY idBarcode, nameAttribute, id, canonicalNameItemGroup
-    PROPERTIES minDaysLeft(i, st), maxDaysLeft(i, st)
+    PROPERTIES minDaysLeft(i, st), maxDaysLeft(i, st), minQuantityLeft(i, st), maxQuantityLeft(i, st)
     FILTERS isParent(sk2, i)
 ;
 
