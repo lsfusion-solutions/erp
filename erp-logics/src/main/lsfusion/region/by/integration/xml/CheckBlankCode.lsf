@@ -36,14 +36,21 @@ checkBlankWSHttp 'Проверить БСО'(Purchase.Invoice i)  {
         
         fileToString(result());
         IMPORT WSAnswer XML FROM result();
-
+        
         validBlankCode(i) <- TRUE IF isFound() = 1;
         invalidBlankCode(i) <- NOT validBlankCode(i);
+        
+        IF isFound() = 1 THEN {
+            MESSAGE 'БСО найден' NOWAIT;
+        } ELSE {
+            MESSAGE 'По текущему БСО не найдена информация' NOWAIT;
+        }
         
         APPLY;
     } CATCH {
         fileToString(result());
         logToFile('FindBlankWSHttp', messageCaughtException());
+        MESSAGE 'Ошибка при запросе' NOWAIT;
     }    
 };
 
