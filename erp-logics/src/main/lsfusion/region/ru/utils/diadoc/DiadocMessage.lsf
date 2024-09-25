@@ -1693,9 +1693,9 @@ getNewEvents 'Получить новые сообщения' (User u, Box box) 
                 eventTimestampTicks(i) <- timestampTicksP(i);
                 lastPatchTimestampTicks(message(p)) <- timestampTicks(p) WHERE timestampTicks(p) > lastPatchTimestampTicks(message(p));
             }
-            FOR entityIdP(INTEGER i) AND NOT entity(entityIdP(i)) NEW e = Entity DO {
-                entityId(e) <- entityIdP(i);
-            }
+            FOR [GROUP SUM 1 BY entityIdP(INTEGER i)](STRING str) AND NOT entity(str) NEW e = Entity DO {
+                entityId(e) <- str;
+            }            
             FOR Entity e == entity(entityIdP(INTEGER i)) DO {
                 entityType(e) <- entityType(entityTypeP(i));
                 parentEntityId(e) <- parentEntityIdP(i);
@@ -2363,8 +2363,8 @@ postMessage 'Отправить сообщение' (User u) {
         isReusable(m) <- isReusableM();
         createdMessage() <- m;
     }
-    FOR entityIdM(INTEGER i) AND NOT entity(entityIdM(i)) NEW e = Entity DO {
-        entityId(e) <- entityIdM(i);
+    FOR [GROUP SUM 1 BY entityIdM(INTEGER i)](STRING str) AND NOT entity(str) NEW e = Entity DO {
+        entityId(e) <- str;
     }
     FOR Entity e == entity(entityIdM(INTEGER i)) DO {
         entityType(e) <- entityType(entityTypeM(i));
@@ -2694,8 +2694,8 @@ postMessagePatch 'Отправить дополнение к сообщению'
         lastPatchTimestampTicks(message(p)) <- timestampTicks(p) WHERE timestampTicks(p) > lastPatchTimestampTicks(message(p));
         createdMessagePatch() <- p;
     }
-    FOR entityIdP(INTEGER i) AND NOT entity(entityIdP(i)) NEW e = Entity DO {
-        entityId(e) <- entityIdP(i);
+    FOR [GROUP SUM 1 BY entityIdP(INTEGER i)](STRING str) AND NOT entity(str) NEW e = Entity DO {
+        entityId(e) <- str;
     }
     FOR Entity e == entity(entityIdP(INTEGER i)) DO {
         entityType(e) <- entityType(entityTypeP(i));
