@@ -21,30 +21,27 @@ temperature 'Температура, °С' = ABSTRACT NUMERIC[5,1] (InvoiceDetai
 temperature 'Температура, °С' = DATA NUMERIC[5,1] (UserInvoiceDetail) CHARWIDTH 7;
 temperature (UserInvoiceDetail invoiceDetail) += temperature(invoiceDetail);
 
-volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-volume 'Объем, л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
+volume 'Объём (топливо), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объём (топливо), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
 volume (UserInvoiceDetail invoiceDetail) += volume(invoiceDetail);
 
 density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 density 'Плотность, кг/л' = DATA NUMERIC[8,4] (UserInvoiceDetail) CHARWIDTH 7;
 density (UserInvoiceDetail invoiceDetail) += density(invoiceDetail);
 
-//quantity[Invoice.InvoiceDetail](InvoiceDetail detail) += quantity(detail);
-CONSTRAINT CHANGED(volume(InvoiceDetail detail)) AND negativeValueInvoices() AND isFuel(skuGroup(sku(detail))) AND volume(detail) < 0
-    MESSAGE 'Объем в строке накладной должен быть неотрицательным';
-
+@fuelVolumeConstraintInvoice(invoiceDetail);
 @fuelDensity(userInvoiceDetail, 'накладная (закупка)');
 
-volumeInvoiceDetail 'Объем (всего), л' (invoice) = GROUP SUM volume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
-volumeUserInvoiceDetail 'Объем (всего), л' (userInvoice) = GROUP SUM volume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeInvoiceDetail 'Объём (топливо, всего), л' (invoice) = GROUP SUM volume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserInvoiceDetail 'Объём (топливо, всего), л' (userInvoice) = GROUP SUM volume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
 overBackgroundDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 
 EXTEND FORM userInvoice
     PROPERTIES(i) volumeUserInvoiceDetail
     PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) BACKGROUND overBackgroundDensity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) temperature SHOWIF showTemperatureInvoice()
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) BACKGROUND overBackgroundDensity(d)
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) temperature SHOWIF showTemperatureInvoice()
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
@@ -65,6 +62,3 @@ EXTEND FORM invoices
     PROPERTIES(d) READONLY temperature SHOWIF showTemperatureInvoice()
 ;
 
-CONSTRAINT (SETCHANGED(volume(InvoiceDetail d)) OR SETCHANGED(operation(d)) OR SET(isPosted(d))) AND isFuel(skuGroup(sku(d))) AND isPosted(d) AND volume(d) < 0.0
-    AND banNegativeQuantityInvoice(operation(d))
-    MESSAGE 'Запрещено вводить отрицательный объем в накладную'; 

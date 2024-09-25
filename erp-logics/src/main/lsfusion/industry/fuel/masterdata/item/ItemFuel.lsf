@@ -16,7 +16,7 @@ ktr 'КТР' = DATA NUMERIC[8,5] (Item) IN itemDensity;
 @defineItemAttribute(density15C, 'Плотность при 15°С, кг/л', itemDensity);
 
 EXTEND FORM itemGroup PROPERTIES(g) userShowDensity15C;
-EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showDensity15C BACKGROUND backgroundShowDensity15C(g);
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() showDensity15C BACKGROUND backgroundShowDensity15C(g);
 DESIGN itemGroup {
     itemGroupDetail1 {
         MOVE GROUP(itemDensity,g) {
@@ -29,9 +29,12 @@ overCopy(Item s, Item d) + {
     ktr(d) <- ktr(s);
 }
 
+extraIsFuel = ABSTRACT BOOLEAN (Item);
+
 EXTEND FORM item 
-    PROPERTIES(i) SHOWIF showDensity15C(i) density15C, ktr
+    PROPERTIES(i) SHOWIF (showDensity15C(i) OR extraIsFuel(i)) density15C, ktr
 ;
+
 DESIGN item {
     itemPrimaryColumn2 {
         MOVE GROUP(itemDensity,i) {
@@ -40,6 +43,7 @@ DESIGN item {
         }
     }
 }
+
 EXTEND FORM items 
     PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showDensity15C(g) density15C, ktr
 ;

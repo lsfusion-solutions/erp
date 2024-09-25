@@ -4,8 +4,8 @@ REQUIRE SaleShipment, SaleInvoiceFuel, SkuLedgerFuel, ItemFuel;
 
 NAMESPACE Sale;
 
-volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
-volume 'Объем, л' = DATA NUMERIC[16,5] (UserShipmentDetail) CHARWIDTH 7;
+volume 'Объём (топливо), л' = ABSTRACT NUMERIC[16,5] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
+volume 'Объём (топливо), л' = DATA NUMERIC[16,5] (UserShipmentDetail) CHARWIDTH 7;
 volume (UserShipmentDetail shipmentDetail) += volume(shipmentDetail);
 
 density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
@@ -14,8 +14,8 @@ density (UserShipmentDetail shipmentDetail) += density(shipmentDetail);
 
 @fuelDensity(userShipmentDetail, 'поставка (продажа)');
 
-volumeShipmentDetail 'Объем (всего), л' (shipment) = GROUP SUM volume(ShipmentDetail idetail) BY shipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
-volumeUserShipmentDetail 'Объем (всего), л' (userShipment) = GROUP SUM volume(UserShipmentDetail idetail) BY userShipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeShipmentDetail 'Объём (топливо, всего), л' (shipment) = GROUP SUM volume(ShipmentDetail idetail) BY shipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+volumeUserShipmentDetail 'Объём (топливо, всего), л' (userShipment) = GROUP SUM volume(UserShipmentDetail idetail) BY userShipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
 EXTEND FORM userShipment
     PROPERTIES(s) volumeUserShipmentDetail
@@ -40,43 +40,43 @@ EXTEND FORM shipments
 
 overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) + { density(sd) <- density(id); }
 
-shipmentVolume 'Объем (поставлено), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-shipmentVolume 'Объем (поставлено), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
+shipmentVolume 'Объём (поставлено), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
+shipmentVolume 'Объём (поставлено), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
 shipmentVolume (UserInvoiceDetail invoiceDetail) += shipmentVolume(invoiceDetail);
 
 shipmentDensity 'Плотность (поставлено), кг/л' = ABSTRACT NUMERIC[8,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 shipmentDensity 'Плотность (поставлено), кг/л' = DATA NUMERIC[8,4] (UserInvoiceDetail) CHARWIDTH 7;
 shipmentDensity (UserInvoiceDetail invoiceDetail) += shipmentDensity(invoiceDetail);
 
-//shipmentVolume[Invoice.InvoiceDetail](InvoiceDetail d) += shipmentVolume(d);
-
-CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(sku(d)) OR CHANGED(shipmentDensity(d))) AND createShipment(d) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT shipmentDensity(d)
+CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(sku(d)) OR CHANGED(shipmentDensity(d))) AND createShipment(d) AND isPosted(d) AND isFuel(sku(d)) AND NOT shipmentDensity(d)
     MESSAGE 'Для строки накладная (продажа) должна быть задана плотность (поставлено)';
 
-WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail d)) OR CHANGED(shipmentVolume(d))) AND NOT CHANGED(shipmentDensity(d)) AND isFuel(skuGroup(sku(d))) AND shipmentQuantity(d) AND shipmentVolume(d) DO {
+WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail d)) OR CHANGED(shipmentVolume(d))) AND NOT CHANGED(shipmentDensity(d)) AND isFuel(sku(d)) AND shipmentQuantity(d) AND shipmentVolume(d) DO {
     shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
 }
 
 fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
-    IF n THEN {
-        shipmentDensity(d) <- n;
-        IF NOT shipmentQuantity(d) THEN {
-            shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
-        } ELSE IF NOT shipmentVolume(d) THEN {
-            shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
-        } ELSE {
-            ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
-                IF yes THEN {
-                    shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
-                } ELSE {
-                    shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
-                }
+    IF isFuel(sku(d)) THEN {
+        IF n THEN {
+            shipmentDensity(d) <- n;
+            IF NOT shipmentQuantity(d) THEN {
+                shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
+            } ELSE IF NOT shipmentVolume(d) THEN {
+                shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
             } ELSE {
-                shipmentDensity(d) <- PREV(shipmentDensity(d));
+                ASK 'Нажмите "Да" для пересчета объёма (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
+                    IF yes THEN {
+                        shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
+                    } ELSE {
+                        shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
+                    }
+                } ELSE {
+                    shipmentDensity(d) <- PREV(shipmentDensity(d));
+                }
             }
+        } ELSE {
+            shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
         }
-    } ELSE {
-        shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
     }
 }
 
@@ -94,8 +94,8 @@ fillShipmentDensity15C 'Заполнить значением плотности
     }
 }
 
-shipmentVolumeInvoiceDetail 'Объем (всего) (поставлено), л' (invoice) = GROUP SUM shipmentVolume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
-shipmentVolumeUserInvoiceDetail 'Объем (всего) (поставлено), л' (userInvoice) = GROUP SUM shipmentVolume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+shipmentVolumeInvoiceDetail 'Объём (всего) (поставлено), л' (invoice) = GROUP SUM shipmentVolume(InvoiceDetail idetail) BY invoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
+shipmentVolumeUserInvoiceDetail 'Объём (всего) (поставлено), л' (userInvoice) = GROUP SUM shipmentVolume(UserInvoiceDetail idetail) BY userInvoice(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
 shipmentVolume(UserInvoiceDetail detail) <- volume(detail) IF createShipment(detail)
     WHEN (CHANGED(volume(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);

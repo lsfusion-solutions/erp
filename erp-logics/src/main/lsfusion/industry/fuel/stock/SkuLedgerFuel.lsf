@@ -1,6 +1,6 @@
 MODULE SkuLedgerFuel;
 
-REQUIRE SkuLedger, ItemFuel, StockFuel;
+REQUIRE SkuLedger, ItemFuel, StockFuel, Warehouse;
 
 NAMESPACE Stock;
 
@@ -133,36 +133,46 @@ CONSTRAINT (CHANGED(signedVolume(SkuLedger l)) OR CHANGED(signedQuantity(l))) AN
     MESSAGE 'При движении топлива должны быть заданы масса и объём';
 
 META fuelDesnityConstraints(object, caption)
-    CONSTRAINT (SET(isPosted(###object d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
+    CONSTRAINT (SET(isPosted(###object d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(sku(d)) AND NOT density(d)
         MESSAGE 'Для строки '##caption##' должна быть задана плотность';
 END
 
+META fuelVolumeConstraintInvoice(object)
+    CONSTRAINT (SETCHANGED(volume(###object d)) OR SETCHANGED(operation(d)) OR SET(isPosted(d))) AND isFuel(sku(d)) AND isPosted(d) AND volume(d) < 0.0
+        AND (banNegativeQuantityInvoice(operation(d)) OR negativeValueInvoices())
+        MESSAGE 'Запрещено вводить отрицательный объём в накладную';
+END
+
 META fuelDensityActions(object)
-    WHEN LOCAL (CHANGED(quantity(###object d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
+    WHEN LOCAL (CHANGED(quantity(###object d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(sku(d)) AND quantity(d) AND volume(d) DO {
         density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
     }
 
+    extraFillDensity ABSTRACT LIST (###object, NUMERIC[8,4]);
     fillDensity (###object d, NUMERIC[8,4] n) {
-        IF n THEN {
-            density(d) <- n;
-            IF NOT quantity(d) THEN {
-                quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
-            } ELSE IF NOT volume(d) THEN {
-                volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
-            } ELSE {
-                ASK 'Нажмите "Да" для пересчета объема (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
-                    IF yes THEN {
-                        volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
-                    } ELSE {
-                        quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
-                    }
+        IF isFuel(sku(d)) THEN {
+            IF n THEN {
+                density(d) <- n;
+                IF NOT quantity(d) THEN {
+                    quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
+                } ELSE IF NOT volume(d) THEN {
+                    volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
                 } ELSE {
-                    density(d) <- PREV(density(d));
+                    ASK 'Нажмите "Да" для пересчета объёма (л) или "Нет" для пересчета кол-ва (кг)' yes = YESNO DO {
+                        IF yes THEN {
+                            volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
+                        } ELSE {
+                            quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
+                        }
+                    } ELSE {
+                        density(d) <- PREV(density(d));
+                    }
                 }
+            } ELSE {
+                density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
             }
-        } ELSE {
-            density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
         }
+        extraFillDensity(d, n);
     }
 
     changeDensity (###object d) {
