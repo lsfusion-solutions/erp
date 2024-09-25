@@ -20,7 +20,6 @@ useCustomOrderGroup = ABSTRACT BOOLEAN ();
 customOrderGroup = ABSTRACT STRING (CustomGroup);
 orderGroup (CustomGroup g) = IF useCustomOrderGroup() THEN customOrderGroup(g) ELSE name(g);
 
-
 indexNULL (CustomGroup g, DepartmentStore ds) = PARTITION SUM 1 ORDER orderGroup(g) BY in(g, ds), ds;
 maxIndexNULL() = GROUP MAX indexNULL(CustomGroup gg, DepartmentStore ds) IF in(gg, ds) AND isNotParrent(gg);
 indexNoNULL (CustomGroup g, DepartmentStore ds) = PARTITION SUM 1 ORDER orderGroup(g) BY in(g, ds), parent(g);
@@ -116,8 +115,7 @@ content (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
 templateGuid 'GUID шаблона пиклиста' = DATA STRING ();
 cashTemplates 'Код шаблона касс' = DATA STRING ();
 
-exportCSIAPIurl 'Адрес для API запросов CSI-K (Touch)' = DATA STRING ();
-//exportImagesCSIAPIurl 'Адрес каталога изображений для API запросов CSI-K' = DATA STRING () CHARWIDTH 50;
+exportCSIAPIurl 'Адрес для API запросов' = DATA STRING ();
 
 useExportCSIAPI 'Использовать API для выгрузки в CSI' = DATA BOOLEAN ();
 isUseShopNumber 'Выгружать номер магазина' = DATA BOOLEAN ();
@@ -145,7 +143,6 @@ DESIGN integrationData {
 }
 
 
-
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT',
         templateGuid = templateGuid(),
@@ -167,7 +164,7 @@ exportCSIAPI 'Экспорт пиклиста CSI' () {
         in(CustomGroup g, DepartmentStore ds) <- TRUE WHERE groupType(g) == customGroupPicList()
             AND GROUP SUM 1 IF isParent(g, Item sku) AND in(sku, ds);
         
-        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND  customGroupPicList() THEN {
+        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicList() THEN {
             EXPORT exportCSIformAPI JSON;
 
             timeoutHttp() <- 60000;
@@ -198,5 +195,213 @@ EXTEND FORM groupCashRegister
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY (exportCSIAPI());
+    }
+}
+//setTouch
+maxItemsPerPage 'Макс.кол-во элементов на странице' = DATA INTEGER ();
+EXTEND FORM integrationData
+    PROPERTIES maxItemsPerPage()
+;
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (maxItemsPerPage());
+    }
+}
+
+CLASS ABSTRACT TouchElement;
+name = ABSTRACT ISTRING (TouchElement);
+img = ABSTRACT STRING (TouchElement);
+type = ABSTRACT STRING (TouchElement);
+iconId = ABSTRACT STRING (TouchElement);
+level = ABSTRACT INTEGER (TouchElement);
+parentLoc = DATA LOCAL TouchElement (TouchElement);
+level (TouchElement child, TouchElement parent) = RECURSION 1l IF child IS TouchElement AND parent == child
+    STEP 2l IF parent == parentLoc($parent) MATERIALIZED;
+tiles = DATA LOCAL JSON (TouchElement);
+parent = ABSTRACT TouchElement (TouchElement);
+filter = ABSTRACT BOOLEAN (TouchElement);
+
+itemId = ABSTRACT STRING (TouchElement);
+barcode = ABSTRACT STRING (TouchElement);
+
+indexParent=  PARTITION SUM 1 ORDER  parent(TouchElement t) BY parent(t), t;
+longParent (TouchElement t) = IF parent(t) THEN LONG(parent(t)) ELSE 1L IF filter(t);
+index2 (TouchElement t) = PARTITION SUM 1 ORDER name(t), t BY longParent(t);
+index(TouchElement t) = PARTITION SUM 1 ORDER name(t), t BY longParent(t);
+indexMod(TouchElement t) = mod(index2(t), 5);
+countTiles (TouchElement t) = GROUP SUM 1 IF customGroup(customGroupPicList(), Item i) = t;
+
+CLASS TemporaryTouchElemnt : TouchElement;
+
+name = DATA STRING[30] (TemporaryTouchElemnt);
+name (TemporaryTouchElemnt t) += name(t);
+int = DATA INTEGER (TemporaryTouchElemnt);
+parent (TouchElement c, INTEGER i) = IF i = 1 THEN c 
+    ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) < i AND level(t, c);
+parent (Item item, INTEGER i) = IF i = 0 THEN parent(item)
+    ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) <= i AND level(t, parent(item))
+;
+parentLoc = DATA LOCAL BOOLEAN (TouchElement, TouchElement);
+iconId(TemporaryTouchElemnt t) += 'DIR';
+
+
+CLASS StaticTouch{
+    topSale 'Топ продаж'
+} : TouchElement;
+
+name (StaticTouch t) += ISTRING(staticCaption(t));
+type (StaticTouch t) += 'GT';
+level (StaticTouch t) += IF t = StaticTouch.topSale THEN 1;
+
+
+parent(TouchElement child, TouchElement parent) = IF parent IS StaticTouch THEN parentLoc(child, parent) ELSE parent = parentLoc(child);
+filter(TemporaryTouchElemnt t) += TRUE;
+
+EXTEND CLASS CustomGroup : TouchElement;
+name(CustomGroup t) += Stock.name(t);
+parent(CustomGroup t) += Stock.parent(t);
+level (CustomGroup t) += Stock.level(t);
+filter(CustomGroup t) += customGroupType(t) = customGroupPicList();
+iconId(CustomGroup t) += 'DIR';
+
+EXTEND CLASS Item : TouchElement;
+name(Item t) += Stock.name(t);
+parent(Item i) += customGroup(customGroupPicList(), i);
+filter(Item i) += TRUE IF customGroup(customGroupPicList(), i) OR (GROUP SUM 1 IF parentLoc(i, TouchElement t));
+itemId (Item i) += id(i);
+barcode (Item i) += idBarcode(i);
+maxItems = DATA LOCAL INTEGER(TouchElement);
+
+FORM exportPiclist
+    OBJECTS t1 = TouchElement EXTID 'value'
+    PROPERTIES (t1) name, itemId, barcode, img
+    PROPERTIES = IF level(t1) THEN 5 EXTID 'columns', = IF level(t1) THEN 'GT' EXTID 'type', maxItems(t1)
+    FILTERS level(t1) = 1, filter(t1)
+;
+
+in = DATA LOCAL BOOLEAN (INTEGER, CustomGroup);
+parentLevel = DATA LOCAL INTEGER (Item, TouchElement);
+indexSet  = DATA LOCAL INTEGER (TouchElement, TouchElement);
+
+content = DATA LOCAL STRING();
+
+FORM exportTouch2
+    PROPERTIES templateType = 'PERMANENT',
+        templateGuid = templateGuid(),
+        cashTemplates = '[' + cashTemplates() + ']'
+
+    OBJECTS g = GroupCashRegister EXTID 'menuTemplates'
+    PROPERTIES = IF isSet10(g) THEN 'TOUCH_2' EXTID 'cashType',
+        menuName = ('TOUCH_2 ' + idStoreSet(g)),
+        shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
+        = IF isSet10(g) THEN content() EXTID 'content:escapeInnerJSON'
+;
+
+needTemporary = DATA LOCAL INTEGER (CustomGroup);
+maxIndex = DATA LOCAL INTEGER (TouchElement);
+levelExt (TouchElement child)  = GROUP SUM 1 IF level(child, TouchElement parent);
+
+fillPicList ABSTRACT LIST (DepartmentStore);
+
+exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
+    IF exportCSIAPIurl() THEN {
+
+        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND stock(g) = d AND customGroupPicList() THEN {
+            maxItemsPerPage() <- 20;
+
+            maxIndex(TouchElement c) <- GROUP MAX index(Item i) IF customGroup(customGroupPicList(), i) = c;
+
+            maxItems(TouchElement c) <- IF maxIndex(c) < maxItemsPerPage() THEN maxItemsPerPage() ELSE maxItemsPerPage() - 1;
+            maxItems(TouchElement c) <- NULL WHERE c IS Item;
+            
+
+            maxItems(TouchElement c) <- (maxItemsPerPage() - 2) WHERE (((maxIndex(c) / maxItemsPerPage()) > 1));// AND levelExt(c) > 1);
+            
+            parentLevel(Item i, TouchElement c) <- IF index(i) AND c = customGroup(customGroupPicList(), i) THEN OVERRIDE (index(i) - 1) / maxItems(c), 0;
+            
+            needTemporary(CustomGroup c) <- GROUP MAX parentLevel(Item ii, c);
+
+            parentLoc(TouchElement t) <- parent(t) IF t IS CustomGroup;
+            
+
+            FOR INTEGER x = needTemporary(CustomGroup c) AND x > 0 DO{
+                FOR iterate(INTEGER i, 1, x) NEW t = TemporaryTouchElemnt DO{
+                    int(t) <- i;
+                    name(t) <- 'Далее ' + i;
+                    parentLoc(t) <- parent(c, i);
+                    printToLog(CONCAT ' : ', name(c), name(t), name(parentLoc(t)));
+                }
+            }
+            
+
+            parentLoc(Item i) <- (IF parentLevel(i, parent(i)) = 0 THEN parent(i) ELSE
+                parent(i, parentLevel(i, parent(i)))) WHERE i IS Item;
+            
+            maxItems(TouchElement c) <- (maxItemsPerPage() - 2) WHERE ((GROUP SUM 1 IF parent(TouchElement child, c)) AND levelExt(c) > 1);
+            maxItems(TouchElement c) <- (maxItemsPerPage() - 1) WHERE NOT (GROUP SUM 1 IF parent(TouchElement child, c) AND NOT child IS Item);
+
+            indexSet(TouchElement child, TouchElement parent) <- mod((index(child) - 1), maxItems(parent)) IF parent(child, parent) AND (NOT child IS TemporaryTouchElemnt OR NOT parent IS StaticTouch) ;
+            indexSet(TouchElement child, TouchElement parent) <- maxItems(parent) WHERE parent(child, parent) AND child IS TemporaryTouchElemnt;
+
+            fillPicList(d);
+            
+            EXPORT exportPiclist JSON;
+
+            fileToString(exportFile());
+            content() <- resultString();
+
+            EXPORT exportTouch2 FILTERS stock(g) = d JSON;
+            
+            timeoutHttp() <- 60000;
+            LOCAL result = FILE ();
+            LOCAL errorCode = STRING[10] ();
+            LOCAL description = STRING[255] ();
+            
+            EXTERNAL HTTP POST exportCSIAPIurl() PARAMS exportFile() TO result;
+            
+            IMPORT JSON FROM result() TO() errorCode, description;
+            IF NOT errorCode() THEN {
+                MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
+            }
+            ELSE {
+                MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
+            }
+        }
+        ELSE {
+            MESSAGE  'Нет данных для выгрузки' NOWAIT ;
+        }
+    }
+    ELSE
+        MESSAGE 'Не указан адресc для API запросов CSI-K (Touch)' NOWAIT;
+}
+
+META addTilesLevel(lev, par)
+    EXTEND FORM exportPiclist
+        OBJECTS t###lev = TouchElement EXTID 'tiles'
+        PROPERTIES (t###lev) name, itemId, barcode, iconId, type, img
+        PROPERTIES indexSet(t###lev, t###par) EXTID 'index' ORDER
+        FILTERS //level(t###lev) = lev, 
+            filter(t###lev), parent(t###lev, t###par)
+        
+;
+END
+
+@addTilesLevel(2, 1);
+@addTilesLevel(3, 2);
+@addTilesLevel(4, 3);
+@addTilesLevel(5, 4);
+@addTilesLevel(6, 5);
+@addTilesLevel(7, 6);
+@addTilesLevel(8, 7);
+
+exportTouchAPI 'Экспорт пиклиста Touch' (GroupCashRegister g){
+    exportTouchAPI(stock(g));
+}
+EXTEND FORM groupCashRegister
+    PROPERTIES exportTouchAPI(grc) SHOWIF isSet10(grc)
+;
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (exportTouchAPI(grc));
     }
 }
