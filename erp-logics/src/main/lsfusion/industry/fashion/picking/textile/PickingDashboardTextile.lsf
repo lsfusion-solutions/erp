@@ -29,6 +29,13 @@ readonlyPicked = ABSTRACT BOOLEAN (PickingOrder);
 
 invoiced(PickingOrder po) = TRUE IF [GROUP MIN UserInvoice i IF Sale.include[Sale.Order,UserInvoice](order(po),i)]();
 
+orderStatusPicking 'Порядок' (PickingOrder order) =  CASE
+    WHEN statusPicking(order)==StatusPicking.completely THEN 1
+    WHEN statusPicking(order)==StatusPicking.partly THEN 2
+    WHEN statusPicking(order)==StatusPicking.accepted THEN 3
+    WHEN statusPicking(order)==StatusPicking.closed THEN 0
+    WHEN order IS PickingOrder THEN 4;
+
 EXTEND FORM pickingDashboard
     PROPERTIES (po) READONLY BACKGROUND backgroundStatusPicking(po) AFTER quantityPickingOrderDetail(po) quantityPickingDetail
     PROPERTIES (po) SHOWIF showPicked(po) picked READONLYIF readonlyPicked(po)
@@ -43,6 +50,9 @@ EXTEND FORM pickingDashboard
         FILTER 'Все' po IS PickingOrder DEFAULT
 
     FILTERGROUP byOrder FILTER 'По заказу' po == pickingOrder(p) DEFAULT
+    
+    PROPERTIES READONLY SHOWIF login(currentUser()) == 'admin' OorderStatusPicking(po)
+    ORDERS orderStatusPicking(po)
 ;
 
 DESIGN pickingDashboard {
