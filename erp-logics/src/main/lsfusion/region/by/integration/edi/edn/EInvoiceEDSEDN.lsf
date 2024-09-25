@@ -10,64 +10,83 @@ passwordEDSServiceCustomer (EInvoice i) = OVERRIDE passwordEDSService(currentUse
 aliasEDSServiceSupplier (EInvoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
 passwordEDSServiceSupplier (EInvoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
 
+//docudrive-прокси
+sendRequestEDS(FILE file, EDSService EDSService) {
+    sendRequestEDI(NULL, NULL, ('http://' + host(EDSService) + ':' + port(EDSService)  + '/webservice/soap?wsdl'), file, NULL, client(EDSService) );
+}
 EDSServiceCustomer(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
     THEN OVERRIDE EDSService(currentUser()), EDSService(customerStock(i)), EDSService(customer(i));
 
-//docudrive-прокси
-sendRequestEDSCustomer(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceCustomer(provider,ei)) + ':' + port(EDSServiceCustomer(provider,ei))  + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceCustomer(provider,ei)) );
-}
-
 getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
-        signError() <- NULL;
-        signResult() <- NULL;
-
-        LOCAL xml = FILE();
-        data() <- XMLFILE(contentSubXML);
-        cryptoContainerId() <- aliasEDSServiceCustomer(eInvoice);
-        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
-        EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSCustomer(provider, eInvoice, xml());
-        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
-
-        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
-        IF fileData() THEN {
-            fileToString(FILE(fileData()));
-            encodeBase64(resultString());
-            signResult() <- encodedBase64();
+    IF provider == 'EDN' AND NOT useExternalApplication() THEN {
+        LOCAL EDSService = EDSService ();
+        LOCAL isAutoApn = BOOLEAN ();
+        IF NOT disableAutoBlrapn() AND NOT interactive THEN {
+            //если включено авто подтверждение то подписываем ключом организации
+            EDSService() <- EDSService(customer(eInvoice));
+            isAutoApn() <- TRUE;
+        } ELSE {
+            EDSService() <- EDSServiceCustomer(provider, eInvoice);
         }
-        RETURN;
+
+        IF edsApplication(EDSService()) == EDSApplication.docudriveProxy THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+
+            LOCAL xml = FILE();
+            data() <- XMLFILE(contentSubXML);
+            cryptoContainerId() <- IF isAutoApn() THEN aliasEDSService(customer(eInvoice)) ELSE aliasEDSServiceCustomer(eInvoice);
+            cryptoContainerPassword() <- IF isAutoApn() THEN passwordEDSService(customer(eInvoice)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(eInvoice));
+            EXPORT envelopeEDN XML TO xml;
+            sendRequestEDS(xml(), EDSService());
+            IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+            signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+            IF fileData() THEN {
+                fileToString(FILE(fileData()));
+                encodeBase64(resultString());
+                signResult() <- encodedBase64();
+            }
+            RETURN;
+        }
     }
 }
 
 EDSServiceSupplier(STRING[100] provider, EInvoice i) += WHEN provider == 'EDN' AND i IS EInvoice AND NOT useExternalApplication()
     THEN OVERRIDE EDSService(currentUser()), EDSService(supplierStock(i)), EDSService(supplier(i));
 
-sendRequestEDSSupplier(STRING[100] provider, EInvoice ei, FILE file) {
-    sendRequestEDI(NULL, NULL, ('http://' + host(EDSServiceSupplier(provider,ei)) + ':' + port(EDSServiceSupplier(provider,ei)) + '/webservice/soap?wsdl'), file, NULL, client(EDSServiceSupplier(provider,ei)) );
-}
-
 getSignedDocumentSupplier(STRING[100] provider, EInvoice eInvoice, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, eInvoice)) == EDSApplication.docudriveProxy THEN {
-        signError() <- NULL;
-        signResult() <- NULL;
-
-        LOCAL xml = FILE();
-        data() <- XMLFILE(contentSubXML);
-        cryptoContainerId() <- aliasEDSServiceSupplier(eInvoice);
-        cryptoContainerPassword() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));
-        EXPORT envelopeEDN XML TO xml;
-        sendRequestEDSSupplier(provider, eInvoice, xml());
-        IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
-
-        signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
-        IF fileData() THEN {
-            fileToString(FILE(fileData()));
-            encodeBase64(resultString());
-            signResult() <- encodedBase64();
+    IF provider == 'EDN' AND NOT useExternalApplication() THEN {
+        LOCAL EDSService = EDSService ();
+        LOCAL isAutoApn = BOOLEAN ();
+        IF NOT disableAutoBlrapn() AND NOT interactive THEN {
+            //если включено авто подтверждение то подписываем ключом организации
+            EDSService() <- EDSService(supplier(eInvoice));
+            isAutoApn() <- TRUE;
+        } ELSE {
+            EDSService() <- EDSServiceSupplier(provider, eInvoice);
         }
-        RETURN;
+
+        IF edsApplication(EDSService()) == EDSApplication.docudriveProxy THEN {
+            signError() <- NULL;
+            signResult() <- NULL;
+
+            LOCAL xml = FILE();
+            data() <- XMLFILE(contentSubXML);
+            cryptoContainerId() <- IF isAutoApn() THEN aliasEDSService(supplier(eInvoice)) ELSE aliasEDSServiceSupplier(eInvoice);
+            cryptoContainerPassword() <- IF isAutoApn() THEN passwordEDSService(supplier(eInvoice)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(eInvoice));
+            EXPORT envelopeEDN XML TO xml;
+            sendRequestEDS(xml(), EDSService());
+            IMPORT envelopeResponseEDN FROM sendRequestEDIResponse();
+
+            signError() <- (CONCAT ' ', result(), fileName()) IF INTEGER (result()) > 0;
+            IF fileData() THEN {
+                fileToString(FILE(fileData()));
+                encodeBase64(resultString());
+                signResult() <- encodedBase64();
+            }
+            RETURN;
+        }
     }
 }
 
