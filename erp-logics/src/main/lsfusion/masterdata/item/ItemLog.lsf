@@ -45,6 +45,7 @@ CLASS TypeChange 'Тип изменения' {
     addBarcode 'Добавление штрихкода',
     deleteBarcode 'Удаление штрихкода',
     changeBarcode 'Изменение штрихкода',
+    movementBarcode 'Перенесен штрихкод',
     changeId 'Изменение кода',
     addAttribute 'Добавление атрибутов',    
     changeAttribute 'Изменение атрибутов',
@@ -289,6 +290,40 @@ replaceAfter (Item i) + {
         nameContact(d) <- STRING[100](name(currentUser()));
         dateTimeSession(d) <- currentDateTime();             
         note(d) <- 'Из товаров (удалены): ' + replaceDelNames();             
+    }
+
+}
+
+WHEN CHANGED(sku(Barcode b)) AND (sku(b) != PREV(sku(b))) AND sku(b) IS Item IF NOT disableItemLog()  DO {
+    NEW d = ItemLog {
+        item(d) <- sku(b);
+        id(d) <- id(sku(b));
+        idBarcode(d) <- idBarcode(sku(b));
+        name(d) <- nameAttribute(sku(b));
+
+        typeChange(d) <- TypeChange.movementBarcode;
+        note(d) <- STRING[500](CONCAT ' ', 'С товара: '+PREV(idSku(b)));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+    }
+    
+}
+
+WHEN CHANGED(sku(Barcode b)) AND (sku(b) != PREV(sku(b))) AND sku(b) IS Item IF NOT disableItemLog()  DO {
+    NEW d = ItemLog {
+        item(d) <- PREV(sku(b));
+        id(d) <- id(PREV(sku(b)));
+        idBarcode(d) <- idBarcode(PREV(sku(b)));
+        name(d) <- nameAttribute(PREV(sku(b)));
+
+        typeChange(d) <- TypeChange.movementBarcode;
+        note(d) <- STRING[500](CONCAT ' ', 'На товар: '+idSku(b));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
     }
 
 }
