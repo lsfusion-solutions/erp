@@ -33,9 +33,15 @@ skipReceiver = ABSTRACT BOOLEAN (Invoice);
 
 CONSTRAINT isPosted(Invoice i) AND NOT receiver(i) AND NOT skipReceiver(i) AND eInvoice(i)
         MESSAGE 'В накладной должен быть указан приёмщик';
-        
-changeContactString (EInvoice e, Employee em)  { 
-    contactCustomerStock(e) <- STRING[150](CONCAT ', ', shortName(em), namePosition(em));
+
+customChangeContactString = ABSTRACT BOOLEAN (EInvoice);
+overChangeContactString ABSTRACT (EInvoice, Employee);
+
+changeContactString (EInvoice e, Employee em) {
+    IF customChangeContactString(e) THEN
+        overChangeContactString(e, em);
+    ELSE
+        contactCustomerStock(e) <- STRING[150](CONCAT ', ', shortName(em), namePosition(em));
 }
 
 WHEN SETCHANGED (receiver(Invoice i)) OR SETCHANGED (eInvoice(i)) DO 
