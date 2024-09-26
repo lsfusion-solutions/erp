@@ -52,3 +52,89 @@ EXTEND FORM items
 overReplaceToItemGroup(CustomGroup g, ItemGroup ng) + {
     userShowDensity15C(ng) <- userShowDensity15C(itemGroup(g));
 }
+
+CLASS TermperatureLevel 'Температурный уровень';
+TABLE termperatureLevel(TermperatureLevel);
+
+temperature 'Температура, °С' = DATA NUMERIC[5,1](TermperatureLevel);
+
+density 'Плотность, кг/л' = DATA NUMERIC[8,4](Item, TermperatureLevel);
+
+EXTEND FORM item
+    OBJECTS tli = TermperatureLevel
+    PROPERTIES SHOWIF (isFuel(i) OR extraIsFuel(i)) temperature(tli) READONLY, density(i, tli)
+    ORDERS temperature(tli)
+;
+    
+DESIGN item {
+    itemDetail {
+        NEW densityTable {
+            caption = 'Таблица плотностей';
+            MOVE BOX(tli);
+        }
+    }
+}
+
+FORM densityTable 'Таблица плотностей'
+    OBJECTS tl = TermperatureLevel
+    PROPERTIES (tl) temperature, NEW, DELETE
+    
+    OBJECTS i = Item PANEL
+    PROPERTIES name(i) SELECTOR 
+    FILTERS isFuel(i) OR extraIsFuel(i)
+    
+    OBJECTS tli = TermperatureLevel
+    PROPERTIES temperature(tli) READONLY, density(i, tli)
+    ORDERS temperature(tli)
+;
+
+DESIGN densityTable {
+    OBJECTS {
+        NEW mainTabs {
+            tabbed = TRUE;
+            fill = 1;
+            NEW tableT {
+                caption = 'Температурные уровни';
+                MOVE BOX(tl);
+            }
+            NEW tableD {
+                caption = 'Плотность топлива';
+                MOVE BOX(i) {
+                    PROPERTY (name(i)) { charWidth = 50; }
+                }
+                MOVE BOX(tli) {
+                    fill = 1;
+                }
+            }
+        }
+    }
+}
+
+FORM densityTableDialog 'Таблица плотностей'
+    OBJECTS i = Item PANEL
+    PROPERTIES READONLY name(i)
+
+    OBJECTS tli = TermperatureLevel
+    PROPERTIES READONLY temperature(tli), density(i, tli)
+    ORDERS temperature(tli)
+;
+
+DESIGN densityTableDialog {
+    OBJECTS {
+        NEW main {
+            fill = 1;
+            MOVE BOX(i) {
+                PROPERTY (name(i)) { charWidth = 50; }
+            }
+            MOVE BOX(tli) {
+                fill = 1;
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    skuNavigator {
+        NEW densityTable;
+    }
+}
