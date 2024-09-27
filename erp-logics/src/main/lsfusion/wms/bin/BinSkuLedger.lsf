@@ -1,0 +1,110 @@
+MODULE BinSkuLedger;
+
+REQUIRE SkuLedger, BinLedger;
+
+NAMESPACE BinLedger;
+
+currentBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+    [GROUP SUM currentBalance(Sku sku1, Bin b) BY sku1, stock(b)](sku, st);
+prevCurrentBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+    [GROUP SUM prevCurrentBalance(Sku sku1, Bin b) BY sku1, stock(b)](sku, st);
+balanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    [GROUP SUM balanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
+prevBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    [GROUP SUM prevBalanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
+balanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
+    [GROUP SUM balanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
+prevBalanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
+    [GROUP SUM prevBalanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
+
+FORM balanceBinSkuStock 'Остатки по складу и ячейкам'
+
+    OBJECTS t=DATETIME PANEL
+    PROPERTIES valT = VALUE(t)
+    
+    OBJECTS ss = Stock PANEL
+    PROPERTIES(ss) name SELECTOR SHOWIF singleStore()
+    FILTERS isCompany(ss)
+
+    TREE skuTree sk = SkuGroup PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDERS order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
+
+    OBJECTS           sts=(st=Stock, s=Sku)
+    PROPERTIES        select(s,st)
+    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
+    FILTERS           isParent(sk, s),
+            st == ss
+
+    FILTERGROUP inactiveStock
+        FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+        FILTER 'Неактивный' inactive(s) 'shift F10'
+
+    PROPERTIES(s, st, t) READONLY balanceB, balanceBinB, sumB
+    PROPERTIES(s)     READONLY idSkuGroup, canonicalNameSkuGroup
+
+    FILTERGROUP container
+        FILTER 'Товар' isItem(s)
+        FILTER 'Тара' isContainer(s)
+
+    FILTERGROUP filters
+        FILTER 'Товары с остатком' balanceB(s, st, t) OR sumB(s, st, t) OR balanceBinB(s, st, t) 'F10' DEFAULT
+        FILTER 'Товары с расхождением между по остаткам на складе и в ячейках ' (balanceB(s, st, t) OR balanceBinB(s, st, t)) AND NOT balanceB(s, st, t) = balanceBinB(s, st, t)
+        FILTER 'Товары с остатком по складу' balanceB(s, st, t) 'F10' DEFAULT
+        FILTER 'Товары с остатком по ячейкам' balanceBinB(s, st, t) 'F10' DEFAULT
+
+        FILTER 'Товары с движением не позднее 1 дня' balance(s, st, t, 1) 'F9'
+        FILTER 'Товары с движением не позднее 7 дней' balance(s, st, t, 7) 'F8'
+        FILTER 'Товары с движением не позднее 30 дней' balance(s, st, t, 30) 'F7'
+    
+    OBJECTS b = Bin 
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId
+    PROPERTIES  balanceB(s, b, t)
+    FILTERS stock(b) = ss, balanceB(s, b, t)
+
+
+;
+
+DESIGN balanceBinSkuStock {
+    BOX {
+        size = (1024, 768);
+        NEW filter {
+            alignment = STRETCH;
+            horizontal = TRUE;
+            MOVE PROPERTY (valT);
+            MOVE PROPERTY (name(ss));
+        }
+        NEW topContainer {
+            fill = 1;
+            horizontal = TRUE;
+
+            NEW firstCaseTwo {
+                fill = 1;
+                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
+            }
+
+            NEW secondCase {
+                fill = 3;
+                NEW skuBox {
+                    fill = 2;
+                    MOVE BOX(sts) {
+                        fill = 2;
+                    }
+                }
+                NEW ledgerBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(b);
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    stockReports{
+        NEW balanceBinSkuStock;
+    }
+}
