@@ -111,7 +111,7 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
     }
     
     price = GROUP MAX price(###doc##Detail detail) IF quantity(detail, F2Reg reg) BY ##doc(detail), reg; 
-    
+    showFormWaybill###doc = ABSTRACT BOOLEAN ();
     process 'Отправить в ЕГАИС' (###doc i) {
         IF GROUP SUM 1 IF doc(###doc##Detail d) = i AND minProduct(sku(d)) AND NOT quantity(d) = quantityF2Reg(d) THEN {
             MESSAGE 'Не по всем строкам накладной выбраны справки Б в ЕГАИС. Отправка в ЕГАИС невозможна';
@@ -191,6 +191,9 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
                 check();
                 
                 IF NOT canceled() THEN {
+                    IF showFormWaybill###doc() THEN {
+                        SHOW wayBill OBJECTS w = wayBill(i) NOMANAGESESSION NOCANCEL WAIT;
+                    }
                     submitWayBill(wayBill(i));
                     APPLY;
                 }
