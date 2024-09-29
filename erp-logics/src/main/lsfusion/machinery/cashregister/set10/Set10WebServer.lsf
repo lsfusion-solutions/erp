@@ -245,12 +245,12 @@ set_purchases(FILE f) {
 }@@noauth;
 
 //запросы обмена данными
-reImportReceipt(STRING purchases){
+reImportReceipt(STRING purchases, STRING shopId){
     importReceipt(purchases);
     NEWSESSION {
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
-        FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) DO{
+        FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) AND shopId = shop1(i) DO{
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
             employee(r) <- employee(idCashier(i)) WHERE NOT skipCashierImport();
@@ -332,7 +332,7 @@ FORM requestExchangeAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envel
     PROPERTIES ATTR IN getPurchasesByOperDayDataResponse ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
     PROPERTIES() IN getPurchasesByOperDayDataResponse return;
 
-senRequestExchange(DATE d){
+senRequestExchange(DATE d, GroupCashRegister g){
     year() <- STRING(extractYear(d));
     mobth() <- monthCaption(d);
     day() <- STRING(extractDay(d));
@@ -346,7 +346,7 @@ senRequestExchange(DATE d){
     logToFile('set10', (CONCAT ' ', 'purchases request', d,  resultString()));
     IF return() THEN {
         decodeBase64(return());
-        reImportReceipt(decodedBase64());
+        reImportReceipt(decodedBase64(), idStoreSet(g));
     }
 }
 
@@ -354,9 +354,11 @@ EXTEND CLASS RequestExchangeType{
     salesInfoSet10 'Перезагрузить продажи Set10'
 }
 
+setGroup (Stock c) = GROUP MIN GroupCashRegister g IF active(g) AND isSet10(g) BY stock(g);
+
 salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchange r){
     TRY {
-        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchange(d);
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchange(d, setGroup(stock(r)));
         succeededNative(r) <- TRUE;
         dateTimeSucceededNative(r) <- currentDateTime();
     }
