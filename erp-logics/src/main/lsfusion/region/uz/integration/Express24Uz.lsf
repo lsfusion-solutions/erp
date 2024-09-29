@@ -258,6 +258,7 @@ importOrder(FILE f){
         logToFile('express24', status1());
         IF NOT internetOrder(id2()) AND id2() THEN NEW o = InternetOrder{
             id(o) <- id2();
+            printToLog(id(o));
         }
         FOR InternetOrder o = internetOrder(id2()) DO{
             supplierStock(o) <- express24Store(external_id1());
@@ -334,3 +335,148 @@ EXTEND FORM internetCatalogs
     PROPERTIES (d) isActive READONLY, changeStatus HEADER captionChangeStatus(d) TOOLBAR DRAW d
     PROPERTIES getStatusBranches() TOOLBAR DRAW d
 ;
+
+//v2
+tokenV2Express24 'Токен Express24 V2' = DATA STRING ();
+
+externalIDExpress24 'ExternalID' = DATA STRING (DepartmentStore);
+idV2 'ID'= DATA STRING (DepartmentStore);
+express24StoreV2 = GROUP MAX DepartmentStore d BY externalIDExpress24(d);
+
+
+getStatusBranchesV2 'Получить данные о филиалах'() {
+    NEWSESSION {
+        LOCAL response = FILE ();
+        headers('Authorization') <- 'Bearer:' + tokenV2Express24();
+        EXTERNAL HTTP GET 'https://express24.uz/external/api/v2/branches' HEADERS headers TO response;
+        LOCAL externalId = STRING(INTEGER);
+        LOCAL idExpress = STRING (INTEGER);
+        LOCAL status = BOOLEAN (INTEGER);
+        IMPORT JSON FROM response() TO externalId = externalID, idExpress = id, status = isActive;
+        FOR DepartmentStore ds = express24StoreV2(externalId(INTEGER i)) DO{
+            isActive(ds) <- status(i);
+            idV2(ds) <- idExpress(i);
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM internetCatalogs
+    OBJECTS dsEx2 = DepartmentStore
+    PROPERTIES (dsEx2) name READONLY, idV2, externalIDExpress24, isActive
+    PROPERTIES getStatusBranchesV2() TOOLBAR DRAW dsEx2
+;
+
+DESIGN internetCatalogs{
+    tabContainer{
+        NEW expressV2{
+            caption = 'Express24V2';
+            MOVE BOX (dsEx2);
+        }
+    }
+}
+
+//categories
+idExpress24 'ID Express24' = DATA STRING (CustomGroup);
+
+EXTEND FORM customGroups
+    PROPERTIES (g) READONLY idExpress24 SHOWIF customGroupType(g) = expressGroupType();
+;
+
+minLevelCategory 'Минимальный уровень категорий' = DATA INTEGER ();
+
+EXTEND FORM integrationData
+    PROPERTIES minLevelCategory(), tokenV2Express24()
+;
+DESIGN integrationData{
+    express24{
+        NEW express24V2{
+            MOVE PROPERTY(tokenV2Express24());
+            MOVE PROPERTY (minLevelCategory());
+            
+        }
+    }
+}
+
+maxLevel = GROUP MAX level(CustomGroup c) IF customGroupType(c) = expressGroupType();
+
+uploadCategories 'Выгрузка категорий' (){
+    FOR iterate(INTEGER i, minLevelCategory(), maxLevel()) DO{
+        FOR customGroupType(CustomGroup c) = expressGroupType() AND NOT idExpress24(c) AND level(c) = i DO NEWSESSION {
+            LOCAL url = STRING();
+            IF level(c) = minLevelCategory() THEN{
+                url() <- 'https://express24.uz/external/api/v2/categories';
+            } ELSE {
+                IF idExpress24(parent(c)) THEN {
+                    url() <- ('https://express24.uz/external/api/v2/categories/' + idExpress24(parent(c)) + '/subs');
+                } 
+            }
+            IF url() THEN{
+                LOCAL response = FILE();
+                headers('Authorization') <- 'Bearer ' + tokenV2Express24();
+                EXPORT JSON FROM externalID = id(c), name = name(c), isActive = active(c), sort = 0;
+                EXTERNAL HTTP POST url() HEADERS headers PARAMS exportFile() TO response;
+                LOCAL id = STRING ();
+                IMPORT JSON FROM response() TO() id = id;
+                idExpress24(c) <- id();
+                APPLY;
+            }
+        }
+    }
+}
+
+
+//products
+GROUP fiscalization;
+//
+priceExress24 = ABSTRACT NUMERIC (Item);
+
+FORM createProduct
+    OBJECTS i = Item PANEL
+    PROPERTIES = OVERRIDE name(i), '' EXTID 'name', valueVAT(i) EXTID 'vat', 
+        = OVERRIDE id(i), '' EXTID 'externalID', = IF i IS Item THEN name(i) EXTID 'description', 
+        = idExpress24(onlineExpress24(i)) EXTID 'categoryID', priceExress24(i) EXTID 'price'
+
+    PROPERTIES IN fiscalization = ikpu(i) EXTID 'spicID', = IF i IS Item THEN 0 EXTID 'packageCode'
+    OBJECTS images = Item
+    PROPERTIES = IF urlHttpAccess(images) THEN TRUE EXTID 'isPreview' , urlHttpAccess(images) EXTID 'url'
+    FILTERS urlHttpAccess(images) AND images = i
+    
+    OBJECTS ds = DepartmentStore EXTID 'attachedBranches'
+    PROPERTIES = IF stock(i, ds) > 0 THEN TTRUE ELSE TFALSE EXTID 'isAvailable', = OVERRIDE stock(i, ds), 0 EXTID 'qty', idV2(ds) EXTID 'id',
+        externalIDExpress24(ds)  EXTID 'externalID', active(ds) EXTID 'isActive'
+    FILTERS idV2(ds) AND externalIDExpress24(ds)
+;
+
+idExpress24 'ID Express24' = DATA STRING (Item);
+dateTimeUpdateExpress24 = DATA DATETIME (Item);
+
+EXTEND FORM items
+    PROPERTIES (i) READONLY idExpress24
+;
+
+createProduct 'Создать товар' (Item i){
+    LOCAL response = FILE();
+    headers('Authorization') <- 'Bearer ' + tokenV2Express24();
+    EXPORT createProduct JSON;
+    EXTERNAL HTTP POST 'https://express24.uz/external/api/v2/products' HEADERS headers PARAMS exportFile() TO response;
+    LOCAL id = STRING ();
+    IMPORT JSON FROM response() TO() id = id;
+    idExpress24(i) <- id();
+    APPLY;
+}
+
+updateProduct 'Обновить товар' (Item i){
+    IF idExpress24(i) THEN {
+        LOCAL response = FILE();
+        headers('Authorization') <- 'Bearer ' + tokenV2Express24();
+        EXPORT createProduct JSON;
+        EXTERNAL HTTP PATCH 'https://express24.uz/external/api/v2/products/' + idExpress24(i) HEADERS headers PARAMS exportFile() TO response;
+        LOCAL id = STRING ();
+        IMPORT JSON FROM response() TO() id = id;
+        IF id() THEN {
+            dateTimeUpdateExpress24(i) <- currentDateTime();
+            APPLY;
+        } ELSE MESSAGE 'Ошибка обновления товара' + id(i) NOWAIT;
+    }
+}
