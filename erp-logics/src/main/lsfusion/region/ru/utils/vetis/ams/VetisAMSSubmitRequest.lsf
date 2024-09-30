@@ -27,6 +27,17 @@ GROUP submitApplicationResponseApplication EXTID 'app=http://api.vetrf.ru/schema
 FORM submitApplicationResponse FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
     PROPERTIES() IN submitApplicationResponseApplication applicationId
 ;
+skipMessage 'Не отображать сообщение Запрос сформирован' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES skipMessage()
+;
+
+DESIGN integrationData {
+    vetis {
+        MOVE PROPERTY(skipMessage());
+    }
+}
 
 submit (ApplicationRequest r) {
     EXPORT submitApplicationRequest OBJECTS r = r XML;
@@ -47,7 +58,7 @@ submit (ApplicationRequest r) {
     IMPORT submitApplicationResponse XML FROM response();
     
     id(r) <- applicationId();
-    MESSAGE 'Запрос сформирован' NOWAIT;
+    IF NOT skipMessage() THEN  MESSAGE 'Запрос сформирован' NOWAIT;
 }
 
 submit(ApplicationRequest r, FILE f) {
