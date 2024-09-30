@@ -134,6 +134,18 @@ countVATCustomsException 'Кол-во льгот' (customsGroup) = GROUP SUM 1 I
 
 nameVATCustomsException 'Наименование' (customsGroup) = GROUP CONCAT STRING[255](name(VATCustomsException VATCustomsException))  , ', ' ORDER VATCustomsException BY customsGroup(VATCustomsException);
 
+CLASS ExtraCode 'Четырехзначный код';
+TABLE extraCode(ExtraCode);
+
+id 'Код' = DATA STRING[4] (ExtraCode);
+description 'Описание' = DATA STRING[150] (ExtraCode) CHARWIDTH 50;
+customsGroup = DATA CustomsGroup(ExtraCode) AUTOSET;
+codeCustomsGroup 'ТН ВЭД (код)' (ExtraCode c) = code(customsGroup(c)) IN base;
+nameCustomsGroup 'ТН ВЭД' (ExtraCode c) = name(customsGroup(c)) IN base;
+
+extraCode (CustomsGroup c, STRING[4] id) = GROUP MAX ExtraCode ec BY customsGroup(ec), id(ec);
+countExtraCodes (CustomsGroup c) = GROUP SUM 1 IF ExtraCode ec IS ExtraCode BY customsGroup(ec);
+
 //
 customsGroup = ABSTRACT CustomsGroup(Country, Sku);
 codeCustomsGroup 'ТН ВЭД' (Country country, Sku sku) = code(customsGroup(country, sku));
@@ -213,6 +225,11 @@ FORM customsGroup 'Позиция ТН ВЭД'
     PROPERTIES(rcr) id SHOWIF showIDs(), dateFrom, dateTo, sum
     PROPERTIES(rcr) NEW, DELETE 
     FILTERS customsGroup(rcr) == cg
+    
+    OBJECTS ec = ExtraCode
+    PROPERTIES(ec) id, description
+    PROPERTIES(ec) NEW, DELETE
+    FILTERS customsGroup(ec) == cg
 
     EDIT CustomsGroup OBJECT cg
 ;
@@ -242,12 +259,18 @@ DESIGN customsGroup {
         NEW midContainer {
             fill = 1;
             horizontal = TRUE;
-            MOVE BOX(vcr);
-            MOVE BOX(vce);
+            MOVE BOX(vcr) { fill = 1; }
+            MOVE BOX(vce) { fill = 1; }
         }
 
         MOVE BOX(dcr);
-        MOVE BOX(rcr);
+        
+        NEW bottomContainer {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(rcr) { fill = 1; }
+            MOVE BOX(ec) { fill = 1; }
+        }
 
         MOVE TOOLBARBOX;
     }
