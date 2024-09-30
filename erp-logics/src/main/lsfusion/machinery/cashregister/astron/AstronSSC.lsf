@@ -15,7 +15,7 @@ WHEN CHANGED (image(Item i)) DO {
 imageAstron 'Изображение для PowerPOS' = DATA IMAGEFILE (CustomGroup);
 
 //группа касс
-dataCustomGroupTypeAstron = DATA CustomGroupType(GroupCashRegister);
+dataCustomGroupTypeAstron = DATA CustomGroupType(GroupCashRegister) INDEXED;
 nameCustomGroupTypeAstron 'Тип дополнительного классификатора'(GroupCashRegister gs) = name(dataCustomGroupTypeAstron(gs));
 
 testModeAstron 'Выгружать дополнительную информацию' = DATA BOOLEAN (GroupCashRegister);
@@ -34,9 +34,9 @@ del = DATA BOOLEAN (INTEGER, Sku, GroupCashRegister);
 
 prevCustomGroup(CustomGroupType t, Sku s) = PREV(customGroup(t, s));
 
-WHEN CHANGED(customGroup(dataCustomGroupTypeAstron(GroupCashRegister g), Sku s)) DO {
-    del(INTEGER r, s, g) <- TRUE WHERE r == id(prevCustomGroup(dataCustomGroupTypeAstron(g), s), g);
-    del(INTEGER r, s, g) <- NULL WHERE r == id(customGroup(dataCustomGroupTypeAstron(g), s), g);
+WHEN CHANGED(customGroup(CustomGroupType t, Sku s)) AND t == dataCustomGroupTypeAstron(GroupCashRegister g) DO {
+    del(INTEGER r, s, g) <- TRUE WHERE r == id(prevCustomGroup(t, s), g);
+    del(INTEGER r, s, g) <- NULL WHERE r == id(customGroup(t, s), g);
 }
 
 CONSTRAINT [GROUP SUM 1 IF INTEGER r == id(CustomGroup g, GroupCashRegister gc) BY r](INTEGER r) > 1 
