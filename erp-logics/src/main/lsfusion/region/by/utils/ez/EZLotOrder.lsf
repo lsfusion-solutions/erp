@@ -12,13 +12,16 @@ idOrderEZ 'Код заказа ЭЗ' = DATA STRING[100] (LotOrderDetail) CHARWID
 
 overGtin(LotOrderDetail d) += STRING[14](lpad(gtin(sku(d)), 14, '0'));
 
+allowPartlyImportLotCodes 'Разрешить частичное получение марок по заказу' = DATA BOOLEAN();
+
 EXTEND FORM integrationData
-    PROPERTIES() quantityLotLimit
+    PROPERTIES() quantityLotLimit, allowPartlyImportLotCodes
 ;
 
 DESIGN integrationData {
     EZ {
         MOVE PROPERTY(quantityLotLimit());
+        MOVE PROPERTY(allowPartlyImportLotCodes());
     }
 }
 
@@ -582,8 +585,8 @@ overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
 
 importLotCodes 'Получить марки' (LotOrder o) {
     NEWSESSION {
-        initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o;
-        quantity(LotOrderDetail d) <- 0 WHERE lotOrder(d) = o;
+        initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
+        quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
         
         FOR initialDemand(o, STRING[14] gtin) DO {  
             LOCAL fileName = STRING(); 
@@ -609,10 +612,10 @@ importLotCodes 'Получить марки' (LotOrder o) {
 //            MESSAGE resultString();
             
             IMPORT CSV '|' NOESCAPE FROM result() TO idLoc;
-            in(Lot l) <-NULL;
+            in(Lot l) <- NULL;
             
             FOR idLoc(INTEGER i) NOINLINE DO NEW l = Lot {
-                FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) ORDER DESC dd) DO {
+                FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
                     id(l) <- barcodeToId(idLoc(i));
                     tail(l) <- barcodeToTail(idLoc(i));
                     sku(l) <- sku(d);
@@ -641,12 +644,17 @@ importLotCodes 'Получить марки' (LotOrder o) {
     }      
 }
 
+importLotCodesPartly 'Получить марки (по доступным строкам)' (LotOrder o) {
+    importLotCodes(o);
+}
 
 EXTEND FORM lotOrders
-    PROPERTIES PANEL importLotCodes(o) SHOWIF quantityLotOrderDetail(o) = availableCodes(o) AND NOT isPosted(o) 
+    PROPERTIES PANEL importLotCodes(o) SHOWIF quantityLotOrderDetail(o) = availableCodes(o) AND NOT isPosted(o)
+    PROPERTIES PANEL importLotCodesPartly(o) SHOWIF quantityLotOrderDetail(o) != availableCodes(o) AND NOT isPosted(o) AND allowPartlyImportLotCodes()
     PROPERTIES(o) READONLY availableCodes AFTER quantityLotOrderDetail(o) BACKGROUND RGB(224,255,224) IF quantityLotOrderDetail(o) = availableCodes(o) AND pending(o)
     PROPERTIES PANEL checkStatus(o) SHOWIF isAllIdSet(o) AND pending(o)
     PROPERTIES(d) READONLY AFTER quantity(d) nameStatus, availableCodes
+    PROPERTIES(d) READONLY BEFORE quantity(d) SHOWIF allowPartlyImportLotCodes() initialDemand
 ;
 
 DESIGN lotOrders {
