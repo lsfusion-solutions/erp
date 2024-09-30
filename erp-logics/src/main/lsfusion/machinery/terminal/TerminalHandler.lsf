@@ -92,14 +92,21 @@ hasImage(Barcode b) = hasImage(sku(b)); // AND sendImagesName();
 
 amountPack (Barcode b) = amountPack(sku(b));
 
-overNameSkuGroup 'Товарная группа' = ABSTRACT ISTRING[255](Sku);
+overNameSkuGroup 'Наименование товарной группы' = ABSTRACT ISTRING[255](Sku);
 nameSkuGroup (Barcode b) = OVERRIDE overNameSkuGroup(sku(b)), nameSkuGroup(sku(b));
 
-//skuGroup (Barcode b) = skuGroup(sku(b));
-idSkuGroup (Barcode b) = LONG(skuGroup(b));
+overSkuGroup 'Товарная гуппа' = ABSTRACT SkuGroup (Barcode);
+skuGroup (Barcode b) = OVERRIDE overSkuGroup(b), skuGroup(sku(b));
 
-idItemGroup (ItemGroup group) = overId(group);
-idParentItemGroup (ItemGroup group) =  idParent(group);
+overIdSkuGroup = ABSTRACT STRING[100] (SkuGroup);
+idSkuGroup (SkuGroup g) = overId(g);
+idSkuGroup (Barcode b) = OVERRIDE overIdSkuGroup(skuGroup(b)), overId(skuGroup(b));
+
+skipIdParent = ABSTRACT BOOLEAN (SkuGroup);
+idParentSkuGroup (SkuGroup g) = IF skipIdParent(g) THEN NULL ELSE idParent(g);
+
+overFilterSkuGroup = ABSTRACT BOOLEAN (SkuGroup);
+filterSkuGroup (SkuGroup g) = overFilterSkuGroup(g);
 
 sendAllItems 'Загружать в терминал все товары без цен' = DATA BOOLEAN () PREREAD;
 sendOnlyActiveItems 'Загружать только активные товары' = DATA BOOLEAN () PREREAD;

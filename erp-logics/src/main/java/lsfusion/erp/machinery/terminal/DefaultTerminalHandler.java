@@ -10,7 +10,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.erp.integration.ItemGroup;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -32,7 +31,6 @@ import lsfusion.server.logics.property.oraction.PropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.physics.dev.integration.service.*;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.NumberUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.awt.*;
@@ -332,14 +330,18 @@ public class DefaultTerminalHandler {
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
                 List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo);
-                List<ItemGroup> itemGroupList = readItemGroupList(session);
+                List<SkuGroup> skuGroupList = readSkuGroupList(session);
+    
+                List<TerminalOrder> labelTaskList = readLabelTaskList(session, userInfo);
+                orderList.addAll(labelTaskList);
+                
                 file = File.createTempFile("terminalHandler", ".db");
 
                 Class.forName("org.sqlite.JDBC");
                 try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath())) {
     
                     createCategoryTable(connection);
-                    updateCategoryTable(connection, itemGroupList);
+                    updateCategoryTable(connection, skuGroupList);
                     
                     createGoodsTable(connection);
                     updateGoodsTable(connection, barcodeList, orderList, skuExtraBarcodeList, orderImages, imagesInReadBase, userInfo);
@@ -1249,19 +1251,19 @@ public class DefaultTerminalHandler {
         statement.close();
     }
     
-    private void updateCategoryTable(Connection connection, List<ItemGroup> list) throws SQLException {
+    private void updateCategoryTable(Connection connection, List<SkuGroup> list) throws SQLException {
         if (list != null && !list.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO category VALUES(?, ?, ?);";
                 statement = connection.prepareStatement(sql);
-                for (ItemGroup it : list) {
-                    if (it.idItemGroup != null) {
+                for (SkuGroup it : list) {
+                    if (it.id != null) {
                         int i = 0;
-                        statement.setObject(++i, it.idItemGroup);
-                        statement.setObject(++i, it.idParentItemGroup);
-                        statement.setObject(++i, it.nameItemGroup);
+                        statement.setObject(++i, it.id);
+                        statement.setObject(++i, it.idParent);
+                        statement.setObject(++i, it.name);
                 statement.addBatch();
             }
         }
@@ -1657,7 +1659,8 @@ public class DefaultTerminalHandler {
                         terminalOrder.minQuantity = safeAdd(terminalOrder.minQuantity, minQuantity);
                         terminalOrder.maxQuantity = safeAdd(terminalOrder.maxQuantity, maxQuantity);
                     } else
-                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, barcode, idItem, name, category, price,
+                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, null, null,
+                                barcode, idItem, name, category, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
                                 extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color));
@@ -1882,29 +1885,63 @@ public class DefaultTerminalHandler {
         return customANAList;
     }
     
-    private List<ItemGroup> readItemGroupList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<SkuGroup> readSkuGroupList(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
     
-        List<ItemGroup> result = new ArrayList<>();
+        List<SkuGroup> result = new ArrayList<>();
         
-        KeyExpr itemGroupExpr = new KeyExpr("ItemGroup");
-        ImRevMap<Object, KeyExpr> itemGroupKeys = MapFact.singletonRev("itemGroup", itemGroupExpr);
-        QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
+        KeyExpr skuGroupExpr = new KeyExpr("SkuGroup");
+        ImRevMap<Object, KeyExpr> skuGroupKeys = MapFact.singletonRev("skuGroup", skuGroupExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(skuGroupKeys);
         
-        String[] itemGroupNames = new String[] {"idItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LP[] itemGroupProperties = terminalHandlerLM.findProperties("idItemGroup[ItemGroup]", "name[ItemGroup]", "idParentItemGroup[ItemGroup]");
-        for (int i = 0; i < itemGroupProperties.length; i++) {
-            itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
+        String[] names = new String[] {"idGroup", "nameGroup", "idParentGroup"};
+        LP[] properties = terminalHandlerLM.findProperties("idSkuGroup[SkuGroup]", "name[SkuGroup]", "idParentSkuGroup[SkuGroup]");
+        for (int i = 0; i < properties.length; i++) {
+            query.addProperty(names[i], properties[i].getExpr(skuGroupExpr));
         }
         
-        itemGroupQuery.and(terminalHandlerLM.findProperty("id[ItemGroup]").getExpr(itemGroupExpr).getWhere());
+        query.and(terminalHandlerLM.findProperty("id[SkuGroup]").getExpr(session.getModifier(), skuGroupExpr).getWhere());
+        query.and(terminalHandlerLM.findProperty("filterSkuGroup[SkuGroup]").getExpr(session.getModifier(), skuGroupExpr).getWhere());
         
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemGroupResult = itemGroupQuery.execute(session);
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuGroupResult = query.execute(session);
         
-        for (ImMap<Object, Object> row : itemGroupResult.valueIt()) {
-            String idItemGroup = (String) row.get("idItemGroup");
-            String idParentItemGroup = (String) row.get("idParentItemGroup");
-            String nameItemGroup = (String) row.get("nameItemGroup");
-            result.add(new ItemGroup(idItemGroup, nameItemGroup, idParentItemGroup));
+        for (ImMap<Object, Object> row : skuGroupResult.valueIt()) {
+            String idGroup = (String) row.get("idGroup");
+            String idParentGroup = (String) row.get("idParentGroup");
+            String nameGroup = (String) row.get("nameGroup");
+            result.add(new SkuGroup(idGroup, nameGroup, idParentGroup));
+        }
+        
+        return result;
+    }
+    
+    private List<TerminalOrder> readLabelTaskList(DataSession session, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    
+        List<TerminalOrder> result = new ArrayList<>();
+        
+        ScriptingLogicsModule labelTerminalTaskLM = getLogicsInstance().getBusinessLogics().getModule("LabelTerminalTask");
+        if (labelTerminalTaskLM != null) {
+            try {
+                ObjectValue taskObject = labelTerminalTaskLM.findProperty("todayTask[Employee]").readClasses(session, userInfo.user);
+                if (!taskObject.isNull()) {
+                    String code = (String) labelTerminalTaskLM.findProperty("code[LabelTerminalTask]").read(session, taskObject);
+                    String captionDOW = (String) labelTerminalTaskLM.findProperty("captionDow[LabelTerminalTask]").read(session, taskObject);
+                    Integer markerCount = (Integer) labelTerminalTaskLM.findProperty("count[LabelTerminalTask]").read(session, taskObject);
+                    String markerCategories = (String) labelTerminalTaskLM.findProperty("skuGroupsJSON[LabelTerminalTask]").read(session, taskObject);
+                    String vop = (String) labelTerminalTaskLM.findProperty("idTerminalDocumentType[LabelTerminalTask]").read(session, taskObject);
+                    String extraField = (String) labelTerminalTaskLM.findProperty("extraField[LabelTerminalTask]").read(session, taskObject);
+                    
+                    result.add(new TerminalOrder(LocalDate.now(), null, code, null, markerCount, markerCategories,
+                            null, null, null, null, null, null, null, null,
+                            null, null, null, null, null,
+                            extraField, null, null, null,  null, null,
+                            null, null, vop, null, null, null, null,
+                            null, null));
+                    
+                    System.out.println(captionDOW);
+                }
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
         }
         
         return result;
@@ -2144,8 +2181,12 @@ public class DefaultTerminalHandler {
         public String GTIN;
         public BigDecimal trustAcceptPercent;
         public String unitLoad;
+        public Integer markerCount;
+        public String markerCategories;
         
-        public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier, String barcode, String idItem, String name, String category,
+        public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
+                             Integer markerCount, String markerCategories,
+                             String barcode, String idItem, String name, String category,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
@@ -2154,6 +2195,9 @@ public class DefaultTerminalHandler {
             this.dateShipment = dateShipment;
             this.number = number;
             this.supplier = supplier;
+            this.markerCount = markerCount;
+            this.markerCategories = markerCategories;
+            
             this.barcode = barcode;
             this.idItem = idItem;
             this.name = name;
@@ -2197,15 +2241,15 @@ public class DefaultTerminalHandler {
         }
     }
     
-    public class ItemGroup implements Serializable {
-        public String idItemGroup;
-        public String nameItemGroup;
-        public String idParentItemGroup;
+    public class SkuGroup implements Serializable {
+        public String id;
+        public String name;
+        public String idParent;
         
-        public ItemGroup(String idItemGroup, String nameItemGroup, String idParentItemGroup) {
-            this.idItemGroup = idItemGroup;
-            this.nameItemGroup = nameItemGroup;
-            this.idParentItemGroup = idParentItemGroup;
+        public SkuGroup(String id, String name, String idParent) {
+            this.id = id;
+            this.name = name;
+            this.idParent = idParent;
         }
     }
 }
