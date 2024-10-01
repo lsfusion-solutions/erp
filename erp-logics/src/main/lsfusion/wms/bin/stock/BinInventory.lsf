@@ -1,0 +1,397 @@
+MODULE BinInventory;
+
+REQUIRE BinSkuLedger;
+
+NAMESPACE BinInventory;
+
+CLASS BinInventory;
+
+@defineDocumentHeaderCreated(BinInventory);
+
+@defineDocumentHeaderPosted(BinInventory);
+
+
+@defineDocumentHeaderTime(BinInventory);
+
+@defineDocumentHeaderClosed(BinInventory);
+
+@deriveDocumentHeaderTimePrefix(BinInventory, );
+
+@defineDocumentHeaderNumber(BinInventory, BPSTRING[2]);
+
+@defineNumeratedDefault(BinInventory, 'Инвентаризации по ячейкам', 'ЯН');
+
+@defineDocumentHeaderNote(BinInventory);
+
+description '{document.description.object}' (BinInventory o) =
+    STRING[200](CONCAT ' ', 'Инвентаризация по ячейке' IF o IS BinInventory, '{document.desription.number} ' + seriesNumber(o), '{document.desription.of} ' + date(o)) CHARWIDTH 30;
+
+////
+//-- Выбор групп товара  
+TABLE binInventorySku (BinInventory, SkuGroup);
+TABLE binTnventorySkuGroup (BinInventory, SkuGroup);
+dataInclude 'Вкл' = DATA BOOLEAN (BinInventory, SkuGroup);
+dataInclude 'Вкл' = DATA BOOLEAN (BinInventory, Sku);
+
+levelParentInclude (BinInventory inventory, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataInclude(inventory, parent) MATERIALIZED;
+nearestParentInclude (BinInventory inventory, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(inventory, skuGroup));
+nearestInclude (BinInventory inventory, SkuGroup skuGroup) = dataInclude(inventory, nearestParentInclude (inventory, skuGroup));
+
+include 'Вкл' (BinInventory inventory, SkuGroup skuGroup) =
+    OVERRIDE dataInclude(inventory, skuGroup),
+        nearestInclude (inventory, skuGroup) MATERIALIZED;
+
+skipInclude = ABSTRACT BOOLEAN (BinInventory, Sku);
+
+include 'Вкл' (BinInventory inventory, Sku sku) = OVERRIDE dataInclude(inventory, sku), (include(inventory, skuGroup(sku))) AND NOT skipInclude(inventory, sku);
+countIncludeSkuGroup 'Вкл' (BinInventory inventory) = GROUP SUM 1 IF include(inventory, SkuGroup sku);
+countIncludeSku 'Вкл' (BinInventory inventory) = GROUP SUM 1 IF include(inventory, Sku sku);
+
+nameIncludeSkuGroups 'Группы товаров' (BinInventory document)=
+    GROUP
+        CONCAT name(SkuGroup skuGroup) IF dataInclude(document, skuGroup), ', '
+        ORDER skuGroup
+    CHARWIDTH 20;
+
+resetIncludeSkuGroups  'Сбросить отмеченные'(BinInventory in)  {
+    dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;
+}
+
+FORM selectSkuGroups 'Выбор групп'
+
+    OBJECTS in = BinInventory PANEL
+
+    TREE skuTree2 sk2 = SkuGroup PARENT parent(sk2)
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(in,sk2)
+    ORDERS order(sk2), name(sk2)
+    PROPERTIES (in) resetIncludeSkuGroups TOOLBAR DRAW sk2 SHOWIF countIncludeSku(in)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
+;
+DESIGN selectSkuGroups {
+    BOX {
+        size = (1024, 768);
+    }
+}
+///
+stock = DATA Stock (BinInventory);
+nameStock 'Склад' (BinInventory b) = name(stock(b));
+idStock  'Код склада' (BinInventory b) = id(stock(b));
+
+//
+//ячейки в инвентаризации
+TABLE binInventoryBinGroup (BinInventory, BinGroup);
+dataInclude 'Вкл' = DATA BOOLEAN (BinInventory, BinGroup);
+
+levelParentInclude (BinInventory inventory, BinGroup binGroup) = GROUP
+    MIN level(binGroup, BinGroup parent) IF dataInclude(inventory, parent) MATERIALIZED;
+nearestParentInclude (BinInventory inventory, BinGroup binGroup) = binGroup(binGroup, levelParentInclude(inventory, binGroup));
+nearestInclude (BinInventory inventory, BinGroup binGroup) = dataInclude(inventory, nearestParentInclude (inventory, binGroup));
+
+include 'Вкл' (BinInventory inventory, BinGroup binGroup) =
+    OVERRIDE dataInclude(inventory, binGroup),
+        nearestInclude (inventory, binGroup) MATERIALIZED;
+
+skipInclude = ABSTRACT BOOLEAN (BinInventory, Bin);
+dataIncude = DATA BOOLEAN (BinInventory, Bin);
+
+include 'Вкл' (BinInventory inventory, Bin bin) = OVERRIDE dataIncude(inventory, bin), (include(inventory, binGroup(bin))) AND NOT skipInclude(inventory, bin);
+countIncludeBinGroup 'Вкл' (BinInventory inventory) = GROUP SUM 1 IF include(inventory, BinGroup bin);
+countIncludeBin 'Вкл' (BinInventory inventory) = GROUP SUM 1 IF include(inventory, Bin bin);
+
+nameIncludeBinGroups 'Группы товаров' (BinInventory document)=
+    GROUP
+        CONCAT name(BinGroup binGroup) IF dataInclude(document, binGroup), ', '
+        ORDER binGroup
+    CHARWIDTH 20;
+
+resetIncludeBinGroups  'Сбросить отмеченные'(BinInventory in)  {
+    dataInclude(in, BinGroup g) <- NULL WHERE g IS BinGroup ;
+}
+
+FORM selectBinGroups 'Выбор групп'
+    OBJECTS in = BinInventory PANEL
+    TREE binTree2 sk2 = BinGroup PARENT parent(sk2)
+    PROPERTIES READONLY name(sk2)
+    PROPERTIES include(in,sk2)
+    ORDERS name(sk2)
+    PROPERTIES (in) resetIncludeBinGroups TOOLBAR DRAW sk2 SHOWIF countIncludeBin(in)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F6' DEFAULT
+;
+DESIGN selectBinGroups {
+    BOX {
+        size = (1024, 768);
+    }
+}
+//
+
+CLASS TypeOfAddition {
+    bin 'По множеству ячеек',
+    sku 'По множеству товаров',
+    difference 'По разнице'
+}
+
+typeOfAddition = DATA TypeOfAddition (BinInventory);
+nameTypeOfAddition 'Тип инвентаризации' (BinInventory inventory) = staticCaption(typeOfAddition(inventory)) IN documentPrm CHARWIDTH 20;
+
+quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5](BinInventory, Sku, Bin);
+
+//overQuantityBalance 'Кол-во по остаткам' (BinInventory bi, Sku s, Bin b) = OVERRIDE quantityBalance(bi, s, b), prevBalanceB(s, b, dateTime(bi));
+
+quantity 'Кол-во по инвентаризации' = DATA NUMERIC[16,5](BinInventory, Sku, Bin);
+
+//quantityBalance(BinInventory bi, Sku s, Bin b) <- prevBalanceB(s, b, dateTime(bi))// IF quantity(bi, s, b)
+//    WHEN CHANGED(quantity(bi, s, b));
+WHEN LOCAL CHANGED(stock(BinInventory i)) OR CHANGED(dateTime(i)) OR CHANGED(typeOfAddition(i)) DO {
+    quantityBalance(i, Sku s, Bin b) <- NULL;
+    quantity(i, Sku s, Bin b) <- NULL;
+}
+
+diffBinInventory 'Разница между остатками и инвентаризацией' (BinInventory i, Sku s, Bin b) = quantity(i, s, b) (-) quantityBalance(i, s, b) IF quantity(i, s, b);
+
+CLASS BinInventoryDetail;
+binInventoryDetail = AGGR BinInventoryDetail WHERE diffBinInventory(BinInventory binInventory, Sku sku, Bin bin) != 0 MATERIALIZED INDEXED;
+
+quantity(BinInventoryDetail d) = quantity(binInventory(d),sku(d), bin(d));
+diffBinInventory(BinInventoryDetail d) = diffBinInventory(binInventory(d),sku(d), bin(d));
+
+date '{document.date.of} {document.of.document}' (BinInventoryDetail d) = date(binInventory(d));
+time '{document.time.of} {document.of.document}' (BinInventoryDetail d) = time(binInventory(d));
+dateTime '{document.date.time.of} {document.of.document}' (BinInventoryDetail d) = dateTime(binInventory(d));
+isPosted  '{document.posted}' (BinInventoryDetail d) = isPosted(binInventory(d));
+isClosed '{documents.is.closed}' (BinInventoryDetail d) = isClosed(binInventory(d));
+stock (BinInventoryDetail d) = stock(bin(d));
+description  (BinInventoryDetail d) = description(binInventory(d));
+
+fillBinInventories 'Заполнить остатки по выбранным группам'(BinInventory i) {
+    quantityBalance(i,Sku s, Bin b) <- NULL;
+    quantity(i,Sku s, Bin b) <- NULL;
+            
+    IF typeOfAddition(i) = TypeOfAddition.bin THEN {
+                quantityBalance(i, Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
+    } ELSE IF typeOfAddition(i) = TypeOfAddition.sku THEN {
+        quantityBalance(i,Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, s);
+    } ELSE IF typeOfAddition(i) = TypeOfAddition.difference THEN {
+        quantityBalance(i,Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE stock(b) = stock(i) AND diffBalanceBinB(s, stock(i), dateTime(i));
+    }
+    quantity(i,Sku s, Bin b) <- quantityBalance(i,s, b);//  WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
+} TOOLBAR;
+
+FORM binInventories 'Инвентаризация по ячейкам'
+    OBJECTS i = BinInventory
+    PROPERTIES(i) READONLY number, seriesNumber, nameTypeOfAddition, note, date, time 
+    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE GRID 
+    LIST BinInventory OBJECT i
+;
+
+FORM binInventory 'Инвентаризация по ячейкам'
+    OBJECTS i = BinInventory PANEL 
+    PROPERTIES(i) nameTypeOfAddition, date, number, series, time, isPosted, nameStock, note, fillBinInventories
+    OBJECTS t = DATETIME 
+    FILTERS t = dateTime(i)
+    OBJECTS st = Stock
+    FILTERS st = stock(i)
+    
+    //по ячейкам
+    TREE binTree1 bg1 = BinGroup  PARENT parent(bg1)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) bgTreeName1 = name(bg1) READONLY, include(i, bg1)
+    ORDERS bgTreeName1
+    FILTERS stock(bg1) = stock(i)
+    FILTERGROUP inactivebg1 FILTER 'Активные' active(bg1) 'F6' DEFAULT
+    
+    OBJECTS b1 = Bin
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) include(i, b1),
+        name(b1) READONLY, canonicalId(b1) READONLY, canonicalName(b1) READONLY
+    FILTERS isParent(bg1, b1) OR (stock(b1) = st AND NOT bg1)
+    
+    TREE skuTree1 sg1 = SkuGroup PARENT parent(sg1)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) READONLY order(sg1), name(sg1)
+    ORDERS order(sg1), name(sg1)
+    FILTERGROUP inactivesg1 FILTER 'Активные' active(sg1) 'F6' DEFAULT
+    
+    OBJECTS s1 = Sku
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) name(s1) READONLY, quantityBalance(i, s1, b1) READONLY,
+        quantity(i, s1, b1), diffBinInventory(i, s1, b1),
+        'Остаток товара по всему складу' = balanceB(s1, st, t) PANEL, 
+        'Остаток по всем ячейкам' = balanceBinB(s1, st, t) PANEL, diffBalanceB1  
+        'Разница остатка по складу и по ячейкам' = diffBalanceBinB(s1, st, t) PANEL
+    FILTERS isParent(sg1, s1), balanceB(s1, st, t)
+    FILTERGROUP isFilled1   
+        FILTER 'С кол-вом по остаткам' quantityBalance(i, s1, b1) DEFAULT
+        FILTER 'О отличиями по остаткам' (quantityBalance(i, s1, b1) OR quantity(i, s1, b1)) AND NOT quantityBalance(i, s1, b1) = quantity(i, s1, b1)
+
+    //по товарам
+    TREE skuTree2 sg2 = SkuGroup PARENT parent(sg2)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) include(i, sg2),
+        order(sg2) READONLY, name(sg2) READONLY
+    ORDERS order(sg2), name(sg2)
+    FILTERGROUP inactivesg2 FILTER 'Активные' active(sg2) 'F6' DEFAULT
+    
+    OBJECTS s2 = Sku
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) include(i, s2),
+        name(s2) READONLY,  'Остаток по складу' = balanceB(s2, st, t),
+                            'Остаток по всем ячейкам' = balanceBinB(s2, st, t),
+                            'Разница остатка по складу и по ячейкам' = diffBalanceBinB(s2, st, t)
+    FILTERS isParent(sg2, s2), balanceB(s2, st, t)
+    FILTERGROUP balanceA2 FILTER 'С остатком на складе' balanceB(s2, stock(i), dateTime(i)) DEFAULT
+
+    TREE binTree2 bg2 = BinGroup  PARENT parent(bg2)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) bgTreeName2 = name(bg2) READONLY
+    ORDERS bgTreeName2
+    FILTERS stock(bg2) = stock(i)
+    FILTERGROUP inactivebg2 FILTER 'Активные' active(bg2) 'F6' DEFAULT
+
+    OBJECTS b2 = Bin
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) name(b2) READONLY, canonicalId(b2) READONLY , canonicalName(b2) READONLY,
+        quantityBalance(i, s2, b2) READONLY, quantity(i, s2, b2)
+    FILTERS stock(b2) = st, isParent(bg2, b2) OR (stock(b2) = st AND NOT bg2)//balanceB(s2, stock(b2), t)// OR diffBalanceBinSkuB(s2, stock(b2), t) OR quantity(i, s2, b2)
+    FILTERGROUP isFilled2 
+        FILTER 'С кол-вом по остаткам' quantityBalance(i, s2, b2) DEFAULT
+        FILTER 'О отличиями по остаткам' (quantityBalance(i, s2, b2) OR quantity(i, s2, b2)) AND NOT quantityBalance(i, s2, b2) = quantity(i, s2, b2)
+
+    //по расхождениям
+    TREE binTree3 bg3 = BinGroup  PARENT parent(bg3)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) bgTreeName3 = name(bg3) READONLY
+    ORDERS bgTreeName3
+    FILTERS stock(bg3) = stock(i)
+    FILTERGROUP inactivebg3 FILTER 'Активные' active(bg3) 'F6' DEFAULT
+    
+    TREE skuTree3 sg3 = SkuGroup PARENT parent(sg3)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) order(sg3) READONLY, name(sg3) READONLY
+    ORDERS order(sg3), name(sg3)
+    FILTERGROUP inactivesg3 FILTER 'Активные' active(sg3) 'F6' DEFAULT
+    
+    OBJECTS sb = (s3 = Sku, b3 = Bin)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) name(s3) READONLY,
+        name(b3) READONLY, canonicalId(b3) READONLY, canonicalName(b3) READONLY,
+        quantityBalance(i, s3, b3) READONLY,
+        quantity(i, s3, b3),
+        'Остаток товара по всему складу' = balanceB(s3, stock(b3), t) DRAW sb PANEL,
+        'Остаток по всем ячейкам' = balanceBinB(s3, st, t) PANEL,
+        'Разница по остатку по складу и всем ячейкам' = diffBalanceBinB(s3, st, t) PANEL
+    FILTERS diffBalanceBinB(s3, stock(b3), t) OR quantity(i, s3, b3) OR quantityBalance(i, s3, b3)// OR [GROUP MAX BinInventoryDetail d1111 BY sku(d1111), binInventory(d1111)](s1, i)
+    FILTERGROUP isFilled3 
+        FILTER 'С кол-вом по остаткам' quantityBalance(i, s3, b3) DEFAULT
+        FILTER 'О отличиями по остаткам' (quantityBalance(i, s3, b3) OR quantity(i, s3, b3)) AND NOT quantityBalance(i, s3, b3) = quantity(i, s3, b3)
+
+    EDIT BinInventory OBJECT i
+;
+
+DESIGN binInventory {
+    BOX {
+        size = (1024, 768);
+        OBJECTS {
+            NEW headCont {
+                alignment = STRETCH;
+                NEW headHorizontal1 {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(isPosted(i));
+                    MOVE PROPERTY(number(i));
+                    MOVE PROPERTY(series(i));
+                    MOVE PROPERTY(date(i));
+                    MOVE PROPERTY(time(i));
+                }
+                NEW headHorizontal2 {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(nameTypeOfAddition(i));
+                    MOVE PROPERTY(nameStock(i));
+                }
+                NEW headHorizontal3 {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(note(i)){fill = 1;};
+                }
+                NEW headHorizontal4 {
+                    MOVE PROPERTY (fillBinInventories(i));
+                }
+            }
+            NEW tabbedCont {
+                fill = 1;
+                tabbed = TRUE;
+                NEW b1s1Cont {
+                    caption = 'По множеству ячеек';
+                    NEW b1Cont {
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX(TREE binTree1) {
+                            fill = 0.5;
+                            width = 200;
+                            caption = 'Группы ячеек';
+                            PROPERTY (include(i, bg1));// {valueWidth = 100; }
+                        };    
+                        MOVE BOX (b1) {fill = 2;};
+                    }
+                    NEW s1Cont {
+                        fill = 1;
+                        horizontal = TRUE;
+                        MOVE BOX(TREE skuTree1) {
+                            fill = 0.5;
+                            width = 200;
+                        }
+                        MOVE BOX (s1) {fill = 2;};
+                    }
+                }
+                NEW b2s2Cont {
+                    caption = 'По множеству товаров';
+                    NEW s2Cont {
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX(TREE skuTree2) {
+                            fill = 0.5;
+                            width = 200;
+                            caption = 'Группы товаров';
+                            PROPERTY (include(i, sg2));// {valueWidth = 100; }
+                        };
+                        MOVE BOX (s2) {fill = 2;};
+                    }
+                    NEW b2Cont {
+                        fill = 1;
+                        horizontal = TRUE;
+                        MOVE BOX(TREE binTree2) {
+                            fill = 0.5;
+                            width = 200;
+                        }
+                        MOVE BOX (b2) {fill = 2;};
+                    }
+                }
+                NEW bsCont {
+                    caption = 'По разнице';
+                    horizontal = TRUE;
+                    NEW bsGroupCont {
+                        fill = 0.5;
+                        width = 200;
+                        MOVE BOX(TREE binTree3) {fill = 1;};
+                        MOVE BOX(TREE skuTree3) {fill = 1;};
+                    }
+                    MOVE BOX (sb) {fill = 2;};
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    WMSDocument {
+        NEW binInventories;
+    }
+}
+
+CLASS BinInventoryBinLedger : BinLedger;
+needToCreate = ABSTRACT BOOLEAN (BinInventory, Sku, Bin); 
+binInventoryBinLedger = AGGR BinInventoryBinLedger WHERE needToCreate(BinInventory binInventory, Sku sku, Bin bin) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (BinInventoryBinLedger ledger) += dateTime(binInventory(ledger));
+isPosted[BinLedger] (BinInventoryBinLedger ledger) += isPosted(binInventory(ledger));
+isClosed[BinLedger] (BinInventoryBinLedger ledger) += isClosed(binInventory(ledger));
+sku[BinLedger] (BinInventoryBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (BinInventoryBinLedger ledger) += abs(diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger)));
+stock[BinLedger] (BinInventoryBinLedger ledger) += stock(binInventory(ledger));
+description[BinLedger] (BinInventoryBinLedger ledger) += description(binInventory(ledger));
+
+inBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger)) >0;    
+outBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger))<0;
+
+needToCreate(BinInventory binInventory, Sku sku, Bin bin) += isPosted(binInventory) AND diffBinInventory(binInventory, sku, bin);

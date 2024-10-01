@@ -17,7 +17,20 @@ balanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, 
 prevBalanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     [GROUP SUM prevBalanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
 
-FORM balanceBinSkuStock 'Остатки по складу и ячейкам'
+currentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+    currentBalanceBin(sku, st) (-) currentBalance(sku, st);
+prevCurrentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+    prevCurrentBalanceBin(sku, st) (-) prevCurrentBalance(sku, st);
+diffBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    balanceBinB(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
+prevDiffBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    prevBalanceBinB(sku, st,dateTime) (-) prevBalanceB(sku, st,dateTime);
+diffBalanceBinA 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    balanceBinA(sku, st,dateTime) (-) balanceA(sku, st,dateTime);
+prevDiffBalanceBinA 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    prevBalanceBinA(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
+
+FORM balanceBinSkuStock 'Сравнение остатков по ячейкам и складу'
 
     OBJECTS t=DATETIME PANEL
     PROPERTIES valT = VALUE(t)
@@ -41,7 +54,7 @@ FORM balanceBinSkuStock 'Остатки по складу и ячейкам'
         FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
         FILTER 'Неактивный' inactive(s) 'shift F10'
 
-    PROPERTIES(s, st, t) READONLY balanceB, balanceBinB, sumB
+    PROPERTIES(s, st, t) READONLY balanceB, balanceBinB, diffBalanceBinB, sumB
     PROPERTIES(s)     READONLY idSkuGroup, canonicalNameSkuGroup
 
     FILTERGROUP container
@@ -104,7 +117,7 @@ DESIGN balanceBinSkuStock {
 }
 
 NAVIGATOR {
-    stockReports{
+    WMSDocument {
         NEW balanceBinSkuStock;
     }
 }
