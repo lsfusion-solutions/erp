@@ -1,0 +1,25 @@
+MODULE MarketingWordBy;
+
+REQUIRE MarketingWord, LegalEntityBy;
+
+NAMESPACE Marketing;
+
+overCreateTask (MarketingInvoice i) + {
+    NEW e = TemplateEntry { template(e) <- template(i); key(e) <- 'UNP_LE'; description(e) <- 'УНП исполнителя'; }
+    NEW e = TemplateEntry { template(e) <- template(i); key(e) <- 'OKPO_LE'; description(e) <- 'ОКПО исполнителя'; }
+    NEW e = TemplateEntry { template(e) <- template(i); key(e) <- 'UNP_CUSTOMER'; description(e) <- 'УНП заказчика'; }
+    NEW e = TemplateEntry { template(e) <- template(i); key(e) <- 'OKPO_CUSTOMER'; description(e) <- 'ОКПО заказчика'; }
+
+    IF isReverse(contract(i)) THEN {
+        value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
+    }
+    ELSE {
+        value(TemplateEntry d) <- OVERRIDE (UNP(customer(i))), '' WHERE key(d) = 'UNP_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(customer(i))), '' WHERE key(d) = 'OKPO_LE' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (UNP(supplier(i))), '' WHERE key(d) = 'UNP_CUSTOMER' AND template (d) == template(i);
+        value(TemplateEntry d) <- OVERRIDE (OKPO(supplier(i))), '' WHERE key(d) = 'OKPO_CUSTOMER' AND template (d) == template(i);
+    }    
+}
