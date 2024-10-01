@@ -17,11 +17,11 @@ overFillInvoice(UserShipmentDetail s, InvoiceDetail i) + {
 @defineDocumentCertificateConstraint(qualityCertificate, shipment, 'сертификат качества');
 @deriveDocumentSaleCertificate(qualityCertificate, shipment, supplierStock, data);
 
-CONSTRAINT dataQualityCertificate(UserInvoiceDetail d) AND batch(d) AND NOT dataQualityCertificate(d)==qualityCertificate(batch(d)) AND NOT own(dataQualityCertificate(d))
+CONSTRAINT dataQualityCertificate(UserInvoiceDetail d) AND batch(d) AND NOT dataQualityCertificate(d) == prevQualityCertificate(batch(d)) AND NOT own(dataQualityCertificate(d))
     CHECKED BY dataQualityCertificate[UserInvoiceDetail]
         MESSAGE 'Сертификат качества в накладной должен совпадать с сертификатом партии';
 
-in(QualityCertificate q, Sku s) = GROUP SUM 1 IF qualityCertificate(Batch b)==q AND sku(b)==s; 
+in(QualityCertificate q, Sku s) = GROUP SUM 1 IF prevQualityCertificate(Batch b) == q AND prevSku(b) == s; 
 
 CONSTRAINT dataQualityCertificate(UserInvoiceDetail d) AND NOT batch(d) AND NOT in(dataQualityCertificate(d),sku(d)) AND NOT own(dataQualityCertificate(d))
     CHECKED BY dataQualityCertificate[UserInvoiceDetail]
