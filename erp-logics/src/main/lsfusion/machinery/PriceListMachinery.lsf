@@ -47,14 +47,16 @@ backgroundCreateMachineryPriceTransaction 'Цвет' (PriceTransactionDocument p
 
 EXTEND FORM priceLists
     PROPERTIES(p) statusMachinery ON CONTEXTMENU createSnapshotPriceListMachinery(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p) READONLY AFTER stocks(p),
-                  createPriceListMachinery SHOWIF showCreateMachineryPriceTransaction(p)
+                  createPriceListMachinery SHOWIF showCreateMachineryPriceTransaction(p),
+                  createSnapshotPriceListMachinery SHOWIF isPosted[PriceList](p) AND NOT Machinery.skip(p)
 ;
+
 DESIGN priceLists {
     actionContainer {
         NEW machineryContainer {
             caption = 'Загрузки' ;
             MOVE PROPERTY (createPriceListMachinery(p));
-            
+            MOVE PROPERTY (createSnapshotPriceListMachinery(p));
         }
     }
 }
