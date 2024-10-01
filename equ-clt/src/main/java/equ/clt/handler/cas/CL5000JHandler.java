@@ -11,6 +11,7 @@ import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.file.RawFileData;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -190,7 +191,12 @@ public class CL5000JHandler extends MultithreadScalesHandler {
             bytes.put((byte) 0); //use fixed price type
             bytes.putInt(price); //unit price
             bytes.putInt(0); //special price
-            bytes.putInt(0); //tare weight
+            JSONObject infoJSON = getExtInfo(item.info, "CL5000");
+            int tareWeight = 0;
+            if (infoJSON != null && infoJSON.has("tareWeight")) {
+                tareWeight = infoJSON.optInt("tareWeight", 0);
+            }
+            bytes.putInt(tareWeight); //tare weight
             BigDecimal extraPercent = item.extraPercent; //пока отключен
             bytes.put((byte) (extraPercent == null ? 0 : extraPercent.intValue()));//tare number, исп. только в cl5000d
             bytes.putShort(useWeightCodeInBarcodeNumber ? (isWeight ? weightCode : pieceCode) : (short) 0); //barcode number

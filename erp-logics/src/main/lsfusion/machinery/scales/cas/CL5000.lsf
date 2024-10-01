@@ -1,0 +1,16 @@
+MODULE CL5000;
+
+REQUIRE ScalesSelfService;
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupScales(mpt)) == 'CasCL5000J' THEN {
+        LOCAL custGroup = CustomGroup (Barcode);
+        custGroup(Barcode b) <- customGroup(customGroupType(groupMachinery(mpt)), sku(b)) WHERE in(mpt, b);
+
+        info(mpt, Barcode b) <- ('\{"CL5000":\{'+
+            (CONCAT ',',
+                '"tareWeight":' + (OVERRIDE tareWeight(mpt, b), tareWeight(b))
+                )
+            +'\}\}') WHERE in(mpt, b);
+    }
+}
