@@ -825,7 +825,7 @@ order = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
 reserve = ABSTRACT NUMERIC[16,5] (Batch, OutFIFOSkuLedger); 
 limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
                                                      IF batch(ledger) THEN
-                                                        quantity[SkuLedger](ledger) IF Batch batch == batch(ledger)
+                                                        quantity[SkuLedger](ledger) IF Batch batch == batch(ledger) AND NOT skip(ledger)
                                                      ELSE
                                                         OVERRIDE ((currentBalance(batch, stock[SkuLedger](ledger)) - OVERRIDE reserve(batch, ledger), 0.0 ) IF skuCurrentBalance(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger)), 
                                                                  0.0 IF batch == lastOrderBatch(sku[SkuLedger](ledger), stock[SkuLedger](ledger))); 
@@ -871,7 +871,8 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
                                   OR CHANGED(sku[SkuLedger](ledger))
                                   OR CHANGED(batch(ledger))
                                   OR CHANGED(stock[SkuLedger](ledger))
-                                  OR CHANGED(changed(ledger)))
+                                  OR CHANGED(changed(ledger))
+                                  OR CHANGED(skip(ledger)))
                                  AND isPosted[SkuLedger](ledger));
 
     IF (GROUP MAX eventChanged(DataSkuLedger ledger)) THEN
