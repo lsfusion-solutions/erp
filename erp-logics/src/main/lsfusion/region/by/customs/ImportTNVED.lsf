@@ -1,6 +1,6 @@
 MODULE ImportTNVED;
 
-REQUIRE DefaultData, Country, CustomsGroup;
+REQUIRE DefaultData, Country, CustomsGroup, ItemTracking;
 
 
 //---------------------------------------------- Импорт ТНВЭД -----------------------------------------------------//
@@ -63,14 +63,20 @@ importExtraCode 'Импортировать четырехзначный код 
         LOCAL lvl1 = STRING (INTEGER);
         LOCAL lvl2 = STRING (INTEGER);
         LOCAL lvl3 = STRING (INTEGER);
-        LOCAL lvl4 = STRING (INTEGER);        
+        LOCAL lvl4 = STRING (INTEGER);   
+        LOCAL isTracking = STRING (INTEGER);
 
-        IMPORT DBF CHARSET 'CP866' FROM f TO tnved = CODETNVED, id = CODEADD, lvl1 = N1, lvl2 = N2, lvl3 = N3, lvl4 = N4;
+        IMPORT DBF CHARSET 'CP866' FROM f TO tnved = CODETNVED, id = CODEADD, lvl1 = N1, lvl2 = N2, lvl3 = N3, lvl4 = N4, isTracking = PSM537;
+
+        FOR imported(INTEGER i) AND i > 1 AND customsGroup(tnved(i)) AND ExtraCode ec == extraCode(customsGroup(tnved(i)), id(i)) DO {
+            isTracking(ec) <- IF isTracking(i) == '1' THEN TRUE ELSE NULL;
+        }
         
         FOR imported(INTEGER i) AND i > 1 AND customsGroup(tnved(i)) AND NOT extraCode(customsGroup(tnved(i)), id(i)) DO NEW ec = ExtraCode {
             customsGroup(ec) <- customsGroup(tnved(i));
             id(ec) <- id(i);
             description(ec) <- STRING[150](CONCAT '/', lvl1(i), lvl2(i), lvl3(i), lvl4(i));
+            isTracking(ec) <- TRUE IF isTracking(i) == '1';
         }
         
         FOR code(CustomsGroup c) AND NOT countExtraCodes(c) DO NEW ec = ExtraCode {
