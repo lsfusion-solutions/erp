@@ -5,6 +5,7 @@ REQUIRE Item, CustomsGroupItem;
 NAMESPACE Item;
 
 isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (CustomsGroup) IN base;
+isTracking 'Прослеживание'= DATA BOOLEAN (ExtraCode);
 levelTrackingParent (CustomsGroup customsGroup) = GROUP MIN level(customsGroup, CustomsGroup parent) IF isTrackingData(parent) MATERIALIZED;
 isTrackingParent (CustomsGroup customsGroup) = TRUE IF levelTrackingParent(customsGroup);
 isTracking 'Подлежит прослеживанию' (CustomsGroup customsGroup) = OVERRIDE isTrackingData(customsGroup), isTrackingParent(customsGroup);
@@ -19,6 +20,7 @@ trackingUOMCustomsGroup 'Ед.изм по ОКРБ 008-95' (Sku sku) = trackingU
 
 EXTEND FORM customsGroup
     PROPERTIES (cg) isTracking, trackingUOM
+    PROPERTIES (ec) isTracking
 ;
 
 DESIGN customsGroup {
@@ -32,3 +34,13 @@ EXTEND FORM customsGroups
     PROPERTIES(gcg) READONLY isTrackingData, trackingUOM
     PROPERTIES(cg) READONLY isTracking, trackingUOM
 ;
+
+countECTracking =  GROUP SUM 1 IF isTracking (ExtraCode ec) BY customsGroup(ec);
+
+WHEN LOCAL (SET(isTracking(ExtraCode ec))) AND countECTracking(customsGroup(ec)) AND NOT isTracking(customsGroup(ec)) DO {
+    isTrackingData(customsGroup(ec)) <- TRUE ;
+}
+
+WHEN LOCAL (DROPPED(isTracking(ExtraCode ec))) AND NOT countECTracking(customsGroup(ec)) AND isTracking(customsGroup(ec)) DO {
+    isTrackingData(customsGroup(ec)) <- NULL ;
+}
