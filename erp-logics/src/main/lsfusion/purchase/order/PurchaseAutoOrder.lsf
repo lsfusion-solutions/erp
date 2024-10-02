@@ -332,7 +332,7 @@ createAutoOrders 'Создание автозаказов' () {
             AND NOT dateOrder(d)>endDate(scheduleOrder(d));
     createAutoOrdersBefore();
     
-    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) DO {      
+    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) ORDER (OVERRIDE timeToOrder(scheduleOrderDetail), 23:59 IF scheduleOrderDetail IS ScheduleOrderDetail), scheduleOrderDetail DO {      
         NEWSESSION NESTED LOCAL{
             typeProcess(scheduleOrderDetail) <- TypeProcess.start;
             noteProcess(scheduleOrderDetail) <- (CONCAT ' ', currentDateTime(),'Старт обработки');
@@ -370,7 +370,8 @@ createAutoOrders 'Создание автозаказов' () {
                 isRecommended(o) <- TRUE;
                 overCreate(o);
                 overCreateDetail(o);
-                
+
+                autoQuantity(UserOrderDetail d) <- quantity(d) WHERE userOrder(d) == o;
                 printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](o)));
                 
                 priceListType(UserOrderDetail d) <-  OVERRIDE priceListType(agreement(userOrder(d)), sku(d)), priceListType(userOrder(d)) WHERE userOrder(d) == o;
