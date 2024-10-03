@@ -251,6 +251,12 @@ EXTEND FORM eCreditNotes
     PROPERTIES (c) READONLY numberCreditNote
 ;
 
+prevECreditNote(ECreditNote e) = PARTITION PREV e ORDER e BY creditNote(e);
+
+WHEN LOCAL CHANGED(creditNote(ECreditNote e)) DO {
+    cancelDeliveryNoteId(e) <- actDifNumber(prevECreditNote(e));
+}
+
 CONSTRAINT DROPPED (CreditNote c IS CreditNote) AND exportedCustomer(eCreditNote(c))
     MESSAGE 'Запрещено удалять акт расхождения по которому был отправлен электронный акт приемки. Сначала необходимо отменить электронный акт приемки';
 
