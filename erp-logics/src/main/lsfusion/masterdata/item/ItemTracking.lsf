@@ -44,3 +44,62 @@ WHEN LOCAL (SET(isTracking(ExtraCode ec))) AND countECTracking(customsGroup(ec))
 WHEN LOCAL (DROPPED(isTracking(ExtraCode ec))) AND NOT countECTracking(customsGroup(ec)) AND isTracking(customsGroup(ec)) DO {
     isTrackingData(customsGroup(ec)) <- NULL ;
 }
+
+isTracking 'Подлежит прослеживанию' = DATA BOOLEAN (Item) IN itemBase;
+isTrackingOver (Sku s) =  OVERRIDE isTracking(s), isTrackingCustomsGroup(s);
+
+dataExtraCode = DATA ExtraCode (SkuGroup);
+nearestExtraCode (SkuGroup child) = GROUP LAST dataExtraCode(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataExtraCode(parent);
+
+extraCode (SkuGroup skuGroup) = OVERRIDE dataExtraCode(skuGroup), nearestExtraCode(skuGroup) MATERIALIZED;
+idExtraCode '4х зн.код' (SkuGroup skuGroup) = id(extraCode(skuGroup)) IN paramsItemGroup;
+extraCode (CustomsGroup c) = GROUP MIN ExtraCode ec BY customsGroup(ec);
+
+dataExtraCode = DATA ExtraCode (Sku);
+extraCode '4х зн.код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(skuGroup(s)), extraCode(customsGroup(defaultCountry(), s)) IF countExtraCodes(customsGroup(defaultCountry(),s))=1 ;
+idExtraCode'4х зн.код' (Sku s)=id(extraCode(s));
+
+needExtraCode(Sku s) = TRUE IF isTracking(customsGroup(defaultCountry(), s)) AND NOT extraCode(s);
+
+background(Item i)+= WHEN i IS Item AND needExtraCode(i) THEN RGB(255, 204, 153);
+
+
+FORM extraCode '4х значный код кода ТН ВЭД'
+    OBJECTS ec = ExtraCode
+    PROPERTIES (ec) READONLY codeCustomsGroup, nameCustomsGroup, id,isTracking, description
+    FILTERGROUP isTracking 
+        FILTER 'Только прослеживаемые' isTracking(ec) DEFAULT 
+;
+
+DESIGN extraCode{
+    PROPERTY (nameCustomsGroup(ec)){caption='ТН ВЭД (наименование)';}
+    PROPERTY (id(ec)){caption='4х зн код';}
+}
+changeExtraCode(Item i){
+    DIALOG extraCode OBJECTS ec=extraCode(customsGroup(defaultCountry(), i)) INPUT NULL FILTERS customsGroup(ec)==customsGroup(defaultCountry(), i) DO {
+        dataExtraCode(i) <- ec;
+    }
+}
+
+changeExtraCode(ItemGroup g){
+    DIALOG extraCode OBJECTS ec INPUT NULL DO{
+        dataExtraCode(g) <- ec;
+    }
+}
+
+EXTEND FORM itemGroup PROPERTIES(g) idExtraCode ON CHANGE changeExtraCode(g);
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() idExtraCode;
+EXTEND FORM item PROPERTIES (i) isTracking, idExtraCode ON CHANGE changeExtraCode(i);
+EXTEND FORM items PROPERTIES (i) READONLYIF  isReadonly() isTracking, idExtraCode;
+
+DESIGN item {
+    regionPrm {
+        MOVE PROPERTY (idExtraCode(i));
+    }
+}
+
+CONSTRAINT (CHANGED(extraCode(Sku s))) AND customsGroup(defaultCountry(),s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s))
+    MESSAGE '4х значный код должен соответствовать коду ТН ВЭД товара' ;
+
+CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s))
+    MESSAGE '4х значный код не соответствует коду ТН ВЭД товара' ;
