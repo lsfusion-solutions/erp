@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static equ.clt.handler.HandlerUtils.safeDelete;
 import static equ.clt.handler.HandlerUtils.safeMultiply;
@@ -445,7 +446,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         public static int clearData(String ip, String filePath, Integer dataType, long sleep) throws InterruptedException {
             if (!interrupted) {
-                int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 3, dataType, getBytes(filePath));
+                int result = libraryCall(ip, filePath, dataType, 3);
                 if (sleep > 0) {
                     Thread.sleep(sleep);
                 }
@@ -457,7 +458,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         public static int loadData(String ip, String filePath, Integer dataType, long sleep) throws InterruptedException {
             if (!interrupted) {
-                int result = AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, 0, dataType, getBytes(filePath));
+                int result = libraryCall(ip, filePath, dataType, 0);
                 if (sleep > 0) {
                     Thread.sleep(sleep);
                 }
@@ -465,6 +466,23 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
             } else {
                 return -1;
+            }
+        }
+
+        private static final ReentrantLock lock = new ReentrantLock();
+
+        private static int libraryCall(String ip, String filePath, Integer dataType, Integer procType) throws InterruptedException {
+            try {
+                if(enableParallel) {
+                    while (!lock.tryLock()) {
+                        Thread.sleep(1000);
+                    }
+                }
+                return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
+            } finally {
+                if (enableParallel) {
+                    lock.unlock();
+                }
             }
         }
 
