@@ -1,73 +1,75 @@
 MODULE FiscalEpson;
 
-REQUIRE POS, POSSection, ZReportLot;
+REQUIRE POS, POSSection;
 
 // версия для работы с марками, 2024
-version116 'Новая версия' = DATA BOOLEAN (CashRegister) IN base;
+version116 'Новая версия' = ABSTRACT BOOLEAN (CashRegister) IN base;
 version116CurrentCashRegister 'Epson TFP 116' = BOOLEAN (version116(currentCashRegister()));
+
 epsonCurrencyCode 'Код валюты' = DATA STRING[3] (CashRegister) IN base;
 epsonCurrencyCodeCashRegister 'Код валюты' = (epsonCurrencyCode(currentCashRegister()));
-
-EXTEND FORM groupCashRegister PROPERTIES (c) SHOWIF sidModel(grc) = 'Epson' version116, epsonCurrencyCode;
 
 epsonSkuType 'Тип товара' (ReceiptDetail o) = 
     IF skuType(sku(o)) = SkuType.skuTypeItem THEN 1 ELSE // товар 
         IF skuType(sku(o)) =  SkuType.skuTypeCharge THEN 3 ELSE // услуга
             IF skuType(sku(o)) = SkuType.skuTypeContainer THEN 5 ELSE 1; // тара  
 
-epsonIdLot 'Марка' (ReceiptDetail o) = idLot(o);
-epsonTailLot 'Хвост марки' (ReceiptDetail o) = tailLot(o); 
+epsonIdLot 'Марка' = ABSTRACT STRING (ReceiptDetail);
+epsonTailLot 'Хвост марки' = ABSTRACT STRING (ReceiptDetail);
 
 customImplementationEpson = ABSTRACT BOOLEAN();
 
 fiscalEpsonComment 'Дополнительный текст для чека Epson' = ABSTRACT TEXT (Receipt);
 fiscalEpsonComment 'Дополнительный текст для строки чека Epson' = ABSTRACT TEXT (ReceiptDetail);
 
+isEpson() = sidModelCurrentCashRegister() == 'Epson';
+isEpson(Receipt receipt) = sidCashRegisterModel(receipt) == 'Epson';
+
 loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор Epson', 'Epson', NULL, NULL, TRUE, NULL, NULL ); };
 
 documentNumber 'Сквозной номер чека' (receipt) = DATA INTEGER (Receipt);
 
 fiscalEpsonPrint 'Напечатать фискальный чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonPrintReceiptAction' (Receipt);
-postPrint(Receipt receipt) + {  IF sidCashRegisterModel(receipt) == 'Epson' AND NOT customImplementationEpson() THEN fiscalEpsonPrint(receipt); }
+postPrint(Receipt receipt) + {  IF isEpson(receipt) AND NOT customImplementationEpson() THEN fiscalEpsonPrint(receipt); }
 
 fiscalEpsonElectronicJournalReadOffset = DATA LOCAL NESTED INTEGER ();
 fiscalEpsonElectronicJournalReadSize = DATA LOCAL NESTED INTEGER ();
 fiscalEpsonSessionNumber = DATA LOCAL NESTED INTEGER ();
 
 fiscalEpsonPrintCopyReceipt 'Копия чека'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonPrintCopyReceiptAction' ();
-fiscalPrintCopyReceipt() + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonPrintCopyReceipt(); }
+fiscalPrintCopyReceipt() + {  IF isEpson() THEN fiscalEpsonPrintCopyReceipt(); }
 
 fiscalEpsonXReport 'X-отчёт'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonXReportAction' ();
-fiscalXReport() + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonXReport(); }
+fiscalXReport() + {  IF isEpson() THEN fiscalEpsonXReport(); }
 
 fiscalEpsonZReport 'Z-отчет'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonZReportAction' ();
-fiscalZReport() + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonZReport(); }
+fiscalZReport() + {  IF isEpson() THEN fiscalEpsonZReport(); }
 
 fiscalEpsonElectronicJournal 'Печать контрольной ленты'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonElectronicJournalAction' ();
-fiscalElectronicJournal() + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonElectronicJournal(); }
-showifElectronicJournal() += IF sidModelCurrentCashRegister() == 'Epson' THEN TRUE;
+fiscalElectronicJournal() + {  IF isEpson() THEN fiscalEpsonElectronicJournal(); }
+showifElectronicJournal() += IF isEpson() THEN TRUE;
 
 fiscalEpsonElectronicJournalToFile 'Печать контрольной ленты в файл'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonElectronicJournalToFileAction' ();
-fiscalElectronicJournalToFile() + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonElectronicJournalToFile(); }
+fiscalElectronicJournalToFile() + {  IF isEpson() THEN fiscalEpsonElectronicJournalToFile(); }
 
 fiscalEpsonService 'Перемещение денег'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonServiceInOutAction' (CashOperation);
-fiscalService(CashOperation cashOperation) + {  IF sidCashRegisterModel(cashOperation) == 'Epson' THEN fiscalEpsonService(cashOperation); }
+fiscalService(CashOperation cashOperation) + {  IF isEpson() THEN fiscalEpsonService(cashOperation); }
 
 fiscalEpsonCashSum 'Сумма наличных' INTERNAL 'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCashSumAction' ();
-fiscalCashSum() + { IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCashSum(); }
+fiscalCashSum() + { IF isEpson() THEN fiscalEpsonCashSum(); }
 
 // отрезать чек
-fiscalCutReceipt() + { IF sidModelCurrentCashRegister() == 'Epson' THEN MESSAGE 'Операция не поддерживается'; }
+fiscalCutReceipt() + { IF isEpson() THEN MESSAGE 'Операция не поддерживается'; }
 
 // прогон ленты
-fiscalAdvancePaper() + { IF sidModelCurrentCashRegister() == 'Epson' THEN MESSAGE 'Операция не поддерживается'; }
+fiscalAdvancePaper() + { IF isEpson() THEN MESSAGE 'Операция не поддерживается'; }
 
 fiscalEpsonCancel 'Отменить чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCancelReceiptAction' (Receipt);
-fiscalCancel(Receipt receipt) + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCancel(receipt); }
+fiscalCancel(Receipt receipt) + {  IF isEpson() THEN fiscalEpsonCancel(receipt); }
 
 fiscalEpsonReset 'Аннулировать чек'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonResetReceiptAction' (Receipt);
-fiscalResetReceiptCashRegister(Receipt receipt) + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonReset(receipt); }
-showifFiscalResetReceipt() += IF sidModelCurrentCashRegister() == 'Epson' THEN TRUE;
+fiscalResetReceiptCashRegister(Receipt receipt) + {  IF isEpson() THEN fiscalEpsonReset(receipt); }
+showifFiscalResetReceipt() += IF isEpson() THEN TRUE;
 
 blockDesync 'Не открывать Z-отчет при рассинхронизации времени (Epson)' = DATA BOOLEAN ();
 maxDesync 'Максимальное время рассинхронизации (c) (Epson)' = DATA LONG ();
@@ -77,7 +79,7 @@ fiscalEpsonElectronicJournalReadOffset = DATA INTEGER (ZReport);
 fiscalEpsonElectronicJournalReadOffsetCurrentZReport() = fiscalEpsonElectronicJournalReadOffset(currentZReport());
 
 fiscalEpsonCheckOpenZReport 'Проверка перед открытием Z-отчета'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCheckOpenZReportAction' (ZReport);
-fiscalCheckOpenZReport(ZReport zReport) + {  IF sidModelCurrentCashRegister() == 'Epson' THEN fiscalEpsonCheckOpenZReport(zReport); }
+fiscalCheckOpenZReport(ZReport zReport) + {  IF isEpson() THEN fiscalEpsonCheckOpenZReport(zReport); }
 
 fiscalEpsonCheckSKNO 'Проверить связь СКНО'  INTERNAL  'lsfusion.erp.region.by.machinery.cashregister.fiscalepson.FiscalEpsonCheckSKNOAction' ();
 
