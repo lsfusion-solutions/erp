@@ -142,6 +142,7 @@ description 'Описание' = DATA STRING[150] (ExtraCode) CHARWIDTH 50;
 customsGroup = DATA CustomsGroup(ExtraCode) AUTOSET;
 codeCustomsGroup 'ТН ВЭД (код)' (ExtraCode c) = code(customsGroup(c)) IN base;
 nameCustomsGroup 'ТН ВЭД' (ExtraCode c) = name(customsGroup(c)) IN base;
+canonicalNameCustomsGroup 'ТН ВЭД' (ExtraCode c) = canonicalName(customsGroup(c)) IN base;
 
 extraCode (CustomsGroup c, STRING[4] id) = GROUP MAX ExtraCode ec BY customsGroup(ec), id(ec);
 countExtraCodes (CustomsGroup c) = GROUP SUM 1 IF ExtraCode ec IS ExtraCode BY customsGroup(ec);
@@ -291,6 +292,7 @@ article 'Артикул' = DATA LOCAL STRING[100]() CHARWIDTH 10;
 originalCustomsGroup 'ТНВЭД (ориг)' = DATA LOCAL BPSTRING[100] () CHARWIDTH 10 NOFLEX;
 composition 'Состав' = DATA LOCAL STRING[255]() CHARWIDTH 40;
 gender 'Пол' = DATA LOCAL STRING[50]();
+backgroundCustomsGroup = ABSTRACT CASE COLOR (CustomsGroup);
 
 FORM customsGroups 'Позиции ТН ВЭД'
     OBJECTS cz = CustomsZone PANEL
@@ -307,7 +309,7 @@ FORM customsGroups 'Позиции ТН ВЭД'
     ORDERS code(gcg)
 
     OBJECTS cg = CustomsGroup
-    PROPERTIES(cg) READONLY code, name, canonicalName,
+    PROPERTIES(cg) READONLY BACKGROUND backgroundCustomsGroup(cg) code, name, canonicalName,
                    dateFrom, dateTo, isComplianced, number
                    //, registrationCustomsGroup, valueCurrentRateSupplierVATCustomsGroup, percentDutyCustomsGroup, weightDutyCustomsGroup
     PROPERTIES(cg, dt) READONLY registration, percentDuty, weightDuty, dataValueSupplierVAT, dataValueVATCustomsException
