@@ -8,5 +8,7 @@ EXTEND FORM userOrder
     FILTERS in(agreement(o), ks) OR NOT skuIn(agreement(o)) 
 ; 
 
-CONSTRAINT (SETCHANGED(sku(UserOrderDetail d)) OR SETCHANGED(agreement(d))) AND skuIn(agreement(d)) AND NOT in(agreement(d), sku(d))
-    MESSAGE 'В заказан добавлен товар, не соответствующий соглашению с поставщиком';
+skipCheckSkuInOrder = ABSTRACT BOOLEAN (Agreement);
+
+CONSTRAINT (SETCHANGED(sku(UserOrderDetail d)) OR SETCHANGED(agreement(d))) AND skuIn(agreement(d)) AND NOT in(agreement(d), sku(d)) AND NOT skipCheckSkuInOrder(agreement(d))
+    MESSAGE 'В заказ добавлен товар, не соответствующий соглашению с поставщиком';
