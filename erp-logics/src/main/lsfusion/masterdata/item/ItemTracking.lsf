@@ -38,7 +38,6 @@ nearestExtraCode (SkuGroup child) = GROUP LAST dataExtraCode(SkuGroup parent) OR
 
 extraCode (SkuGroup skuGroup) = OVERRIDE dataExtraCode(skuGroup), nearestExtraCode(skuGroup) MATERIALIZED;
 idExtraCode '4х зн.код' (SkuGroup skuGroup) = id(extraCode(skuGroup)) IN paramsItemGroup;
-extraCode (CustomsGroup c) = GROUP MIN ExtraCode ec BY customsGroup(ec);
 
 extraCode = DATA ExtraCode (Brand);
 idExtraCode '4х зн код' (Brand b) = id(extraCode(b)) CHARWIDTH 4;;
@@ -70,7 +69,7 @@ DESIGN customsGroup {
     }
 }
 
-FORM extraCode '4х значный код кода ТН ВЭД'
+FORM extraCodeTracking '4х значный код кода ТН ВЭД'
     OBJECTS ec = ExtraCode
     PROPERTIES (ec) READONLY codeCustomsGroup, nameCustomsGroup, canonicalNameCustomsGroup, id, isTracking BACKGROUND backgroundEC(ec), description
     FILTERGROUP isTracking 
@@ -83,13 +82,13 @@ DESIGN extraCode{
 }
 
 changeExtraCode(Item i){
-    DIALOG extraCode OBJECTS ec=extraCode(customsGroup(defaultCountry(), i)) INPUT NULL FILTERS customsGroup(ec)==customsGroup(defaultCountry(), i) DO {
+    DIALOG extraCodeTracking OBJECTS ec=extraCode(customsGroup(defaultCountry(), i)) INPUT NULL FILTERS customsGroup(ec)==customsGroup(defaultCountry(), i) DO {
         dataExtraCode(i) <- ec;
     }
 }
 
 changeExtraCode(ItemGroup g){
-    DIALOG extraCode OBJECTS ec INPUT NULL DO{
+    DIALOG extraCodeTracking OBJECTS ec INPUT NULL DO{
         dataExtraCode(g) <- ec;
     }
 }
@@ -120,6 +119,10 @@ DESIGN items {
     PROPERTY (idExtraCode(i)) {caption='4х зн.код';}
 }
 
+DESIGN itemGroup {
+    PROPERTY (idExtraCode(g)) {caption='4х зн.код к ТН ВЭД';}
+}
+
 skipCheckCG 'Не проверять соотвествие 4х зн кода к ТН ВЭД ' = DATA BOOLEAN ();
 skipCheckEC 'Не проверять соотвествие 4х зн кода к ТН ВЭД ' = DATA BOOLEAN ();
 
@@ -130,7 +133,7 @@ CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND 
     MESSAGE '4х значный код не соответствует коду ТН ВЭД товара' ;
 
 changeExtraCode(Brand b){
-    DIALOG extraCode OBJECTS ec INPUT NULL DO{
+    DIALOG extraCodeTracking OBJECTS ec INPUT NULL DO{
         extraCode(b) <- ec;
     }
 }

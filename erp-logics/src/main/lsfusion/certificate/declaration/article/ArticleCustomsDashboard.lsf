@@ -58,7 +58,7 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
     PROPERTIES(a) READONLY nameBrand, id, canonicalNameItemGroup PANEL, 
                            originalCustomsGroup, caption, composition, nameUOM, nameCountry, netWeight, grossWeight, nameGender
     PROPERTIES(c, a) BACKGROUND hintEditableBackground() codeCustomsGroup ON CHANGE changeCodeCustomsGroup(c, a) ON CHANGEWYS changeWYSCodeCustomsGroup(c, a), nameCustomsGroup, nameComplianceGroup
-    PROPERTIES                                           completedCustoms(a) ON CHANGE changeCompletedCustoms(a)
+    PROPERTIES       idExtraCode(a) ON CHANGE changeExtraCode(a), completedCustoms(a) ON CHANGE changeCompletedCustoms(a)
     PROPERTIES(a) NEWSESSION EDIT
     
     FILTERGROUP attributesFilters
@@ -85,7 +85,7 @@ FORM articleCustomsDashboard 'Заполнение ТНВЭД'
                            idItemGroup, nameColor, nameSize, nameGender, image PANEL
     PROPERTIES(i) originalSize READONLY
     ORDERS id(i)
-    PROPERTIES BACKGROUND hintEditableBackground() codeCustomsGroup(c, i) ON CHANGE changeCodeCustomsGroup(c, i), nameCustomsGroup(c, i), nameComplianceGroup(c, i)
+    PROPERTIES BACKGROUND hintEditableBackground() codeCustomsGroup(c, i) ON CHANGE changeCodeCustomsGroup(c, i), nameCustomsGroup(c, i), nameComplianceGroup(c, i), idExtraCode(i) ON CHANGE changeExtraCode(i)
     PROPERTIES completedCustoms(i)
     PROPERTIES(i) NEWSESSION EDIT SHOWIF enableEditing(i)
     
@@ -205,6 +205,12 @@ WHEN LOCAL FORMS articleCustomsDashboard
                                          ELSE
                                             VAT(country, item, dateArticleCustomsDashboard());
     }
+//4х зн код
+WHEN LOCAL FORMS articleCustomsDashboard
+    CHANGED(dataExtraCode(Article article)) DO {
+    dataExtraCode (Item item) <- dataExtraCode(article) WHERE article(item) == article AND (setCustomsGroupArticleCompleted() OR NOT completedCustoms(item)) AND NOT dataExtraCode(item);
+}
+
 
 // Группы сертификации
 WHEN LOCAL FORMS articleCustomsDashboard
@@ -371,4 +377,8 @@ NAVIGATOR {
     customsDashboardNavigator {
         NEW articleCustomsDashboard;
     }
+}
+
+DESIGN articleCustomsDashboard {
+    PROPERTY (idExtraCode(i)) {caption='4х зн код';}
 }

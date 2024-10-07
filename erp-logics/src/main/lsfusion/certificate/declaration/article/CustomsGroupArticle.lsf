@@ -1,6 +1,6 @@
 MODULE CustomsGroupArticle;
 
-REQUIRE CustomsGroupItem, ItemArticle;
+REQUIRE CustomsGroupItem, ItemArticle, ItemTracking;
 
 NAMESPACE CustomsGroup;
 
@@ -12,6 +12,10 @@ nameCustomsGroup 'Позиция ТН ВЭД' (Country country, Article article)
 codeCustomsGroupDefaultCountry 'ТН ВЭД' (Article article) = code(customsGroup(defaultCountry(), article)) CHARWIDTH 10;
 
 originalCustomsGroup 'Код ТНВЭД (ориг.)' = DATA BPSTRING[12] (Article) IN base CHARWIDTH 10 NOFLEX;
+
+dataExtraCode = DATA ExtraCode(Article);
+extraCode (Article a) =  OVERRIDE dataExtraCode(a), extraCode(customsGroup(defaultCountry(), a));
+idExtraCode '4х зн код' (Article a) = id(extraCode(a));
 
 // Действие по изменению кода ТНВЭД через ручной ввод
 changeCodeCustomsGroup(Country country, Article article)  { 
@@ -57,17 +61,24 @@ changeCustomsGroupDefaultCountry(Article article)  {
 CONSTRAINT customsZone(customsGroup(Country country, Article article)) != customsZone(country) CHECKED BY customsGroup[Country,Article]
     MESSAGE 'Таможенная зона должна соответствовать стране';
 
+changeExtraCode(Article a){
+    DIALOG extraCode OBJECTS ec INPUT NULL FILTERS (customsGroup(ec)==customsGroup(defaultCountry(), a) OR codeCustomsGroup(ec)==originalCustomsGroup(a)) DO {
+        dataExtraCode(a) <- ec;
+    }
+}
+
 EXTEND FORM article
-    PROPERTIES(a)    originalCustomsGroup,
+    PROPERTIES(a)    originalCustomsGroup, idExtraCode ON CHANGE changeExtraCode(a),
                      codeCustomsGroupDefaultCountry  ON CHANGE changeCustomsGroupDefaultCountry(a)
     PROPERTIES(c, a) codeCustomsGroup
-    
+     
     PROPERTIES(i) BEFORE deletei codeCustomsGroupDefaultCountry ON CHANGE changeCustomsGroupDefaultCountry(i) 
 ;
 DESIGN article  {
     regionPrm {
         MOVE PROPERTY(originalCustomsGroup(a));
         MOVE PROPERTY(codeCustomsGroupDefaultCountry(a));
+        MOVE PROPERTY (idExtraCode(a));
     }
 }
 
@@ -85,3 +96,9 @@ WHEN LOCAL FORMS article SET(Item i IS Item) DO
 EXTEND FORM articles
     PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  codeCustomsGroupDefaultCountry
 ;
+
+WHEN LOCAL FORMS article SET(Item i IS Item) AND  dataExtraCode(article(i)) AND NOT dataExtraCode(i) DO
+    dataExtraCode(i) <- dataExtraCode(article(i));
+
+WHEN LOCAL FORMS article CHANGED(dataExtraCode(Article article))  DO
+    dataExtraCode(Item i) <- dataExtraCode(article) WHERE article(i) == article;
