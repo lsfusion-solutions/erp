@@ -1,0 +1,21 @@
+MODULE PurchaseEInvoiceTracking;
+
+REQUIRE PurchaseEInvoice, ItemTracking;
+
+NAMESPACE Purchase;
+
+skipFillExtraCode 'Не импортировать 4х зн код в карточку товара из ЭТТН' () = DATA BOOLEAN ;
+
+EXTEND FORM options
+    PROPERTIES () skipFillExtraCode
+;
+DESIGN options {
+    customs {
+        MOVE PROPERTY(skipFillExtraCode());
+    }
+}
+
+overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
+    dataExtraCode(sku(id)) <- extraCode(customsGroup(itemCustomCode(eid)), itemCustomCodeOther(eid))  WHERE itemCustomCodeOther(eid) AND NOT skipFillExtraCode() AND NOT extraCode(sku(id)) ;
+}
+

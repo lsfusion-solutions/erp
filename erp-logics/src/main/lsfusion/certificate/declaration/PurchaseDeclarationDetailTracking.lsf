@@ -1,0 +1,24 @@
+MODULE PurchaseDeclarationDetailTracking;
+
+REQUIRE PurchaseDeclarationDetail, ItemTracking;
+
+NAMESPACE Purchase;
+
+  
+extraCode '4х зн код'  = DATA ExtraCode(DeclarationInvoiceDetail);
+extraCode '4х зн код'  = DATA ExtraCode(DeclarationDetail);
+
+overCreateDeclarationInvoiceDetail(Declaration declaration) + {
+    extraCode(DeclarationInvoiceDetail dd) <-[ GROUP MIN extraCode(sku(UserInvoiceDetail d)) BY declarationInvoiceDetail(d)](dd) WHERE declaration(dd) == declaration;
+}
+overCreate (DeclarationDetail dd, DeclarationInvoiceDetail did) + {
+    extraCode(dd) <- extraCode(did);
+}
+
+idExtraCode '4х зн код' (DeclarationInvoiceDetail di) = id(extraCode(di));
+idExtraCode '4х зн код' (DeclarationDetail dd) = id(extraCode(dd));
+
+EXTEND FORM declaration
+    PROPERTIES(di) idExtraCode BACKGROUND backgroundEC(extraCode(di)) BEFORE nameVATCustomsException(di)
+    PROPERTIES(dd) idExtraCode BACKGROUND backgroundEC(extraCode(dd)) BEFORE  nameVATCustomsException(dd)
+;
