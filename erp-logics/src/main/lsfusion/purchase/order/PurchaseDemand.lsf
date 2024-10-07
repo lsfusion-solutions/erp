@@ -74,16 +74,27 @@ fillRecommendedQuantityStockCustom  ABSTRACT (UserOrder);
 in = DATA LOCAL BOOLEAN (Sku);
 overFillRecommended ABSTRACT LIST (UserOrder);
 
+orderNameSku = ABSTRACT BOOLEAN (UserOrder);
+
 fillRecommendedBase (UserOrder userOrder) {
         in(Sku sku) <- prevPriceA(
                                   (OVERRIDE ledgerPriceListType(priceListType(userOrder, sku)), defaultDemandOrderLedgerPriceListType()),
                                   sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
                               AND NOT limitRecommendedQuantity(sku, userOrder); 
-        FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) INLINE NEW d = UserOrderDetail DO {
+        IF orderNameSku(userOrder) THEN {
+            FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) ORDER name(sku), sku INLINE NEW d = UserOrderDetail DO {
                 userOrder(d) <- userOrder;
                 sku(d) <- sku;
-                quantity (d) <- IF skipCeil(sku,userOrder) THEN r ELSE ceilRecommendedQuantity(sku, r);                
-                overRecommendedQuantity(d,sku);
+                quantity (d) <- IF skipCeil(sku, userOrder) THEN r ELSE ceilRecommendedQuantity(sku, r);
+                overRecommendedQuantity(d, sku);
+            }            
+        } ELSE {
+            FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, userOrder) INLINE NEW d = UserOrderDetail DO {
+                userOrder(d) <- userOrder;
+                sku(d) <- sku;
+                quantity (d) <- IF skipCeil(sku, userOrder) THEN r ELSE ceilRecommendedQuantity(sku, r);
+                overRecommendedQuantity(d, sku);
+            }
         }
         overFillRecommended(userOrder);
 }        
