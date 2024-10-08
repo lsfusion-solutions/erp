@@ -4,6 +4,11 @@ REQUIRE SaleInvoice, ItemFuel, SkuLedgerFuel;
 
 NAMESPACE Sale;
 
+@defineOperationProperty(showFuel, 'Топливо', showContainer);
+
+showFuel(Invoice i) = showFuel(operation(i));
+showFuel(UserInvoice i) = showFuel(operation(i));
+
 volume 'Объём (топливо), л' = ABSTRACT NUMERIC[16,5] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 volume 'Объём (топливо), л' = DATA NUMERIC[16,5] (UserInvoiceDetail) CHARWIDTH 7;
 volume (UserInvoiceDetail invoiceDetail) += volume(invoiceDetail);
@@ -22,9 +27,9 @@ volumeUserInvoiceDetail 'Объём (топливо, всего), л' (userInvoi
 overBackgroundDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) volumeUserInvoiceDetail
-    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) volume SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
+    PROPERTIES(i) SHOWIF showFuel(i) volumeUserInvoiceDetail
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF (showQuantity(i) AND showFuel(i)) volume BACKGROUND backgroundQuantity(d) AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
@@ -37,8 +42,8 @@ overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDe
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
-    PROPERTIES(d) READONLY volume AFTER quantity(d)
-    PROPERTIES(d) READONLY density AFTER volume(d)
+    PROPERTIES(i) READONLY SHOWIF showFuel(i) BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY SHOWIF showFuel(i) volume AFTER quantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(i) density AFTER volume(d)
 ;
 

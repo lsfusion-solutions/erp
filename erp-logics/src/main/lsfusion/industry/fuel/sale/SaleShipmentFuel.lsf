@@ -4,6 +4,9 @@ REQUIRE SaleShipment, SaleInvoiceFuel, SkuLedgerFuel, ItemFuel;
 
 NAMESPACE Sale;
 
+showFuel(Shipment s) = showFuel(operation(s));
+showFuel(UserShipment s) = showFuel(operation(s));
+
 volume 'Объём (топливо), л' = ABSTRACT NUMERIC[16,5] (ShipmentDetail) CHARWIDTH 7 MATERIALIZED;
 volume 'Объём (топливо), л' = DATA NUMERIC[16,5] (UserShipmentDetail) CHARWIDTH 7;
 volume (UserShipmentDetail shipmentDetail) += volume(shipmentDetail);
@@ -18,9 +21,9 @@ volumeShipmentDetail 'Объём (топливо, всего), л' (shipment) = 
 volumeUserShipmentDetail 'Объём (топливо, всего), л' (userShipment) = GROUP SUM volume(UserShipmentDetail idetail) BY userShipment(idetail) IN documentSum CHARWIDTH 8 MATERIALIZED;
 
 EXTEND FORM userShipment
-    PROPERTIES(s) volumeUserShipmentDetail
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d)
+    PROPERTIES(s) SHOWIF showFuel(s) volumeUserShipmentDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(s) volume AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF showFuel(s) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d)
 ;
 
 overCopy(UserShipmentDetail d, ShipmentDetail detail) + {
@@ -33,9 +36,9 @@ overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipme
 }
 
 EXTEND FORM shipments
-    PROPERTIES(s) READONLY volumeShipmentDetail AFTER quantityShipmentDetail(s)
-    PROPERTIES(d) READONLY volume AFTER quantity(d)
-    PROPERTIES(d) READONLY density AFTER volume(d)
+    PROPERTIES(s) READONLY SHOWIF showFuel(s) volumeShipmentDetail AFTER quantityShipmentDetail(s)
+    PROPERTIES(d) READONLY SHOWIF showFuel(s) volume AFTER quantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(s) density AFTER volume(d)
 ;
 
 overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) + { density(sd) <- density(id); }
@@ -106,14 +109,14 @@ overBackgroundShipmentDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 backgroundShipmentDensity (UserInvoiceDetail d) = OVERRIDE overBackgroundShipmentDensity(d), backgroundShipped(d);
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentVolume AFTER volume(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentDensity AFTER density(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipmentDensity(d) ON CHANGE changeShipmentDensity(d) ON CONTEXTMENU fillShipmentDensity15C(d)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentVolume AFTER volume(d) SHOWIF (showShipmentQuantity(i) AND showFuel(i)) BACKGROUND backgroundShipped(i)
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) shipmentDensity AFTER density(d) SHOWIF (showShipmentQuantity(i) AND showFuel(i)) BACKGROUND backgroundShipmentDensity(d) ON CHANGE changeShipmentDensity(d) ON CONTEXTMENU fillShipmentDensity15C(d)
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND backgroundShipped(i) shipmentVolumeInvoiceDetail AFTER shipmentQuantityInvoiceDetail(i)
-    PROPERTIES(d) READONLY shipmentVolume AFTER volume(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
-    PROPERTIES(d) READONLY shipmentDensity AFTER density(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
+    PROPERTIES(i) READONLY SHOWIF showFuel(i) BACKGROUND backgroundShipped(i) shipmentVolumeInvoiceDetail AFTER shipmentQuantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY shipmentVolume AFTER volume(d) SHOWIF (createShipment(i) AND showFuel(i)) BACKGROUND backgroundShipped(i)
+    PROPERTIES(d) READONLY shipmentDensity AFTER density(d) SHOWIF (createShipment(i) AND showFuel(i)) BACKGROUND backgroundShipped(i)
 ;
 
 volume(InvoiceShipmentDetail shipmentDetail) += shipmentVolume(invoiceDetail(shipmentDetail));

@@ -17,6 +17,11 @@ DESIGN options {
     }
 }
 
+@defineOperationProperty(showFuel, 'Топливо', showContainer);
+
+showFuel(Invoice i) = showFuel(operation(i));
+showFuel(UserInvoice i) = showFuel(operation(i));
+
 temperature 'Температура, °С' = ABSTRACT NUMERIC[5,1] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
 temperature 'Температура, °С' = DATA NUMERIC[5,1] (UserInvoiceDetail) CHARWIDTH 7;
 temperature (UserInvoiceDetail invoiceDetail) += temperature(invoiceDetail);
@@ -38,10 +43,10 @@ volumeUserInvoiceDetail 'Объём (топливо, всего), л' (userInvoi
 overBackgroundDensity =  ABSTRACT CASE COLOR (UserInvoiceDetail);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) volumeUserInvoiceDetail
-    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) volume SHOWIF showQuantity(i) BACKGROUND backgroundQuantity(d) AFTER quantity(d)
-    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
-    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) temperature SHOWIF showTemperatureInvoice()
+    PROPERTIES(i) SHOWIF showFuel(i) volumeUserInvoiceDetail
+    PROPERTIES(d) READONLYIF NOT isFuel(sku(d)) SHOWIF (showQuantity(i) AND showFuel(i)) volume  BACKGROUND backgroundQuantity(d) AFTER quantity(d)
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF showFuel(i) density AFTER volume(d) ON CHANGE changeDensity(d) ON CONTEXTMENU fillDensity15C(d) ON CONTEXTMENU fillDensityFromTable(d) BACKGROUND overBackgroundDensity(d)
+    PROPERTIES(d) READONLYIF NOT (isFuel(sku(d)) OR extraIsFuel(sku(d))) SHOWIF (showTemperatureInvoice() AND showFuel(i)) temperature
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
@@ -56,9 +61,9 @@ overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDe
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
-    PROPERTIES(d) READONLY volume AFTER quantity(d)
-    PROPERTIES(d) READONLY density AFTER volume(d)
-    PROPERTIES(d) READONLY temperature SHOWIF showTemperatureInvoice()
+    PROPERTIES(i) READONLY SHOWIF showFuel(i) BACKGROUND background(i) volumeInvoiceDetail AFTER quantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY SHOWIF showFuel(i) volume AFTER quantity(d)
+    PROPERTIES(d) READONLY SHOWIF showFuel(i) density AFTER volume(d)
+    PROPERTIES(d) READONLY SHOWIF (showFuel(i) AND showTemperatureInvoice()) temperature
 ;
 

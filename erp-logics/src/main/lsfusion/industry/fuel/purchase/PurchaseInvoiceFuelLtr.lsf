@@ -47,8 +47,8 @@ weightUserInvoiceDetail 'Масса (топливо, всего), кг' (userInv
 showWeightFuel = ABSTRACT VALUE BOOLEAN (Invoice);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF showWeightFuel(i) weightUserInvoiceDetail
-    PROPERTIES(d) READONLYIF NOT isFuelLtr(sku(d)) weight SHOWIF showWeightFuel(i) AFTER quantity(d)
+    PROPERTIES(i) SHOWIF (showWeightFuel(i) AND showFuel(i)) weightUserInvoiceDetail
+    PROPERTIES(d) READONLYIF NOT isFuelLtr(sku(d)) SHOWIF (showWeightFuel(i) AND showFuel(i)) weight AFTER quantity(d)
 ;
 
 overCopy(UserInvoiceDetail d, InvoiceDetail detail) + {
@@ -60,6 +60,6 @@ overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDe
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY SHOWIF showWeightFuel(i) BACKGROUND background(i) weightInvoiceDetail AFTER quantityInvoiceDetail(i)
-    PROPERTIES(d) READONLY SHOWIF showWeightFuel(i) weight AFTER quantity(d)
+    PROPERTIES(i) READONLY SHOWIF (showWeightFuel(i) AND showFuel(i)) BACKGROUND background(i) weightInvoiceDetail AFTER quantityInvoiceDetail(i)
+    PROPERTIES(d) READONLY SHOWIF (showWeightFuel(i) AND showFuel(i)) weight AFTER quantity(d)
 ;
