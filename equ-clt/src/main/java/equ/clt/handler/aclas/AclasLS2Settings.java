@@ -1,9 +1,16 @@
 package equ.clt.handler.aclas;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class AclasLS2Settings {
 
     //папка, в которой находится библиотека
     private String libraryDir;
+
+    //имена файлов библиотек, через запятую
+    private String libraryNames;
 
     //папка для логов
     private String logDir;
@@ -32,6 +39,20 @@ public class AclasLS2Settings {
 
     public void setLibraryDir(String libraryDir) {
         this.libraryDir = libraryDir;
+    }
+
+    public List<String> getLibraryNames() {
+        List<String> result = new ArrayList<>();
+        if(libraryNames != null) {
+            Collections.addAll(result, libraryNames.split(","));
+        }
+        if(result.isEmpty())
+            result.add("aclassdk");
+        return result;
+    }
+
+    public void setLibraryNames(String libraryNames) {
+        this.libraryNames = libraryNames;
     }
 
     @Deprecated

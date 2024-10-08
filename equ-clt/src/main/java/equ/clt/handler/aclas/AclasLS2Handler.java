@@ -7,6 +7,7 @@ import equ.api.scales.ScalesItem;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
@@ -68,11 +69,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return 1; //отключаем распараллеливание
     }
 
-    private boolean init(String libraryDir) {
+    private void init(String libraryDir, List<String> libraryNames) {
         if(libraryDir != null) {
             setLibraryPath(libraryDir, "jna.library.path");
             setLibraryPath(libraryDir, "java.library.path");
-            return AclasSDK.init();
+            AclasSDK.init(libraryNames);
         } else throw new RuntimeException("No libraryDir found in settings");
     }
 
@@ -346,7 +347,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         aclasls2Logger.info(getLogPrefix() + "Connecting to library...");
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
         String libraryDir = aclasLS2Settings.getLibraryDir();
-        init(libraryDir);
+        List<String> libraryNames = aclasLS2Settings.getLibraryNames();
+        init(libraryDir, libraryNames);
     }
 
     @Override
@@ -417,7 +419,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         public interface AclasSDKLibrary extends Library {
 
-            AclasSDKLibrary aclasSDK = Native.load("aclassdk", AclasSDKLibrary.class, getOptions());
+            Map<String, AclasSDKLibrary> aclasSDKs = new HashMap<>();
 
             boolean AclasSDK_Initialize(Integer pointer);
 
@@ -433,13 +435,39 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             return options;
         }
 
-        public static boolean init() {
-            return AclasSDKLibrary.aclasSDK.AclasSDK_Initialize(null);
+        private static final Map<String, Pair<ReentrantLock, Integer>> libraryAccessCounter = new HashMap<>();
+
+        public static void init(List<String> libraryNames) {
+            for (String libraryName : libraryNames) {
+                Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.getOrDefault(libraryName, Pair.create(new ReentrantLock(), 0));
+                if (counterEntry.second == 0) {
+                    AclasSDKLibrary library = Native.load(libraryName, AclasSDKLibrary.class, getOptions());
+                    log("init " + libraryName);
+                    library.AclasSDK_Initialize(null);
+                    AclasSDKLibrary.aclasSDKs.put(libraryName, library);
+                }
+                log("library access counter inc " + counterEntry.first + " = " + (counterEntry.second + 1));
+                libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second + 1));
+            }
         }
 
         public static void release() {
             if (!interrupted) {
-                AclasSDKLibrary.aclasSDK.AclasSDK_Finalize();
+                AclasSDKLibrary.aclasSDKs.entrySet().removeIf(entry -> {
+                    String libraryName = entry.getKey();
+                    Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.get(libraryName);
+                    if (counterEntry.second == 1) {
+                        log("release " + libraryName);
+                        entry.getValue().AclasSDK_Finalize();
+                        log("library access counter removed " + counterEntry.first);
+                        libraryAccessCounter.remove(libraryName);
+                        return true;
+                    } else {
+                        log("library access counter dec " + counterEntry.first + " = " + (counterEntry.second - 1));
+                        libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second -1));
+                        return false;
+                    }
+                });
             }
             interrupted = false;
         }
@@ -469,18 +497,37 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
             }
         }
 
-        private static final ReentrantLock lock = new ReentrantLock();
-
         private static int libraryCall(String ip, String filePath, Integer dataType, Integer procType) throws InterruptedException {
+            ReentrantLock lock = null;
+            AclasSDKLibrary library = null;
+            String libName = null;
             try {
-                if(enableParallel) {
-                    while (!lock.tryLock()) {
-                        Thread.sleep(1000);
+                if (enableParallel) {
+                    while (lock == null) {
+                        for (Map.Entry<String, Pair<ReentrantLock, Integer>> entry : libraryAccessCounter.entrySet()) {
+                            String libraryName = entry.getKey();
+                            Pair<ReentrantLock, Integer> counterEntry = entry.getValue();
+
+                            if (counterEntry.first.tryLock()) {
+                                lock = counterEntry.first;
+                                library = AclasSDKLibrary.aclasSDKs.get(libraryName);
+                                libName = libraryName;
+                                log("locked " + libName);
+                                break;
+                            }
+                        }
+                        if (lock == null) {
+                            log("no free library found, try again in 1 second");
+                            Thread.sleep(1000);
+                        }
                     }
                 }
-                return AclasSDKLibrary.aclasSDK.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
+                assert library != null;
+                return library.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
             } finally {
                 if (enableParallel) {
+                    assert lock != null;
+                    log("unlocked " + libName);
                     lock.unlock();
                 }
             }
@@ -488,6 +535,10 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         private static byte[] getBytes(String value) {
             return (value + "\0").getBytes(StandardCharsets.UTF_8);
+        }
+
+        private static void log(String text) {
+            aclasls2Logger.info("LibraryLocker: " + text);
         }
     }
 }
