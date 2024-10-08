@@ -4,8 +4,6 @@ REQUIRE SaleInvoice, PurchaseInvoice, PurchaseSaleOperation, PurchaseShipment;
 
 PRIORITY Purchase;
 
-//----------------------------------------------------------------------------//
-
 // Создание накладной на основе накладной //
 
 FORM invoiceInvoices 'Накладные (закупка)'
@@ -71,12 +69,6 @@ DESIGN invoiceInvoices {
                         caption = 'Спецификация';
                         fill =1;
                     }
-                    NEW printTab {
-                        caption = 'Печатные формы';
-                        NEW printContainer {
-                            caption = 'Печать';
-                        }
-                    }
                 }
             }
         }
@@ -98,7 +90,7 @@ invoiceDetail = ABSTRACT InvoiceDetail (Sale.InvoiceDetail) MATERIALIZED INDEXED
 invoiceDetail = DATA InvoiceDetail (Sale.UserInvoiceDetail) INDEXED;
 invoiceDetail(Sale.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-setPropertiesSaleSale  ABSTRACT LIST ( Sale.UserInvoiceDetail, InvoiceDetail);
+setPropertiesSalePurchase ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
 
 fillInvoice 'Заполнить на основе накладной (закупка)'(Sale.UserInvoice userInvoice)   { 
     DIALOG invoiceInvoices OBJECTS c = supplier(userInvoice),
@@ -107,20 +99,19 @@ fillInvoice 'Заполнить на основе накладной (закуп
         FOR invoice(InvoiceDetail invoiceDetail) == o NEW d = Sale.UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             invoiceDetail(d) <- invoiceDetail;
-            setPropertiesSaleSale(d, invoiceDetail); 
+            setPropertiesSalePurchase(d, invoiceDetail); 
         }
     }
 } IN Sale.invoice;
 
-setPropertiesSaleSale(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
+setPropertiesSalePurchase(Sale.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + { 
     sku(d) <- sku(invoiceDetail);
-    batch(d) <- batch(invoiceDetail)  WHERE NOT (notUseBatchSaleInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
+    batch(d) <- overBatch(invoiceDetail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice(invoiceDetail))) OR skipFillBatch(d));
     barcodePack(d) <- barcodePack(invoiceDetail);
     amountPack(d) <- amountPack(invoiceDetail);
     packQuantity(d) <- packQuantity(invoiceDetail);
     quantity (d) <- quantity(invoiceDetail);
     VAT(d) <- VAT(invoiceDetail);
-    valueVAT(d) <- valueVAT(invoiceDetail);
     price(d) <- price(invoiceDetail);
     invoicePrice(d) <- invoicePrice(invoiceDetail);    
 }
@@ -140,17 +131,12 @@ EXTEND FORM Sale.userInvoice
 ;
 DESIGN Sale.userInvoice { headerCreateDetail{ MOVE GROUP(Sale.invoice,i) { lines = 1; }}}
 
+overFillInvoice ABSTRACT LIST (Sale.UserInvoice, Invoice);
+overFillInvoice ABSTRACT LIST (Sale.UserInvoiceDetail, InvoiceDetail);
 
-//-- Действие
-
-overFillInvoice  ABSTRACT LIST ( Sale.UserInvoice, Invoice);
-overFillInvoice  ABSTRACT LIST ( Sale.UserInvoiceDetail, InvoiceDetail);
-
-moveUserInvoice 'Накладная (продажа)'(Invoice invoice)   { 
-	NEWSESSION{
-	
+moveUserInvoice 'Накладная (продажа)'(Invoice invoice) { 
+	NEWSESSION {
 	    NEW i = Sale.UserInvoice {
-	
 	        agreement(i) <- agreement(invoice);
 	        priceListType(i) <- priceListType(invoice) WHERE in(priceListType(invoice), saleOperation(operation(invoice))) OR NOT saleOperation(operation(invoice));
 	        supplier(i) <- customer(invoice);  // покупатель Purchase в продавца Sale, а покупатель Sale пустой
@@ -163,30 +149,29 @@ moveUserInvoice 'Накладная (продажа)'(Invoice invoice)   {
 	        isCommission(i) <- isCommission(invoice);
 	        showPack(i) <- showPack(invoice);
 	        operation(i) <- saleOperation(operation(invoice));
-	        EXEC overFillInvoice(i, invoice);
+
+	        overFillInvoice(i, invoice);
 	
 	        FOR invoice(InvoiceDetail detail)==invoice NEW d = Sale.UserInvoiceDetail DO {
-	
 	            userInvoice(d) <- i;
 	            invoiceDetail(d) <- detail;
-	
 	            priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
 	
 	            sku(d) <- sku(detail);
-	            quantity (d) <- quantity(detail);
-	            VAT (d) <- VAT(detail);
-	            price (d) <- price(detail);
-	            invoicePrice (d) <- invoicePrice(detail);
+	            quantity(d) <- quantity(detail);
+	            VAT(d) <- VAT(detail);
+	            price(d) <- price(detail);
+	            invoicePrice(d) <- invoicePrice(detail);
 	
-	            barcodePack (d) <- barcodePack(detail);
-	            amountPack (d) <- amountPack(detail);
-	            packQuantity (d) <- packQuantity(detail);
-	
+	            barcodePack(d) <- barcodePack(detail);
+	            amountPack(d) <- amountPack(detail);
+	            packQuantity(d) <- packQuantity(detail);
 	            batch(d) <- overBatch(detail) WHERE NOT (notUseBatchSaleInvoice(operation(invoice)) OR skipFillBatch(d));	            
-	            EXEC overFillInvoice(d,detail);
+
+	            overFillInvoice(d, detail);
 	        }
 	
-	    SHOW Sale.userInvoice OBJECTS i = i DOCKED NOCANCEL;
+	        SHOW Sale.userInvoice OBJECTS i = i DOCKED NOCANCEL;
 	    }
 	}
 } TOOLBAR;
