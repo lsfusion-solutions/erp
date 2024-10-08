@@ -40,10 +40,11 @@ extraCode (SkuGroup skuGroup) = OVERRIDE dataExtraCode(skuGroup), nearestExtraCo
 idExtraCode '4х зн.код' (SkuGroup skuGroup) = id(extraCode(skuGroup)) IN paramsItemGroup;
 
 extraCode = DATA ExtraCode (Brand);
-idExtraCode '4х зн код' (Brand b) = id(extraCode(b)) CHARWIDTH 4;;
+idExtraCode '4х зн код' (Brand b) = id(extraCode(b)) CHARWIDTH 4;
 
 dataExtraCode = DATA ExtraCode (Sku);
-extraCode '4х зн.код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(brand(s)), extraCode(skuGroup(s)), extraCode(customsGroup(defaultCountry(), s)) IF countExtraCodes(customsGroup(defaultCountry(),s))=1 ;
+defaultExtraCode (Sku s) = extraCode(customsGroup(defaultCountry(), s)) IF countExtraCodes(customsGroup(defaultCountry(),s))=1;
+extraCode '4х зн.код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(brand(s)), extraCode(skuGroup(s)), defaultExtraCode(s) ;
 idExtraCode'4х зн.код к ТН ВЭД' (Sku s)=id(extraCode(s)) CHARWIDTH 4;
 
 needExtraCode(Sku s) = TRUE IF isTracking(customsGroup(defaultCountry(), s)) AND NOT extraCode(s);
