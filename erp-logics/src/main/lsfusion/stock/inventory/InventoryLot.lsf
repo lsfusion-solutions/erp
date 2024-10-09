@@ -93,12 +93,9 @@ quantityShortage 'Кол-во недостачи / излишка' (CollationShe
     quantityBalance(collationSheet, lot) (-) quantityPageInventoryDetail(collationSheet, lot) MATERIALIZED;
 
 countPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Lot lot) = GROUP SUM 1 IF quantity(PageInventoryDetail pageInventoryDetail, lot)
-    BY collationSheet(pageInventoryDetail);  
+    BY collationSheet(pageInventoryDetail);
 
-include(CollationSheet collationSheet, Lot lot) = MULTI
-    collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, lot),
-    collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, lot),
-    (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, lot) != 0 OR quantityPageInventoryDetail(collationSheet, lot)));
+include(CollationSheet collationSheet, Lot lot) = quantityBalance(collationSheet, lot) OR quantityPageInventoryDetail(collationSheet, lot);
 
 
 EXTEND FORM inventory
@@ -146,7 +143,7 @@ overRecalculateBalance (Inventory inventory) + {
                 } ELSE {
                     quantityBalance(cs, Lot lot)
                         <- balanceB(lot, st, dt)
-                        WHERE balanceB(lot, st, dt) AND include(cs, lot);
+                        WHERE balanceB(lot, st, dt) AND include(cs, sku(lot));
                 }
             }
         }
