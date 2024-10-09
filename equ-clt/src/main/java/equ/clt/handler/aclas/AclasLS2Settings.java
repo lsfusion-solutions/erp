@@ -12,9 +12,6 @@ public class AclasLS2Settings {
     //имена файлов библиотек, через запятую
     private String libraryNames;
 
-    //временная опция для тестирования распараллеливания загрузки
-    private int asyncOption = 0;
-
     //папка для логов
     private String logDir;
 
@@ -56,14 +53,6 @@ public class AclasLS2Settings {
 
     public void setLibraryNames(String libraryNames) {
         this.libraryNames = libraryNames;
-    }
-
-    public int getAsyncOption() {
-        return asyncOption;
-    }
-
-    public void setAsyncOption(int asyncOption) {
-        this.asyncOption = asyncOption;
     }
 
     @Deprecated
