@@ -437,7 +437,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         private static final Map<String, Pair<ReentrantLock, Integer>> libraryAccessCounter = new HashMap<>();
 
-        public static void init(List<String> libraryNames) {
+        public static synchronized void init(List<String> libraryNames) {
             for (String libraryName : libraryNames) {
                 Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.getOrDefault(libraryName, Pair.create(new ReentrantLock(), 0));
                 if (counterEntry.second == 0) {
@@ -446,12 +446,12 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                     library.AclasSDK_Initialize(null);
                     AclasSDKLibrary.aclasSDKs.put(libraryName, library);
                 }
-                log("library access counter inc " + counterEntry.first + " = " + (counterEntry.second + 1));
+                log("library access counter inc " + libraryName + " = " + (counterEntry.second + 1));
                 libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second + 1));
             }
         }
 
-        public static void release() {
+        public static synchronized void release() {
             if (!interrupted) {
                 AclasSDKLibrary.aclasSDKs.entrySet().removeIf(entry -> {
                     String libraryName = entry.getKey();
@@ -463,7 +463,7 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                         libraryAccessCounter.remove(libraryName);
                         return true;
                     } else {
-                        log("library access counter dec " + counterEntry.first + " = " + (counterEntry.second - 1));
+                        log("library access counter dec " + libraryName + " = " + (counterEntry.second - 1));
                         libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second -1));
                         return false;
                     }
