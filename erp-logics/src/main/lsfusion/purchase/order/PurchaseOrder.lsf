@@ -252,8 +252,9 @@ NAVIGATOR {
     }
 }
 
-CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractSku[Order](i) 
-    MESSAGE 'Для заказа (закупка) обязан быть задан договор';   
+CONSTRAINT (SET(isPosted(UserOrder i)) OR DROPPED(contractSku[Order](i)) OR CHANGED(operation(i))) AND
+    isPosted(i) AND isContract(operation(i)) AND NOT contractSku[Order](i)
+    MESSAGE 'Для накладной (закупка) обязан быть задан договор';
     
 skipSalePrice = ABSTRACT BOOLEAN (UserOrderDetail);    
 CONSTRAINT (SET(isPosted(UserOrderDetail d)) OR  CHANGED (operation(d)) OR CHANGED(price(d))) AND 
