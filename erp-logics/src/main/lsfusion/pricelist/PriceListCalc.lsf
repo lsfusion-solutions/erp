@@ -288,3 +288,24 @@ WHEN DROPPED (customGroup(CustomGroupType type, Sku sk)) AND sk IS Sku AND type 
     priorityMarkup(CalcPriceListType t, sk) <- NULL WHERE groupType(t) == type;
     dataMarkup(CalcPriceListType t, sk) <- NULL WHERE groupType(t) == type;
 }
+
+filterNameGroup 'По наименованию' = DATA LOCAL NESTED STRING[255] () CHARWIDTH 20;
+inFilterName (Group parent) = GROUP SUM 1 IF isParent(Group child, parent) AND isSubstring(name(child), filterNameGroup());
+inIFilterName (Group parent) = GROUP SUM 1 IF isParent(Group child, parent) AND isISubstring(name(child), filterNameGroup());
+
+EXTEND FORM calcPriceListType
+    PROPERTIES filterNameGroup()
+    FILTERS inIFilterName(g) OR NOT filterNameGroup()
+    FILTERS isParent(g,s)
+;
+
+DESIGN calcPriceListType {
+    treeContainer {
+        NEW treeFilterContainer BEFORE BOX(s){
+            MOVE PROPERTY(nameGroupType(c));
+            MOVE PROPERTY(filterNameGroup());
+            fill=1;
+            MOVE BOX(TREE treeGroup);
+        }
+    }
+}
