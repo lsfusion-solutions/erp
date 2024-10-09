@@ -69,11 +69,11 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         return 1; //отключаем распараллеливание
     }
 
-    private void init(String libraryDir, List<String> libraryNames) {
+    private void init(String libraryDir, List<String> libraryNames, int asyncOption) {
         if(libraryDir != null) {
             setLibraryPath(libraryDir, "jna.library.path");
             setLibraryPath(libraryDir, "java.library.path");
-            AclasSDK.init(libraryNames);
+            AclasSDK.init(libraryNames, asyncOption);
         } else throw new RuntimeException("No libraryDir found in settings");
     }
 
@@ -86,8 +86,8 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         }
     }
 
-    private void release() {
-        AclasSDK.release();
+    private void release(int asyncOption) {
+        AclasSDK.release(asyncOption);
     }
 
     private int clearData(ScalesInfo scales, long sleep) throws IOException, InterruptedException {
@@ -348,13 +348,16 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
         AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
         String libraryDir = aclasLS2Settings.getLibraryDir();
         List<String> libraryNames = aclasLS2Settings.getLibraryNames();
-        init(libraryDir, libraryNames);
+        int asyncOption = aclasLS2Settings.getAsyncOption();
+        init(libraryDir, libraryNames, asyncOption);
     }
 
     @Override
     protected void afterFinishTransactionExecutor() {
         aclasls2Logger.info(getLogPrefix() + "Disconnecting from library...");
-        release();
+        AclasLS2Settings aclasLS2Settings = springContext.containsBean("aclasLS2Settings") ? (AclasLS2Settings) springContext.getBean("aclasLS2Settings") : new AclasLS2Settings();
+        int asyncOption = aclasLS2Settings.getAsyncOption();
+        release(asyncOption);
     }
 
     @Override
@@ -437,37 +440,80 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
 
         private static final Map<String, Pair<ReentrantLock, Integer>> libraryAccessCounter = new HashMap<>();
 
-        public static synchronized void init(List<String> libraryNames) {
-            for (String libraryName : libraryNames) {
-                Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.getOrDefault(libraryName, Pair.create(new ReentrantLock(), 0));
-                if (counterEntry.second == 0) {
-                    AclasSDKLibrary library = Native.load(libraryName, AclasSDKLibrary.class, getOptions());
-                    log("init " + libraryName);
-                    library.AclasSDK_Initialize(null);
-                    AclasSDKLibrary.aclasSDKs.put(libraryName, library);
+        static ReentrantLock lock = new ReentrantLock();
+        public static void init(List<String> libraryNames, int asyncOption) {
+            if(asyncOption == 0) {
+                for (String libraryName : libraryNames) {
+                    Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.getOrDefault(libraryName, Pair.create(new ReentrantLock(), 0));
+                    if (counterEntry.second == 0) {
+                        AclasSDKLibrary library = Native.load(libraryName, AclasSDKLibrary.class, getOptions());
+                        log("init " + libraryName);
+                        library.AclasSDK_Initialize(null);
+                        AclasSDKLibrary.aclasSDKs.put(libraryName, library);
+                    }
+                    log("library access counter inc " + libraryName + " = " + (counterEntry.second + 1));
+                    libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second + 1));
                 }
-                log("library access counter inc " + libraryName + " = " + (counterEntry.second + 1));
-                libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second + 1));
+            } else {
+                try {
+                    lock.lock();
+                    for (String libraryName : libraryNames) {
+                        Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.getOrDefault(libraryName, Pair.create(new ReentrantLock(), 0));
+                        if (counterEntry.second == 0) {
+                            AclasSDKLibrary library = Native.load(libraryName, AclasSDKLibrary.class, getOptions());
+                            log("init " + libraryName);
+                            library.AclasSDK_Initialize(null);
+                            AclasSDKLibrary.aclasSDKs.put(libraryName, library);
+                        }
+                        log("library access counter inc " + libraryName + " = " + (counterEntry.second + 1));
+                        libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second + 1));
+                    }
+                } finally {
+                    lock.unlock();
+                }
             }
         }
 
-        public static synchronized void release() {
+        public static void release(int asyncOption) {
             if (!interrupted) {
-                AclasSDKLibrary.aclasSDKs.entrySet().removeIf(entry -> {
-                    String libraryName = entry.getKey();
-                    Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.get(libraryName);
-                    if (counterEntry.second == 1) {
-                        log("release " + libraryName);
-                        entry.getValue().AclasSDK_Finalize();
-                        log("library access counter removed " + counterEntry.first);
-                        libraryAccessCounter.remove(libraryName);
-                        return true;
-                    } else {
-                        log("library access counter dec " + libraryName + " = " + (counterEntry.second - 1));
-                        libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second -1));
-                        return false;
+                if(asyncOption == 0) {
+                    AclasSDKLibrary.aclasSDKs.entrySet().removeIf(entry -> {
+                        String libraryName = entry.getKey();
+                        Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.get(libraryName);
+                        if (counterEntry.second == 1) {
+                            log("release " + libraryName);
+                            entry.getValue().AclasSDK_Finalize();
+                            log("library access counter removed " + counterEntry.first);
+                            libraryAccessCounter.remove(libraryName);
+                            return true;
+                        } else {
+                            log("library access counter dec " + libraryName + " = " + (counterEntry.second - 1));
+                            libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second - 1));
+                            return false;
+                        }
+                    });
+                } else {
+                    try {
+                        lock.lock();
+                        AclasSDKLibrary.aclasSDKs.entrySet().removeIf(entry -> {
+                            String libraryName = entry.getKey();
+                            Pair<ReentrantLock, Integer> counterEntry = libraryAccessCounter.get(libraryName);
+                            if (counterEntry.second == 1) {
+                                log("release " + libraryName);
+                                entry.getValue().AclasSDK_Finalize();
+                                log("library access counter removed " + counterEntry.first);
+                                libraryAccessCounter.remove(libraryName);
+                                return true;
+                            } else {
+                                log("library access counter dec " + libraryName + " = " + (counterEntry.second - 1));
+                                libraryAccessCounter.put(libraryName, Pair.create(counterEntry.first, counterEntry.second - 1));
+                                return false;
+                            }
+                        });
+                    } finally {
+                        lock.unlock();
                     }
-                });
+                }
             }
             interrupted = false;
         }
