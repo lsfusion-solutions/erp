@@ -480,3 +480,7 @@ CONSTRAINT (SET(isPosted(UserInvoice i)) OR DROPPED(series(i))) AND isSeriesInvo
 
 CONSTRAINT (SET (isPosted(UserInvoice doc)) OR DROPPED (countUserInvoiceDetail(doc))) AND isPosted(doc) AND detailsFillCheck(operation(doc)) AND NOT countUserInvoiceDetail(doc)
     MESSAGE 'Для текущей операции обязательно наличие строк спецификации';
+
+CONSTRAINT noFractQuantity() AND (CHANGED (sku(UserInvoiceDetail d)) OR CHANGED (quantity(d)))
+    AND noDivisibleUOM(UOM(sku(d))) AND INTEGER(quantity(d)) != quantity(d)
+    MESSAGE 'Количество должно быть целым';

@@ -232,4 +232,8 @@ CONSTRAINT  (CHANGED(isPosted(UserOrderDetail d)) OR CHANGED (operation(d))OR CH
 skipSaleBatch = ABSTRACT VALUE BOOLEAN (UserOrderDetail);
 CONSTRAINT (CHANGED(isPosted(UserOrderDetail d)) OR CHANGED (operation(d)) OR CHANGED (sku(d)) OR CHANGED(batch(d)))  AND
     isPosted(d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) AND NOT skipSaleBatch(d)
-    MESSAGE 'Для строки заказа (продажа) должна быть задана партия'; 
+    MESSAGE 'Для строки заказа (продажа) должна быть задана партия';
+
+CONSTRAINT noFractQuantity() AND (CHANGED (sku(UserOrderDetail d)) OR CHANGED (quantity(d)))
+    AND noDivisibleUOM(UOM(sku(d))) AND INTEGER(quantity(d)) != quantity(d)
+    MESSAGE 'Количество должно быть целым';
