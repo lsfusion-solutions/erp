@@ -230,6 +230,7 @@ blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrwblLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,2](INTEGER);
 blrwblLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
+blrwblLineItemIdentificationGroupPackingHeader = DATA LOCAL INTEGER(INTEGER);
 lineItemManufacturerOutputPrice = DATA LOCAL NUMERIC[18,2](INTEGER);
 typeDiscount = DATA LOCAL STRING[512](INTEGER);
 bulkDiscountRate = DATA LOCAL STRING[512](INTEGER);
@@ -241,7 +242,6 @@ cutRate = DATA LOCAL STRING[512](INTEGER);
 additionalInformationPrice = DATA LOCAL STRING[512](INTEGER);
 additionalInformationNote = DATA LOCAL STRING[512](INTEGER);
 
-GROUP blrwblLineItemIdentification EXTID 'LineItemIdentification';
 blrwblGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
 blrwblUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
 blrwblFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
@@ -351,20 +351,22 @@ FORM blrwbl
         additionalInformationPrice EXTID 'AdditionalInformationPrice',
         additionalInformationNote EXTID 'AdditionalInformation'
 
-    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrwblLineItemIdentification
-    PROPERTIES(d) blrwblGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
+    OBJECTS blrwblLineItemIdentification = INTEGER EXTID 'LineItemIdentification'
+    FILTERS blrwblLineItemLineItemIdentification(blrwblLineItemIdentification) == i
+    
+    PROPERTIES(blrwblLineItemIdentification) IN groupPackingHeader
+        blrwblGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
         blrwblUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
-    PROPERTIES(i) IN blrwblLineItemIdentification blrwblFieldCodeMark EXTID 'FieldCodeMark'
-    FILTERS blrwblLineItemLineItemIdentification(d) == i
+
+    OBJECTS blrwblFieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
+    PROPERTIES(blrwblFieldCodeMark) fieldCodeMark EXTID 'value'
+    FILTERS fieldCodeMarkHeaderFieldCodeMark(blrwblFieldCodeMark) == blrwblLineItemIdentification
+
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrwblLineItemFieldName EXTID 'FieldName',
         blrwblLineItemFieldCode EXTID 'FieldCode',
         blrwblLineItemFieldValue EXTID 'FieldValue'
     FILTERS blrwblLineItemLineItemExtraField(f) == i
-
-    OBJECTS m = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
-    PROPERTIES (m) fieldCodeMark EXTID 'value'
-    FILTERS fieldCodeMarkHeaderFieldCodeMark(m) == i
 ;
 
 blrdlnTestIndicator = DATA LOCAL STRING[1]();
@@ -512,11 +514,18 @@ FORM blrdln
         cutRate EXTID 'CutRate',
         additionalInformationPrice EXTID 'AdditionalInformationPrice',
         additionalInformationNote EXTID 'AdditionalInformation'
-    OBJECTS d = INTEGER EXTID 'GroupPackingHeader' IN blrdlnLineItemIdentification
-    PROPERTIES(d) blrdlnGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
+
+    OBJECTS blrdlnLineItemIdentification = INTEGER EXTID 'LineItemIdentification'
+    FILTERS blrdlnLineItemLineItemIdentification(blrdlnLineItemIdentification) == i
+
+    PROPERTIES(blrdlnLineItemIdentification) IN groupPackingHeader
+        blrdlnGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
         blrdlnUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
-    PROPERTIES(i) IN blrdlnLineItemIdentification blrdlnFieldCodeMark EXTID 'FieldCodeMark'
-    FILTERS blrdlnLineItemLineItemIdentification(d) == i
+
+    OBJECTS blrdlnFieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
+    PROPERTIES(blrdlnFieldCodeMark) fieldCodeMark EXTID 'value'
+    FILTERS fieldCodeMarkHeaderFieldCodeMark(blrdlnFieldCodeMark) == blrdlnLineItemIdentification
+        
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrdlnLineItemFieldName EXTID 'FieldName',
         blrdlnLineItemFieldCode EXTID 'FieldCode',

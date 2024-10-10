@@ -128,10 +128,30 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 value(ief) <- blrwblLineItemFieldValue(e);
                                 eInvoiceDetail(ief) <- ed;
                             }
-                            FOR fieldCodeMark(INTEGER e) AND fieldCodeMarkHeaderFieldCodeMark(e) == l NEW ld = EInvoiceLotDetail DO {
-                                id(ld) <- STRING[200](decodeText(fieldCodeMark(e), 'base64'));
-                                quantity(ld) <- 1;
-                                eInvoiceDetail(ld) <- ed;
+                            FOR blrwblLineItemLineItemIdentification(INTEGER e) == l DO {
+                                LOCAL groupPackingCodeMark = EInvoiceLotDetail();
+                                IF blrwblGroupPackingCodeMark(e) THEN NEW ld = EInvoiceLotDetail {
+                                    id(ld) <- STRING[200](decodeText(blrwblGroupPackingCodeMark(e), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    groupPackingCodeMark() <- ld;
+                                }
+
+                                LOCAL upperLevelCodeMark = EInvoiceLotDetail();
+                                IF blrwblUpperLevelCodeMark(e) THEN NEW ld = EInvoiceLotDetail {
+                                    id(ld) <- STRING[200](decodeText(blrwblUpperLevelCodeMark(e), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    parent(ld) <- groupPackingCodeMark();
+                                    upperLevelCodeMark() <- ld;
+                                }
+
+                                FOR fieldCodeMark(INTEGER ee) AND fieldCodeMarkHeaderFieldCodeMark(ee) == fieldCodeMarkHeaderFieldCodeMark(e) NEW ld = EInvoiceLotDetail DO {
+                                    id(ld) <- STRING[200](decodeText(fieldCodeMark(ee), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    parent(ld) <- OVERRIDE upperLevelCodeMark(), groupPackingCodeMark();
+                                }
                             }
                             overCreateEInvoiceDetailBlrwbl(ed,l);
                         }
@@ -437,10 +457,30 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                 value(ief) <- blrdlnLineItemFieldValue(e);
                                 eInvoiceDetail(ief) <- ed;
                             }
-                            FOR fieldCodeMark(INTEGER e) AND fieldCodeMarkHeaderFieldCodeMark(e) == l NEW ld = EInvoiceLotDetail DO {
-                                id(ld) <- STRING[200](decodeText(fieldCodeMark(e), 'base64'));
-                                quantity(ld) <- 1;
-                                eInvoiceDetail(ld) <- ed;
+                            FOR blrdlnLineItemLineItemIdentification(INTEGER e) == l DO {
+                                LOCAL groupPackingCodeMark = EInvoiceLotDetail();
+                                IF blrdlnGroupPackingCodeMark(e) THEN NEW ld = EInvoiceLotDetail {
+                                    id(ld) <- STRING[200](decodeText(blrdlnGroupPackingCodeMark(e), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    groupPackingCodeMark() <- ld;
+                                }
+    
+                                LOCAL upperLevelCodeMark = EInvoiceLotDetail();
+                                IF blrdlnUpperLevelCodeMark(e) THEN NEW ld = EInvoiceLotDetail {
+                                    id(ld) <- STRING[200](decodeText(blrdlnUpperLevelCodeMark(e), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    parent(ld) <- groupPackingCodeMark();
+                                    upperLevelCodeMark() <- ld;
+                                }
+    
+                                FOR fieldCodeMark(INTEGER ee) AND fieldCodeMarkHeaderFieldCodeMark(ee) == e NEW ld = EInvoiceLotDetail DO {
+                                    id(ld) <- STRING[200](decodeText(fieldCodeMark(ee), 'base64'));
+                                    quantity(ld) <- 1;
+                                    eInvoiceDetail(ld) <- ed;
+                                    parent(ld) <- OVERRIDE upperLevelCodeMark(), groupPackingCodeMark();
+                                }
                             }
                             overCreateEInvoiceDetailBlrdln(ed,l);
                         }

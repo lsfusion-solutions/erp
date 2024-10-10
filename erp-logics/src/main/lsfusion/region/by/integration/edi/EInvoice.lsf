@@ -274,6 +274,12 @@ eInvoice (EInvoiceLotDetail d) = eInvoice(eInvoiceDetail(d));
 id 'Код маркировки единицы товара' = DATA STRING[200] (EInvoiceLotDetail);
 quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
 
+parent = DATA EInvoiceLotDetail(EInvoiceLotDetail);
+idParent 'Родитель' (EInvoiceLotDetail d) = id(parent(d));
+
+isFieldCodeMark (EInvoiceLotDetail d) = NOT GROUP MIN TRUE IF parent(EInvoiceLotDetail dd) == d;
+isUpperLevelCodeMark (EInvoiceLotDetail d) = GROUP MIN TRUE IF parent(EInvoiceLotDetail dd) == d AND isFieldCodeMark(dd);
+isPackingCodeMark(EInvoiceLotDetail d) = GROUP MIN TRUE IF parent(EInvoiceLotDetail dd) == d AND isUpperLevelCodeMark(dd);
 
 CLASS ItemExtraField 'Дополнительное поле, описывающее товар';
 TABLE itemExtraField(ItemExtraField);
@@ -393,7 +399,7 @@ FORM eInvoices 'Электронные накладные'
     FILTERS eInvoice(dl) == e
 
     OBJECTS eld = EInvoiceLotDetail
-    PROPERTIES(eld) READONLY id, quantity
+    PROPERTIES(eld) READONLY idParent, id, quantity
     FILTERS eInvoiceDetail(eld) = dl
 ;
 @extendFormEditable(eInvoices);
@@ -485,7 +491,7 @@ FORM eInvoice 'Электронная накладная'
     FILTERS eInvoice(dl) == e
 
     OBJECTS eld = EInvoiceLotDetail
-    PROPERTIES(eld) READONLY id, quantity
+    PROPERTIES(eld) READONLY idParent, id, quantity
     FILTERS eInvoiceDetail(eld) = dl
     
     OBJECTS ef = ExtraField
@@ -668,7 +674,9 @@ GROUP receiver EXTID 'Receiver';
 GROUP shipTo EXTID 'ShipTo';
 
 GROUP lineItemIdentification EXTID 'LineItemIdentification';
-GROUP fieldCodeMarkHeader EXTID 'FieldCodeMarkHeader' : lineItemIdentification;
+GROUP groupPackingHeader EXTID 'GroupPackingHeader';
+GROUP fieldCodeMarkHeader EXTID 'FieldCodeMarkHeader';
+GROUP exportfieldCodeMarkHeader EXTID 'FieldCodeMarkHeader' : lineItemIdentification;
 GROUP fieldCostControl EXTID 'FieldCostControl';
 
 //-----------------------------------------Электронный акт приемки----------------------------------------------//
