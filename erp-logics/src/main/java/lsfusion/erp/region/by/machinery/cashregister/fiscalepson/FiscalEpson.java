@@ -196,9 +196,10 @@ public class FiscalEpson {
         epsonActiveXComponent.setProperty("Quantity", new Variant(quantity));
         epsonActiveXComponent.setProperty("QuantityUnit", new Variant(useBlisters ? "блист." : ""));
         epsonActiveXComponent.setProperty("ForcePrintSingleQuantity", new Variant(1));
-        epsonActiveXComponent.setProperty("Department", department);
 
         if (version116) {
+
+            epsonActiveXComponent.setProperty("Department",item.numberVAT);
 
             // соответствует не маркированному товару без GTIN (barcode)
             Integer typeOfGoods = 0;                // Тип маркировки
@@ -256,6 +257,7 @@ public class FiscalEpson {
 
         } else {
 
+            epsonActiveXComponent.setProperty("Department", department);
             if(sendSKNO && isGiftCardOrComission) { //подарочный сертификат должен начинаться с 99. Чтобы обойти это ограничение, можно для сертификата задавать TypeOfGoods = 4
                 epsonActiveXComponent.setProperty("TypeOfGoods", new Variant(1));
                 epsonActiveXComponent.setProperty("BarcodeOfGoogs", new Variant(appendZeroes(item.barcode)));

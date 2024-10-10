@@ -107,12 +107,12 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                         "quantityReceiptDetail", "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "bonusPaidReceiptDetail", "valueVATReceiptDetail",
                         "calcSumVATReceiptDetail", "idSectionReceiptDetail", "commentReceiptDetail",
-                        "epsonSkuTypeReceiptDetail","epsonIdLotReceiptDetail","epsonTailLotReceiptDetail"};
+                        "epsonSkuTypeReceiptDetail","epsonIdLotReceiptDetail","epsonTailLotReceiptDetail","numberVATReceiptDetail"};
                 LP<?>[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "isCommission[ReceiptDetail]",
                         "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
                         "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]", "valueVAT[ReceiptDetail]",
                         "calcSumVAT[ReceiptDetail]", "idSection[ReceiptDetail]", "fiscalEpsonComment[ReceiptDetail]",
-                        "epsonSkuType[ReceiptDetail]","epsonIdLot[ReceiptDetail]","epsonTailLot[ReceiptDetail]");
+                        "epsonSkuType[ReceiptDetail]","epsonIdLot[ReceiptDetail]","epsonTailLot[ReceiptDetail]","numberVAT[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
@@ -159,13 +159,14 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                     String tailLot = (String) receiptDetailValues.get("epsonTailLotReceiptDetail");
                     tailLot = tailLot == null ? null : tailLot.trim();
                     Integer skuType = (Integer) receiptDetailValues.get("epsonSkuTypeReceiptDetail");
+                    Integer numberVAT = (Integer) receiptDetailValues.get("numberVATReceiptDetail");
 
                     if (quantitySale != null && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(false, isCommission, price, quantitySale, useBlisters, blisterPrice, blisterQuantity, barcode, name,
-                                sumReceiptDetail, discountSumReceiptDetail, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot));
+                                sumReceiptDetail, discountSumReceiptDetail, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot, numberVAT));
                     if (quantity != null && isGiftCard) {
                         receiptSaleItemList.add(new ReceiptItem(true, isCommission, price, quantity, useBlisters, blisterPrice, blisterQuantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot));
+                                sumReceiptDetail, discountSumReceiptDetail, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot, numberVAT));
                     }
                     if (quantityReturn != null) {
                         BigDecimal discount = discountSumReceiptDetail;
@@ -173,7 +174,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                             discount = discountSumReceiptDetail == null ? BigDecimal.ZERO : discountSumReceiptDetail.divide(quantityReturn, 2, RoundingMode.UP);
                         }
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, isCommission, price, quantityReturn, useBlisters, blisterPrice, blisterQuantity, barcode,
-                                name, sumReceiptDetail, discount, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot));
+                                name, sumReceiptDetail, discount, bonusPaid, vatString, section, commentDetail, skuType, idLot, tailLot, numberVAT));
                     }
                 }
 
