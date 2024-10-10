@@ -279,6 +279,11 @@ recBruttoQuantityNotException(BOM, Sku sku, date)  =  recBruttoQuantity(BOM, sku
 recBruttoQuantityH 'Кол-во компонентов в натуре' (BOM BOM, DATE date) =
     (GROUP SUM (recBruttoQuantityNotException(BOM, Sku sku, date)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/actQuantityBakery(BOM)*1000.0) IF NOT (isWater(sku) OR isPack(BOM,sku)));
 
+nettoQuantityException  = GROUP SUM nettoQuantity(Component c) IF exception(c) BY BOM(c),sku(c);
+recNettoQuantityNotException(BOM, Sku sku)  =  recNettoQuantity(BOM, sku) (-) nettoQuantityException(BOM, sku);
+recNettoQuantityH 'Кол-во компонентов в натуре' (BOM BOM) =
+    (GROUP SUM (recNettoQuantityNotException(BOM, Sku sku)*(OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/actQuantityBakery(BOM)*1000.0) IF NOT (isWater(sku) OR isPack(BOM,sku)));
+
 recBruttoDrynessQuantityNotException 'В сухих веществах' (BOM BOM, Item sku, DATE date)= recBruttoQuantityNotException (BOM, sku, date) *
     (OVERRIDE netWeight(sku), 1.0 IF sku IS Sku) *
     percentDryness(sku)/100;
@@ -371,6 +376,17 @@ quantityHSku 'Кол-во для компонента, если он полуф�
     actQuantityBakery(BOM(component))*1000.0
 ;
 quantityRoundHSku 'Итого сырья на полуфабрикаты' (Component component, DATE date) = GROUP SUM round1(quantityHSku(component, Sku sku, date));
+
+nettoQuantitySku  (BOM, material) = GROUP SUM nettoQuantity(Component c) IF material(c) IS Sku AND NOT exception(c) AND NOT isWater(c) BY BOM(c), material(c);
+recNettoQuantitySku (BOM BOM, Sku sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, BOM childBOM) * nettoQuantitySku(childBOM, sku); //](BOM, sku);
+quantityHSkuNetto 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku)= recNettoQuantitySku (BOM(material(component)), sku) *
+    nettoQuantity(component)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE netWeight[Item](sku), 1.0 IF sku IS Sku)/
+    actQuantityBakery(BOM(component))*1000.0
+;
+quantityNettoBomHSku 'Кол-во по спец. для полуфабрикатов' (BOM, Sku sku) = GROUP SUM quantityHSkuNetto(Component component, sku) BY BOM(component);
+
 
 quantityHWater'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantityWater (BOM(material(component)), sku, date) *
     bruttoQuantity(component, date)/
@@ -563,6 +579,20 @@ shortNameOwnershipCompanyLocal 'Форма собственности (сокр.
 
 textStateStandart 'Выдержка из нормативного документа' =  TEXT ([GROUP CONCAT text(StateStandart s) IF in(s, BOM b), '\n' ORDER s BY b](BOM b));
 
+overBruttoQuantityHConcat(Component c, DATE dt) = (CONCAT  '\n', '('+Utils.toChar(overBruttoQuantityH(c,dt),'FM9999999990D0')+')', Utils.toChar(overNettoNetWeightH(c),'FM9999999990D0')) 
+    IF overBruttoQuantityH(c,dt)!=overNettoNetWeightH(c);
+showOverBruttoQuantityHConcat(Component c, DATE dt) = overBruttoQuantityH(c,dt)!=overNettoNetWeightH(c);
+
+
+quantityBomHSkuConcat(BOM b,Sku k,DATE dt) = (CONCAT  '\n', '('+Utils.toChar(quantityBomHSku(b,k,dt),'FM9999999990D0')+')', Utils.toChar(quantityNettoBomHSku(b,k),'FM9999999990D0'))
+    IF quantityBomHSku(b,k,dt)!=quantityNettoBomHSku(b,k);
+showQuantityBomHSkuConcat(BOM b,Sku k,DATE dt) = quantityBomHSku(b,k,dt)!=quantityNettoBomHSku(b,k);
+
+//recNettoQuantityH
+recNettoQuantityHConcat(BOM b,DATE dt) = (CONCAT  '\n', '('+Utils.toChar(recBruttoQuantityH(b,dt),'FM9999999990D0')+')', Utils.toChar(recNettoQuantityH(b),'FM9999999990D0'))
+    IF recBruttoQuantityH(b,dt)!=recNettoQuantityH(b);
+showRecNettoQuantityH(BOM b, DATE dt) = recBruttoQuantityH(b,dt)!=recNettoQuantityH(b);
+
 FORM technologicalMapBakery 'Технологическая карта'
 
     OBJECTS dt=DATE PANEL
@@ -578,6 +608,7 @@ FORM technologicalMapBakery 'Технологическая карта'
     PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, percentDryness, drynessQuantity
         ,overNettoNetWeightH, drynessQuantityH, isWaterComponent
     PROPERTIES(b,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
+    PROPERTIES       READONLY   recNettoQuantityHConcat(b,dt), showRecNettoQuantityH(b,dt)
     PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
     PROPERTIES(p,dt) READONLY recBruttoQuantityH, recBruttoDrynessQuantityH
     PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
@@ -599,7 +630,8 @@ FORM technologicalMapBakery 'Технологическая карта'
     PROPERTIES(k) READONLY name, percentDryness PANEL, isWater
     PROPERTIES     quantitySku(c,k,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
     PROPERTIES     quantityHSku(c,k,dt) COLUMNS (c) HEADER nameMaterial(c) FOOTER nameBOMMaterial(c)
-    PROPERTIES     READONLY quantityBomSku(b,k,dt), quantityBomHSku(b,k,dt),drynessQuantityBomSku(b,k,dt), drynessQuantityBomHSku(b,k,dt)
+    PROPERTIES     READONLY quantityBomSku(b,k,dt), quantityBomHSku(b,k,dt),drynessQuantityBomSku(b,k,dt), drynessQuantityBomHSku(b,k,dt), 
+        quantityNettoBomHSku(b,k), quantityBomHSkuConcat(b,k,dt), showQuantityBomHSkuConcat(b,k,dt)
     FILTERS        quantityBomSku(b,k,dt)
 
     OBJECTS kw = Sku
@@ -642,7 +674,7 @@ FORM technologicalMapBakery 'Технологическая карта'
     OBJECTS cc = Component
     PROPERTIES(cc) READONLY index, idBarcodeSku, id, nameMaterial, shortNameUOM, overNettoNetWeight, isWater
     PROPERTIES    READONLY wastage(cc,dt), overBruttoQuantity(cc,dt), overBruttoQuantityH(cc,dt),percentDryness(cc),
-        drynessQuantity(cc,dt), drynessQuantityH(cc,dt)
+        drynessQuantity(cc,dt), drynessQuantityH(cc,dt), overBruttoQuantityHConcat(cc,dt), showOverBruttoQuantityHConcat(cc,dt)
     ORDERS        isWater(cc)
     FILTERS       BOM(cc) == b,
         material(cc) IS Sku,
