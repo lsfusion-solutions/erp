@@ -139,6 +139,7 @@ nameCountryKeyType 'Тип ключа для страны' (ImportType importTyp
 keyIsDigit 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
 checkArticles 'Проверять артикулы на изменение' (importType) = DATA BOOLEAN(ImportType); 
 multipleDocuments 'Несколько документов в одном файле' (importType) = DATA BOOLEAN(ImportType); 
+importWithoutItemIfBothKeysNull 'Импортировать без товара, если значение обоих ключей NULL' (ImportType importType) = DATA BOOLEAN(ImportType);
 importTypeDetail (ImportType) = DATA ImportTypeDetail(ImportType);
 propertyImportTypeDetail 'Свойство артикула' (ImportType importType) = canonicalNameProp(importTypeDetail(importType)) CHARWIDTH 30; 
 staticNameImportTypeDetail  (ImportType importType) = staticName(importTypeDetail(importType)); 
@@ -224,7 +225,7 @@ FORM importType 'Тип импорта'
                   captionSecondaryKeyType, keyIsDigit, 
                   checkArticles, propertyImportTypeDetail SHOWIF checkArticles(i), 
                   captionCountryKeyType,
-                  multipleDocuments,
+                  multipleDocuments, importWithoutItemIfBothKeysNull,
                   useStockMapping, autoImport, 
                   autoImportDirectory SHOWIF autoImport(i),
                   nameAutoImportOperation , 
@@ -279,21 +280,20 @@ DESIGN importType {
 }
 
 FORM importTypes 'Типы импорта'
-    OBJECTS i=ImportType
-    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
-                   separator, captionPrimaryKeyType, checkExistencePrimaryKey,
-                   captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType, 
-                   multipleDocuments, autoImport, autoImportDirectory SHOWIF autoImport(i)
-    ORDERS name(i)                   
+    OBJECTS i = ImportType
+    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted, separator, captionPrimaryKeyType,
+        checkExistencePrimaryKey, captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType,
+        multipleDocuments, importWithoutItemIfBothKeysNull, autoImport, autoImportDirectory SHOWIF autoImport(i)
+    ORDERS name(i)
     LIST ImportType OBJECT i
 ;
 
 EXTEND FORM integrationData
-    OBJECTS i=ImportType
-    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
-                   separator, captionPrimaryKeyType, checkExistencePrimaryKey, 
-                   captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType, multipleDocuments
-    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE 
+    OBJECTS i = ImportType
+    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted, separator, captionPrimaryKeyType,
+        checkExistencePrimaryKey, captionSecondaryKeyType, keyIsDigit, checkArticles, captionCountryKeyType,
+        multipleDocuments, importWithoutItemIfBothKeysNull
+    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE
 ;
 
 DESIGN integrationData {
@@ -325,6 +325,7 @@ copy 'Копировать' (ImportType t) {
         keyIsDigit(i) <- keyIsDigit(t);
         checkArticles(i) <- checkArticles(t);
         multipleDocuments(i) <- multipleDocuments(t);
+        importWithoutItemIfBothKeysNull(i) <- importWithoutItemIfBothKeysNull(t);
         importTypeDetail(i) <- importTypeDetail(t);
         autoImport(i) <- autoImport(t);
         autoImportDirectory(i) <- autoImportDirectory(t);

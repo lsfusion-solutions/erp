@@ -138,8 +138,10 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
         String propertyImportType = trim((String) findProperty("propertyImportTypeDetail[ImportType]").read(context, importTypeObject));
         boolean multipleDocuments = findProperty("multipleDocuments[ImportType]").read(context, importTypeObject) != null;
         String countryKeyType = parseKeyType((String) findProperty("nameCountryKeyType[ImportType]").read(context, importTypeObject));
+        boolean importWithoutItemIfBothKeysNull = findProperty("importWithoutItemIfBothKeysNull[ImportType]").read(context, importTypeObject) != null;
         return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType,
-                keyIsDigit, startRow, isPosted, separator, propertyImportType, multipleDocuments, countryKeyType);
+                keyIsDigit, startRow, isPosted, separator, propertyImportType, multipleDocuments, countryKeyType,
+                importWithoutItemIfBothKeysNull);
     }
 
     public String parseKeyType(String keyType) {

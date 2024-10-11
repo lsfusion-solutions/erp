@@ -16,11 +16,12 @@ public class ImportDocumentSettings {
     private String propertyImportType;
     private boolean multipleDocuments;
     private String countryKeyType;
+    private boolean importWithoutItemIfBothKeysNull;
 
     public ImportDocumentSettings(Map<String, String> stockMapping, String fileExtension, String primaryKeyType, 
                                   boolean checkExistence, String secondaryKeyType, boolean keyIsDigit, Integer startRow, 
                                   Boolean isPosted, String separator, String propertyImportType, boolean multipleDocuments,
-                                  String countryKeyType) {
+                                  String countryKeyType, boolean importWithoutItemIfBothKeysNull) {
         this.stockMapping = stockMapping;
         this.fileExtension = fileExtension;
         this.primaryKeyType = primaryKeyType;
@@ -33,6 +34,7 @@ public class ImportDocumentSettings {
         this.propertyImportType = propertyImportType;
         this.multipleDocuments = multipleDocuments;
         this.countryKeyType = countryKeyType;
+        this.importWithoutItemIfBothKeysNull = importWithoutItemIfBothKeysNull;
     }
 
     public Map<String, String> getStockMapping() {
@@ -81,5 +83,9 @@ public class ImportDocumentSettings {
 
     public String getCountryKeyType() {
         return countryKeyType;
+    }
+
+    public boolean isImportWithoutItemIfBothKeysNull() {
+        return importWithoutItemIfBothKeysNull;
     }
 }

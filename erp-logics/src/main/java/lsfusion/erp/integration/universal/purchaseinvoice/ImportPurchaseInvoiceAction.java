@@ -1030,7 +1030,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                 String primaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
+                boolean forceAddToPrimaryList = forceAddToPrimaryList(primaryKeyColumnValue, secondaryKeyColumnValue, importSettings);
+                if (forceAddToPrimaryList || checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
                     secondaryList.add(purchaseInvoiceDetail);
@@ -1157,7 +1158,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                 String primaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(primaryKeyColumn), count);
                 String secondaryKeyColumnValue = getCSVFieldValue(valuesList, defaultColumns.get(secondaryKeyColumn), count);
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
+                boolean forceAddToPrimaryList = forceAddToPrimaryList(primaryKeyColumnValue, secondaryKeyColumnValue, importSettings);
+                if (forceAddToPrimaryList || checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
                         importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1280,11 +1282,12 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                 String primaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(primaryKeyColumn));
                 String secondaryKeyColumnValue = getXLSXFieldValue(sheet, i, defaultColumns.get(secondaryKeyColumn));
-                if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(),
+                boolean forceAddToPrimaryList = forceAddToPrimaryList(primaryKeyColumnValue, secondaryKeyColumnValue, importSettings);
+                if (forceAddToPrimaryList || checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(),
                         context, importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                     primaryList.add(purchaseInvoiceDetail);
                 else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
-                    primaryList.add(purchaseInvoiceDetail);
+                    secondaryList.add(purchaseInvoiceDetail);
             }
         }
         currentTimestamp = null;
@@ -1420,7 +1423,8 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
 
                     String primaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(primaryKeyColumn), i, charset);
                     String secondaryKeyColumnValue = getDBFFieldValue(file, defaultColumns.get(secondaryKeyColumn), i, charset);
-                    if (checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
+                    boolean forceAddToPrimaryList = forceAddToPrimaryList(primaryKeyColumnValue, secondaryKeyColumnValue, importSettings);
+                    if (forceAddToPrimaryList || checkKeyColumnValue(primaryKeyColumn, primaryKeyColumnValue, importSettings.isKeyIsDigit(), context,
                             importSettings.getPrimaryKeyType(), importSettings.isCheckExistence()))
                         primaryList.add(purchaseInvoiceDetail);
                     else if (checkKeyColumnValue(secondaryKeyColumn, secondaryKeyColumnValue, importSettings.isKeyIsDigit()))
@@ -1438,6 +1442,10 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
        
         return checkArticles(context, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 
                 primaryList, secondaryList) ? Arrays.asList(primaryList, secondaryList) : null;
+    }
+
+    private boolean forceAddToPrimaryList(String primaryKeyColumnValue, String secondaryKeyColumnValue, ImportDocumentSettings importSettings) {
+        return primaryKeyColumnValue == null && secondaryKeyColumnValue == null && importSettings.isImportWithoutItemIfBothKeysNull();
     }
 
     private boolean checkInvoice(Set<String> invoiceSet, String idInvoice, boolean checkInvoiceExistence, Map<String, Object> fieldValues, boolean allowIncorrectBarcode) {
