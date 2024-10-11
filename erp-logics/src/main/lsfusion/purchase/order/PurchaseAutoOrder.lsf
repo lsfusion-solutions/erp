@@ -324,18 +324,13 @@ DESIGN scheduleOrder{
         }
     }
 }
-
-createAutoOrders 'Создание автозаказов' () {    
-    toCreate(ScheduleOrderDetail d)<- NULL;
-    toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
-            AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o)) 
-            AND NOT dateOrder(d)>endDate(scheduleOrder(d));
-    createAutoOrdersBefore();
-    
-    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) ORDER (OVERRIDE timeToOrder(scheduleOrderDetail), 23:59 IF scheduleOrderDetail IS ScheduleOrderDetail), scheduleOrderDetail DO {      
+createAutoOrdersCustom 'Создание автозаказов' () {
+    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) ORDER (OVERRIDE timeToOrder(scheduleOrderDetail), 23:59 IF scheduleOrderDetail IS ScheduleOrderDetail), scheduleOrderDetail DO {
         NEWSESSION NESTED LOCAL{
             typeProcess(scheduleOrderDetail) <- TypeProcess.start;
-            noteProcess(scheduleOrderDetail) <- (CONCAT ' ', currentDateTime(),'Старт обработки');
+            noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                noteProcess(scheduleOrderDetail),
+                (CONCAT ' ', currentDateTime(),'Старт обработки'));
             APPLY NESTED LOCAL;
         }
         NEWSESSION {
@@ -360,20 +355,20 @@ createAutoOrders 'Создание автозаказов' () {
                 supplierStock(o) <- supplierStock(scheduleOrderDetail);
                 customerStock(o) <- customerStock(scheduleOrderDetail);
                 isAuto(o) <- TRUE;
-    
+
                 IF operation(scheduleOrderDetail) THEN {
                     operation(o) <- operation(scheduleOrderDetail);
-                }                        
+                }
                 IF defaultPriceListType(operation(o)) THEN
-                    priceListType(o) <- defaultPriceListType(operation(o)); 
-    
+                    priceListType(o) <- defaultPriceListType(operation(o));
+
                 isRecommended(o) <- TRUE;
                 overCreate(o);
                 overCreateDetail(o);
 
                 autoQuantity(UserOrderDetail d) <- quantity(d) WHERE userOrder(d) == o;
                 printToLog(CONCAT ' ', 'Автозаказ:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](o)));
-                
+
                 priceListType(UserOrderDetail d) <-  OVERRIDE priceListType(agreement(userOrder(d)), sku(d)), priceListType(userOrder(d)) WHERE userOrder(d) == o;
                 VAT(UserOrderDetail d) <- overVAT(d) WHERE userOrder(d) == o;
                 valueVAT (UserOrderDetail d) <- calcSetValueVAT(d) WHERE userOrder(d) == o; // заполняем НДС, чтобы в момент расчета prevListPVAT он там уже был
@@ -382,11 +377,11 @@ createAutoOrders 'Создание автозаказов' () {
                     invoicePrice(d) <- NUMERIC[16,4](prevListPVAT (pt, d));
                 }
                 overCreateAuto(o);
-                
-                IF NOT useCreateAutoAfter(o) THEN {                                      
-                    DELETE o WHERE NOT countUserOrderDetail(o);                     
-                    IF countUserOrderDetail(o) THEN { 
-                        generateNumber(o); 
+
+                IF NOT useCreateAutoAfter(o) THEN {
+                    DELETE o WHERE NOT countUserOrderDetail(o);
+                    IF countUserOrderDetail(o) THEN {
+                        generateNumber(o);
                         APPLY;
                         IF canceled() THEN {
                             printToLog(CONCAT ' ', 'Автозаказ. ERROR:', currentDate(), nameSupplierStock(scheduleOrderDetail), nameCustomerStock(scheduleOrderDetail), applyMessage());
@@ -408,11 +403,11 @@ createAutoOrders 'Создание автозаказов' () {
                                     (CONCAT ' ', currentDateTime(), 'Количество строк -',countUserOrderDetail(o)),
                                     (CONCAT ' ', currentDateTime(), 'Номер заказа -' , seriesNumber(o)));
                                 APPLY NESTED LOCAL;
-                            }                           
-                        }                
+                            }
+                        }
                     } ELSE {
                         NEWSESSION NESTED LOCAL{
-                            typeProcess(scheduleOrderDetail) <- TypeProcess.end;                            
+                            typeProcess(scheduleOrderDetail) <- TypeProcess.end;
                             noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
                                 noteProcess(scheduleOrderDetail),
                                 (CONCAT ' ', currentDateTime(), 'Количество строк - 0','Заказ не создан'));
@@ -424,7 +419,17 @@ createAutoOrders 'Создание автозаказов' () {
                 }
             }
         }
-    }
+    }    
+}
+
+createAutoOrders 'Создание автозаказов' () {    
+    toCreate(ScheduleOrderDetail d)<- NULL;
+    toCreate(ScheduleOrderDetail d) <- TRUE WHERE dateOrder(d) == currentDate() AND createUserOrderAuto(scheduleOrder(d)) 
+            AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o)) 
+            AND NOT dateOrder(d)>endDate(scheduleOrder(d));
+    createAutoOrdersBefore();
+    createAutoOrdersCustom();
+
     createAutoOrdersExtra();
     toCreate(ScheduleOrderDetail d)<- NULL;
 }
@@ -438,3 +443,13 @@ DESIGN options {
         MOVE PROPERTY (createAutoOrders());
     }
 }
+
+createAutoOrders 'Создать автозаказ' (ScheduleOrderDetail dt) {
+    toCreate(ScheduleOrderDetail d)<- TRUE IF dt==d;
+    createAutoOrdersCustom();
+    createAutoOrdersExtra();
+    toCreate(ScheduleOrderDetail d)<- NULL;
+}
+EXTEND FORM scheduleOrder
+    PROPERTIES (sd)createAutoOrders TOOLBAR 
+;
