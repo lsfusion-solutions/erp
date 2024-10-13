@@ -43,7 +43,8 @@ DESIGN Inventory.operation{
 createZeroDetailData = ABSTRACT BOOLEAN (ListInventory);
 createZeroDetail(ListInventory li) = OVERRIDE createZeroDetailData(li), createZeroDetail(operation(inventory(li)));
 
-afterAddInventoryDetails  ABSTRACT LIST (TerminalDocument, ListInventory);
+beforeAddInventoryDetails ABSTRACT LIST (TerminalDocument, ListInventory);
+afterAddInventoryDetails ABSTRACT LIST (TerminalDocument, ListInventory);
 
 addInventoryDetails(TerminalDocument td,ListInventory li)  { 
 
@@ -64,6 +65,8 @@ addInventoryDetails(TerminalDocument td,ListInventory li)  {
     }
     
     LOCAL index = INTEGER (PageInventoryDetail);
+
+    beforeAddInventoryDetails(td, li);
     
     FOR terminalDocument(TerminalDocumentDetail tdd) == td AND NUMERIC[16,5] qty == (OVERRIDE (quantity(tdd) (-) (GROUP SUM quantity(tdd, Batch b))), (quantity(tdd) IF createZeroDetail(li) AND NOT (GROUP SUM quantity(tdd, Batch b))) ) 
         INLINE NEW pid = PageInventoryDetail DO {
