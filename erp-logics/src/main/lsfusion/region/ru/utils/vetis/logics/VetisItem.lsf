@@ -9,13 +9,33 @@ in = DATA BOOLEAN (Item, ProductItem);
 guidProductItem 'Коды номенклатуры (Ветис)' (Item i) = GROUP CONCAT guid(ProductItem pi) IF in(i, pi), ', ' ORDER pi CHARWIDTH 10;
 nameProductItem 'Номенклатуры (Ветис)' (Item i) = GROUP CONCAT name(ProductItem pi) IF in(i, pi), ', ' ORDER pi CHARWIDTH 20;
 
-//productItem = DATA ProductItem (Item) INDEXED;
+productItem = DATA ProductItem (Item) INDEXED;
 //guidProductItem 'Код номенклатуры (Ветис)' (Item i) = guid(productItem(i)) IN itemBase;
 //nameProductItem 'Номенклатура (Ветис)' (Item i) = name(productItem(i)) IN itemBase;
 
+addProductItem 'Добавить' (Item i){
+    DIALOG productItems OBJECTS o INPUT DO {
+        in(i, o) <- TRUE;
+    }
+}
+deleteProductItem 'Отключить' (Item i, ProductItem pi) {
+    in(i, pi) <- NULL;
+}
+
 EXTEND FORM item
-    PROPERTIES(i) guidProductItem, nameProductItem
+    OBJECTS pi = ProductItem
+    PROPERTIES(pi) READONLY guid, name
+    PROPERTIES addProductItem(i) DRAW pi TOOLBAR, deleteProductItem(i, pi) GRID
+    FILTERS in(i, pi)
 ;
+
+DESIGN item {
+    itemDetail {
+        MOVE BOX(pi) {
+            caption = 'Ветис';
+        }
+    }
+}
 
 EXTEND FORM items
     PROPERTIES(i) nameProductItem
