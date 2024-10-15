@@ -31,6 +31,7 @@ CONSTRAINT SETCHANGED (cycle(Inventory i)) AND NOT include(stock(cycle(i)), i)
     MESSAGE 'В инвентаризации выбран цикл другого магазина';
 
 isSecond(Inventory i) = isSecond(operation(i));
+isSecond(CollationSheet cs) = isSecond(operation(cs));
 
 recalculateBalanceSecond 'Заполнить остатки' (Inventory i)  {
     IF isSecond(i) AND NOT cycle(i) THEN {
@@ -67,10 +68,10 @@ CONSTRAINT stock(filterCycle()) != filterStock()
 
 EXTEND FORM inventories
     PROPERTIES() filterDateFrom, filterDateTo, nameFilterStock, fullDescriptionFilterCycle
-    PROPERTIES (in) READONLY descriptionCycle, weightShortage AFTER sumShortage(in)
+    PROPERTIES (in) READONLY descriptionCycle, weightShortage AFTER sumShortage(in) SHOWIF isSecond(in)
 
-    PROPERTIES(il) READONLY SHOWIF isSku(in) weight AFTER sum(il)
-    PROPERTIES(cs, it) READONLY SHOWIF isSku(cs) weightShortage AFTER sumShortage(cs,it)
+    PROPERTIES(il) READONLY SHOWIF (isSku(in) AND isSecond(in)) weight AFTER sum(il)
+    PROPERTIES(cs, it) READONLY SHOWIF (isSku(cs) AND isSecond(cs)) weightShortage AFTER sumShortage(cs,it)
 
     FILTERS filterDateFrom(in),
         filterDateTo(in),
@@ -97,12 +98,14 @@ EXTEND FORM inventory
     PROPERTIES (in) recalculateBalanceSecond
 
     PROPERTIES (l) READONLY weight, price, dateTime AFTER id(l), image PANEL CHANGEABLE ON CHANGE openImage(l)
-    PROPERTIES (cs) READONLY weightShortage PANEL
-    PROPERTIES (cs, i) SHOWIF isSku(in) weightShortage AFTER sumShortage(cs, i)
+    PROPERTIES (cs) READONLY SHOWIF isSecond(cs) weightShortage PANEL
+    PROPERTIES (cs, i) SHOWIF (isSku(in) AND isSecond(cs)) weightShortage AFTER sumShortage(cs, i)
 ;
 
 DESIGN inventory {
     REMOVE PROPERTY(recalculateBalance(in));
+    REMOVE PROPERTY(sumContainerBalance(cs));
+    REMOVE PROPERTY(sumContainerShortage(cs));
     wor11 {
         NEW lots {
             caption = 'Оценённые товары';
