@@ -401,6 +401,12 @@ FORM eInvoices 'Электронные накладные'
     OBJECTS eld = EInvoiceLotDetail
     PROPERTIES(eld) READONLY idParent, id, quantity
     FILTERS eInvoiceDetail(eld) = dl
+
+    OBJECTS espt = EInvoiceDetail
+    PROPERTIES (espt) READONLY lineItemNumber, lineItemID, lineItemName, itemCustomCode, itemCustomCodeOther, deliveryTypePrev, deliveryNotePrev,
+        deliveryNoteDatePrev, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    FILTERS eInvoice(espt) == e
+    
 ;
 @extendFormEditable(eInvoices);
 
@@ -418,6 +424,12 @@ DESIGN eInvoices {
                 fill = 1;
                 MOVE BOX(dl);
                 MOVE BOX(eld);
+            }
+            NEW eSpt {
+                caption = 'Прослеживаемость';
+                horizontal = TRUE;
+                fill = 1;
+                MOVE BOX (espt);
             }
             NEW actionContainer {
                 caption = 'Действия';
@@ -463,7 +475,7 @@ FORM eInvoice 'Электронная накладная'
         sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, overReplaceNumber ON CHANGE changeReplaceNumber(e), isTestDocument
 
     OBJECTS ed = EInvoiceDetail
-    PROPERTIES (ed) lineItemNumber, lineItemID, lineItemName, lineItemSign, lineItemBuyerID, itemCustomCode, lineItemSupplierID, quantityDespatched, 
+    PROPERTIES (ed) lineItemNumber, lineItemID, lineItemName, lineItemSign, lineItemBuyerID, lineItemSupplierID, quantityDespatched, 
         manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), 
         lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), 
         lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, 
@@ -498,6 +510,11 @@ FORM eInvoice 'Электронная накладная'
     PROPERTIES (ef) READONLY name, code
     PROPERTIES (ef) value
     FILTERS eInvoice(ef) == e
+ 
+    OBJECTS espt = EInvoiceDetail
+    PROPERTIES (espt) lineItemNumber, lineItemID, lineItemName, itemCustomCode, itemCustomCodeOther, deliveryTypePrev, deliveryNotePrev,
+        deliveryNoteDatePrev, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    FILTERS eInvoice(espt) == e
     
     EDIT EInvoice OBJECT e
 ;
@@ -587,6 +604,12 @@ DESIGN eInvoice {
                         fill = 1;
                         MOVE BOX(dl);
                         MOVE BOX(eld);
+                    }
+                    NEW eSPT{
+                        caption = 'Прослеживаемость';
+                        horizontal = TRUE;
+                        fill = 1;
+                        MOVE BOX (espt);
                     }
                 }
             }
