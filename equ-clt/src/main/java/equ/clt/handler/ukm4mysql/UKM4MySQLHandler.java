@@ -61,6 +61,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipClassif = ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
                 boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean skipPriceListTables = ukm4MySQLSettings.isSkipPriceListTables();
+                boolean sendItemsMark = ukm4MySQLSettings.isSendItemsMark();
                 boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings.isExportTaxes();
@@ -151,6 +152,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table items", transaction.id));
                                         exportItems(conn, transaction, useBarcodeAsId, appendBarcode, exportTaxes, version);
+
+                                        if (sendItemsMark) {
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_egais", transaction.id));
+                                            exportItemsMark(conn, transaction, useBarcodeAsId, appendBarcode, version);
+                                        }
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
                                         exportItemsStocks(conn, transaction, section/*departmentNumber*/, version);
@@ -408,6 +414,45 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 }
 
                 ps.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+    private void exportItemsMark(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO items_egais (id, egais, sub_excise, crpt_not_unique, version, deleted) VALUES (?, ?, ?, ?, ?, ?)" +
+                         "ON DUPLICATE KEY UPDATE egais=VALUES(egais), deleted=VALUES(deleted)");
+                 PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                         "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
+
+                for (CashRegisterItem item : transaction.itemsList) {
+
+                    JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
+                    String lotType = extraInfo.optString("lottype");
+
+                    ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //store
+                    ps.setInt(2, lotType != null ? 3 : 0); //item
+                    ps.setInt(3, 0); //stock
+                    ps.setInt(4, 0); //stock
+                    ps.setInt(5, version); //version
+                    ps.setInt(6, lotType != null ? 0 : 1); //deleted
+                    ps.addBatch();
+
+                    vs.setString(1, getId(item, useBarcodeAsId, appendBarcode));
+                    vs.setString(2, "RB_Mark");
+                    vs.setInt(3, 888);
+                    vs.setInt(4, 0);
+                    vs.setInt(5, version);
+                    vs.setInt(6, "ukz".equals(lotType) ? 0 : 1);
+                    vs.addBatch();
+
+                }
+                ps.executeBatch();
+                vs.executeBatch();
                 conn.commit();
             } catch (Exception e) {
                 throw Throwables.propagate(e);
