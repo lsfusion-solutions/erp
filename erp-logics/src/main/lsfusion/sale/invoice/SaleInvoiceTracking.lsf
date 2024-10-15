@@ -1,0 +1,52 @@
+MODULE SaleInvoiceTracking;
+
+REQUIRE SaleInvoice, ItemTracking, BatchTracking;
+
+NAMESPACE Sale;
+
+isTracking (Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND invoice(d)==i;
+showSPT (Invoice i)= TRUE IF isTracking(i);
+isTracking 'Подлежит прослеживанию' (UserInvoiceDetail d) = TRUE IF isTrackingOver(sku(d));
+
+quantityDespatchedSPT 'Единица измерения прослеживаемости' (UserInvoiceDetail d) =  NUMERIC[12,5] (CASE
+    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE quantity(d), 1.0)* volume(sku(d))
+    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE quantity(d), 1.0)* netWeight(sku(d))
+    ELSE (OVERRIDE quantity(d), 1.0));
+lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = NUMERIC[12,2] (CASE
+    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE price(d), 1.0)/ volume(sku(d))
+    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
+    ELSE (OVERRIDE price(d), 1.0));
+
+EXTEND FORM userInvoice
+    OBJECTS d6 = UserInvoiceDetail GRID 
+    PROPERTIES(d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6)))
+    PROPERTIES SHOWIF showSPT(i) READONLY itemCustomCode 'Код ТНВЭД' = itemCustomCode(batch(d6)), itemCustomCodeOther'Дополнительный таможенный код' = itemCustomCodeOther(batch(d6)),
+        deliveryTypePrev 'Тип приходного документа' = deliveryTypePrev(batch(d6)), deliveryNotePrev 'Номер приходного документа' = deliveryNotePrev(batch(d6)),
+        deliveryNoteDate 'Дата создания приходного документа' =deliveryNoteDate(batch(d6)), deliveryNotePrevLineID 'Номер строки в приходном документе' = deliveryNotePrevLineID(batch(d6)),
+        lineItemQuantitySPT 'Единица измерения прослеживаемости' = lineItemQuantitySPT(batch(d6)), quantityDespatchedSPT(d6), lineItemPriceSPT(d6)
+
+    FILTERS userInvoice(d6) == i
+
+;
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW sptContainer {
+            caption = 'Прослеживание';
+            MOVE BOX(d6);
+        }
+    }
+}
+
+skipCheckItemSize = DATA BOOLEAN ();
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id))) AND isPosted(id) AND trackingUOMCustomsGroup(sku(id))=='112' AND isTrackingOver(sku(id)) AND NOT volume(sku(id)) AND NOT skipCheckItemSize()
+    MESSAGE 'Товару нужно задать параметр "Объем, л" ' ;
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id))) AND isPosted(id) AND trackingUOMCustomsGroup(sku(id))=='166' AND isTrackingOver(sku(id)) AND NOT netWeight(sku(id)) AND NOT skipCheckItemSize()
+    MESSAGE 'Товару нужно задать параметр "Вес нетто, кг" ' ;
+
+skipCheckBatch = DATA BOOLEAN ();
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id))) AND isPosted(id) AND isTrackingOver(sku(id)) AND NOT batch(id) AND NOT skipCheckBatch()
+    MESSAGE 'Укажите партию для прослеживаемого товара' ;
