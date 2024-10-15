@@ -136,13 +136,8 @@ typeOfAddition = DATA TypeOfAddition (BinInventory);
 nameTypeOfAddition 'Тип инвентаризации' (BinInventory inventory) = staticCaption(typeOfAddition(inventory)) IN documentPrm CHARWIDTH 20;
 
 quantityBalance 'Кол-во по остаткам' = DATA NUMERIC[16,5](BinInventory, Sku, Bin);
-
-//overQuantityBalance 'Кол-во по остаткам' (BinInventory bi, Sku s, Bin b) = OVERRIDE quantityBalance(bi, s, b), prevBalanceB(s, b, dateTime(bi));
-
 quantity 'Кол-во по инвентаризации' = DATA NUMERIC[16,5](BinInventory, Sku, Bin);
 
-//quantityBalance(BinInventory bi, Sku s, Bin b) <- prevBalanceB(s, b, dateTime(bi))// IF quantity(bi, s, b)
-//    WHEN CHANGED(quantity(bi, s, b));
 WHEN LOCAL CHANGED(stock(BinInventory i)) OR CHANGED(dateTime(i)) OR CHANGED(typeOfAddition(i)) DO {
     quantityBalance(i, Sku s, Bin b) <- NULL;
     quantity(i, Sku s, Bin b) <- NULL;
@@ -150,44 +145,47 @@ WHEN LOCAL CHANGED(stock(BinInventory i)) OR CHANGED(dateTime(i)) OR CHANGED(typ
 
 diffBinInventory 'Разница между остатками и инвентаризацией' (BinInventory i, Sku s, Bin b) = quantity(i, s, b) (-) quantityBalance(i, s, b) IF quantity(i, s, b);
 
-CLASS BinInventoryDetail;
-binInventoryDetail = AGGR BinInventoryDetail WHERE diffBinInventory(BinInventory binInventory, Sku sku, Bin bin) != 0 MATERIALIZED INDEXED;
+quantityBalance 'Кол-во в отмеченных ячейках' (BinInventory i, Sku s) = GROUP SUM quantityBalance(i, s, Bin b);
+quantity 'Кол-во по инвентаризации в отмеченных ячейках' (BinInventory i, Sku s)  = GROUP SUM quantity(i, s, Bin b);
+diffBinInventory 'Расхождение по инвентанризациив отмеченных ячейках' (BinInventory i, Sku s) = GROUP SUM diffBinInventory(i, s, Bin b);
+countDiffBinInventorySku 'Кол-во ячеек с расхождением по инвентаризации' (BinInventory i, Sku s) = GROUP SUM 1 IF diffBinInventory(i, s, Bin b);
 
-quantity(BinInventoryDetail d) = quantity(binInventory(d),sku(d), bin(d));
-diffBinInventory(BinInventoryDetail d) = diffBinInventory(binInventory(d),sku(d), bin(d));
+quantityBalance 'Кол-во товара в ячейке' (BinInventory i, Bin b) = GROUP SUM quantityBalance(i, Sku s, b);
+quantity 'Кол-во товара по инвентаризации в ячейке' (BinInventory i, Bin b) = GROUP SUM quantity(i, Sku s, b);
+diffBinInventory 'Расхождение по инвентанризации' (BinInventory i, Bin b) = GROUP SUM diffBinInventory(i, Sku s, b);
+countDiffBinInventorySku 'Кол-во наименований товаров с расхождением по инвентаризации'  (BinInventory i, Bin b) = GROUP SUM 1 IF diffBinInventory(i, Sku s, b);
 
-date '{document.date.of} {document.of.document}' (BinInventoryDetail d) = date(binInventory(d));
-time '{document.time.of} {document.of.document}' (BinInventoryDetail d) = time(binInventory(d));
-dateTime '{document.date.time.of} {document.of.document}' (BinInventoryDetail d) = dateTime(binInventory(d));
-isPosted  '{document.posted}' (BinInventoryDetail d) = isPosted(binInventory(d));
-isClosed '{documents.is.closed}' (BinInventoryDetail d) = isClosed(binInventory(d));
-stock (BinInventoryDetail d) = stock(bin(d));
-description  (BinInventoryDetail d) = description(binInventory(d));
+extraFillBinInventories ABSTRACT LIST (BinInventory);
 
-fillBinInventories 'Заполнить остатки по выбранным группам'(BinInventory i) {
-    quantityBalance(i,Sku s, Bin b) <- NULL;
-    quantity(i,Sku s, Bin b) <- NULL;
-            
+fillBinInventories 'Заполнить остатки'(BinInventory i) {
+    quantityBalance(i, Sku s, Bin b) <- NULL;
+    quantity(i, Sku s, Bin b) <- NULL;
     IF typeOfAddition(i) = TypeOfAddition.bin THEN {
-                quantityBalance(i, Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
+        quantityBalance(i, Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
     } ELSE IF typeOfAddition(i) = TypeOfAddition.sku THEN {
-        quantityBalance(i,Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, s);
+        quantityBalance(i, Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, s);
     } ELSE IF typeOfAddition(i) = TypeOfAddition.difference THEN {
-        quantityBalance(i,Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE stock(b) = stock(i) AND diffBalanceBinB(s, stock(i), dateTime(i));
+        quantityBalance(i, Sku s, Bin b) <- balanceB(s, b, dateTime(i)) WHERE stock(b) = stock(i) AND diffBalanceBinB(s, stock(i), dateTime(i));
     }
-    quantity(i,Sku s, Bin b) <- quantityBalance(i,s, b);//  WHERE balanceB(s, stock(i), dateTime(i)) AND stock(b) = stock(i) AND include(i, b);
+    quantity(i, Sku s, Bin b) <- quantityBalance(i, s, b);
+    extraFillBinInventories(i);
 } TOOLBAR;
 
 FORM binInventories 'Инвентаризация по ячейкам'
     OBJECTS i = BinInventory
-    PROPERTIES(i) READONLY number, seriesNumber, nameTypeOfAddition, note, date, time 
+    PROPERTIES(i) READONLY number, seriesNumber, nameTypeOfAddition, note, date, time
     PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE GRID 
     LIST BinInventory OBJECT i
 ;
 
+extraDifferenceFilter = ABSTRACT BOOLEAN (BinInventory, Sku, Bin);
+extraDifferenceFilter(BinInventory i, Sku s) = ABSTRACT BOOLEAN (BinInventory, Sku);
+isReadonlyQuantity = ABSTRACT BOOLEAN (BinInventory);
+
 FORM binInventory 'Инвентаризация по ячейкам'
     OBJECTS i = BinInventory PANEL 
-    PROPERTIES(i) nameTypeOfAddition, date, number, series, time, isPosted, nameStock, note, fillBinInventories
+    PROPERTIES(i) nameTypeOfAddition, date, number, series, time, isPosted, nameStock, note,
+        fillBinInventories
     OBJECTS t = DATETIME 
     FILTERS t = dateTime(i)
     OBJECTS st = Stock
@@ -203,7 +201,16 @@ FORM binInventory 'Инвентаризация по ячейкам'
     OBJECTS b1 = Bin
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) include(i, b1),
         name(b1) READONLY, canonicalId(b1) READONLY, canonicalName(b1) READONLY
-    FILTERS isParent(bg1, b1) OR (stock(b1) = st AND NOT bg1)
+
+    PROPERTIES SHOWIF (typeOfAddition(i) == TypeOfAddition.bin) READONLY 
+        quantity(i, b1),    
+        quantityBalance(i, b1),
+        diffBinInventory(i, b1),   
+        countDiffBinInventorySku(i, b1)
+            FILTERS isParent(bg1, b1) OR (stock(b1) = st AND NOT bg1)
+    FILTERGROUP countDiffSkuB1
+        FILTER 'C товарами с расхождением по инвентаризации'  countDiffBinInventorySku(i,b1)
+        FILTER 'С расхождением по инвентаризации' diffBinInventory(i,b1)
     
     TREE skuTree1 sg1 = SkuGroup PARENT parent(sg1)
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) READONLY order(sg1), name(sg1)
@@ -211,16 +218,22 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERGROUP inactivesg1 FILTER 'Активные' active(sg1) 'F6' DEFAULT
     
     OBJECTS s1 = Sku
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) name(s1) READONLY, quantityBalance(i, s1, b1) READONLY,
-        quantity(i, s1, b1), diffBinInventory(i, s1, b1),
-        'Остаток товара по всему складу' = balanceB(s1, st, t) PANEL, 
-        'Остаток по всем ячейкам' = balanceBinB(s1, st, t) PANEL, diffBalanceB1  
-        'Разница остатка по складу и по ячейкам' = diffBalanceBinB(s1, st, t) PANEL
-    FILTERS isParent(sg1, s1), balanceB(s1, st, t)
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) name(s1) READONLY, idBarcode(s1) READONLY, quantityBalance(i, s1, b1) READONLY,
+        quantity(i, s1, b1) READONLYIF isReadonlyQuantity(i), diffBinInventory(i, s1, b1),
+        nameS1 '' =  name(s1) READONLY PANEL,
+        'Остаток по складу (до)' = balanceB(s1, st, t) READONLY PANEL,
+        quantity(i, s1) READONLY PANEL,
+        quantityBalance(i, s1) READONLY PANEL,
+        diffBinInventory(i, s1) READONLY PANEL
+    FILTERS isParent(sg1, s1)
     FILTERGROUP isFilled1   
-        FILTER 'С кол-вом по остаткам' quantityBalance(i, s1, b1) DEFAULT
-        FILTER 'О отличиями по остаткам' (quantityBalance(i, s1, b1) OR quantity(i, s1, b1)) AND NOT quantityBalance(i, s1, b1) = quantity(i, s1, b1)
-
+        FILTER 'С количеством по остаткам' quantityBalance(i, s1, b1) DEFAULT
+        FILTER 'С расхождениями по остаткам' diffBinInventory(i, s1, b1)
+        FILTER 'Товары с остатком' balanceB(s1, st, t) OR sumB(s1, st, t) OR quantityBalance(i, s1) OR quantity(i, s1) OR extraDifferenceFilter(i, s1)
+        FILTER 'Товары с движением не позднее 1 дня' balance(s1, st, t, 1) 'F9'
+        FILTER 'Товары с движением не позднее 7 дней' balance(s1, st, t, 7) 'F8'
+        FILTER 'Товары с движением не позднее 30 дней' balance(s1, st, t, 30) 'F7'
+    
     //по товарам
     TREE skuTree2 sg2 = SkuGroup PARENT parent(sg2)
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) include(i, sg2),
@@ -230,12 +243,19 @@ FORM binInventory 'Инвентаризация по ячейкам'
     
     OBJECTS s2 = Sku
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) include(i, s2),
-        name(s2) READONLY,  'Остаток по складу' = balanceB(s2, st, t),
-                            'Остаток по всем ячейкам' = balanceBinB(s2, st, t),
-                            'Разница остатка по складу и по ячейкам' = diffBalanceBinB(s2, st, t)
-    FILTERS isParent(sg2, s2), balanceB(s2, st, t)
-    FILTERGROUP balanceA2 FILTER 'С остатком на складе' balanceB(s2, stock(i), dateTime(i)) DEFAULT
-
+        name(s2) READONLY, idBarcode(s2) READONLY,
+                            'Остаток по складу (до)' = balanceB(s2, st, t) READONLY,
+                            quantity(i, s2) READONLY,
+                            quantityBalance(i, s2) READONLY,
+                            diffBinInventory(i, s2) READONLY,
+                            countDiffBinInventorySku(i, s2) READONLY
+    FILTERS isParent(sg2, s2)
+    FILTERGROUP filtersS2
+        FILTER 'Товары с остатком' balanceB(s2, st, t) OR sumB(s2, st, t) OR quantityBalance(i, s2) OR quantity(i, s2) OR extraDifferenceFilter(i, s2) 'F10' DEFAULT
+        FILTER 'Товары с движением не позднее 1 дня' balance(s2, st, t, 1) 'F9'
+        FILTER 'Товары с движением не позднее 7 дней' balance(s2, st, t, 7) 'F8'
+        FILTER 'Товары с движением не позднее 30 дней' balance(s2, st, t, 30) 'F7'
+    
     TREE binTree2 bg2 = BinGroup  PARENT parent(bg2)
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) bgTreeName2 = name(bg2) READONLY
     ORDERS bgTreeName2
@@ -244,12 +264,12 @@ FORM binInventory 'Инвентаризация по ячейкам'
 
     OBJECTS b2 = Bin
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) name(b2) READONLY, canonicalId(b2) READONLY , canonicalName(b2) READONLY,
-        quantityBalance(i, s2, b2) READONLY, quantity(i, s2, b2)
-    FILTERS stock(b2) = st, isParent(bg2, b2) OR (stock(b2) = st AND NOT bg2)//balanceB(s2, stock(b2), t)// OR diffBalanceBinSkuB(s2, stock(b2), t) OR quantity(i, s2, b2)
+        quantityBalance(i, s2, b2) READONLY, quantity(i, s2, b2) READONLYIF isReadonlyQuantity(i)
+    FILTERS stock(b2) = st, isParent(bg2, b2) OR (stock(b2) = st AND NOT bg2)
     FILTERGROUP isFilled2 
-        FILTER 'С кол-вом по остаткам' quantityBalance(i, s2, b2) DEFAULT
-        FILTER 'О отличиями по остаткам' (quantityBalance(i, s2, b2) OR quantity(i, s2, b2)) AND NOT quantityBalance(i, s2, b2) = quantity(i, s2, b2)
-
+        FILTER 'С количеством по остаткам' quantityBalance(i, s2, b2) DEFAULT
+        FILTER 'О расхождениями по остаткам' diffBinInventory(i, s2, b2)
+    
     //по расхождениям
     TREE binTree3 bg3 = BinGroup  PARENT parent(bg3)
     PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) bgTreeName3 = name(bg3) READONLY
@@ -263,18 +283,21 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERGROUP inactivesg3 FILTER 'Активные' active(sg3) 'F6' DEFAULT
     
     OBJECTS sb = (s3 = Sku, b3 = Bin)
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) name(s3) READONLY,
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) name(s3) READONLY, idBarcode(s3) READONLY,
         name(b3) READONLY, canonicalId(b3) READONLY, canonicalName(b3) READONLY,
         quantityBalance(i, s3, b3) READONLY,
-        quantity(i, s3, b3),
-        'Остаток товара по всему складу' = balanceB(s3, stock(b3), t) DRAW sb PANEL,
-        'Остаток по всем ячейкам' = balanceBinB(s3, st, t) PANEL,
-        'Разница по остатку по складу и всем ячейкам' = diffBalanceBinB(s3, st, t) PANEL
-    FILTERS diffBalanceBinB(s3, stock(b3), t) OR quantity(i, s3, b3) OR quantityBalance(i, s3, b3)// OR [GROUP MAX BinInventoryDetail d1111 BY sku(d1111), binInventory(d1111)](s1, i)
-    FILTERGROUP isFilled3 
-        FILTER 'С кол-вом по остаткам' quantityBalance(i, s3, b3) DEFAULT
-        FILTER 'О отличиями по остаткам' (quantityBalance(i, s3, b3) OR quantity(i, s3, b3)) AND NOT quantityBalance(i, s3, b3) = quantity(i, s3, b3)
+        quantity(i, s3, b3) READONLYIF isReadonlyQuantity(i),
+        nameS3 '' = name(s3) READONLY PANEL,
+        'Остаток по складу (до)' = balanceB(s3, st, t) READONLY PANEL,
+        quantity(i, s3) READONLY PANEL,
+        quantityBalance(i, s3) READONLY PANEL,
+        diffBinInventory(i, s3) READONLY PANEL,
+        countDiffBinInventorySku(i, s3) READONLY PANEL
+    FILTERS quantity(i, s3, b3) OR quantityBalance(i, s3, b3) OR extraDifferenceFilter(i,s3, b3)
 
+    FILTERGROUP isFilled3 
+        FILTER 'С количеством по остаткам' quantityBalance(i, s3, b3) DEFAULT 
+        FILTER 'О расхождениями по остаткам' diffBinInventory(i, s3, b3)
     EDIT BinInventory OBJECT i
 ;
 
@@ -308,11 +331,10 @@ DESIGN binInventory {
                     MOVE PROPERTY (fillBinInventories(i));
                 }
             }
-            NEW tabbedCont {
+            NEW typeOfAdditionCont {
                 fill = 1;
-                tabbed = TRUE;
                 NEW b1s1Cont {
-                    caption = 'По множеству ячеек';
+                    fill = 1;
                     NEW b1Cont {
                         horizontal = TRUE;
                         fill = 1;
@@ -331,11 +353,26 @@ DESIGN binInventory {
                             fill = 0.5;
                             width = 200;
                         }
-                        MOVE BOX (s1) {fill = 2;};
+                        NEW s1ContSplit {
+                            fill = 2;
+                            NEW sku1Cont {
+                                horizontal = TRUE;
+                                fill = 1;
+                                MOVE BOX (s1) {fill = 2;};
+                                NEW s1ContRight {
+                                    fill = 0.5;
+                                    MOVE PROPERTY (nameS1);
+                                    MOVE PROPERTY (balanceB(s1, st, t));
+                                    MOVE PROPERTY (quantityBalance(i, s1));
+                                    MOVE PROPERTY (quantity(i, s1));
+                                    MOVE PROPERTY (diffBinInventory(i, s1));
+                                }
+                            }
+                        }
                     }
                 }
                 NEW b2s2Cont {
-                    caption = 'По множеству товаров';
+                    fill = 1;
                     NEW s2Cont {
                         horizontal = TRUE;
                         fill = 1;
@@ -343,7 +380,7 @@ DESIGN binInventory {
                             fill = 0.5;
                             width = 200;
                             caption = 'Группы товаров';
-                            PROPERTY (include(i, sg2));// {valueWidth = 100; }
+                            PROPERTY (include(i, sg2));
                         };
                         MOVE BOX (s2) {fill = 2;};
                     }
@@ -354,19 +391,38 @@ DESIGN binInventory {
                             fill = 0.5;
                             width = 200;
                         }
-                        MOVE BOX (b2) {fill = 2;};
+                        NEW bin2Cont {
+                            fill = 2;
+                            MOVE BOX (b2) {fill = 1;}
+                        }
                     }
                 }
                 NEW bsCont {
-                    caption = 'По разнице';
                     horizontal = TRUE;
+                    fill = 1;
                     NEW bsGroupCont {
                         fill = 0.5;
                         width = 200;
                         MOVE BOX(TREE binTree3) {fill = 1;};
                         MOVE BOX(TREE skuTree3) {fill = 1;};
                     }
-                    MOVE BOX (sb) {fill = 2;};
+                    NEW sbSkuBinCont {
+                        fill = 2;
+                        NEW sbContSplit {
+                            horizontal = TRUE;
+                            fill = 1;
+                            MOVE BOX (sb) {fill = 2;};
+                            NEW sbContRight {
+                                fill = 0.5;
+                                MOVE PROPERTY (nameS3);
+                                MOVE PROPERTY (balanceB(s3, st, t));
+                                MOVE PROPERTY (quantityBalance(i, s3));
+                                MOVE PROPERTY (quantity(i, s3));
+                                MOVE PROPERTY (diffBinInventory(i, s3));
+                                MOVE PROPERTY (countDiffBinInventorySku(i, s3));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -394,4 +450,8 @@ description[BinLedger] (BinInventoryBinLedger ledger) += description(binInventor
 inBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger)) >0;    
 outBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger))<0;
 
-needToCreate(BinInventory binInventory, Sku sku, Bin bin) += isPosted(binInventory) AND diffBinInventory(binInventory, sku, bin);
+skipBinInventoryBinLedger = ABSTRACT BOOLEAN (BinInventory) MATERIALIZED;
+needToCreate(BinInventory binInventory, Sku sku, Bin bin) += isPosted(binInventory) 
+    AND diffBinInventory(binInventory, sku, bin)
+    AND stock(binInventory) = stock(bin)
+    AND NOT skipBinInventoryBinLedger(binInventory);

@@ -54,6 +54,18 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES currentBalance(s, bg) DRAW sts SHOWIF filterZoneBinGroup() AFTER currentBalance(s, st)
     FILTERS bg = filterZoneBinGroup()
     
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), currentBalance(s, bin)
+    FILTERS stock(bin) = st, currentBalance(s, bin), isParent(filterZoneBinGroup(), bin)
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, isParent(filterZoneBinGroup(), inBin(bl)) OR isParent(filterZoneBinGroup(), outBin(bl))
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+
     EVENTS ON CHANGE ss {
         IF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 AND singleStore() THEN {
             filterZoneBinGroup() <- defaultCompanyZoneBinGroup(currentUser(), ss);
@@ -67,6 +79,9 @@ DESIGN currentBalanceSkuStock {
     filter {
         MOVE PROPERTY(nameFilterZoneBinGroup()) AFTER PROPERTY(name(ss));
     }
+    ledgerBox {
+        MOVE BOX(bin);
+    }
 }
 
 EXTEND FORM balanceSkuStock
@@ -77,6 +92,19 @@ EXTEND FORM balanceSkuStock
     OBJECTS bg = BinGroup PANEL
     PROPERTIES balanceB(s, bg, t) DRAW sts SHOWIF filterZoneBinGroup() AFTER balanceB(s, st,t)
     FILTERS bg = filterZoneBinGroup()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), balanceB(s, bin, t)
+    FILTERS stock(bin) = st, balanceB(s, bin, t), isParent(filterZoneBinGroup(), bin)
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, isParent(filterZoneBinGroup(), inBin(bl)) OR isParent(filterZoneBinGroup(), outBin(bl))
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+
 
     EVENTS ON CHANGE ss {
         IF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 AND singleStore() THEN {
@@ -90,5 +118,9 @@ EXTEND FORM balanceSkuStock
 DESIGN balanceSkuStock {
     filter {
         MOVE PROPERTY(nameFilterZoneBinGroup()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
     }
 }

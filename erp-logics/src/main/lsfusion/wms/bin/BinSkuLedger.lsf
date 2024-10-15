@@ -13,7 +13,7 @@ balanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETI
 prevBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
     [GROUP SUM prevBalanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
 balanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
-    [GROUP SUM balanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
+    [GROUP SUM balanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
 prevBalanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     [GROUP SUM prevBalanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
 
@@ -21,16 +21,16 @@ currentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku
     currentBalanceBin(sku, st) (-) currentBalance(sku, st);
 prevCurrentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
     prevCurrentBalanceBin(sku, st) (-) prevCurrentBalance(sku, st);
-diffBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+diffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
     balanceBinB(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
-prevDiffBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+prevDiffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
     prevBalanceBinB(sku, st,dateTime) (-) prevBalanceB(sku, st,dateTime);
-diffBalanceBinA 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+diffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     balanceBinA(sku, st,dateTime) (-) balanceA(sku, st,dateTime);
-prevDiffBalanceBinA 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+prevDiffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     prevBalanceBinA(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
 
-FORM balanceBinSkuStock 'Сравнение остатков по ячейкам и складу'
+FORM balanceBinSkuStock 'Сравнение остатков по ячейкам и складу по товарам'
 
     OBJECTS t=DATETIME PANEL
     PROPERTIES valT = VALUE(t)
@@ -45,8 +45,7 @@ FORM balanceBinSkuStock 'Сравнение остатков по ячейкам
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        select(s,st)
-    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
+    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), nameUOM(s)  //  idBarcodeSku
     FILTERS           isParent(sk, s),
             st == ss
 
@@ -76,8 +75,14 @@ FORM balanceBinSkuStock 'Сравнение остатков по ячейкам
     PROPERTIES  balanceB(s, b, t)
     FILTERS stock(b) = ss, balanceB(s, b, t)
 
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s
 
 ;
+
+@extendFormFilterStockAccess(ss, balanceBinSkuStock);
 
 DESIGN balanceBinSkuStock {
     BOX {
@@ -109,6 +114,7 @@ DESIGN balanceBinSkuStock {
                     fill = 1;
                     tabbed = TRUE;
                     MOVE BOX(b);
+                    MOVE BOX(bl);
                 }
             }
         }

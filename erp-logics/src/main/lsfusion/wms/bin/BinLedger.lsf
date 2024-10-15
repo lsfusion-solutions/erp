@@ -23,12 +23,14 @@ nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
 
 inBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameInBin 'Ячейка (в)' (BinLedger ledger) = name(inBin(ledger)) IN id;
+canonicalIdInBin'Ячейка код (в)' (BinLedger ledger) = canonicalId(inBin(ledger)) IN id;
 
 INDEX inBin(BinLedger l), sku(l), dateTime(l);
 
 outBin = ABSTRACT Bin (BinLedger) MATERIALIZED INDEXED;
 nameOutBin 'Ячейка (из)' (BinLedger ledger) = name(outBin(ledger)) IN id;
 INDEX outBin(BinLedger l), sku(l), dateTime(l);
+canonicalIdOutBin'Ячейка код (из)' (BinLedger ledger) = canonicalId(outBin(ledger)) IN id;
 
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) MATERIALIZED;
 
@@ -157,7 +159,7 @@ FORM binLedger 'Регистр изменения остатков по ячей
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
     
     OBJECTS b = BinLedger
-    PROPERTIES(b) READONLY dateTime, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, nameOutBin, description, skip
+    PROPERTIES(b) READONLY dateTime, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, canonicalIdInBin, nameOutBin, canonicalIdOutBin, description, skip
     FILTERS isPosted(b),     
             date(b) >= dFrom, date(b) <= dTo
 ;

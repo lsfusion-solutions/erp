@@ -1,0 +1,46 @@
+MODULE BatchBinTransfer;
+
+REQUIRE BatchBinLedger, BinTransfer;
+
+NAMESPACE Bin;
+
+@defineDocumentInterfaceDetailBatch(binTransfer, batch);
+
+@implementDocumentBatch(binTransfer);
+
+@implementDocumentBatchForm(bt);
+
+EXTEND FORM userBinTransfer
+    PROPERTIES (d) idBatch, nameBatch
+;
+
+overCopy(UserBinTransferDetail d, BinTransferDetail transferDetail) + {
+    batch(d) <- batch(transferDetail);
+}
+overCopy[UserBinTransferDetail,UserBinTransferDetail](UserBinTransferDetail d, UserBinTransferDetail detail) + {
+    batch(d) <- batch(detail);
+}
+
+EXTEND FORM binTransfers
+    PROPERTIES (d) READONLY idBatch, nameBatch
+;
+
+@defineDocumentBatchStockPriceListTypeSystemLedger(userBinTransfer, );
+
+@showDocumentInterfaceDetailBatch(binTransfer);
+
+@extendFormDocumentBatchStock(userBinTransfer, userBinTransfer, o, , );
+
+prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Batch batch, BinTransfer transfer) = prevCurrentBalance(batch, outBin(transfer));
+prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Batch batch, BinTransfer transfer) = prevCurrentBalance(batch, inBin(transfer));
+
+EXTEND FORM userBinTransfer
+    PROPERTIES (b, o) READONLY AFTER prevCurrentBalance(b, sto) prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    FILTERGROUP filterBatch
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(b, o) 'F7' DEFAULT
+        FILTER 'С остатком ' currentBalance(b, sto) 'F10'
+        FILTER 'В документе ' quantity(b, o, sto) 'F9'
+;
+    
+@implementBatchBinLedger(binTransferDetail, stock);
+

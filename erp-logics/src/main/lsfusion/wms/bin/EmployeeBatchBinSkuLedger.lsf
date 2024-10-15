@@ -1,0 +1,87 @@
+MODULE EmployeeBatchBinSkuLedger;
+
+REQUIRE EmployeeBinSkuLedger, BatchBinLedger;
+
+NAMESPACE BinLedger;
+
+filterZoneBinGroup (Batch bt) = [GROUP SUM 1 IF currentBalance(Batch bt1, Bin b) BY bt1, binGroup(b)](bt, filterZoneBinGroup()) 
+    OR (bt IS Stock AND NOT filterZoneBinGroup());   
+
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyZoneBinGroups(currentUser(), ss) AND singleStore() 
+        READONLYIF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 nameFilterZoneBinGroup() ON CHANGE changeFilterZoneBinGroup(ss)
+    FILTERS (GROUP SUM 1 IF currentBalance(bt, Bin bb) AND isParent(filterZoneBinGroup(), bb)) 
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores() 
+    OBJECTS bg = BinGroup PANEL 
+    PROPERTIES currentBalance(bt, bg) DRAW stb SHOWIF filterZoneBinGroup() AFTER currentBalance(bt, st)
+    FILTERS bg = filterZoneBinGroup()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), currentBalance(bt, bin)
+    FILTERS stock(bin) = st, currentBalance(bt, bin), isParent(filterZoneBinGroup(), bin)
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, isParent(filterZoneBinGroup(), inBin(bl)) OR isParent(filterZoneBinGroup(), outBin(bl))
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterZoneBinGroup() <- defaultCompanyZoneBinGroup(currentUser(), ss);
+        } ELSE {
+            filterZoneBinGroup() <- NULL;
+        }
+    }
+;
+
+DESIGN currentBalanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterZoneBinGroup()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+EXTEND FORM balanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyZoneBinGroups(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 nameFilterZoneBinGroup() ON CHANGE changeFilterZoneBinGroup(ss)
+    FILTERS (GROUP SUM 1 IF balanceB(bt, Bin bb,t) AND isParent(filterZoneBinGroup(), bb))
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+    OBJECTS bg = BinGroup PANEL
+    PROPERTIES balanceB(bt, bg, t) DRAW stb SHOWIF filterZoneBinGroup() AFTER balanceB(bt, st,t)
+    FILTERS bg = filterZoneBinGroup()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), balanceB(bt, bin, t)
+    FILTERS stock(bin) = st, balanceB(bt, bin, t), isParent(filterZoneBinGroup(), bin)
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, isParent(filterZoneBinGroup(), inBin(bl)) OR isParent(filterZoneBinGroup(), outBin(bl))
+        OR NOT filterZoneBinGroup() OR NOT countAccessCompanyZoneBinGroups(currentUser(), ss) OR multipleStores()
+    
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyZoneBinGroups(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterZoneBinGroup() <- defaultCompanyZoneBinGroup(currentUser(), ss);  
+        } ELSE {
+            filterZoneBinGroup() <- NULL;
+        }
+    }
+;
+
+DESIGN balanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterZoneBinGroup()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);  
+        MOVE BOX(bl);
+    }
+}

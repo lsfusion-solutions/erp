@@ -1,0 +1,110 @@
+MODULE InventoryBatchBinLedger;
+
+REQUIRE BatchBinLedger, InventoryBinLedger;
+
+NAMESPACE Inventory;
+
+TABLE collationSheetBinBatch (CollationSheet, Bin, Batch);
+
+include = DATA BOOLEAN (CollationSheet, Bin, Batch);
+quantityBalance 'Кол-во по остаткам' (collationSheet, bin, batch) = DATA NUMERIC[16,5] (CollationSheet, Bin, Batch);
+sumBalance 'Сумма по остаткам' (collationSheet, bin, batch) = DATA NUMERIC[18,4] (CollationSheet, Bin, Batch);
+
+overRecalculateBalance(Inventory inventory) + {
+    IF isBatch(inventory) AND useBins(inventory) THEN {
+        quantityBalance(CollationSheet cs, Bin bin, Batch batch) <- NULL WHERE inventory(cs) == inventory;
+        sumBalance(CollationSheet cs, Bin bin, Batch batch) <- NULL WHERE inventory(cs) == inventory;
+
+        FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) AND NOT skipRecalculateBalance(inventory) DO {
+            include(cs, Bin b, Batch batch) <- include(cs, b, skuLedger(batch, st));
+        }
+
+        FOR inventory(CollationSheet cs) = inventory AND DATETIME dt = dateTime(inventory) AND Stock st = stock(cs) DO {
+            IF isPartly(inventory) AND isRemains(inventory) THEN {
+                quantityBalance(cs, Bin bin, Batch batch)
+                    <- balanceB(batch, bin, dt)
+                    WHERE include(inventory, skuLedger(batch, st)) AND balanceB(batch, bin, dt) AND st == stock(bin);
+                sumBalance(cs, Bin bin, Batch batch)
+                    <- NUMERIC[18,4](round(quantityBalance(cs, bin, batch) * priceBalance(cs, batch), currency(st)))
+                    WHERE include(inventory, skuLedger(batch, st)) AND quantityBalance(cs, bin, batch) AND st == stock(bin);
+            } ELSE {
+                IF isRemains (inventory) THEN {
+                    quantityBalance(cs, Bin bin, Batch batch)
+                        <- balanceB(batch, bin, dt)
+                        WHERE balanceB(batch, bin, dt) AND st == stock(bin);
+                    sumBalance(cs, Bin bin, Batch batch)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, bin, batch) * priceBalance(cs, batch), currency(st)))
+                        WHERE quantityBalance(cs, bin, batch) AND st == stock(bin);
+                } ELSE {
+                    quantityBalance(cs, Bin bin, Batch batch)
+                        <- balanceB(batch, bin, dt)
+                        WHERE balanceB(batch, bin, dt) AND include(cs, bin, batch) AND st == stock(bin);
+                    sumBalance(cs, Bin bin, Batch batch)
+                        <- NUMERIC[18,4](round(quantityBalance(cs, bin, batch) * priceBalance(cs, batch), currency(st)))
+                        WHERE quantityBalance(cs, bin, batch) AND include(cs, bin, batch) AND st == stock(bin);
+                }
+            }
+        }
+    }
+}
+
+quantityPageInventoryDetail 'Кол-во по описям' (CollationSheet collationSheet, Bin bin, Batch batch) =
+    GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
+        BY collationSheet(pageInventoryDetail), bin(pageInventoryDetail), batch(pageInventoryDetail) MATERIALIZED;
+
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet, Bin bin, Batch batch) =
+    quantityBalance(collationSheet, bin, batch) (-) quantityPageInventoryDetail(collationSheet, bin, batch) MATERIALIZED;
+countPageInventoryDetail 'Кол-во по описям' (collationSheet, bin, batch) = GROUP SUM 1
+    BY collationSheet(PageInventoryDetail pageInventoryDetail), bin(pageInventoryDetail), batch(pageInventoryDetail);
+
+//недостача по ячейкам
+CLASS OutInventoryBatchBinLedger 'Недостача инвентаризации (по ячейке)' : BinLedger;
+TABLE outInventoryBatchBinLedger (OutInventoryBatchBinLedger);
+
+needToOutBinLedger (CollationSheet collationSheet, Bin bin, Batch batch) = 
+    quantityShortage(collationSheet, bin, batch) > 0
+    AND include(collationSheet, bin, batch)
+    AND NOT skipSkuLedger(collationSheet) 
+    AND isBatch(collationSheet)
+    AND batch IS Batch
+    AND useBins(collationSheet)
+    AND isPosted(collationSheet);
+
+outInventorySkuBinLedger = AGGR OutInventoryBatchBinLedger WHERE needToOutBinLedger(CollationSheet collationSheet, Bin bin, Batch batch) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (OutInventoryBatchBinLedger ledger) += dateTime(collationSheet(ledger));
+isPosted[BinLedger] (OutInventoryBatchBinLedger ledger) += isPosted(collationSheet(ledger));
+isClosed[BinLedger] (OutInventoryBatchBinLedger ledger) += isClosed(collationSheet(ledger));
+batch[BinLedger] (OutInventoryBatchBinLedger ledger) += batch(ledger);
+sku[BinLedger] (OutInventoryBatchBinLedger ledger) += skuLedger(batch(ledger), stock(collationSheet(ledger)));
+quantity[BinLedger] (OutInventoryBatchBinLedger ledger) += quantityShortage(collationSheet(ledger),bin(ledger),batch(ledger));
+stock[BinLedger] (OutInventoryBatchBinLedger ledger) += stock(collationSheet(ledger));
+outBin[BinLedger] (OutInventoryBatchBinLedger ledger) += bin(ledger);
+description[BinLedger] (OutInventoryBatchBinLedger ledger) += STRING[200]('Недостача по инвентаризации ' + name(collationSheet(ledger)) + ' от ' + date(collationSheet(ledger)))IF ledger IS OutInventorySkuBinLedger;
+
+//излишки по ячейкам
+CLASS InInventoryBatchBinLedger 'Излишки инвентаризации (по ячейке)' : BinLedger;
+TABLE inInventoryBatchBinLedger (InInventoryBatchBinLedger);
+
+needToInBinLedger (CollationSheet collationSheet, Bin bin, Batch batch) =
+    quantityShortage(collationSheet, bin, batch) < 0
+    AND include(collationSheet, bin, batch) 
+    AND NOT skipSkuLedger(collationSheet) 
+    AND isBatch(collationSheet)
+    AND batch IS Batch
+    AND useBins(collationSheet)
+    AND isPosted(collationSheet);
+
+InInventoryBatchBinLedger = AGGR InInventoryBatchBinLedger WHERE needToInBinLedger(CollationSheet collationSheet, Bin bin, Batch batch) MATERIALIZED INDEXED;
+
+dateTime[BinLedger] (InInventoryBatchBinLedger ledger) += dateTime(collationSheet(ledger));
+isPosted[BinLedger] (InInventoryBatchBinLedger ledger) += isPosted(collationSheet(ledger));
+isClosed[BinLedger] (InInventoryBatchBinLedger ledger) += isClosed(collationSheet(ledger));
+batch[BinLedger] (InInventoryBatchBinLedger ledger) += batch(ledger);
+sku[BinLedger] (InInventoryBatchBinLedger ledger) += skuLedger(batch(ledger), stock(collationSheet(ledger)));
+quantity[BinLedger] (InInventoryBatchBinLedger ledger) += -quantityShortage(collationSheet(ledger),bin(ledger),batch(ledger));
+stock[BinLedger] (InInventoryBatchBinLedger ledger) += stock(collationSheet(ledger));
+inBin[BinLedger] (InInventoryBatchBinLedger ledger) += bin(ledger);
+description[BinLedger] (InInventoryBatchBinLedger ledger) += STRING[200]('Излишек по инвентаризации ' + name(collationSheet(ledger)) + ' от ' + date(collationSheet(ledger)))IF ledger IS InInventoryBatchBinLedger;
+
+inventoryBinBatch() +=  TRUE;
