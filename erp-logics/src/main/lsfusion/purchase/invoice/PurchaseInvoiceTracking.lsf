@@ -1,0 +1,37 @@
+MODULE PurchaseInvoiceTracking;
+
+REQUIRE PurchaseInvoice, ItemTracking;
+
+NAMESPACE Purchase;
+
+isTracking 'Подлежит прослеживанию' (UserInvoiceDetail d)= isTrackingOver(sku(d));
+isTracking(Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND invoice(d)==i;
+showSPT (Invoice i)= TRUE IF isTracking(i);
+
+itemCustomCode'Код ТНВЭД' = DATA STRING[10] (UserInvoiceDetail);
+itemCustomCodeOther 'Дополнительный таможенный код' = DATA STRING[4] (UserInvoiceDetail);
+deliveryTypePrev 'Тип приходного документа' = DATA INTEGER (UserInvoiceDetail);
+deliveryNotePrev 'Номер приходного документа' = DATA STRING[70] (UserInvoiceDetail);
+deliveryNoteDate 'Дата создания приходного документа' = DATA DATE (UserInvoiceDetail);
+deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (UserInvoiceDetail);
+lineItemQuantitySPT 'Единица измерения прослеживаемости' = DATA STRING[3](UserInvoiceDetail);
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' = DATA NUMERIC[12,5] (UserInvoiceDetail);
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC[12,2] (UserInvoiceDetail);
+
+EXTEND FORM userInvoice
+    OBJECTS d5 = UserInvoiceDetail GRID
+    PROPERTIES(d5) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d5))), itemCustomCode, itemCustomCodeOther,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    
+    FILTERS userInvoice(d5) == i
+
+;
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW sptContainer {
+            caption = 'Прослеживание';
+            MOVE BOX(d5);
+        }
+    }
+}
