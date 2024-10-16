@@ -199,8 +199,6 @@ public class FiscalEpson {
 
         if (version116) {
 
-            epsonActiveXComponent.setProperty("Department",item.numberVAT);
-
             // соответствует не маркированному товару без GTIN (barcode)
             Integer typeOfGoods = 0;                // Тип маркировки
             String barcodeOfGoods = "";             // GTIN
@@ -208,8 +206,10 @@ public class FiscalEpson {
             String secondMarkingOfGoods = "";       // УКЗ (унифицированный контрольный знак РБ), для ERP не используется
 
             if (isGiftCardOrComission) { // авансовый платеж - продажа подарочного сертификата
+                epsonActiveXComponent.setProperty("Department", department);
                 typeOfGoods = 4;
             } else if (item.skuType == 3) { // услуга
+                epsonActiveXComponent.setProperty("Department", department);
                 typeOfGoods = 3;
             } else if (item.skuType == 1 && item.barcode != null && item.idLot == null) { // простой товар с GTIN
                 // исходим из того что, item.barcode - это GTIN
@@ -218,6 +218,7 @@ public class FiscalEpson {
                     typeOfGoods = tg;
                     barcodeOfGoods = item.barcode;
                 }
+                epsonActiveXComponent.setProperty("Department",item.numberVAT);
             } else if (item.skuType == 1 && item.barcode != null && item.idLot != null) { // GTIN + СИ + Криптохвост
                 // из idLot выделяем GTIN - 14 символов и удаляем лидирующии нули
                 String gtin = item.idLot.substring(2,16).replaceFirst("^0+(?!$)", "");
@@ -228,6 +229,7 @@ public class FiscalEpson {
                 } else {
                     firstMarkingOfGoods = item.idLot + item.tailLot;
                 }
+                epsonActiveXComponent.setProperty("Department",item.numberVAT);
             }
 
             epsonActiveXComponent.setProperty("TypeOfGoods", new Variant( typeOfGoods));
