@@ -158,7 +158,7 @@ META attributeCustomValue(attr, val, caption)
     useCustom###attr##Attribute = ABSTRACT BOOLEAN ();
     ##attr##ItemGroup = DATA ItemGroup ();
     name###attr##ItemGroup caption = name(##attr##ItemGroup());
-    value(Sku i, STRING s) += WHEN s = val AND i IS Sku AND NOT useCustom###attr##Attribute() THEN (IF level(##attr##ItemGroup(), itemGroup(i)) THEN 'true' ELSE 'false');
+    value(Sku i, STRING s) += WHEN s = val AND i IS Sku AND NOT useCustom###attr##Attribute() THEN (IF level(itemGroup(i), ##attr##ItemGroup()) THEN 'true' ELSE 'false');
     EXTEND FORM integrationData
         PROPERTIES name###attr##ItemGroup();
     DESIGN integrationData{
@@ -297,6 +297,8 @@ sendStocks 'Выгрузить остатки(по магазину)'(Department
         }
     } ELSE {
         EXPORT stocks OBJECTS d = d JSON;
+        sort(Sku s) <- PARTITION SUM 1 IF online(s) ORDER s;
+        EXPORT stocks OBJECTS d = departmentStore('33498') JSON;
         LOCAL response = FILE();
         TRY {
             EXTERNAL HTTP PUT 'https://merchant-api.sbermarket.ru/api/v1/import/stocks'

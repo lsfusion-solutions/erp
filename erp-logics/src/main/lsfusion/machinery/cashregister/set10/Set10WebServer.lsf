@@ -356,6 +356,58 @@ EXTEND CLASS RequestExchangeType{
 
 setGroup (Stock c) = GROUP MIN GroupCashRegister g IF active(g) AND isSet10(g) BY stock(g);
 
+//запрос с параметрами
+
+GROUP getPurchasesByParams EXTID 'plug:getPurchasesByParams' : bodyRequest;
+GROUP getPurchasesByParamsDataResponse EXTID 'ns2=http://plugins.operday.ERPIntegration.crystals.ru/:getPurchasesByParamsResponse' : bodyAnswer;
+
+operDay = DATA LOCAL DATE ();
+shopNumber = DATA LOCAL STRING();
+
+FORM requestExchangeParamsReq FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES IN getPurchasesByParams = toChar(operDay(), 'yyyy-MM-dd') EXTID 'dateOperDay', shopNumber() EXTID 'shopNumber'
+;
+
+FORM requestExchangeParamsAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR IN getPurchasesByOperDayDataResponse ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
+    PROPERTIES() IN getPurchasesByParamsDataResponse return
+;
+
+senRequestExchangeByStore(DATE d, STRING id){
+    operDay() <- d;
+    shopNumber() <- id;
+    EXPORT requestExchangeParamsReq XML;
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    LOCAL answer = FILE ();
+    EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/FiscalInfoExport' HEADERS headersSet PARAMS exportFile() TO answer;
+    IMPORT requestExchangeParamsAnswer XML FROM answer();
+    IF return() THEN {
+        decodeBase64(return());
+        reImportReceipt(decodedBase64(), id);
+    }
+}
+
+salesInfoSet10ByStore 'Перезагрузить продажи Set10(по магазинам)' (RequestExchange r){
+    TRY {
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchangeByStore(d, idStoreSet(setGroup(stock(r))));
+        succeededNative(r) <- TRUE;
+        dateTimeSucceededNative(r) <- currentDateTime();
+    }
+    CATCH {
+        NEW er = RequestExchangeError{
+            requestExchange(er) <- r;
+            date(er) <- currentDateTime();
+            erTrace(er) <- messageCaughtException();
+        }
+    }
+    FINALLY {
+        APPLY;
+    }
+}
+//
 salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchange r){
     TRY {
         FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchange(d, setGroup(stock(r)));
