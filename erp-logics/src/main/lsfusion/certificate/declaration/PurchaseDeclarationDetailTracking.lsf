@@ -18,7 +18,19 @@ overCreate (DeclarationDetail dd, DeclarationInvoiceDetail did) + {
 idExtraCode '4х зн код' (DeclarationInvoiceDetail di) = id(extraCode(di));
 idExtraCode '4х зн код' (DeclarationDetail dd) = id(extraCode(dd));
 
+changeExtraCode(DeclarationInvoiceDetail id){
+    DIALOG extraCodeTracking OBJECTS ec=extraCode(id) INPUT NULL FILTERS customsGroup(ec)==customsGroup(id) DO {
+        extraCode(id) <- ec;
+    }
+}
+
+changeExtraCode(DeclarationDetail d){
+    DIALOG extraCodeTracking OBJECTS ec=extraCode(d) INPUT NULL FILTERS customsGroup(ec)==customsGroup(d) DO {
+        extraCode(d) <- ec;
+    }
+}
+
 EXTEND FORM declaration
-    PROPERTIES(di) idExtraCode BACKGROUND backgroundEC(extraCode(di)) BEFORE nameVATCustomsException(di)
-    PROPERTIES(dd) idExtraCode BACKGROUND backgroundEC(extraCode(dd)) BEFORE  nameVATCustomsException(dd)
+    PROPERTIES(di) idExtraCode ON CHANGE changeExtraCode(di) BACKGROUND backgroundEC(extraCode(customsGroup(di))) BEFORE nameVATCustomsException(di)
+    PROPERTIES(dd) idExtraCode ON CHANGE changeExtraCode(dd) BACKGROUND backgroundEC(extraCode(customsGroup(dd))) BEFORE  nameVATCustomsException(dd)
 ;
