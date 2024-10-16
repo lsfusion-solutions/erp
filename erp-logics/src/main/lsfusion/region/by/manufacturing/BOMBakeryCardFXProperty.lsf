@@ -1,0 +1,52 @@
+MODULE BOMBakeryCardFXProperty;
+
+REQUIRE BOMBakeryCard;
+
+NAMESPACE BOM;
+
+showPerc 'Печатать в ТК, если значение показателя >= ' = DATA NUMERIC[8,2](FXProperty);
+
+EXTEND CLASS FXProperty{
+    sugar 'Массовая доля сахара в пересчете на сухое вещество, %',
+    fat 'Массовая доля жира в пересчете на сухое вещество, %',
+    filling 'Массовая доля начинки, %'
+}
+
+isCalc 'Расчетный показатель' (FXProperty f) = (f==FXProperty.sugar OR f==FXProperty.fat OR f==FXProperty.filling);
+
+EXTEND FORM FXProperty
+    PROPERTIES (o) showPerc SHOWIF isCalc(o)
+;
+
+migrateFXProperty(){
+    name(FXProperty f) <- ISTRING[100]('Массовая доля сахара в пересчете на сухое вещество, %') WHERE f == FXProperty.sugar;
+    name(FXProperty f) <- 'Массовая доля жира в пересчете на сухое вещество, %' WHERE f == FXProperty.fat;
+    name(FXProperty f) <- 'Массовая доля начинки, %' WHERE f == FXProperty.filling;
+    showPerc(FXProperty f) <- 2.0 WHERE isCalc(f);
+}
+
+@defOnStartMigrate(migrateFXProperty, '');
+
+fill 'Заполнить' ABSTRACT LIST (FXProperty, BOM);
+EXTEND FORM BOM
+    PROPERTIES (fxp,b) fill TOOLBAR SHOWIF isCalc(fxp)
+;
+fill(FXProperty f, BOM b)+{
+    IF f ==FXProperty.sugar THEN {
+        value(f, b)<- ISTRING[100](round1((GROUP SUM round2(overNettoNetWeight(Component c)*carbohydrates(c)) IF BOM(c)==b)*100.0/
+            (GROUP SUM round2(overNettoNetWeight(Component c)*percentDryness(c)) IF BOM(c)==b)));
+    }
+}
+
+fill(FXProperty f, BOM b)+{
+    IF f ==FXProperty.fat THEN {
+        value(f, b)<- ISTRING[100](round1((GROUP SUM round2(overNettoNetWeight(Component c)*fats(c)) IF BOM(c)==b)*100.0/
+            (GROUP SUM round2(overNettoNetWeight(Component c)*percentDryness(c)) IF BOM(c)==b)));
+    }
+}
+
+valueFilter(FXProperty f, BOM b) = (isCalc(f)  AND NUMERIC[16,5](value(f, b))> showPerc(f)) OR (f IS FXProperty AND b IS BOM AND NOT isCalc(f) );
+
+EXTEND FORM technologicalMapBakery
+    FILTERS valueFilter(fxp, b)
+;
