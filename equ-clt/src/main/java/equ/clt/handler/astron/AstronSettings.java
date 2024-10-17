@@ -63,6 +63,9 @@ public class AstronSettings implements Serializable {
     //если true, меняем местами значения idVAT для 10 и 20
     private boolean swap10And20VAT;
 
+    //новый запрос для readSales, если он будет работать, то выполнять новый по умолчанию
+    private boolean newReadSalesQuery;
+
     public AstronSettings() {
     }
 
@@ -217,5 +220,13 @@ public class AstronSettings implements Serializable {
 
     public void setSwap10And20VAT(boolean swap10And20VAT) {
         this.swap10And20VAT = swap10And20VAT;
+    }
+
+    public boolean isNewReadSalesQuery() {
+        return newReadSalesQuery;
+    }
+
+    public void setNewReadSalesQuery(boolean newReadSalesQuery) {
+        this.newReadSalesQuery = newReadSalesQuery;
     }
 }

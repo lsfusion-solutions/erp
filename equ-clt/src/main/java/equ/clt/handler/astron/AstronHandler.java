@@ -2320,6 +2320,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean ignoreSalesInfoWithoutCashRegister = astronSettings.isIgnoreSalesInfoWithoutCashRegister();
         boolean bonusPaymentAsDiscount = astronSettings.isBonusPaymentAsDiscount();
         boolean enableSqlLog = astronSettings.isEnableSqlLog();
+        boolean newReadSalesQuery = astronSettings.isNewReadSalesQuery();
 
         conn.setAutoCommit(true); // autoCommit = false начинает транзакцию при первом запросе а reindex concurrently нельзя выполнять в транзакции
         checkExtraColumns(conn, params);
@@ -2328,14 +2329,26 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         conn.setAutoCommit(false);
 
         try (Statement statement = conn.createStatement()) {
-            String query = "SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+            String query = newReadSalesQuery ?
+                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+                    "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
+                    "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
+                    "LEFT JOIN (SELECT se.SESSID, se.SYSTEMID, se.SAREAID, max(SESSSTART) AS SESSSTART FROM SESS se " +
+                    "JOIN SALES s ON s.SESSID=se.SESSID AND s.SYSTEMID=se.SYSTEMID AND s.SAREAID=se.SAREAID " +
+                    "WHERE s.SALESTIME > SESSSTART AND FUSION_PROCESSED IS NULL AND SALESCANC = 0 GROUP BY se.SESSID, se.SYSTEMID, se.SAREAID) sess " +
+                    "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
+                    "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
+                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM")
+                    :
+                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
-                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM";
+                    "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM");
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
