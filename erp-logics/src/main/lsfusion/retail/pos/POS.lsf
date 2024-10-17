@@ -1006,41 +1006,49 @@ DESIGN options {
 barcodeConsumed = DATA LOCAL BOOLEAN ();
 overBarcodeInput ABSTRACT LIST (Receipt);
 
+overChangeBarcodeReturn ABSTRACT LIST FIRST (STRING[200], Receipt);
+
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt)  {
     DIALOG barcodeInput DO {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            LOCAL created = BOOLEAN();
-            created() <- NULL;
-            DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku(), r INPUT DO {
-                createReturn(receipt, r, barcodeInput());
-                created() <- TRUE;
-            }
-            IF NOT created() THEN {
-                IF NOT forbidNullSaleDetail() THEN {
-                    NEW d = ReceiptReturnDetail {
-                        receipt(d) <- receipt;
-                        idBarcode(d) <- barcodeInput();
-                        sku(d) <- dialogBarcodeSku();
-                        quantity(d) <- 1.0;
-                        price(d) <- currentPOSPrice(dialogBarcodeSku(), receipt);
-                        VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
-                        focusQuantity(d);
-                        IF explicitBatchLedger(receipt) THEN {
-                            created() <- NULL;
-                            DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO{
-                                batch(d) <- bt;
-                                price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
-                                created() <- TRUE;
+
+            barcodeConsumed() <- NULL;
+            overChangeBarcodeReturn(initialBarcodeInput(), receipt);
+            
+            IF NOT barcodeConsumed() THEN {
+                LOCAL created = BOOLEAN();
+                created() <- NULL;
+                DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku(), r INPUT DO {
+                    createReturn(receipt, r, barcodeInput());
+                    created() <- TRUE;
+                }
+                IF NOT created() THEN {
+                    IF NOT forbidNullSaleDetail() THEN {
+                        NEW d = ReceiptReturnDetail {
+                            receipt(d) <- receipt;
+                            idBarcode(d) <- barcodeInput();
+                            sku(d) <- dialogBarcodeSku();
+                            quantity(d) <- 1.0;
+                            price(d) <- currentPOSPrice(dialogBarcodeSku(), receipt);
+                            VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
+                            focusQuantity(d);
+                            IF explicitBatchLedger(receipt) THEN {
+                                created() <- NULL;
+                                DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO{
+                                    batch(d) <- bt;
+                                    price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
+                                    created() <- TRUE;
+                                }
+                                IF NOT created() THEN
+                                    DELETE d;
                             }
-                            IF NOT created() THEN
-                                DELETE d;
                         }
+                    } ELSE {
+                        MESSAGE 'Выберите чек для возврата';
                     }
-                } ELSE {
-                    MESSAGE 'Выберите чек для возврата';
                 }
             }
         } ELSE {

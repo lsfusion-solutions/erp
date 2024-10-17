@@ -4,8 +4,12 @@ REQUIRE POS, ZReportLot, SkuLedgerLot;
 
 NAMESPACE POS;
 
+dropLot 'Сбросить' (ReceiptDetail d) {
+    lot(d) <- NULL;
+}
 EXTEND FORM POS
     PROPERTIES(d) READONLY idLot SHOWIF lotType(sku(d)) BACKGROUND RGB(255,224,224) IF NOT lot(d) PANEL
+    PROPERTIES(d) SHOWIF d IS ReceiptReturnDetail dropLot
 ;
 
 DESIGN POS {
@@ -16,7 +20,8 @@ DESIGN POS {
             MOVE PROPERTY(nameBatchPanel);
             MOVE PROPERTY(idLot(d)) {
                 panelCaptionVertical = TRUE; focusable = FALSE; font = 'bold 24';
-            }        
+            }
+            MOVE PROPERTY(dropLot(d)) { focusable = FALSE; font = 'bold 24'; }
         }
     }
 }
@@ -56,6 +61,39 @@ overChangeBarcodeSale(STRING[200] b, Receipt r) + {
             }
         }
     }
+}
+
+overChangeBarcodeReturn(STRING[200] b, Receipt r) + {
+    IF length(b) >= OVERRIDE lotMinLength(), 20 THEN
+        FOR Lot l = lot(barcodeToId(b)) AND Sku s = sku(l) DO {
+            barcodeConsumed() <- TRUE;
+            IF currentBalance(l) > 0 THEN {
+                MESSAGE 'Контрольная марка присутствует на остатках. Ее возврат невозможен.';
+            } ELSE {
+                IF lastReceiptSaleDetail(l) THEN {
+                    createReturn(r, lastReceiptSaleDetail(l), barcodeInput());
+                } ELSE {
+                    NEW d = ReceiptReturnDetail {
+                        receipt(d) <- r;
+                        idBarcode(d) <- idBarcode(s);
+                        sku(d) <- s;
+                        quantity(d) <- 1.0;
+                        price(d) <- price(l, r);
+                        VAT(d) <- VAT(s, departmentStore(r));
+                        lot(d) <- l;
+                        IF explicitBatchLedger(r) THEN {
+                            IF batch(l) THEN {
+                                batch(d) <- batch(l);
+                                price(d) <- currentPOSPrice[Batch, Receipt](batch(l), r);
+                            }
+                            //                        ELSE
+                            //                            setSaleDetailBatch(d, r);
+                        }
+                        focusQuantity(d);
+                    }
+                }
+            }
+        }
 }
 
 WHEN LOCAL FORMS POS CHANGED(receiptSaleDetail(ReceiptReturnDetail d)) AND NOT CHANGED (lot(d)) DO {
