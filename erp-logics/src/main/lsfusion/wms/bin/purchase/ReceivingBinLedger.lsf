@@ -60,19 +60,69 @@ receiving = DATA Receiving (ReceivingDetail) INDEXED NONULL DELETE;
 status (ReceivingDetail d) = status(receiving(d)) MATERIALIZED;
 nameStatus 'Статус' (ReceivingDetail d) = staticCaption(status(d)) IN documentPrm CHARWIDTH 8;
 
-@defineDocumentDetailPosted(receiving);
+@defineDocumentDetailPosted(receiving){
+    @defineDocumentDetailPosted(receiving, ReceivingDetail){
+    isPosted '{document.posted}' (ReceivingDetail d) = isPosted(receiving(d)) MATERIALIZED;
+    isNotPosted '{document.draft}' (ReceivingDetail d) = d IS ReceivingDetail AND NOT isPosted(d);
+};
+};
 
-@defineDocumentDetailClosed(receiving);
+@defineDocumentDetailClosed(receiving){
+    @defineDocumentDetailClosed(receiving, ReceivingDetail){
+    isClosed '{documents.is.closed}' (ReceivingDetail d) = isClosed(receiving(d));
+    isOpened '{documents.is.opened}' (ReceivingDetail d) = isPosted(d) AND isOpened(receiving(d));
+};
+};
 
-@defineDocumentDetailDataStockInner (receiving, receivingDetail, stock, Stock, supplierStock, 'Склад поставщика');
+@defineDocumentDetailDataStockInner (receiving, receivingDetail, stock, Stock, supplierStock, 'Склад поставщика'){
+    supplierStock (ReceivingDetail idetail) = supplierStock(receiving(idetail)) MATERIALIZED;
+    nameSupplierStock 'Склад поставщика' (ReceivingDetail idetail) = name(supplierStock(idetail)) IN id CHARWIDTH 10;
+    fullNameSupplierStock 'Склад поставщика' (ReceivingDetail idetail) = fullName(supplierStock(idetail)) CHARWIDTH 10;         
+    countrySupplierStock (ReceivingDetail idetail) = country(supplierStock(idetail));
+    legalEntitySupplierStock (ReceivingDetail idetail) = legalEntity(supplierStock(idetail));
+    nameLegalEntitySupplierStock 'Компания (Склад поставщика)' (ReceivingDetail idetail) = name(legalEntitySupplierStock (idetail));
+    fullNameLegalEntitySupplierStock 'Компания (Склад поставщика) полное наим-ие' (ReceivingDetail idetail) = fullName(legalEntitySupplierStock (idetail));
+    
+};
 
-@defineDocumentDetailDataStockInner (receiving, receivingDetail, stock, Stock, customerStock, 'Склад покупателя');
+@defineDocumentDetailDataStockInner (receiving, receivingDetail, stock, Stock, customerStock, 'Склад покупателя'){
+    customerStock (ReceivingDetail idetail) = customerStock(receiving(idetail)) MATERIALIZED;
+    nameCustomerStock 'Склад покупателя' (ReceivingDetail idetail) = name(customerStock(idetail)) IN id CHARWIDTH 10;
+    fullNameCustomerStock 'Склад покупателя' (ReceivingDetail idetail) = fullName(customerStock(idetail)) CHARWIDTH 10;         
+    countryCustomerStock (ReceivingDetail idetail) = country(customerStock(idetail));
+    legalEntityCustomerStock (ReceivingDetail idetail) = legalEntity(customerStock(idetail));
+    nameLegalEntityCustomerStock 'Компания (Склад покупателя)' (ReceivingDetail idetail) = name(legalEntityCustomerStock (idetail));
+    fullNameLegalEntityCustomerStock 'Компания (Склад покупателя) полное наим-ие' (ReceivingDetail idetail) = fullName(legalEntityCustomerStock (idetail));
+    
+};
 
-@defineDocumentHeaderCount(receiving, ReceivingDetail);
+@defineDocumentHeaderCount(receiving, ReceivingDetail){
+    @defineDocumentHeaderCount(receiving, ReceivingDetail, ){
+    countReceivingDetail '{document.count.detail.of}' (o) =
+        GROUP SUM 1 BY receiving(ReceivingDetail d) MATERIALIZED IN documentSum;
+};
+};
 
-@defineDocumentDetailIndex(receiving, ReceivingDetail);
+@defineDocumentDetailIndex(receiving, ReceivingDetail){
+    dataIndex '{document.data.index.detail.class}' = DATA INTEGER (ReceivingDetail); 
+    defaultIndex '{document.default.index.detail.class}' (ReceivingDetail d) =
+        PARTITION SUM 1
+        ORDER d BY receiving(d) CHARWIDTH 4;
+    index '{document.index.detail.class}' (ReceivingDetail d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;  
+};
 
-@defineDocumentDetailSkuCustomPrefix(receivingDetail, sku, , );
+@defineDocumentDetailSkuCustomPrefix(receivingDetail, sku, , ){
+    @defineDocumentDetailSkuCustomPrefixInner(receivingDetail, sku, Sku, , ){
+    sku = DATA Sku (ReceivingDetail) INDEXED;
+    idSku 'Код' (ReceivingDetail receivingDetail) = id(sku(receivingDetail)) IN id;
+    nameSku 'Наименование' (ReceivingDetail receivingDetail) = name(sku(receivingDetail)) CHARWIDTH 40;
+    prevNameSku 'Наименование' (ReceivingDetail receivingDetail) = prevName(sku(receivingDetail)) IN id;
+    shortNameUOMSku 'Ед. изм.' = shortNameUOM(sku(ReceivingDetail receivingDetail)) IN id;
+    idBarcodeSku 'Штрихкод' (ReceivingDetail receivingDetail) = idBarcode(sku(receivingDetail)) IN id;
+    nameCountrySku 'Страна' (ReceivingDetail receivingDetail) = nameCountry(sku(receivingDetail));
+    replace(Sku s, Sku d) + { sku(ReceivingDetail receivingDetail) <- d WHERE sku(receivingDetail) == s;}
+};
+};
 
 idBarcode 'Штрихкод' = DATA STRING[15] (ReceivingDetail) IN id;
 
@@ -104,9 +154,15 @@ WHEN CHANGED(quantity(ReceivingDetail detail)) DO {
     createdUser(detail) <- currentUser();
 }
 
-@defineDocumentHeaderDescription(Receiving, 'Приемка');
+@defineDocumentHeaderDescription(Receiving, 'Приемка'){
+    description '{document.description.object}' (Receiving o) =
+        STRING[200](CONCAT ' ', 'Приемка' IF o IS Receiving, '{document.desription.number} ' + seriesNumber(o), '{document.desription.of} ' + date(o)) CHARWIDTH 30;
+};
 
-@defineDocumentDetailDescription(receiving, ReceivingDetail);
+@defineDocumentDetailDescription(receiving, ReceivingDetail){
+    description '{document.description.object}' (ReceivingDetail d) = description(receiving(d)) CHARWIDTH 30;
+    descriptionIndex '{document.description.object}' (ReceivingDetail d) = STRING[200](description(d) + ', {document.description.position} ' + index(d)) CHARWIDTH 30 IN base;
+};
 
 inBin(ReceivingDetail detail) = inBin(receiving(detail));
 nameInBin 'Ячейка' (ReceivingDetail detail) = name(inBin(detail));
@@ -174,7 +230,66 @@ newReceivingDetail 'Добавить' (Receiving r) {
     SHOW addReceivingDetail OBJECTS r=r; 
 } IMAGE 'add.png';
 
-@defineBinAttribute(receiving, 'Приемка');
+@defineBinAttribute(receiving, 'Приемка'){
+
+    dataReceiving 'Приемка' = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
+    dataReceiving 'Приемка' = DATA BOOLEAN (DataBinGroup);
+    dataReceiving(DataBinGroup binGroup) += dataReceiving(binGroup);
+
+    levelParentDataReceiving (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF dataReceiving(parent) MATERIALIZED;
+    nearestParentDataReceiving (BinGroup binGroup) = binGroup(binGroup, levelParentDataReceiving(binGroup));
+    nearestDataReceiving (BinGroup binGroup) = dataReceiving(nearestParentDataReceiving(binGroup)) MATERIALIZED;
+
+    receiving 'Приемка' (BinGroup binGroup) =
+        OVERRIDE dataReceiving(binGroup),
+            nearestDataReceiving(binGroup) MATERIALIZED;
+
+    EXTEND FORM dataBinGroup
+        PROPERTIES(g) dataReceiving
+    ;
+
+    DESIGN dataBinGroup {
+        additionalContainer{
+            MOVE PROPERTY(dataReceiving(g));
+        }
+    }
+
+    EXTEND FORM dialogBinGroups
+        PROPERTIES(g) READONLY receiving
+    ;
+
+    EXTEND FORM binGroups
+        PROPERTIES(g) READONLY receiving
+    ;
+
+    dataReceiving 'Приемка' = DATA BOOLEAN (Bin);
+
+    receiving 'Приемка' (Bin bin) =
+        OVERRIDE dataReceiving(bin),
+            receiving(binGroup(bin)) MATERIALIZED;
+
+    EXTEND FORM bin
+        PROPERTIES(s) receiving
+    ;
+
+    DESIGN bin {
+        additionalContainer{
+            MOVE PROPERTY(receiving(s));
+        }
+    }
+
+    EXTEND FORM dialogBins
+        PROPERTIES(s) READONLY receiving
+    ;
+
+    EXTEND FORM bins
+        PROPERTIES(s) READONLY receiving
+    ;
+
+    EXTEND FORM binStocks
+        PROPERTIES(b) READONLY receiving
+    ;
+};
 
 EXTEND CLASS ReceivingType {
     detailed 'С детализацией'
@@ -198,7 +313,7 @@ EXTEND FORM employee
 
 dataReceivingBin = DATA LOCAL Bin (CustomUser);
 receivingBin (CustomUser u) = OVERRIDE dataReceivingBin(u), (GROUP MAX defaultReceivingBin(u, Stock stock));
-nameReceivingBin 'Ячейка(приемка)' (CustomUser u) = name(receivingBin(u)) CHARWIDTH 10;
+nameReceivingBin 'Ячейка(приемка)' (CustomUser u) = canonicalName(receivingBin(u)) CHARWIDTH 10;
 
 CONSTRAINT LOCAL dataReceivingBin(CustomUser u) AND NOT accessCompany(u, stock(dataReceivingBin(u)))
     CHECKED BY dataReceivingBin[CustomUser] MESSAGE 'Нет доступа к складу ячейки';
@@ -385,7 +500,20 @@ META defineReceivingAggregation(primObject, captionObject, formObject)
         }
     }
 
-    @defineOperationProperty(create###primObject##Receiving, 'Приемка по '##captionObject, createContainer);
+    @defineOperationProperty(create###primObject##Receiving, 'Приемка по '##captionObject, createContainer){
+    @defineOperationProperty(create###primObject##Receiving, 'Приемка по '##captionObject, BOOLEAN, createContainer){
+    create###primObject##Receiving 'Приемка по '##captionObject = DATA BOOLEAN (Operation) PREREAD;
+
+    EXTEND FORM operation
+        PROPERTIES(o) create###primObject##Receiving
+    ;
+    DESIGN operation {
+        createContainer {
+            MOVE PROPERTY(create###primObject##Receiving(o));
+        }
+    }
+};
+};
     createReceiving (User###primObject o) <- create###primObject##Receiving(operation(o)) WHEN CHANGED(operation(o));
 
     needToCreateReceiving(###primObject primObject) += createReceiving(primObject);
@@ -410,8 +538,25 @@ META defineReceivingAggregation(primObject, captionObject, formObject)
     }
 END
 
-@implementAggregationBinLedger(receivingDetail, receiving, Receiving, sku, quantity, customerStock);
+@implementAggregationBinLedger(receivingDetail, receiving, Receiving, sku, quantity, customerStock){
+    @createClassBinLedger(Receiving){
+    CLASS ReceivingBinLedger : BinLedger;
+};
+    needToCreate = ABSTRACT BOOLEAN (ReceivingDetail); 
+    receivingBinLedger = AGGR ReceivingBinLedger WHERE needToCreate(ReceivingDetail receivingDetail) MATERIALIZED INDEXED;
+    @implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBinProp, outBinProp){
+    dateTime[BinLedger] (ReceivingBinLedger ledger) += dateTime(receivingDetail(ledger));
+    isPosted[BinLedger] (ReceivingBinLedger ledger) += isPosted(receivingDetail(ledger));
+    isClosed[BinLedger] (ReceivingBinLedger ledger) += isClosed(receivingDetail(ledger));
+    sku[BinLedger] (ReceivingBinLedger ledger) += sku(receivingDetail(ledger));
+    quantity[BinLedger] (ReceivingBinLedger ledger) += quantity(receivingDetail(ledger));
+    stock[BinLedger] (ReceivingBinLedger ledger) += customerStock(receivingDetail(ledger));
+    description[BinLedger] (ReceivingBinLedger ledger) += description(receivingDetail(ledger));
+};
+};
 
-@implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBin);
+@implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBin){
+    inBin[BinLedger] (ReceivingBinLedger ledger) += inBin(receivingDetail(ledger));    
+};
 
 needToCreate(ReceivingDetail detail) += TRUE IF inBin(detail) AND status(detail) == ReceivingStatus.completed;
