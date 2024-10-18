@@ -1,0 +1,40 @@
+MODULE PurchaseReturnLimitPriceWholesale;
+
+REQUIRE PurchaseLimitPriceWholesale, PurchaseReturnInvoice;
+
+NAMESPACE PurchaseReturn;
+
+limitWholesaleDataPriceListTypeReturn= DATA DataPriceListType (Purchase.Operation) PREREAD;
+nameLimitWholesaleDataPriceListTypeReturn 'Вид цен "Предельные максимальные отпускные цены (МОЦ)" для возврата' (Purchase.Operation o) = name(limitWholesaleDataPriceListTypeReturn(o));
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) nameLimitWholesaleDataPriceListTypeReturn
+;
+DESIGN Purchase.operation {
+    moc{
+        MOVE PROPERTY(nameLimitWholesaleDataPriceListTypeReturn(o));
+    }    
+}
+
+limitWholesalePrice 'Предельная МОЦ' (OrderDetail d) = prevPriceB(limitWholesaleDataPriceListTypeReturn(operation(d)), sku(d), customerStock(d), dateTime(d));
+limitWholesalePrice 'Предельная МОЦ' (InvoiceDetail d) = prevPriceB(limitWholesaleDataPriceListTypeReturn(operation(d)), sku(d), customerStock(d), dateTime(d));
+
+toConstraintWholesalePrice(OrderDetail d) = (SET(isPosted(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(price(d)))
+    AND isPosted(d) AND price(d) > limitWholesalePrice(d);
+toConstraintWholesalePrice = GROUP SUM 1 IF toConstraintWholesalePrice(OrderDetail d) BY order(d);
+
+WHEN toConstraintWholesalePrice(Order o) DO {
+    MESSAGE (CONCAT  '\n','Для данных позиций отпускная цена превышает МОЦ',
+        (GROUP CONCAT (CONCAT ', ', 'Строка '+index(OrderDetail d), 'товар '+nameSku(d), 'отпускная цена '+price(d), 'МОЦ '+limitWholesalePrice(d)) IF toConstraintWholesalePrice(d) AND order(d)==o, '\n' ORDER d)) NOWAIT;
+    CANCEL;
+}
+
+toConstraintWholesalePrice(InvoiceDetail d) = (SET(isPosted(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(price(d)))
+    AND isPosted(d) AND price(d) > limitWholesalePrice(d);
+toConstraintWholesalePrice = GROUP SUM 1 IF toConstraintWholesalePrice(InvoiceDetail d) BY invoice(d);
+
+WHEN toConstraintWholesalePrice(Invoice o) DO {
+    MESSAGE (CONCAT  '\n','Для данных позиций отпускная цена превышает МОЦ',
+        (GROUP CONCAT (CONCAT ', ', 'Строка '+index(InvoiceDetail d), 'товар '+nameSku(d), 'отпускная цена '+price(d), 'МОЦ '+limitWholesalePrice(d)) IF toConstraintWholesalePrice(d) AND invoice(d)==o, '\n' ORDER d)) NOWAIT;
+    CANCEL;
+}
