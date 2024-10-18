@@ -1,0 +1,57 @@
+MODULE NTClientSoftware;
+
+REQUIRE Utils, Integration;
+
+//4.4. Выработка ЭЦП через идентификационную карту (КТА) (URL): http://127.0.0.1:8084/sign.
+
+urlNTClientSoftware'Url' = DATA STRING[255] ();
+
+EXTEND FORM integrationData
+    PROPERTIES () urlNTClientSoftware
+;
+
+DESIGN integrationData{
+    pane{
+        NEW NTClientSoftware {
+            caption = 'NTClientSoftware';
+            MOVE PROPERTY (urlNTClientSoftware());
+        }
+    }
+}
+
+base64Data = DATA LOCAL STRING();
+
+FORM signing
+    PROPERTIES() base64Data EXTID 'data'
+;
+
+cms = DATA LOCAL STRING();
+
+FORM importSignedData
+    PROPERTIES() cms EXTID 'cms'
+;
+
+base64Signature = DATA LOCAL STRING ();
+
+signing (STRING base64Data) {
+    TRY {
+        LOCAL f = FILE ();
+        base64Data() <- base64Data; 
+        EXPORT signing JSON TO f;
+        
+        fileToString(f());
+
+        LOCAL response = FILE ();
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP POST urlNTClientSoftware() + '/sign' PARAMS f() TO response;
+
+        fileToString(response());
+//        MESSAGE resultString();
+        
+        IMPORT importSignedData JSON FROM response();
+
+        base64Signature() <- cms();
+    } CATCH {
+        MESSAGE CONCAT '\n', 'Документ не подписан', messageCaughtException() NOWAIT;
+    }
+}

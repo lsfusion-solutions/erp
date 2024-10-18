@@ -1,0 +1,412 @@
+MODULE DocumentStocktakeMNS;
+
+REQUIRE Inventory, LegalEntityBy, ItemTracking, Lot, PurchaseDeclarationDetailBy, InventoryLot, NTClientSoftware;
+
+NAMESPACE Inventory;
+
+district 'Район' = DATA STRING (LegalEntity);
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) district
+;
+
+DESIGN legalEntity {
+    column1{
+        NEW MNS {
+            caption = 'МНС';
+            MOVE PROPERTY(district(l));
+        }
+    }
+}
+
+CLASS Stocktake 'Документ выгрузки в МНС';
+
+id (Stocktake s) = STRING[50](s);
+dateTime 'Дата отправки' =  DATA DATETIME (Stocktake);
+inventory = DATA Inventory (Stocktake) NONULL DELETE;
+legalEntity = DATA  LegalEntity(Stocktake);
+prevStocktake = DATA LOCAL Stocktake(Stocktake);
+
+district = DATA STRING(Stocktake);
+district2 = DATA STRING(Stocktake);
+dateTimeInventory = DATA STRING (Stocktake);
+seriesNumber = DATA STRING(Stocktake);
+nameLegalEntity = DATA STRING(Stocktake);
+nameChief = DATA STRING(Stocktake);
+prevDateTime = DATA STRING(Stocktake);
+prevDocNumber = DATA STRING(Stocktake);
+
+refRecordId = DATA INTEGER (Stocktake);
+
+// Ответ
+recordId = DATA LOCAL INTEGER(Stocktake);
+statusCode = DATA LOCAL STRING(Stocktake);
+documentReplyDateTime = DATA LOCAL DATETIME(Stocktake);
+reply = DATA LOCAL STRING(Stocktake);
+SPTInternalDateTime = DATA LOCAL DATETIME(Stocktake);
+resultDescription = DATA LOCAL STRING(Stocktake);
+resultCode = DATA LOCAL INTEGER(Stocktake);
+
+CLASS StocktakeDetail 'Строка документа выгрузки в МНС';
+stocktake = DATA Stocktake(StocktakeDetail) NONULL DELETE;
+batch = DATA Batch(StocktakeDetail);
+
+index = DATA INTEGER (StocktakeDetail);
+codeSku = DATA STRING(StocktakeDetail);
+extraCodeSku = DATA STRING(StocktakeDetail);
+gtin = DATA STRING(StocktakeDetail);
+nameSku = DATA STRING(StocktakeDetail);
+sidOrigin2Country = DATA STRING(StocktakeDetail);
+uomSku = DATA STRING(StocktakeDetail);
+quantityUomSku = DATA NUMERIC[16,4] (StocktakeDetail);
+trackingUOMCustomsGroup = DATA STRING(StocktakeDetail);
+pricePageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
+sumPageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
+quantityPageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
+
+CLASS LotStocktakeDetail 'Строка марки документа выгрузки в МНС';
+stocktakeDetail = DATA StocktakeDetail (LotStocktakeDetail) NONULL DELETE;
+lot = DATA Lot(LotStocktakeDetail);
+encodeBase64Code = DATA STRING(LotStocktakeDetail);
+
+
+version = DATA LOCAL INTEGER ();
+type = DATA LOCAL STRING();
+rectification = DATA LOCAL BOOLEAN ();
+kodIMNS = DATA LOCAL STRING();
+UNP = DATA LOCAL STRING();
+year = DATA LOCAL INTEGER();
+
+lastStocktake (Inventory i) = GROUP LAST Stocktake s ORDER dateTime(s) BY inventory(s);
+
+GROUP district EXTID 'LetterTraceabilityLeftovers_v1_f001';
+GROUP district2 EXTID 'LetterTraceabilityLeftovers_v1_f001A';
+GROUP groupInventory EXTID 'LetterTraceabilityLeftovers_v1_f002';
+GROUP groupDetail EXTID 'LetterTraceabilityLeftovers_v1_t001';
+
+FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabilityleftovers/ver1:LetterTraceabilityLeftovers'
+        
+    PROPERTIES()        
+        version ATTR,
+        type ATTR,
+        rectification ATTR,
+        kodIMNS ATTR,
+        UNP ATTR,
+        year ATTR
+    
+    OBJECTS s = Stocktake EXTID ''
+//    PROPERTIES ATTR IN district ='' EXTID 'xmlns:'
+    PROPERTIES(s) IN district district EXTID 'value'
+
+//    PROPERTIES ATTR IN district2 ='' EXTID 'xmlns:'
+    PROPERTIES(s) IN district2 district2 EXTID 'value'
+
+//    PROPERTIES ATTR IN groupInventory ='' EXTID 'xmlns:'
+    PROPERTIES(s) IN groupInventory
+        dateTimeInventory EXTID 'LetterTraceabilityLeftovers_v1_f002_s1', 
+        seriesNumber EXTID 'LetterTraceabilityLeftovers_v1_f002_s2',
+        nameLegalEntity EXTID 'LetterTraceabilityLeftovers_v1_f002_s3',
+        nameChief EXTID 'LetterTraceabilityLeftovers_v1_f002_s4',
+        prevDateTime EXTID 'LetterTraceabilityLeftovers_v1_f002_s5',
+        prevDocNumber EXTID 'LetterTraceabilityLeftovers_v1_f002_s6'
+
+    
+    OBJECTS d = StocktakeDetail IN groupDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ri'
+    PROPERTIES 
+    'index'=STRING(index(d)) EXTID 'LetterTraceabilityLeftovers_v1_t001_ric1'
+    PROPERTIES(d) 
+        codeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2',
+//        extraCodeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2a', // TODO ожидание ответа МНС. API ругается на эти элементы
+//        gtin EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2b', // TODO ожидание ответа МНС. API ругается на эти элементы
+        nameSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3',
+//        sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3а', // TODO ожидание ответа МНС. API ругается на эти элементы
+        uomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric4',
+        quantityUomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5',
+        trackingUOMCustomsGroup EXTID 'LetterTraceabilityLeftovers_v1_t001_ric6',
+        pricePageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric7',
+        sumPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric8',
+        quantityPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9'
+    FILTERS stocktake(d) == s
+
+    OBJECTS l = LotStocktakeDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric10'
+    PROPERTIES(l) 
+        encodeBase64Code EXTID 'LetterTraceabilityLeftovers_v1_t001_ric10a'
+    FILTERS stocktakeDetail(l) == d;
+
+countLegalEntity(Inventory i) = GROUP SUM 1 IF LegalEntity le AND include(Stock s, i) AND le == legalEntity(s);
+
+exportXMLFile = DATA LOCAL FILE ();
+
+trackingUOMRatio(Sku s) = CASE
+    WHEN trackingUOMCustomsGroup(s)=='112' THEN volume(s)
+    WHEN trackingUOMCustomsGroup(s)=='166' THEN netWeight(s)
+    ELSE 1 IF s IS Sku; 
+
+createdStocktake = DATA LOCAL Stocktake();
+createStocktake (Inventory inv) {
+    IF countLegalEntity(inv) > 1 THEN {
+        MESSAGE 'Инвентаризация включает склады нескольких организаций';        
+        RETURN;
+    }
+
+    LOCAL legalEntity = LegalEntity();
+    legalEntity() <- GROUP MIN legalEntity(Stock s) IF include(s, inv);
+    
+    createdStocktake() <- NULL;
+    
+    NEW s = Stocktake {
+        createdStocktake() <- s;
+        inventory(s) <- inv;
+        dateTime(s) <- currentDateTime();
+        legalEntity(s) <- GROUP MIN legalEntity(Stock stock) IF include(stock, inv);
+        prevStocktake(s) <- PREV(lastStocktake(inv));
+        refRecordId (s) <- recordId(prevStocktake(s));
+
+        district(s) <- district(legalEntity(s));
+        district2(s) <- district(legalEntity(s));
+        dateTimeInventory(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm');
+        seriesNumber(s) <- seriesNumber(inv);
+        nameLegalEntity(s) <- name(legalEntity(s));
+        nameChief(s) <- nameChief(legalEntity(s));
+        prevDateTime(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm'); 
+        prevDocNumber(s) <- seriesNumber(inv); 
+
+        prevStocktake(s) <- PREV (lastStocktake(inv));
+
+        // переносим корректируемые документы
+        FOR stocktake(StocktakeDetail d) == prevStocktake(s) DO NEW nd = StocktakeDetail {
+            stocktake(nd) <- s;
+            batch(nd) <- batch(d);
+            index(nd) <- index(d);
+            codeSku(nd) <- codeSku(d);
+            extraCodeSku(nd) <- extraCodeSku(d);
+            gtin(nd) <- gtin(d);
+            nameSku(nd) <-name(sku(batch(nd)));
+            sidOrigin2Country(nd) <- sidOrigin2Country(sku(batch(nd)));
+            uomSku(nd) <- customsCode(UOM(sku(batch(nd))));
+            trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
+            quantityUomSku(nd) <- OVERRIDE 0.0 IF trackingUOMCustomsGroup(nd) AND NOT trackingUOMCustomsGroup(nd) == trackingUOMCustomsGroup(sku(batch(nd))), (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0;
+            pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, batch(nd)) / trackingUOMRatio(sku(batch(nd))) IF inventory(cs) == inv), 0.0;
+            sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0;
+            quantityPageInventoryDetail(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(batch(nd)));
+
+            FOR batch(Lot l) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
+                stocktakeDetail(ld) <- nd;
+                lot(ld) <- l;
+                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+            }
+        }
+
+        LOCAL needNewDetail = BOOLEAN (Batch);
+        needNewDetail(Batch b) <- isTrackingOver(sku(b)) AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, b)) AND
+            (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv) AND
+            ((NOT GROUP MIN StocktakeDetail d IF stocktake(d) == s AND batch(d) == b) OR
+            (GROUP MIN StocktakeDetail d IF stocktake(d) == s AND trackingUOMCustomsGroup(d) AND NOT trackingUOMCustomsGroup(d) == trackingUOMCustomsGroup(sku(b)))); //Если изменен ТНВЭД, обнуляем кол-во в старых строках и создаем новые для нового значения
+        
+        // создаем новые
+        FOR needNewDetail(Batch b) DO NEW nd = StocktakeDetail {
+            stocktake(nd) <- s;
+            batch(nd) <- b;
+            codeSku(nd) <- code(customsGroup(defaultCountry(), sku(b)));
+            extraCodeSku(nd) <- id(extraCode(sku(b)));
+            gtin(nd) <- gtin(sku(b));
+            nameSku(nd) <- name(sku(b));
+            sidOrigin2Country(nd) <- sidOrigin2Country(sku(b));
+            uomSku(nd) <- customsCode(UOM(sku(b)));
+            quantityUomSku(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
+            trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(b));
+            pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, b) / trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
+            sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
+            quantityPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) * trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
+
+            FOR batch(Lot l) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
+                stocktakeDetail(ld) <- nd;
+                lot(ld) <- l;
+                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+            }
+        }
+
+        LOCAL locIndex = INTEGER (StocktakeDetail);
+        locIndex (StocktakeDetail d) <- PARTITION SUM 1 ORDER index(d), d BY stocktake(d) WHERE s == stocktake(d);        
+        index(StocktakeDetail d) <- locIndex(d) WHERE s == stocktake(d);
+    }
+}
+
+exportToXML(Stocktake s) {
+    version() <- 1;
+    type() <- 'LETTERTRACEABILITYLEFTOVERS';
+    rectification() <- NULL;
+    kodIMNS() <- '107';
+    UNP() <- UNP(legalEntity(s));
+    year() <- extractYear(DATE(createdTime(inventory(s))));
+    
+    EXPORT originalDocument OBJECTS  s = s XML TO exportXMLFile;
+}
+
+// Основной JSON
+VATRegistrationNumber = DATA LOCAL STRING();
+originalDocument = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL STRING();
+documentId = DATA LOCAL STRING();
+originalDocumentSign = DATA LOCAL STRING();
+IMNS = DATA LOCAL STRING();
+documentNumber1 = DATA LOCAL STRING();
+documentDate = DATA LOCAL STRING ();
+documentName = DATA LOCAL STRING();
+refRecordId = DATA LOCAL INTEGER ();
+correctionDate = DATA LOCAL STRING();
+
+documentNumber(StocktakeDetail d) = seriesNumber(stocktake(d));
+
+FORM exportJSON
+    PROPERTIES() 
+        VATRegistrationNumber,
+        creationDateTime EXTID 'CreationDateTime', 
+        documentId EXTID 'DocumentId',
+        IMNS, 
+        documentNumber1 EXTID 'DocumentNumber', 
+        documentDate EXTID 'DocumentDate', 
+        documentName EXTID 'DocumentName', 
+        refRecordId EXTID 'RefRecordId', 
+        correctionDate EXTID 'CorrectionDate',
+
+        originalDocument,
+        originalDocumentSign
+
+    OBJECTS d = StocktakeDetail EXTID 'Items'
+    PROPERTIES
+        index = STRING (index(d)) EXTID 'lineItemNumber',
+        codeSku(d) EXTID 'itemCustomCode',
+        extraCodeSku(d) EXTID 'itemAdditionalCode',
+        gtin(d) EXTID 'gtinCode',
+        trackingUOMCustomsGroup(d) EXTID 'lineItemQuantitySPT',
+        quantityPageInventoryDetail(d) EXTID 'quantityDespatchedSPT',
+        documentNumber(d) EXTID 'documentNumber'
+    
+    FILTERS stocktake(d) == createdStocktake()
+    ORDERS index
+;
+
+
+mnsService 'URL' = DATA STRING();
+EXTEND FORM integrationData PROPERTIES mnsService();
+
+DESIGN integrationData {
+    pane {
+        NEW mnsService {
+            caption = 'МНС';
+            MOVE PROPERTY (mnsService());
+        }
+    }
+}
+
+sendedMNS 'Отправлена в МНС' (Inventory i) = GROUP MIN TRUE BY inventory(Stocktake s);
+
+exportJSONFile = DATA LOCAL FILE ();
+generateJSON (Inventory inv) {
+    createStocktake(inv);
+    exportToXML(createdStocktake());
+
+    fileToString(exportXMLFile());
+    resultString() <- replace(replace(replace(replace(replace(resultString(), '<LetterTraceabilityLeftovers_v1_f001>', '<LetterTraceabilityLeftovers_v1_f001 xmlns="">'),
+        '<LetterTraceabilityLeftovers_v1_f001A>', '<LetterTraceabilityLeftovers_v1_f001A xmlns="">'),
+        '<LetterTraceabilityLeftovers_v1_f002>', '<LetterTraceabilityLeftovers_v1_f002 xmlns="">'),
+        '<LetterTraceabilityLeftovers_v1_t001>', '<LetterTraceabilityLeftovers_v1_t001 xmlns="">'),
+        '<LetterTraceabilityLeftovers_v1_t001_ric10>', '<LetterTraceabilityLeftovers_v1_t001_ric10 xmlns="">');
+
+    resultFile() <- NULL;
+    
+    originalDocument() <- replace(replace(encodeBase64(resultString()), '\n', ''), '\r', '');
+    
+    signing(originalDocument());
+    originalDocumentSign() <- base64Signature();
+    
+    IF NOT originalDocumentSign() THEN RETURN;
+
+    documentId() <- id(createdStocktake());    
+    documentNumber1() <- seriesNumber(createdStocktake());
+    VATRegistrationNumber() <- UNP(legalEntity(createdStocktake()));
+    IMNS() <- '107';
+    documentDate() <- toChar(dateTime(inventory(createdStocktake())), 'YYYYMMDD');
+    documentName() <- 'Сведения об остатках';
+    refRecordId() <- refRecordId(createdStocktake()); // TODO
+    correctionDate() <- toChar(dateTime(createdStocktake()) , 'YYYYMMDD') IF PREV(sendedMNS(inv)); // TODO     
+    creationDateTime() <- toChar(dateTime(inventory(createdStocktake())), 'YYYY-MM-DD HH:mm:ss');
+
+    EXPORT exportJSON JSON TO exportJSONFile;
+}
+
+
+// Ответ JSON
+GROUP documentReply EXTID 'DocumentReply';
+GROUP result EXTID 'Result';
+
+recordId = DATA LOCAL NUMERIC();
+statusCode = DATA LOCAL STRING();
+documentReplyDateTime = DATA LOCAL DATETIME();
+reply = DATA LOCAL STRING();
+SPTInternalDateTime = DATA LOCAL DATETIME();
+resultDescription = DATA LOCAL STRING();
+resultCode = DATA LOCAL NUMERIC();
+
+FORM importJSON
+    PROPERTIES() recordId EXTID 'RecordId', statusCode EXTID 'StatusCode'
+    PROPERTIES() IN documentReply documentReplyDateTime EXTID 'DocumentReplyDateTime', reply EXTID 'Reply'
+    PROPERTIES() IN result SPTInternalDateTime, resultDescription EXTID 'ResultDescription', resultCode EXTID 'ResultCode';
+;
+
+stocktakeMNS 'Отправить в МНС' (Inventory inv) {
+    NEWSESSION {
+        generateJSON(inv);
+        
+        IF NOT exportJSONFile() THEN {
+            MESSAGE 'Инвентаризация не была отправлена' NOWAIT;
+            RETURN;
+        }
+        
+        fileToString(exportJSONFile());
+
+        LOCAL response = FILE();
+        TRY {
+            
+            EXTERNAL HTTP POST mnsService() + '/document/stocktake' PARAMS exportJSONFile() TO response;
+            fileToString(response());
+            fileToString(response());
+
+            IMPORT importJSON JSON FROM response();
+            
+            IF NOT recordId() THEN { 
+                MESSAGE resultDescription();
+                RETURN;
+            } 
+            
+            recordId(createdStocktake()) <- recordId();
+            statusCode(createdStocktake()) <- statusCode();
+            documentReplyDateTime(createdStocktake()) <- documentReplyDateTime();
+            reply(createdStocktake()) <- reply();
+            SPTInternalDateTime(createdStocktake()) <- SPTInternalDateTime();
+            resultDescription(createdStocktake()) <- resultDescription();
+            resultCode(createdStocktake()) <- resultCode();
+            
+            APPLY;
+        } CATCH {
+            fileToString(response());
+            printToLog(CONCAT '||', 'ExportStocktakeMNS', currentDateTime(), '\n',
+                resultString(), '\n');
+            MESSAGE 'Ошибка отправки: ' + messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+showStocktakeMNS(Inventory i) = isBatch(i) AND isPosted(i) AND useLot(operation(i)) AND NOT sendedMNS(i);
+
+correctingStocktakeMNS 'Отправить корректировку в МНС' (Inventory i) {
+    stocktakeMNS(i);
+}
+
+showCorrectingStocktakeMNS(Inventory i) = isBatch(i) AND isPosted(i) AND useLot(operation(i)) AND sendedMNS(i);
+
+EXTEND FORM inventories
+    PROPERTIES(in) READONLY sendedMNS 
+    PROPERTIES(in) stocktakeMNS SHOWIF showStocktakeMNS(in), correctingStocktakeMNS SHOWIF showCorrectingStocktakeMNS(in)
+;
