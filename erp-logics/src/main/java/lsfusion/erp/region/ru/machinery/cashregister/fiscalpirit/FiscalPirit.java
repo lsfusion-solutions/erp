@@ -73,14 +73,17 @@ public class FiscalPirit {
     }
 
     public static Integer printReceipt(SerialPort serialPort, String cashier, ReceiptInstance receipt, List<ReceiptItem> receiptList,
-                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, boolean sale) {
-        openZReportIfClosed(serialPort, cashier);
+                                       Integer giftCardDepartment, Integer giftCardPaymentType, Integer saleGiftCardPaymentType, boolean sale,
+                                       Integer versionPirit, String emailPhone) {
+        openZReportIfClosed(serialPort, cashier, versionPirit);
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
-            checkLotCommand(serialPort, item);
-            setAdditionalPositionDetailsCommand(serialPort, item);
-            registerItemCommand(serialPort, item, giftCardDepartment);
+            checkLotCommand(serialPort, item, versionPirit);
+            if (versionPirit == 0) {
+                setAdditionalPositionDetailsCommand(serialPort, item);
+            }
+            registerItemCommand(serialPort, item, giftCardDepartment, versionPirit);
         }
 
         subtotalCommand(serialPort);
@@ -102,7 +105,7 @@ public class FiscalPirit {
             totalCommand(serialPort, receipt.sumPrepayment, saleGiftCardPaymentType != null ? String.valueOf(saleGiftCardPaymentType) : "0");
         }
 
-        closeDocumentCommand(serialPort);
+        closeDocumentCommand(serialPort, emailPhone);
 
         return getReceiptNumber(serialPort);
     }
@@ -115,8 +118,8 @@ public class FiscalPirit {
         xReportCommand(serialPort);
     }
 
-    public static int zReport(SerialPort serialPort, String cashier) {
-        openZReportIfClosed(serialPort, cashier);
+    public static int zReport(SerialPort serialPort, String cashier, Integer versionPirit) {
+        openZReportIfClosed(serialPort, cashier, versionPirit);
         zReportCommand(serialPort, cashier);
         return getZReportNumber(serialPort);
     }
@@ -125,16 +128,32 @@ public class FiscalPirit {
         advancePaperCommand(serialPort);
     }
 
-    public static void inOut(SerialPort serialPort, String cashier, BigDecimal sum) {
-        openZReportIfClosed(serialPort, cashier);
+    public static void inOut(SerialPort serialPort, String cashier, BigDecimal sum, Integer versionPirit) {
+        openZReportIfClosed(serialPort, cashier, versionPirit);
         openDocumentCommand(serialPort, cashier, sum.compareTo(BigDecimal.ZERO) > 0 ? "4" : "5");
         inOutDocumentCommand(serialPort, sum.abs());
-        closeDocumentCommand(serialPort);
+        closeDocumentCommand(serialPort, "");
     }
 
-    public static void openZReportIfClosed(SerialPort serialPort, String cashier) {
-        if(!getStatusFlag(serialPort, 1, 2)) { // 1-ый байт, 2 бит - открыта ли смена
-            openZReportCommand(serialPort, cashier);
+    public static void openZReportIfClosed(SerialPort serialPort, String cashier, Integer versionPirit) {
+        if (versionPirit == 2) {
+            try {
+                Object[] flags = VikiPrint.executeCommand(serialPort, 0x00);
+                int status = Integer.parseInt((String) flags[1]);
+                if ((status & (1L << 2)) != 0) {
+                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
+                } else {
+                    VikiPrint.executeCommand(serialPort, 0x23, cashier); // Открыть смену (0x23)
+                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
+                }
+                VikiPrint.executeCommand(serialPort, 0x23, "Администратор"); // Открыть смену (0x23)
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        } else {
+            if(!getStatusFlag(serialPort, 1, 2)) { // 1-ый байт, 2 бит - открыта ли смена
+                openZReportCommand(serialPort, cashier);
+            }
         }
     }
 
@@ -223,8 +242,9 @@ public class FiscalPirit {
         sendCommand(serialPort, "30", "Открыть документ", joinData(type, "", cashier, "", "", "", ""), true);
     }
 
-    private static void closeDocumentCommand(SerialPort serialPort) {
-        sendCommand(serialPort, "31", "Завершить документ", joinData("", "", "", "", "", "", "", "", ""), true);
+    private static void closeDocumentCommand(SerialPort serialPort, String emailPhone) {
+        // emailPhone - Tag1008
+        sendCommand(serialPort, "31", "Завершить документ", joinData("", emailPhone, "", "", "", "", "", "", ""), true);
     }
 
     private static void cancelDocumentCommand(SerialPort serialPort) {
@@ -238,15 +258,34 @@ public class FiscalPirit {
         }
     }
 
-    private static void checkLotCommand(SerialPort serialPort, ReceiptItem item) {
+    private static void checkLotCommand(SerialPort serialPort, ReceiptItem item, Integer versionPirit) {
         if(item.idLot != null && item.tailLot != null) {
             String lot = getLot(item.idLot, item.tailLot);
 
-            sendCommand(serialPort, "79", "Передача КМ в ФН для проверки достоверности КМ", joinData("1", lot, "0", "1", "1", "0", "1"), true);
+            try {
 
-            sendCommand(serialPort, "79", "Принятие КМ для включения в документ", joinData("2", "1"), true);
+                if (versionPirit == 2) {
 
-            sendCommand(serialPort, "79", "Передача КМ для включения в кассовый чек", joinData("15", lot, "1", "0", "0", "0"), true);
+                    Object[] data = VikiPrint.executeCommand(serialPort, 0x79, 1, lot, 0, 1, 1, 0, 1);
+                    int tag2106 = Integer.parseInt((String) data[1]);
+
+                    VikiPrint.executeCommand(serialPort, 0x79, 2, 1);
+
+                    VikiPrint.executeCommand(serialPort, 0x79, 15, lot, 1, 0, tag2106, 0, "");
+
+                } else {
+
+                    sendCommand(serialPort, "79", "Передача КМ в ФН для проверки достоверности КМ", joinData("1", lot, "0", "1", "1", "0", "1"), true);
+
+                    sendCommand(serialPort, "79", "Принятие КМ для включения в документ", joinData("2", "1"), true);
+
+                    sendCommand(serialPort, "79", "Передача КМ для включения в кассовый чек", joinData("15", lot, "1", "0", "0", "0"), true);
+
+                }
+
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
         }
     }
 
@@ -255,11 +294,23 @@ public class FiscalPirit {
     }
 
 
-    private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment) {
+    private static void registerItemCommand(SerialPort serialPort, ReceiptItem item, Integer giftCardDepartment, Integer versionPirit) {
         String department = giftCardDepartment != null ? String.valueOf(giftCardDepartment) : "0";
-        sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
-                formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
-                department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0"), true); //112 = Belarus
+
+        // Параметры: название, код, кол-во, цена, ставка налога, № пп, секция, тип скидки/наценки, код ед.изм, скидка,
+        // способ расчета, предмет расчета, страна происхождения - 112 РБ, номер декларации
+        // для версии 2 - сумма акциза
+        // значение признаков: см. описание в протокола и manual_pirit2f.pdf
+
+        if (versionPirit == 2) {
+            sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
+                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
+                    department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0","0"), true);
+        } else {
+            sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
+                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
+                    department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0"), true);
+        }
     }
 
     private static void subtotalCommand(SerialPort serialPort) {

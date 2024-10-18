@@ -11,6 +11,8 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class FiscalPiritOpenZReportAction extends InternalAction {
 
     public FiscalPiritOpenZReportAction(ScriptingLogicsModule LM) {
@@ -24,9 +26,10 @@ public class FiscalPiritOpenZReportAction extends InternalAction {
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("userName[]").read(context);
+            Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
 
             if (context.checkApply()) {
-                Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 5));
+                Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 5, versionPirit));
                 if (result instanceof String) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 }

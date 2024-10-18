@@ -13,6 +13,8 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class FiscalPiritCashSumAction extends InternalAction {
 
     public FiscalPiritCashSumAction(ScriptingLogicsModule LM) {
@@ -26,8 +28,9 @@ public class FiscalPiritCashSumAction extends InternalAction {
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("currentUserName[]").read(context);
+            Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
 
-            Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 7));
+            Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 7, versionPirit));
             if (result instanceof BigDecimal) {
                 context.requestUserInteraction(new MessageClientAction(String.valueOf(result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {

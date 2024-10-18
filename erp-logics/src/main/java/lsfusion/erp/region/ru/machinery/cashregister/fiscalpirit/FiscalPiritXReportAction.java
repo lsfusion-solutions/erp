@@ -12,6 +12,8 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class FiscalPiritXReportAction extends InternalAction {
 
     public FiscalPiritXReportAction(ScriptingLogicsModule LM) {
@@ -25,8 +27,9 @@ public class FiscalPiritXReportAction extends InternalAction {
             String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String cashier = (String) findProperty("currentUserName[]").read(context);
+            Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
 
-            String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 1));
+            String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 1, versionPirit));
             if (result == null) {
                 context.apply();
             }

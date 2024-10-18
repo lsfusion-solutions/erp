@@ -5,10 +5,12 @@ import lsfusion.interop.action.ClientActionDispatcher;
 
 public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAction {
     int type;
+    Integer versionPirit;
 
-    public FiscalPiritCustomOperationClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, int type) {
+    public FiscalPiritCustomOperationClientAction(boolean isUnix, String comPort, Integer baudRate, String cashier, int type, Integer versionPirit) {
         super(isUnix, comPort, baudRate, cashier);
         this.type = type;
+        this.versionPirit = versionPirit;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
@@ -22,7 +24,7 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
                     FiscalPirit.xReport(serialPort);
                     break;
                 case 2:
-                    return FiscalPirit.zReport(serialPort, cashier);
+                    return FiscalPirit.zReport(serialPort, cashier, versionPirit);
                 case 3:
                     FiscalPirit.advancePaper(serialPort);
                     break;
@@ -30,7 +32,7 @@ public class FiscalPiritCustomOperationClientAction extends FiscalPiritClientAct
                     FiscalPirit.cancelDocument(serialPort);
                     break;
                 case 5:
-                    FiscalPirit.openZReportIfClosed(serialPort, cashier);
+                    FiscalPirit.openZReportIfClosed(serialPort, cashier, versionPirit);
                     break;
                 case 6:
                     //do nothing, preparePrint is enough

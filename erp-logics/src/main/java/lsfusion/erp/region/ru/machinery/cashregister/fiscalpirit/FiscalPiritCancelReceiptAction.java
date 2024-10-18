@@ -14,6 +14,7 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 import java.util.Iterator;
+import static lsfusion.base.BaseUtils.nvl;
 
 public class FiscalPiritCancelReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
@@ -35,8 +36,9 @@ public class FiscalPiritCancelReceiptAction extends InternalAction {
                 String comPort = (String) findProperty("stringComPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
                 String cashier = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);
+                Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
 
-                String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 4));
+                String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 4, versionPirit));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalPiritCancelReceipt Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

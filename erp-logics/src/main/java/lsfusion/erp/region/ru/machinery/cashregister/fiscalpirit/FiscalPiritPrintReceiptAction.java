@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class FiscalPiritPrintReceiptAction extends InternalAction {
     private final ClassPropertyInterface receiptInterface;
 
@@ -47,6 +49,9 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
+            Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
+            String emailPhone = nvl((String) findProperty("emailPhone[Receipt]").read(context, receiptObject),"");
+
             if (skipReceipt) {
                 if (context.apply())
                     findAction("createCurrentReceipt[]").execute(context);
@@ -165,7 +170,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalPiritPrintReceiptClientAction(isUnix, comPort, baudRate, cashier, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumPrepayment, sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType));
+                            giftCardDepartment, giftCardPaymentType, saleGiftCardPaymentType, versionPirit, emailPhone));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

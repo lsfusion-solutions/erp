@@ -16,6 +16,8 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class FiscalPiritServiceInOutAction extends InternalAction {
     private final ClassPropertyInterface cashOperationInterface;
 
@@ -36,9 +38,10 @@ public class FiscalPiritServiceInOutAction extends InternalAction {
             String cashier = (String) findProperty("currentUserName[]").read(context);
             Boolean isDone = findProperty("isComplete[CashOperation]").read(context, cashOperationObject) != null;
             BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context, cashOperationObject);
+            Integer versionPirit = nvl((Integer) findProperty("versionPiritCurrentCashRegister[]").read(context), 0);
 
             if (!isDone) {
-                String result = (String) context.requestUserInteraction(new FiscalPiritServiceInOutClientAction(isUnix, comPort, baudRate, cashier, sum));
+                String result = (String) context.requestUserInteraction(new FiscalPiritServiceInOutClientAction(isUnix, comPort, baudRate, cashier, sum, versionPirit));
                 if (result == null){
                     findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else {
