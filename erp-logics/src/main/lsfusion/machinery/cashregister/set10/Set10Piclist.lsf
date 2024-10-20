@@ -220,6 +220,7 @@ level (TouchElement child, TouchElement parent) = RECURSION 1l IF child IS Touch
 tiles = DATA LOCAL JSON (TouchElement);
 parent = ABSTRACT TouchElement (TouchElement);
 filter = ABSTRACT BOOLEAN (TouchElement);
+order = ABSTRACT CASE INTEGER (TouchElement);
 
 itemId = ABSTRACT STRING (TouchElement);
 barcode = ABSTRACT STRING (TouchElement);
@@ -244,7 +245,6 @@ parent (Item item, INTEGER i) = IF i = 0 THEN parent(item)
 parentLoc = DATA LOCAL BOOLEAN (TouchElement, TouchElement);
 iconId(TemporaryTouchElemnt t) += 'DIR';
 
-
 CLASS StaticTouch{
     topSale 'Топ продаж'
 } : TouchElement;
@@ -252,7 +252,7 @@ CLASS StaticTouch{
 name (StaticTouch t) += ISTRING(staticCaption(t));
 type (StaticTouch t) += 'GT';
 level (StaticTouch t) += IF t = StaticTouch.topSale THEN 1;
-
+order(StaticTouch t) += WHEN t = StaticTouch.topSale THEN 0;
 
 parent(TouchElement child, TouchElement parent) = IF parent IS StaticTouch THEN parentLoc(child, parent) ELSE parent = parentLoc(child);
 filter(TemporaryTouchElemnt t) += TRUE;
@@ -263,6 +263,7 @@ parent(CustomGroup t) += Stock.parent(t);
 level (CustomGroup t) += Stock.level(t);
 filter(CustomGroup t) += customGroupType(t) = customGroupPicList();
 iconId(CustomGroup t) += 'DIR';
+order(CustomGroup t) += WHEN t IS CustomGroup THEN Stock.order(t);
 
 EXTEND CLASS Item : TouchElement;
 name(Item t) += Stock.name(t);
@@ -271,10 +272,11 @@ filter(Item i) += TRUE IF customGroup(customGroupPicList(), i) OR (GROUP SUM 1 I
 itemId (Item i) += id(i);
 barcode (Item i) += idBarcode(i);
 maxItems = DATA LOCAL INTEGER(TouchElement);
+indexT1 = DATA LOCAL INTEGER (TouchElement);
 
 FORM exportPiclist
     OBJECTS t1 = TouchElement EXTID 'value'
-    PROPERTIES (t1) name, itemId, barcode, img
+    PROPERTIES (t1) name, itemId, barcode, img, indexT1 EXTID 'index'
     PROPERTIES = IF level(t1) THEN 5 EXTID 'columns', = IF level(t1) THEN 'GT' EXTID 'type', maxItems(t1)
     FILTERS level(t1) = 1, filter(t1)
 ;
@@ -302,6 +304,7 @@ maxIndex = DATA LOCAL INTEGER (TouchElement);
 levelExt (TouchElement child)  = GROUP SUM 1 IF level(child, TouchElement parent);
 
 fillPicList ABSTRACT LIST (DepartmentStore);
+indexExport = DATA LOCAL INTEGER (TouchElement, TouchElement);
 
 exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
     IF exportCSIAPIurl() THEN {
@@ -329,7 +332,7 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
                     int(t) <- i;
                     name(t) <- 'Далее ' + i;
                     parentLoc(t) <- parent(c, i);
-                    printToLog(CONCAT ' : ', name(c), name(t), name(parentLoc(t)));
+//                    printToLog(CONCAT ' : ', name(c), name(t), name(parentLoc(t)));
                 }
             }
             
@@ -342,23 +345,23 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
 
             indexSet(TouchElement child, TouchElement parent) <- mod((index(child) - 1), maxItems(parent)) IF parent(child, parent) AND (NOT child IS TemporaryTouchElemnt OR NOT parent IS StaticTouch) ;
             indexSet(TouchElement child, TouchElement parent) <- maxItems(parent) WHERE parent(child, parent) AND child IS TemporaryTouchElemnt;
-
             fillPicList(d);
-            
+            indexExport(TouchElement child, TouchElement parent) <- (PARTITION SUM 1 IF parent(child, parent) ORDER order(child), indexSet(child, parent), child BY parent(child, parent), parent) - 1;
+            indexT1(TouchElement t1) <- (PARTITION SUM 1 IF level(t1) = 1 AND filter(t1) ORDER order(t1), t1) - 1;
             EXPORT exportPiclist JSON;
-
+            
             fileToString(exportFile());
             content() <- resultString();
 
             EXPORT exportTouch2 FILTERS stock(g) = d JSON;
-            
+
             timeoutHttp() <- 60000;
             LOCAL result = FILE ();
             LOCAL errorCode = STRING[10] ();
             LOCAL description = STRING[255] ();
-            
+
             EXTERNAL HTTP POST exportCSIAPIurl() PARAMS exportFile() TO result;
-            
+
             IMPORT JSON FROM result() TO() errorCode, description;
             IF NOT errorCode() THEN {
                 MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
@@ -379,7 +382,7 @@ META addTilesLevel(lev, par)
     EXTEND FORM exportPiclist
         OBJECTS t###lev = TouchElement EXTID 'tiles'
         PROPERTIES (t###lev) name, itemId, barcode, iconId, type, img
-        PROPERTIES indexSet(t###lev, t###par) EXTID 'index' ORDER
+        PROPERTIES indexExport(t###lev, t###par) EXTID 'index' ORDER
         FILTERS //level(t###lev) = lev, 
             filter(t###lev), parent(t###lev, t###par)
         
