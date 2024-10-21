@@ -104,7 +104,7 @@ FORM purchasesImport FORMEXTID 'purchases'
 ;
 
 idReceipt(INTEGER i) = operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i);
-idReceiptDetail (INTEGER i) = operationType(i) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
+idReceiptDetail (INTEGER i) = operationType(purchasePosition(i)) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
 zReportById(INTEGER i) = zReport(operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
 index = PARTITION SUM 1 ORDER d BY typeClass(d) CHARWIDTH 4;
 
@@ -151,7 +151,6 @@ importReceipt(STRING purchases){
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
             number(r) <- INTEGER (number2(i));
-            overCreateReceipt(r, i);
             IF zReportById(i) THEN zReport(r) <- zReportById(i);
             ELSE NEW z = ZReport{
                 id(z) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
@@ -202,6 +201,7 @@ importReceipt(STRING purchases){
                     ELSE OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card');
   
             }
+            overCreateReceipt(r, i);
         }
         APPLY NESTED LOCAL;
         IF canceled() THEN {
