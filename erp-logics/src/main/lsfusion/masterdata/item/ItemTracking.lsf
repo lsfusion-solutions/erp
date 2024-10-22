@@ -70,26 +70,25 @@ DESIGN customsGroup {
     }
 }
 
-FORM extraCodeTracking '4х значный код кода ТН ВЭД'
-    OBJECTS ec = ExtraCode
-    PROPERTIES (ec) READONLY codeCustomsGroup, nameCustomsGroup, canonicalNameCustomsGroup, id, isTracking BACKGROUND backgroundEC(ec), description
-    FILTERGROUP isTracking 
-        FILTER 'Только прослеживаемые' isTracking(ec) DEFAULT 
+EXTEND FORM extraCode
+    PROPERTIES(ec) isTracking BACKGROUND backgroundEC(ec) BEFORE description(ec)
 ;
 
-DESIGN extraCode{
-    PROPERTY (nameCustomsGroup(ec)) {caption='ТН ВЭД (наименование)';}
-    PROPERTY (id(ec)){caption='4х зн код';}
-}
+EXTEND FORM dialogExtraCodes
+    PROPERTIES(ec) READONLY isTracking BACKGROUND backgroundEC(ec) AFTER id(ec)
+    
+    FILTERGROUP isTracking
+        FILTER 'Только прослеживаемые' isTracking(ec) DEFAULT
+;
 
-changeExtraCode(Item i){
-    DIALOG extraCodeTracking OBJECTS ec=extraCode(customsGroup(defaultCountry(), i)) INPUT NULL FILTERS customsGroup(ec)==customsGroup(defaultCountry(), i) DO {
+changeExtraCode (Item i) {
+    DIALOG dialogExtraCodes OBJECTS ec=extraCode(customsGroup(defaultCountry(), i)) INPUT NULL FILTERS customsGroup(ec)==customsGroup(defaultCountry(), i) DO {
         dataExtraCode(i) <- ec;
     }
 }
 
-changeExtraCode(ItemGroup g){
-    DIALOG extraCodeTracking OBJECTS ec INPUT NULL DO{
+changeExtraCode (ItemGroup g) {
+    DIALOG dialogExtraCodes OBJECTS ec INPUT NULL DO{
         dataExtraCode(g) <- ec;
     }
 }
@@ -99,15 +98,17 @@ EXTEND FORM itemGroup
 ;
 
 EXTEND FORM itemGroups
-    PROPERTIES(g) READONLYIF isReadonly() idExtraCode
+    PROPERTIES(g) READONLYIF isReadonly() idExtraCode ON CHANGE changeExtraCode(g)
 ;
 
 EXTEND FORM item
-    PROPERTIES (i) BACKGROUND backgroundEC(extraCode(i)) isTracking, idExtraCode ON CHANGE changeExtraCode(i)
+    PROPERTIES (i) BACKGROUND backgroundEC(extraCode(i)) isTracking,
+        idExtraCode ON CHANGE changeExtraCode(i)
 ;
 
 EXTEND FORM items
-    PROPERTIES (i) BACKGROUND backgroundEC(extraCode(i)) READONLYIF  isReadonly() isTracking, idExtraCode
+    PROPERTIES (i) BACKGROUND backgroundEC(extraCode(i)) READONLYIF isReadonly() isTracking,
+        idExtraCode ON CHANGE changeExtraCode(i)
 ;
 
 DESIGN item {
@@ -133,8 +134,8 @@ CONSTRAINT (CHANGED(extraCode(Sku s))) AND customsGroup(defaultCountry(),s) AND 
 CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckEC()
     MESSAGE '4х значный код не соответствует коду ТН ВЭД товара' ;
 
-changeExtraCode(Brand b){
-    DIALOG extraCodeTracking OBJECTS ec INPUT NULL DO{
+changeExtraCode (Brand b) {
+    DIALOG dialogExtraCodes OBJECTS ec INPUT DO {
         extraCode(b) <- ec;
     }
 }

@@ -149,9 +149,39 @@ countExtraCodes (CustomsGroup c) = GROUP SUM 1 IF ExtraCode ec IS ExtraCode BY c
 extraCode (CustomsGroup c) = GROUP MIN ExtraCode ec BY customsGroup(ec);
 
 FORM extraCode '4х значный код кода ТН ВЭД'
-    OBJECTS ec = ExtraCode
+    OBJECTS ec = ExtraCode PANEL
     PROPERTIES (ec) READONLY codeCustomsGroup, nameCustomsGroup, canonicalNameCustomsGroup, id, description
+    
+    EDIT ExtraCode OBJECT ec
 ;
+
+DESIGN extraCode {
+    NEW customsGroupPanel {
+        caption = 'ТН ВЭД';
+        horizontal = TRUE;
+        MOVE PROPERTY(codeCustomsGroup(ec));
+        MOVE PROPERTY(nameCustomsGroup(ec)) { caption='ТН ВЭД (наименование)'; }
+        MOVE PROPERTY(canonicalNameCustomsGroup(ec));
+    }
+    NEW extraGroupPanel {
+        caption = 'Параметры';
+        horizontal = TRUE;
+        MOVE PROPERTY(id(ec)) { caption='4х зн код'; }
+        MOVE PROPERTY(description(ec));
+    }
+}
+
+FORM dialogExtraCodes '4х значный код кода ТН ВЭД'
+    OBJECTS ec = ExtraCode
+    PROPERTIES(ec) READONLY codeCustomsGroup, nameCustomsGroup, canonicalNameCustomsGroup, id, description
+
+    LIST ExtraCode OBJECT ec
+;
+
+DESIGN dialogExtraCodes {
+    PROPERTY(nameCustomsGroup(ec)) { caption='ТН ВЭД (наименование)'; }
+    PROPERTY(id(ec)) { caption='4х зн код'; }
+}
 
 
 //
