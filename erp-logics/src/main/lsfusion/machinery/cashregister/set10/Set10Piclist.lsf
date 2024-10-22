@@ -220,7 +220,7 @@ level (TouchElement child, TouchElement parent) = RECURSION 1l IF child IS Touch
 tiles = DATA LOCAL JSON (TouchElement);
 parent = ABSTRACT TouchElement (TouchElement);
 filter = ABSTRACT BOOLEAN (TouchElement);
-order = ABSTRACT CASE INTEGER (TouchElement);
+order = ABSTRACT CASE LONG (TouchElement);
 
 itemId = ABSTRACT STRING (TouchElement);
 barcode = ABSTRACT STRING (TouchElement);
@@ -244,6 +244,8 @@ parent (Item item, INTEGER i) = IF i = 0 THEN parent(item)
 ;
 parentLoc = DATA LOCAL BOOLEAN (TouchElement, TouchElement);
 iconId(TemporaryTouchElemnt t) += 'DIR';
+
+order(TemporaryTouchElemnt t) += WHEN t IS TemporaryTouchElemnt THEN 1000;
 
 CLASS StaticTouch{
     topSale 'Топ продаж'
@@ -273,6 +275,7 @@ itemId (Item i) += id(i);
 barcode (Item i) += idBarcode(i);
 maxItems = DATA LOCAL INTEGER(TouchElement);
 indexT1 = DATA LOCAL INTEGER (TouchElement);
+order(Item i) += WHEN i IS Item THEN 500;
 
 FORM exportPiclist
     OBJECTS t1 = TouchElement EXTID 'value'
@@ -312,7 +315,7 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
         IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND stock(g) = d AND customGroupPicList() THEN {
             maxItemsPerPage() <- 20;
 
-            maxIndex(TouchElement c) <- GROUP MAX index(Item i) IF customGroup(customGroupPicList(), i) = c;
+            maxIndex(TouchElement c) <- GROUP MAX index(TouchElement i) IF parent(i) = c;
 
             maxItems(TouchElement c) <- IF maxIndex(c) < maxItemsPerPage() THEN maxItemsPerPage() ELSE maxItemsPerPage() - 1;
             maxItems(TouchElement c) <- NULL WHERE c IS Item;
@@ -328,7 +331,7 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
             
 
             FOR INTEGER x = needTemporary(CustomGroup c) AND x > 0 DO{
-                FOR iterate(INTEGER i, 1, x) NEW t = TemporaryTouchElemnt DO{
+                FOR iterate(INTEGER i, 1, MIN x, 4) NEW t = TemporaryTouchElemnt DO{
                     int(t) <- i;
                     name(t) <- 'Далее ' + i;
                     parentLoc(t) <- parent(c, i);
