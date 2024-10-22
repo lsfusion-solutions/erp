@@ -27,9 +27,9 @@ CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipS
 
 skipLotQuantityControl 'Разрешать продажу марки с количеством отличным от 1' = ABSTRACT VALUE BOOLEAN (Lot);
 
-CONSTRAINT lot(ReceiptSaleDetail d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
+CONSTRAINT (SETCHANGED(lot(ReceiptSaleDetail d)) OR CHANGED(quantity(d))) AND lot(d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
     MESSAGE 'При выбранной марке количество в продаже должно равняться 1';
-CONSTRAINT lot(ReceiptReturnDetail d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
+CONSTRAINT (SETCHANGED(lot(ReceiptSaleDetail d)) OR CHANGED(quantity(d))) AND lot(d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
     MESSAGE 'При выбранной марке количество в возврате должно равняться 1';
 
 lot 'Марка' (ReceiptDetail d) = MULTI lot[ReceiptSaleDetail](d), lot[ReceiptReturnDetail](d) MATERIALIZED; 
