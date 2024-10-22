@@ -523,7 +523,7 @@ CONSTRAINT  CHANGED(date(StockDocumentLedger d))
             AND checkClosedDate()
     MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
     
-
+overCloseDocumentsStocks ABSTRACT LIST (DATE, Stock);
 closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock)  { 
     IF sum(date, 1) > currentDate() THEN {
         MESSAGE 'Запрещено закрывать период позже текущей даты';
@@ -533,6 +533,7 @@ closeDocumentsStocks 'Закрыть документы до Дата (по)'(DA
     FOR stock(StockDocumentLedger ledger) == stock AND date(ledger) <= date AND isOpened(ledger) DO {
         close(ledger);
     }
+    overCloseDocumentsStocks(date, stock);
     apply();   
 } CONFIRM;
 
