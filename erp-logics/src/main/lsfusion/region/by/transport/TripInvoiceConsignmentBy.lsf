@@ -57,10 +57,11 @@ documentNameCurrency 'Валюта в накладной сокр.' (Trip trip) 
 
 //Время прибытия                              
 timeOfArrival 'Время прибытия' = DATA TIME (Trip);
+skipSetArrivalTime = ABSTRACT BOOLEAN (Invoice);
 setTripDateTimeTrip(Invoice invoice)  { 
     arrivalTime(invoice) <- dateTimeToDateTime(date(invoice), timeOfArrival(trip(invoice)));
 }
-WHEN CHANGED(dateTime(trip(Invoice invoice))) DO EXEC setTripDateTimeTrip(invoice);
+WHEN CHANGED(dateTime(trip(Invoice invoice))) AND NOT skipSetArrivalTime(invoice) DO EXEC setTripDateTimeTrip(invoice);
 
 downtime 'Время простоя (мин.)' = DATA  INTEGER (Trip);
 setTripDowntimeTrip(Invoice invoice)  { 
