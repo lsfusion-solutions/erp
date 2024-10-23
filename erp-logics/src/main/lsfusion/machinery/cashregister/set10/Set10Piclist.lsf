@@ -225,10 +225,10 @@ order = ABSTRACT CASE LONG (TouchElement);
 itemId = ABSTRACT STRING (TouchElement);
 barcode = ABSTRACT STRING (TouchElement);
 
-indexParent=  PARTITION SUM 1 ORDER  parent(TouchElement t) BY parent(t), t;
-longParent (TouchElement t) = IF parent(t) THEN LONG(parent(t)) ELSE 1L IF filter(t);
+indexParent=  PARTITION SUM 1 ORDER parent(TouchElement t) BY parent(t), t;
+longParent (TouchElement t) = (IF parent(t) THEN LONG(parent(t)) ELSE 1L) IF filter(t);
 index2 (TouchElement t) = PARTITION SUM 1 ORDER name(t), t BY longParent(t);
-index(TouchElement t) = PARTITION SUM 1 ORDER name(t), t BY longParent(t);
+index(TouchElement t) = PARTITION SUM 1 ORDER order(t), name(t), t BY longParent(t);
 indexMod(TouchElement t) = mod(index2(t), 5);
 countTiles (TouchElement t) = GROUP SUM 1 IF customGroup(customGroupPicList(), Item i) = t;
 
@@ -238,10 +238,13 @@ name = DATA STRING[30] (TemporaryTouchElemnt);
 name (TemporaryTouchElemnt t) += name(t);
 int = DATA INTEGER (TemporaryTouchElemnt);
 parent (TouchElement c, INTEGER i) = IF i = 1 THEN c 
-    ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) < i AND level(t, c);
+    ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) <= i AND level(t, c);
 parent (Item item, INTEGER i) = IF i = 0 THEN parent(item)
     ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) <= i AND level(t, parent(item))
 ;
+level = DATA INTEGER (TemporaryTouchElemnt);
+level(TemporaryTouchElemnt t) += level(t);
+
 parentLoc = DATA LOCAL BOOLEAN (TouchElement, TouchElement);
 iconId(TemporaryTouchElemnt t) += 'DIR';
 
@@ -269,23 +272,25 @@ order(CustomGroup t) += WHEN t IS CustomGroup THEN Stock.order(t);
 
 EXTEND CLASS Item : TouchElement;
 name(Item t) += Stock.name(t);
-parent(Item i) += customGroup(customGroupPicList(), i);
-filter(Item i) += TRUE IF customGroup(customGroupPicList(), i) OR (GROUP SUM 1 IF parentLoc(i, TouchElement t));
+parent(Item i) += customGroup(customGroupPicList(), i) IF active(i);
+filter(Item i) += TRUE IF (customGroup(customGroupPicList(), i) OR (GROUP SUM 1 IF parentLoc(i, TouchElement t))) AND active(i);
 itemId (Item i) += id(i);
 barcode (Item i) += idBarcode(i);
 maxItems = DATA LOCAL INTEGER(TouchElement);
 indexT1 = DATA LOCAL INTEGER (TouchElement);
 order(Item i) += WHEN i IS Item THEN 500;
+countTemporary = DATA LOCAL INTEGER(TouchElement);
+maxIndexItem = DATA LOCAL INTEGER (TouchElement);
 
 FORM exportPiclist
     OBJECTS t1 = TouchElement EXTID 'value'
-    PROPERTIES (t1) name, itemId, barcode, img, indexT1 EXTID 'index'
-    PROPERTIES = IF level(t1) THEN 5 EXTID 'columns', = IF level(t1) THEN 'GT' EXTID 'type', maxItems(t1)
+    PROPERTIES (t1) name, itemId, barcode, img, indexT1 EXTID 'index' ORDER
+    PROPERTIES = IF level(t1) THEN 5 EXTID 'columns', = IF level(t1) THEN 'GT' EXTID 'type'
     FILTERS level(t1) = 1, filter(t1)
 ;
 
 in = DATA LOCAL BOOLEAN (INTEGER, CustomGroup);
-parentLevel = DATA LOCAL INTEGER (Item, TouchElement);
+parentLevel = DATA LOCAL TouchElement (TouchElement, TouchElement);
 indexSet  = DATA LOCAL INTEGER (TouchElement, TouchElement);
 
 content = DATA LOCAL STRING();
@@ -303,6 +308,7 @@ FORM exportTouch2
 ;
 
 needTemporary = DATA LOCAL INTEGER (CustomGroup);
+
 maxIndex = DATA LOCAL INTEGER (TouchElement);
 levelExt (TouchElement child)  = GROUP SUM 1 IF level(child, TouchElement parent);
 
@@ -313,45 +319,56 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
     IF exportCSIAPIurl() THEN {
 
         IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND stock(g) = d AND customGroupPicList() THEN {
-            maxItemsPerPage() <- 20;
-
-            maxIndex(TouchElement c) <- GROUP MAX index(TouchElement i) IF parent(i) = c;
-
-            maxItems(TouchElement c) <- IF maxIndex(c) < maxItemsPerPage() THEN maxItemsPerPage() ELSE maxItemsPerPage() - 1;
-            maxItems(TouchElement c) <- NULL WHERE c IS Item;
-            
-
-            maxItems(TouchElement c) <- (maxItemsPerPage() - 2) WHERE (((maxIndex(c) / maxItemsPerPage()) > 1));// AND levelExt(c) > 1);
-            
-            parentLevel(Item i, TouchElement c) <- IF index(i) AND c = customGroup(customGroupPicList(), i) THEN OVERRIDE (index(i) - 1) / maxItems(c), 0;
-            
-            needTemporary(CustomGroup c) <- GROUP MAX parentLevel(Item ii, c);
+            DELETE TemporaryTouchElemnt tt WHERE tt IS TemporaryTouchElemnt;
 
             parentLoc(TouchElement t) <- parent(t) IF t IS CustomGroup;
             
-
+            maxIndex(TouchElement c) <- GROUP MAX index(TouchElement i) IF parent(i) = c;
+            
+            needTemporary(CustomGroup c) <- maxIndex(c) / (maxItemsPerPage() - 2);
+            
+            LOCAL group = CustomGroup (TemporaryTouchElemnt);
+            
             FOR INTEGER x = needTemporary(CustomGroup c) AND x > 0 DO{
                 FOR iterate(INTEGER i, 1, MIN x, 4) NEW t = TemporaryTouchElemnt DO{
                     int(t) <- i;
                     name(t) <- 'Далее ' + i;
+                    level(t) <- level(c) + i; 
                     parentLoc(t) <- parent(c, i);
-//                    printToLog(CONCAT ' : ', name(c), name(t), name(parentLoc(t)));
+                    group(t) <- c;
                 }
             }
             
-
-            parentLoc(Item i) <- (IF parentLevel(i, parent(i)) = 0 THEN parent(i) ELSE
-                parent(i, parentLevel(i, parent(i)))) WHERE i IS Item;
             
-            maxItems(TouchElement c) <- (maxItemsPerPage() - 2) WHERE ((GROUP SUM 1 IF parent(TouchElement child, c)) AND levelExt(c) > 1);
-            maxItems(TouchElement c) <- (maxItemsPerPage() - 1) WHERE NOT (GROUP SUM 1 IF parent(TouchElement child, c) AND NOT child IS Item);
+            countTemporary(TouchElement c) <- GROUP SUM 1 IF parentLoc(TemporaryTouchElemnt tt) = c AND tt IS TemporaryTouchElemnt;
+            
+            maxItems(TouchElement c) <- CASE
+                WHEN level(c) = 1 THEN maxItemsPerPage() (-) countTemporary(c)
+                WHEN level(c) >= 2 THEN maxItemsPerPage() - 1 (-) countTemporary(c)
+            ;
+            
+            maxIndexItem(TouchElement t) <-
+                CASE 
+                    WHEN t IS CustomGroup THEN maxItems(t)
+                    WHEN t IS TemporaryTouchElemnt THEN 
+                        GROUP SUM maxItems(TouchElement tt) IF level(t, tt) AND level(tt) >= level(group(t))
+            ;            
+            
+            parentLevel(TouchElement i, TouchElement c) <-
+                IF index(i) <= maxIndexItem(c) AND c = parent(i) THEN parent(i) 
+                    ELSE
+                GROUP LAST TemporaryTouchElemnt cc ORDER DESC maxIndexItem(cc) WHERE index(i) <= maxIndexItem(cc) AND level(cc, c) AND cc IS TemporaryTouchElemnt
+            ;
 
-            indexSet(TouchElement child, TouchElement parent) <- mod((index(child) - 1), maxItems(parent)) IF parent(child, parent) AND (NOT child IS TemporaryTouchElemnt OR NOT parent IS StaticTouch) ;
-            indexSet(TouchElement child, TouchElement parent) <- maxItems(parent) WHERE parent(child, parent) AND child IS TemporaryTouchElemnt;
+            parentLoc(TouchElement i) <- 
+                parentLevel(i, parent(i)) WHERE i IS Item AND filter(i)
+            ;
+            
             fillPicList(d);
-            indexExport(TouchElement child, TouchElement parent) <- (PARTITION SUM 1 IF parent(child, parent) ORDER order(child), indexSet(child, parent), child BY parent(child, parent), parent) - 1;
-            indexT1(TouchElement t1) <- (PARTITION SUM 1 IF level(t1) = 1 AND filter(t1) ORDER order(t1), t1) - 1;
+            indexExport(TouchElement child, TouchElement parent) <- (PARTITION SUM 1 IF parent(child, parent) AND filter(child) ORDER order(child), indexSet(child, parent), child BY parent(child, parent), parent) - 1;
+            indexT1(TouchElement t1) <- (PARTITION SUM 1 IF level(t1) = 1 AND filter(t1) ORDER order(t1), t1);
             EXPORT exportPiclist JSON;
+            
             
             fileToString(exportFile());
             content() <- resultString();
@@ -368,9 +385,13 @@ exportTouchAPI 'Экспорт пиклиста Touch' (DepartmentStore d) {
             IMPORT JSON FROM result() TO() errorCode, description;
             IF NOT errorCode() THEN {
                 MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
+//                DELETE TemporaryTouchElemnt tt WHERE tt IS TemporaryTouchElemnt;
+//                APPLY;
             }
             ELSE {
                 MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
+//                DELETE TemporaryTouchElemnt tt WHERE tt IS TemporaryTouchElemnt;
+//                APPLY;
             }
         }
         ELSE {
@@ -411,3 +432,7 @@ DESIGN groupCashRegister{
         MOVE PROPERTY (exportTouchAPI(grc));
     }
 }
+
+EXTEND FORM items
+    PROPERTIES index(i)
+;
