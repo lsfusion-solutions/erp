@@ -4,8 +4,22 @@ REQUIRE ZReportDiscountCard, Set10WebServer;
 
 NAMESPACE Set10;
 
+createDiscountCardSet10 'Создавать дисконтные карты' = DATA BOOLEAN ();
+EXTEND FORM integrationData
+    PROPERTIES createDiscountCardSet10()
+;
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (createDiscountCardSet10());
+    }
+}
+
+
 overCreateReceipt(Receipt r, INTEGER i)+{
     IF type(i) != 'COUPON_CARD' AND discountCard(i) THEN{
+        IF NOT discountNumber(discountCard(i)) AND createDiscountCardSet10() THEN NEW d = DiscountCard{
+            number(d) <- STRING[48](discountCard(i));
+        }
         discountCard(r) <- discountNumber(discountCard(i));
     }
 }
