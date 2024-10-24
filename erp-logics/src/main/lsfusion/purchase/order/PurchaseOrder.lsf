@@ -263,10 +263,12 @@ CONSTRAINT (SET(isPosted(UserOrderDetail d)) OR  CHANGED (operation(d)) OR CHANG
 
 skipBanPurchaseSku = ABSTRACT VALUE BOOLEAN (Order);
 
+skipBanPurchaseSku = ABSTRACT VALUE BOOLEAN (OrderDetail);
+
 EXTEND FORM userOrder
     FILTERS NOT banPurchase(ks) OR skipBanPurchaseSku(o);
     
-CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(sku(d))) AND isPosted(d) AND banPurchase(sku(d)) AND NOT skipBanPurchaseSku(order(d))
+CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(sku(d))) AND isPosted(d) AND banPurchase(sku(d)) AND NOT skipBanPurchaseSku(order(d)) AND NOT skipBanPurchaseSku(d)
         MESSAGE 'В заказ включены товары запрещенные к закупке';
 
 CONSTRAINT (SET(isPosted(Order o)) OR SETCHANGED(supplier(o))) AND isPosted(o) AND banPurchase(supplier(o))
