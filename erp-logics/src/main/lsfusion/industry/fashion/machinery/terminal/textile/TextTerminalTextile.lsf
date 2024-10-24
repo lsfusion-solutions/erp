@@ -1,0 +1,82 @@
+MODULE TextTerminalTextile;
+
+REQUIRE Utils, Authentication, Machinery;
+
+NAMESPACE Terminal;
+
+pathFileTerminal 'Путь к файлу терминала (с именем)' = DATA STRING[250](Computer) CHARWIDTH 40;
+
+comandLineTerminal 'Строка запуска терминала (первая цифра - COM порт)' = DATA STRING[250](Computer) CHARWIDTH 50;
+
+EXTEND FORM computer
+    PROPERTIES (c) pathFileTerminal, comandLineTerminal;
+
+DESIGN computer {
+    GROUP(,c) {
+        lines = 3;
+    }
+}
+
+moveFileTerminal 'Переименовывать файл после импорта из терминала' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES moveFileTerminal()
+;
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(moveFileTerminal());
+    }
+}
+
+META defineDocumentTextTerminalFileImport (document, action, postfix)
+    importFromTextTerminalFile##postfix 'Импортировать из файла' (##document p) {
+        IF isPosted(p) THEN {
+            MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+            RETURN;
+        }
+
+        TRY {
+            READ CLIENT 'file://' + replace(pathFileTerminal(currentComputer()), '.txt', '-1.txt') TO file;
+        };
+
+        IF file() IS FILE THEN {
+            ##action(p, file());
+        } ELSE MESSAGE 'Файл не найден';         
+    }
+END
+
+META defineDocumentTextTerminalFileImport (document, action)
+    @defineDocumentTextTerminalFileImport (document, action, );
+END
+
+META defineDocumentTextTerminalImport (document, action, postfix)
+    importFromTextTerminal##postfix 'Импортировать из терминала' (##document p) {
+        IF isPosted(p) THEN {
+            MESSAGE 'Вы пытаетесь импортировать в проведенный документ. Распроведите его.';
+            RETURN;
+        }
+
+        cmdClient(comandLineTerminal(currentComputer()));
+
+        TRY {
+            READ CLIENT 'file://' + pathFileTerminal(currentComputer()) TO file;
+        };
+
+        IF file() IS FILE THEN {
+            ##action(p, file());
+        } ELSE MESSAGE 'Терминал не включен';
+
+        fileExistsClient('file://' + pathFileTerminal(currentComputer()));
+        IF  moveFileTerminal() AND fileExists() THEN {
+            fileExistsClient('file://' + replace(pathFileTerminal(currentComputer()), '.txt', '-1.txt'));
+            IF fileExists() THEN {
+                deleteClient('file://' + replace(pathFileTerminal(currentComputer()), '.txt', '-1.txt'));
+            }
+            moveClient('file://' + pathFileTerminal(currentComputer()), 'file://' + replace(pathFileTerminal(currentComputer()), '.txt', '-1.txt'));
+        }
+    }
+END
+
+META defineDocumentTextTerminalImport (document, action)
+    @defineDocumentTextTerminalImport (document, action, );
+END
