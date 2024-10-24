@@ -521,8 +521,9 @@ public class AclasLS2Handler extends MultithreadScalesHandler {
                             Thread.sleep(1000);
                         }
                     }
+                } else {
+                    library = AclasSDKLibrary.aclasSDKs.get("aclassdk");
                 }
-                assert library != null;
                 return library.AclasSDK_Sync_ExecTaskA_PB(getBytes(ip), 0, 0, procType, dataType, getBytes(filePath));
             } finally {
                 if (enableParallel) {
