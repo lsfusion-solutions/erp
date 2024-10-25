@@ -10,6 +10,8 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class FiscalBoardResetTextAction extends FiscalBoardAction {
     private final ClassPropertyInterface timeoutInterface;
 
@@ -28,11 +30,12 @@ public class FiscalBoardResetTextAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-            boolean useJssc = findProperty("useJsscCurrentCashRegister[]").read(context) != null;
+            String comLibrary = trim((String) findProperty("comLibraryCurrentCashRegister[]").read(context));
+
             String defaultTextBoard = (String) findProperty("defaultTextBoard[]").read(context);
 
             String[] lines = generateText(defaultTextBoard);
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, useJssc, timeout));
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, comLibrary, timeout));
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

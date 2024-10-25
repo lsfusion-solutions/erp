@@ -4,7 +4,10 @@ import jssc.SerialPort;
 import jssc.SerialPortException;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
+import purejavacomm.*;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 
 import static lsfusion.erp.ERPLoggers.cashRegisterlogger;
@@ -16,15 +19,15 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
     String line2;
     Integer baudRateBoard;
     Integer comPortBoard;
-    boolean useJssc;
+    String comLibrary;
     Integer timeout;
 
-    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, boolean useJssc, Integer timeout) {
+    public FiscalBoardDisplayTextClientAction(String line1, String line2, Integer baudRateBoard, Integer comPortBoard, boolean uppercase, String comLibrary, Integer timeout) {
         this.line1 = uppercase(line1, uppercase);
         this.line2 = uppercase(line2, uppercase);
         this.baudRateBoard = baudRateBoard;
         this.comPortBoard = comPortBoard;
-        this.useJssc = useJssc;
+        this.comLibrary = comLibrary;
         this.timeout = timeout;
     }
 
@@ -60,14 +63,21 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
             String comPort = "COM" + comPortBoard;
             byte[] line1Bytes = line1.getBytes(Charset.forName("cp866"));
             byte[] line2Bytes = line2.getBytes(Charset.forName("cp866"));
-            if(useJssc) {
+            boolean useJssc = comLibrary != null && comLibrary.equals("jssc");
+            if (useJssc) {
                 writeJssc(comPort, baudRateBoard, line1Bytes, line2Bytes);
             } else {
-                writeJSerialComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
+                boolean usePureJavaComm = comLibrary != null && comLibrary.equals("pureJavaComm");
+                if (usePureJavaComm) {
+                    writePureJavaComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
+                } else {
+                    writeJSerialComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
+                }
             }
 
 
-        } catch (SerialPortException e) {
+        } catch (SerialPortException | UnsupportedCommOperationException | IOException | PortInUseException |
+                 NoSuchPortException e) {
             cashRegisterlogger.info(String.format("Board writeToPort failed: %s ms", (System.currentTimeMillis() - time)), e);
             return false;
         }
@@ -94,5 +104,29 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
         serialPort.writeBytes(line1);
         serialPort.writeBytes(line2);
         serialPort.closePort();
+    }
+
+    private void writePureJavaComm(String comPort, Integer baudRate, byte[] line1, byte[] line2) throws SerialPortException, NoSuchPortException, PortInUseException, UnsupportedCommOperationException, IOException {
+        CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(comPort);
+
+        if (portIdentifier.isCurrentlyOwned()) {
+            throw new RuntimeException("Port is in use");
+        } else {
+            CommPort commPort = portIdentifier.open("lsfusion", 2000);
+            try {
+                if (commPort instanceof purejavacomm.SerialPort) {
+                    purejavacomm.SerialPort serialPort = (purejavacomm.SerialPort) commPort;
+                    serialPort.setSerialPortParams(baudRate, SerialPort.DATABITS_8, SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+                    try (OutputStream out = serialPort.getOutputStream()) {
+                        out.write(line1);
+                        out.write(line2);
+                    }
+                } else {
+                    throw new RuntimeException("it's not SerialPort");
+                }
+            } finally {
+                commPort.close();
+            }
+        }
     }
 }

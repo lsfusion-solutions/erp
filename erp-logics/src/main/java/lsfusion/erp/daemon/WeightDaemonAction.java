@@ -8,23 +8,32 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class WeightDaemonAction extends InternalAction {
     private final ClassPropertyInterface comPortInterface;
-    private final ClassPropertyInterface useJsscInterface;
+    private final ClassPropertyInterface comLibraryInterface;
 
     public WeightDaemonAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         comPortInterface = i.next();
-        useJsscInterface = i.next();
+        comLibraryInterface = i.next();
     }
 
 
     @Override
     protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
-        boolean useJssc = context.getKeyValue(useJsscInterface).getValue() != null;
+
+        String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
+        boolean useJssc = comLibrary != null && comLibrary.equals("jssc");
+        boolean usePureJavaComm = comLibrary != null && comLibrary.equals("pureJavaComm");
+        if(usePureJavaComm) {
+            throw new RuntimeException("Pure Java Comm not supported for Weight Daemon");
+        }
+
         context.requestUserInteraction(new WeightDaemonClientAction(comPort, useJssc));
     }
 

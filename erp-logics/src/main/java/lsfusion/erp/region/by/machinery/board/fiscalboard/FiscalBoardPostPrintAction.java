@@ -13,6 +13,8 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class FiscalBoardPostPrintAction extends FiscalBoardAction {
     private final ClassPropertyInterface receiptInterface;
 
@@ -31,13 +33,13 @@ public class FiscalBoardPostPrintAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-            boolean useJssc = findProperty("useJsscCurrentCashRegister[]").read(context) != null;
+            String comLibrary = trim((String) findProperty("comLibraryCurrentCashRegister[]").read(context));
 
             BigDecimal sum = (BigDecimal) findProperty("sumPayment[Receipt]").read(context, receiptObject);
             BigDecimal change = (BigDecimal) findProperty("changePayment[Receipt]").read(context, receiptObject);
 
             String[] lines = generateText(sum, change);
-            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, useJssc, null));
+            context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard, uppercase, comLibrary, null));
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

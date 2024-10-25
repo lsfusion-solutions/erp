@@ -15,8 +15,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-import static lsfusion.base.BaseUtils.nvl;
-import static lsfusion.base.BaseUtils.trimToEmpty;
+import static lsfusion.base.BaseUtils.*;
 
 public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
     private final ClassPropertyInterface receiptDetailInterface;
@@ -37,7 +36,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
             Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
             Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
             boolean uppercase = findProperty("uppercaseBoardCurrentCashRegister[]").read(context) != null;
-            boolean useJssc = findProperty("useJsscCurrentCashRegister[]").read(context) != null;
+            String comLibrary = trim((String) findProperty("comLibraryCurrentCashRegister[]").read(context));
 
             String name = trimToEmpty((String) findProperty("overNameSku[ReceiptDetail]").read(context, receiptDetailObject));
             BigDecimal quantity = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(context, receiptDetailObject);
@@ -52,7 +51,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
                 firstLine = fillSpaces(name, lineLength - firstLine.length(), true) + firstLine;
                 String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
 
-                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(firstLine, secondLine, baudRateBoard, comPortBoard, uppercase, useJssc, null));
+                context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(firstLine, secondLine, baudRateBoard, comPortBoard, uppercase, comLibrary, null));
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

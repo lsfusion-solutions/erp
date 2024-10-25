@@ -34,8 +34,19 @@ onStarted() + {
     }
 }
 
-useJssc 'Использовать библиотеку jssc вместо jSerialComm (backward compatibility)' (CashRegister cashRegister) = useJssc(computer(cashRegister)) IN base;
-useJsscCurrentCashRegister 'Использовать библиотеку jssc вместо jSerialComm (backward compatibility)' = useJssc(currentCashRegister());
+migratedUseJssc = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT migratedUseJssc() THEN {
+        FOR name(Computer c) DO {
+            comLibrary(c) <- IF useJssc(c) THEN ComLibrary.jssc ELSE ComLibrary.jSerialComm;
+        }
+        migratedUseJssc() <- TRUE;
+    }
+}
+
+comLibrary 'Библиотека Com' (CashRegister cashRegister) = comLibrary(computer(cashRegister)) IN base;
+captionComLibrary 'Библиотека Com' (CashRegister cashRegister) = staticCaption(comLibrary(cashRegister)) IN base;
+comLibraryCurrentCashRegister 'Библиотека Com' = staticName(comLibrary(currentCashRegister()));
 
 defaultTextBoard 'Текст по умолчанию для табло' = DATA STRING[100] ();
 
@@ -49,7 +60,7 @@ DESIGN options {
 }
 
 EXTEND FORM groupCashRegister
-    PROPERTIES(c) comPortBoard, baudRateBoard, uppercaseBoard, useJssc
+    PROPERTIES(c) comPortBoard, baudRateBoard, uppercaseBoard, captionComLibrary
 ;
 
 // Использование в POS

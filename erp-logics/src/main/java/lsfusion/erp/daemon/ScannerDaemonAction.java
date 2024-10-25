@@ -9,10 +9,12 @@ import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.util.Iterator;
 
+import static lsfusion.base.BaseUtils.trim;
+
 public class ScannerDaemonAction extends InternalAction {
     private final ClassPropertyInterface comPortInterface;
     private final ClassPropertyInterface singleReadInterface;
-    private final ClassPropertyInterface useJsscInterface;
+    private final ClassPropertyInterface comLibraryInterface;
 
     public ScannerDaemonAction(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -20,14 +22,21 @@ public class ScannerDaemonAction extends InternalAction {
         Iterator<ClassPropertyInterface> i = getOrderInterfaces().iterator();
         comPortInterface = i.next();
         singleReadInterface = i.next();
-        useJsscInterface = i.next();
+        comLibraryInterface = i.next();
     }
 
     @Override
     protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
         boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
-        boolean useJssc = context.getKeyValue(useJsscInterface).getValue() != null;
+
+        String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
+        boolean useJssc = comLibrary != null && comLibrary.equals("jssc");
+        boolean usePureJavaComm = comLibrary != null && comLibrary.equals("pureJavaComm");
+        if(usePureJavaComm) {
+            throw new RuntimeException("Pure Java Comm not supported for Scanner Daemon");
+        }
+
         String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, useJssc));
         if(result != null && !result.isEmpty()) {
             context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
