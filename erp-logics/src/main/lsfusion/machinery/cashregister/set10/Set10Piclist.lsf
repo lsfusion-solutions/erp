@@ -334,53 +334,62 @@ DESIGN groupCashRegister{
 }
 
 exportTouchAPI 'Экспорт пиклиста Touch' () {
+    NEWSESSION APPLY {
+        DELETE TemporaryTouchElemnt t WHERE t IS TemporaryTouchElemnt; 
+    }
     IF exportCSIAPIurl() THEN {
-        DELETE TemporaryTouchElemnt tt WHERE tt IS TemporaryTouchElemnt;
+
+        parentLoc(TouchElement t) <- parent(t) IF t IS CustomGroup;
+
+        maxIndex(TouchElement c) <- GROUP MAX index(TouchElement i) IF parent(i) = c;
+
+        needTemporary(CustomGroup c) <- maxIndex(c) / (maxItemsPerPage() - 2);
+
+        LOCAL group = CustomGroup (TemporaryTouchElemnt);
+
+        FOR INTEGER x = needTemporary(CustomGroup c) AND x > 0 DO{
+            FOR iterate(INTEGER i, 1, MIN x, 4) NEW t = TemporaryTouchElemnt DO{
+                int(t) <- i;
+                name(t) <- 'Далее ' + i;
+                level(t) <- level(c) + i;
+                parentLoc(t) <- parent(c, i);
+                group(t) <- c;
+            }
+        }
+
+        countTemporary(TouchElement c) <- GROUP SUM 1 IF parentLoc(TemporaryTouchElemnt tt) = c AND tt IS TemporaryTouchElemnt;
+
+        maxItems(TouchElement c) <- CASE
+            WHEN level(c) = 1 THEN maxItemsPerPage() (-) countTemporary(c)
+            WHEN level(c) >= 2 THEN maxItemsPerPage() - 1 (-) countTemporary(c)
+        ;
+
+        maxIndexItem(TouchElement t) <-
+        CASE
+            WHEN t IS CustomGroup THEN maxItems(t)
+            WHEN t IS TemporaryTouchElemnt THEN
+            GROUP SUM maxItems(TouchElement tt) IF level(t, tt) AND level(tt) >= level(group(t))
+        ;
+
+        LOCAL parentT = TouchElement (TouchElement, TouchElement);
+
+        parentT(TouchElement i, TouchElement c) <- GROUP LAST TemporaryTouchElemnt cc ORDER DESC maxIndexItem(cc)
+        WHERE index(i) <= maxIndexItem(cc) AND group(cc) AND level(cc, c) AND cc IS TemporaryTouchElemnt
+            AND group(cc)
+            IF c = parent(i) AND filter(i)
+        ;
+
+        parentLevel(TouchElement i, TouchElement c) <-
+            IF index(i) <= maxIndexItem(c) AND c = parent(i) AND filter(i) THEN parent(i)
+            ELSE parentT(i, c)
+        ;
+
+        parentLoc(TouchElement i) <-
+            parentLevel(i, parent(i)) WHERE i IS Item AND filter(i)
+        ;
         
         FOR typePiclistSet10(GroupCashRegister g) = PiclistType.touch AND isSet10(g) AND  customGroupPicList() DO{
-
-            parentLoc(TouchElement t) <- parent(t) IF t IS CustomGroup;
-
-            maxIndex(TouchElement c) <- GROUP MAX index(TouchElement i) IF parent(i) = c;
-
-            needTemporary(CustomGroup c) <- maxIndex(c) / (maxItemsPerPage() - 2);
-
-            LOCAL group = CustomGroup (TemporaryTouchElemnt);
-
-            FOR INTEGER x = needTemporary(CustomGroup c) AND x > 0 DO{
-                FOR iterate(INTEGER i, 1, MIN x, 4) NEW t = TemporaryTouchElemnt DO{
-                    int(t) <- i;
-                    name(t) <- 'Далее ' + i;
-                    level(t) <- level(c) + i;
-                    parentLoc(t) <- parent(c, i);
-                    group(t) <- c;
-                }
-            }
-
-            countTemporary(TouchElement c) <- GROUP SUM 1 IF parentLoc(TemporaryTouchElemnt tt) = c AND tt IS TemporaryTouchElemnt;
-
-            maxItems(TouchElement c) <- CASE
-                WHEN level(c) = 1 THEN maxItemsPerPage() (-) countTemporary(c)
-                WHEN level(c) >= 2 THEN maxItemsPerPage() - 1 (-) countTemporary(c)
-            ;
-
-            maxIndexItem(TouchElement t) <-
-            CASE
-                WHEN t IS CustomGroup THEN maxItems(t)
-                WHEN t IS TemporaryTouchElemnt THEN
-                GROUP SUM maxItems(TouchElement tt) IF level(t, tt) AND level(tt) >= level(group(t))
-            ;
-
-            parentLevel(TouchElement i, TouchElement c) <-
-                IF index(i) <= maxIndexItem(c) AND c = parent(i) THEN parent(i)
-                ELSE
-                GROUP LAST TemporaryTouchElemnt cc ORDER DESC maxIndexItem(cc) WHERE index(i) <= maxIndexItem(cc) AND level(cc, c) AND cc IS TemporaryTouchElemnt
-            ;
-
-            parentLoc(TouchElement i) <-
-                parentLevel(i, parent(i)) WHERE i IS Item AND filter(i)
-            ;
-
+            
             fillPicList(stock(g));
             indexExport(TouchElement child, TouchElement parent) <- (PARTITION SUM 1 IF parent(child, parent) AND filter(child) ORDER order(child), indexSet(child, parent), child BY parent(child, parent), parent) - 1;
             indexT1(TouchElement t1) <- (PARTITION SUM 1 IF level(t1) = 1 AND filter(t1) ORDER order(t1), t1);
@@ -388,7 +397,7 @@ exportTouchAPI 'Экспорт пиклиста Touch' () {
 
             fileToString(exportFile());
             content(stock(g)) <- resultString();
-            DELETE TemporaryTouchElemnt tt WHERE tt IS TemporaryTouchElemnt;
+            
         }
         
         EXPORT exportTouch2 FILTERS content(stock(g)) JSON;
