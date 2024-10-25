@@ -14,12 +14,19 @@ DESIGN integrationData{
     }
 }
 
+purchaseCard = DATA LOCAL INTEGER(INTEGER);
+
+EXTEND FORM purchasesImport
+    OBJECTS card = INTEGER
+    FILTERS purchaseCard(card) == purchase
+    PROPERTIES(card) type ATTR ATTR, number ATTR
+    FILTERS imported(card)
+;
 
 overCreateReceipt(Receipt r, INTEGER i)+{
-    IF type(i) != 'COUPON_CARD' AND discountCard(i) THEN{
-        IF NOT discountNumber(discountCard(i)) AND createDiscountCardSet10() THEN NEW d = DiscountCard{
-            number(d) <- STRING[48](discountCard(i));
-        }
-        discountCard(r) <- discountNumber(discountCard(i));
+    FOR purchaseCard(INTEGER card) = i AND number(card) 
+            AND type(card) != 'COUPON_CARD' AND NOT discountNumber(number(card)) AND createDiscountCardSet10() NEW d = DiscountCard DO{
+        number(d) <- STRING[48](number(card));
     }
+    discountCard(r) <- discountNumber(GROUP MAX number(INTEGER j) IF type(j) != 'COUPON_CARD' AND purchaseCard(j) = i);
 }
