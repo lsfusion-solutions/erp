@@ -15,18 +15,25 @@ DESIGN integrationData{
 }
 
 purchaseCard = DATA LOCAL INTEGER(INTEGER);
+numberD = DATA LOCAL STRING (INTEGER);
+typeD = DATA LOCAL STRING (INTEGER);
+
 
 EXTEND FORM purchasesImport
     OBJECTS card = INTEGER
     FILTERS purchaseCard(card) == purchase
-    PROPERTIES(card) type ATTR ATTR, number ATTR
+    PROPERTIES(card) typeD EXTID 'type' ATTR, numberD EXTID 'number' ATTR
     FILTERS imported(card)
 ;
+discountCardNumber = DATA LOCAL STRING (INTEGER);
+
+beforeCreateReceipts() +{
+    FOR purchaseCard(INTEGER card) AND numberD(card) AND typeD(card) != 'COUPON_CARD' AND NOT discountNumber(numberD(card)) AND createDiscountCardSet10() NEW d = DiscountCard DO{
+        number(d) <- STRING[48](numberD(card));
+    }
+    discountCardNumber(INTEGER i) <- GROUP MAX numberD(INTEGER j) IF typeD(j) != 'COUPON_CARD' AND purchaseCard(j) = i;
+}
 
 overCreateReceipt(Receipt r, INTEGER i)+{
-    FOR purchaseCard(INTEGER card) = i AND number(card) 
-            AND type(card) != 'COUPON_CARD' AND NOT discountNumber(number(card)) AND createDiscountCardSet10() NEW d = DiscountCard DO{
-        number(d) <- STRING[48](number(card));
-    }
-    discountCard(r) <- discountNumber(GROUP MAX number(INTEGER j) IF type(j) != 'COUPON_CARD' AND purchaseCard(j) = i);
+    IF discountCardNumber(i) THEN discountCard(r) <- discountNumber(discountCardNumber(i));
 }

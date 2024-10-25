@@ -84,8 +84,6 @@ FORM purchasesImport FORMEXTID 'purchases'
         discountAmount ATTR, inn ATTR
     PROPERTIES(purchase) IN original_purchase operDay ATTR, shop ATTR, cash ATTR, shift ATTR, number ATTR, saletime ATTR
     FILTERS imported(purchase)
-    PROPERTIES(purchase) IN discountCards discountCard
-    PROPERTIES(purchase) IN card type ATTR, number1 EXTID 'number' ATTR
 
     OBJECTS position = INTEGER IN positions
     FILTERS purchasePosition(position) == purchase
@@ -124,6 +122,7 @@ cashRegister(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) A
 
 idCashier (INTEGER i) = tabNumber(i) + '_' + userName(i);
 overCreateReceipt ABSTRACT LIST (Receipt, INTEGER);
+beforeCreateReceipts ABSTRACT LIST ();
 skipCashierImport = ABSTRACT BOOLEAN ();
 
 overCreateReceiptDetail(ReceiptDetail d, INTEGER j) +{
@@ -142,6 +141,7 @@ importReceipt(STRING purchases){
             lastName(e) <- ISTRING[100](getWord(userName(x), ' ', 1));
             firstName(e) <- ISTRING[100](replace(userName(x), getWord(userName(x), ' ', 1), ''));
         }
+        beforeCreateReceipts();
         
         FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) AND shop(shop1(i)) AND startDateValid(i)
             AND cashRegister(i) DO NEW r = Receipt{
@@ -250,6 +250,7 @@ reImportReceipt(STRING purchases, STRING shopId){
     NEWSESSION {
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
+        beforeCreateReceipts();
         FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) AND shopId = shop1(i) DO{
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
