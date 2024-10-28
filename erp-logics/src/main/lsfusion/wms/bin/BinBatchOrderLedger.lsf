@@ -1,0 +1,18 @@
+MODULE BinBatchOrderLedger;
+
+REQUIRE BinSkuOrderLedger, BatchBinLedger;
+
+skipBinSkuOrderLedger() += TRUE ;
+
+CLASS BinBatchOrderLedger 'Запрет продажи' : OrderLedger;
+TABLE binBatchOrderLedger (BinBatchOrderLedger);
+binOrderLedger = AGGR BinBatchOrderLedger WHERE currentBalance(Batch batch, Bin bin) AND orderLedger(bin) MATERIALIZED INDEXED;
+
+batch[OrderLedger] (BinBatchOrderLedger ledger) += batch(ledger);
+stock[OrderLedger] (BinBatchOrderLedger ledger) += stock(bin(ledger));
+dateTime (BinBatchOrderLedger ledger) += dateTimeLastMoved(sku(ledger), bin(ledger));
+isPosted (BinBatchOrderLedger ledger) += TRUE IF ledger IS BinBatchOrderLedger;
+sku (BinBatchOrderLedger ledger) += sku(batch(ledger));
+description (BinBatchOrderLedger ledger) += STRING[200]('Резерв ячейки: ' + name(bin(ledger)));
+quantity (BinBatchOrderLedger ledger) += currentBalance(batch(ledger), bin(ledger));
+toShipQuantity (BinBatchOrderLedger ledger) += currentBalance(batch(ledger), bin(ledger));

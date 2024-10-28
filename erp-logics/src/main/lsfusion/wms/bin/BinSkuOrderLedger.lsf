@@ -1,0 +1,28 @@
+MODULE BinSkuOrderLedger;
+
+REQUIRE BinSkuLedger, OrderLedger;
+
+orderLedger 'Резерв' = DATA BOOLEAN (Bin);
+skipBinSkuOrderLedger = ABSTRACT BOOLEAN ();
+
+EXTEND FORM bin
+    PROPERTIES(s) orderLedger
+;
+
+DESIGN bin {
+    mainContainer{
+        MOVE PROPERTY(orderLedger(s));
+    }
+}
+
+CLASS BinSkuOrderLedger 'Запрет продажи' : OrderLedger;
+TABLE binSkuOrderLedger (BinSkuOrderLedger);
+binOrderLedger = AGGR BinSkuOrderLedger WHERE currentBalance(Sku sku, Bin bin) AND orderLedger(bin) AND NOT skipBinSkuOrderLedger() MATERIALIZED INDEXED;
+
+stock[OrderLedger] (BinSkuOrderLedger ledger) += stock(bin(ledger));
+dateTime (BinSkuOrderLedger ledger) += dateTimeLastMoved(sku(ledger), bin(ledger));
+isPosted (BinSkuOrderLedger ledger) += TRUE IF ledger IS BinSkuOrderLedger;
+sku (BinSkuOrderLedger ledger) += sku(ledger);
+description (BinSkuOrderLedger ledger) += STRING[200]('Резерв ячейки: ' + name(bin(ledger)));
+quantity (BinSkuOrderLedger ledger) += currentBalance(sku(ledger), bin(ledger));
+toShipQuantity (BinSkuOrderLedger ledger) += currentBalance(sku(ledger), bin(ledger));
