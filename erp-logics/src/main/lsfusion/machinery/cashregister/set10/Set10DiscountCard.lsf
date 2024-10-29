@@ -28,8 +28,9 @@ EXTEND FORM purchasesImport
 discountCardNumber = DATA LOCAL STRING (INTEGER);
 
 beforeCreateReceipts() +{
-    FOR purchaseCard(INTEGER card) AND numberD(card) AND typeD(card) != 'COUPON_CARD' AND NOT discountNumber(numberD(card)) AND createDiscountCardSet10() NEW d = DiscountCard DO{
-        number(d) <- STRING[48](numberD(card));
+    FOR [GROUP MAX INTEGER i IF typeD(i) != 'COUPON_CARD' BY numberD(i)](STRING[48] card) AND NOT discountNumber(card) 
+        AND createDiscountCardSet10() NEW d = DiscountCard DO{
+        number(d) <- card;
     }
     discountCardNumber(INTEGER i) <- GROUP MAX numberD(INTEGER j) IF typeD(j) != 'COUPON_CARD' AND purchaseCard(j) = i;
 }
