@@ -1,0 +1,170 @@
+MODULE Set10SaleDeniedRestriction;
+
+REQUIRE Set10PriceTransaction, SkuLedger;
+
+NAMESPACE Set10;
+
+CLASS SaleDeniedRestriction 'Запрет продажи Set10';
+TABLE saleDeniedRestriction(SaleDeniedRestriction);
+
+@defineDocumentHeaderCreated(SaleDeniedRestriction);
+sinceDate(SaleDeniedRestriction r) = toChar(createdTime(r), 'YYYY-MM-DD"T"HH24:MI:SS');
+
+is (SaleDeniedRestriction r) = r IS SaleDeniedRestriction;
+
+sku = DATA Sku(SaleDeniedRestriction);
+nameSku 'Товар' (SaleDeniedRestriction r) = name(sku(r));
+idSku 'Код товара' (SaleDeniedRestriction r) = id(sku(r));
+
+stock = DATA Stock (SaleDeniedRestriction);
+nameStock 'Склад' (SaleDeniedRestriction r) = name(stock(r));
+
+dateTimeExported 'Дата выгрузки' = DATA DATETIME (SaleDeniedRestriction);
+balance 'Остаток при создании' = DATA NUMERIC[16,5] (SaleDeniedRestriction);
+deleted 'Удален' = DATA BOOLEAN (SaleDeniedRestriction);
+active 'Активен' (SaleDeniedRestriction r) = dateTimeExported(r) AND NOT deleted(r);
+
+messageError 'Сообщение об ошибке' = DATA STRING (SaleDeniedRestriction);
+
+set10Stock (Stock c) = GROUP MAX GroupCashRegister grc IF isSet10(grc) AND active(grc) BY stock(grc) MATERIALIZED;
+shopIndices (SaleDeniedRestriction r) = idStoreSet(set10Stock(stock(r)));
+
+FORM saleDeniedRestrictions 'Запреты продаж Set10'
+    OBJECTS r = SaleDeniedRestriction
+    PROPERTIES(r) READONLY createdTime, createdNameUser, createdHostnameComputer, dateTimeExported, nameSku, nameStock, balance, deleted, active, messageError
+    FILTERGROUP default
+        FILTER 'Активные' active(r)
+    
+    LIST SaleDeniedRestriction OBJECT r
+;
+currentBalanceRestriction (Sku s, Stock st) = IF passScales(s) THEN currentBalance(s, st) (+) 2 ELSE currentBalance(s, st);
+
+useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM integrationData
+    PROPERTIES useSaleDeniedRestrictions()
+;
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (useSaleDeniedRestrictions());
+    }
+}
+
+WHEN SETCHANGED(currentBalanceRestriction(Sku s, Stock st) < 0) OR DROPPED(currentBalanceRestriction(s, st)) AND set10Stock(st) AND useSaleDeniedRestrictions() DO NEW r = SaleDeniedRestriction{
+    stock(r) <- st;
+    sku(r) <- s;
+    balance(r) <- OVERRIDE currentBalanceRestriction(s, st), 0;
+}
+
+
+//
+FORM saleRestrictionExport FORMEXTID 'goods-catalog'
+    OBJECTS d = SaleDeniedRestriction EXTID 'sale-denied-restriction'
+    PROPERTIES DRAW d = STRING(d) EXTID 'id' ATTR, = IF is(d) THEN 'GOOD' EXTID 'subject-type' ATTR, idSku(d) EXTID 'subject-code' ATTR, 
+        type = 'SALE_DENIED' ATTR, value = 'true' ATTR,
+        shopIndices(d) EXTID 'shop-indices',
+        sinceDate(d) EXTID 'since-date',
+        deleted = IF deleted(d) THEN 'true' ELSE 'false'
+;
+
+exportSaleRestriction 'Отправить в SET' (SaleDeniedRestriction r) {
+    NEWSESSION {
+        LOCAL outerXML = TEXT();
+        LOCAL error = STRING ();
+        IF urlServerSet10() THEN {
+            EXPORT saleRestrictionExport FILTERS d = r XML;
+            fileToString(exportFile());
+            encodeBase64(resultString());
+            goodsCatalogXML()<- encodedBase64();
+            LOCAL headersSet = STRING (STRING);
+            headersSet('Content-Type') <- 'application/xml';
+            generateUUID();
+            TI() <- generatedUUID();
+            LOCAL answer = FILE();
+            LOCAL req = FILE();
+            EXPORT requestItem XML TO req;
+
+            TRY {
+                EXTERNAL HTTP urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+            } CATCH {
+                error() <- messageCaughtException();
+            }
+
+
+            IF NOT error() THEN {
+
+                ti() <- TI();
+                EXPORT getFeedbackRequest XML;
+
+                LOCAL count = INTEGER ();
+                WHILE TRUE DO {
+
+                    sleep(1000);
+
+                    TRY {
+                        EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet
+                            PARAMS exportFile() TO answer;
+                        fileToString(answer());
+                        IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Get Feedback', resultString()));
+                        IMPORT getFeedbackAnswer XML FROM answer();
+                        IF status() = '3' THEN BREAK;
+                        IF status() != '2' THEN {
+                            error() <- status_message();
+                            BREAK;
+                        }
+                    } CATCH{
+                        error() <- messageCaughtException();
+                        BREAK;
+                    }
+
+                    count() <- count() (+) 1;
+                    IF count() > 30 THEN {
+                        error() <- 'Не получен ответ от сервера';
+                        BREAK;
+                    }
+                }
+            }
+
+            IF NOT error() THEN {
+                dateTimeExported(r) <- currentDateTime();
+                APPLY;
+                MESSAGE 'Выгрузка завершена' NOWAIT;
+            } ELSE {
+                messageError(r) <- error();
+                APPLY;
+                MESSAGE TEXT(CONCAT '\n', '!!!Выгрузка завершилась ошибкой', error()) NOWAIT;
+            }
+        } ELSE {
+            MESSAGE 'Не задан "Адрес:порт сервера SET10"' NOWAIT;
+        }
+    }
+} TOOLBAR;
+
+
+deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
+    NEWSESSION {
+        deleted(r) <- TRUE;
+        APPLY;
+        exportSaleRestriction(r);
+    }
+} TOOLBAR;
+
+
+in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
+saleDeniedRestrictions (MachineryPriceTransaction t) = GROUP SUM 1 IF in(t, SaleDeniedRestriction r);
+
+
+afterExportTransaction(MachineryPriceTransaction t) +{
+    IF useSaleDeniedRestrictions() AND saleDeniedRestrictions(t) THEN{
+        FOR in(t, SaleDeniedRestriction r) AND currentBalanceRestriction(sku(r), stock(r)) > 0 DO{
+            deleteSaleRestriction(r);
+        }
+    }
+}
+
+//
+NAVIGATOR {
+    machineryExport{
+        NEW saleDeniedRestrictions;
+    }
+}
