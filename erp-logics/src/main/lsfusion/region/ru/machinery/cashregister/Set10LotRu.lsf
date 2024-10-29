@@ -20,12 +20,16 @@ markType(Sku s) += WHEN lotType(s) = LotType.water THEN 'WATER';
 markType(Sku s) += WHEN lotType(s) = LotType.beer THEN 'BEER';
 skipMarkBarcode = ABSTRACT CASE BOOLEAN (Sku);
 
+skipMarkType = ABSTRACT  BOOLEAN (MachineryPriceTransaction,Barcode.Barcode);
+markType (MachineryPriceTransaction t, Barcode.Barcode b) = markType(sku(b)) IF t IS MachineryPriceTransaction AND NOT skipMarkType(t,b);
+
 EXTEND FORM goodsCatalog
-    PROPERTIES = IF lotType(sku(good)) = LotType.alcohol THEN TRUE EXTID 'excise',  = markType(sku(good)) EXTID 'mark-type'
+    PROPERTIES  = IF lotType(sku(good)) = LotType.alcohol AND NOT skipMarkType(m,good) THEN TRUE EXTID 'excise',  
+                = markType(m,good) EXTID 'mark-type'
 ;
 
 EXTEND FORM barcodesCatalog
-    PROPERTIES = IF markType(sku(good)) AND NOT skipMarkBarcode(sku(good)) THEN TTRUE EXTID 'marked' ATTR
+    PROPERTIES = IF markType(sku(good)) AND NOT skipMarkBarcode(sku(good)) AND NOT skipMarkType(m,good) THEN TTRUE EXTID 'marked' ATTR
 ;
 
 overCreateReceiptDetail(ReceiptDetail d, INTEGER i) +{
