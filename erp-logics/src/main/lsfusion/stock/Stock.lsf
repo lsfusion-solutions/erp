@@ -1099,8 +1099,8 @@ META defineBackgroundNearestBoolean(allProp, property, object1, object2, nearest
     @defineBackgroundNearestBoolean(allProp, property, object1, object2, ###object2, nearestProp, filterProp); 
 END
 
-META lockedObjects(prop,class)
-    locked###prop = DATA User (###class);
+META lockedObjects(prop,class, NS)
+    locked###prop = DATA NS.User (###class);
     lockResult###prop = DATA LOCAL NESTED BOOLEAN ();
     
     lock###prop(###class object)  { 
@@ -1124,7 +1124,18 @@ META lockedObjects(prop,class)
             APPLY locked###prop(object) <- NULL;
         }
     }
+    onStarted() + {
+        FOR locked###prop(###class c) DO {
+            unlock###prop(c);
+        }
+        
+    }
 END
+META lockedObjects(prop,class)
+    @lockedObjects(prop,class,Authentication);
+END
+
+
 
 META defOnStartMigrate(nm, capt)
     // todo - migration
