@@ -63,11 +63,11 @@ public class FiscalBoardDisplayTextClientAction implements ClientAction {
             String comPort = "COM" + comPortBoard;
             byte[] line1Bytes = line1.getBytes(Charset.forName("cp866"));
             byte[] line2Bytes = line2.getBytes(Charset.forName("cp866"));
-            boolean useJssc = comLibrary != null && comLibrary.equals("jssc");
+            boolean useJssc = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.jssc");
             if (useJssc) {
                 writeJssc(comPort, baudRateBoard, line1Bytes, line2Bytes);
             } else {
-                boolean usePureJavaComm = comLibrary != null && comLibrary.equals("pureJavaComm");
+                boolean usePureJavaComm = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.pureJavaComm");
                 if (usePureJavaComm) {
                     writePureJavaComm(comPort, baudRateBoard, line1Bytes, line2Bytes);
                 } else {

@@ -28,8 +28,8 @@ public class WeightDaemonAction extends InternalAction {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
 
         String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
-        boolean useJssc = comLibrary != null && comLibrary.equals("jssc");
-        boolean usePureJavaComm = comLibrary != null && comLibrary.equals("pureJavaComm");
+        boolean useJssc = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.jssc");
+        boolean usePureJavaComm = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.pureJavaComm");
         if(usePureJavaComm) {
             throw new RuntimeException("Pure Java Comm not supported for Weight Daemon");
         }
