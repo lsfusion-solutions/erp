@@ -37,7 +37,9 @@ FORM saleDeniedRestrictions 'Запреты продаж Set10'
     
     LIST SaleDeniedRestriction OBJECT r
 ;
-currentBalanceRestriction (Sku s, Stock st) = IF passScales(s) THEN currentBalance(s, st) (+) 2 ELSE currentBalance(s, st);
+currentBalanceRestriction (Sku s, Stock st) = IF passScales(s) THEN currentBalance(s, st) + 2 
+    ELSE currentBalance(s, st)
+;
 
 useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
 
@@ -50,11 +52,14 @@ DESIGN integrationData{
     }
 }
 //
-//WHEN SETCHANGED(currentBalanceRestriction(Sku s, Stock st) < 0) OR DROPPED(currentBalanceRestriction(s, st)) AND set10Stock(st) AND useSaleDeniedRestrictions() DO NEW r = SaleDeniedRestriction{
-//    stock(r) <- st;
-//    sku(r) <- s;
-//    balance(r) <- OVERRIDE currentBalanceRestriction(s, st), 0;
-//}
+restriction = GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) BY sku(r), stock(r);
+
+WHEN (SETCHANGED(currentBalanceRestriction(Sku s, Stock st)) AND (currentBalanceRestriction(s, st) < 0))
+        AND set10Stock(st) AND useSaleDeniedRestrictions() AND NOT restriction(s, st) DO NEW r = SaleDeniedRestriction{
+    stock(r) <- st;
+    sku(r) <- s;
+    balance(r) <- OVERRIDE currentBalanceRestriction(s, st), 0;
+}
 
 
 //
