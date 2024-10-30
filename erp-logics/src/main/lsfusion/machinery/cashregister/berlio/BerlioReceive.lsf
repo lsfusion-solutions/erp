@@ -1,6 +1,6 @@
 MODULE BerlioReceive;
 
-REQUIRE NativeMachinery, ItemBerlio, ZReportSection, GiftCard, ZReportFuelLtr;
+REQUIRE NativeMachinery, ItemBerlio, ZReportSection, GiftCard, ZReportFuelLtr, CashOperationCashOrder;
 
 NAMESPACE Berlio;
 
@@ -23,9 +23,27 @@ FORM kindOperations 'Виды операций Берлио'
 kindOperation = DATA KindOperation (Payment);
 idKindOperation 'Вид операции' (Payment p) = id(kindOperation(p));
 
+CLASS BerlioCard 'Карта Berlio';
+TABLE berlioCard (BerlioCard);
+
+number 'Номер' = DATA STRING[48] (BerlioCard) IN numbered INDEXED CHARWIDTH 13;
+berlioNumber = GROUP MAX BerlioCard dberlioCard BY number(dberlioCard);
+
+berlioCard = DATA BerlioCard (Receipt);
+numberBerlioCard 'Номер карты Berlio' (Receipt receipt) = number(berlioCard(receipt));
+
 berlioFile 'Имя файла Берлио' = DATA STRING[15](ZReport) INDEXED IN documentHeader;
-EXTEND FORM zReports PROPERTIES READONLY idKindOperation(p), berlioFile(z);
-EXTEND FORM zReport PROPERTIES idKindOperation(p), berlioFile(z);
+
+EXTEND FORM zReports
+    PROPERTIES READONLY berlioFile(z)
+    PROPERTIES READONLY numberBerlioCard(b) BEFORE sumReceiptDetail(b)
+    PROPERTIES READONLY idKindOperation(p)
+;
+EXTEND FORM zReport
+    PROPERTIES READONLY berlioFile(z)
+    PROPERTIES numberBerlioCard(b) BEFORE sumReceiptDetail(b)
+    PROPERTIES idKindOperation(p)
+;
 
 dateStartlistFilesberlio = DATA DATE();
 cashRegister = GROUP MAX CashRegister c BY npp(c);
@@ -66,7 +84,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
             
             FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) DO {
                 
-                idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF index(r) AND npp(cr) == npp(r);
+                idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF npp(cr) == npp(r);
                 idReceipt(INTEGER r) <- (CONCAT '_', idZReport(r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
                 idReceiptDetail(INTEGER r) <- (CONCAT '_', idReceipt(r), index(r)) IF index(r) AND npp(cr) == npp(r);
 
@@ -80,9 +98,14 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     berlioFile(z) <- fn;
                 }
 
+                FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND NOT berlioNumber(berlio) NEW g = BerlioCard DO {
+                    number(g) <- berlio;
+                }
+
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
                     id(rc) <- idReceipt;
                     zReport(rc) <- zReport(idZReport(r));
+                    berlioCard(rc) <- berlioNumber(cardNum(r));
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
                     time(rc) <- time(r);
@@ -114,7 +137,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                 }
 
                 //сертификат
-                FOR [GROUP SUM 1 IF paymentType(kindOperation(kind(INTEGER r))) == minGiftCardPaymentType() OR ( kind(r) == 88 AND mixOther(r) != 0) BY cardNum(r)](STRING giftCard) AND NOT giftCard(giftCard) NEW g = GiftCard DO {
+                FOR [GROUP SUM 1 IF paymentType(kindOperation(kind(INTEGER r))) == minGiftCardPaymentType() OR (kind(r) == 88 AND mixOther(r) != 0) BY cardNum(r)](STRING giftCard) AND NOT giftCard(giftCard) NEW g = GiftCard DO {
                     id(g) <- giftCard;
                     number(g) <- giftCard;
                 }
@@ -156,6 +179,27 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     kindOperation(p) <- kindOperation(kind(r));
                     paymentType(p) <- paymentType(kindOperation(kind(r)));
                     sum(p) <- sumReceiptDetail(receipt(idReceipt));
+                }
+                
+                //кассовые операции
+                FOR vid(INTEGER r) == INTEGER(id(CashOperation.Operation o)) AND discountSum(r) !=0 AND idZReport(r) AND NOT cashDocument(idZReport(r) + '_' + vid(r) + '_' + time(r)) DO {
+                    IF allowIncomeCashOperation(o) THEN NEW ic = IncomeCashOperation {
+                        id(ic) <- idZReport(r) + '_' + vid(r) + '_' + time(r);
+                        date(ic) <- date(r);
+                        time(ic) <- time(r);
+                        cashRegister(ic) <- cr;
+                        zReport(ic) <- zReport(idZReport(r));
+                        operation(ic) <- CashOperation.operation(STRING(vid(r)));
+                        sumCash(ic) <- -discountSum(r);
+                    } ELSE NEW oc = OutcomeCashOperation {
+                        id(oc) <- idZReport(r) + '_' + vid(r) + '_' + time(r);
+                        date(oc) <- date(r);
+                        time(oc) <- time(r);
+                        cashRegister(oc) <- cr;
+                        zReport(oc) <- zReport(idZReport(r));
+                        operation(oc) <- CashOperation.operation(STRING(vid(r)));
+                        sumCash(oc) <- discountSum(r);
+                    }
                 }
 
             }
