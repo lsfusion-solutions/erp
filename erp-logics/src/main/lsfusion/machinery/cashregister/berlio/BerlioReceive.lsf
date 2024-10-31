@@ -127,8 +127,8 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     idBarcode(d) <- code(r);
                     sku(d) <- OVERRIDE itemIdBerlio(INTEGER(item(r))), itemIdBarcodeBerlio(INTEGER(code(r))), skuBarcode(code(r)) IF length(code(r)) > 3;
                     quantity(d) <- IF vid(r) == 2 THEN -qty(r) ELSE qty(r);
-                    weight(d) <- weight(r);
-                    density(d) <- density(r);
+                    weight(d) <- weight(r) IF weight(r) != 0.0;
+                    density(d) <- density(r) IF density(r) != 0.0;
                     price(d) <- price(r);
                     sum(d) <- sum(r);
                     discountPercent(d) <- -discount(r) IF discount(r) != 0.0;
@@ -182,7 +182,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
                 }
                 
                 //кассовые операции
-                FOR vid(INTEGER r) == INTEGER(id(CashOperation.Operation o)) AND discountSum(r) !=0 AND idZReport(r) AND NOT cashDocument(idZReport(r) + '_' + vid(r) + '_' + time(r)) DO {
+                FOR vid(INTEGER r) == INTEGER(id(CashOperation.Operation o)) AND discountSum(r) !=0 AND idZReport(r) AND NOT cashDocument(idZReport(r) + '_' + vid(r) + '_' + time(r)) ORDER date(r), time(r) DO {
                     IF allowIncomeCashOperation(o) THEN NEW ic = IncomeCashOperation {
                         id(ic) <- idZReport(r) + '_' + vid(r) + '_' + time(r);
                         date(ic) <- date(r);
