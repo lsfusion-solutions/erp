@@ -6,17 +6,30 @@ NAMESPACE Picking;
 
 skip 'Пропустить печать' = ABSTRACT BOOLEAN (PickingOrder);
 overPrint 'Печать'  ABSTRACT LIST ( PickingOrder);
+beforeAccepted  ABSTRACT LIST ( PickingOrder);
 
 acceptPrint 'Принять' (PickingOrder pickingOrder)  {
-    IF notAccepted(pickingOrder) THEN {
-        accept(pickingOrder);
-        overPrint(pickingOrder);
-        IF NOT skip(pickingOrder) THEN {
-            print(pickingOrder);
-        }
-    } ELSE {
-        MESSAGE 'Заказ уже взят в комплектацию' NOWAIT ;
-    }    
+    NEWSESSION {
+        lock(pickingOrder);
+        IF lockResult() THEN {
+            TRY {
+                IF notAccepted(pickingOrder) THEN {
+                    beforeAccepted(pickingOrder);
+                    accept(pickingOrder);
+                    overPrint(pickingOrder);
+                    IF NOT skip(pickingOrder) THEN {
+                        print(pickingOrder);
+                    }
+                }
+            } CATCH {
+                MESSAGE messageCaughtException() NOWAIT;    
+            } FINALLY {
+                unlock(pickingOrder);
+            }
+        } ELSE {
+            MESSAGE 'Заказ уже взят в комплектацию' NOWAIT ;
+        }          
+    }
 } TOOLBAR CHANGEKEY 'SPACE';
 
 isParent(SkuGroup sk, PickingOrderDetail detail) = isParent(sk, sku(detail));
