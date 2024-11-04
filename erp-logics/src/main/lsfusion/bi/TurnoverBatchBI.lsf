@@ -7,6 +7,8 @@ NAMESPACE BI;
 //Грузить остаток на начало
 exportBalanceBBatch 'Грузить остаток на начало (по партиям)' = DATA BOOLEAN () PREREAD;
 
+purchaseShipmentDate 'Закупки по дате прихода (по партиям)' = DATA BOOLEAN ();
+
 EXTEND FORM integrationData
     PROPERTIES DRAW dates exportBalanceBBatch()
 ;
@@ -19,6 +21,10 @@ overExportTurnoverBatch = DATA LOCAL BOOLEAN ();
 balanceBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 balanceBBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
 accountPrice = DATA LOCAL NUMERIC[16,4] (Batch, Stock);
+
+quantityPurchase = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
+sumVATPurchase = DATA LOCAL NUMERIC[40,12] (Batch, Stock);
+sumPurchase = DATA LOCAL NUMERIC[40,12] (Batch, Stock);
 
 overInitExportTurnoverBatch(DATE dFrom, DATE dTo) ABSTRACT LIST;
 
@@ -39,6 +45,13 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
     
     WHILE date() >= dFrom DO {
         logToFile('druid', 'Started EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceBatch(Batch b, Stock st)));
+        quantityPurchase(Batch b, Stock st) <- quantityPurchaseShipment(b, st, date()) WHERE purchaseShipmentDate();
+        quantityPurchase(Batch b, Stock st) <- quantityPurchase(b, st, date()) WHERE NOT purchaseShipmentDate();
+        sumVATPurchase(Batch b, Stock st) <- sumVATPurchaseShipment(b, st, date()) WHERE purchaseShipmentDate();
+        sumVATPurchase(Batch b, Stock st) <- sumVATPurchase(b, st, date()) WHERE NOT purchaseShipmentDate();
+        sumPurchase(Batch b, Stock st) <- sumPurchaseShipment(b, st, date()) WHERE purchaseShipmentDate();
+        sumPurchase(Batch b, Stock st) <- sumPurchase(b, st, date()) WHERE NOT purchaseShipmentDate();
+        
         overExportTurnoverBatch(date());
         IF NOT overExportTurnoverBatch() THEN {
             IF exportBalanceBBatch() THEN {
@@ -49,7 +62,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
                                     UOM = UOM(sku(b)),
                                     cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
                                     balance = DOUBLE(balanceBatch(b, st)), balanceB = DOUBLE(balanceBBatch(b, st)),
-                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantityPurchase = DOUBLE(OVERRIDE (quantityPurchase(b, st)), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st), 0), 
                                     quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                        WHERE balanceBBatch(b, st) OR balanceBatch(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
             } ELSE {
@@ -60,7 +73,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
                                     UOM = UOM(sku(b)),
                                     cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
                                     balance = DOUBLE(balanceBatch(b, st)),
-                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st, date()), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st, date()), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st, date()), 0), 
+                                    quantityPurchase = DOUBLE(OVERRIDE quantityPurchase(b, st), 0), sumVATPurchase = DOUBLE(OVERRIDE sumVATPurchase(b, st), 0), sumPurchase = DOUBLE(OVERRIDE sumPurchase(b, st), 0), 
                                     quantitySold = DOUBLE(OVERRIDE quantitySold(b, st, date()), 0), sumVATSold = DOUBLE(OVERRIDE sumVATSold(b, st, date()), 0), sumSold = DOUBLE(OVERRIDE sumSold(b, st, date()), 0) 
                        WHERE balanceBatch(b, st) OR quantityPurchase(b, st, date()) OR quantitySold(b, st, date()) OR sumSold(b, st, date());
                         
@@ -81,8 +94,18 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
 } CONFIRM;
 
 EXTEND FORM integrationData
-    PROPERTIES exportTurnoverBatch(druidFrom, druidTo)
+    PROPERTIES exportTurnoverBatch(druidFrom, druidTo), purchaseShipmentDate()
 ;
+DESIGN integrationData {
+    BOX(dates) {
+        NEW batchCont {//BEFORE BOX(ql){
+            horizontal = TRUE;
+            MOVE PROPERTY (exportBalanceBBatch());
+            MOVE PROPERTY (purchaseShipmentDate());
+            MOVE PROPERTY (exportTurnoverBatch(druidFrom, druidTo));
+        }
+    }
+}
 
 
 @defineReport(turnoverBatch, 'Оборачиваемость (по партиям)');
