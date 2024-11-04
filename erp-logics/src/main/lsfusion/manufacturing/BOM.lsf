@@ -486,9 +486,9 @@ countStocks (BOM BOM) = GROUP SUM 1 IF in(BOM, Stock stock) MATERIALIZED;
 quantityChildWith (StockGroup stockGroup, BOM BOM) = GROUP SUM 1 IF dataIn(StockGroup childstockGroup, BOM) AND isParent(childstockGroup, stockGroup) MATERIALIZED;
 quantityParentWith (StockGroup stockGroup, BOM BOM) = GROUP SUM 1 IF dataIn(StockGroup parentstockGroup, BOM) AND isParent(stockGroup, parentstockGroup) MATERIALIZED;     
     
-backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE 
+backgroundIn 'Цвет' (BOM BOM, StockGroup stockGroup) = CASE 
     WHEN dataIn[StockGroup,BOM](stockGroup, BOM) THEN RGB(0,0,0)
-    WHEN nearestInCompany(stockGroup, BOM) THEN RGB(230,248,250) 
+    WHEN nearestInCompany(BOM, stockGroup) THEN RGB(230,248,250) 
     WHEN quantityChildWith (stockGroup, BOM) != descendantNumber[StockGroup](stockGroup) AND NOT quantityParentWith (stockGroup, BOM) THEN RGB(203,203,203);    
 
 editMaterial 'Редактировать компонент' (Component d)  { NEWSESSION { edit(material(d)); } }
