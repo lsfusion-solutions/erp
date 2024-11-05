@@ -28,8 +28,10 @@ overCopy (Product to, Product from) + {
 @changeNutrition(product, sku, percentHumidity) ;
 //percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
 changePercentDryness(Product product)   { 
-    INPUT n = NUMERIC[8,2] DO
-        percentHumidity(product) <- NUMERIC[8,2](100-n);
+    INPUT n = NUMERIC[8,2] DO {
+        percentHumidity(product) <- NUMERIC[8,2](100 - n);
+        dataPercentDryness(product) <- NULL;
+    }
 }
 
 // Влажность компонент
@@ -255,6 +257,9 @@ netGramsQuantity = DATA LOCAL NUMERIC[16,5](Component);
 
 gramsQuantityComponentsGG 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (Product p)= drynessQuantityComponents(BOM(p))/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10;
 
+banUseCoeffGramsDrynessQuantity 'Не использовать "Коэфф. сухого количества"' = ABSTRACT BOOLEAN (BOM);
+skipFillHumidity = ABSTRACT BOOLEAN (BOM);
+
 fillNutrition 'Рассчитать ценность' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
         netGramsQuantity(Item i) <- NULL;
@@ -266,7 +271,9 @@ fillNutrition 'Рассчитать ценность' (BOM BOM)  {
                 netGramsQuantity(Component c) <- NULL;
                 netGramsQuantity(Component c) <- NUMERIC[16,5](overNettoNetWeight(c)/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *100.0) WHERE BOM(c)==BOM AND NOT isPack(c);                                                                                                  
                 coeffGramsDrynessQuantity() <- NUMERIC[22,8](gramsQuantityComponents(p)/(GROUP SUM netGramsQuantity(Component c)* (OVERRIDE percentDryness[Product](material(c)),percentDryness[Item](material(c)))/100.0));  
-
+                IF banUseCoeffGramsDrynessQuantity(BOM) THEN {
+                    coeffGramsDrynessQuantity() <- 1.0;
+                }
                 IF NOT isFillNutrition(p) THEN { //чтобы избежать двойного округления
                     proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*proteinsProduct(c)/100.0)*coeffGramsDrynessQuantity())));
                     fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Component c)*fatsProduct(c)/100.0)*coeffGramsDrynessQuantity())));
@@ -277,8 +284,10 @@ fillNutrition 'Рассчитать ценность' (BOM BOM)  {
                 }                              
             } ELSE {
                 netGramsQuantity(Item i) <- NUMERIC[16,5](recBruttoNetQuantity(BOM(p), i, currentDate())/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *100.0) WHERE recBruttoNetQuantity(BOM(p), i, currentDate());                  
-                coeffGramsDrynessQuantity() <- NUMERIC[22,8](gramsQuantityComponents(p)/(GROUP SUM netGramsQuantity(Item sku)* percentDryness(sku)/100.0));    
-                                                    
+                coeffGramsDrynessQuantity() <- NUMERIC[22,8](gramsQuantityComponents(p)/(GROUP SUM netGramsQuantity(Item sku)* percentDryness(sku)/100.0));
+                IF banUseCoeffGramsDrynessQuantity(BOM) THEN {
+                    coeffGramsDrynessQuantity() <- 1.0;
+                }                                                    
                 IF NOT isFillNutrition(p) THEN { //чтобы избежать двойного округления
                     proteins(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*proteins(sku)/100.0)*coeffGramsDrynessQuantity())));
                     fats(p)<- NUMERIC[8,2](humidityParamsRound(NUMERIC[18,5]((GROUP SUM netGramsQuantity(Item sku)*fats(sku)/100.0)*coeffGramsDrynessQuantity())));
@@ -289,7 +298,7 @@ fillNutrition 'Рассчитать ценность' (BOM BOM)  {
                 }
             }
         }
-        IF showHumidity(BOM) THEN {
+        IF showHumidity(BOM) AND NOT skipFillHumidity(BOM) THEN {
             percentHumidity(p) <-  NUMERIC[8,2](round2(gramsQuantityComponents(p)));    
         }
         customFillNutrition(BOM);
