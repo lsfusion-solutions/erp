@@ -50,11 +50,13 @@ changeExtraChargeSum(Invoice i, UserInvoiceDetail d)  {
 extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[18,4](round(quantity(d) * extraChargePrice(i,d), currency(i)))
                 WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
+skipExtraCharge = ABSTRACT VALUE BOOLEAN (UserInvoice);
+
 extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' (Invoice i) = GROUP SUM extraChargeSum(i,InvoiceDetail d);
 extraChargeSumUserInvoiceDetail 'Сумма доп. услуг (расписанная)' (Invoice i) = GROUP SUM extraChargeSum(i,UserInvoiceDetail d);
 
-extraChargePrice 'Цена доп. услуг' (o, UserInvoiceDetail d) = GROUP SUM extraChargePrice(Invoice i,d) IF isPosted(i) BY operation(i);
-extraChargeSum  'Сумма доп. услуг' (o, UserInvoiceDetail d) = GROUP SUM extraChargeSum(Invoice i,d) IF isPosted(i) BY operation(i);
+extraChargePrice 'Цена доп. услуг' (o, UserInvoiceDetail d) = GROUP SUM extraChargePrice(Invoice i,d) IF isPosted(i) AND NOT skipExtraCharge(i) BY operation(i);
+extraChargeSum  'Сумма доп. услуг' (o, UserInvoiceDetail d) = GROUP SUM extraChargeSum(Invoice i,d) IF isPosted(i) AND NOT skipExtraCharge(i) BY operation(i);
 
 @defineOperationProperty(showExtraCharge, 'Доп. услуги', chargeContainer);
 @defineDocumentInterfaceProperty (invoice, showExtraCharge, 'Доп. услуги');
@@ -190,8 +192,8 @@ EXTEND FORM userInvoice
     PROPERTIES TOOLBAR DRAW uid SHOWIF showExtraCharge(i)  selectExtraCharge(i), fillExtraChargePriceUser(i)
 ;
 
-calcExtraChargePrice (UserInvoiceDetail d) = GROUP SUM extraChargePrice(UserInvoice i,d) IF isPosted(i); //IF isPostedUserInvoiceDetail(d)
-calcExtraChargeSum (UserInvoiceDetail d) = GROUP SUM extraChargeSum(UserInvoice i,d) IF isPosted(i); //IF isPostedUserInvoiceDetail(d)
+calcExtraChargePrice (UserInvoiceDetail d) = GROUP SUM extraChargePrice(UserInvoice i,d) IF isPosted(i) AND NOT skipExtraCharge(i); //IF isPostedUserInvoiceDetail(d)
+calcExtraChargeSum (UserInvoiceDetail d) = GROUP SUM extraChargeSum(UserInvoice i,d) IF isPosted(i) AND NOT skipExtraCharge(i); //IF isPostedUserInvoiceDetail(d)
 
 WHEN CHANGED(calcExtraChargePrice(UserInvoiceDetail d)) DO
     chargePrice (d) <- calcExtraChargePrice(d);
