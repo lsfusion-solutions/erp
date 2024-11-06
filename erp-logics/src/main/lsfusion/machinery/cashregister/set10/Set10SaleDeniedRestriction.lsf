@@ -124,7 +124,7 @@ exportSaleRestriction 'Отправить в SET' (SaleDeniedRestriction r) {
                     }
 
                     count() <- count() (+) 1;
-                    IF count() > 30 THEN {
+                    IF count() > 60 THEN {
                         error() <- 'Не получен ответ от сервера';
                         BREAK;
                     }
@@ -136,7 +136,6 @@ exportSaleRestriction 'Отправить в SET' (SaleDeniedRestriction r) {
                 APPLY;
                 MESSAGE 'Выгрузка завершена' NOWAIT;
             } ELSE {
-                messageError(r) <- error();
                 APPLY;
                 MESSAGE TEXT(CONCAT '\n', '!!!Выгрузка завершилась ошибкой', error()) NOWAIT;
             }
@@ -168,6 +167,20 @@ afterExportTransaction(MachineryPriceTransaction t) +{
         FOR in(t, SaleDeniedRestriction r) AND currentBalanceRestriction(sku(r), stock(r)) > 0 DO{
             deleteSaleRestriction(r);
         }
+    }
+}
+
+createRestriction 'Создать запреты продаж Set10'(){
+    FOR set10Stock(Stock stock) DO NEWSESSION {
+        LOCAL restriction = SaleDeniedRestriction (Sku);
+        restriction(Sku s) <- GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = stock;
+
+        FOR currentBalanceRestriction(Sku s, stock) < 0 AND NUMERIC n = currentBalanceRestriction(s, stock) AND NOT restriction(s) DO NEW r = SaleDeniedRestriction{
+            stock(r) <- stock;
+            sku(r) <- s;
+            balance(r) <- n;
+        }
+        APPLY;
     }
 }
 
