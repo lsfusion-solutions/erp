@@ -48,55 +48,52 @@ EXTEND FORM zReport
 dateStartlistFilesberlio = DATA DATE();
 cashRegister = GROUP MAX CashRegister c BY npp(c);
 
-receiveFromBerlio (GroupCashRegister gcr) {
-    listFiles(directory(gcr)+'/S');
-    FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) 
-        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr) 
-        AND substr(fileName(i), 4, 4) >= (OVERRIDE toChar(dateStartlistFilesberlio(), 'YYMM'), '2409')
-        AND NOT (GROUP SUM 1 IF fn == berlioFile(ZReport z)) ORDER fn DO {
-        NEWSESSION {
-            READ directory(gcr) +'/S/'+ fn TO file;
-                
-            LOCAL shiftDate, date = DATE (INTEGER);
-            LOCAL time = TIME (INTEGER);
-            LOCAL shiftIime = TIME ();
-            LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
-            LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
-            LOCAL idZReport, idReceipt, idReceiptDetail = STRING (INTEGER);
-            LOCAL qty, density, weight, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
-            
-            IMPORT DBF FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
-                    density = SOL, weight = RELKG, price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT,
-                    cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
-                    mixBank = MIXBANK, mixOther = MIXOTHER;
+overImportPayment ABSTRACT LIST (Receipt, NUMERIC, NUMERIC, NUMERIC);
+overImport ABSTRACT LIST (ZReport);
 
-            FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegister(npp) ORDER npp DO NEW c = CashRegister {
-                groupCashRegister(c) <- gcr;
-                npp(c) <- npp;
-            }
+receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
+    NEWSESSION {
+        READ directory(gcr) +'/S/'+ fn TO file;
 
-            date(INTEGER r) <- toDateFormat(lDate(r), 'DD.MM.YYYY');
-            index(INTEGER r) <- (PARTITION SUM 1 ORDER r BY npp(r), receipt(r)) WHERE imported(r) AND skno(r) > 0;
-            FOR INTEGER open == (GROUP MIN INTEGER r IF code(r) == 'OPEN') DO {
-                shiftDate(INTEGER r) <- date(open) WHERE imported(r);
-                shiftIime() <- time(open);
-            }
-            
-            FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) DO {
-                
-                idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF npp(cr) == npp(r);
-                idReceipt(INTEGER r) <- (CONCAT '_', idZReport(r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
-                idReceiptDetail(INTEGER r) <- (CONCAT '_', idReceipt(r), index(r)) IF index(r) AND npp(cr) == npp(r);
+        LOCAL shiftDate, date = DATE (INTEGER);
+        LOCAL time = TIME (INTEGER);
+        LOCAL shiftIime = TIME ();
+        LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
+        LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
+        LOCAL idZReport, idReceipt, idReceiptDetail = STRING (INTEGER);
+        LOCAL qty, density, weight, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idZReport(rr)](STRING idZreport) AND NOT zReport(idZreport) NEW z = ZReport DO {
-                    id(z) <- idZreport;
-                    isPosted(z) <- TRUE;
-                    date(z) <- date(r);
-                    time(z) <- shiftIime();
-                    cashRegister(z) <- cr;
-                    number(z) <- shift(r);
-                    berlioFile(z) <- fn;
-                }
+        IMPORT DBF FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
+                density = SOL, weight = RELKG, price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT,
+                cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
+                mixBank = MIXBANK, mixOther = MIXOTHER;
+
+        FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegister(npp) ORDER npp DO NEW c = CashRegister {
+            groupCashRegister(c) <- gcr;
+            npp(c) <- npp;
+        }
+
+        date(INTEGER r) <- toDateFormat(lDate(r), 'DD.MM.YYYY');
+        index(INTEGER r) <- (PARTITION SUM 1 ORDER r BY npp(r), receipt(r)) WHERE imported(r) AND skno(r) > 0;
+        FOR INTEGER open == (GROUP MIN INTEGER r IF code(r) == 'OPEN') DO {
+            shiftDate(INTEGER r) <- date(open) WHERE imported(r);
+            shiftIime() <- time(open);
+        }
+
+        FOR [GROUP SUM 1 IF npp(INTEGER rr) == npp(CashRegister crr) BY crr](CashRegister cr) DO {
+
+            idZReport(INTEGER r) <- (CONCAT '_', nppGroupMachinery(cr), npp(cr), shift(r), shiftDate(r)) IF npp(cr) == npp(r);
+            idReceipt(INTEGER r) <- (CONCAT '_', idZReport(r), receipt(r)) IF index(r) AND npp(cr) == npp(r);
+            idReceiptDetail(INTEGER r) <- (CONCAT '_', idReceipt(r), index(r)) IF index(r) AND npp(cr) == npp(r);
+
+            FOR INTEGER rz == [GROUP MIN INTEGER rr BY idZReport(rr)](STRING idZreport) AND NOT zReport(idZreport) NEW z = ZReport DO {
+                id(z) <- idZreport;
+                isPosted(z) <- TRUE;
+                date(z) <- date(rz);
+                time(z) <- shiftIime();
+                cashRegister(z) <- cr;
+                number(z) <- shift(rz);
+                berlioFile(z) <- fn;
 
                 FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND NOT berlioNumber(berlio) NEW g = BerlioCard DO {
                     number(g) <- berlio;
@@ -104,7 +101,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
                     id(rc) <- idReceipt;
-                    zReport(rc) <- zReport(idZReport(r));
+                    zReport(rc) <- z;
                     berlioCard(rc) <- berlioNumber(cardNum(r));
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
@@ -152,24 +149,25 @@ receiveFromBerlio (GroupCashRegister gcr) {
 
                 //смешаная оплата
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND kind(r) == 88 DO {
-                    IF NOT payment(idReceipt + '_' + kind(r) +'_'+ 1) AND mixCash(r) !=0 THEN NEW p = Payment {
-                        id(p) <- idReceipt + '_' + kind(r) +'_'+ 1;
+                    IF NOT payment(idReceipt + '_' + kind(r) + '_' + 1) AND mixCash(r) != 0 THEN NEW p = Payment {
+                        id(p) <- idReceipt + '_' + kind(r) + '_' + 1;
                         receipt(p) <- receipt(idReceipt);
                         paymentType(p) <- minCashPaymentType();
                         sum(p) <- mixCash(r);
                     }
-                    IF NOT payment(idReceipt + '_' + kind(r) +'_'+ 2) AND mixBank(r) != 0 THEN NEW p = Payment {
-                        id(p) <- idReceipt + '_' + kind(r) +'_'+ 2;
+                    IF NOT payment(idReceipt + '_' + kind(r) + '_' + 2) AND mixBank(r) != 0 THEN NEW p = Payment {
+                        id(p) <- idReceipt + '_' + kind(r) + '_' + 2;
                         receipt(p) <- receipt(idReceipt);
                         paymentType(p) <- minCardPaymentType();
                         sum(p) <- mixBank(r);
                     }
-                    IF NOT payment(idReceipt + '_' + kind(r) +'_'+ 3) AND mixOther(r) != 0 THEN NEW p = PaymentGiftCard {
-                        id(p) <- idReceipt + '_' + kind(r) +'_'+ 3;
+                    IF NOT payment(idReceipt + '_' + kind(r) + '_' + 3) AND mixOther(r) != 0 THEN NEW p = PaymentGiftCard {
+                        id(p) <- idReceipt + '_' + kind(r) + '_' + 3;
                         receipt(p) <- receipt(idReceipt);
                         paymentType(p) <- minGiftCardPaymentType();
                         ZReport.sum(p) <- mixOther(r);
                     }
+                    overImportPayment(receipt(idReceipt), mixCash(r), mixBank(r), mixOther(r));
                 }
 
                 //other
@@ -180,15 +178,15 @@ receiveFromBerlio (GroupCashRegister gcr) {
                     paymentType(p) <- paymentType(kindOperation(kind(r)));
                     sum(p) <- sumReceiptDetail(receipt(idReceipt));
                 }
-                
+
                 //кассовые операции
-                FOR vid(INTEGER r) == INTEGER(id(CashOperation.Operation o)) AND discountSum(r) !=0 AND idZReport(r) AND NOT cashDocument(idZReport(r) + '_' + vid(r) + '_' + time(r)) ORDER date(r), time(r) DO {
+                FOR vid(INTEGER r) == INTEGER(id(CashOperation.Operation o)) AND discountSum(r) != 0 AND idZReport(r) AND NOT cashDocument(idZReport(r) + '_' + vid(r) + '_' + time(r)) ORDER date(r), time(r) DO {
                     IF allowIncomeCashOperation(o) THEN NEW ic = IncomeCashOperation {
                         id(ic) <- idZReport(r) + '_' + vid(r) + '_' + time(r);
                         date(ic) <- date(r);
                         time(ic) <- time(r);
                         cashRegister(ic) <- cr;
-                        zReport(ic) <- zReport(idZReport(r));
+                        zReport(ic) <- z;
                         operation(ic) <- CashOperation.operation(STRING(vid(r)));
                         sumCash(ic) <- -discountSum(r);
                     } ELSE NEW oc = OutcomeCashOperation {
@@ -196,16 +194,27 @@ receiveFromBerlio (GroupCashRegister gcr) {
                         date(oc) <- date(r);
                         time(oc) <- time(r);
                         cashRegister(oc) <- cr;
-                        zReport(oc) <- zReport(idZReport(r));
+                        zReport(oc) <- z;
                         operation(oc) <- CashOperation.operation(STRING(vid(r)));
                         sumCash(oc) <- discountSum(r);
                     }
                 }
 
+                overImport(z);
             }
-            
-            APPLY NESTED LOCAL;
-        }   
+        }
+
+        APPLY NESTED LOCAL;
+    }
+}
+
+receiveFromBerlio (GroupCashRegister gcr) {
+    listFiles(directory(gcr)+'/S');
+    FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) 
+        AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr) 
+        AND substr(fileName(i), 4, 4) >= (OVERRIDE toChar(dateStartlistFilesberlio(), 'YYMM'), '2409')
+        AND NOT (GROUP SUM 1 IF fn == berlioFile(ZReport z)) ORDER fn DO {
+            receiveFromBerlio (gcr, fn);
     }
 }
 
