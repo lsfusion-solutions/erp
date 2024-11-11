@@ -14,7 +14,7 @@ setDeliveryTime 'Выбрать время доставки' (InternetOrder o){
 } ASON CONTEXTMENU nameStatus[InternetOrder];
 
 
-captionDelivery 'Описание' (InternetOrder o) = CONCAT ' ', 'Заказ', '№' + number(o), 'c ' + deliveryTimeFromInternetOrder(o),
+captionDelivery 'Описание' (InternetOrder o) = CONCAT ' ', 'Заказ', '№' + number(o), deliveryDate(o), 'c ' + deliveryTimeFromInternetOrder(o),
     'по ' + deliveryTimeToInternetOrder(o) IN id;
 
 filterCourier = ABSTRACT CASE BOOLEAN (InternetOrder);
@@ -25,11 +25,12 @@ FORM printInternetOrderDelivery
         addressInternetCustomer, captionDelivery
 
     OBJECTS d = InternetOrderDetail
-    PROPERTIES (d) nameSku, pickingQuantity, price, pickingSum
+    PROPERTIES (d) nameSku, pickingQuantity, price, discountPrice, pickingSum
     FILTERS internetOrder(d) = o
 
-    FILTERS filterCourier(o);
+    FILTERS filterCourier(o)
 ;
+
 FORM dialogDates 'Печать ведомости'
     OBJECTS dates = (dateFrom = DATE, dateTo = DATE) PANEL
     PROPERTIES df = VALUE(dateFrom), dt = VALUE(dateTo)
