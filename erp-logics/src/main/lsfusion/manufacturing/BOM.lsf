@@ -109,8 +109,23 @@ DESIGN options {
     }
 }
 
-isComponentGroup 'Фильтр сырье (группа)' (Sku sku) = component(sku) OR (sku IS Sku AND NOT countComponentSku());
-isProductGroup 'Фильтр готовые изделия (группа)' (Sku sku) = product(sku)  OR (sku IS Sku AND NOT countProductSku ());
+isComponentGroup 'Товар группы "Сырьё"' (Sku sku) = component(sku) OR (sku IS Sku AND NOT countComponentSku());
+isProductGroup 'Товар группы "Готовые изделия"' (Sku sku) = product(sku)  OR (sku IS Sku AND NOT countProductSku ());
+
+skipCheckComponentGroup 'Не проверять ограничение "Товар группы "Сырьё"' = DATA BOOLEAN ();
+skipCheckProductGroup 'Не проверять ограничение "Товар группы "Готовые изделия"' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () skipCheckComponentGroup, skipCheckProductGroup
+;
+
+DESIGN options{
+    manufacturing{
+        MOVE PROPERTY (skipCheckComponentGroup());
+        MOVE PROPERTY (skipCheckProductGroup());
+    }
+}
+
 
 // ---------------- Материалы ------------------- //
 CLASS ABSTRACT Material 'Материал';
@@ -432,9 +447,12 @@ FORM components 'Компоненты'
     LIST Component OBJECT c
 ;
 
-CONSTRAINT material(Component c) IS Sku AND NOT isComponentGroup(material(c)) CHECKED  BY material[Component]
+CONSTRAINT SETCHANGED(material(Component c)) AND material(c) IS Sku AND NOT isComponentGroup(material(c)) AND NOT skipCheckComponentGroup()
+    CHECKED  BY material[Component]
     MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
-CONSTRAINT sku(Product p) AND NOT isProductGroup(sku(p)) CHECKED  BY sku[Product]
+
+CONSTRAINT SETCHANGED(sku(Product p)) AND NOT isProductGroup(sku(p)) AND NOT skipCheckProductGroup()
+    CHECKED  BY sku[Product]
     MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';      
         
 overNetWeight = OVERRIDE Stock.netWeight(sku(Component c)); 
