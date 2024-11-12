@@ -131,6 +131,8 @@ overCreateReceiptDetail(ReceiptDetail d, INTEGER j) +{
     }
 }
 
+overCreateZReport ABSTRACT LIST(ZReport);
+
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
@@ -159,6 +161,7 @@ importReceipt(STRING purchases){
                 date(z) <- DATE(operDay1(i));
                 number(z) <- STRING[48](shift1(i)); 
                 zReport(r) <- z;
+                overCreateZReport(z);
             }
             FOR purchasePosition(INTEGER j) = i AND operationType(i) = 'true' AND NOT receiptDetail(idReceiptDetail(j))
                 NEW d = ReceiptSaleDetail DO {
@@ -265,6 +268,7 @@ reImportReceipt(STRING purchases, STRING shopId){
                 date(z) <- DATE(operDay1(i));
                 number(z) <- STRING[48](shift1(i)); 
                 zReport(r) <- z;
+                overCreateZReport(z);
             }
             IF NOT number(zReport(r)) THEN number(zReport(r)) <- STRING[48](shift1(i)); 
             FOR purchasePosition(INTEGER j) = i AND ReceiptDetail d = receiptDetail(idReceiptDetail(j)) DO {
