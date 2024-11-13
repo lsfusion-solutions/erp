@@ -267,13 +267,6 @@ FORM balanceBinBatchStock 'Сравнение остатков по ячейка
     FILTERS           isParent(sk, bt),
             st == ss
     ORDERS          dateTime(bt)
-    
-    FILTERGROUP filterBalance
-        FILTER 'Партии с остатком' balanceB(bt, st, t) 'F11' DEFAULT
-        FILTER 'Партии с движением по складу' countLedger(bt, st)
-        FILTER 'Партии пришедшие за последний 1 день' dateTime(bt) >= subtractSeconds(currentDateTime(), 1) 'F10'
-        FILTER 'Партии пришедшие за последние 7 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 7) 'F9'
-        FILTER 'Партии пришедшие за последние 30 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 30) 'F8'
 
     FILTERGROUP filterExpiry
         FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < toDate(t) 'F7'
@@ -281,6 +274,15 @@ FORM balanceBinBatchStock 'Сравнение остатков по ячейка
         FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, t, 7) 'F6'
         FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, t, 30) 'F4'
 
+    FILTERGROUP filterBalance
+        FILTER 'Партии с остатком' balanceB(bt, st, t) 'F10'
+        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (balanceB(bt, st, t) OR balanceBinB(bt, st, t)) AND NOT balanceB(bt, st, t) = balanceBinB(bt, st, t)  'F11' DEFAULT 
+        FILTER 'Партии с движением по складу' countLedger(bt, st)
+        FILTER 'Партии с остатком по ячейкам' balanceBinB(bt, st, t)        
+        FILTER 'Партии пришедшие за последний 1 день' dateTime(bt) >= subtractSeconds(currentDateTime(), 1) 'F10'
+        FILTER 'Партии пришедшие за последние 7 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 7) 'F9'
+        FILTER 'Партии пришедшие за последние 30 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 30) 'F8'
+    
     OBJECTS b = Bin
     PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId
     PROPERTIES  balanceB(bt, b, t)

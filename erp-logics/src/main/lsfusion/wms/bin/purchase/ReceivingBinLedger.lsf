@@ -108,7 +108,8 @@ WHEN CHANGED(quantity(ReceivingDetail detail)) DO {
 
 @defineDocumentDetailDescription(receiving, ReceivingDetail);
 
-inBin(ReceivingDetail detail) = inBin(receiving(detail));
+dataInBin = DATA Bin (ReceivingDetail);
+inBin(ReceivingDetail detail) = OVERRIDE dataInBin(detail), inBin(receiving(detail));
 nameInBin 'Ячейка' (ReceivingDetail detail) = canonicalId(inBin(detail));
 
 dateTime(ReceivingDetail detail) = createdDateTime(detail);
@@ -117,6 +118,8 @@ idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (Receiving);
 skuLocal = DATA LOCAL Sku (Receiving);
 nameSkuLocal 'Товар' (Receiving r)= name(skuLocal(r));
 quantityLocal 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Receiving);
+
+expiryDate 'Срок годности' = DATA DATE (ReceivingDetail) CHARWIDTH 7;
 
 changeBarcodeLocal(Receiving r) {
     INPUT s=STRING[15] DO {
@@ -131,6 +134,18 @@ changeBarcodeLocal(Receiving r) {
 
 CONSTRAINT DROPPED(Receiving r IS Receiving) AND PREV(countReceivingDetail(r))
     MESSAGE 'Нельзя удалять приемку с существующими строками, удалите строки перед удалением документа';
+
+overCopy(ReceivingDetail newD, ReceivingDetail oldD) ABSTRACT LIST;
+copy 'Копировать'(ReceivingDetail detail)  {
+    NEWSESSION NEW d = ReceivingDetail {
+        receiving(d) <- receiving(detail);
+        sku(d) <- sku(detail);
+        idBarcode(d) <- idBarcode(detail);
+        expiryDate(d) <- expiryDate(detail);
+        overCopy(d,detail);
+        APPLY;
+    }
+} CHANGEKEY 'F6' TOOLBAR;
 
 FORM addReceivingDetail 'Приемка'
     OBJECTS r=Receiving PANEL 
@@ -196,9 +211,11 @@ EXTEND FORM employee
     PROPERTIES(e, s) nameDefaultReceivingBin
 ;
 
-dataReceivingBin = DATA LOCAL Bin (CustomUser);
+dataReceivingBin = DATA LOCAL NESTED Bin (CustomUser);
 receivingBin (CustomUser u) = OVERRIDE dataReceivingBin(u), (GROUP MAX defaultReceivingBin(u, Stock stock));
 nameReceivingBin 'Ячейка(приемка)' (CustomUser u) = canonicalId(receivingBin(u)) CHARWIDTH 10;
+
+nameBinGroup2ReceivingBin 'Зона ячейки' (CustomUser u) = nameBinGroup2(receivingBin(u)) CHARWIDTH 10;
 
 CONSTRAINT LOCAL dataReceivingBin(CustomUser u) AND NOT accessCompany(u, stock(dataReceivingBin(u)))
     CHECKED BY dataReceivingBin[CustomUser] MESSAGE 'Нет доступа к складу ячейки';
@@ -276,10 +293,16 @@ placement 'Разместить' (CustomUser u) {
     }    
 }
 
+changeDataInBin(ReceivingDetail d, CustomUser u) {
+    DIALOG dialogBins OBJECTS s = inBin(d) INPUT FILTERS isParent(sg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), sg), isParent(binGroup2(receivingBin(u)), s) DO {
+        dataInBin(d) <- s;
+    }
+}
+
 FORM receiving 'Приемка'
     OBJECTS u=CustomUser PANEL 
     PROPERTIES(u) READONLY name
-    PROPERTIES(u) nameReceivingBin
+    PROPERTIES(u) nameReceivingBin, nameBinGroup2ReceivingBin READONLY
     FILTERS u=currentUser()
     
     OBJECTS r=Receiving
@@ -295,9 +318,10 @@ FORM receiving 'Приемка'
     OBJECTS d=ReceivingDetail
     PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku, createdDateTime, nameCreatedUser
     PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(r)==ReceivingStatus.inWork,
-                  nameInBin READONLY BACKGROUND RGB(255, 224, 255)
+                  nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(r)==ReceivingStatus.inWork OR NOT receivingBin(u)//READONLY
     PROPERTIES newReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
     PROPERTIES(d) NEWSESSION DELETE SHOWIF status(r)==ReceivingStatus.inWork
+    PROPERTIES(d) copy
 
     OBJECTS sr=Sku
     PROPERTIES(sr) READONLY idBarcode, name, shortNameUOM
@@ -324,7 +348,12 @@ DESIGN receiving {
             font = 'bold 24';
             panelCaptionVertical = TRUE;
             charWidth = 30;
-        }        
+        }
+        PROPERTY(nameBinGroup2ReceivingBin(u)) {
+            font = 'bold 24';
+            panelCaptionVertical = TRUE;
+            charWidth = 30;
+        }
     }
     NEW tabContainer {
         tabbed = TRUE;
@@ -393,6 +422,8 @@ META defineReceivingAggregation(primObject, captionObject, formObject)
     quantity 'Кол-во документе прихода' = GROUP SUM quantity(###primObject##Detail detail) IF primObject(detail)==primObject(###primObject##Receiving receiving) BY sku(detail), receiving;
     invoiceQuantity[Sku, ###primObject##Receiving](Sku sku, ###primObject##Receiving receiving) += quantity(sku, receiving);
 
+    overCreateDetail(ReceivingDetail d, ###primObject##Detail detail) ABSTRACT LIST;
+    
     createDetails(Receiving receiving) + WHEN primObject(receiving) IS ###primObject THEN {
         NEWSESSION {
             IF PREV(countReceivingDetail(receiving)) THEN {
@@ -404,6 +435,7 @@ META defineReceivingAggregation(primObject, captionObject, formObject)
                 receiving(d) <- receiving;
                 idBarcode(d) <- idBarcodeSku(detail);
                 sku(d) <- sku(detail);
+                overCreateDetail(d, detail);
             }
             APPLY;
         }   
