@@ -89,6 +89,9 @@ VATSum 'Сумма НДС' (ProductDetail pd,ComponentDetail cd)= IF VAT(cd)
 
 totalVATSum 'Сумма НДС компонентов' (ProductDetail pd) = GROUP SUM VATSum (pd,ComponentDetail cd) MATERIALIZED;
 skip = DATA LOCAL BOOLEAN (ProductDetail);
+costCardOrderReportsFileOver() = ABSTRACT STRING ();
+costCardOrderReportsFile() = OVERRIDE costCardOrderReportsFileOver(), 'Production_costCardOrder_o.jrxml';
+
 FORM costCardOrder 'Калькуляционная карта' // с заменами
 
     OBJECTS o = Order PANEL SUBREPORT
@@ -112,6 +115,7 @@ FORM costCardOrder 'Калькуляционная карта' // с замен�
 
     FILTERS order(cd)==o
     FILTERS BOM(cd)== BOM(pd)
+    REPORTFILES o costCardOrderReportsFile()    
 ;
 
 printCostCard 'Калькуляционная карта' (Order order)  {
