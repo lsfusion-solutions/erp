@@ -89,14 +89,14 @@ importTerminalDocumentLot 'Импорт из ТСД' (LotAdjustment a) {
 
         FOR quantityLot(sku(Lot l), stock(a)) AND (quantity(l, stock(a)) OR currentBalance(l, stock(a))) AND NOT quantity(l, stock(a)) == currentBalance(l, stock(a)) AND lotAdjustmentDetail(l, a) DO {
             IF isPosted(a) THEN 
-                quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a)) (+) quantity(lotAdjustmentDetail(l, a));
-            ELSE quantity(lotAdjustmentDetail(l, a)) <- quantity(l) (-) currentBalance(l, stock(a));
+                quantity(lotAdjustmentDetail(l, a)) <- quantity(l, stock(a)) (-) currentBalance(l, stock(a)) (+) quantity(lotAdjustmentDetail(l, a));
+            ELSE quantity(lotAdjustmentDetail(l, a)) <- quantity(l, stock(a)) (-) currentBalance(l, stock(a));
         }
         
         FOR quantityLot(sku(Lot l), stock(a)) AND (quantity(l, stock(a)) OR currentBalance(l, stock(a))) AND NOT quantity(l, stock(a)) == currentBalance(l, stock(a)) AND NOT lotAdjustmentDetail(l, a) DO NEW d = LotAdjustmentDetail {
             lotAdjustment(d) <- a;
             lot(d) <- l;
-            quantity(d) <- quantity(l) (-) currentBalance(l, stock(a));
+            quantity(d) <- quantity(l, stock(a)) (-) currentBalance(l, stock(a));
         }
 
         include(TerminalDocument ttd) <- NULL;
