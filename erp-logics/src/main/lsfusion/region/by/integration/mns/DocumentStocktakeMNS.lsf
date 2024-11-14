@@ -4,10 +4,11 @@ REQUIRE Inventory, LegalEntityBy, ItemTracking, Lot, PurchaseDeclarationDetailBy
 
 NAMESPACE Inventory;
 
+codeMNS 'Код МНС' = DATA STRING[9] (LegalEntity) IN doc CHARWIDTH 9 NOFLEX INDEXED;
 district 'Район' = DATA STRING (LegalEntity);
 
 EXTEND FORM legalEntity
-    PROPERTIES (l) district
+    PROPERTIES (l) district, codeMNS
 ;
 
 DESIGN legalEntity {
@@ -15,6 +16,7 @@ DESIGN legalEntity {
         NEW MNS {
             caption = 'МНС';
             MOVE PROPERTY(district(l));
+            MOVE PROPERTY(codeMNS(l));
         }
     }
 }
@@ -116,10 +118,10 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
     'index'=STRING(index(d)) EXTID 'LetterTraceabilityLeftovers_v1_t001_ric1'
     PROPERTIES(d) 
         codeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2',
-//        extraCodeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2a', // TODO ожидание ответа МНС. API ругается на эти элементы
-//        gtin EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2b', // TODO ожидание ответа МНС. API ругается на эти элементы
+        extraCodeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2a', // TODO ожидание ответа МНС. API ругается на эти элементы
+        gtin EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2b', // TODO ожидание ответа МНС. API ругается на эти элементы
         nameSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3',
-//        sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3а', // TODO ожидание ответа МНС. API ругается на эти элементы
+        sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3a', // TODO ожидание ответа МНС. API ругается на эти элементы
         uomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric4',
         quantityUomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5',
         trackingUOMCustomsGroup EXTID 'LetterTraceabilityLeftovers_v1_t001_ric6',
@@ -236,7 +238,7 @@ exportToXML(Stocktake s) {
     version() <- 1;
     type() <- 'LETTERTRACEABILITYLEFTOVERS';
     rectification() <- NULL;
-    kodIMNS() <- '107';
+    kodIMNS() <- codeMNS(legalEntity(s));
     UNP() <- UNP(legalEntity(s));
     year() <- extractYear(DATE(createdTime(inventory(s))));
     
@@ -326,7 +328,7 @@ generateJSON (Inventory inv) {
     documentId() <- id(createdStocktake());    
     documentNumber1() <- seriesNumber(createdStocktake());
     VATRegistrationNumber() <- UNP(legalEntity(createdStocktake()));
-    IMNS() <- '107';
+    IMNS() <- codeMNS(legalEntity(createdStocktake()));;
     documentDate() <- toChar(dateTime(inventory(createdStocktake())), 'YYYYMMDD');
     documentName() <- 'Сведения об остатках';
     refRecordId() <- refRecordId(createdStocktake()); // TODO
