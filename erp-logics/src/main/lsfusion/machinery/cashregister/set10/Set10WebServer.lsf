@@ -101,16 +101,10 @@ FORM purchasesImport FORMEXTID 'purchases'
     PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
 ;
 
-idReceipt(INTEGER i) = operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i);
-idReceiptDetail (INTEGER i) = operationType(purchasePosition(i)) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
-zReportById(INTEGER i) = zReport(operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+idReceipt = DATA LOCAL STRING(INTEGER);
+idReceiptDetail = DATA LOCAL STRING(INTEGER);
+zReportById = DATA LOCAL ZReport(INTEGER);
 index = PARTITION SUM 1 ORDER d BY typeClass(d) CHARWIDTH 4;
-
-paymenId (INTEGER i) = STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + 
-    index(i);
-sumChange(INTEGER i) = NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
-shop(STRING id) = GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
-startDateValid(INTEGER i) = TRUE IF (DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR NOT startDate(shop(shop1(i))));
 
 skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
@@ -138,6 +132,35 @@ importReceipt(STRING purchases){
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
         
+        LOCAL idZReport = STRING (INTEGER);
+        idZReport(INTEGER i) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+        
+        FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) NEW z = ZReport DO{
+            id(z) <- id;
+            cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(x) AND idCashRegisterSet(c) = cash1(x);
+            isPosted(z) <- TRUE;
+            date(z) <- DATE(operDay1(x));
+            number(z) <- STRING[48](shift1(x));
+            overCreateZReport(z);
+        }
+        
+        idReceipt(INTEGER i) <- operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i);
+        idReceiptDetail (INTEGER i) <- operationType(purchasePosition(i)) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
+        zReportById(INTEGER i) <- zReport(idZReport(i));
+        
+        //оплаты
+        LOCAL paymenId = STRING (INTEGER);
+        LOCAL sumChange = NUMERIC[18,4] (INTEGER);
+        LOCAL shop = GroupCashRegister (STRING);
+        LOCAL startDateValid = BOOLEAN (INTEGER);
+        
+        
+        paymenId (INTEGER i) <- STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + index(i);
+        sumChange(INTEGER i) <- NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
+        shop(STRING id) <- GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
+        startDateValid(INTEGER i) <- DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR (NOT startDate(shop(shop1(i))) AND saletime1(i));
+
+        
         FOR INTEGER x = [GROUP MAX INTEGER i BY idCashier(i)](STRING id) AND NOT employee(id) AND NOT skipCashierImport() NEW e = Employee DO{
             id(e) <- id;
             lastName(e) <- ISTRING[100](getWord(userName(x), ' ', 1));
@@ -146,23 +169,14 @@ importReceipt(STRING purchases){
         beforeCreateReceipts();
         
         FOR imported(INTEGER i) AND NOT receipt(idReceipt(i)) AND idReceipt(i) AND shop(shop1(i)) AND startDateValid(i)
-            AND cashRegister(i) DO NEW r = Receipt{
+            AND cashRegister(i) AND ZReport z = zReportById(i) DO NEW r = Receipt{
             
             id(r) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i));
             employee(r) <- employee(idCashier(i)) WHERE NOT skipCashierImport();
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
             number(r) <- INTEGER (number2(i));
-            IF zReportById(i) THEN zReport(r) <- zReportById(i);
-            ELSE NEW z = ZReport{
-                id(z) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
-                cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
-                isPosted(z) <- TRUE;
-                date(z) <- DATE(operDay1(i));
-                number(z) <- STRING[48](shift1(i)); 
-                zReport(r) <- z;
-                overCreateZReport(z);
-            }
+            zReport(r) <- z;
             FOR purchasePosition(INTEGER j) = i AND operationType(i) = 'true' AND NOT receiptDetail(idReceiptDetail(j))
                 NEW d = ReceiptSaleDetail DO {
             
@@ -254,22 +268,41 @@ reImportReceipt(STRING purchases, STRING shopId){
         stringToFile(purchases);
         IMPORT purchasesImport XML FROM resultFile();
         beforeCreateReceipts();
+
+        LOCAL idZReport = STRING (INTEGER);
+        idZReport(INTEGER i) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
+
+        FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) NEW z = ZReport DO{
+            id(z) <- id;
+            cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(x) AND idCashRegisterSet(c) = cash1(x);
+            isPosted(z) <- TRUE;
+            date(z) <- DATE(operDay1(x));
+            number(z) <- STRING[48](shift1(x));
+            overCreateZReport(z);
+        }
+
+        idReceipt(INTEGER i) <- operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i) + '_' + number2(i);
+        idReceiptDetail (INTEGER i) <- operationType(purchasePosition(i)) + '_' + idReceipt(purchasePosition(i)) + '_' + order(i);
+        zReportById(INTEGER i) <- zReport(idZReport(i));
+
+        //оплаты
+        LOCAL paymenId = STRING (INTEGER);
+        LOCAL sumChange = NUMERIC[18,4] (INTEGER);
+        LOCAL shop = GroupCashRegister (STRING);
+        LOCAL startDateValid = BOOLEAN (INTEGER);
+
+        paymenId (INTEGER i) <- STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + index(i);
+        sumChange(INTEGER i) <- NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
+        shop(STRING id) <- GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
+        startDateValid(INTEGER i) <- DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR (NOT startDate(shop(shop1(i))) AND saletime1(i));
+
         FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) AND shopId = shop1(i) DO{
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
             employee(r) <- employee(idCashier(i)) WHERE NOT skipCashierImport();
             number(r) <- INTEGER (number2(i));
             overCreateReceipt(r, i);
-            IF zReportById(i) THEN zReport(r) <- zReportById(i);
-            ELSE NEW z = ZReport{
-                id(z) <- (operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
-                cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) AND idCashRegisterSet(c) = cash1(i);
-                isPosted(z) <- TRUE;
-                date(z) <- DATE(operDay1(i));
-                number(z) <- STRING[48](shift1(i)); 
-                zReport(r) <- z;
-                overCreateZReport(z);
-            }
+            zReport(r) <- zReportById(i);
             IF NOT number(zReport(r)) THEN number(zReport(r)) <- STRING[48](shift1(i)); 
             FOR purchasePosition(INTEGER j) = i AND ReceiptDetail d = receiptDetail(idReceiptDetail(j)) DO {
         
