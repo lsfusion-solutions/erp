@@ -37,15 +37,15 @@ dataExtraCode = DATA ExtraCode (SkuGroup);
 nearestExtraCode (SkuGroup child) = GROUP LAST dataExtraCode(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataExtraCode(parent);
 
 extraCode (SkuGroup skuGroup) = OVERRIDE dataExtraCode(skuGroup), nearestExtraCode(skuGroup) MATERIALIZED;
-idExtraCode '4х зн.код' (SkuGroup skuGroup) = id(extraCode(skuGroup)) IN paramsItemGroup;
+idExtraCode '4-зн. код' (SkuGroup skuGroup) = id(extraCode(skuGroup)) IN paramsItemGroup;
 
 extraCode = DATA ExtraCode (Brand);
-idExtraCode '4х зн код' (Brand b) = id(extraCode(b)) CHARWIDTH 4;
+idExtraCode '4-зн. код' (Brand b) = id(extraCode(b)) CHARWIDTH 4;
 
 dataExtraCode = DATA ExtraCode (Sku);
 defaultExtraCode (Sku s) = extraCode(customsGroup(defaultCountry(), s)) IF countExtraCodes(customsGroup(defaultCountry(),s))=1;
-extraCode '4х зн.код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(brand(s)), extraCode(skuGroup(s)), defaultExtraCode(s) ;
-idExtraCode'4х зн.код к ТН ВЭД' (Sku s)=id(extraCode(s)) CHARWIDTH 4;
+extraCode '4-зн. код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(brand(s)), extraCode(skuGroup(s)), defaultExtraCode(s) ;
+idExtraCode'4-зн. код к ТН ВЭД' (Sku s)=id(extraCode(s)) CHARWIDTH 4;
 
 needExtraCode(Sku s) = TRUE IF isTracking(customsGroup(defaultCountry(), s)) AND NOT extraCode(s);
 needUOM(CustomsGroup cg) =  TRUE  IF isTracking(cg) AND NOT trackingUOM(cg);
@@ -118,21 +118,21 @@ DESIGN item {
 }
 
 DESIGN items {
-    PROPERTY (idExtraCode(i)) {caption='4х зн.код';}
+    PROPERTY (idExtraCode(i)) {caption='4-зн. код';}
 }
 
 DESIGN itemGroup {
-    PROPERTY (idExtraCode(g)) {caption='4х зн.код к ТН ВЭД';}
+    PROPERTY (idExtraCode(g)) {caption='4-зн. код к ТН ВЭД';}
 }
 
-skipCheckCG 'Не проверять соотвествие 4х зн кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
-skipCheckEC 'Не проверять соотвествие 4х зн кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
+skipCheckCG 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
+skipCheckEC 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
 
 CONSTRAINT (CHANGED(extraCode(Sku s))) AND customsGroup(defaultCountry(),s) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckCG()
-    MESSAGE '4х значный код должен соответствовать коду ТН ВЭД товара' ;
+    MESSAGE '4-зн. код должен соответствовать коду ТН ВЭД товара' ;
 
 CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckEC()
-    MESSAGE '4х значный код не соответствует коду ТН ВЭД товара' ;
+    MESSAGE '4-зн. код не соответствует коду ТН ВЭД товара' ;
 
 changeExtraCode (Brand b) {
     DIALOG dialogExtraCodes OBJECTS ec INPUT DO {
