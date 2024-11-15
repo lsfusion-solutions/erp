@@ -29,47 +29,48 @@ inventory = DATA Inventory (Stocktake) NONULL DELETE;
 legalEntity = DATA  LegalEntity(Stocktake);
 prevStocktake = DATA LOCAL Stocktake(Stocktake);
 
-district = DATA STRING(Stocktake);
-district2 = DATA STRING(Stocktake);
-dateTimeInventory = DATA STRING (Stocktake);
-seriesNumber = DATA STRING(Stocktake);
-nameLegalEntity = DATA STRING(Stocktake);
-nameChief = DATA STRING(Stocktake);
-prevDateTime = DATA STRING(Stocktake);
-prevDocNumber = DATA STRING(Stocktake);
+district 'Наименование района, города, района в городе' = DATA STRING(Stocktake);
+district2 'Наименование района' = DATA STRING(Stocktake);
+dateTimeInventory 'Дата/время' = DATA STRING (Stocktake);
+seriesNumber 'Серия/номер' = DATA STRING(Stocktake);
+correctionNumber 'Номер корректировки' = DATA INTEGER (Stocktake);
+nameLegalEntity 'Организация' = DATA STRING(Stocktake);
+nameChief 'ФИО руководителя' = DATA STRING(Stocktake);
+prevDateTime 'Дата представляемых сведений'  = DATA STRING(Stocktake);
+prevDocNumber 'Регистрационный номер представляемых сведений' = DATA STRING(Stocktake);
 
-refRecordId = DATA INTEGER (Stocktake);
+refRecordId 'Уникальный идентифика-тор исходного документа' = DATA INTEGER (Stocktake);
 
 // Ответ
-recordId = DATA LOCAL INTEGER(Stocktake);
-statusCode = DATA LOCAL STRING(Stocktake);
-documentReplyDateTime = DATA LOCAL DATETIME(Stocktake);
-reply = DATA LOCAL STRING(Stocktake);
-SPTInternalDateTime = DATA LOCAL DATETIME(Stocktake);
-resultDescription = DATA LOCAL STRING(Stocktake);
-resultCode = DATA LOCAL INTEGER(Stocktake);
+recordId 'Идентификатор записи (ответ)' = DATA  INTEGER(Stocktake);
+statusCode 'Статус документа (ответ)' = DATA  STRING(Stocktake);
+documentReplyDateTime 'Дата и время подтверждения портала о приёме документа (ответ)' = DATA DATETIME(Stocktake);
+reply 'XML-документ квитанция подтверждение портала о приёме документа (ответ)' = DATA STRING(Stocktake);
+SPTInternalDateTime 'Дата и время создания документа в системе прослеживаемости (ответ)' = DATA DATETIME(Stocktake);
+resultDescription 'Поясняющий текст к результату обработки (ответ)' = DATA  STRING(Stocktake);
+resultCode 'Код результата обработки (ответ)' = DATA INTEGER(Stocktake);
 
 CLASS StocktakeDetail 'Строка документа выгрузки в МНС';
 stocktake = DATA Stocktake(StocktakeDetail) NONULL DELETE;
 batch = DATA Batch(StocktakeDetail);
-
-index = DATA INTEGER (StocktakeDetail);
-codeSku = DATA STRING(StocktakeDetail);
-extraCodeSku = DATA STRING(StocktakeDetail);
-gtin = DATA STRING(StocktakeDetail);
-nameSku = DATA STRING(StocktakeDetail);
-sidOrigin2Country = DATA STRING(StocktakeDetail);
-uomSku = DATA STRING(StocktakeDetail);
-quantityUomSku = DATA NUMERIC[16,4] (StocktakeDetail);
-trackingUOMCustomsGroup = DATA STRING(StocktakeDetail);
-pricePageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
-sumPageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
-quantityPageInventoryDetail = DATA NUMERIC[16,4](StocktakeDetail);
+numberBatch 'Партия' (StocktakeDetail d)  = number(batch(d));
+index 'Номер строки' = DATA INTEGER (StocktakeDetail);
+codeSku 'Код товара' = DATA STRING(StocktakeDetail);
+extraCodeSku 'Дополнительный четырехзначный код' = DATA STRING(StocktakeDetail);
+gtin 'GTIN' = DATA STRING(StocktakeDetail);
+nameSku 'Наименование товара' = DATA STRING(StocktakeDetail);
+sidOrigin2Country 'Код страны' = DATA STRING(StocktakeDetail);
+uomSku 'Единица измерения' = DATA STRING(StocktakeDetail);
+quantityUomSku 'Количество товара' =  DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (StocktakeDetail);
+trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING(StocktakeDetail);
+pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](StocktakeDetail);
+sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](StocktakeDetail);
+quantityPageInventoryDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
 
 CLASS LotStocktakeDetail 'Строка марки документа выгрузки в МНС';
 stocktakeDetail = DATA StocktakeDetail (LotStocktakeDetail) NONULL DELETE;
 lot = DATA Lot(LotStocktakeDetail);
-encodeBase64Code = DATA STRING(LotStocktakeDetail);
+encodeBase64Code 'Код маркировки единицы товара' = DATA STRING(LotStocktakeDetail);
 
 
 version = DATA LOCAL INTEGER ();
@@ -110,7 +111,8 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
         nameLegalEntity EXTID 'LetterTraceabilityLeftovers_v1_f002_s3',
         nameChief EXTID 'LetterTraceabilityLeftovers_v1_f002_s4',
         prevDateTime EXTID 'LetterTraceabilityLeftovers_v1_f002_s5',
-        prevDocNumber EXTID 'LetterTraceabilityLeftovers_v1_f002_s6'
+//        prevDocNumber EXTID 'LetterTraceabilityLeftovers_v1_f002_s6'
+        sn = seriesNumber EXTID 'LetterTraceabilityLeftovers_v1_f002_s6'
 
     
     OBJECTS d = StocktakeDetail IN groupDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ri'
@@ -118,10 +120,10 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
     'index'=STRING(index(d)) EXTID 'LetterTraceabilityLeftovers_v1_t001_ric1'
     PROPERTIES(d) 
         codeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2',
-        extraCodeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2a', // TODO ожидание ответа МНС. API ругается на эти элементы
-        gtin EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2b', // TODO ожидание ответа МНС. API ругается на эти элементы
+        extraCodeSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2a',
+        gtin EXTID 'LetterTraceabilityLeftovers_v1_t001_ric2b', 
         nameSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3',
-        sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3a', // TODO ожидание ответа МНС. API ругается на эти элементы
+        sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3a', 
         uomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric4',
         quantityUomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5',
         trackingUOMCustomsGroup EXTID 'LetterTraceabilityLeftovers_v1_t001_ric6',
@@ -167,13 +169,14 @@ createStocktake (Inventory inv) {
         district(s) <- district(legalEntity(s));
         district2(s) <- district(legalEntity(s));
         dateTimeInventory(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm');
-        seriesNumber(s) <- seriesNumber(inv);
+        
         nameLegalEntity(s) <- name(legalEntity(s));
         nameChief(s) <- nameChief(legalEntity(s));
-        prevDateTime(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm'); 
-        prevDocNumber(s) <- seriesNumber(inv); 
-
+        prevDateTime(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm');
         prevStocktake(s) <- PREV (lastStocktake(inv));
+        correctionNumber(s) <- correctionNumber(prevStocktake(s)) (+) 1 IF prevStocktake(s);
+        seriesNumber(s) <- CONCAT '_', seriesNumber(inventory(s)), correctionNumber(s);
+        prevDocNumber(s) <- OVERRIDE seriesNumber(prevStocktake(s)), seriesNumber(inv) IF s IS Stocktake;
 
         // переносим корректируемые документы
         FOR stocktake(StocktakeDetail d) == prevStocktake(s) DO NEW nd = StocktakeDetail {
@@ -258,6 +261,7 @@ documentName = DATA LOCAL STRING();
 refRecordId = DATA LOCAL INTEGER ();
 correctionDate = DATA LOCAL STRING();
 
+//documentNumber(StocktakeDetail d) = seriesNumber(prevStocktake(stocktake(d)));
 documentNumber(StocktakeDetail d) = seriesNumber(stocktake(d));
 
 FORM exportJSON
@@ -326,6 +330,7 @@ generateJSON (Inventory inv) {
     IF NOT originalDocumentSign() THEN RETURN;
 
     documentId() <- id(createdStocktake());    
+    documentNumber1() <- seriesNumber(prevStocktake(createdStocktake()));
     documentNumber1() <- seriesNumber(createdStocktake());
     VATRegistrationNumber() <- UNP(legalEntity(createdStocktake()));
     IMNS() <- codeMNS(legalEntity(createdStocktake()));;
@@ -410,5 +415,41 @@ showCorrectingStocktakeMNS(Inventory i) = isBatch(i) AND isPosted(i) AND useLot(
 
 EXTEND FORM inventories
     PROPERTIES(in) READONLY sendedMNS 
-    PROPERTIES(in) stocktakeMNS SHOWIF showStocktakeMNS(in), correctingStocktakeMNS SHOWIF showCorrectingStocktakeMNS(in)
+    PROPERTIES(in) PANEL stocktakeMNS SHOWIF showStocktakeMNS(in), correctingStocktakeMNS SHOWIF showCorrectingStocktakeMNS(in)  
+
+    OBJECTS st = Stocktake
+    PROPERTIES(st)  READONLY  id, dateTime, nameLegalEntity, district, district2, dateTimeInventory, seriesNumber,
+        nameChief, prevDateTime, prevDocNumber, refRecordId,
+        //Данные ответа
+        recordId, statusCode, documentReplyDateTime, reply, SPTInternalDateTime, resultDescription, resultCode
+    FILTERS inventory(st) == in
+    ORDERS dateTime(st)
+    
+    OBJECTS std = StocktakeDetail
+    PROPERTIES(std)  READONLY index, codeSku, extraCodeSku, gtin, nameSku, numberBatch, sidOrigin2Country, uomSku,
+        quantityUomSku, trackingUOMCustomsGroup, pricePageInventoryDetail, sumPageInventoryDetail, quantityPageInventoryDetail
+    FILTERS  stocktake(std) == st
+    
+    OBJECTS lstd = LotStocktakeDetail
+    PROPERTIES (lstd) encodeBase64Code
+    FILTERS stocktakeDetail(lstd) == std
 ;
+
+DESIGN inventories {
+    wor {  
+        NEW MNS {
+            caption = 'Отправка в МНС';            
+            
+            horizontal = TRUE;
+            MOVE BOX(st);
+            NEW stocktakeDetailMNS {
+                fill = 1;
+                tabbed = TRUE;
+
+                MOVE BOX(std);
+                MOVE BOX(lstd);
+            }
+        }
+    }
+}
+
