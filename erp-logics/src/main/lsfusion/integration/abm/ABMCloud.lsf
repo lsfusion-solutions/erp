@@ -291,6 +291,30 @@ sentABM(DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts, STRING
     sentABMCustom(d,single,time,(CONCAT '', package, packageEx+'_',GLN(ts)+'_'),ts);
     exportFile() <- NULL;
 }
+
+sentABMCustom (DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts, STRING patch){
+    FOR STRING str == (OVERRIDE patch, '/tmp/') DO {
+        IF single THEN {
+            WRITE exportFile() TO patch + package + dateTimeFormulasentABM(d, time) + '.csv';
+            zippingPath(STRING name) <- patch + package + dateTimeFormulasentABM(d, time) + '.csv' WHERE name == (package + dateTimeFormulasentABM(d, time) + '.csv');
+
+            makeZipFile();
+            WRITE zipped() TO connectionStringABM() + package + dateTimeFormulasentABM(d, time);
+            deleteZippingPath();
+
+        } ELSE {
+            WRITE exportFile() TO patch + package + toDateYYYYMMDD(d) + '.csv';
+            zippingPath(STRING name) <- patch + package + toDateYYYYMMDD(d) + '.csv' WHERE name == (package + toDateYYYYMMDD(d) + '.csv');
+        }
+    }
+}
+sentABM(DATE d, BOOLEAN single, DATETIME  time, STRING package, Stock ts, STRING packageEx, STRING patch){
+    replaceRN();
+    sentABMCustom(d,single,time,(CONCAT '', package, packageEx+'_',GLN(ts)+'_'),ts,patch);
+    exportFile() <- NULL;
+}
+
+
 ///////////////////////////////// Таблица 1 products
 //Данные о товарах 
 product_uid = DATA LOCAL STRING (Sku);
@@ -337,7 +361,7 @@ resetProducts(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillProducts ABSTRACT (DATE);
 
-products 'products' (DATE d, BOOLEAN single) {
+products 'products' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -374,7 +398,10 @@ products 'products' (DATE d, BOOLEAN single) {
                            
         WHERE filterABM(s);
         
-    sentABM(d,single,currentDateTime(),'products_', NULL, NULL);  
+    sentABM(d,single,currentDateTime(),'products_', NULL, NULL, patch);  
+}
+products 'products' (DATE d, BOOLEAN single) {
+    products(d, single, NULL);
 }
 @sendABM(products);
 ///////////////////////////////// Таблица 2 items
@@ -429,7 +456,7 @@ resetItems(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillItems ABSTRACT (Stock,DATE);
 
-items 'items' (DATE d, BOOLEAN single) {
+items 'items' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();      
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -467,8 +494,11 @@ items 'items' (DATE d, BOOLEAN single) {
             shelf = '',
             additional_order = (OVERRIDE additional_order(s,st), '')
         WHERE filterABM(s, st);                            
-        sentABM(d,single,currentDateTime(),'items_', st, NULL);  
+        sentABM(d,single,currentDateTime(),'items_', st, NULL,patch);  
     }
+}
+items(DATE d, BOOLEAN single){
+    items(d, single, NULL);
 }
 @sendABM(items);
 
@@ -514,7 +544,7 @@ resetFacts(){
 fillFacts ABSTRACT (Stock,DATE);
 
 
-facts 'facts' (DATE d, BOOLEAN single) {
+facts 'facts' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();        
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());        
@@ -542,8 +572,12 @@ facts 'facts' (DATE d, BOOLEAN single) {
             season_erp = season_erp(s,st),
             out_dsale = out_dsale(s,st)           
             WHERE filterABM(s, st);
-        sentABM(d,single,currentDateTime(),'facts_', st, NULL);  
+        sentABM(d,single,currentDateTime(),'facts_', st, NULL,patch);  
     }
+}
+
+facts 'facts' (DATE d, BOOLEAN single) {
+    facts(d,single,NULL);
 }
 @sendABM(facts);
 // Таблица 4
@@ -569,7 +603,7 @@ resetSuppliers(){
     active_ABMSuppliers (Stock l)<- NULL;
 }
 
-suppliers 'suppliers' (DATE d, BOOLEAN single) {
+suppliers 'suppliers' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(LegalEntity s) <- TRUE WHERE toSentABM(s);
@@ -606,8 +640,12 @@ suppliers 'suppliers' (DATE d, BOOLEAN single) {
     READ '/tmp/temp_suppliers.csv' TO exportFile;
     delete('/tmp/temp_suppliers.csv');
     
-    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL);          
+    sentABM(d,single,currentDateTime(),'suppliers_', NULL, NULL, patch);          
 }
+suppliers 'suppliers' (DATE d, BOOLEAN single) {
+    suppliers(d,single,NULL);
+}
+
 @sendABM(suppliers);
 // Таблица 5 stores
 //Данные о магазинах
@@ -629,7 +667,7 @@ resetStores(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillStores ABSTRACT (DATE);
 
-stores 'stores' (DATE d, BOOLEAN single) {
+stores 'stores' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -645,8 +683,13 @@ stores 'stores' (DATE d, BOOLEAN single) {
         active = active_ABM(l),
         central = central(l)
     WHERE filterABM(l);
-    sentABM(d,single,currentDateTime(),'stores_', NULL, NULL);          
+    sentABM(d,single,currentDateTime(),'stores_', NULL, NULL,patch);          
 }
+
+stores 'stores' (DATE d, BOOLEAN single){
+    stores(d,single,NULL);
+}
+
 @sendABM(stores);
 // Таблица 6
 //Данные о графиках формирования заказов поставщиков
@@ -722,7 +765,7 @@ resetSchedules(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillSchedules ABSTRACT (DATE);
 
-schedules 'schedules' (DATE d, BOOLEAN single) {
+schedules 'schedules' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -778,8 +821,12 @@ schedules 'schedules' (DATE d, BOOLEAN single) {
     READ '/tmp/temp_schedules.csv' TO exportFile;
     delete('/tmp/temp_schedules.csv');
     
-    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL);          
+    sentABM(d,single,currentDateTime(),'schedules_', NULL, NULL, patch);          
 }
+schedules 'schedules' (DATE d, BOOLEAN single) {
+    schedules(d,single,NULL);
+}
+
 @sendABM(schedules);
 // Таблица 7
 //Данные об оприходованных заказах
@@ -819,7 +866,7 @@ resetShipments(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillShipments ABSTRACT (DATE);
 
-shipments 'shipments' (DATE d, BOOLEAN single) {
+shipments 'shipments' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -834,8 +881,12 @@ shipments 'shipments' (DATE d, BOOLEAN single) {
         order_number = order_number(dd),
         document_uid = document_uid(dd)
         WHERE filterABM(dd);       
-    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL);          
+    sentABM(d,single,currentDateTime(),'shipments_', NULL, NULL, patch);          
 }
+shipments 'shipments' (DATE d, BOOLEAN single){
+    shipments(d,single,NULL);
+}
+
 @sendABM(shipments);
 // Таблица 8
 //Данные о закрытии размещенных заказов
@@ -852,7 +903,7 @@ resetSentTime()+{
     filterABMCloseLocal(Purchase.Order o)<- NULL;    
 }
 ordercloseCustom ABSTRACT ();
-orderclose 'orderclose' (DATE d, BOOLEAN single) {
+orderclose 'orderclose' (DATE d, BOOLEAN single, STRING  patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -871,8 +922,12 @@ orderclose 'orderclose' (DATE d, BOOLEAN single) {
     EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
         order_number = numberABM(Purchase.Order o)
         WHERE filterABMClose(o);       
-    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL);            
+    sentABM(d,single,currentDateTime(),'orderclose_', NULL, NULL,patch);            
 }
+orderclose 'orderclose' (DATE d, BOOLEAN single){
+    orderclose(d,single,NULL);
+}
+
 @sendABM(orderclose);
 // Таблица 9
 //Данные о корректировке отправленных заказов, сделанных на стороне клиента
@@ -898,8 +953,8 @@ resetOrdered(){
 fillOrdered ABSTRACT (DATE);
 fillOrdered ABSTRACT ();
 orderedCustom ABSTRACT LIST (DATE, BOOLEAN);
-
-ordered 'ordered' (DATE d, BOOLEAN single) {
+orderedCustom ABSTRACT LIST (DATE, BOOLEAN, STRING );
+ordered 'ordered' (DATE d, BOOLEAN single, STRING  patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());        
@@ -917,11 +972,13 @@ ordered 'ordered' (DATE d, BOOLEAN single) {
             delivery_date = delivery_date(dd),
             item_notes = (OVERRIDE item_notes(dd), '')
             WHERE userOrder(dd) == o AND order_number(dd);        
-        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_');     
+        sentABM(d,single,currentDateTime(),'ordered_', NULL, numberABM(o)+'_',patch);     
     }
-    orderedCustom(d,single);
+    orderedCustom(d,single, patch);
 }
-
+ordered 'ordered' (DATE d, BOOLEAN single){
+    ordered(d,single,NULL);
+}
 
 @sendABM(ordered);
 // Таблица 11 и 12
@@ -977,7 +1034,7 @@ bufferChangeAMB = ABSTRACT INTEGER (PriceList);
 ignoreMaxBufferAMB = ABSTRACT INTEGER (PriceList);
 bufferControlAMB = ABSTRACT INTEGER (PriceList);
 // делаем два вместе promoHEADER ESCAPE и promobody
-promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
+promoheader 'promoheader/promobody' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(Stock st) <- TRUE WHERE toSentABM(st) AND (selectABM(st) OR NOT countSelectABM());
@@ -1004,7 +1061,7 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
             first_order_delivery_date = begin_date(p),
             forecast_approve_type = '' IF p IS PriceList
             WHERE filterABM(p);
-        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL);        
+        sentABM(d,single,currentDateTime(),'promoheader_', NULL, NULL, patch);        
     }    
     IF (GROUP SUM 1 IF filterABM (PriceList p)) THEN {
         EXPORT CSV ',' HEADER ESCAPE CHARSET 'UTF-8' FROM 
@@ -1016,8 +1073,11 @@ promoheader 'promoheader/promobody' (DATE d, BOOLEAN single) {
             promo_price = promo_price(p,st,s),
             delete = deleted(p,st,s)
             WHERE filterABM(p,st,s);
-        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL);       
+        sentABM(d,single,currentDateTime(),'promobody_', NULL, NULL, patch);       
     }       
+}
+promoheader 'promoheader/promobody' (DATE d, BOOLEAN single){
+    promoheader(d,single, NULL);
 }
 
 @sendABM(promoheader);
@@ -1039,7 +1099,7 @@ resetCategories(){
 //-- todo: действие, которое надо перегрузить в логике 
 fillCategories ABSTRACT (DATE);
 
-categories 'categories' (DATE d, BOOLEAN single) {
+categories 'categories' (DATE d, BOOLEAN single, STRING patch) {
     IF single THEN {
         resetFilterABM();
         filterABM(SkuGroup s) <- TRUE WHERE toSentABM(s);
@@ -1053,8 +1113,12 @@ categories 'categories' (DATE d, BOOLEAN single) {
         deleted = deleted(g)
     WHERE filterABM(g) AND g IS Item.ItemGroup;
     
-    sentABM(d,single,currentDateTime(),'categories_', NULL, NULL);
+    sentABM(d,single,currentDateTime(),'categories_', NULL, NULL, patch);
 }
+categories 'categories' (DATE d, BOOLEAN single) {
+    categories(d,single,NULL);
+}
+
 @sendABM(categories);
 
 //////////////////////////////////////////////////
