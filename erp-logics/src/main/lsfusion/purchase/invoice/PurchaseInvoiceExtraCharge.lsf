@@ -39,16 +39,19 @@ extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 extraChargePrice(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 
+chargeQuantity = ABSTRACT VALUE NUMERIC[16,5] (Invoice, UserInvoiceDetail);
+chargeQuantity(Invoice i, UserInvoiceDetail d) += quantity(d) IF i IS Invoice;
+
 changeExtraChargeSum(Invoice i, UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[18,4] DO {
         extraChargeSum(i,d) <- n;
         IF n THEN
-            extraChargePrice(i,d) <- NUMERIC[16,4](extraChargeSum(i,d)/quantity(d));
+            extraChargePrice(i,d) <- NUMERIC[16,4](extraChargeSum(i,d)/chargeQuantity(i,d));
     }
 }
 
-extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[18,4](round(quantity(d) * extraChargePrice(i,d), currency(i)))
-                WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
+extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[18,4](round(chargeQuantity(i,d) * extraChargePrice(i,d), currency(i)))
+                WHEN DO CHANGED(chargeQuantity(i,d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
 skipExtraCharge = ABSTRACT VALUE BOOLEAN (UserInvoice);
 
@@ -170,16 +173,16 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  {
                 PARTITION UNGROUP calcChargeSum
                                     PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d)) 
                                     BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <-
-                extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
+            extraChargePrice(i, UserInvoiceDetail d) <- NUMERIC[16,4](extraChargeSum(i, d) / chargeQuantity(i,d)) 
+                                WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
         } ELSE {
             extraChargeSum(i, UserInvoiceDetail d) <- 
                 PARTITION UNGROUP calcChargeSum
                                   PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
                                   BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <-
-                extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
+            extraChargePrice(i, UserInvoiceDetail d) <- NUMERIC[16,4](extraChargeSum(i, d) / chargeQuantity(i,d)) 
+                WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }
         
         afterFillExtraCharge(i);
