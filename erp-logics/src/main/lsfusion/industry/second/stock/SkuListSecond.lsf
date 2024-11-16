@@ -14,6 +14,13 @@ nameDepartmentStore 'Магазин' (List l) = name(departmentStore(l));
 dateTime 'Дата/время' = DATA DATETIME (List);
 dateTimeCycle 'Цикл изменён' = DATA DATETIME (List);
 
+cycleFrom = DATA Cycle (List);
+descriptionCycleFrom 'Цикл из' (List l) = description(cycleFrom(l));
+
+CONSTRAINT SETCHANGED(cycleFrom(List l)) AND stock(cycleFrom(l)) != departmentStore(l)
+    CHECKED BY cycleFrom[List]
+    MESSAGE 'Выбран "Цикл из" другого магазина';
+
 changeCycle 'Изменить цикл' (List l) {
     IF [GROUP SUM 1 IF [GROUP MIN Lot lt IF quantity(l, lt) BY stock(cycle(lt))](Stock st)]() > 1 THEN {
         MESSAGE 'Ошибка: в документе выбраны оценённые товары более, чем из 1 магазина';
@@ -23,6 +30,10 @@ changeCycle 'Изменить цикл' (List l) {
         MESSAGE 'Ошибка: в документе выбраны оценённые товары из другого магазина';
         RETURN;
     }
+    IF NOT cycleFrom(l) THEN {
+        MESSAGE 'Ошибка: укажите Цикл из в шапке документа';
+        RETURN;
+    }
 
     DIALOG dialogCycles OBJECTS c INPUT DO {
         cycle(Lot lot) <- c WHERE quantity(l, lot);
@@ -30,14 +41,17 @@ changeCycle 'Изменить цикл' (List l) {
     }
 }
 
+weightLot 'Вес, кг' = GROUP SUM quantity(ListDetail d, Lot l) * weight(l) BY list(d);
+
 EXTEND FORM list
-    PROPERTIES (l) BEFORE name(l) dateTime, nameDepartmentStore, quantityLot READONLY, dateTimeCycle READONLY
+    PROPERTIES (l) BEFORE name(l) dateTime, nameDepartmentStore, descriptionCycleFrom
+    PROPERTIES (l) READONLY quantityLot, weightLot, dateTimeCycle
     PROPERTIES(d) READONLY index FIRST
     ORDERS index(d)
 
     OBJECTS lot = Lot
     PROPERTIES(lot) READONLY id, nameSku, fullDescriptionCycle, defect, setAside, nameAsideCategory, weight, price, costForeign,
-        currentBalance BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
+        currentBalance //BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
     PROPERTIES(l, lot) READONLY numberDetail
     PROPERTIES changeCycle(l) TOOLBAR
     ORDERS nameSku(lot)
@@ -45,6 +59,9 @@ EXTEND FORM list
 ;
 
 DESIGN list {
+    GROUP (,l) {
+        lines = 4;
+    }
     OBJECTS {
         NEW actions BEFORE tab {
             horizontal = TRUE;
@@ -79,7 +96,7 @@ WHEN LOCAL SET(List l IS List) DO {
 
 FORM changeCycles 'Изменение цикла'
     OBJECTS l = List
-    PROPERTIES(l) READONLY dateTime, nameDepartmentStore, name, quantityLot, dateTimeCycle
+    PROPERTIES(l) READONLY dateTime, nameDepartmentStore, descriptionCycleFrom, name, quantityLot, weightLot, dateTimeCycle
     PROPERTIES(l) NEWSESSION NEW, EDIT
     FILTERS accessStock(l)
 
@@ -90,7 +107,7 @@ FORM changeCycles 'Изменение цикла'
 
     OBJECTS lot = Lot
     PROPERTIES(lot) READONLY id, nameSku, fullDescriptionCycle, defect, setAside, nameAsideCategory, weight, price, costForeign,
-        currentBalance BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
+        currentBalance // BACKGROUND (RGB(255,0,0) IF lot IS Lot AND NOT currentBalance(lot) == 1.0)
     PROPERTIES(l, lot) READONLY numberDetail
     ORDERS nameSku(lot)
     FILTERS quantity(l, lot)
@@ -107,5 +124,11 @@ DESIGN changeCycles {
             MOVE BOX(d);
             MOVE BOX(lot) { showIf = quantityLot(l); caption = 'Оценённые товары'; }
         }
+    }
+}
+
+NAVIGATOR {
+    stockDashboardNavigator {
+        NEW changeCycles FIRST;
     }
 }
