@@ -381,15 +381,17 @@ META defineDocumentInWayBill (doc, quantityProp, supplierStock, customerStock, p
         quantity(###doc##Detail d, WayBillPosition p) <- partitionQuantity(d, p)
                    WHERE doc(d) = i;
     }
-    
+    fillDetailParams(WayBillPosition p, UserInvoiceDetail d) {
+        sku(d) <- minItem(product(p));
+        quantity(d) <- quantity(p);
+        quantity(d, p) <- quantity(p);
+        invoicePrice(d) <- price(p);
+        price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));        
+    }
     createDetail 'Создать строки' (###doc i) {
         FOR wayBill(WayBillPosition p) = wayBill(i) ORDER p DO NEW d = UserInvoiceDetail {
             userInvoice(d) <- i;
-            sku(d) <- minItem(product(p));
-            quantity(d) <- quantity(p);
-            quantity(d, p) <- quantity(p);
-            invoicePrice(d) <- price(p);
-            price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));
+            fillDetailParams(p,d);
         } 
     }
 
