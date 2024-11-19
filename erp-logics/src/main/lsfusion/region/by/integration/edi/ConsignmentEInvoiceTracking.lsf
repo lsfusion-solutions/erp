@@ -11,7 +11,7 @@ trackingUOM = ABSTRACT VALUE STRING[3] (ConsignmentDetail);
 trackingUOM(ConsignmentDetail cd) += trackingUOMCustomsGroup(sku(cd));
 
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
-    IF (currentDate() < dateStartSPT() OR NOT dateStartSPT() )THEN {
+    IF  oldVersion() THEN {
         itemCustomCode(eid) <- codeCustomsGroupDefaultCountry(sku(cd)) IF isTracking(cd);
         deliveryTypePrev(eid) <- (OVERRIDE (IF isTN2(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) THEN 2 ELSE IF eInvoice(eInvoiceDetail(invoiceDetail(batch(cd)))) THEN 1), 3) IF isTracking(cd);
         deliveryNotePrev(eid) <- deliveryNoteNumber(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) IF isTracking(cd);
