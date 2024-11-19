@@ -65,13 +65,12 @@ quantityUomSku 'Количество товара' =  DATA INTEGER (StocktakeDet
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](StocktakeDetail);
 pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](StocktakeDetail);
 sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](StocktakeDetail);
-quantityBalance 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
+quantityPageInventoryDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
 
 CLASS LotStocktakeDetail 'Строка марки документа выгрузки в МНС';
 stocktakeDetail = DATA StocktakeDetail (LotStocktakeDetail) NONULL DELETE;
 lot = DATA Lot(LotStocktakeDetail);
 encodeBase64Code 'Код маркировки единицы товара' = DATA STRING(LotStocktakeDetail);
-
 
 version = DATA LOCAL INTEGER ();
 type = DATA LOCAL STRING();
@@ -129,7 +128,7 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
         trackingUOMCustomsGroup EXTID 'LetterTraceabilityLeftovers_v1_t001_ric6',
         pricePageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric7',
         sumPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric8',
-        quantityBalance EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9'
+        quantityPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9'
     FILTERS stocktake(d) == s
 
     OBJECTS l = LotStocktakeDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric10'
@@ -149,6 +148,9 @@ trackingUOMRatio(Sku s) = CASE
 fillTrackingBatch ABSTRACT LIST (Inventory);
 
 createdStocktake = DATA LOCAL Stocktake();
+
+batch(Lot l, Inventory inv) = OVERRIDE (batch(l) IF inv IS Inventory), (GROUP MIN batch(PageInventoryDetail d) IF quantity(d, l) AND inventory(d) == inv);
+
 createStocktake (Inventory inv) {
     IF countLegalEntity(inv) > 1 THEN {
         MESSAGE 'Инвентаризация включает склады нескольких организаций';        
@@ -193,12 +195,13 @@ createStocktake (Inventory inv) {
             sidOrigin2Country(nd) <- sidOrigin2Country(sku(batch(nd)));
             uomSku(nd) <- customsCode(UOM(sku(batch(nd))));
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
-            quantityUomSku(nd) <- OVERRIDE ((GROUP SUM quantityBalance(CollationSheet cs, batch(nd)) IF inventory(cs) == inv) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(batch(nd)))), 0.0;
+            quantityUomSku(nd) <- OVERRIDE ((GROUP SUM quantityPageInventoryDetail(CollationSheet cs, batch(nd)) 
+                IF inventory(cs) == inv) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(batch(nd))) AND extraCodeSku(nd) == id(extraCode(sku(batch(nd))))), 0.0;
             pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, batch(nd)) / trackingUOMRatio(sku(batch(nd))) IF inventory(cs) == inv), 0.0;
             sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0;
-            quantityBalance(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(batch(nd)));
+            quantityPageInventoryDetail(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(batch(nd)));
 
-            FOR batch(Lot l) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityBalance(cs, l)) DO NEW ld = LotStocktakeDetail{
+            FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
                 lot(ld) <- l;
                 encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
@@ -207,8 +210,8 @@ createStocktake (Inventory inv) {
 
         LOCAL needNewDetail = BOOLEAN (Batch);
         needNewDetail(Batch b) <- isTrackingOver(sku(b)) AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, b)) AND
-            (GROUP SUM quantityBalance(CollationSheet cs, b) IF inventory(cs) == inv) AND
-            (NOT GROUP MIN StocktakeDetail d IF stocktake(d) == s AND batch(d) == b AND codeSku(d) == codeCustomsGroupDefaultCountry(sku(batch(d))));
+            (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv) AND
+            (NOT GROUP MIN StocktakeDetail d IF stocktake(d) == s AND batch(d) == b AND codeSku(d) == codeCustomsGroupDefaultCountry(sku(batch(d))) AND extraCodeSku(d) == id(extraCode(sku(batch(d)))));
         
         // создаем новые
         FOR needNewDetail(Batch b) DO NEW nd = StocktakeDetail {
@@ -220,12 +223,12 @@ createStocktake (Inventory inv) {
             nameSku(nd) <- name(sku(b));
             sidOrigin2Country(nd) <- sidOrigin2Country(sku(b));
             uomSku(nd) <- customsCode(UOM(sku(b)));
-            quantityUomSku(nd) <- OVERRIDE (GROUP SUM quantityBalance(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
+            quantityUomSku(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(b));
             pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, b) / trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
             sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
-            quantityBalance(nd) <- OVERRIDE (GROUP SUM quantityBalance(CollationSheet cs, b) * trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
-            FOR batch(Lot l) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityBalance(cs, l)) DO NEW ld = LotStocktakeDetail{
+            quantityPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) * trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
+            FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
                 lot(ld) <- l;
                 encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
@@ -287,7 +290,7 @@ FORM exportJSON
         extraCodeSku(d) EXTID 'itemAdditionalCode',
         gtin(d) EXTID 'gtinCode',
         trackingUOMCustomsGroup(d) EXTID 'lineItemQuantitySPT',
-        quantityBalance(d) EXTID 'quantityDespatchedSPT',
+        quantityPageInventoryDetail(d) EXTID 'quantityDespatchedSPT',
         documentNumber(d) EXTID 'documentNumber'
     
     FILTERS stocktake(d) == createdStocktake()
@@ -415,6 +418,8 @@ correctingStocktakeMNS 'Отправить корректировку в МНС'
 
 showCorrectingStocktakeMNS(Inventory i) = isBatch(i) AND isPosted(i) AND useLot(operation(i)) AND sendedMNS(i);
 
+decodeBase64String (STRING data) = FORMULA STRING 'convert_from(decode($1, \'base64\'), \'UTF8\')';
+
 EXTEND FORM inventories
     PROPERTIES(in) READONLY sendedMNS 
     PROPERTIES(in) PANEL stocktakeMNS SHOWIF showStocktakeMNS(in), correctingStocktakeMNS SHOWIF showCorrectingStocktakeMNS(in)  
@@ -429,11 +434,11 @@ EXTEND FORM inventories
     
     OBJECTS std = StocktakeDetail
     PROPERTIES(std)  READONLY index, codeSku, extraCodeSku, gtin, nameSku, numberBatch, sidOrigin2Country, uomSku,
-        quantityUomSku, trackingUOMCustomsGroup, pricePageInventoryDetail, sumPageInventoryDetail, quantityBalance
+        quantityUomSku, trackingUOMCustomsGroup, pricePageInventoryDetail, sumPageInventoryDetail, quantityPageInventoryDetail
     FILTERS  stocktake(std) == st
     
     OBJECTS lstd = LotStocktakeDetail
-    PROPERTIES (lstd) encodeBase64Code
+    PROPERTIES 'Марка' = decodeBase64String(encodeBase64Code(lstd))
     FILTERS stocktakeDetail(lstd) == std
 ;
 
