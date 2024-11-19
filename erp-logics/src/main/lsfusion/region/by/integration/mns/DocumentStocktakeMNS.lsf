@@ -137,6 +137,7 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
     FILTERS stocktakeDetail(l) == d;
 
 countLegalEntity(Inventory i) = GROUP SUM 1 IF LegalEntity le AND include(Stock s, i) AND le == legalEntity(s);
+notTracking(Inventory i) = GROUP SUM 1 IF NOT isTrackingOver(sku(PageInventoryDetail d)) AND inventory(d)==i;
 
 exportXMLFile = DATA LOCAL FILE ();
 
@@ -367,6 +368,12 @@ FORM importJSON
 ;
 
 stocktakeMNS 'Отправить в МНС' (Inventory inv) {
+    IF notTracking(inv) THEN {
+        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
+            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
+        RETURN;
+    }
+    
     NEWSESSION {
         generateJSON(inv);
         
