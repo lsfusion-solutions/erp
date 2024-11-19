@@ -191,7 +191,7 @@ createStocktake (Inventory inv) {
             sidOrigin2Country(nd) <- sidOrigin2Country(sku(batch(nd)));
             uomSku(nd) <- customsCode(UOM(sku(batch(nd))));
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
-            quantityUomSku(nd) <- OVERRIDE ((GROUP SUM quantityBalance(CollationSheet cs, batch(nd)) IF inventory(cs) == inv) IF extraCodeSku(nd) == id(extraCode(sku(batch(nd))))), 0.0;
+            quantityUomSku(nd) <- OVERRIDE ((GROUP SUM quantityBalance(CollationSheet cs, batch(nd)) IF inventory(cs) == inv) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(batch(nd)))), 0.0;
             pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, batch(nd)) / trackingUOMRatio(sku(batch(nd))) IF inventory(cs) == inv), 0.0;
             sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0;
             quantityBalance(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(batch(nd)));
@@ -206,13 +206,13 @@ createStocktake (Inventory inv) {
         LOCAL needNewDetail = BOOLEAN (Batch);
         needNewDetail(Batch b) <- isTrackingOver(sku(b)) AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, b)) AND
             (GROUP SUM quantityBalance(CollationSheet cs, b) IF inventory(cs) == inv) AND
-            (NOT GROUP MIN StocktakeDetail d IF stocktake(d) == s AND batch(d) == b AND extraCodeSku(d) == id(extraCode(sku(batch(d)))));
+            (NOT GROUP MIN StocktakeDetail d IF stocktake(d) == s AND batch(d) == b AND codeSku(d) == codeCustomsGroupDefaultCountry(sku(batch(d))));
         
         // создаем новые
         FOR needNewDetail(Batch b) DO NEW nd = StocktakeDetail {
             stocktake(nd) <- s;
             batch(nd) <- b;
-            codeSku(nd) <- code(customsGroup(defaultCountry(), sku(b)));
+            codeSku(nd) <- codeCustomsGroupDefaultCountry(sku(b)); 
             extraCodeSku(nd) <- id(extraCode(sku(b)));
             gtin(nd) <- gtin(sku(b));
             nameSku(nd) <- name(sku(b));
@@ -223,7 +223,6 @@ createStocktake (Inventory inv) {
             pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, b) / trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
             sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
             quantityBalance(nd) <- OVERRIDE (GROUP SUM quantityBalance(CollationSheet cs, b) * trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
-
             FOR batch(Lot l) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityBalance(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
                 lot(ld) <- l;
