@@ -21,13 +21,14 @@ quantityDespatchedSPT 'Количество в единицах прослежи
 lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC[12,2] (UserInvoiceDetail);
 idShippingDocument 'Код сопроводительного документа' = DATA STRING[20](UserInvoice);
 nameShippingDocument 'Наименование сопроводительного документа' = DATA STRING[40](UserInvoice);
-dateShippingDocument 'Дата сопроводительного документа' = DATA STRING[40](UserInvoice);
+dateShippingDocument 'Дата сопроводительного документа' = DATA DATE (UserInvoice);
+numberShippingDocument 'Регистрационный номер сопроводительного документа' = DATA STRING[40](UserInvoice);
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
     PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
-    PROPERTIES (i) idShippingDocument, nameShippingDocument, dateShippingDocument
+    PROPERTIES (i) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument
     FILTERS userInvoice(d6) == i
 
 ;
@@ -41,6 +42,7 @@ DESIGN userInvoice{
                 caption = 'Сопроводительный документ';
                 MOVE PROPERTY(idShippingDocument(i)) { caption='Код';}
                 MOVE PROPERTY(nameShippingDocument(i)) { caption='Наименование';}
+                MOVE PROPERTY(numberShippingDocument(i)) { caption='Рег.№';}
                 MOVE PROPERTY(dateShippingDocument(i)) { caption='Дата';}
             }
             MOVE BOX(d6);
