@@ -32,13 +32,13 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
         deliveryNoteDatePrev(eid) <- DATETIME(OVERRIDE deliveryNoteDate(batch(cd), supplierStock(consignment(cd))), deliveryNoteDate(batch(cd)));
         deliveryNotePrevLineID(eid) <- (OVERRIDE deliveryNotePrevLineID(batch(cd), supplierStock(consignment(cd))), deliveryNotePrevLineID(batch(cd)));
         lineItemQuantitySPT(eid) <- (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd))),lineItemQuantitySPT(batch(cd)));
-        quantityDespatchedSPT(eid) <- NUMERIC[12,5](OVERRIDE quantityDespatchedSPT(batch(cd), supplierStock(consignment(cd))),(CASE
+        quantityDespatchedSPT(eid) <- NUMERIC[12,5](CASE
             WHEN lineItemQuantitySPT(batch(cd))=='112'  THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0)* volume(sku(cd))) 
             WHEN lineItemQuantitySPT(batch(cd))=='166'  THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0)* netWeight(sku(cd)))
-            ELSE (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0)));
-        lineItemPriceSPT(eid) <- NUMERIC[12,2] (OVERRIDE lineItemPriceSPT(batch(cd), supplierStock(consignment(cd))),(CASE
+            ELSE (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0));
+        lineItemPriceSPT(eid) <- NUMERIC[12,2] (CASE
             WHEN lineItemQuantitySPT(batch(cd))=='112'  THEN (price(cd)/ volume(sku(cd))) 
             WHEN lineItemQuantitySPT(batch(cd))=='166'  THEN (price(cd)/ netWeight(sku(cd)))
-            ELSE price(cd)));
+            ELSE price(cd));
     }
 }
