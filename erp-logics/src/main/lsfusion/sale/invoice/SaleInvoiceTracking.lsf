@@ -8,10 +8,10 @@ isTracking (Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d))
 showSPT (Invoice i)= TRUE IF isTracking(i);
 isTracking 'Подлежит прослеживанию' (UserInvoiceDetail d) = TRUE IF isTrackingOver(sku(d));
 
-quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[12,5](OVERRIDE quantityDespatchedSPT(batch(d), supplierStock(d)), (CASE
+quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[12,5] (CASE
     WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE quantity(d), 1.0)* volume(sku(d))
     WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE quantity(d), 1.0)* netWeight(sku(d))
-    ELSE (OVERRIDE quantity(d), 1.0)));
+    ELSE (OVERRIDE quantity(d), 1.0));
 lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = NUMERIC[12,2] (OVERRIDE lineItemPriceSPT(batch(d), supplierStock(d)), (CASE
     WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE price(d), 1.0)/ volume(sku(d))
     WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
