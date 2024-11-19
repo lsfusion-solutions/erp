@@ -56,13 +56,13 @@ batch = DATA Batch(StocktakeDetail);
 numberBatch 'Партия' (StocktakeDetail d)  = number(batch(d));
 index 'Номер строки' = DATA INTEGER (StocktakeDetail);
 codeSku 'Код товара' = DATA STRING(StocktakeDetail);
-extraCodeSku 'Дополнительный четырехзначный код' = DATA STRING(StocktakeDetail);
+extraCodeSku 'Дополнительный четырехзначный код' = DATA STRING[4](StocktakeDetail);
 gtin 'GTIN' = DATA STRING(StocktakeDetail);
 nameSku 'Наименование товара' = DATA STRING(StocktakeDetail);
 sidOrigin2Country 'Код страны' = DATA STRING(StocktakeDetail);
 uomSku 'Единица измерения' = DATA STRING(StocktakeDetail);
 quantityUomSku 'Количество товара' =  DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (StocktakeDetail);
-trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING(StocktakeDetail);
+trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](StocktakeDetail);
 pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](StocktakeDetail);
 sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](StocktakeDetail);
 quantityBalance 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
@@ -144,7 +144,9 @@ exportXMLFile = DATA LOCAL FILE ();
 trackingUOMRatio(Sku s) = CASE
     WHEN trackingUOMCustomsGroup(s)=='112' THEN volume(s)
     WHEN trackingUOMCustomsGroup(s)=='166' THEN netWeight(s)
-    ELSE 1 IF s IS Sku; 
+    ELSE 1 IF s IS Sku;
+
+fillTrackingBatch ABSTRACT LIST (Inventory);
 
 createdStocktake = DATA LOCAL Stocktake();
 createStocktake (Inventory inv) {
@@ -393,6 +395,7 @@ stocktakeMNS 'Отправить в МНС' (Inventory inv) {
             SPTInternalDateTime(createdStocktake()) <- SPTInternalDateTime();
             resultDescription(createdStocktake()) <- resultDescription();
             resultCode(createdStocktake()) <- resultCode();
+            fillTrackingBatch(inv);
             
             APPLY;
         } CATCH {

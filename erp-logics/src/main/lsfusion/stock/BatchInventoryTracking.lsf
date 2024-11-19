@@ -1,0 +1,47 @@
+MODULE BatchInventoryTracking;
+
+REQUIRE BatchTracking, DocumentStocktakeMNS ;
+
+NAMESPACE Stock;
+
+isTracking 'Подлежит прослеживанию' = DATA BOOLEAN (Batch, Stock);
+deliveryTypePrev 'Тип приходного документа' = DATA INTEGER (Batch, Stock);
+deliveryNotePrev 'Номер приходного документа'= DATA STRING[70] (Batch, Stock);
+deliveryNoteDate 'Дата создания приходного документа' = DATA DATE (Batch, Stock);
+deliveryNotePrevLineID 'Номер строки в приходном документе' = DATA INTEGER (Batch, Stock);
+lineItemQuantitySPT 'Единица измерения прослеживаемости' = DATA STRING[3] (Batch, Stock);
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = DATA NUMERIC(Batch, Stock);
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' = DATA NUMERIC[12,5] (Batch, Stock);
+itemCustomCode'Код ТНВЭД' = DATA STRING[10] (Batch, Stock);
+itemCustomCodeOther 'Дополнительный таможенный код' = DATA STRING[4] (Batch, Stock);
+
+
+fillTrackingBatch(Inventory i) + {
+    FOR lastStocktake(i) == Stocktake t AND Stock st == (GROUP MIN  Stock s IF include(s,i)) DO {
+        LOCAL correct = INTEGER (Batch);
+        correct(Batch bt) <- GROUP SUM 1 IF StocktakeDetail std AND batch(std)==bt AND inventory(stocktake(std))==i ;
+        isTracking(Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryTypePrev (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNotePrev (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNoteDate (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNotePrevLineID (Batch bb, st) <- NULL WHERE correct(bb);
+        lineItemQuantitySPT (Batch bb, st) <- NULL WHERE correct(bb);
+        lineItemPriceSPT (Batch bb, st) <- NULL WHERE correct(bb);
+        quantityDespatchedSPT (Batch bb, st) <- NULL WHERE correct(bb);
+        itemCustomCode (Batch bb, st) <- NULL WHERE correct(bb);
+        itemCustomCodeOther (Batch bb, st) <- NULL WHERE correct(bb);
+        
+        FOR batch(StocktakeDetail td) == Batch b AND stocktake(td)==t DO{
+            isTracking (b, st) <- TRUE;
+            deliveryTypePrev (b, st) <- 3 ;
+            deliveryNotePrev (b, st) <- seriesNumber(stocktake(td));
+            deliveryNoteDate (b, st) <- DATE(dateTimeInventory(stocktake(td)));
+            deliveryNotePrevLineID (b, st) <- index(td);
+            lineItemQuantitySPT (b, st) <- trackingUOMCustomsGroup(td);
+            lineItemPriceSPT (b, st) <- pricePageInventoryDetail(td);
+            quantityDespatchedSPT (b, st) <- quantityBalance(td);
+            itemCustomCode (b, st) <- codeSku(td);
+            itemCustomCodeOther (b, st) <- extraCodeSku(td);
+        }
+    }
+}
