@@ -29,16 +29,20 @@ overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
 }
 
 //проверка данных из электронной накладной и в карточке товара
+skipCheckESPT = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
+
 skipCheckESPT  'Не проверять соотвествие кода ТН ВЭД, 4-зн. код, ед. изм СПТ из электронной накладной' = DATA BOOLEAN ();
 
+skipCheckESPT(InvoiceDetail id) += skipCheckESPT() IF id IS InvoiceDetail; 
+
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR CHANGED (itemCustomCode(id))) AND isPosted(id) AND isTracking(id)
-    AND customsGroup(defaultCountry(),sku(id)) AND NOT itemCustomCode(id)==code(customsGroup(defaultCountry(),sku(id))) AND NOT skipCheckESPT()
+    AND customsGroup(defaultCountry(),sku(id)) AND NOT itemCustomCode(id)==code(customsGroup(defaultCountry(),sku(id))) AND NOT skipCheckESPT(id)
     MESSAGE 'Код ТН ВЭД товара не соответствует коду ТН ВЭД электронной накладной' ;
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR CHANGED (itemCustomCodeOther(id))) AND isPosted(id) AND isTracking(id)
-    AND extraCode(sku(id)) AND NOT itemCustomCodeOther(id)==id(extraCode(sku(id))) AND NOT skipCheckESPT()
+    AND extraCode(sku(id)) AND NOT itemCustomCodeOther(id)==id(extraCode(sku(id))) AND NOT skipCheckESPT(id)
     MESSAGE '4-зн. код к ТН ВЭД товара не соответствует 4-зн. коду электронной накладной' ;
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR CHANGED (lineItemQuantitySPT(id))) AND isPosted(id) AND isTracking(id)
-    AND trackingUOMCustomsGroup(sku(id)) AND NOT lineItemQuantitySPT(id)==trackingUOMCustomsGroup(sku(id)) AND NOT skipCheckESPT()
+    AND trackingUOMCustomsGroup(sku(id)) AND NOT lineItemQuantitySPT(id)==trackingUOMCustomsGroup(sku(id)) AND NOT skipCheckESPT(id)
     MESSAGE 'Код ед изм СПТ к ТН ВЭД товара не соответствует коду ед изм СПТ электронной накладной' ;

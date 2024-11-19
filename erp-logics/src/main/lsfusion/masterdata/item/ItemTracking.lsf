@@ -125,13 +125,19 @@ DESIGN itemGroup {
     PROPERTY (idExtraCode(g)) {caption='4-зн. код к ТН ВЭД';}
 }
 
+skipCheckCG 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = ABSTRACT VALUE BOOLEAN (Sku);
+skipCheckEC 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = ABSTRACT VALUE BOOLEAN (Sku);
+
 skipCheckCG 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
 skipCheckEC 'Не проверять соотвествие 4-зн. кода к ТН ВЭД ' = DATA BOOLEAN () PREREAD;
 
-CONSTRAINT (CHANGED(extraCode(Sku s))) AND customsGroup(defaultCountry(),s) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckCG()
+skipCheckCG(Sku sku) += skipCheckCG() IF sku IS Sku;
+skipCheckEC(Sku sku) += skipCheckEC() IF sku IS Sku;
+
+CONSTRAINT (CHANGED(extraCode(Sku s))) AND customsGroup(defaultCountry(),s) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckCG(s)
     MESSAGE '4-зн. код должен соответствовать коду ТН ВЭД товара' ;
 
-CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckEC()
+CONSTRAINT (CHANGED(customsGroup(defaultCountry(),Sku s))) AND extraCode(s) AND NOT customsGroup(defaultCountry(),s)==customsGroup(extraCode(s)) AND NOT skipCheckEC(s)
     MESSAGE '4-зн. код не соответствует коду ТН ВЭД товара' ;
 
 changeExtraCode (Brand b) {
