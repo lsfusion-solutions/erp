@@ -1,0 +1,24 @@
+MODULE DocumentMNS;
+
+REQUIRE LegalEntity;
+
+basic = DATA LOCAL TEXT ();
+encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
+decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';    
+
+codeMNS 'Код МНС' = DATA STRING[9] (LegalEntity) IN doc CHARWIDTH 9 NOFLEX INDEXED;
+district 'Район' = DATA STRING (LegalEntity);
+
+EXTEND FORM legalEntity
+    PROPERTIES (l) district, codeMNS
+;
+
+DESIGN legalEntity {
+    column1{
+        NEW MNS {
+            caption = 'МНС';
+            MOVE PROPERTY(district(l));
+            MOVE PROPERTY(codeMNS(l));
+        }
+    }
+}

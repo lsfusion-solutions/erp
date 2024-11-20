@@ -1,25 +1,8 @@
 MODULE DocumentStocktakeMNS;
 
-REQUIRE Inventory, LegalEntityBy, ItemTracking, Lot, PurchaseDeclarationDetailBy, InventoryLot, NTClientSoftware, BatchInventoryTracking;
+REQUIRE DocumentMNS, Inventory, LegalEntityBy, ItemTracking, Lot, InventoryLot, NTClientSoftware, BatchInventoryTracking;
 
 NAMESPACE Inventory;
-
-codeMNS 'Код МНС' = DATA STRING[9] (LegalEntity) IN doc CHARWIDTH 9 NOFLEX INDEXED;
-district 'Район' = DATA STRING (LegalEntity);
-
-EXTEND FORM legalEntity
-    PROPERTIES (l) district, codeMNS
-;
-
-DESIGN legalEntity {
-    column1{
-        NEW MNS {
-            caption = 'МНС';
-            MOVE PROPERTY(district(l));
-            MOVE PROPERTY(codeMNS(l));
-        }
-    }
-}
 
 CLASS Stocktake 'Документ выгрузки в МНС';
 
@@ -231,7 +214,7 @@ createStocktake (Inventory inv) {
             FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
                 lot(ld) <- l;
-                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+                encodeBase64Code(ld) <- replace(replace((DocumentMNS.encodeText(code(l), 'base64')), '\n', ''), '\r', '');
             }
         }
 
@@ -258,7 +241,7 @@ createStocktake (Inventory inv) {
             FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
                 lot(ld) <- l;
-                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+                encodeBase64Code(ld) <- replace(replace(DocumentMNS.encodeText(code(l), 'base64'), '\n', ''), '\r', '');
             }
         }
 
@@ -353,7 +336,7 @@ generateJSON (Inventory inv) {
 
     resultFile() <- NULL;
     
-    originalDocument() <- replace(replace(encodeBase64(resultString()), '\n', ''), '\r', '');
+    originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
     
     signing(originalDocument());
     originalDocumentSign() <- base64Signature();
@@ -451,8 +434,6 @@ correctingStocktakeMNS 'Отправить корректировку в МНС'
 
 showCorrectingStocktakeMNS(Inventory i) = isBatch(i) AND isPosted(i) AND useLot(operation(i)) AND sendedMNS(i);
 
-decodeBase64String (STRING data) = FORMULA STRING 'convert_from(decode($1, \'base64\'), \'UTF8\')';
-
 EXTEND FORM inventories
     PROPERTIES(in) READONLY sendedMNS 
     PROPERTIES(in) PANEL stocktakeMNS SHOWIF showStocktakeMNS(in), correctingStocktakeMNS SHOWIF showCorrectingStocktakeMNS(in)  
@@ -471,7 +452,7 @@ EXTEND FORM inventories
     FILTERS  stocktake(std) == st
     
     OBJECTS lstd = LotStocktakeDetail
-    PROPERTIES 'Марка' = decodeBase64String(encodeBase64Code(lstd))
+    PROPERTIES 'Марка' = STRING(DocumentMNS.decodeText(encodeBase64Code(lstd), 'base64'))
     FILTERS stocktakeDetail(lstd) == std
 ;
 
