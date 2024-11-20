@@ -1,6 +1,6 @@
 MODULE DocumentStocktakeMNS;
 
-REQUIRE Inventory, LegalEntityBy, ItemTracking, Lot, PurchaseDeclarationDetailBy, InventoryLot, NTClientSoftware;
+REQUIRE Inventory, LegalEntityBy, ItemTracking, Lot, PurchaseDeclarationDetailBy, InventoryLot, NTClientSoftware, BatchInventoryTracking;
 
 NAMESPACE Inventory;
 
@@ -147,6 +147,32 @@ trackingUOMRatio(Sku s) = CASE
     ELSE 1 IF s IS Sku;
 
 fillTrackingBatch ABSTRACT LIST (Inventory);
+
+fillTrackingBatch(Inventory i) + {
+    FOR lastStocktake(i) == Stocktake t AND Stock st == (GROUP MIN  Stock s IF include(s,i)) DO {
+        LOCAL correct = INTEGER (Batch);
+        correct(Batch bt) <- GROUP SUM 1 IF StocktakeDetail std AND batch(std)==bt AND inventory(stocktake(std))==i ;
+        isTracking(Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryTypePrev (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNotePrev (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNoteDate (Batch bb, st) <- NULL WHERE correct(bb);
+        deliveryNotePrevLineID (Batch bb, st) <- NULL WHERE correct(bb);
+        lineItemQuantitySPT (Batch bb, st) <- NULL WHERE correct(bb);
+        itemCustomCode (Batch bb, st) <- NULL WHERE correct(bb);
+        itemCustomCodeOther (Batch bb, st) <- NULL WHERE correct(bb);
+
+        FOR batch(StocktakeDetail td) == Batch b AND stocktake(td)==t AND quantityUomSku(td)>0 DO{
+            isTracking (b, st) <- TRUE;
+            deliveryTypePrev (b, st) <- 3 ;
+            deliveryNotePrev (b, st) <- seriesNumber(stocktake(td));
+            deliveryNoteDate (b, st) <- DATE(dateTimeInventory(stocktake(td)));
+            deliveryNotePrevLineID (b, st) <- index(td);
+            lineItemQuantitySPT (b, st) <- trackingUOMCustomsGroup(td);
+            itemCustomCode (b, st) <- codeSku(td);
+            itemCustomCodeOther (b, st) <- extraCodeSku(td);
+        }
+    }
+}
 
 createdStocktake = DATA LOCAL Stocktake();
 
@@ -465,4 +491,3 @@ DESIGN inventories {
         }
     }
 }
-
