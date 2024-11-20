@@ -42,11 +42,14 @@ extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RI
 chargeQuantity = ABSTRACT VALUE NUMERIC[16,5] (Invoice, UserInvoiceDetail);
 chargeQuantity(Invoice i, UserInvoiceDetail d) += quantity(d) IF inExtraCharge(i,d);
 
+extraChargePriceCalculate = ABSTRACT VALUE NUMERIC[16,4](Invoice, UserInvoiceDetail);
+extraChargePriceCalculate(Invoice i, UserInvoiceDetail d) += NUMERIC[16,4](extraChargeSum(i,d)/chargeQuantity(i,d)) IF inExtraCharge(i,d);
+
 changeExtraChargeSum(Invoice i, UserInvoiceDetail d)  { 
     INPUT n = NUMERIC[18,4] DO {
         extraChargeSum(i,d) <- n;
         IF n THEN
-            extraChargePrice(i,d) <- NUMERIC[16,4](extraChargeSum(i,d)/chargeQuantity(i,d));
+            extraChargePrice(i,d) <- extraChargePriceCalculate(i,d);
     }
 }
 
@@ -173,7 +176,7 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  {
                 PARTITION UNGROUP calcChargeSum
                                     PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d)) 
                                     BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <- NUMERIC[16,4](extraChargeSum(i, d) / chargeQuantity(i,d)) 
+            extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i,d)
                                 WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
         } ELSE {
@@ -181,7 +184,7 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  {
                 PARTITION UNGROUP calcChargeSum
                                   PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
                                   BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <- NUMERIC[16,4](extraChargeSum(i, d) / chargeQuantity(i,d)) 
+            extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i,d)
                 WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }
         
