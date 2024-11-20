@@ -1,8 +1,8 @@
-MODULE SaleInvoiceTracking;
+MODULE PurchaseReturnInvoiceTracking;
 
-REQUIRE SaleInvoice, ItemTracking, BatchInventoryTracking, PurchaseInvoiceTracking;
+REQUIRE PurchaseReturnInvoice, ItemTracking, BatchInventoryTracking, PurchaseInvoiceTracking;
 
-NAMESPACE Sale;
+NAMESPACE PurchaseReturn;
 
 isTracking (Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND invoice(d)==i;
 showSPT (Invoice i)= TRUE IF isTracking(i);
@@ -34,10 +34,10 @@ FORM basisInvoiceDetail 'Строка накладной'
 
     OBJECTS st = Stock PANEL
     PROPERTIES (st) READONLY name
-    
+
     OBJECTS dt = DATETIME PANEL
     OBJECTS d = Purchase.InvoiceDetail LAST
-   
+
     PROPERTIES(d) READONLY date, index, description, quantity, price, sum,  numberVAT, valueVAT, VATSum, invoiceSum,  nameCustomerStock, nameSupplierStock
     FILTERS sku(d) == sk
 
@@ -58,12 +58,12 @@ DESIGN basisInvoiceDetail {
     }
 }
 changeBasisInvoiceDetaill(InvoiceDetail detail)  {
-        DIALOG basisInvoiceDetail OBJECTS sk = sku(detail), st = supplierStock(detail), dt = dateTime(detail),
-            d = trackingInvoiceDetail[UserInvoiceDetail](detail) CHANGE ;
+    DIALOG basisInvoiceDetail OBJECTS sk = sku(detail), st = supplierStock(detail), dt = dateTime(detail),
+        d = trackingInvoiceDetail[UserInvoiceDetail](detail) CHANGE ;
 }
 
 EXTEND FORM userInvoice
-    OBJECTS d6 = UserInvoiceDetail GRID 
+    OBJECTS d6 = UserInvoiceDetail GRID
     PROPERTIES(d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
     PROPERTIES (d6) SHOWIF showSPT(i) basisTracking ON CHANGE changeBasisInvoiceDetaill(d6)
@@ -92,3 +92,12 @@ skipCheckBatch = DATA BOOLEAN ();
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id)) OR CHANGED(batch(id))) AND isPosted(id) AND isTrackingOver(sku(id)) AND NOT batch(id) AND NOT skipCheckBatch()
     MESSAGE 'Укажите партию для прослеживаемого товара' ;
+
+skipCheckBasis = DATA BOOLEAN ();
+
+CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id)) OR CHANGED(batch(id))) AND isPosted(id) AND isTracking(id)
+    AND batch(id) AND NOT (deliveryNotePrev(id) OR deliveryTypePrev(id)) AND NOT trackingInvoiceDetail(id) AND NOT skipCheckBasis()
+    MESSAGE 'Укажите основание для прослеживаемого товара' ;
+
+notAllPropertiesTracking(UserInvoiceDetail id) = TRUE  IF NOT (itemCustomCode(id) OR itemCustomCodeOther(id) OR deliveryNotePrev(id)
+    OR deliveryTypePrev(id) OR deliveryNoteDate(id) OR deliveryNotePrevLineID(id) OR (lineItemQuantitySPT(id)) OR quantityDespatchedSPT(id) OR lineItemPriceSPT(id));

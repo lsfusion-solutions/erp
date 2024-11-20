@@ -1,6 +1,6 @@
 MODULE ConsignmentEInvoiceTracking;
 
-REQUIRE ConsignmentEInvoice, ItemTracking, PurchaseEInvoice, BatchInventoryTracking;
+REQUIRE ConsignmentEInvoice, ItemTracking, PurchaseEInvoice, BatchInventoryTracking, PurchaseInvoiceTracking;
 
 NAMESPACE Consignment;
 
@@ -9,6 +9,8 @@ isTracking(ConsignmentDetail cd) += isTrackingCustomsGroup(sku(cd));
 
 trackingUOM = ABSTRACT VALUE STRING[3] (ConsignmentDetail);
 trackingUOM(ConsignmentDetail cd) += trackingUOMCustomsGroup(sku(cd));
+
+trackingInvoiceDetail = ABSTRACT Purchase.InvoiceDetail (ConsignmentDetail);
 
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     IF  oldVersion() THEN {
@@ -27,11 +29,11 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     IF isTracking(cd) AND currentDate() >= dateStartSPT() THEN {
         itemCustomCode(eid) <- (OVERRIDE itemCustomCode(batch(cd), supplierStock(consignment(cd))), itemCustomCode(batch(cd)), codeCustomsGroupDefaultCountry(sku(cd)));
         itemCustomCodeOther(eid) <- (OVERRIDE itemCustomCodeOther(batch(cd), supplierStock(consignment(cd))), itemCustomCodeOther(batch(cd)), idExtraCode(sku(cd)));
-        deliveryTypePrev(eid) <- (OVERRIDE deliveryTypePrev(batch(cd), supplierStock(consignment(cd))), deliveryTypePrev(batch(cd)));
-        deliveryNotePrev(eid) <- (OVERRIDE deliveryNotePrev(batch(cd), supplierStock(consignment(cd))), deliveryNotePrev(batch(cd)));
-        deliveryNoteDatePrev(eid) <- DATETIME(OVERRIDE deliveryNoteDate(batch(cd), supplierStock(consignment(cd))), deliveryNoteDate(batch(cd)));
-        deliveryNotePrevLineID(eid) <- (OVERRIDE deliveryNotePrevLineID(batch(cd), supplierStock(consignment(cd))), deliveryNotePrevLineID(batch(cd)));
-        lineItemQuantitySPT(eid) <- (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd))),lineItemQuantitySPT(batch(cd)));
+        deliveryTypePrev(eid) <- (OVERRIDE deliveryTypePrev(batch(cd), supplierStock(consignment(cd))), deliveryTypePrev(trackingInvoiceDetail(cd)), deliveryTypePrev(batch(cd)));
+        deliveryNotePrev(eid) <- (OVERRIDE deliveryNotePrev(batch(cd), supplierStock(consignment(cd))), deliveryNotePrev(trackingInvoiceDetail(cd)), deliveryNotePrev(batch(cd)));
+        deliveryNoteDatePrev(eid) <- DATETIME(OVERRIDE deliveryNoteDate(batch(cd), supplierStock(consignment(cd))), deliveryNoteDate(trackingInvoiceDetail(cd)), deliveryNoteDate(batch(cd)));
+        deliveryNotePrevLineID(eid) <- (OVERRIDE deliveryNotePrevLineID(batch(cd), supplierStock(consignment(cd))), deliveryNotePrevLineID(trackingInvoiceDetail(cd)), deliveryNotePrevLineID(batch(cd)));
+        lineItemQuantitySPT(eid) <- (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd))),lineItemQuantitySPT(batch(cd)), trackingUOM(cd));
         quantityDespatchedSPT(eid) <- NUMERIC[12,5](CASE
             WHEN lineItemQuantitySPT(batch(cd))=='112'  THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0)* volume(sku(cd))) 
             WHEN lineItemQuantitySPT(batch(cd))=='166'  THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0)* netWeight(sku(cd)))
