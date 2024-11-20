@@ -148,6 +148,7 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND paymentType(kindOperation(kind(r))) == minGiftCardPaymentType() AND NOT payment(idReceipt + '_' + kind(r)) NEW p = PaymentGiftCard DO {
                     id(p) <- idReceipt + '_' + kind(r);
                     receipt(p) <- receipt(idReceipt);
+                    kindOperation(p) <- kindOperation(kind(r));
                     paymentType(p) <- minGiftCardPaymentType();
                     ZReport.sum(p) <- sumReceiptDetail(receipt(idReceipt));
                     giftCard(p) <- giftCard(cardNum(r));
@@ -158,20 +159,24 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                     IF NOT payment(idReceipt + '_' + kind(r) + '_' + 1) AND mixCash(r) != 0 THEN NEW p = Payment {
                         id(p) <- idReceipt + '_' + kind(r) + '_' + 1;
                         receipt(p) <- receipt(idReceipt);
+                        kindOperation(p) <- kindOperation(kind(r));
                         paymentType(p) <- minCashPaymentType();
                         sum(p) <- mixCash(r);
                     }
                     IF NOT payment(idReceipt + '_' + kind(r) + '_' + 2) AND mixBank(r) != 0 THEN NEW p = Payment {
                         id(p) <- idReceipt + '_' + kind(r) + '_' + 2;
                         receipt(p) <- receipt(idReceipt);
+                        kindOperation(p) <- kindOperation(kind(r));
                         paymentType(p) <- minCardPaymentType();
                         sum(p) <- mixBank(r);
                     }
                     IF NOT payment(idReceipt + '_' + kind(r) + '_' + 3) AND mixOther(r) != 0 THEN NEW p = PaymentGiftCard {
                         id(p) <- idReceipt + '_' + kind(r) + '_' + 3;
                         receipt(p) <- receipt(idReceipt);
+                        kindOperation(p) <- kindOperation(kind(r));
                         paymentType(p) <- minGiftCardPaymentType();
                         ZReport.sum(p) <- mixOther(r);
+                        giftCard(p) <- giftCard(cardNum(r));
                     }
                     overImportPayment(receipt(idReceipt), mixCash(r), mixBank(r), mixOther(r));
                 }
