@@ -651,3 +651,12 @@ onStarted()+{
 WHEN SETCHANGED(vatRate(EVATDetail d)) AND setKidGoodsDescriptionFromVatRate() AND vatRate(d) == 10 DO {
     in(d, DescriptionType t) <- TRUE WHERE name(t) == 'KID_GOODS';
 }
+
+@defineOption(skipAdditionalByNOTExportYear, 'Запрет на создание дополнительного ЭСЧФ к ЭСЧФ с неуникальным номером для экспорта, если с таким номером существует ЭСЧФ без года отправки', EVAT);
+
+
+CONSTRAINT SET(invoice(EVAT e)) AND skipAdditionalByNOTExportYear() AND status(e) = EVATStatus.additional AND skipAdditionalByNOTExportYear() AND STRING s = invoice(e)
+    AND [GROUP MAX EVAT e1 IF statusServerStatus(e1) AND NOT exportYear(e1) BY exportNumber(e1)](invoice(e))
+    AND [GROUP SUM 1 BY exportNumber(EVAT e1)](invoice(e)) > 1
+    MESSAGE 'Нельзя создать дополнительный ЭСЧФ к ЭСЧФ с неуникальным номером для экспорта, если с таким номером существует ЭСЧФ без года отправки'
+;
