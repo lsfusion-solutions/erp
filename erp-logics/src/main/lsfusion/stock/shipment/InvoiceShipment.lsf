@@ -378,18 +378,20 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     skipChangedShipmentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
     shipmentQuantity(UserInvoiceDetail detail) <- quantity(detail) IF createShipment(detail)
         WHEN (CHANGED(quantity(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
-            
-    showShipment (Invoice invoice) =  invoice IS Invoice AND NOT createShipment(invoice);
     
-    skipShowShipmentQuantity = ABSTRACT BOOLEAN (Invoice);
-    showShipmentQuantity = createShipment(Invoice invoice) AND NOT skipShowShipmentQuantity(invoice);
-    readonlyShipmentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
 
+    readonlyShipmentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
+    showCreateShipment = ABSTRACT VALUE BOOLEAN(Invoice);
+    showCreateShipment(Invoice i) += createShipment(i);
+    showShipment (Invoice invoice) =  invoice IS Invoice AND NOT showCreateShipment(invoice);
+    skipShowShipmentQuantity = ABSTRACT BOOLEAN (Invoice);
+    showShipmentQuantity = showCreateShipment(Invoice invoice) AND NOT skipShowShipmentQuantity(invoice);
+        
     EXTEND FORM userInvoice
         PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
-        PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentSumUserInvoiceDetail,
-                      shipmentDate, shipmentTime
-        PROPERTIES(d) BEFORE deleteid SHOWIF createShipment[Invoice](i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF showCreateShipment(i) shipmentSumUserInvoiceDetail
+        PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i)  shipmentDate, shipmentTime
+        PROPERTIES(d) BEFORE deleteid SHOWIF showCreateShipment[Invoice](i) BACKGROUND backgroundShipped(i)
                       manufactureDate, expiryDate, shipmentSum
         PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShipped(i) shipmentPrice
         PROPERTIES(d) READONLY shipped AFTER quantity(d) SHOWIF showShipment(i) BACKGROUND backgroundShipped(i)
@@ -410,10 +412,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
     EXTEND FORM invoices
         PROPERTIES(i) READONLY BACKGROUND backgroundShipped(i) shipmentQuantityInvoiceDetail, shipmentSumInvoiceDetail BEFORE orders(i)
-        PROPERTIES(d) READONLY SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(d) READONLY SHOWIF showCreateShipment(i) BACKGROUND backgroundShipped(i)
                       manufactureDate, expiryDate, shipmentPrice, shipmentSum
         PROPERTIES(d) READONLY shipped AFTER quantity(d) SHOWIF showShipment(i) BACKGROUND backgroundShipped(i)
-        PROPERTIES(d) READONLY shipmentQuantity AFTER quantity(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(d) READONLY shipmentQuantity AFTER quantity(d) SHOWIF showCreateShipment(i) BACKGROUND backgroundShipped(i)
         FILTERGROUP filter11
                     FILTER  'Непоставленные товары' NOT shipped(d) == quantity (d) 'F10'  
     ;

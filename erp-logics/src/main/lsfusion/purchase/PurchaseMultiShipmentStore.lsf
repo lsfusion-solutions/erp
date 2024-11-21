@@ -1,0 +1,23 @@
+MODULE PurchaseMultiShipmentStore;
+
+REQUIRE PurchaseMultiShipment, PricingSumPurchase, PurchaseManufacturingPrice;
+
+NAMESPACE Purchase;
+
+createMultiShipmentPricing(InvoiceDetail d) = createMultiShipment(d,multiStock(d)) AND createPricing(d) AND isStock(sku(d));
+
+in (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(invoiceDetail(ledger)) AND sku(ledger) AND createMultiShipmentPricing(invoiceDetail(ledger)) AND
+    type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
+price (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(invoiceDetail(ledger)) AND sku(ledger) AND createMultiShipmentPricing(invoiceDetail(ledger)) AND
+    type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPrice(invoiceDetail(ledger));
+//overPrice
+in (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN price[PricingDetail](invoicePricingDetail(invoiceDetail(ledger))) AND type == SystemLedgerPriceListType.supplierPricingPriceListType AND
+    createMultiShipmentPricing(invoiceDetail(ledger)) THEN TRUE;
+price (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN price[PricingDetail](invoicePricingDetail(invoiceDetail(ledger))) AND type == SystemLedgerPriceListType.supplierPricingPriceListType AND
+    createMultiShipmentPricing(invoiceDetail(ledger)) THEN price[PricingDetail](invoicePricingDetail(invoiceDetail(ledger)));
+//-- todo: возможно стоит в отдельный модуль вынести
+in (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(invoiceDetail(ledger)) AND price(ledger) 
+    AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
+price (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(invoiceDetail(ledger)) AND price(ledger) 
+    AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN OVERRIDE overLedgerManufacturingPrice(invoiceDetail(ledger)), manufacturingPrice(invoiceDetail(ledger));
+

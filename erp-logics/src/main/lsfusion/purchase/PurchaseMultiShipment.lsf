@@ -1,0 +1,196 @@
+MODULE PurchaseMultiShipment;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+
+TABLE multiStockDetailStock (InvoiceDetail,Stock);
+TABLE multiStockStock (Invoice,Stock);
+
+multiStock= ABSTRACT Stock(InvoiceDetail);
+multiStockData = DATA Stock(UserInvoiceDetail);
+multiStock (UserInvoiceDetail d) = OVERRIDE multiStockData(d), customerStock(d) MATERIALIZED;// TABLE userMultiStockDetail;
+nameMultiStock 'Склад покупателя' (UserInvoiceDetail d) = name(multiStock(d));
+nameMultiStock 'Склад покупателя' (InvoiceDetail d) = name(multiStock(d));
+multiStock(UserInvoiceDetail d) += multiStock(d);
+
+CONSTRAINT (SETCHANGED(multiStockData(UserInvoiceDetail d)) OR SETCHANGED(customer(d)) OR SET(isPosted(d))) 
+    AND isPosted(d) AND multiStockData(d) AND customer(d) AND NOT legalEntity(multiStockData(d))==customer(d)
+        MESSAGE 'Склад покупателя (Мультипоставка) не соответствует покупателю';
+
+@defineOperationProperty(createMultiShipment, 'Мультипоставка', createContainer);
+
+createMultiShipment 'Мультипоставка' = ABSTRACT BOOLEAN(Invoice);
+createMultiShipment 'Мультипоставка' = DATA BOOLEAN(UserInvoice) IN documentPrm;
+createMultiShipment(UserInvoice invoice) += createMultiShipment(invoice);
+
+@deriveDocumentOperationProperty(UserInvoice, createMultiShipment);
+
+CLASS MultiShipment 'Мультипоставка на основе накладной (закупка)' : Shipment;
+CLASS MultiShipmentDetail 'Строка мультипоставки на основе накладной (закупка)' : ShipmentDetail;
+
+@defineDocumentTables(multiShipment);
+//skipCreateMultiShipment = ABSTRACT BOOLEAN (InvoiceDetail) MATERIALIZED;// TABLE multiStockDetail;
+createMultiShipment 'Мультипоставка' (InvoiceDetail invoiceDetail, Stock st) = createMultiShipment(invoice(invoiceDetail)) AND
+    isStockSku(invoiceDetail) AND
+    NOT isCharge(sku(invoiceDetail)) AND multiStock(invoiceDetail)==st MATERIALIZED;
+
+createMultiShipment 'Мультипоставка'  = GROUP SUM 1 IF createMultiShipment(InvoiceDetail invoiceDetail, Stock st) 
+    BY invoice(invoiceDetail), st;
+
+//createMultiShipment 'Создать перевод ТМЦ' (UserInvoiceDetail invoiceDetail) = createMultiShipment(userInvoice(invoiceDetail)) AND
+//    isStockSku(invoiceDetail);
+
+multiShipment = AGGR MultiShipment WHERE createMultiShipment(Invoice invoice, Stock multiStock) MATERIALIZED INDEXED;
+@defineDocumentAggregationHeaderNote(invoice, multiShipment);
+@defineDocumentAggregationHeaderTime(invoice, multiShipment);
+
+multiShipmentDetail = AGGR MultiShipmentDetail WHERE createMultiShipment(InvoiceDetail invoiceDetail, Stock multiStock) MATERIALIZED INDEXED;
+multiShipment (MultiShipmentDetail detail) = multiShipment(invoice(invoiceDetail(detail)), multiStock(detail));
+
+index '{document.index.detail.class}' (MultiShipmentDetail d) =
+    PARTITION SUM 1
+        ORDER d BY multiShipment(d) CHARWIDTH 4;
+
+//index '{document.index.detail.class}' (MultiShipmentDetail d) = index(invoiceDetail(d)) IN public;
+@defineDocumentAggregationDetailTime(invoice, multiShipment);
+countMultiShipmentDetail '{document.count.detail.of}' (o) =
+    GROUP SUM 1 BY multiShipment(MultiShipmentDetail d) MATERIALIZED IN documentSum;
+
+
+shipment(MultiShipmentDetail detail) += multiShipment(detail);
+
+index(MultiShipmentDetail detail) += index(detail);
+
+date(MultiShipment shipment) += shipmentDate(invoice(shipment));
+time(MultiShipment shipment) += shipmentTime(invoice(shipment));
+
+@defineDocumentAggregationStockPrefix(invoice, multiShipment, supplier, 'Склад поставщика', , );
+supplierStock(MultiShipment shipment) += Purchase.supplierStock(shipment);
+
+customerStock (MultiShipment object) = multiStock(object) MATERIALIZED;
+nameCustomerStock 'Склад покупателя' (MultiShipment object) = name(customerStock(object)) CHARWIDTH 20;
+fullNameCustomerStock 'Склад покупателя' (MultiShipment object) = fullName(customerStock(object)) CHARWIDTH 20;
+customerStock (MultiShipmentDetail detail) = multiStock(detail) MATERIALIZED;
+
+customerStock(MultiShipment shipment) +=  customerStock(shipment);
+
+@defineDocumentAggregationLegalEntityPrefix(invoice, multiShipment, supplier, 'Поставщик', , );
+supplier(MultiShipment shipment) += Purchase.supplier(shipment);
+@defineDocumentAggregationLegalEntityPrefix(invoice, multiShipment, customer, 'Покупатель', , );
+customer(MultiShipment shipment) += Purchase.customer(shipment);
+
+@defineDocumentAggregationPosted(invoice, multiShipment);
+isPosted(MultiShipment shipment) += isPosted(shipment);
+
+@defineDocumentAggregationClosed(invoice, multiShipment);
+isClosed(MultiShipment shipment) += isClosed(shipment);
+
+number 'Номер документа' (MultiShipment multiShipment) = number(invoice(multiShipment));
+number(MultiShipment shipment) += number(shipment);
+
+series 'Серия документа' (MultiShipment multiShipment) = series(invoice(multiShipment));
+series(MultiShipment shipment) += series(shipment);
+
+seriesNumber 'Серия/номер документа' (MultiShipment multiShipment) = seriesNumber(invoice(multiShipment));
+
+noteInvoice 'Примечание' (MultiShipment multiShipment) = note(invoice(multiShipment));
+note(MultiShipment shipment) += noteInvoice(shipment);
+currencyOver = ABSTRACT Currency (MultiShipment);
+currency  (MultiShipment multiShipment) = OVERRIDE currencyOver(multiShipment), currency(invoice(multiShipment));
+currency (MultiShipment shipment) += currency(shipment);
+
+@defineDocumentDescription(multiShipment, MultiShipmentDetail, 'Поставка на основе накладной (мультипоставка)');
+description (MultiShipment shipment) += description(shipment);
+
+@defineDocumentAggregationDetailProperty (invoice, multiShipment, orderDetail, 'Заказ');
+orderDetail (MultiShipmentDetail shipmentDetail) += orderDetail(shipmentDetail);
+
+@defineDocumentAggregationDetailSkuPrefix(invoice, multiShipment, sku,);
+sku(MultiShipmentDetail shipmentDetail) +=  sku(shipmentDetail);
+
+quantity(MultiShipmentDetail shipmentDetail) += shipmentQuantity(invoiceDetail(shipmentDetail));
+expiryDate(MultiShipmentDetail shipmentDetail) += expiryDate(invoiceDetail(shipmentDetail));
+manufactureDate(MultiShipmentDetail shipmentDetail) += manufactureDate(invoiceDetail(shipmentDetail));
+
+price(MultiShipmentDetail multiShipmentDetail) = shipmentPrice(invoiceDetail(multiShipmentDetail));
+price(MultiShipmentDetail shipmentDetail) += price(shipmentDetail);
+
+sum(MultiShipmentDetail multiShipmentDetail) = shipmentSum(invoiceDetail(multiShipmentDetail));
+sum(MultiShipmentDetail shipmentDetail) += sum(shipmentDetail);
+
+invoiceDetail(MultiShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
+
+edit(MultiShipment shipment) + {  edit(invoice(shipment)); }
+close(MultiShipment shipment) + {  close(invoice(shipment)); }
+edit(MultiShipmentDetail d) + {  edit(invoiceDetail(d)); }
+show(MultiShipmentDetail d) + {  show(invoiceDetail(d)); }
+createdUser(MultiShipment shipment) += createdUser(invoice(shipment));
+
+// цены в подборе
+//    @extendFormDocumentAccountPriceSku(userInvoice, stockProp, ' учетная', userInvoice, i, is);
+//    @extendFormDocumentAccountPriceBatch(userInvoice, stockProp, ' учетная', userInvoice, i, showBatch);
+
+
+operation(MultiShipment shipment) += operation(invoice(shipment));
+backgroundMultiShipment = RGB (204,204,153) IF TRUE;
+
+showCreateShipment(Invoice i) += createMultiShipment(i);
+
+EXTEND FORM userInvoice
+    PROPERTIES  createMultiShipment(i) BACKGROUND backgroundShipped(i)
+    PROPERTIES BACKGROUND backgroundShipped(i) SHOWIF createMultiShipment(i) mDate = shipmentDate(i), mTime = shipmentTime(i)
+    PROPERTIES nameMultiStock(d) BACKGROUND backgroundShipped(i) AFTER shipmentSum(d) SHOWIF createMultiShipment(i)
+
+;
+DESIGN userInvoice {
+    headerCreateDocuments {
+        NEW createHeaderComponent {
+            caption = 'Мультипоставка';
+            horizontal = TRUE;
+            MOVE PROPERTY(createMultiShipment(i));
+            MOVE PROPERTY(mDate);
+            MOVE PROPERTY(mTime);
+        }
+    }
+
+}
+
+//------------------------- Проводим по ценовым регистрам    
+EXTEND CLASS MultiShipmentDetail : PriceListLedger;
+
+fromDateTime (MultiShipmentDetail ledger) += shipmentDateTime(invoiceDetail(ledger));
+
+isPosted[PriceListLedger](MultiShipmentDetail ledger) += isPosted(ledger);
+skip[PriceListLedger](MultiShipmentDetail ledger) += skipChangeLedger(invoiceDetail(ledger));
+sku[PriceListLedger] (MultiShipmentDetail ledger) += sku(ledger);
+
+in[PriceListLedger,Batch] (MultiShipmentDetail ledger, Batch batch) += ledgerBatch(ledger) == batch;
+
+operation[PriceListLedger] (MultiShipmentDetail ledger) += operation(invoiceDetail(ledger));
+description[PriceListLedger] (MultiShipmentDetail ledger) += description(ledger);
+company (MultiShipmentDetail ledger) += supplier(ledger);
+in (MultiShipmentDetail ledger, Stock stock) += customerStock(ledger) == stock;
+show[PriceListLedger] (MultiShipmentDetail ledger) + { show(ledger);};
+
+in (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND sku(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN TRUE;
+price (MultiShipmentDetail ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND sku(ledger) AND type == SystemLedgerPriceListType.purchaseInvoiceStockPriceListType THEN price(invoiceDetail(ledger));
+
+WHEN LOCAL SET(createMultiShipment(UserInvoice i)) DO {
+    createShipment(i) <- NULL;
+}
+
+CONSTRAINT (SET(isPosted(UserInvoice i)) OR SET(createMultiShipment(i)) OR SET(createShipment(i))) AND
+    isPosted(i) AND createMultiShipment(i) AND createShipment(i)
+    MESSAGE 'Одновременно два признака не могут быть заданы "Мультипоставка" и "Создать поставку"';
+
+WHEN LOCAL SET(createMultiShipment(Operation i)) DO {
+    createShipment(i) <- NULL;
+}
+CONSTRAINT (SET(createMultiShipment(Operation i)) OR SET(createShipment(i))) AND createMultiShipment(i) AND createShipment(i)
+    MESSAGE 'Одновременно два признака не могут быть заданы "Мультипоставка" и "Создать поставку"';
+
+createMultiShipment (UserInvoiceDetail d) = createMultiShipment(userInvoice(d));
+
+shipmentQuantity(UserInvoiceDetail detail) <- quantity(detail) IF (createShipment(detail) OR createMultiShipment(detail))
+    WHEN (CHANGED(quantity(detail)) OR CHANGED(createShipment(detail)) OR CHANGED(createMultiShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
