@@ -238,20 +238,28 @@ FORM purchasesRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:
     PROPERTIES() IN processPurchases purchases, version
 ;
 
+onlySaveFilesSet10 'Только сохранять файлы при приеме' = DATA BOOLEAN ();
+pathSavedFile = DATA STRING ();
+
 set_purchases(FILE f) {
     TRY{
         fileToString(f);
         IMPORT purchasesRequest XML FROM f;
         IF purchases() THEN {
-            decodeBase64(purchases());
-            IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'purchases',  decodedBase64()));
-            importReceipt(decodedBase64());
-            IF canceled() THEN {
-                logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
-                statusHttpTo() <- 500; 
+            generateUUID();
+            IF onlySaveFilesSet10() THEN {
+                WRITE f TO pathSavedFile() + '/' +  generatedUUID();
+            } ELSE {
+                decodeBase64(purchases());
+                IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'purchases', decodedBase64()));
+                importReceipt(decodedBase64());
+                IF canceled() THEN {
+                    logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
+                    statusHttpTo() <- 500;
+                }
+                ELSE
+                    logToFile('set10', (CONCAT ' : ', 'purchases imported', count1() + ' receipts'));
             }
-            ELSE 
-                logToFile('set10', (CONCAT ' : ', 'purchases imported', count1() + ' receipts'));
         }
         ELSE statusHttpTo() <- 500; 
     }
