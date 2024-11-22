@@ -32,8 +32,14 @@ EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) nameLotType;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() nameLotType BACKGROUND RGB(190,190,190) IF dataLotType(g);
 
 skipLotType = ABSTRACT BOOLEAN (Sku);
-dataLotType = DATA LotType (Sku); 
-lotType (Sku s) = (OVERRIDE dataLotType(s), lotType(skuGroup(s))) IF NOT skipLotType(s) MATERIALIZED;
+
+dataLotType = DATA LotType (Sku);
+
+overLotType = ABSTRACT VALUE LotType (Sku);
+
+overLotType(Sku sku) += lotType(skuGroup(sku));
+
+lotType (Sku s) = (OVERRIDE dataLotType(s), overLotType(s)) IF NOT skipLotType(s) MATERIALIZED;
 
 idLotType 'Код типа маркировки' (Sku s) = id(lotType(s)) IN itemBase;
 nameLotType 'Тип маркировки' (Sku s) = name(lotType(s)) IN itemBase;
@@ -61,4 +67,8 @@ EXTEND FORM dialogLotTypes
     PROPERTIES (t) READONLY explicitLot
 ;
 
-explicitLot (Sku s) = (explicitLot(skuGroup(s)) AND lotType(s)) OR explicitLot(lotType(s)) MATERIALIZED;
+overExplicitLot = ABSTRACT VALUE BOOLEAN (Sku);
+
+overExplicitLot(Sku sku) += explicitLot(skuGroup(sku));
+
+explicitLot (Sku s) = (overExplicitLot(s) AND lotType(s)) OR explicitLot(lotType(s)) MATERIALIZED IN itemBase;
