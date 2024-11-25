@@ -124,11 +124,6 @@ notTracking(Inventory i) = GROUP SUM 1 IF NOT isTrackingOver(sku(PageInventoryDe
 
 exportXMLFile = DATA LOCAL FILE ();
 
-trackingUOMRatio(Sku s) = CASE
-    WHEN trackingUOMCustomsGroup(s)=='112' THEN volume(s)
-    WHEN trackingUOMCustomsGroup(s)=='166' THEN netWeight(s)
-    ELSE 1 IF s IS Sku;
-
 fillTrackingBatch ABSTRACT LIST (Inventory);
 
 fillTrackingBatch(Inventory i) + {
@@ -182,11 +177,11 @@ createStocktake (Inventory inv) {
 
         district(s) <- district(legalEntity(s));
         district2(s) <- district(legalEntity(s));
-        dateTimeInventory(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm');
+        dateTimeInventory(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+03:00');
         
-        nameLegalEntity(s) <- name(legalEntity(s));
+        nameLegalEntity(s) <- fullName(legalEntity(s));
         nameChief(s) <- nameChief(legalEntity(s));
-        prevDateTime(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+hh:mm');
+        prevDateTime(s) <- toChar(dateTime(inv), 'YYYY-MM-DD+03:00');
         prevStocktake(s) <- PREV (lastStocktake(inv));
         correctionNumber(s) <- correctionNumber(prevStocktake(s)) (+) 1 IF prevStocktake(s);
         seriesNumber(s) <- CONCAT '_', seriesNumber(inventory(s)), correctionNumber(s);
@@ -307,19 +302,6 @@ FORM exportJSON
     ORDERS index
 ;
 
-
-mnsService 'URL' = DATA STRING();
-EXTEND FORM integrationData PROPERTIES mnsService();
-
-DESIGN integrationData {
-    pane {
-        NEW mnsService {
-            caption = 'МНС';
-            MOVE PROPERTY (mnsService());
-        }
-    }
-}
-
 sendedMNS 'Отправлена в МНС' (Inventory i) = GROUP MIN TRUE BY inventory(Stocktake s);
 
 exportJSONFile = DATA LOCAL FILE ();
@@ -344,7 +326,7 @@ generateJSON (Inventory inv) {
     IF NOT originalDocumentSign() THEN RETURN;
 
     documentId() <- id(createdStocktake());    
-    documentNumber1() <- seriesNumber(prevStocktake(createdStocktake()));
+//    documentNumber1() <- seriesNumber(prevStocktake(createdStocktake()));
     documentNumber1() <- seriesNumber(createdStocktake());
     VATRegistrationNumber() <- UNP(legalEntity(createdStocktake()));
     IMNS() <- codeMNS(legalEntity(createdStocktake()));;
@@ -352,7 +334,7 @@ generateJSON (Inventory inv) {
     documentName() <- 'Сведения об остатках';
     refRecordId() <- refRecordId(createdStocktake()); // TODO
     correctionDate() <- toChar(dateTime(createdStocktake()) , 'YYYYMMDD') IF PREV(sendedMNS(inv)); // TODO     
-    creationDateTime() <- toChar(dateTime(inventory(createdStocktake())), 'YYYY-MM-DD HH:mm:ss');
+    creationDateTime() <- toChar(dateTime(createdStocktake()), 'YYYY-MM-DD HH:mm:ss');
 
     EXPORT exportJSON JSON TO exportJSONFile;
 }

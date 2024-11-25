@@ -1,0 +1,454 @@
+MODULE DocumentImportMNS;
+
+REQUIRE DocumentMNS, NTClientSoftware, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot;
+
+CLASS ImportDocMNS 'Документ выгрузки в МНС (подача сведений о ввозе)';
+
+id = STRING[50](ImportDocMNS s);
+district 'Наименование района, города, района в городе' = DATA STRING(ImportDocMNS);
+district2 'Наименование района' = DATA STRING(ImportDocMNS);
+dateTimeSign 'Дата/время' = DATA DATETIME (ImportDocMNS);
+dateTimeSignXML 'Дата/время' = DATA STRING (ImportDocMNS);
+seriesNumber 'Серия/номер' = DATA STRING(ImportDocMNS);
+correctionNumber 'Номер корректировки' = DATA INTEGER (ImportDocMNS);
+nameLegalEntity 'Организация' = DATA STRING(ImportDocMNS);
+
+// Грузоотправильтель
+sidCountryShipper 'Код страны грузоотправителя' = DATA STRING(ImportDocMNS);
+nameCountryShipper 'Наименование страны грузоотправильтеля' = DATA STRING(ImportDocMNS);
+idShippingDocument 'Код транспортного документа' = DATA STRING(ImportDocMNS);
+nameShippingDocument 'Наименование сопроводительного документа' = DATA STRING(ImportDocMNS);
+dateShippingDocument 'Дата сопроводительного документа' = DATA STRING (ImportDocMNS);
+UNPShipper 'Идентификационный код грузоотправителя' = DATA STRING (ImportDocMNS);
+nameShipper 'Грузоотправильтель' = DATA STRING(ImportDocMNS);
+numberShippingDocument 'Регистрационный номер сопроводительного документа' = DATA STRING(ImportDocMNS);
+nameShipperChief 'ФИО руководителя' = DATA STRING(ImportDocMNS);
+
+// Продавец
+sidCountrySeller 'Код страны продавца' = DATA STRING(ImportDocMNS);
+nameCountrySeller 'Наименование страны продавца' = DATA STRING(ImportDocMNS);
+UNPSeller 'Идентификационный код продавца' = DATA STRING (ImportDocMNS);
+nameSeller 'Продавец' = DATA STRING(ImportDocMNS);
+
+CLASS ImportDocMNSDetail 'Строка документа выгрузки в МНС (подача сведений о ввозе)';
+importDocMNS = DATA ImportDocMNS(ImportDocMNSDetail) NONULL DELETE;
+invoiceDetail = DATA Purchase.InvoiceDetail(ImportDocMNSDetail);
+index 'Номер строки' = DATA INTEGER (ImportDocMNSDetail);
+sku 'Код товара' = DATA Sku(ImportDocMNSDetail);
+codeSku 'Код товара' = DATA STRING(ImportDocMNSDetail);
+extraCodeSku 'Дополнительный четырехзначный код' = DATA STRING[4](ImportDocMNSDetail);
+gtin 'GTIN' = DATA STRING(ImportDocMNSDetail);
+nameSku 'Наименование товара' = DATA STRING(ImportDocMNSDetail);
+uomSku 'Единица измерения' = DATA STRING(ImportDocMNSDetail);
+quantityUomSku 'Количество товара' =  DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (ImportDocMNSDetail);
+trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](ImportDocMNSDetail);
+priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](ImportDocMNSDetail);
+sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](ImportDocMNSDetail);
+quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](ImportDocMNSDetail); 
+
+CLASS LotImportDocMNSDetail 'Строка марки документа выгрузки в МНС';
+importDocMNSDetail = DATA ImportDocMNSDetail (LotImportDocMNSDetail) NONULL DELETE;
+lot = DATA Lot(LotImportDocMNSDetail);
+encodeBase64Code 'Код маркировки единицы товара' = DATA STRING(LotImportDocMNSDetail);
+
+//id (ImportDocMNS s) = STRING[50](s);
+dateTime 'Дата отправки' =  DATA DATETIME (ImportDocMNS);
+invoice = DATA Purchase.Invoice (ImportDocMNS) NONULL DELETE;
+legalEntity = DATA  LegalEntity(ImportDocMNS);
+prevImportDocMNS = DATA LOCAL ImportDocMNS(ImportDocMNS);
+
+//prevDateTime 'Дата представляемых сведений'  = DATA STRING(ImportDocMNS);
+prevDocNumber 'Регистрационный номер представляемых сведений' = DATA STRING(ImportDocMNS);
+
+refRecordId 'Уникальный идентифика-тор исходного документа' = DATA INTEGER (ImportDocMNS);
+//
+// Ответ
+recordId 'Идентификатор записи (ответ)' = DATA  INTEGER(ImportDocMNS);
+statusCode 'Статус документа (ответ)' = DATA  STRING(ImportDocMNS);
+documentReplyDateTime 'Дата и время подтверждения портала о приёме документа (ответ)' = DATA DATETIME(ImportDocMNS);
+reply 'XML-документ квитанция подтверждение портала о приёме документа (ответ)' = DATA STRING(ImportDocMNS);
+SPTInternalDateTime 'Дата и время создания документа в системе прослеживаемости (ответ)' = DATA DATETIME(ImportDocMNS);
+resultDescription 'Поясняющий текст к результату обработки (ответ)' = DATA  STRING(ImportDocMNS);
+resultCode 'Код результата обработки (ответ)' = DATA INTEGER(ImportDocMNS);
+
+version = DATA LOCAL INTEGER ();
+type = DATA LOCAL STRING();
+rectification = DATA LOCAL BOOLEAN ();
+kodIMNS = DATA LOCAL STRING();
+UNP = DATA LOCAL STRING();
+year = DATA LOCAL INTEGER();
+
+lastImportDocMNS (Purchase.Invoice i) = GROUP LAST ImportDocMNS d ORDER dateTime(d) BY invoice(d);
+
+GROUP district EXTID 'LetterTraceabilityImport_v1_f001';
+GROUP district2 EXTID 'LetterTraceabilityImport_v1_f001A';
+GROUP groupImportDoc EXTID 'LetterTraceabilityImport_v1_f002';
+GROUP groupDetail EXTID 'LetterTraceabilityImport_v1_t001';
+
+FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabilityimport/ver1:LetterTraceabilityImport'
+    PROPERTIES()
+        version ATTR,
+        type ATTR,
+        kodIMNS ATTR,
+        UNP ATTR,
+        rectification ATTR,
+        year ATTR
+
+    OBJECTS d = ImportDocMNS EXTID ''
+        PROPERTIES(d) IN district district EXTID 'value'
+        PROPERTIES(d) IN district2 district2 EXTID 'value'
+
+    PROPERTIES(d) IN groupImportDoc
+        seriesNumber EXTID 'LetterTraceabilityImport_v1_f002_s1',
+        dateTimeSignXML EXTID 'LetterTraceabilityImport_v1_f002_s2', 
+        nameLegalEntity EXTID 'LetterTraceabilityImport_v1_f002_s3', 
+            
+        sidCountryShipper EXTID 'LetterTraceabilityImport_v1_f002_s4',
+        nameCountryShipper EXTID 'LetterTraceabilityImport_v1_f002_s5',
+        idShippingDocument EXTID 'LetterTraceabilityImport_v1_f002_s6',
+        nameShippingDocument EXTID 'LetterTraceabilityImport_v1_f002_s7',
+        dateShippingDocument EXTID 'LetterTraceabilityImport_v1_f002_s8',
+        UNPShipper EXTID 'LetterTraceabilityImport_v1_f002_s9',
+        nameShipper EXTID 'LetterTraceabilityImport_v1_f002_s10',
+        numberShippingDocument EXTID 'LetterTraceabilityImport_v1_f002_s11',
+        nameShipperChief EXTID 'LetterTraceabilityImport_v1_f002_s12',
+        sidCountrySeller EXTID 'LetterTraceabilityImport_v1_f002_s13',
+        nameCountrySeller EXTID 'LetterTraceabilityImport_v1_f002_s14',
+        UNPSeller EXTID 'LetterTraceabilityImport_v1_f002_s15',
+        nameSeller EXTID 'LetterTraceabilityImport_v1_f002_s16'
+
+    OBJECTS dd = ImportDocMNSDetail IN groupDetail EXTID 'LetterTraceabilityImport_v1_t001_ri'
+    PROPERTIES(dd)
+        index EXTID 'LetterTraceabilityImport_v1_t001_ric1',
+        codeSku EXTID 'LetterTraceabilityImport_v1_t001_ric2',
+        extraCodeSku EXTID 'LetterTraceabilityImport_v1_t001_ric2a',
+        gtin EXTID 'LetterTraceabilityImport_v1_t001_ric2b',
+        nameSku EXTID 'LetterTraceabilityImport_v1_t001_ric3',
+        uomSku EXTID 'LetterTraceabilityImport_v1_t001_ric4',
+        quantityUomSku EXTID 'LetterTraceabilityImport_v1_t001_ric5',
+        trackingUOMCustomsGroup EXTID 'LetterTraceabilityImport_v1_t001_ric6',
+        quantityInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric7',
+        priceInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric8',
+        sumInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric9'
+//        letterTraceabilityImport_v1_t001_ric10 EXTID 'LetterTraceabilityImport_v1_t001_ric10', // Необязательный элемент. Регистрационный номер партии товара 
+    FILTERS importDocMNS(dd) == d
+
+    OBJECTS l = LotImportDocMNSDetail EXTID 'LetterTraceabilityImport_v1_t001_ric11'
+    PROPERTIES(l)
+        encodeBase64Code EXTID 'LetterTraceabilityImport_v1_t001_ric11a'
+    FILTERS importDocMNSDetail(l) == dd
+;
+    
+
+pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](ImportDocMNS);
+sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](ImportDocMNS);
+
+exportXMLFile = DATA LOCAL FILE ();
+
+createdImportDocMNS = DATA LOCAL ImportDocMNS();
+
+createImportDocMNS (Purchase.Invoice i) {
+    createdImportDocMNS() <- NULL;
+
+    NEW doc = ImportDocMNS {
+        createdImportDocMNS() <- doc;
+        invoice(doc) <- i;
+//        dateTime(doc) <- dateTime(i);
+        dateTime(doc) <- currentDateTime();
+        legalEntity(doc) <- customer(i);
+        prevImportDocMNS(doc) <- PREV(lastImportDocMNS(i));
+        refRecordId (doc) <- recordId(prevImportDocMNS(doc));
+
+        district(doc) <- district(legalEntity(doc));
+        district2(doc) <- district(legalEntity(doc));
+        dateTimeSign(doc) <- currentDateTime();
+        dateTimeSignXML(doc) <- toChar(dateTimeSign(doc), 'yyyy-MM-dd+03:00');
+
+        nameLegalEntity(doc) <- name(legalEntity(doc));
+        prevImportDocMNS(doc) <- PREV (lastImportDocMNS(i));
+        correctionNumber(doc) <- correctionNumber(prevImportDocMNS(doc)) (+) 1 IF prevImportDocMNS(doc);
+        seriesNumber(doc) <- CONCAT '_', seriesNumber(invoice(doc)), correctionNumber(doc);
+        prevDocNumber(doc) <- OVERRIDE seriesNumber(prevImportDocMNS(doc)), seriesNumber(i) IF doc IS ImportDocMNS;
+
+        
+        // Грузоотправильтель
+        sidCountryShipper(doc) <- idCountrySupplier(i);
+        nameCountryShipper(doc) <- name(country(supplier(i)));
+        idShippingDocument(doc) <- idShippingDocument(i);
+        nameShippingDocument(doc) <- nameShippingDocument(i);
+        dateShippingDocument(doc) <- toChar(dateShippingDocument(i), 'YYYY-MM-DD+03:00');
+        UNPShipper(doc) <- UNP(supplier(i));
+        nameShipper(doc) <- fullName(supplier(i));
+        numberShippingDocument(doc) <- numberShippingDocument(i);
+        nameShipperChief(doc)  <- nameChief(supplier(i));
+
+        // Продавец
+        sidCountrySeller(doc) <- idCountrySupplier(i);
+        nameCountrySeller(doc) <- name(country(supplier(i)));
+        UNPSeller(doc) <- UNP(supplier(i));
+        nameSeller(doc) <- fullName(supplier(i));
+
+        // переносим корректируемые документы
+        FOR importDocMNS(ImportDocMNSDetail d) == prevImportDocMNS(doc) DO NEW nd = ImportDocMNSDetail {
+            importDocMNS(nd) <- doc;
+            invoiceDetail(nd) <- invoiceDetail(d);
+            index(nd) <- index(d);
+            sku(nd) <- sku(d);
+            codeSku(nd) <- codeSku(d);
+            extraCodeSku(nd) <- extraCodeSku(d);
+            gtin(nd) <- gtin(d);
+
+            nameSku(nd) <- name(sku(nd));
+            uomSku(nd) <- trackingUOMCustomsGroup(sku(nd));
+            trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
+            quantityUomSku(nd) <- OVERRIDE (quantity(invoiceDetail(nd))) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(nd)) AND extraCodeSku(nd) == id(extraCode(sku(nd))), 0.0;
+            priceInvoiceDetail(nd) <- OVERRIDE (shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
+            quantityInvoiceDetail(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(nd));
+            sumInvoiceDetail(nd) <- OVERRIDE (quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+
+            FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail{
+                importDocMNSDetail(ld) <- nd;
+                lot(ld) <- l;
+                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+            }
+        }
+
+        LOCAL needNewDetail = BOOLEAN (Purchase.InvoiceDetail);
+        needNewDetail(Purchase.InvoiceDetail d) <- isTrackingOver(sku(d)) AND invoice(d) == i AND quantity(d) AND
+            (NOT GROUP MIN ImportDocMNSDetail dd IF importDocMNS(dd) == doc AND invoiceDetail(dd) == d AND 
+                codeSku(dd) == codeCustomsGroupDefaultCountry(sku((dd))) AND extraCodeSku(dd) == id(extraCode(sku(dd))));
+
+        // создаем новые
+        FOR needNewDetail(Purchase.InvoiceDetail d) DO NEW nd = ImportDocMNSDetail {
+            importDocMNS(nd) <- doc;
+            invoiceDetail(nd) <- d;
+            sku(nd) <- sku(d);
+            codeSku(nd) <- codeCustomsGroupDefaultCountry(sku(d));
+            extraCodeSku(nd) <- id(extraCode(sku(d)));
+            gtin(nd) <- gtin(sku(d));
+            nameSku(nd) <- name(sku(d));
+            uomSku(nd) <- trackingUOMCustomsGroup(sku(d));
+            quantityUomSku(nd) <- OVERRIDE (quantity(d)), 0.0;
+            trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(d));
+            priceInvoiceDetail(nd) <- OVERRIDE (shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
+            quantityInvoiceDetail(nd) <- OVERRIDE quantityUomSku(nd) * trackingUOMRatio(sku(nd)), 0.0;
+            sumInvoiceDetail(nd) <- OVERRIDE (quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+
+            FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail {
+                importDocMNSDetail(ld) <- nd;
+                lot(ld) <- l;
+                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+            }
+        }
+
+        index(ImportDocMNSDetail d) <- PARTITION SUM 1 ORDER d BY importDocMNS(d) WHERE doc == importDocMNS(d);
+    }
+}
+
+exportToXML(ImportDocMNS doc) {
+    version() <- 1;
+    type() <- 'LETTERTRACEABILITYIMPORT';
+    rectification() <- NULL;
+    kodIMNS() <- codeMNS(legalEntity(doc));
+    UNP() <- UNP(legalEntity(doc));
+    year() <- extractYear(DATE(createdTime(invoice(doc))));
+
+    EXPORT originalDocument OBJECTS d = doc XML TO exportXMLFile;
+}
+
+// Основной JSON
+originalDocument = DATA LOCAL STRING();
+documentId = DATA LOCAL STRING();
+documentNumber1 = DATA LOCAL STRING();
+VATRegistrationNumber = DATA LOCAL STRING();
+IMNS = DATA LOCAL STRING();
+documentDate = DATA LOCAL STRING ();
+documentName = DATA LOCAL STRING();
+refRecordId = DATA LOCAL INTEGER ();
+correctionDate = DATA LOCAL STRING();
+originalDocumentSign = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL STRING();
+//
+////documentNumber(ImportDocMNSDetail d) = seriesNumber(prevImportDocMNS(importDocMNS(d)));
+documentNumber(ImportDocMNSDetail d) = seriesNumber(importDocMNS(d));
+
+FORM exportJSON
+    PROPERTIES()
+        originalDocument,
+        documentId EXTID 'DocumentId',
+        documentNumber1 EXTID 'DocumentNumber',
+        VATRegistrationNumber,
+        IMNS,
+        documentDate EXTID 'DocumentDate',
+        documentName EXTID 'DocumentName',
+        refRecordId EXTID 'RefRecordId',
+        correctionDate EXTID 'CorrectionDate',
+
+        originalDocumentSign,
+        creationDateTime EXTID 'CreationDateTime'
+
+    OBJECTS d = ImportDocMNSDetail EXTID 'Items'
+    PROPERTIES
+    index = STRING (index(d)) EXTID 'lineItemNumber',
+        codeSku(d) EXTID 'itemCustomCode',
+        extraCodeSku(d) EXTID 'itemAdditionalCode',
+        gtin(d) EXTID 'gtinCode',
+        trackingUOMCustomsGroup(d) EXTID 'lineItemQuantitySPT',
+        quantityInvoiceDetail(d) EXTID 'quantityDespatchedSPT',
+        documentNumber(d) EXTID 'documentNumber'
+
+    FILTERS importDocMNS(d) == createdImportDocMNS()
+    ORDERS index
+;
+
+
+
+sendedMNS 'Отправлена в МНС' (Purchase.Invoice i) = GROUP MIN TRUE BY invoice(ImportDocMNS d);
+
+exportJSONFile = DATA LOCAL FILE ();
+generateJSON (Purchase.Invoice i) {
+    createImportDocMNS(i);
+    exportToXML(createdImportDocMNS());
+
+    fileToString(exportXMLFile());
+    resultString() <- replace(replace(replace(replace(replace(resultString(), 
+        '<LetterTraceabilityImport_v1_f001>', '<LetterTraceabilityImport_v1_f001 xmlns="">'),
+        '<LetterTraceabilityImport_v1_f001A>', '<LetterTraceabilityImport_v1_f001A xmlns="">'),
+        '<LetterTraceabilityImport_v1_f002>', '<LetterTraceabilityImport_v1_f002 xmlns="">'),
+        '<LetterTraceabilityImport_v1_t001>', '<LetterTraceabilityImport_v1_t001 xmlns="">'),
+        '<LetterTraceabilityImport_v1_t001_ric10>', '<LetterTraceabilityImport_v1_t001_ric10 xmlns="">');
+
+    resultFile() <- NULL;
+
+    originalDocument() <- replace(replace(encodeBase64(resultString()), '\n', ''), '\r', '');
+
+    signing(originalDocument());
+    originalDocumentSign() <- base64Signature();
+
+    IF NOT originalDocumentSign() THEN RETURN;
+
+    documentId() <- id(createdImportDocMNS());
+//    documentNumber1() <- seriesNumber(prevImportDocMNS(createdImportDocMNS()));
+    documentNumber1() <- seriesNumber(createdImportDocMNS());
+    VATRegistrationNumber() <- UNP(legalEntity(createdImportDocMNS()));
+    IMNS() <- codeMNS(legalEntity(createdImportDocMNS()));
+    documentDate() <- toChar(dateTime(createdImportDocMNS()), 'YYYYMMDD');
+    documentName() <- 'Сведения о ввозе';
+    refRecordId() <- refRecordId(createdImportDocMNS()); // TODO
+    correctionDate() <- toChar(dateTime(createdImportDocMNS()) , 'YYYYMMDD') IF PREV(sendedMNS(i)); // TODO 
+    creationDateTime() <- toChar(dateTimeSign(createdImportDocMNS()), 'yyyy-MM-dd HH:mm:ss');;
+
+    EXPORT exportJSON JSON TO exportJSONFile;
+}
+
+
+// Ответ JSON
+GROUP documentReply EXTID 'DocumentReply';
+GROUP result EXTID 'Result';
+
+recordId = DATA LOCAL NUMERIC();
+statusCode = DATA LOCAL STRING();
+documentReplyDateTime = DATA LOCAL DATETIME();
+reply = DATA LOCAL STRING();
+SPTInternalDateTime = DATA LOCAL DATETIME();
+resultDescription = DATA LOCAL STRING();
+resultCode = DATA LOCAL NUMERIC();
+
+FORM importJSON
+    PROPERTIES() recordId EXTID 'RecordId', statusCode EXTID 'StatusCode'
+    PROPERTIES() IN documentReply documentReplyDateTime EXTID 'DocumentReplyDateTime', reply EXTID 'Reply'
+    PROPERTIES() IN result SPTInternalDateTime, resultDescription EXTID 'ResultDescription', resultCode EXTID 'ResultCode';
+;
+
+importDocMNS 'Отправить в МНС' (Purchase.Invoice i) {
+    NEWSESSION {
+        generateJSON(i);
+
+        IF NOT exportJSONFile() THEN {
+            MESSAGE 'Накладная не была отправлена' NOWAIT;
+            RETURN;
+        }
+
+        fileToString(exportJSONFile());
+
+        LOCAL response = FILE();
+        TRY {
+
+            EXTERNAL HTTP POST mnsService() + '/document/import' PARAMS exportJSONFile() TO response;
+            fileToString(response());
+            fileToString(response());
+
+            IMPORT importJSON JSON FROM response();
+
+            IF NOT recordId() THEN {
+                MESSAGE resultDescription();
+                RETURN;
+            }
+
+            recordId(createdImportDocMNS()) <- recordId();
+            statusCode(createdImportDocMNS()) <- statusCode();
+            documentReplyDateTime(createdImportDocMNS()) <- documentReplyDateTime();
+            reply(createdImportDocMNS()) <- reply();
+            SPTInternalDateTime(createdImportDocMNS()) <- SPTInternalDateTime();
+            resultDescription(createdImportDocMNS()) <- resultDescription();
+            resultCode(createdImportDocMNS()) <- resultCode();
+
+            APPLY;
+        } CATCH {
+            fileToString(response());
+            printToLog(CONCAT '||', 'ExportImportDocMNS', currentDateTime(), '\n',
+                resultString(), '\n');
+            MESSAGE 'Ошибка отправки: ' + messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+showImportDocMNS(Purchase.Invoice i) = showImportEAEU(i) AND isPosted(i) AND useLot(operation(i)) AND NOT sendedMNS(i);
+
+correctingImportDocMNS 'Отправить корректировку в МНС' (Purchase.Invoice i) {
+    importDocMNS(i);
+}
+
+showCorrectingImportDocMNS(Purchase.Invoice i) = showImportEAEU(i) AND isPosted(i) AND useLot(operation(i)) AND sendedMNS(i);
+
+decodeBase64String (STRING data) = FORMULA STRING 'convert_from(decode($1, \'base64\'), \'UTF8\')';
+
+EXTEND FORM invoices
+    PROPERTIES(i) READONLY sendedMNS
+    PROPERTIES(i) PANEL importDocMNS SHOWIF showImportDocMNS(i), correctingImportDocMNS SHOWIF showCorrectingImportDocMNS(i)
+
+    OBJECTS id = ImportDocMNS
+    PROPERTIES(id)  READONLY  id, dateTime, nameLegalEntity, district, district2, dateTimeSign, seriesNumber,
+        prevDocNumber, refRecordId,
+        //Данные ответа
+        recordId, statusCode, documentReplyDateTime, reply, SPTInternalDateTime, resultDescription, resultCode
+    FILTERS invoice(id) == i
+    ORDERS dateTime(id)
+
+    OBJECTS idd = ImportDocMNSDetail
+    PROPERTIES(idd)  READONLY index, codeSku, extraCodeSku, gtin, nameSku, uomSku,
+        quantityUomSku, trackingUOMCustomsGroup, priceInvoiceDetail, sumInvoiceDetail, quantityInvoiceDetail
+    FILTERS  importDocMNS(idd) == id
+
+    OBJECTS lidd = LotImportDocMNSDetail
+    PROPERTIES 'Марка' = decodeBase64String(encodeBase64Code(lidd))
+    FILTERS importDocMNSDetail(lidd) == idd
+;
+
+DESIGN invoices {    
+    documentDetail {
+        NEW MNS {
+            caption = 'Отправка в МНС';
+
+            horizontal = TRUE;
+            MOVE BOX(id);
+            NEW importDocDetailMNS {
+                fill = 1;
+
+                MOVE BOX(idd);
+                MOVE BOX(lidd);
+            }
+        }
+    }
+}
+
