@@ -1,0 +1,35 @@
+MODULE EDSTopByExtraAlias;
+
+REQUIRE EDSTopBy;
+
+NAMESPACE EDI;
+
+aliasEDSService2 'Контейнер ключа (получатель)' = DATA STRING[150] (LegalEntity);
+passwordEDSService2 'Пароль ключа (получатель)' = DATA STRING[100] (LegalEntity) ECHO;
+edsFrom2 'Действителен с (получатель)' = DATA DATETIME (LegalEntity);
+edsTo2 'Действителен по (получатель)' = DATA DATETIME (LegalEntity);
+
+changeAlias2 'Получить список ключей (получатель)' (LegalEntity l) {
+    listAliases(EDSServiceTopBy(l));
+    IF selected() THEN {
+        aliasEDSService2(l) <- alias(selected());
+        edsFrom2(l) <- notBeforeISO8601(selected());
+        edsTo2(l) <- notAfterISO8601(selected());
+    }
+} TOOLBAR;
+
+EXTEND FORM integrationData
+    PROPERTIES(le) aliasEDSService2, passwordEDSService2, edsFrom2, edsTo2
+    PROPERTIES(le) changeAlias2 SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(le)) == EDSApplication.sccp)
+;
+
+DESIGN integrationData {
+    PROPERTY (aliasEDSService(le)) { caption = 'Контейнер ключа (отправитель)'; }
+    PROPERTY (passwordEDSService(le)) { caption = 'Пароль ключа (отправитель)'; }
+    PROPERTY (edsFrom(le)) { caption = 'Действителен с (отправитель)'; }
+    PROPERTY (edsTo(le)) { caption = 'Действителен по (отправитель)'; }
+    PROPERTY (changeAlias(le)) { caption = 'Получить список ключей (отправитель)'; }
+}
+
+extraAliasEDSService(LegalEntity le) += aliasEDSService2(le);
+extraPasswordEDSService(LegalEntity le) += passwordEDSService2(le);
