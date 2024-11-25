@@ -538,6 +538,14 @@ META defProp(name, caption, type, class)
         in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
     }
 END
+META defPropNotDate(name, caption, type, class)
+    name caption = ABSTRACT type (###class, Configuration);
+
+    WHEN CHANGED(name(###class d, Configuration c)) DO {
+        packet(c, d) <- NULL;
+        in(c, d) <- inSending(c, d);
+    }
+END
 
 META defPropDetail(name, caption, type, class, table)
     name caption = ABSTRACT type (###class###table, Configuration);
@@ -660,7 +668,7 @@ META defKeyPropDate (nm, caption, group, class)
     @defProp(nm, caption, DATE, class);
     nm###class caption = DATA LOCAL DATE (INTEGER);
     string###nm caption (###class class, Configuration configuration) = dateToString(nm(class, configuration));
-    
+
     EXTEND FORM sendMessage PROPERTIES string###nm(class, configuration) IN group EXTID caption;
     EXTEND FORM receiveMessage PROPERTIES nm###class(class) IN group EXTID caption;
 END
@@ -669,7 +677,7 @@ END
 META defKeyPropSimple (nm, caption, type, group, class)
     @defProp(nm, caption, type, class);
     nm###class caption = DATA LOCAL STRING (INTEGER);
-    
+
     EXTEND FORM sendMessage PROPERTIES nm(class, configuration) IN group EXTID caption;
     EXTEND FORM receiveMessage PROPERTIES nm###class(class) IN group EXTID caption;
 END
