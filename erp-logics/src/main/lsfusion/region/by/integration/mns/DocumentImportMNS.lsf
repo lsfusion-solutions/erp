@@ -209,7 +209,7 @@ createImportDocMNS (Purchase.Invoice i) {
             FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail{
                 importDocMNSDetail(ld) <- nd;
                 lot(ld) <- l;
-                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+                encodeBase64Code(ld) <- replace(replace(DocumentMNS.encodeText(code(l), 'base64'), '\n', ''), '\r', '');
             }
         }
 
@@ -237,7 +237,7 @@ createImportDocMNS (Purchase.Invoice i) {
             FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail {
                 importDocMNSDetail(ld) <- nd;
                 lot(ld) <- l;
-                encodeBase64Code(ld) <- replace(replace(encodeBase64(code(l)), '\n', ''), '\r', '');
+                encodeBase64Code(ld) <- replace(replace(DocumentMNS.encodeText(code(l), 'base64'), '\n', ''), '\r', '');
             }
         }
 
@@ -320,7 +320,7 @@ generateJSON (Purchase.Invoice i) {
 
     resultFile() <- NULL;
 
-    originalDocument() <- replace(replace(encodeBase64(resultString()), '\n', ''), '\r', '');
+    originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
 
     signing(originalDocument());
     originalDocumentSign() <- base64Signature();
@@ -431,7 +431,7 @@ EXTEND FORM invoices
     FILTERS  importDocMNS(idd) == id
 
     OBJECTS lidd = LotImportDocMNSDetail
-    PROPERTIES 'Марка' = decodeBase64String(encodeBase64Code(lidd))
+    PROPERTIES 'Марка' = STRING(DocumentMNS.decodeText(encodeBase64Code(lidd), 'base64'))
     FILTERS importDocMNSDetail(lidd) == idd
 ;
 
