@@ -1,6 +1,6 @@
 MODULE DocumentImportMNS;
 
-REQUIRE DocumentMNS, NTClientSoftware, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot;
+REQUIRE DocumentMNS, NTClientSoftware, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot, LegalEntityCU;
 
 CLASS ImportDocMNS 'Документ выгрузки в МНС (подача сведений о ввозе)';
 
@@ -177,7 +177,7 @@ createImportDocMNS (Purchase.Invoice i) {
         idShippingDocument(doc) <- idShippingDocument(i);
         nameShippingDocument(doc) <- nameShippingDocument(i);
         dateShippingDocument(doc) <- toChar(dateShippingDocument(i), 'YYYY-MM-DD+03:00');
-        UNPShipper(doc) <- UNP(supplier(i));
+        UNPShipper(doc) <- OVERRIDE UNP(supplier(i)), UNPForeign(supplier(i));
         nameShipper(doc) <- fullName(supplier(i));
         numberShippingDocument(doc) <- numberShippingDocument(i);
         nameShipperChief(doc)  <- nameChief(supplier(i));
@@ -185,7 +185,7 @@ createImportDocMNS (Purchase.Invoice i) {
         // Продавец
         sidCountrySeller(doc) <- idCountrySupplier(i);
         nameCountrySeller(doc) <- name(country(supplier(i)));
-        UNPSeller(doc) <- UNP(supplier(i));
+        UNPSeller(doc) <- OVERRIDE UNP(supplier(i)), UNPForeign(supplier(i));
         nameSeller(doc) <- fullName(supplier(i));
 
         // переносим корректируемые документы
