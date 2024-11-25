@@ -8,10 +8,11 @@ quantityOneListInventoryDetails (Sku sku, STRING[200] id) = GROUP SUM quantity(T
     BY sku(terminalDocumentDetail(tld)), id(tld);
 
 overAddOneListInventoryDetail(PageInventoryDetail d) + {
-    FOR quantityOneListInventoryDetails(sku(d), STRING[200] id) AND NOT lot(id) DO NEW l = Lot {
-        id(l) <- id;
-        sku(l) <- sku(d);
-        dataCount(l) <- quantityOneListInventoryDetails(sku(d),id) IF quantityOneListInventoryDetails(sku(d),id) != 1;
+    FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
+        id(l) <- id(tl);
+        tail(l) <- tail(tl);
+        sku(l) <- sku(terminalDocumentDetail(tl));
+        dataCount(l) <- quantity(tl) IF quantity(tl) != 1;;
     }
     quantity(d, Lot l) <- NUMERIC[16,5] (GROUP SUM 1 IF quantityOneListInventoryDetails(sku(d), id(l)));
 }
