@@ -364,7 +364,7 @@ fillTrackingInvoice ABSTRACT LIST (Purchase.Invoice);
 fillTrackingInvoice(Purchase.Invoice i) + {
     FOR lastImportDocMNS(i) == ImportDocMNS im AND invoice(im) = i DO {
         LOCAL correct = INTEGER (Purchase.InvoiceDetail);
-        correct(Purchase.InvoiceDetail pid ) <- GROUP SUM 1 IF ImportDocMNSDetail std AND invoice(pid)==i AND invoice(importDocMNS(std))==i ;
+        correct(Purchase.InvoiceDetail pid ) <-  1 WHERE invoice(pid)==i;
         isTrackingData(Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
         deliveryTypePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
         deliveryNotePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
@@ -374,7 +374,7 @@ fillTrackingInvoice(Purchase.Invoice i) + {
         itemCustomCode (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
         itemCustomCodeOther (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
 
-        FOR invoiceDetail(ImportDocMNSDetail td) == Purchase.InvoiceDetail ipd AND importDocMNS(td)==im AND quantityUomSku(td)>0 DO{
+        FOR invoiceDetail(ImportDocMNSDetail td) == Purchase.InvoiceDetail ipd AND importDocMNS(td)==im AND invoice(ipd)==i AND quantityUomSku(td)>0 DO{
             isTrackingData (ipd) <- TRUE;
             deliveryTypePrev (ipd) <- 5 ;
             deliveryNotePrev (ipd) <- seriesNumber(importDocMNS(td));
