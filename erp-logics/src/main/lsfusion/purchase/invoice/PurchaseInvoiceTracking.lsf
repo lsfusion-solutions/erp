@@ -26,17 +26,19 @@ numberShippingDocument 'Регистрационный номер сопрово
 
 @defineOperationProperty(importEAEU, 'Импорт из ЕАЭС', showContainer);
 
-importEAEU 'Импорт из ЕАЭС' = DATA BOOLEAN (UserInvoice);
 showImportEAEU (Invoice i) = TRUE  IF importEAEU(operation(i));
 countrySupplier 'Страна грузоотправителя' (Invoice i) = name(country(supplier(i)));
 idCountrySupplier 'Код страны' (Invoice i) = sidOrigin2(country(supplier(i)));
+isImportEAEU 'Импорт из ЕАЭС' (Invoice i) = TRUE IF (importEAEU(operation(i)) AND (idCountrySupplier(i) == 'RU' OR idCountrySupplier(i) == 'KG'
+    OR idCountrySupplier(i) == 'AM' OR idCountrySupplier(i) == 'KZ') );
+notImportEAEU (Invoice i) = TRUE IF i IS Invoice AND NOT isImportEAEU(i);
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
     PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
     PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument
-    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) importEAEU, countrySupplier READONLY, idCountrySupplier READONLY
+    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) isImportEAEU, countrySupplier READONLY, idCountrySupplier READONLY
     FILTERS userInvoice(d6) == i, isTracking(d6)
 
 ;
@@ -52,7 +54,7 @@ DESIGN userInvoice{
                 MOVE PROPERTY(nameShippingDocument(i)) { caption='Наименование';}
                 MOVE PROPERTY(numberShippingDocument(i)) { caption='Рег.№';}
                 MOVE PROPERTY(dateShippingDocument(i)) { caption='Дата';}
-                MOVE PROPERTY(importEAEU(i)) ;
+                MOVE PROPERTY(isImportEAEU(i)) ;
                 MOVE PROPERTY(countrySupplier(i)) ;
                 MOVE PROPERTY(idCountrySupplier(i)) ;
             }

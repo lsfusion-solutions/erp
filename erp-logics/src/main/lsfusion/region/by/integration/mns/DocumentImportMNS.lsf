@@ -361,6 +361,12 @@ FORM importJSON
 ;
 
 importDocMNS 'Отправить в МНС' (Purchase.Invoice i) {
+    IF notImportEAEU(i) THEN {
+        MESSAGE 'Для импорта код страны поставщика должен быть RU/KG/AM/KZ \n' +
+            (GROUP CONCAT (CONCAT ' ', 'у накладной код страны ' + idCountrySupplier(i)) , '\n' ORDER i) NOWAIT;
+        RETURN;
+    }
+
     NEWSESSION {
         generateJSON(i);
 
