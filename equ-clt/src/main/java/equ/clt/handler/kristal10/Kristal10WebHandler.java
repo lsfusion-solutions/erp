@@ -407,7 +407,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             LocalDateTime dateTimeCashDocument = LocalDateTime.parse(readStringXMLAttribute(cashDocumentNode, "regtime"), DateTimeFormatter.ISO_DATE_TIME);
 
-            String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + numberZReport + "/" + (cashIn ? "introduction" : "withdrawal");
+            String idCashDocument = numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + dateTimeCashDocument.toLocalDate() + "/" +numberZReport + "/" + (cashIn ? "introduction" : "withdrawal");
 
             cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateTimeCashDocument.toLocalDate(), dateTimeCashDocument.toLocalTime(),
                     numberGroup, numberCashRegister, numberZReport, sumCashDocument));
