@@ -359,6 +359,33 @@ FORM importJSON
     PROPERTIES() IN documentReply documentReplyDateTime EXTID 'DocumentReplyDateTime', reply EXTID 'Reply'
     PROPERTIES() IN result SPTInternalDateTime, resultDescription EXTID 'ResultDescription', resultCode EXTID 'ResultCode';
 ;
+fillTrackingInvoice ABSTRACT LIST (Purchase.Invoice);
+
+fillTrackingInvoice(Purchase.Invoice i) + {
+    FOR lastImportDocMNS(i) == ImportDocMNS im AND invoice(im) = i DO {
+        LOCAL correct = INTEGER (Purchase.InvoiceDetail);
+        correct(Purchase.InvoiceDetail pid ) <- GROUP SUM 1 IF ImportDocMNSDetail std AND invoice(pid)==i AND invoice(importDocMNS(std))==i ;
+        isTrackingData(Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        deliveryTypePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        deliveryNotePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        deliveryNoteDate (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        deliveryNotePrevLineID (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        lineItemQuantitySPT (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        itemCustomCode (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+        itemCustomCodeOther (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
+
+        FOR invoiceDetail(ImportDocMNSDetail td) == Purchase.InvoiceDetail ipd AND importDocMNS(td)==im AND quantityUomSku(td)>0 DO{
+            isTrackingData (ipd) <- TRUE;
+            deliveryTypePrev (ipd) <- 5 ;
+            deliveryNotePrev (ipd) <- seriesNumber(importDocMNS(td));
+            deliveryNoteDate (ipd) <- DATE(dateTimeSign(importDocMNS(td)));
+            deliveryNotePrevLineID (ipd) <- index(td);
+            lineItemQuantitySPT (ipd) <- trackingUOMCustomsGroup(td);
+            itemCustomCode (ipd) <- codeSku(td);
+            itemCustomCodeOther (ipd) <- extraCodeSku(td);
+        }
+    }
+}
 
 importDocMNS 'Отправить в МНС' (Purchase.Invoice i) {
     IF notImportEAEU(i) THEN {
@@ -398,6 +425,7 @@ importDocMNS 'Отправить в МНС' (Purchase.Invoice i) {
             SPTInternalDateTime(createdImportDocMNS()) <- SPTInternalDateTime();
             resultDescription(createdImportDocMNS()) <- resultDescription();
             resultCode(createdImportDocMNS()) <- resultCode();
+            fillTrackingInvoice(i);
 
             APPLY;
         } CATCH {

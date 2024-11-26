@@ -4,8 +4,9 @@ REQUIRE PurchaseInvoice, ItemTracking, BatchTracking, PurchaseShipment;
 
 NAMESPACE Purchase;
 
+isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Purchase.InvoiceDetail);
 isTracking 'Подлежит прослеживанию' = ABSTRACT VALUE BOOLEAN (Purchase.InvoiceDetail);
-isTracking (UserInvoiceDetail d) += isTrackingOver(sku(d));
+isTracking (UserInvoiceDetail d) += OVERRIDE isTrackingData(d), isTrackingOver(sku(d));
 
 isTracking(Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND invoice(d)==i;
 showSPT (Invoice i)= TRUE IF isTracking(i);
