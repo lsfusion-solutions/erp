@@ -66,12 +66,13 @@ META defineDocumentGISMTIn (senderProp, receiverProp)
     @defineOperationProperty(returnType, 'Вид возврата', STRING, inGISMTContainer);
 
     gismtType (Invoice i) += WHEN returnType(operation(i)) THEN 'LP_RETURN';
-
+    overTradeParticipantInn = ABSTRACT STRING[15] (Invoice);
+    
     FORM exportInvoiceReturn
         OBJECTS i = Invoice, t = LotType PANEL
         
         PROPERTIES return_type = returnType(operation(i)), 
-                   trade_participant_inn = inn(senderProp(i))
+                   trade_participant_inn = (OVERRIDE overTradeParticipantInn(i), inn(senderProp(i)))
         
         OBJECTS products_list = (d = InvoiceDetail, l = Lot)
         PROPERTIES ki = id(l)
@@ -107,7 +108,10 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
     participantStock (InvoiceDocument i) += receiverProp##Stock(invoice(i));
 
     skipExport = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
-    
+
+    overSenderInn = ABSTRACT STRING[15] (Invoice);
+    overReceiverInn = ABSTRACT STRING[15] (Invoice);
+
     FORM exportInvoice
         OBJECTS i = Invoice, t = LotType PANEL
         
@@ -115,8 +119,8 @@ META defineDocumentGISMTOut (senderProp, receiverProp)
                    document_date = toDateISO(date(i)), 
                    document_num = seriesNumber(i),
                    turnover_type = 'SELLING',
-                   sender_inn = inn(senderProp(i)), 
-                   receiver_inn = inn(receiverProp(i))
+                   sender_inn = (OVERRIDE overSenderInn(i), inn(senderProp(i))), 
+                   receiver_inn = (OVERRIDE overReceiverInn(i), inn(receiverProp(i)))
         
         OBJECTS products = (d = InvoiceDetail, l = Lot)
         PROPERTIES uit_code = id(l) IF NOT aggregated(l),
