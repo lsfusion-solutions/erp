@@ -1676,9 +1676,14 @@ DESIGN zReportDialog{
 }
 
 fiscalResetReceiptCashRegister  ABSTRACT LIST ( Receipt) CONFIRM;
+lastReceipt = GROUP MAX Receipt r IF zReport(r) == currentZReportDepartmentStore();
 fiscalResetReceipt 'Аннулировать чек' ()  {
-    ASK 'Данное действие аннулирует последний чек. Продолжить?' DO {
-        fiscalResetReceiptCashRegister(GROUP MAX Receipt r IF zReport(r) == currentZReportDepartmentStore());
+    IF dataSkip(lastReceipt()) THEN {
+        MESSAGE 'Чек №' + number(lastReceipt()) + ' был аннулирован ранее';
+    } ELSE {
+        ASK 'Данное действие аннулирует последний чек. Продолжить?' DO {
+            fiscalResetReceiptCashRegister(lastReceipt());
+        }
     }
 } CONFIRM;
 
