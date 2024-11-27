@@ -1,6 +1,6 @@
 MODULE DocumentImportMNS;
 
-REQUIRE DocumentMNS, NTClientSoftware, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot, LegalEntityCU;
+REQUIRE DocumentMNS, PurchaseInvoice, LegalEntityBy, Lot, PurchaseInvoiceTracking, PurchaseShipmentLot, LegalEntityCU;
 
 CLASS ImportDocMNS 'Документ выгрузки в МНС (подача сведений о ввозе)';
 
@@ -301,8 +301,13 @@ FORM exportJSON
     ORDERS index
 ;
 
+sign 'Подписать' ABSTRACT LIST (ImportDocMNS, STRING, BOOLEAN);
 
-
+sign(ImportDocMNS e, STRING contentSubXML, BOOLEAN interactive) + {
+    IF NOT signatureApp() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
 sendedMNS 'Отправлена в МНС' (Purchase.Invoice i) = GROUP MIN TRUE BY invoice(ImportDocMNS d);
 
 exportJSONFile = DATA LOCAL FILE ();
@@ -322,7 +327,7 @@ generateJSON (Purchase.Invoice i) {
 
     originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
 
-    signing(originalDocument());
+    sign(createdImportDocMNS(), originalDocument(), TRUE);
     originalDocumentSign() <- base64Signature();
 
     IF NOT originalDocumentSign() THEN RETURN;

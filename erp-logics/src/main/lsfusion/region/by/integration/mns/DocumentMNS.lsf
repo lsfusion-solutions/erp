@@ -2,6 +2,8 @@ MODULE DocumentMNS;
 
 REQUIRE LegalEntity, ItemTracking;
 
+base64Signature = DATA LOCAL STRING ();
+
 basic = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';
@@ -28,14 +30,20 @@ DESIGN legalEntity {
     }
 }
 
+CLASS SignatureApp 'Приложение для подписи';
+
+signatureApp () = DATA SignatureApp();
+nameSignatureApp 'Приложение для подписи' () = staticCaption(signatureApp());
+
 mnsService 'URL' = DATA STRING();
-EXTEND FORM integrationData PROPERTIES mnsService();
+EXTEND FORM integrationData PROPERTIES mnsService(), nameSignatureApp();
 
 DESIGN integrationData {
     pane {
         NEW mnsService {
             caption = 'МНС';
             MOVE PROPERTY (mnsService());
+            MOVE PROPERTY (nameSignatureApp());
         }
     }
 }

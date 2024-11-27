@@ -1,6 +1,6 @@
 MODULE DocumentStocktakeMNS;
 
-REQUIRE DocumentMNS, Inventory, LegalEntityBy, ItemTracking, Lot, InventoryLot, NTClientSoftware, BatchInventoryTracking;
+REQUIRE DocumentMNS, Inventory, LegalEntityBy, ItemTracking, Lot, InventoryLot, BatchInventoryTracking;
 
 NAMESPACE Inventory;
 
@@ -304,6 +304,13 @@ FORM exportJSON
 
 sendedMNS 'Отправлена в МНС' (Inventory i) = GROUP MIN TRUE BY inventory(Stocktake s);
 
+sign 'Подписать' ABSTRACT LIST (Stocktake, STRING, BOOLEAN);
+
+sign(Stocktake e, STRING contentSubXML, BOOLEAN interactive) + {
+    IF NOT signatureApp() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
 exportJSONFile = DATA LOCAL FILE ();
 generateJSON (Inventory inv) {
     createStocktake(inv);
@@ -320,7 +327,7 @@ generateJSON (Inventory inv) {
     
     originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
     
-    signing(originalDocument());
+    sign(createdStocktake(), originalDocument(), TRUE);
     originalDocumentSign() <- base64Signature();
     
     IF NOT originalDocumentSign() THEN RETURN;
@@ -359,6 +366,7 @@ FORM importJSON
 ;
 
 stocktakeMNS 'Отправить в МНС' (Inventory inv) {
+
     IF notTracking(inv) THEN {
         MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
             (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;

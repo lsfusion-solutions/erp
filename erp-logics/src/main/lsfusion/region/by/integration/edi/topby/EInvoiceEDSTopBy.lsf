@@ -163,37 +163,6 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice eInvoice, FILE contentS
     }
 }
 
-//SC-CryptoProxy
-GROUP auth EXTID 'Auth';
-
-keyID = DATA LOCAL STRING();
-password = DATA LOCAL STRING();
-OID = DATA LOCAL STRING(INTEGER);
-text = DATA LOCAL STRING(INTEGER);
-
-FORM sccpSign
-    PROPERTIES =TRUE EXTID 'OptAddAllCert', =TRUE EXTID 'OptAddCert', =TRUE EXTID 'OptCheckPrivateKey', encodedBase64() EXTID 'DataB64' 
-    PROPERTIES IN auth keyID() EXTID 'KeyID', password() EXTID 'Password', = 1 EXTID 'CryptoType'
-    
-    OBJECTS attributes = INTEGER EXTID 'Attributes'
-    PROPERTIES(attributes) text EXTID 'Text', OID
-    FILTERS OID(attributes);
-
-GROUP signInfo EXTID 'SignInfo';
-
-issuerSerial = DATA LOCAL STRING();
-subjectName = DATA LOCAL STRING();
-signDateTimeISO8601 = DATA LOCAL DATETIME ();
-issuerName = DATA LOCAL STRING();
-serial = DATA LOCAL STRING();
-errorCode = DATA LOCAL INTEGER();
-resultB64 = DATA LOCAL STRING();
-
-FORM sccpSignResult
-    PROPERTIES() errorCode EXTID 'ErrorCode', signError EXTID 'ErrorMessage', resultB64 EXTID 'ResultB64'
-    PROPERTIES() IN signInfo issuerSerial EXTID 'IssuerSerial', subjectName EXTID 'SubjectName', signDateTimeISO8601 EXTID 'SignDateTimeISO8601', issuerName EXTID 'IssuerName', serial EXTID 'Serial'
-;
-
 getAcknowledgement(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<Acknowledgement>.*</Acknowledgement>).*\'))[1]';
 getActdif(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<Actdif>.*</Actdif>).*\'))[1]';
 getDeliveryNote(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<DeliveryNote>.*</DeliveryNote>).*\'))[1]';
