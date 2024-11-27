@@ -193,15 +193,17 @@ importReceipt(STRING purchases){
         LOCAL saleReceipt = Receipt(INTEGER);
         saleReceipt(INTEGER i) <- receipt(operDay(i) + '_' + shop(i) + '_' + cash(i) + '_' + shift(i) + '_' + number(i)) IF isReturn(i);
 
-        FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isSale(x) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
+        FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isSale(purchasePosition(x)) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
             AND NOT receiptDetail(id) NEW d = ReceiptSaleDetail DO {
             id(d) <- id;
             receipt(d) <- r;
+            printToLog(CONCAT ' : ', 'sale', id, number(r), date(r));
         }
-        FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isReturn(x) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
+        FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isReturn(purchasePosition(x)) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
             AND NOT receiptDetail(id) NEW d = ReceiptReturnDetail DO {
             id(d) <- id;
             receipt(d) <- r;
+            printToLog(CONCAT ' : ', 'return', id, number(r), date(r));
         }
 
         LOCAL receiptSaleDetail = ReceiptSaleDetail (INTEGER);
