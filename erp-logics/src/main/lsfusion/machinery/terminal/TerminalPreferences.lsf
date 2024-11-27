@@ -5,7 +5,7 @@ REQUIRE System, Terminal;
 CLASS Preference 'Настройки' {
 // nameGroup|order|jsonName|name|type
     GENERAL_OPTIONS                     'GENERAL|000|Options|Опции приложения|3',
-//    GENERAL_DB_NAME                   'GENERAL|001|DatabaseName|Файл БД|0|tsd',
+    GENERAL_FONT_SCALE                  'GENERAL|001|FontScale|Размер шрифта|2|1',
     GENERAL_AUTODOCNUM                  'GENERAL|002|AutoDocumentNumbering|Автоматическая нумерация документа|1',
     GENERAL_CONFIRM_OVERQUANTITY        'GENERAL|003|ConfirmOverQuantity|Подтверждать превышение количества при вводе документа|1',
     GENERAL_CONFIRM_LOAD_DB             'GENERAL|004|ConfirmLoadDB|Подтверждать загрузку БД при наличии невыгруженных документов|1',    
@@ -108,10 +108,29 @@ stringToYesNo(STRING s) = CASE
     WHEN s = 'Yes' THEN YesNo.true
     WHEN s = 'No' THEN YesNo.false MATERIALIZED;
 
-
 FORM dialogYesNo 'Значение'
     OBJECTS y = YesNo
     PROPERTIES name(y) READONLY
+;
+
+CLASS FontScale 'Размер шрифта' {
+    FontNormal '1|Normal',
+    FontLarge '2|Large',
+    FontBig '3|Big'
+}
+
+font (STRING s) = CASE
+    WHEN s == 'Normal' THEN FontScale.FontNormal
+    WHEN s == 'Large' THEN FontScale.FontLarge
+    WHEN s == 'Big' THEN FontScale.FontBig
+;
+
+value (FontScale o) = STRING(getWord(staticCaption(o), '|',1));
+name (FontScale o) = STRING(getWord(staticCaption(o), '|',2));
+
+FORM dialogFontScale 'Размер шрифта'
+    OBJECTS f = FontScale
+    PROPERTIES name(f) READONLY
 ;
 
 getType(STRING s) = CASE 
@@ -150,16 +169,21 @@ FORM dialogText 'Текст'
 ;
 
 DESIGN dialogText {
-	BOX {
-		size = (300, 150); 
+    BOX {
+        size = (300, 150); 
         MOVE PROPERTY(objValue) { fill = 1; caption = ''; focusable = FALSE; font = 'bold 16'; }
-	}
-	MOVE TOOLBARBOX; 
+    }
+    MOVE TOOLBARBOX; 
 }
 
 changePreferenceValue(Preference p)  {
     CASE
-        WHEN p == Preference.OBMEN_TYPE THEN {           
+        WHEN p == Preference.GENERAL_FONT_SCALE THEN {
+            DIALOG dialogFontScale OBJECTS f = font(value(p)) INPUT DO {
+                value(p) <- name(f);
+            }
+        }
+        WHEN p == Preference.OBMEN_TYPE THEN {
             DIALOG dialogObmen OBJECTS o = obmen(value(p)) INPUT DO {
                 value(p) <- name(o);
             }
@@ -167,7 +191,7 @@ changePreferenceValue(Preference p)  {
         WHEN type(p) == PreferenceType.TYPE_TEXT THEN {
             DIALOG dialogText OBJECTS s = value(p) INPUT DO {
                 value(p) <- s;
-            }        	           
+            }
         }
         WHEN type(p) == PreferenceType.TYPE_STRING THEN {
             INPUT s = STRING DO {
@@ -177,6 +201,10 @@ changePreferenceValue(Preference p)  {
         WHEN type(p) == PreferenceType.TYPE_INTEGER THEN {
             INPUT s = INTEGER DO {
                 value(p) <- trim(TEXT(s));
+
+//                IF p == Preference.GENERAL_FONT_SCALE AND value(p) != '1' AND value(p) != '2' AND value(p) != '3' THEN {
+//                    value(p) <- '1';
+//                }
             }
         }
         WHEN type(p) == PreferenceType.TYPE_YESNO THEN {           
@@ -193,6 +221,7 @@ FORM preferences 'Конфигурация ТСД'
 ;
 
 jsonValue(Preference p) = CASE
+    WHEN p = Preference.GENERAL_FONT_SCALE THEN value(font(overValue(p)))
     WHEN p = Preference.OBMEN_TYPE THEN value(obmen(overValue(p))) 
     WHEN type(p) = PreferenceType.TYPE_YESNO THEN value(stringToYesNo(overValue(p)))
     WHEN type(p) = PreferenceType.TYPE_INTEGER THEN overValue(p)
