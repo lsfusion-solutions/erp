@@ -14,7 +14,7 @@ countrySupplier 'Страна поставщика' (EInvoice i) = name(country(
 
 countryCodeCustomer 'Код страны покупателя' (EInvoice i) = sidOrigin2(country(customer(i)));
 countryCustomer 'Страна покупателя' (EInvoice i) = name(country(customer(i)));
-overUNPCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE UNPForeign(customer(i)), UNP(customer(i));
+overUNPCustomer 'УНП покупателя(транзит)' (EInvoice i) = OVERRIDE UNPForeign(customer(i)), UNP(customer(i));
 
 EXTEND CLASS EInvoiceMessageType {
     systemmessage_blrspt 'SYSTEMMESSAGE-BLRSPT',
@@ -23,7 +23,7 @@ EXTEND CLASS EInvoiceMessageType {
 }
 
 EXTEND FORM eInvoices
-    PROPERTIES(e) BACKGROUND background(e) READONLY isTransit AFTER isTN2(e)
+    PROPERTIES(e) BACKGROUND background(e) READONLY isTransit AFTER isTN2(e), overUNPCustomer BEFORE nameCustomerStock(e)
 ;
 
 beforeCreateEInvoiceTransit ABSTRACT (Consignment);
@@ -88,15 +88,17 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
 }
 
 EXTEND FORM Sale.invoices
-    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i))
+    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))
 ;
+
 DESIGN Sale.invoices {
     createEI {
         MOVE PROPERTY(createEInvoiceTransit(i)) AFTER PROPERTY(createEInvoiceTN2(i));
     }
 }
+
 EXTEND FORM PurchaseReturn.invoices
-    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT eInvoice(i) AND NOT hideCreateEInvoice(i))
+    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))
 ;
 
 DESIGN PurchaseReturn.invoices {
