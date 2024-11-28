@@ -127,6 +127,7 @@ overCreateReceiptDetail(ReceiptDetail d, INTEGER j) +{
 
 overCreateZReport ABSTRACT LIST(ZReport);
 
+useDeletePaymentSet10 = DATA BOOLEAN ();
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
@@ -246,6 +247,12 @@ importReceipt(STRING purchases){
             NUMERIC[18,4] (amount1(j)))
             * (IF isSale(purchasePayment(j)) THEN 1 ELSE -1)
         ) IF purchasePayment(j);
+
+
+        IF useDeletePaymentSet10() THEN{
+            FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) DO
+                DELETE Payment p WHERE receipt(p) = r;
+        }
         
         FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j))
             AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = Payment DO{
