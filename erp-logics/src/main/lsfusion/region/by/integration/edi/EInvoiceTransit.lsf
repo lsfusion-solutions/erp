@@ -232,6 +232,7 @@ FORM exportBlrspt FORMEXTID 'BLRSPT'
 ;
 
 FORM exportBlrsptNew FORMEXTID 'BLRSPT'
+    PROPERTIES ATTR ='2.0' IF hideMessageHeaderBlrspt() EXTID 'version'
     OBJECTS ei = EInvoice PANEL
 
     OBJECTS eih = EInvoice EXTID 'MessageHeader'
@@ -304,7 +305,7 @@ FORM exportBlrsptNew FORMEXTID 'BLRSPT'
         itemCustomCode(d) EXTID 'ItemCustomCode',
         deliveryTypePrev(d) EXTID 'DeliveryTypePrev',
         deliveryNotePrev(d) EXTID 'DeliveryNotePrev',
-        deliveryNoteDatePrev = toChar(deliveryNoteDatePrev(d),'YYYYMMDDHH24MISS') EXTID 'DeliveryNoteDatePrev',
+        deliveryNoteDatePrev = toChar(deliveryNoteDatePrev(d),'YYYYMMDD') EXTID 'DeliveryNoteDatePrev',
         deliveryNotePrevLineID(d) EXTID 'DeliveryNotePrevLineID',
         lineItemBuyerID(d) EXTID 'LineItemBuyerID',
         lineItemSupplierID(d) EXTID 'LineItemSupplierID',
@@ -313,6 +314,7 @@ FORM exportBlrsptNew FORMEXTID 'BLRSPT'
         lineItemQuantityUOM = mapToNewUOM(lineItemQuantityUOM(d)) EXTID 'LineItemQuantityUOM',
         quantityDespatchedSPT(d) EXTID 'QuantityDespatchedSPT',
         lineItemQuantitySPT(d) EXTID 'LineItemQuantitySPT',
+        countryOfOrigin(d) EXTID 'CountryOfOrigin',
         expiryDate = toChar(expiryDate(d),'YYYYMMDD') EXTID 'BestBeforeDate',
         valueVAT(d) EXTID 'TaxRate',
         additionalInformation(d) EXTID 'AdditionalInformation',
@@ -325,11 +327,20 @@ FORM exportBlrsptNew FORMEXTID 'BLRSPT'
         lineItemManufacturerOutputPrice(d) EXTID 'LineItemManufacturerPrice',
         lineItemAmountExcise(d) EXTID 'LineItemAmountExcise'
 
-    OBJECTS i = INTEGER EXTID 'GroupPackingHeader' IN lineItemIdentification
-    FILTERS groupPackingCodeMark(d,i) OR upperLevelCodeMark(d,i)
-    PROPERTIES DRAW i groupPackingCodeMark(d,i) EXTID 'GroupPackingCodeMark',
-        upperLevelCodeMark(d,i) EXTID 'UpperLevelCodeMark'
-    PROPERTIES DRAW d IN lineItemIdentification fieldCodeMark(d) EXTID 'FieldCodeMark'
+    OBJECTS lineItemIdentification = EInvoiceLotDetail EXTID 'LineItemIdentification'
+    FILTERS eInvoiceDetail(lineItemIdentification) == d, isUpperLevelCodeMark(lineItemIdentification)
+
+    PROPERTIES IN groupPackingHeader
+        groupPackingCodeMark = encodeTextNoNewLines(idParent(lineItemIdentification),'base64') EXTID 'GroupPackingCodeMark',
+        upperLevelCodeMark = encodeTextNoNewLines(id(lineItemIdentification),'base64') EXTID 'UpperLevelCodeMark'
+
+    OBJECTS pdl = EInvoiceLotDetail EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
+    PROPERTIES  pid = encodeTextNoNewLines(id(pdl),'base64') EXTID 'value'
+    FILTERS eInvoiceDetail(pdl) == d, lineItemIdentification = parent(pdl), isFieldCodeMark(pdl)
+
+    OBJECTS dl = EInvoiceLotDetail EXTID 'FieldCodeMark' IN exportfieldCodeMarkHeader
+    PROPERTIES  id = encodeTextNoNewLines(id(dl),'base64') EXTID 'value'
+    FILTERS eInvoiceDetail(dl) == d, isFieldCodeMark(dl), NOT parent(dl)
 
     OBJECTS if = ItemExtraField EXTID 'LineItemExtraField'
     FILTERS eInvoiceDetail(if) == d
