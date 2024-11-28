@@ -104,7 +104,7 @@ FORM purchasesImport FORMEXTID 'purchases'
 idReceipt = DATA LOCAL STRING(INTEGER);
 idReceiptDetail = DATA LOCAL STRING(INTEGER);
 zReportById = DATA LOCAL ZReport(INTEGER);
-index = PARTITION SUM 1 ORDER d BY typeClass(d) CHARWIDTH 4;
+index = PARTITION SUM 1 ORDER d BY purchasePayment(d), typeClass(d) CHARWIDTH 4;
 
 skuCustom = ABSTRACT Sku (INTEGER);
 overCreateReceiptDetail ABSTRACT LIST (ReceiptDetail, INTEGER);
@@ -197,15 +197,14 @@ importReceipt(STRING purchases){
             AND NOT receiptDetail(id) NEW d = ReceiptSaleDetail DO {
             id(d) <- id;
             receipt(d) <- r;
-            printToLog(CONCAT ' : ', 'sale', id, number(r), date(r));
         }
         FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isReturn(purchasePosition(x)) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
             AND NOT receiptDetail(id) NEW d = ReceiptReturnDetail DO {
             id(d) <- id;
             receipt(d) <- r;
-            printToLog(CONCAT ' : ', 'return', id, number(r), date(r));
         }
 
+        
         LOCAL receiptSaleDetail = ReceiptSaleDetail (INTEGER);
         LOCAL receiptReturnDetail = ReceiptReturnDetail (INTEGER);
 
@@ -232,16 +231,36 @@ importReceipt(STRING purchases){
             saleReceipt(d) <- saleReceipt(j);
         }
 
+        LOCAL paymentType = PaymentType (INTEGER);
+        paymentType(INTEGER j) <- (IF typeClass(j) = 'CashPaymentEntity' THEN 
+            typePaymentSID('cash') 
+            ELSE
+            OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card')
+        ) IF purchasePayment(j)
+        ;
+        
+        LOCAL sumPayment = NUMERIC[18,4] (INTEGER);
+        sumPayment(INTEGER j) <- NUMERIC[18,4](
+            (IF typeClass(j) = 'CashPaymentEntity' THEN NUMERIC[18,4](amount1(j)) (-) sumChange(purchasePayment(j))
+            ELSE 
+            NUMERIC[18,4] (amount1(j)))
+            * (IF isSale(purchasePayment(j)) THEN 1 ELSE -1)
+        ) IF purchasePayment(j);
+        
         FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j))
             AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = Payment DO{
 
             id(p) <- STRING[100](paymenId(j));
             receipt(p) <- r;
-            sum(p) <- NUMERIC[18,4]((IF typeClass(j) = 'CashPaymentEntity' THEN
-                (NUMERIC[18,4](amount1(j)) (-) sumChange(purchasePayment(j)))
-                ELSE NUMERIC[18,4] (amount1(j))) * (IF isSale(purchasePayment(j)) THEN 1 ELSE -1));
-            paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash')
-                ELSE OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card');
+            sum(p) <- sumPayment(j);
+            paymentType(p) <- paymentType(j);
+
+        }
+        
+        FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND Payment p = payment(paymenId(j)) DO{
+            
+            sum(p) <- sumPayment(j);
+            paymentType(p) <- paymentType(j);
 
         }
 
@@ -428,7 +447,7 @@ senRequestExchange(DATE d, GroupCashRegister g){
     logToFile('set10', (CONCAT ' ', 'purchases request', d,  resultString()));
     IF return() THEN {
         decodeBase64(return());
-        reImportReceipt(decodedBase64(), idStoreSet(g));
+        importReceipt(decodedBase64());
     }
 }
 
