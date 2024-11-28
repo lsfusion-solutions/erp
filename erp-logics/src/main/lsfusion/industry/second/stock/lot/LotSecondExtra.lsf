@@ -54,8 +54,8 @@ EXTEND FORM lot
 ;
 
 DESIGN lot {
-    caption = 'Оценённый товар';
-    BOX(l) { caption = 'Оценённый товар';}
+    caption = 'Оценённый товар / марка';
+    BOX(l) { caption = 'Оценённый товар / марка';}
 
     params {
         MOVE PROPERTY(setAside(l));
@@ -88,11 +88,14 @@ EXTEND FORM lots
         filterCreatedDateTo(l),
         filterCycle(l),
         filterMix(l)
+    
+    FILTERGROUP second FILTER 'Оценённые товары' lotType(l) == LotType.second DEFAULT
+                       FILTER 'Марки' lotType(l) != LotType.second
 ;
 
 DESIGN lots {
-    caption = 'Оценённые товары';
-    BOX(l) { caption = 'Оценённые товары';}
+    caption = 'Оценённые товары / марки';
+    BOX(l) { caption = 'Оценённые товары / марки';}
     PROPERTY (id(l)) { charWidth = 15; }
     PROPERTY (fullDescriptionCycle(l)) { charWidth = 35; }
     REMOVE PROPERTY (changeSku(l));
@@ -109,11 +112,11 @@ DESIGN lots {
 }
 
 DESIGN dialogLots {
-    caption = 'Оценённые товары';
+    caption = 'Оценённые товары / марки';
 }
 
 NAVIGATOR {
-    lots 'Оценённые товары';
+    lots 'Оценённые товары / марки';
 }
 
 META defineDocumentLotDetail(doc, obj)
@@ -123,7 +126,7 @@ META defineDocumentLotDetail(doc, obj)
         OBJECTS l = Lot
         PROPERTIES(l) READONLY id, nameSku, fullDescriptionCycle, captionMix, weight, price, costForeign
         PROPERTIES(##obj, l) READONLY numberDetail
-        FILTERS quantity(##obj, l)
+        FILTERS quantity(##obj, l), lotType(l) == LotType.second
     ;
 
     DESIGN doc {
@@ -133,7 +136,7 @@ META defineDocumentLotDetail(doc, obj)
                 caption = 'Оценённые товары';
             }
         }
-        PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров'; }
+        PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров / марок'; }
     }
 END
 
@@ -142,12 +145,12 @@ EXTEND FORM dialogInLots
 ;
 
 DESIGN dialogInLots {
-    caption = 'Список оценённых товаров';
+    caption = 'Список оценённых товаров / марок';
     REMOVE PROPERTY (delete);
 }
 
 DESIGN dialogOutLots {
-    caption = 'Список оценённых товаров';
+    caption = 'Список оценённых товаров / марок';
 }
 
 CONSTRAINT DROPPED(Cycle c IS Cycle) AND PREV([GROUP MIN Lot l BY cycle(l)](c))
