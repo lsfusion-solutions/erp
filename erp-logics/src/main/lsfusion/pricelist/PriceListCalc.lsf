@@ -109,9 +109,14 @@ nameNearestRoundConditionCalc 'Расчетное условие округле�
 roundCondition 'Условие округления' (CalcPriceListType type, Group group) =
     OVERRIDE dataRoundCondition(type, group), 
              nearestRoundCondition(type, group) MATERIALIZED;
-            
+
+dataRoundCondition  = DATA RoundCondition (CalcPriceListType, Sku);
+CONSTRAINT currency(dataRoundCondition(CalcPriceListType type, Sku s)) != currency[PriceListType](type)
+    CHECKED BY dataRoundCondition[CalcPriceListType,Sku]
+    MESSAGE 'Валюта документа должна совпадать с валютой условия округления цены';
+
 groupRoundConditionGroup (CalcPriceListType type, Sku sku) = roundCondition(type, group(groupType(type), sku)) MATERIALIZED;
-roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE groupRoundConditionGroup(type, sku), roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku;            
+roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE dataRoundCondition(type, sku), groupRoundConditionGroup(type, sku), roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku;            
 nameRoundCondition 'Условие округления' (CalcPriceListType type, Sku sku)= name(roundCondition(type, sku));    
         
 // --------------- Расчет значения цены --------------- //
