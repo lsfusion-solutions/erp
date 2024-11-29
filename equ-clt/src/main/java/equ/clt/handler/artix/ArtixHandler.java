@@ -1640,6 +1640,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                 if (!document.isEmpty()) {
                                     JSONObject documentObject = new JSONObject(document + "}");
 
+                                    Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
+
+                                    CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
+                                    if (cashRegister == null)
+                                        sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
+                                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+
                                     boolean isCanceled = false;
                                     //чек полностью отменён - в секции failedMoneyPositions поле opCode = 70 (аннулирование продажи)
                                     JSONArray failedMoneyPositionsArray = documentObject.optJSONArray("failedMoneyPositions");
@@ -1661,6 +1668,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         }
                                     }
                                     if(isCanceled) {
+                                        documentObject.put("nppGroupMachinery", nppGroupMachinery);
                                         canceledReceipts.put(documentObject);
                                     }
 
@@ -1671,7 +1679,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                     boolean isSkip = docType == 7 || docType == 8 || isSaleInvoice;
                                     if (isSale || isReturn) {
 
-                                        Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
                                         String numberZReport = String.valueOf(documentObject.getInt("shift"));
                                         Integer numberReceipt = documentObject.getInt("docNum");
                                         String idEmployee = documentObject.getString("userCode");
@@ -1684,11 +1691,6 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                         } else {
                                             nameEmployee = fullNameEmployee;
                                         }
-
-                                        CashRegisterInfo cashRegister = departNumberCashRegisterMap.get(numberCashRegister);
-                                        if (cashRegister == null)
-                                            sendSalesLogger.error(logPrefix + String.format("CashRegister %s not found (file %s)", numberCashRegister, file.getAbsolutePath()));
-                                        Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                                         if (appendCashierId) {
                                             idEmployee = nppGroupMachinery + "_" + idEmployee;
