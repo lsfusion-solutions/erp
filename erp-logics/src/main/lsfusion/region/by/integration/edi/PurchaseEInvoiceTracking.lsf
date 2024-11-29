@@ -16,16 +16,18 @@ DESIGN options {
 }
 
 overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
-    dataExtraCode(sku(id)) <- extraCode(customsGroup(itemCustomCode(eid)), itemCustomCodeOther(eid))  WHERE itemCustomCodeOther(eid) AND NOT skipFillExtraCode() AND NOT extraCode(sku(id)) ;        
-    deliveryTypePrev(id) <- CASE WHEN isTN2(eInvoice(eid)) THEN 2 ELSE 1 ;// определяем сами, т.к. это мы создаем в лсф прослеживаемость на основе электр. накладной
-    deliveryNotePrev(id) <- deliveryNoteNumber(eInvoice(eid));
-    deliveryNoteDate(id) <- deliveryNoteDate(eInvoice(eid));
-    deliveryNotePrevLineID(id) <- lineItemNumber(eid);
-    itemCustomCode(id) <- itemCustomCode(eid);
-    itemCustomCodeOther(id) <- itemCustomCodeOther(eid);
-    lineItemQuantitySPT(id) <- lineItemQuantitySPT(eid);
-    lineItemPriceSPT(id) <- lineItemPriceSPT(eid);// записываем для инфо, но при расходе цену рассчитываем свою исходя из ед изм
-    quantityDespatchedSPT(id) <- quantityDespatchedSPT(eid);// записываем для инфо, но при расходе кол-во рассчитываем свое исходя из ед изм
+    IF date(id) >= dateStartSPT(id) THEN {
+        dataExtraCode(sku(id)) <- extraCode(customsGroup(itemCustomCode(eid)), itemCustomCodeOther(eid)) WHERE itemCustomCodeOther(eid) AND NOT skipFillExtraCode() AND NOT extraCode(sku(id)) ;
+        deliveryTypePrev(id) <- CASE WHEN isTN2(eInvoice(eid)) THEN 2 ELSE 1 ;// определяем сами, т.к. это мы создаем в лсф прослеживаемость на основе электр. накладной
+        deliveryNotePrev(id) <- deliveryNoteNumber(eInvoice(eid));
+        deliveryNoteDate(id) <- deliveryNoteDate(eInvoice(eid));
+        deliveryNotePrevLineID(id) <- lineItemNumber(eid);
+        itemCustomCode(id) <- itemCustomCode(eid);
+        itemCustomCodeOther(id) <- itemCustomCodeOther(eid);
+        lineItemQuantitySPT(id) <- lineItemQuantitySPT(eid);
+        lineItemPriceSPT(id) <- lineItemPriceSPT(eid);// записываем для инфо, но при расходе цену рассчитываем свою исходя из ед изм
+        quantityDespatchedSPT(id) <- quantityDespatchedSPT(eid);// записываем для инфо, но при расходе кол-во рассчитываем свое исходя из ед изм
+    }        
 }
 
 //проверка данных из электронной накладной и в карточке товара

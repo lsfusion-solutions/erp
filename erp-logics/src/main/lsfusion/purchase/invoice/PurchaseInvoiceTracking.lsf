@@ -7,8 +7,9 @@ NAMESPACE Purchase;
 isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Purchase.InvoiceDetail);
 isTracking 'Подлежит прослеживанию' = ABSTRACT VALUE BOOLEAN (Purchase.InvoiceDetail);
 isTracking (UserInvoiceDetail d) += OVERRIDE isTrackingData(d), isTrackingOver(sku(d));
+dateStartSPT 'Дата начала прослеживания' (UserInvoiceDetail d)=dateStartSPT(sku(d));
 
-isTracking(Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND invoice(d)==i;
+isTracking(Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND date(d) >= dateStartSPT(d) AND invoice(d)==i;
 showSPT (Invoice i)= TRUE IF isTracking(i);
 
 itemCustomCode'Код ТНВЭД' = DATA STRING[10] (UserInvoiceDetail);
@@ -36,7 +37,7 @@ notImportEAEU (Invoice i) = TRUE IF i IS Invoice AND NOT isImportEAEU(i);
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
-    PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther,
+    PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
     PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument
     PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) isImportEAEU, countrySupplier READONLY, idCountrySupplier READONLY
