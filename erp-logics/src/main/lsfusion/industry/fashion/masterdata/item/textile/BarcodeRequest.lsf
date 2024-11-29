@@ -109,14 +109,14 @@ CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND [ GROUP SUM 1 BY item(B
 CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
     MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
 
-CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroup(item(d))
+CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroupOnly(item(d))
     MESSAGE 'В заявке на EAN с данной операцией должны быть только подлежащие прослеживанию товары';
 
 @defineOption(allowBarcodeRequestNotOperation, 'Разрешить отправку заявок на EAN без операции', barcodeBox);
 
 @defineOption(allowTrackingItemsNotSplit, 'Разрешить добавлять прослеживаемые товары в заявки на EAN без такого признака', barcodeBox);
 
-CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND operation(d) AND NOT isTrackingItem(operation(d)) AND isTrackingCustomsGroup(item(d))
+CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND operation(d) AND NOT isTrackingItem(operation(d)) AND isTrackingCustomsGroupOnly(item(d))
     AND NOT allowTrackingItemsNotSplit()
     MESSAGE 'В заявке на EAN с данной операцией должны быть только не подлежащие прослеживанию товары';
 
@@ -408,11 +408,11 @@ sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
         MESSAGE 'Не во всех товарах заполнен состав. Файл не отправлен.';
         RETURN;
     }
-    IF [GROUP SUM 1 IF isTrackingItem(operation(BarcodeRequestDetail d)) AND NOT isTrackingCustomsGroup(item(d)) BY barcodeRequest(d)](b) THEN {
+    IF [GROUP SUM 1 IF isTrackingItem(operation(BarcodeRequestDetail d)) AND NOT isTrackingCustomsGroupOnly(item(d)) BY barcodeRequest(d)](b) THEN {
         MESSAGE 'В заявке с данной операцией должны быть только подлежащие прослеживанию товары';
         RETURN;
     }
-    IF [GROUP SUM 1 IF NOT isTrackingItem(operation(BarcodeRequestDetail d)) AND operation(d) AND isTrackingCustomsGroup(item(d)) BY barcodeRequest(d)](b) AND NOT allowTrackingItemsNotSplit() THEN {
+    IF [GROUP SUM 1 IF NOT isTrackingItem(operation(BarcodeRequestDetail d)) AND operation(d) AND isTrackingCustomsGroupOnly(item(d)) BY barcodeRequest(d)](b) AND NOT allowTrackingItemsNotSplit() THEN {
         MESSAGE 'В заявке с данной операцией должны быть только не подлежащие прослеживанию товары';
         RETURN;
     }
