@@ -355,6 +355,16 @@ EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTI
 @defPropSimpleDetail(typeContactInfo, 'ВидКонтактнойИнформации', STRING, partner, contactInfo);
 @defPropSimpleDetail(contentContactInfo, 'ЗначенияПолей', STRING, partner, contactInfo);
 
+unn 'НалоговыйНомерНерезидента' = ABSTRACT STRING (Partner, Configuration);
+WHEN CHANGED(unn(Partner d, Configuration c)) DO {
+    packet(c, d) <- NULL;
+    in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
+}
+unnPartner 'НалоговыйНомерНерезидента' = DATA LOCAL STRING (INTEGER);
+
+EXTEND FORM sendMessage PROPERTIES unn(partner, configuration) EXTID 'НалоговыйНомерНерезидента';
+EXTEND FORM receiveMessage PROPERTIES unnPartner(partner) EXTID 'НалоговыйНомерНерезидента';
+
 @defPropObject(mainPartner, 'ГоловнойКонтрагент', Partner, partner);
 
 @defPropSimple(isIndependentDepartment, 'ОбособленноеПодразделение', BOOLEAN, partner);
