@@ -13,15 +13,16 @@ trackingUOM(ConsignmentDetail cd) += trackingUOMCustomsGroup(sku(cd));
 trackingInvoiceDetail = ABSTRACT Purchase.InvoiceDetail (ConsignmentDetail);
 
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
-    IF  oldVersion() THEN {
-        itemCustomCode(eid) <- codeCustomsGroupDefaultCountry(sku(cd)) IF isTracking(cd);
-        deliveryTypePrev(eid) <- (OVERRIDE (IF isTN2(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) THEN 2 ELSE IF eInvoice(eInvoiceDetail(invoiceDetail(batch(cd)))) THEN 1), 3) IF isTracking(cd);
-        deliveryNotePrev(eid) <- deliveryNoteNumber(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) IF isTracking(cd);
-        deliveryNoteDatePrev(eid) <- DATETIME (deliveryNoteDate(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd)))))) IF isTracking(cd);
-        deliveryNotePrevLineID(eid) <- (OVERRIDE numberEInvoiceDetail(invoiceDetail(batch(cd))), index(invoiceDetail(batch(cd)))) IF isTracking(cd);
-        quantityDespatchedSPT(eid) <- (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0) IF isTracking(cd);
-        lineItemQuantitySPT(eid) <- (OVERRIDE trackingUOM(cd), '796') IF isTracking(cd);
-        lineItemPriceSPT(eid) <- (OVERRIDE lineItemPriceSPT(eInvoiceDetail(invoiceDetail(batch(cd)))), NUMERIC[12,2](price(cd))) IF isTracking(cd);
+    IF  oldVersion() AND isTracking(cd) THEN {
+        itemCustomCode(eid) <- codeCustomsGroupDefaultCountry(sku(cd)) ;
+        itemCustomCodeOther(eid) <-idExtraCode(sku(cd));
+        deliveryTypePrev(eid) <- (OVERRIDE (IF isTN2(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) THEN 2 ELSE IF eInvoice(eInvoiceDetail(invoiceDetail(batch(cd)))) THEN 1), 3) ;
+        deliveryNotePrev(eid) <- deliveryNoteNumber(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))) ;
+        deliveryNoteDatePrev(eid) <- DATETIME (deliveryNoteDate(eInvoice(eInvoiceDetail(invoiceDetail(batch(cd))))));
+        deliveryNotePrevLineID(eid) <- (OVERRIDE numberEInvoiceDetail(invoiceDetail(batch(cd))), index(invoiceDetail(batch(cd))));
+        quantityDespatchedSPT(eid) <- (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](packQuantity(cd)), 1.0) ;
+        lineItemQuantitySPT(eid) <- (OVERRIDE trackingUOM(cd), '796') ;
+        lineItemPriceSPT(eid) <- (OVERRIDE lineItemPriceSPT(eInvoiceDetail(invoiceDetail(batch(cd)))), NUMERIC[12,2](price(cd))) ;
     }
 }
 
