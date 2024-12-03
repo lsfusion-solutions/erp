@@ -1,0 +1,31 @@
+MODULE SalePurchaseEInvoice;
+
+REQUIRE SalePurchaseInvoice, ConsignmentEInvoice, PurchaseEInvoice;
+
+NAMESPACE SalePurchaseInvoice;
+
+WHEN CHANGED(purchaseInvoice(Consignment.invoice(EInvoice ei))) DO {
+    EDI.invoice(ei) <- purchaseInvoice(Consignment.invoice(ei));
+}
+
+skipReceiver(PurchaseInvoice i) += i IS PurchaseInvoice;
+
+receiver = DATA Employee (PurchaseInvoice);
+receiver(PurchaseInvoice i) += receiver(i);
+
+changeReceiver (PurchaseInvoice i) {
+    NEWSESSION {
+        DIALOG dialogEmployees OBJECTS e = receiver(i) CHANGE LIST shortName(e);
+    }
+}
+
+EXTEND FORM Purchase.invoices
+    PROPERTIES nameReceiver(i) PANEL ON CHANGE changeReceiver(i) SHOWIF (i IS PurchaseInvoice AND EDI.eInvoice(i) AND importedCustomer(EDI.eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i))
+;
+
+DESIGN Purchase.invoices {
+    createEI {
+        horizontal = TRUE;
+        MOVE PROPERTY(nameReceiver(i)) BEFORE PROPERTY (signAndSendBlrapnCustomerEDI(i));
+    }
+}
