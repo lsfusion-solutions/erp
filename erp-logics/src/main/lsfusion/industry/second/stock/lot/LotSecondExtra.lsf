@@ -89,13 +89,13 @@ EXTEND FORM lots
         filterCycle(l),
         filterMix(l)
     
-    FILTERGROUP second FILTER 'Оценённые товары' lotType(l) == LotType.second DEFAULT
-                       FILTER 'Марки' lotType(l) != LotType.second
+    FILTERGROUP second FILTER 'Оценённые товары' isSecond(l) DEFAULT
+                       FILTER 'Обычные марки' NOT isSecond(l)
 ;
 
 DESIGN lots {
     caption = 'Оценённые товары / марки';
-    BOX(l) { caption = 'Оценённые товары / марки';}
+    BOX(l) { caption = 'ОТ / марки';}
     PROPERTY (id(l)) { charWidth = 15; }
     PROPERTY (fullDescriptionCycle(l)) { charWidth = 35; }
     REMOVE PROPERTY (changeSku(l));
@@ -119,6 +119,13 @@ NAVIGATOR {
     lots 'Оценённые товары / марки';
 }
 
+META defineConstraintLotDetail(doc, caption)
+    CONSTRAINT SETCHANGED(quantity(###doc##Detail d, Lot l)) AND isSecond(l) AND NOT lotSecond(d)
+        MESSAGE 'Для операции '##caption##' не разрешены оценённые товары ';
+    CONSTRAINT SETCHANGED(quantity(###doc##Detail d, Lot l)) AND NOT isSecond(l) AND lotSecond(d)
+        MESSAGE 'Для операции '##caption##' разрешены только оценённые товары ';
+END 
+
 META defineDocumentLotDetail(doc, obj)
     numberDetail 'Номер строки спецификации' = GROUP MAX index(###doc##Detail d) IF quantity(d, Lot l) BY doc(d), l;
 
@@ -126,17 +133,17 @@ META defineDocumentLotDetail(doc, obj)
         OBJECTS l = Lot
         PROPERTIES(l) READONLY id, nameSku, fullDescriptionCycle, captionMix, weight, price, costForeign
         PROPERTIES(##obj, l) READONLY numberDetail
-        FILTERS quantity(##obj, l), lotType(l) == LotType.second
+        FILTERS quantity(##obj, l), isSecond(l)
     ;
 
     DESIGN doc {
         specificationBox {
             MOVE BOX(l) {
-                showIf = useLot(##obj);
+                showIf = lotSecond(##obj);
                 caption = 'Оценённые товары';
             }
         }
-        PROPERTY (quantityLot(d)) { caption = 'Кол-во оценённых товаров / марок'; }
+        PROPERTY (quantityLot(d)) { caption = 'Кол-во ОТ / марок'; }
     }
 END
 

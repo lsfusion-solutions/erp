@@ -4,9 +4,20 @@ REQUIRE SaleShipmentLot, LotSecondExtra, ItemSecond;
 
 NAMESPACE Sale;
 
+@defineOperationProperty(lotSecond, 'Оценённые товары', showContainer);
+
+lotSecond (Invoice i) = lotSecond(operation(i));
+lotSecond (InvoiceDetail d) = lotSecond(operation(d));
+lotSecond (Shipment i) = lotSecond(operation(i));
+lotSecond (ShipmentDetail d) = lotSecond(operation(d));
+
+@defineConstraintLotDetail(invoice, 'накладной (продажа)');
+
+@defineConstraintLotDetail(userShipment, 'поставки (продажа)');
+
 @defineDocumentLotDetail(userInvoice, i);
 
-sumLotWeightInvoiceDetail 'Вес оценённых товаров, кг' (Invoice i)= GROUP SUM weight(Lot l) IF quantity(i, l) AND lotType(l) == LotType.second IN documentSum MATERIALIZED;
+sumLotWeightInvoiceDetail 'Вес оценённых товаров, кг' (Invoice i)= GROUP SUM weight(Lot l) IF quantity(i, l) AND isSecond(l) IN documentSum MATERIALIZED;
 
 cycle = DATA Cycle (UserInvoice);
 descriptionCycle 'Цикл' (UserInvoice i) = description(cycle(i));
@@ -41,7 +52,7 @@ DESIGN userInvoice {
 
 @defineDocumentLotDetail(userShipment, s);
 
-sumLotWeightShipmentDetail 'Вес оценённых товаров, кг' (Shipment i)= GROUP SUM weight(Lot l) IF quantity(i, l) AND lotType(l) == LotType.second IN documentSum MATERIALIZED;
+sumLotWeightShipmentDetail 'Вес оценённых товаров, кг' (Shipment i)= GROUP SUM weight(Lot l) IF quantity(i, l) AND isSecond(l) IN documentSum MATERIALIZED;
 
 cycle = DATA Cycle (UserShipment) INDEXED;
 descriptionCycle 'Цикл в' (UserShipment i) = description(cycle(i));

@@ -7,12 +7,15 @@ NAMESPACE Inventory;
 quantityOneListInventoryDetails (Sku sku, STRING[200] id) = GROUP SUM quantity(TerminalLotDetail tld) IF include(terminalDocument(tld)) 
     BY sku(terminalDocumentDetail(tld)), id(tld);
 
+skipTerminalLot = ABSTRACT BOOLEAN (Inventory);
 overAddOneListInventoryDetail(PageInventoryDetail d) + {
-    FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
-        id(l) <- id(tl);
-        tail(l) <- tail(tl);
-        sku(l) <- sku(terminalDocumentDetail(tl));
-        dataCount(l) <- quantity(tl) IF quantity(tl) != 1;;
+    IF NOT skipTerminalLot(inventory(d)) THEN {
+        FOR id(TerminalLotDetail tl) AND include(terminalDocument(tl)) AND NOT lot(id(tl)) DO NEW l = Lot {
+            id(l) <- id(tl);
+            tail(l) <- tail(tl);
+            sku(l) <- sku(terminalDocumentDetail(tl));
+            dataCount(l) <- quantity(tl) IF quantity(tl) != 1;
+        }
+        quantity(d, Lot l) <- NUMERIC[16,5] (GROUP SUM 1 IF quantityOneListInventoryDetails(sku(d), id(l)));
     }
-    quantity(d, Lot l) <- NUMERIC[16,5] (GROUP SUM 1 IF quantityOneListInventoryDetails(sku(d), id(l)));
 }

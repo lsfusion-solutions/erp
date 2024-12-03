@@ -4,8 +4,9 @@ REQUIRE PurchaseShipmentInvoiceTerminal, PurchaseShipmentLot, TerminalLot;
 
 NAMESPACE Purchase;
 
-overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) +{
-    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND terminalDocument(tl) = t THEN { 
+skipTerminalLot = ABSTRACT BOOLEAN (UserInvoice);
+overAddDialogTerminalToUserInvoice (UserInvoice i, TerminalDocument t) + {
+    IF GROUP SUM 1 IF id(TerminalLotDetail tl) AND terminalDocument(tl) = t AND NOT skipTerminalLot(i) THEN { 
         FOR id(TerminalLotDetail tl) AND terminalDocument(tl) = t AND NOT lot(id(tl)) DO NEW l = Lot {
             id(l) <- id(tl);
             tail(l) <- tail(tl);

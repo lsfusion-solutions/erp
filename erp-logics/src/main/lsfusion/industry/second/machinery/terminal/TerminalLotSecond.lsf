@@ -16,16 +16,33 @@ filter(Lot l, Stock st, Employee e) += l IS Lot AND st IS Stock AND e IS Employe
 
 META defineAddDetailDialogTerminalLotSecond(object)
     overAddDetailDialogTerminal###object##Detail(###object##Detail d, TerminalDocumentDetail td) + {
-        LOCAL countNew = INTEGER();
-        countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocumentDetail(tl)](td);
-        
-        LOCAL double = BOOLEAN(Lot);
-        double(Lot l) <- TRUE WHERE [GROUP MIN TerminalLotDetail tl BY terminalDocumentDetail(tl), lot(id(tl))](td, l) AND quantity(##object(d), l);
-          
-        quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l);
-        IF useLot(operation(d)) THEN
-            quantity(d) <- IF [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td) THEN [GROUP SUM quantity(d, Lot l) IF l IS Lot]() ELSE 0.0; 
-    }
+        IF lotSecond(d) THEN {
+            LOCAL countNew = INTEGER();
+            countNew() <- [GROUP SUM 1 IF id(TerminalLotDetail tl) AND NOT lot(id(tl)) BY terminalDocumentDetail(tl)](td);
+
+            LOCAL double = BOOLEAN(Lot);
+            double(Lot l) <- TRUE WHERE [GROUP MIN TerminalLotDetail tl BY terminalDocumentDetail(tl), lot(id(tl))](td, l) AND quantity(##object(d), l);
+
+            quantity(d, Lot l) <- 1.0 WHERE [GROUP MIN TerminalLotDetail tld BY lot(id(tld)), terminalDocumentDetail(tld)](l, td) AND NOT double(l);
+            IF useLot(operation(d)) THEN
+                quantity(d) <- IF [GROUP MIN TerminalLotDetail tld BY terminalDocumentDetail(tld)](td) THEN [GROUP SUM quantity(d, Lot l) IF l IS Lot]() ELSE 0.0;
+        }
+        ELSE { // копия базового
+            FOR id(TerminalLotDetail tl) AND terminalDocumentDetail(tl) = td AND NOT lot(id(tl)) DO NEW l = Lot {
+                id(l) <- id(tl);
+                tail(l) <- tail(tl);
+                sku(l) <- sku(td);
+                dataCount(l) <- quantity(tl) IF quantity(tl) != 1;
+            }
+            FOR id(TerminalLotDetail tl) == id(Lot l) AND terminalDocumentDetail(tl) = td AND idParent(tl) DO {
+                parent(l) <- lot(idParent(tl));
+            }
+            FOR id(TerminalLotDetail tl) == id(Lot l) AND terminalDocumentDetail(tl) = td AND tail(tl) AND (tail(l) == '' OR NOT tail(l)) DO {
+                tail(l) <- tail(tl);
+            }
+            quantity(d, Lot l) <- GROUP SUM 1 IF l = lot(id(TerminalLotDetail tld)) AND td = terminalDocumentDetail(tld);
+        }
+    }    
 END
 
 sumLotWeight 'Вес, кг' (TerminalDocument t) = GROUP SUM weight(Lot l) IF [GROUP MIN TerminalLotDetail d BY lot(id(d)), terminalDocument(d)](l, t); // MATERIALIZED не нужен; 
