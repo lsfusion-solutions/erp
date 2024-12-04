@@ -53,8 +53,11 @@ END
 @defMultiScheduleOrder(customer, 'Покупатель');
 @defMultiScheduleOrder(supplierStock, 'Склад поставщика');
 @defMultiScheduleOrder(operation, 'Операция');
-@defMultiScheduleOrder(startDate, 'Дата начала');
-@defMultiScheduleOrder(endDate, 'Дата окончания');
+//@defMultiScheduleOrder(startDate, 'Дата начала');
+//@defMultiScheduleOrder(endDate, 'Дата окончания');
+
+startDate(ScheduleOrder o) <- startDate(multiScheduleOrder(o)) WHEN CHANGED (startDate(multiScheduleOrder(o)));
+endDate(ScheduleOrder o) <- endDate(multiScheduleOrder(o)) WHEN CHANGED (endDate(multiScheduleOrder(o)));
 
 @defineDocumentDialogStock(multiScheduleOrder, supplier, supplier, );
 @defineDocumentDialogSupplierCustomerLegalEntity(multiScheduleOrder, supplier, company);
@@ -97,12 +100,12 @@ FORM multiScheduleOrder 'Множественный график заказов 
         startDate, endDate, nameType READONLY,  note
 
     OBJECTS dow=DOW GRID
-    PROPERTIES(dow) READONLY staticCaption, number
-    ORDERS number(dow)
+    PROPERTIES(dow) READONLY staticCaption, numberM
+    ORDERS numberM(dow)
 
     OBJECTS d=ScheduleOrder GRID
-    PROPERTIES(d) stocks ON CHANGE changeCustomerStockCompany(d), dayBefore, overPeriod
-    PROPERTIES  scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER staticCaption(dow) ON CHANGE changeScheduleOrderTimeIn(d,dow)
+    PROPERTIES(d) stocks ON CHANGE changeCustomerStockCompany(d), dayBefore, overPeriod, startDate, endDate
+    PROPERTIES  scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER (staticCaption(dow)+' (поставка)') ON CHANGE changeScheduleOrderTimeIn(d,dow)
     PROPERTIES (d) NEW, DELETE GRID
     PROPERTIES (d) editScheduleOrder//, showScheduleOrder
     FILTERS multiScheduleOrder(d) == s
@@ -145,6 +148,7 @@ DESIGN multiScheduleOrder {
         MOVE BOX(d){
             PROPERTY (stocks(d)){caption = 'Склад покупателя';}
         }
+        PROPERTY (scheduleOrderTimeIn(d,dow)){charWidth = 12;}
     }
 }
 
@@ -163,12 +167,12 @@ FORM multiScheduleOrders 'Множественные графики заказо
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
     
     OBJECTS dow=DOW GRID
-    PROPERTIES(dow) READONLY staticCaption, number
-    ORDERS number(dow)
+    PROPERTIES(dow) READONLY staticCaption, numberM
+    ORDERS numberM(dow)
 
     OBJECTS d=ScheduleOrder GRID
-    PROPERTIES(d) READONLY stocks , dayBefore, overPeriod
-    PROPERTIES  READONLY scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER staticCaption(dow)
+    PROPERTIES(d) READONLY stocks , dayBefore, overPeriod, startDate, endDate
+    PROPERTIES  READONLY scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER (staticCaption(dow)+' (поставка)')
 
     FILTERS multiScheduleOrder(d) == s
     FILTERGROUP inactiveScheduleOrder
@@ -191,6 +195,7 @@ DESIGN multiScheduleOrders {
         MOVE BOX (d);
         PROPERTY (stocks(d)){caption = 'Склад покупателя';}
     }
+    PROPERTY (scheduleOrderTimeIn(d,dow)){charWidth = 12;}
 }
 @extendFormFilterAccessLegalEntity(MultiScheduleOrder, s, multiScheduleOrders, customer, company);
 
