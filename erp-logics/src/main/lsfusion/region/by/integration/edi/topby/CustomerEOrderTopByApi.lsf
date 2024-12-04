@@ -6,10 +6,13 @@ NAMESPACE EDI;
 
 confirmNotFoundOrders 'Подтверждать ответы по которым не найден заказ' = DATA BOOLEAN ();
 
+beforeSendPurchaseOrder ABSTRACT LIST (EOrder, STRING[100]);
+
 sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     sendingCancelled() <- NULL;
     TRY {
         IF login AND password THEN {
+            beforeSendPurchaseOrder(o, provider);
             LOCAL error = TEXT();
             error() <- '';
             IF NOT GLNSupplierStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада поставщика\n';
@@ -33,7 +36,7 @@ sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, 
                 envelopeDocumentDate() <- sendDateTime(o);
                 envelopeDocumentNumber() <- number(o);
                 envelopeSender() <- GLNCustomer(o);
-                envelopeReceiver() <- GLNCustomer(o);
+                envelopeReceiver() <- GLNSupplier(o);
                 envelopeDeliveryPoint() <- GLNCustomerStock(o);
                 envelopeDocumentType() <- 'ORDERS';
                 envelopeContent() <- encodedBase64();
@@ -94,8 +97,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                                             WHEN ordrspResponseType() == 29 THEN EOrderResponseType.accepted;
                         note(r) <- STRING[100](ordrspComment());
                         supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
-                        customer(r) <- legalEntityGLN(ordrspBuyerGLN());
                         eOrder(r) <- eOrder(ordrspOrderNumber());
+                        customer(r) <- customer(eOrder(ordrspOrderNumber()));
                         customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
                         IF left(ordrspDeliveryDateTimeFirst(),1) == 'T' THEN {
                             ordrspDeliveryDateTimeFirst() <- toChar(currentDate(),'yyyy-MM-dd') + ordrspDeliveryDateTimeFirst();
@@ -260,8 +263,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         deliveryNoteDateTime(a) <- toDateTime(desadvDeliveryNoteDate());
                         note(a) <- STRING[100](desadvComment());
                         supplier(a) <- legalEntityStockGLN(desadvSupplierGLN());
-                        customer(a) <- legalEntityGLN(desadvBuyerGLN());
                         eOrder(a) <- eOrder(desadvOrderNumber());
+                        customer(a) <- customer(eOrder(desadvOrderNumber()));
                         customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
                         XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
