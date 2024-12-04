@@ -1,0 +1,52 @@
+MODULE PurchaseMultiScheduleOrderContract;
+
+REQUIRE PurchaseScheduleOrderContract, PurchaseMultiScheduleOrder;
+
+NAMESPACE Purchase;
+
+contractSku = DATA ContractSku (MultiScheduleOrder);
+seriesNumberContractSku 'Номер договора' (MultiScheduleOrder o) = seriesNumber[Contract](contractSku(o)) IN documentPrm;
+dateFromContractSku 'Дата договора' (MultiScheduleOrder o) = dateFrom(contractSku(o)) IN documentPrm;
+
+descriptionContractSku 'Описание договора' (MultiScheduleOrder o)= CONCAT ' ', seriesNumberContractSku(o), ' от ' + dateFromContractSku(o);
+
+replace(ContractSku c, ContractSku o) + { contractSku(MultiScheduleOrder object) <- o WHERE contractSku(object) == c;}
+
+isCommission 'Продажа на комиссию' = DATA BOOLEAN (MultiScheduleOrder) IN documentPrm;
+
+isCommission(MultiScheduleOrder o) <- type(contractSku(o)) == ContractSkuType.commission
+    WHEN CHANGED(contractSku(o));
+
+
+WHEN LOCAL (CHANGED(supplier(MultiScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED(customer(o)) OR CHANGED(startDate(o)))
+    AND NOT CHANGED(contractSku(o)) DO {
+
+    contractSku(o) <- defaultContractSkuSupplierCustomer(supplier(o), supplierStock(o), customer(o), startDate(o))
+        IF countContractSkuSupplierCustomer(supplier(o), supplierStock(o), customer(o), startDate(o)) == 1;
+
+}
+
+CONSTRAINT contractSku(MultiScheduleOrder o) AND NOT (dateFrom(contractSku(o)) <= startDate(o) AND NOT (dateTo(contractSku(o)) < startDate(o)))
+    AND NOT (dateFromConstraintContractScheduleOrder() > startDate(o))
+    CHECKED BY contractSku[MultiScheduleOrder]
+    MESSAGE 'Договор графика поставки просрочен или еще не действует';
+
+CONSTRAINT contractSku(MultiScheduleOrder o) AND NOT supplier(o) == partyA(contractSku(o))
+    CHECKED BY contractSku[MultiScheduleOrder] MESSAGE 'Организация (поставщик) договора графика поставок не соответствует организации (поставщик) графика поставок';
+
+CONSTRAINT contractSku(MultiScheduleOrder o) AND NOT customer(o) == partyB(contractSku(o))
+    CHECKED BY contractSku[MultiScheduleOrder] MESSAGE 'Организация (покупатель) договора графика поставок не соответствует организации (покупатель) графика поставок';
+
+CONSTRAINT contractSku(MultiScheduleOrder o) AND countSuppliersStock(contractSku(o)) AND NOT inSupplier(supplierStock(o),contractSku(o))
+    CHECKED BY contractSku[MultiScheduleOrder] MESSAGE 'Для графика поставок выбран склад поставщика, который не включен в договор';
+
+
+EXTEND FORM multiScheduleOrder
+    PROPERTIES (s) seriesNumberContractSku, isCommission    
+;
+
+EXTEND FORM multiScheduleOrders
+    PROPERTIES (s) READONLY seriesNumberContractSku
+;
+
+@defMultiScheduleOrder(contractSku, 'Договор');

@@ -1,0 +1,209 @@
+MODULE PurchaseMultiScheduleOrder;
+
+REQUIRE PurchaseScheduleOrder;
+
+NAMESPACE Purchase;
+
+CLASS MultiScheduleOrder 'Множественный график заказов (закупка)';
+@defineExternalizable(multiScheduleOrder, STRING[100], );
+//общие свойства
+type 'Тип генерации графика (ИД)' = DATA GenType (MultiScheduleOrder);
+nameType 'Тип генерации графика' (MultiScheduleOrder order) = staticCaption(type(order)) IN base;
+type(MultiScheduleOrder o) <- GenType.genDayMonth WHEN SET(o IS MultiScheduleOrder);
+
+supplier 'Поставщик (ИД)' = DATA LegalEntity(MultiScheduleOrder) INDEXED;
+nameSupplier 'Поставщик' (MultiScheduleOrder scheduleOrder) = name(supplier(scheduleOrder)) IN id;
+fullNameSupplier 'Поставщик' (MultiScheduleOrder scheduleOrder) = fullName(supplier(scheduleOrder)) IN base;
+
+customer 'Покупатель (ИД)' = DATA LegalEntity(MultiScheduleOrder);
+nameCustomer 'Покупатель' (MultiScheduleOrder scheduleOrder) = name(customer(scheduleOrder)) IN base;
+fullNameCustomer 'Покупатель' (MultiScheduleOrder scheduleOrder) = fullName(customer(scheduleOrder)) IN base;
+
+supplierStock = DATA Stock(MultiScheduleOrder);
+nameSupplierStock 'Склад поставщика' (MultiScheduleOrder scheduleOrder) = name(supplierStock(scheduleOrder));
+
+@defineDocumentHeaderCreated(MultiScheduleOrder);
+note 'Примечание' = DATA ISTRING[500] (MultiScheduleOrder) CHARWIDTH 30 IN documentPrm;
+
+CONSTRAINT supplier(MultiScheduleOrder scheduleOrder) AND supplierStock(scheduleOrder) AND NOT
+    in(supplier(scheduleOrder), supplierStock(scheduleOrder))
+    CHECKED BY supplierStock[ScheduleOrder]
+    MESSAGE 'Поставщик и склад поставщика для множественного графика заказов не имеют связи';
+
+operation = DATA Operation (MultiScheduleOrder);
+nameOperation 'Операция' = name(operation(MultiScheduleOrder scheduleOrder));
+idOperation 'ID операции' = id(operation(MultiScheduleOrder scheduleOrder));
+
+startDate 'Дата начала' = DATA DATE (MultiScheduleOrder) NONULL IN base;
+endDate 'Дата окончания' = DATA DATE (MultiScheduleOrder) IN base;
+
+multiScheduleOrder = DATA MultiScheduleOrder(ScheduleOrder) INDEXED;
+skipMultiScheduleOrder = DATA BOOLEAN ();
+
+META defMultiScheduleOrder(prop, caption)
+    prop(ScheduleOrder o) <- prop(multiScheduleOrder(o)) WHEN CHANGED (prop(multiScheduleOrder(o)));
+    CONSTRAINT (CHANGED(prop(ScheduleOrder o)) OR CHANGED(prop(multiScheduleOrder(o)))) AND multiScheduleOrder(o) AND (prop(o) OR prop(multiScheduleOrder(o)))
+        AND NOT prop(o) == prop(multiScheduleOrder(o)) AND NOT skipMultiScheduleOrder()
+        MESSAGE 'Поле "'##caption##'" графика и множественного графика должны быть одинаковыми';
+    
+END
+
+@defMultiScheduleOrder(type, 'Тип генерации');
+@defMultiScheduleOrder(supplier, 'Поставщик');
+@defMultiScheduleOrder(customer, 'Покупатель');
+@defMultiScheduleOrder(supplierStock, 'Склад поставщика');
+@defMultiScheduleOrder(operation, 'Операция');
+@defMultiScheduleOrder(startDate, 'Дата начала');
+@defMultiScheduleOrder(endDate, 'Дата окончания');
+
+@defineDocumentDialogStock(multiScheduleOrder, supplier, supplier, );
+@defineDocumentDialogSupplierCustomerLegalEntity(multiScheduleOrder, supplier, company);
+
+changeCustomerStockCompany(ScheduleOrder o) {
+    DIALOG companyStocks OBJECTS l = customer(o) NULL, s INPUT DO {
+        allStocks(o) <- NULL;
+        dataIn(o, StockGroup g) <- NULL;
+        dataIn(o, Stock st) <- TRUE IF st==s;
+        IF NOT customer(o) THEN {
+            customer(o) <- legalEntity(s);
+        }
+    }
+}
+//countStocks = GROUP SUM 1 IF in(ScheduleOrder o, Stock st) BY o;
+
+CONSTRAINT (SETCHANGED(countStocks(ScheduleOrder o)) OR SET(multiScheduleOrder(o))) AND multiScheduleOrder(o)
+    AND countStocks(o) >1 
+    MESSAGE 'У графика заказов из множественного графика должен быть 1 склад покупателя';
+
+
+editScheduleOrder 'Редактировать' (ScheduleOrder o) {
+    ASK 'Изменения будут сохранены. Продолжить?' DO {
+        APPLY;
+        NEWSESSION SHOW scheduleOrder OBJECTS s=o DOCKED ;
+    }
+} IMAGE 'edit.png' TOOLBAR;
+showScheduleOrder 'Просмотреть' (ScheduleOrder o) {    
+    ASK 'Изменения будут сохранены. Продолжить?' DO {
+        APPLY;
+        NEWSESSION SHOW scheduleOrder OBJECTS s=o DOCKED READONLY;
+    }
+} TOOLBAR;
+
+FORM multiScheduleOrder 'Множественный график заказов (закупка)'
+    OBJECTS s=MultiScheduleOrder PANEL
+    PROPERTIES (s) nameSupplier ON CHANGE changeSupplierSupplier(s),
+        nameSupplierStock ON CHANGE changeSupplierStockSupplier(s),
+        nameCustomer ON CHANGE changeCustomerCompany(s), nameOperation,
+        startDate, endDate, nameType READONLY,  note
+
+    OBJECTS dow=DOW GRID
+    PROPERTIES(dow) READONLY staticCaption, number
+    ORDERS number(dow)
+
+    OBJECTS d=ScheduleOrder GRID
+    PROPERTIES(d) stocks ON CHANGE changeCustomerStockCompany(d), dayBefore, overPeriod
+    PROPERTIES  scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER staticCaption(dow) ON CHANGE changeScheduleOrderTimeIn(d,dow)
+    PROPERTIES (d) NEW, DELETE GRID
+    PROPERTIES (d) editScheduleOrder//, showScheduleOrder
+    FILTERS multiScheduleOrder(d) == s
+
+    EDIT MultiScheduleOrder OBJECT s
+;
+
+DESIGN multiScheduleOrder {
+    size = (1024, 768);
+    OBJECTS {        
+        NEW header {
+            horizontal = TRUE;
+            NEW suppContainer {
+                caption = 'Поставщик';
+                MOVE PROPERTY(nameSupplier(s));
+                MOVE PROPERTY(nameSupplierStock(s));
+            }
+            NEW secondContainer{
+                NEW custContainer {
+                    caption = 'Покупатель';
+                    MOVE PROPERTY(nameCustomer(s));
+                }
+                NEW operationContainer {
+                    caption = 'Операция';
+                    MOVE PROPERTY(nameOperation(s));
+                }
+            }
+            NEW dateContainer {
+                caption = 'Сроки';
+                MOVE PROPERTY(startDate(s));
+                MOVE PROPERTY(endDate(s));
+            }
+        }
+        REMOVE BOX(dow);
+        MOVE GROUP(documentPrm,s){
+            lines = 1;
+            horizontal = TRUE;
+        }
+
+        MOVE BOX(d){
+            PROPERTY (stocks(d)){caption = 'Склад покупателя';}
+        }
+    }
+}
+
+//    lastScheduleOrderSupplierStockCustomerStock(supplierScheduleOrder(s),supplierStockScheduleOrder(s),customerScheduleOrder(s),customerStockScheduleOrder(s)) ==s;
+isActive(MultiScheduleOrder scheduleOrder, DATE date) = (startDate(scheduleOrder) <= (date AS DATE) AND endDate(scheduleOrder) >= date) OR
+    (startDate(scheduleOrder) <= (date AS DATE) AND NOT endDate(scheduleOrder));
+background 'Цвет' (MultiScheduleOrder scheduleOrder, DATE date) = CASE WHEN startDate(scheduleOrder) > date THEN RGB(224,255,224)
+    WHEN endDate(scheduleOrder) < date THEN RGB(255,224,224);
+
+FORM multiScheduleOrders 'Множественные графики заказов (закупка)'
+    OBJECTS date=DATE PANEL
+    PROPERTIES dv=VALUE(date)
+    
+    OBJECTS s=MultiScheduleOrder 
+    PROPERTIES (s) READONLY nameSupplier FILTER , nameSupplierStock FILTER,  nameCustomer FILTER, startDate, endDate, nameType,  note
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
+    
+    OBJECTS dow=DOW GRID
+    PROPERTIES(dow) READONLY staticCaption, number
+    ORDERS number(dow)
+
+    OBJECTS d=ScheduleOrder GRID
+    PROPERTIES(d) READONLY stocks , dayBefore, overPeriod
+    PROPERTIES  READONLY scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER staticCaption(dow)
+
+    FILTERS multiScheduleOrder(d) == s
+    FILTERGROUP inactiveScheduleOrder
+        FILTER 'Текущие' isActive(s,date) 'F11'
+        FILTER 'Активные' isActive(s,date) OR (startDate(s) > date) 'F10' DEFAULT
+        FILTER 'Заканчивается в течение 3 дн.' endDate(s) <= sum(date,2) AND endDate(s) >= date 'F9'
+        FILTER 'Заканчивается в течение 5 дн.' endDate(s) <= sum(date,4) AND endDate(s) >= date 'F8'
+
+    //LIST MultiScheduleOrder OBJECT s
+;
+DESIGN multiScheduleOrders {
+    size = (1024, 768);
+    OBJECTS {
+        FILTERS(s){
+            MOVE PROPERTY (dv) BEFORE FILTER(nameSupplier(s));
+            lines = 4;            
+        }
+        REMOVE BOX(dow);
+        MOVE BOX (s);
+        MOVE BOX (d);
+        PROPERTY (stocks(d)){caption = 'Склад покупателя';}
+    }
+}
+@extendFormFilterAccessLegalEntity(MultiScheduleOrder, s, multiScheduleOrders, customer, company);
+
+countAccessCompanyEmployeeStock (MultiScheduleOrder o)= GROUP
+    SUM 1 IF accessCompany(currentUser(),Stock stock) AND in(ScheduleOrder order,stock) AND multiScheduleOrder(order)==o;
+countStocks = GROUP SUM 1 IF  in(ScheduleOrder order, Stock stock) BY multiScheduleOrder(order);
+
+
+EXTEND FORM multiScheduleOrders FILTERS countAccessCompanyEmployeeStock(s) OR NOT countStocks(s);
+//EXTEND FORM multiScheduleOrders FILTERS countAccessCompanyEmployeeStock(d) OR NOT countStocks(d);
+
+NAVIGATOR {
+    purchaseDashboardNavigator {
+        NEW multiScheduleOrders;
+    }
+}
