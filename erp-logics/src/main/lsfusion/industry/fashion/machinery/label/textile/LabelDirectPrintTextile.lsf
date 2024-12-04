@@ -135,6 +135,10 @@ fillFormattedTextData ABSTRACT (StickerTransaction);
 useCustomSendToPrinter = ABSTRACT BOOLEAN ();
 customSendToPrinter ABSTRACT (StickerTransaction);
 
+writeToComPortJssc (FILE file, INTEGER baudrate, INTEGER comport) {
+    writeToComPort(file, baudrate, comport, NULL);
+}
+
 sendToPrinter (StickerTransaction stickerTrans) {
     IF useCustomSendToPrinter() THEN
         customSendToPrinter(stickerTrans);
@@ -149,7 +153,7 @@ sendToPrinter (StickerTransaction stickerTrans) {
 
             CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                writeToComPort(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
+                writeToComPortJssc(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
                 printed() <- TRUE;
             }
             WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
