@@ -13,13 +13,15 @@ createCashRegisterPriceTransactionDocumentLot 'Загрузить в обору�
     APPLY;
 } CONFIRM;
 
+skipCreatePriceTransactionLot = ABSTRACT BOOLEAN (Invoice);
+
 createMachineryPriceTransactionCustom 'Загрузить в оборудование' (Invoice i) {
-    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    IF (useLot(i) AND NOT skipCreatePriceTransactionLot(i)) THEN createCashRegisterPriceTransactionDocumentLot(i);
     ELSE createMachineryPriceTransaction(i);
 }
 
 createSnapshotMachineryPriceTransactionCustom 'Перегрузить все позиции' (Invoice i) {
-    IF useLot(i) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    IF (useLot(i) AND NOT skipCreatePriceTransactionLot(i)) THEN createCashRegisterPriceTransactionDocumentLot(i);
     ELSE createSnapshotMachineryPriceTransaction(i);
 }
 
