@@ -99,7 +99,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
             in(consignor##Stock(vd), consignorEnterprise(vtd)))
         AND
             in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
-            in(sku(vd), productItem(vtd));
+            productItem(vtd) = productItem(sku(vd));
     
     fillExpiryDate 'Заполнить сроки годности' (###doc d) {
         ASK 'Заполнить сроки годности из ВСД ?' DO
@@ -134,7 +134,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
                                 uuidVetDocument, volumeVetDocument
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeVetDocument(vd)
+                productItem(sku(vd)) OR volumeVetDocument(vd)
 
         PROPERTIES(obj) DRAW vd TOOLBAR fillVolume, fillVolumeDate
         
@@ -174,7 +174,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
     quantity (###doc##Detail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
     
-    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
+    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, productItem(sku(vd))) AND active(s);
     
     calcQuantity(###doc##Detail vd, StockEntry s) = 
         PARTITION UNGROUP quantity LIMIT quantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
@@ -194,7 +194,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
                                 numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+                productItem(sku(vd)) OR volumeStockEntry(vd)
         
         PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
         
@@ -234,7 +234,7 @@ META defineChangeOutgoingConsignmentDialog (doc)
         numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS user###doc(vd) = i,
-        [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+        productItem(sku(vd)) OR volumeStockEntry(vd)
     
         PROPERTIES(i) fillVolume DRAW vd TOOLBAR
     
