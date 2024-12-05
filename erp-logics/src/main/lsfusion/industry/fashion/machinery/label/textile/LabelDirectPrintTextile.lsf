@@ -1,6 +1,6 @@
 MODULE LabelDirectPrintTextile;
 
-REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile, StockTextile;
+REQUIRE LabelDirectPrint, LabelTextile, PacketTextile, ItemFashionTextile, StockTextile, ScannerDaemon;
 
 NAMESPACE Label;
 
@@ -135,8 +135,10 @@ fillFormattedTextData ABSTRACT (StickerTransaction);
 useCustomSendToPrinter = ABSTRACT BOOLEAN ();
 customSendToPrinter ABSTRACT (StickerTransaction);
 
-writeToComPortJssc (FILE file, INTEGER baudrate, INTEGER comport) {
-    writeToComPort(file, baudrate, comport, NULL);
+writeToComPortCustomLibrary (FILE file, INTEGER baudrate, INTEGER comport) {
+    CASE WHEN (comLibrary(currentComputer()) == ComLibrary.jSerialComm OR NOT comLibrary(currentComputer())) THEN writeToComPort(file, baudrate, comport, TRUE);
+        WHEN comLibrary(currentComputer()) == ComLibrary.jssc THEN writeToComPort(file, baudrate, comport, NULL);
+        ELSE MESSAGE 'Ошибка. Выберите в настройках компьютера Библитеку Com из jssc и jSerialComm';
 }
 
 sendToPrinter (StickerTransaction stickerTrans) {
@@ -153,7 +155,7 @@ sendToPrinter (StickerTransaction stickerTrans) {
 
             CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
                 stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                writeToComPortJssc(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
+                writeToComPortCustomLibrary(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
                 printed() <- TRUE;
             }
             WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
