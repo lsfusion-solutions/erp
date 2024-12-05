@@ -395,6 +395,8 @@ netWeight 'Масса нетто'(BarcodeRequestDetail d) = OVERRIDE overNetWeig
 overGrossWeight = ABSTRACT NUMERIC[12,6](BarcodeRequestDetail);
 grossWeight 'Масса брутто'(BarcodeRequestDetail d) = OVERRIDE overGrossWeight(d), grossWeight(item(d)), 0.0 IF d IS BarcodeRequestDetail;
 
+overSendExcel ABSTRACT LIST (BarcodeRequest);
+
 sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
     IF b IS BarcodeRequest AND NOT operation(b) AND NOT allowBarcodeRequestNotOperation() THEN {
         MESSAGE 'У заявки не выбрана операция';
@@ -417,6 +419,8 @@ sendExcel 'Отправить файл по почте' (BarcodeRequest b)  {
         RETURN;
     }
 
+    overSendExcel(b);
+    
     IF excel(b) THEN {
         NEWSESSION NESTED LOCAL{
             EMAIL
