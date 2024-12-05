@@ -521,6 +521,16 @@ public class TerminalServer extends MonitorServer {
                                         String parentDocument = document.length <= 8 ? null : formatValue(document[8]);
                                         if (parentDocument != null)
                                             parentDocument = parentDocument.replace("'", "");
+    
+                                        boolean markerFields = document.length > 10;
+                                        Integer labelCount = null;
+                                        String categories = null;
+                                
+                                        if (markerFields) {
+                                            labelCount = parseInteger(document[9]);
+                                            categories = formatValue(document[10]);
+                                        }
+                                        
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
@@ -548,20 +558,69 @@ public class TerminalServer extends MonitorServer {
 
                                                 String imageBase64 = line.length <= 17 ? null : formatValue(line[17]);
                                                 RawFileData imageDocumentDetail = imageBase64 != null ? new RawFileData(Base64.decodeBase64(imageBase64)) : null;
-
-                                                terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
-                                                        ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
-                                                        priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
-                                                        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
-                                                        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail,
-                                                        markDocumentDetail, replaceDocumentDetail, ana1DocumentDetail, ana2DocumentDetail, imageDocumentDetail));
+                                                
+                                                List<Object> list = new ArrayList<>();
+                                                list.add(idDocument);
+                                                list.add(numberDocument);
+                                                list.add(idTerminalDocumentType);
+                                                list.add(ana1);
+                                                list.add(ana2);
+                                                list.add(comment);
+                                                if (markerFields) {
+                                                    list.add(labelCount);
+                                                    list.add(categories);
+                                                }
+                                                list.add(idDocumentDetail);
+                                                list.add(numberDocumentDetail);
+                                                list.add(barcodeDocumentDetail);
+                                                list.add(quantityDocumentDetail);
+                                                list.add(priceDocumentDetail);
+                                                list.add(commentDocumentDetail);
+                                                list.add(parseTimestamp(dateDocumentDetail));
+                                                list.add(parseDate(extraDate1DocumentDetail));
+                                                list.add(parseDate(extraDate2DocumentDetail));
+                                                list.add(extraField1DocumentDetail);
+                                                list.add(extraField2DocumentDetail);
+                                                list.add(extraField3DocumentDetail);
+                                                list.add(parentDocument);
+                                                list.add(extraQuantityDocumentDetail);
+                                                list.add(batchDocumentDetail);
+                                                list.add(markDocumentDetail);
+                                                list.add(replaceDocumentDetail);
+                                                list.add(ana1DocumentDetail);
+                                                list.add(ana2DocumentDetail);
+                                                list.add(imageDocumentDetail);
+                                                
+                                                terminalDocumentDetailList.add(list);
+                                                
+                                                //terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType,
+                                                //        ana1, ana2, comment, labelCount, categories, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
+                                                //        priceDocumentDetail, commentDocumentDetail, parseTimestamp(dateDocumentDetail),
+                                                //        parseDate(extraDate1DocumentDetail), parseDate(extraDate2DocumentDetail), extraField1DocumentDetail,
+                                                //        extraField2DocumentDetail, extraField3DocumentDetail, parentDocument, extraQuantityDocumentDetail, batchDocumentDetail,
+                                                //        markDocumentDetail, replaceDocumentDetail, ana1DocumentDetail, ana2DocumentDetail, imageDocumentDetail));
                                             }
                                         }
                                         logger.info(getLogPrefix(socket, userInfo) + "receiving document number " + document[2] + " : " + (params.size() - 1) + " record(s)");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
-                                        if (emptyDocument)
-                                            terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
-                                        result = importTerminalDocumentDetail(idDocument, userInfo, terminalDocumentDetailList, emptyDocument);
+                                        if (emptyDocument) {
+                                            List<Object> list = new ArrayList<>();
+                                            list.add(idDocument);
+                                            list.add(numberDocument);
+                                            list.add(idTerminalDocumentType);
+                                            list.add(ana1);
+                                            list.add(ana2);
+                                            list.add(comment);
+                                            if (markerFields) {
+                                                list.add(labelCount);
+                                                list.add(categories);
+                                            }
+    
+                                            terminalDocumentDetailList.add(list);
+    
+                                            //terminalDocumentDetailList.add(Arrays.asList(idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment, labelCount, categories));
+                                        }
+                                        result = importTerminalDocumentDetail(idDocument, userInfo, terminalDocumentDetailList, emptyDocument, markerFields);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;
                                             errorText = PROCESS_DOCUMENT_ERROR_TEXT + ": " + result;
@@ -980,9 +1039,9 @@ public class TerminalServer extends MonitorServer {
 
     }
 
-    protected String importTerminalDocumentDetail(String idTerminalDocument, UserInfo userInfo, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws SQLException {
+    protected String importTerminalDocumentDetail(String idTerminalDocument, UserInfo userInfo, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument, boolean marker) throws SQLException {
         try (DataSession session = createSession()) {
-            return terminalHandler.importTerminalDocument(session, getStack(), userInfo, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+            return terminalHandler.importTerminalDocument(session, getStack(), userInfo, idTerminalDocument, terminalDocumentDetailList, emptyDocument, marker);
         }
     }
 

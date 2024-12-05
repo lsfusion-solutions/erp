@@ -1,0 +1,15 @@
+MODULE LabelTerminalUrban;
+
+REQUIRE LabelTerminal, LabelTerminalTask;
+
+NAMESPACE Label;
+
+//task(TerminalDocument td) = GROUP LAST LabelTask t IF in(t) AND code(t) = title(td) ORDER code(t), t;
+//backgroundCount(TerminalDocument td) = RGB(255, 179, 179) IF count(task(td)) != countSkuTerminalDocumentDetail(td) AND parentDocument(td);
+backgroundCount(TerminalDocument td) = RGB(255, 179, 179) IF markerLabelCount(td) != countTerminalDocumentDetail(td) AND parentDocument(td);
+
+EXTEND FORM labelTerminalDashboard
+    PROPERTIES READONLY 'Ценников к проверке' = markerLabelCount(td) BACKGROUND backgroundCount(td) AFTER countSkuTerminalDocumentDetail(td)
+    PROPERTIES READONLY 'Товарные группы к проверке' = markerSkuGroups(td) AFTER markerLabelCount(td)
+    FILTERGROUP labelVerification FILTER 'Верификация ценников' parentDocument(td)
+;

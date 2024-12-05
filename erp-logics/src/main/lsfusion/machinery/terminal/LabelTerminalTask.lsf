@@ -1,0 +1,121 @@
+MODULE LabelTerminalTask;
+
+REQUIRE Label, Item, TerminalHandler;
+
+CLASS LabelTask 'Задания';
+TABLE labelTask (LabelTask);
+
+code 'Код' = DATA STRING (LabelTask);
+dow = DATA DOW (LabelTask);
+order (LabelTask t) = numberM(dow(t));
+captionDow 'День недели' (LabelTask t) = staticCaption(dow(t)) NONULL CHARWIDTH 20;
+count 'Количество ценников к проверке' = DATA INTEGER (LabelTask);
+terminalDocumentType = DATA TerminalDocumentType (LabelTask);
+nameTerminalDocumentType 'Тип документа' (LabelTask t) = name(terminalDocumentType(t));
+idTerminalDocumentType (LabelTask t) = id(terminalDocumentType(t));
+
+in 'Вкл.' = DATA BOOLEAN (LabelTask);
+in 'Вкл.' = DATA BOOLEAN (LabelTask, SkuGroup);
+in 'Вкл.' = DATA BOOLEAN (LabelTask, Store);
+
+countSkuGroups 'Количество товарных групп' (LabelTask t) = GROUP SUM 1 IF in(t, SkuGroup g);
+
+skuGroups (LabelTask t) = (GROUP CONCAT '"' + name(SkuGroup g) + '"', ',<br>' IF in(t, g) ORDER name(g));
+skuGroupsJSON(LabelTask t) = CONCAT '', '[', (GROUP CONCAT '"' + idSkuGroup(SkuGroup g) + '"', ',' IF in(t, g) ORDER idSkuGroup(g)), ']';
+
+extraField (LabelTask t) = CONCAT '<br>',
+    '<big>' + captionDow(t) + '</big>',
+    'Ценников к проверке: <big>' + (OVERRIDE STRING[10](count(t)), '') + '</big>',
+    'Товарные группы:<br><big>' + skuGroups(t) + '</big>';
+
+has(DOW d) = GROUP LAST LabelTask t IF dow(t) = d ORDER t;
+
+selectAllStore 'Отметить все' (LabelTask t) {
+    in(t, Store s) <- TRUE WHERE s IS Store AND active(s);
+}
+
+unSelectAllStore 'Сбросить все' (LabelTask t) {
+    in(t, Store s) <- NULL WHERE s IS Store AND active(s);
+}
+
+FORM labelTasks 'Верификация ценников'
+    OBJECTS lt = LabelTask
+    PROPERTIES(lt) in, code READONLY, captionDow, count, countSkuGroups READONLY, nameTerminalDocumentType, order ORDER SHOWIF NULL
+    PROPERTIES(lt) selectAllStore, unSelectAllStore
+    PROPERTIES(lt) NEW, DELETE
+    //PROPERTIES() importFromTerminalDocument TOOLBAR
+    
+    OBJECTS s = Store
+    PROPERTIES(lt, s) in
+    PROPERTIES(s) READONLY name, address
+    FILTERS (s IS Store), isCompany(s)
+    FILTERGROUP group1
+        FILTER 'Активные' active(s) 'F10' DEFAULT
+    
+    OBJECTS sg = SkuGroup
+    PROPERTIES(lt, sg) in
+    PROPERTIES (sg) READONLY nameGroup3
+    
+    FILTERS group3(sg) == sg
+;
+
+WHEN LOCAL SET(LabelTask lt IS LabelTask) DO {
+    code(lt) <- 'T' + LONG(lt);
+    selectAllStore(lt);
+    RETURN;
+}
+
+userStock = store(stock(currentUser()));
+userStock (Employee employee) = store(stock(employee));
+todayTask 'Задание на сегодня' = GROUP LAST LabelTask lt IF in(lt) AND dow(lt) = extractDOW(currentDate()) AND in(lt, userStock()) ORDER code(lt), lt;
+todayTask 'Задание на сегодня' (Employee employee) = GROUP LAST LabelTask lt IF in(t) AND dow(t) = extractDOW(currentDate()) AND in(lt, userStock(employee)) ORDER code(lt), lt;
+
+onWebClientStarted() + {
+
+//    IF has(currentUser(), userRoleSID('admin')) AND todayTask() THEN {
+    IF todayTask() THEN {
+        IF count(todayTask()) THEN {
+            IF skuGroups(todayTask()) THEN
+                MESSAGE ' Проверьте ' + count(todayTask()) + ' ценников из товарных групп:' + '<br><b>' + skuGroups(todayTask()) + '</b>' NOWAIT;
+            ELSE
+                MESSAGE ' Проверьте ' + count(todayTask()) + ' ценников' NOWAIT;
+        }
+        ELSE {
+            IF skuGroups(todayTask()) THEN
+                MESSAGE ' Проверьте ценники из товарных групп:' + '<br><b>' + skuGroups(todayTask()) + '</b>' NOWAIT;
+            ELSE
+                MESSAGE ' Проверьте ценники' + name(userStock()) NOWAIT;
+        }
+        
+    }
+}
+
+DESIGN labelTasks {
+    
+    OBJECTS {
+        horizontal = FALSE;
+        NEW tab2 {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(lt) {
+                fill = 1.5;
+            }
+            NEW store {
+                fill = 1.5;
+                NEW select {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(selectAllStore(lt));
+                    MOVE PROPERTY(unSelectAllStore(lt));
+                }
+                MOVE BOX(s);
+            }
+            MOVE BOX(sg) { fill = 1; }
+        }         
+    }
+}
+
+NAVIGATOR {
+    retailDashboardNavigator {
+        NEW labelTasks;
+    }
+}

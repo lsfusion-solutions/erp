@@ -747,7 +747,9 @@ public class DefaultTerminalHandler {
                 " maxdate1 TEXT," +
                 " vop TEXT," +
                 " unit_load TEXT DEFAULT NULL," +
-                "PRIMARY KEY (num, barcode))";
+                " labelcount INTEGER DEFAULT NULL," +
+                " categories TEXT DEFAULT NULL," +
+                " PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -757,7 +759,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -786,6 +788,8 @@ public class DefaultTerminalHandler {
                         statement.setObject(++i, formatValue(order.maxDate1));
                         statement.setObject(++i, formatValue(order.vop));
                         statement.setObject(++i, formatValue(order.unitLoad));
+                        statement.setObject(++i, order.labelCount);
+                        statement.setObject(++i, order.categories);
                         statement.addBatch();
                     }
                 }
@@ -1113,7 +1117,7 @@ public class DefaultTerminalHandler {
                 for (TerminalDocumentType tdt : terminalDocumentTypeList) {
                     if (tdt.id != null) {
                         statement.setObject(1, formatValue(tdt.id));
-                        statement.setObject(2, "");
+                        statement.setObject(2, formatValue(tdt.backId));
                         statement.setObject(3, formatValue(tdt.name));
                         statement.setObject(4, formatValue(tdt.analytics1));
                         statement.setObject(5, formatValue(tdt.analytics2));
@@ -1286,7 +1290,7 @@ public class DefaultTerminalHandler {
     }
 
     public String importTerminalDocument(DataSession session, ExecutionStack stack, UserInfo userInfo,
-                                         String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) {
+                                         String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument, boolean markerFields) {
         try {
 
             if(terminalHandlerLM != null) {
@@ -1322,11 +1326,21 @@ public class DefaultTerminalHandler {
                 ImportField idTerminalHandbookType2Field = new ImportField(terminalHandlerLM.findProperty("idTerminalHandbookType2[TerminalDocument]"));
                 props.add(new ImportProperty(idTerminalHandbookType2Field, terminalHandlerLM.findProperty("idTerminalHandbookType2[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalHandbookType2Field);
-
+                
                 ImportField commentTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("comment[TerminalDocument]"));
                 props.add(new ImportProperty(commentTerminalDocumentField, terminalHandlerLM.findProperty("comment[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(commentTerminalDocumentField);
-
+    
+                if (markerFields) {
+                    ImportField markerLabelCountTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("markerLabelCount[TerminalDocument]"));
+                    props.add(new ImportProperty(markerLabelCountTerminalDocumentField, terminalHandlerLM.findProperty("markerLabelCount[TerminalDocument]").getMapping(terminalDocumentKey)));
+                    fields.add(markerLabelCountTerminalDocumentField);
+                    
+                    ImportField markerSkuGroupsTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("markerSkuGroups[TerminalDocument]"));
+                    props.add(new ImportProperty(markerSkuGroupsTerminalDocumentField, terminalHandlerLM.findProperty("markerSkuGroups[TerminalDocument]").getMapping(terminalDocumentKey)));
+                    fields.add(markerSkuGroupsTerminalDocumentField);
+                }
+                
                 if (!emptyDocument) {
 
                     ImportField idTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocumentDetail]"));
@@ -1770,9 +1784,9 @@ public class DefaultTerminalHandler {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+            String[] names = new String[]{"idTerminalDocumentType", "backIdTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType", "idTerminalHandbookType1DetailTerminalDocumentType"};
-            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
+            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "backId[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
                     "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]", "idTerminalHandbookType1Detail[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
@@ -1783,12 +1797,13 @@ public class DefaultTerminalHandler {
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = StringUtils.trim((String) entry.get("idTerminalDocumentType"));
+                String backId = StringUtils.trim((String) entry.get("backIdTerminalDocumentType"));
                 String name = StringUtils.trim((String) entry.get("nameTerminalDocumentType"));
                 Long flag = (Long) entry.get("flagTerminalDocumentType");
                 String analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
                 String analytics2 = StringUtils.trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
                 String detail_analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1DetailTerminalDocumentType"));
-                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, detail_analytics1, flag));
+                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, detail_analytics1, flag, backId));
             }
         }
         return terminalDocumentTypeList;
@@ -1923,21 +1938,19 @@ public class DefaultTerminalHandler {
             try {
                 ObjectValue taskObject = labelTerminalTaskLM.findProperty("todayTask[Employee]").readClasses(session, userInfo.user);
                 if (!taskObject.isNull()) {
-                    String code = (String) labelTerminalTaskLM.findProperty("code[LabelTerminalTask]").read(session, taskObject);
-                    String captionDOW = (String) labelTerminalTaskLM.findProperty("captionDow[LabelTerminalTask]").read(session, taskObject);
-                    Integer markerCount = (Integer) labelTerminalTaskLM.findProperty("count[LabelTerminalTask]").read(session, taskObject);
-                    String markerCategories = (String) labelTerminalTaskLM.findProperty("skuGroupsJSON[LabelTerminalTask]").read(session, taskObject);
-                    String vop = (String) labelTerminalTaskLM.findProperty("idTerminalDocumentType[LabelTerminalTask]").read(session, taskObject);
-                    String extraField = (String) labelTerminalTaskLM.findProperty("extraField[LabelTerminalTask]").read(session, taskObject);
+                    String code = (String) labelTerminalTaskLM.findProperty("code[LabelTask]").read(session, taskObject);
+                    String captionDOW = (String) labelTerminalTaskLM.findProperty("captionDow[LabelTask]").read(session, taskObject);
+                    Integer labelCount = (Integer) labelTerminalTaskLM.findProperty("count[LabelTask]").read(session, taskObject);
+                    String categories = (String) labelTerminalTaskLM.findProperty("skuGroupsJSON[LabelTask]").read(session, taskObject);
+                    String vop = (String) labelTerminalTaskLM.findProperty("idTerminalDocumentType[LabelTask]").read(session, taskObject);
+                    String extraField = (String) labelTerminalTaskLM.findProperty("extraField[LabelTask]").read(session, taskObject);
                     
-                    result.add(new TerminalOrder(LocalDate.now(), null, code, null, markerCount, markerCategories,
+                    result.add(new TerminalOrder(LocalDate.now(), null, code, null, labelCount, categories,
                             null, null, null, null, null, null, null, null,
                             null, null, null, null, null,
                             extraField, null, null, null,  null, null,
                             null, null, vop, null, null, null, null,
                             null, null));
-                    
-                    System.out.println(captionDOW);
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2102,17 +2115,19 @@ public class DefaultTerminalHandler {
         public String name;
         public String analytics1;
         public String analytics2;
+        public String backId;
 
         public String detail_analytics1;
         public Long flag;
 
-        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, String detail_analytics1, Long flag) {
+        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, String detail_analytics1, Long flag, String backId) {
             this.id = id;
             this.name = name;
             this.analytics1 = analytics1;
             this.analytics2 = analytics2;
             this.detail_analytics1 = detail_analytics1;
             this.flag = flag;
+            this.backId = backId;
         }
     }
 
@@ -2181,11 +2196,11 @@ public class DefaultTerminalHandler {
         public String GTIN;
         public BigDecimal trustAcceptPercent;
         public String unitLoad;
-        public Integer markerCount;
-        public String markerCategories;
+        public Integer labelCount;
+        public String categories;
         
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
-                             Integer markerCount, String markerCategories,
+                             Integer labelCount, String categories,
                              String barcode, String idItem, String name, String category,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
@@ -2195,9 +2210,8 @@ public class DefaultTerminalHandler {
             this.dateShipment = dateShipment;
             this.number = number;
             this.supplier = supplier;
-            this.markerCount = markerCount;
-            this.markerCategories = markerCategories;
-            
+            this.labelCount = labelCount;
+            this.categories = categories;
             this.barcode = barcode;
             this.idItem = idItem;
             this.name = name;
