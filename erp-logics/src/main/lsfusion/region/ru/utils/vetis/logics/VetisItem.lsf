@@ -4,13 +4,38 @@ REQUIRE Item, VetisProductItem, VetisUnit;
 
 NAMESPACE Vetis;
 
+in = DATA BOOLEAN (Item, ProductItem);
+
+guidProductItem 'Коды номенклатуры (Ветис)' (Item i) = GROUP CONCAT guid(ProductItem pi) IF in(i, pi), ', ' ORDER pi CHARWIDTH 10;
+nameProductItem 'Номенклатуры (Ветис)' (Item i) = GROUP CONCAT name(ProductItem pi) IF in(i, pi), ', ' ORDER pi CHARWIDTH 20;
+
 productItem = DATA ProductItem (Item) INDEXED;
-guidProductItem 'Код номенклатуры (Ветис)' (Item i) = guid(productItem(i)) IN itemBase;
-nameProductItem 'Номенклатура (Ветис)' (Item i) = name(productItem(i)) IN itemBase;
+//guidProductItem 'Код номенклатуры (Ветис)' (Item i) = guid(productItem(i)) IN itemBase;
+//nameProductItem 'Номенклатура (Ветис)' (Item i) = name(productItem(i)) IN itemBase;
+
+addProductItem 'Добавить' (Item i){
+    DIALOG productItems OBJECTS o INPUT DO {
+        in(i, o) <- TRUE;
+    }
+}
+deleteProductItem 'Отключить' (Item i, ProductItem pi) {
+    in(i, pi) <- NULL;
+}
 
 EXTEND FORM item
-    PROPERTIES(i) guidProductItem, nameProductItem
+    OBJECTS pi = ProductItem
+    PROPERTIES(pi) READONLY guid, name
+    PROPERTIES addProductItem(i) DRAW pi TOOLBAR, deleteProductItem(i, pi) GRID
+    FILTERS in(i, pi)
 ;
+
+DESIGN item {
+    itemDetail {
+        MOVE BOX(pi) {
+            caption = 'Ветис';
+        }
+    }
+}
 
 EXTEND FORM items
     PROPERTIES(i) nameProductItem
@@ -21,16 +46,22 @@ DESIGN items {
 }
 
 // product item
-idItem 'Коды товаров' (ProductItem pi) = GROUP CONCAT id(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 10;
-nameItem 'Товары' (ProductItem pi) = GROUP CONCAT name(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 20;
+idItem 'Коды товаров' (ProductItem pi) = GROUP CONCAT id(Item i) IF in(i, pi), ',' ORDER i CHARWIDTH 10;
+nameItem 'Товары' (ProductItem pi) = GROUP CONCAT name(Item i) IF in(i, pi), ',' ORDER i CHARWIDTH 20;
+
+//idItem 'Коды товаров' (ProductItem pi) = GROUP CONCAT id(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 10;
+//nameItem 'Товары' (ProductItem pi) = GROUP CONCAT name(Item i) IF productItem(i) = pi, ',' ORDER i CHARWIDTH 20;
 
 EXTEND FORM productItems
     PROPERTIES(o) READONLY idItem, nameItem
 ;
 
 // auto link
-WHEN SET(id(Barcode b) = globalID(ProductItem i) AND active(b)) AND NOT productItem(sku(b)) DO
-    productItem(sku(b)) <- i; 
+//WHEN SET(id(Barcode b) = globalID(ProductItem i) AND active(b)) AND NOT productItem(sku(b)) DO
+//    productItem(sku(b)) <- i;
+
+WHEN SET(id(Barcode b) = globalID(ProductItem i) AND active(b)) DO
+    in(sku(b), i) <- TRUE;
 
 // factor
 factorItem 'Коэффициент в литры/килограммы' = DATA NUMERIC[14,3] (Unit);
