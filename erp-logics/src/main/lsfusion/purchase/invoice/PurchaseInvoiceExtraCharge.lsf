@@ -167,30 +167,35 @@ calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoic
 beforeFillExtraCharge ABSTRACT(Invoice);
 afterFillExtraCharge ABSTRACT(Invoice);
 
+fillExtraChargePriceUserCustom = ABSTRACT BOOLEAN(UserInvoice);
+fillExtraChargePriceUserOver  ABSTRACT (UserInvoice);
+
 fillExtraChargePriceUser 'Расписать услуги'(Invoice i)  { 
-    IF currency(i) THEN {    
-        beforeFillExtraCharge(i);
-        
-        IF toWeightExtraCharge(i) THEN {
-            extraChargeSum(i, UserInvoiceDetail d) <- 
+    IF NOT fillExtraChargePriceUserCustom(i) THEN {
+        IF currency(i) THEN {
+            IF toWeightExtraCharge(i) THEN {                
+                extraChargeSum(i, UserInvoiceDetail d) <-
                 PARTITION UNGROUP calcChargeSum
-                                    PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d)) 
-                                    BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i,d)
-                                WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
-        
+                    PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
+                    BY i;
+                extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i, d)
+                    WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
+
+            } ELSE {
+                extraChargeSum(i, UserInvoiceDetail d) <-
+                PARTITION UNGROUP calcChargeSum
+                    PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
+                    BY i;
+                extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i, d)
+                    WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
+            }
+
+            afterFillExtraCharge(i);
         } ELSE {
-            extraChargeSum(i, UserInvoiceDetail d) <- 
-                PARTITION UNGROUP calcChargeSum
-                                  PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
-                                  BY i;
-            extraChargePrice(i, UserInvoiceDetail d) <- extraChargePriceCalculate(i,d)
-                WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
+            MESSAGE 'Для инвойса не задана валюта.';
         }
-        
-        afterFillExtraCharge(i);
     } ELSE {
-        MESSAGE 'Для инвойса не задана валюта.';
+        fillExtraChargePriceUserOver(i);
     }
 }
 
