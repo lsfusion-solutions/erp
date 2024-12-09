@@ -1,26 +1,28 @@
 MODULE StructureTitanPOS;
 
-REQUIRE POS;
+REQUIRE POS, ZReportLot, Utils;
 
 titanPort 'Порт (titanPOS)'             = DATA STRING[10] (CashRegister);
 titanPin  'PIN код (titanPOS)'          = DATA STRING[10] (CashRegister);
 titanBarcode 'Код в чеке (titanPOS)'    = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
 titanTax 'НДС в чеке (titanPOS)'        = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
-titanSid 'ID сессии (titanPOS)'         = DATA STRING (CashRegister)  CHARWIDTH 10;
-titanCashDrawer 'Ден. ящик (titanPOS)'     = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
+titanSid 'ID сессии (titanPOS)'         = DATA STRING (CashRegister) CHARWIDTH 10;
+titanCashDrawer 'Ден. ящик (titanPOS)'  = DATA BOOLEAN (CashRegister) CHARWIDTH 10;
+titanVersion 'Версия ПО (titanPOS)'     = DATA NUMERIC[10,5] (CashRegister) CHARWIDTH 12;
 
 EXTEND FORM groupCashRegister
-    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanPort, titanPin, titanBarcode, titanTax, titanCashDrawer, titanSid
+    PROPERTIES (c) SHOWIF sidModel(grc) = 'titanPOS' titanVersion, titanPort, titanPin, titanBarcode, titanTax, titanCashDrawer, titanSid
 ;
 
+version 'Версия titanPOS' (CashRegister o) = OVERRIDE titanVersion(o),0;
+vid 'Версия titanPOS' = version(currentCashRegister()); 
+delChar 'Удаление незначащих нулей и точек' (NUMERIC n) = replace(toChar(n,'FM99999999999.999999') + ' ','. ',''); 
 
 // Локальные внутренние свойства
 // ---------------------------------------------------------
 titanResult 'Ответ от СКО' = DATA LOCAL FILE ();
 titanEMessage 'Текст ошибки' = DATA LOCAL STRING ();
 titanECode 'Код ошибки' = DATA LOCAL INTEGER ();
-
-
 
 // ПРИЕМ ДАННЫХ
 // ---------------------------------------------------------
@@ -41,6 +43,7 @@ resetDocNumber 'Номер аннулируемого документа' = DATA
 model 'Модель СКО' = DATA LOCAL STRING();
 serial 'Серийный номер СКО' = DATA LOCAL STRING();
 
+
 revocationServiceStatus 'Пустая строка или текст ошибки обновления СОС' = DATA LOCAL STRING();
 eventsCount 'Количество неотправленных событий программной кассы' = DATA LOCAL NUMERIC();
 docsCount ' Количество не отправленных документов программной кассы' = DATA LOCAL NUMERIC();
@@ -56,7 +59,16 @@ FORM receiveForm 'Принятые данные'
         receiveCashier EXTID 'Cashier', docsCount EXTID 'DocsCount', documentsSenderStatus EXTID 'DocumentsSenderStatus',
         serial EXTID 'Serial', certExpDate EXTID 'CertExpDate', totalSum EXTID 'TotalSum', docNumber EXTID 'DocNumber',
         model EXTID 'Model', eventsSenderStatus EXTID 'EventsSenderStatus',
-        number EXTID 'Number', position EXTID 'Position'
+        number EXTID 'Number', position EXTID 'Position' 
+;
+
+// для версии старше 2.1
+docDateRep 'Дата и время документа' = DATA LOCAL DATETIME ();
+docNumberRep 'Номер Z-отчета' = DATA LOCAL STRING[48] ();
+
+FORM receiveFormRep 'Принятые данные: отчеты Z,X'
+    PROPERTIES() status EXTID 'Status', error EXTID 'Error', titanKey EXTID 'TitanKey'
+    PROPERTIES() docDateRep EXTID 'DocDate', docNumberRep EXTID 'DocNumber'
 ;
 
 // ПЕРЕДАЧА ДАННЫХ
@@ -135,7 +147,11 @@ detailCodeType  'Вид кода товара' (ReceiptDetail o) =
     IF skuType(sku(o)) = SkuType.skuTypeItem THEN 1 ELSE        // товар
     IF skuType(sku(o)) = SkuType.skuTypeCharge THEN 2 ELSE 0;   // услага, иначе 0 
 
-detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
+//detailBarcode 'Код товара' (ReceiptDetail o) = IF titanBarcode(currentCashRegister()) THEN idBarcode(o);
+detailBarcode 'Код товара' (ReceiptDetail o) = 
+    IF NOT(vid() > 2.1) THEN (IF titanBarcode(currentCashRegister()) THEN idBarcode(o) ELSE NULL) ELSE idBarcode(o);
+detailHideCodes 'Скрывать код товара в чеке, версия старше 2.1' (ReceiptDetail o) = 
+    IF o THEN IF titanBarcode(currentCashRegister()) THEN TFALSE ELSE TTRUE;
 
 detailTax 'Ставка НДС' = ABSTRACT VALUE INTEGER(ReceiptDetail); 
 detailTax (ReceiptDetail o) += IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
@@ -144,13 +160,14 @@ detailTax (ReceiptDetail o) += IF titanTax(currentCashRegister()) AND valueVAT(o
     IF valueVAT(o) =  0 THEN 3 ELSE NULL;
 
 detailDepartament 'Код отдела КСА' = ABSTRACT VALUE INTEGER (ReceiptDetail);
+detailMarka 'Код марки' (ReceiptDetail o) = IF vid() > 2.1 AND idLot(o) THEN encodeText((CONCAT '', idLot(o), tailLot(o)),'base64');
    
-FORM saleForm
+FORM saleForm 'Продажа и возврат, кроме возврата со скидкой для версии старше 2.1'
     PROPERTIES () titanKey EXTID 'TitanKey'
     PROPERTIES() receiptRefund EXTID 'Refund',
         receiptDiscountSum EXTID 'DiscountSum',
         receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email',
-        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'  // нет ограничений по длине
+        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'  // нет ограничений по длине, только для версии 2.1
 
     OBJECTS payments = Payment EXTID 'Payments'
     PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',
@@ -163,9 +180,40 @@ FORM saleForm
         detailTax EXTID 'Tax',
         detailDiscountSum EXTID 'DiscountSum', detailDiscountLabel EXTID 'Footer',
         detailTotalSum EXTID 'TotalSum',
-        detailDepartament EXTID 'Departament'
+        detailDepartament EXTID 'Departament',
+        detailHideCodes EXTID 'HideCodes',
+        detailMarka EXTID 'MarkSI'
 
     PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
+;
+
+
+detailQuantityDsc (ReceiptDetail o) = IF o THEN 1;
+detailPriceDsc (ReceiptDetail o) = sum(o);
+detailNameDsc (ReceiptDetail o) = detailName(o) + '\n' + 
+    '( возврат ' + delChar(quantity(o)) + ' ед. товара по цене ' + delChar(detailPrice(o)) + ' руб. ' +  
+    'с учетом ранее предоставленной суммы скидки ' + delChar(discountSum(o) (+) bonusPaid(o)) + ' руб. )';
+
+FORM returnForm 'Возврат товара со скидкой, версия > 2.1'
+    PROPERTIES () titanKey EXTID 'TitanKey'
+    PROPERTIES() receiptRefund EXTID 'Refund',
+        receiptTotalSum EXTID 'TotalSum', receiptSendEmail EXTID 'SendEmail', receiptEmail EXTID 'Email',
+        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'  // нет ограничений по длине
+
+    OBJECTS payments = Payment EXTID 'Payments'
+    PROPERTIES(payments) paymentTypeFlag EXTID 'TypeFlag',
+        paymentSum EXTID 'Sum',
+        paymentDescription EXTID 'Description'
+    FILTERS IF paymentSum(payments) AND abs(paymentSum(payments)) > 0 THEN TRUE ELSE NULL
+
+    OBJECTS lines = ReceiptDetail EXTID 'Lines'
+    PROPERTIES(lines) detailQuantityDsc EXTID 'Quantity', detailPriceDsc EXTID 'Price',
+        detailTax EXTID 'Tax',
+        detailTotalSum EXTID 'TotalSum',
+        detailDepartament EXTID 'Departament',
+        detailHideCodes EXTID 'HideCodes'
+
+    PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailNameDsc EXTID 'Name'
 ;
 
 text 'Произвольный текст' = DATA TEXT ();

@@ -3,12 +3,17 @@ MODULE CommonTitanPOS;
 REQUIRE FiscalTitanPOS;
  
 // Номер счетчика оплат (1 - нал, 2 - карта, 3 - прочие)
+// Начиная с версии 2.2 приницпиально счетчики 1 - нал, 2 - карта, 3 - прочие, ничего привязывать не надо
+vid 'Верcия TitanPOS' = version(currentCashRegister());
 paymentTypeFlag (Payment p) +=
-        IF sidPaymentType(p) = 'cash'     THEN 1 ELSE    // наличные
-        IF sidPaymentType(p) = 'card'     THEN 2 ELSE    // кредитная карта
-        IF sidPaymentType(p) = 'epay'     THEN 2 ELSE    // О!плати
-        IF sidPaymentType(p) = 'halva'    THEN 2 ELSE    // Халва
-        IF sidPaymentType(p) = 'buy_card' THEN 2 ELSE    // Карта покупок
-        IF sidPaymentType(p) = 'magnit'   THEN 2 ELSE 3; // Магнит, иначе: В сч. зарлаты или П/Сертификатом
+        IF vid() > 2.1 AND sidPaymentType(p) = 'cash' THEN 1 ELSE
+        IF vid() > 2.1 AND sidPaymentType(p) = 'card' THEN 2 ELSE
+        IF vid() > 2.1 THEN 3 ELSE
+            IF sidPaymentType(p) = 'cash'     THEN 1 ELSE    // наличные
+            IF sidPaymentType(p) = 'card'     THEN 2 ELSE    // кредитная карта
+            IF sidPaymentType(p) = 'epay'     THEN 2 ELSE    // О!плати
+            IF sidPaymentType(p) = 'halva'    THEN 2 ELSE    // Халва
+            IF sidPaymentType(p) = 'buy_card' THEN 2 ELSE    // Карта покупок
+            IF sidPaymentType(p) = 'magnit'   THEN 2 ELSE 3; // Магнит, иначе: В сч. зарлаты или П/Сертификатом
 
 

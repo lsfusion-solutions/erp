@@ -48,7 +48,12 @@ onSend 'Передача данных' (CashRegister o, STRING operation, cmsg) 
         hmsg() <- trim(toChar(titanECode(), '999')) + ', Ошибка выполнения HTTP запроса.';
         vmsg() <- messageCaughtException();
     }
-    IMPORT receiveForm JSON FROM titanResult();
+    IF version(o) > 2.1 AND (operation = 'closeShift' OR operation = 'xReport') THEN {
+        IMPORT receiveFormRep JSON FROM titanResult();
+    } ELSE {
+        IMPORT receiveForm JSON FROM titanResult();
+    }
+    titanSid(o) <- titanKey();
     smsg() <- IF status() THEN 'Статус: ' + trim(toChar(status(),'99')) + ', ' + error();
     IF titanECode() THEN {
         emsg() <- 'Операция: ' + cmsg + '\n' + hmsg();
@@ -97,7 +102,7 @@ eqInit 'Инициализация' (CashRegister o) {
         CASE
             WHEN NOT titanECode() THEN {
                 titanSid(o) <- titanKey();
-                APPLY ;
+//                APPLY ;
                 BREAK;        // нет ошибок    
             }
             WHEN titanECode() != 500 THEN BREAK;     // считаем, что идет инициализация СКО, если код = 500
@@ -126,6 +131,14 @@ eqClose 'Закрытие сеанса с СКО' (CashRegister o) {
     onSend(o,'close','Закрытие сеанса с СКО');
 }
 
+eqReopen 'Переоткрытие СКО, для получения нового значени TitanKey ' (CashRegister o) {
+    titanSid(o) <- NULL;
+    eqInit(o);
+    IF titanECode() THEN RETURN;
+    eqOpen(o);
+    IF titanECode() THEN RETURN;
+}
+
 getSate 'Получение статуса СКО' (CashRegister o) {
     titanKey() <- titanSid(o);
     EXPORT sendForm JSON;
@@ -149,6 +162,11 @@ eqGetState 'Получение и обработка статуса СКО' (Cas
         IF titanECode() THEN RETURN;
         getSate(o);
     }
+    IF titanECode() = 401 AND status() = 8 THEN { // Не ожидаемое значение titanKey, пытаемся перезапуститься
+        eqReopen(o);
+        IF titanECode() THEN RETURN;
+        getSate(o);
+    }
 }
 
 
@@ -167,7 +185,6 @@ eqOpenShift 'Открытие смены' (CashRegister o,STRING cashier) {
     EXPORT sendOpen JSON;
     onSend(o,'open','Открытие сеанса с СКО');
 }
-
 
 
 eqXReport 'X-отчет' (CashRegister o) {
@@ -195,11 +212,20 @@ eqZReport 'Z-отчет' (CashRegister o) {
     onFillDataHeaders(o);
     EXPORT sendForm JSON;
     onSend(o,'closeShift','Z-отчет');
-    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
-    IF NOT titanECode() AND number() THEN {
-        fiscalNumber(currentZReport()) <- STRING[48](number());
-        time(currentZReport()) <- TIME(position()); // меняем время, чтобы совпадало с чеком отчета
-
+    IF titanECode() THEN { 
+        onShowError(titanEMessage()); 
+        RETURN; 
+    }
+    IF version(o) > 2.1 THEN {
+        IF docNumberRep() THEN {
+            fiscalNumber(currentZReport()) <- docNumberRep();
+            time(currentZReport()) <- TIME(docDateRep()); // меняем время, чтобы совпадало с чеком отчета
+        }
+    } ELSE {
+        IF number() THEN {
+            fiscalNumber(currentZReport()) <- STRING[48](number());
+            time(currentZReport()) <- TIME(position()); // меняем время, чтобы совпадало с чеком отчета
+        }
     }
 }
 
@@ -316,11 +342,16 @@ bonusText 'Текст для расчетов по бонусам' (Receipt r) {
         '----------------------------------------';
 }
 
+ 
+
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
     return() <- NULL; sale() <- NULL;
     eqOpenShift(o, nameEmployee(r));
-    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    IF titanECode() THEN {
+        onShowError(titanEMessage()); 
+        RETURN;
+    }
     receiptTotalSum() <- NULL; receiptDiscountSum() <- NULL;
     FOR (ReceiptDetail d IS ReceiptDetail) AND receipt(d) = r ORDER d DO {
         IF type(d) = 'Продажа' OR type(d) = 'Сертификат' THEN sale() <- 1; ELSE return() <- 1; // тип продажи
@@ -330,7 +361,13 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(r);
     bonusText(r); // расчет по бонусам
     IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE;
-    EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
+    IF NOT sale() AND receiptDiscountSum() AND version(o) > 2.1 THEN {
+        // для чека возврата со скидкой для версии > 2.1
+        EXPORT returnForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
+    }  ELSE {
+        // для всех прочих чеков возврата и продажи
+        EXPORT saleForm FILTERS receipt(lines) = r, receipt(payments) = r JSON;
+    }
     onSend(o,'check',IF sale() THEN 'Чек продажи' ELSE 'Возврат товара');
     IF titanECode() THEN {
         onShowError(titanEMessage());
@@ -342,6 +379,7 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     eqOpenCashDrawer(o);
 }
 
+
 eqPrntText 'Печать текста' (Receipt r, TEXT text) {
     IF NOT text THEN RETURN;
     eqGetState(currentCashRegister());
@@ -351,6 +389,7 @@ eqPrntText 'Печать текста' (Receipt r, TEXT text) {
     onSend(currentCashRegister(),'printText','Печать прозвольного текста');
     IF titanECode() THEN onShowError(titanEMessage());
 }
+
 
 eqReset 'Аннулировать чек' (CashRegister o, Receipt r) {
     eqOpenShift(o,NULL);
