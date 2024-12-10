@@ -190,9 +190,11 @@ FORM saleForm 'Продажа и возврат, кроме возврата с�
 
 detailQuantityDsc (ReceiptDetail o) = IF o THEN 1;
 detailPriceDsc (ReceiptDetail o) = sum(o);
-detailNameDsc (ReceiptDetail o) = detailName(o) + '\n' + 
+detailNameDsc (ReceiptDetail o) = 
+    IF discountSum(o) (+) bonusPaid(o) THEN detailName(o) + '\n' + 
     '( возврат ' + delChar(quantity(o)) + ' ед. товара по цене ' + delChar(detailPrice(o)) + ' руб. ' +  
-    'с учетом ранее предоставленной суммы скидки ' + delChar(discountSum(o) (+) bonusPaid(o)) + ' руб. )';
+    'с учетом ранее предоставленной суммы скидки ' + delChar(discountSum(o) (+) bonusPaid(o)) + ' руб. )'
+    ELSE detailName(o);
 
 FORM returnForm 'Возврат товара со скидкой, версия > 2.1'
     PROPERTIES () titanKey EXTID 'TitanKey'
