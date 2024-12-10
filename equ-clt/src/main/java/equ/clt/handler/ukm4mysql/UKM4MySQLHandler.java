@@ -1413,7 +1413,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 rowCount++;
             }
             if (!salesInfoList.isEmpty())
-                sendSalesLogger.info(String.format(logPrefix + "found %s records (query returned %s rows)", salesInfoList.size(), rowCount));
+                sendSalesLogger.info(String.format(logPrefix + "found %s records (%s receipts)", salesInfoList.size(), receiptSet.size()));
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
