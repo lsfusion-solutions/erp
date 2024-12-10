@@ -1112,6 +1112,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         boolean useCashNumberInsteadOfCashId = ukm4MySQLSettings.isUseCashNumberInsteadOfCashId();
         boolean usePieceCode = ukm4MySQLSettings.isUsePieceCode();
         boolean checkCardType = ukm4MySQLSettings.isCheckCardType();
+        int maxReceiptCount = ukm4MySQLSettings.getMaxReceiptCount();
 
         UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
@@ -1141,7 +1142,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     checkSalesColumnsAndIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, usePieceCode, machineryMap, cashPayments, cardPayments, giftCardPayments, customPayments,
                             giftCardList, useBarcodeAsId, appendBarcode, useShiftNumberAsNumberZReport, zeroPaymentForZeroSumReceipt,
-                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, checkCardType, directory);
+                            cashRegisterByStoreAndNumber, useLocalNumber, useStoreInIdEmployee, useCashNumberInsteadOfCashId, checkCardType,
+                            maxReceiptCount, directory);
 
                 } finally {
                     if (conn != null)
@@ -1298,7 +1300,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
                                                      boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee,
-                                                     boolean useCashNumberInsteadOfCashId, boolean checkCardType, String directory) {
+                                                     boolean useCashNumberInsteadOfCashId, boolean checkCardType, int maxReceiptCount, String directory) {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -1404,11 +1406,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                     null, position, null, idSection, false, null, null, cashRegister));
 //                        }
                         receiptSet.add(Pair.create(idReceipt, cash_id));
+                        if (maxReceiptCount > 0 && receiptSet.size() >= maxReceiptCount)
+                            break;
                     }
                 }
                 rowCount++;
             }
-            if (salesInfoList.size() > 0)
+            if (!salesInfoList.isEmpty())
                 sendSalesLogger.info(String.format(logPrefix + "found %s records (query returned %s rows)", salesInfoList.size(), rowCount));
         } catch (SQLException e) {
             throw Throwables.propagate(e);

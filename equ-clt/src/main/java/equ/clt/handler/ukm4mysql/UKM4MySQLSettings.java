@@ -89,6 +89,9 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то при чтении платежей делаем IF(p.card_type!='', p.card_type,p.card_number) вместо p.card_number
     private boolean checkCardType;
 
+    //считывать не более указанного количества чеков за цикл. По умолчанию - читать все
+    private int maxReceiptCount;
+
     public UKM4MySQLSettings() {
     }
 
@@ -317,5 +320,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setCheckCardType(boolean checkCardType) {
         this.checkCardType = checkCardType;
+    }
+
+    public int getMaxReceiptCount() {
+        return maxReceiptCount;
+    }
+
+    public void setMaxReceiptCount(int maxReceiptCount) {
+        this.maxReceiptCount = maxReceiptCount;
     }
 }
