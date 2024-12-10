@@ -25,6 +25,9 @@ balance 'Остаток при создании' = DATA NUMERIC[16,5] (SaleDenie
 deleted 'Удален' = DATA BOOLEAN (SaleDeniedRestriction);
 active 'Активен' (SaleDeniedRestriction r) = dateTimeExported(r) AND NOT deleted(r);
 
+tiExport 'TI' = DATA STRING (SaleDeniedRestriction);
+tiDeleted 'TI' = DATA STRING (SaleDeniedRestriction);
+
 messageError 'Сообщение об ошибке' = DATA STRING (SaleDeniedRestriction);
 
 set10Stock (Stock c) = GROUP MAX GroupCashRegister grc IF isSet10(grc) AND active(grc) BY stock(grc) MATERIALIZED;
@@ -184,10 +187,10 @@ createRestriction 'Создать запреты продаж Set10'(){
         LOCAL restriction = SaleDeniedRestriction (Sku);
         restriction(Sku s) <- GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = stock;
 
-        FOR currentBalanceRestriction(Sku s, stock) < 0 AND NUMERIC n = currentBalanceRestriction(s, stock) AND NOT restriction(s) DO NEW r = SaleDeniedRestriction{
+        FOR (currentBalanceRestriction(Sku s, stock) < 0 OR (NOT currentBalanceRestriction(s, stock) AND dateTimeLastMoved(s, stock))) AND NOT restriction(s) DO NEW r = SaleDeniedRestriction{
             stock(r) <- stock;
             sku(r) <- s;
-            balance(r) <- n;
+            balance(r) <- OVERRIDE currentBalanceRestriction(s, stock), 0;
         }
         APPLY;
     }
