@@ -845,16 +845,16 @@ changedSession = DATA LOCAL BOOLEAN (DataSkuLedger);
 it = DATA LOCAL BOOLEAN (DataSkuLedger);
 overCostSkuLedgerBatch  ABSTRACT ( );
 
-//WHEN DROPPED(isPosted(DataSkuLedger l)) DO {
-//    cost(l, Batch batch) <- NULL;
-//}
+WHEN DROPPED(isPosted(DataSkuLedger l)) DO {
+    cost(l, Batch batch) <- NULL;
+}
 
 updateDataSkuLedgerBatchCost()  { 
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
     LOCAL ordered = INTEGER (DataSkuLedger);
-    ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) AND isPosted(ledger) ORDER dateTime[SkuLedger](ledger), ledger BY sku[SkuLedger](ledger);
-    
+    ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) ORDER dateTime[SkuLedger](ledger), ledger BY sku[SkuLedger](ledger);
+
     FOR iterate(INTEGER i, 1, (GROUP MAX ordered(DataSkuLedger ledger))) DO {
         it(DataSkuLedger ledger) <- ordered(ledger) == i; // чтобы определились классы
         
@@ -866,7 +866,7 @@ updateDataSkuLedgerBatchCost()  {
 
 ON { // eventChangeLedger - так как внутрь рекурсивного события толь
     LOCAL eventChanged = BOOLEAN (DataSkuLedger); 
-    eventChanged(DataSkuLedger ledger) <- CHANGED(isPosted[SkuLedger](ledger)) OR ((
+    eventChanged(DataSkuLedger ledger) <- SET(isPosted[SkuLedger](ledger)) OR ((
                                   CHANGED(quantity(ledger))
                                   OR CHANGED(sku[SkuLedger](ledger))
                                   OR CHANGED(batch(ledger))
