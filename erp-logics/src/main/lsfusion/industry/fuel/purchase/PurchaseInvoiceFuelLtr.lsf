@@ -12,8 +12,14 @@ CONSTRAINT (SETCHANGED(weight(InvoiceDetail d)) OR SETCHANGED(operation(d)) OR S
     AND (banNegativeQuantityInvoice(operation(d)) OR negativeValueInvoices())
     MESSAGE 'Запрещено вводить отрицательную массу топлива в накладную';
 
-WHEN LOCAL (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(weight(d))) AND NOT CHANGED(density(d)) AND isFuelLtr(sku(d)) AND quantity(d) AND weight(d) DO {
+WHEN LOCAL (SETCHANGED(quantity(UserInvoiceDetail d)) OR SETCHANGED(weight(d))) AND NOT density(d) AND isFuelLtr(sku(d)) DO {
     density(d) <- NUMERIC[8,4](weight(d) / quantity(d));
+}
+WHEN LOCAL SETCHANGED(quantity(UserInvoiceDetail d)) AND NOT CHANGED(weight(d)) AND density(d) AND isFuelLtr(sku(d)) DO {
+    weight(d) <- NUMERIC[16,5](round3(quantity(d) * density(d)));
+}
+WHEN LOCAL SETCHANGED(weight(UserInvoiceDetail d)) AND NOT CHANGED(quantity(d)) AND density(d) AND isFuelLtr(sku(d)) DO {
+    quantity(d) <- NUMERIC[16,5](round3(weight(d) * density(d)));
 }
 
 extraFillDensity (UserInvoiceDetail d, NUMERIC[8,4] n) + {

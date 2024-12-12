@@ -144,8 +144,14 @@ META fuelVolumeConstraintInvoice(object)
 END
 
 META fuelDensityActions(object)
-    WHEN LOCAL (CHANGED(quantity(###object d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(sku(d)) AND quantity(d) AND volume(d) DO {
+    WHEN LOCAL (SETCHANGED(quantity(###object d)) OR SETCHANGED(volume(d))) AND NOT density(d) AND isFuel(sku(d)) DO {
         density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+    }
+    WHEN LOCAL SETCHANGED(quantity(###object d)) AND NOT CHANGED(volume(d)) AND density(d) AND isFuel(sku(d)) DO {
+        volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
+    }
+    WHEN LOCAL SETCHANGED(volume(###object d)) AND NOT CHANGED(quantity(d)) AND density(d) AND isFuel(sku(d)) DO {
+        quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
     }
 
     extraFillDensity ABSTRACT LIST (###object, NUMERIC[8,4]);

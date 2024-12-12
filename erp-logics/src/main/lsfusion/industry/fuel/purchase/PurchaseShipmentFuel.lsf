@@ -66,9 +66,16 @@ shipmentDensity (UserInvoiceDetail invoiceDetail) += shipmentDensity(invoiceDeta
 CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR SET(createShipment(d)) OR CHANGED(sku(d)) OR CHANGED(shipmentDensity(d))) AND createShipment(d) AND isPosted(d) AND isFuel(sku(d)) AND NOT shipmentDensity(d)
     MESSAGE 'Для строки накладная (закупка) должна быть задана плотность (поставлено)';
 
-WHEN LOCAL (CHANGED(shipmentQuantity(UserInvoiceDetail d)) OR CHANGED(shipmentVolume(d))) AND NOT CHANGED(shipmentDensity(d)) AND isFuel(sku(d)) AND shipmentQuantity(d) AND shipmentVolume(d) DO {
+WHEN LOCAL (SETCHANGED(shipmentQuantity(UserInvoiceDetail d)) OR SETCHANGED(shipmentVolume(d))) AND NOT shipmentDensity(d) AND isFuel(sku(d)) DO {
     shipmentDensity(d) <- NUMERIC[8,4](shipmentQuantity(d) / shipmentVolume(d));
 }
+// эти события излишние 
+//WHEN LOCAL SETCHANGED(shipmentQuantity(UserInvoiceDetail d)) AND NOT CHANGED(shipmentVolume(d)) AND shipmentDensity(d) AND isFuel(sku(d)) DO {
+//    shipmentVolume(d) <- NUMERIC[16,5](round3(shipmentQuantity(d) / shipmentDensity(d)));
+//}
+//WHEN LOCAL SETCHANGED(shipmentVolume(UserInvoiceDetail d)) AND NOT CHANGED(shipmentQuantity(d)) AND shipmentDensity(d) AND isFuel(sku(d)) DO {
+//    shipmentQuantity(d) <- NUMERIC[16,5](round3(shipmentVolume(d) * shipmentDensity(d)));
+//}
 
 fillShipmentDensity (UserInvoiceDetail d, NUMERIC[8,4] n) {
     IF isFuel(sku(d)) THEN {
