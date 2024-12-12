@@ -1320,6 +1320,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             ResultSet rs = statement.executeQuery(query);
 
             Map<String, UKMPayment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList, checkCardType);
+            int rowCount = 0;
             while (rs.next()) {
 
                 String store = rs.getString(1); //i.store = при выгрузке цен выгружаем section
@@ -1409,10 +1410,15 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             break;
                     }
                 }
+                rowCount++;
             }
             if (!salesInfoList.isEmpty()) {
-                rs.last();    // moves cursor to the last row
-                sendSalesLogger.info(String.format(logPrefix + "found %s records (query returned %s rows)", salesInfoList.size(), rs.getRow()));
+                long time = System.currentTimeMillis();
+                while (rs.next()) {
+                    rowCount++;
+                }
+                sendSalesLogger.info(String.format(logPrefix + "rowCounter time: %s", System.currentTimeMillis() - time)); //todo: temp log, remove
+                sendSalesLogger.info(String.format(logPrefix + "found %s records (query returned %s rows)", salesInfoList.size(), rowCount));
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
