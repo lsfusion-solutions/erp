@@ -1,0 +1,202 @@
+MODULE YandexEdaVendorManagement;
+
+REQUIRE YandexEda;
+
+NAMESPACE YandexEda;
+
+baseUrlVendor 'Base url' = DATA STRING ();
+clientIdVendor 'ClientId' = DATA STRING ();
+clientSecretVendor 'ClientSecret' = DATA STRING();
+tokenVendor 'Токен' = DATA STRING();
+partnerName 'Имя партнера'= DATA STRING ();
+
+
+EXTEND FORM integrationData
+    PROPERTIES() baseUrlVendor, clientIdVendor, clientSecretVendor,
+        partnerName, tokenVendor
+;
+DESIGN integrationData{
+    yandexEda{
+       NEW yandexEdaVendor{
+           caption = 'Vendor Management';
+           MOVE PROPERTY (baseUrlVendor());
+           MOVE PROPERTY (clientIdVendor());
+           MOVE PROPERTY (clientSecretVendor());
+           MOVE PROPERTY (partnerName());
+           MOVE PROPERTY (tokenVendor());
+       }
+    }
+}
+
+headersAuthorization (TEXT name) = CASE
+    WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'
+;
+
+getToken 'Получить токен'(){
+    NEWSESSION {
+        LOCAL f = FILE();
+        EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
+            HEADERS headersAuthorization PARAMS
+            CONCAT '&',
+                'client_id=' + clientIdVendor(),
+                'client_secret=' + clientSecretVendor()
+            TO f
+        ;
+        LOCAL access_token = STRING ();
+        IMPORT JSON FROM f() TO() access_token = access_token;
+
+        IF access_token() THEN {
+            tokenVendor() <- access_token();
+            APPLY;
+        }
+    }
+}
+
+getTokenJSON 'Поулчить токен (JSON)'(){
+    NEWSESSION {
+        LOCAL f = FILE();
+        EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
+            HEADERS headersAuthorization PARAMS 
+                JSON FROM client_id = clientIdVendor(),
+                          client_secret = clientSecretVendor()
+            TO f
+        ;
+        LOCAL access_token = STRING ();
+        IMPORT JSON FROM f() TO() access_token = access_token;
+
+        IF access_token() THEN {
+            tokenVendor() <- access_token();
+            APPLY;
+        }
+    }
+}
+
+from = DATA LOCAL STRING();
+deliveryType = DATA LOCAL STRING(STRING);
+vendorId = DATA LOCAL STRING(STRING);
+to = DATA LOCAL STRING();
+tag = DATA LOCAL STRING();
+message = DATA LOCAL STRING();
+
+FORM blockRequest
+    PROPERTIES() from, to, tag, message
+
+    OBJECTS vendorInfo = STRING
+    PROPERTIES(vendorInfo) deliveryType, vendorId
+;
+
+blockHeaders (TEXT name) = CASE 
+    WHEN name = 'Authorization' THEN tokenVendor()
+    WHEN name = 'Partner-Name' THEN partnerName()
+;
+
+
+block(STRING ds, DATETIME df, DATETIME dt, STRING reason, STRING tag){
+    IF tokenVendor() THEN{
+        
+        tag() <- tag;
+        from() <- toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+03:00');
+        to() <- toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+03:00');
+        message() <- reason;
+        deliveryType(ds) <- 'ddc';
+        vendorId(ds) <- ds;
+        
+        LOCAL f = FILE();
+        
+        EXPORT blockRequest FILTERS vendorInfo = ds JSON;
+        EXTERNAL HTTP POST baseUrlVendor() + '/block' HEADERS blockHeaders PARAMS exportFile() TO f;
+        MESSAGE CONCAT '\n', 'Успешная блокировка', 'id ' + ds, 'tag ' + tag, 'reason ' + reason, 'to ' + to(); 
+    }
+}
+
+blockTechnicalProblem 'Блок по тех.проблемам'(STRING ds, DATETIME df, DATETIME dt, STRING reason){
+    block(ds, df, dt, reason, 'technical_problem');
+}
+
+blockTooBusy 'Блок по загруженности'(STRING ds, DATETIME df, DATETIME dt, STRING reason){
+    block(ds, df, dt, reason, 'too_busy');
+}
+
+statuses = DATA LOCAL STRING (STRING);
+
+FORM statusRequest
+    OBJECTS statuses = STRING
+    PROPERTIES(statuses) statuses EXTID 'value'
+    
+    OBJECTS vendorInfo = STRING
+    PROPERTIES(vendorInfo) deliveryType, vendorId
+;
+
+//
+blockId = DATA LOCAL STRING(INTEGER);
+availableToCancel = DATA LOCAL BOOLEAN (INTEGER);
+deliveryType = DATA LOCAL STRING(INTEGER);
+vendorId = DATA LOCAL STRING(INTEGER);
+from = DATA LOCAL STRING(INTEGER);
+to = DATA LOCAL STRING(INTEGER);
+source = DATA LOCAL STRING(INTEGER);
+externalBlockId = DATA LOCAL STRING(INTEGER);
+message = DATA LOCAL STRING(INTEGER);
+status = DATA LOCAL STRING(INTEGER);
+
+FORM blockAnswer
+    OBJECTS items = INTEGER
+    PROPERTIES(items) blockId, availableToCancel, 
+        deliveryType, vendorId, from, to, source, externalBlockId, 
+        message, status
+    FILTERS imported(items)
+;
+
+blockId = DATA STRING (STRING, STRING);
+
+
+getStatusBlock(STRING ds){
+    IF tokenVendor() THEN NEWSESSION {
+
+        deliveryType(ds) <- 'ddc';
+        vendorId(ds) <- ds;
+        statuses(ds) <- 'enabled';
+
+        LOCAL f = FILE();
+        EXPORT statusRequest FILTERS vendorInfo = ds, statuses = ds JSON;
+        
+        EXTERNAL HTTP POST baseUrlVendor() + '/v2/status' HEADERS blockHeaders PARAMS exportFile() TO f;
+        IMPORT blockAnswer JSON FROM f();
+
+        blockId(ds, STRING s) <- NULL;
+        blockId(ds, STRING s) <- ds IF [GROUP MAX INTEGER i IF availableToCancel(i) BY blockId(i)](ds);
+        
+        APPLY;
+        
+    }
+}
+
+blockIds = DATA LOCAL STRING(STRING);
+
+FORM unblockRequest
+    OBJECTS blockIds = STRING
+    PROPERTIES(blockIds) blockIds EXTID 'value'
+    FILTERS blockIds(blockIds)
+
+    OBJECTS vendorInfo = STRING
+    PROPERTIES(vendorInfo) deliveryType, vendorId
+;
+
+unblock 'Разблокировать' (STRING ds){
+    IF tokenVendor() THEN NEWSESSION {
+
+        deliveryType(ds) <- 'ddc';
+        vendorId(ds) <- ds;
+        
+        blockIds(STRING s) <- blockId(ds, s);
+        
+        LOCAL f = FILE();
+        EXPORT statusRequest FILTERS vendorInfo = ds JSON;
+
+        EXTERNAL HTTP POST baseUrlVendor() + '/unblock' HEADERS blockHeaders PARAMS exportFile() TO f;
+        MESSAGE CONCAT '\n', 'Успешная блокировка', 'id ' + ds;
+
+        blockId(ds, STRING s) <- NULL;
+        APPLY;
+    }
+}
