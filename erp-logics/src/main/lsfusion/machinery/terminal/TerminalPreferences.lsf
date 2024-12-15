@@ -113,26 +113,6 @@ FORM dialogYesNo 'Значение'
     PROPERTIES name(y) READONLY
 ;
 
-CLASS FontScale 'Размер шрифта' {
-    FontNormal '1|Normal',
-    FontLarge '2|Large',
-    FontBig '3|Big'
-}
-
-font (STRING s) = CASE
-    WHEN s == 'Normal' THEN FontScale.FontNormal
-    WHEN s == 'Large' THEN FontScale.FontLarge
-    WHEN s == 'Big' THEN FontScale.FontBig
-;
-
-value (FontScale o) = STRING(getWord(staticCaption(o), '|',1));
-name (FontScale o) = STRING(getWord(staticCaption(o), '|',2));
-
-FORM dialogFontScale 'Размер шрифта'
-    OBJECTS f = FontScale
-    PROPERTIES name(f) READONLY
-;
-
 getType(STRING s) = CASE 
     WHEN s = '0' THEN PreferenceType.TYPE_STRING
     WHEN s = '1' THEN PreferenceType.TYPE_YESNO
@@ -178,11 +158,6 @@ DESIGN dialogText {
 
 changePreferenceValue(Preference p)  {
     CASE
-        WHEN p == Preference.GENERAL_FONT_SCALE THEN {
-            DIALOG dialogFontScale OBJECTS f = font(value(p)) INPUT DO {
-                value(p) <- name(f);
-            }
-        }
         WHEN p == Preference.OBMEN_TYPE THEN {
             DIALOG dialogObmen OBJECTS o = obmen(value(p)) INPUT DO {
                 value(p) <- name(o);
@@ -201,10 +176,9 @@ changePreferenceValue(Preference p)  {
         WHEN type(p) == PreferenceType.TYPE_INTEGER THEN {
             INPUT s = INTEGER DO {
                 value(p) <- trim(TEXT(s));
-
-//                IF p == Preference.GENERAL_FONT_SCALE AND value(p) != '1' AND value(p) != '2' AND value(p) != '3' THEN {
-//                    value(p) <- '1';
-//                }
+                IF p == Preference.GENERAL_FONT_SCALE AND value(p) != '1' AND value(p) != '2' AND value(p) != '3' AND value(p) != '4' AND value(p) != '5' THEN {
+                    value(p) <- '1';
+                }
             }
         }
         WHEN type(p) == PreferenceType.TYPE_YESNO THEN {           
@@ -221,7 +195,6 @@ FORM preferences 'Конфигурация ТСД'
 ;
 
 jsonValue(Preference p) = CASE
-    WHEN p = Preference.GENERAL_FONT_SCALE THEN value(font(overValue(p)))
     WHEN p = Preference.OBMEN_TYPE THEN value(obmen(overValue(p))) 
     WHEN type(p) = PreferenceType.TYPE_YESNO THEN value(stringToYesNo(overValue(p)))
     WHEN type(p) = PreferenceType.TYPE_INTEGER THEN overValue(p)
