@@ -76,12 +76,14 @@ GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 note 'Примечание' = ABSTRACT ISTRING[500] (EOrder);
 
 contractNumber = ABSTRACT STRING[50] (EOrder);
+contractDate = ABSTRACT DATE (EOrder);
 
 CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
 TABLE eOrderDetail(EOrderDetail);
 
 order = ABSTRACT EOrder(EOrderDetail);
 
+index = ABSTRACT INTEGER (EOrderDetail);
 sku = ABSTRACT Sku(EOrderDetail);
 idSku 'Код товара' (EOrderDetail o) = id(sku(o));
 nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
@@ -95,6 +97,7 @@ cancelQuantity 'Кол-во (отмена)' = ABSTRACT NUMERIC[16,5] (EOrderDeta
 overQuantity (EOrderDetail d) = IF isCancel(order(d)) THEN OVERRIDE cancelQuantity(d), quantity(d) ELSE quantity(d);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
 valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
+invoiceSum 'Сумма с НДС' = ABSTRACT NUMERIC[18,4] (EOrderDetail);
 
 responseDetail = DATA EOrderResponseDetail(EOrderDetail) INDEXED;
 localIndexSku = DATA LOCAL INTEGER (EOrderDetail);

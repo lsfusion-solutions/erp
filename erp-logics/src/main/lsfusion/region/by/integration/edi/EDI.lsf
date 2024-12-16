@@ -176,10 +176,12 @@ META openXML (class, object, table)
     ;
 END
 
+//
 id = DATA LOCAL NESTED TEXT(INTEGER);
 documentType = DATA LOCAL NESTED TEXT(INTEGER);
 data = DATA LOCAL NESTED XMLFILE(INTEGER);
 
+textMessage = DATA LOCAL TEXT();
 sendRecipientErrorFailed = DATA LOCAL NESTED INTEGER();
 supplierOrdersSucceeded = DATA LOCAL NESTED INTEGER();
 supplierOrdersFailed = DATA LOCAL NESTED INTEGER();
@@ -205,6 +207,63 @@ blrwbrCount = DATA LOCAL NESTED INTEGER();
 blrdnrCount = DATA LOCAL NESTED INTEGER();
 blradfCount = DATA LOCAL NESTED INTEGER();
 messagesConfirmed = DATA LOCAL NESTED INTEGER();
+
+fillStartParams() {
+    textMessage() <- NULL;
+    sendRecipientErrorFailed() <- 0;
+    supplierOrdersSucceeded() <- 0;
+    supplierOrdersFailed() <- 0;
+    orderMessagesSucceeded() <- 0;
+    orderMessagesFailed() <- 0;
+    responsesSucceeded() <- 0;
+    responsesFailed() <- 0;
+    despatchAdvicesSucceeded() <- 0;
+    despatchAdvicesFailed() <- 0;
+    invoiceMessagesSucceeded() <- 0;
+    invoiceMessagesFailed() <- 0;
+    eInvoicesSucceeded() <- 0;
+    eInvoicesFailed() <- 0;
+    creditNoteMessagesSucceeded() <- 0;
+    creditNoteMessagesFailed() <- 0;
+    eCreditNotesSucceeded() <- 0;
+    eCreditNotesFailed() <- 0;
+    documentMessagesSucceeded() <- 0;
+    documentMessagesFailed() <- 0;
+    eDocumentsSucceeded() <- 0;
+    eDocumentsFailed() <- 0;
+    blrwbrCount() <- 0;
+    blrdnrCount() <- 0;
+    blradfCount() <- 0;
+    messagesConfirmed() <- 0;
+}
+
+fillEndParams() {
+    IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
+    IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
+    IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
+    IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
+    IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
+    IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
+    IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
+    IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
+    IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
+    IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
+    IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
+    IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
+    IF creditNoteMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по акту приемки: ' + creditNoteMessagesSucceeded();
+    IF creditNoteMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по акту приемки: ' + creditNoteMessagesFailed();
+    IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
+    IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
+    IF documentMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по документам: ' + documentMessagesSucceeded();
+    IF documentMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по документам: ' + documentMessagesFailed();
+    IF eDocumentsSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных документов: ' + eDocumentsSucceeded();
+    IF eDocumentsFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных документов: ' + eDocumentsFailed();
+    IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
+    IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
+    IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
+    IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
+}
+//
 
 GROUP reference;
 messageDocumentNumber = DATA LOCAL NESTED STRING[35]();

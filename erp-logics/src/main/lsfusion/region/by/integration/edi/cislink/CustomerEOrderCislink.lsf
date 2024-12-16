@@ -281,33 +281,6 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
     }
 }
 
-fillStartParams(){
-    sendRecipientErrorFailed() <- 0;
-    supplierOrdersSucceeded() <- 0;
-    supplierOrdersFailed() <- 0;
-    orderMessagesSucceeded() <- 0;
-    orderMessagesFailed() <- 0;
-    responsesSucceeded() <- 0;
-    responsesFailed() <- 0;
-    despatchAdvicesSucceeded() <- 0;
-    despatchAdvicesFailed() <- 0;
-    messagesConfirmed() <- 0;
-}
-fillEndParams(){
-    LOCAL textMessage = TEXT();
-    IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
-    IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
-    IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
-    IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
-    IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
-    IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
-    IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
-    IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
-    IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
-    IF textMessage() THEN {
-        MESSAGE  textMessage() NOWAIT;    
-    }
-}
 
 importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
     fileName(INTEGER i)<- NULL;
@@ -335,7 +308,10 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
         }
         overReceiveMessagesCislink(i, url,archiveDir, TRUE, provider);
     }
-    fillEndParams();    
+    fillEndParams();
+    IF textMessage() THEN {
+        MESSAGE  textMessage() NOWAIT;
+    }
 }
 
 importAnswerCislink 'Примем ответов' (){

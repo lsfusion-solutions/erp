@@ -12,23 +12,27 @@ name(EDIProvider e) += WHEN e == EDIProvider.edn THEN 'ООО "Электрон�
 
 loginEDN 'Имя пользователя EDN' = DATA STRING[100] (LegalEntity);
 passwordEDN 'Пароль EDN' = DATA STRING[100] (LegalEntity) ECHO;
-hostEDN 'Хост' = DATA STRING[100] (LegalEntity);
+hostEDN 'Хост SOAP' = DATA STRING[100] (LegalEntity);
 portEDN 'Порт' = DATA INTEGER (LegalEntity);
+urlApiEDN 'Адрес REST API' = DATA STRING[100](LegalEntity);
 extractEDN 'Формат docudrive' = DATA BOOLEAN (LegalEntity); //тут даже не то что распаковывать а вообще обмен в формате docurive
 skipUnzip 'Сообщения не упакованы' = DATA BOOLEAN (LegalEntity); 
 archiveDirEDN 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirEDN 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationEDN 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
-
-useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
+enableJavaStackEDN 'Включить логирование Java stack trace' = DATA BOOLEAN ();
 
 document = DATA LOCAL RAWFILE();
 FORM edocument
     PROPERTIES() document;
 
+//-----------------------------------------------------------Docudrive------------------------------------------------//
+useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
+
 legalEntityLogin(STRING login) = GROUP MIN LegalEntity l BY loginEDN(l);
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
     IF extractEDN(legalEntityLogin(login)) AND NOT skipUnzip(legalEntityLogin(login)) THEN {
+        unzipped(STRING[100] s) <- NULL;
         IMPORT edocument FROM data(i);
         unzipping() <- file(document(), 'zip');
         makeUnzipFile();
@@ -106,25 +110,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
             IF exportDir THEN {
                 listFiles(importDir, TRUE);
 
-                sendRecipientErrorFailed() <- 0;
-                supplierOrdersSucceeded() <- 0;
-                supplierOrdersFailed() <- 0;
-                orderMessagesSucceeded() <- 0;
-                orderMessagesFailed() <- 0;
-                responsesSucceeded() <- 0;
-                responsesFailed() <- 0;
-                despatchAdvicesSucceeded() <- 0;
-                despatchAdvicesFailed() <- 0;
-                invoiceMessagesSucceeded() <- 0;
-                invoiceMessagesFailed() <- 0;
-                eInvoicesSucceeded() <- 0;
-                eInvoicesFailed() <- 0;
-                eCreditNotesSucceeded() <- 0;
-                eCreditNotesFailed() <- 0;
-                blrwbrCount() <- 0;
-                blrdnrCount() <- 0;
-                blradfCount() <- 0;
-                messagesConfirmed() <- 0;
+                fillStartParams();
 
                 logToFile('edi', provider + ' ReceiveMessages count: ' + (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml'));
 
@@ -142,26 +128,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                     overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, sendReplies, provider);
                 }
 
-                LOCAL textMessage = TEXT();
-                IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
-                IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
-                IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
-                IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
-                IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
-                IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
-                IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
-                IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
-                IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
-                IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
-                IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
-                IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-                IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
-                IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
-                IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
-                IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
-                IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
-                IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
-
+                fillEndParams();
                 IF NOT (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml') THEN {
                     MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
                 }
@@ -174,7 +141,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
             MESSAGE provider + ' Сообщения не получены: не задан каталог загрузки сообщений от DocuDrive' NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
         MESSAGE 'Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
@@ -223,21 +190,174 @@ receiveMessagesDocuDrive () {
         }
     }
 }
+//-----------------------------------------------------------Docudrive------------------------------------------------//
+
+//-----------------------------------------------------------REST API-------------------------------------------------//
+useDocuway 'Не использовать формат СТТ для заказов' = DATA BOOLEAN();
+
+importRequestResult() {
+    IF sendRequestEDIStatus() == 200 OR sendRequestEDIStatus() == 202 THEN {
+        requestError() <- NULL;
+    } ELSE {
+        requestError() <- CONCAT ' ', 'Неизвестная ошибка: статус ', STRING[3](sendRequestEDIStatus());
+    }
+}
+// /documents
+fileName = DATA LOCAL STRING();
+
+FORM documentsEDN
+    PROPERTIES() fileName, documentType, document;
+
+// /documents/new
+GROUP headers;
+
+downloadFileName = DATA LOCAL STRING(INTEGER);
+processedDateTime = DATA LOCAL ZDATETIME(INTEGER);
+
+FORM getDocumentsEDN
+    OBJECTS data = INTEGER
+    PROPERTIES(data) IN headers
+        id EXTID 'documentId', downloadFileName, documentType EXTID 'type', processedDateTime;
+
+overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+
+receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+    TRY {
+        IF login AND password THEN {
+
+            headers('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
+            EXTERNAL HTTP GET url +'/documents/new' HEADERS headers TO sendRequestEDIResponse;
+            logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent' + url +'/documents/new');
+            
+            sendRequestEDIStatus() <- statusHttp();
+            importRequestResult();
+            
+            IF requestError() THEN {
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ' + requestError());
+                MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
+            } ELSE {
+                IMPORT getDocumentsEDN JSON FROM sendRequestEDIResponse();
+
+                fillStartParams();
+                IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
+
+                FOR documentType(INTEGER i) ORDER processedDateTime(i) DO {
+                    logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
+                    overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+                }
+
+                fillEndParams();
+                IF sendRecipientErrorFailed() == 0 THEN {
+                    MESSAGE (OVERRIDE textMessage(), provider + '(' + login + ') Не найдено новых сообщений') NOWAIT;
+                }
+            }
+
+        } ELSE {
+            logToFile('edi', provider + ' (' + login + ') ReceiveMessages: не заданы имя пользователя / пароль / хост');
+            MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост' NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+        MESSAGE provider + '(' + login + ') Сообщения не получены. Обратитесь к администратору' NOWAIT;
+    }
+}
+
+receiveMessagesEDNApi () {
+    FOR LegalEntity le == [GROUP MIN LegalEntity l BY loginEDN(l)](STRING login) AND passwordEDN(le) DO {
+        NEWSESSION {
+            lockEDN(login);
+            IF lockResultEDN() THEN {
+                TRY {
+                    receiveMessagesEDN(login, passwordEDN(le), 'https://' + urlApiEDN(le), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                } FINALLY {
+                    unlockEDN(login);
+                }
+            } ELSE {
+                MESSAGE 'Уже выполняется получение сообщений EDN для ' + login + '. Подождите...' NOWAIT;
+            }
+        }
+    }
+}
+
+// APERAK
+GROUP systemMessage_Header EXTID 'SystemMessage-Header';
+GROUP systemMessageReference EXTID 'SystemMessageReference' : systemMessage_Header;
+
+FORM aperack FORMEXTID 'Document-ApplicationMessage'
+    PROPERTIES() IN systemMessageReference
+        documentType EXTID 'DocumentType',
+        documentNumber EXTID 'DocumentNumber'
+    PROPERTIES() IN systemMessage_Header
+        messageDocumentNumber EXTID 'SystemMessageNumber',
+        messageDocumentDate EXTID 'SystemMessageDate', 
+        code EXTID 'SystemMessageCode', 
+        description EXTID 'SystemMessageText'
+;
+
+overImportAperak ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100] );
+overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    logToFile('edi', provider + ' (' + login + ') Parse Aperack ' + id(i) + ' warning: unsupported Reference documentType ' + (OVERRIDE documentType(), 'NULL'));
+}
+
+overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF documentType(i) == 'APERAK' THEN {
+        TRY {
+            
+            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
+            
+            IF archiveDir THEN {
+                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+            }
+            
+            IMPORT aperack XML FROM xmlFile();
+            
+            overImportAperak(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+            
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Aperack ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            responsesFailed() <- responsesFailed() + 1;
+        }
+    }
+}
+
+confirmDocument(INTEGER i, STRING[100] login, STRING[100] password, TEXT url) {
+    headers('Authorization') <- 'Basic ' + encodeText(login + ':' + password, 'base64');
+    EXTERNAL HTTP url +'/documents/'+id(i)+ '/mark-downloaded' HEADERS headers;
+    logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+
+    importRequestResult();
+    IF requestError() THEN {
+        logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+        MESSAGE 'END (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+    } ELSE {
+        logToFile('edi', 'END (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+    }
+}
+
+//-----------------------------------------------------------REST API-------------------------------------------------//
+
 
 receiveEDN 'Получить сообщения' {
     checkIsServer();
     IF isServer() THEN {
+        IF useDocuway() THEN {
+            receiveMessagesEDNApi();
+            skipImportOrders() <- TRUE;
+        }
         receiveMessagesEDN();
         IF useDocuDrive() THEN {receiveMessagesDocuDrive();}
     }
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN
+    PROPERTIES() receiveEDN, archiveDirEDN, outputDirEDN, disableConfirmationEDN, useDocuway
 
     OBJECTS lete = LegalEntity
     FILTERS isCompany(lete)
-    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN, extractEDN
+    PROPERTIES(lete) name READONLY, loginEDN, passwordEDN, hostEDN, portEDN, urlApiEDN, extractEDN
 ;
 
 DESIGN integrationData {

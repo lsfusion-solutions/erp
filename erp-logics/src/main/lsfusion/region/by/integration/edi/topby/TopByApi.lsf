@@ -16,7 +16,8 @@ FORM receiveMessagesRequest
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
 
-useNewFormat = DATA BOOLEAN(STRING[100]) TABLE stringEDI; 
+useNewFormat = DATA BOOLEAN(STRING[100]) TABLE stringEDI;
+skipImportOrders = DATA LOCAL NESTED BOOLEAN ();
 
 beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
 overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
@@ -38,34 +39,8 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 } ELSE {
                     IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
                 }
-                
-                sendRecipientErrorFailed() <- 0;
-                supplierOrdersSucceeded() <- 0;
-                supplierOrdersFailed() <- 0;
-                orderMessagesSucceeded() <- 0;
-                orderMessagesFailed() <- 0;
-                responsesSucceeded() <- 0;
-                responsesFailed() <- 0;
-                despatchAdvicesSucceeded() <- 0;
-                despatchAdvicesFailed() <- 0;
-                invoiceMessagesSucceeded() <- 0;
-                invoiceMessagesFailed() <- 0;
-                eInvoicesSucceeded() <- 0;
-                eInvoicesFailed() <- 0;
-                creditNoteMessagesSucceeded() <- 0;
-                creditNoteMessagesFailed() <- 0;
-                eCreditNotesSucceeded() <- 0;
-                eCreditNotesFailed() <- 0;
-                documentMessagesSucceeded() <- 0;
-                documentMessagesFailed() <- 0;
-                eDocumentsSucceeded() <- 0;
-                eDocumentsFailed() <- 0;
-                blrwbrCount() <- 0;
-                blrdnrCount() <- 0;
-                blradfCount() <- 0;
-                messagesConfirmed() <- 0;
 
-                LOCAL textMessage = TEXT();
+                fillStartParams();
                 
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
@@ -79,32 +54,8 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                     beforeOverReceiveMessages(i, login, archiveDir);
                     overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
                 }
-                
-                IF supplierOrdersSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено заказов поставщика: ' + supplierOrdersSucceeded();
-                IF supplierOrdersFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено заказов поставщика: ' + supplierOrdersFailed();
-                IF orderMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по заказам: ' + orderMessagesSucceeded();
-                IF orderMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по заказам: ' + orderMessagesFailed();
-                IF responsesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ответов по заказам: ' + responsesSucceeded();
-                IF responsesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено ответов по заказам: ' + responsesFailed();
-                IF despatchAdvicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено уведомлений об отгрузке: ' + despatchAdvicesSucceeded();
-                IF despatchAdvicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено уведомлений об отгрузке: ' + despatchAdvicesFailed();
-                IF invoiceMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по накладным: ' + invoiceMessagesSucceeded();
-                IF invoiceMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по накладным: ' + invoiceMessagesFailed();
-                IF eInvoicesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных накладных: ' + eInvoicesSucceeded();
-                IF eInvoicesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных накладных: ' + eInvoicesFailed();
-                IF creditNoteMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по акту приемки: ' + creditNoteMessagesSucceeded();
-                IF creditNoteMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по акту приемки: ' + creditNoteMessagesFailed();
-                IF eCreditNotesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных актов приемки: ' + eCreditNotesSucceeded();
-                IF eCreditNotesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных актов приемки: ' + eCreditNotesFailed();
-                IF documentMessagesSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено сообщений по документам: ' + documentMessagesSucceeded();
-                IF documentMessagesFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено сообщений по документам: ' + documentMessagesFailed();
-                IF eDocumentsSucceeded() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено электронных документов: ' + eDocumentsSucceeded();
-                IF eDocumentsFailed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Не загружено электронных документов: ' + eDocumentsFailed();
-                IF blrwbrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrwbrCount() + ' BLRWBR';
-                IF blrdnrCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Отвечено на ' + blrdnrCount() + ' BLRDNR';
-                IF blradfCount() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Загружено ' + blradfCount() + ' BLRADF';
-                IF messagesConfirmed() > 0 THEN textMessage() <- CONCAT '\n', textMessage(), 'Пропущено ' + messagesConfirmed() + ' сообщений';
-                
+
+                fillEndParams();                
                 IF sendRecipientErrorFailed() == 0 THEN {
                     MESSAGE (OVERRIDE textMessage(), provider + '(' + login + ') Не найдено новых сообщений') NOWAIT;
                 }

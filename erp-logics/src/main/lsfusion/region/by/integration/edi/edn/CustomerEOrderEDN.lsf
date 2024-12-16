@@ -2,6 +2,8 @@ MODULE CustomerEOrderEDN;
 
 REQUIRE CustomerEOrderTopByApi, EDN;
 
+NAMESPACE EDI;
+
 EXTEND FORM integrationData
     PROPERTIES confirmNotFoundOrdersEDN = confirmNotFoundOrders();
 
@@ -9,19 +11,473 @@ DESIGN integrationData {
     col1EDN {
         NEW ovsEDN {
             caption = 'Заказы';
+            MOVE PROPERTY(useDocuway());
             MOVE PROPERTY(confirmNotFoundOrdersEDN);
         }
+    }
+}
+
+GROUP order_Header EXTID 'Order-Header';
+GROUP reference_order EXTID 'Reference' : order_Header;
+GROUP document_Parties EXTID 'Document-Parties';
+GROUP sender EXTID 'Sender' : document_Parties;
+GROUP receiver EXTID 'Receiver' : document_Parties;
+GROUP order_Parties EXTID 'Order-Parties';
+GROUP buyer EXTID 'Buyer' : order_Parties;
+GROUP seller EXTID 'Seller' : order_Parties;
+GROUP deliveryPoint EXTID 'DeliveryPoint' : order_Parties;
+GROUP shipFrom EXTID 'ShipFrom' : order_Parties;
+
+GROUP order_Lines EXTID 'Order-Lines';
+
+GROUP line_Item EXTID 'Line-Item';
+GROUP order_Summary EXTID 'Order-Summary';
+
+FORM document_Order FORMEXTID 'Document-Order'
+    OBJECTS o = EOrder
+    PROPERTIES IN order_Header
+        number(o) EXTID 'OrderNumber',
+        orderDate = toChar(sendDateTime(o), 'yyyy-MM-dd') EXTID 'OrderDate',
+        expectedDeliveryDate = toChar(shipmentDateTime(o), 'yyyy-MM-dd') EXTID 'ExpectedDeliveryDate',
+        documentFunctionCode = '9' EXTID 'DocumentFunctionCode',
+        remarks = (CONCAT '; ', note(o), noteExtra(o)) = '9' EXTID 'Remarks'
+    PROPERTIES IN reference_order
+        contractNumber(o) EXTID 'ContractNumber',
+        contractDate = toChar(contractDate(o), 'yyyy-MM-dd') EXTID 'ContractDate'
+    PROPERTIES IN sender
+        sender = GLNCustomer(o) EXTID 'ILN'
+    PROPERTIES IN receiver
+        receiver = GLNSupplier(o) EXTID 'ILN'
+    PROPERTIES IN buyer
+        GLNCustomer(o) EXTID 'ILN',
+        nameCustomer(o) EXTID 'Name'
+    PROPERTIES IN seller
+        GLNSupplierStock(o) EXTID 'ILN',
+        nameSupplier(o) EXTID 'Name'
+    PROPERTIES IN deliveryPoint
+        GLNCustomerStock(o) EXTID 'ILN',
+        nameCustomerStock(o) EXTID 'Name'
+    PROPERTIES IN shipFrom
+        GLNSupplierStock1(o) EXTID 'ILN'
+
+    OBJECTS d = EOrderDetail EXTID 'Line' IN order_Lines
+    PROPERTIES IN line_Item 
+        index(d) EXTID 'LineNumber',
+        GTINBarcode(d) EXTID 'EAN',
+        idSku(d) EXTID 'BuyerItemCode',
+        nameSku(d) EXTID 'ItemDescription',
+        overQuantity(d) EXTID 'OrderedQuantity',
+        extraCodeUOMSku(d) EXTID 'UnitOfMeasure', 
+        priceElement = NUMERIC[16,2](round2(price(d))) EXTID 'OrderedUnitNetPrice', 
+        invoiceSum(d) EXTID 'OrderedGrossAmount',
+        tax = NUMERIC[4,2](round2(valueVAT(d))) EXTID 'TaxRate'
+    FILTERS overQuantity(d) > 0 AND GTINBarcode(d)
+    FILTERS order(d) == o
+
+    PROPERTIES IN order_Summary
+        totalLines = (GROUP SUM 1 IF overQuantity(EOrderDetail od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'TotalLines',
+        totalOrderedAmount = (GROUP SUM overQuantity(EOrderDetail od) IF overQuantity(od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'TotalOrderedAmount',
+        totalNetAmount = (GROUP SUM invoiceSum(EOrderDetail od) IF overQuantity(od) > 0 AND GTINBarcode(od) AND order(od) == o) EXTID 'TotalNetAmount'
+;
+
+sendPurchaseOrderEDN (EOrder o, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
+    sendingCancelled() <- NULL;
+    TRY {
+        IF login AND password THEN {
+            beforeSendPurchaseOrder(o, provider);
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLNSupplierStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада поставщика\n';
+            IF NOT GLNCustomer(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN покупателя\n';
+            IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
+            IF NOT shipmentDateTime(o) >= sumMinutes(currentDateTime(),60) THEN error() <- error() + 'EOrder ' + number(o) + ': Не верная дата/время поставки';
+
+            IF error() == '' THEN {
+                EXPORT document_Order OBJECTS o = o XML TO document;
+                fileName() <- number(o) + (IF isCancel(o) THEN 'c' ELSE '') +'.xml';
+                documentType() <- 'ORDERS';
+                IF outputDir THEN {
+                    TRY{ mkdir(outputDir + '/sent/orders/' + toChar(currentDate(),'yyyyMMdd')); }
+                    WRITE document() TO outputDir + '/sent/orders/' + toChar(currentDate(),'yyyyMMdd') + '/' + fileName();
+                }
+                
+                EXPORT documentsEDN JSON;
+                sendRequestEDI(login, password, url, exportFile(), TRUE, NULL);
+                logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) +' request sent');
+                
+                importRequestResult();
+                IF requestError() THEN {
+                    logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ': ' + requestError());
+                    MESSAGE provider + ' (' + login + ') Заказ ' + number(o) + ' не выгружен: ' + requestError() NOWAIT;
+                } ELSE {
+                    IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
+                    logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ' request succeeded');
+                    MESSAGE provider + ' (' + login + ') Заказ ' + number(o) + ' выгружен' NOWAIT;
+                }
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ': Не все поля заполнены. ' + error());
+                MESSAGE provider + ' (' + login + ') Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ': не заданы имя пользователя / пароль / хост / порт');
+            MESSAGE provider + ' (' + login + ') Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт'+(OVERRIDE ' № '+number(o),'') NOWAIT;
+        }
+    } CATCH {
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') SendEOrder ' + number(o) + 'error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Заказ не выгружен. Обратитесь к администратору'+(OVERRIDE ' № '+number(o),'') NOWAIT;
+
+        CANCEL;
+        sendingCancelled() <- TRUE;
     }
 }
 
 sendPurchaseOrderEDN (EOrder o) {
     checkIsServer();
     IF isServer() THEN {
-        sendPurchaseOrder(o, loginEDN(customer(o)), passwordEDN(customer(o)), ('https://' +  hostEDN(customer(o)) + ':' + portEDN(customer(o)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        IF useDocuway() THEN {
+            sendPurchaseOrderEDN(o, loginEDN(customer(o)), passwordEDN(customer(o)), ('https://' + urlApiEDN(customer(o)) + '/documents'), outputDirEDN(), 'EDN');
+        } ELSE {
+            sendPurchaseOrder(o, loginEDN(customer(o)), passwordEDN(customer(o)), ('https://' + hostEDN(customer(o)) + ':' + portEDN(customer(o)) + '/topby/DmcService?wsdl'), outputDirEDN(), 'EDN');
+        }
     }
 }
 
-send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен '+(OVERRIDE number(o), '')); ELSE {sendPurchaseOrderEDN(o); } }
+send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен ' + (OVERRIDE number(o), '')); ELSE {sendPurchaseOrderEDN(o); } }
 cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
 
-good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1252') THEN TRUE;
+overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF documentType() == 'ORDER' THEN {
+        NEWSESSION NESTED LOCAL {
+            IF eOrder(documentNumber()) THEN {
+                IF NOT eOrderMessage(messageDocumentNumber()) THEN NEW m = EOrderMessage {
+                    number(m) <- messageDocumentNumber();
+                }
+                FOR EOrderMessage m == eOrderMessage(messageDocumentNumber()) DO {
+                    dateTime(m) <- messageDocumentDate();
+                    code(m) <- code();
+                    description(m) <- OVERRIDE description(), description(code());
+                    eOrder(m) <- eOrder(documentNumber());
+                    XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + downloadFileName(i);
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        logToFile('edi', provider + ' (' + login + ') Import EOrderMessage ' + id(i) + ' failed: ' + applyMessage());
+                        orderMessagesFailed() <- orderMessagesFailed() + 1;
+                    } ELSE {
+                        IF NOT disableConfirmation THEN {
+                            confirmDocument(i, login, password, url);
+                        }
+                        logToFile('edi', provider + ' (' + login + ') Import EOrderMessage ' + id(i) + ' succeeded');
+                        orderMessagesSucceeded() <- orderMessagesSucceeded() + 1;
+                    }
+                }
+            } ELSE {
+                IF confirmNotFoundOrders() THEN {
+                    IF NOT disableConfirmation THEN {
+                        confirmDocument(i, login, password, url);
+                        messagesConfirmed() <- messagesConfirmed() + 1;
+                    }
+                } 
+                logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE ordrspOrderNumber(), 'NULL') + ' not found');
+                orderMessagesFailed() <- orderMessagesFailed() + 1;
+            }
+        }
+        RETURN;
+    }
+    //неплохо бы ORDRSP принимать к тому заказу к кторому он относится, но пока просто помечаем как обработанный
+    IF documentType() == 'ORDRSP' THEN {
+        logToFile('edi', provider + ' (' + login + ') Parse Order Message ' + id(i) + ' skipped for documentType ' + documentType());
+        IF NOT disableConfirmation THEN {
+            confirmDocument(i, login, password, url);
+            messagesConfirmed() <- messagesConfirmed() + 1;
+        }
+        RETURN;
+    }
+}
+
+GROUP orderResponse_Header EXTID 'OrderResponse-Header';
+GROUP order EXTID 'Order' : orderResponse_Header;
+GROUP orderResponse_Parties EXTID 'OrderResponse-Parties';
+GROUP buyerResponse EXTID 'Buyer' : orderResponse_Parties;
+GROUP sellerResponse EXTID 'Seller' : orderResponse_Parties;
+GROUP deliveryPointResponse EXTID 'DeliveryPoint' : orderResponse_Parties;
+GROUP orderResponse_Lines EXTID 'OrderResponse-Lines';
+
+FORM document_OrderResponse FORMEXTID 'Document-OrderResponse'
+    PROPERTIES() IN orderResponse_Header 
+        ordrspDocumentNumber EXTID 'OrderResponseNumber', 
+        ordrspDocumentDate EXTID 'OrderResponseDate', 
+        ordrspDeliveryDateTimeFirst EXTID 'ExpectedDeliveryDate',
+        ordrspDeliveryDateTimeSecond EXTID 'ExpectedDeliveryTime',
+        ordrspResponseType EXTID 'DocumentFunctionCode',
+        ordrspComment EXTID 'Remarks'
+    PROPERTIES() IN order 
+        ordrspOrderNumber EXTID 'BuyerOrderNumber'
+    PROPERTIES() IN buyerResponse 
+        ordrspBuyerGLN EXTID 'ILN'
+    PROPERTIES() IN sellerResponse 
+        ordrspSupplierGLN EXTID 'ILN'
+    PROPERTIES() IN deliveryPointResponse
+        ordrspDestinationGLN EXTID 'ILN'
+    
+    OBJECTS line = INTEGER EXTID 'Line' IN orderResponse_Lines
+    PROPERTIES(line) IN line_Item 
+        ordrspGTIN EXTID 'EAN', 
+        ordrspAction EXTID 'ItemStatus', 
+        ordrspQuantityOrdered EXTID 'OrderedQuantity', 
+        ordrspQuantityAccepted EXTID 'AllocatedDelivered',
+        ordrspPriceElement EXTID 'OrderedUnitNetPrice',
+        ordrspPriceNoNDS EXTID 'NetAmount', 
+        ordrspPriceNDS EXTID 'TaxAmount';
+    
+overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF documentType(i) == 'ORDRSP' THEN {
+        TRY {
+            
+            EXTERNAL HTTP GET url +'/documents/'+id(i)+ '/content' HEADERS headers TO xmlFile;
+
+            IF archiveDir THEN {
+                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+            }
+            IMPORT document_OrderResponse XML FROM xmlFile();
+            
+            ordrspOrderNumber() <- trim(ordrspOrderNumber());
+            IF eOrder(ordrspOrderNumber()) THEN {
+                NEWSESSION NESTED LOCAL {
+                    IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
+                        id(r) <- ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber();
+                    }
+                    LOCAL idDetail = STRING[100] (INTEGER);
+                    idDetail(INTEGER l) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1) WHERE ordrspGTIN(l);
+                    FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(idDetail(l)) DO NEW d = EOrderResponseDetail {
+                        orderResponse(d) <- eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
+                        id(d) <- idDetail(l);
+                    }
+                    FOR EOrderResponse r == eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) DO {
+                        number(r) <- ordrspDocumentNumber();
+                        dateTime(r) <- ordrspDocumentDate();
+                        responseType(r) <- CASE
+                            WHEN ordrspResponseType() == 4 THEN EOrderResponseType.changed
+                            WHEN ordrspResponseType() == 3 THEN EOrderResponseType.cancelled
+                            WHEN ordrspResponseType() == 9 THEN EOrderResponseType.accepted;
+                        note(r) <- STRING[100](ordrspComment());
+                        supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
+                        eOrder(r) <- eOrder(ordrspOrderNumber());
+                        customer(r) <- customer(eOrder(ordrspOrderNumber()));
+                        customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
+                        deliveryDateTime(r) <- dateTimeToDateTime(ordrspDeliveryDateTimeFirst(),ordrspDeliveryDateTimeSecond());
+                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+
+                        LOCAL indexSku = INTEGER (INTEGER);
+                        LOCAL sku = Sku (INTEGER);
+
+                        sku(INTEGER l) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
+                        indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l); //сортировка по принятым откланенным, принятые первыми
+                        fillIndexSku(eOrder(r));
+
+                        FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
+                            orderResponse(d) <- r;
+                            sku(d) <- sku(l);
+                            dataGTIN(d) <- ordrspGTIN(l);
+                            action(d) <- CASE
+                                WHEN ordrspAction(l) == 1 THEN EOrderResponseDetailAction.added
+                                WHEN ordrspAction(l) == 3 THEN EOrderResponseDetailAction.changed
+                                WHEN ordrspAction(l) == 5 THEN EOrderResponseDetailAction.accepted
+                                WHEN ordrspAction(l) == 7 THEN EOrderResponseDetailAction.cancelled;
+                            quantityOrdered(d) <- ordrspQuantityOrdered(l);
+                            quantityAccepted(d) <- ordrspQuantityAccepted(l);
+                            price(d) <- ordrspPriceElement(l);
+                            sumNoNDS(d) <- ordrspPriceNoNDS(l);
+                            sumNDS(d) <- ordrspPriceNDS(l);
+                        }
+                        FOR ordrspGTIN(INTEGER l) INLINE DO {
+                            responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
+                        }
+                        overImportOrdrsp(r);
+
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' failed: ' + applyMessage());
+                            responsesFailed() <- responsesFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                confirmDocument(i, login, password, url);
+                            }
+                            logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' succeeded');
+                            responsesSucceeded() <- responsesSucceeded() + 1;
+                        }
+                    }
+                }
+            } ELSE {
+                IF confirmNotFoundOrders() THEN {
+                    IF NOT disableConfirmation THEN {
+                        confirmDocument(i, login, password, url);
+                        messagesConfirmed() <- messagesConfirmed() + 1;
+                    }
+                } 
+                logToFile('edi', provider + ' (' + login + ') Import EOrderResponse ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE ordrspOrderNumber(), 'NULL') + ' not found');
+                responsesFailed() <- responsesFailed() + 1;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Ошибка при импорте ответа по заказу ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            responsesFailed() <- responsesFailed() + 1;
+        }
+    }
+}
+
+GROUP despatchAdvice_Header EXTID 'DespatchAdvice-Header';
+GROUP despatchAdvice_Parties EXTID 'DespatchAdvice-Parties';
+GROUP buyerAdvice EXTID 'Buyer' : despatchAdvice_Parties;
+GROUP sellerAdvice EXTID 'Seller' : despatchAdvice_Parties;
+GROUP deliveryPointAdvice EXTID 'DeliveryPoint' : despatchAdvice_Parties;
+GROUP shipFromAdvice EXTID 'ShipFrom' : despatchAdvice_Parties;
+GROUP despatchAdvice_Consignment EXTID 'DespatchAdvice-Consignment';
+GROUP packing_Sequence EXTID 'Packing-Sequence' : despatchAdvice_Consignment;
+
+FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
+    PROPERTIES() IN despatchAdvice_Header 
+        desadvDocumentNumber EXTID 'DespatchAdviceNumber', 
+        desadvDocumentDate EXTID 'DespatchAdviceDate',
+        desadvDeliveryDateTimeFirst EXTID 'EstimatedDeliveryDate',
+        desadvOrderNumber EXTID 'BuyerOrderNumber',
+        desadvOrderDate EXTID 'BuyerOrderDate',
+        desadvComment EXTID 'Remarks'
+    PROPERTIES() IN buyerAdvice 
+        desadvBuyerGLN EXTID 'ILN'
+    PROPERTIES() IN sellerAdvice 
+        desadvSupplierGLN EXTID 'ILN'
+    PROPERTIES() IN deliveryPointAdvice 
+        desadvDestinationGLN EXTID 'ILN'
+    PROPERTIES() IN shipFromAdvice 
+        desadvStGLN EXTID 'ILN'
+
+    OBJECTS line = INTEGER EXTID 'Line' IN packing_Sequence
+
+    PROPERTIES(line) IN line_Item
+        desadvGTIN EXTID 'EAN',
+        desadvQuantityOrdered EXTID 'OrderedQuantity',
+        desadvQuantityDespatch EXTID 'QuantityDespatched',
+        desadvVAT EXTID 'TaxRate',
+        desadvLineItemPrice EXTID 'UnitNetPrice',
+        desadvLineItemAmountWithoutCharges EXTID 'NetAmount',
+        desadvLineItemAmountCharges EXTID 'TaxAmount',
+        desadvLineItemAmount EXTID 'GrossAmount'
+;
+
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF documentType(i) == 'DESADV'  THEN {
+        TRY {
+            IMPORT desadv XML FROM data(i);
+            desadvOrderNumber() <- trim(desadvOrderNumber());
+            overReceiveMessageDesadv();
+            IF eOrder(desadvOrderNumber()) THEN {
+                NEWSESSION NESTED LOCAL {
+                    IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
+                        id(a) <- desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber();
+                    }
+                    FOR desadvGTIN(INTEGER l) AND NOT eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO NEW d = EOrderDespatchAdviceDetail {
+                        orderDespatchAdvice(d) <- eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
+                        id(d) <- desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l;
+                    }
+                    FOR EOrderDespatchAdvice a == eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) DO {
+                        number(a) <- desadvDocumentNumber();
+                        dateTime(a) <- desadvDocumentDate();
+                        deliveryNoteNumber(a) <- desadvDocumentNumber();
+                        deliveryNoteDateTime(a) <- desadvDocumentDate();
+                        note(a) <- STRING[100](desadvComment());
+                        supplier(a) <- legalEntityStockGLN(desadvSupplierGLN());
+                        eOrder(a) <- eOrder(desadvOrderNumber());
+                        customer(a) <- OVERRIDE customer(eOrder(desadvOrderNumber())), legalEntityGLN(desadvBuyerGLN());
+                        customerStock(a) <- OVERRIDE customerStock(eOrder(desadvOrderNumber())), stockGLN(desadvDestinationGLN());
+                        deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
+                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
+                            sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
+                            dataGTIN(d) <- desadvGTIN(l);
+                            quantityOrdered(d) <- desadvQuantityOrdered(l);
+                            quantityDespatch(d) <- desadvQuantityDespatch(l);
+                            valueVAT(d) <- desadvVAT(l);
+                            lineItemPrice(d) <- desadvLineItemPrice(l);
+                            lineItemAmountWithoutCharges(d) <- desadvLineItemAmountWithoutCharges(l);
+                            lineItemAmount(d) <- desadvLineItemAmount(l);
+                            lineItemAmountCharges(d) <- desadvLineItemAmountCharges(l);
+                        }
+                        APPLY NESTED LOCAL;
+                        IF canceled() THEN {
+                            logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + applyMessage());
+                            despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+                        } ELSE {
+                            IF NOT disableConfirmation THEN {
+                                LOCAL xml = XMLFILE();
+                                EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                                sendRequestEDI(url, xml());
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                                IF requestError() THEN {
+                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                    MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                                } ELSE {
+                                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                                }
+                            }
+                            logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' succeeded');
+                            despatchAdvicesSucceeded() <- despatchAdvicesSucceeded() + 1;
+                        }
+                    }
+                }
+            } ELSE {
+                IF confirmNotFoundOrders() THEN {
+                    IF NOT disableConfirmation THEN {
+                        LOCAL xml = XMLFILE();
+                        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                        sendRequestEDI(url, xml());
+                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                        IF requestError() THEN {
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                        } ELSE {
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                        }
+                        messagesConfirmed() <- messagesConfirmed() + 1;
+                    }
+                } ELSE {
+                    IF NOT disableConfirmation AND sendReplies THEN {
+                        LOCAL contentSubXML = FILE();
+                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = desadvDocumentNumber(), code = '1450', description = ( provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE desadvOrderNumber(), 'NULL') + ' not found') XML TO contentSubXML;
+                        fileToString(contentSubXML());
+                        encodeBase64(resultString());
+                        LOCAL xml = XMLFILE();
+                        envelopeLogin() <- login;
+                        envelopePassword() <- password;
+                        envelopeDocumentDate() <- currentDateTime();
+                        envelopeDocumentNumber() <- id(i);
+                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
+                        envelopeContent() <- encodedBase64();
+                        EXPORT envelope XML TO xml;
+                        //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
+                        sendRequestEDI(url, xml());
+                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
+                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
+                        IF requestError() THEN {
+                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
+                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
+                        } ELSE {
+                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
+                        }
+                    }
+                }
+                logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE desadvOrderNumber(), 'NULL') + ' not found');
+                despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            MESSAGE 'Ошибка при импорте уведомления об отгрузке ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+        }
+    }
+}
+
+good(EOrderMessage m) += WHEN (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252' OR code(m) == '1240') THEN TRUE;
