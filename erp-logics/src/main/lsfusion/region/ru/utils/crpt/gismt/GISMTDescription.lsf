@@ -236,11 +236,7 @@ getGTINs 'Получить GTIN' (Description o) {
         
         LOCAL result = JSONFILE();
         TRY {
-            IF useTrueAPI() THEN {
-                EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id(o) + '/info?body=true' HEADERS documentHeaders TO result;
-            } ELSE {
-                EXTERNAL HTTP GET url() + '/facade/doc/' + id(o) + '/body' HEADERS documentHeaders TO result;
-            }
+            EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id(o) + '/info?body=true' HEADERS documentHeaders TO result;
         } CATCH {
             logToFile('gismt', messageCaughtException());
             logToFile('gismt', FILE(result()));
@@ -250,14 +246,8 @@ getGTINs 'Получить GTIN' (Description o) {
         
         IMPORT getGTINs JSON FROM result();
         
-        IF useTrueAPI() THEN {
-            FOR uit_code(INTEGER i) AND index(DescriptionDetail d) = i + 1 AND description(d) = o DO {
-                gtin(d) <- STRING[14](left(uit_code(i),14));
-            }
-        } ELSE {
-            FOR gtin(INTEGER i) AND index(DescriptionDetail d) = i + 1 AND description(d) = o DO {
-                gtin(d) <- STRING[14](gtin(i));
-            }
+        FOR uit_code(INTEGER i) AND index(DescriptionDetail d) = i + 1 AND description(d) = o DO {
+            gtin(d) <- STRING[14](left(uit_code(i),14));
         }
         
         APPLY;

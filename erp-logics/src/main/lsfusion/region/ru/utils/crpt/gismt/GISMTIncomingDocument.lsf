@@ -34,12 +34,20 @@ documentDate = DATA LOCAL STRING ();
 invoiceNumber = DATA LOCAL STRING ();
 invoiceDate = DATA LOCAL STRING ();
 
-FORM getIncomingDocument
-    PROPERTIES() IN body document_num = documentNum, document_date = documentDate,
-                         invoiceNumber = invoiceNumber, invoiceDate = invoiceDate
+valueProducts = DATA LOCAL INTEGER(INTEGER);
+valueProductGroupId = DATA LOCAL INTEGER(INTEGER);
 
-    OBJECTS products = INTEGER IN body 
-    PROPERTIES(products) uit_code = uit_code
+FORM getIncomingDocument
+    OBJECTS productGroupId = INTEGER
+    OBJECTS value = INTEGER
+    FILTERS valueProductGroupId(productGroupId) == value
+    PROPERTIES(value) IN body document_num = documentNum, document_date = documentDate,
+        invoiceNumber = invoiceNumber, invoiceDate = invoiceDate
+
+    OBJECTS products = INTEGER IN body
+//    PROPERTIES(products) uit_code = uit_code
+    PROPERTIES(products) cis = uit_code
+    FILTERS valueProducts(products) == value
 ;
 
 getIncomingDocument (LegalEntity l, STRING[100] id) {
@@ -47,11 +55,7 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
     
     LOCAL result = JSONFILE();
     TRY {
-        IF useTrueAPI() THEN {
-            EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id + '/info?body=true&limit=10000' HEADERS documentHeaders TO result;
-        } ELSE {
-            EXTERNAL HTTP GET url() + '/facade/doc/' + id + '/body?limit=10000' HEADERS documentHeaders TO result;
-        }
+        EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/' + id + '/info?body=true&limit=10000' HEADERS documentHeaders TO result;
     } CATCH {
         logToFile('gismt', messageCaughtException());
         logToFile('gismt', FILE(result()));
@@ -60,7 +64,6 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
     }
     
     IMPORT getIncomingDocument JSON FROM result();
-    
     gtin (INTEGER i) <- idToGtin(uit_code(i));
     sku (INTEGER i) <- OVERRIDE sku(lot(uit_code(i))), skuFromGtin(gtin(i));
 }
@@ -87,13 +90,8 @@ getIncomingDocuments 'Получить входящие документы ГИ�
     
     LOCAL result = JSONFILE();
     TRY {
-        IF useTrueAPI() THEN {
-            EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/list?inputFormat=true&limit=1000' + 
+        EXTERNAL HTTP GET 'https://markirovka.crpt.ru/api/v4/true-api/doc/list?inputFormat=true&limit=1000' + 
                                       '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&documentStatus=' + status HEADERS documentHeaders TO result;
-        } ELSE {
-            EXTERNAL HTTP GET url() + '/facade/doc/listV2?inputFormat=true&limit=1000' + 
-                                      '&participantInn=' + inn(s) + '&pg=' + id(lt) + '&documentStatus=' + status HEADERS documentHeaders TO result;
-        }
     } CATCH {
         logToFile('gismt', messageCaughtException());
         logToFile('gismt', FILE(result()));
@@ -106,12 +104,10 @@ getIncomingDocuments 'Получить входящие документы ГИ�
 
     FOR number(INTEGER i) DO {
         getIncomingDocument(l, number(i));
-        documentNum(i) <- documentNum();
-        documentDate(i) <- documentDate();
-        IF useTrueAPI() THEN {
-            invoiceNumber(i) <- invoiceNumber();
-            invoiceDate(i) <- invoiceDate();
-        }
+        documentNum(i) <- documentNum(0);
+        documentDate(i) <- documentDate(0);
+        invoiceNumber(i) <- invoiceNumber(0);
+        invoiceDate(i) <- invoiceDate(0);
     }
     
     documentIndex() <- NULL;
@@ -140,7 +136,7 @@ META defineDocumentIncoming(doc, prop, container, legal, partner)
     prop 'Документ на отгрузку товара' (###doc d) = GROUP CONCAT prop(d, LotType t) + '(' + name(t) + ')', ',' ORDER t CHARWIDTH 30;
     
     get###prop 'Запросить из ГИС МТ' (###doc i, LotType t) {
-        IF url() THEN {
+        IF urlTrueApi() THEN {
             getIncomingDocuments(legal(i), partner(i), t, 'WAIT_ACCEPTANCE');
             IF documentIndex() THEN
             prop(i, t) <- number(documentIndex());             

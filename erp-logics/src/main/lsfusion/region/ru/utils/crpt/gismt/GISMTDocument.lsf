@@ -33,8 +33,6 @@ nameType 'Тип' (Document d) = name(type(d));
 
 gismtType 'Тип ГИС МТ' = ABSTRACT STRING (Document) MATERIALIZED;
 
-docCreateUrl (Document o) = url() + '/lk/documents/create?pg=' + idType(o);
-
 documentHeaders (TEXT name) = CASE
     WHEN name = 'Authorization' THEN 'Bearer ' + token();
 
@@ -90,11 +88,7 @@ create 'Отправить в ГИС МТ' (Document d) {
         LOCAL id = STRING();
         exception(d) <- NULL;
         TRY {
-            IF useTrueAPI() THEN {
-                EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/lk/documents/create?pg=' + idType(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
-            } ELSE {
-                EXTERNAL HTTP POST docCreateUrl(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
-            }
+            EXTERNAL HTTP POST 'https://markirovka.crpt.ru/api/v3/true-api/lk/documents/create?pg=' + idType(d) HEADERS documentHeaders PARAMS sendRequest() TO id;
         } CATCH {
             stringToFile(id());
             handleException(d, resultFile());
@@ -191,7 +185,7 @@ getDocumentStatuses (DATETIME dFrom, LotType lt) {
             } CATCH {
                 logToFile('gismt', messageCaughtException());
                 logToFile('gismt', FILE(result()));
-                MESSAGE CONCAT ' ', 'Ошибка при получении данных о статусах документов ГИС МТ', messageCaughtException();
+                MESSAGE CONCAT ' ', 'Ошибка при получении данных о статусах документов ГИС МТ для группы ' + id(lt) +':', messageCaughtException();
                 RETURN;
             }
             
@@ -206,14 +200,12 @@ getDocumentStatuses (DATETIME dFrom, LotType lt) {
     }
 }
 
+skipGetDocumentStatuses = ABSTRACT BOOLEAN (LotType);
+
 getDocumentStatuses 'Импортировать статусы документов ГИС МТ' () { 
-    IF useTrueAPI() THEN {
-        FOR id(LotType t) DO {
-            getDocumentStatuses(checkDocStatusDateTime(), t);
-        }
-    } ELSE {
-        getDocumentStatuses(checkDocStatusDateTime());
-    } 
+    FOR id(LotType t) AND NOT skipGetDocumentStatuses(t) DO {
+        getDocumentStatuses(checkDocStatusDateTime(), t);
+    }
 }
 
 postDocuments 'Изменить статусы документов ГИС МТ' () {

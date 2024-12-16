@@ -6,11 +6,10 @@ REQUIRE System, Utils, Time,
 NAMESPACE GISMT;
 
 url 'Url к стенду ГИС МТ' = DATA STRING ();
-useTrueAPI 'Использовать True API' = DATA BOOLEAN ();
 urlTrueApi 'Url к стенду ГИС МТ(True API)' = DATA STRING ();
 
 EXTEND FORM integrationData
-    PROPERTIES() gismtUrl = url, useTrueAPI, urlTrueApi SHOWIF useTrueAPI();
+    PROPERTIES() gismtUrl = url, urlTrueApi;
 ;
 
 DESIGN integrationData {
@@ -18,7 +17,6 @@ DESIGN integrationData {
         NEW GISMT {
             caption = 'ГИС МТ';
             MOVE PROPERTY(gismtUrl);
-            MOVE PROPERTY(useTrueAPI());
             MOVE PROPERTY(urlTrueApi());
         }
     }
@@ -38,10 +36,7 @@ getToken (STRING keyAlias, STRING keyPassword, LegalEntity l) {
         NEWSESSION {
             
             LOCAL result = JSONFILE ();
-            IF useTrueAPI() THEN
-                EXTERNAL HTTP GET urlTrueApi() + '/auth/key' TO result;
-            ELSE 
-                EXTERNAL HTTP GET url() + '/auth/cert/key' TO result;
+            EXTERNAL HTTP GET urlTrueApi() + '/auth/key' TO result;
             
             LOCAL uuid = STRING();
             LOCAL data = STRING();
@@ -53,10 +48,7 @@ getToken (STRING keyAlias, STRING keyPassword, LegalEntity l) {
         
             EXPORT JSON FROM uuid = uuid(), data = encodedSignature();
             
-            IF useTrueAPI() THEN 
-                EXTERNAL HTTP POST urlTrueApi() + '/auth/simpleSignIn' PARAMS exportFile() TO result;
-            ELSE 
-                EXTERNAL HTTP POST url() + '/auth/cert/' PARAMS exportFile() TO result;
+            EXTERNAL HTTP POST urlTrueApi() + '/auth/simpleSignIn' PARAMS exportFile() TO result;
             LOCAL token = STRING ();
             IMPORT JSON FROM result() TO() token;
             
