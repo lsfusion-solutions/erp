@@ -122,6 +122,7 @@ is (Inventory o) = o IS Inventory;
 @defineDocumentHeaderTime(Inventory);
 
 @defineDocumentHeaderClosed(Inventory);
+INDEX isOpened(Inventory i);
 
 @deriveDocumentHeaderTimePrefix(Inventory, );
 
@@ -241,7 +242,7 @@ TABLE listInventory (ListInventory);
 @defineDocumentHeaderCurrency(listInventory);
 @deriveDocumentCurrency(listInventory, stock);
 
-inventory = DATA Inventory (ListInventory) NONULL DELETE;
+inventory = DATA Inventory (ListInventory) NONULL DELETE INDEXED;
 nameInventory 'Название инвентаризации' (ListInventory listInventory) = name(inventory(listInventory));
 
 countListInventory 'Кол-во описей' = GROUP SUM 1 BY inventory(ListInventory li);
@@ -1198,7 +1199,7 @@ inInventorySkuDetail = AGGR InInventorySkuDetail WHERE needToInLedger(CollationS
 collationSheet(InventorySkuDetail inventorySkuDetail) = MULTI collationSheet[OutInventorySkuDetail](inventorySkuDetail),
     collationSheet[InInventorySkuDetail](inventorySkuDetail);
 
-inventory(InventorySkuDetail inventorySkuDetail) = inventory(collationSheet(inventorySkuDetail)) MATERIALIZED;
+inventory(InventorySkuDetail inventorySkuDetail) = inventory(collationSheet(inventorySkuDetail)) MATERIALIZED INDEXED;
 
 @defineDocumentDetailTime(inventory, InventorySkuDetail);
 @defineDocumentDetailPosted(inventory, InventorySkuDetail);
@@ -1302,7 +1303,7 @@ inInventoryBatchDetail = AGGR InInventoryBatchDetail WHERE needToInLedger(Collat
 collationSheet(InventoryBatchDetail inventoryBatchDetail) = MULTI collationSheet[OutInventoryBatchDetail](inventoryBatchDetail),
     collationSheet[InInventoryBatchDetail](inventoryBatchDetail);
 
-inventory(InventoryBatchDetail inventoryBatchDetail) = inventory(collationSheet(inventoryBatchDetail)) MATERIALIZED;
+inventory(InventoryBatchDetail inventoryBatchDetail) = inventory(collationSheet(inventoryBatchDetail)) MATERIALIZED INDEXED;
 
 @defineDocumentDetailTime(inventory, InventoryBatchDetail);
 @defineDocumentDetailPosted(inventory, InventoryBatchDetail);
