@@ -33,7 +33,20 @@ CLASS BerlioCard 'Карта Berlio';
 TABLE berlioCard (BerlioCard);
 
 number 'Номер' = DATA STRING[48] (BerlioCard) IN numbered INDEXED CHARWIDTH 13;
+contract 'Договор' = DATA STRING[20] (BerlioCard);
 berlioNumber = GROUP MAX BerlioCard dberlioCard BY number(dberlioCard);
+
+FORM berlioCards 'Карты Берлио'
+    OBJECTS k = BerlioCard
+    PROPERTIES (k) number, NEW, DELETE
+    LIST BerlioCard OBJECT k
+;
+
+NAVIGATOR {
+    retailMasterData {
+        NEW berlioCards;
+    }
+}
 
 berlioCard = DATA BerlioCard (Receipt);
 numberBerlioCard 'Номер карты Berlio' (Receipt receipt) = number(berlioCard(receipt));
@@ -101,14 +114,17 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 number(z) <- shift(rz);
                 berlioFile(z) <- fn;
 
-                FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND NOT berlioNumber(berlio) NEW g = BerlioCard DO {
-                    number(g) <- berlio;
+                FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND NOT berlioNumber(getWord(berlio, '/', 1)) NEW g = BerlioCard DO {
+                    number(g) <- getWord(berlio, '/', 1);
+                }
+                FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND BerlioCard g == berlioNumber(getWord(berlio, '/', 1)) DO {
+                    contract(g) <- getWord(berlio, '/', 2);
                 }
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
                     id(rc) <- idReceipt;
                     zReport(rc) <- z;
-                    berlioCard(rc) <- berlioNumber(cardNum(r));
+                    berlioCard(rc) <- berlioNumber(getWord(cardNum(r), '/', 1));
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
                     time(rc) <- time(r);
