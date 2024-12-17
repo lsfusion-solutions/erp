@@ -79,12 +79,12 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
         LOCAL shiftIime = TIME ();
         LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
         LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
-        LOCAL idZReport, idReceipt, idReceiptDetail = STRING (INTEGER);
+        LOCAL idZReport, idReceipt, idReceiptDetail, user = STRING (INTEGER);
         LOCAL qty, density, weight, price, sum, discountSum, discount, mixCash, mixBank, mixOther = NUMERIC(INTEGER);
 
-        IMPORT DBF FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
+        IMPORT DBF CHARSET 'cp866' FROM file() TO shift = SHIFTNO, lDate = DT, time = TM, code = CODE, vid = VID, kind = KIND, qty = REL,
                 density = SOL, weight = RELKG, price = PRICEW, sum = 'SUM', discountSum = DISCSUM, discount = DISCOUNT,
-                cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
+                cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, user = username, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
                 mixBank = MIXBANK, mixOther = MIXOTHER;
 
         FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegister(npp) ORDER npp DO NEW c = CashRegister {
@@ -120,11 +120,19 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND BerlioCard g == berlioNumber(getWord(berlio, '/', 1)) DO {
                     contract(g) <- getWord(berlio, '/', 2);
                 }
+                
+                FOR [GROUP SUM 1 IF idReceipt(INTEGER rr) BY user(rr)](STRING user) AND NOT (GROUP SUM 1 IF user = shortName(Employee e)) NEW e = Employee DO {
+                    lastName(e) <- getWord(user, ' ', 1);
+                    initialsEmployee(e) <- getWord(user, ' ', 2);
+                    position(e) <- position('berlio');
+                    inactive(e) <- TRUE;
+                }  
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceipt(rr)](STRING idReceipt) AND NOT receipt(idReceipt) ORDER receipt(r) NEW rc = Receipt DO {
                     id(rc) <- idReceipt;
                     zReport(rc) <- z;
                     berlioCard(rc) <- berlioNumber(getWord(cardNum(r), '/', 1));
+                    employee(rc) <- (GROUP MIN Employee e IF user(r) = shortName(e));
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
                     time(rc) <- time(r);
