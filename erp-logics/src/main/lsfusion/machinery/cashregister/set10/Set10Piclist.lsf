@@ -39,7 +39,7 @@ prefixCSIAPI 'Префикс ШК' = DATA STRING () CHARWIDTH 10;
 prefixPieceCSIAPI 'Префикс ШК (шт)' = DATA STRING () CHARWIDTH 10;
 overPrefixCSIAPI (Item i) = IF istartsWith(shortNameUOM(barcode(i)), 'шт') THEN prefixPieceCSIAPI() ELSE prefixCSIAPI();
 
-contentBarcode (Item i) = CONCAT '', overPrefixCSIAPI(i) IF usePrefixCSIAPI() AND passScales(i), idBarcode(i);
+contentBarcode (Item i) = CONCAT '', overPrefixCSIAPI(i) IF usePrefixCSIAPI() AND passScales(i) AND (length(idBarcode(i)) <= 8), idBarcode(i);
 replaceNameAPI (Item i) = replace(replace(replace(Stock.name(i), '\\', '/'), '"', '\''), '\n', '');
 content (Item i, DepartmentStore ds) = IF idBarcode(i) AND in(i, ds) THEN '\{' + (CONCAT ',' ,
     '"index": ' + (indexItemExt(i, ds) - 1),
