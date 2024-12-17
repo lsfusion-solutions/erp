@@ -21,6 +21,7 @@ stock = DATA Stock (SaleDeniedRestriction);
 nameStock 'Склад' (SaleDeniedRestriction r) = name(stock(r));
 
 dateTimeExported 'Дата выгрузки' = DATA DATETIME (SaleDeniedRestriction);
+dateTimeDeleted 'Дата удаления' = DATA DATETIME (SaleDeniedRestriction);
 balance 'Остаток при создании' = DATA NUMERIC[16,5] (SaleDeniedRestriction);
 deleted 'Удален' = DATA BOOLEAN (SaleDeniedRestriction);
 active 'Активен' (SaleDeniedRestriction r) = dateTimeExported(r) AND NOT deleted(r);
@@ -35,9 +36,10 @@ shopIndices (SaleDeniedRestriction r) = idStoreSet(set10Stock(stock(r)));
 
 FORM saleDeniedRestrictions 'Запреты продаж Set10'
     OBJECTS r = SaleDeniedRestriction
-    PROPERTIES(r) READONLY createdTime ORDER DESC, createdNameUser, createdHostnameComputer, dateTimeExported, idSku, idBarcodeSku,nameSku, nameStock, balance, deleted, active, messageError
+    PROPERTIES(r) READONLY createdTime ORDER DESC, createdNameUser, createdHostnameComputer, dateTimeExported, dateTimeDeleted, idSku, idBarcodeSku,nameSku, nameStock, balance, deleted, active, messageError
     FILTERGROUP default
         FILTER 'Активные' active(r)
+        FILTER  'Успешно удаленые' deleted(r) AND dateTimeDeleted(r)
     
     LIST SaleDeniedRestriction OBJECT r
 ;
@@ -46,13 +48,15 @@ currentBalanceRestriction (Sku s, Stock st) = IF passScales(s) THEN currentBalan
 ;
 
 useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
+exportSaleAfterTransaction 'Отправлять удаленные запреты после транзакции' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM integrationData
-    PROPERTIES useSaleDeniedRestrictions()
+    PROPERTIES useSaleDeniedRestrictions(), exportSaleAfterTransaction()
 ;
 DESIGN integrationData{
     set10{
         MOVE PROPERTY (useSaleDeniedRestrictions());
+        MOVE PROPERTY (exportSaleAfterTransaction());
     }
 }
 //
@@ -75,6 +79,94 @@ FORM saleRestrictionExport FORMEXTID 'goods-catalog'
         sinceDate(d) EXTID 'since-date',
         deleted = IF deleted(d) THEN 'true' ELSE 'false'
 ;
+
+exportSaleRestrictionTI 'Отправить в SET' (SaleDeniedRestriction r) {
+    NEWSESSION {
+        IF NOT shopIndices(r) THEN{
+            MESSAGE 'Не указан код магазина SET10';
+            RETURN;
+        }
+
+        LOCAL outerXML = TEXT();
+        LOCAL error = STRING ();
+        IF urlServerSet10() THEN {
+            EXPORT saleRestrictionExport FILTERS d = r XML;
+            fileToString(exportFile());
+            encodeBase64(resultString());
+            goodsCatalogXML() <- encodedBase64();
+            LOCAL headersSet = STRING (STRING);
+            headersSet('Content-Type') <- 'application/xml';
+            generateUUID();
+            
+            TI() <- generatedUUID();
+            LOCAL answer = FILE();
+            LOCAL req = FILE();
+            EXPORT requestItem XML TO req;
+
+            TRY {
+                EXTERNAL HTTP urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+            } CATCH {
+                error() <- messageCaughtException();
+            }
+
+            IF NOT error() THEN {
+                tiExport(r) <- TI();
+                APPLY;
+            } ELSE {
+                tiExport(r) <- NULL;
+                messageError(r) <- error();
+                APPLY;
+            }
+        }
+    }
+}
+
+getFeedback 'Получить статус' (SaleDeniedRestriction r){
+    IF tiExport(r) THEN NEWSESSION {
+        ti() <- tiExport(r);
+        
+        LOCAL outerXML = TEXT();
+        LOCAL error = STRING ();
+        LOCAL answer = FILE();
+        
+        EXPORT getFeedbackRequest XML;
+        LOCAL headersSet = STRING (STRING);
+        headersSet('Content-Type') <- 'application/xml';
+        TRY {
+            EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/FeedbackWS' HEADERS headersSet
+                PARAMS exportFile() TO answer;
+            fileToString(answer());
+            IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Get Feedback', resultString()));
+            IMPORT getFeedbackAnswer XML FROM answer();
+            IF status() = '3' THEN {
+                IF deleted(r) THEN dateTimeDeleted(r) <- currentDateTime();
+                dateTimeExported(r) <- currentDateTime() WHERE NOT deleted(r);
+                tiExport(r) <- NULL;
+                APPLY;
+            }
+            IF status() != '2' THEN {
+                error() <- status_message();
+            }
+        } CATCH{
+            error() <- messageCaughtException();
+        }
+        IF error() THEN {
+            messageError(r) <- error();
+            APPLY;
+        }
+    }
+}
+
+needExport(SaleDeniedRestriction r) = (NOT dateTimeExported(r) AND NOT deleted(r)) OR (deleted(r) AND NOT dateTimeDeleted(r));
+
+processDeniedRestrictions 'Обработка запретов продаж'(){
+    FOR createdTime(SaleDeniedRestriction r)  AND needExport(r)  AND NOT tiExport(r) AND set10Stock(stock(r)) DO {
+        exportSaleRestrictionTI(r);
+    }
+    FOR tiExport(SaleDeniedRestriction r) DO{
+        getFeedback(r);
+    }
+}
 
 exportSaleRestriction 'Отправить в SET' (SaleDeniedRestriction r) {
     NEWSESSION {
@@ -161,13 +253,14 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
             RETURN;
         }
         deleted(r) <- TRUE;
+        tiExport(r) <- NULL;
         APPLY;
-        exportSaleRestriction(r);
+        IF exportSaleAfterTransaction() THEN exportSaleRestrictionTI(r);
     }
 } TOOLBAR;
 
 EXTEND FORM saleDeniedRestrictions
-    PROPERTIES deleteSaleRestriction(r) TOOLBAR SHOWIF active(r)
+    PROPERTIES TOOLBAR exportSaleRestrictionTI(r), getFeedback(r) SHOWIF tiExport(r), tiExport(r) READONLY 
 ;
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
