@@ -105,7 +105,7 @@ canonicalNumber 'Канонический код' (StatisticGroup statisticGroup
 
 canonicalNumberName 'Канонический код-название' (StatisticGroup statisticGroup) = CONCAT ' / ', canonicalNumber(statisticGroup), name(statisticGroup) CHARWIDTH 30;
 
-groupIdTypeIdGroup (string1, string2) = GROUP AGGR StatisticGroup group WHERE group IS StatisticGroup
+groupIdTypeIdGroup (idType, sid) = GROUP AGGR StatisticGroup group WHERE group IS StatisticGroup
     BY id(groupType(group)), sid(group);
 
 sidParent 'Код родительского объекта' (StatisticGroup statisticGroup) = sid(parent(statisticGroup));
@@ -828,21 +828,28 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
  
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
-loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(ISTRING[100] iname, STRING[20] isid, BPSTRING[3] isidCountry)  { 
-     NEW t = StatisticGroupType {
-         name(t) <- iname;
-         id (t) <- isid;
-         country(t) <- country(isidCountry);
-     }
+loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(ISTRING[100] iname, STRING[20] isid, BPSTRING[3] isidCountry)  {
+    IF NOT statisticGroupTypeId(isid) THEN {
+        NEW t = StatisticGroupType {
+            name(t) <- iname;
+            id (t) <- isid;
+            country(t) <- country(isidCountry);
+        }
+    }
  }
  
 loadDefaultStatistic 'Добавить значение статистические группы'(STRING[20] sidType, BPSTRING[12] sidParent, ISTRING[250] iname, BPSTRING[12] isid, GroupStatic groupStatic, value)  { 
-    NEW g = StatisticGroup {
-        groupType(g) <- statisticGroupTypeId(sidType);
+    IF NOT groupIdTypeIdGroup(sidType, isid) THEN {
+        NEW g = StatisticGroup {
+            groupType(g) <- statisticGroupTypeId(sidType);
+            sid(g) <- isid;
+        }
+    }
+    
+    FOR StatisticGroup g == groupIdTypeIdGroup(sidType, isid) DO {
         parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
         
         name(g) <- iname;
-        sid(g) <- isid;
         unitMeasure(g) <- groupStatic;
         conversionFactor(g) <- NUMERIC[14,5](value);
     }
