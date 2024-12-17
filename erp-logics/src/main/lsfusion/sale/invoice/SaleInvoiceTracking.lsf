@@ -1,6 +1,6 @@
 MODULE SaleInvoiceTracking;
 
-REQUIRE SaleInvoice, ItemTracking, BatchInventoryTracking, PurchaseInvoiceTracking;
+REQUIRE SaleInvoice, ItemTracking, BatchInventoryTracking, PurchaseEInvoiceTracking;
 
 NAMESPACE Sale;
 
@@ -21,13 +21,13 @@ lineItemPriceSPT'Цена за единицу товара для прослеж
     WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
     ELSE (OVERRIDE price(d), 1.0));
 
-itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) = OVERRIDE itemCustomCode(batch(d), supplierStock(d)), itemCustomCode(batch(d)), codeCustomsGroupDefaultCountry(sku(d));
-itemCustomCodeOther 'Дополнительный таможенный код'(UserInvoiceDetail d) = OVERRIDE itemCustomCodeOther(batch(d), supplierStock(d)), itemCustomCodeOther(batch(d)), idExtraCode(sku(d));
+itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) = OVERRIDE itemCustomCode(batch(d), supplierStock(d)), itemCustomCode(trackingInvoiceDetail(d)), itemCustomCode(batch(d)), codeCustomsGroupDefaultCountry(sku(d));
+itemCustomCodeOther 'Дополнительный таможенный код'(UserInvoiceDetail d) = OVERRIDE itemCustomCodeOther(batch(d), supplierStock(d)), itemCustomCodeOther(trackingInvoiceDetail(d)), itemCustomCodeOther(batch(d)), idExtraCode(sku(d));
 deliveryTypePrev 'Тип приходного документа'(UserInvoiceDetail d) = OVERRIDE deliveryTypePrev(batch(d), supplierStock(d)), deliveryTypePrev(trackingInvoiceDetail(d)), deliveryTypePrev(batch(d));
 deliveryNotePrev 'Номер приходного документа' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrev(batch(d), supplierStock(d)),deliveryNotePrev(trackingInvoiceDetail(d)), deliveryNotePrev(batch(d));
 deliveryNoteDate 'Дата создания приходного документа' (UserInvoiceDetail d) = OVERRIDE deliveryNoteDate(batch(d), supplierStock(d)), deliveryNoteDate(trackingInvoiceDetail(d)), deliveryNoteDate(batch(d));
-deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrevLineID(batch(d), supplierStock(d)),deliveryNotePrevLineID(trackingInvoiceDetail(d)), deliveryNotePrevLineID(batch(d));
-lineItemQuantitySPT 'Ед. изм.СПТ' (UserInvoiceDetail d) = OVERRIDE lineItemQuantitySPT(batch(d), supplierStock(d)), lineItemQuantitySPT(batch(d)), trackingUOMCustomsGroup(sku(d));
+deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrevLineID(batch(d), supplierStock(d)), deliveryNotePrevLineID(trackingInvoiceDetail(d)), deliveryNotePrevLineID(batch(d));
+lineItemQuantitySPT 'Ед. изм.СПТ' (UserInvoiceDetail d) = OVERRIDE lineItemQuantitySPT(batch(d), supplierStock(d)), lineItemQuantitySPT(trackingInvoiceDetail(d)), lineItemQuantitySPT(batch(d)), trackingUOMCustomsGroup(sku(d));
 
 FORM basisInvoiceDetail 'Строка накладной'
     OBJECTS sk = Sku PANEL
