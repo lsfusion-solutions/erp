@@ -1,6 +1,6 @@
 MODULE PurchaseEInvoiceTracking;
 
-REQUIRE PurchaseEInvoice, DocumentImportMNS;
+REQUIRE PurchaseEInvoice, PurchaseInvoiceTracking;
 
 NAMESPACE Purchase;
 
@@ -14,45 +14,20 @@ DESIGN options {
         MOVE PROPERTY(skipFillExtraCode());
     }
 }
-itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) =  OVERRIDE (GROUP MIN codeSku(ImportDocMNSDetail td) IF invoiceDetail(td)==d), itemCustomCode(eInvoiceDetail(d)) , codeCustomsGroupDefaultCountry(sku(d));
-itemCustomCodeOther 'Дополнительный таможенный код' (UserInvoiceDetail d) =  OVERRIDE (GROUP MIN extraCodeSku(ImportDocMNSDetail td) IF invoiceDetail(td)==d),
-    itemCustomCodeOther(eInvoiceDetail(d)), idExtraCode(sku(d));
-
-deliveryNotePrev 'Номер приходного документа' (UserInvoiceDetail d) = OVERRIDE  seriesNumber(lastImportDocMNS(invoice(d))), deliveryNoteNumber(eInvoice(eInvoiceDetail(d)));
-deliveryTypePrev 'Тип приходного документа'  (UserInvoiceDetail d) = CASE WHEN isTN2(eInvoice(eInvoiceDetail(d))) THEN 2
-                                                                                        WHEN eInvoice(eInvoiceDetail(d)) THEN 1
-                                                                                        WHEN lastImportDocMNS(invoice(d)) THEN 5;
-
-deliveryNoteDate 'Дата создания приходного документа' (UserInvoiceDetail d) = OVERRIDE (DATE(dateTimeSign(lastImportDocMNS(invoice(d))))),
-    deliveryNoteDate(eInvoice(eInvoiceDetail(d)));
-deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = OVERRIDE (GROUP MIN index(ImportDocMNSDetail td) IF invoiceDetail(td)==d),
-    numberEInvoiceDetail(d);
-lineItemQuantitySPT 'Единица измерения прослеживаемости' (UserInvoiceDetail d) = OVERRIDE (GROUP MIN trackingUOMCustomsGroup(ImportDocMNSDetail td) IF invoiceDetail(td)==d),
-    lineItemQuantitySPT(eInvoiceDetail(d));
-lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = OVERRIDE (GROUP MIN priceInvoiceDetail(ImportDocMNSDetail td) IF invoiceDetail(td)==d),
-    lineItemPriceSPT(eInvoiceDetail(d));// отображаем для инфо, но при расходе цену рассчитываем свою, исходя из ед изм СПТ
-quantityDespatchedSPT 'Количество в единицах прослеживаемости' (UserInvoiceDetail d) = OVERRIDE (GROUP MIN quantityInvoiceDetail(ImportDocMNSDetail td) IF invoiceDetail(td)==d),
-    quantityDespatchedSPT (eInvoiceDetail(d)); // отображаем для инфо, но при расходе кол-во рассчитываем свое, исходя из ед изм СПТ
-    
-// взамен абстрактных по партии
-itemCustomCode 'Код ТНВЭД' (ShipmentBatch batch) = itemCustomCode(invoiceDetail(shipmentDetail(batch)));
-itemCustomCodeOther 'Дополнительный таможенный код' (ShipmentBatch batch) = itemCustomCodeOther(invoiceDetail(shipmentDetail(batch)));
-deliveryNotePrev 'Номер приходного документа'(ShipmentBatch batch) = deliveryNotePrev(invoiceDetail(shipmentDetail(batch)));
-deliveryTypePrev 'Тип приходного документа' (ShipmentBatch batch) = deliveryTypePrev(invoiceDetail(shipmentDetail(batch)));
-deliveryNoteDate 'Дата создания приходного документа' (ShipmentBatch batch) = deliveryNoteDate(invoiceDetail(shipmentDetail(batch)));
-deliveryNotePrevLineID 'Номер строки в приходном документе' (ShipmentBatch batch) = deliveryNotePrevLineID(invoiceDetail(shipmentDetail(batch)));
-lineItemQuantitySPT 'Единица измерения прослеживаемости' (ShipmentBatch batch) = lineItemQuantitySPT(invoiceDetail(shipmentDetail(batch)));
-
-
-EXTEND FORM userInvoice
-    PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther,
-         deliveryNotePrev, deliveryTypePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, lineItemPriceSPT, quantityDespatchedSPT
-;
 
 overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
-    IF date(id) >= dateStartSPT(id) AND NOT skipFillExtraCode() THEN {
-        dataExtraCode(sku(id)) <- extraCode(customsGroup(itemCustomCode(eid)), itemCustomCodeOther(eid)) WHERE itemCustomCodeOther(eid) AND NOT extraCode(sku(id)) ;
-    }
+    IF date(id) >= dateStartSPT(id) THEN {
+        dataExtraCode(sku(id)) <- extraCode(customsGroup(itemCustomCode(eid)), itemCustomCodeOther(eid)) WHERE itemCustomCodeOther(eid) AND NOT skipFillExtraCode() AND NOT extraCode(sku(id)) ;
+        deliveryTypePrev(id) <- CASE WHEN isTN2(eInvoice(eid)) THEN 2 ELSE 1 ;// определяем сами, т.к. это мы создаем в лсф прослеживаемость на основе электр. накладной
+        deliveryNotePrev(id) <- deliveryNoteNumber(eInvoice(eid));
+        deliveryNoteDate(id) <- deliveryNoteDate(eInvoice(eid));
+        deliveryNotePrevLineID(id) <- lineItemNumber(eid);
+        itemCustomCode(id) <- itemCustomCode(eid);
+        itemCustomCodeOther(id) <- itemCustomCodeOther(eid);
+        lineItemQuantitySPT(id) <- lineItemQuantitySPT(eid);
+        lineItemPriceSPT(id) <- lineItemPriceSPT(eid);// записываем для инфо, но при расходе цену рассчитываем свою исходя из ед изм
+        quantityDespatchedSPT(id) <- quantityDespatchedSPT(eid);// записываем для инфо, но при расходе кол-во рассчитываем свое исходя из ед изм
+    }        
 }
 
 //проверка данных из электронной накладной и в карточке товара
@@ -60,7 +35,7 @@ skipCheckESPT = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
 
 skipCheckESPT  'Не проверять соотвествие кода ТН ВЭД, 4-зн. код, ед. изм СПТ из электронной накладной' = DATA BOOLEAN ();
 
-skipCheckESPT(InvoiceDetail id) += skipCheckESPT() IF id IS InvoiceDetail;
+skipCheckESPT(InvoiceDetail id) += skipCheckESPT() IF id IS InvoiceDetail; 
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR CHANGED (itemCustomCode(id))) AND isPosted(id) AND isTracking(id) AND eInvoice(invoice(id))
     AND customsGroup(defaultCountry(),sku(id)) AND itemCustomCode(id) AND NOT itemCustomCode(id)==code(customsGroup(defaultCountry(),sku(id))) AND NOT skipCheckESPT(id)
