@@ -130,69 +130,74 @@ useCustomReport = ABSTRACT BOOLEAN (SaleReport);
 fillDataCustomReport  ABSTRACT (SaleReport);
 quantityNested  = DATA LOCAL NESTED NUMERIC[16,5](Batch);
 reportNested  = DATA LOCAL NESTED BOOLEAN (Batch);
+isFillDataCustom = ABSTRACT BOOLEAN (SaleReport);
+fillDataCustom  ABSTRACT LIST(SaleReport);
 
-fillData 'Заполнить данные'(SaleReport report)  {    
+fillData 'Заполнить данные'(SaleReport report) {    
     IF supplier(report) AND contractSku(report) AND company(report) THEN {
-        DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d)== report;
-        
-        LOCAL report = BOOLEAN (Batch);
-        LOCAL quantity = NUMERIC[16,5](Batch);
-        LOCAL sum = NUMERIC[18,4](Batch);
-        LOCAL quantityReturn = NUMERIC[16,5](Batch);
-        LOCAL balanceB = NUMERIC[16,5](Batch);
-        LOCAL balanceA = NUMERIC[16,5](Batch);
-        LOCAL price = NUMERIC[16,4](Batch);
-        LOCAL value = NUMERIC[10,5](Batch);
-         
-        report(Batch batch) <- TRUE WHERE supplier(report) == supplier(batchOver(batch)) AND contractSku(report) == contractSku(invoice(invoiceDetail(batchOver(batch)))) AND NOT skipSaleReport(batch);
-        
-        quantity(Batch batch) <- (IF companyStock(report)
-            THEN quantitySold(batch, companyStock(report), fromDate(report), toDate(report))
-            ELSE quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch);
-        IF useCustomReport(report) THEN {
-            quantityNested(Batch batch)<- NULL;
-            reportNested(Batch batch)<-  report(batch) AND quantity(batch);
-            fillDataCustomReport(report);
-            quantity(Batch batch)<- quantity(batch) (-) quantityNested(batch) WHERE quantityNested(batch);
-        }
-            
-        quantityReturn(Batch batch) <- (IF companyStock(report) 
-                    THEN quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report))
-                    ELSE quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch); 
-        balanceB(Batch batch) <- (IF companyStock(report) 
-                    THEN balanceB(batch, companyStock(report), fromDate(report))
-                    ELSE balanceBCompanyFrom(batch, company(report), fromDate(report))) WHERE report(batch);                            
-        balanceA(Batch batch) <- (IF companyStock(report) 
-                    THEN balanceA(batch, companyStock(report), toDate(report))
-                    ELSE balanceACompanyTo(batch, company(report), toDate(report))) WHERE report(batch); 
-        report(Batch batch) <- NULL WHERE report(batch) AND NOT (quantity(batch) OR quantityReturn(batch) OR balanceB(batch) OR balanceA(batch));                      
-        price(Batch batch) <- price(invoiceDetail(batchOver(batch))) WHERE report(batch);
-        value(Batch batch) <- (OVERRIDE valueVAT(batchOver(batch)), valueVAT(sku(batch))) WHERE report(batch);   
-        sum(Batch batch) <- NUMERIC[18,4](round(NUMERIC[14,3](quantity(batch)) * price(batch), currency(report))) WHERE report(batch);
+        IF NOT isFillDataCustom(report) THEN {
+            DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d) == report;
 
-        FOR report(Batch batch) NEW d = SaleReportDetail DO {        
-    
-            saleReport(d) <- report;
-            batch(d) <- batch;
-            sku(d) <- sku(batch);
-            
-            quantity(d) <- NUMERIC[14,3](quantity(batch));
-            price(d) <- price(batch);
-            VAT(d) <- OVERRIDE VAT(batchOver(batch)), VAT(sku(batch));
-            valueVAT(d) <- value(batch);
-            
-            sum(d) <- sum(batch);
-            VATSum(d) <- NUMERIC[18,4](round(sum(batch) * value(batch) / 100.0, currency(report)));                                                                                                                              
-            invoiceSum(d) <- NUMERIC[18,4](sum(batch) (+) NUMERIC[18,4](round(sum(batch) * value(batch) / 100.0, currency(report))));  
-                                                                                                                                                   
-            sumBalanceB(d) <- NUMERIC[18,4](round(balanceB(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));                                                                                                                                         
-            sumBalanceA(d) <- NUMERIC[18,4](round(balanceA(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));                                                                                                                                         
-            sumReturn(d) <- NUMERIC[18,4](round(quantityReturn(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));
-                                                                                                                                                                                                                                                                                                            
-            quantityBalanceB(d) <- balanceB(batch);
-            quantityBalanceA(d) <- balanceA(batch);
-        }         
-        
+            LOCAL report = BOOLEAN (Batch);
+            LOCAL quantity = NUMERIC[16,5](Batch);
+            LOCAL sum = NUMERIC[18,4](Batch);
+            LOCAL quantityReturn = NUMERIC[16,5](Batch);
+            LOCAL balanceB = NUMERIC[16,5](Batch);
+            LOCAL balanceA = NUMERIC[16,5](Batch);
+            LOCAL price = NUMERIC[16,4](Batch);
+            LOCAL value = NUMERIC[10,5](Batch);
+
+            report(Batch batch) <- TRUE WHERE supplier(report) == supplier(batchOver(batch)) AND contractSku(report) == contractSku(invoice(invoiceDetail(batchOver(batch)))) AND NOT skipSaleReport(batch);
+
+            quantity(Batch batch) <- (IF companyStock(report)
+                THEN quantitySold(batch, companyStock(report), fromDate(report), toDate(report))
+                ELSE quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch);
+            IF useCustomReport(report) THEN {
+                quantityNested(Batch batch) <- NULL;
+                reportNested(Batch batch) <- report(batch) AND quantity(batch);
+                fillDataCustomReport(report);
+                quantity(Batch batch) <- quantity(batch) (-) quantityNested(batch) WHERE quantityNested(batch);
+            }
+
+            quantityReturn(Batch batch) <- (IF companyStock(report)
+                THEN quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report))
+                ELSE quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report))) WHERE report(batch);
+            balanceB(Batch batch) <- (IF companyStock(report)
+                THEN balanceB(batch, companyStock(report), fromDate(report))
+                ELSE balanceBCompanyFrom(batch, company(report), fromDate(report))) WHERE report(batch);
+            balanceA(Batch batch) <- (IF companyStock(report)
+                THEN balanceA(batch, companyStock(report), toDate(report))
+                ELSE balanceACompanyTo(batch, company(report), toDate(report))) WHERE report(batch);
+            report(Batch batch) <- NULL WHERE report(batch) AND NOT (quantity(batch) OR quantityReturn(batch) OR balanceB(batch) OR balanceA(batch));
+            price(Batch batch) <- price(invoiceDetail(batchOver(batch))) WHERE report(batch);
+            value(Batch batch) <- (OVERRIDE valueVAT(batchOver(batch)), valueVAT(sku(batch))) WHERE report(batch);
+            sum(Batch batch) <- NUMERIC[18,4](round(NUMERIC[14,3](quantity(batch)) * price(batch), currency(report))) WHERE report(batch);
+
+            FOR report(Batch batch) NEW d = SaleReportDetail DO {
+
+                saleReport(d) <- report;
+                batch(d) <- batch;
+                sku(d) <- sku(batch);
+
+                quantity(d) <- NUMERIC[14,3](quantity(batch));
+                price(d) <- price(batch);
+                VAT(d) <- OVERRIDE VAT(batchOver(batch)), VAT(sku(batch));
+                valueVAT(d) <- value(batch);
+
+                sum(d) <- sum(batch);
+                VATSum(d) <- NUMERIC[18,4](round(sum(batch) * value(batch) / 100.0, currency(report)));
+                invoiceSum(d) <- NUMERIC[18,4](sum(batch) (+) NUMERIC[18,4](round(sum(batch) * value(batch) / 100.0, currency(report))));
+
+                sumBalanceB(d) <- NUMERIC[18,4](round(balanceB(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));
+                sumBalanceA(d) <- NUMERIC[18,4](round(balanceA(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));
+                sumReturn(d) <- NUMERIC[18,4](round(quantityReturn(batch) * price(batch) * (100 (+) value(batch)) / 100.0, currency(report)));
+
+                quantityBalanceB(d) <- balanceB(batch);
+                quantityBalanceA(d) <- balanceA(batch);
+            }
+        } ELSE {
+            fillDataCustom(report);
+        }
     } ELSE {
         MESSAGE 'Не задан поставщик, компания или договор.';
     }
