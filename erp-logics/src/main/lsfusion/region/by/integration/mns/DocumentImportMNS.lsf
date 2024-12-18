@@ -490,24 +490,3 @@ DESIGN invoices {
         }
     }
 }
-
-itemCustomCodeImport 'Код ТНВЭД' (UserInvoiceDetail d) =  GROUP MAX codeSku(ImportDocMNSDetail td) IF invoiceDetail(td)==d;
-itemCustomCodeOtherImport 'Дополнительный таможенный код' (UserInvoiceDetail d) =  GROUP MIN extraCodeSku(ImportDocMNSDetail td) IF invoiceDetail(td)==d;
-
-deliveryNotePrevImport 'Номер приходного документа' (UserInvoiceDetail d) =  seriesNumber(lastImportDocMNS(invoice(d)));
-deliveryTypePrevImport 'Тип приходного документа'  (UserInvoiceDetail d) = CASE WHEN lastImportDocMNS(invoice(d)) THEN 5;
-
-deliveryNoteDateImport 'Дата создания приходного документа' (UserInvoiceDetail d) = DATE(dateTimeSign(lastImportDocMNS(invoice(d))));
-deliveryNotePrevLineIDImport 'Номер строки в приходном документе' (UserInvoiceDetail d) = GROUP MIN index(ImportDocMNSDetail td) IF invoiceDetail(td)==d;
-lineItemQuantitySPTImport 'Единица измерения прослеживаемости' (UserInvoiceDetail d) = GROUP MIN trackingUOMCustomsGroup(ImportDocMNSDetail td) IF invoiceDetail(td)==d;
-lineItemPriceSPTImport 'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = GROUP MIN priceInvoiceDetail(ImportDocMNSDetail td) IF invoiceDetail(td)==d;// отображаем для инфо, но при расходе цену рассчитываем свою, исходя из ед изм СПТ
-quantityDespatchedSPTImport 'Количество в единицах прослеживаемости' (UserInvoiceDetail d) = GROUP MAX quantityInvoiceDetail(ImportDocMNSDetail td) IF invoiceDetail(td)==d AND lastImportDocMNS(invoice(d))==importDocMNS(td); // отображаем для инфо, но при расходе кол-во рассчитываем свое, исходя из ед изм СПТ
-
-// взамен абстрактных по партии
-itemCustomCodeImport 'Код ТНВЭД' (ShipmentBatch batch) = itemCustomCodeImport(invoiceDetail(shipmentDetail(batch)));
-itemCustomCodeOtherImport 'Дополнительный таможенный код' (ShipmentBatch batch) = itemCustomCodeOtherImport(invoiceDetail(shipmentDetail(batch)));
-deliveryNotePrevImport 'Номер приходного документа'(ShipmentBatch batch) = deliveryNotePrevImport(invoiceDetail(shipmentDetail(batch)));
-deliveryTypePrevImport 'Тип приходного документа' (ShipmentBatch batch) = deliveryTypePrevImport(invoiceDetail(shipmentDetail(batch)));
-deliveryNoteDateImport 'Дата создания приходного документа' (ShipmentBatch batch) = deliveryNoteDateImport(invoiceDetail(shipmentDetail(batch)));
-deliveryNotePrevLineIDImport 'Номер строки в приходном документе' (ShipmentBatch batch) = deliveryNotePrevLineIDImport(invoiceDetail(shipmentDetail(batch)));
-lineItemQuantitySPTImport 'Единица измерения прослеживаемости' (ShipmentBatch batch) = lineItemQuantitySPTImport(invoiceDetail(shipmentDetail(batch)));
