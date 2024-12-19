@@ -997,16 +997,21 @@ skip(d) = ABSTRACT BOOLEAN (ComponentDetail);
 valueVAT(ComponentDetail d) = OVERRIDE valueVAT(batch(d)) IF (valueVAT(batch(d)) !=0.0), valueVAT(sku(d), order(d)) MATERIALIZED;
 sumVAT (ComponentDetail d) = sum(d) * valueVAT(d) / (100.0 + valueVAT(d));
 sumVATComponents (ProductDetail d) = [ GROUP SUM sumVAT(ComponentDetail cd) IF NOT skip(cd) BY BOM(cd), order(cd)](BOM(d), order(d)); 
-sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);                                                            
-      
+sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d), order(d);
+
+isRetailPrice 'Цена изделий - розничная' = DATA BOOLEAN (Operation);// На тот случай ,чтобы принудительно добавлять НДС
 useVATItem 'НДС изделия из карточки' = DATA BOOLEAN (Operation);
-EXTEND FORM operation PROPERTIES (o) useVATItem;
+EXTEND FORM operation PROPERTIES (o) useVATItem, isRetailPrice;
 
 DESIGN operation {
     paramsContainer {
         MOVE PROPERTY(useVATItem(o));
+        MOVE PROPERTY(isRetailPrice(o));
     }
 }
+
+addVAT (ProductDetail d) += isRetailPrice(operation(d));
+
 overCalcValueVAT = ABSTRACT NUMERIC[10,5](ProductDetail); 
 calcValueVAT 'НДС, %' (ProductDetail d) = OVERRIDE  overCalcValueVAT(d),
                                                     (sumVATComponents(d) * 100.0 / (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d))), 
