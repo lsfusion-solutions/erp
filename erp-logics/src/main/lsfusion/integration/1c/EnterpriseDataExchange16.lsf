@@ -399,10 +399,19 @@ END
 idType 'ТипСклада' (Stock s, Configuration c) = staticCaption(type(s, c));
 EXTEND FORM sendMessage PROPERTIES idType(stock, configuration) IN keyProperties EXTID 'ТипСклада';
 
+@defProp(idStock, 'КодСклада', STRING, stock);
+useId1CDepartment 'Используем "Код подразделения 1С"' = ABSTRACT BOOLEAN ();
+
+EXTEND FORM sendMessage
+    PROPERTIES idStockStock = idStock(stock, configuration) IN keyProperties EXTID 'КодСклада'
+;
+
 META defStock(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Stock EXTID extid
-        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада', idDepartment EXTID 'КодПодразделения'
+        PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', name EXTID 'Наименование', idType EXTID 'ТипСклада'
+        PROPERTIES    idDepartment##nm###class = idDepartment(nm###class, configuration)  EXTID 'КодПодразделения'
+        PROPERTIES    idStock##nm###class = idStock(nm###class, configuration)  EXTID 'КодСклада'
         FILTERS nm###class = nm(class, configuration) 
     ;
 
@@ -422,17 +431,24 @@ END
 CLASS ABSTRACT Department 'Справочник.Подразделения' : Reference;
 @defProp(nameDepartment, 'Наименование', STRING, department);
 @defProp(idDepartment, 'КодПодразделения', STRING, department);
-useId1CDepartment 'Используем "Код подразделения 1С"' = ABSTRACT BOOLEAN ();
+//useId1CDepartment 'Используем "Код подразделения 1С"' = ABSTRACT BOOLEAN ();
 
 EXTEND FORM sendMessage
-    PROPERTIES idDepartment(stock, configuration) IN keyProperties EXTID 'КодПодразделения'
+    PROPERTIES idDepartmentStock = idDepartment(stock, configuration) IF NOT useId1CDepartment() IN keyProperties EXTID 'КодПодразделения'
+;
+
+EXTEND FORM sendMessage
+    OBJECTS department = Department EXTID 'Подразделение'
+    PROPERTIES(department, configuration) IN keyProperties sendUid EXTID 'Ссылка', nameDepartment EXTID 'Наименование', idDepartment EXTID 'КодПодразделения'
+    FILTERS department == stock AND useId1CDepartment()
+//    FILTERS inLocalSending(configuration, department), NOT EnterpriseData.isDeleted(department)
 ;
 
 META defDepartment(nm, class, extid)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Department EXTID extid
         PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', nameDepartment EXTID 'Наименование'
-        PROPERTIES idDepartment###nm###class = (idDepartment(nm###class, configuration) IF useId1CDepartment()) EXTID 'КодПодразделения'
+        PROPERTIES idDepartment###nm###class = (idDepartment(nm###class, configuration) ) EXTID 'КодПодразделения'
         FILTERS nm###class = nm(class, configuration)
     ;
 END
@@ -440,7 +456,7 @@ META defDepartment(nm, class, extid, group)
     EXTEND FORM sendMessage
         OBJECTS nm###class = Department EXTID extid IN group
         PROPERTIES(nm###class, configuration) sendUid EXTID 'Ссылка', nameDepartment EXTID 'Наименование'
-        PROPERTIES idDepartment###nm###class = (idDepartment(nm###class, configuration) IF useId1CDepartment()) EXTID 'КодПодразделения'
+        PROPERTIES idDepartment###nm###class = (idDepartment(nm###class, configuration) ) EXTID 'КодПодразделения'
         FILTERS nm###class = nm(class, configuration)
     ;
 END
