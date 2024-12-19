@@ -31,6 +31,8 @@ UNPSeller 'Идентификационный код продавца' = DATA ST
 nameSeller 'Продавец' = DATA STRING(ImportDocMNS);
 
 CLASS ImportDocMNSDetail 'Строка документа выгрузки в МНС (подача сведений о ввозе)';
+TABLE importDocMNS(Purchase.InvoiceDetail);
+
 importDocMNS = DATA ImportDocMNS(ImportDocMNSDetail) NONULL DELETE INDEXED;
 invoiceDetail = DATA Purchase.InvoiceDetail(ImportDocMNSDetail) INDEXED;
 index 'Номер строки' = DATA INTEGER (ImportDocMNSDetail);
@@ -42,9 +44,9 @@ nameSku 'Наименование товара' = DATA STRING(ImportDocMNSDetail
 uomSku 'Единица измерения' = DATA STRING(ImportDocMNSDetail);
 quantityUomSku 'Количество товара' =  DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (ImportDocMNSDetail);
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](ImportDocMNSDetail);
-priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](ImportDocMNSDetail);
+priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](ImportDocMNSDetail);//нужно 12,2
 sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](ImportDocMNSDetail);
-quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](ImportDocMNSDetail); 
+quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](ImportDocMNSDetail); // нужно 12,5
 
 CLASS LotImportDocMNSDetail 'Строка марки документа выгрузки в МНС';
 importDocMNSDetail = DATA ImportDocMNSDetail (LotImportDocMNSDetail) NONULL DELETE;
@@ -79,6 +81,7 @@ UNP = DATA LOCAL STRING();
 year = DATA LOCAL INTEGER();
 
 lastImportDocMNS (Purchase.Invoice i) = GROUP LAST ImportDocMNS d ORDER dateTime(d) BY invoice(d);
+lastImportDocDetailMNS (Purchase.InvoiceDetail id ) = GROUP LAST ImportDocMNSDetail idm  IF lastImportDocMNS(invoice(id))==importDocMNS(idm) ORDER dateTime(importDocMNS(idm)) MATERIALIZED TABLE importDocMNS; 
 
 GROUP district EXTID 'LetterTraceabilityImport_v1_f001';
 GROUP district2 EXTID 'LetterTraceabilityImport_v1_f001A';
@@ -371,23 +374,8 @@ fillTrackingInvoice(Purchase.Invoice i) + {
         LOCAL correct = INTEGER (Purchase.InvoiceDetail);
         correct(Purchase.InvoiceDetail pid ) <-  1 WHERE invoice(pid)==i;
         isTrackingData(Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        deliveryTypePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        deliveryNotePrev (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        deliveryNoteDate (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        deliveryNotePrevLineID (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        lineItemQuantitySPT (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        itemCustomCode (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-        itemCustomCodeOther (Purchase.InvoiceDetail pd) <- NULL WHERE correct(pd);
-
         FOR invoiceDetail(ImportDocMNSDetail td) == Purchase.InvoiceDetail ipd AND importDocMNS(td)==im AND invoice(ipd)==i AND quantityUomSku(td)>0 DO{
             isTrackingData (ipd) <- TRUE;
-            deliveryTypePrev (ipd) <- 5 ;
-            deliveryNotePrev (ipd) <- seriesNumber(importDocMNS(td));
-            deliveryNoteDate (ipd) <- DATE(dateTimeSign(importDocMNS(td)));
-            deliveryNotePrevLineID (ipd) <- index(td);
-            lineItemQuantitySPT (ipd) <- trackingUOMCustomsGroup(td);
-            itemCustomCode (ipd) <- codeSku(td);
-            itemCustomCodeOther (ipd) <- extraCodeSku(td);
         }
     }
 }
@@ -490,3 +478,13 @@ DESIGN invoices {
         }
     }
 }
+
+itemCustomCode (UserInvoiceDetail d) += STRING[10] (codeSku(lastImportDocDetailMNS(d)));// записываем для инфо, но при расходе берем из карточки товара
+itemCustomCodeOther (UserInvoiceDetail d) += extraCodeSku(lastImportDocDetailMNS(d));// записываем для инфо, но при расходе берем из карточки товара
+deliveryTypePrev (UserInvoiceDetail d) += IF lastImportDocDetailMNS(d) THEN 5;
+deliveryNotePrev (UserInvoiceDetail d) += STRING[70] (seriesNumber(lastImportDocMNS(invoice(d))));
+deliveryNoteDate (UserInvoiceDetail d) += DATE(dateTimeSign(lastImportDocMNS(invoice(d))));
+deliveryNotePrevLineID (UserInvoiceDetail d) += index(lastImportDocDetailMNS(d));
+lineItemQuantitySPT (UserInvoiceDetail d) += trackingUOMCustomsGroup(lastImportDocDetailMNS(d)); // записываем для инфо, но при расходе отображаем из ТН ВЭДа из карточки товара
+quantityDespatchedSPT (UserInvoiceDetail d) += NUMERIC[12,5](quantityInvoiceDetail(lastImportDocDetailMNS(d)));// записываем для инфо, но при расходе кол-во рассчитываем свое исходя из ед изм СПТ
+lineItemPriceSPT (UserInvoiceDetail d) += NUMERIC[12,2](priceInvoiceDetail(lastImportDocDetailMNS(d)));// записываем для инфо, но при расходе цену рассчитываем свою исходя из ед изм СПТ
