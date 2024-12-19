@@ -1252,11 +1252,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             for (Map.Entry<String, CashRegisterInfo> directoryEntry : directoryCashRegisterMap.entrySet()) {
                 String directory = directoryEntry.getKey();
                 CashRegisterInfo cashRegister = directoryEntry.getValue();
-                long start = System.currentTimeMillis();
                 File[] filesList = new File(directory).listFiles(pathname -> pathname.getName().startsWith("sale") && pathname.getPath().endsWith(".json"));
-//                sendSalesLogger.info(logPrefix + "ListFiles readCashDocumentInfo: " + (System.currentTimeMillis() - start) + " ms"); //temp log
 
-                if (filesList != null) {
+                if (filesList != null && cashRegister != null) {
                     for (File file : filesList) {
                         if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                             try {
@@ -1273,19 +1271,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             JSONObject documentObject = new JSONObject(document + "}");
 
                                             int docType = documentObject.getInt("docType");
+                                            boolean cash = docType == 1; //снятие наличных
                                             boolean in = docType == 3;
                                             boolean out = docType == 4;
-                                            if (in || out) {
-
-                                                int numberCashDocument = documentObject.getInt("docNum");
-                                                String idEmployee = documentObject.getString("userCode");
-                                                if (appendCashierId) {
-                                                    idEmployee = cashRegister.numberGroup + "_" + idEmployee;
-                                                }
-                                                int shift = documentObject.getInt("shift");
-
-                                                BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
-                                                sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
+                                            if(cash || in || out) {
 
                                                 Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
 
@@ -1293,23 +1282,45 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 LocalDate dateCashDocument = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                                 LocalTime timeCashDocument = timeEnd != null ? sqlTimeToLocalTime(new Time(timeEnd)) : null;
 
-                                                Map<String, Object> extraFields = null;
-                                                String backReason = documentObject.optString("backReason", null);
-                                                if(backReason != null) {
-                                                    extraFields = new HashMap<>();
-                                                    extraFields.put("backreason", backReason);
-                                                }
+                                                if (cashRegister.number.equals(numberCashRegister) && compareDates(cashRegister.startDate, dateCashDocument)) {
+                                                    String idEmployee = getIdEmployee(cashRegister.numberGroup, documentObject.getString("userCode"), appendCashierId);
+                                                    BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
+                                                    String shift = String.valueOf(documentObject.getInt("shift"));
+                                                    String numberCashDocument = String.valueOf(documentObject.getInt("docNum"));
+                                                    String idCashDocument = getIdCashDocument(cashRegister, numberCashRegister, numberCashDocument, shift, docType);
+                                                    Map<String, Object> cashDocumentExtraFields = getCashDocumentExtraFields(documentObject);
 
-                                                if (cashRegister.number.equals(numberCashRegister)) {
-                                                    if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
-                                                        String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
-                                                        cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
-                                                                cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee, extraFields));
+                                                    if (cash) {
+                                                        JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
+                                                        for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                                            JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
+                                                            if (inventPosition.getInt("opCode") == 300) {
+                                                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                        cashRegister.numberGroup, numberCashRegister, shift, sumCashDocument,
+                                                                        idEmployee, cashDocumentExtraFields));
+                                                                count++;
+
+                                                            }
+                                                        }
+                                                        JSONArray stornoPositionsArray = documentObject.getJSONArray("stornoPositions");
+                                                        for (int i = 0; i < stornoPositionsArray.length(); i++) {
+                                                            JSONObject stornoPosition = stornoPositionsArray.getJSONObject(i);
+                                                            if (stornoPosition.getInt("opCode") == 300) {
+                                                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                        cashRegister.numberGroup, numberCashRegister, shift, safeNegate(sumCashDocument),
+                                                                        idEmployee, cashDocumentExtraFields));
+                                                                count++;
+
+                                                            }
+                                                        }
+                                                    } else {
+                                                        cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                cashRegister.numberGroup, numberCashRegister, shift, in ? sumCashDocument : safeNegate(sumCashDocument),
+                                                                idEmployee, cashDocumentExtraFields));
+                                                        count++;
                                                     }
                                                 }
-                                                count++;
                                             }
-
                                         }
                                     }
                                     if(count > 0)
@@ -1324,6 +1335,28 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             }
         }
         return new CashDocumentBatch(cashDocumentList, null);
+    }
+
+    private Map<String, Object> getCashDocumentExtraFields(JSONObject documentObject) {
+        Map<String, Object> extraFields = null;
+        String backReason = documentObject.optString("backReason", null);
+        if (backReason != null) {
+            extraFields = new HashMap<>();
+            extraFields.put("backreason", backReason);
+        }
+        return extraFields;
+    }
+
+    private String getIdEmployee(Integer nppGroupMachinery, String idEmployee, boolean appendCashierId) {
+        return appendCashierId ? (nppGroupMachinery + "_" + idEmployee) : idEmployee;
+    }
+
+    private String getIdCashDocument(CashRegisterInfo cashRegister, Integer numberCashRegister, String numberCashDocument, String shift, int docType) {
+        return cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
+    }
+
+    private boolean compareDates(LocalDate startDate, LocalDate documentDate) {
+        return startDate == null || (documentDate != null && !documentDate.isBefore(startDate));
     }
 
     @Override
@@ -1348,7 +1381,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                         for (DiscountCard d : discountCardList) {
                             if(d.idDiscountCardType != null) {
-                                boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
+                                boolean active = compareDates(requestExchange.startDate, d.dateFromDiscountCard);
                                 writeStringToFile(tmpFile, getAddCardJSON(d, active) + "\n---\n");
                             }
                         }
@@ -1692,9 +1725,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             nameEmployee = fullNameEmployee;
                                         }
 
-                                        if (appendCashierId) {
-                                            idEmployee = nppGroupMachinery + "_" + idEmployee;
-                                        }
+                                        idEmployee = getIdEmployee(nppGroupMachinery, idEmployee, appendCashierId);
 
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
@@ -1856,6 +1887,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 isReturnGiftCard = true;
                                             }
 
+                                            //снятие наличных
+                                            if(opCode == 300) {
+
+                                            }
+
                                             Integer numberReceiptDetail = inventPosition.getInt("posNum");
 
                                             BigDecimal quantity = BigDecimal.valueOf(inventPosition.getDouble("quant"));
@@ -1956,7 +1992,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             sumReceiptDetail = isSale ? sumReceiptDetail : safeNegate(sumReceiptDetail);
 
-                                            if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
+                                            if (compareDates(startDate, dateReceipt)) {
                                                 if (sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                                     sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
 
