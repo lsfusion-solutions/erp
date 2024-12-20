@@ -247,12 +247,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
             Element good = createGoodElement(transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
-                    brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, infoJSON);
+                    brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes,
+                    infoJSON);
             rootElement.addContent(good);
-
-            Element barcode = getBarcodeElement(item, infoJSON, barcodeItem, exportAmountForBarcode);
-            good.addContent(barcode);
-            fillBarcodes(good, deleteBarcodeMap, usedDeleteBarcodes, item, idItem, barcode, notGTINPrefixes, barcodeItem);
 
             if (++count >= 1000) {
                 processTransactionLogger.info(String.format(getLogPrefix() + "created catalog-goods file with items and barcodes (Transaction %s, count %s)", transaction.id, count));
