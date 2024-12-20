@@ -503,7 +503,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private Integer getIdVAT(ItemInfo item, boolean swap10And20VAT) {
-        JSONObject infoJSON = getExtInfo(item.info);
+        JSONObject infoJSON = getExtInfo(item.info).first();
         if(infoJSON != null && infoJSON.has("idvat")) {
             return infoJSON.getInt("idvat");
         } else {
@@ -966,7 +966,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getPackName(ItemInfo item) throws UnsupportedEncodingException {
-        JSONObject infoJSON = getExtInfo(item.info);
+        JSONObject infoJSON = getExtInfo(item.info).first();
         String packName = null;
         if (infoJSON != null && infoJSON.has("packName")) {
             packName = infoJSON.optString("packName", "");
@@ -1123,7 +1123,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (notInterrupted()) {
                     CashRegisterItem item = transaction.itemsList.get(i);
-                    JSONObject infoJSON = getExtInfo(item.info);
+                    JSONObject infoJSON = getExtInfo(item.info).first();
                     if (item.price != null) {
                         Integer packId = getPackId(item);
                         addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum);
@@ -1173,7 +1173,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private Set<Integer> getHasExtraPrices(TransactionCashRegisterInfo transaction) {
         Set<Integer> hasExtraPrices = new HashSet<>();
         for (CashRegisterItem item : transaction.itemsList) {
-            JSONObject infoJSON = getExtInfo(item.info);
+            JSONObject infoJSON = getExtInfo(item.info).first();
             if (item.price != null && infoJSON != null) {
                 JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
                 if (extraPrices != null) {
@@ -1189,20 +1189,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private Integer getPropertyGrpId(ItemInfo item) {
-        JSONObject infoJSON = getExtInfo(item.info);
+        JSONObject infoJSON = getExtInfo(item.info).first();
         if (item.price != null && infoJSON != null) {
             int propertyGrpId = infoJSON.optInt("propertyGrpId");
             return propertyGrpId != 0 ? propertyGrpId : null;
         }
         return null;
-    }
-
-    private JSONObject getExtInfo(String extInfo) {
-        try {
-            return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("astron") : null;
-        } catch (Throwable t) {
-            throw new RuntimeException("Failed to parse extInfo: " + extInfo, t);
-        }
     }
 
     private Map<String, List<JSONObject>> getJsonTables(TransactionCashRegisterInfo transaction) {
@@ -1217,8 +1209,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         List<JSONObject> artExtGrpList = new ArrayList<>();
         List<JSONObject> artPrnGrpList = new ArrayList<>();
         for (CashRegisterItem item : transaction.itemsList) {
-            JSONObject infoJSON = getExtInfo(item.info);
-            if (infoJSON != null) {
+            for (JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
                 propertyGrpList.addAll(getJSONObjectList(infoJSON, "propertyGrp"));
                 numPropertyList.addAll(getJSONObjectList(infoJSON, "numProperty"));
                 stringsList.addAll(getJSONObjectList(infoJSON, "strings"));
@@ -1521,7 +1512,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     Integer clientId = getClientId(discountCard);
                     boolean isPayment = isSocial(discountCard);
                     int locked = 0;
-                    JSONObject infoJSON = getExtInfo(discountCard.extInfo);
+                    JSONObject infoJSON = getExtInfo(discountCard.extInfo).first();
                     if(infoJSON != null) {
                         locked = infoJSON.optInt("locked");
 
@@ -1607,7 +1598,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private boolean isSocial(DiscountCard d) {
-        JSONObject infoJSON = getExtInfo(d.extInfo);
+        JSONObject infoJSON = getExtInfo(d.extInfo).first();
         if(infoJSON != null) {
             JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
             if(clientAnswers != null && clientAnswers.length() >= 4) {
@@ -1702,7 +1693,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             for (DiscountCard d : discountCardList) {
                 if (notInterrupted()) {
-                    JSONObject infoJSON = getExtInfo(d.extInfo);
+                    JSONObject infoJSON = getExtInfo(d.extInfo).first();
                     if(infoJSON != null) {
                         JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
                         if (clientAnswers != null) {
@@ -2800,5 +2791,35 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private RuntimeException createException(String message) {
         astronLogger.error(message);
         return new RuntimeException(message);
+    }
+
+    private ExtInfo getExtInfo(String extInfo) {
+        return new ExtInfo(extInfo);
+    }
+
+    //{"astron", "astron2"} is used only in getJsonTables
+    //In other cases is used only first
+    private class ExtInfo {
+        private List<JSONObject> jsonObjects;
+
+        public ExtInfo(String extInfo) {
+            this.jsonObjects = new ArrayList<>();
+            if (extInfo != null && !extInfo.isEmpty()) {
+                try {
+                    JSONObject extInfoJSON = new JSONObject(extInfo);
+                    for (String key : new String[]{"astron", "astron2"}) {
+                        JSONObject jsonObject = extInfoJSON.optJSONObject(key);
+                        if (jsonObject != null)
+                            jsonObjects.add(jsonObject);
+                    }
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to parse extInfo: " + extInfo, t);
+                }
+            }
+        }
+
+        public JSONObject first() {
+            return jsonObjects.isEmpty() ? null : jsonObjects.get(0);
+        }
     }
 }
