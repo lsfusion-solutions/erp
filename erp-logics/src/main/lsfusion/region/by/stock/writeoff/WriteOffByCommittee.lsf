@@ -1,0 +1,109 @@
+MODULE WriteOffByCommittee;
+
+REQUIRE WriteOffBy;
+
+NAMESPACE WriteOff;
+
+//-- Возможность задавать членов комиссии
+
+CLASS CommitteeRow 'Строка комиссии';
+TABLE committeeRow(CommitteeRow);
+
+userWriteOff = DATA UserWriteOff(CommitteeRow) NONULL INDEXED;
+employee = DATA Employee(CommitteeRow) NONULL;
+name 'Сотрудник' (CommitteeRow r) = name[Contact](employee(r));
+namePosition 'Должность' (CommitteeRow r) = namePosition(employee(r));
+isChairman 'Председатель' = DATA BOOLEAN (CommitteeRow);
+countChairman = GROUP SUM 1 IF isChairman(CommitteeRow r) BY userWriteOff(r);
+maxChairman = GROUP MAX employee(CommitteeRow r) IF isChairman(r) BY userWriteOff(r);
+
+CONSTRAINT SETCHANGED(countChairman(UserWriteOff w)) AND countChairman(w)>1 
+    MESSAGE 'Председатель может быть только один';
+
+dataIndex  = DATA INTEGER (CommitteeRow);
+defaultIndex  (CommitteeRow d) =
+    PARTITION SUM 1
+        ORDER d BY userWriteOff(d) CHARWIDTH 4;
+index 'Порядковый номер' (CommitteeRow d) = OVERRIDE dataIndex(d), defaultIndex(d) IN id;
+
+countCommitteeRow '{document.count.detail.of}' (o) =
+    GROUP SUM 1 BY userWriteOff(CommitteeRow d) MATERIALIZED;
+
+EXTEND FORM userWriteOff
+    OBJECTS r = CommitteeRow
+    PROPERTIES (r) index, isChairman, name, namePosition
+    PROPERTIES (r)  NEW, deleter=DELETE GRID
+    FILTERS userWriteOff(r)==w
+;
+DESIGN userWriteOff{
+    specificationBox{
+        MOVE BOX(r);
+    }
+}
+
+namePositionMaxChairman 'Должность председателя' (UserWriteOff w) = namePosition(maxChairman (w));
+shortNameMaxChairman'ФИО председателя' (UserWriteOff w) = shortName(maxChairman (w));
+
+deleteCommitteeRow(UserWriteOff w) {
+    DELETE CommitteeRow r WHERE userWriteOff(r)==w;
+}
+
+WHEN LOCAL CHANGED((writeOffCommittee(UserWriteOff w))) AND w IS UserWriteOff DO {
+    deleteCommitteeRow(w);
+    IF writeOffCommittee(w) THEN {
+        IF chairman(writeOffCommittee(w)) THEN {
+            NEW r = CommitteeRow {
+                userWriteOff(r) <- w;
+                isChairman(r) <- TRUE;
+                employee(r) <- chairman(writeOffCommittee(w));
+            }
+        }
+        FOR in(writeOffCommittee(w), Employee e) ORDER number(writeOffCommittee(w),e),e  DO NEW r = CommitteeRow {
+            userWriteOff(r) <- w;
+            employee(r) <- e;
+        }
+    }
+}
+
+nameEmployee 'Члены комиссии' (WriteOff w) =
+    GROUP
+        CONCAT positionName(employee(CommitteeRow r)) IF userWriteOff(r) ==w AND NOT isChairman(r), ', '
+        ORDER index(r), r
+    CHARWIDTH 50;
+
+FORM printWriteOffByCommittee 'Акт списания'
+    OBJECTS w=WriteOff PANEL SUBREPORT
+    PROPERTIES (w)  SELECTOR number, series, fullNameStock, nameStock, addressStock,
+        date, time, nameReason, note, countWriteOffDetail, quantityWriteOffDetail,
+        sumWriteOffDetail, namePositionChairmanWriteOffCommittee, shortNameChairmanWriteOffCommittee,
+        nameLegalEntityStock, addressLegalEntity, nameWriteOffCommittee,
+        nameEmployeeWriteOffCommittee, writeOffCommittee, UNPLegalEntityStock,
+        countCommitteeRow, namePositionMaxChairman, shortNameMaxChairman, nameEmployee
+
+    OBJECTS d=WriteOffDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
+        quantity, price, sum
+    FILTERS in(w, d)
+    OBJECTS e=CommitteeRow
+    PROPERTIES(e)  index,  name, namePosition
+    ORDERS index(e)
+    FILTERS userWriteOff(e)==w, NOT isChairman(e)
+;
+
+printByCommittee 'Акт списания' (WriteOff writeOff)  { PRINT printWriteOffByCommittee OBJECTS w = writeOff; }   IMAGE 'print.png' IN print;
+printByCommitteeXLS 'Акт списания (xls)' (WriteOff writeOff)  { PRINT printWriteOffByCommittee OBJECTS w = writeOff XLS; } IMAGE 'print.png' IN print;
+
+EXTEND FORM writeOffs
+    PROPERTIES (w)  printByCommittee HEADER (OVERRIDE captionPrintBy(w), 'Акт списания'),
+        printByCommitteeXLS HEADER (OVERRIDE captionPrintByXLS(w), 'Акт списания (xls)')
+;
+
+DESIGN writeOffs{
+    printContainer{
+        MOVE PROPERTY(printByCommittee(w));
+        MOVE PROPERTY(printByCommitteeXLS(w));        
+        
+        REMOVE PROPERTY(printBy(w));
+        REMOVE PROPERTY(printByXLS(w));
+    }
+}
