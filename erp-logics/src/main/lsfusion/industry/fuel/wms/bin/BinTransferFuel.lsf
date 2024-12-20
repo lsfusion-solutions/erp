@@ -23,18 +23,18 @@ volume 'Объем, л' = ABSTRACT NUMERIC[16,5] (BinTransferDetail) CHARWIDTH 7
 volume 'Объем, л' = DATA NUMERIC[16,5] (UserBinTransferDetail) CHARWIDTH 7;
 volume (UserBinTransferDetail binTransferDetail) += volume(binTransferDetail);
 
-density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (BinTransferDetail) CHARWIDTH 7 MATERIALIZED;
-density 'Плотность, кг/л' = DATA NUMERIC[8,4] (UserBinTransferDetail) CHARWIDTH 7;
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[9,5] (BinTransferDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность, кг/л' = DATA NUMERIC[9,5] (UserBinTransferDetail) CHARWIDTH 7;
 density (UserBinTransferDetail binTransferDetail) += density(binTransferDetail);
 
 CONSTRAINT (SET(isPosted(UserBinTransferDetail d)) OR CHANGED(sku(d)) OR CHANGED(density(d))) AND isPosted(d) AND isFuel(skuGroup(sku(d))) AND NOT density(d)
     MESSAGE 'Для строки перемещения по резервуарам должна быть задана плотность';
 
 WHEN LOCAL (CHANGED(quantity(UserBinTransferDetail d)) OR CHANGED(volume(d))) AND NOT CHANGED(density(d)) AND isFuel(skuGroup(sku(d))) AND quantity(d) AND volume(d) DO {
-    density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+    density(d) <- NUMERIC[9,5](quantity(d) / volume(d));
 }
 
-fillDensity (UserBinTransferDetail d, NUMERIC[8,4] n) {
+fillDensity (UserBinTransferDetail d, NUMERIC[9,5] n) {
     IF n THEN {
         density(d) <- n;
         IF NOT quantity(d) THEN {
@@ -53,12 +53,12 @@ fillDensity (UserBinTransferDetail d, NUMERIC[8,4] n) {
             }
         }
     } ELSE {
-        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+        density(d) <- NUMERIC[9,5](quantity(d) / volume(d));
     }
 }
 
 changeDensity (UserBinTransferDetail d) {
-    INPUT n = NUMERIC[8,4] DO {
+    INPUT n = NUMERIC[9,5] DO {
         fillDensity(d,n);
     }
 }

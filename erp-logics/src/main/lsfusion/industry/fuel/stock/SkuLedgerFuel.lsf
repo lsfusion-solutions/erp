@@ -6,12 +6,12 @@ NAMESPACE Stock;
 
 // -------------------------------- Плотность ---------------------------- //
 
-density 'Плотность, кг/л' (batch) = ABSTRACT NUMERIC[8,4] (Batch) MATERIALIZED;
+density 'Плотность, кг/л' (batch) = ABSTRACT NUMERIC[9,5] (Batch) MATERIALIZED;
 prevDensity 'Плотность, кг/л' (Batch batch) = PREV(density(batch));
 
-density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[8,4] (InLIFOSkuLedger);
+density 'Плотность, кг/л' (ledger) = ABSTRACT NUMERIC[9,5] (InLIFOSkuLedger);
 density 'Плотность, кг/л' (InSkuLedger ledger) = MULTI density[Batch](ledger), density[InLIFOSkuLedger](ledger);
-density 'Плотность, кг/л' = ABSTRACT NUMERIC[8,4] (OutFIFOSkuLedger);
+density 'Плотность, кг/л' = ABSTRACT NUMERIC[9,5] (OutFIFOSkuLedger);
 density 'Плотность, кг/л' (SkuLedger ledger) = MULTI density[InSkuLedger](ledger), density[OutFIFOSkuLedger](ledger) MATERIALIZED;
 
 // -------------------------------- Объем ---------------------------- //
@@ -145,7 +145,7 @@ END
 
 META fuelDensityActions(object)
     WHEN LOCAL (SETCHANGED(quantity(###object d)) OR SETCHANGED(volume(d))) AND NOT density(d) AND isFuel(sku(d)) DO {
-        density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+        density(d) <- NUMERIC[9,5](quantity(d) / volume(d));
     }
     WHEN LOCAL SETCHANGED(quantity(###object d)) AND NOT CHANGED(volume(d)) AND density(d) AND isFuel(sku(d)) DO {
         volume(d) <- NUMERIC[16,5](round3(quantity(d) / density(d)));
@@ -154,8 +154,8 @@ META fuelDensityActions(object)
         quantity(d) <- NUMERIC[16,5](round3(volume(d) * density(d)));
     }
 
-    extraFillDensity ABSTRACT LIST (###object, NUMERIC[8,4]);
-    fillDensity (###object d, NUMERIC[8,4] n) {
+    extraFillDensity ABSTRACT LIST (###object, NUMERIC[9,5]);
+    fillDensity (###object d, NUMERIC[9,5] n) {
         IF isFuel(sku(d)) THEN {
             IF n THEN {
                 density(d) <- n;
@@ -175,14 +175,14 @@ META fuelDensityActions(object)
                     }
                 }
             } ELSE {
-                density(d) <- NUMERIC[8,4](quantity(d) / volume(d));
+                density(d) <- NULL;
             }
         }
         extraFillDensity(d, n);
     }
 
     changeDensity (###object d) {
-        INPUT n = NUMERIC[8,4] DO {
+        INPUT n = NUMERIC[9,5] DO {
             fillDensity(d, n);
         }
     }

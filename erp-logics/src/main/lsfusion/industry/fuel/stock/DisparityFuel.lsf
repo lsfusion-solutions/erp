@@ -14,12 +14,12 @@ inputVolume (UserDisparityDetail disparityDetail) += inputVolume(disparityDetail
 
 inputVolume(UserDisparityDetail detail) <- volume(detail) WHEN CHANGED(volume(detail));
 
-density 'Плотность (расход), кг/л' = ABSTRACT NUMERIC[8,4] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
-density 'Плотность (расход), кг/л' = DATA NUMERIC[8,4] (UserDisparityDetail) CHARWIDTH 7;
+density 'Плотность (расход), кг/л' = ABSTRACT NUMERIC[9,5] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+density 'Плотность (расход), кг/л' = DATA NUMERIC[9,5] (UserDisparityDetail) CHARWIDTH 7;
 density (UserDisparityDetail disparityDetail) += density(disparityDetail);
 
-inputDensity 'Плотность (приход), кг/л' = ABSTRACT NUMERIC[8,4] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
-inputDensity 'Плотность (приход), кг/л' = DATA NUMERIC[8,4] (UserDisparityDetail) CHARWIDTH 7;
+inputDensity 'Плотность (приход), кг/л' = ABSTRACT NUMERIC[9,5] (DisparityDetail) CHARWIDTH 7 MATERIALIZED;
+inputDensity 'Плотность (приход), кг/л' = DATA NUMERIC[9,5] (UserDisparityDetail) CHARWIDTH 7;
 inputDensity (UserDisparityDetail disparityDetail) += inputDensity(disparityDetail);
 
 inputDensity(UserDisparityDetail detail) <- density(detail) WHEN CHANGED(density(detail));
@@ -32,10 +32,10 @@ CONSTRAINT (SET(isPosted(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR CHAN
 @fuelDensityActions(userDisparityDetail);
 
 WHEN LOCAL (CHANGED(inputQuantity(UserDisparityDetail d)) OR CHANGED(inputVolume(d))) AND NOT CHANGED(inputDensity(d)) AND isFuel(skuGroup(inputSku(d))) AND inputQuantity(d) AND inputVolume(d) DO {
-    inputDensity(d) <- NUMERIC[8,4](inputQuantity(d) / inputVolume(d));
+    inputDensity(d) <- NUMERIC[9,5](inputQuantity(d) / inputVolume(d));
 }
 
-fillInputDensity (UserDisparityDetail d, NUMERIC[8,4] n) {
+fillInputDensity (UserDisparityDetail d, NUMERIC[9,5] n) {
     IF n THEN {
         inputDensity(d) <- n;
         IF NOT inputQuantity(d) THEN {
@@ -54,12 +54,12 @@ fillInputDensity (UserDisparityDetail d, NUMERIC[8,4] n) {
             }
         }
     } ELSE {
-        inputDensity(d) <- NUMERIC[8,4](inputQuantity(d) / inputVolume(d));
+        inputDensity(d) <- NUMERIC[9,5](inputQuantity(d) / inputVolume(d));
     }
 }
 
 changeInputDensity (UserDisparityDetail d) {
-    INPUT n = NUMERIC[8,4] DO {
+    INPUT n = NUMERIC[9,5] DO {
         fillInputDensity(d,n);
     }
 }

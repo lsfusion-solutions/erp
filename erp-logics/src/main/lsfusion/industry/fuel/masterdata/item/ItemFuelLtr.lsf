@@ -29,8 +29,11 @@ META defineDocumentFuelLtrWeight (object, caption)
         AND (banNegativeQuantity###object(operation(d)) OR negativeValue###object##s())
         MESSAGE 'Запрещено вводить отрицательную массу топлива в '##caption;
     
+    extraCalculateDensity ABSTRACT LIST (User###object##Detail);    
+        
     WHEN LOCAL (SETCHANGED(quantity(User###object##Detail d)) OR SETCHANGED(weight(d))) AND NOT density(d) AND isFuelLtr(sku(d)) DO {
-        density(d) <- NUMERIC[8,4](weight(d) / quantity(d));
+        density(d) <- NUMERIC[9,5](weight(d) / quantity(d));
+        extraCalculateDensity(d);
     }
     WHEN LOCAL SETCHANGED(quantity(User###object##Detail d)) AND NOT CHANGED(weight(d)) AND density(d) AND isFuelLtr(sku(d)) DO {
         weight(d) <- NUMERIC[16,5](round3(quantity(d) * density(d)));
@@ -39,7 +42,7 @@ META defineDocumentFuelLtrWeight (object, caption)
         quantity(d) <- NUMERIC[16,5](round3(weight(d) / density(d)));
     }
     
-    extraFillDensity (User###object##Detail d, NUMERIC[8,4] n) + {
+    extraFillDensity (User###object##Detail d, NUMERIC[9,5] n) + {
         IF isFuelLtr(sku(d)) THEN {
             IF n THEN {
                 density(d) <- n;
@@ -59,7 +62,7 @@ META defineDocumentFuelLtrWeight (object, caption)
                     }
                 }
             } ELSE {
-                density(d) <- NUMERIC[8,4](weight(d) / quantity(d));
+                density(d) <- NULL;
             }
         }
     }

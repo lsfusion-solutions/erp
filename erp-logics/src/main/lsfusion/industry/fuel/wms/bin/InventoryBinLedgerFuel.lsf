@@ -5,13 +5,13 @@ REQUIRE InventoryBinLedger, BinLedgerFuel, InventoryFuel;
 NAMESPACE Inventory;
 
 volumeBalance 'Объем по остаткам, л' (collationSheet, bin, sku) = DATA NUMERIC[16,5] (CollationSheet, Bin, Sku);
-densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[8,4] (CollationSheet, Bin, Sku);
+densityBalance 'Плотность по остаткам, кг/л' = DATA NUMERIC[9,5] (CollationSheet, Bin, Sku);
 
 WHEN LOCAL (CHANGED(quantityBalance(CollationSheet cs, Bin bin, Sku sk)) OR CHANGED(volumeBalance(cs,bin,sk))) AND NOT CHANGED(densityBalance(cs,bin,sk)) AND isFuel(skuGroup(sk)) AND quantityBalance(cs,bin,sk) AND volumeBalance(cs,bin,sk) DO {
-    densityBalance(cs,bin,sk) <- NUMERIC[8,4](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
+    densityBalance(cs,bin,sk) <- NUMERIC[9,5](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
 }
 
-fillDensityBalance (CollationSheet cs, Bin bin, Sku sk, NUMERIC[8,4] n) {
+fillDensityBalance (CollationSheet cs, Bin bin, Sku sk, NUMERIC[9,5] n) {
     IF n THEN {
         densityBalance(cs,bin,sk) <- n;
         IF NOT quantityBalance(cs,bin,sk) THEN {
@@ -30,12 +30,12 @@ fillDensityBalance (CollationSheet cs, Bin bin, Sku sk, NUMERIC[8,4] n) {
             }
         }
     } ELSE {
-        densityBalance(cs,bin,sk) <- NUMERIC[8,4](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
+        densityBalance(cs,bin,sk) <- NUMERIC[9,5](quantityBalance(cs,bin,sk) / volumeBalance(cs,bin,sk));
     }
 }
 
 changeDensityBalance (CollationSheet cs, Bin bin, Sku sk) {
-    INPUT n = NUMERIC[8,4] DO {
+    INPUT n = NUMERIC[9,5] DO {
         fillDensityBalance(cs,bin,sk,n);
     }
 }
