@@ -1013,6 +1013,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
+    private String getGTIN(ItemInfo item) {
+        return item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("gtin") : "";
+    }
+
     private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
         String[] keys = new String[]{"EXBARCID"};
         String[] columns = getColumns(new String[]{"EXBARCID", "PACKID", "EXBARCTYPE", "EXBARCBODY", "DELFLAG"}, updateNum);
@@ -1026,18 +1030,19 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         List<Integer> packIds = getPackIds(item);
 
+                        String gtin = getGTIN(item);
                         for (Integer packId : packIds) {
                             if (params.pgsql) {
                                 setObject(ps, packId, 1); //EXBARCID
                                 setObject(ps, packId, 2); //PACKID
-                                setObject(ps, "", 3); //EXBARCTYPE
+                                setObject(ps, gtin, 3); //EXBARCTYPE
                                 setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                                 setObject(ps, delFlag ? 1 : 0, 5); //DELFLAG
                                 if(updateNum != null)
                                     setObject(ps, updateNum, 6);
                             } else {
                                 setObject(ps, packId, 1, offset); //PACKID
-                                setObject(ps, "", 2, offset); //EXBARCTYPE
+                                setObject(ps, gtin, 2, offset); //EXBARCTYPE
                                 setObject(ps, getExBarcBody(item), 3, offset); //EXBARCBODY
                                 setObject(ps, delFlag ? "1" : "0", 4, offset); //DELFLAG
 
@@ -1076,17 +1081,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 if (notInterrupted()) {
                     if (item.idBarcode != null) {
                         Integer packId = getPackId(item);
+                        String gtin = getGTIN(item);
                         if(params.pgsql) {
                             setObject(ps, packId, 1); //EXBARCID
                             setObject(ps, packId, 2); //PACKID
-                            setObject(ps, "", 3); //EXBARCTYPE
+                            setObject(ps, gtin, 3); //EXBARCTYPE
                             setObject(ps, getExBarcBody(item), 4); //EXBARCBODY
                             setObject(ps, 1, 5); //DELFLAG
                             if(updateNum != null)
                                 setObject(ps, updateNum, 6);
                         } else {
                             setObject(ps, packId, 1, offset); //PACKID
-                            setObject(ps, "", 2, offset); //EXBARCTYPE
+                            setObject(ps, gtin, 2, offset); //EXBARCTYPE
                             setObject(ps, getExBarcBody(item), 3, offset); //EXBARCBODY
                             setObject(ps, "1", 4, offset); //DELFLAG
 
