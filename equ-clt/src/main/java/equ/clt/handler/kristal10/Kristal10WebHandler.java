@@ -246,10 +246,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
-            Element good = new Element("good");
-            rootElement.addContent(good);
-            fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+            Element good = createGoodElement(transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
                     brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, infoJSON);
+            rootElement.addContent(good);
 
             Element barcode = getBarcodeElement(item, infoJSON, barcodeItem, exportAmountForBarcode);
             good.addContent(barcode);

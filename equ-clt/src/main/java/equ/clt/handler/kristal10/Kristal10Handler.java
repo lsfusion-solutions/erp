@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
-import equ.api.stoplist.StopListItem;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
@@ -126,10 +125,9 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         fillRestrictionsElement(rootElement, item, idItem, barcodeItem, useIdItemInRestriction, shopIndices, useShopIndices, skipUseShopIndicesMinPrice);
 
                         //parent: rootElement
-                        Element good = new Element("good");
-                        rootElement.addContent(good);
-                        fillGoodElement(good, transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
+                        Element good = createGoodElement(transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
                                 brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, infoJSON);
+                        rootElement.addContent(good);
 
                         //parent: good
                         Element barcode = getBarcodeElement(item, infoJSON, barcodeItem, exportAmountForBarcode);

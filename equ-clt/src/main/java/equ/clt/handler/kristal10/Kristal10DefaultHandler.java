@@ -47,9 +47,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return value;
     }
 
-    protected void fillGoodElement(Element good, TransactionCashRegisterInfo transaction, CashRegisterItem item, String idItem, String barcodeItem,
-                                   List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
-                                   boolean brandIsManufacturer, boolean seasonIsCountry, boolean minusOneForEmptyVAT, JSONObject infoJSON) {
+    protected Element createGoodElement(TransactionCashRegisterInfo transaction, CashRegisterItem item, String idItem, String barcodeItem,
+                                     List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
+                                     boolean brandIsManufacturer, boolean seasonIsCountry, boolean minusOneForEmptyVAT, JSONObject infoJSON) {
+
+        Element good = new Element("good");
 
         setAttribute(good, "marking-of-the-good", idItem);
 
@@ -146,9 +148,18 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addPluginPropertyElement(good, "need_tare", infoJSON.optBoolean("need_tare"));
             }
 
+            if(infoJSON.has("mark-type")) {
+                addStringElement(good, "mark-type", infoJSON.getString("mark-type"));
+            }
+
+            if(infoJSON.has("UKZ")) {
+                addStringElement(good, "UKZ", infoJSON.getString("UKZ"));
+            }
         }
 
         addProductType(good, item, tobaccoGroups, isProductSetApiEntity);
+
+        return good;
     }
 
     protected void addStopListItems(Element parent, StopListInfo stopListInfo,
@@ -313,9 +324,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         if (exportAmountForBarcode && item.amountBarcode != null && BigDecimal.ONE.compareTo(item.amountBarcode) != 0) {
             addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
         }
-        String uzFfdPackageCode = infoJSON != null ? infoJSON.optString("uzFfdPackageCode") : null;
-        if(notNullNorEmpty(uzFfdPackageCode)) {
-            addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
+        if (infoJSON != null) {
+            String uzFfdPackageCode = infoJSON.optString("uzFfdPackageCode");
+            if (notNullNorEmpty(uzFfdPackageCode))
+                addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
+            if (infoJSON.has("marked"))
+                setAttribute(barcodeElement, "marked", infoJSON.getString("marked"));
         }
         return barcodeElement;
     }
