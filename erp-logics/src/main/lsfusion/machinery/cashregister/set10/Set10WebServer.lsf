@@ -300,28 +300,57 @@ FORM purchasesRequest FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:
     PROPERTIES() IN processPurchases purchases, version
 ;
 
-onlySaveFilesSet10 'Только сохранять файлы при приеме' = DATA BOOLEAN ();
-pathSavedFile = DATA STRING ();
+//только прием
+onlySaveRequestSet10 'Только сохранять запросы set10' = DATA BOOLEAN () PREREAD; 
+
+CLASS SetReceipts 'Чеки Set10';
+TABLE setReceipts (SetReceipts);
+
+dateTime 'Дата и время' = DATA DATETIME (SetReceipts);
+data 'Данные' = DATA STRING (SetReceipts);
+imported 'Импортировано' = DATA DATETIME (SetReceipts);
+
+importReceipts 'Импорт Set10'(){
+    FOR dateTime(SetReceipts r) AND NOT imported(r) DO NEWSESSION {
+        
+        importReceipt(data(r));
+        imported(r) <- currentDateTime();
+        
+        APPLY;
+    }
+}
+
+import 'Импорт чеков' (SetReceipts r){
+    importReceipt(data(r));
+}
+
+FORM setReceiptsLogs 'Журнал чеков Set10'
+    OBJECTS s = SetReceipts
+    PROPERTIES (s) READONLY dateTime, data, imported
+    PROPERTIES TOOLBAR importReceipts(), import(s) 
+;
 
 set_purchases(FILE f) {
     TRY{
         fileToString(f);
         IMPORT purchasesRequest XML FROM f;
         IF purchases() THEN {
-            generateUUID();
-            IF onlySaveFilesSet10() THEN {
-                WRITE f TO pathSavedFile() + '/' +  generatedUUID();
-            } ELSE {
-                decodeBase64(purchases());
-                IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'purchases', decodedBase64()));
-                importReceipt(decodedBase64());
-                IF canceled() THEN {
-                    logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
-                    statusHttpTo() <- 500;
-                }
-                ELSE
-                    logToFile('set10', (CONCAT ' : ', 'purchases imported', count1() + ' receipts'));
+            decodeBase64(purchases());
+            IF useInSet10Log() THEN logToFile('set10', (CONCAT ' ', 'purchases', decodedBase64()));
+            IF onlySaveRequestSet10() THEN NEW r = SetReceipts{
+                dateTime(r) <- currentDateTime();
+                data(r) <- decodedBase64();
+                APPLY NESTED LOCAL;
             }
+            ELSE {
+                importReceipt(decodedBase64());
+            }
+            IF canceled() THEN {
+                logToFile('set10', (CONCAT ' : ', 'purchases error', applyMessage()));
+                statusHttpTo() <- 500;
+            }
+            ELSE
+                logToFile('set10', (CONCAT ' : ', 'purchases imported', count1() + ' receipts'));
         }
         ELSE statusHttpTo() <- 500; 
     }
@@ -542,3 +571,18 @@ DESIGN requestExchange{
         MOVE PROPERTY (salesInfoSet10(r));
     }
 }   
+EXTEND FORM integrationData
+    PROPERTIES onlySaveRequestSet10()
+;
+
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (onlySaveRequestSet10());
+    }
+}
+
+NAVIGATOR {
+    logs{
+        NEW setReceiptsLogs;
+    }
+}
