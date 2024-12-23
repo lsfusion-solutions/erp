@@ -1,0 +1,33 @@
+MODULE RepricingVATBatch;
+
+REQUIRE RepricingBatch, Pricing;
+
+NAMESPACE Repricing;
+
+lastPriceListLedger (Batch b, Stock s, DATETIME dt) = activePriceListLedgerB(SystemLedgerPriceListType.retailPricingPriceListType, b, s, dt);
+
+VAT (PriceListLedger l) = MULTI VAT[RepricingDetail](l), retailVAT[PricingDetail](l);
+valueVAT (PriceListLedger l) = MULTI valueVAT[RepricingDetail](l), valueRetailVAT[PricingDetail](l);
+
+lastVatPriceListLedger (Batch b, Stock s, DATETIME dt) = VAT(lastPriceListLedger(b, s, dt));
+prevLastVatPriceListLedger (Batch b, Stock s, DATETIME dt) = PREV(lastVatPriceListLedger(b, s, dt));
+
+lastValueVatPriceListLedger (Batch b, Stock s, DATETIME dt) = valueVAT(lastPriceListLedger(b, s, dt));
+prevLastValueVatPriceListLedger (Batch b, Stock s, DATETIME dt) = PREV(lastValueVatPriceListLedger(b, s, dt));
+
+numberLastVatPriceListLedger 'НДС номер, последний'(Batch b, Stock s) = number(lastVatPriceListLedger(b, s, currentDateTime()));
+lastValueVatPriceListLedger 'НДС %, последний'(Batch b, Stock s) = lastValueVatPriceListLedger(b, s, currentDateTime());
+
+skipChangeVATBatch = ABSTRACT BOOLEAN(RepricingDetail);
+
+WHEN LOCAL (CHANGED(batch(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVATBatch(detail)
+    AND batch(detail) AND Range r = prevLastVatPriceListLedger(batch(detail), departmentStore(detail), dateTime(detail)) DO {
+    curVAT(detail) <- r;
+    VAT(detail) <- VAT(sku(batch(detail)));
+}
+
+WHEN LOCAL (CHANGED(batch(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVATBatch(detail)
+    AND batch(detail) AND NUMERIC[10,5] r = prevLastValueVatPriceListLedger(batch(detail), departmentStore(detail), dateTime(detail)) DO {
+    valueCurVAT(detail) <- r;
+    valueVAT(detail) <- valueVAT(sku(batch(detail)));
+}
