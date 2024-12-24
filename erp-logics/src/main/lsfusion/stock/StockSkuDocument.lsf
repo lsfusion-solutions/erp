@@ -1677,6 +1677,8 @@ date 'Дата изменения' (DocumentDetailLog d) = DATE(dateTime(d));
 
 note 'Примечание' = DATA STRING[20] (DocumentDetailLog);
 
+batch 'Партия' = DATA STRING (DocumentDetailLog) INDEXED;
+
 @defineLog (DocumentDetailLog, 'строк документов', log, date);
 
 overSet  ABSTRACT LIST( DocumentDetailLog, DocumentDetail);
@@ -1690,6 +1692,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         dateDocument(l) <- date(document(d));
         typeDocument(l) <- objectClassName(document(d));
         sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + nameBatch(d); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
         nameUser(l) <- ISTRING[100](name(currentUser()));
@@ -1700,7 +1703,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
 
 skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
 
-WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d))  OR CHANGED(batch(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     NEW l = DocumentDetailLog{
         documentId(l) <- LONG (document(d));
         index(l) <- index(d);
@@ -1709,6 +1712,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)
         dateDocument(l) <- date(document(d));
         typeDocument(l) <- objectClassName(document(d));
         sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + nameBatch(d);
         prevQuantity(l) <- PREV(quantity(d)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
@@ -1729,6 +1733,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         dateDocument(l) <- PREV(date(document(d)));
         typeDocument(l) <- prevObjectClassName(PREV(document(d)));
         sku(l) <- PREV(sku(d));
+        batch(l) <- CONCAT ', ', 'Код: ' + PREV(id(batch(d))), ' Наименование: ' + PREV(nameBatch(d));
         quantity(l) <- PREV(quantity(d));
         price(l) <- PREV(price(d));
         nameUser(l) <- ISTRING[100](name(currentUser()));
@@ -1810,3 +1815,7 @@ basisDoc 'Документы основания' = ABSTRACT BOOLEAN (DocumentDet
 
 edit (DocumentLog d) + {}
 edit (DocumentDetailLog d) + {}
+
+EXTEND FORM documentLogs
+    PROPERTIES (l) READONLY batch AFTER nameSku(l)
+;
