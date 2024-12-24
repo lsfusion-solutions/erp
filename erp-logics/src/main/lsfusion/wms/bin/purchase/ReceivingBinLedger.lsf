@@ -1,6 +1,6 @@
 MODULE ReceivingBinLedger;
 
-REQUIRE EmployeeStock, PurchaseBinLedger, BinTransfer;
+REQUIRE EmployeeStock, PurchaseBinLedger, BinTransfer, BinSkuOrderLedger;
 
 NAMESPACE Purchase;
 
@@ -57,7 +57,8 @@ CLASS ReceivingDetail 'Строка приемки';
 
 receiving = DATA Receiving (ReceivingDetail) INDEXED NONULL DELETE;
 
-status (ReceivingDetail d) = status(receiving(d)) MATERIALIZED;
+dataStatus = DATA ReceivingStatus (ReceivingDetail);
+status (ReceivingDetail d) = OVERRIDE dataStatus(d), status(receiving(d)) MATERIALIZED;
 nameStatus 'Статус' (ReceivingDetail d) = staticCaption(status(d)) IN documentPrm CHARWIDTH 8;
 
 @defineDocumentDetailPosted(receiving);
@@ -232,10 +233,18 @@ takeToWork 'Взять в работу' (Receiving receiving) {
     }
 }
 
-completeWork 'Завершить работу ' (Receiving receiving) {
+overCompleteWork ABSTRACT LIST (Receiving);
+completeWork 'Завершить приёмку' (Receiving receiving) {
     NEWSESSION {
-        status(receiving) <- ReceivingStatus.completed;
-        APPLY;
+        ASK 'Вы уверены, что хотите завершить приёмку всего документа?' DO {
+            IF (GROUP SUM 1 IF receiving(ReceivingDetail d)==receiving AND NOT inBin(d)) THEN {
+                MESSAGE 'Нельзя завершить работу со строками приемки у которых не заполнены ячейки';
+                CANCEL;
+            }
+            status(receiving) <- ReceivingStatus.completed;
+            overCompleteWork(receiving);
+            APPLY;            
+        }
     }
 }
 
@@ -272,12 +281,12 @@ placement 'Разместить' (CustomUser u) {
             MESSAGE 'Для склада размещения нет ячеек хранения';
             RETURN;
         }
-        FOR (GROUP MAX select(Sku sku)) NEW o = UserBinTransfer DO {
+        FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, receivingBin(u))) NEW o = UserBinTransfer DO {
             operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
-            FOR select(Sku sku) NEW d = UserBinTransferDetail DO {
+            FOR select(Sku sku) AND currentBalance(sku, receivingBin(u)) NEW d = UserBinTransferDetail DO {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- receivingBin(u);
@@ -293,9 +302,85 @@ placement 'Разместить' (CustomUser u) {
     }    
 }
 
+placementReserve 'Разместить' (CustomUser u) {
+    NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            select(Sku sku) <- TRUE WHERE (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
+        }
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            MESSAGE 'Нечего размещать';
+            RETURN;
+        }
+        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
+            MESSAGE 'Для склада размещения нет ячеек хранения';
+            RETURN;
+        }
+        FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u))) NEW o = UserBinTransfer DO {
+            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            stock(o) <- stock(receivingBin(u));
+            FOR select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- o;
+                sku(d) <- sku;
+                outBin(d) <- bin;
+                dataSkipSetOutBin(d) <- TRUE;
+                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)));
+                dataSkipSetInBin(d) <- TRUE;
+                quantity(d) <- currentBalance(sku, bin);
+            }
+            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
+                select(Sku sku) <- NULL;
+            }
+        }
+    }
+}
+
+useWriteOffReserveQuantity = ABSTRACT BOOLEAN ();
+writeOffReserveQuantity 'Кол-во к списанию' = ABSTRACT CASE NUMERIC[16,5] (Sku, Bin);
+writeOffReserveQuantity(Sku sku, Bin bin) += WHEN sku IS Sku AND bin IS Bin AND NOT useWriteOffReserveQuantity() THEN currentBalance(sku, bin);
+
+writeOffReserve 'Списать' (CustomUser u) {
+    NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            select(Sku sku) <- TRUE WHERE (GROUP SUM writeOffReserveQuantity(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
+        }
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            MESSAGE 'Нечего размещать';
+            RETURN;
+        }
+        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
+            MESSAGE 'Для склада размещения нет ячеек хранения';
+            RETURN;
+        }
+        FOR (GROUP MAX select(Sku sku) AND writeOffReserveQuantity(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
+            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            stock(o) <- stock(receivingBin(u));
+            FOR select(Sku sku) AND writeOffReserveQuantity(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- o;
+                sku(d) <- sku;
+                outBin(d) <- bin;
+                dataSkipSetOutBin(d) <- TRUE;
+                inBin(d) <- NULL;
+                dataSkipSetInBin(d) <- TRUE;
+                quantity(d) <- writeOffReserveQuantity(sku, bin);
+            }
+            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
+                select(Sku sku) <- NULL;
+            }
+        }
+    }
+}
+
 changeDataInBin(ReceivingDetail d, CustomUser u) {
-    DIALOG dialogBins OBJECTS s = inBin(d) INPUT FILTERS isParent(sg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), sg), isParent(binGroup2(receivingBin(u)), s) DO {
-        dataInBin(d) <- s;
+    NEWSESSION {
+        DIALOG dialogBins OBJECTS s = inBin(d) INPUT LIST canonicalId(s) 
+            FILTERS isParent(sg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), sg), isParent(binGroup2(receivingBin(u)), s) DO {
+            dataInBin(d) <- s;
+            APPLY;
+        }
     }
 }
 
@@ -307,7 +392,8 @@ FORM receiving 'Приемка'
     
     OBJECTS r=Receiving
     PROPERTIES(r) selected
-    PROPERTIES(r) READONLY BACKGROUND background(r) nameStatus, nameCreatedUser, isClosed, isPosted, number, series, 
+    PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
+    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
                                                     date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR takeToWork SHOWIF status(r)==ReceivingStatus.new, createDetails SHOWIF status(r)==ReceivingStatus.inWork,
                                 completeWork SHOWIF status(r)==ReceivingStatus.inWork
@@ -316,12 +402,15 @@ FORM receiving 'Приемка'
             isPosted(r)
     
     OBJECTS d=ReceivingDetail
+    PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku, createdDateTime, nameCreatedUser
-    PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(r)==ReceivingStatus.inWork,
-                  nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(r)==ReceivingStatus.inWork OR NOT receivingBin(u)//READONLY
+    PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(d)==ReceivingStatus.inWork,
+                  nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(d)==ReceivingStatus.inWork
     PROPERTIES newReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
     PROPERTIES(d) NEWSESSION DELETE SHOWIF status(r)==ReceivingStatus.inWork
-    PROPERTIES(d) copy
+    PROPERTIES(d) copy PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
+    FILTERGROUP inWork
+        FILTER 'В работе' status(d)==ReceivingStatus.inWork
 
     OBJECTS sr=Sku
     PROPERTIES(sr) READONLY idBarcode, name, shortNameUOM
@@ -334,6 +423,15 @@ FORM receiving 'Приемка'
     PROPERTIES READONLY currentBalance 'Текущий остаток в ячейке' = currentBalance(s, receivingBin(u))
     PROPERTIES placement(u) DRAW s PANEL TOOLBAR
     FILTERS currentBalance(s, receivingBin(u))  
+    
+    OBJECTS reserve = (rs=Sku, rb=Bin)
+    PROPERTIES select(rs)
+    PROPERTIES READONLY name(rs), idBarcode(rs), canonicalId(rb), name(rb), currentBalance(rs, rb)
+    PROPERTIES placementReserve(u) DRAW reserve PANEL TOOLBAR
+    PROPERTIES writeOffReserve(u) DRAW reserve PANEL TOOLBAR
+    FILTERS currentBalance(rs, rb),
+            binGroup2(rb)==binGroup2(receivingBin(u)),
+            orderLedger(rb)
 ;
 
 DESIGN receiving {
@@ -371,6 +469,10 @@ DESIGN receiving {
         NEW placement {
             caption = 'Размещение';
             MOVE BOX(s);
+        }
+        
+        MOVE BOX(reserve) {
+            caption = 'Брак/резерв';
         }
     }    
     MOVE TOOLBARBOX;

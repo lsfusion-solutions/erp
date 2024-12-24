@@ -11,7 +11,7 @@ NAMESPACE Bin;
 @implementDocumentBatchForm(bt);
 
 EXTEND FORM userBinTransfer
-    PROPERTIES (d) idBatch, nameBatch
+    PROPERTIES(d) AFTER shortNameUOMSku(d) idBatch, nameBatch
 ;
 
 overCopy(UserBinTransferDetail d, BinTransferDetail transferDetail) + {
@@ -22,8 +22,14 @@ overCopy[UserBinTransferDetail,UserBinTransferDetail](UserBinTransferDetail d, U
 }
 
 EXTEND FORM binTransfers
-    PROPERTIES (d) READONLY idBatch, nameBatch
+    PROPERTIES(d) READONLY AFTER shortNameUOMSku(d) idBatch, nameBatch
 ;
+
+@defineOperationProperty(isBatch, 'Должна быть задана партия', constraintContainer);
+
+CONSTRAINT isPosted(BinTransferDetail d) AND isBatch(operation(d)) AND sku(d) AND NOT skipFillBatch(d) AND NOT batch(d)
+    MESSAGE 'Для строки строка перемещения по ячейкам должна быть задана партия';
+
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(userBinTransfer, );
 
