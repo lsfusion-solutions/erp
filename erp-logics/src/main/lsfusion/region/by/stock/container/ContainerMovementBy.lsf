@@ -38,6 +38,14 @@ DESIGN containerMovement{
         MOVE PROPERTY(printContainerMovementBy(dFrom,dTo));
     }
 }
+
+namePositionResponsibliesPrint 'МОЛ(ы)' (Stock stock) = CONCAT ', ', positionName(responsiblePersonPrint(stock)),
+    (GROUP
+        CONCAT positionName(Employee employee) IF isResponsiblePersonPrint(stock, employee), ', '
+        ORDER orderResponsiblePersonPrint(stock, employee), employee
+    )
+    CHARWIDTH 50;
+
 //-- 
 FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL SUBREPORT,
@@ -46,7 +54,11 @@ FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
     PROPERTIES(ds) SELECTOR fullName, address, nameLegalEntity, fullNameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
                             namePositionBooker, nameCustomUserController, namePositionController, UNP, 
                             shortNamePositionResponsiblies, positionShortNameResponsiblePerson, positionShortNameController,
-                            positionShortNameBooker, namePositionResponsiblies
+                            positionShortNameBooker, namePositionResponsiblies, namePositionResponsibliesPrint
+
+    PROPERTIES(ds) shortNamePositionResponsibliesPrint, positionShortNameResponsiblePersonPrint, positionShortNameControllerPrint, positionShortNameBookerPrint,
+        namePositionResponsiblePersonPrint, namePositionBookerPrint, namePositionControllerPrint,
+        nameResponsiblePersonPrint, nameControllerPrint, nameBookerPrint
 
     PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
                sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
@@ -79,9 +91,9 @@ FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
     
     OBJECTS e=Employee 
     PROPERTIES (e) positionShortName, positionName
-    FILTERS isResponsiblePerson(ds,e)
-    PROPERTIES orderResponsiblePerson(ds,e)
-    ORDERS orderResponsiblePerson(ds,e)
+    FILTERS isResponsiblePersonPrint(ds,e)
+    PROPERTIES orderResponsiblePersonPrint(ds,e)
+    ORDERS orderResponsiblePersonPrint(ds,e)
     
     OBJECTS bt=(sk=Sku, p = NUMERIC[16,4])
     PROPERTIES(ds) balanceInBatches, balanceOutBatches, sumMoveOutBatches, balanceMoveInBatches,sumMoveInBatches, balanceMoveOutBatches 
@@ -99,9 +111,9 @@ FORM printStockDocumentContainerBy 'Товарный отчет с тарой'
     
     OBJECTS e1=Employee 
     PROPERTIES (e1) positionShortName, positionName
-    FILTERS isResponsiblePerson(ds,e1)    
-    PROPERTIES orderResponsiblePerson(ds,e1)
-    ORDERS orderResponsiblePerson(ds,e1)
+    FILTERS isResponsiblePersonPrint(ds,e1)    
+    PROPERTIES orderResponsiblePersonPrint(ds,e1)
+    ORDERS orderResponsiblePersonPrint(ds,e1)
 ;
 
 printDocumentContainerBy 'С тарой' (DATE dateFrom, DATE dateTo, Stock stock)  {    

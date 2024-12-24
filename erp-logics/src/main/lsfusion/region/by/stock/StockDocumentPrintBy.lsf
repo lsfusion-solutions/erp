@@ -1,0 +1,73 @@
+MODULE StockDocumentPrintBy;
+
+REQUIRE StockDocumentBy;
+
+NAMESPACE StockDocument;
+
+useCustomPerson() += TRUE;
+
+responsiblePersonLocal = DATA LOCAL Employee(Stock);
+controllerLocal  = DATA LOCAL Employee(Stock);
+bookerLocal  = DATA LOCAL Employee(Stock);
+
+nameResponsiblePersonLocal 'Материально ответственное лицо' (Stock st) = name(responsiblePersonLocal(st)) IN responsibility;
+nameControllerLocal 'Кто проверяет товарный отчет' (Stock st) = name(controllerLocal(st)) IN responsibility;
+nameBookerLocal 'Бухгалтер, принимающий товарный отчет' (Stock st) = name(bookerLocal(st)) IN responsibility;
+
+isResponsiblePersonLocal 'Материально ответственное лицо' = DATA LOCAL BOOLEAN (Stock, Employee);
+orderResponsiblePersonLocal 'Порядок отображения в печатной форме' = DATA LOCAL INTEGER (Stock, Employee);
+
+CONSTRAINT responsiblePersonLocal(Stock stock) AND NOT in(stock, responsiblePersonLocal(stock)) AND NOT allowStockEmployee()
+    CHECKED BY responsiblePersonLocal[Stock] MESSAGE 'Материально ответственное лицо не сотрудник отдела';
+CONSTRAINT controllerLocal(Stock stock) AND NOT in(stock, controllerLocal(stock)) AND NOT allowStockEmployee()
+    CHECKED BY controllerLocal[Stock] MESSAGE 'Проверяющий не сотрудник отдела';
+CONSTRAINT bookerLocal(Stock stock) AND NOT in(stock, bookerLocal(stock)) AND NOT allowStockEmployee()
+    CHECKED BY bookerLocal[Stock] MESSAGE 'Бухгалтер не сотрудник отдела';
+
+
+responsiblePersonPrint(Stock st) += WHEN st IS Stock AND useCustomPerson() THEN responsiblePersonLocal(st);
+controllerPrint(Stock st) += WHEN st IS Stock AND useCustomPerson() THEN controllerLocal(st);
+bookerPrint(Stock st) += WHEN st IS Stock AND useCustomPerson() THEN bookerLocal(st);
+isResponsiblePersonPrint(Stock st, Employee e) += WHEN st IS Stock AND e IS Employee AND useCustomPerson() THEN isResponsiblePersonLocal(st,e);
+orderResponsiblePersonPrint(Stock st, Employee e) += WHEN st IS Stock AND e IS Employee AND  useCustomPerson() THEN orderResponsiblePersonLocal(st,e);
+
+
+changeSt(Stock st) {
+    responsiblePersonLocal (st) <- responsiblePerson(st);
+    controllerLocal (st) <- controller(st);
+    bookerLocal (st) <- booker(st);
+    isResponsiblePersonLocal(st, Employee e) <- isResponsiblePerson(st,e);
+    orderResponsiblePersonLocal(st, Employee e) <- orderResponsiblePerson(st,e);
+    formRefresh();
+}
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES (ds) nameResponsiblePersonLocal, nameControllerLocal, nameBookerLocal
+    EVENTS ON CHANGE ds changeSt(ds)
+
+    OBJECTS e=Employee
+    PROPERTIES (ds,e) isResponsiblePersonLocal, orderResponsiblePersonLocal
+    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
+    FILTERS (in (ds,e) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee()) OR isResponsiblePersonLocal(ds,e)
+    FILTERGROUP selectE FILTER 'Отм.' isResponsiblePersonLocal(ds,e) 'F6'  DEFAULT
+
+    
+;
+DESIGN sumStockDocumentLedger{    
+    NEW tabs BEFORE topContainer{
+        tabbed = TRUE;
+        MOVE sums;
+        fill = 1;
+        NEW emp{
+            caption = 'Подписи';
+            horizontal = FALSE;
+            alignment = STRETCH;
+            MOVE GROUP(responsibility,ds){
+                horizontal = TRUE;
+                lines = 1;
+                alignment = STRETCH;
+            }
+            MOVE BOX(e);
+        }        
+    }
+}

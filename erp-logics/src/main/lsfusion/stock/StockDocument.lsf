@@ -288,19 +288,19 @@ shortNameResponsiblies 'МОЛ(ы)' (Stock stock) = CONCAT ', ', shortName(respo
 // Должность ФИО
 positionNameResponsiblePerson 'Материально ответственное лицо' (Stock stock) = positionName(responsiblePerson(stock)) IN responsibility; 
 namePositionResponsiblePerson 'Материально ответственное лицо (должность)'= namePosition(responsiblePerson(Stock stock));
-CONSTRAINT SETCHANGED(dataResponsiblePerson(Stock stock, DATE date)) AND NOT in(stock, dataResponsiblePerson(stock, date))
+CONSTRAINT SETCHANGED(dataResponsiblePerson(Stock stock, DATE date)) AND NOT in(stock, dataResponsiblePerson(stock, date)) AND NOT allowStockEmployee()
     CHECKED BY dataResponsiblePerson[Stock,DATE] MESSAGE 'МОЛ не сотрудник отдела';
 
 @defineHistorizableCustom(booker, 'Бухгалтер, принимающий товарный отчет', Employee, name, customUser, stock, nameStock, responsibility );
 // Должность ФИО
 positionNameBooker 'Бухгалтер, принимающий товарный отчет' (Stock stock) = positionName(booker(stock)) IN responsibility; 
 namePositionBooker 'Бухгалтер, принимающий товарный отчет (должность)'= namePosition(booker(Stock stock));
-CONSTRAINT dataBooker(Stock stock, DATE date) AND NOT in(stock, dataBooker(stock, date))
+CONSTRAINT dataBooker(Stock stock, DATE date) AND NOT in(stock, dataBooker(stock, date)) AND NOT allowStockEmployee()
     CHECKED BY dataBooker[Stock,DATE] MESSAGE 'Бухгалтер не сотрудник отдела';
 
 @defineHistorizableCustom(controller, 'Кто проверяет товарный отчет', Employee, name, customUser, stock, nameStock, responsibility );
 
-CONSTRAINT dataController(Stock stock, DATE date) AND NOT in(stock, dataController(stock, date))
+CONSTRAINT dataController(Stock stock, DATE date) AND NOT in(stock, dataController(stock, date)) AND NOT allowStockEmployee()
     CHECKED BY dataController[Stock,DATE] MESSAGE 'Проверяющий не сотрудник отдела';
 // Должность ФИО
 positionNameController 'Кто проверяет товарный отчет' (Stock stock) = positionName(controller(stock)) IN responsibility; 
@@ -310,7 +310,7 @@ namePositionController 'Кто проверяет товарный отчет (�
 // Должность ФИО
 positionNameHeader 'Заведующий' (Stock stock) = positionName(headPerson(stock)) IN responsibility; 
 namePositionHeader 'Заведующий'= namePosition(headPerson(Stock stock));
-CONSTRAINT SETCHANGED (dataHeadPerson(Stock stock, DATE date)) AND NOT in(stock, dataHeadPerson(stock, date))
+CONSTRAINT SETCHANGED (dataHeadPerson(Stock stock, DATE date)) AND NOT in(stock, dataHeadPerson(stock, date)) AND NOT allowStockEmployee()
     CHECKED BY dataHeadPerson[Stock,DATE] MESSAGE 'Заведующий не сотрудник отдела';
     
 countStockDocumentInterval 'Количество документов' (Stock ds, DATE dtFrom, DATE dtTo)=  countIncStockDocumentInterval(ds, dtFrom, dtTo) (+) 

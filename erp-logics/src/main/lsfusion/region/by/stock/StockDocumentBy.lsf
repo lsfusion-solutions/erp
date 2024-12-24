@@ -14,6 +14,38 @@ printNumber 'Серия/номер'  = ABSTRACT STRING[70](StockDocumentLedger) 
 
 legalEntityPrint = ABSTRACT BOOLEAN (StockDocumentLedger);
 
+useCustomPerson = ABSTRACT VALUE BOOLEAN ();
+
+responsiblePersonPrint = ABSTRACT CASE Employee(Stock); 
+controllerPrint = ABSTRACT CASE Employee(Stock);
+bookerPrint = ABSTRACT CASE Employee(Stock);
+
+isResponsiblePersonPrint 'Материально ответственное лицо' = ABSTRACT CASE BOOLEAN (Stock, Employee);
+orderResponsiblePersonPrint 'Порядок отображения в печатной форме' = ABSTRACT CASE INTEGER (Stock, Employee);
+
+responsiblePersonPrint(Stock st) += WHEN st IS Stock AND NOT useCustomPerson() THEN responsiblePerson(st);
+controllerPrint(Stock st) += WHEN st IS Stock AND NOT useCustomPerson() THEN controller(st);
+bookerPrint(Stock st) += WHEN st IS Stock AND NOT useCustomPerson() THEN booker(st);
+
+isResponsiblePersonPrint(Stock st, Employee e) += WHEN st IS Stock AND e IS Employee AND NOT useCustomPerson() THEN isResponsiblePerson(st,e);
+orderResponsiblePersonPrint(Stock st, Employee e) += WHEN st IS Stock AND e IS Employee AND NOT useCustomPerson() THEN orderResponsiblePerson(st,e);
+
+nameResponsiblePersonPrint 'Материально ответственное лицо' (Stock st) = name(responsiblePersonPrint(st)) IN responsibility;
+nameControllerPrint 'Кто проверяет товарный отчет' (Stock st) = name(controllerPrint(st)) IN responsibility;
+nameBookerPrint 'Бухгалтер, принимающий товарный отчет' (Stock st) = name(bookerPrint(st)) IN responsibility;
+
+positionShortNameResponsiblePersonPrint 'Материально ответственное лицо' (Stock stock) = positionShortName(responsiblePersonPrint(stock));
+positionShortNameControllerPrint 'Кто проверяет товарный отчет' (Stock stock) = positionShortName(controllerPrint(stock));
+positionShortNameBookerPrint 'Бухгалтер, принимающий товарный отчет' (Stock stock) = positionShortName(bookerPrint(stock));
+
+shortNamePositionResponsibliesPrint 'МОЛ(ы)' (Stock stock) = CONCAT ', ', positionShortName(responsiblePersonPrint(stock)),
+    (GROUP
+        CONCAT positionShortName(Employee employee) IF isResponsiblePersonPrint(stock, employee), ', '
+        ORDER orderResponsiblePersonPrint(stock,employee), employee
+    )
+    CHARWIDTH 50;
+
+
 FORM printStockDocumentBy 'Товарный отчет'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL SUBREPORT,
             ds = Stock PANEL
@@ -22,7 +54,7 @@ FORM printStockDocumentBy 'Товарный отчет'
                             namePositionBooker, nameCustomUserController, namePositionController, UNP, 
                             shortNamePositionResponsiblies, positionShortNameResponsiblePerson, positionShortNameController,
                             positionShortNameBooker
-
+    PROPERTIES(ds) shortNamePositionResponsibliesPrint, positionShortNameResponsiblePersonPrint, positionShortNameControllerPrint, positionShortNameBookerPrint
     PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
                sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
     PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
@@ -53,9 +85,9 @@ FORM printStockDocumentBy 'Товарный отчет'
     ORDERS date(ol), seriesNumber(ol) 
     
     OBJECTS e=Employee 
-    PROPERTIES  positionShortName(e), orderResponsiblePerson(ds,e)
-    FILTERS isResponsiblePerson(ds,e)
-    ORDERS orderResponsiblePerson(ds,e)
+    PROPERTIES  positionShortName(e), orderResponsiblePersonPrint(ds,e)
+    FILTERS isResponsiblePersonPrint(ds,e)
+    ORDERS orderResponsiblePersonPrint(ds,e)
 ;
 
 printDocumentBy 'Распечатать' (DATE dateFrom, DATE dateTo, Stock stock) 
@@ -76,6 +108,9 @@ DESIGN sumStockDocumentLedger{
 }
 
 // -------------------------------------- Суммы по операциям за интервал --------------------------------------------- //
+namePositionResponsiblePersonPrint 'Материально ответственное лицо (должность)'= namePosition(responsiblePersonPrint(Stock stock));
+namePositionBookerPrint 'Бухгалтер, принимающий товарный отчет (должность)'= namePosition(bookerPrint(Stock stock));
+namePositionControllerPrint 'Кто проверяет товарный отчет (должность)'= namePosition(bookerPrint(Stock stock));
 
 FORM printStockDocumentOperationBy 'Товарный отчет'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL SUBREPORT,
@@ -83,7 +118,9 @@ FORM printStockDocumentOperationBy 'Товарный отчет'
     PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
     PROPERTIES(ds) SELECTOR fullName, nameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
                             namePositionBooker, nameCustomUserController, namePositionController, UNP
-
+    PROPERTIES(ds) shortNamePositionResponsibliesPrint, positionShortNameResponsiblePersonPrint, positionShortNameControllerPrint, positionShortNameBookerPrint,
+                    namePositionResponsiblePersonPrint, namePositionBookerPrint, namePositionControllerPrint, 
+                    nameResponsiblePersonPrint, nameControllerPrint, nameBookerPrint
     PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
                sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
     PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
@@ -176,7 +213,9 @@ FORM printStockDocumentOperationLegalEntityBy 'Товарный отчет'
     PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
     PROPERTIES(ds) SELECTOR fullName, nameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
                             namePositionBooker, nameCustomUserController, namePositionController, UNP
-
+    PROPERTIES(ds) shortNamePositionResponsibliesPrint, positionShortNameResponsiblePersonPrint, positionShortNameControllerPrint, positionShortNameBookerPrint,
+                    namePositionResponsiblePersonPrint, namePositionBookerPrint, namePositionControllerPrint,
+                    nameResponsiblePersonPrint, nameControllerPrint, nameBookerPrint
     PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
                sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
     PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
