@@ -1566,6 +1566,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
+                    int delflag = 0;
+                    JSONObject infoJSON = getExtInfo(d.extInfo).first();
+                    if(infoJSON != null) {
+                        delflag = infoJSON.optInt("locked");
+
+                    }
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
                         setObject(ps, clientGroupId, 2); //CLNTGRPID
@@ -1574,7 +1580,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, clientName, 5); //CLNTNAME
                         setObject(ps, clientBirthday, 6); //CLNTBIRTHDAY
                         setObject(ps, 0, 7); //LOCKED
-                        setObject(ps, 0, 8); //DELFLAG
+                        setObject(ps, delflag, 8); //DELFLAG
                         setObject(ps, null, 9); //PRIMARYEMAIL
                         setObject(ps, null, 10); //PRIMARYPHONE
                         if(updateNum != null)
@@ -1586,7 +1592,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, clientName, 4, offset); //CLNTNAME
                         setObject(ps, clientBirthday, 5, offset); //CLNTBIRTHDAY
                         setObject(ps, 0, 6, offset); //LOCKED
-                        setObject(ps, 0, 7, offset); //DELFLAG
+                        setObject(ps, delflag, 7, offset); //DELFLAG
                         setObject(ps, null, 8, offset); //PRIMARYEMAIL
                         setObject(ps, null, 9, offset); //PRIMARYPHONE
 
