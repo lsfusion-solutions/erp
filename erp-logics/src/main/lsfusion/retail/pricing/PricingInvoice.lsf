@@ -104,7 +104,12 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
        
     backgroundRetail 'Цвет' (###concrete invoice) = RGB(224, 255, 255) IF invoice IS Invoice;
     backgroundRetailMarkup = ABSTRACT VALUE COLOR (User###concrete##Detail);
-    backgroundRetailMarkup (User###concrete##Detail uid) += backgroundRetail(invoice(uid)); 
+    backgroundRetailMarkup (User###concrete##Detail uid) += backgroundRetail(invoice(uid));
+
+    backgroundRetailVAT = ABSTRACT VALUE COLOR (User###concrete##Detail);
+    backgroundRetailVAT (User###concrete##Detail uid) += backgroundRetail(invoice(uid));
+    backgroundRetailVAT (User###concrete##Detail uid) += RGB(255,0,0) IF
+        valueVAT(sku(uid)) AND NOT valueRetailVAT(uid) == valueVAT(sku(uid)) AND NOT skipCheckVAT();
         
     EXTEND FORM userInvoice
         PROPERTIES(i) SHOWIF showCreatePricing(i) BACKGROUND backgroundRetail(i) createPricing
@@ -117,8 +122,8 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
                         pricingPrice SHOWIF createPricing[###concrete](i)              
                        
         PROPERTIES(pd) SHOWIF createPricing[###concrete](i) BACKGROUND backgroundRetail(i)
-                      retailMarkup ON CHANGE changeRetailMarkup(pd) BACKGROUND backgroundRetailMarkup(pd), numberRetailVAT,
-                      valueRetailVAT,
+                      retailMarkup ON CHANGE changeRetailMarkup(pd) BACKGROUND backgroundRetailMarkup(pd), numberRetailVAT BACKGROUND backgroundRetailVAT(pd),
+                      valueRetailVAT BACKGROUND backgroundRetailVAT(pd),
                       retailPrice ON CHANGE changeRetailPrice(pd)
         ORDERS index(pd)                      
         FILTERS user###concrete(pd) == i             

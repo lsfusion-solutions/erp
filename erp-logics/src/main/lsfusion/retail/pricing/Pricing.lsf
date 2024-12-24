@@ -348,6 +348,9 @@ changeBatch(UserPricingDetail detail)  {
 
 // --------------------------- Формы --------------------------------- //
 backgroundRetail 'Цвет' (Pricing pricing) = RGB(224, 255, 255) IF pricing IS Pricing;
+backgroundRetailVAT = ABSTRACT VALUE COLOR (UserPricingDetail);
+backgroundRetailVAT (UserPricingDetail uid) += backgroundRetail(pricing(uid));
+
 FORM userPricing 'Акт расценки'
     OBJECTS p = UserPricing PANEL
     PROPERTIES (p) isPosted, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(p), nameNumerator, number, series, date, time,
@@ -358,7 +361,8 @@ FORM userPricing 'Акт расценки'
     PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameBatch, shortNameUOMSku,
                    nameRetailPriceListType, price
     PROPERTIES (d) BACKGROUND backgroundRetail(p)
-                   retailMarkup ON CHANGE changeRetailMarkup(d), numberRetailVAT, valueRetailVAT, retailPrice ON CHANGE changeRetailPrice(d)
+                   retailMarkup ON CHANGE changeRetailMarkup(d), numberRetailVAT BACKGROUND backgroundRetailVAT(d), 
+                   valueRetailVAT BACKGROUND backgroundRetailVAT(d), retailPrice ON CHANGE changeRetailPrice(d)
     PROPERTIES (d) NEW, deletepd=DELETE GRID
     ORDERS index(d)
 
@@ -798,3 +802,22 @@ DESIGN pricings {
         }
     }
 }
+
+skipCheckVAT 'Отключить контроль НДС при расценке' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () skipCheckVAT
+;
+
+DESIGN options {
+    pricings {
+        MOVE PROPERTY(skipCheckVAT());
+    }
+}
+
+CONSTRAINT (SET(isPosted(PricingDetail d)) OR CHANGED(valueRetailVAT(d))) AND isPosted(d) AND valueVAT(sku(d))
+    AND NOT valueRetailVAT(d) == valueVAT(sku(d)) AND NOT skipCheckVAT()
+        MESSAGE 'Розничный НДС при расценке не может отличаться от НДС в карточке товара';
+
+backgroundRetailVAT (UserPricingDetail uid) += RGB(255,0,0) IF
+    valueVAT(sku(uid)) AND NOT valueRetailVAT(uid) == valueVAT(sku(uid)) AND NOT skipCheckVAT();
