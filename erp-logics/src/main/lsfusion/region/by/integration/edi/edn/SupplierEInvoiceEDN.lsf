@@ -279,10 +279,12 @@ signAndSendSupplierEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                 IF NOT totalGrossWeight(ei) THEN error() <- error() + 'EInvoice ' + deliveryNoteNumber(ei) + ': Не заполнено поле \'Всего масса груза в тоннах\'\n';
                 FOR eInvoice(EInvoiceDetail d) == ei DO {
                     IF NOT length(lineItemSign(d)) > 0 AND DATE(dateTimeCreated(ei)) >= 2020_09_13 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Признак вида товарной позиции\'\n';
-                    IF NOT grossWeightValue(d) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Масса груза\'\n';
                     IF NOT length(lineItemQuantityUOM(d)) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Единица измерения количества товара\'\n';
-                    IF NOT despatchUnitQuantityDespatched(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Количество в грузовых местах\'\n';
                     IF NOT lineItemAmountWithoutCharges(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Стоимость товарной позиции без НДС\'\n';
+                    IF NOT isTransit(ei) THEN {
+                        IF NOT despatchUnitQuantityDespatched(d) THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Количество в грузовых местах\'\n';
+                        IF NOT grossWeightValue(d) > 0 THEN error() <- error() + 'EInvoiceDetail ' + lineItemNumber(d) + ': Не заполнено поле \'Масса груза\'\n';
+                    }
                 }
                 IF error() == '' THEN {
                     LOCAL contentSubXML = FILE();
