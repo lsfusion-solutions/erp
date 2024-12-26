@@ -21,8 +21,8 @@ lastValueVatPriceListLedger 'НДС %, последний'(Batch b, Stock s) = l
 skipChangeVATBatch = ABSTRACT BOOLEAN(RepricingDetail);
 
 WHEN LOCAL (CHANGED(batch(UserRepricingDetail detail)) OR CHANGED (departmentStore(detail)) OR CHANGED(dateTime(detail))) AND NOT skipChangeVATBatch(detail)
-    AND batch(detail) AND Range r = prevLastVatPriceListLedger(batch(detail), departmentStore(detail), dateTime(detail)) DO {
-    curVAT(detail) <- r;
+    AND batch(detail) AND NUMERIC[10,5] r = prevLastValueVatPriceListLedger(batch(detail), departmentStore(detail), dateTime(detail)) DO {
+    curVAT(detail) <- valueCurrentVATDefault(r);
     VAT(detail) <- VAT(sku(batch(detail)));
 }
 
