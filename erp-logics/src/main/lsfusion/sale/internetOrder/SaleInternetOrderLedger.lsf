@@ -1,0 +1,25 @@
+MODULE SaleInternetOrderLedger;
+
+REQUIRE SaleInternetOrder;
+ 
+NAMESPACE Sale;
+
+EXTEND CLASS InternetOrderDetail : OrderLedger;
+
+dateTime (InternetOrderDetail ledger) += dateTime(ledger);
+isPosted (InternetOrderDetail ledger) += isPosted(ledger);
+isClosed (InternetOrderDetail ledger) += isClosed(ledger);
+sku[OrderLedger] (InternetOrderDetail ledger) += sku(ledger);
+batch[OrderLedger] (InternetOrderDetail ledger) += batch(ledger);
+stock (InternetOrderDetail ledger) += supplierStock(ledger);
+description (InternetOrderDetail ledger) += description(ledger);
+
+overLedgerQuantity = ABSTRACT NUMERIC[16,5] (InternetOrderDetail);
+skipDefaultLedgerQuantity = ABSTRACT BOOLEAN (InternetOrderDetail);
+quantity[OrderLedger] (InternetOrderDetail ledger) += OVERRIDE overLedgerQuantity(ledger), quantity(ledger) IF NOT skipDefaultLedgerQuantity(ledger);
+
+overLedgerToShipQuantity = ABSTRACT NUMERIC[16,5] (InternetOrderDetail);
+skipDefaultLedgerToShipQuantity = ABSTRACT BOOLEAN (InternetOrderDetail);
+toShipQuantity (InternetOrderDetail ledger) += OVERRIDE overLedgerToShipQuantity(ledger), quantity(ledger) IF NOT skipDefaultLedgerToShipQuantity(ledger);
+
+background[OrderLedger](OrderLedger l) += WHEN l IS InternetOrderDetail THEN background[InternetOrderDetail](l);
