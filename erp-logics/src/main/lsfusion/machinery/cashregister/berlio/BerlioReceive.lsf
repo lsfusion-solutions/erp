@@ -70,6 +70,8 @@ cashRegister = GROUP MAX CashRegister c BY npp(c);
 overImportPayment ABSTRACT LIST (Receipt, NUMERIC, NUMERIC, NUMERIC);
 overImport ABSTRACT LIST (ZReport);
 
+isGiftCard = ABSTRACT BOOLEAN (STRING);
+
 receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
     NEWSESSION {
         READ directory(gcr) +'/S/'+ fn TO file;
@@ -136,6 +138,13 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                     number(rc) <- receipt(r);
                     date(rc) <- date(r);
                     time(rc) <- time(r);
+                }
+
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
+                    AND isGiftCard(code(r))  ORDER index(r) NEW d = ReceiptGiftCardSaleDetail DO {
+                    id(d) <- idReceiptDetail;
+                    receipt(d) <- receipt(idReceipt(r));
+                    isReturn(d) <- vid(r) == 2;
                 }
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
