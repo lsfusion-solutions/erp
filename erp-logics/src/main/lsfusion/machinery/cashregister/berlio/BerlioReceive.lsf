@@ -140,21 +140,25 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                     time(rc) <- time(r);
                 }
 
-                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
+                FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptGiftCardSaleDetail(idReceiptDetail)
                     AND isGiftCard(code(r))  ORDER index(r) NEW d = ReceiptGiftCardSaleDetail DO {
                     id(d) <- idReceiptDetail;
                     receipt(d) <- receipt(idReceipt(r));
                     isReturn(d) <- vid(r) == 2;
+                    idBarcode(d) <- code(r);
+                    price(d) <- price(r);
+                    sum(d) <- sum(r);
+                    section(d) <- section(STRING[100](dep(r)));
                 }
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
-                    AND vid(r) == 1 ORDER index(r) NEW d = ReceiptSaleDetail DO {
+                    AND vid(r) == 1 AND NOT isGiftCard(code(r)) ORDER index(r) NEW d = ReceiptSaleDetail DO {
                     id(d) <- idReceiptDetail;
                     receipt(d) <- receipt(idReceipt(r));
                 }
 
                 FOR INTEGER r == [GROUP MIN INTEGER rr BY idReceiptDetail(rr)](STRING idReceiptDetail) AND NOT receiptDetail(idReceiptDetail)
-                    AND vid(r) == 2 ORDER index(r) NEW d = ReceiptReturnDetail DO {
+                    AND vid(r) == 2 AND NOT isGiftCard(code(r)) ORDER index(r) NEW d = ReceiptReturnDetail DO {
                     id(d) <- idReceiptDetail;
                     receipt(d) <- receipt(idReceipt(r));
                 }
