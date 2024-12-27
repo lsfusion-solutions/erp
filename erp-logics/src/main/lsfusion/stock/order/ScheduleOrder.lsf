@@ -290,6 +290,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
     lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d) MATERIALIZED;
 
+    overCreateDetails  ABSTRACT LIST ( ScheduleOrder);
+    
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
         LOCAL toDate = DATE ();    
         toDate() <- OVERRIDE endDate(scheduleOrder), sum(currentDate(), countDaysPreOrders());
@@ -390,6 +392,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     tmpDate() <- sum(tmpDate(), (overPeriod(scheduleOrder) - 1) * 7);
             }
         }
+        
+        overCreateDetails(scheduleOrder);
 
         //EXEC apply();
     } TOOLBAR;
