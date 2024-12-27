@@ -9,6 +9,18 @@ TABLE multiStockStock (Invoice,Stock);
 
 multiStock= ABSTRACT Stock(InvoiceDetail);
 multiStockData = DATA Stock(UserInvoiceDetail);
+
+//CONSTRAINT customer(UserInvoiceDetail d) AND multiStockData(d) AND NOT
+//    in(customer(d), multiStockData(d))
+//    CHECKED BY multiStockData[UserInvoiceDetail]
+//    MESSAGE 'Покупатель и склад покупателя (Мультипоставка) не имеют связи';
+
+CONSTRAINT (SETCHANGED(operation(UserInvoiceDetail d)) OR SETCHANGED(multiStockData(d))) AND operation(d) AND multiStockData(d)
+    AND NOT inCustomer(multiStockData(d), operation(d))
+    CHECKED BY multiStockData[UserInvoiceDetail]
+    MESSAGE 'Склад покупателя (Мультипоставка) должен совпадать с отмеченными в операции';
+
+
 multiStock (UserInvoiceDetail d) = OVERRIDE multiStockData(d), customerStock(d) MATERIALIZED;// TABLE userMultiStockDetail;
 nameMultiStock 'Склад покупателя' (UserInvoiceDetail d) = name(multiStock(d));
 nameMultiStock 'Склад покупателя' (InvoiceDetail d) = name(multiStock(d));
