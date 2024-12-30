@@ -93,6 +93,21 @@ showScheduleOrder 'Просмотреть' (ScheduleOrder o) {
     }
 } TOOLBAR;
 
+
+addFromStocks 'Добавить по складам' (MultiScheduleOrder o){
+    Stock.in(Stock st) <- NULL;
+    SHOW dialogMultiStocks;
+    IF Stock.countInStock() THEN {
+        FOR Stock.in(Stock st) DO NEW s = ScheduleOrder{
+            multiScheduleOrder(s) <- o;
+            in(s,Stock ss) <- ss=st;
+        }
+        formRefresh();
+    }
+}
+
+
+
 FORM multiScheduleOrder 'Множественный график заказов (закупка)'
     OBJECTS s=MultiScheduleOrder PANEL
     PROPERTIES (s) nameSupplier ON CHANGE changeSupplierSupplier(s),
@@ -108,6 +123,7 @@ FORM multiScheduleOrder 'Множественный график заказов 
     PROPERTIES(d) stocks ON CHANGE changeCustomerStockCompany(d), dayBefore, overPeriod, startDate, endDate
     PROPERTIES  scheduleOrderTimeIn(d,dow)COLUMNS (dow) HEADER (staticCaption(dow)+' (поставка)') ON CHANGE changeScheduleOrderTimeIn(d,dow)
     PROPERTIES (d) NEW, DELETE GRID
+    PROPERTIES (s) addFromStocks TOOLBAR DRAW d
     PROPERTIES (d) editScheduleOrder//, showScheduleOrder
     FILTERS multiScheduleOrder(d) == s
 
