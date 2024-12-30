@@ -1232,4 +1232,23 @@ DESIGN repricings {
 replaceBefore(Sku i, Sku item) + { 
     curRetailPrice(UserRepricingDetail pd) <- curRetailPrice(pd) WHERE sku(pd) = i;
     curPrice(UserRepricingDetail pd) <- curPrice(pd) WHERE sku(pd) = i;
-}  
+}
+
+EXTEND FORM options
+    TREE skuTree g = SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), skuGroupName = name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+    ORDERS order(g), skuGroupName
+;
+
+DESIGN options {
+    repricings {
+        NEW repricingTreeTab {
+            caption = 'Запрет дооценки/переоценки для групп товаров';
+            tabbed = TRUE;
+            height = 200;
+            fill = 1;
+            MOVE BOX(TREE skuTree) {caption ='Группы товаров';}
+        }
+    }
+}
