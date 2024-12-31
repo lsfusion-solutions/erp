@@ -20,6 +20,18 @@ DESIGN itemGroup {
     PROPERTY(prevIsFuel(g)) { caption = 'Топливо (в кг)'; }
 }
 
+dataRoundFuelQuantity = DATA INTEGER ();
+roundFuelQuantity 'Знаков после запятой для округления топлива'() = OVERRIDE dataRoundFuelQuantity(), 3;
+
+EXTEND FORM options
+    PROPERTIES roundFuelQuantity();
+
+DESIGN options {
+    items {
+        MOVE PROPERTY (roundFuelQuantity());
+    }
+}
+
 META defineDocumentFuelLtrWeight (object, caption)
     weight 'Масса (топливо), кг' = ABSTRACT NUMERIC[16,5] (###object##Detail) CHARWIDTH 7 MATERIALIZED;
     weight 'Масса (топливо), кг' = DATA NUMERIC[16,5] (User###object##Detail) CHARWIDTH 7;
@@ -36,10 +48,10 @@ META defineDocumentFuelLtrWeight (object, caption)
         extraCalculateDensity(d);
     }
     WHEN LOCAL SETCHANGED(quantity(User###object##Detail d)) AND NOT CHANGED(weight(d)) AND density(d) AND isFuelLtr(sku(d)) DO {
-        weight(d) <- NUMERIC[16,5](round3(quantity(d) * density(d)));
+        weight(d) <- NUMERIC[16,5](round(quantity(d) * density(d), roundFuelQuantity()));
     }
     WHEN LOCAL SETCHANGED(weight(User###object##Detail d)) AND NOT CHANGED(quantity(d)) AND density(d) AND isFuelLtr(sku(d)) DO {
-        quantity(d) <- NUMERIC[16,5](round3(weight(d) / density(d)));
+        quantity(d) <- NUMERIC[16,5](round(weight(d) / density(d), roundFuelQuantity()));
     }
     
     extraFillDensity (User###object##Detail d, NUMERIC[9,5] n) + {
@@ -47,15 +59,15 @@ META defineDocumentFuelLtrWeight (object, caption)
             IF n THEN {
                 density(d) <- n;
                 IF NOT quantity(d) THEN {
-                    quantity(d) <- NUMERIC[16,5](round3(weight(d) / density(d)));
+                    quantity(d) <- NUMERIC[16,5](round(weight(d) / density(d), roundFuelQuantity()));
                 } ELSE IF NOT weight(d) THEN {
-                    weight(d) <- NUMERIC[16,5](round3(quantity(d) * density(d)));
+                    weight(d) <- NUMERIC[16,5](round(quantity(d) * density(d), roundFuelQuantity()));
                 } ELSE {
                     ASK 'Нажмите "Да" для пересчета массы (кг) или "Нет" для пересчета кол-ва (л)' yes = YESNO DO {
                         IF yes THEN {
-                            weight(d) <- NUMERIC[16,5](round3(quantity(d) * density(d)));
+                            weight(d) <- NUMERIC[16,5](round(quantity(d) * density(d), roundFuelQuantity()));
                         } ELSE {
-                            quantity(d) <- NUMERIC[16,5](round3(weight(d) / density(d)));
+                            quantity(d) <- NUMERIC[16,5](round(weight(d) / density(d), roundFuelQuantity()));
                         }
                     } ELSE {
                         density(d) <- PREV(density(d));
