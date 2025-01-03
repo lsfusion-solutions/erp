@@ -29,6 +29,20 @@ readonlyPicked = ABSTRACT BOOLEAN (PickingOrder);
 
 invoiced(PickingOrder po) = TRUE IF [GROUP MIN UserInvoice i IF Sale.include[Sale.Order,UserInvoice](order(po),i)]();
 
+enableCustomQuantityPicking = ABSTRACT BOOLEAN ();
+customQuantityPicking = ABSTRACT NUMERIC[16,5] (Sku, PickingOrder);
+
+dataQuantityPicking 'Кол-во (отобрано)'=
+    GROUP SUM quantity(PickingDetail d) IF isPosted(d) AND order(d) = order(PickingOrder po) BY sku(d), po;
+
+quantityPicking 'Кол-во (отобрано)' (Sku s, PickingOrder o) = OVERRIDE customQuantityPicking(s, o) IF enableCustomQuantityPicking(),
+    dataQuantityPicking(s, o) IF NOT enableCustomQuantityPicking();
+
+diffQuantity 'Кол-во (заказано)' (Sku s, PickingOrder p) = CASE WHEN (NOT quantityPicking(s,p) OR quantityPickingOrder(s,p) > quantityPicking(s,p)) THEN RGB(255,255,128)
+    WHEN (NOT quantityPickingOrder(s,p) OR quantityPickingOrder(s,p) < quantityPicking(s,p)) THEN RGB(255,200,216);
+
+packetsListPicking 'Пакеты в комплектации'= GROUP CONCAT idPacket(PickingDetail d),', ' ORDER idPacket(d),d IF isPosted(d) AND order(d) = order(PickingOrder po) BY sku(d), po CHARWIDTH 30;
+
 EXTEND FORM pickingDashboard
     PROPERTIES (po) READONLY BACKGROUND backgroundStatusPicking(po) AFTER quantityPickingOrderDetail(po) quantityPickingDetail
     PROPERTIES (po) SHOWIF showPicked(po) picked READONLYIF readonlyPicked(po)
@@ -43,6 +57,15 @@ EXTEND FORM pickingDashboard
         FILTER 'Все' po IS PickingOrder DEFAULT
 
     FILTERGROUP byOrder FILTER 'По заказу' po == pickingOrder(p) DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES (s) BACKGROUND diffQuantity(s,po) READONLY idBarcode, name, shortNameUOM, idArticle, nameSize, nameSort, idColor, nameColor
+    PROPERTIES (s,po) BACKGROUND diffQuantity(s,po) READONLY packetsListPicking, quantityOrder, quantityPickingOrder, quantityPicking
+    ORDERS name(s)
+    FILTERS quantityPickingOrder(s,po) OR quantityPicking(s,po)
+
+    FILTERGROUP diffQuantity FILTER 'Несоответствия' NOT quantityPickingOrder(s,po) >= quantityPicking(s,po)
+    FILTERGROUP diffQuantity2 FILTER 'Частично скомплектовано' quantityPickingOrder(s,po) > quantityPicking(s,po)
 ;
 
 DESIGN pickingDashboard {
@@ -50,6 +73,15 @@ DESIGN pickingDashboard {
     REMOVE PROPERTY(partially);
     PROPERTY(acceptPrint(po)) { font = 'bold 12';}
     PROPERTY(picked(po)) { font = 'bold 12';}
+
+    pickings {
+        MOVE BOX(s){
+            caption = 'Контроль по заказу на компл.';
+            PROPERTY(nameSort(s)) { charWidth = 5; }
+            PROPERTY(nameColor(s)) { charWidth = 15; }
+            PROPERTY(idArticle(s)) { caption = 'Модель'; }
+        };
+    }
 
     TOOLBARRIGHT(po) {
         horizontal = FALSE;
