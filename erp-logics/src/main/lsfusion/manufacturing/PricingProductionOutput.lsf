@@ -97,10 +97,13 @@ retVATSum 'Сумма НДС' (ProductDetail productDetail) = NUMERIC[18,4](roun
 retMarkupSum 'Сумма надбавки' (ProductDetail productDetail) = NUMERIC[18,4](round(outputProductsSum(productDetail) (-) retVATSum(productDetail) (-) componentsSum(productDetail), roundPriceCalc(productDetail)));
 retMarkup 'Надбавка, %'(ProductDetail productDetail) = NUMERIC[8,3]([ round2(X*100/Y)](retMarkupSum(productDetail), componentsSum(productDetail)));
 
-overVATSum 'Сумма НДС' (ProductDetail d) = IF addVAT(d) THEN retVATSum(d) ELSE retailVATSum(d);
-overMarkupSum 'Сумма надбавки' (ProductDetail d) = IF addVAT(d) THEN retMarkupSum(d) ELSE retailMarkupSum(d);
+overVATSum 'Сумма НДС' = ABSTRACT CASE NUMERIC[18,4](ProductDetail);
+overVATSum (ProductDetail d) += WHEN d IS ProductDetail THEN ( IF addVAT(d) THEN retVATSum(d) ELSE retailVATSum(d));
+overMarkupSum 'Сумма надбавки'= ABSTRACT CASE NUMERIC[18,4](ProductDetail);
+overMarkupSum  (ProductDetail d) +=  WHEN d IS ProductDetail THEN (IF addVAT(d) THEN retMarkupSum(d) ELSE retailMarkupSum(d));
 overMarkupExtra (ProductDetail d) = ABSTRACT NUMERIC[8,3](ProductDetail);
-overMarkup 'Надбавка, %' (ProductDetail d) = IF addVAT(d) THEN retMarkup(d) ELSE (OVERRIDE overMarkupExtra(d), retailMarkup(d));
+overMarkup 'Надбавка, %' = ABSTRACT CASE NUMERIC[8,3](ProductDetail);
+overMarkup (ProductDetail d) += WHEN d IS ProductDetail THEN (IF addVAT(d) THEN retMarkup(d) ELSE (OVERRIDE overMarkupExtra(d), retailMarkup(d)));
 
 pricingCommittee(OrderOutput output) += pricingCommittee(order(output));
 dataFormedMan(OrderOutput output) += dataFormedMan(order(output));
@@ -140,6 +143,11 @@ supplierSum(OrderOutputDetail outputDetail) +=
     IF componentsPriceSupplierPriceLedger(outputDetail) 
         THEN componentsSum(productDetail(outputDetail))
         ELSE costSum(productDetail(outputDetail));
+
+supplierPricePricing = ABSTRACT CASE NUMERIC[16,4](ProductDetail);
+supplierPricePricing(ProductDetail d) += WHEN d IS ProductDetail THEN (IF componentsPriceSupplierPriceLedger(order(d)) THEN componentsPrice(d) ELSE costPrice(d));
+supplierSumPricing = ABSTRACT CASE NUMERIC[18,4](ProductDetail);
+supplierSumPricing(ProductDetail d) += WHEN d IS ProductDetail THEN (IF componentsPriceSupplierPriceLedger(order(d)) THEN componentsSum(d) ELSE costSum(d));
 
 valueRetailVAT(OrderOutputDetail outputDetail) += valueVAT(productDetail(outputDetail));
 retailMarkup(OrderOutputDetail outputDetail) += overMarkup(productDetail(outputDetail));
