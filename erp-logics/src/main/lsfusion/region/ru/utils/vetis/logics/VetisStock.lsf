@@ -88,9 +88,8 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     noConsignorEnterprise 'Отсутствует площадка отправителя' = ABSTRACT BOOLEAN (###doc) PREREAD;
     
     volume 'Объем в документе' = DATA NUMERIC[16,5] (###doc##Detail, VetDocument);
-    number = DATA LOCAL STRING[200]();
-    volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](MIN (quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0), volume(vtd));
-    volumeDetail2 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = PARTITION UNGROUP quantity LIMIT STRICT volume(vtd)/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) ORDER DESC volume(vtd), vtd BY vd;
+    
+    volumeDetail 'Объем в документе' (###doc##Detail vd, VetDocument vtd) = NUMERIC[16,5](MIN (quantity(vd) * OVERRIDE factor(sku(vd), unit(vtd)), 1.0), volume(vtd)); 
     fillVolume 'Выбрать' (###doc##Detail vd, VetDocument vtd) { volume(vd, vtd) <- volumeDetail(vd, vtd); }
     
     matches (###doc##Detail vd, VetDocument vtd) = (IF noConsignorEnterprise(doc(vd)) THEN
@@ -100,7 +99,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
             in(consignor##Stock(vd), consignorEnterprise(vtd)))
         AND
             in(consignee##Stock(vd), consigneeEnterprise(vtd)) AND
-            in(sku(vd), productItem(vtd));
+            productItem(vtd) = productItem(sku(vd));
     
     fillExpiryDate 'Заполнить сроки годности' (###doc d) {
         ASK 'Заполнить сроки годности из ВСД ?' DO
@@ -109,17 +108,16 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
     }
 
     fillVolumeDate 'Заполнить по дате' (###doc d) {
-        volume(###doc##Detail vd, VetDocument vtd) <-
-            (PARTITION UNGROUP shipmentQuantity LIMIT volume(vtd)/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF date(vd) = issueDate(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
+        volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd)
+            IF date(vd) = issueDate(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
             WHERE doc(vd) = d;
         fillExpiryDate(d);
     } CONFIRM;
     
     fillVolume 'Заполнить по номеру' (###doc d) {
         DIALOG requestWayBillNumber OBJECTS s = seriesNumber(d) INPUT DO {
-            number() <- s;
-            volume(###doc##Detail vd, VetDocument vtd) <-                 
-                (PARTITION UNGROUP shipmentQuantity LIMIT volume(vtd)/(OVERRIDE factor(sku(vd), unit(vtd)), 1.0) IF number() = issueSeriesNumberWaybill(vtd) AND  matches(vd, vtd)  AND status(vtd) = VetDocumentStatus.CONFIRMED ORDER DESC volume(vtd), vtd BY vd)*(OVERRIDE factor(sku(vd), unit(vtd)), 1.0)
+            volume(###doc##Detail vd, VetDocument vtd) <- volumeDetail(vd, vtd)
+                IF s = issueSeriesNumberWaybill(vtd) AND matches(vd, vtd) AND status(vtd) = VetDocumentStatus.CONFIRMED
                 WHERE doc(vd) = d;
             fillExpiryDate(d);
         }
@@ -136,7 +134,7 @@ META defineDocumentVetDocument (doc, consignor, consignee, quantity, obj, contai
                                 uuidVetDocument, volumeVetDocument
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeVetDocument(vd)
+                productItem(sku(vd)) OR volumeVetDocument(vd)
 
         PROPERTIES(obj) DRAW vd TOOLBAR fillVolume, fillVolumeDate
         
@@ -176,7 +174,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
 
     quantity (###doc##Detail vd, StockEntry s) = volume(s) / OVERRIDE factor(sku(vd), unit(s)), 1.0;
     
-    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, GROUP MIN ProductItem pi IF in(sku(vd), pi)) AND active(s);
+    matches (###doc##Detail vd, StockEntry s) = in(stock(vd), enterprise(s)) AND in(s, productItem(sku(vd))) AND active(s);
     
     calcQuantity(###doc##Detail vd, StockEntry s) = 
         PARTITION UNGROUP quantity LIMIT quantity(vd, s) IF matches(vd, s) ORDER expiryDate(s), s BY vd;
@@ -196,7 +194,7 @@ META defineDocumentStockEntry (doc, stock, quantity, obj, container)
                                 numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS doc(vd) = obj,
-            [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+                productItem(sku(vd)) OR volumeStockEntry(vd)
         
         PROPERTIES(obj) fillVolume DRAW vd TOOLBAR
         
@@ -236,7 +234,7 @@ META defineChangeOutgoingConsignmentDialog (doc)
         numberStockEntry, volumeStockEntry
         ORDERS index(vd)
         FILTERS user###doc(vd) = i,
-        [GROUP SUM 1 IF in(sku(###doc##Detail vd1), ProductItem pi) BY vd1](vd) OR volumeStockEntry(vd)
+        productItem(sku(vd)) OR volumeStockEntry(vd)
     
         PROPERTIES(i) fillVolume DRAW vd TOOLBAR
     
