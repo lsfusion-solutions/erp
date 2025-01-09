@@ -53,8 +53,9 @@ EXTEND FORM UOMs
 checkChange (Sku sku) = OVERRIDE checkChange(skuGroup(sku)), checkChange(UOM(sku)) MATERIALIZED;
 
 // --- Свойство с расчетом кол-ва дней ---- //
+overBalance = ABSTRACT BOOLEAN (Sku, Stock, DATE);
 daysOnStock(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
-    (IF balanceB(sku, stock, dateFrom) > 0 THEN 
+    (IF balanceB(sku, stock, dateFrom) > 0 OR overBalance(sku, stock, dateFrom) THEN 
         (daysBetweenDates(dateTo, dateFrom)+1)) (+) 
             (GROUP 
                     SUM IF DATE date >= dateFrom AND date <= dateTo THEN 
