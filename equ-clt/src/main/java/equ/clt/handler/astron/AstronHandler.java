@@ -1196,14 +1196,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private Integer getPropertyGrpId(ItemInfo item) {
-        JSONObject infoJSON = getExtInfo(item.info).first();
-        if (item.price != null && infoJSON != null) {
-            int propertyGrpId = infoJSON.optInt("propertyGrpId");
-            astronLogger.info("TEMP LOG: propertyGrpId=" + propertyGrpId);
-            if(propertyGrpId == 0) {
-                astronLogger.info("TEMP LOG: json=" + infoJSON);
+        for(JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
+            if (item.price != null && infoJSON != null) {
+                if(infoJSON.has("propertyGrpId")) {
+                    int propertyGrpId = infoJSON.optInt("propertyGrpId");
+                    astronLogger.info("TEMP LOG: propertyGrpId=" + propertyGrpId);
+                    if (propertyGrpId == 0) {
+                        astronLogger.info("TEMP LOG: json=" + infoJSON);
+                    }
+                    return propertyGrpId != 0 ? propertyGrpId : null;
+                }
             }
-            return propertyGrpId != 0 ? propertyGrpId : null;
         }
         return null;
     }
