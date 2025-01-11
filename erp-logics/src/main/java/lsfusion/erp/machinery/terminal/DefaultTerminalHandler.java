@@ -749,6 +749,7 @@ public class DefaultTerminalHandler {
                 " unit_load TEXT DEFAULT NULL," +
                 " labelcount INTEGER DEFAULT NULL," +
                 " categories TEXT DEFAULT NULL," +
+                " promo INTEGER DEFAULT NULL," +
                 " PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.close();
@@ -759,7 +760,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -790,6 +791,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(++i, formatValue(order.unitLoad));
                         statement.setObject(++i, order.labelCount);
                         statement.setObject(++i, order.categories);
+                        statement.setObject(++i, order.promo);
                         statement.addBatch();
                     }
                 }
@@ -1673,7 +1675,7 @@ public class DefaultTerminalHandler {
                         terminalOrder.minQuantity = safeAdd(terminalOrder.minQuantity, minQuantity);
                         terminalOrder.maxQuantity = safeAdd(terminalOrder.maxQuantity, maxQuantity);
                     } else
-                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, null, null,
+                        terminalOrderMap.put(key, new TerminalOrder(dateOrder, dateShipment, numberOrder, idSupplier, null, null, null,
                                 barcode, idItem, name, category, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
@@ -1940,13 +1942,14 @@ public class DefaultTerminalHandler {
                 if (!taskObject.isNull()) {
                     String code = (String) labelTerminalTaskLM.findProperty("code[LabelTask]").read(session, taskObject);
                     String captionDOW = (String) labelTerminalTaskLM.findProperty("captionDow[LabelTask]").read(session, taskObject);
+                    Boolean promo = (Boolean) labelTerminalTaskLM.findProperty("promo[LabelTask]").read(session, taskObject);
                     Integer labelCount = (Integer) labelTerminalTaskLM.findProperty("count[LabelTask]").read(session, taskObject);
                     String categories = (String) labelTerminalTaskLM.findProperty("skuGroupsJSON[LabelTask]").read(session, taskObject);
                     String vop = (String) labelTerminalTaskLM.findProperty("idTerminalDocumentType[LabelTask]").read(session, taskObject);
                     String extraField = (String) labelTerminalTaskLM.findProperty("extraField[LabelTask]").read(session, taskObject);
                     
-                    result.add(new TerminalOrder(LocalDate.now(), null, code, null, labelCount, categories,
-                            null, null, null, null, null, null, null, null,
+                    result.add(new TerminalOrder(LocalDate.now(), null, code, null, labelCount, categories, promo, null,
+                            null, null, null, null, null, null, null,
                             null, null, null, null, null,
                             extraField, null, null, null,  null, null,
                             null, null, vop, null, null, null, null,
@@ -2198,9 +2201,10 @@ public class DefaultTerminalHandler {
         public String unitLoad;
         public Integer labelCount;
         public String categories;
+        public Boolean promo;
         
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
-                             Integer labelCount, String categories,
+                             Integer labelCount, String categories, Boolean promo,
                              String barcode, String idItem, String name, String category,
                              BigDecimal price, BigDecimal quantity, BigDecimal minQuantity, BigDecimal maxQuantity,
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, String color,
@@ -2212,6 +2216,7 @@ public class DefaultTerminalHandler {
             this.supplier = supplier;
             this.labelCount = labelCount;
             this.categories = categories;
+            this.promo = promo;
             this.barcode = barcode;
             this.idItem = idItem;
             this.name = name;

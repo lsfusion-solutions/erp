@@ -6,6 +6,7 @@ CLASS LabelTask 'Задания';
 TABLE labelTask (LabelTask);
 
 code 'Код' = DATA STRING (LabelTask);
+promo 'В акциии' = DATA BOOLEAN (LabelTask);
 dow = DATA DOW (LabelTask);
 order (LabelTask t) = numberM(dow(t));
 captionDow 'День недели' (LabelTask t) = staticCaption(dow(t)) NONULL CHARWIDTH 20;
@@ -26,6 +27,7 @@ skuGroupsJSON(LabelTask t) = CONCAT '', '[', (GROUP CONCAT '"' + idSkuGroup(SkuG
 extraField (LabelTask t) = CONCAT '<br>',
     '<big>' + captionDow(t) + '</big>',
     'Ценников к проверке: <big>' + (OVERRIDE STRING[10](count(t)), '') + '</big>',
+    'В акции',
     'Товарные группы:<br><big>' + skuGroups(t) + '</big>';
 
 has(DOW d) = GROUP LAST LabelTask t IF dow(t) = d ORDER t;
@@ -40,10 +42,9 @@ unSelectAllStore 'Сбросить все' (LabelTask t) {
 
 FORM labelTasks 'Верификация ценников'
     OBJECTS lt = LabelTask
-    PROPERTIES(lt) in, code READONLY, captionDow, count, countSkuGroups READONLY, nameTerminalDocumentType, order ORDER SHOWIF NULL
+    PROPERTIES(lt) in, code READONLY, captionDow, promo, count, countSkuGroups READONLY, nameTerminalDocumentType, order ORDER SHOWIF NULL
     PROPERTIES(lt) selectAllStore, unSelectAllStore
     PROPERTIES(lt) NEW, DELETE
-    //PROPERTIES() importFromTerminalDocument TOOLBAR
     
     OBJECTS s = Store
     PROPERTIES(lt, s) in
@@ -68,11 +69,10 @@ WHEN LOCAL SET(LabelTask lt IS LabelTask) DO {
 userStock = store(stock(currentUser()));
 userStock (Employee employee) = store(stock(employee));
 todayTask 'Задание на сегодня' = GROUP LAST LabelTask lt IF in(lt) AND dow(lt) = extractDOW(currentDate()) AND in(lt, userStock()) ORDER code(lt), lt;
-todayTask 'Задание на сегодня' (Employee employee) = GROUP LAST LabelTask lt IF in(t) AND dow(t) = extractDOW(currentDate()) AND in(lt, userStock(employee)) ORDER code(lt), lt;
+todayTask 'Задание на сегодня' (Employee employee) = GROUP LAST LabelTask lt IF in(lt) AND dow(lt) = extractDOW(currentDate()) AND in(lt, userStock(employee)) ORDER code(lt), lt;
 
 onWebClientStarted() + {
 
-//    IF has(currentUser(), userRoleSID('admin')) AND todayTask() THEN {
     IF todayTask() THEN {
         IF count(todayTask()) THEN {
             IF skuGroups(todayTask()) THEN
