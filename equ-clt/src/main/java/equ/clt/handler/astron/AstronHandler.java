@@ -781,6 +781,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, boolean delFlag, Integer maxBatchSize, Integer updateNum,
                             boolean usePropertyGridFieldInPackTable, boolean specialSplitMode) throws SQLException, UnsupportedEncodingException {
+        astronLogger.info("TEMP LOG: start exportPack, usePropertyGridFieldInPackTable: " + usePropertyGridFieldInPackTable);
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
                 usePropertyGridFieldInPackTable ?
@@ -1198,6 +1199,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         JSONObject infoJSON = getExtInfo(item.info).first();
         if (item.price != null && infoJSON != null) {
             int propertyGrpId = infoJSON.optInt("propertyGrpId");
+            astronLogger.info("TEMP LOG: propertyGrpId=" + propertyGrpId);
+            if(propertyGrpId == 0) {
+                astronLogger.info("TEMP LOG: json=" + infoJSON);
+            }
             return propertyGrpId != 0 ? propertyGrpId : null;
         }
         return null;
