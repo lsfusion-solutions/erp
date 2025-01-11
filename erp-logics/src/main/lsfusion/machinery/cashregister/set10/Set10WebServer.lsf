@@ -21,6 +21,7 @@ GROUP positions;
 
 GROUP plugin_property EXTID 'plugin-property';
 GROUP payments;
+GROUP payment : payments;
 
 operDay = DATA LOCAL DATE(INTEGER);
 shop = DATA LOCAL STRING(INTEGER);
@@ -72,6 +73,7 @@ amount2 = DATA LOCAL STRING(INTEGER);
 discountAmount = DATA LOCAL STRING(INTEGER);
 inn = DATA LOCAL STRING(INTEGER);
 count1 = DATA LOCAL NESTED STRING();
+paymentPluginPayment = DATA LOCAL INTEGER(INTEGER);
 
 FORM purchasesImport FORMEXTID 'purchases'
     PROPERTIES() count1 EXTID 'count' ATTR
@@ -93,12 +95,24 @@ FORM purchasesImport FORMEXTID 'purchases'
     FILTERS imported(position)
     PROPERTIES(position) key1 EXTID 'key' ATTR, value1 EXTID 'value' ATTR
 
+//    OBJECTS payment = INTEGER IN payments
+//    FILTERS purchasePayment(payment) == purchase
+//    FILTERS paymentPayment(payment) == payment
+//    PROPERTIES(payment) key2 EXTID 'key' ATTR, value2 EXTID 'value' ATTR
+//    FILTERS imported(payment)
+//    PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
+
     OBJECTS payment = INTEGER IN payments
     FILTERS purchasePayment(payment) == purchase
     FILTERS paymentPayment(payment) == payment
-    PROPERTIES(payment) key2 EXTID 'key' ATTR, value2 EXTID 'value' ATTR
-    FILTERS imported(payment)
     PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
+
+
+    OBJECTS pluginPayment = INTEGER EXTID 'plugin-property' IN payment
+    FILTERS paymentPluginPayment(pluginPayment) == purchase
+    PROPERTIES(pluginPayment) key2 EXTID 'key' ATTR, value2 EXTID 'value' ATTR
+    FILTERS imported(pluginPayment)
+
 ;
 
 idReceipt = DATA LOCAL STRING(INTEGER);
@@ -128,6 +142,10 @@ overCreateReceiptDetail(ReceiptDetail d, INTEGER j) +{
 overCreateZReport ABSTRACT LIST(ZReport);
 
 useDeletePaymentSet10 = DATA BOOLEAN ();
+
+paymentTypeExtra = DATA LOCAL PaymentType (INTEGER);
+importReceiptExtra  ABSTRACT LIST(STRING);
+
 importReceipt(STRING purchases){
     NEWSESSION {
         stringToFile(purchases);
@@ -233,13 +251,17 @@ importReceipt(STRING purchases){
         }
 
         LOCAL paymentType = PaymentType (INTEGER);
+        paymentTypeExtra(INTEGER j) <- NULL;        
+        importReceiptExtra(purchases);
+        
         paymentType(INTEGER j) <- (IF typeClass(j) = 'CashPaymentEntity' THEN 
             typePaymentSID('cash') 
             ELSE
-            OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card')
-        ) IF purchasePayment(j)
-        ;
+            OVERRIDE paymentTypeExtra(j), extraPaymentType(typeClass(j)), typePaymentSID('card')
+        ) IF purchasePayment(j);
         
+
+
         LOCAL sumPayment = NUMERIC[18,4] (INTEGER);
         sumPayment(INTEGER j) <- NUMERIC[18,4](
             (IF typeClass(j) = 'CashPaymentEntity' THEN NUMERIC[18,4](amount1(j)) (-) sumChange(purchasePayment(j))
@@ -394,7 +416,10 @@ reImportReceipt(STRING purchases, STRING shopId){
         sumChange(INTEGER i) <- NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
         shop(STRING id) <- GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
         startDateValid(INTEGER i) <- DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR (NOT startDate(shop(shop1(i))) AND saletime1(i));
-
+        
+        paymentTypeExtra(INTEGER j) <- NULL;
+        importReceiptExtra(purchases);
+        
         FOR imported(INTEGER i) AND Receipt r = receipt(idReceipt(i)) AND shopId = shop1(i) DO{
             date(r) <- DATE(saletime1(i));
             time(r) <- TIME(DATETIME(saletime1(i)));
@@ -425,7 +450,7 @@ reImportReceipt(STRING purchases, STRING shopId){
                     (NUMERIC[18,4](amount1(j)) (-) sumChange(i))
                     ELSE  NUMERIC[18,4] (amount1(j))) * (IF operationType(i) = 'true' THEN 1 ELSE -1));
                 paymentType(p) <- IF typeClass(j) = 'CashPaymentEntity' THEN typePaymentSID('cash')
-                    ELSE OVERRIDE extraPaymentType(typeClass(j)), typePaymentSID('card');
+                    ELSE OVERRIDE paymentTypeExtra(j), extraPaymentType(typeClass(j)), typePaymentSID('card');
             }
         }
         APPLY;
