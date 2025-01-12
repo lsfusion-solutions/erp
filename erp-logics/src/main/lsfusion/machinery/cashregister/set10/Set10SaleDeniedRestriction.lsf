@@ -74,7 +74,7 @@ restriction = GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT delete
 FORM saleRestrictionExport FORMEXTID 'goods-catalog'
     OBJECTS d = SaleDeniedRestriction EXTID 'sale-denied-restriction'
     PROPERTIES DRAW d = STRING(d) EXTID 'id' ATTR, = IF is(d) THEN 'GOOD' EXTID 'subject-type' ATTR, idSku(d) EXTID 'subject-code' ATTR, 
-        type = 'SALE_DENIED' ATTR, value = 'true' ATTR,
+        type = 'SALE_DENIED' ATTR, value = IF deleted(d) THEN 'false' ELSE 'true' ATTR,
         shopIndices(d) EXTID 'shop-indices',
         sinceDate(d) EXTID 'since-date',
         deleted = IF deleted(d) THEN 'true' ELSE 'false'
@@ -160,7 +160,7 @@ getFeedback 'Получить статус' (SaleDeniedRestriction r){
 needExport(SaleDeniedRestriction r) = (NOT dateTimeExported(r) AND NOT deleted(r)) OR (deleted(r) AND NOT dateTimeDeleted(r));
 
 processDeniedRestrictions 'Обработка запретов продаж'(){
-    FOR createdTime(SaleDeniedRestriction r)  AND needExport(r)  AND NOT tiExport(r) AND set10Stock(stock(r)) DO {
+    FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r))  DO {
         exportSaleRestrictionTI(r);
     }
     FOR tiExport(SaleDeniedRestriction r) DO{
@@ -260,7 +260,8 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
 } TOOLBAR;
 
 EXTEND FORM saleDeniedRestrictions
-    PROPERTIES TOOLBAR exportSaleRestrictionTI(r), getFeedback(r) SHOWIF tiExport(r), tiExport(r) READONLY 
+    PROPERTIES TOOLBAR exportSaleRestrictionTI(r), getFeedback(r) SHOWIF tiExport(r)
+    PROPERTIES tiExport(r) READONLY 
 ;
 
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
