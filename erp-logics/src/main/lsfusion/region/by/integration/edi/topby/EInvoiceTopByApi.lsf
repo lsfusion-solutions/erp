@@ -582,3 +582,67 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
         RETURN;
     }
 }
+
+overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+    IF documentType() == 'BLRADF'  THEN {
+        LOCAL eCreditNote = ECreditNote();
+        eCreditNote() <- eCreditNote(documentNumber());
+        IF eCreditNote() THEN {
+            NEWSESSION NESTED LOCAL {
+                IF NOT eCreditNoteMessage( eCreditNote(), 'm' + messageDocumentNumber(),  EInvoiceMessageKind.in) THEN NEW m =  ECreditNoteMessage {
+                    number(m) <- 'm' + messageDocumentNumber();
+                     eCreditNote(m) <-  eCreditNote();
+                    kind(m) <-  EInvoiceMessageKind.in;
+                }
+                FOR  ECreditNoteMessage m == eCreditNoteMessage( eCreditNote(), 'm' + messageDocumentNumber(),  EInvoiceMessageKind.in) DO {
+                    dateTime(m) <- messageDocumentDate();
+                    code(m) <- code();
+                    description(m) <- OVERRIDE description(), description(code());
+                    type(m) <- ECreditNoteMessageType.systemmessage_blradf;
+                    XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                    APPLY NESTED LOCAL;
+                    IF canceled() THEN {
+                        logToFile('edi', provider + ' (' + login + ') Import  ECreditNoteMessage ' + id(i) + ' failed: ' + applyMessage());
+                        invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+                    } ELSE {
+                        IF NOT disableConfirmation THEN {
+                            LOCAL xml = XMLFILE();
+                            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                            sendRequestEDI(url, xml());
+                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                            IF requestError() THEN {
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            }
+                        }
+                        logToFile('edi', provider + ' (' + login + ') Import  ECreditNoteMessage ' + id(i) + ' succeeded');
+                        invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
+                    }
+                }
+            }
+        } ELSE {
+            IF confirmNotFoundInvoices() THEN {
+                IF NOT disableConfirmation THEN {
+                    LOCAL xml = XMLFILE();
+                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+                    sendRequestEDI(url, xml());
+                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                    IF requestError() THEN {
+                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                        MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                    } ELSE {
+                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                    }
+                    messagesConfirmed() <- messagesConfirmed() + 1;
+                }
+            }
+            logToFile('edi', provider + ' (' + login + ') Import  ECreditNoteMessage ' + id(i) + ' failed: ' + ' ECreditNote ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
+            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+        }
+        RETURN;
+    }
+}
