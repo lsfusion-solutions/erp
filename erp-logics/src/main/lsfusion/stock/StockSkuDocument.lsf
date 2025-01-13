@@ -1362,6 +1362,7 @@ END
 // ------------------------- Партии ---------------------------- //
 batch = ABSTRACT Batch(DocumentDetail);
 nameBatch 'Партия' (DocumentDetail d) = name(batch(d));
+baseName 'Партия' (DocumentDetail d) = baseName(batch(d));
 
 META implementDocumentBatch(object)
     @implementDocumentBatch(object, );
@@ -1692,7 +1693,7 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         dateDocument(l) <- date(document(d));
         typeDocument(l) <- objectClassName(document(d));
         sku(l) <- sku(d);
-        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + nameBatch(d); 
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
         nameUser(l) <- ISTRING[100](name(currentUser()));
@@ -1712,7 +1713,7 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d))  OR CHANGED(batch
         dateDocument(l) <- date(document(d));
         typeDocument(l) <- objectClassName(document(d));
         sku(l) <- sku(d);
-        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + nameBatch(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + baseName(d);
         prevQuantity(l) <- PREV(quantity(d)); 
         quantity(l) <- quantity(d);
         price(l) <- price(d);
@@ -1733,7 +1734,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         dateDocument(l) <- PREV(date(document(d)));
         typeDocument(l) <- prevObjectClassName(PREV(document(d)));
         sku(l) <- PREV(sku(d));
-        batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + name(PREV(batch(d)));
+        batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + baseName(PREV(batch(d)));
         quantity(l) <- PREV(quantity(d));
         price(l) <- PREV(price(d));
         nameUser(l) <- ISTRING[100](name(currentUser()));
