@@ -54,8 +54,7 @@ getIndexes 'Получить список индексов'(Table t) {
     NEWSESSION {
         LOCAL is = BOOLEAN (Index);
         
-        EXTERNAL SQL 'LOCAL'
-            EXEC 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1' 
+        INTERNAL DB 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1' 
             PARAMS lower(sid(t))
             TO file;
             
@@ -86,8 +85,7 @@ getIndexes 'Получить список индексов'(Table t) {
 
 invalidate 'Отключить' (Index i) {
     IF relid(i) > 0 THEN {
-        EXTERNAL SQL 'LOCAL'
-            EXEC 'UPDATE pg_index SET indisvalid = false WHERE indexrelid = $1' 
+        INTERNAL DB 'UPDATE pg_index SET indisvalid = false WHERE indexrelid = $1' 
             PARAMS relid(i);
         getIndexes(table(i));
     }
@@ -95,8 +93,7 @@ invalidate 'Отключить' (Index i) {
 
 validate 'Включить' (Index i) {
     IF relid(i) > 0 THEN {
-        EXTERNAL SQL 'LOCAL'
-            EXEC 'UPDATE pg_index SET indisvalid = true WHERE indexrelid = $1' 
+        INTERNAL DB 'UPDATE pg_index SET indisvalid = true WHERE indexrelid = $1' 
             PARAMS relid(i);
         getIndexes(table(i));
     }
@@ -223,8 +220,7 @@ vacuum 'VACUUM FULL' (DatabaseTable t) {
 } ASON CONTEXTMENU sid[DatabaseTable];
 
 loadCurSize 'Заполнить размеры таблиц'(){
-    EXTERNAL SQL 'LOCAL'
-        EXEC 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
+    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
              'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
         TO file;
     
@@ -237,8 +233,7 @@ loadCurSize 'Заполнить размеры таблиц'(){
 loadSystemCurSize 'Заполнить размеры системных таблиц'(){
 
     IF NOT (GROUP SUM 1 IF PgTable t IS PgTable) THEN NEWSESSION {
-        EXTERNAL SQL 'LOCAL'
-            EXEC 'SELECT tablename FROM pg_tables WHERE schemaname = \'pg_catalog\''
+        INTERNAL DB 'SELECT tablename FROM pg_tables WHERE schemaname = \'pg_catalog\''
             TO file;
             
         IMPORT TABLE FROM file() FIELDS STRING[100] table DO {
@@ -253,8 +248,7 @@ loadSystemCurSize 'Заполнить размеры системных табл
         APPLY;
     }
 
-    EXTERNAL SQL 'LOCAL'
-        EXEC 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
+    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
              'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
         TO file;
     
@@ -373,12 +367,11 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
         IF targetStatistic(t) THEN {
             curRows(t) <- targetStatistic(t);
         } ELSE {
-            EXTERNAL SQL 'LOCAL' EXEC 'ANALYZE ' + lower(sid(t));
+            INTERNAL DB 'ANALYZE ' + lower(sid(t));
             
             curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
             
-            EXTERNAL SQL 'LOCAL'
-                EXEC 'SELECT attname, CAST (1.0-null_frac::numeric(11,10) AS numeric(11,10)) AS noNull, n_distinct::numeric(21,10),' +
+            INTERNAL DB 'SELECT attname, CAST (1.0-null_frac::numeric(11,10) AS numeric(11,10)) AS noNull, n_distinct::numeric(21,10),' +
                      'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
                 TO file;
             
@@ -435,8 +428,7 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
 } ASON CONTEXTMENU sid[DatabaseTable];
 
 loadCurRows 'Заполнить количество записей'(){
-    EXTERNAL SQL 'LOCAL'
-        EXEC 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
+    INTERNAL DB 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
         TO file;
     
     IMPORT TABLE FROM file() FIELDS STRING[100] table, LONG size DO {
