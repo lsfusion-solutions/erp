@@ -332,6 +332,8 @@ EXTEND FORM options
     PROPERTIES () countThreadsAutoOrder
 ;
 
+skipDeleteEmptyAutoOrders 'Не удалять автозаказы без строк' = DATA BOOLEAN () PREREAD;
+
 createAutoOrdersCustom(ScheduleOrderDetail scheduleOrderDetail,DATE date){
     NEWSESSION NESTED LOCAL{
         typeProcess(scheduleOrderDetail) <- TypeProcess.start;
@@ -386,7 +388,6 @@ createAutoOrdersCustom(ScheduleOrderDetail scheduleOrderDetail,DATE date){
             overCreateAuto(o);
 
             IF NOT useCreateAutoAfter(o) THEN {
-                DELETE o WHERE NOT countUserOrderDetail(o);
                 IF countUserOrderDetail(o) THEN {
                     generateNumber(o);
                     APPLY;
@@ -413,14 +414,29 @@ createAutoOrdersCustom(ScheduleOrderDetail scheduleOrderDetail,DATE date){
                         }
                     }
                 } ELSE {
-                    NEWSESSION NESTED LOCAL{
-                        typeProcess(scheduleOrderDetail) <- TypeProcess.end;
-                        noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
-                            noteProcess(scheduleOrderDetail),
-                            (CONCAT ' ', currentDateTime(), 'Количество строк - 0'),
-                            (CONCAT ' ', currentDateTime(), 'Заказ не создан' ));
-                        APPLY NESTED LOCAL;
+                    IF skipDeleteEmptyAutoOrders() THEN {
+                        generateNumber(o);
+                        APPLY;
+                        NEWSESSION NESTED LOCAL{
+                            typeProcess(scheduleOrderDetail) <- TypeProcess.end;
+                            noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                                noteProcess(scheduleOrderDetail),
+                                (CONCAT ' ', currentDateTime(), 'Количество строк - 0'),
+                                (CONCAT ' ', currentDateTime(), 'Номер заказа -' , seriesNumber(o)));
+                            APPLY NESTED LOCAL;
+                        }
+                    } ELSE {
+                        DELETE o;
+                        NEWSESSION NESTED LOCAL{
+                            typeProcess(scheduleOrderDetail) <- TypeProcess.end;
+                            noteProcess(scheduleOrderDetail) <- (CONCAT '\n',
+                                noteProcess(scheduleOrderDetail),
+                                (CONCAT ' ', currentDateTime(), 'Количество строк - 0'),
+                                (CONCAT ' ', currentDateTime(), 'Заказ не создан' ));
+                            APPLY NESTED LOCAL;
+                        }
                     }
+
                 }
             } ELSE {
                 createAutoAfter(o);
@@ -460,14 +476,15 @@ createAutoOrdersMultithread 'Создание автозаказов (много
 }
 
 EXTEND FORM options
-    PROPERTIES () createAutoOrders, createAutoOrdersMultithread
+    PROPERTIES () createAutoOrders, createAutoOrdersMultithread, skipDeleteEmptyAutoOrders
 ;
 
 DESIGN options {
-    purchase{
+    purchase {
         MOVE PROPERTY (createAutoOrders());
         MOVE PROPERTY (countThreadsAutoOrder());
         MOVE PROPERTY (createAutoOrdersMultithread());        
+        MOVE PROPERTY (skipDeleteEmptyAutoOrders());        
     }
 }
 
