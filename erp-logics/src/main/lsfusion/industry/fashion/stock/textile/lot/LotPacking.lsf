@@ -92,3 +92,12 @@ CONSTRAINT DROPPED(isClosed(Packet packet)) AND onStock(packet)
 
 CONSTRAINT CHANGED(packet(Lot lot)) AND onStock(packet(lot))
     MESSAGE 'Запрещено изменять марки в пакете, находящемся на складе';
+
+META defineExtendPacketDetailLotProperties (object, formDocument, formDocumentPacketDetail)
+    isClosedPacket 'Закрыт' (###object##PacketDetail d) = isClosed(packet(d));
+    countLotsPacketPacket 'Кол-во марок' (###object##PacketDetail d) = countLotsPacket(packet(d));
+    
+    EXTEND FORM ##object
+        PROPERTIES(##formDocumentPacketDetail) SHOWIF packets(##formDocument) AFTER index(##formDocumentPacketDetail) isClosedPacket, countLotsPacketPacket
+    ;
+END;
