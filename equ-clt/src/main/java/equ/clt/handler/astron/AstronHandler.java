@@ -503,20 +503,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private Integer getIdVAT(ItemInfo item, boolean swap10And20VAT) {
-        JSONObject infoJSON = getExtInfo(item.info).first();
-        if(infoJSON != null && infoJSON.has("idvat")) {
-            return infoJSON.getInt("idvat");
-        } else {
-            Integer result = 0;
-            if (item.vat != null) {
-                if (item.vat.compareTo(BigDecimal.valueOf(10)) == 0) {
-                    result = swap10And20VAT ? 2 : 1;
-                } else if (item.vat.compareTo(BigDecimal.valueOf(20)) == 0) {
-                    result = swap10And20VAT ? 3 : 2;
-                }
+        for(JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
+            if(infoJSON.has("idvat")) {
+                return infoJSON.getInt("idvat");
             }
-            return result;
         }
+        Integer result = 0;
+        if (item.vat != null) {
+            if (item.vat.compareTo(BigDecimal.valueOf(10)) == 0) {
+                result = swap10And20VAT ? 2 : 1;
+            } else if (item.vat.compareTo(BigDecimal.valueOf(20)) == 0) {
+                result = swap10And20VAT ? 3 : 2;
+            }
+        }
+        return result;
     }
 
     private void exportPropertyGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
@@ -781,7 +781,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     private void exportPack(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, MachineryInfo machinery, boolean delFlag, Integer maxBatchSize, Integer updateNum,
                             boolean usePropertyGridFieldInPackTable, boolean specialSplitMode) throws SQLException, UnsupportedEncodingException {
-        astronLogger.info("TEMP LOG: start exportPack, usePropertyGridFieldInPackTable: " + usePropertyGridFieldInPackTable);
         String[] keys = new String[]{"PACKID"};
         String[] columns = getColumns(
                 usePropertyGridFieldInPackTable ?
@@ -967,10 +966,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getPackName(ItemInfo item) throws UnsupportedEncodingException {
-        JSONObject infoJSON = getExtInfo(item.info).first();
         String packName = null;
-        if (infoJSON != null && infoJSON.has("packName")) {
-            packName = infoJSON.optString("packName", "");
+        for(JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
+            if (infoJSON.has("packName")) {
+                packName = infoJSON.getString("packName");
+                break;
+            }
         }
         return packName != null ? encode(packName) : getItemName(item);
     }
@@ -1130,10 +1131,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             for (int i = 0; i < transaction.itemsList.size(); i++) {
                 if (notInterrupted()) {
                     CashRegisterItem item = transaction.itemsList.get(i);
-                    JSONObject infoJSON = getExtInfo(item.info).first();
+                    ExtInfo extInfo = getExtInfo(item.info);
                     if (item.price != null) {
                         Integer packId = getPackId(item);
-                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum);
+                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, extInfo, packId, offset, exportExtraTables, item.price, 1, null, false, keys.length, updateNum);
                         batchCount++;
                         if(maxBatchSize != null && batchCount == maxBatchSize) {
                             executeAndCommitBatch(ps, conn);
@@ -1142,13 +1143,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         if(exportExtraTables) {
                             //{"extraPrices": [{"id": 2, "name": "VIP", "price": 12.34}, {"id": 3, "name": "OPT", "price": 2.34}]}
-                            JSONArray extraPrices = infoJSON != null ? infoJSON.optJSONArray("extraPrices") : null;
-                            if(extraPrices != null) {
-                                for (int j = 0; j < extraPrices.length(); j++) {
-                                    JSONObject extraPrice = extraPrices.getJSONObject(j);
-                                    Integer id = extraPrice.getInt("id");
-                                    BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
-                                    addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, infoJSON, packId, offset, true, price, id, getBigDecimalValue(extraPrice, "overPackMinPrice"), false, keys.length, updateNum);
+                            for(JSONObject infoJSON : extInfo.jsonObjects) {
+                                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
+                                if (extraPrices != null) {
+                                    for (int j = 0; j < extraPrices.length(); j++) {
+                                        JSONObject extraPrice = extraPrices.getJSONObject(j);
+                                        Integer id = extraPrice.getInt("id");
+                                        BigDecimal price = BigDecimal.valueOf(extraPrice.getDouble("price"));
+                                        addPackPrcRow(ps, params, transaction.nppGroupMachinery, item, extInfo, packId, offset, true, price, id, getBigDecimalValue(extraPrice, "overPackMinPrice"), false, keys.length, updateNum);
+                                    }
                                 }
                             }
                         }
@@ -1177,17 +1180,32 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return null;
     }
 
+    private BigDecimal getBigDecimalValue(ExtInfo extInfo, String key) {
+        if(extInfo != null) {
+            for(JSONObject infoJSON : extInfo.jsonObjects) {
+                if(infoJSON.has(key)) {
+                    Double value = infoJSON.optDouble(key);
+                    if (!value.isNaN()) {
+                        return BigDecimal.valueOf(value);
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     private Set<Integer> getHasExtraPrices(TransactionCashRegisterInfo transaction) {
         Set<Integer> hasExtraPrices = new HashSet<>();
         for (CashRegisterItem item : transaction.itemsList) {
-            JSONObject infoJSON = getExtInfo(item.info).first();
-            if (item.price != null && infoJSON != null) {
-                JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
-                if (extraPrices != null) {
-                    for (int i = 0; i < extraPrices.length(); i++) {
-                        JSONObject extraPrice = extraPrices.getJSONObject(i);
-                        Integer id = extraPrice.getInt("id");
-                        hasExtraPrices.add(id);
+            if(item.price != null) {
+                for (JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
+                    JSONArray extraPrices = infoJSON.optJSONArray("extraPrices");
+                    if (extraPrices != null) {
+                        for (int i = 0; i < extraPrices.length(); i++) {
+                            JSONObject extraPrice = extraPrices.getJSONObject(i);
+                            Integer id = extraPrice.getInt("id");
+                            hasExtraPrices.add(id);
+                        }
                     }
                 }
             }
@@ -1200,10 +1218,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             if (item.price != null && infoJSON != null) {
                 if(infoJSON.has("propertyGrpId")) {
                     int propertyGrpId = infoJSON.optInt("propertyGrpId");
-                    astronLogger.info("TEMP LOG: propertyGrpId=" + propertyGrpId);
-                    if (propertyGrpId == 0) {
-                        astronLogger.info("TEMP LOG: json=" + infoJSON);
-                    }
                     return propertyGrpId != 0 ? propertyGrpId : null;
                 }
             }
@@ -1275,7 +1289,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private void addPackPrcRow(PreparedStatement ps, AstronConnectionString params, Integer nppGroupMachinery,
-                               ItemInfo item, JSONObject infoJSON, Integer packId, int offset, boolean exportExtraTables,
+                               ItemInfo item, ExtInfo extInfo, Integer packId, int offset, boolean exportExtraTables,
                                BigDecimal price, int priceNumber, BigDecimal overPackMinPrice, boolean delFlag, int keysOffset, Integer updateNum) throws SQLException {
 
         Integer priceLevelId = getPriceLevelId(nppGroupMachinery, exportExtraTables, priceNumber);
@@ -1283,7 +1297,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         BigDecimal minPrice = item instanceof CashRegisterItem ? HandlerUtils.safeMultiply(((CashRegisterItem) item).minPrice, 100) : null;
         BigDecimal packMinPrice = HandlerUtils.safeMultiply(overPackMinPrice, 100) != null ? HandlerUtils.safeMultiply(overPackMinPrice, 100) :
                 (item.flags == null || ((item.flags & 16) == 0)) && HandlerUtils.safeMultiply(price, 100) != null ? HandlerUtils.safeMultiply(price, 100) : minPrice != null ? minPrice : BigDecimal.ZERO;
-        BigDecimal packBonusMinPrice = nvl(safeMultiply(getBigDecimalValue(infoJSON, "packBonusMinPrice"), 100), packPrice);
+        BigDecimal packBonusMinPrice = nvl(safeMultiply(getBigDecimalValue(extInfo, "packBonusMinPrice"), 100), packPrice);
 
         if(params.pgsql) {
             setObject(ps, packId, 1); //PACKID
@@ -1525,12 +1539,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 if (notInterrupted()) {
                     Integer clientId = getClientId(discountCard);
                     boolean isPayment = isSocial(discountCard);
-                    int locked = 0;
-                    JSONObject infoJSON = getExtInfo(discountCard.extInfo).first();
-                    if(infoJSON != null) {
-                        locked = infoJSON.optInt("locked");
+                    int locked = getLocked(discountCard.extInfo);
 
-                    }
                     if(params.pgsql) {
                         setObject(ps, discountCard.numberDiscountCard, 1); //DCARDID
                         setObject(ps, clientId, 2); //CLNTID
@@ -1574,12 +1584,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     Integer clientGroupId = isSocial(d) ? 7 : 1; //так захардкожено у БКС, обычные клиенты - 1, социальные - 7
                     String clientName = nvl(trim(d.nameDiscountCard, 50), "");
                     String clientBirthday = d.birthdayContact != null ? d.birthdayContact.format(dateFormatter) + "000000" : null;
-                    int delflag = 0;
-                    JSONObject infoJSON = getExtInfo(d.extInfo).first();
-                    if(infoJSON != null) {
-                        delflag = infoJSON.optInt("locked");
+                    int delflag = getLocked(d.extInfo);
 
-                    }
                     if(params.pgsql) {
                         setObject(ps, clientId, 1); //CLNTID
                         setObject(ps, clientGroupId, 2); //CLNTGRPID
@@ -1618,10 +1624,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private boolean isSocial(DiscountCard d) {
-        JSONObject infoJSON = getExtInfo(d.extInfo).first();
-        if(infoJSON != null) {
+        for(JSONObject infoJSON : getExtInfo(d.extInfo).jsonObjects) {
             JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
-            if(clientAnswers != null && clientAnswers.length() >= 4) {
+            if (clientAnswers != null && clientAnswers.length() >= 4) {
                 return clientAnswers.getString(3).equals("Да");
             }
         }
@@ -1713,11 +1718,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
             for (DiscountCard d : discountCardList) {
                 if (notInterrupted()) {
-                    JSONObject infoJSON = getExtInfo(d.extInfo).first();
-                    if(infoJSON != null) {
+                    for (JSONObject infoJSON : getExtInfo(d.extInfo).jsonObjects) {
                         JSONArray clientAnswers = infoJSON.optJSONArray("clientAnswers");
                         if (clientAnswers != null) {
-                            for(int i = 0; i < clientAnswers.length(); i++) {
+                            for (int i = 0; i < clientAnswers.length(); i++) {
                                 String clientAnswer = clientAnswers.getString(i);
                                 Integer clientId = getClientId(d);
                                 Integer clientFormId = 1;
@@ -1845,7 +1849,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         if (waitSysLogInsteadOfDataPump) {
             Pair<Boolean, Exception> sysLog;
             while (!(sysLog = checkSysLog(conn, params, eventTime)).first) {
-                astronLogger.info("checkSysLog result: " + sysLog.first + " / " + sysLog.second); // temp log
                 if (count > (timeout / 5)) {
                     exportFlags(conn, tables, 0);
                     return createException(String.format("Data was sent to db but %s no records in syslog found", sysLog));
@@ -1855,7 +1858,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     Thread.sleep(5000);
                 }
             }
-            astronLogger.info("checkSysLog finished: " + sysLog.first + " / " + sysLog.second); // temp log
             return sysLog.second;
         } else {
             int flags;
@@ -1888,19 +1890,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private Pair<Boolean, Exception> checkSysLog(Connection conn, AstronConnectionString params, String eventTime) {
-        astronLogger.info("checkSysLog started"); // temp log
         try (Statement statement = conn.createStatement()) {
             String sql = "SELECT EVENTCODE, EVENTDATA FROM \"Syslog_DataServer\" WHERE EVENTTIME > '" + eventTime + "' ORDER BY SEQ" + (params.pgsql ? "" : " DESC");
             ResultSet rs = statement.executeQuery(sql);
-
-            astronLogger.info("checkSysLog executed"); // temp log
 
             List<String> errors = new ArrayList<>();
             boolean succeeded = false;
             while (rs.next()) {
                 int eventCode = rs.getInt("EVENTCODE");
                 String eventData = rs.getString("EVENTDATA");
-                astronLogger.info("checkSysLog record: " + eventCode + " / " + eventData); // temp log
                 switch (eventCode) {
                     case 700:
                     case 701:
@@ -2812,6 +2810,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         astronLogger.error(message);
         return new RuntimeException(message);
     }
+
+    private int getLocked(String extInfo) {
+        int locked = 0;
+        for (JSONObject infoJSON : getExtInfo(extInfo).jsonObjects) {
+            if (infoJSON.has("locked")) {
+                locked = infoJSON.getInt("locked");
+                break;
+            }
+        }
+        return locked;
+    }
+
 
     private ExtInfo getExtInfo(String extInfo) {
         return new ExtInfo(extInfo);
