@@ -333,28 +333,28 @@ paymentStatus(Payment p) {
 } WAIT;
 
 waitPaymentStatus (Payment p) {
+    conn() <- currentConnection();
     currentPayment() <- p;
-    IF currentStatusPayment() == StatusPayment.inProgress AND NOT returnPost() THEN {
-        paymentStatus(currentPayment());
+    NEWTHREAD { 
+        sleep(5000);
+        WHILE currentStatusPayment() == StatusPayment.inProgress AND NOT returnPost() DO {
+            paymentStatus(currentPayment());
+            sleep(5000);        
+        } 
+        IF NOT returnPost() OR NOT currentStatusPayment() == StatusPayment.inProgress THEN { 
+            NEWTHREAD formClose(); CONNECTION conn();
+        }
     }
-
-    IF currentStatusPayment() == StatusPayment.inProgress AND NOT returnPost() THEN {
-        RETURN;
-    }
-
-    IF NOT returnPost() OR NOT currentStatusPayment() == StatusPayment.inProgress THEN {
-        formClose();
-    }
-}
+} WAIT;
 
 FORM paymentStatus 'Статус платежа'
     OBJECTS p = Payment PANEL
     PROPERTIES READONLY nameCurrentStatusPayment()
     EVENTS
         ON QUERYCLOSE {},
-//        ON INIT { waitPaymentStatus(p); },
+        ON INIT { waitPaymentStatus(p); },
         ON CLOSE { returnPost() <- NOT currentStatusPayment() = StatusPayment.ok; },
-        ON SCHEDULE PERIOD 5 waitPaymentStatus(p)
+        ON SCHEDULE PERIOD 1 formRefresh()
 ;
 
 DESIGN paymentStatus {
@@ -496,26 +496,22 @@ consumerStatus(STRING calcAddressRequest, STRING[20] regNum) {
 
 waitConsumerStatus(CashRegister c) {
     conn() <- currentConnection();
-    consumerStatus(calcAddressRequest(), regNum(c));
-
-    IF NOT isConsumerReady() AND NOT returnPost() THEN {
+    NEWTHREAD {
         consumerStatus(calcAddressRequest(), regNum(c));
+        WHILE NOT isConsumerReady() AND NOT returnPost() DO {
+            sleep(3000);
+            consumerStatus(calcAddressRequest(), regNum(c));
+        }
+        IF NOT returnPost() THEN NEWTHREAD formClose(); CONNECTION conn();
     }
-
-    IF NOT isConsumerReady() AND NOT returnPost() THEN {
-        RETURN;
-    }    
-    
-    IF NOT returnPost() THEN formClose();
 } 
 
 FORM dialogEpay
+    
     OBJECTS c = CashRegister PANEL 
     
     PROPERTIES () READONLY currentPin
-    EVENTS //ON INIT waitConsumerStatus(c), 
-           ON CLOSE { returnPost() <- NOT isConsumerReady(); },
-           ON SCHEDULE PERIOD 3 waitConsumerStatus(c)
+    EVENTS ON INIT waitConsumerStatus(c), ON CLOSE { returnPost() <- NOT isConsumerReady(); }
 ;
 
 DESIGN dialogEpay 'Код подтверждения' {
