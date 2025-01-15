@@ -280,6 +280,7 @@ createAutoAfter  ABSTRACT LIST (UserOrder);
 createAutoOrdersExtra ABSTRACT LIST ();
 
 toCreate = DATA LOCAL NESTED BOOLEAN (ScheduleOrderDetail);
+order = DATA LOCAL NESTED INTEGER (ScheduleOrderDetail);
 
 //-- где дата заказа больше даты окончания графика
 closeScheduleOrderDetailsEndDate 'Аннулировать точки заказов'()  { 
@@ -451,8 +452,8 @@ createAutoOrders 'Создание автозаказов' () {
             AND active(customerStock(d)) AND NOT isClosed(d) AND NOT (GROUP SUM 1 IF scheduleOrderDetail(Order o) == d AND isOpened(o)) 
             AND NOT dateOrder(d)>endDate(scheduleOrder(d));
     createAutoOrdersBefore();
-    FOR toCreate(ScheduleOrderDetail scheduleOrderDetail) AND DATE date = currentDate() ORDER (OVERRIDE timeToOrder(scheduleOrderDetail), 23:59 IF scheduleOrderDetail IS ScheduleOrderDetail), scheduleOrderDetail  DO {
-        createAutoOrdersCustom(scheduleOrderDetail,date);
+    FOR toCreate(ScheduleOrderDetail d) AND DATE date = currentDate() ORDER order(d), (OVERRIDE timeToOrder(d), 23:59 IF d IS ScheduleOrderDetail), d  DO {
+        createAutoOrdersCustom(d,date);
     }
 
     createAutoOrdersExtra();
