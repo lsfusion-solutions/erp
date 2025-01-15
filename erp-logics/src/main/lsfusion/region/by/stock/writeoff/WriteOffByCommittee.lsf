@@ -13,6 +13,7 @@ userWriteOff = DATA UserWriteOff(CommitteeRow) NONULL INDEXED;
 employee = DATA Employee(CommitteeRow) NONULL;
 name 'Сотрудник' (CommitteeRow r) = name[Contact](employee(r));
 namePosition 'Должность' (CommitteeRow r) = namePosition(employee(r));
+shortName 'Должность' (CommitteeRow r) = shortName(employee(r));
 isChairman 'Председатель' = DATA BOOLEAN (CommitteeRow);
 countChairman = GROUP SUM 1 IF isChairman(CommitteeRow r) BY userWriteOff(r);
 maxChairman = GROUP MAX employee(CommitteeRow r) IF isChairman(r) BY userWriteOff(r);
@@ -67,7 +68,7 @@ WHEN LOCAL CHANGED((writeOffCommittee(UserWriteOff w))) AND w IS UserWriteOff DO
 
 nameEmployee 'Члены комиссии' (WriteOff w) =
     GROUP
-        CONCAT positionName(employee(CommitteeRow r)) IF userWriteOff(r) ==w AND NOT isChairman(r), ', '
+        CONCAT positionShortName(employee(CommitteeRow r)) IF userWriteOff(r) ==w AND NOT isChairman(r), ', '
         ORDER index(r), r
     CHARWIDTH 50;
 
@@ -85,7 +86,7 @@ FORM printWriteOffByCommittee 'Акт списания'
         quantity, price, sum
     FILTERS in(w, d)
     OBJECTS e=CommitteeRow
-    PROPERTIES(e)  index,  name, namePosition
+    PROPERTIES(e)  index,  name, namePosition, shortName
     ORDERS index(e)
     FILTERS userWriteOff(e)==w, NOT isChairman(e)
 ;
