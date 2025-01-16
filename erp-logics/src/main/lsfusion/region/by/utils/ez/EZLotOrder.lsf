@@ -431,7 +431,9 @@ EXTEND FORM lotOrder
     PROPERTIES(d) idOrderEZ AFTER gtin(d)
 ;
 
-CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(isAllIdSet(lotOrder(d))) OR isAllIdSet(lotOrder(d)))
+skipChangedCheckLotOrderDetail 'Пропустить проверку строки на редактирование' = ABSTRACT BOOLEAN (LotOrderDetail);
+
+CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(isAllIdSet(lotOrder(d))) OR isAllIdSet(lotOrder(d))) AND NOT skipChangedCheckLotOrderDetail(d)
     MESSAGE 'Запрещено редактировать заказы марок после их отсылки в ЭЗ';
 
 availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
@@ -583,8 +585,11 @@ checkStatus 'Проверить статус' (LotOrder o) {
 
 overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
 
+temporarilySkipCheckLotCodes = DATA LOCAL BOOLEAN(LotOrderDetail);
+skipChangedCheckLotOrderDetail(LotOrderDetail d) += temporarilySkipCheckLotCodes(d);
+
 importLotCodes 'Получить марки' (LotOrder o) {
-    NEWSESSION {
+    NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
         initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
         quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
         
@@ -645,7 +650,9 @@ importLotCodes 'Получить марки' (LotOrder o) {
 }
 
 importLotCodesPartly 'Получить марки (по доступным строкам)' (LotOrder o) {
+    temporarilySkipCheckLotCodes(LotOrderDetail d) <- TRUE WHERE lotOrder(d) == o AND NOT status(d);
     importLotCodes(o);
+    temporarilySkipCheckLotCodes(LotOrderDetail d) <- NULL;
 }
 
 EXTEND FORM lotOrders
@@ -661,6 +668,7 @@ DESIGN lotOrders {
     ez {
         MOVE PROPERTY(checkStatus(o));
         MOVE PROPERTY(importLotCodes(o));
+        MOVE PROPERTY(importLotCodesPartly(o));
     }
 }
  
