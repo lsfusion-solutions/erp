@@ -8,7 +8,7 @@ isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Cus
 isTracking 'Прослеживание'= DATA BOOLEAN (ExtraCode);
 levelTrackingParent (CustomsGroup customsGroup) = GROUP MIN level(customsGroup, CustomsGroup parent) IF isTrackingData(parent) MATERIALIZED;
 isTrackingParent (CustomsGroup customsGroup) = TRUE IF levelTrackingParent(customsGroup);
-isTracking 'Подлежит прослеживанию' (CustomsGroup customsGroup) = OVERRIDE isTrackingData(customsGroup), isTrackingParent(customsGroup);
+isTracking 'Подлежит прослеживанию' (CustomsGroup customsGroup) = OVERRIDE isTrackingData(customsGroup), isTrackingParent(customsGroup) MATERIALIZED;
 //isTrackingCustomsGroup 'Подлежит прослеживанию' (Sku sku) = isTracking(customsGroup(defaultCountry(), sku)) MATERIALIZED;
 dateStartSPT 'Дата начала прослеживания' = DATA DATE (CustomsGroup) IN base;
 
@@ -17,7 +17,7 @@ levelParentTrackingUOM(CustomsGroup child)  = GROUP MIN level(child, CustomsGrou
 nearestParentTrackingUOM (CustomsGroup cg) = customsGroup(cg, levelParentTrackingUOM(cg));
 nearestTrackingUOM (CustomsGroup cg) = dataTrackingUOM(nearestParentTrackingUOM (cg));
 trackingUOM 'Ед.изм по ОКРБ 008-95' (CustomsGroup cg) = OVERRIDE dataTrackingUOM(cg), nearestTrackingUOM (cg) MATERIALIZED;
-trackingUOMCustomsGroup 'Ед.изм по ОКРБ 008-95' (Sku sku) = trackingUOM(customsGroup(defaultCountry(), sku));
+trackingUOMCustomsGroup 'Ед.изм по ОКРБ 008-95' (Sku sku) = trackingUOM(customsGroup(defaultCountry(), sku)) MATERIALIZED;
 backgroundEC(ExtraCode e) = IF isTracking(e) THEN RGB(255, 204, 153);
 
 
@@ -49,7 +49,7 @@ extraCode '4-зн. код' (Sku s) = OVERRIDE dataExtraCode(s), extraCode(brand(
 idExtraCode'4-зн. код к ТН ВЭД' (Sku s)=id(extraCode(s)) CHARWIDTH 4;
 
 isTrackingCustomsGroup 'Подлежит прослеживанию' (Sku sku) = TRUE  IF (isTracking(customsGroup(defaultCountry(), sku)) AND isTracking(extraCode(sku))) MATERIALIZED;
-isTrackingOver 'Подлежит прослеживанию' (Sku s) =  OVERRIDE isTracking(s), isTrackingCustomsGroup(s) IN itemBase;
+isTrackingOver 'Подлежит прослеживанию' (Sku s) =  OVERRIDE isTracking(s), isTrackingCustomsGroup(s) IN itemBase MATERIALIZED;
 dateStartSPT 'Дата начала прослеживания' (Sku s)  = dateStartSPT(customsGroup(defaultCountry(), s));
 
 needExtraCode(Sku s) = TRUE IF isTracking(customsGroup(defaultCountry(), s)) AND NOT extraCode(s);
