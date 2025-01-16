@@ -30,3 +30,35 @@ DESIGN Purchase.invoices {
         MOVE PROPERTY(nameReceiver(i)) BEFORE PROPERTY (signAndSendBlrapnCustomerEDI(i));
     }
 }
+
+//накладная на основе наклданой
+overFillInvoice (Purchase.UserInvoice sd, Sale.Invoice id) + {
+    FOR Consignment.invoice(EInvoice ei) = id AND importedCustomer(ei) DO {
+        EDI.invoice(ei) <- sd;
+        number(sd) <- STRING[48](deliveryNoteNumber(ei));
+    }
+}
+
+overFillInvoice(Purchase.UserInvoiceDetail d, Sale.InvoiceDetail invoiceDetail) + {
+    FOR Consignment.invoiceDetail(EInvoiceDetail ei) = invoiceDetail AND importedCustomer(eInvoice(ei))  DO {
+        eInvoiceDetail(d) <- ei;
+    }
+}
+
+setPropertiesPurchaseSale(Purchase.UserInvoice sd, Sale.Invoice id) + {
+    FOR Consignment.invoice(EInvoice ei) = id AND importedCustomer(ei) DO {
+        EDI.invoice(ei) <- sd;
+        number(sd) <- STRING[48](deliveryNoteNumber(ei));
+    }
+}
+
+setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, Sale.InvoiceDetail invoiceDetail) + {
+    FOR Consignment.invoiceDetail(EInvoiceDetail ei) = invoiceDetail AND importedCustomer(eInvoice(ei)) DO {
+        eInvoiceDetail(d) <- ei;
+    }
+}
+
+//Накладная на основе ЭТТН
+overCopy(EInvoiceDetail eid, Purchase.UserInvoiceDetail id) + {
+    invoiceDetail(id) <- invoiceDetail(eid);
+}
