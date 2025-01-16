@@ -125,6 +125,7 @@ META defineOrderInvoicePickingOrder (sign)
         }
     }
 
+    afterCreatePickingUserInvoicePosted ABSTRACT LIST (UserInvoice, Order.Order);
     createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order)  { 
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
@@ -141,6 +142,7 @@ META defineOrderInvoicePickingOrder (sign)
                         }
                         packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
                         executeLocalEvents('Sale.userInvoice');
+                        afterCreatePickingUserInvoicePosted(i, order);
                         IF showPickingUserInvoicePosted() THEN {
                             SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                         }
@@ -155,6 +157,7 @@ META defineOrderInvoicePickingOrder (sign)
                     userInvoice(order) <- i;
                     include(order,i) <- TRUE;
                     executeLocalEvents('Sale.userInvoice');
+                    afterCreatePickingUserInvoicePosted(i, order);
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
