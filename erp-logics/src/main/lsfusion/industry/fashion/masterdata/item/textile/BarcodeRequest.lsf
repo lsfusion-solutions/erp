@@ -109,7 +109,10 @@ CONSTRAINT SETCHANGED (item(BarcodeRequestDetail d)) AND [ GROUP SUM 1 BY item(B
 CONSTRAINT BarcodeRequestDetail d IS BarcodeRequestDetail AND NOT item(d)
     MESSAGE 'Для строки заявки на штрихкод должен быть задан SKU';
 
+disableIsTrackingItemControl = ABSTRACT BOOLEAN (BarcodeRequestDetail);
+
 CONSTRAINT (SETCHANGED(item(BarcodeRequestDetail d)) OR SETCHANGED(operation(d))) AND isTrackingItem(operation(d)) AND NOT isTrackingCustomsGroupOnly(item(d))
+    AND NOT disableIsTrackingItemControl(d)
     MESSAGE 'В заявке на EAN с данной операцией должны быть только подлежащие прослеживанию товары';
 
 @defineOption(allowBarcodeRequestNotOperation, 'Разрешить отправку заявок на EAN без операции', barcodeBox);
