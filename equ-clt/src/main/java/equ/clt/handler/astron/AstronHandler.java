@@ -290,37 +290,37 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             List<JSONObject> propertyGrpJsonTable = jsonTables.get(PROPERTYGRP);
                             if(!propertyGrpJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, PROPERTYGRP);
-                                exportPropertyGrp(conn, propertyGrpJsonTable, updateNum);
+                                exportPropertyGrp(conn, params, propertyGrpJsonTable, updateNum);
                             }
 
                             List<JSONObject> numPropertyJsonTable = jsonTables.get(NUMPROPERTY);
                             if(!numPropertyJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMPROPERTY);
-                                exportNumProperty(conn, numPropertyJsonTable, updateNum);
+                                exportNumProperty(conn, params, numPropertyJsonTable, updateNum);
                             }
 
                             List<JSONObject> stringsJsonTable = jsonTables.get(STRINGS);
                             if (!stringsJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, STRINGS);
-                                exportStrings(conn, stringsJsonTable, updateNum);
+                                exportStrings(conn, params, stringsJsonTable, updateNum);
                             }
 
                             List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
                             if(!numbersJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMBERS);
-                                exportNumbers(conn, numbersJsonTable, updateNum);
+                                exportNumbers(conn, params, numbersJsonTable, updateNum);
                             }
 
                             List<JSONObject> binaryDataJsonTable = jsonTables.get(BINARYDATA);
                             if(!binaryDataJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, BINARYDATA);
-                                exportBinaryData(conn, binaryDataJsonTable, updateNum);
+                                exportBinaryData(conn, params, binaryDataJsonTable, updateNum);
                             }
 
                             List<JSONObject> binPropertyJsonTable = jsonTables.get(BINPROPERTY);
                             if(!binPropertyJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, BINPROPERTY);
-                                exportBinProperty(conn, binPropertyJsonTable, updateNum);
+                                exportBinProperty(conn, params, binPropertyJsonTable, updateNum);
                             }
 
                             List<JSONObject> extGrpJsonTable = jsonTables.get(EXTGRP);
@@ -519,16 +519,28 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return result;
     }
 
-    private void exportPropertyGrp(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+    private void exportPropertyGrp(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"PROPERTYGRPID"};
         String[] columns = getColumns(new String[]{"PROPERTYGRPID", "PROPERTYGRPNAME", "PROPERTYGRPTYPE", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, PROPERTYGRP, columns)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, PROPERTYGRP, columns, keys)) {
+            int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("propertyGrpId"), 1);
-                setObject(ps, trim(jsonObject.getString("propertyGrpName"), 50), 2);
-                setObject(ps, 0, 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), 1);
+                    setObject(ps, trim(jsonObject.getString("propertyGrpName"), 50), 2);
+                    setObject(ps, 0, 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else{
+                    setObject(ps, trim(jsonObject.getString("propertyGrpName"), 50), 1, offset);
+                    setObject(ps, 0, 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -536,16 +548,30 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportNumProperty(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
-        String[] columns = getColumns(new String[]{"NUMBERID", "PROPERTYGRPID", "NUMPROPERTYKEY", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, NUMPROPERTY, columns)) {
+    private void exportNumProperty(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"NUMPROPERTYKEY","PROPERTYGRPID"};
+        String[] columns = getColumns(new String[]{"NUMPROPERTYKEY", "PROPERTYGRPID", "NUMBERID", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, NUMPROPERTY, columns, keys)) {
+            int offset = columns.length + keys.length;
+
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("numberId"), 1);
-                setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
-                setObject(ps, jsonObject.getInt("numPropertyKey"), 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("numPropertyKey"), 1);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
+                    setObject(ps, jsonObject.getInt("numberId"), 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else {
+                    setObject(ps, jsonObject.getInt("numberId"), 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+
+                    setObject(ps, jsonObject.getInt("numPropertyKey"), updateNum != null ? 5 : 4, keys.length);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 6 : 5, keys.length);
                 }
                 ps.addBatch();
             }
@@ -553,16 +579,28 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportStrings(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+    private void exportStrings(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"STRINGID"};
         String[] columns = getColumns(new String[]{"STRINGID", "STRINGVALUE", "STRINGNAME", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, STRINGS, columns)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, STRINGS, columns, keys)) {
+            int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("stringId"), 1);
-                setObject(ps, trim(jsonObject.getString("stringValue"), 1024), 2);
-                setObject(ps, trim(jsonObject.getString("stringName"), 50), 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("stringId"), 1);
+                    setObject(ps, trim(jsonObject.getString("stringValue"), 1024), 2);
+                    setObject(ps, trim(jsonObject.getString("stringName"), 50), 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else{
+                    setObject(ps, trim(jsonObject.getString("stringValue"), 1024), 1, offset);
+                    setObject(ps, trim(jsonObject.getString("stringName"), 50), 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+                    setObject(ps, jsonObject.getInt("stringId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -570,16 +608,28 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportNumbers(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+    private void exportNumbers(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"NUMBERID"};
         String[] columns = getColumns(new String[]{"NUMBERID", "NUMBERVALUE", "NUMBERNAME", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, NUMBERS, columns)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, NUMBERS, columns, keys)) {
+            int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("numberId"), 1);
-                setObject(ps, jsonObject.getBigDecimal("numberValue"), 2);
-                setObject(ps, trim(jsonObject.getString("numberName"), 50), 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("numberId"), 1);
+                    setObject(ps, jsonObject.getBigDecimal("numberValue"), 2);
+                    setObject(ps, trim(jsonObject.getString("numberName"), 50), 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else{
+                    setObject(ps, jsonObject.getBigDecimal("numberValue"), 1, offset);
+                    setObject(ps, trim(jsonObject.getString("numberName"), 50), 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+                    setObject(ps, jsonObject.getInt("numberId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -587,16 +637,28 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportBinaryData(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+    private void exportBinaryData(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"BINARYDATAID"};
         String[] columns = getColumns(new String[]{"BINARYDATAID", "BINARYDATAVALUE", "BYNARYDATANAME", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, BINARYDATA, columns)) {
+        try (PreparedStatement ps = getPreparedStatement(conn, params, BINARYDATA, columns, keys)) {
+            int offset = columns.length + keys.length;
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("binaryDataId"), 1);
-                setObject(ps, Base64.decodeBase64(jsonObject.getString("binaryDataValue")), 2);
-                setObject(ps, jsonObject.getString("binaryDataName"), 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("binaryDataId"), 1);
+                    setObject(ps, Base64.decodeBase64(jsonObject.getString("binaryDataValue")), 2);
+                    setObject(ps, jsonObject.getString("binaryDataName"), 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else{
+                    setObject(ps, Base64.decodeBase64(jsonObject.getString("binaryDataValue")), 1, offset);
+                    setObject(ps, jsonObject.getString("binaryDataName"), 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+                    setObject(ps, jsonObject.getInt("binaryDataId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -604,16 +666,30 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private void exportBinProperty(Connection conn, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
-        String[] columns = getColumns(new String[]{"BINARYDATAID", "PROPERTYGRPID", "BINPROPERTYKEY", "DELFLAG"}, updateNum);
-        try (PreparedStatement ps = getPreparedStatement(conn, BINPROPERTY, columns)) {
+    private void exportBinProperty(Connection conn, AstronConnectionString params, List<JSONObject> jsonTable, Integer updateNum) throws SQLException {
+        String[] keys = new String[]{"BINPROPERTYKEY", "PROPERTYGRPID"};
+        String[] columns = getColumns(new String[]{"BINPROPERTYKEY", "PROPERTYGRPID", "BINARYDATAID", "DELFLAG"}, updateNum);
+        try (PreparedStatement ps = getPreparedStatement(conn, params, BINPROPERTY, columns, keys)) {
+            int offset = columns.length + keys.length;
+
             for (JSONObject jsonObject : jsonTable) {
-                setObject(ps, jsonObject.getInt("binaryDataId"), 1);
-                setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
-                setObject(ps, jsonObject.getInt("binPropertyKey"), 3);
-                setObject(ps, 0, 4);
-                if (updateNum != null) {
-                    setObject(ps, updateNum, 5);
+                if (params.pgsql) {
+                    setObject(ps, jsonObject.getInt("binPropertyKey"), 1);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), 2);
+                    setObject(ps, jsonObject.getInt("binaryDataId"), 3);
+                    setObject(ps, 0, 4);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 5);
+                    }
+                } else {
+                    setObject(ps, jsonObject.getInt("binaryDataId"), 2, offset);
+                    setObject(ps, 0, 3, offset);
+                    if (updateNum != null) {
+                        setObject(ps, updateNum, 4, offset);
+                    }
+
+                    setObject(ps, jsonObject.getInt("binPropertyKey"), updateNum != null ? 5 : 4, keys.length);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 6 : 5, keys.length);
                 }
                 ps.addBatch();
             }
@@ -2011,13 +2087,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             }
             return conn.prepareStatement(String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)", table, set, wheres, table, columns, params));
         }
-    }
-
-    //for tables without keys
-    private PreparedStatement getPreparedStatement(Connection conn, String table, String[] columnNames) throws SQLException {
-        String columns = StringUtils.join(columnNames, ",");
-        String params = StringUtils.repeat("?", ",", columnNames.length);
-        return conn.prepareStatement(String.format("INSERT INTO %s(%s) VALUES (%s)", table, columns, params));
     }
 
     @Override
