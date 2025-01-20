@@ -39,40 +39,20 @@ CONSTRAINT SET(isClosed(Packet packet)) AND countIncompleteSku(packet)
 CONSTRAINT SETCHANGED(packet(Lot lot)) AND NOT currentQuantity(sku(lot), packet(lot))
     MESSAGE 'Запрещено добавлять в пакет марки товара, отсутствующего в пакете';
 
-META defineConstraintStateDocumentPacketDetailLotIn (object)
+META defineConstraintStateDocumentPacketDetailLot (object)
     CONSTRAINT SETCHANGED(packet(###object##PacketDetail d))
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
 END;
 
-META defineConstraintStateDocumentPacketDetailLotInAccepted (object)
+META defineConstraintStateDocumentPacketDetailLotAccepted (object)
     CONSTRAINT SET(isAccepted(###object##PacketDetail d))
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым (приёмка)';
 END;
 
-META defineConstraintStateDocumentPacketDetailLotInPosted (object)
-    CONSTRAINT SET(isPosted(###object##PacketDetail d))
-        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
-        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (проведение)';
-END;
-
-@defineOption(allowIncorrectPacketDetailLotOut, 'Разрешить отгрузку открытых пакетов с марками', stock1);
-
-META defineConstraintStateDocumentPacketDetailLotOut (object)
-    CONSTRAINT SETCHANGED(packet(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
-        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
-        MESSAGE 'Пакет должен не содержать марок, или быть закрытым';
-END;
-
-META defineConstraintStateDocumentPacketDetailLotOutAccepted (object)
-    CONSTRAINT SET(isAccepted(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
-        AND isOpened(packet(d)) AND countLotsPacket(packet(d))
-        MESSAGE 'Пакет должен не содержать марок, или быть закрытым (приёмка)';
-END;
-
-META defineConstraintStateDocumentPacketDetailLotOutPosted (object)
-    CONSTRAINT SET(isPosted(###object##PacketDetail d)) AND NOT allowIncorrectPacketDetailLotOut()
+META defineConstraintStateDocumentPacketDetailLotPosted (object)
+    CONSTRAINT (SET(isPosted(###object##PacketDetail d)) OR SETCHANGED(packet(d))) AND isPosted(d)
         AND isOpened(packet(d)) AND countLotsPacket(packet(d))
         MESSAGE 'Пакет должен не содержать марок, или быть закрытым (проведение)';
 END;
