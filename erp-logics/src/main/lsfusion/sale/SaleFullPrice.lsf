@@ -154,6 +154,9 @@ showFullPrice 'Показывать полную цену и скидку' (Invo
 
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(d) AND NOT skipPercDiscount(d) THEN
                     NUMERIC[16,4](round2(prevPriceB(t, sku(d), supplierStock(d), dateTime(d)) * (100.0 (-) percDiscount(d)) / 100.0));
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND isItem(sku(d)) AND percDiscount(d) AND NOT skipPercDiscount(d)
+    AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) AND NOT includeVAT(t) THEN
+    NUMERIC[16,4](round2(fullPrice(d) * (100.0 (-) percDiscountNotSkip (d)) / 100.0));
 
 useCustomRecalculateDiscountPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
 customRecalculateDiscountPrice ABSTRACT (UserInvoiceDetail);
