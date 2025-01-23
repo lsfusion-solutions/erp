@@ -1,0 +1,150 @@
+MODULE ItemEcologyRu;
+
+REQUIRE ItemRu;
+
+NAMESPACE Item;
+
+CLASS EcologyPackType 'Тип упаковки (экология)';
+TABLE ecologyPackType(EcologyPackType);
+
+@defineExternalizable(ecologyPackType, STRING[100]);
+name 'Наименование' = DATA ISTRING[100](EcologyPackType) IN id;
+ecologyPackTypeName = GROUP NAGGR EcologyPackType e BY name(e);
+
+
+FORM ecologyPackType 'Тип упаковки (экология)'
+    OBJECTS t=EcologyPackType PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs()
+    EDIT EcologyPackType OBJECT t
+;
+
+FORM ecologyPackTypes 'Типы упаковки (экология)'
+    OBJECTS t=EcologyPackType
+    PROPERTIES(t) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
+    ORDERS name(t)
+    LIST EcologyPackType OBJECT t
+;
+DESIGN ecologyPackTypes { BOX { size = (600, 400); } }
+
+CLASS EcologyMaterial 'Материал (экология)';
+TABLE ecologyMaterial(EcologyMaterial);
+
+@defineExternalizable(ecologyMaterial, STRING[100]);
+name 'Наименование' = DATA ISTRING[100](EcologyMaterial) IN id;
+ecologyMaterialName = GROUP NAGGR EcologyMaterial e BY name(e);
+
+
+FORM ecologyMaterial 'Материал (экология)'
+    OBJECTS t=EcologyMaterial PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs()
+    EDIT EcologyMaterial OBJECT t
+;
+
+FORM ecologyMaterials 'Материал (экология)'
+    OBJECTS t=EcologyMaterial
+    PROPERTIES(t) READONLY name, id SHOWIF showIDs()
+    PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
+    ORDERS name(t)
+    LIST EcologyMaterial OBJECT t
+;
+DESIGN ecologyMaterials { BOX { size = (600, 400); } }
+
+
+
+ecologyMaterialMigrate () {
+    NEW p = EcologyPackType {
+        name(p) <- 'Потребительская упаковка';        
+    }
+    NEW p = EcologyPackType {
+        name(p) <- 'Транспортировочная упаковка';
+    }
+
+    NEW p = EcologyMaterial {
+        name(p) <- 'Бумага';
+    }
+    NEW p = EcologyMaterial {
+        name(p) <- 'Полиэтилен';
+    }
+    NEW p = EcologyMaterial {
+        name(p) <- 'Стекло';
+    }
+    NEW p = EcologyMaterial {
+        name(p) <- 'Металл';
+    }
+}
+
+@defOnStartMigrate(ecologyMaterialMigrate, '') ;
+
+TABLE ItemEcologyPackTypeMaterial(Item,EcologyPackType,EcologyMaterial);
+
+value 'Содержание (кг. на единицу товара)' = DATA NUMERIC[16,6](Item,EcologyPackType,EcologyMaterial);
+
+EXTEND FORM item
+    OBJECTS ep = EcologyPackType
+    OBJECTS em = EcologyMaterial
+    PROPERTIES name(em) READONLY, value(i,ep,em) COLUMNS (ep) HEADER (CONCAT ' ', name(ep), '(кг. на ед.товара)')
+;
+
+DESIGN item{
+    itemDetail{
+        MOVE BOX(em) {
+            caption = 'Экология';            
+        }
+    }
+}
+NAVIGATOR {
+    skuNavigator {
+        NEW FOLDER skuEcology 'Экология'{
+            NEW ecologyPackTypes;
+            NEW ecologyMaterials;
+        }
+    }
+}
+
+importMaterialMigrate 'Импорт экологических параметров' (){
+    NEWSESSION {
+        INPUT f = EXCELFILE DO{
+            LOCAL bar, name, uom = STRING (INTEGER );
+            LOCAL  m1,m2,m3,m4,m5,m6,m7,m8 = NUMERIC[16,6](INTEGER);
+            LOCAL item = Item(INTEGER);
+            IMPORT XLS NOHEADER FROM f TO bar=C, name, uom, m1=F, m2,m3,m4,m5,m6,m7,m8;
+            
+            imported(INTEGER  i) <- NULL WHERE imported(i) AND (i <3 OR NOT bar(i));
+            bar(INTEGER i) <- trim(bar(i));
+            item(INTEGER i) <- skuBarcode(bar(i));
+            
+            FOR item(INTEGER r) == Item i DO{
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m1(r) WHERE m1(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Бумага') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m2(r) WHERE m2(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Полиэтилен') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m3(r) WHERE m3(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Стекло') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m4(r) WHERE m4(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Металл') == em;
+
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m5(r) WHERE m5(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Бумага') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m6(r) WHERE m6(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Полиэтилен') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m7(r) WHERE m7(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Стекло') == em;
+                value (i, EcologyPackType ep, EcologyMaterial em) <- m8(r) WHERE m8(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Металл') == em;
+            }
+            LOCAL NESTED message = TEXT ();
+            message() <- GROUP CONCAT (CONCAT ' ', name(INTEGER i), '('+bar( i)+')',  uom(i)) IF imported(i) AND NOT item(i), '\n' ORDER i;
+            message() <- 'Импорт завершен.\nНе найдено слеюующее к-во товаров: '+(GROUP SUM 1 IF imported(INTEGER i) AND NOT item(i))+'\n'+message();
+            APPLY;
+            IF NOT canceled() THEN {
+                IF message() THEN {
+                    MESSAGE message() NOWAIT;
+                } ELSE {
+                    MESSAGE 'Выполнено';
+                }
+            }
+        }
+    }    
+}
+
+EXTEND FORM items
+    PROPERTIES () importMaterialMigrate TOOLBAR DRAW i
+;
+DESIGN  items{
+    actionsImport{
+        MOVE PROPERTY (importMaterialMigrate());
+    }
+}
