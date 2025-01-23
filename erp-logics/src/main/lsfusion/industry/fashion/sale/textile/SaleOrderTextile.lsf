@@ -4,7 +4,9 @@ REQUIRE SaleOrder, Warehouse, Store;
 
 NAMESPACE Sale;
 
-CONSTRAINT SET([GROUP SUM 1 BY sku(OrderDetail detail), order(detail)](Sku sku, Order order) > 1) AND supplierStock(order) IS Warehouse
+allowDuplicateOrderDetailSkus = ABSTRACT BOOLEAN (UserOrder);
+
+CONSTRAINT SET([GROUP SUM 1 BY sku(OrderDetail detail), order(detail)](Sku sku, Order order) > 1) AND supplierStock(order) IS Warehouse AND NOT allowDuplicateOrderDetailSkus(order)
     MESSAGE 'Запрещено дублировать товары в заказе (продажа)';   //ограничение нужно для корректности столбцов Кол-во скомплектовано и Кол-во в блоках отгрузки, пересчёта из типов пакетов
 
 notShowImageOrder 'Не показывать изображение в заказах (продажа)' = DATA BOOLEAN (Stock);
