@@ -1,8 +1,24 @@
 MODULE AstronCashRegisterPriceTransaction;
 
-REQUIRE CashRegisterPriceTransaction;
+REQUIRE CashRegisterPriceTransaction, LotTypeBy, EDIGTIN;
 
 NAMESPACE Astron;
+
+
+sendGTIN 'Выгружать GTIN' = DATA BOOLEAN (GroupCashRegister);
+sendLotType 'Выгружать признак маркировки' = DATA BOOLEAN (GroupCashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) SHOWIF sidModel(grc) == 'Astron' sendGTIN, sendLotType;
+
+DESIGN groupCashRegister {
+    topContainer {
+        NEW artix  {
+            MOVE PROPERTY (sendGTIN(grc));
+            MOVE PROPERTY (sendLotType(grc));
+        }
+    }
+}
 
 
 overAstronInfo1 = ABSTRACT TEXT (MachineryPriceTransaction, Barcode);
@@ -11,17 +27,46 @@ localAstronInfo = DATA LOCAL TEXT (MachineryPriceTransaction, Barcode);
 
 beforeCreateAstronPriceTransaction ABSTRACT LIST (MachineryPriceTransaction);
 
+astronInfo2(MachineryPriceTransaction mpt, Barcode b) = (JSON FROM
+    'astron2' = JSON FROM
+        'numbers' = JSON FROM
+            'numberId' = INTEGER numberId,
+            'numberValue' = CASE WHEN numberId == 103 THEN 1 WHEN numberId == 104 THEN 2 ELSE 0,
+            'numberName' = CASE WHEN numberId == 103 THEN 'подлежит маркировке СИ' WHEN numberId == 104 THEN 'подлежит УКЗ' ELSE 'не подлежит маркировке'
+            WHERE iterate (numberId, 102, 104),
+        'numProperty' = JSON FROM
+            'numPropertyKey' = INTEGER numPropertyKey,
+            'propertyGrpId' = value(b),
+            'numberId' = CASE WHEN idLotType(sku(b)) == 'ukz' THEN 104 WHEN idLotType(sku(b)) THEN 103 ELSE 102
+            WHERE numPropertyKey == 29,
+        'propertyGrp' = JSON FROM
+            'propertyGrpId' = INTEGER propertyGrpId,
+            'propertyGrpName' = 'Свойства для '+value(b)
+            WHERE propertyGrpId == value(b),
+        'propertyGrpId' = value(b)
+    ) IF in(mpt, b) AND sendLotType(groupMachinery(mpt));
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF sidModel(groupMachinery(mpt)) == 'Astron' THEN {
+        localAstronInfo(mpt, Barcode b) <- NULL; //очищаем в первом действии, следить чтобы дальше добавлялись позже
+
+        localAstronInfo(mpt, Barcode b) <- (CONCAT ',', localAstronInfo(mpt, b), GTIN(b))
+            WHERE in(mpt, b) AND sendGTIN(groupMachinery(mpt));
+    }
+}
+
 //стараемся выполнять последним
-skipLoadSSC = ABSTRACT BOOLEAN (GroupMachinery);
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
     IF sidModel(gm) == 'Astron' THEN {
         beforeCreateAstronPriceTransaction(mpt);
-        info(mpt, Barcode b) <- ('\{"astron":\{'+
+        info(mpt, Barcode b) <- TEXT(merge((OVERRIDE JSON('\{"astron":\{'+
                 (CONCAT ',',
                     overAstronInfo1(mpt, b),
                     overAstronInfo2(mpt, b),
                     localAstronInfo(mpt, b)
                 )
-                +'\}\}') WHERE in(mpt, b);
+                +'\}\}'), JSON('\{\}')),
+            (OVERRIDE astronInfo2(mpt, b), JSON('\{\}'))
+        )) WHERE in(mpt, b);
     }
 } 
