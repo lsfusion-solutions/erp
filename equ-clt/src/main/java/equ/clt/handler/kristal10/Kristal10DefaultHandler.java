@@ -159,7 +159,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             }
         }
 
-        addProductType(good, item, tobaccoGroups, isProductSetApiEntity);
+        addProductType(good, item, tobaccoGroups, infoJSON, isProductSetApiEntity);
 
         good.addContent(createBarcodeElement(good, item, idItem, barcodeItem, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes, infoJSON));
 
@@ -181,7 +181,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
             addStringElement(good, "name", item.name.replace("«",  "\"").replace("»", "\""));
 
-            addProductType(good, item, tobaccoGroups, false);
+            addProductType(good, item, tobaccoGroups, null, false);
 
             if (useShopIndices) {
                 StringBuilder shopIndices = new StringBuilder();
@@ -339,9 +339,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         rootElement.addContent(maxDiscountRestriction);
     }
 
-    protected static void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups, boolean isProductSetApiEntity) {
+    protected static void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups, JSONObject infoJSON, boolean isProductSetApiEntity) {
         String productType;
-        if(isProductSetApiEntity) {
+        if(infoJSON != null && infoJSON.has("product-type")) {
+            productType = infoJSON.getString("product-type");
+        } else if(isProductSetApiEntity) {
             productType = "ProductSetApiEntity";
         } else if(item.idItemGroup != null && tobaccoGroups != null && tobaccoGroups.contains(item.idItemGroup))
             productType = "ProductCiggyEntity";
