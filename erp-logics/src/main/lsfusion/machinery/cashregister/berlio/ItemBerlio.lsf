@@ -4,8 +4,12 @@ REQUIRE Item, Berlio;
 
 NAMESPACE Item;
 
-idBerlio 'Код Берлио' = DATA INTEGER (Item) IN id;
-itemIdBerlio = GROUP AGGR Item i BY idBerlio(i);
+oldBerlio 'Код Берлио' = DATA INTEGER (Item) IN id;
+
+idBerlio 'Код Берлио' = DATA INTEGER (Barcode) IN id;
+idBerlio'Код Берлио' (Item i) = idBerlio(barcode(i));
+barcodeIdBerlio = GROUP AGGR Barcode b BY idBerlio(b);
+itemIdBerlio = sku(barcodeIdBerlio(INTEGER i));
 
 idBarcodeBerlio 'Код Берлио (топливо)' = DATA INTEGER (Item) IN id;
 itemIdBarcodeBerlio = GROUP MAX Item i BY idBarcodeBerlio(i);
@@ -13,7 +17,10 @@ itemIdBarcodeBerlio = GROUP MAX Item i BY idBarcodeBerlio(i);
 nameBerlio 'Наименование Берлио' = DATA STRING[100] (Item);
 itemNameBerlio = GROUP MAX Item i BY nameBerlio(i);
 
-EXTEND FORM item PROPERTIES(i) idBerlio, idBarcodeBerlio, nameBerlio;
+EXTEND FORM item 
+    PROPERTIES(i) idBerlio READONLY, idBarcodeBerlio, nameBerlio
+    PROPERTIES (b) idBerlio BEFORE date(b)
+;
 DESIGN item {
     itemHeader {
         MOVE PROPERTY(idBerlio(i));
@@ -22,4 +29,9 @@ DESIGN item {
     }
 }
 
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() idBerlio, nameBerlio;
+EXTEND FORM items PROPERTIES(i) READONLY idBerlio, nameBerlio;
+
+berlioMigrate(){
+    idBerlio(Barcode b) <- oldBerlio(sku(b)) WHERE b == barcode(sku(b));
+}
+@defOnStartMigrate(berlioMigrate, '');
