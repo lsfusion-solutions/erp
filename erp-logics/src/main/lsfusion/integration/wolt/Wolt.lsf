@@ -1,0 +1,121 @@
+MODULE Wolt;
+
+REQUIRE SaleInternetOrder, Pricing, ItemInternet, SkuLedger;
+
+NAMESPACE Wolt;
+
+priceWolt(Item i) = GROUP MAX retailPricingPriceA(i, DepartmentStore ds) IF active(ds);
+
+in = DATA LOCAL BOOLEAN (Item);
+countIn = GROUP SUM 1 IF in(Item i);
+
+data (Item i) = JSON FROM external_id = id(i), price = priceWolt(i), discounted_price = priceWolt(i),
+    enabled = active(i), in_stock = active(i), image_url = urlHttpAccess(i)
+;
+
+data = JSON FROM data = JSON FROM data(Item i) WHERE in(i);
+
+woltOnline = ABSTRACT CASE BOOLEAN (Item, DepartmentStore);
+
+woltGroupType = DATA CustomGroupType ();
+nameWoltGroupType 'Классификатор Wolt' = name(woltGroupType());
+skipDefaultOnline = ABSTRACT BOOLEAN ();
+
+woltOnline(Item i, DepartmentStore ds) += WHEN i IS Item AND ds IS DepartmentStore AND NOT skipDefaultOnline() THEN
+    TRUE IF customGroup(woltGroupType(), i)
+;
+
+loginMenuApi 'Login(menu api)' = DATA STRING ();
+passwordMenuApi 'Password(menu api)' = DATA STRING ();
+tokenOrderApi 'Token order API' = DATA STRING ();
+
+
+EXTEND FORM integrationData
+    PROPERTIES () loginMenuApi, passwordMenuApi, nameWoltGroupType
+;
+
+DESIGN integrationData{
+    delivery{
+        NEW wolt{
+            caption = 'Wolt';
+            MOVE PROPERTY (loginMenuApi());
+            MOVE PROPERTY (passwordMenuApi());
+            MOVE PROPERTY (tokenOrderApi());
+            MOVE PROPERTY (nameWoltGroupType());
+        }
+    }
+}
+
+venueId 'Venue ID Wolt' = DATA STRING (DepartmentStore);
+
+updateItems 'Обновить товары' (DepartmentStore ds){
+    exportJSON() <- JSON FROM data = JSON FROM value = data(Item.Item ii) WHERE Wolt.in(ii);
+
+    LOCAL f = FILE();
+    encodeBase64(loginMenuApi() + ':' + passwordMenuApi());
+
+    LOCAL headers = TEXT(STRING[100]);
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    
+    TRY{
+        EXTERNAL HTTP PATCH 'https://pos-integration-service.development.dev.woltapi.com/venues/' + venueId(ds) + '/items ' HEADERS headers PARAMS exportJSON() TO f;
+    }
+    CATCH{
+        MESSAGE CONCAT ' ','Произошла ошибка при обновлении товара',(GROUP CONCAT name(Item ii) IF in(ii), ', ' ORDER ii) NOWAIT;
+    }
+}
+
+dataInventory (Item i, DepartmentStore ds) = JSON FROM sku = id(i), inventory = currentBalance(i, ds);
+
+updateInventory 'Обновить остатки' (DepartmentStore ds){
+    exportJSON() <- JSON FROM data = JSON FROM value = dataInventory(Item.Item ii, ds) WHERE Wolt.in(ii);
+
+    LOCAL f = FILE();
+    encodeBase64(loginMenuApi() + ':' + passwordMenuApi());
+    
+    LOCAL headers = TEXT(STRING[100]);
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    TRY{
+        EXTERNAL HTTP PATCH 'https://pos-integration-service.wolt.com/venues/' + venueId(ds) + '/items/inventory' HEADERS headers PARAMS exportJSON() TO f;
+    }
+    CATCH{
+        MESSAGE CONCAT ' ','Произошла ошибка при обновлении остатков', name(ds);
+    }
+}
+
+updateInventoryAll 'Обновить остатки' (DepartmentStore ds){
+    in(Item ii) <- TRUE WHERE woltOnline(ii, ds);
+    updateInventory(ds);
+}
+
+updateItemsAll 'Обновить товары' (DepartmentStore ds){
+    in(Item ii) <- TRUE WHERE woltOnline(ii, ds);
+    updateItems(ds);
+}
+
+EXTEND FORM internetCatalogs
+    OBJECTS woltDs = DepartmentStore
+    PROPERTIES (woltDs) name READONLY, venueId 
+    PROPERTIES (woltDs) TOOLBAR DRAW woltDs updateInventoryAll, updateItemsAll
+    FILTERS active(woltDs)
+;
+
+DESIGN internetCatalogs{
+    tabContainer{
+        NEW wolt{
+            caption = 'Wolt';
+            MOVE BOX(woltDs);
+        }
+    }
+}
+
+//заказы
+
+wolt_webhook(FILE f){
+    LOCAL params = STRING ();
+    params() <- GROUP CONCAT (params(STRING s) + ' : ' + s), ' - ' ORDER s;
+    IF params() THEN logToFile('wolt', 'params -' + params());
+    logToFile('wolt', f);
+    exportJSON() <- JSON FROM result = 'ok';
+}
