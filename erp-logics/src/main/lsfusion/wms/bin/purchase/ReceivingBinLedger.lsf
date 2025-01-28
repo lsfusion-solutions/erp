@@ -122,11 +122,15 @@ quantityLocal 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Receiving);
 
 expiryDate 'Срок годности' = DATA DATE (ReceivingDetail) CHARWIDTH 7;
 
+overChangeBarcodeLocal ABSTRACT LIST (Receiving);
+
 changeBarcodeLocal(Receiving r) {
     INPUT s=STRING[15] DO {
         IF skuBarcode(s, currentDate()) THEN {
             idBarcodeLocal(r) <- s;
-            skuLocal(r) <- skuBarcode(s, currentDate()); 
+            skuLocal(r) <- skuBarcode(s, currentDate());
+            quantityLocal(r) <- NULL;
+            overChangeBarcodeLocal(r);            
         } ELSE {
             MESSAGE 'Штрихкод не найден';
         }    
@@ -154,23 +158,30 @@ FORM addReceivingDetail 'Приемка'
 ;
 
 DESIGN addReceivingDetail {
-    PROPERTY(idBarcodeLocal(r)) {
-        font = 'bold 24';
-        panelCaptionVertical = TRUE;
-        charWidth = 15;
-    }
-    PROPERTY(nameSkuLocal(r)) {
-        font = 'bold 24';
-        panelCaptionVertical = TRUE;
-        charWidth = 30;
-    }
-    PROPERTY(quantityLocal(r)) {
-        font = 'bold 24';
-        panelCaptionVertical = TRUE;
-        charWidth = 5;
+    OBJECTS {
+        NEW propHorizontalContainer {
+            horizontal = TRUE;
+            MOVE PROPERTY(idBarcodeLocal(r)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 15;
+            }
+            MOVE PROPERTY(nameSkuLocal(r)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 10;
+            }
+            MOVE PROPERTY(quantityLocal(r)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 5;
+            }
+        }
     }
 }
  
+overAddReceivingDetail ABSTRACT LIST (Receiving, ReceivingDetail);
+
 WHEN LOCAL FORMS addReceivingDetail SET(skuLocal(Receiving r) AND quantityLocal(r)) DO {
     NEWSESSION NESTED (idBarcodeLocal, skuLocal, quantityLocal) {
         NEW detail=ReceivingDetail {
@@ -178,15 +189,19 @@ WHEN LOCAL FORMS addReceivingDetail SET(skuLocal(Receiving r) AND quantityLocal(
             idBarcode(detail) <- idBarcodeLocal(r);
             sku(detail) <- skuLocal(r);
             quantity(detail) <- quantityLocal(r);
+            overAddReceivingDetail(r, detail);
         } 
         APPLY NESTED LOCAL ;
     }
 }
 
+overNewReceivingDetail ABSTRACT LIST (Receiving);
+
 newReceivingDetail 'Добавить' (Receiving r) {
     idBarcodeLocal(r) <- NULL;
     skuLocal(r) <- NULL;
     quantityLocal(r) <- NULL;
+    overNewReceivingDetail(r);
     SHOW addReceivingDetail OBJECTS r=r; 
 } IMAGE 'add.png';
 
@@ -485,7 +500,122 @@ NAVIGATOR {
     }
 }
 
+CLASS UserReceiving : Receiving;
+TABLE userReceiving (UserReceiving);
+
+@defineDocumentHeaderTimePrefix(UserReceiving, , ' {document.of.document}');
+
+@deriveDocumentHeaderTimePrefix(UserReceiving, );
+
+@defineDocumentHeaderNumber(UserReceiving, BPSTRING[2]);
+
+@defineNumeratedDefault(UserReceiving, 'Приемка', 'ПР');
+
+@defineDocumentHeaderLegalEntity(userReceiving, supplier, 'Поставщик');
+@defineDocumentHeaderLegalEntity(userReceiving, customer, 'Покупатель');
+
+@defineDocumentHeaderStock (userReceiving, stock, 'Склад поставщика', supplier);
+@defineDocumentHeaderStock (userReceiving, stock, 'Склад покупателя', customer);
+
+//@defineDocumentHeaderPosted(UserReceiving)
+
+@defineDocumentHeaderClosed(UserReceiving);
+
+isPosted(UserReceiving receiving) += receiving IS UserReceiving;
+isClosed(UserReceiving receiving) += isClosed(receiving);
+number(UserReceiving receiving) += number(receiving);
+series(UserReceiving receiving) += series(receiving);
+date(UserReceiving receiving) += date(receiving);
+time(UserReceiving receiving) += time(receiving);
+supplier(UserReceiving receiving) += supplier(receiving);
+supplierStock(UserReceiving receiving) += supplierStock(receiving);
+customer(UserReceiving receiving) += customer(receiving);
+customerStock(UserReceiving receiving) += customerStock(receiving);
+quantity = ABSTRACT NUMERIC[16,5] (Sku, UserReceiving);
+invoiceQuantity(Sku sku, UserReceiving receiving) += quantity(sku, receiving);
+
+META defineUserReceiving(primObject, captionObject, formObject)
+    userReceiving = DATA UserReceiving(###primObject);
+    
+    quantity (Sku s, UserReceiving r) += [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(##primObject(detail))](s, r);
+    
+    count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
+    
+    description###primObject 'Входящие документы по '##captionObject (UserReceiving userReceiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY userReceiving(primObject)](userReceiving);
+    
+    selectedUserReceiving 'Отм' = DATA LOCAL BOOLEAN (###primObject);
+
+    in(UserReceiving o, ###primObject primObject) = userReceiving(primObject) == o;
+
+    countToUserReceiving###primObject() = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) AND NOT userReceiving(primObject);
+        
+    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject)
+        MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
+
+    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject)
+        MESSAGE 'Несовпадение склада получателя в '##captionObject + ' и документе приемки';
+
+    createUserReceivingFor###primObject 'Создать документ приемки' () {
+        LOCAL newReceiving = UserReceiving();
+        NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
+            IF countToUserReceiving###primObject() THEN NEW r = UserReceiving {
+                supplier(r) <- GROUP MAX supplier(###primObject primObject) IF selectedUserReceiving(primObject);
+                supplierStock(r) <- GROUP MAX supplierStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                customer(r) <- GROUP MAX customer(###primObject primObject) IF selectedUserReceiving(primObject);
+                customerStock(r) <- GROUP MAX customerStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                userReceiving(###primObject primObject) <- r WHERE selectedUserReceiving(primObject) AND NOT userReceiving(primObject);
+                APPLY;
+                newReceiving() <- r;
+            }
+        }
+        IF newReceiving() IS UserReceiving THEN {
+            ACTIVATE TAB receiving.receiving;
+            SEEK receiving.r = newReceiving();
+            ACTIVATE PROPERTY receiving.number(r);
+            newReceiving() <- NULL;
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM receiving
+        PROPERTIES(r) description###primObject
+        OBJECTS primObject = ###primObject LAST
+        PROPERTIES(primObject) selectedUserReceiving, isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+        PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
+        ORDERS nameSupplierStock(primObject), dateTime(primObject)
+        FILTERS isPosted(primObject), NOT userReceiving(primObject),
+            stock(receivingBin(u)) == customerStock(primObject)
+    ;
+    
+    DESIGN receiving {
+        tabContainer {
+            MOVE BOX(primObject) FIRST;
+        }
+    }
+
+    overCreateDetail(ReceivingDetail d, ###primObject##Detail detail) ABSTRACT LIST;
+    
+    createDetails(Receiving receiving) + WHEN count###primObject(receiving AS UserReceiving) THEN {
+        NEWSESSION {
+            IF PREV(countReceivingDetail(receiving)) THEN {
+                ASK 'Данный документ содержит строки, удалить их?' DO {
+                    DELETE ReceivingDetail d WHERE d IS ReceivingDetail AND receiving(d)==receiving;
+                }
+            }
+            FOR userReceiving(primObject(###primObject##Detail detail)) == receiving NEW d=ReceivingDetail DO {
+                receiving(d) <- receiving;
+                idBarcode(d) <- idBarcodeSku(detail);
+                sku(d) <- sku(detail);
+                overCreateDetail(d, detail);
+            }
+            APPLY;
+        }
+    }
+END    
+
+
 META defineReceivingAggregation(primObject, captionObject, formObject)
+    @defineUserReceiving(primObject, captionObject, formObject);
+        
     CLASS ###primObject##Receiving : Receiving;
 
     needToCreateReceiving = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (###primObject);
@@ -517,15 +647,17 @@ META defineReceivingAggregation(primObject, captionObject, formObject)
         }
     }
 
+    receiving(###primObject primObject) = OVERRIDE userReceiving(primObject), primObject##Receiving(primObject);
+
     @defineOperationProperty(create###primObject##Receiving, 'Приемка по '##captionObject, createContainer);
     createReceiving (User###primObject o) <- create###primObject##Receiving(operation(o)) WHEN CHANGED(operation(o));
 
-    needToCreateReceiving(###primObject primObject) += createReceiving(primObject);
+    skipReceiving = ABSTRACT BOOLEAN (###primObject) MATERIALIZED;
+
+    needToCreateReceiving(###primObject primObject) += createReceiving(primObject) AND isPosted(primObject) AND NOT userReceiving(primObject) AND NOT skipReceiving(primObject);
 
     quantity 'Кол-во документе прихода' = GROUP SUM quantity(###primObject##Detail detail) IF primObject(detail)==primObject(###primObject##Receiving receiving) BY sku(detail), receiving;
     invoiceQuantity[Sku, ###primObject##Receiving](Sku sku, ###primObject##Receiving receiving) += quantity(sku, receiving);
-
-    overCreateDetail(ReceivingDetail d, ###primObject##Detail detail) ABSTRACT LIST;
     
     createDetails(Receiving receiving) + WHEN primObject(receiving) IS ###primObject THEN {
         NEWSESSION {
