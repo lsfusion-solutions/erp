@@ -12,13 +12,14 @@ isCorporate 'Фирменный магазин' = DATA BOOLEAN (Store);
 isCorporate 'Фирменный магазин' (DepartmentStore ds) = isCorporate(store(ds)) AND NOT skipCorporate(ds);
 skipInternet = ABSTRACT BOOLEAN (DepartmentStore);
 isInternet 'Интернет-магазин' (DepartmentStore ds) = isInternet(store(ds)) AND NOT skipInternet(ds);
+isCatering 'Общественное питание' = DATA BOOLEAN (DepartmentStore);
 
 EXTEND FORM store PROPERTIES(s) isCorporate, isInternet;
 
-DESIGN store{
-    header{
+DESIGN store {
+    header {
         NEW header1Torg {
-            caption = 'Параметры 1-торг';
+            caption = 'Параметры статистических отчетов';
             lines = 4;
             MOVE PROPERTY(isCorporate(s));
             MOVE PROPERTY(isInternet(s));
@@ -26,6 +27,21 @@ DESIGN store{
     }
 }
 
+EXTEND FORM departmentStore PROPERTIES(d) isCorporate READONLY, isInternet READONLY, isCatering;
+
+DESIGN departmentStore {
+    header {
+        NEW headerStat {
+            caption = 'Параметры статистических отчетов';
+            lines = 4;
+            MOVE PROPERTY(isCorporate(d));
+            MOVE PROPERTY(isInternet(d));
+            MOVE PROPERTY(isCatering(d));
+        }
+    }
+}
+
+//
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
@@ -34,6 +50,14 @@ totalSumInternetSoldBy 'В интернет-магазинах, руб.' (Statis
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isInternet (stock) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
 
+totalSumCateringSoldBy 'В общепите, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock);
+
+totalSumCateringResidentSoldBy 'В общепите, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
+    GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering(stock) AND resident(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock);
+//
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
         SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku);
@@ -41,6 +65,13 @@ totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (Sta
 totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
     GROUP
         SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isInternet(stock) AND isParent(group, sku);
+
+totalSumCateringSoldBy 'В общепите' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    GROUP
+        SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCatering(stock) AND isParent(group, sku);
+
+totalSumCateringResidentSoldBy 'В общепите отеч., руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (GROUP SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isCatering(stock) AND resident(group, sku));
 
 // было вот так - переделал на Z-отчет
 //sumCard 'Продано с использованием банк. карточек' (departmentStore, dateFrom, dateTo) = GROUP SUM sum(Payment payment) IF paymentMeans(payment)==PaymentMeans.paymentMeansCard
@@ -52,19 +83,19 @@ totalSumInternetSoldBy 'В интернет-магазинах' (StatisticGroup 
 //        BY departmentStore(receipt), dateFrom, dateTo;
 
 sumCard 'Продано с использованием банк. карточек' (DATE dateFrom, DATE dateTo) =
-    GROUP 
-    SUM sumCard (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z);
+    GROUP
+        SUM sumCard (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z);
 
 extraSumSale = ABSTRACT NUMERIC[18,4](DATE, DATE);
 
 sumSale 'Продано по кассе' (DATE dateFrom, DATE dateTo) =
-    (GROUP 
-    SUM sumReceiptDetail (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z)) // вся сумма, с учетом проданных сертификатов
-    (+) extraSumSale(dateFrom, dateTo);
+    (GROUP
+        SUM sumReceiptDetail (ZReport z) IF inStat(departmentStore(z)) AND dateFrom <= date(z) AND dateTo >= date(z)) // вся сумма, с учетом проданных сертификатов
+        (+) extraSumSale(dateFrom, dateTo);
 
 EXTEND FORM statisticalReportStockSelect
-    PROPERTIES   sumCard(dFrom, dTo), 
-                 sumSale(dFrom, dTo) // вся сумма, с учетом проданных сертификатов
+    PROPERTIES sumCard(dFrom, dTo),
+        sumSale(dFrom, dTo) // вся сумма, с учетом проданных сертификатов
 
 ;
 
@@ -72,8 +103,8 @@ DESIGN statisticalReportStockSelect {
     printContainer {
         NEW summa {
             caption = 'По выбранным складам';
-            MOVE PROPERTY(sumCard(dFrom,dTo));
-            MOVE PROPERTY(sumSale(dFrom,dTo));  
-        } 
+            MOVE PROPERTY(sumCard(dFrom, dTo));
+            MOVE PROPERTY(sumSale(dFrom, dTo));
+        }
     }
 }
