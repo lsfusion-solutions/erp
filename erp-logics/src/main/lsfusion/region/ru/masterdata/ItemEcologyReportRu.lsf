@@ -1,0 +1,197 @@
+MODULE ItemEcologyReportRu;
+
+REQUIRE ItemEcologyRu, SaleLedger, PurchaseLedger;
+
+NAMESPACE Item;
+
+CLASS TypeReport 'Тип отчета' {
+    in 'По приходу',
+    out 'По расходу'
+}
+name 'Наименование' (TypeReport r) = staticCaption(r) IF r IS TypeReport CHARWIDTH 15;
+
+FORM typeReports 'Типы отчета'
+    OBJECTS t=TypeReport
+    PROPERTIES(t) READONLY name
+    ORDERS name(t)
+    LIST TypeReport OBJECT t
+;
+DESIGN typeReports { BOX { size = (600, 400); } }
+
+
+quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock);
+quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock);
+
+value 'Содержание (кг. на единицу товара)' = DATA LOCAL NUMERIC[16,6](Sku,EcologyMaterial);
+
+quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityIn(s,su,st)*value (s, em)) ;
+quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityOut(s,su,st)*value (s, em)) ;
+
+inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (LegalEntity);
+countInEcologeLegalEntity 'Отм.'  = GROUP SUM 1 IF inEcology(LegalEntity l);
+nameInEcologeLegalEntity 'Поставщик' = GROUP CONCAT name(LegalEntity l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+
+inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
+countInEcologeStock 'Отм.'   = GROUP SUM 1 IF inEcology(Stock l);
+nameInEcologeStock 'Склад' = GROUP CONCAT name(Stock l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+
+inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (Region);
+countInEcologeRegion 'Отм.'   = GROUP SUM 1 IF inEcology(Region l);
+nameInEcologeRegion 'Регион' = GROUP CONCAT name(Region l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+
+FORM selectParamsEcology 'Параметры'
+    OBJECTS su = LegalEntity
+    PROPERTIES (su) inEcology
+    PROPERTIES (su) READONLY  name, id
+    FILTERS isSupplier(su)
+
+    OBJECTS r = Region
+    PROPERTIES (r) inEcology
+    PROPERTIES (r) READONLY  name, id
+    
+    OBJECTS st = Stock
+    PROPERTIES (st) inEcology
+    PROPERTIES (st) READONLY  name, id, nameRegion
+    FILTERS isCompany(st)
+    PROPERTIES countInEcologeLegalEntity() TOOLBAR DRAW su
+    PROPERTIES countInEcologeStock() TOOLBAR DRAW st
+    PROPERTIES countInEcologeRegion() TOOLBAR DRAW r
+    
+    FILTERGROUP inactive1 FILTER 'Активные' active(su) 'F10' DEFAULT
+    FILTERGROUP inactive2 FILTER 'Активные' active(st) 'F9' DEFAULT
+;
+DESIGN selectParamsEcology{
+    size = (1024, 768);
+    OBJECTS {
+        NEW row1{
+            fill=1;
+            horizontal = TRUE;
+            MOVE BOX(su);
+            NEW row11{
+                fill = 1;
+                horizontal = FALSE;
+                fill = 1;
+                MOVE BOX(r);
+                MOVE BOX(st);                
+            }            
+        }        
+    }
+}
+
+
+
+resetEcologyReport(){
+    quantityIn(Sku s, LegalEntity su, Stock st) <- NULL;
+    quantityOut(Sku s, LegalEntity su, Stock st) <- NULL;
+    value (Sku s, EcologyMaterial em) <- NULL;
+    formRefresh();
+}
+changeSelectForm() {
+    inEcology(LegalEntity l) <- NULL;
+    inEcology(Stock l) <- NULL;
+    inEcology(Region l) <- NULL;
+    resetEcologyReport();
+    SHOW selectParamsEcology;
+    formRefresh();
+}
+fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
+    resetEcologyReport();
+    
+    LOCAL  to = BOOLEAN (Stock);
+    LOCAL  to = INTEGER (Sku);
+    LOCAL  to = BOOLEAN (LegalEntity);
+    to(Sku s) <- (GROUP SUM 1 IF value(s, EcologyPackType et, EcologyMaterial em));
+    value (Sku s, EcologyMaterial em) <- (GROUP SUM value(s, EcologyPackType et,em) ) WHERE to(s);    
+        
+    to(LegalEntity l) <- (inEcology(l)) OR (l IS LegalEntity AND NOT countInEcologeLegalEntity());
+    to(Stock l) <- isCompany(l) AND (inEcology(l) OR inEcology(region(l)));
+    IF NOT (GROUP SUM 1 IF  to(Stock l)) THEN {
+        to(Stock l) <- isCompany(l);
+    }
+    IF t == TypeReport.in THEN {
+        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchase (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
+    }ELSE {
+        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) BY sku(bt),supplier(bt)](s,su); 
+    }    
+}
+
+ecologyReportPrint = DATA LOCAL STRING ();
+
+FORM ecologyReportPrint 'Экологический отчет'
+    OBJECTS dates = (df = DATE, dt = DATE, t = TypeReport) PANEL
+    PROPERTIES from =VALUE (df), to = VALUE (dt), name(t)
+    PROPERTIES () TOOLBAR DRAW dates nameInEcologeLegalEntity, nameInEcologeRegion, nameInEcologeStock
+    OBJECTS em = EcologyMaterial
+
+    OBJECTS dd = (s=Sku, su=LegalEntity, st=Stock) SUBREPORT 
+    PROPERTIES READONLY idBarcode(s), id(s), name(s)
+    PROPERTIES READONLY quantityIn(s,su,st) FOOTER (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst)), 
+                        quantityIn(s,su,st,em) COLUMNS (em) HEADER name(em)  FOOTER  (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst,em))
+    PROPERTIES READONLY  quantityOut(s,su,st) FOOTER (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst)), 
+        quantityOut(s,su,st,em) COLUMNS (em) HEADER name(em) FOOTER  (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst,em))
+    PROPERTIES name(su) HEADER 'Поставщик', name(st) HEADER  'ТО', nameRegion(st)
+    ORDERS nameRegion(st)
+    FILTERS (quantityIn(s,su,st) OR  quantityOut(s,su,st)) AND df IS DATE
+    REPORTFILES  dd ecologyReportPrint()
+;
+
+ecologyReportPrint 'Печать' (DATE df, DATE dt, TypeReport t){
+    ecologyReportPrint() <- OVERRIDE 'Item_ecologyReportPrintOut_dd.jrxml' IF t ==TypeReport.out, 'Item_ecologyReportPrint_dd.jrxml';
+    PRINT ecologyReportPrint OBJECTS df=df,dt=dt,t=t;
+} IMAGE 'print.png' IN print;
+ecologyReportPrintXls 'Печать (xls)' (DATE df, DATE dt, TypeReport t){
+    ecologyReportPrint() <- OVERRIDE 'Item_ecologyReportPrintOut_dd.jrxml' IF t ==TypeReport.out, 'Item_ecologyReportPrint_dd.jrxml';
+    PRINT ecologyReportPrint OBJECTS df=df,dt=dt,t=t XLSX;
+} IMAGE 'print.png' IN print;
+
+FORM ecologyReport 'Экологический отчет'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES from =VALUE (df), to = VALUE (dt)
+
+    OBJECTS  t = TypeReport PANEL
+    PROPERTIES name(t) SELECTOR
+
+    PROPERTIES () ON CHANGE changeSelectForm() nameInEcologeLegalEntity, nameInEcologeRegion, nameInEcologeStock
+
+    OBJECTS em = EcologyMaterial
+
+    OBJECTS dd = (s=Sku, su=LegalEntity, st=Stock)
+    PROPERTIES READONLY idBarcode(s), id(s), name(s)
+    PROPERTIES READONLY SHOWIF (t==TypeReport.in) quantityIn(s,su,st) FOOTER (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst)),
+        quantityIn(s,su,st,em) COLUMNS (em) HEADER name(em)  FOOTER  (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst,em))
+    PROPERTIES READONLY SHOWIF (t==TypeReport.out) quantityOut(s,su,st) FOOTER (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst)),
+        quantityOut(s,su,st,em) COLUMNS (em) HEADER name(em) FOOTER  (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst,em))
+    PROPERTIES name(su) HEADER 'Поставщик', name(st) HEADER  'ТО', nameRegion(st)
+    ORDERS nameRegion(st)
+    FILTERS (t==TypeReport.in AND quantityIn(s,su,st)) OR (t==TypeReport.out AND quantityOut(s,su,st))
+    PROPERTIES  TOOLBAR DRAW dd fillEcologyReport(df,dt,t), ecologyReportPrint(df,dt,t), ecologyReportPrintXls(df,dt,t)
+
+    EVENTS ON CHANGE df resetEcologyReport()
+    EVENTS ON CHANGE dt resetEcologyReport()
+    EVENTS ON CHANGE t resetEcologyReport()
+
+;
+DESIGN ecologyReport{
+    OBJECTS {
+        NEW filters{
+            caption = 'Параметры';
+            horizontal = TRUE;
+            lines = 1;
+            MOVE PROPERTY (from){caption = 'Дата с';}
+            MOVE PROPERTY (to){caption = 'Дата по';}
+            MOVE PROPERTY (name(t));
+            MOVE PROPERTY (nameInEcologeLegalEntity());
+            MOVE PROPERTY (nameInEcologeRegion());
+            MOVE PROPERTY (nameInEcologeStock());
+            
+        }
+        MOVE BOX(dd);
+    }
+}
+NAVIGATOR {
+    stockReports {
+        NEW ecologyReport;
+    }    
+}
+
+
