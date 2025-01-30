@@ -73,8 +73,10 @@ WHEN CHANGED (in(SalePlace sp, DepartmentStore ds)) DO {
     dataQuantity(SalePlaceDetail d, DepartmentStore st) <- NULL WHERE salePlace(d) == sp AND NOT in(sp, st) ;
 }
 
+skipSalePlaceReserve = ABSTRACT BOOLEAN (SalePlaceDetail);
+
 quantitySalePlace 'Кол-во по местам продаж' (Sku sk, Stock st, DATE d) = 
-    GROUP SUM quantity(SalePlaceDetail dd, st) IF d >= dateFrom(dd) AND NOT d > dateTo(dd) BY sku(dd);
+    GROUP SUM quantity(SalePlaceDetail dd, st) IF d >= dateFrom(dd) AND NOT d > dateTo(dd) AND NOT skipSalePlaceReserve(dd) BY sku(dd);
 
 extraReserve (Stock st, Sku sk, DATE d) += quantitySalePlace(sk, st, d);
 
