@@ -206,11 +206,17 @@ DESIGN statisticReportTypes {
 
 //загрузка стандартных данных
 loadDefaultStatisticReportType 'Добавить тип статистического отчета' (STRING[255] name, STRING[20] group, BOOLEAN isSum, NUMERIC[15,4] rate)  { 
-    NEW s = StatisticReportType {
+    IF NOT statisticReportType(name) THEN NEW s = StatisticReportType {
         name(s) <- name;
         statisticGroupType(s) <- statisticGroupTypeId(group);
         isSumReport(s) <- isSum;
         rate(s) <- rate;
+    } ELSE {
+        statisticGroupType(statisticReportType(name)) <- statisticGroupTypeId(group);
+        isSumReport(statisticReportType(name)) <- isSum;
+        rate(statisticReportType(name)) <- rate;
+        
+        DELETE StatisticReportTypeDetail d WHERE  statisticReportType(d) == statisticReportType(name);
     }
 }
 
