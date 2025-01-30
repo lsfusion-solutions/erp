@@ -14,13 +14,16 @@ giftCardDepartmentCurrentCashRegister 'Отдел продажи сертифи�
 giftCardPaymentType 'Тип оплаты сертификатом' = DATA INTEGER (GroupCashRegister) IN base;
 giftCardPaymentTypeCurrentCashRegister 'Отдел продажи сертификата' = giftCardPaymentType(groupCashRegister(currentCashRegister()));
 
+allowNotUniqueGiftCard 'Разрешить повторную продажу сертификата' = DATA BOOLEAN (GroupCashRegister);
+allowNotUniqueGiftCard 'Разрешить повторную продажу сертификата' = allowNotUniqueGiftCard(groupCashRegister(currentCashRegister()));
+
 //продажа подарочных сертификатов
 overChangeBarcodeGiftCard(STRING[30] string, Receipt receipt)  { 
     IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[30] THEN {
         LOCAL giftCard = GiftCard();
         giftCard() <- giftCardSeriesNumber(string);
 
-        IF isSold(giftCard()) AND NOT isReturn(giftCard()) THEN {
+        IF isSold(giftCard()) AND NOT isReturn(giftCard()) AND NOT allowNotUniqueGiftCard() THEN {
             MESSAGE 'Сертификат ' + seriesNumber(giftCard()) +' уже был продан';
         } ELSE {
             NEW d = ReceiptGiftCardSaleDetail {
@@ -45,12 +48,15 @@ banMessage = ABSTRACT TEXT (GiftCard);
 
 addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt)  { 
     DIALOG barcodeInput DO
-        IF isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
-           NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) AND NOT isUsedTotal(giftCardSeriesNumber(barcodeInput())) THEN {
+        IF barcodeInput() IS STRING[15] AND
+        ((isSold(giftCardSeriesNumber(barcodeInput())) AND NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) AND NOT isUsedTotal(giftCardSeriesNumber(barcodeInput()))) 
+            OR giftCardSeriesNumber(barcodeInput()) AND allowNotUniqueGiftCard())
+        THEN {
             IF isBan(giftCardSeriesNumber(barcodeInput())) THEN {
                 MESSAGE banMessage(giftCardSeriesNumber(barcodeInput()));
             } ELSE {
-                IF [GROUP LAST giftCard(PaymentGiftCard pg) IF giftCardSeriesNumber(barcodeInput())==giftCard(pg) ORDER pg BY receipt(pg)](receipt) THEN {
+                localAllowNegativeBalance() <- allowNotUniqueGiftCard();
+                IF [GROUP LAST giftCard(PaymentGiftCard pg) IF giftCardSeriesNumber(barcodeInput())==giftCard(pg) ORDER pg BY receipt(pg)](receipt) AND NOT allowNotUniqueGiftCard() THEN {
                     MESSAGE 'Сертификат уже отсканирован';
                 } ELSE {
                     NEW pg = PaymentGiftCard {
@@ -67,13 +73,14 @@ addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) 
             MESSAGE 'Сертификат не найден, истек или использован';
 }
 
-EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsNotPayment, giftCardDepartment, giftCardPaymentType;
+EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsNotPayment, giftCardDepartment, giftCardPaymentType, allowNotUniqueGiftCard;
 
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY(giftCardAsNotPayment(grc));
         MOVE PROPERTY(giftCardDepartment(grc));
         MOVE PROPERTY(giftCardPaymentType(grc));
+        MOVE PROPERTY(allowNotUniqueGiftCard(grc));
     }
 }
 
