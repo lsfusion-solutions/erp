@@ -433,9 +433,6 @@ EXTEND FORM lotOrder
 
 skipChangedCheckLotOrderDetail 'Пропустить проверку строки на редактирование' = ABSTRACT BOOLEAN (LotOrderDetail);
 
-CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(isAllIdSet(lotOrder(d))) OR isAllIdSet(lotOrder(d))) AND NOT skipChangedCheckLotOrderDetail(d)
-    MESSAGE 'Запрещено редактировать заказы марок после их отсылки в ЭЗ';
-
 availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
 availableCodes 'Доступно марок' (LotOrder o) = GROUP SUM availableCodes(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED;
 
@@ -447,6 +444,7 @@ CLASS LotOrderStatus 'Статус заказа' {
     SENT_TO_RF 'Отправлен в РФ на подпись, ожидаем',
     RF_ISSUED_CODES 'РФ выдала коды',
     COMPLETED 'Выполнен',
+    DECLINED 'Отклонен',
     REJECTED 'Отменен'
 }
 
@@ -456,6 +454,7 @@ code 'Код' (LotOrderStatus s) = CASE
     WHEN s == LotOrderStatus.SENT_TO_RF THEN 15
     WHEN s == LotOrderStatus.RF_ISSUED_CODES THEN 20
     WHEN s == LotOrderStatus.COMPLETED THEN 30
+    WHEN s == LotOrderStatus.DECLINED THEN 35
     WHEN s == LotOrderStatus.REJECTED THEN 40 CHARWIDTH 20;
   
 statusLotOrder (INTEGER code) = CASE 
@@ -464,6 +463,7 @@ statusLotOrder (INTEGER code) = CASE
     WHEN code == 15 THEN LotOrderStatus.SENT_TO_RF
     WHEN code == 20 THEN LotOrderStatus.RF_ISSUED_CODES
     WHEN code == 30 THEN LotOrderStatus.COMPLETED
+    WHEN code == 35 THEN LotOrderStatus.DECLINED
     WHEN code == 40 THEN LotOrderStatus.REJECTED;
     
 name 'Наименование' (LotOrderStatus s) = staticCaption(s) IF s IS LotOrderStatus CHARWIDTH 20;    
@@ -478,6 +478,9 @@ name 'Наименование' (LotOrderStatus s) = staticCaption(s) IF s IS Lo
 status 'Статус' = DATA LotOrderStatus (LotOrderDetail);
 codeStatus 'Код статуса' (LotOrderDetail d) = code(status(d));
 nameStatus 'Статус' (LotOrderDetail d) = name(status(d));
+
+CONSTRAINT (CHANGED(sku(LotOrderDetail d)) OR CHANGED(quantity(d))) AND (PREV(isAllIdSet(lotOrder(d))) OR isAllIdSet(lotOrder(d))) AND NOT status(d) == LotOrderStatus.DECLINED AND NOT skipChangedCheckLotOrderDetail(d)
+    MESSAGE 'Запрещено редактировать заказы марок после их отсылки в ЭЗ';
 
 fileName  = DATA STRING (LotOrder, STRING[14]);
 
