@@ -516,7 +516,8 @@ senRequestExchange(DATE d, GroupCashRegister g){
 }
 
 EXTEND CLASS RequestExchangeType{
-    salesInfoSet10 'Перезагрузить продажи Set10'
+    salesInfoSet10 'Перезагрузить продажи Set10',
+    salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)'
 }
 
 setGroup (Stock c) = GROUP MIN GroupCashRegister g IF active(g) AND isSet10(g) BY stock(g);
@@ -572,6 +573,55 @@ salesInfoSet10ByStore 'Перезагрузить продажи Set10(по ма
         APPLY;
     }
 }
+//с расчетом скидок
+
+GROUP getFullPurchasesByParams EXTID 'plug:getFullPurchasesByParams' : bodyRequest;
+GROUP getFullPurchasesByParamsDataResponse EXTID 'ns2=http://plugins.operday.ERPIntegration.crystals.ru/:getFullPurchasesByParamsResponse' : bodyAnswer;
+
+
+FORM getFullPurchasesByParamsReq FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES IN getPurchasesByParams = toChar(operDay(), 'yyyy-MM-dd') EXTID 'dateOperDay', shopNumber() EXTID 'shopNumber'
+;
+
+FORM getFullPurchasesByParamsAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR IN getFullPurchasesByParamsDataResponse ='http://plugins.operday.ERPIntegration.crystals.ru/' EXTID 'xmlns:ns2'
+    PROPERTIES() IN getFullPurchasesByParamsDataResponse return
+;
+senRequestExchangeWithDoscount (DATE d, STRING id){
+    operDay() <- d;
+    shopNumber() <- id;
+    EXPORT getFullPurchasesByParamsReq XML;
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    LOCAL answer = FILE ();
+    EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/FiscalInfoExport' HEADERS headersSet PARAMS exportFile() TO answer;
+    IMPORT getFullPurchasesByParamsAnswer XML FROM answer();
+    IF return() THEN {
+        decodeBase64(return());
+        importReceipt(decodedBase64());
+    }
+}
+
+salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(по магазинам)' (RequestExchange r){
+    TRY {
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchangeWithDoscount(d, idStoreSet(setGroup(stock(r))));
+        succeededNative(r) <- TRUE;
+        dateTimeSucceededNative(r) <- currentDateTime();
+    }
+        CATCH {
+        NEW er = RequestExchangeError{
+            requestExchange(er) <- r;
+            date(er) <- currentDateTime();
+            erTrace(er) <- messageCaughtException();
+        }
+    }
+        FINALLY {
+        APPLY;
+    }
+}
+
 //
 salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchange r){
     TRY {
@@ -592,11 +642,13 @@ salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchang
 }
 
 EXTEND FORM requestExchange
-    PROPERTIES (r) salesInfoSet10 SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10;
+    PROPERTIES (r) salesInfoSet10 SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10
+    PROPERTIES (r) salesInfoSet10WithDiscountCalc SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10WithDiscountCalc;
 
 DESIGN requestExchange{
     secondRow{
         MOVE PROPERTY (salesInfoSet10(r));
+        MOVE PROPERTY (salesInfoSet10WithDiscountCalc(r));
     }
 }   
 EXTEND FORM integrationData
