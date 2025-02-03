@@ -54,7 +54,9 @@ okdp 'ОКДП' = DATA STRING[7] (LegalEntity) IN doc;
 corrAccount 'Корр. счет' = DATA STRING[20](LegalEntity) IN law;
 
 isNotVATPayer 'Неплательщик НДС' = DATA BOOLEAN (LegalEntity);
-isVATPayer (LegalEntity l) = l IS LegalEntity AND NOT isNotVATPayer(l) MATERIALIZED;
+overIsNotVATPayer = ABSTRACT VALUE BOOLEAN (LegalEntity);
+overIsNotVATPayer(LegalEntity l) += isNotVATPayer(l);
+isVATPayer (LegalEntity l) = l IS LegalEntity AND NOT overIsNotVATPayer(l) MATERIALIZED;
 
 EXTEND FORM legalEntity PROPERTIES (l) okdp, corrAccount, isNotVATPayer;
 EXTEND FORM legalEntities PROPERTIES (l) READONLYIF isReadonly() okdp, corrAccount, isNotVATPayer;

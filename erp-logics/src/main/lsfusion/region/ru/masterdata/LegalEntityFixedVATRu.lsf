@@ -1,0 +1,55 @@
+MODULE LegalEntityFixedVATRu;
+
+REQUIRE LegalEntityRu, Tax;
+
+NAMESPACE LegalEntity;
+
+
+isFixedVAT 'УСН' = DATA BOOLEAN (LegalEntity);
+
+dataFixedVAT 'УСН НДС' = DATA Range(LegalEntity, DATE);
+valueDataFixedVAT 'УСН НДС' (LegalEntity le, DATE date) = valueRate(dataFixedVAT(le, date));
+fixedVAT 'УСН НДС' (LegalEntity le, DATE date) =
+    GROUP
+        LAST dataFixedVAT(le, DATE dateIn)
+        ORDER dateIn
+        WHERE dataFixedVAT(le, dateIn) AND dateIn <= (date AS DATE) COMPLEX;
+valueFixedVAT 'УСН НДС' (LegalEntity le, DATE date) = valueRate(fixedVAT(le, date));
+
+currentValueFixedVAT 'УСН НДС' (LegalEntity le) = valueRate(fixedVAT(le, currentDate()));
+overIsNotVATPayer(LegalEntity l) += isNotVATPayer(l) OR isFixedVAT(l);
+
+FORM addFixedVAT 'УСН НДС'
+    OBJECTS a=LegalEntity PANEL, d=DATE PANEL
+    PROPERTIES name(a) READONLY, VALUE(d), valueDataFixedVAT(a, d)
+;
+DESIGN addFixedVAT {
+    PROPERTY(name(a)) { focusable = FALSE; }
+}
+
+addFixedVAT '{historizable.add}' (LegalEntity legalEntity)  { SHOW addFixedVAT OBJECTS a = legalEntity; }  TOOLBAR IMAGE 'add.png' CHANGEKEY 'INSERT';
+
+FORM dialogChiefFixedVAT 'УСН НДС'
+    OBJECTS l=LegalEntity PANEL, d=DATE
+    PROPERTIES name(l) READONLY, addFixedVAT(l) DRAW d , VALUE(d) READONLY, valueDataFixedVAT(l, d)
+    FILTERS valueDataFixedVAT(l, d)
+;
+DESIGN dialogChiefFixedVAT {
+    PROPERTY(name(l)) { focusable = FALSE; }
+}
+
+dialogFixedVAT 'Руководитель' (LegalEntity legalEntity)  { SHOW dialogChiefFixedVAT OBJECTS l = legalEntity; };
+
+changeFixedVAT(LegalEntity le)  {
+    dialogFixedVAT(le);
+}
+
+EXTEND FORM legalEntity PROPERTIES (l) isFixedVAT SHOWIF NOT isNotVATPayer(l), currentValueFixedVAT ON CHANGE dialogFixedVAT(l) SHOWIF isFixedVAT(l);
+
+DESIGN legalEntity {
+    row11 {
+        MOVE PROPERTY (isFixedVAT(l));
+        MOVE PROPERTY (currentValueFixedVAT(l));
+    }
+}
+
