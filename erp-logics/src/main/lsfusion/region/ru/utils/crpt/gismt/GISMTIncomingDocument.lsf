@@ -45,8 +45,8 @@ FORM getIncomingDocument
         invoiceNumber = invoiceNumberID, invoiceDate = invoiceDateID
 
     OBJECTS products = INTEGER IN body
-//    PROPERTIES(products) uit_code = uit_code
-    PROPERTIES(products) cis = uit_code
+    PROPERTIES(products) uit_code = uit_code
+    PROPERTIES(products) cis = cis
     FILTERS valueProducts(products) == value
 ;
 
@@ -64,6 +64,7 @@ getIncomingDocument (LegalEntity l, STRING[100] id) {
     }
     
     IMPORT getIncomingDocument JSON FROM result();
+    uit_code (INTEGER i) <- OVERRIDE uit_code(i), cis(i);
     gtin (INTEGER i) <- idToGtin(uit_code(i));
     sku (INTEGER i) <- OVERRIDE sku(lot(uit_code(i))), skuFromGtin(gtin(i));
 }
