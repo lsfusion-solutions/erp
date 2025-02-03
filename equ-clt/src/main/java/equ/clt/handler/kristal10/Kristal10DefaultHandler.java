@@ -819,7 +819,18 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return weightCode != null ? weightCode : "21";
     }
 
-    protected void addPayments(Map<String, GiftCard> sumGiftCardMap, List<Payment> payments, BigDecimal currentPaymentSum, List<SalesInfo> currentSalesInfoList)  {
+    protected void addPayments(Element purchaseNode, Map<String, GiftCard> sumGiftCardMap, List<Payment> payments, BigDecimal currentPaymentSum, List<SalesInfo> currentSalesInfoList)  {
+        List<Element> discountsList = purchaseNode.getChildren("discounts");
+        for (Element discountNode : discountsList) {
+            List<Element> discountEntryList = discountNode.getChildren("discount");
+            for (Element discountEntry : discountEntryList) {
+                String advertActDiscountType = readStringXMLAttribute(discountEntry, "AdvertActDiscountType");
+                if(advertActDiscountType != null && advertActDiscountType.equals("30")) {
+                    payments.add(new Payment("bonus", readBigDecimalXMLAttribute(discountEntry, "amount")));
+                }
+            }
+        }
+
         //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
         BigDecimal paymentSum = payments.stream().map(payment -> payment.sum).reduce(BigDecimal.ZERO, BigDecimal::add);
         for(GiftCard giftCard : sumGiftCardMap.values()) {
