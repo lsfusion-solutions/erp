@@ -59,9 +59,11 @@ extraReturn = DATA LOCAL BOOLEAN ();
 
 lastSeekString 'Последнее отсканированное значение' = DATA LOCAL STRING[200] ();
 enableLastSeekString 'Отображать последнее отсканированное значение' = DATA BOOLEAN ();
+enableLogSeekPacket 'Включить запись лога поиска пакета/марки' = DATA BOOLEAN ();
+enableLotCheckForm 'Отображать действие проверка марки' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() enableLastSeekString
+    PROPERTIES() enableLastSeekString, enableLotCheckForm, enableLogSeekPacket
 ;
 
 DESIGN options {
@@ -69,15 +71,85 @@ DESIGN options {
         NEW lotPacking {
             caption = 'Упаковка марок в пакеты';
             MOVE PROPERTY(enableLastSeekString());
+            MOVE PROPERTY(enableLotCheckForm());
+            MOVE PROPERTY(enableLogSeekPacket());
         }
     }
+}
+
+seekLot = DATA LOCAL Lot ();
+
+seekLot 'Поиск марки' () {
+    INPUT s = STRING[200] DO {
+        IF NOT s THEN RETURN;
+        
+        LOCAL inputId = STRING[200]();
+        inputId() <- extractGS1(s);
+        IF NOT lot(inputId()) THEN {
+            MESSAGE 'Марка не найдена';
+        } ELSE {
+            seekLot() <- lot(inputId());
+        }
+    }
+}
+
+lotPacketStatus 'Статус марки в пакете' (Lot l) = CASE
+    WHEN NOT packet(l) THEN 'Марка свободна'
+    WHEN isOpened(packet(l)) THEN 'Марка в открытом пакете на складе'
+    WHEN isClosed(packet(l)) THEN 'Марка в закрытом пакете на складе'
+    CHARWIDTH 50;
+
+backgroundLotPacketStatus 'Цвет по статусу марки' (Lot l) = CASE
+    WHEN NOT packet(l) THEN RGB(224,255,224)
+    WHEN isOpened(packet(l)) THEN RGB(255,255,204)
+    WHEN isClosed(packet(l)) THEN RGB(255,200,216);
+
+FORM lotCheck 'Проверка марки'
+    OBJECTS is = STRING[200] PANEL
+    PROPERTIES idScanLot = VALUE(is) ON CHANGE seekLot() EVENTID 'SCANNER'
+    
+    OBJECTS l = Lot PANEL
+    PROPERTIES(l) READONLY lotPacketStatus BACKGROUND backgroundLotPacketStatus(l)
+    PROPERTIES(l) READONLY id, idSku, nameSku, idPacket
+    FILTERS l = seekLot() OR NOT seekLot()
+;
+
+DESIGN lotCheck {
+//    size = (600, 100);
+    NEW inputLine {
+        caption = 'Поиск';
+        alignment = STRETCH;
+        MOVE PROPERTY(idScanLot) { caption = 'Ввод марки'; }
+    }
+    NEW packetInfo {
+        caption = 'Информация по пакету марки';
+        alignment = STRETCH;
+        horizontal = TRUE;
+        MOVE PROPERTY(lotPacketStatus(l));
+        MOVE PROPERTY(idPacket(l));
+    }
+    NEW lotInfo {
+        caption = 'Информация по марке';
+        alignment = STRETCH;
+//        horizontal = TRUE;
+        MOVE PROPERTY(id(l));
+        MOVE PROPERTY(idSku(l));
+        MOVE PROPERTY(nameSku(l));
+    }
+    MOVE TOOLBARBOX;
+}
+
+showFormLotCheck 'Проверка марок' () {
+    DIALOG lotCheck;
 }
 
 seekPacket 'Поиск пакета/марки' (Packet p) {
     INPUT s = STRING[200] DO {
         IF NOT s THEN RETURN;
+        IF enableLogSeekPacket() THEN logToFile('lotPacking', (CONCAT ', ', s + ' : new seek value', 'user : ' + login(currentUser())));
         IF enableLastSeekString() THEN lastSeekString() <- s;
         IF length(s) <= 15 THEN { // это пакет
+            IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Info] ' + s + ' : identified as Packet');
             LOCAL id = STRING[100]();
             id() <- OVERRIDE substr(s, 4, 8) IF length(s) == 12, ltrim(s, '0'); // в 1 случае без ведущих 0 и контрольной цифры (UPC-A), а если Code93 и длина 8, то перейдёт на 2
 
@@ -87,6 +159,7 @@ seekPacket 'Поиск пакета/марки' (Packet p) {
             IF NOT dialogPacket() THEN {
                 MESSAGE 'Пакет не существует';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Packet not found');
                 RETURN;
             }
             seek(dialogPacket());  // если пакет на форме не нашёлся, то перейдёт на какой-то другой и подсветит розовым
@@ -95,58 +168,70 @@ seekPacket 'Поиск пакета/марки' (Packet p) {
             IF NOT filterPacketForm() THEN {
                 MESSAGE 'Пакет не найден среди доступных';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Packet out of filter range');
                 RETURN;
             }
 
             IF dialogPacket() == p THEN { // если курсор был на другом, то сразу сюда не зайдёт, а только станет на пакет
                 IF isClosed(p) THEN {
                     open(p);
+                    IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Complete] ' + s + ' : Packet was opened');
                 } ELSE {
-                    IF completeLotPacket(p) THEN
+                    IF completeLotPacket(p) THEN {
                         close(p);
-                    ELSE {
+                        IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Complete] ' + s + ' : Packet was closed');
+                    } ELSE {
                         MESSAGE 'Пакет ещё не укомплектован, закрытие невозможно';
                         IF errorSoundToCom() THEN soundToCom();
+                        IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Packet not complete');
                     }
                 }
             }
         } ELSE { // это марка
+            IF enableLogSeekPacket() THEN logToFile('lotPacking','[Info] ' + s + ' : identified as Lot');
             LOCAL inputId = STRING[200]();
             inputId() <- extractGS1(s);
             IF NOT lot(inputId()) THEN {
                 MESSAGE 'Марка не найдена';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Lot not found');
                 RETURN;
             }
             IF isClosed(p) THEN {
                 MESSAGE 'Запрещено изменять марки в закрытом пакете';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : selected Packet is closed');
                 RETURN;
             }
 
             IF packet(lot(inputId())) != p AND ((isParentLeaf(binGroup(currentBin(packet(lot(inputId())))), binGroup('00'))
                 OR NOT shipmentDate(packet(lot(inputId())))) OR NOT allowReturnFromBuyer()) THEN {
-                MESSAGE 'Запрещено перемещение марок между пакетами без изъятия';
+                MESSAGE 'Марка находится в пакете ' + id(packet(lot(inputId()))) + '. Запрещено перемещение марок между пакетами без изъятия';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Lot transfer not allowed');
                 RETURN;
             }
             IF NOT packet(lot(inputId())) AND NOT remainingLotsQuantity(sku(lot(inputId())), p) THEN {  // если выполняется первое, значит хотят достать эту марку
                 MESSAGE 'Пакет уже укомплектован марками по товару, либо марка не подходит';
                 IF errorSoundToCom() THEN soundToCom();
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Error] ' + s + ' : Lot Packet is complete or Lot does not suitable');
                 RETURN;
             }
 
             extraCheckPacking(lot(inputId()));
             IF extraReturn() THEN {
                 extraReturn() <- NULL;
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Info] ' + s + ' : extra return canceled action');
                 RETURN;
             }
 
-            IF packet(lot(inputId())) = p THEN
+            IF packet(lot(inputId())) = p THEN {
                 packet(lot(inputId())) <- NULL;
-            ELSE
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Complete] ' + s + ' : Lot Packet was dropped, previous value ' - id(p));
+            } ELSE {
                 packet(lot(inputId())) <- p;
-            
+                IF enableLogSeekPacket() THEN logToFile('lotPacking', '[Complete] ' + s + ' : Lot Packet was set with id - ' + id(p));
+            }
             APPLY;
         }
     }
@@ -173,7 +258,7 @@ fillFilterLotPacket 'Обновить' (DATE dt) {
 FORM lotPacking 'Упаковка марок в пакеты'
     OBJECTS dt = DATE PANEL
     PROPERTIES date 'Дата с' = VALUE(dt)
-    PROPERTIES allowReturnFromBuyer()
+    PROPERTIES allowReturnFromBuyer(), showFormLotCheck() SHOWIF enableLotCheckForm()
 
     OBJECTS p = Packet
     PROPERTIES(p) READONLY isClosed, id, currentSkuList, currentQuantity, countLotsPacket, completeLotPacket
@@ -250,6 +335,7 @@ DESIGN lotPacking {
                     MOVE PROPERTY(lastSeekString());
                 }
                 TOOLBAR(l) {
+                    MOVE PROPERTY(showFormLotCheck()) FIRST;
                     MOVE PROPERTY(idScanLotPacking) {
                         fill = 1;
                         caption = 'Ввод кода пакета или марки';
