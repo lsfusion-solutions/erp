@@ -51,6 +51,9 @@ nameManufacturer (Barcode b) = nameManufacturerOver(sku(b));
 overIsWeight = ABSTRACT BOOLEAN (Barcode);
 isWeight(Barcode barcode) =(passScales(sku(barcode)) AND split(sku(barcode))) OR overIsWeight(barcode);
 
+overIsSplit = ABSTRACT BOOLEAN (Barcode);
+isSplit(Barcode barcode) = split(sku(barcode));
+
 terminalName = ABSTRACT ISTRING[255](Barcode, Stock);
 overNameSku (Barcode b, Stock s) = OVERRIDE terminalName(b, s), nameSku(b);
 skipItem = ABSTRACT BOOLEAN (Barcode, Stock, User, STRING );
@@ -72,14 +75,16 @@ CLASS TerminalBarcodeFlags {
     goodInternetStore 'Признак товара интернет магазина',
     goodMarking 'Признак маркированного товара',
     goodNotInRange 'Признак товара не входящего в ассортимент магазина',
-    voicePromotion 'Акционный'
+    voicePromotion 'Акционный',
+    returnItem 'Возвратный товар'
 }
 order(TerminalBarcodeFlags f) = CASE 
     WHEN f = TerminalBarcodeFlags.needManufacturingDate THEN 0l
     WHEN f = TerminalBarcodeFlags.goodInternetStore THEN 5l
     WHEN f = TerminalBarcodeFlags.goodMarking THEN 6l
     WHEN f = TerminalBarcodeFlags.goodNotInRange THEN 7l
-    WHEN f = TerminalBarcodeFlags.voicePromotion THEN 8l;
+    WHEN f = TerminalBarcodeFlags.voicePromotion THEN 8l
+    WHEN f = TerminalBarcodeFlags.returnItem THEN 9l;
     
 in = ABSTRACT CASE BOOLEAN (Sku, Stock, TerminalBarcodeFlags);
 flag (TerminalBarcodeFlags f) = LONG(power(2l, order(f)));
@@ -340,8 +345,9 @@ CLASS TerminalFlags {
     FLG_VOP_IGNORE_MAIN_BARCODE 'Игнорировать основной штрихкод', // 45
     FLG_VOP_MARKING_MODE_BOX_LOT 'Маркировка (режим коробка-марка)', //46
     FLG_VOP_ALLOW_TRUST_ACCEPT 'Разрешить доверительную приемку', //47
-    FLG_VOP_CONFIRM_EXCESS_ORDER_QUANTITY 'Разрешить превышение количества по заказу', //48    
-    FLG_VOP_ALLOW_TEAM_WORK 'Разрешить совместную работу с документом' // 50
+    FLG_VOP_CONFIRM_EXCESS_ORDER_QUANTITY 'Разрешить превышение количества по заказу', //48
+    FLG_VOP_ALLOW_TEAM_WORK 'Разрешить совместную работу с документом', // 50
+    FLG_VOP_BAN_RETURN_ITEM 'Запрет возвратного товара' // 51
     
 }
 TABLE terminalFlags (TerminalFlags);
@@ -396,7 +402,8 @@ order(TerminalFlags f) = CASE
     WHEN f = TerminalFlags.FLG_VOP_MARKING_MODE_BOX_LOT THEN 46l
     WHEN f = TerminalFlags.FLG_VOP_ALLOW_TRUST_ACCEPT THEN 47l
     WHEN f = TerminalFlags.FLG_VOP_CONFIRM_EXCESS_ORDER_QUANTITY THEN 48l
-    WHEN f = TerminalFlags.FLG_VOP_ALLOW_TEAM_WORK THEN 50l MATERIALIZED;
+    WHEN f = TerminalFlags.FLG_VOP_ALLOW_TEAM_WORK THEN 50l
+    WHEN f = TerminalFlags.FLG_VOP_BAN_RETURN_ITEM THEN 51l MATERIALIZED;
     
 flag 'Число'(TerminalFlags f) = LONG (power(2l, order(f)));
 
