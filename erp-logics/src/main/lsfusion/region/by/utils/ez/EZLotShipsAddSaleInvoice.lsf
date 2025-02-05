@@ -83,6 +83,32 @@ handleException (FILE exception) {
     MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
 }
 
+// agentsList
+GROUP country;
+codeLE = DATA LOCAL STRING(INTEGER);
+nameLE = DATA LOCAL STRING(INTEGER);
+addressLE = DATA LOCAL STRING(INTEGER);
+unpLE = DATA LOCAL STRING(INTEGER);
+glnLE = DATA LOCAL STRING(INTEGER);
+idLE = DATA LOCAL INTEGER (INTEGER);
+is_verifiedLE = DATA LOCAL BOOLEAN (INTEGER);
+nameCountryLE = DATA LOCAL STRING(INTEGER);
+commentCountryLE = DATA LOCAL STRING(INTEGER);
+
+FORM agentsList
+    OBJECTS agents_list = INTEGER
+    PROPERTIES(agents_list)
+    idLE EXTID 'id',
+        nameLE EXTID 'name',
+        unpLE EXTID 'unp',
+        glnLE EXTID 'gln',
+        addressLE EXTID 'address',
+        is_verifiedLE EXTID 'is_verified'
+    PROPERTIES(agents_list) IN country
+    nameCountryLE EXTID 'name',
+        commentCountryLE EXTID 'comment'
+    FILTERS imported(agents_list);
+
 overUNPGetIdEZ = ABSTRACT VALUE STRING (LegalEntity);
 
 getIdEZ (LegalEntity company, LegalEntity le) {
@@ -96,7 +122,7 @@ getIdEZ (LegalEntity company, LegalEntity le) {
 
     TRY {
         insecureSSL() <- TRUE;
-        EXTERNAL HTTP POST urlEZ() + '/contracts/agent' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        EXTERNAL HTTP POST urlEZ() + '/contracts/agentsList' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
     } CATCH {
         handleException(le, result());
         RETURN;
@@ -104,8 +130,8 @@ getIdEZ (LegalEntity company, LegalEntity le) {
 
     fileToString(result());
 
-    IMPORT JSON FROM result() TO() id;
-    idEZ(le) <- id();
+    IMPORT agentsList JSON FROM result();
+    idEZ(le) <- STRING (GROUP MIN idLE(INTEGER i) IF is_verifiedLE(i));
 }
 
 FORM currency 'Валюта'
