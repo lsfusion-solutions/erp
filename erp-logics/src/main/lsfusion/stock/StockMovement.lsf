@@ -10,6 +10,7 @@ NAMESPACE Stock;
 
 currentAccountPriceA 'Цена учетная (текущая)' (Sku sku, Stock stock) = prevAccountPriceA(sku, stock, currentDateTime());
 accountPriceA 'Цена учетная (после)' (Sku sku, Stock stock, SkuLedger ledger) = prevAccountPriceA(sku, stock, dateTime(ledger));
+accountPriceABatch 'Цена учетная (после)' (SkuLedger ledger) = prevAccountPriceA(batch(ledger), stock(ledger), dateTime(ledger));
 accountPriceA 'Цена учетная (после)' (Sku sku, SkuLedger ledger)= prevAccountPriceA(sku, stock(ledger), dateTime(ledger));
 
 filterSkuLedgerDateFrom 'Дата с' = DATA LOCAL DATE ();
@@ -78,7 +79,8 @@ FORM movementSkuStock 'Движение товара по складу'
     PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
                              signedSum , balanceA, priceA, sumA
-    PROPERTIES(s,st,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA                           
+    PROPERTIES(s,st,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA SHOWIF (NOT explicitBatchLedger(st))
+    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) accountPri    ceABatch SHOWIF (explicitBatchLedger(st))
     PROPERTIES(bil) EDIT SHOWIF allowedEdit(bil) NEWSESSION, show SHOWIF allowedShow(bil)
     ORDERS dateTime(bil) DESC
     FILTERS sku(bil) == s,            
