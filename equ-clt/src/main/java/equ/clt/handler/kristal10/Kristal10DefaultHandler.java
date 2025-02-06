@@ -150,11 +150,15 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addPluginPropertyElement(good, "need_tare", infoJSON.optBoolean("need_tare"));
             }
 
+            Boolean ukz = getUKZ(infoJSON);
+            boolean byNeedSkanUKZ = ukz != null && ukz;
+            if(byNeedSkanUKZ) {
+                addPluginPropertyElement(good, "by-need-scan-ukz", "true");
+            }
+
             if (infoJSON.has("lottype")) {
                 String lotType = infoJSON.getString("lottype");
-                if (lotType.equals("ukz"))
-                    addPluginPropertyElement(good, "by-need-scan-ukz", "true");
-                else
+                if (!byNeedSkanUKZ)
                     addStringElement(good, "mark-type", lotType);
             }
         }
@@ -265,8 +269,9 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             String uzFfdPackageCode = infoJSON.optString("uzFfdPackageCode");
             if (notNullNorEmpty(uzFfdPackageCode))
                 addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
-            if (infoJSON.has("lottype")) {
-                setAttribute(barcodeElement, "marked", !infoJSON.getString("lottype").equals("ukz"));
+            Boolean ukz = getUKZ(infoJSON);
+            if(ukz != null) {
+                setAttribute(barcodeElement, "marked", !ukz);
             }
         }
 
@@ -299,6 +304,16 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
 
         return barcodeElement;
+    }
+
+    private Boolean getUKZ(JSONObject infoJSON) {
+        Boolean ukz = null;
+        if (infoJSON.has("ukz")) {
+            ukz = infoJSON.getBoolean("ukz");
+        } else if (infoJSON.has("lottype")) {
+            ukz = infoJSON.getString("lottype").equals("ukz");
+        }
+        return ukz;
     }
 
     protected void fillRestrictionsElement(Element rootElement, CashRegisterItem item, String idItem, String barcodeItem,

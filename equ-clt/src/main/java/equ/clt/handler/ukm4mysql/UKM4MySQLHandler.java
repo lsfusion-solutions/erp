@@ -433,6 +433,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                     JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
                     String lotType = extraInfo != null ? extraInfo.optString("lottype") : null;
+                    int ukz = extraInfo != null && extraInfo.optBoolean("ukz") || "ukz".equals(lotType) ? 0 : 1;
 
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //store
                     ps.setInt(2, lotType != null ? 3 : 0); //item
@@ -447,7 +448,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     vs.setInt(3, 888);
                     vs.setInt(4, 0);
                     vs.setInt(5, version);
-                    vs.setInt(6, "ukz".equals(lotType) ? 0 : 1);
+                    vs.setInt(6, ukz);
                     vs.addBatch();
 
                 }
