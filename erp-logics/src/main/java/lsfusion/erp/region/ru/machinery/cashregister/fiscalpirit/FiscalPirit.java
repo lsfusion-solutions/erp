@@ -79,6 +79,7 @@ public class FiscalPirit {
         openDocumentCommand(serialPort, cashier, sale ? "2" : "3");
 
         for (ReceiptItem item : receiptList) {
+            cashRegisterlogger.info("TEMPLOG item: " + trim(item.name, 256) + " / " + item.barcode);
             checkLotCommand(serialPort, item, versionPirit);
             if (versionPirit == 0) {
                 setAdditionalPositionDetailsCommand(serialPort, item);
@@ -264,6 +265,7 @@ public class FiscalPirit {
 
             try {
 
+                cashRegisterlogger.info("TEMPLOG lot: " + lot + ", version: " + versionPirit);
                 if (versionPirit == 2) {
 
                     Object[] data = VikiPrint.executeCommand(serialPort, 0x79, 1, lot, 0, 1, 1, 0, 1);
