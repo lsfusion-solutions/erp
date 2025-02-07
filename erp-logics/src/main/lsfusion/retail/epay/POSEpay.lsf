@@ -181,10 +181,12 @@ postEpay 'О!плати' (Receipt receipt) {
             IF returnPost() THEN RETURN;
             failPost() <- TRUE;
             WHILE failPost() DO {
+                logToFile('epay', 'Попытка печати чека');
                 postPrint(receipt);
                 IF failPost() THEN {
                     ASK 'Не удалось напечатать чек. Нажмите "Да", чтобы повторить попытку печати чека или "Нет", чтобы отменить платеж в системе "О!плати"' rePost = YESNO DO {
                         IF NOT rePost THEN {
+                            logToFile('epay', 'Не удалось распечатать чек');
                             deletePayment(receipt);
                             IF NOT lastPayment(cashRegister(receipt)) THEN {
                                 RETURN;
@@ -193,6 +195,7 @@ postEpay 'О!плати' (Receipt receipt) {
                     }
                 }
             }
+            logToFile('epay', 'Чек успешно распечатан');
             setLastPayment(cashRegister(receipt), NULL);
         }
     }

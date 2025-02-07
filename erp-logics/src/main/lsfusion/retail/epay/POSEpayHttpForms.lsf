@@ -185,6 +185,11 @@ dropToken 'Сбросить токен' (CashRegister c) {
 // payment
 setLastPayment (CashRegister c, STRING o) {
     NEWSESSION {
+        IF o THEN {
+            logToFile('epay', 'Установлен последний платеж');
+        } ELSE {
+            logToFile('epay', 'Сброшен последний платеж');
+        }
         lastPayment(c) <- o;
         APPLY;
     }
@@ -276,6 +281,8 @@ deletePayment 'Техническая отмена' (Receipt r) {
 
             setToken(cashRegister(r), headers('token'));
             setLastPayment(cashRegister(r), NULL);
+        } CATCH {
+            logToFile('epay', CONCAT ' ', 'Ошибка запроса DELETE', statusHttp());
         }
     }
 }
