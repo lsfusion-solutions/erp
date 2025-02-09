@@ -826,7 +826,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             }
 
-            addPayments(purchaseNode, sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
+            addPayments(sumGiftCardMap, payments, currentPaymentSum, currentSalesInfoList);
 
             salesInfoList.addAll(currentSalesInfoList);
         }
