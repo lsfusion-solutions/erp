@@ -191,15 +191,16 @@ FORM dialogOutLots 'Список марок'
 META defineDocumentLot (doc, quantityProp, postedProp)
     TABLE doc##Detail##Lot(###doc##Detail, Lot);
     quantity 'Кол-во' = DATA NUMERIC[16,5] (###doc##Detail, Lot);
-    
-    CONSTRAINT (SETCHANGED(quantity(###doc##Detail d, Lot l)) OR CHANGED(sku(d))) AND quantity(d,l) AND NOT sku(l) = sku(d)
+
+    skipCheckDocumentLot = ABSTRACT BOOLEAN (###doc##Detail);
+
+    CONSTRAINT (SETCHANGED(quantity(###doc##Detail d, Lot l)) OR CHANGED(sku(d))) AND quantity(d,l) AND NOT sku(l) = sku(d) AND NOT skipCheckDocumentLot(d)
         MESSAGE 'Товар марки не соответствует товару строки документа';
     
     quantityLot 'Кол-во марок' (###doc##Detail d) = GROUP SUM quantity(d, Lot l) * count(l) MATERIALIZED;
     quantityLot 'Кол-во марок' (###doc i) = GROUP SUM quantityLot(###doc##Detail d) IF doc(d) = i MATERIALIZED;
     quantity 'Кол-во марок' (###doc i, Lot l) = GROUP SUM quantity(###doc##Detail d, l) IF doc(d) = i;
     
-    skipCheckDocumentLot = ABSTRACT BOOLEAN (###doc##Detail);
     
     CONSTRAINT SET((quantityProp(###doc##Detail d) OR quantityLot(d)) AND postedProp(d) AND NOT quantityProp(d) = OVERRIDE quantityLot(d), 0.0) 
                IF explicitLot(sku(d)) AND NOT skipCheckDocumentLot() AND NOT skipCheckDocumentLot(d)
