@@ -1,6 +1,6 @@
 MODULE ReceivingBinLedger;
 
-REQUIRE EmployeeStock, PurchaseBinLedger, BinTransfer, BinSkuOrderLedger;
+REQUIRE EmployeeStock, PurchaseBinLedger, BinTransfer, BinSkuOrderLedger, WMSDashboard;
 
 NAMESPACE Purchase;
 
@@ -212,7 +212,7 @@ EXTEND CLASS ReceivingType {
 }
 
 defaultReceivingBin = DATA Bin (Employee, Stock);
-nameDefaultReceivingBin 'Ячейка для приемки' (Employee employee, Stock stock) = name(defaultReceivingBin(employee, stock)) CHARWIDTH 10;
+nameDefaultReceivingBin 'Ячейка для приемки' (Employee employee, Stock stock) = canonicalId(defaultReceivingBin(employee, stock)) CHARWIDTH 10;
 
 CONSTRAINT defaultReceivingBin(Employee employee, Stock stock) AND NOT stock(defaultReceivingBin(employee, stock)) == stock
     CHECKED BY defaultReceivingBin[Employee, Stock] MESSAGE 'Ячейка задана для другого склада';
@@ -495,7 +495,7 @@ DESIGN receiving {
 }
 
 NAVIGATOR {
-    WMSNavigator {
+    WMSDashboardNavigator {
         NEW receiving;
     }
 }
@@ -555,6 +555,8 @@ META defineUserReceiving(primObject, captionObject, formObject)
     CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject)
         MESSAGE 'Несовпадение склада получателя в '##captionObject + ' и документе приемки';
 
+    @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
+        
     createUserReceivingFor###primObject 'Создать документ приемки' () {
         LOCAL newReceiving = UserReceiving();
         NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
@@ -578,12 +580,15 @@ META defineUserReceiving(primObject, captionObject, formObject)
     
     EXTEND FORM receiving
         PROPERTIES(r) description###primObject
-        OBJECTS primObject = ###primObject LAST
+        OBJECTS primObject = ###primObject
         PROPERTIES(primObject) selectedUserReceiving, isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
         PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
-        ORDERS nameSupplierStock(primObject), dateTime(primObject)
-        FILTERS isPosted(primObject), NOT userReceiving(primObject),
-            stock(receivingBin(u)) == customerStock(primObject)
+        ORDERS dateTime(primObject), nameSupplierStock(primObject)
+        FILTERS isPosted(primObject),
+                primObject IS ###primObject AND NOT userReceiving(primObject),
+                useBins(customerStock(primObject)),
+                stock(receivingBin(u)) == customerStock(primObject),
+                use###primObject##Receiving(operation(primObject))
     ;
     
     DESIGN receiving {
