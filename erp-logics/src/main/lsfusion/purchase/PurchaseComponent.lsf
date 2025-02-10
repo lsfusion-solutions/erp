@@ -336,3 +336,41 @@ WHEN LOCAL SET(createComponent(UserInvoice i)) DO {
 CONSTRAINT (SET(isPosted(UserInvoice i)) OR SET(createComponent(i)) OR SET(createShipment(i))) AND 
     isPosted(i) AND createComponent(i) AND createShipment(i)
     MESSAGE 'Одновременно два признака не могут быть заданы "Создать перевод ТМЦ" и "Создать поставку"';
+
+createSubstitute 'Создать замены' (Purchase.UserInvoice i){
+    FOR Purchase.UserInvoiceDetail d == [GROUP MAX Purchase.UserInvoiceDetail id IF coeffComponent(id) BY userInvoice(id), componentSku(id), sku(id)](i,componentSku(d), sku(d)) AND NOT uniqueSubstituteFromTo(componentSku(d),sku(d))  NEW s = Substitute DO {
+        toSku(s)        <- sku(d);
+        fromSku(s)      <- componentSku(d);
+        multiplier(s)   <- coeffComponent(d);
+    }
+}
+
+createSubstituteApply 'Создать замены' (Purchase.UserInvoice i){
+    NEWSESSION {
+        createSubstitute(i);
+        APPLY;
+    }
+}
+EXTEND FORM Purchase.invoices
+    PROPERTIES (i) PANEL createSubstituteApply
+;
+DESIGN Purchase.invoices{
+    createdContainer{
+        MOVE PROPERTY (createSubstituteApply(i));
+    }
+}
+
+createSubstituteComponent 'Создавать замены для документа "Перевод ТМЦ"' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options
+    PROPERTIES () createSubstituteComponent
+;
+DESIGN options{
+    manufacturing {
+        MOVE PROPERTY (createSubstituteComponent());
+    }
+}
+
+WHEN SET(isPosted(Purchase.UserInvoice i) AND createComponent(i)) AND i IS Purchase.UserInvoice AND createSubstituteComponent() DO {
+    createSubstitute(i);
+}
