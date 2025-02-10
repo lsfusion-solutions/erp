@@ -348,3 +348,39 @@ dateTimeLastMoved 'Время последнего прихода' (batch, bin) 
     ORDER dateTime(ledger), ledger
     WHERE active(ledger)
     BY batch(ledger), inBin(ledger);
+
+dateTimeLastMoved 'Время последнего прихода' (batch, binGroup) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger)
+    BY batch(ledger), binGroup(inBin(ledger));
+
+FORM dialogBinGroupBatch 'Партии'
+    OBJECTS st = Stock PANEL
+    OBJECTS binGr = BinGroup PANEL
+    OBJECTS t = DATETIME PANEL
+    OBJECTS sk = Sku PANEL
+
+    OBJECTS bt = Batch
+    PROPERTIES (bt) READONLY number, series, dateTime, nameSupplier, nameSku, id SHOWIF showIDs(), name, shippedQuantity, cost, expiryDate
+    PROPERTIES  READONLY balanceB(bt, st, t)
+    PROPERTIES  READONLY currentBalance(bt, st)
+    FILTERS sku(bt) == sk
+    ORDERS dateTime(bt)
+
+    FILTERGROUP ledger
+        FILTER 'С движением по зоне' dateTimeLastMoved(bt, binGr) 'F6' DEFAULT
+        FILTER 'С движением по складу' skuLedger(bt, st) == sk 'F6'
+
+    FILTERGROUP batch
+        FILTER 'Партии с остатком до операции' balanceB(bt, binGr, t) 'F11'
+        FILTER 'Партии с положительным остатком' currentBalance(bt, binGr) > 0 'F9'
+        FILTER 'Партии с остатком' currentBalance(bt, binGr) 'F8' DEFAULT
+;
+DESIGN dialogBinGroupBatch {
+    BOX {
+        PROPERTY (balanceB(bt,st,t)) {
+            caption = 'Остаток до операции';
+        }
+    }
+}
