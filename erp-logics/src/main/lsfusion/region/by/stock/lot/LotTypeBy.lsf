@@ -22,7 +22,30 @@ codeGroup 'Код группы' (LotType g) = CASE
     WHEN g == LotType.tires THEN 'tires' 
     WHEN g == LotType.photo THEN 'photo' 
     WHEN g == LotType.ukz THEN 'ukz'
-;  
+;
+
+dataUKZ = DATA BOOLEAN (SkuGroup);
+nearestUKZ (SkuGroup child) = GROUP LAST dataUKZ(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataUKZ(parent);
+
+UKZ 'Маркировка УКЗ' (SkuGroup skuGroup) = OVERRIDE dataUKZ(skuGroup), nearestUKZ(skuGroup) MATERIALIZED IN paramsItemGroup;
+
+EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) UKZ;
+EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() UKZ BACKGROUND RGB(190,190,190) IF dataLotType(g);
+
+dataUKZ  'Маркировка УКЗ' = DATA BOOLEAN (Sku);
+
+overUKZ = ABSTRACT VALUE BOOLEAN (Sku);
+overUKZ(Sku sku) += UKZ(skuGroup(sku));
+
+UKZ (Sku s) = OVERRIDE dataUKZ(s), overUKZ(s) MATERIALIZED IN itemBase;
+
+EXTEND FORM item
+    PROPERTIES (i) UKZ
+;
+
+EXTEND FORM items
+    PROPERTIES (i) UKZ READONLYIF isReadonly()
+;
                             
 DESIGN dialogLotTypes {
     caption = 'Категория';

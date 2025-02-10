@@ -1,0 +1,25 @@
+MODULE MachineryPriceTransactionLotBy;
+
+REQUIRE MachineryPriceTransactionLot, LotTypeBy, CashRegister;
+
+NAMESPACE Machinery;
+
+printLot 'Выгружать признак маркировки' = DATA BOOLEAN (GroupCashRegister);
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) printLot
+;
+DESIGN groupCashRegister {
+    topContainer {
+        MOVE PROPERTY(printLot(grc));
+    }
+}
+
+EXTEND FORM groupsCashRegister
+    PROPERTIES (grc) READONLY printLot
+;
+
+skipInfoLottype (MachineryPriceTransaction t, Barcode b) += b IS Barcode AND t IS MachineryPriceTransaction AND NOT printLot(groupMachinery(t));
+
+
+info (MachineryPriceTransaction t, Barcode b, STRING key) += 'true' IF UKZ(sku(b)) AND in(t, b) AND key = 'ukz' AND NOT skipInfoLottype(t,b);
