@@ -118,6 +118,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                     for (CashRegisterItem item : transaction.itemsList) {
                         JSONObject infoJSON = getExtInfo(item.info);
+                        JSONObject extraInfoJSON = getExtInfo(item.extraInfo);
                         String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
                         String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                         String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
@@ -127,7 +128,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                         //parent: rootElement
                         Element good = createGoodElement(transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
                                 brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes,
-                                infoJSON);
+                                infoJSON, extraInfoJSON);
                         rootElement.addContent(good);
 
                         addPriceEntryElements(good, transaction, item, null, infoJSON, useSectionAsDepartNumber, null);

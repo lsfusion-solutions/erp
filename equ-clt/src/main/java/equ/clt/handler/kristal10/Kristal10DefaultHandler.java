@@ -51,7 +51,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                                      List<String> tobaccoGroups, boolean skipScalesInfo, String shopIndices, boolean useShopIndices,
                                      boolean brandIsManufacturer, boolean seasonIsCountry, boolean minusOneForEmptyVAT, boolean exportAmountForBarcode,
                                      Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes,
-                                     JSONObject infoJSON) {
+                                     JSONObject infoJSON, JSONObject extraInfoJSON) {
 
         Element good = new Element("good");
 
@@ -150,22 +150,24 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addPluginPropertyElement(good, "need_tare", infoJSON.optBoolean("need_tare"));
             }
 
-            Boolean ukz = getUKZ(infoJSON);
-            boolean byNeedSkanUKZ = ukz != null && ukz;
-            if(byNeedSkanUKZ) {
-                addPluginPropertyElement(good, "by-need-scan-ukz", "true");
-            }
+            if (extraInfoJSON != null) {
+                Boolean ukz = getUKZ(extraInfoJSON);
+                boolean byNeedSkanUKZ = ukz != null && ukz;
+                if (byNeedSkanUKZ) {
+                    addPluginPropertyElement(good, "by-need-scan-ukz", "true");
+                }
 
-            if (infoJSON.has("lottype")) {
-                String lotType = infoJSON.getString("lottype");
-                if (!byNeedSkanUKZ)
-                    addStringElement(good, "mark-type", lotType);
+                if (extraInfoJSON.has("lottype")) {
+                    String lotType = extraInfoJSON.getString("lottype");
+                    if (!byNeedSkanUKZ)
+                        addStringElement(good, "mark-type", lotType);
+                }
             }
         }
 
         addProductType(good, item, tobaccoGroups, infoJSON, isProductSetApiEntity);
 
-        good.addContent(createBarcodeElement(good, item, idItem, barcodeItem, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes, infoJSON));
+        good.addContent(createBarcodeElement(good, item, idItem, barcodeItem, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes, infoJSON, extraInfoJSON));
 
         return good;
     }
@@ -258,7 +260,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
     private Element createBarcodeElement(Element good, CashRegisterItem item, String idItem, String barcodeItem, boolean exportAmountForBarcode,
                                       Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes,
-                                      JSONObject infoJSON) {
+                                      JSONObject infoJSON, JSONObject extraInfoJSON) {
         Element barcodeElement = new Element("bar-code");
         setAttribute(barcodeElement, "code", barcodeItem);
         addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
@@ -269,8 +271,11 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             String uzFfdPackageCode = infoJSON.optString("uzFfdPackageCode");
             if (notNullNorEmpty(uzFfdPackageCode))
                 addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
-            Boolean ukz = getUKZ(infoJSON);
-            if(ukz != null) {
+        }
+
+        if (extraInfoJSON != null) {
+            Boolean ukz = getUKZ(extraInfoJSON);
+            if (ukz != null) {
                 setAttribute(barcodeElement, "marked", !ukz);
             }
         }
@@ -306,12 +311,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return barcodeElement;
     }
 
-    private Boolean getUKZ(JSONObject infoJSON) {
+    private Boolean getUKZ(JSONObject extraInfoJSON) {
         Boolean ukz = null;
-        if (infoJSON.has("ukz")) {
-            ukz = infoJSON.getBoolean("ukz");
-        } else if (infoJSON.has("lottype")) {
-            ukz = infoJSON.getString("lottype").equals("ukz");
+        if (extraInfoJSON.has("ukz")) {
+            ukz = extraInfoJSON.getBoolean("ukz");
+        } else if (extraInfoJSON.has("lottype")) {
+            ukz = extraInfoJSON.getString("lottype").equals("ukz");
         }
         return ukz;
     }

@@ -239,6 +239,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         for (CashRegisterItem item : transaction.itemsList) {
             JSONObject infoJSON = getExtInfo(item.info);
+            JSONObject extraInfoJSON = getExtInfo(item.extraInfo);
             if (infoJSON != null && infoJSON.optBoolean("skipGood")) {
                 continue;
             }
@@ -248,7 +249,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
             Element good = createGoodElement(transaction, item, idItem, barcodeItem, tobaccoGroups, skipScalesInfo, shopIndices, useShopIndices,
                     brandIsManufacturer, seasonIsCountry, minusOneForEmptyVAT, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes,
-                    infoJSON);
+                    infoJSON, extraInfoJSON);
             rootElement.addContent(good);
 
             if (++count >= 1000) {
