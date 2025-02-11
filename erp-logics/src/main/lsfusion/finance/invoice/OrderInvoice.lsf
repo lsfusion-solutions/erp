@@ -155,8 +155,6 @@ META defineOrderInvoice(sign, stockProp)
     useExplicitBatchDetailUserInvoice = ABSTRACT CASE BOOLEAN (Order);
     forceExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
 
-    differentStocksInDetails (Stock stock) = differentStocksInDetails(legalEntity(stock)) MATERIALIZED;
-
     in (OrderDetail orderDetail, UserInvoice userInvoice) = (orderDetail IS OrderDetail AND userInvoice IS UserInvoice AND NOT supplierStock(userInvoice)) OR
                                                            supplierStock(orderDetail)==supplierStock(userInvoice);
 
@@ -285,27 +283,6 @@ META defineOrderInvoice(sign, stockProp)
         fillPrice(userInvoice, order);
     }
 
-    fillSupplier(Stock supplierStock, UserInvoice userInvoice, Order order)  { 
-        date(userInvoice) <- currentDate();
-        time(userInvoice) <- currentTime();
-
-        supplier(userInvoice) <- legalEntity(supplierStock);
-        supplierStock(userInvoice) <- supplierStock;
-
-        customer(userInvoice) <- customer(order);
-        customerStock(userInvoice) <- customerStock(order);
-
-        currency(userInvoice) <- currency(order);
-        agreement(userInvoice) <- agreement(order);
-        priceListType(userInvoice) <- priceListType(order);
-
-        operation(userInvoice) <- operation(order) WHERE operation(order);
-        note(userInvoice) <- note(order);
-
-        createDetail(userInvoice, order);
-        fillPrice(userInvoice, order);
-    }
-
     userInvoice = DATA LOCAL UserInvoice (Order);
     
     TABLE orderUserInvoice (Order, UserInvoice);
@@ -337,19 +314,11 @@ META defineOrderInvoice(sign, stockProp)
     }
     createUserInvoice (Order order) + {  createUserInvoice(order); }
 
-    createUserInvoicePosted 'Создать проведенную накладную'(Order order)  { 
-        IF differentStocksInDetails(customerStock(order)) THEN {
-            NEW i = UserInvoice {
-                isPosted(i) <- TRUE;
-                fill(i, order);
-                createdUser(i, order) <- TRUE;
-            }
-        } ELSE {
-            FOR inSupplier(order, Stock stock) NEW i = UserInvoice DO {
-                isPosted(i) <- TRUE;
-                fillSupplier(stock, i, order);
-                createdUser(i, order) <- TRUE;
-            }
+    createUserInvoicePosted 'Создать проведенную накладную'(Order order)  {
+        NEW i = UserInvoice {
+            isPosted(i) <- TRUE;
+            fill(i, order);
+            createdUser(i, order) <- TRUE;
         }
     }
     createUserInvoicePosted (Order order) + {  createUserInvoicePosted(order); }
