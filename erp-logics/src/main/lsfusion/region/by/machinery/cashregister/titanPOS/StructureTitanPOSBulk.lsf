@@ -1,0 +1,105 @@
+MODULE StructureTitanPOSBulk;
+// Здесь содержаться структуры для работы с оптом
+
+REQUIRE StructureTitanPOSCommon, FiscalInvoicePayment, SaleInvoice, ContractLedger;
+
+// Чек продажи / возврат - структурно чеки одинаковы, отличаются свойством receiptRefund()
+GROUP goods EXTID 'Goods';
+
+receiptRefund 'Признак: false - продажа, true - возврат' = DATA LOCAL TBOOLEAN ();
+receiptTotalSum 'Общая сумма чека с учетом скидок' = DATA LOCAL NUMERIC();
+receiptHeader 'Текст перед чеком'= DATA LOCAL STRING();
+receiptFooter 'Текст после чека'= DATA LOCAL STRING();
+// ---------------------------------------------------
+// см. POSElemaRB - типы платежей, строка 188
+paymentSum 'Сумма' (Payment p) = IF receiptRefund() = TTRUE THEN abs(sum(p)) ELSE sum(p);
+
+paymentDescription 'Название оплаты' (Payment p) = IF p THEN 'Наличные';
+
+paymentTypeFlag 'Тип расчета' = ABSTRACT VALUE INTEGER(Payment);
+paymentTypeFlag (Payment p) += IF p THEN 1;
+// ---------------------------------------------------
+detailQuantity 'Количество товара' (Sale.InvoiceDetail o) = quantity(o);
+detailPrice 'Цена товара' (Sale.InvoiceDetail o) = invoicePrice(o);
+
+detailTotalSum 'Сумма товара' (Sale.InvoiceDetail o) = invoiceSum(o);
+
+detailName 'Название товара' (Sale.InvoiceDetail o) = nameSku(o);
+
+// Вид кода товара: 0 - без кода, 1 - EAN13 (товар), 2 - услуга, 4 - сертификат
+// не зщамарачиваеися с кодами товаров
+detailCodeType  'Вид кода товара' (Sale.InvoiceDetail o) = IF o THEN 1 ELSE 0;
+detailBarcode 'Код товара' (Sale.InvoiceDetail o) = IF o THEN '';
+detailHideCodes 'Скрывать код товара в чеке' (Sale.InvoiceDetail o) = IF o THEN TTRUE;
+
+detailTaxSale (Sale.InvoiceDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
+    IF valueVAT(o) = 20 THEN 1 ELSE
+        IF valueVAT(o) = 10 THEN 2 ELSE
+            IF valueVAT(o) =  0 THEN 3 ELSE NULL;
+
+detailDepartament 'Код отдела КСА' (Sale.InvoiceDetail o) = IF o THEN 1;
+
+FORM receiptWithDetail 'Продажа'
+    PROPERTIES() titanKey EXTID 'TitanKey',
+        receiptRefund EXTID 'Refund', receiptTotalSum EXTID 'TotalSum',
+        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'
+
+    OBJECTS pm = Payment EXTID 'Payments'
+    PROPERTIES(pm) paymentTypeFlag EXTID 'TypeFlag',
+        paymentSum EXTID 'Sum',
+        paymentDescription EXTID 'Description'
+    FILTERS IF paymentSum(pm) AND abs(paymentSum(pm)) > 0 THEN TRUE ELSE NULL
+
+    OBJECTS lines = Sale.InvoiceDetail EXTID 'Lines'
+    PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
+        detailTaxSale EXTID 'Tax', detailTotalSum EXTID 'TotalSum',
+        detailDepartament EXTID 'Departament',
+        detailHideCodes EXTID 'HideCodes'
+
+    PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
+;
+
+// =====================================================================================
+detailQuantity 'Количество' (SaleReturn.InvoiceDetail o) = quantity(o);
+detailPrice 'Цена' (SaleReturn.InvoiceDetail o) = invoicePrice(o);
+detailName 'Название товара' (SaleReturn.InvoiceDetail o) = nameSku(o);
+
+detailVatSaleReturn 'НДС%' (SaleReturn.InvoiceDetail o) = IF titanTax(currentCashRegister()) AND valueVAT(o) THEN
+    IF valueVAT(o) = 20 THEN 1 ELSE
+        IF valueVAT(o) = 10 THEN 2 ELSE
+            IF valueVAT(o) =  0 THEN 3 ELSE NULL;
+
+detailDepartament 'Код отдела КСА' (SaleReturn.InvoiceDetail o) = IF o THEN 1;
+
+detailInvoiceSum 'НДС%' (SaleReturn.InvoiceDetail o) = invoiceSum(o);
+
+// Не замарачиваеися с кодами товаров
+detailCodeType 'Тип кода товара' (SaleReturn.InvoiceDetail o) = IF o THEN 0;
+detailBarcode 'Код товара' (SaleReturn.InvoiceDetail o) = IF o THEN '';
+detailHideCodes 'Скрывать код товара' (SaleReturn.InvoiceDetail o) = IF o THEN TTRUE;
+
+paymentTypeFlag 'Флаг расчетов' (SaleReturn.Invoice o) = IF o THEN 1;
+paymentDescription 'Название оплаты' (SaleReturn.Invoice o) = IF o THEN 'Наличные';
+paymentSum 'Сумма по документу' (SaleReturn.Invoice o) = invoiceSumInvoiceDetail(o);
+
+
+FORM saleReturnReceiptWithDetail 'Возврат по накладной'
+    PROPERTIES() titanKey EXTID 'TitanKey',
+        receiptRefund EXTID 'Refund', receiptTotalSum EXTID 'TotalSum',
+        receiptHeader EXTID 'Header', receiptFooter EXTID 'Footer'
+
+    OBJECTS pm = SaleReturn.Invoice EXTID 'Payments'
+    PROPERTIES(pm) paymentTypeFlag EXTID 'TypeFlag',
+        paymentSum EXTID 'Sum',
+        paymentDescription EXTID 'Description'
+    FILTERS IF paymentSum(pm) AND abs(paymentSum(pm)) > 0 THEN TRUE ELSE NULL
+
+    OBJECTS lines = SaleReturn.InvoiceDetail EXTID 'Lines'
+    PROPERTIES(lines) detailQuantity EXTID 'Quantity', detailPrice EXTID 'Price',
+        detailVatSaleReturn EXTID 'Tax', detailInvoiceSum EXTID 'TotalSum',
+        detailDepartament EXTID 'Departament',
+        detailHideCodes EXTID 'HideCodes'
+
+    PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
+;
+

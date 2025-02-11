@@ -1,0 +1,49 @@
+MODULE OperationTitanPOSBulk;
+// Здесь содержатся модули для работы с оптом
+
+REQUIRE OperationTitanPOSCommon, StructureTitanPOSBulk;
+
+eqReceiptWithDetail 'Печать чека продажи' (CashRegister o, Sale.Invoice invoice, Payment payment) {
+    LOCAL sale, return = INTEGER ();
+    return() <- NULL; sale() <- NULL;
+    printReceiptResult() <- NULL;
+    eqOpenShift(o, name(currentUser()));
+    IF titanECode() THEN {
+        printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком
+        RETURN;
+    }
+    receiptRefund() <- TFALSE;
+    receiptTotalSum() <- invoiceSumInvoiceDetail(invoice);
+    receiptFooter() <- CONCAT '','ЧЕК к накладной ',series(invoice),number(invoice),' от ',toDateDDMMYY(date(invoice)),'\n';
+    receiptFooter() <- receiptFooter() + CONCAT '','ПОКУПАТЕЛЬ:\n',trim(nameCustomer(invoice));
+    EXPORT receiptWithDetail FILTERS invoice(lines) = invoice, cost(pm,invoice) JSON;
+    onSend(o,'check','Чек продажи');
+    IF titanECode() THEN {
+        printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком 
+        RETURN;
+    }
+    printReceiptResult() <- TRUE; // APPLY будет вызван обработчиком
+}
+
+eqSaleReturnReceiptWithDetail 'Чек возврата по накладной' (CashRegister o, SaleReturn.Invoice invoice, Payment payment) {
+    LOCAL sale, return = INTEGER ();
+    return() <- NULL; sale() <- NULL;
+    printReceiptResult() <- NULL;
+    eqOpenShift(o, name(currentUser()));
+    IF titanECode() THEN {
+        printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком
+        RETURN;
+    }
+    receiptRefund() <- TTRUE;
+    receiptTotalSum() <- invoiceSumInvoiceDetail(invoice);
+    receiptFooter() <- CONCAT '','ЧЕК к накладной ',series(invoice),number(invoice),' от ',toDateDDMMYY(date(invoice)),'\n';
+    receiptFooter() <- receiptFooter() + CONCAT '','ПОКУПАТЕЛЬ:\n',trim(nameCustomer(invoice));
+    EXPORT saleReturnReceiptWithDetail FILTERS invoice(lines) = invoice, pm = invoice JSON;
+    onSend(o,'check','Чек возврата');
+    IF titanECode() THEN {
+        printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком 
+        RETURN;
+    }
+    printReceiptResult() <- TRUE; // APPLY будет вызван обработчиком
+}
+
