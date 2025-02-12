@@ -118,7 +118,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
 
                     for (CashRegisterItem item : transaction.itemsList) {
                         JSONObject infoJSON = getExtInfo(item.info);
-                        JSONObject extraInfoJSON = getExtInfo(item.extraInfo);
+                        JSONObject extraInfoJSON = getExtraInfo(item.extraInfo);
                         String shopIndices = getShopIndices(transaction, item, useNumberGroupInShopIndices, useShopIndices, weightShopIndices);
                         String barcodeItem = transformBarcode(transaction, item, skipWeightPrefix);
                         String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;

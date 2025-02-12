@@ -592,6 +592,10 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("kristal10") : null;
     }
 
+    protected JSONObject getExtraInfo(String extraInfo) {
+        return extraInfo != null && !extraInfo.isEmpty() ? new JSONObject(extraInfo) : null;
+    }
+
     private boolean isActiveDiscountCard(RequestExchange r, DiscountCard d) {
         return r.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(r.startDate) >= 0);
     }

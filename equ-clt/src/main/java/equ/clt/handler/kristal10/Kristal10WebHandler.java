@@ -239,7 +239,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
         for (CashRegisterItem item : transaction.itemsList) {
             JSONObject infoJSON = getExtInfo(item.info);
-            JSONObject extraInfoJSON = getExtInfo(item.extraInfo);
+            JSONObject extraInfoJSON = getExtraInfo(item.extraInfo);
             if (infoJSON != null && infoJSON.optBoolean("skipGood")) {
                 continue;
             }
