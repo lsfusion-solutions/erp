@@ -183,15 +183,18 @@ dropToken 'Сбросить токен' (CashRegister c) {
 }
 
 // payment
+failPost = DATA LOCAL BOOLEAN ();
+
 setLastPayment (CashRegister c, STRING o) {
     NEWSESSION {
-        IF o THEN {
-            logToFile('epay', 'Установлен последний платеж');
-        } ELSE {
-            logToFile('epay', 'Сброшен последний платеж');
-        }
         lastPayment(c) <- o;
         APPLY;
+    }
+    IF o THEN {
+        logToFile('epay', 'Установлен последний платеж');
+        failPost() <- TRUE;
+    } ELSE {
+        logToFile('epay', 'Сброшен последний платеж');
     }
 }
 
