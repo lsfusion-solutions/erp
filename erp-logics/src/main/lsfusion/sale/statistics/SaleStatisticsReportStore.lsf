@@ -4,33 +4,39 @@ REQUIRE SaleStatisticsReport, SaleStatisticsStore;
 
 NAMESPACE Sale;
 
+useCustomFillSumData = ABSTRACT BOOLEAN (StatisticReport);
+
 overFillSumData(StatisticReport report) + {
-    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
-        Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
+    IF NOT useCustomFillSumData(report) THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
             soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, st, dFrom, dTo));
             soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, st, dFrom, dTo));
             soldSumCatering(d) <- NUMERIC[16,3](totalSumCateringSoldBy(s, st, dFrom, dTo));
-            
-        IF soldSumCatering(d) THEN {
-            //объекты общественного питания не включаются в розницу. В 12-торг это отдельные строки, в 1-торг -- отдельный отчет
-            soldSum(d) <- soldSum(d) (-) soldSumCatering(d) ;
-            soldSumResident(d) <- soldSumResident(d) (-) NUMERIC[16,3](totalSumCateringResidentSoldBy(s, st, dFrom, dTo));
+
+            IF soldSumCatering(d) THEN {
+                //объекты общественного питания не включаются в розницу. В 12-торг это отдельные строки, в 1-торг -- отдельный отчет
+                soldSum(d) <- soldSum(d) (-) soldSumCatering(d) ;
+                soldSumResident(d) <- soldSumResident(d) (-) NUMERIC[16,3](totalSumCateringResidentSoldBy(s, st, dFrom, dTo));
+            }
         }
     }
 }
 
 overFillSumRegionData(StatisticReport report) + {
-    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
-        LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report)
-        NOINLINE DO {
+    IF NOT useCustomFillSumData(report) THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report)
+            NOINLINE DO {
             soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, c, r, dFrom, dTo));
-            soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, c, r, dFrom, dTo));        
+            soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, c, r, dFrom, dTo));
             soldSumCatering(d) <- NUMERIC[16,3](totalSumCateringSoldBy(s, c, r, dFrom, dTo));
-
-        IF soldSumCatering(d) THEN {
-            //объекты общественного питания не включаются в розницу. В 12-торг это отдельные строки, в 1-торг -- отдельный отчет
-            soldSum(d) <- soldSum(d) (-) soldSumCatering(d) ;
-            soldSumResident(d) <- soldSumResident(d) (-) NUMERIC[16,3](totalSumCateringResidentSoldBy(s, c, r, dFrom, dTo));
+    
+            IF soldSumCatering(d) THEN {
+                //объекты общественного питания не включаются в розницу. В 12-торг это отдельные строки, в 1-торг -- отдельный отчет
+                soldSum(d) <- soldSum(d) (-) soldSumCatering(d) ;
+                soldSumResident(d) <- soldSumResident(d) (-) NUMERIC[16,3](totalSumCateringResidentSoldBy(s, c, r, dFrom, dTo));
+            }
         }
     }
 }
