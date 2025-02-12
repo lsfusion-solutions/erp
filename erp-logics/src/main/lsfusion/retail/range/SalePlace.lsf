@@ -74,11 +74,12 @@ WHEN CHANGED (in(SalePlace sp, DepartmentStore ds)) DO {
 }
 
 skipSalePlaceReserve = ABSTRACT BOOLEAN (SalePlaceDetail);
+overQuantitySalePlace = ABSTRACT NUMERIC[16,5](Sku, Stock, DATE);
 
 quantitySalePlace 'Кол-во по местам продаж' (Sku sk, Stock st, DATE d) = 
     GROUP SUM quantity(SalePlaceDetail dd, st) IF d >= dateFrom(dd) AND NOT d > dateTo(dd) AND NOT skipSalePlaceReserve(dd) BY sku(dd);
 
-extraReserve (Stock st, Sku sk, DATE d) += quantitySalePlace(sk, st, d);
+extraReserve (Stock st, Sku sk, DATE d) += OVERRIDE overQuantitySalePlace(sk, st, d), quantitySalePlace(sk, st, d);
 
 FORM salePlace 'Место продажи'
     OBJECTS o = SalePlace PANEL
