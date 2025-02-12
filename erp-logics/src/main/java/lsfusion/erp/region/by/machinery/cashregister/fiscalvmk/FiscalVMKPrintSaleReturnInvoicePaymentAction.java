@@ -11,6 +11,7 @@ import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
+import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -93,13 +94,11 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort,
                     baudRate, sumPayment, typePayment, numberSection, false, invoiceDetailList));
-            if(result == null)
-                findProperty("printReceiptResult[]").change(new DataObject(true), context);
-            else {
+            boolean error = result instanceof String;
+            if (error)
                 ServerLoggers.systemLogger.error("FiscalVMKPrintReturnInvoicePayment Error: " + result);
-                findProperty("printReceiptResult[]").change((Boolean) null, context);
-            }
-            findProperty("printReceiptError[]").change(result, context);
+            findProperty("printReceiptResult[]").change(error ? NullValue.instance : new DataObject(true), context);
+            findProperty("printReceiptError[]").change(error ? result : null, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
