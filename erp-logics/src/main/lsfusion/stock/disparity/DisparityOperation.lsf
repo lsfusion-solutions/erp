@@ -96,3 +96,19 @@ WHEN LOCAL (CHANGED(rate(UserDisparityDetail d)) OR CHANGED (quantity(d)) OR CHA
 @defineOperationChangesDocument(disparity, Disparity, preventChangesDocument, created);
 
 overShowEditDelete(Disparity p) += showEditDeleteUser(p);
+
+@defineOperationProperty(notConduct, 'Не проводить по товарному отчету', BOOLEAN, paramsContainer);
+
+notConduct 'Не проводить по товарному отчету' = DATA BOOLEAN (Disparity) IN documentPrm;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) notConduct
+;
+
+EXTEND FORM disparity
+    PROPERTIES(dis) notConduct
+;
+
+@deriveDocumentOperationProperty(Disparity, notConduct);
+
+skip[StockDocumentLedger](Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
