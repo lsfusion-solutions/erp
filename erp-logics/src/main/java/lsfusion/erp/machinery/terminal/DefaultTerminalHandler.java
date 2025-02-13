@@ -815,6 +815,7 @@ public class DefaultTerminalHandler {
         Statement statement = connection.createStatement();
         String sql = "CREATE TABLE goods " +
                 "(barcode TEXT PRIMARY KEY," +
+                " gtin    TEXT DEFAULT NULL," +
                 " naim    TEXT," +
                 " price   REAL," +
                 " quant   REAL," +
@@ -846,7 +847,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 Set<String> usedBarcodes = new HashSet<>();
 
@@ -857,7 +858,7 @@ public class DefaultTerminalHandler {
                             imageFileName = barcode.fileNameImage;
                         
                         if (!usedBarcodes.contains(barcode.idBarcode)) {
-                            addGoodsRow(statement, barcode.idBarcode, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
+                            addGoodsRow(statement, barcode.idBarcode, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
@@ -866,7 +867,7 @@ public class DefaultTerminalHandler {
                             usedBarcodes.add(barcode.idBarcode);
                         }
                         if (!BaseUtils.isEmpty(barcode.GTIN) && !usedBarcodes.contains(barcode.GTIN)) {
-                            addGoodsRow(statement, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
+                            addGoodsRow(statement, barcode.GTIN, barcode.GTIN, barcode.nameSku, barcode.price, barcode.quantityBarcodeStock,
                                     barcode.idSkuBarcode, barcode.nameManufacturer, barcode.fld3, barcode.fld4, barcode.fld5,
                                     imageFileName, barcode.isWeight, barcode.isSplit, barcode.mainBarcode,
                                     barcode.color, barcode.extInfo, barcode.unit,
@@ -884,7 +885,7 @@ public class DefaultTerminalHandler {
                         if (orderExtraBarcodeList != null) {
                             for (String extraBarcode : orderExtraBarcodeList) {
                                 if(!usedBarcodes.contains(extraBarcode)) {
-                                    addGoodsRow(statement, extraBarcode, order.name, order.price, null,
+                                    addGoodsRow(statement, extraBarcode, order.GTIN, order.name, order.price, null,
                                             order.idItem, order.manufacturer, null, null, null,
                                             image, order.weight, order.split, order.barcode,
                                             null, null, null,
@@ -895,7 +896,7 @@ public class DefaultTerminalHandler {
                             }
                         } else {
                             if(!usedBarcodes.contains(order.barcode)) {
-                                addGoodsRow(statement, order.barcode, order.name, order.price, null, order.idItem,
+                                addGoodsRow(statement, order.barcode, order.GTIN, order.name, order.price, null, order.idItem,
                                         order.manufacturer, null, null, null, image, order.weight, order.split, order.barcode,
                                         null, null, null, order.flags, null, BigDecimal.ZERO,
                                         order.category, order.trustAcceptPercent, order.background_color, null);
@@ -903,7 +904,7 @@ public class DefaultTerminalHandler {
                             }
                         }
                         if (!BaseUtils.isEmpty(order.GTIN) && !usedBarcodes.contains(order.GTIN)) {
-                            addGoodsRow(statement, order.GTIN, order.name, order.price, null,
+                            addGoodsRow(statement, order.GTIN, order.GTIN, order.name, order.price, null,
                                     order.idItem, order.manufacturer, null, null, null,
                                     image, order.weight, order.split, order.barcode,
                                     null, null, null,
@@ -915,7 +916,7 @@ public class DefaultTerminalHandler {
                 }
 
                 for (SkuExtraBarcode b : skuExtraBarcodeList) {
-                    addGoodsRow(statement, b.idBarcode, b.nameSku, null, null, null, null,
+                    addGoodsRow(statement, b.idBarcode, null, b.nameSku, null, null, null, null,
                             null, null, null, null, null, null, b.mainBarcode, null, null,
                             null, null, null, BigDecimal.ZERO, null, null,
                             null, null);
@@ -936,12 +937,13 @@ public class DefaultTerminalHandler {
         }
     }
 
-    private void addGoodsRow(PreparedStatement statement, String idBarcode, String name, BigDecimal price, BigDecimal quantity, String idItem, String manufacturer,
+    private void addGoodsRow(PreparedStatement statement, String idBarcode, String gtin, String name, BigDecimal price, BigDecimal quantity, String idItem, String manufacturer,
                              String fld3, String fld4, String fld5, String image, String weight, Integer split, String mainBarcode, String color, String ticketData, String unit,
                              Long flags, String nameCountry, BigDecimal amountPack, String category, BigDecimal trustAcceptPercent, String background_color, String idCategory) throws SQLException {
         
         int i = 0;
         statement.setObject(++i, format(idBarcode)); //idBarcode
+        statement.setObject(++i, format(gtin)); //idBarcode
         statement.setObject(++i, !BaseUtils.isEmpty(name) ? name.toUpperCase() : ""); //name
         statement.setObject(++i, format(price)); //price
         statement.setObject(++i, format(quantity)); //quantity
@@ -1956,8 +1958,8 @@ public class DefaultTerminalHandler {
                     result.add(new TerminalOrder(LocalDate.now(), null, code, null, labelCount, categories, promo, null,
                             null, null, null, null, null, null, null,
                             null, null, null, null, null,
-                            extraField, null, null, null,  null, null,
-                            null, null, vop, null, null, null, null,
+                            null, extraField, null, null,  null, null,
+                            null, null, null, vop, null, null, null,
                             null, null, null));
                 }
             } catch (Exception e) {
