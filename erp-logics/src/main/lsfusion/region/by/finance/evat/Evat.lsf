@@ -232,7 +232,7 @@ padNumber = ABSTRACT VALUE STRING[20] (EVAT);
 padNumber (EVAT e) += STRING[20](lpad(number(e), 10, '0'));
 
 exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE exportYear(e), Time.extractYear(currentDate()) IF e IS EVAT ) + '-' + padNumber(e);
-exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + padNumber(e);
+exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + padNumber(e) MATERIALIZED INDEXED;
 EVATExportNumberMAX = GROUP MAX EVAT e BY exportNumber(e);
 EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
@@ -645,12 +645,3 @@ onStarted()+{
         APPLY;
     }
 }
-
-@defineOption(skipAdditionalByNOTExportYear, 'Запрет на создание дополнительного ЭСЧФ к ЭСЧФ с неуникальным номером для экспорта, если с таким номером существует ЭСЧФ без года отправки', EVAT);
-
-
-CONSTRAINT SET(invoice(EVAT e)) AND skipAdditionalByNOTExportYear() AND status(e) = EVATStatus.additional AND skipAdditionalByNOTExportYear() AND STRING s = invoice(e)
-    AND [GROUP MAX EVAT e1 IF statusServerStatus(e1) AND NOT exportYear(e1) BY exportNumber(e1)](invoice(e))
-    AND [GROUP SUM 1 BY exportNumber(EVAT e1)](invoice(e)) > 1
-    MESSAGE 'Нельзя создать дополнительный ЭСЧФ к ЭСЧФ с неуникальным номером для экспорта, если с таким номером существует ЭСЧФ без года отправки'
-;
