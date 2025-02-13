@@ -43,9 +43,9 @@ FORM saleDeniedRestrictions 'Запреты продаж Set10'
     
     LIST SaleDeniedRestriction OBJECT r
 ;
-currentBalanceRestriction (Sku s, Stock st) = IF passScales(s) THEN currentBalance(s, st) + 2 
-    ELSE currentBalance(s, st)
-;
+currentBalanceRestriction = ABSTRACT CASE NUMERIC[16,5](Sku, Stock);
+currentBalanceRestriction(Sku s, Stock st) += WHEN passScales(s)  AND st IS Stock THEN  currentBalance(s, st) + 2;
+currentBalanceRestriction(Sku s, Stock st) += WHEN s IS Sku AND NOT passScales(s) AND st IS Stock THEN  currentBalance(s, st);
 
 useSaleDeniedRestrictions 'Использовать запрет продаж для отрицательного остатка' = DATA BOOLEAN () PREREAD;
 exportSaleAfterTransaction 'Отправлять удаленные запреты после транзакции' = DATA BOOLEAN () PREREAD;
