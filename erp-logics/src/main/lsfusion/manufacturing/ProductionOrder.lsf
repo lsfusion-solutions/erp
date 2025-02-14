@@ -208,7 +208,13 @@ DESIGN options {
     }
 }
 
-CONSTRAINT denyRepeatSkuOrder() AND [ GROUP SUM 1 BY sku(ProductDetail d), order(d)](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
+//CONSTRAINT denyRepeatSkuOrder() AND [ GROUP SUM 1 BY sku(ProductDetail d), order(d)](Sku s, Order o) > 1 MESSAGE 'Изделие может быть включено в заказ только один раз';
+
+countRepeatSkuOrder = GROUP SUM 1 BY sku(ProductDetail d), order(d);
+
+CONSTRAINT (SETCHANGED(sku(ProductDetail d)) OR SETCHANGED(order(d)))  AND denyRepeatSkuOrder() AND countRepeatSkuOrder(sku(d),order(d)) > 1
+    MESSAGE 'Изделие может быть включено в заказ только один раз';
+    
 
 // Кол-во
 @defineDocumentDetailQuantityCustom (productDetail);
@@ -472,23 +478,24 @@ createComponents 'Заполнить компоненты из специфик�
             overCreate(d);
         }
     }    
-}
+} TOOLBAR;
 
-createComponents 'Заполнить компоненты из спецификации'(Order order)  { 
-
+createComponents 'Заполнить компоненты из спецификации' ABSTRACT CASE (Order) TOOLBAR;
+createComponents (Order order) + WHEN order IS Order THEN { 
     FOR quantityProducts(BOM BOM, order) DO {
         createComponents(BOM, order);
     }
-
-} TOOLBAR;
+}
 
 recBruttoQuantity 'Рекур.кол-во' (BOM BOM, Order order, Sku sku) = GROUP SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, sku, date(order));
 recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Sku sku) = GROUP SUM recBruttoQuantity(BOM, sku, date(order));
 
 productionCoeff = ABSTRACT NUMERIC[20,9] (ComponentDetail);
-quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail MATERIALIZED; 
-createRecComponents 'Заполнить из спецификации (рекурсивно)'(Order order)  { 
+quantityCoeff(ComponentDetail d) = OVERRIDE productionCoeff(d), 1.0 IF d IS ComponentDetail MATERIALIZED;
 
+createRecComponents 'Заполнить из спецификации (рекурсивно)' ABSTRACT CASE (Order) TOOLBAR;
+
+createRecComponents(Order order) + WHEN order IS Order THEN { 
     FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Sku sku) ORDER BOM NEW d = ComponentDetail DO {
         order(d) <- order;
         BOM(d) <- BOM;
@@ -496,7 +503,7 @@ createRecComponents 'Заполнить из спецификации (реку�
         bruttoQuantity(d) <- q;
         BOMQuantity(d)  <- recBOMQuantity(BOM, order, sku);
     }
-} TOOLBAR;
+} 
 
 calcSkuBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), sku(d)) * quantityCoeff(d);
 calcSkuBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), sku(d)) * quantityCoeff(d);
@@ -564,8 +571,8 @@ expand 'Развернуть изделие'(ComponentDetail componentDetail)  {
 background 'Цвет'  = ABSTRACT CASE COLOR (ComponentDetail);
 background (ComponentDetail cd) += WHEN product(cd) THEN  RGB(255,255,229);
 
-recBruttoQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM quantityProducts(BOM, order) * recBruttoQuantity(BOM, component, date(order));
-recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = GROUP SUM recBruttoQuantity(BOM, component, date(order));
+recBruttoQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = quantityProducts(BOM, order) * recBruttoQuantity(BOM, component, date(order));
+recBOMQuantity 'Рекур.кол-во' (BOM BOM, Order order, Component component) = recBruttoQuantity(BOM, component, date(order));
 
 calcComponentBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 calcComponentBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
@@ -584,13 +591,18 @@ createForRecComponents 'Заполнить из спецификации (рек
     }
     overCreateForRecComponents(BOM, order);
 }
-
-createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order)  { 
-
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)' ABSTRACT CASE (Order) TOOLBAR;
+createForRecComponents(Order order) + WHEN order IS Order THEN {
     FOR quantityProducts(BOM BOM, order) DO {
         createForRecComponents(BOM,order);
     }
-} TOOLBAR;
+}
+//createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order)  { 
+//
+//    FOR quantityProducts(BOM BOM, order) DO {
+//        createForRecComponents(BOM,order);
+//    }
+//} TOOLBAR;
 
 // ---------------- Подбор цен и замен для sku --------------------------- //
 

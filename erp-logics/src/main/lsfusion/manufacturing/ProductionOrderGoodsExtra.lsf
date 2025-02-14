@@ -1,0 +1,81 @@
+MODULE ProductionOrderGoodsExtra;
+
+REQUIRE ProductionOrderGoods;
+
+NAMESPACE Production;
+
+//-- чтобы можно было включать 2 изделия в один заказ. Но в момент заполнения партий, все обнуляется))
+
+productMin = GROUP MIN Product pr BY BOM(pr);
+
+quantityProducts 'Кол-во спецификаций' (ProductDetail pd) = NUMERIC[19,8](quantity(pd)/(quantity(productMin(BOM(pd)))));
+recBruttoQuantity 'Рекур.кол-во' (ProductDetail pd, Component component) = NUMERIC[16,5](quantityProducts(pd) * recBruttoQuantity(BOM(pd), component, date(pd)));
+
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)' (ProductDetail pd) {
+    FOR NUMERIC[16,5] q == recBruttoQuantity(pd, Component component) IF material(component) IS Sku AND NOT skipCreateForRecComponents(BOM(pd)) ORDER index(component), component NEW d = ComponentDetail DO {
+        order(d) <- order(pd);
+        BOM(d) <- BOM(pd);
+        bruttoSku(d) <- material(component);
+        component(d) <- component;
+        bruttoQuantity(d) <- q;
+        BOMQuantity(d) <- recBOMQuantity(BOM(pd), order(pd), component);
+        productDetail(d) <- pd;
+    }
+}
+
+isCreatedGoods  = DATA BOOLEAN (Order);
+
+createForRecComponents(Order order) + WHEN order IS Order THEN {
+    FOR order(ProductDetail pd)==order AND quantity(pd) ORDER index(pd), pd DO {
+        createForRecComponents(pd);
+    }
+    isCreatedGoods(order) <- TRUE;
+};
+//--
+createComponents 'Заполнить компоненты из спецификации'(ProductDetail pd)  {
+    FOR BOM(Component component) == BOM(pd) DO {
+        NEW d=ComponentDetail {
+            order(d) <- order(pd);
+            component(d) <- component;
+            bruttoQuantity(d) <- NUMERIC[16,5](bruttoQuantity(component, date(pd)) * quantityProducts(pd));
+            BOMQuantity(d) <- bruttoQuantity(component, date(pd));
+
+            BOM(d) <- BOM(pd);
+            productDetail(d) <- pd;
+
+            IF material(component) IS Sku THEN {
+                bruttoSku(d) <- material(component);
+            } ELSE {
+                IF material(component) IS Product THEN {
+                    product(d) <- material(component);
+                    bruttoSku(d) <- sku[Product](material(component));
+                }
+            }
+            overCreate(d);
+        }
+    }
+}
+
+//--
+createComponents (Order order) + WHEN order IS Order THEN {
+    FOR order(ProductDetail pd)==order AND quantity(pd) ORDER index(pd), pd DO {
+        createComponents(pd);
+    }
+    isCreatedGoods(order) <- TRUE;
+}
+
+skipProductDetail(ProductDetail d) += isCreatedGoods(order(d));
+
+//--
+recBruttoQuantity 'Рекур.кол-во' (ProductDetail pd, Sku sku) = NUMERIC[16,5](quantityProducts(pd) * recBruttoQuantity(BOM(pd), sku, date(pd)));
+createRecComponents(Order order) + WHEN order IS Order THEN {
+    FOR NUMERIC[16,5] q == recBruttoQuantity(ProductDetail pd, Sku sku) AND order(pd)==order ORDER index(pd), pd NEW d = ComponentDetail DO {
+        order(d) <- order;
+        BOM(d) <- BOM(pd);
+        bruttoSku(d) <- sku;
+        bruttoQuantity(d) <- q;
+        BOMQuantity(d)  <- recBOMQuantity(BOM(pd), order, sku);
+        productDetail(d) <- pd;
+    }
+    isCreatedGoods(order) <- TRUE;
+}
