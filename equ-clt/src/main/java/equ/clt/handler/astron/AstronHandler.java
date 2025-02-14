@@ -252,6 +252,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                 exportUnit(conn, params, transaction.itemsList, null, maxBatchSize, unitUpdateNum);
                             }
 
+                            List<JSONObject> propertyGrpJsonTable = jsonTables.get(PROPERTYGRP);
+                            if(!propertyGrpJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, PROPERTYGRP);
+                                exportPropertyGrp(conn, params, propertyGrpJsonTable, updateNum);
+                            }
+
                             if (notInterruptedTransaction(transaction.id)) {
                                 Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
                                 exportPack(conn, params, transaction.itemsList, null, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
@@ -287,10 +293,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             //astronLogger.info(String.format("transaction %s, table packprc delete", transaction.id));
                             //exportPackPrcDeleteBarcode(conn, params, transaction, usedDeleteBarcodeList, exportExtraTables, maxBatchSize, packPrcUpdateNum);
 
-                            List<JSONObject> propertyGrpJsonTable = jsonTables.get(PROPERTYGRP);
-                            if(!propertyGrpJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, PROPERTYGRP);
-                                exportPropertyGrp(conn, params, propertyGrpJsonTable, updateNum);
+                            List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
+                            if(!numbersJsonTable.isEmpty()) {
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMBERS);
+                                exportNumbers(conn, params, numbersJsonTable, updateNum);
                             }
 
                             List<JSONObject> numPropertyJsonTable = jsonTables.get(NUMPROPERTY);
@@ -303,12 +309,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             if (!stringsJsonTable.isEmpty()) {
                                 Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, STRINGS);
                                 exportStrings(conn, params, stringsJsonTable, updateNum);
-                            }
-
-                            List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
-                            if(!numbersJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMBERS);
-                                exportNumbers(conn, params, numbersJsonTable, updateNum);
                             }
 
                             List<JSONObject> binaryDataJsonTable = jsonTables.get(BINARYDATA);
@@ -1951,18 +1951,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getEventTime(Connection conn, boolean waitSysLogInsteadOfDataPump) {
-        if (!waitSysLogInsteadOfDataPump) {
-            return null;
-        }
-        try (Statement statement = conn.createStatement()) {
-            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
-            if (rs.next()) {
-                return rs.getString("EVENTTIME");
-            }
-            return "0";
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
+        return null;
+//        if (!waitSysLogInsteadOfDataPump) {
+//        }
+//        try (Statement statement = conn.createStatement()) {
+//            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
+//            if (rs.next()) {
+//                return rs.getString("EVENTTIME");
+//            }
+//            return "0";
+//        } catch (Exception e) {
+//            throw Throwables.propagate(e);
+//        }
     }
 
     private Pair<Boolean, Exception> checkSysLog(Connection conn, AstronConnectionString params, String eventTime) {
