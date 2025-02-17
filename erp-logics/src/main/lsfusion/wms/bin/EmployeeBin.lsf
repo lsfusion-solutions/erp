@@ -10,16 +10,28 @@ dataBinAccessCompany 'Доступ разрешен (компания)' = DATA B
 limitAccessCompanyStocksBin 'Ограничить доступ к ячейкам склада' = DATA BOOLEAN (Employee);
 
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (Bin, Employee);
+dataSkipAccessCompany = DATA BOOLEAN (Bin, Employee);
 
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (StockBinGroup, Employee) TABLE dataBinGroupEmployee;
+dataSkipAccessCompany = DATA BOOLEAN (StockBinGroup, Employee) TABLE dataBinGroupEmployee;
+
 accessCompany 'Доступ разрешен (компания)' (StockBinGroup sg, Employee e) = OVERRIDE dataAccessCompany(sg,e),
     accessCompany(e, stock(sg)) AND sg IS StockBinGroup AND e IS Employee AND NOT limitAccessCompanyStocksBin(e);
 
 dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (DataBinGroup, Employee) TABLE dataBinGroupEmployee;
+dataSkipAccessCompany = DATA BOOLEAN (DataBinGroup, Employee) TABLE dataBinGroupEmployee;
 
 dataAccessCompany 'Доступ разрешен (компания)' (BinGroup bg, Employee e) = MULTI dataAccessCompany[DataBinGroup, Employee](bg, e),
     accessCompany[StockBinGroup, Employee](bg, e);
 
+dataSkipAccessCompany 'Доступ разрешен (компания)' (BinGroup bg, Employee e) = MULTI dataSkipAccessCompany[DataBinGroup, Employee](bg, e),
+    dataSkipAccessCompany[StockBinGroup, Employee](bg, e);
+
+levelParentCompanySkip (Employee employee, BinGroup binGroup) = GROUP
+    MIN level(binGroup, BinGroup parent) IF dataSkipAccessCompany(parent, employee) MATERIALIZED;
+nearestParentCompanySkip (Employee employee, BinGroup binGroup) = binGroup(binGroup, levelParentCompanySkip(employee, binGroup));
+nearestInCompanySkip (Employee employee, BinGroup binGroup) =
+    dataSkipAccessCompany(nearestParentCompanySkip (employee, binGroup), employee) MATERIALIZED;
 
 levelParentCompany (Employee employee, BinGroup binGroup) = GROUP
     MIN level(binGroup, BinGroup parent) IF dataAccessCompany(parent, employee) MATERIALIZED;
@@ -27,29 +39,43 @@ nearestParentCompany (Employee employee, BinGroup binGroup) = binGroup(binGroup,
 nearestInCompany (Employee employee, BinGroup binGroup) =
     dataAccessCompany(nearestParentCompany (employee, binGroup), employee) MATERIALIZED;
 
+skipAccessCompany(Employee employee, BinGroup binGroup) = levelParentCompany(employee, binGroup) > levelParentCompanySkip(employee, binGroup);
+
 accessCompany 'Доступ разрешен (компания)' (Employee employee, BinGroup binGroup) = (OVERRIDE
     dataAccessCompany(binGroup, employee),
-    nearestInCompany(employee, binGroup),
+    nearestInCompany(employee, binGroup) AND NOT skipAccessCompany(employee, binGroup),
     dataBinAccessCompany(employee) AND binGroup IS BinGroup,
     employee IS Employee  AND binGroup IS BinGroup AND NOT limitAccess(employee)) 
-    ; // MATERIALIZED;
+    ;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Bin bin) = OVERRIDE
     dataAccessCompany(bin, employee),
-    nearestInCompany(employee, binGroup(bin)),
+    nearestInCompany(employee, binGroup(bin)) AND NOT skipAccessCompany(employee, binGroup(bin)) AND NOT dataSkipAccessCompany(bin, employee),
     dataBinAccessCompany(employee) AND isCompany(stock(bin)),
     employee IS Employee AND isCompany(stock(bin)) AND NOT limitAccess(employee) MATERIALIZED;
 
+changeAccessCompany(Employee e, Bin bin) {
+    dataAccessCompany(bin, e) <- NOT dataAccessCompany(bin, e) AND (dataAccessCompany(bin, e) OR NOT accessCompany(e, binGroup(bin)));
+    dataSkipAccessCompany(bin, e) <- NOT dataSkipAccessCompany(bin, e) AND (dataSkipAccessCompany(bin, e) OR accessCompany(e, binGroup(bin)));
+}
+
+changeAccessCompany(Employee e, BinGroup bg) {
+    dataAccessCompany(bg, e) <- NOT dataAccessCompany(bg, e) AND (dataAccessCompany(bg, e) OR NOT accessCompany(e, parent(bg)));
+    dataSkipAccessCompany(bg, e) <- NOT dataSkipAccessCompany(bg, e) AND (dataSkipAccessCompany(bg, e) OR accessCompany(e, parent(bg)));
+    dataAccessCompany(BinGroup bg1, e) <- NULL WHERE dataAccessCompany(bg1, e) AND level(bg1,bg) > 1;
+    dataSkipAccessCompany(BinGroup bg1, e) <- NULL WHERE dataSkipAccessCompany(bg1, e) AND level(bg1,bg) > 1;
+    dataAccessCompany(Bin bin, e) <- NULL WHERE dataAccessCompany(bin, e) AND isParent(bg, bin);
+    dataSkipAccessCompany(Bin bin, e) <- NULL WHERE dataSkipAccessCompany(bin, e) AND isParent(bg, bin);
+}
+
 EXTEND FORM employee
 
-    TREE binTree bT = BPSTRING[3], bg = BinGroup  PARENT parent(bg)
-    PROPERTIES READONLY VALUE(bT), bgTreeName = name(bg)
+    TREE binTree bg = BinGroup  PARENT parent(bg)
+    PROPERTIES READONLY bgTreeName = name(bg)
     ORDERS bgTreeName
-    FILTERS stringEqualsAll(bT)
-    PROPERTIES(e)  DRAW bT dataBinAccessCompany
     PROPERTIES(e)  limitAccessCompanyStocksBin
 
-    PROPERTIES(e,bg)  accessCompany
+    PROPERTIES(e,bg)  accessCompany ON CHANGE changeAccessCompany(e, bg)
     FILTERS accessCompany(e, stock(bg))
 
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
@@ -58,7 +84,7 @@ EXTEND FORM employee
     PROPERTIES(b) READONLY canonicalId, name
     ORDERS canonicalId(b)
     FILTERS isParent(bg, b) OR (b IS Bin AND NOT bg)
-    PROPERTIES(e,b) accessCompany
+    PROPERTIES(e,b) accessCompany ON CHANGE changeAccessCompany(e, b)
 ;
 
 DESIGN employee {
