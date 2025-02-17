@@ -1291,26 +1291,28 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                     Map<String, Object> cashDocumentExtraFields = getCashDocumentExtraFields(documentObject);
 
                                                     if (cash) {
-                                                        JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
-                                                        for (int i = 0; i < inventPositionsArray.length(); i++) {
-                                                            JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
-                                                            if (inventPosition.getInt("opCode") == 300) {
-                                                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                                                        cashRegister.numberGroup, numberCashRegister, shift, sumCashDocument,
-                                                                        idEmployee, cashDocumentExtraFields));
-                                                                count++;
+                                                        if(sumCashDocument.compareTo(BigDecimal.ZERO) != 0) {
+                                                            JSONArray inventPositionsArray = documentObject.getJSONArray("inventPositions");
+                                                            for (int i = 0; i < inventPositionsArray.length(); i++) {
+                                                                JSONObject inventPosition = inventPositionsArray.getJSONObject(i);
+                                                                if (inventPosition.getInt("opCode") == 300) {
+                                                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                            cashRegister.numberGroup, numberCashRegister, shift, safeNegate(sumCashDocument),
+                                                                            idEmployee, cashDocumentExtraFields));
+                                                                    count++;
 
+                                                                }
                                                             }
-                                                        }
-                                                        JSONArray stornoPositionsArray = documentObject.getJSONArray("stornoPositions");
-                                                        for (int i = 0; i < stornoPositionsArray.length(); i++) {
-                                                            JSONObject stornoPosition = stornoPositionsArray.getJSONObject(i);
-                                                            if (stornoPosition.getInt("opCode") == 300) {
-                                                                cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                                                        cashRegister.numberGroup, numberCashRegister, shift, safeNegate(sumCashDocument),
-                                                                        idEmployee, cashDocumentExtraFields));
-                                                                count++;
+                                                            JSONArray stornoPositionsArray = documentObject.getJSONArray("stornoPositions");
+                                                            for (int i = 0; i < stornoPositionsArray.length(); i++) {
+                                                                JSONObject stornoPosition = stornoPositionsArray.getJSONObject(i);
+                                                                if (stornoPosition.getInt("opCode") == 300) {
+                                                                    cashDocumentList.add(new CashDocument(idCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
+                                                                            cashRegister.numberGroup, numberCashRegister, shift, sumCashDocument,
+                                                                            idEmployee, cashDocumentExtraFields));
+                                                                    count++;
 
+                                                                }
                                                             }
                                                         }
                                                     } else {
