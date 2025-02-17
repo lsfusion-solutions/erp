@@ -108,3 +108,21 @@ companyBins  'Склады (компания)' (Employee employee) = ISTRING[200
 @extendFormFilterStockAccess(bg, binStocks);
 
 @extendFormFilterStockAccess(b, binStocks);
+
+FORM dialogZoneBinGroups 'Зоны ячеек'
+    OBJECTS g = BinGroup
+    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
+    ORDERS canonicalName(g)
+    FILTERS level(g) = 2, 
+        accessCompany(currentUser(), g)
+    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
+;
+
+filterZoneBinGroup  = DATA LOCAL NESTED BinGroup ();
+nameFilterZoneBinGroup 'Зоны ячеек' = name(filterZoneBinGroup()) CHARWIDTH 15;
+
+changeFilterZoneBinGroup(Stock st) {
+    DIALOG dialogZoneBinGroups OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
+        filterZoneBinGroup() <- g;
+    }
+}

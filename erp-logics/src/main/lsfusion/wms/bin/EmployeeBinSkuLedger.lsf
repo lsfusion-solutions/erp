@@ -4,14 +4,14 @@ REQUIRE EmployeeBin, BinSkuLedger;
 
 NAMESPACE BinLedger;
 
-FORM dialogZoneBinGroups 'Зоны ячеек'
-    OBJECTS g = BinGroup
-    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
-    ORDERS canonicalName(g)
-    FILTERS level(g) = 2, 
-        accessCompany(currentUser(), g)
-    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
-;
+//FORM dialogZoneBinGroups 'Зоны ячеек'
+//    OBJECTS g = BinGroup
+//    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
+//    ORDERS canonicalName(g)
+//    FILTERS level(g) = 2, 
+//        accessCompany(currentUser(), g)
+//    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
+//;
 
 countAccessCompanyZoneBinGroups 'Кол-во доступных зон ячеек (компания)' (Employee employee) =
     GROUP
@@ -33,17 +33,16 @@ companyBins  'Зоны ячеек (компания)' (Employee employee, Stock 
     CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st, ', '
     ORDER name(bg)) CHARWIDTH 20;
 
-
-filterZoneBinGroup  = DATA LOCAL NESTED BinGroup ();
-nameFilterZoneBinGroup 'Зоны ячеек' = name(filterZoneBinGroup()) CHARWIDTH 15;
+//filterZoneBinGroup  = DATA LOCAL NESTED BinGroup ();
+//nameFilterZoneBinGroup 'Зоны ячеек' = name(filterZoneBinGroup()) CHARWIDTH 15;
 filterZoneBinGroup (Sku s) = [GROUP SUM 1 IF currentBalance(Sku s1, Bin b) BY s1, binGroup(b)](s, filterZoneBinGroup()) 
     OR (s IS Stock AND NOT filterZoneBinGroup());   
 
-changeFilterZoneBinGroup(Stock st) {
-    DIALOG dialogZoneBinGroups OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
-        filterZoneBinGroup() <- g;
-    }
-}
+//changeFilterZoneBinGroup(Stock st) {
+//    DIALOG dialogZoneBinGroups OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
+//        filterZoneBinGroup() <- g;
+//    }
+//}
 
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES SHOWIF countAccessCompanyZoneBinGroups(currentUser(), ss) AND singleStore() 
