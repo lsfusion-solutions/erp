@@ -2302,10 +2302,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
                         }
 
-                        Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
-                        exportDCard(conn, params, discountCardList, dcardUpdateNum);
-                        outputUpdateNums.put("DCARD", dcardUpdateNum);
-
                         if(exportDiscountCardExtraTables) {
 
                             String clntTbl = "CLNT";
@@ -2328,6 +2324,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             exportClntFormProperty(conn, params, clntFormPropertyTbl, discountCardList, clntUpdateNum);
                             outputUpdateNums.put(clntFormPropertyTbl, clntFormPropertyUpdateNum);
                         }
+
+                        Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
+                        exportDCard(conn, params, discountCardList, dcardUpdateNum);
+                        outputUpdateNums.put("DCARD", dcardUpdateNum);
 
                         if(versionalScheme) {
                             exportUpdateNums(conn, outputUpdateNums);
