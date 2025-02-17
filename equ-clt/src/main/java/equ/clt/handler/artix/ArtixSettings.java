@@ -348,4 +348,14 @@ public class ArtixSettings implements Serializable{
     public void setIgnoreDiscountCardPattern(String ignoreDiscountCardPattern) {
         this.ignoreDiscountCardPattern = ignoreDiscountCardPattern;
     }
+
+    public boolean frDocNumToExternalNumber;
+
+    public boolean isFrDocNumToExternalNumber() {
+        return frDocNumToExternalNumber;
+    }
+
+    public void setFrDocNumToExternalNumber(boolean frDocNumToExternalNumber) {
+        this.frDocNumToExternalNumber = frDocNumToExternalNumber;
+    }
 }

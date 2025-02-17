@@ -1517,6 +1517,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         boolean appendCashierId = artixSettings.isAppendCashierId();
         boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
         String ignoreDiscountCardPattern = artixSettings.getIgnoreDiscountCardPattern();
+        boolean frDocNumToExternalNumber = artixSettings.isFrDocNumToExternalNumber();
 
         //Для каждой кассы отдельная директория, куда приходит реализация только по этой кассе плюс в подпапке online могут быть текущие продажи
         Map<Integer, CashRegisterInfo> departNumberCashRegisterMap = new HashMap<>();
@@ -1911,7 +1912,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             String extDocId = trimToNull(inventPosition.optString("extdocid"));
 
                                             String externalNumber;
-                                            if(receiptIdentifiersToExternalNumber) {
+                                            if(frDocNumToExternalNumber) {
+                                                externalNumber = trimToNull(documentObject.optString("frDocNum"));
+                                            } else if(receiptIdentifiersToExternalNumber) {
                                                 externalNumber = isSale ? identifier : (sourceIdentifier + "/" + inventPosition.optString("posNum"));
                                             } else {
                                                 externalNumber = extDocId;
