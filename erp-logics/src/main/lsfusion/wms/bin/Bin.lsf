@@ -8,7 +8,6 @@ CLASS ABSTRACT BinGroup 'Группа ячеек';
 TABLE binGroup (BinGroup);
 
 id '{integration.id}' = ABSTRACT STRING[100] (BinGroup) MATERIALIZED INDEXED CHARWIDTH 10;
-binGroup (id) = GROUP MAX BinGroup binGroup BY id (binGroup);
 
 name 'Наименование' = ABSTRACT ISTRING[100](BinGroup) MATERIALIZED INDEXED;
 
@@ -22,11 +21,13 @@ TABLE binGroupBinGroup(BinGroup, BinGroup);
 canonicalId 'Полный код' (BinGroup binGroup) = ISTRING[255](
     (GROUP CONCAT id(BinGroup parent), '-' ORDER DESC level(binGroup, parent)))
     CHARWIDTH 50 MATERIALIZED;
+binGroup(id) = GROUP AGGR BinGroup binGroup BY canonicalId(binGroup);
 
 CLASS DataBinGroup 'Группа ячеек' : BinGroup;
 TABLE dataBinGroup (DataBinGroup);
 
-@defineExternalizable(dataBinGroup, STRING[100]);
+id '{integration.id}' = DATA STRING[100] (DataBinGroup) IN id INDEXED CHARWIDTH 10;
+dataBinGroup(id) = GROUP MAX DataBinGroup dataBinGroup BY id(dataBinGroup);
 
 name 'Наименование' = DATA ISTRING[100](DataBinGroup);
 
@@ -131,7 +132,7 @@ FORM dialogBinGroups 'Группы ячеек'
 
 FORM binGroups 'Группы ячеек'
     TREE treeGroups g=BinGroup PARENT parent(g)
-    PROPERTIES READONLY id(g) SHOWIF showIDs(), name(g), canonicalName(g), canonicalId(g), nameStock(g)
+    PROPERTIES READONLY id(g) SHOWIF showIDs(), canonicalId(g) SHOWIF showIDs(), name(g), canonicalName(g),  nameStock(g)
     PROPERTIES(g) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF g IS DataBinGroup, deleteg=DELETE SHOWIF g IS DataBinGroup
     ORDERS canonicalName(g)
     FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
