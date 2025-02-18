@@ -1,7 +1,7 @@
 MODULE OperationTitanPOSBulk;
 // Здесь содержатся модули для работы с оптом
 
-REQUIRE OperationTitanPOSCommon, StructureTitanPOSBulk;
+REQUIRE OperationTitanPOSCommon, StructureTitanPOSInvoicePayment;
 
 eqReceiptWithDetail 'Печать чека продажи' (CashRegister o, Sale.Invoice invoice, Payment payment) {
     LOCAL sale, return = INTEGER ();
@@ -16,7 +16,9 @@ eqReceiptWithDetail 'Печать чека продажи' (CashRegister o, Sale
     receiptTotalSum() <- invoiceSumInvoiceDetail(invoice);
     receiptFooter() <- CONCAT '','ЧЕК к накладной ',series(invoice),number(invoice),' от ',toDateDDMMYY(date(invoice)),'\n';
     receiptFooter() <- receiptFooter() + CONCAT '','ПОКУПАТЕЛЬ:\n',trim(nameCustomer(invoice));
-    EXPORT receiptWithDetail FILTERS invoice(lines) = invoice, cost(pm,invoice) JSON;
+    invoiceId() <- invoice;
+    paymentId() <- payment;
+    EXPORT receiptWithDetail JSON ;//FILTERS invoice(lines) = invoice AND cost(pm,invoice) JSON;
     onSend(o,'check','Чек продажи');
     IF titanECode() THEN {
         printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком 
@@ -38,7 +40,9 @@ eqSaleReturnReceiptWithDetail 'Чек возврата по накладной' 
     receiptTotalSum() <- invoiceSumInvoiceDetail(invoice);
     receiptFooter() <- CONCAT '','ЧЕК к накладной ',series(invoice),number(invoice),' от ',toDateDDMMYY(date(invoice)),'\n';
     receiptFooter() <- receiptFooter() + CONCAT '','ПОКУПАТЕЛЬ:\n',trim(nameCustomer(invoice));
-    EXPORT saleReturnReceiptWithDetail FILTERS invoice(lines) = invoice, pm = invoice JSON;
+    invoiceReturnId() <- invoice;
+    paymentId() <- payment;
+    EXPORT saleReturnReceiptWithDetail JSON; // FILTERS invoice(lines) = invoice, pm = invoice JSON;
     onSend(o,'check','Чек возврата');
     IF titanECode() THEN {
         printReceiptError() <- titanEMessage(); // ошибка будет выведена обработчиком 
