@@ -624,13 +624,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         ps.setInt(5, version); //version
                         ps.setInt(6, 0); //deleted
 
-                        if(tareWeightFieldInVarTable) {
+                        if (tareWeightFieldInVarTable) {
                             BigDecimal tareWeight = null;
-                            if (item.info != null) {
-                                JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
-                                if (infoJSON != null) { //приходит в килограммах, выгружаем в граммах
-                                    tareWeight = safeDivide(infoJSON.optBigDecimal("tareWeight", null), BigDecimal.valueOf(1000));
-                                }
+                            JSONObject infoJSON = getExtInfo(item.info);
+                            if (infoJSON != null) { //приходит в килограммах, выгружаем в граммах
+                                tareWeight = safeDivide(infoJSON.optBigDecimal("tareWeight", null), BigDecimal.valueOf(1000));
                             }
                             ps.setBigDecimal(7, tareWeight != null ? tareWeight : BigDecimal.ZERO); //tare_weight
                         }
@@ -665,13 +663,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private void exportProperties(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException, JSONException {
-        if (transaction.info != null) {
-            JSONObject infoJSON = new JSONObject(transaction.info).optJSONObject("ukm");
-            if (infoJSON != null) {
-                JSONArray properties = infoJSON.optJSONArray("properties");
-                if (properties != null) {
-                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO properties (code, name, flags, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                            "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), description=VALUES(description), deleted=VALUES(deleted)")) {
+        if (transaction.itemsList != null) {
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO properties (code, name, flags, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), description=VALUES(description), deleted=VALUES(deleted)")) {
+                for (CashRegisterItem item : transaction.itemsList) {
+                    JSONObject infoJSON = getExtInfo(item.info);
+                    if (infoJSON != null) {
+                        JSONArray properties = infoJSON.optJSONArray("properties");
                         for (int i = 0; i < properties.length(); i++) {
                             JSONObject property = properties.getJSONObject(i);
                             ps.setString(1, property.getString("code"));
@@ -682,37 +680,41 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             ps.setInt(6, 0);
                             ps.addBatch();
                         }
-                        ps.executeBatch();
-                        conn.commit();
                     }
                 }
+                ps.executeBatch();
+                conn.commit();
             }
         }
     }
 
     private void exportPropertyValues(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException, JSONException {
-        if (transaction.info != null) {
-            JSONObject infoJSON = new JSONObject(transaction.info).optJSONObject("ukm");
-            if (infoJSON != null) {
-                JSONArray propertyValues = infoJSON.optJSONArray("property_values");
-                if (propertyValues != null) {
-                    try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, comment, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?) " +
-                            "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)")) {
-                        for (int i = 0; i < propertyValues.length(); i++) {
-                            JSONObject propertyValue = propertyValues.getJSONObject(i);
-                            ps.setString(1, propertyValue.getString("property_code"));
-                            ps.setInt(2, propertyValue.getInt("id"));
-                            ps.setString(3, propertyValue.optString("const"));
-                            ps.setString(4, propertyValue.getString("description"));
-                            ps.setString(5, propertyValue.optString("comment"));
-                            ps.setInt(6, version);
-                            ps.setInt(7, 0);
-                            ps.addBatch();
+        if (transaction.itemsList != null) {
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, comment, version, deleted) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)")) {
+                for (CashRegisterItem item : transaction.itemsList) {
+                    JSONObject infoJSON = getExtInfo(item.info);
+                    if (infoJSON != null) {
+                        JSONArray propertyValues = infoJSON.optJSONArray("property_values");
+                        if (propertyValues != null) {
+                            for (int i = 0; i < propertyValues.length(); i++) {
+                                JSONObject propertyValue = propertyValues.getJSONObject(i);
+                                ps.setString(1, propertyValue.getString("property_code"));
+                                ps.setInt(2, propertyValue.getInt("id"));
+                                ps.setString(3, propertyValue.optString("const"));
+                                ps.setString(4, propertyValue.getString("description"));
+                                ps.setString(5, propertyValue.optString("comment"));
+                                ps.setInt(6, version);
+                                ps.setInt(7, 0);
+                                ps.addBatch();
+                            }
+                            ps.executeBatch();
+                            conn.commit();
                         }
-                        ps.executeBatch();
-                        conn.commit();
                     }
                 }
+                ps.executeBatch();
+                conn.commit();
             }
         }
     }
@@ -722,21 +724,19 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             try (PreparedStatement ps = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
                 for (CashRegisterItem item : transaction.itemsList) {
-                    if (item.info != null) {
-                        JSONObject infoJSON = new JSONObject(item.info).optJSONObject("ukm");
-                        if (infoJSON != null) {
-                            JSONArray itemPropertyValues = infoJSON.optJSONArray("item_property_values");
-                            if (itemPropertyValues != null) {
-                                for (int i = 0; i < itemPropertyValues.length(); i++) {
-                                    JSONObject propertyValue = itemPropertyValues.getJSONObject(i);
-                                    ps.setString(1, getId(item, useBarcodeAsId, appendBarcode));
-                                    ps.setString(2, propertyValue.getString("property_code"));
-                                    ps.setInt(3, propertyValue.getInt("property_id"));
-                                    ps.setInt(4, propertyValue.getInt("sequence"));
-                                    ps.setInt(5, version);
-                                    ps.setInt(6, 0);
-                                    ps.addBatch();
-                                }
+                    JSONObject infoJSON = getExtInfo(item.info);
+                    if (infoJSON != null) {
+                        JSONArray itemPropertyValues = infoJSON.optJSONArray("item_property_values");
+                        if (itemPropertyValues != null) {
+                            for (int i = 0; i < itemPropertyValues.length(); i++) {
+                                JSONObject propertyValue = itemPropertyValues.getJSONObject(i);
+                                ps.setString(1, getId(item, useBarcodeAsId, appendBarcode));
+                                ps.setString(2, propertyValue.getString("property_code"));
+                                ps.setInt(3, propertyValue.getInt("property_id"));
+                                ps.setInt(4, propertyValue.getInt("sequence"));
+                                ps.setInt(5, version);
+                                ps.setInt(6, 0);
+                                ps.addBatch();
                             }
                         }
                     }
@@ -745,6 +745,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 conn.commit();
             }
         }
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("ukm") : null;
     }
 
     private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout, boolean wait) throws SQLException {
