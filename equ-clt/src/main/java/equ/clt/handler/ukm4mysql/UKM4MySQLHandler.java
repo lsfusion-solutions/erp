@@ -1564,7 +1564,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private String getId(ItemInfo item, boolean useBarcodeAsId, boolean appendBarcode) {
-        return trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item.idBarcode, appendBarcode) : item.idItem, 40);
+        return trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item instanceof CashRegisterItem ? ((CashRegisterItem) item).mainBarcode : item.idBarcode, appendBarcode) : item.idItem, 40);
     }
 
     private String appendEAN13(String barcode) {
