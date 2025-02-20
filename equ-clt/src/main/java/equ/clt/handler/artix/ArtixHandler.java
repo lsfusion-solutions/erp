@@ -1913,7 +1913,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                                             String externalNumber;
                                             if(frDocNumToExternalNumber) {
-                                                externalNumber = trimToNull(documentObject.optString("frDocNum"));
+                                                externalNumber = trimToNull(documentObject.optString("frdocnum"));
                                             } else if(receiptIdentifiersToExternalNumber) {
                                                 externalNumber = isSale ? identifier : (sourceIdentifier + "/" + inventPosition.optString("posNum"));
                                             } else {
