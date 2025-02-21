@@ -1,0 +1,127 @@
+MODULE VeterinaryCertificatePrint;
+
+REQUIRE ConsignmentDashboardBy, Veterinary, SaleVeterinary, SaleInvoiceConsignmentBy, Store;
+
+NAMESPACE Veterinary;
+
+vetCertificate1 'ВС1' = DATA IMAGEFILE (Veterinary);
+vetCertificate2 'ВС2' = DATA IMAGEFILE (Veterinary);
+
+saveVetCertificate1 'Загрузить ВС1' (Veterinary veterinary)  { INPUT = vetCertificate1(veterinary) CHANGE; }
+openVetCertificate1 'Просмотреть ВС1' (Veterinary veterinary)  { open(vetCertificate1(veterinary)); }
+deleteVetCertificate1 'Удалить ВС1' (Veterinary veterinary)  { vetCertificate1(veterinary) <- NULL; }
+
+saveVetCertificate2 'Загрузить ВС2' (Veterinary veterinary)  { INPUT = vetCertificate2(veterinary) CHANGE; }
+openVetCertificate2 'Просмотреть ВС2' (Veterinary veterinary)  { open(vetCertificate2(veterinary)); }
+deleteVetCertificate2 'Удалить ВС2' (Veterinary veterinary)  { vetCertificate2(veterinary) <- NULL; }
+
+EXTEND FORM veterinary
+    PROPERTIES (c) saveVetCertificate1, openVetCertificate1, deleteVetCertificate1
+    PROPERTIES (c) saveVetCertificate2, openVetCertificate2, deleteVetCertificate2
+;
+
+DESIGN veterinary {
+    pane {
+        documentParams{            
+            MOVE PROPERTY(openImage(c));
+            MOVE PROPERTY(saveImage(c));
+        }
+        NEW fileContainer1 AFTER fileContainer{
+            NEW fileContainer11{
+                horizontal = TRUE;
+                caption = 'Лицевая сторона';
+                MOVE PROPERTY(openVetCertificate1(c));
+                MOVE PROPERTY(saveVetCertificate1(c));
+                MOVE PROPERTY(deleteVetCertificate1(c));
+            }
+            NEW fileContainer12{
+                horizontal = TRUE;
+                caption = 'Оборотная сторона';
+                MOVE PROPERTY(openVetCertificate2(c));
+                MOVE PROPERTY(saveVetCertificate2(c));
+                MOVE PROPERTY(deleteVetCertificate2(c));
+            }
+        }
+    }
+}
+
+vetCertificate1Bytes = DATA LOCAL IMAGEFILE (Sale.InvoiceDetail);
+vetCertificate2Bytes = DATA LOCAL IMAGEFILE (Sale.InvoiceDetail);
+
+inVC 'Вкл.' = DATA LOCAL BOOLEAN (Sale.InvoiceDetail);
+
+
+//----------------- константы --------------------
+
+vetCompanyVeterinaryCertificate 'Наименование ветеринарного учреждения' = DATA ISTRING[150] ();
+positionVeterinaryCertificate 'Должность специалиста' = DATA ISTRING[50] ();
+
+
+EXTEND FORM options
+    PROPERTIES() vetCompanyVeterinaryCertificate, positionVeterinaryCertificate
+;
+
+DESIGN options {
+    pane {
+        NEW veterinaryCertificate {
+            caption = 'В/C';
+            MOVE PROPERTY (vetCompanyVeterinaryCertificate());
+            MOVE PROPERTY (positionVeterinaryCertificate());
+        }
+    }
+}
+
+FORM printVetCertificates 'ВС'
+    OBJECTS d = Sale.InvoiceDetail SUBREPORT
+    PROPERTIES vetCertificate1Bytes(d), vetCertificate2Bytes(d), number(d), date(d),
+        nameSku[ConsignmentDetail](d), nameTruck = nameTruck(consignment(d)),
+        addressCustomerStock = addressCustomerStock(consignment(d)),
+        fullNameCustomer = fullNameCustomer(consignment(d)),
+        addressCustomer = addressCustomer(consignment(d)),
+                   fsdf = nameChainStores(store(customerStock(consignment(d)))),
+        shortNameUOM(d), quantity[ConsignmentDetail](d), packQuantity[ConsignmentDetail](d),
+        vetCompanyVeterinaryCertificate(), positionVeterinaryCertificate()
+    PROPERTIES invoice(d)
+    ORDERS invoice(d)
+    FILTERS inVC(d)
+;
+
+printVetCertificates 'Печать ВС' () {
+    LOCAL file = IMAGEFILE ();
+
+    vetCertificate1Bytes(Sale.InvoiceDetail d) <- NULL;
+    vetCertificate2Bytes(Sale.InvoiceDetail d) <- NULL;
+
+    FOR inVC(Sale.InvoiceDetail d) DO {
+        
+        vetCertificate1Bytes(d) <- vetCertificate1(veterinary(batch(d)));
+        vetCertificate2Bytes(d) <- vetCertificate2(veterinary(batch(d)));
+    }
+
+    PRINT printVetCertificates;
+    inVC(Sale.InvoiceDetail d) <- NULL;
+} IMAGE 'print.png';
+
+printVetCertificates 'Печать ВС' (Sale.Invoice i) {
+    inVC(Sale.InvoiceDetail d) <- Sale.invoice(d)==i AND veterinary(batch(d));
+    printVetCertificates();
+} IMAGE 'print.png';
+
+
+EXTEND FORM Sale.invoices
+    PROPERTIES (i) PANEL printVetCertificates
+;
+DESIGN Sale.invoices {
+    GROUP(print,i){
+        MOVE PROPERTY (printVetCertificates(i));    
+    }
+}
+
+EXTEND FORM consignmentDashboard
+    PROPERTIES (i) PANEL printVetCertificates
+;
+DESIGN consignmentDashboard {
+    contOne{
+        MOVE PROPERTY (printVetCertificates(i));
+    }
+}
