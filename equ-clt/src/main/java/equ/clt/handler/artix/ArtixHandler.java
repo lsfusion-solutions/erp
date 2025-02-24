@@ -1443,7 +1443,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
     private JSONObject getExtInfo(String extInfo) {
-        return getExtInfo(extInfo, "artix");
+        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("artix") : null;
     }
 
     private Timestamp parseTimestamp(String value) throws ParseException {
