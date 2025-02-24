@@ -751,7 +751,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private JSONObject getExtInfo(String extInfo) {
-        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("ukm") : null;
+        return getExtInfo(extInfo, "ukm");
     }
 
     private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout, boolean wait) throws SQLException {

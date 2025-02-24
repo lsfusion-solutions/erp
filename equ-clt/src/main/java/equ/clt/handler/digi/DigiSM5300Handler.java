@@ -46,11 +46,9 @@ public class DigiSM5300Handler extends DigiHandler {
             @Override
             protected BigDecimal getTareWeight(ScalesItem item) {
                 BigDecimal tareWeight = null;
-                if(item.info != null) {
-                    JSONObject infoJSON = new JSONObject(item.info).optJSONObject("digism5300");
-                    if (infoJSON != null) {
-                        tareWeight = infoJSON.optBigDecimal("tareWeight", null);
-                    }
+                JSONObject infoJSON = getExtInfo(item.info);
+                if (infoJSON != null) {
+                    tareWeight = infoJSON.optBigDecimal("tareWeight", null);
                 }
                 return tareWeight;
             }
@@ -111,7 +109,7 @@ public class DigiSM5300Handler extends DigiHandler {
             @Override
             protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
                 processTransactionLogger.info(getLogPrefix() + "Send key assignment started");
-                JSONObject infoJSON = item.info != null ? new JSONObject(item.info).optJSONObject("digism5300") : null;
+                JSONObject infoJSON = getExtInfo(item.info);
                 processTransactionLogger.info(getLogPrefix() + "Send key assignment started: infoJSON=" + infoJSON + ", pluNumber=" + item.pluNumber);
                 if (infoJSON != null && item.pluNumber != null) {
 
@@ -205,5 +203,9 @@ public class DigiSM5300Handler extends DigiHandler {
                 return bytes.array();
             }
         };
+    }
+
+    private JSONObject getExtInfo(String extInfo) {
+        return getExtInfo(extInfo, "digism5300");
     }
 }

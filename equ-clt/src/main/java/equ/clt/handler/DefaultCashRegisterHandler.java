@@ -4,6 +4,7 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import org.apache.log4j.Logger;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +30,10 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
 
     protected static String oplatiPaymentType = "oplati";
     protected static String salaryPaymentType = "salary";
+
+    protected JSONObject getExtInfo(String extInfo, String id) {
+        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject(id) : null;
+    }
 
     protected Set<CashRegisterInfo> getCashRegisterSet(RequestExchange requestExchange, boolean extra) {
         Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();

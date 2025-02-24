@@ -589,7 +589,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     }
 
     protected JSONObject getExtInfo(String extInfo) {
-        return extInfo != null && !extInfo.isEmpty() ? new JSONObject(extInfo).optJSONObject("kristal10") : null;
+        return getExtInfo(extInfo, "kristal10");
     }
 
     protected JSONObject getExtraInfo(String extraInfo) {
