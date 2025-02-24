@@ -636,7 +636,7 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
     }
 
     private String loadStaticTextScalesNumber(List<String> errors, TCPPort port, ScalesInfo scales) {
-        String command = "STST  " + separator + getCancelFlag(0) + separator + "TFNU1" + separator + "BERN0" + separator + "ST01" + scales.number + endCommand;
+        String command = "STST  "+ separator + "S" + zeroedInt(scales.number, 2) + separator + getCancelFlag(0) + separator + "TFNU1" + separator + "BERN0" + separator + "ST01" + scales.number + endCommand;
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, scales.port);
         return receiveReply(errors, port, scales.port, false);
