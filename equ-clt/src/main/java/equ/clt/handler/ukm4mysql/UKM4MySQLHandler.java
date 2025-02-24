@@ -671,15 +671,17 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     JSONObject infoJSON = getExtInfo(item.info);
                     if (infoJSON != null) {
                         JSONArray properties = infoJSON.optJSONArray("properties");
-                        for (int i = 0; i < properties.length(); i++) {
-                            JSONObject property = properties.getJSONObject(i);
-                            ps.setString(1, property.getString("code"));
-                            ps.setString(2, property.getString("name"));
-                            ps.setInt(3, property.getInt("flags"));
-                            ps.setString(4, property.optString("description"));
-                            ps.setInt(5, version);
-                            ps.setInt(6, 0);
-                            ps.addBatch();
+                        if(properties != null) {
+                            for (int i = 0; i < properties.length(); i++) {
+                                JSONObject property = properties.getJSONObject(i);
+                                ps.setString(1, property.getString("code"));
+                                ps.setString(2, property.getString("name"));
+                                ps.setInt(3, property.getInt("flags"));
+                                ps.setString(4, property.optString("description"));
+                                ps.setInt(5, version);
+                                ps.setInt(6, 0);
+                                ps.addBatch();
+                            }
                         }
                     }
                 }
