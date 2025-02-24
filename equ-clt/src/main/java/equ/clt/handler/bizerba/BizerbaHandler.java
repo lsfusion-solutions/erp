@@ -124,7 +124,8 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                             if (loadStaticTextScalesNumber) {
                                 String error = loadStaticTextScalesNumber(localErrors, port, scales);
                                 if (!error.equals("0")) {
-                                    throw new RuntimeException("LoadStaticTextScalesNumber failed: " + error);
+                                    processTransactionLogger.error("Bizerba: LoadStaticTextScalesNumber failed " + error);
+                                    //throw new RuntimeException("LoadStaticTextScalesNumber failed: " + error);
                                 }
                             }
 
