@@ -75,8 +75,9 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         Integer descriptionLineLength = nvl(bizerbaSettings.getDescriptionLineLength(), 1500);
         boolean useDescriptionOptimizer = bizerbaSettings.isUseDescriptionOptimizer();
         Long sendCommandTimeout = bizerbaSettings.getSendCommandTimeout();
+        boolean loadStaticTextScalesNumber = bizerbaSettings.isLoadStaticTextScalesNumber();
         return new BizerbaSendTransactionTask(transaction, scales, capitalLetters, notInvertPrices, descriptionLineLength,
-                useDescriptionOptimizer, sendCommandTimeout);
+                useDescriptionOptimizer, sendCommandTimeout, loadStaticTextScalesNumber);
     }
 
     class BizerbaSendTransactionTask extends SendTransactionTask {
@@ -85,16 +86,18 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         int descriptionLineLength;
         boolean useDescriptionOptimizer;
         Long sendCommandTimeout;
+        boolean loadStaticTextScalesNumber;
 
         public BizerbaSendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, boolean capitalLetters,
                                           boolean notInvertPrices, int descriptionLineLength, boolean useDescriptionOptimizer,
-                                          Long sendCommandTimeout) {
+                                          Long sendCommandTimeout, boolean loadStaticTextScalesNumber) {
             super(transaction, scales);
             this.capitalLetters = capitalLetters;
             this.notInvertPrices = notInvertPrices;
             this.descriptionLineLength = descriptionLineLength;
             this.useDescriptionOptimizer = useDescriptionOptimizer;
             this.sendCommandTimeout = sendCommandTimeout;
+            this.loadStaticTextScalesNumber = loadStaticTextScalesNumber;
         }
 
         @Override
@@ -117,6 +120,14 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
                         processTransactionLogger.info("Bizerba: Sending items..." + scales.port);
                         if (localErrors.isEmpty()) {
                             synchronizeTime(localErrors, port, scales.port);
+
+                            if (loadStaticTextScalesNumber) {
+                                String error = loadStaticTextScalesNumber(localErrors, port, scales);
+                                if (!error.equals("0")) {
+                                    throw new RuntimeException("LoadStaticTextScalesNumber failed: " + error);
+                                }
+                            }
+
                             int count = 0;
                             for (ScalesItem item : transaction.itemsList) {
                                 count++;
@@ -622,6 +633,13 @@ public abstract class BizerbaHandler extends MultithreadScalesHandler {
         clearReceiveBuffer(port);
         sendCommand(errors, port, command, ip);
         return receiveReply(errors, port, ip, false);
+    }
+
+    private String loadStaticTextScalesNumber(List<String> errors, TCPPort port, ScalesInfo scales) {
+        String command = "STST  " + separator + getCancelFlag(0) + separator + "TFNU1" + separator + "BERN0" + separator + "ST01" + scales.number + endCommand;
+        clearReceiveBuffer(port);
+        sendCommand(errors, port, command, scales.port);
+        return receiveReply(errors, port, scales.port, false);
     }
 
     private String getError(String result, String ip, String idItem, Integer messageNumber) {

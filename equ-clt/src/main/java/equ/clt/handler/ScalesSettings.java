@@ -22,6 +22,9 @@ public class ScalesSettings implements Serializable{
     //если задано и больше 0, то команда loadPLU отправляется с заданным таймаутом
     private Long sendCommandTimeout;
 
+    //Загружать в таблицу STST scales.number
+    private boolean loadStaticTextScalesNumber;
+
     public ScalesSettings() {}
 
     @Deprecated
@@ -74,5 +77,15 @@ public class ScalesSettings implements Serializable{
     @SuppressWarnings("unused")
     public void setSendCommandTimeout(Long sendCommandTimeout) {
         this.sendCommandTimeout = sendCommandTimeout;
+    }
+
+    @SuppressWarnings("unused")
+    public boolean isLoadStaticTextScalesNumber() {
+        return loadStaticTextScalesNumber;
+    }
+
+    @SuppressWarnings("unused")
+    public void setLoadStaticTextScalesNumber(boolean loadStaticTextScalesNumber) {
+        this.loadStaticTextScalesNumber = loadStaticTextScalesNumber;
     }
 }
