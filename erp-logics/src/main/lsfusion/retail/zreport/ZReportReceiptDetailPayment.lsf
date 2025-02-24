@@ -17,6 +17,8 @@ EXTEND FORM zReports
     PROPERTIES(d, p) READONLY sum
 ;
 
+overCalculateSumReceiptDetailPayment ABSTRACT LIST (Receipt);
+
 calculateSumReceiptDetailPayment 'Расписать платежи по строкам' (Receipt receipt)  { 
     sum(ReceiptDetail d, Payment p) <- NULL WHERE receipt(d) == receipt AND receipt(p) == receipt; 
     LOCAL left = NUMERIC[18,4] (ReceiptDetail);
@@ -36,7 +38,9 @@ calculateSumReceiptDetailPayment 'Расписать платежи по стр�
                 left(d) <- left(d) (+) sum(d, p);
             }
         }            
-    }    
+    }
+
+    overCalculateSumReceiptDetailPayment(receipt);
 }
 
 skipcalculateSumReceiptDetailPayment = ABSTRACT BOOLEAN () PREREAD;
