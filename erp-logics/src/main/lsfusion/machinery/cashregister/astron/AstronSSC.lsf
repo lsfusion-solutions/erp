@@ -66,7 +66,6 @@ EXTEND FORM customGroup
 
 //выгрузка
 encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
-toLoadImages = DATA LOCAL BOOLEAN ();
 
 overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += 
     (CONCAT ', ',
@@ -89,10 +88,10 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
                 '\{"numberId":'+(100 + age(sku(b)))+',"numberValue":'+age(sku(b))+',"numberName":"'+age(sku(b))+' лет"\}' IF ageVerify(sku(b))
             ) +']',
         '"binProperty":[' + (CONCAT ', ',
-                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b)) AND toLoadImages()
+                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b)) 
             ) +']',
         '"binaryData":[' + (CONCAT ', ',
-                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+escapeJSONValue(STRING[50](id(b) +' '+nameSku(b)))+'"\}' IF imageAstron(sku(b)) AND toLoadImages()
+                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+escapeJSONValue(STRING[50](id(b) +' '+nameSku(b)))+'"\}' IF imageAstron(sku(b))
             ) +']'
         ),
         //группы
@@ -100,7 +99,7 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
                 '"sareaId":'+nppGroupMachinery(mpt),
                 '"parentExtGrpId":'+id(parent(g), groupMachinery(mpt)),
                 '"extGrpName":"'+escapeJSONValue(name(g))+'"',
-                '"extGrpPicture":"'+(encodeBase64(imageAstron(g)) IF toLoadImages())+'"') + '\}') 
+                '"extGrpPicture":"'+(encodeBase64(imageAstron(g)))+'"') + '\}') 
                     IF (isParent(g, sku(b)) OR del(id(g, groupMachinery(mpt)), sku(b), groupMachinery(mpt))) AND customGroupType(g) == dataCustomGroupTypeAstron(groupMachinery(mpt)), ', ' ORDER g) + '],'+
         '"artExtGrp":['+(CONCAT ',', ('\{"extGrpId":'+id(customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b)), groupMachinery(mpt)) + '\}'), 
                                      (GROUP CONCAT ('\{"extGrpId":'+ INTEGER  r+ ',"delFlag":1\}') IF del(r, sku(b), groupMachinery(mpt)), ',' ORDER r) 
@@ -111,7 +110,7 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
 
 
 beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
-    IF toLoadImages() THEN {
+    IF  testModeAstron(groupMachinery(mpt)) THEN {
         
         LOCAL needResize = BOOLEAN(Item);
         needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND NOT imageAstron(i);
@@ -133,7 +132,6 @@ loadImages 'Загрузить классификатор с картинкам�
     NEWSESSION {
         createMachineryPriceTransactionSnapshot() <- TRUE;
         createMachineryPriceTransactionComment() <- 'Загрузка изображений';
-        toLoadImages() <- TRUE;
         
         createMachineryPriceTransaction(Sku sku) <- TRUE IF customGroup(dataCustomGroupTypeAstron(gtc),sku) AND hasImage(sku);
         exclude(GroupMachinery group) <- stock(group) == stock(gtc) AND group!=gtc;
