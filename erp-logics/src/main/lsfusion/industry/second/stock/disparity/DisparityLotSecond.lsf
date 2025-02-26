@@ -1,0 +1,62 @@
+MODULE DisparityLotSecond;
+
+REQUIRE DisparityLot, DisparityTerminal, LotSecondExtra;
+
+NAMESPACE Disparity;
+
+@defineOperationProperty(lotSecond, 'Оценённые товары', showContainer);
+
+lotSecond (Disparity i) = lotSecond(operation(i));
+lotSecond (DisparityDetail d) = lotSecond(operation(d));
+
+@defineConstraintLotDetail(disparity, 'списания');
+
+@defineDocumentLotDetail(disparity, dis);
+
+WHEN LOCAL FORMS disparity SETCHANGED(dataIndex(UserDisparityDetail d)) AND index(d) > 1000000 DO {
+    MESSAGE 'ОШИБКА! Сканирование произведено в номер строки.\nПовторите сканирование этого товара!';
+    dataIndex(d) <- PREV(dataIndex(d));
+}
+
+sumLotWeightDisparityDetail 'Вес оценённых товаров, кг' (Disparity i)= GROUP SUM weight(Lot l) IF quantity(i, l) IN documentSum MATERIALIZED;
+
+EXTEND FORM disparity
+    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail
+;
+
+EXTEND FORM disparities
+    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail //AFTER quantityDisparityDetail(w)
+;
+
+importLotXLSX 'Импорт из xlsx' (UserDisparity s) {
+    LOCAL barcode = STRING (INTEGER);
+    LOCAL count = INTEGER();
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f TO barcode = B;
+
+        FOR barcode(INTEGER i) DO {
+            IF lot(barcode(i)) THEN
+                processInputBarcodeUserDisparityDetail(s, barcode(i));
+            ELSE
+                count() <- count() (+) 1;
+        }
+        IF count() > 0 THEN
+            MESSAGE CONCAT ' ', 'Не найдено кодов:', count();
+    }
+}
+
+EXTEND FORM disparity
+    PROPERTIES (dis) importLotXLSX
+;
+
+DESIGN disparity {
+    headerTabbedPane {
+        NEW import {
+            caption = 'Импорт';
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY(addDetailDialogTerminalUserDisparityDetail(dis));
+            MOVE PROPERTY(importLotXLSX(dis));
+        }
+    }
+}
