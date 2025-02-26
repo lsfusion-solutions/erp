@@ -71,8 +71,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private Set<String> connectionSemaphore = new HashSet<>();
 
     private final Set<String> updateTables = new HashSet<>();
-    private final Map<String, Integer> outputUpdateNums = new HashMap<>();
-    private final Map<String, Integer> inputUpdateNums = new HashMap<>();
+    private final Map<String, Map<String, Integer>> directoryOutputUpdateNumsMap = new HashMap<>();
+    private final Map<String, Map<String, Integer>> directoryInputUpdateNumsMap = new HashMap<>();
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
@@ -218,7 +218,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         if (firstTransaction) {
                             if (versionalScheme) {
-                                readTransactionUpdateNums(conn, prevTables);
+                                directoryInputUpdateNumsMap.put(directory, readTransactionUpdateNums(conn, prevTables));
                             } else  {
                                 Exception waitFlagsResult = waitFlags(conn, params, prevTables, timeout);
                                 if (waitFlagsResult != null) {
@@ -237,36 +237,39 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             checkItems(params, transaction.itemsList, transaction.id);
 
+                            Map<String, Integer> inputUpdateNums = directoryInputUpdateNumsMap.get(directory);
+                            Map<String, Integer> outputUpdateNums = directoryOutputUpdateNumsMap.getOrDefault(directory, new HashMap<>());
+
                             if (notInterruptedTransaction(transaction.id)) {
-                                Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "GRP");
+                                Integer grpUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "GRP");
                                 exportGrp(conn, params, transaction, maxBatchSize, grpUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
-                                Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "ART");
+                                Integer artUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "ART");
                                 exportArt(conn, params, transaction.itemsList, swap10And20VAT, maxBatchSize, artUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
-                                Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "UNIT");
+                                Integer unitUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "UNIT");
                                 exportUnit(conn, params, transaction.itemsList, null, maxBatchSize, unitUpdateNum);
                             }
 
                             List<JSONObject> propertyGrpJsonTable = jsonTables.get(PROPERTYGRP);
                             if(!propertyGrpJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, PROPERTYGRP);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, PROPERTYGRP);
                                 exportPropertyGrp(conn, params, propertyGrpJsonTable, updateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
-                                Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACK");
+                                Integer packUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "PACK");
                                 exportPack(conn, params, transaction.itemsList, null, false, maxBatchSize, packUpdateNum, usePropertyGridFieldInPackTable, specialSplitMode);
                                 astronLogger.info(String.format("transaction %s, table pack delete : " + usedDeleteBarcodeList.size(), transaction.id));
                                 exportPackDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, packUpdateNum);
                             }
 
                             if (notInterruptedTransaction(transaction.id)) {
-                                Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "EXBARC");
+                                Integer exBarcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "EXBARC");
                                 exportExBarc(conn, params, transaction.itemsList, false, maxBatchSize, exBarcUpdateNum);
                                 astronLogger.info(String.format("transaction %s, table exbarc delete", transaction.id));
                                 exportExBarcDeleteBarcode(conn, params, usedDeleteBarcodeList, maxBatchSize, exBarcUpdateNum);
@@ -276,17 +279,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             //таблицы PRCLEVEL, SAREA, SAREAPRC должны выгружаться раньше, чем PACKPRC
                             if (exportExtraTables) {
-                                Integer prcLevelUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PRCLEVEL");
+                                Integer prcLevelUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "PRCLEVEL");
                                 exportPrcLevel(conn, params, transaction, hasExtraPrices, prcLevelUpdateNum);
 
-                                Integer sareaUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREA");
+                                Integer sareaUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "SAREA");
                                 exportSArea(conn, params, transaction, sareaUpdateNum);
 
-                                Integer sareaPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "SAREAPRC");
+                                Integer sareaPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "SAREAPRC");
                                 exportSAreaPrc(conn, params, transaction, hasExtraPrices, sareaPrcUpdateNum);
                             }
 
-                            Integer packPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, "PACKPRC");
+                            Integer packPrcUpdateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, "PACKPRC");
                             exportPackPrc(conn, params, transaction, exportExtraTables, maxBatchSize, packPrcUpdateNum);
                             //удаление выгружается только с одной из групп касс, и удаление только цены одной группы все равно имеет мало смысла
                             //полагаемся на то что удаления самого штрихкода достаточно
@@ -295,57 +298,60 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                             List<JSONObject> numbersJsonTable = jsonTables.get(NUMBERS);
                             if(!numbersJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMBERS);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, NUMBERS);
                                 exportNumbers(conn, params, numbersJsonTable, updateNum);
                             }
 
                             List<JSONObject> numPropertyJsonTable = jsonTables.get(NUMPROPERTY);
                             if(!numPropertyJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, NUMPROPERTY);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, NUMPROPERTY);
                                 exportNumProperty(conn, params, numPropertyJsonTable, updateNum);
                             }
 
                             List<JSONObject> stringsJsonTable = jsonTables.get(STRINGS);
                             if (!stringsJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, STRINGS);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, STRINGS);
                                 exportStrings(conn, params, stringsJsonTable, updateNum);
                             }
 
                             List<JSONObject> binaryDataJsonTable = jsonTables.get(BINARYDATA);
                             if(!binaryDataJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, BINARYDATA);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, BINARYDATA);
                                 exportBinaryData(conn, params, binaryDataJsonTable, updateNum);
                             }
 
                             List<JSONObject> binPropertyJsonTable = jsonTables.get(BINPROPERTY);
                             if(!binPropertyJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, BINPROPERTY);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, BINPROPERTY);
                                 exportBinProperty(conn, params, binPropertyJsonTable, updateNum);
                             }
 
                             List<JSONObject> extGrpJsonTable = jsonTables.get(EXTGRP);
                             if(!extGrpJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, EXTGRP);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, EXTGRP);
                                 exportExtGrp(conn, params, extGrpJsonTable, updateNum);
                             }
 
                             List<JSONObject> artExtGrpJsonTable = jsonTables.get(ARTEXTGRP);
                             if(!artExtGrpJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, ARTEXTGRP);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, ARTEXTGRP);
                                 exportArtExtGrp(conn, params, artExtGrpJsonTable, updateNum);
                             }
 
                             List<JSONObject> artPrnGrpJsonTable = jsonTables.get(ARTPRNGRP);
                             if(!artPrnGrpJsonTable.isEmpty()) {
-                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, ARTPRNGRP);
+                                Integer updateNum = getTransactionUpdateNum(transaction, versionalScheme, processedUpdateNums, inputUpdateNums, outputUpdateNums, ARTPRNGRP);
                                 exportArtPrnGrp(conn, params, artPrnGrpJsonTable, updateNum);
                             }
+
+                            directoryOutputUpdateNumsMap.put(directory, outputUpdateNums);
 
                             if (lastTransaction) {
                                 if (versionalScheme) {
                                     astronLogger.info(String.format("set updateNum for %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                     exportUpdateNums(conn, outputUpdateNums);
-                                    outputUpdateNums.clear();
+                                    directoryInputUpdateNumsMap.remove(directory);
+                                    directoryOutputUpdateNumsMap.remove(directory);
                                 } else {
                                     astronLogger.info(String.format("waiting for processing %s transaction(s) with %s item(s)", transactionCount, itemCount));
                                     String newTables = updateTables.stream().collect(Collectors.joining("','", "'", "'"));
@@ -381,7 +387,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
     }
 
-    private Integer getTransactionUpdateNum(TransactionCashRegisterInfo transaction, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {
+    private Integer getTransactionUpdateNum(TransactionCashRegisterInfo transaction, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, Map<String, Integer> outputUpdateNums, String tbl) {
         Integer updateNum = versionalScheme ? (inputUpdateNums.getOrDefault(tbl, 0) + 1) : null;
         outputUpdateNums.put(tbl, updateNum);
         updateTables.add(tbl);
@@ -1863,17 +1869,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
         return recordNums;
     }
-    private void readTransactionUpdateNums(Connection conn, String tables) {
+    private Map<String, Integer> readTransactionUpdateNums(Connection conn, String tables) {
+        Map<String, Integer> inputUpdateNums = new HashMap<>();
         try (Statement statement = conn.createStatement()) {
             String query = "SELECT dirname, recordnum FROM DATAPUMP WHERE dirname IN (" + tables + ")";
             ResultSet result = statement.executeQuery(query);
             while (result.next()) {
                 inputUpdateNums.put(result.getString("dirname"), result.getInt("recordnum"));
-
             }
         } catch (SQLException e) {
             throw Throwables.propagate(e);
         }
+        return inputUpdateNums;
     }
 
     private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables, AstronConnectionString params) {
