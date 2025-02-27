@@ -88,10 +88,10 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
                 '\{"numberId":'+(100 + age(sku(b)))+',"numberValue":'+age(sku(b))+',"numberName":"'+age(sku(b))+' лет"\}' IF ageVerify(sku(b))
             ) +']',
         '"binProperty":[' + (CONCAT ', ',
-                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b)) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b))
+                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b))
             ) +']',
         '"binaryData":[' + (CONCAT ', ',
-                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+value(b)+'"\}' IF imageAstron(sku(b)) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),sku(b))
+                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+value(b)+'"\}' IF imageAstron(sku(b))
             ) +']'
         ),
         //группы
@@ -110,15 +110,18 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
 
 
 beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
-    IF  testModeAstron(groupMachinery(mpt)) THEN {
+    IF dataCustomGroupTypeAstron(groupMachinery(mpt)) THEN {
         
         LOCAL needResize = BOOLEAN(Item);
-        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND NOT imageAstron(i);
+        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),i) 
+            AND hasImage(i) AND NOT imageAstron(i);
     
         IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
             FOR needResize(Item s) DO {
                 TRY {
-                    resizeImage(image(s),128,128);              
+                    resizedImage() <- NULL;
+                    resizeImage(image(s),128,128);
+                    convertedImage() <- NULL;
                     convertImage(resizedImage(), 'png');
                     imageAstron(s) <- convertedImage();
                 }
