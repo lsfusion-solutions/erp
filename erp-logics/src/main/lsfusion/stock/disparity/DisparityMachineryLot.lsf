@@ -1,0 +1,40 @@
+MODULE DisparityMachineryLot;
+
+REQUIRE DisparityMachinery, DisparityLot, CashRegisterPriceTransactionCustomLot;
+
+NAMESPACE Disparity;
+
+createCashRegisterPriceTransactionDocumentLot 'Загрузить в оборудование' (Disparity i) {
+    createMachineryPriceTransactionLot(Lot l) <- NULL;
+    createMachineryPriceTransactionLot(Lot l) <- TRUE WHERE quantity(i, l);
+    createMachineryPriceTransactionLotDocument() <- i;
+
+    createMachineryPriceTransactionLot(stock(i));
+    APPLY;
+} CONFIRM;
+
+skipCreatePriceTransactionLot = ABSTRACT BOOLEAN (Disparity);
+
+createMachineryPriceTransactionCustom 'Загрузить в оборудование' (Disparity i) {
+    IF (useLot(i) AND NOT skipCreatePriceTransactionLot(i)) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createMachineryPriceTransaction(i);
+}
+
+createSnapshotMachineryPriceTransactionCustom 'Перегрузить все позиции' (Disparity i) {
+    IF (useLot(i) AND NOT skipCreatePriceTransactionLot(i)) THEN createCashRegisterPriceTransactionDocumentLot(i);
+    ELSE createSnapshotMachineryPriceTransaction(i);
+}
+
+EXTEND FORM disparities
+    PROPERTIES (dis) createMachineryPriceTransactionCustom SHOWIF showCreateMachineryPriceTransaction(dis),
+        createSnapshotMachineryPriceTransactionCustom SHOWIF isPosted(dis) AND NOT Machinery.skip(dis)
+;
+
+DESIGN disparities{
+    machinery{
+        REMOVE PROPERTY (createMachineryPriceTransaction(dis));
+        MOVE PROPERTY (createMachineryPriceTransactionCustom(dis));
+        REMOVE PROPERTY (createSnapshotMachineryPriceTransaction(dis));
+        MOVE PROPERTY (createSnapshotMachineryPriceTransactionCustom(dis));
+    }
+}

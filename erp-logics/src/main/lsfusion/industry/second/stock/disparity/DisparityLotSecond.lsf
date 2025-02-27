@@ -1,6 +1,6 @@
 MODULE DisparityLotSecond;
 
-REQUIRE DisparityLot, DisparityTerminal, LotSecondExtra;
+REQUIRE DisparityLot, DisparityTerminal, LotSecondExtra, SkuLedgerLot;
 
 NAMESPACE Disparity;
 
@@ -11,7 +11,28 @@ lotSecond (DisparityDetail d) = lotSecond(operation(d));
 
 @defineConstraintLotDetail(disparity, 'списания');
 
-@defineDocumentLotDetail(disparity, dis);
+numberDetail 'Номер строки спецификации' = GROUP MAX index(UserDisparityDetail d) IF quantity(d, Lot l) BY disparity(d), l;
+
+EXTEND FORM disparity
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id, nameSku, fullDescriptionCycle, captionMix, weight, price, costForeign
+    PROPERTIES(dis, l) READONLY numberDetail
+    FILTERS quantity(dis, l), isSecond(l)
+;
+
+DESIGN disparity {
+    specificationBox {
+        MOVE BOX(l) {
+            showIf = lotSecond(dis);
+            caption = 'Оценённые товары';
+        }
+    }
+    PROPERTY (quantityLot(d)) { caption = 'Кол-во ОТ / марок'; }
+}
+
+EXTEND FORM disparity
+    PROPERTIES READONLY 'Текущий остаток' = prevCurrentBalance(l, stock(dis)) BACKGROUND (IF NOT prevCurrentBalance(l, stock(dis)) == 1 AND isDraft(dis) THEN RGB(255,150,50))
+;
 
 WHEN LOCAL FORMS disparity SETCHANGED(dataIndex(UserDisparityDetail d)) AND index(d) > 1000000 DO {
     MESSAGE 'ОШИБКА! Сканирование произведено в номер строки.\nПовторите сканирование этого товара!';
@@ -60,3 +81,30 @@ DESIGN disparity {
         }
     }
 }
+
+changeSkuLotBack 'Перенести марки (назад)' (UserDisparity d) {
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    ASK 'Вы уверены, что хотите перенести марки на старый товар?' DO {
+        NEWSESSION {
+            FOR disparity(UserDisparityDetail dd) = d AND sku(dd) AND quantity(dd, Lot l) AND inputSku(dd) = sku(l) DO {
+                note(l) <- 'Изменение сортности ' + number(dd) + '. Замена товара с ' + idSku(l) + ' на ' + id(sku(dd));
+                sku(l) <- sku(dd);
+            }
+            setNoCancelInTransaction();
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM disparity
+    PROPERTIES(dis) DRAW d TOOLBAR changeSkuLotBack SHOWIF countInputLot(dis)
+;
+
+DESIGN disparity {
+    PROPERTY (changeSkuLot(dis)) { showIf = countLot(dis); } 
+}
+
+CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d))) AND lotSecond(d) AND NOT inputSku(d)
+    MESSAGE 'Должен быть заполненен товар (приход)';
