@@ -146,6 +146,8 @@ useDeletePaymentSet10 = DATA BOOLEAN ();
 paymentTypeExtra = DATA LOCAL PaymentType (INTEGER);
 importReceiptExtra  ABSTRACT LIST(STRING);
 
+paymentFill ABSTRACT LIST (Payment, INTEGER);
+
 importReceipts(STRING purchases){
     stringToFile(purchases);
     IMPORT purchasesImport XML FROM resultFile();
@@ -302,7 +304,11 @@ importReceipts(STRING purchases){
     FOR ReceiptReturnDetail d = receiptReturnDetail(INTEGER j) DO{
         overCreateReceiptDetail(d, j);
     }
-    
+
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND Payment p = payment(paymenId(j)) DO{
+        paymentFill(p, j);
+    }
+
     APPLY NESTED LOCAL;
 }
 
