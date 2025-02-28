@@ -1,14 +1,14 @@
 MODULE EZLotOrderInit;
 
-REQUIRE LotOrderInitBy, EZLotOrder, EZLotInit;
+REQUIRE LotOrderInitBy, EZLotOrder, EZLotInit, LotBy;
 
 NAMESPACE EZ;
 
 //'Отчёт о маркировке'
 lotInit  = DATA LOCAL LotInit ();
 gtin  = DATA LOCAL STRING[14] ();
-isSend 'Отправлен' (Lot l) = status(l) == LotStatus.MARKED;
-isSend 'Отправлен' (LotInit i, Lot l) = status(l, legalEntityStock(i)) == LotStatus.MARKED;
+isSend 'Отправлен' (Lot l) = order(status(l)) >= order(LotStatus.MARKED);
+isSend 'Отправлен' (LotInit i, Lot l) = order(status(l, legalEntityStock(i))) >= order(LotStatus.MARKED);
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (LotInitDetail);
 select 'Отм.' (Lot l) = TRUE IF (GROUP SUM 1 IF quantity(LotInitDetail d, l) AND select(d));
