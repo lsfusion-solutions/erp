@@ -24,6 +24,9 @@ TABLE priceListType(PriceListType);
 name 'Наименование' = ABSTRACT ISTRING[100](PriceListType);
 
 includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED COMPLEX;
+dataIncludeVAT = ABSTRACT BOOLEAN (PriceListType, Stock);
+includeVAT(PriceListType t, Stock s) = OVERRIDE dataIncludeVAT(t, s), includeVAT(t);
+
 differentOrganizations 'Для разных организаций' = ABSTRACT BOOLEAN (PriceListType) MATERIALIZED;
 
 priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME) CHARWIDTH 7;
@@ -427,7 +430,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
 
     prevListMVAT (PriceListType priceListType, ###detail detail) =
         round(
-        (IF includeVAT(priceListType)
+        (IF includeVAT(priceListType, stockProp(detail))
             THEN
                 prevList(priceListType, detail) * 100.0 /(100.0 (+) calcValueVAT(detail))
             ELSE
@@ -435,7 +438,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
 
     prevListPVAT (PriceListType priceListType, ###detail detail) =
         round(
-        (IF includeVAT(priceListType)
+        (IF includeVAT(priceListType, stockProp(detail))
             THEN
                 prevList(priceListType, detail)
             ELSE
@@ -453,7 +456,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
              CHANGED(sku(d))) OR
              changePrevList###form(d))
              AND NOT CHANGED(price(d)) 
-             AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
+             AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt, stockProp(d)) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
         price(d) <- round((prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d))), defaultPriceRound(d));
         invoicePrice(d) <- round(prevList(pt, d), defaultPriceRound(d));
     }
@@ -466,7 +469,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, da
              CHANGED(sku(d))) OR
              changePrevList###form(d))
              AND NOT CHANGED(price(d)) 
-             AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
+             AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt, stockProp(d)) AND NOT disableUpdateInvoicePrice(d) NOINLINE (pt) DO {
         price(d) <- round(prevList(pt, d), defaultPriceRound(d));
         invoicePrice(d) <- round((prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0), defaultPriceRound(d));
     }
