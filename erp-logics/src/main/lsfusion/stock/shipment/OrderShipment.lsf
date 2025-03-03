@@ -13,6 +13,9 @@ shippedOrderDetail 'Кол-во (поставлено)' = ABSTRACT NUMERIC[16,5]
 
 backgroundShipped 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
 
+backgroundShipped 'Цвет' = ABSTRACT CASE COLOR (OrderDetail);
+backgroundShipped(OrderDetail d) += WHEN d IS OrderDetail THEN RGB(255, 224, 255);
+
 createShipment = ABSTRACT BOOLEAN (Order);
 
 overCreateMultiUserShipment  ABSTRACT LIST (Order);
@@ -221,12 +224,12 @@ META defineOrderShipment(sign, stockProp)
     toShowShipped = Order o IS Order AND NOT notShowShipped(o);
     EXTEND FORM userOrder
         PROPERTIES(o) READONLY BACKGROUND backgroundShipped(o) shippedOrderDetail
-        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(o)  SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
+        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(d)  SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
     ;
 
     EXTEND FORM orders
         PROPERTIES(o) READONLY BACKGROUND backgroundShipped(o) shippedOrderDetail AFTER quantityOrderDetail(o)
-        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(o) SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
+        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(d) SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
         FILTERGROUP  filter10
             FILTER   'Непоставленные товары' NOT shipped (d) ==  quantity (d) 'F10'            
     ;
