@@ -1,0 +1,11 @@
+MODULE PurchaseReturnInvoiceFixedVATRu;
+
+REQUIRE PurchaseReturnInvoice, LegalEntityFixedVATRu;
+
+NAMESPACE PurchaseReturn;
+
+overVAT(UserInvoiceDetail d) += CASE WHEN isFixedVAT(supplier(d)) THEN fixedVAT(supplier(d), OVERRIDE date(invoiceDetail(d)),date(d))
+    WHEN isNotVATPayer(supplier(d)) THEN valueCurrentVAT(country(supplierStock(d)), 0.0);
+
+overVAT(UserOrderDetail d) += CASE WHEN isFixedVAT(supplier(d)) THEN fixedVAT(supplier(d), OVERRIDE date(d),date(d))
+    WHEN isNotVATPayer(supplier(d)) THEN valueCurrentVAT(country(supplierStock(d)), 0.0);
