@@ -253,14 +253,14 @@ public class FiscalPirit {
     }
 
     private static void setAdditionalPositionDetailsCommand(SerialPort serialPort, ReceiptItem item) {
-        if(item.idLot != null) {
+        if(item.idLot != null && item.tailLot != null) {
             String lot = getLot(item.idLot, item.tailLot);
             sendCommand(serialPort, "24", "Установить дополнительные реквизиты позиции", joinData(lot), true);
         }
     }
 
     private static void checkLotCommand(SerialPort serialPort, ReceiptItem item, Integer versionPirit) {
-        if(item.idLot != null) {
+        if(item.idLot != null && item.tailLot != null) {
             String lot = getLot(item.idLot, item.tailLot);
 
             try {
@@ -292,7 +292,7 @@ public class FiscalPirit {
     }
 
     private static String getLot(String idLot, String tailLot) {
-        return idLot + (tailLot != null ? ("$1d" + tailLot.substring(1,7) + "$1d" + tailLot.substring(8)) : "");
+        return idLot + "$1d" + tailLot.substring(1,7) + "$1d" + tailLot.substring(8);
     }
 
 
