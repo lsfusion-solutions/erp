@@ -315,7 +315,7 @@ filter(DisassemblyLot l, DATE df, DATE dt, Stock st) = date(l) >= df AND date(l)
     stock(l) == st AND (user(l) == disassemblyLotReportUser() OR NOT disassemblyLotReportUser())
     AND (inLotReport(cycle(lot(l))) OR NOT inLotReportCycles()) AND NOT fixedLotDashboardSku(l);
 
-skipDisassemblyLotReport = ABSTRACT BOOLEAN (DisassemblyLot);
+skipDisassemblyLotReport 'Исключить из отчёта' = ABSTRACT BOOLEAN (DisassemblyLot);
 
 disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st);
@@ -324,9 +324,10 @@ disassemblyLotSkuSum 'Сумма' (Sku s, DATE df, DATE dt, Stock st) =
 disassemblyLotSkuWeight 'Вес' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM weight(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st);
 
-disassemblyLotSkuQuantityNew 'Кол-во (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
+// с исключением
+disassemblyLotSkuQuantityNew 'Кол-во' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM 1 IF sku(DisassemblyLot l) == s AND filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
-disassemblyLotSkuSumNew 'Сумма (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt, Stock st) =
+disassemblyLotSkuSumNew 'Сумма' (Sku s, DATE df, DATE dt, Stock st) =
     GROUP SUM price(DisassemblyLot l) IF sku(l) == s AND filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
 
 disassemblyLotSkuQuantity 'Кол-во' (Sku s, DATE df, DATE dt) =
@@ -336,9 +337,10 @@ disassemblyLotSkuSum 'Сумма' (Sku s, DATE df, DATE dt) =
 disassemblyLotSkuWeight 'Вес' (Sku s, DATE df, DATE dt) =
     GROUP SUM disassemblyLotSkuWeight(s, df, dt, Stock st) IF inLotReport(st);
 
-disassemblyLotSkuQuantityNew 'Кол-во (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt) =
+// с исключением
+disassemblyLotSkuQuantityNew 'Кол-во' (Sku s, DATE df, DATE dt) =
     GROUP SUM disassemblyLotSkuQuantityNew(s, df, dt, Stock st) IF inLotReport(st);
-disassemblyLotSkuSumNew 'Сумма (без миксов ОСТАТКИ)' (Sku s, DATE df, DATE dt) =
+disassemblyLotSkuSumNew 'Сумма' (Sku s, DATE df, DATE dt) =
     GROUP SUM disassemblyLotSkuSumNew(s, df, dt, Stock st) IF inLotReport(st);
 disassemblyLotSkuAvPrice 'Средневзвешенная цена' (Sku s, DATE df, DATE dt) = round2(
         disassemblyLotSkuSumNew(s, df, dt) / disassemblyLotSkuQuantityNew(s, df, dt));
@@ -351,17 +353,26 @@ disassemblyLotQuantity 'Кол-во, шт' (DATE df, DATE dt, Stock st, Cycle c)
 disassemblyLotSum 'Сумма, руб' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) BY cycle(l);
 disassemblyLotWeight 'Вес, кг' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) BY cycle(l);
 
-disassemblyLotQuantityNew 'Кол-во, шт (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
-disassemblyLotWeightNew 'Вес, кг (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
-disassemblyLotSumNew 'Сумма, руб (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
+// с исключением
+disassemblyLotQuantityNew 'Кол-во, шт' (DATE df, DATE dt, Stock st) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotWeightNew 'Вес, кг' (DATE df, DATE dt, Stock st) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotSumNew 'Сумма, руб' (DATE df, DATE dt, Stock st) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l);
 averagePrice 'Средневзвеш. цена (за ед.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotQuantityNew(df, dt, st));
 averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DATE dt, Stock st) = round0(disassemblyLotSumNew(df, dt, st) / disassemblyLotWeightNew(df, dt, st));
 
-disassemblyLotQuantityNew 'Кол-во, шт (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
-disassemblyLotWeightNew 'Вес, кг (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
-disassemblyLotSumNew 'Сумма, руб (без миксов ОСТАТКИ)' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
+// с исключением
+disassemblyLotQuantityNew 'Кол-во, шт' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
+disassemblyLotWeightNew 'Вес, кг' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
+disassemblyLotSumNew 'Сумма, руб' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, st) AND NOT skipDisassemblyLotReport(l) BY cycle(l);
 averagePrice 'Средневзвеш. цена (за ед.)' (DATE df, DATE dt, Stock st, Cycle c) = round0(disassemblyLotSumNew(df, dt, st, c) / disassemblyLotQuantityNew(df, dt, st, c));
 averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DATE dt, Stock st, Cycle c) = round0(disassemblyLotSumNew(df, dt, st, c) / disassemblyLotWeightNew(df, dt, st, c));
+
+// с исключением
+disassemblyLotQuantityNew 'Кол-во, шт' (DATE df, DATE dt) = GROUP SUM 1 IF filter(DisassemblyLot l, df, dt, Stock st) AND inLotReport(st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotWeightNew 'Вес, кг' (DATE df, DATE dt) = GROUP SUM weight(DisassemblyLot l) IF filter(l, df, dt, Stock st) AND inLotReport(st) AND NOT skipDisassemblyLotReport(l);
+disassemblyLotSumNew 'Сумма, руб' (DATE df, DATE dt) = GROUP SUM price(DisassemblyLot l) IF filter(l, df, dt, Stock st) AND inLotReport(st) AND NOT skipDisassemblyLotReport(l);
+averagePrice 'Средневзвеш. цена (за ед.)' (DATE df, DATE dt) = round0(disassemblyLotSumNew(df, dt) / disassemblyLotQuantityNew(df, dt));
+averagePriceWeight 'Средневзвеш. цена (за кг.)' (DATE df, DATE dt) = round0(disassemblyLotSumNew(df, dt) / disassemblyLotWeightNew(df, dt));
 
 costForeign 'С/с, евро' (DisassemblyLot l) = costForeign(lot(l));
 disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt, Stock st) =
@@ -370,6 +381,9 @@ disassemblyLotSkuCostForeign 'С/с, евро' (Sku s, DATE df, DATE dt) =
     GROUP SUM disassemblyLotSkuCostForeign(s, df, dt, Stock st) IF inLotReport(st);
 disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st);
 disassemblyLotCostForeign 'C/c, евро' (DATE df, DATE dt, Stock st, Cycle c) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, st) BY cycle(l);
+
+// с исключением
+disassemblyLotCostForeignNew 'C/c, евро' (DATE df, DATE dt) = GROUP SUM costForeign(DisassemblyLot l) IF filter(l, df, dt, Stock st) AND inLotReport(st) AND NOT skipDisassemblyLotReport(l);
 
 disassemblyLotSkuQuantity 'Кол-во' (DATE df, DATE dt, Stock st, Sku mix) =
     GROUP SUM 1 IF mix(DisassemblyLot l) == mix AND filter(l, df, dt, st);
@@ -409,6 +423,7 @@ disassemblyLotCostForeignTree 'С/с, евро' (SkuGroup parent, DATE df, DATE 
 FORM disassemblyLotReport 'Отчёт по оценённым товарам'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt)
+    PROPERTIES (df, dt) READONLY disassemblyLotQuantityNew, disassemblyLotWeightNew, disassemblyLotSumNew, averagePrice, averagePriceWeight, disassemblyLotCostForeignNew
 
     PROPERTIES inLotReportStocks() ON CHANGE changeLotReportStocks(), nameDisassemblyLotReportUser(),
         inLotReportCycles() ON CHANGE changeLotReportCycles()
@@ -475,10 +490,20 @@ DESIGN disassemblyLotReport {
                 }
             }
 
-            MOVE BOX(sc) { caption = 'Итоги по магазинам и циклам'; fill = 1; height = 1; }
+            MOVE BOX(sc) { caption = 'Итоги по магазинам и циклам'; } 
+            NEW total {
+                horizontal = TRUE;
+                caption = 'Итоги';
+                MOVE PROPERTY (disassemblyLotQuantityNew(df,dt));
+                MOVE PROPERTY (disassemblyLotWeightNew(df,dt));
+                MOVE PROPERTY (disassemblyLotSumNew(df,dt));
+                MOVE PROPERTY (averagePrice(df,dt));
+                MOVE PROPERTY (averagePriceWeight(df,dt));
+                MOVE PROPERTY (disassemblyLotCostForeignNew(df,dt));
+            }
         }
         NEW tabbed {
-            fill = 1;
+            fill = 1.5;
             tabbed = TRUE;
             NEW tab1 {
                 caption = 'Оценённые товары';
