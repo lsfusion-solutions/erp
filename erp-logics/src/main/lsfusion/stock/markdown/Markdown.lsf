@@ -1,0 +1,898 @@
+MODULE Markdown;
+
+REQUIRE Utils, StockMovement, Item,  OrderLedger, Store;
+
+PRIORITY Stock;
+
+NAMESPACE Markdown;
+
+@defineOperation(' (уценка)');
+@defineOperationRole();
+
+
+CLASS Markdown 'Уценка';
+CLASS MarkdownDetail 'Строка уценки';
+
+@defineDocument(markdown);
+
+@deriveDocumentHeaderTimePrefix(Markdown, );
+
+@defineDocumentDataStock(markdown, stock, 'Склад');
+
+@defineDocumentStockAccess(Markdown, stock, company);
+
+CONSTRAINT stock(Markdown w) AND NOT  isCompany(stock(w))
+    CHECKED BY stock[Markdown]
+    MESSAGE 'Выбран склад, который не принадлежит компании';
+
+@defineDocumentHeaderNumber(Markdown, BPSTRING[2]);
+
+@defineNumeratedDefault(Markdown, 'Уценки', 'УЦ');
+
+@defineDocumentHeaderClosed(Markdown);
+
+@defineDocumentDetailSku(markdown, sku);
+
+@defineDocumentDetailBatch(markdown, batch);
+
+changeBatch(MarkdownDetail detail)  {
+    DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
+        t = dateTime(detail),
+        sk = sku(detail),
+        bt = batch(detail) INPUT NULL NEWSESSION DO
+        batch(detail) <- bt;
+}
+replace(Sku s, Batch b) + {  sku(MarkdownDetail detail) <- s WHERE batch(detail) == b;}
+
+@defineDocumentDetailQuantity(markdown);
+
+@defineDocumentDetailPrice(markdown);
+
+@defineDocumentDetailDataSum(markdown);
+
+calcSum = ABSTRACT VALUE NUMERIC[18,4] (MarkdownDetail);
+calcSum(MarkdownDetail markdownDetail) += NUMERIC[18,4](round2(quantity(markdownDetail) * price(markdownDetail)));
+sum (MarkdownDetail markdownDetail) <- calcSum(markdownDetail)
+    WHEN DO CHANGED(quantity(markdownDetail)) OR CHANGED (price(markdownDetail));
+
+@defineDocumentHeaderQuantity(markdown);
+@defineDocumentHeaderSkuQuantity(markdown, sku);
+
+@defineDocumentHeaderSum(markdown);
+
+@defineDocumentHeaderItemSum(markdown, , );
+
+@defineDocumentDialogStocks(markdown, stock, company, , );
+
+CLASS Sticker;
+TABLE sticker(Sticker);
+
+id 'Номинал' = DATA INTEGER (Sticker) CHARWIDTH 10 IN id;
+sticker = GROUP AGGR Sticker st BY id(st);
+
+FORM stickers 'Номиналы стикеров'
+    OBJECTS s = Sticker
+    PROPERTIES READONLY id(s)
+    PROPERTIES (s) NEWSESSION NEW, EDIT, DELETE GRID
+
+    LIST Sticker OBJECT s
+;
+
+sticker = DATA Sticker (MarkdownDetail);
+idSticker 'Номинал стикера'(MarkdownDetail d) = id(sticker(d));
+
+quantityStickers 'Кол-во стикеров' = DATA NUMERIC[16,5](MarkdownDetail);
+quantityStickers 'Кол-во стикеров' (Markdown m) = [GROUP SUM quantityStickers(MarkdownDetail d) BY markdown(d)](m);
+
+
+WHEN LOCAL CHANGED(quantity(MarkdownDetail d)) AND NOT CHANGED(quantityStickers(d)) DO
+    quantityStickers(d) <- quantity(d);
+
+expirationDate 'Срок годности до' = DATA DATE (MarkdownDetail);
+
+FORM markdown 'Уценка'
+    OBJECTS w = Markdown PANEL
+    PROPERTIES (w) nameNumerator, number, series, date, time,
+        nameStock ON CHANGE changeStockCompany(w), note,
+        countMarkdownDetail, quantityMarkdownDetail,
+        sumMarkdownDetail
+
+    OBJECTS d = MarkdownDetail
+    PROPERTIES (d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch ON CHANGE changeBatch(d),
+        quantity, price, sum, expirationDate,
+        NEW, deletewd = DELETE GRID
+
+    PROPERTIES(w) DRAW d deleteMarkdownDetail
+    FILTERS markdown(d) == w
+
+    EDIT Markdown OBJECT w
+;
+
+DESIGN markdown {
+    BOX {
+        size = (1024, 768);
+        NEW mainTabbed {
+            tabbed = TRUE;
+            fill = 1;
+            NEW documentBox {
+                fill = 1;
+                caption = 'Уценка';
+                NEW header {
+                    horizontal = TRUE;
+
+                    NEW headerRow1 {
+                        fill = 1;
+
+                        MOVE GROUP(documentHeader,w) {
+                            lines = 1;
+                            NEW first {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(nameStock(w));
+                            }
+                            NEW second {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(nameNumerator(w));
+                                MOVE PROPERTY(number(w));
+                                MOVE PROPERTY(series(w));
+                                MOVE PROPERTY(date(w));
+                                MOVE PROPERTY(time(w));
+                            }
+                        }
+
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            tabbed = TRUE;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,w) {
+                                    lines = 2;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
+                        }
+                    }
+
+                    MOVE GROUP(documentSum,w) {
+                        lines = 1;
+                    }
+                }
+
+                NEW specificationBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+
+        PROPERTY(sumMarkdownDetail(w)) { charWidth = 13;}
+    }
+}
+
+@addEventGenerateNumberOnForm(markdown, w, Markdown);
+
+WHEN LOCAL FORMS markdown CHANGED(batch(MarkdownDetail detail)) DO {
+    sku(detail)  <- sku(batch(detail)) WHERE batch(detail);
+}
+
+WHEN LOCAL (CHANGED(stock(MarkdownDetail detail)) OR
+    CHANGED(dateTime(detail)) OR
+    SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(price(detail)) AND NOT skipUpdatePriceAccount() DO
+    price (detail) <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
+
+WHEN LOCAL (CHANGED(sku(MarkdownDetail detail)) OR
+    CHANGED(stock(detail)) OR
+    CHANGED(dateTime(detail)) OR
+    DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(price(detail)) AND NOT skipUpdatePriceAccount() DO
+    price (detail) <- prevAccountPriceB(sku(detail), stock(detail), dateTime(detail));
+
+
+@defineMovementSku(markdownDetail, stock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(markdownDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineInfoSku(markdownDetail); //-- показываем по нажатию правой клавиши информацию по товару
+
+@defineBarcodeSku(markdownDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+
+@defineReserveSku(markdownDetail, stock);
+
+// История по правой кнопке
+@defineBalancesBatch(markdownDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(markdownDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
+
+filterMarkdownDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (Markdown w) = date(w) >= filterMarkdownDateFrom() OR (w IS Markdown AND NOT filterMarkdownDateFrom());
+filterDateFrom (MarkdownDetail d) = filterDateFrom(markdown(d));
+
+filterMarkdownDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (Markdown w) = date(w) <= filterMarkdownDateTo() OR (w IS Markdown AND NOT filterMarkdownDateTo());
+filterDateTo (MarkdownDetail d) = filterDateTo(markdown(d));
+
+filterMarkdownStock = DATA LOCAL Stock();
+nameFilterMarkdownStock 'Склад' = name(filterMarkdownStock());
+filterMarkdownStock (Markdown w) = stock(w) == filterMarkdownStock() OR NOT filterMarkdownStock();
+filterMarkdownStock (MarkdownDetail d) = filterMarkdownStock(markdown(d));
+
+skipShowEdit = ABSTRACT BOOLEAN (Markdown);
+skipShowDelete = ABSTRACT BOOLEAN (Markdown);
+
+skipOpen = ABSTRACT BOOLEAN (Markdown);
+showClose (Markdown i) = isOpened(i) AND NOT skipClose(i);
+showOpen (Markdown i) = isClosed(i) AND NOT skipOpen(i);
+
+nameSupplier 'Поставщик'(MarkdownDetail d) = nameSupplier(lastOrderBatch(sku(d), stock(d)));
+
+show 'Просмотреть' (Markdown i)   {
+    NEWSESSION{
+        SHOW markdown OBJECTS w = i DOCKED READONLY;
+    }
+}TOOLBAR;
+
+
+
+FORM markdowns 'Уценки'
+    PROPERTIES () filterMarkdownDateFrom, filterMarkdownDateTo, nameFilterMarkdownStock
+
+    OBJECTS w = Markdown LAST
+
+    PROPERTIES (w) READONLYIF isReadonly() isClosed, number, series, date, time
+    PROPERTIES (w) READONLYIF isReadonly()  nameStock
+    PROPERTIES (w) READONLY quantityMarkdownDetail, countMarkdownDetail,sumMarkdownDetail
+    PROPERTIES (w) READONLYIF isReadonly() note
+
+    PROPERTIES (w) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES (w) NEWSESSION NEW[Markdown], editW = EDIT SHOWIF NOT skipShowEdit(w), show SHOWIF skipShowEdit(w), deletew = DELETE SHOWIF NOT skipShowDelete(w)
+    PROPERTIES (w) close SHOWIF showClose(w), open SHOWIF showOpen(w)
+
+    OBJECTS d = MarkdownDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch,
+        quantity, price, sum, idSticker, quantityStickers, expirationDate
+
+    FILTERS markdown(d) == w
+    FILTERS filterDateFrom(w),
+        filterDateTo(w),
+        filterMarkdownStock(w)
+;
+@extendFormFilterAccessStock(Markdown, w, markdowns, stock, company);
+@defineFilterIsOpened (markdown, markdowns, w);
+
+DESIGN markdowns {
+    NEW pane {
+        fill = 1;
+        NEW filtersBox {
+            fill = 1;
+            NEW topFilters {
+                caption = 'Фильтры';
+                horizontal = TRUE;
+                MOVE PROPERTY(filterMarkdownDateFrom());
+                MOVE PROPERTY(filterMarkdownDateTo());
+                MOVE PROPERTY(nameFilterMarkdownStock());
+            }
+            MOVE BOX(w) {
+                fill = 2;
+            }
+        }
+        NEW documentDetail {
+            fill = 1;
+            tabbed = TRUE;
+
+            MOVE BOX(d) {
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+                MOVE GROUP(created,w);
+            }
+        }
+    }
+
+    MOVE TOOLBARBOX;
+}
+@extendFormEditable(markdowns);
+
+operation = DATA Operation (Markdown);
+nameOperation 'Операция (уценка)' = name(operation(Markdown Markdown));
+idOperation 'ID операции (уценка)' = id(operation(Markdown Markdown));
+
+number 'Номер' (MarkdownDetail d) = number(markdown(d));
+operation (MarkdownDetail d) = operation(markdown(d));
+nameOperation 'Операция' (MarkdownDetail d) = name(operation(d));
+
+@defineDocumentOperationConstraint(markdown, 'уценка', Markdown);
+@extendFormFilterRoleAccess(markdown, w, markdowns);
+
+EXTEND FORM markdown
+    PROPERTIES(w) nameOperation
+;
+DESIGN markdown{
+    first{
+        MOVE PROPERTY (nameOperation(w)) BEFORE PROPERTY(nameStock(w));
+    }
+}
+EXTEND FORM markdowns
+    PROPERTIES(w) READONLYIF isReadonly() nameOperation BEFORE nameStock(w)
+;
+@defineOperationProperty(quantityDaysCloseMarkdown, 'Количество дней до закрытия уценки', INTEGER , propertyContainer);
+closeDate(Markdown m) = sum(date(m), quantityDaysCloseMarkdown(operation(m)));
+WHEN SET (closeDate(Markdown m) <= currentDate()) DO isClosed(m) <- TRUE;
+
+
+firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
+ORDER DESC dateTime(batch), batch
+BY skuLedger(batch, stock) COMPLEX;
+
+fillBatch 'Проставить партию'(MarkdownDetail d)   {
+    batch(d) <- firstOrderBatchBalance(sku(d), stock(d), quantity(d));
+} ASON CONTEXTMENU nameBatch[MarkdownDetail];
+
+fillAllBatch 'Проставить партии для всех'(MarkdownDetail detail)  {
+    FOR markdown(detail) == markdown(MarkdownDetail d) AND NOT batch(d) DO
+        fillBatch(d);
+} ASON CONTEXTMENU nameBatch[MarkdownDetail];
+
+canonicalNameSkuGroup 'Товарная группа' (MarkdownDetail markdownDetail) = canonicalNameSkuGroup(sku(markdownDetail));
+nameSupplierLastOrderBatch 'Поставщик' (MarkdownDetail markdownDetail) = nameSupplierLastOrderBatch(sku(markdownDetail), stock(markdownDetail));
+
+FORM markdownDetails 'Реестр уценок'
+    PROPERTIES () filterMarkdownDateFrom, filterMarkdownDateTo, nameFilterMarkdownStock
+
+    OBJECTS d = MarkdownDetail
+    PROPERTIES (d) READONLY number, date, time, nameOperation, nameStock,
+        index, idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku, nameSku, canonicalNameSkuGroup, nameSupplierLastOrderBatch,
+        quantity, price, sum, idSticker, quantityStickers, expirationDate
+    ORDERS date(d), time(d), index(d)
+    FILTERS filterDateFrom(d),
+        filterDateTo(d),
+        filterMarkdownStock(d)
+;
+
+DESIGN markdownDetails {
+    BOX {
+        NEW filters {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+            MOVE PROPERTY (filterMarkdownDateFrom());
+            MOVE PROPERTY (filterMarkdownDateTo());
+            MOVE PROPERTY (nameFilterMarkdownStock());
+        }
+        MOVE BOX(d);
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    stockNavigator {
+        NEW FOLDER markdownNavigator 'Уценки' {
+            NEW operations;
+            NEW markdowns;
+            NEW markdownDetails;
+        }
+    }
+}
+
+//--------------------------------Комиссия для уценки----------------------------------//
+CLASS MarkdownCommittee 'Комиссия для уценки' : Committee;
+
+name 'Наименование' = DATA ISTRING[150](MarkdownCommittee);
+
+name(MarkdownCommittee committee) += name(committee) IF committee IS MarkdownCommittee;
+
+@defineCommitteeEmployeePrefix(markdownCommittee, chairman, 'Председатель');
+
+markdownCommittee 'Комиссия для уценки' = DATA MarkdownCommittee (Stock);
+nameMarkdownCommittee 'Комиссия для уценки' (Stock stock) = name(markdownCommittee(stock)) IN committee CHARWIDTH 20;
+is 'По умолчанию' (MarkdownCommittee markdownCommittee, Stock stock) = markdownCommittee(stock) == markdownCommittee;
+CONSTRAINT markdownCommittee(Stock stock) AND NOT in(markdownCommittee(stock), stock)
+    CHECKED BY markdownCommittee[Stock] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
+
+FORM markdownCommittee 'Комиссия для уценки'
+    OBJECTS c=MarkdownCommittee PANEL
+    PROPERTIES(c)      name, nameChairman, namePositionChairman
+
+    TREE stockTree sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY sgTreeName = name(sg)
+
+    OBJECTS ts=Stock
+    PROPERTIES    READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in , is
+
+    FILTERS isParent(sg, ts)
+    ORDERS tsTreeName
+
+    OBJECTS e=Employee
+    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
+    //    PROPERTIES(e)      NEWEDIT, EDIT, DELETE GRID
+
+    PROPERTIES(c, e)   number,
+        in
+    FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    FILTERGROUP filters6
+        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
+
+    FILTERGROUP filters5
+        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
+    FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT
+    EDIT MarkdownCommittee OBJECT c
+;
+@extendFormFilterStockAccess(ts, markdownCommittee);
+@extendFormFilterStockGroupAccess(sg, markdownCommittee);
+
+DESIGN markdownCommittee {
+    BOX {
+        size = (1024, 768);
+        PROPERTY(namePositionChairman(c)) {caption = 'Должность';}
+
+        OBJECTS {
+            NEW caseOne BEFORE BOX(e) {
+                fill = 1;
+                horizontal = TRUE;
+
+                MOVE BOX(TREE stockTree);
+
+                MOVE BOX(ts) {
+                    fill = 3;
+                }
+            }
+        }
+    }
+}
+
+FORM markdownCommittees 'Комиссии для уценки'
+    OBJECTS m=MarkdownCommittee
+    PROPERTIES(m)      READONLY name, nameChairman, namePositionChairman,
+        nameStocks, nameEmployee
+    PROPERTIES(m)      NEWSESSION NEW, EDIT, DELETE GRID
+
+    LIST MarkdownCommittee OBJECT m
+;
+
+DESIGN markdownCommittees {
+    PROPERTY(namePositionChairman(m)) {caption = 'Должность';}
+}
+
+markdownCommittee (markdown) = DATA MarkdownCommittee(Markdown);
+nameMarkdownCommittee 'Комиссия для уценки' (Markdown markdown) = name(markdownCommittee(markdown)) IN documentPrm CHARWIDTH 20;
+markdownCommittee (Markdown markdown) <- markdownCommittee(stock(markdown))
+    WHEN CHANGED(stock(markdown));
+
+CONSTRAINT markdownCommittee (Markdown markdown) AND NOT in(markdownCommittee (markdown), stock(markdown))
+    CHECKED BY markdownCommittee[Markdown] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+
+inMarkdownCommittee (Markdown markdown, Employee employee) = in(markdownCommittee (markdown), employee);
+nameEmployeeMarkdownCommittee 'Члены комиссии' (Markdown markdown) = namePositionEmployee(markdownCommittee (markdown));
+positionShortNameChairmanMarkdownCommittee 'Председатель' (Markdown markdown) = positionShortName(chairman(markdownCommittee (markdown)));
+namePositionChairmanMarkdownCommittee 'Должность председателя' (Markdown markdown) = namePosition(chairman(markdownCommittee (markdown)));
+shortNameChairmanMarkdownCommittee 'ФИО председателя' (Markdown markdown) = shortName(chairman(markdownCommittee (markdown)));
+
+EXTEND FORM markdown
+    PROPERTIES(w) nameMarkdownCommittee
+;
+
+NAVIGATOR {
+    stockNavigator {
+        markdownNavigator {
+            NEW markdownCommittees;
+        }
+    }
+}
+
+number 'Порядковый номер члены комиссии' (Markdown m, Employee e) = number(markdownCommittee(m),e);
+
+expiryDays 'Остаточный срок годности' (MarkdownDetail d) = daysInclBetweenDates(date(d), expirationDate(d));
+
+FORM printMarkdown 'Уценка'
+    OBJECTS w = Markdown PANEL
+    PROPERTIES (w) READONLY number, series, date, time, fullNameLegalEntityStock, addressStock, nameStock, note,
+        countMarkdownDetail, quantityMarkdownDetail, sumMarkdownDetail
+
+    OBJECTS d = MarkdownDetail
+    PROPERTIES (d) READONLY index, nameSupplier, nameSku, idBarcodeSku, idSku, nameBatch, quantity, price, sum, idSticker,
+        quantityStickers, expirationDate, expiryDays
+
+    OBJECTS e=Employee
+    PROPERTIES(e) name[Contact], shortName, namePosition
+    PROPERTIES number(w,e)
+    ORDERS number(w,e)
+
+    FILTERS markdown(d) == w,
+        inMarkdownCommittee(w, e)
+
+    OBJECTS e1=Employee
+    PROPERTIES(e1) name[Contact], shortName, namePosition
+
+    FILTERS inMarkdownCommittee(w, e1)
+    PROPERTIES number(w,e1)
+    ORDERS number(w,e1)
+;
+
+printXLSX 'Печать xlsx'(Markdown w) {
+    PRINT printMarkdown OBJECTS w = w XLSX;
+}
+
+EXTEND FORM markdowns
+    PROPERTIES(w) printXLSX
+;
+
+DESIGN markdowns {
+    documentDetail {
+        NEW printTab {
+            caption = 'Печатные формы';
+            NEW printContainer {
+                caption = 'Печать';
+                horizontal = TRUE;
+                MOVE PROPERTY (printXLSX(w));
+            }
+        }
+    }
+}
+
+dataInBan 'Вкл.' = DATA BOOLEAN (Operation, SkuGroup);
+
+levelParentInBan (Operation operation, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataInBan(operation, parent) MATERIALIZED;
+nearestParentInBan (Operation operation, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInBan(operation, skuGroup));
+nearestInBan (Operation operation, SkuGroup skuGroup) = dataInBan(operation, nearestParentInBan (operation, skuGroup));
+
+inBan 'Вкл.' (Operation operation, SkuGroup skuGroup) =
+    OVERRIDE dataInBan(operation, skuGroup),
+        nearestInBan (operation, skuGroup) MATERIALIZED;
+
+EXTEND FORM operation
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+    PROPERTIES inBan(o,sg)
+;
+DESIGN operation{
+    tabContainer {
+        MOVE BOX(TREE skuTree){caption = 'Ограничения по уценке товарных групп';}
+    }
+}
+
+inBanDetails (Markdown m) = GROUP SUM 1 IF
+    inBan(operation(m), skuGroup(sku(MarkdownDetail md))) AND markdown(md) = m;
+
+CONSTRAINT (SETCHANGED(sku(MarkdownDetail markdownDetail))
+    OR SETCHANGED(quantity(markdownDetail))
+    OR SETCHANGED(price(markdownDetail))
+    OR SETCHANGED(batch(markdownDetail))
+    OR SETCHANGED(sum(markdownDetail))
+    OR SETCHANGED(sticker(markdownDetail))
+    OR SETCHANGED(quantityStickers(markdownDetail))
+    OR SETCHANGED(expirationDate(markdownDetail)))
+    AND inBan(operation(markdown(markdownDetail)), skuGroup(sku(markdownDetail)))
+    MESSAGE 'Запрет по уценке товарной группы товара';
+
+DESIGN operation {
+    tabContainer {
+        NEW constraintContainer {
+            caption = 'Ограничения';
+        }
+    }
+}
+
+@defineOperationProperty(banSticker, 'Запрет создания документов без указания номинала стикера и количества стикеров', BOOLEAN , constraintContainer);
+
+CONSTRAINT (CHANGED(sku(MarkdownDetail d)) OR CHANGED(operation(d)) OR CHANGED(sticker(d)) OR CHANGED(quantityStickers(d)))
+    AND sku(d) AND banSticker(operation(d)) AND NOT (sticker(d) AND quantityStickers(d))
+    MESSAGE 'Запрещено создавать документы без указания номинала стикера и количества стикеров';
+
+dataInBan 'Вкл.'  = DATA BOOLEAN (Operation, Sticker);
+
+EXTEND FORM operation
+    OBJECTS s = Sticker
+    PROPERTIES id(s), dataInBan(o, s)
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE BOX(s) {caption = 'Запрет на использование номиналов у уценке' ;}
+    }
+}
+
+CONSTRAINT (CHANGED(sku(MarkdownDetail d)) OR CHANGED(operation(d)) OR CHANGED(sticker(d)))
+    AND dataInBan(operation(d), sticker(d))
+    MESSAGE 'Запрет использования стикера в операции уценки';
+
+countChangedStiker = GROUP SUM 1 IF SETCHANGED(sticker(MarkdownDetail d)) BY markdown(d);
+countStikers = GROUP SUM 1 IF [GROUP SUM 1 BY sticker(MarkdownDetail d), markdown(d)](Sticker s, Markdown m) BY m;
+
+skipCountStikers = DATA BOOLEAN ();
+
+CONSTRAINT (SETCHANGED(countChangedStiker(Markdown d)) OR SETCHANGED (countMarkdownDetail(d))) AND countStikers(d)>1 AND NOT skipCountStikers()
+    MESSAGE 'Нельзя сохранить документ уценки, если у товаров выбран разный номинал стикеров!';
+
+
+@addRoleApplicationSetting(editSkuGroupSticker, 'Разрешено редактировать номиналы стикеров для товарных групп', BOOLEAN);
+editSkuGroupSticker(CustomUser u) = editSkuGroupSticker(mainRole(u));
+
+dataNewInSticker 'Переопределение входящих номиналов' = DATA BOOLEAN (SkuGroup);
+levelParentNewInSticker (SkuGroup skuGroup) = GROUP MIN level(skuGroup, SkuGroup parent) IF dataNewInSticker(parent) MATERIALIZED;
+nearestParentNewInSticker (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentNewInSticker(skuGroup));
+
+levelBParentNewInSticker (SkuGroup skuGroup) = GROUP MIN level(skuGroup, SkuGroup parent) IF dataNewInSticker(parent) AND level(skuGroup, parent) > 1;
+nearestBParentNewInSticker (SkuGroup skuGroup) = skuGroup(skuGroup, levelBParentNewInSticker(skuGroup));
+
+dataIn 'Вкл.' = DATA BOOLEAN (SkuGroup, Sticker);
+in 'Вкл.' (SkuGroup skuGroup, Sticker sticker) =
+    IF dataNewInSticker(skuGroup) THEN dataIn(skuGroup, sticker) ELSE dataIn(nearestParentNewInSticker(skuGroup), sticker);
+in 'Вкл.' (Sku sk, Sticker st) = in(skuGroup(sk), st);
+
+EXTEND FORM itemGroup
+    PROPERTIES READONLYIF NOT editSkuGroupSticker(currentUser()) dataNewInSticker(g)//, ss(g)
+    OBJECTS sticker = Sticker
+    PROPERTIES id(sticker) READONLY, in(g, sticker) READONLYIF NOT (dataNewInSticker(g) AND editSkuGroupSticker(currentUser()))
+    FILTERS in(nearestBParentNewInSticker(g), sticker) OR NOT nearestBParentNewInSticker(g)
+;
+
+DESIGN itemGroup{
+    pane{
+        NEW stickerCont {
+            caption = 'Стикеры';
+            MOVE PROPERTY (dataNewInSticker(g));
+            MOVE BOX (sticker);
+            //MOVE PROPERTY(ss(g));
+        }
+    }
+}
+
+changeSticker(MarkdownDetail d) {
+    DIALOG stickers OBJECTS s INPUT FILTERS NOT dataInBan(operation(d), s), (in(sku(d), s) OR NOT nearestParentNewInSticker(skuGroup(sku(d)))) DO {
+        sticker(d) <- s;
+    }
+}
+
+EXTEND FORM markdown
+    PROPERTIES(d) BEFORE expirationDate(d) idSticker ON CHANGE changeSticker(d), quantityStickers
+;
+
+overFillDocument  ABSTRACT LIST (MarkdownDetail, DocumentDetail);
+fillDocument 'Подбор документа'(Markdown m)  {
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = MarkdownDetail DO {
+            markdown(i) <- m;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+skipFillBatch = ABSTRACT CASE BOOLEAN (MarkdownDetail);
+overFillDocument (MarkdownDetail i, DocumentDetail d) + {
+    IF NOT skipFillBatch(i) THEN {
+        batch(i) <- batch(d);
+    }
+}
+EXTEND FORM markdown
+    PROPERTIES(w) DRAW d fillDocument
+;
+
+@addRoleApplicationSetting(editActiveStickerMarkdown, 'Разрешено редактировать активированные стикеры', BOOLEAN);
+editActiveStickerMarkdown(CustomUser u) = editActiveStickerMarkdown(mainRole(u));
+
+
+CLASS StickerBarcode 'Штрихкоды стикеров';
+TABLE stickerBarcode(StickerBarcode);
+
+sticker = DATA Sticker (StickerBarcode);
+idSticker 'Номинал' (StickerBarcode sb) = id(sticker(sb));
+
+id 'Штрихкод' = DATA STRING[21] (StickerBarcode) IN id CHARWIDTH 21;
+stickerBarcode = GROUP AGGR StickerBarcode sb BY id(sb);
+
+markdownDetail 'Строка уценки' = DATA MarkdownDetail (StickerBarcode);
+//stickerBarcode = GROUP AGGR StickerBarcode sb BY markdownDetail(sb);
+active 'Активный' (StickerBarcode sb) = markdownDetail(sb) IS MarkdownDetail;
+
+
+createdDate 'Дата генерации' = DATA DATE (StickerBarcode);
+activateDate 'Дата активации' = DATA DATE (StickerBarcode);
+
+printed 'Распечатан' = DATA BOOLEAN (StickerBarcode);
+inactive(StickerBarcode sb) = sb IS StickerBarcode AND NOT markdownDetail(sb) AND NOT printed(sb);
+
+importStickerBarcodes(FILE s){
+    NEWSESSION {
+        LOCAL idLoc = STRING[21](INTEGER);
+        LOCAL dateLoc = DATE (INTEGER);
+        IMPORT XLS FROM s TO idLoc = A, dateLoc = B;
+        FOR idLoc(INTEGER i) AND length(trim(idLoc(i))) = 21 AND NOT stickerBarcode(idLoc(i)) DO NEW sb = StickerBarcode {
+            id(sb) <- idLoc(i);
+            createdDate(sb) <- dateLoc(i);
+        }
+        APPLY;
+    }
+}
+
+importStickerBarcodesInput 'Импорт штрихкодов стикеров' () {
+    INPUT f = FILE DO {
+        importStickerBarcodes(f);
+    }
+} TOOLBAR;
+
+deactivate 'Снять признак активности' (StickerBarcode sb) {
+    markdownDetail(sb) <- NULL WHERE markdownDetail(sb);
+} TOOLBAR;
+
+numberMarkdown 'Номер уценки' (StickerBarcode sb) = number(markdownDetail(sb));
+dateMarkdown 'Дата уценки' (StickerBarcode sb) = date(markdownDetail(sb));
+idBarcodeSku 'Штрихкод товара уценки' (StickerBarcode sb) = idBarcodeSku(markdownDetail(sb));
+nameSku 'Товар уценки' (StickerBarcode sb) = nameSku(markdownDetail(sb));
+index 'Индекс строки уценки' (StickerBarcode sb) = index(markdownDetail(sb));
+
+FORM stickerBarcodes 'Штрихкоды стикеров'
+    OBJECTS sb = StickerBarcode
+    PROPERTIES(sb) idSticker READONLYIF active(sb)
+    PROPERTIES(sb) READONLY id, createdDate
+    PROPERTIES(sb)  active ON CHANGE deactivate(sb) READONLYIF isReadonly() OR NOT active(sb)
+    PROPERTIES(sb) READONLY activateDate
+    PROPERTIES(sb)  printed READONLYIF isReadonly()
+    PROPERTIES(sb) NEWSESSION DELETE GRID
+    PROPERTIES importStickerBarcodesInput() DRAW sb
+    PROPERTIES(sb) READONLY numberMarkdown, dateMarkdown,  idBarcodeSku, nameSku, index
+;
+
+EXTEND FORM stickerBarcodes
+    PROPERTIES() isEditable SHOWIF editActiveStickerMarkdown(currentUser())
+;
+DESIGN stickerBarcodes {
+    TOOLBARBOX {
+        MOVE PROPERTY(isEditable()) BEFORE TOOLBARRIGHT;
+    }
+}
+
+
+NAVIGATOR {
+    markdownNavigator {
+        NEW stickerBarcodes;
+    }
+}
+
+countStickerBarcodes 'Сгенерировано штрихкодов'(MarkdownDetail md) = [GROUP SUM 1 BY (markdownDetail(StickerBarcode sb))](md);
+countStickerBarcodes(Markdown m) = [GROUP SUM 1 BY markdown(markdownDetail(StickerBarcode sb))](m);
+countPrintedStickerBarcodes 'Распечатано штрихкодов' (MarkdownDetail md) = [GROUP SUM 1 IF printed(StickerBarcode sb) BY (markdownDetail(sb))](md);
+countPrintedStickerBarcodes(Markdown m) = [GROUP SUM 1 IF printed(StickerBarcode sb) BY markdown(markdownDetail(sb))](m);
+
+skipShowEdit(Markdown m) +=
+    isClosed(m) OR (countStickerBarcodes(m) > 0 AND NOT editActiveStickerMarkdown(currentUser()));
+
+CONSTRAINT DROPPED (StickerBarcode sb IS StickerBarcode) AND PREV(active(sb))
+    MESSAGE 'Нельзя удалить активный штрихкод';
+
+CONSTRAINT SETCHANGED(markdownDetail(StickerBarcode sb)) AND NOT sticker(markdownDetail(sb)) = sticker(sb)
+    MESSAGE 'Номинал штрихкода стикера отличается от номинала стикера уценки';
+
+CONSTRAINT SET (MarkdownDetail md IS MarkdownDetail) AND NOT countStickerBarcodes(md) > 0 AND countStickerBarcodes(markdown(md)) > 0
+    MESSAGE 'Нельзя добавлять строку уценки, если для уценки сгенерированы QR-коды';
+
+CONSTRAINT (SETCHANGED(sticker(MarkdownDetail md)) OR SETCHANGED(sku(md))) AND nearestParentNewInSticker(skuGroup(sku(md))) AND NOT in(sku(md), sticker(md))
+    MESSAGE 'Номинал стикера не соответствует допустимому номиналу товара';
+
+CONSTRAINT  countStickerBarcodes(MarkdownDetail md) != quantityStickers(md)
+    MESSAGE 'Несовпадение кол-в штрихкодов стикеров для строки уценки';
+
+activateStickerBarcodes 'Cгенерировать QR-коды' (Markdown m) {
+    NEWSESSION {
+        FOR markdown(MarkdownDetail md) = m AND NOT countStickerBarcodes(md) DO {
+            FOR [GROUP SUM 1 IF inactive(StickerBarcode sb1) BY sticker(sb1)](sticker(md)) >= quantityStickers(md) AND iterate(INTEGER i, 1, quantityStickers(md)) DO {
+                markdownDetail(StickerBarcode sb) <- md WHERE sb = [GROUP MIN StickerBarcode sb1 IF inactive(sb1) BY sticker(sb1)](sticker(md));
+            }
+        }
+        APPLY;
+    }
+}
+
+@addRoleApplicationSetting(customPrintPrintedStickerBarcode, 'Разрешена повторная печатать стикеров', BOOLEAN);
+customPrintPrintedStickerBarcode(CustomUser u) = customPrintPrintedStickerBarcode(mainRole(u));
+
+customPrintNumberBarcode 'Штрихкод (печать)' ABSTRACT CASE (Markdown);
+
+FORM printMarkdownQR 'Уценка'
+    OBJECTS w = Markdown PANEL
+    PROPERTIES nameLegalEntity = name(legalEntity(stock(w))), addressStore  = address(store(stock(w)))
+    OBJECTS d = StickerBarcode
+    PROPERTIES READONLY index = index(markdownDetail(d)), nameSku = nameSku(markdownDetail(d)), idSticker(d), id(d)
+    ORDERS index, idSticker(d)
+    FILTERS markdown(markdownDetail(d))==w
+;
+
+DESIGN operation{
+    tabContainer{
+        NEW paramsContainer {
+            caption = 'Параметры';
+            fill = 1;
+        }
+    }
+}
+@defineOperationProperty(printAuto, 'Печатать QR-коды без просмотра', BOOLEAN , paramsContainer);
+
+customPrintNumberBarcode(Markdown m) + WHEN m IS Markdown THEN {
+//    IF NOT countNetworkPrinter(stock(m)) THEN {
+//        MESSAGE 'Не задан принтер';
+//        RETURN;
+//    }
+    IF NOT countStickerBarcodes(m) = quantityStickers(m) THEN {
+        MESSAGE 'Не совпадает кол-во стикеров и кол-во привязанных штрихкодов стикеров';
+        RETURN;
+    }
+    IF countPrintedStickerBarcodes(m) AND NOT customPrintPrintedStickerBarcode(currentUser()) THEN {
+        MESSAGE 'По уценке уже есть распечатанные стикеры';
+        RETURN;
+    }
+
+    NEWSESSION {
+        IF  printAuto(operation(m)) THEN {
+            PRINT printMarkdownQR OBJECTS w = m NOPREVIEW;
+        } ELSE {
+            PRINT printMarkdownQR OBJECTS w = m ;
+        }
+        printed(StickerBarcode sb) <- TRUE WHERE markdown(markdownDetail(sb)) = m;
+        APPLY;
+    }
+};
+
+
+customPrintStickerBarcode(Markdown w) = quantityStickers(w) = countStickerBarcodes(w)
+    AND (customPrintPrintedStickerBarcode(currentUser()) OR NOT countPrintedStickerBarcodes(w) > 0);
+
+EXTEND FORM markdowns
+    PROPERTIES activateStickerBarcodes(w) SHOWIF NOT countStickerBarcodes(w) = quantityStickers(w)  DRAW d,
+        customPrintNumberBarcode(w) SHOWIF customPrintStickerBarcode(w) DRAW d
+    PROPERTIES(d) countStickerBarcodes, countPrintedStickerBarcodes
+;
+
+EXTEND FORM markdown
+    PROPERTIES(d) countStickerBarcodes, countPrintedStickerBarcodes
+;
+
+EXTEND CLASS Markdown : Document;
+EXTEND CLASS MarkdownDetail : DocumentDetail;
+
+isPosted[Document](Markdown m) += TRUE IF m IS Markdown;
+number[Document](Markdown m) += number(m);
+series[Document](Markdown m) += series(m);
+date[Document](Markdown m) += date(m);
+
+index[DocumentDetail](MarkdownDetail detail) += index(detail);
+sku[DocumentDetail](MarkdownDetail detail) += sku(detail);
+quantity[DocumentDetail](MarkdownDetail detail) += NUMERIC[16,5](quantity(detail));
+price[DocumentDetail](MarkdownDetail detail) += price(detail);
+
+document[DocumentDetail](MarkdownDetail detail) += markdown(detail);
+
+supplier[Document](Markdown k) += legalEntity(stock(k));
+supplierStock[Document](Markdown k) += stock(k);
+//customer[Document](MarkdownDetail k) += customer(k);
+//customerStock[Document](MarkdownDetail k) += customerStock(k);
+@defineDocumentLogForm(markdowns, w, documentHistory);
+
+skipCheckStockMarkdown = DATA BOOLEAN ();
+
+CONSTRAINT (SET(Markdown m IS Markdown) OR CHANGED (stock(m))) AND m IS Markdown AND NOT stock(m)
+    MESSAGE 'Не выбран склад';
+
+@defineOperationProperty(countDaysExpire, 'Число дней активности если не задан срок годности', INTEGER, constraintContainer);
+
+overExpireDate(MarkdownDetail d) = OVERRIDE expirationDate(d), sum(date(markdown(d)), countDaysExpire(operation(markdown(d))));
+
+exportMarkdownToSET 'Выгрузить в SET'  ABSTRACT CASE (Markdown);
+
+EXTEND FORM markdowns
+    PROPERTIES exportMarkdownToSET(w) SHOWIF countStickerBarcodes(w) = quantityStickers(w) DRAW d;
+
+disableAutoExportSet = DATA BOOLEAN ();
+AFTER activateStickerBarcodes(Markdown w) DO { IF NOT disableAutoExportSet() THEN exportMarkdownToSET(w); }

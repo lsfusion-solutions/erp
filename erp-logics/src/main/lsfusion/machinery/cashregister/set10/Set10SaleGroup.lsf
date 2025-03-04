@@ -1,0 +1,23 @@
+MODULE Set10SaleGroup;
+
+REQUIRE CashRegister, Set10;
+
+NAMESPACE Set10;
+
+GROUP saleGroup EXTID 'sale-group';
+nameSaleGroup = DATA LOCAL STRING ();
+typeSaleGroup = DATA LOCAL STRING[10] ();
+idSaleGroup = DATA LOCAL STRING ();
+operationSaleGroup = DATA LOCAL STRING[10] ();
+shopsSaleGroup = DATA LOCAL STRING ();
+inSaleGroup = DATA LOCAL BOOLEAN (Sku);
+
+FORM goods_catalog_items FORMEXTID 'goods-catalog'
+    OBJECTS ds = DepartmentStore PANEL
+    PROPERTIES IN saleGroup nameSaleGroup() EXTID 'name', typeSaleGroup() EXTID 'type', idSaleGroup() EXTID 'id' ATTR,
+        operationSaleGroup() EXTID 'operation' ATTR, shopsSaleGroup() EXTID 'shop-indices' ATTR
+
+    OBJECTS s = Sku EXTID 'good-binding' IN saleGroup
+    PROPERTIES =overSet10Id(s, ds) EXTID 'marking-of-the-good' ATTR
+    FILTERS inSaleGroup(s)
+;

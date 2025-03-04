@@ -1,0 +1,42 @@
+MODULE Set10Markdown;
+
+REQUIRE Markdown, CashRegister, Set10SaleGroup;
+
+NAMESPACE  Markdown;
+
+exportMarkdownToSETOver ABSTRACT LIST(Markdown);
+
+exportMarkdownToSET  (Markdown m) + WHEN m IS Markdown THEN {
+    NEWSESSION {
+        LOCAL outerXML = TEXT();
+        LOCAL in = BOOLEAN (Sku, Sticker);
+        in(Sku sk, Sticker n) <- active(sk) AND GROUP SUM 1 IF NOT overExpireDate(MarkdownDetail md) < currentDate() AND sku(md) == sk AND stock(md) == stock(m) AND sticker(md) == n;
+        shopsSaleGroup() <- (GROUP CONCAT STRING(npp(GroupCashRegister gcr)) IF stock(gcr) == stock(m) AND sidModel(gcr) == 'Kristal10Web' AND active(gcr), ' ' ORDER gcr);
+        exportMarkdownToSETOver(m);
+        FOR Sticker n IS Sticker AND (GROUP SUM 1 IF  in(Sku sk,n)) AND shopsSaleGroup() DO {
+            inSaleGroup(Sku sk) <- in(sk, n);
+            nameSaleGroup() <- CONCAT '_', replace(nameStock(m),' ', '_'), id(n);
+            idSaleGroup() <- CONCAT '_', id(stock(m)), id(n);
+            operationSaleGroup() <- 'CHANGE';
+            EXPORT goods_catalog_items OBJECTS ds = stock(m) XML;
+            fileToString(exportFile());
+            encodeBase64(resultString());
+            outerXML() <- '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://plugins.products.ERPIntegration.crystals.ru/">' +
+                '<soapenv:Header/>' +
+                '<soapenv:Body>' +
+                '<web:getGoodsCatalog>' +
+                '<goodsCatalogXML><![CDATA[' + encodedBase64() + ']]></goodsCatalogXML>' +
+                '</web:getGoodsCatalog>' +
+                '</soapenv:Body>' +
+                '</soapenv:Envelope>';
+            LOCAL resultRequest = FILE();
+            TRY {
+                EXTERNAL HTTP urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' PARAMS outerXML() TO resultRequest;
+            } CATCH {
+                logToFile('setPromotion', 'error in send Markdown' + messageCaughtException());
+                MESSAGE 'Произошла ошибка. Обратитесь к администратору.';
+                RETURN;
+            }
+        }
+    }
+}
