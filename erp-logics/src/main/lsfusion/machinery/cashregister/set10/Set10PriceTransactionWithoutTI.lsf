@@ -1,0 +1,99 @@
+MODULE Set10PriceTransactionWithoutTI;
+
+REQUIRE Set10PriceTransaction;
+
+NAMESPACE Set10;
+
+urlServerESB 'Адрес:порт для ESB шины' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES urlServerESB();
+
+DESIGN integrationData {
+    pane {
+        set10 {
+            NEW esb {
+                caption = 'ESB';
+                alignment = STRETCH;
+                MOVE PROPERTY (urlServerESB());
+            }
+        }
+    }
+}
+
+useESB 'Использовать ESB шину' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() useESB
+;
+DESIGN integrationData{
+    set10{
+        esb {
+            MOVE PROPERTY (useESB());
+        }
+    }
+}
+
+GROUP bodyRequestWithoutTI EXTID 'soapenv:Body';
+GROUP getGoodsCatalog EXTID 'plug:getGoodsCatalog' : bodyRequest;
+
+headerWithoutTI = DATA LOCAL STRING();
+goodsCatalogXMLWithoutTI = DATA LOCAL STRING();
+
+FORM requestItemWithoutTI FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES ATTR ='http://plugins.products.ERPIntegration.crystals.ru/' EXTID 'xmlns:plug'
+    PROPERTIES() header EXTID 'soapenv:Header'
+    PROPERTIES() IN getGoodsCatalog goodsCatalogXMLWithoutTI EXTID 'goodsCatalogXML'
+;
+
+//обработка ответа по товарам
+GROUP getGoodsCatalogWithoutTiResponse
+EXTID 'ns2=http://plugins.products.ERPIntegration.crystals.ru/:getGoodsCatalogResponse' : bodyAnswer;
+
+returnWithoutTi = DATA LOCAL STRING();
+
+FORM answerWithoutTi FORMEXTID 'soap=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    PROPERTIES() IN getGoodsCatalogWithoutTiResponse returnWithoutTi EXTID 'return';
+;
+
+sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
+    fileToString(f);
+    encodeBase64(resultString());
+    goodsCatalogXMLWithoutTI()<- encodedBase64();
+    LOCAL headersSet = STRING (STRING);
+    headersSet('Content-Type') <- 'application/xml';
+    LOCAL answer = FILE();
+    LOCAL req = FILE();
+    EXPORT requestItemWithoutTI XML TO req;
+    fileToString(req());
+    TRY {
+        EXTERNAL HTTP POST urlServerESB() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+        IMPORT answerWithoutTi XML FROM answer();
+        fileToString(answer());
+        IF returnWithoutTi() = 'true' THEN succeeded(t) <- TRUE;
+    } CATCH {
+         addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
+        APPLY;
+    }
+    APPLY;
+}
+
+sendESBTransactionWithoutTI(MachineryPriceTransaction t){
+    EXPORT goodsCatalog OBJECTS m = t XML;
+    sendRequestGoodsWithoutTI(exportFile(), 'item', t);
+
+    EXPORT barcodesCatalog OBJECTS m = t XML;
+    sendRequestGoodsWithoutTI(exportFile(), 'barcode', t);
+
+    EXPORT priceEntry OBJECTS m = t XML;
+    sendRequestGoodsWithoutTI(exportFile(), 'price', t);
+}
+
+
+customSend(MachineryPriceTransaction t) += WHEN t IS MachineryPriceTransaction AND useESB() THEN TRUE;
+
+customSend(MachineryPriceTransaction t) + {
+    IF useESB() THEN {
+        sendESBTransactionWithoutTI(t);
+    }
+}
