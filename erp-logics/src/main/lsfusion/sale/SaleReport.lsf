@@ -562,6 +562,7 @@ fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
                                       ELSE firstSaleDate();
 
 saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
+saleReport = GROUP MAX SaleReport r BY contractSku(r), fromDate(r), toDate(r);
 
 createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company)  { 
     FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
@@ -589,6 +590,33 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
         }
     }
 }
+
+createAutoSaleReportdCompanyFull 'Создать акты реализации по компании (месяц)'(LegalEntity company)  {
+    FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c))
+        AND partyB(c) == company
+        AND NOT saleReport(c, fromDateFull(c), lastSaleDate())
+        AND NOT skipSaleLedger(c) DO {
+        NEWSESSION  {
+            NEW r = SaleReport {
+
+                supplier(r) <- partyA(c);
+                company(r) <- partyB(c);
+                contractSku(r) <- c;
+                fromDate(r) <- fromDateFull(c);
+                toDate(r) <- lastSaleDate();
+                fillData(r);
+                overFillData(r);
+                IF countSaleReportDetail(r)
+                THEN {
+                    apply();
+                } ELSE {
+                    cancel();
+                }
+            }
+        }
+    }
+}
+
 createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company)  { 
     FOR ContractSku c IS ContractSku AND (type(paymentCondition(c)) == AgreementPaymentType.implement OR overCreateSaleReport(c)) 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
@@ -618,10 +646,15 @@ createAutoSaleReportPrevMonth 'Создать акты реализации (з�
     createAutoSaleReport(company, firstSaleDate(), lastSaleDate());    
 }
 
-
 createSchedulerAutoSaleReportdFull 'Создать акты реализации (за месяц)'()  { 
     FOR isCompany(LegalEntity l) DO {
         createAutoSaleReportdFull(l);    
+    }
+}
+
+createSchedulerAutoSaleReportdCompanyFull 'Создать акты реализации по компании (за месяц)'()  { 
+    FOR isCompany(LegalEntity l) DO {
+        createAutoSaleReportdCompanyFull(l);    
     }
 }
 
