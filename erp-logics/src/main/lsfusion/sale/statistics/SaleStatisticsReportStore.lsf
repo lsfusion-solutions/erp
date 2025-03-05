@@ -41,4 +41,22 @@ overFillSumRegionData(StatisticReport report) + {
     }
 }
 
+overFillSumLegalEntityData(StatisticReport report) + {
+    IF NOT useCustomFillSumData(report) THEN {
+        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND
+            LegalEntity c == company(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report)
+            NOINLINE DO {
+            soldSumCorporate(d) <- NUMERIC[16,3](totalSumCorporateSoldBy(s, c, dFrom, dTo));
+            soldSumInternet(d) <- NUMERIC[16,3](totalSumInternetSoldBy(s, c, dFrom, dTo));
+            soldSumCatering(d) <- NUMERIC[16,3](totalSumCateringSoldBy(s, c, dFrom, dTo));
+
+            IF soldSumCatering(d) THEN {
+                //объекты общественного питания не включаются в розницу. В 12-торг это отдельные строки, в 1-торг -- отдельный отчет
+                soldSum(d) <- soldSum(d) (-) soldSumCatering(d) ;
+                soldSumResident(d) <- soldSumResident(d) (-) NUMERIC[16,3](totalSumCateringResidentSoldBy(s, c, dFrom, dTo));
+            }
+        }
+    }
+}
+
 //:todo добавить для общепита количественные расчеты для 4-торг
