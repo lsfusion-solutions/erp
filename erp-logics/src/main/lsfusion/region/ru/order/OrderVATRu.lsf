@@ -6,9 +6,10 @@ NAMESPACE Order;
 
 META defineWithVATOrder (part)
     @defineDocumentInterfaceProperty (order, withVATPrice, 'Цена с НДС');
-    
-    hideWithoutVAT (Order o) += withVATPrice(o);  
-    hideWithVAT (Order o) += o IS Order AND NOT withVATPrice(o);
+
+    isShowIfPrice = ABSTRACT BOOLEAN (Order);
+    hideWithoutVAT (Order o) += withVATPrice(o) AND NOT isShowIfPrice(o);  
+    hideWithVAT (Order o) += o IS Order AND NOT withVATPrice(o) AND NOT isShowIfPrice(o);
     
     changeReverseNumberVAT (UserOrderDetail userOrderDetail)  { 
         DIALOG rangeDialog OBJECTS c = countryCustomerStock(userOrderDetail), r = VAT(userOrderDetail) INPUT NULL DO {
