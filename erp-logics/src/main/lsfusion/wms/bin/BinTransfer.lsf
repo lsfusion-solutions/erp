@@ -445,3 +445,172 @@ NAVIGATOR {
          }
     }
 }
+
+//ячейка в
+// Отметка для групп
+dataInBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
+countDataInBinGroups (Operation operation) = GROUP SUM 1 IF  dataInBin(BinGroup binGroup, operation);
+
+levelParentInBin(Operation operation, BinGroup binGroup)  =
+    GROUP
+        MIN level(binGroup, BinGroup parent) IF dataInBin(parent, operation) MATERIALIZED;
+nearestParentInBinGroup (Operation operation, BinGroup binGroup) = binGroup(binGroup, levelParentInBin(operation, binGroup));
+nearestInBin (BinGroup binGroup, Operation operation) =
+    dataInBin(nearestParentInBinGroup(operation, binGroup), operation) MATERIALIZED;
+
+inBin 'Отм' (BinGroup binGroup, Operation operation) =
+    OVERRIDE dataInBin(binGroup, operation),
+        nearestInBin(binGroup, operation);
+
+// Отметка для ячеек
+dataInBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
+countDataInBins (Operation operation) = GROUP SUM 1 IF  dataInBin(Bin bin, operation);
+
+
+inBin 'Отм' (Bin bin, Operation operation) =
+    OVERRIDE dataInBin(bin, operation),
+        inBin(binGroup(bin), operation), inBin(operation, stock(bin)) = bin AND in(stock(bin), operation);;
+
+quantityChildWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;
+
+backgroundInBin 'Цвет' (BinGroup group, Operation operation) = CASE
+    WHEN dataInBin(group, operation) THEN RGB(0,0,0)
+    WHEN nearestInBin(group, operation) THEN RGB(230,248,250)
+    WHEN quantityChildWithInBin(group, operation) != descendantNumber(group) AND NOT quantityParentWithInBin(group, operation) THEN RGB(203,203,203);
+
+
+backgroundInBin 'Цвет' (Bin bin, Operation operation) = IF dataInBin(bin, operation) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250)
+        IF inBin(binGroup(bin), operation);
+
+//ячейка из
+// Отметка для групп
+dataOutBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
+
+levelParentOutBin(Operation operation, BinGroup binGroup)  =
+    GROUP
+        MIN level(binGroup, BinGroup parent) IF dataOutBin(parent, operation) MATERIALIZED;
+nearestParentOutBinGroup (Operation operation, BinGroup binGroup) = binGroup(binGroup, levelParentOutBin(operation, binGroup));
+nearestOutBin (BinGroup binGroup, Operation operation) =
+    dataOutBin(nearestParentOutBinGroup(operation, binGroup), operation) MATERIALIZED;
+
+outBin 'Отм' (BinGroup binGroup, Operation operation) =
+    OVERRIDE dataOutBin(binGroup, operation),
+        nearestOutBin(binGroup, operation);
+
+// Отметка для ячеек
+dataOutBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
+countDataOutBins (Operation operation) = GROUP SUM 1 IF  dataOutBin(Bin bin, operation);
+
+outBin 'Отм' (Bin bin, Operation operation) =
+    OVERRIDE dataOutBin(bin, operation),
+        outBin(binGroup(bin), operation), outBin(operation, stock(bin)) = bin AND in(stock(bin), operation);
+
+countDataOutBinGroups (Operation operation) = GROUP SUM 1 IF  dataOutBin(BinGroup binGroup, operation);
+
+quantityChildWithOutBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataOutBin(BinGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWithOutBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataOutBin(BinGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;
+
+backgroundOutBin 'Цвет' (BinGroup group, Operation operation) = CASE
+    WHEN dataOutBin(group, operation) THEN RGB(0,0,0)
+    WHEN nearestOutBin(group, operation) THEN RGB(230,248,250)
+    WHEN quantityChildWithOutBin(group, operation) != descendantNumber(group) AND NOT quantityParentWithOutBin(group, operation) THEN RGB(203,203,203);
+
+
+backgroundOutBin 'Цвет' (Bin bin, Operation operation) = IF dataOutBin(bin, operation) THEN RGB(0,0,0)
+    ELSE RGB(230,248,250)
+        IF outBin(binGroup(bin), operation);
+
+
+EXTEND FORM operation
+    TREE inGroupTree inbing = BinGroup PARENT parent(inbing)
+    PROPERTIES READONLY inbingTreeName = name(inbing)
+    PROPERTIES inBin(inbing, o) BACKGROUND backgroundInBin(inbing, o)
+    FILTERS in(stock(inbing), o)
+    
+    OBJECTS inbin = Bin
+    PROPERTIES(inbin, o) inBin BACKGROUND backgroundInBin(inbin, o)
+    PROPERTIES(inbin) READONLY nameInBin = name, nameBinGroup, id SHOWIF showIDs()
+    ORDERS nameInBin
+    FILTERS inbin IS Bin AND NOT inbing IS BinGroup OR
+        isParent(inbing, inbin)
+    FILTERGROUP inBinFilters3
+        FILTER 'Показывать отмеченные' inBin(inbin, o) 'F10'
+
+    TREE outGroupTree outbing = BinGroup PARENT parent(outbing)
+    PROPERTIES READONLY outbingTreeName = name(outbing)
+    PROPERTIES outBin(outbing, o) BACKGROUND backgroundOutBin(outbing, o)
+    FILTERS in(stock(outbing), o)
+
+    OBJECTS outbin = Bin
+    PROPERTIES(outbin, o) outBin BACKGROUND backgroundOutBin(outbin, o)
+    PROPERTIES(outbin) READONLY nameOutBin = name, nameBinGroup, id SHOWIF showIDs()
+    ORDERS nameOutBin
+    FILTERS outbin IS Bin AND NOT outbing IS BinGroup OR
+        isParent(outbing, outbin)
+    FILTERGROUP outBinFilters3
+        FILTER 'Показывать отмеченные' outBin(outbin, o) 'F10'
+;
+
+DESIGN operation {
+    tabContainer {
+        NEW binContainer{
+            caption = 'Ячейки';
+            fill = 1;
+            NEW inBinContainer {
+                caption = 'Ячейки (в)';
+                fill = 1;
+                NEW splitInBinContainer{
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE BOX(TREE inGroupTree);
+                    MOVE BOX(inbin) {
+                        fill = 3;
+                    }
+                }
+            }
+            NEW outBinContainer {
+                fill = 1;
+                caption = 'Ячейки (из)';
+                NEW splitOutBinContainer{
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE BOX(TREE outGroupTree);
+                    MOVE BOX(outbin) {
+                        fill = 3;
+                    }
+                }
+            }
+        }
+    }
+}
+
+CONSTRAINT (SETCHANGED(operation(BinTransfer binTransfer)) OR SETCHANGED(inBin(binTransfer))) AND inBin(binTransfer)
+    AND NOT inBin(inBin(binTransfer), operation(binTransfer))
+    CHECKED BY inBin[UserBinTransfer]
+    MESSAGE '"Ячейка (в)" должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(inBin(binTransferDetail))) AND inBin(binTransferDetail)
+    AND NOT inBin(inBin(binTransferDetail), operation(binTransferDetail))
+    CHECKED BY inBin[UserBinTransferDetail]
+    MESSAGE '"Ячейка (в)" должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransfer binTransfer)) OR SETCHANGED(outBin(binTransfer))) AND outBin(binTransfer)
+    AND NOT outBin(outBin(binTransfer), operation(binTransfer))
+    CHECKED BY outBin[UserBinTransfer]
+    MESSAGE '"Ячейка (из)" должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(outBin(binTransferDetail))) AND outBin(binTransferDetail)
+    AND NOT outBin(outBin(binTransferDetail), operation(binTransferDetail))
+    CHECKED BY outBin[UserBinTransferDetail]
+    MESSAGE '"Ячейка (из)" должна совпадать с отмеченными в операции';
+
+onStarted() + {
+    IF (GROUP MAX Operation o IF o IS Operation)
+        AND NOT (GROUP MAX Operation o1 IF countDataInBins(o1) OR countDataInBinGroups(o1)
+                                            OR countDataOutBins(o1) OR countDataOutBinGroups(o1)) THEN {
+        dataInBin(StockBinGroup bg, Operation o1) <- TRUE WHERE bg IS StockBinGroup AND in(stock(bg), o1);
+        dataOutBin(StockBinGroup bg, Operation o1) <- TRUE WHERE bg IS StockBinGroup AND in(stock(bg), o1);
+    }
+}
