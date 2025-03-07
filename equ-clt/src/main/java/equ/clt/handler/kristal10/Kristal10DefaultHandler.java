@@ -152,14 +152,13 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
             if (extraInfoJSON != null) {
                 Boolean ukz = getUKZ(extraInfoJSON);
-                boolean byNeedSkanUKZ = ukz != null && ukz;
-                if (byNeedSkanUKZ) {
+                if (ukz != null && ukz) {
                     addPluginPropertyElement(good, "by-need-scan-ukz", "true");
                 }
 
                 if (extraInfoJSON.has("lottype")) {
                     String lotType = extraInfoJSON.getString("lottype");
-                    if (!byNeedSkanUKZ)
+                    if (lotType != null && !lotType.equals("ukz"))
                         addStringElement(good, "mark-type", lotType);
                 }
             }
