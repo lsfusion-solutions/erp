@@ -171,6 +171,26 @@ FORM universalTransferDocumentBuyerTitle FORMEXTID 'UniversalTransferDocumentBuy
                     signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
 ;
 
+GROUP contentOperCode1 EXTID 'ContentOperCode';
+GROUP employee1 EXTID 'Employee';
+GROUP signers EXTID 'Signers';
+GROUP signerUPD EXTID 'Signer' : signers;
+GROUP fio1 EXTID 'Fio' : signerUPD;
+GROUP position2 EXTID 'Position' : signerUPD;
+
+contentOperCode = DATA LOCAL STRING();
+employee = DATA LOCAL STRING();
+fio = DATA LOCAL STRING();
+
+FORM universalTransferDocumentBuyerTitle970 FORMEXTID 'UniversalTransferDocumentBuyerTitle'
+    PROPERTIES() contentOperCode EXTID 'ContentOperCode', employee EXTID 'Employee', acceptanceDate EXTID 'AcceptanceDate' ATTR, documentCreator EXTID 'DocumentCreator' ATTR
+    PROPERTIES() IN contentOperCode1 idTotalCode EXTID 'TotalCode' ATTR
+    PROPERTIES() IN employee1  jobTitleEmployee EXTID 'Position' ATTR, surnameEmployee EXTID 'LastName' ATTR, firstNameEmployee EXTID 'FirstName' ATTR, patronymicEmployee EXTID 'MiddleName' ATTR
+    PROPERTIES() IN signer fio EXTID 'Fio', idSignerPowersConfirmationMethod EXTID 'SignerPowersConfirmationMethod' ATTR
+    PROPERTIES() IN fio1 firstName EXTID 'FirstName' ATTR, surname EXTID 'LastName' ATTR, patronymic EXTID 'MiddleName' ATTR
+    PROPERTIES() IN  position2 value = jobTitle , idPositionSource EXTID 'PositionSource' ATTR;
+
+
 FORM dialogUpdBuyerTitle 'Титул покупателя'
     PROPERTIES() documentCreator, operationContent, nameSingerPowers, nameSignerStatus, nameSignerType, signerPowersBase
     PROPERTIES() surname, firstName, patronymic, jobTitle, inn
@@ -231,6 +251,79 @@ DESIGN dialogUpdBuyerTitle {
         MOVE PROPERTY(inn());
     }
 }
+
+FORM dialogUpdBuyerTitle970 'Титул покупателя'
+    PROPERTIES() documentCreator, acceptanceDate, nameTotalCode, nameSignerPowersConfirmationMethod, namePositionSource
+    PROPERTIES() surname, firstName, patronymic, jobTitle
+    PROPERTIES() surnameEmployee, firstNameEmployee, patronymicEmployee, jobTitleEmployee
+
+    EVENTS ON OK BEFORE {
+        IF NOT documentCreator() THEN {
+            MESSAGE 'Не задано наименование экономического субъекта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT acceptanceDate() THEN {
+            MESSAGE 'Не задано дата принятия товаров' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT totalCode() THEN {
+            MESSAGE 'Не задан код итога - Код, обозначающий итог приемки товара' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT signerPowersConfirmationMethod() THEN {
+            MESSAGE 'Не задан способ подтверждения полномочий представителя на подписание документа' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT positionSource() THEN {
+            MESSAGE 'Не задан способ заполнения должности сотрудника' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT surname() THEN {
+            MESSAGE 'Не задана фамилия подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT firstName() THEN {
+            MESSAGE 'Не задано имя подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT jobTitle() THEN {
+            MESSAGE 'Не задана должность подписанта' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT surnameEmployee() THEN {
+            MESSAGE 'Не задана фамилия сотрудника' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT firstNameEmployee() THEN {
+            MESSAGE 'Не задано имя сотрудника' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }
+        IF NOT jobTitleEmployee() THEN {
+            MESSAGE 'Не задана должность сотрудника' NOWAIT;
+            beforeCanceled() <- TRUE;
+        }    
+    }
+;
+
+DESIGN dialogUpdBuyerTitle970 {
+    GROUP() {
+        lines = 1;
+        MOVE PROPERTY(documentCreator());
+        MOVE PROPERTY(acceptanceDate());
+        MOVE PROPERTY(nameTotalCode());
+        MOVE PROPERTY(nameSignerPowersConfirmationMethod());
+        MOVE PROPERTY(namePositionSource());
+        MOVE PROPERTY(surname());
+        MOVE PROPERTY(firstName());
+        MOVE PROPERTY(patronymic());
+        MOVE PROPERTY(jobTitle());
+        MOVE PROPERTY(surnameEmployee());
+        MOVE PROPERTY(firstNameEmployee());
+        MOVE PROPERTY(patronymicEmployee());
+        MOVE PROPERTY(jobTitleEmployee());
+    }
+}
+
 overMessageSignatureUpd ABSTRACT (Box, Document);
 overMessageSignature (User u, Box b, Document d) + {
     IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') THEN NEWSESSION {
@@ -242,31 +335,61 @@ overMessageSignature (User u, Box b, Document d) + {
         firstName() <- STRING[60](firstName(currentUser()));
         //patronymic() <- STRING[60](middleName(currentUser())); подключить модуль EmployeeRu
         jobTitle() <- STRING[128](namePosition(currentUser()));
+        surnameEmployee() <- STRING[60](lastName(currentUser()));
+        firstNameEmployee() <- STRING[60](firstName(currentUser()));
+        jobTitleEmployee() <- STRING[128](namePosition(currentUser()));
         inn() <- STRING[10](inn(organization(b)));
         overMessageSignatureUpd(b, d);
-        DIALOG dialogUpdBuyerTitle NOMANAGESESSION DO {
-            getToken(u);
-            EXPORT universalTransferDocumentBuyerTitle XML;
+        IF left(version(d),6) = 'utd820' THEN {
+            DIALOG dialogUpdBuyerTitle NOMANAGESESSION DO {
+                getToken(u);
+                EXPORT universalTransferDocumentBuyerTitle XML;
 
-            LOCAL result = FILE ();
-            TRY {
-                EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() + '&documentTypeNamedId=' + typeNamedId(d) +'&documentFunction=' + function(d) + '&documentVersion=' + version(d) + '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
-                contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+                LOCAL result = FILE ();
+                TRY {
+                    EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() + '&documentTypeNamedId=' + typeNamedId(d) +'&documentFunction=' + function(d) + '&documentVersion=' + version(d) + '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                    contentDocument(0) <- encode(RAWFILE(result()), 'base64');
 
-                IF useTestSignature() THEN {
-                    signWithTestSignature(0) <- TRUE;
-                } ELSE {
-                    sign(FILE(result()), TRUE, legalEntity(organization(b)));
-                    signatureDocument(0) <- encodedSignature();
+                    IF useTestSignature() THEN {
+                        signWithTestSignature(0) <- TRUE;
+                    } ELSE {
+                        sign(FILE(result()), TRUE, legalEntity(organization(b)));
+                        signatureDocument(0) <- encodedSignature();
+                    }
+
+                    postMessagePatch(u);
+                } CATCH {
+                    fileToString(result(), 'UTF-8');
+                    MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
-
-                postMessagePatch(u);
-            } CATCH {
-                fileToString(result(), 'UTF-8');
-                MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                APPLY;
+                getDocument(u,b,d);
             }
-            APPLY;
-            getDocument(u,b,d);
+       } ELSE {
+            DIALOG dialogUpdBuyerTitle970 NOMANAGESESSION DO {
+                getToken(u);
+                EXPORT universalTransferDocumentBuyerTitle970 XML;
+
+                LOCAL result = FILE ();
+                TRY {
+                    EXTERNAL HTTP POST url() + '/GenerateTitleXml?boxId=' + boxId() + '&documentTypeNamedId=' + typeNamedId(d) +'&documentFunction=' + function(d) + '&documentVersion=' + version(d) + '&titleIndex=1&letterId=' + messageId() + '&documentId=' + parentEntityId(0) HEADERS httpHeadersToken PARAMS exportFile() TO result;
+                    contentDocument(0) <- encode(RAWFILE(result()), 'base64');
+
+                    IF useTestSignature() THEN {
+                        signWithTestSignature(0) <- TRUE;
+                    } ELSE {
+                        sign(FILE(result()), TRUE, legalEntity(organization(b)));
+                        signatureDocument(0) <- encodedSignature();
+                    }
+
+                    postMessagePatch(u);
+                } CATCH {
+                    fileToString(result(), 'UTF-8');
+                    MESSAGE 'Ошибка подписи ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                }
+                APPLY;
+                getDocument(u,b,d);
+            }
         }
     }
 }

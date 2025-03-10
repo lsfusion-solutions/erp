@@ -74,3 +74,83 @@ signerType 'Тип' = DATA LOCAL SignerType();
 nameSignerType 'Тип' = name(signerType());
 idSignerType 'Тип' = id(signerType());
 signerPowersBase 'Основание полномочий (доверия)' = DATA LOCAL STRING[255]();
+
+CLASS TotalCode 'Код итога - Код, обозначающий итог приемки товара' {
+    tc1 '1 - товары (работы, услуги, права) приняты без расхождений (претензий)',
+    tc2 '2 - товары (работы, услуги, права) приняты с расхождениями (претензией)',
+    tc3 '3 - товары (работы, услуги, права) не приняты'
+}
+name 'Наименование' (TotalCode tc) = staticCaption(tc);
+id 'Код' (TotalCode sp) = CASE
+    WHEN sp == TotalCode.tc1 THEN 1
+    WHEN sp == TotalCode.tc2 THEN 2
+    WHEN sp == TotalCode.tc3 THEN 3;
+totalCode = GROUP MAX TotalCode tc BY id(tc);
+
+FORM totalCode 'Код итога - Код, обозначающий итог приемки товара'
+    OBJECTS tc = TotalCode
+    PROPERTIES(tc) READONLY name, id
+
+    LIST TotalCode OBJECT tc
+;
+
+CLASS SignerPowersConfirmationMethod 'Метод' {
+    sp1 '1 - В соответствии с данными, содержащимися в электронной подписи',
+    sp2 '2 - В соответствии с доверенностью в электронной форме в машиночитаемом виде, если представление доверенности осуществляется посредством включения в каждый пакет электронных документов, подписываемых представителем',
+    sp3 '3 - В соответствии с доверенностью в электронной форме в машиночитаемом виде, если представление доверенности осуществляется из информационной системы. При этом необходимая информация для запроса доверенности из информационной системы, указана в электронном документе',
+    sp4 '4 - В соответствии с доверенностью в электронной форме в машиночитаемом виде, если представление доверенности осуществляется из информационной системы. При этом необходимая информация для запроса доверенности из информационной системы, представляется способом, отличным от указания в электронном документе',
+    sp5 '5 - В соответствии с доверенностью в форме документа на бумажном носителе',
+    sp6 '6 - Иное'
+}
+name 'Наименование' (SignerPowersConfirmationMethod sp) = staticCaption(sp);
+id 'Код' (SignerPowersConfirmationMethod ss) = CASE
+    WHEN ss == SignerPowersConfirmationMethod.sp1 THEN 3
+    WHEN ss == SignerPowersConfirmationMethod.sp2 THEN 3
+    WHEN ss == SignerPowersConfirmationMethod.sp3 THEN 3
+    WHEN ss == SignerPowersConfirmationMethod.sp4 THEN 4
+    WHEN ss == SignerPowersConfirmationMethod.sp5 THEN 5
+    WHEN ss == SignerPowersConfirmationMethod.sp6 THEN 6;
+signerPowersConfirmationMethod = GROUP MAX SignerPowersConfirmationMethod sp BY id(sp);
+
+FORM signerPowersConfirmationMethod 'Метод'
+    OBJECTS ss = SignerPowersConfirmationMethod
+    PROPERTIES(ss) READONLY name, id
+
+    LIST SignerPowersConfirmationMethod OBJECT ss
+;
+
+CLASS PositionSource 'Автоматическое заполнение должности из настроек сотрудника указанных в сервисе' {
+    ps1 'Employee - должность из данных по сотруднику в сервисе',
+    ps2 'Certificate - должность из данных по сотруднику из сертификата',
+    ps3 'StorageByTitleTypeId - должность из данных, сохраненных с помощью метода ExtendedSignerDetails для указанного сертификата и documentTitleType',
+    ps4 'Manual - для ручного заполнения должности'
+}
+name 'Наименование' (PositionSource st) = staticCaption(st);
+id 'Код' (PositionSource ps) = CASE
+    WHEN ps == PositionSource.ps1 THEN 'Employee'
+    WHEN ps == PositionSource.ps2 THEN 'Certificate'
+    WHEN ps == PositionSource.ps3 THEN 'StorageByTitleTypeId'
+    WHEN ps == PositionSource.ps4 THEN 'Manual'
+;
+
+positionSource = GROUP MAX PositionSource ps BY id(ps);
+
+FORM positionSource 'Автоматическое заполнение должности из настроек сотрудника указанных в сервисе'
+    OBJECTS ps = PositionSource
+    PROPERTIES(ps) READONLY name, id
+
+    LIST PositionSource OBJECT ps
+;
+
+acceptanceDate 'Дата принятия товаров' = DATA LOCAL DATE ();
+totalCode 'Код итога - Код, обозначающий итог приемки товара' = DATA LOCAL TotalCode();
+nameTotalCode 'Код итога - Код, обозначающий итог приемки товара' = name(totalCode());
+idTotalCode 'Код итога - Код, обозначающий итог приемки товара' = id(totalCode());
+
+signerPowersConfirmationMethod 'Способ подтверждения полномочий представителя на подписание документа' = DATA LOCAL SignerPowersConfirmationMethod();
+nameSignerPowersConfirmationMethod 'Способ подтверждения полномочий представителя на подписание документа' = name(signerPowersConfirmationMethod());
+idSignerPowersConfirmationMethod 'Способ подтверждения полномочий представителя на подписание документа' = id(signerPowersConfirmationMethod());
+
+positionSource 'Способ заполнения должности сотрудника' = DATA LOCAL PositionSource();
+namePositionSource 'Способ заполнения должности сотрудника' = name(positionSource());
+idPositionSource 'Способ заполнения должности сотрудника' = id(positionSource());
