@@ -448,6 +448,11 @@ FORM receiving 'Приемка'
     FILTERS currentBalance(rs, rb),
             binGroup2(rb)==binGroup2(receivingBin(u)),
             orderLedger(rb)
+
+    OBJECTS placeSku = BinTransferDetail
+    PROPERTIES(placeSku) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin
+    PROPERTIES READONLY currentBalancePS 'Текущий остаток в ячейке' = currentBalance(sku(placeSku), outBin(placeSku))
+    FILTERS currentBalance(sku(placeSku), outBin(placeSku)), accessCompany(u, outBin(placeSku)), inBin(placeSku) = receivingBin(u), operation(placeSku) = Bin.operation('extrnal')
 ;
 
 DESIGN receiving {
@@ -484,12 +489,28 @@ DESIGN receiving {
         }    
         NEW placement {
             caption = 'Размещение';
-            MOVE BOX(s);
+            NEW tabPlacement {
+                tabbed = TRUE;
+                fill = 1;
+                NEW newPlacement {
+                    caption = 'Размещение';
+                    MOVE BOX(s);
+                }
+                NEW oldPlacement {
+                    caption = 'Размещенные';
+                    MOVE BOX(placeSku);
+                }
+            }
         }
         
         MOVE BOX(reserve) {
             caption = 'Брак/резерв';
         }
+
+        MOVE BOX(placeSku) {
+            caption = 'Размещенные';
+        }
+        
     }    
     MOVE TOOLBARBOX;
 }
