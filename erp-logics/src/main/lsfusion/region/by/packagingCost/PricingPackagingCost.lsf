@@ -1,0 +1,37 @@
+MODULE PricingPackagingCost;
+
+REQUIRE Pricing, PriceListPackagingCost, PricingSum, PriceLimit;
+
+NAMESPACE Pricing;
+
+retailPricingPriceListLedgerType() += SystemLedgerPriceListType.retailPricingPriceListType;
+
+@packagingCost(pricingDetail,,);
+
+useRetailExtraPackagingCost = ABSTRACT BOOLEAN (PricingDetail);
+useRetailExtraPackagingCost = DATA BOOLEAN (UserPricingDetail);
+useRetailExtraPackagingCost(UserPricingDetail d) += useRetailExtraPackagingCost(d);
+
+retailExtraPackagingCost(UserPricingDetail d) += WHEN useRetailExtraPackagingCost(d) THEN packagingPrice(d);
+
+useRetailExtraPackagingCost(UserPricingDetail d) <- markup(priceLimitPriceListType(departmentStore(d)), sku(d))
+    WHEN CHANGED(departmentStore(d)) OR CHANGED(operation(d)) OR CHANGED(sku(d));
+    
+    
+
+packagingSum 'Сумма (доставка и упаковка)' = ABSTRACT NUMERIC[18,4] (PricingDetail) CHARWIDTH 8;
+packagingSum 'Сумма (доставка и упаковка)' = DATA NUMERIC[18,4] (UserPricingDetail) CHARWIDTH 8;
+packagingSum (UserPricingDetail d) += packagingSum(d);
+
+@deriveDocumentDetailSumPrefix(userPricing, packaging, currency, quantity);
+
+retailMarkupSum(UserPricingDetail d) <- (retailSum(d) (-) retailVATSum (d) (-) sum(d) (-) (packagingSum(d) IF useRetailExtraPackagingCost(d))) 
+    WHEN CHANGED(retailSum(d)) OR CHANGED (retailVATSum (d)) OR CHANGED (sum(d))  OR CHANGED (packagingSum(d)) OR CHANGED(useRetailExtraPackagingCost(d));
+
+EXTEND FORM userPricing
+    PROPERTIES (d)  AFTER price(d)  packagePrice1, packagePrice2, packagingPrice, packagingSum
+;
+
+EXTEND FORM pricings
+    PROPERTIES (d)  READONLY AFTER price(d) packagePrice1, packagePrice2, packagingPrice, packagingSum
+;

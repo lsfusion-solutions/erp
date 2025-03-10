@@ -1,0 +1,25 @@
+MODULE PricingSumPurchasePackagingCost;
+
+REQUIRE  PricingSumPurchase, PricingPackagingCost, PricingPurchasePackagingCost;
+
+
+NAMESPACE Purchase;
+
+packagingSum 'Сумма (доставка и упаковка)' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 8;
+packagingSum 'Сумма (доставка и упаковка)' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 8;
+packagingSum (UserInvoiceDetail invoiceDetail) += packagingSum(invoiceDetail);
+
+@deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, packaging, currency, pricingQuantity, homePriceRound);
+
+retailMarkupSum(UserInvoiceDetail d) <- retailSum(d) (-) retailVATSum (d) (-) pricingSum(d) (-) (packagingSum(d) IF useRetailExtraPackagingCost(d))
+    WHEN CHANGED(retailSum(d)) OR CHANGED (retailVATSum (d)) OR CHANGED (pricingSum(d))  OR CHANGED (packagingSum(d) OR CHANGED(useRetailExtraPackagingCost(d)));
+
+EXTEND FORM userInvoice
+    PROPERTIES (pd)  SHOWIF createPricing[Invoice](i) BEFORE retailMarkupSum(pd) packagePrice1, packagePrice2, packagingPrice READONLY , packagingSum 
+;
+
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY AFTER packagingPrice(d) packagingSum
+;
+
+packagingSum(InvoicePricingDetail detail) += packagingSum(invoiceDetail(detail));

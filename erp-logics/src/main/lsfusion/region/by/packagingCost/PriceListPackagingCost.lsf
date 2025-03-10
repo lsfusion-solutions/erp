@@ -1,0 +1,35 @@
+MODULE PriceListPackagingCost;
+
+REQUIRE PriceListLedger;
+
+NAMESPACE PriceList;
+
+
+META packagingCost(detail, prefix, caption)
+    prefix###packagePrice1 'Расходы по доставке за единицу товара'###caption = ABSTRACT NUMERIC[16,4] (###detail);
+    prefix###packagePrice1 'Расходы по доставке за единицу товара'###caption = DATA NUMERIC[16,4] (User###detail);
+    prefix###packagePrice1(User###detail detail) += prefix###packagePrice1(detail);
+
+    prefix###packagePrice2 'Расходы на упаковку на 1 кг товара'###caption = ABSTRACT NUMERIC[16,4] (###detail);
+    prefix###packagePrice2 'Расходы на упаковку на 1 кг товара'###caption= DATA NUMERIC[16,4] (User###detail);
+    prefix###packagePrice2(User###detail detail) += prefix###packagePrice2(detail);
+
+    prefix###packagingPrice 'Итого доставка и упаковка'###caption (User###detail detail) = prefix###packagePrice1(detail) (+) prefix###packagePrice2(detail);
+    prefix###packagingPrice 'Итого доставка и упаковка'###caption (###detail detail) = prefix###packagePrice1(detail) (+) prefix###packagePrice2(detail);
+END 
+
+packagePrice1 = ABSTRACT MULTI NUMERIC[16,4] (PriceListLedger);
+packagePrice2 = ABSTRACT MULTI NUMERIC[16,4] (PriceListLedger);
+
+prevPackagePrice1 (PriceListLedger l) = PREV(packagePrice1(l));
+prevPackagePrice2 (PriceListLedger l) = PREV(packagePrice2(l));
+
+retailPricingPriceListLedgerType = ABSTRACT SystemLedgerPriceListType();
+retailPricingPriceListLedgerB(Sku sku, Stock st, DATETIME dt) = prevActivePriceListLedgerB(retailPricingPriceListLedgerType(),  sku, st, dt);
+retailPricingPriceListLedgerA(Sku sku, Stock st, DATETIME dt) = prevActivePriceListLedgerA(retailPricingPriceListLedgerType(),  sku, st, dt);
+
+prevActivePriceListLedgerB (LedgerPriceListType type, Batch sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerB(type, sku, stock, dateTime));
+prevActivePriceListLedgerA (LedgerPriceListType type, Batch sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerA(type, sku, stock, dateTime));
+
+retailPricingPriceListLedgerB(Batch sku, Stock st, DATETIME dt) = prevActivePriceListLedgerB(retailPricingPriceListLedgerType(),  sku, st, dt);
+retailPricingPriceListLedgerA(Batch sku, Stock st, DATETIME dt) = prevActivePriceListLedgerA(retailPricingPriceListLedgerType(),  sku, st, dt);

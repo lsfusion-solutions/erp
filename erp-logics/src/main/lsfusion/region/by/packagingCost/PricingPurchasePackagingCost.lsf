@@ -1,0 +1,64 @@
+MODULE PricingPurchasePackagingCost;
+
+REQUIRE PricingPurchase, PricingPackagingCost, PurchaseInvoice, PriceListPackagingCost, PriceLimit;
+
+PRIORITY Purchase;
+
+NAMESPACE Pricing;
+
+// -- Операция
+showPackagingCost 'Расходы по доставке и упаковке' = DATA BOOLEAN (Purchase.Operation) PREREAD;
+
+WHEN DROPPED(createPricing(Purchase.Operation o)) AND o IS Purchase.Operation DO {
+    showPackagingCost(o) <- NULL;
+}
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) showPackagingCost SHOWIF createPricing(o)
+;
+DESIGN Purchase.operation {
+    priceContainer {
+        MOVE PROPERTY(showPackagingCost(o));
+    }
+}
+//накладная
+
+@defineDocumentInterfaceProperty (invoice, showPackagingCost, 'Расходы по доставке и упаковке');
+
+// -- Операция
+@deriveDocumentOperationProperty(UserInvoice, showPackagingCost);
+@packagingCost(invoiceDetail,,) ;
+
+
+EXTEND FORM userInvoice
+    PROPERTIES (d)  AFTER invoiceSum(d) SHOWIF (showPackagingCost(i)) packagePrice1, packagePrice2, packagingPrice READONLY 
+    //PROPERTIES (pd)  BEFORE retailMarkupSum(pd) SHOWIF (showPackagingCost(i)) packagePrice1, packagePrice2, packagingPrice
+;
+
+EXTEND FORM invoices
+    PROPERTIES (d)  READONLY AFTER invoiceSum(d) packagePrice1, packagePrice2, packagingPrice READONLY
+;
+
+
+packagePrice1(InvoicePricingDetail detail) += packagePrice1(invoiceDetail(detail));
+packagePrice2(InvoicePricingDetail detail) += packagePrice2(invoiceDetail(detail));
+
+
+packagePrice1[PriceListLedger](PricingDetail ledger) += packagePrice1(ledger) IF ledger IS PricingDetail;
+packagePrice2[PriceListLedger](PricingDetail ledger) += packagePrice2(ledger) IF ledger IS PricingDetail;
+
+
+useRetailExtraPackagingCost  = ABSTRACT BOOLEAN (InvoiceDetail);
+useRetailExtraPackagingCost = DATA BOOLEAN (UserInvoiceDetail);
+useRetailExtraPackagingCost(UserInvoiceDetail d) += useRetailExtraPackagingCost(d);
+
+retailExtraPackagingCost(UserInvoiceDetail d) +=  WHEN useRetailExtraPackagingCost(d) THEN packagingPrice(d);
+
+useRetailExtraPackagingCost(UserInvoiceDetail d) <- markup(priceLimitPriceListType(customerStock(d)), sku(d)) AND showPackagingCost(d)
+        WHEN CHANGED(customerStock(d)) OR CHANGED(operation(d)) OR CHANGED(sku(d));
+
+useRetailExtraPackagingCost(InvoicePricingDetail d) += useRetailExtraPackagingCost(invoiceDetail(d));
+EXTEND FORM userInvoice
+    PROPERTIES (d) useRetailExtraPackagingCost
+    PROPERTIES (pd) useRetailExtraPackagingCost
+;
