@@ -1,6 +1,6 @@
 MODULE WMSIntegrationCustom;
 
-REQUIRE WMSIntegration, SaleOrder, PurchaseInvoice, SaleInvoice, PurchaseReturnInvoice, SaleReturnInvoice;
+REQUIRE WMSIntegration, SaleOrder, PurchaseInvoice, SaleInvoice, PurchaseReturnInvoice, SaleReturnInvoice, WriteOff;
 
 NAMESPACE Integration;
 
@@ -97,4 +97,26 @@ DESIGN Purchase.invoices {
 maxPurchaseOrder(Purchase.UserInvoice invoice) = GROUP MAX Purchase.Order order IF include(order, invoice);
 
 /////////////////////////// PurchaseReturn.Invoice
-statusWMS 'WMS статус' = ABSTRACT STRING (PurchaseReturn.Invoice); 
+statusWMS 'WMS статус' = ABSTRACT STRING (PurchaseReturn.Invoice);
+
+////////////////////////  WriteOff
+exportWMS 'Выгрузить файл заказа' ABSTRACT LIST (WriteOff);
+exportedWMS 'Выгружен в WMS' = DATA BOOLEAN (WriteOff);
+skipShowExportWMS = ABSTRACT BOOLEAN (WriteOff);
+showExportWMS(WriteOff o) = o IS WriteOff AND NOT skipShowExportWMS(o);
+statusWMS 'WMS статус' = ABSTRACT STRING (WriteOff);
+
+EXTEND FORM writeOffs
+    PROPERTIES(w) exportWMS SHOWIF showExportWMS(w)
+;
+
+DESIGN writeOffs {
+    actionContainer {
+        NEW exportContainer {
+            caption = 'Экспорт в WMS';
+            MOVE PROPERTY (exportWMS(w));
+        }
+    }
+}
+
+isReplyWMS 'Получен файл WMS' = DATA BOOLEAN (WriteOff);
