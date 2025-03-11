@@ -1,6 +1,6 @@
 MODULE PickingTextile;
 
-REQUIRE PickingOperation, BinPacketLedger, Packeting, OrderPickingOrder, PickingOrderTextile, SaleOrder;
+REQUIRE PickingOperation, BinPacketLedger, Packeting, OrderPickingOrder, PickingOrderTextile, SaleOrder, SalePickingOrderOperation;
 
 PRIORITY Sale;
 
@@ -263,3 +263,109 @@ CONSTRAINT UserPickingPacketDetail d IS UserPickingPacketDetail AND NOT packet(d
 
 CONSTRAINT (SET(isPosted(UserPickingPacketDetail d)) OR CHANGED(bin(d))) AND isPosted(d) AND NOT bin(d)
     MESSAGE 'В строке комплектации с пакетами должна быть указана ячейка';
+
+CONSTRAINT SETCHANGED(stock(UserPicking p)) AND NOT (isCompany(stock(p)) AND stock(p) IS Warehouse)
+    CHECKED BY stock[UserPicking]
+    MESSAGE 'Склад в комплектации должен быть собственным складом';
+
+@defineOperationProperty(createSaleOrder, 'Создание заказа (продажа) на основании комплектации', paramsContainer);
+
+createPickingSaleOrderOperation 'Операция заказа' = DATA LOCAL Sale.Operation ();
+nameCreatePickingSaleOrderOperation 'Операция заказа' = name(createPickingSaleOrderOperation());
+
+overCreateSaleOrderDialogFilter = ABSTRACT BOOLEAN (LegalEntity);
+
+FORM dialogCreateSaleOrder 'Параметры заказа на основании комплектации'
+    OBJECTS l = LegalEntity PANEL
+    OBJECTS st = Stock PANEL
+    OBJECTS pst = Stock PANEL
+    
+    PROPERTIES nameCreatePickingSaleOrderOperation()
+    FILTERS inSupplier(pst, createPickingSaleOrderOperation())
+    
+    PROPERTIES name(l) SELECTOR, name(st) SELECTOR
+    FILTERS l = legalEntity(st), active(st)
+    FILTERS ((inCustomer(l, createPickingSaleOrderOperation()) AND inCustomer(st, createPickingSaleOrderOperation()))
+        OR NOT createPickingSaleOrderOperation()) OR overCreateSaleOrderDialogFilter(l)
+;
+
+DESIGN dialogCreateSaleOrder {
+    NEW headerLine {
+        caption = 'Параметры заказа';
+        horizontal = TRUE;
+        MOVE PROPERTY(nameCreatePickingSaleOrderOperation()) { alignment = STRETCH; }
+    }
+    NEW customerLine {
+        caption = 'Выбор покупателя';
+        horizontal = TRUE;
+        alignment = STRETCH;
+        MOVE PROPERTY (name(l)) { caption = 'Покупатель'; alignment = STRETCH; charWidth = 30; }
+        MOVE PROPERTY (name(st)) { caption = 'Склад покупателя'; alignment = STRETCH; charWidth = 30; }
+    }
+    MOVE TOOLBARBOX;
+}
+
+overCreatePickingSaleOrderOperation = ABSTRACT Sale.Operation (Stock);
+afterCreateSaleOrder ABSTRACT LIST (UserPicking);
+
+createSaleOrder 'Создать заказ (продажа)' (UserPicking picking) {
+    DIALOG dialogCreateSaleOrder OBJECTS l = legalEntityStock(picking), pst = stock(picking), st INPUT DO {
+        NEW order = UserOrder {
+            operation(order) <- OVERRIDE overCreatePickingSaleOrderOperation(st), createPickingSaleOrderOperation();
+            date(order) <- currentDate();
+            time(order) <- currentTime();
+            supplier(order) <- legalEntityStock(picking);
+            supplierStock(order) <- stock(picking);
+            customer(order) <- legalEntity(st);
+            customerStock(order) <- st;
+            createPickingOrder(order) <- TRUE;
+            pickingOperation(order) <- operation(picking);
+            isPosted(order) <- TRUE;
+
+            FOR NUMERIC[16,5] q = [GROUP SUM quantity(UserPickingDetail d) BY sku(d), userPicking(d)](Sku sku, picking) NEW orderDetail = UserOrderDetail DO {
+                userOrder(orderDetail) <- order;
+                sku(orderDetail) <- sku;
+                quantity(orderDetail) <- q;
+            }
+
+            afterCreateSaleOrder(picking);
+            
+            executeLocalEvents('Sale.userOrder');
+            APPLY;
+
+            IF NOT canceled() THEN {
+                pickingOrder(picking) <- GROUP MAX PickingOrder po IF order(po) == order;
+                MESSAGE 'Создан заказ(продажа) №' + number(order) NOWAIT;
+                APPLY;
+            }
+            ELSE {
+                MESSAGE 'Заказ (продажа) не создан' NOWAIT;
+                DELETE UserOrderDetail detail WHERE detail IS UserOrderDetail AND userOrder(detail) == order;
+                DELETE order WHERE order IS UserOrder;
+            }
+        }
+    }
+    formRefresh();
+}
+
+EXTEND FORM userPicking
+    PROPERTIES(o) SHOWIF (createSaleOrder(operation(o)) AND NOT orderDocument(o)) createSaleOrder
+;
+
+DESIGN userPicking {
+    headerRow1 {
+        NEW packets {
+            caption = 'Пакеты';
+            horizontal = TRUE;
+        }
+        NEW functions {
+            horizontal = TRUE;
+            NEW documents {
+                horizontal = TRUE;
+                caption = 'Действия';
+                MOVE PROPERTY(createSaleOrder(o));
+            }
+        }
+    }
+}
+
