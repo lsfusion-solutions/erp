@@ -309,6 +309,10 @@ overCreatePickingSaleOrderOperation = ABSTRACT Sale.Operation (Stock);
 afterCreateSaleOrder ABSTRACT LIST (UserPicking);
 
 createSaleOrder 'Создать заказ (продажа)' (UserPicking picking) {
+    IF NOT stock(picking) THEN {
+        MESSAGE 'Необходимо указать склад в шапке документа';
+        RETURN;
+    }
     DIALOG dialogCreateSaleOrder OBJECTS l = legalEntityStock(picking), pst = stock(picking), st INPUT DO {
         NEW order = UserOrder {
             operation(order) <- OVERRIDE overCreatePickingSaleOrderOperation(st), createPickingSaleOrderOperation();
