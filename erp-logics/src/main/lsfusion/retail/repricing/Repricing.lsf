@@ -287,7 +287,12 @@ negativeMarkupOnAccount90 'Относить отрицательную надб�
 @defineDocumentInterfaceDetailMarkupSumPrefix (repricing, , ' после');
 @defineDocumentInterfaceDetailVATDataSumPrefix (repricing, , ' после');
 @defineDocumentInterfaceDetailDataSumPrefix (repricing, retail, ' розничная после');
+//отрицательная надбавка
+markupSumNegative 'Надбавка после' (RepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max(markupSum(d),0.0) ELSE markupSum(d);
+curMarkupSumNegative 'Надбавка до' (RepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max(curMarkupSum(d),0.0) ELSE curMarkupSum(d);
 
+sumNegative 'Сумма поставщика после' (RepricingDetail d) = sum(d) (+) (markupSum(d) IF negativeMarkupOnAccount90(d) AND markupSum(d) < 0.0);
+curSumNegative 'Сумма поставщика до' (RepricingDetail d) = curSum(d) (+) (curMarkupSum(d) IF negativeMarkupOnAccount90(d) AND curMarkupSum(d) < 0.0);
 // -- Разница
 
 diffMarkupSum 'Сумма изменения надбавки' (RepricingDetail d) =  (IF negativeMarkupOnAccount90(d) THEN max(markupSum(d),0.0) ELSE markupSum(d)) (-) 
@@ -341,6 +346,11 @@ retailOverSum(UserRepricingDetail d) = retailSum(d) (-) extraRetailSum(d);
 @defineDocumentInterfaceHeaderSumPrefix (repricing, markup, ' надбавки после');
 @defineDocumentInterfaceHeaderSumPrefix (repricing, VAT, ' НДС после');
 @defineDocumentInterfaceHeaderSumPrefix (repricing, retail, ' розничная после');
+//отрицательные надбавки
+sumNegativeRepricingDetail 'Сумма поставщика до' (repricing) = GROUP SUM sumNegative(RepricingDetail idetail) BY repricing(idetail) IN documentSum;
+markupSumNegativeRepricingDetail 'Сумма надбавки до' (repricing) = GROUP SUM markupSumNegative(RepricingDetail idetail) BY repricing(idetail) IN documentSum;
+curSumNegativeRepricingDetail 'Сумма поставщика до' (repricing) = GROUP SUM curSumNegative(RepricingDetail idetail) BY repricing(idetail) IN documentSum;
+curMarkupSumNegativeRepricingDetail 'Сумма надбавки до' (repricing) = GROUP SUM curMarkupSumNegative(RepricingDetail idetail) BY repricing(idetail) IN documentSum;
 
 // -- Разница
 diffSumRepricingDetail 'Сумма изменения поставщика' (repricing) = GROUP SUM diffSum(RepricingDetail idetail) BY repricing(idetail) IN documentSum MATERIALIZED;
@@ -573,6 +583,7 @@ FORM repricing 'Акт переоценки (печать)'
                retailSumRepricingDetail,
                diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
                diffRetailSumRepricingDetail,
+               curSumNegativeRepricingDetail, curMarkupSumNegativeRepricingDetail, sumNegativeRepricingDetail, markupSumNegativeRepricingDetail,
                note, numberDisposal, repricingCommittee, nameRepricingCommittee,
                nameChairman, shortNameChairman, namePositionChairman, nameEmployeeCommittee,
                shortNameEmployeeCommittee
@@ -580,16 +591,10 @@ FORM repricing 'Акт переоценки (печать)'
 
     OBJECTS d = RepricingDetail SUBREPORT reportFileDetail(p)
     PROPERTIES (d)  index, idBarcodeSku, nameSku, nameBatch, shortNameUOMSku, quantity,
-               curPrice, curSum,
-               curMarkup, curMarkupSum,
-               numberCurVAT, valueCurVAT, curVATSum,
-               curRetailPrice, curRetailSum,
-               price, sum,
-               markup, markupSum,
-               numberVAT, valueVAT, VATSum,
-               retailPrice, retailSum,
-               diffSum, diffMarkupSum, diffVATSum,
-               diffRetailSum
+               curPrice, curSum, curMarkup, curMarkupSum, numberCurVAT, valueCurVAT, curVATSum, curRetailPrice, curRetailSum,
+               price, sum, markup, markupSum, numberVAT, valueVAT, VATSum, retailPrice, retailSum,
+               diffSum, diffMarkupSum, diffVATSum, diffRetailSum,
+               curSumNegative, curMarkupSumNegative, sumNegative, markupSumNegative
     
     OBJECTS e=Employee
     PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
