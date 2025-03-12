@@ -281,7 +281,6 @@ FORM dialogCreateSaleOrder 'Параметры заказа на основан�
     OBJECTS pst = Stock PANEL
     
     PROPERTIES nameCreatePickingSaleOrderOperation()
-    FILTERS inSupplier(pst, createPickingSaleOrderOperation())
     
     PROPERTIES name(l) SELECTOR, name(st) SELECTOR
     FILTERS l = legalEntity(st), active(st)
@@ -293,6 +292,7 @@ DESIGN dialogCreateSaleOrder {
     NEW headerLine {
         caption = 'Параметры заказа';
         horizontal = TRUE;
+        alignment = STRETCH;
         MOVE PROPERTY(nameCreatePickingSaleOrderOperation()) { alignment = STRETCH; }
     }
     NEW customerLine {
@@ -306,7 +306,8 @@ DESIGN dialogCreateSaleOrder {
 }
 
 overCreatePickingSaleOrderOperation = ABSTRACT Sale.Operation (Stock);
-afterCreateSaleOrder ABSTRACT LIST (UserPicking);
+skipCreateUserOrderDetail = ABSTRACT BOOLEAN (UserPicking);
+afterCreateSaleOrder ABSTRACT LIST (UserPicking, UserOrder);
 
 createSaleOrder 'Создать заказ (продажа)' (UserPicking picking) {
     IF NOT stock(picking) THEN {
@@ -326,13 +327,15 @@ createSaleOrder 'Создать заказ (продажа)' (UserPicking pickin
             pickingOperation(order) <- operation(picking);
             isPosted(order) <- TRUE;
 
-            FOR NUMERIC[16,5] q = [GROUP SUM quantity(UserPickingDetail d) BY sku(d), userPicking(d)](Sku sku, picking) NEW orderDetail = UserOrderDetail DO {
-                userOrder(orderDetail) <- order;
-                sku(orderDetail) <- sku;
-                quantity(orderDetail) <- q;
+            IF NOT skipCreateUserOrderDetail(picking) THEN {
+                FOR NUMERIC[16,5] q = [GROUP SUM quantity(UserPickingDetail d) BY sku(d), userPicking(d)](Sku sku, picking) NEW orderDetail = UserOrderDetail DO {
+                    userOrder(orderDetail) <- order;
+                    sku(orderDetail) <- sku;
+                    quantity(orderDetail) <- q;
+                }
             }
 
-            afterCreateSaleOrder(picking);
+            afterCreateSaleOrder(picking, order);
             
             executeLocalEvents('Sale.userOrder');
             APPLY;
