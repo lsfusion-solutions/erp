@@ -274,18 +274,20 @@ createPickingSaleOrderOperation 'Операция заказа' = DATA LOCAL Sal
 nameCreatePickingSaleOrderOperation 'Операция заказа' = name(createPickingSaleOrderOperation());
 
 overCreateSaleOrderDialogFilter = ABSTRACT BOOLEAN (LegalEntity);
+overCreateSaleOrderDialogFilter = ABSTRACT BOOLEAN (Stock);
 
 FORM dialogCreateSaleOrder 'Параметры заказа на основании комплектации'
     OBJECTS l = LegalEntity PANEL
     OBJECTS st = Stock PANEL
-    OBJECTS pst = Stock PANEL
     
     PROPERTIES nameCreatePickingSaleOrderOperation()
     
     PROPERTIES name(l) SELECTOR, name(st) SELECTOR
     FILTERS l = legalEntity(st), active(st)
-    FILTERS ((inCustomer(l, createPickingSaleOrderOperation()) AND inCustomer(st, createPickingSaleOrderOperation()))
-        OR NOT createPickingSaleOrderOperation()) OR overCreateSaleOrderDialogFilter(l)
+    FILTERS (inCustomer(l, createPickingSaleOrderOperation()) OR NOT createPickingSaleOrderOperation())
+            OR overCreateSaleOrderDialogFilter(l),
+        (inCustomer(st, createPickingSaleOrderOperation()) OR NOT createPickingSaleOrderOperation())
+            OR overCreateSaleOrderDialogFilter(l)
 ;
 
 DESIGN dialogCreateSaleOrder {
@@ -314,7 +316,7 @@ createSaleOrder 'Создать заказ (продажа)' (UserPicking pickin
         MESSAGE 'Необходимо указать склад в шапке документа';
         RETURN;
     }
-    DIALOG dialogCreateSaleOrder OBJECTS l = legalEntityStock(picking), pst = stock(picking), st INPUT DO {
+    DIALOG dialogCreateSaleOrder OBJECTS l = legalEntityStock(picking), st INPUT DO {
         NEW order = UserOrder {
             operation(order) <- OVERRIDE overCreatePickingSaleOrderOperation(st), createPickingSaleOrderOperation();
             date(order) <- currentDate();
