@@ -586,6 +586,8 @@ vtiekstInf = DATA LOCAL STRING(INTEGER);
 vnomierSchF = DATA LOCAL STRING();
 vdataSchF = DATA LOCAL STRING();
 vkodOKV = DATA LOCAL STRING();
+vnomierDoc = DATA LOCAL STRING();
+vdataDoc = DATA LOCAL STRING();
 vsumAktsiz = DATA LOCAL STRING(INTEGER);
 vbiezAktsiz = DATA LOCAL STRING(INTEGER);
 vsumNal1 = DATA LOCAL STRING(INTEGER);
@@ -666,6 +668,7 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES() IN vsvOEDOtpr vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
     PROPERTIES() IN vdokumient vKND EXTID 'КНД' ATTR, vfunktsiia EXTID 'Функция' ATTR, vpoFaktKhZh EXTID 'ПоФактХЖ' ATTR, vnaimDokOpr EXTID 'НаимДокОпр' ATTR, vdataInfPr EXTID 'ДатаИнфПр' ATTR, vvriemInfPr EXTID 'ВремИнфПр' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR
     PROPERTIES() IN vsvSchFakt vnomierSchF EXTID 'НомерСчФ' ATTR, vdataSchF EXTID 'ДатаСчФ' ATTR, vkodOKV EXTID 'КодОКВ' ATTR
+    PROPERTIES() IN vsvSchFakt vnomierDoc EXTID 'НомерДок' ATTR, vdataDoc EXTID 'ДатаДок' ATTR
     PROPERTIES() IN visprSchF vdiefNomIsprSchF EXTID 'ДефНомИспрСчФ' ATTR, vdiefDataIsprSchF EXTID 'ДефДатаИспрСчФ' ATTR
     PROPERTIES() IN vsvProd vOKPO EXTID 'ОКПО' ATTR
     PROPERTIES() IN vsvIP vINNFL EXTID 'ИННФЛ' ATTR
@@ -744,6 +747,8 @@ createDocument(Document d) + {
         IMPORT importUPD FROM data(entity(d));
 
         NEW upd = UpdDocument {
+            LOCAL is503 = BOOLEAN ();
+            is503() <- TRUE IF vviersForm()= '5.03';
             uuid(upd) <- ISTRING[36](getWord(vidFail(), '_', wordCount(vidFail(), '_')));
             idConsignor(upd) <- STRING[46](vidOtpr());
             idConsignee(upd) <- STRING[46](vidPol());
@@ -756,8 +761,8 @@ createDocument(Document d) + {
             dateSupplier(upd) <- DATE(toDateFormat(vdataInfPr(), 'DD.MM.YYYY'));
             timeSupplier(upd) <- TIME(toDateTimeFormat(vvriemInfPr(), 'HH24.MI.SS'));
             nameOriginatorSupplier(upd) <- STRING[1000](vnaimEkonSubSost());
-            numberInvoice(upd) <- STRING[1000](vnomierSchF());
-            dateInvoice(upd) <- DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
+            numberInvoice(upd) <- IF is503() THEN STRING[1000](vnomierDoc()) ELSE STRING[1000](vnomierSchF());
+            dateInvoice(upd) <- IF is503() THEN DATE(toDateFormat(vdataDoc(), 'DD.MM.YYYY')) ELSE DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
             codeCurrency(upd) <- STRING[3](vkodOKV());
             supplier(upd) <- OVERRIDE legalEntityInn(vINNFL()), legalEntityInn(vINNIuL1());
             okpoSupplier(upd) <- STRING[10](vOKPO());
