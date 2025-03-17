@@ -24,7 +24,7 @@ codeGroup 'Код группы' (LotType g) = CASE
 //    WHEN g == LotType.ukz THEN 'ukz'
 ;
 
-dataUKZ = DATA BOOLEAN (SkuGroup);
+dataUKZ = DATA TBOOLEAN (SkuGroup);
 nearestUKZ (SkuGroup child) = GROUP LAST dataUKZ(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataUKZ(parent);
 
 UKZ 'Маркировка УКЗ' (SkuGroup skuGroup) = OVERRIDE dataUKZ(skuGroup), nearestUKZ(skuGroup) MATERIALIZED IN paramsItemGroup;
@@ -32,9 +32,9 @@ UKZ 'Маркировка УКЗ' (SkuGroup skuGroup) = OVERRIDE dataUKZ(skuGrou
 EXTEND FORM itemGroup PROPERTIES(g) AFTER nameParent(g) UKZ;
 EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() UKZ BACKGROUND RGB(190,190,190) IF dataLotType(g);
 
-dataUKZ  'Маркировка УКЗ' = DATA BOOLEAN (Sku);
+dataUKZ  'Маркировка УКЗ' = DATA TBOOLEAN (Sku);
 
-overUKZ = ABSTRACT VALUE BOOLEAN (Sku);
+overUKZ = ABSTRACT VALUE TBOOLEAN (Sku);
 overUKZ(Sku sku) += UKZ(skuGroup(sku));
 
 UKZ 'Маркировка УКЗ' (Sku s) = OVERRIDE dataUKZ(s), overUKZ(s) MATERIALIZED IN itemBase;
