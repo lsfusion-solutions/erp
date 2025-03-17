@@ -180,6 +180,7 @@ vnomSriedIdientTovVnomUpak = DATA LOCAL INTEGER(INTEGER);
 vnomSriedIdientTovVidentTransUpak = DATA LOCAL INTEGER(INTEGER);
 videntTransUpak = DATA LOCAL STRING(INTEGER);
 videntTransUpak2 = DATA LOCAL STRING(INTEGER);
+vkolVedMark = DATA LOCAL INTEGER(INTEGER);
 vKIZ = DATA LOCAL STRING(INTEGER);
 vKIZ2 = DATA LOCAL STRING(INTEGER);
 vnomUpak = DATA LOCAL STRING(INTEGER);
@@ -192,6 +193,7 @@ vnaimIedIzm = DATA LOCAL STRING(INTEGER);
 vnaimIedIzm503 = DATA LOCAL STRING(INTEGER);
 vkrNaimStrPr = DATA LOCAL STRING(INTEGER);
 vkodTov = DATA LOCAL STRING(INTEGER);
+vGTIN = DATA LOCAL STRING(INTEGER);
 vsviedTovVinfPolFKhZh2 = DATA LOCAL INTEGER(INTEGER);
 vinfPolFKhZh2 = DATA LOCAL STRING(INTEGER);
 vnomStr = DATA LOCAL STRING(INTEGER);
@@ -307,7 +309,7 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES(vsviedTov) IN vsumNal vsumNal1 EXTID 'СумНал'
     PROPERTIES(vsviedTov) IN vsvTD vkodProish EXTID 'КодПроисх' ATTR, vnomerTD EXTID 'НомерТД' ATTR
     PROPERTIES(vsviedTov) IN vsvTD503 vkodProish503 EXTID 'КодПроисх' ATTR, vnomerTD503 EXTID 'НомерТД' ATTR
-    PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR
+    PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR, vGTIN EXTID 'ГТИН'
     
     OBJECTS vnomSriedIdientTov = INTEGER EXTID 'НомСредИдентТов' IN vdopSviedTov
     PROPERTIES(vnomSriedIdientTov) videntTransUpak2 EXTID 'ИдентТрансУпак' ATTR, vKIZ2 EXTID 'КИЗ', vnomUpak2 EXTID 'НомУпак'
@@ -323,7 +325,7 @@ FORM importUPD FORMEXTID 'Файл'
     FILTERS vnomSriedIdientTovVnomUpak(vnomUpak) == vsviedTov
 
     OBJECTS videntTransUpak = INTEGER EXTID 'ИдентТрансУпак' IN vnomSriedIdientTov
-    PROPERTIES(videntTransUpak) videntTransUpak EXTID 'value'
+    PROPERTIES(videntTransUpak) videntTransUpak EXTID 'value', vkolVedMark EXTID 'КолВедМарк'
     FILTERS vnomSriedIdientTovVidentTransUpak(videntTransUpak) == vsviedTov
 
     OBJECTS vinfPolFKhZh2 = INTEGER EXTID 'ИнфПолФХЖ2'
@@ -435,11 +437,13 @@ importUpdDocument 'Импорт УПД (xml) ' () {
                 nameUOM(dd) <- IF is503() THEN STRING[255](vnaimIedIzm503(i)) ELSE STRING[255](vnaimIedIzm(i));
                 nameCountry(dd) <- STRING[255](vkrNaimStrPr(i));
                 idSku(dd) <- STRING[100](vkodTov(i));
+                GTIN(dd) <- STRING[14](vGTIN(i));
                 
                 IF (GROUP SUM 1 IF vnomSriedIdientTovVidentTransUpak(INTEGER j) == i AND videntTransUpak(j)) > (GROUP SUM 1 IF vsviedTovVnomSriedIdientTov(INTEGER j) == i AND videntTransUpak2(j)) THEN {
                     FOR vnomSriedIdientTovVidentTransUpak(INTEGER j) == i AND videntTransUpak(j) NEW ld = UpdTransportPackDetail DO {
                         updDocumentDetail(ld) <- dd;
                         id(ld) <- STRING[255](videntTransUpak(j));
+                        quantityMark(ld) <- INTEGER(vkolVedMark(j));
                     }
                 } ELSE {
                     FOR vsviedTovVnomSriedIdientTov(INTEGER j) == i AND videntTransUpak2(j) NEW ld = UpdTransportPackDetail DO {
