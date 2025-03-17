@@ -1018,7 +1018,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             String field = getSplittedPart(staticNameProperty, "\\.", -1);
             String staticCaptionProperty = trim((String) entry.get("staticCaption"));
 
-            String propertyImportTypeDetail = (String) entry.get("propertyImportUserPriceListTypeDetail");
+            String propertyImportTypeDetail = trim((String) entry.get("propertyImportUserPriceListTypeDetail"));
             LP<?> customProp = propertyImportTypeDetail == null ? null : (LP<?>) context.getBL().findSafeProperty(propertyImportTypeDetail);
             boolean isBoolean = customProp != null && customProp.property.getType() instanceof LogicalClass;
 
