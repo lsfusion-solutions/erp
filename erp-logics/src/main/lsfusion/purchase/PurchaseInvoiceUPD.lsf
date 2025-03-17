@@ -144,6 +144,8 @@ vtiekstInf = DATA LOCAL STRING(INTEGER);
 vnomierSchF = DATA LOCAL STRING();
 vdataSchF = DATA LOCAL STRING();
 vkodOKV = DATA LOCAL STRING();
+vnomierDoc = DATA LOCAL STRING();
+vdataDoc = DATA LOCAL STRING();
 vbiezAktsiz = DATA LOCAL STRING(INTEGER);
 vsumNal1 = DATA LOCAL STRING(INTEGER);
 vnomUpak = DATA LOCAL STRING(INTEGER);
@@ -199,6 +201,7 @@ PROPERTIES() IN vsvUchDokObor vsvOEDOtpr EXTID 'СвОЭДОтпр', vidOtpr EXT
 PROPERTIES() IN vsvOEDOtpr1 vnaimOrgh EXTID 'НаимОрг' ATTR, vINNIuL EXTID 'ИННЮЛ' ATTR, vidEDO EXTID 'ИдЭДО' ATTR
 PROPERTIES() IN vdokumient vKND EXTID 'КНД' ATTR, vfunktsiia EXTID 'Функция' ATTR, vpoFaktKhZh EXTID 'ПоФактХЖ' ATTR, vnaimDokOpr EXTID 'НаимДокОпр' ATTR, vdataInfPr EXTID 'ДатаИнфПр' ATTR, vvriemInfPr EXTID 'ВремИнфПр' ATTR, vnaimEkonSubSost EXTID 'НаимЭконСубСост' ATTR
 PROPERTIES() IN vsvSchFakt visprSchF EXTID 'ИспрСчФ', vnomierSchF EXTID 'НомерСчФ' ATTR, vdataSchF EXTID 'ДатаСчФ' ATTR, vkodOKV EXTID 'КодОКВ' ATTR
+PROPERTIES() IN vsvSchFakt vnomierDoc EXTID 'НомерДок' ATTR, vdataDoc EXTID 'ДатаДок' ATTR
 PROPERTIES() IN visprSchF1 vdiefNomIsprSchF EXTID 'ДефНомИспрСчФ' ATTR, vdiefDataIsprSchF EXTID 'ДефДатаИспрСчФ' ATTR
 PROPERTIES() IN vsvProd vOKPO EXTID 'ОКПО' ATTR
 PROPERTIES() IN vidSv vsvIuLUch EXTID 'СвЮЛУч'
@@ -266,9 +269,12 @@ purchaseImportOperationXML 'Импорт УПД' (Operation o) {
         READ importPathInvoice() + fileName(j) TO f;       
         IMPORT purchaseImportXML XML FROM f();                 
         
-        NEW i = UserInvoice {           
-            number(i) <- vnomierSchF();
-            date(i) <- DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
+        NEW i = UserInvoice {
+            LOCAL is503 = BOOLEAN ();
+            is503() <- TRUE IF vviersForm()= '5.03';
+            number(i) <- IF is503() THEN STRING[1000](vnomierDoc()) ELSE STRING[1000](vnomierSchF());
+            date(i) <- IF is503() THEN DATE(toDateFormat(vdataDoc(), 'DD.MM.YYYY')) ELSE DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
+
             isPosted(i) <- NULL;
             operation(i) <- o;                          
             FOR vkolTov(INTEGER ii) NEW d = UserInvoiceDetail DO {
