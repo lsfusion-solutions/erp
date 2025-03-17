@@ -42,6 +42,7 @@ GROUP vadries2 EXTID 'Адрес' : vghruzPoluch;
 GROUP vadrRF3 EXTID 'АдрРФ' : vadries2;
 GROUP vadrInf3 EXTID 'АдрИнф' : vadries2;
 GROUP vsvPokup EXTID 'СвПокуп' : vsvSchFakt;
+GROUP vDenIzm EXTID 'ДенИзм' : vsvSchFakt;
 GROUP vidSv3 EXTID 'ИдСв' : vsvPokup;
 GROUP vsvIP3 EXTID 'СвИП' : vidSv3;
 GROUP vFIO3 EXTID 'ФИО' : vsvIP3;
@@ -58,6 +59,7 @@ GROUP vaktsiz EXTID 'Акциз';
 GROUP vsumNal EXTID 'СумНал';
 GROUP vsviedTov EXTID 'СведТов';
 GROUP vsvTD EXTID 'СвТД';
+GROUP vsvTD503 EXTID 'СвДТ';
 GROUP vdopSviedTov EXTID 'ДопСведТов';
 GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
 GROUP vvsieghoOpl EXTID 'ВсегоОпл' : vtablSchFakt;
@@ -144,6 +146,7 @@ vkodStr3 = DATA LOCAL STRING();
 vadrTiekst3 = DATA LOCAL STRING();
 vonZhe = DATA LOCAL STRING();
 vOKPO2 = DATA LOCAL STRING();
+vCodeOKVD = DATA LOCAL STRING();
 vINNFL3 = DATA LOCAL STRING();
 vfamiliia3 = DATA LOCAL STRING();
 vimia3 = DATA LOCAL STRING();
@@ -183,7 +186,10 @@ vnomUpak = DATA LOCAL STRING(INTEGER);
 vnomUpak2 = DATA LOCAL STRING(INTEGER);
 vkodProish = DATA LOCAL STRING(INTEGER);
 vnomerTD = DATA LOCAL STRING(INTEGER);
+vkodProish503 = DATA LOCAL STRING(INTEGER);
+vnomerTD503 = DATA LOCAL STRING(INTEGER);
 vnaimIedIzm = DATA LOCAL STRING(INTEGER);
+vnaimIedIzm503 = DATA LOCAL STRING(INTEGER);
 vkrNaimStrPr = DATA LOCAL STRING(INTEGER);
 vkodTov = DATA LOCAL STRING(INTEGER);
 vsviedTovVinfPolFKhZh2 = DATA LOCAL INTEGER(INTEGER);
@@ -280,6 +286,7 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES() IN vadrRF3 vindieks2 EXTID 'Индекс' ATTR, vkodRieghion2 EXTID 'КодРегион' ATTR, vraion1 EXTID 'Район' ATTR, vghorod2 EXTID 'Город' ATTR, vulitsa2 EXTID 'Улица' ATTR, vdom2 EXTID 'Дом' ATTR
     PROPERTIES() IN vadrInf3 vkodStr3 EXTID 'КодСтр' ATTR, vadrTiekst3 EXTID 'АдрТекст' ATTR
     PROPERTIES() IN vsvPokup vOKPO2 EXTID 'ОКПО' ATTR
+    PROPERTIES() IN vDenIzm vCodeOKVD EXTID 'ДенИзм' ATTR
     PROPERTIES() IN vsvIP3 vINNFL3 EXTID 'ИННФЛ' ATTR
     PROPERTIES() IN vFIO3 vfamiliia3 EXTID 'Фамилия' ATTR, vimia3 EXTID 'Имя' ATTR, votchiestvo3 EXTID 'Отчество' ATTR
     PROPERTIES() IN vsvIuLUch7 vnaimOrgh4 EXTID 'НаимОрг' ATTR, vINNIuL4 EXTID 'ИННЮЛ' ATTR, vKPP4 EXTID 'КПП' ATTR
@@ -292,12 +299,14 @@ FORM importUPD FORMEXTID 'Файл'
     OBJECTS vtiekstInf = INTEGER EXTID 'ТекстИнф' IN vinfPolFKhZh1
     
     OBJECTS vsviedTov = INTEGER EXTID 'СведТов' IN vtablSchFakt
-    PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
+    PROPERTIES(vsviedTov) vnomStr EXTID 'НомСтр' ATTR, vnaimTov EXTID 'НаимТов' ATTR, vOKIeI_Tov EXTID 'ОКЕИ_Тов' ATTR, vnaimIedIzm503 EXTID 'НаимЕдИзм' ATTR,
+            vkolTov EXTID 'КолТов' ATTR, vtsienaTov EXTID 'ЦенаТов' ATTR, vstTovBiezNDS EXTID 'СтТовБезНДС' ATTR, vnalSt EXTID 'НалСт' ATTR, vstTovUchNal EXTID 'СтТовУчНал' ATTR
     FILTERS vkolTov(vsviedTov)
     PROPERTIES(vsviedTov) IN vaktsiz vsumAktsiz EXTID 'СумАкциз'
     PROPERTIES(vsviedTov) IN vaktsiz vbiezAktsiz EXTID 'БезАкциз'
     PROPERTIES(vsviedTov) IN vsumNal vsumNal1 EXTID 'СумНал'
     PROPERTIES(vsviedTov) IN vsvTD vkodProish EXTID 'КодПроисх' ATTR, vnomerTD EXTID 'НомерТД' ATTR
+    PROPERTIES(vsviedTov) IN vsvTD503 vkodProish503 EXTID 'КодПроисх' ATTR, vnomerTD503 EXTID 'НомерТД' ATTR
     PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR
     
     OBJECTS vnomSriedIdientTov = INTEGER EXTID 'НомСредИдентТов' IN vdopSviedTov
@@ -359,7 +368,7 @@ importUpdDocument 'Импорт УПД (xml) ' () {
             nameOriginatorSupplier(upd) <- STRING[1000](vnaimEkonSubSost());
             numberInvoice(upd) <- IF is503() THEN STRING[1000](vnomierDoc()) ELSE STRING[1000](vnomierSchF());
             dateInvoice(upd) <- IF is503() THEN DATE(toDateFormat(vdataDoc(), 'DD.MM.YYYY')) ELSE DATE(toDateFormat(vdataSchF(), 'DD.MM.YYYY'));
-            codeCurrency(upd) <- STRING[3](vkodOKV());
+            codeCurrency(upd) <- IF is503() THEN STRING[3](vCodeOKVD()) ELSE STRING[3](vkodOKV());
             supplier(upd) <- OVERRIDE legalEntityInn(vINNFL()), legalEntityInn(vINNIuL1());
             okpoSupplier(upd) <- STRING[10](vOKPO());
             innSupplierIE(upd) <- STRING[12](vINNFL());
@@ -421,9 +430,9 @@ importUpdDocument 'Импорт УПД (xml) ' () {
                 dutySum(dd) <- NUMERIC[19,2](vsumAktsiz(i));
                 withoutDuty(dd) <- TRUE IF vbiezAktsiz(i);
                 VATSum(dd) <- NUMERIC[19,2](vsumNal1(i));
-                idCountry(dd) <- STRING[3](vkodProish(i));
-                numberDeclaration(dd) <- STRING[29](vnomerTD(i));
-                nameUOM(dd) <- STRING[255](vnaimIedIzm(i));
+                idCountry(dd) <- IF is503() THEN STRING[3](vkodProish503(i)) ELSE STRING[3](vkodProish(i));
+                numberDeclaration(dd) <- IF is503() THEN STRING[29](vnomerTD503(i)) ELSE STRING[29](vnomerTD(i));
+                nameUOM(dd) <- IF is503() THEN STRING[255](vnaimIedIzm503(i)) ELSE STRING[255](vnaimIedIzm(i));
                 nameCountry(dd) <- STRING[255](vkrNaimStrPr(i));
                 idSku(dd) <- STRING[100](vkodTov(i));
                 
