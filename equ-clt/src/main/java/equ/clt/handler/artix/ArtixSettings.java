@@ -91,6 +91,8 @@ public class ArtixSettings implements Serializable{
     //если true, то в качестве идентификатора товара используется idBarcode, а не idItem
     private boolean useBarcodeAsId;
 
+    private boolean useBarcodeAsIdSpecialMode;
+
     //pattern, по которому игнорируются дисконтные карты в чеках
     private String ignoreDiscountCardPattern;
 
@@ -338,6 +340,14 @@ public class ArtixSettings implements Serializable{
 
     public void setUseBarcodeAsId(boolean useBarcodeAsId) {
         this.useBarcodeAsId = useBarcodeAsId;
+    }
+
+    public boolean isUseBarcodeAsIdSpecialMode() {
+        return useBarcodeAsIdSpecialMode;
+    }
+
+    public void setUseBarcodeAsIdSpecialMode(boolean useBarcodeAsIdSpecialMode) {
+        this.useBarcodeAsIdSpecialMode = useBarcodeAsIdSpecialMode;
     }
 
     public String getIgnoreDiscountCardPattern() {

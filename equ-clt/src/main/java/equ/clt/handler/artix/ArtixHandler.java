@@ -80,6 +80,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         boolean medicineModeNewScheme = artixSettings.isMedicineModeNewScheme();
         boolean russian = artixSettings.isRussian();
         boolean useBarcodeAsId = artixSettings.getUseBarcodeAsId();
+        boolean useBarcodeAsIdSpecialMode = artixSettings.isUseBarcodeAsIdSpecialMode();
 
         Map<Long, SendTransactionBatch> result = new HashMap<>();
         Map<Long, Exception> failedTransactionMap = new HashMap<>();
@@ -164,7 +165,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                         }
 
                         //items
-                        if(useBarcodeAsId) {
+                        if(useBarcodeAsId && !useBarcodeAsIdSpecialMode) {
                             for (CashRegisterItem item : transaction.itemsList) {
                                 if (!skipItem(item, medicineMode)) {
                                     List<CashRegisterItem> items = new ArrayList<>();
@@ -191,13 +192,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                             for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
                                 CashRegisterItem item = barcodeEntry.getValue().get(0);
-                                String idItem = trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, barcodeEntry.getKey(), barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian, idItem);
+                                String mainBarcode = barcodeEntry.getKey();
+                                String idItem = useBarcodeAsId && useBarcodeAsIdSpecialMode ? mainBarcode : trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, mainBarcode, barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian, idItem);
                                 if (inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
                                     //сейчас inventItem == null только при отсутствии UOM
-                                    processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + barcodeEntry.getKey());
+                                    processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + mainBarcode);
                                 }
                             }
                         }
