@@ -555,14 +555,14 @@ customerStock(UserReceiving receiving) += customerStock(receiving);
 quantity = ABSTRACT NUMERIC[16,5] (Sku, UserReceiving);
 invoiceQuantity(Sku sku, UserReceiving receiving) += quantity(sku, receiving);
 
-META defineUserReceiving(primObject, captionObject, formObject)
+META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
     userReceiving = DATA UserReceiving(###primObject);
     
     quantity (Sku s, UserReceiving r) += [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(##primObject(detail))](s, r);
     
     count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
     
-    description###primObject 'Входящие документы по '##captionObject (UserReceiving userReceiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY userReceiving(primObject)](userReceiving);
+    description###primObject##s ###captionObjects (UserReceiving userReceiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY userReceiving(primObject)](userReceiving);
     
     selectedUserReceiving 'Отм' = DATA LOCAL BOOLEAN (###primObject);
 
@@ -600,7 +600,7 @@ META defineUserReceiving(primObject, captionObject, formObject)
     } TOOLBAR;
     
     EXTEND FORM receiving
-        PROPERTIES(r) description###primObject
+        PROPERTIES(r) description###primObject##s
         OBJECTS primObject = ###primObject
         PROPERTIES(primObject) selectedUserReceiving
         PROPERTIES(primObject) READONLY isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
@@ -640,8 +640,8 @@ META defineUserReceiving(primObject, captionObject, formObject)
 END    
 
 
-META defineReceivingAggregation(primObject, captionObject, formObject)
-    @defineUserReceiving(primObject, captionObject, formObject);
+META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject)
+    @defineUserReceiving(primObject, captionObject, captionObjects, formObject);
         
     CLASS ###primObject##Receiving : Receiving;
 
