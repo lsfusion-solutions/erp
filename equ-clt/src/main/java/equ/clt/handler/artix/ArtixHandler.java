@@ -380,6 +380,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             Integer containsSugar = null;
             Integer deptCode = null;
             boolean autoGetQuantity = false;
+            boolean ukz = false;
             if(extraInfo != null) {
                 capacity = extraInfo.optString("capacity");
                 alcVolume = extraInfo.optString("alcvolume");
@@ -391,12 +392,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     deptCode = extraInfo.getInt("deptcode");
                 }
                 autoGetQuantity = extraInfo.has("autogetquantityfromscales");
+                ukz = extraInfo.has("ukz");
             }
 
             BigDecimal defaultQuantity = null;
             Integer tmcType = null;
 
             if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty() || lotType.equals("beer"))) tmcType = 7;
+            if (ukz) tmcType = 7;
 
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
             if (tobacco) tmcType = 3;
