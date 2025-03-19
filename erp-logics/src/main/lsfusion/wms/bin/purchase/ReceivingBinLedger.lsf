@@ -265,10 +265,9 @@ completeWork 'Завершить приёмку' (Receiving receiving) {
 
 createDetails 'Создать строки по документу основания' ABSTRACT CASE (Receiving);
 
-placementBin  = GROUP LAST Bin bin IF storage(bin) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin);
-placementBin  = GROUP LAST Bin bin IF storage(bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin);
-placementBinNoUseBalance  = GROUP LAST Bin bin IF storage(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin);
-
+placementBin  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin), o;
+placementBin  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o;
+placementBinNoUseBalance  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o;
 noUseBalanceForPlacement 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
 
 EXTEND FORM options
@@ -281,7 +280,9 @@ DESIGN options {
     }
 }
 
-placementBinOver (Sku sku, Stock stock) = OVERRIDE placementBin(sku, stock), placementBin(stock) IF sku IS Sku, placementBinNoUseBalance(sku, stock) IF noUseBalanceForPlacement();
+placementBinOver (Sku sku, Stock stock, Bin.Operation o) = OVERRIDE placementBin(sku, stock, o), 
+    placementBinNoUseBalance(sku, stock, o) IF noUseBalanceForPlacement(),
+    placementBin(stock, o) IF sku IS Sku;
 
 placement 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
@@ -296,8 +297,12 @@ placement 'Разместить' (CustomUser u) {
             MESSAGE 'Для склада размещения нет ячеек хранения';
             RETURN;
         }
+
+        LOCAL defOperationLoc = Bin.Operation();
+        defOperationLoc() <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+
         FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+            operation(o) <- defOperationLoc();
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
@@ -305,9 +310,7 @@ placement 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- receivingBin(u);
-                dataSkipSetOutBin(d) <- TRUE;
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)));
-                dataSkipSetInBin(d) <- TRUE;
+                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc());
                 quantity(d) <- currentBalance(sku, receivingBin(u));
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -330,8 +333,12 @@ placementReserve 'Разместить' (CustomUser u) {
             MESSAGE 'Для склада размещения нет ячеек хранения';
             RETURN;
         }
+
+        LOCAL defOperationLoc = Bin.Operation();
+        defOperationLoc() <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+
         FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+            operation(o) <- defOperationLoc();
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
@@ -339,9 +346,7 @@ placementReserve 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
-                dataSkipSetOutBin(d) <- TRUE;
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)));
-                dataSkipSetInBin(d) <- TRUE;
+                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc());
                 quantity(d) <- currentBalance(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -377,9 +382,7 @@ writeOffReserve 'Списать' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
-                dataSkipSetOutBin(d) <- TRUE;
                 inBin(d) <- NULL;
-                dataSkipSetInBin(d) <- TRUE;
                 quantity(d) <- writeOffReserveQuantity(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {

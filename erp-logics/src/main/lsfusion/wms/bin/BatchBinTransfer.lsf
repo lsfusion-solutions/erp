@@ -50,3 +50,9 @@ EXTEND FORM userBinTransfer
     
 @implementBatchBinLedger(binTransferDetail, stock);
 
+skipSetInBin(UserBinTransferDetail d) += TRUE IF inBin(d);
+skipSetOutBin(UserBinTransferDetail d) += TRUE IF outBin(d);
+
+CONSTRAINT SETCHANGED(outBin(BinTransferDetail d)) AND NOT currentBalance(sku(d), outBin(d)) AND outBin(d)
+    CHECKED BY outBin[UserBinTransferDetail]
+    MESSAGE 'Данный товар отсутствует в ячейке';

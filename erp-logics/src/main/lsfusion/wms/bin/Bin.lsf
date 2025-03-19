@@ -600,13 +600,13 @@ NAVIGATOR {
 CLASS UsageType {
 }
 
-dataIn 'Тип использования' = ABSTRACT BOOLEAN (BinGroup, UsageType);
-overDataIn 'Тип использования' = ABSTRACT VALUE BOOLEAN (DataBinGroup, UsageType);
+dataIn 'Тип использования' = ABSTRACT BOOLEAN (BinGroup, UsageType) MATERIALIZED;
+overDataIn 'Тип использования' = ABSTRACT VALUE BOOLEAN (DataBinGroup, UsageType) ;
 dataIn[BinGroup, UsageType](DataBinGroup binGroup, UsageType) += overDataIn(binGroup, UsageType);
 
-levelParentDataIn (BinGroup binGroup, UsageType type) = GROUP MIN level(binGroup, BinGroup parent) IF dataIn(parent, type);
+levelParentDataIn (BinGroup binGroup, UsageType type) = GROUP MIN level(binGroup, BinGroup parent) IF dataIn(parent, type) MATERIALIZED;
 nearestParentDataIn  (BinGroup binGroup, UsageType type) = binGroup(binGroup, levelParentDataIn(binGroup, type));
-nearestDataIn (BinGroup binGroup, UsageType type) = dataIn(nearestParentDataIn(binGroup, type), type);
+nearestDataIn (BinGroup binGroup, UsageType type) = dataIn(nearestParentDataIn(binGroup, type), type) MATERIALIZED;
 
 in 'Тип использования' (BinGroup binGroup, UsageType type) =
     OVERRIDE dataIn(binGroup, type),
@@ -615,4 +615,4 @@ in 'Тип использования' (BinGroup binGroup, UsageType type) =
 overDataIn 'Тип использования' = ABSTRACT VALUE BOOLEAN (Bin, UsageType);
 
 in 'Тип использования' (Bin bin, UsageType t) =
-    OVERRIDE overDataIn(bin, t), dataIn(binGroup(bin), t);
+    OVERRIDE overDataIn(bin, t), in(binGroup(bin), t) MATERIALIZED;

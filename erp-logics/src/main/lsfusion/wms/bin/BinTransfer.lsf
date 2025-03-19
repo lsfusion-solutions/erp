@@ -440,6 +440,12 @@ NAVIGATOR {
 }
 
 //ячейка в
+inUsageType 'Тип использования (в)' = DATA UsageType (Operation);
+staticCaptionInUsageType 'Ограничение по типу использования использования (в)' (Operation o) = staticCaption(inUsageType(o));
+matchInUsageType (Bin b, Operation o) = in(b, inUsageType(o)) OR b IS Bin AND NOT inUsageType(o);
+CONSTRAINT inBin(Operation o, stock(Bin bin)) = bin AND NOT matchInUsageType(bin, o)
+    MESSAGE 'Нельзя задавать "ячейку (в)" склада неудовлетворющую типу использования операции';
+
 // Отметка для групп
 dataInBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
 countDataInBinGroups (Operation operation) = GROUP SUM 1 IF  dataInBin(BinGroup binGroup, operation);
@@ -461,8 +467,9 @@ countDataInBins (Operation operation) = GROUP SUM 1 IF  dataInBin(Bin bin, opera
 
 
 inBin 'Отм' (Bin bin, Operation operation) =
-    OVERRIDE dataInBin(bin, operation),
-        inBin(binGroup(bin), operation), inBin(operation, stock(bin)) = bin AND in(stock(bin), operation);;
+    (OVERRIDE dataInBin(bin, operation),
+        inBin(binGroup(bin), operation), inBin(operation, stock(bin)) = bin AND in(stock(bin), operation)) AND matchInUsageType(bin, operation);
+
 
 quantityChildWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
 quantityParentWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;
@@ -478,6 +485,13 @@ backgroundInBin 'Цвет' (Bin bin, Operation operation) = IF dataInBin(bin, op
         IF inBin(binGroup(bin), operation);
 
 //ячейка из
+outUsageType 'Тип использования (из)' = DATA UsageType (Operation);
+staticCaptionOutUsageType 'Ограничение по типу использования (из)' (Operation o) = staticCaption(outUsageType(o));
+matchOutUsageType (Bin b, Operation o) = in(b, outUsageType(o)) OR b IS Bin AND o IS Operation AND NOT outUsageType(o);
+
+CONSTRAINT outBin(Operation o, stock(Bin bin)) = bin AND NOT matchOutUsageType(bin, o) 
+    MESSAGE 'Нельзя задавать "ячейку (из)" склада неудовлетворющую типу использования операции'; 
+
 // Отметка для групп
 dataOutBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
 
@@ -497,8 +511,8 @@ dataOutBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
 countDataOutBins (Operation operation) = GROUP SUM 1 IF  dataOutBin(Bin bin, operation);
 
 outBin 'Отм' (Bin bin, Operation operation) =
-    OVERRIDE dataOutBin(bin, operation),
-        outBin(binGroup(bin), operation), outBin(operation, stock(bin)) = bin AND in(stock(bin), operation);
+    (OVERRIDE dataOutBin(bin, operation),
+        outBin(binGroup(bin), operation), outBin (operation, stock(bin)) = bin AND in(stock(bin), operation)) AND matchOutUsageType(bin, operation);
 
 countDataOutBinGroups (Operation operation) = GROUP SUM 1 IF  dataOutBin(BinGroup binGroup, operation);
 
@@ -516,8 +530,8 @@ backgroundOutBin 'Цвет' (Bin bin, Operation operation) = IF dataOutBin(bin, 
         IF outBin(binGroup(bin), operation);
 
 levelBinGroup 'Общий родитель заданного уровня' = DATA INTEGER (Operation);
-usageType 'Тип использования' = DATA UsageType (Operation);
-staticCaptionUsageType 'Тип использования' (Operation o) = staticCaption(usageType(o));
+needIn '"Ячейка (в)" обязательна' = DATA BOOLEAN (Operation);
+needOut '"Ячейка (из)" обязательна' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
     TREE inGroupTree inbing = BinGroup PARENT parent(inbing)
@@ -534,6 +548,9 @@ EXTEND FORM operation
     FILTERGROUP inBinFilters3
         FILTER 'Показывать отмеченные' inBin(inbin, o) 'F10'
 
+    FILTERGROUP inUsageBinFilters
+        FILTER 'По типу использования' matchInUsageType(inbin, o) DEFAULT
+
     TREE outGroupTree outbing = BinGroup PARENT parent(outbing)
     PROPERTIES READONLY outbingTreeName = name(outbing)
     PROPERTIES outBin(outbing, o) BACKGROUND backgroundOutBin(outbing, o)
@@ -547,8 +564,11 @@ EXTEND FORM operation
         isParent(outbing, outbin)
     FILTERGROUP outBinFilters3
         FILTER 'Показывать отмеченные' outBin(outbin, o) 'F10'
-    
-    PROPERTIES(o) levelBinGroup, staticCaptionUsageType 
+    FILTERGROUP outUsageBinFilters
+        FILTER 'По типу использования' matchOutUsageType(outbin, o) DEFAULT
+
+
+    PROPERTIES(o) levelBinGroup, staticCaptionOutUsageType, staticCaptionInUsageType, needIn, needOut
 ;
 
 DESIGN operation {
@@ -582,9 +602,20 @@ DESIGN operation {
             }
             constraintContainer {
                 NEW additionalContainer {
-                    horizontal = TRUE;
                     MOVE PROPERTY(levelBinGroup(o));
-                    MOVE PROPERTY(staticCaptionUsageType(o));
+                    NEW additionalInOutContainer {
+                        horizontal = TRUE;
+                        NEW additionalOutContainer {
+                            caption = 'Ячейки из';
+                            MOVE PROPERTY(staticCaptionOutUsageType(o));
+                            MOVE PROPERTY(needOut(o));
+                        }
+                        NEW additionalInContainer {
+                            caption = 'Ячейки в';
+                            MOVE PROPERTY(staticCaptionInUsageType(o));
+                            MOVE PROPERTY(needIn(o));
+                        }
+                    }
                 }
             }
             
@@ -592,27 +623,46 @@ DESIGN operation {
     }
 }
 
-CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(inBin(binTransferDetail)) OR SETCHANGED(outBin(binTransferDetail)))
-    AND levelBinGroup(operation(binTransferDetail)) AND inBin(binTransferDetail) AND outBin(binTransferDetail)
-    AND NOT binGroupRoot(binGroup(inBin(binTransferDetail)), levelBinGroup(operation(binTransferDetail))) = binGroupRoot(binGroup(outBin(binTransferDetail)), levelBinGroup(operation(binTransferDetail)))
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail d)) OR SETCHANGED(inBin(d)) OR SETCHANGED(outBin(d)))
+    AND levelBinGroup(operation(d)) AND inBin(d) AND outBin(d)
+    AND NOT binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d)))
     CHECKED BY inBin[UserBinTransferDetail], outBin[UserBinTransferDetail]
-    MESSAGE 'Несовпадение группы ячеек заданного в операции уровня';
+    MESSAGE 'Несовпадение группы ячеек строки заданного в операции уровня';
 
-CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(inBin(binTransferDetail)) OR SETCHANGED(outBin(binTransferDetail)))
-    AND (inBin(binTransferDetail) AND NOT in(inBin(binTransferDetail), usageType(operation(binTransferDetail))) OR outBin(binTransferDetail) AND NOT in(outBin(binTransferDetail), usageType(operation(binTransferDetail))))
-    AND usageType(operation(binTransferDetail))
-    CHECKED BY inBin[UserBinTransferDetail], outBin[UserBinTransferDetail]
-    MESSAGE 'Тип использования ячеек должен соответсвовать указанному в операции';
+CONSTRAINT (SETCHANGED(operation(BinTransfer t)) OR SETCHANGED(inBin(t)) OR SETCHANGED(outBin(t)))
+    AND levelBinGroup(operation(t)) AND inBin(t) AND outBin(t)
+    AND NOT binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) = binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t)))
+    CHECKED BY inBin[UserBinTransfer], outBin[UserBinTransfer]
+    MESSAGE 'Несовпадение группы ячеек документа заданного в операции уровня';
 
-CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(inBin(binTransferDetail))) AND inBin(binTransferDetail)
-    AND NOT inBin(inBin(binTransferDetail), operation(binTransferDetail))
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail d)) OR SETCHANGED(inBin(d))) AND inBin(d)
+    AND NOT inBin(inBin(d), operation(d))
     CHECKED BY inBin[UserBinTransferDetail]
-    MESSAGE '"Ячейка (в)" должна совпадать с отмеченными в операции';
+    MESSAGE '"Ячейка (в)" строки должна совпадать с отмеченными в операции';
 
-CONSTRAINT (SETCHANGED(operation(BinTransferDetail binTransferDetail)) OR SETCHANGED(outBin(binTransferDetail))) AND outBin(binTransferDetail)
-    AND NOT outBin(outBin(binTransferDetail), operation(binTransferDetail))
+CONSTRAINT (SETCHANGED(operation(BinTransfer t)) OR SETCHANGED(inBin(t))) AND inBin(t)
+    AND NOT inBin(inBin(t), operation(t))
+    CHECKED BY inBin[UserBinTransfer]
+    MESSAGE '"Ячейка (в)" документа должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail d)) OR SETCHANGED(outBin(d))) AND outBin(d)
+    AND NOT outBin(outBin(d), operation(d))
     CHECKED BY outBin[UserBinTransferDetail]
-    MESSAGE '"Ячейка (из)" должна совпадать с отмеченными в операции';
+    MESSAGE '"Ячейка (из)" строки должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransfer t)) OR SETCHANGED(outBin(t))) AND outBin(t)
+    AND NOT outBin(outBin(t), operation(t))
+    CHECKED BY outBin[UserBinTransfer]
+    MESSAGE '"Ячейка (из)" документа должна совпадать с отмеченными в операции';
+
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail d)) OR DROPPED(outBin(d))) AND NOT outBin(d)
+    AND needOut(operation(d))
+    CHECKED BY outBin[UserBinTransferDetail]
+    MESSAGE '"Ячейка (из)" обязательна для заданной операции';
+CONSTRAINT (SETCHANGED(operation(BinTransferDetail d)) OR DROPPED(inBin(d))) AND NOT inBin(d)
+    AND needIn(operation(d))
+    CHECKED BY inBin[UserBinTransferDetail]
+    MESSAGE '"Ячейка (в)" обязательна для заданной операции';
 
 onStarted() + {
     IF (GROUP MAX Operation o IF o IS Operation)
