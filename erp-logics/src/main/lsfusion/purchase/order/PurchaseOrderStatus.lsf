@@ -111,6 +111,7 @@ backgroundStatus = ABSTRACT CASE COLOR (Order);
 backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN overBackgroundOrderStatusRejected();
 backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN overBackgroundOrderStatusPosted();
 
+readonlyOriginalQuantity = ABSTRACT BOOLEAN (UserOrderDetail);
 customLogicOriginalQuantity = ABSTRACT BOOLEAN (UserOrderDetail);
 originalQuantity(UserOrderDetail d) <- quantity(d)
     WHEN CHANGED (quantity(d)) AND NOT customLogicOriginalQuantity(d) IF NOT (isConfirmed(d) OR isSent(d));    
@@ -124,7 +125,7 @@ readonlyIfSent = ABSTRACT BOOLEAN (UserOrder);
 
 EXTEND FORM userOrder
     PROPERTIES (o) isSent READONLYIF readonlyIfSent(o), isConfirmed
-    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d) READONLYIF customLogicOriginalQuantity(d)
+    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF showOriginalQuantity(d) READONLYIF readonlyOriginalQuantity(d)
 ;
 DESIGN userOrder {
     first {
