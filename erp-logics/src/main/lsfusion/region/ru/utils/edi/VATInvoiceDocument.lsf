@@ -16,7 +16,7 @@ CLASS VATStatus {
     vatAgent 'НДС исчисляется налоговым агентом'         
 }
 
-CLASS Credential 'Область полномочий подписанта (продавец)' {
+CLASS Credential 'Способ подтверждения полномочий подписанта (продавец)' {
     c0 '0',
     c1 '1',
     c2 '2', 
@@ -110,6 +110,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     //----АдрИнф
     countryCodeAddressSupplier 'Код страны продавца' = DATA STRING[3] (###docType##Document); //КодСтр
     addressSupplier 'Адрес продавца' = DATA STRING[150] (###docType##Document); //АдрТекст
+    countryNameAddressSupplier 'Наимен. страны продавца' = DATA STRING[255] (###docType##Document); //НаимСтран
     
     //----КодГАР
     codeAddressSupplier 'Код адреса продавца' = DATA STRING[36] (###docType##Document); //КодГАР
@@ -146,6 +147,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     
     //----АдрИнф
     countryCodeAddressCustomer 'Код страны покупателя' = DATA STRING[3] (###docType##Document); //КодСтр
+    countryNameAddressCustomer 'Наим. страны покупателя' = DATA STRING[255] (###docType##Document); //КодСтр
     addressCustomer 'Адрес покупателя' = DATA STRING[150] (###docType##Document); //АдрТекст
     
     //----КодГАР
@@ -175,7 +177,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
     
     //Подписант
     supplierSignerCredentials = DATA Credential(###docType##Document);
-    nameSupplierSignerCredentials 'Область полномочий подписанта (продавец)' = staticCaption(supplierSignerCredentials(###docType##Document d)); //ОблПолн
+    nameSupplierSignerCredentials 'Способ подтверждения полномочий подписанта (продавец)' = staticCaption(supplierSignerCredentials(###docType##Document d)); //ОблПолн
     
     supplierSignerStatus = DATA CStatus(###docType##Document);
     nameSupplierSignerStatus 'Статус подписанта (продавец)' = staticCaption(supplierSignerStatus(###docType##Document d)); //Статус
@@ -308,14 +310,14 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
         PROPERTIES (u) SHOWIF (typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) innSupplierIE, supplierIELastName, supplierIEFirstName, supplierIEMiddleName
         PROPERTIES (u) nameOriginatorSupplier
         PROPERTIES (u) dateSupplier, timeSupplier
-        PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency
-        PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, addressSupplier, codeAddressSupplier
+        PROPERTIES (u) nameInvoiceNumerator, numberInvoice, dateInvoice, codeCurrency, nameCurrency
+        PROPERTIES (u) regionCodeSupplier, countryCodeAddressSupplier, countryNameAddressSupplier, addressSupplier, codeAddressSupplier
         PROPERTIES (u) numberAccountSupplier, nameBankSupplier, MFOBankSupplier, corrAccountBankSupplier
         
         PROPERTIES (u) nameCustomer
         PROPERTIES (u) SHOWIF (NOT typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innCustomer, kppCustomer, okpoCustomer
         PROPERTIES (u) SHOWIF (typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innCustomerIE, customerIELastName, customerIEFirstName, customerIEMiddleName 
-        PROPERTIES (u) addressCustomer, regionCodeCustomer, countryCodeAddressCustomer, codeAddressCustomer
+        PROPERTIES (u) addressCustomer, regionCodeCustomer, countryCodeAddressCustomer, countryNameAddressCustomer, codeAddressCustomer
         PROPERTIES (u) codeBusinessEvent, descriptionBusinessEvent
         PROPERTIES (u) nameSupplierSignerCredentials, nameSupplierSignerStatus, supplierSignerCredentialsBase
         PROPERTIES (u) supplierSignerLastName, supplierSignerFirstName, supplierSignerMiddleName
@@ -380,7 +382,8 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                         NEW sums {
                             caption = 'Итоговые суммы';
                             //fill = 1;
-                            MOVE PROPERTY(codeCurrency(u));                     
+                            MOVE PROPERTY(codeCurrency(u));
+                            MOVE PROPERTY(nameCurrency(u));
                         }
                     }
                     NEW titlesContainer {
@@ -416,6 +419,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                         fill = 1;
                                         MOVE PROPERTY(regionCodeSupplier(u));
                                         MOVE PROPERTY(countryCodeAddressSupplier(u));
+                                        MOVE PROPERTY(countryNameAddressSupplier(u));
                                         MOVE PROPERTY(addressSupplier(u));
                                         MOVE PROPERTY(codeAddressSupplier(u));
                                     }
@@ -516,6 +520,7 @@ META defineVATInvoiceDocument(sign, docType, signSchf, fullSign)
                                         MOVE PROPERTY(addressCustomer(u));
                                         MOVE PROPERTY(regionCodeCustomer(u));
                                         MOVE PROPERTY(countryCodeAddressCustomer(u));
+                                        MOVE PROPERTY(countryNameAddressCustomer(u));
                                         MOVE PROPERTY(codeAddressCustomer(u));
                                     }
                                 }    
