@@ -37,14 +37,15 @@ CONSTRAINT isPosted(BinTransferDetail d) AND isBatch(operation(d)) AND sku(d) AN
 
 @extendFormDocumentBatchStock(userBinTransfer, userBinTransfer, o, , );
 
+bins 'Ячейки с остатком' (Batch batch, BinTransfer transfer) = bins(batch, stock(transfer));
 prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Batch batch, BinTransfer transfer) = prevCurrentBalance(batch, outBin(transfer));
 prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Batch batch, BinTransfer transfer) = prevCurrentBalance(batch, inBin(transfer));
 
 EXTEND FORM userBinTransfer
-    PROPERTIES (b, o) READONLY AFTER prevCurrentBalance(b, sto) prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    PROPERTIES (b, o) READONLY AFTER prevCurrentBalance(b, sto) bins, prevCurrentBalanceOutBin, prevCurrentBalanceInBin
     FILTERGROUP filterBatch
-        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(b, o) 'F7' DEFAULT
-        FILTER 'С остатком ' currentBalance(b, sto) 'F10'
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(b, o) 'F7' 
+        FILTER 'С остатком ' currentBalance(b, sto) 'F10' DEFAULT
         FILTER 'В документе ' quantity(b, o, sto) 'F9'
 ;
     

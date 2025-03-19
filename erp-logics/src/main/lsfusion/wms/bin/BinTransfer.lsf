@@ -366,14 +366,15 @@ CONSTRAINT operation(BinTransfer binTransfer) AND isPosted(binTransfer)
 
 @extendFormDocumentSkuStock(userBinTransfer, userBinTransfer, o, , );
 
+bins 'Ячейки с остатком' (Sku sku, BinTransfer transfer) = bins(sku, stock(transfer));
 prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Sku sku, BinTransfer transfer) = prevCurrentBalance(sku, outBin(transfer));
 prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Sku sku, BinTransfer transfer) = prevCurrentBalance(sku, inBin(transfer));
 
 EXTEND FORM userBinTransfer
-    PROPERTIES (ks, o) READONLY AFTER prevCurrentBalance(ks, st) prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    PROPERTIES (ks, o) READONLY AFTER prevCurrentBalance(ks, st) bins, prevCurrentBalanceOutBin, prevCurrentBalanceInBin
     FILTERGROUP filter
-        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' DEFAULT
-        FILTER 'С остатком ' currentBalance(ks,st) 'F10'
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' 
+        FILTER 'С остатком ' currentBalance(ks,st) 'F10' DEFAULT
         FILTER 'В документе ' quantity(ks, o, st) 'F9'
 ;
 
