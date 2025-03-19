@@ -18,6 +18,7 @@ GROUP original_purchase EXTID 'original-purchase';
 GROUP discountCards;
 GROUP card;
 GROUP positions;
+GROUP position: positions;
 
 GROUP plugin_property EXTID 'plugin-property';
 GROUP payments;
@@ -74,6 +75,7 @@ discountAmount = DATA LOCAL STRING(INTEGER);
 inn = DATA LOCAL STRING(INTEGER);
 count1 = DATA LOCAL NESTED STRING();
 paymentPluginPayment = DATA LOCAL INTEGER(INTEGER);
+positionPluginPosition = DATA LOCAL INTEGER(INTEGER);
 
 FORM purchasesImport FORMEXTID 'purchases'
     PROPERTIES() count1 EXTID 'count' ATTR
@@ -93,7 +95,11 @@ FORM purchasesImport FORMEXTID 'purchases'
         ndsSum ATTR, discountValue ATTR, costWithDiscount ATTR, amount ATTR, dateCommit ATTR
     PROPERTIES(position) IN plugin_property key ATTR, value ATTR
     FILTERS imported(position)
-    PROPERTIES(position) key1 EXTID 'key' ATTR, value1 EXTID 'value' ATTR
+
+    OBJECTS pluginPosition = INTEGER EXTID 'plugin-property' 
+    FILTERS positionPluginPosition(pluginPosition) == position
+    PROPERTIES(pluginPosition) key1 EXTID 'key' ATTR, value1 EXTID 'value' ATTR
+
 
 //    OBJECTS payment = INTEGER IN payments
 //    FILTERS purchasePayment(payment) == purchase
@@ -103,15 +109,13 @@ FORM purchasesImport FORMEXTID 'purchases'
 //    PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
 
     OBJECTS payment = INTEGER IN payments
-    FILTERS purchasePayment(payment) == purchase
-    FILTERS paymentPayment(payment) == payment
+    FILTERS purchasePayment(payment) == purchase    
     PROPERTIES(payment) typeClass ATTR, amount1 EXTID 'amount' ATTR, description ATTR
+    FILTERS imported(payment)
 
-
-    OBJECTS pluginPayment = INTEGER EXTID 'plugin-property' IN payment
-    FILTERS paymentPluginPayment(pluginPayment) == purchase
+    OBJECTS pluginPayment = INTEGER EXTID 'plugin-property' 
+    FILTERS paymentPluginPayment(pluginPayment) == payment
     PROPERTIES(pluginPayment) key2 EXTID 'key' ATTR, value2 EXTID 'value' ATTR
-    FILTERS imported(pluginPayment)
 
 ;
 
@@ -131,6 +135,8 @@ cashRegister(INTEGER i) = GROUP MAX CashRegister c IF idStoreSet(c) = shop1(i) A
 idCashier (INTEGER i) = tabNumber(i) + '_' + userName(i);
 overCreateReceipt ABSTRACT LIST (Receipt, INTEGER);
 beforeCreateReceipts ABSTRACT LIST ();
+createPaymentsOver ABSTRACT LIST ();
+
 skipCashierImport = ABSTRACT BOOLEAN ();
 
 overCreateReceiptDetail(ReceiptDetail d, INTEGER j) +{
@@ -148,13 +154,26 @@ importReceiptExtra  ABSTRACT LIST(STRING);
 
 paymentFill ABSTRACT LIST (Payment, INTEGER);
 
+skipCreatePaymentLocal = DATA LOCAL BOOLEAN(INTEGER);
+paymenIdLocal = DATA LOCAL STRING(INTEGER);
+sumPaymentLocal = DATA LOCAL  NUMERIC[18,4] (INTEGER);
+//--
+skipCreateDetailLocal = DATA LOCAL BOOLEAN(INTEGER);
+createDetailsOver ABSTRACT LIST ();
+saleReceiptLocal = DATA LOCAL Receipt(INTEGER);
+
 importReceipts(STRING purchases){
     stringToFile(purchases);
     IMPORT purchasesImport XML FROM resultFile();
 
     LOCAL idZReport = STRING (INTEGER);
     idZReport(INTEGER i) <- STRING[100](operDay1(i) + '_' + shop1(i) + '_' + cash1(i) + '_' + shift1(i));
-
+    skipCreatePaymentLocal(INTEGER i) <- NULL;
+    paymenIdLocal(INTEGER i) <- NULL;
+    sumPaymentLocal(INTEGER i) <- NULL;
+    skipCreateDetailLocal(INTEGER i) <- NULL;
+    saleReceiptLocal(INTEGER i) <- NULL;
+    
     FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) NEW z = ZReport DO{
         id(z) <- id;
         cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(x) AND idCashRegisterSet(c) = cash1(x);
@@ -212,14 +231,17 @@ importReceipts(STRING purchases){
 
     LOCAL saleReceipt = Receipt(INTEGER);
     saleReceipt(INTEGER i) <- receipt(operDay(i) + '_' + shop(i) + '_' + cash(i) + '_' + shift(i) + '_' + number(i)) IF isReturn(i);
+    saleReceiptLocal(INTEGER i) <- saleReceipt(i);
 
+    createDetailsOver();
+    
     FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isSale(purchasePosition(x)) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
-        AND NOT receiptDetail(id) NEW d = ReceiptSaleDetail DO {
+        AND NOT receiptDetail(id) AND NOT skipCreateDetailLocal(x) NEW d = ReceiptSaleDetail DO {
         id(d) <- id;
         receipt(d) <- r;
     }
     FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id) AND isReturn(purchasePosition(x)) AND Receipt r = receipt(idReceipt(purchasePosition(x)))
-        AND NOT receiptDetail(id) NEW d = ReceiptReturnDetail DO {
+        AND NOT receiptDetail(id) AND NOT skipCreateDetailLocal(x) NEW d = ReceiptReturnDetail DO {
         id(d) <- id;
         receipt(d) <- r;
     }
@@ -232,7 +254,7 @@ importReceipts(STRING purchases){
 
     receiptReturnDetail(INTEGER i ) <- GROUP MAX ReceiptReturnDetail d IF id(d) = idReceiptDetail(i);
 
-    FOR ReceiptSaleDetail d = receiptSaleDetail(INTEGER j) DO{
+    FOR ReceiptSaleDetail d = receiptSaleDetail(INTEGER j)  DO{
         idBarcode(d) <- STRING[15](barCode(j));
         sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
         price(d) <- NUMERIC[16,4](cost(j));
@@ -241,7 +263,7 @@ importReceipts(STRING purchases){
         sum(d) <- NUMERIC[16,4](amount(j));
     }
 
-    FOR ReceiptReturnDetail d = receiptReturnDetail(INTEGER j) DO{
+    FOR ReceiptReturnDetail d = receiptReturnDetail(INTEGER j)  DO{
         idBarcode(d) <- STRING[15](barCode(j));
         sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
         price(d) <- NUMERIC[16,4](cost(j));
@@ -276,8 +298,11 @@ importReceipts(STRING purchases){
         FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) DO
             DELETE Payment p WHERE receipt(p) = r;
     }
+
+    paymenIdLocal(INTEGER i) <- paymenId(i) WHERE paymenId(i);
+    sumPaymentLocal(INTEGER i) <- sumPayment(i) WHERE sumPayment(i);
     
-    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j))
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j)) AND NOT skipCreatePaymentLocal(j)
         AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = Payment DO{
 
         id(p) <- STRING[100](paymenId(j));
@@ -287,12 +312,12 @@ importReceipts(STRING purchases){
 
     }
     
-    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND Payment p = payment(paymenId(j)) DO{
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND Payment p = payment(paymenId(j)) AND NOT skipCreatePaymentLocal(j) DO {
         
         sum(p) <- sumPayment(j);
         paymentType(p) <- paymentType(j);
-
     }
+    createPaymentsOver();
 
     //доп.обработки
     FOR INTEGER x = [GROUP MAX INTEGER i IF startDateValid(i) BY idReceipt(i)](STRING id) AND Receipt r = receipt(id) DO{

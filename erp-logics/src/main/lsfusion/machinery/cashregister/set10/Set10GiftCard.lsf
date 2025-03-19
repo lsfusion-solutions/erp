@@ -1,0 +1,97 @@
+MODULE Set10GiftCard;
+
+REQUIRE Set10WebServer, GiftCard;
+
+NAMESPACE Set10;
+
+
+giftCardSetPaymentTypeData = DATA PaymentType ();
+
+giftCardSetPaymentType() = OVERRIDE giftCardSetPaymentTypeData(), (GROUP MIN PaymentType t IF paymentMeans(t)==PaymentMeans.paymentMeansGiftCard);
+nameGiftCardSetPaymentType 'Тип платежа ПС' = name(giftCardSetPaymentType());
+
+EXTEND FORM integrationData
+    PROPERTIES nameGiftCardSetPaymentType()
+;
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (nameGiftCardSetPaymentType());
+    }
+}
+
+giftCardLocal= DATA LOCAL GiftCard (INTEGER);
+beforeCreateReceipts() + {
+    FOR INTEGER x = [GROUP MAX INTEGER i IF typeClass(paymentPluginPayment(i)) == 'GiftCardPaymentEntity' AND key2(i) == 'card.number' BY value2(i)](STRING id)
+        AND NOT giftCard(id) NEW g = GiftCard DO {
+        id(g) <- id;
+        number(g) <- id;
+        TRY {
+            price(g) <- NUMERIC[16,4](GROUP MAX value2(INTEGER i) IF  key2(i) == 'card.amount' AND paymentPluginPayment(i) == paymentPluginPayment(x));
+        }
+    }
+    giftCardLocal(INTEGER r) <- giftCard(GROUP MAX value2(INTEGER i) IF paymentPluginPayment(i)==r AND typeClass(r) == 'GiftCardPaymentEntity' AND key2(i) == 'card.number');
+    skipCreatePaymentLocal(INTEGER r) <- TRUE WHERE giftCardLocal(r);
+}
+
+createPaymentsOver() + {
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenIdLocal(j)) AND  skipCreatePaymentLocal(j)
+        AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = PaymentGiftCard DO{
+
+        id(p) <- STRING[100](paymenIdLocal(j));
+        receipt(p) <- r;
+        sum[ZReport.Payment](p) <- sumPaymentLocal(j);
+        paymentType(p) <- giftCardSetPaymentType();
+        giftCard(p) <- giftCardLocal(j);
+    }
+
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND PaymentGiftCard p = payment(paymenIdLocal(j)) AND skipCreatePaymentLocal(j) DO {
+        sum[ZReport.Payment](p) <- sumPaymentLocal(j);
+        paymentType(p) <- giftCardSetPaymentType();
+        giftCard(p) <- giftCardLocal(j);
+    }
+}
+
+//-- Продажа сертификатов
+giftCardDetailLocal= DATA LOCAL GiftCard (INTEGER);
+createDetailsOver() + {
+    localAllowNegativeBalance() <- TRUE;  //todo: Разрешить расписывание в минус. 
+    FOR INTEGER x = [GROUP MAX INTEGER i IF positionPluginPosition(i) AND key1(i) == 'gift.card.number'  BY value1(i)](STRING id)
+        AND NOT giftCard(id) NEW g = GiftCard DO {
+        id(g) <- id;
+        number(g) <- id;
+        TRY{
+            price(g) <-  NUMERIC[16,4](GROUP MAX value1(INTEGER i) IF key1(i) == 'gift.card.amount' AND positionPluginPosition(i)==positionPluginPosition(x));          
+        }
+        price(g) <-  NUMERIC[16,4](cost(positionPluginPosition(x))) WHERE NOT price(g);
+    }
+
+    giftCardDetailLocal(INTEGER r) <- giftCard(GROUP MAX value1(INTEGER i) IF positionPluginPosition(i)==r AND key1(i) == 'gift.card.number' );
+    skipCreateDetailLocal(INTEGER r) <- TRUE WHERE giftCardDetailLocal(r);
+    
+    //--
+    LOCAL isSale = BOOLEAN (INTEGER);
+    LOCAL isReturn = BOOLEAN (INTEGER);
+
+    isSale(INTEGER i) <- operationType(i) = 'true';
+    isReturn(INTEGER i) <- operationType(i) = 'false';
+    
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idReceiptDetail(i)](STRING id)  AND Receipt r = receipt(idReceipt(purchasePosition(x)))
+        AND NOT receiptGiftCardSaleDetail(id) AND skipCreateDetailLocal(x) NEW d = ReceiptGiftCardSaleDetail DO {
+        id(d) <- id;
+        receipt(d) <- r;
+        giftCard(d) <- giftCardDetailLocal(x);
+        isReturn(d) <- isReturn(purchasePosition(x));
+    }
+    LOCAL receiptDetail = ReceiptGiftCardSaleDetail (INTEGER);
+    receiptDetail(INTEGER i ) <- GROUP MAX ReceiptGiftCardSaleDetail d IF id(d) = idReceiptDetail(i) AND d IS ReceiptGiftCardSaleDetail;
+
+    FOR ReceiptGiftCardSaleDetail d = receiptDetail(INTEGER j) AND skipCreateDetailLocal(j) DO {
+        idBarcode(d) <- STRING[15](barCode(j));
+        sku(d) <- OVERRIDE skuCustom(j), skuBarcode(barCode(j));
+        price(d) <- NUMERIC[16,4](cost(j));
+        //quantity(d) <- NUMERIC[16,5](count(j));
+        discountSum(d) <- NUMERIC[16,4] (discountValue(j));
+        sum(d) <-  (OVERRIDE  - abs(NUMERIC[16,4](amount(j))) IF isReturn(j), NUMERIC[16,4](amount(j)));
+        isReturn(d) <- isReturn(j);
+    }
+}
