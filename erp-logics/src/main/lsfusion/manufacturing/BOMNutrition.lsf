@@ -178,7 +178,9 @@ overDescCustom1(Component c) = CONCAT ' ',
     '<b>'+(OVERRIDE description(sku(c)) IF NOT (material(c) IS Product), TEXT(name(sku(c))))+'</b>',
     (('('+TEXT('*'+TEXT(material(c))+'*')+')') IF material(c) IS Product); 
 overDescConcatCustom(Product p) = GROUP CONCAT TEXT(OVERRIDE overDescCustom1(Component c)) IF BOM(p)==BOM(c) AND NOT isPack(c), ', ' ORDER DESC bruttoQuantity(c), c ;  
-                                       
+
+overFillDescription ABSTRACT LIST (BOM);
+
 fillDescription 'Заполнить описание' (BOM BOM)  { 
     IF NOT useRecDescription() THEN {
         FOR BOM(Product p) == BOM DO {
@@ -202,12 +204,16 @@ fillDescription 'Заполнить описание' (BOM BOM)  {
  
         }
     }
+    overFillDescription(BOM);
+} TOOLBAR;
 
-} TOOLBAR;    
+overFillDescriptionItem ABSTRACT LIST (BOM);
+
 fillDescriptionItem 'Записать описание в карточку товара' (BOM BOM)  { 
     FOR BOM(Product p) == BOM DO {
         description(Item i) <-  description(p) WHERE sku(p)==i;   
     }
+    overFillDescriptionItem(BOM);
 } TOOLBAR;
 
 
