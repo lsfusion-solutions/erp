@@ -144,12 +144,14 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     regionCodeSupplier(ei) <- STRING[2](id(region(supplierStock(invoice))));
     
     countryCodeAddressSupplier(ei) <- sid(country(supplier(invoice)));
+    countryNameAddressSupplier(ei) <- name(country(supplier(invoice)));
     addressSupplier(ei) <- address(supplier(invoice), date(invoice));
     
 //    isConsignerSupplier(ei) <- TRUE IF invoice IS Consignment;
     nameConsignorCompany(ei) <- nameSupplierStock(invoice);
     innConsignorCompany(ei) <- inn(supplier(invoice));
     countryCodeAddressConsignorCompany(ei) <- sid(country(supplier(invoice)));
+    countryNameAddressConsignorCompany(ei) <- name(country(supplier(invoice)));
     addressConsignorCompany(ei) <- address(supplierStock(invoice));
     
     nameReceiverCompany(ei) <- nameCustomerStock(invoice) WHERE NOT typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
@@ -160,6 +162,7 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     receiverCompanyIEMiddleName(ei) <- getWord(name(customer(invoice)), ' ', 3) WHERE typeCompany(customer(invoice))=TypeCompany.individualEntrepreneur;
     
     countryCodeAddressReceiverCompany(ei) <- sid(country(customer(invoice)));
+    countryNameAddressReceiverCompany(ei) <- name(country(customer(invoice)));
     addressReceiverCompany(ei) <- address(customerStock(invoice));
     
     customer(ei) <- customer(invoice);
@@ -174,6 +177,7 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     regionCodeCustomer(ei) <- STRING[2](id(region(customerStock(invoice))));
     
     countryCodeAddressCustomer(ei) <- sid(country(customer(invoice)));
+    countryNameAddressCustomer(ei) <- name(country(customer(invoice)));
     addressCustomer(ei) <- address(customer(invoice), date(invoice));
     
     description(ei) <- 'Товары переданы, результаты работ сдал, услуги оказаны в полном объеме' IF invoice IS Consignment;
@@ -183,7 +187,7 @@ fillHeader(Consignment invoice, UpdDocument ei) {
 
     accountantSupplier(ei) <- shortName(booker(supplier(invoice)));
     
-    supplierSignerCredentials(ei) <- Credential.c0 IF invoice IS Consignment; 
+    supplierSignerCredentials(ei) <- Credential.c1 IF invoice IS Consignment; 
     supplierSignerStatus(ei) <- CStatus.c1 IF invoice IS Consignment; 
     supplierSignerCredentialsBase(ei) <- 'Должностные обязанности' IF invoice IS Consignment; //todo: переделать на проверку
     
@@ -196,6 +200,7 @@ fillHeader(Consignment invoice, UpdDocument ei) {
     
     sum(ei) <- [GROUP SUM sum(ConsignmentDetail d) BY consignment(d)](invoice);
     invoiceSum(ei) <- [GROUP SUM sumConsignment(ConsignmentDetail d) BY consignment(d)](invoice);
+    quantityDetail(ei) <- [GROUP SUM quantity(ConsignmentDetail d) BY consignment(d)](invoice);
     VATSum(ei) <- [GROUP SUM sumVAT(ConsignmentDetail d) BY consignment(d)](invoice); 
     overFillHeader(invoice, ei);    
 }

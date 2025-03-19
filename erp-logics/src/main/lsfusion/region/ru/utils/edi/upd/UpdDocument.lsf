@@ -78,6 +78,7 @@ consignorCompanyIEMiddleName 'Отчество' = DATA STRING[60](UpdDocument); 
 //---Адрес
 //----АдрИнф
 countryCodeAddressConsignorCompany 'Код страны грузоотправителя' = DATA STRING[3] (UpdDocument); //КодСтр
+countryNameAddressConsignorCompany 'Наим. страны грузоотправителя' = DATA STRING[255] (UpdDocument); //НаимСтран
 addressConsignorCompany 'Адрес грузоотправителя' = DATA STRING[1000] (UpdDocument);//АдрТекст
 
 //-ГрузОт (только в УПД)
@@ -101,6 +102,7 @@ receiverCompanyIEMiddleName 'Отчество' = DATA STRING[60](UpdDocument); /
 //---Адрес
 //----АдрИнф
 countryCodeAddressReceiverCompany 'Код страны грузополучателя' = DATA STRING[3] (UpdDocument); //КодСтр
+countryNameAddressReceiverCompany 'Код страны грузополучателя' = DATA STRING[255] (UpdDocument); //НаимСтран
 addressReceiverCompany 'Адрес грузополучателя' = DATA STRING[1000] (UpdDocument);//АдрТекст
 
 //-ДокПодтвОтгр (только УПД)
@@ -185,6 +187,7 @@ VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocumentDetail); //СумН�
 //-ВсегоОпл
 sum 'Сумма без НДС' = DATA NUMERIC[19,2] (UpdDocument); //СтТовБезНДСВсего
 invoiceSum 'Сумма с НДС' = DATA NUMERIC[19,2] (UpdDocument); //СтТовУчНалВсего
+quantityDetail 'Кол-во (всего)' = DATA NUMERIC[15,11] (UpdDocument); //КолНеттоВс
 
 //--СумНалВсего 
 VATSum 'Сумма НДС' = DATA NUMERIC[19,2] (UpdDocument); //СумНал
@@ -267,15 +270,44 @@ fileSupplierPrefix (UpdDocument d) =
         THEN 'ON_NSCHFDOPPRMARK'
         ELSE 'ON_NSCHFDOPPR';
 
-idFile 'ИдФайл' (UpdDocument d) = 
-    STRING[255](CONCAT '_', fileSupplierPrefix(d),  idConsignee(d), [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), idConsignor(d), uuid(d)) CHARWIDTH 25;
+isTracking = ABSTRACT BOOLEAN (UpdDocument);
+
+N2Prefix (UpdDocument d) = IF isTracking(d) THEN '1' ELSE '0';
+N3Prefix (UpdDocument d) = IF countUpdTransportPackDetail(d) OR countUpdPackDetail(d) OR countUpdLotDetail(d) 
+    THEN '1'
+    ELSE '0';
+
+isAlco = ABSTRACT BOOLEAN (UpdDocument);
+N4Prefix (UpdDocument d) = IF isAlco(d) THEN '1' ELSE '0';
+
+isTabacco = ABSTRACT BOOLEAN (UpdDocument);
+N5Prefix (UpdDocument d) = IF isTabacco(d) THEN '1' ELSE '0';
+
+isOil = ABSTRACT BOOLEAN (UpdDocument);
+N6Prefix (UpdDocument d) = IF isOil(d) THEN '1' ELSE '0';
+
+N7Prefix (UpdDocument d) = '00' IF d IS UpdDocument;
+
+idFile 'ИдФайл' (UpdDocument d) =
+    STRING[255](CONCAT '_', 
+        'ON_NSCHFDOPPR', 
+        idConsignee(d), 
+        idConsignor(d), 
+        [FORMULA STRING[8] 'to_char(($1),\'YYYYMMDD\')'](dateSupplier(d)), 
+        uuid(d),
+        N2Prefix(d),
+        N3Prefix(d),
+        N4Prefix(d),
+        N5Prefix(d),
+        N6Prefix(d),
+        N7Prefix(d)) CHARWIDTH 25;
 
 EXTEND FORM updDocument
     PROPERTIES (u) idFile
     PROPERTIES (u) isConsignerSupplier
     PROPERTIES (u) SHOWIF (NOT typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) READONLYIF isConsignerSupplier(u) nameConsignorCompany, innConsignorCompany
     PROPERTIES (u) SHOWIF (typeCompany(supplier(u))=TypeCompany.individualEntrepreneur) READONLYIF isConsignerSupplier(u) innConsignorCompanyIE, consignorCompanyIELastName, consignorCompanyIEFirstName, consignorCompanyIEMiddleName
-    PROPERTIES (u) READONLYIF isConsignerSupplier(u) countryCodeAddressConsignorCompany, addressConsignorCompany
+    PROPERTIES (u) READONLYIF isConsignerSupplier(u) countryCodeAddressConsignorCompany, countryNameAddressReceiverCompany, countryNameAddressConsignorCompany, addressConsignorCompany
     PROPERTIES (u) SHOWIF (NOT typeCompany(customer(u))=TypeCompany.individualEntrepreneur) nameReceiverCompany, innReceiverCompany
     PROPERTIES (u) SHOWIF (typeCompany(customer(u))=TypeCompany.individualEntrepreneur) innReceiverCompanyIE, receiverCompanyIELastName, receiverCompanyIEFirstName, receiverCompanyIEMiddleName  
     PROPERTIES (u) countryCodeAddressReceiverCompany, addressReceiverCompany
@@ -283,7 +315,7 @@ EXTEND FORM updDocument
     PROPERTIES (u) positionAgentSupplier, lastNameAgentSupplier, firstNameAgentSupplier, middleNameAgentSupplier
     PROPERTIES (u) positionAgentExecuter, nameCompanyAgentExecuter, lastNameAgentExecuter, firstNameAgentExecuter, middleNameAgentExecuter
     PROPERTIES (u) positionExecuter, lastNameExecuter, firstNameExecuter, middleNameExecuter
-    PROPERTIES (u) sum, invoiceSum, VATSum, withoutVAT
+    PROPERTIES (u) sum, invoiceSum, quantityDetail, VATSum, withoutVAT
     
     PROPERTIES (u) dateExceptance
     
@@ -300,10 +332,11 @@ DESIGN updDocument {
         documentContainer {
             mainDocumentAttributes {
                 sums {
+                    MOVE PROPERTY(quantityDetail(u));
                     MOVE PROPERTY(sum(u));
                     MOVE PROPERTY(invoiceSum(u));
                     MOVE PROPERTY(VATSum(u));
-                    MOVE PROPERTY(withoutVAT(u));                            
+                    MOVE PROPERTY(withoutVAT(u));
                 }
             }
             titlesContainer {
@@ -330,6 +363,7 @@ DESIGN updDocument {
                                     caption = 'Адрес грузоотправителя';
                                     fill = 1;
                                     MOVE PROPERTY(countryCodeAddressConsignorCompany(u));
+                                    MOVE PROPERTY(countryNameAddressConsignorCompany(u));
                                     MOVE PROPERTY(addressConsignorCompany(u));                            
                                 }
                             }
@@ -401,6 +435,7 @@ DESIGN updDocument {
                                 caption = 'Адрес грузополучателя';
                                 fill = 1;
                                 MOVE PROPERTY(countryCodeAddressReceiverCompany(u));
+                                MOVE PROPERTY(countryNameAddressReceiverCompany(u));
                                 MOVE PROPERTY(addressReceiverCompany(u));                            
                             }
                         }
@@ -542,6 +577,7 @@ GROUP UPDExportA EXTID  'СвСчФакт';
         GROUP UPDExportA4_2 EXTID  'Адрес' :UPDExportA4;
             GROUP UPDExportA4_2_1 EXTID  'АдрРФ' :UPDExportA4_2;
             GROUP UPDExportA4_2_2 EXTID  'АдрИнф' :UPDExportA4_2;
+    GROUP UPDExportA7 EXTID 'ДокПодтвОтгрНом' :UPDExportA;
     GROUP UPDExportA6 EXTID  'СвПокуп' :UPDExportA;
         GROUP UPDExportA6_1 EXTID  'ИдСв' :UPDExportA6;
             GROUP UPDExportA6_1_1 EXTID  'СвЮЛУч' :UPDExportA6_1;
@@ -550,14 +586,14 @@ GROUP UPDExportA EXTID  'СвСчФакт';
         GROUP UPDExportA6_2 EXTID  'Адрес' :UPDExportA6;
             GROUP UPDExportA6_2_1 EXTID  'АдрРФ' :UPDExportA6_2;
             GROUP UPDExportA6_2_2 EXTID  'АдрИнф' :UPDExportA6_2;
-    GROUP UPDExportA7 EXTID 'ДокПодтвОтгр' :UPDExportA;
+    GROUP UPDExportA91 EXTID 'ДенИзм' :UPDExportA;
     GROUP UPDExportA9 EXTID  'ИнфПолФХЖ1' :UPDExportA;
         GROUP UPDExportA9_1 EXTID  'ТекстИнф' :UPDExportA9;
         
 GROUP UPDExportB EXTID  'ТаблСчФакт';      
     GROUP UPDExportB1 EXTID  'Акциз';      
     GROUP UPDExportB2 EXTID  'СумНал';     
-    GROUP UPDExportB3 EXTID  'СвТД';    
+    GROUP UPDExportB3 EXTID  'СвДТ';    
     GROUP UPDExportB4 EXTID  'ДопСведТов';
         GROUP UPDLotDetail EXTID 'НомСредИдентТов' : UPDExportB4;
 GROUP UPDExportBB EXTID  'ВсегоОпл' : UPDExportB;              
@@ -581,7 +617,7 @@ GROUP UPDExportD EXTID  'Подписант';
     GROUP UPDExportD_2 EXTID  'ИП':UPDExportD; 
         GROUP UPDExportD_2_1 EXTID  'ФИО':UPDExportD_2;  
     GROUP UPDExportD_3 EXTID  'ЮЛ':UPDExportD;          
-        GROUP UPDExportD_3_1 EXTID  'ФИО':UPDExportD_3;  
+        GROUP UPDExportD_3_1 EXTID  'ФИО':UPDExportD;  
 
 
 smartToChar(NUMERIC[26,11] nu) = rtrim(rtrim(TEXT(nu),'0'),'.');
@@ -590,16 +626,16 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES ATTR ='http://www.w3.org/2001/XMLSchema' EXTID 'xmlns:xsd', ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
     PROPERTIES   = (OVERRIDE idFile(minUpdDocument()), '') EXTID 'ИдФайл' ATTR, 
                  = '3.19.710' EXTID 'ВерсПрог' ATTR, 
-                 = '5.01'  EXTID 'ВерсФорм' ATTR
-    OBJECTS g = UpdDocument EXTID 'СвУчДокОбор'
-    FILTERS inReport(g)
-
-    PROPERTIES = (OVERRIDE idConsignor(g),'') EXTID 'ИдОтпр' ATTR ,
-               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR                 
-               
-    PROPERTIES = nameOperatorConsignor(g) EXTID 'НаимОрг' ATTR IN UPDExportA0,
-               = innOperatorConsignor(g) EXTID 'ИННЮЛ' ATTR IN UPDExportA0,
-               = codeOperatorConsignor(g) EXTID 'ИдЭДО' ATTR IN UPDExportA0                 
+                 = '5.03'  EXTID 'ВерсФорм' ATTR
+//    OBJECTS g = UpdDocument EXTID 'СвУчДокОбор'
+//    FILTERS inReport(g)
+//
+//    PROPERTIES = (OVERRIDE idConsignor(g),'') EXTID 'ИдОтпр' ATTR ,
+//               = (OVERRIDE idConsignee(g),'') EXTID 'ИдПол' ATTR                 
+//               
+//    PROPERTIES = nameOperatorConsignor(g) EXTID 'НаимОрг' ATTR IN UPDExportA0,
+//               = innOperatorConsignor(g) EXTID 'ИННЮЛ' ATTR IN UPDExportA0,
+//               = codeOperatorConsignor(g) EXTID 'ИдЭДО' ATTR IN UPDExportA0                 
                
     OBJECTS d = UpdDocument EXTID 'Документ'
     FILTERS inReport(d)    
@@ -611,14 +647,14 @@ FORM UPDPR FORMEXTID '=:Файл'
                = [FORMULA STRING[20] 'to_char(($1),\'HH24.MI.SS\')'](OVERRIDE timeSupplier(d), currentTime()) EXTID 'ВремИнфПр' ATTR,
                = (OVERRIDE nameOriginatorSupplier(d),'')  EXTID 'НаимЭконСубСост' ATTR
                
-    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерСчФ' ATTR IN UPDExportA,
-               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаСчФ' ATTR IN UPDExportA,
-               = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UPDExportA
+    PROPERTIES = (OVERRIDE numberInvoice(d),' ') EXTID 'НомерДок' ATTR IN UPDExportA,
+               = toDateDDMMYYYY(OVERRIDE dateInvoice(d), currentDate()) EXTID 'ДатаДок' ATTR IN UPDExportA
+//               = (OVERRIDE codeCurrency(d),'') EXTID 'КодОКВ' ATTR IN UPDExportA
     
     PROPERTIES = numberCorrection(d) IF numberCorrection(d)>0.0 EXTID 'НомИспрСчФ' ATTR IN UPDExportA01,
                = toDateDDMMYYYY(correctionDate(d)) IF numberCorrection(d)>0.0 EXTID 'ДатаИспрСчФ' ATTR IN UPDExportA01
                
-    PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UPDExportA2    
+//    PROPERTIES = okpoSupplier(d) EXTID 'ОКПО' ATTR IN UPDExportA2
     
     PROPERTIES = (OVERRIDE nameSupplier(d),' ') EXTID 'НаимОрг' ATTR IN UPDExportA2_1_1,
                = innSupplier(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA2_1_1,
@@ -626,6 +662,7 @@ FORM UPDPR FORMEXTID '=:Файл'
                
     //PROPERTIES = (regionCodeSupplier(d) IF regionCodeSupplier(d) AND NOT codeAdrressSupplier(d)) EXTID 'КодРегион' ATTR IN UPDExportA2_2_1            
     PROPERTIES = countryCodeAddressSupplier(d) EXTID 'КодСтр' ATTR IN UPDExportA2_2_2,
+               = countryNameAddressSupplier(d) EXTID 'НаимСтран' ATTR IN UPDExportA2_2_2,
                = addressSupplier(d) EXTID 'АдрТекст' ATTR IN UPDExportA2_2_2    
     PROPERTIES = codeAddressSupplier(d) EXTID 'КодГАР' IN UPDExportA2_2  
         
@@ -638,6 +675,7 @@ FORM UPDPR FORMEXTID '=:Файл'
                = innConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'ИННЮЛ' ATTR IN UPDExportA3_1_1_1
                
     PROPERTIES = countryCodeAddressConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'КодСтр' ATTR IN UPDExportA3_1_2_2,
+               = countryNameAddressConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'НаимСтран' ATTR IN UPDExportA3_1_2_2,
                = addressConsignorCompany(d) IF NOT isConsignerSupplier(d) EXTID 'АдрТекст' ATTR IN UPDExportA3_1_2_2    
 
     PROPERTIES = 'он же' IF isConsignerSupplier(d) EXTID 'ОнЖе' IN UPDExportA3      
@@ -652,9 +690,14 @@ FORM UPDPR FORMEXTID '=:Файл'
                
 //    PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressReceiverCompany(d)) EXTID 'КодРегион' ATTR IN UPDExportA4_2_1 
     PROPERTIES = countryCodeAddressReceiverCompany(d) EXTID 'КодСтр' ATTR IN UPDExportA4_2_2,
+               = countryNameAddressReceiverCompany(d) EXTID 'НаимСтран' ATTR IN UPDExportA4_2_2,
                = addressReceiverCompany(d)  EXTID 'АдрТекст' ATTR IN UPDExportA4_2_2    
 //    PROPERTIES = codeAdrressReceiverCompany(d) EXTID 'КодГАР' IN UPDExportA4_2    
-                   
+
+    PROPERTIES = shipmentDocumentName(d) EXTID 'РеквНаимДок' ATTR IN UPDExportA7,
+        = shipmentDocumentNumber(d) EXTID 'РеквНомерДок' ATTR IN UPDExportA7,
+        = shipmentDocumentDate(d) EXTID 'РеквДатаДок' ATTR IN UPDExportA7
+    
     PROPERTIES = okpoCustomer(d) EXTID 'ОКПО' ATTR IN UPDExportA6   
     
     PROPERTIES = ((OVERRIDE nameCustomer(d),'') IF NOT typeCompany(customer(d))=TypeCompany.individualEntrepreneur) EXTID 'НаимОрг' ATTR IN UPDExportA6_1_1,
@@ -666,19 +709,19 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = customerIELastName(d) EXTID 'Фамилия' ATTR IN UPDExportA6_1_2_1,
                = customerIEFirstName(d) EXTID 'Имя' ATTR IN UPDExportA6_1_2_1,
                = customerIEMiddleName(d) EXTID 'Отчество' ATTR IN UPDExportA6_1_2_1
-
+    
     //PROPERTIES = (regionCodeCustomer(d) IF regionCodeCustomer(d) AND NOT codeAdrressCustomer(d)) EXTID 'КодРегион' ATTR IN UPDExportA6_2_1                 
     PROPERTIES = countryCodeAddressCustomer(d) EXTID 'КодСтр' ATTR IN UPDExportA6_2_2,
+               = countryNameAddressCustomer(d) EXTID 'НаимСтран' ATTR IN UPDExportA6_2_2,    
                = addressCustomer(d) EXTID 'АдрТекст' ATTR IN UPDExportA6_2_2   
     PROPERTIES = codeAddressCustomer(d) EXTID 'КодГАР' IN UPDExportA6_2
-    
-    PROPERTIES = shipmentDocumentName(d) EXTID 'НаимДокОтгр' ATTR IN UPDExportA7,
-               = shipmentDocumentNumber(d) EXTID 'НомДокОтгр' ATTR IN UPDExportA7,
-               = shipmentDocumentDate(d) EXTID 'ДатаДокОтгр' ATTR IN UPDExportA7
+
+    PROPERTIES = codeCurrency(d) EXTID 'КодОКВ' ATTR IN UPDExportA91,
+        = nameCurrency(d) EXTID 'НаимОКВ' ATTR IN UPDExportA91
     
     PROPERTIES = (OVERRIDE codeBusinessEvent(d),'') EXTID 'Идентиф' ATTR IN UPDExportA9_1,
-               = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UPDExportA9_1    
-        
+               = (OVERRIDE descriptionBusinessEvent(d),'') EXTID 'Значен' ATTR IN UPDExportA9_1
+    
     OBJECTS v = UpdDocumentInfoDetail EXTID 'ТекстИнф' IN UPDExportA9
     PROPERTIES = (OVERRIDE nameInfoType(v),'') EXTID 'Идентиф' ATTR,
                = (OVERRIDE info(v),'') EXTID 'Значен' ATTR 
@@ -694,7 +737,14 @@ FORM UPDPR FORMEXTID '=:Файл'
                = smartToChar(price(detail))  EXTID 'ЦенаТов' ATTR,               
                = sum(detail)  EXTID 'СтТовБезНДС' ATTR,       
                = nameVATStatus(detail)EXTID 'НалСт' ATTR,                       
-               = invoiceSum(detail)  EXTID 'СтТовУчНал' ATTR                       
+               = invoiceSum(detail)  EXTID 'СтТовУчНал' ATTR
+
+    PROPERTIES = idCountry(detail)  EXTID 'КодПроисх' ATTR IN UPDExportB3,
+               = numberDeclaration(detail)  EXTID 'НомерТД' ATTR IN UPDExportB3
+
+    PROPERTIES //= nameUOM(detail)  EXTID 'НаимЕдИзм' ATTR IN UPDExportB4,
+        //= nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
+        = idSku(detail)  EXTID 'КодТов' ATTR IN UPDExportB4
     
     PROPERTIES = dutySum(detail) EXTID 'СумАкциз' IN UPDExportB1           
     PROPERTIES = 'без акциза' IF withoutDuty(detail)  EXTID 'БезАкциз' IN UPDExportB1  
@@ -703,12 +753,6 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = 'без НДС' IF NOT VATSum(detail)  EXTID 'БезНДС' IN UPDExportB2      //Указывается, если для суммы налога всего не требуется НДС
     //PROPERTIES = '-' IF NOT VATSum(detail)  EXTID 'ДефНДС' IN UPDExportB2   todo: Знак прочерка. Что это пока непонятно. Указывается, если для товара не требуется НДС, визуализируется как прочерк
     
-    PROPERTIES = idCountry(detail)  EXTID 'КодПроисх' ATTR IN UPDExportB3,      
-               = numberDeclaration(detail)  EXTID 'НомерТД' ATTR IN UPDExportB3
-       
-    PROPERTIES = nameUOM(detail)  EXTID 'НаимЕдИзм' ATTR IN UPDExportB4,      
-               = nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
-               = idSku(detail)  EXTID 'КодТов' ATTR IN UPDExportB4 
     
     OBJECTS utd = UpdTransportPackDetail EXTID 'НомСредИдентТов' IN UPDLotDetail
     PROPERTIES = (OVERRIDE id(utd),'') EXTID 'value' ATTR
@@ -723,7 +767,8 @@ FORM UPDPR FORMEXTID '=:Файл'
     FILTERS updDocumentDetail(uld)==detail
         
     PROPERTIES = sum(d) EXTID 'СтТовБезНДСВсего' ATTR IN UPDExportBB          
-    PROPERTIES = invoiceSum(d)  EXTID 'СтТовУчНалВсего' ATTR IN UPDExportBB       
+    PROPERTIES = invoiceSum(d)  EXTID 'СтТовУчНалВсего' ATTR IN UPDExportBB,
+               = quantityDetail(d)  EXTID 'КолНеттоВс' ATTR IN UPDExportBB
         
     PROPERTIES = VATSum(d) EXTID 'СумНал' IN UPDExportBB_1           
     PROPERTIES = 'без НДС' IF withoutVAT(d)  EXTID 'БезНДС' IN UPDExportBB_1      //Указывается, если для суммы налога всего не требуется НДС
@@ -732,9 +777,9 @@ FORM UPDPR FORMEXTID '=:Файл'
     //--           
     PROPERTIES = (OVERRIDE description(d),'') EXTID 'СодОпер' ATTR IN UPDExportC1
     
-    PROPERTIES = (OVERRIDE descriptionContract(d),'') EXTID 'НаимОсн' ATTR IN UPDExportC1_1,
-               = numberContract(d) EXTID 'НомОсн' ATTR IN UPDExportC1_1,
-               = toDateDDMMYYYY(dateContract(d)) EXTID 'ДатаОсн' ATTR IN UPDExportC1_1      
+    PROPERTIES = (OVERRIDE descriptionContract(d),'') EXTID 'РеквНаимДок' ATTR IN UPDExportC1_1,
+               = numberContract(d) EXTID 'РеквНомерДок' ATTR IN UPDExportC1_1,
+               = toDateDDMMYYYY(dateContract(d)) EXTID 'РеквДатаДок' ATTR IN UPDExportC1_1      
                
     PROPERTIES = ((OVERRIDE positionAgentSupplier(d),' ') IF isAgentSupplier(d)) EXTID 'Должность' ATTR IN UPDExportC1_2_1,        
                = ((OVERRIDE lastNameAgentSupplier(d),' ') IF isAgentSupplier(d)) EXTID 'Фамилия' ATTR IN UPDExportC1_2_1_1,      
@@ -752,16 +797,16 @@ FORM UPDPR FORMEXTID '=:Файл'
                = (middleNameExecuter(d) IF NOT (isAgentExecuter(d) OR isAgentSupplier(d))) EXTID 'Отчество' ATTR IN UPDExportC1_2_2_2_1   
 
     //-- Подписант
-    PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'ОблПолн' ATTR IN UPDExportD,
-               = nameSupplierSignerStatus(d) EXTID 'Статус' ATTR IN UPDExportD,
-               = supplierSignerCredentialsBase(d) EXTID 'ОснПолн' ATTR IN UPDExportD   
+    PROPERTIES = nameSupplierSignerCredentials(d) EXTID 'СпосПодтПолном' ATTR IN UPDExportD
+//               = nameSupplierSignerStatus(d) EXTID 'Статус' ATTR IN UPDExportD,
+//               = supplierSignerCredentialsBase(d) EXTID 'ОснПолн' ATTR IN UPDExportD   
                
     PROPERTIES = supplierSignerLastName(d) IF isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UPDExportD_1_1,
                = supplierSignerFirstName(d) IF isSupplierSigner(d) EXTID 'Имя' ATTR IN UPDExportD_1_1,
                = supplierSignerMiddleName(d) IF isSupplierSigner(d) EXTID 'Отчество' ATTR IN UPDExportD_1_1   
                
-    PROPERTIES = supplierSignerInn(d) IF NOT isSupplierSigner(d)  EXTID 'ИННЮЛ' ATTR IN UPDExportD_3,
-               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UPDExportD_3            
+//    PROPERTIES = supplierSignerInn(d) IF NOT isSupplierSigner(d)  EXTID 'ИННЮЛ' ATTR IN UPDExportD_3,
+//               = supplierSignerPosition(d) IF NOT isSupplierSigner(d) EXTID 'Должн' ATTR IN UPDExportD_3            
     PROPERTIES = supplierSignerAgentLastName(d) IF NOT isSupplierSigner(d)  EXTID 'Фамилия' ATTR IN UPDExportD_3_1,
                = supplierSignerAgentFirstName(d) IF NOT isSupplierSigner(d) EXTID 'Имя' ATTR IN UPDExportD_3_1,
                = supplierSignerAgentMiddleName(d) IF NOT isSupplierSigner(d) EXTID 'Отчество' ATTR IN UPDExportD_3_1                                           

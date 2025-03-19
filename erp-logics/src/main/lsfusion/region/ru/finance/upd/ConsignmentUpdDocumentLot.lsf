@@ -1,10 +1,15 @@
 MODULE ConsignmentUpdDocumentLot;
 
-REQUIRE UpdDocumentLot, ConsignmentUpdDocument, SaleShipmentLot, VolumeAccountLotRu;
+REQUIRE UpdDocumentLot, LotTypeRu, ConsignmentUpdDocument, SaleShipmentLot, VolumeAccountLotRu;
 
 NAMESPACE Upd;
 
+isTabacco = DATA BOOLEAN (UpdDocumentDetail);
+countIsTabacco = GROUP SUM 1 IF isTabacco(UpdDocumentDetail detail) BY updDocument(detail);
+isTabacco (UpdDocument u) += TRUE IF countIsTabacco(u);
+
 overFill(UpdDocumentDetail d, Sale.InvoiceDetail id) + {
+    isTabacco(d) <- TRUE IF lotType(sku(id))=LotType.tobacco OR lotType(sku(id))=LotType.tobaccoProduct;
     FOR quantity(id, Lot lot) AND NOT volumeAccount(lot) NEW ld = UpdLotDetail DO {
         updDocumentDetail(ld) <- d;
         id(ld) <- left(id(lot), 31);

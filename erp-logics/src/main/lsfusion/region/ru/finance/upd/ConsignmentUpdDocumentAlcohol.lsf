@@ -1,0 +1,13 @@
+MODULE ConsignmentUpdDocumentAlcohol;
+
+REQUIRE ConsignmentUpdDocumentLot, EGAISLot, LotTypeRu;
+
+NAMESPACE Upd;
+
+isAlco = DATA BOOLEAN (UpdDocumentDetail);
+countIsAlco = GROUP SUM 1 IF isAlco(UpdDocumentDetail detail) BY updDocument(detail);
+isAlco (UpdDocument u) += TRUE IF countIsAlco(u);
+
+overFill(UpdDocumentDetail d, Sale.InvoiceDetail id) + {
+    isAlco(d) <- TRUE IF lotType(sku(id))=LotType.alcohol OR lotType(sku(id))=LotType.beer;
+}
