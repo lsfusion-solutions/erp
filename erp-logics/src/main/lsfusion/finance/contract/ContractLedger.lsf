@@ -195,11 +195,13 @@ notPrePay (OutContractLedger o) = sum(o) (-) prePay(o);
 debtNotPrePay (InContractLedger i) = debt(i) (-) prePay(i) MATERIALIZED;
 INDEX contract(InContractLedger i), debtNotPrePay(i);
 
+skipCost = ABSTRACT BOOLEAN (InContractLedger);
+
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     (PARTITION UNGROUP notPrePay
               LIMIT debtNotPrePay(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
-                    active(inContractLedger)
+                    active(inContractLedger) AND NOT skipCost(inContractLedger)
               ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger
               BY outContractLedger) 
     (+) prePay(outContractLedger, inContractLedger);
@@ -209,7 +211,7 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
     (PARTITION UNGROUP notPrePay
               LIMIT debtNotPrePay(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
-                    active(inContractLedger)
+                    active(inContractLedger) AND NOT skipCost(inContractLedger)
               ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger
               BY outContractLedger)
     (+) prePay(outContractLedger, inContractLedger);    
@@ -218,7 +220,7 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
 //    PARTITION UNGROUP sum
 //              LIMIT debt(inContractLedger) IF
 //                    contract(outContractLedger) == contract(inContractLedger) AND
-//                    active(inContractLedger)
+//                    active(inContractLedger) AND NOT skipCosted(inContractLedger)
 //              BY outContractLedger
 //              ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger;
 //
@@ -226,7 +228,7 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
 //    PARTITION UNGROUP sum
 //              LIMIT debt(inContractLedger) IF
 //                    contract(outContractLedger) == contract(inContractLedger) AND
-//                    active(inContractLedger)
+//                    active(inContractLedger) AND NOT skipCosted(inContractLedger)
 //              BY outContractLedger
 //              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
 
@@ -235,7 +237,7 @@ negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContr
     PARTITION UNGROUP negativeSum
               LIMIT costedOutContractLedger(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
-                    active(inContractLedger)
+                    active(inContractLedger) AND NOT skipCost(inContractLedger)
               ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger
               BY outContractLedger;
               
