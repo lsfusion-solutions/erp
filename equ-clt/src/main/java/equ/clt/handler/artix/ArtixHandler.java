@@ -1702,10 +1702,14 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             idEmployee = nppGroupMachinery + "_" + idEmployee;
                                         }
 
+                                        Map<String, Object> receiptExtraFields = new HashMap<>();
+
                                         String identifier = documentObject.optString("identifier");
                                         String sourceIdentifier = documentObject.optString("sourceidentifier");
+                                        if(!sourceIdentifier.isEmpty()) {
+                                            receiptExtraFields.put("sourceidentifier", sourceIdentifier);
+                                        }
 
-                                        Map<String, Object> receiptExtraFields = new HashMap<>();
                                         String uid = documentObject.optString("frDocCopy");
                                         if(uid != null) {
                                             receiptExtraFields.put("uid", uid);
