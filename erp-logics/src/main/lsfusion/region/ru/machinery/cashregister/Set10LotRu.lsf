@@ -34,18 +34,18 @@ EXTEND FORM barcodesCatalog
 
 @defineOption(createLotZReport, 'Создавать новые марки при приёме чеков', BOOLEAN, zReport);
 
-overCreateReceiptDetail(ReceiptDetail d, INTEGER i) + {
-    IF key(i) = 'excise-token' THEN {
+overCreateReceiptDetail(ReceiptDetail d, INTEGER i) + {    
+    FOR INTEGER  r == [GROUP MAX INTEGER  rr IF key1(rr) = 'excise-token' BY positionPluginPosition(rr)](i) DO {
         LOCAL lotDetail = Lot();
-        lotDetail() <- lot(value(i));
-        IF NOT lotDetail() AND value(i) AND createLotZReport() THEN {
+        lotDetail() <- lot(value1(r));
+        IF NOT lotDetail() AND value1(r) AND createLotZReport() THEN {
             NEW l = Lot {
                 sku(l) <- sku(d);
-                id(l) <- STRING[200](value(i));
-                lotDetail() <- l;                
-            }            
+                id(l) <- STRING[200](value1(r));
+                lotDetail() <- l;
+            }
         }
-        lot(d) <- lotDetail();
+        lot(d) <- lotDetail();        
     }
 }
 
