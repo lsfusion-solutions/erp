@@ -8,7 +8,7 @@ NAMESPACE Astron;
 //товар
 imageAstron(Item i) = DATA IMAGEFILE (Item) TABLE itemImage;
 
-WHEN CHANGED (image(Item i)) DO { 
+WHEN CHANGED (image(Item i)) OR CHANGED(allBarcodes(i)) DO { 
     imageAstron(i) <- NULL;
 }
 //группа
@@ -67,6 +67,8 @@ EXTEND FORM customGroup
 //выгрузка
 encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
 
+updateImage = DATA LOCAL NESTED BOOLEAN (Sku);
+
 overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += 
     (CONCAT ', ',
         //свойства
@@ -91,7 +93,7 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
                 '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b))
             ) +']',
         '"binaryData":[' + (CONCAT ', ',
-                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+value(b)+'"\}' IF imageAstron(sku(b))
+                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+value(b)+'"\}' IF updateImage(sku(b))
             ) +']'
         ),
         //группы
@@ -125,6 +127,7 @@ beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
                     convertImage(resizedImage(), 'png');
                     imageAstron(s) <- convertedImage();
                 }
+                updateImage(s) <- TRUE IF imageAstron(s);
             }
             APPLY NESTED LOCAL;
         }
