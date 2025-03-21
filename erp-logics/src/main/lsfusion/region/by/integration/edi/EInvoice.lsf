@@ -142,6 +142,7 @@ currency '3-х буквенный код валюты' = DATA STRING[3] (EInvoic
 isCancel 'Отмена накладной' = DATA BOOLEAN (EInvoice);
 
 isTestDocument 'Тестовый документ' = DATA BOOLEAN (EInvoice);
+formType 'Тип формы' = DATA INTEGER (EInvoice);
 
 @defineOption(overIsNewFormatEInvoice, 'Создавать электронные накладные в новом формате (2024)', EDI);
 
@@ -473,7 +474,7 @@ FORM eInvoice 'Электронная накладная'
         nameTransporter SHOWIF NOT isTN2(e), unpTransporter SHOWIF NOT isTN2(e), transportContact SHOWIF NOT isTN2(e), 
         deliveryContact HEADER 'Товар к ' + (IF isTN2(e) THEN 'доставке' ELSE 'перевозке') + ' принял (должность и ФИО)', proxyID, proxyDate, partyIssuingProxyName,
         quantityTrip SHOWIF NOT isTN2(e), transportOwnerName SHOWIF NOT isTN2(e), transportID SHOWIF NOT isTN2(e), trailerID SHOWIF NOT isTN2(e),
-        sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, overReplaceNumber ON CHANGE changeReplaceNumber(e), isTestDocument
+        sealIDReceiver SHOWIF NOT isTN2(e), currency, orderID, overReplaceNumber ON CHANGE changeReplaceNumber(e), isTestDocument, formType
 
     OBJECTS ed = EInvoiceDetail
     PROPERTIES (ed) lineItemNumber, lineItemID, lineItemName, lineItemSign, lineItemBuyerID, lineItemSupplierID, quantityDespatched, 
@@ -634,6 +635,7 @@ DESIGN eInvoice {
                         MOVE PROPERTY (unpTransporter(e));
                     }
                     MOVE PROPERTY (isTestDocument(e));
+                    MOVE PROPERTY (formType(e));
                     MOVE PROPERTY (orderID(e));
                     MOVE PROPERTY (overReplaceNumber(e));
                     MOVE PROPERTY (currency(e)){notNull = TRUE;};
