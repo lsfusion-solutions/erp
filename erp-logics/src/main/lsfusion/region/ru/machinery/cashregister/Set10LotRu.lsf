@@ -34,6 +34,32 @@ EXTEND FORM barcodesCatalog
 
 @defineOption(createLotZReport, 'Создавать новые марки при приёме чеков', BOOLEAN, zReport);
 
+GROUP exciseBottles;
+purchaseBottle = DATA LOCAL INTEGER(INTEGER);
+barcode = DATA LOCAL STRING(INTEGER);
+exciseBarcode = DATA LOCAL STRING(INTEGER);
+volume = DATA LOCAL STRING(INTEGER);
+price = DATA LOCAL NUMERIC(INTEGER);
+
+EXTEND FORM purchasesImport
+    OBJECTS bottle = INTEGER IN exciseBottles
+    FILTERS purchaseBottle(bottle) == purchase
+    PROPERTIES(bottle) barcode ATTR, exciseBarcode ATTR, volume ATTR, price ATTR
+;
+
+lotLoc = DATA LOCAL Lot (INTEGER);
+receiptDetailLot = DATA LOCAL ReceiptDetail (INTEGER);
+
+importReceiptExtra(STRING purchases)+{
+    lotLoc(INTEGER i) <- lot(exciseBarcode(i));
+    receiptDetailLot(INTEGER ii) <- GROUP MAX ReceiptDetail d IF sku(lotLoc(ii)) = sku(d)
+        AND idBarcode(d) = barcode(ii) AND receipt(d) = receipt(idReceipt(purchaseBottle(ii)));
+    
+    FOR Lot l = lotLoc(INTEGER ii) AND ReceiptDetail rd = receiptDetailLot(ii) DO{
+        lot(rd) <- l;
+    }
+}
+
 overCreateReceiptDetail(ReceiptDetail d, INTEGER i) + {    
     FOR INTEGER  r == [GROUP MAX INTEGER  rr IF key1(rr) = 'excise-token' BY positionPluginPosition(rr)](i) DO {
         LOCAL lotDetail = Lot();
