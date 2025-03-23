@@ -16,10 +16,21 @@ EXTEND FORM lots
 ;
 
 @defineOption(testDatamatrix, 'Тестовый datamatrix для печати', STRING, items);
-
 @defineOption(printTestDatamartix, 'Печатать тестовый datamatrix', BOOLEAN, items);
-
 @defineOption(datamartixTag, 'Тег datamatrix в шаблонах этикеток (с префиксом и постфиксом)', STRING, items);
+@defineOption(logPrintDatamartix, 'Записывать в лог пераданные на печать datamatrix', BOOLEAN, items);
+
+DESIGN options {
+    items {
+        NEW printDatamatrix {
+            caption = 'Параметры печати datamatrix';
+            MOVE PROPERTY(testDatamatrix());
+            MOVE PROPERTY(printTestDatamartix());
+            MOVE PROPERTY(datamartixTag());
+            MOVE PROPERTY(logPrintDatamartix());
+        }
+    }
+}
 
 // пока усложнять резервированием марок через APPLY не будем, поэтому на 2х рабочих местах на 1 товар лучше не печатать
 preparePrintLot(StickerTransaction stickerTrans) {
@@ -27,6 +38,11 @@ preparePrintLot(StickerTransaction stickerTrans) {
     lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND sku(l) = item(stickerTrans);
     stickerTransaction(lotToPrint()) <- stickerTrans;
 
+    IF logPrintDatamartix() THEN {
+        logToFile('labelDirectPrint', '[Select datamatrix] ' + id(lotToPrint())
+            + ' , computer: ' + hostname(currentComputer()) + ', user: ' + login(currentUser()));
+    }
+    
     IF code(lotToPrint()) THEN
         fullFormattedText() <- replace(formattedText(), datamartixTag(), code(lotToPrint()));
     ELSE
