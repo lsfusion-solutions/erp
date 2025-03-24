@@ -265,9 +265,10 @@ completeWork 'Завершить приёмку' (Receiving receiving) {
 
 createDetails 'Создать строки по документу основания' ABSTRACT CASE (Receiving);
 
-placementBin  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin), o;
-placementBin  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o;
-placementBinNoUseBalance  = GROUP LAST Bin bin IF inBin(bin, Bin.Operation o) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o;
+placementBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin), o1, u1](st, o, u);
+placementBin  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1)  AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+placementBinNoUseBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1)  AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+
 noUseBalanceForPlacement 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
 
 EXTEND FORM options
@@ -280,9 +281,9 @@ DESIGN options {
     }
 }
 
-placementBinOver (Sku sku, Stock stock, Bin.Operation o) = OVERRIDE placementBin(sku, stock, o), 
-    placementBinNoUseBalance(sku, stock, o) IF noUseBalanceForPlacement(),
-    placementBin(stock, o) IF sku IS Sku;
+placementBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) = OVERRIDE placementBin(sku, stock, o, u), 
+    placementBinNoUseBalance(sku, stock, o, u) IF noUseBalanceForPlacement(),
+    placementBin(stock, o, u) IF sku IS Sku;
 
 placement 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
@@ -310,7 +311,7 @@ placement 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- receivingBin(u);
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc());
+                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
                 quantity(d) <- currentBalance(sku, receivingBin(u));
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -346,7 +347,7 @@ placementReserve 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc());
+                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
                 quantity(d) <- currentBalance(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {

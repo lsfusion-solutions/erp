@@ -443,9 +443,9 @@ NAVIGATOR {
 //ячейка в
 inUsageType 'Тип использования (в)' = DATA UsageType (Operation);
 staticCaptionInUsageType 'Ограничение по типу использования использования (в)' (Operation o) = staticCaption(inUsageType(o));
-matchInUsageType (Bin b, Operation o) = in(b, inUsageType(o)) OR b IS Bin AND NOT inUsageType(o);
-CONSTRAINT inBin(Operation o, stock(Bin bin)) = bin AND NOT matchInUsageType(bin, o)
-    MESSAGE 'Нельзя задавать "ячейку (в)" склада неудовлетворющую типу использования операции';
+
+skipInUsageType(Bin b, Operation o) = inUsageType(o) AND b IS Bin AND NOT in(b, inUsageType(o)) MATERIALIZED;
+
 
 // Отметка для групп
 dataInBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
@@ -466,11 +466,12 @@ inBin 'Отм' (BinGroup binGroup, Operation operation) =
 dataInBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
 countDataInBins (Operation operation) = GROUP SUM 1 IF  dataInBin(Bin bin, operation);
 
-
 inBin 'Отм' (Bin bin, Operation operation) =
-    (OVERRIDE dataInBin(bin, operation),
-        inBin(binGroup(bin), operation), inBin(operation, stock(bin)) = bin AND in(stock(bin), operation)) AND matchInUsageType(bin, operation);
+    (OVERRIDE dataInBin(bin, operation), inBin(binGroup(bin), operation)) AND NOT skipInUsageType(bin, operation);
 
+CONSTRAINT inBin(Operation operation, Stock st) IS Bin AND NOT inBin(inBin(operation, st), operation)
+    CHECKED BY inBin[Operation, Stock]
+    MESSAGE '"Ячейка (в)" склада по умолчанию должна быть включена в операцию';
 
 quantityChildWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
 quantityParentWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;
@@ -488,10 +489,7 @@ backgroundInBin 'Цвет' (Bin bin, Operation operation) = IF dataInBin(bin, op
 //ячейка из
 outUsageType 'Тип использования (из)' = DATA UsageType (Operation);
 staticCaptionOutUsageType 'Ограничение по типу использования (из)' (Operation o) = staticCaption(outUsageType(o));
-matchOutUsageType (Bin b, Operation o) = in(b, outUsageType(o)) OR b IS Bin AND o IS Operation AND NOT outUsageType(o);
-
-CONSTRAINT outBin(Operation o, stock(Bin bin)) = bin AND NOT matchOutUsageType(bin, o) 
-    MESSAGE 'Нельзя задавать "ячейку (из)" склада неудовлетворющую типу использования операции'; 
+skipOutUsageType(Bin b, Operation o) = outUsageType(o) AND b IS Bin AND NOT in(b, outUsageType(o)) MATERIALIZED;
 
 // Отметка для групп
 dataOutBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
@@ -504,16 +502,18 @@ nearestOutBin (BinGroup binGroup, Operation operation) =
     dataOutBin(nearestParentOutBinGroup(operation, binGroup), operation) MATERIALIZED;
 
 outBin 'Отм' (BinGroup binGroup, Operation operation) =
-    OVERRIDE dataOutBin(binGroup, operation),
-        nearestOutBin(binGroup, operation);
+    (OVERRIDE dataOutBin(binGroup, operation), nearestOutBin(binGroup, operation));
 
 // Отметка для ячеек
 dataOutBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
 countDataOutBins (Operation operation) = GROUP SUM 1 IF  dataOutBin(Bin bin, operation);
 
 outBin 'Отм' (Bin bin, Operation operation) =
-    (OVERRIDE dataOutBin(bin, operation),
-        outBin(binGroup(bin), operation), outBin (operation, stock(bin)) = bin AND in(stock(bin), operation)) AND matchOutUsageType(bin, operation);
+    (OVERRIDE dataOutBin(bin, operation), outBin(binGroup(bin), operation)) AND NOT skipOutUsageType(bin, operation) MATERIALIZED;
+
+CONSTRAINT outBin(Operation operation, Stock st) IS Bin AND NOT outBin(outBin(operation, st), operation)
+    CHECKED BY outBin[Operation, Stock]
+    MESSAGE '"Ячейка (из)" склада по умолчанию должна быть включена в операцию';
 
 countDataOutBinGroups (Operation operation) = GROUP SUM 1 IF  dataOutBin(BinGroup binGroup, operation);
 
@@ -544,13 +544,12 @@ EXTEND FORM operation
     PROPERTIES(inbin, o) inBin BACKGROUND backgroundInBin(inbin, o)
     PROPERTIES(inbin) READONLY canonicalId, nameBinGroup, name, id SHOWIF showIDs()
     ORDERS canonicalId(inbin)
-    FILTERS inbin IS Bin AND NOT inbing IS BinGroup OR
-        isParent(inbing, inbin)
+    FILTERS isParent(inbing, inbin)
     FILTERGROUP inBinFilters3
         FILTER 'Показывать отмеченные' inBin(inbin, o) 'F10'
 
     FILTERGROUP inUsageBinFilters
-        FILTER 'По типу использования' matchInUsageType(inbin, o) DEFAULT
+        FILTER 'По типу использования' NOT skipInUsageType(inbin, o) DEFAULT
 
     TREE outGroupTree outbing = BinGroup PARENT parent(outbing)
     PROPERTIES READONLY outbingTreeName = name(outbing)
@@ -561,12 +560,11 @@ EXTEND FORM operation
     PROPERTIES(outbin, o) outBin BACKGROUND backgroundOutBin(outbin, o)
     PROPERTIES(outbin) READONLY canonicalId, nameBinGroup, name, id SHOWIF showIDs()
     ORDERS canonicalId(outbin)
-    FILTERS outbin IS Bin AND NOT outbing IS BinGroup OR
-        isParent(outbing, outbin)
+    FILTERS isParent(outbing, outbin)
     FILTERGROUP outBinFilters3
         FILTER 'Показывать отмеченные' outBin(outbin, o) 'F10'
     FILTERGROUP outUsageBinFilters
-        FILTER 'По типу использования' matchOutUsageType(outbin, o) DEFAULT
+        FILTER 'По типу использования' NOT skipOutUsageType(outbin, o) DEFAULT
 
 
     PROPERTIES(o) levelBinGroup, staticCaptionOutUsageType, staticCaptionInUsageType, needIn, needOut
@@ -580,6 +578,7 @@ DESIGN operation {
             NEW outBinContainer {
                 fill = 1;
                 caption = 'Ячейки (из)';
+                MOVE PROPERTY(staticCaptionOutUsageType(o));
                 NEW splitOutBinContainer{
                     horizontal = TRUE;
                     fill = 1;
@@ -591,6 +590,7 @@ DESIGN operation {
             }
             NEW inBinContainer {
                 caption = 'Ячейки (в)';
+                MOVE PROPERTY(staticCaptionInUsageType(o));
                 fill = 1;
                 NEW splitInBinContainer{
                     horizontal = TRUE;
@@ -606,20 +606,11 @@ DESIGN operation {
                     MOVE PROPERTY(levelBinGroup(o));
                     NEW additionalInOutContainer {
                         horizontal = TRUE;
-                        NEW additionalOutContainer {
-                            caption = 'Ячейки из';
-                            MOVE PROPERTY(staticCaptionOutUsageType(o));
-                            MOVE PROPERTY(needOut(o));
-                        }
-                        NEW additionalInContainer {
-                            caption = 'Ячейки в';
-                            MOVE PROPERTY(staticCaptionInUsageType(o));
-                            MOVE PROPERTY(needIn(o));
-                        }
+                        MOVE PROPERTY(needOut(o));
+                        MOVE PROPERTY(needIn(o));
                     }
                 }
             }
-            
         }
     }
 }
