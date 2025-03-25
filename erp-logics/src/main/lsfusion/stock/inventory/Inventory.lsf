@@ -1067,7 +1067,9 @@ DESIGN operation {
     }
 }
 
-skipStockDocumentLedger (CollationSheet cs) = skipStockDocumentLedger(inventory(cs));
+overSkipStockDocumentLedger = ABSTRACT BOOLEAN (CollationSheet);
+
+skipStockDocumentLedger (CollationSheet cs) = skipStockDocumentLedger(inventory(cs)) OR overSkipStockDocumentLedger(cs);
 skip(CollationSheet l) += skipStockDocumentLedger(l);
 
 skipSkuLedger (CollationSheet cs) = skipSkuLedger(inventory(cs));
@@ -1113,7 +1115,17 @@ sumShortage 'Сумма недостачи / излишка'  =  IF showAccountS
                                                                     THEN sumAccountShortage(collationSheet)
                                                                     ELSE sumManageShortage(collationSheet);                                                           
 
-@implementStockDocumentLedgerOut(CollationSheet, stock);
+customDateTime = ABSTRACT DATETIME (Inventory);
+
+EXTEND CLASS CollationSheet : OutStockDocumentLedger;
+
+series[StockDocumentLedger] (CollationSheet ledger) += series(ledger);
+number[StockDocumentLedger] (CollationSheet ledger) += number(ledger);
+dateTime[StockDocumentLedger] (CollationSheet ledger) += OVERRIDE customDateTime(inventory(ledger)), dateTime(ledger);
+isPosted[StockDocumentLedger] (CollationSheet ledger) += isPosted(ledger);
+isClosed[StockDocumentLedger] (CollationSheet ledger) += isClosed(ledger);
+stock[StockDocumentLedger] (CollationSheet ledger) += stock(ledger);
+description[StockDocumentLedger] (CollationSheet ledger) += STRING[200](description(ledger));
 
 overSumItem = ABSTRACT NUMERIC[18,4](CollationSheet);
 
@@ -1232,7 +1244,12 @@ description 'Название документа' (InInventorySkuDetail inventor
 
 description 'Название документа' (InventorySkuDetail inventorySkuDetail) = OVERRIDE description[InInventorySkuDetail](inventorySkuDetail), description[OutInventorySkuDetail](inventorySkuDetail);
 
-@implementSkuLedger(inventorySkuDetail, sku, stock);
+dateTime[DataSkuLedger] (InventorySkuDetail ledger) += OVERRIDE customDateTime(inventory(ledger)), dateTime(ledger);
+isPosted[DataSkuLedger] (InventorySkuDetail ledger) += isPosted(ledger);
+isClosed[DataSkuLedger] (InventorySkuDetail ledger) += isClosed(ledger);
+sku[DataSkuLedger] (InventorySkuDetail ledger) += sku(ledger);
+stock[DataSkuLedger] (InventorySkuDetail ledger) += stock(ledger);
+description[DataSkuLedger] (InventorySkuDetail ledger) += ISTRING[200](description(ledger));
 
 EXTEND CLASS OutInventorySkuDetail : OutFIFOSkuLedger;
 quantity (OutInventorySkuDetail ledger) += quantity(ledger);
@@ -1342,7 +1359,14 @@ description 'Название документа' (InInventoryBatchDetail invent
 
 description 'Название документа' (InventoryBatchDetail inventoryBatchDetail) = OVERRIDE description[InInventoryBatchDetail](inventoryBatchDetail), description[OutInventoryBatchDetail](inventoryBatchDetail);
 
-@implementSkuLedger(inventoryBatchDetail, sku, stock);
+
+dateTime[DataSkuLedger] (InventoryBatchDetail ledger) += OVERRIDE customDateTime(inventory(ledger)), dateTime(ledger);
+isPosted[DataSkuLedger] (InventoryBatchDetail ledger) += isPosted(ledger);
+isClosed[DataSkuLedger] (InventoryBatchDetail ledger) += isClosed(ledger);
+sku[DataSkuLedger] (InventoryBatchDetail ledger) += sku(ledger);
+stock[DataSkuLedger] (InventoryBatchDetail ledger) += stock(ledger);
+description[DataSkuLedger] (InventoryBatchDetail ledger) += ISTRING[200](description(ledger));
+
 changed(InventoryBatchDetail ledger) += CHANGED(batch(ledger));
 batch(InventoryBatchDetail ledger) += batch(ledger);
 
@@ -1448,11 +1472,15 @@ dialogSku 'Добавить товар'(ManyCollationSheet collationSheet)  {
 
 excludeSku = ABSTRACT BOOLEAN (Inventory, Sku);
 
+createPageCustom  ABSTRACT LIST (ListInventory, PageInventory);
+createPageCustom = ABSTRACT BOOLEAN (ListInventory);
+
 createPage 'Создать страницу описи с остатками'  (ListInventory listInventory)  { 
     DIALOG dialogSkuGroup DO {    
         NEW p = PageInventory {
             listInventory(p) <- listInventory;
-            IF isBatch(inventory(listInventory)) THEN {
+            IF createPageCustom(listInventory) THEN createPageCustom(listInventory, p);
+            ELSE IF isBatch(inventory(listInventory)) THEN {
                 FOR (NUMERIC[16,5] cnt == balanceB(Batch b, stock(listInventory), dateTime(inventory(listInventory))) AND NOT excludeBatch(inventory(listInventory),b) AND cnt > 0 AND inSession(skuGroup(sku(b)))) AND (isItem(sku(b)) OR isContainer(sku(b))) NEW d = PageInventoryDetail DO {
                     pageInventory(d) <- p;
                     sku(d) <- sku(b);
@@ -1807,6 +1835,9 @@ backgroundDiffInventory(CollationSheet cs, Sku s) = CASE
 
 disallowEditQuantityPageInventoryDetail 'Запретить редактирование' = ABSTRACT BOOLEAN ();
 
+editQuantityShortage = ABSTRACT BOOLEAN (Inventory);
+changeQuantityShortage ABSTRACT LIST (CollationSheet, Sku);
+
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
@@ -1877,7 +1908,8 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          i=Sku GRID
     PROPERTIES(i) READONLY                      BACKGROUND backgroundDiffInventory(cs,i) idBarcode, iNameSku = name ON CONTEXTMENU showMovementSkuStock(cs,i) ON CONTEXTMENU movementDocumentDetailSku(i,cs), id
-    PROPERTIES(cs, i)                           quantityPageInventoryDetail READONLYIF disallowEditQuantityPageInventoryDetail() ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON CONTEXTMENU showCost(cs, i)
+    PROPERTIES(cs, i)                           quantityPageInventoryDetail READONLYIF disallowEditQuantityPageInventoryDetail() ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, 
+        quantityShortage ON CONTEXTMENU showCost(cs, i) ON CHANGE { IF editQuantityShortage(in) THEN changeQuantityShortage(cs, i); }
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail, sumBalance, sumShortage
