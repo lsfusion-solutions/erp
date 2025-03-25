@@ -1098,7 +1098,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getGTIN(ItemInfo item) {
-        return item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo).optString("gtin") : "";
+        String gtin = "";
+        for(JSONObject infoJSON : getExtInfo(item.info).jsonObjects) {
+            if (infoJSON.has("gtin")) {
+                gtin = infoJSON.getString("gtin");
+                break;
+            }
+        }
+        return gtin;
     }
 
     private void exportExBarc(Connection conn, AstronConnectionString params, List<? extends ItemInfo> itemsList, boolean delFlag, Integer maxBatchSize, Integer updateNum) throws SQLException {
@@ -1958,18 +1965,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getEventTime(Connection conn, boolean waitSysLogInsteadOfDataPump) {
-        if (!waitSysLogInsteadOfDataPump) {
-            return null;
-        }
-        try (Statement statement = conn.createStatement()) {
-            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
-            if (rs.next()) {
-                return rs.getString("EVENTTIME");
-            }
-            return "0";
-        } catch (Exception e) {
-            throw Throwables.propagate(e);
-        }
+        return null;
+//        if (!waitSysLogInsteadOfDataPump) {
+//        }
+//        try (Statement statement = conn.createStatement()) {
+//            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
+//            if (rs.next()) {
+//                return rs.getString("EVENTTIME");
+//            }
+//            return "0";
+//        } catch (Exception e) {
+//            throw Throwables.propagate(e);
+//        }
     }
 
     private Pair<Boolean, Exception> checkSysLog(Connection conn, AstronConnectionString params, String eventTime) {
