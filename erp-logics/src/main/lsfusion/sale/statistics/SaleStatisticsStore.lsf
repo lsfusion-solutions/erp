@@ -40,8 +40,247 @@ DESIGN departmentStore {
         }
     }
 }
+// quantity
+// Stock
+cateringQuantitySoldBy 'Продано, шт' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcQuantitySoldBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM quantitySoldStatistic (Sku sku, stock, dateFrom, dateTo) * factor(group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringNetWeightSoldBy 'Продано, кг' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcNetWeightSoldBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM netWeightSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringVolumeSoldBy 'Продано, л' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcVolumeSoldBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM volumeSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringRetailSumSoldBy 'Продано, сум.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcRetailSumSoldBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
 
-//
+cateringValueBy 'Продано' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group)==GroupStatic.statisticThing OR
+            unitMeasure(group)==GroupStatic.statisticLinearMeters OR
+            unitMeasure(group)==GroupStatic.statisticPair OR
+            unitMeasure(group)==GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group)==GroupStatic.statisticSquareMeters OR
+            unitMeasure(group)==GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticLiter
+        THEN cateringVolumeSoldBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticSum
+        THEN cateringRetailSumSoldBy(group, stock, dateFrom, dateTo)
+        ELSE 0 IF group IS StatisticGroup AND stock IS Stock
+;
+
+// LegalEntity
+cateringQuantitySoldBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF isCatering (stock) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringNetWeightSoldBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku)  AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringVolumeSoldBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringRetailSumSoldBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringValueBy 'Продано всего' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group) == GroupStatic.statisticThing OR
+            unitMeasure(group) == GroupStatic.statisticLinearMeters OR
+            unitMeasure(group) == GroupStatic.statisticPair OR
+            unitMeasure(group) == GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group) == GroupStatic.statisticSquareMeters OR
+            unitMeasure(group) == GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticLiter
+        THEN cateringVolumeSoldBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticSum
+        THEN cateringRetailSumSoldBy(group, legalEntity, dateFrom, dateTo);
+
+// Region
+cateringQuantitySoldBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF isCatering (stock) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringNetWeightSoldBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku)  AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringVolumeSoldBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringRetailSumSoldBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND isParent(group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringValueBy 'Продано всего' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group) == GroupStatic.statisticThing OR
+            unitMeasure(group) == GroupStatic.statisticLinearMeters OR
+            unitMeasure(group) == GroupStatic.statisticPair OR
+            unitMeasure(group) == GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group) == GroupStatic.statisticSquareMeters OR
+            unitMeasure(group) == GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticLiter
+        THEN cateringVolumeSoldBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group) == GroupStatic.statisticSum
+        THEN cateringRetailSumSoldBy(group, legalEntity, region, dateFrom, dateTo);
+
+// Resident Stock
+cateringQuantitySoldResidentBy 'Продано, шт' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcQuantitySoldResidentBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM quantitySoldStatistic (Sku sku, stock, dateFrom, dateTo) * factor(group, sku) IF resident (group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringNetWeightSoldResidentBy 'Продано, кг' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcNetWeightSoldResidentBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM netWeightSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringVolumeSoldResidentBy 'Продано, л' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcVolumeSoldResidentBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM volumeSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringRetailSumSoldResidentBy 'Продано, сум.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+    (IF useCalcData() THEN (GROUP
+        SUM calcRetailSumSoldResidentBy(group, stock, DATE date) IF date >= dateFrom AND date <= dateTo)
+    ELSE (GROUP
+        SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF resident (group, sku))/
+        (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup)) IF isCatering (stock);
+cateringValueResidentBy 'Продано, бел. пр-ва' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group)==GroupStatic.statisticThing OR
+            unitMeasure(group)==GroupStatic.statisticLinearMeters OR
+            unitMeasure(group)==GroupStatic.statisticPair OR
+            unitMeasure(group)==GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group)==GroupStatic.statisticSquareMeters OR
+            unitMeasure(group)==GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldResidentBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldResidentBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticLiter
+        THEN cateringVolumeSoldResidentBy(group, stock, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticSum
+        THEN cateringRetailSumSoldResidentBy(group, stock, dateFrom, dateTo)
+        ELSE 0 IF group IS StatisticGroup AND stock IS Stock
+;
+
+// Resident Region
+cateringQuantitySoldResidentBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringNetWeightSoldResidentBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringVolumeSoldResidentBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringRetailSumSoldResidentBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock), region(stock)]
+        (legalEntity, region) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringValueResidentBy 'Продано отеч. пр-ва' (StatisticGroup group, LegalEntity legalEntity, Region region, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group)==GroupStatic.statisticThing OR
+            unitMeasure(group)==GroupStatic.statisticLinearMeters OR
+            unitMeasure(group)==GroupStatic.statisticPair OR
+            unitMeasure(group)==GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group)==GroupStatic.statisticSquareMeters OR
+            unitMeasure(group)==GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldResidentBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldResidentBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticLiter
+        THEN cateringVolumeSoldResidentBy(group, legalEntity, region, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticSum
+        THEN cateringRetailSumSoldResidentBy(group, legalEntity, region, dateFrom, dateTo)
+        ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity AND region IS Region
+;
+
+// Resident LegalEntity
+cateringQuantitySoldResidentBy 'Продано, шт' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM quantitySoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) * factor(group, sku) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringNetWeightSoldResidentBy 'Продано, кг' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM netWeightSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringVolumeSoldResidentBy 'Продано, л' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM volumeSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringRetailSumSoldResidentBy 'Продано, руб.' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo)=
+    [ GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCatering (stock) AND resident (group, sku) AND NOT skipSale(stock)
+    BY legalEntity(stock)]
+        (legalEntity) / (OVERRIDE conversionFactor(group), 1 IF group IS StatisticGroup);
+
+cateringValueResidentBy 'Продано отеч. пр-ва' (StatisticGroup group, LegalEntity legalEntity, DATE dateFrom, DATE dateTo) =
+    CASE
+        WHEN (unitMeasure(group)==GroupStatic.statisticThing OR
+            unitMeasure(group)==GroupStatic.statisticLinearMeters OR
+            unitMeasure(group)==GroupStatic.statisticPair OR
+            unitMeasure(group)==GroupStatic.statisticConditionalPiece OR
+            unitMeasure(group)==GroupStatic.statisticSquareMeters OR
+            unitMeasure(group)==GroupStatic.statisticCubicMeters)
+        THEN cateringQuantitySoldResidentBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticPounds
+        THEN cateringNetWeightSoldResidentBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticLiter
+        THEN cateringVolumeSoldResidentBy(group, legalEntity, dateFrom, dateTo)
+        WHEN unitMeasure(group)==GroupStatic.statisticSum
+        THEN cateringRetailSumSoldResidentBy(group, legalEntity, dateFrom, dateTo)
+        ELSE 0 IF group IS StatisticGroup AND legalEntity IS LegalEntity
+;
+
+// sum
 totalSumCorporateSoldBy 'В фирменных магазинах, руб.' (StatisticGroup group, legalEntity, region, DATE dateFrom, DATE dateTo)=
     GROUP SUM sumSoldStatistic (Sku sku, Stock stock, dateFrom, dateTo) IF isCorporate(stock) AND isParent(group, sku) AND NOT skipSale(stock)
     BY legalEntity(stock), region(stock);
