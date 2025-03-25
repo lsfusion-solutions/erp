@@ -16,6 +16,7 @@ countDisassembly (Stock st, CustomUser cu) = GROUP SUM 1 IF inProcess(Disassembl
 
 dsku = DATA LOCAL NESTED Sku ();
 nameSku 'Микс' = name(dsku()) CHARWIDTH 10;
+captionSku 'Микс' = caption(dsku()) CHARWIDTH 10;
 
 iweight 'Вес' = DATA LOCAL NUMERIC[11,5] ();
 
@@ -47,22 +48,11 @@ DESIGN options {
     } 
 }
 
-@defineOption(notAskOneSku, 'Не спрашивать про выбранную позицию при закрытии смены на форме Разукомплектация', disassembly);
-
 postDisassembly 'Закрыть смену' (Stock st) {
-    LOCAL current = BOOLEAN ();
-    IF disassembly(st, currentUser(), dsku()) AND NOT notAskOneSku() THEN {
-        ASK 'Закрыть только выбранную позицию ' + (CONCAT ' / ', id(dsku()), name(dsku())) + '?' ask = YESNO DO {
-            current() <- ask;
-        } ELSE
-            RETURN;
-    }
-    NEWSESSION NESTED(current) {
-        IF current() THEN
-            postLotDashboard(disassembly(st, currentUser(), dsku()));
-        ELSE
-            FOR Disassembly a = disassembly(st, currentUser(), Sku s) DO
-                postLotDashboard(a);
+    NEWSESSION {
+        FOR Disassembly a = disassembly(st, currentUser(), Sku s) DO
+            postLotDashboard(a);
+
         APPLY;
     }
 } CONFIRM;
@@ -101,20 +91,28 @@ skipCheckDisassemblyBalance = ABSTRACT BOOLEAN(Sku);
 FORM dialogMix 'Выберите микс'
     OBJECTS st = Stock
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY SHOWIF disassemblyMode() BACKGROUND disassembly(st, currentUser(), s) id, name
-    ORDERS name(s)
-    FILTERS currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) OR skipCheckDisassemblyBalance(currentUser()) OR skipCheckDisassemblyBalance(s)
+    PROPERTIES(s) READONLY SHOWIF disassemblyMode() caption
+    ORDERS caption(s)
+    FILTERS currentBalance(s, st) > 0 OR disassembly(st, currentUser(), s) OR skipCheckDisassemblyBalance(currentUser()) OR skipCheckDisassemblyBalance(s),
+            isMix(s)
     
     FILTERGROUP part
         FILTER 'Есть состав' countPart(s) OR disassembly(st, currentUser(), s) DEFAULT
 ;
 
-changeNameSku (Stock st) {
-    DIALOG dialogMix OBJECTS st = st, s = dsku() CHANGE LIST name(s);
+DESIGN dialogMix {
+    BOX(s) {
+        caption = 'Микс';
+        PROPERTY (caption(s)) { fontSize = 14; }
+    }
 }
 
-balanceMix 'Остаток микса' (Stock st) = IF split(dsku()) THEN currentBalance(dsku(), st) (-) weightDisassemblyLot(disassembly(st, currentUser(), dsku()))
-                                                    ELSE currentBalance(dsku(), st) (-) countDisassemblyLot(disassembly(st, currentUser(), dsku()));
+changeCaptionSku (Stock st) {
+    DIALOG dialogMix OBJECTS st = st, s = dsku() CHANGE LIST caption(s);
+}
+
+balanceMix 'Остаток микса' (Stock st) = IF split(dsku()) THEN currentBalance(dsku(), st) (-) [GROUP SUM weightDisassemblyLot(disassembly(st, User u, dsku()))]()
+                                                    ELSE currentBalance(dsku(), st) (-) [GROUP SUM countDisassemblyLot(disassembly(st, User u, dsku()))]();
 
 balanceMixCurrent 'Остаток микса' (Stock st) = balanceMix(st) (-) (IF split(dsku()) THEN iweight() ELSE 1);
 
@@ -131,7 +129,7 @@ FORM disassemblyLotDashboard 'Разукомплектация'
     FILTERS captionMode(m)
     EVENTS ON INIT { dashboardMode() <- 'disassembly'; }
 
-    PROPERTIES SHOWIF disassemblyMode() nameSku() ON CHANGE changeNameSku(st)
+    PROPERTIES SHOWIF disassemblyMode() captionSku() ON CHANGE changeCaptionSku(st)
 
     OBJECTS a = Disassembly PANEL
     FILTERS a = disassembly(st, currentUser(), dsku())
@@ -164,7 +162,7 @@ DESIGN disassemblyLotDashboard {
                 REMOVE BOX(m);
                 MOVE GRID(m) { boxed = FALSE; flex = 0; }
                 
-                MOVE PROPERTY(nameSku()) { font = 'bold 24'; alignment = STRETCH; focusable = FALSE; }
+                MOVE PROPERTY(captionSku()) { font = 'bold 24'; alignment = STRETCH; focusable = FALSE; }
 
                 NEW totalDisassembly {
                     showIf = disassemblyMode();
