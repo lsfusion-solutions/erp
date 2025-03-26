@@ -432,8 +432,8 @@ public class ShtrihPrintHandler extends DefaultScalesHandler {
             case -18: 
                 return "Неверный тип устройства";
             case -17: 
-                return "Неверная высота штрих - кода";
-            case -16: 
+                return "Неверная высота штрихкода";
+            case -16:
                 return "Нет активного логического устройства";
             case -15: 
                 return "Команда не реализуется в данной версии";
