@@ -1965,18 +1965,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     private String getEventTime(Connection conn, boolean waitSysLogInsteadOfDataPump) {
-        return null;
-//        if (!waitSysLogInsteadOfDataPump) {
-//        }
-//        try (Statement statement = conn.createStatement()) {
-//            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
-//            if (rs.next()) {
-//                return rs.getString("EVENTTIME");
-//            }
-//            return "0";
-//        } catch (Exception e) {
-//            throw Throwables.propagate(e);
-//        }
+        if (!waitSysLogInsteadOfDataPump) {
+            return null;
+        }
+        try (Statement statement = conn.createStatement()) {
+            ResultSet rs = statement.executeQuery("SELECT MAX(EVENTTIME) AS EVENTTIME FROM \"Syslog_DataServer\"");
+            if (rs.next()) {
+                return rs.getString("EVENTTIME");
+            }
+            return "0";
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     private Pair<Boolean, Exception> checkSysLog(Connection conn, AstronConnectionString params, String eventTime) {
