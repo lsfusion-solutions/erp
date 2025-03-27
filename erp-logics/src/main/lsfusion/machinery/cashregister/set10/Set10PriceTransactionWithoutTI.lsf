@@ -5,9 +5,13 @@ REQUIRE Set10PriceTransaction;
 NAMESPACE Set10;
 
 urlServerESB 'Адрес:порт для ESB шины' = DATA STRING ();
+useOutSetESBLog 'Логировать исх. запросы ESB шины' = DATA BOOLEAN ();
+dataTimeoutSetESB 'Таймаут ESB шины, в миллисекундах' = DATA INTEGER ();
+timeoutSetESB 'Таймаут ESB шины, в миллисекундах' () = OVERRIDE dataTimeoutSetESB(), 120000;
+
 
 EXTEND FORM integrationData
-    PROPERTIES urlServerESB();
+    PROPERTIES urlServerESB(), timeoutSetESB(), useOutSetESBLog();
 
 DESIGN integrationData {
     pane {
@@ -16,6 +20,8 @@ DESIGN integrationData {
                 caption = 'ESB';
                 alignment = STRETCH;
                 MOVE PROPERTY (urlServerESB());
+                MOVE PROPERTY (timeoutSetESB());
+                MOVE PROPERTY (useOutSetESBLog());
             }
         }
     }
@@ -66,13 +72,17 @@ sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
     LOCAL req = FILE();
     EXPORT requestItemWithoutTI XML TO req;
     fileToString(req());
+    IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Request Goods Without TI', 'Type:' + type, 'Request:' + resultString()));
     TRY {
+        timeoutHttp() <- timeoutSetESB();
         EXTERNAL HTTP POST urlServerESB() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
         IMPORT answerWithoutTi XML FROM answer();
         fileToString(answer());
+        IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Request Goods Without TI', 'Response', resultString()));
         IF returnWithoutTi() = 'true' THEN succeeded(t) <- TRUE;
     } CATCH {
-         addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
+        fileToString(answer());
+        addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
         APPLY;
     }
     APPLY;

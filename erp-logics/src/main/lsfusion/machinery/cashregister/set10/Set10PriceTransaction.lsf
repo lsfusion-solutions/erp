@@ -117,10 +117,15 @@ sendRequsetGoods(FILE f, STRING type, MachineryPriceTransaction t){
     LOCAL answer = FILE();
     LOCAL req = FILE();
     EXPORT requestItem XML TO req;
+    fileToString(req());
+    IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Send Request Goods', 'Type:' + type, 'TI:' + TI(), 'Request:' + resultString()));
     TRY{
+        timeoutHttp() <- timeoutSet10();
         EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
         IMPORT answer XML FROM answer();
         IF return() = 'true' THEN statusTransaction(t, type) <- TI();
+        fileToString(answer());
+        IF useOutSet10Log() THEN logToFile('set10', (CONCAT ' ', 'Send Request Goods', 'Type:' + type, 'TI:' + TI(), 'Response:' + resultString()));
     }
     CATCH {
         fileToString(answer());
