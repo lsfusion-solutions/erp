@@ -1227,44 +1227,6 @@ DESIGN statisticReports {
     }
 }
 
-statisticGroup1T4T(StatisticReportDetail d)= sidStatisticGroup(d) == '47.71.10.600' OR sidStatisticGroup(d) =='47.71.10.110' OR sidStatisticGroup(d) =='47.71.10.210' OR sidStatisticGroup(d) =='47.72.11';
-
-overFillData(StatisticReport report) + {
-    IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='1-торг(2021) таблица 4'  THEN {
-        sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup1T4T(d) AND
-            Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            conversionFactor(statisticGroup(d)) <- NULL;
-            sold(d) <-  NUMERIC[16,3](quantitySoldBy(s, st, dFrom, dTo));
-            balance(d) <- NUMERIC[16,3] (balanceABy(s, st, dTo));
-        }
-    }
-}
-overFillDataRegion(StatisticReport report) + {
-    IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='1-торг(2021) таблица 4'  THEN {
-        sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup1T4T(d) AND
-            LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            conversionFactor(statisticGroup(d)) <- NULL;
-            sold(d) <-  NUMERIC[16,3](quantitySoldBy(s, c, r,dFrom, dTo));
-            balance(d) <- NUMERIC[16,3] (balanceABy(s, c, r,dTo));
-        }
-    }
-}
-overFillDataLegalEntity(StatisticReport report) + {
-    IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='1-торг(2021) таблица 4'  THEN {
-        sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
-        FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND statisticGroup1T4T(d) AND
-            LegalEntity c == company(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO {
-            conversionFactor(statisticGroup(d)) <- NULL;
-            sold(d) <-  NUMERIC[16,3](quantitySoldBy(s, c,dFrom, dTo));
-            balance(d) <- NUMERIC[16,3] (balanceABy(s, c,dTo));
-        }
-    }
-}
 
 statisticGroup2R4T'Строки для 4 торг 2 раздел'(StatisticReportDetail d)= number(d) == '80' OR number(d) == '81' OR number(d) == '82' OR number(d) == '83' OR index(d)==89;
 
