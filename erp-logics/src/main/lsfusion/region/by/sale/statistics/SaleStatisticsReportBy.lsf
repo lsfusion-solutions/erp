@@ -47,22 +47,35 @@ FORM statisticReport4Print '4-торг (продажа)'
                    note, fromDate, toDate,   
                    fromMonth, toMonth, caption
                 
-    PROPERTIES (r) READONLY countStatisticReportDetail
-    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE TOOLBAR  
-    PROPERTIES (r) READONLY  createdNameUser, createdTime, createdHostnameComputer 
+    PROPERTIES (r) READONLY countStatisticReportDetail, createdNameUser, createdTime, createdHostnameComputer 
         
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup, sidStatisticGroup, nameUOM, 
         sold, soldResident, balance, balanceResident, prevYearSold, soldCatering, prevYearSoldCatering 
     ORDERS index(d)
 
-    FILTERS statisticReport(d) == r AND NOT statisticGroup2T4T(d)
+    FILTERS statisticReport(d) == r AND NOT statisticGroup2R4T(d)
 ;
-statistic4Print '4-торг (продажа)' (StatisticReport r)  { PRINT statisticReport4Print OBJECTS r =r; }   IMAGE 'print.png' IN print;   
-excel4Print '4-торг (продажа) (xls)' (StatisticReport r)  { PRINT statisticReport4Print OBJECTS r =r XLSX; }  IMAGE 'print.png' IN print;   
+
+FORM statisticGroup2R4T '4-торг 2 раздел'
+
+    OBJECTS r = StatisticReport PANEL SUBREPORT
+    PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock,addressLegalEntityStock, addressStock,note, fromDate, toDate,
+        fromMonth, toMonth, caption
+    PROPERTIES (r) READONLY countStatisticReportDetail, createdNameUser, createdTime, createdHostnameComputer
+
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup, sidStatisticGroup,  soldSum, soldSumResident, soldSumCash, soldSumCashCatering
+    ORDERS index(d)
+
+    FILTERS statisticReport(d) == r AND statisticGroup2R4T(d)
+;
+
+statistic4Print '4-торг (продажа)' (StatisticReport r)  { PRINT statisticReport4Print OBJECTS r =r; PRINT statisticGroup2R4T OBJECTS r =r; }   IMAGE 'print.png' IN print;   
+excel4Print '4-торг (продажа) (xls)' (StatisticReport r)  { PRINT statisticReport4Print OBJECTS r =r XLSX; PRINT statisticGroup2R4T OBJECTS r =r XLSX;}  IMAGE 'print.png' IN print;
 
 EXTEND FORM statisticReports
-    PROPERTIES  statistic4Print(r), excel4Print(r) 
+    PROPERTIES (r) statistic4Print, excel4Print
 ;
 
 FORM statisticReport124Print '1-торг таб 4'
@@ -477,7 +490,7 @@ loadDefaultStStatisticReportTypeBy2021(){
      loadDefaultStatisticReportTypeDetail('4-торг (2021)', 87, 'Удобрения минеральные (47.76.11.411)', '78', '47.76.11.411', 'кг', 1);
     //далее строки для раздела 2 в отчете 4 торг
      loadDefaultStatisticReportTypeDetail('4-торг (2021)', 88, 'Розничный товарооборот  - всего(сумма строк 81 и 82)', '80', 'ВСЕ', 'тыс.руб.', 1);
-     loadDefaultStatisticReportTypeDetail('4-торг (2021)', 89, 'в том числе продано:', NULL, NULL, NULL, NULL);//если менять номер строки, то учесть в statisticGroup2T4T
+     loadDefaultStatisticReportTypeDetail('4-торг (2021)', 89, 'в том числе продано:', NULL, NULL, NULL, NULL);//если менять номер строки, то учесть в statisticGroup2R4T
      loadDefaultStatisticReportTypeDetail('4-торг (2021)', 90, 'пищевых продуктов, напитков и табачных изделий', '81', '47.2', 'тыс.руб.', 1);
      loadDefaultStatisticReportTypeDetail('4-торг (2021)', 91, 'непродовольственных товаров', '82', '47.200', 'тыс.руб.', 1);
      loadDefaultStatisticReportTypeDetail('4-торг (2021)', 92, 'Товарооборот общественного питания ', '83', 'ВСЕ', 'тыс.руб.', 1);
