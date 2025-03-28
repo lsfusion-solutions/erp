@@ -23,6 +23,11 @@ bonusText 'Текст для расчетов по бонусам' (Receipt r) {
         '----------------------------------------';
 }
 
+//FORM pay 'Оплаты, Проверка'
+//    OBJECTS p = Payment
+//    PROPERTIES(p) receipt, sum, namePaymentType, namePaymentMeans, sidPaymentType 
+//;
+// в методе SHOW pay FILTERS receipt(p) = r;
 
 eqSale 'Печать чека' (CashRegister o, Receipt r) {
     LOCAL sale, return = INTEGER ();
@@ -55,7 +60,21 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
     }
     number(r) <- INTEGER(number());
     // Дату чека не меняем, так как действует Ограничение: Дата чека должна быть равна дате Z отчета
-    time(r) <- TIME(position()); // меняем время, чтобы совпадало с чеком 
+    time(r) <- TIME(position()); // меняем время, чтобы совпадало с чеком
+    // авто-копия чека, если была оплата сертификатом
+    IF sale() AND titanAutoCopy(o) THEN {
+        IF GROUP MAX (Payment p) IF receipt(p) = r AND sidPaymentType(p) ='giftcard' AND sum(p) THEN {
+            numberDoc() <- NULL; copyDocNumber() <- NULL; copyZReport() <- NULL;
+            lastNumberDoc() <- INTEGER(number()) - 1;
+            onFillDataHeaders(o);
+            EXPORT sendCopyDocNumber JSON;
+            onSend(o, 'printLast', 'Копия последнего документа, автокопия');
+            IF titanECode() THEN {
+                titanECode() <- NULL; // сбрасываем чтобы чек провелся
+                MESSAGE titanEMessage() + '\nВыполните копию последнего чека\nчерез кнопку на форме'; // но ошибку выводим
+            }                        
+        }
+    }
     eqOpenCashDrawer(o);
 }
 
