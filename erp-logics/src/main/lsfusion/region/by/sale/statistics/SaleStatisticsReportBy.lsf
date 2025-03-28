@@ -603,9 +603,16 @@ overFillDataLegalEntity(StatisticReport report) + {
     }
 }
 
-sumCashCatering 'Продано за наличные' (Stock st, DATE dateFrom, DATE dateTo) =
+sumCashCatering 'Продано за наличные(общепит)' (Stock st, DATE dateFrom, DATE dateTo) =
     GROUP
         SUM sumCash (ZReport z) IF isCatering(st) AND departmentStore(z) == st AND dateFrom <= date(z) AND dateTo >= date(z);
+sumCashAll 'Продано всего за наличные' (Stock st, DATE dateFrom, DATE dateTo) =
+    GROUP
+        SUM sumCash (ZReport z) IF departmentStore(z) == st AND dateFrom <= date(z) AND dateTo >= date(z);
+
+totalSumSoldBy 'Продано, руб.' (StatisticGroup group, Stock stock, DATE dateFrom, DATE dateTo)=
+
+  GROUP SUM sumSoldStatistic (Sku sku, stock, dateFrom, dateTo) IF isParent(group, sku);
 
 overFillData(StatisticReport report) + {
     IF id(statisticGroupType(report))=='BYRTNEW' AND name(report)=='4-торг (2021)'  THEN {
@@ -619,6 +626,7 @@ overFillData(StatisticReport report) + {
             soldSumCatering(d) <- NULL;
             soldSumResident(d) <- NULL;
             soldSumCashCatering(d) <- NULL;
+            soldSumCash(d) <- NULL;
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, st, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -627,12 +635,17 @@ overFillData(StatisticReport report) + {
             soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, st, dFrom, dTo));
             soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
             soldSumResident(d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND NOT number(d) == '83';
+            
+            soldSumCash(d) <- NUMERIC[16,3] (sumCashAll(st, dFrom, dTo));
+            soldSumCash(d) <-NUMERIC[16,3](soldSumCash(d)/ 1000);
+            soldSumCash(d) <- round(soldSumCash(d), round(d)) WHERE round(d);
 
             IF isPositiveReport(report) THEN {
                 soldSum(d) <- 0.0 WHERE soldSum(d) < 0 ;
                 soldSumResident(d) <- 0.0 WHERE soldSumResident(d) < 0 ;
                 soldSumCatering(d) <- 0.0 WHERE soldSumCatering(d) < 0 ;
                 soldSumResident(d) <- min(soldSumResident(d), soldSum(d));
+                soldSumCash(d) <- 0.0 WHERE soldSumCash(d) < 0 ;
             }
 
             soldSum(d) <- (GROUP SUM soldSum(StatisticReportDetail detail) IF in(detail, d)) WHERE count(d) AND NOT skip(d);
@@ -648,7 +661,10 @@ overFillData(StatisticReport report) + {
     }
 }
 
-sumCashCatering 'Продано за наличные' (LegalEntity l , Region r, DATE dateFrom, DATE dateTo) =
+sumCashCatering 'Продано за наличные(общепит)' (LegalEntity l , Region r, DATE dateFrom, DATE dateTo) =
+    GROUP
+        SUM sumCash (ZReport z) IF isCatering(departmentStore(z)) AND legalEntity(departmentStore(z)) == l AND region(departmentStore(z)) == r AND dateFrom <= date(z) AND dateTo >= date(z);
+sumCashAll'Продано всего за наличные' (LegalEntity l , Region r, DATE dateFrom, DATE dateTo) =
     GROUP
         SUM sumCash (ZReport z) IF legalEntity(departmentStore(z)) == l AND region(departmentStore(z)) == r AND dateFrom <= date(z) AND dateTo >= date(z);
 
@@ -664,6 +680,7 @@ overFillDataRegion(StatisticReport report) + {
             soldSumCatering(d) <- NULL;
             soldSumResident(d) <- NULL;
             soldSumCashCatering(d) <- NULL;
+            soldSumCash(d) <- NULL;
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, r, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -673,11 +690,16 @@ overFillDataRegion(StatisticReport report) + {
             soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
             soldSumResident(d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND NOT number(d) == '83';
 
+            soldSumCash(d) <- NUMERIC[16,3] (sumCashAll(c, r,  dFrom, dTo));
+            soldSumCash(d) <-NUMERIC[16,3](soldSumCash(d)/ 1000);
+            soldSumCash(d) <- round(soldSumCash(d), round(d)) WHERE round(d);
+
             IF isPositiveReport(report) THEN {
                 soldSum(d) <- 0.0 WHERE soldSum(d) < 0 ;
                 soldSumResident(d) <- 0.0 WHERE soldSumResident(d) < 0 ;
                 soldSumCatering(d) <- 0.0 WHERE soldSumCatering(d) < 0 ;
                 soldSumResident(d) <- min(soldSumResident(d), soldSum(d));
+                soldSumCash(d) <- 0.0 WHERE soldSumCash(d) < 0 ;
             }
 
             soldSum(d) <- (GROUP SUM soldSum(StatisticReportDetail detail) IF in(detail, d)) WHERE count(d) AND NOT skip(d);
@@ -693,7 +715,11 @@ overFillDataRegion(StatisticReport report) + {
     }
 }
 
-sumCashCatering 'Продано за наличные' (LegalEntity l, DATE dateFrom, DATE dateTo) =
+sumCashCatering 'Продано за наличные(общепит)' (LegalEntity l, DATE dateFrom, DATE dateTo) =
+    GROUP
+        SUM sumCash (ZReport z) IF isCatering(departmentStore(z)) AND legalEntity(departmentStore(z)) == l AND dateFrom <= date(z) AND dateTo >= date(z);
+
+sumCashAll 'Продано всего за наличные' (LegalEntity l, DATE dateFrom, DATE dateTo) =
     GROUP
         SUM sumCash (ZReport z) IF legalEntity(departmentStore(z)) == l AND dateFrom <= date(z) AND dateTo >= date(z);
 
@@ -709,6 +735,7 @@ overFillDataLegalEntity(StatisticReport report) + {
             soldSumCatering(d) <- NULL;
             soldSumResident(d) <- NULL;
             soldSumCashCatering(d) <- NULL;
+            soldSumCash(d) <- NULL;
 
             soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, dFrom, dTo));
             soldSum(d) <- NUMERIC[16,3](soldSum(d) / 1000);
@@ -717,12 +744,18 @@ overFillDataLegalEntity(StatisticReport report) + {
             soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, c, dFrom, dTo));
             soldSumResident(d) <- NUMERIC[16,3](soldSumResident(d)/ 1000);
             soldSumResident(d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND NOT number(d) == '83';
+            
+            soldSumCash(d) <- NUMERIC[16,3] (sumCashAll(c, dFrom, dTo));
+            soldSumCash(d) <-NUMERIC[16,3](soldSumCash(d)/ 1000);
+            soldSumCash(d) <- round(soldSumCash(d), round(d)) WHERE round(d);
+
 
             IF isPositiveReport(report) THEN {
                 soldSum(d) <- 0.0 WHERE soldSum(d) < 0 ;
                 soldSumResident(d) <- 0.0 WHERE soldSumResident(d) < 0 ;
                 soldSumCatering(d) <- 0.0 WHERE soldSumCatering(d) < 0 ;
                 soldSumResident(d) <- min(soldSumResident(d), soldSum(d));
+                soldSumCash(d) <- 0.0 WHERE soldSumCash(d) < 0 ;
             }
 
             soldSum(d) <- (GROUP SUM soldSum(StatisticReportDetail detail) IF in(detail, d)) WHERE count(d) AND NOT skip(d);
