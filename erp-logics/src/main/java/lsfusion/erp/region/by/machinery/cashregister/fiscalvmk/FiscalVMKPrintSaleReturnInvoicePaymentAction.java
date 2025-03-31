@@ -94,9 +94,17 @@ public class FiscalVMKPrintSaleReturnInvoicePaymentAction extends InternalAction
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(isUnix, logPath, ip, comPort,
                     baudRate, sumPayment, typePayment, numberSection, false, invoiceDetailList));
-            boolean error = result instanceof String;
-            if (error)
-                ServerLoggers.systemLogger.error("FiscalVMKPrintReturnInvoicePayment Error: " + result);
+
+            boolean error = false;
+            if(result instanceof Integer) {
+                if(invoiceObject instanceof DataObject)
+                    findProperty("note[SaleReturn.Invoice]").change(String.valueOf(result), context, (DataObject) invoiceObject);
+                if(paymentObject instanceof DataObject)
+                    findProperty("number[Payment.Payment]").change(String.valueOf(result), context, (DataObject) paymentObject);
+            } else if(result != null) {
+                error = true;
+                ServerLoggers.systemLogger.error("FiscalVMKPrintReturnInvoicePayment` Error: " + result);
+            }
             findProperty("printReceiptResult[]").change(error ? NullValue.instance : new DataObject(true), context);
             findProperty("printReceiptError[]").change(error ? result : null, context);
             
