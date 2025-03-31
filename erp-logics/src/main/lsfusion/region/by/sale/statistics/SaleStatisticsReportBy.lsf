@@ -767,3 +767,29 @@ overFillDataLegalEntity(StatisticReport report) + {
         }
     }
 }
+filterStatisticGroup2R4T = TRUE IF statisticGroup2R4T(StatisticReportDetail d) 
+    AND id(statisticGroupType(statisticReport(d)))=='BYRTNEW' AND name(statisticReport(d))=='4-торг (2021)';
+
+
+showIf2R4T(StatisticReport r)= GROUP SUM 1 IF statisticGroup2R4T(StatisticReportDetail d) AND statisticReport(d) == r
+    AND id(statisticGroupType(r))=='BYRTNEW' AND name(r)=='4-торг (2021)';
+
+EXTEND FORM statisticReport
+    FILTERS NOT filterStatisticGroup2R4T(d)
+
+    OBJECTS d2r4t = StatisticReportDetail
+    PROPERTIES(d2r4t) READONLY index, name, number, nameStatisticGroup,
+        sidStatisticGroup, nameUOM, round, childNumbers READONLY SHOWIF showDD(r),
+        soldSum, soldSumResident, prevYearSoldSum, balanceSum
+    FILTERS statisticReport(d2r4t) == r,  filterStatisticGroup2R4T(d2r4t)
+;
+
+
+DESIGN statisticReport {
+    specificationBox {
+        MOVE BOX(d2r4t) {
+            caption = 'II Раздел' ;
+            showIf = showIf2R4T(r);
+        };
+    }
+}
