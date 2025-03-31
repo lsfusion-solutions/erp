@@ -17,6 +17,7 @@ import org.json.JSONObject;
 import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -113,7 +114,10 @@ public class ImportNBRBExchangeRateAction extends DefaultIntegrationAction {
     }
 
     public JSONArray readJsonFromUrl(String url) throws IOException, JSONException {
-        try (InputStream is = new URL(url).openStream()) {
+        URLConnection connection = new URL(url).openConnection();
+        connection.setConnectTimeout(60000);
+        connection.setReadTimeout(60000);
+        try (InputStream is = connection.getInputStream()) {
             BufferedReader rd = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
             String jsonText = readAll(rd);
             return new JSONArray(jsonText);
