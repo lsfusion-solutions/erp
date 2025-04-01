@@ -104,7 +104,6 @@ eqInit 'Инициализация' (CashRegister o) {
         CASE
             WHEN NOT titanECode() THEN {
                 titanSid(o) <- titanKey();
-                //                APPLY ;
                 BREAK;        // нет ошибок    
             }
             WHEN titanECode() != 500 THEN BREAK;     // считаем, что идет инициализация СКО, если код = 500
@@ -296,4 +295,13 @@ eqCopyDoc 'Копия документа' (CashRegister o) {
     }
 }
 
-
+eqPrintText 'Печать произвольного текста' (CashRegister o,TEXT text) {
+    eqGetState(o);
+    IF titanECode() THEN { onShowError(titanEMessage()); RETURN; }
+    IF NOT shiftOpened() THEN { onShowError('Смена не открыта.\nВыполните операцию: Открыть Z-отчет'); RETURN; }
+    IF NOT text THEN { onShowError('Текст не определен'); RETURN; }
+    sendText() <- text;
+    EXPORT sendText JSON;
+    onSend(o,'printText','Печать произвольного текста');
+    IF titanECode() THEN onShowError(titanEMessage());
+}
