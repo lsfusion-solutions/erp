@@ -370,7 +370,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             inventObject.put("barcode", removeCheckDigitFromBarcode(mainBarcode, appendBarcode));
 
             JSONObject infoJSON = getExtInfo(item.info);
-            JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
+            JSONObject extraInfo = getExtraInfo(item);
 
             String capacity = null;
             String alcVolume = null;
@@ -395,23 +395,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 ukz = extraInfo.has("ukz");
             }
 
-            BigDecimal defaultQuantity = null;
-            Integer tmcType = null;
-
-            if (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty() || lotType.equals("beer"))) tmcType = 7;
-            if (ukz) tmcType = 7;
-
+            boolean doubleMarked = lotType != null && ukz;
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
-            if (tobacco) tmcType = 3;
 
-            if(infoJSON != null) {
-                if (infoJSON.has("defaultquantity")) {
-                    defaultQuantity = getBigDecimal(infoJSON, "defaultquantity");
-                }
-                if (infoJSON.has("tmctype")) {
-                    tmcType = infoJSON.optInt("tmctype");
-                }
-            }
+            BigDecimal defaultQuantity = infoJSON != null && infoJSON.has("defaultquantity") ? getBigDecimal(infoJSON, "defaultquantity") : null;
+            Integer tmcType = getTmcType(infoJSON, lotType, alcTypeCode, ukz, tobacco, doubleMarked);
 
             if (defaultQuantity != null || tmcType != null) {
                 JSONArray barcodesArray = new JSONArray();
@@ -645,12 +633,30 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             inventItemOptions.put("ignoremarking", ignoremarking);
 
+            if(doubleMarked) {
+                inventItemOptions.put("doublemarked", 1);
+            }
+
             rootObject.put("command", "addInventItem");
             return rootObject.toString();
         } else {
             processTransactionLogger.info("NO UOM for item " + item.idItem);
             return null;
         }
+    }
+
+    private Integer getTmcType(JSONObject infoJSON, String lotType, String alcTypeCode, boolean ukz, boolean tobacco, boolean doubleMarked) {
+        Integer tmcType = null;
+        if (!doubleMarked) {
+            if (infoJSON != null && infoJSON.has("tmctype")) {
+                tmcType = infoJSON.optInt("tmctype");
+            } else if (ukz || (lotType != null && !lotType.isEmpty() && (alcTypeCode == null || alcTypeCode.isEmpty() || lotType.equals("beer")))) {
+                tmcType = 7;
+            } else if (tobacco) {
+                return 3;
+            }
+        }
+        return tmcType;
     }
 
     private JSONObject getBarcodeJSON(String barcode, boolean appendBarcode, Integer tmcType, BigDecimal defaultQuantity) {
@@ -1449,6 +1455,10 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
     private JSONObject getExtInfo(String extInfo) {
         return getExtInfo(extInfo, "artix");
+    }
+
+    private JSONObject getExtraInfo(CashRegisterItem item) {
+        return item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
     }
 
     private Timestamp parseTimestamp(String value) throws ParseException {
