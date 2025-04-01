@@ -46,7 +46,7 @@ EXTEND FORM disparity
 ;
 
 EXTEND FORM disparities
-    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail //AFTER quantityDisparityDetail(w)
+    PROPERTIES (dis) READONLY sumLotWeightDisparityDetail, statusLot
 ;
 
 importLotXLSX 'Импорт из xlsx' (UserDisparity s) {
@@ -89,7 +89,7 @@ changeSkuLotBack 'Перенести марки (назад)' (UserDisparity d) 
     ASK 'Вы уверены, что хотите перенести марки на старый товар?' DO {
         NEWSESSION {
             FOR disparity(UserDisparityDetail dd) = d AND sku(dd) AND quantity(dd, Lot l) AND inputSku(dd) = sku(l) DO {
-                note(l) <- 'Изменение сортности ' + number(dd) + '. Замена товара с ' + idSku(l) + ' на ' + id(sku(dd));
+                note(l) <- 'Изменение сортности ' + number(dd) + '. Обратная замена товара с ' + idSku(l) + ' на ' + id(sku(dd));
                 sku(l) <- sku(dd);
             }
             setNoCancelInTransaction();
@@ -108,3 +108,6 @@ DESIGN disparity {
 
 CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d))) AND lotSecond(d) AND NOT inputSku(d)
     MESSAGE 'Должен быть заполненен товар (приход)';
+
+CONSTRAINT CHANGED(quantityLot(UserDisparity d)) AND countInputLot(d)
+    MESSAGE 'Запрещено изменять товары в документе с перенесенными марками. Выполните сначала перенос назад';
