@@ -6,21 +6,19 @@ NAMESPACE Disparity;
 
 @defineDocumentLotOutLedger(userDisparity, disparity, stock);
 
-// опция не работает без кнопки Перенести марки, т.к. тогда марки остаются на старом товаре и срабатывает ограничение
-// поэтому пока что скрыта с формы. Потом можно удалить
-skipLotLedgerDisparity 'Кол-во марки не списывать при изменении сортности' = DATA BOOLEAN ();
+skipLotLedgerDisparity 'Кол-во марки не списывать при изменении сортности' = DATA BOOLEAN () PREREAD;
 
-//EXTEND FORM options
-//    PROPERTIES skipLotLedgerDisparity()
-//;
-//
-//DESIGN options {
-//    pane {
-//        disparity {
-//            MOVE PROPERTY(skipLotLedgerDisparity());
-//        }
-//    }
-//}
+EXTEND FORM options
+    PROPERTIES skipLotLedgerDisparity()
+;
+
+DESIGN options {
+    pane {
+        disparity {
+            MOVE PROPERTY(skipLotLedgerDisparity());
+        }
+    }
+}
 
 quantity[OutFIFOSkuLedger, Lot](UserDisparityDetail sd, Lot l) += quantity(sd, l) IF NOT (sku(l) == inputSku(sd) OR skipLotLedgerDisparity());
 
