@@ -1,6 +1,6 @@
 MODULE ItemEcologyReportRu;
 
-REQUIRE ItemEcologyRu, SaleLedger, PurchaseLedger;
+REQUIRE ItemEcologyRu, SaleLedger, PurchaseLedger, PurchaseShipment;
 
 NAMESPACE Item;
 
@@ -94,6 +94,27 @@ changeSelectForm() {
     SHOW selectParamsEcology;
     formRefresh();
 }
+
+isEcology 'Экология' = DATA BOOLEAN (Purchase.Operation) PREREAD;
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) isEcology
+;
+DESIGN Purchase.operation {
+    paramsContainer {
+        MOVE PROPERTY(isEcology(o));
+    }
+}
+
+isEcologyMigarte(){
+    isEcology(Purchase.Operation op) <- id(op)=='purchaseStoreWarehouse' OR id(op)=='import';
+}
+
+@defOnStartMigrate(isEcologyMigarte, '');
+
+quantityPurchaseEcology (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger d) IF active(d) AND isEcology(operation(d))
+    BY sku(d), stock(d), supplier(d), date(d);
+
 fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     resetEcologyReport();
     
@@ -109,9 +130,10 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
         to(Stock l) <- isCompany(l);
     }
     IF t == TypeReport.in THEN {
-        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchase (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
+        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchaseEcology (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
     }ELSE {
-        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) BY sku(bt),supplier(bt)](s,su); 
+        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) 
+            IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) BY sku(bt),supplier(bt)](s,su); 
     }    
 }
 
