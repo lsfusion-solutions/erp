@@ -137,6 +137,9 @@ filterCurrentQuantityInTerminal 'Загружать только товары с
 currentBalance (Barcode barcode, Stock stock) = currentBalance(sku(barcode), stock);
 activeItem (Barcode barcode) = NOT inactive(sku(barcode));
 
+overCurrentBalanceDefect = ABSTRACT NUMERIC[16,5] (Barcode, Stock, CustomUser);
+currentBalanceDefect (Barcode barcode, Stock st, CustomUser user) = overCurrentBalanceDefect(barcode, st, user) IF NOT blockCurrentQuantityInTerminal(mainRole(user));
+
 skipGoodsInReadBase 'Не выгружать товары при выгрузке базы целиком' = DATA BOOLEAN () PREREAD;
 imagesInReadBase 'Выгружать изображения товаров при выгрузке базы целиком' = DATA BOOLEAN ();
 baseZipDirectory 'Папка для файлов base.zip' = DATA STRING ();
@@ -348,7 +351,8 @@ CLASS TerminalFlags {
     FLG_VOP_CONFIRM_EXCESS_ORDER_QUANTITY 'Разрешить превышение количества по заказу', //48
     FLG_VOP_ALLOW_TEAM_WORK 'Разрешить совместную работу с документом', // 50
     FLG_VOP_BAN_RETURN_ITEM 'Запрет возвратного товара', // 51
-    FLG_VOP_CONTROL_UNIT_LOADS 'Контроль ГЕ' // 52
+    FLG_VOP_CONTROL_UNIT_LOADS 'Контроль ГЕ', // 52
+    FLG_VOP_SHOW_BALANCE_DEFECT_ZONE 'Отображать остаток по зоне брака' // 53
     
 }
 TABLE terminalFlags (TerminalFlags);
@@ -405,7 +409,8 @@ order(TerminalFlags f) = CASE
     WHEN f = TerminalFlags.FLG_VOP_CONFIRM_EXCESS_ORDER_QUANTITY THEN 48l
     WHEN f = TerminalFlags.FLG_VOP_ALLOW_TEAM_WORK THEN 50l
     WHEN f = TerminalFlags.FLG_VOP_BAN_RETURN_ITEM THEN 51l
-    WHEN f = TerminalFlags.FLG_VOP_CONTROL_UNIT_LOADS THEN 52l MATERIALIZED;
+    WHEN f = TerminalFlags.FLG_VOP_CONTROL_UNIT_LOADS THEN 52l
+    WHEN f = TerminalFlags.FLG_VOP_SHOW_BALANCE_DEFECT_ZONE THEN 53l MATERIALIZED;
     
 flag 'Число'(TerminalFlags f) = LONG (power(2l, order(f)));
 
