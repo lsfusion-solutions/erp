@@ -395,7 +395,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 ukz = extraInfo.has("ukz");
             }
 
-            boolean doubleMarked = lotType != null && ukz;
+            boolean doubleMarked = lotType != null && !lotType.isEmpty() && ukz;
             boolean tobacco = "tobacco".equals(lotType) || "tobaccoProduct".equals(lotType);
 
             BigDecimal defaultQuantity = infoJSON != null && infoJSON.has("defaultquantity") ? getBigDecimal(infoJSON, "defaultquantity") : null;
