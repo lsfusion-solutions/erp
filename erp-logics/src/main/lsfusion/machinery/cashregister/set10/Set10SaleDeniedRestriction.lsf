@@ -1,6 +1,6 @@
 MODULE Set10SaleDeniedRestriction;
 
-REQUIRE Set10PriceTransaction, SkuLedger;
+REQUIRE Set10PriceTransaction, SkuLedger, Set10PriceTransactionWithoutTI;
 
 NAMESPACE Set10;
 
@@ -62,14 +62,6 @@ DESIGN integrationData{
 //
 restriction = GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) BY sku(r), stock(r);
 
-//WHEN (SETCHANGED(currentBalanceRestriction(Sku s, Stock st)) AND (currentBalanceRestriction(s, st) < 0))
-//        AND set10Stock(st) AND useSaleDeniedRestrictions() AND NOT restriction(s, st) DO NEW r = SaleDeniedRestriction{
-//    stock(r) <- st;
-//    sku(r) <- s;
-//    balance(r) <- OVERRIDE currentBalanceRestriction(s, st), 0;
-//}
-
-
 //
 FORM saleRestrictionExport FORMEXTID 'goods-catalog'
     OBJECTS d = SaleDeniedRestriction EXTID 'sale-denied-restriction'
@@ -120,9 +112,56 @@ exportSaleRestrictionTI 'Отправить в SET' (SaleDeniedRestriction r) {
         }
     }
 }
+exportSaleRestrictionWithoutTI 'Отправить в SET(ESB)' (SaleDeniedRestriction r) {
+    NEWSESSION {
+        IF NOT shopIndices(r) THEN{
+            MESSAGE 'Не указан код магазина SET10';
+            RETURN;
+        }
+
+        LOCAL outerXML = TEXT();
+        LOCAL error = STRING ();
+        IF urlServerSet10() THEN {
+            EXPORT saleRestrictionExport FILTERS d = r XML;
+            fileToString(exportFile());
+            encodeBase64(resultString());
+            goodsCatalogXMLWithoutTI() <- encodedBase64();
+            LOCAL headersSet = STRING (STRING);
+            headersSet('Content-Type') <- 'application/xml';
+            generateUUID();
+            LOCAL answer = FILE();
+            LOCAL req = FILE();
+            EXPORT requestItemWithoutTI XML TO req;
+            fileToString(req());
+            IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Denied Restriction Without TI', 'Type: deniedRestriction' , 'Request:' + resultString()));
+            TRY {
+                timeoutHttp() <- timeoutSetESB();
+                EXTERNAL HTTP POST urlServerESB() + 'SET-ERPIntegration/SET/WSGoodsCatalogImport' HEADERS headersSet PARAMS req() TO answer;
+                IMPORT answerWithoutTi XML FROM answer();
+                fileToString(answer());
+                IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Denied Restriction Without TI', 'Response', resultString()));
+                IF returnWithoutTi() = 'true' THEN{
+                    IF deleted(r) THEN dateTimeDeleted(r) <- currentDateTime();
+                    dateTimeExported(r) <- currentDateTime() WHERE NOT deleted(r);
+                }
+                ELSE
+                    tiExport(r) <- NULL;
+            } CATCH {
+                error() <- messageCaughtException();
+            }
+
+            IF error() THEN {
+                tiExport(r) <- NULL;
+                messageError(r) <- error();
+            }
+            APPLY;
+        }
+    }
+}
+
 
 getFeedback 'Получить статус' (SaleDeniedRestriction r){
-    IF tiExport(r) THEN NEWSESSION {
+    IF tiExport(r) AND NOT useESB() THEN NEWSESSION {
         ti() <- tiExport(r);
         
         LOCAL outerXML = TEXT();
@@ -161,9 +200,10 @@ needExport(SaleDeniedRestriction r) = (NOT dateTimeExported(r) AND NOT deleted(r
 
 processDeniedRestrictions 'Обработка запретов продаж'(){
     FOR createdTime(SaleDeniedRestriction r)  AND needExport(r) AND NOT tiExport(r) AND set10Stock(stock(r))  DO {
-        exportSaleRestrictionTI(r);
+        IF useESB() THEN exportSaleRestrictionWithoutTI(r);
+        ELSE exportSaleRestrictionTI(r);
     }
-    FOR tiExport(SaleDeniedRestriction r) DO{
+    FOR tiExport(SaleDeniedRestriction r) AND NOT useESB() DO{
         getFeedback(r);
     }
 }
@@ -255,12 +295,15 @@ deleteSaleRestriction 'Удалить в SET' (SaleDeniedRestriction r) {
         deleted(r) <- TRUE;
         tiExport(r) <- NULL;
         APPLY;
-        IF exportSaleAfterTransaction() THEN exportSaleRestrictionTI(r);
+        IF exportSaleAfterTransaction() THEN {
+            IF useESB() THEN exportSaleRestrictionWithoutTI(r);
+            ELSE exportSaleRestrictionTI(r);
+        }
     }
 } TOOLBAR;
 
 EXTEND FORM saleDeniedRestrictions
-    PROPERTIES TOOLBAR exportSaleRestrictionTI(r), getFeedback(r) SHOWIF tiExport(r)
+    PROPERTIES TOOLBAR exportSaleRestrictionTI(r) SHOWIF NOT useESB(), exportSaleRestrictionWithoutTI(r) SHOWIF useESB(), getFeedback(r) SHOWIF tiExport(r)
     PROPERTIES tiExport(r) READONLY 
 ;
 
