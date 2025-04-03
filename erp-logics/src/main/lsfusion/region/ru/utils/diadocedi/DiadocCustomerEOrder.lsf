@@ -1,0 +1,204 @@
+MODULE DiadocCustomerEOrder;
+
+REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrder, DiadocEDIOrganization;
+
+NAMESPACE DiadocEDI;
+
+GROUP interchangeHeader;
+GROUP order;
+GROUP contractIdentificator1 EXTID 'contractIdentificator' : order;
+GROUP blanketOrderIdentificator1 EXTID 'blanketOrderIdentificator' : order;
+GROUP proposalOrdersIdentificator1 EXTID 'proposalOrdersIdentificator' : order;
+GROUP termsOfPayment : order;
+GROUP seller : order;
+GROUP organization_ : seller;
+GROUP russianAddress_ : seller;
+GROUP additionalInfo : seller;
+GROUP buyer : order;
+GROUP organization1 EXTID 'organization' : buyer;
+GROUP russianAddress1 EXTID 'russianAddress' : buyer;
+GROUP invoicee : order;
+GROUP selfEmployed : invoicee;
+GROUP fullName : selfEmployed;
+GROUP russianAddress2 EXTID 'russianAddress' : invoicee;
+GROUP additionalInfo1 EXTID 'additionalInfo' : invoicee;
+GROUP productInquiryIdentificator1 EXTID 'productInquiryIdentificator' : order;
+GROUP lineItems : order;
+GROUP lineItem : lineItems;
+
+sender = DATA LOCAL STRING();
+recipient = DATA LOCAL STRING();
+documentType = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL STRING();
+creationDateTimeBySender = DATA LOCAL STRING();
+isTest = DATA LOCAL STRING();
+promotionDealNumber = DATA LOCAL STRING();
+serviceDateStart = DATA LOCAL STRING();
+serviceDateEnd = DATA LOCAL STRING();
+contractIdentificator = DATA LOCAL STRING();
+number = DATA LOCAL STRING();
+date = DATA LOCAL STRING();
+blanketOrderIdentificator = DATA LOCAL STRING();
+number1 = DATA LOCAL STRING();
+proposalOrdersIdentificator = DATA LOCAL STRING();
+number2 = DATA LOCAL STRING();
+date1 = DATA LOCAL STRING();
+gln = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+inn_ = DATA LOCAL STRING();
+kpp = DATA LOCAL STRING();
+regionISOCode = DATA LOCAL STRING();
+district = DATA LOCAL STRING();
+city = DATA LOCAL STRING();
+settlement = DATA LOCAL STRING();
+street = DATA LOCAL STRING();
+house = DATA LOCAL STRING();
+flat = DATA LOCAL STRING();
+postalCode = DATA LOCAL STRING();
+additionalIdentificator = DATA LOCAL STRING();
+taxSystem = DATA LOCAL STRING();
+phone = DATA LOCAL STRING();
+fax = DATA LOCAL STRING();
+bankAccountNumber = DATA LOCAL STRING();
+correspondentAccountNumber = DATA LOCAL STRING();
+bankName = DATA LOCAL STRING();
+BIK = DATA LOCAL STRING();
+nameOfCEO = DATA LOCAL STRING();
+orderContact = DATA LOCAL STRING();
+gln1 = DATA LOCAL STRING();
+name1 = DATA LOCAL STRING();
+inn1 = DATA LOCAL STRING();
+kpp1 = DATA LOCAL STRING();
+regionISOCode1 = DATA LOCAL STRING();
+district1 = DATA LOCAL STRING();
+city1 = DATA LOCAL STRING();
+settlement1 = DATA LOCAL STRING();
+street1 = DATA LOCAL STRING();
+house1 = DATA LOCAL STRING();
+flat1 = DATA LOCAL STRING();
+postalCode1 = DATA LOCAL STRING();
+orderContact1 = DATA LOCAL STRING();
+fax1 = DATA LOCAL STRING();
+email = DATA LOCAL STRING();
+gln3 = DATA LOCAL STRING();
+name2 = DATA LOCAL STRING();
+inn3 = DATA LOCAL STRING();
+kpp2 = DATA LOCAL STRING();
+currencyISOCode = DATA LOCAL STRING();
+gtin = DATA LOCAL STRING();
+internalBuyerCode = DATA LOCAL STRING();
+internalSupplierCode = DATA LOCAL STRING();
+externalProductId = DATA LOCAL STRING();
+typeOfUnit = DATA LOCAL STRING(INTEGER);
+lineItemTypeOfUnit = DATA LOCAL INTEGER(INTEGER);
+description = DATA LOCAL STRING();
+comment1 = DATA LOCAL STRING();
+netPrice = DATA LOCAL STRING();
+netPriceWithVAT = DATA LOCAL STRING();
+netAmount = DATA LOCAL STRING();
+exciseDuty = DATA LOCAL STRING();
+vATRate = DATA LOCAL STRING();
+vATAmount = DATA LOCAL STRING();
+amount = DATA LOCAL STRING();
+
+exportOrderDocument = DATA LOCAL EOrder();
+nameMessage = DATA LOCAL STRING();
+
+FORM ordersDiadoc FORMEXTID 'eDIMessage'
+        PROPERTIES() nameMessage EXTID 'id' ATTR, currentDateTime EXTID 'creationDateTime' ATTR
+        PROPERTIES IN interchangeHeader
+            sender = GLNCustomer(exportOrderDocument()) , 
+            recipient = GLNSupplier(exportOrderDocument()),
+            documentType = 'ORDERS', 
+            creationDateTime = currentDateTime() ,
+            isTest = IF useTest() THEN '1' ELSE '0'
+    
+        PROPERTIES ATTR IN order 
+            number_ = number(exportOrderDocument()) EXTID 'number',
+            date_ = sendDateTime(exportOrderDocument()) EXTID 'date'
+
+        PROPERTIES IN seller 
+            gln = (OVERRIDE GLN(customer(exportOrderDocument())),'') EXTID 'gln' 
+
+        PROPERTIES IN organization_ EXTID  'organization' 
+            name = (OVERRIDE fullName(customer(exportOrderDocument())), '') EXTID 'name', 
+            inn = (OVERRIDE inn(customer(exportOrderDocument())), '') EXTID 'inn', 
+            kpp = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
+        
+        PROPERTIES IN russianAddress_ EXTID 'russianAddress'
+            regionISOCode = (OVERRIDE region[Organization](customer(exportOrderDocument())), '') EXTID 'regionISOCode',
+            district = (OVERRIDE territory[Organization](customer(exportOrderDocument())), '') EXTID 'district',
+            city = (OVERRIDE city[Organization](customer(exportOrderDocument())), '') EXTID 'city',  
+            settlement = (OVERRIDE locality[Organization](customer(exportOrderDocument())), '') EXTID 'settlement', 
+            street = (OVERRIDE street[Organization](customer(exportOrderDocument())), '') EXTID 'street' , 
+            house = (OVERRIDE building[Organization](customer(exportOrderDocument())), '') EXTID 'house', 
+            flat = (OVERRIDE apartment[Organization](customer(exportOrderDocument())), '') EXTID 'flat', 
+            postalCode = (OVERRIDE zipCode[Organization](customer(exportOrderDocument())), '') EXTID 'postalCode'
+        
+        PROPERTIES IN additionalInfo 
+            phone = (OVERRIDE phone(customer(exportOrderDocument())), '') EXTID 'phone', 
+            fax = (OVERRIDE phone(customer(exportOrderDocument())), '') EXTID 'fax', 
+            bankAccountNumber = (OVERRIDE numberAccount(customer(exportOrderDocument())), '') EXTID 'bankAccountNumber', 
+            bankName = (OVERRIDE nameBank(account(customer(exportOrderDocument()))), '') EXTID 'bankName', 
+            BIK = (OVERRIDE MFOBank(account(customer(exportOrderDocument()))), '') EXTID 'BIK', 
+            nameOfCEO = (OVERRIDE nameChief(customer(exportOrderDocument())), '') EXTID 'nameOfCEO', 
+            orderContact = (OVERRIDE contacts(customer(exportOrderDocument())), '') EXTID 'orderContact'
+    
+        PROPERTIES IN buyer
+            gln1 = (OVERRIDE GLN(customer(exportOrderDocument())),'') EXTID 'gln'
+
+        PROPERTIES IN organization1 EXTID  'organization' 
+            name1 = (OVERRIDE fullName(customer(exportOrderDocument())), '') EXTID 'name',
+            inn1 = (OVERRIDE inn[Organization](customer(exportOrderDocument())), '') EXTID 'inn',
+            kpp1 = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
+
+        PROPERTIES IN russianAddress1 EXTID 'russianAddress' 
+            regionISOCode1 = (OVERRIDE region[Organization](customer(exportOrderDocument())), '') EXTID 'regionISOCode',
+            district1 = (OVERRIDE territory[Organization](customer(exportOrderDocument())), '') EXTID 'district',
+            city1 = (OVERRIDE city[Organization](customer(exportOrderDocument())), '') EXTID 'city',
+            settlement1 = (OVERRIDE locality[Organization](customer(exportOrderDocument())), '') EXTID 'settlement',
+            street1 = (OVERRIDE street[Organization](customer(exportOrderDocument())), '') EXTID 'street' ,
+            house1 = (OVERRIDE building[Organization](customer(exportOrderDocument())), '') EXTID 'house',
+            flat1 = (OVERRIDE apartment[Organization](customer(exportOrderDocument())), '') EXTID 'flat',
+            postalCode1 = (OVERRIDE zipCode[Organization](customer(exportOrderDocument())), '') EXTID 'postalCode'   
+
+        PROPERTIES IN invoicee
+            gln2 = (OVERRIDE GLN(customer(exportOrderDocument())),'') EXTID 'gln'
+    
+        PROPERTIES IN selfEmployed IN invoicee
+            inn2 = (OVERRIDE inn[Organization](supplier(exportOrderDocument())), '') EXTID 'inn'
+        
+        PROPERTIES IN russianAddress2 EXTID 'russianAddress'
+            regionISOCode2 = (OVERRIDE region[Organization](supplier(exportOrderDocument())), '') EXTID 'regionISOCode',
+            district2 = (OVERRIDE territory[Organization](supplier(exportOrderDocument())), '') EXTID 'district',
+            city2 = (OVERRIDE city[Organization](supplier(exportOrderDocument())), '') EXTID 'city',
+            settlement2 = (OVERRIDE locality[Organization](supplier(exportOrderDocument())), '') EXTID 'settlement',
+            street2 = (OVERRIDE street[Organization](supplier(exportOrderDocument())), '') EXTID 'street' ,
+            house2 = (OVERRIDE building[Organization](supplier(exportOrderDocument())), '') EXTID 'house', 
+            flat2 = (OVERRIDE apartment[Organization](supplier(exportOrderDocument())), '') EXTID 'flat',
+            postalCode2 = (OVERRIDE zipCode[Organization](supplier(exportOrderDocument())), '') EXTID 'postalCode'          
+            
+        PROPERTIES IN additionalInfo1 EXTID 'additionalInfo'
+            phone1 = (OVERRIDE phone(supplier(exportOrderDocument())), '') EXTID 'phone',
+            fax5 = (OVERRIDE phone(supplier(exportOrderDocument())), '') EXTID 'fax',
+            bankAccountNumber1 = (OVERRIDE numberAccount(supplier(exportOrderDocument())), '') EXTID 'bankAccountNumber',
+            bankName1 = (OVERRIDE nameBank(account(supplier(exportOrderDocument()))), '') EXTID 'bankName',
+            BIK1 = (OVERRIDE MFOBank(account(supplier(exportOrderDocument()))), '') EXTID 'BIK',
+            nameOfCEO1 = (OVERRIDE nameChief(supplier(exportOrderDocument())), '') EXTID 'nameOfCEO',
+            orderContact1 = (OVERRIDE contacts(supplier(exportOrderDocument())), '') EXTID 'orderContact'    
+    
+        PROPERTIES IN lineItems 
+            totalPackageQuantity = packQuantityOrderDetail(exportOrderDocument())
+
+        OBJECTS i = EOrderDetail EXTID 'lineItem' IN lineItems
+        FILTERS order(i) == exportOrderDocument()    
+            PROPERTIES  GTINBarcode(i) EXTID 'gtin',
+            idSku(i) EXTID 'internalBuyerCode', 
+            internalSupplierCode = idSku(i),   
+            externalProductId = idBarcode(i), 
+            description = nameSku(i), 
+            requestedQuantity = quantity(i), 
+            netPrice = price(i), 
+            vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))+'%'), ''),
+            amount = invoiceSum(i)
+;

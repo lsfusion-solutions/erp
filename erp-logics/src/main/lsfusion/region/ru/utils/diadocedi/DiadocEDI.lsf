@@ -1,0 +1,98 @@
+MODULE DiadocEDI;
+
+REQUIRE Utils, Time, Integration, Certificate, Authentication;
+
+NAMESPACE DiadocEDI;
+
+url 'Url' = DATA STRING ();
+clientId 'Ключ разработчика' = DATA STRING ();
+useTest 'Тест' = DATA BOOLEAN ();
+
+CLASS User 'Пользователь Диадок(EDI)';
+TABLE user (User);
+
+login 'Логин' = DATA STRING (User) IN id INDEXED CHARWIDTH 50 NONULL;
+user (login) = GROUP AGGR User user BY login(user);
+password 'Пароль' = DATA STRING (User) IN id ECHO CHARWIDTH 50 NONULL;
+
+FORM diadocUserEDI 'Пользователь Диадок(EDI)'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) login, password
+
+    EDIT User OBJECT u
+;
+
+FORM diadocUsersEDI 'Пользователи(EDI)'
+    OBJECTS u = User
+    PROPERTIES(u) READONLY login
+    PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE
+
+    LIST User OBJECT u
+;
+
+token = DATA LOCAL STRING();
+token = DATA STRING (User);
+tokenDateTime = DATA DATETIME (User);
+
+userDiadocEDI 'Пользователь Диадок(EDI)' = DATA User (CustomUser);
+loginDiadocEDI 'Пользователь Диадок(EDI)' (CustomUser u) = login(userDiadocEDI(u));
+
+httpHeadersDiadoc(TEXT name) = CASE
+    WHEN name == 'Authorization' THEN 'KonturEdiAuth konturediauth_api_client_id='+clientId() +
+        ',konturediauth_login=' + login(userDiadocEDI(currentUser())) + ',konturediauth_password=' + password(userDiadocEDI(currentUser()));
+
+httpHeadersTokenUser(TEXT name) = CASE
+    WHEN name == 'Authorization' THEN 'KonturEdiAuth konturediauth_api_client_id=' + clientId() + ',konturediauth_token=' + token()
+    WHEN name == 'Accept' THEN 'application/json';
+
+getTokenUser (User u) {
+    IF NOT tokenDateTime(u) > sumMinutes(currentDateTime(), -480) OR NOT token(u) THEN {
+        NEWSESSION NESTED LOCAL {
+            LOCAL result = STRING ();
+            TRY {
+                EXTERNAL HTTP POST url() + '/V1/Authenticate' HEADERS httpHeadersDiadoc TO result;
+
+                token(u) <- result();
+                tokenDateTime(u) <- currentDateTime();
+            } CATCH {
+                MESSAGE 'Ошибка авторизации ' + statusHttp() + ' ' + result();
+            }
+            APPLY;
+        }
+    }
+    token() <- token(u);
+}
+
+
+EXTEND FORM employee
+    PROPERTIES(e) loginDiadocEDI
+;
+
+DESIGN employee {
+    authentication {
+        MOVE PROPERTY(loginDiadocEDI(e));
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES urlDiadocEDI = url(), clientIdDiadocEDI = clientId(), useTest()
+;
+
+DESIGN integrationData {
+    pane {
+        NEW diadocEDI {
+            caption = 'Диадок(EDI)';
+            MOVE PROPERTY(urlDiadocEDI);
+            MOVE PROPERTY(clientIdDiadocEDI);
+            MOVE PROPERTY(useTest());
+        }
+    }
+}
+
+NAVIGATOR {
+    financeNavigator {
+        NEW FOLDER diadocEDI 'Диадок(EDI)' {
+            NEW diadocUsersEDI;
+        }
+    }
+}

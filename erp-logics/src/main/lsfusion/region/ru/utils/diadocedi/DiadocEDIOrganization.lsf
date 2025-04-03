@@ -1,0 +1,248 @@
+MODULE DiadocEDIOrganization;
+
+REQUIRE DiadocEDI;
+
+NAMESPACE DiadocEDI;
+
+CLASS OrganizationType 'Тип организации' {
+    type1 'Юридическое лицо, состоящее на учете в налоговых органах',
+    type2 'Индивидуальный предприниматель',
+    type3 'Иностранное лицо, не состоящее на учете в налоговых органах',
+    type4 'Физическое лицо'
+}
+name 'Наименование' (OrganizationType t) = staticCaption(t);
+id 'Код' (OrganizationType t) = CASE
+    WHEN t == OrganizationType.type1 THEN '1'
+    WHEN t == OrganizationType.type2 THEN '2'
+    WHEN t == OrganizationType.type3 THEN '3'
+    WHEN t == OrganizationType.type4 THEN '4';
+organizationType (organizationTypeId) = GROUP MAX OrganizationType organizationType BY id(organizationType);
+
+FORM organizationTypes 'Типы организации'
+    OBJECTS t = OrganizationType
+    PROPERTIES(t) READONLY name, id
+
+    LIST OrganizationType OBJECT t
+;
+
+CLASS Organization 'Организация (EDI)';
+TABLE organization (Organization);
+
+orgId 'Идентификатор' = DATA STRING (Organization) IN id INDEXED CHARWIDTH 10 NONULL;
+legalEntity = DATA LegalEntity(Organization) IN id;
+nameLegalEntity 'Наименование организации' (Organization o)= name(legalEntity(o));
+organization (orgId) = GROUP AGGR Organization organization BY orgId(organization);
+inn 'ИНН' = DATA STRING[12] (Organization) IN id NONULL;
+kpp 'КПП' = DATA STRING[9] (Organization);
+fullName 'Полное наименование' = DATA ISTRING (Organization) CHARWIDTH 20 IN id NONULL;
+shortName 'Наименование' = DATA ISTRING (Organization) CHARWIDTH 20 IN id;
+GLN 'GLN' = DATA STRING[46] (Organization);
+
+TABLE organizationUser (Organization,User);
+isEmployee 'Явл. сотрудником' = DATA BOOLEAN (Organization,User);
+
+//РФ
+zipCode 'Почтовый Индекс' = DATA STRING (Organization) CHARWIDTH 10;
+region 'Регион (код)' = DATA STRING (Organization) CHARWIDTH 10;
+territory 'Район' = DATA STRING (Organization) CHARWIDTH 20;
+city 'Город' = DATA STRING (Organization) CHARWIDTH 20;
+locality 'Населенный пункт' = DATA STRING (Organization) CHARWIDTH 20;
+street 'Улица' = DATA STRING (Organization) CHARWIDTH 20;
+building 'Дом' = DATA STRING (Organization) CHARWIDTH 5;
+block 'Корпус' = DATA STRING (Organization) CHARWIDTH 5;
+apartment 'Квартира' = DATA STRING (Organization) CHARWIDTH 5;
+
+organizationType 'Тип организации' = DATA OrganizationType (Organization) NONULL;
+organizationTypeName 'Тип организации' (Organization o) = staticCaption(organizationType(o)) CHARWIDTH 10;
+
+CLASS Box 'Ящик';
+TABLE box (Box);
+
+boxId 'Идентификатор' = DATA STRING (Box) IN id INDEXED CHARWIDTH 10 NONULL;
+box (boxId) = GROUP AGGR Box box BY boxId(box);
+organization = DATA Organization (Box) NONULL DELETE;
+isTest 'Тестовый' = DATA BOOLEAN (Box);
+
+CLASS Department 'Подразделение организации';
+TABLE department (Department);
+
+name 'Полное наименование' = DATA ISTRING (Department) CHARWIDTH 20;
+kpp 'КПП' = DATA STRING[12] (Department);
+inn 'ИНН' = DATA STRING[12] (Department);
+department (inn) = GROUP AGGR Department department BY inn(department);
+
+//РФ
+zipCode 'Почтовый Индекс' = DATA STRING (Department) CHARWIDTH 10;
+region 'Регион (код)' = DATA STRING (Department) CHARWIDTH 10;
+territory 'Район' = DATA STRING (Department) CHARWIDTH 20;
+city 'Город' = DATA STRING (Department) CHARWIDTH 20;
+locality 'Населенный пункт' = DATA STRING (Department) CHARWIDTH 20;
+street 'Улица' = DATA STRING (Department) CHARWIDTH 20;
+building 'Дом' = DATA STRING (Department) CHARWIDTH 5;
+block 'Корпус' = DATA STRING (Department) CHARWIDTH 5;
+apartment 'Квартира' = DATA STRING (Department) CHARWIDTH 5;
+
+organization = DATA Organization (Department) NONULL DELETE;
+
+organizationInn (STRING[12] inn) = GROUP LAST Organization o ORDER o BY inn(o);
+organizationKpp (STRING[12] kpp) = GROUP LAST Organization o ORDER o BY kpp(o);
+
+FORM organization 'Организация (EDI)'
+    OBJECTS o = Organization PANEL
+    PROPERTIES(o) orgId, inn, kpp, fullName, shortName, zipCode, region, territory, 
+        city, locality, street, building, block, apartment, organizationTypeName
+
+    OBJECTS b = Box
+    PROPERTIES(b) boxId, isTest
+    FILTERS organization(b) == o
+
+    EDIT Organization OBJECT o
+;
+
+DESIGN organization {
+    OBJECTS {
+        NEW header {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(orgId(o));
+            MOVE PROPERTY(shortName(o));
+            MOVE PROPERTY(fullName(o));
+        }
+        NEW parametersRow1 {
+            horizontal = TRUE;
+            MOVE PROPERTY(inn(o));
+            MOVE PROPERTY(kpp(o));
+            MOVE PROPERTY(organizationTypeName(o));
+        }
+        NEW address {
+            NEW russian {
+                caption = 'Адрес';
+                lines = 3;
+                MOVE PROPERTY(zipCode(o));
+                MOVE PROPERTY(city(o));
+                MOVE PROPERTY(building(o));
+                MOVE PROPERTY(region(o));
+                MOVE PROPERTY(locality(o));
+                MOVE PROPERTY(block(o));
+                MOVE PROPERTY(territory(o));
+                MOVE PROPERTY(street(o));
+                MOVE PROPERTY(apartment(o));
+            }
+        }
+        NEW tabs {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(b);
+        }
+    }
+}
+
+show 'Просмотреть' (Organization o) {
+    NEWSESSION {
+        SHOW organization OBJECTS o = o DOCKED READONLY;
+    }
+} TOOLBAR;
+
+FORM organizations 'Организации (EDI)'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadocEDI(currentUser())
+
+    OBJECTS o = Organization
+    PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
+    PROPERTIES(o) organizationTypeName, nameLegalEntity
+    PROPERTIES(o) show
+//    FILTERS isEmployee(o,u)
+;
+
+FORM dialogOrganizations 'Организации EDI'
+    OBJECTS o = Organization
+    PROPERTIES(o) READONLY orgId, shortName, fullName, inn, kpp
+ //   FILTERS isEmployee(o,userDiadocEDI(currentUser()))
+
+    LIST Organization OBJECT o
+;
+
+NAVIGATOR {
+    diadocEDI {
+        NEW organizations;
+    }
+}
+
+// ------- мои организации
+
+orgId 'Идентификатор' = DATA LOCAL STRING (INTEGER);
+inn 'ИНН' = DATA LOCAL STRING[12] (INTEGER);
+kpp 'КПП' = DATA LOCAL STRING[9] (INTEGER);
+fullName 'Полное наименование' = DATA LOCAL ISTRING (INTEGER);
+gln =  DATA LOCAL STRING (INTEGER);
+
+
+FORM importOrganizations
+    OBJECTS o = INTEGER EXTID 'Parties'
+    PROPERTIES(o) orgId EXTID 'Id',
+        inn EXTID 'Inn',
+        kpp EXTID 'Kpp',
+        fullName EXTID 'Name',
+        gln EXTID 'Gln'     
+;
+
+getMyOrganizations 'Получить мои организации' (User u) {
+    getTokenUser(u);
+    LOCAL result = FILE ();
+    TRY {
+        EXTERNAL HTTP GET url() + '/V1/Parties/GetAccessiblePartiesInfo' HEADERS httpHeadersTokenUser TO result;
+        IMPORT importOrganizations JSON FROM result();
+    } CATCH {
+        fileToString(result(), 'UTF-8');
+        MESSAGE 'Ошибка получения организаций ' + statusHttp() + ' ' + resultString();
+    }
+    FOR orgId(INTEGER i) AND NOT organization(orgId(i)) NEW o = Organization DO {
+        orgId(o) <- orgId(i);
+    }
+    FOR Organization o == organization(orgId(INTEGER i)) DO {
+        inn(o) <- inn(i);
+        kpp(o) <- kpp(i);
+        fullName(o) <- fullName(i);
+        GLN(o) <- gln(i);
+        organizationType(o) <- OrganizationType.type1 WHERE NOT organizationType(o);
+    }
+    APPLY;
+}
+
+//--------------- идентификатор
+
+GROUP boxSettings EXTID 'BoxSettings';
+isTestBox = DATA LOCAL STRING ();
+partyId = DATA LOCAL STRING();
+idBox = DATA LOCAL STRING();
+
+FORM importBoxOrganizations
+    PROPERTIES() isTestBox EXTID 'IsTest', 
+        partyId EXTID 'PartyId', 
+        idBox EXTID 'Id'
+;
+
+getBoxOrganizations 'Получить идентификатор ящика' (User u, Organization o) {
+    getTokenUser(u);
+    LOCAL result = FILE ();
+    TRY {
+        EXTERNAL HTTP GET url() + '/V1/Boxes/GetMainApiBox?partyId='+orgId(o) HEADERS httpHeadersTokenUser TO result;
+        IMPORT importBoxOrganizations JSON FROM result();
+    } CATCH {
+        fileToString(result(), 'UTF-8');
+        MESSAGE 'Ошибка получения структуры ' + statusHttp() + ' ' + resultString();
+    }
+    FOR idBox() AND NOT box(idBox()) NEW b = Box DO {
+        boxId(b) <- idBox();
+    }
+    FOR Box b == box(idBox()) DO {
+        isTest(b) <- TRUE IF isTestBox() == 'true';
+        organization(b) <- organization(partyId());
+    }
+    APPLY;
+}
+
+EXTEND FORM organizations
+    PROPERTIES DRAW o TOOLBAR getMyOrganizations(u), getBoxOrganizations(u,o)
+;
