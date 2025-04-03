@@ -387,8 +387,10 @@ changeBins (SkuGroup group) {
     }   
 }
 
+GROUP itemWMS 'WMS' : base;
+
 bins 'Ячейки' (Sku sku) =
-    GROUP CONCAT name(Bin bin) IF in(sku, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+    GROUP CONCAT name(Bin bin) IF in(sku, bin) , ', ' ORDER bin IN itemWMS CHARWIDTH 20 MATERIALIZED;
 
 bins 'Ячейки(по складу)' (BinGroup binGroup, Sku sku) =
     GROUP CONCAT name(Bin bin) IF in(sku, bin) AND stock(bin)==stock(binGroup) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
@@ -404,15 +406,15 @@ FORM changeBinsSku 'Выбор ячеек'
     FILTERGROUP in FILTER 'Отмеченные' in(s, bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalId SHOWIF showIDs() READONLY, canonicalName, nameStock
     PROPERTIES in(s, b)
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalId SHOWIF showIDs() READONLY, canonicalName, nameStock
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
     ORDERS name(b)
     FILTERGROUP inSku FILTER 'Отмеченные' in(s, b)
 ;
 
 DESIGN changeBinsSku {
-    MOVE BOX(s);
+    MOVE PROPERTY(name(s)){alignment = STRETCH;}
     NEW binContainer{
         horizontal = TRUE;
         fill = 1;
@@ -497,7 +499,6 @@ DESIGN binStocks {
         MOVE TOOLBARBOX;
     }
 }
-
 
 //--------------------------------------------------Ячейка для Detail--------------------------------------//
 
