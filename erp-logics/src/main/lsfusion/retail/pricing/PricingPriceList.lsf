@@ -85,6 +85,14 @@ afterSetManagementRetailPrice(DepartmentStore d, PriceListType pt, DATETIME dt) 
     formRefresh();
 }
 checkManagementPriceListPrice ABSTRACT LIST (DepartmentStore, PriceListType, DATETIME);
+
+inDashboardMRP= DATA LOCAL BOOLEAN (Sku);
+fillManagementRetailPrice ABSTRACT CASE (CalcPriceListType, DepartmentStore, DATETIME);
+
+fillManagementRetailPrice (CalcPriceListType ct, DepartmentStore d, DATETIME dt) +   WHEN ct IS CalcPriceListType AND d IS DepartmentStore AND dt IS DATETIME THEN {   
+    managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) IF inDashboardMRP(sku);
+};
+
 calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceListType ct, PriceListType pt, DATETIME dt)  { 
     requestCanceled() <- NULL;
     LOCAL groupType = GroupType();
@@ -97,17 +105,19 @@ calculateDashboardRepricing 'По группам'(DepartmentStore d, CalcPriceLi
     info(Sku s) <- NULL;
     IF NOT requestCanceled() THEN {
         IF onStockPriceListRepricing() THEN {  // переоценивать товары без остатка, настройка в options pricings (Акты расценки?)
-            managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt) 
-                IF NOT skipManagementRetailPrice() AND NOT skipManagementPriceList(pt, sku, d, dt) AND include(groupType(), sku);
-            overManagementRetailPrice(ct, d, dt, groupType(), pt);
+            inDashboardMRP(Sku sku) <- NOT skipManagementRetailPrice() AND NOT skipManagementPriceList(pt, sku, d, dt) AND include(groupType(), sku);
+            fillManagementRetailPrice(ct, d, dt);
+
+            overManagementRetailPriceOnStock(ct, d, dt, groupType(), pt);
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt, sku, d, dt)
                 IF NOT skipManagementPriceList(pt, sku, d, dt) AND (include(groupType(), sku) OR calculateAllGroups());
         } ELSE {
-            managementRetailPrice (Sku sku) <- priceA(ct, sku, d, dt)
-                IF NOT skipManagementRetailPrice() AND currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(ct, sku, d, dt) AND include(groupType(), sku);
-            overManagementRetailPriceOnStock(ct, d, dt, groupType(), pt);
+            inDashboardMRP(Sku sku) <- NOT skipManagementRetailPrice() AND currentBalance(sku, d) > 0 AND NOT skipManagementPriceList(pt, sku, d, dt) AND include(groupType(), sku);
+            fillManagementRetailPrice(ct, d, dt);
+
+            overManagementRetailPrice(ct, d, dt, groupType(), pt);
             overSetMarkupManagementRetailPrice(d, dt);
             overSetMarkupManagementRetailPrice(ct, d, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA(pt,sku, d, dt)

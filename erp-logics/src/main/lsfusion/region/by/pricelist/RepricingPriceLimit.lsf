@@ -59,9 +59,10 @@ limitBasePrice(UserRepricingDetail d) = OVERRIDE overLimitBasePrice(d), price(d)
  
 limitPrice = ABSTRACT CASE NUMERIC[16,4] (RepricingDetail);
 limitPrice (UserRepricingDetail detail) += WHEN detail IS UserRepricingDetail THEN 
-            round([ X*(Y+100)*(Z+100)/10000](
+            round([ (X*(Y+100)/100 (+) W)*(Z+100)/100](
                     limitBasePrice(detail),
                     limitMarkup(detail),
+                    retailExtraPackagingCost(detail),
                     valueVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)));
 //                                       IF limitMarkup(detail) > 0.3 AND limitMarkup(detail) <= 1  THEN
 //                                           limitMarkup(detail)
@@ -79,10 +80,11 @@ limitPrice (UserRepricingDetail detail) += WHEN detail IS UserRepricingDetail TH
 
 calcMarkupLimitPrice = ABSTRACT CASE NUMERIC[8,3] (RepricingDetail);
 calcMarkupLimitPrice(UserRepricingDetail d) += WHEN d IS UserRepricingDetail THEN
-    NUMERIC[8,3]([ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+    NUMERIC[8,3]([ round2(min( (((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
             (retailPrice(d) - OVERRIDE extraRetailPrice(d), 0.0),
-            repricingPrice(d),
-            valueVAT(d)));
+            valueVAT(d),
+            retailExtraPackagingCost(d),
+            repricingPrice(d)));
 
 WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 

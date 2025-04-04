@@ -8,5 +8,101 @@ NAMESPACE Repricing;
 
 @packagingCost(repricingDetail, , ' (после)');
 
+curPackagePrice1 (UserRepricingDetail detail)  <- IF batch(detail)            
+                THEN prevPackagePrice1(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                ELSE prevPackagePrice1(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
+    WHEN DO CHANGED(sku(detail)) OR
+    CHANGED(departmentStore(detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    CHANGED(batch(detail))
+;
+curPackagePrice2 (UserRepricingDetail detail)  <- IF batch(detail)
+    THEN prevPackagePrice2(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+    ELSE prevPackagePrice2(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
+    WHEN DO CHANGED(sku(detail)) OR
+    CHANGED(departmentStore(detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    CHANGED(batch(detail))
+;
+
+overRecalculatePrice(UserRepricingDetail detail) +  {
+    curPackagePrice1 (detail)  <- IF batch(detail)
+                    THEN prevPackagePrice1(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                    ELSE prevPackagePrice1(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+    curPackagePrice2 (detail)  <- IF batch(detail)
+                    THEN prevPackagePrice2(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                    ELSE prevPackagePrice2(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+}
+
+overConfirmRecalculatePrice(UserRepricingDetail d) +  {
+    packagePrice1 (d)  <- curPackagePrice1(d);
+    packagePrice2 (d)  <- curPackagePrice2(d);
+}
+
+skipChangePackagePrice = ABSTRACT BOOLEAN (UserRepricingDetail);
+
+packagePrice1(UserRepricingDetail d) <- curPackagePrice1(d) WHEN
+    CHANGED(sku(d)) OR
+        CHANGED(departmentStore(d)) OR
+        (CHANGED(dateTime(d)) AND NOT skipChangePackagePrice(d)) OR
+        CHANGED(batch(d));
+
+packagePrice2(UserRepricingDetail d) <- curPackagePrice2(d) WHEN
+    CHANGED(sku(d)) OR
+        CHANGED(departmentStore(d)) OR
+        (CHANGED(dateTime(d)) AND NOT skipChangePackagePrice(d)) OR
+        CHANGED(batch(d));
+
 packagePrice1[PriceListLedger](RepricingDetail ledger) += packagePrice1(ledger) IF ledger IS RepricingDetail;
 packagePrice2[PriceListLedger](RepricingDetail ledger) += packagePrice2(ledger) IF ledger IS RepricingDetail;
+
+
+useRetailExtraPackagingCost = ABSTRACT BOOLEAN (RepricingDetail);
+useRetailExtraPackagingCost = DATA BOOLEAN (UserRepricingDetail);
+useRetailExtraPackagingCost(UserRepricingDetail d) += useRetailExtraPackagingCost(d);
+useRetailExtraPackagingCost(UserRepricingDetail d) <- TRUE IF markup(priceLimitPriceListType(departmentStore(d)), sku(d))
+    WHEN CHANGED(departmentStore(d)) OR CHANGED(operation(d)) OR CHANGED(sku(d));
+
+curRetailExtraPackagingCost(UserRepricingDetail d) += WHEN useRetailExtraPackagingCost(d) THEN curPackagingPrice(d);
+retailExtraPackagingCost(UserRepricingDetail d) += WHEN useRetailExtraPackagingCost(d) THEN packagingPrice(d);
+
+curPackagingSum 'Сумма (доставка и упаковка)' = ABSTRACT NUMERIC[18,4] (RepricingDetail) CHARWIDTH 8;
+curPackagingSum 'Сумма (доставка и упаковка)' = DATA NUMERIC[18,4] (UserRepricingDetail) CHARWIDTH 8;
+curPackagingSum (UserRepricingDetail d) += curPackagingSum(d);
+
+@deriveDocumentDetailSumPrefix(UserRepricing, curPackaging, currency, quantity);
+
+curMarkupSum(UserRepricingDetail d) <- (curRetailSum(d) (-) curVATSum (d) (-) curSum(d) (-) (curPackagingSum(d) IF useRetailExtraPackagingCost(d)))
+    WHEN CHANGED(curRetailSum(d)) OR CHANGED (curVATSum (d)) OR CHANGED (curSum(d))  OR CHANGED (curPackagingSum(d)) OR CHANGED(useRetailExtraPackagingCost(d));
+
+//--
+packagingSum 'Сумма (доставка и упаковка)' = ABSTRACT NUMERIC[18,4] (RepricingDetail) CHARWIDTH 8;
+packagingSum 'Сумма (доставка и упаковка)' = DATA NUMERIC[18,4] (UserRepricingDetail) CHARWIDTH 8;
+packagingSum (UserRepricingDetail d) += packagingSum(d);
+
+@deriveDocumentDetailSumPrefix(UserRepricing, packaging, currency, quantity);
+
+markupSum(UserRepricingDetail d) <- (retailSum(d) (-) VATSum (d) (-) sum(d) (-) (packagingSum(d) IF useRetailExtraPackagingCost(d)))
+    WHEN CHANGED(retailSum(d)) OR CHANGED (VATSum (d)) OR CHANGED (sum(d))  OR CHANGED (packagingSum(d)) OR CHANGED(useRetailExtraPackagingCost(d));
+
+EXTEND FORM userRepricing
+    PROPERTIES (d)  AFTER curPrice(d)  curPackagePrice1, curPackagePrice2, curPackagingPrice, curPackagingSum
+    PROPERTIES (d)  AFTER price(d)  packagePrice1, packagePrice2, packagingPrice, packagingSum
+;
+DESIGN userRepricing{
+    PROPERTY(packagePrice1(d)) { background = #FFFFCC; }
+    PROPERTY(packagePrice2(d)) { background = #FFFFCC; }
+    PROPERTY(packagingPrice(d)) { background = #FFFFCC; }
+    PROPERTY(packagingSum(d)) { background = #FFFFCC; }
+}
+
+EXTEND FORM repricings
+    PROPERTIES (d)  READONLY AFTER curPrice(d)  curPackagePrice1, curPackagePrice2, curPackagingPrice, curPackagingSum
+    PROPERTIES (d)  READONLY AFTER price(d)  packagePrice1, packagePrice2, packagingPrice, packagingSum
+;
+DESIGN repricings{
+    PROPERTY(packagePrice1(d)) { background = #FFFFCC; }
+    PROPERTY(packagePrice2(d)) { background = #FFFFCC; }
+    PROPERTY(packagingPrice(d)) { background = #FFFFCC; }
+    PROPERTY(packagingSum(d)) { background = #FFFFCC; }
+}

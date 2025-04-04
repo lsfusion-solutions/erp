@@ -17,63 +17,70 @@ useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
 extraRetailPrice 'Цена посуды' = ABSTRACT NUMERIC[16,4] (Sku, DATE );
 
-overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
-    LOCAL limitPrice = NUMERIC[16,4] (Sku);
-    
-    FOR CalcPriceListType ct = priceLimitPriceListType(d) AND NOT useCustomCalcLimitPrice() NOINLINE DO {
-        calculateLimitBasePrice(d, dt);
-        limitPrice(Sku sku) <- round([ X*(Y+100.0)*(Z+100.0)/10000.0](
-                                        limitBasePrice(sku, d, dt),
-                                        markup(ct, sku),
-                                        valueVAT(sku, d)), roundCondition(ct, sku)) WHERE managementRetailPrice(sku);
+skipSetManagementRetailPrice = ABSTRACT BOOLEAN ();
 
-//        limitPrice(Sku sku) <- IF markup(ct, sku) > 1 THEN
-//                                    round([ X*(Y+100.0)*(Z+100.0)/10000.0](
-//                                          limitBasePrice(sku, d, dt),
-//                                          markup(ct, sku),
-//                                          valueVAT(sku, d)), roundCondition(ct, sku))
-//                               ELSE
-//                                    IF markup(ct, sku) > 0.3 THEN
-//                                        markup(ct, sku)
-//                                    ELSE
-//                                        round([ (X+Y)*(Z+100.0)/100.0](
-//                                            limitBasePrice(sku, d, dt),
-//                                            markup(ct, sku),
-//                                            valueVAT(sku, d)), roundCondition(ct, sku)) WHERE managementRetailPrice(sku);
-    
-        IF limitMarkupValue() THEN {
+overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
+    IF NOT skipSetManagementRetailPrice() THEN {
+        LOCAL limitPrice = NUMERIC[16,4] (Sku);
+
+        FOR CalcPriceListType ct = priceLimitPriceListType(d) AND NOT useCustomCalcLimitPrice() NOINLINE DO {
+            calculateLimitBasePrice(d, dt);
             limitPrice(Sku sku) <- round([ X * (Y + 100.0) * (Z + 100.0) / 10000.0](
                     limitBasePrice(sku, d, dt),
-                    limitMarkupValue(),
-                    valueVAT(sku, d)), roundCondition(ct, sku)) WHERE useLimitMarkupValue(sku, d) AND NOT markup(ct, sku) AND managementRetailPrice(sku);
+                    markup(ct, sku),
+                    valueVAT(sku, d)), roundCondition(ct, sku)) WHERE managementRetailPrice(sku);
+
+            //        limitPrice(Sku sku) <- IF markup(ct, sku) > 1 THEN
+            //                                    round([ X*(Y+100.0)*(Z+100.0)/10000.0](
+            //                                          limitBasePrice(sku, d, dt),
+            //                                          markup(ct, sku),
+            //                                          valueVAT(sku, d)), roundCondition(ct, sku))
+            //                               ELSE
+            //                                    IF markup(ct, sku) > 0.3 THEN
+            //                                        markup(ct, sku)
+            //                                    ELSE
+            //                                        round([ (X+Y)*(Z+100.0)/100.0](
+            //                                            limitBasePrice(sku, d, dt),
+            //                                            markup(ct, sku),
+            //                                            valueVAT(sku, d)), roundCondition(ct, sku)) WHERE managementRetailPrice(sku);
+
+            IF limitMarkupValue() THEN {
+                limitPrice(Sku sku) <- round([ X * (Y + 100.0) * (Z + 100.0) / 10000.0](
+                        limitBasePrice(sku, d, dt),
+                        limitMarkupValue(),
+                        valueVAT(sku, d)), roundCondition(ct, sku)) WHERE useLimitMarkupValue(sku, d) AND NOT markup(ct, sku) AND managementRetailPrice(sku);
+            }
+
+            limitPrice(Sku sku) <- limitPrice(sku) (+) extraRetailPrice(sku, DATE(dt)) WHERE limitPrice(sku);
+
+            managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceMarkupLimit(sku);
         }
-        
-        limitPrice(Sku sku) <- limitPrice(sku) (+) extraRetailPrice(sku, DATE(dt)) WHERE  limitPrice(sku);                                     
-    
-        managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceMarkupLimit(sku);
-    } 
+    }
 }
 
 calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {
-    FOR CalcPriceListType ct = priceLimitPriceListType(d) NOINLINE DO {
-        descriptionPricing (sku, 'Предельные надбавки') <- STRING(
-            round([ X*(Y+100.0)*(Z+100.0)/10000.0](
-                    limitBasePrice(sku, d, dt),
-                    markup(ct, sku),
-                    valueVAT(sku, d)), roundCondition(ct, sku)));
-        
-//        descriptionPricing (sku, 'Предельные надбавки') <- STRING(IF markup(ct, sku) > 1 THEN
-//                 round([ X*(Y+100.0)*(Z+100.0)/10000.0](
-//                       limitBasePrice(sku, d, dt),
-//                       markup(ct, sku),
-//                       valueVAT(sku, d)), roundCondition(ct, sku))
-//            ELSE
-//                 IF markup(ct, sku) > 0.3 THEN
-//                     markup(ct, sku)
-//                 ELSE
-//                     round([ (X+Y)*(Z+100.0)/100.0](
-//                         limitBasePrice(sku, d, dt),
-//                         markup(ct, sku),
-//                         valueVAT(sku, d)), roundCondition(ct, sku)));
-    } 
+    IF NOT skipSetManagementRetailPrice() THEN {
+        FOR CalcPriceListType ct = priceLimitPriceListType(d) NOINLINE DO {
+            descriptionPricing (sku, 'Предельные надбавки') <- STRING(
+                round([ X * (Y + 100.0) * (Z + 100.0) / 10000.0](
+                        limitBasePrice(sku, d, dt),
+                        markup(ct, sku),
+                        valueVAT(sku, d)), roundCondition(ct, sku)));
+            descriptionPricing (sku, 'Цена посуды') <- STRING(extraRetailPrice(sku, DATE(dt)));
+    
+            //        descriptionPricing (sku, 'Предельные надбавки') <- STRING(IF markup(ct, sku) > 1 THEN
+            //                 round([ X*(Y+100.0)*(Z+100.0)/10000.0](
+            //                       limitBasePrice(sku, d, dt),
+            //                       markup(ct, sku),
+            //                       valueVAT(sku, d)), roundCondition(ct, sku))
+            //            ELSE
+            //                 IF markup(ct, sku) > 0.3 THEN
+            //                     markup(ct, sku)
+            //                 ELSE
+            //                     round([ (X+Y)*(Z+100.0)/100.0](
+            //                         limitBasePrice(sku, d, dt),
+            //                         markup(ct, sku),
+            //                         valueVAT(sku, d)), roundCondition(ct, sku)));
+        }
+    }
 }

@@ -1,0 +1,65 @@
+MODULE RepricingPriceListPriceLimitPackagingCost;
+
+REQUIRE RepricingPriceListPriceLimit, RepricingPackagingCost;
+
+NAMESPACE Repricing;
+
+//-- Предельные с учетом доп. расходов
+
+skipSetManagementRetailPrice() += TRUE ;
+
+limitPackagePrice(Sku s, DepartmentStore d, DATETIME  dt) = prevPackagePrice(retailPricingPriceListLedgerB( s, d, dt)) 
+                IF markup(priceLimitPriceListType(d), s);
+
+
+overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
+    IF skipSetManagementRetailPrice() THEN {
+        LOCAL limitPrice = NUMERIC[16,4] (Sku);
+
+        FOR CalcPriceListType ct = priceLimitPriceListType(d) AND NOT useCustomCalcLimitPrice() NOINLINE DO {
+            calculateLimitBasePrice(d, dt);
+            limitPrice(Sku sku) <- round([ ((X * (Y + 100.0)/100.0)(+) W) * (Z + 100.0) / 100.0](
+                    limitBasePrice(sku, d, dt),
+                    markup(ct, sku),
+                    limitPackagePrice(sku, d, dt),
+                    valueVAT(sku, d)), roundCondition(ct, sku)) WHERE managementRetailPrice(sku);
+
+            IF limitMarkupValue() THEN {
+                limitPrice(Sku sku) <- round([ ((X * (Y + 100.0)/100.0)(+) W) * (Z + 100.0) / 100.0](
+                        limitBasePrice(sku, d, dt),
+                        limitMarkupValue(),
+                        limitPackagePrice(sku, d, dt),
+                        valueVAT(sku, d)), roundCondition(ct, sku)) WHERE useLimitMarkupValue(sku, d) AND NOT markup(ct, sku) AND managementRetailPrice(sku);
+            }
+
+            limitPrice(Sku sku) <- limitPrice(sku) (+) extraRetailPrice(sku, DATE(dt)) WHERE limitPrice(sku);
+
+            managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceMarkupLimit(sku);
+        }
+    }
+}
+
+calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {
+    IF skipSetManagementRetailPrice()   THEN {
+        FOR CalcPriceListType ct = priceLimitPriceListType(d) NOINLINE DO {
+            descriptionPricing (sku, 'Предельные надбавки') <- STRING(
+                round([ ((X * (Y + 100.0)/100.0)(+) W) * (Z + 100.0) / 100.0](
+                        limitBasePrice(sku, d, dt),
+                        markup(ct, sku),
+                        limitPackagePrice(sku, d, dt),
+                        valueVAT(sku, d)), roundCondition(ct, sku)));
+            descriptionPricing (sku, 'Цена посуды') <- STRING(extraRetailPrice(sku, DATE(dt)));
+        }
+    }
+}
+
+//---------------------- Переоценки --------------------------------//
+
+fillManagementRetailPrice (CalcPriceListType ct, DepartmentStore d, DATETIME dt) +   WHEN ct IS CalcPriceListType AND d IS DepartmentStore AND dt IS DATETIME THEN {
+    managementRetailPrice (Sku sku) <-  round([ (X * Y (+) W) * (Z + 100.0) / 100.0](
+            priceA(basePriceListType(ct), sku, d, dt),
+            multiplier(ct, sku) ,
+            limitPackagePrice(sku, d, dt),
+            valueVAT(sku, country(ct))), roundCondition(ct, sku))
+        IF inDashboardMRP(sku);
+};
