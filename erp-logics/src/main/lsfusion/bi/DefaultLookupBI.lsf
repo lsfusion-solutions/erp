@@ -4,6 +4,18 @@ REQUIRE Druid, Stock, Item;
 
 NAMESPACE BI;
 
+useShortNameEmployee 'Использовать инициалы при выгрузке сотрудников' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() useShortNameEmployee
+;
+
+DESIGN integrationData {
+    druid {
+        MOVE PROPERTY(useShortNameEmployee());
+    }
+}
+
 loadLookups () + { 
     loadLookup('stock_name', [ GROUP CONCAT TEXT('"' + TEXT(Stock st) + '":"' + escapeJSONValue(name(st)) + '"'), ',' ORDER st]());
     loadLookup('stockGroup_name', [ GROUP CONCAT TEXT('"' + TEXT(StockGroup sg) + '":"' + escapeJSONValue(name(sg)) + '"'), ',' ORDER sg]());
@@ -25,5 +37,10 @@ loadLookups () + {
     loadLookup('sku_group4', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup5(s))  + '"'), ',' ORDER s]());
     loadLookup('sku_group5', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(skuGroup6(s))  + '"'), ',' ORDER s]());
     loadLookup('sku_manufacturer', [ GROUP CONCAT TEXT('"' + TEXT(Sku s) + '":"' + TEXT(manufacturer(s))  + '"'), ',' ORDER s]());
-    loadLookup('employee_name', [ GROUP CONCAT TEXT('"' + TEXT(Employee e) + '":"' + escapeJSONValue(name(e))  + '"'), ',' ORDER e]());
+    IF useShortNameEmployee() THEN {
+        loadLookup('employee_name', [ GROUP CONCAT TEXT('"' + TEXT(Employee e) + '":"' + escapeJSONValue(shortName(e))  + '"'), ',' ORDER e]());
+    } ELSE {
+        loadLookup('employee_name', [ GROUP CONCAT TEXT('"' + TEXT(Employee e) + '":"' + escapeJSONValue(name(e))  + '"'), ',' ORDER e]());
+    }
+    
 }
