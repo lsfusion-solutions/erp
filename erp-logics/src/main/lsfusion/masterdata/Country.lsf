@@ -99,13 +99,61 @@ addDayOff 'Добавить выходной день'(Country country)  {
 	}
 }
 
+GROUP response;
+GROUP date;
+
+iso = DATA LOCAL DATE(INTEGER);
+primary_type = DATA LOCAL STRING(INTEGER);
+holidaysType = DATA LOCAL INTEGER(INTEGER);
+
+FORM calendarific
+    OBJECTS holidays = INTEGER IN response
+
+    PROPERTIES(holidays) primary_type
+    PROPERTIES(holidays) IN date iso
+    FILTERS imported(holidays)
+;
+
+calendarificApiKey 'Calendarific Api Key' = DATA STRING();
+calendarificYear 'Год' = DATA INTEGER();
+importDaysOffs 'Импортировать выходные дни' (Country country) {
+    LOCAL response = FILE();
+    EXTERNAL HTTP GET 'https://calendarific.com/api/v2/holidays?&api_key=' + calendarificApiKey() + '&country=' + sid(country) + '&year=' + calendarificYear() TO response;
+    
+    IMPORT calendarific FROM response();
+    
+    FOR primary_type(INTEGER i) == 'National Holiday' DO {
+        isDayOff(country, DATE(iso(i))) <- TRUE; 
+    }
+
+    FOR primary_type(INTEGER i) == 'Working day on weekend' DO {
+        isDayOff(country, DATE(iso(i))) <- NULL;
+    }
+    
+    apply();
+}
+
 FORM daysOffForm 'Выходные дни' // logics.days.off
     OBJECTS country 'Страна' = Country, day 'День' = DATE
     PROPERTIES(country)  fillDaysOff, addDayOff
     PROPERTIES(country) READONLY nameOrigin, sid, sidOrigin2, sidOrigin3, nameCurrency, resident
     PROPERTIES VALUE(day), isDayOff(country, day)
     FILTERS isDayOff(country, day)
+    
+    PROPERTIES calendarificApiKey(), calendarificYear(), importDaysOffs(country) PANEL
 ;
+
+DESIGN daysOffForm {
+    PANEL(country) {
+        NEW calendarific {
+            caption = 'Calendarific';
+            horizontal = TRUE;
+            MOVE PROPERTY(calendarificYear());
+            MOVE PROPERTY(calendarificApiKey());
+            MOVE PROPERTY(importDaysOffs(country));
+        }
+    }
+}
 
 NAVIGATOR {
     regionalData {
