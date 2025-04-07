@@ -98,11 +98,14 @@ vendorName (Item i) = ABSTRACT STRING;
 isCatchWeight (Sku i) = IF (id(UOM(i)) = 'кг.') OR nameUOM(i) = 'КГ' OR nameUOM(i) = 'кг' OR shortNameUOM(i) = 'кг' OR shortNameUOM(i) = 'кг.' THEN TTRUE ELSE TFALSE;
 quantum (Item i) = ABSTRACT NUMERIC[16,5];
 oldPrice (Item i, DepartmentStore d) = ABSTRACT NUMERIC[16,4];
+customOldPrice(Item i, DepartmentStore d) = ABSTRACT NUMERIC[16,4];
 available(Item i, DepartmentStore s) = ABSTRACT NUMERIC[16,5];
 
 inOnlineYandex (Item i, DepartmentStore d) = ABSTRACT CASE BOOLEAN;
 
 stock (YandexEdaAuth client, STRING id) = ABSTRACT DepartmentStore;
+
+oldPrice (Item i, DepartmentStore d) += customOldPrice(i, d);
 
 CLASS ModiffersGroup 'Группы модификаторов';
 
@@ -151,6 +154,14 @@ FORM availability 'Наличие Яндекс.Еда'
     PROPERTIES id(i), available(i, s) EXTID 'stock'
     FILTERS inOnlineYandex(i, s)
 ; 
+
+FORM prices 'Цены Яндекс.Еда'
+    OBJECTS s = DepartmentStore PANEL
+
+    OBJECTS i = Item EXTID 'items'
+    PROPERTIES id(i), currentPrice(i, s) EXTID 'price', = INTEGER(valueVAT(i)) EXTID 'vat', oldPrice(i, s)
+    FILTERS currentPrice(i, s)
+;
 
 carrierSelect ABSTRACT LIST(YandexEdaAuth);
 beforeExportData ABSTRACT LIST (YandexEdaAuth);
@@ -237,6 +248,10 @@ v1_nomenclature(FILE f){
             beforeExportData(aggr());
             logToFile('yandex', CONCAT ' : ', 'Запрос номенклатуры', countItems() + ' товаров');
             EXPORT nomenclature OBJECTS s = s() JSON;    
+        }
+        IF param() == 'prices' THEN {
+            logToFile('yandex', CONCAT ' : ', 'Запрос цен', countItems() + ' товаров');
+            EXPORT prices OBJECTS s = s() JSON;
         }
         unlockRequest();
     }
