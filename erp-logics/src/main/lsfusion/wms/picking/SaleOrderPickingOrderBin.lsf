@@ -1,0 +1,39 @@
+MODULE SaleOrderPickingOrderBin;
+
+REQUIRE SalePickingOrder, PickingOrderBin, BatchBinLedger, BinOrder;
+
+NAMESPACE Sale;
+
+createUserPickingOrder 'Заказ на комплектацию'(Order o)  {
+    NEWSESSION {
+        LOCAL quantityLoc = NUMERIC[16,5](OrderDetail, Bin);
+
+        IF quantityOrderDetail(o) THEN NEW p = UserPickingOrder {
+            order(p) <- o;
+            stock(p) <- supplierStock(o);
+            quantityLoc (OrderDetail d, Bin b) <- PARTITION UNGROUP quantity[OrderDetail] LIMIT currentBalance(batch(d), b) ORDER currentBalance(batch(d), b) BY d
+                WHERE order(d) = o AND stock(b) = supplierStock(o);
+            FOR quantityLoc(OrderDetail d, Bin b) AND order(d) = o AND batch(d) DO NEW pd = UserPickingOrderDetail {
+                pickingOrder(pd) <- p;
+                sku(pd) <- sku(d);
+                batch(pd) <- batch(d);
+                bin(pd) <- b;
+                quantity(pd) <- quantityLoc(d, b);
+            }
+        }
+        SHOW userPickingOrder;
+    }
+} TOOLBAR;
+
+EXTEND FORM Sale.orders
+    PROPERTIES createUserPickingOrder(o) SHOWIF statusPicking(o) = StatusPicking.notCreated;
+;
+
+DESIGN Sale.orders {
+    actionContainer {
+        NEW pickingConntainer {
+            caption = 'Заказы на комплектацию';
+            MOVE PROPERTY (createUserPickingOrder(o));
+        }
+    }
+}
