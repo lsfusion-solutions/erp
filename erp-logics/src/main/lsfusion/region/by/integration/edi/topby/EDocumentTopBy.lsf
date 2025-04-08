@@ -128,7 +128,8 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
     IF documentType() == 'BLRDOC' THEN {
         LOCAL eDocument = EDocument();
-        eDocument() <- eDocument(messageSupplierGLN() + '/' + documentNumber());
+        //провайдер не присылает системный номер документа в systemMessage а юридический номер не уникальный
+        eDocument() <- GROUP MAX EDocument e IF number(e) == documentNumber() AND dateTimeCreated(e) == documentDate() AND glnReceiver(e) == messageBuyerGLN();
         IF eDocument() THEN {
             NEWSESSION NESTED LOCAL {
                 IF NOT eDocumentMessage(eDocument(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EDocumentMessage {
