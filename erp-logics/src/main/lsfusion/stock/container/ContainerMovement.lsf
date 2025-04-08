@@ -101,12 +101,16 @@ includeContainerMovementBatchFromTo 'Рассчитать'(DATE dateFrom, DATE d
     sumIn(Stock st, Batch bt) <- balanceIn(st, bt) * accountPriceB(bt, st, dateFrom) WHERE inContainerMovement(st, bt);
     sumOut(Stock st, Batch bt) <- balanceOut(st, bt) * lastPrice(st, bt) WHERE inContainerMovement(st, bt);
 
-    sumMoveIn(Stock st, Batch bt) <- [ GROUP SUM cost (InSkuLedger ledger, bt) * (OVERRIDE accountPriceA(bt, stock(ledger), dateTime(ledger)), lastPrice(stock(ledger), bt))
+    LOCAL priceAccount = NUMERIC[16,4] (SkuLedger, Batch);
+    priceAccount(SkuLedger ledger, Batch bt) <- accountPriceA(bt, stock(ledger), dateTime(ledger)) WHERE cost(ledger, bt) AND inContainerMovement(stock(ledger), bt) AND isPosted(ledger)
+        AND date(ledger) >= dateFrom AND date(ledger) <= dateTo;
+
+    sumMoveIn(Stock st, Batch bt) <- [ GROUP SUM cost (InSkuLedger ledger, bt) * (OVERRIDE priceAccount(ledger, bt), lastPrice(stock(ledger), bt))
         IF ledger IS InSkuLedger AND isPosted(ledger)
             AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
     BY stock(ledger)](st) WHERE inContainerMovement(st, bt);
 
-    sumMoveOut(Stock st, Batch bt) <- [ GROUP SUM cost (OutSkuLedger ledger, bt) * (OVERRIDE accountPriceA(bt, stock(ledger), dateTime(ledger)), lastPrice(stock(ledger), bt))
+    sumMoveOut(Stock st, Batch bt) <- [ GROUP SUM cost (OutSkuLedger ledger, bt) * (OVERRIDE priceAccount(ledger, bt), lastPrice(stock(ledger), bt))
         IF ledger IS OutSkuLedger AND isPosted(ledger)
             AND date(ledger) >= dateFrom AND date(ledger) <= dateTo
     BY stock(ledger)](st) WHERE inContainerMovement(st, bt);
