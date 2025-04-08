@@ -28,18 +28,20 @@ public class ScannerDaemonAction extends InternalAction {
     @Override
     protected void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         Integer comPort = (Integer) context.getKeyValue(comPortInterface).getValue();
-        boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
+        if(comPort != null) {
+            boolean singleRead = context.getKeyValue(singleReadInterface).getValue() != null;
 
-        String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
-        boolean useJssc = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.jssc");
-        boolean usePureJavaComm = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.pureJavaComm");
-        if(usePureJavaComm) {
-            throw new RuntimeException("Pure Java Comm not supported for Scanner Daemon");
-        }
+            String comLibrary = trim((String) context.getKeyValue(comLibraryInterface).getValue());
+            boolean useJssc = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.jssc");
+            boolean usePureJavaComm = comLibrary != null && comLibrary.equals("ScannerDaemon_ComLibrary.pureJavaComm");
+            if (usePureJavaComm) {
+                throw new RuntimeException("Pure Java Comm not supported for Scanner Daemon");
+            }
 
-        String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, useJssc));
-        if(result != null && !result.isEmpty()) {
-            context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
+            String result = (String) context.requestUserInteraction(new ScannerDaemonClientAction(comPort, singleRead, useJssc));
+            if (result != null && !result.isEmpty()) {
+                context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
+            }
         }
     }
 
