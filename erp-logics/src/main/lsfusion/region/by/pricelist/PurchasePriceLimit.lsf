@@ -9,14 +9,33 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceProperty (invoice, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, limit, ' предельная');
 
+importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserInvoiceDetail);
+importerMarkup (UserInvoiceDetail invoiceDetail) += importerMarkup(invoiceDetail);
+
+importerMarkup(InvoicePricingDetail detail) += importerMarkup(invoiceDetail(detail));
+
 useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 
-WHEN LOCAL FORMS userInvoice 
-             (CHANGED(customerStock(UserInvoiceDetail detail)) OR
-              CHANGED(sku(detail)) OR 
-              SET(showLimitPrice(detail)))
-             AND showLimitPrice(detail) DO {
-    limitMarkup(detail) <- OVERRIDE markup(priceLimitPriceListType(customerStock(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail);
+//WHEN LOCAL FORMS userInvoice 
+//             (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+//              CHANGED(sku(detail)) OR 
+//              SET(showLimitPrice(detail)))
+//             AND showLimitPrice(detail) DO {
+//    limitMarkup(detail) <- OVERRIDE markup(priceLimitPriceListType(customerStock(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail);
+//}
+
+WHEN LOCAL FORMS userInvoice
+    (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+        CHANGED(sku(detail)) OR
+        CHANGED(importerMarkup(detail)) OR
+        SET(showLimitPrice(detail)))
+        AND showLimitPrice(detail)  DO {
+
+    limitMarkup(detail) <- [floor(((100.0 + X)/(100 + Z)-1.0)*100.0, 0.01)](
+            (OVERRIDE markup(priceLimitPriceListType(customerStock(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail)),
+            (OVERRIDE importerMarkup(detail), 0.0));
+
 }
 
 //----------------------------------------------- Операции -----------------------------------------------------//
@@ -28,8 +47,9 @@ showLimitPrice (UserInvoice invoice) <- showLimitPrice(pricingOperation(operatio
 showIfLimitPrice = showLimitPrice (UserInvoice invoice) AND createPricing(invoice);
 
 EXTEND FORM userInvoice
+    PROPERTIES (d) SHOWIF showLimitPrice(i) importerMarkup AFTER price(d)
     PROPERTIES(i) showLimitPrice SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd) limitMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd) importerMarkup READONLY, limitMarkup BACKGROUND backgroundRetail(i)
 ;
 DESIGN userInvoice{
     headerCreatePricing {
@@ -39,7 +59,7 @@ DESIGN userInvoice{
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showLimitPrice(i) BEFORE retailMarkup(d) limitMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES(d) READONLY SHOWIF showLimitPrice(i) BEFORE retailMarkup(d) importerMarkup, limitMarkup BACKGROUND backgroundRetail(i)
 ;
 
 // Имплементим для расчета оптимальной розничной цены

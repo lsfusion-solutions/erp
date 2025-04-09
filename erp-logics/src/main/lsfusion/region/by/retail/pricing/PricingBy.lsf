@@ -22,10 +22,17 @@ DESIGN options {
 markupPrice(UserPricingDetail detail) <- retailMarkupSum(detail)/(quantity(detail) IF quantity(detail)!=0)
                 WHEN CHANGED(retailMarkupSum(detail)) OR CHANGED (quantity(detail));
 
-calcRetailUserPricingDetail(UserPricingDetail userPricingDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[16,4]([ (X (+) Y)*(Z+100)/100](
-    pricingPrice(userPricingDetail) IF markupPrice IS NUMERIC[20,7],
-    markupPrice AS NUMERIC[20,7] IF userPricingDetail IS UserPricingDetail,
-    valueRetailVAT(userPricingDetail))), roundConditionMarkupPrice());                    
+//calcRetailUserPricingDetail(UserPricingDetail userPricingDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[16,4]([ (X (+) Y)*(Z+100)/100](
+//    pricingPrice(userPricingDetail) IF markupPrice IS NUMERIC[20,7],
+//    markupPrice AS NUMERIC[20,7] IF userPricingDetail IS UserPricingDetail,
+//    valueRetailVAT(userPricingDetail))), roundConditionMarkupPrice());
+calcRetailUserPricingDetail(UserPricingDetail userPricingDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[16,4]([ (X*(Y+100)/100 (+) W)*(Z+100)/100](
+        pricingPrice(userPricingDetail) IF markupPrice IS NUMERIC[20,7],
+        markupPrice AS NUMERIC[20,7] IF userPricingDetail IS UserPricingDetail,
+        retailExtraPackagingCost(userPricingDetail),
+        valueRetailVAT(userPricingDetail))), roundConditionMarkupPrice());
+
+
                 
 changeMarkupPrice(UserPricingDetail userPricingDetail)  { 
     INPUT n = NUMERIC[16,4] DO {

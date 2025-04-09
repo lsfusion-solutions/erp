@@ -9,16 +9,16 @@ NAMESPACE Repricing;
 @packagingCost(repricingDetail, , ' (после)');
 
 curPackagePrice1 (UserRepricingDetail detail)  <- IF batch(detail)            
-                THEN prevPackagePrice1(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
-                ELSE prevPackagePrice1(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
+                THEN prevPackagePrice1(prevRetailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                ELSE prevPackagePrice1(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
     WHEN DO CHANGED(sku(detail)) OR
     CHANGED(departmentStore(detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     CHANGED(batch(detail))
 ;
 curPackagePrice2 (UserRepricingDetail detail)  <- IF batch(detail)
-    THEN prevPackagePrice2(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
-    ELSE prevPackagePrice2(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
+    THEN prevPackagePrice2(prevRetailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+    ELSE prevPackagePrice2(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)))
     WHEN DO CHANGED(sku(detail)) OR
     CHANGED(departmentStore(detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
@@ -27,11 +27,11 @@ curPackagePrice2 (UserRepricingDetail detail)  <- IF batch(detail)
 
 overRecalculatePrice(UserRepricingDetail detail) +  {
     curPackagePrice1 (detail)  <- IF batch(detail)
-                    THEN prevPackagePrice1(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
-                    ELSE prevPackagePrice1(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+                    THEN prevPackagePrice1(prevRetailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                    ELSE prevPackagePrice1(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
     curPackagePrice2 (detail)  <- IF batch(detail)
-                    THEN prevPackagePrice2(retailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
-                    ELSE prevPackagePrice2(retailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+                    THEN prevPackagePrice2(prevRetailPricingPriceListLedgerB( batch(detail), departmentStore(detail), dateTime(detail)))
+                    ELSE prevPackagePrice2(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
 }
 
 overConfirmRecalculatePrice(UserRepricingDetail d) +  {
