@@ -23,13 +23,13 @@ idLot 'Марка' (ReceiptReturnDetail d) = id(lot(d)) IN id;
 CONSTRAINT lot(ReceiptReturnDetail d) AND NOT sku(lot(d)) = sku(d) AND NOT skipSkuControl(d) CHECKED BY lot[ReceiptReturnDetail]
     MESSAGE 'Товар марки не соответствует товару строки чека возврата';
 
-@defineOption(skipLotQuantityControl, 'Разрешать продажу марок с количеством отличным от 1', BOOLEAN, zReport);
+@defineOption(skipLotQuantityControl, 'Разрешать продажу и возврат марок с количеством отличным от 1', BOOLEAN, zReport);
 
 skipLotQuantityControl 'Разрешать продажу марки с количеством отличным от 1' = ABSTRACT VALUE BOOLEAN (Lot);
 
 CONSTRAINT (SETCHANGED(lot(ReceiptSaleDetail d)) OR CHANGED(quantity(d))) AND lot(d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
     MESSAGE 'При выбранной марке количество в продаже должно равняться 1';
-CONSTRAINT (SETCHANGED(lot(ReceiptSaleDetail d)) OR CHANGED(quantity(d))) AND lot(d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
+CONSTRAINT (SETCHANGED(lot(ReceiptReturnDetail d)) OR CHANGED(quantity(d))) AND lot(d) AND NOT quantity(d) = 1 AND NOT skipLotQuantityControl() AND NOT skipLotQuantityControl(lot(d))
     MESSAGE 'При выбранной марке количество в возврате должно равняться 1';
 
 lot 'Марка' (ReceiptDetail d) = MULTI lot[ReceiptSaleDetail](d), lot[ReceiptReturnDetail](d) MATERIALIZED; 
