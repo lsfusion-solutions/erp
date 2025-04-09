@@ -1,0 +1,40 @@
+MODULE PurchaseImporterMarkup;
+
+REQUIRE PurchaseInvoice;
+
+NAMESPACE Purchase;
+
+showImporterMarkup 'Надбака импортера' (invoice) = ABSTRACT BOOLEAN(Invoice) IN documentPrm;
+showImporterMarkup 'Надбака импортера' (userInvoice) = DATA BOOLEAN(UserInvoice) IN documentPrm;
+showImporterMarkup (UserInvoice invoice) += showImporterMarkup(invoice);
+
+showImporterMarkup 'Надбака импортера' (InvoiceDetail invoiceDetail) = showImporterMarkup(invoice(invoiceDetail));
+showImporterMarkup 'Надбака импортера' (UserInvoiceDetail userInvoiceDetail) = showImporterMarkup(userInvoice(userInvoiceDetail));
+
+EXTEND FORM userInvoice
+    PROPERTIES(i)  showImporterMarkup
+
+;
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW headerImporterMarkup {
+            caption = 'Надбавка импортера';
+            MOVE PROPERTY(showImporterMarkup(i));
+        }
+    }
+}
+
+// -- Операция
+@defineOperationProperty(showImporterMarkup, 'Надбака импортера', priceContainer);
+@deriveDocumentOperationProperty(UserInvoice, showImporterMarkup);
+
+importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserInvoiceDetail);
+importerMarkup (UserInvoiceDetail invoiceDetail) += importerMarkup(invoiceDetail);
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) SHOWIF  showImporterMarkup(i) importerMarkup AFTER price(d) 
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY SHOWIF  showImporterMarkup(i) importerMarkup AFTER price(d)
+;

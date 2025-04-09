@@ -394,12 +394,16 @@ activePriceListLedgerB (LedgerPriceListType type, Batch batch, Stock stock, DATE
         WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn;
 
+prevActivePriceListLedgerB (LedgerPriceListType type, Batch sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerB(type, sku, stock, dateTime));
+
 activePriceListLedgerA  (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn) =
     GROUP
         LAST PriceListLedger ledger
         ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
               fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
+
+prevActivePriceListLedgerA (LedgerPriceListType type, Batch sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerA(type, sku, stock, dateTime));
 
 priceBatchB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     GROUP

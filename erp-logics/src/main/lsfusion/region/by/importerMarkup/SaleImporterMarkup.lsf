@@ -1,0 +1,65 @@
+MODULE SaleImporterMarkup;
+
+REQUIRE SaleInvoice, PurchaseImporterMarkup;
+
+NAMESPACE Sale;
+
+showImporterMarkup 'Надбака импортера' (invoice) = ABSTRACT BOOLEAN(Invoice) IN documentPrm;
+showImporterMarkup 'Надбака импортера' (userInvoice) = DATA BOOLEAN(UserInvoice) IN documentPrm;
+showImporterMarkup (UserInvoice invoice) += showImporterMarkup(invoice);
+
+showImporterMarkup 'Надбака импортера' (InvoiceDetail invoiceDetail) = showImporterMarkup(invoice(invoiceDetail));
+showImporterMarkup 'Надбака импортера' (UserInvoiceDetail userInvoiceDetail) = showImporterMarkup(userInvoice(userInvoiceDetail));
+
+
+EXTEND FORM userInvoice
+    PROPERTIES(i)  showImporterMarkup
+
+;
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW headerImporterMarkup{
+            caption = 'Надбака импортера';
+            MOVE PROPERTY(showImporterMarkup(i));
+        }
+    }
+}
+
+// -- Операция
+@defineOperationProperty(showImporterMarkup, 'Надбака импортера', showContainer);
+@deriveDocumentOperationProperty(UserInvoice, showImporterMarkup);
+
+
+importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
+importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserInvoiceDetail);
+importerMarkup (UserInvoiceDetail invoiceDetail) += importerMarkup(invoiceDetail);
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) importerMarkup AFTER price(d) SHOWIF showImporterMarkup(d)
+;
+
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY importerMarkup AFTER price(d)  SHOWIF showImporterMarkup(d)
+;
+
+disableUpdateImporterMarkup= ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    CHANGED(batch(detail))  OR SET(showImporterMarkup(detail)))
+    AND batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    importerMarkup (detail) <- importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+                                        batch(detail),
+                                        supplierStock(detail),
+                                        dateTime(detail)));
+}
+
+WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
+    AND NOT batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    importerMarkup (detail) <- importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+                                        sku(detail),
+                                        supplierStock(detail),
+                                        dateTime(detail)));
+}

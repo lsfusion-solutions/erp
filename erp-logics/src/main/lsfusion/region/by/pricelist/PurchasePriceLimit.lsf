@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimit;
 
-REQUIRE PricingPriceLimit, PricingPurchase;
+REQUIRE PricingPriceLimit, PricingPurchase, PurchaseImporterMarkup;
 
 NAMESPACE Purchase;
 
@@ -8,10 +8,6 @@ NAMESPACE Purchase;
 
 @defineDocumentInterfaceProperty (invoice, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, limit, ' предельная');
-
-importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (InvoiceDetail);
-importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserInvoiceDetail);
-importerMarkup (UserInvoiceDetail invoiceDetail) += importerMarkup(invoiceDetail);
 
 importerMarkup(InvoicePricingDetail detail) += importerMarkup(invoiceDetail(detail));
 
@@ -47,9 +43,9 @@ showLimitPrice (UserInvoice invoice) <- showLimitPrice(pricingOperation(operatio
 showIfLimitPrice = showLimitPrice (UserInvoice invoice) AND createPricing(invoice);
 
 EXTEND FORM userInvoice
-    PROPERTIES (d) SHOWIF showLimitPrice(i) importerMarkup AFTER price(d)
     PROPERTIES(i) showLimitPrice SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd) importerMarkup READONLY, limitMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd)  limitMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES (pd) SHOWIF (showImporterMarkup ( i) AND createPricing(i)) importerMarkup READONLY AFTER pricingPrice(pd)
 ;
 DESIGN userInvoice{
     headerCreatePricing {
@@ -59,7 +55,7 @@ DESIGN userInvoice{
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showLimitPrice(i) BEFORE retailMarkup(d) importerMarkup, limitMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES(d) READONLY SHOWIF showLimitPrice(i) BEFORE retailMarkup(d) limitMarkup BACKGROUND backgroundRetail(i)
 ;
 
 // Имплементим для расчета оптимальной розничной цены

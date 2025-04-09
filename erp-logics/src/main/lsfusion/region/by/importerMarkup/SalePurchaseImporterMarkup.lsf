@@ -1,0 +1,22 @@
+MODULE SalePurchaseImporterMarkup;
+
+REQUIRE SaleImporterMarkup,  SalePurchaseInvoiceOrder;
+
+PRIORITY Sale;
+
+//----------------------------------------------------------------------------//
+
+//overPurchasePricingPrice[UserInvoiceDetail](UserInvoiceDetail detail) += manufacturingPrice(detail);
+
+showImporterMarkup(PurchaseInvoice invoice) += showImporterMarkup(invoice(invoice));
+importerMarkup(PurchaseInvoiceDetail invoiceDetail) += importerMarkup(invoiceDetail(invoiceDetail));
+
+overFillInvoice (Purchase.UserInvoice sd, Invoice id) + {  showImporterMarkup (sd) <- showImporterMarkup(id); }
+overFillInvoice (Purchase.UserInvoiceDetail sd, InvoiceDetail id) + {  importerMarkup (sd) <- importerMarkup(id); }
+
+//overFillOrder (Purchase.UserOrder sd, Invoice id) + {  showImporterMarkup (sd) <- showImporterMarkup(id); }
+//overFillOrder (Purchase.UserOrderDetail sd, InvoiceDetail id) + {  manufacturingPrice (sd) <- manufacturingPrice(id); }
+
+setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) + {
+    importerMarkup(d) <- importerMarkup(invoiceDetail);
+}
