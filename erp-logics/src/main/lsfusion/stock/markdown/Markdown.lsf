@@ -785,7 +785,7 @@ CONSTRAINT (SETCHANGED(sticker(MarkdownDetail md)) OR SETCHANGED(sku(md))) AND n
 CONSTRAINT  countStickerBarcodes(MarkdownDetail md) != quantityStickers(md)
     MESSAGE 'Несовпадение кол-в штрихкодов стикеров для строки уценки';
 
-activateStickerBarcodes 'Cгенерировать QR-коды' (Markdown m) {
+activateStickerBarcodes 'Сгенерировать QR-коды' (Markdown m) {
     NEWSESSION {
         FOR markdown(MarkdownDetail md) = m AND NOT countStickerBarcodes(md) DO {
             FOR [GROUP SUM 1 IF inactive(StickerBarcode sb1) BY sticker(sb1)](sticker(md)) >= quantityStickers(md) AND iterate(INTEGER i, 1, quantityStickers(md)) DO {
@@ -846,12 +846,23 @@ customPrintNumberBarcode(Markdown m) + WHEN m IS Markdown THEN {
 };
 
 
+skipShowCustomPrintNumberBarcode = ABSTRACT VALUE BOOLEAN (Markdown);
+showCustomPrintNumberBarcode (Markdown m) = m IS Markdown AND NOT  skipShowCustomPrintNumberBarcode(m);
+
 customPrintStickerBarcode(Markdown w) = quantityStickers(w) = countStickerBarcodes(w)
     AND (customPrintPrintedStickerBarcode(currentUser()) OR NOT countPrintedStickerBarcodes(w) > 0);
+skipShowCustomPrintNumberBarcode(Markdown m) += m IS Markdown AND NOT customPrintStickerBarcode(m);
+
+skipShowActivateStickerBarcodes = ABSTRACT VALUE BOOLEAN (Markdown);
+skipShowActivateStickerBarcodes(Markdown m) += countStickerBarcodes(m) = quantityStickers(m);
+
+showActivateStickerBarcodes (Markdown m) = m IS Markdown AND NOT skipShowActivateStickerBarcodes(m);
+
+
 
 EXTEND FORM markdowns
-    PROPERTIES activateStickerBarcodes(w) SHOWIF NOT countStickerBarcodes(w) = quantityStickers(w)  DRAW d,
-        customPrintNumberBarcode(w) SHOWIF customPrintStickerBarcode(w) DRAW d
+    PROPERTIES activateStickerBarcodes(w) SHOWIF showActivateStickerBarcodes(w)  DRAW d,
+        customPrintNumberBarcode(w) SHOWIF showCustomPrintNumberBarcode(w) DRAW d
     PROPERTIES(d) countStickerBarcodes, countPrintedStickerBarcodes
 ;
 
