@@ -1,15 +1,32 @@
 MODULE RepricingImporterMarkup;
 
-REQUIRE RepricingPriceLimit, PricingPurchase, PurchasePriceLimit, RepricingPriceListPriceLimit;
+REQUIRE PricingPurchase, PurchasePriceLimit, RepricingPriceListPriceLimit;
 
 NAMESPACE Repricing;
+
+importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (RepricingDetail);
+importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserRepricingDetail);
+importerMarkup (UserRepricingDetail repricingDetail) += importerMarkup(repricingDetail);
+
+showImporterMarkup = DATA  BOOLEAN ();
+
+showImporterMarkup = ABSTRACT VALUE BOOLEAN (Repricing);
+showImporterMarkup(Repricing r) += r IS Repricing AND showImporterMarkup();
+
+EXTEND FORM userRepricing
+    PROPERTIES(d) SHOWIF showImporterMarkup(p) BEFORE markup(d) importerMarkup
+;
+
+EXTEND FORM repricings
+    PROPERTIES(d) READONLY SHOWIF showImporterMarkup(p) BEFORE markup(d) importerMarkup
+;
 
 importerMarkup (PriceListLedger ledger) = MULTI Pricing.importerMarkup[PricingDetail](ledger), importerMarkup[RepricingDetail](ledger);
 prevImporterMarkup (PriceListLedger l) = PREV(importerMarkup(l));
 
-WHEN LOCAL  CHANGED(sku(UserRepricingDetail detail)) OR
+WHEN LOCAL  (CHANGED(sku(UserRepricingDetail detail)) OR
             CHANGED(departmentStore(detail)) OR
-            (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) DO {
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED(importerMarkup(detail)) DO {
     importerMarkup (detail) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));    
 }
 

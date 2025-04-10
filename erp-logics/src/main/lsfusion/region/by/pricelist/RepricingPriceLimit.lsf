@@ -1,6 +1,6 @@
 MODULE RepricingPriceLimit;
 
-REQUIRE Repricing, PriceLimit;
+REQUIRE Repricing, PriceLimit, RepricingImporterMarkup;
 
 NAMESPACE Repricing;
 
@@ -9,9 +9,7 @@ NAMESPACE Repricing;
 @defineDocumentInterfaceProperty (repricing, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, limit, ' предельная');
 
-importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (RepricingDetail);
-importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserRepricingDetail);
-importerMarkup (UserRepricingDetail repricingDetail) += importerMarkup(repricingDetail);
+
 
 useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (UserRepricingDetail);
 
@@ -49,7 +47,7 @@ showLimitPrice (UserRepricing invoice) <- showLimitPrice(operation(invoice))
 
 EXTEND FORM userRepricing
     PROPERTIES(p) showLimitPrice
-    PROPERTIES(d) SHOWIF showLimitPrice(p) BEFORE markup(d) limitMarkup, importerMarkup
+    PROPERTIES(d) SHOWIF showLimitPrice(p) BEFORE markup(d) limitMarkup
 ;
 DESIGN userRepricing{
     GROUP(documentPrm,p) {
@@ -58,7 +56,7 @@ DESIGN userRepricing{
 }
 
 EXTEND FORM repricings
-    PROPERTIES(d) READONLY SHOWIF showLimitPrice(p) BEFORE markup(d) limitMarkup, importerMarkup 
+    PROPERTIES(d) READONLY SHOWIF showLimitPrice(p) BEFORE markup(d) limitMarkup 
 ;
 
 // Имплементим для расчета оптимальной розничной цены
@@ -102,3 +100,5 @@ WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail]
      
     markup(d) <- calcMarkupLimitPrice(d);
 }
+
+showImporterMarkup (Repricing r) += showLimitPrice(r);
