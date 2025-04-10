@@ -142,6 +142,7 @@ public class MettlerToledoBPlusComOneHandler extends MultithreadScalesHandler {
         if (value != null) parent.addContent(new Element(id).setText(value));
     }
 
+    //todo: 1800000 -> 1800000L after upgrading equ to version 6
     protected String sendRequest(TCPSocket socket, String request, String messageId) {
         return (String) BaseUtils.executeWithTimeout(() -> {
             try {
