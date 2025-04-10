@@ -191,6 +191,6 @@ abstract class ExportSQLAction extends InternalAction {
 
     private boolean isVirtualProperty(PropertyDrawEntity property) {
         String sid = property.getSID();
-        return sid != null && sid.equals("count()");
+        return sid != null && sid.toLowerCase().matches("count\\(.*\\)");
     }
 }
