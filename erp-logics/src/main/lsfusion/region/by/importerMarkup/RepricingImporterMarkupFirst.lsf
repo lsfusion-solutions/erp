@@ -1,0 +1,93 @@
+MODULE RepricingImporterMarkupFirst;
+
+REQUIRE RepricingImporterMarkup, RepricingManufacturingPrice;
+
+NAMESPACE Repricing;
+
+operationLegalEntityAll = DATA Repricing.Operation();
+nameOperationLegalEntityAll 'Операция переоценка (надбавка импортера)' ()= name(operationLegalEntityAll());
+
+createRepricingLegalEntityAllOver  ABSTRACT LIST ( UserRepricing);
+
+createRepricingLegalEntityAll 'Создать переоценки (надбавка импортера)' (){
+    IF operationLegalEntityAll() THEN {
+        LOCAL NESTED dt = DATETIME ();
+        dt() <- currentDateTime();
+        
+        LOCAL NESTED detail = Purchase.InvoiceDetail (Sku, LegalEntity);
+        detail(Sku s, LegalEntity l) <- [GROUP LAST Purchase.InvoiceDetail d IF dateTime(d) >= DATETIME(2025_04_15) 
+                AND isPosted(d) AND customerStock(d) IS DepartmentStore 
+                AND importerMarkup(d) AND limitMarkup(d)
+                    ORDER dateTime(d), d BY sku(d), customer(d)](s, l);
+        
+        LOCAL NESTED iMarkup = NUMERIC[8,3] (Sku, DepartmentStore);
+        iMarkup(Sku s, DepartmentStore ds) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(s, ds, dt())) WHERE detail(s, legalEntity(ds)) AND active(ds);
+
+        LOCAL NESTED to = BOOLEAN (Sku, DepartmentStore);
+        to (Sku s, DepartmentStore ds) <- detail(s, legalEntity(ds)) AND NOT iMarkup(s, ds) AND active(ds);
+
+        LOCAL NESTED limitPrice = NUMERIC[16,4] (Sku, DepartmentStore);
+
+        LOCAL lpPrice = NUMERIC[16,5](Sku, DepartmentStore);
+        lpPrice (Sku sku, DepartmentStore ds) <- limitPackagePrice(sku, ds, dt()) WHERE to(sku, ds);
+        LOCAL markupCorrect = NUMERIC[8,3](Sku, DepartmentStore);
+        markupCorrect(Sku sku, DepartmentStore ds) <- floor(((100.0 + markup(priceLimitPriceListType(ds), sku)) / (100 + importerMarkup(detail(sku, legalEntity(ds)))) - 1.0) * 100.0, 0.01)
+            WHERE to(sku, ds);
+
+        limitPrice(Sku sku, DepartmentStore ds) <- round([ ((X * (Y + 100.0) / 100.0)(+) W) * (Z + 100.0) / 100.0](
+                limitBasePrice(detail(sku, legalEntity(ds))),
+                markupCorrect(sku, ds),
+                lpPrice(sku, ds),
+                valueVAT(sku, ds)), roundCondition(priceLimitPriceListType(ds), sku))
+            WHERE to(sku, ds);
+
+        LOCAL NESTED fromPrice = NUMERIC[16,4] (Sku, DepartmentStore);
+        fromPrice(Sku s, DepartmentStore ds) <- currentRetailPricingPrice(s, ds) WHERE  currentRetailPricingPrice(s, ds) > limitPrice(s, ds);
+
+        FOR [GROUP SUM 1 IF fromPrice(Sku s, DepartmentStore ds) BY ds]( DepartmentStore ds) DO NEWSESSION {
+            NEW r = UserRepricing {
+                departmentStore(r) <- ds;
+                operation(r) <- operationLegalEntityAll();
+                date(r) <- toDate(dt());
+                time(r) <- toTime(dt());
+                isPosted(r) <- TRUE;
+
+                incrementValue(defaultNumeratorUserRepricing());
+                number(r) <- incrementedValue();
+                series(r) <- series(defaultNumeratorUserRepricing());
+
+                FOR fromPrice(Sku sku, ds) ORDER orderRepricingDetail(sku), sku NEW rd = UserRepricingDetail DO {
+                    userRepricing(rd) <- r;
+                    sku(rd) <- sku;
+                    quantity(rd) <- currentBalance(sku, ds) IF currentBalance(sku, ds) > 0;
+                    quantity(rd) <- NULL WHERE quantity(rd) < minManagementQuantityToRepricing();
+                    
+                    curRetailPrice(rd) <- fromPrice(sku, ds);                                  
+                    
+                    price(rd) <- price(detail(sku, legalEntity(ds)));
+                    manufacturingPrice(rd) <- manufacturingPrice(detail(sku, legalEntity(ds)));
+                    importerMarkup(rd) <- importerMarkup(detail(sku, legalEntity(ds)));
+                    retailPrice(rd) <- limitPrice(sku, ds);
+                }
+                createRepricingLegalEntityAllOver(r);
+            }
+            APPLY;
+        }
+    } ELSE {
+        MESSAGE 'Не задана "Операция переоценка (надбавка импортера)"';
+    }    
+}
+
+EXTEND FORM options
+    PROPERTIES () nameOperationLegalEntityAll, createRepricingLegalEntityAll
+;
+DESIGN options {
+    repricings{
+        NEW rFirst{
+            caption = 'Надбавка импортера';
+            horizontal = TRUE;
+            MOVE PROPERTY (nameOperationLegalEntityAll());
+            MOVE PROPERTY (createRepricingLegalEntityAll());
+        }
+    }
+}
