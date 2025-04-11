@@ -66,8 +66,6 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
         ByteBuffer data;
     }
     
-    protected final static Logger logger = Logger.getLogger("RBSLogger");
-    
     private static final byte[] prefix_fe = new byte[] {(byte)0xff, (byte)0xfe};
     private static final byte[] prefix_fa = new byte[] {(byte)0xff, (byte)0xfa};
     private static final byte[] prefix_fb = new byte[] {(byte)0xff, (byte)0xfb};
@@ -102,7 +100,7 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
         bytes.put(suffix);
         
         try {
-            logger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), Hex.encodeHexString(bytes.array())));
+            processTransactionLogger.info(getLogPrefix() + String.format("ip: %s >> %s", port.getAddress(), Hex.encodeHexString(bytes.array())));
         
             port.getOutputStream().write(bytes.array());
             port.getOutputStream().flush();
@@ -163,7 +161,7 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
                     }
                 }
             } catch (IOException e) {
-                logger.error(getLogPrefix() + String.format("ip %s, error: %s", port.getAddress(), e.getMessage()));
+                processTransactionLogger.error(getLogPrefix() + String.format("ip %s, error: %s", port.getAddress(), e.getMessage()));
                 return new Result.Error(e.getMessage());
             }
         }
@@ -291,8 +289,8 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
             boolean cleared = false;
             
             try {
-    
-                logger.info(getLogPrefix() + String.format("Connect, ip %s, transaction %s", scales.port, transaction.id));
+
+                processTransactionLogger.info(getLogPrefix() + String.format("Connect, ip %s, transaction %s", scales.port, transaction.id));
                 port.open();
     
                 Result result = new Result.Success();
@@ -304,7 +302,7 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
                 }
     
                 if (cleared || !needToClear) {
-                    logger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
+                    processTransactionLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
     
                     if (result instanceof Result.Success) {
     
@@ -321,7 +319,7 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
                         result = sendPacket(packet);
                         if (result instanceof Result.Error) {
                             error = result.message;
-                            logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                            processTransactionLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                         }
                         else {
                             
@@ -331,13 +329,13 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
                                 count++;
         
                                 if (notInterruptedTransaction(transaction.id)) {
-                                    logger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                    processTransactionLogger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
             
                                     result = sendProduct(item);
             
                                     if (result instanceof Result.Error) {
                                         error = result.message;
-                                        logger.error(getLogPrefix() + String.format("ip %s, item idBarcode: %s, error: %s", scales.port, item.idBarcode,  error));
+                                        processTransactionLogger.error(getLogPrefix() + String.format("ip %s, item idBarcode: %s, error: %s", scales.port, item.idBarcode,  error));
                                         break;
                                     }
                                 } else break;
@@ -352,28 +350,28 @@ public class RBS4010ButtonHandler extends MultithreadScalesHandler {
                             result = sendPacket(packet);
                             if (result instanceof Result.Error) {
                                 error = result.message;
-                                logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                processTransactionLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                             }
                         }
                     }
                 }
-    
-                logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
+
+                processTransactionLogger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                 port.close();
             }
             catch (Throwable t) {
                 interrupted = t instanceof InterruptedException;
                 error = String.format(getLogPrefix() + "ip %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
-                logger.error(error);
+                processTransactionLogger.error(error);
             }
             finally {
                 try {
-                    logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
+                    processTransactionLogger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                     port.close();
                 } catch (CommunicationException ignored) {}
             }
-    
-            logger.info(getLogPrefix() + "Completed ip: " + scales.port);
+
+            processTransactionLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), interrupted, cleared);
         }
     
