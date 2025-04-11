@@ -17,8 +17,8 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
         LOCAL NESTED detail = Purchase.InvoiceDetail (Sku, LegalEntity);
         detail(Sku s, LegalEntity l) <- [GROUP LAST Purchase.InvoiceDetail d IF dateTime(d) >= DATETIME(2025_04_15) 
                 AND isPosted(d) AND customerStock(d) IS DepartmentStore 
-                AND importerMarkup(d) AND limitMarkup(d)
-                    ORDER dateTime(d), d BY sku(d), customer(d)](s, l);
+                AND Purchase.importerMarkup(d) AND limitMarkup(d) AND sku(d)==s AND customer(d)==l
+                    ORDER dateTime(d), d ;
         
         LOCAL NESTED iMarkup = NUMERIC[8,3] (Sku, DepartmentStore);
         iMarkup(Sku s, DepartmentStore ds) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(s, ds, dt())) WHERE detail(s, legalEntity(ds)) AND active(ds);
@@ -31,7 +31,7 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
         LOCAL lpPrice = NUMERIC[16,5](Sku, DepartmentStore);
         lpPrice (Sku sku, DepartmentStore ds) <- limitPackagePrice(sku, ds, dt()) WHERE to(sku, ds);
         LOCAL markupCorrect = NUMERIC[8,3](Sku, DepartmentStore);
-        markupCorrect(Sku sku, DepartmentStore ds) <- floor(((100.0 + markup(priceLimitPriceListType(ds), sku)) / (100 + importerMarkup(detail(sku, legalEntity(ds)))) - 1.0) * 100.0, 0.01)
+        markupCorrect(Sku sku, DepartmentStore ds) <- floor(((100.0 + markup(priceLimitPriceListType(ds), sku)) / (100 + Purchase.importerMarkup(detail(sku, legalEntity(ds)))) - 1.0) * 100.0, 0.01)
             WHERE to(sku, ds);
 
         limitPrice(Sku sku, DepartmentStore ds) <- round([ ((X * (Y + 100.0) / 100.0)(+) W) * (Z + 100.0) / 100.0](
@@ -66,7 +66,7 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
                     
                     price(rd) <- price(detail(sku, legalEntity(ds)));
                     manufacturingPrice(rd) <- manufacturingPrice(detail(sku, legalEntity(ds)));
-                    importerMarkup(rd) <- importerMarkup(detail(sku, legalEntity(ds)));
+                    importerMarkup(rd) <- Purchase.importerMarkup(detail(sku, legalEntity(ds)));
                     retailPrice(rd) <- limitPrice(sku, ds);
                 }
                 createRepricingLegalEntityAllOver(r);
