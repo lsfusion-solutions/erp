@@ -1,6 +1,6 @@
 MODULE ItemEcologyRu;
 
-REQUIRE ItemRu;
+REQUIRE ItemRu, CrossImport;
 
 NAMESPACE Item;
 
@@ -50,35 +50,6 @@ FORM ecologyMaterials 'Материал (экология)'
 ;
 DESIGN ecologyMaterials { BOX { size = (600, 400); } }
 
-
-
-ecologyMaterialMigrate () {
-    NEW p = EcologyPackType {
-        name(p) <- 'Потребительская упаковка';        
-    }
-    NEW p = EcologyPackType {
-        name(p) <- 'Транспортировочная упаковка';
-    }
-
-    NEW p = EcologyMaterial {
-        name(p) <- 'Бумага';
-    }
-    NEW p = EcologyMaterial {
-        name(p) <- 'Полиэтилен';
-    }
-    NEW p = EcologyMaterial {
-        name(p) <- 'Стекло';
-    }
-    NEW p = EcologyMaterial {
-        name(p) <- 'Металл';
-    }
-    NEW p = EcologyMaterial {
-        name(p) <- 'Комбо';
-    }
-}
-
-@defOnStartMigrate(ecologyMaterialMigrate, '') ;
-
 TABLE ItemEcologyPackTypeMaterial(Item,EcologyPackType,EcologyMaterial);
 
 value 'Содержание (кг. на единицу товара)' = DATA NUMERIC[16,6](Item,EcologyPackType,EcologyMaterial);
@@ -86,7 +57,7 @@ value 'Содержание (кг. на единицу товара)' = DATA NUM
 EXTEND FORM item
     OBJECTS ep = EcologyPackType
     OBJECTS em = EcologyMaterial
-    PROPERTIES name(em) READONLY, value(i,ep,em) COLUMNS (ep) HEADER (CONCAT ' ', name(ep), '(кг. на ед.товара)')
+    PROPERTIES name(em) READONLY, value(i,ep,em) COLUMNS (ep) HEADER (name(ep))
 ;
 
 DESIGN item{
@@ -106,33 +77,40 @@ NAVIGATOR {
 }
 
 importMaterialMigrate 'Импорт экологических параметров' (){
-    NEWSESSION {
-        INPUT f = EXCELFILE DO{
-            LOCAL bar, name, uom = STRING (INTEGER );
-            LOCAL  m1,m2,m3,m4,m41,m5,m6,m7,m8,m81 = NUMERIC[16,6](INTEGER);
-            LOCAL item = Item(INTEGER);
-            IMPORT XLS NOHEADER FROM f TO bar=C, name, uom, m1=F, m2,m3,m4,m41,m5,m6,m7,m8,m81;
-            
-            imported(INTEGER  i) <- NULL WHERE imported(i) AND (i <3 OR NOT bar(i));
-            bar(INTEGER i) <- trim(bar(i));
-            item(INTEGER i) <- skuBarcode(bar(i));
-            
-            FOR item(INTEGER r) == Item i DO{
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m1(r) WHERE m1(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Бумага') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m2(r) WHERE m2(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Полиэтилен') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m3(r) WHERE m3(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Стекло') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m4(r) WHERE m4(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Металл') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m41(r) WHERE m41(r) >0 AND ep == ecologyPackTypeName('Потребительская упаковка') AND ecologyMaterialName('Комбо') == em;
-                
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m5(r) WHERE m5(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Бумага') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m6(r) WHERE m6(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Полиэтилен') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m7(r) WHERE m7(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Стекло') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m8(r) WHERE m8(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Металл') == em;
-                value (i, EcologyPackType ep, EcologyMaterial em) <- m81(r) WHERE m81(r) >0 AND ep == ecologyPackTypeName('Транспортировочная упаковка') AND ecologyMaterialName('Комбо') == em;
+    ASK 'Хотите очистить все данные (упаковка, тип упаковки, содержание)?' DO NEWSESSION {
+        value (Item it, EcologyPackType ep, EcologyMaterial em) <- NULL;
+        DELETE EcologyPackType ep WHERE ep IS EcologyPackType;
+        DELETE EcologyMaterial ep WHERE ep IS EcologyMaterial;
+        APPLY;
+    }
+
+    NEWSESSION{
+        INPUT f = EXCELFILE DO {
+            sheetNames(f);
+            LOCAL page = INTEGER ();
+            page() <- (OVERRIDE (GROUP MAX INTEGER  i IF sheetNames(i)=='Упаковка'), 0) +1;
+            IF page() THEN {
+                crossImport(f, page());
+            } ELSE {
+                crossImport(f);
+            }
+            imported(INTEGER c, INTEGER r) <- trim(imported(c, r));
+
+            FOR [GROUP SUM 1 IF imported(INTEGER c, 1) AND c >= 5 BY imported(c, 1)](STRING str) AND NOT ecologyPackTypeName(str) DO NEW ep = EcologyPackType{
+                name(ep) <- str;
+            }
+            FOR [GROUP SUM 1 IF imported(INTEGER c, 2) AND c >= 5 BY imported(c, 2)](STRING str) AND NOT ecologyMaterialName(str) DO NEW em = EcologyMaterial{
+                name(em) <- str;
+            }
+
+            FOR imported(INTEGER c, INTEGER r) AND r >= 3 AND c >= 5 AND Item it == item(imported(1, r)) DO {
+                value (it, EcologyPackType ep, EcologyMaterial em) <- NUMERIC[16,6] (imported(c, r))
+                    WHERE ep == ecologyPackTypeName(imported((GROUP MAX INTEGER cc IF cc < c AND imported(cc, 1)), 1)) AND ecologyMaterialName(imported(c, 2)) == em
+                            AND NUMERIC[16,6] (imported(c, r))!=0.0;
             }
             LOCAL NESTED message = TEXT ();
-            message() <- GROUP CONCAT (CONCAT ' ', name(INTEGER i), '('+bar( i)+')',  uom(i)) IF imported(i) AND NOT item(i), '\n' ORDER i;
-            message() <- 'Импорт завершен.\nНе найдено слеюующее к-во товаров: '+(GROUP SUM 1 IF imported(INTEGER i) AND NOT item(i))+'\n'+message();
+            message() <- GROUP CONCAT (CONCAT ' ', imported(0,INTEGER r), '('+imported(1,r)+')',  imported(2,r), imported(4,r)) IF imported(1,r) AND NOT item(imported(1, r)) AND r >= 3, '\n' ORDER r;
+            message() <- 'Импорт завершен.\nНе найдено слеюующее к-во товаров: '+(GROUP SUM 1 IF  imported(1,INTEGER r) AND NOT item(imported(1, r)) AND r >= 3)+'\n'+message();
             APPLY;
             IF NOT canceled() THEN {
                 IF message() THEN {
@@ -142,7 +120,7 @@ importMaterialMigrate 'Импорт экологических параметр�
                 }
             }
         }
-    }    
+    }
 }
 
 EXTEND FORM items
