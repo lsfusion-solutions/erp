@@ -2,6 +2,8 @@ MODULE EmployeeBin;
 
 REQUIRE Bin, EmployeeLegalEntity;
 
+NAMESPACE Bin;
+
 TABLE binEmployee (Bin, Employee);
 TABLE binGroupEmployee(BinGroup, Employee);
 
@@ -95,11 +97,9 @@ DESIGN employee {
 }
 
 countAccessCompanyBins 'Кол-во доступных подразделений (компания)' (Employee employee) =
-    GROUP
-        SUM 1 IF accessCompany(employee, Bin bin);
+    GROUP SUM 1 IF accessCompany(employee, Bin bin);
 defaultCompanyBin  (Employee employee) =
-    GROUP
-        MIN  Bin bins IF accessCompany(employee, bins);
+    GROUP MIN  Bin bins IF accessCompany(employee, bins);
 
 companyBins  'Склады (компания)' (Employee employee) = ISTRING[2000](GROUP
     CONCAT name(Bin st) IF accessCompany(employee, st) , ', '
@@ -123,21 +123,3 @@ companyBins  'Склады (компания)' (Employee employee) = ISTRING[200
 @extendFormFilterStockAccess(bg, binStocks);
 
 @extendFormFilterStockAccess(b, binStocks);
-
-FORM dialogZoneBinGroups 'Зоны ячеек'
-    OBJECTS g = BinGroup
-    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
-    ORDERS canonicalName(g)
-    FILTERS level(g) = 2, 
-        accessCompany(currentUser(), g)
-    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
-;
-
-filterZoneBinGroup  = DATA LOCAL NESTED BinGroup ();
-nameFilterZoneBinGroup 'Зоны ячеек' = name(filterZoneBinGroup()) CHARWIDTH 15;
-
-changeFilterZoneBinGroup(Stock st) {
-    DIALOG dialogZoneBinGroups OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
-        filterZoneBinGroup() <- g;
-    }
-}

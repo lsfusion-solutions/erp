@@ -1,0 +1,126 @@
+MODULE EmployeeBinZone;
+
+REQUIRE EmployeeBin, BinSkuLedger;
+
+NAMESPACE Bin;
+
+FORM dialogBinZones 'Зоны'
+    OBJECTS g = BinGroup
+    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
+    ORDERS canonicalName(g)
+    FILTERS level(g) = 2,
+        accessCompany(currentUser(), g)
+    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
+;
+
+filterBinZone  = DATA LOCAL NESTED BinGroup ();
+nameFilterBinZone 'Зоны' = name(filterBinZone()) CHARWIDTH 15;
+
+changeFilterBinZone(Stock st) {
+    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
+        filterBinZone() <- g;
+    }
+}
+
+countAccessCompanyBinZones 'Кол-во доступных зон (компания)' (Employee employee) =
+    GROUP SUM 1 IF accessCompany(employee, BinGroup bg) IF level(bg) = 2;
+countAccessCompanyBinZones 'Кол-во доступных зон (компания)' (Employee employee, Stock st) =
+    GROUP SUM 1 IF accessCompany(employee, BinGroup bg) IF level(bg) = 2 AND stock(bg) = st;
+defaultCompanyBinZone (Employee employee) =
+    GROUP MIN  BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2;
+defaultCompanyBinZone (Employee employee, Stock st) =
+    GROUP MIN  BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st;
+
+companyZones 'Зоны (компания)' (Employee employee) = ISTRING[2000](GROUP
+    CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2, ', '
+    ORDER name(bg)) CHARWIDTH 20;
+companyZones 'Зоны (компания)' (Employee employee, Stock st) = ISTRING[2000](GROUP
+    CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st, ', '
+    ORDER name(bg)) CHARWIDTH 20;
+
+filterBinZone (Sku s) = [GROUP SUM 1 IF currentBalance(Sku s1, Bin b) BY s1, binGroup(b)](s, filterBinZone()) 
+    OR (s IS Stock AND NOT filterBinZone());   
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
+    FILTERS (GROUP SUM 1 IF currentBalance(s, Bin bb) AND isParent(filterBinZone(), bb)) 
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
+    OBJECTS bg = BinGroup PANEL 
+    PROPERTIES currentBalance(s, bg) DRAW sts SHOWIF filterBinZone() AFTER currentBalance(s, st)
+    FILTERS bg = filterBinZone()
+    
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), currentBalance(s, bin)
+    FILTERS stock(bin) = st, currentBalance(s, bin), isParent(filterBinZone(), bin)
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);
+        } ELSE {
+            filterBinZone() <- NULL;
+        }
+    }
+;
+
+DESIGN currentBalanceSkuStock {
+    filter {
+        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+EXTEND FORM balanceSkuStock
+    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
+    FILTERS (GROUP SUM 1 IF balanceB(s, Bin bb,t) AND isParent(filterBinZone(), bb))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    OBJECTS bg = BinGroup PANEL
+    PROPERTIES balanceB(s, bg, t) DRAW sts SHOWIF filterBinZone() AFTER balanceB(s, st,t)
+    FILTERS bg = filterBinZone()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), balanceB(s, bin, t)
+    FILTERS stock(bin) = st, balanceB(s, bin, t), isParent(filterBinZone(), bin)
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);  
+        } ELSE {
+            filterBinZone() <- NULL;
+        }
+    }
+;
+
+DESIGN balanceSkuStock {
+    filter {
+        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+@extendFormFilterStockAccess(bg, dialogBinStock);
+@extendFormFilterStockAccess(b, dialogBinStock);

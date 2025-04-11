@@ -1,0 +1,86 @@
+MODULE EmployeeBatchBinZone;
+
+REQUIRE EmployeeBinZone, BatchBinLedger;
+
+NAMESPACE Bin;
+
+filterBinZone (Batch bt) = [GROUP SUM 1 IF currentBalance(Batch bt1, Bin b) BY bt1, binGroup(b)](bt, filterBinZone()) 
+    OR (bt IS Stock AND NOT filterBinZone());
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
+    FILTERS (GROUP SUM 1 IF currentBalance(bt, Bin bb) AND isParent(filterBinZone(), bb)) 
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
+    OBJECTS bg = BinGroup PANEL 
+    PROPERTIES currentBalance(bt, bg) DRAW stb SHOWIF filterBinZone() AFTER currentBalance(bt, st)
+    FILTERS bg = filterBinZone()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), currentBalance(bt, bin)
+    FILTERS stock(bin) = st, currentBalance(bt, bin), isParent(filterBinZone(), bin)
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);
+        } ELSE {
+            filterBinZone() <- NULL;
+        }
+    }
+;
+
+DESIGN currentBalanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+EXTEND FORM balanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
+    FILTERS (GROUP SUM 1 IF balanceB(bt, Bin bb,t) AND isParent(filterBinZone(), bb))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    OBJECTS bg = BinGroup PANEL
+    PROPERTIES balanceB(bt, bg, t) DRAW stb SHOWIF filterBinZone() AFTER balanceB(bt, st,t)
+    FILTERS bg = filterBinZone()
+
+    OBJECTS bin = Bin
+    PROPERTIES READONLY name(bin), canonicalId(bin), balanceB(bt, bin, t)
+    FILTERS stock(bin) = st, balanceB(bt, bin, t), isParent(filterBinZone(), bin)
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
+        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);  
+        } ELSE {
+            filterBinZone() <- NULL;
+        }
+    }
+;
+
+DESIGN balanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss));
+    }
+    ledgerBox {
+        MOVE BOX(bin);  
+        MOVE BOX(bl);
+    }
+}
