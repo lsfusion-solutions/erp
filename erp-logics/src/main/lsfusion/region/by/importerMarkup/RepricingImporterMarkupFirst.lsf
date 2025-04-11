@@ -15,10 +15,10 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
         dt() <- currentDateTime();
         
         LOCAL NESTED detail = Purchase.InvoiceDetail (Sku, LegalEntity);
-        detail(Sku s, LegalEntity l) <- [GROUP LAST Purchase.InvoiceDetail d IF dateTime(d) >= DATETIME(2025_04_15) 
+        detail(Sku s, LegalEntity l) <- (GROUP LAST Purchase.InvoiceDetail d IF dateTime(d) >= DATETIME(2025_04_15) 
                 AND isPosted(d) AND customerStock(d) IS DepartmentStore 
                 AND Purchase.importerMarkup(d) AND limitMarkup(d) AND sku(d)==s AND customer(d)==l
-                    ORDER dateTime(d), d ;
+                    ORDER dateTime(d), d);
         
         LOCAL NESTED iMarkup = NUMERIC[8,3] (Sku, DepartmentStore);
         iMarkup(Sku s, DepartmentStore ds) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(s, ds, dt())) WHERE detail(s, legalEntity(ds)) AND active(ds);
