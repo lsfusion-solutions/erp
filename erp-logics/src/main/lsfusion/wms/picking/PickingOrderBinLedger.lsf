@@ -1,0 +1,26 @@
+MODULE PickingOrderBinLedger;
+
+REQUIRE PickingOrder, BinLedger;
+
+NAMESPACE Picking;
+
+@defineInterfaceBin (pickingOrderDetail, out, ' (из)');
+
+INDEX outBin(PickingOrderDetail d), sku(d);
+
+@setBinObject (UserPickingOrderDetail, stock, out);
+
+@defineBinConstraintsType(UserPickingOrderDetail, stock, out);
+
+EXTEND FORM userPickingOrder
+    PROPERTIES(d) nameOutBin ON CHANGE setOutBin(d)
+;
+
+EXTEND FORM pickingOrders
+    PROPERTIES(d) READONLY nameOutBin
+;
+
+overCopy (UserPickingOrderDetail d, PickingOrderDetail s) + {
+    outBin(d) <- outBin(s);
+}
+
