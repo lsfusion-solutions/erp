@@ -52,14 +52,15 @@ countReturnReceipt 'Кол-во возвратных чеков' (o) =
     GROUP SUM 1 IF [GROUP SUM 1 BY receipt(ReceiptReturnDetail rd) ](Receipt d) BY zReport(d) MATERIALIZED IN documentSum;
     
 countReturnReceipt 'Кол-во возвратных чеков за день' (departmentStore, date) = 
-    GROUP SUM countReturnReceipt(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);    
+    GROUP SUM countReturnReceipt(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);
 
-countFiscalReceipt 'Кол-во фискальных чеков за день' = countReceipt(DepartmentStore departmentStore, DATE date) (-) countReturnReceipt(departmentStore, date);    
+countFiscalReceipt 'Кол-во фискальных чеков за день' = countReceipt(DepartmentStore departmentStore, DATE date) (-) countReturnReceipt(departmentStore, date);
 
-// На самом деле неправильно: из суммы возвраты вычитаются, а кол-во возвратных чеков просто не учитываем
-// Для управленческих целей некритично. Будем считать фичей, чтобы не усложнять расчёты
+sumReceiptReturnDetail 'Сумма возвратов' (stock, date)= GROUP SUM sumReceiptReturnDetail(ZReport zReport) IF isPosted(zReport)
+    BY departmentStore(zReport), date(zReport);
+
 averageSumReceipt 'Средняя сумма чека в магазине за день (без возвратов)' (DepartmentStore departmentStore, DATE date) = 
-    round2(sumReceiptDetailZReport(departmentStore, date) / countFiscalReceipt(departmentStore, date));
+    round2((sumReceiptDetailZReport(departmentStore, date) (-) sumReceiptReturnDetail(departmentStore, date)) / countFiscalReceipt(departmentStore, date));
 
 countReceiptDetail (zReport) = GROUP SUM countReceiptDetail(Receipt receipt) BY zReport(receipt);
 countReceiptDetail 'Кол-во позиций чеков в магазине за период' (departmentStore, date) =
@@ -180,6 +181,9 @@ averageCountReceiptDetailStocks 'Среднее кол-во позиций в ч
 sumReceiptDetailZReport 'Сумма Z-отчета' (stock, DATE dateFrom, DATE dateTo)= GROUP SUM sumReceiptDetail(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport);
+sumReceiptReturnDetail 'Сумма Z-отчета' (stock, DATE dateFrom, DATE dateTo)= GROUP SUM sumReceiptReturnDetail(ZReport zReport) IF 
+    date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
+        BY departmentStore(zReport);
 discountSumZReport 'Сумма скидок Z-отчета' (stock, DATE dateFrom, DATE dateTo)= GROUP SUM discountSum(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport);
@@ -192,7 +196,7 @@ countReturnReceipt 'Кол-во возвратных чеков' (departmentStor
 countFiscalReceipt 'Кол-во фискальных чеков' = 
     countReceipt(DepartmentStore departmentStore, DATE dateFrom, DATE dateTo) (-) countReturnReceipt(departmentStore, dateFrom, dateTo);
 averageSumReceipt 'Средняя сумма чека в магазине (без возвратов)' (DepartmentStore departmentStore, DATE dateFrom, DATE dateTo) = 
-    round2(sumReceiptDetailZReport(departmentStore, dateFrom, dateTo) / countFiscalReceipt(departmentStore, dateFrom, dateTo));
+    round2((sumReceiptDetailZReport(departmentStore, dateFrom, dateTo) (-) sumReceiptReturnDetail(departmentStore, dateFrom, dateTo)) / countFiscalReceipt(departmentStore, dateFrom, dateTo));
 sumPositiveCashPaymentZReport 'Сумма продажа (наличные)' (stock, DATE dateFrom, DATE dateTo)= GROUP SUM sumPositiveCashPayment(ZReport zReport) IF 
     date(zReport) >= (dateFrom AS DATE) AND date(zReport) <= (dateTo AS DATE) AND isPosted(zReport)
         BY departmentStore(zReport);
