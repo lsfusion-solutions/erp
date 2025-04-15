@@ -325,8 +325,8 @@ DESIGN dialogBinStock {
 }
 
 META defineInterfaceBin (object, prefix, caption)
-    prefix###bin 'Ячейка'##caption = DATA Bin(###user###object) IN documentPrm;
-    prefix###bin 'Ячейка'##caption = ABSTRACT Bin(###object) MATERIALIZED IN documentPrm;
+    prefix###bin 'Ячейка'##caption = ABSTRACT Bin (###object) MATERIALIZED IN documentPrm;    
+    prefix###bin 'Ячейка'##caption = DATA Bin (###user###object) IN documentPrm;
     prefix###bin (User###object object) += prefix###bin(object);
        
     name###prefix###bin 'Ячейка'##caption (###object object) = canonicalId(prefix###bin(object)) IN documentPrm CHARWIDTH 12;
@@ -588,10 +588,6 @@ CONSTRAINT DROPPED(Bin bin IS Bin) AND PREV(countLedger(bin)) AND NOT allowDelet
     MESSAGE 'Запрещено удалять ячейку при наличии движения по ней';
 
 META defineBinAttribute(attribute, caption)
-
-    data###attribute##Old caption = DATA BOOLEAN (DataBinGroup);
-    data###attribute##Old caption = DATA BOOLEAN (Bin);
-
     EXTEND CLASS UsageType {
         attribute caption
     }
@@ -650,18 +646,6 @@ META defineBinAttribute(attribute, caption)
     EXTEND FORM binStocks
         PROPERTIES(b) READONLY attribute
     ;
-    
-    migrateBin###attribute = DATA BOOLEAN (); 
-    onStarted() + {
-        NEWSESSION {
-            IF NOT migrateBin###attribute() THEN {
-                migrateBin###attribute() <- TRUE;
-                dataIn(DataBinGroup binGroup, UsageType.attribute) <- TRUE WHERE data###attribute##Old(binGroup);
-                dataIn(Bin bin, UsageType.attribute) <- TRUE WHERE data###attribute##Old(bin);
-                APPLY;
-            }
-        }    
-    }
 END
 
 @defineBinAttribute(storage, 'Хранение');
