@@ -105,3 +105,11 @@ WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail], limitPrice[
 
 showLimitPrice(InvoicePricing pricing) += showLimitPrice(invoice(pricing));
 limitMarkup(InvoicePricingDetail detail) += limitMarkup(invoiceDetail(detail));
+
+@defineOperationProperty(isImporterMarkup, 'Контролировать надбавку импортера в накладных', constraintContainer);
+
+skipCheckImporterMarkup = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+CONSTRAINT (SET(isPosted(UserInvoiceDetail d)) OR DROPPED(importerMarkup(d)) OR CHANGED(sku(d)) OR CHANGED(operation(d)) OR SET(limitMarkup(d))) 
+    AND isPosted(d) AND limitMarkup(d) AND country(sku(d)) != defaultCountry() AND isImporterMarkup(operation(d))
+    AND NOT importerMarkup(d) AND NOT skipCheckImporterMarkup(d)
+    MESSAGE 'В строке накладной должна быть заполнена надбавка импортера';
