@@ -587,29 +587,37 @@ DESIGN options {
 CONSTRAINT DROPPED(Bin bin IS Bin) AND PREV(countLedger(bin)) AND NOT allowDeleteBins()
     MESSAGE 'Запрещено удалять ячейку при наличии движения по ней';
 
-// ----
-
 META defineBinAttribute(attribute, caption)
 
-    data###attribute caption = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
-    data###attribute caption = DATA BOOLEAN (DataBinGroup);
-    data###attribute(DataBinGroup binGroup) += data###attribute(binGroup);
+    data###attribute##Old caption = DATA BOOLEAN (DataBinGroup);
+    data###attribute##Old caption = DATA BOOLEAN (Bin);
 
-    levelParentData###attribute (BinGroup binGroup) = GROUP MIN level(binGroup, BinGroup parent) IF data###attribute(parent) MATERIALIZED;
-    nearestParentData###attribute (BinGroup binGroup) = binGroup(binGroup, levelParentData###attribute(binGroup));
-    nearestData###attribute (BinGroup binGroup) = data###attribute(nearestParentData###attribute(binGroup)) MATERIALIZED;
+    EXTEND CLASS UsageType {
+        attribute caption
+    }
 
-    attribute caption (BinGroup binGroup) =
-        OVERRIDE data###attribute(binGroup),
-            nearestData###attribute(binGroup) MATERIALIZED;
+    attribute caption (BinGroup binGroup) = in(binGroup, UsageType.attribute);
+    attribute caption (Bin bin) = in(bin, UsageType.attribute);
 
+    change###attribute (BinGroup binGroup) {
+        INPUT b = BOOLEAN DO {
+            dataIn(binGroup, UsageType.attribute) <- b;            
+        }
+    }
+
+    change###attribute (Bin bin) {
+        INPUT b = BOOLEAN DO {
+            dataIn(bin, UsageType.attribute) <- b;
+        }
+    }        
+        
     EXTEND FORM dataBinGroup
-        PROPERTIES(g) data###attribute
+        PROPERTIES(g) attribute ON CHANGE change###attribute(g)
     ;
 
     DESIGN dataBinGroup {
         additionalContainer{
-            MOVE PROPERTY(data###attribute(g));
+            MOVE PROPERTY(attribute(g));
         }
     }
 
@@ -621,46 +629,41 @@ META defineBinAttribute(attribute, caption)
         PROPERTIES(g) READONLY attribute
     ;
 
-    data###attribute caption = DATA BOOLEAN (Bin);
-
-    attribute caption (Bin bin) =
-        OVERRIDE data###attribute(bin),
-            attribute(binGroup(bin)) MATERIALIZED;
-
     EXTEND FORM bin
-        PROPERTIES(s) attribute
+        PROPERTIES(b) attribute ON CHANGE change###attribute(b)
     ;
 
     DESIGN bin {
         additionalContainer{
-            MOVE PROPERTY(attribute(s));
+            MOVE PROPERTY(attribute(b));
         }
     }
 
     EXTEND FORM dialogBins
-        PROPERTIES(s) READONLY attribute
+        PROPERTIES(b) READONLY attribute
     ;
 
     EXTEND FORM bins
-        PROPERTIES(s) READONLY attribute
+        PROPERTIES(b) READONLY attribute
     ;
 
     EXTEND FORM binStocks
         PROPERTIES(b) READONLY attribute
     ;
+    
+    migrateBin###attribute = DATA BOOLEAN (); 
+    onStarted() + {
+        NEWSESSION {
+            IF NOT migrateBin###attribute() THEN {
+                migrateBin###attribute() <- TRUE;
+                dataIn(DataBinGroup binGroup, UsageType.attribute) <- TRUE WHERE data###attribute##Old(binGroup);
+                dataIn(Bin bin, UsageType.attribute) <- TRUE WHERE data###attribute##Old(bin);
+                APPLY;
+            }
+        }    
+    }
 END
 
 @defineBinAttribute(storage, 'Хранение');
 
 @defineBinAttribute(picking, 'Комплектация');
-
-EXTEND CLASS UsageType {
-    storage 'Хранение',
-    picking 'Комплектация'
-}
-
-overDataIn(DataBinGroup bg, UsageType t) += storage(bg) AND t = UsageType.storage;
-overDataIn(Bin b, UsageType t) += storage(b) AND t = UsageType.storage;
-
-overDataIn(DataBinGroup bg, UsageType t) += picking(bg) AND t = UsageType.picking;
-overDataIn(Bin b, UsageType t) += picking(b) AND t = UsageType.picking;

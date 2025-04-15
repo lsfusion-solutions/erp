@@ -120,7 +120,7 @@ maxBin (id) = GROUP MAX Bin bin BY id(bin);
 name 'Наименование' = DATA ISTRING[100](Bin) IN id;
 binGroup = DATA BinGroup (Bin) AUTOSET NONULL;// DELETE;
 nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
-canonicalNameBinGroup 'Группа' (Bin bin) = canonicalName(binGroup(bin));
+canonicalNameBinGroup 'Группа' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
 
 TABLE binGroupBin(BinGroup, Bin);
 isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
@@ -150,9 +150,9 @@ binGroup6(Bin bin) = binGroup6(binGroup(bin)) MATERIALIZED;
 nameBinGroup6  (Bin bin) = name(binGroup6(bin));
 
 FORM bin 'Ячейка'
-    OBJECTS s = Bin PANEL
-    PROPERTIES(s) name, id SHOWIF showIDs(), canonicalNameBinGroup, canonicalName, canonicalId, nameStock READONLY 
-    EDIT Bin OBJECT s
+    OBJECTS b = Bin PANEL
+    PROPERTIES(b) name, id SHOWIF showIDs(), canonicalNameBinGroup, canonicalName, canonicalId, nameStock READONLY 
+    EDIT Bin OBJECT b
 ;
 
 DESIGN bin {
@@ -160,12 +160,12 @@ DESIGN bin {
         caption = 'Основные свойства';
         alignment = STRETCH;
         lines = 2;
-        MOVE PROPERTY(name(s));
-        MOVE PROPERTY(id(s));
-        MOVE PROPERTY(canonicalNameBinGroup(s));
-        MOVE PROPERTY(canonicalId(s));
-        MOVE PROPERTY(canonicalName(s));
-        MOVE PROPERTY(nameStock(s));
+        MOVE PROPERTY(name(b));
+        MOVE PROPERTY(id(b));
+        MOVE PROPERTY(canonicalNameBinGroup(b));
+        MOVE PROPERTY(canonicalId(b));
+        MOVE PROPERTY(canonicalName(b));
+        MOVE PROPERTY(nameStock(b));
     }
     NEW additionalContainer {
         caption = 'Дополнительные свойства';
@@ -180,13 +180,13 @@ FORM dialogBins 'Ячейки'
     PROPERTIES READONLY name(sg), nameStock(sg)
     FILTERGROUP active FILTER 'Активный' active(sg) DEFAULT
 
-    OBJECTS s = Bin
-    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY
 
-    FILTERS isParent(sg, s)
-    ORDERS name(s)
+    FILTERS isParent(sg, b)
+    ORDERS name(b)
 
-    LIST Bin OBJECT s
+    LIST Bin OBJECT b
 ;
 
 DESIGN dialogBins {
@@ -201,11 +201,11 @@ DESIGN dialogBins {
                 caption = 'Группы ячеек';
             }
 
-            MOVE BOX(s) {
+            MOVE BOX(b) {
                 fill = 2;
-                GRID(s) {
+                GRID(b) {
                     defaultComponent = TRUE;
-                    PROPERTY(canonicalName(s)) {caption = 'Группа';}
+                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
                 }
             }
         }
@@ -219,12 +219,12 @@ FORM bins 'Ячейки'
     PROPERTIES READONLY name(sg), nameStock(sg)
     FILTERGROUP active FILTER 'Активный' active(sg) DEFAULT
 
-    OBJECTS s = Bin
-    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY 
-    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE 
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY 
+    PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE 
 
-    FILTERS isParent(sg, s)
-    ORDERS name(s)
+    FILTERS isParent(sg, b)
+    ORDERS name(b)
 ;
 
 DESIGN bins {
@@ -239,11 +239,11 @@ DESIGN bins {
                 caption = 'Группы ячеек';
             }
 
-            MOVE BOX(s) {
+            MOVE BOX(b) {
                 fill = 2;
-                GRID(s) {
+                GRID(b) {
                     defaultComponent = TRUE;
-                    PROPERTY(canonicalName(s)) {caption = 'Группа';}
+                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
                 }
             }
         }
@@ -412,12 +412,12 @@ changeBins (Sku sku) {
 FORM binStocks 'Ячейки'
 
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES READONLY canonicalId(bg), name(bg), nameStock(bg)
     PROPERTIES(bg) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF bg IS DataBinGroup, DELETE SHOWIF bg IS DataBinGroup
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock
+    PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock, canonicalNameBinGroup
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
     ORDERS canonicalId(b), name(b)
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
@@ -449,6 +449,9 @@ DESIGN binStocks {
 
                 MOVE BOX(TREE binTree) {
                     caption = 'Группы ячеек';
+                    PROPERTY(canonicalId(bg)){
+                        charWidth = 20;
+                    }
                 }
 
                 MOVE BOX(b) {
@@ -456,7 +459,6 @@ DESIGN binStocks {
                     caption = 'Ячейки';
                     GRID(b) {
                         defaultComponent = TRUE;
-                        PROPERTY(canonicalName(b)) {caption = 'Группа';}
                     }
                 }
             }
@@ -482,22 +484,21 @@ NAVIGATOR {
     }
 }
 
-CLASS UsageType {
-}
+CLASS UsageType 'Тип использования';
 
-dataIn 'Тип использования' = ABSTRACT BOOLEAN (BinGroup, UsageType) MATERIALIZED;
-overDataIn 'Тип использования' = ABSTRACT VALUE BOOLEAN (DataBinGroup, UsageType) ;
-dataIn[BinGroup, UsageType](DataBinGroup binGroup, UsageType) += overDataIn(binGroup, UsageType);
+dataIn 'Вкл.' = ABSTRACT BOOLEAN (BinGroup, UsageType) MATERIALIZED;
+dataIn 'Вкл.' = DATA BOOLEAN (DataBinGroup, UsageType);
+dataIn(DataBinGroup binGroup, UsageType type) += dataIn(binGroup, type);
 
 levelParentDataIn (BinGroup binGroup, UsageType type) = GROUP MIN level(binGroup, BinGroup parent) IF dataIn(parent, type) MATERIALIZED;
-nearestParentDataIn  (BinGroup binGroup, UsageType type) = binGroup(binGroup, levelParentDataIn(binGroup, type));
+nearestParentDataIn (BinGroup binGroup, UsageType type) = binGroup(binGroup, levelParentDataIn(binGroup, type));
 nearestDataIn (BinGroup binGroup, UsageType type) = dataIn(nearestParentDataIn(binGroup, type), type) MATERIALIZED;
 
-in 'Тип использования' (BinGroup binGroup, UsageType type) =
+in 'Вкл.' (BinGroup binGroup, UsageType type) =
     OVERRIDE dataIn(binGroup, type),
-        nearestDataIn(binGroup, type);
+        nearestDataIn(binGroup, type) MATERIALIZED;
 
-overDataIn 'Тип использования' = ABSTRACT VALUE BOOLEAN (Bin, UsageType);
-
-in 'Тип использования' (Bin bin, UsageType t) =
-    OVERRIDE overDataIn(bin, t), in(binGroup(bin), t) MATERIALIZED;
+dataIn 'Вкл.' = DATA BOOLEAN (Bin, UsageType);
+in 'Вкл.' (Bin bin, UsageType type) =
+    OVERRIDE dataIn(bin, type),
+        in(binGroup(bin), type) MATERIALIZED;

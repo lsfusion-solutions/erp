@@ -4,25 +4,12 @@ REQUIRE BinSkuLedger, OrderLedger;
 
 NAMESPACE Bin;
 
-orderLedger 'Резерв' = DATA BOOLEAN (Bin);
-skipBinSkuOrderLedger = ABSTRACT BOOLEAN ();
-
-EXTEND FORM bin
-    PROPERTIES(s) orderLedger
-;
-
-DESIGN bin {
-    additionalContainer{
-        MOVE PROPERTY(orderLedger(s));
-    }
-}
-
-EXTEND FORM bins
-    PROPERTIES(s) READONLY orderLedger
-;
+@defineBinAttribute(orderLedger, 'Резерв');
 
 CLASS BinSkuOrderLedger 'Резерв в ячейке' : OrderLedger;
 TABLE binSkuOrderLedger (BinSkuOrderLedger);
+
+skipBinSkuOrderLedger = ABSTRACT BOOLEAN ();
 binOrderLedger = AGGR BinSkuOrderLedger WHERE currentBalance(Sku sku, Bin bin) AND orderLedger(bin) AND NOT skipBinSkuOrderLedger() MATERIALIZED INDEXED;
 
 stock[OrderLedger] (BinSkuOrderLedger ledger) += stock(bin(ledger));

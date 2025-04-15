@@ -395,9 +395,9 @@ writeOffReserve 'Списать' (CustomUser u) {
 
 changeDataInBin(ReceivingDetail d, CustomUser u) {
     NEWSESSION {
-        DIALOG dialogBins OBJECTS s = inBin(d) INPUT LIST canonicalId(s) 
-            FILTERS isParent(sg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), sg), isParent(binGroup2(receivingBin(u)), s) DO {
-            dataInBin(d) <- s;
+        DIALOG dialogBins OBJECTS b = inBin(d) INPUT LIST canonicalId(b) 
+            FILTERS isParent(sg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), sg), isParent(binGroup2(receivingBin(u)), b) DO {
+            dataInBin(d) <- b;
             APPLY;
         }
     }
@@ -716,10 +716,3 @@ needToCreateReceivingBinLedger(ReceivingDetail detail) += TRUE IF inBin(detail) 
 
 CONSTRAINT DROPPED(ReceivingDetail d IS ReceivingDetail) AND (PREV(status(d)) = ReceivingStatus.completed OR PREV(status(receiving(d))) = ReceivingStatus.completed) 
     MESSAGE 'Запрещено удалять строки у завершённой приёмки';
-
-EXTEND CLASS UsageType {
-    receiving 'Приемка'
-}
-
-overDataIn(DataBinGroup bg, UsageType t) += receiving(bg) AND t = UsageType.receiving;
-overDataIn(Bin b, UsageType t) += receiving(b) AND t = UsageType.receiving;
