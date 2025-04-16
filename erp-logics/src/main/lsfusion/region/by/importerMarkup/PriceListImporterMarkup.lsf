@@ -1,0 +1,38 @@
+MODULE PriceListImporterMarkup;
+
+REQUIRE PriceListOperation;
+
+NAMESPACE PriceList;
+
+showImporterMarkup 'Надбавка импортера' = ABSTRACT BOOLEAN (PriceList) IN documentPrm;
+showImporterMarkup 'Надбавка импортера' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+showImporterMarkup (UserPriceList priceList) += showImporterMarkup(priceList);
+
+showImporterMarkup 'Надбавка импортера' (PriceListDetail priceListDetail) = showImporterMarkup(priceList(priceListDetail));
+showImporterMarkup 'Надбавка импортера' (UserPriceListDetail userPriceListDetail) = showImporterMarkup(userPriceList(userPriceListDetail));
+
+EXTEND FORM userPriceList
+    PROPERTIES(p) showImporterMarkup
+;
+
+DESIGN userPriceList {
+    param {
+        MOVE PROPERTY(showImporterMarkup(p));
+    }
+}
+
+@defineOperationProperty(showImporterMarkup, 'Надбавка импортера', showContainer);
+
+@deriveDocumentOperationProperty(UserPriceList, showImporterMarkup);
+
+importerMarkup '{document.markup} импортера' = ABSTRACT NUMERIC[8,3] (PriceListDetail);
+importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,3] (UserPriceListDetail);
+importerMarkup (UserPriceListDetail priceListDetail) += importerMarkup(priceListDetail);
+
+EXTEND FORM userPriceList
+    PROPERTIES (d) SHOWIF showImporterMarkup(p) importerMarkup AFTER price(d, tc)
+;
+
+EXTEND FORM priceLists
+    PROPERTIES (d) READONLY SHOWIF showImporterMarkup(p) importerMarkup AFTER price(d, t)
+;
