@@ -43,6 +43,11 @@ eqSale 'Печать чека' (CashRegister o, Receipt r) {
         receiptTotalSum() <- receiptTotalSum() (+) sum(d);
         receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(d) (+) bonusPaid(d);
     }
+    IF sale() AND return() THEN {
+        titanECode() <- 1;
+        onShowError('Недопустимое совместное использование\nопераций в чеке: Продажа и Возврат');
+        RETURN;
+    }
     receiptDiscountSum() <- receiptDiscountSum() (+) discountSum(r);
     IF NOT titanNotInfoBonus(o) THEN bonusText(r); // расчет по бонусам
     IF sale() THEN receiptRefund() <- TFALSE; ELSE receiptRefund() <- TTRUE;
