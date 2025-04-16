@@ -1,6 +1,6 @@
 MODULE SalePurchasePriceLimit;
 
-REQUIRE PurchasePriceLimit, PricingSalePurchase;
+REQUIRE PurchasePriceLimit, PricingSalePurchase, SaleImporterMarkup;
 
 NAMESPACE Sale;
 
@@ -9,9 +9,11 @@ NAMESPACE Sale;
 @defineDocumentInterfaceProperty (invoice, showPurchaseLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseLimit, ' (закупка) предельная');
 
-purchaseLimitMarkup(UserInvoiceDetail detail) <- markup(priceLimitPriceListType(customerStock(detail)), sku(detail))
-    WHEN CHANGED (customerStock(detail)) OR
-         CHANGED (sku(detail));
+purchaseLimitMarkup(UserInvoiceDetail d) <- [floor(((100.0 + X)/(100 + Z)-1.0)*100.0, 0.01)](
+        markup(priceLimitPriceListType(customerStock(d)), sku(d)),  
+        (OVERRIDE importerMarkup(d), 0.0))
+    WHEN CHANGED(customerStock(d)) OR CHANGED(sku(d)) OR CHANGED(importerMarkup(d))
+;
 
 changePurchaseLimitMarkup(UserInvoiceDetail detail)  { 
     INPUT n = NUMERIC[8,2] DO
