@@ -91,7 +91,12 @@ lastSaleInvoicePacketDetail 'Последняя строка продажи (п�
     WHERE dateTime(d) <= DATETIME dt AND isPosted(d) AND NOT PREV(isReturned(d))
     BY supplierStock(d), packet(d), dt;
 
-lastSaleInvoicePacketDetail(UserInvoicePacketDetail d) = lastSaleInvoicePacketDetail(supplierStock(d), packet(d), dateTime(d));
+overLastSaleInvoicePacketDetail = ABSTRACT Sale.UserInvoicePacketDetail (UserInvoicePacketDetail);
+skipDefaultLastSaleInvoicePacketDetail = ABSTRACT BOOLEAN (UserInvoicePacketDetail);
+
+lastSaleInvoicePacketDetail(UserInvoicePacketDetail d) =
+    OVERRIDE overLastSaleInvoicePacketDetail(d) IF overLastSaleInvoicePacketDetail(d),
+        lastSaleInvoicePacketDetail(supplierStock(d), packet(d), dateTime(d)) IF NOT skipDefaultLastSaleInvoicePacketDetail(d);
 
 fillInvoicePacketDetail 'Проставить основание'(UserInvoicePacketDetail d)   {
     userInvoicePacketDetail(d) <- lastSaleInvoicePacketDetail(d)
@@ -126,14 +131,21 @@ FORM baseUserInvoicePacketDetail 'Строки накладной (пакеты,
         FILTER  'По складу покупателя' customerStock(d) == cst DEFAULT
 ;
 
-changeSaleInvoicePacketDetail(UserInvoicePacketDetail detail)  {
-    DIALOG baseUserInvoicePacketDetail OBJECTS
+useCustomChangeSaleInvoicePacketDetailDialog = ABSTRACT BOOLEAN (UserInvoicePacketDetail);
+changeSaleInvoicePacketDetailCustom ABSTRACT LIST (UserInvoicePacketDetail);
+
+changeSaleInvoicePacketDetail(UserInvoicePacketDetail detail) {
+    IF useCustomChangeSaleInvoicePacketDetailDialog(detail) THEN {
+        changeSaleInvoicePacketDetailCustom(detail);
+    } ELSE { 
+        DIALOG baseUserInvoicePacketDetail OBJECTS
         st = supplierStock(detail),
-        c = customer(detail),                                   
+        c = customer(detail),
         cst = customerStock(detail),
         sk = [GROUP MIN Sku sk IF currentQuantity(sk, packet(detail))](),
         d = userInvoicePacketDetail(detail) INPUT NULL NEWSESSION DO {
-        userInvoicePacketDetail(detail) <- d;
+            userInvoicePacketDetail(detail) <- d;
+        }
     }
 }
 
