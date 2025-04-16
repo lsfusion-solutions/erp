@@ -44,8 +44,6 @@ GROUP binTransfer 'Информация о перемещении' : base;
 
 useBins(UserBinTransfer transfer) <- TRUE WHEN SET(transfer IS UserBinTransfer);
 
-@setBinDocument(UserBinTransfer, stock);
-
 @implementDocument(binTransfer);
 supplierStock[Document](BinTransfer binTransfer) += stock(binTransfer);
 
@@ -82,12 +80,11 @@ sumGrossWeight(UserBinTransferDetail d) <- grossWeight(sku(d)) * quantity(d)
 
 FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinTransfer PANEL
-    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
-                   nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
+    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note
     PROPERTIES (o) READONLY countUserBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail 
     
     OBJECTS d = UserBinTransferDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, sumGrossWeight
     PROPERTIES (d) NEW, deleteod = DELETE GRID
     PROPERTIES(o) DRAW d fillDocument, addDetailDialogSkuStockUserBinTransferDetail,
                            addDetailInputBarcodeUserBinTransferDetail, deleteUserBinTransferDetail
@@ -140,7 +137,7 @@ DESIGN userBinTransfer {
                             NEW headerMainParams {
                                 caption = 'Основные параметры';
                                 MOVE GROUP(documentPrm,o) {
-                                    lines = 3;
+                                    lines = 4;
                                 }
                             }
                         }
@@ -250,7 +247,7 @@ show 'Просмотреть' (UserBinTransfer o)   {
     
 showToShow (UserBinTransfer i) = is(i) AND NOT overShowEdit(i);
  
-FORM binTransfers  'Перемещения по ячейкам'
+FORM binTransfers 'Перемещения по ячейкам'
     PROPERTIES() filterBinTransferDateFrom, filterBinTransferDateTo, nameFilterBinTransferStock, nameFilterBinTransferCustomUser, nameFilterBinTransferComputer
     
     OBJECTS o = BinTransfer LAST
@@ -574,33 +571,44 @@ DESIGN operation {
     }
 }
 
-CONSTRAINT operation(BinTransferDetail d) AND levelBinGroup(operation(d)) AND NOT 
+CONSTRAINT CHANGED(operation(BinTransferDetail d) AND inBin(d) AND outBin(d)) AND levelBinGroup(operation(d)) AND NOT 
     binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d)))
-    CHECKED BY inBin[UserBinTransferDetail], outBin[UserBinTransferDetail]
     MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
 
-CONSTRAINT operation(BinTransfer t) AND levelBinGroup(operation(t)) AND NOT 
+CONSTRAINT CHANGED(operation(BinTransfer t) AND inBin(t) AND outBin(t)) AND levelBinGroup(operation(t)) AND NOT 
     binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) = binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t)))
-    CHECKED BY inBin[UserBinTransfer], outBin[UserBinTransfer]
     MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
 
-CONSTRAINT operation(BinTransferDetail d) AND inBin(d) AND NOT inBin(inBin(d), operation(d))
-    CHECKED BY inBin[UserBinTransferDetail]
+CONSTRAINT CHANGED(operation(BinTransferDetail d) AND inBin(d)) AND inBin(d) AND NOT inBin(inBin(d), operation(d))
     MESSAGE '"Ячейка (в)" строки должна совпадать с отмеченными в операции';
 
-CONSTRAINT operation(BinTransfer t) AND inBin(t) AND NOT inBin(inBin(t), operation(t))
-    CHECKED BY inBin[UserBinTransfer]
+CONSTRAINT CHANGED(operation(BinTransfer t) AND inBin(t)) AND inBin(t) AND NOT inBin(inBin(t), operation(t))
     MESSAGE '"Ячейка (в)" документа должна совпадать с отмеченными в операции';
 
-CONSTRAINT operation(BinTransferDetail d) AND outBin(d) AND NOT outBin(outBin(d), operation(d))
-    CHECKED BY outBin[UserBinTransferDetail]
+CONSTRAINT CHANGED(operation(BinTransferDetail d) AND outBin(d)) AND outBin(d) AND NOT outBin(outBin(d), operation(d))
     MESSAGE '"Ячейка (из)" строки должна совпадать с отмеченными в операции';
 
-CONSTRAINT operation(BinTransfer t) AND outBin(t) AND NOT outBin(outBin(t), operation(t))
-    CHECKED BY outBin[UserBinTransfer]
+CONSTRAINT CHANGED(operation(BinTransfer t) AND outBin(t)) AND outBin(t) AND NOT outBin(outBin(t), operation(t))
     MESSAGE '"Ячейка (из)" документа должна совпадать с отмеченными в операции';
 
-CONSTRAINT operation(BinTransferDetail d) AND NOT outBin(d) AND needOut(operation(d))
+CONSTRAINT CHANGED(operation(BinTransferDetail d) AND outBin(d)) AND NOT outBin(d) AND needOut(operation(d))
     MESSAGE '"Ячейка (из)" обязательна для заданной операции';
-CONSTRAINT operation(BinTransferDetail d) AND NOT inBin(d) AND needIn(operation(d))
+CONSTRAINT CHANGED(operation(BinTransferDetail d) AND inBin(d)) AND NOT inBin(d) AND needIn(operation(d))
     MESSAGE '"Ячейка (в)" обязательна для заданной операции';
+
+extraBinFilter (Bin b, UserBinTransfer t) = 
+    (levelBinGroup(operation(t)) AND inBin(t) AND binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) = binGroupRoot(binGroup(b), levelBinGroup(operation(t))) OR
+    levelBinGroup(operation(t)) AND outBin(t) AND binGroupRoot(binGroup(b), levelBinGroup(operation(t))) = binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) OR 
+    t IS UserBinTransfer AND b IS Bin AND (NOT levelBinGroup(operation(t)) OR (NOT inBin(t) AND NOT outBin(t))));
+
+extraBinFilter (Bin b, UserBinTransferDetail d) = 
+    (levelBinGroup(operation(d)) AND inBin(d) AND binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(b), levelBinGroup(operation(d))) OR
+    levelBinGroup(operation(d)) AND outBin(d) AND binGroupRoot(binGroup(b), levelBinGroup(operation(d))) = binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) OR
+    d IS UserBinTransferDetail AND b IS Bin AND (NOT levelBinGroup(operation(d)) OR (NOT inBin(d) AND NOT outBin(d))));
+
+@setBinDocumentWithfilter(UserBinTransfer, stock);
+
+EXTEND FORM userBinTransfer
+    PROPERTIES(o) AFTER note(o) nameInBin ON CHANGE setInBin(o), nameOutBin ON CHANGE setOutBin(o)
+    PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
+;
