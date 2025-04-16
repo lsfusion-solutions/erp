@@ -21,7 +21,9 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
                     ORDER dateTime(d), d);
         
         LOCAL NESTED iMarkup = NUMERIC[8,3] (Sku, DepartmentStore);
-        iMarkup(Sku s, DepartmentStore ds) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(s, ds, dt())) WHERE detail(s, legalEntity(ds)) AND active(ds);
+        FOR [GROUP SUM 1 IF detail(Sku s, legalEntity(DepartmentStore ds)) AND active(ds) BY ds] (DepartmentStore ds) NOINLINE DO {
+            iMarkup(Sku s, ds) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(s, ds, dt())) WHERE detail(s, legalEntity(ds)) AND active(ds);
+        }
 
         LOCAL NESTED to = BOOLEAN (Sku, DepartmentStore);
         to (Sku s, DepartmentStore ds) <- detail(s, legalEntity(ds)) AND NOT iMarkup(s, ds) AND active(ds);
