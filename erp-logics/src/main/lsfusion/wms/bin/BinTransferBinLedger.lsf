@@ -458,6 +458,12 @@ inBin 'Отм' (Bin bin, Operation operation) =
         dataInBin(bin, operation) IF NOT inUsageType(operation), 
         inBin(binGroup(bin), operation) IF NOT inUsageType(operation) MATERIALIZED ;
 
+changeInBin (Bin bin, Operation operation) {
+    INPUT b=BOOLEAN DO {
+        dataInBin(bin, operation) <- b;     
+    } 
+}
+
 CONSTRAINT inBin(Operation operation, Stock st) IS Bin AND NOT inBin(inBin(operation, st), operation)
     CHECKED BY inBin[Operation, Stock]
     MESSAGE '"Ячейка (в)" склада по умолчанию должна быть включена в операцию';
@@ -488,6 +494,12 @@ outBin 'Отм' (Bin bin, Operation operation) =
         dataOutBin(bin, operation) IF NOT outUsageType(operation), 
         outBin(binGroup(bin), operation) IF NOT outUsageType(operation) MATERIALIZED;
 
+changeOutBin (Bin bin, Operation operation) {
+    INPUT b=BOOLEAN DO {
+        dataOutBin(bin, operation) <- b;
+    }
+}
+
 CONSTRAINT outBin(Operation operation, Stock st) IS Bin AND NOT outBin(outBin(operation, st), operation)
     CHECKED BY outBin[Operation, Stock]
     MESSAGE '"Ячейка (из)" склада по умолчанию должна быть включена в операцию';
@@ -505,7 +517,7 @@ EXTEND FORM operation
     FILTERS in(stock(inbing), o)
     
     OBJECTS inbin = Bin
-    PROPERTIES(inbin, o) inBin
+    PROPERTIES(inbin, o) READONLYIF inUsageType(o) inBin ON CHANGE changeInBin(inbin, o)
     PROPERTIES(inbin) READONLY canonicalId, nameBinGroup, name, id SHOWIF showIDs()
     ORDERS canonicalId(inbin)
     FILTERS isParent(inbing, inbin)
@@ -518,7 +530,7 @@ EXTEND FORM operation
     FILTERS in(stock(outbing), o)
 
     OBJECTS outbin = Bin
-    PROPERTIES(outbin, o) outBin
+    PROPERTIES(outbin, o) READONLYIF outUsageType(o) outBin ON CHANGE changeOutBin(outbin, o)
     PROPERTIES(outbin) READONLY canonicalId, nameBinGroup, name, id SHOWIF showIDs()
     ORDERS canonicalId(outbin)
     FILTERS isParent(outbing, outbin)
