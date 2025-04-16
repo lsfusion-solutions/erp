@@ -29,3 +29,28 @@ overSupplier(ShipmentBatch ledger) += originalSupplier(invoiceDetail(shipmentDet
 WHEN LOCAL (SETCHANGED(sku(UserInvoiceDetail d)) OR SETCHANGED(supplierStock(d))) AND NOT CHANGED(originalSupplier(d)) AND NOT skipUpdatePriceAccount() AND NOT skipOriginalSupplier(operation(d)) DO {
     originalSupplier(d) <- prevSupplierLastOrderBatch(sku(d),supplierStock(d));
 }
+
+@defineOperationProperty(showOriginalSupplierStock, 'Показывать склад внешнего поставщика', showContainer);
+
+@defineOperationProperty(skipOriginalSupplierStock, 'Не проставлять склад внешнего поставщика', showContainer);
+
+originalSupplierStock = ABSTRACT Stock (InvoiceDetail);
+nameOriginalSupplierStock 'Склад поставщика (внешний)' = name(originalSupplier(InvoiceDetail d));
+originalSupplierStock = DATA Stock (UserInvoiceDetail);
+nameOriginalSupplierStock 'Склад поставщика (внешний)' = name(originalSupplier(UserInvoiceDetail d));
+originalSupplierStock(UserInvoiceDetail d) += originalSupplierStock(d);
+
+showOriginalSupplierStock (Invoice i) = showOriginalSupplierStock(operation(i));
+
+EXTEND FORM userInvoice
+    PROPERTIES (d) nameOriginalSupplierStock SHOWIF showOriginalSupplierStock(i)
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY nameOriginalSupplierStock SHOWIF showOriginalSupplierStock(i)
+;
+
+overSupplierStock(ShipmentBatch ledger) += originalSupplierStock(invoiceDetail(shipmentDetail(ledger)));// IF showOriginalSupplier(invoice(invoiceDetail(shipmentDetail(ledger))));
+
+WHEN LOCAL (SETCHANGED(sku(UserInvoiceDetail d)) OR SETCHANGED(supplierStock(d))) AND NOT CHANGED(originalSupplierStock(d)) AND NOT skipUpdatePriceAccount() AND NOT skipOriginalSupplierStock(operation(d)) DO {
+    originalSupplierStock(d) <- prevSupplierStockLastOrderBatch(sku(d),supplierStock(d));
+}
