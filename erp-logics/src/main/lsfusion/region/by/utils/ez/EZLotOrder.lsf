@@ -13,15 +13,17 @@ idOrderEZ 'Код заказа ЭЗ' = DATA STRING[100] (LotOrderDetail) CHARWID
 overGtin(LotOrderDetail d) += STRING[14](lpad(gtin(sku(d)), 14, '0'));
 
 allowPartlyImportLotCodes 'Разрешить частичное получение марок по заказу' = DATA BOOLEAN();
+noPostedIncompleteOrders 'Не проводить заказы, по которым получены не все марки' = DATA BOOLEAN ();
 
 EXTEND FORM integrationData
-    PROPERTIES() quantityLotLimit, allowPartlyImportLotCodes
+    PROPERTIES() quantityLotLimit, allowPartlyImportLotCodes, noPostedIncompleteOrders
 ;
 
 DESIGN integrationData {
     EZ {
         MOVE PROPERTY(quantityLotLimit());
         MOVE PROPERTY(allowPartlyImportLotCodes());
+        MOVE PROPERTY(noPostedIncompleteOrders());
     }
 }
 
@@ -644,12 +646,13 @@ importLotCodes 'Получить марки' (LotOrder o) {
         APPLY;
     } 
     
-    MESSAGE 'Марки успешно получены' NOWAIT;
-        
-    NEWSESSION {
-        isPosted(o) <- TRUE;
-        APPLY;
-    }      
+    IF noPostedIncompleteOrders() AND (quantityLotOrderDetail(o) != quantityLot(o) OR NOT quantityLot(o)) THEN {
+        MESSAGE 'Получены не все марки. Заказ не проведен.' NOWAIT;    
+    }ELSE{
+        MESSAGE 'Марки успешно получены' NOWAIT;
+        isPosted(o) <- TRUE;        
+    }
+    APPLY;
 }
 
 importLotCodesPartly 'Получить марки (по доступным строкам)' (LotOrder o) {
