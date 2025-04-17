@@ -52,6 +52,7 @@ berlioCard = DATA BerlioCard (Receipt);
 numberBerlioCard 'Номер карты Berlio' (Receipt receipt) = number(berlioCard(receipt));
 
 berlioFile 'Имя файла Берлио' = DATA STRING[15](ZReport) INDEXED IN documentHeader;
+dateTimeClose 'Время закрытия смены' = DATA DATETIME (ZReport) IN documentHeader;
 
 EXTEND FORM zReports
     PROPERTIES READONLY berlioFile(z)
@@ -79,6 +80,7 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
         LOCAL shiftDate, date = DATE (INTEGER);
         LOCAL time = TIME (INTEGER);
         LOCAL shiftIime = TIME ();
+        LOCAL closeIime = DATETIME ();
         LOCAL vid, kind, receipt, npp, dep, skno, index = INTEGER (INTEGER);
         LOCAL shift, lDate, code, cardNum, item = STRING (INTEGER);
         LOCAL idZReport, idReceipt, idReceiptDetail, user = STRING (INTEGER);
@@ -100,6 +102,9 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
             shiftDate(INTEGER r) <- date(open) WHERE imported(r);
             shiftIime() <- time(open);
         }
+        FOR INTEGER close == (GROUP MIN INTEGER r IF code(r) == 'CLOSE') DO {
+            closeIime() <- dateTimeToDateTime(date(close), time(close));
+        }
 
         mixCash(INTEGER r) <- -mixCash(r) WHERE vid(r) == 2;
         mixBank(INTEGER r) <- -mixBank(r) WHERE vid(r) == 2;
@@ -119,6 +124,7 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 cashRegister(z) <- cr;
                 number(z) <- shift(rz);
                 berlioFile(z) <- fn;
+                dateTimeClose(z) <- closeIime();
 
                 FOR [GROUP SUM 1 IF kind(INTEGER r) == 2 BY cardNum(r)](STRING berlio) AND NOT berlioNumber(getWord(berlio, '/', 1)) NEW g = BerlioCard DO {
                     number(g) <- getWord(berlio, '/', 1);
