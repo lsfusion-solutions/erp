@@ -224,6 +224,34 @@ DESIGN invoices {
     }
 }
 
+EXTEND FORM userInvoice
+    OBJECTS ccd= UserInvoiceDetail GRID
+    PROPERTIES (ccd)  READONLY SHOWIF eInvoice(i) index, idBarcodeSku, nameSku
+    PROPERTIES READONLY SHOWIF eInvoice(i) lineItemManufacturerOutputPrice 'Отпускная цена производителя (импортера)' = lineItemManufacturerOutputPrice(eInvoiceDetail(ccd)),
+        typeDiscount'Вид скидки' = typeDiscount(eInvoiceDetail(ccd)), bulkDiscountRate'Оптовая скидка, %' = bulkDiscountRate(eInvoiceDetail(ccd)),
+        outputPriceIncludingShippingCoast 'Условия доставки товара' = outputPriceIncludingShippingCoast(eInvoiceDetail(ccd)),
+        outputPriceShippingCoast'Сумма расходов по доставке товаров' = outputPriceShippingCoast(eInvoiceDetail(ccd)),
+        outputPricePackingCoast 'Сумма расходов по фасовке товаров' = outputPricePackingCoast(eInvoiceDetail(ccd)),
+        bulkMarginRate'Оптовая надбавка в белорусских рублях или процентах' = bulkMarginRate(eInvoiceDetail(ccd)),
+        cutRate 'Сниженная цена субъекта торговли, осуществляющего оптовую торговлю'= cutRate(eInvoiceDetail(ccd)),
+        additionalInformationPrice 'Иные сведения, необходимые для установления цены' = additionalInformationPrice(eInvoiceDetail(ccd)),
+        additionalInformationNote  'Примечание' = additionalInformationNote(eInvoiceDetail(ccd))
+    FILTERS userInvoice(ccd) == i
+;
+
+DESIGN userInvoice{
+    specificationBox {
+        NEW costControlContainer {
+            caption = 'Сведения по регулированию ценообразования в ЭТТН';
+            MOVE BOX(ccd);
+        }
+    }
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES READONLY SHOWIF eInvoice(i) additionalInformation  'Примечание, дополнительная информация о товаре' = additionalInformation(eInvoiceDetail(d))
+;
+
 skipNumberCheck(Invoice i) += IF (GROUP SUM 1 IF invoice(EInvoice ei) == i) THEN TRUE;
  
 @defineOption(createPurchaseInvoiceFromEInvoice, 'Автоматически создавать накладную (закупка) при создании накладной EDI', EDI);
