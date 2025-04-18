@@ -288,6 +288,7 @@ placementBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) =
 
 placement 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
+        select(Sku sku) <- NULL WHERE select(sku) AND NOT currentBalance(sku, receivingBin(u));
         IF NOT (GROUP MAX select(Sku sku)) THEN {
             select(Sku sku) <- TRUE WHERE currentBalance(sku, receivingBin(u));
         }
@@ -324,6 +325,7 @@ placement 'Разместить' (CustomUser u) {
 
 placementReserve 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
+        select(Sku sku) <- NULL WHERE select(sku) AND NOT (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
         IF NOT (GROUP MAX select(Sku sku)) THEN {
             select(Sku sku) <- TRUE WHERE (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
         }
@@ -363,24 +365,21 @@ writeOffReserveQuantity 'Кол-во к списанию' = ABSTRACT CASE NUMERI
 writeOffReserveQuantity(Sku sku, Bin bin) += WHEN sku IS Sku AND bin IS Bin AND NOT useWriteOffReserveQuantity() THEN currentBalance(sku, bin);
 
 writeOffReserve 'Списать' (CustomUser u) {
-    NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
-        IF NOT (GROUP MAX select(Sku sku)) THEN {
-            select(Sku sku) <- TRUE WHERE (GROUP SUM writeOffReserveQuantity(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
+    NEWSESSION NESTED(select[Sku, Bin], dataReceivingBin[CustomUser]) {
+        select(Sku sku, Bin bin) <- NULL WHERE select(sku, bin) AND NOT (writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
+        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
+            select(Sku sku, Bin bin) <- TRUE WHERE writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin);
         }
-        IF NOT (GROUP MAX select(Sku sku)) THEN {
+        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
             MESSAGE 'Нечего размещать';
             RETURN;
         }
-        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
-            MESSAGE 'Для склада размещения нет ячеек хранения';
-            RETURN;
-        }
-        FOR (GROUP MAX select(Sku sku) AND writeOffReserveQuantity(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
+        FOR (GROUP MAX select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
             operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
-            FOR select(Sku sku) AND writeOffReserveQuantity(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
+            FOR select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
@@ -388,7 +387,7 @@ writeOffReserve 'Списать' (CustomUser u) {
                 quantity(d) <- writeOffReserveQuantity(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Sku sku) <- NULL;
+                select(Sku sku, Bin bin) <- NULL;
             }
         }
     }
@@ -446,7 +445,7 @@ FORM receiving 'Приемка'
     FILTERS currentBalance(s, receivingBin(u))  
     
     OBJECTS reserve = (rs=Sku, rb=Bin)
-    PROPERTIES select(rs)
+    PROPERTIES select(rs, rb)
     PROPERTIES READONLY name(rs), idBarcode(rs), canonicalId(rb), name(rb), currentBalance(rs, rb)
     PROPERTIES placementReserve(u) DRAW reserve PANEL TOOLBAR
     PROPERTIES writeOffReserve(u) DRAW reserve PANEL TOOLBAR
