@@ -1,6 +1,6 @@
 MODULE SaleEInvoice;
 
-REQUIRE SaleInvoice, ConsignmentEInvoice, SaleCreditNote;
+REQUIRE SaleInvoice, ConsignmentEInvoice, SaleCreditNote, SaleImporterMarkup;
 
 NAMESPACE Sale;
 
@@ -9,6 +9,15 @@ NAMESPACE Sale;
 overSkipNumberCheck = ABSTRACT BOOLEAN (Invoice);
 
 skipNumberCheck(Invoice i) += IF (GROUP SUM 1 IF invoice(EInvoice ei) == i) OR overSkipNumberCheck(i) THEN TRUE;
+
+overCreate(EInvoiceDetail eid, ConsignmentDetail cd) +  {
+    IF cd IS Sale.InvoiceDetail AND importerMarkup[Sale.InvoiceDetail](cd) THEN NEW ief = ItemExtraField {
+        name(ief) <- 'Надбавка импортера (в процентах)';
+        code(ief) <- 'PT0027';
+        value(ief) <- toChar(importerMarkup[Sale.InvoiceDetail](cd),'FM999990.0099');
+        eInvoiceDetail(ief) <- eid;
+    }
+}
 
 creditNote = DATA CreditNote(ECreditNote) INDEXED;
 creditNoteDetail = DATA CreditNoteDetail(ECreditNoteDetail);
