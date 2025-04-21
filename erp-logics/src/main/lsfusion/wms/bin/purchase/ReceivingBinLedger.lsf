@@ -566,8 +566,6 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
     
     count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
     
-    description###primObject##s ###captionObjects (UserReceiving userReceiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY userReceiving(primObject)](userReceiving);
-    
     selectedUserReceiving 'Отм' = DATA LOCAL BOOLEAN (###primObject);
 
     in(UserReceiving o, ###primObject primObject) = userReceiving(primObject) == o;
@@ -604,14 +602,12 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
     } TOOLBAR;
     
     EXTEND FORM receiving
-        PROPERTIES(r) description###primObject##s
         OBJECTS primObject = ###primObject
         PROPERTIES(primObject) selectedUserReceiving
         PROPERTIES(primObject) READONLY isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
         PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
         ORDERS dateTime(primObject), nameSupplierStock(primObject)
         FILTERS isPosted(primObject),
-                primObject IS ###primObject AND NOT userReceiving(primObject),
                 useBins(customerStock(primObject)),
                 stock(receivingBin(u)) == customerStock(primObject),
                 use###primObject##Receiving(operation(primObject))
@@ -679,6 +675,22 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     }
 
     receiving(###primObject primObject) = OVERRIDE userReceiving(primObject), primObject##Receiving(primObject);
+    description###primObject##s ###captionObjects (Receiving receiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY receiving(primObject)](receiving);
+
+    nameStatus 'Cтатус приёмки' (###primObject primObject) = nameStatus(receiving(primObject)) CHARWIDTH 15;
+
+    EXTEND FORM receiving
+        PROPERTIES(r) description###primObject##s
+        
+        PROPERTIES(primObject) READONLY BACKGROUND RGB(255, 224, 255) nameStatus AFTER selectedUserReceiving(primObject)
+        
+        FILTERGROUP withoutReceiving
+            FILTER 'Без приёмки' primObject IS ###primObject AND NOT receiving(primObject) DEFAULT 
+    ;   
+        
+    EXTEND FORM primObject##s
+        PROPERTIES(formObject) READONLY BACKGROUND RGB(255, 224, 255) nameStatus BEFORE time(formObject)
+    ;
 
     @defineOperationProperty(create###primObject##Receiving, 'Приемка по '##captionObject, createContainer);
     createReceiving (User###primObject o) <- create###primObject##Receiving(operation(o)) WHEN CHANGED(operation(o));
