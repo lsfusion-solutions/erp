@@ -38,12 +38,12 @@ itemImport 'Импортировать' ()  {
             IMPORT XLS NOHEADER FROM f AS EXCELFILE TO idField=B, idBarcodeField=C, nameField=D, idItemGroupField=E, nameUOMField=F, idBrandField=G,
                           amountPackPurchaseField=H, amountPackSaleField=I, valueVATField=J;
             
-            FOR imported(INTEGER i) AND i > 1 AND idField(i) AND idBarcodeField(i) AND nameField(i) NEW item = Item DO {
+            FOR imported(INTEGER i) AND i > 0 AND idField(i) AND nameField(i) NEW item = Item DO {
                 caption(item) <- nameField(i);
                 id(item) <- idField(i);
                 itemGroup(item) <- itemGroup(idItemGroupField(i));
                 UOM(item) <- OVERRIDE UOM(nameUOMField(i)), UOM('шт.');
-                NEW b = Barcode {
+                IF idBarcodeField(i) THEN NEW b = Barcode {
                     id(b) <- idBarcodeField(i);
                     sku(b) <- item;
                 }
