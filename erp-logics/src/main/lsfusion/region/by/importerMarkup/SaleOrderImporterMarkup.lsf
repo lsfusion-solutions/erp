@@ -41,23 +41,28 @@ EXTEND FORM orders
 ;
 
 disableUpdateImporterMarkup= ABSTRACT VALUE BOOLEAN (UserOrderDetail);
+overImporterMarkupBatch = ABSTRACT NUMERIC[8,3] (UserOrderDetail);
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     CHANGED(batch(detail))  OR SET(showImporterMarkup(detail)))
     AND batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
-    importerMarkup (detail) <- importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
-                                        batch(detail),
-                                        supplierStock(detail),
-                                        dateTime(detail)));
+    importerMarkup (detail) <- OVERRIDE overImporterMarkupBatch(detail),
+                                        importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+                                                                                batch(detail),
+                                                                                supplierStock(detail),
+                                                                                dateTime(detail)));
 }
+
+overImporterMarkupSku = ABSTRACT NUMERIC[8,3] (UserOrderDetail);
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
     AND NOT batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
-    importerMarkup (detail) <- importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
-                                        sku(detail),
-                                        supplierStock(detail),
-                                        dateTime(detail)));
+    importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail), 
+                                        importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+                                                                                sku(detail),
+                                                                                supplierStock(detail),
+                                                                                dateTime(detail)));
 }
