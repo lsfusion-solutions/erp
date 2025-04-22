@@ -66,6 +66,8 @@ balanceA 'Остаток (после)' (Lot lot, Stock stock, DATETIME dateTime)
     (-) [GROUP SUM quantity(LotLedger ledger, Lot l) IF active(ledger) AND dateTime(ledger) > dateTime BY l, stock(ledger)](lot, stock) CHARWIDTH 7;
 prevBalanceA 'Остаток (после)' (Lot lot, Stock stock, DATETIME dateTime) = PREV(balanceA(lot, stock, dateTime) IF dateTime IS DATETIME);
 
+bgColorSkuLedgerMove = ABSTRACT CASE COLOR (Lot, SkuLedger);
+
 skipCheckCurrentBalanceLot 'Не проверять на превышение остатка КМ' = DATA BOOLEAN (Employee);
 EXTEND FORM employee
     PROPERTIES(e) skipCheckCurrentBalanceLot
@@ -108,7 +110,7 @@ EXTEND FORM lots
     PROPERTIES(l) READONLY nameBatch, currentBalance
 
     OBJECTS sl = SkuLedger
-    PROPERTIES(sl) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock, nameBatch
+    PROPERTIES(sl) READONLY date, dateTime, canonicalNameSkuGroup, nameSku, description, nameStock BACKGROUND bgColorSkuLedgerMove(l, sl), nameBatch
     PROPERTIES(sl, l) READONLY signedQuantity
     PROPERTIES(sl) EDIT SHOWIF allowedEdit(sl) NEWSESSION, show SHOWIF allowedShow(sl)
     
