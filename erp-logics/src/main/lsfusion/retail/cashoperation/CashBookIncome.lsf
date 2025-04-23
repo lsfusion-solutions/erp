@@ -15,12 +15,18 @@ filterDateFromZreport (IncomeCashOrder c) = date(c) >= filterZReportDateFrom() O
 filterDateToZreport (IncomeCashOrder c) = date(c) <= filterZReportDateTo() OR (c IS IncomeCashOrder AND NOT filterZReportDateTo());
 filterDepartmentStore (IncomeCashOrder c) = departmentStore(c) == filterZReportDepartmentStore() OR (c IS IncomeCashOrder AND NOT filterZReportDepartmentStore());
 
+skipShowEdit = ABSTRACT VALUE BOOLEAN (IncomeCashOrder);
+skipShowDelete = ABSTRACT VALUE BOOLEAN (IncomeCashOrder);
+
+showEdit (IncomeCashOrder l) = l IS IncomeCashOrder AND NOT skipShowEdit(l);
+showDelete (IncomeCashOrder l) = l IS IncomeCashOrder AND NOT skipShowDelete(l);
+
 EXTEND FORM cashBooks
     PROPERTIES(l) READONLY sumIncome
     
     OBJECTS o = IncomeCashOrder
     PROPERTIES(o) READONLY number, series, date, time, nameLegalEntity, nameDepartmentStore, basis, nameOperation, sumCash, numberCashBookList
-    PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome], EDIT, DELETE
+    PROPERTIES(o) NEWSESSION 'Изъятие наличных из ККМ' = NEW[OutcomeCashOperation], 'Приход наличных' = NEW[CashIncome], EDIT SHOWIF showEdit(o), DELETE SHOWIF showDelete(o)
 
     FILTERS filterDateFromZreport(o),
         filterDateToZreport(o),

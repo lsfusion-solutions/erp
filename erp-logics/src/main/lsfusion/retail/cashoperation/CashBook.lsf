@@ -69,13 +69,19 @@ filterZReportDepartmentStore  = DATA LOCAL DepartmentStore ();
 nameFilterZReportDepartmentStore 'Отдел магазина' = name(filterZReportDepartmentStore()) CHARWIDTH 15;
 filterDepartmentStore (CashBookList c) = departmentStore(c) == filterZReportDepartmentStore() OR (c IS CashBookList AND NOT filterZReportDepartmentStore());
 
+skipShowEdit = ABSTRACT VALUE BOOLEAN (CashBookList);
+skipShowDelete = ABSTRACT VALUE BOOLEAN (CashBookList);
+
+showEdit (CashBookList l) = l IS CashBookList AND NOT skipShowEdit(l);
+showDelete (CashBookList l) = l IS CashBookList AND NOT skipShowDelete(l);
+
 FORM cashBooks 'Кассовые книги'
     
     PROPERTIES ()  filterZReportDateFrom, filterZReportDateTo, nameFilterZReportDepartmentStore
     
     OBJECTS l = CashBookList
     PROPERTIES(l) READONLY listNumber, date, time, nameDepartmentStore, nameEmployee, note
-    PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(l) NEWSESSION NEW, EDIT SHOWIF showEdit(l), DELETE SHOWIF showDelete(l)
 
     FILTERS filterDateFromZreport(l),
         filterDateToZreport(l),
