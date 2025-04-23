@@ -202,3 +202,105 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))+'%'), ''),
             amount = invoiceSum(i)
 ;
+
+/////////------------------- ordrsp
+
+ordrspDocumentNumber = DATA LOCAL STRING[48]();
+ordrspDocumentDate = DATA LOCAL DATETIME();
+ordrspResponseType = DATA LOCAL STRING ();
+ordrspBuyerGLN = DATA LOCAL STRING[13]();
+ordrspDestinationGLN = DATA LOCAL STRING[13]();
+ordrspSupplierGLN = DATA LOCAL STRING[13]();
+ordrspOrderNumber = DATA LOCAL STRING[48]();
+ordrspDeliveryDateTimeFirst = DATA LOCAL TEXT();
+ordrspDeliveryDateTimeSecond = DATA LOCAL TEXT();
+ordrspComment = DATA LOCAL TEXT();
+ordrspGTIN = DATA LOCAL STRING[15](INTEGER);
+ordrspAction = DATA LOCAL STRING (INTEGER);
+ordrspQuantityOrdered = DATA LOCAL NUMERIC[16,5](INTEGER);
+ordrspQuantityAccepted = DATA LOCAL NUMERIC[16,5](INTEGER);
+ordrspPriceElement = DATA LOCAL NUMERIC[16,2](INTEGER);
+ordrspPriceNoNDS = DATA LOCAL NUMERIC[16,4](INTEGER);
+ordrspPriceNDS = DATA LOCAL NUMERIC[16,4](INTEGER);
+
+GROUP interchangeHeader1 EXTID 'interchangeHeader';
+GROUP orderResponse;
+GROUP originOrder1 EXTID 'originOrder' : orderResponse;
+GROUP lineItems1 EXTID 'lineItems': orderResponse;
+GROUP lineItem1 EXTID 'lineItem': lineItems1;
+GROUP orderedQuantity1 EXTID 'orderedQuantity' : lineItem1;
+GROUP confirmedQuantity1 EXTID 'confirmedQuantity' : lineItem1;
+GROUP onePlaceQuantity1 EXTID 'onePlaceQuantity' : lineItem1;
+
+
+FORM ordrspDiadoc FORMEXTID 'eDIMessage'
+    PROPERTIES() IN interchangeHeader 
+        ordrspBuyerGLN EXTID 'recipient',
+        ordrspSupplierGLN EXTID 'sender'
+    PROPERTIES() IN orderResponse 
+        ordrspDocumentNumber EXTID 'number' ATTR ,
+        ordrspDocumentDate EXTID 'date' ATTR, 
+        ordrspResponseType EXTID 'status' ATTR
+    PROPERTIES() IN originOrder1 
+        ordrspOrderNumber EXTID 'number' ATTR,
+        ordrspDeliveryDateTimeFirst EXTID 'date' ATTR
+    OBJECTS i = INTEGER EXTID 'lineItem' IN lineItems1
+    PROPERTIES(i) ordrspAction EXTID 'status',
+        ordrspGTIN EXTID 'gtin',
+        ordrspQuantityOrdered EXTID 'orderedQuantity',
+        ordrspQuantityAccepted EXTID 'confirmedQuantity',
+        ordrspPriceElement EXTID 'netPriceWithVAT',
+        ordrspPriceNoNDS EXTID 'totalSumExcludingTaxes',
+        ordrspPriceNDS EXTID 'totalAmount'
+;
+
+indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
+
+/////////------------------- desadv
+GROUP interchangeHeader2 EXTID 'interchangeHeader';
+GROUP despatchAdvice;
+GROUP originOrder2 EXTID 'originOrder' : despatchAdvice;
+GROUP lineItems2 EXTID 'lineItems': despatchAdvice;
+GROUP lineItem2 EXTID 'lineItem': lineItems2;
+GROUP orderedQuantity2 EXTID 'orderedQuantity' : lineItem2;
+GROUP despatchedQuantity1 EXTID 'despatchedQuantity' : lineItem2;
+
+desadvDocumentNumber = DATA LOCAL STRING[48]();
+desadvDocumentDate = DATA LOCAL DATETIME();
+desadvDeliveryNoteNumber = DATA LOCAL STRING[48]();
+desadvDeliveryNoteDate = DATA LOCAL DATE();
+desadvBuyerGLN = DATA LOCAL STRING[13]();
+desadvDestinationGLN = DATA LOCAL STRING[13]();
+desadvSupplierGLN = DATA LOCAL STRING[13]();
+desadvStGLN = DATA LOCAL STRING[13]();
+desadvOrderNumber = DATA LOCAL STRING[48]();
+desadvOrderDate = DATA LOCAL DATETIME();
+desadvDeliveryDateTimeFirst = DATA LOCAL DATETIME();
+desadvComment = DATA LOCAL TEXT();
+desadvGTIN = DATA LOCAL STRING[15](INTEGER);
+desadvQuantityOrdered = DATA LOCAL NUMERIC[16,5](INTEGER);
+desadvQuantityDespatch = DATA LOCAL NUMERIC[16,5](INTEGER);
+desadvVAT = DATA LOCAL NUMERIC[16,5](INTEGER);
+desadvLineItemPrice = DATA LOCAL NUMERIC[16,2](INTEGER);
+desadvLineItemAmountWithoutCharges = DATA LOCAL NUMERIC[16,4](INTEGER);
+desadvLineItemAmount = DATA LOCAL NUMERIC[16,4](INTEGER);
+desadvLineItemAmountCharges = DATA LOCAL NUMERIC[16,4](INTEGER);
+
+FORM desadvDiadoc FORMEXTID 'eDIMessage'
+    PROPERTIES() IN interchangeHeader2
+        desadvBuyerGLN EXTID 'recipient', 
+        desadvSupplierGLN EXTID 'sender'
+    PROPERTIES() IN despatchAdvice
+        desadvDocumentNumber EXTID 'number' ATTR ,
+        desadvDocumentDate EXTID 'date' ATTR
+    PROPERTIES() IN originOrder2
+        desadvOrderNumber EXTID 'number' ATTR,
+        desadvOrderDate EXTID 'date' ATTR
+    OBJECTS i = INTEGER EXTID 'lineItem' IN lineItems2
+    PROPERTIES(i) desadvGTIN EXTID 'gtin',
+        desadvQuantityOrdered EXTID 'orderedQuantity',
+        desadvQuantityDespatch EXTID 'despatchedQuantity',
+        desadvLineItemAmount EXTID 'netPriceWithVAT',
+        desadvLineItemAmountWithoutCharges EXTID 'totalSumExcludingTaxes',
+        desadvLineItemAmountCharges EXTID 'totalAmount'
+;

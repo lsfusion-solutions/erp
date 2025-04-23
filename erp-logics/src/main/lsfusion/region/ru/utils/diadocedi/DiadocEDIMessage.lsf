@@ -1,0 +1,141 @@
+MODULE DiadocEDIMessage;
+
+REQUIRE DiadocEDIOrganization, DiadocMessage;
+
+NAMESPACE DiadocEDI;
+
+CLASS Message 'Cообщения EDI';
+TABLE message (Message);
+
+messageId 'Идентификатор' = DATA STRING (Message) IN id INDEXED CHARWIDTH 10 NONULL;
+message (messageId) = GROUP AGGR Message message BY messageId(message);
+GLNsender 'GLN отправителя' = DATA STRING (Message);
+rawFile 'Файл'= DATA RAWFILE(Message);
+nameFile 'Имя файла' = DATA STRING (Message);
+dateTimeProcessed 'Дата/время обработки' = DATA DATETIME (Message);
+
+timestampTicks 'Время создания' = DATA LONG (Message);
+timestamp 'Время создания' (Message m) = fromTicksToTimestamp(timestampTicks(m));
+
+fromBox 'Ящик отправителя сообщения' = DATA Box (Message) ;
+fromBoxId 'Идентификатор ящика отправителя сообщения' (Message message) = boxId(fromBox(message)) CHARWIDTH 10;
+//fromBoxTitle 'Наименование ящика отправителя сообщения' (Message message) = title(fromBox(message)) CHARWIDTH 20;
+
+toBox 'Ящик получателя сообщения' = DATA Box (Message);
+toBoxId 'Идентификатор ящика получателя сообщения' (Message message) = boxId(toBox(message)) CHARWIDTH 10;
+//toBoxTitle 'Наименование ящика получателя сообщения' (Message message) = title(toBox(message)) CHARWIDTH 20;
+
+openXML 'Открыть XML' (Message m) {
+    open(rawFile(m));
+}
+
+
+FORM messagesEDI 'Cообщения EDI'
+    OBJECTS u = User PANEL
+    PROPERTIES(u) READONLY login
+    FILTERS u == userDiadocEDI(currentUser())
+
+    OBJECTS b = Box PANEL
+    PROPERTIES(b) title IN base SELECTOR
+
+    OBJECTS m = Message LAST
+    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile
+    PROPERTIES(m) dateTimeProcessed, openXML GRID
+    ORDERS  timestamp(m), messageId(m)
+;
+
+DESIGN messagesEDI {
+    OBJECTS {
+        NEW filters BEFORE BOX(m) {
+            horizontal = TRUE;
+            MOVE BOX(u);
+            MOVE BOX(b);
+        }
+    }
+}
+
+NAVIGATOR {
+    diadocEDI {
+        NEW messagesEDI;
+    }
+}
+
+//----------------------- События и сообщения -----------------------//
+
+GROUP events EXTID 'Events';
+GROUP eventContent EXTID 'EventContent';
+GROUP inboxMessageMeta EXTID 'InboxMessageMeta' : eventContent;
+GROUP sender EXTID 'Sender' : inboxMessageMeta;
+GROUP documentDetails EXTID 'DocumentDetails' : inboxMessageMeta;
+GROUP outboxMessageMeta EXTID 'OutboxMessageMeta' : eventContent;
+GROUP processingTimes EXTID 'ProcessingTimes' : eventContent;
+
+lastEventId = DATA LOCAL STRING();
+boxId = DATA LOCAL STRING(INTEGER);
+partyId = DATA LOCAL STRING(INTEGER);
+eventType = DATA LOCAL STRING(INTEGER);
+eventDateTime = DATA LOCAL STRING(INTEGER);
+eventId = DATA LOCAL STRING(INTEGER);
+messageId = DATA LOCAL STRING(INTEGER);
+boxId2 = DATA LOCAL STRING(INTEGER);
+documentCirculationId1 = DATA LOCAL STRING(INTEGER);
+
+FORM importEvents
+    PROPERTIES() lastEventId EXTID 'LastEventId'
+    OBJECTS events = INTEGER EXTID 'Events'
+    PROPERTIES(events) boxId EXTID 'BoxId', 
+        partyId EXTID 'PartyId', 
+        eventType EXTID 'EventType', 
+        eventDateTime EXTID 'EventDateTime', 
+        eventId EXTID 'EventId'
+    PROPERTIES(events) IN inboxMessageMeta 
+        boxId2 EXTID 'BoxId', 
+        documentCirculationId1 EXTID 'DocumentCirculationId', 
+        messageId EXTID 'MessageId';
+
+messageBody = DATA LOCAL RAWFILE();
+nameFile = DATA LOCAL STRING ();
+
+FORM importBodyFile
+    PROPERTIES() nameFile EXTID 'MessageFileName'
+    PROPERTIES() messageBody EXTID 'MessageBody'
+;
+
+getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, Box b) {
+    NEWSESSION {
+        getTokenUser(u);
+        LOCAL result = FILE ();
+        TRY {
+            EXTERNAL HTTP GET url() + '/V1/Messages/GetEvents?boxId=' + boxId(b) + (OVERRIDE '&exclusiveEventId=' + '') + '&count = 10' HEADERS httpHeadersTokenUser TO result;             
+            IMPORT importEvents JSON FROM result();
+        } CATCH {
+            fileToString(result(), 'UTF-8');
+            MESSAGE 'Ошибка получения сообщений ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+        }
+        FOR messageId(INTEGER i) AND NOT message(messageId(i)) NEW m = Message DO {
+            messageId(m) <- messageId(i);
+        }
+        FOR Message m == message(messageId(INTEGER i)) DO {
+            timestampTicks(m) <- LONG(eventDateTime(i));
+           
+            IF messageId(m) THEN {
+                LOCAL data = FILE();
+                TRY {
+                    EXTERNAL HTTP GET url() + '/V1/Messages/GetMessage?boxId=' + boxId(b) + '&messageId=' + messageId(m) HEADERS httpHeadersTokenUser TO data;
+                    IMPORT importBodyFile JSON FROM data();
+                } CATCH {
+                    fileToString(FILE(data()), 'UTF-8');
+                    MESSAGE 'Ошибка получения контента ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                }
+                rawFile(m) <- messageBody();
+                nameFile(m) <- nameFile();
+            }
+            
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM messagesEDI
+    PROPERTIES(u,b) getNewEventsEDI
+;
