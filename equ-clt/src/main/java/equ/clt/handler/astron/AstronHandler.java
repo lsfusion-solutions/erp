@@ -570,14 +570,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, updateNum, 5);
                     }
                 } else {
-                    setObject(ps, jsonObject.getInt("numberId"), 2, offset);
-                    setObject(ps, 0, 3, offset);
+                    setObject(ps, jsonObject.getInt("numberId"), 1, offset);
+                    setObject(ps, 0, 2, offset);
                     if (updateNum != null) {
-                        setObject(ps, updateNum, 4, offset);
+                        setObject(ps, updateNum, 3, offset);
                     }
 
-                    setObject(ps, jsonObject.getInt("numPropertyKey"), updateNum != null ? 5 : 4, keys.length);
-                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 6 : 5, keys.length);
+                    setObject(ps, jsonObject.getInt("numPropertyKey"), updateNum != null ? 4 : 3, keys.length);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -688,14 +688,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, updateNum, 5);
                     }
                 } else {
-                    setObject(ps, jsonObject.getInt("binaryDataId"), 2, offset);
-                    setObject(ps, 0, 3, offset);
+                    setObject(ps, jsonObject.getInt("binaryDataId"), 1, offset);
+                    setObject(ps, 0, 2, offset);
                     if (updateNum != null) {
-                        setObject(ps, updateNum, 4, offset);
+                        setObject(ps, updateNum, 3, offset);
                     }
 
-                    setObject(ps, jsonObject.getInt("binPropertyKey"), updateNum != null ? 5 : 4, keys.length);
-                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 6 : 5, keys.length);
+                    setObject(ps, jsonObject.getInt("binPropertyKey"), updateNum != null ? 4 : 3, keys.length);
+                    setObject(ps, jsonObject.getInt("propertyGrpId"), updateNum != null ? 5 : 4, keys.length);
                 }
                 ps.addBatch();
             }
@@ -756,13 +756,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             setObject(ps, updateNum, 4); //UPDATENUM
                         }
                     } else {
-                        setObject(ps, delFlag, 2, offset); //DELFLAG
+                        setObject(ps, delFlag, 1, offset); //DELFLAG
                         if (updateNum != null) {
-                            setObject(ps, updateNum, 3, offset); //UPDATENUM
+                            setObject(ps, updateNum, 2, offset); //UPDATENUM
                         }
 
-                        setObject(ps, artId, updateNum != null ? 4 : 3, keys.length); //ARTID
-                        setObject(ps, extGrpId, updateNum != null ? 5 : 4, keys.length); //EXTGRPID
+                        setObject(ps, artId, updateNum != null ? 3 : 2, keys.length); //ARTID
+                        setObject(ps, extGrpId, updateNum != null ? 4 : 3, keys.length); //EXTGRPID
                     }
                     ps.addBatch();
             }
@@ -787,13 +787,13 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         setObject(ps, updateNum, 4); //UPDATENUM
                     }
                 } else {
-                    setObject(ps, 0, 2, offset); //DELFLAG
+                    setObject(ps, 0, 1, offset); //DELFLAG
                     if (updateNum != null) {
-                        setObject(ps, updateNum, 3, offset); //UPDATENUM
+                        setObject(ps, updateNum, 2, offset); //UPDATENUM
                     }
 
-                    setObject(ps, artId, updateNum != null ? 4 : 3, keys.length); //ARTID
-                    setObject(ps, prnGrpId, updateNum != null ? 5 : 4, keys.length); //PRNGRPID
+                    setObject(ps, artId, updateNum != null ? 3 : 2, keys.length); //ARTID
+                    setObject(ps, prnGrpId, updateNum != null ? 4 : 3, keys.length); //PRNGRPID
                 }
                 ps.addBatch();
             }
