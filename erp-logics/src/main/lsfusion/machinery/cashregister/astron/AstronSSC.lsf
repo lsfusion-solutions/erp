@@ -110,19 +110,18 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
     )
 ;
 
-
 beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
     IF dataCustomGroupTypeAstron(groupMachinery(mpt)) THEN {
-        
+
         LOCAL needResize = BOOLEAN(Item);
-        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)),i) 
+        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), i)
             AND hasImage(i) AND NOT imageAstron(i);
-    
+
         IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
             FOR needResize(Item s) DO {
                 TRY {
                     resizedImage() <- NULL;
-                    resizeImage(image(s),128,128);
+                    resizeImage(image(s), 128, 128);
                     convertedImage() <- NULL;
                     convertImage(resizedImage(), 'png');
                     imageAstron(s) <- convertedImage();
@@ -134,15 +133,15 @@ beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
     }
 }
 
-loadImages 'Загрузить классификатор с картинками в Кассы'  (GroupCashRegister gtc) {
+loadImages 'Загрузить классификатор с картинками в кассы' (GroupCashRegister gtc) {
     NEWSESSION {
         createMachineryPriceTransactionSnapshot() <- TRUE;
         createMachineryPriceTransactionComment() <- 'Загрузка изображений';
-        
-        createMachineryPriceTransaction(Sku sku) <- TRUE IF customGroup(dataCustomGroupTypeAstron(gtc),sku) AND hasImage(sku);
-        exclude(GroupMachinery group) <- stock(group) == stock(gtc) AND group!=gtc;
+
+        createMachineryPriceTransaction(Sku sku) <- TRUE IF customGroup(dataCustomGroupTypeAstron(gtc), sku) AND hasImage(sku);
+        exclude(GroupMachinery group) <- stock(group) == stock(gtc) AND group != gtc;
         createMachineryPriceTransaction(stock(gtc));
-            
+
         APPLY NESTED LOCAL;
         IF canceled() THEN {
             cancel();
@@ -150,15 +149,53 @@ loadImages 'Загрузить классификатор с картинкам�
     }
 }
 
+clearBalance 'Удалить товары без остатка из пик-листа' (GroupCashRegister gcr) {
 
-EXTEND FORM groupCashRegister 
+    EXTERNAL SQL directory(gcr) EXEC 'SELECT artid, extgrpid FROM artextgrp WHERE delflag = 0' TO file;
+
+    LOCAL artid, extgrpid = INTEGER (INTEGER);
+    LOCAL item = Item (INTEGER);
+    LOCAL delete = BOOLEAN (INTEGER);
+
+    IMPORT TABLE FROM file() TO artid, extgrpid;
+
+    extgrpid(INTEGER r) <- extgrpid(r) IF GROUP SUM 1 IF id(CustomGroup g, gcr) == extgrpid(r);
+
+    FOR INTEGER(id(Item i)) == artid(INTEGER r) DO {
+        item(r) <- i;
+    }
+
+    FOR Item i == item(INTEGER r) AND id(customGroup(dataCustomGroupTypeAstron(gcr), i), gcr) == extgrpid(r) DO {
+        delete(r) <- TRUE WHERE NOT currentBalance(i, stock(gcr)) > 0 ;
+    }
+
+    LOCAL recordnum = INTEGER ();
+
+    EXTERNAL SQL directory(gcr) EXEC 'SELECT recordnum FROM datapump WHERE lower(dirname) = \'artextgrp\'' TO file;
+    IMPORT TABLE FROM file() TO () recordnum;
+
+    recordnum() <- recordnum() (+) 1;
+ 
+    LOCAL query = TEXT();
+    query() <- 'BEGIN;';
+    query() <- CONCAT'\n', query(), GROUP CONCAT ('UPDATE artextgrp SET delflag = 1, updatenum = ' + recordnum() + ' WHERE artid =' + artid(INTEGER r) + ' AND extgrpid = ' + extgrpid(r) + ';') IF delete(r), '\n' ORDER r;
+    query() <- CONCAT'\n', query(), 'UPDATE datapump SET recordnum = ' + recordnum() + ' WHERE lower(dirname) = \'artextgrp\';';
+    query() <- CONCAT'\n', query(), 'COMMIT;';
+
+    EXTERNAL SQL directory(gcr)
+        EXEC query();
+
+}
+
+EXTEND FORM groupCashRegister
     PROPERTIES (grc) testModeAstron SHOWIF sidModel(grc) == 'Astron'
-    PROPERTIES (grc) SHOWIF (sidModel(grc) == 'Astron' AND testModeAstron(grc)) nameCustomGroupTypeAstron, loadImages;
-    
+    PROPERTIES (grc) SHOWIF (sidModel(grc) == 'Astron' AND testModeAstron(grc)) nameCustomGroupTypeAstron, loadImages, clearBalance;
+
 DESIGN groupCashRegister{
     topContainer{
         MOVE PROPERTY (testModeAstron(grc));
         MOVE PROPERTY (nameCustomGroupTypeAstron(grc));
         MOVE PROPERTY (loadImages(grc));
+        MOVE PROPERTY (clearBalance(grc));
     }
 }
