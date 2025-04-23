@@ -1,24 +1,28 @@
 MODULE SaleOrderPickingOrderBinLedger;
 
-REQUIRE SalePickingOrder, PickingOrderBinLedger, BatchBinSkuLedger, BinOrderBinLedger;
+REQUIRE SalePickingOrder, SaleOrderBrestPharm, PickingOrderBinLedger, BatchBinSkuLedger, BinOrderBinLedger;
 
 NAMESPACE Sale;
 
 createUserPickingOrder 'Заказ на комплектацию'(Order o) {
     NEWSESSION {
-        LOCAL quantityLoc = NUMERIC[16,5](OrderDetail, Bin);
+        LOCAL quantityLoc = NUMERIC[16,5](Batch, Bin);
+        LOCAL quantityLoc = NUMERIC[16,5](Batch);
 
         IF quantityOrderDetail(o) THEN NEW p = UserPickingOrder {
             order(p) <- o;
             stock(p) <- supplierStock(o);
-            quantityLoc (OrderDetail d, Bin b) <- PARTITION UNGROUP quantity[OrderDetail] LIMIT currentBalance(batch(d), b) ORDER currentBalance(batch(d), b) BY d
-                WHERE order(d) = o AND stock(b) = supplierStock(o);
-            FOR quantityLoc(OrderDetail d, Bin b) AND order(d) = o AND batch(d) DO NEW pd = UserPickingOrderDetail {
+
+            quantityLoc(Batch bt) <- [GROUP SUM quantity(OrderDetail d) BY batch(d), order(d)](bt, o);
+            quantityLoc (Batch bt, Bin b) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, b) ORDER currentBalance(bt, b) BY bt
+                WHERE binGroup2(b) = binZone(o);
+
+            FOR quantityLoc(Batch bt, Bin b) DO NEW pd = UserPickingOrderDetail {
                 pickingOrder(pd) <- p;
-                sku(pd) <- sku(d);
-                batch(pd) <- batch(d);
+                sku(pd) <- sku(bt);
+                batch(pd) <- bt;
                 outBin(pd) <- b;
-                quantity(pd) <- quantityLoc(d, b);
+                quantity(pd) <- quantityLoc(bt, b);
             }
         }
         SHOW userPickingOrder;
