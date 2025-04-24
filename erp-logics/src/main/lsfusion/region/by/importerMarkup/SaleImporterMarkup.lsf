@@ -27,6 +27,9 @@ DESIGN userInvoice {
 
 // -- Операция
 @defineOperationProperty(showImporterMarkup, 'Надбавка импортера', showContainer);
+
+@defineOperationProperty(disableUpdateImporterMarkup, 'Отключить стандартное заполнение Надбавки импортера', paramsContainer);
+
 @deriveDocumentOperationProperty(UserInvoice, showImporterMarkup);
 
 
@@ -42,13 +45,14 @@ EXTEND FORM invoices
     PROPERTIES (d) READONLY importerMarkup AFTER price(d)  SHOWIF showImporterMarkup(d)
 ;
 
-disableUpdateImporterMarkup= ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
+disableUpdateImporterMarkup = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 overImporterMarkupBatch = ABSTRACT NUMERIC[8,3] (UserInvoiceDetail);
 
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-    CHANGED(batch(detail))  OR SET(showImporterMarkup(detail)))
-    AND batch(detail) AND priceBatchLedger(supplierStock(detail)) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    CHANGED(batch(detail)) OR SET(showImporterMarkup(detail)))
+    AND batch(detail) AND priceBatchLedger(supplierStock(detail)) AND NOT CHANGED(importerMarkup(detail)) AND showImporterMarkup(detail)
+    AND NOT disableUpdateImporterMarkup(detail) AND NOT disableUpdateImporterMarkup(operation(detail)) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupBatch(detail),
                                         importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
                                                                                 batch(detail),
@@ -60,7 +64,8 @@ overImporterMarkupSku = ABSTRACT NUMERIC[8,3] (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
-    AND NOT (batch(detail) AND priceBatchLedger(supplierStock(detail))) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    AND NOT (batch(detail) AND priceBatchLedger(supplierStock(detail))) AND NOT CHANGED(importerMarkup(detail)) AND showImporterMarkup(detail) 
+    AND NOT disableUpdateImporterMarkup(detail) AND NOT disableUpdateImporterMarkup(operation(detail)) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail),
                                         importerMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
                                                                                 sku(detail),
