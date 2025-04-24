@@ -753,7 +753,7 @@ FORM importUPD FORMEXTID 'Файл'
 
 showCreateDocument(Document d) += WHEN (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN TRUE;
 
-overIdSku = ABSTRACT STRING[100](STRING[100], STRING[100]);
+overFillIdSku ABSTRACT (UpdDocumentDetail, STRING[100], STRING[100]);
 
 createDocument(Document d) + {
     IF (typeNamedId(d) == 'UniversalTransferDocument' OR typeNamedId(d) == 'UniversalTransferDocumentRevision') AND NOT updDocument(d) THEN NEWSESSION {
@@ -848,7 +848,8 @@ createDocument(Document d) + {
                 GTIN(dd) <- STRING[14](vGTIN(i));
                 
                 FOR vsviedTovVinfPolFKhZh2(INTEGER k) = i AND lower(identif(k)) = 'штрихкод' DO {
-                    idSku(dd) <- vinfPolFKhZh3(k);
+                    idSku(dd) <- IF lower(identif(k)) = 'штрихкод' THEN vinfPolFKhZh3(k);
+                    overFillIdSku(dd, identif(k), vinfPolFKhZh3(k));
                 }
                 
                 FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i AND videntTransUpak(j) NEW pd = UpdTransportPackDetail DO {
