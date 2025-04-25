@@ -16,7 +16,8 @@ invoice = DATA Invoice (MultiRatePayment) NONULL DELETE;
 date 'Дата' = DATA DATE(MultiRatePayment);
 sum 'Сумма' = DATA NUMERIC[18,4](MultiRatePayment);
 
-rateExchange 'Курс'(MultiRatePayment p) = rateOn(typeExchange(invoice(p)), currency(invoice(p)), date(p));
+dataRateExchange 'Курс' = DATA NUMERIC[20,13](MultiRatePayment);
+rateExchange 'Курс'(MultiRatePayment p) = OVERRIDE dataRateExchange(p), rateOn(typeExchange(invoice(p)), currency(invoice(p)), date(p));
 
 sumPayments  = GROUP SUM sum(MultiRatePayment p) BY invoice(p);
 CONSTRAINT sumInvoiceDetail(Invoice i) < sumPayments(i) MESSAGE 'Сумма платежей больше, чем сумма накладной';
@@ -68,6 +69,12 @@ calcRateExchangeMultiBySum(UserInvoice i, MultiRatePayment p)  {
     calcRateExchangeMulti(i); 
 }
 
+calcRateExchangeMultiByRate(UserInvoice i, MultiRatePayment p)  {
+    INPUT s = NUMERIC[20,13] DO
+        dataRateExchange(p) <- s;
+    calcRateExchangeMulti(i);
+}
+
 WHEN LOCAL FORMS userInvoice CHANGED (rateExchange(UserInvoice i)) AND isMultiRate(i) DO {
     calcRateExchangeMulti(i);
 }
@@ -84,7 +91,7 @@ EXTEND FORM userInvoice
     
     OBJECTS p = MultiRatePayment
     PROPERTIES(p) SHOWIF isMultiRate(i) date ON CHANGE calcRateExchangeMultiByDate(i,p), sum BACKGROUND backgroundHomeCurrency(i) ON CHANGE calcRateExchangeMultiBySum(i,p)   
-    PROPERTIES(p) SHOWIF isMultiRate(i) rateExchange, NEW, DELETE GRID
+    PROPERTIES(p) SHOWIF isMultiRate(i) rateExchange ON CHANGE calcRateExchangeMultiByRate(i,p) BACKGROUND RGB(255,100,100) IF dataRateExchange(p), NEW, DELETE GRID
     FILTERS invoice(p) = i    
 ;
     
