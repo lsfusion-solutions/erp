@@ -558,6 +558,8 @@ public class TerminalServer extends MonitorServer {
 
                                                 String imageBase64 = line.length <= 17 ? null : formatValue(line[17]);
                                                 RawFileData imageDocumentDetail = imageBase64 != null ? new RawFileData(Base64.decodeBase64(imageBase64)) : null;
+    
+                                                String unitLoad = line.length <= 18 ? null : formatValue(line[18]);
                                                 
                                                 List<Object> list = new ArrayList<>();
                                                 list.add(idDocument);
@@ -590,6 +592,7 @@ public class TerminalServer extends MonitorServer {
                                                 list.add(ana1DocumentDetail);
                                                 list.add(ana2DocumentDetail);
                                                 list.add(imageDocumentDetail);
+                                                list.add(unitLoad);
                                                 
                                                 terminalDocumentDetailList.add(list);
                                                 

@@ -1441,6 +1441,10 @@ public class DefaultTerminalHandler {
                     ImportField imageTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("image[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(imageTerminalDocumentDetailField, terminalHandlerLM.findProperty("image[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(imageTerminalDocumentDetailField);
+    
+                    ImportField unitLoadTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("unitLoad[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(unitLoadTerminalDocumentDetailField, terminalHandlerLM.findProperty("unitLoad[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(unitLoadTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
