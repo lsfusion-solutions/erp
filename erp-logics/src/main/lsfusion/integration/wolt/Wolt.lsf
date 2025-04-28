@@ -1,6 +1,6 @@
 MODULE Wolt;
 
-REQUIRE SaleInternetOrder, Pricing, ItemInternet, SkuLedger;
+REQUIRE SaleInternetPicking, Pricing, ItemInternet, SkuLedger;
 
 NAMESPACE Wolt;
 
@@ -17,6 +17,8 @@ data = JSON FROM data = JSON FROM data(Item i) WHERE in(i);
 
 woltOnline = ABSTRACT CASE BOOLEAN (Item, DepartmentStore);
 
+woltCarrier = carrier('wolt');
+
 woltGroupType = DATA CustomGroupType ();
 nameWoltGroupType 'Классификатор Wolt' = name(woltGroupType());
 skipDefaultOnline = ABSTRACT BOOLEAN ();
@@ -28,10 +30,11 @@ woltOnline(Item i, DepartmentStore ds) += WHEN i IS Item AND ds IS DepartmentSto
 loginMenuApi 'Login(menu api)' = DATA STRING ();
 passwordMenuApi 'Password(menu api)' = DATA STRING ();
 tokenOrderApi 'Token order API' = DATA STRING ();
+disableAutoSendPicked 'Не отправлять собранные заказы' = DATA BOOLEAN ();
 
 
 EXTEND FORM integrationData
-    PROPERTIES () loginMenuApi, passwordMenuApi, nameWoltGroupType, tokenOrderApi
+    PROPERTIES () loginMenuApi, passwordMenuApi, nameWoltGroupType, tokenOrderApi, disableAutoSendPicked
 ;
 
 DESIGN integrationData{
@@ -42,11 +45,13 @@ DESIGN integrationData{
             MOVE PROPERTY (passwordMenuApi());
             MOVE PROPERTY (tokenOrderApi());
             MOVE PROPERTY (nameWoltGroupType());
+            MOVE PROPERTY (disableAutoSendPicked());
         }
     }
 }
 
 venueId 'Venue ID Wolt' = DATA STRING (DepartmentStore);
+venue (STRING id) = GROUP MAX DepartmentStore ds BY venueId(ds);
 
 updateItems 'Обновить товары' (DepartmentStore ds){
     exportJSON() <- JSON FROM data = JSON FROM value = data(Item.Item ii) WHERE Wolt.in(ii);
@@ -58,6 +63,7 @@ updateItems 'Обновить товары' (DepartmentStore ds){
     headers('Authorization') <- 'Basic ' + encodedBase64();
     
     TRY{
+        timeoutHttp() <- 30000;
         EXTERNAL HTTP PATCH 'https://pos-integration-service.development.dev.woltapi.com/venues/' + venueId(ds) + '/items ' HEADERS headers PARAMS exportJSON() TO f;
     }
     CATCH{
@@ -77,6 +83,7 @@ updateInventory 'Обновить остатки' (DepartmentStore ds){
     headers('Authorization') <- 'Basic ' + encodedBase64();
 
     TRY{
+        timeoutHttp() <- 30000;
         EXTERNAL HTTP PATCH 'https://pos-integration-service.wolt.com/venues/' + venueId(ds) + '/items/inventory' HEADERS headers PARAMS exportJSON() TO f;
     }
     CATCH{
@@ -112,10 +119,314 @@ DESIGN internetCatalogs{
 
 //заказы
 
+resourceUrl = DATA STRING (InternetOrder);
+
+GROUP order;
+
+created_at = DATA LOCAL ZDATETIME();
+type = DATA LOCAL STRING();
+resource_url = DATA LOCAL STRING();
+id = DATA LOCAL STRING();
+venue_id = DATA LOCAL STRING();
+status = DATA LOCAL STRING();
+
+FORM orderNotification
+    PROPERTIES() created_at, type
+    PROPERTIES() IN order resource_url, id, venue_id, status;
+
+
+
+//форма заказа
+
+rowNumber = DATA INTEGER (InternetOrderDetail);
+
+GROUP venue;
+GROUP delivery;
+GROUP fee : delivery;
+GROUP price;
+GROUP total_price;
+GROUP substitution_settings;
+GROUP unit_price;
+GROUP base_price;
+GROUP category;
+GROUP pre_order;
+GROUP weight_details;
+
+consumer_phone_number = DATA LOCAL STRING();
+external_venue_id = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+small_order_surcharge = DATA LOCAL STRING();
+amount = DATA LOCAL NUMERIC();
+currency = DATA LOCAL STRING();
+location = DATA LOCAL STRING();
+time = DATA LOCAL STRING();
+self_delivery = DATA LOCAL STRING();
+order_number = DATA LOCAL STRING();
+loyalty_card_number = DATA LOCAL STRING();
+pre_order = DATA LOCAL STRING();
+cash_payment = DATA LOCAL STRING();
+type1 = DATA LOCAL STRING();
+pickup_eta = DATA LOCAL STRING();
+company_tax_id = DATA LOCAL STRING();
+order_status = DATA LOCAL STRING();
+attribution_id = DATA LOCAL STRING();
+consumer_name = DATA LOCAL STRING();
+amount1 = DATA LOCAL NUMERIC();
+currency1 = DATA LOCAL STRING();
+id1 = DATA LOCAL STRING();
+consumer_comment = DATA LOCAL STRING();
+modified_at = DATA LOCAL STRING();
+gtin = DATA LOCAL STRING(INTEGER);
+amount2 = DATA LOCAL NUMERIC(INTEGER);
+currency2 = DATA LOCAL STRING(INTEGER);
+is_allowed = DATA LOCAL STRING(INTEGER);
+item_type = DATA LOCAL STRING(INTEGER);
+count = DATA LOCAL NUMERIC(INTEGER);
+amount3 = DATA LOCAL NUMERIC(INTEGER);
+currency3 = DATA LOCAL STRING(INTEGER);
+weight_details = DATA LOCAL STRING(INTEGER);
+weight_in_grams = DATA LOCAL NUMERIC (INTEGER);
+
+pos_id = DATA LOCAL STRING(INTEGER);
+options = DATA LOCAL STRING(INTEGER);
+itemsOptions = DATA LOCAL INTEGER(INTEGER);
+amount4 = DATA LOCAL NUMERIC(INTEGER);
+currency4 = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+deposit = DATA LOCAL STRING(INTEGER);
+id2 = DATA LOCAL STRING(INTEGER);
+row_number = DATA LOCAL NUMERIC(INTEGER);
+sku = DATA LOCAL STRING(INTEGER);
+name2 = DATA LOCAL STRING(INTEGER);
+id3 = DATA LOCAL STRING(INTEGER);
+preorder_time = DATA LOCAL STRING();
+
+FORM getOrder
+    PROPERTIES() consumer_phone_number, order_number, loyalty_card_number, created_at, 
+        pre_order, cash_payment, type1 EXTID 'type', pickup_eta, company_tax_id, 
+        order_status, attribution_id, consumer_name, id1 EXTID 'id', consumer_comment, modified_at
+    PROPERTIES() IN pre_order preorder_time
+    PROPERTIES() IN venue external_venue_id, name, id
+    PROPERTIES() IN delivery small_order_surcharge, location, time, type, self_delivery, status
+    PROPERTIES() IN fee amount, currency
+    PROPERTIES() IN price amount1 EXTID 'amount', currency1 EXTID 'currency'
+
+    OBJECTS items = INTEGER
+    PROPERTIES(items) gtin, item_type, count, pos_id, name1 EXTID 'name', deposit, 
+        id2 EXTID 'id', row_number, sku
+    PROPERTIES IN weight_details weight_in_grams(items)
+    PROPERTIES(items) IN total_price amount2 EXTID 'amount', currency2 EXTID 'currency'
+    PROPERTIES(items) IN substitution_settings is_allowed
+    PROPERTIES(items) IN unit_price amount3 EXTID 'amount', currency3 EXTID 'currency'
+    FILTERS imported(items)
+    
+    OBJECTS options = INTEGER
+    PROPERTIES(options) options EXTID 'value'
+    FILTERS imported(options)
+    FILTERS itemsOptions(options) == items
+    PROPERTIES(items) IN base_price amount4 EXTID 'amount', currency4 EXTID 'currency'
+    PROPERTIES(items) IN category name2 EXTID 'name', id3 EXTID 'id'
+;
+
+weight = DATA NUMERIC (InternetOrderDetail);
+count = DATA NUMERIC (InternetOrderDetail);
+
+importOrder(FILE f){
+    NEWSESSION{
+        IMPORT getOrder JSON FROM f;
+
+        FOR STRING id = id1() AND NOT internetOrder(id) NEW o = InternetOrder DO{
+            id(o) <- id;
+        }
+
+        FOR STRING id = id1() AND InternetOrder o = internetOrder(id) DO{
+            isPosted(o) <- TRUE;
+            number(o) <- STRING[48](order_number());
+            supplierStock(o) <- venue(id());
+            carrier(o) <- woltCarrier();
+            nameInternetCustomer(o) <- STRING[255](consumer_name());
+            phoneInternetCustomer(o) <- STRING[100](consumer_phone_number());
+            dateTime(o) <- DATETIME(created_at());
+            customerComment(o) <- consumer_comment();
+            IF preorder_time() THEN{
+                deliveryDate(o) <- DATE(preorder_time());
+                deliveryTimeFromInternetOrder(o) <- TIME(DATETIME(preorder_time()));
+            }
+        }
+
+        FOR [GROUP MAX INTEGER i BY id1() + row_number(i)](STRING idDetail) AND NOT internetOrderDetail(idDetail)
+            AND InternetOrder o = internetOrder(id1()) NEW d = InternetOrderDetail DO{
+
+            id(d) <- idDetail;
+            internetOrder(d) <- o;
+        }
+
+        FOR INTEGER x = [GROUP MAX INTEGER i BY id1() + row_number(i)](STRING idDetail) AND InternetOrderDetail d = internetOrderDetail(idDetail)
+            AND InternetOrder o = internetOrder(id1()) DO{
+
+            rowNumber(d) <- row_number(x);
+            sku(d) <- sku(id2(x));
+            weight(d) <- weight_in_grams(x) * 1000;
+            count(d) <- count(x);
+            quantity(d) <- IF weight_in_grams(x) THEN round3(weight_in_grams(x) / 1000) ELSE count(x);
+            price(d) <- round2(amount4(x) / 100);
+
+        }
+        APPLY;
+    }
+}
+
+getInfoOrder 'Обновить заказ' (InternetOrder o){
+    LOCAL headers = STRING (STRING);
+    headers('WOLT-API-KEY') <- tokenOrderApi();
+    
+    LOCAL response = FILE();
+    IF resourceUrl(o) OR id(o) THEN{
+        
+        LOCAL url = STRING();
+        IF resourceUrl(o) THEN url() <- resourceUrl(o);
+        ELSE url() <- 'https://pos-integration-service.development.dev.woltapi.com/orders/' + id(o);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP GET url() HEADERS headers TO response;
+        importOrder(response());
+        
+    } ELSE{
+        MESSAGE 'Неизвестен id заказа';
+    }
+}
+
+
 wolt_webhook(FILE f){
     LOCAL params = STRING ();
     params() <- GROUP CONCAT (params(STRING s) + ' : ' + s), ' - ' ORDER s;
     IF params() THEN logToFile('wolt', 'params -' + params());
     logToFile('wolt', f);
+
+    IMPORT orderNotification JSON FROM f;
+    IF id() THEN{
+        FOR STRING id = id() AND NOT internetOrder(id) NEW o = InternetOrder DO{
+            id(o) <- id;
+        }
+        FOR STRING id = id() AND InternetOrder o = internetOrder(id) DO{
+            resourceUrl(o) <- resource_url();
+            CASE 
+                WHEN status() = 'CANCELED' THEN status(o) <- StatusInternetOrder.closed;
+                WHEN status() = 'DELIVERED' THEN status(o) <- StatusInternetOrder.delivered;
+        }
+        APPLY;
+    }
+    NEWSESSION{
+        IMPORT orderNotification JSON FROM f;
+        getInfoOrder(internetOrder(id()));
+    } 
+
     exportJSON() <- JSON FROM result = 'ok';
+}
+
+
+acceptOrder 'Принять' (InternetOrder o){
+    LOCAL headers = STRING (STRING);
+    headers('WOLT-API-KEY') <- tokenOrderApi();
+
+    LOCAL response = FILE();
+    IF resourceUrl(o) OR id(o) THEN{
+
+        LOCAL url = STRING();
+        IF resourceUrl(o) THEN url() <- resourceUrl(o);
+        ELSE url() <- 'https://pos-integration-service.development.dev.woltapi.com/orders/' + id(o);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP PUT url() + '/accept' HEADERS headers TO response;
+    }
+}
+
+markOrderReady 'Пометить готовым' (InternetOrder o){
+    LOCAL headers = STRING (STRING);
+    headers('WOLT-API-KEY') <- tokenOrderApi();
+
+    LOCAL response = FILE();
+    IF resourceUrl(o) OR id(o) THEN{
+
+        LOCAL url = STRING();
+        IF resourceUrl(o) THEN url() <- resourceUrl(o);
+        ELSE url() <- 'https://pos-integration-service.development.dev.woltapi.com/orders/' + id(o);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP PUT url() + '/ready' HEADERS headers TO response;
+    }
+}
+
+markDelivered 'Доставлен' (InternetOrder o){
+    LOCAL headers = STRING (STRING);
+    headers('WOLT-API-KEY') <- tokenOrderApi();
+
+    LOCAL response = FILE();
+    IF resourceUrl(o) OR id(o) THEN{
+
+        LOCAL url = STRING();
+        IF resourceUrl(o) THEN url() <- resourceUrl(o);
+        ELSE url() <- 'https://pos-integration-service.development.dev.woltapi.com/orders/' + id(o);
+        timeoutHttp() <- 30000;
+        EXTERNAL HTTP PUT url() + '/delivered' HEADERS headers TO response;
+    }
+}
+
+
+FORM updateList
+    OBJECTS item_changes = InternetOrderDetail
+    PROPERTIES(item_changes) rowNumber EXTID 'row_number'
+
+    OBJECTS replacement_items = InternetOrderDetail
+    PROPERTIES = IF weight(replacement_items) AND pickingQuantity(replacement_items) 
+        THEN count(replacement_items) ELSE 
+        OVERRIDE pickingQuantity(replacement_items), 0 EXTID 'count', 
+        = IF is(replacement_items) AND weight(replacement_items) THEN pickingQuantity(replacement_items) * 1000 EXTID 'weight',
+        = IF is(replacement_items) AND NOT weight(replacement_items) THEN 'count-change-replacement' EXTID 'replacement_type',
+        = IF is(replacement_items) AND weight(replacement_items) THEN 'weight-change-replacement' EXTID 'replacement_type'
+    FILTERS replacement_items = item_changes
+;
+
+dateTimeUpdated 'Дата и время обновления заказа' = DATA DATETIME (InternetOrder);
+
+itemChange 'Обновить состав заказа' (InternetOrder o){
+    LOCAL headers = STRING (STRING);
+    headers('WOLT-API-KEY') <- tokenOrderApi();
+
+    LOCAL response = FILE();
+    IF resourceUrl(o) OR id(o) THEN
+        {
+
+        LOCAL url = STRING();
+        IF resourceUrl(o) THEN url() <- resourceUrl(o);
+        ELSE url() <- 'https://pos-integration-service.development.dev.woltapi.com/orders/' + id(o);
+        
+        IF (GROUP SUM 1 IF internetOrder(InternetOrderDetail d) = o AND pickingQuantity(d) != quantity(d)) AND NOT dateTimeUpdated(o) THEN{
+            EXPORT updateList FILTERS internetOrder(item_changes) = o AND pickingQuantity(item_changes) != quantity(item_changes) JSON;
+            timeoutHttp() <- 30000;
+            EXTERNAL HTTP PUT url() + '/replace-items' HEADERS headers PARAMS exportFile() TO response;
+            dateTimeUpdated(o) <- currentDateTime();
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES getInfoOrder(o), markOrderReady(o), acceptOrder(o), markDelivered(o), itemChange(o), dateTimeUpdated(o) READONLY 
+;
+
+DESIGN internetOrders{
+    actionContainer{
+        NEW wolt{
+            showIf = carrier(o) = woltCarrier();
+            caption = 'Wolt';
+            MOVE PROPERTY (getInfoOrder(o));
+            MOVE PROPERTY (acceptOrder(o));
+            MOVE PROPERTY (markOrderReady(o));
+            MOVE PROPERTY (markDelivered(o));
+            MOVE PROPERTY (itemChange(o));
+        }
+    }
+}
+
+WHEN SETCHANGED(status(InternetOrder o)) AND status(o) = StatusInternetOrder.picked AND carrier(o) = woltCarrier() AND NOT disableAutoSendPicked() DO{
+    itemChange(o);
+    markOrderReady(o);
 }
