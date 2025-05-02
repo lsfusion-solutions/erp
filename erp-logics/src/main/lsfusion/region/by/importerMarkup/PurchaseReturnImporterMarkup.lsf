@@ -47,7 +47,7 @@ overImporterMarkupBatch = ABSTRACT NUMERIC[8,3] (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     CHANGED(batch(detail))  OR SET(showImporterMarkup(detail)))
-    AND batch(detail) AND priceBatchLedger(supplierStock(detail)) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    AND batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupBatch(detail),
                                         prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
                                                                                     batch(detail),
@@ -59,7 +59,7 @@ overImporterMarkupSku = ABSTRACT NUMERIC[8,3] (UserInvoiceDetail);
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
-    AND NOT (batch(detail) AND priceBatchLedger(supplierStock(detail))) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
+    AND NOT batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail),
                                         prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
                                                                                     sku(detail),
