@@ -28,7 +28,10 @@ public class EQSSettings implements Serializable{
 
     //Коды признака оплаты кастомными типами платежей через запятую.
     private String customPayments;
-
+    
+    //Пропустить выгрузку признак и тип маркировки
+    private Boolean skipLotType = true;
+    
     public EQSSettings() {
     }
 
@@ -81,4 +84,13 @@ public class EQSSettings implements Serializable{
     public void setCustomPayments(String customPayments) {
         this.customPayments = customPayments;
     }
+    
+    public Boolean getSkipLotType() {
+        return skipLotType;
+    }
+    
+    public void setSkipLotType(Boolean skipLotType) {
+        this.skipLotType = skipLotType;
+    }
+    
 }

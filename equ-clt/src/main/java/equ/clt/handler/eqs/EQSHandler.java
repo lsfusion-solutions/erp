@@ -8,6 +8,8 @@ import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.math.BigDecimal;
@@ -89,7 +91,12 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
     }
 
     private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean appendBarcode, boolean skipIdDepartmentStore) throws SQLException {
+        
         if (transaction.itemsList != null) {
+    
+            EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
+            boolean skipLotType = eqsSettings != null && eqsSettings.getSkipLotType() != null && eqsSettings.getSkipLotType();
+            
             PreparedStatement ps = null;
             try {
                 if(transaction.snapshot) {
@@ -103,12 +110,27 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     }
                 }
                 conn.setAutoCommit(false);
-                ps = conn.prepareStatement(
-                        "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale)" +
-                                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
-                                " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
-                                " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
-                                " energvalue=VALUES(energvalue), qty=VALUES(qty), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)");
+                
+                String sql;
+                
+                if (skipLotType) {
+                    sql =
+                            "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale)" +
+                                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                                    " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
+                                    " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
+                                    " energvalue=VALUES(energvalue), qty=VALUES(qty), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)";
+                }
+                else {
+                    sql =
+                            "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale, lottype)" +
+                                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+                                    " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
+                                    " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
+                                    " energvalue=VALUES(energvalue), qty=VALUES(qty), lottype=VALUES(lottype), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)";
+                }
+                
+                ps = conn.prepareStatement(sql);
 
                 for (CashRegisterItem item : transaction.itemsList) {
                     String[] splittedDescription = item.description != null ? item.description.split("@@") : null;
@@ -121,8 +143,27 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
                     ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
+    
+                    String lottype = null;
+                    JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
+                    if (extraInfo != null) {
+                        if (extraInfo.has("ukz")) {
+                            lottype = "ukz";
+                        } else if (extraInfo.has("lottype")) {
+                            lottype = extraInfo.getString("lottype");
+                        }
+                    }
+                    
                     //если lsf flag 16 не установлен, то пишем флаг 32
-                    ps.setInt(7, (item.flags != null && ((item.flags & 16) == 0) ? 32 : 0) + (item.splitItem ? 1 : 0)); //flags, Флаги - бит 0 - разрешение дробного количества
+                    long flags = (item.flags != null && ((item.flags & 16) == 0) ? 32 : 0) + (item.splitItem ? 1 : 0);
+                    BitSet bitsFlags = BitSet.valueOf(new long[]{flags});
+                    
+                    if (!StringUtils.isEmpty(lottype))
+                        bitsFlags.set(3);
+    
+                    flags = bitsFlags.toLongArray()[0];
+                    
+                    ps.setLong(7, flags);  //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, localDateToSqlDate(item.expiryDate)); //exp, Срок годности
                     ps.setInt(10, item.passScalesItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
@@ -133,6 +174,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     ps.setInt(15, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                     ps.setLong(16, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
                     ps.setLong(17, 9223372036854775807L); //UpdScale, Флаг обновления* весов
+                    if (!skipLotType)
+                        ps.setString(18, lottype);
                     ps.addBatch();
                 }
 
@@ -146,7 +189,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
             }
         }
     }
-
+    
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         if (!stopListInfo.exclude) {
