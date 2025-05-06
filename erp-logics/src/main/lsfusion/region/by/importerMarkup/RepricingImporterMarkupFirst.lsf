@@ -9,6 +9,8 @@ nameOperationLegalEntityAll 'Операция переоценка (надбав
 
 createRepricingLegalEntityAllOver  ABSTRACT LIST ( UserRepricing);
 
+repricingImporterMarkupFirstWithoutBalance = DATA BOOLEAN ();
+
 createRepricingLegalEntityAll 'Создать переоценки (надбавка импортера)' (){
     IF operationLegalEntityAll() THEN {
         LOCAL NESTED dt = DATETIME ();
@@ -26,7 +28,7 @@ createRepricingLegalEntityAll 'Создать переоценки (надбав
         }
 
         LOCAL NESTED to = BOOLEAN (Sku, DepartmentStore);
-        to (Sku s, DepartmentStore ds) <- detail(s, legalEntity(ds)) AND NOT iMarkup(s, ds) AND active(ds);
+        to (Sku s, DepartmentStore ds) <- detail(s, legalEntity(ds)) AND NOT iMarkup(s, ds) AND active(ds) AND (currentBalance(s, ds) OR repricingImporterMarkupFirstWithoutBalance());
 
         LOCAL NESTED limitPrice = NUMERIC[16,4] (Sku, DepartmentStore);
 
