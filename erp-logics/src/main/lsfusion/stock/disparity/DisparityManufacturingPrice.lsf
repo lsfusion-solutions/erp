@@ -26,6 +26,11 @@ afterInputManufacturingPrice(UserDisparityDetail detail) <- curInputManufacturin
 @deriveDocumentDetailSumPrefix(userDisparity, afterInputManufacturing, currency, inputQuantity);
 
 showIfManufacturingPrice= ABSTRACT CASE BOOLEAN (DisparityDetail);
+ 
+skipReadOnlyManufacturingPriceB = ABSTRACT CASE BOOLEAN (DisparityDetail);
+skipReadOnlyManufacturingPriceA = ABSTRACT CASE BOOLEAN (DisparityDetail);
+readOnlyIfManufacturingPriceB(DisparityDetail d) = d IS DisparityDetail AND NOT skipReadOnlyManufacturingPriceB(d);
+readOnlyIfManufacturingPriceA(DisparityDetail d) = d IS DisparityDetail AND NOT skipReadOnlyManufacturingPriceA(d);
 
 backgroundCurInputManufacturingPrice= ABSTRACT CASE COLOR (DisparityDetail);
 overCurInputManufacturingPrice  ABSTRACT LIST (UserDisparityDetail);
@@ -48,11 +53,11 @@ changeAfterInputManufacturingPrice(UserDisparityDetail disparityDetail)  {
 EXTEND FORM disparity
     PROPERTIES(d)  AFTER inputSum(d)
                    curInputManufacturingPrice ON CHANGE changeCurInputManufacturingPrice(d) 
-                   BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
-                   curInputManufacturingSum BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d) READONLYIF readOnlyIfManufacturingPriceB(d),
+                   curInputManufacturingSum BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d) READONLYIF readOnlyIfManufacturingPriceB(d),
                    afterInputManufacturingPrice ON CHANGE changeAfterInputManufacturingPrice(d) 
-                   BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
-                   afterInputManufacturingSum BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d)                   
+                   BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d) READONLYIF readOnlyIfManufacturingPriceA(d),
+                   afterInputManufacturingSum BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d) READONLYIF readOnlyIfManufacturingPriceA(d)                 
                    
 ;
 EXTEND FORM disparities
