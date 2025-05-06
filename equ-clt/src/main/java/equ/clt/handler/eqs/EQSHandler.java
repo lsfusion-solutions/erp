@@ -156,12 +156,13 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     
                     //если lsf flag 16 не установлен, то пишем флаг 32
                     long flags = (item.flags != null && ((item.flags & 16) == 0) ? 32 : 0) + (item.splitItem ? 1 : 0);
-                    BitSet bitsFlags = BitSet.valueOf(new long[]{flags});
                     
-                    if (!StringUtils.isEmpty(lottype))
-                        bitsFlags.set(3);
+                    //BitSet bitsFlags = BitSet.valueOf(new long[]{flags});
+                    
+                    //if (!StringUtils.isEmpty(lottype))
+                    //    bitsFlags.set(3);
     
-                    flags = bitsFlags.toLongArray()[0];
+                    //flags = bitsFlags.toLongArray()[0];
                     
                     ps.setLong(7, flags);  //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
