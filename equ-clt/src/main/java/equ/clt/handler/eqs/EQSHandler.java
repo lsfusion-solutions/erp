@@ -113,22 +113,22 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                 
                 String sql;
                 
-                if (skipLotType) {
+//                if (skipLotType) {
                     sql =
                             "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale)" +
                                     " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
                                     " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
                                     " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
                                     " energvalue=VALUES(energvalue), qty=VALUES(qty), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)";
-                }
-                else {
-                    sql =
-                            "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale, lottype)" +
-                                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
-                                    " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
-                                    " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
-                                    " energvalue=VALUES(energvalue), qty=VALUES(qty), lottype=VALUES(lottype), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)";
-                }
+//                }
+//                else {
+//                    sql =
+//                            "INSERT INTO plu (store, barcode, art, description, department, grp, flags, price, exp, weight, piece, text, energvalue, qty, cancelled, updecr, updscale, lottype)" +
+//                                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE" +
+//                                    " description=VALUES(description), department=VALUES(department), grp=VALUES(grp), flags=VALUES(flags)," +
+//                                    " price=VALUES(price), exp=VALUES(exp), weight=VALUES(weight), piece=VALUES(piece), text=VALUES(text)," +
+//                                    " energvalue=VALUES(energvalue), qty=VALUES(qty), lottype=VALUES(lottype), cancelled=VALUES(cancelled), updecr=VALUES(updecr), updscale=VALUES(updscale)";
+//                }
                 
                 ps = conn.prepareStatement(sql);
 
@@ -174,8 +174,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     ps.setInt(15, 0); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                     ps.setLong(16, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
                     ps.setLong(17, 9223372036854775807L); //UpdScale, Флаг обновления* весов
-                    if (!skipLotType)
-                        ps.setString(18, lottype);
+//                    if (!skipLotType)
+//                        ps.setString(18, lottype);
                     ps.addBatch();
                 }
 
