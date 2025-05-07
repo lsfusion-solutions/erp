@@ -15,7 +15,7 @@ CONSTRAINT sendLotType(CashRegisterModel m) AND NOT sendGTIN(m)
     MESSAGE 'При выгрузке маркировки должна быть включена выгрузка GTIN';
 
 EXTEND FORM cashRegisterModel
-    PROPERTIES (c) SHOWIF sid(c) == 'Astron' sendGTIN, sendLotType;
+    PROPERTIES (c) SHOWIF sid(c) LIKE 'Astron%' sendGTIN, sendLotType;
 
 DESIGN cashRegisterModel {
     BOX (c) {
@@ -65,7 +65,7 @@ astronInfo2(MachineryPriceTransaction mpt, Barcode b) = (JSON FROM
 
 gtinAstron(Sku s) = OVERRIDE 'G:' + (IF lotType(s) OR UKZ(s)==TTRUE THEN lpad((OVERRIDE GTIN(s), idBarcode(s) IF length(idBarcode(s)) == 13), 14, '0') ELSE GTIN(s)), 'C';
 createAttribute(MachineryPriceTransaction mpt) + {
-    IF sidModel(groupMachinery(mpt)) == 'Astron' THEN {
+    IF sidModel(groupMachinery(mpt)) LIKE 'Astron%' THEN {
         localAstronInfo(mpt, Barcode b) <- NULL; //очищаем в первом действии, следить чтобы дальше добавлялись позже
 
         localAstronInfo(mpt, Barcode b) <- (CONCAT ',', localAstronInfo(mpt, b), '"gtin":"' + gtinAstron(sku(b)) + '"')
@@ -75,7 +75,7 @@ createAttribute(MachineryPriceTransaction mpt) + {
 
 //стараемся выполнять последним
 createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
-    IF sidModel(gm) == 'Astron' THEN {
+    IF sidModel(gm) LIKE 'Astron%' THEN {
         beforeCreateAstronPriceTransaction(mpt);
         info(mpt, Barcode b) <- TEXT(merge((OVERRIDE JSON('\{"astron":\{'+
                 (CONCAT ',',
