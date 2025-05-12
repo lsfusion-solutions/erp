@@ -8,7 +8,7 @@ NAMESPACE Astron;
 sendGTIN 'Выгружать GTIN' = DATA BOOLEAN (CashRegisterModel);
 sendLotType 'Выгружать признак маркировки' = DATA BOOLEAN (CashRegisterModel);
 
-CONSTRAINT DROPPED(sendLotType(CashRegisterModel m)) AND (GROUP SUM 1 IF lotType(Item i) OR UKZ(i)) 
+CONSTRAINT DROPPED(sendLotType(CashRegisterModel m)) AND (GROUP SUM 1 IF lotType(Item i) OR (UKZ(i)==TTRUE)) 
     MESSAGE 'Есть товары с признаком марткировки! Перед отключеним выгрузки нужно выгрузить их без признака маркировки! ' + [STRING[150](GROUP CONCAT idBarcode(Item i) IF lotType(i), ',' ORDER i)]();
 
 CONSTRAINT sendLotType(CashRegisterModel m) AND NOT sendGTIN(m) 
@@ -51,8 +51,8 @@ astronInfo2(MachineryPriceTransaction mpt, Barcode b) = (JSON FROM
             'numPropertyKey' = INTEGER numPropertyKey,
             'propertyGrpId' = value(b),
             'numberId' = CASE
-                    WHEN idLotType(sku(b)) != 'ukz' AND UKZ(sku(b)) THEN 105
-                    WHEN idLotType(sku(b)) == 'ukz' OR UKZ(sku(b)) THEN 104
+                    WHEN idLotType(sku(b)) != 'ukz' AND (UKZ(sku(b))==TTRUE ) THEN 105
+                    WHEN idLotType(sku(b)) == 'ukz' OR (UKZ(sku(b))==TTRUE) THEN 104
                     WHEN idLotType(sku(b)) THEN 103
                     ELSE 102
             WHERE numPropertyKey == 29,
