@@ -36,8 +36,11 @@ public class UKM4MySQLSettings implements Serializable{
     //если true, то не выгружаются таблицы pricelist, pricetype, pricetype_store_pricelist
     private boolean skipPriceListTables;
 
-    //если true, то не выгружаются таблицы item_egais
+    //если true, то выгружаются таблицы item_egais
     private boolean sendItemsMark;
+
+    //если true, то выгружается gtin
+    private boolean sendItemsGTIN;
 
     //если true, то в качестве идентификатора товара используется idBarcode, а не idItem
     private Boolean useBarcodeAsId;
@@ -176,6 +179,14 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSendItemsMark(boolean sendItemsMark) {
         this.sendItemsMark = sendItemsMark;
+    }
+
+    public boolean isSendItemsGTIN() {
+        return sendItemsGTIN;
+    }
+
+    public void setSendItemsGTIN(boolean sendItemsGTIN) {
+        this.sendItemsGTIN = sendItemsGTIN;
     }
 
     public Boolean getUseBarcodeAsId() {

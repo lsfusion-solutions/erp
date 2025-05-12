@@ -62,6 +62,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipBarcodes = ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean skipPriceListTables = ukm4MySQLSettings.isSkipPriceListTables();
                 boolean sendItemsMark = ukm4MySQLSettings.isSendItemsMark();
+                boolean sendItemsGTIN = ukm4MySQLSettings.isSendItemsGTIN();
                 boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
                 boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
                 boolean exportTaxes = ukm4MySQLSettings.isExportTaxes();
@@ -156,6 +157,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                         if (sendItemsMark) {
                                             processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_egais", transaction.id));
                                             exportItemsMark(conn, transaction, useBarcodeAsId, appendBarcode, version);
+                                        }
+                                        if (sendItemsGTIN) {
+                                            processTransactionLogger.info(logPrefix + String.format("transaction %s, table for GTIN", transaction.id));
+                                            exportItemsGTIN(conn, transaction, useBarcodeAsId, appendBarcode, version);
                                         }
 
                                         processTransactionLogger.info(logPrefix + String.format("transaction %s, table items_stocks", transaction.id));
@@ -451,6 +456,48 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     vs.setInt(5, version);
                     vs.setInt(6, ukz);
                     vs.addBatch();
+
+                }
+                ps.executeBatch();
+                vs.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        }
+    }
+
+private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
+        if (transaction.itemsList != null) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, version, deleted) VALUES (?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
+                 PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                         "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
+
+                for (CashRegisterItem item : transaction.itemsList) {
+
+                    JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
+                    String gtin = extraInfo != null ? extraInfo.optString("gtin") : null;
+                    int idGtin = Integer.parseInt(item.idItem);
+                    if (gtin != null && idGtin != 0) {
+                        ps.setString(1, "GTIN"); //property_code
+                        ps.setInt(2, idGtin); //id
+                        ps.setString(3, gtin); //const
+                        ps.setInt(4, version);
+                        ps.setInt(5, 0);
+                        ps.addBatch();
+                    }
+
+                    if (idGtin != 0) {
+                        vs.setString(1, getId(item, useBarcodeAsId, appendBarcode));
+                        vs.setString(2, "GTIN");
+                        vs.setInt(3, idGtin);
+                        vs.setInt(4, 0);
+                        vs.setInt(5, version);
+                        vs.setInt(6, gtin != null ? 0 : 1);
+                        vs.addBatch();
+                    }
 
                 }
                 ps.executeBatch();
