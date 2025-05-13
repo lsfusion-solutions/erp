@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportDBFAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.ChooseObjectClientAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
