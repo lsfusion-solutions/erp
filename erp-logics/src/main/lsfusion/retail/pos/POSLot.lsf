@@ -29,6 +29,15 @@ DESIGN POS {
 price = ABSTRACT VALUE NUMERIC[16,4] (Lot, Receipt);
 price (Lot l, Receipt r) += currentPOSPrice(sku(l), r);
 
+skipCheckPosLot 'Не проверять обязательность сканирования марки на POS' = DATA BOOLEAN ();
+
+EXTEND FORM options PROPERTIES skipCheckPosLot();
+
+DESIGN options {
+    sale {
+        MOVE PROPERTY(skipCheckPosLot());
+    }
+}
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 THEN {
         FOR Lot l = lot(barcodeToId(initialBarcode())) AND Sku s = sku(l) DO {
@@ -55,7 +64,7 @@ overChangeBarcodeSale(STRING[200] b, Receipt r) + {
         } 
     } ELSE {
         FOR Sku sk = skuBarcode(b, currentDate()) AND DepartmentStore dt = departmentStore(r) DO {
-            IF explicitLot(sk) OR (prevCurrentBalance(sk, dt) = prevCurrentBalanceLot(sk, dt)) THEN {
+            IF (explicitLot(sk) OR (prevCurrentBalance(sk, dt) = prevCurrentBalanceLot(sk, dt))) AND NOT skipCheckPosLot()  THEN {
                 MESSAGE 'Товар подлежит обязательной маркировке. Просканируйте контрольную марку вместо штрихкода'; 
                 consumedChangeBarcodeSaleReceipt() <- TRUE;
             }

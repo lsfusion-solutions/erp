@@ -5,11 +5,11 @@ REQUIRE LotType;
 NAMESPACE Stock;
 
 EXTEND CLASS LotType {
-    perfumery 'Парфюмерия',
     shoes 'Обувь',
     clothes 'Легкая промышленность', 
     milk 'Молочная продукция',
     tires 'Шины и покрышки',
+    perfumery 'Духи и туалетная вода',
     photo 'Фотоаппараты и лампы-вспышки',
     animalFeed 'Корма для животных',
     antiseptics 'Антисептики и дезинфицирующие средства',
@@ -23,7 +23,6 @@ EXTEND CLASS LotType {
     water 'Вода упакованная',
     cosmetics 'Косметика и бытовая химия',
     grocery 'Пищевая продукция (Бакалея)'
-    //  ukz 'Товары, подлежащие маркировке УКЗ'
 }
 
 codeGroup 'Код группы' (LotType g) = CASE
@@ -45,7 +44,6 @@ codeGroup 'Код группы' (LotType g) = CASE
     WHEN g == LotType.water THEN 'water'
     WHEN g == LotType.cosmetics THEN 'cosmetics'
     WHEN g == LotType.grocery THEN 'grocery'
-//    WHEN g == LotType.ukz THEN 'ukz'
 ;
 
 dataUKZ = DATA TBOOLEAN (SkuGroup);
@@ -99,3 +97,11 @@ EXTEND FORM dialogLotTypes
     PROPERTIES(t) READONLY id BEFORE name(t)
     FILTERS filterEZLotType(t)
 ;
+
+
+onStarted()+ {
+    NEWSESSION {
+        explicitLot(LotType t) <- TRUE WHERE t=LotType.clothes OR t=LotType.shoes OR t=LotType.milk  OR t=LotType.tires;
+        APPLY;
+    }
+}
