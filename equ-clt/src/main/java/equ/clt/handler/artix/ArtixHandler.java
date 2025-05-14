@@ -1093,6 +1093,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             sendSalesLogger.info(logPrefix + "adding " + maxFilesCount + " files");
             List<File> subFiles = new ArrayList<>();
             for (int i = 0; i < maxFilesCount; i++) {
+                sendSalesLogger.info(String.format(logPrefix + "adding to readFiles: %s", files.get(i).first.getAbsolutePath())); //temp log
                 subFiles.add(files.get(i).first);
             }
             sendSalesLogger.info(logPrefix + "added " + maxFilesCount + " files");
@@ -1578,6 +1579,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             sendSalesLogger.info(String.format(logPrefix + "found %s file(s) in %s", files.size(), directory));
 
             for (File file : files) {
+                sendSalesLogger.info(String.format(logPrefix + "reading file %s", file.getAbsolutePath())); //temp log
                 if (!Thread.currentThread().isInterrupted() && readFiles.contains(file)) {
                     try {
 
