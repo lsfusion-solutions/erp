@@ -1077,23 +1077,31 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
         int totalFilesCount = files.size();
 
-        if(maxFilesCount == null || maxFilesCount > totalFilesCount){
-            maxFilesCount = totalFilesCount;
-        } else {
-            sendSalesLogger.info(logPrefix + "sorting " + totalFilesCount + " files");
-            files.sort((f1, f2) -> {
-                int priorityDif = f2.second - f1.second;
-                if (priorityDif != 0) return priorityDif;
-                else return compareNames(f1.first, f2.first);
-            });
-        }
+        try {
+            if (maxFilesCount == null || maxFilesCount > totalFilesCount) {
+                maxFilesCount = totalFilesCount;
+            } else {
+                sendSalesLogger.info(logPrefix + "sorting " + totalFilesCount + " files");
+                files.sort((f1, f2) -> {
+                    int priorityDif = f2.second - f1.second;
+                    if (priorityDif != 0) return priorityDif;
+                    else return compareNames(f1.first, f2.first);
+                });
+                sendSalesLogger.info(logPrefix + "sorting finished");
+            }
 
-        List<File> subFiles = new ArrayList<>();
-        for(int i = 0; i < maxFilesCount; i++) {
-            subFiles.add(files.get(i).first);
-        }
+            sendSalesLogger.info(logPrefix + "adding " + maxFilesCount + " files");
+            List<File> subFiles = new ArrayList<>();
+            for (int i = 0; i < maxFilesCount; i++) {
+                subFiles.add(files.get(i).first);
+            }
+            sendSalesLogger.info(logPrefix + "added " + maxFilesCount + " files");
 
-        readFiles = new HashSet<>(subFiles);
+            readFiles = new HashSet<>(subFiles);
+        } catch (Exception e) {
+            sendSalesLogger.error(logPrefix, e);
+            throw e;
+        }
     }
 
     @Override
