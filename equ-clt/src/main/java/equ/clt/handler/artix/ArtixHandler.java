@@ -1243,10 +1243,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 */
                 if (subDirectoryList != null) {
                     for (File subDirectory : subDirectoryList) {
-                        result.add(Pair.create(subDirectory, priority));
-                        File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
-                        if (onlineDir.exists())
-                            result.add(Pair.create(onlineDir, priority));
+                        if(subDirectory.getAbsolutePath().endsWith("/sale" + cashRegister.number)) {
+                            result.add(Pair.create(subDirectory, priority));
+                            File onlineDir = new File(subDirectory.getAbsolutePath() + "/online");
+                            if (onlineDir.exists())
+                                result.add(Pair.create(onlineDir, priority));
+                        }
                     }
                 }
             }
