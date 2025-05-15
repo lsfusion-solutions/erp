@@ -4,6 +4,45 @@ REQUIRE EZLegalEntity, EZLotStatus, LotOrder, LotBy, CustomsGroupItem;
 
 NAMESPACE EZ;
 
+codeGroup 'Код группы' (LotType g) = CASE
+    WHEN g == LotType.clothes THEN 'clothes'
+    WHEN g == LotType.perfumery THEN 'perfum'
+    WHEN g == LotType.shoes THEN 'shoes'
+    WHEN g == LotType.milk THEN 'milk'
+    WHEN g == LotType.tires THEN 'tires'
+    WHEN g == LotType.photo THEN 'photo'
+    WHEN g == LotType.animalFeed THEN 'animal_feed'
+    WHEN g == LotType.antiseptics THEN 'antiseptics'
+    WHEN g == LotType.bike THEN 'bike'
+    WHEN g == LotType.caviar THEN 'caviar'
+    WHEN g == LotType.dietarySupplements THEN 'dietary_supplements'
+    WHEN g == LotType.juice THEN 'juice'
+    WHEN g == LotType.oilFat THEN 'oil_fat'
+    WHEN g == LotType.preserves THEN 'preserves'
+    WHEN g == LotType.veterinaryMedicines THEN 'veterinary_medicines'
+    WHEN g == LotType.water THEN 'water'
+    WHEN g == LotType.cosmetics THEN 'cosmetics'
+    WHEN g == LotType.grocery THEN 'grocery'
+    MATERIALIZED;
+
+CLASS IdentificationMeansType 'Вид средства идентификации' {
+    eaeuGeneral 'Код стран ЕАЭС идентификации товара',
+    shoesTiresClothes 'Код РБ идентификации товара (обувь, шины, легкая промышленность)'
+}
+
+name 'Наименование' (IdentificationMeansType t) = staticCaption(t) IF t IS IdentificationMeansType CHARWIDTH 30;
+
+FORM dialogIdentificationMeansType 'Выбор вида средства идентификации'
+    OBJECTS t = IdentificationMeansType
+    PROPERTIES(t) READONLY name
+
+    LIST IdentificationMeansType OBJECT t
+;
+
+id (IdentificationMeansType t) = CASE
+    WHEN t == IdentificationMeansType.eaeuGeneral THEN '7'
+    WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20';
+
 quantityLotLimit 'Лимит количества заказываемых марок по строке' = DATA INTEGER ();
 CONSTRAINT quantity(LotOrderDetail d) > quantityLotLimit()
     MESSAGE 'Количество заказываемых марок превышает лимит';

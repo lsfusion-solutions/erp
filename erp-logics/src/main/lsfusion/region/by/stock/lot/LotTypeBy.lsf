@@ -1,6 +1,6 @@
 MODULE LotTypeBy;
 
-REQUIRE LotType;
+REQUIRE LotType, CustomsGroup;
 
 NAMESPACE Stock;
 
@@ -25,26 +25,20 @@ EXTEND CLASS LotType {
     grocery 'Пищевая продукция (Бакалея)'
 }
 
-codeGroup 'Код группы' (LotType g) = CASE
-    WHEN g == LotType.clothes THEN 'clothes'
-    WHEN g == LotType.perfumery THEN 'perfum'
-    WHEN g == LotType.shoes THEN 'shoes'
-    WHEN g == LotType.milk THEN 'milk' 
-    WHEN g == LotType.tires THEN 'tires' 
-    WHEN g == LotType.photo THEN 'photo'
-    WHEN g == LotType.animalFeed THEN 'animal_feed'
-    WHEN g == LotType.antiseptics THEN 'antiseptics'
-    WHEN g == LotType.bike THEN 'bike'
-    WHEN g == LotType.caviar THEN 'caviar'
-    WHEN g == LotType.dietarySupplements THEN 'dietary_supplements'
-    WHEN g == LotType.juice THEN 'juice'
-    WHEN g == LotType.oilFat THEN 'oil_fat'
-    WHEN g == LotType.preserves THEN 'preserves'
-    WHEN g == LotType.veterinaryMedicines THEN 'veterinary_medicines'
-    WHEN g == LotType.water THEN 'water'
-    WHEN g == LotType.cosmetics THEN 'cosmetics'
-    WHEN g == LotType.grocery THEN 'grocery'
+controlLot 'Контроль марки на кассе' = DATA BOOLEAN (LotType);
+
+EXTEND FORM dialogLotTypes
+    PROPERTIES(t) READONLY id BEFORE name(t), controlLot
+    FILTERS t != LotType.unknown
+    FILTERGROUP control FILTER 'Обяз.' controlLot(t) 'F6' DEFAULT
 ;
+
+onStarted() + {
+    NEWSESSION {
+        controlLot(LotType t) <- TRUE WHERE t=LotType.clothes OR t=LotType.shoes OR t=LotType.milk  OR t=LotType.tires;
+        APPLY;
+    }
+}
 
 dataUKZ = DATA TBOOLEAN (SkuGroup);
 nearestUKZ (SkuGroup child) = GROUP LAST dataUKZ(SkuGroup parent) ORDER DESC level(child, parent) WHERE dataUKZ(parent);
@@ -68,43 +62,59 @@ EXTEND FORM item
 EXTEND FORM items
     PROPERTIES (i) UKZ READONLYIF isReadonly()
 ;
-                            
-DESIGN dialogLotTypes {
-    caption = 'Категория';
-}
 
-filterEZLotType (LotType t) = t != LotType.unknown ;
+//
+dataLotType = DATA LotType (CustomsGroup);
+nearestLotType (CustomsGroup child) = GROUP LAST dataLotType(CustomsGroup parent) ORDER DESC level(child, parent) WHERE dataLotType(parent);
 
-CLASS IdentificationMeansType 'Вид средства идентификации' {
-    eaeuGeneral 'Код стран ЕАЭС идентификации товара',
-    shoesTiresClothes 'Код РБ идентификации товара (обувь, шины, легкая промышленность)'
-}   
+lotType (CustomsGroup customsGroup) = OVERRIDE dataLotType(customsGroup), nearestLotType(customsGroup) MATERIALIZED;
+nameLotType 'Маркировка СИ (Тип маркировки)' (CustomsGroup customsGroup) = name(lotType(customsGroup));// IN paramsItemGroup;
 
-name 'Наименование' (IdentificationMeansType t) = staticCaption(t) IF t IS IdentificationMeansType CHARWIDTH 30;
+overLotType(Sku sku) += lotType(customsGroup(defaultCountry(),sku));
 
-FORM dialogIdentificationMeansType 'Выбор вида средства идентификации'
-    OBJECTS t = IdentificationMeansType
-    PROPERTIES(t) READONLY name
-    
-    LIST IdentificationMeansType OBJECT t
-;                                        
-                                         
-id (IdentificationMeansType t) = CASE
-    WHEN t == IdentificationMeansType.eaeuGeneral THEN '7'
-    WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20';
+quantityChildLotType  = GROUP SUM 1 IF dataLotType(CustomsGroup childICustomsGroup) AND isParent(childICustomsGroup, CustomsGroup customsGroup) BY customsGroup MATERIALIZED;
+quantityParentWithLotType = GROUP SUM 1 IF dataLotType(CustomsGroup parentCustomsGroup) AND isParent(CustomsGroup customsGroup, parentCustomsGroup) BY customsGroup MATERIALIZED;
 
-EXTEND FORM dialogLotTypes
-    PROPERTIES(t) READONLY id BEFORE name(t)
-    FILTERS filterEZLotType(t)
+backgroundShowLotType (CustomsGroup customsGroup) =
+    IF dataLotType(customsGroup) THEN
+        RGB(255,255,255) IF customsGroup IS CustomsGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildLotType (customsGroup) != descendantNumber(customsGroup)
+            AND NOT quantityParentWithLotType (customsGroup);
+
+dataUKZ = DATA BOOLEAN (CustomsGroup);
+nearestUKZ (CustomsGroup child) = GROUP LAST dataUKZ(CustomsGroup parent) ORDER DESC level(child, parent) WHERE dataUKZ(parent);
+
+UKZ 'Маркировка УКЗ'  (CustomsGroup customsGroup) = OVERRIDE dataUKZ(customsGroup), nearestUKZ(customsGroup) MATERIALIZED;
+
+overUKZ(Sku sku) += TTRUE IF UKZ(customsGroup(defaultCountry(),sku));
+
+quantityChildUKZ  = GROUP SUM 1 IF dataUKZ(CustomsGroup childICustomsGroup) AND isParent(childICustomsGroup, CustomsGroup customsGroup) BY customsGroup MATERIALIZED;
+quantityParentWithUKZ = GROUP SUM 1 IF dataUKZ(CustomsGroup parentCustomsGroup) AND isParent(CustomsGroup customsGroup, parentCustomsGroup) BY customsGroup MATERIALIZED;
+
+backgroundShowUKZ (CustomsGroup customsGroup) =
+    IF dataUKZ(customsGroup) THEN
+        RGB(255,255,255) IF customsGroup IS CustomsGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildUKZ (customsGroup) != descendantNumber(customsGroup)
+            AND NOT quantityParentWithUKZ (customsGroup);
+
+EXTEND FORM customsGroup
+    PROPERTIES (cg) nameLotType, UKZ
 ;
 
+EXTEND FORM customsGroups
+    PROPERTIES(gcg) READONLY nameLotType BACKGROUND backgroundShowLotType(gcg), UKZ BACKGROUND backgroundShowUKZ(gcg)
+    PROPERTIES(cg) READONLY nameLotType BACKGROUND backgroundShowLotType(gcg), UKZ BACKGROUND backgroundShowUKZ(gcg)
+;
 
-onStarted()+ {
-    NEWSESSION {
-        explicitLot(LotType t) <- TRUE WHERE t=LotType.clothes OR t=LotType.shoes OR t=LotType.milk  OR t=LotType.tires;
-        APPLY;
+DESIGN customsGroup {
+    topContainer {
+        NEW lotContainer{
+            horizontal = TRUE;
+            caption = 'Маркировка';
+            MOVE PROPERTY(nameLotType(cg));
+            MOVE PROPERTY(UKZ(cg));
+        }
     }
 }
-EXTEND FORM dialogLotTypes
-    FILTERGROUP explicit FILTER 'Обяз.' explicitLot(t) 'F6' DEFAULT
-;
