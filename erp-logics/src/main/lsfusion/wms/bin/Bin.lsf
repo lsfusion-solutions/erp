@@ -8,8 +8,8 @@ CLASS ABSTRACT BinGroup 'Группа ячеек';
 TABLE binGroup (BinGroup);
 
 id '{integration.id}' = ABSTRACT STRING[100] (BinGroup) NONULL MATERIALIZED INDEXED CHARWIDTH 10;
-
 name 'Наименование' = ABSTRACT ISTRING[100](BinGroup) MATERIALIZED INDEXED CHARWIDTH 20;
+order 'Порядок' = ABSTRACT INTEGER (BinGroup) CHARWIDTH 2;
 
 // Неактивный
 inactive 'Неактивный' = ABSTRACT BOOLEAN (BinGroup);
@@ -28,18 +28,17 @@ TABLE dataBinGroup (DataBinGroup);
 
 id '{integration.id}' = DATA STRING[100] (DataBinGroup) IN id INDEXED CHARWIDTH 10;
 dataBinGroup(id) = GROUP MAX DataBinGroup dataBinGroup BY id(dataBinGroup);
-
 name 'Наименование' = DATA ISTRING[100](DataBinGroup);
+order 'Порядок' = DATA INTEGER (DataBinGroup) CHARWIDTH 2;
 
 // Неактивный
 inactive 'Неактивный' = DATA BOOLEAN (DataBinGroup);
-
 parent = DATA BinGroup (DataBinGroup) AUTOSET NONULL;
-
 nameParent '{hierarchy.name.parent}' = name(parent(DataBinGroup binGroup)) IN base;
 
 id[BinGroup](DataBinGroup binGroup) += id(binGroup);
 name[BinGroup](DataBinGroup binGroup) += name(binGroup);
+order[BinGroup](DataBinGroup binGroup) += order(binGroup);
 inactive[BinGroup](DataBinGroup binGroup) += inactive(binGroup);
 parent[BinGroup](DataBinGroup binGroup) += parent(binGroup);
 
@@ -71,7 +70,7 @@ nameBinGroup5 (BinGroup child) = name(binGroup5(child));
 
 FORM dataBinGroup 'Группа ячеек'
     OBJECTS g=DataBinGroup PANEL
-    PROPERTIES(g) inactive, name, id SHOWIF showIDs(), nameParent, nameStock READONLY 
+    PROPERTIES(g) inactive, order, id SHOWIF showIDs(), canonicalId READONLY, name, nameParent, canonicalName, nameStock READONLY 
     EDIT DataBinGroup OBJECT g
 ;
 
@@ -81,9 +80,12 @@ DESIGN dataBinGroup {
         alignment = STRETCH;
         lines = 2;
         MOVE PROPERTY(inactive(g));
-        MOVE PROPERTY(name(g));
+        MOVE PROPERTY(order(g));
         MOVE PROPERTY(id(g));
+        MOVE PROPERTY(canonicalId(g));
+        MOVE PROPERTY(name(g));
         MOVE PROPERTY(nameParent(g));
+        MOVE PROPERTY(canonicalName(g));
         MOVE PROPERTY(nameStock(g));
     }
     NEW additionalContainer {
@@ -95,17 +97,17 @@ DESIGN dataBinGroup {
 
 FORM dialogBinGroups 'Группы ячеек'
     TREE treeGroups g=BinGroup PARENT parent(g)
-    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
-    ORDERS canonicalName(g)
+    PROPERTIES READONLY order(g), canonicalId(g), name(g), canonicalName(g), nameStock(g)
+    ORDERS order(g), canonicalId(g), name(g)
     FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
     LIST BinGroup OBJECT g
 ;
 
 FORM binGroups 'Группы ячеек'
     TREE treeGroups g=BinGroup PARENT parent(g)
-    PROPERTIES READONLY id(g) SHOWIF showIDs(), canonicalId(g) SHOWIF showIDs(), name(g), canonicalName(g),  nameStock(g)
+    PROPERTIES READONLY order(g), canonicalId(g), id(g) SHOWIF showIDs(), name(g), canonicalName(g), nameStock(g)
     PROPERTIES(g) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF g IS DataBinGroup, deleteg=DELETE SHOWIF g IS DataBinGroup
-    ORDERS canonicalName(g)
+    ORDERS order(g), canonicalId(g), name(g)
     FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
 ;
 
@@ -118,7 +120,8 @@ maxBin (id) = GROUP MAX Bin bin BY id(bin);
 name 'Наименование' = DATA ISTRING[100](Bin) IN id;
 binGroup = DATA BinGroup (Bin) AUTOSET NONULL;// DELETE;
 nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
-canonicalNameBinGroup 'Группа' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
+canonicalNameBinGroup 'Группа (имя)' (Bin bin) = canonicalName(binGroup(bin)) CHARWIDTH 20;
+canonicalIdBinGroup 'Группа (код)' (Bin bin) = canonicalId(binGroup(bin)) CHARWIDTH 20;
 
 TABLE binGroupBin(BinGroup, Bin);
 isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
@@ -149,7 +152,7 @@ nameBinGroup6  (Bin bin) = name(binGroup6(bin));
 
 FORM bin 'Ячейка'
     OBJECTS b = Bin PANEL
-    PROPERTIES(b) name, id SHOWIF showIDs(), canonicalNameBinGroup, canonicalName, canonicalId, nameStock READONLY 
+    PROPERTIES(b) id SHOWIF showIDs(), canonicalId, name, canonicalName, canonicalIdBinGroup, canonicalNameBinGroup, nameStock READONLY 
     EDIT Bin OBJECT b
 ;
 
@@ -158,11 +161,12 @@ DESIGN bin {
         caption = 'Основные свойства';
         alignment = STRETCH;
         lines = 2;
-        MOVE PROPERTY(name(b));
         MOVE PROPERTY(id(b));
-        MOVE PROPERTY(canonicalNameBinGroup(b));
         MOVE PROPERTY(canonicalId(b));
+        MOVE PROPERTY(name(b));
         MOVE PROPERTY(canonicalName(b));
+        MOVE PROPERTY(canonicalIdBinGroup(b));
+        MOVE PROPERTY(canonicalNameBinGroup(b));
         MOVE PROPERTY(nameStock(b));
     }
     NEW additionalContainer {
@@ -175,14 +179,14 @@ DESIGN bin {
 
 FORM dialogBins 'Ячейки'
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY
-
+    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
     FILTERS isParent(bg, b)
-    ORDERS name(b)
+    ORDERS canonicalId(b), name(b)
 
     LIST Bin OBJECT b
 ;
@@ -214,12 +218,14 @@ DESIGN dialogBins {
 
 FORM bins 'Ячейки'
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName, canonicalId, nameStock READONLY 
+    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY 
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE 
+    ORDERS canonicalId(b), name(b)
 
     FILTERS isParent(bg, b)
     ORDERS name(b)
@@ -324,16 +330,17 @@ FORM changeBinsSkuGroup 'Выбор ячеек'
     PROPERTIES(g) READONLY canonicalName
 
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
     PROPERTIES in(g, bg)
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' in(g, bg)
+    ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalId SHOWIF showIDs() READONLY, canonicalName, nameStock
+    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock
     PROPERTIES in(g, b)
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
-    ORDERS name(b)    
+    ORDERS canonicalId(b), name(b)    
     FILTERGROUP inSku FILTER 'Отмеченные' in(g, b)
 ;
 
@@ -371,16 +378,17 @@ FORM changeBinsSku 'Выбор ячеек'
     PROPERTIES(s) READONLY name
 
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY name(bg), nameStock(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), nameStock(bg)
     PROPERTIES in(s, bg)
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
     FILTERGROUP in FILTER 'Отмеченные' in(s, bg)
+    ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
     PROPERTIES in(s, b)
-    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalId SHOWIF showIDs() READONLY, canonicalName, nameStock
+    PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
-    ORDERS name(b)
+    ORDERS canonicalId(b), name(b)
     FILTERGROUP inSku FILTER 'Отмеченные' in(s, b)
 ;
 
@@ -408,11 +416,11 @@ changeBins (Sku sku) {
 // ------------------------------------- Формы ---------------------------------- //
 
 FORM binStocks 'Ячейки'
-
     TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY canonicalId(bg), name(bg), nameStock(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), nameStock(bg)
     PROPERTIES(bg) NEWSESSION NEW[DataBinGroup], EDIT SHOWIF bg IS DataBinGroup, DELETE SHOWIF bg IS DataBinGroup
     FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
     PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock, canonicalNameBinGroup
