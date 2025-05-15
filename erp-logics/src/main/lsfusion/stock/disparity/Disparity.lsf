@@ -58,6 +58,11 @@ disparityDetail (id, disparity) = GROUP AGGR UserDisparityDetail disparityDetail
 @defineDocumentInterfaceCurrency (disparity);
 @deriveDocumentCurrency(userDisparity, stock);
 
+@defineOption(skipStockDisparity, 'Разрешить ввод изменения сортности без склада', disparity);
+
+CONSTRAINT (SET(isPosted(Disparity i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT skipStockDisparity() AND NOT stock(i)
+    MESSAGE 'Для изменения сортности должен быть задан склад';
+
 @defineDocumentInterfaceDetailSkuPrefix (disparity, sku, , ' (расход)');
 @defineDocumentInterfaceDetailSkuPrefix (disparity, sku, input, ' (приход)');
 
@@ -346,14 +351,6 @@ shipmentDateTime(UserDisparity disparity) = dateTime(disparity);
 @extendFormDocumentBatchStockOrderLedger(userDisparity, disparity, dis);
 
 close[StockDocumentLedger](Disparity l) + {  isClosed(l) <- TRUE; }
-
-migrateCloseUserDisparity = DATA BOOLEAN ();
-onStarted() +{ 
-    IF NOT migrateCloseUserDisparity() THEN {
-        isClosed(UserDisparity d) <- TRUE WHERE isOpened(d) AND isPosted(d) AND date(d) < documentsClosedDate(stock(d));
-        migrateCloseUserDisparity() <- TRUE;
-    }
-}
 
 EXTEND FORM disparity
 

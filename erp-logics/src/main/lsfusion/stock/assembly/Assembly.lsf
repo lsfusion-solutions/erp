@@ -381,6 +381,19 @@ sum(AssemblyInSkuLedger l) += sum(l);
 
 show(AssemblyInSkuLedger l) + { show(assembly(l)); }
 
+DESIGN options {
+    pane {
+        NEW assembly {
+            caption = 'Сборки товаров';
+        }
+    }
+}
+
+@defineOption(skipStockAssembly, 'Разрешить ввод сборки товаров без склада', assembly);
+
+CONSTRAINT (SET(isPosted(Assembly i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT skipStockAssembly() AND NOT stock(i)
+    MESSAGE 'Для сборки товаров должен быть задан склад';
+
 @implementStockDocumentLedgerInc(Assembly, stock);
 
 sumItem [IncStockDocumentLedger](Assembly ledger) += sum(ledger);

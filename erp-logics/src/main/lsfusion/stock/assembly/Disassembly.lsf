@@ -414,6 +414,11 @@ DESIGN options {
     }
 }
 
+@defineOption(skipStockDisassembly, 'Разрешить ввод разборки товаров без склада', disassembly);
+
+CONSTRAINT (SET(isPosted(Disassembly i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT skipStockDisassembly() AND NOT stock(i)
+    MESSAGE 'Для разборки товаров должен быть задан склад';
+
 @implementStockDocumentLedgerOut(Disassembly, stock);
 
 sumItem [OutStockDocumentLedger](Disassembly ledger) += sum(ledger);

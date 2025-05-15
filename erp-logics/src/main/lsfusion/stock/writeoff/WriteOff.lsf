@@ -558,7 +558,7 @@ FORM writeOffDetails 'Списание'
     LIST WriteOffDetail OBJECT d
 ;
 
-isStockWriteOffs 'Разрешить ввод списания без склада ' = DATA BOOLEAN ();
+isStockWriteOffs 'Разрешить ввод списания без склада' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM options
     PROPERTIES() isStockWriteOffs
@@ -572,7 +572,7 @@ DESIGN options {
     }
 }
 
-CONSTRAINT isPosted(UserWriteOff i) AND NOT isStockWriteOffs() AND NOT  stock(i) 
+CONSTRAINT (SET(isPosted(UserWriteOff i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT isStockWriteOffs() AND NOT stock(i) 
     MESSAGE 'Для списания должен быть задан склад'; 
 
 //----------------------------------------------- Операции -----------------------------------------------------//
