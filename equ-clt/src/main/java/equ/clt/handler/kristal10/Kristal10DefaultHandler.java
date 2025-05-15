@@ -300,7 +300,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (barcodeItem != null && barcodeItem.length() > 7) {
                 for (String notGTINPrefix : notGTINPrefixes) {
                     if (!barcodeItem.startsWith(notGTINPrefix)) {
-                        good.setAttribute("barcode-type", "GTIN");
+                        barcodeElement.setAttribute("barcode-type", "GTIN");
                         break;
                     }
                 }
