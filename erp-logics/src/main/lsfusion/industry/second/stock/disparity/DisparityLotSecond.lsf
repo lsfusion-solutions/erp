@@ -106,8 +106,11 @@ DESIGN disparity {
     PROPERTY (changeSkuLot(dis)) { showIf = countLot(dis); } 
 }
 
-CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d))) AND lotSecond(d) AND NOT inputSku(d)
-    MESSAGE 'Должен быть заполненен товар (приход)';
+CONSTRAINT (SETCHANGED(inputSku(UserDisparityDetail d)) OR CHANGED(sku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(quantity(d))) AND lotSecond(d) AND NOT isSecond(sku(d))
+    MESSAGE 'Товар (расход) должен быть заполнен и быть секонд-товаром';
+
+CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(quantity(d))) AND lotSecond(d) AND NOT isSecond(inputSku(d))
+    MESSAGE 'Товар (приход) должен быть заполнен и быть секонд-товаром';
 
 CONSTRAINT SETCHANGED(quantity(UserDisparityDetail d, Lot l)) AND countInputLot(userDisparity(d))
     MESSAGE 'Запрещено изменение в документе с перенесенными марками. Отмените изменения и выполните перенос назад';
