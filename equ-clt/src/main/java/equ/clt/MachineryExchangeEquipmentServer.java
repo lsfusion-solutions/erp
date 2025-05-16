@@ -16,6 +16,12 @@ import java.util.*;
 public class MachineryExchangeEquipmentServer {
     private final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
 
+    static Set<CashRegisterInfo> join(Set<CashRegisterInfo> set1, Set<CashRegisterInfo> set2) {
+        Set<CashRegisterInfo> result = new HashSet<>(set1);
+        result.addAll(set2);
+        return result;
+    }
+
     static void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         machineryExchangeLogger.info("Process MachineryExchange");
         List<MachineryInfo> machineryInfoList = remote.readMachineryInfo(sidEquipmentServer);
@@ -56,7 +62,7 @@ public class MachineryExchangeEquipmentServer {
                                     //DiscountCard
                                     else if (requestExchange.isDiscountCard()) {
                                         Set<String> handlerSet = new HashSet<>();
-                                        for(CashRegisterInfo cashRegisterInfo : requestExchange.cashRegisterSet) {
+                                        for(CashRegisterInfo cashRegisterInfo : join(requestExchange.cashRegisterSet, requestExchange.extraCashRegisterSet)) {
                                             handlerSet.add(cashRegisterInfo.handlerModel);
                                         }
                                         if(handlerSet.contains(handlerModel)) {
