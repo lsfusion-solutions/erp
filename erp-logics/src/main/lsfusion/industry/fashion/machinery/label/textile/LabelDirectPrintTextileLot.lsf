@@ -11,8 +11,16 @@ notPrinted (Lot l) = l IS Lot AND NOT printed(l) MATERIALIZED INDEXED;
 
 countNotPrintedLot 'Кол-во ненапечатанных марок' = GROUP SUM 1 IF notPrinted(Lot l) BY sku(l) MATERIALIZED;
 
+unPrint 'Отменить печать' (Lot l) {
+    NEWSESSION {
+        stickerTransaction(l) <- NULL;
+        APPLY;
+    }
+} TOOLBAR CONFIRM;
+
 EXTEND FORM lots
     PROPERTIES(l) READONLY AFTER nameSku(l) printed, dateTimeStickerTransaction
+    PROPERTIES(l) unPrint SHOWIF printed(l)
 ;
 
 @defineOption(testDatamatrix, 'Тестовый datamatrix для печати', STRING, items);
@@ -29,6 +37,22 @@ DESIGN options {
             MOVE PROPERTY(datamartixTag());
             MOVE PROPERTY(logPrintDatamartix());
         }
+    }
+}
+
+countLots 'Кол-во марок' (StickerTransaction stickerTransaction) = GROUP SUM 1 BY stickerTransaction(Lot l);
+
+EXTEND FORM stickerTransactions
+    PROPERTIES(l) READONLY countLots AFTER quantity(l)
+
+    OBJECTS lot = Lot
+    PROPERTIES (lot) READONLY id, idSku, nameSku
+    FILTERS stickerTransaction(lot) == l
+;
+
+DESIGN stickerTransactions {
+    main {
+        MOVE BOX(lot) { fill = 0.3; }
     }
 }
 
