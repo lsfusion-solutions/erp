@@ -434,6 +434,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), deleted=VALUES(deleted)");
                  PreparedStatement ps = conn.prepareStatement("INSERT INTO items_egais (id, egais, sub_excise, crpt_not_unique, version, deleted) VALUES (?, ?, ?, ?, ?, ?)" +
                          "ON DUPLICATE KEY UPDATE egais=VALUES(egais), deleted=VALUES(deleted)");
+                 PreparedStatement pv = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                         "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                          "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
 
@@ -443,6 +445,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 p.setInt(4, version);
                 p.setInt(5, 0);
                 p.addBatch();
+
+                pv.setString(1, "RB_Mark"); //property_code
+                pv.setInt(2, 888); //id
+                pv.setString(3, "RB_Mark"); //const
+                pv.setString(4, "<question><const>RB_Mark</const><displayname>RB_Mark</displayname></question>"); //description
+                pv.setInt(5, version);
+                pv.setInt(6, 0);
+                pv.addBatch();
 
                 for (CashRegisterItem item : transaction.itemsList) {
 
@@ -468,6 +478,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 }
                 p.executeBatch();
+                pv.executeBatch();
                 ps.executeBatch();
                 vs.executeBatch();
                 conn.commit();
@@ -482,7 +493,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
             conn.setAutoCommit(false);
             try (PreparedStatement p = conn.prepareStatement("INSERT INTO properties (code, name, flags, version, deleted) VALUES (?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), deleted=VALUES(deleted)");
-                    PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                 PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                          "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
