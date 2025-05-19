@@ -467,6 +467,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     vs.addBatch();
 
                 }
+                p.executeBatch();
                 ps.executeBatch();
                 vs.executeBatch();
                 conn.commit();
@@ -519,6 +520,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     }
 
                 }
+                p.executeBatch();
                 ps.executeBatch();
                 vs.executeBatch();
                 conn.commit();
