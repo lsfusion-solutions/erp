@@ -470,7 +470,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, version, deleted) VALUES (?, ?, ?, ?, ?) " +
+            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                          "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
@@ -484,8 +484,9 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                         ps.setString(1, "GTIN"); //property_code
                         ps.setInt(2, idGtin); //id
                         ps.setString(3, gtin); //const
-                        ps.setInt(4, version);
-                        ps.setInt(5, 0);
+                        ps.setString(4, String.format("<question><const>%s</const><displayname>GTIN</displayname></question>",gtin)); //description
+                        ps.setInt(5, version);
+                        ps.setInt(6, 0);
                         ps.addBatch();
                     }
 
