@@ -431,7 +431,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             try (PreparedStatement p = conn.prepareStatement("INSERT INTO properties (code, name, flags, version, deleted) VALUES (?, ?, ?, ?, ?) " +
-                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
+                    "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement ps = conn.prepareStatement("INSERT INTO items_egais (id, egais, sub_excise, crpt_not_unique, version, deleted) VALUES (?, ?, ?, ?, ?, ?)" +
                          "ON DUPLICATE KEY UPDATE egais=VALUES(egais), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
@@ -481,7 +481,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             try (PreparedStatement p = conn.prepareStatement("INSERT INTO properties (code, name, flags, version, deleted) VALUES (?, ?, ?, ?, ?) " +
-                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
+                    "ON DUPLICATE KEY UPDATE name=VALUES(name), flags=VALUES(flags), comment=VALUES(comment), deleted=VALUES(deleted)");
                     PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
