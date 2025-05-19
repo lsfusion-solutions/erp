@@ -430,10 +430,19 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     private void exportItemsMark(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO items_egais (id, egais, sub_excise, crpt_not_unique, version, deleted) VALUES (?, ?, ?, ?, ?, ?)" +
+            try (PreparedStatement p = conn.prepareStatement("INSERT INTO properties (code, name, flags, version, deleted) VALUES (?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
+                 PreparedStatement ps = conn.prepareStatement("INSERT INTO items_egais (id, egais, sub_excise, crpt_not_unique, version, deleted) VALUES (?, ?, ?, ?, ?, ?)" +
                          "ON DUPLICATE KEY UPDATE egais=VALUES(egais), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                          "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
+
+                p.setString(1, "RB_Mark"); //code
+                p.setString(2, "Маркировка УКЗ"); //name
+                p.setInt(3, 0); //flags
+                p.setInt(4, version);
+                p.setInt(5, 0);
+                p.addBatch();
 
                 for (CashRegisterItem item : transaction.itemsList) {
 
@@ -470,10 +479,19 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
-            try (PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+            try (PreparedStatement p = conn.prepareStatement("INSERT INTO properties (code, name, flags, version, deleted) VALUES (?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
+                    PreparedStatement ps = conn.prepareStatement("INSERT INTO property_values (property_code, id, const, description, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                     "ON DUPLICATE KEY UPDATE const=VALUES(const), description=VALUES(description), comment=VALUES(comment), deleted=VALUES(deleted)");
                  PreparedStatement vs = conn.prepareStatement("INSERT INTO item_property_values (item_id, property_code, property_id, sequence, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                          "ON DUPLICATE KEY UPDATE sequence=VALUES(sequence), deleted=VALUES(deleted)")) {
+
+                p.setString(1, "GTIN"); //code
+                p.setString(2, "GTIN"); //name
+                p.setInt(3, 0); //flags
+                p.setInt(4, version);
+                p.setInt(5, 0);
+                p.addBatch();
 
                 for (CashRegisterItem item : transaction.itemsList) {
 
