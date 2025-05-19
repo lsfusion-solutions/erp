@@ -15,7 +15,14 @@ END
 
 issuanceAllowed = DATA Employee(Trip);
 nameIssuanceAllowed 'Отпуск разрешил' (Trip trip) = name[Contact](issuanceAllowed(trip));
-@setTripPropTrip(issuanceAllowed);
+
+setTripIssuanceAllowedTrip(Invoice invoice)  { 
+    issuanceAllowed(invoice) <- issuanceAllowed(trip(invoice));
+}
+
+skipSetIssuanceAllowedTrip = ABSTRACT BOOLEAN (Invoice);
+
+WHEN CHANGED(issuanceAllowed(trip(Invoice invoice))) AND NOT skipSetIssuanceAllowedTrip(invoice) DO EXEC setTripIssuanceAllowedTrip(invoice);
 
 issuanceExecuted = DATA Employee(Trip);
 nameIssuanceExecuted 'Отпуск произвел' (Trip trip) = name[Contact](issuanceExecuted(trip));
