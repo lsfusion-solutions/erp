@@ -1,6 +1,6 @@
 MODULE POSLot;
 
-REQUIRE POS, ZReportLot, SkuLedgerLot;
+REQUIRE POS, ZReportLot;
 
 NAMESPACE POS;
 
@@ -38,12 +38,18 @@ DESIGN options {
         MOVE PROPERTY(skipCheckPosLot());
     }
 }
+
+checkLot ABSTRACT LIST (Lot, DepartmentStore);
+createDetail = DATA LOCAL BOOLEAN ();
+
+overExplicitLot = ABSTRACT BOOLEAN (Sku, DepartmentStore);
+
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 THEN {
         FOR Lot l = lot(barcodeToId(initialBarcode())) AND Sku s = sku(l) DO {
-            IF NOT currentBalance(l, departmentStore(r)) > 0 THEN {
-                MESSAGE 'Контрольная марка отсутствует на остатках. Ее продажа невозможна.';
-            } ELSE {
+            createDetail() <- NULL;
+            checkLot(l, departmentStore(r));
+            IF createDetail() THEN {
                 NEW d = ReceiptSaleDetail {
                     receipt(d) <- r;
                     idBarcode(d) <- idBarcode(s);
@@ -64,7 +70,7 @@ overChangeBarcodeSale(STRING[200] b, Receipt r) + {
         } 
     } ELSE {
         FOR Sku sk = skuBarcode(b, currentDate()) AND DepartmentStore dt = departmentStore(r) DO {
-            IF (explicitLot(sk) OR (prevCurrentBalance(sk, dt) = prevCurrentBalanceLot(sk, dt))) AND NOT skipCheckPosLot()  THEN {
+            IF (explicitLot(sk) OR overExplicitLot(sk, dt)) AND NOT skipCheckPosLot()  THEN {
                 MESSAGE 'Товар подлежит обязательной маркировке. Просканируйте контрольную марку вместо штрихкода'; 
                 consumedChangeBarcodeSaleReceipt() <- TRUE;
             }
