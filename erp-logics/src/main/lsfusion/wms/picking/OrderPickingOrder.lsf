@@ -23,12 +23,15 @@ nameCustomerStock 'Склад покупателя' (PickingOrder o)= nameCustom
 addressCustomerStock 'Адрес (Склад покупателя)' (PickingOrder o)= addressCustomerStock(order(o)); 
 
 EXTEND FORM pickingOrders
-    PROPERTIES (o) READONLY orderSeriesNumber, nameCustomer, nameCustomerStock, addressCustomerStock
+    PROPERTIES(o) READONLY orderSeriesNumber, nameCustomer, nameCustomerStock, addressCustomerStock
 ;
 
 countPickingOrder = GROUP SUM 1 BY order(PickingOrder o) MATERIALIZED;
 
 pickingNumber = ABSTRACT INTEGER (OrderDetail) MATERIALIZED;
+
+pickingOrders 'Заказы на комплектацию' = 
+    GROUP CONCAT STRING[255](description(PickingOrder pickingOrder)), ', ' ORDER number(pickingOrder), pickingOrder BY order(pickingOrder) CHARWIDTH 30;
 
 // ------------------- Свойства для заказа на комплектацию ------------------------------- //
  
@@ -62,12 +65,22 @@ EXTEND FORM pickings
 
 // ------------------------------------ Кол-во по заказам -------------------------------------- //
 
-pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP SUM quantity(PickingDetail pickingDetail)
-                                                           BY order(pickingDetail), sku(pickingDetail);
-pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
-                                                          LIMIT STRICT quantity (orderDetail)
-                                                          ORDER orderDetail
-                                                          BY order(orderDetail), sku(orderDetail) MATERIALIZED;
+plannedPickingQuantity 'Планируемое к комплектации кол-во' =
+    GROUP SUM quantity(PickingOrderDetail pickingOrderDetail) BY order(pickingOrder(pickingOrderDetail)), sku(pickingOrderDetail);
+
+plannedPickingQuantity 'Планируемое к комплектации кол-во' =
+    GROUP SUM quantity(PickingOrderDetail pickingOrderDetail) BY order(pickingOrder(pickingOrderDetail)), batch(pickingOrderDetail);
+ 
+diffPlannedPickingQuantity 'Расхождение' (Order order, Sku sku) = quantityOrderDetail(sku, order) (-) plannedPickingQuantity(order, sku);  
+diffPlannedPickingQuantity 'Расхождение' (Order order, Batch batch) = quantityOrderDetail(batch, order) (-) plannedPickingQuantity(order, batch);  
+
+pickingPickingDetail 'Скомплектовано' (order, sku) = 
+    GROUP SUM quantity(PickingDetail pickingDetail) BY order(pickingDetail), sku(pickingDetail);
+pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = 
+    PARTITION UNGROUP pickingPickingDetail
+        LIMIT STRICT quantity (orderDetail)
+        ORDER orderDetail
+    BY order(orderDetail), sku(orderDetail) MATERIALIZED;
 
 //-- Количество излишне подобранных товаров, которых нет в заказе
 quantityPickingPickingDetail (order, sku)= GROUP SUM pickingQuantity(OrderDetail detail) BY order(detail), sku(detail);

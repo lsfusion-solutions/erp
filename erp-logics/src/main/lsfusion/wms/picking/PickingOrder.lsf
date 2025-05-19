@@ -98,7 +98,7 @@ changeBatch(UserPickingOrderDetail detail)  {
 editSku 'Редактировать SKU' (UserPickingOrderDetail d)  { NEWSESSION { edit(sku(d)); } }
 FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS o = UserPickingOrder PANEL
-    PROPERTIES (o) isPosted, nameStock,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
+    PROPERTIES (o) isPosted, nameStock,
                    nameNumerator, number, series, date, time,
                    note, countUserPickingOrderDetail, quantityUserPickingOrderDetail
 
@@ -113,11 +113,13 @@ FORM userPickingOrder 'Заказ на комплектацию'
                            addDetailInputBarcodeUserPickingOrderDetail, deleteUserPickingOrderDetail
     FILTERS userPickingOrder(d) == o
 
+    EVENTS
+        ON OK prePost(o)
+
     EDIT UserPickingOrder OBJECT o
 ;
 
 DESIGN userPickingOrder {
-
     BOX {
         size = (1024, 768);
         NEW specificationBox BEFORE TOOLBARBOX{
@@ -154,10 +156,11 @@ DESIGN userPickingOrder {
                 lines = 1;
             }
         }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
     }
 }
-
-//    @extendFormDocumentSkuStock(userOrder, userOrder, o, legalEntityProp, stockProp);
 
 overCopy  ABSTRACT LIST ( UserPickingOrderDetail, PickingOrderDetail);
 copy 'Копировать'(PickingOrder order)  { 

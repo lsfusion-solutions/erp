@@ -1,43 +1,71 @@
 MODULE SaleOrderPickingOrderBinLedger;
 
-REQUIRE SalePickingOrder, SaleOrderBrestPharm, PickingOrderBinLedger, BatchBinSkuLedger, BinOrderBinLedger;
+REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, PickingOrderBinOrderBinLedger;
 
 NAMESPACE Sale;
 
-createUserPickingOrder 'Заказ на комплектацию'(Order o) {
-    NEWSESSION {
-        LOCAL quantityLoc = NUMERIC[16,5](Batch, Bin);
-        LOCAL quantityLoc = NUMERIC[16,5](Batch);
+//------------------------------------------------------------------------------------------------------------//
 
-        IF quantityOrderDetail(o) THEN NEW p = UserPickingOrder {
-            order(p) <- o;
-            stock(p) <- supplierStock(o);
+namePlannedStatus 'Статус планирования комплектаций' = ABSTRACT VALUE OVERRIDE FIRST STRING (Order) CHARWIDTH 20;
+namePlannedStatus(Order order) +=
+    (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
+            THEN 'Частично спланированы'
+         WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND NOT (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
+            THEN 'Cпланированы'
+    ELSE 'Не спланированы');
 
-            quantityLoc(Batch bt) <- [GROUP SUM quantity(OrderDetail d) BY batch(d), order(d)](bt, o);
-            quantityLoc (Batch bt, Bin b) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, b) ORDER currentBalance(bt, b) BY bt
-                WHERE binGroup2(b) = binZone(o);
-
-            FOR quantityLoc(Batch bt, Bin b) DO NEW pd = UserPickingOrderDetail {
-                pickingOrder(pd) <- p;
-                sku(pd) <- sku(bt);
-                batch(pd) <- bt;
-                outBin(pd) <- b;
-                quantity(pd) <- quantityLoc(bt, b);
-            }
-        }
-        SHOW userPickingOrder;
-    }
-} TOOLBAR;
-
-EXTEND FORM Sale.orders
-    PROPERTIES createUserPickingOrder(o) SHOWIF statusPicking(o) = StatusPicking.notCreated;
+EXTEND FORM orders
+    PROPERTIES(o) READONLY PANEL namePerformer, startDateTime, finishDateTime, packQuantity
+    PROPERTIES(o) READONLY BEFORE countOrderDetail(o) namePlannedStatus, nameStatusPicking BACKGROUND backgroundStatusPicking(o),
+        pickingOrders
 ;
-
-DESIGN Sale.orders {
-    actionContainer {
-        NEW pickingConntainer {
-            caption = 'Заказы на комплектацию';
-            MOVE PROPERTY (createUserPickingOrder(o));
+DESIGN orders {
+    documentHistory {
+        NEW picking {
+            caption = 'Комплектация';
+            horizontal = TRUE;
+            MOVE PROPERTY(namePerformer(o));
+            MOVE PROPERTY(startDateTime(o));
+            MOVE PROPERTY(finishDateTime(o));
+            MOVE PROPERTY(packQuantity(o));
         }
     }
 }
+
+//---------------------------------- Создание заказа на комплектации ----------------------------------------//
+
+createUserPickingOrder 'Отправить в коплектацию' ABSTRACT CASE OVERRIDE FIRST (Order) TOOLBAR;
+createUserPickingOrder(Order order) + WHEN order IS Order THEN {
+    NEWSESSION {
+        IF defaultBinOrderOperation() THEN {
+            LOCAL quantityLoc = NUMERIC[16,5](Sku, Bin);
+            LOCAL quantityLoc = NUMERIC[16,5](Sku);
+
+            IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku sku) > 0) THEN NEW p = UserPickingOrder {
+                isPosted(p) <- TRUE;
+                order(p) <- order;
+                stock(p) <- supplierStock(order);
+
+                quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
+                quantityLoc(Sku sku, Bin b) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, b) ORDER currentBalance(sku, b) BY sku;
+
+                FOR quantityLoc(Sku sku, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
+                    userPickingOrder(pd) <- p;
+                    sku(pd) <- sku;
+                    outBin(pd) <- b;
+                    quantity(pd) <- quantityLoc(sku, b);
+                }
+            }
+            APPLY;
+        } ELSE {
+            MESSAGE 'Не задана \'Операция по умолчанию для заказа на перемещение по ячейкам\'' NOWAIT ;
+        }    
+    }    
+}
+
+showCreateUserPickingOrder = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Order);
+showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku s)>0);
+
+EXTEND FORM orders 
+    PROPERTIES(o) createUserPickingOrder SHOWIF showCreateUserPickingOrder(o)
+;
