@@ -70,20 +70,28 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
 overProcessImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
     lock(i);
     IF lockResult() THEN {
-        IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT overMinProduct(sku(d), client(customerStock(d)))) THEN {
-            ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
-                (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT overMinProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO { }
-            ELSE RETURN;
-        }
-        IF NOT shipped(i) THEN {
-            MESSAGE 'Для накладной необходимо создать поставку. Отправка отменена';
-            RETURN;
-        }
+        TRY {
+            IF (GROUP SUM 1 IF invoice(InvoiceDetail d) == i AND NOT overMinProduct(sku(d), client(customerStock(d)))) THEN {
+                ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
+                    (GROUP CONCAT name(sku(InvoiceDetail d)) IF invoice(d) == i AND NOT overMinProduct(sku(d), client(customerStock(d))), '\n' ORDER d) + '\nПродолжить?' DO { }
+                ELSE RETURN;
+            }
+            IF NOT shipped(i) THEN {
+                MESSAGE 'Для накладной необходимо создать поставку. Отправка отменена';
+                RETURN;
+            }
 
-        processImport(i);        
+            processImport(i);
+        } FINALLY {
+            unlock(i);
+        }
     } ELSE {
         MESSAGE 'Уже выполняется отправка в ЕГАИС по накладной '+seriesNumber(i)+'. Подождите...';
     }
+}
+
+onStarted() +{
+    locked(Invoice i) <- NULL WHERE locked(i) AND i IS Invoice; 
 }
 
 EXTEND FORM userInvoice
