@@ -320,17 +320,21 @@ backgroundMinQuantity (InvoiceDetail d) = IF shipmentQuantity(d) < minDeviationQ
     THEN  RGB(0,255,119) 
     ELSE RGB(249,255,212);  
       
-  
-    
+overBackgroundPriceOrder = ABSTRACT COLOR (InvoiceDetail);
+backgroundPriceOrder(InvoiceDetail d) = OVERRIDE overBackgroundPriceOrder(d), RGB(249,255,212) IF d IS InvoiceDetail;
+
+overBackgroundQuantityOrder = ABSTRACT COLOR (InvoiceDetail);
+backgroundQuantityOrder(InvoiceDetail d) = OVERRIDE overBackgroundQuantityOrder(d), RGB(249,255,212) IF d IS InvoiceDetail;
+
 EXTEND FORM userInvoice
     PROPERTIES (d) READONLY BEFORE price(d) 
                    minDeviationPriceOrder SHOWIF percDeviationDownPriceOrders(i) BACKGROUND backgroundMinPrice(d), 
-                   priceOrder SHOWIF countIncludeOrders(i), 
+                   priceOrder SHOWIF countIncludeOrders(i) BACKGROUND backgroundPriceOrder(d), 
                    maxDeviationPriceOrder SHOWIF percDeviationUpPriceOrders(i) BACKGROUND backgroundMaxPrice(d)
      
     PROPERTIES (d) READONLY BEFORE quantity(d) 
                    minDeviationQuantityOrder SHOWIF percDeviationDownQuantityOrders(i) BACKGROUND backgroundMinQuantity(d), 
-                   quantityOrder SHOWIF countIncludeOrders(i), 
+                   quantityOrder SHOWIF countIncludeOrders(i) BACKGROUND backgroundQuantityOrder(d), 
                    maxDeviationQuantityOrder SHOWIF percDeviationUpQuantityOrders(i) BACKGROUND backgroundMaxQuantity(d) 
 
     FILTERGROUP    deviation
@@ -345,11 +349,6 @@ EXTEND FORM userInvoice
         
 
 ;
-
-DESIGN userInvoice {
-    PROPERTY(priceOrder(d)) { background = #F9FFD4; }
-    PROPERTY(quantityOrder(d)) { background = #F9FFD4; }
-}
 
 overCopy(Agreement s, Agreement d) + { 
     banNotAgreementsPrice(d) <- banNotAgreementsPrice(s);
