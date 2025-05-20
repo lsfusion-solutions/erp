@@ -1,0 +1,21 @@
+MODULE ShippingBinLedger;
+
+REQUIRE EmployeeBin, SaleBinLedger, BinTransferBinLedger, WMSDashboard;
+
+NAMESPACE Sale;
+
+defaultShippingBin = DATA Bin (Employee, Stock);
+nameDefaultShippingBin 'Ячейка для отгрузки' (Employee employee, Stock stock) = canonicalId(defaultShippingBin(employee, stock)) CHARWIDTH 10;
+
+CONSTRAINT defaultShippingBin(Employee employee, Stock stock) AND NOT stock(defaultShippingBin(employee, stock)) == stock
+    CHECKED BY defaultShippingBin[Employee, Stock] MESSAGE 'Ячейка задана для другого склада';
+
+CONSTRAINT defaultShippingBin(Employee employee, Stock stock) AND NOT accessCompany(employee, stock)
+    CHECKED BY defaultShippingBin[Employee, Stock] MESSAGE 'Нет доступа к складу ячейки';
+
+CONSTRAINT defaultShippingBin(Employee employee, Stock stock) AND NOT shipping(defaultShippingBin(employee, stock))
+    CHECKED BY defaultShippingBin[Employee, Stock] MESSAGE 'Выбранная ячейка не предназначена для отгрузки';
+
+EXTEND FORM employee
+    PROPERTIES(e, s) nameDefaultShippingBin
+;

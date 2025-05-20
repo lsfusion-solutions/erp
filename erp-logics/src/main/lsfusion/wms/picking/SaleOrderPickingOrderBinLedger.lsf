@@ -1,6 +1,6 @@
 MODULE SaleOrderPickingOrderBinLedger;
 
-REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, PickingOrderBinOrderBinLedger;
+REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger;
 
 NAMESPACE Sale;
 
@@ -37,29 +37,26 @@ DESIGN orders {
 createUserPickingOrder 'Отправить в коплектацию' ABSTRACT CASE OVERRIDE FIRST (Order) TOOLBAR;
 createUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
-        IF defaultBinOrderOperation() THEN {
-            LOCAL quantityLoc = NUMERIC[16,5](Sku, Bin);
-            LOCAL quantityLoc = NUMERIC[16,5](Sku);
+        LOCAL quantityLoc = NUMERIC[16,5](Sku, Bin);
+        LOCAL quantityLoc = NUMERIC[16,5](Sku);
 
-            IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku sku) > 0) THEN NEW p = UserPickingOrder {
-                isPosted(p) <- TRUE;
-                order(p) <- order;
-                stock(p) <- supplierStock(order);
+        IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku sku) > 0) THEN NEW p = UserPickingOrder {
+            isPosted(p) <- TRUE;
+            order(p) <- order;
+            stock(p) <- supplierStock(order);
 
-                quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
-                quantityLoc(Sku sku, Bin b) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, b) ORDER currentBalance(sku, b) BY sku;
+            quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
+            quantityLoc(Sku sku, Bin b) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, b) ORDER currentBalance(sku, b) BY sku
+                WHERE picking(b);
 
-                FOR quantityLoc(Sku sku, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
-                    userPickingOrder(pd) <- p;
-                    sku(pd) <- sku;
-                    outBin(pd) <- b;
-                    quantity(pd) <- quantityLoc(sku, b);
-                }
+            FOR quantityLoc(Sku sku, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
+                userPickingOrder(pd) <- p;
+                sku(pd) <- sku;
+                outBin(pd) <- b;
+                quantity(pd) <- quantityLoc(sku, b);
             }
-            APPLY;
-        } ELSE {
-            MESSAGE 'Не задана \'Операция по умолчанию для заказа на перемещение по ячейкам\'' NOWAIT ;
-        }    
+        }
+        APPLY;
     }    
 }
 
