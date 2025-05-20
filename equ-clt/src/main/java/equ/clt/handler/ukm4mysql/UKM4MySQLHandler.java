@@ -461,7 +461,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     int ukz = extraInfo != null && extraInfo.optBoolean("ukz") || "ukz".equals(lotType) ? 0 : 1;
 
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //store
-                    ps.setInt(2, lotType != null ? 3 : 0); //item
+                    ps.setInt(2, lotType != null && !lotType.isEmpty() ? 3 : 0); //item
                     ps.setInt(3, 0); //stock
                     ps.setInt(4, 0); //stock
                     ps.setInt(5, version); //version
