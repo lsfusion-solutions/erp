@@ -1,6 +1,6 @@
 MODULE SaleOrderPickingOrderBatchBinLedger;
 
-REQUIRE SaleOrderPickingOrderBinLedger, BatchBinSkuLedger;
+REQUIRE SaleOrderPickingOrderBinLedger, BatchBinSkuLedger, PickingOrderBatchBinLedger;
 
 NAMESPACE Sale;
 
@@ -13,27 +13,31 @@ namePlannedStatus(Order order) +=
 
 createUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
-        LOCAL quantityLoc = NUMERIC[16,5](Batch, Bin);
-        LOCAL quantityLoc = NUMERIC[16,5](Batch);
-
-        IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Batch bt)>0) THEN NEW p = UserPickingOrder {
-            isPosted(p) <- TRUE;
-            order(p) <- order;
-            stock(p) <- supplierStock(order);
-
-            quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
-            quantityLoc(Batch bt, Bin b) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, b) ORDER currentBalance(bt, b) BY bt
-                WHERE picking(b);
-
-            FOR quantityLoc(Batch bt, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
-                userPickingOrder(pd) <- p;
-                sku(pd) <- sku(bt);
-                batch(pd) <- bt;
-                outBin(pd) <- b;
-                quantity(pd) <- quantityLoc(bt, b);
+        IF defaultPickingOrderBinOrderOperation() THEN {
+            LOCAL quantityLoc = NUMERIC[16,5](Batch, Bin);
+            LOCAL quantityLoc = NUMERIC[16,5](Batch);
+    
+            IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Batch bt)>0) THEN NEW p = UserPickingOrder {
+                isPosted(p) <- TRUE;
+                order(p) <- order;
+                stock(p) <- supplierStock(order);
+    
+                quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
+                quantityLoc(Batch bt, Bin b) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, b) ORDER currentBalance(bt, b) BY bt
+                    WHERE picking(b);
+    
+                FOR quantityLoc(Batch bt, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
+                    userPickingOrder(pd) <- p;
+                    sku(pd) <- sku(bt);
+                    batch(pd) <- bt;
+                    outBin(pd) <- b;
+                    quantity(pd) <- quantityLoc(bt, b);
+                }
             }
+            APPLY;
+        } ELSE {
+            MESSAGE 'Не задана \'Операция по умолчанию для заказа на перемещение по ячейкам\'' NOWAIT;
         }
-        APPLY;
     }
 }
 

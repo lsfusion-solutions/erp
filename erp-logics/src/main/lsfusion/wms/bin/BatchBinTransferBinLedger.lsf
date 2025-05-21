@@ -1,12 +1,22 @@
 MODULE BatchBinTransferBinLedger;
 
-REQUIRE BatchBinSkuLedger, BinTransferBinLedger;
+REQUIRE BatchBinSkuLedger, BinTransferBinLedger, BatchBinOrderBinLedger;
 
 NAMESPACE Bin;
 
 @defineDocumentInterfaceDetailBatch(binTransfer, batch);
 
-@implementDocumentBatch(binTransfer);
+//todo: вернуть метакод, когда починят баг с тремя ###
+//@implementDocumentBatch(userBinTransfer);
+
+batch[DocumentDetail](UserBinTransferDetail detail) += batch(detail);
+skipFillBatch = ABSTRACT CASE BOOLEAN (UserBinTransferDetail);
+overFillDocument (UserBinTransferDetail i, DocumentDetail d) + {
+    IF NOT skipFillBatch(i) THEN {
+        batch(i) <- batch(d);
+    }
+}
+
 
 @implementDocumentBatchForm(bt);
 
@@ -25,11 +35,8 @@ EXTEND FORM binTransfers
     PROPERTIES(d) READONLY AFTER shortNameUOMSku(d) idBatch, nameBatch
 ;
 
-@defineOperationProperty(isBatch, 'Должна быть задана партия', constraintContainer);
-
 CONSTRAINT isPosted(BinTransferDetail d) AND isBatch(operation(d)) AND sku(d) AND NOT skipFillBatch(d) AND NOT batch(d)
-    MESSAGE 'Для строки строка перемещения по ячейкам должна быть задана партия';
-
+    MESSAGE 'Для строки перемещения по ячейкам должна быть задана партия';
 
 @defineDocumentBatchStockPriceListTypeSystemLedger(userBinTransfer, );
 
@@ -53,11 +60,3 @@ EXTEND FORM userBinTransfer
 
 skipSetInBin(UserBinTransferDetail d) += TRUE IF inBin(d);
 skipSetOutBin(UserBinTransferDetail d) += TRUE IF outBin(d);
-
-DESIGN Bin.operation {
-    tabContainer {
-        NEW createContainer BEFORE constraintContainer{
-            caption = 'Производные документы';
-        }
-    }
-}

@@ -1,0 +1,61 @@
+MODULE BatchBinOrderBinLedger;
+
+REQUIRE BinOrderBinLedger, BatchBinSkuLedger;
+
+NAMESPACE Bin;
+
+@defineDocumentInterfaceDetailBatch(binOrder, batch);
+
+//todo: вернуть метакод, когда починят баг с тремя ###
+//@implementDocumentBatch(userBinOrder);
+
+batch[DocumentDetail](UserBinOrderDetail detail) += batch(detail);
+skipFillBatch = ABSTRACT CASE BOOLEAN (UserBinOrderDetail);
+overFillDocument (UserBinOrderDetail i, DocumentDetail d) + {
+    IF NOT skipFillBatch(i) THEN {
+        batch(i) <- batch(d);
+    }
+}
+
+@implementDocumentBatchForm(bo);
+
+EXTEND FORM userBinOrder
+    PROPERTIES(d) AFTER shortNameUOMSku(d) nameBatch
+;
+
+overCopy(UserBinOrderDetail d, BinOrderDetail binOrderDetail) + {
+    batch(d) <- batch(binOrderDetail);
+}
+overCopy[UserBinOrderDetail,UserBinOrderDetail](UserBinOrderDetail d, UserBinOrderDetail binOrderDetail) + {
+    batch(d) <- batch(binOrderDetail);
+}
+
+EXTEND FORM binOrders
+    PROPERTIES(d) READONLY AFTER shortNameUOMSku(d) nameBatch
+;
+
+@defineOperationProperty(isBatch, 'Должна быть задана партия', constraintContainer);
+
+CONSTRAINT isPosted(BinOrderDetail d) AND isBatch(operation(d)) AND sku(d) AND NOT skipFillBatch(d) AND NOT batch(d)
+    MESSAGE 'Для строки заказа на перемещения по ячейкам должна быть задана партия';
+
+@defineDocumentBatchStockPriceListTypeSystemLedger(userBinOrder, );
+
+@showDocumentInterfaceDetailBatch(binOrder);
+
+@extendFormDocumentBatchStock(userBinOrder, userBinOrder, o, , );
+
+bins 'Ячейки с остатком' (Batch batch, BinOrder binOrder) = bins(batch, stock(binOrder));
+prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Batch batch, BinOrder binOrder) = prevCurrentBalance(batch, outBin(binOrder));
+prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Batch batch, BinOrder binOrder) = prevCurrentBalance(batch, inBin(binOrder));
+
+EXTEND FORM userBinOrder
+    PROPERTIES (b, o) READONLY AFTER prevCurrentBalance(b, sto) bins, prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    FILTERGROUP filterBatch
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(b, o) 'F7'
+        FILTER 'С остатком ' currentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(b, o, sto) 'F9'
+;
+
+skipSetInBin(UserBinOrderDetail d) += TRUE IF inBin(d);
+skipSetOutBin(UserBinOrderDetail d) += TRUE IF outBin(d);

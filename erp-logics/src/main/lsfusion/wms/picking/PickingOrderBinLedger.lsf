@@ -1,6 +1,6 @@
 MODULE PickingOrderBinLedger;
 
-REQUIRE PickingOrder, BinLedger;
+REQUIRE PickingOrder, BinLedger, BinOrderBinLedger;
 
 NAMESPACE Picking;
 
@@ -24,3 +24,29 @@ overCopy (UserPickingOrderDetail d, PickingOrderDetail s) + {
     outBin(d) <- outBin(s);
 }
 
+//----------- Считаем заказ на комплектацию частным случаем заказа на перемещения между ячейками --------------//
+
+defaultPickingOrderBinOrderOperation = DATA Bin.Operation();
+nameDefaultPickingOrderBinOrderOperation 'Операция по умолчанию для заказа на комплектацию' = name(defaultPickingOrderBinOrderOperation());
+
+EXTEND FORM options PROPERTIES() nameDefaultPickingOrderBinOrderOperation;
+DESIGN options { WMS { MOVE PROPERTY(nameDefaultPickingOrderBinOrderOperation());} }
+
+EXTEND CLASS PickingOrder : BinOrder;
+date[BinOrder](PickingOrder o) += date(o);
+time[BinOrder](PickingOrder o) += time(o);
+number[BinOrder](PickingOrder o) += number(o);
+series[BinOrder](PickingOrder o) += series(o);
+operation[BinOrder](PickingOrder o) += defaultPickingOrderBinOrderOperation() IF o IS PickingOrder;
+isPosted[BinOrder](PickingOrder o) += isPosted(o);
+isClosed[BinOrder](PickingOrder o) += isClosed(o);
+note[BinOrder](PickingOrder o) += note(o);
+stock[BinOrder](PickingOrder o) += stock(o);
+description[BinOrder](PickingOrder o) += description(o);
+
+EXTEND CLASS PickingOrderDetail : BinOrderDetail;
+binOrder[BinOrderDetail](PickingOrderDetail d) += pickingOrder(d);
+index[BinOrderDetail](PickingOrderDetail d) += index(d);
+outBin[BinOrderDetail](PickingOrderDetail d) += outBin(d);
+sku[BinOrderDetail](PickingOrderDetail d) += sku(d);
+quantity[BinOrderDetail](PickingOrderDetail d) += quantity(d);

@@ -4,11 +4,14 @@ REQUIRE Bin, Document, BinLedger, Operation, StockSkuDocument, PurchasePack;
 
 NAMESPACE Bin;
 
-CLASS ABSTRACT BinOrder 'Заказ на перемещение по ячейкам': Document;
-CLASS ABSTRACT BinOrderDetail 'Строка заказа на перемещение по ячейкам': DocumentDetail;
+CLASS ABSTRACT BinOrder 'Заказ на перемещение по ячейкам';
+CLASS ABSTRACT BinOrderDetail 'Строка заказа на перемещение по ячейкам';
 
-CLASS UserBinOrder 'Заказ на перемещение по ячейкам (польз.)': BinOrder;
-CLASS UserBinOrderDetail 'Строка заказа на перемещение по ячейкам': BinOrderDetail;
+//--- !Необходимо для каждой реализации BinOrder и BinOrderDetail делать зависимость на Document и DocumentDetail! --// 
+//Если наследовать в BinOrder и BinOrderDetail, то невозможно от них наследовать те классы, что уже наследованы от Document и DocumentDetail
+
+CLASS UserBinOrder 'Заказ на перемещение по ячейкам (польз.)': BinOrder, Document;
+CLASS UserBinOrderDetail 'Строка заказа на перемещение по ячейкам': BinOrderDetail, DocumentDetail;
 
 selected 'Отм.' = DATA LOCAL BOOLEAN (BinOrder); 
 
@@ -54,8 +57,35 @@ INDEX outBin(BinOrderDetail d), sku(d);
 
 @defineBinDocumentConstraints(userBinOrder);
 
-@implementDocument(binOrder);
-supplierStock[Document](BinOrder binOrder) += stock(binOrder);
+//todo: вернуть метакод, когда починят баг с тремя ###
+//@implementDocument(userBinOrder);
+
+isClosed[Document](UserBinOrder userBinOrder) += isClosed(userBinOrder);
+isPosted[Document](UserBinOrder userBinOrder) += isPosted(userBinOrder);
+number[Document](UserBinOrder userBinOrder) += number(userBinOrder);
+series[Document](UserBinOrder userBinOrder) += series(userBinOrder);
+date[Document](UserBinOrder userBinOrder) += date(userBinOrder);
+
+index[DocumentDetail](UserBinOrderDetail detail) += index(detail);
+sku[DocumentDetail](UserBinOrderDetail detail) += sku(detail);
+quantity[DocumentDetail](UserBinOrderDetail detail) += quantity(detail);
+price[DocumentDetail](UserBinOrderDetail detail) += price(detail);
+
+document[DocumentDetail](UserBinOrderDetail detail) += userBinOrder(detail);
+
+overFillDocument  ABSTRACT LIST (UserBinOrderDetail, DocumentDetail);
+fillDocument 'Подбор документа'(UserBinOrder userBinOrder)  {
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = UserBinOrderDetail DO {
+            userBinOrder(i) <- userBinOrder;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+supplierStock[Document](UserBinOrder binOrder) += stock(binOrder);
 
 @implementDocumentForm(binOrder, bo, 'Заказ на перемещение по ячейкам');
 
@@ -545,6 +575,9 @@ DESIGN operation {
         NEW showContainer {
             caption = 'Отображение свойств';
         }
+        NEW createContainer {
+            caption = 'Производные документы';
+        }       
         NEW constraintContainer {
             caption = 'Ограничения';
         }        

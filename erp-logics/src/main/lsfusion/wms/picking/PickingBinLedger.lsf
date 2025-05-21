@@ -1,31 +1,60 @@
 MODULE PickingBinLedger;
 
-REQUIRE Picking, BinLedger, PickingOrderBinLedger;
+REQUIRE Picking, BinLedger, PickingOrderBinLedger, BinTransferBinLedger;
 
 NAMESPACE Picking;
 
-@defineDocumentBins(picking, out, ' (из)');
+@defineDocumentBins(picking);
 
 EXTEND FORM userPicking
-    PROPERTIES(d) nameOutBin
+    PROPERTIES(d) nameOutBin, nameInBin
 ;
 
 EXTEND FORM pickings
-    PROPERTIES(d) READONLY nameOutBin
+    PROPERTIES(d) READONLY nameOutBin, nameInBin
 ;
 
 EXTEND FORM pickingsOrderPickings
-    PROPERTIES(d) READONLY nameOutBin
+    PROPERTIES(d) READONLY nameOutBin, nameInBin
 ;
 
 EXTEND FORM printPickingOrder
-    PROPERTIES(d) READONLY nameOutBin
+    PROPERTIES(d) READONLY nameOutBin, nameInBin
 ;
 
 overCopy (UserPickingDetail d, PickingDetail s) + {
     outBin(d) <- outBin(s);
+    inBin(d) <- inBin(s);
 }
 
 overFillUserPicking (UserPickingDetail d, PickingOrderDetail s) + {
     outBin(d) <- outBin(s);
-}    
+    inBin(d) <- inBin(s);
+}
+
+//---------------- Считаем комплектацию частным случаем перемещения между ячейками ----------------------//
+
+defaultPickingBinOrderOperation = DATA Bin.Operation();
+nameDefaultPickingBinOrderOperation 'Операция по умолчанию для комплектации' = name(defaultPickingBinOrderOperation());
+
+EXTEND FORM options PROPERTIES() nameDefaultPickingBinOrderOperation;
+DESIGN options { WMS { MOVE PROPERTY(nameDefaultPickingBinOrderOperation());} }
+
+EXTEND CLASS Picking : BinTransfer;
+date[BinTransfer](Picking o) += date(o);
+time[BinTransfer](Picking o) += time(o);
+number[BinTransfer](Picking o) += number(o);
+series[BinTransfer](Picking o) += series(o);
+operation[BinTransfer](Picking o) += defaultPickingBinOrderOperation() IF o IS Picking;
+isPosted[BinTransfer](Picking o) += o IS Picking;
+note[BinTransfer](Picking o) += note(o);
+stock[BinTransfer](Picking o) += stock(o);
+description[BinTransfer](Picking o) += description(o);
+
+EXTEND CLASS PickingDetail : BinTransferDetail;
+binTransfer[BinTransferDetail](PickingDetail d) += picking(d);
+index[BinTransferDetail](PickingDetail d) += index(d);
+outBin[BinTransferDetail](PickingDetail d) += outBin(d);
+inBin[BinTransferDetail](PickingDetail d) += inBin(d);
+sku[BinTransferDetail](PickingDetail d) += sku(d);
+quantity[BinTransferDetail](PickingDetail d) += quantity(d);

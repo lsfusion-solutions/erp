@@ -4,11 +4,14 @@ REQUIRE BinLedger, BinOrderBinLedger;
 
 NAMESPACE Bin;
 
-CLASS ABSTRACT BinTransfer 'Перемещение по ячейкам': Document;
-CLASS ABSTRACT BinTransferDetail 'Строка перемещения по ячейкам': DocumentDetail;
+CLASS ABSTRACT BinTransfer 'Перемещение по ячейкам';
+CLASS ABSTRACT BinTransferDetail 'Строка перемещения по ячейкам';
 
-CLASS UserBinTransfer 'Перемещение по ячейкам (польз.)': BinTransfer;
-CLASS UserBinTransferDetail 'Строка перемещения по ячейкам': BinTransferDetail;
+//--- !Необходимо для каждой реализации BinTransfer и BinTransferDetail делать зависимость на Document и DocumentDetail! --// 
+//Если наследовать в BinTransfer и BinTransferDetail, то невозможно от них наследовать те классы, что уже наследованы от Document и DocumentDetail
+
+CLASS UserBinTransfer 'Перемещение по ячейкам (польз.)': BinTransfer, Document;
+CLASS UserBinTransferDetail 'Строка перемещения по ячейкам': BinTransferDetail, DocumentDetail;
 
 @defineDocumentInterface(binTransfer);
 
@@ -44,8 +47,36 @@ GROUP binTransfer 'Информация о перемещении' : base;
 
 useBins(UserBinTransfer transfer) <- TRUE WHEN SET(transfer IS UserBinTransfer);
 
-@implementDocument(binTransfer);
-supplierStock[Document](BinTransfer binTransfer) += stock(binTransfer);
+//todo: вернуть метакод, когда починят баг с тремя ###
+//@implementDocumentPrefix(userBinTransfer);
+
+isClosed[Document](UserBinTransfer userBinTransfer) += isClosed(userBinTransfer);
+isPosted[Document](UserBinTransfer userBinTransfer) += isPosted(userBinTransfer);
+number[Document](UserBinTransfer userBinTransfer) += number(userBinTransfer);
+series[Document](UserBinTransfer userBinTransfer) += series(userBinTransfer);
+date[Document](UserBinTransfer userBinTransfer) += date(userBinTransfer);
+
+index[DocumentDetail](UserBinTransferDetail detail) += index(detail);
+sku[DocumentDetail](UserBinTransferDetail detail) += sku(detail);
+quantity[DocumentDetail](UserBinTransferDetail detail) += quantity(detail);
+price[DocumentDetail](UserBinTransferDetail detail) += price(detail);
+
+document[DocumentDetail](UserBinTransferDetail detail) += userBinTransfer(detail);
+
+overFillDocument  ABSTRACT LIST (UserBinTransferDetail, DocumentDetail);
+fillDocument 'Подбор документа'(UserBinTransfer userBinTransfer)  {
+    DIALOG documents DO {
+        FOR inSession(document(DocumentDetail documentDetail)) NEW i = UserBinTransferDetail DO {
+            userBinTransfer(i) <- userBinTransfer;
+            sku(i) <- sku(documentDetail);
+            quantity(i) <- quantity(documentDetail);
+            price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+            overFillDocument(i, documentDetail);
+        }
+    }
+} TOOLBAR;
+
+supplierStock[Document](UserBinTransfer binTransfer) += stock(binTransfer);
 
 @implementDocumentForm(binTransfer, bt, 'Перемещение по ячейкам');
 
