@@ -23,8 +23,8 @@ skipInfoLottype (MachineryPriceTransaction t, Barcode b) += b IS Barcode AND t I
 skipInfoLottype (MachineryPriceTransaction t, Barcode b) += b IS Barcode AND t IS MachineryPriceTransaction AND idLotType(sku(b)) == 'none';
 skipInfoLottype (MachineryPriceTransaction t, Barcode b) += b IS Barcode AND t IS MachineryPriceTransaction AND NOT (controlLot(lotType(sku(b))) OR explicitLot(sku(b)));
 
-
-info (MachineryPriceTransaction t, Barcode b, STRING key) += 'true' IF UKZ(sku(b)) == TTRUE AND in(t, b) AND key = 'ukz' AND printLot(groupMachinery(t));
+skipUkz = ABSTRACT BOOLEAN (Barcode);
+info (MachineryPriceTransaction t, Barcode b, STRING key) += 'true' IF UKZ(sku(b)) == TTRUE AND in(t, b) AND key = 'ukz' AND printLot(groupMachinery(t)) AND NOT skipUkz(b);
 
 skipInfoGtin = ABSTRACT VALUE BOOLEAN (MachineryPriceTransaction);
 info (MachineryPriceTransaction t, Barcode b, STRING key) += GTIN(b) IF in(t, b) AND key = 'gtin' AND NOT skipInfoGtin(t);
