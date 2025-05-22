@@ -39,6 +39,8 @@ DESIGN options {
     }
 }
 
+skipCreateLotOnChangeBarcode = ABSTRACT BOOLEAN ();
+
 checkLot ABSTRACT LIST (Lot, DepartmentStore);
 createDetail = DATA LOCAL BOOLEAN ();
 
@@ -46,6 +48,11 @@ overExplicitLot = ABSTRACT BOOLEAN (Sku, DepartmentStore);
 
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 THEN {
+        IF skuBarcode(idToGtin(initialBarcode())) AND NOT lot(barcodeToId(initialBarcode())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {
+            id(l) <- barcodeToId(initialBarcode());
+            tail(l) <- barcodeToTail(initialBarcode());
+            sku(l) <- skuBarcode(idToGtin(initialBarcode()));
+        }
         FOR Lot l = lot(barcodeToId(initialBarcode())) AND Sku s = sku(l) DO {
             createDetail() <- TRUE;
             checkLot(l, departmentStore(r));
