@@ -6,10 +6,10 @@ NAMESPACE Astron;
 
 
 //товар
-imageAstron(Item i) = DATA IMAGEFILE (Item) TABLE itemImage;
+imageAstron= DATA IMAGEFILE (Barcode);
 
 WHEN CHANGED (image(Item i)) OR CHANGED(allBarcodes(i)) DO { 
-    imageAstron(i) <- NULL;
+    imageAstron(Barcode b) <- NULL WHERE sku(b) == i;
 }
 //группа
 imageAstron 'Изображение для PowerPOS' = DATA IMAGEFILE (CustomGroup);
@@ -67,7 +67,8 @@ EXTEND FORM customGroup
 //выгрузка
 encodeBase64 = FORMULA STRING 'regexp_replace(encode(($1),\'base64\'), E\'[\\n\\r]+\', \' \', \'g\' )';
 
-updateImage = DATA LOCAL NESTED BOOLEAN (Sku);
+updateImage = DATA LOCAL NESTED BOOLEAN (Barcode);
+updateAllImagesAstron = DATA BOOLEAN ();
 
 overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) += 
     (CONCAT ', ',
@@ -90,10 +91,10 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
                 '\{"numberId":'+(100 + age(sku(b)))+',"numberValue":'+age(sku(b))+',"numberName":"'+age(sku(b))+' лет"\}' IF ageVerify(sku(b))
             ) +']',
         '"binProperty":[' + (CONCAT ', ',
-                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(sku(b))
+                '\{"binPropertyKey":1,"propertyGrpId":'+value(b)+',"binaryDataId":'+value(b)+'\}' IF imageAstron(b)
             ) +']',
         '"binaryData":[' + (CONCAT ', ',
-                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(sku(b)))+'","binaryDataName":"'+value(b)+'"\}' IF updateImage(sku(b))
+                '\{"binaryDataId":'+value(b)+',"binaryDataValue":"'+encodeBase64(imageAstron(b))+'","binaryDataName":"'+value(b)+'"\}' IF updateImage(b) OR updateAllImagesAstron()
             ) +']'
         ),
         //группы
@@ -113,20 +114,20 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
 beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
     IF dataCustomGroupTypeAstron(groupMachinery(mpt)) THEN {
 
-        LOCAL needResize = BOOLEAN(Item);
-        needResize(Item i) <- TRUE IF GROUP SUM 1 IF in(mpt, Barcode b) AND i == sku(b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), i)
-            AND hasImage(i) AND NOT imageAstron(i);
+        LOCAL needResize = BOOLEAN(Barcode);
+        needResize(Barcode b) <- TRUE IF GROUP SUM 1 IF in(mpt, b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
+            AND hasImage(sku(b)) AND NOT imageAstron(b);
 
-        IF (GROUP SUM 1 IF needResize(Item i)) THEN NEWSESSION NESTED LOCAL {
-            FOR needResize(Item s) DO {
+        IF (GROUP SUM 1 IF needResize(Barcode b)) THEN NEWSESSION NESTED LOCAL {
+            FOR needResize(Barcode b) DO {
                 TRY {
                     resizedImage() <- NULL;
-                    resizeImage(image(s), 128, 128);
+                    resizeImage(image(sku(b)), 128, 128);
                     convertedImage() <- NULL;
                     convertImage(resizedImage(), 'png');
-                    imageAstron(s) <- convertedImage();
+                    imageAstron(b) <- convertedImage();
                 }
-                updateImage(s) <- TRUE IF imageAstron(s);
+                updateImage(b) <- TRUE IF imageAstron(b);
             }
             APPLY NESTED LOCAL;
         }
