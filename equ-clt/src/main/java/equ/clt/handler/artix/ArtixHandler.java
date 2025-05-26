@@ -489,6 +489,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 String ntin = trimToNull(infoJSON.optString("ntin"));
                 if(ntin != null) {
                     inventObject.put("ntin", ntin);
+                } else {
+                    String gtin = extraInfo != null ? trimToNull(extraInfo.optString("gtin")) : null;
+                    if(gtin != null) {
+                        inventObject.put("ntin", gtin);
+                    }
                 }
 
                 String age = trimToNull(infoJSON.optString("age"));
