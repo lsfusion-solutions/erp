@@ -63,7 +63,8 @@ astronInfo2(MachineryPriceTransaction mpt, Barcode b) = (JSON FROM
         'propertyGrpId' = value(b)
     ) IF in(mpt, b) AND sendLotType(model(groupMachinery(mpt)));
 
-gtinAstron(Sku s) = OVERRIDE 'G:' + lpad((OVERRIDE GTIN(s), idBarcode(s) IF length(idBarcode(s)) == 13 AND (lotType(s) OR UKZ(s)==TTRUE)), 14, '0'), 'C';
+skipGtin = ABSTRACT BOOLEAN (Sku);
+gtinAstron(Sku s) = OVERRIDE ('G:' + lpad((OVERRIDE GTIN(s), idBarcode(s) IF length(idBarcode(s)) == 13 AND (lotType(s) OR UKZ(s)==TTRUE)), 14, '0')) IF NOT skipGtin(s), 'C';
 createAttribute(MachineryPriceTransaction mpt) + {
     IF sidModel(groupMachinery(mpt)) LIKE 'Astron%' THEN {
         localAstronInfo(mpt, Barcode b) <- NULL; //очищаем в первом действии, следить чтобы дальше добавлялись позже
