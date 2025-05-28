@@ -161,8 +161,9 @@ WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail], price[UserInvoiceDeta
     AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
         retailMarkup(detail) <- markup(priceListType, sku(detail))
                                                      WHERE retailPriceListType(detail) == priceListType;
-        retailPrice(detail) <- round([( X*(Y+100)/100 (+) W)*(Z+100)/100](
+        retailPrice(detail) <- round([( (X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
                                                                 pricingPrice(detail),
+                                                                retailExtraPackagingCost(detail) IF NOT retailExtraPackagingCostSkip(detail),
                                                                 retailMarkup(detail),
                                                                 retailExtraPackagingCost(detail),
                                                                 valueRetailVAT(detail)), roundCondition)
@@ -190,24 +191,27 @@ WHEN LOCAL GOAFTER retailPriceListType[UserInvoiceDetail]
 
         overSetRetailPrice(priceListType, detail);
         
-        retailMarkup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+        retailMarkup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/ (Z (-) Q)) -1)*100, 99999))](
                                                            retailPrice(detail),
                                                            valueRetailVAT(detail),
                                                            retailExtraPackagingCost(detail),
-                                                           pricingPrice(detail)                                                          )
+                                                           pricingPrice(detail),
+                                                           retailExtraPackagingCost(detail) IF NOT retailExtraPackagingCostSkip(detail))
                                                      WHERE retailPriceListType(detail) == priceListType;
     }
 skipMarkup = ABSTRACT CASE BOOLEAN (UserInvoiceDetail);
 recalculateRetailMarkup (UserInvoiceDetail detail)  {
-    retailMarkup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+    retailMarkup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100, 99999))](
                             retailPrice(detail),
                             valueRetailVAT(detail),
                             retailExtraPackagingCost(detail),
-                            pricingPrice(detail));
+                            pricingPrice(detail),
+                            retailExtraPackagingCost(detail) IF NOT retailExtraPackagingCostSkip(detail));
 }
 WHEN LOCAL
     (CHANGED(pricingPrice(UserInvoiceDetail detail)) OR
-     CHANGED(valueRetailVAT(detail)))
+     CHANGED(valueRetailVAT(detail)) OR 
+    CHANGED(retailExtraPackagingCost(detail)))
     AND NOT retailPriceListType(detail) AND NOT skipMarkup(detail) INLINE DO {
         recalculateRetailMarkup(detail);
 }

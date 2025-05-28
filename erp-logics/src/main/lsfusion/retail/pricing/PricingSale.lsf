@@ -62,13 +62,24 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
 }
 
 // Автоматический расчет розничной надбавки
-retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    retailPrice(userInvoiceDetail),
-    valueRetailVAT(userInvoiceDetail),
-    pricingPrice(userInvoiceDetail))
-    WHEN CHANGED(retailPrice(userInvoiceDetail)) OR
-         CHANGED (valueRetailVAT(userInvoiceDetail)) OR
-         CHANGED(supplierPrice(userInvoiceDetail));
+//retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+//    retailPrice(userInvoiceDetail),
+//    valueRetailVAT(userInvoiceDetail),
+//    pricingPrice(userInvoiceDetail))
+//    WHEN CHANGED(retailPrice(userInvoiceDetail)) OR
+//         CHANGED (valueRetailVAT(userInvoiceDetail)) OR
+//         CHANGED(supplierPrice(userInvoiceDetail));
+
+retailMarkup(UserInvoiceDetail detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100, 99999))](
+        retailPrice(detail),
+        valueRetailVAT(detail),
+        retailExtraPackagingCost(detail),
+        pricingPrice(detail),
+        retailExtraPackagingCost(detail) IF NOT retailExtraPackagingCostSkip(detail))
+    WHEN CHANGED(retailPrice(detail)) OR
+    CHANGED (valueRetailVAT(detail)) OR
+    CHANGED(supplierPrice(detail)) OR 
+    CHANGED(retailExtraPackagingCost(detail));
 
 overRetailVAT = ABSTRACT VALUE Range (UserInvoiceDetail);
 // Принудительное обнуление НДС для тары в расценке

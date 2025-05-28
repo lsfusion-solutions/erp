@@ -33,8 +33,9 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
             prefix###markup(detail) <- markup(priceListType, prefixSku###sku(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
-            prefix###price(detail) <- round([( X*(Y+100)/100 (+) W)*(Z+100)/100](
+            prefix###price(detail) <- round([( (X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
                                                                     prefixP###price(detail),
+                                                                    prefix###ExtraPackagingCost(detail) IF NOT prefix###ExtraPackagingCostSkip(detail),
                                                                     prefix###markup(detail),
                                                                     prefix###ExtraPackagingCost(detail),
                                                                     value###prefix##VAT(detail)), roundCondition)
@@ -59,20 +60,22 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
 
             overSet###prefix###Price(priceListType, detail);
                                                          
-            prefix###markup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+            prefix###markup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/ (Z (-) Q)) -1)*100, 99999))](
                                                                prefix###price(detail),
                                                                value###prefix##VAT(detail),
                                                                prefix###ExtraPackagingCost(detail),
-                                                               prefixP###price(detail))
+                                                               prefixP###price(detail),
+                                                               prefix###ExtraPackagingCost(detail) IF NOT prefix###ExtraPackagingCostSkip(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
         }
     skipMarkup = ABSTRACT CASE BOOLEAN (###idetail);
     recalculate###prefix##Markup (###idetail detail)  { 
-        prefix##Markup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+        prefix##Markup(detail) <- [ round2(min((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100, 99999))](
                                                            prefix###price(detail),
                                                            value###prefix##VAT(detail),
                                                            prefix###ExtraPackagingCost(detail),
-                                                           prefixP###price(detail));
+                                                           prefixP###price(detail),
+                                                           prefix###ExtraPackagingCost(detail) IF NOT prefix###ExtraPackagingCostSkip(detail));
     }
     WHEN LOCAL
         (CHANGED(prefixP###price(###idetail detail)) OR
@@ -87,19 +90,21 @@ META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, pref
 
     recalc###prefix##Price = ABSTRACT CASE NUMERIC[16,4] (###idetail, RoundCondition);
     recalc###prefix##Price(###idetail detail, RoundCondition r) += WHEN detail IS ###idetail AND r IS RoundCondition THEN
-        NUMERIC[16,4](round([( X*(Y+100)/100 (+) W)*(Z+100)/100](
+        NUMERIC[16,4](round([( (X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
                 prefixP##Price(detail),
+                prefix###ExtraPackagingCost(detail) IF NOT prefix###ExtraPackagingCostSkip(detail),
                 prefix##Markup(detail),
                 prefix###ExtraPackagingCost(detail),
                 value###prefix##VAT(detail)), r));
     
     recalc###prefix##Markup = ABSTRACT CASE NUMERIC[8,3] (###idetail);
     recalc###prefix##Markup(###idetail detail) += WHEN detail IS ###idetail THEN
-        NUMERIC[8,3]([ round2(min((((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+        NUMERIC[8,3]([ round2(min((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100, 99999))](
                 prefix##Price(detail),
                 value###prefix##VAT(detail),
                 prefix###ExtraPackagingCost(detail),
-                prefixP##Price(detail)));
+                prefixP##Price(detail),
+                prefix###ExtraPackagingCost(detail) IF NOT prefix###ExtraPackagingCostSkip(detail)));
     
     recalculate###prefix##Price 'Пересчитать розн. цену'###cap ()  { 
         FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
@@ -130,12 +135,14 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixAA,prefixB, p
     skipCalc###prefixA##Markup = ABSTRACT BOOLEAN (###detail);
     calc###prefixD###markup = ABSTRACT CASE NUMERIC[8,3] (###detail);
     prefixA###ExtraPackagingCost = ABSTRACT CASE NUMERIC[16,4] (###detail);
+    prefixA###ExtraPackagingCostSkip = ABSTRACT VALUE BOOLEAN (###detail);
     
-    calc###prefixD###markup(###detail detail) += WHEN detail IS ###detail THEN NUMERIC[8,3]([ round2(min( (((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+    calc###prefixD###markup(###detail detail) += WHEN detail IS ###detail THEN NUMERIC[8,3]([ round2(min( (((X/(100+Y)*100 (-) W)/ (Z (-) Q)) -1)*100, 99999))](
                 prefixAA###price(detail),
                 value###prefixD##VAT(detail),
                 prefixA###ExtraPackagingCost(detail),
-                prefixB###price(detail))) IF NOT skipCalc###prefixA##Markup(detail);
+                prefixB###price(detail),
+                prefixA###ExtraPackagingCost(detail) IF NOT prefixA###ExtraPackagingCostSkip(detail))) IF NOT skipCalc###prefixA##Markup(detail);
 
     change###prefixA##Price(###detail detail)  { 
         INPUT n = NUMERIC[16,4] DO {
@@ -152,8 +159,9 @@ META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, pr
     skipCalc###prefixA##Price = ABSTRACT BOOLEAN (###detail);
     calc###prefixA##Price = ABSTRACT CASE NUMERIC[16,4] (###detail);
     //prefixA###ExtraPackagingCost = ABSTRACT CASE NUMERIC[16,4] (###detail);
-    calc###prefixA##Price(###detail detail) += WHEN detail IS ###detail THEN round(NUMERIC[16,4]([ (X*(Y+100)/100 (+) W)*(Z+100)/100](
+    calc###prefixA##Price(###detail detail) += WHEN detail IS ###detail THEN round(NUMERIC[16,4]([ ((X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
         prefixB###price(detail),
+        prefixA###ExtraPackagingCost(detail) IF NOT prefixA###ExtraPackagingCostSkip(detail),
         prefixD###markup(detail),
         prefixA###ExtraPackagingCost(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail)) IF NOT skipCalc###prefixA##Price(detail);
@@ -171,11 +179,12 @@ END
 
 //-- Для общего случая
 META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
-    calc###prefixB###markup###detail(detail)  = [ round2((((X/(100+Y)*100 (-) W)/Z) -1)*100)](
+    calc###prefixB###markup###detail(detail)  = [ round2((((X/(100+Y)*100 (-) W)/ (Z (-) Q)) -1)*100)](
         prefixC###price###detail(detail),
         value###prefixE###VAT###detail(detail),
         prefixA##ExtraPackagingCost(detail),
-        prefixD###price###detail(detail) IF prefixD###price###detail(detail) != 0.0);
+        prefixD###price###detail(detail) IF prefixD###price###detail(detail) != 0.0,
+        prefixA##ExtraPackagingCost(detail) IF NOT prefixA##ExtraPackagingCostSkip(detail));
 
     change###prefixA###price###detail (detail) {
         INPUT n = NUMERIC[16,4] DO {
@@ -189,8 +198,9 @@ END
 
 META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
 
-    calc###prefixB##Price(###detail detail)  = round(NUMERIC[16,4]([( X*(Y+100)/100 (+) W)*(Z+100)/100](
+    calc###prefixB##Price(###detail detail)  = round(NUMERIC[16,4]([( (X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
         prefixD##Price(detail),
+        prefixA###ExtraPackagingCost(detail) IF NOT prefixA###ExtraPackagingCostSkip(detail),
         prefixE###markup(detail),
         prefixA###ExtraPackagingCost(detail),
         value###prefixE##VAT(detail))), roundCondition(detail));

@@ -155,14 +155,13 @@ curRetailOverPrice(UserRepricingDetail d) = (curRetailPrice(d) (-) curExtraRetai
 
 @changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, curRetail,curRetailOver, curRepricing, cur, cur);
 
-curMarkup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([ round2((((X/(100+Y)*100 (-) W)/Z) -1)*100)](
-        curRetailOverPrice(userRepricingDetail),
-        valueCurVAT(userRepricingDetail),
-        curRetailExtraPackagingCost(userRepricingDetail),
-        curRepricingPrice(userRepricingDetail) IF curRepricingPrice(userRepricingDetail)!=0.0))
-    WHEN CHANGED(curRetailOverPrice(userRepricingDetail)) OR
-    CHANGED(curVAT(userRepricingDetail)) OR
-    CHANGED(curRepricingPrice(userRepricingDetail));
+curMarkup(UserRepricingDetail d)  <- NUMERIC[8,3]([ round2((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100)](
+        curRetailOverPrice(d),
+        valueCurVAT(d),
+        curRetailExtraPackagingCost(d),
+        curRepricingPrice(d) IF curRepricingPrice(d)!=0.0,
+        curRetailExtraPackagingCost(d) IF NOT curRetailExtraPackagingCostSkip(d)))
+    WHEN CHANGED(curRetailOverPrice(d)) OR CHANGED(curVAT(d)) OR CHANGED(curRepricingPrice(d));
 
 
 skipCalcCurRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
@@ -172,12 +171,13 @@ calcCurRetailPrice = ABSTRACT CASE NUMERIC[16,4] (UserRepricingDetail);
 //    curMarkup(userRepricingDetail),
 //    valueCurVAT(userRepricingDetail),
 //    curExtraRetailPrice(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcCurRetailPrice(userRepricingDetail);
-calcCurRetailPrice(UserRepricingDetail userRepricingDetail) += WHEN userRepricingDetail IS UserRepricingDetail THEN round(NUMERIC[16,4]([ (X*(Y+100)/100 (+) W)*(Z+100)/100 (+) AZ](
-        curRepricingPrice(userRepricingDetail),
-        curMarkup(userRepricingDetail),
-        curRetailExtraPackagingCost(userRepricingDetail),
-        valueCurVAT(userRepricingDetail),
-        curExtraRetailPrice(userRepricingDetail))), roundCondition(userRepricingDetail)) IF NOT skipCalcCurRetailPrice(userRepricingDetail);
+calcCurRetailPrice(UserRepricingDetail d) += WHEN d IS UserRepricingDetail THEN round(NUMERIC[16,4]([ ((X (-) Q) *(Y+100)/100 (+) W)*(Z+100)/100 (+) AZ](
+        curRepricingPrice(d),
+        curRetailExtraPackagingCost(d) IF NOT curRetailExtraPackagingCostSkip(d),
+        curMarkup(d),
+        curRetailExtraPackagingCost(d),
+        valueCurVAT(d),
+        curExtraRetailPrice(d))), roundCondition(d)) IF NOT skipCalcCurRetailPrice(d);
 
 
 changeCurMarkup(UserRepricingDetail userRepricingDetail)  { 
@@ -246,19 +246,19 @@ retailOverPrice(UserRepricingDetail d) = (retailPrice(d) (-) extraRetailPrice(d)
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
 @changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, retail, retailOver, repricing, , );
 
-markup(UserRepricingDetail userRepricingDetail)  <- NUMERIC[8,3]([ round2((((X/(100+Y)*100 (-) W)/Z) -1)*100)](
-        retailOverPrice(userRepricingDetail),
-        valueVAT(userRepricingDetail),
-        retailExtraPackagingCost(userRepricingDetail),
-        repricingPrice(userRepricingDetail) IF repricingPrice(userRepricingDetail)!=0.0))
-    WHEN CHANGED(retailOverPrice(userRepricingDetail)) OR
-    CHANGED (VAT(userRepricingDetail)) OR
-    CHANGED(repricingPrice(userRepricingDetail));
+markup(UserRepricingDetail d)  <- NUMERIC[8,3]([ round2((((X/(100+Y)*100 (-) W)/(Z (-) Q)) -1)*100)](
+        retailOverPrice(d),
+        valueVAT(d),
+        retailExtraPackagingCost(d),
+        repricingPrice(d) IF repricingPrice(d)!=0.0,
+        retailExtraPackagingCost(d) IF NOT retailExtraPackagingCostSkip(d)))
+    WHEN CHANGED(retailOverPrice(d)) OR CHANGED(VAT(d)) OR CHANGED(repricingPrice(d));
 
 skipCalcRetailPrice = ABSTRACT BOOLEAN (UserRepricingDetail);
 calcRetailPrice = ABSTRACT CASE NUMERIC[16,4] (UserRepricingDetail);
-calcRetailPrice(UserRepricingDetail userRepricingDetail) += WHEN userRepricingDetail IS UserRepricingDetail THEN round(NUMERIC[16,4]([ (X*(Y+100)/100 (+) W)*(Z+100)/100 (+) AZ](
+calcRetailPrice(UserRepricingDetail userRepricingDetail) += WHEN userRepricingDetail IS UserRepricingDetail THEN round(NUMERIC[16,4]([ ((X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100 (+) AZ](
     repricingPrice(userRepricingDetail),
+    retailExtraPackagingCost(userRepricingDetail) IF NOT retailExtraPackagingCostSkip(userRepricingDetail),
     markup(userRepricingDetail),
     retailExtraPackagingCost(userRepricingDetail),
     valueVAT(userRepricingDetail),

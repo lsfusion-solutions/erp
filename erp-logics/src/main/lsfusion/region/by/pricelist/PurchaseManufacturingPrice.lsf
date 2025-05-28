@@ -171,9 +171,11 @@ skipCalcManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvoic
 skipCalcManufacturingMarkup 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
 
 calcReversePrice(UserInvoiceDetail d) =     
-    round(NUMERIC[16,4](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
+    round(NUMERIC[16,4](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));
 
-updateManufacturingPrice(UserInvoiceDetail d)  { 
+updateManufacturingPrice ABSTRACT CASE (UserInvoiceDetail);
+
+updateManufacturingPrice(UserInvoiceDetail d) + WHEN d IS UserInvoiceDetail THEN { 
     CASE WHEN calcManufacturingMarkupFromPrices(d) THEN manufacturingMarkup(d) <- NUMERIC[8,3]( (calcBaseManufacturingPrice(d) / manufacturingPrice(d) - 1) *100); 
          WHEN reverseManufacturingPrice(d) THEN price(d) <- calcReversePrice(d);
          ELSE
