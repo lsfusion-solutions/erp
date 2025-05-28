@@ -6,5 +6,16 @@ NAMESPACE Purchase;
 
 overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
 
-CONSTRAINT isPosted(UserInvoiceDetail d) AND supplier(userInvoice(d)) AND sku(d) AND NOT valueVAT(d) AND NOT isNotVATPayer(supplier(d)) AND inVATPayer()
+CONSTRAINT isPosted(UserInvoiceDetail d) AND supplier(userInvoice(d)) AND sku(d) AND NOT valueVAT(d) AND isVATPayer(supplier(d)) AND inVATPayer()
     MESSAGE 'Поставщик является плательщиком НДС';
+
+CONSTRAINT isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT invoicePrice(d)
+    MESSAGE 'Для строки накладная (закупка) должна быть задана цена';
+
+overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) + {
+    invoicePrice(d) <- invoicePrice(detail);
+}
+
+overFill(UserInvoiceDetail d, UserOrderDetail detail) + {
+    invoicePrice(d) <- invoicePrice(detail);
+}

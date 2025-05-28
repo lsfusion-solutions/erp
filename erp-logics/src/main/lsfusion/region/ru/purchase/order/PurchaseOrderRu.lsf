@@ -8,3 +8,11 @@ overVAT(UserOrderDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF
 
 CONSTRAINT isPosted(UserOrderDetail d) AND supplier(userOrder(d)) AND sku(d) AND NOT valueVAT(d) AND NOT isNotVATPayer(supplier(d)) AND inVATPayer()
     MESSAGE 'Поставщик является плательщиком НДС';
+
+CONSTRAINT (SET(isPosted(UserOrderDetail d)) OR  CHANGED (operation(d)) OR CHANGED(invoicePrice(d))) AND
+    isPosted(d) AND isPrice(operation(d)) AND NOT invoicePrice(d) AND NOT skipSalePrice(d)
+    MESSAGE 'Для строки заказа (закупка) должна быть задана цена';
+
+overCopy(UserOrderDetail d, OrderDetail detail) + {
+    invoicePrice(d) <- invoicePrice(detail);
+}
