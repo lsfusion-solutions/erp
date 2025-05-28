@@ -159,7 +159,12 @@ middleNameExecuter 'Отчество (передающее ФЛ)' = DATA STRING[
 //-СведТов
 VATStatus = DATA VATStatus (UpdDocumentDetail);
 nameVATStatus 'Ставка НДС' = staticCaption(VATStatus(UpdDocumentDetail d)) CHARWIDTH 7;
-
+nameExVATStatus (UpdDocumentDetail d) = CASE WHEN VATStatus(d) = VATStatus.vat0 THEN'ZeroPercent'
+                    WHEN VATStatus(d) = VATStatus.vat10 THEN'TenPercent'
+                    WHEN VATStatus(d) = VATStatus.vat20 THEN'TwentyPercent'
+                    WHEN VATStatus(d) = VATStatus.vatNot THEN'NoVat'
+                    WHEN VATStatus(d) = VATStatus.vatAgent THEN'TaxedByAgent'
+                    ELSE  nameVATStatus(d);
 //details
 quantity 'Кол-во товара' = DATA NUMERIC[26,3] (UpdDocumentDetail); //КолТов
 price 'Цена' = DATA NUMERIC[26,4] (UpdDocumentDetail); //ЦенаТов
@@ -742,8 +747,8 @@ FORM UPDPR FORMEXTID '=:Файл'
     PROPERTIES = idCountry(detail)  EXTID 'КодПроисх' ATTR IN UPDExportB3,
                = numberDeclaration(detail)  EXTID 'НомерТД' ATTR IN UPDExportB3
 
-    PROPERTIES //= nameUOM(detail)  EXTID 'НаимЕдИзм' ATTR IN UPDExportB4,
-        //= nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
+    PROPERTIES = nameUOM(detail)  EXTID 'НаимЕдИзм' ATTR IN UPDExportB4,
+        = nameCountry(detail)  EXTID 'КрНаимСтрПр' ATTR IN UPDExportB4,
         = idSku(detail)  EXTID 'КодТов' ATTR IN UPDExportB4
     
     PROPERTIES = dutySum(detail) EXTID 'СумАкциз' IN UPDExportB1           
