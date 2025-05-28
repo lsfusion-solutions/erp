@@ -1,7 +1,7 @@
 MODULE StructureTitanPOS;
 // Здесь описаны структуры только для розницы
 
-REQUIRE POS, ZReportLot, Utils, StructureTitanPOSCommon;
+REQUIRE POS, ZReportLot, Utils, StructureTitanPOSCommon, POSLotBy;
 
 // Чек продажи / возврат
 // Особенности:
@@ -63,6 +63,7 @@ detailTax (ReceiptDetail o) += IF titanTax(currentCashRegister()) AND valueVAT(o
 
 detailDepartament 'Код отдела КСА' = ABSTRACT VALUE INTEGER (ReceiptDetail);
 detailMarka 'Код марки' (ReceiptDetail o) = IF vid() > 2.1 AND idLot(o) THEN encodeText((CONCAT '', idLot(o), tailLot(o)),'base64');
+detailUkz 'Код УКЗ' (ReceiptDetail o) = IF vid() > 2.1 AND ukz(o) THEN encodeText((CONCAT '',ukz(o)),'base64');
    
 FORM saleForm 'Продажа и возврат, кроме возврата со скидкой для версии старше 2.1'
     PROPERTIES () titanKey EXTID 'TitanKey'
@@ -84,7 +85,8 @@ FORM saleForm 'Продажа и возврат, кроме возврата с�
         detailTotalSum EXTID 'TotalSum',
         detailDepartament EXTID 'Departament',
         detailHideCodes EXTID 'HideCodes',
-        detailMarka EXTID 'MarkSI'
+        detailMarka EXTID 'MarkSI',
+        detailUkz EXTID 'MarkUKZ'
 
     PROPERTIES(lines) IN goods detailBarcode EXTID 'Barcode', detailCodeType EXTID 'CodeType', detailName EXTID 'Name'
 ;
