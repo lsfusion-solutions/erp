@@ -1,6 +1,6 @@
 MODULE Loya;
 
-REQUIRE System, Item, PriceListOperation, Store, MachineryPriceTransactionPromotion;
+REQUIRE System, Item, PriceListOperation, Store, MachineryPriceTransactionPromotion, CashRegister;
 
 PRIORITY PriceList;
 
@@ -363,5 +363,157 @@ DESIGN integrationData {
 NAVIGATOR {
     priceListMasterData {
         NEW loya;
+    }
+}
+
+//минимальные цены
+
+CLASS LoyaMinPriceTransaction 'Загрузка цен в LOYA';
+TABLE loyaMinPriceTransaction (LoyaMinPriceTransaction);
+
+stock = DATA DepartmentStore(LoyaMinPriceTransaction) NONULL DELETE;
+nameStock 'Склад' (LoyaMinPriceTransaction lt) = name(stock(lt)) CHARWIDTH 30;
+sku = DATA Sku(LoyaMinPriceTransaction) NONULL DELETE;
+idSku 'Код' (LoyaMinPriceTransaction lt) = id(sku(lt));
+idBarcodeSku 'Штрихкод' (LoyaMinPriceTransaction lt) = idBarcode(sku(lt));
+nameSku 'Товар' (LoyaMinPriceTransaction lt) = name(sku(lt));
+
+price 'Цена' = DATA NUMERIC[16,4](LoyaMinPriceTransaction);
+minPrice 'Минимальная цена' = DATA NUMERIC[16,4](LoyaMinPriceTransaction);
+forbid 'Запрет скидки' = DATA BOOLEAN (LoyaMinPriceTransaction);
+
+dateTime 'Время' = DATA DATETIME (LoyaMinPriceTransaction);
+succeeded 'Выгружен' = DATA BOOLEAN (LoyaMinPriceTransaction);
+dateTimeSucceeded 'Выгружен' = DATA DATETIME (LoyaMinPriceTransaction);
+notSucceeded(LoyaMinPriceTransaction l) = l IS LoyaMinPriceTransaction AND NOT succeeded(l) MATERIALIZED INDEXED;
+
+CLASS LoyaMinPriceTransactionError 'Ошибка загрузки цен в LOYA';
+TABLE loyaMinPriceTransactionError(LoyaMinPriceTransactionError);
+
+message 'Сообщение' = DATA STRING (LoyaMinPriceTransactionError);
+dateTime 'Время' = DATA DATETIME (LoyaMinPriceTransactionError);
+error  = DATA LoyaMinPriceTransactionError(LoyaMinPriceTransaction);
+
+FORM loyaMinPriceTransaction 'Загрузка ценв LOYA'
+    OBJECTS o = LoyaMinPriceTransaction PANEL
+    PROPERTIES(o) nameStock, nameSku, dateTime, succeeded, dateTimeSucceeded, minPrice , price, forbid
+
+    EDIT LoyaMinPriceTransaction OBJECT o
+;
+
+FORM loyaMinPriceTransactions 'Загрузка цен в LOYA'
+    OBJECTS e = LoyaMinPriceTransactionError
+    PROPERTIES(e) READONLY dateTime, message
+
+    OBJECTS o = LoyaMinPriceTransaction
+    PROPERTIES(o) READONLY nameStock, idSku, idBarcodeSku, nameSku, dateTime, minPrice, price, forbid,
+        succeeded, dateTimeSucceeded
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+
+    FILTERGROUP notLoaded
+        FILTER 'Незагруженные' notSucceeded(o)
+
+    FILTERGROUP error
+        FILTER 'По ошибке' error(o) == e
+;
+DESIGN loyaMinPriceTransactions{
+    BOX (e){
+        fill = 0.25;
+    }
+}
+
+
+NAVIGATOR {
+    priceListMasterData {
+        NEW loyaMinPriceTransactions;
+    }
+}
+
+INDEX sku(LoyaMinPriceTransaction lt), stock(lt), dateTime(lt), lt;
+
+lastLoyaMinTransaction(Sku s, Stock st) =
+    GROUP LAST LoyaMinPriceTransaction lt
+    ORDER dateTime(lt), lt
+    BY sku(lt), stock(lt);
+
+calcMinPrice(LoyaMinPriceTransaction t) = IF forbid(t) THEN price(t) ELSE min(price(t), minPrice(t));
+lastLoyaMinPrice(Sku s, Stock st) = calcMinPrice(lastLoyaMinTransaction(s, st));
+
+
+updateItemsLoyaGropByItem 'Загрузить цены в LOYA'() {
+    NEWSESSION {
+        LOCAL in = BOOLEAN (ItemGroup);
+        in(ItemGroup g) <- TRUE WHERE GROUP SUM 1 IF level(itemGroup(sku(LoyaMinPriceTransaction l)), g) AND idLoya(stock(l)) AND notSucceeded(l);
+
+        FOR in(ItemGroup g) ORDER level(g), g DO {
+            synchronizeItemGroup(g);
+            IF synchronizeItemResult() THEN
+                NEW e = LoyaMinPriceTransactionError {
+                    message(e) <- synchronizeItemResult() ;
+                    dateTime(e) <- currentDateTime();
+                    APPLY;
+                    IF isSubstring(message(e),'Authentication failed') OR isSubstring(message(e),'Неверный e-mail или пароль.') THEN RETURN;
+                }
+        }
+
+        LOCAL count = INTEGER ();
+        FOR [GROUP SUM 1 IF notSucceeded(LoyaMinPriceTransaction l) BY sku(l)](Sku s) NOINLINE DO {
+
+            LOCAL lastTransaction = LoyaMinPriceTransaction (Sku, Stock);
+            lastTransaction(s, Stock d) <- lastLoyaMinTransaction(s, d) IF idLoya(d);
+
+            loyaMinPrice(s, Stock d)  <- calcMinPrice(lastTransaction(s, d)) IF lastTransaction(s, d);
+            enabledLoya(Stock d ) <- TRUE IF (GROUP  SUM 1 IF loyaMinPrice(s, d));
+            synchronizeItem(s);
+
+            IF synchronizeItemResult() THEN {
+                NEW e = LoyaMinPriceTransactionError {
+                    message(e) <- synchronizeItemResult() ;
+                    dateTime(e) <- currentDateTime();
+                    FOR LoyaMinPriceTransaction l == lastTransaction(s, Stock d) DO error(l) <- e;
+                    APPLY;
+                    IF isSubstring(message(e),'Authentication failed') OR isSubstring(message(e),'Неверный e-mail или пароль.') THEN RETURN;
+                }
+            } ELSE {
+                FOR dateTime(LoyaMinPriceTransaction l) <= dateTime(lastTransaction(sku(l), stock(l))) AND notSucceeded(l) DO {
+                    succeeded(l) <- TRUE;
+                    dateTimeSucceeded(l) <- currentDateTime();
+                }
+                count() <- count() (+) 1;
+            }
+
+            IF count() >= 50 THEN APPLY;
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM loyaMinPriceTransactions
+    PROPERTIES () TOOLBAR DRAW o updateItemsLoyaGropByItem;
+
+
+clearApplicationLog () + {
+    NEWSESSION {
+        IF countDaysClearMachineryPriceTransaction() THEN {
+            DELETE LoyaMinPriceTransactionError e WHERE  DATE(dateTime(e)) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+            DELETE LoyaMinPriceTransaction t WHERE  t IS LoyaMinPriceTransaction AND NOT t == lastLoyaMinTransaction(sku(t), stock(t)) AND DATE(dateTime(t)) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
+            APPLY ;
+        }
+    }
+}
+
+sendToLoya 'Выгружать товары в Loya' = DATA BOOLEAN (CashRegisterModel);
+EXTEND FORM cashRegisterModel
+    PROPERTIES (c) sendToLoya;
+
+overMinPriceStock = ABSTRACT Stock(Stock);
+createAttribute(MachineryPriceTransaction t, Stock stock) + {
+    FOR useMinPrice() AND  idLoya(stock) AND sendToLoya(model(groupMachinery(t))) AND in(t, Barcode b) INLINE NEW l = LoyaMinPriceTransaction  DO{
+        stock(l) <- stock;
+        sku(l) <- sku(b);
+        dateTime(l) <- currentDateTime();
+        forbid(l) <- TRUE WHERE resultForbidPromotion(sku(b), stock) OR overForbidPromotion(sku(b), stock);
+        price(l) <- price(b);
+        minPrice(l) <- dataMinPrice(b, (OVERRIDE overMinPriceStock(stock), stock));
     }
 }
