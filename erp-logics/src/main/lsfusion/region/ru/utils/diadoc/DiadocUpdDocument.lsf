@@ -6,11 +6,22 @@ NAMESPACE Diadoc;
 
 GROUP sellersUTD EXTID 'Sellers';
 GROUP sellerUTD EXTID 'Seller': sellersUTD;
-GROUP organizationReferenceSellerUTD EXTID 'OrganizationReference': sellerUTD;
+//GROUP organizationReferenceSellerUTD EXTID 'OrganizationReference': sellerUTD;
+GROUP organizationReferenceDetailsSellerUTD EXTID 'OrganizationDetails': sellerUTD;
+GROUP addressSellerUTD EXTID 'Address': organizationReferenceDetailsSellerUTD;
+GROUP russianAddressSellerUTD EXTID 'RussianAddress': addressSellerUTD;
+
 GROUP buyersUTD EXTID 'Buyers';
 GROUP buyerUTD EXTID 'Buyer': buyersUTD;
-GROUP organizationReferenceBuyerUTD EXTID 'OrganizationReference': buyerUTD;
-GROUP signersUTD EXTID 'Signers';GROUP signerDetailsUTD EXTID 'SignerDetails': signersUTD;
+//GROUP organizationReferenceBuyerUTD EXTID 'OrganizationReference': buyerUTD;
+GROUP organizationReferenceDetailsBuyerUTD EXTID 'OrganizationDetails': buyerUTD;
+GROUP addressBuyerUTD EXTID 'Address': organizationReferenceDetailsBuyerUTD;
+GROUP russianAddressBuyerUTD EXTID 'RussianAddress': addressBuyerUTD;
+
+GROUP signersUTD EXTID 'Signers';
+GROUP signerUTD EXTID 'Signer': signersUTD;
+GROUP fioUTD EXTID 'Fio': signerUTD;
+GROUP positionUTD EXTID 'Position' : signerUTD;
 
 GROUP additionalInfoIdUTD EXTID 'AdditionalInfoId';
 GROUP additionalInfoUTD EXTID 'AdditionalInfo': additionalInfoIdUTD;
@@ -33,26 +44,45 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
                     currency = (OVERRIDE codeCurrency(exportUpdDocument()),'') EXTID 'Currency',//КодОКВ - валюта (код)
                     documentCreator = (OVERRIDE nameOriginatorSupplier(exportUpdDocument()),'') EXTID 'DocumentCreator'//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
     
-    PROPERTIES ATTR IN organizationReferenceSellerUTD
+    PROPERTIES ATTR IN organizationReferenceDetailsSellerUTD
                     orgTypeS = id(organizationType(organization(fromBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
-                    boxIdS = fromBoxId() EXTID 'BoxId'
-    
-    PROPERTIES ATTR IN organizationReferenceBuyerUTD
+                    innS = innSupplier(exportUpdDocument()) EXTID 'Inn',
+//                    addressS = addressSupplier(exportUpdDocument()) EXTID 'Address',
+                    orgNameS = nameSupplier(exportUpdDocument()) EXTID 'OrgName'//СвИП - СвЮЛУч - СвИнНеУч
+    PROPERTIES ATTR IN russianAddressSellerUTD
+                    regionS = region(organization(fromBox())) EXTID 'Region'
+//    PROPERTIES ATTR IN organizationReferenceSellerUTD
+//                    boxIdS = fromBoxId() EXTID 'BoxId'
+
+    PROPERTIES ATTR IN organizationReferenceDetailsBuyerUTD
                     orgTypeB = id(organizationType(organization(toBox()))) EXTID 'OrgType',//СвИП - СвЮЛУч - СвИнНеУч
-                    boxIdB = toBoxId() EXTID 'BoxId'
-    
-    PROPERTIES ATTR IN signerDetailsUTD
-                    innSG = supplierSignerInn(exportUpdDocument()) EXTID 'Inn',//ИННЮЛ
+                        innB = innCustomer(exportUpdDocument()) EXTID 'Inn',
+//                        addressB = addressCustomer(exportUpdDocument()) EXTID 'Address',
+                    orgNameB = nameCustomer(exportUpdDocument()) EXTID 'OrgName'//СвИП - СвЮЛУч - СвИнНеУч
+
+    PROPERTIES ATTR IN russianAddressBuyerUTD
+                    regionB = region(organization(toBox())) EXTID 'Region'
+
+    //    PROPERTIES ATTR IN organizationReferenceBuyerUTD
+//                     boxIdB = toBoxId() EXTID 'BoxId'
+    PROPERTIES ATTR IN signerUTD
+                    signerPowersConfirmationMethod = 6 EXTID 'SignerPowersConfirmationMethod' ATTR 
+
+    PROPERTIES ATTR IN fioUTD
                     lastNameSG = (OVERRIDE supplierSignerLastName(exportUpdDocument()), supplierSignerAgentLastName(exportUpdDocument())) EXTID 'LastName',//Фамилия
                     firstNameSG = (OVERRIDE supplierSignerFirstName(exportUpdDocument()), supplierSignerAgentFirstName(exportUpdDocument())) EXTID 'FirstName',//Имя
-                    middleNameSG = (OVERRIDE supplierSignerMiddleName(exportUpdDocument()), supplierSignerAgentMiddleName(exportUpdDocument())) EXTID 'MiddleName',//Отчество
-                    positionSG = supplierSignerPosition(exportUpdDocument()) EXTID 'Position',//Должн
-                    signerPowersSG = nameSupplierSignerCredentials(exportUpdDocument()) EXTID 'SignerPowers',//ОблПолн - Область полномочий
-                    signerTypeSG = (IF isSupplierSigner(exportUpdDocument()) THEN '3' ELSE '1') EXTID 'SignerType',
-                    signerStatusSG = nameSupplierSignerStatus(exportUpdDocument()) EXTID 'SignerStatus',//Статус
-                    signerPowersBaseSG = supplierSignerCredentialsBase(exportUpdDocument()) EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
-    
-    PROPERTIES ATTR IN additionalInfoUTD
+                    middleNameSG = (OVERRIDE supplierSignerMiddleName(exportUpdDocument()), supplierSignerAgentMiddleName(exportUpdDocument())) EXTID 'MiddleName'//Отчество
+//                    positionSG = supplierSignerPosition(exportUpdDocument()) EXTID 'Position'//,//Должн
+//                    signerPowersSG = nameSupplierSignerCredentials(exportUpdDocument()) EXTID 'SignerPowers',//ОблПолн - Область полномочий
+//                    signerTypeSG = (IF isSupplierSigner(exportUpdDocument()) THEN '3' ELSE '1') EXTID 'SignerType',
+//                    signerStatusSG = nameSupplierSignerStatus(exportUpdDocument()) EXTID 'SignerStatus',//Статус
+//                    signerPowersBaseSG = supplierSignerCredentialsBase(exportUpdDocument()) EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+    PROPERTIES() IN  positionUTD 
+        value = jobTitle , 
+        idPositionSource EXTID 'PositionSource' ATTR
+
+
+PROPERTIES ATTR IN additionalInfoUTD
                     idAI = codeBusinessEvent(exportUpdDocument()) EXTID 'Id',//Идентиф - идентификатор (наименование)
                     valueAI = descriptionBusinessEvent(exportUpdDocument()) EXTID 'Value'//Значен - значение
     
@@ -70,7 +100,7 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
                     quantityI = quantity(i) EXTID 'Quantity',//КолТов - количество единиц товара
                     priceI = price(i) EXTID 'Price',//ЦенаТов - цена за единицу товара
                     exciseI = dutySum(i) EXTID 'Excise',//СумАкциз - акциз
-                    taxRateI = nameVATStatus(i) EXTID 'TaxRate',//НалСт - ставка налога
+                    taxRateI = nameExVATStatus(i) EXTID 'TaxRate',//НалСт - ставка налога
                     subtotalWithVatExcludedI = sum(i) EXTID 'SubtotalWithVatExcluded',//СтТовБезНДС - сумма без учета налога
                     vatI = VATSum(i) EXTID 'Vat',//СумНал - сумма налога
                     withoutVatI = TRUE IF NOT VATSum(i) EXTID 'WithoutVat',//БезНДС - Указывается, если для товара не требуется НДС
@@ -93,11 +123,12 @@ FORM universalTransferDocument FORMEXTID 'UniversalTransferDocument'
     FILTERS updDocumentDetail(upd) == i
     
     PROPERTIES ATTR IN transferInfoUTD
-                    operationInfoTI = (OVERRIDE description(exportUpdDocument()),'') EXTID 'OperationInfo'//СодОпер - Содержание операции
+                    operationInfoTI = (OVERRIDE description(exportUpdDocument()),'') EXTID 'OperationInfo',//СодОпер - Содержание операции
+                    transferDate = toDateDDMMYYYY(dateInvoice(exportUpdDocument())) EXTID 'TransferDate'
     PROPERTIES ATTR IN transferBaseUTD
-                    baseDocumentNameTB = (OVERRIDE descriptionContract(exportUpdDocument()),'') EXTID 'BaseDocumentName',//НаимОсн - Наименование документа-основания отгрузки
-                    baseDocumentNumberTB = numberContract(exportUpdDocument()) EXTID 'BaseDocumentNumber',//НомОсн - Номер документа-основания отгрузки
-                    baseDocumentDateTB = toDateDDMMYYYY(dateContract(exportUpdDocument())) EXTID 'BaseDocumentDate'//ДатаОсн - Дата документа-основания отгрузки
+                    baseDocumentNameTB = (OVERRIDE descriptionContract(exportUpdDocument()),'') EXTID 'DocumentName',//НаимОсн - Наименование документа-основания отгрузки
+                    baseDocumentNumberTB = numberContract(exportUpdDocument()) EXTID 'DocumentNumber',//НомОсн - Номер документа-основания отгрузки
+                    baseDocumentDateTB = toDateDDMMYYYY(dateContract(exportUpdDocument())) EXTID 'DocumentDate'//ДатаОсн - Дата документа-основания отгрузки
     PROPERTIES ATTR IN employeeUTD
                     positionE = ((OVERRIDE positionAgentSupplier(exportUpdDocument()),' ') IF isAgentSupplier(exportUpdDocument())) EXTID 'Position',//Должность
                     lastNameE = ((OVERRIDE lastNameAgentSupplier(exportUpdDocument()),' ') IF isAgentSupplier(exportUpdDocument())) EXTID 'LastName',//Фамилия
@@ -159,16 +190,16 @@ FORM universalTransferDocumentBuyerTitle FORMEXTID 'UniversalTransferDocumentBuy
     PROPERTIES ATTR documentCreator = documentCreator() EXTID 'DocumentCreator',//НаимЭконСубСост - Составитель файла обмена счета-фактуры (информации продавца)
                     operationContent = operationContent() EXTID 'OperationContent'//СодОпер - Содержание операции
     
-    PROPERTIES ATTR IN signerDetailsUTD
-                    innSG = inn() EXTID 'Inn',//ИННЮЛ
+    PROPERTIES ATTR IN fioUTD
+//                    innSG = inn() EXTID 'Inn',//ИННЮЛ
                     lastNameSG = surname() EXTID 'LastName',//Фамилия
                     firstNameSG = firstName() EXTID 'FirstName',//Имя
-                    middleNameSG = patronymic() EXTID 'MiddleName',//Отчество
-                    positionSG = jobTitle() EXTID 'Position',//Должн
-                    signerPowersSG = idSingerPowers() EXTID 'SignerPowers',//ОблПолн - Область полномочий
-                    signerTypeSG = idSignerType() EXTID 'SignerType',
-                    signerStatusSG = idSignerStatus() EXTID 'SignerStatus',//Статус
-                    signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
+                    middleNameSG = patronymic() EXTID 'MiddleName'//Отчество
+//                    positionSG = jobTitle() EXTID 'Position',//Должн
+//                    signerPowersSG = idSingerPowers() EXTID 'SignerPowers',//ОблПолн - Область полномочий
+//                    signerTypeSG = idSignerType() EXTID 'SignerType',
+//                    signerStatusSG = idSignerStatus() EXTID 'SignerStatus',//Статус
+//                    signerPowersBaseSG = signerPowersBase() EXTID 'SignerPowersBase'//ОснПолн - Основание полномочий (доверия)
 ;
 
 GROUP contentOperCode1 EXTID 'ContentOperCode';
