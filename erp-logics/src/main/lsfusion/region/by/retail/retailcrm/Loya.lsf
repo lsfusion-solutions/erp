@@ -506,7 +506,6 @@ sendToLoya 'Выгружать товары в Loya' = DATA BOOLEAN (CashRegiste
 EXTEND FORM cashRegisterModel
     PROPERTIES (c) sendToLoya;
 
-overMinPriceStock = ABSTRACT Stock(Stock);
 createAttribute(MachineryPriceTransaction t, Stock stock) + {
     FOR useMinPrice() AND  idLoya(stock) AND sendToLoya(model(groupMachinery(t))) AND in(t, Barcode b) INLINE NEW l = LoyaMinPriceTransaction  DO{
         stock(l) <- stock;
@@ -514,6 +513,6 @@ createAttribute(MachineryPriceTransaction t, Stock stock) + {
         dateTime(l) <- currentDateTime();
         forbid(l) <- TRUE WHERE resultForbidPromotion(sku(b), stock) OR overForbidPromotion(sku(b), stock);
         price(l) <- price(b);
-        minPrice(l) <- dataMinPrice(b, (OVERRIDE overMinPriceStock(stock), stock));
+        minPrice(l) <- dataMinPrice(b, stock);
     }
 }
