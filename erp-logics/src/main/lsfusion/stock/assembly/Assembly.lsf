@@ -373,6 +373,8 @@ description(AssemblyInSkuLedger l) = description(assembly(l));
 quantity(AssemblyInSkuLedger l) = quantity(assembly(l));
 price(AssemblyInSkuLedger l) = price(assembly(l));
 sum(AssemblyInSkuLedger l) = sum(assembly(l));
+series(AssemblyInSkuLedger l) = series(assembly(l));
+number(AssemblyInSkuLedger l) = number(assembly(l));
 
 @implementBatch(AssemblyInSkuLedger, sku, stock, price);
 
@@ -394,21 +396,22 @@ DESIGN options {
 CONSTRAINT (SET(isPosted(Assembly i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT skipStockAssembly() AND NOT stock(i)
     MESSAGE 'Для сборки товаров должен быть задан склад';
 
-@implementStockDocumentLedgerInc(Assembly, stock);
+@implementStockDocumentLedgerInc(AssemblyInSkuLedger, stock);
 
-sumItem [IncStockDocumentLedger](Assembly ledger) += sum(ledger);
+sumItem [IncStockDocumentLedger](AssemblyInSkuLedger ledger) += sum(ledger);
+type(AssemblyInSkuLedger l) += STRING[50]('Сборка товаров') IF l IS AssemblyInSkuLedger;
+operation[StockDocumentLedger](AssemblyInSkuLedger ledger) += operation(assembly(ledger));
+close[StockDocumentLedger](AssemblyInSkuLedger l) + { close(assembly(l)); }
 
-EXTEND CLASS Assembly : OutStockDocumentLedger;
+stockDocumentLedger(AssemblyInSkuLedger ledger) += assembly(ledger);
 
+@implementStockDocumentLedgerOut(Assembly, stock);
 type(Assembly l) += STRING[50]('Сборка товаров') IF l IS Assembly;
 sumItem [OutStockDocumentLedger](Assembly ledger) += sumAssemblyDetail(ledger);
-
 operation[StockDocumentLedger](Assembly ledger) += operation(ledger);
-
 close[StockDocumentLedger](Assembly l) + {  close(l); }
 
 stockDocumentLedger(AssemblyOutSkuLedger ledger) += assembly(assemblyDetail(ledger));
-stockDocumentLedger(AssemblyInSkuLedger ledger) += assembly(ledger);
 
 // copy
 

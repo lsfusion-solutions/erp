@@ -370,6 +370,8 @@ stock(DisassemblyOutSkuLedger l) = stock(disassembly(l));
 description(DisassemblyOutSkuLedger l) = description(disassembly(l));
 quantity(DisassemblyOutSkuLedger l) = quantity(disassembly(l));
 sum(DisassemblyOutSkuLedger l) = sum(disassembly(l));
+series(DisassemblyOutSkuLedger ledger) = series(disassembly(ledger));
+number(DisassemblyOutSkuLedger ledger) = number(disassembly(ledger));
 
 @implementSkuLedgerOutFIFO(DisassemblyOutSkuLedger, sku, stock);
 
@@ -419,20 +421,21 @@ DESIGN options {
 CONSTRAINT (SET(isPosted(Disassembly i)) OR DROPPED(stock(i))) AND isPosted(i) AND NOT skipStockDisassembly() AND NOT stock(i)
     MESSAGE 'Для разборки товаров должен быть задан склад';
 
-@implementStockDocumentLedgerOut(Disassembly, stock);
 
-sumItem [OutStockDocumentLedger](Disassembly ledger) += sum(ledger);
-
-EXTEND CLASS Disassembly : IncStockDocumentLedger;
-
-type(Disassembly l) += STRING[50]('Разборка товаров') IF l IS Disassembly;
-sumItem [IncStockDocumentLedger](Disassembly ledger) += sumDisassemblyDetail(ledger);
-
-operation[StockDocumentLedger](Disassembly ledger) += operation(ledger);
-
-close[StockDocumentLedger](Disassembly l) + {  close(l); }
+@implementStockDocumentLedgerOut(DisassemblyOutSkuLedger, stock);
+type(DisassemblyOutSkuLedger l) += STRING[50]('Разборка товаров') IF l IS DisassemblyOutSkuLedger;
+sumItem [OutStockDocumentLedger](DisassemblyOutSkuLedger ledger) += sum(ledger);
+operation[StockDocumentLedger](DisassemblyOutSkuLedger ledger) += operation(disassembly(ledger));
+close[StockDocumentLedger](DisassemblyOutSkuLedger l) + {  close(disassembly(l)); }
 
 stockDocumentLedger(DisassemblyOutSkuLedger ledger) += disassembly(ledger);
+
+@implementStockDocumentLedgerInc(Disassembly, stock);
+type(Disassembly l) += STRING[50]('Разборка товаров') IF l IS Disassembly;
+sumItem [IncStockDocumentLedger](Disassembly ledger) += sumDisassemblyDetail(ledger);
+operation[StockDocumentLedger](Disassembly ledger) += operation(ledger);
+close[StockDocumentLedger](Disassembly l) + {  close(l); }
+
 stockDocumentLedger(DisassemblyInSkuLedger ledger) += disassembly(disassemblyDetail(ledger));
 
 // copy
