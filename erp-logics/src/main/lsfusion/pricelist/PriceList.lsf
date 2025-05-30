@@ -790,6 +790,18 @@ WHEN LOCAL FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail d)
 //        WHERE showUserPriceListPriceListType(userPriceListUserPriceListDetail(d), pt) AND isCompanyStock(s);  
 //
 
+skipShowFirstContainer = ABSTRACT VALUE BOOLEAN (UserPriceList);
+showFirstContainer  (UserPriceList p) = p IS UserPriceList AND NOT skipShowFirstContainer(p);
+skipShowSecondContainer= ABSTRACT VALUE BOOLEAN (UserPriceList);
+showSecondContainer(UserPriceList p) = p IS UserPriceList AND NOT skipShowSecondContainer(p);
+skipShowThirdContainer = ABSTRACT VALUE BOOLEAN (UserPriceList);
+showThirdContainer (UserPriceList p) = p IS UserPriceList AND NOT skipShowThirdContainer(p);
+skipShowFourthContainer = ABSTRACT VALUE BOOLEAN (UserPriceList);
+showFourthContainer(UserPriceList p) = p IS UserPriceList AND NOT skipShowFourthContainer(p);
+
+skipShowParamContainer = ABSTRACT VALUE BOOLEAN (UserPriceList);
+showParamContainer(UserPriceList p) = p IS UserPriceList AND NOT skipShowParamContainer(p);
+
 DESIGN userPriceList {
     NEW top {
         horizontal = TRUE;
@@ -830,6 +842,7 @@ DESIGN userPriceList {
         }
         NEW param {
             caption = 'Дополнительные параметры';
+            showIf = showParamContainer(p);
             MOVE PROPERTY(showOriginalIdBarcodeSku(p));
             MOVE PROPERTY(showOriginalNameSku(p));
             MOVE PROPERTY(showBatchUser(p)); 
@@ -845,7 +858,7 @@ DESIGN userPriceList {
         NEW firstContainer{
             fill = 1;
             caption = 'Спецификация';
-
+            showIf = showFirstContainer(p);
             horizontal=TRUE;
             NEW leftColumnContainer{
                 fill = 1;
@@ -873,6 +886,7 @@ DESIGN userPriceList {
             fill = 1;
             caption = 'Склады';
             horizontal = TRUE;
+            showIf = showSecondContainer(p);
             NEW stockGroups {
                 fill = 1;
                 MOVE BOX(TREE stockTree) {
@@ -886,6 +900,7 @@ DESIGN userPriceList {
 
         NEW thirdContainer{
             fill = 1;
+            showIf = showThirdContainer(p);
             caption = 'Вид цен';
             MOVE BOX(t);
         }
@@ -893,6 +908,7 @@ DESIGN userPriceList {
         REMOVE BOX(to);        
         NEW fourthContainer {
             caption = 'Подбор';
+            showIf = showFourthContainer(p);
             NEW topThirdContainer{
                 horizontal = TRUE;
                 MOVE BOX(ts2);
