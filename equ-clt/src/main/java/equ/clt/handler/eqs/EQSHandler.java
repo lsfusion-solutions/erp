@@ -144,14 +144,15 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     ps.setInt(5, 1); //department, Номер отдела
                     ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
     
-                    String lottype = null;
+                    String lotType = null;
                     JSONObject extraInfo = item.extraInfo != null && !item.extraInfo.isEmpty() ? new JSONObject(item.extraInfo) : null;
                     if (extraInfo != null) {
-                        if (extraInfo.has("ukz")) {
-                            lottype = "ukz";
-                        } else if (extraInfo.has("lottype")) {
-                            lottype = extraInfo.getString("lottype");
-                        }
+                        List<String> lots = new ArrayList<>();
+                        if (extraInfo.has("lottype"))
+                            lots.add("lot");
+                        if (extraInfo.has("ukz"))
+                            lots.add("ukz");
+                        lotType = String.join(",", lots);
                     }
                     
                     //если lsf flag 16 не установлен, то пишем флаг 32
@@ -159,7 +160,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     
                     BitSet bitsFlags = BitSet.valueOf(new long[]{flags});
                     
-                    if (!StringUtils.isEmpty(lottype))
+                    if (!StringUtils.isEmpty(lotType))
                         bitsFlags.set(3);
     
                     if (!bitsFlags.isEmpty())
@@ -177,7 +178,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                     ps.setLong(16, 9223372036854775807L); //UpdEcr, Флаг обновления* КСА
                     ps.setLong(17, 9223372036854775807L); //UpdScale, Флаг обновления* весов
                     if (!skipLotType)
-                        ps.setString(18, lottype);
+                        ps.setString(18, lotType);
                     ps.addBatch();
                 }
 
