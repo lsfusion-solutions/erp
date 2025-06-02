@@ -65,7 +65,7 @@ DESIGN lotOrder {
     }
 }
 
-lotOrderUrl (LotOrder o) = url() + '/api/v2/' + idType(o);
+lotOrderUrl (LotOrder o) = url() + '/api/v3/';
 
 DESIGN lotOrders {
     tabbedPane {
@@ -81,11 +81,11 @@ DESIGN lotOrders {
 isBundle = ABSTRACT BOOLEAN (STRING[14]);
 isGroup = ABSTRACT BOOLEAN (STRING[14]);
 
+GROUP attributes;
+
 FORM export
     OBJECTS o = LotOrder PANEL
-    
-    PROPERTIES contactPerson = name(currentUser()), releaseMethodType = id(releaseMethodType(o)), createMethodType = 'SELF_MADE',
-               remainsAvailable = TRUE, remainsImport = 'false'
+    PROPERTIES = IF o IS LotOrder THEN idType(o) EXTID 'productGroup'
     
     OBJECTS products = STRING[14]
     PROPERTIES gtin = VALUE(products), 
@@ -93,6 +93,9 @@ FORM export
                serialNumberType = 'OPERATOR' IF products IS STRING[14], 
                templateId = 10 IF products IS STRING[14], 
                cisType = OVERRIDE 'BUNDLE' IF isBundle(products), 'GROUP' IF isGroup(products), 'UNIT' IF products IS STRING[14]
+
+    PROPERTIES IN attributes contactPerson = name(currentUser()), releaseMethodType = id(releaseMethodType(o)), createMethodType = 'SELF_MADE',
+        remainsAvailable = TRUE, remainsImport = 'false'
     FILTERS quantity(o, products)
 ;
 
@@ -146,7 +149,7 @@ export 'Отослать в СУЗ' (LotOrder o) {
 
         exception(o) <- NULL; 
         TRY {
-            EXTERNAL HTTP POST lotOrderUrl(o) + '/orders?omsId=' + omsId(legalEntityStock(o)) HEADERS suzSignedHeaders PARAMS exportFile() TO result;
+            EXTERNAL HTTP POST lotOrderUrl(o) + 'order?omsId=' + omsId(legalEntityStock(o)) HEADERS suzSignedHeaders PARAMS exportFile() TO result;
         } CATCH {
             handleException(o, result());
             RETURN;
