@@ -26,6 +26,8 @@ nameCustomer 'Покупатель' (Receiving receiving)= name(customer(receivi
 customerStock = ABSTRACT Stock (Receiving) MATERIALIZED INDEXED;
 nameCustomerStock 'Склад покупателя' (Receiving receiving) = name(customerStock(receiving)) IN documentHeader CHARWIDTH 20;
 background 'Цвет' (Receiving i)= ABSTRACT CASE COLOR (Receiving);
+expectedQuantity 'Кол-во в документе прихода' = ABSTRACT NUMERIC[16,5] (Sku, Receiving) MATERIALIZED;
+expectedQuantity 'Кол-во в документе прихода' = ABSTRACT NUMERIC[16,5] (Sku, STRING, Receiving) MATERIALIZED;
 
 selected 'Отм.' = DATA LOCAL NESTED BOOLEAN (Receiving);
 
@@ -89,7 +91,17 @@ changeQuantity(ReceivingDetail detail) {
     }    
 }
 
-invoiceQuantity 'Кол-во документе прихода' = ABSTRACT NUMERIC[16,5] (Sku, Receiving) MATERIALIZED CHARWIDTH 7;
+consolidationKey 'Ключ группировки' = DATA STRING (ReceivingDetail) CHARWIDTH 7;
+overConsolidationKey(ReceivingDetail d) = OVERRIDE consolidationKey(d), ('Не указан' IF d IS ReceivingDetail) MATERIALIZED;
+
+changeConsolidationKey(ReceivingDetail detail) {
+    NEWSESSION {
+        INPUT n = STRING DO {
+            consolidationKey(detail) <- n;
+            APPLY;
+        }
+    }
+}
 
 createdDateTime 'Время изменения' = DATA DATETIME (ReceivingDetail);
 createdUser = DATA CustomUser (ReceivingDetail);
@@ -152,9 +164,27 @@ copy 'Копировать'(ReceivingDetail detail)  {
     }
 } CHANGEKEY 'F6' TOOLBAR;
 
+overCopy(ReceivingDetail d, ReceivingDetail detail) + {
+    consolidationKey(d) <- consolidationKey(detail);
+}
+
+receivingQuantity 'Принятое кол-во' =
+    GROUP SUM quantity(ReceivingDetail detail) BY sku(detail), overConsolidationKey(detail), receiving(detail) CHARWIDTH 7;
+
+quantityCompleted 'Обработанное кол-во' =
+    GROUP SUM quantity(ReceivingDetail d) IF status(d)==ReceivingStatus.completed BY sku(d), overConsolidationKey(d), receiving(d);
+
+nameStatus 'Статус' (Sku s, STRING consolidationKey, Receiving r) =
+    CASE WHEN quantityCompleted(s, consolidationKey, r)==receivingQuantity(s, consolidationKey, r) THEN 'Обработан'
+        WHEN quantityCompleted(s, consolidationKey, r)!=receivingQuantity(s, consolidationKey, r) THEN 'Частично обработан'
+        ELSE 'В работе';
+
+consolidationKeyLocal 'Ключ группировки' = DATA LOCAL NESTED STRING (Receiving);
+overConsolidationKeyLocal 'Ключ группировки' (Receiving d) = OVERRIDE consolidationKeyLocal(d), ('Не указан' IF d IS Receiving);
+
 FORM addReceivingDetail 'Приемка'
     OBJECTS r=Receiving PANEL 
-    PROPERTIES idBarcodeLocal(r) ON CHANGE changeBarcodeLocal(r) EVENTID 'SCANNER', nameSkuLocal(r), quantityLocal(r)
+    PROPERTIES idBarcodeLocal(r) ON CHANGE changeBarcodeLocal(r) EVENTID 'SCANNER', nameSkuLocal(r), overConsolidationKeyLocal(r), quantityLocal(r)
 ;
 
 DESIGN addReceivingDetail {
@@ -171,6 +201,11 @@ DESIGN addReceivingDetail {
                 panelCaptionVertical = TRUE;
                 charWidth = 10;
             }
+            MOVE PROPERTY(overConsolidationKeyLocal(r)){
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 15;
+            }            
             MOVE PROPERTY(quantityLocal(r)) {
                 font = 'bold 24';
                 panelCaptionVertical = TRUE;
@@ -195,15 +230,26 @@ WHEN LOCAL FORMS addReceivingDetail SET(skuLocal(Receiving r) AND quantityLocal(
     }
 }
 
-overNewReceivingDetail ABSTRACT LIST (Receiving);
-
-newReceivingDetail 'Добавить' (Receiving r) {
+overAddReceivingDetail ABSTRACT LIST (Receiving);
+addReceivingDetail 'Добавить' (Receiving r) {
     idBarcodeLocal(r) <- NULL;
     skuLocal(r) <- NULL;
     quantityLocal(r) <- NULL;
-    overNewReceivingDetail(r);
+    overAddReceivingDetail(r);
     SHOW addReceivingDetail OBJECTS r=r; 
 } IMAGE 'add.png';
+
+overAddReceivingDetail(Receiving r) + {
+    consolidationKeyLocal(r) <- NULL;
+}
+
+overAddReceivingDetail(Receiving r, ReceivingDetail d) + {
+    consolidationKey(d) <- consolidationKeyLocal(r);
+}
+
+overChangeBarcodeLocal(Receiving r) + {
+    consolidationKeyLocal(r) <- NULL;
+}
 
 @defineBinAttribute(receiving, 'Приемка');
 
@@ -263,30 +309,43 @@ completeWork 'Завершить приёмку' (Receiving receiving) {
     }
 }
 
+overCompleteWork ABSTRACT LIST (Sku, STRING, Receiving);
+completeWork 'Завершить приемку товара' (Sku s, STRING consolidationKey, Receiving r) {
+    NEWSESSION {
+        IF (GROUP SUM 1 IF sku(ReceivingDetail d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT inBin(d)) THEN {
+            MESSAGE 'Нельзя завершить работу со строками приемки у которых не заполнены ячейки';
+            CANCEL;
+        }
+        status(ReceivingDetail d) <- ReceivingStatus.completed WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
+        overCompleteWork(s, consolidationKey, r);
+        APPLY;
+    }
+}
+
 createDetails 'Создать строки по документу основания' ABSTRACT CASE (Receiving);
 
-placementBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin), o1, u1](st, o, u);
-placementBin  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
-placementBinNoUseBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC name(bin), bin BY stock(bin), o1, u1](st, o, u);
+putawayBin  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBinIgnoreBinBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC name(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
 
-noUseBalanceForPlacement 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
+ignoreBinBalanceDuringPutaway 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES() noUseBalanceForPlacement
+    PROPERTIES() ignoreBinBalanceDuringPutaway
 ;
 
 DESIGN options {
     receiving {
-        MOVE PROPERTY(noUseBalanceForPlacement());
+        MOVE PROPERTY(ignoreBinBalanceDuringPutaway());
     }
 }
 
-placementBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) = 
-    OVERRIDE placementBin(sku, stock, o, u), 
-             placementBinNoUseBalance(sku, stock, o, u) IF noUseBalanceForPlacement(),
-             placementBin(stock, o, u) IF sku IS Sku;
+putawayBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) = 
+    OVERRIDE putawayBin(sku, stock, o, u), 
+             putawayBinIgnoreBinBalance(sku, stock, o, u) IF ignoreBinBalanceDuringPutaway(),
+             putawayBin(stock, o, u) IF sku IS Sku;
 
-placement 'Разместить' (CustomUser u) {
+putaway 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
         select(Sku sku) <- NULL WHERE select(sku) AND NOT currentBalance(sku, receivingBin(u));
         IF NOT (GROUP MAX select(Sku sku)) THEN {
@@ -313,7 +372,7 @@ placement 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- receivingBin(u);
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
+                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
                 quantity(d) <- currentBalance(sku, receivingBin(u));
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -323,7 +382,7 @@ placement 'Разместить' (CustomUser u) {
     }    
 }
 
-placementReserve 'Разместить' (CustomUser u) {
+putawayReserve 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
         select(Sku sku) <- NULL WHERE select(sku) AND NOT (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
         IF NOT (GROUP MAX select(Sku sku)) THEN {
@@ -350,7 +409,7 @@ placementReserve 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
-                inBin(d) <- placementBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
+                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
                 quantity(d) <- currentBalance(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -422,10 +481,11 @@ FORM receiving 'Приемка'
     
     OBJECTS d=ReceivingDetail
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
-    PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku, createdDateTime, nameCreatedUser
+    PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku,
+        overConsolidationKey ON CHANGE changeConsolidationKey(d), createdDateTime, nameCreatedUser
     PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(d)==ReceivingStatus.inWork,
                   nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(d)==ReceivingStatus.inWork
-    PROPERTIES newReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
+    PROPERTIES addReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
     PROPERTIES(d) NEWSESSION DELETE SHOWIF status(r)==ReceivingStatus.inWork
     PROPERTIES(d) copy PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
     FILTERS receiving(d)==r
@@ -434,29 +494,43 @@ FORM receiving 'Приемка'
 
     OBJECTS sr=Sku
     PROPERTIES(sr) READONLY idBarcode, name, shortNameUOM
-    PROPERTIES(sr, r) READONLY invoiceQuantity BACKGROUND RGB(212,255,212), receivingQuantity BACKGROUND RGB(255, 224, 255)
-    FILTERS invoiceQuantity(sr, r) OR receivingQuantity(sr, r)
+    PROPERTIES(sr, r) READONLY expectedQuantity BACKGROUND RGB(212,255,212), receivingQuantity BACKGROUND RGB(255, 224, 255)
+    FILTERS expectedQuantity(sr, r) OR receivingQuantity(sr, r)
 
     OBJECTS s = Sku
     PROPERTIES(s) select
     PROPERTIES(s) READONLY name, idBarcode
     PROPERTIES READONLY currentBalance 'Текущий остаток в ячейке' = currentBalance(s, receivingBin(u))
-    PROPERTIES placement(u) DRAW s PANEL TOOLBAR
+    PROPERTIES putaway(u) DRAW s PANEL TOOLBAR
     FILTERS currentBalance(s, receivingBin(u))  
     
     OBJECTS reserve = (rs=Sku, rb=Bin)
     PROPERTIES select(rs, rb)
     PROPERTIES READONLY name(rs), idBarcode(rs), canonicalId(rb), name(rb), currentBalance(rs, rb)
-    PROPERTIES placementReserve(u) DRAW reserve PANEL TOOLBAR
+    PROPERTIES putawayReserve(u) DRAW reserve PANEL TOOLBAR
     PROPERTIES writeOffReserve(u) DRAW reserve PANEL TOOLBAR
     FILTERS currentBalance(rs, rb),
             binGroup2(rb)==binGroup2(receivingBin(u)),
             orderLedger(rb)
 
-    OBJECTS placeSku = BinTransferDetail
-    PROPERTIES(placeSku) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin
-    PROPERTIES READONLY currentBalancePS 'Текущий остаток в ячейке' = currentBalance(sku(placeSku), outBin(placeSku))
-    FILTERS currentBalance(sku(placeSku), outBin(placeSku)), accessCompany(u, outBin(placeSku)), inBin(placeSku) = receivingBin(u), operation(placeSku) = Bin.operation('extrnal')
+    OBJECTS putawaySku = BinTransferDetail
+    PROPERTIES(putawaySku) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin
+    PROPERTIES READONLY currentBalancePS 'Текущий остаток в ячейке' = currentBalance(sku(putawaySku), outBin(putawaySku))
+    FILTERS currentBalance(sku(putawaySku), outBin(putawaySku)), accessCompany(u, outBin(putawaySku)), inBin(putawaySku) = receivingBin(u), operation(putawaySku) = Bin.operation('extrnal')
+
+    OBJECTS srstr = (sr1=Sku, str1 = STRING)
+    PROPERTIES READONLY nameStatus(sr1, str1, r) BACKGROUND RGB(255, 224, 255)
+    PROPERTIES(sr1) READONLY idBarcode, name, shortNameUOM
+    PROPERTIES(str1) READONLY overConsolidationKey 'Ключ группировки' = VALUE
+    PROPERTIES(sr1, str1, r) READONLY expectedQuantity BACKGROUND RGB(212,255,212), receivingQuantity BACKGROUND RGB(255, 224, 255),
+        quantityCompleted BACKGROUND RGB(255, 224, 255)
+    PROPERTIES completeWork(sr1, str1, r) PANEL TOOLBAR SHOWIF receivingQuantity(sr1, str1, r) AND NOT quantityCompleted(sr1, str1, r)==receivingQuantity(sr1, str1, r)
+    ORDERS name(sr1), overConsolidationKey
+    FILTERS expectedQuantity(sr1, str1, r) OR receivingQuantity(sr1, str1, r)
+    FILTERGROUP filter
+        FILTER 'Непринятое' expectedQuantity(sr1, str1, r) AND NOT expectedQuantity(sr1, str1, r)==receivingQuantity(sr1, str1, r)
+        FILTER 'Необработанное' receivingQuantity(sr1, str1, r) AND NOT receivingQuantity(sr1, str1, r)==quantityCompleted(sr1, str1, r)
+        FILTER 'Непринятое/Необработанное' expectedQuantity(sr1, str1, r) AND (NOT expectedQuantity(sr1, str1, r)==receivingQuantity(sr1, str1, r) OR NOT receivingQuantity(sr1, str1, r)==quantityCompleted(sr1, str1, r))
 ;
 
 DESIGN receiving {
@@ -488,33 +562,27 @@ DESIGN receiving {
                 tabbed = TRUE;
                 fill = 2;
                 MOVE BOX(d);
-                MOVE BOX(sr) {caption = 'Группировка';}
+                MOVE BOX(srstr) {caption = 'Группировка по товару/ключу группировки';}
+                MOVE BOX(sr) {caption = 'Группировка по товару';}
             }
         }    
-        NEW placement {
+        NEW tabPutaway {
             caption = 'Размещение';
-            NEW tabPlacement {
-                tabbed = TRUE;
-                fill = 1;
-                NEW newPlacement {
-                    caption = 'Размещение';
-                    MOVE BOX(s);
-                }
-                NEW oldPlacement {
-                    caption = 'Размещенные';
-                    MOVE BOX(placeSku);
-                }
+            tabbed = TRUE;
+            fill = 1;
+            NEW putaway {
+                caption = 'Размещение';
+                MOVE BOX(s);
+            }
+            NEW stocked {
+                caption = 'Размещенные';
+                MOVE BOX(putawaySku);
             }
         }
         
         MOVE BOX(reserve) {
             caption = 'Брак/резерв';
-        }
-
-        MOVE BOX(placeSku) {
-            caption = 'Размещенные';
-        }
-        
+        }        
     }    
     MOVE TOOLBARBOX;
 }
@@ -556,13 +624,12 @@ supplier(UserReceiving receiving) += supplier(receiving);
 supplierStock(UserReceiving receiving) += supplierStock(receiving);
 customer(UserReceiving receiving) += customer(receiving);
 customerStock(UserReceiving receiving) += customerStock(receiving);
-quantity = ABSTRACT NUMERIC[16,5] (Sku, UserReceiving);
-invoiceQuantity(Sku sku, UserReceiving receiving) += quantity(sku, receiving);
 
 META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
     userReceiving = DATA UserReceiving(###primObject);
-    
-    quantity (Sku s, UserReceiving r) += [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(##primObject(detail))](s, r);
+
+    expectedQuantity 'Кол-во документе прихода' = GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(##primObject(detail));
+    expectedQuantity(Sku sku, UserReceiving receiving) += expectedQuantity(sku, receiving);
     
     count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
     
@@ -609,7 +676,7 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
         ORDERS dateTime(primObject), nameSupplierStock(primObject)
         FILTERS isPosted(primObject),
                 useBins(customerStock(primObject)),
-                stock(receivingBin(u)) == customerStock(primObject),
+            stock(receivingBin(u)) == customerStock(primObject),
                 use###primObject##Receiving(operation(primObject))
     ;
     
@@ -700,7 +767,7 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     needToCreateReceiving(###primObject primObject) += createReceiving(primObject) AND isPosted(primObject) AND NOT userReceiving(primObject) AND NOT skipReceiving(primObject);
 
     quantity 'Кол-во документе прихода' = GROUP SUM quantity(###primObject##Detail detail) IF primObject(detail)==primObject(###primObject##Receiving receiving) BY sku(detail), receiving;
-    invoiceQuantity[Sku, ###primObject##Receiving](Sku sku, ###primObject##Receiving receiving) += quantity(sku, receiving);
+    expectedQuantity[Sku, ###primObject##Receiving](Sku sku, ###primObject##Receiving receiving) += quantity(sku, receiving);
     
     createDetails(Receiving receiving) + WHEN primObject(receiving) IS ###primObject THEN {
         NEWSESSION {
