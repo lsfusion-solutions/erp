@@ -85,46 +85,46 @@ uomTTL(Sku i) = CASE WHEN shortNameUOM(i) == 'ШТ' THEN 1
                                 WHEN split(UOM(i)) THEN 4
                                 ELSE 1;
 
-CLASS PalletHeight 'Высота паллет' {
-    low 'Низкий (до 100 см)',
-    medium 'Средний (100-145 см)',
-    mediumPlus 'Средний + (145-180 см)',
-    high 'Высокий (свыше 180 см)'
+CLASS PalletHeight 'Высота палеты' {
+    low 'Низкая (до 100 см)',
+    medium 'Средняя (100-145 см)',
+    mediumPlus 'Средняя + (145-180 см)',
+    high 'Высокая (свыше 180 см)'
 }
 
-FORM palletHeights 'Высоты паллет'
+FORM palletHeights 'Высоты палеты'
     OBJECTS t = PalletHeight
     PROPERTIES(t) READONLY staticCaption
     LIST PalletHeight OBJECT t
 ;
 
 DESIGN palletHeights {
-    PROPERTY(staticCaption(t)) { caption = 'Высота паллет'; } 
+    PROPERTY(staticCaption(t)) { caption = 'Высота палеты'; } 
 }
 
 palletHeight = DATA PalletHeight (Item);
-namePalletHeight 'Высота паллеты' (Item i) = staticCaption(palletHeight(i)) IN wms;
+namePalletHeight 'Высота палеты' (Item i) = staticCaption(palletHeight(i)) IN wms;
 
-CLASS PalletWeight 'Весовая группа паллет' {
+CLASS PalletWeight 'Весовая группа палеты' {
     light 'Легкая до 600кг',
     medium 'Средняя от 600кг до 1000кг',
     heavy 'Тяжелая более 1000кг'
 }
 
-FORM palletWeights 'Весовые группы паллет'
+FORM palletWeights 'Весовые группы палеты'
     OBJECTS t = PalletWeight
     PROPERTIES(t) READONLY staticCaption
     LIST PalletWeight OBJECT t
 ;
 
 DESIGN palletWeights {
-    PROPERTY(staticCaption(t)) { caption = 'Весовая группа паллет'; } 
+    PROPERTY(staticCaption(t)) { caption = 'Весовая группа палеты'; } 
 }
 
 palletWeight = DATA PalletWeight (Item);
-namePalletWeight 'Весовая группа паллеты' (Item i) = staticCaption(palletWeight(i)) IN wms;
+namePalletWeight 'Весовая группа палеты' (Item i) = staticCaption(palletWeight(i)) IN wms;
 
-namePalletTypeTTL 'Тип паллеты' (Item i) = staticCaption(palletType(i)) IN wms;
+namePalletTypeTTL 'Тип палеты' (Item i) = staticCaption(palletType(i)) IN wms;
                                  
 dataInBlock 'Штук в блоке' = DATA NUMERIC[15,3] (Item ) IN wms;
 inBlock 'Штук в блоке' (Sku i) = OVERRIDE dataInBlock(i), amount(barcode(i, TransportPack.inpack)), 1 IN wms;
@@ -132,8 +132,8 @@ inBlock 'Штук в блоке' (Sku i) = OVERRIDE dataInBlock(i), amount(barco
 dataInBox 'Блоков в коробе' = DATA INTEGER (Item ) IN wms;
 inBox 'Блоков в коробе' (Sku i) = OVERRIDE dataInBox(i), 1 IN wms;
 
-dataInPallet 'Коробов на паллете' = DATA INTEGER (Item ) IN wms;
-inPallet 'Коробов на паллете' (Sku i) = OVERRIDE dataInPallet(i), amount(barcode(i, TransportPack.oppl)) / amount(barcode(i, TransportPack.inpack)), 1 IN wms;
+dataInPallet 'Коробов на палете' = DATA INTEGER (Item ) IN wms;
+inPallet 'Коробов на палете' (Sku i) = OVERRIDE dataInPallet(i), amount(barcode(i, TransportPack.oppl)) / amount(barcode(i, TransportPack.inpack)), 1 IN wms;
 
 lengthBox 'Длина короба, мм' = DATA INTEGER (Item) IN wms;
 widthBox 'Ширина короба, мм' = DATA INTEGER (Item) IN wms;
@@ -218,10 +218,10 @@ ItemsInBlock(Sku s) +=  WHEN s IS Sku THEN inBlock(s);
 BlockInBox 'Блоков в коробе' = ABSTRACT CASE INTEGER (Sku) IN wms;
 BlockInBox(Sku s) +=  WHEN s IS Sku THEN inBox(s);
 
-BoxesInPallet 'Коробов на паллете' = ABSTRACT CASE NUMERIC[46,32](Sku) IN wms;
+BoxesInPallet 'Коробов на палете' = ABSTRACT CASE NUMERIC[46,32](Sku) IN wms;
 BoxesInPallet(Sku s) +=  WHEN s IS Sku THEN inPallet(s);
 
-HeightPallet 'Высота паллет' = ABSTRACT CASE INTEGER (Sku) IN wms;
+HeightPallet 'Высота палеты' = ABSTRACT CASE INTEGER (Sku) IN wms;
 HeightPallet(Sku s) +=  WHEN s IS Sku THEN heightPallet(s);
 
 LengthBox 'Длина короба, мм' = ABSTRACT CASE INTEGER (Sku) IN wms;
