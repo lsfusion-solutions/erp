@@ -54,9 +54,8 @@ FORM yandexorder FORMEXTID 'null'
     OBJECTS promos1 = INTEGER EXTID 'promos'
     PROPERTIES(promos1) discount1 EXTID 'discount', type1 EXTID 'type'
     FILTERS imported(promos1)
-    PROPERTIES() IN paymentInfo itemsCost, paymentType;
-
-
+    PROPERTIES() IN paymentInfo itemsCost, paymentType
+;
 
 itemById (STRING id) = GROUP LAST Item i ORDER id(i) WHERE id(i) == id;
 stockYandexOrder (STRING id) = ABSTRACT DepartmentStore;
@@ -174,8 +173,11 @@ orderNotFound(){
 extraUpdateOrder ABSTRACT LIST (InternetOrder);
 afterUpdateDetails ABSTRACT LIST (INTEGER, InternetOrderDetail);
 afterUpdateDetailsChange ABSTRACT LIST (INTEGER, InternetOrderDetail);
+
+statusUpdate = DATA LOCAL STRING();
+
 FORM closeOrder
-    PROPERTIES() eatsId, comment;
+    PROPERTIES() statusUpdate EXTID 'status', eatsId, comment;
 
 customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 
@@ -199,7 +201,11 @@ updateOrder(FILE f){
             orderLoc() <- getWord(order(), '/', 1);
             IMPORT closeOrder FROM f;
             customerComment(internetOrderByUuid(orderLoc())) <- comment();
-            status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+            IF statusUpdate() = 'DELIVERED' THEN{
+                status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
+            } ELSE {
+                status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+            }
             APPLY ;
             IF canceled() THEN {
                 statusHttpTo() <- 500;
