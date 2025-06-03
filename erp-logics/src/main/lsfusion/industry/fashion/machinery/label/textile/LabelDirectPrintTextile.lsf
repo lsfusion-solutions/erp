@@ -141,6 +141,23 @@ writeToComPortCustomLibrary (FILE file, INTEGER baudrate, INTEGER comport) {
         ELSE MESSAGE 'Ошибка. Выберите в настройках компьютера Библитеку Com из jssc и jSerialComm';
 }
 
+sendToPrinterClientComPort 'Действие печати (COM-порт на клиенте)' (StickerTransaction stickerTrans) {
+    stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
+    writeToComPortCustomLibrary(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
+    printed() <- TRUE;
+}
+
+sendToPrinterClientFile 'Действие печати (Файловая система на клиенте)' (StickerTransaction stickerTrans) {
+    stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
+    WRITE CLIENT resultFile() TO path(printer());
+    printed() <- TRUE;
+}
+
+sendToPrinterDefault 'Действие печати (по умолчанию)' (StickerTransaction stickerTrans) {
+    writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
+    printed() <- TRUE;
+}
+
 sendToPrinter (StickerTransaction stickerTrans) {
     IF useCustomSendToPrinter() THEN
         customSendToPrinter(stickerTrans);
@@ -154,18 +171,13 @@ sendToPrinter (StickerTransaction stickerTrans) {
             }
 
             CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
-                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                writeToComPortCustomLibrary(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
-                printed() <- TRUE;
+                sendToPrinterClientComPort(stickerTrans);
             }
             WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
-                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                WRITE CLIENT resultFile() TO path(printer());
-                printed() <- TRUE;
+                sendToPrinterClientFile(stickerTrans);
             }
             ELSE { // в том числе, для NetworkPrinterType.clientPrintService
-                writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
-                printed() <- TRUE;
+                sendToPrinterDefault(stickerTrans);
             }
         }
         ELSE

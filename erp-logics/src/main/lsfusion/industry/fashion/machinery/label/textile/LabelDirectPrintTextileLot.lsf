@@ -58,6 +58,11 @@ DESIGN stickerTransactions {
 
 // пока усложнять резервированием марок через APPLY не будем, поэтому на 2х рабочих местах на 1 товар лучше не печатать
 preparePrintLot(StickerTransaction stickerTrans) {
+    IF NOT datamartixTag() THEN {
+        MESSAGE 'Для печати этикеток с марками должен быть задан тег Datamatrix';
+        RETURN;
+    }
+    
     LOCAL lotToPrint = Lot();
     lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND sku(l) = item(stickerTrans);
     stickerTransaction(lotToPrint()) <- stickerTrans;
@@ -72,6 +77,13 @@ preparePrintLot(StickerTransaction stickerTrans) {
     ELSE
         fullFormattedText() <- replace(formattedText(), datamartixTag(), '');
 }
+
+dropDatamartixTag 'Очистить тег Datamartix' () {
+    fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '') WHERE datamartixTag();
+}
+
+singlePrintLotSendToPrinter ABSTRACT LIST (StickerTransaction); // Для печати этикеток с марками без цикла
+useSinglePrintLotSendToPrinter = ABSTRACT BOOLEAN ();
 
 extraPreparePrintLot ABSTRACT LIST (StickerTransaction, INTEGER);
 
@@ -88,55 +100,57 @@ customSendToPrinter (StickerTransaction stickerTrans) + {
 
         CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                    preparePrintLot(stickerTrans);
-                    extraPreparePrintLot(stickerTrans, i);
-                    
-                    stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                    writeToComPortCustomLibrary(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
-                    printed() <- TRUE; // внутри цикла, т.к. если хоть одна отправилась - уже считаем транзакцию напечатанной
+                IF NOT useSinglePrintLotSendToPrinter() THEN {
+                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
+                        preparePrintLot(stickerTrans);
+                        extraPreparePrintLot(stickerTrans, i);
+                        sendToPrinterClientComPort(stickerTrans); // внутри цикла, т.к. если хоть одна отправилась - уже считаем транзакцию напечатанной
+                    }
+                } ELSE {
+                    singlePrintLotSendToPrinter(stickerTrans);
+                    sendToPrinterClientComPort(stickerTrans);
                 }
             }
             ELSE {
-                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
-                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                writeToComPortCustomLibrary(resultFile(), (OVERRIDE baudrateComNetworkPrinder(), 9600), INTEGER (replace(path(printer()), 'COM', '')));
-                printed() <- TRUE;
+                dropDatamartixTag();
+                sendToPrinterClientComPort(stickerTrans);
             }
         }
 
         WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                    preparePrintLot(stickerTrans);
-                    extraPreparePrintLot(stickerTrans, i);
-
-                    stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                    WRITE CLIENT resultFile() TO path(printer());
-                    printed() <- TRUE;
+                IF NOT useSinglePrintLotSendToPrinter() THEN {
+                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
+                        preparePrintLot(stickerTrans);
+                        extraPreparePrintLot(stickerTrans, i);
+                        sendToPrinterClientFile(stickerTrans);
+                    }
+                } ELSE {
+                    singlePrintLotSendToPrinter(stickerTrans);
+                    sendToPrinterClientFile(stickerTrans);
                 }
             }
             ELSE {
-                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
-                stringToFile(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), '');
-                WRITE CLIENT resultFile() TO path(printer());
-                printed() <- TRUE;
+                dropDatamartixTag();
+                sendToPrinterClientFile(stickerTrans);
             }
         }
         ELSE {  // в том числе, для NetworkPrinterType.clientPrintService
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                    preparePrintLot(stickerTrans);
-                    extraPreparePrintLot(stickerTrans, i);
-
-                    writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
-                    printed() <- TRUE;
+                IF NOT useSinglePrintLotSendToPrinter() THEN {
+                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
+                        preparePrintLot(stickerTrans);
+                        extraPreparePrintLot(stickerTrans, i);
+                        sendToPrinterDefault(stickerTrans);
+                    }
+                } ELSE {
+                    singlePrintLotSendToPrinter(stickerTrans);
+                    sendToPrinterDefault(stickerTrans);
                 }
             }
             ELSE {
-                fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '');
-                writeToPrinter(fullFormattedText(), (OVERRIDE nameCodepageDirectPrint(labelType(stickerTrans)), 'CP866'), path(printer()));
-                printed() <- TRUE;
+                dropDatamartixTag();
+                sendToPrinterDefault(stickerTrans);
             }
         }
     }
