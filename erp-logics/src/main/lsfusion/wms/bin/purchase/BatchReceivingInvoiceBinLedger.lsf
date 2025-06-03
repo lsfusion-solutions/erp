@@ -8,14 +8,14 @@ consolidationKey 'Ключ группировки' = ABSTRACT STRING (Batch) CHA
 overConsolidationKey(Batch bt) = OVERRIDE consolidationKey(bt), ('Не указан' IF bt IS Batch) MATERIALIZED;
 
 overCompleteWork (Receiving r) + {
-    FOR receiving(invoice(invoiceDetail(shipmentDetail(Batch bt))))==r INLINE DO {
+    FOR receiving(invoice(invoiceDetail(Batch bt)))==r INLINE DO {
         batch(ReceivingDetail d) <- bt WHERE sku(d)==sku(bt) AND overConsolidationKey(d)==overConsolidationKey(bt) AND receiving(d)==r AND quantity(d);
         inBin(Purchase.InvoiceDetail d) <- NULL WHERE d = invoiceDetail(shipmentDetail(bt));
     }
 }
 
 overCompleteWork(Sku s, STRING consolidationKey, Receiving r) + {
-    FOR receiving(invoice(invoiceDetail(shipmentDetail(Batch bt))))==r AND sku(bt) == s AND overConsolidationKey(bt)==consolidationKey INLINE DO {
+    FOR receiving(invoice(invoiceDetail(Batch bt)))==r AND sku(bt) == s AND overConsolidationKey(bt)==consolidationKey INLINE DO {
         batch(ReceivingDetail d) <- bt WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND quantity(d);
         inBin(Purchase.InvoiceDetail d) <- NULL WHERE d = invoiceDetail(shipmentDetail(bt));
     }    
@@ -270,7 +270,7 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
             DO NEW dc = UserCreditNoteDetail {
             userCreditNote(dc) <- c;
             invoiceDetail(dc) <- d;
-            batch(dc) <- shipmentBatch(invoiceShipmentDetail(d));
+            batch(dc) <- overBatch(d);
             sku(dc) <- s;
             quantity (dc) <- diffInvoiceCreditNoteCompleted(s, str, r);
             VAT (dc) <- OVERRIDE VAT(d);
@@ -294,7 +294,7 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
         FOR [GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u))
             AND orderLedger(bin) BY invoice(invoiceDetail(batch))](Invoice i)
             AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i)) DO NEW c = UserCreditNote {
-            id(c) <- CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i);
+            id(c) <- STRING[100](CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i));
             operation(c) <- operation(i);
             supplier(c) <- supplier(i);
             supplierStock(c) <- supplierStock(i);
