@@ -200,6 +200,24 @@ bufferStatus 'Статус' = DATA STRING (LotOrderDetail);
 availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
 availableCodes 'Доступно марок' (LotOrder o) = GROUP SUM availableCodes(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED;
 
+gtin = DATA LOCAL STRING(INTEGER);
+totalCodes = DATA LOCAL NUMERIC(INTEGER);
+cisType = DATA LOCAL STRING(INTEGER);
+expiredDate = DATA LOCAL NUMERIC(INTEGER);
+leftInBuffer = DATA LOCAL NUMERIC(INTEGER);
+poolsExhausted = DATA LOCAL STRING(INTEGER);
+totalPassed = DATA LOCAL NUMERIC(INTEGER);
+availableCodes = DATA LOCAL NUMERIC(INTEGER);
+bufferStatus = DATA LOCAL STRING(INTEGER);
+templateId = DATA LOCAL NUMERIC(INTEGER);
+unavailableCodes = DATA LOCAL NUMERIC(INTEGER);
+rejectionReason = DATA LOCAL STRING(INTEGER);
+
+FORM orderStatusSUZ
+    OBJECTS value = INTEGER
+    PROPERTIES(value) gtin, totalCodes, cisType, expiredDate, leftInBuffer, poolsExhausted, totalPassed, availableCodes, bufferStatus, templateId, unavailableCodes, rejectionReason
+;
+
 checkStatus 'Проверить статус' (LotOrder o) {
     LOCAL NESTED statusMessage = STRING();
     statusMessage() <- '';
@@ -221,7 +239,13 @@ checkStatus 'Проверить статус' (LotOrder o) {
             LOCAL bufferStatus = STRING ();
             LOCAL rejectionReason = STRING ();
             LOCAL availableCodes = INTEGER ();
-            IMPORT JSON FROM result() TO() bufferStatus, rejectionReason, availableCodes;
+            
+            IMPORT orderStatusSUZ JSON FROM result();
+            
+            bufferStatus() <- GROUP MAX bufferStatus(INTEGER i);
+            availableCodes() <- GROUP MAX availableCodes(INTEGER i);
+            rejectionReason()<- GROUP MAX rejectionReason(INTEGER i);
+
             
             IF bufferStatus() = 'REJECTED' THEN {
                 canceled(o) <- TRUE;
