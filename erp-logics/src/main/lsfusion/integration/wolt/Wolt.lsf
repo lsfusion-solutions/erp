@@ -9,7 +9,7 @@ priceWolt(Item i) = GROUP MAX retailPricingPriceA(i, DepartmentStore ds) IF acti
 in = DATA LOCAL BOOLEAN (Item);
 countIn = GROUP SUM 1 IF in(Item i);
 
-data (Item i) = JSON FROM external_id = id(i), price = priceWolt(i), discounted_price = priceWolt(i),
+data (Item i) = JSON FROM external_id = id(i), price = priceWolt(i), // discounted_price = priceWolt(i),
     enabled = active(i), in_stock = active(i), image_url = urlHttpAccess(i)
 ;
 
@@ -54,32 +54,35 @@ venueId 'Venue ID Wolt' = DATA STRING (DepartmentStore);
 venue (STRING id) = GROUP MAX DepartmentStore ds BY venueId(ds);
 
 updateItems 'Обновить товары' (DepartmentStore ds){
-    exportJSON() <- JSON FROM data = JSON FROM value = data(Item.Item ii) WHERE Wolt.in(ii);
+    exportJSON() <- JSON FROM data = JSON FROM value = data(Item.Item ii) WHERE Wolt.in(ii) AND currentBalance(ii, ds) > 0 AND priceWolt(ii);
 
     LOCAL f = FILE();
     encodeBase64(loginMenuApi() + ':' + passwordMenuApi());
 
     LOCAL headers = TEXT(STRING[100]);
+    headers('Content-Type') <- 'application/json';
     headers('Authorization') <- 'Basic ' + encodedBase64();
     
     TRY{
         timeoutHttp() <- 30000;
-        EXTERNAL HTTP PATCH 'https://pos-integration-service.development.dev.woltapi.com/venues/' + venueId(ds) + '/items ' HEADERS headers PARAMS exportJSON() TO f;
+        EXTERNAL HTTP PATCH 'https://pos-integration-service.wolt.com/venues/' + venueId(ds) + '/items' HEADERS headers PARAMS exportJSON() TO f;
     }
     CATCH{
-        MESSAGE CONCAT ' ','Произошла ошибка при обновлении товара',(GROUP CONCAT name(Item ii) IF in(ii), ', ' ORDER ii) NOWAIT;
+        MESSAGE CONCAT '\n','Произошла ошибка при обновлении товара',
+           messageCaughtException() NOWAIT;
     }
 }
 
 dataInventory (Item i, DepartmentStore ds) = JSON FROM sku = id(i), inventory = currentBalance(i, ds);
 
 updateInventory 'Обновить остатки' (DepartmentStore ds){
-    exportJSON() <- JSON FROM data = JSON FROM value = dataInventory(Item.Item ii, ds) WHERE Wolt.in(ii);
+    exportJSON() <- JSON FROM data = JSON FROM value = dataInventory(Item.Item ii, ds) WHERE Wolt.in(ii) AND currentBalance(ii, ds) > 0;
 
     LOCAL f = FILE();
     encodeBase64(loginMenuApi() + ':' + passwordMenuApi());
     
     LOCAL headers = TEXT(STRING[100]);
+    headers('Content-Type') <- 'application/json';
     headers('Authorization') <- 'Basic ' + encodedBase64();
 
     TRY{
@@ -87,7 +90,7 @@ updateInventory 'Обновить остатки' (DepartmentStore ds){
         EXTERNAL HTTP PATCH 'https://pos-integration-service.wolt.com/venues/' + venueId(ds) + '/items/inventory' HEADERS headers PARAMS exportJSON() TO f;
     }
     CATCH{
-        MESSAGE CONCAT ' ','Произошла ошибка при обновлении остатков', name(ds);
+        MESSAGE CONCAT '\n','Произошла ошибка при обновлении остатков', name(ds), messageCaughtException();
     }
 }
 
