@@ -103,6 +103,8 @@ changePacketsQuantity()  {
 setSort ABSTRACT (PrintLabelType, LabelType, Sort);
 setYear ABSTRACT ();
 
+overFilterCreatePacketingDetail = ABSTRACT BOOLEAN (NetworkPrinter);
+
 FORM createPacketingDetail 'Печать этикеток'
     OBJECTS plt = PrintLabelType PANEL
     PROPERTIES namePrint(plt) SELECTOR
@@ -123,7 +125,7 @@ FORM createPacketingDetail 'Печать этикеток'
 
     OBJECTS np = NetworkPrinter
     PROPERTIES (np) READONLY name, path, nameStock BACKGROUND (IF NOT stock(np) == stock(currentComputer()) THEN RGB(255,200,216)), namePrintLabelType CHANGEABLE
-    FILTERS in(np, currentUser())
+    FILTERS in(np, currentUser()) OR overFilterCreatePacketingDetail(np)
 
     EVENTS
         ON INIT { 
