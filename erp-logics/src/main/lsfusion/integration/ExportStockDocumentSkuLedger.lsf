@@ -1,0 +1,177 @@
+MODULE ExportStockDocumentSkuLedger;
+
+REQUIRE StockDocumentSkuLedger, StockTax, Barcode, ZReport;
+
+
+operation(StockDocumentLedger ledger) = OVERRIDE StockDocument.operation(ledger),
+    ZReportOperation.zReportSale IF ledger IS ZReportStockDocumentledger;
+nameOperation(StockDocumentLedger ledger) = IF isReturn(ledger) THEN nameReturn(operation(ledger)) ELSE name(operation(ledger));
+
+
+CLASS ExportType 'Формат файла' {
+    xlsx 'XLSX',
+    csv 'CSV',
+    json 'JSON',
+    xml 'XML'
+}
+
+FORM exportType 'Формат файла'
+    OBJECTS t = ExportType
+    PROPERTIES (t) READONLY staticCaption
+    
+    LIST ExportType OBJECT t
+;
+
+exportPath 'Путь для выгрузки' = DATA STRING[255]();
+exportType 'Формат файла' = DATA ExportType ();
+nameExportType 'Формат файла' = staticCaption(exportType());
+exportPeriod 'Количество дней для выгрузки' = DATA INTEGER ();
+
+inExport 'Отм.' = DATA BOOLEAN (Operation.Operation);
+inExport 'Отм.' = DATA BOOLEAN (Stock);
+
+dateFrom = DATA LOCAL DATE ();
+dateTo = DATA LOCAL DATE ();
+
+FORM exportDocument
+    OBJECTS sl = StockDocumentLedger EXTID 'documents'
+    PROPERTIES READONLY IN base
+        type(sl),
+        number(sl),
+        series(sl),
+        dateTime(sl),
+        idOperation = id(operation(sl)),
+        nameOperation = nameOperation(sl),
+        idStock = id(stock(sl)),
+        nameStock(sl),
+        idLegalEntity = id(legalEntity(sl)),
+        nameLegalEntity(sl),
+        idLegalEntityStock = id(legalEntityStock(sl)),
+        nameLegalEntityStock = name(legalEntityStock(sl)),
+        sum(sl)
+    
+    FILTERS active(sl), inExport(operation(sl)), inExport(stock(sl)), date(sl) >= dateFrom(), date(sl) <= dateTo()
+    
+    OBJECTS l = SkuLedger EXTID 'documentDetails'
+    PROPERTIES READONLY IN base
+        idBarcode = idBarcode(sku(l)),
+        idSku(l),
+        nameSku(l),
+        measurement = shortNameUOM(l),
+        valueVAT= valueVAT(sku(l)),
+        signedQuantity(l),
+        signedSum(l)
+    
+    FILTERS stockDocumentLedger(l) == sl
+
+;
+
+FORM exportPlain
+    OBJECTS l = SkuLedger EXTID 'documentDetails'
+    PROPERTIES READONLY IN base
+        type = type(stockDocumentLedger(l)),
+        number = numberDocument(l),
+        series = seriesDocument(l),
+        dateTime(l),
+        idOperation = id(operation(stockDocumentLedger(l))),
+        nameOperation = nameOperation(stockDocumentLedger(l)),
+        idStock(l),
+        nameStock(l),
+        idLegalEntity = id(legalEntity(stockDocumentLedger(l))),
+        nameLegalEntity = nameLegalEntityDocument(l),
+        idLegalEntityStock = idLegalEntityStockDocument(l),
+        nameLegalEntityStock = nameLegalEntityStockDocument(l),
+        idBarcode = idBarcode(sku(l)),
+        idSku(l),
+        nameSku(l),
+        UOM = shortNameUOM(l),
+        valueVAT= valueVAT(sku(l)),
+        signedQuantity(l),
+        signedSum(l)
+    FILTERS active(stockDocumentLedger(l)), inExport(operation(stockDocumentLedger(l))), inExport(stock(l)), date(l) >= dateFrom(), date(l) <= dateTo()
+;
+
+export() {
+    
+    IF exportPeriod() THEN {
+        dateFrom() <- sum(currentDate(), -exportPeriod());
+        dateTo() <- sum(currentDate(), -1);
+    } ELSE {
+        MESSAGE 'Не задан период выгрузки.' NOWAIT;
+        RETURN;
+    }
+
+    CASE
+        WHEN exportType() == ExportType.xlsx THEN {
+            EXPORT exportPlain XLSX HEADER TO l = exportFile;
+        }        
+        WHEN exportType() == ExportType.csv THEN {
+            EXPORT exportPlain CSV HEADER TO l = exportFile;
+        }
+        WHEN exportType() == ExportType.json THEN {
+            EXPORT exportDocument JSON;
+        }
+        WHEN exportType() == ExportType.xml THEN {
+            EXPORT exportDocument XML;
+        }
+        ELSE MESSAGE 'Не задан тип экспорта.' NOWAIT;
+}
+
+write 'Выгрузить' () {
+    export();
+    
+    WRITE exportFile() TO exportPath() + '/skuLedger_' + dateFrom() + '_' + dateTo();
+}
+
+open 'Открыть' () {
+    export();
+    open(exportFile());
+}
+
+EXTEND FORM integrationData 
+    PROPERTIES () exportPath, nameExportType, exportPeriod, write, open
+
+    OBJECTS oe = Operation.Operation
+    PROPERTIES(oe) objectClassName READONLY, inExport, name READONLY, nameReturn READONLY
+
+    TREE stockTreeEx ae = BPSTRING[3], sge = StockGroup PARENT parent(sge)
+    PROPERTIES READONLY VALUE(ae), name(sge)
+    ORDERS name(sge)
+    FILTERS stringEqualsAll(ae)
+
+    OBJECTS se = Stock
+    PROPERTIES(se) READONLY id, name
+    PROPERTIES (se) inExport
+    ORDERS name(se)
+    FILTERS isParent(sge, se) OR (se IS Stock AND NOT sge), isCompany(se), countCompanyStock(sge)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(se) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inExport(se) 'F9'
+;
+
+DESIGN integrationData {
+    pane {
+        NEW exportDocuments {
+            caption = 'Экспорт документов';
+            fill = 1;
+            horizontal = TRUE;
+            NEW leftDocPan {
+                MOVE PROPERTY (exportPath());
+                MOVE PROPERTY (nameExportType());
+                MOVE PROPERTY (exportPeriod());
+                MOVE PROPERTY (write());
+                MOVE PROPERTY (open());
+            }
+            NEW rightDocPan {
+                fill = 1;
+                NEW stock{
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(TREE stockTreeEx);
+                    MOVE BOX(se);
+                }
+                MOVE BOX (oe) {fill = 1;};
+            }
+        }
+    }
+}
