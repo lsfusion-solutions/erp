@@ -261,8 +261,10 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
 provider 'Доставка' = ABSTRACT CASE ISTRING[200] (Order) MATERIALIZED CHARWIDTH 20;
 provider(Order o) += WHEN (OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o))) THEN 'e-mail: ' + ISTRING[192](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));
 
+skipShow = ABSTRACT BOOLEAN (Purchase.Order);
+
 EXTEND FORM orders
-    PROPERTIES(o) PANEL  provider READONLY, emailCustomer
+    PROPERTIES(o) PANEL  provider READONLY, emailCustomer SHOWIF NOT skipShow(o)
 ; 
 
 DESIGN orders {
