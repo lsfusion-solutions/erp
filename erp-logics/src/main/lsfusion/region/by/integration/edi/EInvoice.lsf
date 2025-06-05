@@ -168,22 +168,11 @@ extraFieldByCode (EInvoice ei, STRING[6] code) = GROUP MAX ExtraField f BY eInvo
 extraFieldValueByCode (EInvoice ei, STRING[6] code) = value(extraFieldByCode(ei,code));
 
 overIsReturn 'Возврат' (EInvoice ei) = extraFieldValueByCode(ei,'PW0013') == '1' MATERIALIZED;
-overReplaceNumber 'Номер заменяемой накладной' (EInvoice ei) = OVERRIDE cancelDeliveryNoteId(ei), STRING[43](extraFieldValueByCode(ei,'PW0014')) MATERIALIZED;
+overReplaceNumber 'Номер заменяемой накладной' (EInvoice ei) = OVERRIDE cancelDeliveryNoteId(ei), 
+    STRING[43](extraFieldValueByCode(ei,'PW0014')) IF deliveryNoteNumber(ei) != STRING[43](extraFieldValueByCode(ei,'PW0014')) MATERIALIZED;
 
 changeReplaceNumber (EInvoice e, STRING[43] s) {
-    cancelDeliveryNoteId(e) <- s;
-    IF extraFieldByCode(e,'PW0014') AND NOT s THEN {
-        DELETE ExtraField f WHERE eInvoice(f) == e AND code(f) == 'PW0014';
-    } ELSE IF extraFieldByCode(e,'PW0014') AND s THEN {
-        value(ExtraField f) <- s WHERE eInvoice(f) == e AND code(f) == 'PW0014';
-    } ELSE IF NOT extraFieldByCode(e,'PW0014') AND s THEN {
-        NEW f = ExtraField {
-            name(f) <- 'Номер заменяемой накладной';
-            code(f) <- 'PW0014';
-            value(f) <- s;
-            eInvoice(f) <- e;
-        }
-    }
+    cancelDeliveryNoteId(e) <- s WHERE  s != deliveryNoteNumber(e);
 }
 changeReplaceNumber (EInvoice e) {
     INPUT s = STRING[43] DO {
