@@ -42,6 +42,7 @@ FORM pickingDashboard 'Комплектация'
 
     OBJECTS d = DATE PANEL
     PROPERTIES(d) date = VALUE
+    PROPERTIES currentUserName()
 
     OBJECTS po=PickingOrder GRID LAST
     PROPERTIES (po) READONLY BACKGROUND backgroundStatusPicking(po) nameStatusPicking, namePerformer,
@@ -55,7 +56,7 @@ FORM pickingDashboard 'Комплектация'
     FILTERS isPosted(po),
         isOpened(po)
     FILTERGROUP pickingFilters
-        FILTER 'Нескомплектованные' NOT (calcPart(po) OR calcFull(po)) 'F4' DEFAULT
+        FILTER 'Нескомплектованные' NOT (calcPart(po) OR calcFull(po)) DEFAULT
 
     TREE skuTree sk = SkuGroup PARENT parent(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
@@ -88,8 +89,16 @@ FORM pickingDashboard 'Комплектация'
 
 DESIGN pickingDashboard {
     BOX {
-
-        NEW dash BEFORE TOOLBARBOX{
+        NEW topContainer{
+            horizontal = TRUE;
+            caption = 'Шапка';
+            MOVE PROPERTY(date){fontSize = 18;}
+            MOVE PROPERTY(currentUserName()){
+                fontSize = 18;
+                charWidth = 40;
+            }
+        }
+        NEW dash{
             fill = 1;
             NEW header {
                 fill = 1;                         
@@ -115,12 +124,8 @@ DESIGN pickingDashboard {
                     }                   
                 }
             }
-        }          
-        NEW secondContainer BEFORE dash {
-            horizontal = TRUE;
-            caption = 'Шапка';
-            MOVE PROPERTY(date);
         }
+        MOVE TOOLBARBOX;
     }
 }
 
