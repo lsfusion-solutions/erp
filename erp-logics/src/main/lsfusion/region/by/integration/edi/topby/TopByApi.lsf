@@ -8,6 +8,7 @@ NAMESPACE EDI;
 GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
 GROUP getDocuments EXTID 'top:GetDocuments' : body;
+GROUP queryDocuments EXTID 'top:QueryDocuments' : body;
 GROUP confirmDocumentReceived EXTID 'top:ConfirmDocumentReceived' : body;
 FORM receiveMessagesRequest
     PROPERTIES ATTR = IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
@@ -78,6 +79,91 @@ FORM confirmDocument
     PROPERTIES IN confirmDocumentReceived VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password', VALUE(documentId) EXTID 'top:documentId'
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
+
+
+FORM queryDocuments
+    PROPERTIES ATTR = IF newNS() THEN 'http://softclub.by/' ELSE 'http://topby.by/' EXTID 'xmlns:top'
+    OBJECTS login = TEXT, password = TEXT
+    PROPERTIES IN queryDocuments VALUE(login) EXTID 'top:username', VALUE(password) EXTID 'top:password'
+    FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+;
+
+GROUP bodyResponce EXTID '=http://schemas.xmlsoap.org/soap/envelope/:Body';
+GROUP queryDocumentsResponse EXTID '=http://softclub.by/:QueryDocumentsResponse' : bodyResponce;
+GROUP queryDocumentsResult EXTID '=http://softclub.by/:QueryDocumentsResult' : queryDocumentsResponse;
+
+FORM  queryDocumentsResponse FORMEXTID 'http://schemas.xmlsoap.org/soap/envelope/:Envelope'
+    OBJECTS data = INTEGER EXTID '=ResponseOfArraySis:Data' IN queryDocumentsResult
+    PROPERTIES(data) id EXTID 'value'
+;
+
+documentDate = DATA LOCAL NESTED DATETIME (INTEGER);
+
+status '' = DATA LOCAL STRING () CHARWIDTH 500;
+
+open 'Просмотреть' (INTEGER r) {
+    open(data(r));
+} TOOLBAR;
+
+confirmDocumentSoap 'Подтвердить получение' (INTEGER r, STRING login, STRING password, STRING url) {
+    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(r) XML TO xmlFile;
+    sendRequestEDI(url, xmlFile());
+} CONFIRM TOOLBAR;
+
+FORM queryDocumentsStatus 'Очередь документов'
+    OBJECTS login = STRING PANEL, password = STRING PANEL, url = STRING PANEL 
+    
+    PROPERTIES READONLY status() 
+    
+    OBJECTS r = INTEGER
+    PROPERTIES (r) READONLY id, documentType, documentDate 
+    PROPERTIES  open(r), confirmDocumentSoap (r, login, password, url)
+    FILTERS id(r)
+    ORDERS documentDate(r)
+;
+
+
+listMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+    IF login AND password THEN {
+        newNS() <- TRUE; // пока только CTT. для работы с EDN нужно queryDocumentsResponse с другим NS
+        LOCAL xml = XMLFILE();
+        LOCAL total = INTEGER ();
+
+        EXPORT queryDocuments OBJECTS login = login, password = password XML TO xml;
+        sendRequestEDI(url, xml());
+        logToFile('edi', provider + ' (' + login + ') QueryDocuments request sent');
+        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'QueryDocumentsResponse');
+
+        IF requestError() THEN {
+            logToFile('edi', provider + ' (' + login + ') ListMessages: ' + requestError());
+            MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
+            RETURN;
+        } ELSE {
+            IMPORT queryDocumentsResponse XML FROM sendRequestEDIResponse();
+            total() <- OVERRIDE (GROUP SUM 1 IF id(INTEGER i)), 0;
+        }
+        
+        EXPORT receiveMessagesRequest OBJECTS login = login, password = password XML TO xml;
+        sendRequestEDI(url, xml());
+        logToFile('edi', provider + ' (' + login + ') ListMessages request sent');
+        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'GetDocumentsResponse');
+        IF requestError() THEN {
+            logToFile('edi', provider + ' (' + login + ') ListMessages: ' + requestError());
+            MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
+        } ELSE {
+            IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id', 
+                    documentType = '=DocumentDataSis:DocumentType', documentDate = '=DocumentDataSis:DocumentDate';
+            
+            status() <- 'Сообщений получено: ' + (OVERRIDE (GROUP SUM 1 IF id(INTEGER i)), 0) + ' из ' + total();
+                
+            SHOW queryDocumentsStatus OBJECTS login = login, password = password, url = url WAIT DOCKED;
+        }
+
+    } ELSE {
+        logToFile('edi', provider + ' (' + login + ') ListMessages: не заданы имя пользователя / пароль / хост / порт');
+        MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
+    }
+}
 
 FORM exportSystemMessage FORMEXTID 'SYSTEMMESSAGE'
     OBJECTS documentId = TEXT, documentNumber = TEXT, code = TEXT, description = TEXT
