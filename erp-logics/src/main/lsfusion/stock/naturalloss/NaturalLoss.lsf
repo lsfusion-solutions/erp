@@ -14,9 +14,11 @@ subNaturalLossGroup = DATA SubNaturalLossGroup (SubNaturalLossGroupDetail) NONUL
 dayFrom 'День' = DATA INTEGER (SubNaturalLossGroupDetail);
 monthFrom = DATA Month (SubNaturalLossGroupDetail);
 nameMonthFrom 'Месяц' = staticCaption(monthFrom(SubNaturalLossGroupDetail subNaturalLossGroupDetail));
+numberMonthFrom 'Месяц' = number(monthFrom(SubNaturalLossGroupDetail subNaturalLossGroupDetail)) MATERIALIZED;
 dayTo 'День' = DATA INTEGER (SubNaturalLossGroupDetail);
 monthTo = DATA Month (SubNaturalLossGroupDetail);
 nameMonthTo 'Месяц' = staticCaption(monthTo(SubNaturalLossGroupDetail subNaturalLossGroupDetail));
+numberMonthTo 'Месяц' = number(monthTo(SubNaturalLossGroupDetail subNaturalLossGroupDetail)) MATERIALIZED;
 percent '% естественной убыли' = DATA NUMERIC[10,5] (SubNaturalLossGroupDetail);
 
 TABLE subNaturalLossGroupDetailNaturalLossStockType(SubNaturalLossGroupDetail,NaturalLossStockType);
@@ -32,9 +34,9 @@ inInterval(INTEGER prm1, INTEGER prm2, INTEGER prm3, INTEGER prm4, INTEGER prm5,
 inInterval (DATE date, SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     inInterval(extractDay(date), extractMonthNumber(date),
     dayFrom(subNaturalLossGroupDetail),
-    number(monthFrom(subNaturalLossGroupDetail)),
+    numberMonthFrom(subNaturalLossGroupDetail),
     dayTo(subNaturalLossGroupDetail),
-    number(monthTo(subNaturalLossGroupDetail))) AND date IS DATE;
+    numberMonthTo(subNaturalLossGroupDetail)) AND date IS DATE;
 
 castInterval (SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     dayFrom(subNaturalLossGroupDetail) + ' ' +
@@ -60,7 +62,7 @@ inParent(NaturalLossGroup naturalLossGroup, SubNaturalLossGroup subNaturalLossGr
 
 numberFrom (SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     dateToNumber(dayFrom(subNaturalLossGroupDetail),
-    number(monthFrom(subNaturalLossGroupDetail)));
+    numberMonthFrom(subNaturalLossGroupDetail));
 
 numberTo (SubNaturalLossGroupDetail subNaturalLossGroupDetail) =
     dateToNumber(dayTo(subNaturalLossGroupDetail),
