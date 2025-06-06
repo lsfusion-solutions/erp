@@ -18,8 +18,11 @@ EXTEND FORM batches
     PROPERTIES (bt) READONLY costForeign AFTER cost(bt)
 ;
 
+skipCheckBalanceLot = DATA BOOLEAN () PREREAD;
+
 CONSTRAINT (CHANGED(currentBalance(Sku sk, Stock st)) OR CHANGED(currentBalanceLot(sk, st)) OR SET(isSecond(sk))) AND isSecond(sk)
     AND (currentBalance(sk, st) OR currentBalanceLot(sk, st)) AND NOT currentBalance(sk, st) = currentBalanceLot(sk, st)
+    AND NOT skipCheckBalanceLot()
     MESSAGE 'Не совпадает текущий остаток секонд-товара по маркам';
 
 CONSTRAINT SET(currentBalance(Lot l) > 1)
