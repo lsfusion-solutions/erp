@@ -117,6 +117,8 @@ substituteToOver = ABSTRACT Substitute(Sku);
 lastSubstituteToOver (Sku s) = OVERRIDE  substituteToOver(s), lastSubstituteTo(s);
 
 okManufacturingPurchaseSale = DATA LOCAL BOOLEAN ();
+
+createManufacturingPurchaseSaleBefore  ABSTRACT LIST (Sale.Invoice);
 createManufacturingPurchaseSale 'Создать поступление на цех'(Sale.Invoice si)  { 
 	NEWSESSION {
 	    FOR invoice(Sale.InvoiceDetail sd)==si DO {
@@ -131,6 +133,7 @@ createManufacturingPurchaseSale 'Создать поступление на це
 	                                                    netWeight(sku(sd)) WHERE invoice(sd) == si;
 	        }
 	    }
+        createManufacturingPurchaseSaleBefore(si);
         okManufacturingPurchaseSale() <- NULL;
 	    DIALOG selectParams OBJECTS si = si NOMANAGESESSION DO {
             okManufacturingPurchaseSale() <- TRUE;

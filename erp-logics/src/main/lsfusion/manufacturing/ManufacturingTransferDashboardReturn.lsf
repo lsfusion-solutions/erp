@@ -28,8 +28,7 @@ FORM manufacturingTransferReturn 'Возврат с цеха производс�
     PROPERTIES (sri) READONLY BACKGROUND background(sri) isPosted,
                                         number, series, date, time                                
     PROPERTIES (sri) READONLY nameSupplierStock, nameCustomerStock
-    PROPERTIES (sri) EDIT SHOWIF isOpened(sri)
-    PROPERTIES (sri) NEWSESSION DELETE SHOWIF isOpened(sri) 
+    PROPERTIES (sri) NEWSESSION EDIT SHOWIF isOpened(sri), DELETE SHOWIF isOpened(sri) 
     FILTERS operation(sri) == cateringSaleOperation()
     FILTERGROUP purchaseDate
         FILTER 'На дату' date(sri) == d DEFAULT 
@@ -70,10 +69,12 @@ NAVIGATOR {
 }
 
 createManufacturingPurchaseSaleReturn  ABSTRACT LIST (PurchaseReturn.InvoiceDetail, SaleReturn.UserInvoiceDetail);
+createManufacturingPurchaseSaleReturn  ABSTRACT LIST (PurchaseReturn.Invoice, SaleReturn.UserInvoice);
+
+skipInvoiceDetailBatch = ABSTRACT VALUE BOOLEAN (PurchaseReturn.InvoiceDetail);
 
 createManufacturingPurchaseSaleReturn 'Создать возврат с цеха'(PurchaseReturn.Invoice pri)  { 
-	NEWSESSION {
-	
+	NEWSESSION {	
 	        NEW sri = SaleReturn.UserInvoice {
 	            supplier(sri) <- supplier(pri);
 	            customer(sri) <- customer(pri);
@@ -84,7 +85,7 @@ createManufacturingPurchaseSaleReturn 'Создать возврат с цеха
 	            note(sri) <- note(pri);
 	            currency(sri) <- currency(pri);
 	            operation(sri) <- cateringSaleOperation();
-	    
+                createManufacturingPurchaseSaleReturn(pri,sri);
 	            FOR invoice(PurchaseReturn.InvoiceDetail prid) == pri NEW srid = SaleReturn.UserInvoiceDetail DO {
 	    
 	                userInvoice(srid) <- sri;
@@ -93,12 +94,12 @@ createManufacturingPurchaseSaleReturn 'Создать возврат с цеха
 	                
 	                sku(srid) <- OVERRIDE sku(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))), toSku(lastSubstituteFrom(sku(prid)));
 	                quantity (srid) <- quantity(prid) * coeffSku(batch(prid));
-	                VAT (srid) <- VAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
-	                valueVAT (srid) <- valueVAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
-	                price (srid) <- price(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
-	                invoicePrice (srid) <- invoicePrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));	                
+	                VAT (srid) <- VAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))) WHERE NOT skipInvoiceDetailBatch(prid);
+	                valueVAT (srid) <- valueVAT(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))) WHERE NOT skipInvoiceDetailBatch(prid);
+	                price (srid) <- price(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))) WHERE NOT skipInvoiceDetailBatch(prid);
+	                invoicePrice (srid) <- invoicePrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))) WHERE NOT skipInvoiceDetailBatch(prid);	                
                     createManufacturingPurchaseSaleReturn(prid,srid);
-	                shipmentPrice (srid) <- shipmentPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid))));
+	                shipmentPrice (srid) <- shipmentPrice(SalePurchaseInvoice.invoiceDetail(invoiceDetail(batch(prid)))) WHERE NOT skipInvoiceDetailBatch(prid);
 	            }
 	            SHOW SaleReturn.userInvoice OBJECTS i = sri DOCKED NOCANCEL; 
 	        }
