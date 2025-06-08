@@ -6,10 +6,13 @@ NAMESPACE TerminalHandler;
 
 overProcessMarking ABSTRACT LIST (TerminalDocumentDetail, TerminalLotDetail, INTEGER);
 
+skipCreateLot = ABSTRACT BOOLEAN (STRING); 
+
 process (TerminalDocument document) + {
     DELETE TerminalLotDetail l WHERE terminalDocument(terminalDocumentDetail(l)) == document;
 
-    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) AND STRING mark = jsonArrayElement(marking(d), i, 'id') DO NEW l = TerminalLotDetail {
+    FOR marking(TerminalDocumentDetail d) AND terminalDocument(d) == document AND count(INTEGER i, jsonArrayLength(marking(d))) 
+        AND STRING mark = jsonArrayElement(marking(d), i, 'id') AND NOT skipCreateLot(mark) DO NEW l = TerminalLotDetail {
         id(l) <- STRING[200](barcodeToId(mark));
         tail(l) <- STRING[200](barcodeToTail(mark));
         quantity(l) <- NUMERIC[14,3](jsonArrayElement(marking(d), i, 'quantity'));
