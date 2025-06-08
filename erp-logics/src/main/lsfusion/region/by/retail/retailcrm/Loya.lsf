@@ -377,6 +377,7 @@ sku = DATA Sku(LoyaMinPriceTransaction) NONULL DELETE;
 idSku 'Код' (LoyaMinPriceTransaction lt) = id(sku(lt));
 idBarcodeSku 'Штрихкод' (LoyaMinPriceTransaction lt) = idBarcode(sku(lt));
 nameSku 'Товар' (LoyaMinPriceTransaction lt) = name(sku(lt));
+note 'Примечание' = DATA STRING[200](LoyaMinPriceTransaction);
 
 price 'Цена' = DATA NUMERIC[16,4](LoyaMinPriceTransaction);
 minPrice 'Минимальная цена' = DATA NUMERIC[16,4](LoyaMinPriceTransaction);
@@ -396,7 +397,7 @@ error  = DATA LoyaMinPriceTransactionError(LoyaMinPriceTransaction);
 
 FORM loyaMinPriceTransaction 'Загрузка ценв LOYA'
     OBJECTS o = LoyaMinPriceTransaction PANEL
-    PROPERTIES(o) nameStock, nameSku, dateTime, succeeded, dateTimeSucceeded, minPrice , price, forbid
+    PROPERTIES(o) nameStock, nameSku, note, dateTime, succeeded, dateTimeSucceeded, minPrice , price, forbid
 
     EDIT LoyaMinPriceTransaction OBJECT o
 ;
@@ -406,7 +407,7 @@ FORM loyaMinPriceTransactions 'Загрузка цен в LOYA'
     PROPERTIES(e) READONLY dateTime, message
 
     OBJECTS o = LoyaMinPriceTransaction
-    PROPERTIES(o) READONLY nameStock, idSku, idBarcodeSku, nameSku, dateTime, minPrice, price, forbid,
+    PROPERTIES(o) READONLY nameStock, idSku, idBarcodeSku, nameSku, note, dateTime, minPrice, price, forbid,
         succeeded, dateTimeSucceeded
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
@@ -510,6 +511,7 @@ createAttribute(MachineryPriceTransaction t, Stock stock) + {
     FOR useMinPrice() AND  idLoya(stock) AND sendToLoya(model(groupMachinery(t))) AND in(t, Barcode b) INLINE NEW l = LoyaMinPriceTransaction  DO{
         stock(l) <- stock;
         sku(l) <- sku(b);
+        note(l) <- description(t);
         dateTime(l) <- currentDateTime();
         forbid(l) <- TRUE WHERE resultForbidPromotion(sku(b), stock) OR overForbidPromotion(sku(b), stock);
         price(l) <- price(b);
