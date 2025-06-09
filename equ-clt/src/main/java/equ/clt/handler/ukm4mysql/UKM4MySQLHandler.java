@@ -1486,7 +1486,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
                     if (totalQuantity != null) {
 //                        if (cashRegister == null || cashRegister.startDate == null || (dateReceipt != null && dateReceipt.compareTo(cashRegister.startDate) >= 0)) {
-                            salesInfoList.add(getSalesInfo(isGiftCard, false, cashRegister.numberGroup, cash_id, numberZReport,
+                            salesInfoList.add(getSalesInfo(isGiftCard, false, cashRegister.numberGroup, cashRegister.number, numberZReport,
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, idEmployee,
                                     null, lastNameContact, sumGiftCardMap, paymentEntry.payments, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), null, discountSumReceiptDetail, null, discountCard,
