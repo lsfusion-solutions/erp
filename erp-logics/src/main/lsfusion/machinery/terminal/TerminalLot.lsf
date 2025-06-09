@@ -12,7 +12,7 @@ terminalDocument (TerminalLotDetail d) = terminalDocument(terminalDocumentDetail
 id 'Код' = DATA STRING[200] (TerminalLotDetail);
 tail 'Хвост' = DATA STRING[200] (TerminalLotDetail);
 quantity 'Кол-во' = DATA NUMERIC[14,3] (TerminalLotDetail);
-idParent 'Кол-во' = DATA STRING[200] (TerminalLotDetail);
+idParent 'Родитель' = DATA STRING[200] (TerminalLotDetail);
 
 quantityLot 'Марок' (TerminalDocumentDetail td) = GROUP SUM quantity(TerminalLotDetail ld) IF terminalDocumentDetail(ld) = td; 
 
@@ -45,6 +45,9 @@ META defineAddDetailDialogTerminalLot(object)
             tail(l) <- tail(tl);
             sku(l) <- sku(td);
             dataCount(l) <- quantity(tl) IF quantity(tl) != 1;
+        }
+        FOR [GROUP SUM 1 IF terminalDocumentDetail(TerminalLotDetail tl) = td BY idParent(tl)](STRING parrent) DO {
+            aggregated(lot(parrent)) <- TRUE;
         }
         FOR id(TerminalLotDetail tl)==id(Lot l) AND terminalDocumentDetail(tl) = td AND idParent(tl) DO {
             parent(l) <- lot(idParent(tl));
