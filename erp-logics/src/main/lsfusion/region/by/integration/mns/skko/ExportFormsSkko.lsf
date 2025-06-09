@@ -1,0 +1,109 @@
+MODULE ExportFormsSkko;
+
+REQUIRE DocumentMNS, ZReport, LegalEntityMNS, LegalEntityBy, EDIGTIN, ZReportLot, LotTypeBy, SkkoRequest, ZReportLotBy;
+
+NAMESPACE Skko;
+
+httpSkkoHeaders = DATA LOCAL NESTED TEXT(TEXT);
+
+receipt = DATA Receipt (SkkoRequest);
+
+lastSkkoRequest(Receipt r) =
+    GROUP LAST SkkoRequest request
+    ORDER dateTime(request), request
+    BY receipt(request);
+
+sent 'Отправлен в СККО' (Receipt r) = send(lastSkkoRequest(r));
+
+markingType (ReceiptDetail d) = CASE
+    WHEN lot(d) AND NOT ukz(d) AND GTIN(sku(d)) THEN 1 IF d IS ReceiptDetail
+    WHEN NOT lot(d) AND ukz(d) AND NOT GTIN(sku(d)) THEN 2 IF d IS ReceiptDetail
+    WHEN lot(d) AND ukz(d) AND NOT GTIN(sku(d)) THEN 3 IF d IS ReceiptDetail
+    WHEN NOT lot(d) AND NOT ukz(d) AND GTIN(sku(d))  THEN 16 IF d IS ReceiptDetail
+    WHEN lot(d) AND NOT ukz(d) AND GTIN(sku(d))  THEN 17 IF d IS ReceiptDetail
+    WHEN NOT lot(d) AND ukz(d) AND GTIN(sku(d))  THEN 18 IF d IS ReceiptDetail
+    WHEN lot(d) AND ukz(d) AND GTIN(sku(d))  THEN 19 IF d IS ReceiptDetail
+    ELSE 0 IF d IS ReceiptDetail;
+
+FORM exportSaleWithoutKSA
+    OBJECTS receipt = Receipt PANEL
+    PROPERTIES
+        gniLocation = codeMNS(legalEntity(departmentStore(receipt))) EXTID 'gni_location',
+        address = OVERRIDE address(departmentStore(receipt)), '0' IF receipt IS Receipt EXTID 'address',
+        tradingObjectName = OVERRIDE nameStore(receipt), '0' IF receipt IS Receipt EXTID 'trading_object_name',
+        messageNumber = number(lastSkkoRequest(receipt)) EXTID 'message_number',
+        traderUnp = OVERRIDE INTEGER(UNP(legalEntity(departmentStore(receipt)))), 0 IF receipt IS Receipt  EXTID 'trader_unp',
+        currency = shortNameCurrency(receipt) EXTID 'currency',
+        issuedAt = toChar(dateTime(receipt),'yyyy-MM-ddThh24:mi:ss') EXTID 'issued_at'
+
+    OBJECTS positions = ReceiptSaleDetail
+    PROPERTIES
+        surcharge = 0 IF positions IS ReceiptSaleDetail EXTID 'surcharge',
+        amount = OVERRIDE price(positions),  0.0 IF positions IS ReceiptSaleDetail EXTID 'amount',
+        ean = OVERRIDE GTIN(sku(positions)), '0' IF positions IS ReceiptSaleDetail EXTID 'ean',
+        markingType = markingType(positions) EXTID 'marking_type',
+        ukzCode = ukz(positions) EXTNULL EXTID 'ukz_code',
+        productCount = quantity(positions) EXTID 'product_count',
+        markingCode = id(lot(positions)) EXTNULL EXTID 'marking_code',
+        name = nameSku(positions) EXTID 'name',
+        discount = OVERRIDE discountSum(positions),  0.0 IF positions EXTID 'discount'
+    FILTERS receipt(positions), lotType(sku(positions)) OR UKZ(sku(positions)) OR ukz(positions) OR lot(positions)
+;
+
+ui = DATA LOCAL STRING();
+error_description = DATA LOCAL STRING();
+error_code = DATA LOCAL INTEGER();
+status = DATA LOCAL BOOLEAN ();
+
+FORM importSaleWithoutKSA
+    PROPERTIES() 
+        ui, 
+        error_description EXTID 'error description', 
+        error_code, 
+        status
+;
+
+DESIGN integrationData {
+    pane {
+        NEW mnsSKKO {
+            caption = 'СККО';
+        }
+    }
+}
+
+EXTEND FORM zReports
+    OBJECTS r = SkkoRequest 
+    PROPERTIES (r) READONLY dateTime, send, message, number
+    FILTERS b == receipt(r)
+    
+;
+
+DESIGN zReports {
+    secondCase {
+        tabbed = 1;
+        horizontal = FALSE;
+        
+        NEW detail {
+            fill = 1;
+            horizontal = TRUE;
+            caption = 'Строки';
+
+            MOVE BOX(d){
+                caption = 'Строка чека';
+                fill = 3;
+            }
+            MOVE BOX(p);
+        }
+        
+        NEW skko {
+            caption = 'СККО';
+            
+            NEW actions {
+                fill = 1;
+            } 
+            MOVE BOX (r) {
+                fill = 7;
+            }
+        }
+    }
+}
