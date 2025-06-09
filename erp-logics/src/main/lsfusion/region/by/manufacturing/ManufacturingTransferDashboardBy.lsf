@@ -113,8 +113,12 @@ EXTEND FORM selectParams
     PROPERTIES(sd) BACKGROUND backgroundSelectParams() sessionCateringMarkup  SHOWIF NOT wholeCatering(si) 
 ;
 
+wholeCatering(Sale.Invoice i)+= WHEN costLedger(customerStock(i)) OR (customerStock(i) AND NOT customerStock(i) IS DepartmentStore) THEN TRUE;
+
 createManufacturingPurchaseSaleOver(Sale.Invoice si, Purchase.UserInvoice pi) + {
-    showCatering(pi) <- TRUE;
+    IF NOT wholeCatering(si) THEN {
+        showCatering(pi) <- TRUE;
+    }
 }
 
 createManufacturingPurchaseSaleBefore(Sale.InvoiceDetail sd, Purchase.UserInvoiceDetail pd) + {
