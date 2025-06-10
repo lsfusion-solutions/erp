@@ -33,12 +33,12 @@ skipAccessCompany(Employee employee, BinGroup binGroup) = levelParentCompany(emp
 accessCompany 'Доступ разрешен (компания)' (Employee employee, BinGroup binGroup) = OVERRIDE
     dataAccessCompany(binGroup, employee),
     nearestInCompany(employee, binGroup) AND NOT skipAccessCompany(employee, binGroup),
-    employee IS Employee AND binGroup IS BinGroup AND NOT limitAccess(employee) AND NOT limitAccessCompanyStocksBin(employee) MATERIALIZED;
+    employee IS Employee AND binGroup IS BinGroup AND NOT limitAccessCompanyStocksBin(employee) MATERIALIZED;
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Bin bin) = OVERRIDE
     dataAccessCompany(bin, employee),
     nearestInCompany(employee, binGroup(bin)) AND NOT skipAccessCompany(employee, binGroup(bin)) AND NOT dataSkipAccessCompany(bin, employee),
-    employee IS Employee AND isCompany(stock(bin)) AND NOT limitAccess(employee) AND NOT limitAccessCompanyStocksBin(employee) MATERIALIZED;
+    employee IS Employee AND isCompany(stock(bin)) AND NOT limitAccessCompanyStocksBin(employee) MATERIALIZED;
 
 changeAccessCompany(Employee e, Bin bin) {
     LOCAL b = BOOLEAN ();
@@ -53,8 +53,12 @@ changeAccessCompany(Employee e, BinGroup bg) {
     dataSkipAccessCompany(bg, e) <- b() WHERE limitAccess(e) AND limitAccessCompanyStocksBin(e);
 }
 
+WHEN LOCAL DROPPED(limitAccess(Employee e)) DO {
+    limitAccessCompanyStocksBin(e) <- NULL; 
+}
+
 EXTEND FORM employee
-    PROPERTIES(e) limitAccessCompanyStocksBin SHOWIF limitAccess(e)
+    PROPERTIES(e) limitAccessCompanyStocksBin READONLYIF NOT limitAccess(e)
 
     TREE binTree bg = BinGroup  PARENT parent(bg)
     PROPERTIES READONLY bgTreeName = name(bg)
