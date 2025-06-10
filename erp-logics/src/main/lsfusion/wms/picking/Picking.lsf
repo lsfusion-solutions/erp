@@ -568,25 +568,27 @@ DESIGN pickingOrders {
 
 //-------------------------------- Печатная форма-------------------------------//
 
+dataReportFilePrintPickingOrder = ABSTRACT VALUE OVERRIDE FIRST STRING ();
+reportFilePrintPickingOrder = OVERRIDE dataReportFilePrintPickingOrder(), 'Picking_printPickingOrder_o.jrxml';
+
 FORM printPickingOrder 'Заказ на комплектацию'
     OBJECTS o = PickingOrder PANEL SUBREPORT
-    PROPERTIES (o) READONLY seriesNumber, date, time,
-                   fullNameStock
+    PROPERTIES(o) READONLY seriesNumber, date, time, fullNameStock
 
-    PROPERTIES (o) READONLY countPickingOrderDetail, quantityPickingOrderDetail,
-                   namePerformer, startDate, startTime, nameStatusPicking,
-                   finishDate, finishTime
+    PROPERTIES(o) READONLY countPickingOrderDetail, quantityPickingOrderDetail, namePerformer, startDate, startTime,
+        nameStatusPicking, finishDate, finishTime
 
     OBJECTS d=PickingOrderDetail
-    PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, quantity
+    PROPERTIES(d) READONLY index, nameSku, shortNameUOMSku, idSku, nameBatch, dateBatch, expiryDateBatch, quantity//, seriesPharmacy
     FILTERS pickingOrder(d) == o
+
+    REPORTFILES o reportFilePrintPickingOrder()    
 ;
 
-print 'Заказ на комплектацию' (PickingOrder order)  { PRINT printPickingOrder OBJECTS o = order; }  IMAGE 'print.png' IN print;
+print 'Заказ на комплектацию' (PickingOrder order) { PRINT printPickingOrder OBJECTS o = order; }  IMAGE 'print.png' IN print;
 
 EXTEND FORM pickingOrders
-    PROPERTIES(o)  print
+    PROPERTIES(o) print
 ;
 DESIGN pickingOrders {
     printTab {
