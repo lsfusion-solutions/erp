@@ -199,8 +199,10 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERGROUP inactivebg1 FILTER 'Активные' active(bg1) 'F6' DEFAULT
     
     OBJECTS b1 = Bin
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) include(i, b1),
-        name(b1) READONLY, canonicalId(b1) READONLY, canonicalName(b1) READONLY
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.bin) include(i, b1)
+    PROPERTIES(b1) READONLY SHOWIF (typeOfAddition(i) = TypeOfAddition.bin)
+        order, canonicalId, name, id SHOWIF showIDs(), status
+    ORDERS order(b1), canonicalId(b1), name(b1)
 
     PROPERTIES SHOWIF (typeOfAddition(i) == TypeOfAddition.bin) READONLY 
         quantity(i, b1),    
@@ -263,8 +265,10 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERGROUP inactivebg2 FILTER 'Активные' active(bg2) 'F6' DEFAULT
 
     OBJECTS b2 = Bin
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) name(b2) READONLY, canonicalId(b2) READONLY , canonicalName(b2) READONLY,
+    PROPERTIES(b2) READONLY SHOWIF (typeOfAddition(i) = TypeOfAddition.sku) order, canonicalId, name, id SHOWIF showIDs(), status
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.sku)
         quantityBalance(i, s2, b2) READONLY, quantity(i, s2, b2) READONLYIF isReadonlyQuantity(i)
+    ORDERS order(b2), canonicalId(b2), name(b2)
     FILTERS stock(b2) = st, isParent(bg2, b2) OR (stock(b2) = st AND NOT bg2)
     FILTERGROUP isFilled2 
         FILTER 'С количеством по остаткам' quantityBalance(i, s2, b2) DEFAULT
@@ -283,9 +287,9 @@ FORM binInventory 'Инвентаризация по ячейкам'
     FILTERGROUP inactivesg3 FILTER 'Активные' active(sg3) 'F6' DEFAULT
     
     OBJECTS sb = (s3 = Sku, b3 = Bin)
-    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) name(s3) READONLY, idBarcode(s3) READONLY,
-        name(b3) READONLY, canonicalId(b3) READONLY, canonicalName(b3) READONLY,
-        quantityBalance(i, s3, b3) READONLY,
+    PROPERTIES READONLY SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) name(s3), idBarcode(s3)
+    PROPERTIES(b3) READONLY SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) order, canonicalId, name, id SHOWIF showIDs(), status
+    PROPERTIES SHOWIF (typeOfAddition(i) = TypeOfAddition.difference) quantityBalance(i, s3, b3) READONLY,
         quantity(i, s3, b3) READONLYIF isReadonlyQuantity(i),
         nameS3 '' = name(s3) READONLY PANEL,
         'Остаток по складу (до)' = balanceB(s3, st, t) READONLY PANEL,
@@ -293,6 +297,7 @@ FORM binInventory 'Инвентаризация по ячейкам'
         quantityBalance(i, s3) READONLY PANEL,
         diffBinInventory(i, s3) READONLY PANEL,
         countDiffBinInventorySku(i, s3) READONLY PANEL
+    ORDERS order(b3), canonicalId(b3), name(b3)
     FILTERS quantity(i, s3, b3) OR quantityBalance(i, s3, b3) OR extraDifferenceFilter(i,s3, b3)
 
     FILTERGROUP isFilled3 

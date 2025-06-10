@@ -9,7 +9,7 @@ TABLE binGroup (BinGroup);
 
 id '{integration.id}' = ABSTRACT STRING[100] (BinGroup) NONULL MATERIALIZED INDEXED CHARWIDTH 10;
 name 'Наименование' = ABSTRACT ISTRING[100](BinGroup) MATERIALIZED INDEXED CHARWIDTH 20;
-order 'Порядок' = ABSTRACT INTEGER (BinGroup) CHARWIDTH 2;
+order 'Порядок' = ABSTRACT ISTRING (BinGroup) MATERIALIZED INDEXED CHARWIDTH 2;
 
 // Неактивный
 inactive 'Неактивный' = ABSTRACT BOOLEAN (BinGroup);
@@ -29,7 +29,11 @@ TABLE dataBinGroup (DataBinGroup);
 id '{integration.id}' = DATA STRING[100] (DataBinGroup) IN id INDEXED CHARWIDTH 10;
 dataBinGroup(id) = GROUP MAX DataBinGroup dataBinGroup BY id(dataBinGroup);
 name 'Наименование' = DATA ISTRING[100](DataBinGroup);
-order 'Порядок' = DATA INTEGER (DataBinGroup) CHARWIDTH 2;
+
+dataOrderLpadLength = ABSTRACT INTEGER ();
+orderLpadLength = OVERRIDE dataOrderLpadLength(), 3;
+lpad(DataBinGroup binGroup) = IF onlyDigits(id(binGroup)) THEN lpad(id(binGroup), orderLpadLength(), '0') ELSE lpad(id(binGroup), orderLpadLength(), ' ');  
+order 'Порядок' (DataBinGroup binGroup)= GROUP CONCAT lpad(BinGroup parent) , '-' ORDER DESC level(binGroup, parent);
 
 // Неактивный
 inactive 'Неактивный' = DATA BOOLEAN (DataBinGroup);
@@ -52,6 +56,7 @@ stockBinGroup = AGGR StockBinGroup WHERE useBins(Stock stock) MATERIALIZED INDEX
 EXTEND CLASS StockBinGroup : BinGroup;
 id(StockBinGroup binGroup) += Stock.id(stock(binGroup));
 name[BinGroup](StockBinGroup binGroup) += ISTRING[100](Stock.name(stock(binGroup)));
+order(StockBinGroup binGroup) += Stock.id(stock(binGroup));
 inactive[BinGroup](StockBinGroup binGroup) += Stock.inactive(stock(binGroup));
 
 edit(StockBinGroup binGroup) + {};
@@ -128,6 +133,8 @@ isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
 canonicalName 'Полное имя' (Bin bin) = CONCAT ' / ', canonicalName(binGroup(bin)), name(bin) CHARWIDTH 20;
 canonicalId 'Полный код' (Bin bin) = CONCAT '-', canonicalId(binGroup(bin)), id(bin) CHARWIDTH 20;
 bin (id) = GROUP AGGR Bin bin BY canonicalId (bin);
+lpad(Bin bin) = IF onlyDigits(id(bin)) THEN lpad(id(bin), orderLpadLength(), '0') ELSE lpad(id(bin), orderLpadLength(), ' ');
+order 'Порядок' (Bin bin) = ISTRING(CONCAT '-', order(binGroup(bin)), lpad(bin)) MATERIALIZED INDEXED CHARWIDTH 2;
 
 stock(Bin bin) = stock(binGroupRoot(binGroup(bin), 1)) MATERIALIZED INDEXED;
 nameStock 'Склад' (Bin bin) = name(stock(bin));
@@ -184,9 +191,9 @@ FORM dialogBins 'Ячейки'
     ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
     FILTERS isParent(bg, b)
-    ORDERS canonicalId(b), name(b)
+    ORDERS order(b), canonicalId(b), name(b)
 
     LIST Bin OBJECT b
 ;
@@ -223,9 +230,9 @@ FORM bins 'Ячейки'
     ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY 
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY 
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE 
-    ORDERS canonicalId(b), name(b)
+    ORDERS order(b), canonicalId(b), name(b)
 
     FILTERS isParent(bg, b)
     ORDERS name(b)
@@ -337,10 +344,10 @@ FORM changeBinsSkuGroup 'Выбор ячеек'
     ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock
     PROPERTIES in(g, b)
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
-    ORDERS canonicalId(b), name(b)    
+    ORDERS order(b), canonicalId(b), name(b)    
     FILTERGROUP inSku FILTER 'Отмеченные' in(g, b)
 ;
 
@@ -386,9 +393,9 @@ FORM changeBinsSku 'Выбор ячеек'
 
     OBJECTS b = Bin
     PROPERTIES in(s, b)
-    PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock
+    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
-    ORDERS canonicalId(b), name(b)
+    ORDERS order(b), canonicalId(b), name(b)
     FILTERGROUP inSku FILTER 'Отмеченные' in(s, b)
 ;
 
@@ -423,9 +430,9 @@ FORM binStocks 'Ячейки'
     ORDERS order(bg), canonicalId(bg), name(bg)
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock, canonicalNameBinGroup
+    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs(), canonicalName, nameStock, canonicalNameBinGroup
     FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
-    ORDERS canonicalId(b), name(b)
+    ORDERS order(b), canonicalId(b), name(b)
     PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
 
     TREE groupTree g=SkuGroup PARENT parent(g)
