@@ -571,6 +571,8 @@ DESIGN pickingOrders {
 dataReportFilePrintPickingOrder = ABSTRACT VALUE OVERRIDE FIRST STRING ();
 reportFilePrintPickingOrder = OVERRIDE dataReportFilePrintPickingOrder(), 'Picking_printPickingOrder_o.jrxml';
 
+printOrder = ABSTRACT STRING (PickingOrderDetail);
+
 FORM printPickingOrder 'Заказ на комплектацию'
     OBJECTS o = PickingOrder PANEL SUBREPORT
     PROPERTIES(o) READONLY seriesNumber, date, time, fullNameStock
@@ -579,7 +581,9 @@ FORM printPickingOrder 'Заказ на комплектацию'
         nameStatusPicking, finishDate, finishTime
 
     OBJECTS d=PickingOrderDetail
-    PROPERTIES(d) READONLY index, nameSku, shortNameUOMSku, idSku, nameBatch, dateBatch, expiryDateBatch, quantity//, seriesPharmacy
+    PROPERTIES(d) READONLY index, nameSku, shortNameUOMSku, idSku, idBarcodeSku, nameBatch, dateBatch, expiryDateBatch, 
+        quantity, printOrder
+    ORDERS printOrder(d)
     FILTERS pickingOrder(d) == o
 
     REPORTFILES o reportFilePrintPickingOrder()    
