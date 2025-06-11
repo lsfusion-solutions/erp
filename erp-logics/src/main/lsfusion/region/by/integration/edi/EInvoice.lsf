@@ -389,9 +389,11 @@ FORM eInvoices 'Электронные накладные'
     PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
     FILTERS eInvoice(dl) == e
 
-    OBJECTS eld = EInvoiceLotDetail
-    PROPERTIES(eld) READONLY idParent, id, quantity
+    TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
+    PROPERTIES(eld) READONLY id, quantity
     FILTERS eInvoiceDetail(eld) = dl
+    
+    EVENTS ON CHANGE dl {EXPAND ALL eInvoices.eld;}
 
     OBJECTS espt = EInvoiceDetail
     PROPERTIES (espt) READONLY lineItemNumber, lineItemID, lineItemName, itemCustomCode, itemCustomCodeOther, deliveryTypePrev, deliveryNotePrev,
@@ -414,7 +416,7 @@ DESIGN eInvoices {
                 horizontal = TRUE;
                 fill = 1;
                 MOVE BOX(dl);
-                MOVE BOX(eld);
+                MOVE BOX(TREE eLotTr);
             }
             NEW eSpt {
                 caption = 'Прослеживаемость';
@@ -493,9 +495,11 @@ FORM eInvoice 'Электронная накладная'
     PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
     FILTERS eInvoice(dl) == e
 
-    OBJECTS eld = EInvoiceLotDetail
-    PROPERTIES(eld) READONLY idParent, id, quantity
+    TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
+    PROPERTIES(eld) READONLY id, quantity
     FILTERS eInvoiceDetail(eld) = dl
+
+    EVENTS ON CHANGE dl {EXPAND ALL eInvoices.eld;}
     
     OBJECTS ef = ExtraField
     PROPERTIES (ef) READONLY name, code
@@ -594,7 +598,7 @@ DESIGN eInvoice {
                         horizontal = TRUE;
                         fill = 1;
                         MOVE BOX(dl);
-                        MOVE BOX(eld);
+                        MOVE BOX(TREE eLotTr);
                     }
                     NEW eSPT{
                         caption = 'Прослеживаемость';
