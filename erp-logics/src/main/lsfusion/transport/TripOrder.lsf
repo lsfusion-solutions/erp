@@ -67,6 +67,8 @@ printOrders 'Печать заказов' (Trip trip)  {
 backgroundTripOrder 'Цвет' = ABSTRACT CASE COLOR(Order);
 backgroundTripStock 'Цвет' = ABSTRACT CASE COLOR(Trip,Stock);
 
+includeExtra = ABSTRACT BOOLEAN (Trip,Order);
+
 EXTEND FORM trip
     PROPERTIES (t) READONLY countOrdered, grossWeightOrdered
 
@@ -84,8 +86,8 @@ EXTEND FORM trip
     FILTERGROUP filterDateOrder
         FILTER 'Текущие' date(o) <= date(t) 'F9' DEFAULT
     FILTERGROUP filterOrder
-        FILTER 'Не расписанные или в текущем рейсе' filter(t, o) 'F11'
-        FILTER 'В текущем рейсе' in(t, o) 'F10' DEFAULT
+        FILTER 'Не расписанные или в текущем рейсе' filter(t, o) OR includeExtra(t,o) 'F11'
+        FILTER 'В текущем рейсе' in(t, o) OR includeExtra(t,o) 'F10' DEFAULT
 
     OBJECTS od=OrderDetail
     PROPERTIES(od) READONLY idBarcodeSku, nameSku, shortNameUOMSku, quantity, grossWeight, nameFromStock, nameToStock
@@ -120,12 +122,13 @@ DESIGN trip {
     }
 }
 
+
 EXTEND FORM trips
     PROPERTIES(t) READONLY countOrdered, grossWeightOrdered
     
     OBJECTS o=Order
     PROPERTIES(o) READONLY BACKGROUND backgroundTripOrder(o) number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
-    FILTERS in(t, o)
+    FILTERS in(t, o) OR includeExtra(t,o)
 ;
 
 DESIGN trips {
