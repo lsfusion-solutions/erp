@@ -74,6 +74,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         String globalExchangeDirectory = artixSettings.getGlobalExchangeDirectory();
         boolean copyTransactionsToGlobalExchangeDirectory = artixSettings.isCopyPosToGlobalExchangeDirectory();
         boolean appendBarcode = artixSettings.isAppendBarcode();
+        boolean doubleBarcodes = artixSettings.isDoubleBarcodes();
         boolean isExportSoftCheckItem = artixSettings.isExportSoftCheckItem();
         Integer timeout = artixSettings.getTimeout();
         boolean medicineMode = artixSettings.isMedicineMode();
@@ -170,7 +171,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                 if (!skipItem(item, medicineMode)) {
                                     List<CashRegisterItem> items = new ArrayList<>();
                                     items.add(item);
-                                    String inventItem = getAddInventItemJSON(transaction, batchItems, item.idBarcode, items, appendBarcode, medicineMode, medicineModeNewScheme, russian, item.idBarcode);
+                                    String inventItem = getAddInventItemJSON(transaction, batchItems, item.idBarcode, items, appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, item.idBarcode);
                                     if (inventItem != null) {
                                         writeStringToFile(tmpFile, inventItem + "\n---\n");
                                     } else {
@@ -194,7 +195,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                 CashRegisterItem item = barcodeEntry.getValue().get(0);
                                 String mainBarcode = barcodeEntry.getKey();
                                 String idItem = useBarcodeAsId && useBarcodeAsIdSpecialMode ? mainBarcode : trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, mainBarcode, barcodeEntry.getValue(), appendBarcode, medicineMode, medicineModeNewScheme, russian, idItem);
+                                String inventItem = getAddInventItemJSON(transaction, batchItems, mainBarcode, barcodeEntry.getValue(), appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, idItem);
                                 if (inventItem != null) {
                                     writeStringToFile(tmpFile, inventItem + "\n---\n");
                                 } else {
@@ -351,7 +352,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
 
-    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean medicineMode, boolean medicineModeNewScheme, boolean russian, String idItem) throws JSONException {
+    private String getAddInventItemJSON(TransactionCashRegisterInfo transaction, List<String> batchItems, String mainBarcode, List<CashRegisterItem> items, boolean appendBarcode, boolean doubleBarcodes, boolean medicineMode, boolean medicineModeNewScheme, boolean russian, String idItem) throws JSONException {
         Set<CashRegisterItem> barcodes = new HashSet<>();
         for(CashRegisterItem item : items) {
             //если есть addMedicine, дополнительные ШК не выгружаем
@@ -407,12 +408,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 for (CashRegisterItem barcode : barcodes) { //additional barcodes
                     barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, tmcType, defaultQuantity));
                 }
+                if(doubleBarcodes) {
+                    barcodesArray.put(getBarcodeJSON(mainBarcode, !appendBarcode, tmcType, defaultQuantity)); //main barcode
+                    for (CashRegisterItem barcode : barcodes) { //additional barcodes
+                        barcodesArray.put(getBarcodeJSON(barcode.idBarcode, !appendBarcode, tmcType, defaultQuantity));
+                    }
+                }
                 inventObject.put("barcodes", barcodesArray);
             } else {
                 if (!barcodes.isEmpty()) {
                     JSONArray barcodesArray = new JSONArray();
                     for (CashRegisterItem barcode : barcodes) {
                         barcodesArray.put(getBarcodeJSON(barcode.idBarcode, appendBarcode, null, defaultQuantity));
+                        if(doubleBarcodes)
+                            barcodesArray.put(getBarcodeJSON(barcode.idBarcode, !appendBarcode, null, defaultQuantity));
                     }
                     inventObject.put("barcodes", barcodesArray);
                 }

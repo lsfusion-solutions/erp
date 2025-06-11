@@ -14,6 +14,9 @@ public class ArtixSettings implements Serializable{
     //Если true, то при отправке обрезаем контрольный символ штрихкода, при получении добавляем
     private boolean appendBarcode;
 
+    //временная опция для того, чтобы выгружать в barcodes штрихкод и с appendBarcode, и без
+    private boolean doubleBarcodes;
+
     //Если не задано, успешно принятые файлы реализации копируются в подпапку success
     private boolean disableCopyToSuccess;
 
@@ -122,6 +125,14 @@ public class ArtixSettings implements Serializable{
 
     public void setAppendBarcode(boolean appendBarcode) {
         this.appendBarcode = appendBarcode;
+    }
+
+    public boolean isDoubleBarcodes() {
+        return doubleBarcodes;
+    }
+
+    public void setDoubleBarcodes(boolean doubleBarcodes) {
+        this.doubleBarcodes = doubleBarcodes;
     }
 
     public boolean isDisableCopyToSuccess() {
