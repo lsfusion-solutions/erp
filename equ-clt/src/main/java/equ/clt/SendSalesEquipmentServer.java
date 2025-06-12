@@ -44,6 +44,7 @@ public class SendSalesEquipmentServer {
                 if (handlerModel != null && !handlerModel.isEmpty()) {
 
                     MachineryHandler clsHandler = (MachineryHandler) EquipmentServer.getHandler(handlerModel, remote);
+                    sendSalesLogger.info("Processing " + handlerModel);
 
                     if(clsHandler instanceof CashRegisterHandler) {
                         CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
