@@ -482,7 +482,6 @@ FORM packQuantity 'Комплектация'
 ;
 DESIGN packQuantity {
     BOX {
-
         MOVE PROPERTY(val) {
             caption = 'Введите количество собранных мест';
             panelCaptionVertical = TRUE;
@@ -492,6 +491,32 @@ DESIGN packQuantity {
         MOVE TOOLBARBOX;
     }
 }
+
+allowZeroPackQuantity 'Разрешить нулевое кол-во грузовых мест в комплектации' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES() allowZeroPackQuantity
+;
+
+DESIGN options{
+    WMS {
+        MOVE PROPERTY(allowZeroPackQuantity());
+    }
+}
+
+EXTEND FORM packQuantity
+    EVENTS ON OK BEFORE {
+        CASE
+            WHEN n < 0 THEN {
+                MESSAGE 'Кол-во собранных мест не должно быть отрицательным' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+            WHEN (n = 0 OR NOT n IS NUMERIC[14,3]) AND NOT allowZeroPackQuantity() THEN {
+                MESSAGE 'Кол-во собранных мест должно быть строго больше 0' NOWAIT;
+                beforeCanceled() <- TRUE;
+            }
+    }
+;
 
 fullyAssembled 'Собран полностью'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
