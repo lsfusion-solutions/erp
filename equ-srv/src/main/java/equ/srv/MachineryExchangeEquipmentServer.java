@@ -12,6 +12,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.form.property.Compare;
+import lsfusion.server.data.expr.Expr;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -41,7 +42,7 @@ import static org.apache.commons.lang3.StringUtils.trim;
 
 public class MachineryExchangeEquipmentServer {
 
-    static ScriptingLogicsModule cashRegisterLM;
+    static ScriptingLogicsModule equipmentCashRegisterLM;
     static ScriptingLogicsModule discountCardLM;
     static ScriptingLogicsModule equLM;
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
@@ -51,7 +52,7 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule terminalLM;
 
     public static void init(BusinessLogics BL) {
-        cashRegisterLM = BL.getModule("EquipmentCashRegister");
+        equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
         discountCardLM = BL.getModule("DiscountCard");
         equLM = BL.getModule("Equipment");
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
@@ -62,15 +63,15 @@ public class MachineryExchangeEquipmentServer {
     }
 
     public static List<RequestExchange> readRequestExchange(EquipmentServer server, String sidEquipmentServer, BusinessLogics BL, ExecutionStack stack) throws SQLException {
-
-        List<RequestExchange> requestExchangeList = new ArrayList();
+        List<RequestExchange> requestExchangeList = new ArrayList<>();
         if(equLM != null) {
 
             try (DataSession session = server.createSession()) {
 
+                Expr sidEquipmentServerExpr = new DataObject(sidEquipmentServer).getExpr();
+
                 KeyExpr requestExchangeExpr = new KeyExpr("requestExchange");
-                ImRevMap<Object, KeyExpr> requestExchangeKeys = MapFact.singletonRev("requestExchange", requestExchangeExpr);
-                QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(requestExchangeKeys);
+                QueryBuilder<Object, Object> requestExchangeQuery = new QueryBuilder<>(MapFact.singletonRev("requestExchange", requestExchangeExpr));
 
                 String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "nameRequestExchangeTypeRequestExchange"};
                 LP[] requestExchangeProperties = equLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "nameRequestExchangeType[RequestExchange]");
@@ -80,8 +81,7 @@ public class MachineryExchangeEquipmentServer {
                 if(machineryPriceTransactionDiscountCardLM != null) {
                     requestExchangeQuery.addProperty("startDateRequestExchange", machineryPriceTransactionDiscountCardLM.findProperty("startDate[RequestExchange]").getExpr(requestExchangeExpr));
                 }
-                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[STRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-                requestExchangeQuery.and(equLM.findProperty("needToLoad[RequestExchange, EquipmentServer]").getExpr(requestExchangeExpr, equipmentServerObject.getExpr()).getWhere());
+                requestExchangeQuery.and(equLM.findProperty("needToLoad[RequestExchange,STRING]").getExpr(requestExchangeExpr, sidEquipmentServerExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 
@@ -124,26 +124,22 @@ public class MachineryExchangeEquipmentServer {
 
                     } else {
 
-                        if(cashRegisterLM != null) {
+                        if(equipmentCashRegisterLM != null) {
                             Set<CashRegisterInfo> cashRegisterSet = new HashSet<>();
                             Set<CashRegisterInfo> extraCashRegisterSet = readExtraCashRegisterSet(session, requestExchangeObject);
                             String idStock = null;
 
                             KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
-                            ImRevMap<Object, KeyExpr> cashRegisterKeys = MapFact.singletonRev("cashRegister", cashRegisterExpr);
-                            QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
+                            QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(MapFact.singletonRev("cashRegister", cashRegisterExpr));
 
                             String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppGroupMachinery",
                                     "nppCashRegister", "handlerModelCashRegister"};
-                            LP[] cashRegisterProperties = cashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
+                            LP[] cashRegisterProperties = equipmentCashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
                                     "nppGroupMachinery[Machinery]", "npp[CashRegister]", "handlerModel[CashRegister]");
                             for (int j = 0; j < cashRegisterProperties.length; j++) {
                                 cashRegisterQuery.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
                             }
-                            //нужно хотя бы 1 свойство от CashRegister, чтобы отсечь в запросе остальные типы оборудования
-                            cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-                            cashRegisterQuery.and(cashRegisterLM.findProperty("in[EquipmentServer,CashRegister,RequestExchange]").getExpr(equipmentServerObject.getExpr(), cashRegisterExpr, requestExchangeObject.getExpr()).getWhere());
-                            cashRegisterQuery.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
+                            cashRegisterQuery.and(equipmentCashRegisterLM.findProperty("needToLoad[STRING,CashRegister,RequestExchange]").getExpr(sidEquipmentServerExpr, cashRegisterExpr, requestExchangeObject.getExpr()).getWhere());
                             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = cashRegisterQuery.executeClasses(session);
                             for (int j = 0; j < result.size(); j++) {
 
@@ -179,14 +175,14 @@ public class MachineryExchangeEquipmentServer {
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
         String[] cashRegisterNames = new String[]{"npp", "nppGroup", "overDirectory", "idStock", "handlerModel"};
-        LP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[CashRegister]", "nppGroupMachinery[CashRegister]", "overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
+        LP[] cashRegisterProperties = equipmentCashRegisterLM.findProperties("npp[CashRegister]", "nppGroupMachinery[CashRegister]", "overDirectory[CashRegister]", "idStock[CashRegister]", "handlerModel[CashRegister]");
         for (int j = 0; j < cashRegisterProperties.length; j++) {
             query.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
         }
-        query.and(cashRegisterLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
-        query.and(cashRegisterLM.findProperty("overDirectory[CashRegister]").getExpr(cashRegisterExpr).getWhere());
-        query.and(cashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(stockExpr, Compare.EQUALS));
-        query.and(cashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
+        query.and(equipmentCashRegisterLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        query.and(equipmentCashRegisterLM.findProperty("overDirectory[CashRegister]").getExpr(cashRegisterExpr).getWhere());
+        query.and(equipmentCashRegisterLM.findProperty("stock[CashRegister]").getExpr(cashRegisterExpr).compare(stockExpr, Compare.EQUALS));
+        query.and(equipmentCashRegisterLM.findProperty("inactive[CashRegister]").getExpr(cashRegisterExpr).getWhere().not());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (ImMap<Object, Object> entry : result.values()) {
             Integer number = (Integer) entry.get("npp");

@@ -14,7 +14,7 @@ public class RequestExchange implements Serializable {
     public LocalDate dateFrom;
     public LocalDate dateTo;
     public LocalDate startDate;
-    private String typeRequestExchange;
+    public String typeRequestExchange;
 
     public RequestExchange(Long requestExchange, Set<CashRegisterInfo> cashRegisterSet, Set<CashRegisterInfo> extraCashRegisterSet,
                            String idStock, LocalDate dateFrom, LocalDate dateTo, LocalDate startDate, String typeRequestExchange) {

@@ -72,20 +72,17 @@ public class SendSalesEquipmentServer {
     }
 
     private static List<RequestExchange> getSalesInfoExchangeList(List<RequestExchange> requestExchangeList) {
-        List<RequestExchange> salesInfoExchangeList = new ArrayList<>();
-        for(RequestExchange requestExchange : requestExchangeList) {
-            if(requestExchange.isSalesInfoExchange()) {
-                salesInfoExchangeList.add(requestExchange);
-            }
-        }
-        return salesInfoExchangeList;
+        return requestExchangeList.stream().filter(RequestExchange::isSalesInfoExchange).collect(Collectors.toList());
     }
 
     static void requestSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, List<RequestExchange> requestExchangeList, CashRegisterHandler handler)
             throws IOException, SQLException {
         try {
             if (!requestExchangeList.isEmpty()) {
-                sendSalesLogger.info("Requesting SalesInfo");
+                sendSalesLogger.info(String.format("Requesting SalesInfo: %s requests", requestExchangeList.size()));
+                for(RequestExchange requestExchange : requestExchangeList) {
+                    sendSalesLogger.info(requestExchange.requestExchange + " / " + requestExchange.typeRequestExchange);
+                }
                 Set<Long> succeededRequests = new HashSet<>();
                 Map<Long, Throwable> failedRequests = new HashMap<>();
                 Map<Long, Throwable> ignoredRequests = new HashMap<>();
