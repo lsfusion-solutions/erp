@@ -11,30 +11,52 @@ namePlannedStatus(Order order) +=
             THEN 'Cпланированы'
         ELSE 'Не спланированы');
 
+plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Batch, Bin);
+orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER batch, bin BY order;
+pickingOrderNumber(Order order, Batch batch, Bin bin) = ceil((orderPlannedPickingQuantity(order, batch, bin)-1)/maxLinesPick());
+
 createUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
-            LOCAL quantityLoc = NUMERIC[16,5](Batch, Bin);
+            LOCAL NESTED countPickingOrder = INTEGER ();
+            LOCAL NESTED message = STRING ();
             LOCAL quantityLoc = NUMERIC[16,5](Batch);
-    
-            IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Batch bt)>0) THEN NEW p = UserPickingOrder {
+
+            quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
+            plannedPickingQuantity(order, Batch bt, Bin bin) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, bin) ORDER currentBalance(bt, bin) BY bt
+                WHERE picking(bin);
+            countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Batch batch, Bin bin));
+            
+            CASE 
+                WHEN NOT (GROUP SUM quantityLoc(Batch bt)) THEN {
+                    message() <- 'Нечего отправлять в комплектацию';
+                }
+                WHEN countPickingOrder() THEN {
+                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrder()+1); //Добавляем 1, т.к. нумерация идёт с 0
+                }
+
+            FOR iterate(INTEGER i, 0, countPickingOrder()) INLINE NEW p = UserPickingOrder DO {
                 isPosted(p) <- TRUE;
                 order(p) <- order;
                 stock(p) <- supplierStock(order);
-    
-                quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
-                quantityLoc(Batch bt, Bin b) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, b) ORDER currentBalance(bt, b) BY bt
-                    WHERE picking(b);
-    
-                FOR quantityLoc(Batch bt, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
+
+                FOR plannedPickingQuantity(order, Batch bt, Bin bin) AND pickingOrderNumber(order, bt, bin)==i INLINE DO NEW pd = UserPickingOrderDetail {
                     userPickingOrder(pd) <- p;
                     sku(pd) <- sku(bt);
                     batch(pd) <- bt;
-                    outBin(pd) <- b;
-                    quantity(pd) <- quantityLoc(bt, b);
+                    outBin(pd) <- bin;
+                    quantity(pd) <- plannedPickingQuantity(order, bt, bin);
                 }
             }
+            
             APPLY;
+            
+            IF canceled() THEN {
+                CANCEL;
+            } ELSE {
+                MESSAGE message() NOWAIT;
+            }
+            
         } ELSE {
             MESSAGE 'Не задана \'Операция по умолчанию для заказа на комплектацию\'' NOWAIT;
         }

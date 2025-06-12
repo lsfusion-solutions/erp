@@ -34,30 +34,65 @@ DESIGN orders {
 
 //---------------------------------- Создание заказа на комплектации ----------------------------------------//
 
+dataMaxLinesPick = DATA INTEGER ();
+maxLinesPick 'Максимальное количество строк в заказе на комплектацию' = OVERRIDE dataMaxLinesPick(), 60;
+
+EXTEND FORM options
+    PROPERTIES() maxLinesPick
+;
+
+DESIGN options{
+    WMS {
+        MOVE PROPERTY(maxLinesPick());
+    }
+}
+
+plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Sku, Bin);
+orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order; 
+pickingOrderNumber(Order order, Sku sku, Bin bin) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick());
+
 createUserPickingOrder 'Отправить в комплектацию' ABSTRACT CASE OVERRIDE FIRST (Order) TOOLBAR;
 createUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
-            LOCAL quantityLoc = NUMERIC[16,5](Sku, Bin);
+            LOCAL NESTED countPickingOrder = INTEGER ();
+            LOCAL NESTED message = STRING ();
             LOCAL quantityLoc = NUMERIC[16,5](Sku);
 
-            IF (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku sku) > 0) THEN NEW p = UserPickingOrder {
+            quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
+            plannedPickingQuantity(order, Sku sku, Bin bin) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, bin) ORDER currentBalance(sku, bin) BY sku
+                WHERE picking(bin);
+            countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Sku sku, Bin bin));
+
+            CASE
+                WHEN NOT (GROUP SUM quantityLoc(Sku sku)) THEN {
+                    message() <- 'Нечего отправлять в комплектацию';
+                }
+                WHEN countPickingOrder() THEN {
+                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrder()+1); //Добавляем 1, т.к. нумерация идёт с 0
+                }            
+
+            FOR iterate(INTEGER i, 0, countPickingOrder()) INLINE NEW p = UserPickingOrder DO {
                 isPosted(p) <- TRUE;
                 order(p) <- order;
                 stock(p) <- supplierStock(order);
 
-                quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
-                quantityLoc(Sku sku, Bin b) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, b) ORDER currentBalance(sku, b) BY sku
-                    WHERE picking(b);
-
-                FOR quantityLoc(Sku sku, Bin b) INLINE DO NEW pd = UserPickingOrderDetail {
+                FOR plannedPickingQuantity(order, Sku sku, Bin bin) AND pickingOrderNumber(order, sku, bin)==i INLINE DO NEW pd = UserPickingOrderDetail {
                     userPickingOrder(pd) <- p;
                     sku(pd) <- sku;
-                    outBin(pd) <- b;
-                    quantity(pd) <- quantityLoc(sku, b);
+                    outBin(pd) <- bin;
+                    quantity(pd) <- plannedPickingQuantity(order, sku, bin);
                 }
             }
+            
             APPLY;
+            
+            IF canceled() THEN {
+                CANCEL;
+            } ELSE {
+                MESSAGE message() NOWAIT;
+            }
+            
         } ELSE {
             MESSAGE 'Не задана \'Операция по умолчанию для заказа на комплектацию\'' NOWAIT;
         }    
