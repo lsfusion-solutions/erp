@@ -1,0 +1,13 @@
+MODULE FiscalSentoLot;
+
+REQUIRE FiscalSento, ZReportLot, POSLotBy;
+
+versionWithLots (CashRegister o) += IF o THEN TRUE;
+
+sentoMarka (ReceiptDetail o) += IF idLot(o) THEN (CONCAT '', idLot(o), tailLot(o));
+sentoUkz (ReceiptDetail o) += ukz(o);
+sentoDepartment (ReceiptDetail o) += CASE 
+        WHEN sentoMarka(o) AND NOT sentoUkz(o) THEN 126
+        WHEN sentoUkz(o) AND NOT sentoMarka(o) THEN 101
+        WHEN sentoMarka(o) AND sentoUkz(o) THEN 151
+        ELSE 1;

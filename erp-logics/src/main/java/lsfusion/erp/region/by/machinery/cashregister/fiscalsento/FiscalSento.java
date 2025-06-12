@@ -42,12 +42,16 @@ public class FiscalSento {
         boolean openDay(double value);
 
         boolean openRefundDocument(int department, byte[] plu, int vat, double price, double quant, double amount, byte[] name);
+    
+        boolean openRefundDocumentMark(int department, byte[] plu, int vat, double price, double quant, double amount, byte[] name, byte[] ukzCode, byte[] siCode);
 
         boolean cancelDocument();
     
         boolean annulDocument(int documentNumber);
         
         boolean sale(int operation, int department, byte[] plu, int vat, double price, double quant, double amount, byte[] naim, byte[] comment);
+    
+        boolean saleMark(int operation, int department, byte[] plu, int vat, double price, double quant, double amount, byte[] naim, byte[] ukzCode, byte[] siCode);
 
         boolean discount(int operation, double value);
 
@@ -138,11 +142,25 @@ public class FiscalSento {
         double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
         logAction("openRefundDocument", flags, 1, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name);
+        
         boolean result;
-        if (bits.get(FLG_EXT_SALE))
-            result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(item.name));
-        else
-            result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name));
+    
+        Integer version = sentoDLL.sento.getVersion();
+        
+        if (version >= 200 && !StringUtils.isEmpty(item.marka) || !StringUtils.isEmpty(item.ukz)) {
+            result = sentoDLL.sento.openRefundDocumentMark(
+                    item.numberDepartment, getBytes(item.barcode), getVAT(item.numberSection),
+                    price, item.quantity, sum, getBytes(item.name),
+                    getBytes(item.marka != null ? item.marka : ""),
+                    getBytes(item.ukz != null ? item.ukz : "")
+            );
+        }
+        else {
+            if (bits.get(FLG_EXT_SALE))
+                result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(item.name));
+            else
+                result = sentoDLL.sento.openRefundDocument(1, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name));
+        }
 
         if(!result)
             checkErrors();
@@ -286,16 +304,28 @@ public class FiscalSento {
         double sum = item.sumPos - item.articleDiscSum; //we need sum without discount
         int department = item.isGiftCard && giftCardDepartment != null ? giftCardDepartment : 1;
         logAction("sale", flags, 6, department, item.barcode, getVAT(item.numberSection), price, item.quantity, sum, item.name, comment != null ? comment : "");
-
+        
         boolean result;
-        if (bits.get(FLG_EXT_SALE)) {
-            String textPrice = String.format("Цена: %.2f", item.price);
-            String description = String.format("Кол-во: %.4f", item.quantity);
-            description = StringUtils.rightPad(description, 35-textPrice.length(), '.') + textPrice;
-            result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(description), getBytes(item.name));
+    
+        Integer version = sentoDLL.sento.getVersion();
+        
+        if (version >= 200 && !StringUtils.isEmpty(item.marka) || !StringUtils.isEmpty(item.ukz)) {
+            result = sentoDLL.sento.saleMark(
+                    (short) 6, item.numberDepartment, getBytes(item.barcode), getVAT(item.numberSection),
+                    price, item.quantity, sum, getBytes(item.name),
+                    getBytes(item.marka != null ? item.marka : ""),
+                    getBytes(item.ukz != null ? item.ukz : "")
+            );
         }
-        else
-            result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+        else {
+            if (bits.get(FLG_EXT_SALE)) {
+                String textPrice = String.format("Цена: %.2f", item.price);
+                String description = String.format("Кол-во: %.4f", item.quantity);
+                description = StringUtils.rightPad(description, 35 - textPrice.length(), '.') + textPrice;
+                result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), sum, 1, sum, getBytes(description), getBytes(item.name));
+            } else
+                result = sentoDLL.sento.sale((short) 6, department, getBytes(item.barcode), getVAT(item.numberSection), price, item.quantity, sum, getBytes(item.name), getBytes(comment != null ? comment : ""));
+        }
 
         if(!result)
             checkErrors();

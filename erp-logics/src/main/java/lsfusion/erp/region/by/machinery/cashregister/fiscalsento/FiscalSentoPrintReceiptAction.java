@@ -62,6 +62,8 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 Integer flags = (Integer) findProperty("flagsCurrentCashRegister[]").read(context);
+    
+                boolean versionWithLots = findProperty("versionWithLotsCurrentCashRegister[]").read(context) != null;
 
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
@@ -124,18 +126,23 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                         "quantityReceiptDetail", "quantityReceiptSaleDetail", "quantityReceiptReturnDetail",
                         "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
                         "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail",
-                        "skuReceiptDetail", "boardNameSkuReceiptDetail"};
+                        "skuReceiptDetail", "boardNameSkuReceiptDetail", "sentoSkuTypeReceiptDetail","sentoMarkaReceiptDetail","sentoUkzReceiptDetail"};
                 LP<?>[] receiptDetailProperties = findProperties("type[ReceiptDetail]", "nameSku[ReceiptDetail]",
                         "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]",
                         "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]",
-                        "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]");
+                        "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "sentoSkuType[ReceiptDetail]", "sentoMarka[ReceiptDetail]","sentoUkz[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
                 }
-                if (cashRegisterTaxLM != null) {
+                
+                if (versionWithLots) {
+                    receiptDetailQuery.addProperty("sentoDepartment", findProperty("sentoDepartment[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                }
+                else if (cashRegisterTaxLM != null) {
                     receiptDetailQuery.addProperty("numberSection", cashRegisterTaxLM.findProperty("numberSectionSento[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
                 }
+                
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -159,20 +166,33 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                     double sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.doubleValue();
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
-                    String numberSection = (String) receiptDetailValues.get("numberSection");
+                    String numberSection = null;
+                    Integer numberDepartment = null;
+                    if (versionWithLots)
+                        numberDepartment = (Integer) receiptDetailValues.get("sentoDepartment");
+                    else
+                        numberSection = (String) receiptDetailValues.get("numberSection");
+                    
+                    String sentoMarka = (String) receiptDetailValues.get("sentoMarkaReceiptDetail");
+                    String sentoUkz = (String) receiptDetailValues.get("sentoUkzReceiptDetail");
+                    Integer skuType = (Integer) receiptDetailValues.get("sentoSkuTypeReceiptDetail");
+                    
                     if (quantitySale > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection,
+                                numberDepartment, skuType, sentoMarka, sentoUkz));
                     if (quantity > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат", sumReceiptDetail, discountSumReceiptDetail, numberSection,
+                                1, null, null, null));
                     if (quantityReturn > 0)
-                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection));
+                        receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail, discountSumReceiptDetail, numberSection,
+                                numberDepartment, skuType, sentoMarka, sentoUkz));
                 }
 
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalSentoPrintReceiptClientAction(false, logPath, comPort, baudRate,
                             new ReceiptInstance(sumDisc, sumCard, sumCash, sumCheck, sumSalary,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom, giftCardDepartment, flags == null ? 0 : flags));
+                            fiscalSentoReceiptTop, fiscalSentoReceiptBottom, giftCardDepartment, flags == null ? 0 : flags, versionWithLots));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change((Integer)result, context, receiptObject);
                         if (context.apply())

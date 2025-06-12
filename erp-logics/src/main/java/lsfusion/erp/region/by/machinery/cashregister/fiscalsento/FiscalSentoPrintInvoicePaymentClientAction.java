@@ -65,22 +65,30 @@ public class FiscalSentoPrintInvoicePaymentClientAction extends FiscalSentoClien
                 return null;
             
             if (sale) {
-                if (!FiscalSento.sentoDLL.sento.sale((short) 6, section, ("1" + "\0").getBytes(), 'A', sumPayment.doubleValue(), 1.0, sumPayment.doubleValue(), ("ОПЛАТА" + "\0").getBytes(Charset.forName("cp1251")), ("" + "\0").getBytes()))
+                if (!FiscalSento.sentoDLL.sento.sale((short) 6, section, ("1" + "\0").getBytes(), 'A',
+                        sumPayment.doubleValue(), 1.0, sumPayment.doubleValue(),
+                        ("ОПЛАТА" + "\0").getBytes(Charset.forName("cp1251")), ("" + "\0").getBytes()))
                     return null;
             }
             else {
-                if (!FiscalSento.sentoDLL.sento.openRefundDocument(section, ("1" + "\0").getBytes(), 'A', sumPayment.doubleValue(), 1.0, sumPayment.doubleValue(), ("ОПЛАТА" + "\0").getBytes(Charset.forName("cp1251"))))
+                if (!FiscalSento.sentoDLL.sento.openRefundDocument(section, ("1" + "\0").getBytes(), 'A',
+                        sumPayment.doubleValue(), 1.0, sumPayment.doubleValue(),
+                        ("ОПЛАТА" + "\0").getBytes(Charset.forName("cp1251"))))
                     return null;
             }
         } else {
             if (sale) {
                 for(InvoiceDetail detail : invoiceDetailList) {
-                    if (!FiscalSento.sentoDLL.sento.sale((short) 6, section, ("1"+"\0").getBytes(), 'A', detail.price.doubleValue(), detail.quantity.doubleValue(), detail.sum.doubleValue(), (detail.name+"\0").getBytes(Charset.forName("cp1251")), (""+"\0").getBytes()))
+                    if (!FiscalSento.sentoDLL.sento.sale((short) 6, section, ("1"+"\0").getBytes(), 'A',
+                            detail.price.doubleValue(), detail.quantity.doubleValue(), detail.sum.doubleValue(),
+                            (detail.name+"\0").getBytes(Charset.forName("cp1251")), (""+"\0").getBytes()))
                         return null;
                 }
             }
             else {
-                if (!FiscalSento.sentoDLL.sento.openRefundDocument(section, ("1"+"\0").getBytes(), 'A', invoiceDetailList.get(0).price.doubleValue(), invoiceDetailList.get(0).quantity.doubleValue(), invoiceDetailList.get(0).sum.doubleValue(), (invoiceDetailList.get(0).name+"\0").getBytes(Charset.forName("cp1251"))))
+                if (!FiscalSento.sentoDLL.sento.openRefundDocument(section, ("1"+"\0").getBytes(), 'A',
+                        invoiceDetailList.get(0).price.doubleValue(), invoiceDetailList.get(0).quantity.doubleValue(), invoiceDetailList.get(0).sum.doubleValue(),
+                        (invoiceDetailList.get(0).name+"\0").getBytes(Charset.forName("cp1251"))))
                     return null;
             }
         }

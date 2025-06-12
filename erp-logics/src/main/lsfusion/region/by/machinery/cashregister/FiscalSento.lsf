@@ -1,6 +1,19 @@
 MODULE FiscalSento;
 
-REQUIRE POS;
+REQUIRE POS, ZReportLot;
+
+// версия для работы с марками, 2025
+versionWithLots 'Версия с маркировкой' = ABSTRACT BOOLEAN (CashRegister) IN base;
+versionWithLotsCurrentCashRegister 'Sento 2.00 Lot' = BOOLEAN (versionWithLots(currentCashRegister()));
+
+sentoSkuType 'Тип товара' (ReceiptDetail o) =
+    IF skuType(sku(o)) = SkuType.skuTypeItem THEN 1 ELSE // товар 
+        IF skuType(sku(o)) =  SkuType.skuTypeCharge THEN 3 ELSE // услуга
+            IF skuType(sku(o)) = SkuType.skuTypeContainer THEN 5 ELSE 1; // тара  
+
+sentoMarka 'Код марки' = ABSTRACT STRING (ReceiptDetail);
+sentoUkz 'Код УКЗ' = ABSTRACT STRING (ReceiptDetail);
+sentoDepartment 'Номер отдела' = ABSTRACT INTEGER(ReceiptDetail);
 
 loadDefaultCashRegisterModels() + {  EXEC loadDefaultCashRegisterModel('Фискальный регистратор Sento', 'Sento', NULL, NULL, TRUE, NULL, NULL ); };
 

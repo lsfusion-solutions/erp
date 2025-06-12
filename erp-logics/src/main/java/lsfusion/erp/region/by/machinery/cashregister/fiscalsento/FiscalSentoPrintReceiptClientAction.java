@@ -12,16 +12,18 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
     String receiptBottom;
     Integer giftCardDepartment;
     Integer flags;
+    boolean versionWithLots;
 
     public FiscalSentoPrintReceiptClientAction(boolean isUnix, String logPath, String comPort, Integer baudRate,
                                                ReceiptInstance receipt, String receiptTop, String receiptBottom,
-                                               Integer giftCardDepartment, Integer flags) {
+                                               Integer giftCardDepartment, Integer flags, boolean versionWithLots) {
         super(isUnix, logPath, comPort, baudRate);
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardDepartment = giftCardDepartment;
         this.flags = flags;
+        this.versionWithLots = versionWithLots;
     }
 
 
