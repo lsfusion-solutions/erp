@@ -309,7 +309,7 @@ nameCalcBase 'База расчета' (ConditionList l, ConditionType t) = stat
 overCalcBase = ABSTRACT CalcBase (MarketingCondition);
 calcBase (MarketingCondition mc) = OVERRIDE overCalcBase(mc), calcBase(conditionList(mc), conditionType(mc)) MATERIALIZED;
 
-marketingPercent 'Процент маркетинга, %' = DATA NUMERIC[5,2]  (MarketingCondition);
+marketingPercent 'Процент маркетинга, %' = DATA NUMERIC[8,3]  (MarketingCondition);
 
 price 'Цена' = DATA NUMERIC[16,5](MarketingCondition);
 
@@ -871,7 +871,7 @@ importContractMarketings 'Импорт договоров' ()  {
                     region(mc) <- GROUP LAST Region r ORDER r WHERE name(r) == upper(region(i));
                     inStock(mc, Stock s) <- id(s) == stocks(i) OR inGroup(s, INTEGER (stocks(i)));
                     item(mc) <- GROUP LAST Item it ORDER it WHERE id(it) == barcode(i);
-                    marketingPercent(mc) <- round2(percent(i) * 100.0);
+                    marketingPercent(mc) <- round3(percent(i) * 100.0);
                     isException(mc) <- exeption(i) == 'Исключение';
                 }
                 ELSE NEW fc = FixedMarketingCondition {
