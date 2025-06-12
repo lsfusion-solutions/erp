@@ -70,6 +70,19 @@ fld3 = ABSTRACT TEXT (Barcode, Stock);
 fld4 = ABSTRACT TEXT (Barcode, Stock);
 fld5 = ABSTRACT TEXT (Barcode, Stock, CustomUser);
 
+// Процент доверительной приемки
+dataTrustAcceptPercent = DATA NUMERIC[6,2] (ItemGroup);
+nearestTrustAcceptPercent (ItemGroup child) = GROUP LAST dataTrustAcceptPercent(ItemGroup parent) ORDER DESC level(child, parent) WHERE dataTrustAcceptPercent(parent);
+trustAcceptPercent 'Процент доверительной приемки' (ItemGroup itemGroup) = OVERRIDE dataTrustAcceptPercent(itemGroup), nearestTrustAcceptPercent(itemGroup) IN paramsItemGroup;
+
+dataTrustAcceptPercent = DATA NUMERIC[6,2] (Item);
+trustAcceptPercent 'Процент доверительной приемки' (Item i) = OVERRIDE dataTrustAcceptPercent(i), trustAcceptPercent(itemGroup(i)) IN itemBase;
+trustAcceptPercent (Barcode b) = trustAcceptPercent(sku(b));
+
+EXTEND FORM itemGroup PROPERTIES(g) trustAcceptPercent;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF isReadonly() trustAcceptPercent BACKGROUND RGB(190,190,190) IF dataTrustAcceptPercent(g);
+EXTEND FORM item PROPERTIES (i) trustAcceptPercent;
+
 CLASS TerminalBarcodeFlags {
     needManufacturingDate 'Обязательна дата изготовления',
     goodInternetStore 'Признак товара интернет магазина',
