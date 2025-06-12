@@ -30,6 +30,7 @@ price = ABSTRACT VALUE NUMERIC[16,4] (Lot, Receipt);
 price (Lot l, Receipt r) += currentPOSPrice(sku(l), r);
 
 skipCheckPosLot 'Не проверять обязательность сканирования марки на POS' = DATA BOOLEAN ();
+overSkipCheckPosLot 'Не проверять обязательность сканирования марки на POS' = ABSTRACT VALUE BOOLEAN (ReceiptDetail);
 
 EXTEND FORM options PROPERTIES skipCheckPosLot();
 
@@ -45,15 +46,16 @@ checkLot ABSTRACT LIST (Lot, DepartmentStore);
 createDetail = DATA LOCAL BOOLEAN ();
 
 overExplicitLot = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
+customLot = ABSTRACT VALUE Lot (STRING[200]);
 
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
-    IF length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 THEN {
+    IF (length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 ) OR customLot(initialBarcode()) THEN {
         IF skuFromGtin(idToGtin(initialBarcode())) AND NOT lot(barcodeToId(initialBarcode())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {
             id(l) <- barcodeToId(initialBarcode());
             tail(l) <- barcodeToTail(initialBarcode());
             sku(l) <- skuFromGtin(idToGtin(initialBarcode()));
         }
-        FOR Lot l = lot(barcodeToId(initialBarcode())) AND Sku s = sku(l) DO {
+        FOR (Lot l = lot(barcodeToId(initialBarcode())) OR l = customLot(initialBarcode())) AND Sku s = sku(l) DO {
             createDetail() <- TRUE;
             checkLot(l, departmentStore(r));
             IF createDetail() THEN {
@@ -122,3 +124,11 @@ overChangeBarcodeReturn(STRING[200] b, Receipt r) + {
 WHEN LOCAL FORMS POS CHANGED(receiptSaleDetail(ReceiptReturnDetail d)) AND NOT CHANGED (lot(d)) DO {
     lot(d) <- lot(receiptSaleDetail(d));
 }
+
+
+overCreateSaleDetail(ReceiptDetail d) + {
+    IF (explicitLot(sku(d)) OR overExplicitLot(sku(d), departmentStore(d))) AND NOT skipCheckPosLot() AND NOT overSkipCheckPosLot(d) AND NOT lot(d) THEN {
+        MESSAGE 'Товар подлежит обязательной маркировке. Просканируйте контрольную марку вместо штрихкода';
+        DELETE d;
+    }
+};
