@@ -89,7 +89,6 @@ public class DefaultTerminalHandler {
         terminalHandlerLotByLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerLotBy");
         terminalLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalLot");
 
-        terminalOrderGtinLM = getLogicsInstance().getBusinessLogics().getModule("TerminalOrderGTIN");
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
 
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
@@ -1648,8 +1647,8 @@ public class DefaultTerminalHandler {
                 if (terminalOrderLotLM != null)
                     orderQuery.addProperty("lotType", terminalOrderLotLM.findProperty("lotType[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
-                if (terminalOrderGtinLM != null)
-                    orderQuery.addProperty("GTIN", terminalOrderGtinLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                if (terminalOrderLM != null)
+                    orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1698,7 +1697,7 @@ public class DefaultTerminalHandler {
                     String lotType = terminalOrderLotLM == null ? null : (String) entry.get("lotType");
 
                     String GTIN = null;
-                    if (terminalOrderGtinLM != null)
+                    if (terminalOrderLM != null)
                         GTIN = trim((String) entry.get("GTIN"));
     
                     String unitLoad = (String) entry.get("unitLoad");
