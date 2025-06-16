@@ -1,6 +1,6 @@
 MODULE ShippingBinLedger;
 
-REQUIRE EmployeeBin, SaleBinLedger, BinTransferBinLedger, WMSDashboard;
+REQUIRE EmployeeBin, SaleBinLedger, BinTransferBinLedger, WMSDashboard, OrderPickingOrder, PickingBinLedger;
 
 NAMESPACE Sale;
 
@@ -19,3 +19,84 @@ CONSTRAINT defaultShippingBin(Employee employee, Stock stock) AND NOT shipping(d
 EXTEND FORM employee
     PROPERTIES(e, s) nameDefaultShippingBin
 ;
+
+dataShippingBin = DATA LOCAL NESTED Bin (CustomUser);
+shippingBin (CustomUser u) = OVERRIDE dataShippingBin(u), (GROUP MAX defaultShippingBin(u, Stock stock));
+nameShippingBin 'Ячейка(отгрузка)' (CustomUser u) = canonicalId(shippingBin(u)) CHARWIDTH 10;
+
+nameBinGroup2ShippingBin 'Зона ячейки' (CustomUser u) = nameBinGroup2(shippingBin(u)) CHARWIDTH 10;
+
+CONSTRAINT LOCAL dataShippingBin(CustomUser u) AND NOT accessCompany(u, stock(dataShippingBin(u)))
+    CHECKED BY dataShippingBin[CustomUser] MESSAGE 'Нет доступа к складу ячейки';
+
+CONSTRAINT LOCAL dataShippingBin(CustomUser u) AND NOT shipping(dataShippingBin(u))
+    CHECKED BY dataShippingBin[CustomUser] MESSAGE 'Выбранная ячейка не предназначена для приемки';
+
+FORM shipping 'Отгрузка'
+    OBJECTS u=CustomUser PANEL
+    PROPERTIES(u) READONLY name
+    PROPERTIES(u) nameShippingBin, nameBinGroup2ShippingBin READONLY
+    FILTERS u=currentUser()
+
+    OBJECTS s = Sku
+    PROPERTIES(s) select
+    PROPERTIES(s) READONLY name, idBarcode
+    PROPERTIES READONLY currentBalance 'Текущий остаток в ячейке' = currentBalance(s, shippingBin(u))
+    FILTERS currentBalance(s, shippingBin(u))
+    
+    OBJECTS p = BinTransfer
+    PROPERTIES (p) READONLY number, series, date, time, nameStock, nameTo, nameToStock, packQuantity[Picking]
+    PROPERTIES (p) READONLY countPickingDetail, quantityPickingDetail
+    FILTERS //inBin[BinOrder](pickingOrder[Picking](p)) == shippingBin(u), 
+            //stock(shippingBin(u)) == stock(p)
+            (GROUP SUM 1 IF inBin(BinTransferDetail dd) == shippingBin(u) AND binTransfer(dd) == p)
+
+    OBJECTS pd=BinTransferDetail
+    PROPERTIES (pd) READONLY index, nameSku, shortNameUOMSku, nameBatch[PickingDetail], quantity, nameOutBin, nameInBin
+    FILTERS binTransfer(pd) == p
+;
+
+DESIGN shipping {
+    OBJECTS {
+        MOVE BOX(u) {
+            PROPERTY(name(u)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                focusable = FALSE;
+                charWidth = 30;
+            }
+            PROPERTY(nameShippingBin(u)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 30;
+            }
+            PROPERTY(nameBinGroup2ShippingBin(u)) {
+                font = 'bold 24';
+                panelCaptionVertical = TRUE;
+                charWidth = 30;
+            }
+        }
+        NEW tabContainer {
+            tabbed = TRUE;
+            fill = 1;
+            NEW balance {
+                caption = 'Остаток';
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(s) { caption = 'По товарам'; }
+            }
+            NEW documents {
+                caption = 'Документы';
+                fill = 1;
+                MOVE BOX(p);
+                MOVE BOX(pd);
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    WMSDashboardNavigator {
+        NEW shipping;
+    }
+}

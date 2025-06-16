@@ -1,0 +1,18 @@
+MODULE BatchShippingBinLedger;
+
+REQUIRE ShippingBinLedger, BatchBinSkuLedger;
+
+NAMESPACE Sale;
+
+EXTEND FORM shipping
+    OBJECTS bt = Batch
+    PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name, expiryDate
+    PROPERTIES READONLY currentBalanceBatch 'Текущий остаток в ячейке' = currentBalance(bt, shippingBin(u))
+    FILTERS currentBalance(bt, shippingBin(u))
+;
+
+DESIGN shipping {
+    balance {
+        MOVE BOX(bt) { caption = 'По партиям'; }
+    }
+}
