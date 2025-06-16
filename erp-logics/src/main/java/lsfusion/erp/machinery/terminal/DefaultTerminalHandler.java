@@ -160,7 +160,7 @@ public class DefaultTerminalHandler {
                 
                 return Arrays.asList(barcode, BaseUtils.isEmpty(overNameSku) ? "" : overNameSku.toUpperCase(), priceValue == null ? "0" : priceValue,
                         quantityValue == null ? "0" : quantityValue, idSkuBarcode, nameManufacturer, fld3, fld4, fld5, isWeight,
-                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), category, unit, trustAcceptPercent, backgrounColor, lotType, ukz);
+                        mainBarcode, color, ticket_data, flags == null ? "0" : flags.toString(), category, unit, trustAcceptPercent, backgrounColor, lotType, ukz ? "1" : "0");
             } else return null;
 
         } catch (Exception e) {
