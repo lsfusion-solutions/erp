@@ -11,38 +11,46 @@ importerMarkup (UserRepricingDetail repricingDetail) += importerMarkup(repricing
 
 showImporterMarkup = DATA  BOOLEAN ();
 
-showImporterMarkup = ABSTRACT VALUE BOOLEAN (Repricing);
-showImporterMarkup(Repricing r) += r IS Repricing AND showImporterMarkup();
+overShowImporterMarkup = ABSTRACT VALUE BOOLEAN (Repricing);
+overShowImporterMarkup(Repricing r) += r IS Repricing AND showImporterMarkup();
 
 EXTEND FORM userRepricing
-    PROPERTIES(d) SHOWIF showImporterMarkup(p) BEFORE markup(d) importerMarkup
+    PROPERTIES(d) SHOWIF overShowImporterMarkup(p) BEFORE markup(d) importerMarkup
 ;
 
 EXTEND FORM repricings
-    PROPERTIES(d) READONLY SHOWIF showImporterMarkup(p) BEFORE markup(d) importerMarkup
+    PROPERTIES(d) READONLY SHOWIF overShowImporterMarkup(p) BEFORE markup(d) importerMarkup
 ;
 
 importerMarkup (PriceListLedger ledger) = MULTI Pricing.importerMarkup[PricingDetail](ledger), importerMarkup[RepricingDetail](ledger);
 prevImporterMarkup (PriceListLedger l) = PREV(importerMarkup(l));
 
+skipcalcImporterMarkup = ABSTRACT BOOLEAN ();
+
 WHEN LOCAL  (CHANGED(sku(UserRepricingDetail detail)) OR
             CHANGED(departmentStore(detail)) OR
-            (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED(importerMarkup(detail)) DO {
+            (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED(importerMarkup(detail)) AND NOT skipcalcImporterMarkup() DO {
     importerMarkup (detail) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));    
 }
 
 overRecalculatePrice(UserRepricingDetail detail) +  {
-    importerMarkup (detail)  <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+    IF NOT skipcalcImporterMarkup() THEN {
+        importerMarkup (detail)  <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku(detail), departmentStore(detail), dateTime(detail)));
+    }
 }
 
 overSetManagementRetailPriceCalc(CalcPriceListType ct, DepartmentStore d,DATETIME dt) + {
-    LOCAL importerMarkup = NUMERIC[8,3](Sku);
-    importerMarkup(Sku sku) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) WHERE managementRetailPrice(sku);
-    markupCorrect(Sku sku) <-  floor(((100.0 + markupCorrect(sku))/(100 + importerMarkup(sku))-1.0)*100.0, 0.01) WHERE markupCorrect(sku) AND importerMarkup(sku);
+    IF NOT skipcalcImporterMarkup() THEN {
+        LOCAL importerMarkup = NUMERIC[8,3](Sku);
+        importerMarkup(Sku sku) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) WHERE managementRetailPrice(sku);
+        markupCorrect(Sku sku) <- floor(((100.0 + markupCorrect(sku)) / (100 + importerMarkup(sku)) - 1.0) * 100.0, 0.01) WHERE markupCorrect(sku) AND importerMarkup(sku);
+    }
 }
 
 calculateDescriptionPricingExtra(CalcPriceListType ct,Sku sku, DepartmentStore d,DATETIME dt) + {
-    LOCAL importerMarkup = NUMERIC[8,3]();
-    importerMarkup() <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) ;
-    markupCorrect() <-  floor(((100.0 + markupCorrect())/(100 + importerMarkup())-1.0)*100.0, 0.01) WHERE markupCorrect() AND importerMarkup();
+    IF NOT skipcalcImporterMarkup() THEN {
+        LOCAL importerMarkup = NUMERIC[8,3]();
+        importerMarkup() <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) ;
+        markupCorrect() <-  floor(((100.0 + markupCorrect())/(100 + importerMarkup())-1.0)*100.0, 0.01) WHERE markupCorrect() AND importerMarkup();
+    }
 }
