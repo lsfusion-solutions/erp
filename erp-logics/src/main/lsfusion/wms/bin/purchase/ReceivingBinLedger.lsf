@@ -515,10 +515,14 @@ FORM receiving 'Приемка'
             binGroup2(rb)==binGroup2(receivingBin(u)),
             orderLedger(rb)
 
+    OBJECTS dFrom = DATE PANEL, dTo = DATE PANEL
+    PROPERTIES dFrom 'Дата с' = VALUE(dFrom), dTo 'Дата по' = VALUE(dTo)
     OBJECTS putawaySku = BinTransferDetail
-    PROPERTIES(putawaySku) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin
-    PROPERTIES READONLY currentBalancePS 'Текущий остаток в ячейке' = currentBalance(sku(putawaySku), outBin(putawaySku))
-    FILTERS currentBalance(sku(putawaySku), outBin(putawaySku)), accessCompany(u, outBin(putawaySku)), inBin(putawaySku) = receivingBin(u), operation(putawaySku) = Bin.operation('extrnal')
+    PROPERTIES(putawaySku) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin, quantity
+    FILTERS dFrom<=date(putawaySku) AND dTo>=date(putawaySku),
+        accessCompany(u, outBin(putawaySku)), 
+        inBin(putawaySku) = receivingBin(u), 
+        operation(putawaySku) = Bin.operation('extrnal')
 
     OBJECTS srstr = (sr1=Sku, str1 = STRING)
     PROPERTIES READONLY nameStatus(sr1, str1, r) BACKGROUND RGB(255, 224, 255)
@@ -578,6 +582,12 @@ DESIGN receiving {
             }
             NEW stocked {
                 caption = 'Размещенные';
+                NEW filterContaoner {
+                    horizontal = TRUE;
+                    caption = 'Период размещения';
+                    MOVE PROPERTY(dFrom);
+                    MOVE PROPERTY(dTo);
+                }
                 MOVE BOX(putawaySku);
             }
         }
