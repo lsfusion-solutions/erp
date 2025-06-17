@@ -1,0 +1,196 @@
+MODULE WB;
+
+REQUIRE SystemEvents, LogTools;
+
+CLASS CategoryRequest 'Категория запроса' {
+    content 'Контент', // sandbox
+    analitics 'Аналитика', 
+    pricesDiscounts 'Цены и скидки', // sandbox
+    marketplace 'Маркетплейс', 
+    statistics 'Статистика', // sandbox
+    promotion 'Продвижение', // sandbox
+    questionsFeedback 'Вопросы и отзывы', // sandbox
+    chatCustomers 'Чат с покупателями', 
+    shipment 'Поставки', 
+    returns 'Возвраты', 
+    documents 'Документы', 
+    finance 'Финансы', 
+    common 'Тарифы, Новости, Информация о продавце' 
+};
+
+httpHeaders = DATA LOCAL NESTED TEXT(TEXT);
+
+@defineLogRotate(WB, 5, weekly);
+
+domain 'Домен' = DATA STRING();
+sandbox 'Режим песочницы(тестовый)' = DATA BOOLEAN ();
+token 'Токен (общий)' = DATA TEXT ();
+tokenCategoryRequest 'Токен' = DATA STRING(CategoryRequest);
+token 'Токен'(CategoryRequest cr) = STRING(OVERRIDE tokenCategoryRequest(cr), token());
+urlId 'Подстрока' = DATA STRING(CategoryRequest); 
+url 'URL' (CategoryRequest cr)= CONCAT '', 'https://', urlId(cr), '-sandbox' IF sandbox(),'.',domain(); 
+
+defaultSet = DATA BOOLEAN ();
+
+CLASS StatusHTTP 'Статус HTTP' {
+    successfully '200',
+    changed '204',
+    incorrect '400',
+    notAuthorized '401',
+    accessDenied '403',
+    addressNotFound '404', 
+    errorSaved '409',
+    limitExceeded '413',
+    missingParameter'422', 
+    manyRequests '429',
+    internalServerError '500' 
+};
+
+id 'Код' = DATA INTEGER (StatusHTTP);
+statusHTTP (id) = GROUP AGGR StatusHTTP sh BY id(sh);
+name 'Описание' = DATA STRING (StatusHTTP);
+solution 'Как решить' = DATA STRING (StatusHTTP);
+
+onStarted() + {
+    NEWSESSION {
+        IF NOT defaultSet() THEN {
+            defaultSet() <- TRUE;
+            domain() <- 'wildberries.ru';
+            urlId(CategoryRequest cr) <- 'content-api' WHERE cr == CategoryRequest.content;
+            urlId(CategoryRequest cr) <- 'seller-analytics-api' WHERE cr == CategoryRequest.analitics;
+            urlId(CategoryRequest cr) <- 'discounts-prices-api' WHERE cr == CategoryRequest.pricesDiscounts;
+            urlId(CategoryRequest cr) <- 'marketplace-api' WHERE cr == CategoryRequest.marketplace;
+            urlId(CategoryRequest cr) <- 'statistics-api' WHERE cr == CategoryRequest.statistics;
+            urlId(CategoryRequest cr) <- 'advert-api' WHERE cr == CategoryRequest.promotion;
+            urlId(CategoryRequest cr) <- 'feedbacks-api' WHERE cr == CategoryRequest.questionsFeedback;
+            urlId(CategoryRequest cr) <- 'buyer-chat-api' WHERE cr == CategoryRequest.chatCustomers;
+            urlId(CategoryRequest cr) <- 'supplies-api' WHERE cr == CategoryRequest.shipment;
+            urlId(CategoryRequest cr) <- 'returns-api' WHERE cr == CategoryRequest.returns;
+            urlId(CategoryRequest cr) <- 'documents-api' WHERE cr == CategoryRequest.documents;
+            urlId(CategoryRequest cr) <- 'finance-api' WHERE cr == CategoryRequest.finance;
+            urlId(CategoryRequest cr) <- 'common-api' WHERE cr == CategoryRequest.common;
+
+            id (StatusHTTP sh) <- INTEGER (staticCaption(sh)); 
+
+            name(StatusHTTP sh) <- 'Успешно' WHERE sh == StatusHTTP.successfully;
+            name(StatusHTTP sh) <- 'Удалено/Обновлено/Добавлено' WHERE sh == StatusHTTP.changed;
+
+            name(StatusHTTP sh) <- 'Неправильный запрос' WHERE sh == StatusHTTP.incorrect;
+            solution(StatusHTTP sh) <- 'Проверьте синтаксис запроса' WHERE sh == StatusHTTP.incorrect;
+
+            name(StatusHTTP sh) <- 'Пользователь не авторизован' WHERE sh == StatusHTTP.notAuthorized;
+            solution(StatusHTTP sh) <- 'Проверьте токен авторизации. Категория токена должна совпадать с категорией API. 
+            Также токен может: быть просрочен, быть некорректным, отсутствовать в запросе' WHERE sh == StatusHTTP.notAuthorized;
+
+            name(StatusHTTP sh) <- 'Доступ запрещён' WHERE sh == StatusHTTP.accessDenied;
+            solution(StatusHTTP sh) <- 'Токен не должен быть сгенерирован удалённым пользователем. Доступ к методу не должен 
+            быть заблокирован. Если вы хотите использовать методы Джема, проверьте подписку в личном кабинете' WHERE sh == StatusHTTP.accessDenied;
+
+            name(StatusHTTP sh) <- 'Адрес не найден' WHERE sh == StatusHTTP.addressNotFound;
+            solution(StatusHTTP sh) <- 'Проверьте URL запроса' WHERE sh == StatusHTTP.addressNotFound;
+
+            name(StatusHTTP sh) <- 'Ошибка сохранения для части ссылок/обновления статуса/добавления сборочного задания/т.д.' WHERE sh == StatusHTTP.errorSaved;
+            solution(StatusHTTP sh) <- 'Проверьте данные запроса. Они должны отвечать требованиям и ограничениям сервиса' WHERE sh == StatusHTTP.errorSaved;
+
+            name(StatusHTTP sh) <- 'Превышен лимит объёма данных в запросе' WHERE sh == StatusHTTP.limitExceeded;
+            solution(StatusHTTP sh) <- 'Уменьшите количество объектов в запросе' WHERE sh == StatusHTTP.limitExceeded;
+
+            name(StatusHTTP sh) <- 'Отсутствие в запросе параметра nmId/Размер ставки не изменен/т.д.' WHERE sh == StatusHTTP.missingParameter;
+            solution(StatusHTTP sh) <- 'Проверьте данные запроса. Данные запроса не должны противоречить друг другу' WHERE sh == StatusHTTP.missingParameter;
+
+            name(StatusHTTP sh) <- 'Слишком много запросов' WHERE sh == StatusHTTP.manyRequests;
+            solution(StatusHTTP sh) <- 'Проверьте лимиты запросов и повторите запрос позже' WHERE sh == StatusHTTP.manyRequests;
+
+            name(StatusHTTP sh) <- 'Внутренние ошибки сервиса' WHERE sh == StatusHTTP.internalServerError;
+            solution(StatusHTTP sh) <- 'Сервис недоступен. Повторите запрос позже или обратитесь в техническую поддержку' WHERE sh == StatusHTTP.internalServerError;
+            APPLY;
+        }
+    }
+}
+
+messageStatusHTTP (STRING statusCode) = CASE 
+    WHEN statusCode == 'OK' THEN CONCAT '', '<h2><font color=#FF3333> 200 - ', name(statusHTTP(200)),'</font></h2>', '<h3>', solution(statusHTTP(200)), '</h3>'
+    WHEN INTEGER(statusCode) >= 500 AND INTEGER (statusCode) < 600 THEN 
+        CONCAT '', '<h2><font color=#FF3333> ', statusCode,' - ', name(statusHTTP(500)), '</font></h2>', '<h3>', solution(statusHTTP(500)), '</h3>'
+    WHEN INTEGER(statusCode) IS INTEGER THEN 
+        CONCAT '', '<h2><font color=#FF3333> ', statusCode,' - ', name(statusHTTP(INTEGER(statusCode))), '</font></h2>', '<h3>', solution(statusHTTP(INTEGER(statusCode))), '</h3>'                                          
+    ELSE '<h2><font color=#FF3333> Код ошибки: ' + statusCode + '</font></h2' //должно вернуть null, если нет statusCode
+;
+
+setHttpHeadersIS 'Задать токен' (STRING token){
+    httpHeaders('Content-Type') <- 'application/json';
+    httpHeaders('Authorization') <- NULL;
+
+    IF token THEN {
+        httpHeaders('Authorization') <- token;
+    }
+}
+
+setHttpHeadersIS 'Задать токен' () {
+    setHttpHeadersIS(token());
+}
+
+afterSendRequestIS () {
+    insecureSSL() <- NULL;
+}
+
+ping 'Проверка подключения' (CategoryRequest cr) {
+    setHttpHeadersIS();
+    
+    LOCAL message = STRING ();
+    LOCAL response = FILE();
+    LOCAL status = STRING ();
+    LOCAL Status = STRING ();
+    
+    logToFile('WB', 'GET: '+ url(cr) + '/ping' + '\n' + resultFile());
+    TRY {
+        EXTERNAL HTTP GET url(cr) + '/ping' HEADERS httpHeaders PARAMS resultFile() TO response;
+        logToFile('WB', response());
+        IMPORT JSON FROM response() TO() status = status, Status = Status
+        message() <- messageStatusHTTP(OVERRIDE status(), Status());
+    } CATCH {
+        logToFile('WB', messageCaughtException());
+        IMPORT JSON FROM response() TO() status = status, Status = Status
+        message() <- OVERRIDE messageStatusHTTP(OVERRIDE status(), Status()), messageCaughtException();
+    } FINALLY {
+        afterSendRequestIS();
+        MESSAGE message() NOWAIT;
+    }
+}
+
+@extendFormEditable(integrationData);
+
+EXTEND FORM integrationData
+    PROPERTIES() domain, sandbox, token
+    OBJECTS cr = CategoryRequest
+    PROPERTIES(cr) staticCaption READONLY, urlId, url, token, ping  
+    ORDERS staticCaption(cr)
+    OBJECTS sh = StatusHTTP
+    PROPERTIES(sh) id READONLY , name, solution
+    ORDERS id(sh)
+    PROPERTIES(sh) NEW, EDIT, DELETE 
+;
+
+DESIGN integrationData {
+    pane {
+        NEW wb {
+            caption = 'WB';
+            NEW tabContainer {
+                tabbed = TRUE;
+                fill = 1;
+                NEW connectionSettings {
+                    caption = 'Настройки подключения';
+                    MOVE PROPERTY (domain());
+                    MOVE PROPERTY (sandbox());
+                    MOVE PROPERTY (token());
+                    MOVE BOX(cr);
+                                   }
+                NEW codesError {
+                    caption = 'Коды ошибок';
+                    horizontal = TRUE;
+                    MOVE BOX(sh);
+                }
+            }
+        }
+    }
+}
