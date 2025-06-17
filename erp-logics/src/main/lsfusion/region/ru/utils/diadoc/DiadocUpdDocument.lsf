@@ -1059,7 +1059,13 @@ FORM updBuyer FORMEXTID 'Файл'
 ;
 
 fillBuyerTitle 'Заполнения титула покупателя в УПД' (UpdDocument u, XMLFILE f){
-    IMPORT updBuyer XML FROM f;
+    TRY {
+        IMPORT updBuyer XML FROM f;
+    } CATCH {
+        fileToString(FILE(f));
+        logToFile('diadoc', CONCAT '\n', 'Ошибка при разборе XML титула покупателя', messageCaughtException(), resultString());
+        throwException(CONCAT '\n', 'Ошибка при разборе XML титула покупателя', messageCaughtException(), resultString());
+    }
     
     dateCustomer(u)<- toDateFormat(vdataInfPok(), 'DD.MM.YYYY');
     timeCustomer(u)<- TIME(toDateTimeFormat(vvriemInfPok(), 'HH24.MI.SS'));
