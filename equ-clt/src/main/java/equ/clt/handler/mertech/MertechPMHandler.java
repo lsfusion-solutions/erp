@@ -804,7 +804,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             Product product = new Product();
             product.id = strPluNumber; //ID товара
             product.name = item.name;
-            product.code = strPluNumber; //Код товара
+            product.code = item.idBarcode; //Код товара
             product.pluNumber = strPluNumber; //? ПЛУ товара
             product.buttonNumber = pluNumber; //? Номер кнопки
             //product.gtin = null; // ? GTIN
