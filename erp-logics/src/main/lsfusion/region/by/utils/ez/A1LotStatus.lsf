@@ -1,0 +1,79 @@
+MODULE A1LotStatus;
+
+REQUIRE EZLotStatus;
+
+NAMESPACE A1;
+
+urlA1 'Url к Web-сервису цифровой помошник' = DATA STRING ();
+usernameA1 'Пользователь' = DATA STRING();
+passwordA1 'Пароль для API' = DATA STRING() ECHO;
+UID 'UID для тестирования' = DATA STRING ();
+
+useA1ForLotStatus 'Использовать для проверки статуса марок' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() urlA1, usernameA1, passwordA1, UID, useA1ForLotStatus
+;
+
+DESIGN integrationData {
+    lotBy {
+        NEW a1 {
+            caption = 'A1';
+            MOVE PROPERTY(urlA1());
+            MOVE PROPERTY(usernameA1());
+            MOVE PROPERTY(passwordA1());
+            MOVE PROPERTY(UID());
+            MOVE PROPERTY(useA1ForLotStatus());
+        }
+    }
+}
+
+FORM exportLots
+    OBJECTS codes = Lot
+    PROPERTIES(codes) code EXTID 'value'
+    FILTERS in(codes);
+
+
+GROUP status;
+code = DATA LOCAL STRING(INTEGER);
+statusCode = DATA LOCAL NUMERIC(INTEGER);
+
+FORM importLotStatus
+    OBJECTS codes = INTEGER
+    PROPERTIES(codes) code
+    PROPERTIES(codes) IN status statusCode EXTID 'code';
+
+overGetStatus() + {
+    IF useA1ForLotStatus() THEN {
+        consumedGetStatus() <- TRUE;
+
+        in(Lot l) <- NULL WHERE inExport(l);
+        exception(Lot l) <- NULL WHERE inExport(l);
+        
+        encodeBase64(usernameA1() + ':' + passwordA1());
+        headers('Authorization') <- 'Basic ' + encodedBase64();
+        headers('UID') <- OVERRIDE UID(), hostnameCurrentComputer();
+        
+        EXPORT exportLots JSON;
+
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlA1() + '/api/check-code' HEADERS headers PARAMS exportFile() TO file;
+
+            IMPORT importLotStatus JSON FROM file();
+            status(Lot l) <- (GROUP MIN statusLot(statusCode(INTEGER i)) IF code(l) == code(i)) WHERE in(l);
+            in(Lot l) <- NULL;
+        } CATCH {
+            logToFile('ez', messageCaughtException());
+
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к A1', messageCaughtException() NOWAIT;
+
+            NEWSESSION NESTED (messageCaughtException, resultString) {
+                exception(Lot l) <- CONCAT ', ', messageCaughtException(), resultString() WHERE in(l);
+                APPLY;
+            }
+            RETURN;
+        }
+    }
+    
+}
