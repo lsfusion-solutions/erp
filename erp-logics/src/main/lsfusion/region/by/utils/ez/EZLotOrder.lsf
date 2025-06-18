@@ -1,6 +1,6 @@
 MODULE EZLotOrder;
 
-REQUIRE EZLegalEntity, EZLotStatus, LotOrder, LotBy, CustomsGroupItem;
+REQUIRE EZLotStatus, LotOrder, LotBy, CustomsGroupItem;
 
 NAMESPACE EZ;
 
@@ -71,101 +71,6 @@ DESIGN lotOrders {
         NEW ez {
             caption = 'Электронный знак';
         }
-    }
-}
-
-ezHeadersAuthorization (TEXT name) = CASE
-    WHEN name = 'Content-Type' THEN 'application/x-www-form-urlencoded'
-    WHEN name = 'Host' THEN hostEZ();
-
-//авторизация
-authorization 'Авторизация в ЭЗ' () {
-    NEWSESSION {
-        LOCAL result = FILE();
-        // Вариант 1
-        TRY {
-            headers('Host') <- hostEZ();
-            headers('Content-Type') <- 'multipart/form-data; boundary=...';
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(), passwordEZ() TO result;
-        } CATCH {
-            MESSAGE messageCaughtException() NOWAIT;
-            fileToString(result());
-            MESSAGE resultString() NOWAIT;
-        }
-        fileToString(result());
-        IMPORT JSON FROM result() TO() token;
-        APPLY;
-                   
-        IF token() THEN RETURN;
-
-        // Вариант 2
-        TRY {
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization
-                PARAMS CONCAT '&',
-                'username=' + usernameEZ(),
-                'password=' + passwordEZ(),
-                'is_rules_agree=True'
-                TO result;
-        } CATCH {
-
-        }
-        fileToString(result());
-        IMPORT JSON FROM result() TO() token;
-        APPLY;
-    }
-}
-
-authorization 'Авторизация в ЭЗ' (LegalEntity l) {
-    NEWSESSION {
-        LOCAL result = FILE();
-        LOCAL token = STRING();
-
-        // Вариант 1
-        TRY {
-            headers('Host') <- hostEZ();
-            headers('Content-Type') <- 'multipart/form-data; boundary=...';
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(l), passwordEZ(l) TO result;
-        } CATCH {
-            MESSAGE messageCaughtException() NOWAIT;
-        }
-        fileToString(result());
-        IMPORT JSON FROM result() TO() token;
-        dataToken(l) <- token();
-        
-        APPLY;
-
-        IF token() THEN RETURN;
-        
-        TRY {
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/auth' HEADERS ezHeadersAuthorization
-                PARAMS CONCAT '&',
-                'username=' + usernameEZ(l),
-                'password=' + passwordEZ(l),
-                'is_rules_agree=True'
-                TO result;
-        } CATCH {
-            MESSAGE messageCaughtException() NOWAIT;
-        }
-        fileToString(result());
-        IMPORT JSON FROM result() TO() token;
-        dataToken(l) <- token();
-        
-        APPLY;
-    }
-}
-
-EXTEND FORM integrationData
-    PROPERTIES() authorization
-    PROPERTIES(lez) authorization GRID
-;
-
-DESIGN integrationData {
-    EZ {
-        MOVE PROPERTY(authorization()) BEFORE PROPERTY(useEZLegalEntity());
     }
 }
 

@@ -69,18 +69,6 @@ EXTEND FORM lots
 ;
 
 exception 'Сообщение' = DATA TEXT (Lot);
-handleException (Lot l, FILE exception) {
-    logToFile('ez', messageCaughtException());
-    
-    logToFile('ez', exception);
-    fileToString(exception);
-    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
-
-    NEWSESSION NESTED (messageCaughtException, resultString) {
-        exception(l) <- CONCAT ', ', messageCaughtException(), resultString();
-        APPLY;
-    }
-}
 
 EXTEND FORM lots
     PROPERTIES(l) READONLY exception PANEL SHOWIF exception(l)
@@ -101,3 +89,12 @@ isBY 'РБ' = ABSTRACT BOOLEAN (Lot);
 EXTEND FORM lots
     PROPERTIES (l) READONLY idBarcodeSku BEFORE idSku(l)
 ;
+
+DESIGN integrationData {
+    pane {
+        NEW lotBy {
+            caption = 'Макировка';
+            tabbed = TRUE;
+        }
+    }
+}

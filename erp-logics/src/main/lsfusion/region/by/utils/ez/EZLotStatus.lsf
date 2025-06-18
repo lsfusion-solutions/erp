@@ -1,26 +1,14 @@
 MODULE EZLotStatus;
 
-REQUIRE EZLegalEntity, LotBy;
+REQUIRE EZAuthentication, LotBy;
 
 NAMESPACE EZ;
-
-status 'Статус (по организации)' = DATA LotStatus (Lot, LegalEntity);
-codeStatus 'Код статуса (по организации)' (Lot l, LegalEntity le) = code(status(l, le));
-nameStatus 'Статус (по организации)' (Lot l, LegalEntity le) = name(status(l, le));
 
 EXTEND FORM lots
     OBJECTS lez = LegalEntity PANEL BEFORE l
     PROPERTIES(lez) SHOWIF useEZLegalEntity() name SELECTOR
     FILTERS dataToken(lez)
-
-    PROPERTIES(l, lez) READONLY SHOWIF useEZLegalEntity() AFTER nameStatus(l) nameStatus
 ;
-
-showLotStatus = DATA BOOLEAN();
-
-DESIGN lots {
-    PROPERTY (nameStatus(l)) { showIf = NOT useEZLegalEntity() OR showLotStatus(); }
-}
 
 jsonAttributeCount (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_each(($1)::json))';
 jsonAttributeKey (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
@@ -36,8 +24,6 @@ jsonAttributeCount2 (STRING s) = FORMULA INTEGER '(SELECT COUNT(*) FROM json_eac
 jsonAttributeKey2 (STRING s, INTEGER i) = FORMULA TEXT 'SELECT key FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 jsonAttributeValue2 (STRING s, INTEGER i) = FORMULA JSON 'SELECT value FROM json_each(($1)::json) OFFSET (($2)-1) LIMIT 1';
 
-labels = DATA LOCAL STRING(INTEGER);
-
 inExport = DATA LOCAL BOOLEAN (Lot);
 
 FORM exportLots
@@ -47,7 +33,6 @@ FORM exportLots
 ;
 
 label = DATA LOCAL STRING(INTEGER);
-found = DATA LOCAL BOOLEAN(INTEGER);
 
 GROUP status EXTID 'status';
 lotCode = DATA LOCAL INTEGER(INTEGER);
@@ -60,14 +45,19 @@ FORM importLotStatus
         lotCode EXTID 'code'
 ;
 
-exportIndex(Lot l) = PARTITION SUM 1 IF in(l) ORDER l;
+consumedGetStatus = DATA LOCAL BOOLEAN ();
+overGetStatus ABSTRACT ();
 
 // ЭЗ принимает не больше 1000
 getStatus 'Получить статус' () {
+
+    overGetStatus();
+    IF consumedGetStatus() THEN RETURN ;
+    
     LOCAL result = FILE();
     LOCAL exportIndex = INTEGER (Lot);
 
-    ezToken() <- token();
+    ezToken() <- token() WHERE NOT ezToken();
     timeoutHttp() <- 300000;
 
     WHILE (countInLot()) NOINLINE DO {
@@ -114,74 +104,15 @@ getStatusApply 'Получить статус' (Lot l) {
     APPLY;
 }
 
-exception 'Сообщение (по организации)' = DATA TEXT (Lot, LegalEntity);
-
-handleException (Lot l, LegalEntity le, FILE exception) {
-    logToFile('ez', messageCaughtException());
-
-    logToFile('ez', exception);
-    fileToString(exception);
-    MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
-
-    NEWSESSION NESTED (messageCaughtException, resultString) {
-        exception(l, le) <- CONCAT ', ', messageCaughtException(), resultString();
-        APPLY;
-    }
-}
-
-EXTEND FORM lots
-    PROPERTIES(l, lez) READONLY exception PANEL SHOWIF exception(l, lez)
-;
-
-DESIGN lots {
-    ez {
-        MOVE PROPERTY(exception(l, lez)) { panelCaptionVertical = TRUE; fill = 1; };
-    }
-}
-
 getStatus 'Получить статус' (LegalEntity le) {
-    LOCAL result = FILE();
-    LOCAL exportIndex = INTEGER (Lot);
-
     ezToken() <- token(le);
-    timeoutHttp() <- 300000;
-
-    WHILE (countInLot()) NOINLINE DO {
-        exportIndex(Lot l) <- PARTITION SUM 1 IF in(l) ORDER l;
-        inExport(Lot l) <- TRUE WHERE exportIndex(l) <= 900;
-        in(Lot l) <- NULL WHERE inExport(l);
-        exception(Lot l, le) <- NULL WHERE inExport(l);
-
-        EXPORT exportLots JSON;
-
-        TRY {
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ() + '/v2/labels/' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;            
-
-            IMPORT importLotStatus JSON FROM result();
-            status(Lot l, le) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
-            inExport(Lot l) <- NULL;
-        } CATCH {
-            logToFile('ez', messageCaughtException());
-
-            logToFile('ez', result());
-            fileToString(result());
-            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
-
-            NEWSESSION NESTED (messageCaughtException, resultString) {
-                exception(Lot l, le) <- CONCAT ', ', messageCaughtException(), resultString() WHERE inExport(l);
-                APPLY;
-            }
-            RETURN;
-        }
-    }
+    getStatus();
 }
 
 getStatus 'Получить статус' (Lot lot, LegalEntity le) {
     IF NOT countInLot() THEN {
         in(lot) <- TRUE;
     }
-
     getStatus(le);
 }
 

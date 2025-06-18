@@ -1,5 +1,7 @@
 MODULE EZAuthentication;
 
+REQUIRE Utils, LotBy, LegalEntity;
+
 NAMESPACE EZ;
 
 urlEZ 'Url к Web-сервису ГИС "Электронный знак"' = DATA STRING ();
@@ -7,7 +9,7 @@ testWebService 'Тестовый Web-сервис' = DATA BOOLEAN ();
 usernameEZ 'Пользователь' = DATA STRING();
 passwordEZ 'Пароль для API' = DATA STRING() ECHO;
 hostEZ 'Host' = DATA STRING ();
-token 'Токен' = DATA STRING ();
+token 'Токен' = DATA STRING () ECHO;
 
 ezToken = DATA LOCAL STRING ();
 
@@ -23,7 +25,7 @@ EXTEND FORM integrationData
 ;
 
 DESIGN integrationData {
-    pane {
+    lotBy {
         NEW EZ {
             caption = 'ЭЗ';
             MOVE PROPERTY(urlEZ());
@@ -36,3 +38,85 @@ DESIGN integrationData {
     }
 }
 
+//авторизация
+authorization 'Авторизация в ЭЗ' () {
+    NEWSESSION {
+        LOCAL result = FILE();
+        TRY {
+            headers('Host') <- hostEZ();
+            headers('Content-Type') <- 'multipart/form-data; boundary=...';
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(), passwordEZ() TO result;
+        } CATCH {
+            MESSAGE messageCaughtException() NOWAIT;
+            fileToString(result());
+            MESSAGE resultString() NOWAIT;
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() token;
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() authorization;
+
+DESIGN integrationData {
+    EZ {
+        MOVE PROPERTY(authorization());
+    }
+}
+
+dataUsernameEZ 'Пользователь' = DATA STRING(LegalEntity);
+dataPasswordEZ 'Пароль для API' = DATA STRING(LegalEntity) ECHO;
+
+dataToken 'Токен' = DATA STRING (LegalEntity);
+
+useEZLegalEntity 'Использовать организации' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES useEZLegalEntity()
+
+    OBJECTS lez = LegalEntity
+    PROPERTIES(lez) READONLY id, name
+    PROPERTIES(lez) dataUsernameEZ, dataPasswordEZ, dataToken READONLY
+    FILTERS isCompany(lez)
+;
+
+DESIGN integrationData {
+    EZ {
+        MOVE PROPERTY(useEZLegalEntity());
+        MOVE BOX(lez) { showIf = useEZLegalEntity(); }
+    }
+}
+
+usernameEZ(LegalEntity l) = OVERRIDE dataUsernameEZ(l), (usernameEZ() IF l IS LegalEntity);
+passwordEZ(LegalEntity l) = OVERRIDE dataPasswordEZ(l), (passwordEZ() IF l IS LegalEntity);
+token(LegalEntity l) = OVERRIDE dataToken(l), (token() IF l IS LegalEntity);
+
+EZActive(LegalEntity l) = useEZLegalEntity() AND dataToken(l) MATERIALIZED;
+
+authorization 'Авторизация в ЭЗ' (LegalEntity l) {
+    NEWSESSION {
+        LOCAL result = FILE();
+        LOCAL token = STRING();
+
+        TRY {
+            headers('Host') <- hostEZ();
+            headers('Content-Type') <- 'multipart/form-data; boundary=...';
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(l), passwordEZ(l) TO result;
+        } CATCH {
+            MESSAGE messageCaughtException() NOWAIT;
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() token;
+        dataToken(l) <- token();
+
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(lez) authorization GRID
+;

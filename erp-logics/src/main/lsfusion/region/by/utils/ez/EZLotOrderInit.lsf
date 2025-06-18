@@ -8,16 +8,14 @@ NAMESPACE EZ;
 lotInit  = DATA LOCAL LotInit ();
 gtin  = DATA LOCAL STRING[14] ();
 isSend 'Отправлен' (Lot l) = order(status(l)) >= order(LotStatus.MARKED);
-isSend 'Отправлен' (LotInit i, Lot l) = order(status(l, legalEntityStock(i))) >= order(LotStatus.MARKED);
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (LotInitDetail);
 select 'Отм.' (Lot l) = TRUE IF (GROUP SUM 1 IF quantity(LotInitDetail d, l) AND select(d));
 
 EZActiveLegalEntity (LotInit i) = EZActive(legalEntityStock(i));
-EZActiveLegalEntity (LotInitDetail d) = EZActiveLegalEntity(lotInit(d));
 
 filterLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND gtin() == gtin(l) 
-    AND NOT (isSend(l) AND NOT EZActiveLegalEntity(lotInit())) AND NOT (isSend(lotInit(), l) AND EZActiveLegalEntity(lotInit())) AND
+    AND NOT isSend(l) AND
     (NOT (GROUP SUM 1 IF select(LotInitDetail d)) OR select(l));
     
 exception 'Сообщение' = DATA TEXT (LotInit);
@@ -157,7 +155,7 @@ gtin 'GTIN' (LotInitDetail d) = OVERRIDE overGtin(d), gtin14(sku(d));
 
 lastLotInitDetail(LotInit i, STRING[14] gtin) = GROUP LAST LotInitDetail d IF i == lotInit(d) AND gtin == gtin(d) ORDER d;
 
-quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF (isSend(l) AND NOT EZActiveLegalEntity(d)) OR (isSend(lotInit(d), l) AND EZActiveLegalEntity(d));
+quantitySendLot 'Кол-во отправленных марок' (LotInitDetail d) = GROUP SUM quantity(d, Lot l) * count(l) IF isSend(l);
 isSend 'Отправлен' (LotInitDetail d) = quantitySendLot(d) == quantityLot(d) AND quantitySendLot(d);
 quantitySendLot 'Кол-во марок' (LotInit i) = GROUP SUM quantitySendLot(LotInitDetail d) IF lotInit(d) = i;
 isSend 'Отправлен' (LotInit i) = quantitySendLot(i) == quantityLot(i) AND quantityLot(i);
@@ -349,7 +347,7 @@ addMark 'Отправить отчет'(LotInit i) {
         addMark(i, gtin);
     }
 
-    in(Lot l) <- lotInit(l) == i AND NOT isSend(i, l) WHERE lotInit(l) == i;
+    in(Lot l) <- lotInit(l) == i AND NOT isSend(l) WHERE lotInit(l) == i;
     
     // получение статусов для марок
     IF EZActive(legalEntityStock(i)) THEN {
@@ -392,14 +390,11 @@ getStatusApply 'Получить статус' (LotInit i, Lot l) {
     getStatusApply(l, legalEntityStock(i));
 }
 
-nameStatus 'Статус' (LotInit i, Lot l) = nameStatus(l, legalEntityStock(i));
-
 EXTEND FORM lotInit   
     PROPERTIES(r) getStatusReport TOOLBAR
     PROPERTIES(i) getStatusReport DRAW r TOOLBAR
     PROPERTIES(d) READONLY isSend, quantitySendLot
-    PROPERTIES(l) READONLY SHOWIF NOT EZActiveLegalEntity(i) nameStatus, isSend
-    PROPERTIES(i, l) READONLY SHOWIF EZActiveLegalEntity(i) nameStatus, isSend
+    PROPERTIES(l) READONLY nameStatus, isSend
     PROPERTIES(l) getStatusApply TOOLBAR SHOWIF NOT EZActiveLegalEntity(i)
     PROPERTIES(i, l) getStatusApply TOOLBAR DRAW l SHOWIF EZActiveLegalEntity(i)
 ;
