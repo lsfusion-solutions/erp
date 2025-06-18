@@ -1,6 +1,6 @@
 MODULE ItemEcologyRu;
 
-REQUIRE ItemRu, CrossImport;
+REQUIRE ItemRu, CrossImport, CustomsGroupItem;
 
 NAMESPACE Item;
 
@@ -130,5 +130,118 @@ EXTEND FORM items
 DESIGN  items{
     actionsImport{
         MOVE PROPERTY (importMaterialMigrate());
+    }
+}
+
+isEcology (CustomGroupType t) = id(t)=='ecology';
+isEcology(CustomGroup g) = isEcology(customGroupType(g));
+
+META defineGroupDefaultValue(property, caption, type, groupClass, extraObj)
+    data###property caption = DATA type (###groupClass,###extraObj);
+
+    levelParent###property (###groupClass child, ###extraObj extra) = GROUP MIN level(child, ###groupClass parent) IF data###property(parent, extra) MATERIALIZED;
+    nearestParent###property (###groupClass g, ###extraObj extra) = groupClass(g, levelParent###property(g,extra));
+    nearest###property (###groupClass g, ###extraObj extra) = data###property(nearestParent###property (g,extra),extra);
+    property caption (###groupClass g, ###extraObj extra) =
+        OVERRIDE data###property(g, extra),
+            nearest###property (g, extra) MATERIALIZED;
+    prev###property caption (###groupClass g, ###extraObj extra) =PREV(property(g,extra));
+
+END
+
+@defineGroupDefaultValue(ecoTax, 'Экологический сбор (руб. за тонну)', NUMERIC[18,4], customGroup, INTEGER);
+@defineGroupDefaultValue(disposalNorm, 'Норма утилизации, %', NUMERIC[8,2], customGroup, INTEGER);
+@defineGroupDefaultValue(complexityFactor, 'Коэффициент сложности переаработки',  NUMERIC[8,2], customGroup, INTEGER);
+
+EXTEND FORM customGroup
+    OBJECTS int = (from = INTEGER , to = INTEGER ) PANEL
+    PROPERTIES valFrom 'С'= VALUE (from), valTo = VALUE(to)
+    
+    OBJECTS year = INTEGER 
+    FILTERS iterate(year, from,to)
+    PROPERTIES  READONLY valY 'Год' = VALUE(year)
+    PROPERTIES (g,year)  ecoTax, disposalNorm, complexityFactor
+    
+    EVENTS ON INIT {
+        SEEK customGroup.int OBJECTS from = extractYear(currentDate())-1, to = extractYear(currentDate())+2;
+    }
+;
+
+DESIGN customGroup {
+    OBJECTS {
+        MOVE BOX (g);
+        NEW tab{
+            fill = 1;
+            tabbed = TRUE;
+            showIf = isEcology(g);
+            caption = 'Экология';
+            NEW year{
+                fill = 1;
+                caption = 'Нормы';
+                MOVE BOX(int){caption = 'Период';}
+                MOVE BOX(year){caption = 'Год';}
+            }
+        }
+    }
+}
+
+EXTEND FORM customGroups    
+    OBJECTS year = INTEGER    
+    PROPERTIES (g,year) READONLY SHOWIF isEcology(t) ecoTax, disposalNorm, complexityFactor
+    FILTERS iterate(year, extractYear(currentDate()),extractYear(currentDate())+2)
+;
+DESIGN customGroups{
+    BOX(year){caption = 'Год';}
+}
+
+TABLE customGroupCustomsGroup(CustomGroup, CustomsGroup);
+
+in 'Вкл.' = DATA BOOLEAN (CustomGroup, CustomsGroup) TABLE customGroupCustomsGroup;
+
+fillEcology 'Заполнить группу товарам по ТН ВЭД' (CustomGroup g, CustomGroupType t ){
+    customGroup(t, Item i) <- g WHERE NOT customGroup(t, i) AND  in(g, customsGroup(defaultCountry(), i));
+}
+fillEcology 'Заполнить группу товарам по ТН ВЭД' (CustomGroup g ){
+    fillEcology(g,customGroupType(g));
+}
+
+fillEcology 'Заполнить группу товарам по ТН ВЭД' (CustomGroupType t){
+    NEWSESSION {
+        FOR customGroupType(CustomGroup g)==t DO {
+            fillEcology(g,t);
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM customGroups
+    PROPERTIES fillEcology(t)   TOOLBAR DRAW g SHOWIF isEcology(t)
+;
+
+EXTEND FORM customGroup
+    OBJECTS cg = CustomsGroup
+    PROPERTIES (g,cg) in
+    PROPERTIES (cg) READONLY code, name
+    
+    FILTERGROUP ing FILTER 'Вкл' in(g,cg) 'F9' DEFAULT
+    
+    OBJECTS t = CustomGroupType PANEL 
+    FILTERS t == customGroupType(g)    
+    OBJECTS it = Item 
+    PROPERTIES (it) READONLY  nameItemGroup, name, id, idBarcode
+    PROPERTIES  nameCustomGroup(t,it) 
+    FILTERGROUP in FILTER 'Вкл' customGroup(t, it)==g 'F8' DEFAULT
+    PROPERTIES (g) fillEcology TOOLBAR DRAW it
+;
+
+DESIGN customGroup {    
+    PROPERTY (nameCustomGroup(t,it)){caption ='Группа экология';}
+    tab{
+        NEW items{
+            caption = 'ТН ВЭД';
+            fill = 1;
+            MOVE BOX(cg);
+            MOVE BOX(it);
+        }
     }
 }
