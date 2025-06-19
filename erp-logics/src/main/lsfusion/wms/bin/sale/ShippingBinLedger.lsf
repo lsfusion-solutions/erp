@@ -43,17 +43,6 @@ FORM shipping 'Отгрузка'
     PROPERTIES(s) READONLY name, idBarcode
     PROPERTIES READONLY currentBalance 'Текущий остаток в ячейке' = currentBalance(s, shippingBin(u))
     FILTERS currentBalance(s, shippingBin(u))
-    
-    OBJECTS p = BinTransfer
-    PROPERTIES (p) READONLY number, series, date, time, nameStock, nameTo, nameToStock, packQuantity[Picking]
-    PROPERTIES (p) READONLY countPickingDetail, quantityPickingDetail
-    FILTERS //inBin[BinOrder](pickingOrder[Picking](p)) == shippingBin(u), 
-            //stock(shippingBin(u)) == stock(p)
-            (GROUP SUM 1 IF inBin(BinTransferDetail dd) == shippingBin(u) AND binTransfer(dd) == p)
-
-    OBJECTS pd=BinTransferDetail
-    PROPERTIES (pd) READONLY index, nameSku, shortNameUOMSku, nameBatch[PickingDetail], quantity, nameOutBin, nameInBin
-    FILTERS binTransfer(pd) == p
 ;
 
 DESIGN shipping {
@@ -84,12 +73,6 @@ DESIGN shipping {
                 tabbed = TRUE;
                 fill = 1;
                 MOVE BOX(s) { caption = 'По товарам'; }
-            }
-            NEW documents {
-                caption = 'Документы';
-                fill = 1;
-                MOVE BOX(p);
-                MOVE BOX(pd);
             }
         }
     }

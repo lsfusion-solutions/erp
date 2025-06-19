@@ -13,6 +13,13 @@ order(UserPickingOrder pickingOrder) += order(pickingOrder);
 order (PickingDetail d) = order(pickingOrder(picking(d))) MATERIALIZED;
 INDEX order(PickingDetail d), sku(d);
 
+order(Picking p) = order(pickingOrder(p)) MATERIALIZED;
+descriptionOrder 'Заказ' (Picking picking) = description(order(picking)) CHARWIDTH 30 IN pickingOrders;
+
+EXTEND FORM pickings
+    PROPERTIES READONLY descriptionOrder(o)
+;
+
 CONSTRAINT stock(UserPickingOrder pickingOrder) != fromStock(order(pickingOrder))
     CHECKED BY order[UserPickingOrder]
         MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
