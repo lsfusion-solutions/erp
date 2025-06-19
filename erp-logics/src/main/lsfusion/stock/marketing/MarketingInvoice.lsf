@@ -96,16 +96,16 @@ valueVAT 'НДС' (MarketingInvoice i) = (OVERRIDE (20 IF VATSum(i) > 0), 0);
 
 isReverse 'Обратный' (MarketingInvoiceDetail d) = isReverse(contractMarketing(condition(d)));
 
-userAverageMarketingPercent 'Процент маркетинга (перегр.)' = ABSTRACT NUMERIC[7,2] (MarketingInvoice);
+userAverageMarketingPercent 'Процент маркетинга (перегр.)' = ABSTRACT NUMERIC[10,5] (MarketingInvoice);
 averageMarketingPercent 'Процент маркетинга' (MarketingInvoice i) = OVERRIDE userAverageMarketingPercent(i),
-    NUMERIC[7,2] (100 * overSumVAT(i) / [GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
+    NUMERIC[10,5] (100 * overSumVAT(i) / [GROUP SUM sum(MarketingInvoiceDetail d) BY marketingInvoice(d)](i));
 
 sumCalcBase 'Сумма (согл. базе расчета)' = GROUP SUM (sum(MarketingInvoiceDetail d) (-) returnSum(d)) BY marketingInvoice(d);
 
 sumCalcBaseCustomer (Sku sk, Stock st, MarketingInvoice i) = 
     GROUP MAX (sum(MarketingInvoiceDetail d) (-) returnSum(d)) IF ((legalEntity(stock(d)) == customer(marketingInvoice(d)) AND NOT isReverse(d)) OR (legalEntity(stock(d)) == supplier(marketingInvoice(d)) AND isReverse(d)))  BY sku(d), stock(d), marketingInvoice(d);
 sumCalcBaseCustomer 'Сумма (согл. базе расчета) (получателя)' (MarketingInvoice i) = GROUP SUM sumCalcBaseCustomer(Sku sk, Stock st, i);
-averageMarketingPercentCustomer 'Процент маркетинга (получателя)' (MarketingInvoice i) = NUMERIC[7,2] (overSumVAT(i) / sumCalcBaseCustomer(i) * 100);
+averageMarketingPercentCustomer 'Процент маркетинга (получателя)' (MarketingInvoice i) = NUMERIC[10,5] (overSumVAT(i) / sumCalcBaseCustomer(i) * 100);
 
 overSumCalcBase 'Сумма (согл. базе расчета)' (MarketingInvoice i) = CASE 
                                 WHEN NOT contractType(contract(i)) == ContractType.tradeBonus THEN sumCalcBase(i)
