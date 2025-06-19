@@ -4,7 +4,7 @@ REQUIRE Item, Pharm;
 
 NAMESPACE Item;
 
-CLASS PharmacyPriceGroup 'Тип лекарственного средства': Group;
+CLASS PharmacyPriceGroup 'Ценовая группа': Group;
 TABLE pharmacyPriceGroup(PharmacyPriceGroup);
 
 name 'Наименование' = DATA ISTRING[50](PharmacyPriceGroup);
@@ -18,7 +18,7 @@ sumMarkups 'Суммировать надбавки' = DATA BOOLEAN (PharmacyPri
 
 maxTotalLimitMarkup 'Максимальная общая надбавка' =  DATA NUMERIC[8,3] (PharmacyPriceGroup) IN itemBase;
 
-CLASS PharmacyGroupType 'Классификатор групп лекарственного средства': GroupType;
+CLASS PharmacyGroupType 'Классификатор ценовых групп': GroupType;
 TABLE pharmacyGroupType (PharmacyGroupType);
 
 name 'Наименование' = DATA ISTRING[100](PharmacyGroupType) IN id CHARWIDTH 25;
@@ -30,14 +30,14 @@ namePharmacyTypeGroup 'Наименование классификатора' = 
 groupType(PharmacyPriceGroup group) += pharmacyTypeGroup(group);
 
 pharmacyPriceGroup = ABSTRACT PharmacyPriceGroup (Sku) MATERIALIZED;
-namePharmacyPriceGroup 'Тип лекарственного средства' (Sku sku) = name(pharmacyPriceGroup(sku));
+namePharmacyPriceGroup 'Ценовая группа' (Sku sku) = name(pharmacyPriceGroup(sku));
 
 calcMaxTotalLimitMarkup(Sku s, NUMERIC[8,4] baseMarkup) = trunc(((100.0 + maxTotalLimitMarkup(pharmacyPriceGroup(s)))
     /(100.0 + baseMarkup)-1)*100, 2);
 
 group(PharmacyGroupType type, Sku sku) += WHEN type IS PharmacyGroupType AND sku IS Sku THEN pharmacyPriceGroup(sku);
 
-@defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, name, 'Тип лекарственного средства', itemPharmacy);
+@defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, name, 'Ценовая группа', itemPharmacy);
 
 EXTEND FORM item 
     PROPERTIES (i) namePharmacyPriceGroup SHOWIF showPharmacyPriceGroup(i)
@@ -51,17 +51,17 @@ EXTEND FORM items
 // При изменении необходимо менять в обоих модулях
 @defineItemPharmDesign();
 
-@defineObjectItemAttributeBatch (pharmacyPriceGroup, namePharmacyPriceGroup, 'Тип лекарственного средства', sku);
+@defineObjectItemAttributeBatch (pharmacyPriceGroup, namePharmacyPriceGroup, 'Ценовая группа', sku);
 pharmacyPriceGroup(Item sku) += pharmacyPriceGroup(sku);
 
-CLASS PharmacyPriceInterval 'Интервал цен лекарственного средства';
+CLASS PharmacyPriceInterval 'Интервал цен';
 TABLE pharmacyPriceInterval(PharmacyPriceInterval);
 
 pharmacyGroupPharmacy= DATA PharmacyPriceGroup (PharmacyPriceInterval) NONULL DELETE;
-namePharmacyGroupPharmacy 'Тип лекарственного средства' (PharmacyPriceInterval interval) = name(pharmacyGroupPharmacy(interval));
+namePharmacyGroupPharmacy 'Ценовая группа' (PharmacyPriceInterval interval) = name(pharmacyGroupPharmacy(interval));
 
 pharmacyTypeExchange = DATA TypeExchange ();
-namePharmacyTypeExchange 'Тип обмена для Лекарственных средств' ()= name(pharmacyTypeExchange());
+namePharmacyTypeExchange 'Тип обмена для ценовых групп' ()= name(pharmacyTypeExchange());
 
 EXTEND FORM options
     PROPERTIES() namePharmacyTypeExchange
@@ -114,7 +114,7 @@ is366 '366-й указ' = DATA BOOLEAN (PharmacyPriceGroup);
 is366PharmacyPriceGroup (Sku s) = is366(pharmacyPriceGroup(s));
 isNot366PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is366(pharmacyPriceGroup(s));
 
-FORM pharmacyMarkups 'Типы лекарственных средств'
+FORM pharmacyMarkups 'Ценовые группы'
 
     OBJECTS g=PharmacyPriceGroup
     PROPERTIES (g) name, id SHOWIF showIDs(), sumMarkups, maxTotalLimitMarkup, namePharmacyTypeGroup, inactive, is366
@@ -180,7 +180,7 @@ NAVIGATOR {
     }
 }
 
-FORM pharmacyPriceGroups 'Типы лекарственных средств'
+FORM pharmacyPriceGroups 'Ценовые группы'
     OBJECTS g=PharmacyPriceGroup
     PROPERTIES (g) READONLY name, id SHOWIF showIDs(), sumMarkups, maxTotalLimitMarkup, inactive
     ORDERS id(g)
@@ -204,7 +204,7 @@ DESIGN pharmacyPriceGroups {
     }
 }
 
-@defineUniteAttributeItemWithoutExtendForm(pharmacyPriceGroup, namePharmacyPriceGroup, 'тип лекарственного средства', 'типы лекарственных средств', item);
+@defineUniteAttributeItemWithoutExtendForm(pharmacyPriceGroup, namePharmacyPriceGroup, 'ценовая группа', 'ценовые группы', item);
 
 EXTEND FORM attributesItem
     OBJECTS pharmacyPriceGroup=PharmacyPriceGroup
@@ -236,7 +236,7 @@ EXTEND FORM attributesItem
 DESIGN attributesItem{
     tabContainer{
         NEW pharmacyPriceGroupContainer{
-            caption = 'типы лекарственных средств';
+            caption = 'ценовые группы';
             MOVE BOX(pharmacyPriceGroup);
             MOVE BOX(pharmacyPriceInterval);
             NEW test {
@@ -270,14 +270,14 @@ DESIGN attributesItem{
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств'(ISTRING[50] iname, STRING[100] isid)  { 
+loadDefaultPharmacyPriceGroup 'Добавить ценовые группы'(ISTRING[50] iname, STRING[100] isid)  { 
     NEW g = PharmacyPriceGroup {
          name(g) <- iname;
          id(g) <- isid;
     }
 }
 
-loadDefaultPharmacyPriceInterval 'Добавить интервал цен лекарственного средства (by)'(STRING[100] sidGroup, NUMERIC[16,4] priceFrom, NUMERIC[8,3] wMarkup, NUMERIC[8,3] rMarkup)  { 
+loadDefaultPharmacyPriceInterval 'Добавить интервал цен ценовых групп (by)'(STRING[100] sidGroup, NUMERIC[16,4] priceFrom, NUMERIC[8,3] wMarkup, NUMERIC[8,3] rMarkup)  { 
     NEW i = PharmacyPriceInterval {
          pharmacyGroupPharmacy(i) <- pharmacyPriceGroup(sidGroup);
          pricePharmacy(i) <- priceFrom;
@@ -288,7 +288,7 @@ loadDefaultPharmacyPriceInterval 'Добавить интервал цен ле�
 }
 
 
-loadDefaultPharmacyPriceGroups 'Загрузить стандартные типы лек. ср-в и надбавки для них' ()  { 
+loadDefaultPharmacyPriceGroups 'Загрузить стандартные ценовые группы(указ 366) и надбавки для них' ()  { 
     loadDefaultPharmacyPriceGroup('Лекарственные средства', 'Лекарственные средства');
         is366(pharmacyPriceGroup('Лекарственные средства')) <- TRUE;
         loadDefaultPharmacyPriceInterval('Лекарственные средства', 0.00, 9.00, 30.00);
