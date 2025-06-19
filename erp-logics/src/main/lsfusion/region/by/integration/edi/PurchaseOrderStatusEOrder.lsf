@@ -9,8 +9,10 @@ NAMESPACE EDI;
 backgroundQuantityResponseEDI(Purchase.OrderDetail d) += RGB(255,100,100) IF quantityResponseEDI(d) != originalQuantity(d);
 
 skuWithoutPrice 'Товары без цены' (Order o) = GROUP CONCAT idSku(OrderDetail d) + ' ' + nameSku(d), '\n' IF NOT price(d) ORDER d BY order(d);
+overEmailCustomerCustom ABSTRACT LIST(Order.Order);
 
-overEmailCustomer(Order.Order order) + { 
+overEmailCustomer(Order.Order order) + {
+    overEmailCustomerCustom(order);
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) THEN {
         consumedEmailCustomer(order) <- TRUE;
         IF NOT skipSend(order) THEN {
