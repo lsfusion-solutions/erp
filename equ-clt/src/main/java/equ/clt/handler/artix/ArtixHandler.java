@@ -651,7 +651,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 inventItemOptions.put("doublemarked", 1);
             }
 
-            if(ukz) {
+            if(ukz && !doubleMarked) {
                 inventItemOptions.put("ukz", 1);
             }
 
