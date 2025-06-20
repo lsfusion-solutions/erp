@@ -1,0 +1,397 @@
+MODULE WBMasterData;
+
+REQUIRE WB, Hierarchy;
+
+NAMESPACE WB;
+
+CLASS ItemGroup 'Родительская категория товаров';
+
+id 'Код' = DATA STRING (ItemGroup);
+itemGroup (id) = GROUP AGGR ItemGroup ig BY id(ig);
+name 'Наименование' = DATA STRING (ItemGroup);
+isVisible 'Активный' = DATA BOOLEAN (ItemGroup);
+
+errorText = DATA LOCAL STRING();
+name = DATA LOCAL STRING(INTEGER);
+id = DATA LOCAL STRING (INTEGER);
+isVisible = DATA LOCAL STRING(INTEGER);
+additionalErrors = DATA LOCAL STRING();
+error = DATA LOCAL STRING();
+
+FORM importItemGroup
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) name, id, isVisible
+;
+
+getItemGroup 'Получить родительские категории товаров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+             
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/parent/all');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/parent/all' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItemGroup JSON FROM response();
+            
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT itemGroup(id) INLINE DO NEW ig = ItemGroup {
+                id(ig) <- id(i);
+            }
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND ItemGroup ig == itemGroup(id) INLINE DO {
+                name(ig) <- name(i);
+                isVisible(ig) <- TRUE IF isVisible(i) == 'true';
+            }
+            
+            IMPORT JSON FROM response() TO() status = status, error = error, errorText = errorText 
+            CASE 
+                WHEN error() == 'false' THEN message() <- 'Родительские группы получены';
+                WHEN error() == 'true' THEN message() <- errorText();
+                WHEN status() THEN message() <- messageStatusHTTP(status());
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IMPORT JSON FROM response() TO() error = error, errorText = errorText, status = status
+            message() <- OVERRIDE messageStatusHTTP(status()), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+FORM dialogCategoryItemGroups 'Родительские категории товаров'
+    PROPERTIES getItemGroup()
+    OBJECTS ig = ItemGroup
+    PROPERTIES(ig) id, name, isVisible
+    PROPERTIES(ig) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(ig)
+
+    LIST ItemGroup OBJECT ig
+;
+
+DESIGN dialogCategoryItemGroups {
+    BOX {
+        size = (1280, 800);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY (getItemGroup());
+            MOVE BOX(ig) {
+            }
+        }
+    }
+}
+
+CLASS ItemSubGroup 'Список предметов';
+
+id 'Код' = DATA STRING (ItemSubGroup);
+name 'Наименование' = DATA STRING (ItemSubGroup);
+itemGroup = DATA ItemGroup (ItemSubGroup) NONULL DELETE;
+idItemGroup 'Код родительской категории товаров' (ItemSubGroup sg) = id(itemGroup(sg)) CHARWIDTH 10;
+nameItemGroup 'Наименование родительской категории товаров' (ItemSubGroup sg) = name(itemGroup(sg)) CHARWIDTH 40;
+
+itemSubGroup (id) = GROUP AGGR ItemSubGroup sg BY id(sg);
+
+in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, ItemGroup);
+
+parentName = DATA LOCAL STRING(INTEGER);
+subjectID = DATA LOCAL STRING (INTEGER);
+parentID = DATA LOCAL STRING (INTEGER);
+subjectName = DATA LOCAL STRING(INTEGER);
+
+FORM importItemSubGroup
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) parentName, subjectID, parentID, subjectName
+;
+
+getItemSubGroup 'Получить список предметов' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItemSubGroup JSON FROM response();
+            
+            IF (GROUP SUM 1 IF [GROUP MAX INTEGER i1 BY parentID(i1)](STRING parentId) AND NOT itemGroup(parentId)) THEN {
+                ASK 'В ответе присутствуют \'Родительские категории товаров\', которых нет в справочнике. Необходимо обновить справочник \'Родительские категории товаров\'' DO {
+                    getItemGroup();        
+                } ELSE {
+                    logToFile('WB', 'Прервано пользователем из-за необходимости обновления справочника\'Родительские категории товаров\'');
+                    CANCEL;
+                }
+            }
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND ItemGroup ig == itemGroup(parentId) 
+                AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
+                id(sg) <- subjectId;
+                name(sg) <- subjectName(i);
+            }
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND ItemGroup ig == itemGroup(parentId)
+                AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
+                    itemGroup(sg) <- ig;
+            }
+            
+            IMPORT JSON FROM response() TO() status = status, error = error
+            CASE
+                WHEN error() == 'false' THEN message() <- 'Список товаров получен';
+                WHEN status() THEN message() <- messageStatusHTTP(status());
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IMPORT JSON FROM response() TO() error = error, status = status
+            message() <- OVERRIDE messageStatusHTTP(status()), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+FORM dialogItemSubGroups 'Список предметов'
+    PROPERTIES getItemSubGroup()
+    OBJECTS sg = ItemSubGroup
+    PROPERTIES(sg) id, name, idItemGroup, nameItemGroup
+    PROPERTIES(sg) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(sg)
+
+    LIST ItemSubGroup OBJECT sg
+;
+
+DESIGN dialogItemSubGroups {
+    BOX {
+        size = (1280, 800);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY (getItemSubGroup());
+            MOVE BOX(sg) {
+            }
+        }
+    }
+}
+
+CLASS Color 'Цвет';
+
+name 'Оттенок' = DATA STRING (Color);
+color (id) = GROUP AGGR Color c BY name(c);
+
+@defineHierarchy(Color);
+
+FORM importColors
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) parentName, name
+;
+
+getColors 'Получить список цветов' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/directory/colors');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/directory/colors' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importColors JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY name(i1)](STRING name) AND NOT color(name) INLINE DO NEW c = Color {
+                name(c) <- name(i);
+            }
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY name(i1), parentName(i1)](STRING name, STRING parentName) AND Color c == color(name) 
+                AND Color parent = color(parentName) INLINE DO {
+                parent(c) <- parent;
+            }
+
+            IMPORT JSON FROM response() TO() status = status, error = error, errorText = errorText
+            CASE
+                WHEN error() == 'false' THEN message() <- 'Список цветов получен';
+                WHEN error() == 'true' THEN message() <- errorText();
+                WHEN status() THEN message() <- messageStatusHTTP(status());
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IMPORT JSON FROM response() TO() error = error, errorText = errorText, status = status
+            message() <- OVERRIDE messageStatusHTTP(status()), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+FORM dialogColors 'Список цветов'
+    PROPERTIES getColors()
+    TREE treeColors color=Color PARENT parent(color)
+    PROPERTIES READONLY name(color), nameParent(color)
+    ORDERS name(color)
+    PROPERTIES(color) NEWSESSION NEW, EDIT, DELETE
+      
+    LIST Color OBJECT color
+;
+
+DESIGN dialogColors {
+    BOX {
+        size = (1280, 800);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY (getColors());
+            MOVE BOX(TREE treeColors);        
+        }
+    }
+}
+
+CLASS Kind 'Пол';
+
+data 'Пол' = DATA STRING (Kind);
+kind (id) = GROUP AGGR Kind k BY data(k);
+
+data = DATA LOCAL STRING(INTEGER);
+
+FORM importKinds
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) data EXTID 'value'
+;
+
+getKinds 'Получить список полов' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/directory/kinds');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/directory/kinds' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importKinds JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY data(i1)](STRING data) AND NOT kind(data) INLINE DO NEW k = Kind {
+                data(k) <- data(i);
+            }
+
+            IMPORT JSON FROM response() TO() status = status, error = error, errorText = errorText
+            CASE
+                WHEN error() == 'false' THEN message() <- 'Список полов получен';
+                WHEN error() == 'true' THEN message() <- errorText();
+                WHEN status() THEN message() <- messageStatusHTTP(status());
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IMPORT JSON FROM response() TO() error = error, errorText = errorText, status = status
+            message() <- OVERRIDE messageStatusHTTP(status()), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+FORM dialogKinds 'Список полов'
+    PROPERTIES getKinds()
+    OBJECTS kind = Kind
+    PROPERTIES(kind) data
+    PROPERTIES(kind) NEWSESSION NEW, EDIT, DELETE
+    ORDERS data(kind)
+
+    LIST Kind OBJECT kind
+;
+
+DESIGN dialogKinds {
+    BOX {
+        size = (1280, 800);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            horizontal = TRUE;
+            MOVE PROPERTY (getKinds());
+            MOVE BOX(kind) {
+            }
+        }
+    }
+}
+
+EXTEND FORM integrationData 
+    PROPERTIES getItemGroup()
+    OBJECTS ig = ItemGroup
+    PROPERTIES(ig) id READONLY, name, isVisible
+    ORDERS name(ig)
+    PROPERTIES(ig) NEW, DELETE
+
+    PROPERTIES getItemSubGroup()
+    OBJECTS sg = ItemSubGroup
+    PROPERTIES(sg) id READONLY, name, nameItemGroup, idItemGroup 
+    ORDERS name(sg)
+    PROPERTIES(sg) NEW, DELETE
+
+    PROPERTIES getColors()
+    TREE treeColors color=Color PARENT parent(color)
+    PROPERTIES READONLY name(color), color 'Цвет' = nameParent(color)
+    PROPERTIES(color) NEW, DELETE
+    ORDERS name(color)
+
+    PROPERTIES getKinds()
+    OBJECTS kind = Kind
+    PROPERTIES(kind) data READONLY
+    ORDERS data(kind)
+    PROPERTIES(kind) NEW, DELETE
+;
+
+DESIGN integrationData {
+    tabContainer {
+        NEW  referenceBooks {
+            tabbed = TRUE;
+            fill = 1;
+            caption = 'Справочники';
+            NEW categoryItemGroup {
+                caption = 'Родительские категории товаров';
+                MOVE PROPERTY (getItemGroup());
+                MOVE BOX(ig);
+            }
+            NEW categoryItemSubGroup {
+                caption = 'Список предметов';
+                MOVE PROPERTY (getItemSubGroup());
+                MOVE BOX(sg);
+            }
+            NEW containerColors {
+                caption = 'Цвета';
+                MOVE PROPERTY (getColors());
+                MOVE BOX(TREE treeColors);
+            }
+            NEW containerKinds {
+                caption = 'Пол';
+                MOVE PROPERTY (getKinds());
+                MOVE BOX(kind);
+            }
+        }
+    }
+}
