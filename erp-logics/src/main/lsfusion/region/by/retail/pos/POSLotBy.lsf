@@ -51,6 +51,24 @@ overCreateSaleDetail(ReceiptDetail d) + {
     }
 }
 
+// для возврата если было продано без марки
+lot 'Просканируйте марку СИ'= DATA LOCAL STRING[200] () CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER';
+
+changeLot () {
+    INPUT s = STRING[200] DO {
+        lot() <- s;
+        formOk();
+    }
+}
+
+FORM gialogLot'Запрос марки'
+    PROPERTIES lot() ON CHANGE changeLot()
+
+EVENTS ON QUERYOK {
+}
+;
+
+
 //return
 overCreateReturn(ReceiptReturnDetail d) + {
     ukz(d) <- ukz(receiptSaleDetail(d));
@@ -62,7 +80,22 @@ overCreateReturn(ReceiptReturnDetail d) + {
             DELETE d;
         }
     }
+    IF (explicitLot(sku(d)) OR overExplicitLot(sku(d), departmentStore(d))) AND NOT (skipCheckPosLot() OR overSkipCheckPosLot(receipt(d)) OR overSkipCheckSkuPosLot(sku(d))) AND NOT lot(d) THEN {
+        DIALOG gialogLot NOMANAGESESSION DO {
+            IF skuFromGtin(idToGtin(lot())) = sku(d)  AND NOT lot(barcodeToId(lot())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {
+                id(l) <- barcodeToId(lot());
+                tail(l) <- barcodeToTail(lot());
+                sku(l) <- skuFromGtin(idToGtin(lot()));
+            }
+            FOR (Lot l = lot(barcodeToId(lot())) OR l = customLot(lot())) AND sku(d) = sku(l) DO {
+                lot(d) <- l;
+            }
+        } ELSE {
+            DELETE d;
+        }
+    }
 }
+
 overCreateReturn(ReceiptReturnDetail d, ReceiptSaleDetail sd) + {
     ukz(d) <- ukz(sd);
     ukz() <- NULL;
