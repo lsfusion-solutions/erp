@@ -1,0 +1,16 @@
+MODULE PurchaseShipmentLotStatusBy;
+
+REQUIRE PurchaseShipmentLot, EZLotStatus;
+
+NAMESPACE Purchase;
+
+checkLotStatus 'Проверить статусы марок' (Invoice i) {
+
+    in(Lot l) <- TRUE WHERE GROUP SUM 1 IF quantity(InvoiceDetail d, l) AND invoice(d) == i;
+
+    getStatus(customer(i));
+} TOOLBAR;
+
+EXTEND FORM userInvoice
+    PROPERTIES checkLotStatus(i) DRAW d SHOWIF useLot(i)
+;
