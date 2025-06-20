@@ -1,6 +1,6 @@
 MODULE TurnoverBatchBI;
 
-REQUIRE BI, PurchaseLedger, SkuLedgerPharm, SaleLedger, Item, Druid, ReportBI, DefaultLookupBI, ItemBrandGroup, SkuList;
+REQUIRE BI, PurchaseLedger, SaleLedger, Item, Druid, ReportBI, DefaultLookupBI, ItemBrandGroup, SkuList;
 
 NAMESPACE BI;
 
@@ -13,9 +13,10 @@ EXTEND FORM integrationData
     PROPERTIES DRAW dates exportBalanceBBatch()
 ;
 
-overIngestBatchFile = DATA LOCAL STRING[50]();
+overIngestBatchFile = ABSTRACT STRING[50]();
+ingestBatchFile = OVERRIDE overIngestBatchFile(), 'turnoverBBatch' IF exportBalanceBBatch(), 'turnoverBatch';
 
-overExportTurnoverBatch  ABSTRACT LIST (DATE);
+overExportTurnoverBatch  ABSTRACT (DATE);
 overExportTurnoverBatch = DATA LOCAL BOOLEAN ();
 
 balanceBatch = DATA LOCAL NUMERIC[16,5] (Batch, Stock);
@@ -31,7 +32,6 @@ overInitExportTurnoverBatch(DATE dFrom, DATE dTo) ABSTRACT LIST;
 exportTurnoverBatch 'Выгрузить Оборачиваемость (по партиям)' (DATE dFrom, DATE dTo)  { 
     balanceBatch(Batch b, Stock st) <- balanceA(b, st, dTo);
     IF exportBalanceBBatch() THEN {
-        overIngestBatchFile() <- 'turnoverBBatch';
         balanceBBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, dTo);
     }
     
@@ -62,7 +62,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
                 EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                     stock = Stock st, legalEntityStock = legalEntity(st), sku = sku(Batch b),
                                     batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
-                                    supplier = supplier(b), supplierStock = supplierStock(b), contractSku = contractSku(b),
+                                    supplier = supplier(b), supplierStock = supplierStock(b),
                                     UOM = UOM(sku(b)),
                                     cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
                                     balance = DOUBLE(balanceBatch(b, st)), balanceB = DOUBLE(balanceBBatch(b, st)),
@@ -73,7 +73,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
                 EXPORT CSV ',' HEADER FROM dateTime = [FORMULA STRING[20] 'to_char(($1),\'MM/DD/YY\')'](date()),
                                     stock = Stock st, legalEntityStock = legalEntity(st), sku = sku(Batch b),
                                     batch = b, nameBatch = STRING(CONCAT '/ ', BPSTRING[10](date(b)), seriesNumber(b)),
-                                    supplier = supplier(b), supplierStock = supplierStock(b), contractSku = contractSku(b),
+                                    supplier = supplier(b), supplierStock = supplierStock(b),
                                     UOM = UOM(sku(b)),
                                     cost = DOUBLE(cost(b)), valueVAT = DOUBLE(valueVAT(b)), price = DOUBLE(accountPrice(b, st)),
                                     balance = DOUBLE(balanceBatch(b, st)),
@@ -85,7 +85,7 @@ exportTurnoverBatch 'Выгрузить Оборачиваемость (по п�
         }
         logToFile('druid', 'Ended EXPORT ' + date() + ' - ' + (GROUP SUM 1 IF balanceBatch(Batch b, Stock st)));
 
-        ingestBatch('turnoverBatch', (OVERRIDE overIngestBatchFile(), 'turnoverBatch'), date());
+        ingestBatch('turnoverBatch', ingestBatchFile(), date());
 
         balanceBatch(Batch b, Stock st) <- balanceBatch(b, st) (-) signedQuantity(b, st, date()) WHERE signedQuantity(b, st, date());
         accountPrice(Batch b, Stock st) <- accountPriceB(b, st, DATETIME(date())) WHERE balanceBatch(b, st) OR quantityPurchase(b, st, subtract(date(), 1)) OR quantitySold(b, st, subtract(date(), 1));
@@ -143,10 +143,6 @@ DESIGN turnoverBatchReport {
     }
 }
 
-loadLookups () + {
-    loadLookup('contractSku_seriesNumber', [ GROUP CONCAT TEXT('"' + TEXT(ContractSku s) + '":"' + escapeJSONValue(seriesNumber(s))  + '"'), ',' ORDER s]());
-}
-
 @createGroupCount(turnoverBatch, stock, 'По магазину', 1, 'stock', 'LOOKUP(stock,\'stock_name\')', 'Магазин', stockContainer, 4);
 @createGroupCount(turnoverBatch, legalEntity, 'По организации', 2, 'legalEntityStock', 'LOOKUP(legalEntityStock,\'legalEntity_name\')', 'Организация', stockContainer, 4);
 @createGroupCount(turnoverBatch, supplier, 'По поставщику', 3, 'supplier', 'LOOKUP(supplier,\'legalEntity_name\')', 'Поставщик', supplierContainer, 4);
@@ -165,7 +161,6 @@ loadLookups () + {
 @createGroupCount(turnoverBatch, supplierStock, 'По складу поставщика', 16, 'supplierStock', 'LOOKUP(supplierStock,\'stock_name\')', 'Склад поставщика', supplierContainer, 4);
 @createGroupCount(turnoverBatch, UOM, 'По единице измерения', 17, 'UOM', 'LOOKUP(UOM,\'UOM_name\')', 'Единица измерения', itemContainer, 4);
 @createGroupCount(turnoverBatch, country, 'По стране', 18, 'LOOKUP(sku,\'sku_country\')', 'LOOKUP(LOOKUP(sku,\'sku_country\'),\'country_name\')', 'Страна', itemContainer, 4);
-@createGroupCount(turnoverBatch, contractSku, 'По договору', 19, 'contractSku', 'LOOKUP(contractSku,\'contractSku_seriesNumber\')', 'Договор', stockContainer, 4);
 
 nameGroupsTurnoverBatch = CONCAT ', ', (OVERRIDE exprGroup1TurnoverBatch(), '\'\'') + ' AS nameGroup1',
                                            (OVERRIDE exprGroup2TurnoverBatch(), '\'\'') + ' AS nameGroup2',
@@ -602,56 +597,7 @@ changeIncludeBarcodesBatch()  {
     }
 }
 
-//------- Договоры-------
-
-dataIncludeBatch 'Вкл' = DATA LOCAL BOOLEAN (ContractSku);
-
-deleteIncludeContractSkusBatch 'Сбросить отмеченные'()  {
-    dataIncludeBatch(ContractSku st) <- NULL;
-};
-
-nameIncludeContractSkusBatch 'Договоры (все)' ()=
-    CONCAT '\n',
-        (GROUP CONCAT TEXT(seriesNumber(ContractSku contract)) IF dataIncludeBatch(contract), ', ' ORDER contract) CHARWIDTH 20;
-countIncludeContractSkusBatch () = GROUP SUM 1 IF dataIncludeBatch(ContractSku contract);
-indexIncludeContractSkuBatch (ContractSku contract) = PARTITION SUM 1 ORDER contract IF dataIncludeBatch(contract);
-
-FORM dialogContractSkuBatch 'Договоры'
-    OBJECTS c = ContractSku
-    PROPERTIES (c) dataIncludeBatch
-    PROPERTIES(c) READONLY id, seriesNumber, dateFrom, dateTo, namePartyA, namePartyAStocks, namePartyB, namePartyBStocks, descriptionPaymentCondition
-    ORDERS dateFrom(c)
-    PROPERTIES deleteIncludeContractSkusBatch() DRAW c TOOLBAR
-
-    FILTERGROUP inactiveStock FILTER 'Активный' dateFrom(c) <= currentDate() AND NOT dateTo(c)<currentDate() 'ctrl F10' DEFAULT
-    FILTERGROUP select FILTER 'Отм.' dataIncludeBatch(c) 'F9'
-;
-DESIGN dialogContractSkuBatch {
-    BOX {
-        size = (1024, 768);
-        NEW topContainer {
-            //horizontal = TRUE;
-            fill = 1;
-            MOVE BOX(c) {
-                fill =1;
-                GRID(c) {
-                    defaultComponent = TRUE;
-                }
-                PROPERTY(seriesNumber(c)){
-                    charWidth = 35;
-                }
-            }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-changeIncludeContractSkusBatch()  {
-    DIALOG dialogContractSkuBatch;
-}
-
-
-extraFilterBatch = ABSTRACT TEXT();
+extraFilterBatch= ABSTRACT TEXT();
 
 filterGroupsBatch() = CONCAT ' OR', ' LOOKUP(sku,\'sku_group1\') IN (' + nameIncludeSkuGroups1Batch() + ')',
                                        ' LOOKUP(sku,\'sku_group2\') IN (' + nameIncludeSkuGroups2Batch() + ')',
@@ -665,8 +611,7 @@ filterBatch() = (OVERRIDE ' AND stock IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Stoc
                     + (OVERRIDE ' AND LOOKUP(sku,\'sku_country\') IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Country c) +'\'') IF includeBatch(c),',' ORDER c) + ')','')
                     + (OVERRIDE ' AND (' + filterGroupsBatch() + ')','')
                     + (OVERRIDE ' AND sku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(Sku sku) +'\'') IF dataIncludeBatch(sku),',' ORDER sku) + ')','')
-                    + (OVERRIDE ' AND contractSku IN (' + (GROUP CONCAT TEXT('\''+ TEXT(ContractSku contractSku) +'\'') IF dataIncludeBatch(contractSku),',' ORDER contractSku) + ')','')
-                    + (OVERRIDE extraFilterBatch(), '');;
+                    + (OVERRIDE extraFilterBatch(), '');
 valuesBatch() = (IF overIsOutBatch() AND overIsQuantityBatch() THEN 'SUM(quantitySold) AS quantitySold, ' ELSE '')
                             + (IF overIsOutBatch() AND overIsCostBatch() THEN 'SUM(costSumSold) AS costSumSold, ' ELSE '')
                             + (IF overIsOutBatch() AND isCostVATBatch() THEN 'SUM(costSumVATSold) AS costSumVATSold, ' ELSE '')
@@ -938,7 +883,7 @@ FORM printTurnoverBatchReport 'Оборачиваемость'
     PROPERTIES dateTo = VALUE(dt)
        
     PROPERTIES() countGroup, countRowsTurnoverBatch, maxRowCount, nameIncludeStockGroupsStockReportBatch, nameIncludeLegalEntitiesBatch, nameIncludeBrandsBatch, nameIncludeManufacturersBatch, nameIncludeSkuGroupsBatch, nameIncludeSkusReportBatch, 
-                 printSumGroupBatch, printSumGroup1Batch, printSumGroup2Batch, printSumGroup3Batch, printSumSummaryBatch, nameIncludeContractSkusBatch
+                 printSumGroupBatch, printSumGroup1Batch, printSumGroup2Batch, printSumGroup3Batch, printSumSummaryBatch
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1TurnoverBatch, nameGroup2TurnoverBatch, nameGroup3TurnoverBatch, nameGroup4TurnoverBatch, group1TurnoverBatch, group2TurnoverBatch, group3TurnoverBatch, group4TurnoverBatch, barcodeSkuBatch SHOWIF gSkuTurnoverBatch()
@@ -989,7 +934,7 @@ FORM printTurnoverBatchReportTable 'Оборачиваемость'
     PROPERTIES dateTo = VALUE(dt)
        
     PROPERTIES() countGroup, countRowsTurnoverBatch, maxRowCount, nameIncludeStockGroupsStockReportBatch, nameIncludeLegalEntitiesBatch, nameIncludeBrandsBatch, nameIncludeManufacturersBatch, nameIncludeSkuGroupsBatch, nameIncludeSkusReportBatch,
-                 captionGroup1TurnoverBatch, captionGroup2TurnoverBatch, captionGroup3TurnoverBatch, captionGroup4TurnoverBatch, nameIncludeContractSkusBatch
+                 captionGroup1TurnoverBatch, captionGroup2TurnoverBatch, captionGroup3TurnoverBatch, captionGroup4TurnoverBatch
     
     OBJECTS i = INTEGER
     PROPERTIES(i) READONLY nameGroup1TurnoverBatch SHOWIF nameGroup1TurnoverBatch(),
@@ -1057,7 +1002,6 @@ EXTEND FORM turnoverBatchReport
     PROPERTIES nameIncludeLegalEntitiesBatch() ON CHANGE changeIncludeLegalEntitiesBatch()
     PROPERTIES nameIncludeBrandsBatch() ON CHANGE changeIncludeBrandsBatch()
     PROPERTIES nameIncludeManufacturersBatch() ON CHANGE changeIncludeManufacturersBatch()
-    PROPERTIES nameIncludeContractSkusBatch() ON CHANGE changeIncludeContractSkusBatch()
     PROPERTIES nameIncludeCountriesBatch() ON CHANGE changeIncludeCountriesBatch()
     PROPERTIES nameIncludeSkuGroupsBatch() ON CHANGE changeIncludeSkusBatch()
     PROPERTIES nameIncludeSkusBatch() ON CHANGE changeIncludeSkusBatch()
@@ -1074,7 +1018,6 @@ DESIGN turnoverBatchReport {
         MOVE PROPERTY(nameIncludeLegalEntitiesBatch()) { panelCaptionVertical = TRUE; }
         MOVE PROPERTY(nameIncludeBrandsBatch()) { panelCaptionVertical = TRUE; }
         MOVE PROPERTY(nameIncludeManufacturersBatch()) { panelCaptionVertical = TRUE; }
-        MOVE PROPERTY(nameIncludeContractSkusBatch()) { panelCaptionVertical = TRUE; }
         MOVE PROPERTY(nameIncludeCountriesBatch()) { panelCaptionVertical = TRUE; }
         MOVE PROPERTY(nameIncludeSkuGroupsBatch()) { panelCaptionVertical = TRUE; }
         MOVE PROPERTY(nameIncludeSkusBatch()) { panelCaptionVertical = TRUE; }
