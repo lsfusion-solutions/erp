@@ -1,0 +1,61 @@
+MODULE LegalEntityList;
+
+REQUIRE LegalEntity;
+
+NAMESPACE LegalEntity;
+
+CLASS LegalEntityList 'Список организаций';
+TABLE legalEntityList (LegalEntityList);
+
+@defineExternalizable(legalEntityList, STRING[100]);
+
+order 'Порядок' = DATA INTEGER (LegalEntityList) CHARWIDTH 2;
+name 'Наименование' = DATA ISTRING[250](LegalEntityList) IN base CHARWIDTH 20;
+
+in 'Вкл' = DATA BOOLEAN (LegalEntity, LegalEntityList);
+
+FORM legalEntityList 'Список организаций'
+    OBJECTS l = LegalEntityList PANEL
+    PROPERTIES (l) name, order, id SHOWIF showIDs()
+    ORDERS name(l)
+
+    OBJECTS s = LegalEntity GRID
+    PROPERTIES in(s, l)
+    PROPERTIES(s) READONLY id, name
+    ORDERS name(s)
+
+    EDIT LegalEntityList OBJECT l
+;
+
+DESIGN legalEntityList {
+    OBJECTS {
+        NEW legalEntitySplitContainer{
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(s) {
+                GRID(s) {
+                    defaultComponent = TRUE;
+                    PROPERTY (in(s, l)) {valueWidth = 100;}
+                }
+            }
+        }
+    }
+}
+
+FORM legalEntityLists 'Списки организаций'
+
+    OBJECTS o = LegalEntityList
+    PROPERTIES (o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(o)
+
+    OBJECTS s = LegalEntity
+    PROPERTIES(s) READONLY id, name
+    FILTERS in(s, o)
+;
+
+NAVIGATOR {
+    masterData {
+        NEW legalEntityLists;
+    }
+}

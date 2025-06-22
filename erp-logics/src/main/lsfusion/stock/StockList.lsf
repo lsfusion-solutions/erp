@@ -1,0 +1,89 @@
+MODULE StockList;
+
+REQUIRE Stock;
+
+NAMESPACE Stock;
+
+CLASS StockList 'Список складов';
+TABLE stockList (StockList);
+
+@defineExternalizable(stockList, STRING[100]);
+
+order 'Порядок' = DATA INTEGER (StockList) CHARWIDTH 2;
+name 'Наименование' = DATA ISTRING[250](StockList) IN base CHARWIDTH 20;
+
+in 'Отм.' = DATA LOCAL BOOLEAN (StockList);
+
+dataIn 'Вкл.' = DATA BOOLEAN (Stock, StockList);
+dataIn 'Вкл.' = DATA BOOLEAN (StockGroup, StockList);
+
+levelParent (StockList list, StockGroup stockGroup) = GROUP MIN level(stockGroup, StockGroup parent) IF dataIn(parent, list) MATERIALIZED;
+nearestParent (StockList list, StockGroup stockGroup) = stockGroup(stockGroup, levelParent(list, stockGroup));
+nearestIn (StockList list, StockGroup stockGroup) =
+    dataIn(nearestParent (list, stockGroup), list) MATERIALIZED;
+
+in 'Вкл.' (StockList list, StockGroup stockGroup) = OVERRIDE
+    dataIn(stockGroup, list),
+    nearestIn(list, stockGroup); // MATERIALIZED;
+
+in 'Вкл.' (StockList list, Stock stock) = OVERRIDE
+    dataIn(stock, list),
+    nearestIn(list, stockGroup(stock));
+
+FORM stockList 'Список складов'
+    OBJECTS l = StockList PANEL
+    PROPERTIES (l) name, order, id SHOWIF showIDs()
+    ORDERS name(l)
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup  PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
+    PROPERTIES in(l, sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock GRID
+    PROPERTIES READONLY in(l, s)
+    PROPERTIES(s) READONLY stockName = name, nameLegalEntity
+    ORDERS stockName
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+
+    EDIT StockList OBJECT l
+;
+
+DESIGN stockList {
+    OBJECTS {
+        NEW stockSplitContainer{
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(TREE stockTree) {
+                caption = 'Группы складов';
+                PROPERTY (in(l, sg)) {valueWidth = 100; }
+            };
+            MOVE BOX(s) {
+                GRID(s) {
+                    defaultComponent = TRUE;
+                    PROPERTY (in(l, s)) {valueWidth = 100;}
+                }
+            }
+        }
+    }
+}
+    
+FORM stockLists 'Списки складов'
+
+    OBJECTS o = StockList
+    PROPERTIES (o) READONLY name
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(o)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    FILTERS in(o, s)
+;
+
+NAVIGATOR {
+    masterData {
+        NEW stockLists;
+    }
+}
