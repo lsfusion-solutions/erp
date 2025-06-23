@@ -54,6 +54,10 @@ customLot = ABSTRACT VALUE Lot (STRING[200]);
 
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF (length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 ) OR customLot(initialBarcode()) THEN {
+        IF regexPatternMatch(initialBarcode(), '[а-яА-Я]') THEN {
+            MESSAGE 'При сканировании включена раскладка RU. \nСканирование будет отменено';
+            RETURN;
+        }
         IF skuFromGtin(idToGtin(initialBarcode())) AND NOT lot(barcodeToId(initialBarcode())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {
             id(l) <- barcodeToId(initialBarcode());
             tail(l) <- barcodeToTail(initialBarcode());
