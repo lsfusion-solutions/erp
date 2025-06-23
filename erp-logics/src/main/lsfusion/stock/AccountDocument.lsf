@@ -1,0 +1,234 @@
+MODULE AccountDocument;
+
+REQUIRE StockSkuDocument, SkuLedgerCost;
+
+
+CLASS AccountDocument 'Установка учетных цен';
+TABLE accountDocument (AccountDocument);
+
+@defineDocumentHeaderTime(AccountDocument);
+
+@defineDocumentHeaderNote(AccountDocument);
+
+@defineDocumentHeaderCreated(AccountDocument);
+@defineExternalizable(accountDocument, STRING[100]);
+WHEN LOCAL SET(AccountDocument o IS AccountDocument) INLINE DO {
+    IF o IS AccountDocument AND NOT date(o) THEN date(o) <- firstDayOfMonth(currentDate());
+    IF o IS AccountDocument AND NOT time(o) THEN time(o) <- 00:00;
+};
+
+@defineDocumentHeaderNumber(AccountDocument, BPSTRING[2]);
+@defineNumeratedDefault(AccountDocument, 'Установка учетных Цен', 'ПП');
+
+@defineDocumentHeaderPosted(AccountDocument);
+
+@defineDocumentHeaderClosed(AccountDocument);
+@defineDocumentHeaderDescription(AccountDocument, 'Установка учетных Цен');
+
+@defineDocumentHeaderStock(accountDocument, stock, 'Склад', );
+@defineDocumentDialogStocks(accountDocument, stock, company, , );
+
+CONSTRAINT AccountDocument m IS AccountDocument AND NOT stock(m)
+    MESSAGE 'Не задан склад для установки учетных цен';
+
+accountPrice 'Цена (учетная)' = DATA NUMERIC[16,5](AccountDocument, Sku);
+costPrice 'Цена (себестоимость)' = DATA NUMERIC[16,5](AccountDocument, Sku);
+
+
+FORM accountDocument 'Установка учетных цен'
+    OBJECTS m = AccountDocument PANEL
+
+    PROPERTIES(m) isPosted, nameStock ON CHANGE changeStockCompany(m), nameNumerator, number, series, date, time,
+        note
+
+    OBJECTS d = Sku
+    PROPERTIES(d) idBarcode, id, name, shortNameUOM
+    PROPERTIES(m, d) accountPrice, costPrice
+    FILTERGROUP detail
+        FILTER 'В документе' accountPrice(m, d) 
+
+    EVENTS
+        ON OK prePost(m)
+
+    EDIT AccountDocument OBJECT m
+;
+
+DESIGN accountDocument {
+    OBJECTS {
+        NEW mainTabbed {
+            fill = 1;
+            tabbed = TRUE;
+            NEW documentBox {
+                fill = 1;
+                caption = 'Установка учетных цен';
+
+                NEW headerBox {
+                    horizontal = TRUE;
+
+                    NEW headerRow1 {
+                        fill = 1;
+                        MOVE GROUP(documentHeader,m) {
+                            lines = 1;
+                            NEW doc1 {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(isPosted(m)) { charWidth = 10; }
+                                MOVE PROPERTY(nameStock(m)) { notNull = TRUE; };
+                            }
+                            NEW doc2 {
+                                horizontal = TRUE;
+                                MOVE PROPERTY(nameNumerator(m));
+                                MOVE PROPERTY(number(m));
+                                MOVE PROPERTY(series(m));
+                                MOVE PROPERTY(date(m));
+                                MOVE PROPERTY(time(m));
+                            }
+                        }
+
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            tabbed = TRUE;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                MOVE GROUP(documentPrm,m) {
+                                    lines = 3;
+                                }
+                            }
+                            NEW headerExtraParams {
+                                caption = 'Дополнительные параметры';
+                            }
+                            NEW headerCreateDetail {
+                                caption = 'Основание';
+                            }
+                            NEW headerCreateDocuments {
+                                caption = 'Производные документы';
+                            }
+                        }
+                    }
+                }
+                NEW specificationBox {
+                    fill = 1;
+                    tabbed = TRUE;
+                    MOVE BOX(d) {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+    }
+}
+
+accountDocument = GROUP AGGR AccountDocument a BY stock(a), date(a);
+ 
+
+calculateAndCreateDocument(DATE d, LegalEntity l ) {
+    documentsClosedDate(Stock st) <- d;
+    APPLY;
+    
+    recalculateCost(Stock st) <- legalEntity(st) == l;
+    recalculateCostGauss(d, lastDayOfMonth(d));
+    
+    FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
+        stock(a) <- st;
+        date(a) <- d;
+    }
+
+    FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
+        accountPrice(a, s) <- p;
+    }
+
+    documentsClosedDate(Stock st) <- sum(lastDayOfMonth(d), 1);
+    APPLY;
+}
+
+calculateAndCreateDocument 'Пересчитать учетные цены' (DATE d) {
+    NEWSESSION {
+        ASK 'Период закрыт. Выполнить пересчет документов в закрытом периоде?' IF documentsClosedDate() >= firstDayOfMonth(d) DO {
+            documentsClosedDate() <- firstDayOfMonth(d);
+            APPLY;
+
+            FOR isCompany(LegalEntity l) DO {
+                calculateAndCreateDocument(firstDayOfMonth(d),l);
+            }
+
+            documentsClosedDate() <- sum(lastDayOfMonth(d), 1);
+            APPLY;
+        }
+    }
+}
+
+FORM accountDocuments 'Установка учетных цен'
+    OBJECTS m = AccountDocument
+    PROPERTIES(m) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock
+    PROPERTIES(m) READONLY createdName = createdNameUser
+    PROPERTIES(m) READONLYIF isReadonly() note
+
+    PROPERTIES(m) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
+        postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES(m) NEWSESSION NEW, editM = EDIT
+    PROPERTIES(m) close SHOWIF isOpened(m), open SHOWIF isClosed(m)
+
+    PROPERTIES(m) NEWSESSION deleted = DELETE
+
+    OBJECTS d = Sku
+    PROPERTIES(d) READONLY idBarcode, id, name, shortNameUOM
+    PROPERTIES(m, d) READONLY accountPrice, costPrice
+
+    FILTERS accountPrice(m, d)
+    
+    OBJECTS df = DATE PANEL 
+    PROPERTIES (df) VALUE, calculateAndCreateDocument
+;
+@extendFormFilterAccessStock(AccountDocument, m, accountDocuments, stock, company);
+
+DESIGN accountDocuments {
+    OBJECTS {
+        NEW filter {
+            caption = 'Фильтры';
+            horizontal = TRUE;
+        }
+        NEW documentContainer  {
+            fill = 1;
+
+            MOVE BOX(m) {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                tabbed = TRUE;
+
+                MOVE BOX(d) {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,m);
+                    MOVE GROUP(posted,m);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    horizontal = TRUE;
+                }
+            }
+        }
+    }
+}
+
+@extendFormEditable(accountDocuments);
+
+@defineFilterIsOpened (accountDocument, accountDocuments, m);
+NAVIGATOR {
+    stockCost {
+        NEW accountDocuments;
+    }
+}

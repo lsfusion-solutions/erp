@@ -15,7 +15,7 @@ EXTEND FORM costSkuLedger
 
 // calculated gauss
 
-calculatedCost = DATA LOCAL NUMERIC[16,4] (Sku, Stock);
+calculatedCost = DATA LOCAL NESTED NUMERIC[16,4] (Sku, Stock);
 calculatedErrors = DATA LOCAL STRING ();
 recalculateCostCalculated ABSTRACT LIST (DATE, DATE);
 
@@ -45,28 +45,37 @@ recalculateCost 'Вкл.' = DATA LOCAL BOOLEAN (Sku);
 recalculateAllSkus = DATA LOCAL BOOLEAN () PREREAD;
 calcRecalculateCost (Sku sku) = recalculateAllSkus() OR recalculateCost(sku); 
 
+//может быть несколько ЮЮЛ в базе, чтобы была возможность считать по отдельности
+recalculateCost 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+recalculateAllStocks = DATA LOCAL BOOLEAN () PREREAD;
+calcRecalculateCost (Stock stock) = recalculateAllStocks() OR recalculateCost(stock);
+
+positiveBalance = ABSTRACT BOOLEAN ();
+
 recalculateCostGauss (DATE dFrom, DATE dTo) {
-    NEWSESSION NESTED(recalculateCost[Sku]) {
+    NEWSESSION NESTED(recalculateCost[Sku], recalculateCost[Stock]) {
+        calculatedCost(Sku sku, Stock stock) <- NULL;
         recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku)); 
+        recalculateAllStocks() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Stock stock)); 
     
-        calcCostQuantity (Sku sku, Stock stock) <- balanceB(sku, stock, dFrom) IF calcRecalculateCost(sku);
+        calcCostQuantity (Sku sku, Stock stock) <- balanceB(sku, stock, dFrom) IF (NOT positiveBalance() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
         
         logToFile('cost', CONCAT '; ', 'Посчитаны начальные остатки по товарам', GROUP SUM 1 IF calcCostQuantity(Sku sku, Stock stock));
        
-        calcCostSum (Sku sku, Stock stock) <- sumB(sku, stock, dFrom) IF calcRecalculateCost(sku);
+        calcCostSum (Sku sku, Stock stock) <- sumB(sku, stock, dFrom) IF (NOT positiveBalance() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
     
         logToFile('cost', 'Посчитаны начальные суммы по товарам');
         
-        calcCostQuantity (Sku sku, Stock stock) <- calcCostQuantity(sku, stock) (+) fixedCostQuantity(sku, stock, dFrom, dTo) WHERE fixedCostQuantity(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku);  
+        calcCostQuantity (Sku sku, Stock stock) <- calcCostQuantity(sku, stock) (+) fixedCostQuantity(sku, stock, dFrom, dTo) WHERE fixedCostQuantity(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);  
     
         logToFile('cost', 'Посчитаны приходы количеств по товарам');
     
-        calcCostSum (Sku sku, Stock stock) <- calcCostSum(sku, stock) (+) fixedCostSum(sku, stock, dFrom, dTo) WHERE fixedCostSum(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku);
+        calcCostSum (Sku sku, Stock stock) <- calcCostSum(sku, stock) (+) fixedCostSum(sku, stock, dFrom, dTo) WHERE fixedCostSum(sku, stock, dFrom, dTo) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
     
         logToFile('cost', 'Посчитаны приходы сумм по товарам');
     
         calcCostIntra (Sku sku, Stock from, Stock to) <- NULL;
-        calcCostIntra (Sku sku, Stock from, Stock to) <- intraCostQuantity(sku, from, to, dFrom, dTo) WHERE intraCostQuantity(sku, from, to, dFrom, dTo) AND calcRecalculateCost(sku);
+        calcCostIntra (Sku sku, Stock from, Stock to) <- intraCostQuantity(sku, from, to, dFrom, dTo) WHERE intraCostQuantity(sku, from, to, dFrom, dTo) AND calcRecalculateCost(sku) AND calcRecalculateCost(to) AND calcRecalculateCost(from);
         calcCostIntra (Sku sku, Stock from, Stock to) <- NULL WHERE calcCostIntra(sku, from, to) <= 0;
         
         WHILE TRUE DO {
