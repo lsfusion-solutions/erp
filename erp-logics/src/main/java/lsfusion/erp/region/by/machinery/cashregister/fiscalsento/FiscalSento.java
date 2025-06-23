@@ -151,8 +151,8 @@ public class FiscalSento {
             result = sentoDLL.sento.openRefundDocumentMark(
                     item.numberDepartment, getBytes(item.barcode), getVAT(item.numberSection),
                     price, item.quantity, sum, getBytes(item.name),
-                    getBytes(item.marka != null ? item.marka : ""),
-                    getBytes(item.ukz != null ? item.ukz : "")
+                    getBytes(item.ukz != null ? item.ukz : ""),
+                    getBytes(item.marka != null ? item.marka : "")
             );
         }
         else {
@@ -313,8 +313,9 @@ public class FiscalSento {
             result = sentoDLL.sento.saleMark(
                     (short) 6, item.numberDepartment, getBytes(item.barcode), getVAT(item.numberSection),
                     price, item.quantity, sum, getBytes(item.name),
-                    getBytes(item.marka != null ? item.marka : ""),
-                    getBytes(item.ukz != null ? item.ukz : "")
+                    getBytes(item.ukz != null ? item.ukz : ""),
+                    getBytes(item.marka != null ? item.marka : "")
+                    
             );
         }
         else {
