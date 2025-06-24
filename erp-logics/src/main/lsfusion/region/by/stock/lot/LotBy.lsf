@@ -11,11 +11,16 @@ CLASS LotStatus 'Статус заказа' {
     MANUFACTURED   'Изготовлен',
     VALIDATED      'Валидирован',
     SIGNED_RF       'Подписан РФ',
-    MARKED         'Промаркирован товар',
+    IMPORTED        'Импортирован',
+    APPLIED         'Нанесен',
+    MARKED          'Промаркирован товар',
+    TRANSIT         'Транзитный товар',
     CIRCULATION_RB  'Введен в оборот в РБ',
     ARRIVED_ABROAD  'Прибыл из-за границы',
     SOLD_RETAIL     'Реализован в розничной сети',
-    DEPARTED_ABROAD 'Выбыл за границу'
+    DEPARTED_ABROAD 'Выбыл за границу',
+    RETURN_RETAIL   'Возврат в розничную торговлю',
+    DECOMMISSIONED 'Недействительно. Списан'
 }
 
 code 'Код' (LotStatus s) = CASE 
@@ -24,13 +29,18 @@ code 'Код' (LotStatus s) = CASE
     WHEN s == LotStatus.CODE_ISSUED THEN 15
     WHEN s == LotStatus.MANUFACTURED THEN 20
     WHEN s == LotStatus.VALIDATED THEN 30
-    WHEN s == LotStatus.SIGNED_RF THEN 40 
+    WHEN s == LotStatus.SIGNED_RF THEN 40
+    WHEN s == LotStatus.IMPORTED THEN 45
+    WHEN s == LotStatus.APPLIED THEN 47 
     WHEN s == LotStatus.MARKED THEN 50
+    WHEN s == LotStatus.TRANSIT THEN 52                       
     WHEN s == LotStatus.CIRCULATION_RB THEN 55
     WHEN s == LotStatus.ARRIVED_ABROAD THEN 60 
     WHEN s == LotStatus.SOLD_RETAIL THEN 80 
-    WHEN s == LotStatus.DEPARTED_ABROAD THEN 90 
-    CHARWIDTH 20;
+    WHEN s == LotStatus.DEPARTED_ABROAD THEN 90
+    WHEN s == LotStatus.RETURN_RETAIL THEN 100
+    WHEN s == LotStatus.DECOMMISSIONED THEN 200
+CHARWIDTH 20;
 
 invalid(LotStatus s) = code(s) < 45 OR (code(s) > 55 AND NOT code(s) == 100) MATERIALIZED;
 
@@ -45,7 +55,13 @@ order 'Порядок' (LotStatus s) = CASE
     WHEN s == LotStatus.CIRCULATION_RB THEN 7
     WHEN s == LotStatus.ARRIVED_ABROAD THEN 8
     WHEN s == LotStatus.SOLD_RETAIL THEN 9
-    WHEN s == LotStatus.DEPARTED_ABROAD THEN 10;
+    WHEN s == LotStatus.DEPARTED_ABROAD THEN 10
+    WHEN s == LotStatus.RETURN_RETAIL THEN 11
+    WHEN s == LotStatus.DECOMMISSIONED THEN 12
+    WHEN s == LotStatus.IMPORTED THEN 13
+    WHEN s == LotStatus.APPLIED THEN 14
+    WHEN s == LotStatus.TRANSIT THEN 15
+;
 
 statusLot (INTEGER code) = CASE 
     WHEN code == 0  THEN LotStatus.GENERATED
@@ -53,12 +69,18 @@ statusLot (INTEGER code) = CASE
     WHEN code == 15 THEN LotStatus.CODE_ISSUED
     WHEN code == 20 THEN LotStatus.MANUFACTURED
     WHEN code == 30 THEN LotStatus.VALIDATED
-    WHEN code == 40 THEN LotStatus.SIGNED_RF 
+    WHEN code == 40 THEN LotStatus.SIGNED_RF
+    WHEN code == 45 THEN LotStatus.IMPORTED
+    WHEN code == 47 THEN LotStatus.APPLIED                        
     WHEN code == 50 THEN LotStatus.MARKED
+    WHEN code == 52 THEN LotStatus.TRANSIT
     WHEN code == 55 THEN LotStatus.CIRCULATION_RB 
     WHEN code == 60 THEN LotStatus.ARRIVED_ABROAD 
     WHEN code == 80 THEN LotStatus.SOLD_RETAIL
-    WHEN code == 90 THEN LotStatus.DEPARTED_ABROAD;
+    WHEN code == 90 THEN LotStatus.DEPARTED_ABROAD
+    WHEN code == 100 THEN LotStatus.RETURN_RETAIL
+    WHEN code == 200 THEN LotStatus.DECOMMISSIONED
+;
     
 name 'Наименование' (LotStatus s) = staticCaption(s) IF s IS LotStatus CHARWIDTH 20;    
   
