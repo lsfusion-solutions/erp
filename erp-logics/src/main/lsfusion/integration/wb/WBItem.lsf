@@ -1,10 +1,164 @@
 MODULE WBItem;
 
-REQUIRE WBMasterData;
+REQUIRE WBMasterData, System;
 
 NAMESPACE WB;
 
+CLASS Item 'Товар';
+
+itemSubGroup = DATA ItemSubGroup (Item);
+
 CLASS ABSTRACT Attribute 'Атрибут';
+TABLE attribute (Attribute) FULL;
+
+CLASS AttributeClass 'Тип атрибута';
+TABLE attributeClass (AttributeClass);
+
+name '{master.data.name}' (AttributeClass o) = staticCaption(o) IF o IS AttributeClass CHARWIDTH 15;
+order = ABSTRACT CASE INTEGER (AttributeClass);
+
+FORM dialogAttributeClasss 'Тип атрибута'
+    OBJECTS o = AttributeClass
+    PROPERTIES(o) READONLY name, order SHOWIF NULL
+    ORDERS order(o)    
+
+    LIST AttributeClass OBJECT o
+;
+
+newAttribute 'Новый' ABSTRACT CASE (AttributeClass);
+newAttribute 'Новый' () {
+    DIALOG dialogAttributeClasss OBJECTS o INPUT DO {
+        newAttribute(o);
+    }
+} TOOLBAR IMAGE 'add.png';
+
+nameClass 'Тип атрибута' (Attribute a) = objectClassName(a) CHARWIDTH 20;
+
+id 'Код' = ABSTRACT STRING[50] (Attribute) MATERIALIZED NONULL INDEXED CHARWIDTH 15 IN id;
+attribute 'Атрибут' (STRING[10] id) = GROUP AGGR Attribute a BY id(a);
+
+active 'Вкл.' = ABSTRACT BOOLEAN (Attribute);
+isObject 'Объектный' = ABSTRACT BOOLEAN (Attribute);
+
+name 'Наименование атрибута' = ABSTRACT STRING[50] (Attribute) NONULL IN id;
+
+in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, Attribute);
+notNull 'Обязательный' = DATA BOOLEAN (ItemSubGroup, Attribute);
+
+value 'Значение' = ABSTRACT STRING (Item, Attribute);
+idValue 'id значения' = ABSTRACT STRING (Item, Attribute);
+objectValue 'Объект значения' = ABSTRACT Object (Item, Attribute);
+
+CONSTRAINT (DROPPED(value(Item o, Attribute a)) OR SET(in(itemSubGroup(o), a)) AND NOT value(o, a)) AND PREV(notNull(itemSubGroup(o), a)) OR
+    SET(o IS Item) AND a IS Attribute AND NOT value(o, a) AND notNull(itemSubGroup(o), a)
+    MESSAGE 'Не заполнен обязательный атрибут';
+
+edit 'Редактировать' ABSTRACT (Item, Attribute);
+set 'Установить' ABSTRACT (Item, Attribute, STRING);
+
+FORM attributes 'Атрибуты'
+    OBJECTS attr = Attribute 
+    PROPERTIES (attr) READONLY id, name, nameClass
+    PROPERTIES (attr) NEWSESSION EDIT, DELETE
+    PROPERTIES NEWSESSION newAttribute() DRAW attr
+
+    FILTERGROUP active
+        FILTER 'Активные' active(attr) DEFAULT
+
+    OBJECTS ownerClass = ItemSubGroup
+    PROPERTIES in(ownerClass, attr) COLUMNS (ownerClass) HEADER name(ownerClass)
+
+    OBJECTS extraProp = ItemSubGroup
+    PROPERTIES name(extraProp) READONLY
+    PROPERTIES (extraProp, attr) notNull
+;
+
+DESIGN attributes {
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(extraProp) { caption = 'Настройки'; }
+        }
+    }
+}  
+
+NAVIGATOR {
+    NEW FORM attributes;
+}
+
+FORM itemSubGroup 'Предмет'
+    OBJECTS i = Item PANEL 
+//    PROPERTIES(i) id, name, idItemGroup, nameItemGroup
+//    ORDERS name(i)
+
+    OBJECTS attr = Attribute
+    PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
+
+    EDIT Item OBJECT i
+;
+
+//Цвет
+
+CLASS AttributeColor 'Цвет' : Attribute;
+EXTEND CLASS AttributeClass { color 'Цвет' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.color THEN {
+    NEW a = AttributeColor {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.color THEN 1;
+id 'Код' = DATA STRING[10] (AttributeColor) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeColor);
+name 'Наименование' = DATA STRING[50] (AttributeColor) NONULL IN id;
+id (AttributeColor a) += id(a);
+active (AttributeColor a) += a IS AttributeColor AND NOT inactive(a);
+isObject (AttributeColor a) += a IS AttributeColor;
+name (AttributeColor a) += name(a);
+
+FORM dialogAttributeColorValue 'Значение атрибута'
+// для плоского списка    
+//    OBJECTS attr = AttributeColor PANEL, val = Color
+//    PROPERTIES(val) READONLY name
+    
+    OBJECTS attr = AttributeColor PANEL    
+    TREE treeColors val=Color PARENT parent(val)
+    PROPERTIES READONLY name(val), color 'Цвет' = nameParent(val)
+    ORDERS name(val) 
+;
+DESIGN dialogAttributeColorValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Color (Item, AttributeColor);
+value (Item o, AttributeColor a) += STRING(OVERRIDE name(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeColor a) += value(o, a);
+colorAttribute (STRING id) = GROUP MAX Color c AS Color BY [FORMULA STRING '$1::text'](c);
+
+edit (Item o, AttributeColor a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeColorValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeColorValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeColor a, STRING v) + {
+    value(o, a) <- colorAttribute(v);
+}
+
+FORM attributeColor 'Атрибут (цвет)'
+    OBJECTS attr = AttributeColor PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeColor OBJECT attr
+;
+DESIGN attributeColor { 
+    caption = CONCAT ' - ', 'Атрибут (цвет)', name(attr); 
+}
 
 CLASS ItemAttribute 'Атрибут товара';
 id 'Код' = DATA STRING (ItemAttribute);
