@@ -159,7 +159,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 if (extraInfoJSON.has("lottype")) {
                     String lotType = extraInfoJSON.getString("lottype");
                     if (lotType != null && !lotType.equals("ukz"))
-                        addStringElement(good, "mark-type", lotType);
+                        addStringElement(good, "mark-type", getMarkType(lotType));
                 }
             }
         }
@@ -169,6 +169,49 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         good.addContent(createBarcodeElement(good, item, idItem, barcodeItem, exportAmountForBarcode, deleteBarcodeMap, usedDeleteBarcodes, notGTINPrefixes, infoJSON, extraInfoJSON));
 
         return good;
+    }
+
+    private String getMarkType(String lotType) {
+        switch (lotType) {
+            case "shoes":
+                return "FOOTWEAR";
+            case "perfumery":
+                return "PERFUMES";
+            case "clothes":
+                return "LIGHT_INDUSTRY";
+            case "milk":
+                return "MILK";
+            case "tires":
+                return "TYRES";
+            case "photo":
+                return "PHOTO";
+            case "bike":
+                return "BICYCLES";
+            case "antiseptics":
+                return "ANTISEPTIC";
+            case "veterinaryMedicines":
+                return "MEDICAL_DEVICES";
+            case "water":
+                return "WATER";
+            case "animalFeed":
+                return "PET_FOOD";
+            case "juice":
+                return "WATER_AND_BEVERAGES";
+            case "preserves":
+                return "CANNED_FOOD";
+            case "dietarySupplements":
+                return "DIETARYSUP";
+            case "caviar":
+                return "CAVIAR";
+            case "oilFat":
+                return "OIL";
+            case "cosmetics":
+                return "COSMETICS_AND_HOUSEHOLD_CHEMICALS";
+            case "grocery":
+                return "GROCERIES";
+            default:
+                return lotType;
+        }
     }
 
     protected void addStopListItems(Element parent, StopListInfo stopListInfo,
