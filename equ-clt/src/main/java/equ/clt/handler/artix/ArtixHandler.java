@@ -424,6 +424,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             barcodesArray.put(getBarcodeJSON(barcode.idBarcode, !appendBarcode, null, defaultQuantity));
                     }
                     inventObject.put("barcodes", barcodesArray);
+                } else {
+                    if (doubleBarcodes) {
+                        JSONArray barcodesArray = new JSONArray();
+                        barcodesArray.put(getBarcodeJSON(mainBarcode, !appendBarcode, null, defaultQuantity));
+                        inventObject.put("barcodes", barcodesArray);
+                    }
                 }
             }
 
