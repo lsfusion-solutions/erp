@@ -98,7 +98,171 @@ FORM itemSubGroup 'Предмет'
     EDIT Item OBJECT i
 ;
 
-//Цвет
+//------------------------------------ String ----------------------------------------------------------------------//
+
+CLASS AttributeString 'Строковый атрибут' : Attribute;
+EXTEND CLASS AttributeClass { string 'Строка' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.string THEN {
+    NEW a = AttributeString {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.string THEN 1;
+id 'Код' = DATA STRING[50] (AttributeString) NONULL CHARWIDTH 15 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeString);
+name 'Наименование' = DATA STRING[50] (AttributeString) NONULL IN id;
+id (AttributeString a) += id(a);
+active (AttributeString a) += a IS AttributeString AND NOT inactive(a);
+name (AttributeString a) += name(a);
+value 'Значение' = DATA STRING (Item, AttributeString);
+value (Item o, AttributeString a) += value(o, a);
+edit (Item o, AttributeString a) + {
+    INPUT s = STRING DO {
+        value(o, a) <- s;
+    }
+}
+set (Item o, AttributeString a, STRING v) + {
+    value(o, a) <- v;
+}
+// Дополнительные ограничения
+regex 'Шаблон (regex)' = DATA STRING (AttributeString) IN id;
+CONSTRAINT SETCHANGED(value(Item o, AttributeString i)) AND regex(i) AND NOT regexPatternMatch(value(o, i), regex(i)) 
+    MESSAGE CONCAT ' ','Значение атрибута не соответствует шаблону';
+
+FORM attributeString 'Атрибут (строка)'
+    OBJECTS attr = AttributeString PANEL
+    PROPERTIES (attr) id, name, inactive, regex
+    EDIT AttributeString OBJECT attr
+;
+DESIGN attributeString {
+    caption = CONCAT ' - ', 'Атрибут (строка)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            fill = 1;
+            MOVE PROPERTY(regex(attr)){align = START;};
+        }
+    }
+}
+
+//------------------------------------ Integer ----------------------------------------------------------------------//
+
+CLASS AttributeInteger 'Целочисленный атрибут' : Attribute;
+EXTEND CLASS AttributeClass { integer 'Целое число' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.integer THEN {
+    NEW a = AttributeInteger {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.integer THEN 2;
+id 'Код' = DATA STRING[10] (AttributeInteger) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeInteger);
+name 'Наименование' = DATA STRING[50] (AttributeInteger) NONULL IN id;
+id (AttributeInteger a) += id(a);
+active (AttributeInteger a) += a IS AttributeInteger AND NOT inactive(a);
+name (AttributeInteger a) += name(a);
+value 'Значение' = DATA INTEGER (Item, AttributeInteger);
+value (Item o, AttributeInteger a) += STRING(value(o, a));
+
+// Дополнительные ограничения
+notMore 'Не больше' = DATA INTEGER (AttributeInteger);
+CONSTRAINT SETCHANGED(value(Item o, AttributeInteger i)) AND value(o, i) > notMore(i) 
+    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+
+notLess 'Не меньше' = DATA INTEGER (AttributeInteger);
+CONSTRAINT SETCHANGED(value(Item o, AttributeInteger i)) AND value(o, i) < notLess(i) 
+    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+edit (Item o, AttributeInteger a) + {
+    INPUT i = INTEGER DO {
+        value(o, a) <- i;
+    }
+}
+set (Item o, AttributeInteger a, STRING v) + {
+    value(o, a) <- INTEGER(v);
+}
+FORM attributeInteger 'Атрибут (целое)'
+    OBJECTS attr = AttributeInteger PANEL
+    PROPERTIES (attr) id, name, inactive, notMore, notLess
+    EDIT AttributeInteger OBJECT attr
+;
+DESIGN attributeInteger {
+    caption = CONCAT ' - ', 'Атрибут (целое)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            MOVE PROPERTY(notLess(attr)) { align = START; }
+            MOVE PROPERTY(notMore(attr)) { align = START; }
+        }
+    }
+}
+
+//------------------------------------ NUMERIC ---------------------------------------------------------------------//
+
+CLASS AttributeNumeric 'Числовой атрибут' : Attribute;
+EXTEND CLASS AttributeClass { numeric 'Число' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.numeric THEN {
+    NEW a = AttributeNumeric {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.numeric THEN 3;
+id 'Код' = DATA STRING[10] (AttributeNumeric) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeNumeric);
+name 'Наименование' = DATA STRING[50] (AttributeNumeric) NONULL IN id;
+id (AttributeNumeric a) += id(a);
+active (AttributeNumeric a) += a IS AttributeNumeric AND NOT inactive(a);
+name (AttributeNumeric a) += name(a);
+value 'Значение' = DATA NUMERIC (Item, AttributeNumeric);
+value (Item o, AttributeNumeric a) += STRING(value(o, a));
+// Дополнительные ограничения
+notMore 'Не больше' = DATA NUMERIC (AttributeNumeric);
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric i)) AND value(o, i) > notMore(i) 
+    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+
+notLess 'Не меньше' = DATA NUMERIC (AttributeNumeric);
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric i)) AND value(o, i) < notLess(i) 
+    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+
+precision 'Точность' = DATA INTEGER (AttributeNumeric);
+scale 'Масштаб' = DATA INTEGER (AttributeNumeric);
+CONSTRAINT SET(scale(AttributeNumeric a) >= precision(a)) 
+    MESSAGE 'Масштаб атрибута должен быть меньше точности';
+
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric n)) AND abs(value(o, n)) * power(10, scale(n)) >= NUMERIC(power(10, precision(n))) 
+    MESSAGE CONCAT ' ','Точность атрибута больше чем минимально допустимая точность';
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric n)) AND floor(abs(value(o, n)) * power(10, scale(n))) != abs(value(o, n)) * power(10, scale(n))
+    MESSAGE CONCAT ' ','Масштаб атрибута выше чем максимальный масштаб';
+
+edit (Item o, AttributeNumeric a) + {
+    INPUT i = NUMERIC DO {
+        value(o, a) <- i;
+    }
+}
+set (Item o, AttributeNumeric a, STRING v) + {
+    value(o, a) <- NUMERIC(v);
+}
+FORM attributeNumeric 'Атрибут (число)'
+    OBJECTS attr = AttributeNumeric PANEL
+    PROPERTIES (attr) id, name, inactive, precision, scale, notMore, notLess
+    EDIT AttributeNumeric OBJECT attr
+;
+DESIGN attributeNumeric {
+    caption = CONCAT ' - ', 'Атрибут (число)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            MOVE PROPERTY(precision(attr)) { align = START; }
+            MOVE PROPERTY(scale(attr)) { align = START; }
+            MOVE PROPERTY(notLess(attr)) { align = START; }
+            MOVE PROPERTY(notMore(attr)) { align = START; }
+        }
+    }
+}
+
+//------------------------------------ Цвет ------------------------------------------------------------------------//
 
 CLASS AttributeColor 'Цвет' : Attribute;
 EXTEND CLASS AttributeClass { color 'Цвет' }
@@ -108,7 +272,7 @@ newAttribute(AttributeClass c) + WHEN c = AttributeClass.color THEN {
     }
 };
 
-order(AttributeClass c) += WHEN c == AttributeClass.color THEN 1;
+order(AttributeClass c) += WHEN c == AttributeClass.color THEN 4;
 id 'Код' = DATA STRING[10] (AttributeColor) NONULL CHARWIDTH 10 IN id;
 inactive 'Выкл.' = DATA BOOLEAN (AttributeColor);
 name 'Наименование' = DATA STRING[50] (AttributeColor) NONULL IN id;
