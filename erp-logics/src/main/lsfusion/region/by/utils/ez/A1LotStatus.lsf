@@ -47,32 +47,33 @@ overGetStatus() + {
     IF useA1ForLotStatus() THEN {
         consumedGetStatus() <- TRUE;
 
-        in(Lot l) <- NULL WHERE inExport(l);
-        exception(Lot l) <- NULL WHERE inExport(l);
+        exception(Lot l) <- NULL WHERE in(l);
         
         encodeBase64(usernameA1() + ':' + passwordA1());
         headers('Authorization') <- 'Basic ' + encodedBase64();
         headers('UID') <- OVERRIDE UID(), hostnameCurrentComputer();
         
-        EXPORT exportLots JSON;
+        WHILE countInLot() DO {
+            EXPORT exportLots JSON TOP 1000;
 
-        TRY {
-            insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlA1() + '/api/check-code' HEADERS headers PARAMS exportFile() TO file;
+            TRY {
+                insecureSSL() <- TRUE;
+                EXTERNAL HTTP POST urlA1() + '/api/check-code' HEADERS headers PARAMS exportFile() TO file;
 
-            IMPORT importLotStatus JSON FROM file();
-            status(Lot l) <- (GROUP MIN statusLot(statusCode(INTEGER i)) IF code(l) == code(i)) WHERE in(l);
-            in(Lot l) <- NULL;
-        } CATCH {
-            logToFile('ez', messageCaughtException());
+                IMPORT importLotStatus JSON FROM file();
+                status(Lot l) <- (GROUP MIN statusLot(statusCode(INTEGER i)) IF code(l) == code(i)) WHERE GROUP SUM 1 IF code(l) == code(INTEGER i);
+                in(Lot l) <- NULL WHERE GROUP SUM 1 IF code(l) == code(INTEGER i);
+            } CATCH {
+                logToFile('ez', messageCaughtException());
 
-            MESSAGE CONCAT ' ', 'Ошибка при обращении к A1', messageCaughtException() NOWAIT;
+                MESSAGE CONCAT ' ', 'Ошибка при обращении к A1', messageCaughtException() NOWAIT;
 
-            NEWSESSION NESTED (messageCaughtException, resultString) {
-                exception(Lot l) <- CONCAT ', ', messageCaughtException(), resultString() WHERE in(l);
-                APPLY;
+                NEWSESSION NESTED (messageCaughtException, resultString) {
+                    exception(Lot l) <- CONCAT ', ', messageCaughtException(), resultString() WHERE in(l);
+                    APPLY;
+                }
+                RETURN;
             }
-            RETURN;
         }
     }
     

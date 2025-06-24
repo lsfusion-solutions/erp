@@ -9,6 +9,16 @@ checkLotStatus 'Проверить статусы марок' (Invoice i) {
     in(Lot l) <- TRUE WHERE GROUP SUM 1 IF quantity(InvoiceDetail d, l) AND invoice(d) == i;
 
     getStatus(customer(i));
+    
+    MESSAGE 'Проверка Марок завершена.' NOWAIT ;
+    IF GROUP SUM 1 IF (invalid(status(Lot l)) OR NOT status(l)) AND quantity(InvoiceDetail d, l) AND invoice(d) == i THEN {
+        MESSAGE 'В документе присутствуют марки в недопустимом статуссе:' NOWAIT;
+        
+        FOR [GROUP SUM 1 IF (invalid(status(Lot l)) OR NOT status(l)) AND quantity(InvoiceDetail d, l) AND invoice(d) == i BY d] (InvoiceDetail d ) ORDER index(d) DO {
+            MESSAGE index(d) +'. ' + idBarcodeSku(d) + ' (' + (GROUP SUM 1 IF (invalid(status(Lot l)) OR NOT status(l)) AND quantity(d, l))+')' NOWAIT;
+        }
+        
+    }
 } TOOLBAR;
 
 EXTEND FORM userInvoice
