@@ -1,0 +1,230 @@
+MODULE ExportInvoiceFormsSkko;
+
+REQUIRE DocumentMNS, SaleInvoice, SaleReturnInvoice, LegalEntityMNS, LegalEntityBy, EDIGTIN, ZReportLot, LotTypeBy, SkkoRequest, ZReportLotBy, SaleShipmentLot, SaleReturnShipmentLot;
+
+NAMESPACE InvoiceSkko;
+
+saleInvoice = DATA Invoice.Invoice (SkkoRequest);
+
+lastSkkoRequest(Sale.Invoice i) =
+    GROUP LAST SkkoRequest request
+    ORDER dateTime(request), request
+    BY saleInvoice(request);
+
+lastSkkoRequest(Sale.Invoice i, SkkoRequestType t) =
+    GROUP LAST SkkoRequest request
+    ORDER dateTime(request), request
+    IF send(request)
+    BY saleInvoice(request), type(request);
+
+sentSale 'Отправлен в СККО' = DATA BOOLEAN (Sale.Invoice);
+
+ukz 'УКЗ' = DATA STRING[30](Sale.InvoiceDetail);
+
+index  = DATA LOCAL INTEGER (Sale.InvoiceDetail, Lot) CHARWIDTH 4;
+lot(Sale.InvoiceDetail d, INTEGER i) = GROUP MIN Lot l IF index(d, l) == i;
+
+markingType (Sale.InvoiceDetail d, INTEGER i) = CASE
+    WHEN lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 1 IF d IS Sale.InvoiceDetail
+    WHEN NOT lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 2 IF d IS Sale.InvoiceDetail
+    WHEN lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 3 IF d IS Sale.InvoiceDetail
+    WHEN NOT lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 16 IF d IS Sale.InvoiceDetail
+    WHEN lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 17 IF d IS Sale.InvoiceDetail
+    WHEN NOT lot(d, i) AND ukz(d) AND GTIN(sku(d)) THEN 18 IF d IS Sale.InvoiceDetail
+    WHEN lot(d, i) AND ukz(d) AND GTIN(sku(d)) THEN 19 IF d IS Sale.InvoiceDetail
+    ELSE 0 IF d IS Sale.InvoiceDetail;
+
+GROUP eds;
+certificate = DATA LOCAL STRING();
+type = DATA LOCAL STRING();
+value = DATA LOCAL STRING();
+
+FORM exportEDS
+    PROPERTIES() IN eds certificate, type, value
+;
+
+quantity 'Кол-во'  = DATA LOCAL NUMERIC[16,5] (Sale.InvoiceDetail, INTEGER);
+quantityWithoutLot(Sale.InvoiceDetail d) = quantity(d) (-) GROUP SUM quantity(d, Lot l);
+indexWithoutLot = DATA LOCAL INTEGER (Sale.InvoiceDetail);
+
+fillExportData(Sale.Invoice i) {
+    index (Sale.InvoiceDetail d, Lot l) <- (PARTITION SUM 1 ORDER l BY quantity(d,l)) WHERE invoice(d) == i; 
+    quantity(Sale.InvoiceDetail d, INTEGER index) <- quantity(d, lot(d, index))*count(lot(d, index)) WHERE i == invoice(d);
+    
+    indexWithoutLot(Sale.InvoiceDetail d) <- 1 (+) (GROUP MAX INTEGER index IF quantity(d, index)) WHERE i == invoice(d);
+    quantity(Sale.InvoiceDetail d, INTEGER index) <- quantityWithoutLot(d) WHERE indexWithoutLot(d) == index;
+}
+
+FORM exportSaleWithoutKSA
+    OBJECTS invoice = Sale.Invoice PANEL
+    PROPERTIES
+        address = OVERRIDE addressSupplierStock(invoice), '0' IF invoice IS Sale.Invoice EXTID 'address',
+        currency = shortNameCurrency(invoice) EXTID 'currency',
+        gniLocation = codeMNS(supplier(invoice)) EXTID 'gni_location',
+        issuedAt = toChar(dateTime(invoice),'yyyy-MM-ddThh24:mi:ss') EXTID 'issued_at',
+        messageNumber = LONG(number(lastSkkoRequest(invoice))) EXTID 'message_number',
+        tradingObjectName = OVERRIDE nameSupplierStock(invoice), '0' IF invoice IS Sale.Invoice EXTID 'trading_object_name',
+        traderUnp = OVERRIDE INTEGER(UNP(supplier(invoice))), 0 IF invoice IS Sale.Invoice   EXTID 'trader_unp'
+
+    OBJECTS positions = (d = Sale.InvoiceDetail, i = INTEGER)
+    PROPERTIES
+        amount = OVERRIDE price(d),  0.0 IF d IS Sale.InvoiceDetail EXTID 'amount',
+        ean = OVERRIDE GTIN(sku(d)), '0' IF d IS Sale.InvoiceDetail EXTID 'ean',
+        discount = OVERRIDE discountSum(d),  0.0 IF d IS Sale.InvoiceDetail EXTID 'discount',
+        markingCode = code(lot(d,i)) EXTNULL EXTID 'marking_code',
+        markingType = markingType(d, i) EXTID 'marking_type',
+        name = STRING[50](nameSku(d)) EXTID 'name',
+        productCount = quantity(d, i) EXTID 'product_count',
+        surcharge = 0 IF d IS Sale.InvoiceDetail EXTID 'surcharge',
+        ukzCode = ukz(d) EXTNULL EXTID 'ukz_code'
+    FILTERS invoice(d), lotType(sku(d)) OR UKZ(sku(d)) OR ukz(d) OR lot(d, i), quantity(d,i), iterate(i, 1, indexWithoutLot(d))
+;
+
+ui = DATA LOCAL STRING();
+error_description = DATA LOCAL STRING();
+error_code = DATA LOCAL INTEGER();
+status = DATA LOCAL BOOLEAN ();
+
+FORM importWithoutKSA
+    PROPERTIES() 
+        ui, 
+        error_description EXTID 'error description', 
+        error_code, 
+        status
+;
+
+saleReturnInvoice = DATA SaleReturn.Invoice (SkkoRequest);
+
+lastSkkoRequest(SaleReturn.Invoice i) =
+    GROUP LAST SkkoRequest request
+    ORDER dateTime(request), request
+    BY saleReturnInvoice(request);
+
+lastSkkoRequest(SaleReturn.Invoice i, SkkoRequestType t) =
+    GROUP LAST SkkoRequest request
+    ORDER dateTime(request), request
+        IF send(request)
+    BY saleReturnInvoice(request), type(request);
+
+ukz 'УКЗ' = DATA STRING[30](SaleReturn.InvoiceDetail);
+
+index  = DATA LOCAL INTEGER (SaleReturn.InvoiceDetail, Lot) CHARWIDTH 4;
+lot(SaleReturn.InvoiceDetail d, INTEGER i) = GROUP MIN Lot l IF index(d, l) == i;
+
+markingType (SaleReturn.InvoiceDetail d, INTEGER i) = CASE
+    WHEN lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 1 IF d IS SaleReturn.InvoiceDetail
+    WHEN NOT lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 2 IF d IS SaleReturn.InvoiceDetail
+    WHEN lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 3 IF d IS SaleReturn.InvoiceDetail
+    WHEN NOT lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 16 IF d IS SaleReturn.InvoiceDetail
+    WHEN lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 17 IF d IS SaleReturn.InvoiceDetail
+    WHEN NOT lot(d, i) AND ukz(d) AND GTIN(sku(d)) THEN 18 IF d IS SaleReturn.InvoiceDetail
+    WHEN lot(d, i) AND ukz(d) AND GTIN(sku(d)) THEN 19 IF d IS SaleReturn.InvoiceDetail
+    ELSE 0 IF d IS SaleReturn.InvoiceDetail;
+
+sentRefund = DATA BOOLEAN (SaleReturn.InvoiceDetail);
+
+quantity 'Кол-во'  = DATA LOCAL NUMERIC[16,5] (SaleReturn.InvoiceDetail, INTEGER);
+quantityWithoutLot(SaleReturn.InvoiceDetail d) = quantity(d) (-) GROUP SUM quantity(d, Lot l);
+indexWithoutLot = DATA LOCAL INTEGER (SaleReturn.InvoiceDetail);
+
+fillExportData(SaleReturn.Invoice i) {
+    index (SaleReturn.InvoiceDetail d, Lot l) <- (PARTITION SUM 1 ORDER l BY quantity(d,l)) WHERE invoice(d) == i;
+    quantity(SaleReturn.InvoiceDetail d, INTEGER index) <- quantity(d, lot(d, index))*count(lot(d, index)) WHERE i == invoice(d);
+    
+    indexWithoutLot(SaleReturn.InvoiceDetail d) <- (GROUP MAX INTEGER index IF quantity(d, index)) WHERE i == invoice(d);
+    quantity(SaleReturn.InvoiceDetail d, INTEGER index) <- quantityWithoutLot(d) WHERE indexWithoutLot(d) == index;
+}
+
+FORM exportRefundWithoutKSA
+    OBJECTS invoice = SaleReturn.Invoice PANEL
+    PROPERTIES
+        address = OVERRIDE addressSupplierStock(invoice), '0' IF invoice IS SaleReturn.Invoice EXTID 'address',
+        currency = shortNameCurrency(invoice) EXTID 'currency',
+        gniLocation = codeMNS(supplier(invoice)) EXTID 'gni_location',
+        issuedAt = toChar(dateTime(invoice),'yyyy-MM-ddThh24:mi:ss') EXTID 'issued_at',
+        messageNumber = LONG(number(lastSkkoRequest(invoice))) EXTID 'message_number',
+        tradingObjectName = OVERRIDE nameSupplierStock(invoice), '0' IF invoice IS SaleReturn.Invoice EXTID 'trading_object_name',
+        traderUnp = OVERRIDE INTEGER(UNP(supplier(invoice))), 0 IF invoice IS SaleReturn.Invoice EXTID 'trader_unp'
+    
+    OBJECTS positions = (d = SaleReturn.InvoiceDetail, i = INTEGER)
+    PROPERTIES
+        amount = OVERRIDE price(d),  0.0 IF d IS SaleReturn.InvoiceDetail EXTID 'amount',
+        ean = OVERRIDE GTIN(sku(d)), '0' IF d IS SaleReturn.InvoiceDetail EXTID 'ean',
+        markingCode = code(lot(d,i)) EXTNULL EXTID 'marking_code',
+        markingType = markingType(d, i) EXTID 'marking_type',
+        name = STRING[50](nameSku(d)) EXTID 'name',
+        productCount = quantity(d, i) EXTID 'product_count',
+        ukzCode = ukz(d) EXTNULL EXTID 'ukz_code'
+    FILTERS invoice(d), lotType(sku(d)) OR UKZ(sku(d)) OR ukz(d) OR lot(d, i), quantity(d,i), iterate(i, 1, indexWithoutLot(d))
+;
+
+//sentCancel 'Отменен в СККО' (Receipt r) = send(lastSkkoRequest(r, SkkoRequestType.cancel));
+
+FORM exportCancelWithoutKSA    
+    OBJECTS invoice = Sale.Invoice PANEL
+    PROPERTIES
+        address = OVERRIDE addressSupplierStock(invoice), '0' IF invoice IS Sale.Invoice EXTID 'address',
+        canceledMessageNumber = LONG(number(lastSkkoRequest(invoice, SkkoRequestType.sale))) EXTID 'canceled_message_number',
+        gniLocation = codeMNS(supplier(invoice)) EXTID 'gni_location',
+        issuedAt = toChar(dateTime(invoice),'yyyy-MM-ddThh24:mi:ss') EXTID 'issued_at',
+        messageNumber = LONG(number(lastSkkoRequest(invoice))) EXTID 'message_number',
+        traderUnp = OVERRIDE INTEGER(UNP(supplier(invoice))), 0 IF invoice IS Sale.Invoice   EXTID 'trader_unp'
+
+    OBJECTS positions = (d = Sale.InvoiceDetail, i = INTEGER )
+    PROPERTIES
+        amount = OVERRIDE sum(d) (+) discountSum(d),  0.0 IF d IS Sale.InvoiceDetail EXTID 'amount',
+        ean = OVERRIDE GTIN(sku(d)), '0' IF d IS Sale.InvoiceDetail EXTID 'ean',
+        markingType = markingType(d, i) EXTID 'marking_type',
+        markingCode = code(lot(d,i)) EXTNULL EXTID 'marking_code',
+        name = STRING[50](nameSku(d)) EXTID 'name',
+        productCount = quantity(d, i) EXTID 'product_count',
+        ukzCode = ukz(d) EXTNULL EXTID 'ukz_code'
+    FILTERS invoice(d), lotType(sku(d)) OR UKZ(sku(d)) OR ukz(d) OR lot(d, i), quantity(d,i), iterate(i, 1, indexWithoutLot(d))
+;
+
+EXTEND FORM Sale.invoices
+    OBJECTS r = SkkoRequest 
+    PROPERTIES (r) READONLY number, nameType, dateTime, send, message
+    FILTERS i == saleInvoice(r)
+    
+;
+
+DESIGN Sale.invoices {
+    documentDetail {
+        NEW skko {
+            caption = 'СККО';
+
+            NEW actions FIRST {
+                fill = 1;
+            }
+            MOVE BOX (r) {
+                fill = 7;
+                caption = 'Переданные сообщения';
+            }
+        }       
+        
+    }
+}
+
+EXTEND FORM SaleReturn.invoices
+    OBJECTS r = SkkoRequest
+    PROPERTIES (r) READONLY number, nameType, dateTime, send, message
+    FILTERS i == saleReturnInvoice(r)
+
+;
+
+DESIGN SaleReturn.invoices {
+    documentDetail {
+        NEW skko {
+            caption = 'СККО';
+
+            NEW actions FIRST {
+                fill = 1;
+            }
+            MOVE BOX (r) {
+                fill = 7;
+                caption = 'Переданные сообщения';
+            }
+        }
+    }
+}

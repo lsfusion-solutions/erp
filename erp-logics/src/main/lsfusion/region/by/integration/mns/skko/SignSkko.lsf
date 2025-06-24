@@ -1,8 +1,75 @@
 MODULE SignSkko;
 
+REQUIRE AuthorizationSkko;
 
-rusultSignInfo = DATA LOCAL STRING ();
-rusultCert = DATA LOCAL STRING ();
+CLASS SignatureAppSkko 'Приложение для подписи СККО' : StaticObject;
 
-//base64, alias, password, libPath
-signInfoCmsMin  INTERNAL 'lsfusion.erp.region.by.SignInfoCmsMin' (STRING, STRING, STRING, STRING);
+verify = DATA BOOLEAN ();
+
+canonicalizeJSONSkko (JSONFILE f) {
+    canonicalizeJSON(f);
+    canonicalizedJSON() <- replace(canonicalizedJSON(), '\\\\u','\\u');
+}
+
+// По умолчанию
+EXTEND CLASS SignatureAppSkko {
+    default 'По умолчанию'
+}
+
+dataSignatureAppSkko = DATA SignatureAppSkko();
+signatureAppSkko () = OVERRIDE dataSignatureAppSkko(), SignatureAppSkko.default;
+nameSignatureAppSkko 'Приложение для подписи СККО' () = staticCaption(signatureAppSkko());
+
+pathSkko 'Путь к библиотеке (Avest AvJCEProv)' = DATA STRING (Computer);
+pathSkko 'Путь к библиотеке (Avest AvJCEProv)' () = pathSkko(currentComputer());
+
+passwordSkko 'Пароль контейнера (Avest)' = DATA STRING (Computer) ECHO;
+passwordSkko 'Пароль контейнера (Avest)' () = passwordSkko(currentComputer());
+
+aliasSkko 'Имя ключа (Avest)' = DATA STRING (Computer);
+aliasSkko 'Имя ключа (Avest)' () = aliasSkko(currentComputer());
+
+EXTEND FORM computer PROPERTIES(c) pathSkko, passwordSkko, aliasSkko;
+EXTEND FORM computers PROPERTIES(c) READONLY pathSkko, passwordSkko, aliasSkko;
+
+mnsService 'URL' = DATA STRING();
+
+EXTEND FORM integrationData PROPERTIES() nameSignatureAppSkko, pathSkko, passwordSkko, aliasSkko;
+
+DESIGN integrationData {
+    mnsSKKO {
+        MOVE PROPERTY (nameSignatureAppSkko());        
+        
+        NEW defaultAppSkko{
+            caption = '';
+            fill = 1;
+            showIf = signatureAppSkko() == SignatureAppSkko.default;
+            MOVE PROPERTY (pathSkko());
+            MOVE PROPERTY (passwordSkko());
+            MOVE PROPERTY (aliasSkko());
+        }
+    }
+}
+
+resultSignInfo = DATA LOCAL STRING ();
+resultCert = DATA LOCAL STRING ();
+
+signInfoCmsMin INTERNAL 'lsfusion.erp.region.by.SignInfoCmsMin' (STRING, STRING, STRING, STRING); //base64, alias, password, libPath
+
+signInfoCmsMin (STRING base64) {
+    signInfoCmsMin(base64, aliasSkko(), passwordSkko(), pathSkko());
+}
+
+signSkko(STRING base64) {
+    IF signatureAppSkko() == SignatureAppSkko.default THEN {
+        IF aliasSkko() AND passwordSkko() THEN {
+            signInfoCmsMin (base64);
+        } ELSE {
+            MESSAGE ' Документ не подписан: Alias или Пароль ключа не задан' NOWAIT;
+        }
+        RETURN;
+    }
+}
+
+//signPublicCertificate  INTERNAL 'lsfusion.erp.region.by.SignPublicCertificate' (STRING, STRING); //alias, libPath
+base64SignatureSkko = DATA LOCAL STRING ();

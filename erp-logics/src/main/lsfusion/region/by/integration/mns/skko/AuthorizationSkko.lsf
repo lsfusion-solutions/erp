@@ -1,0 +1,87 @@
+MODULE AuthorizationSkko;
+
+REQUIRE ExportReceiptFormsSkko;
+
+NAMESPACE Skko;
+
+httpSkkoHeaders = DATA LOCAL NESTED TEXT(TEXT);
+
+skkoUrl 'URL СККО' = DATA STRING();
+EXTEND FORM integrationData PROPERTIES skkoUrl();
+
+DESIGN integrationData {
+    pane {
+        NEW mnsSKKO {
+            caption = 'СККО';
+            MOVE PROPERTY (skkoUrl());
+        }
+    }
+}
+
+// token
+skkoToken = DATA STRING();
+apiKey 'Ключ авторизации' = DATA STRING();
+
+FORM authorization
+    PROPERTIES() apiKey EXTID 'api_key'
+    PROPERTIES() IN eds certificate, type, value
+;
+
+// импорт
+access_token = DATA LOCAL STRING();
+time_out = DATA LOCAL NUMERIC();
+
+FORM importToken
+    PROPERTIES()
+    access_token EXTID 'access_token',
+        error_code EXTID 'error_code',
+        ui EXTID 'ui',
+        error_description EXTID 'error_description',
+        time_out EXTID 'time_out',
+        status EXTID 'status'    
+;
+
+setHttpSkkoHeaders 'Задать заголовки' (STRING token){
+    httpSkkoHeaders('Content-Type') <- 'application/json; charset=utf-8';
+
+    IF token THEN {
+        httpSkkoHeaders('x-access-token') <- token;
+    }
+}
+
+getSkkoToken 'Авторизация' () {
+//    type() <- 'cms-si-min/bign';
+//    certificate() <- 'MIIDpzCCA2GgAwIBAgIMQOVPEXqFsxMAAATsMA0GCSpwAAIAImUtDAUAMIIBcTGBwzCBwAYDVQQKHoG4BCAENQRBBD8EQwQxBDsEOAQ6BDAEPQRBBDoEPgQ1ACAEQwQ9BDgEQgQwBEAEPQQ+BDUAIAQ/BEAENQQ0BD8EQAQ4BE8EQgQ4BDUAIAAiBBgEPQREBD4EQAQ8BDAERgQ4BD4EPQQ9BD4ALQQ4BDcENAQwBEIENQQ7BEwEQQQ6BDgEOQAgBEYENQQ9BEIEQAAgBD8EPgAgBD0EMAQ7BD4EMwQwBDwAIAQ4ACAEQQQxBD4EQAQwBDwAIjE/MD0GA1UEAx42BCEEIgQVBB0EFAQeBBIEKwQZACAEHwQjBCYAIAQgBCMEHwAgACIEGAQYBCYAIAQcBB0EIQAiMQswCQYDVQQGEwJCWTEXMBUGA1UECB4OBBwEOAQ9BEEEOgQwBE8xGTAXBgNVBAceEAQzAC4AIAQcBDgEPQRBBDoxJzAlBgNVBAkeHgRDBDsALgAgBBwEMARIBDUEQAQ+BDIEMAAsACAANzAeFw0xOTA2MjQxMDA2MTlaFw0yNDA2MjMyMDU5NTlaMIGvMSYwJAYDVQQDDB3QotCV0KHQoiDQoNCj0J8g0JjQmNCmINCc0J3QoTEmMCQGA1UECgwd0KLQldCh0KIg0KDQo9CfINCY0JjQpiDQnNCd0KExCzAJBgNVBAYTAkJZMRcwFQYDVQQIDA7QnNC40L3RgdC60LDRjzETMBEGA1UEBwwK0JzQuNC90YHQujEiMCAGA1UECQwZ0YPQuy4g0JzQsNGI0LXRgNC+0LLQsCwgNzBdMBgGCipwAAIAImUtAgEGCipwAAIAImUtAwEDQQC57iR/pub2twBRQ8BP5GlSuXj0Ltkhf3zb0px0XFxtt2WfQrQVCsExUUGBw6p8zWjPj+ess/1D0OxL5kvLbbgqo4GWMIGTMB8GA1UdIwQYMBaAFCgSQxcaI4/kEgNe8rWXpOIm8pvSMAkGA1UdEwQCMAAwHQYDVR0OBBYEFEsdCZw95o5nxj1SEKiY95eCzK3zMAsGA1UdDwQEAwIHgDAWBgNVHSUEDzANBgsrBgEEAeJwaoFIAzAhBgkqcAECAQEBAQIEFB4SADEAMAAxADEANQAwADUANgA4MA0GCSpwAAIAImUtDAUAAzEA+IMO3GQ1AIZ7KA8s6QiO5rWPV6r93ac+fVKyEz/1HURsBgAE9IqWy3dEdAhOu2ie';
+//    value() <- 'MGoCAQOAFEsdCZw95o5nxj1SEKiY95eCzK3zMA0GCSpwAAIAImUfUQUAMA4GCipwAAIAImUtAgEFAAQwG5tq2ujLnwb5Wr/OLnbNmvS0MsuiFEGmN2wfhtHBpDIz0hynRtrMMGhTbzvDyXPE';
+    value() <- 'test';
+    
+    EXPORT authorization JSON;
+    fileToString(exportFile());
+    
+    LOCAL response = FILE();
+    TRY {
+        EXTERNAL HTTP POST skkoUrl() + '/login' PARAMS exportFile() TO response;
+        IMPORT importToken JSON FROM response();
+        skkoToken() <- access_token();
+        APPLY;
+    } CATCH {
+        IMPORT importToken JSON FROM response();
+        MESSAGE 'Ошибка получения токена: ' + CONCAT '\n', error_description(), messageCaughtException() NOWAIT;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () apiKey
+    PROPERTIES READONLY skkoToken()
+    PROPERTIES getSkkoToken()
+;
+
+DESIGN integrationData {
+    pane {
+        mnsSKKO {
+            MOVE PROPERTY (apiKey());
+            MOVE PROPERTY (skkoToken());
+            MOVE PROPERTY (getSkkoToken());
+        }
+    }
+}

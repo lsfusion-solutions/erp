@@ -1,0 +1,267 @@
+MODULE ExportReceiptSkko;
+
+REQUIRE ExportReceiptFormsSkko, AuthorizationSkko, SignSkko;
+
+NAMESPACE ReceiptSkko;
+
+signJSON = DATA LOCAL STRING();
+baseJSON = DATA LOCAL STRING();
+edsJSON = DATA LOCAL STRING();
+
+
+sign(Receipt receipt) {
+    EXPORT exportSaleWithoutKSA OBJECTS receipt = receipt JSON;
+    fileToString(exportFile());
+    canonicalizeJSONSkko(JSONFILE(exportFile()));
+    signJSON() <- replace(replace(encodeBase64(canonicalizedJSON()), '\n', ''), '\r', '');
+    signInfoCmsMin(signJSON());
+}
+
+
+exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Receipt receipt) {
+    IF NOT skkoToken() THEN RETURN;
+    
+    NEWSESSION {
+        setHttpSkkoHeaders(skkoToken());
+
+        LOCAL request = SkkoRequest();
+        request() <- lastSkkoRequest(receipt);
+        
+        IF NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
+            receipt(r) <- receipt;
+            numerator(r) <- defaultNumeratorSkkoRequest();
+            generateSeriesNumber(r);
+            request() <- r;
+        }        
+        
+        type(request()) <- SkkoRequestType.sale;
+        dateTime(request()) <- currentDateTime();
+
+        sign(receipt);
+        type() <- 'cms-si-min/bign';
+        value() <- resultSignInfo();
+        certificate() <- resultCert();
+
+        IF NOT value() OR NOT certificate() THEN {
+            MESSAGE 'Документ не подписан' NOWAIT;
+            RETURN;
+        }
+        
+        EXPORT exportSaleWithoutKSA OBJECTS receipt = receipt JSON;
+        fileToString(exportFile());
+        baseJSON() <- resultString();
+        
+        EXPORT exportEDS JSON;
+        fileToString(exportFile());
+        edsJSON() <- resultString();
+        
+        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');        
+        stringToFile(resultString());
+        
+        LOCAL response = FILE();
+        TRY {
+            IF verify() THEN {
+                EXTERNAL HTTP POST skkoUrl() + '/verify' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            } ELSE {
+                EXTERNAL HTTP POST skkoUrl() + '/withoutksa/sale' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            }
+            
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            send(request()) <- status();
+            sentSale(receipt) <- status();
+            message(request()) <- 'Отправлено';
+            authorized(request()) <- TRUE;
+        } CATCH {
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            printToLog(CONCAT '||', 'ExportSoldLotsWithoutKSA', currentDateTime(), '\n', resultString(), '\n');
+            message(request()) <- CONCAT '\n', 'Ошибка отправки: ', error_description(), messageCaughtException();
+            MESSAGE message(request()) NOWAIT;
+
+            send(request()) <- status();
+
+            // если получаем error_code() и он не 4 и не 5, то считаем что запрос дошел до сервера => можно увеличить номер сообщения
+            authorized(request()) <- error_code() AND NOT error_code() == 4 AND NOT error_code() == 5;
+        }      
+        
+        APPLY;
+    }
+} TOOLBAR;
+
+
+sentRefund (Receipt r) = r IS Receipt AND NOT (GROUP MAX ReceiptReturnDetail d IF r == receipt(d) AND NOT sentRefund(d));
+
+refundSign(Receipt receipt) {
+    EXPORT exportRefundWithoutKSA OBJECTS receipt = receipt JSON;
+    fileToString(exportFile());
+    canonicalizeJSONSkko(JSONFILE(exportFile()));
+    signJSON() <- replace(replace(encodeBase64(canonicalizedJSON()), '\n', ''), '\r', '');
+    signInfoCmsMin(signJSON());
+}
+
+exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Receipt receipt) {
+    IF NOT skkoToken() THEN RETURN;
+
+    NEWSESSION {
+        setHttpSkkoHeaders(skkoToken());
+        
+        LOCAL request = SkkoRequest();
+        request() <- lastSkkoRequest(receipt);
+
+        IF NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
+            receipt(r) <- receipt;
+            numerator(r) <- defaultNumeratorSkkoRequest();
+            generateSeriesNumber(r);
+            request() <- r;
+        }
+
+        type(request()) <- SkkoRequestType.refund;
+        dateTime(request()) <- currentDateTime();
+
+        refundSign(receipt);
+        type() <- 'cms-si-min/bign';
+        value() <- resultSignInfo();
+        certificate() <- resultCert();
+
+        IF NOT value() OR NOT certificate() THEN {
+            MESSAGE 'Документ не подписан' NOWAIT;
+            RETURN;
+        }
+        
+        EXPORT exportRefundWithoutKSA OBJECTS receipt = receipt JSON;
+        fileToString(exportFile());
+        baseJSON() <- resultString();
+
+        EXPORT exportEDS JSON;
+        fileToString(exportFile());
+        edsJSON() <- resultString();
+
+        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        stringToFile(resultString());
+        
+        LOCAL response = FILE();
+        TRY {
+            IF verify() THEN {
+                EXTERNAL HTTP POST skkoUrl() + '/verify' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            } ELSE {
+                EXTERNAL HTTP POST skkoUrl() + '/withoutksa/refund' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            }
+            
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            send(request()) <- status();
+            sentRefund(ReceiptReturnDetail d) <- TRUE WHERE receipt == receipt(d) AND NOT sentRefund(d) AND d IS ReceiptReturnDetail;
+            message(request()) <- 'Отправлено';
+            authorized(request()) <- TRUE;
+        } CATCH {
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            printToLog(CONCAT '||', 'ExportSoldLotsWithoutKSA', currentDateTime(), '\n', resultString(), '\n');
+            message(request()) <- CONCAT '\n', 'Ошибка отправки: ', error_description(), messageCaughtException();
+            MESSAGE message(request()) NOWAIT;
+
+            send(request()) <- status();
+
+            // если получаем error_code() и он не 4 и не 5, то считаем что запрос дошел до сервера => можно увеличить номер сообщения
+            authorized(request()) <- error_code() AND NOT error_code() == 4 AND NOT error_code() == 5;
+        }
+
+        APPLY;
+    }
+} TOOLBAR;
+
+cancelSign(Receipt receipt) {
+    EXPORT exportCancelWithoutKSA OBJECTS receipt = receipt JSON;
+    fileToString(exportFile());
+    canonicalizeJSONSkko(JSONFILE(exportFile()));
+    signJSON() <- replace(replace(encodeBase64(canonicalizedJSON()), '\n', ''), '\r', '');
+    signInfoCmsMin(signJSON());
+}
+
+exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Receipt receipt) {
+    IF NOT skkoToken() THEN RETURN;
+
+    NEWSESSION {
+        setHttpSkkoHeaders(skkoToken());
+       
+        LOCAL request = SkkoRequest();
+        request() <- lastSkkoRequest(receipt);
+
+        IF NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
+            receipt(r) <- receipt;
+            numerator(r) <- defaultNumeratorSkkoRequest();
+            generateSeriesNumber(r);
+            request() <- r;
+        }
+
+        type(request()) <- SkkoRequestType.cancel;
+        dateTime(request()) <- currentDateTime();
+
+        cancelSign(receipt);
+        type() <- 'cms-si-min/bign';
+        value() <- resultSignInfo();
+        certificate() <- resultCert();
+
+        IF NOT value() OR NOT certificate() THEN {
+            MESSAGE 'Документ не подписан' NOWAIT;
+            RETURN;
+        }
+        
+        EXPORT exportCancelWithoutKSA OBJECTS receipt = receipt JSON;
+        fileToString(exportFile());
+        baseJSON() <- resultString();
+
+        EXPORT exportEDS JSON;
+        fileToString(exportFile());
+        edsJSON() <- resultString();
+
+        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        stringToFile(resultString());
+
+        LOCAL response = FILE();
+        TRY {
+            IF verify() THEN {
+                EXTERNAL HTTP POST skkoUrl() + '/verify' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            } ELSE {
+                EXTERNAL HTTP POST skkoUrl() + '/withoutksa/cancel' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+            }
+            
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            send(request()) <- status();
+            sentSale(receipt) <- NOT status();
+            message(request()) <- 'Отправлено';
+            authorized(request()) <- TRUE;
+        } CATCH {
+            fileToString(response());
+            IMPORT importWithoutKSA JSON FROM response();
+            printToLog(CONCAT '||', 'ExportSoldLotsWithoutKSA', currentDateTime(), '\n', resultString(), '\n');
+            message(request()) <- CONCAT '\n', 'Ошибка отправки: ', error_description(), messageCaughtException();
+            MESSAGE message(request()) NOWAIT;
+
+            send(request()) <- status();
+
+            // если получаем error_code() и он не 4 и не 5, то считаем что запрос дошел до сервера => можно увеличить номер сообщения
+            authorized(request()) <- error_code() AND NOT error_code() == 4 AND NOT error_code() == 5;
+        }
+
+        APPLY;
+    }
+} TOOLBAR;
+
+existDetail (Receipt r) = GROUP MAX TRUE IF r == receipt(ReceiptSaleDetail d) AND d IS ReceiptSaleDetail;
+
+EXTEND FORM zReports
+    PROPERTIES (b) exportSoldLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentSale(b) AND existDetail(b) PANEL
+    PROPERTIES (b) exportRefundLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentRefund(b) PANEL
+    PROPERTIES (b) exportCancelLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND sentSale(b) AND existDetail(b) PANEL
+;
+
+DESIGN zReports {
+    actions{
+        MOVE PROPERTY (exportSoldLotsWithoutKSA(b));
+        MOVE PROPERTY (exportRefundLotsWithoutKSA(b));
+        MOVE PROPERTY (exportCancelLotsWithoutKSA(b));
+    }
+}

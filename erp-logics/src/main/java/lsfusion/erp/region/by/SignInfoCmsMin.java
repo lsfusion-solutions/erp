@@ -49,8 +49,8 @@ public class SignInfoCmsMin extends InternalAction {
                 X509Certificate cert = ((Pair<byte[], X509Certificate>) result).second;
 
                 // Возвращаем Base64
-                findProperty("rusultSignInfo[]").change(Base64.toBase64String(buildCustomCMS(sign, cert)), context);
-                findProperty("rusultCert[]").change(Base64.toBase64String(cert.getEncoded()), context);
+                findProperty("resultSignInfo[]").change(Base64.toBase64String(buildCustomCMS(sign, cert)), context);
+                findProperty("resultCert[]").change(Base64.toBase64String(cert.getEncoded()), context);
             } else {
                 context.message((String) result, "Error");
             }
