@@ -10,7 +10,7 @@ id 'Код' = DATA STRING (Item) NONULL IN id;
 itemId (id) = GROUP AGGR Item i BY id(i);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
 unitName 'Ед.измерения' = DATA STRING (Item);
-itemSubGroup = DATA ItemSubGroup (Item);
+itemSubGroup = DATA ItemSubGroup (Item) NONULL DELETE;
 nameItemSubGroup 'Предмет' (Item i) = name(itemSubGroup(i));
 nameItemGroup 'Категория' (Item i) = name(itemGroup(itemSubGroup(i)));
 
@@ -91,10 +91,6 @@ DESIGN attributes {
     }
 }  
 
-//NAVIGATOR {
-//    NEW FORM attributes;
-//}
-
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
     PROPERTIES(i) id, name, nameItemGroup, nameItemSubGroup
@@ -105,6 +101,28 @@ FORM item 'Товар'
 
     EDIT Item OBJECT i
 ;
+
+DESIGN item {
+    BOX {
+        NEW itemHeader {
+            caption = 'Основные свойства';
+            alignment = STRETCH;
+            lines = 2;
+            MOVE PROPERTY(id(i));
+            MOVE PROPERTY(name(i));
+            MOVE PROPERTY(nameItemGroup(i));
+            MOVE PROPERTY(nameItemSubGroup(i));
+        }
+        NEW itemDetail {
+            caption = 'Дополнительные характеристики';
+            fill = 1;
+            MOVE PROPERTY(value(i, attr)) {
+                class = 'attribute-property';
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
 
 // Стили для панели атрибутов
 onWebClientInit() + {
@@ -826,7 +844,6 @@ EXTEND FORM integrationData
 DESIGN integrationData {
     referenceBooks {
         categoryItemSubGroup {
-            MOVE PROPERTY (getItemAttributeNew());
             NEW tabContainerAttribute AFTER BOX(sg){
                 tabbed = TRUE;
                 fill = 1;
@@ -834,8 +851,9 @@ DESIGN integrationData {
                 MOVE BOX(asg);
             }
         }
-        NEW containerItemAttribute AFTER categoryItemSubGroup {
+        NEW containerItemAttribute {
             caption = 'Характеристики предмета';
+            MOVE PROPERTY (getItemAttributeNew());
             MOVE BOX(attr);
             MOVE BOX(ownerClass);
             NEW tabbedPane {
