@@ -221,10 +221,19 @@ sign(FILE contentSubXML, EDSService e, BOOLEAN isNew, INTEGER subjectSide) {
 }
 
 getSignedDocumentSupplier(STRING[100] provider, EInvoice e, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSupplier(provider, e)) == EDSApplication.sccp THEN {
+    LOCAL EDSService = EDSService ();
+    LOCAL isAutoApn = BOOLEAN ();
+    IF NOT disableAutoBlrapn() AND EDSServiceTopBy(supplier(e)) AND NOT interactive THEN {
+        //если включено авто подтверждение то подписываем ключом организации
+        EDSService() <- EDSServiceTopBy(supplier(e));
+        isAutoApn() <- TRUE;
+    } ELSE {
+        EDSService() <- EDSServiceSupplier(provider, e);
+    }
+    IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
         IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
-            keyID() <- aliasEDSServiceSupplier(e);
-            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
+            keyID() <- IF isAutoApn() THEN aliasEDSService(supplier(e)) ELSE  aliasEDSServiceSupplier(e);
+            password() <-  IF isAutoApn() THEN passwordEDSService(supplier(e)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
             sign(contentSubXML, EDSServiceSupplier(provider,e), isNewFormat(e), NULL);
         } ELSE {
             IF interactive THEN {
@@ -237,11 +246,20 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice e, FILE contentSubXML, 
 }
 
 getSignedDocumentCustomer(STRING[100] provider, EInvoice e, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceCustomer(provider, e)) == EDSApplication.sccp THEN {
+    LOCAL EDSService = EDSService ();
+    LOCAL isAutoApn = BOOLEAN ();
+    IF NOT disableAutoBlrapn() AND EDSServiceTopBy(customer(e)) AND NOT interactive THEN {
+        //если включено авто подтверждение то подписываем ключом организации
+        EDSService() <- EDSServiceTopBy(customer(e));
+        isAutoApn() <- TRUE;
+    } ELSE {
+        EDSService() <- EDSServiceCustomer(provider, e);
+    }
+    IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
         IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
-            keyID() <- aliasEDSServiceCustomer(e);
-            password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(contentSubXML, EDSServiceCustomer(provider,e), isNewFormat(e), NULL);
+            keyID() <- IF isAutoApn() THEN aliasEDSService(customer(e)) ELSE  aliasEDSServiceCustomer(e);
+            password() <- IF isAutoApn() THEN passwordEDSService(customer(e)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
+            sign(contentSubXML, EDSService(), isNewFormat(e), NULL);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
