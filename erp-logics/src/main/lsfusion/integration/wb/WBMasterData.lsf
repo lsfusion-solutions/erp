@@ -52,11 +52,11 @@ getItemGroup 'Получить родительские категории то�
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT itemGroup(id) INLINE DO NEW ig = ItemGroup {
                 id(ig) <- id(i);
             }
-
+            isVisible(ItemGroup ig) <- NULL WHERE  isVisible(ig);
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND ItemGroup ig == itemGroup(id) INLINE DO {
                 name(ig) <- name(i);
-                isVisible(ig) <- NULL;
-                isVisible(ig) <- TRUE IF isVisible(i) == 'true';
+                //isVisible(ig) <- TRUE IF isVisible(i) == 'true';
+                isVisible(ig) <- CASE WHEN isVisible(i) == 'true' THEN TRUE WHEN isVisible(i) == 'false' THEN NULL;
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
@@ -73,7 +73,7 @@ getItemGroup 'Получить родительские категории то�
 FORM dialogCategoryItemGroups 'Родительские категории товаров'
     PROPERTIES getItemGroup()
     OBJECTS ig = ItemGroup
-    PROPERTIES(ig) id, name, isVisible
+    PROPERTIES(ig) READONLY id, name, isVisible
     PROPERTIES(ig) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(ig)
 
@@ -85,10 +85,8 @@ DESIGN dialogCategoryItemGroups {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getItemGroup());
-            MOVE BOX(ig) {
-            }
+            MOVE BOX(ig); 
         }
     }
 }
@@ -194,9 +192,9 @@ getTnved 'Получить ТНВЭД-коды' () {
                 }
 
                 in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL  
+                isKiz(Tnved tn) <- NULL WHERE isKiz(tn); 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY tnved(i1)](STRING tnved) AND Tnved tn == tnved(tnved) INLINE DO {
                     in(sg, tn) <- TRUE;
-                    isKiz(tn) <- NULL; //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
                     isKiz(tn) <- TRUE IF isKiz(i) == 'true';
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -216,7 +214,7 @@ getTnved 'Получить ТНВЭД-коды' () {
 FORM dialogTnved 'ТНВЭД-коды'
     PROPERTIES getTnved()
     OBJECTS tn = Tnved
-    PROPERTIES(tn) id, isKiz
+    PROPERTIES(tn) READONLY id, isKiz
     PROPERTIES(tn) NEWSESSION NEW, EDIT, DELETE
     ORDERS id(tn)
 
@@ -228,7 +226,6 @@ DESIGN dialogTnved{
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getTnved());
             MOVE BOX(tn) {
             }
@@ -257,9 +254,9 @@ getTnved 'Получить ТНВЭД-коды' (ItemSubGroup sg) {
                 }
 
                 in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL  
+                isKiz(Tnved tn) <- NULL WHERE isKiz(tn); 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY tnved(i1)](STRING tnved) AND Tnved tn == tnved(tnved) INLINE DO {
                     in(sg, tn) <- TRUE;
-                    isKiz(tn) <- NULL; //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
                     isKiz(tn) <- TRUE IF isKiz(i) == 'true';
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -271,17 +268,22 @@ getTnved 'Получить ТНВЭД-коды' (ItemSubGroup sg) {
                 MESSAGE message() NOWAIT;
                 APPLY;
             }
-        
-        
     }
 }
 
 FORM dialogItemSubGroups 'Список предметов'
+    PROPERTIES getItemGroup()
+    OBJECTS ig = ItemGroup
+    PROPERTIES(ig) READONLY id, name, isVisible
+    PROPERTIES(ig) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(ig)
+    
     PROPERTIES getItemSubGroup()
     OBJECTS sg = ItemSubGroup
-    PROPERTIES(sg) id, name, idItemGroup, nameItemGroup
+    PROPERTIES(sg) READONLY id, name, idItemGroup, nameItemGroup
     PROPERTIES(sg) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(sg)
+    FILTERS itemGroup(sg)==ig
 
     LIST ItemSubGroup OBJECT sg
 ;
@@ -292,8 +294,15 @@ DESIGN dialogItemSubGroups {
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
             horizontal = TRUE;
-            MOVE PROPERTY (getItemSubGroup());
-            MOVE BOX(sg) {
+            NEW leftContainer{
+                fill=1;
+                MOVE PROPERTY(getItemGroup());
+                MOVE BOX(ig);
+            }
+            NEW righContainer{
+                fill=1;
+                MOVE PROPERTY(getItemSubGroup());
+                MOVE BOX(sg);             
             }
         }
     }
@@ -364,7 +373,6 @@ DESIGN dialogColors {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getColors());
             MOVE BOX(TREE treeColors);        
         }
@@ -417,7 +425,7 @@ getKinds 'Получить список полов' () {
 FORM dialogKinds 'Список полов'
     PROPERTIES getKinds()
     OBJECTS k = Kind
-    PROPERTIES(k) data
+    PROPERTIES(k) READONLY data
     PROPERTIES(k) NEWSESSION NEW, EDIT, DELETE
     ORDERS data(k)
 
@@ -429,7 +437,6 @@ DESIGN dialogKinds {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getKinds());
             MOVE BOX(k) {
             }
@@ -488,7 +495,7 @@ getCountries 'Получить список стран производства'
 FORM dialogCountries 'Страны производства'
     PROPERTIES getCountries()
     OBJECTS c = Country
-    PROPERTIES(c) name, fullName
+    PROPERTIES(c) READONLY name, fullName
     PROPERTIES(c) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(c)
 
@@ -500,7 +507,6 @@ DESIGN dialogCountries {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getCountries());
             MOVE BOX(c) {
             }
@@ -553,7 +559,7 @@ getSeasons 'Получить список сезонов' () {
 FORM dialogSeasons 'Список сезонов'
     PROPERTIES getSeasons()
     OBJECTS s = Season
-    PROPERTIES(s) data
+    PROPERTIES(s) READONLY data
     PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE
     ORDERS data(s)
 
@@ -565,7 +571,6 @@ DESIGN dialogSeasons {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY(getSeasons());
             MOVE BOX(s);
         }
@@ -618,7 +623,7 @@ getVAT 'Получить список ставок НДС' () {
 FORM dialogVAT 'Список ставок НДС'
     PROPERTIES getVAT()
     OBJECTS v = VAT
-    PROPERTIES(v) data
+    PROPERTIES(v) READONLY data
     PROPERTIES(v) NEWSESSION NEW, EDIT, DELETE
     ORDERS data(v)
 
@@ -630,7 +635,6 @@ DESIGN dialogVAT {
         size = (1280, 800);
         NEW rootContainer BEFORE TOOLBARBOX {
             fill = 1;
-            horizontal = TRUE;
             MOVE PROPERTY (getVAT());
             MOVE BOX(v) {
             }
@@ -638,77 +642,62 @@ DESIGN dialogVAT {
     }
 }
 
-unitName = DATA LOCAL STRING(INTEGER);
-charcID = DATA LOCAL STRING (INTEGER);
-charcType = DATA LOCAL STRING (INTEGER);
-maxCount = DATA LOCAL STRING (INTEGER);
-popular = DATA LOCAL STRING(INTEGER);
-required = DATA LOCAL STRING(INTEGER);
-
-FORM importChars
-    PROPERTIES() errorText, additionalErrors, error
-
-    OBJECTS data = INTEGER
-    PROPERTIES(data) unitName, charcID, charcType, name, maxCount, popular, subjectID, required, subjectName
-    FILTERS imported(data)
-;
-
 EXTEND FORM integrationData 
     PROPERTIES getItemGroup()
     OBJECTS ig = ItemGroup
-    PROPERTIES(ig) id READONLY, name, isVisible
+    PROPERTIES(ig) READONLYIF isReadonly() id , name, isVisible
     ORDERS name(ig)
     PROPERTIES(ig) NEW, DELETE
 
     PROPERTIES getItemSubGroup()
     OBJECTS sg = ItemSubGroup
-    PROPERTIES(sg) id READONLY, name, nameItemGroup, idItemGroup, getTnved GRID 
+    PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup, getTnved GRID 
     ORDERS name(sg)
     PROPERTIES(sg) NEW, DELETE
 
     OBJECTS tnsg = Tnved
-    PROPERTIES(tnsg) id READONLY, isKiz
+    PROPERTIES(tnsg) READONLYIF isReadonly() id, isKiz
     ORDERS id(tnsg)   
     FILTERS in(sg, tnsg)
 
     PROPERTIES getColors()
     TREE treeColors color=Color PARENT parent(color)
-    PROPERTIES READONLY name(color), color 'Цвет' = nameParent(color)
+    PROPERTIES READONLYIF isReadonly() name(color), color 'Цвет' = nameParent(color)
     PROPERTIES(color) NEW, DELETE
     ORDERS name(color)
 
     PROPERTIES getKinds()
     OBJECTS k = Kind
-    PROPERTIES(k) data READONLY
+    PROPERTIES(k) data READONLYIF isReadonly()
     ORDERS data(k)
     PROPERTIES(k) NEW, DELETE
 
     PROPERTIES getCountries()
     OBJECTS c = Country
-    PROPERTIES(c) name READONLY, fullName
+    PROPERTIES(c) READONLYIF isReadonly() name, fullName
     ORDERS name(c)
     PROPERTIES(c) NEW, DELETE
 
     PROPERTIES getSeasons()
     OBJECTS s = Season
-    PROPERTIES(s) data READONLY
+    PROPERTIES(s) data READONLYIF isReadonly()
     ORDERS data(s)
     PROPERTIES(s) NEW, DELETE
 
     PROPERTIES getVAT()
     OBJECTS v = VAT
-    PROPERTIES(v) data READONLY
+    PROPERTIES(v) data READONLYIF isReadonly()
     ORDERS data(v)
     PROPERTIES(v) NEW, DELETE
 
     PROPERTIES getTnved()
     OBJECTS tn = Tnved
-    PROPERTIES(tn) id READONLY, isKiz
+    PROPERTIES(tn) READONLYIF isReadonly() id , isKiz
     ORDERS id(tn)
     PROPERTIES(tn) NEW, DELETE
 
     OBJECTS sgtn = ItemSubGroup
-    PROPERTIES(sgtn) id READONLY, name, nameItemGroup, idItemGroup
+    PROPERTIES(sgtn) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup
     ORDERS name(sgtn)
     FILTERS in(sgtn, tn)
 ;

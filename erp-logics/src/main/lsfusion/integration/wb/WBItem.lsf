@@ -6,7 +6,13 @@ NAMESPACE WB;
 
 CLASS Item 'Товар';
 
+id 'Код' = DATA STRING (Item) NONULL IN id;
+itemId (id) = GROUP AGGR Item i BY id(i);
+name 'Наименование' = DATA STRING (Item) NONULL IN id;
+unitName 'Ед.измерения' = DATA STRING (Item);
 itemSubGroup = DATA ItemSubGroup (Item);
+nameItemSubGroup 'Предмет' (Item i) = name(itemSubGroup(i));
+nameItemGroup 'Категория' (Item i) = name(itemGroup(itemSubGroup(i)));
 
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
@@ -41,9 +47,11 @@ active 'Вкл.' = ABSTRACT BOOLEAN (Attribute);
 isObject 'Объектный' = ABSTRACT BOOLEAN (Attribute);
 
 name 'Наименование атрибута' = ABSTRACT STRING[50] (Attribute) NONULL IN id;
+unitName 'Ед.измерения' = DATA STRING (Attribute);
 
 in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, Attribute);
 notNull 'Обязательный' = DATA BOOLEAN (ItemSubGroup, Attribute);
+popular 'Популярный' = DATA BOOLEAN (ItemSubGroup, Attribute);
 
 value 'Значение' = ABSTRACT STRING (Item, Attribute);
 idValue 'id значения' = ABSTRACT STRING (Item, Attribute);
@@ -83,14 +91,14 @@ DESIGN attributes {
     }
 }  
 
-NAVIGATOR {
-    NEW FORM attributes;
-}
+//NAVIGATOR {
+//    NEW FORM attributes;
+//}
 
-FORM itemSubGroup 'Предмет'
+FORM item 'Товар'
     OBJECTS i = Item PANEL 
-//    PROPERTIES(i) id, name, idItemGroup, nameItemGroup
-//    ORDERS name(i)
+    PROPERTIES(i) id, name, nameItemGroup, nameItemSubGroup
+    ORDERS name(i)
 
     OBJECTS attr = Attribute
     PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
@@ -262,6 +270,13 @@ DESIGN attributeNumeric {
     }
 }
 
+FORM dialogItem 'Список товаров'
+    OBJECTS i = Item PANEL
+    PROPERTIES(i) READONLY id, name, nameItemGroup, nameItemSubGroup
+
+    LIST Item OBJECT i
+;
+
 //------------------------------------ Цвет ------------------------------------------------------------------------//
 
 CLASS AttributeColor 'Цвет' : Attribute;
@@ -291,6 +306,7 @@ FORM dialogAttributeColorValue 'Значение атрибута'
     PROPERTIES READONLY name(val), color 'Цвет' = nameParent(val)
     ORDERS name(val) 
 ;
+
 DESIGN dialogAttributeColorValue {
     caption = CONCAT ' - ', 'Значение атрибута', name(attr);
 }
@@ -324,11 +340,555 @@ DESIGN attributeColor {
     caption = CONCAT ' - ', 'Атрибут (цвет)', name(attr); 
 }
 
+// Пол
+
+CLASS AttributeKind 'Пол' : Attribute;
+EXTEND CLASS AttributeClass { kind 'Пол' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.kind THEN {
+    NEW a = AttributeKind {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.kind THEN 5;
+id 'Код' = DATA STRING[10] (AttributeKind) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeKind);
+name 'Наименование' = DATA STRING[50] (AttributeKind) NONULL IN id;
+id (AttributeKind a) += id(a);
+active (AttributeKind a) += a IS AttributeKind AND NOT inactive(a);
+isObject (AttributeKind a) += a IS AttributeKind;
+name (AttributeKind a) += name(a);
+
+FORM dialogAttributeKindValue 'Значение атрибута'
+      
+        OBJECTS attr = AttributeKind PANEL, val = Kind
+        PROPERTIES(val) READONLY data
+;
+
+DESIGN dialogAttributeKindValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Kind (Item, AttributeKind);
+value (Item o, AttributeKind a) += STRING(OVERRIDE data(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeKind a) += value(o, a);
+kindAttribute (STRING id) = GROUP MAX Kind k AS Kind BY [FORMULA STRING '$1::text'](k);
+
+edit (Item o, AttributeKind a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeKindValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeKindValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeKind a, STRING v) + {
+    value(o, a) <- kindAttribute(v);
+}
+
+FORM attributeKind 'Атрибут (пол)'
+    OBJECTS attr = AttributeKind PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeKind OBJECT attr
+;
+DESIGN attributeKind {
+    caption = CONCAT ' - ', 'Атрибут (пол)', name(attr);
+}
+
+// Страна производства
+
+CLASS AttributeCountry 'Страна производства' : Attribute;
+EXTEND CLASS AttributeClass { country 'Страна производства' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.country THEN {
+    NEW a = AttributeCountry {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.country THEN 6;
+id 'Код' = DATA STRING[10] (AttributeCountry) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeCountry);
+name 'Наименование' = DATA STRING[50] (AttributeCountry) NONULL IN id;
+id (AttributeCountry a) += id(a);
+active (AttributeCountry a) += a IS AttributeCountry AND NOT inactive(a);
+isObject (AttributeCountry a) += a IS AttributeCountry;
+name (AttributeCountry a) += name(a);
+
+FORM dialogAttributeCountryValue 'Значение атрибута'
+
+    OBJECTS attr = AttributeCountry PANEL, val = Country
+    PROPERTIES(val) READONLY name, fullName
+;
+
+DESIGN dialogAttributeCountryValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Country (Item, AttributeCountry);
+value (Item o, AttributeCountry a) += STRING(OVERRIDE name(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeCountry a) += value(o, a);
+countryAttribute (STRING id) = GROUP MAX Country c AS Country BY [FORMULA STRING '$1::text'](c);
+
+edit (Item o, AttributeCountry a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeCountryValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeCountryValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeCountry a, STRING v) + {
+    value(o, a) <- countryAttribute(v);
+}
+
+FORM attributeCountry 'Атрибут (страна производства)'
+    OBJECTS attr = AttributeCountry PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeCountry OBJECT attr
+;
+DESIGN attributeCountry {
+    caption = CONCAT ' - ', 'Атрибут (страна производства)', name(attr);
+}
+
+// Сезон
+
+CLASS AttributeSeason 'Сезон' : Attribute;
+EXTEND CLASS AttributeClass { season 'Сезон' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.season THEN {
+    NEW a = AttributeSeason {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.season THEN 7;
+id 'Код' = DATA STRING[10] (AttributeSeason) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeSeason);
+name 'Наименование' = DATA STRING[50] (AttributeSeason) NONULL IN id;
+id (AttributeSeason a) += id(a);
+active (AttributeSeason a) += a IS AttributeSeason AND NOT inactive(a);
+isObject (AttributeSeason a) += a IS AttributeSeason;
+name (AttributeSeason a) += name(a);
+
+FORM dialogAttributeSeasonValue 'Значение атрибута'
+
+    OBJECTS attr = AttributeSeason PANEL, val = Season
+    PROPERTIES(val) READONLY data
+;
+
+DESIGN dialogAttributeSeasonValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Season (Item, AttributeSeason);
+value (Item o, AttributeSeason a) += STRING(OVERRIDE data(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeSeason a) += value(o, a);
+seasonAttribute (STRING id) = GROUP MAX Season s AS Season BY [FORMULA STRING '$1::text'](s);
+
+edit (Item o, AttributeSeason a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeSeasonValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeSeasonValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeSeason a, STRING v) + {
+    value(o, a) <- seasonAttribute(v);
+}
+
+FORM attributeSeason 'Атрибут (сезон)'
+    OBJECTS attr = AttributeSeason PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeSeason OBJECT attr
+;
+DESIGN attributeSeason {
+    caption = CONCAT ' - ', 'Атрибут (сезон)', name(attr);
+}
+
+// Ставка НДС
+
+CLASS AttributeVAT 'Ставка НДС' : Attribute;
+EXTEND CLASS AttributeClass { vat 'Ставка НДС' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.vat THEN {
+    NEW a = AttributeVAT {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.vat THEN 8;
+id 'Код' = DATA STRING[10] (AttributeVAT) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeVAT);
+name 'Наименование' = DATA STRING[50] (AttributeVAT) NONULL IN id;
+id (AttributeVAT a) += id(a);
+active (AttributeVAT a) += a IS AttributeVAT AND NOT inactive(a);
+isObject (AttributeVAT a) += a IS AttributeVAT;
+name (AttributeVAT a) += name(a);
+
+FORM dialogAttributeVATValue 'Значение атрибута'
+
+    OBJECTS attr = AttributeVAT PANEL, val = VAT
+    PROPERTIES(val) READONLY data
+;
+
+DESIGN dialogAttributeVATValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA VAT (Item, AttributeVAT);
+value (Item o, AttributeVAT a) += STRING(OVERRIDE data(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeVAT a) += value(o, a);
+vatAttribute (STRING id) = GROUP MAX VAT v AS VAT BY [FORMULA STRING '$1::text'](v);
+
+edit (Item o, AttributeVAT a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeVATValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeVATValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeVAT a, STRING v) + {
+    value(o, a) <- vatAttribute(v);
+}
+
+FORM attributeVAT 'Атрибут (ставка НДС)'
+    OBJECTS attr = AttributeVAT PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeVAT OBJECT attr
+;
+DESIGN attributeVAT {
+    caption = CONCAT ' - ', 'Атрибут (ставка НДС)', name(attr);
+}
+
+// ТНВЭД-код
+
+CLASS AttributeTnved 'ТНВЭД-код' : Attribute;
+EXTEND CLASS AttributeClass { tnved 'ТНВЭД-код' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.tnved THEN {
+    NEW a = AttributeTnved {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.tnved THEN 9;
+id 'Код' = DATA STRING[10] (AttributeTnved) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeTnved);
+name 'Наименование' = DATA STRING[50] (AttributeTnved) NONULL IN id;
+id (AttributeTnved a) += id(a);
+active (AttributeTnved a) += a IS AttributeTnved AND NOT inactive(a);
+isObject (AttributeTnved a) += a IS AttributeTnved;
+name (AttributeTnved a) += name(a);
+
+FORM dialogAttributeTnvedValue 'Значение атрибута'
+
+    OBJECTS attr = AttributeTnved PANEL, val = Tnved
+    PROPERTIES(val) READONLY id, isKiz
+;
+
+DESIGN dialogAttributeTnvedValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Tnved (Item, AttributeTnved);
+value (Item o, AttributeTnved a) += STRING(OVERRIDE id(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeTnved a) += value(o, a);
+tnvedAttribute (STRING id) = GROUP MAX Tnved t AS Tnved BY [FORMULA STRING '$1::text'](t);
+
+edit (Item o, AttributeTnved a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeTnvedValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeTnvedValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeTnved a, STRING v) + {
+    value(o, a) <- tnvedAttribute(v);
+}
+
+FORM attributeTnved 'Атрибут (ТНВЭД-код)'
+    OBJECTS attr = AttributeTnved PANEL
+    PROPERTIES (attr) id, name, inactive
+    EDIT AttributeTnved OBJECT attr
+;
+DESIGN attributeTnved {
+    caption = CONCAT ' - ', 'Атрибут (ТНВЭД-код)', name(attr);
+}
+
 CLASS ItemAttribute 'Атрибут товара';
 id 'Код' = DATA STRING (ItemAttribute);
-itemAttributeId (id) = GROUP AGGR ItemAttribute a BY id(a);
+itemAttributeId (id) = GROUP AGGR ItemAttribute ia BY id(ia);
 name 'Наименование' = DATA STRING (ItemAttribute);
 unitName 'Ед.измерения' = DATA STRING (ItemAttribute);
 required 'Обязательный' = DATA BOOLEAN (ItemAttribute);
+popular 'Популярный' = DATA BOOLEAN (ItemAttribute);
 
+in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, ItemAttribute);
 
+unitName = DATA LOCAL STRING(INTEGER);
+charcID = DATA LOCAL STRING (INTEGER);
+charcType = DATA LOCAL STRING (INTEGER);
+maxCount = DATA LOCAL STRING (INTEGER);
+popular = DATA LOCAL STRING(INTEGER);
+required = DATA LOCAL STRING(INTEGER);
+
+FORM importItemAttribute
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) unitName, charcID, charcType, name, maxCount, popular, subjectID, required, subjectName
+    FILTERS imported(data)
+;
+
+getItemAttributeNew 'Получить характеристики предмета' (ItemSubGroup sg) {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/charcs/' + id(sg));
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/charcs/' + id(sg) HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItemAttribute JSON FROM response();
+
+            in(sg,  Attribute as) <- NULL WHERE in(sg, as); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
+            notNull(sg, Attribute as) <- NULL WHERE notNull(sg, as);
+            popular(sg, Attribute as) <- NULL WHERE popular(sg, as);
+            
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND NOT attribute(charcID) INLINE DO 
+                CASE 
+                    WHEN lower(name(i))=='цвет' THEN NEW as = AttributeColor {
+                        id(as) <- charcID;
+                    }
+                    WHEN lower(name(i))=='пол' THEN NEW as = AttributeKind {
+                        id(as) <- charcID;
+                    }
+                    WHEN lower(name(i))=='страна производства' THEN NEW as = AttributeCountry {
+                        id(as) <- charcID;
+                    }
+                    WHEN lower(name(i))=='сезон' THEN NEW as = AttributeSeason {
+                        id(as) <- charcID;
+                    }
+                    WHEN lower(name(i))=='ставка ндс' THEN NEW as = AttributeVAT {
+                        id(as) <- charcID;
+                    }
+                    WHEN lower(name(i))=='тнвэд' THEN NEW as = AttributeTnved {
+                        id(as) <- charcID;
+                    } ELSE {
+                    NEW as = AttributeString {
+                        id(as) <- charcID;
+                    }
+                }
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO {
+                    in(sg, as) <- TRUE;
+                    name(as) <- name(i);
+                    unitName(as) <- unitName(i) IF NOT unitName(i)=='';
+                    notNull(sg, as) <- TRUE IF required(i) == 'true';
+                    popular(sg, as) <- TRUE IF popular(i) == 'true';
+            }
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+getItemAttributeNew 'Получить характеристики предметов' () {
+    NEWSESSION {
+        FOR ItemSubGroup sg IS ItemSubGroup DO {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL errorText = STRING ();
+            LOCAL status = STRING ();
+
+            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/object/charcs/' + id(sg));
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/charcs/' + id(sg) HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importItemAttribute JSON FROM response();
+
+                in(sg, Attribute as) <- NULL WHERE in(sg, as); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
+                notNull(sg, Attribute as) <- NULL WHERE notNull(sg, as);
+                popular(sg, Attribute as) <- NULL WHERE popular(sg, as);
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND NOT attribute(charcID) INLINE DO
+                    CASE
+                        WHEN lower(name(i)) == 'цвет' THEN NEW as = AttributeColor {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'пол' THEN NEW as = AttributeKind {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'страна производства' THEN NEW as = AttributeCountry {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'сезон' THEN NEW as = AttributeSeason {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'ставка ндс' THEN NEW as = AttributeVAT {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'тнвэд' THEN NEW as = AttributeTnved {
+                            id(as) <- charcID;
+                        } ELSE {
+                        NEW as = AttributeString {
+                            id(as) <- charcID;
+                        }
+                    }
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO {
+                    in(sg, as) <- TRUE;
+                    name(as) <- name(i);
+                    unitName(as) <- unitName(i) IF NOT unitName(i) == '';
+                    notNull(sg, as) <- TRUE IF required(i) == 'true';
+                    popular(sg, as) <- TRUE IF popular(i) == 'true';
+                }
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES getItemAttributeNew(sg) GRID
+    
+    PROPERTIES getItemAttributeNew() PANEL 
+    
+    OBJECTS asg = Attribute
+    PROPERTIES(asg) READONLYIF isReadonly() id, name, unitName
+    PROPERTIES notNull(sg, asg), popular (sg, asg)
+    ORDERS name(asg)
+    FILTERS in(sg, asg)
+    
+    OBJECTS item = Item
+    PROPERTIES(item) READONLYIF isReadonly() id, name, nameItemGroup, nameItemSubGroup 
+    PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(item)
+    FILTERS itemSubGroup(item)
+
+    OBJECTS attr = Attribute
+    PROPERTIES (attr) READONLY id, name, nameClass
+    PROPERTIES (attr) NEWSESSION EDIT, DELETE
+    PROPERTIES NEWSESSION newAttribute() DRAW attr
+
+    FILTERGROUP active
+        FILTER 'Активные' active(attr) DEFAULT
+
+    OBJECTS ownerClass = ItemSubGroup
+    PROPERTIES in(ownerClass, attr) COLUMNS (ownerClass) HEADER name(ownerClass)
+
+    OBJECTS extraProp = ItemSubGroup
+    PROPERTIES name(extraProp) READONLY
+    PROPERTIES (extraProp, attr) notNull
+;
+
+DESIGN integrationData {
+    referenceBooks {
+        categoryItemSubGroup {
+            MOVE PROPERTY (getItemAttributeNew());
+            NEW tabContainerAttribute AFTER BOX(sg){
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(tnsg);
+                MOVE BOX(asg);
+            }
+        }
+        NEW containerItemAttribute AFTER categoryItemSubGroup {
+            caption = 'Характеристики предмета';
+            MOVE BOX(attr);
+            MOVE BOX(ownerClass);
+            NEW tabbedPane {
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(extraProp) { caption = 'Настройки'; }
+            }
+        }
+        NEW containerItem {
+            caption = 'Товары';
+            MOVE BOX(item);
+        }
+    }
+}
+
+//createDefaultAttribute() = DATA BOOLEAN ();
+//
+//onStarted() + {
+//    NEWSESSION {
+//        IF NOT createDefaultAttribute() THEN {
+//            createDefaultAttribute() <- TRUE;
+//            IF NOT attribute('color') THEN {
+//                NEW a = AttributeColor {
+//                    id(a) <- 'color';
+//                    name(a) <- 'Цвет';
+//                }
+//            }
+//                IF NOT attribute('kind') THEN {
+//                    NEW a = AttributeKind {
+//                        id(a) <- 'kind';
+//                        name(a) <- 'Пол';
+//                    }
+//                }
+//                    IF NOT attribute('country') THEN {
+//                        NEW a = AttributeCountry {
+//                            id(a) <- 'country';
+//                            name(a) <- 'Страна производства';
+//                        }
+//                    }
+//                        IF NOT attribute('season') THEN {
+//                            NEW a = AttributeSeason {
+//                                id(a) <- 'season';
+//                                name(a) <- 'Сезон';
+//                            }
+//                        }
+//                            IF NOT attribute('vat') THEN {
+//                                NEW a = AttributeVAT {
+//                                    id(a) <- 'vat';
+//                                    name(a) <- 'Ставка НДС';
+//                                }
+//                            }
+//                                IF NOT attribute('tnved') THEN {
+//                                    NEW a = AttributeTnved {
+//                                        id(a) <- 'tnved';
+//                                        name(a) <- 'ТНВЭД-код';
+//                                    }
+//                                }
+//            APPLY;
+//        }
+//    }
+//}
