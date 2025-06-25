@@ -1,0 +1,21 @@
+MODULE BatchReservedBinLedger;
+
+REQUIRE ReservedBinLedger, BatchBinLedger;
+
+NAMESPACE Bin;
+
+batch = ABSTRACT Batch (ReservedBinLedger) MATERIALIZED INDEXED;
+nameBatch 'Наименование' (ReservedBinLedger ledger) = name(batch(ledger)) IN id;
+idBatch 'Код' (ReservedBinLedger ledger)= id(batch(ledger)) IN id;
+
+currentReserved 'Текущий резерв' (batch, bin) =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) BY batch(ledger), bin(ledger) CHARWIDTH 7 MATERIALIZED;
+prevCurrentReserved 'Текущий резерв' (Batch batch, Bin bin) = PREV(currentReserved(batch, bin)) CHARWIDTH 7;
+prevCurrentReserved 'Текущий резерв по ячейкам' (Batch batch)  = GROUP SUM prevCurrentReserved(batch, Bin bin) CHARWIDTH 7;
+
+availableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = currentBalance(batch, bin) (+) currentReserved(batch, bin) CHARWIDTH 7;
+prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = prevCurrentBalance(batch, bin) (+) prevCurrentReserved(batch, bin) CHARWIDTH 7;
+
+EXTEND FORM batchBinBalance
+    PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity
+;

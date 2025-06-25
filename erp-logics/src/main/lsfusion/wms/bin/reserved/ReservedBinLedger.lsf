@@ -1,0 +1,51 @@
+MODULE ReservedBinLedger;
+
+REQUIRE Bin, BinLedger;
+
+NAMESPACE Bin;
+
+CLASS ABSTRACT ReservedBinLedger 'Резерв товара в ячейке';
+TABLE reservedBinLedger(ReservedBinLedger);
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (ReservedBinLedger) MATERIALIZED INDEXED;
+date 'Дата' (ReservedBinLedger ledger) = toDate(dateTime(ledger));
+
+isPosted 'Проведен' = ABSTRACT BOOLEAN (ReservedBinLedger) MATERIALIZED;
+
+isClosed 'Закрыт' = ABSTRACT BOOLEAN (ReservedBinLedger);
+
+sku = ABSTRACT Sku (ReservedBinLedger) MATERIALIZED INDEXED;
+nameSku 'SKU' (ReservedBinLedger ledger) = name(sku(ledger)) IN id;
+idBarcodeSku 'Штрихкод' (ReservedBinLedger ledger)= idBarcode(sku(ledger)) IN id;
+
+stock = ABSTRACT Stock (ReservedBinLedger) MATERIALIZED INDEXED;
+nameStock 'Склад' (ReservedBinLedger ledger)= name(stock(ledger));
+
+bin = ABSTRACT Bin (ReservedBinLedger) MATERIALIZED INDEXED;
+nameBin 'Ячейка' (ReservedBinLedger ledger) = name(bin(ledger)) IN id;
+canonicalIdBin 'Ячейка код' (ReservedBinLedger ledger) = canonicalId(bin(ledger)) IN id;
+
+INDEX bin(ReservedBinLedger l), sku(l), dateTime(l);
+
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (ReservedBinLedger) MATERIALIZED;
+
+description 'Название документа' = ABSTRACT ISTRING[200] (ReservedBinLedger) MATERIALIZED;
+
+changed = ABSTRACT BOOLEAN (ReservedBinLedger);
+
+skip 'Не проводить по регистру' = ABSTRACT BOOLEAN (ReservedBinLedger) MATERIALIZED;
+active 'Активен' (ReservedBinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
+
+quantityActive(ReservedBinLedger ledger) = quantity(ledger) IF active(ledger) MATERIALIZED;
+
+currentReserved 'Текущий резерв' (sku, bin) =
+    GROUP SUM quantityActive(ReservedBinLedger ledger) BY sku(ledger), bin(ledger) CHARWIDTH 7 MATERIALIZED;
+prevCurrentReserved 'Текущий резерв' (Sku sku, Bin bin) = PREV(currentReserved(sku, bin)) CHARWIDTH 7;
+prevCurrentReserved 'Текущий резерв по ячейкам' (Sku sku)  = GROUP SUM prevCurrentReserved(sku, Bin bin) CHARWIDTH 7;
+
+availableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = currentBalance(sku, bin) (-) currentReserved(sku, bin) CHARWIDTH 7;
+prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevCurrentReserved(sku, bin) CHARWIDTH 7;
+
+EXTEND FORM binBalance
+    PROPERTIES(s, b) READONLY AFTER currentBalance(s, b) currentReserved, availableQuantity 
+;

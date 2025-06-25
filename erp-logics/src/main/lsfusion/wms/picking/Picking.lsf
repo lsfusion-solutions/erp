@@ -283,14 +283,13 @@ notCount 'Не учитывать' = ABSTRACT BOOLEAN (Picking);
 
 quantityPickings 'Количество комплектаций' (pickingOrder) = GROUP SUM 1 IF NOT notCount(Picking picking) BY pickingOrder(picking) MATERIALIZED;
 
-pickings 'Комплектации' (pickingOrder) = GROUP CONCAT STRING[255](description(Picking picking)), ', '
-                                         ORDER picking
-                                         BY pickingOrder(picking)
-//                                         IN order
-                                         CHARWIDTH 30 MATERIALIZED;
+pickings 'Комплектации' (pickingOrder) = 
+    GROUP CONCAT STRING[255](description(Picking picking)), ', '
+        ORDER picking
+    BY pickingOrder(picking) CHARWIDTH 30 MATERIALIZED;
 
-overFillUserPicking  ABSTRACT LIST ( UserPickingDetail, PickingOrderDetail);
-overFillUserPicking  ABSTRACT LIST ( UserPicking);
+overFillUserPicking ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
+overFillUserPicking ABSTRACT LIST (UserPicking);
 
 skipCreateOrderPickingDetails = ABSTRACT BOOLEAN (UserPicking);
 
@@ -378,7 +377,8 @@ EXTEND FORM pickings
 countPickingOrderSku 'Кол-во наименований' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingOrderDetail(Sku sku, pickingOrder) MATERIALIZED;
 
 quantityPickingDetail 'Кол-во в комплектациях' = GROUP SUM quantity(PickingDetail d) IF NOT notCount(picking(d)) BY sku(d),pickingOrder(d);
-countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder) MATERIALIZED;
+countEqualPickingOrderSku 'Кол-во наименований с равным кол-ом товара' (PickingOrder pickingOrder) = 
+    GROUP SUM 1 IF quantityPickingDetail(Sku sku, pickingOrder) == quantityPickingOrderDetail(sku, pickingOrder) MATERIALIZED;
 
 quantityPickingDetail 'Кол-во в комплектациях' = GROUP SUM quantity(PickingDetail d) IF NOT notCount(picking(d)) BY pickingOrder(d);
 

@@ -21,14 +21,14 @@ finishPerformDateTime 'Окончание выполнения' = DATA DATETIME 
 finishPerformDateTime (UserBinOrder order) += finishPerformDateTime(order);
 
 performStatus 'Статус' (BinOrder order) = CASE 
-    WHEN finishPerformDateTime(order) AND NOT toBinTransfer(order) THEN 'Выполнен полностью'
-    WHEN finishPerformDateTime(order) AND toBinTransfer(order) THEN 'Выполнен частично'
+    WHEN finishPerformDateTime(order) AND calcFull(order) THEN 'Выполнен полностью'
+    WHEN finishPerformDateTime(order) AND calcPart(order) THEN 'Выполнен частично'
     WHEN startPerformDateTime(order) THEN 'В исполнении'
     WHEN NOT startPerformDateTime(order) AND NOT finishPerformDateTime(order) THEN 'Новый';
     
 backgroundPerformStatus (BinOrder order) = CASE
-    WHEN finishPerformDateTime(order) AND NOT toBinTransfer(order) THEN RGB(212,255,212)
-    WHEN finishPerformDateTime(order) AND toBinTransfer(order) THEN RGB(255,238,165)
+    WHEN finishPerformDateTime(order) AND calcFull(order) THEN RGB(212,255,212)
+    WHEN finishPerformDateTime(order) AND calcPart(order) THEN RGB(255,238,165)
     WHEN startPerformDateTime(order) THEN RGB(255,238,165)
     WHEN NOT startPerformDateTime(order) AND NOT finishPerformDateTime(order) THEN RGB(255,200,216);
 
@@ -51,15 +51,15 @@ DESIGN userBinOrder {
     }
 }
 
-packQuantityToBinTransfer 'Кол-во упаковок' (BinOrderDetail d) =  toBinTransfer(d) / (amountPack(d) IF amountPack(d) != 0);
+packQuantityToBinTransfer 'Кол-во упаковок' (BinOrderDetail d) =  quantity(d) / (amountPack(d) IF amountPack(d) != 0);
 
 FORM printToTransferBinOrder 'Заказ на перемещение'
     OBJECTS o = BinOrder PANEL SUBREPORT
     PROPERTIES(o) READONLY  number, series, date, time, nameStock, nameOutBin, nameInBin, note, nameOperation
 
     OBJECTS d = BinOrderDetail
-    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameOutBin, nameInBin, packQuantityToBinTransfer, toBinTransfer, grossWeight
-    FILTERS binOrder(d) == o, toBinTransfer(d) > 0.0
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameOutBin, nameInBin, packQuantityToBinTransfer, quantity, grossWeight
+    FILTERS binOrder(d) == o
 ;
 
 printToTransferBinOrder 'Печать заказа' (BinOrder order)  { 
@@ -85,32 +85,45 @@ skip 'Отменить' (UserBinOrder order)  {
 
 showAccept (UserBinOrder order) = order IS UserBinOrder AND NOT startPerformDateTime(order);
 
-showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(order) 
-    //AND performer(order)==currentUser() 
-    AND NOT finishPerformDateTime(order);
+showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(order) AND NOT finishPerformDateTime(order);
     
 fullComplete 'Закончен полностью' (UserBinOrder order)  { 
-    createUserBinTransferPosted(order);
-    finishPerformDateTime(order) <- currentDateTime();    
-    apply();
+    NEWSESSION {
+        finishPerformDateTime(order) <- currentDateTime();
+        NEW p = UserBinTransfer {
+            binOrder(p) <- order;
+            stock(p) <- stock(order);
+            FOR binOrder(BinOrderDetail detail) == order NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- p;
+                sku(d) <- sku(detail);
+                quantity(d) <- quantity(detail);
+                batch(d) <- batch(detail);
+                overFillUserBinTransfer(d, detail);
+            }
+        }
+        APPLY;
+    }
 } CONFIRM;
 
-partiallyComplete 'Закончен с отклон.' (UserBinOrder order)  { 
-    createAndShowUserBinTransfer(order);
-    IF binTransferdBinOrderDetail(order) THEN {
-        finishPerformDateTime(order) <- currentDateTime();      
-    } 
-    apply();
+partiallyComplete 'Закончен с отклон.' (UserBinOrder order)  {
+    NEWSESSION {
+        finishPerformDateTime(order) <- currentDateTime();
+        NEW p = UserBinTransfer {
+            binOrder(p) <- order;
+            stock(p) <- stock(order);
+            FOR binOrder(BinOrderDetail detail) == order NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- p;
+                sku(d) <- sku(detail);
+                quantity(d) <- quantity(detail);
+                batch(d) <- batch(detail);
+                overFillUserBinTransfer(d, detail);
+            }
+            SHOW userBinTransfer OBJECTS o=p DOCKED;
+        }
+        APPLY;
+    }    
 } CONFIRM;
 
-WHEN SETCHANGED(finishPerformDateTime(UserBinOrder order)) AND binTransferdBinOrderDetail(order) DO {
-    isClosed(order) <- TRUE;
-}
-
-WHEN DROPPED(binTransferdBinOrderDetail(UserBinOrder order)) AND isClosed(order) DO {
-    isClosed(order) <- NULL;
-    finishPerformDateTime(order) <- NULL;
-}
 
 FORM binTransferDashboard 'Перемещения по заказам'
     PROPERTIES () nameFilterBinOrderStock, nameFilterBinOrderOperation
@@ -119,16 +132,16 @@ FORM binTransferDashboard 'Перемещения по заказам'
     PROPERTIES date = VALUE(dt)
     
     OBJECTS o = BinOrder
-    PROPERTIES (o) READONLY BACKGROUND background(o) isPosted, number, series, date, time, performStatus BACKGROUND backgroundPerformStatus(o), namePerformer BACKGROUND backgroundPerformStatus(o),
-                                       nameStock, nameOperation, nameOutBin, nameInBin, note                            
+    PROPERTIES (o) READONLY BACKGROUND background(o) isPosted, number, series, date, time, performStatus BACKGROUND backgroundPerformStatus(o), 
+        namePerformer BACKGROUND backgroundPerformStatus(o), nameStock, nameOperation, nameOutBin, nameInBin, note                            
     PROPERTIES TOOLBAR printToTransferBinOrder(o), accept(o) SHOWIF showAccept(o) , skip(o) SHOWIF showSkip(o) 
     PROPERTIES TOOLBAR fullComplete(o) SHOWIF showSkip(o) , partiallyComplete(o) SHOWIF showSkip(o) 
     PROPERTIES (o) NEWSESSION EDIT, DELETE     
-    FILTERS isPosted(o), isOpened(o), filterStock(o), filterOperation(o), toBinTransfer(o)
+    FILTERS isPosted(o), isOpened(o), filterStock(o), filterOperation(o), diffQuantityBinTranferDetail(o)
     
     OBJECTS d = BinOrderDetail
-    PROPERTIES (d) index, nameSku, nameOutBin, nameInBin, toBinTransfer
-    FILTERS binOrder(d)==o, toBinTransfer(d)>0.0
+    PROPERTIES (d) index, nameSku, nameOutBin, nameInBin, quantity
+    FILTERS binOrder(d)==o
     
     OBJECTS t = BinTransfer
     PROPERTIES (t) READONLY isPosted, number, series, date, time, nameStock, nameOperation, nameOutBin, nameInBin, note
@@ -162,9 +175,6 @@ DESIGN binTransferDashboard {
                 NEW detailContainer {
                     horizontal = TRUE;
                     caption = 'Детализация заказа';
-//                    MOVE BOX(TREE skuTree){
-//                        caption = 'Группы';
-//                    }
                     MOVE BOX(d){
                         fill = 3;
                     }                   
