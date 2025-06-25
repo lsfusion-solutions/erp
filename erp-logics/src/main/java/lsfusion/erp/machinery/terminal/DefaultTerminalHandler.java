@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.col.interfaces.mutable.MRevMap;
 import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.ERPLoggers;
@@ -353,7 +354,10 @@ public class DefaultTerminalHandler {
 
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix, userInfo);
-
+    
+                    createUnitLoadsTable(connection);
+                    updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
+                    
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
 
@@ -1336,11 +1340,11 @@ public class DefaultTerminalHandler {
                 String sql = "INSERT OR REPLACE INTO unitloads VALUES(?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (UnitLoad it : list) {
-                    if (it.id != null) {
+                    if (it.code != null) {
                         int i = 0;
-                        statement.setObject(++i, it.id);
+                        statement.setObject(++i, it.code);
                         statement.setObject(++i, it.barcode);
-                        statement.setObject(++i, it.order);
+                        statement.setObject(++i, it.numberOrder);
                         statement.setObject(++i, it.skuBarcode);
                         statement.setObject(++i, it.skuQuantity);
                         statement.addBatch();
@@ -2044,6 +2048,47 @@ public class DefaultTerminalHandler {
         return result;
     }
     
+    public static List<UnitLoad> readUnitLoadList(DataSession session, ObjectValue stockObject, UserInfo userInfo)  throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<UnitLoad> result = new ArrayList<>();
+    
+        KeyExpr terminalOrderExpr = new KeyExpr("TerminalOrder");
+        KeyExpr skuExpr = new KeyExpr("Sku");
+        
+        KeyExpr unitCodeExpr = new KeyExpr("unitCode");
+        KeyExpr unitBarcodeExpr = new KeyExpr("unitBarcode");
+        
+        MRevMap<Object, KeyExpr> mMap = MapFact.mRevMap(3);
+        mMap.revAdd("TerminalOrder", terminalOrderExpr);
+        mMap.revAdd("Sku", skuExpr);
+        mMap.revAdd("UnitCode", unitCodeExpr);
+        mMap.revAdd("UnitBarcode", unitBarcodeExpr);
+    
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(mMap.immutableRev());
+        
+        query.addProperty("numberOrder", terminalOrderLM.findProperty("number[TerminalOrder]").getExpr(session.getModifier(), terminalOrderExpr));
+        query.addProperty("barcode", terminalOrderLM.findProperty("idBarcode[Sku]").getExpr(session.getModifier(), skuExpr));
+        query.addProperty("quantity", terminalOrderLM.findProperty("quantity[TerminalOrder,Sku,STRING,STRING,Stock,Employee]").getExpr(session.getModifier(), terminalOrderExpr, skuExpr, unitCodeExpr, unitBarcodeExpr, stockObject.getExpr(), userInfo.user.getExpr()));
+    
+        query.and(terminalOrderLM.findProperty("quantity[TerminalOrder,Sku,STRING,STRING,Stock,Employee]").getExpr(session.getModifier(), terminalOrderExpr, skuExpr, unitCodeExpr, unitBarcodeExpr, stockObject.getExpr(), userInfo.user.getExpr()).getWhere());
+    
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> queryResult = query.executeClasses(session);
+        for (int i = 0; i < queryResult.size(); i++) {
+    
+            String unitCode = (String) queryResult.getKey(i).get("unitCode").getValue();
+            String unitBarcode = (String) queryResult.getKey(i).get("unitBarcode").getValue();
+            
+            ImMap<Object, ObjectValue> entry = queryResult.getValue(i);
+        
+            String numberOrder = trim((String) entry.get("numberOrder").getValue());
+            String barcode = trim((String) entry.get("barcode").getValue());
+            BigDecimal quantity = (BigDecimal) entry.get("quantity").getValue();
+        
+            result.add(new UnitLoad(unitCode, unitBarcode, numberOrder, barcode, quantity));
+        }
+    
+        return result;
+    }
+    
     private static void addCustomField(DataObject userObject, KeyExpr customANAExpr, QueryBuilder<Object, Object> customANAQuery, LP extInfoProperty, String name) {
         if(extInfoProperty != null) {
             switch (extInfoProperty.listInterfaces.size()) {
@@ -2361,7 +2406,7 @@ public class DefaultTerminalHandler {
         }
     }
     
-    public class SkuGroup implements Serializable {
+    private static class SkuGroup implements Serializable {
         public String id;
         public String name;
         public String idParent;
@@ -2373,17 +2418,17 @@ public class DefaultTerminalHandler {
         }
     }
     
-    public class UnitLoad implements Serializable {
-        public String id;
+    private static class UnitLoad implements Serializable {
+        public String code;
         public String barcode;
-        public String order;
+        public String numberOrder;
         public String skuBarcode;
         public BigDecimal skuQuantity;
         
-        public UnitLoad(String id, String barcode, String order, String skuBarcode, BigDecimal skuQuantity) {
-            this.id = id;
+        public UnitLoad(String code, String barcode, String numberOrder, String skuBarcode, BigDecimal skuQuantity) {
+            this.code = code;
             this.barcode = barcode;
-            this.order = order;
+            this.numberOrder = numberOrder;
             this.skuBarcode = skuBarcode;
             this.skuQuantity = skuQuantity;
         }

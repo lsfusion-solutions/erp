@@ -203,7 +203,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add("0,0");   // 8 Tare 0,0 SPECIAL FLOAT
             
             int labelBill1 = BaseUtils.nvl(settings.getLabelBill1(), 11);
-            int barcodeBill1 = BaseUtils.nvl(settings.getBarcodeBill1(), 11);
+            int barcodeBill1 = BaseUtils.nvl(settings.getBarcodeBill1(), 10);
             int labelBill2 = BaseUtils.nvl(settings.getLabelBill2(), 0);
             int barcodeBill2 = BaseUtils.nvl(settings.getBarcodeBill2(), 0);
             
