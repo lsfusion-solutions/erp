@@ -1133,13 +1133,34 @@ FORM consignmentTTNARuNew 'Транспортная накладная (стор
 ;
 
 FORM consignmentTTNBRuNEW 'Транспортная накладная (сторона Б) новая'
-    OBJECTS c = Consignment PANEL SUBREPORT
-    PROPERTIES(c) includeOrders, addressCustomerStock, packQuantity
+    OBJECTS b = Consignment PANEL SUBREPORT
+    PROPERTIES(b) includeOrders, addressCustomerStock, packQuantity
 ;
+
+reportFilePrintConsignmentTTNARuNew = ABSTRACT VALUE STRING; 
+reportFilePrintConsignmentTTNBRuNew= ABSTRACT VALUE STRING; 
+
+reportFilePrintConsignmentTTNARuNew ()+= 'Consignment_consignmentTTNARuNew_c.jrxml';
+reportFilePrintConsignmentTTNBRuNew ()+= 'Consignment_consignmentTTNBRuNEW_b.jrxml';
+
+FORM consignmentTTNABRuNew 'Транспортная накладная (сторона А) новая'
+    OBJECTS c = Consignment PANEL SUBREPORT 
+    PROPERTIES(c) includeOrders, fullNameSupplier, addressSupplier, fullNameCustomer, addressCustomer, number, date,
+        nameSupplierStock, addressSupplierStock, nameCustomerStock, addressCustomerStock, packQuantity
+
+    OBJECTS b = Consignment PANEL SUBREPORT 
+    PROPERTIES(b) includeOrders, addressCustomerStock, packQuantity
+    
+    REPORTFILES c reportFilePrintConsignmentTTNARuNew()
+    REPORTFILES b reportFilePrintConsignmentTTNBRuNew()
+;
+printConsignmentTTNABRuNewOne 'ТН один файл (сторона А/Б) (xls) NEW' (Consignment c)  {    
+    PRINT consignmentTTNABRuNew OBJECTS c = c, b=c XLS;
+} IMAGE 'print.png' IN print;
 
 printConsignmentTTNABRuNew 'Транспортная накладная (сторона А/Б) (xls) NEW' (Consignment c)  {
     PRINT consignmentTTNARuNew OBJECTS c = c XLS;
-    PRINT consignmentTTNBRuNEW OBJECTS c = c  XLS;
+    PRINT consignmentTTNBRuNEW OBJECTS b = c  XLS;
 } IMAGE 'print.png' IN print;
 
 
