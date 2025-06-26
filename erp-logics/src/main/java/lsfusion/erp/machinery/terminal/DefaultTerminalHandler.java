@@ -355,9 +355,9 @@ public class DefaultTerminalHandler {
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix, userInfo);
     
-                    createUnitLoadsTable(connection);
-                    updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
-                    
+//                    createUnitLoadsTable(connection);
+//                    updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
+
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
 
