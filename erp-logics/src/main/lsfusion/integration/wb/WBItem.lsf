@@ -98,6 +98,8 @@ FORM item 'Товар'
 
     OBJECTS attr = Attribute
     PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
+    PROPERTIES READONLY notNull=notNull(itemSubGroup(i), attr) SHOWIF NULL, name(attr) SHOWIF NULL
+    ORDERS notNull DESC, name(attr)
 
     EDIT Item OBJECT i
 ;
@@ -118,6 +120,7 @@ DESIGN item {
             fill = 1;
             MOVE PROPERTY(value(i, attr)) {
                 class = 'attribute-property';
+                valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
             }
         }
     }
@@ -829,16 +832,20 @@ EXTEND FORM integrationData
     PROPERTIES (attr) READONLY id, name, nameClass
     PROPERTIES (attr) NEWSESSION EDIT, DELETE
     PROPERTIES NEWSESSION newAttribute() DRAW attr
+    ORDERS name(attr)
 
     FILTERGROUP active
         FILTER 'Активные' active(attr) DEFAULT
 
     OBJECTS ownerClass = ItemSubGroup
     PROPERTIES in(ownerClass, attr) COLUMNS (ownerClass) HEADER name(ownerClass)
+    PROPERTIES READONLY name(ownerClass) SHOWIF NULL
+    ORDERS name(ownerClass)
 
     OBJECTS extraProp = ItemSubGroup
     PROPERTIES name(extraProp) READONLY
     PROPERTIES (extraProp, attr) notNull
+    ORDERS name(extraProp)
 ;
 
 DESIGN integrationData {
