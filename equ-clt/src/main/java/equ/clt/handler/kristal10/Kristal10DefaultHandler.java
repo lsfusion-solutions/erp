@@ -127,7 +127,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         if (infoJSON != null) {
             String ntin = trimToNull(infoJSON.optString("ntin"));
-            if(ntin != null) {
+            if (ntin != null) {
                 addPluginPropertyElement(good, "uz-ffd-spic", ntin);
             }
 
@@ -141,26 +141,26 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addIntegerElement(good, "weight", infoJSON.getInt("weight"));
             }
 
-            if(infoJSON.has("plugin_id")) {
+            if (infoJSON.has("plugin_id")) {
                 isProductSetApiEntity = true;
                 addPluginPropertyElement(good, "plugin_id", infoJSON.getString("plugin_id"));
             }
 
-            if(infoJSON.has("need_tare")) {
+            if (infoJSON.has("need_tare")) {
                 addPluginPropertyElement(good, "need_tare", infoJSON.optBoolean("need_tare"));
             }
+        }
 
-            if (extraInfoJSON != null) {
-                Boolean ukz = getUKZ(extraInfoJSON);
-                if (ukz != null && ukz) {
-                    addPluginPropertyElement(good, "by-need-scan-ukz", "true");
-                }
+        if (extraInfoJSON != null) {
+            Boolean ukz = getUKZ(extraInfoJSON);
+            if (ukz != null && ukz) {
+                addPluginPropertyElement(good, "by-need-scan-ukz", "true");
+            }
 
-                if (extraInfoJSON.has("lottype")) {
-                    String lotType = extraInfoJSON.getString("lottype");
-                    if (lotType != null && !lotType.equals("ukz"))
-                        addStringElement(good, "mark-type", getMarkType(lotType));
-                }
+            if (extraInfoJSON.has("lottype")) {
+                String lotType = extraInfoJSON.getString("lottype");
+                if (lotType != null && !lotType.equals("ukz"))
+                    addStringElement(good, "mark-type", getMarkType(lotType));
             }
         }
 
