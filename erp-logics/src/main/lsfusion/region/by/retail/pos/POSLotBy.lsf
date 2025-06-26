@@ -51,6 +51,51 @@ overCreateSaleDetail(ReceiptDetail d) + {
     }
 }
 
+//технические марки для начальных остатков
+isTechnicalGtin(STRING[14] g) = (g == '02900002449457' OR g == '04814130000054' OR g == '04814130000030'); 
+
+skuLot = DATA LOCAL Sku ();
+barcode 'Обнаружен технический GTIN. Просканируйте штрихкод товара.' = DATA LOCAL STRING[14] () CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER';
+changeBarcode () {
+    INPUT s = STRING[14] DO {
+        IF skuBarcode(s) THEN {
+            skuLot() <- skuBarcode(s);
+            formOk();
+        } ELSE {
+            MESSAGE 'Не найден товар со штрихкодом:\n' +  s NOWAIT;
+        }
+    }
+}
+
+FORM gialogBarcode 'Запрос товара'
+    PROPERTIES barcode() ON CHANGE changeBarcode()
+
+    EVENTS ON QUERYOK {
+    }
+;
+
+DESIGN gialogBarcode {
+    REMOVE PROPERTY (formOk());
+}
+checkCreateLot(STRING[200] str, Receipt r) + {
+    FOR Sku sk = skuFromGtin(idToGtin(str)) AND DepartmentStore dt = departmentStore(r) DO {
+        IF (explicitLot(sk) OR overExplicitLot(sk, dt)) AND NOT (overSkipCheckSkuPosLot(sk) OR skipCheckPosLot() OR overSkipCheckPosLot(r)) 
+        AND NOT lot(barcodeToId(str)) THEN {
+            IF isTechnicalGtin(idToGtin(str)) THEN {
+                DIALOG gialogBarcode NOMANAGESESSION DO {
+                }
+            } ELSE {
+                skuLot() <- sk;
+            }
+            
+            IF skuLot() THEN NEW l = Lot {
+                id(l) <- barcodeToId(str);
+                tail(l) <- barcodeToTail(str);
+                sku(l) <- skuLot();
+            }
+        }
+    }
+ }
 // для возврата если было продано без марки
 lot 'Просканируйте марку СИ'= DATA LOCAL STRING[200] () CHANGEKEY 'F4;editing=all' EVENTID 'SCANNER';
 

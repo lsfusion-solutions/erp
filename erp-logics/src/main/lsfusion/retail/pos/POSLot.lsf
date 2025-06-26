@@ -12,7 +12,7 @@ skipShowLot = ABSTRACT VALUE BOOLEAN (ReceiptDetail);
 
 EXTEND FORM POS
     PROPERTIES(d) READONLY idLot SHOWIF (lotType(sku(d)) AND NOT skipShowLot(d)) BACKGROUND RGB(255,224,224) IF NOT lot(d) PANEL
-    PROPERTIES(d) SHOWIF d IS ReceiptReturnDetail dropLot
+    PROPERTIES(d) SHOWIF d IS ReceiptReturnDetail AND lot(d) dropLot
 ;
 
 DESIGN POS {
@@ -45,6 +45,7 @@ DESIGN options {
 }
 
 skipCreateLotOnChangeBarcode = ABSTRACT BOOLEAN ();
+checkCreateLot ABSTRACT LIST (STRING[200], Receipt);
 
 checkLot ABSTRACT LIST (Lot, DepartmentStore);
 createDetail = DATA LOCAL BOOLEAN ();
@@ -54,11 +55,7 @@ customLot = ABSTRACT VALUE Lot (STRING[200]);
 
 overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     IF (length(initialBarcode()) >= OVERRIDE lotMinLength(), 20 ) OR customLot(initialBarcode()) THEN {
-        IF skuFromGtin(idToGtin(initialBarcode())) AND NOT lot(barcodeToId(initialBarcode())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {
-            id(l) <- barcodeToId(initialBarcode());
-            tail(l) <- barcodeToTail(initialBarcode());
-            sku(l) <- skuFromGtin(idToGtin(initialBarcode()));
-        }
+        IF NOT skipCreateLotOnChangeBarcode() THEN checkCreateLot(initialBarcode(), r);
         FOR (Lot l = lot(barcodeToId(initialBarcode())) OR l = customLot(initialBarcode())) AND Sku s = sku(l) DO {
             createDetail() <- TRUE;
             checkLot(l, departmentStore(r));
