@@ -2057,7 +2057,7 @@ public class DefaultTerminalHandler {
         KeyExpr unitCodeExpr = new KeyExpr("unitCode");
         KeyExpr unitBarcodeExpr = new KeyExpr("unitBarcode");
         
-        MRevMap<Object, KeyExpr> mMap = MapFact.mRevMap(3);
+        MRevMap<Object, KeyExpr> mMap = MapFact.mRevMap(4);
         mMap.revAdd("TerminalOrder", terminalOrderExpr);
         mMap.revAdd("Sku", skuExpr);
         mMap.revAdd("UnitCode", unitCodeExpr);
