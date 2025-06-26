@@ -354,9 +354,11 @@ public class DefaultTerminalHandler {
 
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix, userInfo);
-    
-                    //createUnitLoadsTable(connection);
-                    //updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
+
+                    if(terminalOrderLM !=null){
+                        createUnitLoadsTable(connection);
+                        updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
+                    }
 
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
@@ -2060,8 +2062,8 @@ public class DefaultTerminalHandler {
         MRevMap<Object, KeyExpr> mMap = MapFact.mRevMap(4);
         mMap.revAdd("TerminalOrder", terminalOrderExpr);
         mMap.revAdd("Sku", skuExpr);
-        mMap.revAdd("UnitCode", unitCodeExpr);
-        mMap.revAdd("UnitBarcode", unitBarcodeExpr);
+        mMap.revAdd("unitCode", unitCodeExpr);
+        mMap.revAdd("unitBarcode", unitBarcodeExpr);
     
         QueryBuilder<Object, Object> query = new QueryBuilder<>(mMap.immutableRev());
         
