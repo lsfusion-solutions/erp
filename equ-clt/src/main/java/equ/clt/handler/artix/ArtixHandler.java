@@ -1756,6 +1756,11 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             receiptExtraFields.put("cashtype", cashtype);
                                         }
 
+                                        JSONArray couponPositionsArray = documentObject.getJSONArray("couponPositions");
+                                        if(couponPositionsArray != null) {
+                                            receiptExtraFields.put("couponPositions", couponPositionsArray.toString());
+                                        }
+
                                         Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                         LocalDate dateReceipt = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                         Time timeReceipt = timeEnd != null ? new Time(timeEnd) : null;
