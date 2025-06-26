@@ -18,7 +18,7 @@ GROUP buyer : order;
 GROUP organization1 EXTID 'organization' : buyer;
 GROUP russianAddress1 EXTID 'russianAddress' : buyer;
 GROUP invoicee : order;
-GROUP deliveryInfo_ : order;
+GROUP deliveryInfo_ EXTID 'deliveryInfo' : order;
 GROUP selfEmployed : invoicee;
 GROUP fullName : selfEmployed;
 GROUP russianAddress2 EXTID 'russianAddress' : invoicee;
@@ -109,39 +109,39 @@ nameMessage = DATA LOCAL STRING();
 GLNSupplierStockDiadoc 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
 
 FORM ordersDiadoc FORMEXTID 'eDIMessage'
-        PROPERTIES() nameMessage EXTID 'id' ATTR, currentDateTime EXTID 'creationDateTime' ATTR
+        PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime_ = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime' ATTR
         PROPERTIES IN interchangeHeader
-            sender = GLNCustomerStock(exportOrderDocument()), 
+            sender = GLNCustomer(exportOrderDocument()), 
             recipient = GLNSupplierStockDiadoc(exportOrderDocument()),
             documentType = 'ORDERS', 
-            creationDateTime = currentDateTime() ,
+            creationDateTime = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss'),
             isTest = IF useTest() THEN '1' ELSE '0'
     
         PROPERTIES ATTR IN order 
             number_ = number(exportOrderDocument()) EXTID 'number',
-            date_ = DATE(sendDateTime(exportOrderDocument())) EXTID 'date'
+            date_ = toChar(sendDateTime(exportOrderDocument()), 'yyyy-MM-dd') EXTID 'date'
 
         PROPERTIES IN seller 
             gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln' 
 
-        PROPERTIES IN organization_ EXTID  'organization' 
+        PROPERTIES IN organization_ EXTID 'organization' 
             name = fullName(supplier(exportOrderDocument())) EXTID 'name', 
             inn = inn(supplier(exportOrderDocument())) EXTID 'inn', 
             kpp = kpp[Organization](supplier(exportOrderDocument())) EXTID 'kpp'
     
         PROPERTIES IN buyer
-            gln1 = (OVERRIDE GLNCustomerStock(exportOrderDocument()),'') EXTID 'gln'
+            gln1 = (OVERRIDE GLNCustomer(exportOrderDocument()),'') EXTID 'gln'
 
-        PROPERTIES IN organization1 EXTID  'organization' 
+        PROPERTIES IN organization1 EXTID 'organization' 
             name1 = (OVERRIDE fullName(customer(exportOrderDocument())), '') EXTID 'name',
             inn1 = (OVERRIDE inn[Organization](customer(exportOrderDocument())), '') EXTID 'inn',
             kpp1 = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
 
         PROPERTIES IN invoicee
-            gln2 = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
+            gln2 = GLNCustomer(exportOrderDocument()) EXTID 'gln'
 
-        PROPERTIES IN deliveryInfo_ EXTID 'deliveryInfo'
-            requestedDeliveryDateTime = shipmentDateTime(exportOrderDocument()) EXTID 'requestedDeliveryDateTime'
+        PROPERTIES IN deliveryInfo_
+            requestedDeliveryDateTime = toChar(shipmentDateTime(exportOrderDocument()), 'yyyy-MM-ddThh24:mi:ss') EXTID 'requestedDeliveryDateTime'
    
         PROPERTIES IN lineItems 
             totalPackageQuantity = packQuantityOrderDetail(exportOrderDocument())
