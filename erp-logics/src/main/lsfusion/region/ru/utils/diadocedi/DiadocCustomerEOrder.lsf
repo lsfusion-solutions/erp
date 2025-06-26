@@ -18,6 +18,7 @@ GROUP buyer : order;
 GROUP organization1 EXTID 'organization' : buyer;
 GROUP russianAddress1 EXTID 'russianAddress' : buyer;
 GROUP invoicee : order;
+GROUP deliveryInfo_ : order;
 GROUP selfEmployed : invoicee;
 GROUP fullName : selfEmployed;
 GROUP russianAddress2 EXTID 'russianAddress' : invoicee;
@@ -110,7 +111,7 @@ GLNSupplierStockDiadoc 'GLN поставщика' (EOrder e) = IF notUseStockGLN
 FORM ordersDiadoc FORMEXTID 'eDIMessage'
         PROPERTIES() nameMessage EXTID 'id' ATTR, currentDateTime EXTID 'creationDateTime' ATTR
         PROPERTIES IN interchangeHeader
-            sender = GLNCustomerStock(exportOrderDocument()) , 
+            sender = GLNCustomerStock(exportOrderDocument()), 
             recipient = GLNSupplierStockDiadoc(exportOrderDocument()),
             documentType = 'ORDERS', 
             creationDateTime = currentDateTime() ,
@@ -118,34 +119,15 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
     
         PROPERTIES ATTR IN order 
             number_ = number(exportOrderDocument()) EXTID 'number',
-            date_ = sendDateTime(exportOrderDocument()) EXTID 'date'
+            date_ = DATE(sendDateTime(exportOrderDocument())) EXTID 'date'
 
         PROPERTIES IN seller 
-            gln = (OVERRIDE GLNCustomerStock(exportOrderDocument()),'') EXTID 'gln' 
+            gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln' 
 
         PROPERTIES IN organization_ EXTID  'organization' 
-            name = (OVERRIDE fullName(customer(exportOrderDocument())), '') EXTID 'name', 
-            inn = (OVERRIDE inn(customer(exportOrderDocument())), '') EXTID 'inn', 
-            kpp = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
-        
-//        PROPERTIES IN russianAddress_ EXTID 'russianAddress'
-//            regionISOCode = (OVERRIDE region[Organization](customer(exportOrderDocument())), '') EXTID 'regionISOCode',
-//           district = (OVERRIDE territory[Organization](customer(exportOrderDocument())), '') EXTID 'district',
-//            city = (OVERRIDE city[Organization](customer(exportOrderDocument())), '') EXTID 'city',  
-//            settlement = (OVERRIDE locality[Organization](customer(exportOrderDocument())), '') EXTID 'settlement', 
-//            street = (OVERRIDE street[Organization](customer(exportOrderDocument())), '') EXTID 'street' , 
-//            house = (OVERRIDE building[Organization](customer(exportOrderDocument())), '') EXTID 'house', 
-//            flat = (OVERRIDE apartment[Organization](customer(exportOrderDocument())), '') EXTID 'flat', 
-//            postalCode = (OVERRIDE zipCode[Organization](customer(exportOrderDocument())), '') EXTID 'postalCode'
-        
-//        PROPERTIES IN additionalInfo 
-//            phone = (OVERRIDE phone(customer(exportOrderDocument())), '') EXTID 'phone', 
-//            fax = (OVERRIDE phone(customer(exportOrderDocument())), '') EXTID 'fax', 
-//            bankAccountNumber = (OVERRIDE numberAccount(customer(exportOrderDocument())), '') EXTID 'bankAccountNumber', 
-//            bankName = (OVERRIDE nameBank(account(customer(exportOrderDocument()))), '') EXTID 'bankName', 
-//            BIK = (OVERRIDE MFOBank(account(customer(exportOrderDocument()))), '') EXTID 'BIK', 
-//            nameOfCEO = (OVERRIDE nameChief(customer(exportOrderDocument())), '') EXTID 'nameOfCEO', 
-//            orderContact = (OVERRIDE contacts(customer(exportOrderDocument())), '') EXTID 'orderContact'
+            name = fullName(supplier(exportOrderDocument())) EXTID 'name', 
+            inn = inn(supplier(exportOrderDocument())) EXTID 'inn', 
+            kpp = kpp[Organization](supplier(exportOrderDocument())) EXTID 'kpp'
     
         PROPERTIES IN buyer
             gln1 = (OVERRIDE GLNCustomerStock(exportOrderDocument()),'') EXTID 'gln'
@@ -155,41 +137,12 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             inn1 = (OVERRIDE inn[Organization](customer(exportOrderDocument())), '') EXTID 'inn',
             kpp1 = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
 
-//        PROPERTIES IN russianAddress1 EXTID 'russianAddress' 
-//           regionISOCode1 = (OVERRIDE region[Organization](customer(exportOrderDocument())), '') EXTID 'regionISOCode',
-//            district1 = (OVERRIDE territory[Organization](customer(exportOrderDocument())), '') EXTID 'district',
-//            city1 = (OVERRIDE city[Organization](customer(exportOrderDocument())), '') EXTID 'city',
-//            settlement1 = (OVERRIDE locality[Organization](customer(exportOrderDocument())), '') EXTID 'settlement',
-//            street1 = (OVERRIDE street[Organization](customer(exportOrderDocument())), '') EXTID 'street' ,
-//            house1 = (OVERRIDE building[Organization](customer(exportOrderDocument())), '') EXTID 'house',
-//           flat1 = (OVERRIDE apartment[Organization](customer(exportOrderDocument())), '') EXTID 'flat',
-//           postalCode1 = (OVERRIDE zipCode[Organization](customer(exportOrderDocument())), '') EXTID 'postalCode'   
-
         PROPERTIES IN invoicee
-            gln2 = (OVERRIDE GLNCustomerStock(exportOrderDocument()),'') EXTID 'gln'
-    
-        PROPERTIES IN selfEmployed IN invoicee
-            inn2 = (OVERRIDE inn[Organization](supplier(exportOrderDocument())), '') EXTID 'inn'
-        
-//        PROPERTIES IN russianAddress2 EXTID 'russianAddress'
-//            regionISOCode2 = (OVERRIDE region[Organization](supplier(exportOrderDocument())), '') EXTID 'regionISOCode',
-//            district2 = (OVERRIDE territory[Organization](supplier(exportOrderDocument())), '') EXTID 'district',
-//            city2 = (OVERRIDE city[Organization](supplier(exportOrderDocument())), '') EXTID 'city',
-//            settlement2 = (OVERRIDE locality[Organization](supplier(exportOrderDocument())), '') EXTID 'settlement',
-//            street2 = (OVERRIDE street[Organization](supplier(exportOrderDocument())), '') EXTID 'street' ,
-//            house2 = (OVERRIDE building[Organization](supplier(exportOrderDocument())), '') EXTID 'house', 
-//            flat2 = (OVERRIDE apartment[Organization](supplier(exportOrderDocument())), '') EXTID 'flat',
-//            postalCode2 = (OVERRIDE zipCode[Organization](supplier(exportOrderDocument())), '') EXTID 'postalCode'          
-            
-//        PROPERTIES IN additionalInfo1 EXTID 'additionalInfo'
-//            phone1 = (OVERRIDE phone(supplier(exportOrderDocument())), '') EXTID 'phone',
-//            fax5 = (OVERRIDE phone(supplier(exportOrderDocument())), '') EXTID 'fax',
-//           bankAccountNumber1 = (OVERRIDE numberAccount(supplier(exportOrderDocument())), '') EXTID 'bankAccountNumber',
-//            bankName1 = (OVERRIDE nameBank(account(supplier(exportOrderDocument()))), '') EXTID 'bankName',
-//            BIK1 = (OVERRIDE MFOBank(account(supplier(exportOrderDocument()))), '') EXTID 'BIK',
-//            nameOfCEO1 = (OVERRIDE nameChief(supplier(exportOrderDocument())), '') EXTID 'nameOfCEO',
-//            orderContact1 = (OVERRIDE contacts(supplier(exportOrderDocument())), '') EXTID 'orderContact'    
-    
+            gln2 = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
+
+        PROPERTIES IN deliveryInfo_ EXTID 'deliveryInfo'
+            requestedDeliveryDateTime = shipmentDateTime(exportOrderDocument()) EXTID 'requestedDeliveryDateTime'
+   
         PROPERTIES IN lineItems 
             totalPackageQuantity = packQuantityOrderDetail(exportOrderDocument())
 
