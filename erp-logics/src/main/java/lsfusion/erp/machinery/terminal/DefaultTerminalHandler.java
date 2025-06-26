@@ -355,8 +355,8 @@ public class DefaultTerminalHandler {
                     createOrderTable(connection);
                     updateOrderTable(connection, orderList, prefix, userInfo);
     
-//                    createUnitLoadsTable(connection);
-//                    updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
+                    createUnitLoadsTable(connection);
+                    updateUnitLoadsTable(connection, readUnitLoadList(session, stockObject, userInfo));
 
                     createAssortTable(connection);
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
@@ -1321,12 +1321,12 @@ public class DefaultTerminalHandler {
     
     private void createUnitLoadsTable(Connection connection) throws SQLException {
         Statement statement = connection.createStatement();
-        String sql = "CREATE TABLE unitloads (" +
-                " id TEXT," +
+        String sql = "CREATE TABLE unitload (" +
+                " code TEXT," +
                 " barcode TEXT DEFAULT NULL," +
-                " order TEXT DEFAULT NULL," +
-                " sku_barcode TEXT DEFAULT NULL," +
-                " sku_quantity REAL DEFAULT NULL" +
+                " numberOrder TEXT DEFAULT NULL," +
+                " skuBarcode TEXT DEFAULT NULL," +
+                " skuQuantity REAL DEFAULT NULL" +
                 ");";
         statement.executeUpdate(sql);
         statement.close();
@@ -1337,7 +1337,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO unitloads VALUES(?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO unitload VALUES(?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (UnitLoad it : list) {
                     if (it.code != null) {
