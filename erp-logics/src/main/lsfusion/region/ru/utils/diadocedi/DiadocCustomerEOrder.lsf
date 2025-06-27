@@ -19,6 +19,7 @@ GROUP organization1 EXTID 'organization' : buyer;
 GROUP russianAddress1 EXTID 'russianAddress' : buyer;
 GROUP invoicee : order;
 GROUP deliveryInfo_ EXTID 'deliveryInfo' : order;
+GROUP shipTo : deliveryInfo_;
 GROUP selfEmployed : invoicee;
 GROUP fullName : selfEmployed;
 GROUP russianAddress2 EXTID 'russianAddress' : invoicee;
@@ -105,6 +106,7 @@ amount = DATA LOCAL STRING();
 
 exportOrderDocument = DATA LOCAL EOrder();
 nameMessage = DATA LOCAL STRING();
+sendingCancelled = DATA LOCAL BOOLEAN ();
 
 GLNSupplierStockDiadoc 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
 
@@ -119,7 +121,8 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
     
         PROPERTIES ATTR IN order 
             number_ = number(exportOrderDocument()) EXTID 'number',
-            date_ = toChar(sendDateTime(exportOrderDocument()), 'yyyy-MM-dd') EXTID 'date'
+            date_ = toChar(sendDateTime(exportOrderDocument()), 'yyyy-MM-dd') EXTID 'date',
+            status_ = (IF sendingCancelled() THEN 'Canceled') EXTID 'status'
 
         PROPERTIES IN seller 
             gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln' 
@@ -133,15 +136,17 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             gln1 = (OVERRIDE GLNCustomer(exportOrderDocument()),'') EXTID 'gln'
 
         PROPERTIES IN organization1 EXTID 'organization' 
-            name1 = (OVERRIDE fullName(customer(exportOrderDocument())), '') EXTID 'name',
-            inn1 = (OVERRIDE inn[Organization](customer(exportOrderDocument())), '') EXTID 'inn',
-            kpp1 = (OVERRIDE kpp[Organization](customer(exportOrderDocument())), '') EXTID 'kpp'
+            name1 = fullName(customer(exportOrderDocument())) EXTID 'name',
+            inn1 = inn[Organization](customer(exportOrderDocument())) EXTID 'inn',
+            kpp1 = kpp[Organization](customer(exportOrderDocument())) EXTID 'kpp'
 
         PROPERTIES IN invoicee
             gln2 = GLNCustomer(exportOrderDocument()) EXTID 'gln'
 
         PROPERTIES IN deliveryInfo_
             requestedDeliveryDateTime = toChar(shipmentDateTime(exportOrderDocument()), 'yyyy-MM-ddThh24:mi:ss') EXTID 'requestedDeliveryDateTime'
+        PROPERTIES IN shipTo    
+            gln_ = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
    
         PROPERTIES IN lineItems 
             totalPackageQuantity = packQuantityOrderDetail(exportOrderDocument())
@@ -155,7 +160,7 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             description = nameSku(i), 
             requestedQuantity = quantity(i), 
             netPrice = price(i), 
-            vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))+'%'), ''),
+            vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))), ''),
             amount = invoiceSum(i)
 //            'gln' = GLN(customerStock(order(i))) IN ultimateCustomer ATTR 
 ;
