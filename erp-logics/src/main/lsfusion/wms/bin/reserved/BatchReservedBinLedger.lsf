@@ -13,9 +13,27 @@ currentReserved 'Текущий резерв' (batch, bin) =
 prevCurrentReserved 'Текущий резерв' (Batch batch, Bin bin) = PREV(currentReserved(batch, bin)) CHARWIDTH 7;
 prevCurrentReserved 'Текущий резерв по ячейкам' (Batch batch)  = GROUP SUM prevCurrentReserved(batch, Bin bin) CHARWIDTH 7;
 
-availableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = currentBalance(batch, bin) (+) currentReserved(batch, bin) CHARWIDTH 7;
-prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = prevCurrentBalance(batch, bin) (+) prevCurrentReserved(batch, bin) CHARWIDTH 7;
+availableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
+    currentBalance(batch, bin) (-) (currentReserved(batch, bin) IF currentReserved(batch, bin) > 0.0) CHARWIDTH 7;
+prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
+    prevCurrentBalance(batch, bin) (-) (prevCurrentReserved(batch, bin) IF prevCurrentReserved(batch, bin) > 0.0) CHARWIDTH 7;
 
 EXTEND FORM batchBinBalance
     PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity
+    EXTEND FILTERGROUP balance
+        FILTER 'С резервом' currentReserved(bt, b)
+        FILTER 'С доступным кол-вом' availableQuantity(bt, b)
+
+    OBJECTS rlb = ReservedBinLedger
+    PROPERTIES (rlb) READONLY dateTime, description, skip, quantity
+    ORDERS dateTime(rlb) DESC
+    FILTERS active(rlb),
+        bin(rlb)==b,
+        batch(rlb)==bt
 ;
+
+DESIGN batchBinBalance{
+    batchesDetail {
+        MOVE BOX(rlb);
+    }
+}

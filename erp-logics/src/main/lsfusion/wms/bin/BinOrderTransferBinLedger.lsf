@@ -1,10 +1,13 @@
 MODULE BinOrderTransferBinLedger;
 
-REQUIRE BinOrderBinLedger, BinTransferBinLedger, ReservedBinLedger;
+REQUIRE BinOrderBinLedger, BinTransferBinLedger, ReservedBinLedger, ReservedBinOrderBinLedger, ReservedBinTransferBinLedger;
 
 NAMESPACE Bin;
 
-binOrder = ABSTRACT BinOrder (BinTransfer) MATERIALIZED INDEXED;
+//делаем ссылку на заказ на перемещение обязательной для того, что бы не было перемещений без заказов
+//данное условие призвано обеспечить следующий подход при расчёте резерва в ячейке
+//все заказы увеличивают резерв, все перемещения уменьшают, при необходимости вводится документ снятия резерва
+binOrder = ABSTRACT BinOrder (BinTransfer) NONULL MATERIALIZED INDEXED;
 binOrder = DATA BinOrder (UserBinTransfer);
 binOrder(UserBinTransfer binTransfer) += binOrder(binTransfer);
 

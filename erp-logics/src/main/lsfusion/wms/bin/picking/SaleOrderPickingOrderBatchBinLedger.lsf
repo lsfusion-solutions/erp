@@ -1,6 +1,6 @@
 MODULE SaleOrderPickingOrderBatchBinLedger;
 
-REQUIRE SaleOrderPickingOrderBinLedger, BatchBinSkuLedger, PickingOrderBatchBinLedger;
+REQUIRE SaleOrderPickingOrderBinLedger, BatchBinSkuLedger, PickingOrderBatchBinLedger, BatchReservedBinLedger;
 
 NAMESPACE Sale;
 
@@ -23,7 +23,7 @@ createUserPickingOrder(Order order) + WHEN order IS Order THEN {
             LOCAL quantityLoc = NUMERIC[16,5](Batch);
 
             quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
-            plannedPickingQuantity(order, Batch bt, Bin bin) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT currentBalance(bt, bin) ORDER currentBalance(bt, bin) BY bt
+            plannedPickingQuantity(order, Batch bt, Bin bin) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT availableQuantity(bt, bin) ORDER availableQuantity(bt, bin) BY bt
                 WHERE picking(bin);
             countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Batch batch, Bin bin));
             

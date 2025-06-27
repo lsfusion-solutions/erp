@@ -1,6 +1,7 @@
 MODULE SaleOrderPickingOrderBinLedger;
 
-REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, OrderInvoicePickingOrder, SaleInvoice;
+REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, OrderInvoicePickingOrder, 
+        SaleInvoice, ReservedBinLedger;
 
 NAMESPACE Sale;
 
@@ -60,7 +61,7 @@ createUserPickingOrder(Order order) + WHEN order IS Order THEN {
             LOCAL quantityLoc = NUMERIC[16,5](Sku);
 
             quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
-            plannedPickingQuantity(order, Sku sku, Bin bin) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT currentBalance(sku, bin) ORDER currentBalance(sku, bin) BY sku
+            plannedPickingQuantity(order, Sku sku, Bin bin) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT availableQuantity(sku, bin) ORDER availableQuantity(sku, bin) BY sku
                 WHERE picking(bin);
             countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Sku sku, Bin bin));
 

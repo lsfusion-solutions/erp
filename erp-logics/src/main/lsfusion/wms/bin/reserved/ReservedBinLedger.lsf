@@ -4,7 +4,7 @@ REQUIRE Bin, BinLedger;
 
 NAMESPACE Bin;
 
-CLASS ABSTRACT ReservedBinLedger 'Резерв товара в ячейке';
+CLASS ABSTRACT ReservedBinLedger 'Изменение резерва по ячейке';
 TABLE reservedBinLedger(ReservedBinLedger);
 
 dateTime 'Дата/время' = ABSTRACT DATETIME (ReservedBinLedger) MATERIALIZED INDEXED;
@@ -43,9 +43,67 @@ currentReserved 'Текущий резерв' (sku, bin) =
 prevCurrentReserved 'Текущий резерв' (Sku sku, Bin bin) = PREV(currentReserved(sku, bin)) CHARWIDTH 7;
 prevCurrentReserved 'Текущий резерв по ячейкам' (Sku sku)  = GROUP SUM prevCurrentReserved(sku, Bin bin) CHARWIDTH 7;
 
-availableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = currentBalance(sku, bin) (-) currentReserved(sku, bin) CHARWIDTH 7;
-prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevCurrentReserved(sku, bin) CHARWIDTH 7;
+availableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
+    currentBalance(sku, bin) (-) (currentReserved(sku, bin) IF currentReserved(sku, bin) > 0.0) CHARWIDTH 7;
+prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
+    prevCurrentBalance(sku, bin) (-) (prevCurrentReserved(sku, bin) IF prevCurrentReserved(sku, bin) > 0.0) CHARWIDTH 7;
+
+FORM reservedBinLedger 'Регистр изменения резервов по ячейкам'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
+    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
+
+    OBJECTS b = ReservedBinLedger
+    PROPERTIES(b) READONLY dateTime, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameBin, canonicalIdBin,
+        description, skip
+    FILTERS isPosted(b),
+        date(b) >= dFrom, date(b) <= dTo
+;
+
+@extendFormFilterAccessStock(ReservedBinLedger, b, reservedBinLedger, stock, company);
+
+DESIGN reservedBinLedger {
+    MOVE BOX(dates) {
+        horizontal = TRUE;
+    }
+    MOVE BOX(b);
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    WMSReports {
+        NEW reservedBinLedger AFTER binLedger;
+    }
+}
+
 
 EXTEND FORM binBalance
-    PROPERTIES(s, b) READONLY AFTER currentBalance(s, b) currentReserved, availableQuantity 
+    PROPERTIES(s, b) READONLY AFTER currentBalance(s, b) currentReserved, availableQuantity
+    EXTEND FILTERGROUP balance
+        FILTER 'С резервом' currentReserved(s, b)
+        FILTER 'С доступным кол-вом' availableQuantity(s, b)
+
+    OBJECTS rl = ReservedBinLedger
+    PROPERTIES (rl) READONLY dateTime, description, skip, quantity
+    ORDERS dateTime(rl) DESC
+    FILTERS active(rl),
+        bin(rl)==b,
+        sku(rl)==s
 ;
+
+DESIGN binBalance {
+    skusDetail {
+        MOVE BOX(rl);
+    }
+}
+
+META implementReservedBinLedger(concrete, skuProp, dateTimeProp, stockProp, binProp)
+    EXTEND CLASS concrete##Detail : ReservedBinLedger;
+
+    dateTime[ReservedBinLedger](concrete##Detail ledger) += dateTimeProp(ledger);
+    isPosted[ReservedBinLedger](concrete##Detail ledger) += isPosted(ledger);
+    isClosed[ReservedBinLedger](concrete##Detail ledger) += isClosed(ledger);
+    skuProp[ReservedBinLedger](concrete##Detail ledger) += skuProp(ledger);
+    stock[ReservedBinLedger](concrete##Detail ledger) += stockProp(ledger);
+    bin[ReservedBinLedger](concrete##Detail ledger) += binProp(ledger);
+    description[ReservedBinLedger](concrete##Detail ledger) += description(ledger);
+END    
