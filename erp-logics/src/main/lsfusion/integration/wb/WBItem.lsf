@@ -6,13 +6,17 @@ NAMESPACE WB;
 
 CLASS Item 'Товар';
 
-id 'Код' = DATA STRING (Item) NONULL IN id;
-itemId (id) = GROUP AGGR Item i BY id(i);
+id 'Код' = DATA INTEGER (Item) NONULL IN id;
+item (id) = GROUP AGGR Item i BY id(i);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
 unitName 'Ед.измерения' = DATA STRING (Item);
 itemSubGroup = DATA ItemSubGroup (Item) NONULL DELETE;
 nameItemSubGroup 'Предмет' (Item i) = name(itemSubGroup(i));
 nameItemGroup 'Категория' (Item i) = name(itemGroup(itemSubGroup(i)));
+freeItemLimits 'Бесплатный лимит' = DATA STRING ();
+paidItemLimits 'Платный лимит' = DATA STRING ();
+isTrash 'В корзине' = DATA BOOLEAN (Item);
+in 'Вкл.' = DATA LOCAL BOOLEAN (Item);
 
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
@@ -93,7 +97,7 @@ DESIGN attributes {
 
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
-    PROPERTIES(i) id, name, nameItemGroup, nameItemSubGroup
+    PROPERTIES(i) id, name, nameItemGroup, nameItemSubGroup, isTrash
     ORDERS name(i)
 
     OBJECTS attr = Attribute
@@ -114,6 +118,7 @@ DESIGN item {
             MOVE PROPERTY(name(i));
             MOVE PROPERTY(nameItemGroup(i));
             MOVE PROPERTY(nameItemSubGroup(i));
+            MOVE PROPERTY(isTrash(i));
         }
         NEW itemDetail {
             caption = 'Дополнительные характеристики';
@@ -816,6 +821,358 @@ getItemAttribute 'Получить характеристики предмето
     }
 }
 
+paidLimits = DATA LOCAL STRING ();
+freeLimits = DATA LOCAL STRING ();
+
+GROUP data;
+
+FORM importItemLimits
+    PROPERTIES() errorText, additionalErrors, error
+    PROPERTIES() IN data paidLimits, freeLimits
+;
+
+getItemLimits 'Получить лимиты карточек товаров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL errorText = STRING ();
+            LOCAL status = STRING ();
+
+            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/cards/limits');
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/limits' HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importItemLimits JSON FROM response();
+
+                FOR imported(INTEGER i) DO {
+                    freeItemLimits() <- freeLimits();
+                    paidItemLimits() <- paidLimits();
+                    }
+                message() <- 'Бесплатные лимиты на создание карточек X = ' + freeLimits() + ', платные лимиты Y = ' + paidLimits();
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                APPLY;
+            }
+     }
+}
+
+allowedCategoriesOnly = DATA LOCAL STRING();
+imtID = DATA LOCAL STRING ();
+withPhoto = DATA LOCAL STRING ();
+textSearch = DATA LOCAL STRING();
+brands = DATA LOCAL STRING(INTEGER);
+filterBrands = DATA LOCAL STRING (INTEGER);
+tagIDs = DATA LOCAL STRING(INTEGER);
+filterTagIDs = DATA LOCAL STRING (INTEGER);
+objectIDs = DATA LOCAL STRING(INTEGER);
+filterObjectIDs = DATA LOCAL STRING (INTEGER);
+limit = DATA LOCAL STRING ();
+nmID = DATA LOCAL INTEGER ();
+updatedAt = DATA LOCAL STRING();
+ascending = DATA LOCAL STRING();
+
+GROUP cursor;
+GROUP dimensions;
+
+total = DATA LOCAL STRING ();
+pdatedAt = DATA LOCAL STRING();
+needKiz = DATA LOCAL STRING(INTEGER);
+cardsCharacteristics = DATA LOCAL INTEGER(INTEGER);
+value = DATA LOCAL STRING(INTEGER);
+characteristicsValue = DATA LOCAL INTEGER(INTEGER);
+nmUUID = DATA LOCAL STRING(INTEGER);
+nmID1 = DATA LOCAL INTEGER (INTEGER);
+description = DATA LOCAL STRING(INTEGER);
+video = DATA LOCAL STRING(INTEGER);
+title = DATA LOCAL STRING(INTEGER);
+cardsPhotos = DATA LOCAL INTEGER(INTEGER);
+big = DATA LOCAL STRING(INTEGER);
+square = DATA LOCAL STRING(INTEGER);
+c516x688 = DATA LOCAL STRING(INTEGER);
+tm = DATA LOCAL STRING(INTEGER);
+c246x328 = DATA LOCAL STRING(INTEGER);
+vendorCode = DATA LOCAL STRING(INTEGER);
+cardsTags = DATA LOCAL INTEGER(INTEGER);
+color = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING (INTEGER);
+imtID = DATA LOCAL STRING (INTEGER);
+createdAt = DATA LOCAL STRING(INTEGER);
+cardsSizes = DATA LOCAL INTEGER(INTEGER);
+skus = DATA LOCAL STRING(INTEGER);
+sizesSkus = DATA LOCAL INTEGER(INTEGER);
+techSize = DATA LOCAL STRING(INTEGER);
+chrtID = DATA LOCAL STRING (INTEGER);
+brand = DATA LOCAL STRING(INTEGER);
+weightBrutto = DATA LOCAL STRING (INTEGER);
+isValid = DATA LOCAL STRING(INTEGER);
+length = DATA LOCAL STRING (INTEGER);
+width = DATA LOCAL STRING (INTEGER);
+height = DATA LOCAL STRING (INTEGER);
+updatedAt1 = DATA LOCAL STRING(INTEGER);
+
+FORM importItems
+    PROPERTIES() IN cursor total, nmID, updatedAt
+
+    OBJECTS cards = INTEGER
+
+    PROPERTIES(cards) needKiz, nmUUID, nmID1 EXTID 'nmID', description, video, title, subjectID, vendorCode, imtID, createdAt, brand, subjectName, updatedAt1 EXTID 'updatedAt'
+
+    OBJECTS characteristics = INTEGER
+    FILTERS cardsCharacteristics(characteristics) == cards
+    PROPERTIES(characteristics) name, id
+    FILTERS imported(characteristics)
+
+    OBJECTS value = INTEGER
+    PROPERTIES(value) value
+    FILTERS imported(value)
+    FILTERS characteristicsValue(value) == characteristics
+
+    OBJECTS photos = INTEGER
+    FILTERS cardsPhotos(photos) == cards
+    PROPERTIES(photos) big, square, c516x688, tm, c246x328
+    FILTERS imported(photos)
+
+    OBJECTS tags = INTEGER
+    FILTERS cardsTags(tags) == cards
+    PROPERTIES(tags) color, name1 EXTID 'name', id1 EXTID 'id'
+    FILTERS imported(tags)
+
+    OBJECTS sizes = INTEGER
+    FILTERS cardsSizes(sizes) == cards
+    PROPERTIES(sizes) techSize, chrtID
+    FILTERS imported(sizes)
+
+    OBJECTS skus = INTEGER
+    PROPERTIES(skus) skus EXTID 'value'
+    FILTERS imported(skus)
+    FILTERS sizesSkus(skus) == sizes
+    PROPERTIES(cards) IN dimensions weightBrutto, isValid, length, width, height
+    FILTERS imported(cards)
+;
+
+postItems 'Получить список карточек товаров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"settings": \{"cursor": \{ "limit": 100, "filter": \{"withPhoto": -1\}\}\}\}', 'UTF-8', 'json');
+
+        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/get/cards/list');
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/list' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItems JSON FROM response();
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY nmID1(i1)](INTEGER nmID1) AND NOT item(nmID1) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
+                id(item) <- nmID1(i);
+                name(item) <- title(i);
+                itemSubGroup(item) <- itemSubGroup(subjectID(i));
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
+                    CASE
+                        WHEN as IS AttributeColor THEN {
+                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(ii);
+                        }
+                        WHEN as IS AttributeKind THEN {
+                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(ii);
+                        }
+                        WHEN as IS AttributeCountry THEN {
+                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(ii);
+                        }
+                        WHEN as IS AttributeSeason THEN {
+                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(ii);
+                        }
+                        WHEN as IS AttributeVAT THEN {
+                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(ii);
+                        }
+                        WHEN as IS AttributeTnved THEN {
+                            value[Item, AttributeTnved](item, as) <- tnved(charcID);
+                        } ELSE {
+                        value[Item, AttributeString](item, as) <- value(ii);
+                        }                 
+            }
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE message() NOWAIT;
+                    APPLY;
+                }
+    }
+}
+
+postCartItems 'Получить список карточек товаров в корзине' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile('\{"settings": \{"cursor": \{ "limit": 100, "filter": \{"withPhoto": -1\}\}\}\}', 'UTF-8', 'json');
+     
+        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/get/cards/trash');
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/get/cards/trash' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItems JSON FROM response();
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY nmID1(i1)](INTEGER nmID1) AND NOT item(nmID1) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
+                id(item) <- nmID1(i);
+                isTrash(item) <- TRUE;
+                name(item) <- title(i);
+                itemSubGroup(item) <- itemSubGroup(subjectID(i));
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
+                    CASE
+                        WHEN as IS AttributeColor THEN {
+                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(ii);
+                        }
+                        WHEN as IS AttributeKind THEN {
+                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(ii);
+                        }
+                        WHEN as IS AttributeCountry THEN {
+                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(ii);
+                        }
+                        WHEN as IS AttributeSeason THEN {
+                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(ii);
+                        }
+                        WHEN as IS AttributeVAT THEN {
+                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(ii);
+                        }
+                        WHEN as IS AttributeTnved THEN {
+                            value[Item, AttributeTnved](item, as) <- tnved(charcID);
+                        } ELSE {
+                        value[Item, AttributeString](item, as) <- value(ii);
+                    }
+            }
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+nmIDs = DATA LOCAL STRING(INTEGER);
+data = DATA LOCAL STRING();
+
+GROUP additionalErrors;
+
+moveNmsToTrash = DATA LOCAL STRING();
+
+FORM importChangesItems
+    PROPERTIES() errorText, data, error
+    PROPERTIES() IN additionalErrors moveNmsToTrash EXTID 'MoveNmsToTrash';
+
+postTransferItems 'Перенос карточек товаров в корзину' () {
+    NEWSESSION NESTED(in[Item]){
+        IF (GROUP SUM 1 IF in(Item item) AND NOT isTrash(item)) THEN {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL errorText = STRING ();
+            LOCAL status = STRING ();
+            LOCAL isTransfered = BOOLEAN (Item);
+            isTransfered(Item item) <- TRUE WHERE in(item) AND NOT isTrash(item);
+    
+            EXPORT JSON FROM 'value' = id(Item i) WHERE isTransfered(i);
+    
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+    
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + ' ' + '\n' + '\{"nmIDs":' + replace(resultString(), '\n', '') + '\}');
+    
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/delete/trash' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                //IMPORT importChangesItems JSON FROM response();
+                IF statusHTTP(200) THEN {
+                    isTrash(Item item) <- TRUE WHERE isTransfered(item);
+                }
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+//                IF statusHTTP(400) THEN {
+//                    message() <- 'Товары с кодом: ' + moveNmsToTrash() + ' не найдены';
+//                }
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Не выбраны карточки товаров для переноса в корзину или все выбранные товары уже в корзине';
+        }
+    }
+}
+
+postRecoverItems 'Восстановление карточек товаров из корзины' () {
+    NEWSESSION NESTED(in[Item]){
+        IF (GROUP SUM 1 IF in(Item item) AND isTrash(item)) THEN {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL errorText = STRING ();
+            LOCAL status = STRING ();
+            LOCAL isRecovered = BOOLEAN (Item);
+            isRecovered(Item item) <- TRUE WHERE in(item) AND isTrash(item);
+
+            EXPORT JSON FROM 'value' = id(Item i) WHERE isRecovered(i);
+
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/recover' + '\n' + '\{"nmIDs":' + replace(resultString(), '\n', '') + '\}');
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/recover' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                //IMPORT importChangesItems JSON FROM response();
+                IF statusHTTP(200) THEN {
+                    isTrash(Item item) <- NULL WHERE isRecovered(item);
+                } 
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Не выбраны карточки товаров для восстановления из корзины или все выбранные товары уже не в корзине';
+        }
+    }
+}
+
 EXTEND FORM integrationData
     PROPERTIES getItemAttribute(sg) GRID
     
@@ -827,11 +1184,18 @@ EXTEND FORM integrationData
     ORDERS name(asg)
     FILTERS in(sg, asg)
     
+    PROPERTIES() getItemLimits, postItems, postCartItems, postTransferItems, postRecoverItems
     OBJECTS item = Item
-    PROPERTIES(item) READONLYIF isReadonly() id, name, nameItemGroup, nameItemSubGroup 
+    PROPERTIES(item) in
+    PROPERTIES(item) READONLYIF isReadonly() isTrash, id, name, nameItemGroup, nameItemSubGroup
     PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(item)
     FILTERS itemSubGroup(item)
+    
+    FILTERGROUP filterItems
+        FILTER 'Товары в корзине' isTrash(item)
+        FILTER 'Товары не в корзине' NOT isTrash(item)
+        FILTER 'Все товары' isTrash(item) OR NOT isTrash(item)
 
     OBJECTS attr = Attribute
     PROPERTIES (attr) READONLY id, name, nameClass
@@ -876,6 +1240,14 @@ DESIGN integrationData {
         }
         NEW containerItem {
             caption = 'Товары';
+            NEW actionContainer {
+                horizontal = TRUE; 
+                MOVE PROPERTY (getItemLimits());
+                MOVE PROPERTY (postItems());
+                MOVE PROPERTY (postCartItems());
+                MOVE PROPERTY (postTransferItems());
+                MOVE PROPERTY (postRecoverItems());
+            }
             MOVE BOX(item);
         }
     }
