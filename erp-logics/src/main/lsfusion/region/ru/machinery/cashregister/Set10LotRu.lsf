@@ -8,16 +8,38 @@ productType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'ProductCiggyEntity
 productType(Sku s) += WHEN lotType(s) = LotType.alcohol OR lotType(s) = LotType.beer THEN 'ProductSpiritsEntity';
 productType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'ProductPieceEntity ';
 
+nameSet 'Наименование SET' = DATA STRING (LotType);
+EXTEND FORM dialogLotTypes
+    PROPERTIES (t) nameSet READONLY 
+;
+
+nameSetMigrate() {
+    nameSet(LotType s) <- CASE
+                        WHEN s == LotType.tobacco THEN 'TOBACCO'
+                        WHEN s == LotType.shoes THEN 'FOOTWEAR'
+                        WHEN s == LotType.lp THEN 'LIGHT_INDUSTRY'
+                        WHEN s == LotType.milk  THEN 'MILK'
+                        WHEN s == LotType.perfumery THEN 'PERFUMES'
+                        WHEN s == LotType.photos THEN 'PHOTO'
+                        WHEN s == LotType.tyres THEN 'TYRES'
+                        WHEN s == LotType.water THEN 'WATER'
+                        WHEN s == LotType.beer THEN 'BEER';              
+}
+
+@defOnStartMigrate(nameSetMigrate);
+
 markType  = ABSTRACT CASE STRING (Sku);
-markType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'TOBACCO';
-markType(Sku s) += WHEN lotType(s) = LotType.shoes THEN 'FOOTWEAR';
-markType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'LIGHT_INDUSTRY';
-markType(Sku s) += WHEN lotType(s) = LotType.milk  THEN 'MILK';
-markType(Sku s) += WHEN lotType(s) = LotType.perfumery THEN 'PERFUMES';
-markType(Sku s) += WHEN lotType(s) = LotType.photos THEN 'PHOTO';
-markType(Sku s) += WHEN lotType(s) = LotType.tyres THEN 'TYRES';
-markType(Sku s) += WHEN lotType(s) = LotType.water THEN 'WATER';
-markType(Sku s) += WHEN lotType(s) = LotType.beer THEN 'BEER';
+markType(Sku s) += WHEN nameSet(lotType(s))  THEN nameSet(lotType(s));
+
+//markType(Sku s) += WHEN lotType(s) = LotType.tobacco THEN 'TOBACCO';
+//markType(Sku s) += WHEN lotType(s) = LotType.shoes THEN 'FOOTWEAR';
+//markType(Sku s) += WHEN lotType(s) = LotType.lp THEN 'LIGHT_INDUSTRY';
+//markType(Sku s) += WHEN lotType(s) = LotType.milk  THEN 'MILK';
+//markType(Sku s) += WHEN lotType(s) = LotType.perfumery THEN 'PERFUMES';
+//markType(Sku s) += WHEN lotType(s) = LotType.photos THEN 'PHOTO';
+//markType(Sku s) += WHEN lotType(s) = LotType.tyres THEN 'TYRES';
+//markType(Sku s) += WHEN lotType(s) = LotType.water THEN 'WATER';
+//markType(Sku s) += WHEN lotType(s) = LotType.beer THEN 'BEER';
 skipMarkBarcode = ABSTRACT CASE BOOLEAN (Sku);
 
 skipMarkType = ABSTRACT  BOOLEAN (MachineryPriceTransaction,Barcode.Barcode);
