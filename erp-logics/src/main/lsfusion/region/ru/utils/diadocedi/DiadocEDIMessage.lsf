@@ -1,10 +1,10 @@
 MODULE DiadocEDIMessage;
 
-REQUIRE DiadocEDIOrganization, DiadocMessage;
+REQUIRE DiadocEDIOrganization, DiadocMessage, EOrder;
 
 NAMESPACE DiadocEDI;
 
-CLASS Message 'Cообщения EDI';
+CLASS Message 'Cообщения EDI(Diadoc)';
 TABLE message (Message);
 
 messageId 'Идентификатор' = DATA STRING (Message) IN id INDEXED CHARWIDTH 10 NONULL;
@@ -12,6 +12,7 @@ message (messageId) = GROUP MAX Message message BY messageId(message);
 GLNsender 'GLN отправителя' = DATA STRING (Message);
 rawFile 'Файл'= DATA RAWFILE(Message);
 nameFile 'Имя файла' = DATA STRING (Message);
+numberEOrder 'Номер заказа' = DATA STRING (Message);
 dateTimeProcessed 'Дата/время обработки' = DATA DATETIME (Message);
 
 timestampTicks 'Время создания' = DATA LONG (Message);
@@ -39,7 +40,7 @@ FORM messagesEDI 'Cообщения EDI'
     PROPERTIES(b) title IN base SELECTOR
 
     OBJECTS m = Message LAST
-    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile
+    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile, numberEOrder
     PROPERTIES(m) dateTimeProcessed, openXML GRID
     ORDERS  timestamp(m), messageId(m)
 ;
@@ -140,3 +141,17 @@ getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, B
 EXTEND FORM messagesEDI
     PROPERTIES(u,b) getNewEventsEDI
 ;
+
+EXTEND FORM eOrders
+    OBJECTS mm = Message
+    PROPERTIES(mm) READONLY numberEOrder, rawFile, nameFile
+    PROPERTIES(mm) READONLY dateTimeProcessed, openXML GRID
+    FILTERS numberEOrder(mm) == number(o)
+    ORDERS nameFile(mm);
+
+DESIGN eOrders {
+    tab {
+        REMOVE BOX(m);
+        MOVE BOX(mm);
+    }
+}
