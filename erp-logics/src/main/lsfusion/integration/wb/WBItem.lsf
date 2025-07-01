@@ -1078,13 +1078,9 @@ postCartItems 'Получить список карточек товаров в 
 nmIDs = DATA LOCAL STRING(INTEGER);
 data = DATA LOCAL STRING();
 
-GROUP additionalErrors;
-
-moveNmsToTrash = DATA LOCAL STRING();
-
 FORM importChangesItems
-    PROPERTIES() errorText, data, error
-    PROPERTIES() IN additionalErrors moveNmsToTrash EXTID 'MoveNmsToTrash';
+    PROPERTIES() additionalErrors
+;
 
 postTransferItems 'Перенос карточек товаров в корзину' () {
     NEWSESSION NESTED(in[Item]){
@@ -1109,16 +1105,16 @@ postTransferItems 'Перенос карточек товаров в корзи�
                 EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/delete/trash' HEADERS httpHeaders PARAMS resultFile() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
-                //IMPORT importChangesItems JSON FROM response();
                 IF statusHTTP(200) THEN {
                     isTrash(Item item) <- TRUE WHERE isTransfered(item);
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-//                IF statusHTTP(400) THEN {
-//                    message() <- 'Товары с кодом: ' + moveNmsToTrash() + ' не найдены';
-//                }
+                IF statusHTTP(400) THEN {
+                    IMPORT importChangesItems JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Товары не перенесены в корзину: ' + additionalErrors();
+                }
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
@@ -1154,13 +1150,16 @@ postRecoverItems 'Восстановление карточек товаров �
                 EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/recover' HEADERS httpHeaders PARAMS resultFile() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
-                //IMPORT importChangesItems JSON FROM response();
                 IF statusHTTP(200) THEN {
                     isTrash(Item item) <- NULL WHERE isRecovered(item);
                 } 
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
+                IF statusHTTP(400) THEN {
+                    IMPORT importChangesItems JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Товары не восстановлены из корзины: ' + additionalErrors();
+                }
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
