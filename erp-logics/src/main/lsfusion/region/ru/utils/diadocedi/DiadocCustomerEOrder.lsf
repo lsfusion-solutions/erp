@@ -1,6 +1,6 @@
 MODULE DiadocCustomerEOrder;
 
-REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization;
+REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization, PurchaseShipment;
 
 NAMESPACE DiadocEDI;
 
@@ -278,7 +278,8 @@ GROUP buyerrecadv EXTID 'buyer': receivingAdvice;
 GROUP invoiceerecadv EXTID 'invoicee': receivingAdvice;
 GROUP organization : invoiceerecadv;
 GROUP russianAddress : invoiceerecadv;
-GROUP deliveryInfo : receivingAdvice;
+GROUP deliveryInfo1 EXTID 'deliveryInfo': receivingAdvice;
+GROUP ultimateCustomer : deliveryInfo1;
 GROUP lineItemsRECADV EXTID 'lineItems' : receivingAdvice;
 
 senderrecadv = DATA LOCAL STRING();
@@ -302,55 +303,52 @@ inn = DATA LOCAL STRING();
 id = DATA LOCAL STRING();
 creationDateTime1 = DATA LOCAL DATETIME();
 
-exportDocument = DATA LOCAL EOrderDespatchAdvice();
+exportDocument = DATA LOCAL EOrder();
 
 FORM recadv FORMEXTID 'eDIMessage'
     PROPERTIES() nameMessage EXTID 'id' ATTR, currentDateTime EXTID 'creationDateTime' ATTR
     PROPERTIES IN interchangeHeaderrecadv
-        senderrecadv = GLNCustomer(eOrder(exportDocument())) EXTID 'sender',
-        recipientrecadv = GLNSupplier(eOrder(exportDocument())) EXTID 'recipient',
+        senderrecadv = GLNCustomer(exportDocument()) EXTID 'sender',
+        recipientrecadv = GLNSupplierStockDiadoc(exportDocument()) EXTID 'recipient',
         documentTyperecadv = 'RECADV' EXTID 'documentType',
-        creationDateTimerecadv = currentDateTime() EXTID 'creationDateTime',
+        creationDateTimerecadv = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime',
         isTestrecadv = (IF useTest() THEN '1' ELSE '0') EXTID  'isTest'
     
     PROPERTIES IN originOrderrecadv ATTR
-        numberrecadv = (OVERRIDE number(eOrder(exportDocument())), '') EXTID 'number',
-        daterecadv = (dateTime(eOrder(exportDocument()))) EXTID 'date'
+        numberrecadv = number(exportOrderDocument()) EXTID 'number',
+        daterecadv = toChar(sendDateTime(exportOrderDocument()), 'yyyy-MM-dd') EXTID 'date'
     
-    PROPERTIES IN despatchIdentificator1 ATTR
-        number1recadv = (OVERRIDE number(exportDocument()), '') EXTID 'number',
-        date1recadv = (dateTime(eOrder(exportDocument()))) EXTID 'date'
+//    PROPERTIES IN despatchIdentificator1 ATTR
+//        number1recadv = (OVERRIDE number(exportDocument()), '') EXTID 'number',
+//        date1recadv = (date(eOrder(exportDocument()))) EXTID 'date'
 
     PROPERTIES IN sellerrecadv
-        gln = (OVERRIDE GLN(supplier(exportDocument())),'') EXTID 'gln'
+        gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln'
 
     PROPERTIES IN buyerrecadv
-        gln1 = (OVERRIDE GLN(customer(exportDocument())),'') EXTID 'gln'
+        gln1 = GLNCustomer(exportDocument()) EXTID 'gln'
 
     PROPERTIES IN organization EXTID  'organization'
-        name1 = (OVERRIDE fullName(customer(eOrder(exportDocument()))), '') EXTID 'name',
-        inn1 = (OVERRIDE inn[Organization](customer(eOrder(exportDocument()))), '') EXTID 'inn',
-        kpp1 = (OVERRIDE kpp[Organization](customer(eOrder(exportDocument()))), '') EXTID 'kpp'
+        name1 = fullName(customer(exportDocument())) EXTID 'name',
+        inn1 = inn[Organization](customer(exportDocument())) EXTID 'inn',
+        kpp1 = kpp[Organization](customer(exportDocument())) EXTID 'kpp'
 
-    PROPERTIES IN russianAddress EXTID 'russianAddress'
-        regionISOCode1 = (OVERRIDE region[Organization](customer(eOrder(exportDocument()))), '') EXTID 'regionISOCode',
-        district1 = (OVERRIDE territory[Organization](customer(eOrder(exportDocument()))), '') EXTID 'district',
-        city1 = (OVERRIDE city[Organization](customer(eOrder(exportDocument()))), '') EXTID 'city',
-        settlement1 = (OVERRIDE locality[Organization](customer(eOrder(exportDocument()))), '') EXTID 'settlement',
-        street1 = (OVERRIDE street[Organization](customer(eOrder(exportDocument()))), '') EXTID 'street' ,
-        postalCode1 = (OVERRIDE zipCode[Organization](customer(eOrder(exportDocument()))), '') EXTID 'postalCode'
+    PROPERTIES IN deliveryInfo1
+        requestedDeliveryDateTime = toChar(currentDateTime(), 'yyyy-MM-dd') EXTID 'receptionDateTime'
+    PROPERTIES IN ultimateCustomer
+        gln1recadv = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
 
-    OBJECTS i = EOrderDespatchAdviceDetail EXTID 'lineItem' IN lineItemsRECADV
-    FILTERS orderDespatchAdvice(i) == exportDocument()
+    OBJECTS i = EOrderDetail EXTID 'lineItem' IN lineItemsRECADV
+    FILTERS order(i) == exportDocument()
     PROPERTIES  GTINBarcode(i) EXTID 'gtin',
         idBarcode(i) EXTID 'internalBuyerCode',
         internalSupplierCode = idBarcode(i),
         externalProductId = idBarcode(i),
         description = nameSku(i),
-        orderedQuantity = quantityOrdered(i),
-        despatchedQuantity = quantityDespatch(i),
-        acceptedQuantity = quantityDespatch(i),            
-        netPrice = lineItemPrice(i),
-        amount = lineItemAmount(i)
+        orderedQuantity = quantity(i),
+        despatchedQuantity = quantityDespatch(despatchAdviceDetail(i)),
+        acceptedQuantity = Purchase.shipped(i),            
+        netPrice = price(i),
+        amount = invoiceSum(i)
 ;
 
