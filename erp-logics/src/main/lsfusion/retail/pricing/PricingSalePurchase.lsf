@@ -94,12 +94,6 @@ purchasePricingPrice 'Цена входная закупка' (InvoiceDetail det
 
 @defineDocumentInterfaceDetailPricePrefix(invoice, purchaseRetail, ' розничная (закупка)');
 
-// Действия по измению цен и надбавок на форме
-//purchaseRoundConditionUserInvoiceDetail(userInvoiceDetail) =
-//    IF roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-//        THEN roundConditionPriceListType(purchaseRetailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
-//        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
-
 overPurchaseRoundCondition (UserInvoiceDetail d) = IF purchaseRetailPriceListType(d) IS CalcPriceListType 
     THEN roundCondition(purchaseRetailPriceListType(d), sku(d)) 
     ELSE roundCondition(purchaseRetailPriceListType(d));
@@ -107,7 +101,6 @@ overPurchaseRoundCondition (UserInvoiceDetail d) = IF purchaseRetailPriceListTyp
 purchaseRoundCondition(UserInvoiceDetail d) =  IF overPurchaseRoundCondition(d)
         THEN overPurchaseRoundCondition(d)              
         ELSE roundCondition(customerStock(d));
-        
         
 
 @changeDocumentDetailMarkupCustomPrefix(userInvoiceDetail, purchaseRetail, purchasePricing, purchaseRetail, purchaseRetail);
@@ -172,51 +165,27 @@ WHEN LOCAL (CHANGED(purchaseRetailSum(UserInvoiceDetail d)) OR CHANGED (purchase
     purchaseRetailMarkupSum(d) <- purchaseRetailSum(d) (-) purchaseRetailVATSum (d) (-) purchasePricingSum(d);
 }
 
-//// Вид цены для акта расценки (закупка)
-//purchaseRetailPriceListTypeOperation = DATA PriceListType (Operation);
-//namePurchaseRetailPriceListTypeOperation 'Вид цен акт расценки управленческий (закупка) ' (operation) = namePriceListType(purchaseRetailPriceListTypeOperation(operation));
-//
-//purchaseRetailCalcPriceListTypeOperation = DATA CalcPriceListType (Operation);
-//namePurchaseRetailCalcPriceListTypeOperation 'Вид цен акт расценки надбавка (закупка)' (operation) = namePriceListType(purchaseRetailCalcPriceListTypeOperation(operation));
-//
-//EXTEND FORM operation
-//    PROPERTIES(o) namePurchaseRetailPriceListTypeOperation, namePurchaseRetailCalcPriceListTypeOperation
-//;
-//
-//DESIGN operation{
-//    createContainer {
-//        NEW PROPERTY(namePurchaseRetailPriceListTypeOperation);
-//        NEW PROPERTY(namePurchaseRetailCalcPriceListTypeOperation);
-//    }
-//}
-//
-//calcPurchaseRetailPriceListTypeUserInvoice (invoice) <- purchaseRetailPriceListTypeOperation(operationUserInvoice(invoice))
-//    WHEN CHANGED(operationUserInvoice(invoice));
-//
-//calcPurchaseRetailCalcPriceListTypeUserInvoice (invoice) <- purchaseRetailCalcPriceListTypeOperation(operationUserInvoice(invoice))
-//    WHEN CHANGED(operationUserInvoice(invoice));
-
 // Операция расценки
 @defineDocumentInterfaceOperationPrefix (invoice, purchasePricing, Pricing, ' расценка (закупка)');
 
 purchasePricingOperation  = DATA Pricing.Operation (Operation);
 namePurchasePricingOperation 'Операция расценка (закупка)' (Operation operation)= name(purchasePricingOperation(operation));
 
-purchasePricingOperation (UserInvoice invoice) <- purchasePricingOperation(operation(invoice))
-    WHEN CHANGED(operation(invoice));
+purchasePricingOperation (UserInvoice invoice) <- purchasePricingOperation(operation(invoice)) IF createPurchasePricing(invoice)
+    WHEN CHANGED(operation(invoice)) OR CHANGED(createPurchasePricing(invoice));
 
 overPurchasePricingQuantity(UserInvoiceDetail detail) += (OVERRIDE purchaseShipmentQuantity(detail), 0.0 IF detail IS UserInvoiceDetail) IF useShipmentQuantity(purchasePricingOperation(detail));
 // Записываем тип цены по умолчанию из операции
 
 calcPurchaseRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(purchasePricingOperation(invoice)) 
     THEN pricingPriceListType(purchasePricingOperation(invoice))
-    ELSE (retailPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(purchasePricingOperation(invoice)))
-        WHEN CHANGED(purchasePricingOperation(invoice)) OR CHANGED(customerStock(invoice));
+    ELSE (retailPriceListType(customerStock(invoice)) IF createPurchasePricing(invoice) AND NOT skipSetPriceListTypesDepartmentStore(purchasePricingOperation(invoice)))
+        WHEN CHANGED(purchasePricingOperation(invoice)) OR CHANGED(customerStock(invoice)) OR CHANGED(createPurchasePricing(invoice));
     
 calcPurchaseRetailCalcPriceListType (UserInvoice invoice) <- IF pricingCalcPriceListType(purchasePricingOperation(invoice))
     THEN pricingCalcPriceListType(purchasePricingOperation(invoice))
-    ELSE (retailCalcPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(purchasePricingOperation(invoice)))
-        WHEN CHANGED(purchasePricingOperation(invoice)) OR CHANGED(customerStock(invoice));
+    ELSE (retailCalcPriceListType(customerStock(invoice)) IF createPurchasePricing(invoice) AND NOT skipSetPriceListTypesDepartmentStore(purchasePricingOperation(invoice)))
+    WHEN CHANGED(purchasePricingOperation(invoice)) OR CHANGED(customerStock(invoice)) OR CHANGED(createPurchasePricing(invoice));
         
 useSupplierStock (UserInvoice invoice) <- useSupplierStock(purchasePricingOperation(invoice))   
         WHEN CHANGED(purchasePricingOperation(invoice));              
@@ -342,8 +311,6 @@ retailSum(PurchaseInvoiceDetail invoiceDetail) += purchaseRetailSum(invoiceDetai
 // Добавляем на форму цену розничную (до)
 purchaseRetailPriceB 'Розничная цена (до) (закупка)' (UserInvoiceDetail d) = prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d));
 purchaseBalanceB 'Остаток (до) (закупка)' (UserInvoiceDetail d) = prevBalanceB(sku(d), customerStock(d), dateTime(d));
-//purchaseRetailPriceB 'Розничная цена (до)' (Purchase.InvoicePricingDetail o) = purchaseRetailPriceB(invoiceDetail(invoiceDetail(o)));
-//retailPriceB(InvoicePricingDetail d) += purchaseRetailPriceB(invoiceDetail(invoiceDetail(d))); //purchaseRetailPriceB(d);
 
 backgroundPurchaseRetailPriceB (UserInvoiceDetail d) = CASE 
     WHEN purchaseRetailPriceB(d) > purchaseRetailPrice(d) THEN RGB(250,150,150)
