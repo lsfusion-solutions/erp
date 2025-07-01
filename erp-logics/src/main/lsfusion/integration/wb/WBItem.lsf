@@ -6,8 +6,10 @@ NAMESPACE WB;
 
 CLASS Item 'Товар';
 
-id 'Код' = DATA INTEGER (Item) NONULL IN id;
+id 'Артикул продавца(vendorCode)' = DATA STRING (Item) NONULL IN id;
 item (id) = GROUP AGGR Item i BY id(i);
+nmID 'Артикул WB' = DATA INTEGER (Item);
+imtID 'Внутренний код WB' = DATA INTEGER (Item);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
 unitName 'Ед.измерения' = DATA STRING (Item);
 itemSubGroup = DATA ItemSubGroup (Item) NONULL DELETE;
@@ -17,6 +19,19 @@ freeItemLimits 'Бесплатный лимит' = DATA STRING ();
 paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
 in 'Вкл.' = DATA LOCAL BOOLEAN (Item);
+
+length 'Длина, см' = DATA INTEGER (Item);
+width 'Ширина, см' = DATA INTEGER (Item);
+height 'Высота, см' = DATA INTEGER (Item);
+weightBrutto 'Вес, кг' = DATA NUMERIC[10,3] (Item);
+
+CLASS Size 'Размер';
+
+techSize 'Размер' = DATA STRING (Size);
+wbSize 'Российский размер' = DATA STRING (Size);
+price 'Цена' = DATA INTEGER (Size);
+skus 'Баркод' = DATA STRING (Size);
+in 'Вкл.' = DATA BOOLEAN (Item, Size);
 
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
@@ -93,17 +108,87 @@ DESIGN attributes {
             MOVE BOX(extraProp) { caption = 'Настройки'; }
         }
     }
-}  
+}
+
+CLASS MediaFile 'Медиафайл';
+
+url 'Ссылка на медиафайл' = DATA STRING (MediaFile) CHARWIDTH 30;
+media = DATA MediaFile (Item);
+index 'Порядок' (MediaFile mf, Item item) = PARTITION SUM 1 IF media(item) == mf ORDER mf BY item;
+urlMedia 'Ссылка на медиафайл' (Item item) = url(media(item));
+
+in 'Отм.' = DATA LOCAL BOOLEAN (MediaFile);
+posted 'Загружены' = DATA BOOLEAN (MediaFile);
+
+createdStatus 'Статус' (Item item) = CASE 
+    WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
+    WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан'
+    ELSE 'Ошибка'
+;
+
+WHEN CHANGED(urlMedia(Item item) AND item IS Item) DO posted(media(item)) <- NULL;
+
+//https://content-api.wildberries.ru/content/v3/media/file
+//postMediaFile 'Загрузить медиафайл' () {
+//    NEWSESSION NESTED(in[MediaFile]){
+//        IF (GROUP SUM 1 IF in(MediaFile mf) AND NOT posted(mf)) THEN {
+//            setHttpHeadersIS();
+//            LOCAL message = STRING ();
+//            LOCAL response = FILE();
+//            LOCAL error = STRING ();
+//            LOCAL errorText = STRING ();
+//            LOCAL status = STRING ();
+//            LOCAL postedMedia = BOOLEAN (MediaFile);
+//            postedMedia(MediaFile mf) <- TRUE WHERE in(mf) AND NOT posted(mf);
+//
+//            //EXPORT JSON FROM x-Photo-Number = index(MediaFile mf), 'value' = data(mf) WHERE isPostMedia(mf);
+//            fileToString(exportFile(), 'UTF-8');
+//            stringToFile('\{"data":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+//
+//            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v3/media/file' + '\n' + '\{"data":' + replace(resultString(), '\n', '') + '\}');
+//
+//            TRY {
+//                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v3/media/file' HEADERS httpHeaders PARAMS resultFile() TO response;
+//                fileToString(response());
+//                logToFile('WB', resultString());
+//                IF statusHTTP(200) THEN {
+//                    posted(MediaFile mf) <- NULL WHERE postedMedia(mf);
+//                }
+//                message() <- messageStatusHTTP(STRING(statusHttp()));
+//            } CATCH {
+//                logToFile('WB', messageCaughtException());
+//                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+//            } FINALLY {
+//                afterSendRequestIS();
+//                MESSAGE message() NOWAIT;
+//                APPLY;
+//            }
+//        } ELSE {
+//            MESSAGE 'Не выбран ни один из медиафайлов';
+//        }
+//    }
+//}
 
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
-    PROPERTIES(i) id, name, nameItemGroup, nameItemSubGroup, isTrash
+    PROPERTIES(i) id, name
+    PROPERTIES(i) READONLY nmID, imtID, createdStatus
+    PROPERTIES(i) length, width, height, weightBrutto
+    PROPERTIES(i) nameItemGroup, nameItemSubGroup, isTrash
     ORDERS name(i)
 
     OBJECTS attr = Attribute
     PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
     PROPERTIES READONLY notNull=notNull(itemSubGroup(i), attr) SHOWIF NULL, name(attr) SHOWIF NULL
     ORDERS notNull DESC, name(attr)
+    
+    OBJECTS size = Size
+    PROPERTIES(size) techSize, wbSize, price, skus
+    FILTERS in(i, size)
+    
+//    OBJECTS mf = MediaFile
+//    PROPERTIES(mf) isPost, index, data
+//    ORDERS index(mf)
 
     EDIT Item OBJECT i
 ;
@@ -116,17 +201,29 @@ DESIGN item {
             lines = 2;
             MOVE PROPERTY(id(i));
             MOVE PROPERTY(name(i));
+            MOVE PROPERTY(nmID(i));
+            MOVE PROPERTY(imtID(i));
             MOVE PROPERTY(nameItemGroup(i));
             MOVE PROPERTY(nameItemSubGroup(i));
             MOVE PROPERTY(isTrash(i));
+            MOVE PROPERTY(createdStatus(i));
+            MOVE PROPERTY(length(i));
+            MOVE PROPERTY(width(i));
+            MOVE PROPERTY(height(i));
+            MOVE PROPERTY(weightBrutto(i));
         }
-        NEW itemDetail {
-            caption = 'Дополнительные характеристики';
+        NEW containerItemDetail {
+            tabbed = TRUE;
             fill = 1;
-            MOVE PROPERTY(value(i, attr)) {
-                class = 'attribute-property';
-                valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
+            NEW itemDetail {
+                caption = 'Дополнительные характеристики';
+                fill = 1;
+                MOVE PROPERTY(value(i, attr)) {
+                    class = 'attribute-property';
+                    valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
+                }
             }
+            MOVE BOX(size);
         }
     }
     MOVE TOOLBARBOX;
@@ -903,7 +1000,7 @@ cardsTags = DATA LOCAL INTEGER(INTEGER);
 color = DATA LOCAL STRING(INTEGER);
 name1 = DATA LOCAL STRING(INTEGER);
 id1 = DATA LOCAL STRING (INTEGER);
-imtID = DATA LOCAL STRING (INTEGER);
+imtID = DATA LOCAL INTEGER (INTEGER);
 createdAt = DATA LOCAL STRING(INTEGER);
 cardsSizes = DATA LOCAL INTEGER(INTEGER);
 skus = DATA LOCAL STRING(INTEGER);
@@ -911,11 +1008,11 @@ sizesSkus = DATA LOCAL INTEGER(INTEGER);
 techSize = DATA LOCAL STRING(INTEGER);
 chrtID = DATA LOCAL STRING (INTEGER);
 brand = DATA LOCAL STRING(INTEGER);
-weightBrutto = DATA LOCAL STRING (INTEGER);
+weightBrutto = DATA LOCAL NUMERIC[10,3] (INTEGER);
 isValid = DATA LOCAL STRING(INTEGER);
-length = DATA LOCAL STRING (INTEGER);
-width = DATA LOCAL STRING (INTEGER);
-height = DATA LOCAL STRING (INTEGER);
+length = DATA LOCAL INTEGER (INTEGER);
+width = DATA LOCAL INTEGER (INTEGER);
+height = DATA LOCAL INTEGER (INTEGER);
 updatedAt1 = DATA LOCAL STRING(INTEGER);
 
 FORM importItems
@@ -967,7 +1064,6 @@ postItems 'Получить список карточек товаров' () {
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
 
-        fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"settings": \{"cursor": \{ "limit": 100, "filter": \{"withPhoto": -1\}\}\}\}', 'UTF-8', 'json');
 
         logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/get/cards/list');
@@ -977,10 +1073,16 @@ postItems 'Получить список карточек товаров' () {
             fileToString(response());
             logToFile('WB', resultString());
             IMPORT importItems JSON FROM response();
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY nmID1(i1)](INTEGER nmID1) AND NOT item(nmID1) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
-                id(item) <- nmID1(i);
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
+                id(item) <- id;
+                nmID(item) <- nmID1(i);
+                imtID(item) <- imtID(i);
                 name(item) <- title(i);
                 itemSubGroup(item) <- itemSubGroup(subjectID(i));
+                length(item) <- length(i);
+                width(item) <- width(i);
+                height(item) <- height(i);
+                weightBrutto(item) <- weightBrutto(i);
                 FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
                     CASE
                         WHEN as IS AttributeColor THEN {
@@ -1025,7 +1127,6 @@ postCartItems 'Получить список карточек товаров в 
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
 
-        fileToString(exportFile(), 'UTF-8');
         stringToFile('\{"settings": \{"cursor": \{ "limit": 100, "filter": \{"withPhoto": -1\}\}\}\}', 'UTF-8', 'json');
      
         logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/get/cards/trash');
@@ -1035,11 +1136,17 @@ postCartItems 'Получить список карточек товаров в 
             fileToString(response());
             logToFile('WB', resultString());
             IMPORT importItems JSON FROM response();
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY nmID1(i1)](INTEGER nmID1) AND NOT item(nmID1) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
-                id(item) <- nmID1(i);
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
+                id(item) <- id;
+                nmID(item) <- nmID1(i);
+                imtID(item) <- imtID(i);
                 isTrash(item) <- TRUE;
                 name(item) <- title(i);
                 itemSubGroup(item) <- itemSubGroup(subjectID(i));
+                length(item) <- length(i);
+                width(item) <- width(i);
+                height(item) <- height(i);
+                weightBrutto(item) <- weightBrutto(i);
                 FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                     CASE
                         WHEN as IS AttributeColor THEN {
@@ -1094,7 +1201,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
             LOCAL isTransfered = BOOLEAN (Item);
             isTransfered(Item item) <- TRUE WHERE in(item) AND NOT isTrash(item);
     
-            EXPORT JSON FROM 'value' = id(Item i) WHERE isTransfered(i);
+            EXPORT JSON FROM 'value' = nmID(Item i) WHERE isTransfered(i);
     
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
@@ -1139,7 +1246,7 @@ postRecoverItems 'Восстановление карточек товаров �
             LOCAL isRecovered = BOOLEAN (Item);
             isRecovered(Item item) <- TRUE WHERE in(item) AND isTrash(item);
 
-            EXPORT JSON FROM 'value' = id(Item i) WHERE isRecovered(i);
+            EXPORT JSON FROM 'value' = nmID(Item i) WHERE isRecovered(i);
 
             fileToString(exportFile(), 'UTF-8');
             stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
@@ -1186,11 +1293,13 @@ EXTEND FORM integrationData
     PROPERTIES() getItemLimits, postItems, postCartItems, postTransferItems, postRecoverItems
     OBJECTS item = Item
     PROPERTIES(item) in
-    PROPERTIES(item) READONLYIF isReadonly() isTrash, id, name, nameItemGroup, nameItemSubGroup
+    PROPERTIES(item) READONLYIF isReadonly() isTrash, id, name
+    PROPERTIES(item) READONLY nmID, imtID, createdStatus
+    PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
     PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(item)
     FILTERS itemSubGroup(item)
-    
+        
     FILTERGROUP filterItems
         FILTER 'Товары в корзине' isTrash(item)
         FILTER 'Товары не в корзине' NOT isTrash(item)
@@ -1240,7 +1349,7 @@ DESIGN integrationData {
         NEW containerItem {
             caption = 'Товары';
             NEW actionContainer {
-                horizontal = TRUE; 
+                horizontal = TRUE;
                 MOVE PROPERTY (getItemLimits());
                 MOVE PROPERTY (postItems());
                 MOVE PROPERTY (postCartItems());
