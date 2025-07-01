@@ -1,0 +1,127 @@
+MODULE ProductionOrderEquipment;
+
+REQUIRE ProductionOrder;
+
+NAMESPACE Production;
+
+//-- Акт разукомплектации
+calcComponentsPriceEquipment 'Цена расчетная с/с' (ProductDetail d) = sumComponentDetail(order(d)) / quantityProductDetail(order(d));
+
+costSumComponents =  GROUP SUM quantity(ComponentDetail d) * cost(d) BY order(d);
+
+calcCost1 'Себестоимость расчетная' (ProductDetail d)= costSumComponents(order(d)) // Цена компонентов за единицу 
+    / quantityProductDetail(order(d));
+
+usePriceEquipment = ABSTRACT CASE BOOLEAN (ProductDetail);
+
+overFillPrice(ProductDetail detail) + {
+    IF usePriceEquipment(detail) THEN {
+        componentsPrice(detail) <- calcComponentsPriceEquipment(detail);
+        costPrice(detail) <- calcCost1(detail);
+    }
+}
+
+@defineOperationProperty(isReasoning, 'Строк компонента не может быть больше 1', BOOLEAN, constraintContainer);
+@defineOperationProperty(isEquipment, 'Строк изделий не может быть больше 1', BOOLEAN, constraintContainer);
+
+//usePriceEquipment (ProductDetail d) += WHEN  isReasoning(operation(d)) THEN TRUE;
+usePriceEquipment (ProductDetail d) += WHEN  isEquipment(operation(d)) THEN TRUE;
+    
+CONSTRAINT (SET(isPosted(order(ComponentDetail p))) OR SETCHANGED(operation(p))) AND isPosted(p) AND isReasoning(operation(p))
+    AND [ GROUP SUM 1 IF ComponentDetail pd BY order(pd)] (order(p)) >1 //AND  isNotProduct(operation(p))
+        MESSAGE 'Строк компонента не может быть больше 1';
+
+CONSTRAINT (SET(isPosted(ProductDetail p)) OR SETCHANGED(operation(p)))  AND isPosted(p) AND isEquipment(operation(p))
+    AND [ GROUP SUM 1 IF ProductDetail pd BY order(pd)] (order(p)) >1 //AND isNotProduct(operation(p))
+    MESSAGE 'Строк изделий не может быть больше 1';
+
+productDetailIndex (int, order) = GROUP MAX ProductDetail pDetail BY index(pDetail), order(pDetail);
+componentDetailIndex (int, order) = GROUP MAX ComponentDetail cDetail BY index(cDetail), order(cDetail);
+
+nameSkuComponentDetailIndex 'Товар' (INTEGER int, Order order) = nameSku(componentDetailIndex(int, order));
+idBarcodeSkuComponentDetailIndex 'Штрихкод' (INTEGER int, Order order) = idBarcode(sku(componentDetailIndex(int, order)));
+shortNameUomComponentDetailIndex 'Ед. изм.' (INTEGER int, Order order) = shortName(UOM(sku(componentDetailIndex(int, order))));
+quantityComponentDetailIndex 'Кол-во' (INTEGER int, Order order) = quantity(componentDetailIndex(int, order));
+
+costManufacturingPriceComponentDetailIndex 'Цена изг.' (INTEGER int, Order order) = cost(componentDetailIndex(int, order));
+priceComponentDetailIndex 'Цена розн.' (INTEGER int, Order order) = price(componentDetailIndex(int, order));
+
+supplierSumComponentDetailIndex 'Сумма отпуск.' (INTEGER int, Order order) =  costManufacturingPriceComponentDetailIndex(int, order)*quantityComponentDetailIndex(int, order);
+sumComponentDetailIndex 'сумма розн.' (INTEGER int, Order order) =   priceComponentDetailIndex(int, order)*quantityComponentDetailIndex(int, order);
+
+supplierSumComponentDetail (Order order)= GROUP SUM(round(supplierSumComponentDetailIndex(int, order), 2));
+sumComponentDetailHoddabi (Order order) = GROUP SUM(round(sumComponentDetailIndex(int, order), 2));
+
+
+nameSkuProductDetailIndex 'Товар' (INTEGER int, Order order) = nameSku(productDetailIndex(int, order));
+idBarcodeSkuProductDetailIndex 'Штрихкод' (INTEGER int, Order order) = idBarcode(sku(productDetailIndex(int, order)));
+shortNameUomProductDetailIndex 'Ед. изм.' (INTEGER int, Order order) = shortName(UOM(sku(productDetailIndex(int, order))));
+quantityProductDetailIndex 'Кол-во' (INTEGER int, Order order) = quantity(productDetailIndex(int, order));
+costPriceIndex 'Кол-во' (INTEGER int, Order order) = quantity(productDetailIndex(int, order));
+priceIndex 'Кол-во' (INTEGER int, Order order) = quantity(productDetailIndex(int, order));
+
+
+calcMarkupVitalur(ProductDetail d)  = [ round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+        price(d),
+        costPrice(d) IF costPrice(d) != 0.0,
+        valueVAT(d));
+
+manufacturingCommittee = DATA ManufacturingCommittee(Order);
+
+supplierPriceProductDetailIndex 'Цена отпуск.' (INTEGER int, Order order) =  costPrice(productDetailIndex(int, order));
+priceProductDetailIndex 'Цена розн.' (INTEGER int, Order order) = price(productDetailIndex(int, order));
+
+supplierSumProductDetailIndex 'Сумма отпуск.' (INTEGER int, Order order) =  supplierPriceProductDetailIndex(int, order)*quantityProductDetailIndex(int, order);
+sumProductDetailIndex 'Сумма розн.' (INTEGER int, Order order) =   priceProductDetailIndex(int, order)*quantityProductDetailIndex(int, order);
+
+
+supplierSumProduct (Order order)= GROUP SUM(round(supplierSumProductDetailIndex(int, order), 2));
+sumProductDetailHoddabi (Order order) = GROUP SUM(round(sumProductDetailIndex(int, order), 2));
+
+deltaSum (Order o) = sumComponentDetailHoddabi(o) (-) sumProductDetailHoddabi(o);
+
+FORM actUnEquipment 'Акт разукомплектации'
+
+    OBJECTS o = Order PANEL SUBREPORT
+    PROPERTIES(o) isPosted, nameCompany, nameComponentsStock ON CHANGE changeComponentsStockCompany(o),
+        nameProductsStock ON CHANGE changeProductsStockCompany(o), seriesNumber, number, series,
+        date, time, fromDate, toDate, note,
+        isPricePercent, isPriceCoeff
+    PROPERTIES(o) quantityComponentDetail, sumComponentDetailHoddabi, supplierSumComponentDetail
+    PROPERTIES(o) quantityProductDetail, supplierSumProduct, sumProductDetailHoddabi
+    PROPERTIES(o) deltaSum
+
+    OBJECTS i = INTEGER
+    PROPERTIES val = VALUE (i)
+    PROPERTIES(i,o) nameSkuComponentDetailIndex, idBarcodeSkuComponentDetailIndex, shortNameUomComponentDetailIndex,
+        quantityComponentDetailIndex, costManufacturingPriceComponentDetailIndex, supplierSumComponentDetailIndex, sumComponentDetailIndex,
+        priceComponentDetailIndex
+
+    PROPERTIES(i,o) nameSkuProductDetailIndex, idBarcodeSkuProductDetailIndex, shortNameUomProductDetailIndex,
+        quantityProductDetailIndex, supplierPriceProductDetailIndex, supplierSumProductDetailIndex, sumProductDetailIndex,
+        priceProductDetailIndex
+
+    FILTERS productDetailIndex(i, o) OR componentDetailIndex(i, o)
+
+    OBJECTS e= Employee
+    PROPERTIES (e) positionShortName
+
+    FILTERS in(manufacturingCommittee(o), e)
+
+;
+
+printActUnEquipment 'Акт разукомплектации' (Order order)  { PRINT actUnEquipment OBJECTS o = order; }   IMAGE 'print.png' IN print;
+
+EXTEND FORM orders
+    PROPERTIES(o)  printActUnEquipment
+;
+
+EXTEND FORM order
+    PROPERTIES (p1) idBarcode BEFORE name(p1)
+;
+
+skipSetSupplier = DATA BOOLEAN () PREREAD;
+
+WHEN SETCHANGED (isPosted(ProductDetail pd)) AND NOT supplier(pd) AND order(ComponentDetail cd) == order(pd) AND keepSupplier(order(pd)) AND NOT skipSetSupplier() DO {
+    supplier(pd) <-  OVERRIDE supplier(batch(cd)), supplier(lastBatch(bruttoSku(cd))) ;
+};
