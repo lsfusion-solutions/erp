@@ -27,7 +27,7 @@ GROUP additionalInfo1 EXTID 'additionalInfo' : invoicee;
 GROUP productInquiryIdentificator1 EXTID 'productInquiryIdentificator' : order;
 GROUP lineItems : order;
 GROUP lineItem : lineItems;
-//GROUP ultimateCustomer : lineItem;
+GROUP requestedQuantity;
 
 sender = DATA LOCAL STRING();
 recipient = DATA LOCAL STRING();
@@ -103,6 +103,8 @@ exciseDuty = DATA LOCAL STRING();
 vATRate = DATA LOCAL STRING();
 vATAmount = DATA LOCAL STRING();
 amount = DATA LOCAL STRING();
+requestedQuantity = DATA LOCAL STRING();
+unitOfMeasure = DATA LOCAL STRING();
 
 exportOrderDocument = DATA LOCAL EOrder();
 nameMessage = DATA LOCAL STRING();
@@ -157,12 +159,13 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             idSku(i) EXTID 'internalBuyerCode', 
             internalSupplierCode = idSku(i),   
             externalProductId = idBarcode(i), 
-            description = nameSku(i), 
-            requestedQuantity = quantity(i), 
-            netPrice = price(i), 
+            description = nameSku(i),
+            netPrice = price(i),
             vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))), ''),
             amount = invoiceSum(i)
-//            'gln' = GLN(customerStock(order(i))) IN ultimateCustomer ATTR 
+        PROPERTIES IN requestedQuantity 
+            quantity(i) EXTID 'value', unitOfMeasure = extraCodeUOMSku(i) IN requestedQuantity ATTR               
+    
 ;
 
 /////////------------------- ordrsp
