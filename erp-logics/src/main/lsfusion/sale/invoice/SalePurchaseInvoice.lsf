@@ -97,12 +97,16 @@ DESIGN invoiceInvoices {
 }
 
 notUseBatchPurchaseInvoice 'Не проставлять партии при выполнении действия "Накладная (закупка)"' = DATA BOOLEAN (Operation); 
+notUsePriceListTypePurchaseInvoice 'Не заполнять вид цены при выполнении действия "Накладная (закупка)"' = DATA BOOLEAN (Operation);
+
 EXTEND FORM operation
-    PROPERTIES notUseBatchPurchaseInvoice(o)
+    PROPERTIES (o) notUseBatchPurchaseInvoice, notUsePriceListTypePurchaseInvoice
 ;
+
 DESIGN operation {
     purchaseContainer {
         MOVE PROPERTY (notUseBatchPurchaseInvoice(o));
+        MOVE PROPERTY (notUsePriceListTypePurchaseInvoice(o));
     }
 }
 
@@ -399,7 +403,7 @@ moveUserInvoice 'Накладная (закупка)'(Invoice invoice)   {
 	    NEW i = Purchase.UserInvoice {
 	
 	        agreement(i) <- agreement(invoice);
-	        priceListType(i) <- priceListType(invoice);
+	        priceListType(i) <- priceListType(invoice) WHERE NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
 	        supplier(i) <- supplier(invoice);
 	        customer(i) <- customer(invoice);
 	        supplierStock(i) <- supplierStock(invoice);
@@ -419,7 +423,7 @@ moveUserInvoice 'Накладная (закупка)'(Invoice invoice)   {
 	            userInvoice(d) <- i;
 	            invoiceDetail(d) <- detail;
 	
-	            priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
+	            priceListType(d) <- priceListType(detail) WHERE (in(priceListType(detail), operation(i)) OR NOT operation(i)) AND NOT notUsePriceListTypePurchaseInvoice(operation(invoice));
 	
 	            sku(d) <- sku(detail);
 	            quantity (d) <- quantity(detail);

@@ -6,19 +6,21 @@ NAMESPACE Sale;
 
 notProportionIntraDemand 'Не использовать пропорциональное распределение при дефицитах' = DATA BOOLEAN () PREREAD;
 useReservePurchase 'Учитывать резерв (закупка) по текущий день' = DATA BOOLEAN () PREREAD;
+skipAmountPack 'Не округлять до упаковок' = DATA BOOLEAN () PREREAD;
 
 EXTEND FORM options 
-    PROPERTIES() notProportionIntraDemand, useReservePurchase
+    PROPERTIES() notProportionIntraDemand, useReservePurchase, skipAmountPack
 ;
 
 DESIGN options { 
     intra {
         MOVE PROPERTY(notProportionIntraDemand());
         MOVE PROPERTY(useReservePurchase());
+        MOVE PROPERTY(skipAmountPack());
     } 
 }
 
-amountPackIntra 'Кол-во в упаковке' (Sku sk) = OVERRIDE Purchase.amountPack(sk), 1.0 IF sk IS Sku; // для отгрузки со склада
+amountPackIntra 'Кол-во в упаковке' (Sku sk) = OVERRIDE Purchase.amountPack(sk) IF NOT skipAmountPack(), 1.0 IF sk IS Sku; // для отгрузки со склада
 
 dataPriorityIntraDemand 'Приоритет при распределении дефицитов' = DATA INTEGER (StockGroup);
 levelParentPriorityIntraDemand(StockGroup child)  = GROUP MIN level(child, StockGroup parent) IF dataPriorityIntraDemand(parent);
