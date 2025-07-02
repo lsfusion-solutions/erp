@@ -1,0 +1,124 @@
+MODULE AnalyticsDashboardCustomUser;
+
+REQUIRE AnalyticsDashboard, Security;
+
+NAMESPACE AnalyticsDashboard;
+
+TABLE dashboardCustomUser (Dashboard, CustomUser);
+
+isOpen 'Открыт' = DATA LOCAL NESTED BOOLEAN (Dashboard, Connection);
+
+desktop 'Десктоп' = DATA BOOLEAN (Dashboard, CustomUser);
+mobile 'Мобильный' = DATA BOOLEAN (Dashboard, CustomUser);
+needOpen 'Необходимо открывать' (Dashboard d, CustomUser u) = desktop(d, u) AND NOT isMobile() OR mobile(d, u) AND isMobile();
+
+denyClose 'Запретить закрытие' = DATA BOOLEAN (Dashboard, CustomUser);
+
+// Если установлен хотябы у одного дашборда, то развернется на весь экран
+maximizeForm 'Развернуть при открытии' = DATA BOOLEAN (Dashboard, CustomUser);
+maximizeForm (CustomUser u) = GROUP MAX maximizeForm(Dashboard d, u) AND needOpen(d, u);
+
+EXTEND FORM dashboard
+    OBJECTS u = CustomUser
+    PROPERTIES (u) READONLY login, name
+    PROPERTIES (d, u) desktop, mobile, denyClose, maximizeForm
+
+    FILTERGROUP checked
+        FILTER 'Отмеченные' desktop(d, u) OR mobile(d, u)
+
+    FILTERGROUP active
+        FILTER 'Активные' NOT isLocked(u) DEFAULT
+;
+
+DESIGN dashboard {
+    tabbedPane {
+        NEW usersPane {
+            caption = 'Пользователи';
+            fill = 1;
+            MOVE BOX(u);
+        }
+    }
+}
+
+// Форма, которую можно закрыть
+FORM closeableDashboard 'Дашборд'
+    OBJECTS d = Dashboard PANEL
+
+    EVENTS
+        ON SCHEDULE PERIOD 1 {
+            refresh(d);
+        },
+        ON CHANGE d {
+            isOpen(d, currentConnection()) <- TRUE;
+            init(d);
+        },
+        ON CLOSE {
+            isOpen(d, currentConnection()) <- NULL;
+        }
+
+    PROPERTIES READONLY '' = dashboard(d) CUSTOM 'dashboard'
+;
+
+
+DESIGN closeableDashboard {
+    caption = name(d);
+    OBJECTS {
+        fill = 1;
+        MOVE PROPERTY (dashboard(d)) { fill = 1; }
+    }
+}
+
+// Форма, которую закрыть нельзя
+FORM uncloseableDashboard 'Дашборд'
+    OBJECTS d = Dashboard PANEL
+
+    EVENTS
+        ON SCHEDULE PERIOD 1 {
+            refresh(d);
+        },
+        ON CHANGE d {
+            isOpen(d, currentConnection()) <- TRUE;
+            init(d);
+        },
+        ON QUERYCLOSE {
+
+        },
+        ON CLOSE {
+            isOpen(d, currentConnection()) <- NULL;
+        }
+
+    PROPERTIES READONLY '' = dashboard(d) CUSTOM 'dashboard'
+;
+
+
+DESIGN uncloseableDashboard {
+    caption = name(d);
+    OBJECTS {
+        fill = 1;
+        MOVE PROPERTY (dashboard(d)) { fill = 1; }
+    }
+    REMOVE TOOLBARBOX;
+}
+
+
+showDashboards (CustomUser u) {
+    FOR needOpen(Dashboard d, u AS CustomUser) AND NOT denyClose(d, u) AND NOT isOpen(d, currentConnection()) NOINLINE DO {
+        SHOW closeableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;
+    }
+    FOR needOpen(Dashboard d, u AS CustomUser) AND denyClose(d, u) AND NOT isOpen(d, currentConnection()) NOINLINE DO {
+        SHOW uncloseableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;
+    }
+
+    IF maximizeForm(currentUser() AS CustomUser) THEN
+        maximizeForm();
+}
+
+showDashboards 'Открыть дашборды' () {
+    showDashboards(currentUser() AS CustomUser);
+} TOOLBAR;
+
+EXTEND FORM dashboards PROPERTIES showDashboards();
+
+onWebClientStarted() + {
+    showDashboards();
+}

@@ -1,0 +1,231 @@
+MODULE AnalyticsDashboardPlotlyScatter;
+
+REQUIRE AnalyticsDashboardTile, AnalyticsDashboardPlotlyLayout, Utils, SafeEval;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+CLASS Scatter 'График': Tile, PlotlyLayout;
+TABLE scatter(Scatter);
+TABLE scatterrString(Scatter, STRING);
+
+EXTEND CLASS TileType { scatter 'График' }
+
+CLASS ScatterTrace 'Показатель';
+TABLE scatterTrace(ScatterTrace);
+
+scatter 'График' = DATA Scatter (ScatterTrace) NONULL DELETE INDEXED;
+id 'Код' = DATA STRING[10] (ScatterTrace) NONULL INDEXED;
+scatterTrace 'Показатель' (Scatter b, STRING[10] id) = GROUP AGGR ScatterTrace trace BY scatter(trace), id(trace);
+
+id 'Код' = DATA STRING[10] (Scatter);
+scatter (STRING[10] id) = GROUP AGGR Scatter s BY id(s);
+
+name 'Наименование' = DATA STRING[30] (ScatterTrace) IN id;
+base 'База' = DATA NUMERIC (ScatterTrace) CHARWIDTH 6;
+color 'Цвет' = DATA COLOR (ScatterTrace);
+opacity 'Непрозрачность [0.0 - 1.0]' = DATA NUMERIC[4,1] (ScatterTrace) CHARWIDTH 6;
+
+showKey 'Отображать ключ' = DATA BOOLEAN (ScatterTrace);
+showValue 'Отображать значение' = DATA BOOLEAN (ScatterTrace);
+
+name 'Наименование' = DATA STRING (Scatter) NONULL IN id CHARWIDTH 50;
+note 'Примечание' = DATA TEXT (Scatter);
+updateInterval 'Интервал обновления, с' = DATA INTEGER (Scatter);
+
+eval 'Код' = DATA TEXT(Scatter);
+type (Scatter p) += TileType.scatter IF p IS Scatter;
+
+name (Scatter p) += name(p);
+updateInterval (Scatter p) += updateInterval(p);
+
+horizontal 'Горизонтальная' = DATA BOOLEAN (Scatter);
+
+value 'Значение' = DATA NUMERIC (ScatterTrace, STRING);
+text 'Текст' (ScatterTrace bt, STRING key) = CONCAT ' / ', key IF showKey(bt) AND value(bt, key), trim(value(bt, key)) IF showValue(bt);
+order 'Порядок' (ScatterTrace bt, STRING key) = DATA INTEGER;
+
+traceModeLines 'Линии' = DATA BOOLEAN (ScatterTrace);
+traceModeMarkers 'Маркеры' = DATA BOOLEAN (ScatterTrace);
+traceModeText 'Текст' = DATA BOOLEAN (ScatterTrace);
+traceMode (ScatterTrace bt) = CONCAT '+', 'lines' IF traceModeLines(bt), 'markers' IF traceModeMarkers(bt), 'text' IF traceModeText(bt);
+
+traceX (ScatterTrace bt) = JSON FROM value = STRING key WHERE value(bt, key) ORDER order(bt, key), key; 
+traceY (ScatterTrace bt) = JSON FROM value = value(bt, STRING key);
+traceText (ScatterTrace bt) = JSON FROM value = text(bt, STRING key) WHERE value(bt, key);
+traceMarker (ScatterTrace bt) = JSON FROM color = rgbString(color(bt)), opacity = opacity(bt);
+
+trace (ScatterTrace bt) = JSON FROM
+    x = IF horizontal(scatter(bt)) THEN traceY(bt) ELSE traceX(bt),
+    y = IF horizontal(scatter(bt)) THEN traceX(bt) ELSE traceY(bt),
+    mode = traceMode(bt),
+    name = name(bt),
+    base = base(bt),
+    text = traceText(bt),
+    marker = traceMarker(bt),
+    type = 'scatter' IF bt IS ScatterTrace,
+    orientation = 'h' IF horizontal(scatter(bt));
+
+data (Scatter b) = JSON FROM value = trace(ScatterTrace bt) WHERE scatter(bt) = b;
+
+plotly (Scatter p) = JSON FROM data = data(p), layout = layout(p);
+value (Scatter p) = JSON FROM plotly = plotly(p);
+
+cachedValue = DATA LOCAL NESTED JSON (Scatter);
+init (Scatter p) + { cachedValue(p) <- value(p); }
+
+value (Scatter p) += cachedValue(p);
+
+jsonEval '' (Scatter p) = JSON FROM text = (OVERRIDE eval(p), '' IF p IS Scatter), type = 'action' IF p IS Scatter;
+
+changeScript (Scatter p) {
+    INPUT s = TEXT DO {
+        stringToFile(s);
+        LOCAL text = STRING();
+        IMPORT JSON FROM resultFile() TO() text;
+        eval(p) <- text();
+    }
+}
+
+FORM scatter 'График'
+    OBJECTS scatter = Scatter PANEL
+    PROPERTIES (scatter) id, name, updateInterval, note, recalc
+    PROPERTIES jsonEval(scatter) CUSTOM 'interpreter' ON CHANGE changeScript(scatter)
+    PROPERTIES value(scatter) CUSTOM 'singleTile'
+
+    OBJECTS barTrace 'Показатели' = ScatterTrace
+    PROPERTIES (barTrace) id, name, base, showKey, showValue, color, opacity, traceModeLines, traceModeMarkers, traceModeText, NEW, DELETE
+    FILTERS scatter(barTrace) = scatter
+
+    OBJECTS key 'Данные' = STRING
+    PROPERTIES 'Ключ' = VALUE(key), value(barTrace, key) COLUMNS (barTrace) HEADER name(barTrace), 
+        order(barTrace, key) COLUMNS (barTrace) HEADER 'Порядок'
+    ORDERS order(barTrace, key)
+    FILTERS value(barTrace, key)
+
+    EDIT Scatter OBJECT scatter
+;
+
+DESIGN scatter {
+    caption = CONCAT ' - ', 'График', name(scatter);
+    OBJECTS {
+
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW optionsPane {
+                caption = 'Настройки';
+                fill = 1;
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (value(scatter)) {
+                    caption = '';
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+            NEW tracePane {
+                caption = 'Показатели';
+                MOVE BOX (barTrace);
+            }
+
+            NEW evalPane {
+                caption = 'Скрипт';
+                MOVE PROPERTY (jsonEval(scatter)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW notePane {
+                caption = 'Примечание';
+                MOVE PROPERTY (note(scatter)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW dataPane {
+                caption = 'Данные';
+                horizontal = TRUE;
+                MOVE BOX (key) {
+                    fill = 1;
+                }
+            }
+        }
+    }
+    TOOLBARRIGHT {
+        MOVE PROPERTY (recalc(scatter));
+    }
+}
+
+EXTEND FORM tiles
+    PROPERTIES NEWSESSION 'График' = NEW[Scatter](tile)
+;
+
+@layoutToForm(scatter, optionsPane);
+
+// Дополнительные свойства подложки
+EXTEND FORM scatter
+    PROPERTIES (scatter) horizontal;
+
+DESIGN scatter {
+    layoutMain {
+        MOVE PROPERTY(horizontal(scatter));
+    }
+}
+
+// "Безопасный" пересчет плитки
+// Значения Scatter, которые можно изменять
+valueScatter 'Значение' (STRING barTrace, STRING key) = DATA LOCAL NESTED NUMERIC;
+orderScatter 'Порядок' (STRING barTrace, STRING key) = DATA LOCAL NESTED INTEGER;
+
+recalc 'Пересчитать' (Scatter p) {
+    value(ScatterTrace bt, STRING key) <- NULL WHERE value(bt, key) AND scatter(bt) == p;
+    order(ScatterTrace bt, STRING key) <- NULL WHERE order(bt, key) AND scatter(bt) == p;
+    valueScatter(STRING barTrace, STRING key) <- value(scatterTrace(p, barTrace), key);
+    orderScatter(STRING barTrace, STRING key) <- order(scatterTrace(p, barTrace), key);
+    safeEval('run(AnalyticsDashboardPlotly.Scatter scatter) \{' + eval(p) + ';\}', p);
+    FOR ScatterTrace bt = scatterTrace(p, STRING barTrace) DO {
+        value(bt, STRING key) <- valueScatter(barTrace, key);
+        order(bt, STRING key) <- orderScatter(barTrace, key);
+    }
+    APPLY;
+    cachedValue(p) <- value(p);
+} TOOLBAR CONFIRM;
+
+recalc(Scatter p) + { recalc(p); }
+
+copy 'Копировать' (Scatter old) {
+    NEW p=Scatter {
+        id(p) <- id(old);
+        name(p) <- name(old);
+        note(p) <- note(old);
+        updateInterval(p) <- updateInterval(old);
+        layoutTitleText(p) <- layoutTitleText(old);
+        horizontal(p) <- horizontal(old);
+        layoutMarginBottom(p) <- layoutMarginBottom(old);
+        layoutMarginLeft(p) <- layoutMarginLeft(old);
+        layoutMarginRight(p) <- layoutMarginRight(old);
+        layoutMarginTop(p) <- layoutMarginTop(old);
+        layoutHideLegend(p) <- layoutHideLegend(old);
+        layoutLegendOrientation(p) <- layoutLegendOrientation(old);
+        layoutLegendTitleText(p) <- layoutLegendTitleText(old);
+        layoutLegendTitleSide(p) <- layoutLegendTitleSide(old);
+        eval(p) <- eval(old);
+        FOR scatter(ScatterTrace oldScatterTrace)==old INLINE DO NEW scatterTrace=ScatterTrace {
+            scatter(scatterTrace) <- p;
+            id(scatterTrace) <- id(oldScatterTrace);
+            name(scatterTrace) <- name(oldScatterTrace);
+            base(scatterTrace) <- base(oldScatterTrace);
+            showKey(scatterTrace) <- showKey(oldScatterTrace);
+            showValue(scatterTrace) <- showValue(oldScatterTrace);
+            showValue(scatterTrace) <- showValue(oldScatterTrace);
+            color(scatterTrace) <- color(oldScatterTrace);
+            opacity(scatterTrace) <- opacity(oldScatterTrace);
+            traceModeLines(scatterTrace) <- traceModeLines(oldScatterTrace);
+            traceModeMarkers(scatterTrace) <- traceModeMarkers(oldScatterTrace);
+            traceModeText(scatterTrace) <- traceModeText(oldScatterTrace);
+        }
+        SHOW scatter OBJECTS scatter=p MANAGESESSION;
+    }
+} TOOLBAR CONFIRM;
+
+copy(Scatter p) + {copy(p);}

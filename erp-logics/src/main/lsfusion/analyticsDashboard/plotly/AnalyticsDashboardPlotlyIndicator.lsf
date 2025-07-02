@@ -1,0 +1,313 @@
+MODULE AnalyticsDashboardPlotlyIndicator;
+
+REQUIRE AnalyticsDashboardTile, AnalyticsDashboardPlotlyLayout, Time, SafeEval;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+CLASS Indicator 'Индикатор': Tile, PlotlyLayout;
+TABLE indicator(Indicator);
+
+EXTEND CLASS TileType { indicator 'Индикатор' }
+
+id 'Код' = DATA STRING[10] (Indicator);
+indicator (STRING[10] id) = GROUP AGGR Indicator i BY id(i);
+
+name 'Наименование' = DATA STRING (Indicator) NONULL IN id CHARWIDTH 50;
+note 'Примечание' = DATA TEXT (Indicator);
+updateInterval 'Интервал обновления, с' = DATA INTEGER (Indicator);
+
+eval 'Код' = DATA TEXT(Indicator);
+type (Indicator p) += TileType.indicator IF p IS Indicator;
+
+name (Indicator p) += name(p);
+updateInterval (Indicator p) += updateInterval(p);
+
+// data -> gauge -> bar
+gaugeBarColor 'Цвет шкалы' = DATA COLOR (Indicator);
+bar (Indicator p) = JSON FROM color = rgbString(gaugeBarColor(p));
+
+// data -> gauge -> axis
+minValue 'min' = DATA NUMERIC(Indicator);
+maxValue 'max' = DATA NUMERIC(Indicator);
+
+gaugeAxisRangeMin 'min' (Indicator p) = OVERRIDE minValue(p), 0.0 IF p IS Indicator;
+gaugeAxisRangeMax 'max' (Indicator p) = maxValue(p);
+
+gaugeAxisRange (Indicator p, INTEGER i) = CASE
+    WHEN p IS Indicator AND i = 1 THEN gaugeAxisRangeMin(p)
+    WHEN p IS Indicator AND i = 2 THEN gaugeAxisRangeMax(p);
+
+gaugeAxisRange (Indicator p) = JSON FROM value = gaugeAxisRange(p, INTEGER i);
+
+gaugeAxisTickformat 'Формат шкалы' (Indicator p) = DATA STRING (Indicator); //d3-format
+
+gaugeAxisTickprefix 'Префикс' = DATA STRING (Indicator);
+gaugeAxisTicksuffix 'Суфикс' = DATA STRING (Indicator);
+
+gaugeAxis (Indicator p) = JSON FROM range = gaugeAxisRange(p), tickformat = gaugeAxisTickformat(p),
+    tickprefix = gaugeAxisTickprefix(p), ticksuffix = gaugeAxisTicksuffix(p);
+
+// data -> gauge
+gaugeBackgroundColor 'Цвет фона' = DATA COLOR (Indicator);
+gaugeBorderColor 'Цвет границ' = DATA COLOR (Indicator);
+gaugeBorderWidth 'Толщина границ' = DATA INTEGER (Indicator);
+gaugeShapeBullet 'Плоская' = DATA BOOLEAN (Indicator);
+gaugeShape (Indicator i) = 'bullet' IF gaugeShapeBullet(i);
+
+gauge (Indicator p) = JSON FROM
+    bar = bar(p),
+    bgcolor = rgbString(gaugeBackgroundColor(p)),
+    bordercolor = rgbString(gaugeBorderColor(p)),
+    borderwidth = gaugeBorderWidth(p),
+    shape = gaugeShape(p),
+    axis = gaugeAxis(p);
+
+// data -> delta
+deltaReference 'Целевое значение' = DATA NUMERIC (Indicator);
+deltaPosition 'Позиция отклонения' = DATA ChartPosition (Indicator);
+nameDeltaPosition 'Позиция' (Indicator i) = name(deltaPosition(i));
+
+deltaPrefix 'Префикс' = DATA STRING (Indicator);
+deltaSuffix 'Суфикс' = DATA STRING (Indicator);
+deltaValueFormat 'Формат значения' = DATA STRING (Indicator); //d3-format
+
+delta (Indicator p) = JSON FROM
+    reference = deltaReference(p),
+    position = value(deltaPosition(p)),
+    prefix = deltaPrefix(p),
+    suffix = deltaSuffix(p),
+    valueformat = deltaValueFormat(p);
+// data -> number
+numberSuffix 'Суфикс' = DATA STRING (Indicator);
+numberPrefix 'Префикс' = DATA STRING (Indicator);
+numberValueFormat 'Формат' = DATA STRING (Indicator); //d3-format
+
+number (Indicator i) = JSON FROM
+    prefix = numberPrefix(i),
+    suffix = numberSuffix(i),
+    valueformat = numberValueFormat(i);
+
+// data
+value 'Значение' = DATA NUMERIC (Indicator);
+
+
+modeNumber 'Значение' = DATA BOOLEAN (Indicator);
+modeDelta 'Отклонение' = DATA BOOLEAN (Indicator);
+modeGauge 'Шкала' = DATA BOOLEAN (Indicator);
+dataMode (Indicator p) = CONCAT '+', 'number' IF modeNumber(p), 'delta' IF modeDelta(p), 'gauge' IF modeGauge(p);
+
+dataItem (Indicator p, INTEGER i) = JSON FROM
+    'value' = value(p) IF i = 1,
+    type = 'indicator' IF p IS Indicator AND i = 1,
+    mode = dataMode(p) IF i = 1,
+    number = number(p) IF i = 1,
+    gauge = gauge(p) IF i = 1,
+    delta = delta(p) IF i = 1;
+
+data (Indicator p) = JSON FROM value = dataItem(p, INTEGER i);
+
+plotly (Indicator p) = JSON FROM data = data(p), layout(p);
+
+valueIndicator (Indicator p) = JSON FROM plotly = plotly(p);
+cachedValue = DATA LOCAL NESTED JSON (Indicator);
+
+init (Indicator p) + { cachedValue(p) <- valueIndicator(p); }
+value (Indicator p) += cachedValue(p);
+
+jsonEval '' (Indicator p) = JSON FROM text = (OVERRIDE eval(p), '' IF p IS Indicator), type = 'action' IF p IS Indicator;
+
+changeScript (Indicator p) {
+    INPUT s = TEXT DO {
+        stringToFile(s);
+        LOCAL text = STRING();
+        IMPORT JSON FROM resultFile() TO() text;
+        eval(p) <- text();
+    }
+}
+
+FORM indicator 'Индикатор'
+    OBJECTS indicator = Indicator PANEL
+    PROPERTIES (indicator) id, name, updateInterval, note, recalc
+    PROPERTIES (indicator) minValue, maxValue, deltaReference
+    PROPERTIES jsonEval(indicator) CUSTOM 'interpreter' ON CHANGE changeScript(indicator)
+    PROPERTIES valueIndicator(indicator) CUSTOM 'singleTile'
+
+    PROPERTIES value(indicator)
+
+    EDIT Indicator OBJECT indicator
+;
+
+DESIGN indicator {
+    caption = CONCAT ' - ', 'Индикатор', name(indicator);
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW optionsPane {
+                caption = 'Настройки';
+                fill = 1;
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (valueIndicator(indicator)) {
+                    caption = '';
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+            NEW evalPane {
+                caption = 'Скрипт';
+                MOVE PROPERTY (jsonEval(indicator)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW notePane {
+                caption = 'Примечание';
+                MOVE PROPERTY (note(indicator)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW dataPane {
+                caption = 'Данные';
+                horizontal = FALSE;
+                MOVE PROPERTY (value(indicator));
+                MOVE PROPERTY (minValue(indicator));
+                MOVE PROPERTY (maxValue(indicator));
+                MOVE PROPERTY (deltaReference(indicator));
+            }
+        }
+    }
+    TOOLBARRIGHT {
+        MOVE PROPERTY (recalc(indicator));
+    }
+}
+
+EXTEND FORM tiles
+    PROPERTIES NEWSESSION 'Индикатор' = NEW[Indicator](tile)
+;
+
+@layoutToForm(indicator, optionsPane);
+
+// Дополнительные свойства подложки
+EXTEND FORM indicator
+    PROPERTIES (indicator)
+        gaugeBarColor, gaugeBackgroundColor, gaugeBorderColor, gaugeBorderWidth, gaugeShapeBullet, gaugeAxisTickformat, 
+        gaugeAxisTickprefix, gaugeAxisTicksuffix,     
+        numberValueFormat, numberSuffix, numberPrefix,
+        nameDeltaPosition, deltaPrefix, deltaSuffix, deltaValueFormat,
+        modeNumber, modeDelta, modeGauge
+;
+
+DESIGN indicator {
+    layoutMain {
+        NEW valuePane {
+            caption = 'Значение';
+            horizontal = TRUE;
+            lines = 1;
+            align = STRETCH;
+            MOVE PROPERTY(numberValueFormat(indicator));
+            MOVE PROPERTY(numberPrefix(indicator));
+            MOVE PROPERTY(numberSuffix(indicator));
+        }
+        NEW deltaPane {
+            caption = 'Отклонение';
+            horizontal = TRUE;
+            lines = 1;
+            align = STRETCH;
+            MOVE PROPERTY(nameDeltaPosition(indicator));
+            MOVE PROPERTY(deltaPrefix(indicator));
+            MOVE PROPERTY(deltaSuffix(indicator));
+            MOVE PROPERTY(deltaValueFormat(indicator));
+        }
+        NEW modePane {
+            caption = 'Режим';
+            horizontal = TRUE;
+            align = STRETCH;
+            lines = 1;
+            MOVE PROPERTY(modeNumber(indicator));
+            MOVE PROPERTY(modeDelta(indicator));
+            MOVE PROPERTY(modeGauge(indicator));
+        }
+        NEW gaugePane {
+            caption = 'Шкала';
+            horizontal = TRUE;
+            align = STRETCH;
+            lines = 1;
+            MOVE PROPERTY(gaugeShapeBullet(indicator));
+            MOVE PROPERTY(gaugeBarColor(indicator));
+            MOVE PROPERTY(gaugeBackgroundColor(indicator));
+            MOVE PROPERTY(gaugeBorderColor(indicator));
+            MOVE PROPERTY(gaugeBorderWidth(indicator));
+            MOVE PROPERTY(gaugeAxisTickformat(indicator));
+            MOVE PROPERTY(gaugeAxisTickprefix(indicator));
+            MOVE PROPERTY(gaugeAxisTicksuffix(indicator));
+        }
+    }
+}
+
+// "Безопасный" пересчет плитки
+// Значения индикатора, которые можно изменять
+indicatorValue 'Значение индикатора' = DATA LOCAL NESTED NUMERIC ();
+indicatorReference 'Целевое значение' = DATA LOCAL NESTED NUMERIC ();
+indicatorMinValue 'min' = DATA LOCAL NESTED NUMERIC ();
+indicatorMaxValue 'max' = DATA LOCAL NESTED NUMERIC ();
+indicatorScaleColor 'Цвет шкалы' = DATA LOCAL NESTED COLOR ();
+
+recalc 'Пересчитать' (Indicator p) {
+    indicatorValue() <- value(p);
+    indicatorReference() <- deltaReference(p);
+    indicatorMinValue() <- minValue(p);
+    indicatorMaxValue() <- maxValue(p);
+    indicatorScaleColor() <- gaugeBarColor(p);
+    safeEval('run(AnalyticsDashboardPlotly.Indicator indicator) \{' + eval(p) + ';\}', p);
+    value(p) <- indicatorValue();
+    deltaReference(p) <- indicatorReference();
+    minValue(p) <- indicatorMinValue();
+    maxValue(p) <- indicatorMaxValue();
+    gaugeBarColor(p) <- indicatorScaleColor();
+    APPLY;
+    cachedValue(p) <- valueIndicator(p);
+} TOOLBAR CONFIRM;
+
+recalc(Indicator p) + { recalc(p); }
+
+copy 'Копировать' (Indicator old) {
+    NEW p=Indicator {
+        id(p) <- id(old);
+        name(p) <- name(old);
+        note(p) <- note(old);
+        updateInterval(p) <- updateInterval(old);
+        layoutTitleText(p) <- layoutTitleText(old);
+        numberValueFormat(p) <- numberValueFormat(old);
+        numberPrefix(p) <- numberPrefix(old);
+        numberSuffix(p) <- numberSuffix(old);
+        deltaPosition(p) <- deltaPosition(old);
+        deltaPrefix(p) <- deltaPrefix(old);
+        deltaSuffix(p) <- deltaSuffix(old);
+        deltaValueFormat(p) <- deltaValueFormat(old);
+        modeNumber(p) <- modeNumber(old);
+        modeDelta(p) <- modeDelta(old);
+        modeGauge(p) <- modeGauge(old);
+        gaugeShapeBullet(p) <- gaugeShapeBullet(old);
+        gaugeBarColor(p) <- gaugeBarColor(old);
+        gaugeBorderColor(p) <- gaugeBorderColor(old);
+        gaugeBorderWidth(p) <- gaugeBorderWidth(old);
+        gaugeBorderWidth(p) <- gaugeBorderWidth(old);
+        gaugeAxisTickformat(p) <- gaugeAxisTickformat(old);
+        gaugeAxisTickprefix(p) <- gaugeAxisTickprefix(old);
+        gaugeAxisTicksuffix(p) <- gaugeAxisTicksuffix(old);
+        layoutMarginBottom(p) <- layoutMarginBottom(old);
+        layoutMarginLeft(p) <- layoutMarginLeft(old);
+        layoutMarginRight(p) <- layoutMarginRight(old);
+        layoutMarginTop(p) <- layoutMarginTop(old);
+        layoutHideLegend(p) <- layoutHideLegend(old);
+        layoutLegendOrientation(p) <- layoutLegendOrientation(old);
+        layoutLegendTitleText(p) <- layoutLegendTitleText(old);
+        layoutLegendTitleSide(p) <- layoutLegendTitleSide(old);
+        eval(p) <- eval(old);
+        SHOW indicator OBJECTS indicator=p MANAGESESSION;
+    }
+} TOOLBAR CONFIRM;
+
+copy(Indicator p) + {copy(p);}

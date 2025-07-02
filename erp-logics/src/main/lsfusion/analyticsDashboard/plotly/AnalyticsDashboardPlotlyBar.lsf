@@ -1,0 +1,263 @@
+MODULE AnalyticsDashboardPlotlyBar;
+
+REQUIRE Utils, AnalyticsDashboardTile, AnalyticsDashboardPlotlyLayout, SafeEval;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+CLASS Bar 'Гистограмма': Tile, PlotlyLayout;
+TABLE bar(Bar);
+TABLE barString(Bar, STRING);
+
+EXTEND CLASS TileType { 
+    bar 'Гистограмма' 
+}
+
+CLASS BarTrace 'Показатель';
+TABLE barTrace(BarTrace);
+
+bar 'Гистограмма' = DATA Bar (BarTrace) NONULL DELETE INDEXED;
+id 'Код' = DATA STRING[10] (BarTrace) NONULL INDEXED;
+barTrace 'Показатель' (Bar b, STRING[10] id) = GROUP AGGR BarTrace trace BY bar(trace), id(trace);
+
+name 'Наименование' = DATA STRING[30] (BarTrace) IN id;
+base 'База' = DATA NUMERIC (BarTrace) CHARWIDTH 6;
+color 'Цвет' = DATA COLOR (BarTrace);
+opacity 'Непрозрачность [0.0 - 1.0]' = DATA NUMERIC[4,1] (BarTrace) CHARWIDTH 6;
+
+showKey 'Отображать ключ' = DATA BOOLEAN (BarTrace);
+showValue 'Отображать значение' = DATA BOOLEAN (BarTrace);
+
+id 'Код' = DATA STRING[10] (Bar);
+bar (STRING[10] id) = GROUP AGGR Bar b BY id(b);
+
+name 'Наименование' = DATA STRING (Bar) NONULL IN id CHARWIDTH 50;
+note 'Примечание' = DATA TEXT (Bar);
+updateInterval 'Интервал обновления, с' = DATA INTEGER (Bar);
+
+eval 'Код' = DATA TEXT(Bar);
+type (Bar p) += TileType.bar IF p IS Bar;
+
+name (Bar p) += name(p);
+updateInterval (Bar p) += updateInterval(p);
+
+horizontal 'Горизонтальная' = DATA BOOLEAN (Bar);
+
+value 'Значение' = DATA NUMERIC (BarTrace, STRING);
+text 'Текст' (BarTrace bt, STRING key) = CONCAT ' / ', key IF showKey(bt) AND value(bt, key), trim(value(bt, key)) IF showValue(bt);
+
+traceX (BarTrace bt) = JSON FROM value = STRING key WHERE value(bt, key);
+traceY (BarTrace bt) = JSON FROM value = value(bt, STRING key);
+traceText (BarTrace bt) = JSON FROM value = text(bt, STRING key) WHERE value(bt, key);
+traceMarker (BarTrace bt) = JSON FROM color = rgbString(color(bt)), opacity = opacity(bt);
+
+trace (BarTrace bt) = JSON FROM
+    x = IF horizontal(bar(bt)) THEN traceY(bt) ELSE traceX(bt),
+    y = IF horizontal(bar(bt)) THEN traceX(bt) ELSE traceY(bt),
+    name = name(bt),
+    base = base(bt),
+    text = traceText(bt),
+    marker = traceMarker(bt),
+    type = 'bar' IF bt IS BarTrace,
+    orientation = 'h' IF horizontal(bar(bt));
+
+data (Bar b) = JSON FROM value = trace(BarTrace bt) WHERE bar(bt) = b;
+
+// Дополнительные настойки для bar
+@defineStaticObject(barMode, 'Режим гистограммы');
+
+EXTEND CLASS BarMode { 
+    stack, 
+    group, 
+    overlay, 
+    relative 
+}
+
+value (BarMode m) =
+    CASE
+        WHEN m = BarMode.stack THEN 'stack'
+        WHEN m = BarMode.group THEN 'group'
+        WHEN m = BarMode.overlay THEN 'overlay'
+        WHEN m = BarMode.relative THEN 'relative';
+
+barMode 'Режим' = DATA BarMode (Bar);
+nameBarMode 'Режим' (Bar b) = name(barMode(b));
+
+@defineStaticObject(barNorm, 'Нормирование');
+
+EXTEND CLASS BarNorm {
+    fraction 'Доля',
+    percent 'Процент'
+}
+
+value (BarNorm m) =
+    CASE
+        WHEN m = BarNorm.fraction THEN 'fraction'
+        WHEN m = BarNorm.percent THEN 'percent';
+
+barNorm 'Нормирование' = DATA BarNorm (Bar);
+nameBarNorm 'Нормирование' (Bar b) = name(barNorm(b));
+
+barCornerRadius 'Радиус закруглений' = DATA INTEGER (Bar);
+
+extraLayout (Bar b) = JSON FROM
+    barmode = value(barMode(b)),
+    barnorm = value(barNorm(b)),
+    barcornerradius = barCornerRadius(b);
+
+plotly (Bar p) = JSON FROM data = data(p), layout = concat(layout(p), extraLayout(p));
+value (Bar p) = JSON FROM plotly = plotly(p);
+
+cachedValue = DATA LOCAL NESTED JSON (Bar);
+value (Bar p) += cachedValue(p);
+init (Bar p) + { cachedValue(p) <- value(p); }
+
+jsonEval '' (Bar p) = JSON FROM text = (OVERRIDE eval(p), '' IF p IS Bar), type = 'action' IF p IS Bar;
+
+changeScript (Bar p) {
+    INPUT s = TEXT DO {
+        stringToFile(s);
+        LOCAL text = STRING();
+        IMPORT JSON FROM resultFile() TO() text;
+        eval(p) <- text();
+    }
+}
+
+FORM bar 'Гистограмма'
+    OBJECTS bar = Bar PANEL
+    PROPERTIES (bar) id, name, updateInterval, note, recalc
+    PROPERTIES jsonEval(bar) CUSTOM 'interpreter' ON CHANGE changeScript(bar)
+    PROPERTIES value(bar) CUSTOM 'singleTile'
+
+    OBJECTS barTrace 'Показатели' = BarTrace
+    PROPERTIES (barTrace) id, name, base, showKey, showValue, color, opacity, NEW, DELETE
+    FILTERS bar(barTrace) = bar
+
+    OBJECTS key 'Данные' = STRING
+    PROPERTIES 'Ключ' = VALUE(key), value(barTrace, key) COLUMNS (barTrace) HEADER name(barTrace)
+    FILTERS value(barTrace, key)
+
+    EDIT Bar OBJECT bar
+;
+
+DESIGN bar {
+    caption = CONCAT ' - ', 'Гистограмма', name(bar);
+    OBJECTS {
+
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW optionsPane {
+                caption = 'Настройки';
+                fill = 1;
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (value(bar)) {
+                    caption = '';
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+            NEW tracePane {
+                caption = 'Показатели';
+                MOVE BOX (barTrace);
+            }
+
+            NEW evalPane {
+                caption = 'Скрипт';
+                MOVE PROPERTY (jsonEval(bar)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW notePane {
+                caption = 'Примечание';
+                MOVE PROPERTY (note(bar)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW dataPane {
+                caption = 'Данные';
+                horizontal = TRUE;
+                MOVE BOX (key) {
+                    fill = 1;
+                }
+            }
+        }
+    }
+    TOOLBARRIGHT {
+        MOVE PROPERTY (recalc(bar));
+    }
+}
+
+EXTEND FORM tiles
+    PROPERTIES NEWSESSION 'Гистограмма' = NEW[Bar](tile)
+;
+
+@layoutToForm(bar, optionsPane);
+
+// Дополнительные свойства подложки
+EXTEND FORM bar
+    PROPERTIES (bar) nameBarMode, nameBarNorm, barCornerRadius, horizontal;
+DESIGN bar {
+    layoutMain {
+        MOVE PROPERTY(nameBarMode(bar));
+        MOVE PROPERTY(nameBarNorm(bar));
+        MOVE PROPERTY(barCornerRadius(bar));
+        MOVE PROPERTY(horizontal(bar));
+    }
+}
+
+// "Безопасный" пересчет плитки
+// Значения bar, которые можно изменять
+valueBar 'Значение' (STRING barTrace, STRING key) = DATA LOCAL NESTED NUMERIC;
+
+recalc 'Пересчитать' (Bar p) {
+    value(BarTrace bt, STRING key) <- NULL WHERE value(bt, key) AND bar(bt) == p;
+    valueBar(STRING barTrace, STRING key) <- value(barTrace(p, barTrace), key);
+    safeEval('run(AnalyticsDashboardPlotly.Bar bar) \{' + eval(p) + ';\}', p);
+    FOR BarTrace bt = barTrace(p, STRING barTrace) DO {
+        value(bt, STRING key) <- valueBar(barTrace, key);
+    }
+    APPLY;
+    cachedValue(p) <- value(p);
+} TOOLBAR CONFIRM;
+
+recalc(Bar p) + { recalc(p); }
+
+copy 'Копировать' (Bar old) {
+    NEW p=Bar {
+        id(p) <- id(old);
+        name(p) <- name(old);
+        note(p) <- note(old);
+        updateInterval(p) <- updateInterval(old);
+        layoutTitleText(p) <- layoutTitleText(old);
+        barMode(p) <- barMode(old);
+        barNorm(p) <- barNorm(old);
+        barCornerRadius(p) <- barCornerRadius(old);
+        horizontal(p) <- horizontal(old);
+        layoutMarginBottom(p) <- layoutMarginBottom(old);
+        layoutMarginLeft(p) <- layoutMarginLeft(old);
+        layoutMarginRight(p) <- layoutMarginRight(old);
+        layoutMarginTop(p) <- layoutMarginTop(old);
+        layoutHideLegend(p) <- layoutHideLegend(old);
+        layoutLegendOrientation(p) <- layoutLegendOrientation(old);
+        layoutLegendTitleText(p) <- layoutLegendTitleText(old);
+        layoutLegendTitleSide(p) <- layoutLegendTitleSide(old);
+        eval(p) <- eval(old);
+        FOR bar(BarTrace oldBarTrace)==old INLINE DO NEW barTrace=BarTrace {
+            bar(barTrace) <- p;     
+            id(barTrace) <- id(oldBarTrace);     
+            name(barTrace) <- name(oldBarTrace);
+            base(barTrace) <- base(oldBarTrace);
+            showKey(barTrace) <- showKey(oldBarTrace);
+            showValue(barTrace) <- showValue(oldBarTrace);     
+            showValue(barTrace) <- showValue(oldBarTrace);
+            color(barTrace) <- color(oldBarTrace);
+            opacity(barTrace) <- opacity(oldBarTrace);     
+        }
+        SHOW bar OBJECTS bar=p MANAGESESSION;
+    }
+} TOOLBAR CONFIRM;
+
+copy(Bar p) + {copy(p);}

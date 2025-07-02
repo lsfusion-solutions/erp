@@ -1,0 +1,32 @@
+MODULE SafeEval;
+
+REQUIRE Utils, Eval;
+
+denyTags (INTEGER i) =
+    CASE
+        WHEN i = 1 THEN '^.*NEWSESSION.*$'
+        WHEN i = 2 THEN '^.*MESSAGE.*$';
+
+invalidScript (TEXT script) = GROUP MAX regexPatternMatch(script, denyTags(INTEGER i));
+
+safeEval (TEXT script, p1, p2) {
+    IF invalidScript(script) THEN {
+        throwException('Unsafe script text');
+    }
+    TRY {
+        NEWSESSION {
+            applyOnlyCheck();
+            IF NOT p2 THEN
+                EVAL script PARAMS p1;
+            ELSE
+                EVAL script PARAMS p1, p2;
+        }
+    } FINALLY {
+        applyAll();
+        CANCEL;
+    }
+}
+
+safeEval(TEXT script, p) {
+    safeEval(script, p, NULL);
+}

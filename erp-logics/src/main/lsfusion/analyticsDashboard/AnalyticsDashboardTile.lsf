@@ -1,0 +1,70 @@
+MODULE AnalyticsDashboardTile;
+
+REQUIRE Utils, MasterData, Time;
+
+NAMESPACE AnalyticsDashboard;
+
+// Убрать нули NUMERIC
+trim (TEXT n) = IF onlyDigits(n) THEN n ELSE rtrim(rtrim(n, '0'), '.');
+trim (NUMERIC n) = STRING(trim(TEXT(n)));
+
+// COLOR to RGB
+byte (COLOR c, INTEGER pos) = FORMULA INTEGER '(($1 >> ($2 * 8)) & 255)::integer';
+rgbString 'Строка' (COLOR c) = 'rgb(' + byte(c, 2) + ',' + byte(c, 1) + ',' + byte(c, 0) + ')';
+
+// JSON
+concat 'Объединить' (JSON j1, JSON j2) = FORMULA JSON '$1::jsonb || $2::jsonb';
+value 'Значение' (JSON j, STRING key) = FORMULA JSON '$1::jsonb -> $2';
+
+CLASS ABSTRACT Tile 'Плитка';
+TABLE tile(Tile);
+
+@defineStaticObject(tileType, 'Тип');
+
+name 'Наименование' = ABSTRACT STRING (Tile);
+value = ABSTRACT JSON (Tile);
+type 'Тип' = ABSTRACT TileType (Tile);
+nameType 'Тип' (Tile t) = name(type(t));
+
+recalc 'Пересчитать' ABSTRACT (Tile);
+init ABSTRACT (Tile);
+copy 'Копировать' ABSTRACT (Tile);
+
+FORM tiles 'Плитки'
+    OBJECTS tile = Tile
+    PROPERTIES READONLY name(tile), nameType(tile)
+    PROPERTIES(tile) NEWSESSION copy TOOLBAR, EDIT, DELETE
+;
+
+FORM dialogTiles 'Плитки (выбор)'
+    OBJECTS tile = Tile
+    PROPERTIES READONLY name(tile), nameType(tile)
+
+    LIST Tile OBJECT tile
+;
+
+NAVIGATOR {
+    masterData {
+        NEW FOLDER customDashboards 'Дашборды' {
+            NEW FORM tiles;
+        }
+    }
+}
+
+// Механизм обновления плитки
+updateInterval 'Интервал обновления, с' = ABSTRACT INTEGER (Tile);
+
+EXTEND FORM tiles 
+    PROPERTIES READONLY updateInterval(tile)
+;
+
+lastUpdate 'Последнее обновление' = DATA DATETIME (Tile);
+
+refresh 'Обновить' (Tile t) {
+    IF subtractSeconds(lastUpdate(t), currentDateTime()) >= updateInterval(t) OR updateInterval(t) AND NOT lastUpdate(t) THEN {
+        NEWSESSION {
+            APPLY { lastUpdate(t) <- currentDateTime(); }
+        }
+        recalc(t);
+    }
+}

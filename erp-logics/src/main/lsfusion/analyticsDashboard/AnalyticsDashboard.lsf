@@ -1,0 +1,117 @@
+MODULE AnalyticsDashboard;
+
+REQUIRE AnalyticsDashboardCanvas, AnalyticsDashboardTile;
+
+NAMESPACE AnalyticsDashboard;
+
+CLASS Dashboard 'Дашборд';
+TABLE dashboard(Dashboard);
+
+name 'Наименование' = DATA STRING (Dashboard) NONULL IN id;
+
+canvas 'Холст' = DATA Canvas (Dashboard) NONULL;
+nameCanvas 'Холст' (Dashboard d) = name(canvas(d));
+
+tile 'Плитка' = DATA Tile (Dashboard, INTEGER);
+nameTile 'Плитка' (Dashboard d, INTEGER i) = name(tile(d, i));
+countTiles 'Количество плиток' (Dashboard d) = GROUP SUM 1 IF tile(d, INTEGER i) AND spanArea(canvas(d), i);
+
+FORM dashboards 'Дашборды'
+    OBJECTS d = Dashboard
+    PROPERTIES(d) READONLY name, nameCanvas, countTiles
+    PROPERTIES(d) NEWSESSION NEWEDIT, DELETE
+;
+
+// json для дашборда
+tiles (Dashboard d) = JSON FROM
+    'value' = value(tile(d, INTEGER i)),
+    vSpan = vSpan(canvas(d), i),
+    hSpan = hSpan(canvas(d), i),
+    index = i IF d IS Dashboard,
+    selected = (d IS Dashboard AND selectedTile() = i AS INTEGER) WHERE spanArea(canvas(d), i);
+
+dashboard (Dashboard d) = JSON FROM cols = cols(canvas(d)), rows = rows(canvas(d)), tiles = tiles(d);
+
+init(Dashboard d) {
+    FOR Tile tile = tile(d, INTEGER i) DO init(tile);
+}
+
+FORM dashboard 'Дашборд'
+    OBJECTS d = Dashboard PANEL
+    PROPERTIES(d) name, nameCanvas
+
+    EVENTS ON CHANGE d {
+        init(d);
+    }
+
+    OBJECTS i = INTEGER
+    PROPERTIES nameTile(d, i) PANEL
+    FILTERS spanArea(canvas(d), i)
+
+    EVENTS ON CHANGE i {
+        selectedTile() <- i;
+    }
+
+    PROPERTIES '' = dashboard(d) CUSTOM 'dashboard' ON CHANGE {
+        INPUT j = JSON DO {
+            IF value(j, 'click') THEN {
+                SEEK dashboard.i = INTEGER(value(j, 'click'));
+            } ELSE IF value(j, 'dblclick') THEN {
+                NEWSESSION {
+                    edit(tile(d, INTEGER(value(j, 'dblclick'))));
+                }
+            }
+        }
+    }
+
+    EDIT Dashboard OBJECT d
+;
+
+DESIGN dashboard {
+    caption = CONCAT ' - ', 'Дашборд', name(d);
+    OBJECTS {
+        NEW mainPane {
+            align = STRETCH;
+            horizontal = TRUE;
+            lines = 1;
+            collapsible = FALSE;
+            MOVE PROPERTY (name(d));
+            MOVE PROPERTY (nameCanvas(d));
+            MOVE PROPERTY (nameTile(d, i));
+        }
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW dashboardPane {
+                caption = 'Превью';
+                fill = 1;
+                MOVE PROPERTY (dashboard(d)) {
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+        }
+    }
+}
+
+refresh 'Обновить' (Dashboard d) {
+    FOR Tile tile = tile(d, INTEGER i) AND spanArea(canvas(d), i) DO {
+        refresh(tile);
+    }
+} TOOLBAR;
+
+
+NAVIGATOR {
+    customDashboards {
+        NEW FORM dashboards;
+    }
+}
+
+onWebClientInit() + {
+    onWebClientInit('resizeListener.js') <- 1;
+}
+
+onWebClientLoad() + {
+    INTERNAL CLIENT 'dashboard.js';
+    INTERNAL CLIENT 'dashboard.css';
+}

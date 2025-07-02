@@ -1,0 +1,144 @@
+MODULE AnalyticsDashboardPlotlyLayout;
+
+REQUIRE MasterData, SystemEvents;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+onWebClientLoad() + {
+    INTERNAL CLIENT 'plotly-3.0.1.min.js';
+    INTERNAL CLIENT 'dashboard.js';
+    INTERNAL CLIENT 'plotly-handler.js';
+}
+
+CLASS ABSTRACT PlotlyLayout 'Подложка';
+TABLE plotlyLayout(PlotlyLayout);
+
+@defineStaticObject(chartOrientation, 'Ориентация');
+
+EXTEND CLASS ChartOrientation {
+    horizontal 'Горизонтальная',
+    vertical 'Вертикальная'
+}
+value (ChartOrientation o) =
+    CASE
+        WHEN o = ChartOrientation.horizontal THEN 'h'
+        WHEN o = ChartOrientation.vertical THEN 'v';
+
+
+@defineStaticObject(chartSide, 'Сторона');
+
+EXTEND CLASS ChartSide {
+    top 'Верх',
+    left 'Лево',
+    topLeft 'Лево-верх',
+    topCenter 'Верх-центр',
+    topRight 'Верх-право'
+}
+
+value (ChartSide o) =
+    CASE
+        WHEN o = ChartSide.top THEN 'top'
+        WHEN o = ChartSide.left THEN 'left'
+        WHEN o = ChartSide.topLeft THEN 'top left'
+        WHEN o = ChartSide.topCenter THEN 'top center'
+        WHEN o = ChartSide.topRight THEN 'top right'
+;
+
+@defineStaticObject(chartPosition, 'Позиция');
+EXTEND CLASS ChartPosition {
+    top 'Верх',
+    bottom 'Низ',
+    left 'Лево',
+    right 'Право'
+}
+
+value 'Значение' (ChartPosition p) =
+    CASE
+        WHEN p = ChartPosition.top THEN 'top'
+        WHEN p = ChartPosition.bottom THEN 'bottom'
+        WHEN p = ChartPosition.left THEN 'left'
+        WHEN p = ChartPosition.right THEN 'right';
+
+
+// Специфические свойства layout
+// layout -> title
+layoutTitleText 'Заголовок' = DATA STRING[50] (PlotlyLayout);
+
+layoutTitle (PlotlyLayout c) = JSON FROM text = layoutTitleText(c);
+
+// layout -> legend -> title
+layoutLegendTitleText 'Заголовок' = DATA STRING (PlotlyLayout);
+layoutLegendTitleSide 'Положение заголовка' = DATA ChartSide (PlotlyLayout);
+nameLayoutLegendTitleSide 'Положение заголовка' (PlotlyLayout c) = name(layoutLegendTitleSide(c));
+
+layoutLegendTitle (PlotlyLayout c) = JSON FROM text = layoutLegendTitleText(c), side = value(layoutLegendTitleSide(c));
+
+
+// layout -> legend
+layoutLegendOrientation 'Ориентация' = DATA ChartOrientation (PlotlyLayout);
+nameLayoutLegendOrientation 'Ориентация' (PlotlyLayout c) = name(layoutLegendOrientation(c));
+
+legend (PlotlyLayout c) = JSON FROM
+    orientation = value(layoutLegendOrientation(c)),
+    title = layoutLegendTitle(c);
+
+// layout -> margin
+layoutMarginBottom 'Низ' = DATA INTEGER (PlotlyLayout);
+layoutMarginLeft 'Лево' = DATA INTEGER (PlotlyLayout);
+layoutMarginRight 'Право' = DATA INTEGER (PlotlyLayout);
+layoutMarginTop 'Верх' = DATA INTEGER (PlotlyLayout);
+
+layoutMargin (PlotlyLayout c) = JSON FROM b = layoutMarginBottom(c), l = layoutMarginLeft(c), r = layoutMarginRight(c), t = layoutMarginTop(c);
+
+// layout
+layoutHideLegend 'Скрыть легенду' = DATA BOOLEAN (PlotlyLayout);
+layoutShowLegend (PlotlyLayout c) = IF layoutHideLegend(c) THEN TFALSE ELSE TTRUE;
+
+layout (PlotlyLayout c) = JSON FROM
+    autosize = c IS PlotlyLayout,
+    title = layoutTitle(c),
+    showlegend = layoutShowLegend(c),
+    margin = layoutMargin(c),
+    legend(c);
+
+// Метакоды для размещения на форме
+META layoutToForm(form, obj, pane)
+    EXTEND FORM form
+        PROPERTIES (obj) layoutTitleText, layoutHideLegend, nameLayoutLegendOrientation, layoutLegendTitleText, nameLayoutLegendTitleSide
+        PROPERTIES (obj) layoutMarginBottom, layoutMarginLeft, layoutMarginRight, layoutMarginTop
+    ;
+
+    DESIGN form {
+        pane {
+            NEW layoutPane {
+                caption = 'Подложка';
+                fill = 1;
+                NEW layoutMain {
+                    caption = 'Общие';
+                    MOVE PROPERTY (layoutTitleText(obj));
+                }
+                NEW layoutMarginPane {
+                    caption = 'Поля';
+                    horizontal = TRUE;
+                    lines = 1;
+                    MOVE PROPERTY (layoutMarginBottom(obj));
+                    MOVE PROPERTY (layoutMarginLeft(obj));
+                    MOVE PROPERTY (layoutMarginRight(obj));
+                    MOVE PROPERTY (layoutMarginTop(obj));
+                }
+                NEW layoutLegendPane {
+                    caption = 'Легенда';
+                    MOVE PROPERTY(layoutHideLegend(obj));
+                    MOVE PROPERTY(nameLayoutLegendOrientation(obj));
+                    MOVE PROPERTY(layoutLegendTitleText(obj));
+                    MOVE PROPERTY(nameLayoutLegendTitleSide(obj));
+                }
+            }
+        }
+    }
+END
+
+META layoutToForm(form, pane)
+    @layoutToForm(form, form, pane);
+END
+

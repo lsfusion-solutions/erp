@@ -1,0 +1,153 @@
+MODULE AnalyticsDashboardPlotlyPie;
+
+REQUIRE AnalyticsDashboardTile, AnalyticsDashboardPlotlyLayout, SafeEval;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+CLASS Pie 'Круговая диаграмма': Tile, PlotlyLayout;
+TABLE pie(Pie);
+TABLE pieString(Pie, STRING);
+
+EXTEND CLASS TileType { pie 'Круговая диаграмма' }
+
+id 'Код' = DATA STRING[10] (Pie);
+pie (STRING[10] id) = GROUP AGGR Pie p BY id(p);
+
+name 'Наименование' = DATA STRING (Pie) NONULL IN id CHARWIDTH 50;
+note 'Примечание' = DATA TEXT (Pie);
+updateInterval 'Интервал обновления, с' = DATA INTEGER (Pie);
+
+eval 'Код' = DATA TEXT(Pie);
+type (Pie p) += TileType.pie IF p IS Pie;
+
+name (Pie p) += name(p);
+updateInterval (Pie p) += updateInterval(p);
+
+value 'Значение' = DATA NUMERIC (Pie, STRING);
+
+labels (Pie p) = JSON FROM value = STRING key WHERE value(p, key);
+values (Pie p) = JSON FROM value = value(p, STRING key);
+
+// Специфические свойства data
+dataItem (Pie p, INTEGER i) = JSON FROM labels = labels(p) IF i = 1, values = values(p) IF i = 1, type = 'pie' IF p IS Pie AND i = 1;
+data (Pie p) = JSON FROM value = dataItem(p, INTEGER i);
+
+plotly (Pie p) = JSON FROM data = data(p), layout(p);
+value (Pie p) = JSON FROM plotly = plotly(p);
+
+cachedValue = DATA LOCAL NESTED JSON (Pie);
+
+init (Pie p) + { cachedValue(p) <- value(p); }
+value (Pie p) += cachedValue(p);
+
+jsonEval '' (Pie p) = JSON FROM text = (OVERRIDE eval(p), '' IF p IS Pie), type = 'action' IF p IS Pie;
+
+changeScript (Pie p) {
+    INPUT s = TEXT DO {
+        stringToFile(s);
+        LOCAL text = STRING();
+        IMPORT JSON FROM resultFile() TO() text;
+        eval(p) <- text();
+    }
+}
+
+FORM pie 'Круговая диаграмма'
+    OBJECTS pie = Pie PANEL
+    PROPERTIES (pie) id, name, updateInterval, note, recalc
+    PROPERTIES jsonEval(pie) CUSTOM 'interpreter' ON CHANGE changeScript(pie)
+    PROPERTIES value(pie) CUSTOM 'singleTile'
+
+    OBJECTS key 'Данные' = STRING
+    PROPERTIES 'Ключ' = VALUE(key), value(pie, key)
+    FILTERS value(pie, key)
+
+    EDIT Pie OBJECT pie
+;
+
+DESIGN pie {
+    caption = CONCAT ' - ', 'Круговая диаграмма', name(pie);
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            NEW optionsPane {
+                caption = 'Настройки';
+                fill = 1;
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (value(pie)) {
+                    caption = '';
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+            NEW evalPane {
+                caption = 'Скрипт';
+                MOVE PROPERTY (jsonEval(pie)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW notePane {
+                caption = 'Примечание';
+                MOVE PROPERTY (note(pie)) {
+                    caption = '';
+                    fill = 1;
+                }
+            }
+            NEW dataPane {
+                caption = 'Данные';
+                horizontal = TRUE;
+                MOVE BOX (key) {
+                    fill = 1;
+                }
+            }
+        }
+    }
+    TOOLBARRIGHT {
+        MOVE PROPERTY (recalc(pie));
+    }
+}
+
+EXTEND FORM tiles
+    PROPERTIES NEWSESSION 'Круговая диаграмма' = NEW[Pie](tile)
+;
+
+@layoutToForm(pie, optionsPane);
+
+// "Безопасный" пересчет плитки
+// Значения pie, которые можно изменять
+valuePie = DATA LOCAL NESTED NUMERIC (STRING);
+
+recalc 'Пересчитать' (Pie p) {
+    value(p, STRING s) <- NULL WHERE value(p, s); 
+    valuePie(STRING s) <- value(p, s);
+    safeEval('run(AnalyticsDashboardPlotly.Pie pie) \{' + eval(p) + '; \}', p);
+    value(p, STRING s) <- valuePie(s);
+    APPLY;
+    cachedValue(p) <- value(p);
+} TOOLBAR CONFIRM;
+
+recalc(Pie p) + { recalc(p); }
+
+copy 'Копировать' (Pie old) {
+    NEW p=Pie {
+        id(p) <- id(old);
+        name(p) <- name(old);
+        note(p) <- note(old);
+        updateInterval(p) <- updateInterval(old);
+        layoutTitleText(p) <- layoutTitleText(old);
+        layoutMarginBottom(p) <- layoutMarginBottom(old);
+        layoutMarginLeft(p) <- layoutMarginLeft(old);
+        layoutMarginRight(p) <- layoutMarginRight(old);
+        layoutMarginTop(p) <- layoutMarginTop(old);
+        layoutHideLegend(p) <- layoutHideLegend(old);
+        layoutLegendOrientation(p) <- layoutLegendOrientation(old);
+        layoutLegendTitleText(p) <- layoutLegendTitleText(old);
+        layoutLegendTitleSide(p) <- layoutLegendTitleSide(old);
+        eval(p) <- eval(old);
+        SHOW pie OBJECTS pie=p MANAGESESSION;
+    }
+} TOOLBAR CONFIRM;
+
+copy(Pie p) + {copy(p);}

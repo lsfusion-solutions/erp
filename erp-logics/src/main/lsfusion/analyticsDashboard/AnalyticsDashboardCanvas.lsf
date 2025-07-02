@@ -1,0 +1,127 @@
+MODULE AnalyticsDashboardCanvas;
+
+REQUIRE Utils, SystemEvents, AnalyticsDashboardTile;
+
+NAMESPACE AnalyticsDashboard;
+
+onWebClientLoad() + {
+    INTERNAL CLIENT 'html-handler.js';
+    INTERNAL CLIENT 'dashboard.js';
+}
+
+CLASS Canvas 'Холст';
+TABLE canvas(Canvas);
+
+name 'Наименование' = DATA STRING (Canvas) NONULL IN id;
+rows 'Строк' = DATA INTEGER (Canvas);
+cols 'Столбцов' = DATA INTEGER (Canvas);
+
+size 'Размер' (Canvas c) = cols(c) * rows(c);
+
+dataHSpan = DATA INTEGER (Canvas, INTEGER);
+dataVSpan = DATA INTEGER (Canvas, INTEGER);
+
+hSpan (Canvas c, INTEGER i) = OVERRIDE dataHSpan(c, i), 1.0 IF count(i, size(c));
+vSpan (Canvas c, INTEGER i) = OVERRIDE dataVSpan(c, i), 1.0 IF count(i, size(c));
+
+spanArea (Canvas c, INTEGER i) = PARTITION UNGROUP size LIMIT hSpan(c, i) * vSpan(c, i) ORDER i BY c;
+
+htmlCanvas (INTEGER i) = JSON FROM text = STRING(i), className = 'canvas-template-item' IF i IS INTEGER;
+tile 'Плитка' (Canvas c, INTEGER i) = JSON FROM html = htmlCanvas(i) IF spanArea(c, i);
+
+selectedTile = DATA LOCAL INTEGER ();
+tiles (Canvas c) = JSON FROM
+    'value' = tile(c, INTEGER i),
+    vSpan = vSpan(c, i),
+    hSpan = hSpan(c, i),
+    index = i,
+    selected = c IS Canvas AND selectedTile() = i AS INTEGER WHERE spanArea(c, i);
+
+value '' (Canvas d) = JSON FROM cols = cols(d), rows = rows(d) ,tiles = tiles(d);
+
+FORM canvases 'Холсты'
+    OBJECTS canvas = Canvas
+    PROPERTIES(canvas) READONLY name, rows, cols, value PANEL CUSTOM 'dashboard'
+    PROPERTIES(canvas) NEWSESSION NEWEDIT, DELETE
+;
+
+DESIGN canvases {
+    OBJECTS {
+        horizontal = TRUE;
+        NEW leftPane {
+            fill = 1;
+            MOVE BOX (canvas);
+        }
+        NEW rightPane {
+            fill = 5;
+            MOVE PROPERTY (value(canvas)) { focusable = FALSE; }
+        }
+    }
+}
+
+FORM dialogCanvases
+    OBJECTS canvas = Canvas
+    PROPERTIES(canvas) READONLY name, rows, cols
+
+    LIST Canvas OBJECT canvas
+;
+
+FORM canvas 'Холст'
+    OBJECTS canvas = Canvas PANEL
+    PROPERTIES (canvas) name, rows, cols
+
+    OBJECTS i = INTEGER
+    PROPERTIES '№ ячейки' = VALUE(i) READONLY, 'Гор.' = hSpan(canvas, i), 'Вер.' = vSpan(canvas, i)
+    FILTERS count(i, size(canvas))
+
+    FILTERGROUP canvas
+        FILTER 'Видимые' spanArea(canvas, i) DEFAULT
+
+    EVENTS ON CHANGE i {
+        selectedTile() <- i;
+    }
+
+    PROPERTIES '' = value(canvas) PANEL CUSTOM 'dashboard' ON CHANGE {
+        INPUT j = JSON DO {
+            SEEK canvas.i = INTEGER(value(j, 'click'));
+        }
+    }
+
+    EDIT Canvas OBJECT canvas
+;
+
+DESIGN canvas {
+    caption = CONCAT ' - ', 'Редактор холста', '[' + name(canvas) + ']';
+    OBJECTS {
+        NEW mainPane {
+            align = STRETCH;
+            horizontal = TRUE;
+            MOVE PROPERTY (name(canvas));
+            MOVE PROPERTY (rows(canvas));
+            MOVE PROPERTY (cols(canvas));
+        }
+        NEW editPane {
+            horizontal = TRUE;
+            fill = 1;
+            NEW actionPane {
+                fill = 1;
+                MOVE BOX(i) {
+                    caption = 'Объединение ячеек';
+                }
+            }
+            NEW grid {
+                fill = 5;
+                MOVE PROPERTY (value(canvas)) {
+                    fill = 1;
+                    focusable = FALSE;
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    customDashboards {
+        NEW FORM canvases;
+    }
+}

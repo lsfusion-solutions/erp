@@ -1,0 +1,274 @@
+MODULE AnalyticsDashboardPlotlyDefault;
+
+REQUIRE SystemEvents, VMInfo, AnalyticsDashboardCanvas, AnalyticsDashboardPlotlyIndicator, AnalyticsDashboardPlotlyBar, 
+        AnalyticsDashboardPlotlyPie, AnalyticsDashboardPlotlyScatter;
+
+NAMESPACE AnalyticsDashboardPlotly;
+
+createDefaultDataPlotly = DATA BOOLEAN ();
+
+onStarted() + {
+    NEWSESSION {
+        IF NOT createDefaultDataPlotly() THEN {
+            //Делаю APPLY после каждого NEW что бы гарантировать последовательность
+            IF NOT (GROUP MAX Canvas c IF name(c) == 'Small') THEN {
+                NEW c = Canvas {
+                    name(c) <- 'Small';
+                    rows(c) <- 2;
+                    cols(c) <- 1;
+                    hSpan(c, 1) <- 1;
+                    vSpan(c, 1) <- 1;
+                    hSpan(c, 2) <- 1;
+                    vSpan(c, 2) <- 1;
+                }
+            }
+            APPLY;
+
+            IF NOT (GROUP MAX Canvas c IF name(c) == 'Mobile') THEN {
+                NEW c = Canvas {
+                    name(c) <- 'Mobile';
+                    rows(c) <- 4;
+                    cols(c) <- 1;
+                    hSpan(c, 1) <- 1;
+                    vSpan(c, 1) <- 2;
+                    hSpan(c, 2) <- 1;
+                    vSpan(c, 2) <- 1;
+                    hSpan(c, 3) <- 1;
+                    vSpan(c, 3) <- 1;
+                }
+            }
+            APPLY;
+
+            IF NOT (GROUP MAX Canvas c IF name(c) == 'Desktop') THEN {
+                NEW c = Canvas {
+                    name(c) <- 'Desktop';
+                    rows(c) <- 3;
+                    cols(c) <- 4;
+                    hSpan(c, 1) <- 2;
+                    vSpan(c, 1) <- 1;
+                    hSpan(c, 2) <- 2;
+                    vSpan(c, 2) <- 1;
+                    hSpan(c, 3) <- 1;
+                    vSpan(c, 3) <- 1;
+                    hSpan(c, 4) <- 1;
+                    vSpan(c, 4) <- 1;
+                    hSpan(c, 5) <- 2;
+                    vSpan(c, 5) <- 2;
+                    hSpan(c, 6) <- 1;
+                    vSpan(c, 6) <- 1;
+                    hSpan(c, 7) <- 1;
+                    vSpan(c, 7) <- 1;
+                }
+            }
+            APPLY;
+
+            IF NOT (GROUP MAX Canvas c IF name(c) == 'Widescreen') THEN {
+                NEW c = Canvas {
+                    name(c) <- 'Widescreen';
+                    rows(c) <- 12;
+                    cols(c) <- 4;
+                    hSpan(c, 1) <- 1;
+                    vSpan(c, 1) <- 3;
+                    hSpan(c, 2) <- 2;
+                    vSpan(c, 2) <- 6;
+                    hSpan(c, 3) <- 1;
+                    vSpan(c, 3) <- 4;
+                    hSpan(c, 4) <- 1;
+                    vSpan(c, 4) <- 3;
+                    hSpan(c, 5) <- 1;
+                    vSpan(c, 5) <- 4;
+                    hSpan(c, 6) <- 1;
+                    vSpan(c, 6) <- 3;
+                    hSpan(c, 7) <- 2;
+                    vSpan(c, 7) <- 6;
+                    hSpan(c, 8) <- 1;
+                    vSpan(c, 8) <- 4;
+                    hSpan(c, 9) <- 1;
+                    vSpan(c, 9) <- 3;
+                }
+            }
+            APPLY;
+
+            //Делаю APPLY после каждого NEW что бы гарантировать последовательность        
+            IF NOT indicator('DB size') THEN {
+                NEW indicator = Indicator {
+                    id(indicator) <- 'DB size';
+                    name(indicator) <- 'Размер базы данных';
+                    layoutTitleText(indicator) <- 'Размер базы данных';
+                    updateInterval(indicator) <- 300;
+                    numberSuffix(indicator) <- ' GB';
+                    modeNumber(indicator) <- TRUE;
+                    modeGauge(indicator) <- TRUE;
+                    gaugeShapeBullet(indicator) <- TRUE;
+                    eval(indicator) <- 'indicatorValue() <-NUMERIC[30,3]([FORMULA NULL LONG \'pg_database_size(current_database())\']()) / 1024 / 1024 / 1024;';
+                }
+            }
+            APPLY;
+            
+            IF NOT indicator('Free Memory') THEN {
+                NEW indicator = Indicator {
+                    id(indicator) <- 'Free Memory';
+                    name(indicator) <- 'Свободная память';
+                    layoutTitleText(indicator) <- 'Свободная память';
+                    updateInterval(indicator) <- 5;
+                    numberValueFormat(indicator) <- '.2r';
+                    numberSuffix(indicator) <- ' MB';
+                    modeNumber(indicator) <- TRUE;
+                    modeDelta(indicator) <- TRUE;
+                    modeGauge(indicator) <- TRUE;
+                    deltaValueFormat(indicator) <- '.2r';
+                    gaugeAxisTickformat(indicator) <- '.2r';
+                    gaugeAxisTicksuffix(indicator) <- ' MB';
+                    eval(indicator) <- 'getVMInfoProps();\nindicatorReference() <- indicatorValue();\nindicatorValue() <- freeMemory();\nindicatorMaxValue() <- totalMemory();';
+                }
+            }
+            APPLY;
+    
+            IF NOT indicator('Total Memory') THEN {
+                NEW indicator = Indicator {
+                    id(indicator) <- 'Total Memory';
+                    name(indicator) <- 'Выделенная память';
+                    layoutTitleText(indicator) <- 'Выделенная память';
+                    updateInterval(indicator) <- 5;
+                    numberValueFormat(indicator) <- '.2r';
+                    numberSuffix(indicator) <- ' MB';
+                    modeNumber(indicator) <- TRUE;
+                    modeDelta(indicator) <- TRUE;
+                    modeGauge(indicator) <- TRUE;
+                    gaugeBarColor(indicator) <- RGB(253, 239, 78);
+                    deltaValueFormat (indicator) <- '.2r';
+                    gaugeAxisTickformat (indicator) <- '.2r';
+                    gaugeAxisTicksuffix (indicator) <- ' MB';
+                    eval(indicator) <- 'getVMInfoProps();\nindicatorReference() <- indicatorValue();\nindicatorValue() <- totalMemory();\nindicatorMaxValue() <- maxMemory();';
+                }
+            }
+            APPLY;
+    
+            IF NOT pie('Users OS') THEN {
+                NEW pie = Pie {
+                    id(pie) <- 'Users OS';
+                    name(pie) <- 'ОС пользователей';
+                    layoutTitleText(pie) <- 'ОС пользователей';
+                    updateInterval(pie) <- 300;
+                    layoutLegendOrientation(pie) <- ChartOrientation.vertical;
+                    eval(pie) <- 'valuePie(STRING os) <- GROUP SUM 1 IF osVersion(Connection c) = os AND connectionStatus(c) == ConnectionStatus.connectedConnection;';
+                }
+            }
+            APPLY;
+    
+            IF NOT bar('Errors') THEN {
+                NEW bar=Bar {
+                    id(bar) <- 'Errors';
+                    name(bar) <- 'Ошибки';
+                    layoutTitleText(bar) <- 'Ошибки';
+                    updateInterval(bar) <- 86400;
+                    barMode(bar) <- BarMode.group; 
+                    layoutLegendOrientation(bar) <- ChartOrientation.horizontal;
+                    layoutLegendTitleSide(bar) <- ChartSide.topCenter; 
+                    IF NOT barTrace(bar, 'srv') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'srv';
+                            name(barTrace) <- 'Server exception';
+                        }
+                    }
+                    IF NOT barTrace(bar, 'web') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'web';
+                            name(barTrace) <- 'Web exception exception';
+                        }
+                    }
+                    IF NOT barTrace(bar, 'clt') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'clt';
+                            name(barTrace) <- 'Client exception';
+                        }
+                    }
+                    eval(bar) <- 'valueBar(\'srv\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS ServerException)) = date;\nvalueBar(\'web\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS WebClientException)) = date;\nvalueBar(\'clt\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS RemoteServerException)) = date;';
+                }
+            }
+            APPLY;
+
+            IF NOT scatter('receiptM') THEN {
+                NEW scatter=Scatter {
+                    id(scatter) <- 'receiptM';
+                    name(scatter) <- 'Кол-во чеков по месяцам';
+                    layoutTitleText(scatter) <- 'Кол-во чеков по месяцам';
+                    updateInterval(scatter) <- 300;
+                    layoutLegendOrientation(scatter) <- ChartOrientation.horizontal;
+                    IF NOT scatterTrace(scatter, 'receipt') THEN {
+                        NEW scatterTrace=ScatterTrace {
+                            scatter(scatterTrace) <- scatter;
+                            id(scatterTrace) <- 'receipt';
+                            name(scatterTrace) <- 'Кол-во чеков по месяцам';
+                            color(scatterTrace) <- RGB(0, 189, 0);
+                            opacity(scatterTrace) <- 0.5;
+                            traceModeLines(scatterTrace) <- TRUE;
+                            traceModeMarkers(scatterTrace) <- TRUE;
+                            traceModeText(scatterTrace) <- TRUE;
+                        }
+                    }
+                    eval(scatter) <- 'valueScatter(\'receipt\', \'1\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==1;\norderScatter(\'receipt\', \'1\') <- 1;\nvalueScatter(\'receipt\', \'2\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==2;\norderScatter(\'receipt\', \'2\') <- 2;\nvalueScatter(\'receipt\', \'3\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==3;\norderScatter(\'receipt\', \'3\') <- 3;\nvalueScatter(\'receipt\', \'4\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==4;\norderScatter(\'receipt\', \'4\') <- 4;\nvalueScatter(\'receipt\', \'5\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==5;\norderScatter(\'receipt\', \'5\') <- 5;\nvalueScatter(\'receipt\', \'6\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==6;\norderScatter(\'receipt\', \'6\') <- 6;\nvalueScatter(\'receipt\', \'7\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==7;\norderScatter(\'receipt\', \'7\') <- 7;\nvalueScatter(\'receipt\', \'8\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==8;\norderScatter(\'receipt\', \'8\') <- 8;\nvalueScatter(\'receipt\', \'9\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==9;\norderScatter(\'receipt\', \'9\') <- 9;\nvalueScatter(\'receipt\', \'10\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==10;\norderScatter(\'receipt\', \'10\') <- 10;\nvalueScatter(\'receipt\', \'11\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==11;\norderScatter(\'receipt\', \'11\') <- 11;\nvalueScatter(\'receipt\', \'12\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==12;orderScatter(\'receipt\', \'12\') <- 12;\n';
+                }
+            }
+            APPLY;
+
+            IF NOT scatter('receiptW') THEN {
+                NEW scatter=Scatter {
+                    id(scatter) <- 'receiptW';
+                    name(scatter) <- 'Выручка к предыдущей неделе';
+                    layoutTitleText(scatter) <- 'Выручка к предыдущей неделе';
+                    updateInterval(scatter) <- 300;
+                    layoutLegendOrientation(scatter) <- ChartOrientation.horizontal;
+                    IF NOT scatterTrace(scatter, 'week') THEN {
+                        NEW scatterTrace=ScatterTrace {
+                            scatter(scatterTrace) <- scatter;
+                            id(scatterTrace) <- 'week';
+                            name(scatterTrace) <- 'Текущая неделя';
+                            color(scatterTrace) <- RGB(0, 189, 0);
+                            opacity(scatterTrace) <- 0.5;
+                            traceModeLines(scatterTrace) <- TRUE;
+                            traceModeMarkers(scatterTrace) <- TRUE;
+                            traceModeText(scatterTrace) <- TRUE;
+                        }
+                    }
+                    IF NOT scatterTrace(scatter, 'prevweek') THEN {
+                        NEW scatterTrace=ScatterTrace {
+                            scatter(scatterTrace) <- scatter;
+                            id(scatterTrace) <- 'prevweek';
+                            name(scatterTrace) <- 'Предыдущая неделя';
+                            color(scatterTrace) <- RGB(255, 247, 20);
+                            opacity(scatterTrace) <- 0.6;
+                            traceModeLines(scatterTrace) <- TRUE;
+                            traceModeMarkers(scatterTrace) <- TRUE;
+                            traceModeText(scatterTrace) <- TRUE;
+                        }
+                    }
+                    eval(scatter) <- 'valueScatter(\'week\', \'1\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==0;\norderScatter(\'week\', \'1\') <- 1;\nvalueScatter(\'week\', \'2\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==1;\norderScatter(\'week\', \'2\') <- 2;\nvalueScatter(\'week\', \'3\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==2;\norderScatter(\'week\', \'3\') <- 3;\nvalueScatter(\'week\', \'4\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==3;\norderScatter(\'week\', \'4\') <- 4;\nvalueScatter(\'week\', \'5\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==4;\norderScatter(\'week\', \'5\') <- 5;\nvalueScatter(\'week\', \'6\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==5;\norderScatter(\'week\', \'6\') <- 6;\nvalueScatter(\'week\', \'7\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==6;\norderScatter(\'week\', \'7\') <- 7;\nvalueScatter(\'prevweek\', \'1\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==0;\norderScatter(\'prevweek\', \'1\') <- 1;\nvalueScatter(\'prevweek\', \'2\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==1;\norderScatter(\'prevweek\', \'2\') <- 2;\nvalueScatter(\'prevweek\', \'3\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==2;\norderScatter(\'prevweek\', \'3\') <- 3;\nvalueScatter(\'prevweek\', \'4\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==3;\norderScatter(\'prevweek\', \'4\') <- 4;\nvalueScatter(\'prevweek\', \'5\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==4;\norderScatter(\'prevweek\', \'5\') <- 5;\nvalueScatter(\'prevweek\', \'6\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==5;\norderScatter(\'prevweek\', \'6\') <- 6;\nvalueScatter(\'prevweek\', \'7\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==6;\norderScatter(\'prevweek\', \'7\') <- 7;';
+                }
+            }
+            APPLY;
+
+            IF NOT indicator('receiptCur') THEN {
+                NEW indicator = Indicator {
+                    id(indicator) <- 'receiptCur';
+                    name(indicator) <- 'Текущая выручка';
+                    layoutTitleText(indicator) <- 'Текущая выручка';
+                    updateInterval(indicator) <- 5;
+                    numberValueFormat(indicator) <- '.2r';
+                    numberSuffix(indicator) <- ' руб.';
+                    modeNumber(indicator) <- TRUE;
+                    modeGauge(indicator) <- TRUE;
+                    gaugeShapeBullet(indicator) <- TRUE;
+                    eval(indicator) <- 'indicatorValue() <-GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)==currentDate();';
+                }
+            }
+            APPLY;        
+            
+            createDefaultDataPlotly() <- TRUE;
+            APPLY;
+        }
+    }
+}
