@@ -4,12 +4,20 @@ REQUIRE BinOrderBinLedger, BinTransferBinLedger, ReservedBinLedger, ReservedBinO
 
 NAMESPACE Bin;
 
+@defineOperationProperty(skipReservedBinLedger, 'Не проводить по регистру резерва по ячейке', paramsContainer);
+
+skip[ReservedBinLedger](BinTransferDetail ledger) += skipReservedBinLedger(operation(ledger));
+skip[ReservedBinLedger](BinOrderDetail ledger) += skipReservedBinLedger(operation(ledger));
+
 //делаем ссылку на заказ на перемещение обязательной для того, что бы не было перемещений без заказов
 //данное условие призвано обеспечить следующий подход при расчёте резерва в ячейке
 //все заказы увеличивают резерв, все перемещения уменьшают, при необходимости вводится документ снятия резерва
-binOrder = ABSTRACT BinOrder (BinTransfer) NONULL MATERIALIZED INDEXED;
+binOrder = ABSTRACT BinOrder (BinTransfer) MATERIALIZED INDEXED;
 binOrder = DATA BinOrder (UserBinTransfer);
 binOrder(UserBinTransfer binTransfer) += binOrder(binTransfer);
+
+CONSTRAINT BinTransfer b IS BinTransfer AND NOT binOrder(b) AND NOT skipReservedBinLedger(operation(b))
+    MESSAGE 'Для перемещения по ячейкам должен быть задан заказ на перемещение';
 
 CONSTRAINT stock(UserBinTransfer binTransfer) != stock(binOrder(binTransfer))
     CHECKED BY binOrder[UserBinTransfer]
