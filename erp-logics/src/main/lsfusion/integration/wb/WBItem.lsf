@@ -25,6 +25,12 @@ width 'Ширина, см' = DATA INTEGER (Item);
 height 'Высота, см' = DATA INTEGER (Item);
 weightBrutto 'Вес, кг' = DATA NUMERIC[10,3] (Item);
 
+createdStatus 'Статус' (Item item) = CASE
+    WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
+    WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан'
+    ELSE 'Ошибка'
+;
+
 CLASS Size 'Размер';
 
 techSize 'Размер' = DATA STRING (Size);
@@ -112,26 +118,68 @@ DESIGN attributes {
 
 CLASS MediaFile 'Медиафайл';
 
+item = DATA Item (MediaFile) NONULL DELETE;
+index 'Порядок' (MediaFile mf) = PARTITION SUM 1 ORDER mf BY item(mf);
 url 'Ссылка на медиафайл' = DATA STRING (MediaFile) CHARWIDTH 30;
-media = DATA MediaFile (Item);
-index 'Порядок' (MediaFile mf, Item item) = PARTITION SUM 1 IF media(item) == mf ORDER mf BY item;
-urlMedia 'Ссылка на медиафайл' (Item item) = url(media(item));
-
-in 'Отм.' = DATA LOCAL BOOLEAN (MediaFile);
 posted 'Загружены' = DATA BOOLEAN (MediaFile);
 
-createdStatus 'Статус' (Item item) = CASE 
-    WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
-    WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан'
-    ELSE 'Ошибка'
+in 'Отм.' = DATA LOCAL BOOLEAN (MediaFile);
+
+FORM mediaFile 'Медиафайл'
+    OBJECTS mf = MediaFile
+    PROPERTIES(mf) in, posted, index
+    PROPERTIES(mf) url
+
+    EDIT MediaFile OBJECT mf
 ;
 
-WHEN CHANGED(urlMedia(Item item) AND item IS Item) DO posted(media(item)) <- NULL;
+WHEN CHANGED(url(MediaFile mf) AND mf IS MediaFile) DO posted(mf) <- NULL;
+
+//https://content-api.wildberries.ru/content/v3/media/save
+postMediaFiles 'Загрузить медиафайл по ссылкам' (Item item) {
+    NEWSESSION {
+        IF (GROUP SUM 1 IF NOT posted(MediaFile mf) AND mf IS MediaFile AND item(mf) == item) THEN {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL needExport = BOOLEAN (MediaFile);
+
+            needExport(MediaFile mf) <- TRUE WHERE NOT posted(mf) AND item(mf) == item;
+            EXPORT JSON FROM 'value' = url(MediaFile mf) WHERE needExport(mf) ORDER index(mf), mf;
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile('\{"nmId": ' + nmID(item) + ', "data":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v3/media/save' + '\n' + '\{"nmIDs":' + nmID(item) + ', "data":' + replace(resultString(), '\n', '') + '\}');
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v3/media/save' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IF statusHTTP(200) THEN {
+                    posted(MediaFile mf) <-TRUE WHERE needExport(mf);
+                }
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                IF statusHTTP(400) THEN {
+                    IMPORT errorText JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Не удалось загрузить медиафайлы: ' + errorText();
+                }
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Нет медиафайлов для загрузки.';
+        }
+    }
+}
 
 //https://content-api.wildberries.ru/content/v3/media/file
-//postMediaFile 'Загрузить медиафайл' () {
+//postMediaFile 'Загрузить медиафайл' (MediaFile mf) {
 //    NEWSESSION NESTED(in[MediaFile]){
-//        IF (GROUP SUM 1 IF in(MediaFile mf) AND NOT posted(mf)) THEN {
+//        IF (GROUP SUM 1 IF in(mf) AND NOT posted(mf)) THEN {
 //            setHttpHeadersIS();
 //            LOCAL message = STRING ();
 //            LOCAL response = FILE();
@@ -139,7 +187,7 @@ WHEN CHANGED(urlMedia(Item item) AND item IS Item) DO posted(media(item)) <- NUL
 //            LOCAL errorText = STRING ();
 //            LOCAL status = STRING ();
 //            LOCAL postedMedia = BOOLEAN (MediaFile);
-//            postedMedia(MediaFile mf) <- TRUE WHERE in(mf) AND NOT posted(mf);
+//            postedMedia(mf) <- TRUE WHERE in(mf) AND NOT posted(mf);
 //
 //            //EXPORT JSON FROM x-Photo-Number = index(MediaFile mf), 'value' = data(mf) WHERE isPostMedia(mf);
 //            fileToString(exportFile(), 'UTF-8');
@@ -152,7 +200,7 @@ WHEN CHANGED(urlMedia(Item item) AND item IS Item) DO posted(media(item)) <- NUL
 //                fileToString(response());
 //                logToFile('WB', resultString());
 //                IF statusHTTP(200) THEN {
-//                    posted(MediaFile mf) <- NULL WHERE postedMedia(mf);
+//                    posted(mf) <- NULL WHERE postedMedia(mf);
 //                }
 //                message() <- messageStatusHTTP(STRING(statusHttp()));
 //            } CATCH {
@@ -186,9 +234,13 @@ FORM item 'Товар'
     PROPERTIES(size) techSize, wbSize, price, skus
     FILTERS in(i, size)
     
-//    OBJECTS mf = MediaFile
-//    PROPERTIES(mf) isPost, index, data
-//    ORDERS index(mf)
+    OBJECTS mf = MediaFile
+//    PROPERTIES(mf) postMediaFile PANEL 
+    PROPERTIES(mf) in, posted, index
+    PROPERTIES(mf) url
+    PROPERTIES(mf) NEW, DELETE
+    ORDERS index(mf)
+    FILTERS item(mf) == i
 
     EDIT Item OBJECT i
 ;
@@ -224,6 +276,9 @@ DESIGN item {
                 }
             }
             MOVE BOX(size);
+            MOVE BOX(mf){
+                caption = 'Медиафайлы по ссылкам';
+            }
         }
     }
     MOVE TOOLBARBOX;
@@ -1185,10 +1240,6 @@ postCartItems 'Получить список карточек товаров в 
 nmIDs = DATA LOCAL STRING(INTEGER);
 data = DATA LOCAL STRING();
 
-FORM importChangesItems
-    PROPERTIES() additionalErrors
-;
-
 postTransferItems 'Перенос карточек товаров в корзину' () {
     NEWSESSION NESTED(in[Item]){
         IF (GROUP SUM 1 IF in(Item item) AND NOT isTrash(item)) THEN {
@@ -1219,7 +1270,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 IF statusHTTP(400) THEN {
-                    IMPORT importChangesItems JSON FROM response();
+                    IMPORT additionalErrors JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Товары не перенесены в корзину: ' + additionalErrors();
                 }
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
@@ -1264,7 +1315,7 @@ postRecoverItems 'Восстановление карточек товаров �
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 IF statusHTTP(400) THEN {
-                    IMPORT importChangesItems JSON FROM response();
+                    IMPORT additionalErrors JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Товары не восстановлены из корзины: ' + additionalErrors();
                 }
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
@@ -1296,6 +1347,7 @@ EXTEND FORM integrationData
     PROPERTIES(item) READONLYIF isReadonly() isTrash, id, name
     PROPERTIES(item) READONLY nmID, imtID, createdStatus
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
+    PROPERTIES(item) postMediaFiles GRID 
     PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(item)
     FILTERS itemSubGroup(item)
