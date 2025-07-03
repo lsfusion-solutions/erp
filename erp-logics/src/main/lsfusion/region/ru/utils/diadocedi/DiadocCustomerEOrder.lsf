@@ -4,6 +4,17 @@ REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrga
 
 NAMESPACE DiadocEDI;
 
+dateStartEDI 'Дата начала работы EDI' = DATA DATE(LegalEntity);
+
+EXTEND FORM legalEntity 
+    PROPERTIES dateStartEDI(l);
+
+DESIGN legalEntity {
+    EDIComm {
+        MOVE PROPERTY (dateStartEDI(l));
+    }
+}
+
 GROUP interchangeHeader;
 GROUP order;
 GROUP contractIdentificator1 EXTID 'contractIdentificator' : order;
@@ -284,6 +295,9 @@ GROUP russianAddress : invoiceerecadv;
 GROUP deliveryInfo1 EXTID 'deliveryInfo': receivingAdvice;
 GROUP ultimateCustomer : deliveryInfo1;
 GROUP lineItemsRECADV EXTID 'lineItems' : receivingAdvice;
+GROUP orderedQuantity;
+GROUP despatchedQuantity;
+GROUP acceptedQuantity;
 
 senderrecadv = DATA LOCAL STRING();
 recipientrecadv = DATA LOCAL STRING();
@@ -304,12 +318,15 @@ gln2recadv = DATA LOCAL STRING();
 namerecadv = DATA LOCAL STRING();
 inn = DATA LOCAL STRING();
 id = DATA LOCAL STRING();
-creationDateTime1 = DATA LOCAL DATETIME();
+unitOfMeasure1 = DATA LOCAL STRING();
+unitOfMeasure2 = DATA LOCAL STRING();
+unitOfMeasure3 = DATA LOCAL STRING();
 
 exportDocument = DATA LOCAL EOrder();
+invoiceEDI = GROUP MAX Purchase.UserInvoice ii IF include[Purchase.UserOrder,UserInvoice](exportDocument(), ii);
 
 FORM recadv FORMEXTID 'eDIMessage'
-    PROPERTIES() nameMessage EXTID 'id' ATTR, currentDateTime EXTID 'creationDateTime' ATTR
+    PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime1 = (toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'creationDateTime' ATTR
     PROPERTIES IN interchangeHeaderrecadv
         senderrecadv = GLNCustomer(exportDocument()) EXTID 'sender',
         recipientrecadv = GLNSupplierStockDiadoc(exportDocument()) EXTID 'recipient',
@@ -318,15 +335,15 @@ FORM recadv FORMEXTID 'eDIMessage'
         isTestrecadv = (IF useTest() THEN '1' ELSE '0') EXTID  'isTest'
     
     PROPERTIES IN originOrderrecadv ATTR
-        numberrecadv = number(exportOrderDocument()) EXTID 'number',
-        daterecadv = toChar(sendDateTime(exportOrderDocument()), 'yyyy-MM-dd') EXTID 'date'
+        numberrecadv = number(exportDocument()) EXTID 'number',
+        daterecadv = toChar(sendDateTime(exportDocument()), 'yyyy-MM-dd') EXTID 'date'
     
-//    PROPERTIES IN despatchIdentificator1 ATTR
-//        number1recadv = (OVERRIDE number(exportDocument()), '') EXTID 'number',
-//        date1recadv = (date(eOrder(exportDocument()))) EXTID 'date'
+    PROPERTIES IN despatchIdentificator1 ATTR
+        number1recadv = number(invoiceEDI()) EXTID 'number',
+        date1recadv = date(invoiceEDI()) EXTID 'date'
 
     PROPERTIES IN sellerrecadv
-        gln = GLNSupplierStockDiadoc(exportOrderDocument()) EXTID 'gln'
+        gln = GLNSupplierStockDiadoc(exportDocument()) EXTID 'gln'
 
     PROPERTIES IN buyerrecadv
         gln1 = GLNCustomer(exportDocument()) EXTID 'gln'
@@ -337,21 +354,27 @@ FORM recadv FORMEXTID 'eDIMessage'
         kpp1 = kpp[Organization](customer(exportDocument())) EXTID 'kpp'
 
     PROPERTIES IN deliveryInfo1
-        requestedDeliveryDateTime = toChar(currentDateTime(), 'yyyy-MM-dd') EXTID 'receptionDateTime'
+        requestedDeliveryDateTime = toChar(currentDate(), 'yyyy-MM-dd') EXTID 'receptionDateTime'
     PROPERTIES IN ultimateCustomer
-        gln1recadv = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
+        gln1recadv = GLNCustomerStock(exportDocument()) EXTID 'gln'
 
     OBJECTS i = EOrderDetail EXTID 'lineItem' IN lineItemsRECADV
     FILTERS order(i) == exportDocument()
-    PROPERTIES  GTINBarcode(i) EXTID 'gtin',
+    PROPERTIES GTINBarcode(i) EXTID 'gtin',
         idBarcode(i) EXTID 'internalBuyerCode',
         internalSupplierCode = idBarcode(i),
         externalProductId = idBarcode(i),
         description = nameSku(i),
-        orderedQuantity = quantity(i),
-        despatchedQuantity = quantityDespatch(despatchAdviceDetail(i)),
-        acceptedQuantity = Purchase.shipped(i),            
         netPrice = price(i),
         amount = invoiceSum(i)
+        PROPERTIES IN orderedQuantity
+            quantity(i) EXTID 'value', 
+            unitOfMeasure1 = extraCodeUOMSku(i) EXTID 'unitOfMeasure' IN orderedQuantity ATTR
+        PROPERTIES IN despatchedQuantity
+            quantityDespatch = quantityDespatch(despatchAdviceDetail(i)) EXTID 'value', 
+            unitOfMeasure2 = extraCodeUOMSku(i) EXTID 'unitOfMeasure' IN despatchedQuantity ATTR
+        PROPERTIES IN acceptedQuantity
+            shipped = Purchase.shipped(i) EXTID 'value',
+            unitOfMeasure3 = extraCodeUOMSku(i) EXTID 'unitOfMeasure' IN acceptedQuantity ATTR
 ;
 
