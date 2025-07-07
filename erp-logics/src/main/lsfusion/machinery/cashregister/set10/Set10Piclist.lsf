@@ -142,31 +142,47 @@ DESIGN integrationData {
     }
 }
 
+overSkipExport = ABSTRACT BOOLEAN (STRING, GroupCashRegister);
 
 FORM exportCSIformAPI
-    PROPERTIES templateType = 'PERMANENT',
-        templateGuid = templateGuid(),
-        cashTemplates = '[' + cashTemplates() + ']'
-    
+    PROPERTIES templateType = 'PERMANENT'
+    OBJECTS templateGuid = STRING PANEL
+    PROPERTIES VALUE(templateGuid) EXTID 'templateGuid'
+
+    OBJECTS cashTemplates = STRING PANEL
+    PROPERTIES VALUE(cashTemplates) EXTID 'cashTemplates'
+
     OBJECTS g = GroupCashRegister EXTID 'menuTemplates'
     PROPERTIES = IF isSet10(g) THEN 'CSI_K' EXTID 'cashType',
         menuName = ('CSI-K ТО ' + idStoreSet(g)),
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
         content = content(customGroupPicList(), stock(g)) EXTID 'content:escapeInnerJSON'
-    FILTERS isSet10(g)
+    FILTERS isSet10(g), NOT overSkipExport(templateGuid, g)
 ;
 
 idStoreSet(DepartmentStore ds) = idStoreSet(GROUP MAX GroupCashRegister g IF isSet10(g) AND stock(g) = ds);
 
-exportCSIAPI 'Экспорт пиклиста CSI' () {
+overFillIn ABSTRACT (STRING);
+
+overListCashTemplates = ABSTRACT STRING (STRING);
+listCashTemplates(STRING templateGuid) = OVERRIDE overListCashTemplates(templateGuid), cashTemplates() IF templateGuid = templateGuid();
+
+overExportCSIAPI ABSTRACT(STRING);
+overExportCSIAPI ABSTRACT();
+
+exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
+    overExportCSIAPI(templateGuid);
+
     IF exportCSIAPIurl() THEN {
         in(Item i, DepartmentStore ds) <- TRUE WHERE currentBalance(i, ds) > 0 AND idStoreSet(ds);
         in(CustomGroup g, DepartmentStore ds) <- TRUE WHERE groupType(g) == customGroupPicList()
             AND GROUP SUM 1 IF isParent(g, Item sku) AND in(sku, ds);
-        
-        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicList() THEN {
-            EXPORT exportCSIformAPI JSON;
 
+        overFillIn(templateGuid);
+
+        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicList() AND NOT overSkipExport(templateGuid, g) THEN {
+            EXPORT exportCSIformAPI OBJECTS templateGuid = templateGuid, cashTemplates = '[' + listCashTemplates(templateGuid) + ']' JSON;
+            fileToString(exportFile());
             timeoutHttp() <- 60000;
             LOCAL result = FILE ();
             LOCAL errorCode = STRING[10] ();
@@ -174,19 +190,25 @@ exportCSIAPI 'Экспорт пиклиста CSI' () {
             EXTERNAL HTTP POST exportCSIAPIurl() PARAMS exportFile() TO result;
             IMPORT JSON FROM result() TO() errorCode, description;
             IF NOT errorCode() THEN {
-               MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
+                MESSAGE 'Пиклист успешно выгружен' NOWAIT ;
             }
             ELSE {
                 MESSAGE CONCAT '\n', 'Ошибка при выполнении запроса API CSI-K (' + errorCode() + ')', description() NOWAIT;
-            } 
+            }
         }
         ELSE {
-           MESSAGE  'Нет данных для выгрузки' NOWAIT ;
+            MESSAGE  'Нет данных для выгрузки' NOWAIT ;
         }
     }
     ELSE
         MESSAGE 'Не указан адресc для API запросов CSI-K (Touch)' NOWAIT;
 }
+
+exportCSIAPI 'Экспорт пиклиста CSI' (){
+    overExportCSIAPI ();
+    exportCSIAPI (templateGuid());
+}
+
 EXTEND FORM groupCashRegister
     PROPERTIES () exportCSIAPI SHOWIF isSet10(grc)
 ;
@@ -237,7 +259,7 @@ CLASS TemporaryTouchElemnt : TouchElement;
 name = DATA STRING[30] (TemporaryTouchElemnt);
 name (TemporaryTouchElemnt t) += name(t);
 int = DATA INTEGER (TemporaryTouchElemnt);
-parent (TouchElement c, INTEGER i) = IF i = 1 THEN c 
+parent (TouchElement c, INTEGER i) = IF i = 1 THEN c
     ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) <= i AND level(t, c);
 parent (Item item, INTEGER i) = IF i = 0 THEN parent(item)
     ELSE GROUP MAX TemporaryTouchElemnt t IF int(t) <= i AND level(t, parent(item))
@@ -252,7 +274,7 @@ order(TemporaryTouchElemnt t) += WHEN t IS TemporaryTouchElemnt THEN 1000;
 
 CLASS StaticTouch{
     topSale 'Топ продаж'
-} : TouchElement;
+    } : TouchElement;
 
 name (StaticTouch t) += ISTRING(staticCaption(t));
 type (StaticTouch t) += 'GT';
@@ -335,7 +357,7 @@ DESIGN groupCashRegister{
 
 exportTouchAPI 'Экспорт пиклиста Touch' () {
     NEWSESSION APPLY {
-        DELETE TemporaryTouchElemnt t WHERE t IS TemporaryTouchElemnt; 
+        DELETE TemporaryTouchElemnt t WHERE t IS TemporaryTouchElemnt;
     }
     IF exportCSIAPIurl() THEN {
 
@@ -387,9 +409,9 @@ exportTouchAPI 'Экспорт пиклиста Touch' () {
         parentLoc(TouchElement i) <-
             parentLevel(i, parent(i)) WHERE i IS Item AND filter(i)
         ;
-        
+
         FOR typePiclistSet10(GroupCashRegister g) = PiclistType.touch AND isSet10(g) AND  customGroupPicList() DO{
-            
+
             fillPicList(stock(g));
             indexExport(TouchElement child, TouchElement parent) <- (PARTITION SUM 1 IF parent(child, parent) AND filter(child) ORDER order(child), indexSet(child, parent), child BY parent(child, parent), parent) - 1;
             indexT1(TouchElement t1) <- (PARTITION SUM 1 IF level(t1) = 1 AND filter(t1) ORDER order(t1), t1);
@@ -397,9 +419,9 @@ exportTouchAPI 'Экспорт пиклиста Touch' () {
 
             fileToString(exportFile());
             content(stock(g)) <- resultString();
-            
+
         }
-        
+
         EXPORT exportTouch2 FILTERS content(stock(g)) JSON;
 
         timeoutHttp() <- 60000;
@@ -426,8 +448,8 @@ META addTilesLevel(lev, par)
         PROPERTIES indexExport(t###lev, t###par) EXTID 'index' ORDER
         FILTERS //level(t###lev) = lev, 
             filter(t###lev), parent(t###lev, t###par)
-        
-;
+
+    ;
 END
 
 @addTilesLevel(2, 1);
