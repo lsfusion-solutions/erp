@@ -1,6 +1,6 @@
 MODULE POSLotBy;
 
-REQUIRE POSLot, LotTypeBy, ZReportBy;
+REQUIRE POSLot, LotTypeBy, ZReportBy, EZLotStatus;
 
 NAMESPACE POS;
 
@@ -77,6 +77,9 @@ FORM gialogBarcode 'Запрос товара'
 DESIGN gialogBarcode {
     REMOVE PROPERTY (formOk());
 }
+
+@defineOption(checkLotStatusOnCreate, 'Проверять статус для марок создаваемых при продаже', pos);
+
 checkCreateLot(STRING[200] str, Receipt r) + {
     FOR Sku sk = skuFromGtin(idToGtin(str)) AND DepartmentStore dt = departmentStore(r) DO {
         IF (explicitLot(sk) OR overExplicitLot(sk, dt)) AND NOT (overSkipCheckSkuPosLot(sk) OR skipCheckPosLot() OR overSkipCheckPosLot(r)) 
@@ -92,6 +95,20 @@ checkCreateLot(STRING[200] str, Receipt r) + {
                 id(l) <- barcodeToId(str);
                 tail(l) <- barcodeToTail(str);
                 sku(l) <- skuLot();
+                IF NOT tail(l) OR tail(l) == '' THEN {
+                    DELETE l;
+                    MESSAGE 'Некорректная марка' NOWAIT;
+                    RETURN;
+                }
+                IF checkLotStatusOnCreate() THEN {
+                    getStatus(l);
+                    IF NOT status(l) THEN {
+                        DELETE l;
+                        MESSAGE 'Некорректная марка' NOWAIT;
+                        RETURN;
+                    }
+                }
+                
             }
         }
     }
@@ -131,6 +148,19 @@ overCreateReturn(ReceiptReturnDetail d) + {
                 id(l) <- barcodeToId(lot());
                 tail(l) <- barcodeToTail(lot());
                 sku(l) <- skuFromGtin(idToGtin(lot()));
+                IF NOT tail(l) OR tail(l) == '' THEN {
+                    DELETE l;
+                    MESSAGE 'Некорректная марка' NOWAIT;
+                    RETURN;
+                }
+                IF checkLotStatusOnCreate() THEN {
+                    getStatus(l);
+                    IF NOT status(l) THEN {
+                        DELETE l;
+                        MESSAGE 'Некорректная марка' NOWAIT;
+                        RETURN;
+                    }
+                }
             }
             FOR (Lot l = lot(barcodeToId(lot())) OR l = customLot(lot())) AND sku(d) = sku(l) DO {
                 lot(d) <- l;
