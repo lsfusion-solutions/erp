@@ -207,3 +207,19 @@ DESIGN POS {
 overExplicitLot(Sku sk, DepartmentStore dt) += controlLot(lotType(sk)) AND dt IS DepartmentStore;
 overSkipCheckSkuPosLot (Sku sk) += TRUE IF lotType(sk)==LotType.clothes AND customsGroup(defaultCountry(), sk) AND NOT isSuitableTNVEDClothes(sk);
 skipShowLot (ReceiptDetail d) += TRUE IF lotType(sku(d))==LotType.clothes AND customsGroup(defaultCountry(), sku(d)) AND NOT isSuitableTNVEDClothes(sku(d));
+
+skipCheckPosLot 'Разрешить продажу без марки' = DATA BOOLEAN (Receipt);
+overSkipCheckPosLot(Receipt r) += skipCheckPosLot(r);
+
+
+@addRoleApplicationSetting(allowSkipCheckPosLot, 'Разрешать продажу без марки в чеке', BOOLEAN);
+
+EXTEND FORM POS
+    PROPERTIES(r) skipCheckPosLot SHOWIF allowSkipCheckPosLot(mainRole(currentUser()))
+;
+
+DESIGN POS {
+    GROUP(receiptSaleAction,r) {
+        MOVE PROPERTY (skipCheckPosLot(r));
+    }
+}
