@@ -11,13 +11,17 @@ item (id) = GROUP AGGR Item i BY id(i);
 nmID 'Артикул WB' = DATA INTEGER (Item);
 imtID 'Внутренний код WB' = DATA INTEGER (Item);
 name 'Наименование' = DATA STRING (Item) NONULL IN id;
+description 'Описание' = DATA STRING (Item);
 unitName 'Ед.измерения' = DATA STRING (Item);
 itemSubGroup = DATA ItemSubGroup (Item) NONULL DELETE;
 nameItemSubGroup 'Предмет' (Item i) = name(itemSubGroup(i));
 nameItemGroup 'Категория' (Item i) = name(itemGroup(itemSubGroup(i)));
+idItemGroup 'Код категории' (Item i) = id(itemGroup(itemSubGroup(i)));
 freeItemLimits 'Бесплатный лимит' = DATA STRING ();
 paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
+error 'Ошибка' = DATA BOOLEAN (Item);
+errorText 'Текст ошибки' = DATA STRING (Item);
 in 'Вкл.' = DATA LOCAL BOOLEAN (Item);
 
 length 'Длина, см' = DATA INTEGER (Item);
@@ -217,12 +221,23 @@ postMediaFiles 'Загрузить медиафайл по ссылкам' (Item
 //    }
 //}
 
+addSize 'Добавить' (Item i) {
+    NEW s = Size {
+        in(i, s) <- TRUE;
+    }
+}
+
+deleteSize 'Удалить' (Item i, Size s) {
+    delete(s);
+}
+
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
-    PROPERTIES(i) id, name
+    PROPERTIES(i) id, name, description
     PROPERTIES(i) READONLY nmID, imtID, createdStatus
     PROPERTIES(i) length, width, height, weightBrutto
     PROPERTIES(i) nameItemGroup, nameItemSubGroup, isTrash
+    PROPERTIES(i) error, errorText SHOWIF error(i)
     ORDERS name(i)
 
     OBJECTS attr = Attribute
@@ -232,6 +247,7 @@ FORM item 'Товар'
     
     OBJECTS size = Size
     PROPERTIES(size) techSize, wbSize, price, skus
+    PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
     FILTERS in(i, size)
     
     OBJECTS mf = MediaFile
@@ -253,6 +269,7 @@ DESIGN item {
             lines = 2;
             MOVE PROPERTY(id(i));
             MOVE PROPERTY(name(i));
+            MOVE PROPERTY(description(i));
             MOVE PROPERTY(nmID(i));
             MOVE PROPERTY(imtID(i));
             MOVE PROPERTY(nameItemGroup(i));
@@ -263,6 +280,12 @@ DESIGN item {
             MOVE PROPERTY(width(i));
             MOVE PROPERTY(height(i));
             MOVE PROPERTY(weightBrutto(i));
+            NEW error {
+                horizontal = TRUE;
+                align = STRETCH;
+                MOVE PROPERTY(error(i));
+                MOVE PROPERTY(errorText(i)) { align = STRETCH; }
+            }
         }
         NEW containerItemDetail {
             tabbed = TRUE;
@@ -458,7 +481,7 @@ DESIGN attributeNumeric {
 
 FORM dialogItem 'Список товаров'
     OBJECTS i = Item PANEL
-    PROPERTIES(i) READONLY id, name, nameItemGroup, nameItemSubGroup
+    PROPERTIES(i) READONLY id, name, nameItemGroup, nameItemSubGroup, description
 
     LIST Item OBJECT i
 ;
@@ -830,7 +853,7 @@ in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, ItemAttribute);
 
 unitName = DATA LOCAL STRING(INTEGER);
 charcID = DATA LOCAL STRING (INTEGER);
-charcType = DATA LOCAL STRING (INTEGER);
+charcType = DATA LOCAL INTEGER (INTEGER);
 maxCount = DATA LOCAL STRING (INTEGER);
 popular = DATA LOCAL STRING(INTEGER);
 required = DATA LOCAL STRING(INTEGER);
@@ -882,11 +905,13 @@ getItemAttribute 'Получить характеристики предмета
                     }
                     WHEN lower(name(i))=='тнвэд' THEN NEW as = AttributeTnved {
                         id(as) <- charcID;
-                    } ELSE {
-                    NEW as = AttributeString {
+                    } 
+                    WHEN charcType(i) == 1 THEN NEW as = AttributeString {
                         id(as) <- charcID;
                     }
-                }
+                    ELSE NEW as = AttributeNumeric {
+                        id(as) <- charcID;
+                    }
 
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO {
                     in(sg, as) <- TRUE;
@@ -947,11 +972,14 @@ getItemAttribute 'Получить характеристики предмето
                         }
                         WHEN lower(name(i)) == 'тнвэд' THEN NEW as = AttributeTnved {
                             id(as) <- charcID;
-                        } ELSE {
-                        NEW as = AttributeString {
+                        }
+                        WHEN charcType(i) == 1 THEN NEW as = AttributeString {
                             id(as) <- charcID;
                         }
-                    }
+                        ELSE NEW as = AttributeNumeric {
+                            id(as) <- charcID;
+                        }
+                    
 
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY charcID(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO {
                     in(sg, as) <- TRUE;
@@ -1157,8 +1185,12 @@ postItems 'Получить список карточек товаров' () {
                         }
                         WHEN as IS AttributeTnved THEN {
                             value[Item, AttributeTnved](item, as) <- tnved(charcID);
-                        } ELSE {
-                        value[Item, AttributeString](item, as) <- value(ii);
+                        }
+                        WHEN as IS AttributeNumeric THEN {
+                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(ii));
+                        }
+                        ELSE {
+                            value[Item, AttributeString](item, as) <- value(ii);
                         }                 
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -1221,9 +1253,13 @@ postCartItems 'Получить список карточек товаров в 
                         }
                         WHEN as IS AttributeTnved THEN {
                             value[Item, AttributeTnved](item, as) <- tnved(charcID);
-                        } ELSE {
-                        value[Item, AttributeString](item, as) <- value(ii);
-                    }
+                        }
+                        WHEN as IS AttributeNumeric THEN {
+                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(ii));
+                        }
+                        ELSE {
+                            value[Item, AttributeString](item, as) <- value(ii);
+                        }
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
@@ -1344,7 +1380,7 @@ EXTEND FORM integrationData
     PROPERTIES() getItemLimits, postItems, postCartItems, postTransferItems, postRecoverItems
     OBJECTS item = Item
     PROPERTIES(item) in
-    PROPERTIES(item) READONLYIF isReadonly() isTrash, id, name
+    PROPERTIES(item) READONLYIF isReadonly() isTrash, error, id, name
     PROPERTIES(item) READONLY nmID, imtID, createdStatus
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
     PROPERTIES(item) postMediaFiles GRID 
@@ -1459,3 +1495,144 @@ DESIGN integrationData {
 //        }
 //    }
 //}
+
+GROUP value;
+GROUP dimensions1 EXTID 'dimensions';
+
+valueVariants = DATA LOCAL INTEGER(INTEGER);
+variantsCharacteristics = DATA LOCAL INTEGER(INTEGER);
+value1 = DATA LOCAL STRING(INTEGER);
+characteristicsValue1 = DATA LOCAL INTEGER(INTEGER);
+variantsSizes = DATA LOCAL INTEGER(INTEGER);
+wbSize = DATA LOCAL STRING(INTEGER);
+
+FORM uploadItems
+    OBJECTS g = ItemSubGroup 
+    PROPERTIES subjectID = INTEGER(id(g))
+    FILTERS (GROUP SUM 1 IF in(Item ii) AND itemSubGroup(ii) == g)
+    
+    OBJECTS i = Item EXTID 'variants'
+    PROPERTIES(i) id EXTID 'vendorCode', 
+                  name EXTID 'title',
+                  description EXTID 'description'
+    PROPERTIES(i) IN dimensions1 length EXTID 'length',
+                                 width EXTID 'width',
+                                 height EXTID 'height',
+                                 weightBrutto EXTID 'weightBrutto'
+    FILTERS in(i),
+            itemSubGroup(i) == g
+    
+    OBJECTS a = Attribute EXTID 'characteristics'
+    PROPERTIES id = INTEGER(id(a)) EXTID 'id',
+               valueString = value[Item, Attribute](i, a) IF NOT a IS AttributeNumeric EXTID 'value',
+               valueNumeric = value[Item, AttributeNumeric](i, a) EXTID 'value'
+    FILTERS value(i, a)
+
+    OBJECTS size = Size EXTID 'sizes'
+    PROPERTIES(size) techSize EXTID 'techSize', 
+                     wbSize EXTID 'wbSize', 
+                     price EXTID 'price', 
+                     skus EXTID 'skus'
+    FILTERS in(i, size)
+;
+
+updateAt = DATA LOCAL STRING(INTEGER);
+errors = DATA LOCAL STRING(INTEGER);
+dataErrors = DATA LOCAL INTEGER(INTEGER);
+objectID = DATA LOCAL NUMERIC(INTEGER);
+object = DATA LOCAL STRING(INTEGER);
+
+FORM checkErrors
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) updateAt, objectID, object, vendorCode
+    FILTERS imported(data)
+
+    OBJECTS errors = INTEGER
+    PROPERTIES(errors) errors EXTID 'value'
+    FILTERS imported(errors)
+    FILTERS dataErrors(errors) == data;
+
+checkErrors 'Проверить ошибки' () {
+    setHttpHeadersIS();
+    
+    FOR error(Item i) DO {
+        error(i) <- NULL;
+        errorText(i) <- NULL;
+    }
+
+    logToFile('WB', 'GET: ' +url(CategoryRequest.content) + '/content/v2/cards/error/list');
+    
+    LOCAL response = FILE();
+    LOCAL message = STRING ();
+    
+    TRY {
+        EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
+        fileToString(response());
+        logToFile('WB', resultString());
+
+        IMPORT checkErrors JSON FROM response();
+        FOR imported(INTEGER i) AND item(vendorCode(i)) DO {
+            error(item(vendorCode(i))) <- TRUE;
+            errorText(item(vendorCode(i))) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) ==i, ', ' ORDER j;
+        }
+
+        message() <- messageStatusHTTP(STRING(statusHttp()));
+    } CATCH {
+        logToFile('WB', messageCaughtException());
+        message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+    } FINALLY {
+        afterSendRequestIS();
+        MESSAGE message() NOWAIT;
+        APPLY;
+    }
+}
+
+uploadItems 'Создание новых карточек' () {
+    NEWSESSION NESTED (in[Item]) {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
+
+        EXPORT uploadItems JSON;
+
+        fileToString(exportFile());
+        resultString() <- replace(resultString(), '"g":', '');
+        FOR in(Item i, Size s) AND in(i) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+        resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
+        stringToFile(resultString(), 'UTF-8', 'json');
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/upload' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            
+            
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+
+        checkErrors();
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES uploadItems();
+
+DESIGN integrationData {
+    actionContainer {
+        MOVE PROPERTY (uploadItems());
+    }
+}
