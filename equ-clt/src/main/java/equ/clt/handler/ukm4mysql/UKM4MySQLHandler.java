@@ -1049,7 +1049,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         if (!stopListInfo.exclude) {
 
             for (String directory : HandlerUtils.getDirectorySet(machinerySet)) {
@@ -1145,6 +1145,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
 
             }
         }
+        return null;
     }
 
     @Override

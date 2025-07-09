@@ -414,7 +414,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         if (!stopListInfo.exclude) {
             Document doc = generateStopListXML(stopListInfo);
@@ -439,6 +439,7 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
             }
 
         }
+        return null;
     }
 
     private Document generateStopListXML(StopListInfo stopListInfo) {

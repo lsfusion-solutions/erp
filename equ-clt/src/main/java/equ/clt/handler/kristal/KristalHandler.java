@@ -8,6 +8,7 @@ import equ.api.stoplist.StopListInfo;
 import equ.api.stoplist.StopListItem;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -732,7 +733,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
 
         if (!stopListInfo.exclude) {
             processStopListLogger.info("Kristal: Send StopList # " + stopListInfo.number);
@@ -773,6 +774,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 }
             }
         }
+        return null;
     }
 
     @Override

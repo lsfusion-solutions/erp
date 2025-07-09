@@ -2104,7 +2104,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
         Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
         boolean exportExtraTables = astronSettings.isExportExtraTables();
@@ -2181,6 +2181,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 }
             }
         }
+        return null;
     }
 
     private Integer getStopListUpdateNum(StopListInfo stopList, boolean versionalScheme, Map<String, Integer> processedUpdateNums, Map<String, Integer> inputUpdateNums, String tbl) {

@@ -5,6 +5,7 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
 import equ.clt.handler.HandlerUtils;
+import lsfusion.base.Pair;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteUtils;
 import org.apache.commons.io.FileUtils;
@@ -412,7 +413,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
         Set<String> directorySet = HandlerUtils.getDirectorySet(machinerySet);
         //из-за временного решения с весовыми товарами для этих весовых товаров стоп-листы работать не будут
         processStopListLogger.info(getLogPrefix() + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
@@ -461,6 +462,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                 }
             }
         }
+        return null;
     }
 
     @Override

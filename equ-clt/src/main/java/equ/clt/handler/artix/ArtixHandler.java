@@ -285,7 +285,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
         Set<String> directorySet = HandlerUtils.getDirectorySet(machineryInfoSet);
         processStopListLogger.info(logPrefix + "Send StopList # " + stopListInfo.number + " to " + directorySet.size() + " directories.");
         if (!stopListInfo.exclude) {
@@ -311,8 +311,20 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                 files.add(fileWithFlag.first);
                 files.add(fileWithFlag.second);
             }
-            waitForDeletion(files, timeout);
+            Set<String> failedStockSet = new HashSet<>();
+            String error = waitForDeletion(files, timeout, false);
+            for (File file : files) {
+                String directory = file.getParent();
+                for(MachineryInfo machinery : machineryInfoSet) {
+                  CashRegisterInfo cashRegister = (CashRegisterInfo) machinery;
+                  if(cashRegister.directory != null && cashRegister.directory.equals(directory)) {
+                      failedStockSet.add(cashRegister.idDepartmentStore);
+                  }
+                }
+            }
+            return Pair.create(error, failedStockSet);
         }
+        return null;
     }
 
     public void writeFileAndWait(String directory, String copyDirectory, File tmpFile, Integer timeout, Logger logger) throws IOException {
@@ -1060,7 +1072,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
         }
     }
 
-    private void waitForDeletion(List<File> files, int timeout) {
+    private String waitForDeletion(List<File> files, int timeout, boolean throwException) {
         int count = 0;
         while (!Thread.currentThread().isInterrupted() && !files.isEmpty()) {
 
@@ -1068,14 +1080,18 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
             try {
                 count++;
-                if (count >= timeout)
-                    throw new RuntimeException(String.format(logPrefix + "file(s) %s has been created but not processed by server", files.stream().map(File::getAbsolutePath).collect(Collectors.joining(","))));
-                else
+                if (count >= timeout) {
+                    String error = String.format(logPrefix + "file(s) %s has been created but not processed by server", files.stream().map(File::getAbsolutePath).collect(Collectors.joining(",")));
+                    if (throwException) {
+                        throw new RuntimeException(error);
+                    } else return error;
+                } else
                     Thread.sleep(1000);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
         }
+        return null;
     }
 
     @Override
@@ -2169,7 +2185,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                     files.add(fileWithFlag.first);
                     files.add(fileWithFlag.second);
 
-                    waitForDeletion(files, timeout);
+                    waitForDeletion(files, timeout, true);
                 } catch (Exception e) {
                     throw Throwables.propagate(e);
                 }

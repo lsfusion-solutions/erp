@@ -8,6 +8,7 @@ import equ.clt.EquipmentServer;
 import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import lsfusion.base.BaseUtils;
+import lsfusion.base.Pair;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -194,7 +195,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
     }
     
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
         if (!stopListInfo.exclude) {
 
             EQSSettings eqsSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
@@ -250,6 +251,7 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch, CashDo
                 }
             }
         }
+        return null;
     }
 
     @Override

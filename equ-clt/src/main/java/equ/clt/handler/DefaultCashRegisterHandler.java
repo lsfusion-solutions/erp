@@ -3,6 +3,7 @@ package equ.clt.handler;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.api.stoplist.StopListInfo;
+import lsfusion.base.Pair;
 import org.apache.log4j.Logger;
 import org.json.JSONObject;
 
@@ -114,8 +115,8 @@ public abstract class DefaultCashRegisterHandler<S extends SalesBatch, C extends
     }
 
     @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
-
+    public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) throws IOException {
+        return null;
     }
 
     @Override

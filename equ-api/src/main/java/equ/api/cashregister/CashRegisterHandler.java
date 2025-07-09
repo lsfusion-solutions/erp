@@ -2,6 +2,7 @@ package equ.api.cashregister;
 
 import equ.api.*;
 import equ.api.stoplist.StopListInfo;
+import lsfusion.base.Pair;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -14,7 +15,7 @@ import java.util.Set;
 
 public abstract class CashRegisterHandler<S extends SalesBatch, C extends CashDocumentBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
-    public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException;
+    public abstract Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException;
 
     public abstract boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo);
 
