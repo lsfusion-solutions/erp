@@ -11,25 +11,18 @@ NAMESPACE Purchase;
 
 importerMarkup(InvoicePricingDetail detail) += importerMarkup(invoiceDetail(detail));
 
-useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
-
-//WHEN LOCAL FORMS userInvoice 
-//             (CHANGED(customerStock(UserInvoiceDetail detail)) OR
-//              CHANGED(sku(detail)) OR 
-//              SET(showLimitPrice(detail)))
-//             AND showLimitPrice(detail) DO {
-//    limitMarkup(detail) <- OVERRIDE markup(priceLimitPriceListType(customerStock(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail);
-//}
+basePriceLimitPriceListType = ABSTRACT CalcPriceListType ();
+priceLimitPriceListType(UserInvoiceDetail detail) = OVERRIDE priceLimitPriceListType(customerStock(detail)), basePriceLimitPriceListType();
 
 WHEN LOCAL FORMS userInvoice
     (CHANGED(customerStock(UserInvoiceDetail detail)) OR
         CHANGED(sku(detail)) OR
         CHANGED(importerMarkup(detail)) OR
         SET(showLimitPrice(detail)))
-        AND showLimitPrice(detail)  DO {
+        AND showLimitPrice(detail) DO {
 
     limitMarkup(detail) <- [floor(((100.0 + X)/(100 + Z)-1.0)*100.0, 0.01)](
-            (OVERRIDE markup(priceLimitPriceListType(customerStock(detail)), sku(detail)), limitMarkupValue() IF useLimitMarkupValue(detail)),
+            markup(priceLimitPriceListType(detail), sku(detail)),
             (OVERRIDE importerMarkup(detail), 0.0));
 
 }
@@ -70,7 +63,7 @@ limitMarkupPrice (UserInvoiceDetail d) =
                                                 [ (X+Y)*(Z+100.0)/100.0](
                                                     limitBasePrice(d),
                                                     limitMarkup(d),
-                                                    valueRetailVAT(d)), roundCondition(priceLimitPriceListType(customerStock(d)), sku(d)));
+                                                    valueRetailVAT(d)), roundCondition(priceLimitPriceListType(d), sku(d)));
 
 limitPrice = ABSTRACT CASE NUMERIC[16,4] (InvoiceDetail);
 limitPrice (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN round(
@@ -78,7 +71,7 @@ limitPrice (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN r
                                                     limitBasePrice(detail),
                                                     limitMarkup(detail),
                                                     retailExtraPackagingCost(detail),
-                                                    valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
+                                                    valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(detail), sku(detail)));
 
 //WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
 //            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
