@@ -37,6 +37,7 @@ createdStatus 'Статус' (Item item) = CASE
 
 CLASS Size 'Размер';
 
+chrtID 'ID размера' = DATA INTEGER (Size);
 techSize 'Размер' = DATA STRING (Size);
 wbSize 'Российский размер' = DATA STRING (Size);
 price 'Цена' = DATA INTEGER (Size);
@@ -246,7 +247,7 @@ FORM item 'Товар'
     ORDERS notNull DESC, name(attr)
     
     OBJECTS size = Size
-    PROPERTIES(size) techSize, wbSize, price, skus
+    PROPERTIES(size) chrtID, techSize, wbSize, price, skus
     PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
     FILTERS in(i, size)
     
@@ -906,7 +907,7 @@ getItemAttribute 'Получить характеристики предмета
                     WHEN lower(name(i))=='тнвэд' THEN NEW as = AttributeTnved {
                         id(as) <- charcID;
                     } 
-                    WHEN charcType(i) == 1 THEN NEW as = AttributeString {
+                    WHEN charcType(i) == 1 OR charcType(i) == 0 THEN NEW as = AttributeString {
                         id(as) <- charcID;
                     }
                     ELSE NEW as = AttributeNumeric {
@@ -1166,7 +1167,7 @@ postItems 'Получить список карточек товаров' () {
                 width(item) <- width(i);
                 height(item) <- height(i);
                 weightBrutto(item) <- weightBrutto(i);
-                FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF characteristicsValue(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
                     CASE
                         WHEN as IS AttributeColor THEN {
                             value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(ii);
@@ -1636,3 +1637,79 @@ DESIGN integrationData {
         MOVE PROPERTY (uploadItems());
     }
 }
+
+toUpdateWB = DATA BOOLEAN (Item);
+
+WHEN (CHANGED(nmID(Item i)) OR CHANGED(id(i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
+    CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
+    (GROUP SUM 1 IF in(i, Size s) AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
+    (GROUP SUM 1 IF SET(in(i, Size s)))) AND NOT SET(i IS Item) DO {
+        toUpdateWB(i) <- TRUE;
+}
+
+FORM updateItem
+    OBJECTS i = Item PANEL
+    PROPERTIES(i)
+        nmID EXTID 'nmID',
+        id EXTID 'vendorCode',
+        name EXTID 'title',
+        description EXTID 'description'
+    PROPERTIES(i) IN dimensions1 length EXTID 'length',
+        width EXTID 'width',
+        height EXTID 'height',
+        weightBrutto EXTID 'weightBrutto'
+
+    OBJECTS a = Attribute EXTID 'characteristics'
+    PROPERTIES id = INTEGER(id(a)) EXTID 'id',
+        valueString = value[Item, Attribute](i, a) IF NOT a IS AttributeNumeric EXTID 'value',
+        valueNumeric = value[Item, AttributeNumeric](i, a) EXTID 'value'
+    FILTERS value(i, a)
+
+    OBJECTS size = Size EXTID 'sizes'
+    PROPERTIES(size)
+        chrtID EXTID 'chrtID',
+        techSize EXTID 'techSize',
+        wbSize EXTID 'wbSize',
+        skus EXTID 'skus'
+    FILTERS in(i, size)
+;
+
+updateItem 'Обновить карточку товара' (Item i) {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/update');
+
+        EXPORT updateItem OBJECTS i = i JSON;
+
+        fileToString(exportFile());
+        resultString() <- '[' + resultString() + ']';
+        FOR in(i, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+        stringToFile(resultString(), 'UTF-8', 'json');
+
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/update' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+
+        checkErrors();
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND toUpdateWB(item);
