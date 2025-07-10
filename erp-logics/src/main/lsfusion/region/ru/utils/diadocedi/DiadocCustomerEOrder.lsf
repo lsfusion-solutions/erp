@@ -165,7 +165,6 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             totalPackageQuantity = packQuantityOrderDetail(exportOrderDocument())
 
         OBJECTS i = EOrderDetail EXTID 'lineItem' IN lineItems
-        FILTERS order(i) == exportOrderDocument()    
             PROPERTIES  GTINBarcode(i) EXTID 'gtin',
             idSku(i) EXTID 'internalBuyerCode', 
             internalSupplierCode = idSku(i),   
@@ -175,8 +174,9 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))), ''),
             amount = invoiceSum(i)
         PROPERTIES IN requestedQuantity 
-            quantity(i) EXTID 'value', unitOfMeasure = extraCodeUOMSku(i) IN requestedQuantity ATTR               
-    
+            quantity(i) EXTID 'value', unitOfMeasure = extraCodeUOMSku(i) IN requestedQuantity ATTR
+        FILTERS order(i) == exportOrderDocument(), quantity(i) > 0
+
 ;
 
 /////////------------------- ordrsp
@@ -315,7 +315,6 @@ date1recadv = DATA LOCAL DATE();
 number2recadv = DATA LOCAL STRING();
 glnrecadv = DATA LOCAL STRING();
 glnrecadv1 = DATA LOCAL STRING();
-taxSystemrecadv = DATA LOCAL STRING();
 gln1recadv = DATA LOCAL STRING();
 gln2recadv = DATA LOCAL STRING();
 namerecadv = DATA LOCAL STRING();
@@ -369,14 +368,13 @@ FORM recadv FORMEXTID 'eDIMessage'
         gln1recadv = GLNCustomerStock(exportDocument()) EXTID 'gln'
 
     OBJECTS i = EOrderDetail EXTID 'lineItem' IN lineItemsRECADV
-    FILTERS order(i) == exportDocument()
-    PROPERTIES GTINBarcode(i) EXTID 'gtin',
-        idBarcode(i) EXTID 'internalBuyerCode',
-        internalSupplierCode = idBarcode(i),
-        externalProductId = idBarcode(i),
-        description = nameSku(i),
-        netPrice = price(i),
-        amount = invoiceSum(i)
+        PROPERTIES GTINBarcode(i) EXTID 'gtin',
+            idBarcode(i) EXTID 'internalBuyerCode',
+            internalSupplierCode = idBarcode(i),
+            externalProductId = idBarcode(i),
+            description = nameSku(i),
+            netPrice = price(i),
+            amount = invoiceSum(i)
         PROPERTIES IN orderedQuantity
             quantity(i) EXTID 'value', 
             unitOfMeasure1 = extraCodeUOMSku(i) EXTID 'unitOfMeasure' IN orderedQuantity ATTR
@@ -386,5 +384,6 @@ FORM recadv FORMEXTID 'eDIMessage'
         PROPERTIES IN acceptedQuantity
             shipped = Purchase.shipped(i) EXTID 'value',
             unitOfMeasure3 = extraCodeUOMSku(i) EXTID 'unitOfMeasure' IN acceptedQuantity ATTR
+    FILTERS order(i) == exportDocument()
 ;
 
