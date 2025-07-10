@@ -5,16 +5,16 @@ REQUIRE ProductionOrder;
 NAMESPACE Production;
 
 productDetail = DATA ProductDetail(ComponentDetail) INDEXED;
-
 skipProductDetail = ABSTRACT VALUE BOOLEAN (ProductDetail); // разрубы и т.п.
 overFillPrice(ProductDetail pd) + { 
     productDetail(ComponentDetail cd) <- pd WHERE order(pd)==order(cd) AND BOM(pd) == BOM(cd) AND NOT skipProductDetail(pd);
 }
+descriptionGoods 'Строка изделия' (ProductDetail cd) = CONCAT  ' ', 'Позиция: '+index(cd), nameProduct(cd) CHARWIDTH 20;
+descriptionProductDetailGoods 'Строка изделия' (ComponentDetail cd) = descriptionGoods(productDetail(cd)) CHARWIDTH 20;
 
-descriptionProductDetailGoods 'Строка изделия' (ComponentDetail cd) = CONCAT  ' ', 'Позиция: '+index(productDetail(cd)), nameProduct(productDetail(cd)) CHARWIDTH 20;
-
+editDescriptionProductDetailGoods = ABSTRACT BOOLEAN (Order);
 EXTEND FORM order
-    PROPERTIES (cd) READONLY descriptionProductDetailGoods
+    PROPERTIES (cd)  READONLYIF (NOT editDescriptionProductDetailGoods(o)) descriptionProductDetailGoods
 ;
 EXTEND FORM orders
     PROPERTIES (cd) READONLY descriptionProductDetailGoods
