@@ -48,6 +48,19 @@ EXTEND FORM options
     PROPERTIES (s) priorityIntraDemand
 ;
 
+isDistributive 'Распределительный' = DATA BOOLEAN (Warehouse);
+countIsDistributiveWarehouse = GROUP SUM 1 IF isDistributive(Warehouse w);
+
+EXTEND FORM warehouse
+    PROPERTIES (w) isDistributive
+;
+
+DESIGN warehouse {
+    headerMainParams {
+        MOVE PROPERTY (isDistributive(w));
+    }
+}
+
 filterDemand(Stock ds) = active(ds) AND ds IS DepartmentStore;
 
 inDemand 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
@@ -193,7 +206,8 @@ recalculateNumberSkuToOrder 'Обновить' (Warehouse st, DATE df, DATE dt) 
 FORM saleDemandIntraDashboard 'Распределение со склада'
     OBJECTS st = Warehouse PANEL
     PROPERTIES (st) SELECTOR name
-    FILTERS isCompany(st)
+    FILTERS isCompany(st),
+            isDistributive(st) OR NOT countIsDistributiveWarehouse()
 
     OBJECTS dateFrom = DATE PANEL
     PROPERTIES valDateFrom = VALUE(dateFrom)
@@ -307,7 +321,7 @@ DESIGN saleDemandIntraDashboard {
                 NEW right {
                     fill = 2.5;
                     MOVE BOX(ds) {
-                        caption = 'Магазин';
+                        caption = 'Отделы магазинов';
                     }
                 }
             }
