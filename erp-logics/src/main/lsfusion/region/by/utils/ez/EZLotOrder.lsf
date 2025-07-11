@@ -1,6 +1,6 @@
 MODULE EZLotOrder;
 
-REQUIRE EZLotStatus, LotOrder, LotBy, CustomsGroupItem;
+REQUIRE EZLotStatus, LotOrder, LotBy, CustomsGroupItem, EZTypography;
 
 NAMESPACE EZ;
 
@@ -106,8 +106,6 @@ FORM addItemsEZ 'Добавление товара по GTIN'
 
 exception 'Сообщение' = DATA TEXT (LotOrder);
 
-
-
 handleException (LotOrder o, FILE exception, STRING[14] gtin) {
     logToFile('ez', messageCaughtException());
     
@@ -130,7 +128,6 @@ handleException (LotOrder o, FILE exception) {
 }
 
 findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
-
     foundGtin(INTEGER i) <- NULL;
 
     EXPORT JSON FROM search = gtin;         
@@ -283,11 +280,19 @@ DESIGN lotOrders {
 idOrderExt (LotOrder o, STRING[14] gtin) = idOrderEZ (GROUP MIN LotOrderDetail d IF o == lotOrder(d) AND gtin(d) == gtin);
 identificationMeansType 'Вид средства идентификации' = DATA IdentificationMeansType (LotOrder) NONULL;
 
+typography = DATA Typography(LotOrder);
+nameTypography 'Типография' (LotOrder o) = name(typography(o));
+idTypography 'Типография' (LotOrder o) = id(typography(o));
+typographyContract 'Договор типографии' = DATA STRING (LotOrder);
+
 listidOrderEZ (LotOrder o)= GROUP CONCAT STRING(idOrderExt (o, STRING[14] gtin)), ', ' ORDER gtin;
 
 listGTINJSON100 (LotOrder o, INTEGER i) = 
     GROUP CONCAT STRING(CONCAT '','"', (STRING[14] gtin), '": \{ "count": ', INTEGER(quantity(o, gtin)), ', ',
-        '"label_type": ', id(identificationMeansType(o)), ' \}'), ', ' 
+        '"label_type": ', id(identificationMeansType(o)),
+        ', "typography_id": ' + idTypography(o),
+        ', "typographyContract": ' + typographyContract(o),
+        ' \}'), ', ' 
         IF quantity(o, gtin) AND indexGtin100(o, gtin) == i AND NOT idOrderExt(o, gtin) ORDER gtin;
                                               
 addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + codeGroup(type(o)) + '", ' + 
@@ -643,13 +648,21 @@ CONSTRAINT (SETCHANGED(sku(LotOrderDetail d)) OR SETCHANGED(type(lotOrder(d)))) 
 
 nameIdentificationMeansType 'Вид средства идентификации' (LotOrder o) = name(identificationMeansType(o));
 
-EXTEND FORM lotOrder
-    PROPERTIES(o) nameIdentificationMeansType
-    PROPERTIES(d) READONLY AFTER idOrderEZ(d) nameStatus
+EXTEND FORM lotOrders
+    PROPERTIES(o) READONLY BEFORE nameType(o) nameIdentificationMeansType, nameTypography, typographyContract
 ;
 
-EXTEND FORM lotOrders
-    PROPERTIES(o) READONLY BEFORE nameType(o) nameIdentificationMeansType
+changeTypography(LotOrder o) {
+    importTypographyEZ(token(legalEntityStock(o)));
+    
+    DIALOG typographies OBJECTS t INPUT NULL DO {
+        typography(o) <- t;
+    }
+}
+
+EXTEND FORM lotOrder
+    PROPERTIES(o) nameIdentificationMeansType, nameTypography ON CHANGE changeTypography(o), typographyContract
+    PROPERTIES(d) READONLY AFTER idOrderEZ(d) nameStatus
 ;
 
 DESIGN lotOrder { 
@@ -657,6 +670,8 @@ DESIGN lotOrder {
         MOVE PROPERTY(nameIdentificationMeansType(o)) { notNull = TRUE; };
         MOVE PROPERTY(nameType(o)) { notNull = TRUE; };
         MOVE PROPERTY(nameStock(o)) { notNull = TRUE; };
+        MOVE PROPERTY(nameTypography(o));
+        MOVE PROPERTY(typographyContract(o));
     }
 }
 

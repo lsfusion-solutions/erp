@@ -1,0 +1,84 @@
+MODULE EZTypography;
+
+REQUIRE System, Utils, EZAuthentication; 
+
+NAMESPACE EZ;
+
+CLASS Typography 'Типография';
+
+id '{integration.id}' = DATA INTEGER (Typography) IN id INDEXED CHARWIDTH 10;
+typography (id) = GROUP AGGR Typography typography BY id (typography);
+
+name 'Наименование' = DATA STRING(Typography);
+address 'Адрес' = DATA  STRING(Typography);
+unp 'УНП' = DATA STRING(Typography);
+gln 'GLN' = DATA STRING(Typography);
+country = DATA Country(Typography);
+nameCountry 'Страна' (Typography t) = name(country(t));
+
+FORM typographies 'Типографии'
+    OBJECTS t = Typography
+    PROPERTIES (t) READONLY name, address, unp, gln, nameCountry
+
+    LIST Typography OBJECT t
+;
+
+// Список типографий
+idTypography = DATA LOCAL NUMERIC(INTEGER);
+nameTypography = DATA LOCAL STRING(INTEGER);
+addressTypography = DATA LOCAL STRING(INTEGER);
+unpTypography = DATA LOCAL STRING(INTEGER);
+glnTypography = DATA LOCAL STRING(INTEGER);
+
+GROUP country;
+codeCountryTypography = DATA LOCAL STRING(INTEGER);
+nameCountryTypography = DATA LOCAL STRING(INTEGER);
+commentCountryTypography = DATA LOCAL STRING(INTEGER);
+
+FORM importTypography
+    OBJECTS typography_list = INTEGER
+
+    PROPERTIES(typography_list)
+        idTypography EXTID 'id',
+        nameTypography EXTID 'name',
+        addressTypography EXTID 'address',
+        unpTypography EXTID 'unp',
+        glnTypography EXTID 'unp'
+    
+    PROPERTIES(typography_list) IN country
+        codeCountryTypography EXTID 'code',
+        nameCountryTypography EXTID 'name',
+        commentCountryTypography EXTID 'comment'
+    
+    FILTERS imported(typography_list)
+;
+
+importTypographyEZ 'Импорт списка типографий' (STRING token) {
+    LOCAL result = FILE();
+
+    ezToken() <- token;
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/users/typographyList' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        MESSAGE 'Не удалось обновить список типографий';
+        CANCEL;
+        RETURN;
+    }
+    fileToString(result());
+
+    IMPORT importTypography JSON FROM result();
+
+    FOR idTypography(INTEGER i) AND NOT typography(idTypography(i)) DO NEW t = Typography {
+        id(t) <- idTypography(i);
+    }
+
+    FOR typography(idTypography(INTEGER i)) DO {
+        name(typography(idTypography(i))) <- nameTypography(i);
+        address(typography(idTypography(i))) <- addressTypography(i);
+        unp(typography(idTypography(i))) <- unpTypography(i);
+        gln(typography(idTypography(i))) <- glnTypography(i);
+        country(typography(idTypography(i))) <- country(codeCountryTypography(i));
+    }
+}
