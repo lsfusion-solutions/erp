@@ -1,0 +1,21 @@
+MODULE ReceiptSignSkko;
+
+REQUIRE SignSkko, ZReport;
+
+NAMESPACE SignSkko;
+
+signSkko 'Подписать' ABSTRACT LIST (Receipt, JSONFILE);
+
+signSkko(Receipt r, JSONFILE f) + {
+    IF NOT signatureAppSkko() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
+
+signSkko(Receipt r, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.default THEN {
+        canonicalizeJSON(JSONFILE(exportFile()));
+        canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');        
+        signSkkoDefault(canonicalizedJSON());
+    }
+}

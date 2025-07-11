@@ -1,6 +1,6 @@
 MODULE SkkoRequest;
 
-REQUIRE DocumentMNS, ZReport, LegalEntityMNS, LegalEntityBy, EDIGTIN, ZReportLot, LotTypeBy;
+REQUIRE DocumentMNS, ZReport, LegalEntityMNS, LegalEntityBy, EDIGTIN, ZReportLot, LotTypeBy, AuthorizationSkko;
 
 CLASS SkkoRequest;
 
@@ -18,6 +18,29 @@ CLASS SkkoRequestType 'Тип' {
 type = DATA SkkoRequestType (SkkoRequest);
 nameType 'Тип' (SkkoRequest r) = staticCaption(type(r));
 
-@defineDocumentHeaderNumber(SkkoRequest, BPSTRING[2]);
+number '{numerator.number.numerator}' = DATA STRING[48] (SkkoRequest);
 
-@defineNumeratedDefault(SkkoRequest, 'Сообщение в СККО', '');
+message_number = DATA LOCAL INTEGER();
+status = DATA LOCAL STRING();
+
+FORM importMessageNumer
+    PROPERTIES() message_number, status;
+;
+
+getCurrentMessageNumber() {
+    setHttpSkkoHeaders(skkoToken());
+    
+    resultString() <- '\{\}';
+    stringToFile(resultString());
+
+    LOCAL response = FILE();
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST skkoUrl() + '/message' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+
+        fileToString(response());
+        IMPORT importMessageNumer JSON FROM response();
+    } CATCH {
+        MESSAGE CONCAT '\n', 'Ошибка получения номера сообщения: ', messageCaughtException() NOWAIT;
+    }
+}

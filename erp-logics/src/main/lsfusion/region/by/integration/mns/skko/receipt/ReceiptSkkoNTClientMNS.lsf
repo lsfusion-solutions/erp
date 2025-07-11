@@ -1,0 +1,15 @@
+MODULE ReceiptSkkoNTClientMNS;
+
+REQUIRE ReceiptSignSkko, SkkoNTClientMNS;
+
+NAMESPACE SignSkko;
+
+signSkko(Receipt e, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.ntClientSoftware THEN {
+        canonicalizeJSON(JSONFILE(exportFile()), NULL);
+        canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
+        sign(canonicalizedJSON());
+        resultSignInfo() <- base64Signature();
+        resultSignType() <- 'cms-detached-sign/json';
+    }
+}

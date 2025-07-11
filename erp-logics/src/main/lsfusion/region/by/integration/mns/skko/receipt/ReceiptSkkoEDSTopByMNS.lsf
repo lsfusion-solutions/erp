@@ -1,0 +1,29 @@
+MODULE ReceiptSkkoEDSTopByMNS;
+
+REQUIRE ReceiptSignSkko, SkkoEDSTopByMNS;
+
+NAMESPACE SignSkko;
+
+aliasEDSService (Receipt r) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(departmentStore(r)), aliasEDSService(legalEntity(departmentStore(r)));
+passwordEDSService (Receipt r) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(departmentStore(r)), passwordEDSService(legalEntity(departmentStore(r)));
+EDSService(Receipt r) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(departmentStore(r)), EDSServiceTopBy(legalEntity(departmentStore(r)));
+
+signSkko(Receipt e, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.scCryptoProxy THEN {
+        IF edsApplication(EDSService(e)) == EDSApplication.sccp THEN {
+            IF aliasEDSService(e) AND (OVERRIDE passwordEDSService(), passwordEDSService(e)) THEN {
+                keyID() <- aliasEDSService(e);
+                password() <- (OVERRIDE passwordEDSService(), passwordEDSService(e));
+                
+                canonicalizeJSON(JSONFILE(exportFile()), NULL);
+                canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
+                sign(canonicalizedJSON(), EDSService(e));
+                resultSignInfo() <- base64Signature();
+                resultSignType() <- 'cms-detached-sign/json';
+            } ELSE {
+                MESSAGE ' Документ ' + description(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            RETURN;
+        }
+    }
+}

@@ -1,6 +1,6 @@
 MODULE ExportInvoiceSkko;
 
-REQUIRE ExportInvoiceFormsSkko, AuthorizationSkko, SignSkko;
+REQUIRE ExportInvoiceFormsSkko, AuthorizationSkko, InvoiceSignSkko;
 
 NAMESPACE InvoiceSkko;
 
@@ -12,8 +12,7 @@ sign(Sale.Invoice invoice) {
     fillExportData(invoice);
     EXPORT exportSaleWithoutKSA OBJECTS invoice = invoice JSON;
     fileToString(exportFile());
-    canonicalizeJSONSkko(JSONFILE(exportFile()));
-    signInfoCmsMin(replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', ''));    
+    signSkko(invoice, JSONFILE(exportFile()));    
 }
 
 exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.Invoice invoice) {
@@ -24,11 +23,16 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.I
         
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
+
+        getCurrentMessageNumber();
+        IF NOT message_number() THEN {
+            MESSAGE 'Ошибка получения номера' NOWAIT;
+            RETURN;
+        }
         
         IF NOT number(request()) OR NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
             saleInvoice(r) <- invoice;
-            numerator(r) <- defaultNumeratorSkkoRequest();
-            generateSeriesNumber(r);
+            number(r) <- STRING(message_number() + 1);
             request() <- r;            
         }
         
@@ -41,11 +45,11 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.I
         dateTime(request()) <- currentDateTime();
 
         sign(invoice);
-        type() <- 'cms-si-min/bign';
+        type() <- resultSignType();
         value() <- resultSignInfo();
         certificate() <- resultCert();
 
-        IF NOT value() OR NOT certificate() THEN {
+        IF NOT value() AND NOT certificate() THEN {
             MESSAGE 'Документ не подписан' NOWAIT;
             RETURN;
         }
@@ -65,8 +69,10 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.I
         LOCAL response = FILE();
         TRY {
             IF verify() THEN {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/verify' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
             } ELSE {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/withoutksa/sale' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
             }
             
@@ -98,8 +104,7 @@ sentRefund (SaleReturn.Invoice i) = i IS SaleReturn.Invoice AND NOT (GROUP MAX S
 refundSign(SaleReturn.Invoice invoice) {
     fillExportData(invoice);
     EXPORT exportRefundWithoutKSA OBJECTS invoice = invoice JSON;
-    canonicalizeJSONSkko(JSONFILE(exportFile()));
-    signInfoCmsMin(replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', ''));
+    signSkko(invoice, JSONFILE(exportFile()));
 }
 
 exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (SaleReturn.Invoice invoice) {
@@ -111,10 +116,15 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Sale
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
 
-        IF NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
+        getCurrentMessageNumber();
+        IF NOT message_number() THEN {
+            MESSAGE 'Ошибка получения номера' NOWAIT;
+            RETURN;
+        }
+
+        IF NOT number(request()) OR NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
             saleReturnInvoice(r) <- invoice;
-            numerator(r) <- defaultNumeratorSkkoRequest();
-            generateSeriesNumber(r);
+            number(r) <- STRING(message_number() + 1);
             request() <- r;
         }
 
@@ -127,11 +137,11 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Sale
         dateTime(request()) <- currentDateTime();
 
         refundSign(invoice);
-        type() <- 'cms-si-min/bign';
+        type() <- resultSignType();
         value() <- resultSignInfo();
         certificate() <- resultCert();
 
-        IF NOT value() OR NOT certificate() THEN {
+        IF NOT value() AND NOT certificate() THEN {
             MESSAGE 'Документ не подписан' NOWAIT;
             RETURN;
         }
@@ -151,8 +161,10 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Sale
         LOCAL response = FILE();
         TRY {
             IF verify() THEN {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/verify'  HEADERS httpSkkoHeaders  PARAMS resultFile() TO response;
             } ELSE {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/withoutksa/refund' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
             }
             
@@ -182,9 +194,7 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Sale
 cancelSign(Sale.Invoice invoice) {
     fillExportData(invoice);
     EXPORT exportCancelWithoutKSA OBJECTS invoice = invoice JSON;
-    
-    canonicalizeJSONSkko(JSONFILE(exportFile()));
-    signInfoCmsMin(replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', ''));
+    signSkko(invoice, JSONFILE(exportFile()));
 }
 
 exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice invoice) {
@@ -196,10 +206,15 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
 
+        getCurrentMessageNumber();
+        IF NOT message_number() THEN {
+            MESSAGE 'Ошибка получения номера' NOWAIT;
+            RETURN;
+        }
+
         IF NOT request() OR authorized(request()) THEN NEW r = SkkoRequest {
             saleInvoice(r) <- invoice;
-            numerator(r) <- defaultNumeratorSkkoRequest();
-            generateSeriesNumber(r);
+            number(r) <- STRING(message_number() + 1);
             request() <- r;
         }
 
@@ -212,11 +227,11 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
         dateTime(request()) <- currentDateTime();
 
         cancelSign(invoice);
-        type() <- 'cms-si-min/bign';
+        type() <- resultSignType();
         value() <- resultSignInfo();
         certificate() <- resultCert();
 
-        IF NOT value() OR NOT certificate() THEN {
+        IF NOT value() AND NOT certificate() THEN {
             MESSAGE 'Документ не подписан' NOWAIT;
             RETURN;
         }
@@ -236,8 +251,10 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
         LOCAL response = FILE();
         TRY {
             IF verify() THEN {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/verify' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
             } ELSE {
+                insecureSSL() <- TRUE;
                 EXTERNAL HTTP POST skkoUrl() + '/withoutksa/cancel' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
             }
             

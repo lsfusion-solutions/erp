@@ -1,0 +1,21 @@
+MODULE InvoiceSignSkko;
+
+REQUIRE SignSkko, Invoice;
+
+NAMESPACE SignSkko;
+
+signSkko 'Подписать' ABSTRACT LIST (Invoice, JSONFILE);
+
+signSkko(Invoice i, JSONFILE f) + {
+    IF NOT signatureAppSkko() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
+
+signSkko(Invoice i, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.default THEN {
+        canonicalizeJSON(JSONFILE(exportFile()));
+        canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
+        signSkkoDefault(canonicalizedJSON());
+    }
+}
