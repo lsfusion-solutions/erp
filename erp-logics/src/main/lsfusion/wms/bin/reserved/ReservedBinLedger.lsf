@@ -7,19 +7,41 @@ NAMESPACE Bin;
 CLASS ABSTRACT ReservedBinLedger 'Изменение резерва по ячейке';
 TABLE reservedBinLedger(ReservedBinLedger);
 
+CLASS UserReservedBinLedger 'Изменение резерва по ячейке' : ReservedBinLedger;
+TABLE userReservedBinLedger(UserReservedBinLedger);
+
 dateTime 'Дата/время' = ABSTRACT DATETIME (ReservedBinLedger) MATERIALIZED INDEXED;
 date 'Дата' (ReservedBinLedger ledger) = toDate(dateTime(ledger));
 
+dateTime 'Дата/время' = DATA DATETIME (UserReservedBinLedger) INDEXED;
+dateTime(UserReservedBinLedger ledger) += dateTime(ledger);
+
+WHEN LOCAL SET(UserReservedBinLedger o IS UserReservedBinLedger) INLINE DO {
+    IF o IS UserReservedBinLedger AND NOT dateTime(o) THEN dateTime(o) <- currentDateTime();
+};
+
 isPosted 'Проведен' = ABSTRACT BOOLEAN (ReservedBinLedger) MATERIALIZED;
+isPosted(UserReservedBinLedger ledger) += ledger IS UserReservedBinLedger;
 
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (ReservedBinLedger);
+isClosed 'Закрыт' = DATA BOOLEAN (UserReservedBinLedger);
+isClosed(UserReservedBinLedger ledger) += isClosed(ledger);
 
 sku = ABSTRACT Sku (ReservedBinLedger) MATERIALIZED INDEXED;
 nameSku 'SKU' (ReservedBinLedger ledger) = name(sku(ledger)) IN id;
 idBarcodeSku 'Штрихкод' (ReservedBinLedger ledger)= idBarcode(sku(ledger)) IN id;
 
+sku = DATA Sku (UserReservedBinLedger) INDEXED;
+nameSku 'SKU' (UserReservedBinLedger ledger) = name(sku(ledger)) IN id;
+idBarcodeSku 'Штрихкод' (UserReservedBinLedger ledger)= idBarcode(sku(ledger)) IN id;
+sku(UserReservedBinLedger ledger) += sku(ledger);
+
 stock = ABSTRACT Stock (ReservedBinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (ReservedBinLedger ledger)= name(stock(ledger));
+
+stock = DATA Stock (UserReservedBinLedger) INDEXED;
+nameStock 'Склад' (UserReservedBinLedger ledger)= name(stock(ledger));
+stock(UserReservedBinLedger ledger) += stock(ledger);
 
 bin = ABSTRACT Bin (ReservedBinLedger) MATERIALIZED INDEXED;
 nameBin 'Ячейка' (ReservedBinLedger ledger) = name(bin(ledger)) IN id;
@@ -27,9 +49,19 @@ canonicalIdBin 'Ячейка код' (ReservedBinLedger ledger) = canonicalId(bi
 
 INDEX bin(ReservedBinLedger l), sku(l), dateTime(l);
 
+bin = DATA Bin (UserReservedBinLedger) INDEXED;
+nameBin 'Ячейка' (UserReservedBinLedger ledger) = name(bin(ledger)) IN id;
+canonicalIdBin 'Ячейка код' (UserReservedBinLedger ledger) = canonicalId(bin(ledger)) IN id;
+bin(UserReservedBinLedger ledger) += bin(ledger);
+
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (ReservedBinLedger) MATERIALIZED;
+quantity 'Кол-во' (ledger) = DATA NUMERIC[16,5] (UserReservedBinLedger);
+quantity(UserReservedBinLedger ledger) += quantity(ledger);
 
 description 'Название документа' = ABSTRACT ISTRING[200] (ReservedBinLedger) MATERIALIZED;
+description 'Название документа' = DATA ISTRING[200] (UserReservedBinLedger);
+description(UserReservedBinLedger ledger) += description(ledger);
+
 
 changed = ABSTRACT BOOLEAN (ReservedBinLedger);
 
@@ -112,3 +144,36 @@ availableQuantity 'Текущий остаток в группе ячеек' (Sk
     [GROUP SUM availableQuantity(Sku sku1, Bin b) IF isParent(BinGroup bg1, b) BY sku1, bg1](sku, bg);
 prevAvailableQuantity 'Текущий остаток в группе ячеек' (Sku sku, BinGroup bg)=
     [GROUP SUM prevAvailableQuantity(Sku sku1, Bin b) IF isParent(BinGroup bg1, b) BY sku1, bg1](sku, bg);
+
+overCreateRemoveUserReservedBinLedger ABSTRACT LIST (Sku, Bin);
+createRemoveUserReservedBinLedger 'Снять резерв' (Sku s, Bin b) {
+    overCreateRemoveUserReservedBinLedger(s, b);
+    IF currentReserved(s, b) > 0 THEN NEWSESSION NEW r = UserReservedBinLedger {
+        stock(r) <- stock(b);
+        sku(r) <- s;
+        bin(r) <- b;
+        quantity(r) <- - currentReserved(s, b);
+        description(r) <- 'Снятие с резерва товара';
+        APPLY;
+    }
+}    
+
+overCreateRemoveUserReservedBinLedger ABSTRACT LIST (Bin);
+createRemoveUserReservedBinLedger 'Снять резерв' (Bin b) {
+    NEWSESSION {
+        overCreateRemoveUserReservedBinLedger(b);
+        FOR currentReserved(Sku s, b) > 0 DO NEW r = UserReservedBinLedger {
+            stock(r) <- stock(b);
+            sku(r) <- s;
+            bin(r) <- b;
+            quantity(r) <- - currentReserved(s, b);
+            description(r) <- 'Снятие с резерва товара';
+        }
+        APPLY;
+    }
+} TOOLBAR;
+
+EXTEND FORM binBalance
+    PROPERTIES createRemoveUserReservedBinLedger(b) SHOWIF [GROUP MAX prevCurrentReserved(Sku s1, Bin b1) >0 BY b1](b),  
+        createRemoveUserReservedBinLedger(s, b) SHOWIF prevCurrentReserved(s, b) >0
+;

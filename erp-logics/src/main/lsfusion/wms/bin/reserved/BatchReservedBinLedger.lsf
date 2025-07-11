@@ -8,6 +8,11 @@ batch = ABSTRACT Batch (ReservedBinLedger) MATERIALIZED INDEXED;
 nameBatch 'Наименование' (ReservedBinLedger ledger) = name(batch(ledger)) IN id;
 idBatch 'Код' (ReservedBinLedger ledger)= id(batch(ledger)) IN id;
 
+batch = DATA Batch (UserReservedBinLedger) MATERIALIZED INDEXED;
+nameBatch 'Наименование' (UserReservedBinLedger ledger) = name(batch(ledger)) IN id;
+idBatch 'Код' (UserReservedBinLedger ledger)= id(batch(ledger)) IN id;
+batch(UserReservedBinLedger ledger) += batch(ledger);
+
 currentReserved 'Текущий резерв' (batch, bin) =
     GROUP SUM quantityActive(ReservedBinLedger ledger) BY batch(ledger), bin(ledger) CHARWIDTH 7 MATERIALIZED;
 prevCurrentReserved 'Текущий резерв' (Batch batch, Bin bin) = PREV(currentReserved(batch, bin)) CHARWIDTH 7;
@@ -47,3 +52,52 @@ availableQuantity 'Доступное кол-во в группе ячеек' (B
     [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
 prevAvailableQuantity 'Доступное кол-во в группе ячеек' (Batch batch, BinGroup bg)=
     [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
+
+createRemoveUserReservedBinLedgerBatch(Sku s, Bin b) {
+    IF GROUP MAX currentReserved(Batch bt, b) > 0 AND sku(bt) = s THEN NEWSESSION {
+        FOR currentReserved(Batch bt, b) > 0 AND sku(bt) = s DO NEW r = UserReservedBinLedger {
+            stock(r) <- stock(b);
+            sku(r) <- s;
+            batch(r) <- bt;
+            bin(r) <- b;
+            quantity(r) <- - currentReserved(bt, b);
+            description(r) <- 'Снятие с резерва партий товара';
+        }
+        APPLY;
+    }
+}
+
+overCreateRemoveUserReservedBinLedger(Sku s, Bin b) + {createRemoveUserReservedBinLedgerBatch(s, b);}
+
+createRemoveUserReservedBinLedgerBatch 'Снять резерв' (Batch bt, Bin b) {
+    IF currentReserved(bt, b) > 0 THEN NEWSESSION NEW r = UserReservedBinLedger {
+        stock(r) <- stock(b);
+        sku(r) <- sku(bt);
+        batch(r) <- bt;
+        bin(r) <- b;
+        quantity(r) <- - currentReserved(bt, b);
+        description(r) <- 'Снятие с резерва партии';
+        APPLY;
+    }
+} TOOLBAR;
+
+createRemoveUserReservedBinLedgerBatch 'Снять резервы' (Bin b) {
+    IF GROUP MAX currentReserved(Batch bt, b) > 0 THEN NEWSESSION {
+        FOR currentReserved(Batch bt, b) > 0 DO NEW r = UserReservedBinLedger {
+            stock(r) <- stock(b);
+            sku(r) <- sku(bt);
+            batch(r) <- bt;
+            bin(r) <- b;
+            quantity(r) <- - currentReserved(bt, b);
+            description(r) <- 'Снятие с резерва партии';
+        }
+        APPLY;
+    }
+} TOOLBAR;
+
+overCreateRemoveUserReservedBinLedger(Bin b) + {createRemoveUserReservedBinLedgerBatch(b);}
+
+EXTEND FORM batchBinBalance
+    PROPERTIES createRemoveUserReservedBinLedgerBatch(b) SHOWIF [GROUP MAX prevCurrentReserved(Batch bt1, Bin b1) >0 BY b1](b),
+      createRemoveUserReservedBinLedgerBatch(bt, b)  SHOWIF prevCurrentReserved(bt, b) >0
+;
