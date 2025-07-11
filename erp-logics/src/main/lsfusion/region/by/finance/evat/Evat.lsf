@@ -364,7 +364,11 @@ CLASS DescriptionType 'Описание' {
     analyzedDeal 'анализируемая сделка',
     kidGoods 'продовольственные товары и товары для детей',
     medicineDrug 'лекарственные средства и медицинские изделия',
-    farmingProducts 'продукция растениеводства, пчеловодства, животноводства, рыбоводства, дикорастущей продукции'
+    farmingProducts 'продукция растениеводства, пчеловодства, животноводства, рыбоводства, дикорастущей продукции',
+    purchaseOutsideRB 'Приобретение за пределами',
+    remoteSale 'Дистанционная продажа товара',
+    unifiedMark 'Товар, маркированный УКЗ',
+    traceMark 'Товар, подлежащий прослеживаемости'
 }
 
 name 'Название в XML' = DATA STRING[250] (DescriptionType);
@@ -380,7 +384,6 @@ FORM descriptionType 'Описание'
 FORM descriptionTypes 'Описания'
     OBJECTS d = DescriptionType
     PROPERTIES(d) READONLY name, caption
-    PROPERTIES(d) NEWSESSION  NEW, EDIT
 
     LIST DescriptionType OBJECT d
 ;
@@ -629,19 +632,26 @@ EXTEND FORM options
 DESIGN options { EVAT { MOVE PROPERTY(blankCodeDefault()); } }
 
 onStarted()+{
-    IF NOT name(DescriptionType.kidGoods)  THEN NEWSESSION {
-        name(DescriptionType.kidGoods) <- 'KID_GOODS';
-        caption(DescriptionType.kidGoods) <- 'продовольственные товары и товары для детей';
-        APPLY;
-    }
-    IF NOT name(DescriptionType.medicineDrug)  THEN NEWSESSION {
-        name(DescriptionType.medicineDrug) <- 'MEDICINE_DRUG';
-        caption(DescriptionType.medicineDrug) <- 'лекарственные средства и медицинские изделия';
-        APPLY;
-    }
-    IF NOT name(DescriptionType.farmingProducts)  THEN NEWSESSION {
-        name(DescriptionType.farmingProducts) <- 'FARMING_PRODUCTS';
-        caption(DescriptionType.farmingProducts) <- 'продукция растениеводства, пчеловодства, животноводства, рыбоводства, дикорастущей продукции';
+    IF  GROUP SUM 1 IF DescriptionType d IS DescriptionType AND NOT (name(d) AND caption(d) ) THEN NEWSESSION {
+        name(DescriptionType d) <- CASE WHEN d == DescriptionType.deductionInFull THEN 'DEDUCTION_IN_FULL'
+            WHEN d == DescriptionType.customsExcise THEN 'CUSTOMS_EXCISE'
+            WHEN d == DescriptionType.analyzedDeal THEN 'ANALYZED_DEAL'
+            WHEN d == DescriptionType.controlMark THEN 'CONTROL_MARK'
+            WHEN d == DescriptionType.exciseMark THEN 'EXCISE_MARK'
+            WHEN d == DescriptionType.identifiedMark THEN 'IDENTIFIED_MARK'
+            WHEN d == DescriptionType.vatExcemption THEN 'VAT_EXEMPTION'
+            WHEN d == DescriptionType.importVAT THEN 'IMPORT_VAT'
+            WHEN d == DescriptionType.outsideRB THEN 'OUTSIDE_RB'
+            WHEN d == DescriptionType.medicineDrug THEN 'MEDICINE_DRUG'
+            WHEN d == DescriptionType.farmingProducts THEN 'FARMING_PRODUCTS'
+            WHEN d == DescriptionType.kidGoods THEN 'KID_GOODS'
+            WHEN d == DescriptionType.purchaseOutsideRB THEN 'PURCHASE_OUTSIDE_RB'
+            WHEN d == DescriptionType.remoteSale THEN 'REMOTE_SALE'
+            WHEN d == DescriptionType.unifiedMark THEN 'UNIFIED_MARK'
+            WHEN d == DescriptionType.traceMark THEN 'TRACE_MARK';
+        
+        caption(DescriptionType d) <- staticCaption(d);
+
         APPLY;
     }
 }

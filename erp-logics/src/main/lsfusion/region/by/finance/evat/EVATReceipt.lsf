@@ -9,13 +9,13 @@ NAMESPACE EVAT;
 customerGroupEVAT 'Группа покупателей при создании ЭСЧФ из чека' = DATA LegalEntityGroup();
 nameCustomerGroupEVAT 'Группа покупателей при создании ЭСЧФ из чека' = name(customerGroupEVAT());
 
-EXTEND FORM options 
+EXTEND FORM options
     PROPERTIES() nameCustomerGroupEVAT;
 
-DESIGN options { 
-    EVAT { 
-        MOVE PROPERTY(nameCustomerGroupEVAT()); 
-    } 
+DESIGN options {
+    EVAT {
+        MOVE PROPERTY(nameCustomerGroupEVAT());
+    }
 }
 
 customer = DATA LOCAL NESTED LegalEntity();
@@ -26,7 +26,7 @@ unpStr = DATA LOCAL NESTED STRING[9]();
 FORM findCustomer 'Поиск покупателя'
     OBJECTS c = STRING[150] PANEL
     PROPERTIES name = VALUE(c)
-    
+
     OBJECTS u = STRING[9] PANEL
     PROPERTIES unp = VALUE(u)
 ;
@@ -34,166 +34,184 @@ FORM findCustomer 'Поиск покупателя'
 DESIGN findCustomer {
     NEW customer{
         caption = 'Введите часть наименования покупателя или УНП';
-        MOVE PROPERTY(name) {caption = 'Наименование';}   
-        MOVE PROPERTY(unp) {caption = 'УНП';}   
+        MOVE PROPERTY(name) {caption = 'Наименование';}
+        MOVE PROPERTY(unp) {caption = 'УНП';}
     }
-    MOVE TOOLBARBOX;   
+    MOVE TOOLBARBOX;
 }
-
 
 FORM inputData 'Новый покупатель'
     OBJECTS cu = STRING[150] PANEL
     PROPERTIES name = VALUE(cu)
-    
+
     OBJECTS un = STRING[9] PANEL
     PROPERTIES unp = VALUE(un)
 
     OBJECTS a = STRING[150] PANEL
-    PROPERTIES address = VALUE(a)   
+    PROPERTIES address = VALUE(a)
 ;
 
 DESIGN inputData {
     NEW customer{
         caption = 'Введите данные нового покупателя';
-        MOVE PROPERTY(name) {caption = 'Наименование';}   
-        MOVE PROPERTY(unp) {caption = 'УНП';}   
-        MOVE PROPERTY(address) {caption = 'Юридический адрес';}   
+        MOVE PROPERTY(name) {caption = 'Наименование';}
+        MOVE PROPERTY(unp) {caption = 'УНП';}
+        MOVE PROPERTY(address) {caption = 'Юридический адрес';}
     }
-    MOVE TOOLBARBOX;   
+    MOVE TOOLBARBOX;
 }
+
+@defineOption(useDirectVATReceipt, 'Использовать НДС из чека', EVAT);
 
 FORM checkData 'Проверка ставки НДС'
     OBJECTS d = DATE PANEL
 
     OBJECTS c = LegalEntity PANEL
     PROPERTIES (c) READONLY name, UNP, address
-    
+
     OBJECTS range = Range PANEL
-    PROPERTIES(range, d) valueRate SELECTOR  
-    FILTERS   nameTax(range) == 'НДС', country(range) == defaultCountry();
+    PROPERTIES(range, d) valueRate SELECTOR SHOWIF NOT useDirectVATReceipt()
+    FILTERS nameTax(range) == 'НДС', country(range) == defaultCountry();
 ;
 
 DESIGN checkData {
     NEW customer{
         caption = 'Покупатель';
-        MOVE PROPERTY(name(c)) {caption = 'Наименование';}   
-        MOVE PROPERTY(UNP(c)) {caption = 'УНП';}   
-        MOVE PROPERTY(address(c)) {caption = 'Юридический адрес';}   
+        MOVE PROPERTY(name(c)) {caption = 'Наименование';}
+        MOVE PROPERTY(UNP(c)) {caption = 'УНП';}
+        MOVE PROPERTY(address(c)) {caption = 'Юридический адрес';}
     }
-    MOVE BOX(range) {caption = 'НДС';}  
+    MOVE BOX(range) {caption = 'НДС';}
     PROPERTY(valueRate(range, d)){caption = 'На дату чека';}
-    MOVE TOOLBARBOX;   
+    MOVE TOOLBARBOX;
 }
 
 FORM selectCustomer 'Выбор покупателя'
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY name, UNP
-    FILTERS ((isISubstring(name(l),customerStr()) AND customerStr() !='') OR (isISubstring(UNP(l),unpStr())  AND unpStr() !=''))
-             AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT())
+    FILTERS ((isISubstring(name(l), customerStr()) AND customerStr() != '') OR (isISubstring(UNP(l), unpStr()) AND unpStr() != ''))
+        AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT())
 ;
 
-countLegalEntitiesByName(STRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l),str) AND str !='' 
-                                                        AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
-countLegalEntitiesByUNP(STRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l),str)  AND str !='' 
-                                                        AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
-overCreateEVATReceipt 'Создать ЭСЧФ'  ABSTRACT ( EVAT, Receipt);
-overCreateEVATReceipt 'Создать ЭСЧФ'  ABSTRACT ( EVATDetail, ReceiptDetail);
+countLegalEntitiesByName(STRING[150] str) = GROUP SUM 1 IF isISubstring(name(LegalEntity l), str) AND str != ''
+    AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
+countLegalEntitiesByUNP(STRING[9] str) = GROUP SUM 1 IF isISubstring(UNP(LegalEntity l), str) AND str != ''
+    AND (legalEntityGroup(l) == customerGroupEVAT() OR NOT customerGroupEVAT());
+overCreateEVATReceipt 'Создать ЭСЧФ' ABSTRACT ( EVAT, Receipt);
+overCreateEVATReceipt 'Создать ЭСЧФ' ABSTRACT ( EVATDetail, ReceiptDetail);
 
-createEVAT 'Создать ЭСЧФ' (Receipt r)  { 
-	NEWSESSION {
-	    DIALOG findCustomer OBJECTS c INPUT, u INPUT DO {
-	        IF (c != '') OR (u != '') THEN {
-	            customerStr() <- c;
-    	        unpStr() <- u;
-	            customer() <- NULL;   
-	            range() <- NULL;              
-	            IF countLegalEntitiesByName(c) OR countLegalEntitiesByUNP(u) THEN{
-	                DIALOG selectCustomer OBJECTS l INPUT DO 
-	                    customer() <- l;
-	                IF NOT customer() THEN //если закрыли форму
-	                    RETURN;
-	                ELSE    
-	                    DIALOG checkData OBJECTS d = date(r), c = customer(), range INPUT DO   
-	                        range() <- range;	                        
-	                IF NOT range() THEN //если закрыли форму
-	                    RETURN;
-	            } ELSE {
-	                DIALOG inputData OBJECTS cu INPUT, un INPUT, a INPUT DO {
-                        IF (cu != '') AND (a != '') THEN {    
-                            NEW l = LegalEntity {
-                                name(l) <- cu;
-                                UNP(l) <- un;
-                                id(l) <-  CONCAT '', series(defaultNumeratorLegalEntity()), curStringValue(defaultNumeratorLegalEntity());
-                                incrementValueSession(defaultNumeratorLegalEntity());
-                                dataAddress(l, DATE d) <- a WHERE d == 2001_01_01;
-                                legalEntityGroup(l) <- customerGroupEVAT() IF customerGroupEVAT();
-                                isCustomer(l) <- TRUE;                                
-                                customer() <- l; 
-                            } 
-                            APPLY; // сохраним, раз ввели покупателя правильно
-	                        DIALOG checkData OBJECTS c = customer(), range INPUT DO   
-	                            range() <- range;	                       
-                        } ELSE {
-        	                MESSAGE 'Наименование и адрес покупателя не могут быть пустыми';	
-        	                RETURN;
-        	            }   
+skipDialogCustomer = ABSTRACT BOOLEAN ();
+
+createEVAT 'Создать ЭСЧФ' (Receipt r) {
+    NEWSESSION {
+        LOCAL ok = BOOLEAN ();
+        IF NOT skipDialogCustomer() THEN {
+            DIALOG findCustomer OBJECTS c INPUT, u INPUT DO {
+                IF (c != '') OR (u != '') THEN {
+                    customerStr() <- c;
+                    unpStr() <- u;
+                    customer() <- NULL;
+                    range() <- NULL;
+                    IF countLegalEntitiesByName(c) OR countLegalEntitiesByUNP(u) THEN{
+                        DIALOG selectCustomer OBJECTS l INPUT DO
+                            customer() <- l;
+                        IF NOT customer() THEN //если закрыли форму
+                            RETURN;
+                        ELSE
+                            DIALOG checkData OBJECTS d = date(r), c = customer(), range INPUT DO
+                                range() <- range;
+                        IF NOT range() THEN //если закрыли форму
+                            RETURN;
+                    } ELSE {
+                        DIALOG inputData OBJECTS cu INPUT, un INPUT, a INPUT DO {
+                            IF (cu != '') AND (a != '') THEN {
+                                NEW l = LegalEntity {
+                                    name(l) <- cu;
+                                    UNP(l) <- un;
+                                    id(l) <- CONCAT '', series(defaultNumeratorLegalEntity()), curStringValue(defaultNumeratorLegalEntity());
+                                    incrementValueSession(defaultNumeratorLegalEntity());
+                                    dataAddress(l, DATE d) <- a WHERE d == 2001_01_01;
+                                    legalEntityGroup(l) <- customerGroupEVAT() IF customerGroupEVAT();
+                                    isCustomer(l) <- TRUE;
+                                    customer() <- l;
+                                }
+                                APPLY; // сохраним, раз ввели покупателя правильно
+                                DIALOG checkData OBJECTS c = customer(), range INPUT DO
+                                    range() <- range;
+                            } ELSE {
+                                MESSAGE 'Наименование и адрес покупателя не могут быть пустыми';
+                                RETURN;
+                            }
+                        }
+                        IF NOT customer() OR NOT range() THEN
+                            RETURN;
                     }
-  	                IF NOT customer() OR NOT range() THEN
-  	                    RETURN;
-	            }
-	            NEW e = EVAT {
-	                type(e) <- EVATType.sale;
-	                status(e) <- EVATStatus.original;
-	        
-	                date(e) <- date(r);
-	                codeDocType (e) <- 603;
-	               // blankCodeDoc (e) <- OVERRIDE blankCodeDoc(), blankCodeDefault();
-	                numberDoc(e) <- STRING[100](number(r));
-	                unpSender(e) <- UNP(legalEntityDepartmentStore(r));
-	        
-	                supplier(e) <- legalEntityDepartmentStore(r);
-	                customer(e) <- customer();  
-	                
-	                //Грузоотправитель
-	                consignor(e) <- ISTRING[200](OVERRIDE fullName(legalEntityDepartmentStore(r)), name(legalEntityDepartmentStore(r)));
-	                countryCodeConsignor (e) <- sid(country(legalEntityDepartmentStore(r)));
-	                unpConsignor (e) <- OVERRIDE UNPForeign(legalEntityDepartmentStore(r)), UNP(legalEntityDepartmentStore(r)); 
-	                shippingAddressConsignor(e) <- address(departmentStore(r));
-	                //Грузополучатель
-	                consignee(e) <- ISTRING[200](OVERRIDE fullName(customer()), name(customer()));
-	                countryCodeConsignee (e) <- sid(country(customer()));
-	                unpConsignee (e) <- OVERRIDE UNPForeign(customer()), UNP(customer()); 
-	                shippingAddressConsignee(e) <- address(stock(customer()));
-	                
-	                overCreateEVATReceipt(e, r);
-	                
-	                FOR receipt(ReceiptDetail rd) == r AND quantity(rd) > 0 NEW ed = EVATDetail DO {
-	                    evat(ed) <- e;
-	                    name(ed) <- nameSku(rd);
-	                    sku(ed) <- sku(rd);
-	                    code(ed) <- codeCustomsGroup(defaultCountry(), sku(rd));
-	                    UOM(ed) <- UOM(sku(rd));
-	                    quantity(ed) <- quantity(rd); 
-	                    vatRate(ed) <- valueRate(range(), date(r));
-	                    price(ed) <- NUMERIC[16,2](price(rd)*(100 - valueRate(range(), date(r)))/100);
-	                    sumWithVAT(ed) <- NUMERIC[16,2](sum(rd));
-	                    vatSum(ed) <- NUMERIC[16,2](sum(rd)*valueRate(range(), date(r))/100);
-	                    sum(ed) <- NUMERIC[16,2](sum(rd)*(100 - valueRate(range(), date(r)))/100);
-	                    exciseSum(ed) <- 0;
-	
-	                    IF vatRate(ed) == 0 THEN
-	                        in(ed, DescriptionType.vatExcemption) <- TRUE;
-	                    ELSE
-	                        in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
-                        overCreateEVATReceipt(ed, rd);
-	                }    
-	                
-	                SHOW evat OBJECTS e = e DOCKED;
-	            } 
-	        }
-	        ELSE MESSAGE 'Введите данные!';
-	    }
-	}
+                    ok() <- TRUE;
+                }
+                ELSE MESSAGE 'Введите данные!';
+            }
+        } ELSE {
+            ok() <- TRUE;
+        }
+        IF ok() THEN {
+            NEW e = EVAT {
+                type(e) <- EVATType.sale;
+                status(e) <- EVATStatus.original;
+
+                date(e) <- date(r);
+                codeDocType (e) <- 603;
+                // blankCodeDoc (e) <- OVERRIDE blankCodeDoc(), blankCodeDefault();
+                numberDoc(e) <- STRING[100](number(r));
+                unpSender(e) <- UNP(legalEntityDepartmentStore(r));
+
+                supplier(e) <- legalEntityDepartmentStore(r);
+                customer(e) <- customer();
+
+                //Грузоотправитель
+                consignor(e) <- ISTRING[200](OVERRIDE fullName(legalEntityDepartmentStore(r)), name(legalEntityDepartmentStore(r)));
+                countryCodeConsignor (e) <- sid(country(legalEntityDepartmentStore(r)));
+                unpConsignor (e) <- OVERRIDE UNPForeign(legalEntityDepartmentStore(r)), UNP(legalEntityDepartmentStore(r));
+                shippingAddressConsignor(e) <- address(departmentStore(r));
+                //Грузополучатель
+                consignee(e) <- ISTRING[200](OVERRIDE fullName(customer()), name(customer()));
+                countryCodeConsignee (e) <- sid(country(customer()));
+                unpConsignee (e) <- OVERRIDE UNPForeign(customer()), UNP(customer());
+                shippingAddressConsignee(e) <- address(stock(customer()));
+
+                overCreateEVATReceipt(e, r);
+
+                FOR receipt(ReceiptDetail rd) == r AND quantity(rd) > 0 NEW ed = EVATDetail DO {
+                    evat(ed) <- e;
+                    name(ed) <- nameSku(rd);
+                    sku(ed) <- sku(rd);
+                    code(ed) <- codeCustomsGroup(defaultCountry(), sku(rd));
+                    UOM(ed) <- UOM(sku(rd));
+                    quantity(ed) <- quantity(rd);
+                    sumWithVAT(ed) <- NUMERIC[16,2](sum(rd));
+                    IF useDirectVATReceipt() THEN {
+                        vatRate(ed) <- valueVAT(rd);
+                        vatSum(ed) <- NUMERIC[16,2](sumVAT(rd));
+                        sum(ed) <- NUMERIC[16,2](sum(rd) (-) sumVAT(rd));
+                        price(ed) <- NUMERIC[16,2]((sum(rd) (-) sumVAT(rd)) / quantity(rd));
+                    } ELSE {
+                        vatRate(ed) <- valueRate(range(), date(r));
+                        price(ed) <- NUMERIC[16,2](price(rd) * (100 - valueRate(range(), date(r))) / 100);
+                        vatSum(ed) <- NUMERIC[16,2](sum(rd) * valueRate(range(), date(r)) / 100);
+                        sum(ed) <- NUMERIC[16,2](sum(rd) * (100 - valueRate(range(), date(r))) / 100);
+                    }
+                    exciseSum(ed) <- 0;
+
+                    IF vatRate(ed) == 0 THEN
+                        in(ed, DescriptionType.vatExcemption) <- TRUE;
+                    ELSE
+                        in(ed, DescriptionType.deductionInFull) <- TRUE IF NOT notDeductionInFull();
+                    overCreateEVATReceipt(ed, rd);
+                }
+
+                SHOW evat OBJECTS e = e DOCKED;
+            }
+        }
+    }
 }
 
 EXTEND FORM receiptListPeriod
