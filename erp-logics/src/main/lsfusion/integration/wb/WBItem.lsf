@@ -974,7 +974,7 @@ getItemAttribute 'Получить характеристики предмето
                         WHEN lower(name(i)) == 'тнвэд' THEN NEW as = AttributeTnved {
                             id(as) <- charcID;
                         }
-                        WHEN charcType(i) == 1 THEN NEW as = AttributeString {
+                        WHEN charcType(i) == 1 OR charcType(i) == 0 THEN NEW as = AttributeString {
                             id(as) <- charcID;
                         }
                         ELSE NEW as = AttributeNumeric {
@@ -1135,6 +1135,7 @@ FORM importItems
     PROPERTIES(skus) skus EXTID 'value'
     FILTERS imported(skus)
     FILTERS sizesSkus(skus) == sizes
+    
     PROPERTIES(cards) IN dimensions weightBrutto, isValid, length, width, height
     FILTERS imported(cards)
 ;
@@ -1167,31 +1168,39 @@ postItems 'Получить список карточек товаров' () {
                 width(item) <- width(i);
                 height(item) <- height(i);
                 weightBrutto(item) <- weightBrutto(i);
-                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF characteristicsValue(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
+                
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
+                    in(item, s) <- TRUE;
+                    chrtID(s) <- INTEGER(chrtID);
+                    techSize(s) <- techSize(ii);
+                    FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO skus(s) <- skus(j);
+                }
+                
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO 
                     CASE
                         WHEN as IS AttributeColor THEN {
-                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(ii);
+                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeKind THEN {
-                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(ii);
+                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeCountry THEN {
-                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(ii);
+                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeSeason THEN {
-                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(ii);
+                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeVAT THEN {
-                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(ii);
+                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeTnved THEN {
                             value[Item, AttributeTnved](item, as) <- tnved(charcID);
                         }
                         WHEN as IS AttributeNumeric THEN {
-                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(ii));
+                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii));
                         }
                         ELSE {
-                            value[Item, AttributeString](item, as) <- value(ii);
+                            value[Item, AttributeString](item, as) <- value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }                 
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
@@ -1235,31 +1244,39 @@ postCartItems 'Получить список карточек товаров в 
                 width(item) <- width(i);
                 height(item) <- height(i);
                 weightBrutto(item) <- weightBrutto(i);
-                FOR INTEGER ii = [GROUP MAX INTEGER i1 BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
+
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
+                    in(item, s) <- TRUE;
+                    chrtID(s) <- INTEGER(chrtID);
+                    techSize(s) <- techSize(ii);
+                    FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO skus(s) <- skus(j);
+                }
+                
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                     CASE
                         WHEN as IS AttributeColor THEN {
-                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(ii);
+                            value[Item, AttributeColor](item, as) <- GROUP MAX Color color IF name(color) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeKind THEN {
-                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(ii);
+                            value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeCountry THEN {
-                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(ii);
+                            value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeSeason THEN {
-                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(ii);
+                            value[Item, AttributeSeason](item, as) <- GROUP MAX Season season IF data(season) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeVAT THEN {
-                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(ii);
+                            value[Item, AttributeVAT](item, as) <- GROUP MAX VAT vat IF data(vat) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
                         WHEN as IS AttributeTnved THEN {
                             value[Item, AttributeTnved](item, as) <- tnved(charcID);
                         }
                         WHEN as IS AttributeNumeric THEN {
-                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(ii));
+                            value[Item, AttributeNumeric](item, as) <- NUMERIC(value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii));
                         }
                         ELSE {
-                            value[Item, AttributeString](item, as) <- value(ii);
+                            value[Item, AttributeString](item, as) <- value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
