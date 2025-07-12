@@ -1235,22 +1235,29 @@ backgroundQuantity = ABSTRACT COLOR (ReceiptDetail);
 
 changeQuantity 'Изменить кол-во строки чека'  ABSTRACT CASE OVERRIDE FIRST ( ReceiptDetail);
 
+enableCheckSplitPOS 'Проверять количество в строке чека на дробность' = DATA BOOLEAN ();
+
 changeQuantity(ReceiptDetail detail) + WHEN detail IS ReceiptDetail THEN{
     INPUT n = NUMERIC[16,5] DO
-        IF n THEN
-            quantity(detail) <- n;
-        ELSE
+        IF n THEN {
+            IF detail IS ReceiptDetail AND INTEGER(n) != n AND (noDivisibleUOM(UOM(sku(detail))) OR NOT split(sku(detail))) AND  enableCheckSplitPOS() THEN {
+                MESSAGE 'Количество должно быть целым';
+            } ELSE {
+                quantity(detail) <- n;
+            }
+        } ELSE
             DELETE detail;
 }
 
 notBackgroundPOS 'Не подсвечивать форму POS' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES () notBackgroundPOS
+    PROPERTIES () notBackgroundPOS, enableCheckSplitPOS
 ;
 DESIGN options {
     pos {
         MOVE PROPERTY (notBackgroundPOS());
+        MOVE PROPERTY (enableCheckSplitPOS());
     }
 }
 
