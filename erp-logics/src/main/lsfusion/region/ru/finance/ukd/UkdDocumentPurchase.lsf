@@ -31,7 +31,7 @@ createInvoice 'Создать корректировка накладной'(Ukd
                 customerStock(invoice) <- customerStock(invoice(upd));
                 overCreateInvoice(invoice, ukd);
                 FOR ukdDocument(UkdDocumentDetail ukdd) == ukd AND NOT skipCreateUserInvoiceDetail(ukdd) AND
-                    idSku(ukdd) = idSku(UpdDocumentDetail udd) AND  quantityB(ukdd) = quantity(udd) AND quantityB(ukdd) = quantity(udd) AND updDocument(udd) = upd
+                    idSku(ukdd) = idSku(UpdDocumentDetail udd) AND  quantityB(ukdd) = quantity(udd) AND updDocument(udd) = upd
 //                    numberUpdDocumentDetail(ukdd) = number(UpdDocumentDetail udd) AND updDocument(udd) = upd
                     NEW icd = InvoiceCorrectionDetail DO {
                     ukdDocumentDetail(icd) <- ukdd;
@@ -43,8 +43,7 @@ createInvoice 'Создать корректировка накладной'(Ukd
                     priceA(icd) <- priceA(ukdd);
                     sumA(icd) <- sumA(ukdd);
                     VATSumA(icd) <- VATSumA(ukdd);
-                    invoicePriceA(icd) <- priceA(ukdd);
-                    sumA(icd) <- sumA(ukdd);
+                    invoicePriceA (icd) <- round(priceA(icd) * (100.0 (+) valueVAT(icd)) /100.0, 2);
                     overCreateInvoice(icd, ukdd);
                 }
                 SHOW invoiceCorrection OBJECTS i = invoice;
