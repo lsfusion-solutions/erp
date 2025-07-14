@@ -1,0 +1,19 @@
+MODULE BatchBinOrderTransferAggregation;
+
+REQUIRE BinOrderTransferBinLedger, BatchBinTransferBinLedger, BatchReservedBinLedger;
+
+NAMESPACE Bin;
+
+INDEX binOrder(BinTransferDetail d), batch(d);
+
+quantityOutBinOrderDetail 'Кол-во товара в документе' =
+    GROUP SUM quantity(BinOrderDetail idetail)
+    BY  batch(idetail), outBin(idetail), binOrder(idetail);
+quantityOutBinTranferDetail 'Кол-во в перемещениях' =
+    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY batch(d), outBin(d), binOrder(d);
+diffQuantityOutBinTranferDetail 'Расхождение' (Batch batch, Bin bin, BinOrder binOrder) = quantityOutBinOrderDetail(batch, bin, binOrder) (-) quantityOutBinTranferDetail(batch, bin, binOrder);
+//////партия
+@binOrderTransferAggregation(batch, out);
+
+skipSkuOutBinOrderTransferAggregation() += TRUE;
+sku(BatchOutBinOrderTransferAggregation ledger) += sku(batch(ledger));

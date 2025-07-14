@@ -116,3 +116,60 @@ DESIGN binOrders {
         MOVE PROPERTY(moveUserBinTransfer(o)) { alignment = STRETCH; };
     }
 }
+
+@defineOperationProperty(cancelTransferBinOrderAuto, 'Автоматически снимать резерв с ячейки', paramsContainer);
+
+cancelTransferBinOrderAuto(BinOrder o) = cancelTransferBinOrderAuto(operation(o));
+cancelTransferBinOrderAuto(BinOrderDetail d) = cancelTransferBinOrderAuto(binOrder(d));
+
+
+EXTEND FORM userBinTransfer
+    PROPERTIES binOrder(o)
+;
+
+quantityOutBinOrderDetail 'Кол-во товара в документе'  =
+    GROUP SUM quantity(BinOrderDetail idetail)
+    BY  sku(idetail), outBin(idetail), binOrder(idetail);
+countOutBinOrderDetail 'Кол-во строк товара в документе'  =
+    GROUP SUM 1 BY batch(BinOrderDetail idetail), outBin(idetail), binOrder(idetail);
+
+quantityBinTranferDetail 'Кол-во в перемещениях' =
+    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), outBin(d), binOrder(d);
+
+diffQuantityOutBinTranferDetail 'Расхождение' = quantityOutBinOrderDetail(Sku sku, Bin b, BinOrder binOrder)
+    (-) quantityBinTranferDetail(sku, b, binOrder);
+
+META  binOrderTransferAggregation(prefix, binType)
+    
+    CLASS ###prefix###binType##BinOrderTransferAggregation : ReservedBinLedger;
+    skip###prefix###binType##BinOrderTransferAggregation = ABSTRACT BOOLEAN ();
+    prefix##BinOrderTransferAggregation = AGGR ###prefix###binType##BinOrderTransferAggregation
+        WHERE cancelTransferBinOrderAuto(BinOrder binOrder)
+            AND NOT skip###prefix###binType##BinOrderTransferAggregation()
+            AND (quantityBinTransfers(binOrder)>0 OR isClosed(binOrder))
+            AND quantity###binType##BinOrderDetail(###prefix prefix, Bin bin, binOrder)
+            AND diffQuantity###binType##BinTranferDetail(prefix, bin, binOrder) 
+        MATERIALIZED;
+    
+    dateTime(###prefix###binType##BinOrderTransferAggregation ledger) += OVERRIDE [GROUP MAX dateTime(BinTransfer td) BY binOrder(td)](binOrder(ledger)),
+        closeDateTime(binOrder(ledger));
+    
+    isPosted(###prefix###binType##BinOrderTransferAggregation ledger) += ledger IS ###prefix###binType##BinOrderTransferAggregation;
+    isClosed(###prefix###binType##BinOrderTransferAggregation ledger) += isClosed(binOrder(ledger));
+    ##prefix(###prefix###binType##BinOrderTransferAggregation ledger) += prefix(ledger);
+    stock(###prefix###binType##BinOrderTransferAggregation ledger) += stock(binOrder(ledger));
+    bin(###prefix###binType##BinOrderTransferAggregation ledger) += bin(ledger);
+
+    description '{document.description.object}' (###prefix###binType##BinOrderTransferAggregation o) =
+        STRING[200](CONCAT ' ', 'Заказ на перемещение' IF o IS ###prefix###binType##BinOrderTransferAggregation,
+            '{document.desription.number} ' + seriesNumber(binOrder(o)), '{document.desription.of} ' + date(binOrder(o)),
+            'Перемещения:',
+            binTransfers(binOrder(o))) CHARWIDTH 30;
+    description(###prefix###binType##BinOrderTransferAggregation ledger) += description(ledger);
+    
+    quantity(###prefix###binType##BinOrderTransferAggregation ledger) += - diffQuantity###binType##BinTranferDetail(##prefix(ledger), bin(ledger), binOrder(ledger));
+
+END
+
+
+@binOrderTransferAggregation(sku, out);
