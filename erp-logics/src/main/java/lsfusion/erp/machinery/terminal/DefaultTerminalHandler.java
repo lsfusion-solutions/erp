@@ -331,7 +331,7 @@ public class DefaultTerminalHandler {
 
                 List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject, userInfo);
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
-                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, userInfo);
+                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, stockObject, userInfo);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo);
                 List<SkuGroup> skuGroupList = readSkuGroupList(session);
     
@@ -1867,19 +1867,21 @@ public class DefaultTerminalHandler {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, ObjectValue stockObject, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
         if(terminalHandlerLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev("terminalDocumentType", terminalDocumentTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            String[] names = new String[]{"idTerminalDocumentType", "backIdTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
+            String[] names = new String[]{"idTerminalDocumentType", "backIdTerminalDocumentType", "nameTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType", "idTerminalHandbookType1DetailTerminalDocumentType"};
-            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "backId[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
+            LP<?>[] properties = terminalHandlerLM.findProperties("id[TerminalDocumentType]", "backId[TerminalDocumentType]", "name[TerminalDocumentType]",
                     "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]", "idTerminalHandbookType1Detail[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
+            query.addProperty("flagTerminalDocumentType", terminalHandlerLM.findProperty("overFlag[TerminalDocumentType,Stock]").getExpr(session.getModifier(), terminalDocumentTypeExpr, stockObject.getExpr()));
+
             query.and(terminalHandlerLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
             query.and(terminalHandlerLM.findProperty("notSkip[TerminalDocumentType, CustomUser]").getExpr(terminalDocumentTypeExpr, userInfo.user.getExpr()).getWhere());
 

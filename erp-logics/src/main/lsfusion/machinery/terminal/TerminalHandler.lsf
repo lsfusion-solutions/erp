@@ -428,13 +428,34 @@ order(TerminalFlags f) = CASE
     
 flag 'Число'(TerminalFlags f) = LONG (power(2l, order(f)));
 
+flag 'Флаг' = DATA LONG (TerminalDocumentType, Stock);
+
 in 'Вкл.'  = DATA LOCAL NESTED BOOLEAN (TerminalDocumentType, TerminalFlags);
+in 'Вкл.'  = DATA LOCAL NESTED BOOLEAN (TerminalDocumentType, TerminalFlags, Stock);
+stocks 'Склады'(TerminalDocumentType t, TerminalFlags f) = GROUP CONCAT name(Stock st) IF in(t, f, st), ', ' ORDER name(st), st;
+
+FORM showStocks 'Склады'
+    OBJECTS t = TerminalDocumentType PANEL
+    
+    OBJECTS f = TerminalFlags PANEL
+    PROPERTIES staticCaption(f) READONLY
+
+    OBJECTS st = Stock
+    PROPERTIES in(t, f, st), id(st) READONLY, name(st) READONLY
+    FILTERS isCompany(st) 
+    FILTERGROUP in 
+        FILTER 'Вкл' in(t, f, st)
+;
+showStocks 'По складам' (TerminalDocumentType t, TerminalFlags f) {
+    SHOW showStocks OBJECTS t = t, f = f;
+    in(t, f) <- NULL WHERE GROUP SUM 1 IF in(t, f, Stock st);
+}
 
 FORM showFlags 'Флаги'
     OBJECTS t = TerminalDocumentType PANEL
     
     OBJECTS f = TerminalFlags
-    PROPERTIES in(t, f), flag(f) READONLY, staticCaption(f) READONLY
+    PROPERTIES in(t, f) READONLYIF (GROUP SUM 1 IF  in(t, f, Stock st)), flag(f) READONLY, staticCaption(f) READONLY, stocks(t, f) ON CHANGE showStocks(t, f)
     ORDERS flag(f)
 ;
 
@@ -442,13 +463,16 @@ bitwiseAndLong = FORMULA LONG '$1 & $2';
 
 showFlags 'Показать расшифровку' (TerminalDocumentType t)  { 
     in(t, TerminalFlags f) <- bitwiseAndLong(flag(t), flag(f)) == flag(f);
+    in(t, TerminalFlags f, Stock st) <- bitwiseAndLong(flag(t, st), flag(f)) == flag(f);
     NEWSESSION { 
         SHOW showFlags OBJECTS t = t;
         flag(t) <- (GROUP SUM flag(TerminalFlags f) IF in(t, f));
+        flag(t, Stock st) <- (GROUP SUM flag(TerminalFlags f) IF in(t, f, st));
         APPLY;
     }
 } ASON CONTEXTMENU flag[TerminalDocumentType];
 
+overFlag(TerminalDocumentType t, Stock st) = flag(t) (+) flag(t, st);
 // log connections
 
 CLASS TerminalConnection 'Подключение терминала';
