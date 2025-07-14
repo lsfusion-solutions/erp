@@ -249,9 +249,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             }
 
             //parent: good
-            Element barcode = new Element("bar-code");
-            setAttribute(barcode, "code", item.idBarcode);
-            addStringElement(barcode, "default-code", "true");
+            Element barcode = createBarcodeElement(item.idBarcode, "true");
             good.addContent(barcode);
 
             boolean noPriceEntry = true;
@@ -303,9 +301,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
     private Element createBarcodeElement(Element good, CashRegisterItem item, String idItem, String barcodeItem, boolean exportAmountForBarcode,
                                       Map<String, String> deleteBarcodeMap, DeleteBarcode usedDeleteBarcodes, List<String> notGTINPrefixes,
                                       JSONObject infoJSON, JSONObject extraInfoJSON) {
-        Element barcodeElement = new Element("bar-code");
-        setAttribute(barcodeElement, "code", barcodeItem);
-        addStringElement(barcodeElement, "default-code", (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
+        Element barcodeElement = createBarcodeElement(barcodeItem,  (item.mainBarcode != null && !item.mainBarcode.equals(item.idBarcode)) ? "false" : "true");
         if (exportAmountForBarcode && item.amountBarcode != null && BigDecimal.ONE.compareTo(item.amountBarcode) != 0) {
             addBigDecimalElement(barcodeElement, "count", item.amountBarcode);
         }
@@ -320,6 +316,14 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             if (ukz != null) {
                 setAttribute(barcodeElement, "marked", !ukz);
             }
+            if(extraInfoJSON.has("gtin")) {
+                String gtin = extraInfoJSON.getString("gtin");
+                if(!gtin.equals(barcodeItem)) {
+                    Element gtinBarcode = createBarcodeElement(gtin, null);
+                    gtinBarcode.setAttribute("barcode-type", "GTIN");
+                    good.addContent(gtinBarcode);
+                }
+            }
         }
 
         List<String> deleteBarcodeList = new ArrayList<>();
@@ -333,8 +337,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
 
         for(String deleteBarcode : deleteBarcodeList) {
-            Element deleteBarcodeElement = new Element("bar-code");
-            setAttribute(deleteBarcodeElement, "code", deleteBarcode);
+            Element deleteBarcodeElement = createBarcodeElement(deleteBarcode, null);
             setAttribute(deleteBarcodeElement, "deleted", true);
             good.addContent(deleteBarcodeElement);
         }
@@ -350,6 +353,15 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             }
         }
 
+        return barcodeElement;
+    }
+
+    private Element createBarcodeElement(String code, String defaultCode) {
+        Element barcodeElement = new Element("bar-code");
+        setAttribute(barcodeElement, "code", code);
+        if(defaultCode != null) {
+            addStringElement(barcodeElement, "default-code", defaultCode);
+        }
         return barcodeElement;
     }
 
