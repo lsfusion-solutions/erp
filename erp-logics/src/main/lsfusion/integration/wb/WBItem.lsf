@@ -22,7 +22,7 @@ paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
 error 'Ошибка' = DATA BOOLEAN (Item);
 errorText 'Текст ошибки' = DATA STRING (Item);
-in 'Вкл.' = DATA LOCAL BOOLEAN (Item);
+in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
 length 'Длина, см' = DATA INTEGER (Item);
 width 'Ширина, см' = DATA INTEGER (Item);
@@ -1623,7 +1623,11 @@ uploadItems 'Создание новых карточек' () {
 
         fileToString(exportFile());
         resultString() <- replace(resultString(), '"g":', '');
-        FOR in(Item i, Size s) AND in(i) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+        
+        FOR in(Item i, Size s) AND in(i) AND skus(s) NOINLINE DO {
+            resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+        }
+        
         resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
         stringToFile(resultString(), 'UTF-8', 'json');
 
@@ -1631,8 +1635,6 @@ uploadItems 'Создание новых карточек' () {
             EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/upload' HEADERS httpHeaders PARAMS resultFile() TO response;
             fileToString(response());
             logToFile('WB', resultString());
-            
-            
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
