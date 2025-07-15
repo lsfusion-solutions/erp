@@ -34,7 +34,7 @@ CLASS Size 'Размер';
 chrtID 'ID размера' = DATA INTEGER (Size);
 size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
 
-techSize 'Размер' = DATA STRING (Size);
+techSize 'Размер' = DATA STRING (Size) NONULL;
 wbSize 'Российский размер' = DATA STRING (Size);
 price 'Цена' = DATA INTEGER (Size);
 skus 'Баркод' = DATA STRING (Size);
@@ -137,7 +137,7 @@ FORM mediaFile 'Медиафайл'
 WHEN CHANGED(url(MediaFile mf) AND mf IS MediaFile) DO posted(mf) <- NULL;
 
 //https://content-api.wildberries.ru/content/v3/media/save
-postMediaFiles 'Загрузить медиафайл по ссылкам' (Item item) {
+postMediaFiles 'Загрузить медиафайлы по ссылкам' (Item item) {
     NEWSESSION {
         IF (GROUP SUM 1 IF NOT posted(MediaFile mf) AND mf IS MediaFile AND item(mf) == item) THEN {
             setHttpHeadersIS();
@@ -300,7 +300,9 @@ DESIGN item {
                     valueClass = 'not-null' IF notNull(itemSubGroup(i), attr) AND NOT value(i, attr);
                 }
             }
-            MOVE BOX(size);
+            MOVE BOX(size) {
+                caption = 'Размеры';
+            }
             MOVE BOX(mf){
                 caption = 'Медиафайлы по ссылкам';
             }
@@ -1091,6 +1093,7 @@ cardsSizes = DATA LOCAL INTEGER(INTEGER);
 skus = DATA LOCAL STRING(INTEGER);
 sizesSkus = DATA LOCAL INTEGER(INTEGER);
 techSize = DATA LOCAL STRING(INTEGER);
+wbSize = DATA LOCAL STRING(INTEGER);
 chrtID = DATA LOCAL STRING (INTEGER);
 brand = DATA LOCAL STRING(INTEGER);
 weightBrutto = DATA LOCAL NUMERIC[10,3] (INTEGER);
@@ -1129,7 +1132,7 @@ FORM importItems
 
     OBJECTS sizes = INTEGER
     FILTERS cardsSizes(sizes) == cards
-    PROPERTIES(sizes) techSize, chrtID
+    PROPERTIES(sizes) techSize, chrtID, wbSize
     FILTERS imported(sizes)
 
     OBJECTS skus = INTEGER
@@ -1185,6 +1188,7 @@ postItems 'Получить список карточек товаров' () {
                     in(item, s) <- TRUE;
                     chrtID(s) <- INTEGER(chrtID);
                     techSize(s) <- techSize(ii);
+                    wbSize(s) <- wbSize(ii);
                     FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO skus(s) <- skus(j);
                 }
                 
@@ -1415,7 +1419,7 @@ EXTEND FORM integrationData
     PROPERTIES(item) READONLYIF isReadonly() id, name
     PROPERTIES(item) READONLY nmID, imtID
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
-    PROPERTIES(item) postMediaFiles GRID 
+    PROPERTIES(item) postMediaFiles PANEL
     PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(item)
     FILTERS itemSubGroup(item)
@@ -1546,7 +1550,6 @@ variantsCharacteristics = DATA LOCAL INTEGER(INTEGER);
 value1 = DATA LOCAL STRING(INTEGER);
 characteristicsValue1 = DATA LOCAL INTEGER(INTEGER);
 variantsSizes = DATA LOCAL INTEGER(INTEGER);
-wbSize = DATA LOCAL STRING(INTEGER);
 
 FORM uploadItems
     OBJECTS g = ItemSubGroup 
@@ -1719,13 +1722,14 @@ uploadItem 'Создание новой карточки' (Item item) {
                 MESSAGE message() NOWAIT;
                 IF statusHttp()==200 THEN {
                     checkErrors();
+                    MESSAGE '<h3>Получение списка ошибок создания/обновления карточек товаров </h3>' NOWAIT;
+                    postItems();
                 }
                 APPLY;
             }
         } ELSE {
             MESSAGE 'Карточка товара уже создана, нечего выгружать' NOWAIT;
         }
-        postItems();
     }
 }
 
@@ -1750,7 +1754,7 @@ WHEN (CHANGED(name(Item i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR
 }
 
 FORM updateItem
-    OBJECTS i = Item PANEL
+    OBJECTS i = Item EXTID 'value'
     PROPERTIES(i)
         nmID EXTID 'nmID',
         id EXTID 'vendorCode',
@@ -1776,7 +1780,7 @@ FORM updateItem
     FILTERS in(i, size)
 ;
 
-updateItem 'Обновить карточку товара' (Item i) {
+updateItem 'Обновить карточку товара' (Item item) {
     NEWSESSION {
         setHttpHeadersIS();
 
@@ -1786,16 +1790,15 @@ updateItem 'Обновить карточку товара' (Item i) {
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
         LOCAL isChanged = BOOLEAN (Item);
-        isChanged(i) <- TRUE WHERE id(i) AND nmID(i) AND imtID(i);
+        isChanged(item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item);
 
-        IF isChanged(i) THEN {
+        IF isChanged(item) THEN {
             logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/update');
 
             EXPORT updateItem FILTERS isChanged(i) JSON;
 
             fileToString(exportFile());
-            resultString() <- '[' + resultString() + ']';
-            FOR in(i, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            FOR in(item, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
             stringToFile(resultString(), 'UTF-8', 'json');
     
             TRY {
