@@ -83,6 +83,8 @@ DESIGN gialogBarcode {
 @defineOption(dataSkipCreateLotOnChangeBarcode, 'Не создавать марки при продаже', pos);
 skipCreateLotOnChangeBarcode() += dataSkipCreateLotOnChangeBarcode();
 
+checkCreateLotOverNewLot ABSTRACT LIST(Receipt, Lot);
+
 checkCreateLot(STRING[200] str, Receipt r) + {
     FOR Sku sk = skuFromGtin(idToGtin(str)) AND DepartmentStore dt = departmentStore(r) DO {
         IF (explicitLot(sk) OR overExplicitLot(sk, dt)) AND NOT (overSkipCheckSkuPosLot(sk) OR skipCheckPosLot() OR overSkipCheckPosLot(r)) 
@@ -113,7 +115,7 @@ checkCreateLot(STRING[200] str, Receipt r) + {
                         RETURN;
                     }
                 }
-                
+                checkCreateLotOverNewLot(r, l);
             }
         }
     }

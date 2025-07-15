@@ -7,9 +7,10 @@ NAMESPACE Label;
 stickerTransaction = DATA StickerTransaction(Lot) INDEXED;
 dateTimeStickerTransaction 'Дата/время печати' (Lot l) = dateTime(stickerTransaction(l));
 printed 'Напечатана' (Lot l) = stickerTransaction(l) AND NOT skipReports(stickerTransaction(l)) MATERIALIZED;
+skipPrint 'Запрет печати' = ABSTRACT BOOLEAN (Lot);
 notPrinted (Lot l) = l IS Lot AND NOT printed(l) MATERIALIZED INDEXED;
 
-countNotPrintedLot 'Кол-во ненапечатанных марок' = GROUP SUM 1 IF notPrinted(Lot l) BY sku(l) MATERIALIZED;
+countNotPrintedLot 'Кол-во ненапечатанных марок' = GROUP SUM 1 IF notPrinted(Lot l) AND NOT skipPrint(l) BY sku(l) MATERIALIZED;
 
 unPrint 'Отменить печать' (Lot l) {
     NEWSESSION {
@@ -64,7 +65,7 @@ preparePrintLot(StickerTransaction stickerTrans) {
     }
     
     LOCAL lotToPrint = Lot();
-    lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND sku(l) = item(stickerTrans);
+    lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND NOT skipPrint(l) AND sku(l) = item(stickerTrans);
     stickerTransaction(lotToPrint()) <- stickerTrans;
 
     IF logPrintDatamartix() THEN {
