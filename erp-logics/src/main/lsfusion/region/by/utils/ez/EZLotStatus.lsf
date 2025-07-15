@@ -33,6 +33,7 @@ FORM exportLots
 ;
 
 label = DATA LOCAL STRING(INTEGER);
+isOwn = DATA LOCAL BOOLEAN(INTEGER);
 
 GROUP status EXTID 'status';
 lotCode = DATA LOCAL INTEGER(INTEGER);
@@ -40,6 +41,7 @@ lotCode = DATA LOCAL INTEGER(INTEGER);
 FORM importLotStatus
     OBJECTS labels = INTEGER
     PROPERTIES(labels) label
+    PROPERTIES(labels) isOwn EXTID 'is_my'
 
     PROPERTIES(labels) IN status
         lotCode EXTID 'code'
@@ -76,6 +78,7 @@ getStatus 'Получить статус' () {
 
             IMPORT importLotStatus JSON FROM result();
             status(Lot l) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
+            isOwn(Lot l) <- [GROUP MIN isOwn(INTEGER i) BY label(i)](code(l)) WHERE inExport(l);
             inExport(Lot l) <- NULL;
         } CATCH {
             logToFile('ez', messageCaughtException());
