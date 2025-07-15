@@ -38,6 +38,8 @@ createdStatus 'Статус' (Item item) = CASE
 CLASS Size 'Размер';
 
 chrtID 'ID размера' = DATA INTEGER (Size);
+size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
+
 techSize 'Размер' = DATA STRING (Size);
 wbSize 'Российский размер' = DATA STRING (Size);
 price 'Цена' = DATA INTEGER (Size);
@@ -1158,6 +1160,17 @@ postItems 'Получить список карточек товаров' () {
             fileToString(response());
             logToFile('WB', resultString());
             IMPORT importItems JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND Item item == item(id) AND NOT (nmID(item(id)) AND imtID(item(id))) DO {
+                nmID(item) <- nmID1(i);
+                imtID(item) <- imtID(i);
+
+                FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO {
+                    FOR in(item, Size s) AND techSize(s) == techSize(ii) DO 
+                        chrtID(s) <- INTEGER(chrtID);
+                }
+            }
+            
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                 id(item) <- id;
                 nmID(item) <- nmID1(i);
@@ -1646,6 +1659,7 @@ uploadItems 'Создание новых карточек' () {
         }
 
         checkErrors();
+        postItems();
     }
 }
 
