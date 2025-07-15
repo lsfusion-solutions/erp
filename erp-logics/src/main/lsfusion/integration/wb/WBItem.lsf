@@ -29,12 +29,6 @@ width 'Ширина, см' = DATA INTEGER (Item);
 height 'Высота, см' = DATA INTEGER (Item);
 weightBrutto 'Вес, кг' = DATA NUMERIC[10,3] (Item);
 
-createdStatus 'Статус' (Item item) = CASE
-    WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
-    WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан'
-    ELSE 'Ошибка'
-;
-
 CLASS Size 'Размер';
 
 chrtID 'ID размера' = DATA INTEGER (Size);
@@ -237,10 +231,10 @@ deleteSize 'Удалить' (Item i, Size s) {
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
     PROPERTIES(i) id, name, description
-    PROPERTIES(i) READONLY nmID, imtID, createdStatus
+    PROPERTIES(i) READONLY nmID, imtID
     PROPERTIES(i) length, width, height, weightBrutto
     PROPERTIES(i) nameItemGroup, nameItemSubGroup, isTrash
-    PROPERTIES(i) error, errorText SHOWIF error(i)
+    PROPERTIES(i) READONLY error BACKGROUND RGB(255, 51, 51) IF error(i), errorText SHOWIF error(i) 
     ORDERS name(i)
 
     OBJECTS attr = Attribute
@@ -278,18 +272,23 @@ DESIGN item {
             MOVE PROPERTY(nameItemGroup(i));
             MOVE PROPERTY(nameItemSubGroup(i));
             MOVE PROPERTY(isTrash(i));
-            MOVE PROPERTY(createdStatus(i));
             MOVE PROPERTY(length(i));
             MOVE PROPERTY(width(i));
             MOVE PROPERTY(height(i));
             MOVE PROPERTY(weightBrutto(i));
-            NEW error {
-                horizontal = TRUE;
-                align = STRETCH;
-                MOVE PROPERTY(error(i));
-                MOVE PROPERTY(errorText(i)) { align = STRETCH; }
-            }
+            MOVE PROPERTY(error(i));
+            MOVE PROPERTY(errorText(i)) { align = STRETCH; }
         }
+        NEW errorContainer{
+            align = STRETCH;
+            caption = 'Текст ошибки';
+            MOVE PROPERTY(errorText(i)) {
+                caption = '';
+                align = STRETCH;
+                height = 50;
+                fontSize = 14;
+            }
+        }        
         NEW containerItemDetail {
             tabbed = TRUE;
             fill = 1;
@@ -1411,8 +1410,10 @@ EXTEND FORM integrationData
     PROPERTIES() getItemLimits, postItems, postCartItems, postTransferItems, postRecoverItems
     OBJECTS item = Item
     PROPERTIES(item) in
-    PROPERTIES(item) READONLYIF isReadonly() isTrash, error, id, name
-    PROPERTIES(item) READONLY nmID, imtID, createdStatus
+    PROPERTIES(item) READONLYIF isReadonly() isTrash
+    PROPERTIES(item) READONLY error BACKGROUND RGB(255, 51, 51) IF error(item), errorText SHOWIF error(item) PANEL
+    PROPERTIES(item) READONLYIF isReadonly() id, name
+    PROPERTIES(item) READONLY nmID, imtID
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
     PROPERTIES(item) postMediaFiles GRID 
     PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
@@ -1476,6 +1477,16 @@ DESIGN integrationData {
                 MOVE PROPERTY (postRecoverItems());
             }
             MOVE BOX(item);
+            NEW errorContainer{
+                align = STRETCH;
+                caption = 'Текст ошибки';
+                MOVE PROPERTY(errorText(item)) { 
+                    caption = '';
+                    align = STRETCH;
+                    height = 50;
+                    fontSize = 14;
+                }
+            }
         }
     }
 }
@@ -1550,8 +1561,7 @@ FORM uploadItems
                                  width EXTID 'width',
                                  height EXTID 'height',
                                  weightBrutto EXTID 'weightBrutto'
-    FILTERS in(i),
-            itemSubGroup(i) == g
+    FILTERS itemSubGroup(i) == g
     
     OBJECTS a = Attribute EXTID 'characteristics'
     PROPERTIES id = INTEGER(id(a)) EXTID 'id',
@@ -1585,43 +1595,43 @@ FORM checkErrors
     FILTERS imported(errors)
     FILTERS dataErrors(errors) == data;
 
-checkErrors 'Проверить ошибки' () {
-    setHttpHeadersIS();
-    
-    FOR error(Item i) DO {
-        error(i) <- NULL;
-        errorText(i) <- NULL;
-    }
+checkErrors 'Получение ошибок' () {
+    NEWSESSION {
+        setHttpHeadersIS();
 
-    logToFile('WB', 'GET: ' +url(CategoryRequest.content) + '/content/v2/cards/error/list');
-    
-    LOCAL response = FILE();
-    LOCAL message = STRING ();
-    
-    TRY {
-        EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
-        fileToString(response());
-        logToFile('WB', resultString());
+        errorText(Item item) <- NULL WHERE error(item);
+        error(Item item) <- NULL WHERE error(item);
 
-        IMPORT checkErrors JSON FROM response();
-        FOR imported(INTEGER i) AND item(vendorCode(i)) DO {
-            error(item(vendorCode(i))) <- TRUE;
-            errorText(item(vendorCode(i))) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) ==i, ', ' ORDER j;
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/cards/error/list');
+
+        LOCAL response = FILE();
+        LOCAL message = STRING ();
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            IMPORT checkErrors JSON FROM response();
+            FOR imported(INTEGER i) AND Item item == item(vendorCode(i)) INLINE DO {
+                error(item) <- TRUE;
+                errorText(item) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) == i, ', ' ORDER j;
+            }
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE CONCAT '', '<h3>Получение списка ошибок создания/обновления карточек товаров </h3>', message() NOWAIT;
+            APPLY;
         }
-
-        message() <- messageStatusHTTP(STRING(statusHttp()));
-    } CATCH {
-        logToFile('WB', messageCaughtException());
-        message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-    } FINALLY {
-        afterSendRequestIS();
-        MESSAGE message() NOWAIT;
-        APPLY;
-    }
+    }    
 }
 
 uploadItems 'Создание новых карточек' () {
-    NEWSESSION NESTED (in[Item]) {
+    NEWSESSION NESTED{
         setHttpHeadersIS();
 
         LOCAL message = STRING ();
@@ -1629,54 +1639,113 @@ uploadItems 'Создание новых карточек' () {
         LOCAL error = STRING ();
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
+        LOCAL isNew = BOOLEAN (Item);
+        isNew(Item item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item));
 
-        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
+        IF (GROUP SUM 1 IF isNew(Item item)) THEN {
+            logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
+    
+            EXPORT uploadItems FILTERS isNew(i) JSON;
+    
+            fileToString(exportFile());
+            resultString() <- replace(resultString(), '"g":', '');
+            
+            FOR in(Item i, Size s) AND isNew(i) AND skus(s) NOINLINE DO {
+                resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            }
+            
+            resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
+            stringToFile(resultString(), 'UTF-8', 'json');
+    
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/upload' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                IF statusHttp()==200 THEN {
+                    checkErrors();
+                }
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Все карточки товаров уже созданы, нечего выгружать';
+        }   
+    }
+}
 
-        EXPORT uploadItems JSON;
+uploadItem 'Создание новой карточки' (Item item) {
+    NEWSESSION NESTED{
+        setHttpHeadersIS();
 
-        fileToString(exportFile());
-        resultString() <- replace(resultString(), '"g":', '');
-        
-        FOR in(Item i, Size s) AND in(i) AND skus(s) NOINLINE DO {
-            resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL isNew = BOOLEAN (Item);
+        isNew(item) <- TRUE WHERE id(item) AND NOT (nmID(item) OR imtID(item));
+
+        IF isNew(item) THEN {
+            logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/upload');
+
+            EXPORT uploadItems FILTERS isNew(i) JSON;
+
+            fileToString(exportFile());
+            resultString() <- replace(resultString(), '"g":', '');
+
+            FOR in(Item i, Size s) AND isNew(i) AND skus(s) NOINLINE DO {
+                resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            }
+
+            resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
+            stringToFile(resultString(), 'UTF-8', 'json');
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/upload' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                IF statusHttp()==200 THEN {
+                    checkErrors();
+                }
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Карточка товара уже создана, нечего выгружать' NOWAIT;
         }
-        
-        resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
-        stringToFile(resultString(), 'UTF-8', 'json');
-
-        TRY {
-            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/upload' HEADERS httpHeaders PARAMS resultFile() TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE message() NOWAIT;
-            APPLY;
-        }
-
-        checkErrors();
         postItems();
     }
 }
 
-EXTEND FORM integrationData PROPERTIES uploadItems();
+EXTEND FORM integrationData 
+    PROPERTIES uploadItems()
+    PROPERTIES uploadItem(item) SHOWIF id(item) AND NOT (nmID(item) OR imtID(item))
+;
 
 DESIGN integrationData {
     actionContainer {
-        MOVE PROPERTY (uploadItems());
+        MOVE PROPERTY(uploadItems());
     }
 }
 
 toUpdateWB = DATA BOOLEAN (Item);
 
-WHEN (CHANGED(nmID(Item i)) OR CHANGED(id(i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
+WHEN (CHANGED(name(Item i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
     CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
     (GROUP SUM 1 IF in(i, Size s) AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
-    (GROUP SUM 1 IF SET(in(i, Size s)))) AND NOT SET(i IS Item) DO {
+    (GROUP SUM 1 IF SET(in(i, Size s)))) AND NOT SET(i IS Item) AND id(i) AND nmID(i) AND imtID(i) DO {
         toUpdateWB(i) <- TRUE;
 }
 
@@ -1716,33 +1785,117 @@ updateItem 'Обновить карточку товара' (Item i) {
         LOCAL error = STRING ();
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
+        LOCAL isChanged = BOOLEAN (Item);
+        isChanged(i) <- TRUE WHERE id(i) AND nmID(i) AND imtID(i);
 
-        logToFile('WB', 'POST: ' +url(CategoryRequest.content) + '/content/v2/cards/update');
+        IF isChanged(i) THEN {
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/update');
 
-        EXPORT updateItem OBJECTS i = i JSON;
+            EXPORT updateItem FILTERS isChanged(i) JSON;
 
-        fileToString(exportFile());
-        resultString() <- '[' + resultString() + ']';
-        FOR in(i, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
-        stringToFile(resultString(), 'UTF-8', 'json');
-
-        TRY {
-            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/update' HEADERS httpHeaders PARAMS resultFile() TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE message() NOWAIT;
-            APPLY;
+            fileToString(exportFile());
+            resultString() <- '[' + resultString() + ']';
+            FOR in(i, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            stringToFile(resultString(), 'UTF-8', 'json');
+    
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/update' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+    
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                IF statusHttp()==200 THEN {
+                    checkErrors();                
+                }
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Нет необходимости в обновлении карточки товара' NOWAIT;
         }
-
-        checkErrors();
     }
 }
 
-EXTEND FORM integrationData PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND toUpdateWB(item);
+updateItem 'Обновить карточки товаров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL errorText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL isChanged = BOOLEAN (Item);
+        isChanged(Item item) <- TRUE WHERE id(item) AND nmID(item) AND imtID(item) AND toUpdateWB(item);
+
+        IF (GROUP SUM 1 IF isChanged(Item item)) THEN {
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/update');
+
+            EXPORT updateItem FILTERS isChanged(i) JSON;
+
+            fileToString(exportFile());
+            resultString() <- '[' + resultString() + ']';
+            FOR in(i, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            stringToFile(resultString(), 'UTF-8', 'json');
+
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/update' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE message() NOWAIT;
+                IF statusHttp() == 200 THEN {
+                    checkErrors();
+                }
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Все карточки товаров обновлены' NOWAIT;
+        }    
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES updateItem()
+    PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND imtID(item)
+;
+
+DESIGN integrationData {
+    actionContainer {
+        MOVE PROPERTY(updateItem());
+    }
+}
+
+// ----------------------------------- Статус карточки товара -----------------------------------------------------//
+
+createdStatus 'Статус' (Item item) = CASE
+    WHEN item IS Item AND error(item) THEN 'Ошибка создания/обновления'                                         
+    WHEN item IS Item AND toUpdateWB(item) THEN 'Изменён'
+    WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан/обновлён'
+    WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
+;
+
+EXTEND FORM item
+    PROPERTIES(i) READONLY createdStatus
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(createdStatus(i)) AFTER PROPERTY(isTrash(i));
+    }    
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(item) READONLY createdStatus AFTER nmID(item)
+;
