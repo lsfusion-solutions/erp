@@ -1682,7 +1682,7 @@ public class DefaultTerminalHandler {
                         "color", "headField1", "headField2", "headField3", "posField1", "posField2", "posField3",
                         "minDeviationDate", "maxDeviationDate", "dateShipment", "extraBarcodes", "sortTerminal", "unitLoad"};
                 LP<?>[] orderDetailProperties = terminalOrderLM.findProperties("idBarcodeSku[TerminalOrderDetail]", "idSku[TerminalOrderDetail]",
-                        "nameSku[TerminalOrderDetail]", "nameSkuGroup[TerminalOrderDetail]", "price[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
+                        "nameSku[TerminalOrderDetail]", "nameSkuGroup[TerminalOrderDetail]", "overPrice[TerminalOrderDetail]", "orderQuantity[TerminalOrderDetail]",
                         "nameManufacturerSku[TerminalOrderDetail]", "isWeighSku[TerminalOrderDetail]", "isSplitSku[TerminalOrderDetail]", "minDeviationQuantity[TerminalOrderDetail]",
                         "maxDeviationQuantity[TerminalOrderDetail]", "minDeviationPrice[TerminalOrderDetail]", "maxDeviationPrice[TerminalOrderDetail]",
                         "color[TerminalOrderDetail]", "headField1[TerminalOrderDetail]", "headField2[TerminalOrderDetail]", "headField3[TerminalOrderDetail]",
