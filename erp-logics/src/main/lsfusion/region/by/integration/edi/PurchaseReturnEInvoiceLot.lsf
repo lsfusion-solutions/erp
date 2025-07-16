@@ -1,14 +1,22 @@
 MODULE PurchaseReturnEInvoiceLot;
 
-REQUIRE PurchaseReturnEInvoice, PurchaseReturnShipmentLot;
+REQUIRE PurchaseReturnEInvoice, PurchaseReturnShipmentLot, LotAggregate;
 
 NAMESPACE PurchaseReturn;
 
 //для одной марки одна строка + кол-во этих марок
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
-    FOR INTEGER qty == quantity[PurchaseReturn.InvoiceDetail, Lot](cd, Lot l) DO NEW eld = EInvoiceLotDetail {
+    LOCAL parentDetail = EInvoiceLotDetail (STRING);
+    FOR [GROUP SUM 1 IF quantity[PurchaseReturn.InvoiceDetail, Lot](cd, Lot l) BY parent(l)](Lot parrent) NEW eld = EInvoiceLotDetail DO {
+        eInvoiceDetail(eld) <- eid;
+        id(eld) <- code(parrent);
+        parentDetail(id(parrent)) <- eld;
+    }
+
+    FOR INTEGER qty == quantity[PurchaseReturn.InvoiceDetail, Lot](cd, Lot l) AND NOT aggregated(l) DO NEW eld = EInvoiceLotDetail {
         eInvoiceDetail(eld) <- eid;
         id(eld) <- code(l);
         quantity(eld) <- qty;
+        parent(eld) <- parentDetail(idParent(l));
     }
 }
