@@ -1,10 +1,20 @@
 MODULE SaleReportsRu;
 
-REQUIRE SaleReports, SaleInvoice, SaleOperation, SaleFullPrice, SaleShipment, TaxItem;
+REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, SaleFullPrice, SaleShipment, TaxItem, ZReport, Warehouse;
 
 NAMESPACE SaleReports;
 
+articleRu = ABSTRACT ISTRING[20](Sku);
+priceSku 'Учетная цена' = ABSTRACT NUMERIC[16,4](Sku, Stock);
+
+inSessionSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF inSession(group(GroupType t, s)));
+printInSessionSku 'Товары' () =
+    GROUP CONCAT name(Sku s) IF inSessionSku(s) ,', ' ORDER s CHARWIDTH 100;
+
 inSaleReportLegalEntities 'Покупатели' () =
+    GROUP CONCAT name(LegalEntity le) IF in(le) ,', ' ORDER le CHARWIDTH 30;
+
+inSaleReportSupplier'Поставщики' () =
     GROUP CONCAT name(LegalEntity le) IF in(le) ,', ' ORDER le CHARWIDTH 30;
 
 FORM dialogLegalEntitiesSaleReport 'Выбор покупателя'
@@ -42,12 +52,6 @@ DESIGN dialogLegalEntitiesSaleReport {
     }
 }
 
-changeLegalEntitiesSalesReport(DATE df, DATE dt)  {
-    DIALOG dialogLegalEntitiesSaleReport DO {
-        //fillSaleReportFromTo(df, dt);
-    }
-}
-
 changeStocksSalesReport(GroupType gt, DATE df, DATE dt)  {
     DIALOG dialogStocksSaleReport DO {
         fillSaleReportFromTo(gt, df, dt);
@@ -64,99 +68,99 @@ FORM selectOperations 'Выберите операции'
 ;
 
 quantitySold(Stock sk, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 shipmentSum(Stock sk,  DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](shipmentPrice[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sum(Stock sk, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](price[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumVAT(Stock sk, DATE df, DATE dt) = GROUP SUM VATSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumNoVAT(Stock sk, DATE df, DATE dt) = GROUP SUM NUMERIC[18,4](invoiceSum[Sale.InvoiceDetail](SaleLedger d) (-) VATSum[Sale.InvoiceDetail](d))
-    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 discountSum(Stock sk, DATE df, DATE dt) = GROUP SUM discountSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 costSum(Stock sk, DATE df, DATE dt) = GROUP SUM costSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 profitSum(Stock sk, DATE df, DATE dt) =
     GROUP SUM NUMERIC[18,4](sum(sk,df,dt) (-) shipmentSum(sk,df,dt) );
 
 quantity(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 shipmentSum(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](shipmentPrice[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sum(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](price[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumVAT(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM VATSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumNoVAT(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[18,4](invoiceSum[Sale.InvoiceDetail](SaleLedger d) (-) VATSum[Sale.InvoiceDetail](d))
-    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 discountSum(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM discountSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 costSum(Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM costSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 profitSum(Stock sk, LegalEntity l, DATE df, DATE dt) =
     GROUP SUM NUMERIC[18,4](sum(sk,l,df,dt) (-) shipmentSum(sk,l,df,dt));
 
 quantity(Sku s,Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 shipmentPrice(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP MAX shipmentPrice[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 shipmentSum(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](shipmentPrice[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sum(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](price[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumVAT(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM VATSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 sumNoVAT(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[18,4](invoiceSum[Sale.InvoiceDetail](SaleLedger d) (-) VATSum[Sale.InvoiceDetail](d))
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 discountSum(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM discountSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 costSum(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM costSum[Sale.InvoiceDetail](SaleLedger d)
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 profitSum(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = 
     GROUP SUM NUMERIC[18,4](sum(s,sk,l,df,dt) (-) shipmentSum(s,sk,l,df,dt) );
 valueVAT(Sku s, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP MAX valueVAT(sku(SaleLedger d))
-    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
+    IF stock(d) = sk AND customer(d) = l AND sku(d) = s AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
 
 quantity (NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 shipmentSum(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](shipmentPrice[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 sum(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](price[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 sumVAT(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM VATSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 sumNoVAT(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[18,4](invoiceSum[Sale.InvoiceDetail](SaleLedger d) (-) VATSum[Sale.InvoiceDetail](d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 discountSum(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM discountSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 costSum(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM costSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 profitSum(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) =
     GROUP SUM NUMERIC[18,4](sum(n,sk,l,df,dt) (-) shipmentSum(n,sk,l,df,dt) );
 valueVAT(NUMERIC[10,5] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP MAX valueVAT(sku(SaleLedger d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY valueVAT(sku(d)), stock(d), customer(d);
 
 shortNameUOMIdeal(Sku s) = OVERRIDE shortNameUOM(s), '-';
 
 quantity (STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 shipmentSum(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](shipmentPrice[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 sum(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[16,4](price[Sale.InvoiceDetail](SaleLedger d)*quantity(d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 sumVAT(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM VATSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 sumNoVAT(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM NUMERIC[18,4](invoiceSum[Sale.InvoiceDetail](SaleLedger d) (-) VATSum[Sale.InvoiceDetail](d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 discountSum(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM discountSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 costSum(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP SUM costSum[Sale.InvoiceDetail](SaleLedger d)
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 profitSum(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) =
     GROUP SUM NUMERIC[18,4](sum(n,sk,l,df,dt) (-) shipmentSum(n,sk,l,df,dt) );
 shortNameUOM(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP MAX shortNameUOMIdeal(sku(SaleLedger d))
-    IF date(d) >= df AND date(d) <= dt AND inSession(group(GroupType groupType, sku(d))) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
+    IF date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations()) BY shortNameUOMIdeal(sku(d)), stock(d), customer(d);
 
 FORM skuSaleReport 'Отчет по реализации'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -177,8 +181,8 @@ FORM skuSaleReport 'Отчет по реализации'
     OBJECTS s = Sku
     PROPERTIES(s) idBarcode, name, shortNameUOMIdeal
     PROPERTIES(s,st,l,df,dt) quantity, shipmentSum, valueVAT, sum, sumVAT, sumNoVAT, discountSum, costSum, profitSum, shipmentPrice
-    FILTERS quantity(s,st,l,df,dt)
-    
+    FILTERS quantity(s,st,l,df,dt), inSessionSku(s)
+
     OBJECTS n = NUMERIC[10,5]
     PROPERTIES(n,st,l,df,dt) quantity, shipmentSum, valueVAT, sum, sumVAT, sumNoVAT, discountSum, costSum, profitSum
     FILTERS quantity(n,st,l,df,dt)
@@ -199,7 +203,7 @@ printSkuSaleReportXLS 'Отчет по реализации (XLS)' (DATE df, DAT
 } IMAGE 'apply.png';
 
 EXTEND FORM salesReport
-    PROPERTIES inSaleReportLegalEntities() ON CHANGE changeLegalEntitiesSalesReport(df, dt)
+    PROPERTIES inSaleReportLegalEntities()
     PROPERTIES nameInOperations() ON CHANGE {DIALOG selectOperations; }
     
     PROPERTIES(df,dt) printSkuSaleReport, printSkuSaleReportXLS
@@ -227,6 +231,243 @@ DESIGN salesReport {
         }
     }
 }
+
+/////// --------- по классификатору
+
+filterSaleLeger = DATA LOCAL BOOLEAN (SaleLedger);
+namePrint = DATA LOCAL STRING ();
+
+quantity(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sum(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+fullSum(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM sum(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) fullSum(s,st,df,dt);
+marga(Sku s, Stock st, DATE df, DATE dt) = valProfit(s,st,df,dt)*100/sum(s,st,df,dt);
+netWeight(Sku s, Stock st, DATE df, DATE dt) = quantity(s,st,df,dt) * netWeight(s);
+volume(Sku s, Stock st, DATE df, DATE dt) = quantity(s,st,df,dt) * volume(s);
+balanceBDepartmentStore(Sku s, DATE dt) = GROUP SUM balanceA(s,Stock st,dt) IF st IS DepartmentStore;
+balanceBStock(Sku s, DATE dt) = GROUP SUM balanceA(s, Stock st, dt) IF st IS Warehouse;
+
+balanceSumDepartmentStore(Sku s, DATE dt) = GROUP SUM sumA(s,Stock st,dt) IF st IS DepartmentStore;
+balanceSumStock(Sku s, DATE dt) = GROUP SUM sumA(s, Stock st, dt) IF st IS Warehouse;
+sumVAT(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM sumVAT(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+buxCost(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP MAX price(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+buxCostSum(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP MAX (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSku 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+profit(Sku s, Stock st, DATE df, DATE dt) = sum(s,st,df,dt) (-) sumSku(s,st,df,dt);
+
+FORM groupSaleLedgerReport 'Отчет по классификатору'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(), namePrint()
+
+    OBJECTS st = Stock
+    PROPERTIES name(st)
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) nameSkuGroup4, nameSkuGroup2, nameSkuGroup3, idBarcode,
+        name, articleRu, shortNameUOM, netWeight, volume, valueVAT
+    FILTERS inSessionSku(s)
+
+    PROPERTIES(s,st,df,dt) quantity, fullSum, sum, valProfit, marga, netWeight,
+        volume, sumVAT, buxCost, buxCostSum, profit, sumSku
+    PROPERTIES(s,dt) balanceBDepartmentStore, balanceBStock,
+        balanceSumDepartmentStore, balanceSumStock
+    ORDERS idBarcode(s), name(s)
+
+    FILTERS quantity(s,st,df,dt)
+
+;
+
+printGroupReceiptSaleLedgerReport 'Отчет по классификатору(розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
+    namePrint() <- '(розничные продажи)';
+    PRINT groupSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printGroupSaleLedgerReport 'Отчет по классификатору(опт)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    namePrint() <- '(опт)';
+    PRINT groupSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printGroupSaleLedgerAllReport 'Отчет по классификатору(опт+розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    namePrint() <- '(розничные продажи + опт)';
+    PRINT groupSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+///////// ----- итоги
+
+sumRetailPrice(Stock st, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSku'Учетная сумма' (Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l) AND filterSaleLeger(l) AND inSessionSku(sku(l));
+profit(Stock st, DATE df, DATE dt) = NUMERIC[30,2](sumRetailPrice(st,df,dt) (-) sumSku(st,df,dt));
+rentSku(Stock st, DATE df, DATE dt) = NUMERIC[30,2](profit(st,df,dt)*100/sumRetailPrice(st,df,dt));
+markup(Stock st, DATE df, DATE dt) = NUMERIC[30,2](profit(st,df,dt)*100/sumSku(st,df,dt));
+balanceBDepartmentStore(Stock st, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceA(Sku s,st,dt)*priceSku(sku(SaleLedger l),stock(l))) IF st IS DepartmentStore AND sku(l) = s;
+balanceBStock(Stock st, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceA(Sku s,st,dt)*priceSku(sku(SaleLedger l),stock(l))) IF st IS Warehouse AND sku(l) = s;
+turnover(Stock st, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceBDepartmentStore(st,dt)*daysBetweenDates(df,dt)/sumSku(st,df,dt));
+
+inReturn 'Вкл. возвраты' = DATA LOCAL BOOLEAN ();
+
+FORM groupItogSaleLedgerReport 'Итоговый отчет по продажам'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt),
+        inSaleReportStocks(), namePrint(), inReturn()
+
+    OBJECTS st = Stock
+    PROPERTIES(st) name, id
+    PROPERTIES(st,df,dt) sumRetailPrice, sumSku,
+        profit, rentSku, markup, turnover
+    PROPERTIES(st,dt) balanceBDepartmentStore, balanceBStock
+    ORDERS name(st)
+    
+    FILTERS sumRetailPrice(st,df,dt), inSaleReportDialog(st)
+    
+;
+
+printItogGroupReceiptSaleLedgerReport 'Итоговый отчет по продажам(розница)' (DATE dateFrom, DATE dateTo) {
+    IF inReturn() THEN {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
+    }ELSE {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptSaleDetail;
+    }    
+    namePrint() <- '(розничные продажи)';
+    PRINT groupItogSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printItogGroupSaleLedgerReport 'Итоговый отчет по продажам(опт)' (DATE dateFrom, DATE dateTo) {
+    IF inReturn() THEN {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail OR l IS SaleReturn.InvoiceDetail;
+    }ELSE {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    }
+    namePrint() <- '(опт)';
+    PRINT groupItogSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printItogGroupSaleLedgerAllReport 'Итоговый отчет по продажам(опт+розница)' (DATE dateFrom, DATE dateTo) {
+    IF inReturn() THEN {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    }ELSE {
+        filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail OR l IS ReceiptSaleDetail;
+    }
+    namePrint() <- '(розничные продажи + опт)';
+    PRINT groupItogSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+/////// ---- суммовые продажи по классификатору
+
+sumSkuRetailPrice(Stock st, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l) 
+        AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumInSku 'Учетная сумма' (Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l) 
+        AND filterSaleLeger(l) AND inSessionSku(sku(l));
+profitSku(Stock st, DATE df, DATE dt) = 
+    NUMERIC[30,2](sumSkuRetailPrice(st,df,dt) (-) sumInSku(st,df,dt));
+rentInSku(Stock st, DATE df, DATE dt) = 
+    NUMERIC[30,2](profitSku(st,df,dt)*100/sumSkuRetailPrice(st,df,dt));
+markupSku(Stock st, DATE df, DATE dt) = 
+    NUMERIC[30,2](profitSku(st,df,dt)*100/sumInSku(st,df,dt));
+balanceBDepartmentStoreSku(Stock st, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceA(Sku s,st,dt)*priceSku(sku(SaleLedger l),stock(l))) IF st IS DepartmentStore 
+        AND sku(l) = s AND inSessionSku(sku(l));
+balanceBStockSku(Stock st, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceA(Sku s,st,dt)*priceSku(sku(SaleLedger l),stock(l))) IF st IS Warehouse 
+        AND sku(l) = s AND inSessionSku(sku(l));
+turnoverSku(Stock st, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceBDepartmentStoreSku(st,dt)*daysBetweenDates(df,dt)/sumInSku(st,df,dt));
+
+FORM groupSkuSaleLedgerReport 'Суммовые продажи по классификатору'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt),
+        inSaleReportStocks(), namePrint(), printInSessionSku()
+
+    OBJECTS st = Stock
+    PROPERTIES(st) name, id
+    PROPERTIES(st,df,dt) sumSkuRetailPrice, sumInSku,
+        profitSku, rentInSku, markupSku, turnoverSku
+    PROPERTIES(st,dt) balanceBDepartmentStoreSku, balanceBStockSku
+    ORDERS name(st)
+    
+    FILTERS sumSkuRetailPrice(st,df,dt), inSaleReportDialog(st)
+;
+
+printSkutSaleLedgerReport 'Суммовые продажи по классификатору(розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
+    namePrint() <- '(розничные продажи)';
+    PRINT groupSkuSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSkuGroupSaleLedgerReport 'Суммовые продажи по классификатору(опт)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    namePrint() <- '(опт)';
+    PRINT groupSkuSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSkuGroupSaleLedgerAllReport 'Суммовые продажи по классификатору(опт+розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    namePrint() <- '(розничные продажи + опт)';
+    PRINT groupSkuSaleLedgerReport OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+EXTEND FORM salesReport
+    PROPERTIES() inReturn 
+    PROPERTIES (df,dt) printGroupReceiptSaleLedgerReport, printGroupSaleLedgerReport, printGroupSaleLedgerAllReport,
+        printItogGroupReceiptSaleLedgerReport, printItogGroupSaleLedgerReport, printItogGroupSaleLedgerAllReport,
+        printSkutSaleLedgerReport, printSkuGroupSaleLedgerReport, printSkuGroupSaleLedgerAllReport
+;
+
+DESIGN salesReport {
+    salesContainer  {
+        NEW customsSalesReportContainer {
+            caption = 'Собственные отчеты';
+            lines = 3;
+            MOVE PROPERTY(printGroupReceiptSaleLedgerReport(df, dt));
+            MOVE PROPERTY(printGroupSaleLedgerReport(df, dt));
+            MOVE PROPERTY(printGroupSaleLedgerAllReport(df, dt));
+        }
+        NEW skuSalesReportItogContainer {
+            caption = 'Суммовые продажи';
+            lines = 3;
+            MOVE PROPERTY(printSkutSaleLedgerReport(df, dt));
+            MOVE PROPERTY(printSkuGroupSaleLedgerReport(df, dt));
+            MOVE PROPERTY(printSkuGroupSaleLedgerAllReport(df, dt));           
+        }
+        NEW customsSalesReportItogContainer {
+            caption = 'Итоговые отчеты';
+            MOVE PROPERTY(inReturn());
+            NEW printItog {
+                lines = 3;
+                MOVE PROPERTY(printItogGroupReceiptSaleLedgerReport(df, dt));
+                MOVE PROPERTY(printItogGroupSaleLedgerReport(df, dt));
+                MOVE PROPERTY(printItogGroupSaleLedgerAllReport(df, dt));
+            }
+        }
+    }
+}
+
 
 
 
