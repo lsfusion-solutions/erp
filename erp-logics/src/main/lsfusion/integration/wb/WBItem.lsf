@@ -1211,6 +1211,60 @@ FORM importItems
     FILTERS imported(cards)
 ;
 
+updateAt = DATA LOCAL STRING(INTEGER);
+errors = DATA LOCAL STRING(INTEGER);
+dataErrors = DATA LOCAL INTEGER(INTEGER);
+objectID = DATA LOCAL NUMERIC(INTEGER);
+object = DATA LOCAL STRING(INTEGER);
+
+FORM checkErrors
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) updateAt, objectID, object, vendorCode
+    FILTERS imported(data)
+
+    OBJECTS errors = INTEGER
+    PROPERTIES(errors) errors EXTID 'value'
+    FILTERS imported(errors)
+    FILTERS dataErrors(errors) == data;
+
+checkErrors 'Получение ошибок' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        errorText(Item item) <- NULL WHERE error(item);
+        error(Item item) <- NULL WHERE error(item);
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/cards/error/list');
+
+        LOCAL response = FILE();
+        LOCAL message = STRING ();
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            IMPORT checkErrors JSON FROM response();
+            FOR imported(INTEGER i) AND Item item == item(vendorCode(i)) INLINE DO {
+                error(item) <- TRUE;
+                errorText(item) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) == i, ', ' ORDER j;
+            }
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
 postItems 'Получить список карточек товаров' () {
     NEWSESSION {
         setHttpHeadersIS();
@@ -1303,6 +1357,7 @@ postItems 'Получить список карточек товаров' () {
                 MESSAGE '<h3>Получить список карточек товаров</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 APPLY NESTED LOCAL;
+                checkErrors(); //Делаем здесь, что бы товары были созданы в БД к моменту проверки на ошибки
             }
         }
     }
@@ -1699,60 +1754,6 @@ FORM uploadItems
                      skus EXTID 'skus'
     FILTERS in(i, size)
 ;
-
-updateAt = DATA LOCAL STRING(INTEGER);
-errors = DATA LOCAL STRING(INTEGER);
-dataErrors = DATA LOCAL INTEGER(INTEGER);
-objectID = DATA LOCAL NUMERIC(INTEGER);
-object = DATA LOCAL STRING(INTEGER);
-
-FORM checkErrors
-    PROPERTIES() errorText, additionalErrors, error
-
-    OBJECTS data = INTEGER
-    PROPERTIES(data) updateAt, objectID, object, vendorCode
-    FILTERS imported(data)
-
-    OBJECTS errors = INTEGER
-    PROPERTIES(errors) errors EXTID 'value'
-    FILTERS imported(errors)
-    FILTERS dataErrors(errors) == data;
-
-checkErrors 'Получение ошибок' () {
-    NEWSESSION {
-        setHttpHeadersIS();
-
-        errorText(Item item) <- NULL WHERE error(item);
-        error(Item item) <- NULL WHERE error(item);
-
-        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/cards/error/list');
-
-        LOCAL response = FILE();
-        LOCAL message = STRING ();
-
-        TRY {
-            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-
-            IMPORT checkErrors JSON FROM response();
-            FOR imported(INTEGER i) AND Item item == item(vendorCode(i)) INLINE DO {
-                error(item) <- TRUE;
-                errorText(item) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) == i, ', ' ORDER j;
-            }
-
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
-            MESSAGE message() NOWAIT;
-            APPLY;
-        }
-    }    
-}
 
 dataUploadItemsLimit = DATA INTEGER ();
 uploadItemsLimit 'Лимит для создания новых карточек' = OVERRIDE dataUploadItemsLimit(), 100;
