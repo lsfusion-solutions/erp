@@ -168,6 +168,7 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Загрузить медиафайлы по ссылкам</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 APPLY;
             }
@@ -209,6 +210,7 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
 //                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
 //            } FINALLY {
 //                afterSendRequestIS();
+//                MESSAGE '<h3>Загрузить медиафайл</h3>' NOWAIT;
 //                MESSAGE message() NOWAIT;
 //                APPLY;
 //            }
@@ -930,6 +932,7 @@ getItemAttribute 'Получить характеристики предмета
             message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
+            MESSAGE '<h3>Получить характеристики предмета</h3>' NOWAIT;
             MESSAGE message() NOWAIT;
             APPLY;
         }
@@ -998,6 +1001,7 @@ getItemAttribute 'Получить характеристики предмето
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Получить характеристики предметов</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 APPLY;
             }
@@ -1015,7 +1019,7 @@ FORM importItemLimits
     PROPERTIES() IN data paidLimits, freeLimits
 ;
 
-getItemLimits 'Получить лимиты карточек товаров' () {
+getItemLimits 'Получить лимиты создания карточек товаров' () {
     NEWSESSION {
         setHttpHeadersIS();
             LOCAL message = STRING ();
@@ -1035,7 +1039,7 @@ getItemLimits 'Получить лимиты карточек товаров' ()
                     freeItemLimits() <- freeLimits();
                     paidItemLimits() <- paidLimits();
                     }
-                message() <- 'Бесплатные лимиты на создание карточек X = ' + freeLimits() + ', платные лимиты Y = ' + paidLimits();
+                message() <- '<h3>Бесплатные лимиты на создание карточек X = ' + freeLimits() + ', платные лимиты Y = ' + paidLimits()+'</h3>';
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
@@ -1234,6 +1238,7 @@ postItems 'Получить список карточек товаров' () {
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Получить список карточек товаров</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 APPLY NESTED LOCAL;
             }
@@ -1241,10 +1246,10 @@ postItems 'Получить список карточек товаров' () {
     }
 }
 
-dataPostCartItemsLimit = DATA INTEGER ();
-postCartItemsLimit 'Лимит для получения списка карточек товаров в корзине' = OVERRIDE dataPostCartItemsLimit(), 100;
+dataPostTrashItemsLimit = DATA INTEGER ();
+postTrashItemsLimit 'Лимит для получения списка карточек товаров в корзине' = OVERRIDE dataPostTrashItemsLimit(), 100;
 
-postCartItems 'Получить список карточек товаров в корзине' () {
+postTrashItems 'Получить список карточек товаров в корзине' () {
     NEWSESSION {
         setHttpHeadersIS();
         LOCAL message = STRING ();
@@ -1253,9 +1258,9 @@ postCartItems 'Получить список карточек товаров в 
         LOCAL errorText = STRING ();
         LOCAL status = STRING ();
 
-        WHILE ((total() AND NOT total() < postCartItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
+        WHILE ((total() AND NOT total() < postTrashItemsLimit()) OR NOT response()) AND NOT messageCaughtException() DO {
 
-            stringToFile('\{"settings": \{"cursor": \{ "limit": ' + postCartItemsLimit() + ',' +
+            stringToFile('\{"settings": \{"cursor": \{ "limit": ' + postTrashItemsLimit() + ',' +
                 (OVERRIDE (IF trashedAt() THEN '"trashedAt":"' + trashedAt() + '",'), '') +
                 (OVERRIDE(IF nmID() THEN '"nmID":' + nmID() + ','), '') +
                 '"filter": \{"withPhoto": -1\}\}\}\}', 'UTF-8', 'json');
@@ -1319,6 +1324,7 @@ postCartItems 'Получить список карточек товаров в 
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Получить список карточек товаров в корзине</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 APPLY NESTED LOCAL;
             }
@@ -1365,6 +1371,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
                     logToFile('WB', resultString());
                     IF statusHTTP(200) THEN {
                         isTrash(Item item) <- TRUE WHERE isTransfered(item);
+                        postTrashItems();
                     }
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
@@ -1376,6 +1383,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
                     message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
+                    MESSAGE '<h3>Перенос карточек товаров в корзину</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
                     APPLY NESTED LOCAL;
                 }
@@ -1423,6 +1431,7 @@ postRecoverItems 'Восстановление карточек товаров �
                     logToFile('WB', resultString());
                     IF statusHTTP(200) THEN {
                         isTrash(Item item) <- NULL WHERE isRecovered(item);
+                        postItems();
                     }
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
@@ -1434,6 +1443,7 @@ postRecoverItems 'Восстановление карточек товаров �
                     message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
+                    MESSAGE '<h3>Восстановление карточек товаров из корзины</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
                     APPLY NESTED LOCAL;
                 }
@@ -1456,7 +1466,7 @@ EXTEND FORM integrationData
     ORDERS name(asg)
     FILTERS in(sg, asg)
     
-    PROPERTIES() getItemLimits, postItems, postCartItems, postTransferItems, postRecoverItems
+    PROPERTIES() getItemLimits, postItems, postTrashItems, postTransferItems, postRecoverItems
     OBJECTS item = Item
     PROPERTIES(item) in
     PROPERTIES(item) READONLYIF isReadonly() isTrash
@@ -1521,7 +1531,7 @@ DESIGN integrationData {
                 horizontal = TRUE;
                 MOVE PROPERTY (getItemLimits());
                 MOVE PROPERTY (postItems());
-                MOVE PROPERTY (postCartItems());
+                MOVE PROPERTY (postTrashItems());
                 MOVE PROPERTY (postTransferItems());
                 MOVE PROPERTY (postRecoverItems());
             }
@@ -1672,7 +1682,8 @@ checkErrors 'Получение ошибок' () {
             message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
-            MESSAGE CONCAT '', '<h3>Получение списка ошибок создания/обновления карточек товаров </h3>', message() NOWAIT;
+            MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
             APPLY;
         }
     }    
@@ -1728,6 +1739,7 @@ uploadItems 'Создание новых карточек' () {
                     message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
+                    MESSAGE '<h3>Создание новых карточек</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
                     IF statusHttp() == 200 THEN {
                         checkErrors();
@@ -1782,10 +1794,10 @@ uploadItem 'Создание новой карточки' (Item item) {
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Создание новой карточки</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 IF statusHttp()==200 THEN {
                     checkErrors();
-                    MESSAGE '<h3>Получение списка ошибок создания/обновления карточек товаров </h3>' NOWAIT;
                     postItems();
                 }
                 APPLY;
@@ -1809,7 +1821,7 @@ DESIGN integrationData {
 
 toUpdateWB = DATA BOOLEAN (Item);
 
-WHEN (CHANGED(name(Item i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
+WHEN (CHANGED(imtID(Item i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
     CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
     (GROUP SUM 1 IF in(i, Size s) AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
     (GROUP SUM 1 IF SET(in(i, Size s)))) AND NOT SET(i IS Item) AND id(i) AND nmID(i) AND imtID(i) DO {
@@ -1875,9 +1887,11 @@ updateItem 'Обновить карточку товара' (Item item) {
                 message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
+                MESSAGE '<h3>Обновить карточку товара</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
                 IF statusHttp()==200 THEN {
-                    checkErrors();                
+                    checkErrors();
+                    toUpdateWB(item) <- NULL WHERE PREV(toUpdateWB(item)) AND NOT error(item);
                 }
                 APPLY;
             }
@@ -1932,9 +1946,12 @@ updateItem 'Обновить карточки товаров' () {
                     message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
+                    MESSAGE '<h3>Обновить карточки товаров</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
                     IF statusHttp() == 200 THEN {
                         checkErrors();
+                        toUpdateWB(Item item) <- NULL WHERE PREV(toUpdateWB(item)) AND index(item) > exported() AND 
+                            index(item) <= exported() + updateItemsLimit() AND NOT error(item);
                     }
                     APPLY NESTED LOCAL;
                 }
@@ -1947,7 +1964,7 @@ updateItem 'Обновить карточки товаров' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() postItemsLimit, postCartItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, uploadItemsLimit
+    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, uploadItemsLimit
     PROPERTIES updateItem()
     PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND imtID(item)
 ;
@@ -1960,7 +1977,7 @@ DESIGN integrationData {
         NEW limits {
             caption = 'Лимиты';
             MOVE PROPERTY (postItemsLimit());
-            MOVE PROPERTY (postCartItemsLimit());
+            MOVE PROPERTY (postTrashItemsLimit());
             MOVE PROPERTY (postTransferItemsLimit());
             MOVE PROPERTY (postRecoverItemsLimit());
             MOVE PROPERTY (updateItemsLimit());
@@ -1974,6 +1991,7 @@ DESIGN integrationData {
 createdStatus 'Статус' (Item item) = CASE
     WHEN item IS Item AND error(item) THEN 'Ошибка создания/обновления'                                         
     WHEN item IS Item AND toUpdateWB(item) THEN 'Изменён'
+    WHEN item IS Item AND nmID(item) AND isTrash(item) THEN 'В корзине'
     WHEN item IS Item AND nmID(item) AND imtID(item) THEN 'Создан/обновлён'
     WHEN item IS Item AND NOT nmID(item) AND NOT imtID(item) THEN 'Новый'
 ;
