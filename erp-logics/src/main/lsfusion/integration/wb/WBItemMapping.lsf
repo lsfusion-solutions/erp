@@ -1,0 +1,43 @@
+MODULE WBItemMapping;
+
+REQUIRE WBItem, ItemArticle;
+
+NAMESPACE WB;
+
+CLASS MappingType 'Тип связи' {
+    item 'Товар'
+}
+
+mappingType = DATA MappingType (Item);
+nameMappingType 'Тип связи' (Item i) = staticCaption(mappingType(i));
+
+item = DATA Item.Item (Size);
+nameItem 'Товар' (Size s) = nameAttribute(item(s));
+//item = DATA Item.Item (Item);
+//nameItem 'Товар' (Item i) = nameAttribute(item(i));
+
+changeItem (Size s) {
+    DIALOG items OBJECTS i INPUT DO {
+        ASK 'Выбран новый товар, размеры и штрихкоды будут обновлены. Продолжить?' DO {
+            item(s) <- i;
+            techSize(s) <- OVERRIDE nameOriginal(size(i)), 'A';
+            wbSize(s) <- OVERRIDE nameSize(i), '1';
+            FOR size(Barcode b) == s DO delete(b);
+            FOR sku(Barcode.Barcode b) == i AND active(b) AND id(b) DO NEW bc = Barcode {
+                size(bc) <- s;
+                id(bc) <- id(b);
+            }
+        }
+    }
+}
+
+EXTEND FORM item 
+    PROPERTIES(i) nameMappingType
+    PROPERTIES nameItem(size) BEFORE skus(size) ON CHANGE changeItem(size)
+;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(nameMappingType(i));
+    }
+}

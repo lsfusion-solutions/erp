@@ -1,0 +1,40 @@
+MODULE WBItemArticleMapping;
+
+REQUIRE WBItemMapping;
+
+NAMESPACE WB;
+
+EXTEND CLASS MappingType {
+    article 'Артикул'
+}
+
+article = DATA Item.Article (Item);
+nameArticle 'Артикул' (Item i) = originalCaption(article(i));
+
+changeArticle (Item item) {
+    DIALOG articles OBJECTS a INPUT DO {
+        ASK 'Выбран новый артикул, размеры и штрихкоды будут обновлены. Продолжить?' DO {
+            FOR itemWB(Size s) == item DO delete(s);
+            article(item) <- a;
+            
+            FOR article(Item.Item i) == a DO NEW s = Size {
+                itemWB(s) <- item;
+                item(s) <- i;
+                techSize(s) <- OVERRIDE nameOriginal(size(i)), 'A';
+                wbSize(s) <- OVERRIDE nameSize(i), '1';
+                FOR sku(Barcode.Barcode b) == i AND active(b) AND id(b) DO NEW bc = Barcode {
+                    size(bc) <- s;
+                    id(bc) <- id(b);
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM item PROPERTIES(i) nameArticle ON CHANGE changeArticle(i) SHOWIF mappingType(i) == MappingType.article;
+
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(nameArticle(i));
+    }
+}

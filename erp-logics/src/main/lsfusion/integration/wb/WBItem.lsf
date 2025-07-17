@@ -37,7 +37,7 @@ size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
 techSize 'Размер' = DATA STRING (Size) NONULL;
 wbSize 'Российский размер' = DATA STRING (Size);
 price 'Цена' = DATA INTEGER (Size);
-in 'Вкл.' = DATA BOOLEAN (Item, Size);
+itemWB 'Вкл.' = DATA Item (Size) NONULL DELETE;
 
 CLASS Barcode 'Баркод';
 id 'Баркод' = DATA STRING (Barcode);
@@ -229,7 +229,7 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
 
 addSize 'Добавить' (Item i) {
     NEW s = Size {
-        in(i, s) <- TRUE;
+        itemWB(s) <- i;
     }
 }
 
@@ -279,10 +279,6 @@ deleteBarcode 'Удалить' (Barcode b) {
     delete(b);
 }
 
-WHEN DROPPED(Item i IS Item) DO {
-    FOR PREV(in(i, Size s)) DO delete(s);
-}
-
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
     PROPERTIES(i) id, name, description
@@ -300,7 +296,7 @@ FORM item 'Товар'
     OBJECTS size = Size
     PROPERTIES(size) chrtID READONLY, techSize, wbSize, price, skus READONLY 
     PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
-    FILTERS in(i, size)
+    FILTERS itemWB(size) == i
     
     OBJECTS b = Barcode
     PROPERTIES READONLY id(b)
@@ -1294,7 +1290,7 @@ postItems 'Получить список карточек товаров' () {
                     imtID(item) <- imtID(i);
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO {
-                        FOR in(item, Size s) AND techSize(s) == techSize(ii) DO
+                        FOR itemWB(Size s) == item AND techSize(s) == techSize(ii) DO
                             chrtID(s) <- INTEGER(chrtID);
                     }
                 }
@@ -1311,7 +1307,7 @@ postItems 'Получить список карточек товаров' () {
                     weightBrutto(item) <- weightBrutto(i);
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
-                        in(item, s) <- TRUE;
+                        itemWB(s) <- item;
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
@@ -1402,7 +1398,7 @@ postTrashItems 'Получить список карточек товаров в
                     weightBrutto(item) <- weightBrutto(i);
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
-                        in(item, s) <- TRUE;
+                        itemWB(s) <- item;
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
                         FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) AND NOT barcode(skus(j), s) DO NEW b = Barcode {
@@ -1752,7 +1748,7 @@ FORM uploadItems
                      wbSize EXTID 'wbSize', 
                      price EXTID 'price',
                      skus EXTID 'skus'
-    FILTERS in(i, size)
+    FILTERS itemWB(size) == i
 ;
 
 dataUploadItemsLimit = DATA INTEGER ();
@@ -1788,7 +1784,7 @@ uploadItems 'Создание новых карточек' () {
                 fileToString(exportFile());
                 resultString() <- replace(resultString(), '"g":', '');
 
-                FOR in(Item i, Size s) AND index(i) > exported() AND index(i) <= exported() + uploadItemsLimit() AND skus(s) NOINLINE DO {
+                FOR index(Item i) > exported() AND index(i) <= exported() + uploadItemsLimit() AND itemWB(Size s) == i AND skus(s) NOINLINE DO {
                     resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
                 }
 
@@ -1843,7 +1839,7 @@ uploadItem 'Создание новой карточки' (Item item) {
             fileToString(exportFile());
             resultString() <- replace(resultString(), '"g":', '');
 
-            FOR in(Item i, Size s) AND isNew(i) AND skus(s) NOINLINE DO {
+            FOR isNew(Item i) AND itemWB(Size s) == i AND skus(s) NOINLINE DO {
                 resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
             }
 
@@ -1889,8 +1885,8 @@ toUpdateWB = DATA BOOLEAN (Item);
 
 WHEN (CHANGED(imtID(Item i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
     CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
-    (GROUP SUM 1 IF in(i, Size s) AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
-    (GROUP SUM 1 IF SET(in(i, Size s)))) AND NOT SET(i IS Item) AND id(i) AND nmID(i) AND imtID(i) DO {
+    (GROUP SUM 1 IF itemWB(Size s) == i AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
+    (GROUP SUM 1 IF SET(itemWB(Size s) == i))) AND NOT SET(i IS Item) AND id(i) AND nmID(i) AND imtID(i) DO {
         toUpdateWB(i) <- TRUE;
 }
 
@@ -1918,7 +1914,7 @@ FORM updateItem
         techSize EXTID 'techSize',
         wbSize EXTID 'wbSize',
         skus EXTID 'skus'
-    FILTERS in(i, size)
+    FILTERS itemWB(size) == i
 ;
 
 updateItem 'Обновить карточку товара' (Item item) {
@@ -1939,7 +1935,7 @@ updateItem 'Обновить карточку товара' (Item item) {
             EXPORT updateItem FILTERS isChanged(i) JSON;
 
             fileToString(exportFile());
-            FOR in(item, Size s) AND skus(s) DO 
+            FOR itemWB(Size s) == item AND skus(s) DO 
                 resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
             stringToFile(resultString(), 'UTF-8', 'json');
     
@@ -1998,7 +1994,7 @@ updateItem 'Обновить карточки товаров' () {
 
                 fileToString(exportFile());
                 //resultString() <- '[' + resultString() + ']';
-                FOR in(Item i, Size s) AND skus(s) AND index(i) > exported() AND index(i) <= exported() + updateItemsLimit() DO 
+                FOR index(Item i) > exported() AND index(i) <= exported() + updateItemsLimit() AND itemWB(Size s) == i AND skus(s) DO 
                     resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
 
                 stringToFile(resultString(), 'UTF-8', 'json');
