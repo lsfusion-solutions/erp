@@ -43,7 +43,7 @@ CLASS Barcode 'Баркод';
 id 'Баркод' = DATA STRING (Barcode);
 size = DATA Size (Barcode) NONULL DELETE;
 
-barcode (STRING id) = GROUP AGGR Barcode b BY id(b);
+barcode (STRING id, Size size) = GROUP AGGR Barcode b BY id(b), size(b);
 
 skus 'Баркод' (Size s) = GROUP CONCAT id(Barcode b) IF size(b) == s, ', ' ORDER b;
 
@@ -1261,7 +1261,7 @@ postItems 'Получить список карточек товаров' () {
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO NEW b = Barcode {
+                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) AND NOT barcode(skus(j), s) DO NEW b = Barcode {
                             size(b) <- s;
                             id(b) <- skus(j);
                         }
@@ -1350,7 +1350,7 @@ postTrashItems 'Получить список карточек товаров в
                         in(item, s) <- TRUE;
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO  NEW b = Barcode {
+                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) AND NOT barcode(skus(j), s) DO NEW b = Barcode {
                             size(b) <- s;
                             id(b) <- skus(j);
                         }
