@@ -1809,6 +1809,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataReturn = new ArrayList<>();
         List<List<Object>> dataGiftCard = new ArrayList<>();
         Map<Object, String> barcodeMap = new HashMap<>();
+        Map<String, String> idItemIdBarcodeMap = new HashMap<>();
 
         //todo: refactor old usages of zReportExtraFields (sumCashEnd, sumProtectedEnd, sumBack, externalSum, beginShift, endShift)
         // to processZReportExtraFields
@@ -1874,12 +1875,33 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
             if (!overDocumentsClosedDate(sale, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
-                String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
-                        (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
+
+                String barcode = null;
+
+                //1. Если включена опция "Прием реализации по коду товара", ищем ШК по sale.idItem и свойству idBarcodeSkuOverId[STRING]
+                if(options.readSalesByIdItem) {
+                    barcode = idItemIdBarcodeMap.get(sale.idItem);
+                    if(barcode == null) {
+                        barcode = (String) equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").read(session, new DataObject(sale.idItem));
+                        idItemIdBarcodeMap.put(sale.idItem, barcode);
+                    }
+                }
+
+                //2. Если задан sale.barcodeItem, используем его; иначе пытаемся получить прочитанное ранее значение из barcodeMap
+                if (barcode == null) {
+                    if (notNullNorEmpty(sale.barcodeItem))
+                        barcode = sale.barcodeItem;
+                    else if (sale.itemObject != null)
+                        barcode = barcodeMap.get(sale.itemObject);
+                    else if (sale.idItem != null)
+                        barcode = barcodeMap.get(sale.idItem);
+                }
+                //3. Ищем ШК по sale.itemObject и свойству idBarcode[Sku]
                 if (barcode == null && sale.itemObject != null) {
                     barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteCustomClass) itemLM.findClass("Item"))));
                     barcodeMap.put(sale.itemObject, barcode);
                 }
+                //4. Ищем ШК по sale.idItem и свойству idBarcodeSku[STRING[100]]
                 if (barcode == null && sale.idItem != null) {
                     barcode = trim((String) itemLM.findProperty("idBarcodeSku[STRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
                     //чит на случай, когда штрихкод приходит в код товара, copy-paste from ArtixHandler
@@ -2019,10 +2041,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean receiveVATSales = equLM.findProperty("receiveVATSales[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean ignoreConstraints = equLM.findProperty("ignoreConstraints[EquipmentServer]").read(session, equipmentServerObject) != null;
         boolean doNotReplaceZReportDateTime = equLM.findProperty("doNotReplaceZReportDateTime[EquipmentServer]").read(session, equipmentServerObject) != null;
+        boolean readSalesByIdItem = equLM.findProperty("readSalesByIdItem[EquipmentServer]").read(session, equipmentServerObject) != null;
         IdEncoder encoder = useNewIds ? (timeId ? new IdEncoder(5) : new IdEncoder()) : null;
         Map<String, DataObject> barcodeParts = readPartedBarcodes(session);
         return new EquipmentServerOptions(maxThreads, numberAtATime, timeId, ignoreReceiptsAfterDocumentsClosedDate, overrideCashiers,
-                                          skipGiftCardKeys, skipReceiveSales, receiveVATSales, ignoreConstraints, doNotReplaceZReportDateTime, encoder, barcodeParts);
+                skipGiftCardKeys, skipReceiveSales, receiveVATSales, ignoreConstraints, doNotReplaceZReportDateTime,
+                readSalesByIdItem, encoder, barcodeParts);
     }
 
     public class EquipmentServerOptions {
@@ -2036,12 +2060,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         boolean receiveVATSales;
         boolean ignoreConstraints;
         boolean doNotReplaceZReportDateTime;
+        boolean readSalesByIdItem;
         IdEncoder encoder;
         Map<String, DataObject> barcodeParts;
 
         public EquipmentServerOptions(Integer maxThreads, Integer numberAtATime, boolean timeId, boolean ignoreReceiptsAfterDocumentsClosedDate,
                                       boolean overrideCashiers, boolean skipGiftCardKeys, boolean skipReceiveSales, boolean receiveVATSales,
-                                      boolean ignoreConstraints, boolean doNotReplaceZReportDateTime,
+                                      boolean ignoreConstraints, boolean doNotReplaceZReportDateTime, boolean readSalesByIdItem,
                                       IdEncoder encoder, Map<String, DataObject> barcodeParts) {
             this.maxThreads = maxThreads;
             this.numberAtATime = numberAtATime;
@@ -2053,6 +2078,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             this.receiveVATSales = receiveVATSales;
             this.ignoreConstraints = ignoreConstraints;
             this.doNotReplaceZReportDateTime = doNotReplaceZReportDateTime;
+            this.readSalesByIdItem = readSalesByIdItem;
             this.encoder = encoder;
             this.barcodeParts = barcodeParts;
         }
