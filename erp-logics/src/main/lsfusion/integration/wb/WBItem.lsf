@@ -37,8 +37,15 @@ size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
 techSize 'Размер' = DATA STRING (Size) NONULL;
 wbSize 'Российский размер' = DATA STRING (Size);
 price 'Цена' = DATA INTEGER (Size);
-skus 'Баркод' = DATA STRING (Size);
 in 'Вкл.' = DATA BOOLEAN (Item, Size);
+
+CLASS Barcode 'Баркод';
+id 'Баркод' = DATA STRING (Barcode);
+size = DATA Size (Barcode) NONULL DELETE;
+
+barcode (STRING id) = GROUP AGGR Barcode b BY id(b);
+
+skus 'Баркод' (Size s) = GROUP CONCAT id(Barcode b) IF size(b) == s, ', ' ORDER b;
 
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
@@ -230,6 +237,52 @@ deleteSize 'Удалить' (Item i, Size s) {
     delete(s);
 }
 
+FORM barcodes
+    PROPERTIES() errorText, additionalErrors, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) data EXTID 'value'
+;
+
+addBarcode 'Добавить' (Size s) {
+    NEW b = Barcode {
+        size(b) <- s;
+
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        stringToFile('\{"count": 1\}', 'UTF-8', 'json');
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/barcodes');
+        
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/barcodes' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT barcodes JSON FROM response();
+            
+            id(b) <- data(0);
+            message() <- 'Баркод сгенерирован';
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE message() NOWAIT;
+        }
+    }
+}
+
+deleteBarcode 'Удалить' (Barcode b) {
+    delete(b);
+}
+
+WHEN DROPPED(Item i IS Item) DO {
+    FOR PREV(in(i, Size s)) DO delete(s);
+}
+
 FORM item 'Товар'
     OBJECTS i = Item PANEL 
     PROPERTIES(i) id, name, description
@@ -245,9 +298,14 @@ FORM item 'Товар'
     ORDERS notNull DESC, name(attr)
     
     OBJECTS size = Size
-    PROPERTIES(size) chrtID, techSize, wbSize, price, skus
+    PROPERTIES(size) chrtID READONLY, techSize, wbSize, price, skus READONLY 
     PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
     FILTERS in(i, size)
+    
+    OBJECTS b = Barcode
+    PROPERTIES READONLY id(b)
+    PROPERTIES DRAW b TOOLBAR addBarcode(size), deleteBarcode(b)
+    FILTERS size(b) == size
     
     OBJECTS mf = MediaFile
 //    PROPERTIES(mf) postMediaFile PANEL 
@@ -304,6 +362,7 @@ DESIGN item {
             }
             MOVE BOX(size) {
                 caption = 'Размеры';
+                MOVE BOX(b);
             }
             MOVE BOX(mf){
                 caption = 'Медиафайлы по ссылкам';
@@ -1202,7 +1261,10 @@ postItems 'Получить список карточек товаров' () {
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO skus(s) <- skus(j);
+                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO NEW b = Barcode {
+                            size(b) <- s;
+                            id(b) <- skus(j);
+                        }
                     }
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
@@ -1288,7 +1350,10 @@ postTrashItems 'Получить список карточек товаров в
                         in(item, s) <- TRUE;
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO skus(s) <- skus(j);
+                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) DO  NEW b = Barcode {
+                            size(b) <- s;
+                            id(b) <- skus(j);
+                        }
                     }
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
@@ -1630,7 +1695,7 @@ FORM uploadItems
     OBJECTS size = Size EXTID 'sizes'
     PROPERTIES(size) techSize EXTID 'techSize', 
                      wbSize EXTID 'wbSize', 
-                     price EXTID 'price', 
+                     price EXTID 'price',
                      skus EXTID 'skus'
     FILTERS in(i, size)
 ;
@@ -1723,7 +1788,7 @@ uploadItems 'Создание новых карточек' () {
                 resultString() <- replace(resultString(), '"g":', '');
 
                 FOR in(Item i, Size s) AND index(i) > exported() AND index(i) <= exported() + uploadItemsLimit() AND skus(s) NOINLINE DO {
-                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
                 }
 
                 resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
@@ -1778,7 +1843,7 @@ uploadItem 'Создание новой карточки' (Item item) {
             resultString() <- replace(resultString(), '"g":', '');
 
             FOR in(Item i, Size s) AND isNew(i) AND skus(s) NOINLINE DO {
-                resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+                resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
             }
 
             resultString() <- ltrim(rtrim(resultString(), '\}'), '\{');
@@ -1873,7 +1938,8 @@ updateItem 'Обновить карточку товара' (Item item) {
             EXPORT updateItem FILTERS isChanged(i) JSON;
 
             fileToString(exportFile());
-            FOR in(item, Size s) AND skus(s) DO resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+            FOR in(item, Size s) AND skus(s) DO 
+                resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
             stringToFile(resultString(), 'UTF-8', 'json');
     
             TRY {
@@ -1932,7 +1998,8 @@ updateItem 'Обновить карточки товаров' () {
                 fileToString(exportFile());
                 //resultString() <- '[' + resultString() + ']';
                 FOR in(Item i, Size s) AND skus(s) AND index(i) > exported() AND index(i) <= exported() + updateItemsLimit() DO 
-                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '["' + skus(s) + '"]');
+                    resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
+
                 stringToFile(resultString(), 'UTF-8', 'json');
 
                 TRY {
