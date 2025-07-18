@@ -659,7 +659,7 @@ DESIGN dialogVAT {
     }
 }
 
-EXTEND FORM integrationData 
+FORM masterData 'Справочники'
     PROPERTIES getItemGroup()
     OBJECTS ig = ItemGroup
     PROPERTIES(ig) READONLYIF isReadonly() id , name, isVisible
@@ -668,13 +668,13 @@ EXTEND FORM integrationData
 
     PROPERTIES getItemSubGroup()
     OBJECTS sg = ItemSubGroup
-    PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup, getTnved GRID 
+    PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup, getTnved GRID
     ORDERS name(sg)
     PROPERTIES(sg) NEW, DELETE
 
     OBJECTS tnsg = Tnved
     PROPERTIES(tnsg) READONLYIF isReadonly() id, isKiz
-    ORDERS id(tnsg)   
+    ORDERS id(tnsg)
     FILTERS in(sg, tnsg)
 
     PROPERTIES getColors()
@@ -719,54 +719,58 @@ EXTEND FORM integrationData
     FILTERS in(sgtn, tn)
 ;
 
-DESIGN integrationData {
-    tabContainer {
-        NEW  referenceBooks {
-            tabbed = TRUE;
-            fill = 1;
-            caption = 'Справочники';
-            NEW categoryItemGroup {
-                caption = 'Родительские категории товаров';
-                MOVE PROPERTY (getItemGroup());
-                MOVE BOX(ig);
-            }
-            NEW categoryItemSubGroup {
-                caption = 'Список предметов';
-                MOVE PROPERTY (getItemSubGroup());
-                MOVE BOX(sg){fill = 3;}
-                MOVE BOX(tnsg);
-            }
-            NEW containerColors {
-                caption = 'Цвета';
-                MOVE PROPERTY (getColors());
-                MOVE BOX(TREE treeColors);
-            }
-            NEW containerKinds {
-                caption = 'Пол';
-                MOVE PROPERTY (getKinds());
-                MOVE BOX(k);
-            }
-            NEW containerCountries {
-                caption = 'Страны производства';
-                MOVE PROPERTY (getCountries());
-                MOVE BOX(c);
-            }
-            NEW containerSeasons {
-                caption = 'Сезоны';
-                MOVE PROPERTY (getSeasons());
-                MOVE BOX(s);
-            }
-            NEW containerVAT {
-                caption = 'Ставки НДС';
-                MOVE PROPERTY (getVAT());
-                MOVE BOX(v);
-            }
-            NEW containerTnved {
-                caption = 'ТНВЭД-коды';
-                MOVE PROPERTY (getTnved());
-                MOVE BOX(tn){fill = 3;}
-                MOVE BOX(sgtn);
-            }
+DESIGN masterData {
+    NEW tabContainer {
+        tabbed = TRUE;
+        fill=1;
+        NEW categoryItemGroup {
+            caption = 'Родительские категории товаров';
+            MOVE PROPERTY (getItemGroup());
+            MOVE BOX(ig);
+        }
+        NEW categoryItemSubGroup {
+            caption = 'Список предметов';
+            MOVE PROPERTY (getItemSubGroup());
+            MOVE BOX(sg){fill = 3;}
+            MOVE BOX(tnsg);
+        }
+        NEW containerColors {
+            caption = 'Цвета';
+            MOVE PROPERTY (getColors());
+            MOVE BOX(TREE treeColors);
+        }
+        NEW containerKinds {
+            caption = 'Пол';
+            MOVE PROPERTY (getKinds());
+            MOVE BOX(k);
+        }
+        NEW containerCountries {
+            caption = 'Страны производства';
+            MOVE PROPERTY (getCountries());
+            MOVE BOX(c);
+        }
+        NEW containerSeasons {
+            caption = 'Сезоны';
+            MOVE PROPERTY (getSeasons());
+            MOVE BOX(s);
+        }
+        NEW containerVAT {
+            caption = 'Ставки НДС';
+            MOVE PROPERTY (getVAT());
+            MOVE BOX(v);
+        }
+        NEW containerTnved {
+            caption = 'ТНВЭД-коды';
+            MOVE PROPERTY (getTnved());
+            MOVE BOX(tn){fill = 3;}
+            MOVE BOX(sgtn);
         }
     }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    WBNavigator {
+        NEW masterData;
+    }    
 }

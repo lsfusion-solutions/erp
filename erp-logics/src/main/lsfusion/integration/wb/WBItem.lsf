@@ -1571,7 +1571,7 @@ postRecoverItems 'Восстановление карточек товаров �
     }
 }
 
-EXTEND FORM integrationData
+EXTEND FORM masterData
     PROPERTIES getItemAttribute(sg) GRID
     
     PROPERTIES getItemAttribute() PANEL 
@@ -1620,8 +1620,8 @@ EXTEND FORM integrationData
     ORDERS name(extraProp)
 ;
 
-DESIGN integrationData {
-    referenceBooks {
+DESIGN masterData {
+    tabContainer {
         categoryItemSubGroup {
             NEW tabContainerAttribute AFTER BOX(sg){
                 tabbed = TRUE;
@@ -1870,12 +1870,12 @@ uploadItem 'Создание новой карточки' (Item item) {
     }
 }
 
-EXTEND FORM integrationData 
+EXTEND FORM masterData 
     PROPERTIES uploadItems()
     PROPERTIES uploadItem(item) SHOWIF id(item) AND NOT (nmID(item) OR imtID(item))
 ;
 
-DESIGN integrationData {
+DESIGN masterData {
     actionContainer {
         MOVE PROPERTY(uploadItems());
     }
@@ -2027,26 +2027,29 @@ updateItem 'Обновить карточки товаров' () {
     }
 }
 
-EXTEND FORM integrationData
-    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, uploadItemsLimit
+EXTEND FORM masterData
     PROPERTIES updateItem()
     PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND imtID(item)
 ;
 
-DESIGN integrationData {
+DESIGN masterData {
     actionContainer {
         MOVE PROPERTY(updateItem());
     }
-    referenceBooks {
-        NEW limits {
-            caption = 'Лимиты';
-            MOVE PROPERTY (postItemsLimit());
-            MOVE PROPERTY (postTrashItemsLimit());
-            MOVE PROPERTY (postTransferItemsLimit());
-            MOVE PROPERTY (postRecoverItemsLimit());
-            MOVE PROPERTY (updateItemsLimit());
-            MOVE PROPERTY (uploadItemsLimit());
-        }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, uploadItemsLimit
+;
+
+DESIGN integrationData {
+    requestLimits {
+        MOVE PROPERTY (postItemsLimit());
+        MOVE PROPERTY (postTrashItemsLimit());
+        MOVE PROPERTY (postTransferItemsLimit());
+        MOVE PROPERTY (postRecoverItemsLimit());
+        MOVE PROPERTY (updateItemsLimit());
+        MOVE PROPERTY (uploadItemsLimit());        
     }
 }
 
@@ -2070,6 +2073,6 @@ DESIGN item {
     }    
 }
 
-EXTEND FORM integrationData
+EXTEND FORM masterData
     PROPERTIES(item) READONLY createdStatus AFTER nmID(item)
 ;
