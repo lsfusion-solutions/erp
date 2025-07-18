@@ -1,0 +1,355 @@
+MODULE WBStock;
+
+REQUIRE WBItem;
+
+NAMESPACE WB;
+
+
+CLASS ABSTRACT Stock 'Склад';
+id 'Код' = ABSTRACT INTEGER (Stock);
+name 'Наименование' = ABSTRACT STRING (Stock);
+address 'Адрес' = ABSTRACT STRING (Stock);
+city 'Город' = ABSTRACT STRING (Stock);
+federalDistrict 'Федеральный округ' = ABSTRACT STRING (Stock);
+latitude 'Широта' = ABSTRACT NUMERIC (Stock);
+longitude 'Долгота' = ABSTRACT NUMERIC (Stock);
+
+CLASS Warehouse 'Склад покупателя': Stock;
+
+id 'Код' = DATA INTEGER (Warehouse);
+warehouse (id) = GROUP AGGR Warehouse w BY id(w);
+name 'Наименование' = DATA STRING (Warehouse);
+address 'Адрес' = DATA STRING (Warehouse);
+address (Warehouse w) += address(w) IF w IS Warehouse;
+city 'Город' = DATA STRING (Warehouse);
+isCreated 'Создан в WB' = DATA BOOLEAN (Warehouse);
+isUpdated 'Обновлен' = DATA BOOLEAN (Warehouse);
+isDeleted 'Удален' = DATA BOOLEAN (Warehouse);
+isWB 'Склад WB' = DATA BOOLEAN (Warehouse);
+
+CLASS DistributionCenter 'Склад WB': Stock;
+
+id 'Код' = DATA INTEGER (DistributionCenter);
+distributionCenter (id) = GROUP AGGR DistributionCenter o BY id(o);
+name 'Наименование' = DATA STRING (DistributionCenter);
+address 'Адрес' = DATA STRING (DistributionCenter);
+city 'Город' = DATA STRING (DistributionCenter);
+federalDistrict 'Федеральный округ' = DATA STRING (DistributionCenter);
+latitude 'Широта' = DATA NUMERIC (DistributionCenter);
+longitude 'Долгота' = DATA NUMERIC (DistributionCenter);
+selected 'Выбран' = DATA BOOLEAN (DistributionCenter);
+isWB 'Склад WB' = DATA BOOLEAN (DistributionCenter);
+
+warehouseWB = DATA DistributionCenter (Warehouse) NONULL DELETE;
+
+CLASS CargoType 'Тип товара склада' {
+    MGT 'малогабаритный', //1
+    SGT 'сверхгабаритный ', //2
+    KGT 'крупногабаритный' //3
+}
+
+cargoType = ABSTRACT CargoType (Stock);
+cargoType = DATA CargoType (DistributionCenter);
+cargoType(DistributionCenter dc) += cargoType(dc) IF dc IS DistributionCenter;
+
+nameCargoType 'Тип товара склада' (Stock st) = staticCaption(cargoType(st));
+nameCargoType 'Тип товара склада' (DistributionCenter dc) = staticCaption(cargoType(dc));
+
+CLASS DeliveryType 'Тип доставки' {
+    FBS 'доставка на склад WB', //1
+    DBS 'доставка силами продавца', //2
+    DBW 'доставка курьером WB', //3
+    CaC 'самовывоз', //5
+    EDBS 'экспресс-доставка силами продавца' //6
+}
+
+deliveryType = ABSTRACT DeliveryType (Stock);
+deliveryType = DATA DeliveryType (DistributionCenter);
+deliveryType (DistributionCenter dc) += deliveryType(dc) IF dc IS DistributionCenter;
+
+nameDeliveryType 'Тип доставки' (Stock st) = staticCaption(deliveryType(st));
+nameDeliveryType 'Тип доставки' (DistributionCenter dc) = staticCaption(deliveryType(dc));
+
+FORM Warehouse 'Собственный склад'
+    OBJECTS w = Warehouse PANEL
+    PROPERTIES(w) id, name, address
+    PROPERTIES id 'Код склада WB' = id(warehouseWB(w))
+    ORDERS name(w)
+    
+    EDIT Warehouse OBJECT w
+;
+
+cargoType = DATA LOCAL INTEGER (INTEGER);
+address = DATA LOCAL STRING(INTEGER);
+federalDistrict = DATA LOCAL STRING(INTEGER);
+city = DATA LOCAL STRING(INTEGER);
+latitude = DATA LOCAL NUMERIC(INTEGER);
+deliveryType = DATA LOCAL INTEGER (INTEGER);
+selected = DATA LOCAL STRING(INTEGER);
+longitude = DATA LOCAL NUMERIC(INTEGER);
+
+FORM importStockWB
+    OBJECTS value = INTEGER
+    PROPERTIES(value) cargoType, address, federalDistrict, city, latitude, name, deliveryType, id, selected, longitude
+    FILTERS imported(value)
+;
+
+code = DATA LOCAL STRING();
+message = DATA LOCAL STRING();
+
+FORM importError
+    PROPERTIES() code, message
+;
+
+// https://marketplace-api.wildberries.ru/api/v3/offices
+getStockWB 'Получить список складов WB' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL messageStock = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/offices');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/offices' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importStockWB JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT distributionCenter (INTEGER(id)) INLINE DO NEW dc = DistributionCenter {
+                id(dc) <- INTEGER(id);
+            }
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND DistributionCenter dc == distributionCenter(INTEGER(id)) INLINE DO {
+                isWB(dc) <- TRUE;
+                name(dc) <- name(i);
+                address(dc) <- address(i);
+                city(dc) <- city(i);
+                federalDistrict(dc) <- federalDistrict(i);
+                latitude(dc) <- latitude(i);
+                longitude(dc) <- longitude(i);
+                selected(dc) <- TRUE IF selected(i) == 'true';
+                CASE
+                    WHEN cargoType(i) == 1 THEN {
+                        cargoType(dc) <- CargoType.MGT;
+                    }
+                    WHEN cargoType(i) == 2 THEN {
+                        cargoType(dc) <- CargoType.SGT;
+                    }
+                    WHEN cargoType(i) == 3 THEN {
+                        cargoType(dc) <- CargoType.KGT;
+                    }
+                    WHEN deliveryType(i) == 1 THEN {
+                        deliveryType(dc) <- DeliveryType.FBS;
+                    }
+                    WHEN deliveryType(i) == 2 THEN {
+                        deliveryType(dc) <- DeliveryType.DBS;
+                    }
+                    WHEN deliveryType(i) == 3 THEN {
+                        deliveryType(dc) <- DeliveryType.DBW;
+                    }
+                    WHEN deliveryType(i) == 5 THEN {
+                        deliveryType(dc) <- DeliveryType.CaC;
+                    }
+                    WHEN deliveryType(i) == 6 THEN {
+                        deliveryType(dc) <- DeliveryType.EDBS;
+                    }
+            }
+            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 403 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Склад продавца не создан: ' + message();
+            }
+            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageStock() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+officeId = DATA LOCAL NUMERIC();
+name = DATA LOCAL STRING();
+
+//https://marketplace-api.wildberries.ru/api/v3/warehouses
+postStock 'Создать склад продавца (собственный)' (Warehouse w) {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL response = FILE();
+        LOCAL messageStock = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL isCreatedWB = BOOLEAN (Stock);
+        isCreatedWB(w) <- TRUE WHERE NOT isCreated(w);
+
+        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
+        EXPORT JSON FROM name = name(w), officeId = id(warehouseWB(w)) WHERE isCreatedWB(w);
+        
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile(resultString(),'UTF-8', 'json');
+        
+        TRY {
+            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/warehouses' HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importError JSON FROM response();
+            LOCAL id = INTEGER();
+            IMPORT JSON FROM response() TO() id = id;
+            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                id(w) <- id();
+                isCreated(w) <- TRUE WHERE isCreatedWB(w);
+                selected(DistributionCenter dc) <- TRUE WHERE dc == warehouseWB(w);
+            } 
+            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Склад продавца не создан: ' + message();
+            }
+            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Создание склада продавца</h3>' NOWAIT;
+            MESSAGE messageStock() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+//https://marketplace-api.wildberries.ru/api/v3/warehouses/{warehouseId}
+updateStock 'Обновить склад продавца (собственный)' (Warehouse w) {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL response = FILE();
+        LOCAL messageStock = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL isUpdatedWB = BOOLEAN (Stock);
+        isUpdatedWB(w) <- TRUE WHERE NOT isUpdated(w);
+
+        logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
+        EXPORT JSON FROM name = name(w), officeId = id(warehouseWB(w)) WHERE isUpdatedWB(w);
+
+        fileToString(exportFile(), 'UTF-8');
+        stringToFile(resultString(),'UTF-8', 'json');
+
+        TRY {
+            EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/warehouses/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importError JSON FROM response();
+            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                isUpdated(w) <- TRUE WHERE isUpdatedWB(w);
+            }
+            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Склад продавца не обновлен: ' + message();
+            }
+            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Обновление склада продавца</h3>' NOWAIT;
+            MESSAGE messageStock() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+//https://marketplace-api.wildberries.ru/api/v3/warehouses/{warehouseId}
+deleteStock 'Удалить склад продавца (собственный)' (Warehouse w) {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL response = FILE();
+        LOCAL messageStock = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+        LOCAL isDeletedWB = BOOLEAN (Stock);
+        isDeletedWB(w) <- TRUE WHERE NOT isDeleted(w);
+
+        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/');
+
+        TRY {
+            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/warehouses/' +id(w) HEADERS httpHeaders  TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importError JSON FROM response();
+            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                isDeleted(w) <- TRUE WHERE isDeletedWB(w);
+                id(w) <- NULL;
+                selected(DistributionCenter dc) <- NULL WHERE dc == warehouseWB(w);
+            }
+            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Склад продавца не удален: ' + message();
+            }
+            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Удаление склада продавца</h3>' NOWAIT;
+            MESSAGE messageStock() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() getStockWB
+    OBJECTS dc = DistributionCenter
+    PROPERTIES(dc) READONLY isWB, selected
+    PROPERTIES(dc) READONLY id, name, address, city, federalDistrict, latitude, longitude, nameCargoType, nameDeliveryType
+    ORDERS id(dc)
+
+    OBJECTS w = Warehouse
+    PROPERTIES(w) READONLY isCreated, isUpdated, isDeleted
+    PROPERTIES(w) READONLY id, name, address
+    PROPERTIES READONLY id 'Код склада WB' = id(warehouseWB(w)), name 'Наименование склада WB' = name(warehouseWB(w))
+    PROPERTIES(w) GRID postStock, updateStock, deleteStock
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
+    ORDERS name(w)
+    
+    
+//    OBJECTS stock = Stock
+//    PROPERTIES(stock) READONLY isWB, isCreated, isUpdated, isDeleted 
+//    PROPERTIES(stock) READONLY id, idStockWB, name, address, city, federalDistrict, latitude, longitude, cargoType, deliveryType, selected
+//    PROPERTIES(stock) GRID postStock, updateStock, deleteStock
+//    PROPERTIES(stock) NEWSESSION NEW, EDIT, DELETE
+//    ORDERS name(stock)
+        
+//    FILTERGROUP filterStock
+//        FILTER 'Собственные склады' NOT isWB(stock) DEFAULT 
+//        FILTER 'Склады WB' isWB(stock)
+//        FILTER 'Используемые склады WB и собственные' isWB(stock) OR NOT isWB(stock)
+;
+
+DESIGN integrationData {
+    referenceBooks {
+        NEW containerStock AFTER containerItem {
+            caption = 'Склады';
+            tabbed = TRUE;
+            fill = 1;
+                NEW containerWarehouse {
+                    caption = 'Собственные склады';
+                    MOVE BOX(w);
+                }
+                NEW containerStockWB {
+                    caption = 'Cклады WB';
+                    NEW actionContainerStockWB {
+                    horizontal = TRUE;
+                    MOVE PROPERTY (getStockWB());
+                }
+                MOVE BOX(dc);
+                }
+        }
+    }
+}

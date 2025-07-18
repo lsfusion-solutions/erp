@@ -162,12 +162,12 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
                 EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v3/media/save' HEADERS httpHeaders PARAMS resultFile() TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
-                IF statusHTTP(200) THEN {
+                IF statusHttp() == 200 THEN {
                     posted(MediaFile mf) <-TRUE WHERE needExport(mf);
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
-                IF statusHTTP(400) THEN {
+                IF statusHttp() == 400 THEN {
                     IMPORT errorText JSON FROM response();
                     extraDescriptionStatusHTTP() <- 'Не удалось загрузить медиафайлы: ' + errorText();
                 }
@@ -1485,14 +1485,14 @@ postTransferItems 'Перенос карточек товаров в корзи�
                     EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/delete/trash' HEADERS httpHeaders PARAMS resultFile() TO response;
                     fileToString(response());
                     logToFile('WB', resultString());
-                    IF statusHTTP(200) THEN {
+                    IF statusHttp() == 200 THEN {
                         isTrash(Item item) <- TRUE WHERE isTransfered(item);
                         postTrashItems();
                     }
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
-                    IF statusHTTP(400) THEN {
+                    IF statusHttp() == 400 THEN {
                         IMPORT additionalErrors JSON FROM response();
                         extraDescriptionStatusHTTP() <- 'Товары не перенесены в корзину: ' + additionalErrors();
                     }
@@ -1545,14 +1545,14 @@ postRecoverItems 'Восстановление карточек товаров �
                     EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/recover' HEADERS httpHeaders PARAMS resultFile() TO response;
                     fileToString(response());
                     logToFile('WB', resultString());
-                    IF statusHTTP(200) THEN {
+                    IF statusHttp() == 200 THEN {
                         isTrash(Item item) <- NULL WHERE isRecovered(item);
                         postItems();
                     }
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
-                    IF statusHTTP(400) THEN {
+                    IF statusHttp() == 400 THEN {
                         IMPORT additionalErrors JSON FROM response();
                         extraDescriptionStatusHTTP() <- 'Товары не восстановлены из корзины: ' + additionalErrors();
                     }
