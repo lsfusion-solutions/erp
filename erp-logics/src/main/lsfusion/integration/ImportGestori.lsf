@@ -1,7 +1,7 @@
 MODULE ImportGestori;
 
-REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ItemNutrition, RangeLevel, 
-        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntityBy, PriceListBarcode, Disparity, SalePack;
+REQUIRE Item, Store, Stock, Warehouse, ItemDescription, StockContract, Agreement, ItemStorage, ImportUserPriceList, ItemNutrition, 
+        PurchaseInvoice, PurchaseShipment, PricingPurchase, LegalEntity, PriceListBarcode, Disparity, SalePack;
 
 @defineLogRotate(importGestori_init, 5, weekly);
 @defineLogRotate(importGestori, 5, weekly);
@@ -16,10 +16,10 @@ EXTEND FORM integrationData PROPERTIES () host, port, base, login, password;
 
 DESIGN integrationData {
     pane {
-        NEW santa FIRST {
+        NEW gestori FIRST {
             caption = 'Gestori';
             fill = 1;
-            NEW santaParams {
+            NEW gestoriParams {
                 caption = 'Параметры';
                 MOVE PROPERTY (host());
                 MOVE PROPERTY (port());
@@ -27,7 +27,7 @@ DESIGN integrationData {
                 MOVE PROPERTY (login());
                 MOVE PROPERTY (password());
             }
-            NEW santaButtons { 
+            NEW gestoriButtons { 
                 caption = 'Импорт';
             }
         }
@@ -57,12 +57,12 @@ showCorrespndenceLegalEntityId 'Таблица соответствий кодо
 EXTEND FORM integrationData PROPERTIES () showCorrespndenceLegalEntityId;
 
 DESIGN integrationData {
-    santaParams {
+    gestoriParams {
         MOVE PROPERTY (showCorrespndenceLegalEntityId());
     }
 }
 
-id = DATA LOCAL INTEGER (INTEGER);
+id = DATA LOCAL NUMERIC[13,0] (INTEGER);
 idItem = DATA LOCAL NUMERIC[13,0](INTEGER);
 idSku = DATA LOCAL NUMERIC[13,0](INTEGER);
 name = DATA LOCAL STRING[100](INTEGER);
@@ -123,9 +123,9 @@ importItemGroup 'Импорт товарных групп' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemGroup();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemGroup()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importItemGroup()); } }
 
-idGroup = DATA LOCAL INTEGER (INTEGER);
+idGroup = DATA LOCAL NUMERIC[16,0] (INTEGER);
 
 importLegalEntities 'Импорт организаций' () {
 
@@ -144,10 +144,10 @@ importLegalEntities 'Импорт организаций' () {
     LOCAL bankAddress = TEXT (INTEGER);  
     LOCAL account = TEXT (INTEGER);  
     LOCAL corrAccount = STRING[20](INTEGER);
-    LOCAL bic = TEXT (INTEGER);  
-    
+    LOCAL bic = TEXT (INTEGER);
+
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
         EXEC 'SELECT cod_group, name_group FROM Pub.groups WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
@@ -162,7 +162,7 @@ importLegalEntities 'Импорт организаций' () {
     }
     
     FOR LegalEntityGroup g = legalEntityGroup(TEXT (id(INTEGER i))) DO {
-        name(g) <- name(i);
+        name(g) <- IF id(i) = 3 THEN 'Компании' ELSE name(i);
         parent(g) <- legalEntityGroup('all');
         order(g) <- id(i);
     }
@@ -171,8 +171,7 @@ importLegalEntities 'Импорт организаций' () {
         EXEC 'SELECT cod_firm, SUBSTR(name_firm, 1, 100), cod_group, address, address, phone, fax, "e-mail", director, comment, intext, bank_addr, bank_acct, bank_acctk, MFO, SUBSTR(primech, 1, 100) FROM Pub.firms WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idGroup, unp, okpo, phone, fax, email, director, comment, intext, bankAddress, account, corrAccount, bic, note;
-    
-    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) DO NEW s = LegalEntity {
+    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND idGroup(i) !=3.0 DO NEW s = LegalEntity {
         id(s) <- ISTRING[100] (id(i));
         
         IF NOT intext(i) == 'I' THEN NEW w = Warehouse {
@@ -182,7 +181,11 @@ importLegalEntities 'Импорт организаций' () {
             stockGroup(w) <- warehouseGroup('external');
         }
     }
-    
+
+    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND intext(i) == 'B' DO NEW s = LegalEntity {
+        id(s) <- ISTRING[100] (id(i));
+    }
+
     unp(INTEGER i) <- getWord(unp(i), ';', 1);
     okpo(INTEGER i) <- getWord(okpo(i), ';', 3);
     address(INTEGER i) <- (GROUP CONCAT getWord(comment(i), ';', INTEGER j) IF iterate(j, 2, wordCount(comment(i), ';')), ' ' ORDER j);
@@ -201,13 +204,14 @@ importLegalEntities 'Импорт организаций' () {
         name(b) <- STRING[200](getWord(bankAddress(i), ';', 1));
         dataAddress(b, DATE d) <- ISTRING[150] (addressBank(i)) WHERE d == currentDate();
     }
-    
-    FOR INTEGER i = [GROUP MIN INTEGER ii BY account(ii), id(ii)](STRING[50] number, INTEGER id) AND NOT accountID(number, TEXT (id)) DO NEW a = Bank.Account {
+
+    FOR INTEGER i = [GROUP MIN INTEGER ii BY account(ii), id(ii)](STRING[50] number, INTEGER id)  AND idGroup(i) !=3.0  AND NOT accountID(number, TEXT (id)) DO NEW a = Bank.Account {
         number(a) <- number;
         legalEntity(a) <- legalEntityNew(TEXT (id));
         bank(a) <- GROUP MAX Bank b IF oldMFO(b) == bic(i);
+        currency(a) <- defaultCurrency();
     }
-    
+
     FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
         fullName(s) <- STRING[200](OVERRIDE getWord(comment(i), ';', 1) IF trim(getWord(comment(i), ';', 1)) != '', name(i));
@@ -215,8 +219,8 @@ importLegalEntities 'Импорт организаций' () {
         isSupplier(s) <- idGroup(i) == 1 OR intext(i) == 'B';
         isCustomer(s) <- idGroup(i) == 2 OR intext(i) == 'B';
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup(TEXT (idGroup(i))), legalEntityGroup('2');
-        UNP(s) <- STRING[9](unp(i));
-        OKPO(s) <- STRING[20](okpo(i));
+//        inn(s) <- STRING[9](unp(i));
+//        okpo(s) <- STRING[10](okpo(i));
         note(s) <- note(i);
         email(s) <- email(i) WHERE trim(email(i)) != '';
         dataPhone(s, DATE d) <- CONCAT ', ', phone(i), 'факс: ' + fax(i) WHERE d == currentDate();
@@ -225,12 +229,22 @@ importLegalEntities 'Импорт организаций' () {
             dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
         }
     }
-    
+
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
+        EXEC 'SELECT a.cod_firm, b.cod_rol FROM Pub.firms as a JOIN Pub.rol_firms AS b ON b.cod_firm = a.cod_firm WHERE '
+        + 'a.intext = \'E\' WITH (NOLOCK)' TO file;
+
+    IMPORT TABLE FROM file() TO id, idGroup;
+
+    FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
+        isSupplier(s) <- idGroup(i) == 1;
+        isCustomer(s) <- idGroup(i) == 2;
+    }
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importLegalEntities();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importLegalEntities()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importLegalEntities()); } }
 
 idType = DATA LOCAL INTEGER (INTEGER);
 //nameType = DATA LOCAL STRING[100](INTEGER);
@@ -283,7 +297,10 @@ changeStoreId 'Изменить ID' () {
 }
 
 importStores 'Импорт магазинов' () {
-    
+
+    LOCAL type = STRING[100](INTEGER);
+    LOCAL comment = TEXT (INTEGER);
+
     LOCAL file = FILE ();
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_ob, SUBSTR(name,1,100) as test_name FROM Pub.obshop WITH (NOLOCK)' TO file;
@@ -292,7 +309,7 @@ importStores 'Импорт магазинов' () {
     
     IF NOT chainStores('main') THEN NEW c = ChainStores {
         id(c) <- 'main';
-        name(c) <- 'Санта Ритейл';
+        name(c) <- 'Ритейл';
     }
     
     FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
@@ -305,34 +322,57 @@ importStores 'Импорт магазинов' () {
     }
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_shop, name_shop, cod_ob FROM Pub.shops WITH (NOLOCK)' TO file;
-    
-    IMPORT TABLE FROM file() TO id, name, idType;
-    
-    FOR id(INTEGER i) AND NOT storeExtId(TEXT (id(i))) DO NEW s = Store {
-        extId(s) <- ISTRING[100] (id(i));
+        EXEC 'SELECT cod_shop, name_shop, cod_ob, type FROM Pub.shops WITH (NOLOCK)' TO file;
+
+    IMPORT TABLE FROM file() TO id, name, idType, type;
+
+    FOR id(INTEGER i) AND trim(type(i)) = 'м' AND NOT store(TEXT (id(i))) DO NEW s = Store {
+        id(s) <- ISTRING[100] (id(i));
     }
-    
-    FOR id(INTEGER i) AND NOT stockExtId(TEXT (id(i))) DO NEW s = DepartmentStore {
-        extId(s) <- ISTRING[100] (id(i));
-        store(s) <- storeExtId(TEXT (id(i)));
+
+
+    FOR id(INTEGER i) AND type(i) = 'м' AND NOT stock(TEXT (id(i))) DO NEW s = DepartmentStore {
+        id(s) <- ISTRING[100] (id(i));
+        store(s) <- store(TEXT (id(i)));
     }
-    
-    FOR Store s = storeExtId(TEXT (id(INTEGER i))) DO {
+
+    FOR Store s = store(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i) WHERE NOT name(s);
         storeType(s) <- storeType(TEXT (idType(i))) WHERE NOT storeType(s) ;
         legalEntity(s) <- OVERRIDE legalEntityNew(TEXT (idType(i))), defaultCompany() WHERE NOT legalEntity(s);
     }
-    
-    FOR DepartmentStore s = stockExtId(TEXT (id(INTEGER i))) DO {
+
+    FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
     }
-    
+
+    FOR id(INTEGER i) AND trim(type(i)) = 'с' AND NOT stock(TEXT (id(i))) DO NEW s = Warehouse {
+        id(s) <- ISTRING[100] (id(i));
+    }
+
+    FOR Warehouse s = stock(TEXT (id(INTEGER i))) DO {
+        name(s) <- name(i);
+        legalEntity(s) <- OVERRIDE legalEntityNew(TEXT (idType(i))), defaultCompany() WHERE NOT legalEntity(s);
+        stockGroup(s) <- warehouseGroup('company');
+
+    }
+
+    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password()
+        EXEC 'SELECT cod_firm, comment FROM Pub.firms WITH (NOLOCK)' TO file;
+
+    IMPORT TABLE FROM file() TO id, comment;
+    FOR Store s = store(TEXT (id(INTEGER i))) DO {
+        address(s) <-STRING[150](comment(i));
+    }
+
+    FOR Warehouse s = stock(TEXT (id(INTEGER i))) DO {
+        address(s) <-STRING[150](comment(i));
+    }
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importStores();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importStores()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importStores()); } }
 
 importUOMs 'Импорт ед. измерений' () {
     
@@ -348,13 +388,14 @@ importUOMs 'Импорт ед. измерений' () {
         shortName(u) <- name(i);
         base(u) <- u;
         factor(u) <- 1;
+        split(u) <- TRUE IF id(i) = 1 OR id(i) > 3;
     }
     
     APPLY;
 }
 
 EXTEND FORM integrationData PROPERTIES importUOMs();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importUOMs()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importUOMs()); } }
 
 supplier = ABSTRACT LegalEntity(Sku);
 nameSupplier 'Поставщик' (Sku s) = name(supplier(s));
@@ -375,7 +416,9 @@ lockedImportItemsMulti = DATA User ();
 lockResultImportItemsMulti = DATA LOCAL NESTED BOOLEAN ();
 
 useLabelName 'Импорт названия для ценника' = DATA BOOLEAN ();
-   
+
+maxDisparityItem (Sku sku) = GROUP MAX Sku sk BY disparityItem(sk);
+
 importItems1 'Импорт товаров' () {
     
     LOCAL idUOM = INTEGER (INTEGER);
@@ -431,20 +474,30 @@ importItems1 'Импорт товаров' () {
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
             EXEC 'SELECT b.cod_good, b.bar_cod, b.type_bar, b.cod_level, b.dt FROM Pub.barcod as b JOIN Pub.katalog AS k ON b.cod_good = k.cod_good WHERE ' 
-        + 'NOT k.cod_sgr = \'990101\' AND NOT b.cod_good = b.bar_cod WITH (NOLOCK)' TO file;
-    
+            + 'NOT k.cod_sgr = \'990101\' AND NOT b.cod_good = b.bar_cod WITH (NOLOCK)' TO file;
+
     IMPORT TABLE FROM file() TO idItem, idBarcode, type, level, date;
     
     FOR idBarcode(INTEGER i) AND NOT barcode(idBarcode(i), 2010_01_01) DO NEW b = Barcode {
         id(b) <- idBarcode(i);
     }
-    FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND Item s = item(TEXT (idItem(i))) DO {
+    FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND Item s = item(TEXT (idItem(i))) AND NOT level(i) = 3 DO {
         sku(b) <- s;
         dataDate(b) <- 2010_01_01; //date(i); Так нужно, чтобы не затирало штрихкоды созданные уценкой
         priceListType(b) <- priceListType('pt' + level(i)) IF level(i) > 1;  
     }
     FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND (type(i) = 1 OR type(i) = 2) AND level(i) = 1 AND Item s = item(TEXT (idItem(i))) DO {
         dataBarcode(s) <- b;
+        dataBarcode(s) <- b  WHERE length(idBarcode(i)) = 5 AND split(s);
+    }
+
+    FOR Barcode b = barcode(idBarcode(INTEGER i), 2010_01_01) AND (type(i) = 1 OR type(i) = 2) AND level(i) = 3 AND Item s = item(TEXT (idItem(i))) AND NOT maxDisparityItem(s) DO {
+        NEW di = Item {
+            skipGenerateBarcode() <- TRUE;
+            copyDisparityData(s, di);
+            sku(b) <- di;
+            dataBarcode(di) <- b;
+        }
     }
 
     setNoCancelInTransaction();
@@ -495,7 +548,7 @@ importItems 'Импорт товаров' ()  {
 
 EXTEND FORM integrationData PROPERTIES () importItems, useLabelName;
 DESIGN integrationData { 
-    santaButtons { 
+    gestoriButtons { 
         NEW importItems {
             horizontal = TRUE;
             MOVE PROPERTY (importItems());
@@ -598,7 +651,7 @@ importContract 'Импорт договоров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importContract();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importContract()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importContract()); } }
 
 property = DATA LOCAL INTEGER (INTEGER);
 value = DATA LOCAL TEXT (INTEGER);
@@ -674,63 +727,7 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importItemAttribute()); } }
-
-id 'Номер' = DATA ISTRING[100](Range.Range);
-range = GROUP MAX Range.Range r BY id(r);
-
-importRange 'Импорт ассортиментных матриц' () {
-    
-    LOCAL stores = TEXT (INTEGER);
-    
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT num_as, name, SUBSTR(seq_shop,1,1000) FROM Pub.as1 WITH (NOLOCK)' TO file;
-    
-    IMPORT TABLE FROM file() TO id, name, stores;
-    
-    IF NOT rangeLevel('1') THEN NEW l = RangeLevel {
-        name(l) <- '1';
-    }
-    
-    FOR id(INTEGER i) AND NOT range(TEXT (id(i))) DO NEW r = Range.Range {
-        id(r) <- ISTRING[100](id(i));
-    }
-    
-    FOR Range.Range r = range(TEXT (id(INTEGER i))) DO {
-        name(r) <- name(i);
-        in(r, RangeLevel l) <- l == rangeLevel('1');
-        inData(r, ItemGroup g) <- g == itemGroup('all');
-        dataLevel(r, Store s, DATE d) <- rangeLevel('1') WHERE [GROUP SUM 1 IF iterate(INTEGER j, 1, wordCount(stores(i), ',')) BY getWord(stores(i), ',', j)](extId(s)) AND d = 2019_01_01;
-        
-        IF NOT [GROUP SUM 1 BY range(RangeRev rr)](r) THEN NEW rr = RangeRev {
-            range(rr) <- r;
-            dateTime(rr) <- 2019_01_01_00:00;
-        }
-    }
-    
-    LOCAL idRange = INTEGER (INTEGER);
-    
-    EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT num_as, cod_good FROM Pub.asskat WITH (NOLOCK)' TO file;
-    
-    IMPORT TABLE FROM file() TO idRange, idItem;
-    
-    LOCAL imported = BOOLEAN (RangeRev, Item);
-    
-    FOR Item sk = sku(TEXT (idItem(INTEGER i))) AND RangeRev r = [GROUP LAST RangeRev rr ORDER rr BY range(rr)](range(TEXT (idRange(i)))) DO {
-    
-        level(r, sk) <- rangeLevel('1');
-        imported(r, sk) <- TRUE;
-    }
-    
-    level(RangeRev r, Item s) <- NULL WHERE r IS RangeRev AND s IS Item AND NOT imported(r, s);
-    
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importRange();
-DESIGN integrationData { santaButtons { MOVE PROPERTY (importRange()); } }
+DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importItemAttribute()); } }
 
 customerStock = DATA Stock();
 nameCustomerStock 'Склад' () = name(customerStock());
@@ -913,7 +910,7 @@ importInit 'Импорт остатков' () {
 
 EXTEND FORM integrationData PROPERTIES () nameCustomerStock, importInit;
 DESIGN integrationData { 
-    santaButtons { 
+    gestoriButtons { 
         NEW importInit {
             horizontal = TRUE;
             alignment = STRETCH;
@@ -1029,7 +1026,7 @@ importPriceListSupplier 'Импорт прайсов поставщика' () {
 
 EXTEND FORM integrationData PROPERTIES importPriceListSupplier();
 DESIGN integrationData { 
-    santaButtons { 
+    gestoriButtons { 
         NEW supermagSup {
             horizontal = TRUE;
             MOVE PROPERTY (importPriceListSupplier());
@@ -1111,7 +1108,7 @@ importOrder 'Импорт заказов' () {
 
 EXTEND FORM integrationData PROPERTIES () importOrder, dateFromOrder, nameCustomerStockOrder;
 DESIGN integrationData { 
-    santaButtons { 
+    gestoriButtons { 
         NEW orders {
             horizontal = TRUE;
             MOVE PROPERTY (importOrder());
@@ -1176,7 +1173,7 @@ importPriceLists 'Импорт прайсов' () {
 
 EXTEND FORM integrationData PROPERTIES importPriceLists(), idOperations();
 DESIGN integrationData { 
-    santaButtons { 
+    gestoriButtons { 
         NEW importPriceLists AFTER importInit {
             horizontal = TRUE;
             alignment = STRETCH;
