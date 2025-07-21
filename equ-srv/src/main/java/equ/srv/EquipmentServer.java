@@ -1879,7 +1879,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String barcode = null;
 
                 //1. Если включена опция "Прием реализации по коду товара", ищем ШК по sale.idItem и свойству idBarcodeSkuOverId[STRING]
-                if(options.readSalesByIdItem) {
+                if(options.readSalesByIdItem && !sale.isGiftCard) {
                     barcode = idItemIdBarcodeMap.get(sale.idItem);
                     if(barcode == null) {
                         barcode = (String) equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").read(session, new DataObject(sale.idItem));
