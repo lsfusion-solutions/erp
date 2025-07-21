@@ -118,6 +118,11 @@ META defineDocumentOutWayBillProcess (doc, supplier, customer, prefix, captionDo
             RETURN;
         }
 
+        IF NOT (GROUP SUM 1 IF doc(###doc##Detail dd) == i AND minProduct(sku(dd))) THEN {
+            MESSAGE 'В документе нет строк, для которых задан аналог в справочнике ЕГАИС Алкогольная продукция. Отправка в ЕГАИС невозможна';
+            RETURN;            
+        }
+        
         IF (GROUP SUM 1 IF doc(###doc##Detail dd) == i AND NOT minProduct(sku(dd))) THEN {
             ASK 'Для следующих товаров отсутствует аналог в справочнике ЕГАИС Алкогольная продукция: \n' +
                 (GROUP CONCAT name(sku(###doc##Detail dd)) IF doc(dd) == i AND NOT minProduct(sku(dd)), '\n' ORDER dd) + '\nПродолжить?' DO { }
