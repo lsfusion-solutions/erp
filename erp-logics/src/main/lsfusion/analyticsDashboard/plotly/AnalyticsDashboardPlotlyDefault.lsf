@@ -161,11 +161,31 @@ onStarted() + {
                     layoutTitleText(pie) <- 'ОС пользователей';
                     updateInterval(pie) <- 300;
                     layoutLegendOrientation(pie) <- ChartOrientation.vertical;
+                    layoutMarginBottom(pie) <- 1;
+                    layoutMarginLeft(pie) <- 1;
+                    layoutMarginRight(pie) <- 1;
+                    layoutMarginTop(pie) <- 30;
                     eval(pie) <- 'valuePie(STRING os) <- GROUP SUM 1 IF osVersion(Connection c) = os AND connectionStatus(c) == ConnectionStatus.connectedConnection;';
                 }
             }
             APPLY;
-    
+
+            IF NOT pie('orders') THEN {
+                NEW pie = Pie {
+                    id(pie) <- 'orders';
+                    name(pie) <- 'Заказы по статусам';
+                    layoutTitleText(pie) <- 'Заказы по статусам';
+                    updateInterval(pie) <- 300;
+                    layoutLegendOrientation(pie) <- ChartOrientation.vertical;
+                    layoutMarginBottom(pie) <- 1;
+                    layoutMarginLeft(pie) <- 1;
+                    layoutMarginRight(pie) <- 1;
+                    layoutMarginTop(pie) <- 30;
+                    eval(pie) <- 'valuePie(STRING status) <- GROUP SUM 1 IF nameStatusPicking(Sale.Order o) = status AND isOpened(o);';
+                }
+            }
+            APPLY;            
+            
             IF NOT bar('Errors') THEN {
                 NEW bar=Bar {
                     id(bar) <- 'Errors';
@@ -196,10 +216,125 @@ onStarted() + {
                             name(barTrace) <- 'Client exception';
                         }
                     }
+                    layoutMarginBottom(bar) <- 1;
+                    layoutMarginLeft(bar) <- 1;
+                    layoutMarginRight(bar) <- 1;
+                    layoutMarginTop(bar) <- 30;
                     eval(bar) <- 'valueBar(\'srv\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS ServerException)) = date;\nvalueBar(\'web\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS WebClientException)) = date;\nvalueBar(\'clt\', STRING date) <- GROUP SUM 1 IF toDateISO(fromDate(Exception e AS RemoteServerException)) = date;';
                 }
             }
             APPLY;
+
+            IF NOT bar('top') THEN {
+                NEW bar=Bar {
+                    id(bar) <- 'top';
+                    name(bar) <- 'Лидеры месяца';
+                    layoutTitleText(bar) <- 'Лидеры месяца';
+                    updateInterval(bar) <- 300;
+                    barMode(bar) <- BarMode.group;
+                    horizontal(bar) <- TRUE;
+                    layoutLegendOrientation(bar) <- ChartOrientation.horizontal;
+                    layoutLegendTitleSide(bar) <- ChartSide.topCenter;
+                    IF NOT barTrace(bar, 'sum') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'sum';
+                            name(barTrace) <- 'Выручка';
+                            showKey(barTrace) <- TRUE;
+                            showValue(barTrace) <- TRUE;
+                        }
+                    }
+                    layoutMarginBottom(bar) <- 1;
+                    layoutMarginLeft(bar) <- 1;
+                    layoutMarginRight(bar) <- 1;
+                    layoutMarginTop(bar) <- 30;
+                    eval(bar) <- 'valueBar(\'sum\', STRING store) <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)>=sum(currentDate(), -30) AND date(z)<=currentDate() AND name(departmentStore(z))==store;';
+                }
+            }
+            APPLY;
+
+            IF NOT bar('top3') THEN {
+                NEW bar=Bar {
+                    id(bar) <- 'top3';
+                    name(bar) <- 'Топ 3 аптеки';
+                    layoutTitleText(bar) <- 'Топ 3 аптеки';
+                    updateInterval(bar) <- 300;
+                    barMode(bar) <- BarMode.group;
+                    barCornerRadius (bar) <- 40;
+                    horizontal(bar) <- TRUE;
+                    layoutLegendOrientation(bar) <- ChartOrientation.horizontal;
+                    layoutLegendTitleSide(bar) <- ChartSide.topCenter;
+                    IF NOT barTrace(bar, 'top1') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'top1';
+                            name(barTrace) <- 'Золото';
+                            showKey(barTrace) <- TRUE;
+                            color (barTrace) <- #ffd700;
+                        }
+                    }
+                    IF NOT barTrace(bar, 'top2') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'top2';
+                            name(barTrace) <- 'Серебро';
+                            showKey(barTrace) <- TRUE;
+                            color (barTrace) <- #c0c0c0;
+                        }
+                    }
+                    IF NOT barTrace(bar, 'top3') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'top3';
+                            name(barTrace) <- 'Бронза';
+                            showKey(barTrace) <- TRUE;
+                            color (barTrace) <- #cd7f32;
+                        }
+                    }
+                    layoutMarginBottom(bar) <- 1;
+                    layoutMarginLeft(bar) <- 1;
+                    layoutMarginRight(bar) <- 1;
+                    layoutMarginTop(bar) <- 30;
+                    eval(bar) <- 'LOCAL sum = NUMERIC (STRING);\nLOCAL index = INTEGER (STRING);\nsum(STRING store) <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)>=sum(currentDate(), -30) AND date(z)<=currentDate() AND name(departmentStore(z))==store;\nindex(STRING store) <- PARTITION SUM 1 ORDER DESC sum(store), store IF sum(store);\nvalueBar(\'top1\', STRING store) <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)>=sum(currentDate(), -30) AND date(z)<=currentDate() AND index(name(departmentStore(z)))==1 AND name(departmentStore(z))==store;\nvalueBar(\'top2\', STRING store) <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)>=sum(currentDate(), -30) AND date(z)<=currentDate() AND index(name(departmentStore(z)))==2 AND name(departmentStore(z))==store;\nvalueBar(\'top3\', STRING store) <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF date(z)>=sum(currentDate(), -30) AND date(z)<=currentDate() AND index(name(departmentStore(z)))==3 AND name(departmentStore(z))==store;';
+                }
+            }
+            APPLY;
+
+            IF NOT bar('orderIn') THEN {
+                NEW bar=Bar {
+                    id(bar) <- 'orderIn';
+                    name(bar) <- 'Отгружено заказов';
+                    layoutTitleText(bar) <- 'Отгружено заказов';
+                    updateInterval(bar) <- 300;
+                    barMode(bar) <- BarMode.overlay;
+                    layoutLegendOrientation(bar) <- ChartOrientation.horizontal;
+                    layoutLegendTitleSide(bar) <- ChartSide.topCenter;
+                    IF NOT barTrace(bar, 'order') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'order';
+                            name(barTrace) <- 'Заказы';
+                            showKey(barTrace) <- TRUE;
+                            showValue(barTrace) <- TRUE;
+                        }
+                    }
+                    IF NOT barTrace(bar, 'invoiced') THEN {
+                        NEW barTrace=BarTrace {
+                            bar(barTrace) <- bar;
+                            id(barTrace) <- 'invoiced';
+                            name(barTrace) <- 'Отгруженные заказы';
+                            showKey(barTrace) <- TRUE;
+                            showValue(barTrace) <- TRUE;
+                        }
+                    }
+                    layoutMarginBottom(bar) <- 1;
+                    layoutMarginLeft(bar) <- 1;
+                    layoutMarginRight(bar) <- 1;
+                    layoutMarginTop(bar) <- 30;
+                    eval(bar) <- 'valueBar(\'order\', STRING date) <- GROUP SUM 1 IF toDateISO(date(Sale.Order o)) = date AND date(o)>=sum(currentDate(), -30) AND date(o)<currentDate() AND isWarehouse(supplierStock(o)) AND isPosted(o);\nvalueBar(\'invoiced\', STRING date) <- GROUP SUM 1 IF toDateISO(date(Sale.Order o)) = date AND date(o)>=sum(currentDate(), -30) AND date(o)<currentDate() AND isWarehouse(supplierStock(o)) AND invoices(o) AND isPosted(o);';
+                }
+            }
+            APPLY;            
 
             IF NOT scatter('receiptM') THEN {
                 NEW scatter=Scatter {
@@ -220,6 +355,10 @@ onStarted() + {
                             traceModeText(scatterTrace) <- TRUE;
                         }
                     }
+                    layoutMarginBottom(scatter) <- 1;
+                    layoutMarginLeft(scatter) <- 1;
+                    layoutMarginRight(scatter) <- 1;
+                    layoutMarginTop(scatter) <- 30;
                     eval(scatter) <- 'valueScatter(\'receipt\', \'1\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==1;\norderScatter(\'receipt\', \'1\') <- 1;\nvalueScatter(\'receipt\', \'2\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==2;\norderScatter(\'receipt\', \'2\') <- 2;\nvalueScatter(\'receipt\', \'3\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==3;\norderScatter(\'receipt\', \'3\') <- 3;\nvalueScatter(\'receipt\', \'4\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==4;\norderScatter(\'receipt\', \'4\') <- 4;\nvalueScatter(\'receipt\', \'5\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==5;\norderScatter(\'receipt\', \'5\') <- 5;\nvalueScatter(\'receipt\', \'6\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==6;\norderScatter(\'receipt\', \'6\') <- 6;\nvalueScatter(\'receipt\', \'7\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==7;\norderScatter(\'receipt\', \'7\') <- 7;\nvalueScatter(\'receipt\', \'8\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==8;\norderScatter(\'receipt\', \'8\') <- 8;\nvalueScatter(\'receipt\', \'9\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==9;\norderScatter(\'receipt\', \'9\') <- 9;\nvalueScatter(\'receipt\', \'10\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==10;\norderScatter(\'receipt\', \'10\') <- 10;\nvalueScatter(\'receipt\', \'11\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==11;\norderScatter(\'receipt\', \'11\') <- 11;\nvalueScatter(\'receipt\', \'12\') <- GROUP SUM countReceipt(ZReport.ZReport z) IF extractYear(date(z)) = currentYear() AND extractMonthNumber(date(z))==12;\norderScatter(\'receipt\', \'12\') <- 12;';
                 }
             }
@@ -256,6 +395,10 @@ onStarted() + {
                             traceModeText(scatterTrace) <- TRUE;
                         }
                     }
+                    layoutMarginBottom(scatter) <- 1;
+                    layoutMarginLeft(scatter) <- 1;
+                    layoutMarginRight(scatter) <- 1;
+                    layoutMarginTop(scatter) <- 30;
                     eval(scatter) <- 'valueScatter(\'week\', \'1\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==0;\norderScatter(\'week\', \'1\') <- 1;\nvalueScatter(\'week\', \'2\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==1;\norderScatter(\'week\', \'2\') <- 2;\nvalueScatter(\'week\', \'3\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==2;\norderScatter(\'week\', \'3\') <- 3;\nvalueScatter(\'week\', \'4\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==3;\norderScatter(\'week\', \'4\') <- 4;\nvalueScatter(\'week\', \'5\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==4;\norderScatter(\'week\', \'5\') <- 5;\nvalueScatter(\'week\', \'6\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==5;\norderScatter(\'week\', \'6\') <- 6;\nvalueScatter(\'week\', \'7\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == extractWeek(currentDate()) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==6;\norderScatter(\'week\', \'7\') <- 7;\nvalueScatter(\'prevweek\', \'1\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==0;\norderScatter(\'prevweek\', \'1\') <- 1;\nvalueScatter(\'prevweek\', \'2\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==1;\norderScatter(\'prevweek\', \'2\') <- 2;\nvalueScatter(\'prevweek\', \'3\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==2;\norderScatter(\'prevweek\', \'3\') <- 3;\nvalueScatter(\'prevweek\', \'4\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==3;\norderScatter(\'prevweek\', \'4\') <- 4;\nvalueScatter(\'prevweek\', \'5\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==4;\norderScatter(\'prevweek\', \'5\') <- 5;\nvalueScatter(\'prevweek\', \'6\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==5;\norderScatter(\'prevweek\', \'6\') <- 6;\nvalueScatter(\'prevweek\', \'7\') <- GROUP SUM sumReceiptDetail(ZReport.ZReport z) IF extractWeek(date(z)) == (extractWeek(currentDate())-1) AND extractYear(date(z))==extractYear(currentDate()) AND numberM(extractDOW(date(z)))==6;\norderScatter(\'prevweek\', \'7\') <- 7;';
                 }
             }
@@ -280,6 +423,28 @@ onStarted() + {
                 }
             }
             APPLY;
+
+            IF NOT indicator('invoice') THEN {
+                NEW indicator = Indicator {
+                    id(indicator) <- 'invoice';
+                    name(indicator) <- 'Выписано накладных';
+                    layoutTitleText(indicator) <- 'Выписано накладных';
+                    updateInterval(indicator) <- 5;
+                    numberValueFormat(indicator) <- '.2r';
+                    numberSuffix(indicator) <- ' шт.';
+                    modeNumber(indicator) <- TRUE;
+                    modeDelta(indicator) <- TRUE;
+                    deltaValueFormat(indicator) <- '.2r';
+                    gaugeAxisTickformat(indicator) <- '.2r';
+                    gaugeAxisTicksuffix(indicator) <- ' шт.';
+                    layoutMarginBottom(indicator) <- 1;
+                    layoutMarginLeft(indicator) <- 1;
+                    layoutMarginRight(indicator) <- 1;
+                    layoutMarginTop(indicator) <- 30;
+                    eval(indicator) <- 'indicatorReference() <- GROUP SUM 1 IF date(Sale.Invoice i)==sum(currentDate(), -1);\nindicatorValue() <- GROUP SUM 1 IF date(Sale.Invoice i)==currentDate();';
+                }
+            }
+            APPLY;            
 
             IF NOT (GROUP MAX Dashboard d IF name(d) == 'Default') THEN {
                 NEW d = Dashboard {
