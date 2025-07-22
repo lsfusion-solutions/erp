@@ -1,0 +1,37 @@
+MODULE ExtraSecurity;
+
+REQUIRE Security, DefaultData, Currency;
+
+NAMESPACE Security;
+
+extraSecurityFilled = DATA BOOLEAN () PREREAD;
+onStarted() + {
+    IF NOT extraSecurityFilled() AND NOT defaultCurrency() THEN {  // чтобы не испортить на Демо и др. куда может подключиться
+        NEWSESSION {
+            disableRole(userRoleSID('selfRegister')) <- TRUE;
+
+            dataPermission(userRoleSID('default'), navigatorElementCanonicalName('System.root')) <- Permission.forbid;
+            dataPermission(userRoleSID('default'), navigatorElementCanonicalName('Authentication.account')) <- Permission.permit;
+
+            dataPermissionGroupChange(userRoleSID('admin'), propertyGroup('System_root')) <- Permission.permit;
+            dataPermissionEditObjects(userRoleSID('default'), propertyGroup('System_root')) <- Permission.forbid;
+
+            extraSecurityFilled() <- TRUE;
+            APPLY;
+        }
+    }    
+}
+
+loadDefaultData() + {
+    dataPermissionView(userRoleSID('default'), propertyGroup('System_drillDown')) <- Permission.forbid;
+    dataPermissionChange(userRoleSID('default'), propertyGroup('System_drillDown')) <- Permission.forbid;
+    dataPermissionView(userRoleSID('default'), propertyGroup('System_propertyPolicy')) <- Permission.forbid;
+    dataPermissionChange(userRoleSID('default'), propertyGroup('System_propertyPolicy')) <- Permission.forbid;
+
+    dataPermissionGroupChange(userRoleSID('default'), ActionOrProperty p) <- Permission.forbid WHERE isISubstring(caption(p), 'удалить');
+
+    IF navigatorElementCanonicalName('Authentication.logOutAction') THEN {
+        dataPermission(userRoleSID('default'), navigatorElementCanonicalName('Authentication.logOutAction')) <- Permission.permit;
+        dataPermission(userRoleSID('default'), navigatorElementCanonicalName('Authentication.account')) <- NULL;
+    }
+}
