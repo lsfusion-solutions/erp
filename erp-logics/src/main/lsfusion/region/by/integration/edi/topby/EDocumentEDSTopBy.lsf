@@ -24,64 +24,7 @@ sendRequestEDSReceiver(STRING[100] provider, EDocument d, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceReceiver(provider,d)) + ':' + port(EDSServiceReceiver(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceReceiver(provider,d)));
 }
 
-getSignedDocumentSender(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceSender(provider, eDocument)) == EDSApplication.edsService THEN {
-        IF aliasEDSServiceSender(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-            
-            LOCAL xml = FILE();
-            fileToString(contentSubXML);
-            EXPORT getEDS OBJECTS alias = aliasEDSServiceSender(eDocument),password = (OVERRIDE passwordEDSService(), passwordEDSServiceSender(eDocument)) XML TO xml;
-            LOCAL innerXML = TEXT();
-            innerXML() <- resultString();
-            fileToString(xml());
-            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSSender(provider, eDocument, resultFile());
-            IMPORT getEDSResponse FROM sendRequestEDIResponse();
-            signError() <- faultstring();
-            IF waybill() THEN {
-                encodeBase64(waybill());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + documentID(eDocument) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-    }
-}
 
-getSignedDocumentReceiver(STRING[100] provider, EDocument eDocument, FILE contentSubXML, BOOLEAN interactive) + {
-    IF edsApplication(EDSServiceReceiver(provider, eDocument)) == EDSApplication.edsService THEN {
-        IF aliasEDSServiceReceiver(eDocument) AND (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument)) THEN {
-            signError() <- NULL;
-            signResult() <- NULL;
-            
-            LOCAL xml = FILE();
-            fileToString(contentSubXML);
-            EXPORT getEDS OBJECTS alias = aliasEDSServiceReceiver(eDocument), password = (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(eDocument)) XML TO xml;
-            LOCAL innerXML = TEXT();
-            innerXML() <- resultString();
-            fileToString(xml());
-            stringToFile(replace(resultString(),'innerXML','<![CDATA[' + innerXML() + ']]>'),'UTF-8','xml');
-            sendRequestEDSReceiver(provider, eDocument, resultFile());
-            IMPORT getEDSResponse FROM sendRequestEDIResponse();
-            signError() <- faultstring();
-            IF waybill() THEN {
-                encodeBase64(waybill());
-                signResult() <- encodedBase64();
-            }
-        } ELSE {
-            IF interactive THEN {
-                MESSAGE provider + ' Документ ' + documentID(eDocument) + ' не подписан: Alias или Пароль EDSService не задан' NOWAIT;
-            }
-            logToFile('edi', provider + ' error: Alias or Password for EDSService not found');
-        }
-        RETURN;
-    }
-}
 
 //CTT-EDS-SIGN
 
