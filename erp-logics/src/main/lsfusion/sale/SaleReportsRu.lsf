@@ -1,7 +1,7 @@
 MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
-        SaleShipment, TaxItem, ZReport, Warehouse;
+        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder;
 
 NAMESPACE SaleReports;
 
@@ -557,6 +557,11 @@ lastInvoice 'Дата последней продажи' = GROUP LAST SaleLedger
     WHERE date(ledger) <= DATE date AND filterSaleLeger(ledger)
     BY sku(ledger), stock(ledger), date;
 
+lastPurchase 'Дата последнего прихода' = GROUP LAST PurchaseLedger ledger
+ORDER date(ledger), ledger
+WHERE date(ledger) <= DATE date 
+BY sku(ledger), stock(ledger), date;
+
 FORM saleLedgerReportSupplier 'Продажи и остатки'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(), 
@@ -568,7 +573,7 @@ FORM saleLedgerReportSupplier 'Продажи и остатки'
 
     OBJECTS s = Sku
     PROPERTIES(s) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, idSupplierSku, nameSupplierSku, idBarcode,
-        name, articleRu, shortNameUOM, valueVAT, amountPack
+        name, articleRu, shortNameUOM, valueVAT, Sale.amountPack
     //PROPERTIES(s,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
     PROPERTIES(s,st) idSupplierLastOrderBatch, nameSupplierLastOrderBatch, pricePurchase, dateSupplierLastOrderBatch
     PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
@@ -611,8 +616,7 @@ sumBalanceB(Stock st, LegalEntity le) =
 margaBalanceB(Stock st, LegalEntity le, DATE df, DATE dt) =
     valProfitSupplier(st,le,df,dt)*100/sumBalanceB(st,le);
 turnoverDays 'Количество дней запаса' (Stock st, LegalEntity le, DATE df, DATE dt) =
-    GROUP SUM NUMERIC[30,2](balanceB(Sku s, st, datePriceSupplier())/quantitySupplierSku(st,le,df,dt)/daysBetweenDates(df,dt));
-
+    GROUP SUM NUMERIC[30,2](balanceB(Sku s, st, datePriceSupplier())*quantitySupplierSku(st,le,df,dt)/(daysBetweenDates(df,dt) + 1));
 
 FORM saleLedgerReportSupplierSku 'Продажи и остатки по поставщику'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
@@ -642,12 +646,48 @@ printSkuGroupSaleLedgerSupplierSku 'Розничные продажи и ост�
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
 
+turnoverDays 'Оборачиваемость' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceB(s, st, datePriceSupplier())*quantity(s,st,df,dt)/(daysBetweenDates(df,dt) + 1));
+quantityPurchse 'Кол-во заказа' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(Purchase.OrderDetail d) IF date(d) >= df AND date(d) <= dt AND sku(d) = s AND customerStock(d) = st;
 
+FORM saleLedgerReportTurnover 'Продажи и остатки(оборачиваемость)'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier()
+
+    OBJECTS st = Stock
+    PROPERTIES name(st)
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, name, articleRu, idBarcode
+
+    PROPERTIES balanceB = balanceB(s,st,datePriceSupplier()) COLUMNS 'st' (st) HEADER 'Остаток',
+               quantity(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Количество продаж',
+               priceSku(s,st) COLUMNS 'st' (st) HEADER 'Учетная цена',
+               price = priceSku(s,st) COLUMNS 'st' (st) HEADER 'Отп.цена на дату расчета остатков',
+               turnoverDays(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Оборачиваемость(дни)',
+               quantityPurchse(s,st,df,dt) COLUMNS 'st' (st) HEADER 'Количество заказа',
+               number = number(lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Номер заказа',
+               lastDatePurchse = date(lastPurchase(s,st,dt)) COLUMNS 'st' (st) HEADER 'Дата последнего прихода',
+               lastDateInvoice = date(lastInvoice(s,st,dt)) COLUMNS 'st' (st) HEADER 'Дата последней продажи'
+    PROPERTIES sk = priceSku(s,st) COLUMNS 'st' (st) HEADER (name(st))
+    ORDERS idBarcode(s), name(s)
+
+    FILTERS inSessionSku(s), quantity(s,st,df,dt)
+;
+
+printSkuGroupSaleLedgerTurnover 'Розничные продажи и остатки(оборач.)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleLedgerReportTurnover OBJECTS df = dateFrom, dt= dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
 
 EXTEND FORM salesReport
     PROPERTIES datePriceSupplier()
     PROPERTIES (df,dt) printSkuGroupSaleLedgerSupplier, printSkuGroupSaleLedgerAllSupplier,
-        printSkuGroupSaleLedgerSupplierSku
+        printSkuGroupSaleLedgerSupplierSku, printSkuGroupSaleLedgerTurnover
 ;
 
 DESIGN salesReport {
@@ -660,6 +700,7 @@ DESIGN salesReport {
                 MOVE PROPERTY(printSkuGroupSaleLedgerSupplier(df, dt));
                 MOVE PROPERTY(printSkuGroupSaleLedgerAllSupplier(df, dt));
                 MOVE PROPERTY(printSkuGroupSaleLedgerSupplierSku(df, dt));
+                MOVE PROPERTY(printSkuGroupSaleLedgerTurnover(df, dt));
             }
         }
     }
