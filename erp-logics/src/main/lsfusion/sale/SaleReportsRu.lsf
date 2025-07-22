@@ -1,20 +1,21 @@
 MODULE SaleReportsRu;
 
-REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, SaleFullPrice, SaleShipment, TaxItem, ZReport, Warehouse;
+REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
+        SaleShipment, TaxItem, ZReport, Warehouse;
 
 NAMESPACE SaleReports;
 
 articleRu = ABSTRACT ISTRING[20](Sku);
 priceSku 'Учетная цена' = ABSTRACT NUMERIC[16,4](Sku, Stock);
+supplierSku 'Поставщик товара' = ABSTRACT LegalEntity (Sku);
+nameSupplierSku 'Наименование поставщика' (Sku s) = name(supplierSku(s));
+idSupplierSku 'Код поставщика' (Sku s) = id(supplierSku(s));
 
 inSessionSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF inSession(group(GroupType t, s)));
 printInSessionSku 'Товары' () =
     GROUP CONCAT name(Sku s) IF inSessionSku(s) ,', ' ORDER s CHARWIDTH 100;
 
 inSaleReportLegalEntities 'Покупатели' () =
-    GROUP CONCAT name(LegalEntity le) IF in(le) ,', ' ORDER le CHARWIDTH 30;
-
-inSaleReportSupplier'Поставщики' () =
     GROUP CONCAT name(LegalEntity le) IF in(le) ,', ' ORDER le CHARWIDTH 30;
 
 FORM dialogLegalEntitiesSaleReport 'Выбор покупателя'
@@ -55,6 +56,46 @@ DESIGN dialogLegalEntitiesSaleReport {
 changeStocksSalesReport(GroupType gt, DATE df, DATE dt)  {
     DIALOG dialogStocksSaleReport DO {
         fillSaleReportFromTo(gt, df, dt);
+    }
+}
+
+
+inSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+inSaleReportSupplier 'Поставщики' () =
+    GROUP CONCAT name(LegalEntity le) IF inSupplier(le) ,', ' ORDER le CHARWIDTH 30;
+
+FORM dialogLegalEntitiesSupplier 'Выбор поставщика'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) inSupplier
+    PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, nameLegalEntityGroup
+    ORDERS name(l)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERGROUP include FILTER 'Отмеченные' in(l) 'F9'
+    FILTERS isParent(legalEntityGroup(l), lg) OR
+        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN dialogLegalEntitiesSupplier {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE legalEntityGroupTree){
+                caption = 'Группы организаций';
+            }
+            MOVE BOX(l) {
+                fill = 3;
+                GRID(l) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
     }
 }
 
@@ -203,7 +244,8 @@ printSkuSaleReportXLS 'Отчет по реализации (XLS)' (DATE df, DAT
 } IMAGE 'apply.png';
 
 EXTEND FORM salesReport
-    PROPERTIES inSaleReportLegalEntities()
+    PROPERTIES inSaleReportLegalEntities() ON CHANGE {DIALOG dialogLegalEntitiesSaleReport; }
+    PROPERTIES inSaleReportSupplier() ON CHANGE {DIALOG dialogLegalEntitiesSupplier; }
     PROPERTIES nameInOperations() ON CHANGE {DIALOG selectOperations; }
     
     PROPERTIES(df,dt) printSkuSaleReport, printSkuSaleReportXLS
@@ -215,6 +257,11 @@ DESIGN salesReport {
             caption = 'Покупатели';
             horizontal = TRUE;
             MOVE PROPERTY(inSaleReportLegalEntities());
+        }
+        NEW supplier {
+            caption = 'Поставщики';
+            horizontal = TRUE;
+            MOVE PROPERTY(inSaleReportSupplier());
         }
         NEW operation {
             caption = 'Операции';
@@ -468,6 +515,152 @@ DESIGN salesReport {
     }
 }
 
+//// ------ розничные продажи и остатки
+
+datePriceSupplier 'Дата цены и остатков' = DATA DATE ();
+
+idSupplierLastOrderBatch 'Поставщик' (Sku sk, Stock st) = id(supplierLastOrderBatch(sk, st));
+dateSupplierLastOrderBatch 'Дата последнего прихода' (Sku sk, Stock st) = DATE(dateTime(lastOrderBatch(sk, st)));
+pricePurchase 'Цена поставщика' (Sku sku, Stock st) =
+    NUMERIC[15,2](priceA(SystemLedgerPriceListType.supplierPricingPriceListType, sku, st, currentDateTime()));
+
+quantitySupplier(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND s = sku(l) AND st = stock(l) 
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+fullSumSupplier(Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+sumSupplier 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s AND st = stock(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+valProfitSupplier(Sku s, Stock st, DATE df, DATE dt) = 
+    sumSupplier(s,st,df,dt) (-) fullSumSupplier(s,st,df,dt);
+margaSupplier(Sku s, Stock st, DATE df, DATE dt) = 
+    valProfitSupplier(s,st,df,dt)*100/sumSupplier(s,st,df,dt);
+
+quantitySupplier(Sku s, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND s = sku(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+fullSumSupplier(Sku s, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+sumSupplier 'Учетная сумма ' (Sku s, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND sku(l) = s
+        AND filterSaleLeger(l) AND inSessionSku(sku(l)) AND (inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier());
+valProfitSupplier(Sku s, DATE df, DATE dt) =
+    sumSupplier(s,df,dt) (-) fullSumSupplier(s,df,dt);
+margaSupplier(Sku s,DATE df, DATE dt) =
+    valProfitSupplier(s,df,dt)*100/sumSupplier(s,df,dt);
+
+lastInvoice 'Дата последней продажи' = GROUP LAST SaleLedger ledger
+    ORDER date(ledger), ledger
+    WHERE date(ledger) <= DATE date AND filterSaleLeger(ledger)
+    BY sku(ledger), stock(ledger), date;
+
+FORM saleLedgerReportSupplier 'Продажи и остатки'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(), 
+        namePrint(), datePriceSupplier()
+
+    OBJECTS st = Stock
+    PROPERTIES name(st)
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, idSupplierSku, nameSupplierSku, idBarcode,
+        name, articleRu, shortNameUOM, valueVAT, amountPack
+    //PROPERTIES(s,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
+    PROPERTIES(s,st) idSupplierLastOrderBatch, nameSupplierLastOrderBatch, pricePurchase, dateSupplierLastOrderBatch
+    PROPERTIES lastDateInvoice = date(lastInvoice(s,st,dt))
+    PROPERTIES balanceB = balanceB(s,st,datePriceSupplier()) 
+    PROPERTIES(s,st,df,dt) quantitySupplier, fullSumSupplier, sumSupplier, valProfitSupplier, margaSupplier
+    ORDERS idBarcode(s), name(s)
+
+    FILTERS inSessionSku(s), quantitySupplier(s,st,df,dt)
+;
+
+printSkuGroupSaleLedgerSupplier 'Розничные продажи и остатки(розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptSaleDetail;
+    namePrint() <- '(опт)';
+    PRINT saleLedgerReportSupplier OBJECTS df = dateFrom, dt= dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSkuGroupSaleLedgerAllSupplier 'Розничные продажи и остатки(опт+розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    namePrint() <- '(розничные продажи + опт)';
+    PRINT saleLedgerReportSupplier OBJECTS df = dateFrom, dt= dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+quantitySupplierSku(Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l));
+fullSumSupplierSku(Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSupplierSku 'Учетная сумма ' (Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
+        AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfitSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
+    sumSupplierSku(st,le,df,dt) (-) fullSumSupplierSku(st,le,df,dt);
+margaSupplier(Stock st, LegalEntity le, DATE df, DATE dt) =
+    valProfitSupplier(st,le,df,dt)*100/sumSupplierSku(st,le,df,dt);
+sumBalanceB(Stock st, LegalEntity le) = 
+    GROUP SUM (balanceB(Sku s, st, datePriceSupplier())*priceSku(s,st)) IF inSessionSku(s) AND supplierSku(s) = le;
+margaBalanceB(Stock st, LegalEntity le, DATE df, DATE dt) =
+    valProfitSupplier(st,le,df,dt)*100/sumBalanceB(st,le);
+turnoverDays 'Количество дней запаса' (Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM NUMERIC[30,2](balanceB(Sku s, st, datePriceSupplier())/quantitySupplierSku(st,le,df,dt)/daysBetweenDates(df,dt));
+
+
+FORM saleLedgerReportSupplierSku 'Продажи и остатки по поставщику'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier()
+       
+    OBJECTS st = Stock
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) id, name
+    FILTERS GROUP SUM 1 IF supplierSku(Sku s) = l
+    
+    PROPERTIES sumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Сумма продаж по учетной цене',
+               fullSumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Сумма продаж по отпускной цене',
+               valProfitSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Валовый доход',
+               margaSupplier(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,%',
+               sumBalanceB(st,l) COLUMNS 'st' (st) HEADER 'Сумма остатка в учетных ценах',
+               turnoverDays(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Количество дней запаса',
+               margaBalanceB(st,l,df,dt) COLUMNS 'st' (st) HEADER 'Маржа,% остатка'
+    PROPERTIES sk = sumSupplierSku(st,l,df,dt) COLUMNS 'st' (st) HEADER (name(st))
+    FILTERS inSaleReportDialog(st)
+;
+
+printSkuGroupSaleLedgerSupplierSku 'Розничные продажи и остатки по пост.' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleLedgerReportSupplierSku OBJECTS df = dateFrom, dt= dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
 
 
 
+EXTEND FORM salesReport
+    PROPERTIES datePriceSupplier()
+    PROPERTIES (df,dt) printSkuGroupSaleLedgerSupplier, printSkuGroupSaleLedgerAllSupplier,
+        printSkuGroupSaleLedgerSupplierSku
+;
+
+DESIGN salesReport {
+    salesContainer {
+        NEW supplierSalesReportContainer {
+            MOVE PROPERTY(datePriceSupplier());
+            caption = 'Продажи и остатки';
+            NEW printSupplier {
+                lines = 2;
+                MOVE PROPERTY(printSkuGroupSaleLedgerSupplier(df, dt));
+                MOVE PROPERTY(printSkuGroupSaleLedgerAllSupplier(df, dt));
+                MOVE PROPERTY(printSkuGroupSaleLedgerSupplierSku(df, dt));
+            }
+        }
+    }
+}
