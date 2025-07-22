@@ -50,11 +50,10 @@ public class SignAvestClientAction implements ClientAction {
         StringBuilder aliasString = new StringBuilder();
         while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
-            aliasString.append(alias);
+            aliasString.append(alias).append("\n");
             if (alias.equals(keyAlias)) {
                 PrivateKey key = (PrivateKey) store.getKey(alias, pass);
                 X509Certificate cert = (X509Certificate) store.getCertificate(alias);
-                aliasString.append("(key:").append(key!=null).append(", cert:").append(cert!=null).append(")");
                 if (cert != null) {
                     Signature signature = Signature.getInstance("BELTWITHBIGN", "AvUniversal");
                     signature.initSign(key);
@@ -62,7 +61,6 @@ public class SignAvestClientAction implements ClientAction {
                     return new Pair<>(signature.sign(), cert);
                 }
             }
-            aliasString.append("\n");
         }
         return "Alias not found\n" + aliasString;
     }
