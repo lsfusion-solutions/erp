@@ -1,27 +1,27 @@
-MODULE InvoiceSkkoEDSTopByMNS;
+MODULE ReceiptSkkoSCCryptoProxy;
 
-REQUIRE InvoiceSignSkko, SkkoEDSTopByMNS;
+REQUIRE ReceiptSignSkko, SkkoSCCryptoProxy;
 
 NAMESPACE SignSkko;
 
-aliasEDSService (Invoice i) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(supplierStock(i)), aliasEDSService(supplier(i));
-passwordEDSService (Invoice i) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(supplierStock(i)), passwordEDSService(supplier(i));
-EDSService(Invoice i) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(supplierStock(i)), EDSServiceTopBy(supplier(i));
+aliasEDSService (Receipt r) = aliasEDSService(legalEntity(departmentStore(r)));
+passwordEDSService (Receipt r) = passwordEDSService(legalEntity(departmentStore(r)));
+EDSService(Receipt r) = EDSServiceSkko(legalEntity(departmentStore(r)));
 
-signSkko(Invoice e, JSONFILE f) + {
+signSkko(Receipt e, JSONFILE f) + {
     IF signatureAppSkko() == SignatureAppSkko.scCryptoProxy THEN {
         IF edsApplication(EDSService(e)) == EDSApplication.sccp THEN {
             IF aliasEDSService(e) AND (OVERRIDE passwordEDSService(), passwordEDSService(e)) THEN {
                 keyID() <- aliasEDSService(e);
                 password() <- (OVERRIDE passwordEDSService(), passwordEDSService(e));
-
+                
                 canonicalizeJSON(JSONFILE(exportFile()), NULL);
                 canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
                 sign(canonicalizedJSON(), EDSService(e));
                 resultSignInfo() <- base64Signature();
                 resultSignType() <- 'cms-detached-sign/json';
             } ELSE {
-                MESSAGE ' Документ ' + shortDescription(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+                MESSAGE ' Документ ' + description(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
             }
             RETURN;
         }

@@ -1,0 +1,63 @@
+MODULE SkkoSCCryptoProxy;
+
+REQUIRE SCCryptoProxy, SignSkko, AuthorizationSkko, SQLUtils;
+
+NAMESPACE SignSkko;
+
+EXTEND CLASS SignatureAppSkko {
+    scCryptoProxy 'SC-CryptoProxy'
+}
+
+isSCCryptoProxy(EDSApplication a) = a == EDSApplication.sccp;
+
+extraAliasEDSService 'Контейнер ключа' = ABSTRACT STRING[150] (LegalEntity);
+extraPasswordEDSService 'Пароль ключа' = ABSTRACT STRING[100] (LegalEntity);
+useExtraAlias (LegalEntity le) = extraAliasEDSService(le) AND extraPasswordEDSService(le);
+
+aliasEDSService 'Контейнер ключа' = DATA STRING[150] (LegalEntity);
+passwordEDSService 'Пароль ключа' = DATA STRING[100] (LegalEntity) ECHO;
+edsFrom 'Действителен с' = DATA DATETIME (LegalEntity);
+edsTo 'Действителен по' = DATA DATETIME (LegalEntity);
+
+EDSServiceSkko 'Адрес службы ЭЦП' = DATA EDSService (LegalEntity);
+descriptionEDSServiceSkko 'Адрес службы ЭЦП' (LegalEntity o) = description(EDSServiceSkko(o));
+CONSTRAINT EDSServiceSkko(LegalEntity o) AND NOT isSCCryptoProxy(edsApplication(EDSServiceSkko(o)))
+    CHECKED BY EDSServiceSkko[LegalEntity]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
+EXTEND FORM integrationData
+    PROPERTIES askPasswordEDSServiceSkko 'Запрашивать пароль для подписания' = askPasswordEDSService()
+    OBJECTS skkole = LegalEntity
+    FILTERS isCompany(skkole)
+    PROPERTIES(skkole) name READONLY, descriptionEDSServiceSkko, aliasEDSService, passwordEDSService, edsFrom, edsTo
+;
+
+DESIGN integrationData {
+    mnsSKKO  {
+        NEW edsSkko {
+            caption = 'Электронные подписи';
+            fill = 1;
+            showIf = signatureAppSkko() == SignatureAppSkko.scCryptoProxy;
+            MOVE PROPERTY(askPasswordEDSServiceSkko);
+            NEW EDSServiceSkko {
+                tabbed = TRUE;
+                fill = 1;
+                MOVE BOX(skkole);
+            }
+        }
+    }
+}
+
+changeAlias 'Получить список ключей' (LegalEntity l) {
+    listAliases(EDSServiceSkko(l));
+    IF selected() THEN {
+        aliasEDSService(l) <- alias(selected());
+        edsFrom(l) <- notBeforeISO8601(selected());
+        edsTo(l) <- notAfterISO8601(selected());
+        changeAllDates();
+    }
+} TOOLBAR;
+
+EXTEND FORM integrationData
+    PROPERTIES(skkole) changeAlias SHOWIF edsApplication(EDSServiceSkko(skkole)) == EDSApplication.sccp
+;

@@ -1,36 +1,10 @@
 MODULE EDSTopBy;
 
-REQUIRE EDS, TopBy, LegalEntityBy;
+REQUIRE EDS, TopBy, LegalEntityBy, SCCryptoProxy;
 
 NAMESPACE EDI;
 
-EXTEND CLASS EDSApplication {
-    edsService '(СТТ) EDSService',
-    edsSign '(СТТ) ЭЦП REST-сервисы',
-    sccp '(СТТ) SC-CryptoProxy'
-}
-
-useAttribute 'Использовать атрибутный сертификат' = DATA BOOLEAN (EDSService);
-legalEntity = DATA LegalEntity(EDSService);
-unpLegalEntity 'УНП' (EDSService e) = UNP(legalEntity(e));
-
-CONSTRAINT legalEntity(EDSService e) AND NOT isCompany(legalEntity(e))
-    CHECKED BY legalEntity[EDSService]
-    MESSAGE 'Должны быть выбрана организация являющаяся компаниеей';
-
-CONSTRAINT useAttribute(EDSService e) AND NOT unpLegalEntity(e) 
-    MESSAGE 'Не задан УНП для атрибутного сертификата';
-
-EXTEND FORM EDSService 
-    PROPERTIES useAttribute(o) SHOWIF edsApplication(o) == EDSApplication.sccp,
-               unpLegalEntity(o) SHOWIF useAttribute(o)
-;
-DESIGN EDSService {
-    PROPERTY (unpLegalEntity(o)) {notNull = TRUE;}
-    size = (820, 140); //todo: после перехода на 6 версию можно сделать  (-1, -1)
-}
-
-isTopBy(EDSApplication a) = a == EDSApplication.edsService OR a == EDSApplication.edsSign OR a == EDSApplication.sccp; 
+isTopBy(EDSApplication a) = a == EDSApplication.sccp; 
 
 extraAliasEDSService 'Контейнер ключа' = ABSTRACT STRING[150] (LegalEntity);
 extraPasswordEDSService 'Пароль ключа' = ABSTRACT STRING[100] (LegalEntity);
@@ -127,75 +101,6 @@ FORM getEDSResponse
     PROPERTIES() faultstring IN soapFault, waybill IN getEDSResponse
 ;
 
-//CTT-EDS-SIGN
-alias 'Идентификатор ключа' = DATA LOCAL STRING[150](INTEGER) CHARWIDTH 25;
-
-FORM listAliases 'Список ключей'
-    OBJECTS value = INTEGER
-    PROPERTIES(value) alias READONLY
-    FILTERS imported(value)
-;
-DESIGN listAliases {
-    width = 600;
-}
-notBeforeISO8601 'Действителен с' = DATA LOCAL DATETIME (INTEGER);
-subjectName 'Владелец' = DATA LOCAL STRING(INTEGER) CHARWIDTH 50;
-notAfterISO8601 'Действителен до' = DATA LOCAL DATETIME(INTEGER);
-
-FORM certificates 'Список ключей'
-    OBJECTS certificates = INTEGER EXTID 'Certificates'
-    PROPERTIES(certificates) READONLY subjectName EXTID 'SubjectName', alias EXTID 'PubKeyID',
-        notBeforeISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime() EXTID 'NotBeforeISO8601', 
-        notAfterISO8601 BACKGROUND RGB(255,124,124) IF notBeforeISO8601(certificates) > currentDateTime() OR notAfterISO8601(certificates) < currentDateTime()  EXTID 'NotAfterISO8601'
-    FILTERS imported(certificates);
-
-
-getCN(STRING s) = FORMULA 'replace((regexp_matches($1,\'^CN="?(.+?)"?,.+?\'))[1], \'""\', \'"\')';
-
-selected = DATA LOCAL INTEGER ();
-
-listAliases 'Получить список ключей' (EDSService s) {
-    
-    IF edsApplication(s) == EDSApplication.edsSign THEN {
-        basic() <- encodeText('eds:eds', 'base64');
-        timeoutHttp() <- 300000;
-        IF client(s) THEN {
-            EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-        } ELSE {
-            EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/token/listAliases' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-        }
-
-        IF statusHttp() == 200 THEN {
-            IMPORT listAliases JSON FROM sendRequestEDIResponse();
-            DIALOG listAliases OBJECTS value INPUT DO {
-                selected() <- value;
-            }
-        } ELSE {
-            MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
-            logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
-        }
-    }
-    IF edsApplication(s) == EDSApplication.sccp THEN {
-        timeoutHttp() <- 300000;
-        IF client(s) THEN {
-            EXTERNAL HTTP CLIENT GET 'http://' + host(s) + ':' + port(s) + '/SCCrypto/ra/certs' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-        } ELSE {
-            EXTERNAL HTTP GET 'http://' + host(s) + ':' + port(s) + '/SCCrypto/ra/certs' HEADERS httpHeadersEDI TO sendRequestEDIResponse;
-        }
-
-        IF statusHttp() == 200 THEN {
-            IMPORT certificates JSON FROM sendRequestEDIResponse();
-            subjectName(INTEGER r) <- getCN(subjectName(r));
-            DIALOG certificates OBJECTS certificates INPUT DO {
-                selected() <- certificates;
-            }
-        } ELSE {
-            MESSAGE CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp() NOWAIT;
-            logToFile('edi', CONCAT ' ', 'Неизвестная ошибка: статус ', statusHttp());
-        }
-    }
-}
-
 changeAlias 'Получить список ключей' (LegalEntity l) {
     listAliases(EDSServiceTopBy(l));
     IF selected() THEN {
@@ -222,38 +127,7 @@ changeAlias 'Получить список ключей' (Employee l) {
 } TOOLBAR;
 
 EXTEND FORM integrationData
-    PROPERTIES(le) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(le)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(le)) == EDSApplication.sccp)
-    PROPERTIES(seds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(seds)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(seds)) == EDSApplication.sccp)
-    PROPERTIES(eeds) changeAlias SHOWIF (edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.edsSign OR edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.sccp)
-;
-
-//SC-CryptoProxy
-GROUP auth EXTID 'Auth';
-
-keyID = DATA LOCAL STRING();
-password = DATA LOCAL STRING();
-OID = DATA LOCAL STRING(INTEGER);
-text = DATA LOCAL STRING(INTEGER);
-
-FORM sccpSign
-    PROPERTIES =TRUE EXTID 'OptAddAllCert', =TRUE EXTID 'OptAddCert', =TRUE EXTID 'OptCheckPrivateKey', encodedBase64() EXTID 'DataB64'
-    PROPERTIES IN auth keyID() EXTID 'KeyID', password() EXTID 'Password', = 1 EXTID 'CryptoType'
-
-    OBJECTS attributes = INTEGER EXTID 'Attributes'
-    PROPERTIES(attributes) text EXTID 'Text', OID
-    FILTERS OID(attributes);
-
-GROUP signInfo EXTID 'SignInfo';
-
-issuerSerial = DATA LOCAL STRING();
-subjectName = DATA LOCAL STRING();
-signDateTimeISO8601 = DATA LOCAL DATETIME ();
-issuerName = DATA LOCAL STRING();
-serial = DATA LOCAL STRING();
-errorCode = DATA LOCAL INTEGER();
-resultB64 = DATA LOCAL STRING();
-
-FORM sccpSignResult
-    PROPERTIES() errorCode EXTID 'ErrorCode', signError EXTID 'ErrorMessage', resultB64 EXTID 'ResultB64'
-    PROPERTIES() IN signInfo issuerSerial EXTID 'IssuerSerial', subjectName EXTID 'SubjectName', signDateTimeISO8601 EXTID 'SignDateTimeISO8601', issuerName EXTID 'IssuerName', serial EXTID 'Serial'
+    PROPERTIES(le) changeAlias SHOWIF edsApplication(EDSServiceTopBy(le)) == EDSApplication.sccp
+    PROPERTIES(seds) changeAlias SHOWIF edsApplication(EDSServiceTopBy(seds)) == EDSApplication.sccp
+    PROPERTIES(eeds) changeAlias SHOWIF edsApplication(EDSServiceTopBy(eeds)) == EDSApplication.sccp
 ;
