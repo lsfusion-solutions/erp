@@ -185,48 +185,6 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
     }
 }
 
-//https://content-api.wildberries.ru/content/v3/media/file
-//postMediaFile 'Загрузить медиафайл' (MediaFile mf) {
-//    NEWSESSION NESTED(in[MediaFile]){
-//        IF (GROUP SUM 1 IF in(mf) AND NOT posted(mf)) THEN {
-//            setHttpHeadersIS();
-//            LOCAL message = STRING ();
-//            LOCAL response = FILE();
-//            LOCAL error = STRING ();
-//            LOCAL errorText = STRING ();
-//            LOCAL status = STRING ();
-//            LOCAL postedMedia = BOOLEAN (MediaFile);
-//            postedMedia(mf) <- TRUE WHERE in(mf) AND NOT posted(mf);
-//
-//            //EXPORT JSON FROM x-Photo-Number = index(MediaFile mf), 'value' = data(mf) WHERE isPostMedia(mf);
-//            fileToString(exportFile(), 'UTF-8');
-//            stringToFile('\{"data":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
-//
-//            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v3/media/file' + '\n' + '\{"data":' + replace(resultString(), '\n', '') + '\}');
-//
-//            TRY {
-//                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v3/media/file' HEADERS httpHeaders PARAMS resultFile() TO response;
-//                fileToString(response());
-//                logToFile('WB', resultString());
-//                IF statusHTTP(200) THEN {
-//                    posted(mf) <- NULL WHERE postedMedia(mf);
-//                }
-//                message() <- messageStatusHTTP(STRING(statusHttp()));
-//            } CATCH {
-//                logToFile('WB', messageCaughtException());
-//                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-//            } FINALLY {
-//                afterSendRequestIS();
-//                MESSAGE '<h3>Загрузить медиафайл</h3>' NOWAIT;
-//                MESSAGE message() NOWAIT;
-//                APPLY;
-//            }
-//        } ELSE {
-//            MESSAGE 'Не выбран ни один из медиафайлов';
-//        }
-//    }
-//}
-
 addSize 'Добавить' (Item i) {
     NEW s = Size {
         itemWB(s) <- i;
@@ -311,7 +269,16 @@ FORM item 'Товар'
     PROPERTIES postMediaFiles(i) DRAW mf PANEL 
     ORDERS index(mf)
     FILTERS item(mf) == i
-
+    
+    OBJECTS i2 = Item
+    PROPERTIES(i2) READONLY nmID, imtID
+    PROPERTIES(i2) id, name, description
+    PROPERTIES(i2) length, width, height, weightBrutto
+    PROPERTIES(i2) nameItemGroup, nameItemSubGroup, isTrash
+    ORDERS name(i2)
+    FILTERS imtID(i) == imtID(i2), 
+        i2 != i
+    
     EDIT Item OBJECT i
 ;
 
@@ -363,6 +330,9 @@ DESIGN item {
             }
             MOVE BOX(mf){
                 caption = 'Медиафайлы по ссылкам';
+            }
+            MOVE BOX(i2){
+                caption = 'Объединенные карточки товаров';
             }
         }
     }
@@ -1546,7 +1516,7 @@ postRecoverItems 'Восстановление карточек товаров �
                     EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/recover' HEADERS httpHeaders PARAMS resultFile() TO response;
                     fileToString(response());
                     logToFile('WB', resultString());
-                    IF statusHttp() == 200 THEN {
+                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
                         isTrash(Item item) <- NULL WHERE isRecovered(item);
                         postItems();
                     }
@@ -1600,6 +1570,14 @@ EXTEND FORM masterData
         FILTER 'Товары не в корзине' NOT isTrash(item)
         FILTER 'Все товары' isTrash(item) OR NOT isTrash(item)
 
+    OBJECTS i = Item
+    PROPERTIES(i) READONLYIF isReadonly() isTrash
+    PROPERTIES(i) READONLYIF isReadonly() id, name
+    PROPERTIES(i) READONLY nmID, imtID
+    PROPERTIES(i) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
+    FILTERS imtID(item) == imtID(i),
+        i != item
+
     OBJECTS attr = Attribute
     PROPERTIES (attr) READONLY id, name, nameClass
     PROPERTIES (attr) NEWSESSION EDIT, DELETE
@@ -1652,6 +1630,7 @@ DESIGN masterData {
                 MOVE PROPERTY (postRecoverItems());
             }
             MOVE BOX(item);
+            MOVE BOX(i) {caption = 'Объединенные карточки товаров';};
             NEW errorContainer{
                 align = STRETCH;
                 caption = 'Текст ошибки';
@@ -1665,53 +1644,6 @@ DESIGN masterData {
         }
     }
 }
-
-//createDefaultAttribute() = DATA BOOLEAN ();
-//
-//onStarted() + {
-//    NEWSESSION {
-//        IF NOT createDefaultAttribute() THEN {
-//            createDefaultAttribute() <- TRUE;
-//            IF NOT attribute('color') THEN {
-//                NEW a = AttributeColor {
-//                    id(a) <- 'color';
-//                    name(a) <- 'Цвет';
-//                }
-//            }
-//                IF NOT attribute('kind') THEN {
-//                    NEW a = AttributeKind {
-//                        id(a) <- 'kind';
-//                        name(a) <- 'Пол';
-//                    }
-//                }
-//                    IF NOT attribute('country') THEN {
-//                        NEW a = AttributeCountry {
-//                            id(a) <- 'country';
-//                            name(a) <- 'Страна производства';
-//                        }
-//                    }
-//                        IF NOT attribute('season') THEN {
-//                            NEW a = AttributeSeason {
-//                                id(a) <- 'season';
-//                                name(a) <- 'Сезон';
-//                            }
-//                        }
-//                            IF NOT attribute('vat') THEN {
-//                                NEW a = AttributeVAT {
-//                                    id(a) <- 'vat';
-//                                    name(a) <- 'Ставка НДС';
-//                                }
-//                            }
-//                                IF NOT attribute('tnved') THEN {
-//                                    NEW a = AttributeTnved {
-//                                        id(a) <- 'tnved';
-//                                        name(a) <- 'ТНВЭД-код';
-//                                    }
-//                                }
-//            APPLY;
-//        }
-//    }
-//}
 
 GROUP value;
 GROUP dimensions1 EXTID 'dimensions';
@@ -1803,11 +1735,14 @@ uploadItems 'Создание новых карточек' () {
                     afterSendRequestIS();
                     MESSAGE '<h3>Создание новых карточек</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
-                    IF statusHttp() == 200 THEN {
+                    LOCAL NESTED status200 = BOOLEAN ();
+                    status200() <- TRUE IF statusHttp() == 200;
+                    APPLY NESTED LOCAL;
+                    IF status200() THEN {
                         checkErrors();
                         postItems();
                     }
-                    APPLY NESTED LOCAL;
+                    status200() <- NULL;
                 }
                 exported() <- exported() + uploadItemsLimit();
             }
@@ -2012,12 +1947,17 @@ updateItem 'Обновить карточки товаров' () {
                     afterSendRequestIS();
                     MESSAGE '<h3>Обновить карточки товаров</h3>' NOWAIT;
                     MESSAGE message() NOWAIT;
-                    IF statusHttp() == 200 THEN {
-                        checkErrors();
+                    LOCAL NESTED status200 = BOOLEAN ();
+                    status200() <- TRUE IF statusHttp() == 200;
+                    IF status200() THEN {
                         toUpdateWB(Item item) <- NULL WHERE PREV(toUpdateWB(item)) AND index(item) > exported() AND 
                             index(item) <= exported() + updateItemsLimit() AND NOT error(item);
                     }
                     APPLY NESTED LOCAL;
+                    IF status200() THEN {
+                        checkErrors();                        
+                    }
+                    status200() <- NULL;
                 }
                 exported() <- exported() + updateItemsLimit();
             }
@@ -2026,10 +1966,192 @@ updateItem 'Обновить карточки товаров' () {
         }    
     }
 }
+ 
+FORM moveConnItems 'Объединяемые карточки товаров'
+    OBJECTS item = Item PANEL
+    
+    OBJECTS i = Item 
+    PROPERTIES(i) READONLY nmID, imtID, name 
+    FILTERS i=item
+
+    OBJECTS i2 = Item
+    PROPERTIES(i2) in
+    PROPERTIES(i2) READONLY nmID, imtID, name
+    FILTERS in(i2),
+            NOT nmID(i)==nmID(i2)
+;
+
+DESIGN moveConnItems {
+    REMOVE BOX(item);
+    NEW splitContainer{
+        fill = 1;
+        MOVE BOX(i){
+            caption = 'Основная карточка товара (объединяющая)';
+        }
+        MOVE BOX(i2){
+            caption = 'Объединяемые(присоединяемые) карточки товара';
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+FORM moveDisConnItems 'Разъединяемые карточки товаров'
+    OBJECTS item = Item PANEL
+
+    OBJECTS i = Item
+    PROPERTIES(i) in
+    PROPERTIES(i) READONLY nmID, imtID, name
+    FILTERS imtID(item) == imtID(i)
+
+    OBJECTS i2 = Item
+    PROPERTIES(i2) in    
+    PROPERTIES(i2) READONLY nmID, imtID, name
+    FILTERS in(i2)
+;
+
+DESIGN moveDisConnItems {
+    REMOVE BOX(item);
+    NEW splitContainer2{
+        fill = 1;
+        MOVE BOX(i){
+            caption = 'Карточки товара с одинкововым внутренним кодом';
+        }
+        MOVE BOX(i2){
+            caption = 'Карточки товаров, которые необходимо разъединить ';
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+CONSTRAINT CHANGED(imtID(Item item)) AND [GROUP SUM 1 BY imtID(Item i)](imtID(item)) > 30
+    MESSAGE 'Нельзя объеденять больше 30 карточек товара в одну';
+
+GROUP additionalErrors;
+
+error1 = DATA LOCAL STRING();
+
+FORM importErrorsMoveItems
+    PROPERTIES() errorText, data, error1 EXTID 'error'
+    PROPERTIES() IN additionalErrors error;
+
+// https://content-api.wildberries.ru/content/v2/cards/moveNm
+moveConnItems 'Объединить карточки товаров' (Item item) {
+    NEWSESSION NESTED(in[Item]) {
+        IF (GROUP SUM 1 IF in(Item i) AND nmID(i) AND imtID(i) AND i!=item) THEN {
+            IF (GROUP MAX Item i IF in(i) AND i!=item AND NOT itemSubGroup(i) == itemSubGroup(item)) THEN {
+                MESSAGE 'Для объединения можно выбрать только карточки товаров с одинаковой родительской категорией' NOWAIT;
+            } ELSE {
+                    DIALOG moveConnItems OBJECTS item = item DO {
+                        setHttpHeadersIS();
+    
+                        LOCAL message = STRING ();
+                        LOCAL response = FILE();
+                        LOCAL status = STRING ();
+                        errorText(item) <- NULL WHERE error(item);
+                        error(item) <- NULL WHERE error(item);
+    
+                        logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/moveNm');
+    
+                        EXPORT JSON FROM 'value' = nmID(Item i) WHERE in(i) AND i IS Item;
+                        fileToString(exportFile(), 'UTF-8');
+                        stringToFile('\{"targetIMT":' + imtID(item) + ',' + '"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+                        logToFile('WB', resultFile());
+    
+                        TRY {
+                            EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/moveNm' HEADERS httpHeaders PARAMS resultFile() TO response;
+                            fileToString(response());
+                            logToFile('WB', resultString());
+                            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                                imtID(Item i) <- imtID(item) WHERE in(i);
+                                in(Item i) <- NULL WHERE in(i);
+                                message() <- messageStatusHTTP(STRING(statusHttp()));
+                            }
+                        } CATCH {
+                            IF statusHttp() == 400 OR statusHttp() == 413 THEN {
+                                IMPORT importErrorsMoveItems JSON FROM response();
+                                logToFile('WB', messageCaughtException());
+                                extraDescriptionStatusHTTP() <- 'Карточки товаров не объединены: ' + errorText();
+                            }
+                            error(item) <- TRUE;
+                            errorText(item) <- OVERRIDE message(), errorText();
+                            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                        } FINALLY {
+                            afterSendRequestIS();
+                            MESSAGE '<h3>Объединение карточкек товаров</h3>' NOWAIT;
+                            MESSAGE message() NOWAIT;
+                            APPLY NESTED LOCAL;
+                        }
+                    }
+               
+            }
+        } ELSE {
+            MESSAGE 'Для объединения не выбраны карточки товаров' NOWAIT;
+        }
+    }
+}
+
+moveDisconnItems 'Разъединить карточки товаров' (Item item) {
+    NEWSESSION NESTED(in[Item]) {
+        IF nmID(item) AND imtID(item) THEN {
+            DIALOG moveDisConnItems OBJECTS item = item DO {
+                    setHttpHeadersIS();
+
+                    LOCAL message = STRING ();
+                    LOCAL response = FILE();
+                    LOCAL error = STRING ();
+                    LOCAL errorText = STRING ();
+                    LOCAL status = STRING ();
+                    errorText(item) <- NULL WHERE error(item);
+                    error(item) <- NULL WHERE error(item);
+
+                    logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/moveNm');
+
+                    EXPORT JSON FROM 'value' = nmID(Item i) WHERE in(i);
+                    fileToString(exportFile(), 'UTF-8');
+                    stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+
+                    TRY {
+                        EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/moveNm' HEADERS httpHeaders PARAMS resultFile() TO response;
+                        fileToString(response());
+                        logToFile('WB', resultString());
+                        IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                            imtID(Item i) <- NULL WHERE in(i);
+                            in(Item i) <- NULL WHERE in(i);
+                            message() <- messageStatusHTTP(STRING(statusHttp()));
+                        }
+                    } CATCH {
+                        IF statusHttp() == 400 OR statusHttp() == 413 THEN {
+                            IMPORT importErrorsMoveItems JSON FROM response();
+                            logToFile('WB', messageCaughtException());
+                            extraDescriptionStatusHTTP() <- 'Карточки товаров не разъединены: ' + errorText();
+                        }
+                        message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                        error(item) <- TRUE;
+                        errorText(item) <- OVERRIDE message(), errorText();
+
+                    } FINALLY {
+                        afterSendRequestIS();
+                        MESSAGE '<h3>Разъединение карточкек товаров</h3>' NOWAIT;
+                        MESSAGE message() NOWAIT;
+                        APPLY NESTED LOCAL;
+                        LOCAL NESTED status200 = BOOLEAN ();
+                        status200() <- TRUE IF statusHttp() >= 200 AND statusHttp() < 300;
+                        IF status200() THEN {
+                            postItems(); // получаем новые imtID для разъединенных карточек товаров
+                        }
+                        status200() <- NULL; 
+                    }
+            }
+        } ELSE {
+            MESSAGE 'У товара нет кода или артикула WB. Для разъединения получите их через \'Получить список карточек товаров\'' NOWAIT;
+        }
+    }
+}
 
 EXTEND FORM masterData
     PROPERTIES updateItem()
     PROPERTIES updateItem(item) DRAW item TOOLBAR SHOWIF nmID(item) AND imtID(item)
+    PROPERTIES DRAW item TOOLBAR moveConnItems(item), moveDisconnItems(item)
 ;
 
 DESIGN masterData {
@@ -2039,7 +2161,8 @@ DESIGN masterData {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, uploadItemsLimit
+    PROPERTIES() postItemsLimit, postTrashItemsLimit, postTransferItemsLimit, postRecoverItemsLimit, updateItemsLimit, 
+        uploadItemsLimit
 ;
 
 DESIGN integrationData {
@@ -2049,7 +2172,7 @@ DESIGN integrationData {
         MOVE PROPERTY (postTransferItemsLimit());
         MOVE PROPERTY (postRecoverItemsLimit());
         MOVE PROPERTY (updateItemsLimit());
-        MOVE PROPERTY (uploadItemsLimit());        
+        MOVE PROPERTY (uploadItemsLimit());
     }
 }
 
