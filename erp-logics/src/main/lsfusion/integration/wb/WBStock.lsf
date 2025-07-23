@@ -14,7 +14,7 @@ federalDistrict 'Федеральный округ' = ABSTRACT STRING (Stock);
 latitude 'Широта' = ABSTRACT NUMERIC (Stock);
 longitude 'Долгота' = ABSTRACT NUMERIC (Stock);
 
-CLASS Warehouse 'Склад покупателя': Stock;
+CLASS Warehouse 'Склад продавца': Stock;
 
 id 'Код' = DATA INTEGER (Warehouse);
 warehouse (id) = GROUP AGGR Warehouse w BY id(w);
@@ -85,14 +85,39 @@ deliveryType (DistributionCenter dc) += deliveryType(dc) IF dc IS DistributionCe
 nameDeliveryType 'Тип доставки' (Stock st) = staticCaption(deliveryType(st));
 nameDeliveryType 'Тип доставки' (DistributionCenter dc) = staticCaption(deliveryType(dc));
 
-FORM Warehouse 'Собственный склад'
+FORM distributionCenters 'Склады WB'
+    OBJECTS dc = DistributionCenter 
+    PROPERTIES(dc) READONLY selected
+    PROPERTIES(dc) READONLY id, name, address, city, federalDistrict, latitude, longitude, nameCargoType, nameDeliveryType
+    ORDERS id(dc)
+    FILTERS NOT selected(dc)
+
+    LIST DistributionCenter OBJECT dc
+;
+
+changeIdStockWB (Warehouse w) {
+    DIALOG distributionCenters OBJECTS dc INPUT DO {
+            distributionCenter(w) <- dc;
+        }
+}
+
+FORM warehouse 'Собственный склад'
     OBJECTS w = Warehouse PANEL
     PROPERTIES(w) id, name, address
-    PROPERTIES id 'Код склада WB' = id(distributionCenter(w))
+    PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w)
     ORDERS name(w)
     
     EDIT Warehouse OBJECT w
 ;
+
+DESIGN warehouse {
+    BOX {
+        NEW warehouseHeader {
+            MOVE BOX(w); 
+        }
+    }
+    MOVE TOOLBARBOX;
+}
 
 cargoType = DATA LOCAL INTEGER (INTEGER);
 address = DATA LOCAL STRING(INTEGER);

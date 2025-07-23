@@ -1,0 +1,30 @@
+MODULE WBStockMapping;
+
+REQUIRE WBStock, Stock;
+
+NAMESPACE WB;
+
+stock = DATA Stock.Stock (Warehouse);
+nameStock 'Склад (компании)' (Warehouse w) = name(stock(w));
+
+changeWarehouse (Warehouse w) {
+    DIALOG stocks OBJECTS s INPUT FILTERS isCompany(s) DO {
+        ASK 'Выбран новый склад, наименование будет обновлено. Продолжить?' DO {
+            stock(w) <- s;
+        }
+    }
+}
+
+EXTEND FORM warehouse
+    PROPERTIES nameStock(w) ON CHANGE changeWarehouse(w) ;
+;
+
+DESIGN warehouse {
+    warehouseHeader {
+        MOVE PROPERTY (nameStock(w));
+    }
+}
+
+EXTEND FORM masterData
+    PROPERTIES(w) READONLY nameStock AFTER name
+;
