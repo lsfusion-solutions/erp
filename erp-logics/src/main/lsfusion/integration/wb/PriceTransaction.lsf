@@ -48,6 +48,23 @@ nameStatus 'Статус загрузки цен' (PriceTransaction t) = staticC
 
 description 'Описание' = DATA STRING (PriceTransaction);
 
+CLASS PriceTransactionItemStatus 'Статус загрузки товара' {
+    processing 'в обработке',
+    success 'товар без ошибок, цена и/или скидка обновилась',
+    error 'есть ошибки, данные не обновились'
+}
+
+status = DATA PriceTransactionItemStatus (PriceTransaction, Item);
+nameStaus 'Статус загрузки товара' (PriceTransaction t, Item i) = staticCaption(status(t, i));
+errorText 'Описание ошибки' = DATA STRING (PriceTransaction, Item);
+
+status = DATA PriceTransactionItemStatus (PriceTransaction, Size);
+nameStaus 'Статус загрузки товара' (PriceTransaction t, Size i) = staticCaption(status(t, i));
+errorText 'Описание ошибки' = DATA STRING (PriceTransaction, Size);
+
+overAllGoodsNumber 'Всего товаров' = DATA INTEGER (PriceTransaction);
+successGoodsNumber 'Товаров без ошибок' = DATA INTEGER (PriceTransaction);
+
 //lastPriceTransaction (Item i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
 //lastPriceTransaction (Size i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
 
@@ -127,10 +144,12 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
                             id(t) <- id();
                             dateTime(t) <- currentDateTime();
                             user(t) <- currentUser();
+                            status(t) <- PriceTransactionStatus.processing;
                             
                             in(t, Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updatePricesDiscountsLimit();
                             price(t, Item i) <- price(i) WHERE in(t, i);
                             discount(t, Item i) <- discount(i) WHERE in(t, i);
+                            status(t, Item i) <- PriceTransactionItemStatus.processing WHERE in(t, i);
 
                             description(t) <- 'Установить цены и скидки';
                         }
@@ -195,9 +214,11 @@ uploadPricesSizes 'Установить цены для размеров' () {
                             id(t) <- id();
                             dateTime(t) <- currentDateTime();
                             user(t) <- currentUser();
+                            status(t) <- PriceTransactionStatus.processing;
 
                             in(t, Size i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updatePricesSizesLimit();
                             price(t, Size i) <- price(i) WHERE in(t, i);
+                            status(t, Size i) <- PriceTransactionItemStatus.processing WHERE in(t, i);;
 
                             description(t) <- 'Установить цены для размеров';
                         }
@@ -262,9 +283,11 @@ uploadClubDiscounts 'Установить скидки WB Клуба' () {
                             id(t) <- id();
                             dateTime(t) <- currentDateTime();
                             user(t) <- currentUser();
+                            status(t) <- PriceTransactionStatus.processing;
 
                             in(t, Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updateClubDiscountsLimit();
                             clubDiscount(t, Item i) <- clubDiscount(i) WHERE in(t, i);
+                            status(t, Item i) <- PriceTransactionItemStatus.processing WHERE in(t, i);
 
                             description(t) <- 'Установить скидки WB Клуба';
                         }
@@ -531,39 +554,179 @@ getSizePrices 'Получить цены размеров' (Item i) {
     }
 }
 
+
+uploadID = DATA LOCAL INTEGER();
+uploadDate = DATA LOCAL ZDATETIME();
+successGoodsNumber = DATA LOCAL NUMERIC();
+overAllGoodsNumber = DATA LOCAL NUMERIC();
+activationDate = DATA LOCAL ZDATETIME();
+status = DATA LOCAL INTEGER();
+
+FORM processedStatus
+    PROPERTIES() errorText, error
+    PROPERTIES() IN data uploadID, uploadDate, successGoodsNumber, overAllGoodsNumber, activationDate, status
+;
+
+getProcessedStatus 'Состояние обработанной загрузки' (PriceTransaction t) {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/history/tasks');
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/history/tasks?uploadID=' + id(t)
+                HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Состояние обработанной загрузки</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+
+            IF statusHttp() == 200 THEN {
+                IMPORT processedStatus JSON FROM response();
+                IF uploadID() == id(t) THEN {
+                    status(t) <- CASE
+                                    WHEN status() == 3 THEN PriceTransactionStatus.processed
+                                    WHEN status() == 4 THEN PriceTransactionStatus.canceled
+                                    WHEN status() == 5 THEN PriceTransactionStatus.partlyProcessed
+                                    WHEN status() == 6 THEN PriceTransactionStatus.error;
+                    overAllGoodsNumber(t) <- overAllGoodsNumber();
+                    successGoodsNumber(t) <- successGoodsNumber();
+                }
+
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+dataProcessedStatusSpecificationLimit = DATA INTEGER ();
+processedStatusSpecificationLimit 'Лимит по детализации обработанной загрузки' = OVERRIDE dataProcessedStatusSpecificationLimit(), 1000;
+
+errorText1 = DATA LOCAL STRING(INTEGER);
+status = DATA LOCAL INTEGER(INTEGER);
+
+FORM processedStatusSpecification
+    PROPERTIES() errorText, error
+    PROPERTIES() IN data uploadID
+
+    OBJECTS historyGoods = INTEGER IN data
+    PROPERTIES(historyGoods) sizeID, errorText1 EXTID 'errorText', techSizeName, clubDiscount, price, nmID, discount, currencyIsoCode4217, vendorCode, status
+    FILTERS imported(historyGoods)
+;
+
+processedStatusSpecification 'Детализация обработанной загрузки' (PriceTransaction t) {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/history/goods/task');
+
+        LOCAL limit = INTEGER ();
+        limit() <- processedStatusSpecificationLimit();
+        LOCAL offset = INTEGER ();
+        offset() <- 0;
+
+        LOCAL stop = BOOLEAN ();
+
+        WHILE NOT stop() DO {
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/history/goods/task?limit=' + limit() + '&offset=' + offset() + '&uploadID=' + id(t)
+                    HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Детализация обработанной загрузки</h3>' NOWAIT;
+                MESSAGE message() NOWAIT;
+
+                IF statusHttp() == 200 THEN {
+                    limit() <- limit() + processedStatusSpecificationLimit();
+                    offset() <- offset() + processedStatusSpecificationLimit();
+                    IMPORT processedStatusSpecification JSON FROM response();
+
+                    IF uploadID() == id(t) THEN {
+                        FOR nmID(INTEGER i) AND Item item == itemNM(nmID(i)) DO {
+                            IF editableSizePrice(item) AND size(sizeID(i)) AND in(t, size(sizeID(i))) THEN {
+                                status(t, size(sizeID(i))) <- CASE
+                                    WHEN status(i) == 2 THEN PriceTransactionItemStatus.success
+                                    WHEN status(i) == 3 THEN PriceTransactionItemStatus.error;
+                                errorText(t, size(sizeID(i))) <- errorText1(i);
+                            } ELSE IF in(t, item) THEN {
+                                status(t, item) <- CASE 
+                                    WHEN status(i) == 2 THEN PriceTransactionItemStatus.success
+                                    WHEN status(i) == 3 THEN PriceTransactionItemStatus.error;
+                                errorText(t, item) <- errorText1(i);
+                            }
+                        } ELSE {
+                            stop() <- TRUE;
+                        }
+                    } ELSE {
+                        stop() <- TRUE;
+                    }
+
+                    APPLY NESTED LOCAL;
+                } ELSE {
+                    stop() <- TRUE;
+                }
+            }
+        }
+    }
+}
+
 EXTEND FORM wbPricesBalances 
     PROPERTIES() uploadPricesDiscounts, uploadPricesSizes, uploadClubDiscounts, quarantineItems, getItemPrices
     PROPERTIES DRAW i TOOLBAR getItemPrices(i), getSizePrices(i) SHOWIF editableSizePrice(i)
 
     OBJECTS t = PriceTransaction
-    PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, description
+    PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, overAllGoodsNumber, successGoodsNumber, description
+    PROPERTIES(t) getProcessedStatus, processedStatusSpecification 
     
     OBJECTS item = Item
-    PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item)
+    PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item),
+        nameStaus(t, item), errorText(t, item) PANEL
      
     FILTERS in(t, item)
     
     OBJECTS size = Size
-    PROPERTIES READONLY chrtID(size), techSize(size), wbSize(size), price(t, size)
+    PROPERTIES READONLY chrtID(size), techSize(size), wbSize(size), price(t, size), nameStaus(t, size), 
+        errorText(t, size) PANEL
     FILTERS in(t, size)
 ;
 
 DESIGN wbPricesBalances {
     OBJECTS {
-        NEW actions {
-            horizontal = TRUE;
-            MOVE PROPERTY(uploadPricesDiscounts());
-            MOVE PROPERTY(uploadPricesSizes());
-            MOVE PROPERTY(uploadClubDiscounts());
-            MOVE PROPERTY(quarantineItems());
-            MOVE PROPERTY(getItemPrices());
-        }
         NEW tabbed {
             fill = 1;
             tabbed = TRUE;
             NEW items {
                 fill = 1;
                 caption = 'Цены и остатки';
+                NEW actions {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(uploadPricesDiscounts());
+                    MOVE PROPERTY(uploadPricesSizes());
+                    MOVE PROPERTY(uploadClubDiscounts());
+                    MOVE PROPERTY(quarantineItems());
+                    MOVE PROPERTY(getItemPrices());
+                }
                 MOVE BOX(i) { fill = 3; }
                 MOVE BOX(s) { fill = 1; }
                 MOVE BOX(b) { fill = 1; }
@@ -575,8 +738,8 @@ DESIGN wbPricesBalances {
                 NEW details {
                     fill = 1;
                     horizontal = TRUE;
-                    MOVE BOX(item) { fill = 1; }
-                    MOVE BOX(size) { fill = 1; }
+                    MOVE BOX(item) { fill = 1; MOVE PROPERTY(errorText(t, item)); }
+                    MOVE BOX(size) { fill = 1; MOVE PROPERTY(errorText(t, size)); }
                 }
             }
         }
@@ -584,7 +747,8 @@ DESIGN wbPricesBalances {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES() updatePricesDiscountsLimit, updatePricesSizesLimit, updateClubDiscountsLimit, quarantineLimit, itemPricesLimit
+    PROPERTIES() updatePricesDiscountsLimit, updatePricesSizesLimit, updateClubDiscountsLimit, quarantineLimit, itemPricesLimit,
+        processedStatusSpecificationLimit
 ;
 
 DESIGN integrationData {
@@ -594,5 +758,6 @@ DESIGN integrationData {
         MOVE PROPERTY (updateClubDiscountsLimit());
         MOVE PROPERTY (quarantineLimit());
         MOVE PROPERTY (itemPricesLimit());
+        MOVE PROPERTY (processedStatusSpecificationLimit());
     }
 }
