@@ -67,7 +67,8 @@ sumComponent 'Общая стоимость сырьевого набора, р�
 priceComponent 'Стоимость одной порции, руб.' (Product p) = round2(sumComponent(BOM(p))/quantity(p)) IN total;
 overNettoNetWeightGr 'Выход в готовом виде, грамм' (Product p) = round0(overNettoNetWeight(p)*1000) IN total;
 
-price 'Продажная цена (основная цена), руб.' = DATA NUMERIC[16,4](Product) IN total;
+retailPrice 'Розничная цена (из прайса Базовые цены СП)' = DATA NUMERIC[16,4](Product) IN total;
+price 'Продажная цена (основная цена), руб. без НДС' = DATA NUMERIC[16,4](Product) IN total;
 prevPrice (Product p) = PREV(price(p));
 markup 'Процент наценки, %' = DATA NUMERIC[16,5](Product) IN total;
 markupPrice 'Сумма наценки, руб.' (Product p) =  price(p) - priceComponent(p) IN total;
@@ -78,6 +79,14 @@ changePrice(Product p) {
     INPUT n = NUMERIC[16,4] DO{
         price(p) <- n;
         markup(p)<- calcMarkup(p);
+        retailPrice(p) <- NUMERIC[16,4](round2( price(p) * (100.0 (+) valueVAT(sku(p)))/100.0));
+    }
+}
+changeRetailPrice(Product p) {
+    INPUT n = NUMERIC[16,4] DO{
+        retailPrice(p) <- n;        
+        price(p) <- NUMERIC[16,4](round2( 100*retailPrice(p) / (100.0 (+) valueVAT(sku(p)))));
+        markup(p)<- calcMarkup(p);
     }
 }
 
@@ -85,6 +94,7 @@ changeMarkup(Product p) {
     INPUT n = NUMERIC[16,5] DO{        
         markup(p)<- n;
         price(p) <- calcPrice(p);
+        retailPrice(p) <- NUMERIC[16,4](round2( price(p) * (100.0 (+) valueVAT(sku(p)))/100.0));
     }
 }
 
@@ -92,6 +102,7 @@ changeMarkupPrice(Product p) {
     INPUT n = NUMERIC[16,4] DO {       
         price(p) <- (priceComponent(p)+n);
         markup(p)<- calcMarkup(p);
+        retailPrice(p) <- NUMERIC[16,4](round2( price(p) * (100.0 (+) valueVAT(sku(p)))/100.0));
     }
 }
 background 'Цвет'  = ABSTRACT CASE COLOR (CalculationDetail);
@@ -105,7 +116,8 @@ FORM showBomCalculation 'Калькуляция'
     
     OBJECTS ct = CalculationDetail
     PROPERTIES (ct) READONLY BACKGROUND background(ct) index, idBarcodeSku, id,  nameMaterial, shortNameUOM, bruttoQuantityPriceDate, price, sum
-    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
+    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY ,
+                    retailPrice  ON CHANGE changeRetailPrice(p), price ON CHANGE changePrice(p), 
                     markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
     
     FILTERS maxProduct(b)==p
@@ -163,7 +175,8 @@ EXTEND FORM BOM
     
     PROPERTIES addExtraComponent(b) TOOLBAR DRAW ct
     PROPERTIES delete(ct) SHOWIF ct IS ExtraComponent
-    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY , price ON CHANGE changePrice(p), 
+    PROPERTIES (p) PANEL sumComponent READONLY, priceComponent READONLY , overNettoNetWeightGr READONLY ,
+                    retailPrice  ON CHANGE changeRetailPrice(p),price ON CHANGE changePrice(p), 
                     markup ON CHANGE changeMarkup(p), markupPrice ON CHANGE changeMarkupPrice(p)
     FILTERS BOM(ct)==b
 ;
