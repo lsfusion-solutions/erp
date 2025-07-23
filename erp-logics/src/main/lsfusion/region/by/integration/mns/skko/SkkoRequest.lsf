@@ -22,12 +22,43 @@ number '{numerator.number.numerator}' = DATA STRING[48] (SkkoRequest);
 
 message_number = DATA LOCAL INTEGER();
 message_status = DATA LOCAL STRING();
+message_error_description = DATA LOCAL STRING();
+message_error_code = DATA LOCAL INTEGER ();
 
 FORM importMessageNumer
-    PROPERTIES() message_number, message_status EXTID 'status';
+    PROPERTIES() message_number, 
+        message_status EXTID 'status',
+        message_error_description EXTID 'error_description',
+        message_error_code EXTID 'error_code';
 ;
 
+autoAuthorizationSkko() {
+    NEWSESSION {
+        setHttpSkkoHeaders(skkoToken());
+
+        resultString() <- '\{\}';
+        stringToFile(resultString());
+
+        LOCAL response = FILE();
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST skkoUrl() + '/message' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+
+            fileToString(response());
+            IMPORT importMessageNumer JSON FROM response();
+        } CATCH {
+            IMPORT importMessageNumer JSON FROM response();
+        }
+
+        IF message_error_code() = 4 THEN {
+            getSkkoToken();
+        }
+    }
+}
+
 getCurrentMessageNumber() {
+    autoAuthorizationSkko();
+    
     setHttpSkkoHeaders(skkoToken());
     
     resultString() <- '\{\}';
@@ -41,6 +72,7 @@ getCurrentMessageNumber() {
         fileToString(response());
         IMPORT importMessageNumer JSON FROM response();
     } CATCH {
-        MESSAGE CONCAT '\n', 'Ошибка получения номера сообщения: ', messageCaughtException() NOWAIT;
+        IMPORT importMessageNumer JSON FROM response();
+        MESSAGE CONCAT '\n', 'Ошибка получения номера сообщения: ', error_description(), messageCaughtException() NOWAIT;
     }
 }
