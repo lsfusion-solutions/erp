@@ -1,0 +1,598 @@
+MODULE PriceTransaction;
+
+REQUIRE WBItemArticleMapping;
+
+NAMESPACE WB;
+
+price 'Цена' = DATA INTEGER (Item);
+discount 'Размер скидки, %' = DATA INTEGER (Item);
+clubDiscount 'Скидка WB Клуба, %' = DATA INTEGER (Item);
+editableSizePrice 'Задавать цены для размеров' = DATA BOOLEAN (Item);
+
+quarantine 'В картантине' = DATA BOOLEAN (Item);
+
+EXTEND FORM item PROPERTIES(i) price, discount, clubDiscount;
+DESIGN item {
+    itemHeader {
+        MOVE PROPERTY(price(i));
+        MOVE PROPERTY(discount(i));
+        MOVE PROPERTY(clubDiscount(i));
+    }
+}
+
+CLASS PriceTransaction 'Загрузка цен';
+id 'ID' = DATA INTEGER (PriceTransaction);
+priceTransaction (INTEGER id) = GROUP MAX PriceTransaction t BY id(t);
+dateTime 'Дата/время' = DATA DATETIME (PriceTransaction);
+user = DATA CustomUser (PriceTransaction);
+nameUser 'Загружено пользователем' (PriceTransaction t) = shortName(user(t));
+
+in = DATA BOOLEAN (PriceTransaction, Item);
+price 'Цена товара' = DATA INTEGER (PriceTransaction, Item);
+discount 'Размер скидки, %' = DATA INTEGER (PriceTransaction, Item);
+clubDiscount 'Скидка WB Клуба, %' = DATA INTEGER (PriceTransaction, Item);
+
+in = DATA BOOLEAN (PriceTransaction, Size);
+price 'Цена размера' = DATA INTEGER (PriceTransaction, Size);
+
+CLASS PriceTransactionStatus 'Статус загрузки' {
+    processing 'в обработке',
+    processed 'обработана, в товарах нет ошибок, цены и скидки обновились',
+    canceled 'отменена',
+    partlyProcessed 'обработана, но в товарах есть ошибки; для товаров без ошибок цены и скидки обновились',
+    error 'обработана, но во всех товарах есть ошибки'
+}
+
+status = DATA PriceTransactionStatus (PriceTransaction);
+nameStatus 'Статус загрузки цен' (PriceTransaction t) = staticCaption(status(t));
+
+description 'Описание' = DATA STRING (PriceTransaction);
+
+//lastPriceTransaction (Item i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
+//lastPriceTransaction (Size i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
+
+FORM wbPricesBalances 'Цены и остатки'
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY isTrash, quarantine, editableSizePrice, id, name, nmID, imtID, price, discount, clubDiscount
+    PROPERTIES(i) NEWSESSION EDIT
+    
+    OBJECTS s = Size
+    PROPERTIES(s) READONLY chrtID, techSize, wbSize, price, skus
+    FILTERS itemWB(s) == i
+    
+    OBJECTS b = Barcode
+    PROPERTIES id(b) READONLY 
+    FILTERS size(b) == s
+;
+
+NAVIGATOR {
+    WBNavigator {
+        NEW wbPricesBalances;
+    }
+}
+
+dataUpdatePricesDiscountsLimit = DATA INTEGER ();
+updatePricesDiscountsLimit 'Лимит для установки цен и скидок' = OVERRIDE dataUpdatePricesDiscountsLimit(), 1000;
+
+id = DATA LOCAL NUMERIC();
+alreadyExists = DATA LOCAL STRING();
+
+FORM priceTransaction
+    PROPERTIES() errorText, error
+    PROPERTIES() IN data id, alreadyExists
+;
+
+uploadPricesDiscounts 'Установить цены и скидки' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL toUpload = BOOLEAN (Item);
+        toUpload(Item i) <- TRUE WHERE nmID(i) AND (price(i) OR discount(i)) AND NOT isTrash(i) AND NOT editableSizePrice(i);
+
+        IF (GROUP SUM 1 IF toUpload(Item item)) THEN {
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/api/v2/upload/task');
+
+            LOCAL index = INTEGER (Item);
+            index(Item i) <- PARTITION SUM 1 IF toUpload(i) ORDER i;
+
+            LOCAL exported = INTEGER ();
+            exported() <- 0;
+
+            WHILE exported() < (GROUP MAX index(Item i)) DO {
+                EXPORT JSON FROM 'nmID' = nmID(Item i), 'price' = price(i), 'discount' = discount(i) WHERE 
+                    index(i) > exported() AND index(i) <= exported() + updatePricesDiscountsLimit();
+                
+                fileToString(exportFile());
+                resultString() <- '\{"data":' + resultString() + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+
+                TRY {
+                    EXTERNAL HTTP POST url(CategoryRequest.pricesDiscounts) + '/api/v2/upload/task' HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+
+                    message() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Установить цены и скидки</h3>' NOWAIT;
+                    MESSAGE message() NOWAIT;
+                    IF statusHttp() == 200 THEN {
+                        IMPORT priceTransaction JSON FROM response();
+                        NEW t = PriceTransaction {
+                            id(t) <- id();
+                            dateTime(t) <- currentDateTime();
+                            user(t) <- currentUser();
+                            
+                            in(t, Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updatePricesDiscountsLimit();
+                            price(t, Item i) <- price(i) WHERE in(t, i);
+                            discount(t, Item i) <- discount(i) WHERE in(t, i);
+
+                            description(t) <- 'Установить цены и скидки';
+                        }
+
+                        APPLY NESTED LOCAL;
+                    }
+                }
+
+                exported() <- exported() + updatePricesDiscountsLimit();
+            }
+        } ELSE {
+            MESSAGE 'Отсутствуют данные для выгрузки';
+        }
+    }
+}
+
+dataUpdatePricesSizesLimit = DATA INTEGER ();
+updatePricesSizesLimit 'Лимит для установки цен для размеров' = OVERRIDE dataUpdatePricesSizesLimit(), 1000;
+
+uploadPricesSizes 'Установить цены для размеров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL toUpload = BOOLEAN (Size);
+        toUpload(Size s) <- TRUE WHERE nmID(itemWB(s)) AND price(s) AND chrtID(s) AND NOT isTrash(itemWB(s)) AND editableSizePrice(itemWB(s));
+
+        IF (GROUP SUM 1 IF toUpload(Size size)) THEN {
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/api/v2/upload/task/size');
+
+            LOCAL index = INTEGER (Size);
+            index(Size i) <- PARTITION SUM 1 IF toUpload(i) ORDER i;
+
+            LOCAL exported = INTEGER ();
+            exported() <- 0;
+
+            WHILE exported() < (GROUP MAX index(Size i)) DO {
+                EXPORT JSON FROM 'nmID' = nmID(itemWB(Size i)), 'sizeID' = chrtID(i), 'price' = price(i) WHERE
+                    index(i) > exported() AND index(i) <= exported() + updatePricesSizesLimit();
+
+                fileToString(exportFile());
+                resultString() <- '\{"data":' + resultString() + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+
+                TRY {
+                    EXTERNAL HTTP POST url(CategoryRequest.pricesDiscounts) + '/api/v2/upload/task/size' HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+
+                    message() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Установить цены для размеров</h3>' NOWAIT;
+                    MESSAGE message() NOWAIT;
+                    IF statusHttp() == 200 THEN {
+                        IMPORT priceTransaction JSON FROM response();
+                        NEW t = PriceTransaction {
+                            id(t) <- id();
+                            dateTime(t) <- currentDateTime();
+                            user(t) <- currentUser();
+
+                            in(t, Size i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updatePricesSizesLimit();
+                            price(t, Size i) <- price(i) WHERE in(t, i);
+
+                            description(t) <- 'Установить цены для размеров';
+                        }
+
+                        APPLY NESTED LOCAL;
+                    }
+                }
+
+                exported() <- exported() + updatePricesSizesLimit();
+            }
+        } ELSE {
+            MESSAGE 'Отсутствуют данные для выгрузки';
+        }
+    }
+}
+
+dataUpdateClubDiscountsLimit = DATA INTEGER ();
+updateClubDiscountsLimit 'Лимит для установки скидок WB Клуба' = OVERRIDE dataUpdateClubDiscountsLimit(), 1000;
+
+uploadClubDiscounts 'Установить скидки WB Клуба' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL toUpload = BOOLEAN (Item);
+        toUpload(Item i) <- TRUE WHERE nmID(i) AND clubDiscount(i) AND NOT isTrash(i);
+
+        IF (GROUP SUM 1 IF toUpload(Item item)) THEN {
+            logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/api/v2/upload/task/club-discount');
+
+            LOCAL index = INTEGER (Item);
+            index(Item i) <- PARTITION SUM 1 IF toUpload(i) ORDER i;
+
+            LOCAL exported = INTEGER ();
+            exported() <- 0;
+
+            WHILE exported() < (GROUP MAX index(Item i)) DO {
+                EXPORT JSON FROM 'nmID' = nmID(Item i), 'clubDiscount' = clubDiscount(i) WHERE
+                    index(i) > exported() AND index(i) <= exported() + updateClubDiscountsLimit();
+
+                fileToString(exportFile());
+                resultString() <- '\{"data":' + resultString() + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+
+                TRY {
+                    EXTERNAL HTTP POST url(CategoryRequest.pricesDiscounts) + '/api/v2/upload/task/club-discount' HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+
+                    message() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Установить скидки WB Клуба</h3>' NOWAIT;
+                    MESSAGE message() NOWAIT;
+                    IF statusHttp() == 200 THEN {
+                        IMPORT priceTransaction JSON FROM response();
+                        NEW t = PriceTransaction {
+                            id(t) <- id();
+                            dateTime(t) <- currentDateTime();
+                            user(t) <- currentUser();
+
+                            in(t, Item i) <- TRUE WHERE index(i) > exported() AND index(i) <= exported() + updateClubDiscountsLimit();
+                            clubDiscount(t, Item i) <- clubDiscount(i) WHERE in(t, i);
+
+                            description(t) <- 'Установить скидки WB Клуба';
+                        }
+
+                        APPLY NESTED LOCAL;
+                    }
+                }
+
+                exported() <- exported() + updateClubDiscountsLimit();
+            }
+        } ELSE {
+            MESSAGE 'Отсутствуют данные для выгрузки';
+        }
+    }
+}
+
+//карантин
+
+sizeID = DATA LOCAL INTEGER(INTEGER);
+newDiscount = DATA LOCAL NUMERIC(INTEGER);
+techSizeName = DATA LOCAL STRING(INTEGER);
+oldPrice = DATA LOCAL NUMERIC(INTEGER);
+nmID = DATA LOCAL NUMERIC(INTEGER);
+priceDiff = DATA LOCAL NUMERIC(INTEGER);
+oldDiscount = DATA LOCAL NUMERIC(INTEGER);
+currencyIsoCode4217 = DATA LOCAL STRING(INTEGER);
+newPrice = DATA LOCAL NUMERIC(INTEGER);
+
+FORM quarantine
+    PROPERTIES() errorText, error
+
+    OBJECTS data = INTEGER
+    PROPERTIES(data) sizeID, newDiscount, techSizeName, oldPrice, nmID, priceDiff, id, oldDiscount, currencyIsoCode4217, newPrice
+    FILTERS imported(data)
+;
+
+dataQuarantineLimit = DATA INTEGER ();
+quarantineLimit 'Лимит по товарам в карантине' = OVERRIDE dataQuarantineLimit(), 1000;
+
+quarantineItems 'Получить товары в карантине' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/quarantine/goods');
+        
+        LOCAL offset = INTEGER ();
+        offset() <- 0;
+        
+        quarantine(Item i) <- NULL;
+        LOCAL stop = BOOLEAN ();
+        
+        WHILE NOT stop() DO {
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/quarantine/goods?limit=' + quarantineLimit() +'&offset=' + offset()
+                    HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Получить товары в карантине</h3>' NOWAIT;
+                MESSAGE message() NOWAIT;
+                
+                IF statusHttp() == 200 THEN {
+                    offset() <- offset() + quarantineLimit();
+                    IMPORT quarantine JSON FROM response();
+                    
+                    FOR nmID(INTEGER i) AND Item item == itemNM(nmID(i)) DO {
+                        quarantine(item) <- TRUE;
+                    } ELSE {
+                        stop() <- TRUE;
+                    }
+                }
+
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+dataItemPricesLimit = DATA INTEGER ();
+itemPricesLimit 'Лимит по получению товаров с ценами' = OVERRIDE dataItemPricesLimit(), 1000;
+
+clubDiscount = DATA LOCAL NUMERIC(INTEGER);
+listGoodsSizes = DATA LOCAL INTEGER(INTEGER);
+discountedPrice = DATA LOCAL NUMERIC(INTEGER);
+price = DATA LOCAL NUMERIC(INTEGER);
+clubDiscountedPrice = DATA LOCAL NUMERIC(INTEGER);
+editableSizePrice = DATA LOCAL STRING(INTEGER);
+discount = DATA LOCAL NUMERIC(INTEGER);
+
+FORM itemPrices
+    PROPERTIES() errorText, error
+
+    OBJECTS listGoods = INTEGER IN data
+    PROPERTIES(listGoods) clubDiscount, editableSizePrice, nmID, discount, currencyIsoCode4217, vendorCode
+    FILTERS imported(listGoods)
+
+    OBJECTS sizes = INTEGER
+    FILTERS listGoodsSizes(sizes) == listGoods
+    PROPERTIES(sizes) sizeID, techSizeName, discountedPrice, price, clubDiscountedPrice
+    FILTERS imported(sizes)
+;
+
+getItemPrices 'Получить цены товаров' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/list/goods/filter');
+
+        LOCAL limit = INTEGER ();
+        limit() <- itemPricesLimit();
+        LOCAL offset = INTEGER ();
+        offset() <- 0;
+
+        LOCAL stop = BOOLEAN ();
+
+        WHILE NOT stop() DO {
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/list/goods/filter?limit=' + limit() +'&offset=' + offset()
+                    HEADERS httpHeaders TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Получить цены товаров</h3>' NOWAIT;
+                MESSAGE message() NOWAIT;
+
+                IF statusHttp() == 200 THEN {
+                    limit() <- limit() + itemPricesLimit();
+                    offset() <- offset() + itemPricesLimit();
+                    IMPORT itemPrices JSON FROM response();
+
+                    FOR nmID(INTEGER i) AND Item item == itemNM(nmID(i)) DO {
+                        price(item) <- price(GROUP MAX INTEGER j IF listGoodsSizes(j) == i);
+                        discount(item) <- discount(i);
+                        clubDiscount(item) <- clubDiscount(i);
+                        editableSizePrice(item) <- IF NOT editableSizePrice(i) == 'false' THEN TRUE; 
+                        
+                        FOR sizeID(INTEGER j) AND Size s == size(sizeID(j)) AND listGoodsSizes(j) == i DO {
+                            price(s) <- price(j);
+                        }
+                    } ELSE {
+                        stop() <- TRUE;
+                    }
+                }
+
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+getItemPrices 'Получить цены товара' (Item i) {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/list/goods/filter');
+        
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/list/goods/filter?limit=1000&offset=0&filterNmID=' + nmID(i)
+                HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получить цены товара</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+
+            IF statusHttp() == 200 THEN {
+                IMPORT itemPrices JSON FROM response();
+
+                FOR nmID(INTEGER k) == nmID(i) DO {
+                    price(i) <- price(GROUP MAX INTEGER j IF listGoodsSizes(j) == k);
+                    discount(i) <- discount(k);
+                    clubDiscount(i) <- clubDiscount(k);
+                    editableSizePrice(i) <- IF NOT editableSizePrice(k) == 'false' THEN TRUE;
+
+                    FOR sizeID(INTEGER j) AND Size s == size(sizeID(j)) AND listGoodsSizes(j) == k DO {
+                        price(s) <- price(j);
+                    }
+                }
+
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+
+FORM sizePrices
+    PROPERTIES() errorText, error
+
+    OBJECTS listGoods = INTEGER IN data
+    PROPERTIES(listGoods) sizeID, techSizeName, clubDiscount, discountedPrice, price, editableSizePrice, nmID, discount, 
+        clubDiscountedPrice, currencyIsoCode4217, vendorCode
+    FILTERS imported(listGoods)
+;
+
+getSizePrices 'Получить цены размеров' (Item i) {
+    NEWSESSION {
+        setHttpHeadersIS();
+
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/api/v2/list/goods/size/nm');
+
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.pricesDiscounts) + '/api/v2/list/goods/size/nm?limit=1000&offset=0&nmID=' + nmID(i)
+                HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получить цены размеров</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+
+            IF statusHttp() == 200 THEN {
+                IMPORT sizePrices JSON FROM response();
+
+                price(i) <- price(GROUP MAX INTEGER j IF nmID(j) == nmID(i));
+                discount(i) <- discount(GROUP MAX INTEGER j IF nmID(j) == nmID(i));
+                clubDiscount(i) <- clubDiscount(GROUP MAX INTEGER j IF nmID(j) == nmID(i));
+                editableSizePrice(i) <- IF NOT editableSizePrice(GROUP MAX INTEGER j IF nmID(j) == nmID(i)) == 'false' THEN TRUE;
+
+                FOR nmID(INTEGER k) == nmID(i) AND size(sizeID(k)) == Size s DO {
+                    price(s) <- price(k);
+                }
+
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+EXTEND FORM wbPricesBalances 
+    PROPERTIES() uploadPricesDiscounts, uploadPricesSizes, uploadClubDiscounts, quarantineItems, getItemPrices
+    PROPERTIES DRAW i TOOLBAR getItemPrices(i), getSizePrices(i) SHOWIF editableSizePrice(i)
+
+    OBJECTS t = PriceTransaction
+    PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, description
+    
+    OBJECTS item = Item
+    PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item)
+     
+    FILTERS in(t, item)
+    
+    OBJECTS size = Size
+    PROPERTIES READONLY chrtID(size), techSize(size), wbSize(size), price(t, size)
+    FILTERS in(t, size)
+;
+
+DESIGN wbPricesBalances {
+    OBJECTS {
+        NEW actions {
+            horizontal = TRUE;
+            MOVE PROPERTY(uploadPricesDiscounts());
+            MOVE PROPERTY(uploadPricesSizes());
+            MOVE PROPERTY(uploadClubDiscounts());
+            MOVE PROPERTY(quarantineItems());
+            MOVE PROPERTY(getItemPrices());
+        }
+        NEW tabbed {
+            fill = 1;
+            tabbed = TRUE;
+            NEW items {
+                fill = 1;
+                caption = 'Цены и остатки';
+                MOVE BOX(i) { fill = 3; }
+                MOVE BOX(s) { fill = 1; }
+                MOVE BOX(b) { fill = 1; }
+            }
+            NEW priceTransactions {
+                fill = 1;
+                caption = 'Загрузки цен';
+                MOVE BOX(t) { fill = 2; }
+                NEW details {
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(item) { fill = 1; }
+                    MOVE BOX(size) { fill = 1; }
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() updatePricesDiscountsLimit, updatePricesSizesLimit, updateClubDiscountsLimit, quarantineLimit, itemPricesLimit
+;
+
+DESIGN integrationData {
+    requestLimits {
+        MOVE PROPERTY (updatePricesDiscountsLimit());
+        MOVE PROPERTY (updatePricesSizesLimit());
+        MOVE PROPERTY (updateClubDiscountsLimit());
+        MOVE PROPERTY (quarantineLimit());
+        MOVE PROPERTY (itemPricesLimit());
+    }
+}
