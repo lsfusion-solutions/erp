@@ -34,10 +34,10 @@ INDEX binOrder(BinTransferDetail d), sku(d);
 
 notCount 'Не учитывать' = ABSTRACT BOOLEAN (BinTransfer);
 
-quantityBinTransfers 'Перемещения по ячейкам' (binOrder) = GROUP SUM 1 IF NOT notCount(BinTransfer binTransfer) BY binOrder(binTransfer) MATERIALIZED;
+quantityBinTransfers 'Перемещения по ячейкам' (binOrder) = GROUP SUM 1 IF isPosted(BinTransfer binTransfer) AND NOT notCount(binTransfer) BY binOrder(binTransfer) MATERIALIZED;
 
 quantityBinTranferDetail 'Кол-во в перемещениях' = 
-    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), binOrder(d);
+    GROUP SUM quantity(BinTransferDetail d) IF isPosted(d) AND NOT notCount(binTransfer(d)) BY sku(d), binOrder(d);
 
 diffQuantityBinTranferDetail 'Расхождение' = quantityBinOrderDetail(Sku sku, BinOrder binOrder) (-) quantityBinTranferDetail(sku, binOrder);
 diffQuantityBinTranferDetail 'Расхождение' (BinOrder binOrder) = GROUP SUM diffQuantityBinTranferDetail(Sku sku, binOrder) MATERIALIZED;
@@ -94,7 +94,6 @@ moveUserBinTransfer 'Комплектация' (BinOrder binOrder)  {
                 userBinTransfer(d) <- p;
                 sku(d) <- sku(detail);
                 quantity(d) <- quantity(detail);
-                batch(d) <- batch(detail);
                 outBin(d) <- outBin(detail);
                 inBin(d) <- inBin(detail);
                 overFillUserBinTransfer(d, detail);
@@ -125,8 +124,6 @@ cancelTransferBinOrderAuto(BinOrderDetail d) = cancelTransferBinOrderAuto(binOrd
 quantityOutBinOrderDetail 'Кол-во товара в документе'  =
     GROUP SUM quantity(BinOrderDetail idetail)
     BY  sku(idetail), outBin(idetail), binOrder(idetail);
-countOutBinOrderDetail 'Кол-во строк товара в документе'  =
-    GROUP SUM 1 BY batch(BinOrderDetail idetail), outBin(idetail), binOrder(idetail);
 
 quantityBinTranferDetail 'Кол-во в перемещениях' =
     GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), outBin(d), binOrder(d);
@@ -156,10 +153,9 @@ META  binOrderTransferAggregation(prefix, binType)
     bin(###prefix###binType##BinOrderTransferAggregation ledger) += bin(ledger);
 
     description '{document.description.object}' (###prefix###binType##BinOrderTransferAggregation o) =
-        STRING[200](CONCAT ' ', 'Заказ на перемещение' IF o IS ###prefix###binType##BinOrderTransferAggregation,
-            '{document.desription.number} ' + seriesNumber(binOrder(o)), '{document.desription.of} ' + date(binOrder(o)),
-            'Перемещения:',
-            binTransfers(binOrder(o))) CHARWIDTH 30;
+        STRING[200](CONCAT ' ', 'Перемещения: ' + binTransfers(binOrder(o)) + ' по резерву: ',
+        description(binOrder(o))
+            )CHARWIDTH 30;
     description(###prefix###binType##BinOrderTransferAggregation ledger) += description(ledger);
     
     quantity(###prefix###binType##BinOrderTransferAggregation ledger) += - diffQuantity###binType##BinTranferDetail(##prefix(ledger), bin(ledger), binOrder(ledger));
