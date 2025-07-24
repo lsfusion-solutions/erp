@@ -28,17 +28,5 @@ DESIGN userInvoice {
 
 overVAT(UserInvoiceDetail d) += valueCurrentVAT(country(supplierStock(d)), 0.0) IF isNotVATPayer(supplier(d));
 
-notNullQuantityInvoices 'Запретить в накладных строки с пустым количеством'  = DATA BOOLEAN ();
-
-EXTEND FORM options
-    PROPERTIES() notNullQuantityInvoices
-;
-
-DESIGN options {
-    topInvoicesContainer {
-        MOVE PROPERTY(notNullQuantityInvoices());
-    }
-}
-
-CONSTRAINT CHANGED (sku(InvoiceDetail d)) AND sku(d) AND notNullQuantityInvoices() AND NOT (quantity(d))
+CONSTRAINT (CHANGED (sku(InvoiceDetail d)) OR CHANGED(quantity(d))) AND sku(d) AND notNullQuantityInvoices() AND NOT (quantity(d))
     MESSAGE 'Количество в строке накладной должно быть заполнено';
