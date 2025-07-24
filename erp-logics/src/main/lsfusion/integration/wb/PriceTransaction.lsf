@@ -74,11 +74,11 @@ FORM wbPricesBalances 'Цены и остатки'
     PROPERTIES(i) NEWSESSION EDIT
     
     OBJECTS s = Size
-    PROPERTIES(s) READONLY chrtID, techSize, wbSize, price, skus
+    PROPERTIES(s) READONLY chrtID, techSize, wbSize, price, skus, barcodePrimary
     FILTERS itemWB(s) == i
     
     OBJECTS b = Barcode
-    PROPERTIES id(b) READONLY 
+    PROPERTIES id(b) READONLY, primary(b) ON CHANGE changePrimary(b, s)
     FILTERS size(b) == s
 ;
 
@@ -728,8 +728,12 @@ DESIGN wbPricesBalances {
                     MOVE PROPERTY(getItemPrices());
                 }
                 MOVE BOX(i) { fill = 3; }
-                MOVE BOX(s) { fill = 1; }
-                MOVE BOX(b) { fill = 1; }
+                NEW containerSB {
+                    horizontal = TRUE;
+                    align = STRETCH;
+                    MOVE BOX(s){ fill = 3; };
+                    MOVE BOX(b) { fill = 1; };
+                }
             }
             NEW priceTransactions {
                 fill = 1;

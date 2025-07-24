@@ -48,6 +48,31 @@ barcode (STRING id, Size size) = GROUP AGGR Barcode b BY id(b), size(b);
 
 skus 'Баркоды' (Size s) = GROUP CONCAT id(Barcode b) IF size(b) == s, ', ' ORDER b;
 
+dataBarcode = DATA Barcode (Size);
+overPrimaryBarcode (Size s) = ABSTRACT Barcode (Size);
+skipBarcodeItem = ABSTRACT BOOLEAN (Barcode);
+dataAmount 'Множитель' = DATA NUMERIC[14,3] (Barcode);
+amount 'Множитель' = OVERRIDE dataAmount (Barcode barcode), (1.0 IF barcode IS Barcode) MATERIALIZED CHARWIDTH 4;
+
+CONSTRAINT SETCHANGED(Barcode barcode IS Barcode AND NOT amount(barcode) > 0) MESSAGE 'Множитель должен быть больше 0';
+
+barcode(Size s) = OVERRIDE dataBarcode(s),
+    overPrimaryBarcode(s),
+    [GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND NOT skipBarcodeItem(barcode) BY size(barcode)](s)
+    MATERIALIZED INDEXED;
+
+primary 'Основной' (Barcode barcode) = barcode(size(barcode)) == barcode;
+
+CONSTRAINT id(Barcode b1) == id(Barcode b2) AND NOT b1 == b2 MESSAGE 'Нарушена уникальность свойства "Баркод"';
+
+changePrimary(Barcode barcode, Size s)  {
+    INPUT b = BOOLEAN DO
+        IF b THEN
+            dataBarcode(s) <- barcode;
+}
+
+barcodePrimary 'Основной баркод' (Size s) = GROUP MAX id(Barcode b) IF size(b) == s AND primary(b);
+
 CLASS ABSTRACT Attribute 'Атрибут';
 TABLE attribute (Attribute) FULL;
 
@@ -253,17 +278,16 @@ FORM item 'Товар'
     ORDERS notNull DESC, name(attr)
     
     OBJECTS size = Size
-    PROPERTIES(size) chrtID READONLY, techSize, wbSize, price, skus READONLY 
+    PROPERTIES(size) chrtID READONLY, techSize, wbSize, price, skus READONLY, barcodePrimary
     PROPERTIES DRAW size TOOLBAR addSize(i), deleteSize(i, size)
     FILTERS itemWB(size) == i
     
     OBJECTS b = Barcode
-    PROPERTIES READONLY id(b)
+    PROPERTIES READONLY id(b), primary(b) ON CHANGE changePrimary(b, size)
     PROPERTIES DRAW b TOOLBAR addBarcode(size), deleteBarcode(b)
     FILTERS size(b) == size
     
     OBJECTS mf = MediaFile
-//    PROPERTIES(mf) postMediaFile PANEL 
     PROPERTIES(mf) in, posted, index
     PROPERTIES(mf) url
     PROPERTIES(mf) NEW, DELETE
