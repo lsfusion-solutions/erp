@@ -26,7 +26,7 @@ updateBalanceItems 'Обновить остатки товаров' (Warehouse w
             error(w) <- NULL WHERE error(w);
 
             logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-            EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = currentBalanceSize(s, w) WHERE itemWB(s) == i;
+            EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = (OVERRIDE currentBalanceSize(s, w), 0) WHERE itemWB(s) == i;
 
             fileToString(exportFile());
             resultString() <- '\{"stocks":' + resultString() + '\}';
@@ -38,7 +38,7 @@ updateBalanceItems 'Обновить остатки товаров' (Warehouse w
                 logToFile('WB', resultString());
                 IMPORT importError JSON FROM response();
                 IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    currentBalanceSizeWB(Size s, w) <- currentBalanceSize(s, w) WHERE itemWB(s) == i;
+                    currentBalanceSizeWB(Size s, w) <- OVERRIDE currentBalanceSize(s, w), 0 WHERE itemWB(s) == i;
                 }
                 messageStock() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
