@@ -272,23 +272,22 @@ showManufacturingPriceHomeCurrency(UserInvoice invoice) = showManufacturingPrice
 backgroundManufacturing 'Цвет' (Invoice invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
 overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
 backgroundManufacturing (InvoiceDetail d) = OVERRIDE overBackgroundManufacturing(d), backgroundManufacturing(invoice(d));
+hideManufacturingMarkup = ABSTRACT VALUE BOOLEAN (InvoiceDetail);
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showManufacturingPrice BACKGROUND backgroundManufacturing(i)
     PROPERTIES(i) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(i) addCostPriceToManufacturingPrice,
                   nameManufacturingCalcPriceListType, reverseManufacturingPrice, calcManufacturingMarkupFromPrices
     PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(i) dateManufacturingRateExchange, rateManufacturingExchange
-    PROPERTIES(d) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(d) AFTER invoiceSum(d) 
-                  manufacturingMarkup ON CHANGE changeManufacturingMarkup(d),
+    PROPERTIES(d) SHOWIF showManufacturingPrice(i) AND NOT hideManufacturingMarkup(d) BACKGROUND backgroundManufacturing(d) AFTER invoiceSum(d) 
+                  manufacturingMarkup ON CHANGE changeManufacturingMarkup(d)
+    PROPERTIES(d) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(d) AFTER manufacturingMarkup(d)
                   manufacturingPrice ON CHANGE changeManufacturingPrice(d), includeVAT, 
                   manufacturingSum
     PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(d)
                   rateManufacturingExchange BEFORE manufacturingMarkup(d)
-             
-                  
-//    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
-//                  curManufacturingPriceUserInvoiceDetail ON CHANGE changeCurManufacturingPriceUserInvoiceDetail(d)
 ;
+
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerManufacturing {
