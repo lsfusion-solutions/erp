@@ -101,7 +101,6 @@ number 'Номер позиции чека' = DATA INTEGER (ReceiptDetail);
 zReport = DATA ZReport (Receipt) NONULL DELETE AGGR;
 in(ZReport o, Receipt d) = zReport(d) == o;
 
-@defineDocumentHeaderCount(zReport, Receipt);
 dateZReport 'Дата Z-отчета' (Receipt r) = date(zReport(r));
 numberZReport 'Номер Z-отчета' (Receipt receipt) = number(zReport(receipt)) IN id;
 cashRegister (Receipt receipt) = cashRegister(zReport(receipt));
@@ -113,6 +112,12 @@ groupCashRegister (Receipt receipt) = groupCashRegister(cashRegister(receipt)) C
 
 cashRegisterModel (Receipt receipt) = cashRegisterModel(groupCashRegister(cashRegister(receipt)));
 sidCashRegisterModel 'Код модели' (Receipt receipt) = sid(cashRegisterModel(receipt));
+
+dataSkip 'Аннулирован' = DATA BOOLEAN (Receipt);
+skip 'Не проводить по регистру' (Receipt r) = dataSkip(r) AND NOT notSkipCancel(cashRegister(r));
+
+countReceipt '{document.count.detail.of}' (o) =
+    GROUP SUM 1 IF NOT skip(Receipt d) BY zReport(d) MATERIALIZED IN documentSum;
 
 employee = DATA Employee(Receipt);
 idEmployee (Receipt receipt) = id(employee(receipt));
@@ -135,9 +140,6 @@ hour 'Час' (Receipt r) = extractHour(dateTime(r));
 
 idDepartmentStore 'Отдел магазина' (Receipt idetail) = id(departmentStore(idetail));    
     
-
-dataSkip 'Аннулирован' = DATA BOOLEAN (Receipt);
-skip 'Не проводить по регистру' (Receipt r) = dataSkip(r) AND NOT notSkipCancel(cashRegister(r));  
 
 @defineDocumentRelation(receipt, ReceiptSaleDetail);
 @defineDocumentRelation(receipt, ReceiptReturnDetail);
@@ -563,7 +565,9 @@ sumPayment 'Сумма платежа' (receipt) = GROUP SUM sum(Payment payment
 
 sumInCashPayment (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansCash  BY receipt(payment);
 
-changePayment 'Сдача' (Receipt receipt) = sumPayment(receipt) - sumReceiptDetail(receipt);
+overChangePayment = ABSTRACT NUMERIC[18,4] (Receipt);
+
+changePayment 'Сдача' (Receipt receipt) = OVERRIDE overChangePayment(receipt),( sumPayment(receipt) - sumReceiptDetail(receipt));
 
 sumCashPayment 'Сумма продажа (наличные)' (Receipt receipt) = sumInCashPayment(receipt) - changePayment(receipt) MATERIALIZED;
 sumCardPayment 'Сумма продажа (карточка)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansCard BY receipt(payment);
@@ -601,7 +605,7 @@ CONSTRAINT ((sumReceiptDetail(Receipt receipt) > 0 AND sumReceiptDetail(receipt)
 
 // Итоги по Z-отчету
 
-quantityReceiptDetail 'Кол-во (всего)' (zReport) = GROUP SUM signedQuantity(ReceiptDetail detail) BY zReport(detail) IN documentSum MATERIALIZED;
+quantityReceiptDetail 'Кол-во (всего)' (zReport) = GROUP SUM signedQuantity(ReceiptDetail detail) IF NOT skip(receipt(detail)) BY zReport(detail) IN documentSum MATERIALIZED;
 
 sumReceiptDetail 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetail(Receipt receipt) IF NOT skip(receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
 
@@ -632,7 +636,7 @@ sumVATSkuReceiptDetail 'Сумма НДС по sku' (zReport) = GROUP SUM signed
 sumVATReceiptDetail'Сумма НДС' (receipt) = GROUP SUM signedSumVAT(ReceiptDetail detail)
     BY receipt(detail) MATERIALIZED; 
 sumVATReceiptDetail 'Сумма НДС' (zReport) = GROUP SUM sumVATReceiptDetail(Receipt receipt)
-    BY zReport(receipt) IN documentSum;            
+    IF NOT skip(receipt) BY zReport(receipt) IN documentSum;            
 
 discountSumVAT 'Сумма НДС в скидке' (ReceiptDetail d) = round2(discountSum(d) * valueVAT(d) / (100 + valueVAT(d)));
 signedDiscountSumVAT 'Сумма НДС в скидке' (ReceiptDetail d) = round2(signedRDiscountSum(d) * valueVAT(d) / (100 + valueVAT(d)));
