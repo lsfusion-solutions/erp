@@ -76,8 +76,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     @Override
     public Map<Long, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionList) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
-        Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        AstronSettings astronSettings = getSettings();
+        Integer timeout = nvl(astronSettings.getTimeout(), 300);
         boolean exportExtraTables = astronSettings.isExportExtraTables();
         Integer transactionsAtATime = astronSettings.getTransactionsAtATime();
         Integer itemsAtATime = astronSettings.getItemsAtATime();
@@ -188,7 +188,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             if (params.connectionString == null) {
                 exception = createException("no connectionString found");
             } else {
-                exception = waitConnectionSemaphore(params, timeout, false);
+                exception = waitConnectionSemaphore(params, timeout);
                 if (exception == null) {
                     try (Connection conn = getConnection(params)) {
                         connectionSemaphore.add(params.connectionString);
@@ -218,7 +218,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
                         if (firstTransaction) {
                             if (versionalScheme) {
-                                directoryInputUpdateNumsMap.put(directory, readTransactionUpdateNums(conn, prevTables));
+                                directoryInputUpdateNumsMap.put(directory, readUpdateNums(conn, prevTables));
                             } else  {
                                 Exception waitFlagsResult = waitFlags(conn, params, prevTables, timeout);
                                 if (waitFlagsResult != null) {
@@ -1876,19 +1876,6 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
         return recordNums;
     }
-    private Map<String, Integer> readTransactionUpdateNums(Connection conn, String tables) {
-        Map<String, Integer> inputUpdateNums = new HashMap<>();
-        try (Statement statement = conn.createStatement()) {
-            String query = "SELECT dirname, recordnum FROM DATAPUMP WHERE dirname IN (" + tables + ")";
-            ResultSet result = statement.executeQuery(query);
-            while (result.next()) {
-                inputUpdateNums.put(result.getString("dirname"), result.getInt("recordnum"));
-            }
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        }
-        return inputUpdateNums;
-    }
 
     private Map<String, Integer> readProcessedUpdateNums(Connection conn, String tables, AstronConnectionString params) {
         Map<String, Integer> recordNums = new HashMap<>();
@@ -2022,19 +2009,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         }
     }
 
-    private Exception waitConnectionSemaphore(AstronConnectionString params, int timeout, boolean stopList) {
+    private Exception waitConnectionSemaphore(AstronConnectionString params, int timeout) {
         try {
             int count = 0;
             while (connectionSemaphore.contains(params.connectionString)) {
                 if (count > (timeout / 5)) {
                     String message;
-                    if (stopList) {
-                        message = "Timeout exception. ProcessTransaction thread uses " + params.connectionString;
-                        astronLogger.error(message);
-                    } else {
-                        message = "Timeout exception. StopList thread uses " + params.connectionString;
-                        astronLogger.error(message);
-                    }
+                    message = "Timeout exception. Another thread uses " + params.connectionString;
+                    astronLogger.error(message);
                     return new Exception(message);
                 } else {
                     count++;
@@ -2105,8 +2087,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     @Override
     public Pair<String, Set<String>> sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machinerySet) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
-        Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        AstronSettings astronSettings = getSettings();
+        Integer timeout = nvl(astronSettings.getTimeout(), 300);
         boolean exportExtraTables = astronSettings.isExportExtraTables();
         Integer maxBatchSize =astronSettings.getMaxBatchSize();
         boolean versionalScheme = astronSettings.isVersionalScheme();
@@ -2121,7 +2103,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             if(usedDirectories.add(directory)) {
                 AstronConnectionString params = new AstronConnectionString(directory);
                 if (params.connectionString != null && !stopListInfo.stopListItemMap.isEmpty()) {
-                    Exception exception = waitConnectionSemaphore(params, timeout, true);
+                    Exception exception = waitConnectionSemaphore(params, timeout);
                     if ((exception != null)) {
                         throw new RuntimeException("semaphore stopList timeout", exception);
                     } else {
@@ -2193,7 +2175,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     @Override
     public boolean sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcode) {
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        AstronSettings astronSettings = getSettings();
         Integer timeout = nvl(astronSettings.getTimeout(), 300);
         Integer maxBatchSize = astronSettings.getMaxBatchSize();
         boolean versionalScheme = astronSettings.isVersionalScheme();
@@ -2209,7 +2191,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             if (params.connectionString == null) {
                 astronLogger.error("no connectionString found");
             } else {
-                Exception exception = waitConnectionSemaphore(params, timeout, false);
+                Exception exception = waitConnectionSemaphore(params, timeout);
                 if (exception == null) {
                     try (Connection conn = getConnection(params)) {
                         connectionSemaphore.add(params.connectionString);
@@ -2282,83 +2264,84 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
     @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) {
-
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
-        Integer timeout = astronSettings.getTimeout() == null ? 300 : astronSettings.getTimeout();
+        AstronSettings astronSettings = getSettings();
+        Integer timeout = nvl(astronSettings.getTimeout(), 300);
         boolean versionalScheme = astronSettings.isVersionalScheme();
         boolean exportDiscountCardExtraTables = astronSettings.isExportDiscountCardExtraTables();
         boolean waitSysLogInsteadOfDataPump = astronSettings.isWaitSysLogInsteadOfDataPump();
 
         for (String directory : getDirectorySet(requestExchange)) {
 
-            Throwable exception = null;
+            Throwable exception;
 
             AstronConnectionString params = new AstronConnectionString(directory);
             if (params.connectionString == null) {
                 exception = createException("no connectionString found");
             } else {
+                exception = waitConnectionSemaphore(params, timeout);
+                if ((exception == null)) {
+                    try (Connection conn = getConnection(params)) {
+                        astronLogger.info("export discount сards to " + directory);
+                        String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
-                try (Connection conn = getConnection(params)) {
-                    astronLogger.info("export discount сards to " + directory);
-                    String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
+                        Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
+                        Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
+                        Map<String, Integer> outputUpdateNums = new HashMap<>();
 
-                    Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
-                    Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
-                    Map<String, Integer> outputUpdateNums = new HashMap<>();
-
-                    int flags = checkFlags(conn, params, tables);
-                    if (flags > 0) {
-                        exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
-                    } else {
-
-                        String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
-
-                        if (!versionalScheme) {
-                            truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
-                        }
-
-                        if(exportDiscountCardExtraTables) {
-
-                            String clntTbl = "CLNT";
-                            Integer clntUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntTbl);
-                            exportClnt(conn, params, clntTbl, discountCardList, clntUpdateNum);
-                            outputUpdateNums.put(clntTbl, clntUpdateNum);
-
-                            String clntFormTbl = "CLNTFORM";
-                            Integer clntFormUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormTbl);
-                            exportClntForm(conn, params, clntFormTbl, clntUpdateNum);
-                            outputUpdateNums.put(clntFormTbl, clntFormUpdateNum);
-
-                            String clntFormItemsTbl = "CLNTFORMITEMS";
-                            Integer clntFormItemsUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormItemsTbl);
-                            exportClntFormItems(conn, params, clntFormItemsTbl, clntFormItemsUpdateNum);
-                            outputUpdateNums.put(clntFormItemsTbl, clntFormItemsUpdateNum);
-
-                            String clntFormPropertyTbl = "CLNTFORMPROPERTY";
-                            Integer clntFormPropertyUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormPropertyTbl);
-                            exportClntFormProperty(conn, params, clntFormPropertyTbl, discountCardList, clntUpdateNum);
-                            outputUpdateNums.put(clntFormPropertyTbl, clntFormPropertyUpdateNum);
-                        }
-
-                        Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
-                        exportDCard(conn, params, discountCardList, dcardUpdateNum);
-                        outputUpdateNums.put("DCARD", dcardUpdateNum);
-
-                        if(versionalScheme) {
-                            exportUpdateNums(conn, outputUpdateNums);
+                        int flags = checkFlags(conn, params, tables);
+                        if (flags > 0) {
+                            exception = new RuntimeException(String.format("data from previous transactions was not processed (%s flags not set to zero)", flags));
                         } else {
-                            astronLogger.info("waiting for processing discount cards");
-                            exportFlags(conn, tables, 1);
-                            exception = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
+
+                            String eventTime = getEventTime(conn, waitSysLogInsteadOfDataPump);
+
+                            if (!versionalScheme) {
+                                truncateTables(conn, params, "DiscountCard", exportDiscountCardExtraTables ? new HashSet<>(Arrays.asList("DCARD", "CLNT", "CLNTFORM", "CLNTFORMITEMS", "CLNTFORMPROPERTY")) : new HashSet<>(Collections.singletonList("DCARD")));
+                            }
+
+                            if (exportDiscountCardExtraTables) {
+
+                                String clntTbl = "CLNT";
+                                Integer clntUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntTbl);
+                                exportClnt(conn, params, clntTbl, discountCardList, clntUpdateNum);
+                                outputUpdateNums.put(clntTbl, clntUpdateNum);
+
+                                String clntFormTbl = "CLNTFORM";
+                                Integer clntFormUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormTbl);
+                                exportClntForm(conn, params, clntFormTbl, clntUpdateNum);
+                                outputUpdateNums.put(clntFormTbl, clntFormUpdateNum);
+
+                                String clntFormItemsTbl = "CLNTFORMITEMS";
+                                Integer clntFormItemsUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormItemsTbl);
+                                exportClntFormItems(conn, params, clntFormItemsTbl, clntFormItemsUpdateNum);
+                                outputUpdateNums.put(clntFormItemsTbl, clntFormItemsUpdateNum);
+
+                                String clntFormPropertyTbl = "CLNTFORMPROPERTY";
+                                Integer clntFormPropertyUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, clntFormPropertyTbl);
+                                exportClntFormProperty(conn, params, clntFormPropertyTbl, discountCardList, clntUpdateNum);
+                                outputUpdateNums.put(clntFormPropertyTbl, clntFormPropertyUpdateNum);
+                            }
+
+                            Integer dcardUpdateNum = getDiscountCardUpdateNum(versionalScheme, processedUpdateNums, inputUpdateNums, "DCARD");
+                            exportDCard(conn, params, discountCardList, dcardUpdateNum);
+                            outputUpdateNums.put("DCARD", dcardUpdateNum);
+
+                            if (versionalScheme) {
+                                exportUpdateNums(conn, outputUpdateNums);
+                            } else {
+                                astronLogger.info("waiting for processing discount cards");
+                                exportFlags(conn, tables, 1);
+                                exception = waitFlags(conn, params, tables, timeout, eventTime, waitSysLogInsteadOfDataPump);
+                            }
                         }
+                    } catch (Exception e) {
+                        astronLogger.error("sendDiscountCardList error", e);
+                        exception = e;
                     }
-                } catch (Exception e) {
-                    astronLogger.error("sendDiscountCardList error", e);
-                    exception = e;
                 }
             }
 
-            if(exception != null) {
+            if (exception != null) {
                 throw new RuntimeException(exception);
             }
         }
@@ -2405,7 +2388,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<AstronRecord> recordList = new ArrayList<>();
 
-        AstronSettings astronSettings = springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+        AstronSettings astronSettings = getSettings();
         Set<Integer> cashPayments = parsePayments(astronSettings.getCashPayments());
         Set<Integer> cardPayments = parsePayments(astronSettings.getCardPayments());
         Set<Integer> giftCardPayments = parsePayments(astronSettings.getGiftCardPayments());
@@ -2906,6 +2889,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return locked;
     }
 
+    private AstronSettings getSettings() {
+        return springContext.containsBean("astronSettings") ? (AstronSettings) springContext.getBean("astronSettings") : new AstronSettings();
+    }
 
     private ExtInfo getExtInfo(String extInfo) {
         return new ExtInfo(extInfo);
