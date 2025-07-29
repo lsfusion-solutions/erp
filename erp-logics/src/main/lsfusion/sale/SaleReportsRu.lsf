@@ -705,3 +705,264 @@ DESIGN salesReport {
         }
     }
 }
+
+/////// ----- сравнение по периодам
+
+fullSumSupplierCompare 'Отпускная сумма' (Group g, Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
+        AND skuGroup2(sku(l)) = g AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSupplierCompare 'Учетная сумма ' (Group g, Stock st, LegalEntity le, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND supplierSku(sku(l)) = le AND st = stock(l)
+        AND skuGroup2(sku(l)) = g AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfitCompare 'Валовый доход' (Group g, Stock st, LegalEntity le, DATE df, DATE dt) =
+    sumSupplierCompare(g,st,le,df,dt) (-) fullSumSupplierCompare(g,st,le,df,dt);
+margaSupplierCompare 'Маржа,%' (Group g, Stock st, LegalEntity le, DATE df, DATE dt) =
+    valProfitCompare(g,st,le,df,dt)*100/sumSupplierCompare(g,st,le,df,dt);
+sumBalanceACompareDS(Group g, Stock st, LegalEntity le, DATE dt) =
+    GROUP SUM (balanceA(Sku s, st, dt)*priceSku(s,st)) IF inSessionSku(s)
+        AND skuGroup2(s) = g AND supplierSku(s) = le AND st IS DepartmentStore;
+sumBalanceACompareW(Group g, Stock st, LegalEntity le, DATE dt) =
+    GROUP SUM (balanceA(Sku s, st, dt)*priceSku(s,st)) IF inSessionSku(s)
+        AND skuGroup2(s) = g AND supplierSku(s) = le AND st IS Warehouse;
+
+FORM saleReportSupplierCompare 'Свод поставщики'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier(), compare()
+
+    OBJECTS datesCompare = (dfc = DATE, dtc = DATE) PANEL
+    PROPERTIES dfc 'Дата с' = VALUE(dfc), dtc 'Дата по' = VALUE(dtc)
+
+    OBJECTS st = Stock
+    PROPERTIES id(st), name(st)
+    
+    TREE skuTree sk = Group PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk), id(sk), nameGroup3(sk), nameGroup4(sk)
+    ORDERS order(sk), skuTreeName
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) id, name
+    FILTERS GROUP SUM 1 IF supplierSku(Sku s) = l
+    
+    PROPERTIES(sk,st,l,df,dt) fullSumSupplierCompare, sumSupplierCompare, valProfitCompare, margaSupplierCompare
+    PROPERTIES(sk,st,l,dfc,dtc) fullSumSupplierCompare, sumSupplierCompare, valProfitCompare, margaSupplierCompare
+    PROPERTIES (sk,st,l,dtc) sumBalanceACompareDS, sumBalanceACompareW
+    FILTERS inSaleReportDialog(st), (GROUP SUM 1 IF fullSumSupplierCompare(sk,st,l,df,dt) OR fullSumSupplierCompare(sk,st,l,dfc,dtc))
+;
+
+printSaleReportSupplierCompare 'Свод поставщики' (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleReportSupplierCompare OBJECTS df = dateFrom, dt= dateTo, dfc = dateFromC, dtc = dateToC XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+fullSumGroupCompare 'Отпускная сумма' (Group g, Stock st, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l)
+        AND skuGroup2(sku(l)) = g AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumGroupCompare 'Учетная сумма ' (Group g, Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND st = stock(l)
+        AND skuGroup2(sku(l)) = g AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfitGroupCompare 'Валовый доход' (Group g, Stock st, DATE df, DATE dt) =
+    sumGroupCompare(g,st,df,dt) (-) fullSumGroupCompare(g,st,df,dt);
+margaGroupCompare 'Маржа,%' (Group g, Stock st, DATE df, DATE dt) =
+    valProfitGroupCompare(g,st,df,dt)*100/sumGroupCompare(g,st,df,dt);
+
+FORM saleReportSkuGroupCompare 'Свод классификатор'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier(), compare()
+
+    OBJECTS datesCompare = (dfc = DATE, dtc = DATE) PANEL
+    PROPERTIES dfc 'Дата с' = VALUE(dfc), dtc 'Дата по' = VALUE(dtc)
+
+    OBJECTS st = Stock
+    PROPERTIES id(st), name(st)
+
+    TREE skuTree sk = Group PARENT parent(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk), id(sk), nameGroup3(sk), nameGroup4(sk)
+    ORDERS order(sk), skuTreeName
+
+    PROPERTIES(sk,st,df,dt) fullSumGroupCompare, sumGroupCompare, valProfitGroupCompare, margaGroupCompare
+    PROPERTIES(sk,st,dfc,dtc) fullSumGroupCompare, sumGroupCompare, valProfitGroupCompare, margaGroupCompare
+    FILTERS inSaleReportDialog(st), (GROUP SUM 1 IF fullSumGroupCompare(sk,st,df,dt) OR fullSumGroupCompare(sk,st,dfc,dtc))
+;
+
+printSaleReportGroupCompare 'Свод классификатор' (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleReportSkuGroupCompare OBJECTS df = dateFrom, dt= dateTo, dfc = dateFromC, dtc = dateToC XLSX ;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+quantitySkuCompare 'Количество' (Sku s, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND inSaleReportDialog(stock(l))
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+fullSumSkuCompare 'Отпускная сумма' (Sku s, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND inSaleReportDialog(stock(l))
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSkuCompare 'Учетная сумма ' (Sku s, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt AND inSaleReportDialog(stock(l))
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfitSkuCompare 'Валовый доход' (Sku s, DATE df, DATE dt) =
+    sumSkuCompare(s,df,dt) (-) fullSumSkuCompare(s,df,dt);
+margaSkuCompare 'Маржа,%' (Sku s, DATE df, DATE dt) =
+    valProfitSkuCompare(s,df,dt)*100/sumSkuCompare(s,df,dt);
+sumBalanceACompare(Sku s, DATE dt) =
+    GROUP SUM (balanceA(s,Stock st, dt)*priceSku(s,st)) IF inSessionSku(s) AND inSaleReportDialog(st);
+
+
+differenceQuantity(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((quantitySkuCompare(s,df,dt) (-) quantitySkuCompare(s,dfc,dtc))/quantitySkuCompare(s,df,dt)*100);
+inCreaseQuantity(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) = 
+    IF quantitySkuCompare(s,df,dt) > quantitySkuCompare(s,dfc,dtc) THEN '-'
+        ELSE '+';
+differenceFullSum(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((fullSumSkuCompare(s,df,dt) (-) fullSumSkuCompare(s,dfc,dtc))/fullSumSkuCompare(s,df,dt)*100);
+inCreaseFullSum(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF fullSumSkuCompare(s,df,dt) > fullSumSkuCompare(s,dfc,dtc) THEN '-'
+        ELSE '+';
+differenceSum(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((sumSkuCompare(s,df,dt) (-) sumSkuCompare(s,dfc,dtc))/sumSkuCompare(s,df,dt)*100);
+inCreasesSum(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF sumSkuCompare(s,df,dt) > sumSkuCompare(s,dfc,dtc) THEN '-'
+        ELSE '+';
+differenceValProfit(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    valProfitSkuCompare(s,df,dt) (-) valProfitSkuCompare(s,dfc,dtc);
+inCreasesVal(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF valProfitSkuCompare(s,df,dt) > valProfitSkuCompare(s,dfc,dtc) THEN '-'
+        ELSE '+';
+differenceMarga(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    margaSkuCompare(s,df,dt) (-) margaSkuCompare(s,dfc,dtc);
+inCreasesMarga(Sku s, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF margaSkuCompare(s,df,dt) > margaSkuCompare(s,dfc,dtc) THEN '-'
+        ELSE '+';
+differenceSumBalance(Sku s, DATE dt, DATE dtc) =
+    NUMERIC[16,2]((sumBalanceACompare(s,dt) (-) sumBalanceACompare(s,dtc))/sumBalanceACompare(s,dt)*100);
+inCreasesSumBalance(Sku s, DATE dt, DATE dtc) =
+    IF sumBalanceACompare(s,dt) > sumBalanceACompare(s,dtc) THEN '-'
+        ELSE '+';
+
+FORM saleReportSkuCompare 'Свод оборотов'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier(), compare()
+
+    OBJECTS datesCompare = (dfc = DATE, dtc = DATE) PANEL
+    PROPERTIES dfc 'Дата с' = VALUE(dfc), dtc 'Дата по' = VALUE(dtc)
+    
+    OBJECTS sk = Sku
+    PROPERTIES (sk) nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, id, name
+    ORDERS name(sk)
+
+    PROPERTIES(sk,df,dt) quantitySkuCompare,fullSumSkuCompare, sumSkuCompare, valProfitSkuCompare, margaSkuCompare
+    PROPERTIES(sk,dfc,dtc) quantitySkuCompare, fullSumSkuCompare, sumSkuCompare, valProfitSkuCompare, margaSkuCompare
+    PROPERTIES(sk,df,dt,dfc,dtc) differenceQuantity, inCreaseQuantity, differenceFullSum, inCreaseFullSum,
+        differenceSum, inCreasesSum, differenceValProfit, inCreasesVal, differenceMarga, inCreasesMarga
+    PROPERTIES(sk,dt) sumBalanceACompare
+    PROPERTIES(sk,dtc) sumBalanceACompare
+    PROPERTIES (sk,dt,dtc) differenceSumBalance, inCreasesSumBalance
+    FILTERS (GROUP SUM 1 IF quantitySkuCompare(sk,df,dt) OR quantitySkuCompare(sk,dfc,dtc))
+;
+
+printSaleReportSkuCompare 'Свод оборотов' (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleReportSkuCompare OBJECTS df = dateFrom, dt= dateTo, dfc = dateFromC, dtc = dateToC XLSX ;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+quantitySkuCompare 'Количество' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND stock(l) = st
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+fullSumSkuCompare 'Отпускная сумма' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (price(SaleLedger l)*quantity(l)) IF date(l) >= df AND date(l) <= dt AND stock(l) = st
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSkuCompare 'Учетная сумма ' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (priceSku(sku(SaleLedger l),stock(l))*quantity(l)) IF date(l) >= df AND date(l) <= dt
+        AND stock(l) = st AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+valProfitSkuCompare 'Валовый доход' (Sku s, Stock st, DATE df, DATE dt) =
+    sumSkuCompare(s,st,df,dt) (-) fullSumSkuCompare(s,st,df,dt);
+margaSkuCompare 'Маржа,%' (Sku s, Stock st, DATE df, DATE dt) =
+    valProfitSkuCompare(s,st,df,dt)*100/sumSkuCompare(s,st,df,dt);
+sumBalanceACompare(Sku s, Stock st, DATE dt) =
+    GROUP SUM (balanceA(s,st, dt)*priceSku(s,st)) IF inSessionSku(s);
+
+
+differenceQuantity(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((quantitySkuCompare(s,st,df,dt) (-) quantitySkuCompare(s,st,dfc,dtc))/quantitySkuCompare(s,st,df,dt)*100);
+inCreaseQuantity(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF quantitySkuCompare(s,st,df,dt) > quantitySkuCompare(s,st,dfc,dtc) THEN '-'
+    ELSE '+';
+differenceFullSum(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((fullSumSkuCompare(s,st,df,dt) (-) fullSumSkuCompare(s,st,dfc,dtc))/fullSumSkuCompare(s,st,df,dt)*100);
+inCreaseFullSum(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF fullSumSkuCompare(s,st,df,dt) > fullSumSkuCompare(s,st,dfc,dtc) THEN '-'
+    ELSE '+';
+differenceSum(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    NUMERIC[16,2]((sumSkuCompare(s,st,df,dt) (-) sumSkuCompare(s,st,dfc,dtc))/sumSkuCompare(s,st,df,dt)*100);
+inCreasesSum(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF sumSkuCompare(s,st,df,dt) > sumSkuCompare(s,st,dfc,dtc) THEN '-'
+    ELSE '+';
+differenceValProfit(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    valProfitSkuCompare(s,st,df,dt) (-) valProfitSkuCompare(s,st,dfc,dtc);
+inCreasesVal(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF valProfitSkuCompare(s,st,df,dt) > valProfitSkuCompare(s,st,dfc,dtc) THEN '-'
+    ELSE '+';
+differenceMarga(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    margaSkuCompare(s,st,df,dt) (-) margaSkuCompare(s,st,dfc,dtc);
+inCreasesMarga(Sku s, Stock st, DATE df, DATE dt, DATE dfc, DATE dtc) =
+    IF margaSkuCompare(s,st,df,dt) > margaSkuCompare(s,st,dfc,dtc) THEN '-'
+    ELSE '+';
+differenceSumBalance(Sku s, Stock st, DATE dt, DATE dtc) =
+    NUMERIC[16,2]((sumBalanceACompare(s,st,dt) (-) sumBalanceACompare(s,st,dtc))/sumBalanceACompare(s,st,dt)*100);
+inCreasesSumBalance(Sku s, Stock st, DATE dt, DATE dtc) =
+    IF sumBalanceACompare(s,st,dt) > sumBalanceACompare(s,st,dtc) THEN '-'
+    ELSE '+';
+
+FORM saleReportSkuStockCompare 'Свод оборотов(подробный)'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        datePriceSupplier(), compare()
+
+    OBJECTS datesCompare = (dfc = DATE, dtc = DATE) PANEL
+    PROPERTIES dfc 'Дата с' = VALUE(dfc), dtc 'Дата по' = VALUE(dtc)
+    
+    OBJECTS st = Stock
+    PROPERTIES(st) id, name
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS sk = Sku
+    PROPERTIES (sk) nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, id, name
+    ORDERS name(sk)
+    
+    PROPERTIES(sk,st,df,dt) quantitySkuCompare,fullSumSkuCompare, sumSkuCompare, valProfitSkuCompare, margaSkuCompare
+    PROPERTIES(sk,st,dfc,dtc) quantitySkuCompare, fullSumSkuCompare, sumSkuCompare, valProfitSkuCompare, margaSkuCompare
+    PROPERTIES(sk,st,df,dt,dfc,dtc) differenceQuantity, inCreaseQuantity, differenceFullSum, inCreaseFullSum,
+        differenceSum, inCreasesSum, differenceValProfit, inCreasesVal, differenceMarga, inCreasesMarga
+    PROPERTIES(sk,st,dt) sumBalanceACompare
+    PROPERTIES(sk,st,dtc) sumBalanceACompare
+    PROPERTIES (sk,st,dt,dtc) differenceSumBalance, inCreasesSumBalance
+    FILTERS (GROUP SUM 1 IF quantitySkuCompare(sk,st,df,dt) OR quantitySkuCompare(sk,st,dfc,dtc))
+;
+
+printSaleReportSkuStockCompare 'Свод оборотов(подробный)' (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleReportSkuStockCompare OBJECTS df = dateFrom, dt= dateTo, dfc = dateFromC, dtc = dateToC XLSX ;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+EXTEND FORM salesReport
+    PROPERTIES(df,dt,dfc,dtc) printSaleReportSupplierCompare, printSaleReportGroupCompare, 
+        printSaleReportSkuCompare, printSaleReportSkuStockCompare
+;
+
+DESIGN salesReport {
+    salesContainer {
+        NEW supplierSalesReportCompare {
+            caption = 'Сравнение периодов';
+            lines = 2;
+            MOVE PROPERTY(printSaleReportSupplierCompare(df,dt,dfc,dtc));
+            MOVE PROPERTY(printSaleReportGroupCompare(df,dt,dfc,dtc));
+            MOVE PROPERTY(printSaleReportSkuCompare(df,dt,dfc,dtc));
+            MOVE PROPERTY(printSaleReportSkuStockCompare(df,dt,dfc,dtc));
+        }
+    }
+}
