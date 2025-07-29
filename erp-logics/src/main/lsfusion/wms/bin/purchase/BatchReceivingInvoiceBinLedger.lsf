@@ -7,18 +7,18 @@ NAMESPACE Purchase;
 consolidationKey 'Ключ группировки' = ABSTRACT STRING (Batch) CHARWIDTH 7;
 overConsolidationKey(Batch bt) = OVERRIDE consolidationKey(bt), ('Не указан' IF bt IS Batch) MATERIALIZED;
 
-overCompleteWork (Receiving r) + {
+overCompleteReceiving (Receiving r) + {
     FOR receiving(invoice(invoiceDetail(Batch bt)))==r INLINE DO {
         batch(ReceivingDetail d) <- bt WHERE sku(d)==sku(bt) AND overConsolidationKey(d)==overConsolidationKey(bt) AND receiving(d)==r AND quantity(d);
         inBin(Purchase.InvoiceDetail d) <- NULL WHERE d = invoiceDetail(shipmentDetail(bt));
     }
 }
 
-overCompleteWork(Sku s, STRING consolidationKey, Receiving r) + {
+overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     FOR receiving(invoice(invoiceDetail(Batch bt)))==r AND sku(bt) == s AND overConsolidationKey(bt)==consolidationKey INLINE DO {
         batch(ReceivingDetail d) <- bt WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND quantity(d);
         inBin(Purchase.InvoiceDetail d) <- NULL WHERE d = invoiceDetail(shipmentDetail(bt));
-    }    
+    }
 }
 
 currentBalanceWithoutBatch 'Остаток в ячейке баз партий' (Sku sku, Bin bin) =
@@ -362,7 +362,7 @@ descriptionCreditNotes 'Акты расхождения' =
 
 EXTEND FORM receiving
     PROPERTIES READONLY descriptionCreditNotes(r) AFTER descriptionInvoices(r)
-    PROPERTIES createCreditNote(r) SHOWIF (status(r) = ReceivingStatus.completed AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
+    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
     PROPERTIES writeOffCreditNote(u) DRAW reserveB SHOWIF in(u, Bin.operation('writeOff'))
     PROPERTIES READONLY quantityCreditNote(sr1, str1, r)
     PROPERTIES READONLY quantityCreditNote(sr, r)

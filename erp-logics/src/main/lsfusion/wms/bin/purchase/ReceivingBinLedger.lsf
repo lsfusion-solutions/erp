@@ -32,9 +32,10 @@ expectedQuantity 'Кол-во в документе прихода' = ABSTRACT N
 selected 'Отм.' = DATA LOCAL NESTED BOOLEAN (Receiving);
 
 CLASS ReceivingStatus 'Статус' {
-    new 'Новый',
-    inWork 'В работе',
-    completed 'Обработан'
+    pending 'Не начата',
+    inProgress 'В работе',
+    partiallyReceived 'Принят с расхождением',
+    fullyReceived 'Принят'
 }
 
 FORM receivingStatus 'Статус'
@@ -47,7 +48,9 @@ FORM receivingStatus 'Статус'
 status = DATA ReceivingStatus (Receiving);
 nameStatus 'Статус' (Receiving r) = staticCaption(status(r)) IN documentPrm CHARWIDTH 8;
 
-status (Receiving receiving) <- ReceivingStatus.new WHEN SET(receiving IS Receiving);
+completeStatus (Receiving r) = status(r) == ReceivingStatus.partiallyReceived OR status(r) == ReceivingStatus.fullyReceived MATERIALIZED;
+
+status (Receiving receiving) <- ReceivingStatus.pending WHEN SET(receiving IS Receiving);
 
 createdUser = DATA CustomUser (Receiving);
 nameCreatedUser 'Сотрудник' (Receiving receiving) = name(createdUser(receiving)) CHARWIDTH 10;
@@ -61,7 +64,10 @@ receiving = DATA Receiving (ReceivingDetail) INDEXED NONULL DELETE;
 
 dataStatus = DATA ReceivingStatus (ReceivingDetail);
 status (ReceivingDetail d) = OVERRIDE dataStatus(d), status(receiving(d)) MATERIALIZED;
-nameStatus 'Статус' (ReceivingDetail d) = staticCaption(status(d)) IN documentPrm CHARWIDTH 8;
+
+completeStatus (ReceivingDetail d) = status(d) == ReceivingStatus.partiallyReceived OR status(d) == ReceivingStatus.fullyReceived MATERIALIZED;
+
+nameStatus 'Статус' (ReceivingDetail d) = IF completeStatus(d) THEN 'Завершена' ELSE 'В работе' IN documentPrm CHARWIDTH 8;
 
 @defineDocumentDetailPosted(receiving);
 
@@ -172,11 +178,11 @@ receivingQuantity 'Принятое кол-во' =
     GROUP SUM quantity(ReceivingDetail detail) BY sku(detail), overConsolidationKey(detail), receiving(detail) CHARWIDTH 7;
 
 quantityCompleted 'Обработанное кол-во' =
-    GROUP SUM quantity(ReceivingDetail d) IF status(d)==ReceivingStatus.completed BY sku(d), overConsolidationKey(d), receiving(d);
+    GROUP SUM quantity(ReceivingDetail detail) IF completeStatus(detail) BY sku(detail), overConsolidationKey(detail), receiving(detail);
 
-nameStatus 'Статус' (Sku s, STRING consolidationKey, Receiving r) =
-    CASE WHEN quantityCompleted(s, consolidationKey, r)==receivingQuantity(s, consolidationKey, r) THEN 'Обработан'
-        WHEN quantityCompleted(s, consolidationKey, r)!=receivingQuantity(s, consolidationKey, r) THEN 'Частично обработан'
+nameStatus 'Статус' (Sku s, STRING consolidationKey, Receiving receiving) =
+    CASE WHEN quantityCompleted(s, consolidationKey, receiving)==expectedQuantity(s, consolidationKey, receiving) THEN 'Принят'
+        WHEN completeStatus(receiving) AND NOT quantityCompleted(s, consolidationKey, receiving)==expectedQuantity(s, consolidationKey, receiving) THEN 'Принят с расхождением'
         ELSE 'В работе';
 
 consolidationKeyLocal 'Ключ группировки' = DATA LOCAL NESTED STRING (Receiving);
@@ -285,39 +291,46 @@ CONSTRAINT LOCAL dataReceivingBin(CustomUser u) AND NOT accessCompany(u, stock(d
 CONSTRAINT LOCAL dataReceivingBin(CustomUser u) AND NOT receiving(dataReceivingBin(u))
     CHECKED BY dataReceivingBin[CustomUser] MESSAGE 'Выбранная ячейка не предназначена для приемки';
 
-takeToWork 'Взять в работу' (Receiving receiving) {
+overStartReceiving ABSTRACT LIST (Receiving);
+startReceiving 'Взять в работу' (Receiving receiving) {
     NEWSESSION {
         createdUser(receiving) <- currentUser();
-        status(receiving) <- ReceivingStatus.inWork;
+        status(receiving) <- ReceivingStatus.inProgress;
         inBin(receiving) <- receivingBin(currentUser());
+        overStartReceiving(receiving);
         APPLY;
     }
 }
 
-overCompleteWork ABSTRACT LIST (Receiving);
-completeWork 'Завершить приёмку' (Receiving receiving) {
+overCompleteReceiving ABSTRACT LIST (Receiving);
+completeReceiving 'Завершить приёмку' (Receiving receiving) {
     NEWSESSION {
         ASK 'Вы уверены, что хотите завершить приёмку всего документа?' DO {
             IF (GROUP SUM 1 IF receiving(ReceivingDetail d)==receiving AND NOT inBin(d)) THEN {
                 MESSAGE 'Нельзя завершить работу со строками приемки у которых не заполнены ячейки';
                 CANCEL;
             }
-            status(receiving) <- ReceivingStatus.completed;
-            overCompleteWork(receiving);
+            IF (GROUP SUM 1 IF expectedQuantity(Sku sku, STRING key, receiving) == receivingQuantity(sku, key, receiving)) THEN {
+                status(receiving) <- ReceivingStatus.fullyReceived;
+            } ELSE {
+                status(receiving) <- ReceivingStatus.partiallyReceived;
+            }
+            overCompleteReceiving(receiving);
             APPLY;            
         }
     }
 }
 
-overCompleteWork ABSTRACT LIST (Sku, STRING, Receiving);
-completeWork 'Завершить приемку товара' (Sku s, STRING consolidationKey, Receiving r) {
+overCompleteReceiving ABSTRACT LIST (Sku, STRING, Receiving);
+completeReceiving 'Завершить приемку товара' (Sku sku, STRING consolidationKey, Receiving receiving) {
     NEWSESSION {
-        IF (GROUP SUM 1 IF sku(ReceivingDetail d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT inBin(d)) THEN {
+        IF (GROUP SUM 1 IF sku(ReceivingDetail d)==sku AND overConsolidationKey(d)==consolidationKey AND receiving(d)==receiving AND NOT inBin(d)) THEN {
             MESSAGE 'Нельзя завершить работу со строками приемки у которых не заполнены ячейки';
             CANCEL;
         }
-        status(ReceivingDetail d) <- ReceivingStatus.completed WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
-        overCompleteWork(s, consolidationKey, r);
+        //Строкам приёмки проставляем статус принят, т.к. достаточно зафиксировать, что работа со строкой завершена
+        dataStatus(ReceivingDetail d) <- ReceivingStatus.fullyReceived WHERE sku(d)==sku AND overConsolidationKey(d)==consolidationKey AND receiving(d)==receiving;
+        overCompleteReceiving(sku, consolidationKey, receiving);
         APPLY;
     }
 }
@@ -473,8 +486,8 @@ FORM receiving 'Приемка'
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
                                                     date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
-    PROPERTIES(r) PANEL TOOLBAR takeToWork SHOWIF status(r)==ReceivingStatus.new, createDetails SHOWIF status(r)==ReceivingStatus.inWork,
-                                completeWork SHOWIF status(r)==ReceivingStatus.inWork
+    PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, createDetails SHOWIF status(r)==ReceivingStatus.inProgress,
+                                completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
     FILTERS stock(receivingBin(u)) == customerStock(r),
             isOpened(r),
             isPosted(r)
@@ -483,14 +496,14 @@ FORM receiving 'Приемка'
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku,
         overConsolidationKey ON CHANGE changeConsolidationKey(d), createdDateTime, nameCreatedUser
-    PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(d)==ReceivingStatus.inWork,
-                  nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(d)==ReceivingStatus.inWork
-    PROPERTIES addReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
-    PROPERTIES(d) NEWSESSION DELETE SHOWIF status(r)==ReceivingStatus.inWork
-    PROPERTIES(d) copy PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inWork
+    PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d) READONLYIF NOT status(d)==ReceivingStatus.inProgress,
+                  nameInBin BACKGROUND RGB(255, 224, 255) ON CHANGE changeDataInBin(d, u) READONLYIF NOT status(d)==ReceivingStatus.inProgress
+    PROPERTIES addReceivingDetail(r) DRAW d PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inProgress
+    PROPERTIES(d) NEWSESSION DELETE SHOWIF status(r)==ReceivingStatus.inProgress
+    PROPERTIES(d) copy PANEL TOOLBAR SHOWIF status(r)==ReceivingStatus.inProgress
     FILTERS receiving(d)==r
     FILTERGROUP inWork
-        FILTER 'В работе' status(d)==ReceivingStatus.inWork
+        FILTER 'В работе' status(d)==ReceivingStatus.inProgress
 
     OBJECTS sr=Sku
     PROPERTIES(sr) READONLY idBarcode, name, shortNameUOM
@@ -530,7 +543,7 @@ FORM receiving 'Приемка'
     PROPERTIES(str1) READONLY overConsolidationKey 'Ключ группировки' = VALUE
     PROPERTIES(sr1, str1, r) READONLY expectedQuantity BACKGROUND RGB(212,255,212), receivingQuantity BACKGROUND RGB(255, 224, 255),
         quantityCompleted BACKGROUND RGB(255, 224, 255)
-    PROPERTIES completeWork(sr1, str1, r) PANEL TOOLBAR SHOWIF receivingQuantity(sr1, str1, r) AND NOT quantityCompleted(sr1, str1, r)==receivingQuantity(sr1, str1, r)
+    PROPERTIES completeReceiving(sr1, str1, r) PANEL TOOLBAR SHOWIF receivingQuantity(sr1, str1, r) AND NOT quantityCompleted(sr1, str1, r)==receivingQuantity(sr1, str1, r)
     ORDERS name(sr1), overConsolidationKey
     FILTERS expectedQuantity(sr1, str1, r) OR receivingQuantity(sr1, str1, r)
     FILTERGROUP filter
@@ -803,7 +816,7 @@ END
 
 @implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBin);
 
-needToCreateReceivingBinLedger(ReceivingDetail detail) += TRUE IF inBin(detail) AND status(detail) == ReceivingStatus.completed;
+needToCreateReceivingBinLedger(ReceivingDetail detail) += TRUE IF inBin(detail) AND completeStatus(detail);
 
-CONSTRAINT DROPPED(ReceivingDetail d IS ReceivingDetail) AND (PREV(status(d)) = ReceivingStatus.completed OR PREV(status(receiving(d))) = ReceivingStatus.completed) 
+CONSTRAINT DROPPED(ReceivingDetail d IS ReceivingDetail) AND PREV(completeStatus(d)) 
     MESSAGE 'Запрещено удалять строки у завершённой приёмки';
