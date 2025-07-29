@@ -150,6 +150,12 @@ overCreateReturn(ReceiptReturnDetail d) + {
             DELETE d;
         }
     }
+    IF lot(receiptSaleDetail(d)) THEN {
+        lot(d) <- lot(receiptSaleDetail(d));
+        returnLot() <- NULL;
+    } ELSE {
+        lot(d) <- returnLot();
+    }
     IF (explicitLot(sku(d)) OR overExplicitLot(sku(d), departmentStore(d))) AND NOT (skipCheckPosLot() OR overSkipCheckPosLot(receipt(d)) OR overSkipCheckSkuPosLot(sku(d))) AND NOT lot(d) THEN {
         DIALOG gialogLot NOMANAGESESSION DO {
             IF skuFromGtin(idToGtin(lot())) = sku(d)  AND NOT lot(barcodeToId(lot())) AND NOT skipCreateLotOnChangeBarcode() THEN NEW l = Lot {

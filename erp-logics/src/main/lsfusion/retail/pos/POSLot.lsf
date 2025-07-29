@@ -89,33 +89,59 @@ overChangeBarcodeSale(STRING[200] b, Receipt r) + {
     }
 }
 
-overChangeBarcodeReturn(STRING[200] b, Receipt r) + {
+returnLot = DATA LOCAL Lot();
+
+overChangeBarcodeReturn(STRING[200] b, Receipt receipt) + {
+    returnLot() <- NULL;
     IF length(b) >= OVERRIDE lotMinLength(), 20 THEN
         FOR Lot l = lot(barcodeToId(b)) AND Sku s = sku(l) DO {
             barcodeConsumed() <- TRUE;
+            returnLot() <- l;
             IF currentBalance(l) > 0 THEN {
                 MESSAGE 'Контрольная марка присутствует на остатках. Ее возврат невозможен.';
             } ELSE {
                 IF lastReceiptSaleDetail(l) THEN {
-                    createReturn(r, lastReceiptSaleDetail(l), barcodeInput());
+                    createReturn(receipt, lastReceiptSaleDetail(l), barcodeInput());
                 } ELSE {
-                    NEW d = ReceiptReturnDetail {
-                        receipt(d) <- r;
-                        idBarcode(d) <- idBarcode(s);
-                        sku(d) <- s;
-                        quantity(d) <- 1.0;
-                        price(d) <- price(l, r);
-                        VAT(d) <- VAT(s, departmentStore(r));
-                        lot(d) <- l;
-                        IF explicitBatchLedger(r) THEN {
-                            IF batch(l) THEN {
-                                batch(d) <- batch(l);
-                                price(d) <- currentPOSPrice[Batch, Receipt](batch(l), r);
+                    barcodeConsumed() <- NULL;
+                    IF NOT barcodeConsumed() THEN {
+                        LOCAL created = BOOLEAN();
+                        created() <- NULL;
+                        DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = s, r INPUT DO {
+                            IF r IS ReceiptSaleDetail THEN {
+                                createReturn(receipt, r, barcodeInput());
+                                created() <- TRUE;
+                                barcodeConsumed() <- TRUE;
                             }
-                            //                        ELSE
-                            //                            setSaleDetailBatch(d, r);
                         }
-                        focusQuantity(d);
+                        IF NOT created() THEN {
+                            IF NOT forbidNullSaleDetail() THEN {
+                                NEW d = ReceiptReturnDetail {
+                                    receipt(d) <- receipt;
+                                    idBarcode(d) <- idBarcode(s);
+                                    sku(d) <- s;
+                                    quantity(d) <- 1.0;
+                                    price(d) <- price(l, receipt);
+                                    VAT(d) <- VAT(s, departmentStore(receipt));
+                                    lot(d) <- l;
+                                    focusQuantity(d);
+                                    IF explicitBatchLedger(receipt) THEN {
+                                        IF batch(l) THEN {
+                                            batch(d) <- batch(l);
+                                            price(d) <- currentPOSPrice[Batch, Receipt](batch(l), receipt);
+                                            created() <- TRUE;
+                                            barcodeConsumed() <- TRUE;
+                                        }
+                                        //                        ELSE
+                                        //                            setSaleDetailBatch(d, r);
+                                        IF NOT created() THEN
+                                            DELETE d;
+                                    }
+                                }
+                            } ELSE {
+                                MESSAGE 'Выберите чек для возврата';
+                            }
+                        }
                     }
                 }
             }
