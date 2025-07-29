@@ -1,6 +1,6 @@
 MODULE ItemSecond;
 
-REQUIRE ItemPart, LotSecond;
+REQUIRE ItemPart, LotSecond, ItemDefault;
 
 NAMESPACE Item;
 
@@ -9,6 +9,15 @@ EXTEND FORM item PROPERTIES(i) scrap;
 
 isMix(Item i) = isParent(itemGroup('mixMain'), i) MATERIALIZED;
 isSecond(Item i) = lotType(i) == LotType.second MATERIALIZED;
+isUsual(Item i) = i IS Item AND NOT isSecond(i) AND NOT isMix(i);
+
+overLoadDefaultItemGroups() + {    
+    NEW g = ItemGroup {
+        name(g) <- 'Миксы';
+        id(g) <- 'mixMain';
+        parent(g) <- itemGroup('all');
+    }
+}
 
 itemName = GROUP MIN Item it BY caption(it);
 
