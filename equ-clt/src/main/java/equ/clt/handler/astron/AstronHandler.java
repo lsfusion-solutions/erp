@@ -2284,6 +2284,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         astronLogger.info("export discount сards to " + directory);
                         String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
+                        connectionSemaphore.add(params.connectionString);
+
                         Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                         Map<String, Integer> outputUpdateNums = new HashMap<>();
@@ -2337,6 +2339,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     } catch (Exception e) {
                         astronLogger.error("sendDiscountCardList error", e);
                         exception = e;
+                    } finally {
+                        connectionSemaphore.remove(params.connectionString);
                     }
                 }
             }
