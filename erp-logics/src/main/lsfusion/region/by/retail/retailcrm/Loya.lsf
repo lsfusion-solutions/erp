@@ -441,6 +441,7 @@ lastLoyaMinTransaction(Sku s, Stock st) =
 calcMinPrice(LoyaMinPriceTransaction t) = IF forbid(t) THEN price(t) ELSE min(price(t), minPrice(t));
 lastLoyaMinPrice(Sku s, Stock st) = calcMinPrice(lastLoyaMinTransaction(s, st));
 
+beforeSynchronizeItem ABSTRACT LIST (Item);
 
 updateItemsLoyaGropByItem 'Загрузить цены в LOYA'() {
     NEWSESSION {
@@ -466,6 +467,7 @@ updateItemsLoyaGropByItem 'Загрузить цены в LOYA'() {
 
             loyaMinPrice(s, Stock d)  <- calcMinPrice(lastTransaction(s, d)) IF lastTransaction(s, d);
             enabledLoya(Stock d ) <- TRUE IF (GROUP  SUM 1 IF loyaMinPrice(s, d));
+            beforeSynchronizeItem(s);
             synchronizeItem(s);
 
             IF synchronizeItemResult() THEN {
