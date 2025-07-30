@@ -38,10 +38,35 @@ skipCreateUserInvoiceDetail = ABSTRACT BOOLEAN (UpdDocumentDetail);
 overCreateInvoice ABSTRACT (UserInvoice, UpdDocument);
 overCreateInvoice ABSTRACT (UserInvoiceDetail, UpdDocumentDetail);
 
+skuLocal = DATA LOCAL NESTED Sku(UpdDocumentDetail);
+overSkuUpd = ABSTRACT Sku(UpdDocumentDetail);
+
+fillSkuLocal(UpdDocument u) {
+    skuLocal(UpdDocumentDetail ed) <- NULL;
+    skuLocal(UpdDocumentDetail ed) <- OVERRIDE overSkuUpd(ed), skuBarcode(trim(idSku(ed))) WHERE updDocument(ed) == u;
+}
+
+fillDetail(UserInvoiceDetail id, UpdDocumentDetail ed) {
+    updDocumentDetail(id) <- ed;
+    sku(id) <- skuLocal(ed);
+    valueVAT(id) <- NUMERIC[10,5](replace(nameVATStatus(ed), '%',''));
+    quantity(id) <- NUMERIC[16,5](quantity(ed));
+    price(id) <- NUMERIC[16,4](price(ed));
+    invoiceSum(id) <- NUMERIC[18,4](invoiceSum(ed));
+    VATSum(id) <- NUMERIC[18,4](VATSum(ed));
+    invoicePrice(id) <- round4(invoiceSum(ed)/quantity(ed));
+    FOR updDocumentDetail(UpdLotDetail ud) == ed AND NOT lot(id(ud)) NEW l = Lot DO {
+        id(l) <- STRING[200](id(ud));
+        sku(l) <- skuLocal(ed);
+    }
+    FOR updDocumentDetail(UpdLotDetail ud) == ed DO {
+        quantity(id, lot(id(ud))) <- 1;
+    }
+}
+
 createInvoice 'Создать приходную накладную'(UpdDocument d){
     operation () <- NULL;
     stockCustomer () <- NULL;
-    
     
     IF NOT invoice(d) THEN NEWSESSION {
         DIALOG dialogPurchase DO{
@@ -53,25 +78,12 @@ createInvoice 'Создать приходную накладную'(UpdDocument
                 operation(invoice) <- operation();
                 supplierStock(invoice) <- [GROUP LAST Stock s ORDER s BY legalEntity(s)] (supplier(invoice));
                 customerStock(invoice) <- stockCustomer();
+                fillSkuLocal(d);
                 overCreateInvoice(invoice, d);
                 FOR updDocument(UpdDocumentDetail ed) == d AND NOT skipCreateUserInvoiceDetail(ed) NEW id = UserInvoiceDetail  DO {
-                    updDocumentDetail(id) <- ed;
                     userInvoice(id) <- invoice;
-                    sku(id) <- skuBarcode(idSku(ed));
-                    valueVAT(id) <- NUMERIC[10,5](replace(nameVATStatus(ed), '%',''));
-                    quantity(id) <- quantity(ed);
-                    price(id) <- price(ed);
-                    invoiceSum(id) <- invoiceSum(ed);
-                    VATSum(id) <- VATSum(ed);
-                    invoicePrice(id) <- round4(invoiceSum(ed)/quantity(ed));
-                    FOR updDocumentDetail(UpdLotDetail ud) == ed AND NOT lot(id(ud))  NEW l = Lot DO {
-                        id(l) <- id(ud);
-                        sku(l) <- skuBarcode(idSku(ed));
-                    }
-                    FOR updDocumentDetail(UpdLotDetail ud) == ed AND l = lot(id(ud))  DO {
-                        quantity(id, l) <- 1;
-                    }
-                overCreateInvoice(id, ed);                    
+                    fillDetail(id, ed);
+                    overCreateInvoice(id, ed);                    
                 }
 //            APPLY;
             SHOW userInvoice OBJECTS i = invoice;
@@ -88,8 +100,8 @@ EXTEND FORM updDocuments
     PROPERTIES(u) createInvoice SHOWIF showCreateInvoice(u)
 ;
 
-DESIGN updDocuments{
-    actionContainer{
+DESIGN updDocuments {
+    actionContainer {
         MOVE PROPERTY (createInvoice(u));
     }
 }
@@ -105,24 +117,11 @@ FORM dialogUpd 'УПД'
 importUpd 'Импорт из УПД' (UserInvoice i) {
     DIALOG dialogUpd OBJECTS i = i, u INPUT DO {
         updDocument(i) <- u;
+        fillSkuLocal(u);
         overCreateInvoice(i, u);
         FOR updDocument(UpdDocumentDetail ed) == u AND NOT skipCreateUserInvoiceDetail(ed) NEW id = UserInvoiceDetail DO {
-            updDocumentDetail(id) <- ed;
             userInvoice(id) <- i;
-            sku(id) <- skuBarcode(trim(idSku(ed)));
-            valueVAT(id) <- NUMERIC[10,5](replace(nameVATStatus(ed), '%', ''));
-            quantity(id) <- quantity(ed);
-            price(id) <- price(ed);
-            invoiceSum(id) <- invoiceSum(ed);
-            VATSum(id) <- VATSum(ed);
-            invoicePrice(id) <- round4(invoiceSum(ed)/quantity(ed));
-            FOR updDocumentDetail(UpdLotDetail ud) == ed AND NOT lot(id(ud)) NEW l = Lot DO {
-                id(l) <- id(ud);
-                sku(l) <- skuBarcode(idSku(ed));
-            }
-            FOR updDocumentDetail(UpdLotDetail ud) == ed AND l = lot(id(ud)) DO {
-                quantity(id, l) <- 1;
-            }
+            fillDetail(id, ed);
             overCreateInvoice(id, ed);
         }
     }
