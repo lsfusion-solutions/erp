@@ -80,7 +80,7 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
 
             } else {
                 findProperty("synchronizeItemResult[]").change(settings.error, context);
-                context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+                showError(context, settings.error);
             }
         } catch (Exception e) {
             ERPLoggers.importLogger.error(failCaption, e);
@@ -88,7 +88,8 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
                 findProperty("synchronizeItemResult[]").change(String.valueOf(e), context);
             } catch (ScriptingErrorLog.SemanticErrorException e1) {
                 throw Throwables.propagate(e1);
-            } context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            }
+            showError(context, e.getMessage());
         }
     }
 
@@ -99,6 +100,7 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
         QueryBuilder<String, Object> query = new QueryBuilder<>(keys);
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
         query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), itemObject.getExpr(), departmentStoreExpr));
+        query.addProperty("sendToLoya", findProperty("sendToLoya[Item, DepartmentStore]").getExpr(context.getModifier(), itemObject.getExpr(), departmentStoreExpr));
         query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), itemObject.getExpr(), departmentStoreExpr).getWhere());
@@ -107,8 +109,13 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
             ImMap<Object, ObjectValue> valueEntry = queryResult.getValue(i);
             Integer idLoyaDepartmentStore = (Integer) valueEntry.get("idLoyaDepartmentStore").getValue();
             BigDecimal minPrice = (BigDecimal) valueEntry.get("loyaMinPrice").getValue();
-            result.add(new MinPriceLimit(idLoyaDepartmentStore, minPrice));
+            boolean sendToLoya = valueEntry.get("sendToLoya").getValue() != null;
+            result.add(new MinPriceLimit(sendToLoya, idLoyaDepartmentStore, minPrice));
         }
         return result;
+    }
+
+    private void showError(ExecutionContext context, String error) {
+        context.delayUserInteraction(new MessageClientAction(error, failCaption));
     }
 }

@@ -269,6 +269,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         query.addProperty("idSku", findProperty("id[Sku]").getExpr(skuExpr));
         query.addProperty("idLoyaDepartmentStore", findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr));
         query.addProperty("loyaMinPrice", findProperty("loyaMinPrice[Item, DepartmentStore]").getExpr(context.getModifier(), skuExpr, departmentStoreExpr));
+        query.addProperty("sendToLoya", findProperty("sendToLoya[Item, DepartmentStore]").getExpr(context.getModifier(), skuExpr, departmentStoreExpr));
         query.and(findProperty("id[Sku]").getExpr(skuExpr).getWhere());
         query.and(findProperty("inLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
         query.and(findProperty("idLoya[DepartmentStore]").getExpr(departmentStoreExpr).getWhere());
@@ -281,12 +282,13 @@ public class SynchronizeLoyaAction extends LoyaAction {
             String idSku = trim((String) valueEntry.get("idSku").getValue());
             Integer idLoyaDepartmentStore = (Integer) valueEntry.get("idLoyaDepartmentStore").getValue();
             BigDecimal minPrice = (BigDecimal) valueEntry.get("loyaMinPrice").getValue();
+            boolean sendToLoya = valueEntry.get("sendToLoya").getValue() != null;
 
             List<MinPriceLimit> minPriceLimits = result.get(idSku);
             if(minPriceLimits == null) {
                 minPriceLimits = new ArrayList<>();
             }
-            minPriceLimits.add(new MinPriceLimit(idLoyaDepartmentStore, minPrice));
+            minPriceLimits.add(new MinPriceLimit(sendToLoya, idLoyaDepartmentStore, minPrice));
 
             result.put(idSku, minPriceLimits);
         }
@@ -591,6 +593,10 @@ public class SynchronizeLoyaAction extends LoyaAction {
                 JSONObject limits = new JSONObject();
                 limits.put("maxDiscount", minPriceLimit.minPrice);
                 limits.put("maxDiscountType", "fixprice");
+                if (minPriceLimit.sendToLoya) {
+                    limits.put("maxAwardBonusType", "count");
+                    limits.put("maxAwardBonus", 0);
+                }
                 limitByLocation.put("limits", limits);
                 limitByLocationsArray.put(limitByLocation);
             }
@@ -840,11 +846,13 @@ public class SynchronizeLoyaAction extends LoyaAction {
         }
     }
 
-    protected class MinPriceLimit {
+    protected static class MinPriceLimit {
+        boolean sendToLoya;
         Integer idDepartmentStore;
         BigDecimal minPrice;
 
-        public MinPriceLimit(Integer idDepartmentStore, BigDecimal minPrice) {
+        public MinPriceLimit(boolean sendToLoya, Integer idDepartmentStore, BigDecimal minPrice) {
+            this.sendToLoya = sendToLoya;
             this.idDepartmentStore = idDepartmentStore;
             this.minPrice = minPrice;
         }
