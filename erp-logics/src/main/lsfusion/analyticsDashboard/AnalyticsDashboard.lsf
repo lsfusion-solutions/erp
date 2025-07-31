@@ -16,10 +16,14 @@ tile 'Плитка' = DATA Tile (Dashboard, INTEGER);
 nameTile 'Плитка' (Dashboard d, INTEGER i) = name(tile(d, i));
 countTiles 'Количество плиток' (Dashboard d) = GROUP SUM 1 IF tile(d, INTEGER i) AND spanArea(canvas(d), i);
 
+hideIf = ABSTRACT BOOLEAN (Dashboard);
+showIf(Dashboard dashboard) = dashboard IS Dashboard AND NOT hideIf(dashboard);
+
 FORM dashboards 'Дашборды'
     OBJECTS d = Dashboard
     PROPERTIES(d) READONLY name, nameCanvas, countTiles
-    PROPERTIES(d) NEWSESSION NEWEDIT, DELETE
+    PROPERTIES NEWSESSION newDashboard=NEW(d)
+    PROPERTIES SHOWIF showIf(d) NEWSESSION EDIT(d), DELETE(d)
 ;
 
 // json для дашборда

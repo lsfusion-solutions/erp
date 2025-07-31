@@ -8,11 +8,18 @@ TABLE dashboardCustomUser (Dashboard, CustomUser);
 
 isOpen 'Открыт' = DATA LOCAL NESTED BOOLEAN (Dashboard, Connection);
 
-desktop 'Десктоп' = DATA BOOLEAN (Dashboard, CustomUser);
-mobile 'Мобильный' = DATA BOOLEAN (Dashboard, CustomUser);
+desktop 'Десктоп(автооткрытие)' = DATA BOOLEAN (Dashboard, CustomUser);
+mobile 'Мобильный(автооткрытие)' = DATA BOOLEAN (Dashboard, CustomUser);
 needOpen 'Необходимо открывать' (Dashboard d, CustomUser u) = desktop(d, u) AND NOT isMobile() OR mobile(d, u) AND isMobile();
-
 denyClose 'Запретить закрытие' = DATA BOOLEAN (Dashboard, CustomUser);
+
+limitAccess 'Ограничить доступ' = DATA BOOLEAN (Dashboard) COMPLEX;
+dataAccess 'Доступ разрешен' = DATA BOOLEAN (Dashboard, CustomUser);
+access 'Доступ разрешен' (Dashboard dashboard, CustomUser customUser) = 
+    OVERRIDE dataAccess(dashboard, customUser),
+             customUser IS CustomUser AND dashboard IS Dashboard AND NOT limitAccess(dashboard) MATERIALIZED;
+
+hideIf(Dashboard dashboard) += NOT access(dashboard, currentUser());
 
 // Если установлен хотябы у одного дашборда, то развернется на весь экран
 maximizeForm 'Развернуть при открытии' = DATA BOOLEAN (Dashboard, CustomUser);
@@ -20,8 +27,10 @@ maximizeForm (CustomUser u) = GROUP MAX maximizeForm(Dashboard d, u) AND needOpe
 
 EXTEND FORM dashboard
     OBJECTS u = CustomUser
-    PROPERTIES (u) READONLY login, name
-    PROPERTIES (d, u) desktop, mobile, denyClose, maximizeForm
+    PROPERTIES limitAccess(d) PANEL 
+    PROPERTIES(u) READONLY login, name
+    PROPERTIES(d, u) access READONLYIF NOT limitAccess(d)
+    PROPERTIES(d, u) desktop, mobile, denyClose, maximizeForm
 
     FILTERGROUP checked
         FILTER 'Отмеченные' desktop(d, u) OR mobile(d, u)
@@ -35,6 +44,7 @@ DESIGN dashboard {
         NEW usersPane {
             caption = 'Пользователи';
             fill = 1;
+            MOVE PROPERTY(limitAccess(d));
             MOVE BOX(u);
         }
     }
@@ -102,10 +112,10 @@ DESIGN uncloseableDashboard {
 
 
 showDashboards (CustomUser u) {
-    FOR needOpen(Dashboard d, u AS CustomUser) AND NOT denyClose(d, u) AND NOT isOpen(d, currentConnection()) NOINLINE DO {
+    FOR needOpen(Dashboard d, u AS CustomUser) AND NOT denyClose(d, u) AND NOT isOpen(d, currentConnection()) AND access(d, u) NOINLINE DO {
         SHOW closeableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;
     }
-    FOR needOpen(Dashboard d, u AS CustomUser) AND denyClose(d, u) AND NOT isOpen(d, currentConnection()) NOINLINE DO {
+    FOR needOpen(Dashboard d, u AS CustomUser) AND denyClose(d, u) AND NOT isOpen(d, currentConnection()) AND access(d, u) NOINLINE DO {
         SHOW uncloseableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;
     }
 
@@ -117,7 +127,32 @@ showDashboards 'Открыть дашборды' () {
     showDashboards(currentUser() AS CustomUser);
 } TOOLBAR;
 
-EXTEND FORM dashboards PROPERTIES showDashboards();
+showCloseableDashboard 'Открыть' (Dashboard d) {
+    IF access(d, currentUser()) THEN {
+        SHOW closeableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;        
+    } ELSE {
+        MESSAGE 'У текущего пользователя нет прав на открытие данного дашборда' NOWAIT;
+    }
+}
+
+showUncloseableDashboard 'Открыть' (Dashboard d) {
+    IF access(d, currentUser()) THEN {
+        SHOW uncloseableDashboard OBJECTS d = d DOCKED NOWAIT NOMANAGESESSION READONLY;
+    } ELSE {
+        MESSAGE 'У текущего пользователя нет прав на открытие данного дашборда' NOWAIT;
+    }    
+}
+
+EXTEND FORM dashboards 
+    PROPERTIES showCloseableDashboard(d) SHOWIF showIf(d)
+    PROPERTIES showDashboards()
+;
+
+DESIGN dashboards {
+    TOOLBAR(d) {
+        MOVE PROPERTY(showCloseableDashboard(d)) BEFORE PROPERTY(newDashboard);
+    }
+}
 
 onWebClientStarted() + {
     showDashboards();
