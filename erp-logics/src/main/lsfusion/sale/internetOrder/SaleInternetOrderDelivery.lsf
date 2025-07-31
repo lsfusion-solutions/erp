@@ -312,6 +312,8 @@ filterInternetOrderDateFrom (InternetOrderDetail detail) = date(detail) >= filte
 filterInternetOrderDateTo 'Дата по' = DATA LOCAL DATE ();
 filterInternetOrderDateTo (InternetOrderDetail detail) = date(detail) <= filterInternetOrderDateTo() OR (detail IS InternetOrderDetail AND NOT filterInternetOrderDateTo());    
 
+skipDeliveryReport = ABSTRACT CASE BOOLEAN (InternetOrderDetail);
+
 FORM internetOrderLedger 'Регистр интернет заказов'
     PROPERTIES filterInternetOrderDateFrom(), filterInternetOrderDateTo()
     OBJECTS d = InternetOrderDetail
@@ -322,7 +324,7 @@ FORM internetOrderLedger 'Регистр интернет заказов'
                              deliveryTimeToInternetOrder //bulky, guarantee, 
                              
     ORDERS seriesNumber(d) 
-    FILTERS deliveryReport(d),
+    FILTERS deliveryReport(d) OR skipDeliveryReport(d),
             filterInternetOrderDateFrom(d),
             filterInternetOrderDateTo(d)
 ;
