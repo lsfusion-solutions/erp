@@ -453,7 +453,12 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             //основной штрихкод
             inventObject.put("deptcode", nvl(deptCode, 1)); //код отдела
             inventObject.put("price", item.price); //цена
-            inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
+            Double minPrice = infoJSON != null && infoJSON.has("minprice") ? infoJSON.getDouble("minprice") : null;
+            if (minPrice != null) {
+                inventObject.put("minprice", minPrice);
+            } else {
+                inventObject.put("minprice", noMinPrice ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO); //минимальная цена
+            }
             //inventObject.put("isInvent", true);
             inventObject.put("isInventItem", true); //признак это товар (1) или группа (0)
             inventObject.put("articul", idItem); //артикул
