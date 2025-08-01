@@ -167,6 +167,14 @@ importLegalEntities 'Импорт организаций' () {
         order(g) <- id(i);
     }
     
+    IF NOT warehouseGroup('external') THEN NEW w = WarehouseGroup {
+        id(w) <- 'external';
+        name(w) <- 'Склады контрагентов';
+    }
+    IF NOT warehouseGroup('company') THEN NEW w = WarehouseGroup {
+        id(w) <- 'company';
+        name(w) <- 'Склады собственные';
+    }
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_firm, SUBSTR(name_firm, 1, 100), cod_group, address, address, phone, fax, "e-mail", director, comment, intext, bank_addr, bank_acct, bank_acctk, MFO, SUBSTR(primech, 1, 100) FROM Pub.firms WITH (NOLOCK)' TO file;
     
@@ -216,6 +224,7 @@ importLegalEntities 'Импорт организаций' () {
         name(s) <- name(i);
         fullName(s) <- STRING[200](OVERRIDE getWord(comment(i), ';', 1) IF trim(getWord(comment(i), ';', 1)) != '', name(i));
         isCompany(s) <- intext(i) == 'B';
+        accountInvoicePrice(s) <- intext(i) == 'B';
         isSupplier(s) <- idGroup(i) == 1 OR intext(i) == 'B';
         isCustomer(s) <- idGroup(i) == 2 OR intext(i) == 'B';
         legalEntityGroup(s) <- OVERRIDE legalEntityGroup(TEXT (idGroup(i))), legalEntityGroup('2');
@@ -237,7 +246,7 @@ importLegalEntities 'Импорт организаций' () {
     IMPORT TABLE FROM file() TO id, idGroup;
 
     FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
-        isSupplier(s) <- idGroup(i) == 1;
+        isSupplier(s) <- idGroup(i) != 1;
         isCustomer(s) <- idGroup(i) == 2;
     }
     APPLY;

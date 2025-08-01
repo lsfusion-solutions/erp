@@ -92,3 +92,65 @@ CONSTRAINT isContract(operation(PriceList p)) AND NOT contractSku(p) AND NOT ski
 copyAbstractData(UserPriceList priceList, UserPriceList userPriceList) + {  
     contractSku(userPriceList) <- contractSku(priceList); 
 }
+
+showPriceList 'Отображать Прайсы в договорах' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES showPriceList()
+;
+
+DESIGN options {
+    contract {
+        MOVE PROPERTY(showPriceList());
+    }
+}
+
+newPriceList 'Добавить' (UserContractSku c){
+    IF NOT dateFrom(c) THEN {
+        MESSAGE 'В договоре не заполнена дата с, проверьте.';
+        RETURN ;
+    }
+    NEW p = UserPriceList {
+        date(p) <- currentDate();
+        fromDate(p) <- dateFrom(c);
+        toDate(p) <- dateTo(c);
+        company(p) <- partyA(c);
+        companyStock(p) <- defaultStock(partyA(c));
+
+        contractSku(p) <- c;
+        operation(p) <- PriceList.operation('supplier');
+        skipSetStocks(p) <- TRUE;
+        dataIn(p, StockGroup sg) <- inCustomer(sg, c);
+        dataIn(p, Stock ds) <- inCustomer(ds, c);
+        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED;
+    }
+}
+
+EXTEND FORM userContractSku
+    OBJECTS p = PriceList
+    PROPERTIES (p) READONLY SHOWIF showPriceList() isPosted , number, series, date, time,
+        fromDate, fromTime, toDate, toTime,
+        nameCurrency, nameCompany, nameCompanyStock,
+        note, guser = createdNameUser
+    PROPERTIES (p) SHOWIF showPriceList() TOOLBAR NEWSESSION EDIT, DELETE, copy
+    PROPERTIES SHOWIF showPriceList() newPriceList(c) TOOLBAR
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(p) 'F11'
+        FILTER 'Активные' NOT toDateTime(p) < currentDateTime() 'F10' DEFAULT
+
+;
+
+DESIGN userContractSku {
+    tabContainer {
+        NEW priceList{
+            caption = 'Прайсы';
+            fill = 1;
+            horizontal = TRUE;
+            MOVE BOX(p);
+            TOOLBAR(p){
+                MOVE PROPERTY (newPriceList(c)) FIRST;
+                MOVE PROPERTY (copy(p));
+            }
+        }
+    }
+}
