@@ -1,7 +1,7 @@
 MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
-        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder;
+        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff;
 
 NAMESPACE SaleReports;
 
@@ -954,6 +954,62 @@ EXTEND FORM salesReport
         printSaleReportSkuCompare, printSaleReportSkuStockCompare
 ;
 
+quantityWriteOff 'Списания кол-во' (Sku s, Stock st, DATE df, DATE dt) = 
+    GROUP SUM quantity(WriteOffDetail d) IF date(d) >= df AND date(d) <= dt AND sku(d) = s AND stock(d) = st 
+        AND inSessionSku(s);
+sumWriteOff 'Списания сумма по учетной цене' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (quantity(WriteOffDetail d)*priceSku(sku(d),stock(d))) IF date(d) >= df AND date(d) <= dt
+        AND sku(d) = s AND stock(d) = st AND inSessionSku(s);
+quantityReturn 'Возвраты поставщику кол-во' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleReturn.InvoiceDetail d) IF date(d) >= df AND date(d) <= dt AND inSessionSku(s)
+        AND sku(d) = s AND customerStock(d) = st;
+sumReturn 'Возвраты поставщику по учетной цене' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (quantity(SaleReturn.InvoiceDetail d)*priceSku(sku(d),customerStock(d))) IF date(d) >= df AND date(d) <= dt
+        AND sku(d) = s AND customerStock(d) = st AND inSessionSku(s);
+quantitySale 'Количество' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM quantity(SaleLedger l) IF date(l) >= df AND date(l) <= dt AND stock(l) = st
+        AND sku(l) = s AND filterSaleLeger(l) AND inSessionSku(sku(l));
+sumSale 'Выручка' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (quantity(SaleLedger d)*priceSku(sku(d),stock(d))) IF date(d) >= df AND date(d) <= dt
+        AND inSessionSku(s) AND filterSaleLeger(d) AND sku(d) = s AND stock(d) = st;
+sumOptSale 'Выручка' (Sku s, Stock st, DATE df, DATE dt) =
+    GROUP SUM (quantity(SaleLedger d)*price(d)) IF date(d) >= df AND date(d) <= dt
+        AND inSessionSku(s) AND filterSaleLeger(d) AND sku(d) = s AND stock(d) = st;
+marginProfit 'Маржинальная прибыль' (Sku s, Stock st, DATE df, DATE dt) = 
+    sumOptSale(s,st,df,dt) - sumSale(s,st,df,dt);
+marginProfitWriteOff 'Маржинальная прибыль за минусом списаний и возвратов' (Sku s, Stock st, DATE df, DATE dt) =
+    marginProfit(s,st,df,dt) - sumWriteOff(s,st,df,dt) - sumReturn(s,st,df,dt);
+valueWriteOff '% списаний/возвратов от поставки' (Sku s, Stock st, DATE df, DATE dt) =
+    (quantityWriteOff(s,st,df,dt) + quantityReturn(s,st,df,dt))
+        /(quantityWriteOff(s,st,df,dt) + quantityReturn(s,st,df,dt) + quantitySale(s,st,df,dt))*100;
+
+FORM saleReportSkuStockWriteOff 'Продажи и списания-возвраты '
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks()
+
+    OBJECTS st = Stock
+    PROPERTIES(st) id, name
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS sk = Sku
+    PROPERTIES (sk) id, name, articleRu, nameSupplierSku, shortNameUOM
+    ORDERS name(sk)
+
+    PROPERTIES(sk,st,df,dt) quantityWriteOff, sumWriteOff, quantityReturn, sumReturn, quantitySale,
+        sumSale, sumOptSale, marginProfit, marginProfitWriteOff, valueWriteOff
+    FILTERS quantitySale(sk,st,df,dt)
+;
+
+printSaleReportSkuStockWriteOff 'Анализ продаж и списаний-возвратов' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
+    PRINT saleReportSkuStockWriteOff OBJECTS df = dateFrom, dt = dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+EXTEND FORM salesReport
+    PROPERTIES(df,dt) printSaleReportSkuStockWriteOff
+;
+
 DESIGN salesReport {
     salesContainer {
         NEW supplierSalesReportCompare {
@@ -963,6 +1019,12 @@ DESIGN salesReport {
             MOVE PROPERTY(printSaleReportGroupCompare(df,dt,dfc,dtc));
             MOVE PROPERTY(printSaleReportSkuCompare(df,dt,dfc,dtc));
             MOVE PROPERTY(printSaleReportSkuStockCompare(df,dt,dfc,dtc));
+        }
+        
+        NEW saleWriteOff {
+            caption = 'Анализ продаж и списаний -возвратов';
+            lines = 2;
+            MOVE PROPERTY(printSaleReportSkuStockWriteOff(df,dt));
         }
     }
 }
