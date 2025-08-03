@@ -211,7 +211,7 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND sumVATSold(sku, stock, date);      
             } 
-            IF isCost(snapshot) THEN {
+            IF isCost(snapshot) OR isSum(snapshot) THEN {
                 saleCostSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](costSumSold(sku, stock, date)) 
                     WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
                         AND date <= (dateTo AS DATE) AND costSumSold(sku, stock, date);                   
@@ -281,7 +281,7 @@ overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
                 saleVATSum(SkuGroup skuGroup, Stock stock, snapshot) <- NUMERIC[16,2](GROUP SUM saleVATSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku))
                     WHERE (GROUP SUM saleVATSum(Sku sku, stock, snapshot) IF isParent(skuGroup, sku));
             } 
-            IF isCost(snapshot) THEN {              
+            IF isCost(snapshot) OR isSum(snapshot) THEN {              
                 IF singleStock() THEN {
                     saleCostSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](costSumSold(sku, stock, dateFrom, dateTo)) 
                         WHERE stock = singleStock() AND include(snapshot, sku) AND costSumSold(sku, stock, dateFrom, dateTo);
