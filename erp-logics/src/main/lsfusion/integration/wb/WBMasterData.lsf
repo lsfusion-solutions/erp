@@ -133,6 +133,49 @@ FORM importItemSubGroup
     PROPERTIES(data) parentName, subjectID, parentID, subjectName
 ;
 
+dataGetItemSubGroupLimit = DATA INTEGER ();
+getItemSubGroupLimit 'Лимит для получения списка предметов' = OVERRIDE dataGetItemSubGroupLimit(), 1000;
+
+getItemSubGroup 'Получить список предметов родительской категории' (ItemGroup ig) {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
+
+       // CONCAT '?', '/content/v2/directory/tnved', ('subjectID='+id(sg))
+        // PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig) TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importItemSubGroup JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
+                id(sg) <- subjectId;
+                name(sg) <- subjectName(i);
+            }
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
+                itemGroup(sg) <- ig;
+            }
+            message() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получить список предметов для выбранной родительской категории</h3>' NOWAIT;
+            MESSAGE message() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
 getItemSubGroup 'Получить список предметов' () {
     NEWSESSION {
         setHttpHeadersIS();
@@ -143,7 +186,7 @@ getItemSubGroup 'Получить список предметов' () {
 
         logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
         TRY {
-            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders TO response;
+            EXTERNAL HTTP GET url(CategoryRequest.content) + CONCAT '?', '/content/v2/object/all', ('limit=' + getItemSubGroupLimit()) HEADERS httpHeaders TO response;
             fileToString(response());
             logToFile('WB', resultString());
             IMPORT importItemSubGroup JSON FROM response();
@@ -663,12 +706,19 @@ FORM masterData 'Справочники'
     PROPERTIES getItemGroup()
     OBJECTS ig = ItemGroup
     PROPERTIES(ig) READONLYIF isReadonly() id , name, isVisible
+    PROPERTIES(ig) getItemSubGroup GRID 
     ORDERS name(ig)
     PROPERTIES(ig) NEW, DELETE
 
+    OBJECTS sgig = ItemSubGroup
+    PROPERTIES(sgig) READONLYIF isReadonly() id, name
+    ORDERS name(sgig)
+    FILTERS itemGroup(sgig) == ig
+
     PROPERTIES getItemSubGroup()
     OBJECTS sg = ItemSubGroup
-    PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup, getTnved GRID
+    PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup
+    PROPERTIES(sg) getTnved GRID
     ORDERS name(sg)
     PROPERTIES(sg) NEW, DELETE
 
@@ -726,7 +776,8 @@ DESIGN masterData {
         NEW categoryItemGroup {
             caption = 'Родительские категории товаров';
             MOVE PROPERTY (getItemGroup());
-            MOVE BOX(ig);
+            MOVE BOX(ig) {fill = 3;};
+            MOVE BOX(sgig);
         }
         NEW categoryItemSubGroup {
             caption = 'Список предметов';
@@ -773,4 +824,14 @@ NAVIGATOR {
     WBNavigator {
         NEW masterData;
     }    
+}
+
+EXTEND FORM integrationData
+    PROPERTIES() getItemSubGroupLimit
+;
+
+DESIGN integrationData {
+    requestLimits {
+        MOVE PROPERTY (getItemSubGroupLimit());
+    }
 }
