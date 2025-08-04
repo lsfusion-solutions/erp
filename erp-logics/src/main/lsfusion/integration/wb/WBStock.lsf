@@ -55,7 +55,11 @@ longitude 'Долгота' = DATA NUMERIC (DistributionCenter);
 selected 'Выбран' = DATA BOOLEAN (DistributionCenter);
 isWB 'Склад WB' = DATA BOOLEAN (DistributionCenter);
 
-distributionCenter = DATA DistributionCenter (Warehouse) NONULL DELETE;
+distributionCenter = DATA DistributionCenter (Warehouse) NONULL;
+
+EXTEND CLASS DistributionCenter {
+    notSet 'Не задан'
+}
 
 CLASS CargoType 'Тип товара склада' {
     MGT 'малогабаритный', //1
@@ -212,6 +216,19 @@ getStockWB 'Получить список складов WB' () {
     }
 }
 
+CONSTRAINT DROPPED(DistributionCenter dc IS DistributionCenter) AND dc == PREV(distributionCenter(Warehouse w))
+    MESSAGE 'Нельзя удалить склад WB, если он связан с собственным складом.'
+;
+
+deleteStockWB 'Удалить склад WB' (DistributionCenter dc) {
+    NEWSESSION {
+        ASK 'Вы действительно хотите удалить выбранный склад WB?' DO {
+            DELETE dc WHERE isWB(dc);
+            APPLY;
+        }
+    }
+}
+
 officeId = DATA LOCAL NUMERIC();
 name = DATA LOCAL STRING();
 
@@ -337,6 +354,7 @@ deleteStock 'Удалить склад продавца (собственный)
                 isUpdated(w) <- NULL WHERE isDeletedWB(w);
                 id(w) <- NULL;
                 selected(DistributionCenter dc) <- NULL WHERE dc == distributionCenter(w);
+                distributionCenter(w) <- DistributionCenter.notSet;
             }
             messageStock() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
@@ -438,6 +456,7 @@ EXTEND FORM masterData
     OBJECTS dc = DistributionCenter
     PROPERTIES(dc) READONLY isWB, selected
     PROPERTIES(dc) READONLY id, name, address, city, federalDistrict, latitude, longitude, nameCargoType, nameDeliveryType
+    PROPERTIES(dc) deleteStockWB DRAW dc TOOLBAR
     ORDERS id(dc)
 
     PROPERTIES() getStocks
@@ -446,7 +465,7 @@ EXTEND FORM masterData
     PROPERTIES(w) READONLY error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w) PANEL
     PROPERTIES(w) READONLY id, name, address, status
     PROPERTIES READONLY id 'Код склада WB' = id(distributionCenter(w)), name 'Наименование склада WB' = name(distributionCenter(w)),
-    nameCargoType 'Тип товара склада' = nameCargoType(distributionCenter(w)), nameDeliveryType 'Тип доставки' = nameDeliveryType(distributionCenter(w))
+        nameCargoType 'Тип товара склада' = nameCargoType(distributionCenter(w)), nameDeliveryType 'Тип доставки' = nameDeliveryType(distributionCenter(w))
     PROPERTIES(w) GRID postStock, updateStock, deleteStock
     PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(w)
