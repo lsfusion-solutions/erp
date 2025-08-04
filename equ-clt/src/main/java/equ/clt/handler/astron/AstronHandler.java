@@ -68,7 +68,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         return "astron";
     }
 
-    private Set<String> connectionSemaphore = new HashSet<>();
+    private final Set<String> connectionSemaphore = new HashSet<>();
+    private void connectionSemaphoreAdd(AstronConnectionString params, String directory, String logInfo) {
+        connectionSemaphore.add(params.connectionString);
+        astronLogger.info(String.format("export %s to %s started", logInfo, directory));
+    }
+    private void connectionSemaphoreRemove(AstronConnectionString params, String directory, String logInfo) {
+        connectionSemaphore.remove(params.connectionString);
+        astronLogger.info(String.format("export %s to %s finished", logInfo, directory));
+    }
 
     private final Set<String> updateTables = new HashSet<>();
     private final Map<String, Map<String, Integer>> directoryOutputUpdateNumsMap = new HashMap<>();
@@ -190,8 +198,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             } else {
                 exception = waitConnectionSemaphore(params, timeout);
                 if (exception == null) {
+                    String logInfo = "transaction " + transaction.id;
                     try (Connection conn = getConnection(params)) {
-                        connectionSemaphore.add(params.connectionString);
+                        connectionSemaphoreAdd(params, directory, logInfo);
 
                         Map<String, CashRegisterItem> deleteBarcodeMap = new HashMap<>();
                         for (DeleteBarcodeInfo deleteBarcode : deleteBarcodeList) {
@@ -373,7 +382,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         astronLogger.error("exportTransaction error", e);
                         exception = e;
                     } finally {
-                        connectionSemaphore.remove(params.connectionString);
+                        connectionSemaphoreRemove(params, directory, logInfo);
                     }
                 } else {
                     astronLogger.error("semaphore transaction timeout", exception);
@@ -2107,14 +2116,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     if ((exception != null)) {
                         throw new RuntimeException("semaphore stopList timeout", exception);
                     } else {
+                        String logInfo = "stopList " + stopListInfo.number;
                         try (Connection conn = getConnection(params)) {
+                            connectionSemaphoreAdd(params, directory, logInfo);
+
                             String tables = "'ART', 'UNIT', 'PACK', 'EXBARC', 'PACKPRC'";
 
                             Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
                             Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
                             Map<String, Integer> outputUpdateNums = new HashMap<>();
-
-                            connectionSemaphore.add(params.connectionString);
 
                             List<StopListItem> itemsList = new ArrayList<>(stopListInfo.stopListItemMap.values());
 
@@ -2157,7 +2167,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                             astronLogger.error("sendStopListInfo error", e);
                             throw Throwables.propagate(e);
                         } finally {
-                            connectionSemaphore.remove(params.connectionString);
+                            connectionSemaphoreRemove(params, directory, logInfo);
                         }
                     }
                 }
@@ -2193,8 +2203,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             } else {
                 Exception exception = waitConnectionSemaphore(params, timeout);
                 if (exception == null) {
+                    String logInfo = "deleteBarcode";
                     try (Connection conn = getConnection(params)) {
-                        connectionSemaphore.add(params.connectionString);
+                        connectionSemaphoreAdd(params, deleteBarcode.directoryGroupMachinery, logInfo);
 
                         String tables = "'ART', 'UNIT', 'PACK', 'EXBARC'";
 
@@ -2251,7 +2262,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     } catch (Exception e) {
                         astronLogger.error("deleteBarcode error", e);
                     } finally {
-                        connectionSemaphore.remove(params.connectionString);
+                        connectionSemaphoreRemove(params, deleteBarcode.directoryGroupMachinery,  logInfo);
                     }
                 } else {
                     astronLogger.error("deleteBarcode semaphore timeout", exception);
@@ -2280,11 +2291,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             } else {
                 exception = waitConnectionSemaphore(params, timeout);
                 if ((exception == null)) {
+                    String logInfo = "discount cards";
                     try (Connection conn = getConnection(params)) {
-                        astronLogger.info("export discount сards to " + directory);
-                        String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
+                        connectionSemaphoreAdd(params, directory, logInfo);
 
-                        connectionSemaphore.add(params.connectionString);
+                        String tables = exportDiscountCardExtraTables ? "'DCARD', 'CLNT', 'CLNTFORM', 'CLNTFORMITEMS', 'CLNTFORMPROPERTY'" : "'DCARD'";
 
                         Map<String, Integer> processedUpdateNums = versionalScheme ? readProcessedUpdateNums(conn, tables, params) : new HashMap<>();
                         Map<String, Integer> inputUpdateNums = versionalScheme ? readUpdateNums(conn, tables) : new HashMap<>();
@@ -2340,7 +2351,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                         astronLogger.error("sendDiscountCardList error", e);
                         exception = e;
                     } finally {
-                        connectionSemaphore.remove(params.connectionString);
+                        connectionSemaphoreRemove(params, directory, logInfo);
                     }
                 }
             }
