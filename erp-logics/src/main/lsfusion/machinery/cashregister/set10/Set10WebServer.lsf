@@ -76,6 +76,7 @@ inn = DATA LOCAL STRING(INTEGER);
 count1 = DATA LOCAL NESTED STRING();
 paymentPluginPayment = DATA LOCAL INTEGER(INTEGER);
 positionPluginPosition = DATA LOCAL INTEGER(INTEGER);
+status = DATA LOCAL STRING (INTEGER);
 
 FORM purchasesImport FORMEXTID 'purchases'
     PROPERTIES() count1 EXTID 'count' ATTR
@@ -84,7 +85,7 @@ FORM purchasesImport FORMEXTID 'purchases'
 
     PROPERTIES(purchase) returndayinday ATTR, tabNumber ATTR, userName ATTR, operationType ATTR, 
         operDay1 EXTID 'operDay' ATTR, shop1 EXTID 'shop' ATTR, cash1 EXTID 'cash' ATTR, shift1 EXTID 'shift' ATTR,
-        number2 EXTID 'number' ATTR, saletime1 EXTID 'saletime' ATTR, begintime ATTR, amount2 EXTID 'amount' ATTR,
+        number2 EXTID 'number' ATTR, status EXTID 'status' ATTR, saletime1 EXTID 'saletime' ATTR, begintime ATTR, amount2 EXTID 'amount' ATTR,
         discountAmount ATTR, inn ATTR
     PROPERTIES(purchase) IN original_purchase operDay ATTR, shop ATTR, cash ATTR, shift ATTR, number ATTR, saletime ATTR
     FILTERS imported(purchase)
@@ -174,7 +175,9 @@ importReceipts(STRING purchases){
     skipCreateDetailLocal(INTEGER i) <- NULL;
     saleReceiptLocal(INTEGER i) <- NULL;
     
-    FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id) NEW z = ZReport DO{
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idZReport(i)](STRING id) AND NOT zReport(id)
+        AND (GROUP SUM 1 IF idStoreSet(CashRegister cc) = shop1(x))
+        NEW z = ZReport DO{
         id(z) <- id;
         cashRegister(z) <- GROUP MAX CashRegister c IF idStoreSet(c) = shop1(x) AND idCashRegisterSet(c) = cash1(x);
         isPosted(z) <- TRUE;
@@ -190,8 +193,8 @@ importReceipts(STRING purchases){
     LOCAL isSale = BOOLEAN (INTEGER);
     LOCAL isReturn = BOOLEAN (INTEGER);
 
-    isSale(INTEGER i) <- operationType(i) = 'true';
-    isReturn(INTEGER i) <- operationType(i) = 'false';
+    isSale(INTEGER i) <- operationType(i) = 'true' AND (NOT status(i) OR status(i) = 'REGISTERED');
+    isReturn(INTEGER i) <- operationType(i) = 'false' AND (NOT status(i) OR status(i) = 'REGISTERED');
 
     //оплаты
     LOCAL paymenId = STRING (INTEGER);
@@ -199,7 +202,11 @@ importReceipts(STRING purchases){
     LOCAL shop = GroupCashRegister (STRING);
     LOCAL startDateValid = BOOLEAN (INTEGER);
 
-    paymenId (INTEGER i) <- STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + index(i);
+    FOR INTEGER i = [GROUP MAX INTEGER x BY ((idReceipt(purchasePayment(x)) + '_' + typeClass(x)) + '_' + index(x))](STRING id) DO{
+        paymenId(i) <- id;
+    }
+    
+    //paymenId (INTEGER i) <- STRING[100](idReceipt(purchasePayment(i)) + '_' + typeClass(i)) + '_' + index(i);
     sumChange(INTEGER i) <- NUMERIC[18,4](GROUP MAX amount1(INTEGER j) IF typeClass(j) = 'CashChangePaymentEntity' AND purchasePayment(j) = i);
     shop(STRING id) <- GROUP MAX GroupCashRegister g IF idStoreSet(g) = id AND active(g);
     startDateValid(INTEGER i) <- DATE(saletime1(i)) >= startDate(shop(shop1(i))) OR (NOT startDate(shop(shop1(i))) AND saletime1(i)) AND cashRegister(i);
@@ -217,7 +224,7 @@ importReceipts(STRING purchases){
     //создание чеков
 
     FOR INTEGER x = [GROUP MAX INTEGER i IF startDateValid(i) BY idReceipt(i)](STRING id) AND NOT receipt(id)
-        AND ZReport z = zReportById(x) DO NEW r = Receipt{
+        AND ZReport z = zReportById(x) AND (isSale(x) OR isReturn(x)) DO NEW r = Receipt{
         id(r) <- id;
         zReport(r) <- z;
     }
@@ -298,11 +305,11 @@ importReceipts(STRING purchases){
         FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) DO
             DELETE Payment p WHERE receipt(p) = r;
     }
-
-    paymenIdLocal(INTEGER i) <- paymenId(i) WHERE paymenId(i);
-    sumPaymentLocal(INTEGER i) <- sumPayment(i) WHERE sumPayment(i);
     
-    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j)) AND NOT skipCreatePaymentLocal(j)
+    paymenIdLocal(INTEGER i) <- paymenId(i) WHERE paymenId(i);
+    sumPaymentLocal(INTEGER i) <- sumPayment(i) WHERE sumPayment(i) AND paymenId(i);
+    
+    FOR Receipt r = receipt(idReceipt(purchasePayment(INTEGER j))) AND NOT payment(paymenId(j)) AND paymenId(j) AND NOT skipCreatePaymentLocal(j)
         AND NOT typeClass(j) = 'CashChangePaymentEntity' NEW p = Payment DO{
 
         id(p) <- STRING[100](paymenId(j));
