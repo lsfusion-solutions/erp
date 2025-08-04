@@ -1,0 +1,58 @@
+MODULE PurchaseInvoiceCorrectionDocument;
+
+REQUIRE PurchaseInvoiceCorrection;
+
+NAMESPACE Purchase;
+
+EXTEND CLASS InvoiceCorrection : Document;
+EXTEND CLASS InvoiceCorrectionDetail : DocumentDetail;
+
+isClosed[Document](InvoiceCorrection invoice) += isClosed(invoice);
+isPosted[Document](InvoiceCorrection invoice) += isPosted(invoice);
+number[Document](InvoiceCorrection invoice) += number(invoice);
+series[Document](InvoiceCorrection invoice) += series(invoice);
+date[Document](InvoiceCorrection invoice) += date(invoice);
+
+index[DocumentDetail](InvoiceCorrectionDetail detail) += index(detail);
+sku[DocumentDetail](InvoiceCorrectionDetail detail) += sku(detail);
+quantity[DocumentDetail](InvoiceCorrectionDetail detail) += quantityA(detail);
+price[DocumentDetail](InvoiceCorrectionDetail detail) += priceA(detail);
+
+document[DocumentDetail](InvoiceCorrectionDetail detail) += invoiceCorrection(detail);
+
+//batch[DocumentDetail](InvoiceCorrectionDetail detail) += batch(detail);
+
+EXTEND FORM documents
+    OBJECTS pic = Purchase.InvoiceCorrection
+    PROPERTIES(pic) inSession
+    PROPERTIES(pic) READONLY number, series, date, nameSupplier, nameSupplierStock,
+        nameCustomer, nameCustomerStock, objectClassName
+
+    OBJECTS picd = Purchase.InvoiceCorrectionDetail
+    PROPERTIES(picd) READONLY READONLY index, idBarcodeSku, nameSku, quantityA, priceA SHOWIF fillPriceDocuments()
+
+    FILTERS document(picd)==pic
+;
+
+DESIGN documents {
+    tabs {
+        NEW PurchaseInvoiceCorrection {
+            caption = 'Корректировка накладной (закупка)';
+            MOVE BOX(pic);
+            MOVE BOX(picd);
+        }
+    }
+}
+PurchaseInvoiceCorrectionActive() = ACTIVE TAB documents.PurchaseInvoiceCorrection;
+
+EXTEND FORM documents
+    EVENTS
+        ON OK {
+            IF PurchaseInvoiceCorrectionActive() AND NOT (GROUP SUM 1 IF inSession(Document d)) THEN {
+                inSession(pic) <- TRUE;
+            }
+        }
+;
+@defineDocumentLogForm(invoiceCorrections, i);
+@defineDocumentLogForm(invoiceCorrection, i, specificationBox);
+DESIGN invoiceCorrection { historyTabs { caption = 'История'; } }
