@@ -1,0 +1,213 @@
+MODULE WBOrdersDBS;
+
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, PriceTransaction, WBOrdersFBS;
+
+NAMESPACE WB;
+
+// --------------------------------------Cборочные заказы DBS----------------------------------------------
+//DBS (Direct by Seller):
+//- Поставщик самостоятельно организует доставку заказов покупателям.
+//- Wildberries предоставляет платформу для продаж, но логистика полностью на стороне поставщика.
+//- Подходит для поставщиков, которые хотят контролировать весь процесс доставки.
+
+isWBOrderDBS 'WB' = DATA BOOLEAN (InternetOrder);
+
+groupId = DATA LOCAL STRING(INTEGER);
+finalPrice = DATA LOCAL NUMERIC(INTEGER);
+convertedFinalPrice = DATA LOCAL NUMERIC(INTEGER);
+
+FORM importWBOrders
+
+    OBJECTS orders = INTEGER
+
+    PROPERTIES(orders) cargoType, groupId, nmId, finalPrice, rid, createdAt, isZeroOrder, price, convertedCurrencyCode, 
+        id, salePrice, deliveryType, article, convertedFinalPrice, convertedPrice, orderUid, warehouseId, comment, colorCode, 
+        chrtId, currencyCode
+
+    OBJECTS skus = INTEGER
+    PROPERTIES(skus) skus EXTID 'value'
+    FILTERS imported(skus)
+    FILTERS ordersSkus(skus) == orders
+    PROPERTIES(orders) IN options isB2b
+    FILTERS imported(orders)
+    PROPERTIES(orders) IN address latitude, fullAddress, longitude
+
+    OBJECTS requiredMeta = INTEGER
+    PROPERTIES(requiredMeta) requiredMeta EXTID 'value'
+    FILTERS imported(requiredMeta)
+    FILTERS ordersRequiredMeta(requiredMeta) == orders
+;
+
+// https://marketplace-api.wildberries.ru/api/v3/dbs/orders/new
+getOrdersDBSNew 'Получить список новых сборочных заданий' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/new');
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/new' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importWBOrders JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('Own')) 
+                AND Warehouse w == warehouse(warehouseId(i)) INLINE DO NEW order = InternetOrder {
+                number(order) <- number;
+                date(order) <- currentDate();
+                isWBOrderDBS(order) <- TRUE;
+                carrier(order) <- carrier('Own');
+                status(order) <- StatusInternetOrder.new;
+                supplierStock(order) <- stock(w);
+                addressInternetCustomer(order) <- fullAddress(i);
+                currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+
+                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](STRING chrtID) AND Size size == size(INTEGER (chrtID)) 
+                    AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                    internetOrder(detail) <- order;
+                    sku(detail) <- item(size);
+                    price(detail) <- finalPrice(ii)/100.0;
+                }
+
+            }
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 403 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Список новых сборочных заданий не получен: ' + message();
+            }
+            messageOrder() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE messageOrder() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+firstName = DATA LOCAL STRING(INTEGER);
+orderID = DATA LOCAL STRING (INTEGER);
+phone = DATA LOCAL STRING(INTEGER);
+phoneCode = DATA LOCAL NUMERIC(INTEGER);
+replacementPhone = DATA LOCAL STRING(INTEGER);
+additionalPhoneCodes = DATA LOCAL STRING(INTEGER);
+ordersAdditionalPhoneCodes = DATA LOCAL INTEGER(INTEGER);
+
+FORM importInfCustomer
+
+    OBJECTS orders = INTEGER
+    PROPERTIES(orders) firstName, orderID, phone, fullName, phoneCode, replacementPhone
+
+    OBJECTS additionalPhoneCodes = INTEGER
+    PROPERTIES(additionalPhoneCodes) additionalPhoneCodes EXTID 'value'
+    FILTERS imported(additionalPhoneCodes)
+    FILTERS ordersAdditionalPhoneCodes(additionalPhoneCodes) == orders;
+
+// https://marketplace-api.wildberries.ru/api/v3/dbs/orders/client
+postInfCustomer 'Получить информацию о клиенте сборочных заданий' () {
+    NEWSESSION {
+        FOR isWBOrderDBS(InternetOrder order) AND order IS InternetOrder AND carrier(order) == carrier('Own') DO {
+            setHttpHeadersIS();
+            LOCAL messageOrder = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL statusText = STRING ();
+            LOCAL status = STRING ();
+
+
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client');
+
+            EXPORT JSON FROM 'value' = number(order) WHERE order IS InternetOrder;
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/client' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importInfCustomer JSON FROM response();
+
+                FOR INTEGER i = [GROUP MAX INTEGER il BY orderID(i1)](STRING number) AND (GROUP MAX InternetOrder o IF number(o) == number
+                    AND carrier(o) == carrier('Own')) INLINE DO {
+                    nameInternetCustomer(order) <- fullName(i);
+                    phoneInternetCustomer(order) <- phone(i);
+                }
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Информация о клиентах сборочных заданий не получена: ' + message();
+                }
+                messageOrder() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE messageOrder() NOWAIT;
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'В списке нет сборочных заданий WB';
+        }
+
+    }
+}
+
+// https://marketplace-api.wildberries.ru/api/v3/dbs/orders/{orderId}/cancel
+cancelOrderDBS 'Отменить сборочное задание' (InternetOrder order) {
+    NEWSESSION {
+        IF isWBOrderDBS(order) AND carrier(order) == carrier('Own') AND NOT status(order) == StatusInternetOrder.cancel THEN {
+            setHttpHeadersIS();
+            LOCAL messageOrder = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL statusText = STRING ();
+            LOCAL status = STRING ();
+
+
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel');
+
+            EXPORT JSON FROM 'value' = number(order) WHERE order IS InternetOrder;
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile('\{"orders":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+            TRY {
+                EXTERNAL HTTP PATCH url(CategoryRequest.marketplace) + '/api/v3/dbs/orders/' + number(order) + '/cancel' HEADERS httpHeaders  TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Cборочное задание НЕ отменено: ' + message();
+                }
+                messageOrder() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE messageOrder() NOWAIT;
+                APPLY;
+            }
+        } ELSE {
+            MESSAGE 'Выбранный заказ уже в статусе "Отменен".';
+        }
+    }
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLY isWBOrderDBS AFTER isWBOrder(o) 
+    PROPERTIES(o) cancelOrderDBS GRID
+    PROPERTIES() getOrdersDBSNew, postInfCustomer
+;
+
+DESIGN internetOrders {
+    wbContainer {
+        NEW ordersDBS {
+                caption = 'Сборочные задания DBS';
+                MOVE PROPERTY (getOrdersDBSNew());
+                MOVE PROPERTY (postInfCustomer());
+        }
+    }
+}
