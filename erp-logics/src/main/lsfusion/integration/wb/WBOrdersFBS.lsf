@@ -1,0 +1,262 @@
+MODULE WBOrdersFBS;
+
+REQUIRE WBStockMapping, WBItemMapping, SaleInternetOrder, PriceTransaction;
+
+NAMESPACE WB;
+
+isWBOrder 'WB' = DATA BOOLEAN (InternetOrder);
+orderUID 'Группировочный номер товара по заказам (в корзине)' = DATA STRING (InternetOrder);
+orderRidID 'ID сборочного задания WB' = DATA STRING (InternetOrder);
+
+//CLASS SupplierStatusOrder 'Статус сборочного задания продавца' {
+//    new 'Новое сборочное задание',
+//    confirm 'На сборке',
+//    deliver 'В доставке',
+//    receive 'Получено покупателем',
+//    reject 'Отказ покупателя при получении',
+//    cancel 'Отменено продавцом',
+//    cancel_missed_call 'Отмена заказа по причине недозвона'
+//}
+//
+//CLASS WBStatusOrder 'Статус сборочного задания WB' {
+//    waiting 'в работе',
+//    sold 'получено покупателем',
+//    canceled 'отмена',
+//    canceled_by_client 'покупатель отменил заказ при получении',
+//    declined_by_client 'покупатель отменил заказ в первый чаc',
+//    defect 'отмена заказ по причине брака',
+//    ready_for_pickup 'прибыло на ПВЗ',
+//    canceled_by_missed_call 'отмена заказа по причине недозвона'
+//}
+
+// --------------------------------------Cборочные заказы FBS----------------------------------------------
+//FBS (Fulfillment by Seller):
+//- Товары хранятся на собственных складах поставщика.
+//- Поставщик упаковывает и маркирует заказы, а затем доставляет их на склад или пункт выдачи Wildberries.
+//- Подходит для товаров с низким спросом или специфических категорий.
+
+GROUP options;
+GROUP address;
+
+ordersSkus = DATA LOCAL INTEGER(INTEGER);
+offices = DATA LOCAL STRING(INTEGER);
+ordersOffices = DATA LOCAL INTEGER(INTEGER);
+nmId = DATA LOCAL NUMERIC(INTEGER);
+rid = DATA LOCAL STRING(INTEGER); // ID сборочного задания в системе Wildberries
+isZeroOrder = DATA LOCAL STRING(INTEGER);
+isB2b = DATA LOCAL STRING(INTEGER);
+convertedCurrencyCode = DATA LOCAL NUMERIC(INTEGER);
+ddate = DATA LOCAL DATE(INTEGER); // планируемая дата доставки
+fullAddress = DATA LOCAL STRING(INTEGER);
+salePrice = DATA LOCAL NUMERIC(INTEGER);
+requiredMeta = DATA LOCAL STRING(INTEGER);
+ordersRequiredMeta = DATA LOCAL INTEGER(INTEGER);
+scanPrice = DATA LOCAL STRING(INTEGER);
+article = DATA LOCAL STRING(INTEGER);
+convertedPrice = DATA LOCAL NUMERIC(INTEGER);
+orderUid = DATA LOCAL STRING(INTEGER); // ID транзакции для группировки сборочных заданий. Сборочные задания в одной корзине покупателя будут иметь одинаковый orderUid
+warehouseId = DATA LOCAL NUMERIC(INTEGER);
+comment = DATA LOCAL STRING(INTEGER);
+colorCode = DATA LOCAL STRING(INTEGER);
+chrtId = DATA LOCAL STRING (INTEGER);
+currencyCode = DATA LOCAL BPSTRING[3](INTEGER);
+
+FORM importNewOrdersFBS
+
+    OBJECTS orders = INTEGER
+
+    PROPERTIES(orders) cargoType, nmId, rid, createdAt, isZeroOrder, officeId, price, convertedCurrencyCode, id, ddate, 
+        salePrice, deliveryType, scanPrice, article, convertedPrice, orderUid, warehouseId, comment, colorCode, chrtId, 
+        currencyCode
+
+    OBJECTS skus = INTEGER
+    PROPERTIES(skus) skus EXTID 'value'
+    FILTERS imported(skus)
+    FILTERS ordersSkus(skus) == orders
+
+    OBJECTS offices = INTEGER
+    PROPERTIES(offices) offices EXTID 'value'
+    FILTERS imported(offices)
+    FILTERS ordersOffices(offices) == orders
+    PROPERTIES(orders) IN options isB2b
+    FILTERS imported(orders)
+    PROPERTIES(orders) IN address latitude, fullAddress, longitude
+
+    OBJECTS requiredMeta = INTEGER
+    PROPERTIES(requiredMeta) requiredMeta EXTID 'value'
+    FILTERS imported(requiredMeta)
+    FILTERS ordersRequiredMeta(requiredMeta) == orders;
+
+dataGetOrdersLimit = DATA INTEGER ();
+getOrdersLimit 'Лимит запросов для сборочных заданий' = OVERRIDE dataGetOrdersLimit(), 1000;
+
+// https://marketplace-api.wildberries.ru/api/v3/orders/new
+getOrdersFBSNew 'Получить список новых сборочных заданий (FBS)' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders/new');
+
+        LOCAL limit = INTEGER ();
+        limit() <- getOrdersLimit();
+        
+        TRY {
+            EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders/new' HEADERS httpHeaders TO response;
+            fileToString(response());
+            logToFile('WB', resultString());
+            IMPORT importNewOrdersFBS JSON FROM response();
+
+            FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) AND NOT (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
+                AND Warehouse w == warehouse(warehouseId(i)) AND id(distributionCenter(w)) == officeId(i) INLINE DO NEW order = InternetOrder {
+                number(order) <- number;
+                orderRidID(order) <- rid(i);
+                orderUID(order) <- orderUid(i);
+                date(order) <- currentDate();
+                isWBOrder(order) <- TRUE;
+                carrier(order) <- carrier('WB');
+                status(order) <- StatusInternetOrder.new;
+                supplierStock(order) <- stock(w);
+                addressInternetCustomer(order) <- fullAddress(i);
+                deliveryDate(order) <- ddate(i);
+                note(order) <- comment(i);
+                //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+
+                FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](STRING chrtID) AND Size size == size(INTEGER (chrtID))
+                    AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                    internetOrder(detail) <- order;
+                    sku(detail) <- item(size);
+                    price(detail) <- salePrice(ii)/100.0;
+                }
+
+            }
+            messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+        } CATCH {
+            logToFile('WB', messageCaughtException());
+            IF statusHttp() == 403 THEN {
+                IMPORT importError JSON FROM response();
+                extraDescriptionStatusHTTP() <- 'Список новых сборочных заданий не получен: ' + message();
+            }
+            messageOrder() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+        } FINALLY {
+            afterSendRequestIS();
+            MESSAGE '<h3>Получение списока новых сборочных заданий (FBS)</h3>' NOWAIT;
+            MESSAGE messageOrder() NOWAIT;
+            APPLY;
+        }
+    }
+}
+
+
+next = DATA LOCAL INTEGER ();
+supplyId = DATA LOCAL STRING(INTEGER); // id поставки, возвращается, если заказ закреплен за поставкой
+
+
+FORM importOrdersFBS
+    PROPERTIES() next
+
+    OBJECTS orders = INTEGER
+
+    PROPERTIES(orders) cargoType, deliveryType, nmId, scanPrice, rid, article, createdAt, convertedPrice, orderUid, isZeroOrder, 
+        warehouseId, officeId, supplyId, price, colorCode, convertedCurrencyCode, comment, id, chrtId, currencyCode
+    PROPERTIES(orders) IN address latitude, fullAddress, longitude
+
+    OBJECTS skus = INTEGER
+    PROPERTIES(skus) skus EXTID 'value'
+    FILTERS ordersSkus(skus) == orders
+
+    OBJECTS offices = INTEGER
+    PROPERTIES(offices) offices EXTID 'value'
+    FILTERS ordersOffices(offices) == orders
+    PROPERTIES(orders) IN options isB2b
+;
+
+// https://marketplace-api.wildberries.ru/api/v3/orders
+getOrdersFBS 'Получить информацию о сборочных заданиях (FBS)' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL messageOrder = STRING ();
+        LOCAL response = FILE();
+        LOCAL error = STRING ();
+        LOCAL statusText = STRING ();
+        LOCAL status = STRING ();
+
+        LOCAL limit = INTEGER ();
+        limit() <- getOrdersLimit();
+        
+        LOCAL NESTED nextWB = INTEGER ();
+        nextWB() <- 0;
+
+        LOCAL stop = BOOLEAN ();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.marketplace) + '/api/v3/orders');
+        
+        WHILE NOT stop() AND NOT nextWB()<0  DO {
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.marketplace) + '/api/v3/orders' HEADERS httpHeaders PARAMS 'limit=' + limit() + '&next=' + nextWB() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importOrdersFBS JSON FROM response();
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING number) 
+                    AND InternetOrder order == (GROUP MAX InternetOrder o IF number(o) == number AND carrier(o) == carrier('WB'))
+                    AND Warehouse w == warehouse(warehouseId(i)) AND id(distributionCenter(w)) == officeId(i) INLINE DO {
+                    //status(order) <- StatusInternetOrder.new;
+                    addressInternetCustomer(order) <- fullAddress(i);
+                    deliveryDate(order) <- ddate(i);
+                    //currency(order) <- GROUP MAX Currency c IF sid(c) == currencyCode(i);
+
+                    FOR INTEGER ii = [GROUP MAX INTEGER j BY chrtId(j)](STRING chrtID) AND Size size == size(INTEGER (chrtID))
+                        AND Item item == itemNM(INTEGER (nmId(ii))) AND itemWB(size) == item INLINE DO NEW detail = InternetOrderDetail {
+                        internetOrder(detail) <- order;
+                        sku(detail) <- item(size);
+                        price(detail) <- salePrice(ii) / 100.0;
+                    }
+                    nextWB() <- nextWB() +  next();
+                }
+                messageOrder() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Список сборочных заданий не получен: ' + message();
+                }
+                messageOrder() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                stop() <- TRUE;
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Получение списока сборочных заданий (FBS)</h3>' NOWAIT;
+                MESSAGE messageOrder() NOWAIT;
+                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                    limit() <- limit() + getOrdersLimit();
+                } ELSE {
+                    stop() <- TRUE;
+                }
+                APPLY NESTED LOCAL;
+            }
+        }     
+    }
+}
+
+EXTEND FORM internetOrders
+    PROPERTIES(o) READONLY isWBOrder AFTER isClosed(o)
+    PROPERTIES(o) READONLY SHOWIF isWBOrder(o) orderRidID, orderUID  
+    PROPERTIES() getOrdersFBSNew, getOrdersFBS
+;
+
+DESIGN internetOrders {
+    documentDetail {
+        NEW wbContainer {
+            caption = 'WB';
+            NEW ordersFBS {
+                caption = 'Сборочные задания FBS';
+                MOVE PROPERTY (getOrdersFBSNew());
+                MOVE PROPERTY (getOrdersFBS());
+            }
+        }
+    }
+}
