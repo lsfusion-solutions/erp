@@ -181,6 +181,8 @@ FORM closeOrder
 
 customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 
+customCancelOrder = ABSTRACT BOOLEAN ();
+overCancelOrder ABSTRACT LIST (InternetOrder);
 
 updateOrder(FILE f){
     LOCAL order = STRING ();
@@ -201,18 +203,23 @@ updateOrder(FILE f){
             orderLoc() <- getWord(order(), '/', 1);
             IMPORT closeOrder JSON FROM f;
             customerComment(internetOrderByUuid(orderLoc())) <- comment();
-            IF statusUpdate() = 'DELIVERED' THEN{
-                status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
+            IF customCancelOrder() THEN {
+                overCancelOrder(internetOrderByUuid(orderLoc()));
+                RETURN;
             } ELSE {
-                status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+                IF statusUpdate() = 'DELIVERED' THEN{
+                    status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
+                } ELSE {
+                    status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
+                }
+                APPLY ;
+                IF canceled() THEN {
+                    statusHttpTo() <- 500;
+                    EXPORT JSON FROM result = 'error', description = applyMessage();
+                }
+                EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
+                RETURN;
             }
-            APPLY ;
-            IF canceled() THEN {
-                statusHttpTo() <- 500;
-                EXPORT JSON FROM result = 'error', description = applyMessage();
-            }
-            EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
-            RETURN;
         }
         IMPORT yandexorder FROM JSONFILE(f);
         FOR InternetOrder io =  internetOrderByUuid(order()) DO{
