@@ -54,9 +54,6 @@ overExportName = ABSTRACT STRING (DiscountCard);
 exportName 'Имя для выгрузки' (DiscountCard d) = OVERRIDE overExportName(d),
     (CONCAT ' ', lastNameContact(d), firstNameContact(d), middleNameHttpServerContact(d));
 
-overExportNumber = ABSTRACT STRING (DiscountCard);
-exportNumber 'Номер для выгрузки' (DiscountCard d) = OVERRIDE overExportNumber(d), seriesNumber(d);
-
 overExportAddClient = ABSTRACT TEXT (DiscountCard);
 afterExportDiscountCardsStep ABSTRACT LIST ();
 
@@ -85,7 +82,7 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
     rezult() <- CONCAT '', rezult(),
                     (GROUP CONCAT ('\{"command":"addClient","client":\{' + 
                         TEXT (CONCAT ',', 
-                            '"idclient":"' + exportNumber(DiscountCard d) + '"',
+                            '"idclient":"' + seriesNumber(DiscountCard d) + '"',
                             '"name":"' + trim(escapeJSONValue(exportName())) + '"',
                             '"sex":' + numberSexHttpServerContact(d),
                             '"birthday":"' + (birthdayContact(d) IF birthdayContact(d) > 1900_01_01) + '"',
@@ -100,10 +97,10 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
     rezult() <- CONCAT '', rezult(),
                     (GROUP CONCAT ('\{"command":"addCard","card":\{' + 
                         TEXT (CONCAT ',', 
-                            '"idcard":"' + exportNumber(DiscountCard d) + '"',
+                            '"idcard":"' + seriesNumber(DiscountCard d) + '"',
                             '"idcardgroup":"' + idArtix(discountCardType(d)) + '"',
-                            '"idclient":"' + exportNumber(d) + '"',
-                            '"number":"' + exportNumber(d) + '"',
+                            '"idclient":"' + seriesNumber(d) + '"',
+                            '"number":"' + seriesNumber(d) + '"',
                             '"validitydatebeg":"' + date(d) + '"',
                             '"validitydateend":"' + dateTo(d) + '"',
                             '"cardSum":' + initialSum(d),
@@ -116,8 +113,8 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
     rezult() <- CONCAT '', rezult(),
                     (GROUP CONCAT ('\{"command":"addChangeCardAccount","ChangeCardAccount":\{' + 
                         TEXT (CONCAT ',', 
-                            '"cardNumber":"' + exportNumber(DiscountCard d) + '"',
-                            '"accountnumber":"' + exportNumber(d) + '"',
+                            '"cardNumber":"' + seriesNumber(DiscountCard d) + '"',
+                            '"accountnumber":"' + seriesNumber(d) + '"',
                             '"cardstatus":' + (OVERRIDE jsonObject(jsonObject(extInfo(d), 'artix'), 'cardstatus'), '"EARN_ONLY"')
                         )
                     + '\}\}') IF inExportStep(d) AND STRING(jsonObject(jsonObject(extInfo(d), 'artix'), 'ChangeCardAccount')) == 'true', '\n---\n' ORDER d)
@@ -132,7 +129,7 @@ exportDiscountCardsStep 'Выгрузить дисконтные карты' () 
 inExport = DATA LOCAL BOOLEAN (DiscountCard);
 
 exportDiscountCards 'Выгрузить дисконтные карты в Artix' () {
-    inExport(DiscountCard d) <- NULL WHERE inExport(d) AND (skipLoad(d) OR NOT exportNumber(d));
+    inExport(DiscountCard d) <- NULL WHERE inExport(d) AND (skipLoad(d) OR NOT seriesNumber(d));
     
     WHILE GROUP SUM 1 IF inExport(DiscountCard d) DO {
         IF NOT stepArtix(cashRegisterSID('Artix')) THEN {
