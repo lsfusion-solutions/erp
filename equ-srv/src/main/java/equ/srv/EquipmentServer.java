@@ -1876,14 +1876,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
         ImMap<String, Object> idItemBarcodeMap = null;
         if(options.readSalesByIdItem) {
-            MList<DataObject> mDataObjects = ListFact.mList();
+            MList<String> mIdItems = ListFact.mList();
             for (int i = start; i < finish; i++) {
                 SalesInfo sale = data.get(i);
                 if(!sale.isGiftCard) {
-                    mDataObjects.add(new DataObject(sale.idItem));
+                    mIdItems.add(sale.idItem);
                 }
             }
-            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mDataObjects.immutableList().toArray(new DataObject[mDataObjects.size()]));
+            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mIdItems.immutableList().toArray(new String[mIdItems.size()]));
         }
 
         for (int i = start; i < finish; i++) {
