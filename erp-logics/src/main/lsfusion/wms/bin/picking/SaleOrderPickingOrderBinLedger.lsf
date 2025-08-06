@@ -52,8 +52,34 @@ plannedPickingQuantity 'Планируемое к комплектации ко�
 orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order; 
 pickingOrderNumber(Order order, Sku sku, Bin bin) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick());
 
-createUserPickingOrder 'Отправить в комплектацию' ABSTRACT CASE OVERRIDE FIRST (Order) TOOLBAR;
-createUserPickingOrder(Order order) + WHEN order IS Order THEN {
+headerCreateUserPickingOrder = ABSTRACT CASE STRING (Order);
+headerCreateUserPickingOrder(Order o) += 
+    WHEN o IS Order AND NOT countPickingOrder(o) 
+        THEN 'Спланировать комплектацию';
+headerCreateUserPickingOrder(Order o) += 
+    WHEN o IS Order AND countPickingOrder(o) AND NOT (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) 
+        THEN 'Перепланировать комплектацию';
+headerCreateUserPickingOrder(Order o) += 
+    WHEN o IS Order AND countPickingOrder(o) AND (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(o, Sku sku)) 
+        THEN 'Допланировать комплектацию';
+
+overCreateUserPickingOrder ABSTRACT CASE OVERRIDE FIRST (Order);
+
+createUserPickingOrder 'Отправить в комплектацию' (Order o) {
+    NEWSESSION {
+        CASE WHEN countPickingOrder(o) AND NOT (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) THEN {
+            DELETE PickingOrder po WHERE order(po)==o;
+            APPLY;
+        }
+        WHEN countPickingOrder(o) AND (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(o, Sku sku)<0) THEN {
+            MESSAGE 'В заказе были изменения по товару, который находится в комплектации или уже скомплектован: '+ (GROUP CONCAT name(Sku sku) IF diffPlannedPickingQuantity(o, sku)<0, ',\n' ORDER name(sku)) NOWAIT;
+            RETURN;
+        }
+    }
+    overCreateUserPickingOrder(o);
+} TOOLBAR;
+
+overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
             LOCAL NESTED countPickingOrder = INTEGER ();
@@ -101,10 +127,10 @@ createUserPickingOrder(Order order) + WHEN order IS Order THEN {
 }
 
 showCreateUserPickingOrder = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Order);
-showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku s)>0);
+showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku s));
 
 EXTEND FORM orders 
-    PROPERTIES(o) createUserPickingOrder SHOWIF showCreateUserPickingOrder(o)
+    PROPERTIES(o) createUserPickingOrder SHOWIF showCreateUserPickingOrder(o) HEADER headerCreateUserPickingOrder(o)
 ;
 
 @defineOrderInvoicePickingOrder (' (продажа)');
