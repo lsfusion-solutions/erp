@@ -4,11 +4,16 @@ REQUIRE Disparity, SkuLedgerCost;
 
 NAMESPACE Disparity;
 
+fixedCost(InputDisparityDetail l) += l IS InputDisparityDetail;
+fixedCostPrice(InputDisparityDetail l) += costBatch(l);
+
 recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в изменениях сортности');
     APPLY NESTED (calculatedCost[Sku, Stock]) {
         price(UserDisparityDetail d) <- calculatedCost(sku(d), stock(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) 
                                     AND calculatedCost(sku(d), stock(d)) AND NOT calculatedCost(sku(d), stock(d)) = price(d);
+        inputPrice(UserDisparityDetail d) <- calculatedCost(sku(d), stock(d)) WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) 
+                                    AND calculatedCost(sku(d), stock(d)) AND NOT calculatedCost(sku(d), stock(d)) = inputPrice(d);
     }
     logToFile('cost', 'Закончен пересчет цен в изменениях сортности');
 }

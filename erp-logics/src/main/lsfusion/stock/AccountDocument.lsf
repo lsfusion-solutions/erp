@@ -1,6 +1,6 @@
 MODULE AccountDocument;
 
-REQUIRE StockSkuDocument, SkuLedgerCost;
+REQUIRE StockSkuDocument, SkuLedgerCost, Item;
 
 
 CLASS AccountDocument 'Установка учетных цен';
@@ -221,6 +221,7 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
 
     //упр цена
     recalculateCost(Stock st) <- legalEntity(st) == l;
+    recalculateCost(Sku s) <- active(s) AND NOT restricted(s);
     recalculateCostGauss(d, lastDayOfMonth(d));
     
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
@@ -234,10 +235,24 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
         accountPrice(a, s) <- p;
     }
+
+    //упр цена 2
+    recalculateCost(Stock st) <- legalEntity(st) == l;
+    recalculateCost(Sku s) <- active(s) AND restricted(s);
+    recalculateCostGauss(d, lastDayOfMonth(d));
+
+    FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
+        stock(a) <- st;
+        date(a) <- d;
+    }
+
+    FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
+        accountPrice(a, s) <- p;
+    }
     
     //себестоимость
     recalculateCost(Stock st) <- legalEntity(st) == l;
-    calculatedCost(Sku s, Stock st) <- NULL;
+    recalculateCost(Sku s) <- active(s) AND NOT restricted(s);
     recalculateCostGaussCost(d, lastDayOfMonth(d));
 
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
@@ -248,6 +263,20 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR legalEntity(Stock st) == l AND AccountDocument a == accountDocument(st, d) DO {
         costPrice(a, Sku s) <- NULL;
     }
+    FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
+        costPrice(a, s) <- p;
+    }
+    
+    //себестоимость 2
+    recalculateCost(Stock st) <- legalEntity(st) == l;
+    recalculateCost(Sku s) <- active(s) AND restricted(s);
+    recalculateCostGaussCost(d, lastDayOfMonth(d));
+
+    FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
+        stock(a) <- st;
+        date(a) <- d;
+    }
+
     FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
         costPrice(a, s) <- p;
     }
