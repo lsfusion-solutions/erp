@@ -214,12 +214,12 @@ importLegalEntities 'Импорт организаций' () {
         dataAddress(b, DATE d) <- ISTRING[150] (addressBank(i)) WHERE d == currentDate();
     }
 
-    FOR INTEGER i = [GROUP MIN INTEGER ii BY account(ii), id(ii)](STRING[50] number, INTEGER id)  AND idGroup(i) !=3.0  AND NOT accountID(number, TEXT (id)) DO NEW a = Bank.Account {
-        number(a) <- number;
-        legalEntity(a) <- legalEntityNew(TEXT (id));
-        bank(a) <- GROUP MAX Bank b IF oldMFO(b) == bic(i);
-        currency(a) <- defaultCurrency();
-    }
+//    FOR INTEGER i = [GROUP MIN INTEGER ii BY account(ii), id(ii)](STRING[50] number, INTEGER id)  AND idGroup(i) !=3.0  AND NOT accountID(number, TEXT (id)) DO NEW a = Bank.Account {
+//        number(a) <- number;
+//        legalEntity(a) <- legalEntityNew(TEXT (id));
+//        bank(a) <- GROUP MAX Bank b IF oldMFO(b) == bic(i);
+//        currency(a) <- defaultCurrency();
+//    }
 
     FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
         name(s) <- name(i);
@@ -244,7 +244,7 @@ importLegalEntities 'Импорт организаций' () {
     IMPORT TABLE FROM file() TO id, idGroup;
 
     FOR LegalEntity s = legalEntityNew(TEXT (id(INTEGER i))) DO {
-        isSupplier(s) <- idGroup(i) != 1;
+        isSupplier(s) <- idGroup(i) != 2;
         isCustomer(s) <- idGroup(i) == 2;
     }
     APPLY;
@@ -333,7 +333,7 @@ importStores 'Импорт магазинов' () {
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
         EXEC 'SELECT cod_shop, name_shop, cod_ob, type, cod_reg FROM Pub.shops WITH (NOLOCK)' TO file;
 
-    IMPORT TABLE FROM file() TO id, name, idType, type;
+    IMPORT TABLE FROM file() TO id, name, idType, type, cod_reg;
 
     FOR id(INTEGER i) AND trim(type(i)) = 'м' AND NOT store(TEXT (id(i))) AND NOT skipImportStock(i) DO NEW s = Store {
         id(s) <- ISTRING[100] (id(i));
@@ -464,7 +464,7 @@ importItems1 'Импорт товаров' () {
     
     overImportItems();
 
-    LOCAL vat = INTEGER (INTEGER);
+    LOCAL vat = NUMERIC[16,0] (INTEGER);
     LOCAL dt = DATE (INTEGER);
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
