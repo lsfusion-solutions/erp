@@ -1,0 +1,414 @@
+MODULE Beltelecom;
+
+REQUIRE DiscountCard, LogTools;
+
+NAMESPACE Beltelecom;
+
+digits = FORMULA STRING[100] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
+
+// -------------------- Настройки API SMS Beltelecom -------------------- //
+
+urlBeltelecom 'Beltelecom URL' = DATA STRING[255]() CHARWIDTH 100;
+loginBeltelecom 'Логин' = DATA STRING[255] () CHARWIDTH 50;
+passwordBeltelecom 'Пароль' = DATA STRING[255] () ECHO CHARWIDTH 50;
+
+EXTEND FORM integrationData
+    PROPERTIES() urlBeltelecom, loginBeltelecom, passwordBeltelecom
+;
+
+DESIGN integrationData {
+    pane {
+        NEW beltelecom {
+            caption = 'Beltelecom';
+            fill = 1;
+            NEW artixAPISettings {
+                caption = 'Параметры API';
+                MOVE PROPERTY(urlBeltelecom());
+                MOVE PROPERTY(loginBeltelecom());
+                MOVE PROPERTY(passwordBeltelecom());
+            }
+        }
+    }
+}
+
+// -------------------- Прямая рассылка по номерам SMS Beltelecom -------------------- //
+
+CLASS Dispatch 'Рассылка';
+TABLE dispatch (Dispatch);
+
+CLASS TypeDispatch 'Вид рассылки' {
+    sipmle 'Прямая рассылка'
+}
+name 'Наименование' (TypeDispatch t) = staticCaption(t);
+
+FORM typeDispatch 'Вид рассылки'
+    OBJECTS t = TypeDispatch
+    PROPERTIES name(t)
+    
+    LIST TypeDispatch OBJECT t
+;
+
+typeDispatch 'Вид рассылки' = DATA TypeDispatch (Dispatch) NONULL;
+nameTypeDispatch 'Вид рассылки' (Dispatch d) = name(typeDispatch(d));
+
+createdTime 'Время создания' = DATA DATETIME (Dispatch);
+createdTime (Dispatch d) <- currentDateTime() WHEN SET(d IS Dispatch);
+
+createdUser 'Создана пользователем' = DATA CustomUser (Dispatch);
+nameCreatedUser 'Создана пользователем' (Dispatch d) = name(createdUser(d));
+createdUser (Dispatch d) <- currentUser() WHEN SET(d IS Dispatch);
+
+name 'Название' = DATA ISTRING[255] (Dispatch) CHARWIDTH 30;
+caption 'Заголовок' = DATA STRING[20] (Dispatch);
+message 'Текст SMS-рассылки' = DATA TEXT (Dispatch);
+stringMessage 'Текст SMS-рассылки' (Dispatch d) = STRING(message(d));
+CONSTRAINT SETCHANGED(message(Dispatch d)) AND length(message(d)) > 201
+    MESSAGE 'Максимальный текст SMS-рассылки не должнен превышать 201 символ';
+dataTelephoneList 'Список телефонов' = DATA STRING (Dispatch) CHARWIDTH 50;
+overTelephoneList 'Список телефонов (перегруженный)' = ABSTRACT CASE STRING (Dispatch);
+onlyOverTelephoneList 'Только перегруженный список телефонов' = ABSTRACT CASE BOOLEAN (Dispatch);
+telephoneList 'Список телефонов' (Dispatch d) = OVERRIDE dataTelephoneList(d) IF NOT onlyOverTelephoneList(d),
+    overTelephoneList(d) CHARWIDTH 50;
+
+correctPhone 'Корректный номер' (STRING[100] n) = length(n) == 12 AND substr(n, 1, 3) == '375';
+countPhones 'Кол-во номеров' (Dispatch d) = wordCount(telephoneList(d), ',');
+getPhone 'Номер из списка' (Dispatch d, INTEGER n) = STRING[12](digits(getWord(telephoneList(d), ',', n))) IF n >= 1 AND n <= countPhones(d);
+backgroundIncorrectPhone 'Выделение некорректных номеров' (Dispatch d, INTEGER n) = RGB(255,200,216) IF NOT correctPhone(getPhone(d, n));
+
+incorrectTelephoneList = DATA LOCAL STRING ();
+fillIncorrectTelephoneList 'Проверка корректности номеров' (Dispatch d) {
+    FOR iterate(INTEGER i, 1, wordCount(telephoneList(d), ',')) AND STRING n = getPhone(d, i) DO {
+        IF NOT correctPhone(digits(n)) THEN {
+            incorrectTelephoneList() <- CONCAT '\n', incorrectTelephoneList(), n;
+        }
+    }
+}
+
+checkTelephoneList 'Проверить корректность номеров' (Dispatch d) {
+    incorrectTelephoneList() <- NULL;
+    fillIncorrectTelephoneList(d);
+    IF incorrectTelephoneList() THEN {
+        ASK 'В списке телефонов имеются некорректные номера, желаете их сохранить?\n' + incorrectTelephoneList() DO { } ELSE {
+            beforeCanceled() <- TRUE;
+        }
+    }
+}
+
+FORM dispatch 'Рассылка'
+    OBJECTS d = Dispatch PANEL
+    PROPERTIES(d) name, caption, message, telephoneList, nameTypeDispatch
+
+    EDIT Dispatch OBJECT d
+
+    EVENTS ON INIT { typeDispatch(d) <- TypeDispatch.sipmle WHERE NOT typeDispatch(d); }
+    EVENTS ON APPLY BEFORE checkTelephoneList(d)
+    EVENTS ON OK BEFORE checkTelephoneList(d)
+;
+
+DESIGN dispatch {
+    BOX {
+        fill = 1;
+        NEW main {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            NEW params {
+                caption = 'Основные параметры';
+                horizontal = TRUE;
+                MOVE PROPERTY(nameTypeDispatch(d));
+                MOVE PROPERTY(name(d));
+            }
+        }
+        NEW phone {
+            caption = 'Настройка номеров';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY(telephoneList(d)) { alignment = STRETCH; }
+        }
+        NEW message {
+            caption = 'Содержание';
+            alignment = STRETCH;
+            MOVE PROPERTY(caption(d)) { alignment = STRETCH; }
+            MOVE PROPERTY(message(d)) { alignment = STRETCH; }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+dataIdBeltelecom 'Код рассылки' = DATA STRING[50] (Dispatch) CHARWIDTH 20;
+overIdBeltelecom 'Код рассылки (перегруженный)' = ABSTRACT CASE STRING (Dispatch);
+onlyOverIdBeltelecom 'Только перегруженный код рассылки' = ABSTRACT CASE BOOLEAN (Dispatch);
+idBeltelecom 'Коды рассылки' (Dispatch d) = OVERRIDE dataIdBeltelecom(d) IF NOT onlyOverIdBeltelecom(d), overIdBeltelecom(d);
+overSend 'Отправлено (перегруженный)' = ABSTRACT CASE BOOLEAN (Dispatch);
+onlyOverSend 'Только перегруженная отправка' = ABSTRACT CASE BOOLEAN (Dispatch);
+isSend 'Отправлено' (Dispatch d) = OVERRIDE TRUE IF idBeltelecom(d) AND NOT onlyOverSend(d), overSend(d);
+
+CONSTRAINT (DROPCHANGED(caption(Dispatch d)) OR DROPCHANGED(message(d)) OR DROPCHANGED(telephoneList(d)))
+    AND isSend(d)
+    MESSAGE 'Запрещено редактировать отправленную рассылку';
+
+descriptionStateAuthor 'Состояние аутентификации' (STRING[2] s) = CASE
+    WHEN s == '-1' THEN 'Пустой логин'
+    WHEN s == '-2' THEN 'Пустой пароль'
+    WHEN s == '-3' THEN 'Данные корректны'
+    WHEN s == '-4' THEN 'Не верный логин или пароль'
+    WHEN s == '-5' THEN 'Пользователь заблокирован';
+
+descriptionStateSMS 'Состояние рассылки' (STRING[2] s) = CASE
+    WHEN s == '-1' THEN 'Пустой заголовок'
+    WHEN s == '-2' THEN 'Пустой текст'
+    WHEN s == '-3' THEN 'Пустые телефоны'
+    WHEN s == '-4' THEN 'Данные корректны'
+    WHEN s == '-5' THEN 'Сервер недоступен';
+
+FORM beltelecomSMSDispatch
+    OBJECTS d = Dispatch PANEL
+    PROPERTIES() loginBeltelecom EXTID 'login', passwordBeltelecom EXTID 'password'
+    PROPERTIES(d) caption EXTID 'header', message EXTID 'text', telephoneList EXTID 'number'
+;
+
+overSendBeltelecomSMSCondition = ABSTRACT CASE BOOLEAN (Dispatch);
+overSendBeltelecomSMS ABSTRACT LIST (Dispatch);
+
+sendBeltelecomSMS 'Отправить рассылку' (Dispatch d) {
+    NEWSESSION {
+        IF overSendBeltelecomSMSCondition(d) THEN {
+            overSendBeltelecomSMS(d);
+        } ELSE {
+            IF isSend(d) THEN {
+                MESSAGE 'Рассылка уже отправлена';
+            }
+
+            LOCAL stateAuthor = STRING[2]();
+            LOCAL stateSMS = STRING[2]();
+            LOCAL idSMS = STRING[50]();
+
+            EXPORT beltelecomSMSDispatch OBJECTS d = d JSON;
+            headers('Content-Type') <- 'application/json';
+            LOCAL result = FILE();
+
+            logToFile('Beltelecom', (CONCAT'\n', '[SMS-POST] https://' + urlBeltelecom() + '/sites/all/modules/api_sms/xml.php\n',
+                '[SMS-EXPORT]' + exportFile()));
+            EXTERNAL HTTP POST 'https://' + urlBeltelecom() + '/sites/all/modules/api_sms/xml.php' HEADERS headers PARAMS exportFile() TO result;
+            IMPORT JSON FROM result() TO() stateAuthor = 'state_author', stateSMS = 'state_sms', idSMS = 'id_sms';
+            logToFile('Beltelecom', '[SMS-RESULT] ' + result());
+
+            IF NOT idSMS() == '-1' THEN {
+                dataIdBeltelecom(d) <- idSMS();
+                MESSAGE 'Рассылка отправлена, присвоен ID: ' + idSMS();
+            } ELSE {
+                MESSAGE CONCAT '\n', 'Рассылка не сохранилась',
+                    'Состояние аутентификации: ' + descriptionStateAuthor(stateAuthor()),
+                    'Состояние рассылки: ' + descriptionStateSMS(stateSMS());
+            }
+        }
+        APPLY;
+    }
+}
+
+FORM dispatches 'Рассылки'
+    OBJECTS d = Dispatch
+    PROPERTIES(d) SHOWIF NOT isSend(d) sendBeltelecomSMS
+    PROPERTIES(d) READONLY isSend, idBeltelecom, nameTypeDispatch, name, caption,
+        telephoneList, stringMessage, createdTime, nameCreatedUser
+    PROPERTIES(d) NEWSESSION SHOWIF NOT isSend(d) NEW, EDIT, DELETE
+    ORDERS createdTime(d)
+    FILTERGROUP notSend
+        FILTER 'Не отправленные' NOT isSend(d)
+
+    OBJECTS n = INTEGER
+    PROPERTIES READONLY BACKGROUND backgroundIncorrectPhone(d, n) getPhone(d, n)
+    FILTERS iterate(n, 1, countPhones(d))
+;
+
+DESIGN dispatches {
+    BOX {
+        fill = 1;
+        MOVE BOX(d) { fill = 2; }
+        NEW tabPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(n) {
+                fill = 1;
+                caption = 'Номера телефонов';
+                showIf = NOT overSendBeltelecomSMSCondition(d);
+            }
+            NEW actions {
+                caption = 'Действия';
+                NEW sendActions {
+                    caption = 'Отправка';
+                    MOVE PROPERTY(sendBeltelecomSMS(d));
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW FOLDER Beltelecom 'СМС (Белтелеком)' {
+            NEW dispatches;
+        }
+    }
+}
+
+// -------------------- Замена ключей в тексте SMS Beltelecom -------------------- //
+
+DESIGN dispatch {
+    message {
+        NEW keys {
+            caption = 'Быстрая вставка';
+            horizontal = TRUE;
+            alignment = STRETCH;
+        }
+    }
+}
+
+META defineDispatchMessageReplaceKeys(object)
+    replaceKeys = ABSTRACT TEXT (###object, TEXT);
+    show###object##keys = ABSTRACT CASE BOOLEAN (Dispatch);
+END
+
+META defineDispatchMessageReplaceKeys(current, next, object, key, beforeProperty, property, keyCaption)
+    replaceKeys##next = ABSTRACT TEXT (###object, TEXT);
+    replaceKeys##current (###object o, TEXT message) += replace(
+            (OVERRIDE replaceKeys##next(o, message), message), '['##key##']', (OVERRIDE ##beforeProperty(##property(o)), '')
+        );
+        
+    put###key ''##keyCaption (Dispatch d) { message(d) <- CONCAT ' ', message(d), '['##key##']'; }
+        
+    EXTEND FORM dispatch PROPERTIES(d) put###key SHOWIF show###object##keys(d);
+    DESIGN dispatch { keys { MOVE PROPERTY(put###key(d)); } }
+END
+
+META defineDispatchMessageReplaceKeys(current, next, object, key, property, keyCaption)
+    @defineDispatchMessageReplaceKeys(current, next, object, key, , property, keyCaption);
+END
+
+// -------------------- Рассылка по дисконтным картам SMS Beltelecom -------------------- //
+
+EXTEND CLASS TypeDispatch {
+    discountCard 'По дисконтным картам'
+}
+
+in 'Вкл.' = DATA BOOLEAN (Dispatch, DiscountCard);
+
+@defineDispatchMessageReplaceKeys(DiscountCard);
+
+showDiscountCardkeys(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN TRUE;
+
+@defineDispatchMessageReplaceKeys(, 2, DiscountCard, number, seriesNumber, 'Номер (карта)');
+@defineDispatchMessageReplaceKeys(2, 3, DiscountCard, firstname, firstNameContact, 'Имя (карта)');
+@defineDispatchMessageReplaceKeys(3, 4, DiscountCard, lastname, lastNameContact, 'Фамилия (карта)');
+
+formattedMessage 'Текст SMS-рассылки с обработкой' (Dispatch d, DiscountCard c) = replaceKeys(c, message(d));
+stringFormattedMessage 'Текст SMS-рассылки с обработкой' (Dispatch d, DiscountCard c) = STRING(formattedMessage(d, c));
+
+digitsPhone 'Цифры из номера' (DiscountCard d) = digits(phoneLegalEntity(d));
+correctPhone 'Корректный номер' (DiscountCard d) = correctPhone(digitsPhone(d));
+backgroundCorrectPhone 'Выделение некорректных номеров' (DiscountCard d) = RGB(255,200,216) IF NOT correctPhone(d);
+
+discountCardTelephoneList 'Список телефонов по картам' (Dispatch d) =
+    GROUP CONCAT digitsPhone(DiscountCard c) IF in(d, c), ', ' ORDER d CHARWIDTH 50;
+overTelephoneList(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN discountCardTelephoneList(d);
+onlyOverTelephoneList(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN TRUE;
+
+EXTEND FORM dispatch    
+    OBJECTS c = DiscountCard
+    PROPERTIES(d,c) in
+    PROPERTIES(c) BACKGROUND backgroundCorrectPhone(c)
+    READONLY number, phoneLegalEntity, firstNameContact, lastNameContact, nameDiscountCardType, date
+    FILTERGROUP includeCard FILTER 'Включенные' in(d,c)
+    FILTERGROUP activeCard FILTER 'Активные' isActive(c) DEFAULT
+;
+
+DESIGN dispatch {
+    BOX {
+        NEW cards AFTER message {
+            fill = 1;
+            MOVE BOX(c) {
+                showIf = typeDispatch(d) == TypeDispatch.discountCard;
+            }
+        }
+    }
+}
+
+
+idBeltelecom 'Код рассылки' = DATA STRING[50] (Dispatch, DiscountCard) CHARWIDTH 20;
+overIdBeltelecom(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard
+    THEN (GROUP CONCAT idBeltelecom(d, DiscountCard c) IF in(d, c), ', ' ORDER c);
+onlyOverIdBeltelecom(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN TRUE;
+
+isSend 'Отправлено' (Dispatch d, DiscountCard c) = TRUE IF idBeltelecom(d, c);
+onlyOverSend(Dispatch d) +=  WHEN typeDispatch(d) == TypeDispatch.discountCard THEN TRUE;
+overSend(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN (GROUP MIN isSend(d, DiscountCard c));
+
+FORM beltelecomSMSDispatchDiscountCard
+    OBJECTS d = Dispatch PANEL, c = DiscountCard PANEL
+    PROPERTIES() loginBeltelecom EXTID 'login', passwordBeltelecom EXTID 'password'
+    PROPERTIES(d) caption EXTID 'header'
+    PROPERTIES(d, c) formattedMessage EXTID 'text'
+    PROPERTIES(c) digitsPhone EXTID 'number'
+;
+
+stateAuthor 'Состояние аутентификации' = DATA STRING[2] (Dispatch, DiscountCard);
+descriptionStateAuthor 'Состояние аутентификации' (Dispatch d, DiscountCard c) =
+    descriptionStateAuthor(stateAuthor(d, c)) CHARWIDTH 26;
+
+stateSMS 'Состояние рассылки' = DATA STRING[2] (Dispatch, DiscountCard);
+descriptionStateSMS 'Состояние рассылки' (Dispatch d, DiscountCard c) =
+    descriptionStateSMS(stateSMS(d, c)) CHARWIDTH 17;
+
+overSendBeltelecomSMSCondition(Dispatch d) += WHEN typeDispatch(d) == TypeDispatch.discountCard THEN TRUE;
+
+beforeExportBeltelecomSMSDiscountCard ABSTRACT LIST (Dispatch, DiscountCard);
+overSendBeltelecomSMS(Dispatch d) + {
+    IF typeDispatch(d) == TypeDispatch.discountCard THEN {
+        LOCAL countSend = INTEGER ();
+        countSend() <- 0;
+        FOR in(d, DiscountCard c) AND correctPhone(c) AND NOT isSend(d) DO {
+            LOCAL stateAuthor = STRING[2]();
+            LOCAL stateSMS = STRING[2]();
+            LOCAL idSMS = STRING[50]();
+
+            beforeExportBeltelecomSMSDiscountCard(d, c);
+            EXPORT beltelecomSMSDispatchDiscountCard OBJECTS d = d, c = c JSON;
+            headers('Content-Type') <- 'application/json';
+            LOCAL result = FILE();
+
+            logToFile('Beltelecom', (CONCAT'\n', '[SMS-POST][DiscountCard] https://' + urlBeltelecom() + '/sites/all/modules/api_sms/xml.php\n',
+                '[SMS-EXPORT][DiscountCard]' + exportFile()));
+            EXTERNAL HTTP POST 'https://' + urlBeltelecom() + '/sites/all/modules/api_sms/xml.php' HEADERS headers PARAMS exportFile() TO result;
+            IMPORT JSON FROM result() TO() stateAuthor = 'state_author', stateSMS = 'state_sms', idSMS = 'id_sms';
+            logToFile('Beltelecom', '[SMS-RESULT][DiscountCard] ' + result());
+
+            IF NOT idSMS() == '-1' THEN {
+                idBeltelecom(d, c) <- idSMS();
+            } ELSE {
+                stateAuthor(d, c) <- stateAuthor();
+                stateSMS(d, c) <- stateSMS();
+            }
+            APPLY NESTED(countSend[]);
+        }
+        MESSAGE 'Отправлено сообщений: ' + countSend();
+    }
+}
+
+EXTEND FORM dispatches
+    OBJECTS c = DiscountCard
+    PROPERTIES(c) READONLY BACKGROUND backgroundCorrectPhone(c)
+        number, phoneLegalEntity, firstNameContact, lastNameContact
+    PROPERTIES(d, c) BACKGROUND backgroundCorrectPhone(c) READONLY stringFormattedMessage,
+        idBeltelecom, descriptionStateAuthor, descriptionStateSMS
+    FILTERS in(d,c)
+;
+
+DESIGN dispatches {
+    tabPane {
+        MOVE BOX(c) AFTER BOX(n) {
+            fill = 1;
+            caption = 'Дисконтные карты';
+            showIf = typeDispatch(d) == TypeDispatch.discountCard;
+        }
+    }
+}
