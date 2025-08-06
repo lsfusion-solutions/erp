@@ -9,10 +9,12 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.terminal.*;
 import lsfusion.base.BaseUtils;
+import lsfusion.base.col.ListFact;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.col.interfaces.mutable.MList;
 import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
@@ -1809,7 +1811,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         List<List<Object>> dataReturn = new ArrayList<>();
         List<List<Object>> dataGiftCard = new ArrayList<>();
         Map<Object, String> barcodeMap = new HashMap<>();
-        Map<String, String> idItemIdBarcodeMap = new HashMap<>();
 
         //todo: refactor old usages of zReportExtraFields (sumCashEnd, sumProtectedEnd, sumBack, externalSum, beginShift, endShift)
         // to processZReportExtraFields
@@ -1872,6 +1873,19 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
         Set<String> ignoredIdReceipts = new HashSet<>();
         int ignoredReceiptDetailCount = 0;
+
+        ImMap<String, Object> idItemBarcodeMap = null;
+        if(options.readSalesByIdItem) {
+            MList<DataObject> mDataObjects = ListFact.mList();
+            for (int i = start; i < finish; i++) {
+                SalesInfo sale = data.get(i);
+                if(!sale.isGiftCard) {
+                    mDataObjects.add(new DataObject(sale.idItem));
+                }
+            }
+            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mDataObjects.immutableList().toArray(new DataObject[mDataObjects.size()]));
+        }
+
         for (int i = start; i < finish; i++) {
             SalesInfo sale = data.get(i);
             if (!overDocumentsClosedDate(sale, options.ignoreReceiptsAfterDocumentsClosedDate, allowReceiptsAfterDocumentsClosedDateCashRegisterList)) {
@@ -1879,12 +1893,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 String barcode = null;
 
                 //1. Если включена опция "Прием реализации по коду товара", ищем ШК по sale.idItem и свойству idBarcodeSkuOverId[STRING]
-                if(options.readSalesByIdItem && !sale.isGiftCard) {
-                    barcode = idItemIdBarcodeMap.get(sale.idItem);
-                    if(barcode == null) {
-                        barcode = (String) equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").read(session, new DataObject(sale.idItem));
-                        idItemIdBarcodeMap.put(sale.idItem, barcode);
-                    }
+                if(idItemBarcodeMap != null) {
+                    barcode = (String) idItemBarcodeMap.get(sale.idItem);
                 }
 
                 //2. Если задан sale.barcodeItem, используем его; иначе пытаемся получить прочитанное ранее значение из barcodeMap
