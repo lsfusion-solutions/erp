@@ -126,6 +126,7 @@ EXTEND FORM integrationData PROPERTIES importItemGroup();
 DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importItemGroup()); } }
 
 idGroup = DATA LOCAL NUMERIC[16,0] (INTEGER);
+skipImportLegalEntity = ABSTRACT BOOLEAN(INTEGER);
 
 importLegalEntities 'Импорт организаций' () {
 
@@ -179,10 +180,10 @@ importLegalEntities 'Импорт организаций' () {
         EXEC 'SELECT cod_firm, SUBSTR(name_firm, 1, 100), cod_group, address, address, phone, fax, "e-mail", director, comment, intext, bank_addr, bank_acct, bank_acctk, MFO, SUBSTR(primech, 1, 100) FROM Pub.firms WITH (NOLOCK)' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idGroup, unp, okpo, phone, fax, email, director, comment, intext, bankAddress, account, corrAccount, bic, note;
-    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND idGroup(i) !=3.0 DO NEW s = LegalEntity {
+    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND idGroup(i) !=3.0 AND NOT skipImportLegalEntity(i) DO NEW s = LegalEntity {
         id(s) <- ISTRING[100] (id(i));
         
-        IF NOT intext(i) == 'I' THEN NEW w = Warehouse {
+        IF NOT intext(i) == 'I' AND NOT skipImport(i) THEN NEW w = Warehouse {
             name(w) <- ISTRING[150](name(i));
             id(w) <- ISTRING[100](id(i));
             legalEntity(w) <- s;
@@ -190,7 +191,7 @@ importLegalEntities 'Импорт организаций' () {
         }
     }
 
-    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND intext(i) == 'B' DO NEW s = LegalEntity {
+    FOR id(INTEGER i) AND NOT legalEntityNew(TEXT (id(i))) AND intext(i) == 'B' AND NOT skipImportLegalEntity(i) DO NEW s = LegalEntity {
         id(s) <- ISTRING[100] (id(i));
     }
 
@@ -253,6 +254,7 @@ EXTEND FORM integrationData PROPERTIES importLegalEntities();
 DESIGN integrationData { gestoriButtons { MOVE PROPERTY (importLegalEntities()); } }
 
 idType = DATA LOCAL INTEGER (INTEGER);
+cod_reg = DATA LOCAL STRING[100] (INTEGER);
 //nameType = DATA LOCAL STRING[100](INTEGER);
 //nameGroup = DATA LOCAL ISTRING[100](INTEGER);
 
@@ -302,6 +304,7 @@ changeStoreId 'Изменить ID' () {
     }
 }
 
+skipImportStock = ABSTRACT BOOLEAN(INTEGER);
 importStores 'Импорт магазинов' () {
 
     LOCAL type = STRING[100](INTEGER);
@@ -318,7 +321,7 @@ importStores 'Импорт магазинов' () {
         name(c) <- 'Ритейл';
     }
     
-    FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) DO NEW g = StoreType {
+    FOR id(INTEGER i) AND NOT storeType(TEXT (id(i))) AND NOT skipImportStock(i) DO NEW g = StoreType {
         id(g) <- ISTRING[100](id(i));
         chainStores(g) <- chainStores('main');
     }
@@ -328,16 +331,16 @@ importStores 'Импорт магазинов' () {
     }
     
     EXTERNAL SQL 'jdbc:datadirect:openedge://' + host() + ':' + port() + ';DatabaseName=' + base() + ';user=' + login() + ';password=' + password() 
-        EXEC 'SELECT cod_shop, name_shop, cod_ob, type FROM Pub.shops WITH (NOLOCK)' TO file;
+        EXEC 'SELECT cod_shop, name_shop, cod_ob, type, cod_reg FROM Pub.shops WITH (NOLOCK)' TO file;
 
     IMPORT TABLE FROM file() TO id, name, idType, type;
 
-    FOR id(INTEGER i) AND trim(type(i)) = 'м' AND NOT store(TEXT (id(i))) DO NEW s = Store {
+    FOR id(INTEGER i) AND trim(type(i)) = 'м' AND NOT store(TEXT (id(i))) AND NOT skipImportStock(i) DO NEW s = Store {
         id(s) <- ISTRING[100] (id(i));
     }
 
 
-    FOR id(INTEGER i) AND type(i) = 'м' AND NOT stock(TEXT (id(i))) DO NEW s = DepartmentStore {
+    FOR id(INTEGER i) AND type(i) = 'м' AND NOT stock(TEXT (id(i))) AND NOT skipImportStock(i) DO NEW s = DepartmentStore {
         id(s) <- ISTRING[100] (id(i));
         store(s) <- store(TEXT (id(i)));
     }
@@ -352,7 +355,7 @@ importStores 'Импорт магазинов' () {
         name(s) <- name(i);
     }
 
-    FOR id(INTEGER i) AND trim(type(i)) = 'с' AND NOT stock(TEXT (id(i))) DO NEW s = Warehouse {
+    FOR id(INTEGER i) AND trim(type(i)) = 'с' AND NOT stock(TEXT (id(i))) AND NOT skipImportStock(i) DO NEW s = Warehouse {
         id(s) <- ISTRING[100] (id(i));
     }
 
