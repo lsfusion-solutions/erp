@@ -63,8 +63,7 @@ getItemGroup 'Получить родительские категории то�
             isVisible(ItemGroup ig) <- NULL WHERE  isVisible(ig);
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND ItemGroup ig == itemGroup(id) INLINE DO {
                 name(ig) <- name(i);
-                //isVisible(ig) <- TRUE IF isVisible(i) == 'true';
-                isVisible(ig) <- CASE WHEN isVisible(i) == 'true' THEN TRUE WHEN isVisible(i) == 'false' THEN NULL;
+                isVisible(ig) <- isVisible(i) == 'true';
             }
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
@@ -145,9 +144,7 @@ getItemSubGroup 'Получить список предметов родител
         LOCAL status = STRING ();
 
         logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
-
-       // CONCAT '?', '/content/v2/directory/tnved', ('subjectID='+id(sg))
-        // PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)
+        
         TRY {
             EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig) TO response;
             fileToString(response());
@@ -178,48 +175,41 @@ getItemSubGroup 'Получить список предметов родител
 
 getItemSubGroup 'Получить список предметов' () {
     NEWSESSION {
-        setHttpHeadersIS();
-        LOCAL message = STRING ();
-        LOCAL response = FILE();
-        LOCAL error = STRING ();
-        LOCAL status = STRING ();
+        MESSAGE '<h3>Предметы получаются только по существующим родительским категориям товаров.</h3>' NOWAIT;
+        FOR ItemGroup ig IS ItemGroup DO {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL status = STRING ();
 
-        logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
-        TRY {
-            EXTERNAL HTTP GET url(CategoryRequest.content) + CONCAT '?', '/content/v2/object/all', ('limit=' + getItemSubGroupLimit()) HEADERS httpHeaders TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            IMPORT importItemSubGroup JSON FROM response();
-            
-            IF (GROUP SUM 1 IF [GROUP MAX INTEGER i1 BY parentID(i1)](STRING parentId) AND NOT itemGroup(parentId)) THEN {
-                ASK 'В ответе присутствуют \'Родительские категории товаров\', которых нет в справочнике. Необходимо обновить справочник \'Родительские категории товаров\'' DO {
-                    getItemGroup();        
-                } ELSE {
-                    logToFile('WB', 'Прервано пользователем из-за необходимости обновления справочника\'Родительские категории товаров\'');
-                    CANCEL;
+            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/object/all');
+            TRY {
+                EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig) TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+                IMPORT importItemSubGroup JSON FROM response();
+
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                    AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
+                    id(sg) <- subjectId;
+                    name(sg) <- subjectName(i);
                 }
-            }
-
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND ItemGroup ig == itemGroup(parentId) 
-                AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
-                id(sg) <- subjectId;
-                name(sg) <- subjectName(i);
-            }
-
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND ItemGroup ig == itemGroup(parentId)
-                AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                    AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
                     itemGroup(sg) <- ig;
+                }
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Получить список предметов</h3>' NOWAIT;
+                MESSAGE message() NOWAIT;
+                APPLY;
             }
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Получить список предметов</h3>' NOWAIT;
-            MESSAGE message() NOWAIT;
-            APPLY;
-        }
+        }    
     }
 }
 
