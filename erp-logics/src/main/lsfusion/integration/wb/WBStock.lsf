@@ -61,6 +61,15 @@ EXTEND CLASS DistributionCenter {
     notSet 'Не задан'
 }
 
+onStarted() + {
+    NEWSESSION {
+        FOR DistributionCenter ds == DistributionCenter.notSet AND NOT name(ds) DO{
+            name(ds) <- 'Не задан';
+        }
+        APPLY;
+    }
+}
+
 CLASS CargoType 'Тип товара склада' {
     MGT 'малогабаритный', //1
     SGT 'сверхгабаритный ', //2
@@ -174,6 +183,7 @@ getStockWB 'Получить список складов WB' () {
                 latitude(dc) <- latitude(i);
                 longitude(dc) <- longitude(i);
                 selected(dc) <- IF selected(i) == 'true' THEN TRUE ELSE NULL;
+                
                 CASE
                     WHEN cargoType(i) == 1 THEN {
                         cargoType(dc) <- CargoType.MGT;
@@ -184,6 +194,8 @@ getStockWB 'Получить список складов WB' () {
                     WHEN cargoType(i) == 3 THEN {
                         cargoType(dc) <- CargoType.KGT;
                     }
+                
+                CASE    
                     WHEN deliveryType(i) == 1 THEN {
                         deliveryType(dc) <- DeliveryType.FBS;
                     }
