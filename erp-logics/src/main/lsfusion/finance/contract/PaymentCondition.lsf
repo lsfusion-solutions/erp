@@ -82,11 +82,11 @@ shortDescription 'Условия оплаты' (PaymentCondition paymentConditio
 documentDescription 'Описание для документов' = DATA STRING[100] (PaymentCondition);
 // Бонусы
 
-
+allowPartialPaymentPeriod = ABSTRACT BOOLEAN (PaymentCondition);
 sumPercent(paymentCondition) = GROUP SUM percent(PaymentPeriod paymentPeriod) BY paymentCondition(paymentPeriod);
-CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 CHECKED BY sumPercent[PaymentCondition]
+CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 AND NOT allowPartialPaymentPeriod(paymentCondition) CHECKED BY sumPercent[PaymentCondition]
     MESSAGE 'Сумма процентов рассрочки должна быть равна 100';
-CONSTRAINT percent(PaymentPeriod p) AND NOT countDays(p)
+CONSTRAINT percent(PaymentPeriod p) AND NOT countDays(p)  AND NOT allowPartialPaymentPeriod(paymentCondition(p))
     MESSAGE 'Для периода рассрочки должен быть задан параметр "Кол-во дней"';
 
 showPaymentPeriod = ABSTRACT VALUE BOOLEAN (PaymentCondition);
