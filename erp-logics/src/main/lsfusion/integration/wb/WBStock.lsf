@@ -44,9 +44,10 @@ distributionCenter = DATA DistributionCenter (Warehouse) NONULL;
 warehouse (DistributionCenter distributionCenter) = GROUP MAX Warehouse w IF distributionCenter(w)==distributionCenter;
 nameWarehouse 'Собственный склад' (DistributionCenter distributionCenter) = name(warehouse(distributionCenter));
 
-WHEN LOCAL SETCHANGED(distributionCenter(Warehouse w)) AND [GROUP SUM 1 BY distributionCenter(Warehouse w2)](distributionCenter(w))>1 DO {
-    MESSAGE 'Склад WB может быть привязан только к одному собственному складу. К выбранному складу WB привязан собвстенный склад: '+ nameWarehouse(distributionCenter(w)) NOWAIT;
-    distributionCenter(w) <- PREV(distributionCenter(w));
+WHEN LOCAL SETCHANGED(distributionCenter(Warehouse w)) AND isWB(distributionCenter(w)) AND
+    [GROUP SUM 1 BY distributionCenter(Warehouse w2)](distributionCenter(w))>1 DO {
+        MESSAGE 'Склад WB может быть привязан только к одному собственному складу. К выбранному складу WB привязан собвстенный склад: '+ nameWarehouse(distributionCenter(w)) NOWAIT;
+        distributionCenter(w) <- PREV(distributionCenter(w));
 }
 
 EXTEND CLASS DistributionCenter {
