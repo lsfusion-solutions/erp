@@ -9,12 +9,12 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.api.stoplist.StopListInfo;
 import equ.api.terminal.*;
 import lsfusion.base.BaseUtils;
-import lsfusion.base.col.ListFact;
 import lsfusion.base.col.MapFact;
+import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.base.col.interfaces.mutable.MList;
+import lsfusion.base.col.interfaces.mutable.MSet;
 import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
@@ -1876,14 +1876,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
         ImMap<String, Object> idItemBarcodeMap = null;
         if(options.readSalesByIdItem) {
-            MList<String> mIdItems = ListFact.mList();
+            MSet<String> mIdItems = SetFact.mSet();
             for (int i = start; i < finish; i++) {
                 SalesInfo sale = data.get(i);
                 if(!sale.isGiftCard) {
                     mIdItems.add(sale.idItem);
                 }
             }
-            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mIdItems.immutableList().toArray(new String[mIdItems.size()]));
+            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mIdItems.immutable().toArray(new String[mIdItems.size()]));
         }
 
         for (int i = start; i < finish; i++) {
