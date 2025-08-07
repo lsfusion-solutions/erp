@@ -1777,7 +1777,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                             receiptExtraFields.put("cashtype", cashtype);
                                         }
 
-                                        JSONArray couponPositionsArray = documentObject.getJSONArray("couponPositions");
+                                        JSONArray couponPositionsArray = documentObject.optJSONArray("couponPositions");
                                         if(couponPositionsArray != null) {
                                             receiptExtraFields.put("couponPositions", couponPositionsArray.toString());
                                         }
