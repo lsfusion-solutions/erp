@@ -14,6 +14,7 @@ import lsfusion.base.col.SetFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.base.col.interfaces.mutable.MMap;
 import lsfusion.base.col.interfaces.mutable.MSet;
 import lsfusion.base.file.RawFileData;
 import lsfusion.interop.form.property.Compare;
@@ -24,6 +25,7 @@ import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.base.controller.thread.ThreadLocalContext;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.expr.value.ValueExpr;
+import lsfusion.server.data.query.build.Join;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -35,9 +37,12 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.action.controller.stack.ExecutionStack;
 import lsfusion.server.logics.action.session.DataSession;
+import lsfusion.server.logics.action.session.table.SingleKeyTableUsage;
+import lsfusion.server.logics.classes.ConcreteClass;
 import lsfusion.server.logics.classes.data.StringClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
+import lsfusion.server.logics.property.classes.infer.ClassType;
 import lsfusion.server.physics.dev.integration.service.*;
 import lsfusion.server.physics.exec.db.controller.manager.DBManager;
 import org.apache.log4j.Logger;
@@ -1874,7 +1879,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         Set<String> ignoredIdReceipts = new HashSet<>();
         int ignoredReceiptDetailCount = 0;
 
-        ImMap<String, Object> idItemBarcodeMap = null;
+        ImMap<String, String> idItemBarcodeMap = null;
         if(options.readSalesByIdItem) {
             MSet<String> mIdItems = SetFact.mSet();
             for (int i = start; i < finish; i++) {
@@ -1883,7 +1888,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     mIdItems.add(sale.idItem);
                 }
             }
-            idItemBarcodeMap = equipmentLM.findProperty("idBarcodeSkuOverId[STRING]").readAll(session, mIdItems.immutable().toArray(new String[mIdItems.size()]));
+            idItemBarcodeMap = readAll(equipmentLM.findProperty("idBarcodeSkuOverId[STRING]"), session, mIdItems.immutable().toArray(new String[mIdItems.size()]));
         }
 
         for (int i = start; i < finish; i++) {
@@ -1894,7 +1899,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 //1. Если включена опция "Прием реализации по коду товара", ищем ШК по sale.idItem и свойству idBarcodeSkuOverId[STRING]
                 if(idItemBarcodeMap != null) {
-                    barcode = (String) idItemBarcodeMap.get(sale.idItem);
+                    barcode = idItemBarcodeMap.get(sale.idItem);
                 }
 
                 //2. Если задан sale.barcodeItem, используем его; иначе пытаемся получить прочитанное ранее значение из barcodeMap
@@ -1952,6 +1957,34 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             }
         }
         return new RowsData(dataSale, dataReturn, dataGiftCard, zReportExtraFields, receiptExtraFields, receiptDetailExtraFields, ignoredIdReceipts, ignoredReceiptDetailCount);
+    }
+
+    // c/p from LP readAll, but changed result mapping
+    public <K> ImMap<K, String> readAll(LP property, DataSession session, K[] data) throws SQLException, SQLHandledException {
+        MMap<K, String> result = MapFact.mMap(true);
+        // create a temporary table with one key (STRING type), without fields
+        ConcreteClass interfaceClass = (ConcreteClass)property.getInterfaceClasses(ClassType.iteratePolicy)[0];
+        SingleKeyTableUsage<Object> importTable = new SingleKeyTableUsage<>("updpm:wr", interfaceClass.getType(), SetFact.EMPTYORDER(), key -> null);
+        try {
+            // write the values from the array
+            importTable.writeRows(session.sql, SetFact.toExclSet(data).mapKeyValues(value -> MapFact.singleton("key", new DataObject(value, interfaceClass)), value -> MapFact.EMPTY()), session.getOwner());
+            // create a query
+            // with one key named key (however, it can be any name): property parameter and condition: in the created temporary table
+            KeyExpr keyExpr = new KeyExpr(0);
+            ImRevMap<String, KeyExpr> mapKeys = MapFact.singletonRev("key", keyExpr);
+            Join<Object> importJoin = importTable.join(mapKeys);
+            QueryBuilder<String, String> query = new QueryBuilder<>(mapKeys, importJoin.getWhere());
+            // with one field value (however, any name is possible): the passed property
+            query.addProperty("value", property.getExpr(keyExpr));
+
+            ImOrderMap<ImMap<String, Object>, ImMap<String, Object>> queryResult = query.execute(session);
+            for (ImMap<String, Object> key : queryResult.keys()) {
+                result.add((K) key.singleValue(), (String) queryResult.get(key).singleValue());
+            }
+        } finally {
+            importTable.drop(session.sql, session.getOwner());
+        }
+        return result.immutable();
     }
 
     private class RowsData {
