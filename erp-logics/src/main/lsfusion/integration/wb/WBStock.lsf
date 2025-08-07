@@ -24,23 +24,7 @@ address (Warehouse w) += address(w) IF w IS Warehouse;
 city 'Город' = DATA STRING (Warehouse);
 errorText 'Текст ошибки' = DATA STRING (Warehouse);
 error 'Ошибка' = DATA BOOLEAN (Warehouse);
-isCreated 'Создан в WB' = DATA BOOLEAN (Warehouse);
-isUpdated 'Обновлен' = DATA BOOLEAN (Warehouse);
-isDeleted 'Удален' = DATA BOOLEAN (Warehouse);
-isWB 'Склад WB' = DATA BOOLEAN (Warehouse);
-toUpdateWB = DATA BOOLEAN (Warehouse);
-
-WHEN CHANGED(name(Warehouse w))  DO {
-    toUpdateWB(w) <- TRUE;
-}
-
-status 'Статус' (Warehouse w) = CASE
-    WHEN w IS Warehouse AND error(w) THEN 'Ошибка создания/обновления'
-    WHEN w IS Warehouse AND NOT id(w) AND NOT isDeleted(w) THEN 'Новый'
-    WHEN w IS Warehouse AND toUpdateWB(w) AND  id(w) THEN 'Изменён'
-    WHEN w IS Warehouse AND isDeleted(w) THEN 'Удален'
-    WHEN w IS Warehouse AND isCreated(w) OR isUpdated(w) THEN 'Создан/Обновлен'
-;
+isDeletedWB 'Удален на WB' = DATA BOOLEAN (Warehouse);
 
 CLASS DistributionCenter 'Склад WB': Stock;
 
@@ -52,10 +36,18 @@ city 'Город' = DATA STRING (DistributionCenter);
 federalDistrict 'Федеральный округ' = DATA STRING (DistributionCenter);
 latitude 'Широта' = DATA NUMERIC (DistributionCenter);
 longitude 'Долгота' = DATA NUMERIC (DistributionCenter);
-selected 'Выбран' = DATA BOOLEAN (DistributionCenter);
+selected 'Используется(выбран продавцом)' = DATA BOOLEAN (DistributionCenter);
 isWB 'Склад WB' = DATA BOOLEAN (DistributionCenter);
 
 distributionCenter = DATA DistributionCenter (Warehouse) NONULL;
+
+warehouse (DistributionCenter distributionCenter) = GROUP MAX Warehouse w IF distributionCenter(w)==distributionCenter;
+nameWarehouse 'Собственный склад' (DistributionCenter distributionCenter) = name(warehouse(distributionCenter));
+
+WHEN LOCAL SETCHANGED(distributionCenter(Warehouse w)) AND [GROUP SUM 1 BY distributionCenter(Warehouse w2)](distributionCenter(w))>1 DO {
+    MESSAGE 'Склад WB может быть привязан только к одному собственному складу. К выбранному складу WB привязан собвстенный склад: '+ nameWarehouse(distributionCenter(w)) NOWAIT;
+    distributionCenter(w) <- PREV(distributionCenter(w));
+}
 
 EXTEND CLASS DistributionCenter {
     notSet 'Не задан'
@@ -72,7 +64,7 @@ onStarted() + {
 
 CLASS CargoType 'Тип товара склада' {
     MGT 'малогабаритный', //1
-    SGT 'сверхгабаритный ', //2
+    SGT 'сверхгабаритный', //2
     KGT 'крупногабаритный' //3
 }
 
@@ -110,14 +102,16 @@ FORM distributionCenters 'Склады WB'
 
 changeIdStockWB (Warehouse w) {
     DIALOG distributionCenters OBJECTS dc INPUT DO {
-            distributionCenter(w) <- dc;
-        }
+        distributionCenter(w) <- dc;
+    }
 }
 
 FORM warehouse 'Собственный склад'
     OBJECTS w = Warehouse PANEL
-    PROPERTIES(w) id, name, address
-    PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w), name 'Наименование склада WB' = name(distributionCenter(w)) READONLY 
+    PROPERTIES(w) id READONLY, name, address
+    PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w), 
+        name 'Наименование склада WB' = name(distributionCenter(w)) ON CHANGE changeIdStockWB(w)
+    PROPERTIES(w) READONLY error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w)
     ORDERS name(w)
     
     EDIT Warehouse OBJECT w
@@ -126,11 +120,35 @@ FORM warehouse 'Собственный склад'
 DESIGN warehouse {
     BOX {
         NEW warehouseHeader {
-            MOVE BOX(w); 
+            MOVE BOX(w);
+            NEW errorContainer{
+                align = STRETCH;
+                caption = 'Текст ошибки';
+                MOVE PROPERTY(errorText(w)) {
+                    caption = '';
+                    align = STRETCH;
+                    height = 50;
+                    fontSize = 14;
+                }
+            }
         }
     }
     MOVE TOOLBARBOX;
 }
+
+toUpdateWB = DATA BOOLEAN (Warehouse);
+
+WHEN (CHANGED(name(Warehouse w)) OR CHANGED(address(w)) OR CHANGED(distributionCenter(w))) AND PREV(id(w)) DO {
+    toUpdateWB(w) <- TRUE;
+}
+
+status 'Статус' (Warehouse w) = CASE
+    WHEN w IS Warehouse AND error(w) THEN 'Ошибка создания/обновления'
+    WHEN w IS Warehouse AND toUpdateWB(w) AND id(w) THEN 'Изменён'
+    WHEN w IS Warehouse AND isDeletedWB(w) THEN 'Удален на WB'
+    WHEN w IS Warehouse AND id(w) THEN 'Создан/Обновлен'
+    WHEN w IS Warehouse AND NOT id(w) AND NOT isDeletedWB(w) THEN 'Новый'
+;
 
 cargoType = DATA LOCAL INTEGER (INTEGER);
 address = DATA LOCAL STRING(INTEGER);
@@ -182,7 +200,7 @@ getStockWB 'Получить список складов WB' () {
                 federalDistrict(dc) <- federalDistrict(i);
                 latitude(dc) <- latitude(i);
                 longitude(dc) <- longitude(i);
-                selected(dc) <- IF selected(i) == 'true' THEN TRUE ELSE NULL;
+                selected(dc) <- selected(i) == 'true';
                 
                 CASE
                     WHEN cargoType(i) == 1 THEN {
@@ -247,143 +265,156 @@ name = DATA LOCAL STRING();
 //https://marketplace-api.wildberries.ru/api/v3/warehouses
 postStock 'Создать склад продавца (собственный)' (Warehouse w) {
     NEWSESSION {
-        setHttpHeadersIS();
-        LOCAL response = FILE();
-        LOCAL messageStock = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
-        LOCAL isCreatedWB = BOOLEAN (Stock);
-        isCreatedWB(w) <- TRUE WHERE NOT isCreated(w);
-        errorText(w) <- NULL WHERE error(w);
-        error(w) <- NULL WHERE error(w);
-
-        logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
-        EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isCreatedWB(w);
-        
-        fileToString(exportFile(), 'UTF-8');
-        stringToFile(resultString(),'UTF-8', 'json');
-        
-        TRY {
-            EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/warehouses' HEADERS httpHeaders PARAMS resultFile() TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            IMPORT importError JSON FROM response();
-            LOCAL id = INTEGER();
-            IMPORT JSON FROM response() TO() id = id;
-            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                id(w) <- id();
-                isCreated(w) <- TRUE WHERE isCreatedWB(w);
-                selected(DistributionCenter dc) <- TRUE WHERE dc == distributionCenter(w);
-            } 
-            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+        IF NOT id(w) THEN {
+            setHttpHeadersIS();
+            LOCAL response = FILE();
+            LOCAL messageStock = STRING ();
+            LOCAL statusText = STRING ();
+            LOCAL status = STRING ();
+            LOCAL isCreatedWB = BOOLEAN (Stock);
+            errorText(w) <- NULL WHERE error(w);
+            error(w) <- NULL WHERE error(w);
+    
+            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
+            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isCreatedWB(w);
+            
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile(resultString(),'UTF-8', 'json');
+            
+            TRY {
+                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/warehouses' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Склад продавца не создан: ' + message();
-                error(w) <- TRUE;
-                errorText(w) <- OVERRIDE message(), statusText();
+                LOCAL id = INTEGER();
+                IMPORT JSON FROM response() TO() id = id;
+                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                    id(w) <- id();
+                    selected(DistributionCenter dc) <- TRUE WHERE dc == distributionCenter(w);
+                    isDeletedWB(w) <- NULL;
+                    toUpdateWB(w) <- NULL;
+                } 
+                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Склад продавца не создан: ' + message();
+                    error(w) <- TRUE;
+                    errorText(w) <- OVERRIDE message(), statusText();
+                }
+                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Создание склада продавца</h3>' NOWAIT;
+                MESSAGE messageStock() NOWAIT;
+                APPLY;
             }
-            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Создание склада продавца</h3>' NOWAIT;
-            MESSAGE messageStock() NOWAIT;
-            APPLY;
-        }
+        } ELSE {
+            MESSAGE 'Склад уже создан на WB, воспользуйтесь функцией обновления склада.' NOWAIT;
+        }        
     }
 }
 
 //https://marketplace-api.wildberries.ru/api/v3/warehouses/{warehouseId}
 updateStock 'Обновить склад продавца (собственный)' (Warehouse w) {
     NEWSESSION {
-        setHttpHeadersIS();
-        LOCAL response = FILE();
-        LOCAL messageStock = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
-        LOCAL isUpdatedWB = BOOLEAN (Stock);
-        isUpdatedWB(w) <- TRUE WHERE NOT isUpdated(w);
-        errorText(w) <- NULL WHERE error(w);
-        error(w) <- NULL WHERE error(w);
+        CASE WHEN id(w) AND toUpdateWB(w) THEN {
+            setHttpHeadersIS();
+            LOCAL response = FILE();
+            LOCAL messageStock = STRING ();
+            LOCAL statusText = STRING ();
+            LOCAL status = STRING ();
+            LOCAL isUpdatedWB = BOOLEAN (Stock);
+            errorText(w) <- NULL WHERE error(w);
+            error(w) <- NULL WHERE error(w);
 
-        logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
-        EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isUpdatedWB(w);
+            logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses');
+            EXPORT JSON FROM name = name(w), officeId = id(distributionCenter(w)) WHERE isUpdatedWB(w);
 
-        fileToString(exportFile(), 'UTF-8');
-        stringToFile(resultString(),'UTF-8', 'json');
+            fileToString(exportFile(), 'UTF-8');
+            stringToFile(resultString(), 'UTF-8', 'json');
 
-        TRY {
-            EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/warehouses/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            IMPORT importError JSON FROM response();
-            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                isUpdated(w) <- TRUE WHERE isUpdatedWB(w);
-            }
-            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+            TRY {
+                EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/warehouses/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Склад продавца не обновлен: ' + message();
-                error(w) <- TRUE;
-                errorText(w) <- OVERRIDE message(), statusText();
+                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                    toUpdateWB(w) <- NULL;
+                }
+                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Склад продавца не обновлен: ' + message();
+                    error(w) <- TRUE;
+                    errorText(w) <- OVERRIDE message(), statusText();
+                }
+                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Обновление склада продавца</h3>' NOWAIT;
+                MESSAGE messageStock() NOWAIT;
+                APPLY;
             }
-            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Обновление склада продавца</h3>' NOWAIT;
-            MESSAGE messageStock() NOWAIT;
-            APPLY;
-        }
+        } 
+        WHEN id(w) AND NOT toUpdateWB(w) THEN {
+            MESSAGE 'Склад уже обновлен. Нечего обновлять.' NOWAIT;   
+        } ELSE {
+            MESSAGE 'Склад не создан на WB.' NOWAIT;
+        }    
     }
 }
 
 //https://marketplace-api.wildberries.ru/api/v3/warehouses/{warehouseId}
 deleteStock 'Удалить склад продавца (собственный)' (Warehouse w) {
     NEWSESSION {
-        setHttpHeadersIS();
-        LOCAL response = FILE();
-        LOCAL messageStock = STRING ();
-        LOCAL statusText = STRING ();
-        LOCAL status = STRING ();
-        LOCAL isDeletedWB = BOOLEAN (Stock);
-        isDeletedWB(w) <- TRUE WHERE NOT isDeleted(w);
-        errorText(w) <- NULL WHERE error(w);
-        error(w) <- NULL WHERE error(w);
-
-        logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/');
-
-        TRY {
-            EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/warehouses/' +id(w) HEADERS httpHeaders  TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            IMPORT importError JSON FROM response();
-            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                isDeleted(w) <- TRUE WHERE isDeletedWB(w);
-                isCreated(w) <- NULL WHERE isDeletedWB(w);
-                isUpdated(w) <- NULL WHERE isDeletedWB(w);
-                id(w) <- NULL;
-                selected(DistributionCenter dc) <- NULL WHERE dc == distributionCenter(w);
-                distributionCenter(w) <- DistributionCenter.notSet;
-            }
-            messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+        IF id(w) THEN {
+            setHttpHeadersIS();
+            LOCAL response = FILE();
+            LOCAL messageStock = STRING ();
+            LOCAL statusText = STRING ();
+            LOCAL status = STRING ();
+            LOCAL isDeletedWB = BOOLEAN (Stock);
+            isDeletedWB(w) <- TRUE WHERE NOT WB.isDeletedWB[Warehouse](w);
+            errorText(w) <- NULL WHERE error(w);
+            error(w) <- NULL WHERE error(w);
+    
+            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/warehouses/');
+    
+            TRY {
+                EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/warehouses/' +id(w) HEADERS httpHeaders  TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
                 IMPORT importError JSON FROM response();
-                extraDescriptionStatusHTTP() <- 'Склад продавца не удален: ' + message();
-                error(w) <- TRUE;
-                errorText(w) <- OVERRIDE message(), statusText();
+                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                    WB.isDeletedWB[Warehouse](w) <- TRUE WHERE isDeletedWB(w);
+                    toUpdateWB(w) <- NULL;
+                    id(w) <- NULL;
+                    selected(DistributionCenter dc) <- NULL WHERE dc == distributionCenter(w);
+                    distributionCenter(w) <- DistributionCenter.notSet;
+                }
+                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 THEN {
+                    IMPORT importError JSON FROM response();
+                    extraDescriptionStatusHTTP() <- 'Склад продавца не удален: ' + message();
+                    error(w) <- TRUE;
+                    errorText(w) <- OVERRIDE message(), statusText();
+                }
+                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Удаление склада продавца</h3>' NOWAIT;
+                MESSAGE messageStock() NOWAIT;
+                APPLY;
             }
-            messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Удаление склада продавца</h3>' NOWAIT;
-            MESSAGE messageStock() NOWAIT;
-            APPLY;
-        }
+        } ELSE {
+            MESSAGE 'Склад не создан на WB.' NOWAIT;
+        }            
     }
 }
 
@@ -412,6 +443,11 @@ getStocks 'Получить список складов продавца' () {
             logToFile('WB', resultString());
             IMPORT importStocks JSON FROM response();
 
+            IF (GROUP SUM 1 IF officeId(INTEGER i) AND NOT distributionCenter(officeId(i))) THEN {
+                messageStock() <- '<h3>Собственным складам назначен склад WB, которого нет в списке. Обновите список складов WB.</h3>';
+                RETURN;
+            } 
+            
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT warehouse(INTEGER(id)) INLINE DO NEW w = Warehouse {
                 id(w) <- INTEGER(id);
             }
@@ -419,7 +455,6 @@ getStocks 'Получить список складов продавца' () {
                 AND DistributionCenter dc == distributionCenter(officeId(i)) INLINE DO {
                 name(w) <- name(i);
                 distributionCenter(w) <- dc;
-                isCreated(w) <- TRUE WHERE NOT isDeleted(w);
                 CASE
                     WHEN cargoType(i) == 1 THEN {
                         cargoType(dc) <- CargoType.MGT;
@@ -467,32 +502,20 @@ EXTEND FORM masterData
     PROPERTIES() getStockWB
     OBJECTS dc = DistributionCenter
     PROPERTIES(dc) READONLY isWB, selected
-    PROPERTIES(dc) READONLY id, name, address, city, federalDistrict, latitude, longitude, nameCargoType, nameDeliveryType
+    PROPERTIES(dc) READONLY id, name, address, city, federalDistrict, latitude, longitude, nameCargoType, 
+        nameDeliveryType, nameWarehouse
     PROPERTIES(dc) deleteStockWB DRAW dc TOOLBAR
     ORDERS id(dc)
 
     PROPERTIES() getStocks
     OBJECTS w = Warehouse
-    PROPERTIES(w) READONLY isCreated, isUpdated, isDeleted
-    PROPERTIES(w) READONLY error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w) PANEL
-    PROPERTIES(w) READONLY id, name, address, status
+    PROPERTIES(w) READONLY status, error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w) PANEL
+    PROPERTIES(w) READONLY id, name, address
     PROPERTIES READONLY id 'Код склада WB' = id(distributionCenter(w)), name 'Наименование склада WB' = name(distributionCenter(w)),
         nameCargoType 'Тип товара склада' = nameCargoType(distributionCenter(w)), nameDeliveryType 'Тип доставки' = nameDeliveryType(distributionCenter(w))
     PROPERTIES(w) GRID postStock, updateStock, deleteStock
     PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE
     ORDERS name(w)
-        
-//    OBJECTS stock = Stock
-//    PROPERTIES(stock) READONLY isWB, isCreated, isUpdated, isDeleted 
-//    PROPERTIES(stock) READONLY id, idStockWB, name, address, city, federalDistrict, latitude, longitude, cargoType, deliveryType, selected
-//    PROPERTIES(stock) GRID postStock, updateStock, deleteStock
-//    PROPERTIES(stock) NEWSESSION NEW, EDIT, DELETE
-//    ORDERS name(stock)
-        
-//    FILTERGROUP filterStock
-//        FILTER 'Собственные склады' NOT isWB(stock) DEFAULT 
-//        FILTER 'Склады WB' isWB(stock)
-//        FILTER 'Используемые склады WB и собственные' isWB(stock) OR NOT isWB(stock)
 ;
 
 DESIGN masterData {
