@@ -35,6 +35,15 @@ clubDiscount 'Скидка WB Клуба, %' = DATA INTEGER (PriceTransaction, I
 in = DATA BOOLEAN (PriceTransaction, Size);
 price 'Цена размера' = DATA INTEGER (PriceTransaction, Size);
 
+CLASS PriceTransactionType 'Тип загрузки' {
+    itemPrice 'Установить цены и скидки для товаров',
+    sizePrice 'Установить цены для размеров',
+    wbDiscount 'Установить скидки WB Клуба'
+}
+
+type = DATA PriceTransactionType (PriceTransaction);
+nameType 'Тип загрузки' (PriceTransaction t) = staticCaption(type(t));
+
 CLASS PriceTransactionStatus 'Статус загрузки' {
     processing 'в обработке',
     processed 'обработана, в товарах нет ошибок, цены и скидки обновились',
@@ -46,8 +55,6 @@ CLASS PriceTransactionStatus 'Статус загрузки' {
 status = DATA PriceTransactionStatus (PriceTransaction);
 nameStatus 'Статус загрузки цен' (PriceTransaction t) = staticCaption(status(t));
 
-description 'Описание' = DATA STRING (PriceTransaction);
-
 CLASS PriceTransactionItemStatus 'Статус загрузки товара' {
     processing 'в обработке',
     success 'товар без ошибок, цена и/или скидка обновилась',
@@ -55,12 +62,43 @@ CLASS PriceTransactionItemStatus 'Статус загрузки товара' {
 }
 
 status = DATA PriceTransactionItemStatus (PriceTransaction, Item);
-nameStaus 'Статус загрузки товара' (PriceTransaction t, Item i) = staticCaption(status(t, i));
+nameStatus 'Статус загрузки товара' (PriceTransaction t, Item i) = staticCaption(status(t, i));
 errorText 'Описание ошибки' = DATA STRING (PriceTransaction, Item);
 
+lastPriceTransactionItem = 
+    GROUP LAST PriceTransaction t IF in(t, Item i) AND type(t)==PriceTransactionType.itemPrice ORDER t BY i MATERIALIZED;
+lastSuccessPriceTransactionItem = 
+    GROUP LAST PriceTransaction t IF in(t, Item i) AND type(t)==PriceTransactionType.itemPrice AND status(t, i)==PriceTransactionItemStatus.success ORDER t BY i MATERIALIZED;
+
+nameStatusLastPriceTransactionItem 'Статус последней загрузки цен и скидок для товаров' (Item i) = 
+    nameStatus(lastPriceTransactionItem(i)) CHARWIDTH 10;
+
+priceLastSuccessPriceTransactionItem 'Цена последней успешной загрузки' (Item i)= price(lastSuccessPriceTransactionItem(i), i);
+discountLastSuccessPriceTransactionItem 'Скидка последней успешной загрузки' (Item i)= discount(lastSuccessPriceTransactionItem(i), i);
+
 status = DATA PriceTransactionItemStatus (PriceTransaction, Size);
-nameStaus 'Статус загрузки товара' (PriceTransaction t, Size i) = staticCaption(status(t, i));
+nameStatus 'Статус загрузки товара' (PriceTransaction t, Size i) = staticCaption(status(t, i));
 errorText 'Описание ошибки' = DATA STRING (PriceTransaction, Size);
+
+lastPriceTransactionSize = 
+    GROUP LAST PriceTransaction t IF in(t, Size s) AND type(t)==PriceTransactionType.sizePrice ORDER t BY s MATERIALIZED;
+lastSuccessPriceTransactionSize =
+    GROUP LAST PriceTransaction t IF in(t, Size s) AND type(t)==PriceTransactionType.sizePrice AND status(t, s)==PriceTransactionItemStatus.success ORDER t BY s MATERIALIZED;
+
+nameStatusLastPriceTransactionSize 'Статус последней загрузки цен для размеров' (Size s) = 
+    nameStatus(lastPriceTransactionSize(s)) CHARWIDTH 10;
+
+priceLastSuccessPriceTransactionSize 'Цена последней успешной загрузки' (Size s)= price(lastSuccessPriceTransactionSize(s), s);
+
+lastPriceTransactionWBClub =
+    GROUP LAST PriceTransaction t IF in(t, Item i) AND type(t)==PriceTransactionType.wbDiscount ORDER t BY i MATERIALIZED;
+lastSuccessPriceTransactionWBClub =
+    GROUP LAST PriceTransaction t IF in(t, Item i) AND type(t)==PriceTransactionType.wbDiscount AND status(t, i)==PriceTransactionItemStatus.success ORDER t BY i MATERIALIZED;
+
+nameStatusLastPriceTransactionWBClub 'Статус последней загрузки скидок WB клуба' (Item i) =
+    nameStatus(lastPriceTransactionWBClub(i)) CHARWIDTH 10;
+
+clubDiscountLastSuccessPriceTransactionItem 'Скидка WB клуба последней успешной загрузки' (Item i)= clubDiscount(lastSuccessPriceTransactionWBClub(i), i);
 
 overAllGoodsNumber 'Всего товаров' = DATA INTEGER (PriceTransaction);
 successGoodsNumber 'Товаров без ошибок' = DATA INTEGER (PriceTransaction);
@@ -128,7 +166,7 @@ uploadPricesDiscounts 'Установить цены и скидки' () {
                             discount(t, Item i) <- discount(i) WHERE in(t, i);
                             status(t, Item i) <- PriceTransactionItemStatus.processing WHERE in(t, i);
 
-                            description(t) <- 'Установить цены и скидки';
+                            type(t) <- PriceTransactionType.itemPrice;
                         }
 
                         APPLY NESTED LOCAL;
@@ -197,7 +235,7 @@ uploadPricesSizes 'Установить цены для размеров' () {
                             price(t, Size i) <- price(i) WHERE in(t, i);
                             status(t, Size i) <- PriceTransactionItemStatus.processing WHERE in(t, i);;
 
-                            description(t) <- 'Установить цены для размеров';
+                            type(t) <- PriceTransactionType.sizePrice;
                         }
 
                         APPLY NESTED LOCAL;
@@ -266,7 +304,7 @@ uploadClubDiscounts 'Установить скидки WB Клуба' () {
                             clubDiscount(t, Item i) <- clubDiscount(i) WHERE in(t, i);
                             status(t, Item i) <- PriceTransactionItemStatus.processing WHERE in(t, i);
 
-                            description(t) <- 'Установить скидки WB Клуба';
+                            type(t) <- PriceTransactionType.wbDiscount;
                         }
 
                         APPLY NESTED LOCAL;
@@ -668,6 +706,13 @@ processedStatusSpecification 'Детализация обработанной з
     }
 }
 
+getProcessedStatus 'Получить данные необработанных загрузок цен и скидок' () {
+    FOR PriceTransaction t IS PriceTransaction AND status(t)==PriceTransactionStatus.processing NOINLINE DO {
+        getProcessedStatus(t);
+        processedStatusSpecification(t);
+    }
+}
+
 EXTEND FORM WBPricesBalances
     PROPERTIES() uploadPricesDiscounts, uploadPricesSizes, uploadClubDiscounts, quarantineItems, getItemPrices
     
@@ -675,19 +720,24 @@ EXTEND FORM WBPricesBalances
     PROPERTIES(i) READONLY price, discount, clubDiscount
     PROPERTIES getItemPrices(i) GRID, getSizePrices(i) SHOWIF editableSizePrice(i)
     
-    PROPERTIES(s) READONLY price
+    PROPERTIES(i) READONLY priceLastSuccessPriceTransactionItem, discountLastSuccessPriceTransactionItem,
+        clubDiscountLastSuccessPriceTransactionItem, nameStatusLastPriceTransactionItem, nameStatusLastPriceTransactionWBClub 
+    PROPERTIES(s) READONLY price, priceLastSuccessPriceTransactionSize, nameStatusLastPriceTransactionSize  
 
-    OBJECTS t = PriceTransaction
-    PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, overAllGoodsNumber, successGoodsNumber, description
+    OBJECTS t = PriceTransaction LAST
+    PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, overAllGoodsNumber, successGoodsNumber, nameType
     PROPERTIES(t) TOOLBAR getProcessedStatus, processedStatusSpecification 
+    PROPERTIES getProcessedStatus() DRAW t TOOLBAR 
+    FILTERGROUP processing
+        FILTER 'Необработанные' status(t)==PriceTransactionStatus.processing DEFAULT 
     
     OBJECTS item = Item
     PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item),
-        nameStaus(t, item), errorText(t, item) PANEL     
+        nameStatus(t, item), errorText(t, item) PANEL     
     FILTERS in(t, item)
     
     OBJECTS size = Size
-    PROPERTIES READONLY chrtID(size), techSize(size), wbSize(size), price(t, size), nameStaus(t, size), 
+    PROPERTIES READONLY chrtID(size), techSize(size), wbSize(size), price(t, size), nameStatus(t, size), 
         errorText(t, size) PANEL
     FILTERS in(t, size)
 ;
