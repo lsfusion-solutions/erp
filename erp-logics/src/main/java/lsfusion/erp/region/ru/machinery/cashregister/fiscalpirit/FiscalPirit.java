@@ -292,7 +292,13 @@ public class FiscalPirit {
     }
 
     private static String getLot(String idLot, String tailLot) {
-        return idLot + "$1d" + tailLot.substring(1,7) + "$1d" + tailLot.substring(8);
+        if (tailLot.trim().isEmpty()) {
+            // В РФ большинство марок не имеет криптохвостов,
+            // поэтому может быть ситуация, что товар не имеет криптохвоста
+            return idLot;
+        } else {
+            return idLot + "$1d" + tailLot.substring(1,7) + "$1d" + tailLot.substring(8);
+        }
     }
 
 
@@ -302,7 +308,7 @@ public class FiscalPirit {
         // Параметры: название, код, кол-во, цена, ставка налога, № пп, секция, тип скидки/наценки, код ед.изм, скидка,
         // способ расчета, предмет расчета, страна происхождения - 112 РБ, номер декларации
         // для версии 2 - сумма акциза
-        // значение признаков: см. описание в протокола и manual_pirit2f.pdf
+        // значение признаков: см. описание в протоколе и manual_pirit2f.pdf
 
         if (versionPirit == 2) {
             sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
