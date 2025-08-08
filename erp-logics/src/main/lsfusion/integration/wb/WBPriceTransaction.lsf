@@ -20,7 +20,7 @@ DESIGN item {
     }
 }
 
-CLASS PriceTransaction 'Загрузка цен';
+CLASS PriceTransaction 'Загрузка цен и скидок';
 id 'ID' = DATA INTEGER (PriceTransaction);
 priceTransaction (INTEGER id) = GROUP MAX PriceTransaction t BY id(t);
 dateTime 'Дата/время' = DATA DATETIME (PriceTransaction);
@@ -672,12 +672,14 @@ EXTEND FORM WBPricesBalances
     PROPERTIES() uploadPricesDiscounts, uploadPricesSizes, uploadClubDiscounts, quarantineItems, getItemPrices
     
     PROPERTIES(i) READONLY AFTER isTrash(i) quarantine, editableSizePrice
-    PROPERTIES(i) READONLY AFTER imtID(i) price, discount, clubDiscount
+    PROPERTIES(i) READONLY price, discount, clubDiscount
     PROPERTIES getItemPrices(i) GRID, getSizePrices(i) SHOWIF editableSizePrice(i)
+    
+    PROPERTIES(s) READONLY price
 
     OBJECTS t = PriceTransaction
     PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, overAllGoodsNumber, successGoodsNumber, description
-    PROPERTIES(t) getProcessedStatus, processedStatusSpecification 
+    PROPERTIES(t) TOOLBAR getProcessedStatus, processedStatusSpecification 
     
     OBJECTS item = Item
     PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item),
@@ -701,7 +703,7 @@ DESIGN WBPricesBalances {
         }
         NEW priceTransactions {
             fill = 1;
-            caption = 'Загрузки цен';
+            caption = 'Загрузки цен и скидок';
             MOVE BOX(t) { fill = 2; }
             NEW details {
                 fill = 1;
