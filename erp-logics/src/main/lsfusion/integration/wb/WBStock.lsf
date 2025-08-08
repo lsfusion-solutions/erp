@@ -18,19 +18,19 @@ CLASS Warehouse 'Склад продавца': Stock;
 
 id 'Код' = DATA INTEGER (Warehouse);
 warehouse (id) = GROUP AGGR Warehouse w BY id(w);
-name 'Наименование' = DATA STRING (Warehouse);
+name 'Наименование' = DATA STRING (Warehouse) INDEXED MATCH CHARWIDTH 20;
 address 'Адрес' = DATA STRING (Warehouse);
 address (Warehouse w) += address(w) IF w IS Warehouse;
 city 'Город' = DATA STRING (Warehouse);
 errorText 'Текст ошибки' = DATA STRING (Warehouse);
-error 'Ошибка' = DATA BOOLEAN (Warehouse);
+error 'Ошибка при запросе' = DATA BOOLEAN (Warehouse);
 isDeletedWB 'Удален на WB' = DATA BOOLEAN (Warehouse);
 
 CLASS DistributionCenter 'Склад WB': Stock;
 
 id 'Код' = DATA INTEGER (DistributionCenter);
 distributionCenter (id) = GROUP AGGR DistributionCenter o BY id(o);
-name 'Наименование' = DATA STRING (DistributionCenter);
+name 'Наименование' = DATA STRING (DistributionCenter) INDEXED MATCH CHARWIDTH 20;
 address 'Адрес' = DATA STRING (DistributionCenter);
 city 'Город' = DATA STRING (DistributionCenter);
 federalDistrict 'Федеральный округ' = DATA STRING (DistributionCenter);
@@ -112,7 +112,7 @@ changeIdStockWB (Warehouse w) {
     }
 }
 
-FORM warehouse 'Собственный склад'
+FORM warehouse 'Собственный склад на WB'
     OBJECTS w = Warehouse PANEL
     PROPERTIES(w) id READONLY, name, address
     PROPERTIES id 'Код склада WB' = id(distributionCenter(w)) ON CHANGE changeIdStockWB(w), 
@@ -126,6 +126,7 @@ FORM warehouse 'Собственный склад'
 DESIGN warehouse {
     BOX {
         NEW warehouseHeader {
+            fill = 1;
             MOVE BOX(w);
             NEW errorContainer{
                 align = STRETCH;
@@ -540,7 +541,7 @@ DESIGN masterData {
                 MOVE BOX(dc);
             }
             NEW containerWarehouse {
-                caption = 'Собственные склады';
+                caption = 'Собственные склады на WB';
                 NEW actionContainerStock {
                     horizontal = TRUE;
                     MOVE PROPERTY(getStocks());

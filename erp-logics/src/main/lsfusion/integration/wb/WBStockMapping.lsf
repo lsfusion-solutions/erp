@@ -4,27 +4,37 @@ REQUIRE WBStock, Stock;
 
 NAMESPACE WB;
 
-stock = DATA Stock.Stock (Warehouse);
-nameStock 'Склад (компании)' (Warehouse w) = name(stock(w));
+TABLE warehouseStock(Warehouse, Stock.Stock);
 
-changeWarehouse (Warehouse w) {
-    DIALOG stocks OBJECTS s INPUT FILTERS isCompany(s) DO {
-        ASK 'Выбран новый склад, наименование будет обновлено. Продолжить?' DO {
-            stock(w) <- s;
-        }
-    }
+in 'Вкл.' = DATA BOOLEAN (Warehouse, Stock.Stock) INDEXED;
+nameStocks 'Склады (компании)' (Warehouse w) = GROUP CONCAT name(Stock.Stock st) IF in(w, st), ', ' ORDER name(st), st CHARWIDTH 40;
+
+warehouse = GROUP MAX Warehouse w IF in(w, Stock.Stock st) BY st MATERIALIZED INDEXED;
+nameWarehouse 'Собственный склад на WB' (Stock.Stock st)= CONCAT '', name(warehouse(st)), '('+id(warehouse(st))+')' CHARWIDTH 20;
+
+WHEN LOCAL SET(in(Warehouse w, Stock.Stock st)) AND (GROUP SUM 1 IF in(Warehouse w2, st))>1 DO {
+    in(w, st) <- NULL;
+    MESSAGE 'Склад компании может быть привязан только к одному собственному складу на WB. Выбранный склад привязан к '+ nameWarehouse(st) NOWAIT;
 }
 
 EXTEND FORM warehouse
-    PROPERTIES nameStock(w) ON CHANGE changeWarehouse(w);
+    OBJECTS st=Stock.Stock
+    PROPERTIES in(w, st), name(st) READONLY, nameWarehouse(st) READONLY 
+    ORDERS name(st)
+    FILTERS isCompany(st),
+        st IS Stock.Stock AND NOT warehouse(st) OR in(w, st) AND warehouse(st)
+    FILTERGROUP active
+        FILTER 'Активные' active(st) DEFAULT
+    FILTERGROUP in
+        FILTER 'Привязанные' in(w, st) DEFAULT 
 ;
 
 DESIGN warehouse {
     warehouseHeader {
-        MOVE PROPERTY (nameStock(w));
-    }
+        MOVE BOX(st);
+    }    
 }
 
 EXTEND FORM masterData
-    PROPERTIES(w) READONLY nameStock AFTER name
+    PROPERTIES(w) READONLY nameStocks AFTER name
 ;

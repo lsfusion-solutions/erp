@@ -1,162 +1,174 @@
 MODULE WBBalance;
 
-REQUIRE WBStockMapping, PriceTransaction, Item;
+REQUIRE WBStockMapping, WBItemMapping, Item;
 
 NAMESPACE WB;
 
 multipleStocks 'Несколько складов' = DATA LOCAL BOOLEAN ();
 singleStock = NOT multipleStores();
 
-currentBalanceSize 'Текущий остаток' (Size s, Warehouse w) = currentBalance(item(s), stock(w));
-currentBalanceSizeWB 'Загруженный остаток' = DATA NUMERIC[16,5] (Size, Warehouse);
-currentBalanceItem 'Текущий остаток' (Item i, Warehouse w) = GROUP SUM currentBalanceSize((Size s), w) IF itemWB(s) == i;
-currentBalanceItemWB 'Загруженный остаток' (Item i, Warehouse w) = GROUP SUM currentBalanceSizeWB((Size s), w) IF itemWB(s) == i;
+currentBalanceSize 'Текущий остаток' (Size s, Warehouse w) = GROUP SUM currentBalance(item(s), Stock.Stock st) IF in(w, st);
+currentBalanceSizeWB 'Загруженный остаток на WB' = DATA NUMERIC[16,5] (Size, Warehouse);
+currentBalanceItem 'Текущий остаток' = GROUP SUM currentBalanceSize((Size s), Warehouse w) BY itemWB(s), w;
+currentBalanceItemWB 'Загруженный остаток на WB' = GROUP SUM currentBalanceSizeWB((Size s), Warehouse w) BY itemWB(s), w;
 
 //https://marketplace-api.wildberries.ru/api/v3/stocks/{warehouseId}
-updateBalanceItems 'Обновить остатки товаров' (Warehouse w) {
+updateBalanceItems 'Обновить остатки товаров на WB' (Warehouse w) {
     NEWSESSION {
-        FOR Item i IS Item AND NOT currentBalanceItem(i, w) == currentBalanceItemWB(i, w) DO {
-            setHttpHeadersIS();
-            LOCAL messageStock = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL statusText = STRING ();
-            LOCAL status = STRING ();
-            errorText(w) <- NULL WHERE error(w);
-            error(w) <- NULL WHERE error(w);
-
-            logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-            EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = (OVERRIDE currentBalanceSize(s, w), 0) WHERE itemWB(s) == i;
-
-            fileToString(exportFile());
-            resultString() <- '\{"stocks":' + resultString() + '\}';
-            stringToFile(resultString(), 'UTF-8', 'json');
-
-            TRY {
-                EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                IMPORT importError JSON FROM response();
-                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    currentBalanceSizeWB(Size s, w) <- OVERRIDE currentBalanceSize(s, w), 0 WHERE itemWB(s) == i;
-                }
-                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 406 OR statusHttp() == 409 THEN {
+        IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {
+            FOR Item i IS Item AND NOT currentBalanceItem(i, w) == currentBalanceItemWB(i, w) DO {
+                setHttpHeadersIS();
+                LOCAL messageStock = STRING ();
+                LOCAL response = FILE();
+                LOCAL error = STRING ();
+                LOCAL statusText = STRING ();
+                LOCAL status = STRING ();
+                errorText(w) <- NULL WHERE error(w);
+                error(w) <- NULL WHERE error(w);
+    
+                logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
+                EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = (OVERRIDE currentBalanceSize(s, w), 0) WHERE itemWB(s) == i;
+    
+                fileToString(exportFile());
+                resultString() <- '\{"stocks":' + resultString() + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+    
+                TRY {
+                    EXTERNAL HTTP PUT url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
                     IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Остатки товаров не обновлены: ' + message();
-                    error(w) <- TRUE;
-                    errorText(w) <- OVERRIDE message(), statusText();
+                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                        currentBalanceSizeWB(Size s, w) <- OVERRIDE currentBalanceSize(s, w), 0 WHERE itemWB(s) == i;
+                    }
+                    messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 406 OR statusHttp() == 409 THEN {
+                        IMPORT importError JSON FROM response();
+                        extraDescriptionStatusHTTP() <- 'Остатки товаров не обновлены: ' + message();
+                        error(w) <- TRUE;
+                        errorText(w) <- OVERRIDE message(), statusText();
+                    }
+                    messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Обновление остатов товаров</h3>' NOWAIT;
+                    MESSAGE messageStock() NOWAIT;
+                    APPLY;
                 }
-                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE '<h3>Обновление остатов товаров</h3>' NOWAIT;
-                MESSAGE messageStock() NOWAIT;
-                APPLY;
+            } ELSE {
+                MESSAGE 'Нет необходимости для обновления остатков товаров';
             }
         } ELSE {
-            MESSAGE 'Нет необходимости для обновления остатков товаров';
+            MESSAGE 'К собственному складу на WB не привязан ни один склад компании. Для обновления остатка создайте связь.' NOWAIT;
         }
     }
 }
 
 // https://marketplace-api.wildberries.ru/api/v3/stocks/{warehouseId}
-deleteBalanceItems 'Удалить остатки товаров' (Warehouse w) {
+deleteBalanceItems 'Удалить остатки товаров на WB' (Warehouse w) {
     NEWSESSION {
-        FOR Item i IS Item AND currentBalanceItemWB(i, w) DO {
-            setHttpHeadersIS();
-            LOCAL messageStock = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL statusText = STRING ();
-            LOCAL status = STRING ();
-            errorText(w) <- NULL WHERE error(w);
-            error(w) <- NULL WHERE error(w);
-
-            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-            EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
-
-            fileToString(exportFile());
-            resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
-            stringToFile(resultString(), 'UTF-8', 'json');
-
-            TRY {
-                EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                IMPORT importError JSON FROM response();
-                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i;
-                }
-                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+        IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {        
+            FOR Item i IS Item AND currentBalanceItemWB(i, w) DO {
+                setHttpHeadersIS();
+                LOCAL messageStock = STRING ();
+                LOCAL response = FILE();
+                LOCAL error = STRING ();
+                LOCAL statusText = STRING ();
+                LOCAL status = STRING ();
+                errorText(w) <- NULL WHERE error(w);
+                error(w) <- NULL WHERE error(w);
+    
+                logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
+                EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
+    
+                fileToString(exportFile());
+                resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+    
+                TRY {
+                    EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
                     IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Остатки товаров не удалены: ' + message();
-                    error(w) <- TRUE;
-                    errorText(w) <- OVERRIDE message(), statusText();
+                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                        currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i;
+                    }
+                    messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IMPORT importError JSON FROM response();
+                        extraDescriptionStatusHTTP() <- 'Остатки товаров не удалены: ' + message();
+                        error(w) <- TRUE;
+                        errorText(w) <- OVERRIDE message(), statusText();
+                    }
+                    messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Удаление остатов товаров</h3>' NOWAIT;
+                    MESSAGE messageStock() NOWAIT;
+                    APPLY;
                 }
-                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE '<h3>Удаление остатов товаров</h3>' NOWAIT;
-                MESSAGE messageStock() NOWAIT;
-                APPLY;
+            } ELSE {
+                MESSAGE 'Остатки товаров уже удалены';
             }
         } ELSE {
-            MESSAGE 'Остатки товаров уже удалены';
+            MESSAGE 'К собственному складу на WB не привязан ни один склад компании. Для удаления остатка создайте связь.' NOWAIT;
         }
     }
 }
 
-deleteBalanceItem 'Удалить остатки товара' (Warehouse w, Item i) {
+deleteBalanceItem 'Удалить остатки товара на WB' (Warehouse w, Item i) {
     NEWSESSION {
-        IF currentBalanceItemWB(i, w) THEN {
-            setHttpHeadersIS();
-            LOCAL messageStock = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL statusText = STRING ();
-            LOCAL status = STRING ();
-            errorText(w) <- NULL WHERE error(w);
-            error(w) <- NULL WHERE error(w);
-
-            logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-            EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
-
-            fileToString(exportFile());
-            resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
-            stringToFile(resultString(), 'UTF-8', 'json');
-
-            TRY {
-                EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                IMPORT importError JSON FROM response();
-                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i;
-                }
-                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+        IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {        
+            IF currentBalanceItemWB(i, w) THEN {
+                setHttpHeadersIS();
+                LOCAL messageStock = STRING ();
+                LOCAL response = FILE();
+                LOCAL error = STRING ();
+                LOCAL statusText = STRING ();
+                LOCAL status = STRING ();
+                errorText(w) <- NULL WHERE error(w);
+                error(w) <- NULL WHERE error(w);
+    
+                logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
+                EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
+    
+                fileToString(exportFile());
+                resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
+    
+                TRY {
+                    EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
                     IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Остатки товаров не удалены: ' + message();
-                    error(w) <- TRUE;
-                    errorText(w) <- OVERRIDE message(), statusText();
+                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                        currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i;
+                    }
+                    messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IMPORT importError JSON FROM response();
+                        extraDescriptionStatusHTTP() <- 'Остатки товаров не удалены: ' + message();
+                        error(w) <- TRUE;
+                        errorText(w) <- OVERRIDE message(), statusText();
+                    }
+                    messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Удаление остатов выбранного товара</h3>' NOWAIT;
+                    MESSAGE messageStock() NOWAIT;
+                    APPLY;
                 }
-                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE '<h3>Удаление остатов выбранного товара</h3>' NOWAIT;
-                MESSAGE messageStock() NOWAIT;
-                APPLY;
+            } ELSE {
+                MESSAGE 'Остатки выбранного товара уже удалены';
             }
         } ELSE {
-            MESSAGE 'Остатки выбранного товара уже удалены';
+            MESSAGE 'К собственному складу на WB не привязан ни один склад компании. Для удаления остатка создайте связь.' NOWAIT;
         }
     }
 }
@@ -170,82 +182,141 @@ FORM importBalanceItems
     PROPERTIES(stocks) amount, sku;
 
 // https://marketplace-api.wildberries.ru/api/v3/stocks/{warehouseId}
-postBalanceItems 'Получить остатки товаров' (Warehouse w) {
+postBalanceItems 'Получить остатки товаров с WB' (Warehouse w) {
     NEWSESSION {
-        FOR Item i IS Item DO {
-            setHttpHeadersIS();
-            LOCAL messageStock = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL statusText = STRING ();
-            LOCAL status = STRING ();
-            errorText(w) <- NULL WHERE error(w);
-            error(w) <- NULL WHERE error(w);
+        IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {
+            FOR Item i IS Item DO {
+                setHttpHeadersIS();
+                LOCAL messageStock = STRING ();
+                LOCAL response = FILE();
+                LOCAL error = STRING ();
+                LOCAL statusText = STRING ();
+                LOCAL status = STRING ();
+                errorText(w) <- NULL WHERE error(w);
+                error(w) <- NULL WHERE error(w);
 
-            logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-            EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
+                logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
+                EXPORT JSON FROM 'value' = barcodePrimary(Size s) WHERE itemWB(s) == i;
 
-            fileToString(exportFile());
-            resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
-            stringToFile(resultString(), 'UTF-8', 'json');
+                fileToString(exportFile());
+                resultString() <- '\{"skus":' + replace(resultString(), '\n', '') + '\}';
+                stringToFile(resultString(), 'UTF-8', 'json');
 
-            TRY {
-                EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-                fileToString(response());
-                logToFile('WB', resultString());
-                IMPORT importError JSON FROM response();
-                IMPORT importBalanceItems JSON FROM response();
-                IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                    FOR INTEGER j = [GROUP MAX INTEGER i1 BY sku(i1)](STRING id) AND barcodePrimary(Size s) == id AND itemWB(s) == i INLINE DO {
-                        currentBalanceSizeWB(s, w) <- amount(j);
-                    }
-                }
-                messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-            } CATCH {
-                logToFile('WB', messageCaughtException());
-                IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                TRY {
+                    EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
                     IMPORT importError JSON FROM response();
-                    extraDescriptionStatusHTTP() <- 'Остатки товаров не получены: ' + message();
-                    error(w) <- TRUE;
-                    errorText(w) <- OVERRIDE message(), statusText();
+                    IMPORT importBalanceItems JSON FROM response();
+                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                        FOR INTEGER j = [GROUP MAX INTEGER i1 BY sku(i1)](STRING id) AND barcodePrimary(Size s) == id AND itemWB(s) == i INLINE DO {
+                            currentBalanceSizeWB(s, w) <- amount(j);
+                        }
+                    }
+                    messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                        IMPORT importError JSON FROM response();
+                        extraDescriptionStatusHTTP() <- 'Остатки товаров не получены: ' + message();
+                        error(w) <- TRUE;
+                        errorText(w) <- OVERRIDE message(), statusText();
+                    }
+                    messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Получение остатов товаров</h3>' NOWAIT;
+                    MESSAGE messageStock() NOWAIT;
+                    APPLY;
                 }
-                messageStock() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-            } FINALLY {
-                afterSendRequestIS();
-                MESSAGE '<h3>Получение остатов товаров</h3>' NOWAIT;
-                MESSAGE messageStock() NOWAIT;
-                APPLY;
+            } ELSE {
+                MESSAGE 'Нет товаров для получения остатков';
             }
         } ELSE {
-            MESSAGE 'Нет товаров для получения остатков';
+            MESSAGE 'К собственному складу на WB не привязан ни один склад компании. Для получения остатка создайте связь.' NOWAIT;
+        }    
+    }
+}
+
+FORM WBPricesBalances 'Цены и остатки'
+    PROPERTIES() multipleStores
+
+    OBJECTS warehouse = Warehouse PANEL
+    PROPERTIES(warehouse) name SELECTOR SHOWIF singleStore()
+    PROPERTIES(warehouse) READONLY SHOWIF singleStore() error BACKGROUND RGB(255, 51, 51) IF error(warehouse), errorText SHOWIF error(warehouse) AND singleStore()
+    PROPERTIES(warehouse) SHOWIF singleStore() updateBalanceItems, deleteBalanceItems, postBalanceItems    
+
+    OBJECTS wi=(w = Warehouse, i = Item)
+    PROPERTIES(w) READONLY SHOWIF multipleStores() name
+    PROPERTIES(w) READONLY SHOWIF multipleStores() error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF multipleStores()
+    PROPERTIES(w) SHOWIF multipleStores() GRID updateBalanceItems, deleteBalanceItems, postBalanceItems
+
+    FILTERS IF multipleStores() THEN w IS Warehouse ELSE w == warehouse
+    
+    PROPERTIES(i) READONLY isTrash, id, name, nmID, imtID
+    PROPERTIES(i) NEWSESSION EDIT
+
+    PROPERTIES READONLY currentBalanceItem(i, w), currentBalanceItemWB(i, w)
+    PROPERTIES(w, i) TOOLBAR deleteBalanceItem
+
+    OBJECTS s = Size
+    PROPERTIES(s) READONLY chrtID, techSize, wbSize, price, skus, barcodePrimary
+    PROPERTIES currentBalanceSize(s,w) AFTER barcodePrimary(s), currentBalanceSizeWB(s, w)
+    FILTERS itemWB(s) == i
+
+    OBJECTS b = Barcode
+    PROPERTIES id(b) READONLY, primary(b) ON CHANGE changePrimary(b, s)
+    FILTERS size(b) == s
+;
+
+DESIGN WBPricesBalances {
+    OBJECTS {
+        NEW tabbed {
+            fill = 1;
+            tabbed = TRUE;
+            NEW items {
+                fill = 1;
+                caption = 'Цены и остатки';
+                NEW stockContainer{
+                    NEW stockPanelContainer{
+                        NEW actionRow1{
+                            horizontal = TRUE;
+                            MOVE PROPERTY(multipleStores());
+                            MOVE PROPERTY(name(warehouse));
+                            MOVE PROPERTY(updateBalanceItems(warehouse));
+                            MOVE PROPERTY(deleteBalanceItems(warehouse));
+                            MOVE PROPERTY(postBalanceItems(warehouse));
+                        }
+                        NEW actionRow2{
+                            horizontal = TRUE;
+                            MOVE PROPERTY(error(warehouse));
+                        }
+                    }
+                    NEW errorContainer{
+                        align = STRETCH;
+                        caption = 'Текст ошибки';
+                        MOVE PROPERTY(errorText(warehouse)) {
+                            caption = '';
+                            align = STRETCH;
+                            height = 50;
+                            fontSize = 14;
+                        }
+                    }
+                }                
+                MOVE BOX(wi) { fill = 3; }
+                NEW containerSB {
+                    horizontal = TRUE;
+                    align = STRETCH;
+                    MOVE BOX(s){ fill = 3; };
+                    MOVE BOX(b){ fill = 1; };
+                }
+            }
         }
     }
 }
 
-EXTEND FORM wbPricesBalances
-    PROPERTIES() multipleStores
-
-    OBJECTS w = Warehouse PANEL BEFORE i
-    PROPERTIES(w) name SELECTOR SHOWIF singleStore()
-    PROPERTIES(w) READONLY error BACKGROUND RGB(255, 51, 51) IF error(w), errorText SHOWIF error(w)
-    PROPERTIES(w) updateBalanceItems, deleteBalanceItems, postBalanceItems 
-    PROPERTIES(w, i) deleteBalanceItem
-    PROPERTIES currentBalanceItem(i,w) AFTER price(i), currentBalanceItemWB(i, w) BEFORE discount(i)
-    PROPERTIES currentBalanceSize(s,w) AFTER barcodePrimary(s), currentBalanceSizeWB(s, w)
-;
-
-DESIGN wbPricesBalances {
-    items {
-        NEW stockContainer BEFORE BOX(i){
-            horizontal = TRUE;
-            MOVE PROPERTY(multipleStores());
-            MOVE PROPERTY(name(w));
-            MOVE PROPERTY(updateBalanceItems(w));
-            MOVE PROPERTY(deleteBalanceItems(w));
-            MOVE PROPERTY(deleteBalanceItem(w, i));
-            MOVE PROPERTY(postBalanceItems(w));
-            MOVE PROPERTY(error(w));
-            MOVE PROPERTY(errorText(w));
-        }
+NAVIGATOR {
+    WBNavigator {
+        NEW WBPricesBalances;
     }
 }

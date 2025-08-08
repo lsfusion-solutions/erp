@@ -1,6 +1,6 @@
-MODULE PriceTransaction;
+MODULE WBPriceTransaction;
 
-REQUIRE WBItemArticleMapping;
+REQUIRE WBItemArticleMapping, WBBalance;
 
 NAMESPACE WB;
 
@@ -9,7 +9,7 @@ discount 'Размер скидки, %' = DATA INTEGER (Item);
 clubDiscount 'Скидка WB Клуба, %' = DATA INTEGER (Item);
 editableSizePrice 'Задавать цены для размеров' = DATA BOOLEAN (Item);
 
-quarantine 'В картантине' = DATA BOOLEAN (Item);
+quarantine 'В карантине' = DATA BOOLEAN (Item);
 
 EXTEND FORM item PROPERTIES(i) price, discount, clubDiscount;
 DESIGN item {
@@ -64,29 +64,6 @@ errorText 'Описание ошибки' = DATA STRING (PriceTransaction, Size)
 
 overAllGoodsNumber 'Всего товаров' = DATA INTEGER (PriceTransaction);
 successGoodsNumber 'Товаров без ошибок' = DATA INTEGER (PriceTransaction);
-
-//lastPriceTransaction (Item i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
-//lastPriceTransaction (Size i) = GROUP LAST PriceTransaction t IF in(t, i) ORDER dateTime(t), t;
-
-FORM wbPricesBalances 'Цены и остатки'
-    OBJECTS i = Item
-    PROPERTIES(i) READONLY isTrash, quarantine, editableSizePrice, id, name, nmID, imtID, price, discount, clubDiscount
-    PROPERTIES(i) NEWSESSION EDIT
-    
-    OBJECTS s = Size
-    PROPERTIES(s) READONLY chrtID, techSize, wbSize, price, skus, barcodePrimary
-    FILTERS itemWB(s) == i
-    
-    OBJECTS b = Barcode
-    PROPERTIES id(b) READONLY, primary(b) ON CHANGE changePrimary(b, s)
-    FILTERS size(b) == s
-;
-
-NAVIGATOR {
-    WBNavigator {
-        NEW wbPricesBalances;
-    }
-}
 
 dataUpdatePricesDiscountsLimit = DATA INTEGER ();
 updatePricesDiscountsLimit 'Лимит для установки цен и скидок' = OVERRIDE dataUpdatePricesDiscountsLimit(), 1000;
@@ -691,9 +668,12 @@ processedStatusSpecification 'Детализация обработанной з
     }
 }
 
-EXTEND FORM wbPricesBalances 
+EXTEND FORM WBPricesBalances
     PROPERTIES() uploadPricesDiscounts, uploadPricesSizes, uploadClubDiscounts, quarantineItems, getItemPrices
-    PROPERTIES DRAW i TOOLBAR getItemPrices(i), getSizePrices(i) SHOWIF editableSizePrice(i)
+    
+    PROPERTIES(i) READONLY AFTER isTrash(i) quarantine, editableSizePrice
+    PROPERTIES(i) READONLY AFTER imtID(i) price, discount, clubDiscount
+    PROPERTIES PANEL getItemPrices(i) AFTER deleteBalanceItem(w, i), getSizePrices(i) SHOWIF editableSizePrice(i)
 
     OBJECTS t = PriceTransaction
     PROPERTIES(t) READONLY id, dateTime, nameUser, nameStatus, overAllGoodsNumber, successGoodsNumber, description
@@ -701,8 +681,7 @@ EXTEND FORM wbPricesBalances
     
     OBJECTS item = Item
     PROPERTIES READONLY id(item), nmID(item), name(item), price(t, item), discount(t, item), clubDiscount(t, item),
-        nameStaus(t, item), errorText(t, item) PANEL
-     
+        nameStaus(t, item), errorText(t, item) PANEL     
     FILTERS in(t, item)
     
     OBJECTS size = Size
@@ -711,40 +690,24 @@ EXTEND FORM wbPricesBalances
     FILTERS in(t, size)
 ;
 
-DESIGN wbPricesBalances {
-    OBJECTS {
-        NEW tabbed {
+DESIGN WBPricesBalances {
+    tabbed {
+        actionRow2 {
+            MOVE PROPERTY(uploadPricesDiscounts());
+            MOVE PROPERTY(uploadPricesSizes());
+            MOVE PROPERTY(uploadClubDiscounts());
+            MOVE PROPERTY(quarantineItems());
+            MOVE PROPERTY(getItemPrices());
+        }
+        NEW priceTransactions {
             fill = 1;
-            tabbed = TRUE;
-            NEW items {
+            caption = 'Загрузки цен';
+            MOVE BOX(t) { fill = 2; }
+            NEW details {
                 fill = 1;
-                caption = 'Цены и остатки';
-                NEW actions {
-                    horizontal = TRUE;
-                    MOVE PROPERTY(uploadPricesDiscounts());
-                    MOVE PROPERTY(uploadPricesSizes());
-                    MOVE PROPERTY(uploadClubDiscounts());
-                    MOVE PROPERTY(quarantineItems());
-                    MOVE PROPERTY(getItemPrices());
-                }
-                MOVE BOX(i) { fill = 3; }
-                NEW containerSB {
-                    horizontal = TRUE;
-                    align = STRETCH;
-                    MOVE BOX(s){ fill = 3; };
-                    MOVE BOX(b) { fill = 1; };
-                }
-            }
-            NEW priceTransactions {
-                fill = 1;
-                caption = 'Загрузки цен';
-                MOVE BOX(t) { fill = 2; }
-                NEW details {
-                    fill = 1;
-                    horizontal = TRUE;
-                    MOVE BOX(item) { fill = 1; MOVE PROPERTY(errorText(t, item)); }
-                    MOVE BOX(size) { fill = 1; MOVE PROPERTY(errorText(t, size)); }
-                }
+                horizontal = TRUE;
+                MOVE BOX(item) { fill = 1; MOVE PROPERTY(errorText(t, item)); }
+                MOVE BOX(size) { fill = 1; MOVE PROPERTY(errorText(t, size)); }
             }
         }
     }
