@@ -176,16 +176,16 @@ getItemSubGroup 'Получить список предметов родител
 getItemSubGroup 'Получить список предметов' () {
     NEWSESSION {
         MESSAGE '<h3>Предметы получаются только по существующим родительским категориям товаров.</h3>' NOWAIT;
-        FOR ItemGroup ig IS ItemGroup DO {
+        FOR ItemGroup ig IS ItemGroup NOINLINE DO {
             setHttpHeadersIS();
             LOCAL message = STRING ();
             LOCAL response = FILE();
             LOCAL error = STRING ();
             LOCAL status = STRING ();
 
-            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/object/all');
+            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + (CONCAT '?', '/content/v2/object/all', 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)));
             TRY {
-                EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig) TO response;
+                EXTERNAL HTTP GET url(CategoryRequest.content) + (CONCAT '?', '/content/v2/object/all', 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)) HEADERS httpHeaders TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
                 IMPORT importItemSubGroup JSON FROM response();
@@ -359,6 +359,9 @@ name 'Оттенок' = DATA STRING (Color);
 color (id) = GROUP AGGR Color c BY name(c);
 
 @defineHierarchy(Color);
+
+CONSTRAINT DROPPED(Color c IS Color) AND (GROUP SUM 1 IF PREV(parent(Color color))==c)
+    MESSAGE 'Запрещено удалять цвета на которые ссылаются другие цвета';
 
 FORM importColors
     PROPERTIES() errorText, additionalErrors, error
@@ -698,7 +701,7 @@ FORM masterData 'Справочники'
     PROPERTIES(ig) READONLYIF isReadonly() id , name, isVisible
     PROPERTIES(ig) getItemSubGroup GRID 
     ORDERS name(ig)
-    PROPERTIES(ig) NEW, DELETE
+    PROPERTIES(ig) NEWSESSION deleteItemGroup 'Удалить из ERP' = DELETE
 
     OBJECTS sgig = ItemSubGroup
     PROPERTIES(sgig) READONLYIF isReadonly() id, name
@@ -710,7 +713,7 @@ FORM masterData 'Справочники'
     PROPERTIES(sg) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup
     PROPERTIES(sg) getTnved GRID
     ORDERS name(sg)
-    PROPERTIES(sg) NEW, DELETE
+    PROPERTIES(sg) NEWSESSION deleteItemSubGroup 'Удалить из ERP' = DELETE
 
     OBJECTS tnsg = Tnved
     PROPERTIES(tnsg) READONLYIF isReadonly() id, isKiz
@@ -720,38 +723,38 @@ FORM masterData 'Справочники'
     PROPERTIES getColors()
     TREE treeColors color=Color PARENT parent(color)
     PROPERTIES READONLYIF isReadonly() name(color), color 'Цвет' = nameParent(color)
-    PROPERTIES(color) NEW, DELETE
+    PROPERTIES(color) NEWSESSION deleteColor 'Удалить из ERP' = DELETE
     ORDERS name(color)
 
     PROPERTIES getKinds()
     OBJECTS k = Kind
     PROPERTIES(k) data READONLYIF isReadonly()
     ORDERS data(k)
-    PROPERTIES(k) NEW, DELETE
+    PROPERTIES(k) NEWSESSION deleteKind 'Удалить из ERP' = DELETE
 
     PROPERTIES getCountries()
     OBJECTS c = Country
     PROPERTIES(c) READONLYIF isReadonly() name, fullName
     ORDERS name(c)
-    PROPERTIES(c) NEW, DELETE
+    PROPERTIES(c) deleteCountry 'Удалить из ERP' = DELETE
 
     PROPERTIES getSeasons()
     OBJECTS s = Season
     PROPERTIES(s) data READONLYIF isReadonly()
     ORDERS data(s)
-    PROPERTIES(s) NEW, DELETE
+    PROPERTIES(s) NEWSESSION deleteSeason 'Удалить из ERP' = DELETE
 
     PROPERTIES getVAT()
     OBJECTS v = VAT
     PROPERTIES(v) data READONLYIF isReadonly()
     ORDERS data(v)
-    PROPERTIES(v) NEW, DELETE
+    PROPERTIES(v) NEWSESSION deleteVAT 'Удалить из ERP' =  DELETE
 
     PROPERTIES getTnved()
     OBJECTS tn = Tnved
     PROPERTIES(tn) READONLYIF isReadonly() id , isKiz
     ORDERS id(tn)
-    PROPERTIES(tn) NEW, DELETE
+    PROPERTIES(tn) NEWSESSION deleteTnved 'Удалить из ERP' = DELETE
 
     OBJECTS sgtn = ItemSubGroup
     PROPERTIES(sgtn) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup

@@ -62,6 +62,41 @@ solution 'Как решить' = DATA STRING (StatusHTTP);
 
 onStarted() + {
     NEWSESSION {
+        //заполняем коды ошибок при каждом старте
+        id (StatusHTTP sh) <- INTEGER (staticCaption(sh));
+
+        name(StatusHTTP sh) <- 'Успешно' WHERE sh == StatusHTTP.successfully;
+        name(StatusHTTP sh) <- 'Создано' WHERE sh == StatusHTTP.created;
+        name(StatusHTTP sh) <- 'Удалено/Обновлено/Добавлено' WHERE sh == StatusHTTP.changed;
+
+        name(StatusHTTP sh) <- 'Неправильный запрос' WHERE sh == StatusHTTP.incorrect;
+        solution(StatusHTTP sh) <- 'Проверьте синтаксис запроса' WHERE sh == StatusHTTP.incorrect;
+
+        name(StatusHTTP sh) <- 'Пользователь не авторизован' WHERE sh == StatusHTTP.notAuthorized;
+        solution(StatusHTTP sh) <- 'Проверьте токен авторизации. Категория токена должна совпадать с категорией API. 
+            Также токен может: быть просрочен, быть некорректным, отсутствовать в запросе' WHERE sh == StatusHTTP.notAuthorized;
+
+        name(StatusHTTP sh) <- 'Доступ запрещён' WHERE sh == StatusHTTP.accessDenied;
+        solution(StatusHTTP sh) <- 'Токен не должен быть сгенерирован удалённым пользователем. Доступ к методу не должен 
+            быть заблокирован. Если вы хотите использовать методы Джема, проверьте подписку в личном кабинете' WHERE sh == StatusHTTP.accessDenied;
+
+        name(StatusHTTP sh) <- 'Адрес не найден' WHERE sh == StatusHTTP.addressNotFound;
+        solution(StatusHTTP sh) <- 'Проверьте URL запроса' WHERE sh == StatusHTTP.addressNotFound;
+
+        name(StatusHTTP sh) <- 'Ошибка сохранения для части ссылок/обновления статуса/добавления сборочного задания/т.д.' WHERE sh == StatusHTTP.errorSaved;
+        solution(StatusHTTP sh) <- 'Проверьте данные запроса. Они должны отвечать требованиям и ограничениям сервиса' WHERE sh == StatusHTTP.errorSaved;
+
+        name(StatusHTTP sh) <- 'Превышен лимит объёма данных в запросе' WHERE sh == StatusHTTP.limitExceeded;
+        solution(StatusHTTP sh) <- 'Уменьшите количество объектов в запросе' WHERE sh == StatusHTTP.limitExceeded;
+
+        name(StatusHTTP sh) <- 'Отсутствие в запросе параметра nmId/Размер ставки не изменен/т.д.' WHERE sh == StatusHTTP.missingParameter;
+        solution(StatusHTTP sh) <- 'Проверьте данные запроса. Данные запроса не должны противоречить друг другу' WHERE sh == StatusHTTP.missingParameter;        
+        APPLY;
+    }    
+}
+
+onStarted() + {
+    NEWSESSION {
         IF NOT defaultSet() THEN {
             defaultSet() <- TRUE;
             domain() <- 'wildberries.ru';
@@ -78,41 +113,7 @@ onStarted() + {
             urlId(CategoryRequest cr) <- 'documents-api' WHERE cr == CategoryRequest.documents;
             urlId(CategoryRequest cr) <- 'finance-api' WHERE cr == CategoryRequest.finance;
             urlId(CategoryRequest cr) <- 'common-api' WHERE cr == CategoryRequest.common;
-
-            id (StatusHTTP sh) <- INTEGER (staticCaption(sh)); 
-
-            name(StatusHTTP sh) <- 'Успешно' WHERE sh == StatusHTTP.successfully;
-            name(StatusHTTP sh) <- 'Создано' WHERE sh == StatusHTTP.created;
-            name(StatusHTTP sh) <- 'Удалено/Обновлено/Добавлено' WHERE sh == StatusHTTP.changed;
-
-            name(StatusHTTP sh) <- 'Неправильный запрос' WHERE sh == StatusHTTP.incorrect;
-            solution(StatusHTTP sh) <- 'Проверьте синтаксис запроса' WHERE sh == StatusHTTP.incorrect;
-
-            name(StatusHTTP sh) <- 'Пользователь не авторизован' WHERE sh == StatusHTTP.notAuthorized;
-            solution(StatusHTTP sh) <- 'Проверьте токен авторизации. Категория токена должна совпадать с категорией API. 
-            Также токен может: быть просрочен, быть некорректным, отсутствовать в запросе' WHERE sh == StatusHTTP.notAuthorized;
-
-            name(StatusHTTP sh) <- 'Доступ запрещён' WHERE sh == StatusHTTP.accessDenied;
-            solution(StatusHTTP sh) <- 'Токен не должен быть сгенерирован удалённым пользователем. Доступ к методу не должен 
-            быть заблокирован. Если вы хотите использовать методы Джема, проверьте подписку в личном кабинете' WHERE sh == StatusHTTP.accessDenied;
-
-            name(StatusHTTP sh) <- 'Адрес не найден' WHERE sh == StatusHTTP.addressNotFound;
-            solution(StatusHTTP sh) <- 'Проверьте URL запроса' WHERE sh == StatusHTTP.addressNotFound;
-
-            name(StatusHTTP sh) <- 'Ошибка сохранения для части ссылок/обновления статуса/добавления сборочного задания/т.д.' WHERE sh == StatusHTTP.errorSaved;
-            solution(StatusHTTP sh) <- 'Проверьте данные запроса. Они должны отвечать требованиям и ограничениям сервиса' WHERE sh == StatusHTTP.errorSaved;
-
-            name(StatusHTTP sh) <- 'Превышен лимит объёма данных в запросе' WHERE sh == StatusHTTP.limitExceeded;
-            solution(StatusHTTP sh) <- 'Уменьшите количество объектов в запросе' WHERE sh == StatusHTTP.limitExceeded;
-
-            name(StatusHTTP sh) <- 'Отсутствие в запросе параметра nmId/Размер ставки не изменен/т.д.' WHERE sh == StatusHTTP.missingParameter;
-            solution(StatusHTTP sh) <- 'Проверьте данные запроса. Данные запроса не должны противоречить друг другу' WHERE sh == StatusHTTP.missingParameter;
-
-            name(StatusHTTP sh) <- 'Слишком много запросов' WHERE sh == StatusHTTP.manyRequests;
-            solution(StatusHTTP sh) <- 'Проверьте лимиты запросов и повторите запрос позже' WHERE sh == StatusHTTP.manyRequests;
-
-            name(StatusHTTP sh) <- 'Внутренние ошибки сервиса' WHERE sh == StatusHTTP.internalServerError;
-            solution(StatusHTTP sh) <- 'Сервис недоступен. Повторите запрос позже или обратитесь в техническую поддержку' WHERE sh == StatusHTTP.internalServerError;
+            
             APPLY;
         }
     }
@@ -176,12 +177,11 @@ ping 'Проверка подключения' (CategoryRequest cr) {
 EXTEND FORM integrationData
     PROPERTIES() domain, sandbox, token
     OBJECTS cr = CategoryRequest
-    PROPERTIES(cr) staticCaption READONLY, urlId, url, token, ping  
+    PROPERTIES(cr) ping GRID, staticCaption READONLY, urlId, url, token
     ORDERS staticCaption(cr)
     OBJECTS sh = StatusHTTP
-    PROPERTIES(sh) id READONLY , name, solution
+    PROPERTIES(sh) id READONLY, name, solution
     ORDERS id(sh)
-    PROPERTIES(sh) NEW, EDIT, DELETE 
 ;
 
 DESIGN integrationData {
@@ -196,7 +196,14 @@ DESIGN integrationData {
                     MOVE PROPERTY (domain());
                     MOVE PROPERTY (sandbox());
                     MOVE PROPERTY (token());
-                    MOVE BOX(cr);
+                    MOVE BOX(cr) {
+                        PROPERTY(ping(cr)) {
+                            charWidth=12;
+                        }
+                        PROPERTY(staticCaption(cr)) {
+                            charWidth=15;
+                        }
+                    }
                                    }
                 NEW codesError {
                     caption = 'Коды ошибок';

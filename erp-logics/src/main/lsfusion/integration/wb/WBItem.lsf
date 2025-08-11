@@ -23,6 +23,8 @@ paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
 error 'Ошибка при запросе' = DATA BOOLEAN (Item);
 errorText 'Текст ошибки' = DATA STRING (Item);
+connected 'Объединенная' (Item i) = [GROUP SUM 1 BY imtID(Item item)](imtID(i)) > 1;
+
 in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
 length 'Длина, см' = DATA INTEGER (Item);
@@ -37,7 +39,7 @@ size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
 
 techSize 'Размер' = DATA STRING (Size) NONULL;
 wbSize 'Российский размер' = DATA STRING (Size);
-price 'Цена' = DATA INTEGER (Size);
+price 'Цена в ERP' = DATA INTEGER (Size);
 itemWB 'Вкл.' = DATA Item (Size) NONULL DELETE;
 
 CLASS Barcode 'Баркод';
@@ -268,7 +270,7 @@ FORM item 'Товар'
     PROPERTIES(i) id, name, description
     PROPERTIES(i) READONLY nmID, imtID
     PROPERTIES(i) length, width, height, weightBrutto
-    PROPERTIES(i) nameItemGroup, nameItemSubGroup, isTrash
+    PROPERTIES(i) nameItemGroup, nameItemSubGroup, isTrash READONLY
     PROPERTIES(i) READONLY error BACKGROUND RGB(255, 51, 51) IF error(i), errorText SHOWIF error(i) 
     ORDERS name(i)
 
@@ -1583,10 +1585,11 @@ EXTEND FORM masterData
     PROPERTIES(item) in
     PROPERTIES(item) READONLYIF isReadonly() isTrash
     PROPERTIES(item) READONLY error BACKGROUND RGB(255, 51, 51) IF error(item), errorText SHOWIF error(item) PANEL
-    PROPERTIES(item) READONLYIF isReadonly() id, name
+    PROPERTIES(item) READONLYIF isReadonly() connected, id, name
     PROPERTIES(item) READONLY nmID, imtID
     PROPERTIES(item) READONLYIF isReadonly() nameItemGroup, nameItemSubGroup
-    PROPERTIES(item) NEWSESSION NEW, EDIT, DELETE
+    PROPERTIES(item) NEWSESSION newItem 'Добавить товар в ERP' = NEW, editItem 'Редактировать товар в ERP'= EDIT,
+        deleteItem 'Удалить товар из ERP' = DELETE
     ORDERS name(item)
     FILTERS itemSubGroup(item)
         
@@ -1604,9 +1607,8 @@ EXTEND FORM masterData
         i != item
 
     OBJECTS attr = Attribute
-    PROPERTIES (attr) READONLY id, name, nameClass
-    PROPERTIES (attr) NEWSESSION EDIT, DELETE
-    PROPERTIES NEWSESSION newAttribute() DRAW attr
+    PROPERTIES(attr) READONLY id, name, nameClass
+    PROPERTIES(attr) NEWSESSION deleteAttribute 'Удалить из ERP' =  DELETE
     ORDERS name(attr)
 
     FILTERGROUP active
@@ -1846,7 +1848,7 @@ toUpdateWB = DATA BOOLEAN (Item);
 WHEN (CHANGED(imtID(Item i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
     CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
     (GROUP SUM 1 IF itemWB(Size s) == i AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
-    (GROUP SUM 1 IF SET(itemWB(Size s) == i))) AND NOT SET(i IS Item) AND id(i) AND nmID(i) AND imtID(i) DO {
+    (GROUP SUM 1 IF SET(itemWB(Size s) == i))) AND PREV(imtID(i)) AND id(i) AND nmID(i) AND imtID(i) DO {
         toUpdateWB(i) <- TRUE;
 }
 
@@ -2003,7 +2005,7 @@ FORM moveConnItems 'Объединяемые карточки товаров'
     PROPERTIES(i2) in
     PROPERTIES(i2) READONLY nmID, imtID, name
     FILTERS in(i2),
-            NOT nmID(i)==nmID(i2)
+            NOT imtID(i)==imtID(i2)
 ;
 
 DESIGN moveConnItems {
