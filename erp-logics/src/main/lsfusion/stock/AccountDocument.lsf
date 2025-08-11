@@ -205,9 +205,6 @@ recalculateCostGaussCost (DATE dFrom, DATE dTo) {
 accountDocument = GROUP AGGR AccountDocument a BY stock(a), date(a);
  
 calculateAndCreateDocument(DATE d, LegalEntity l ) {
-    documentsClosedDate(Stock st) <- d;
-    APPLY;
-
     //упр цена
     recalculateCost(Stock st) <- legalEntity(st) == l;
     recalculateCost(Sku s) <- active(s) AND NOT restricted(s);
@@ -216,6 +213,7 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
         stock(a) <- st;
         date(a) <- d;
+        isPosted(a) <- TRUE;
     }
     
     FOR legalEntity(Stock st) == l AND AccountDocument a == accountDocument(st, d) DO {
@@ -233,6 +231,7 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
         stock(a) <- st;
         date(a) <- d;
+        isPosted(a) <- TRUE;
     }
 
     FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
@@ -247,6 +246,7 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
         stock(a) <- st;
         date(a) <- d;
+        isPosted(a) <- TRUE;
     }
 
     FOR legalEntity(Stock st) == l AND AccountDocument a == accountDocument(st, d) DO {
@@ -264,13 +264,20 @@ calculateAndCreateDocument(DATE d, LegalEntity l ) {
     FOR [GROUP SUM 1 IF calculatedCost(Sku s, Stock st) BY st](Stock st) AND NOT accountDocument(st, d) NEW a = AccountDocument DO {
         stock(a) <- st;
         date(a) <- d;
+        isPosted(a) <- TRUE;
     }
 
     FOR NUMERIC[16,5] p = calculatedCost(Sku s, Stock st) AND AccountDocument a == accountDocument(st, d) DO {
         costPrice(a, s) <- p;
     }
     //
+    APPLY;
+}
 
+calculateClosedAndCreateDocument(DATE d, LegalEntity le) {
+    documentsClosedDate(Stock st) <- d;
+    APPLY;
+    calculateAndCreateDocument(d, le);
     documentsClosedDate(Stock st) <- sum(lastDayOfMonth(d), 1);
     APPLY;
 }
