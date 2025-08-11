@@ -32,6 +32,9 @@ width 'Ширина, см' = DATA INTEGER (Item);
 height 'Высота, см' = DATA INTEGER (Item);
 weightBrutto 'Вес, кг' = DATA NUMERIC[10,3] (Item);
 
+CONSTRAINT DROPPED(ItemSubGroup sg IS ItemSubGroup) AND [GROUP SUM 1 BY PREV(itemSubGroup(Item i))](sg)  
+    MESSAGE 'Нельзя удалять предмет, который используется в товарах';
+
 CLASS Size 'Размер';
 
 chrtID 'ID размера' = DATA INTEGER (Size);
@@ -46,23 +49,12 @@ CLASS Barcode 'Баркод';
 id 'Баркод' = DATA STRING (Barcode);
 size = DATA Size (Barcode) NONULL DELETE;
 
-barcode (STRING id, Size size) = GROUP AGGR Barcode b BY id(b), size(b);
+barcode (STRING id, Size size) = GROUP AGGR Barcode b WHERE b IS Barcode AND NOT isTrash(itemWB(size(b))) BY id(b), size(b);
 
 skus 'Баркоды' (Size s) = GROUP CONCAT id(Barcode b) IF size(b) == s, ', ' ORDER b;
 
 dataBarcode = DATA Barcode (Size);
-overPrimaryBarcode (Size s) = ABSTRACT Barcode (Size);
-skipBarcodeItem = ABSTRACT BOOLEAN (Barcode);
-dataAmount 'Множитель' = DATA NUMERIC[14,3] (Barcode);
-amount 'Множитель' = OVERRIDE dataAmount (Barcode barcode), (1.0 IF barcode IS Barcode) MATERIALIZED CHARWIDTH 4;
-
-CONSTRAINT SETCHANGED(Barcode barcode IS Barcode AND NOT amount(barcode) > 0) MESSAGE 'Множитель должен быть больше 0';
-
-barcode(Size s) = OVERRIDE dataBarcode(s),
-    overPrimaryBarcode(s),
-    [GROUP MIN Barcode barcode IF id(barcode) AND amount(barcode) == 1.0 AND NOT skipBarcodeItem(barcode) BY size(barcode)](s)
-    MATERIALIZED INDEXED;
-
+barcode(Size s) = OVERRIDE dataBarcode(s), [GROUP MIN Barcode barcode IF id(barcode) BY size(barcode)](s) MATERIALIZED INDEXED;
 primary 'Основной' (Barcode barcode) = barcode(size(barcode)) == barcode;
 
 CONSTRAINT id(Barcode b1) == id(Barcode b2) AND NOT b1 == b2 MESSAGE 'Нарушена уникальность свойства "Баркод"';
@@ -1399,9 +1391,9 @@ postTrashItems 'Получить список карточек товаров в
                         itemWB(s) <- item;
                         chrtID(s) <- INTEGER(chrtID);
                         techSize(s) <- techSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) AND NOT barcode(skus(j), s) DO NEW b = Barcode {
+                        FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND NOT barcode(skus(j), s) BY skus(j)](STRING barcode) DO NEW b = Barcode {
                             size(b) <- s;
-                            id(b) <- skus(j);
+                            id(b) <- barcode;
                         }
                     }
 
