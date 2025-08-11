@@ -35,13 +35,7 @@ CONSTRAINT AccountDocument m IS AccountDocument AND NOT stock(m)
 
 accountPrice 'Цена (учетная)' = DATA NUMERIC[16,5](AccountDocument, Sku);
 
-accountPriceB 'Цена'  =
-    GROUP LAST accountPrice(AccountDocument a, Sku s)
-    ORDER date(a), a
-    WHERE date(a) < DATE date AND NOT toDate(a) < date
-    BY s, stock(a), date COMPLEX CHARWIDTH 7;
-
-accountPriceA 'Цена'  =
+accountPrice 'Цена'  =
     GROUP LAST accountPrice(AccountDocument a, Sku s)
     ORDER date(a), a
     WHERE date(a) <= DATE date AND NOT toDate(a) < date
@@ -49,13 +43,7 @@ accountPriceA 'Цена'  =
 
 costPrice 'Цена (себестоимость)' = DATA NUMERIC[16,5](AccountDocument, Sku);
 
-costPriceB 'Цена'  =
-    GROUP LAST costPrice(AccountDocument a, Sku s)
-    ORDER date(a), a
-    WHERE date(a) < DATE date AND NOT toDate(a) < date
-    BY s, stock(a), date COMPLEX CHARWIDTH 7;
-
-costPriceA 'Цена'  =
+costPrice 'Цена'  =
     GROUP LAST costPrice(AccountDocument a, Sku s)
     ORDER date(a), a
     WHERE date(a) <= DATE date AND NOT toDate(a) < date
@@ -162,7 +150,8 @@ recalculateCostGaussCost (DATE dFrom, DATE dTo) {
 
         logToFile('cost', CONCAT '; ', 'Cost. Посчитаны начальные остатки по товарам', GROUP SUM 1 IF calcCostQuantity(Sku sku, Stock stock));
 
-        calcCostSum (Sku sku, Stock stock) <- NUMERIC[18,4](calcCostQuantity(sku, stock) * costPriceB(sku, stock, dFrom)) IF calcCostQuantity(sku, stock) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
+        //цена на конец предыдущего месяца
+        calcCostSum (Sku sku, Stock stock) <- NUMERIC[18,4](calcCostQuantity(sku, stock) * costPrice(sku, stock, sum(dFrom, -1))) IF calcCostQuantity(sku, stock) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
 
         logToFile('cost', 'Cost. Посчитаны начальные суммы по товарам');
 
