@@ -7,14 +7,16 @@ NAMESPACE Set10;
 customGroupPicList = DATA CustomGroupType();
 nameCustomGroupPicList 'Классификатор пиклиста' = name(customGroupPicList());
 
+customGroupPicListLocal = DATA LOCAL NESTED CustomGroupType();
+
 in = DATA LOCAL BOOLEAN (Group, DepartmentStore);
 in = DATA LOCAL BOOLEAN (Item, DepartmentStore);
 
 in(CustomGroup g, Item s) = group(groupType(g), s);
 isNotParrent(CustomGroup g) = TRUE IF NOT parent(g) AND g IS CustomGroup;
 
-index =  PARTITION SUM 1 ORDER name(Item i) BY in(i, DepartmentStore ds), customGroup(customGroupPicList(),i), ds;
-maxIndex(CustomGroup g, DepartmentStore ds) = GROUP MAX index(Item i, ds) BY customGroup(customGroupPicList(),i);
+index =  PARTITION SUM 1 ORDER name(Item i) BY in(i, DepartmentStore ds), customGroup(customGroupPicListLocal(),i), ds;
+maxIndex(CustomGroup g, DepartmentStore ds) = GROUP MAX index(Item i, ds) BY customGroup(customGroupPicListLocal(),i);
 
 useCustomOrderGroup = ABSTRACT BOOLEAN ();
 customOrderGroup = ABSTRACT STRING (CustomGroup);
@@ -28,7 +30,7 @@ indexGroup(CustomGroup g, DepartmentStore ds) = IF parent(g) THEN indexNoNULL(g,
 maxIndexGroup(CustomGroup g, DepartmentStore ds) = GROUP MAX indexGroup(CustomGroup gg, ds) IF in(gg, ds) BY parent(gg);
 
 indexItemExt(Item i, DepartmentStore ds) = IF mod(index(i, ds), 16) = 0 THEN 16 ELSE mod(index(i, ds), 16);
-indexItem(Item i, DepartmentStore ds) = maxIndexGroup(customGroup(customGroupPicList(),i), ds) (+) index(i, ds);
+indexItem(Item i, DepartmentStore ds) = maxIndexGroup(customGroup(customGroupPicListLocal(),i), ds) (+) index(i, ds);
 maxIndexItem(CustomGroup g, DepartmentStore ds) = maxIndexGroup(g, ds) (+) maxIndex(g, ds);
 
 inPage(Item i, INTEGER index, DepartmentStore ds) = indexItem(i, ds) AND indexItem(i, ds) - 1 >= index * 16 AND indexItem(i, ds) - 1 < (index + 1) * 16;
@@ -144,6 +146,8 @@ DESIGN integrationData {
 
 overSkipExport = ABSTRACT BOOLEAN (STRING, GroupCashRegister);
 
+extraMenuName = ABSTRACT STRING (GroupCashRegister);
+
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT'
     OBJECTS templateGuid = STRING PANEL
@@ -154,9 +158,9 @@ FORM exportCSIformAPI
 
     OBJECTS g = GroupCashRegister EXTID 'menuTemplates'
     PROPERTIES = IF isSet10(g) THEN 'CSI_K' EXTID 'cashType',
-        menuName = ('CSI-K ТО ' + idStoreSet(g)),
+        menuName = (CONCAT ' ', ('CSI-K ТО ' + idStoreSet(g)), extraMenuName(g)),
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
-        content = content(customGroupPicList(), stock(g)) EXTID 'content:escapeInnerJSON'
+        content = content(customGroupPicListLocal(), stock(g)) EXTID 'content:escapeInnerJSON'
     FILTERS isSet10(g), NOT overSkipExport(templateGuid, g)
 ;
 
@@ -174,14 +178,20 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
     overExportCSIAPI(templateGuid);
 
     IF exportCSIAPIurl() THEN {
-        in(Item i, DepartmentStore ds) <- TRUE WHERE currentBalance(i, ds) > 0 AND idStoreSet(ds);
-        in(CustomGroup g, DepartmentStore ds) <- TRUE WHERE groupType(g) == customGroupPicList()
+        in(Item i, DepartmentStore ds) <- NULL;
+        in(CustomGroup g, DepartmentStore ds) <- NULL;
+        
+        in(Item i, DepartmentStore ds) <- TRUE WHERE currentBalance(i, ds) > 0 AND idStoreSet(ds) AND customGroup(customGroupPicListLocal(),i);
+        in(CustomGroup g, DepartmentStore ds) <- TRUE WHERE groupType(g) == customGroupPicListLocal()
             AND GROUP SUM 1 IF isParent(g, Item sku) AND in(sku, ds);
 
         overFillIn(templateGuid);
 
-        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicList() AND NOT overSkipExport(templateGuid, g) THEN {
+        IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicListLocal() AND NOT overSkipExport(templateGuid, g) THEN {
             EXPORT exportCSIformAPI OBJECTS templateGuid = templateGuid, cashTemplates = '[' + listCashTemplates(templateGuid) + ']' JSON;
+            open(exportFile());
+            RETURN;
+            
             fileToString(exportFile());
             timeoutHttp() <- 60000;
             LOCAL result = FILE ();
@@ -205,6 +215,7 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
 }
 
 exportCSIAPI 'Экспорт пиклиста CSI' (){
+    customGroupPicListLocal() <- customGroupPicList();    
     overExportCSIAPI ();
     exportCSIAPI (templateGuid());
 }
