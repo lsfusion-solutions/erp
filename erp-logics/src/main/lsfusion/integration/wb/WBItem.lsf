@@ -38,7 +38,7 @@ CONSTRAINT DROPPED(ItemSubGroup sg IS ItemSubGroup) AND [GROUP SUM 1 BY PREV(ite
 CLASS Size 'Размер';
 
 chrtID 'ID размера' = DATA INTEGER (Size);
-size (INTEGER id) = GROUP MAX Size s IF chrtID(s) == id;
+size = GROUP AGGR Size s BY chrtID(s);
 
 techSize 'Размер' = DATA STRING (Size) NONULL;
 wbSize 'Российский размер' = DATA STRING (Size);
@@ -49,7 +49,7 @@ CLASS Barcode 'Баркод';
 id 'Баркод' = DATA STRING (Barcode);
 size = DATA Size (Barcode) NONULL DELETE;
 
-barcode (STRING id, Size size) = GROUP AGGR Barcode b WHERE b IS Barcode AND NOT isTrash(itemWB(size(b))) BY id(b), size(b);
+barcode (STRING id, Size size) = GROUP AGGR Barcode b BY id(b), size(b);
 
 skus 'Баркоды' (Size s) = GROUP CONCAT id(Barcode b) IF size(b) == s, ', ' ORDER b;
 
@@ -192,7 +192,7 @@ postMediaFiles 'Загрузить медиафайлы по ссылкам' (It
                     extraDescriptionStatusHTTP() <- 'Не удалось загрузить медиафайлы: ' + errorText();
                 }
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Загрузить медиафайлы по ссылкам</h3>' NOWAIT;
@@ -245,7 +245,7 @@ addBarcode 'Добавить' (Size s) {
             message() <- 'Баркод сгенерирован';
         } CATCH {
             logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE message() NOWAIT;
@@ -974,7 +974,7 @@ getItemAttribute 'Получить характеристики предмета
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE '<h3>Получить характеристики предмета</h3>' NOWAIT;
@@ -1043,7 +1043,7 @@ getItemAttribute 'Получить характеристики предмето
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Получить характеристики предметов</h3>' NOWAIT;
@@ -1087,7 +1087,7 @@ getItemLimits 'Получить лимиты создания карточек �
                 message() <- '<h3>Бесплатные лимиты на создание карточек X = ' + freeLimits() + ', платные лимиты Y = ' + paidLimits()+'</h3>';
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE message() NOWAIT;
@@ -1241,7 +1241,7 @@ checkErrors 'Получение ошибок' () {
             message() <- messageStatusHTTP(STRING(statusHttp()));
         } CATCH {
             logToFile('WB', messageCaughtException());
-            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
         } FINALLY {
             afterSendRequestIS();
             MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
@@ -1275,18 +1275,11 @@ postItems 'Получить список карточек товаров' () {
                 logToFile('WB', resultString());
                 IMPORT importItems JSON FROM response();
 
-                FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND Item item == item(id) AND NOT (nmID(item(id)) AND imtID(item(id))) DO {
-                    nmID(item) <- nmID1(i);
-                    imtID(item) <- imtID(i);
-
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO {
-                        FOR itemWB(Size s) == item AND techSize(s) == techSize(ii) DO
-                            chrtID(s) <- INTEGER(chrtID);
-                    }
-                }
-
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                     id(item) <- id;
+                }    
+                
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND Item item == item(id) INLINE DO {
                     nmID(item) <- nmID1(i);
                     imtID(item) <- imtID(i);
                     name(item) <- title(i);
@@ -1296,16 +1289,24 @@ postItems 'Получить список карточек товаров' () {
                     height(item) <- height(i);
                     weightBrutto(item) <- weightBrutto(i);
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
-                        itemWB(s) <- item;
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO NEW s = Size {
                         chrtID(s) <- INTEGER(chrtID);
+                    }                    
+                    
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(INTEGER(chrtID)) INLINE DO {
+                        itemWB(s) <- item;
                         techSize(s) <- techSize(ii);
                         wbSize(s) <- wbSize(ii);
-                        FOR imported(INTEGER j) AND sizesSkus(j) == ii AND skus(j) AND NOT barcode(skus(j), s) DO NEW b = Barcode {
+                        FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND 
+                            NOT (GROUP MAX Size size IF size IS Size AND NOT barcode(skus(j), size)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
                             size(b) <- s;
-                            id(b) <- skus(j);
+                            id(b) <- barcode;
                         }
+                        //удаляем баркоды, которых нет на WB для данного размера
+                        DELETE Barcode barcode WHERE size(barcode)==s AND NOT (GROUP SUM 1 IF sizesSkus(INTEGER jj)==ii AND skus(jj)==id(barcode));                        
                     }
+                    //удаляем размеры, которых нет на WB для данного товара
+                    DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND INTEGER(chrtID(jj))==chrtID(size));                    
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                         CASE
@@ -1337,7 +1338,7 @@ postItems 'Получить список карточек товаров' () {
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Получить список карточек товаров</h3>' NOWAIT;
@@ -1377,6 +1378,8 @@ postTrashItems 'Получить список карточек товаров в
                 IMPORT importItems JSON FROM response();
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND NOT item(id) AND itemSubGroup(subjectID(i)) INLINE DO NEW item = Item {
                     id(item) <- id;
+                }
+                FOR INTEGER i = [GROUP MAX INTEGER i1 BY vendorCode(i1)](STRING id) AND Item item == item(id) INLINE DO {
                     nmID(item) <- nmID1(i);
                     imtID(item) <- imtID(i);
                     isTrash(item) <- TRUE;
@@ -1387,15 +1390,24 @@ postTrashItems 'Получить список карточек товаров в
                     height(item) <- height(i);
                     weightBrutto(item) <- weightBrutto(i);
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) DO NEW s = Size {
-                        itemWB(s) <- item;
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO NEW s = Size {
                         chrtID(s) <- INTEGER(chrtID);
+                    }
+
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(INTEGER(chrtID)) INLINE DO {
+                        itemWB(s) <- item;
                         techSize(s) <- techSize(ii);
-                        FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND NOT barcode(skus(j), s) BY skus(j)](STRING barcode) DO NEW b = Barcode {
+                        wbSize(s) <- wbSize(ii);
+                        FOR INTEGER jj = [GROUP MAX INTEGER j IF imported(j) AND sizesSkus(j) == ii AND 
+                            NOT (GROUP MAX Size size IF size IS Size AND NOT barcode(skus(j), size)) BY skus(j)](STRING barcode) INLINE DO NEW b = Barcode {
                             size(b) <- s;
                             id(b) <- barcode;
                         }
+                        //удаляем баркоды, которых нет на WB для данного размера
+                        DELETE Barcode barcode WHERE size(barcode)==s AND NOT (GROUP SUM 1 IF sizesSkus(INTEGER jj)==ii AND skus(jj)==id(barcode));
                     }
+                    //удаляем размеры, которых нет на WB для данного товара
+                    DELETE Size size WHERE itemWB(size)==item AND NOT (GROUP SUM 1 IF cardsSizes(INTEGER jj)==i AND INTEGER(chrtID(jj))==chrtID(size));
 
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsCharacteristics(i1) == i BY id(i1)](STRING charcID) AND Attribute as == attribute(charcID) INLINE DO
                         CASE
@@ -1427,7 +1439,7 @@ postTrashItems 'Получить список карточек товаров в
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Получить список карточек товаров в корзине</h3>' NOWAIT;
@@ -1486,7 +1498,7 @@ postTransferItems 'Перенос карточек товаров в корзи�
                         IMPORT additionalErrors JSON FROM response();
                         extraDescriptionStatusHTTP() <- 'Товары не перенесены в корзину: ' + additionalErrors();
                     }
-                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
                     MESSAGE '<h3>Перенос карточек товаров в корзину</h3>' NOWAIT;
@@ -1546,7 +1558,7 @@ postRecoverItems 'Восстановление карточек товаров �
                         IMPORT additionalErrors JSON FROM response();
                         extraDescriptionStatusHTTP() <- 'Товары не восстановлены из корзины: ' + additionalErrors();
                     }
-                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
                     MESSAGE '<h3>Восстановление карточек товаров из корзины</h3>' NOWAIT;
@@ -1749,7 +1761,7 @@ uploadItems 'Создание новых карточек' () {
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
-                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
                     MESSAGE '<h3>Создание новых карточек</h3>' NOWAIT;
@@ -1807,7 +1819,7 @@ uploadItem 'Создание новой карточки' (Item item) {
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Создание новой карточки</h3>' NOWAIT;
@@ -1901,7 +1913,7 @@ updateItem 'Обновить карточку товара' (Item item) {
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
-                message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
                 MESSAGE '<h3>Обновить карточку товара</h3>' NOWAIT;
@@ -1961,7 +1973,7 @@ updateItem 'Обновить карточки товаров' () {
                     message() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
                     logToFile('WB', messageCaughtException());
-                    message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                 } FINALLY {
                     afterSendRequestIS();
                     MESSAGE '<h3>Обновить карточки товаров</h3>' NOWAIT;
@@ -2093,7 +2105,7 @@ moveConnItems 'Объединить карточки товаров' (Item item)
                             }
                             error(item) <- TRUE;
                             errorText(item) <- OVERRIDE message(), errorText();
-                            message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                         } FINALLY {
                             afterSendRequestIS();
                             MESSAGE '<h3>Объединение карточкек товаров</h3>' NOWAIT;
@@ -2144,7 +2156,7 @@ moveDisconnItems 'Разъединить карточки товаров' (Item 
                             logToFile('WB', messageCaughtException());
                             extraDescriptionStatusHTTP() <- 'Карточки товаров не разъединены: ' + errorText();
                         }
-                        message() <- OVERRIDE messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                        message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
                         error(item) <- TRUE;
                         errorText(item) <- OVERRIDE message(), errorText();
 
