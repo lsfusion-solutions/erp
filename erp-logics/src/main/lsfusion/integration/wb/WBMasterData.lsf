@@ -60,7 +60,7 @@ getItemGroup 'Получить родительские категории то�
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT itemGroup(id) INLINE DO NEW ig = ItemGroup {
                 id(ig) <- id(i);
             }
-            isVisible(ItemGroup ig) <- NULL WHERE  isVisible(ig);
+            isVisible(ItemGroup ig) <- NULL WHERE isVisible(ig);
             FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND ItemGroup ig == itemGroup(id) INLINE DO {
                 name(ig) <- name(i);
                 isVisible(ig) <- isVisible(i) == 'true';
@@ -215,6 +215,7 @@ getItemSubGroup 'Получить список предметов' () {
 
 getTnved 'Получить ТНВЭД-коды' () {
     NEWSESSION {
+        isKiz(Tnved tn) <- NULL WHERE isKiz(tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
         FOR ItemSubGroup sg IS ItemSubGroup NOINLINE DO {
             setHttpHeadersIS();
             LOCAL message = STRING ();
@@ -234,8 +235,7 @@ getTnved 'Получить ТНВЭД-коды' () {
                     id(tn) <- tnved;
                 }
 
-                in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL  
-                isKiz(Tnved tn) <- NULL WHERE isKiz(tn); 
+                in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY tnved(i1)](STRING tnved) AND Tnved tn == tnved(tnved) INLINE DO {
                     in(sg, tn) <- TRUE;
                     isKiz(tn) <- isKiz(i) == 'true';
@@ -297,8 +297,8 @@ getTnved 'Получить ТНВЭД-коды' (ItemSubGroup sg) {
                     id(tn) <- tnved;
                 }
 
-                in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL  
-                isKiz(Tnved tn) <- NULL WHERE isKiz(tn); 
+                isKiz(Tnved tn) <- NULL WHERE isKiz(tn) AND in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
+                in(sg, Tnved tn) <- NULL WHERE in(sg, tn); //обнуляем в случае если стоял TRUE, а в ответе приходит NULL
                 FOR INTEGER i = [GROUP MAX INTEGER i1 BY tnved(i1)](STRING tnved) AND Tnved tn == tnved(tnved) INLINE DO {
                     in(sg, tn) <- TRUE;
                     isKiz(tn) <- isKiz(i) == 'true';
