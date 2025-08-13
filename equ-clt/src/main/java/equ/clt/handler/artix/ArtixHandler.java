@@ -2050,6 +2050,13 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                     receiptDetailExtraFields.put("extDocId", extDocId);
                                                 }
 
+                                                //temp log
+                                                String idZReport = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + (dateZReport != null ? ("_" + dateZReport.format(DateTimeFormatter.ofPattern("ddMMyyyy"))) : "");
+                                                sendSalesLogger.info(logPrefix + "IdZReport: " + idZReport);
+                                                if (nppGroupMachinery == null || numberCashRegister == null || numberZReport == null || dateZReport == null) {
+                                                    sendSalesLogger.info(logPrefix + "IdZReport is incomplete");
+                                                }
+
                                                 SalesInfo salesInfo = getSalesInfo(isGiftCard, isReturnGiftCard, nppGroupMachinery, numberCashRegister, numberZReport,
                                                         dateZReport, sqlTimeToLocalTime(timeZReport), numberReceipt, dateReceipt, sqlTimeToLocalTime(timeReceipt), idEmployee, nameEmployee, lastNameEmployee,
                                                         sumGiftCardMap, payments, barcode, idItem, null, null, quantity, price, sumReceiptDetail,
