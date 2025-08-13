@@ -1,7 +1,7 @@
 MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
-        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff;
+        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek;
 
 NAMESPACE SaleReports;
 
@@ -1025,6 +1025,76 @@ DESIGN salesReport {
             caption = 'Анализ продаж и списаний -возвратов';
             lines = 2;
             MOVE PROPERTY(printSaleReportSkuStockWriteOff(df,dt));
+        }
+    }
+}
+
+quantitySkuSold 'Продано за неделю (кол-во)' (Stock st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    quantity(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND stock(l) = st AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumSold 'Продано за неделю (сумма)' (Stock st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    sum(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND stock(l) = st AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumSoldPrice 'Продано за неделю (сумма)' (Stock st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    round2(quantity(SaleLedger l)*priceSku(sku(l),st)) IF date(l) >= dateFrom AND date(l) <= dateTo AND stock(l) = st AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+valProfit 'Валовый доход' (Stock st, INTEGER w, DATE df, DATE dt) =
+    sumSoldPrice(st,w,df,dt) (-) sumSold(st,w,df,dt);
+marga 'Маржа,%' (Stock st, INTEGER w, DATE df, DATE dt) =
+    valProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
+
+countWeek'Кол-во недель!'(DATE df, DATE dt) = INTEGER(daysInclBetweenDates(df,dt) / 7);
+
+FORM saleReportWeek 'Продажи по неделям'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        namePrint()
+    
+    PROPERTIES countWeek(df,dt)
+    OBJECTS st = Stock
+    PROPERTIES(st) id, name
+    FILTERS inSaleReportDialog(st)
+
+    OBJECTS w = INTEGER GRID
+    PROPERTIES toString4 (w)
+    FILTERS quantitySkuSold(st,w,df,dt)
+
+    PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, valProfit, marga
+;
+
+printSaleReportReceiptWeek 'Динамика продаж по неделям(розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
+    namePrint() <- '(розничные продажи)';
+    PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSaleReportInvoiceWeek 'Динамика продаж по неделям(розница)(опт)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
+    namePrint() <- '(опт)';
+    PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSaleReportWeek 'Динамика продаж по неделям(опт+розница)' (DATE dateFrom, DATE dateTo) {
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    namePrint() <- '(розничные продажи + опт)';
+    PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+EXTEND FORM salesReport
+    PROPERTIES(df,dt) printSaleReportReceiptWeek, printSaleReportInvoiceWeek, printSaleReportWeek
+;
+
+DESIGN salesReport {
+    salesContainer {
+        NEW weelSale {
+            caption = 'Продажи по неделям';
+            lines = 2;
+            MOVE PROPERTY(printSaleReportReceiptWeek(df, dt));
+            MOVE PROPERTY(printSaleReportInvoiceWeek(df, dt));
+            MOVE PROPERTY(printSaleReportWeek(df, dt));
         }
     }
 }
