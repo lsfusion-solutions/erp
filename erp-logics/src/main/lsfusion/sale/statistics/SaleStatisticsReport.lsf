@@ -928,97 +928,101 @@ countIn = GROUP SUM 1 IF in(StatisticReport r);
 balance = GROUP LAST balance(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY stock(d), statisticGroup(d) ;
+    BY stock(d), number(d) ;
 balance  = GROUP LAST balance(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY region(statisticReport(d)), statisticGroup(d) ;
+    BY region(statisticReport(d)), number(d) ;
 balance  = GROUP LAST balance(StatisticReportDetail d)
     ORDER toDate(d)
     WHERE in(statisticReport(d))
-    BY company(statisticReport(d)), statisticGroup(d) ;
+    BY company(statisticReport(d)), number(d) ;
     
 balanceSum = GROUP LAST balanceSum(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY stock(d), statisticGroup(d) ;
+    BY stock(d), number(d) ;
 balanceSum  = GROUP LAST balanceSum(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY region(statisticReport(d)), statisticGroup(d) ;
+    BY region(statisticReport(d)), number(d) ;
 balanceSum  = GROUP LAST balanceSum(StatisticReportDetail d)
     ORDER toDate(d)
     WHERE in(statisticReport(d))
-    BY company(statisticReport(d)), statisticGroup(d) ;
+    BY company(statisticReport(d)), number(d) ;
     
 balanceResident = GROUP LAST balanceResident(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY stock(d), statisticGroup(d) ;
+    BY stock(d), number(d) ;
 balanceResident  = GROUP LAST balanceResident(StatisticReportDetail d) 
     ORDER toDate(d)
     WHERE in(statisticReport(d)) 
-    BY region(statisticReport(d)), statisticGroup(d) ;
+    BY region(statisticReport(d)), number(d) ;
 balanceResident  = GROUP LAST balanceResident(StatisticReportDetail d)
     ORDER toDate(d)
     WHERE in(statisticReport(d))
-    BY company(statisticReport(d)), statisticGroup(d) ;
+    BY company(statisticReport(d)), number(d) ;
 
+overCreateSumReport ABSTRACT LIST(StatisticReport);
 
-createSumReport 'Создать суммарный отчет'() { 
-	NEWSESSION {
-	    IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)) > 1 THEN {
-	        MESSAGE 'Выбраны отчеты разных типов';
-	        RETURN;
-	    }
-	    IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)) > 1 THEN {
-	        MESSAGE 'Выбраны отчеты разных видов';
-	        RETURN;
-	    }
-	    IF NOT countIn() THEN {
-	        MESSAGE 'Не выбраны отчеты для объединения';
-	        RETURN;
-	    }
-	    NEW s = StatisticReport {
-	        statisticReportType(s) <- (GROUP MAX statisticReportType(StatisticReport r) IF in(r));
-	        reportKind(s) <- ReportKind.consolidate;
-	        consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](ISTRING[255] str), ',' ORDER str);
-	        fromDate(s) <- (GROUP MIN fromDate(StatisticReport r) IF in(r));
-	        toDate(s) <- (GROUP MAX toDate(StatisticReport r) IF in(r));
-	        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
-	        statisticGroupType(s) <- statisticGroupType(statisticReportType(s));     
-	        
-	        FOR statisticReportType(s) == statisticReportType(StatisticReportTypeDetail detail) NEW d = StatisticReportDetail DO {
-	            statisticReport(d) <-s;
-	            index(d) <- index(detail);
-	            number(d) <-number(detail);
-	            name(d) <- name(detail);
-	            statisticGroup(d) <- statisticGroup(detail);
-	            nameUOM(d) <- nameUOM(detail);
-	            round(d) <- round(detail);
-	            
-	            sold(d) <- [GROUP SUM sold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            soldResident(d) <- [GROUP SUM soldResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-                prevYearSold(d) <- [GROUP SUM prevYearSold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            
-                balance(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balance(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balance(Region rs,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balance(LegalEntity le,StatisticGroup sg) BY sg](statisticGroup(d));
-	            balanceResident(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceResident(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceResident(Region rs,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balanceResident(LegalEntity le,StatisticGroup sg) BY sg](statisticGroup(d));
-	                
-	            soldSum(d) <- [GROUP SUM soldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-	            soldSumResident(d) <- [GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-                prevYearSoldSum(d) <- [GROUP SUM prevYearSoldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY statisticGroup(sd)](statisticGroup(d));
-                balanceSum(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceSum(Stock ss,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceSum(Region rs,StatisticGroup sg) BY sg](statisticGroup(d))
-	                ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balanceSum(LegalEntity le,StatisticGroup sg) BY sg](statisticGroup(d));
-	        }
-	        SHOW statisticReport OBJECTS r = s DOCKED NOCANCEL;
-	    }
-	    in(StatisticReport r) <- NULL;
-	}
+createSumReport 'Создать суммарный отчет'() {
+    NEWSESSION {
+        IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)) > 1 THEN {
+            MESSAGE 'Выбраны отчеты разных типов';
+            RETURN;
+        }
+        IF (GROUP SUM 1 IF [GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)) > 1 THEN {
+            MESSAGE 'Выбраны отчеты разных видов';
+            RETURN;
+        }
+        IF NOT countIn() THEN {
+            MESSAGE 'Не выбраны отчеты для объединения';
+            RETURN;
+        }
+        NEW s = StatisticReport {
+            statisticReportType(s) <- (GROUP MAX statisticReportType(StatisticReport r) IF in(r));
+            reportKind(s) <- ReportKind.consolidate;
+            consolidateStocks(s) <- OVERRIDE (GROUP CONCAT [GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](ISTRING[255] str), ',' ORDER str);
+            fromDate(s) <- (GROUP MIN fromDate(StatisticReport r) IF in(r));
+            toDate(s) <- (GROUP MAX toDate(StatisticReport r) IF in(r));
+            name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
+            statisticGroupType(s) <- statisticGroupType(statisticReportType(s));
+
+            FOR statisticReportType(s) == statisticReportType(StatisticReportTypeDetail detail) NEW d = StatisticReportDetail DO {
+                statisticReport(d) <- s;
+                index(d) <- index(detail);
+                number(d) <- number(detail);
+                name(d) <- name(detail);
+                statisticGroup(d) <- statisticGroup(detail);
+                nameUOM(d) <- nameUOM(detail);
+                round(d) <- round(detail);
+
+                sold(d) <- [GROUP SUM sold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+                soldResident(d) <- [GROUP SUM soldResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+                prevYearSold(d) <- [GROUP SUM prevYearSold(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+
+                balance(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balance(Stock ss, BPSTRING[10] num) BY num](number(d))
+                    ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balance(Region rs, BPSTRING[10] num) BY num](number(d))
+                        ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balance(LegalEntity le, BPSTRING[10] num) BY num](number(d));
+                balanceResident(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceResident(Stock ss, BPSTRING[10] num) BY num](number(d))
+                    ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceResident(Region rs, BPSTRING[10] num) BY num](number(d))
+                        ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balanceResident(LegalEntity le, BPSTRING[10] num) BY num](number(d));
+
+                soldSum(d) <- [GROUP SUM soldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+                soldSumResident(d) <- [GROUP SUM soldSumResident(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+                prevYearSoldSum(d) <- [GROUP SUM prevYearSoldSum(StatisticReportDetail sd) IF in(statisticReport(sd)) BY number(sd)](number(d));
+                balanceSum(d) <- IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.stock THEN [ GROUP SUM balanceSum(Stock ss, BPSTRING[10] num) BY num](number(d))
+                    ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.region THEN [ GROUP SUM balanceSum(Region rs, BPSTRING[10] num) BY num](number(d))
+                        ELSE IF (GROUP MAX reportKind(StatisticReport r) IF in(r)) == ReportKind.legalEntity THEN [ GROUP SUM balanceSum(LegalEntity le, BPSTRING[10] num) BY num](number(d));
+            }
+            
+            overCreateSumReport(s);
+            
+            SHOW statisticReport OBJECTS r = s DOCKED NOCANCEL;
+        }
+        in(StatisticReport r) <- NULL;
+    }
 } 
 
 FORM selectSatisticReport 'Выбор отчетов'
