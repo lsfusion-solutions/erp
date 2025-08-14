@@ -108,11 +108,12 @@ tilesGroup(CustomGroupType gt, INTEGER index, DepartmentStore ds) = '\{ "tiles":
     (CONCAT ',' , (GROUP CONCAT contentPage1(CustomGroup cg, ds) IF groupType(cg) = gt AND NOT parent(cg) AND inPage(cg, index, ds), ', ' ORDER indexGroup(cg, ds)))
     + ']\}';
 
-content (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
+contentCalc (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
     '"sortType": "manual"',
     '"pages": [' + (GROUP CONCAT tilesGroup(gt, INTEGER i, ds) IF iterate(i, 0, maxIndexNULL() / 16), ', ' ORDER i) + ']'
     ) + '\}';
-
+content   = ABSTRACT  CASE STRING (CustomGroupType, DepartmentStore);
+content (CustomGroupType t, DepartmentStore ds) += WHEN t IS CustomGroupType AND ds IS DepartmentStore THEN STRING (contentCalc(t,ds));
 
 templateGuid 'GUID шаблона пиклиста' = DATA STRING ();
 cashTemplates 'Код шаблона касс' = DATA STRING ();
@@ -146,7 +147,10 @@ DESIGN integrationData {
 
 overSkipExport = ABSTRACT BOOLEAN (STRING, GroupCashRegister);
 
-extraMenuName = ABSTRACT STRING (GroupCashRegister);
+extraMenuName = ABSTRACT STRING (CustomGroupType);
+extraFilter = ABSTRACT BOOLEAN (CustomGroupType);
+
+
 
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT'
@@ -156,12 +160,14 @@ FORM exportCSIformAPI
     OBJECTS cashTemplates = STRING PANEL
     PROPERTIES VALUE(cashTemplates) EXTID 'cashTemplates'
 
-    OBJECTS g = GroupCashRegister EXTID 'menuTemplates'
+    OBJECTS dd = (g = GroupCashRegister, type = CustomGroupType) EXTID 'menuTemplates'
     PROPERTIES = IF isSet10(g) THEN 'CSI_K' EXTID 'cashType',
-        menuName = (CONCAT ' ', ('CSI-K ТО ' + idStoreSet(g)), extraMenuName(g)),
+        menuName = (CONCAT ' ', ('CSI-K ТО ' + idStoreSet(g)), extraMenuName(type)),
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
-        content = content(customGroupPicListLocal(), stock(g)) EXTID 'content:escapeInnerJSON'
-    FILTERS isSet10(g), NOT overSkipExport(templateGuid, g)
+        content = content(type, stock(g)) EXTID 'content:escapeInnerJSON'
+    FILTERS isSet10(g), 
+            type == customGroupPicListLocal() OR extraFilter(type),
+            NOT overSkipExport(templateGuid, g)
 ;
 
 idStoreSet(DepartmentStore ds) = idStoreSet(GROUP MAX GroupCashRegister g IF isSet10(g) AND stock(g) = ds);
@@ -189,7 +195,6 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
 
         IF GROUP SUM 1 IF isSet10(GroupMachinery g) AND customGroupPicListLocal() AND NOT overSkipExport(templateGuid, g) THEN {
             EXPORT exportCSIformAPI OBJECTS templateGuid = templateGuid, cashTemplates = '[' + listCashTemplates(templateGuid) + ']' JSON;
-           
             fileToString(exportFile());
             timeoutHttp() <- 60000;
             LOCAL result = FILE ();
