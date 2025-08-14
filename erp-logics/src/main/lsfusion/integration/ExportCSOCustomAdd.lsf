@@ -107,15 +107,10 @@ FORM moduleConfig FORMEXTID '=http://crystals.ru/cash/settings:moduleConfig'
     FILTERS export(good2), customGroup(type,good2) == group2
 ;
 
-exportedImage 'Экспортируемое изображение' = ABSTRACT IMAGEFILE (Sku);
-hasExportedImage = ABSTRACT BOOLEAN (Sku);
-
 needFilterExport = ABSTRACT BOOLEAN (Sku);
 filterExport = ABSTRACT BOOLEAN (DepartmentStore, Sku);
 
 export (CustomGroup g) = TRUE IF GROUP SUM 1 IF export(Sku s) AND customGroup(customGroupType(g), s);
-exportedImage 'Экспортируемое изображение' = ABSTRACT IMAGEFILE (CustomGroup);
-hasExportedImage = ABSTRACT BOOLEAN (CustomGroup);
 
 exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
     IF customGroupTypeCSI(ds) THEN {
@@ -138,17 +133,19 @@ exportCSICustom 'Выгрузить CSI K' (DepartmentStore ds) {
                                      (NOT needFilterExport(s) OR filterExport(ds, s)); 
                           
                     EXPORT moduleConfig OBJECTS type = customGroupTypeCSI(ds) XML;
-                    
+
+                    mkdir('file://' +dataExchangeCSIAddress(ds) + '/config/plugins');
                     WRITE exportFile() TO 'file://' +dataExchangeCSIAddress(ds) + '/config/plugins/weightCatalog-xml-config';
 
-                    FOR export(Sku s) AND hasExportedImage(s) DO TRY {
-                        resizeImage(exportedImage(s),200,144);              
+                    mkdir('file://' +dataExchangeCSIAddress(ds) + '/images');
+                    FOR export(Item s) AND hasImage(s) DO TRY {
+                        resizeImage(image(s),200,144);              
                         convertImage(resizedImage(), 'png');
                         WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + idModuleConfig(s);             
                     }
                     
-                    FOR export(CustomGroup g) AND hasExportedImage(g) DO TRY {
-                        resizeImage(exportedImage(g),200,144);              
+                    FOR export(CustomGroup g) AND hasImage(g) DO TRY {
+                        resizeImage(image(g),200,144);              
                         convertImage(resizedImage(), 'png');
                         WRITE convertedImage() TO 'file://' +dataExchangeCSIAddress(ds) + '/images/' + name(g);             
                     }
@@ -175,13 +172,13 @@ exportCSI 'Выгрузить CSI K' (DepartmentStore ds) {
 
 //-- в планировщик
 exportCSI 'Выгрузить CSI K (все магазины)' () {
-    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupType(ds) DO {
+    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupTypeCSI(ds) DO {
         exportCSI(ds);
     }
 
 }
 exportCSI 'Выгрузить CSI K' (CustomGroupType type) {
-    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupType(ds)==type  DO {
+    FOR active(DepartmentStore ds) AND dataExchangeCSIAddress(ds) AND customGroupTypeCSI(ds)==type  DO {
         exportCSI(ds);
     }
 }
@@ -225,6 +222,7 @@ DESIGN customGroupType {
 
 EXTEND FORM customGroups
     PROPERTIES (t) exportCSI SHOWIF showCSI(t)
+    PROPERTIES (g) READONLY image SHOWIF showCSI(t)
 ;
 EXTEND FORM items
     PROPERTIES (gt) exportCSI SHOWIF showCSI(gt)
