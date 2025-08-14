@@ -48,8 +48,28 @@ DESIGN options{
     }
 }
 
+dataPickingGroup = ABSTRACT INTEGER (Sku);
+pickingGroup 'Группа комплектации' (Sku s) = OVERRIDE dataPickingGroup(s), 0 IF s IS Sku MATERIALIZED INDEXED;
+
+EXTEND FORM items
+    PROPERTIES READONLY pickingGroup(i)
+;
+
+pickingGroup 'Группа комплектации' (PickingOrderDetail d) = pickingGroup(sku(d));
+pickingGroup 'Группа комплектации' = GROUP MAX pickingGroup(PickingOrderDetail d) BY pickingOrder(d);
+
+EXTEND FORM pickingOrders
+    PROPERTIES READONLY pickingGroup(o)
+;
+
+countPickingGroup = GROUP SUM 1 BY pickingGroup(PickingOrderDetail d), pickingOrder(d);
+countPickingGroup = GROUP SUM 1 IF countPickingGroup(INTEGER pickongGroup, PickingOrder po) BY po; 
+
+CONSTRAINT countPickingGroup(PickingOrder po) > 1 
+    MESSAGE 'В одном заказе на комплектацию не может быть несколько групп комплектации';
+
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Sku, Bin);
-orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order; 
+orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order, pickingGroup(sku); 
 pickingOrderNumber(Order order, Sku sku, Bin bin) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick());
 
 headerCreateUserPickingOrder = ABSTRACT CASE STRING (Order);
