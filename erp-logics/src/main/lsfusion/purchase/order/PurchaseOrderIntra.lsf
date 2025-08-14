@@ -53,7 +53,8 @@ EXTEND FORM orders
     PROPERTIES (d) READONLY SHOWIF isWarehouseStoreIntra(o) BACKGROUND RGB(255,209,153) seriesNumbersWarehouseOrders
 ;
 
-WHEN SET(isPosted(Sale.UserOrderDetail d)) AND isWarehouseStoreIntra(operation(d)) DO {
+disableFillQuantityToPickInTransaction = DATA LOCAL BOOLEAN ();
+WHEN SET(isPosted(Sale.UserOrderDetail d)) AND isWarehouseStoreIntra(operation(d)) AND NOT disableFillQuantityToPickInTransaction() DO {
     quantityToPick(Purchase.UserOrderDetail pd, d) <- PARTITION UNGROUP quantity LIMIT quantityToOrder(pd)
         IF isOpened[Purchase.Order](userOrder(pd)) AND isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
             AND sku(pd) == sku(d) AND customerStock(pd) == customerStock(d) AND supplierStock(pd) == supplierStock(d)
