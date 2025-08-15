@@ -311,6 +311,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 addPluginPropertyElement(barcodeElement, "uzFfdPackageCode", uzFfdPackageCode);
         }
 
+        boolean consumedGtin = false;
         if (extraInfoJSON != null) {
             Boolean ukz = getUKZ(extraInfoJSON);
             if (ukz != null) {
@@ -321,7 +322,15 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 if(!gtin.equals(barcodeItem)) {
                     Element gtinBarcode = createBarcodeElement(gtin, null);
                     gtinBarcode.setAttribute("barcode-type", "GTIN");
+                    consumedGtin = true;
                     good.addContent(gtinBarcode);
+                }
+            }
+            if(extraInfoJSON.has("extraBarcode")) {
+                String extraBarcode = extraInfoJSON.getString("extraBarcode");
+                if(!extraBarcode.equals(barcodeItem)) {
+                    Element extraBarcodeElement = createBarcodeElement(extraBarcode, null);
+                    good.addContent(extraBarcodeElement);
                 }
             }
         }
@@ -342,7 +351,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             good.addContent(deleteBarcodeElement);
         }
 
-        if (notGTINPrefixes != null) {
+        if (notGTINPrefixes != null && !consumedGtin) {
             if (barcodeItem != null && barcodeItem.length() > 7) {
                 for (String notGTINPrefix : notGTINPrefixes) {
                     if (!barcodeItem.startsWith(notGTINPrefix)) {
