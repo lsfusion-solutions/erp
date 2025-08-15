@@ -1,0 +1,493 @@
+MODULE ArtixDiscountCardAPI; // Выгрузка дисконтных карт в Artix
+
+REQUIRE ArtixAPI, DiscountCard;
+
+NAMESPACE Artix;
+
+recordArtixLMLog 'Записывать логи Artix Loyality Managment' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData PROPERTIES() recordArtixLMLog;
+DESIGN integrationData {
+    artix {
+        NEW artixLoyalityManagment {
+            caption = 'Система лояльности Artix';
+            MOVE PROPERTY(recordArtixLMLog());
+        }
+    }
+}
+
+artixLMMessage 'Ответ сервера' = DATA LOCAL STRING ();
+
+// -------------------- Операции с группами карт -------------------- //
+
+CLASS ArtixCardGroup 'Группа карт Artix';
+TABLE artixCardGroup (ArtixCardGroup);
+
+id 'Код' = DATA INTEGER (ArtixCardGroup) CHARWIDTH 15;
+name 'Наименование' = DATA ISTRING[100] (ArtixCardGroup) CHARWIDTH 15;
+
+CLASS ArtixCardMode 'Тип карт Artix';
+id 'Код' = ABSTRACT CASE INTEGER (ArtixCardMode);
+name 'Наименование' (ArtixCardMode m) = staticCaption(m);
+
+FORM artixCardModes 'Типы карт Artix'
+    OBJECTS m = ArtixCardMode
+    PROPERTIES(m) READONLY id, name
+    LIST ArtixCardMode OBJECT m
+;
+
+overInputMask 'Маска способа ввода карты' = ABSTRACT INTEGER (ArtixCardGroup);
+inputMask 'Маска способа ввода карты' (ArtixCardGroup g) = OVERRIDE overInputMask(g), 7;
+
+overRegexpPattern 'Маска номеров карт' = ABSTRACT STRING[200] (ArtixCardGroup);
+regexpPattern 'Маска номеров карт' (ArtixCardGroup g) = OVERRIDE overRegexpPattern(g), '[0-9]';
+
+META defineArtixCardMode(mode, name, modeId)
+    EXTEND CLASS ArtixCardMode {
+        ##mode ##name
+    }
+    id(ArtixCardMode m) += WHEN m == ArtixCardMode.##mode THEN ##modeId;
+END
+
+@defineArtixCardMode(discountCard, 'Дисконтная карта', 0);
+@defineArtixCardMode(artixBonus, 'Artix бонус', 1);
+@defineArtixCardMode(socialCard, 'Социальная карта', 6);
+
+artixCardMode 'Тип карт Artix' = DATA ArtixCardMode (ArtixCardGroup);
+idArtixCardMode 'Код типа карт Artix' (ArtixCardGroup g) = id(artixCardMode(g));
+nameArtixCardMode 'Тип карт Artix' (ArtixCardGroup g) = name(artixCardMode(g));
+
+FORM artixCardGroup 'Группа карт Artix'
+    OBJECTS g = ArtixCardGroup PANEL
+    PROPERTIES(g) id, name, nameArtixCardMode
+
+    EDIT ArtixCardGroup OBJECT g
+;
+
+FORM artixCardGroups 'Группы карт Artix'
+    OBJECTS g = ArtixCardGroup
+    PROPERTIES(g) READONLY id, name, nameArtixCardMode
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+    LIST ArtixCardGroup OBJECT g
+;
+
+artixCardGroup 'Группа карт Artix' = DATA ArtixCardGroup(DiscountCardType);
+idArtixCardGroup 'Код группы карт Artix' (DiscountCardType dt) = id(artixCardGroup(dt));
+nameArtixCardGroup 'Группа карт Artix' (DiscountCardType dt) = name(artixCardGroup(dt));
+
+idArtixCardGroup 'Код группы карт Artix' (DiscountCard d) = idArtixCardGroup(discountCardType(d));
+nameArtixCardGroup 'Группа карт Artix' (DiscountCard d) = nameArtixCardGroup(discountCardType(d));
+
+EXTEND FORM discountCardType PROPERTIES nameArtixCardGroup(t);
+EXTEND FORM discountCardTypes PROPERTIES READONLY nameArtixCardGroup(t);
+
+skipArtixExport 'Исключить из экспорта Artix' = ABSTRACT BOOLEAN (ArtixCardGroup);
+toExport 'К эспорту' (ArtixCardGroup g) = name(g) AND idArtixCardMode(g) AND NOT skipArtixExport(g);
+
+FORM saveArtixCardGroup 'Сохранение группы карты'
+    OBJECTS g = ArtixCardGroup PANEL
+    PROPERTIES(g) id EXTID 'idcardgroup', name EXTID 'name',
+        idArtixCardMode EXTID 'cardmode', regexpPattern EXTID 'regexpattern:escapeInnerJSON',
+        inputMask EXTID 'inputmask'
+;
+
+afterExportArtixCardGroup ABSTRACT LIST (ArtixCardGroup);
+
+exportRequestArtixCardGroup 'Отправить запрос выгрузки группы карт' (ArtixCardGroup g) {
+    IF NOT toExport(g) THEN {
+        MESSAGE (CONCAT ' ', 'Группа', name(g), 'недоступна для выгрузки') NOWAIT;
+        RETURN;
+    }
+
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    LOCAL idCardGroup = INTEGER();
+
+    EXPORT saveArtixCardGroup OBJECTS g = g JSON;
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix',
+            (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixCS() + 'dictionaries/cardGroups', '[ArtixLM-EXPORT] ' + exportFile()));
+        EXTERNAL HTTP POST urlArtixCS() + 'dictionaries/cardGroups' HEADERS headers PARAMS exportFile() TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+        
+        IMPORT JSON FROM result() TO() idCardGroup = 'idcardgroup';
+        id(g) <- idCardGroup() WHERE id(g) != idCardGroup();
+        afterExportArtixCardGroup(g);
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            name(g) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+exportArtixCardGroups 'Выгрузить группы карт' () {
+    IF NOT GROUP SUM 1 IF toExport(ArtixCardGroup g) THEN {
+        MESSAGE 'Не найдено групп карт для выгрузки';
+        RETURN;
+    }
+    NEWSESSION {
+        FOR toExport(ArtixCardGroup g) DO {
+            exportRequestArtixCardGroup(g);
+        }
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время выгрузки групп карт Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE 'Группы карт успешно выгружены';
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES() exportArtixCardGroups;
+DESIGN integrationData { artix { artixLoyalityManagment { MOVE PROPERTY(exportArtixCardGroups()); } } }
+
+exportArtix 'Выгрузить группу карт' (ArtixCardGroup g) {
+    IF NOT toExport(g) THEN {
+        MESSAGE (CONCAT ' ', 'Группа', name(g), 'недоступна для выгрузки');
+    }
+    NEWSESSION {
+        exportRequestArtixCardGroup(g);
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время выгрузки группы карт Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Группа', id(g), 'успешно выгружена';
+        }
+        APPLY;
+    }
+}
+
+// -------------------- Операции с картами и счетами -------------------- //
+
+inExport 'В выгрузке' = DATA LOCAL NESTED BOOLEAN (DiscountCard);
+skipArtixExport 'Исключить из экспорта Artix' = ABSTRACT BOOLEAN (DiscountCard);
+toExport 'К эспорту' (DiscountCard d) =
+    seriesNumber(d) AND name(d) AND idArtixCardGroup(d) AND NOT skipArtixExport(d);
+
+overArtixOptions 'Опции клиента' = ABSTRACT INTEGER (DiscountCard);
+artixOptions 'Опции клиента' (DiscountCard d) = OVERRIDE overArtixOptions(d), 0;
+
+overArtixCardStatus 'Статус карты' = ABSTRACT STRING[12] (DiscountCard);
+artixCardStatus 'Статус карты' (DiscountCard d) = OVERRIDE overArtixCardStatus(d), 'EARN_PAY';
+
+FORM createArtixAccount 'Создание бонусного счета'
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) seriesNumber EXTID 'number'
+;
+
+FORM saveArtixClient 'Сохранение данных клиента'
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) seriesNumber EXTID 'idclient', firstNameContact EXTID 'name',
+        lastNameContact EXTID 'lastname', middleNameHttpServerContact EXTID 'patronymic',
+        numberSexHttpServerContact EXTID 'sex', phoneLegalEntity EXTID 'phonenumber',
+        artixOptions EXTID 'options', emailLegalEntity EXTID 'email'
+;
+
+FORM createArtixCard 'Создание карты'
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) accountNumber = seriesNumber EXTID 'accountNumber', number = seriesNumber EXTID 'number',
+        artixCardStatus EXTID 'status'
+;
+
+FORM bindingArtixCard 'Привязка карты'
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) idCard = seriesNumber EXTID 'idcard', idArtixCardGroup EXTID 'idcardgroup',
+        idclient = seriesNumber EXTID 'idclient', number = seriesNumber EXTID 'number'
+;
+
+afterExportArtixDiscountCard ABSTRACT LIST (DiscountCard);
+
+exportRequestArtixDiscountCards 'Отправить запрос выгрузки дисконтных карт' () {
+    inExport(DiscountCard d) <- NULL WHERE skipArtixExport(d);
+
+    IF NOT (GROUP SUM 1 IF inExport(DiscountCard d)) THEN {
+        MESSAGE 'Не найдено доступных дисконтных карты для выгрузки' NOWAIT;
+        RETURN;
+    }
+
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    
+    FOR inExport(DiscountCard d) DO {
+        LOCAL createAccountExportFile = FILE ();
+        LOCAL saveClientExportFile = FILE ();
+        LOCAL createCardExportFile = FILE ();
+        LOCAL bindingCardExportFile = FILE ();
+
+        TRY {            
+            EXPORT createArtixAccount OBJECTS d = d JSON TO createAccountExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'accounts', '[ArtixLM-EXPORT] ' + createAccountExportFile()));
+            EXTERNAL HTTP POST urlArtixLM() + 'accounts' HEADERS headers PARAMS createAccountExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+            
+            EXPORT saveArtixClient OBJECTS d = d JSON TO saveClientExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixCS() + 'dictionaries/clients', '[ArtixLM-EXPORT] ' + saveClientExportFile()));
+            EXTERNAL HTTP POST urlArtixCS() + 'dictionaries/clients' HEADERS headers PARAMS saveClientExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+            
+            EXPORT createArtixCard OBJECTS d = d JSON TO createCardExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'cards', '[ArtixLM-EXPORT] ' + createCardExportFile()));
+            EXTERNAL HTTP POST urlArtixLM() + 'cards' HEADERS headers PARAMS createCardExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+            
+            EXPORT bindingArtixCard OBJECTS d = d JSON TO bindingCardExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixCS() + 'dictionaries/cards', '[ArtixLM-EXPORT] ' + bindingCardExportFile()));
+            EXTERNAL HTTP POST urlArtixCS() + 'dictionaries/cards' HEADERS headers PARAMS bindingCardExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+            
+            afterExportArtixDiscountCard(d);
+        } CATCH {
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+            LOCAL message, code = STRING();
+            IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+            artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+                seriesNumber(d) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+        }
+    }
+}
+
+exportArtixDiscountCards 'Выгрузить дисконтные карты' () {
+    IF NOT GROUP SUM 1 IF toExport(DiscountCard d) THEN {
+        MESSAGE 'Не найдено дисконтных карт для выгрузки';
+        RETURN;
+    }
+    NEWSESSION {
+        inExport(DiscountCard d) <- TRUE WHERE toExport(d);
+        exportRequestArtixDiscountCards();
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время выгрузки дисконтных карт Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE 'Дисконтные карты успешно выгружены';
+        }
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData PROPERTIES() exportArtixDiscountCards;
+DESIGN integrationData { artix { artixLoyalityManagment { MOVE PROPERTY(exportArtixDiscountCards()); } } }
+
+exportArtix 'Выгрузить в Artix' (DiscountCard d) {
+    IF NOT toExport(d) THEN {
+        MESSAGE (CONCAT ' ', 'Дисконтная карта', seriesNumber(d), 'недоступна для выгрузки');
+    }
+    NEWSESSION {
+        inExport(d) <- TRUE WHERE toExport(d);
+        exportRequestArtixDiscountCards();
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время выгрузки дисконтной карты Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Дисконтная карта', seriesNumber(d), 'успешно выгружена';
+        }
+        APPLY;
+    }
+}
+
+// -------------------- Операции с балансом -------------------- //
+
+denyArtixRequest 'Запретить обращение к Artix' = ABSTRACT BOOLEAN (DiscountCard);
+
+overSessionId 'Идентификатор операции' (DiscountCard d) = ABSTRACT STRING (DiscountCard);
+sessionId 'Идентификатор операции' (DiscountCard d) = OVERRIDE overSessionId(d), toChar(currentDateTime(), 'YYYYMMDDhhmmss');
+
+CLASS ArtixAssetType 'Тип операции Artix' {
+    put 'Доведение',
+    add 'Начисление',
+    sub 'Списание'
+}
+
+type 'Тип' (ArtixAssetType t) = upper(getWord(staticName(t),'.',2));
+name 'Наименование' (ArtixAssetType t) = staticCaption(t);
+
+FORM artixAssetTypes 'Типы карт Artix'
+    OBJECTS t = ArtixAssetType
+    PROPERTIES(t) READONLY type, name
+    LIST ArtixAssetType OBJECT t
+;
+
+sumToExport 'Преобразование суммы в формат Artix' (NUMERIC[14,2] s) = LONG(abs(s) * 100);
+timeToExport 'Преобразование времени в формат Artix' (DATETIME dt) = toChar(dt,'YYYY-MM-DD"T"HH24:MI:00.000+03:00');
+
+FORM calculateArtixBalance 'Начисление баланса'
+    OBJECTS id = STRING PANEL
+    PROPERTIES(id) VALUE EXTID 'sessionId'
+
+    OBJECTS type = ArtixAssetType PANEL
+    PROPERTIES(type) type EXTID 'type'
+    
+    OBJECTS sum = NUMERIC[14,2] PANEL
+    PROPERTIES(sum) sumToExport EXTID 'amount'
+    
+    OBJECTS from = DATETIME PANEL, to = DATETIME PANEL
+    PROPERTIES timeToExport(from) EXTID 'timeBeginAccept', timeToExport(to) EXTID 'timeEndAccept'
+    
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) seriesNumber EXTID 'cardNumber'
+;
+
+calculateRequestArtixBalance 'Отправить запрос начисления баланса' (STRING i, ArtixAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
+    IF denyArtixRequest(d) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    EXPORT calculateArtixBalance OBJECTS id = i, type = t, d = d, sum = s, from = from, to = to JSON;
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix',
+            (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'assets', '[ArtixLM-EXPORT] ' + exportFile()));
+        EXTERNAL HTTP POST urlArtixLM() + 'assets' HEADERS headers PARAMS exportFile() TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            (name(t) + ' ' + s + ' на карту ' + seriesNumber(d)) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+calculateArtixBalance 'Начислить баланс Artix' (STRING i, ArtixAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
+    IF denyArtixRequest(d) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+    NEWSESSION {
+        calculateRequestArtixBalance(i, t, d, s, from, to);
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время начисления бонусов Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Бонусы успешно начислены', ' на дисконтную карту' + seriesNumber(d);
+        }
+        APPLY;
+    }
+}
+
+FORM customCalculateArtixBalance 'Пользовательское начисление бонусов Artix'
+    OBJECTS type = ArtixAssetType PANEL, sum = NUMERIC[14,2] PANEL,
+        from = DATETIME PANEL, to = DATETIME PANEL
+    PROPERTIES name(type) SELECTOR,
+        valSum 'Сумма начисления' = VALUE(sum),
+        valFrom 'Дата начала действия' = VALUE(from),
+        valTo 'Дата окончания действия' = VALUE(to)
+
+    OBJECTS d = DiscountCard PANEL
+    PROPERTIES(d) SELECTOR id, seriesNumber, nameLegalEntity
+    
+    EVENTS ON INIT {
+        SEEK customCalculateArtixBalance.type = ArtixAssetType.add;
+        SEEK customCalculateArtixBalance.from = dateTimeToDateTime(currentDate(), 00:00);
+        SEEK customCalculateArtixBalance.to = dateTimeToDateTime(currentDate(), 23:59);
+    }
+    
+    EVENTS ON OK {
+        calculateArtixBalance(sessionId(d), type, d, sum, from, to);
+    }
+;
+
+DESIGN customCalculateArtixBalance {
+    BOX {
+        NEW discountCard {
+            caption = 'Дисконтная карта';
+            alignment = STRETCH;
+            MOVE PROPERTY(id(d));
+            MOVE PROPERTY(seriesNumber(d));
+            MOVE PROPERTY(nameLegalEntity(d));
+        }
+        NEW params {
+            caption = 'Параметры';
+            alignment = STRETCH;
+            horizontal = TRUE;
+            MOVE PROPERTY(name(type)) { caption = 'Тип операции'; }
+            MOVE PROPERTY(valSum);
+        }
+        NEW date {
+            caption = 'Период';
+            alignment = STRETCH;
+            horizontal = TRUE;
+            MOVE PROPERTY(valFrom);
+            MOVE PROPERTY(valTo);
+        }
+        MOVE TOOLBARBOX;
+    }
+
+    PROPERTY(formOk()) {
+        caption = 'Начислить баланс';
+    }
+}
+
+customCalculateArtixBalance 'Пользовательское начисление бонусов Artix' () {
+    DIALOG customCalculateArtixBalance;
+}
+
+artixBalance 'Баланс (локально)' = DATA LOCAL INTEGER (DiscountCard);
+numericArtixBalance 'Баланс в рублях (локально)' (DiscountCard d) = NUMERIC[16,2](artixBalance(d) / 100.0);
+
+getArtixBalance 'Получить баланс из Artix' (DiscountCard d) {
+    IF denyArtixRequest(d) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+    
+    LOCAL balance = INTEGER ();
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-GET] ' + urlArtixLM() + 'cards/' + seriesNumber(d));
+        EXTERNAL HTTP GET urlArtixLM() + 'cards/' + seriesNumber(d) HEADERS headers TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+        
+        IMPORT JSON FROM result() TO() balance = balance;
+        artixBalance(d) <- balance();
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+        
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            seriesNumber(d) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+showArtixBalance 'Получить баланс (Artix)' (DiscountCard d) {
+    IF denyArtixRequest(d) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+    getArtixBalance(d);
+    IF artixBalance(d) THEN {
+        MESSAGE 'Баланс карты ' + seriesNumber(d) + ' : ' + numericArtixBalance(d);
+    } ELSE {
+        MESSAGE 'Ошибка получения баланса карты Artix:\n' + artixLMMessage();
+        artixLMMessage() <- NULL;
+    }
+}
+
+getDiscountCardArtixBalances 'Получить баланс по картам из Artix' () {
+    FOR isActive(DiscountCard d) AND NOT denyArtixRequest(d) DO {
+        getArtixBalance(d);
+    }
+    IF artixLMMessage() THEN {
+        MESSAGE 'Во время получения бонусов Artix возникли ошибки:\n' + artixLMMessage();
+        artixLMMessage() <- NULL;
+    }
+}
