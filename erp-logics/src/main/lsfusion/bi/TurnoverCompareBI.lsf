@@ -24,6 +24,45 @@ DESIGN turnoverReport {
     }
 }
 
+barcodeSkuEx = DATA LOCAL STRING[15] (INTEGER);
+
+group1TurnoverEx = DATA LOCAL STRING[255] (INTEGER);
+group2TurnoverEx = DATA LOCAL STRING[255] (INTEGER);
+group3TurnoverEx = DATA LOCAL STRING[255] (INTEGER);
+group4TurnoverEx = DATA LOCAL STRING[255] (INTEGER);
+group5TurnoverEx = DATA LOCAL STRING[255] (INTEGER);
+
+quantitySoldEx 'Продано (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costSumSoldEx 'Продано (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costSumVATSoldEx 'Продано (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+markupSumSoldEx 'Продано (надбавка, руб)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+percMarkupSumSoldEx 'Продано (надбавка, %)' = DATA LOCAL NUMERIC[12,2] (INTEGER);
+sumVATSoldEx 'Продано (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumSoldEx 'Продано (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPriceSoldEx 'Продано (сумма учетная)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+quantityPurchaseEx 'Закуплено (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+sumMinusVATPurchaseEx 'Закуплено (сумма без НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumVATPurchaseEx 'Закуплено (сумма НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPurchaseEx 'Закуплено (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumPricePurchaseEx 'Закуплено (сумма учетная)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+costBalanceEx 'Себестоимость' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+turnoverEx 'Оборачиваемость' = DATA LOCAL NUMERIC[16,3] (INTEGER);
+daysOnStockEx 'Дней на складе' = DATA LOCAL INTEGER (INTEGER);
+
+balanceBEx 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costBalanceBEx 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierBEx 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costVATBalanceBEx 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumBalanceBEx 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
+balanceAEx 'Остаток (кол-во)' = DATA LOCAL NUMERIC[16,5] (INTEGER);
+costBalanceAEx 'Остаток (себестоимость)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+VATSupplierAEx 'НДС поставщика' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+costVATBalanceAEx 'Остаток (себестоимость с НДС)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+sumBalanceAEx 'Остаток (сумма)' = DATA LOCAL NUMERIC[18,4] (INTEGER);
+
 barcodeSkuCompare = DATA LOCAL STRING[15] (INTEGER);
 
 group1TurnoverCompare = DATA LOCAL STRING[255] (INTEGER);
@@ -252,7 +291,8 @@ fillTurnoverReportCompare (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE date
     query(replace('SELECT ' + values()
         + nameGroupsTurnover() + ', ' + groupsTurnover()
         + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+        + ' WHERE (__time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+        + ' OR __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))'
         + filter()
         + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
         + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
@@ -260,13 +300,44 @@ fillTurnoverReportCompare (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE date
     IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2,
             nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4, nameGroup5Turnover = nameGroup5,
             group1Turnover = group1, group2Turnover = group2,
-            group3Turnover = group3, group4Turnover = group4, group5Turnover = group5,
-            quantitySold = quantitySold, costSumSold = costSumSold, costSumVATSold = costSumVATSold,
-            markupSumSold = markupSumSold, percMarkupSumSold = percMarkupSumSold,
-            sumVATSold = sumVATSold, sumSold = sumSold, sumPriceSold = sumPriceSold,
-            quantityPurchase = quantityPurchase, sumMinusVATPurchase = sumMinusVATPurchase,
-            sumVATPurchase = sumVATPurchase, sumPurchase = sumPurchase, sumPricePurchase = sumPricePurchase,
-            turnover = turnover, costBalance = costBalance, daysOnStock = daysOnStock, barcodeSku = barcodeSku;
+            group3Turnover = group3, group4Turnover = group4, group5Turnover = group5, barcodeSku = barcodeSku;
+
+    query(replace('SELECT ' + values()
+        + nameGroupsTurnover() + ', ' + groupsTurnover()
+        + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+        + filter()
+        + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
+        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+
+    IMPORT JSON FROM queryResult() TO group1TurnoverEx = group1, group2TurnoverEx = group2,
+            group3TurnoverEx = group3, group4TurnoverEx = group4, group5TurnoverEx = group5,
+            quantitySoldEx = quantitySold, costSumSoldEx = costSumSold, costSumVATSoldEx = costSumVATSold,
+            markupSumSoldEx = markupSumSold, percMarkupSumSoldEx = percMarkupSumSold,
+            sumVATSoldEx = sumVATSold, sumSoldEx = sumSold, sumPriceSoldEx = sumPriceSold,
+            quantityPurchaseEx = quantityPurchaseEx, sumMinusVATPurchaseEx = sumMinusVATPurchase,
+            sumVATPurchaseEx = sumVATPurchase, sumPurchaseEx = sumPurchase, sumPricePurchaseEx = sumPricePurchase,
+            turnoverEx = turnover, costBalanceEx = costBalance, daysOnStockEx = daysOnStock, barcodeSkuEx = barcodeSku;
+
+    FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](group1TurnoverEx(i), group2TurnoverEx(i), group3TurnoverEx(i), group4TurnoverEx(i), group5TurnoverEx(i), barcodeSkuEx(i)) DO {
+        quantitySold(number) <- quantitySoldEx(i);
+        quantitySold(number) <- quantitySoldEx(i);
+        costSumSold(number) <- costSumSoldEx(i);
+        costSumVATSold(number) <- costSumVATSoldEx(i);
+        markupSumSold(number) <- markupSumSoldEx(i);
+        percMarkupSumSold(number) <- percMarkupSumSoldEx(i);
+        sumVATSold(number) <- sumVATSoldEx(i);
+        sumSold(number) <- sumSoldEx(i);
+        sumPriceSold(number) <- sumPriceSoldEx(i);
+        quantityPurchase(number) <- quantityPurchaseEx(i);
+        sumMinusVATPurchase(number) <- sumMinusVATPurchaseEx(i);
+        sumVATPurchase(number) <- sumVATPurchaseEx(i);
+        sumPurchase(number) <- sumPurchaseEx(i);
+        sumPricePurchase(number) <- sumPricePurchaseEx(i);
+        turnover(number) <- turnoverEx(i);
+        costBalance(number) <- costBalanceEx(i);
+        daysOnStock(number) <- daysOnStockEx(i);
+    }
 
     query(replace('SELECT ' + values()
         + nameGroupsTurnover() + ', ' + groupsTurnover()
