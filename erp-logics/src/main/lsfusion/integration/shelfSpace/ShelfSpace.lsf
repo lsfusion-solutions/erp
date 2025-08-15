@@ -307,24 +307,27 @@ InformationRegisterRecordSet_Barcode 'Экспорт штрихкодов (Infor
 } IN shelfSpace;
 
 //-- 15.	InformationRegisterRecordSet_PicturesProducts
+imageShelfSpaceCustom = ABSTRACT IMAGEFILE (Item);
+imageShelfSpace (Sku s) = OVERRIDE imageShelfSpaceCustom(s), image(s);
 
 exportImagesShelfSpace 'Выгрузка изображений в каталог' () {
     IF exportDirectoryShelfSpace() AND imagesPathShelfSpace() THEN {
-        FOR hasImage(Sku s) AND active(s) AND barcode(s) DO {
-            WRITE image(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + STRING(barcode(s));
+        FOR imageShelfSpace(Sku s) AND active(s) AND barcode(s) DO {
+            WRITE imageShelfSpace(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + STRING(barcode(s));
         }
     }
 } IN shelfSpace;
 
 dateImageChangedShelfSpace = DATA DATE (Sku);
+skipChangedShelfSpaceImage = ABSTRACT BOOLEAN ();
 
-WHEN SETCHANGED(image(Sku s)) OR SETCHANGED (barcode(s)) DO {
+WHEN (SETCHANGED(imageShelfSpace(Sku s)) OR SETCHANGED (barcode(s))) AND NOT skipChangedShelfSpaceImage() DO {
     dateImageChangedShelfSpace(s) <- currentDate();
 }
 
 exportChangedImagesShelfSpace 'Выгрузить измененные изображения' () {
-    FOR image(Sku s) AND dateImageChangedShelfSpace(s) == sum(currentDate(), -1) DO {
-        WRITE image(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + STRING(barcode(s));
+    FOR imageShelfSpace(Sku s) AND dateImageChangedShelfSpace(s) == sum(currentDate(), -1) DO {
+        WRITE imageShelfSpace(s) TO exportDirectoryShelfSpace() + imagesPathShelfSpace() + STRING(barcode(s));
     }
 } IN shelfSpace;
 
@@ -337,7 +340,7 @@ FORM InformationRegisterRecordSet_PicturesProducts FORMEXTID '=ShelfSpaceExchang
     PROPERTIES
         = STRING(barcode(b)) EXTID ':Unit',
         = STRING[150](STRING(barcode(b))+'.jpg')  EXTID ':FileName'
-    FILTERS hasImage(b) AND active(b) AND barcode(b)
+    FILTERS imageShelfSpace(b) AND active(b) AND barcode(b)
 ;
 InformationRegisterRecordSet_PicturesProducts 'Экспорт изображений (InformationRegisterRecordSet_PicturesProducts)'(){
     EXPORT InformationRegisterRecordSet_PicturesProducts XML TO System.exportFile;

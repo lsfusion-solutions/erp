@@ -13,13 +13,6 @@ hashImage = DATA STRING[128] (Item);
 customImageUpload = ABSTRACT BOOLEAN ();
 calcmd5 (IMAGEFILE f)= FORMULA STRING[100] 'md5($1)';
 
-
-WHEN SETCHANGED (dataImage(Item i)) AND NOT customImageUpload() DO {
-    dataImageTimeChanged(i) <- currentDateTime();
-    hashImage(i) <- calcmd5(dataImage(i));
-}
-
-
 ftpConnectionString 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
 imageFolderName 'Директория на FTP для изображений' = DATA STRING[60] ();
 pathHttpAccess 'Путь для доступа по http' = DATA STRING[255] ();
@@ -30,12 +23,20 @@ sendImageItemToFtpCustom ABSTRACT LIST (Item);
 fileNameImage = DATA STRING (Item);
 fileNameImage (Barcode b) = fileNameImage(sku(b));
 
+dataImageInternet = ABSTRACT IMAGEFILE (Item);
+imageInternetOver (Item i) = OVERRIDE dataImageInternet(i), dataImage(i);
+
+WHEN SETCHANGED (imageInternetOver(Item i)) AND NOT customImageUpload() DO {
+    dataImageTimeChanged(i) <- currentDateTime();
+    hashImage(i) <- calcmd5(imageInternetOver(i));
+}
+
 sendImageItemToFtp(Item i){
     IF customImageUpload() THEN sendImageItemToFtpCustom(i);
     ELSE{
-        WRITE dataImage(i) TO CONCAT '', ftpConnectionString(), imageFolderName(), id(i);
-        urlHttpAccess(i) <- CONCAT '', pathImageWebAccess(), imageFolderName(), id(i), '.', extension(FILE(dataImage(i)));
-        fileNameImage(i) <-  id(i) + '.' +  extension(FILE(dataImage(i)));
+        WRITE imageInternetOver(i) TO CONCAT '', ftpConnectionString(), imageFolderName(), id(i);
+        urlHttpAccess(i) <- CONCAT '', pathImageWebAccess(), imageFolderName(), id(i), '.', extension(FILE(imageInternetOver(i)));
+        fileNameImage(i) <-  id(i) + '.' +  extension(FILE(imageInternetOver(i)));
         dataImageTimeChanged(i) <- NULL;
     }
 }
@@ -55,7 +56,7 @@ sendAllImageToFTP 'Выгрузка всех изображений на FTP'(){
     NEWSESSION {
         IF customImageUpload() THEN sendAllImageToFTPCustom();
         ELSE {
-            FOR dataImage(Item i) DO {
+            FOR imageInternetOver(Item i) DO {
                 sendImageItemToFtp(i);
             }
         }
@@ -65,11 +66,11 @@ sendAllImageToFTP 'Выгрузка всех изображений на FTP'(){
 
 calcAllImageHashCustom ABSTRACT LIST ();
 
-calcAllImageHash 'Рачитать md5 всех изображений' (){
+calcAllImageHash 'Раccчитать md5 всех изображений' (){
     IF customImageUpload() THEN calcAllImageHashCustom();
     ELSE{
-        FOR dataImage(Item i) AND NOT hashImage(i)DO {
-            hashImage(i) <- calcmd5(dataImage(i));
+        FOR imageInternetOver(Item i) AND NOT hashImage(i)DO {
+            hashImage(i) <- calcmd5(imageInternetOver(i));
         }
     }
     APPLY;
