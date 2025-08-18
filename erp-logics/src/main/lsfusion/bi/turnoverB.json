@@ -3,6 +3,45 @@
   "spec": {
     "dataSchema": {
       "dataSource": "turnover",
+      "parser": {
+        "type": "string",
+        "parseSpec": {
+          "format": "csv",
+          "timestampSpec": {
+            "column": "dateTime",
+            "format": "M/d/YY"
+          },
+          "dimensionsSpec": {
+            "dimensions": [
+              "stock",
+              "formatStock",
+              "sku",
+              "supplier",
+              "supplierStock",
+              {
+                "name": "cost",
+                "type": "float"
+              },
+              {
+                "name": "price",
+                "type": "float"
+              },
+              {
+                "name": "priceB",
+                "type": "float"
+              },
+              {
+                "name": "valueVAT",
+                "type": "float"
+              },
+              "brand",
+              "manufacturer",
+              "UOM"
+            ]
+          },
+          "hasHeaderRow": true
+        }
+      },
       "metricsSpec": [
         {
           "type": "floatSum",
@@ -164,18 +203,6 @@
           "fnAggregate": "function(current, a, b)      { return current + (a * b); }",
           "fnReset": "function()                   { return 0; }",
           "fnCombine": "function(partialA, partialB) { return partialA + partialB; }"
-        },
-        {
-          "type": "floatSum",
-          "name": "importMarkupSumSold",
-          "fieldName": "importMarkupSumSold",
-          "expression": null
-        },
-        {
-          "type": "floatSum",
-          "name": "costSumSoldImp",
-          "fieldName": "costSumSoldImp",
-          "expression": null
         }
       ],
       "granularitySpec": {
@@ -190,52 +217,16 @@
       "transformSpec": {
         "filter": null,
         "transforms": []
-      },
-      "timestampSpec": {
-        "column": "dateTime",
-        "format": "M/d/YY"
-      },
-      "dimensionsSpec": {
-        "dimensions": [
-          "stock",
-          "formatStock",
-          "sku",
-          "supplier",
-          "supplierStock",
-          {
-            "name": "cost",
-            "type": "float"
-          },
-          {
-            "name": "price",
-            "type": "float"
-          },
-          {
-            "name": "priceB",
-            "type": "float"
-          },
-          {
-            "name": "valueVAT",
-            "type": "float"
-          },
-          "brand",
-          "manufacturer",
-          "UOM"
-        ]
       }
     },
     "ioConfig": {
       "type": "index",
-      "appendToExisting": false,
-      "inputSource": {
-        "type": "local",
-        "baseDir": "<DIRECTORY>",
-        "filter": "<FILE>"
+      "firehose": {
+        "type" : "local",
+        "baseDir" : "<DIRECTORY>",
+        "filter" : "<FILE>"
       },
-      "inputFormat": {
-        "hasHeaderRow": true,
-        "type": "csv"
-      }
+      "appendToExisting": false
     },
     "tuningConfig": {
       "type": "index",
