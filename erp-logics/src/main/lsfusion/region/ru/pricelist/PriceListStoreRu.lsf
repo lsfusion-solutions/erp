@@ -1,0 +1,45 @@
+MODULE PriceListStoreRu;
+
+REQUIRE PriceListOperation, PriceListStore;
+
+NAMESPACE PriceList;
+
+
+FORM chooseMarkUpSkuUserPriceListIdealMarket 'Наценка'
+
+    OBJECTS p = UserPriceList PANEL
+
+    OBJECTS pt = PriceListType PANEL
+    PROPERTIES(pt) SELECTOR name
+    FILTERS in[UserPriceList,DataPriceListType](p,pt) OR show[UserPriceList, PriceListType](p,pt)
+
+    OBJECTS nt = DataPriceListType PANEL
+    PROPERTIES(nt) SELECTOR name
+    FILTERS in(p, nt)
+;
+
+changePriceCalcPriceListType 'Изменение цены по наценке % (вид цен)'(UserPriceList userPriceList, Stock stock) {
+    DIALOG chooseMarkUpSkuUserPriceListIdealMarket OBJECTS p = userPriceList, pt INPUT, nt INPUT DO {
+        LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
+        IF pt != nt AND in[UserPriceList, DataPriceListType](userPriceList, pt) THEN {
+            prev(UserPriceListDetail detail) <- price[UserPriceListDetail, DataPriceListType](detail, pt)
+                WHERE userPriceList(detail) == userPriceList;
+        } ELSE {
+            prev(UserPriceListDetail detail) <- currentPrice(detail, pt, stock)
+                WHERE userPriceList(detail) == userPriceList;
+        }
+        FOR [ FILTER userPriceList.d](UserPriceListDetail detail) DO {
+            price(detail, nt) <- priceA(pt, retailCalcPriceListType(store(stock)), sku(detail), stock, fromDateTime(userPriceList));
+        }
+    }
+}
+
+EXTEND FORM userPriceList
+    PROPERTIES(p, tt) DRAW d TOOLBAR changePriceCalcPriceListType
+;
+
+DESIGN userPriceList{
+    rowContainer{
+        MOVE PROPERTY(changePriceCalcPriceListType(p,tt)) AFTER PROPERTY(changeMarkUpChosenSku(p,tt));
+    }
+}
