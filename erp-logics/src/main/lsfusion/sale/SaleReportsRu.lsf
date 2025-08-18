@@ -1042,13 +1042,14 @@ valProfit 'Валовый доход' (Stock st, INTEGER w, DATE df, DATE dt) =
     sumSoldPrice(st,w,df,dt) (-) sumSold(st,w,df,dt);
 marga 'Маржа,%' (Stock st, INTEGER w, DATE df, DATE dt) =
     valProfit(st,w,df,dt)*100/sumSoldPrice(st,w,df,dt);
+countWeek 'Кол-во недель' (DATE df, DATE dt) = INTEGER(daysInclBetweenDates(df,dt) / 7);
 
-countWeek'Кол-во недель!'(DATE df, DATE dt) = INTEGER(daysInclBetweenDates(df,dt) / 7);
+year = DATA LOCAL INTEGER();
 
 FORM saleReportWeek 'Продажи по неделям'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
-        namePrint()
+        namePrint(), year()
     
     PROPERTIES countWeek(df,dt)
     OBJECTS st = Stock
@@ -1056,15 +1057,20 @@ FORM saleReportWeek 'Продажи по неделям'
     FILTERS inSaleReportDialog(st)
 
     OBJECTS w = INTEGER GRID
-    PROPERTIES toString4 (w)
+    PROPERTIES toString4(w)
+    PROPERTIES getWeekStart = dateFromYearWeekDay(year(), w, 1)
+    PROPERTIES getWeekEnd = dateFromYearWeekDay(year(), w, 7)
     FILTERS quantitySkuSold(st,w,df,dt)
 
     PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, valProfit, marga
 ;
 
+
+
 printSaleReportReceiptWeek 'Динамика продаж по неделям(розница)' (DATE dateFrom, DATE dateTo) {
     filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
     namePrint() <- '(розничные продажи)';
+    year() <- extractYear(dateFrom);
     PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -1072,6 +1078,7 @@ printSaleReportReceiptWeek 'Динамика продаж по неделям(р
 printSaleReportInvoiceWeek 'Динамика продаж по неделям(розница)(опт)' (DATE dateFrom, DATE dateTo) {
     filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail;
     namePrint() <- '(опт)';
+    year() <- extractYear(dateFrom);
     PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -1079,6 +1086,7 @@ printSaleReportInvoiceWeek 'Динамика продаж по неделям(р
 printSaleReportWeek 'Динамика продаж по неделям(опт+розница)' (DATE dateFrom, DATE dateTo) {
     filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
     namePrint() <- '(розничные продажи + опт)';
+    year() <- extractYear(dateFrom);
     PRINT saleReportWeek OBJECTS df = dateFrom, dt= dateTo XLS;
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
@@ -1092,9 +1100,9 @@ DESIGN salesReport {
         NEW weelSale {
             caption = 'Продажи по неделям';
             lines = 2;
-            MOVE PROPERTY(printSaleReportReceiptWeek(df, dt));
-            MOVE PROPERTY(printSaleReportInvoiceWeek(df, dt));
-            MOVE PROPERTY(printSaleReportWeek(df, dt));
+            MOVE PROPERTY(printSaleReportReceiptWeek(df,dt));
+            MOVE PROPERTY(printSaleReportInvoiceWeek(df,dt));
+            MOVE PROPERTY(printSaleReportWeek(df,dt));
         }
     }
 }
