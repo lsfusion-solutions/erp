@@ -48,14 +48,53 @@ DESIGN options{
     }
 }
 
-dataPickingGroup = ABSTRACT INTEGER (Sku);
-pickingGroup 'Группа комплектации' (Sku s) = OVERRIDE dataPickingGroup(s), 0 IF s IS Sku MATERIALIZED INDEXED;
+CLASS PickingGroup 'Группа комплектации';
 
-EXTEND FORM items
-    PROPERTIES READONLY pickingGroup(i)
+@defineExternalizable(pickingGroup, INTEGER);
+
+name 'Наименование' = DATA STRING (PickingGroup) CHARWIDTH 20;
+
+FORM pickingGroup 'Группа комплектации'
+    OBJECTS g=PickingGroup PANEL 
+    PROPERTIES(g) id, name
+    
+    EDIT PickingGroup OBJECT g
 ;
 
-pickingGroup 'Группа комплектации' (PickingOrderDetail d) = pickingGroup(sku(d));
+FORM dialogPickingGroup 'Группы комплектации'
+    OBJECTS g=PickingGroup
+    PROPERTIES(g) READONLY id, name
+
+    LIST PickingGroup OBJECT g
+;
+
+FORM pickingGroups 'Группы комплектации'
+    OBJECTS g=PickingGroup
+    PROPERTIES(g) READONLY id, name
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE 
+;
+
+NAVIGATOR {
+    WMSNavigator {
+        WMSMasterData {
+            NEW pickingGroups;
+        }
+    }
+}
+
+pickingGroup = DATA PickingGroup (Item);
+namePickingGroup 'Группа комплектации' (Item i) = name(pickingGroup(i)) CHARWIDTH 20 IN itemWMS;
+idPickingGroup 'Код группы комплектации' (Item i) = OVERRIDE id(pickingGroup(i)), 0 IF i IS Item MATERIALIZED INDEXED IN itemWMS;
+
+EXTEND FORM item
+    PROPERTIES(i) namePickingGroup, idPickingGroup   
+;    
+
+EXTEND FORM items
+    PROPERTIES(i) READONLY idPickingGroup, namePickingGroup
+;
+
+pickingGroup 'Группа комплектации' (PickingOrderDetail d) = idPickingGroup(sku(d));
 pickingGroup 'Группа комплектации' = GROUP MAX pickingGroup(PickingOrderDetail d) BY pickingOrder(d);
 
 EXTEND FORM pickingOrders
@@ -69,7 +108,7 @@ CONSTRAINT countPickingGroup(PickingOrder po) > 1
     MESSAGE 'В одном заказе на комплектацию не может быть несколько групп комплектации';
 
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Sku, Bin);
-orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order, pickingGroup(sku); 
+orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order, idPickingGroup(sku); 
 pickingOrderNumber(Order order, Sku sku, Bin bin) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick());
 
 headerCreateUserPickingOrder = ABSTRACT CASE STRING (Order);
