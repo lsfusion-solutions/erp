@@ -300,8 +300,8 @@ exportArtix 'Выгрузить в Artix' (DiscountCard d) {
 
 denyArtixRequest 'Запретить обращение к Artix' = ABSTRACT BOOLEAN (DiscountCard);
 
-overSessionId 'Идентификатор операции' (DiscountCard d) = ABSTRACT STRING (DiscountCard);
-sessionId 'Идентификатор операции' (DiscountCard d) = OVERRIDE overSessionId(d), toChar(currentDateTime(), 'YYYYMMDDhhmmss');
+overAcceptId 'Идентификатор ограничений' (DiscountCard d) = ABSTRACT STRING (DiscountCard);
+acceptId 'Идентификатор ограничений' (DiscountCard d) = OVERRIDE '0';
 
 CLASS ArtixAssetType 'Тип операции Artix' {
     put 'Доведение',
@@ -335,7 +335,7 @@ FORM calculateArtixBalance 'Начисление баланса'
     PROPERTIES timeToExport(from) EXTID 'timeBeginAccept', timeToExport(to) EXTID 'timeEndAccept'
     
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) seriesNumber EXTID 'cardNumber'
+    PROPERTIES(d) seriesNumber EXTID 'cardNumber', acceptId EXTID 'acceptId'
 ;
 
 calculateRequestArtixBalance 'Отправить запрос начисления баланса' (STRING i, ArtixAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
@@ -375,11 +375,14 @@ calculateArtixBalance 'Начислить баланс Artix' (STRING i, ArtixAs
             MESSAGE 'Во время начисления бонусов Artix возникли ошибки:\n' + artixLMMessage();
             artixLMMessage() <- NULL;
         } ELSE {
-            MESSAGE CONCAT ' ', 'Бонусы успешно начислены', ' на дисконтную карту' + seriesNumber(d);
+            MESSAGE CONCAT ' ', 'Бонусы успешно начислены', ' на дисконтную карту ' + seriesNumber(d);
         }
         APPLY;
     }
 }
+
+overSessionId 'Идентификатор операции' (DiscountCard d) = ABSTRACT STRING (DiscountCard);
+sessionId 'Идентификатор операции' (DiscountCard d) = OVERRIDE overSessionId(d), toChar(currentDateTime(), 'YYYYMMDDhhmmss');
 
 FORM customCalculateArtixBalance 'Пользовательское начисление бонусов Artix'
     OBJECTS type = ArtixAssetType PANEL, sum = NUMERIC[14,2] PANEL,
