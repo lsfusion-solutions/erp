@@ -1,0 +1,77 @@
+MODULE PriceListPurchaseInvoiceRu;
+
+REQUIRE PriceListOperation, PurchaseInvoiceVATRu, PurchaseOrderVATRu, LegalEntityRu;
+
+NAMESPACE PriceList;
+
+disableUpdateInvoicePrice (UserInvoiceDetail d) += TRUE IF d IS UserInvoiceDetail;
+disableUpdateInvoicePrice (UserOrderDetail d) += TRUE IF d IS UserOrderDetail;
+isShowIfPrice (Purchase.Invoice i) += TRUE IF i IS Purchase.Invoice;
+isShowIfPrice (Purchase.Order i) += TRUE IF i IS Purchase.Order;
+
+createUserInvoice 'Накладная (закупка)'(PriceList pl)   {
+    NEWSESSION{
+
+        NEW i = Purchase.UserInvoice {
+            supplier(i) <- company(pl);
+            supplierStock(i) <- companyStock(pl);
+            FOR priceList(PriceListDetail detail)==pl NEW d = Purchase.UserInvoiceDetail DO {
+
+                userInvoice(d) <- i;
+
+                priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
+
+                sku(d) <- sku(detail);
+                VAT(d) <- IF isNotVATPayer(company(detail)) THEN valueCurrentVAT(defaultCountry(), 0.0) ELSE VAT(sku(detail));
+                valueVAT(d) <- IF isNotVATPayer(company(detail)) THEN 0.0 ELSE valueVAT(sku(detail));
+                IF includeVAT(priceListType(detail)) THEN {
+                    invoicePrice (d) <- price(detail);
+                    price (d) <- round2(invoicePrice(d) * 100/(100 + valueVAT(d)));
+                } ELSE {
+                    price (d) <- price(detail);
+                    invoicePrice (d) <- round2(price(d) * (100 + valueVAT(d))/100);
+                }
+            }
+            SHOW Purchase.userInvoice OBJECTS i = i DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+createUserOrder 'Заказ (закупка)'(PriceList pl)   {
+    NEWSESSION{
+
+        NEW i = Purchase.UserOrder {
+            supplier(i) <- company(pl);
+            supplierStock(i) <- companyStock(pl);
+            FOR priceList(PriceListDetail detail)==pl NEW d = Purchase.UserOrderDetail DO {
+
+                userOrder(d) <- i;
+
+                priceListType(d) <- priceListType(detail) WHERE in(priceListType(detail), operation(i)) OR NOT operation(i);
+
+                sku(d) <- sku(detail);
+                VAT(d) <- IF isNotVATPayer(company(detail)) THEN valueCurrentVAT(defaultCountry(), 0.0) ELSE VAT(sku(detail));
+                valueVAT(d) <- IF isNotVATPayer(company(detail)) THEN 0.0 ELSE valueVAT(sku(detail));
+                IF includeVAT(priceListType(detail)) THEN {
+                    invoicePrice (d) <- price(detail);
+                    price (d) <- round2(invoicePrice(d) * 100/(100 + valueVAT(d)));
+                } ELSE {
+                    price (d) <- price(detail);
+                    invoicePrice (d) <- round2(price(d) * (100 + valueVAT(d))/100);
+                }
+            }
+            SHOW Purchase.userOrder OBJECTS o = i DOCKED NOCANCEL;
+        }
+    }
+} TOOLBAR;
+
+//overSkipBatch(PurchaseInvoiceDetail d) += notUseBatchPurchaseInvoice(operation(invoiceDetail(d)));
+EXTEND FORM priceLists
+    PROPERTIES(p) SHOWIF idOperation(p) = 'supplier' createUserInvoice, createUserOrder
+;
+DESIGN priceLists {
+    createdContainer{
+        MOVE PROPERTY(createUserInvoice(p)) { alignment = STRETCH; };
+        MOVE PROPERTY(createUserOrder(p)) { alignment = STRETCH; };
+    }
+}
