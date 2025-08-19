@@ -6,13 +6,13 @@ NAMESPACE PurchaseReturn;
 
 trackingInvoiceDetail [ConsignmentDetail](InvoiceDetail cd) += PurchaseReturn.trackingInvoiceDetail(cd);
 
-skipCheckBasisRet = DATA BOOLEAN ();
+skipCheckBasisRet = DATA BOOLEAN () PREREAD;
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id)) OR CHANGED(batch(id)) OR CHANGED(trackingInvoiceDetail(id))) AND isPosted(id) AND isTracking(id)
     AND batch(id) AND date(id) >= dateStartSPT(id) AND NOT (deliveryNotePrev(id) OR deliveryTypePrev(id) OR quantityDespatchedSPT(id) ) AND NOT trackingInvoiceDetail(id) AND NOT skipCheckBasisRet()
     MESSAGE 'Укажите основание для прослеживаемого товара, отсутствуют данные для СПТ' ;
 
-skipCheckItemSize = DATA BOOLEAN ();
+skipCheckItemSize = DATA BOOLEAN () PREREAD;
 
 CONSTRAINT (SET(isPosted(UserInvoiceDetail id)) OR SETCHANGED(sku(id))) AND isPosted(id) AND date(id) >= dateStartSPT(id) AND trackingUOMCustomsGroup(sku(id))=='112' AND isTrackingOver(sku(id)) AND NOT volume(sku(id)) AND NOT skipCheckItemSize()
     MESSAGE 'Товару нужно задать параметр "Объем, л" ' ;
