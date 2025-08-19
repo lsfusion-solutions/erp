@@ -1046,6 +1046,9 @@ countWeek 'Кол-во недель' (DATE df, DATE dt) = INTEGER(daysInclBetwee
 
 year = DATA LOCAL INTEGER();
 
+// при переходе на 6.1 нужно удалить
+dateFromYearWeekDay = FORMULA DATE r!'to_date($1 || ' ' || $2 || ' $3', 'IYYY IW ID')'!;
+
 FORM saleReportWeek 'Продажи по неделям'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
@@ -1061,11 +1064,8 @@ FORM saleReportWeek 'Продажи по неделям'
     PROPERTIES getWeekStart = dateFromYearWeekDay(year(), w, 1)
     PROPERTIES getWeekEnd = dateFromYearWeekDay(year(), w, 7)
     FILTERS quantitySkuSold(st,w,df,dt)
-
     PROPERTIES(st,w,df,dt) quantitySkuSold, sumSold, sumSoldPrice, valProfit, marga
 ;
-
-
 
 printSaleReportReceiptWeek 'Динамика продаж по неделям(розница)' (DATE dateFrom, DATE dateTo) {
     filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS ReceiptDetail;
