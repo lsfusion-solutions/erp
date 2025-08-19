@@ -330,6 +330,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 String extraBarcode = extraInfoJSON.getString("extraBarcode");
                 if(!extraBarcode.equals(barcodeItem)) {
                     Element extraBarcodeElement = createBarcodeElement(extraBarcode, null);
+                    extraBarcodeElement.setAttribute("barcode-type", "");
                     good.addContent(extraBarcodeElement);
                 }
             }
