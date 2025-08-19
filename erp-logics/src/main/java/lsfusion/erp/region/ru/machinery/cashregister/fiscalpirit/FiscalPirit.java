@@ -141,13 +141,17 @@ public class FiscalPirit {
             try {
                 Object[] flags = VikiPrint.executeCommand(serialPort, 0x00);
                 int status = Integer.parseInt((String) flags[1]);
-                if ((status & (1L << 2)) != 0) {
-                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
-                } else {
+// какой то странный набор команд
+//                if ((status & (1L << 2)) != 0) {
+//                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
+//                } else {
+//                    VikiPrint.executeCommand(serialPort, 0x23, cashier); // Открыть смену (0x23)
+//                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
+//                }
+//                VikiPrint.executeCommand(serialPort, 0x23, "Администратор"); // Открыть смену (0x23)
+                if ((status & (1L << 2)) == 0) {
                     VikiPrint.executeCommand(serialPort, 0x23, cashier); // Открыть смену (0x23)
-                    VikiPrint.executeCommand(serialPort, 0x21, cashier); // Сформировать отчет о закрытии смены (0x21)
                 }
-                VikiPrint.executeCommand(serialPort, 0x23, "Администратор"); // Открыть смену (0x23)
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
