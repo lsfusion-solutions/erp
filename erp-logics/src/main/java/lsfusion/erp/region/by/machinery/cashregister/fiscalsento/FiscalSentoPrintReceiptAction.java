@@ -129,7 +129,7 @@ public class FiscalSentoPrintReceiptAction extends InternalAction {
                         "skuReceiptDetail", "boardNameSkuReceiptDetail", "sentoSkuTypeReceiptDetail","sentoMarkaReceiptDetail","sentoUkzReceiptDetail"};
                 LP<?>[] receiptDetailProperties = findProperties("type[ReceiptDetail]", "nameSku[ReceiptDetail]",
                         "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]",
-                        "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
+                        "price[ReceiptDetail]", "sentoBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]",
                         "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "sentoSkuType[ReceiptDetail]", "sentoMarka[ReceiptDetail]","sentoUkz[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
