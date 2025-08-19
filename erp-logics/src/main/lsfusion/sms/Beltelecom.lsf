@@ -23,7 +23,7 @@ DESIGN integrationData {
         NEW beltelecom {
             caption = 'Beltelecom';
             fill = 1;
-            NEW artixAPISettings {
+            NEW beltelecomAPISettings {
                 caption = 'Параметры API';
                 MOVE PROPERTY(urlBeltelecom());
                 MOVE PROPERTY(loginBeltelecom());
@@ -209,13 +209,18 @@ sendBeltelecomSMS 'Отправить рассылку' (Dispatch d) {
     }
 }
 
+hideEdit 'Запретить редактирование' = ABSTRACT BOOLEAN (Dispatch);
+hideDelete 'Запретить удаление' = ABSTRACT BOOLEAN (Dispatch);
+overShowSend 'Отображать отправку' = ABSTRACT BOOLEAN (Dispatch);
+
 FORM dispatches 'Рассылки'
     OBJECTS d = Dispatch
-    PROPERTIES(d) SHOWIF NOT isSend(d) sendBeltelecomSMS
+    PROPERTIES(d) SHOWIF NOT isSend(d) OR overShowSend(d) sendBeltelecomSMS
     PROPERTIES(d) READONLY isSend, idBeltelecom, nameTypeDispatch, name, caption,
         telephoneList, stringMessage, createdTime, nameCreatedUser
     PROPERTIES(d) NEWSESSION NEW
-    PROPERTIES(d) NEWSESSION SHOWIF NOT isSend(d) EDIT, DELETE
+    PROPERTIES(d) NEWSESSION EDIT SHOWIF NOT NOT isSend(d) AND NOT hideEdit(d),
+        DELETE SHOWIF NOT NOT isSend(d) AND NOT hideDelete(d)
     ORDERS createdTime(d)
     FILTERGROUP notSend
         FILTER 'Не отправленные' NOT isSend(d)
