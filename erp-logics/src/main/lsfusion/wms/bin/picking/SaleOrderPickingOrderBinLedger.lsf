@@ -108,6 +108,10 @@ idPickingGroup 'Группа комплектации' = DATA INTEGER (UserOrder
 idPickingGroup(UserOrderDetail detail) += idPickingGroup(detail);
 idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup[Sale.OrderDetail](orderDetail(detail));
 
+EXTEND FORM orders
+    PROPERTIES(d) READONLY idPickingGroup
+;
+
 WHEN LOCAL CHANGED(sku(UserOrderDetail detail)) DO {
     idPickingGroup(detail) <- idPickingGroup(sku(detail));
 }
@@ -125,8 +129,9 @@ CONSTRAINT countPickingGroup(PickingOrder po) > 1
     MESSAGE 'В одном заказе на комплектацию не может быть несколько групп комплектации';
 
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Sku, Bin);
+plannedPickingQuantity 'Планируемое к комплектации кол-во' = GROUP SUM plannedPickingQuantity(Order order, Sku sku, Bin bin) BY order, idPickingGroup(sku);
 orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order, idPickingGroup(sku); 
-pickingOrderNumber(Order order, Sku sku, Bin bin) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick());
+pickingOrderNumber(Order order, Sku sku, Bin bin, INTEGER pickingGroup) = ceil((orderPlannedPickingQuantity(order, sku, bin)-1)/maxLinesPick()) IF idPickingGroup(sku)==pickingGroup;
 
 headerCreateUserPickingOrder = ABSTRACT CASE STRING (Order);
 headerCreateUserPickingOrder(Order o) += 
@@ -158,29 +163,32 @@ createUserPickingOrder 'Отправить в комплектацию' (Order o
 overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
-            LOCAL NESTED countPickingOrder = INTEGER ();
+            LOCAL NESTED countPickingOrders = INTEGER ();
+            LOCAL NESTED countPickingOrder = INTEGER (INTEGER);
             LOCAL NESTED message = STRING ();
             LOCAL quantityLoc = NUMERIC[16,5](Sku);
 
             quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
-            plannedPickingQuantity(order, Sku sku, Bin bin) <- PARTITION UNGROUP quantityLoc[Sku] LIMIT availableQuantity(sku, bin) ORDER availableQuantity(sku, bin) BY sku
-                WHERE picking(bin);
-            countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Sku sku, Bin bin));
+            plannedPickingQuantity(order, Sku sku, Bin bin) <- 
+                PARTITION UNGROUP quantityLoc[Sku] LIMIT availableQuantity(sku, bin) IF availableQuantity(sku, bin)>0 ORDER canonicalId(bin), bin BY sku
+                WHERE picking(bin) AND availableQuantity(sku, bin)>0;
+            countPickingOrder(INTEGER pickingGroup) <- (GROUP MAX pickingOrderNumber(order, Sku sku, Bin bin, pickingGroup));
+            countPickingOrders() <- (GROUP SUM (countPickingOrder(INTEGER pickingGroup)(+)1) IF plannedPickingQuantity(order, pickingGroup)); //Добавляем 1, т.к. нумерация идёт с 0
 
             CASE
                 WHEN NOT (GROUP SUM quantityLoc(Sku sku)) THEN {
                     message() <- 'Нечего отправлять в комплектацию';
                 }
-                WHEN countPickingOrder() THEN {
-                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrder()+1); //Добавляем 1, т.к. нумерация идёт с 0
-                }            
+                WHEN countPickingOrders() THEN {
+                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrders());
+                }
 
-            FOR iterate(INTEGER i, 0, countPickingOrder()) INLINE NEW p = UserPickingOrder DO {
+            FOR iterate(INTEGER i, 0, countPickingOrder(INTEGER pickingGroup)) ORDER pickingGroup INLINE NEW p = UserPickingOrder DO {
                 isPosted(p) <- TRUE;
                 order(p) <- order;
                 stock(p) <- supplierStock(order);
 
-                FOR plannedPickingQuantity(order, Sku sku, Bin bin) AND pickingOrderNumber(order, sku, bin)==i INLINE DO NEW pd = UserPickingOrderDetail {
+                FOR plannedPickingQuantity(order, Sku sku, Bin bin) AND pickingOrderNumber(order, sku, bin, pickingGroup)==i INLINE DO NEW pd = UserPickingOrderDetail {
                     userPickingOrder(pd) <- p;
                     sku(pd) <- sku;
                     outBin(pd) <- bin;

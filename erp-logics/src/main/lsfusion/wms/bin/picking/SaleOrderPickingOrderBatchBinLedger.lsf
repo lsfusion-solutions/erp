@@ -12,35 +12,39 @@ namePlannedStatus(Order order) +=
         ELSE 'Не спланированы');
 
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Batch, Bin);
-orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER batch, bin BY order;
-pickingOrderNumber(Order order, Batch batch, Bin bin) = ceil((orderPlannedPickingQuantity(order, batch, bin)-1)/maxLinesPick());
+plannedPickingQuantityBatch 'Планируемое к комплектации кол-во' = GROUP SUM plannedPickingQuantity(Order order, Batch batch, Bin bin) BY order, idPickingGroup(sku(batch));
+orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER batch, bin BY order, idPickingGroup(sku(batch));
+pickingOrderNumber(Order order, Batch batch, Bin bin, INTEGER pickingGroup) = ceil((orderPlannedPickingQuantity(order, batch, bin)-1)/maxLinesPick()) IF idPickingGroup(sku(batch))==pickingGroup;
 
 overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
-            LOCAL NESTED countPickingOrder = INTEGER ();
+            LOCAL NESTED countPickingOrders = INTEGER ();
+            LOCAL NESTED countPickingOrder = INTEGER (INTEGER);
             LOCAL NESTED message = STRING ();
             LOCAL quantityLoc = NUMERIC[16,5](Batch);
 
             quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
-            plannedPickingQuantity(order, Batch bt, Bin bin) <- PARTITION UNGROUP quantityLoc[Batch] LIMIT availableQuantity(bt, bin) ORDER availableQuantity(bt, bin) BY bt
-                WHERE picking(bin);
-            countPickingOrder() <- (GROUP MAX pickingOrderNumber(order, Batch batch, Bin bin));
+            plannedPickingQuantity(order, Batch bt, Bin bin) <- 
+                PARTITION UNGROUP quantityLoc[Batch] LIMIT availableQuantity(bt, bin) IF availableQuantity(bt, bin)>0 ORDER canonicalId(bin), bin BY bt
+                WHERE picking(bin) AND availableQuantity(bt, bin)>0;
+            countPickingOrder(INTEGER pickingGroup) <- (GROUP MAX pickingOrderNumber(order, Batch batch, Bin bin, pickingGroup));
+            countPickingOrders() <- (GROUP SUM (countPickingOrder(INTEGER pickingGroup)(+)1) IF plannedPickingQuantityBatch(order, pickingGroup)); //Добавляем 1, т.к. нумерация идёт с 0
             
             CASE 
                 WHEN NOT (GROUP SUM quantityLoc(Batch bt)) THEN {
                     message() <- 'Нечего отправлять в комплектацию';
                 }
-                WHEN countPickingOrder() THEN {
-                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrder()+1); //Добавляем 1, т.к. нумерация идёт с 0
+                WHEN countPickingOrders() THEN {
+                    message() <- 'Создано заказов на комплектацию:'+(countPickingOrders());
                 }
 
-            FOR iterate(INTEGER i, 0, countPickingOrder()) INLINE NEW p = UserPickingOrder DO {
+            FOR iterate(INTEGER i, 0, countPickingOrder(INTEGER pickingGroup)) ORDER pickingGroup INLINE NEW p = UserPickingOrder DO {
                 isPosted(p) <- TRUE;
                 order(p) <- order;
                 stock(p) <- supplierStock(order);
 
-                FOR plannedPickingQuantity(order, Batch bt, Bin bin) AND pickingOrderNumber(order, bt, bin)==i INLINE DO NEW pd = UserPickingOrderDetail {
+                FOR plannedPickingQuantity(order, Batch bt, Bin bin) AND pickingOrderNumber(order, bt, bin, pickingGroup)==i INLINE DO NEW pd = UserPickingOrderDetail {
                     userPickingOrder(pd) <- p;
                     sku(pd) <- sku(bt);
                     batch(pd) <- bt;
