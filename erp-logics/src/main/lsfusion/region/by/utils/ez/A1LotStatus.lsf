@@ -36,11 +36,12 @@ FORM exportLots
 
 GROUP status;
 code = DATA LOCAL STRING(INTEGER);
+expirationDate = DATA LOCAL DATE (INTEGER);
 statusCode = DATA LOCAL INTEGER(INTEGER);
 
 FORM importLotStatus
     OBJECTS codes = INTEGER
-    PROPERTIES(codes) code
+    PROPERTIES(codes) code, expirationDate
     PROPERTIES(codes) IN status statusCode EXTID 'code';
 
 overGetStatus() + {
@@ -62,6 +63,7 @@ overGetStatus() + {
 
                 IMPORT importLotStatus JSON FROM file();
                 status(Lot l) <- (GROUP MIN statusLot(statusCode(INTEGER i)) IF code(l) == code(i)) WHERE GROUP SUM 1 IF code(l) == code(INTEGER i);
+                expiryDate(Lot l) <- (GROUP MIN expirationDate(INTEGER i) IF code(l) == code(i)) WHERE GROUP SUM 1 IF code(l) == code(INTEGER i);
                 in(Lot l) <- NULL WHERE GROUP SUM 1 IF code(l) == code(INTEGER i);
             } CATCH {
                 logToFile('ez', messageCaughtException());
