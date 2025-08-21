@@ -1,0 +1,49 @@
+MODULE SaleShipmentCostRu;
+
+REQUIRE SaleShipment, SkuLedgerCost, PriceListLedgerAccount, LegalEntityRu;
+
+NAMESPACE Sale;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(UserShipmentDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d);
+    }
+
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
+        invoicePrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d)
+            AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType AND accountInvoicePrice(supplier(d));
+        price(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d)
+            AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType AND NOT accountInvoicePrice(supplier(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
+}
+
+skipRecalculateCost = ABSTRACT VALUE BOOLEAN (UserShipment);
+recalculateCostAccount(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа)');
+    APPLY NESTED LOCAL {
+        price(UserShipmentDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND NOT skipRecalculateCost(userShipment(d))
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
+    }
+
+    logToFile('cost', 'Начат пересчет цен в накладных (продажа)');
+    APPLY NESTED LOCAL {
+        shipmentPrice(UserInvoiceDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d))
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
+}
+

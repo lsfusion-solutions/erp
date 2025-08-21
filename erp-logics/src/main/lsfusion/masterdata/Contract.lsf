@@ -30,6 +30,7 @@ description 'Описание' (Contract contract) = CONCAT '', seriesNumber(con
 GROUP party 'Контрагенты' : id;
 
 partyA = ABSTRACT LegalEntity (Contract) MATERIALIZED INDEXED;
+idPartyA 'Код организации (поставщик)' (Contract contract) = id(partyA(contract)) IN party;
 namePartyA 'Организация (поставщик)' (Contract contract) = name(partyA(contract)) IN party;
 addressPartyA 'Адрес организация (поставщик)' (Contract contract) = address(partyA(contract)) IN party;
 
@@ -78,7 +79,7 @@ skipEdit = ABSTRACT BOOLEAN (Contract);
 
 FORM contracts 'Договоры'
     OBJECTS c = Contract
-    PROPERTIES(c) READONLYIF isReadonly() namePartyA, namePartyB, id SHOWIF showIDs(),
+    PROPERTIES(c) READONLYIF isReadonly() namePartyA, idPartyA, namePartyB, id SHOWIF showIDs(),
                            seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
                            nameTypeExchange, descriptionPaymentCondition, note
     PROPERTIES(c) NEWSESSION EDIT SHOWIF NOT skipEdit(c), DELETE 
