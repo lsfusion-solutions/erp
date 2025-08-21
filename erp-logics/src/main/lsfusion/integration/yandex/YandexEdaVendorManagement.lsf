@@ -92,11 +92,12 @@ blockHeaders (TEXT name) = CASE
 
 
 block(STRING ds, DATETIME df, DATETIME dt, STRING reason, STRING tag){
+    getToken();
     IF tokenVendor() THEN{
         
         tag() <- tag;
-        from() <- toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+03:00');
-        to() <- toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+03:00');
+        from() <- toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+0300');
+        to() <- toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+0300');
         message() <- reason;
         deliveryType(ds) <- 'ddc';
         vendorId(ds) <- ds;
@@ -104,8 +105,9 @@ block(STRING ds, DATETIME df, DATETIME dt, STRING reason, STRING tag){
         LOCAL f = FILE();
         
         EXPORT blockRequest FILTERS vendorInfo = ds JSON;
+        
         EXTERNAL HTTP POST baseUrlVendor() + '/block' HEADERS blockHeaders PARAMS exportFile() TO f;
-        MESSAGE CONCAT '\n', 'Успешная блокировка', 'id ' + ds, 'tag ' + tag, 'reason ' + reason, 'to ' + to(); 
+        MESSAGE CONCAT '\n', 'Успешная блокировка', 'id ' + ds, 'tag ' + tag, 'reason ' + reason, 'to ' + to() NOWAIT;
     }
 }
 
@@ -147,11 +149,9 @@ FORM blockAnswer
     FILTERS imported(items)
 ;
 
-blockId = DATA STRING (STRING, STRING);
-
 
 getStatusBlock(STRING ds){
-    IF tokenVendor() THEN NEWSESSION {
+    IF tokenVendor() THEN {
 
         deliveryType(ds) <- 'ddc';
         vendorId(ds) <- ds;
@@ -162,41 +162,57 @@ getStatusBlock(STRING ds){
         
         EXTERNAL HTTP POST baseUrlVendor() + '/v2/status' HEADERS blockHeaders PARAMS exportFile() TO f;
         IMPORT blockAnswer JSON FROM f();
-
-        blockId(ds, STRING s) <- NULL;
-        blockId(ds, STRING s) <- ds IF [GROUP MAX INTEGER i IF availableToCancel(i) BY blockId(i)](ds);
-        
-        APPLY;
-        
     }
 }
 
-blockIds = DATA LOCAL STRING(STRING);
 
 FORM unblockRequest
-    OBJECTS blockIds = STRING
-    PROPERTIES(blockIds) blockIds EXTID 'value'
-    FILTERS blockIds(blockIds)
+    OBJECTS blockIds = INTEGER
+    PROPERTIES(blockIds) blockId EXTID 'value'
+    FILTERS blockId(blockIds)
 
     OBJECTS vendorInfo = STRING
     PROPERTIES(vendorInfo) deliveryType, vendorId
 ;
 
-unblock 'Разблокировать' (STRING ds){
-    IF tokenVendor() THEN NEWSESSION {
+unblock 'Разблокировать' (STRING ds) {
+    getToken();
+    IF tokenVendor() THEN {
 
         deliveryType(ds) <- 'ddc';
         vendorId(ds) <- ds;
-        
-        blockIds(STRING s) <- blockId(ds, s);
+
+        getStatusBlock(ds);
         
         LOCAL f = FILE();
-        EXPORT statusRequest FILTERS vendorInfo = ds JSON;
+        EXPORT unblockRequest FILTERS vendorInfo = ds JSON;
+
 
         EXTERNAL HTTP POST baseUrlVendor() + '/unblock' HEADERS blockHeaders PARAMS exportFile() TO f;
-        MESSAGE CONCAT '\n', 'Успешная блокировка', 'id ' + ds;
+        MESSAGE CONCAT '\n', 'Успешно разблокировано', 'id ' + ds NOWAIT;
 
-        blockId(ds, STRING s) <- NULL;
-        APPLY;
+        blockId(INTEGER i) <- NULL;
+    }
+}
+
+unblock 'Разблокировать' (STRING ds, DATETIME df, DATETIME dt) {
+    getToken();
+    IF tokenVendor() THEN {
+
+        deliveryType(ds) <- 'ddc';
+        vendorId(ds) <- ds;
+
+        getStatusBlock(ds);
+
+        blockId(INTEGER i) <- NULL WHERE blockId(i) AND NOT 
+            (from(i) == toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+0300') AND to(i) == toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+0300'));
+
+        LOCAL f = FILE();
+        EXPORT unblockRequest FILTERS vendorInfo = ds JSON;
+        
+        EXTERNAL HTTP POST baseUrlVendor() + '/unblock' HEADERS blockHeaders PARAMS exportFile() TO f;
+        MESSAGE CONCAT '\n', 'Успешно разблокировано', 'id ' + ds, 'from ' + toChar(df, 'YYYY-MM-DD"T"HH24:MI:SS+03:00'), 'to ' + toChar(dt, 'YYYY-MM-DD"T"HH24:MI:SS+03:00') NOWAIT;
+
+        blockId(INTEGER i) <- NULL;
     }
 }
