@@ -251,9 +251,6 @@ additionalInformationNote 'Примечание' = DATA STRING[512](EInvoiceDeta
 //устаревшее
 lineItemManufacturerPrice 'Цена изготовителя за единицу товара' = DATA NUMERIC[16,2] (EInvoiceDetail);
 
-upperLevelCodeMark 'Код упаковки верхнего уровня' = DATA STRING[300] (EInvoiceDetail, INTEGER);
-groupPackingCodeMark 'Код упаковки, которая вложена в упаковку верхнего уровня' = DATA STRING[130] (EInvoiceDetail, INTEGER);
-fieldCodeMark 'Перечень кодов маркировки' = DATA STRING[130000] (EInvoiceDetail) CHARWIDTH 100;
 ///
 
 CLASS EInvoiceLotDetail 'Марки электронной накладной EDI';
@@ -263,6 +260,7 @@ eInvoiceDetail = DATA EInvoiceDetail (EInvoiceLotDetail) NONULL DELETE INDEXED;
 eInvoice (EInvoiceLotDetail d) = eInvoice(eInvoiceDetail(d));
 
 id 'Код маркировки единицы товара' = DATA STRING[200] (EInvoiceLotDetail);
+eInvoiceLotDetail = GROUP AGGR EInvoiceLotDetail d BY id(d), eInvoiceDetail(d); 
 quantity 'Кол-во' = DATA NUMERIC[14,3] (EInvoiceLotDetail);
 
 parent = DATA EInvoiceLotDetail(EInvoiceLotDetail) INDEXED;
@@ -373,7 +371,7 @@ FORM eInvoices 'Электронные накладные'
         quantityDespatched, manufactureDate, expiryDate, valueVAT BACKGROUND backgroundVAT(d),
         lineItemPrice, lineItemManufacturerPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges,
         grossWeightValue, lineItemQuantityUOM, despatchUnitQuantityDespatched, additionalInformation, lineItemAmountExcise, 
-        overLineItemExtraFields, fieldCodeMark, lineItemPartyNumber, countryOfOrigin 
+        overLineItemExtraFields, lineItemPartyNumber, countryOfOrigin 
     PROPERTIES (d) READONLY BACKGROUND RGB(224, 255, 255) lineItemManufacturerOutputPrice, typeDiscount, bulkDiscountRate, 
         outputPriceIncludingShippingCoast, outputPriceShippingCoast, outputPricePackingCoast, bulkMarginRate, cutRate, 
         additionalInformationPrice, additionalInformationNote
@@ -388,6 +386,8 @@ FORM eInvoices 'Электронные накладные'
     OBJECTS dl = EInvoiceDetail
     PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
     FILTERS eInvoice(dl) == e
+    FILTERGROUP marked 
+        FILTER 'С марками' GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail eld1) = dl DEFAULT 
 
     TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
     PROPERTIES(eld) READONLY id, quantity
@@ -472,7 +472,7 @@ FORM eInvoice 'Электронная накладная'
         manufactureDate, expiryDate, valueVAT ON CHANGE changeValueVAT(ed), 
         lineItemPrice, lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges, grossWeightValue SHOWIF NOT isTN2(e), 
         lineItemQuantityUOM, despatchUnitQuantityDespatched SHOWIF NOT isTN2(e), additionalInformation, lineItemAmountExcise, 
-        overLineItemExtraFields READONLY, fieldCodeMark, lineItemPartyNumber, countryOfOrigin
+        overLineItemExtraFields READONLY, lineItemPartyNumber, countryOfOrigin
     FILTERS eInvoice(ed) == e
 
     OBJECTS edc = EInvoiceDetail
@@ -494,6 +494,8 @@ FORM eInvoice 'Электронная накладная'
     OBJECTS dl = EInvoiceDetail
     PROPERTIES (dl) READONLY lineItemNumber, lineItemID, lineItemName
     FILTERS eInvoice(dl) == e
+    FILTERGROUP marked
+        FILTER 'С марками' GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail eld1) = dl DEFAULT
 
     TREE eLotTr eld = EInvoiceLotDetail PARENT parent(eld)
     PROPERTIES(eld) READONLY id, quantity

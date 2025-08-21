@@ -11,11 +11,15 @@ overCopy(EInvoiceDetail eid, UserInvoiceDetail id) + {
         aggregated(l) <- TRUE;
     }
     
-    FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) DO NEW l = Lot {
+    FOR EInvoiceLotDetail el == [GROUP MAX EInvoiceLotDetail dd BY eInvoiceDetail(dd), id(dd)](eid, STRING[200] str) AND NOT lot(barcodeToId(str)) AND NOT lot(str) NEW l = Lot DO {
         id(l) <- barcodeToId(str);
         tail(l) <- barcodeToTail(str);
         sku(l) <- sku(id);
-        parent(l) <- lot(idParent(el));
     }
+    
+    FOR eInvoiceDetail(EInvoiceLotDetail dd) AND idParent(dd) AND Lot l == OVERRIDE lot(id(dd)), lot(barcodeToId(id(dd))) DO {
+        parent(l) <- lot(idParent(dd));
+    }  
+    
     quantity(id, Lot l) <- (GROUP SUM 1 IF eInvoiceDetail(EInvoiceLotDetail dd) == eid AND id(l) == barcodeToId(id(dd)) AND NOT aggregated(l));
 }

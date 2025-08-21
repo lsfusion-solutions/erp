@@ -229,8 +229,6 @@ blrwblLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrwblLineItemAmount = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrwblLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrwblLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,2](INTEGER);
-blrwblLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
-blrwblLineItemIdentificationGroupPackingHeader = DATA LOCAL INTEGER(INTEGER);
 lineItemManufacturerOutputPrice = DATA LOCAL NUMERIC[18,2](INTEGER);
 typeDiscount = DATA LOCAL STRING[512](INTEGER);
 bulkDiscountRate = DATA LOCAL STRING[512](INTEGER);
@@ -242,16 +240,17 @@ cutRate = DATA LOCAL STRING[512](INTEGER);
 additionalInformationPrice = DATA LOCAL STRING[512](INTEGER);
 additionalInformationNote = DATA LOCAL STRING[512](INTEGER);
 
-blrwblGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrwblUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrwblFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
+lineItemLineItemIdentification = DATA LOCAL INTEGER(INTEGER);
+groupPackingCodeMark = DATA LOCAL STRING(INTEGER);
+groupPackingHeaderGroupPackingCodeMark = DATA LOCAL INTEGER(INTEGER);
+upperLevelCodeMark = DATA LOCAL STRING(INTEGER);
+fieldCodeMark = DATA LOCAL STRING(INTEGER);
+fieldCodeMarkHeaderFieldCodeMark = DATA LOCAL INTEGER(INTEGER);
+
 blrwblLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
 blrwblLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrwblLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
 blrwblLineItemFieldValue = DATA LOCAL NESTED STRING[2560](INTEGER);
-
-fieldCodeMark = DATA LOCAL STRING(INTEGER);
-fieldCodeMarkHeaderFieldCodeMark = DATA LOCAL INTEGER(INTEGER);
 
 blrwblItemCustomCodeOther = DATA LOCAL NESTED STRING[4](INTEGER);
 blrwblLineItemQuantitySPT = DATA LOCAL NESTED STRING[3](INTEGER);
@@ -355,16 +354,17 @@ FORM blrwbl
         additionalInformationPrice EXTID 'AdditionalInformationPrice',
         additionalInformationNote EXTID 'AdditionalInformation'
 
-    OBJECTS blrwblLineItemIdentification = INTEGER EXTID 'LineItemIdentification'
-    FILTERS blrwblLineItemLineItemIdentification(blrwblLineItemIdentification) == i
-    
-    PROPERTIES(blrwblLineItemIdentification) IN groupPackingHeader
-        blrwblGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
-        blrwblUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
+    OBJECTS lineItemIdentification = INTEGER EXTID 'LineItemIdentification'
+    FILTERS lineItemLineItemIdentification(lineItemIdentification) == i
+    PROPERTIES(lineItemIdentification) IN groupPackingHeader upperLevelCodeMark EXTID 'UpperLevelCodeMark'
 
-    OBJECTS blrwblFieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
-    PROPERTIES(blrwblFieldCodeMark) fieldCodeMark EXTID 'value'
-    FILTERS fieldCodeMarkHeaderFieldCodeMark(blrwblFieldCodeMark) == blrwblLineItemIdentification
+    OBJECTS groupPackingCodeMark = INTEGER EXTID 'GroupPackingCodeMark' IN groupPackingHeader
+    PROPERTIES(groupPackingCodeMark) groupPackingCodeMark EXTID 'value'
+    FILTERS groupPackingHeaderGroupPackingCodeMark(groupPackingCodeMark) == lineItemIdentification
+
+    OBJECTS fieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
+    PROPERTIES(fieldCodeMark) fieldCodeMark EXTID 'value'
+    FILTERS fieldCodeMarkHeaderFieldCodeMark(fieldCodeMark) == lineItemIdentification
 
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrwblLineItemFieldName EXTID 'FieldName',
@@ -434,11 +434,6 @@ blrdlnLineItemAmountWithoutCharges = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrdlnLineItemAmount = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrdlnLineItemAmountCharges = DATA LOCAL NESTED NUMERIC[18,2](INTEGER);
 blrdlnLineItemAmountExcise = DATA LOCAL NESTED NUMERIC[12,5](INTEGER);
-blrdlnLineItemLineItemIdentification = DATA LOCAL NESTED INTEGER(INTEGER);
-GROUP blrdlnLineItemIdentification EXTID 'LineItemIdentification';
-blrdlnGroupPackingCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrdlnUpperLevelCodeMark = DATA LOCAL NESTED STRING[130](INTEGER);
-blrdlnFieldCodeMark = DATA LOCAL NESTED STRING[130000](INTEGER);
 blrdlnLineItemLineItemExtraField = DATA LOCAL NESTED INTEGER(INTEGER);
 blrdlnLineItemFieldName = DATA LOCAL NESTED STRING[255](INTEGER);
 blrdlnLineItemFieldCode = DATA LOCAL NESTED STRING[6](INTEGER);
@@ -523,16 +518,17 @@ FORM blrdln
         additionalInformationPrice EXTID 'AdditionalInformationPrice',
         additionalInformationNote EXTID 'AdditionalInformation'
 
-    OBJECTS blrdlnLineItemIdentification = INTEGER EXTID 'LineItemIdentification'
-    FILTERS blrdlnLineItemLineItemIdentification(blrdlnLineItemIdentification) == i
+    OBJECTS lineItemIdentification = INTEGER EXTID 'LineItemIdentification'
+    FILTERS lineItemLineItemIdentification(lineItemIdentification) == i
+    PROPERTIES(lineItemIdentification) IN groupPackingHeader upperLevelCodeMark EXTID 'UpperLevelCodeMark'
 
-    PROPERTIES(blrdlnLineItemIdentification) IN groupPackingHeader
-        blrdlnGroupPackingCodeMark EXTID 'GroupPackingCodeMark',
-        blrdlnUpperLevelCodeMark EXTID 'UpperLevelCodeMark'
+    OBJECTS groupPackingCodeMark = INTEGER EXTID 'GroupPackingCodeMark' IN groupPackingHeader
+    PROPERTIES(groupPackingCodeMark) groupPackingCodeMark EXTID 'value'
+    FILTERS groupPackingHeaderGroupPackingCodeMark(groupPackingCodeMark) == lineItemIdentification
 
-    OBJECTS blrdlnFieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
-    PROPERTIES(blrdlnFieldCodeMark) fieldCodeMark EXTID 'value'
-    FILTERS fieldCodeMarkHeaderFieldCodeMark(blrdlnFieldCodeMark) == blrdlnLineItemIdentification
+    OBJECTS fieldCodeMark = INTEGER EXTID 'FieldCodeMark' IN fieldCodeMarkHeader
+    PROPERTIES(fieldCodeMark) fieldCodeMark EXTID 'value'
+    FILTERS fieldCodeMarkHeaderFieldCodeMark(fieldCodeMark) == lineItemIdentification
         
     OBJECTS f = INTEGER EXTID 'LineItemExtraField'
     PROPERTIES(f) blrdlnLineItemFieldName EXTID 'FieldName',
@@ -796,7 +792,6 @@ EXTEND FORM eCreditNotes
     PROPERTIES() DRAW c TOOLBAR signAndSendCustomerCreditNote, signAndSendBlrapnCustomerCreditNote
 ;
 
-GROUP actDifLineItem EXTID 'ActDifLineItem';
 exportBlradfDateTime = DATA LOCAL NESTED DATETIME();
 
 hideMessageHeaderBlradf = DATA LOCAL BOOLEAN ();
