@@ -56,15 +56,16 @@ needUOM(CustomsGroup cg) =  TRUE  IF isTracking(cg) AND NOT trackingUOM(cg);
 
 background(Item i) += WHEN i IS Item AND needExtraCode(i) THEN RGB(250, 187, 168);
 backgroundCustomsGroup(CustomsGroup cg)  += WHEN cg IS CustomsGroup AND needUOM(cg) THEN RGB(250, 187, 168);
+backgroundECExtraCode(CustomsGroup cg) = IF countECTracking(cg) >= 1 THEN RGB(255, 204, 153);
 
 EXTEND FORM customsGroup
-    PROPERTIES (cg) isTracking BACKGROUND backgroundEC(extraCode(cg)) READONLY, trackingUOM, dateStartSPT
+    PROPERTIES (cg) isTracking BACKGROUND backgroundECExtraCode(cg) READONLY, trackingUOM, dateStartSPT
     PROPERTIES (ec) isTracking BACKGROUND backgroundEC(ec) BEFORE description(ec)
 ;
 
 EXTEND FORM customsGroups
     PROPERTIES (gcg) READONLY isTrackingData, trackingUOM
-    PROPERTIES (cg) BEFORE canonicalName(cg) READONLY isTracking BACKGROUND backgroundEC(extraCode(cg)), trackingUOM
+    PROPERTIES (cg) BEFORE canonicalName(cg) READONLY isTracking BACKGROUND backgroundECExtraCode(cg), trackingUOM
     PROPERTIES (cg) READONLYIF isReadonly() dateStartSPT
 ;
 
