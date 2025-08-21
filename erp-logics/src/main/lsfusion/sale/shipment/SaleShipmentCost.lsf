@@ -1,6 +1,6 @@
 MODULE SaleShipmentCost;
 
-REQUIRE SaleShipment, SkuLedgerCost;
+REQUIRE SaleShipment, SkuLedgerCost, PriceListLedgerAccount;
 
 NAMESPACE Sale;
 
@@ -17,6 +17,10 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
         shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d)) 
                 WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
                       calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
+        price(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
+                WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+                      calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d)
+                      AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType;
     }
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
 }
