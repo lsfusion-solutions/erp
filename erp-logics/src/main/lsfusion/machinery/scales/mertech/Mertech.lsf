@@ -1,0 +1,42 @@
+MODULE Mertech;
+
+REQUIRE ScalesSelfService, Image;
+
+//Mertech PM
+
+//imageMertech = DATA IMAGEFILE (Item) TABLE itemImage;
+//WHEN CHANGED (image(Item i)) DO {
+//    imageMertech(i) <- NULL;
+//}
+
+toLoadImages = DATA LOCAL BOOLEAN ();
+createAttribute(MachineryPriceTransaction mpt, GroupMachinery gm) + {
+    IF sidModel(gm) == 'MertechPM' AND toLoadImages() THEN {
+       itemImage (mpt, Barcode b) <- Scales.image(b) WHERE in(mpt, b);
+    }
+}
+
+loadImages() + {
+    NEWSESSION NESTED (select[Sku,Stock]) {
+        IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+            FOR [GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) AND
+                (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'MertechPM' AND stock(grsk) == stock AND active(grsk)) DO {
+
+                createMachineryPriceTransactionSnapshot() <- TRUE;
+                createMachineryPriceTransactionComment() <- 'Загрузка изображений';
+                toLoadImages() <- TRUE;
+
+                createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
+                exclude(GroupMachinery group) <- stock(group) == stock AND NOT sidModel(group) == 'MertechPM';
+                createMachineryPriceTransaction(stock);
+            }
+            APPLY NESTED LOCAL;
+            IF canceled() THEN {
+                cancel();
+            }
+        }
+    }
+}
+showLoadImage(Stock ss) += (GROUP SUM 1 IF sidModel(GroupScales grsk) == 'MertechPM' AND stock(grsk) == ss AND active(grsk)) > 0;
+
+isSelfService(GroupScales s) += sidModel(s) == 'MertechPM';
