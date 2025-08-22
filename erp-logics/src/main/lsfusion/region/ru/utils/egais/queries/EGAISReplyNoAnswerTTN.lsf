@@ -1,0 +1,67 @@
+MODULE EGAISReplyNoAnswerTTN;
+
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket, EGAISQueryResendDoc, EGAISWayBill;
+
+NAMESPACE EGAIS;
+
+// response
+EXTEND CLASS DocType { ReplyNoAnswerTTN 'Ответ на запрос необработанных ТТН' }
+
+GROUP replyNoAnswerTTN EXTID 'ns:ReplyNoAnswerTTN' : document;
+GROUP ttnlist EXTID 'ttn=http://fsrar.ru/WEGAIS/ReplyNoAnswerTTN:ttnlist' : replyNoAnswerTTN;
+
+//FSRAR_ID = DATA LOCAL STRING();
+consignee123 = DATA LOCAL STRING();
+replyDate = DATA LOCAL DATETIME();
+wbRegID = DATA LOCAL STRING(INTEGER);
+ttnNumber = DATA LOCAL STRING(INTEGER);
+ttnDate = DATA LOCAL DATE(INTEGER);
+shipper = DATA LOCAL STRING(INTEGER);
+
+FORM documents FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+    PROPERTIES() IN owner FSRAR_ID EXTID 'ns:FSRAR_ID'
+    PROPERTIES ATTR IN replyNoAnswerTTN ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi'
+    PROPERTIES() IN replyNoAnswerTTN consignee123 EXTID 'ttn:Consignee', replyDate EXTID 'ttn:ReplyDate'
+
+    OBJECTS noAnswer = INTEGER EXTID 'ttn:NoAnswer' IN ttnlist
+    PROPERTIES(noAnswer) wbRegID EXTID 'ttn:WbRegID', ttnNumber EXTID 'ttn:ttnNumber', ttnDate EXTID 'ttn:ttnDate', shipper EXTID 'ttn:Shipper'
+    FILTERS imported(noAnswer)
+;
+
+countDaysReplyNoAnswerTTNData = DATA INTEGER ();
+countDaysReplyNoAnswerTTN() = OVERRIDE countDaysReplyNoAnswerTTNData(), 7;
+
+skipAllprocess = DATA BOOLEAN ();
+
+processReplyNoAnswerTTN (InDoc d)  {
+    NEWSESSION {
+        stringToFile(document(d));
+        IMPORT documents XML FROM resultFile();
+
+        FOR wbRegID(INTEGER  i) AND imported(i) AND NOT wayBill(wbRegID(i)) AND ttnDate(i) >= sum(currentDate(),-countDaysReplyNoAnswerTTN()) DO NEWSESSION  NESTED LOCAL {
+            NEW r = QueryResendDoc {
+                utm(r) <- utm(d);
+                client(r) <- firstClient(utm(d));
+                WBRegID(r) <-  wbRegID(i);
+                queryResendDoc(r);
+                APPLY NESTED LOCAL;
+            }
+        }
+        processed(d) <- TRUE;
+        APPLY;
+    }    
+}
+
+
+process (InDoc d) + {
+    IF docType(d) = DocType.ReplyNoAnswerTTN AND NOT skipAllprocess() THEN {
+        processReplyNoAnswerTTN(d);
+    }
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'ReplyNoAnswerTTN' THEN {
+        processed() <- TRUE;
+    }
+}
