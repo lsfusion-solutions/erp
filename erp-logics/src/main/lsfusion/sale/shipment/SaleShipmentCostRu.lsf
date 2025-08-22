@@ -17,14 +17,23 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
         shipmentPrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
             WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
             calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
-        invoicePrice(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+        FOR date(UserInvoiceDetail d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
             calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d)
-            AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType AND accountInvoicePrice(supplier(d));
-        price(UserInvoiceDetail d) <- calculatedCost(sku(d), supplierStock(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
-            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = price(d)
-            AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType AND NOT accountInvoicePrice(supplier(d));
+            AND priceListType(d) = SystemLedgerPriceListType.accountPriceListType DO {
+            IF accountInvoicePrice(supplier(d)) THEN {
+                invoicePrice(d) <- calculatedCost(sku(d), supplierStock(d));
+                invoiceSum(d) <- invoicePrice(d)*quantity(d);
+                price(d) <- round2(invoicePrice(d) * 100/(100 + valueVAT(d)));
+                sum(d) <- price(d)*quantity(d);
+                sumVAT(d) <- invoiceSum(d) - sum(d);
+            } ELSE {
+                price(d) <- calculatedCost(sku(d), supplierStock(d));
+                sum(d) <- price(d)*quantity(d);
+                invoicePrice (d) <- round2(price(d) * (100 + valueVAT(d))/100);
+                invoiceSum(d) <- invoicePrice(d)*quantity(d);
+                sumVAT(d) <- invoiceSum(d) - sum(d);
+            }
+        }
     }
     logToFile('cost', 'Закончен пересчет цен в поставках и накладных (продажа)');
 }
