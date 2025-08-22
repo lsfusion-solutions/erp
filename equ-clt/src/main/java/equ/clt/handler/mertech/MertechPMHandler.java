@@ -34,6 +34,8 @@ import java.util.List;
 
 import lsfusion.base.BaseUtils;
 
+import static equ.clt.ProcessMonitorEquipmentServer.notInterruptedTransaction;
+
 public class MertechPMHandler extends MultithreadScalesHandler {
     
     private class ProductFileClass {
@@ -225,11 +227,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     protected final static Logger mertechLogger = Logger.getLogger("MertechLogger");
     
     private static final byte stx = 0x02;
+    private static final byte[] regularFile = new byte[] {(byte)0xa9};
     private static final byte[] productFile = new byte[] {(byte)0xff, (byte)0x13};
     //private static final byte[] clearPluAndMessage = new byte[] {(byte)0x18}; // очистка базы товаров и сообщений
     //private static final byte[] clearPlu = new byte[] {(byte)0xB9}; // очистка базы товаров
     //private static final byte[] clearMessage = new byte[] {(byte)0xBA}; // очистка базы сообщений
     private static final byte[] setBarcodePrefix = new byte[] {(byte)0x77}; // Задать значение префикса
+    
+    private static final byte[] removeFile = new byte[] {(byte)0xFF, (byte)0x35}; // Удалить файл или папку
+    private static final byte[] createFolder = new byte[] {(byte)0xFF, (byte)0x36}; // Создать папку
     
     private TCPPort port;
     private MertechSettings mertechSettings;
@@ -505,7 +511,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             
             Result result;
     
-            if (!(result = sendBarcodePrefexes(scales)).success()) {
+            if (!(result = sendBarcodePrefixes(scales)).success()) {
                 return result;
             }
             
@@ -524,14 +530,16 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             File copyFile = new File(tmpFile.getParent() + "/mertech_products.json");
             FileUtils.copyFile(tmpFile, copyFile);
             
-            if ((result = sendHashProductFile(tmpFile.getPath(), needToClear)).success()) {
+            byte[] fileBytes = FileUtils.readFileToByteArray(tmpFile);
+            
+            if ((result = sendHashFile(productFile, fileBytes, needToClear)).success()) {
                 
                 try (FileInputStream fis = new FileInputStream(tmpFile)) {
                     byte[] buffer = new byte[6000];
                     int read;
                     int offset = 0;
                     while ((read = fis.read(buffer, 0, buffer.length)) > 0) {
-                        if (!(result = sendPartProductFile(fis.available() == 0, offset, read, buffer)).success()) {
+                        if (!(result = sendPartFile(productFile, fis.available() == 0, offset, read, buffer)).success()) {
                             fis.close();
                             if (tmpFile.exists())
                                 tmpFile.delete();
@@ -546,7 +554,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                         tmpFile.delete();
                     
                     while (true) {
-                        result = checkProductFile();
+                        result = checkFile(productFile);
                         if (result.success()) {
                             if (result instanceof Result.Status) {
                                 Result.Status status = (Result.Status) result;
@@ -587,7 +595,64 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendBarcodePrefexes(ScalesInfo scales) {
+    public Result sendImageFile(ScalesItem scalesItem, ScalesInfo scales) {
+        
+        try {
+            
+            port.open();
+            
+            Result result;
+            
+            if (!(result = sendFilePath(String.format("Products/%s.jpg", getPluNumber(scalesItem)))).success())
+                return  result;
+    
+            byte[] fileData = scalesItem.itemImage.getBytes();
+            
+            if ((result = sendHashFile(regularFile, fileData, false)).success()) {
+    
+                ByteArrayInputStream bais = new ByteArrayInputStream(fileData);
+                
+                byte[] buffer = new byte[6000];
+                int read;
+                int offset = 0;
+                while ((read = bais.read(buffer, 0, buffer.length)) > 0) {
+                    if (!(result = sendPartFile(regularFile, bais.available() == 0, offset, read, buffer)).success())
+                        return  result;
+                    offset += read;
+                }
+                
+                while (true) {
+                    result = checkFile(regularFile);
+                    if (result.success()) {
+                        if (result instanceof Result.Status) {
+                            Result.Status status = (Result.Status) result;
+                            switch (status.statusCode) {
+                                case 0:
+                                    return new Result.Success();
+                                case 1:
+                                    Thread.sleep(1000);
+                                    continue;
+                                case 2:
+                                    return new Result.Error(-1, status.statusMessage);
+                            }
+                        }
+                    } else
+                        return result;
+                }
+            }
+            
+            return result;
+            
+        } catch (Exception e) {
+            return new Result.Error(-1, e.getMessage());
+        } finally {
+            try {
+                port.close();
+            } catch (CommunicationException ignored) {}
+        }
+    }
+    
+    public Result sendBarcodePrefixes(ScalesInfo scales) {
         
         Result result = new Result.Success();
         // Шлем префикс для весового штрихкода
@@ -604,12 +669,40 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         return result;
     }
     
-    public Result sendHashProductFile(String filePath, boolean needToClear) {
+    public Result sendFilePath(String filePath) {
         
         try {
             
             Packet packet = new Packet();
-            packet.commandId = productFile;
+            packet.commandId = regularFile;
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
+            
+            outputStream.write(getPassword()); // пароль
+            outputStream.write(0x01); // код этапа отправки пути для сохранения файла на устройстве
+            //outputStream.write(0x04); // параметр: Размер файла
+            outputStream.writeShort(filePath.getBytes().length); // Значение параметра: Размер файла в байтах
+            outputStream.write(filePath.getBytes()); // Текст пути сохранения файла в кодировке UTF-8
+            outputStream.flush();
+            
+            packet.commandBytes = ByteBuffer.allocate(baos.size());
+            packet.commandBytes.put(baos.toByteArray());
+            
+            return sendPacket(packet);
+            
+        } catch (Exception e) {
+            System.out.println(String.format("error: %s", e));
+            return new Result.Error(-1, e.getMessage());
+        }
+    }
+    
+    public Result sendHashFile(byte[] commandId, byte[] data, boolean needToClear) {
+        
+        try {
+            
+            Packet packet = new Packet();
+            packet.commandId = commandId;
             
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
@@ -617,15 +710,16 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             outputStream.write(getPassword()); // пароль
             outputStream.write(0x02); //  код этапа отправки хэш-данных файла
             
-            Path path = Paths.get(filePath);
-            try (InputStream is = Files.newInputStream(path)) {
-                outputStream.write(DigestUtils.md5(is)); // hash-данные файла
-            }
+            outputStream.write(DigestUtils.md5(data)); // hash-данные файла
             
             outputStream.write(0x04); // параметр: Размер файла
-            outputStream.writeLong( Files.size(path)); // Значение параметра: Размер файла в байтах
-            outputStream.write(0x01); // параметр: Тип экспорта товаров
-            outputStream.write(needToClear ? 0x00 : 0x01); // Значение параметра: 0 - с предварительной очисткой базы, 1 - без предварительной очистки базы
+            //outputStream.writeLong(Files.size(path)); // Значение параметра: Размер файла в байтах
+            outputStream.writeLong(data.length); // Значение параметра: Размер файла в байтах
+            
+            if (commandId == productFile) {
+                outputStream.write(0x01); // параметр: Тип экспорта товаров
+                outputStream.write(needToClear ? 0x00 : 0x01); // Значение параметра: 0 - с предварительной очисткой базы, 1 - без предварительной очистки базы
+            }
             
             outputStream.flush();
             
@@ -640,12 +734,12 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendPartProductFile(boolean lastPart, int offset, int size, byte[] data) {
+    public Result sendPartFile(byte[] commandId, boolean lastPart, int offset, int size, byte[] data) {
         
         try {
             
             Packet packet = new Packet();
-            packet.commandId = productFile;
+            packet.commandId = commandId;
             
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
@@ -675,7 +769,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result checkProductFile() {
+    public Result checkFile(byte[] commandId) {
         
         try {
             
@@ -733,6 +827,58 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             outputStream.write(value); // Значение префикса. Диапазон 0-99
             outputStream.flush();
     
+            packet.commandBytes = ByteBuffer.allocate(baos.size());
+            packet.commandBytes.put(baos.toByteArray());
+            
+            return sendPacket(packet);
+            
+        } catch (Exception e) {
+            System.out.println(String.format("error: %s", e));
+            return new Result.Error(-1, e.getMessage());
+        }
+    }
+    
+    private Result removeFile(String path) {
+        
+        try {
+            
+            Packet packet = new Packet();
+            packet.commandId = removeFile;
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
+            
+            outputStream.write(getPassword()); // пароль
+            outputStream.writeShort(path.length()); // Количество байт в тексте пути файла или папки для удаления
+            outputStream.write(path.getBytes()); // Путь к файлу или папке для удаления на весах
+            outputStream.flush();
+            
+            packet.commandBytes = ByteBuffer.allocate(baos.size());
+            packet.commandBytes.put(baos.toByteArray());
+            
+            return sendPacket(packet);
+            
+        } catch (Exception e) {
+            System.out.println(String.format("error: %s", e));
+            return new Result.Error(-1, e.getMessage());
+        }
+    }
+    
+    private Result createFolder(String path) {
+        
+        try {
+            
+            Packet packet = new Packet();
+            packet.commandId = createFolder;
+            
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            LittleEndianDataOutputStream outputStream = new LittleEndianDataOutputStream(baos);
+            
+            outputStream.write(getPassword()); // пароль
+            outputStream.writeShort(path.length()); // Количество байт в тексте пути создаваемой папки
+            outputStream.write(path.getBytes()); // Путь к создаваемой папке на весах
+            outputStream.flush();
+            
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
@@ -941,11 +1087,28 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 
                 mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
                 result = sendProductFile(scales, transaction, needToClear);
-                
                 if (!result.success()) {
                     error = result.errorMessage;
                     mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                 }
+                else {
+                    mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending images...", transaction.id, scales.port));
+    
+                    for (ScalesItem item : transaction.itemsList) {
+                        if (item.itemImage != null && notInterruptedTransaction(transaction.id)) {
+                            mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
+                            result = sendImageFile(item, scales);
+                            if (!result.success()) {
+                                error = result.errorMessage;
+                                mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                break;
+                            }
+                        }
+                        else
+                            break;
+                    }
+                }
+                
             } catch (Throwable t) {
                 interrupted = t instanceof InterruptedException;
                 error = String.format(getLogPrefix() + "ip %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
