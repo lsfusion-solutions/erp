@@ -1483,6 +1483,35 @@ country(Item sku) += country(sku);
 
 INDEX country(Item i);
 
+//Группа производителей
+CLASS ManufacturerGroup 'Группа производителей' : StockGroup;
+TABLE manufacturerGroup (ManufacturerGroup);
+
+@defineExternalizable(manufacturerGroup, STRING[100]);
+
+name 'Наименование' = DATA ISTRING[100](ManufacturerGroup);
+
+TABLE manufacturerGroupManufacturerGroup(ManufacturerGroup, ManufacturerGroup);
+@defineHierarchy(manufacturerGroup);
+
+FORM manufacturerGroup 'Группа производителей'
+
+    OBJECTS w = ManufacturerGroup PANEL
+    PROPERTIES(w) id SHOWIF showIDs(),name, nameParent
+
+    EDIT ManufacturerGroup OBJECT w
+;
+
+FORM warmanufacturerups 'Группы производителей'
+
+    TREE manufacturerGroupTree wg = ManufacturerGroup PARENT parent(wg)
+    PROPERTIES READONLY id(wg) SHOWIF showIDs(), wgTreeName = name(wg)
+    PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE
+    ORDERS wgTreeName
+
+    LIST ManufacturerGroup OBJECT wg
+;
+
 // Производитель
 CLASS Manufacturer 'Производитель товара';
 TABLE manufacturer(Manufacturer);
@@ -1499,9 +1528,15 @@ originalAddress 'Адрес производителя (ориг.)' = DATA STRIN
 country = DATA Country (Manufacturer);
 nameCountry 'Страна' = name(country(Manufacturer m)) CHARWIDTH 20;
 
+manufacturerGroup (manufacturer) = DATA ManufacturerGroup (Manufacturer) INDEXED AUTOSET;
+nameManufacturerGroup 'Группа складов' (Manufacturer manufacturer) = name(manufacturerGroup(manufacturer)) IN base CHARWIDTH 20;
+
+isParent (ManufacturerGroup manufacturerGroup, Manufacturer manufacturer) =
+    isParent(manufacturerGroup(manufacturer), manufacturerGroup) MATERIALIZED;
+
 FORM manufacturer 'Производитель товара'
     OBJECTS m=Manufacturer PANEL
-    PROPERTIES(m) name, address, id SHOWIF showIDs(), originalName, originalAddress,
+    PROPERTIES(m) name, address, id SHOWIF showIDs(), originalName, originalAddress, nameManufacturerGroup,
                   nameCountry
     EDIT Manufacturer OBJECT m
 ;
@@ -1515,13 +1550,41 @@ DESIGN manufacturer {
 }
 
 FORM manufacturerDialog 'Производители товара'
+    TREE manufacturerTree b=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg)
+    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
+    PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
+    ORDERS mgTreeName
+    FILTERS stringEqualsAll(b)
+    
     OBJECTS m=Manufacturer
-    PROPERTIES(m) READONLY name, id SHOWIF showIDs(), originalName, originalAddress, nameCountry 
+    PROPERTIES(m) READONLY name, id SHOWIF showIDs(), originalName, originalAddress, nameCountry , nameManufacturerGroup
     PROPERTIES(m) NEWSESSION NEW, EDIT, deleteManufacturer = DELETE
     ORDERS name(m)
+    FILTERS isParent(mg, m) OR (m IS Manufacturer AND mg IS ManufacturerGroup AND NOT manufacturerGroup(m)) OR (m IS Manufacturer AND NOT mg)
+
+    FILTERGROUP groupFilters
+        FILTER 'С группами' mg IS ManufacturerGroup AND isParent(mg, m) OR manufacturerGroup(m) AND NOT mg
+        FILTER 'Без групп' NOT manufacturerGroup(m)
+
     LIST Manufacturer OBJECT m
 ;
-DESIGN manufacturerDialog { BOX { size = (600, 400); } }
+DESIGN manufacturerDialog {
+    BOX { size = (800, 600); }
+    NEW mainContainer{
+        fill = 1;
+        horizontal = TRUE;
+
+        MOVE BOX(TREE manufacturerTree) {caption = 'Группы производителей'; width = 100;}
+        MOVE BOX(m) {
+            fill = 5;
+            GRID(m) {
+                defaultComponent = TRUE;
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
 
 @defineObjectItemAttribute(manufacturer, Manufacturer, name, 'Производитель', itemBase);
 
@@ -1537,12 +1600,71 @@ EXTEND FORM batches PROPERTIES(bt) READONLY  nameManufacturer SHOWIF showAnyManu
 
 @defineItemFilterValue(manufacturer, 'Производитель', m);
 
+EXTEND FORM manufacturersSession
+    TREE manufacturerTree b=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg) BEFORE t
+    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
+    PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
+    ORDERS mgTreeName
+    FILTERS stringEqualsAll(b)
+    FILTERS isParent(mg, t) OR (t IS Manufacturer AND mg IS ManufacturerGroup AND NOT manufacturerGroup(t)) OR (t IS Manufacturer AND NOT mg)
+
+    FILTERGROUP groupFilters
+        FILTER 'С группами' mg IS ManufacturerGroup AND isParent(mg, t) OR manufacturerGroup(t) AND NOT mg
+        FILTER 'Без групп' NOT manufacturerGroup(t)
+    PROPERTIES READONLY nameManufacturerGroup(t)
+;
+DESIGN manufacturersSession {
+    BOX { size = (800, 600); }
+    NEW mainContainer{
+        fill = 1;
+        horizontal = TRUE;
+
+        MOVE BOX(TREE manufacturerTree) {caption = 'Группы производителей'; width = 150;}
+        MOVE BOX(t) {
+            fill = 5;
+            GRID(t) {
+                defaultComponent = TRUE;
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
 @defineUniteFilterAttributeItem(manufacturer, name, 'производитель', 'производители', item);
+
 EXTEND FORM attributesItem
+    TREE manufacturerTree mt=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg) BEFORE manufacturer
+    PROPERTIES READONLY VALUE(mt), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
+    PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
+    ORDERS mgTreeName
+    FILTERS stringEqualsAll(mt)
+
+    FILTERS isParent(mg, manufacturer) OR (manufacturer IS Manufacturer AND mg IS ManufacturerGroup AND NOT manufacturerGroup(manufacturer)) OR (manufacturer IS Manufacturer AND NOT mg)
+    FILTERGROUP groupFilters
+        FILTER 'С группами' mg IS ManufacturerGroup AND isParent(mg, manufacturer) OR manufacturerGroup(manufacturer) AND NOT mg
+        FILTER 'Без групп' NOT manufacturerGroup(manufacturer)    
+    
     PROPERTIES READONLY AFTER name(manufacturer) id(manufacturer) SHOWIF showIDs(),
-                        originalName(manufacturer), originalAddress(manufacturer), nameCountry(manufacturer)
+                        originalName(manufacturer), originalAddress(manufacturer), nameCountry(manufacturer), nameManufacturerGroup(manufacturer)
 
 ;
+
+DESIGN attributesItem {
+    manufacturerTab {
+        NEW mainManufacturerContainer BEFORE manufacturerTabBottomContainer{
+            fill = 3;
+            horizontal = TRUE;
+
+            MOVE BOX(TREE manufacturerTree) {caption = 'Группы производителей'; width = 150;}
+            MOVE BOX(manufacturer) {
+                fill = 5;
+                GRID(manufacturer) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+    }
+}
 
 addressManufacturer 'Адрес производителя' (Item item) = address(manufacturer(item)); 
 
