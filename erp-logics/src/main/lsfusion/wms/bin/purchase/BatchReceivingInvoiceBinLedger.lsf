@@ -75,7 +75,7 @@ internalBatchPutaway 'Разместить внутри отдела' (CustomUse
             RETURN;
         }
         FOR (GROUP MAX select(Batch batch) IF currentBalance(batch, receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- Bin.operation('internal');
+            operation(o) <- Bin.operation('putaway');
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
@@ -84,7 +84,7 @@ internalBatchPutaway 'Разместить внутри отдела' (CustomUse
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
                 outBin(d) <- receivingBin(u);
-                inBin(d) <- putawayBinOver(sku(batch), stock(receivingBin(u)), Bin.operation('internal'), u);
+                inBin(d) <- putawayBinOver(sku(batch), stock(receivingBin(u)), Bin.operation('putaway'), u);
                 quantity(d) <- currentBalance(batch, receivingBin(u));
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
