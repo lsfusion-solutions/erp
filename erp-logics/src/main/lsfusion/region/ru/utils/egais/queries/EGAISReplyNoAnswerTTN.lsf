@@ -5,7 +5,7 @@ REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket, EGAISQueryResendDoc, 
 NAMESPACE EGAIS;
 
 // response
-EXTEND CLASS DocType { ReplyNoAnswerTTN 'Ответ на запрос необработанных ТТН' }
+EXTEND CLASS DocType { ReplyNATTN 'Ответ на запрос необработанных ТТН' }
 
 GROUP replyNoAnswerTTN EXTID 'ns:ReplyNoAnswerTTN' : document;
 GROUP ttnlist EXTID 'ttn=http://fsrar.ru/WEGAIS/ReplyNoAnswerTTN:ttnlist' : replyNoAnswerTTN;
@@ -54,14 +54,14 @@ processReplyNoAnswerTTN (InDoc d)  {
 
 
 process (InDoc d) + {
-    IF docType(d) = DocType.ReplyNoAnswerTTN AND NOT skipAllprocess() THEN {
+    IF docType(d) = DocType.ReplyNATTN AND NOT skipAllprocess() THEN {
         processReplyNoAnswerTTN(d);
     }
 }
 
 // ticket
 process (Ticket t) + {
-    IF docType(t) = 'ReplyNoAnswerTTN' THEN {
+    IF (docType(t) =='ReplyNoAnswerTTN' OR  docType(t) =='ReplyNATTN') THEN {
         processed() <- TRUE;
     }
 }
