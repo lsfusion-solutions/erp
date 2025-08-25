@@ -44,7 +44,7 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
     IF useAccountPrice() THEN {
         accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(sum(dTo, 1))) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo);
         IF exportBalanceB() THEN
-            accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(dTo)) WHERE balance(s, st) OR quantityPurchase(s, st, dTo) OR quantitySold(s, st, dTo);
+            accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(dTo)) WHERE balance(s, st) OR quantityPurchase(s, st, subtract(dTo, 1)) OR quantitySold(s, st, subtract(dTo, 1));
     } ELSE
         sum(Sku s, Stock st) <- sumA(s, st, dTo);
 
@@ -107,9 +107,9 @@ exportTurnover 'Выгрузить Оборачиваемость' (DATE dFrom, 
             IF exportBalanceB() THEN {
                 IF revertAccountPrice() THEN {
                     revertAccountPrice() <- NULL;
-                    accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantity(s, st, subtract(date(), 1));
+                    accountPriceB(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantity(s, st, subtract(date(), 2));
                 } ELSE {
-                    accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantity(s, st, subtract(date(), 1));
+                    accountPrice(Sku s, Stock st) <- accountPriceB(s, st, DATETIME(subtract(date(),1))) WHERE balance(s, st) OR quantity(s, st, subtract(date(), 2));
                     revertAccountPrice() <- TRUE;
                 }
             } ELSE
