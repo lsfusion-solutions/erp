@@ -263,6 +263,25 @@ EXTEND CLASS ReceivingType {
     detailed 'С детализацией'
 }
 
+putawayExternalOperation = DATA Bin.Operation ();
+namePutawayExternalOperation 'Операция размещения' () = name(putawayExternalOperation());
+putawayInternalOperation = DATA Bin.Operation ();
+namePutawayInternalOperation 'Операция размещения(внутри группы ячеек)' = name(putawayInternalOperation());
+putawayWriteOffOperation = DATA Bin.Operation ();
+namePutawayWriteOffOperation 'Операция списания при размещении' = name(putawayWriteOffOperation());
+
+EXTEND FORM options
+    PROPERTIES namePutawayExternalOperation(), namePutawayInternalOperation(), namePutawayWriteOffOperation()
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(namePutawayExternalOperation());
+        MOVE PROPERTY(namePutawayInternalOperation());
+        MOVE PROPERTY(namePutawayWriteOffOperation());
+    }
+}
+
 defaultReceivingBin = DATA Bin (Employee, Stock);
 nameDefaultReceivingBin 'Ячейка для приемки' (Employee employee, Stock stock) = canonicalId(defaultReceivingBin(employee, stock)) CHARWIDTH 10;
 
@@ -535,7 +554,7 @@ FORM receiving 'Приемка'
     FILTERS dFrom<=date(putawaySku) AND dTo>=date(putawaySku),
         accessCompany(u, outBin(putawaySku)), 
         inBin(putawaySku) = receivingBin(u), 
-        operation(putawaySku) = Bin.operation('extrnal')
+        operation(putawaySku) = putawayExternalOperation()
 
     OBJECTS srstr = (sr1=Sku, str1 = STRING)
     PROPERTIES READONLY nameStatus(sr1, str1, r) BACKGROUND RGB(255, 224, 255)
