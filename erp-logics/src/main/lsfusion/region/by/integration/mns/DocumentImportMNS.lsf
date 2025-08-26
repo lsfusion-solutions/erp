@@ -336,9 +336,8 @@ refRecordId = DATA LOCAL INTEGER ();
 correctionDate = DATA LOCAL STRING();
 originalDocumentSign = DATA LOCAL STRING();
 creationDateTime = DATA LOCAL STRING();
-//
-////documentNumber(ImportDocMNSDetail d) = seriesNumber(prevImportDocMNS(importDocMNS(d)));
-documentNumber(ImportDocMNSDetail d) = seriesNumber(importDocMNS(d));
+
+documentNumber(ImportDocMNSDetail d) = OVERRIDE seriesNumber(prevImportDocMNS(importDocMNS(d))), seriesNumber(importDocMNS(d));
 
 FORM exportJSON
     PROPERTIES()
@@ -401,11 +400,11 @@ generateJSON (Purchase.Invoice i) {
     IF NOT originalDocumentSign() THEN RETURN;
 
     documentId() <- id(createdImportDocMNS());
-//    documentNumber1() <- seriesNumber(prevImportDocMNS(createdImportDocMNS()));
-    documentNumber1() <- seriesNumber(createdImportDocMNS());
+    documentNumber1() <- OVERRIDE seriesNumber(prevImportDocMNS(createdImportDocMNS())), seriesNumber(createdImportDocMNS());
+//    documentNumber1() <- seriesNumber(createdImportDocMNS());
     VATRegistrationNumber() <- UNP(legalEntity(createdImportDocMNS()));
     IMNS() <- codeMNS(legalEntity(createdImportDocMNS()));
-    documentDate() <- toChar(dateTime(createdImportDocMNS()), 'YYYYMMDD');
+    documentDate() <- toChar((OVERRIDE dateTime(prevImportDocMNS(createdImportDocMNS())), dateTime(createdImportDocMNS())), 'YYYYMMDD');
     documentName() <- 'Сведения о ввозе';
     refRecordId() <- refRecordId(createdImportDocMNS()); // TODO
     correctionDate() <- toChar(dateTime(createdImportDocMNS()) , 'YYYYMMDD') IF PREV(sendedMNS(i)); // TODO 
