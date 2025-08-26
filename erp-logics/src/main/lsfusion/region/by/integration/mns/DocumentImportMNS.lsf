@@ -42,11 +42,11 @@ extraCodeSku 'Дополнительный четырехзначный код' 
 gtin 'GTIN' = DATA STRING(ImportDocMNSDetail);
 nameSku 'Наименование товара' = DATA STRING(ImportDocMNSDetail);
 uomSku 'Единица измерения' = DATA STRING(ImportDocMNSDetail);
-quantityUomSku 'Количество товара' =  DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (ImportDocMNSDetail);
+quantityUomSku 'Количество товара' =  DATA NUMERIC[16,6] (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (ImportDocMNSDetail);
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](ImportDocMNSDetail);
-priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](ImportDocMNSDetail);//нужно 12,2
-sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](ImportDocMNSDetail);
-quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](ImportDocMNSDetail); // нужно 12,5
+priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,2](ImportDocMNSDetail);//нужно 12,2
+sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,2](ImportDocMNSDetail);
+quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA NUMERIC[16,3] (ImportDocMNSDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](ImportDocMNSDetail); // нужно 12,5
 
 CLASS LotImportDocMNSDetail 'Строка марки документа выгрузки в МНС';
 importDocMNSDetail = DATA ImportDocMNSDetail (LotImportDocMNSDetail) NONULL DELETE;
@@ -269,10 +269,10 @@ createImportDocMNS (Purchase.Invoice i) {
             nameSku(nd) <- name(sku(nd));
             uomSku(nd) <- trackingUOMCustomsGroup(sku(nd));
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
-            quantityUomSku(nd) <- OVERRIDE (quantity(invoiceDetail(nd))) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(nd)) AND extraCodeSku(nd) == id(extraCode(sku(nd))), 0.0;
-            priceInvoiceDetail(nd) <- OVERRIDE (shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
-            quantityInvoiceDetail(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(nd));
-            sumInvoiceDetail(nd) <- OVERRIDE (quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+            quantityUomSku(nd) <- OVERRIDE round6(quantity(invoiceDetail(nd))) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(nd)) AND extraCodeSku(nd) == id(extraCode(sku(nd))), 0.0;
+            priceInvoiceDetail(nd) <- OVERRIDE round2(shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
+            quantityInvoiceDetail(nd) <- round3(quantityUomSku(nd) * trackingUOMRatio(sku(nd)));
+            sumInvoiceDetail(nd) <- OVERRIDE round2(quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
 
             FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail{
                 importDocMNSDetail(ld) <- nd;
@@ -296,11 +296,11 @@ createImportDocMNS (Purchase.Invoice i) {
             gtin(nd) <- gtin(sku(d));
             nameSku(nd) <- name(sku(d));
             uomSku(nd) <- trackingUOMCustomsGroup(sku(d));
-            quantityUomSku(nd) <- OVERRIDE (quantity(d)), 0.0;
+            quantityUomSku(nd) <- OVERRIDE round6(quantity(d)), 0.0;
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(d));
-            priceInvoiceDetail(nd) <- OVERRIDE (shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
-            quantityInvoiceDetail(nd) <- OVERRIDE quantityUomSku(nd) * trackingUOMRatio(sku(nd)), 0.0;
-            sumInvoiceDetail(nd) <- OVERRIDE (quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+            priceInvoiceDetail(nd) <- OVERRIDE round2(shipmentPrice(invoiceDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
+            quantityInvoiceDetail(nd) <- OVERRIDE round3(quantityUomSku(nd) * trackingUOMRatio(sku(nd))), 0.0;
+            sumInvoiceDetail(nd) <- OVERRIDE round2(quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
 
             FOR quantity(invoiceDetail(nd), Lot l) DO NEW ld = LotImportDocMNSDetail {
                 importDocMNSDetail(ld) <- nd;
@@ -362,7 +362,7 @@ FORM exportJSON
         extraCodeSku(d) EXTID 'itemAdditionalCode',
         gtin(d) EXTID 'gtinCode',
         trackingUOMCustomsGroup(d) EXTID 'lineItemQuantitySPT',
-        quantityInvoiceDetail(d) EXTID 'quantityDespatchedSPT',
+        =round2(quantityInvoiceDetail(d)) EXTID 'quantityDespatchedSPT',
         documentNumber(d) EXTID 'documentNumber'
 
     FILTERS importDocMNS(d) == createdImportDocMNS()
