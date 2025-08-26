@@ -12,11 +12,15 @@ currentBalanceSizeWB 'Загруженный остаток на WB' = DATA NUME
 currentBalanceItem 'Текущий остаток в ERP' = GROUP SUM currentBalanceSize((Size s), Warehouse w) BY itemWB(s), w;
 currentBalanceItemWB 'Загруженный остаток на WB' = GROUP SUM currentBalanceSizeWB((Size s), Warehouse w) BY itemWB(s), w;
 
+exportBalance (Item i, Warehouse w) = OVERRIDE currentBalanceItem(i, w) IF currentBalanceItem(i, w) >= minExportBalance(i), 0;
+overCurrentBalanceSize (Size s, Warehouse w) = OVERRIDE
+    currentBalanceSize(s, w) IF currentBalanceItem(itemWB(s), w) >= minExportBalance(itemWB(s)), 0;
+
 //https://marketplace-api.wildberries.ru/api/v3/stocks/{warehouseId}
 updateBalanceItems 'Обновить(загрузить) остатки товаров на WB' (Warehouse w) {
     NEWSESSION {
         IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {
-            FOR Item i IS Item AND NOT currentBalanceItem(i, w) == currentBalanceItemWB(i, w) DO {
+            FOR Item i IS Item AND NOT exportBalance(i, w) == currentBalanceItemWB(i, w) DO {
                 setHttpHeadersIS();
                 LOCAL messageStock = STRING ();
                 LOCAL response = FILE();
@@ -27,7 +31,7 @@ updateBalanceItems 'Обновить(загрузить) остатки това
                 error(w) <- NULL WHERE error(w);
     
                 logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-                EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = (OVERRIDE currentBalanceSize(s, w), 0) WHERE itemWB(s) == i;
+                EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = overCurrentBalanceSize(s, w) WHERE itemWB(s) == i;
     
                 fileToString(exportFile());
                 resultString() <- '\{"stocks":' + resultString() + '\}';
