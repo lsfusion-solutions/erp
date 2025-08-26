@@ -754,7 +754,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int offset = columns.length + keys.length;
 
             for (JSONObject jsonObject : jsonTable) {
-                    Integer artId = jsonObject.getInt("idItem"); //добавляется вручную на этапе чтения json
+                    Integer artId = getIdItem(jsonObject);
                     Integer extGrpId = jsonObject.getInt("extGrpId");
                     Integer delFlag = jsonObject.optInt("delFlag", 0);
                     if (params.pgsql) {
@@ -786,7 +786,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             int offset = columns.length + keys.length;
 
             for (JSONObject jsonObject : jsonTable) {
-                Integer artId = jsonObject.getInt("idItem"); //добавляется вручную на этапе чтения json
+                Integer artId = getIdItem(jsonObject);
                 Integer prnGrpId = jsonObject.getInt("prnGrpId");
                 if (params.pgsql) {
                     setObject(ps, artId, 1); //ARTID
@@ -807,6 +807,15 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 ps.addBatch();
             }
             executeAndCommitBatch(ps, conn);
+        }
+    }
+
+    //добавляется вручную на этапе чтения json
+    private Integer getIdItem(JSONObject jsonObject) {
+        try {
+            return jsonObject.getInt("idItem");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to read idItem", e);
         }
     }
 
@@ -1343,6 +1352,8 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 binaryDataList.addAll(getJSONObjectList(infoJSON, "binaryData"));
                 binPropertyList.addAll(getJSONObjectList(infoJSON, "binProperty"));
                 extGrpList.addAll(getJSONObjectList(infoJSON, "extGrp"));
+
+                //put idItem (see getIdItem)
 
                 List<JSONObject> artExtGrps = getJSONObjectList(infoJSON, "artExtGrp");
                 artExtGrps.forEach(artExtGrp -> artExtGrp.put("idItem", parseIdItem(item)));
