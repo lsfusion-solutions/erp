@@ -1,0 +1,119 @@
+MODULE RangeWarehouse;
+
+REQUIRE Range, Warehouse;
+
+NAMESPACE Range;
+
+in 'В ассортименте' = ABSTRACT BOOLEAN (Sku, Range, Warehouse, DATE);
+countRange 'В ассортименте' (Sku s, Warehouse w, DATE d) = GROUP SUM 1 IF in(s, Range r, w, d);
+
+countRange (Sku s, Warehouse st, DATE d) += countRange(s, st, d);
+
+FORM warehouseRange 'Ассортимент оптовых складов'
+    OBJECTS d = DATE PANEL
+    PROPERTIES(d) VALUE
+
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS st = Warehouse GRID
+    PROPERTIES READONLY name(st)
+    ORDERS name(st)
+    FILTERS active(st), isCompany(st)
+
+    OBJECTS sr = Range
+    PROPERTIES(sr) READONLY name
+    ORDERS name(sr)
+    FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
+    FILTERGROUP active FILTER 'Активные' NOT inactive(sr) DEFAULT
+
+    OBJECTS ss = Sku GRID
+    PROPERTIES(ss) READONLY BACKGROUND backgroundRange(ss) idBarcode, name, nameUOM
+    PROPERTIES(ss, st, d) READONLY countRange COLUMNS (st) HEADER name(st)
+
+    OBJECTS ds = Warehouse PANEL
+    PROPERTIES (ds) name SELECTOR
+    FILTERS isCompany(ds)
+
+    TREE treeGroup g=SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactiveD FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS sk = Sku
+    PROPERTIES (sk) READONLY idBarcode, id SHOWIF showIDs(), name
+    FILTERS isParent(g, sk) OR sk IS Sku AND NOT g
+
+    FILTERGROUP cRange FILTER 'В ассортименте' countRange(sk, ds, d) 'F9' DEFAULT
+
+    OBJECTS rn = Range
+    PROPERTIES READONLY name(rn)
+    PROPERTIES (rn) NEWSESSION EDIT
+;
+
+DESIGN warehouseRange {
+    NEW filters {
+        horizontal = TRUE;
+        MOVE BOX(d);
+    }
+    NEW tabPane {
+        fill = 1;
+        tabbed = TRUE;
+        NEW pane {
+            fill = 1;
+            horizontal = TRUE;
+            caption = 'Назначение ассортимента';
+            MOVE BOX(TREE skuTree) {
+                caption = 'Группы товаров';
+            }
+            NEW setPane {
+                fill = 2;
+                NEW wPane {
+                    fill = 1;
+                    caption = 'По оптовым складам';
+                    REMOVE BOX(st);
+
+                    NEW wPane2 {
+                        fill = 1;
+                        MOVE BOX(sr) {
+                            fill = 2;
+                            GRID(sr) {
+                                headerHeight = 60;
+                            }
+                        }
+                        MOVE BOX(ss);
+                    }
+                }
+            }
+        }
+        NEW warehouse {
+            fill = 1;
+            caption = 'Ассортимент по оптовым складам';
+            MOVE BOX(ds);
+            NEW skus {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(TREE treeGroup) {
+                    caption = 'Группы товаров';
+                    width = 0;
+                }
+                NEW warehouseRightPane {
+                    fill = 2;
+                    MOVE BOX(sk) {fill = 2;};
+                    MOVE BOX(rn) {fill = 1;};
+                }
+            }
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+@extendFormFilterSkuGroupAccess(warehouseRange, sg);
+
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW warehouseRange;
+    }
+}

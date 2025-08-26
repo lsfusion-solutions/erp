@@ -468,11 +468,13 @@ EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccess(currentUser())) OR c
 
 @extendFormFilterSkuGroupAccess(ranges, sg);
 
-// ----------------- Связь ассортиментов и магазинов --------------- //
+countRange 'В ассортименте' = ABSTRACT INTEGER (Sku, Stock, DATE);
 
 in 'В ассортименте' = ABSTRACT BOOLEAN (Sku, Range, Store, DATE);
 countRange 'В ассортименте' (Sku s,Store st,DATE d) = GROUP SUM 1 IF in(s, Range r, st, d);
 countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d);
+
+countRange (Sku s, DepartmentStore st, DATE d) += countRange(s, st, d);
 
 in 'В ассортименте' (Sku sku, Range range, Store store) = in(sku, range, store, currentDate());
 

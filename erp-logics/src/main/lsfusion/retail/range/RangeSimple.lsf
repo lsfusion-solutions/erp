@@ -1,0 +1,168 @@
+MODULE RangeSimple;
+
+REQUIRE Range, Warehouse;
+
+NAMESPACE Range;
+
+dataIn = DATA LOCAL BOOLEAN (Range, StockGroup);
+in 'Вкл.' (Range r, StockGroup st) = OVERRIDE dataIn(r, st), TRUE IF (GROUP SUM 1 IF dataIn(r,StockGroup g) AND level(st, g));
+
+dataIn = DATA BOOLEAN (Range, Stock);
+in 'Вкл.' (Range r, Stock st) = OVERRIDE dataIn(r, st), in(r,stockGroup(st));
+
+dataIn 'Вкл' = DATA BOOLEAN (RangeRev, Sku);
+
+changeInRangeStock(Range r, Stock ts) {
+    INPUT b = BOOLEAN DO {
+        IF ts IS Warehouse THEN
+            in(r, ts) <- b;
+        IF ts IS DepartmentStore THEN
+            in(r, store(ts)) <- b;
+    }
+}
+
+EXTEND FORM range
+    TREE stockTree str=BPSTRING[3], stg = StockGroup PARENT parent(stg)
+    PROPERTIES READONLY VALUE(str), sgTreeName = name(stg)
+    PROPERTIES(r, stg) in
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(str),
+            countCompanyStock(stg)
+
+    OBJECTS ts = Stock
+    PROPERTIES READONLY  name(ts), nameLegalEntity(ts)
+    PROPERTIES(r, ts) in ON CHANGE changeInRangeStock(r, ts)
+    FILTERS ts IS Stock AND NOT stg IS StockGroup OR isParent(stg, ts),
+            isCompany(ts)
+    
+    FILTERGROUP filters2
+        FILTER 'Выбранные склады' in(r, ts) 'F10'
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+;
+
+
+DESIGN range {
+    options {
+        NEW stock {
+            fill = 1;
+            caption = 'Склады';
+            horizontal = TRUE;
+            NEW stockGroups {
+                fill = 1;
+                MOVE BOX(TREE stockTree) {
+                    caption = 'Группы складов';
+                }
+            }
+            MOVE BOX(ts) {
+                fill = 2;
+            }
+        }
+    }
+}
+
+EXTEND FORM rangeRev
+    PROPERTIES DRAW s dataIn(v,s)
+;
+
+DESIGN rangeRev {
+    REMOVE BOX (store);
+    REMOVE BOX (dates);
+    REMOVE PROPERTY (nameFilterSupplier());
+    REMOVE BOX (pt);
+    REMOVE BOX (d);
+}
+
+FORM skuRange 'Ассортимент по товару'
+    OBJECTS s = Sku PANEL
+    PROPERTIES (s) SELECTOR name, id, idBarcode
+
+    OBJECTS r = RangeRev
+    PROPERTIES (r) READONLY nameRange, dateTime
+    PROPERTIES dataIn(r, s)
+    FILTERS r = rangeRev(range(r), currentDate()),
+            NOT inactive(range(r))
+
+    FILTERGROUP inRange FILTER 'Вкл' dataIn(r, s)
+;
+
+NAVIGATOR {
+    retailRangeNavigator {
+        NEW skuRange;
+    }
+}
+
+barcode 'Штрихкод при поступлении' = DATA LOCAL BPSTRING[13](INTEGER);
+
+import 'Импорт xls' (RangeRev r){
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f AS EXCELFILE TO barcode;
+        FOR barcode(INTEGER i) AND Sku s = OVERRIDE skuBarcode(barcode(i)), sku(barcode(i)) DO {
+            dataIn(r, s) <- TRUE;
+        }
+    }
+}
+
+EXTEND FORM rangeRev
+    PROPERTIES (v) DRAW s import TOOLBAR
+;
+
+counInclude 'Кол-во товаров' (RangeRev v) = GROUP SUM 1 IF dataIn(v, Sku s);
+counInclude 'Кол-во товаров' (RangeRev v, Stock st) = counInclude(v) IF in(range(v), st);
+counInclude 'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
+
+EXTEND FORM range
+    PROPERTIES (v) READONLY counInclude
+    OBJECTS stock = Stock
+    PROPERTIES  READONLY name(stock), counInclude(v, stock)
+    FILTERS counInclude(v, stock)
+;
+
+DESIGN range {
+    tabs {
+        NEW first FIRST {
+            fill = 1;
+            caption = 'Версии';
+            MOVE BOX(v);
+            MOVE BOX(stock);
+        }
+    }
+}
+
+EXTEND FORM ranges
+    PROPERTIES (r,d) READONLY counInclude BEFORE nameGroup(r)
+;
+
+include (Range r, Stock st, Sku s, DATE dt) = dataIn(rangeRev(r,dt), s) AND in(r, st);
+include (Range r, Sku s, DATE dt) = dataIn(rangeRev(r, dt), s);
+
+EXTEND FORM ranges
+    ORDERS name(s)
+    FILTERS include(r,s,d)
+
+    OBJECTS stock = Stock
+    PROPERTIES(stock) READONLY name
+    FILTERS include(r,stock,s,d)
+;
+
+DESIGN ranges {
+    range {
+        NEW tabR {
+            fill = 2;
+            horizontal = TRUE;
+            MOVE BOX(s) {fill = 2;}
+            MOVE BOX(stock);
+        }
+    }
+}
+
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [ GROUP SUM 1 IF CHANGED(itemGroup(Item item)) AND dataIn(RangeRev v, item) AND NOT inChild(range(v), item) BY range(v), itemGroup(item)](Range r, ItemGroup g) DO {
+    inData(r, g) <- TRUE;
+}
+
+CONSTRAINT dataIn(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
+
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        inData(Range r, parent) <- TRUE WHERE inChild(r,gg) AND NOT inChild(r,parent);
+    }
+}
