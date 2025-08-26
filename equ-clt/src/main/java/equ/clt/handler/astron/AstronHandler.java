@@ -1866,7 +1866,9 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 astronLogger.info(String.format("Transaction %s, deleteBarcode item %s, barcode %s", transaction.id, deleteBarcode.idItem, deleteBarcode.idBarcode));
             }
         } else {
-            astronLogger.info(String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM));
+            String errorMessage = String.format("transaction %s, invalid item: barcode %s, id %s, uom %s", transaction.id, item.idBarcode, item.idItem, item.idUOM);
+            astronLogger.error(errorMessage);
+            throw new RuntimeException(errorMessage);
         }
         return isValidItem;
     }
