@@ -28,9 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import lsfusion.base.BaseUtils;
 
@@ -501,7 +499,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendProductFile(ScalesInfo scales, TransactionScalesInfo transaction, boolean needToClear) {
+    public Result sendProductFile(ScalesInfo scales, String jsonProductFile, /*TransactionScalesInfo transaction,*/ boolean needToClear) {
         
         File tmpFile = null;
         
@@ -515,16 +513,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 return result;
             }
             
-            result = makeProductsFile(transaction);
-            if (!(result instanceof Result.Data))
-                return result;
-    
             tmpFile = File.createTempFile("products", ".json");
             
             FileOutputStream fos = new FileOutputStream(tmpFile);
-            Result.Data data = (Result.Data)result;
-            String json = data.toString();
-            fos.write(json.getBytes());
+            fos.write(jsonProductFile.getBytes());
             fos.close();
     
             File copyFile = new File(tmpFile.getParent() + "/mertech_products.json");
@@ -595,7 +587,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendImageFile(ScalesItem scalesItem, ScalesInfo scales) {
+    public Result sendImageFile(byte[] fileData, String filePath/*, ScalesInfo scales*/) {
         
         try {
             
@@ -603,10 +595,11 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             
             Result result;
             
-            if (!(result = sendFilePath(String.format("Products/%s.jpg", getPluNumber(scalesItem)))).success())
+            //if (!(result = sendFilePath(String.format("Products/%s.jpg", getPluNumber(scalesItem)))).success())
+            if (!(result = sendFilePath(filePath)).success())
                 return  result;
     
-            byte[] fileData = scalesItem.itemImage.getBytes();
+            //byte[] fileData = scalesItem.itemImage.getBytes();
             
             if ((result = sendHashFile(regularFile, fileData, false)).success()) {
     
@@ -922,7 +915,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     //    return clear(clearMessage);
     //}
     
-    private Result makeProductsFile(TransactionScalesInfo transaction) {
+    private ProductFileClass makeProductsFile(TransactionScalesInfo transaction) {
         
         String barcodeStructureFile = mertechSettings.getBarcodeStructureFile();
         String barcodeStructureJSON = null;
@@ -1037,12 +1030,8 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             productFileClass.messages = messages;
         if (!categories.isEmpty())
             productFileClass.categories = categories;
-    
-        ObjectMapper objectMapper = new ObjectMapper(); //.enable(SerializationFeature.INDENT_OUTPUT);
-        objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        //SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm");
-        //objectMapper.setDateFormat(df);
         
+/*
         try {
             String json = objectMapper.writeValueAsString(productFileClass);
             return new Result.Data(json);
@@ -1050,6 +1039,8 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         catch (Exception e) {
             return new Result.Error(-1, e.getMessage());
         }
+*/
+        return productFileClass;
     }
     
     private int getPluNumber(ScalesItem item) {
@@ -1086,29 +1077,80 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 cleared = needToClear;
                 
                 mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending %s items...", transaction.id, scales.port, transaction.itemsList.size()));
-                result = sendProductFile(scales, transaction, needToClear);
+    
+                ProductFileClass productFileClass = makeProductsFile(transaction);
+    
+                ObjectMapper objectMapper = new ObjectMapper(); //.enable(SerializationFeature.INDENT_OUTPUT);
+                objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+                //SimpleDateFormat df = new SimpleDateFormat("dd-MM-yyyy hh:mm");
+                //objectMapper.setDateFormat(df);
+                
+                String jsonProductFile = objectMapper.writeValueAsString(productFileClass);
+                
+                result = sendProductFile(scales, jsonProductFile, needToClear);
+                
                 if (!result.success()) {
                     error = result.errorMessage;
                     mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
-                }
-                else {
-                    mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending images...", transaction.id, scales.port));
+                } else {
+                    
+/*
+                    mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending itemGroup images...", transaction.id, scales.port));
     
-                    for (ScalesItem item : transaction.itemsList) {
-                        if (item.itemImage != null && notInterruptedTransaction(transaction.id)) {
-                            mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
-                            result = sendImageFile(item, scales);
-                            if (!result.success()) {
-                                error = result.errorMessage;
-                                mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                    if (productFileClass.categories != null) {
+                        for (Category category : productFileClass.categories) {
+                            //String categoryFilePath = String.format("Categories/mertech_category%d.jpg", category.idCategory);
+                            if (item.itemImage != null && notInterruptedTransaction(transaction.id)) {
+                                mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
+                                String filePath = String.format("Products/%s.jpg", getPluNumber(item));
+                                result = sendImageFile(item.itemImage.getBytes(), filePath);
+                                if (!result.success()) {
+                                    error = result.errorMessage;
+                                    mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                    break;
+                                }
+                            } else
                                 break;
-                            }
                         }
-                        else
+                    }
+*/
+                    
+                    mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending item images...", transaction.id, scales.port));
+    
+    
+                    Set<String> categoriesSet = new HashSet<>();
+                    
+                    for (ScalesItem item : transaction.itemsList) {
+                        if (notInterruptedTransaction(transaction.id)) {
+                            if (item.itemImage != null) {
+                                mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
+                                String filePath = String.format("Products/%s.jpg", getPluNumber(item));
+                                result = sendImageFile(item.itemImage.getBytes(), filePath);
+                                if (!result.success()) {
+                                    error = result.errorMessage;
+                                    mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                    break;
+                                }
+                            }
+    
+                            
+                            if (item.groupImage != null && !StringUtils.isEmpty(item.idItemGroup)) {
+                                if (!categoriesSet.contains(item.idItemGroup)) {
+                                    categoriesSet.add(item.idItemGroup);
+                                    mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending group image (idItemGroup %s)", transaction.id, scales.port, item.idItemGroup));
+                                    String filePath = String.format("Categories/mertech_category%s.jpg", item.idItemGroup);
+                                    result = sendImageFile(item.groupImage.getBytes(), filePath);
+                                    if (!result.success()) {
+                                        error = result.errorMessage;
+                                        mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
+                                        break;
+                                    }
+                                }
+                            }
+                        } else
                             break;
                     }
                 }
-                
             } catch (Throwable t) {
                 interrupted = t instanceof InterruptedException;
                 error = String.format(getLogPrefix() + "ip %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
