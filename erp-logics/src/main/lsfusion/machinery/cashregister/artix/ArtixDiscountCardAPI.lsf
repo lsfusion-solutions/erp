@@ -485,8 +485,11 @@ showArtixBalance 'Получить баланс (Artix)' (DiscountCard d) {
     }
 }
 
+inRequest 'Включить в запрос' = DATA LOCAL BOOLEAN (DiscountCard);
+countInRequestDiscountcard 'Кол-во в запросе' = GROUP SUM 1 IF inRequest(DiscountCard d);
+
 getDiscountCardArtixBalances 'Получить баланс по картам из Artix' () {
-    FOR isActive(DiscountCard d) AND NOT denyArtixRequest(d) DO {
+    FOR isActive(DiscountCard d) AND NOT denyArtixRequest(d) AND (inRequest(d) OR NOT countInRequestDiscountcard()) DO {
         getArtixBalance(d);
     }
     IF artixLMMessage() THEN {
