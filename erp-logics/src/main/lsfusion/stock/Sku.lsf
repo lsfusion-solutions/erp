@@ -199,14 +199,16 @@ FORM customGroup 'Дополнительная группа'
     EDIT CustomGroup OBJECT g
 ;
 
+forbidEditCustomGroups = ABSTRACT BOOLEAN (CustomGroupType);
+
 FORM customGroups 'Дополнительные группы'
     OBJECTS t = CustomGroupType PANEL
     PROPERTIES(t) SELECTOR name
 
     TREE treeGroups g=CustomGroup PARENT parent(g)
-    PROPERTIES in(g), move(t) DRAW g TOOLBAR
+    PROPERTIES in(g), move(t) DRAW g TOOLBAR SHOWIF NOT forbidEditCustomGroups(t)
     PROPERTIES(g) READONLY order, id, name, canonicalName
-    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE 
+    PROPERTIES(g) SHOWIF NOT forbidEditCustomGroups(t) NEWSESSION NEW, EDIT, DELETE 
     FILTERS customGroupType(g) == t
     ORDERS canonicalName(g)
 
