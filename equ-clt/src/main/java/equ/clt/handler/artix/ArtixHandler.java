@@ -1826,7 +1826,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 Payment payment = null;
 
                                                 if(customPayments.contains(paymentType)) {
-                                                    payment = new Payment(paymentType, sum);
+                                                    Map<String, Object> extraFields = new HashMap<>();
+                                                    extraFields.put("paymentCard", trimToNull(moneyPosition.optString("cardnum")));
+                                                    payment = new Payment(String.valueOf(paymentType), sum, extraFields);
                                                 } else if (oplatiPayments.contains(paymentType)) {
                                                     payment = new Payment("oplati", sum);
                                                 } else {
