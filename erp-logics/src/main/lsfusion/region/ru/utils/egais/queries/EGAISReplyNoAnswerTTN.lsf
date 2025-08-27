@@ -31,30 +31,43 @@ FORM documents FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
 countDaysReplyNoAnswerTTNData = DATA INTEGER ();
 countDaysReplyNoAnswerTTN() = OVERRIDE countDaysReplyNoAnswerTTNData(), 7;
 
-skipAllprocess = DATA BOOLEAN ();
+CLASS ReplyNATTN 'Необработанные ТТН';
+
+dateTime 'Дата/время' = DATA DATETIME (ReplyNATTN) IN id;
+wbRegID 'WbRegID' = DATA  STRING(ReplyNATTN) INDEXED;
+ttnNumber 'ttnNumber' = DATA  STRING(ReplyNATTN) IN id;
+ttnDate 'ttnDate' = DATA  DATE(ReplyNATTN);
+utm = DATA UTM (ReplyNATTN);
+nameUtm ''(ReplyNATTN r) = name(utm(r)) IN id;
+
+closed 'Закрыт' = DATA DATETIME (ReplyNATTN);
+processed 'Обработан' = DATA DATETIME (ReplyNATTN);
+toProcess 'Требуется обработка' (ReplyNATTN d) = d IS ReplyNATTN AND NOT (processed(d) OR closed(d))  MATERIALIZED INDEXED;
+replyNATTN = GROUP MAX ReplyNATTN r IF toProcess(r) BY wbRegID(r);
 
 processReplyNoAnswerTTN (InDoc d)  {
     NEWSESSION {
         stringToFile(document(d));
         IMPORT documents XML FROM resultFile();
 
-        FOR wbRegID(INTEGER  i) AND imported(i) AND NOT wayBill(wbRegID(i)) AND ttnDate(i) >= sum(currentDate(),-countDaysReplyNoAnswerTTN()) DO NEWSESSION  NESTED LOCAL {
-            NEW r = QueryResendDoc {
+        FOR wbRegID(INTEGER  i) AND imported(i) AND NOT wayBill(wbRegID(i)) AND NOT replyNATTN(wbRegID(i)) AND ttnDate(i) >= sum(currentDate(),-countDaysReplyNoAnswerTTN()) DO NEWSESSION  NESTED LOCAL {
+            NEW r = ReplyNATTN {
+                dateTime(r) <- currentDateTime();
                 utm(r) <- utm(d);
-                client(r) <- firstClient(utm(d));
-                WBRegID(r) <-  wbRegID(i);
-                queryResendDoc(r);
+                wbRegID(r) <-  wbRegID(i);
+                ttnNumber(r) <- ttnNumber(i);
+                ttnDate(r) <- ttnDate(i);
                 APPLY NESTED LOCAL;
             }
         }
         processed(d) <- TRUE;
         APPLY;
-    }    
+    }
 }
 
 
 process (InDoc d) + {
-    IF docType(d) = DocType.ReplyNATTN AND NOT skipAllprocess() THEN {
+    IF docType(d) = DocType.ReplyNATTN THEN {
         processReplyNoAnswerTTN(d);
     }
 }
