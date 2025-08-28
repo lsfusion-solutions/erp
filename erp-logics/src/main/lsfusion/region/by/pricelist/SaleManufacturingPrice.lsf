@@ -17,6 +17,11 @@ manufacturingPrice[Order.OrderDetail](OrderDetail d) += manufacturingPrice(d);
 includeVAT(UserOrderDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
 
+
+roundManufacturingPrice = ABSTRACT VALUE INTEGER (UserOrderDetail);
+
+roundManufacturingPrice(UserOrderDetail d) += defaultRoundManufacturingPrice() IF d IS UserOrderDetail;
+
 disableUpdateManufacturingPrice = ABSTRACT VALUE BOOLEAN (UserOrderDetail);
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
@@ -26,7 +31,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
     manufacturingPrice (detail)  <- round(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                       batch(detail),
                                                       supplierStock(detail),
-                                                      dateTime(detail)), defaultRoundManufacturingPrice());
+                                                      dateTime(detail)), roundManufacturingPrice(detail));
 }
 
 WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR              
@@ -36,7 +41,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
     manufacturingPrice (detail) <- round(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                      sku(detail),
                                                      supplierStock(detail),
-                                                     dateTime(detail)), defaultRoundManufacturingPrice());
+                                                     dateTime(detail)), roundManufacturingPrice(detail));
 }
 
 skipCalcWholesaleMarkup = ABSTRACT BOOLEAN (OrderDetail);
@@ -95,6 +100,11 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
 // Устанавливаем цену изготовителя из регистра
+
+roundManufacturingPrice = ABSTRACT VALUE INTEGER (UserInvoiceDetail);
+
+roundManufacturingPrice(UserInvoiceDetail d) += defaultRoundManufacturingPrice() IF d IS UserInvoiceDetail;
+
 updateManufacturingPrice 'Изменить цену изготовителя' = DATA BOOLEAN (UserInvoice);
 updateManufacturingPrice = updateManufacturingPrice(userInvoice(UserInvoiceDetail d));
 
@@ -106,7 +116,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     manufacturingPrice (detail) <- round(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                      batch(detail),
                                                      supplierStock(detail),
-                                                     dateTime(detail)), defaultRoundManufacturingPrice());
+                                                     dateTime(detail)), roundManufacturingPrice(detail));
 }
 
 WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR              
@@ -116,7 +126,7 @@ WHEN LOCAL (CHANGED(supplierStock(UserInvoiceDetail detail)) OR
     manufacturingPrice (detail) <- round(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
                                                      sku(detail),
                                                      supplierStock(detail),
-                                                     dateTime(detail)), defaultRoundManufacturingPrice());
+                                                     dateTime(detail)), roundManufacturingPrice(detail));
 }
 
 WHEN LOCAL SETCHANGED(updateManufacturingPrice(UserInvoiceDetail detail)) AND NOT CHANGED(manufacturingPrice(detail)) AND NOT disableUpdateManufacturingPrice(detail) DO {
