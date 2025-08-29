@@ -46,10 +46,19 @@ nameSku 'Наименование товара' = DATA STRING(StocktakeDetail);
 sidOrigin2Country 'Код страны' = DATA STRING(StocktakeDetail);
 uomSku 'Единица измерения' = DATA STRING(StocktakeDetail);
 quantityUomSku 'Количество товара' =  DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (StocktakeDetail);
+quantityUomSku0(StocktakeDetail d) = INTEGER((round0(quantityUomSku(d)))) IF NUMERIC[16,3](round0(quantityUomSku(d))) == quantityUomSku(d);
+quantityUomSku1(StocktakeDetail d) = NUMERIC[16,1](round1(quantityUomSku(d))) IF NUMERIC[16,3](round1(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d);
+quantityUomSku2(StocktakeDetail d) = NUMERIC[16,2](round2(quantityUomSku(d))) IF NUMERIC[16,3](round2(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d);
+quantityUomSku3(StocktakeDetail d) = NUMERIC[16,3](round3(quantityUomSku(d))) IF NUMERIC[16,3](round3(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d) AND NOT quantityUomSku2(d);
+
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](StocktakeDetail);
 pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](StocktakeDetail);
 sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](StocktakeDetail);
 quantityPageInventoryDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
+quantityPageInventoryDetail0 (StocktakeDetail d) = INTEGER(round0(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round0(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d);
+quantityPageInventoryDetail1 (StocktakeDetail d) = NUMERIC[16,1](round1(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round1(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d) AND NOT quantityPageInventoryDetail0(d);
+quantityPageInventoryDetail2 (StocktakeDetail d) = NUMERIC[16,2](round2(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round2(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d) AND NOT quantityPageInventoryDetail0(d) AND NOT quantityPageInventoryDetail1(d);
+quantityPageInventoryDetail3 (StocktakeDetail d) = NUMERIC[16,3](round3(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round3(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d) AND NOT quantityPageInventoryDetail0(d) AND NOT quantityPageInventoryDetail1(d) AND NOT quantityPageInventoryDetail2(d);
 
 CLASS LotStocktakeDetail 'Строка марки документа выгрузки в МНС';
 stocktakeDetail = DATA StocktakeDetail (LotStocktakeDetail) NONULL DELETE;
@@ -108,11 +117,17 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
         nameSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3', // required
         sidOrigin2Country EXTID 'LetterTraceabilityLeftovers_v1_t001_ric3a', // required
         uomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric4', // required
-        quantityUomSku EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5', // required
+        quantityUomSku0 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5', // required
+        quantityUomSku1 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5', // required
+        quantityUomSku2 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5', // required
+        quantityUomSku3 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric5', // required
         trackingUOMCustomsGroup EXTID 'LetterTraceabilityLeftovers_v1_t001_ric6', // required
         pricePageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric7', // required
         sumPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric8', // required
-        quantityPageInventoryDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9' // required
+        quantityPageInventoryDetail0 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9', // required
+        quantityPageInventoryDetail1 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9', // required
+        quantityPageInventoryDetail2 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9', // required
+        quantityPageInventoryDetail3 EXTID 'LetterTraceabilityLeftovers_v1_t001_ric9' // required
     FILTERS stocktake(d) == s
 
     OBJECTS l = LotStocktakeDetail EXTID 'LetterTraceabilityLeftovers_v1_t001_ric10'

@@ -43,10 +43,18 @@ gtin 'GTIN' = DATA STRING(ImportDocMNSDetail);
 nameSku 'Наименование товара' = DATA STRING(ImportDocMNSDetail);
 uomSku 'Единица измерения' = DATA STRING(ImportDocMNSDetail);
 quantityUomSku 'Количество товара' =  DATA NUMERIC[16,3] (ImportDocMNSDetail); // Одинаковый разряд при одинаковых ед. изм. учета и спт. (XSD указывает на 6 знаков после запятой)
+quantityUomSku0(ImportDocMNSDetail d) = INTEGER((round0(quantityUomSku(d)))) IF NUMERIC[16,3](round0(quantityUomSku(d))) == quantityUomSku(d);
+quantityUomSku1(ImportDocMNSDetail d) = NUMERIC[16,1](round1(quantityUomSku(d))) IF NUMERIC[16,3](round1(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d);
+quantityUomSku2(ImportDocMNSDetail d) = NUMERIC[16,2](round2(quantityUomSku(d))) IF NUMERIC[16,3](round2(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d);
+quantityUomSku3(ImportDocMNSDetail d) = NUMERIC[16,3](round3(quantityUomSku(d))) IF NUMERIC[16,3](round3(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d) AND NOT quantityUomSku2(d);
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](ImportDocMNSDetail);
 priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,2](ImportDocMNSDetail);//нужно 12,2
 sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,2](ImportDocMNSDetail);
 quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA NUMERIC[16,3] (ImportDocMNSDetail); // Одинаковый разряд при одинаковых ед. изм. учета и спт
+quantityInvoiceDetail0 (ImportDocMNSDetail d) = INTEGER(round0(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round0(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d);
+quantityInvoiceDetail1 (ImportDocMNSDetail d) = NUMERIC[16,1](round1(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round1(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d);
+quantityInvoiceDetail2 (ImportDocMNSDetail d) = NUMERIC[16,2](round2(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round2(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d);
+quantityInvoiceDetail3 (ImportDocMNSDetail d) = NUMERIC[16,3](round3(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round3(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d) AND NOT quantityInvoiceDetail2(d);
 
 CLASS LotImportDocMNSDetail 'Строка марки документа выгрузки в МНС';
 importDocMNSDetail = DATA ImportDocMNSDetail (LotImportDocMNSDetail) NONULL DELETE;
@@ -130,9 +138,15 @@ FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabili
         gtin EXTID 'LetterTraceabilityImport_v1_t001_ric2b', // required
         nameSku EXTID 'LetterTraceabilityImport_v1_t001_ric3', // required
         uomSku EXTID 'LetterTraceabilityImport_v1_t001_ric4', // required
-        quantityUomSku EXTID 'LetterTraceabilityImport_v1_t001_ric5', // required
+        quantityUomSku0 EXTID 'LetterTraceabilityImport_v1_t001_ric5', // required
+        quantityUomSku1 EXTID 'LetterTraceabilityImport_v1_t001_ric5', // required
+        quantityUomSku2 EXTID 'LetterTraceabilityImport_v1_t001_ric5', // required
+        quantityUomSku3 EXTID 'LetterTraceabilityImport_v1_t001_ric5', // required
         trackingUOMCustomsGroup EXTID 'LetterTraceabilityImport_v1_t001_ric6', // required
-        quantityInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric7', // required
+        quantityInvoiceDetail0 EXTID 'LetterTraceabilityImport_v1_t001_ric7', // required
+        quantityInvoiceDetail1 EXTID 'LetterTraceabilityImport_v1_t001_ric7', // required
+        quantityInvoiceDetail2 EXTID 'LetterTraceabilityImport_v1_t001_ric7', // required
+        quantityInvoiceDetail3 EXTID 'LetterTraceabilityImport_v1_t001_ric7', // required
         priceInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric8', // required
         sumInvoiceDetail EXTID 'LetterTraceabilityImport_v1_t001_ric9'  // required
 //        letterTraceabilityImport_v1_t001_ric10 EXTID 'LetterTraceabilityImport_v1_t001_ric10', // Необязательный элемент. Регистрационный номер партии товара 
