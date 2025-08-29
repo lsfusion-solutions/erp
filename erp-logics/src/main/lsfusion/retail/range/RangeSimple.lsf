@@ -4,7 +4,7 @@ REQUIRE Range, Warehouse;
 
 NAMESPACE Range;
 
-dataIn = DATA LOCAL BOOLEAN (Range, StockGroup);
+dataIn = DATA BOOLEAN (Range, StockGroup);
 in 'Вкл.' (Range r, StockGroup st) = OVERRIDE dataIn(r, st), TRUE IF (GROUP SUM 1 IF dataIn(r,StockGroup g) AND level(st, g));
 
 dataIn = DATA BOOLEAN (Range, Stock);
@@ -16,12 +16,24 @@ overCopy(RangeRev r, RangeRev pr) + {
     dataIn(r, Sku s) <- dataIn(pr, s);
 }
 
+dataInStoreFilled = DATA BOOLEAN ();
+
+onStarted() + {
+    IF NOT dataInStoreFilled() THEN {
+        NEWSESSION {
+            dataInStoreFilled() <- TRUE;
+            dataIn(Range r, StockGroup sg) <- TRUE WHERE [GROUP MIN DepartmentStore ds IF dataIn(r, ds) BY store(ds)](sg);            
+            APPLY;
+        }
+    }
+}
+
 changeInRangeStock(Range r, Stock ts) {
     INPUT b = BOOLEAN DO {
         IF ts IS Warehouse THEN
-            in(r, ts) <- b;
+            dataIn(r, ts) <- b;
         IF ts IS DepartmentStore THEN
-            in(r, store(ts)) <- b;
+            dataIn(r, store(ts)) <- b;
     }
 }
 
@@ -148,7 +160,7 @@ EXTEND FORM ranges
 
     OBJECTS stock = Stock
     PROPERTIES(stock) READONLY name
-    FILTERS include(r,stock,s,d)
+    FILTERS in(r,stock)
 ;
 
 DESIGN ranges {
@@ -160,6 +172,9 @@ DESIGN ranges {
             MOVE BOX(stock);
         }
     }
+    REMOVE BOX (pt);
+    REMOVE BOX (ds);
+    REMOVE BOX (r1);
 }
 
 WHEN autoSetGroupAttribute(mainRole(currentUser())) AND [ GROUP SUM 1 IF CHANGED(itemGroup(Item item)) AND dataIn(RangeRev v, item) AND NOT inChild(range(v), item) BY range(v), itemGroup(item)](Range r, ItemGroup g) DO {
