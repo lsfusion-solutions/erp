@@ -1,0 +1,129 @@
+MODULE EGAISSaleReturnUserShipment;
+
+REQUIRE EGAISSaleReturnShipment;
+
+PRIORITY SaleReturn;
+
+NAMESPACE EGAISSaleReturn;
+
+quantity 'Кол-во (ЕГАИС)' = DATA NUMERIC[16,5] (UserShipmentDetail, WayBillPosition);
+quantity(UserShipmentDetail d, WayBillPosition p) += quantity(d, p);
+
+fillQuantity 'Выбрать' (UserShipmentDetail d, WayBillPosition p) {
+    quantity(d, p) <- quantity(d);
+    in(sku(d), product(p)) <- TRUE;
+}
+
+matches (UserShipment i, WayBill w) =
+    shipper(w) = client(customerStock(i)) AND
+        consignee(w) = client(supplierStock(i));
+
+quantityUserShipment 'Кол-во (в документе)' (WayBillPosition p) = GROUP SUM quantity(UserShipmentDetail d, p) MATERIALIZED;
+leftUserShipment (WayBillPosition p) = quantity(p) (-) quantityUserShipment(p);
+CONSTRAINT leftUserShipment(WayBillPosition p) < 0
+    MESSAGE 'По строке документа привязано больше строк ЕГАИС чем в документе';
+
+//    WHEN CHANGED(quantity###doc(WayBillPosition p)) DO 
+//        realQuantity(p) <- quantity###doc(p);
+
+wayBill 'ТТН ЕГАИС' = DATA WayBill (UserShipment) INDEXED;
+wayBill(UserShipment s) += wayBill(s);
+
+numberDateWayBill 'ТТН ЕГАИС' (UserShipment i) = numberDate(wayBill(i));
+seriesNumberUserShipment 'Поставки (продажа-возврат)' (WayBill w) = GROUP CONCAT seriesNumber(UserShipment d), ', ' ORDER d BY wayBill(d);
+userShipment = GROUP MAX UserShipment i BY wayBill(i);
+isExportShipment (WayBill w) = isExport(userShipment(w));
+isExportShipment (WayBillPosition p) = isExportShipment(wayBill(p));
+
+changeNumberDateWayBill (UserShipment d) {
+    DIALOG wayBills OBJECTS w = wayBill(d) NULL INPUT FILTERS toAccept(w) AND matches(d, w) DO {
+        wayBill(d) <- w;
+    }
+}
+
+partitionQuantity (UserShipmentDetail d, WayBillPosition p) =
+    PARTITION UNGROUP quantity
+        LIMIT STRICT quantity(p) IF in(sku(d), product(p)) AND wayBill(p) = wayBill(userShipment(d))
+        ORDER p
+        BY d;
+
+fillQuantity 'Заполнить' (UserShipment i) {
+    quantity(UserShipmentDetail d, WayBillPosition p) <- partitionQuantity(d, p)
+        WHERE userShipment(d) = i;
+}
+fillDetailParams(WayBillPosition p, UserShipmentDetail d) {
+    sku(d) <- minItem(product(p));
+    quantity(d) <- quantity(p);
+    quantity(d, p) <- quantity(p);
+    price(d) <- price(p);
+    //price(d) <- round2(price(p) * 100 / (100 + valueVAT(minItem(product(p)))));
+}
+createDetail 'Создать строки' (UserShipment i) {
+    FOR wayBill(WayBillPosition p) = wayBill(i) ORDER p DO NEW d = UserShipmentDetail {
+        userShipment(d) <- i;
+        fillDetailParams(p,d);
+    }
+}
+
+quantityWayBill 'Кол-во (ЕГАИС)' (UserShipmentDetail d) = GROUP SUM quantity(d, WayBillPosition s) IF NOT canceled(s); // проверяем не wayBill(doc(d)) = wayBill(s), чтобы было одинаково с последующим подтверждением
+incorrectQuantityWayBill (UserShipmentDetail d) = quantity(d) AND NOT quantity(d) = quantityWayBill(d);
+backgroundQuantityWayBill(UserShipmentDetail d) = RGB(255,212,212) IF incorrectQuantityWayBill(d);
+
+EXTEND FORM userShipment
+    OBJECTS ed = UserShipmentDetail
+    PROPERTIES(ed) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, price, quantity,
+        quantityWayBill BACKGROUND backgroundQuantityWayBill(ed)
+    ORDERS index(ed)
+    FILTERS userShipment(ed) = s
+
+    PROPERTIES(s) DRAW ed TOOLBAR createDetail, fillQuantity
+    PROPERTIES(s) numberDateWayBill ON CHANGE changeNumberDateWayBill(s)
+
+    OBJECTS wp = WayBillPosition
+    PROPERTIES(wp) READONLY idProduct PANEL, fullNameProduct, quantity, price, idF1Reg PANEL, idF2Reg PANEL,
+        idConsigneeF2Reg PANEL, bottlingDate PANEL
+    PROPERTIES(ed, wp) quantity, fillQuantity GRID
+    FILTERS wayBill(wp) = wayBill(s)
+
+    FILTERGROUP sku
+        FILTER 'По товару' in(sku(ed), product(wp)) OR quantity(ed, wp) DEFAULT
+
+    FILTERGROUP quantity
+        FILTER 'По количеству' quantity(ed) = quantity(wp) OR quantity(ed, wp) DEFAULT
+
+    FILTERGROUP left
+        FILTER 'Непривязанные' (leftUserShipment(wp) > 0) OR quantity(ed, wp)
+;
+
+DESIGN userShipment {
+    specificationBox {
+        NEW EGAIS {
+            caption = 'ЕГАИС';
+            NEW EGAISWayBill {
+                fill = 1;
+                showIf = NOT isExport(s);
+                NEW EGAISHeader {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(numberDateWayBill(s));
+                }
+                NEW EGAISDetail {
+                    fill = 1;
+                    horizontal = TRUE;
+                    MOVE BOX(ed);
+                    MOVE BOX(wp);
+                }
+            }
+        }
+    }
+}
+
+EXTEND FORM wayBills
+    PROPERTIES(w) READONLY saleReturnSeriesNumberUserShipment = seriesNumberUserShipment
+;
+
+@defineDocumentInWayBillLot(userShipment, s);
+
+run(){
+    EXPORT XLSX FROM a = ('1' IF INTEGER i ==1)  WHERE count(i,2);
+    WRITE CLIENT DIALOG exportFile() TO 'bdsl';
+}
