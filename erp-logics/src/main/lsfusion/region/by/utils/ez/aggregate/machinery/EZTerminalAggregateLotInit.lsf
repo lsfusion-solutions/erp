@@ -1,0 +1,67 @@
+MODULE EZTerminalAggregateLotInit;
+
+REQUIRE TerminalHandler, EZAggregateLotInit, TerminalLot, EZLotInit;
+
+fill(TerminalDocument td, LotInit i) {
+    kind(i) <- LotInitKind.aggregate;
+    type(i) <- GROUP MIN lotType(sku(TerminalDocumentDetail tdd)) IF terminalDocument(tdd) == td;
+    stock(i) <- stock(td);
+    mode(i) <- LotInitMode.IMPORT_;
+    method(i) <- LotInitMarkingMethod.NO_PROTECT;
+
+    FOR (terminalDocument(TerminalDocumentDetail tdd) == td) DO {
+        FOR terminalDocumentDetail(TerminalLotDetail tld) == tdd AND NOT idParent(tld) NEW d = LotInitDetail DO {            
+            lotInit(d) <- i;
+            sku(d) <- sku(tdd);
+            quantity (d) <- 1;
+            quantity(d, Lot l) <- 1 WHERE l == lot(id(tld));
+        }
+        
+        FOR (terminalDocumentDetail(TerminalLotDetail tld) == tdd) AND idParent(tld) DO {
+            IF NOT lot(id(tld)) THEN {
+                NEW l = Lot {
+                    id(l) <- id(tld);
+                    tail(l) <- tail(tld);
+                    sku(l) <- sku(terminalDocumentDetail(tld));
+                }
+            }
+            
+            LOCAL detail = LotInitDetail ();
+            detail() <- GROUP MIN LotInitDetail d IF idAggregateLot(d) == idParent(tld) AND lotInit(d) == i;
+            aggregateLot(LotInitDetail d, Lot l) <- aggregateLot(detail()) WHERE l == lot(id(tld)) AND d == detail();
+        }            
+    }
+}
+
+createLotInit (TerminalDocument td) {
+    IF idTerminalDocumentType(td)=='190' THEN {
+        NEW i = LotInit {
+            fill(td, i);
+        }
+        used(td) <- TRUE;
+        APPLY;
+    }
+}
+
+loadTerminalDocumentLotInit 'Загрузить марки (ТСД)' (LotInit i) {
+    in(TerminalDocumentType t) <- TRUE WHERE id(t) == '190';
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        fill(td, i);
+    }
+}
+
+EXTEND FORM createAggregationLotInit 
+    PROPERTIES (i) loadTerminalDocumentLotInit
+;
+DESIGN createAggregationLotInit {
+    rightContainerActions {
+        MOVE PROPERTY(loadTerminalDocumentLotInit(i));
+    }
+}
+
+process(TerminalDocument td) + {
+    IF idTerminalDocumentType(td) == '190' THEN {
+        createLotInit(td);
+    }
+}
+

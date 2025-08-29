@@ -1,0 +1,240 @@
+MODULE EZSsccAggregateOrderExchange;
+
+REQUIRE EZLotAggregateOrder, EZLotAggregateSsccOrder;
+
+NAMESPACE EZ;
+
+countDelail (LotOrder o) = GROUP SUM 1 BY lotOrder(LotOrderDetail d);
+idIdentificationMeansType(LotOrder o) = id(identificationMeansType(o));
+ssccOrderComment(LotOrder o) = 'Заказ кодов SSCC в количестве ' + countDelail(o) + ' единиц';
+
+FORM addSscc
+    OBJECTS o = LotOrder EXTID 'value'    
+    PROPERTIES(o) 
+        countDelail EXTID 'count', 
+        idIdentificationMeansType EXTID 'label_type', 
+        ssccOrderComment EXTID 'comment';
+;
+
+GROUP ssccOrder EXTID 'order';
+GROUP ssccType : ssccOrder;
+GROUP ssccStatus : ssccOrder;
+
+ssccCompletedAt = DATA LOCAL STRING();
+ssccGtin = DATA LOCAL STRING();
+ssccCount = DATA LOCAL NUMERIC();
+ssccCreatedAt = DATA LOCAL DATETIME();
+ssccId = DATA LOCAL STRING();
+ssccMethod = DATA LOCAL STRING();
+ssccIsAutotake = DATA LOCAL STRING();
+ssccLettersCount = DATA LOCAL STRING();
+ssccIsBso = DATA LOCAL STRING();
+ssccName = DATA LOCAL STRING();
+ssccId1 = DATA LOCAL NUMERIC();
+ssccDigitsCount = DATA LOCAL STRING();
+ssccCode = DATA LOCAL NUMERIC();
+ssccMessage = DATA LOCAL STRING();
+
+FORM importAddSscc
+    PROPERTIES() IN ssccOrder 
+        ssccCompletedAt EXTID 'completed_at',
+        ssccGtin EXTID 'gtin',
+        ssccCount EXTID 'count',
+        ssccCreatedAt EXTID 'created_at',
+        ssccId EXTID 'id'
+    PROPERTIES() IN ssccType
+        ssccMethod EXTID 'method',
+        ssccIsAutotake EXTID 'is_autotake',
+        ssccLettersCount EXTID 'letters_count',
+        ssccIsBso EXTID 'is_bso',
+        ssccName EXTID 'name',
+        ssccId1 EXTID 'id',
+        ssccDigitsCount EXTID 'digits_count'
+        
+    PROPERTIES() IN ssccStatus
+        ssccCode EXTID 'code', 
+        ssccMessage EXTID 'message';
+
+
+addSsccAggregateLot 'Заказ кодов (SSCC)' (LotOrder o) {
+    LOCAL result = FILE();
+
+    EXPORT addSscc OBJECTS o = o JSON;    
+    fileToString(exportFile());
+
+    exception(o) <- NULL;
+    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/v2/orders/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        fileToString(result());
+        
+        IMPORT importAddSscc JSON FROM result();
+
+        idOrderEZ(LotOrderDetail d) <- ssccId() WHERE o == lotOrder(d);
+        initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND NOT initialDemand(d);
+        createdTime(o) <- ssccCreatedAt();
+
+        isProcess(o) <- TRUE;
+        APPLY;
+    } CATCH {
+        logToFile('ez', messageCaughtException());
+        logToFile('ez', result());
+        fileToString(result());
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        RETURN;
+    }
+}
+
+GROUP ssccImportOrder EXTID 'order';
+GROUP ssccImportType EXTID 'type' : ssccImportOrder;
+GROUP ssccImportFile EXTID 'file' : ssccImportOrder;
+GROUP ssccImportUser EXTID 'user' : ssccImportOrder;
+GROUP ssccImportInfo EXTID 'info' : ssccImportUser;
+GROUP ssccImportStatus EXTID 'status' : ssccImportOrder;
+
+ssccImportGtin = DATA LOCAL STRING();
+ssccImportCount = DATA LOCAL INTEGER();
+ssccImportCreatedAt = DATA LOCAL STRING();
+ssccImportMethod = DATA LOCAL STRING();
+ssccImportIsAutotake = DATA LOCAL STRING();
+ssccImportLettersCount = DATA LOCAL STRING();
+ssccImportIsBso = DATA LOCAL STRING();
+ssccImportName = DATA LOCAL STRING();
+ssccImportId = DATA LOCAL INTEGER();
+ssccImportDigitsCount = DATA LOCAL STRING();
+ssccImportParentOrder = DATA LOCAL STRING();
+ssccImportLabels = DATA LOCAL STRING(INTEGER);
+ssccImportOrderLabels = DATA LOCAL INTEGER(INTEGER);
+ssccImportCompletedAt = DATA LOCAL STRING();
+ssccImportFilename = DATA LOCAL STRING();
+ssccImportDownloads = DATA LOCAL INTEGER();
+ssccImportUpdatedAt = DATA LOCAL STRING();
+ssccImportComment = DATA LOCAL STRING();
+ssccImportId1 = DATA LOCAL INTEGER();
+ssccImportName1 = DATA LOCAL STRING();
+ssccImportLastname = DATA LOCAL STRING();
+ssccImportCountry = DATA LOCAL STRING();
+ssccImportIsRulesAgree = DATA LOCAL STRING();
+ssccImportAddress = DATA LOCAL STRING();
+ssccImportUnp = DATA LOCAL STRING();
+ssccImportName2 = DATA LOCAL STRING();
+ssccImportGln = DATA LOCAL STRING();
+ssccImportCode = DATA LOCAL INTEGER();
+ssccImportMessage = DATA LOCAL STRING();
+
+FORM getInfo
+    PROPERTIES() IN ssccImportOrder
+        ssccImportGtin EXTID 'gtin', 
+        ssccImportCount EXTID 'count',
+        ssccImportCreatedAt EXTID 'created_at', 
+        ssccImportParentOrder EXTID 'parent_order',
+        ssccImportCompletedAt EXTID 'completed_at', 
+        ssccImportUpdatedAt EXTID 'updated_at',
+        ssccImportComment EXTID 'comment', 
+        ssccImportId1 EXTID 'id'
+    PROPERTIES() IN ssccImportType
+        ssccImportMethod EXTID 'method',
+        ssccImportIsAutotake EXTID 'is_autotake',
+        ssccImportLettersCount EXTID 'letters_count',
+        ssccImportIsBso EXTID 'is_bso', 
+        ssccName EXTID 'name',
+        ssccImportId EXTID 'id',
+        ssccImportDigitsCount EXTID 'digits_count'
+
+    OBJECTS labels = INTEGER IN ssccImportOrder
+    PROPERTIES(labels) ssccImportLabels EXTID 'value'
+    FILTERS imported(labels)
+    
+    PROPERTIES() IN ssccImportFile
+        ssccImportFilename EXTID 'filename',
+        ssccImportDownloads EXTID 'downloads'
+    PROPERTIES() IN ssccImportUser 
+        ssccImportName1 EXTID 'name', 
+        ssccImportLastname EXTID'lastname'
+    PROPERTIES() IN ssccImportInfo
+        ssccImportCountry EXTID 'country',
+        ssccImportIsRulesAgree EXTID 'is_rules_agree',
+        ssccImportAddress EXTID 'address',
+        ssccImportUnp EXTID 'unp',
+        ssccImportName2 EXTID 'name',
+        ssccImportGln EXTID'gln'
+    PROPERTIES() IN ssccImportStatus
+        ssccImportCode EXTID'code',
+        ssccImportMessage EXTID'message';
+
+fileName  = DATA STRING (LotOrder);
+idOrderEZ(LotOrder o) = GROUP MIN idOrderEZ(LotOrderDetail d) IF lotOrder(d) == o;
+
+getInfo 'Проверить статус' (LotOrder o) {
+    LOCAL NESTED statusMessage = STRING();
+    statusMessage() <- '';    
+    
+    NEWSESSION {
+        EXPORT JSON FROM id = idOrderEZ(o);
+
+        LOCAL result = FILE();
+
+        exception(o) <- NULL;
+        ezToken() <- token(legalEntityStock(o));
+
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        } CATCH {
+            handleException(o, result());
+            CANCEL;
+            RETURN;
+        }
+
+        fileToString(result());
+        IMPORT getInfo JSON FROM result();        
+        
+        IF ssccImportCode() == 40 THEN {
+            canceled(o) <- TRUE;
+            APPLY;
+            RETURN;
+        }
+
+        status(LotOrderDetail d) <- statusLotOrder(ssccImportCode()) WHERE lotOrder(d) = o;
+
+        IF ssccImportCode() == 30 THEN {
+            availableCodes(LotOrderDetail d) <- 1 WHERE lotOrder(d) = o;
+            fileName(o) <- ssccImportFilename();
+        }
+        statusMessage() <- name(statusLotOrder(ssccImportCode()));
+
+        fileToString(result());
+        //            MESSAGE resultString();
+        
+        FOR ssccImportLabels(INTEGER i) NOINLINE DO NEW l = Lot {
+            FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND NOT quantity(dd) ORDER DESC dd) DO {
+                aggregateLot(d) <- l;
+                mixed(l) <- TRUE;
+                aggregated(l) <- TRUE;
+                id(l) <- ssccImportLabels(i);
+                quantity(d, l) <- 1;
+                quantity(d) <- 1;
+            }
+        }
+
+        APPLY;
+        MESSAGE statusMessage() NOWAIT;
+    }   
+}
+
+exchangeAggregationLotOrder (LotOrder o) + {
+    IF kind(o) == LotOrderKind.sscc THEN {           
+        IF aggregateLotOrderStatus(o) == AggregateLotOrderStatus.new THEN {
+            addSsccAggregateLot(o);
+        }
+        IF aggregateLotOrderStatus(o) == AggregateLotOrderStatus.process THEN {
+            getInfo(o);
+        }        
+    }
+}
+
+
+//checkStatus
+//importLotCodes

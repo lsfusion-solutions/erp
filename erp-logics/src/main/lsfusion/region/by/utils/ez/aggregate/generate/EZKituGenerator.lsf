@@ -1,0 +1,454 @@
+MODULE EZKituGenerator;
+
+REQUIRE Utils, EZAggregationLotGenerator, GS1IdentifierAI, EZLotAggregateKituOrder, PurchaseInvoice, PurchaseShipment, EZLotInit;
+
+NAMESPACE EZ;
+
+//caption, identifierType, identifierClass, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator
+@implementGS1IdentifierAI('GTIN', string, gtin, '02', 14, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Номер партии (лота, группы, пакета)', string, lotNumber, '10', 20, NULL, TRUE, TRUE);
+@implementGS1IdentifierAI('Дата производства (изготовления, выработки)', date, productionDate, '11', 6, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Дата упаковки', date, packagingDate, '13', 6, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Дата, до которой лучше использовать товар (сохранения качества)', date, bestBeforeDate, '15', 6, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Дата истечения срока годности продукта', date, expiryDate, '17', 6, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Разновидность продукта, уровень влажности', integer, moistureLevel, '20', 2, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Серийный или поорядковый номер упаковки', string, serialPackageNumber, '21', 20, NULL, TRUE, TRUE);
+@implementGS1IdentifierAI('Дополнительный идентификатор, присваиваемый производителем', string, additionalId, '240', 30, NULL, TRUE, TRUE);
+@implementGS1IdentifierAI('Масса нетто, кг', integer, netWeight, '310', 6, 3, NULL, NULL);
+@implementGS1IdentifierAI('Масса брутто, кг', integer, grossWeight, '330', 6, 3, NULL, NULL);
+@implementGS1IdentifierAI('Количество единиц в упаковке', integer, unitsInPackage, '37', 8, NULL, TRUE, TRUE);
+@implementGS1IdentifierAI('GLN места нахождения (адреса)', integer, locationGLN, '414', 13, NULL, NULL, NULL);
+@implementGS1IdentifierAI('Страна происхождения', integer, country, '422', 3, NULL, NULL, TRUE);
+
+fillDefaultGS1IdentifierAI = DATA BOOLEAN ();
+onStarted() + {
+    IF NOT fillDefaultGS1IdentifierAI() THEN NEWSESSION {
+        IF NOT params(StringGS1IdentifierAI.gtin) AND StringGS1IdentifierAI.gtin IS StringGS1IdentifierAI THEN {
+            NEW p = IdentifierAIParam  {
+                params(StringGS1IdentifierAI.gtin) <- p;
+            }
+        }        
+        defaultPriority(params(StringGS1IdentifierAI.gtin)) <- 5;
+        defaultInclude(params(StringGS1IdentifierAI.gtin)) <- TRUE;
+
+        IF NOT params(IntegerGS1IdentifierAI.unitsInPackage) AND IntegerGS1IdentifierAI.unitsInPackage IS StringGS1IdentifierAI THEN {
+            NEW p = IdentifierAIParam  {
+                params(IntegerGS1IdentifierAI.unitsInPackage) <- p;
+            }
+        }        
+        defaultPriority(params(IntegerGS1IdentifierAI.unitsInPackage)) <- 4;
+        defaultInclude(params(IntegerGS1IdentifierAI.unitsInPackage)) <- TRUE;
+
+        IF NOT params(DateGS1IdentifierAI.productionDate) AND DateGS1IdentifierAI.productionDate IS StringGS1IdentifierAI THEN {
+            NEW p = IdentifierAIParam  {
+                params(DateGS1IdentifierAI.productionDate) <- p;
+            }
+        }        
+        defaultPriority(params(DateGS1IdentifierAI.productionDate)) <- 3;
+        defaultInclude(params(DateGS1IdentifierAI.productionDate)) <- TRUE;
+
+
+        IF NOT params(StringGS1IdentifierAI.lotNumber) AND StringGS1IdentifierAI.lotNumber IS StringGS1IdentifierAI THEN {
+            NEW p = IdentifierAIParam  {
+                params(StringGS1IdentifierAI.lotNumber) <- p;
+            }
+        }
+        defaultPriority(params(StringGS1IdentifierAI.lotNumber)) <- 2;
+        defaultInclude(params(StringGS1IdentifierAI.lotNumber)) <- TRUE;
+
+        IF NOT params(StringGS1IdentifierAI.serialPackageNumber) AND StringGS1IdentifierAI.serialPackageNumber IS StringGS1IdentifierAI THEN {
+            NEW p = IdentifierAIParam  {
+                params(StringGS1IdentifierAI.serialPackageNumber) <- p;
+            }
+        }
+        defaultPriority(params(StringGS1IdentifierAI.serialPackageNumber)) <- 1;
+        defaultInclude(params(StringGS1IdentifierAI.serialPackageNumber)) <- TRUE;
+
+        fillDefaultGS1IdentifierAI() <- TRUE;
+        APPLY;
+    }
+}
+
+
+CLASS LotBarcodeType {
+    GS1128 'GS1-128'
+}
+
+CLASS PackType {
+    single 'Однородная',
+    mixed 'Неоднородная (сборная)'
+}
+
+kituStock 'Склад' = DATA LOCAL Stock ();
+kituStockName 'Склад' () = name(kituStock());
+
+name 'Наименование' (LotBarcodeType t) = staticCaption(t) IF t IS LotBarcodeType CHARWIDTH 30;
+dataLotBarcodeType () =  DATA LOCAL LotBarcodeType();
+lotBarcodeType () =  OVERRIDE dataLotBarcodeType(), LotBarcodeType.GS1128;
+lotBarcodeTypeName 'Тип штрихкода' () = name(lotBarcodeType());
+
+packTypePackQuantity 'Количество упаковок' = DATA LOCAL INTEGER ();
+
+numeratorSerialPackageNumber = DATA Numerator();
+nameNumeratorSerialPackageNumber 'Серийный или поорядковый номер упаковки' = name(numeratorSerialPackageNumber());
+
+EXTEND FORM defaultNumerators
+    PROPERTIES() nameNumeratorSerialPackageNumber = nameNumeratorSerialPackageNumber
+;
+
+loadDefaultNumerators () + {
+    NEW n = Numerator {
+        name(n) <- ISTRING[100]('Генератор серийных или поорядковых номеров упаковки');
+        series(n) <- STRING[10]('');
+        minValue(n) <- 1;
+        maxValue(n) <- 999999;
+        stringLength(n) <- 6;
+        numeratorSerialPackageNumber() <- n;
+    }
+}
+
+overValue(StringGS1IdentifierAI i) += curStringValue(numeratorSerialPackageNumber()) IF i == StringGS1IdentifierAI.serialPackageNumber;
+
+//
+name 'Наименование' (PackType t) = staticCaption(t) IF t IS PackType CHARWIDTH 30;
+dataPackType () =  DATA LOCAL PackType();
+packType () =  OVERRIDE dataPackType(), PackType.single;
+packTypeName 'Тип упаковки' () = name(packType());
+
+itemLotType = DATA LOCAL LotType();
+itemLotTypeName 'Группа' = name(itemLotType());
+
+itemListName 'Товар' () = GROUP CONCAT name(Item item) IF in(item), '; ' ORDER name(item), item CHARWIDTH 15;
+
+purchaseInvoiceDetail = DATA LOCAL Purchase.InvoiceDetail ();
+dataPurchaseInvoice = DATA LOCAL Purchase.Invoice ();
+purchaseInvoice () = OVERRIDE dataPurchaseInvoice(), Purchase.invoice(purchaseInvoiceDetail()); 
+seriesNumberPurchaseInvoice 'Основание Накладная(закупка)' () = seriesNumber(purchaseInvoice()) + '(' + index(purchaseInvoiceDetail()) + '|' + nameSku(purchaseInvoiceDetail()) + ')';
+
+serialPackageNumber 'Серийный или поорядковый номер упаковки' = DATA LOCAL STRING[31](INTEGER) CHARWIDTH 10;
+
+generateSerialPackageNumber  'Сгенерировать КА' ()  {
+    IF NOT kituStockName() THEN {
+        MESSAGE 'Не выбран склад';
+        RETURN;
+    }
+    
+    IF NOT lotBarcodeTypeName() THEN {
+        MESSAGE 'Не выбран тип штрихкода';
+        RETURN;
+    }
+
+    IF NOT packTypePackQuantity() THEN {
+        MESSAGE 'Не задано количество упаковок';
+        RETURN;
+    }
+
+    IF NOT packTypeName() THEN {
+        MESSAGE 'Не задан тип упаковки';
+        RETURN;
+    }
+
+    IF NOT itemLotTypeName() THEN {
+        MESSAGE 'Не задана группа';
+        RETURN;
+    }
+
+    IF NOT itemListName() THEN {
+        MESSAGE 'Не задан товар';
+        RETURN;
+    }
+
+    IF NOT seriesNumberPurchaseInvoice() THEN {
+        MESSAGE 'Не выбрана позиция накладной(закупка)';
+        RETURN;
+    }
+
+    LOCAL noValueIdentifier = GS1IdentifierAI();
+    noValueIdentifier() <- GROUP MIN GS1IdentifierAI i IF include(i) AND NOT value(i);
+    IF noValueIdentifier() THEN {
+        MESSAGE 'Не задано значение для идентификатора: ' + name(noValueIdentifier());
+        RETURN;
+    }
+    
+    serialPackageNumber(INTEGER i) <- NULL;
+    FOR iterate(INTEGER i, 1, packTypePackQuantity()) DO {
+        serialPackageNumber(i) <- curStringValue(numeratorSerialPackageNumber());
+        incrementValueSession(numeratorSerialPackageNumber());
+    }
+
+    IF GROUP MIN serialPackageNumber(INTEGER i) THEN {
+        NEW o = LotOrder {
+            identificationMeansType(o) <- IdentificationMeansType.import;
+            kind(o) <- LotOrderKind.kitu;
+            type(o) <- GROUP MIN lotType(Item item) IF in(item);
+            stock(o) <- kituStock();            
+
+            FOR serialPackageNumber(INTEGER i) DO NEW d = LotOrderDetail {
+                value(StringGS1IdentifierAI.serialPackageNumber) <- serialPackageNumber(i);
+                kitu(d) <- code(); //idAggregateLot
+                infoKitu(d) <- infoCode(); //idAggregateLot
+                valueAI37(d) <- valueAI37();
+                valueAI10(d) <- valueAI10();
+                valueAI11(d) <- valueAI11();
+                purchaseInvoiceDetail(d) <- purchaseInvoiceDetail();
+                                
+                lotOrder(d) <- o;
+                quantity(d) <- 1;
+                IF packType() == PackType.single THEN {
+                    sku(d) <- GROUP MIN Item item IF in(item);
+                }
+            }
+        }
+        
+        formOk();
+    }
+}
+
+//Образец кода агрегации
+filterItemByPurchaseInvoice (Item i, Purchase.Invoice inv) = GROUP MIN Purchase.InvoiceDetail d IF inv == invoice(d) BY sku(d);
+filterItemByPurchaseInvoice (Item i) = filterItemByPurchaseInvoice(i, purchaseInvoice());
+
+setValues(Purchase.InvoiceDetail d) {
+    dataValue(StringGS1IdentifierAI.gtin) <- GTIN(sku(d));
+//    value(StringGS1IdentifierAI.lotNumber) <- ;
+    value(DateGS1IdentifierAI.productionDate) <- manufactureDate(d);
+//    value(DateGS1IdentifierAI.packagingDate) <- ;
+//    value(DateGS1IdentifierAI.bestBeforeDate) <- ;
+//    value(DateGS1IdentifierAI.expiryDate) <- ;
+//    value(IntegerGS1IdentifierAI.moistureLevel) <- ;
+    value(StringGS1IdentifierAI.serialPackageNumber) <- curStringValue(numeratorSerialPackageNumber());
+//    value(StringGS1IdentifierAI.additionalId) <- ;
+//    value(IntegerGS1IdentifierAI.netWeight) <- ;
+//    value(IntegerGS1IdentifierAI.grossWeight) <- ;
+//    value(IntegerGS1IdentifierAI.unitsInPackage) <- ;
+//    value(IntegerGS1IdentifierAI.locationGLN) <- ;
+//    value(IntegerGS1IdentifierAI.country) <- ;
+}
+
+changeItems() {
+    DIALOG items OBJECTS i INPUT FILTERS lotType(i) AND (lotType(i) == itemLotType() OR NOT itemLotType()) AND (filterItemByPurchaseInvoice(i) OR NOT purchaseInvoice()) DO {
+        IF NOT countInItem() THEN {
+            in(i) <-  TRUE;
+        }
+
+        IF packType() == PackType.single THEN {
+            IF NOT countInItem() == 1 THEN {
+                MESSAGE 'Для однородной упаковки может быть выбран только один товар';
+                in(Item item) <- NULL;
+                RETURN;
+            }
+
+            itemLotType() <- (GROUP MIN lotType(Item ii) IF in(i));
+        }                
+    }
+}
+
+FORM invoiceDetailsDialog 'Выбор позиции накладной'
+
+    PROPERTIES() filterInvoiceDateFrom, filterInvoiceDateTo, nameFilterInvoiceSupplier, nameFilterInvoiceSupplierStock,
+        nameFilterInvoiceCustomer, nameFilterInvoiceCustomerStock, nameFilterInvoiceCustomUser, nameFilterInvoiceComputer
+
+    OBJECTS i = Purchase.Invoice LAST
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isClosed
+
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) isPosted,
+        number, series, date, time
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+        nameCurrency, nameAgreement,
+        seriesNumberContractSku, isCommission
+    PROPERTIES (i) READONLY BACKGROUND background(i) countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+        VATSumInvoiceDetail, invoiceSumInvoiceDetail
+    PROPERTIES (i) READONLYIF isReadonly() BACKGROUND background(i) note
+    PROPERTIES (i) READONLY PANEL createdNameUser[UserInvoice], createdTime[UserInvoice], createdHostnameComputer,
+        postedNameUser, postedTime, postedHostnameComputer 
+
+    OBJECTS d = Purchase.InvoiceDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku
+    PROPERTIES (d) READONLY BACKGROUND backgroundId(d) idSku SHOWIF showIDs()
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, namePriceListType, price SHOWIF NOT hideWithoutVAT(i), sum SHOWIF NOT hideWithoutVAT(i),
+        numberVAT SHOWIF NOT hideWithoutVAT(i), valueVAT SHOWIF NOT hideWithoutVAT(i),
+        invoicePrice SHOWIF NOT hideWithVAT(i),
+        VATSum, invoiceSum
+    ORDERS index(d)
+
+    FILTERS invoice(d) == i
+    
+    FILTERS filterDateFrom(i),
+        filterDateTo(i),
+        filterSupplier(i),
+        filterSupplierStock(i),
+        filterCustomer(i),
+        filterCustomerStock(i),
+        filterCustomUser(i),
+        filterComputer(i)
+
+    EVENTS ON INIT {
+        IF filterInvoiceInterval() THEN
+            filterInvoiceDateFrom() <- subtract(currentDate(), filterInvoiceInterval());
+    }
+
+    LIST Purchase.InvoiceDetail OBJECT d
+;
+
+DESIGN invoiceDetailsDialog 'Выбор позиции накладной (закупка)' {
+    BOX {
+        size = (1024, 768);
+
+        NEW documentContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            NEW filtersBox {
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    alignment = STRETCH;
+                    NEW topFilters1 {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(filterInvoiceDateFrom());
+                        MOVE PROPERTY(filterInvoiceDateTo());
+                        MOVE PROPERTY(nameFilterInvoiceCustomUser()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceComputer()) { fill = 1; }
+                    }
+                    NEW topFilters2 {
+                        horizontal = TRUE;
+                        alignment = STRETCH;
+                        MOVE PROPERTY(nameFilterInvoiceSupplier()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceSupplierStock()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceCustomer()) { fill = 1; }
+                        MOVE PROPERTY(nameFilterInvoiceCustomerStock()) { fill = 1; }
+                    }
+                }
+                MOVE BOX(i) {
+                    fill = 1;
+                }
+            }
+
+            NEW documentDetail {
+                fill = 1;
+                tabbed = TRUE;
+
+                MOVE BOX(d) {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    MOVE GROUP(created,i) { alignment = STRETCH; }
+                    MOVE GROUP(posted,i) { alignment = STRETCH; }
+                }
+                NEW printTabContainer {
+                    caption = 'Печатные формы';
+                    NEW printTabScroll {
+                        fill = 1;
+                        height = 1;
+                        NEW printTab {
+                            NEW printContainer {
+                                caption = 'Печать';
+                            }
+                        }
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    horizontal = TRUE;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                    }
+                    NEW machineryContainer {
+                        caption = 'Загрузка';
+                        NEW label {
+                            caption = 'Ценники' ;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+changePurchaseInvoice() {
+    DIALOG invoiceDetailsDialog OBJECTS d INPUT NULL DO {
+        IF NOT purchaseInvoiceDetail() == d THEN {
+            in(Item item) <- NULL;
+
+            itemLotType() <- lotType(sku(d));
+            in(Item item) <- TRUE WHERE item = sku(d);
+            purchaseInvoiceDetail() <- d;
+            purchaseInvoice() <- Purchase.invoice(d);
+            kituStock() <- customerStock(purchaseInvoice());
+        }
+
+        setValues(purchaseInvoiceDetail());
+    }
+}
+
+selectAIGS1 'Подбор AI (GS1)' () {
+    DIALOG identifierAIs DO {};
+};
+
+DESIGN aggregationLotGenerator {
+    tabbedPane {
+        NEW kitu {
+            caption = 'КИТУ';
+            fill = 1;
+        }
+    }
+}
+
+EXTEND FORM aggregationLotGenerator
+    PROPERTIES () 
+        kituStockName, lotBarcodeTypeName, packTypePackQuantity, packTypeName, itemLotTypeName, itemListName ON CHANGE changeItems(),
+        seriesNumberPurchaseInvoice ON CHANGE changePurchaseInvoice()
+
+    OBJECTS i = GS1IdentifierAI
+    PROPERTIES (i) name READONLY, value, priority SHOWIF NULL, defaultPriority SHOWIF NULL
+    PROPERTIES selectAIGS1() DRAW i TOOLBAR
+    PROPERTIES () code, generateSerialPackageNumber SHOWIF ACTIVE TAB aggregationLotGenerator.kitu  
+    PROPERTIES () useDefaultIdentifier DRAW i TOOLBAR
+
+    FILTERS include(i) 
+
+    ORDERS priority(i) DESC
+    
+    EVENTS ON INIT {
+        useDefaultIdentifier() <- TRUE;        
+    }
+;
+
+DESIGN aggregationLotGenerator {
+    tabbedPane {
+        kitu {
+            NEW topPane {
+                fill = 1;
+                horizontal = TRUE;
+                NEW leftPane {
+                    MOVE PROPERTY (kituStockName());
+                    MOVE PROPERTY (lotBarcodeTypeName());
+                    MOVE PROPERTY (packTypePackQuantity());
+                    MOVE PROPERTY (packTypeName());
+                    MOVE PROPERTY (itemLotTypeName());
+                    MOVE PROPERTY (itemListName());
+                    MOVE PROPERTY (seriesNumberPurchaseInvoice());
+                }
+                NEW rightPane {
+                    fill = 1;
+
+                    MOVE BOX(i) {
+                        caption = 'Идентификаторы применения';
+                    }
+                }
+            }
+            NEW bottomPane {
+                fill = 1;
+                MOVE PROPERTY (code());
+            }            
+        }
+    }
+    
+    TOOLBARBOX {
+        MOVE PROPERTY (generateSerialPackageNumber());
+        MOVE PROPERTY (formClose());
+    }
+}

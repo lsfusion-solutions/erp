@@ -1,0 +1,26 @@
+MODULE EZAggregateLotOrderPrint;
+
+REQUIRE LotOrderPrintBy, EZLotAggregateOrder, LotOrder;
+
+NAMESPACE AggregateLot;
+
+printAK 'Печать АК' ABSTRACT LIST(LotOrder);
+
+printAK  (LotOrder o) +{
+    IF NOT countIn() THEN {
+        in(o) <- TRUE;
+    }
+
+    IF (GROUP MIN in(LotOrder oo) IF oo IS LotOrder AND NOT aggregateLotOrderStatus(oo) == AggregateLotOrderStatus.done) THEN {
+        MESSAGE 'Разрешена печать только для статуса "Выполнено"';
+        in(LotOrder oo) <- NULL;
+    }
+}
+
+EXTEND FORM aggregationLotRegistration
+    PROPERTIES (o) printAK TOOLBAR
+;
+
+DESIGN aggregationLotRegistration {
+    TOOLBARLEFT(o) { MOVE PROPERTY(printAK(o));}
+}

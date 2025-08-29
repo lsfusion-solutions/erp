@@ -1,0 +1,26 @@
+MODULE AggregateLot;
+
+REQUIRE LotBy, LotAggregate;
+
+NAMESPACE EZ;
+
+infoId 'Код' = DATA STRING[200] (Lot) CHARWIDTH 15;
+
+selectAggregate 'Отм.' = DATA LOCAL BOOLEAN (Lot);
+selectAggregateLotCount() = GROUP SUM 1 IF selectAggregate(Lot l);
+
+FORM selectAggregateLots 'Выбор КА'
+    OBJECTS l  = Lot
+    PROPERTIES (l) selectAggregate
+    PROPERTIES (l) id READONLY
+    FILTERS aggregated(l)
+;
+
+DESIGN selectAggregateLots{
+    BOX{
+        size = (1024, 768);
+        OBJECTS {
+            MOVE BOX(l);
+        }
+    }
+}

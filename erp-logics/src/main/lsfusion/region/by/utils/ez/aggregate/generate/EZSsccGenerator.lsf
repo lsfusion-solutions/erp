@@ -1,0 +1,61 @@
+MODULE EZSsccGenerator;
+
+REQUIRE EZAggregationLotGenerator, EZLotAggregateSsccOrder;
+
+NAMESPACE EZ;
+
+aggregationCodesNumber 'Введите количество кодов агрегации' = DATA LOCAL INTEGER ();
+ssccStock 'Склад' = DATA LOCAL Stock ();
+ssccStockName 'Склад' () = name(ssccStock());  
+
+ssccGenerate 'Сгенерировать КА' () {
+    IF NOT aggregationCodesNumber() THEN {
+        MESSAGE 'Не задано количество кодов агрегации';
+        RETURN;
+    }
+    
+    IF aggregationCodesNumber() THEN {
+        NEW o = LotOrder {
+            identificationMeansType(o) <- IdentificationMeansType.sscc;
+            kind(o) <- LotOrderKind.sscc;
+            type(o) <- LotType.unknown;
+            stock(o) <- ssccStock();
+
+            FOR iterate(INTEGER i, 1, aggregationCodesNumber()) DO NEW d = LotOrderDetail {
+                lotOrder(d) <- o;
+                initialDemand(d) <- 1;
+            }
+        }
+
+        formOk();
+    }
+}
+
+DESIGN aggregationLotGenerator {
+    tabbedPane {
+        NEW sscc {
+            caption = 'SSCC';
+            fill = 1;
+        }
+    }
+}
+
+EXTEND FORM aggregationLotGenerator
+    PROPERTIES () ssccStockName, aggregationCodesNumber, ssccGenerate SHOWIF ACTIVE TAB aggregationLotGenerator.sscc
+;
+
+DESIGN aggregationLotGenerator {
+    tabbedPane {
+        sscc {
+            MOVE PROPERTY (ssccStockName());
+            MOVE PROPERTY (aggregationCodesNumber());
+        }
+    }
+
+    TOOLBARBOX {
+        MOVE PROPERTY (ssccGenerate());
+        MOVE PROPERTY (formClose());
+    }
+}
+
+

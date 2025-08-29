@@ -1,0 +1,44 @@
+MODULE EZAggregateSsccLotOrderPrint;
+
+REQUIRE EZAggregateLotOrderPrint, EZLotAggregateSsccOrder;
+
+NAMESPACE AggregateSsccLot;
+
+lotOrderDetail = DATA LOCAL LotOrderDetail(Lot);
+stock(Lot l) = stock(lotOrderDetail(l));
+legalEntityName (Lot l) = nameLegalEntity(stock(l));
+legalEntityAddress (Lot l) = address(legalEntity(stock(l)));
+
+select = DATA LOCAL BOOLEAN (Lot);
+countSelect () = GROUP SUM 1 IF select(Lot l);
+
+FORM printSsccReport 
+    OBJECTS l = Lot
+    PROPERTIES(l) id, legalEntityName, legalEntityAddress
+    ORDERS id(l)
+    FILTERS select(l)
+;
+
+printSscc 'Печать ВАК' () {
+    IF countSelect() THEN {
+        PRINT printSsccReport;
+    }
+}
+
+printSscc 'Печать ВАК' (Lot l) {
+    IF NOT countSelect() THEN {
+        select(l) <- TRUE;
+    }
+
+    printSscc();
+}
+
+countSsccIn() = GROUP SUM 1 IF in(LotOrder o) AND kind(o) == LotOrderKind.sscc;
+
+printAK (LotOrder o) +{
+    IF countSsccIn() THEN {
+        lotOrderDetail(Lot l) <- [GROUP MIN LotOrderDetail d IF in(lotOrder(d)) AND kind(lotOrder(d)) == LotOrderKind.sscc BY lot(idAggregateLot(d))](l) ;
+        select(Lot l) <- in(lotOrderDetail(l));
+        printSscc();
+    }
+}

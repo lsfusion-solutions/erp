@@ -1,0 +1,292 @@
+MODULE EZAggregateLotInit;
+
+REQUIRE LotInitBy, LotAggregate, AggregateLot, EZLotInit;
+
+NAMESPACE EZ;
+
+CLASS LotInitKind 'Вид заказа' {
+    default 'По умолчанию'
+};
+
+name 'Наименование' (LotInitKind t) = staticCaption(t) IF t IS LotInitKind CHARWIDTH 20;
+
+dataKind 'Вид' = DATA LotInitKind (LotInit);
+kind 'Вид' (LotInit i)= OVERRIDE dataKind(i), LotInitKind.default IF i IS LotInit;
+nameKind 'Вид' (LotInit i) = name(kind(i));
+
+EXTEND FORM lotInits
+    FILTERS kind(i) = LotInitKind.default
+;
+
+CLASS AggregateLotInitStatus {
+    new 'Новый',
+    process 'Обрабатывается',
+    done  'Выполнено'
+}
+
+aggregateLotInitStatus 'Статус' = ABSTRACT CASE AggregateLotInitStatus (LotInit);
+nameAggregateLotInitStatus 'Статус' (LotInit lotInit) = staticCaption(aggregateLotInitStatus(lotInit)) CHARWIDTH 15;
+
+aggregateLotInitStatus(LotInitDetail d) = aggregateLotInitStatus(lotInit(d));
+
+isDone = DATA BOOLEAN (LotInitDetail);
+isProcess(LotInit i)  = GROUP MIN isDone(LotInitDetail d) IF i == lotInit(d);
+countDetail (LotInit i) = GROUP SUM 1 IF i == lotInit(LotInitDetail d);
+countDoneDetail (LotInit i) = GROUP SUM 1 IF i == lotInit(LotInitDetail d) AND isDone(d);
+isDone(LotInit i) = countDetail(i) == countDoneDetail(i);
+
+aggregateLotInitStatus (LotInit l) += WHEN NOT isProcess (l) THEN AggregateLotInitStatus.new;
+aggregateLotInitStatus (LotInit l) += WHEN isProcess(l) AND NOT isDone(l) THEN AggregateLotInitStatus.process;
+aggregateLotInitStatus (LotInit l) += WHEN isDone(l) THEN AggregateLotInitStatus.done;
+
+createAggregationLotInit  'Создать' ABSTRACT LIST () IMAGE 'add.png'; 
+editAggregationLotInit  'Редактировать' ABSTRACT LIST (LotInit) IMAGE 'edit.png';
+exchangeAggregationLotInit 'Обмен данными' ABSTRACT LIST (LotInit);
+
+EXTEND CLASS LotInitKind {
+    aggregate 'Агрегация'
+};
+
+aggregateLot(LotInitDetail d) = GROUP MIN Lot l IF quantity(d, l);
+idAggregateLot 'Код агрегации' (LotInitDetail d) = id(aggregateLot(d));
+
+FORM aggregations 'Агрегации'
+    OBJECTS i = LotInit
+    PROPERTIES(i) READONLY id, number, series, date, time,
+        nameType, nameStock, note, countLotInitDetail, nameAggregateLotInitStatus
+    PROPERTIES () createAggregationLotInit DRAW i TOOLBAR
+    PROPERTIES (i) editAggregationLotInit DRAW i TOOLBAR
+    PROPERTIES (i) exchangeAggregationLotInit TOOLBAR
+    
+    OBJECTS d = LotInitDetail
+    PROPERTIES (d) READONLY index, idAggregateLot, idSku, nameSku, shortNameUOMSku
+    FILTERS lotInit(d) == i
+;
+
+DESIGN aggregations {
+    OBJECTS {
+        BOX(i) { caption = ''; }
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(d) { caption = 'Товары'; }
+            TOOLBARLEFT(i) { MOVE PROPERTY(exchangeAggregationLotInit(i));}
+        }
+    }
+}
+
+NAVIGATOR {
+    lotNavigator {
+        NEW aggregations;
+        lotInits SHOWIF NULL;
+    }
+}
+
+reversal 'Отмена/Cторно' = DATA BOOLEAN (LotInit);
+reversal (LotInitDetail d) = reversal(lotInit(d));
+
+lotInitDetail(LotInit i, Lot aggrLot) = GROUP MIN LotInitDetail d IF quantity(d, aggrLot) BY lotInit(d);
+
+addSelectedKA(LotInit i) {
+    FOR selectAggregate(Lot l) DO {        
+        IF l AND NOT lotInitDetail(i, l) THEN {
+            NEW d = LotInitDetail {
+                lotInit(d) <- i;
+                //                sku(d) <- sku;
+                quantity (d) <- 1;
+                quantity(d, l) <- 1;
+            }
+        }
+    }
+}
+
+selectKA 'Подбор КА' (LotInit i) {
+    DIALOG selectAggregateLots OBJECTS l INPUT DO {
+        IF NOT selectAggregateLotCount() THEN {            
+            selectAggregate(l) <- TRUE;
+        }
+
+        addSelectedKA(i);
+        selectAggregate(Lot ll) <- NULL;
+    }
+}
+
+importTextKA 'Загрузить КА (txt)' (LotInit i) {
+    LOCAL aggrCode = STRING(INTEGER);
+    
+    INPUT f = FILE DO {
+        IMPORT CSV '|' NOHEADER CHARSET 'CP1251' FROM f AS FILE TO aggrCode;
+        selectAggregate(Lot l) <- NULL;
+        FOR aggrCode(INTEGER int) DO {
+            selectAggregate(Lot l) <- TRUE WHERE l = lot(aggrCode(int));            
+        }
+
+        addSelectedKA(i);
+        selectAggregate(Lot ll) <- NULL;
+    }
+}
+
+aggregateLot = DATA Lot (LotInitDetail, Lot);
+importTextLot 'Загрузить марки (txt)' (LotInitDetail d) {
+    LOCAL idLot = STRING(INTEGER);
+
+    INPUT f = FILE DO {
+        IMPORT CSV '|' NOHEADER CHARSET 'CP1251' FROM f AS FILE TO idLot;
+        
+        FOR idLot(INTEGER int) DO {
+            aggregateLot(d, Lot l) <- aggregateLot(d) WHERE l == lot(barcodeToId(idLot(int)));
+        }
+    }    
+}
+
+scanKA 'Сканировать агрегацию' = DATA LOCAL STRING (LotInit);
+changeBarcodeLotInitDetail ABSTRACT LIST (LotInit);
+
+scanLot 'Сканировать марку' = DATA LOCAL STRING (LotInitDetail);
+skipCheckDocumentLot(LotInitDetail d) += aggregated(aggregateLot(d));
+
+changeBarcodeLot ABSTRACT LIST (LotInitDetail);
+
+in(Item item, LotInitDetail d) = GROUP MIN TRUE IF aggregateLot(d, Lot l) == aggregateLot(d) BY sku(l);
+in(Item item, LotInit i) = GROUP MIN in(item, LotInitDetail d) IF lotInit(d) == i;
+
+index 'Номер' (LotInitDetail d) = PARTITION SUM 1 ORDER d BY lotInit(d) CHARWIDTH 4;
+index 'Номер' (Item i, LotInit in) = PARTITION SUM 1 ORDER i IF in(i,  in) BY in CHARWIDTH 4;
+index 'Номер' (LotInitDetail d, Lot l) = PARTITION SUM 1 ORDER l IF aggregateLot(d, l) BY d CHARWIDTH 4;
+
+deleteAggregateLot 'Удалить' (LotInitDetail d, Lot l) {
+    aggregateLot(d, l) <- NULL;
+} IMAGE 'delete.png';
+
+FORM createAggregationLotInit 'Добавление марок в код агрегации'
+    OBJECTS i = LotInit PANEL
+    PROPERTIES (i) number, date, nameStock, nameLegalEntityStock READONLY, reversal, group 'Группа' = nameType
+    PROPERTIES (i) selectKA, scanKA ON CHANGE changeBarcodeLotInitDetail(i), importTextKA
+    FILTERS kind(i) == LotInitKind.aggregate
+    
+    OBJECTS d = LotInitDetail
+    PROPERTIES (d) READONLY index, idAggregateLot
+    PROPERTIES (d) scanLot ON CHANGE changeBarcodeLot(d) PANEL, DELETE, importTextLot
+    FILTERS lotInit(d) == i
+    
+    OBJECTS item = Item
+    PROPERTIES (item, i) READONLY index
+    PROPERTIES (item) READONLY name
+    FILTERS in(item, i)
+    
+    OBJECTS l = Lot
+    PROPERTIES (d, l) READONLY index
+    PROPERTIES (d, l) deleteAggregateLot
+    PROPERTIES (l) READONLY id
+    FILTERS aggregateLot(d, l)
+;
+
+DESIGN createAggregationLotInit {
+    BOX {
+        NEW order {
+            horizontal = TRUE;
+            fill = 1;
+            NEW leftContainer {
+                caption = '';
+                fill = 1;
+                NEW firstRow {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(number(i));
+                    MOVE PROPERTY(date(i));
+                    MOVE PROPERTY(nameStock(i));
+                    MOVE PROPERTY(nameLegalEntityStock(i));
+                }
+                NEW secondRow {
+                    horizontal = TRUE;
+
+                    MOVE PROPERTY(group);
+                    MOVE PROPERTY(reversal(i));
+                    MOVE PROPERTY(selectKA(i));
+                }
+                NEW thirdRow {
+                    horizontal = TRUE;
+                    
+                    MOVE PROPERTY(scanKA(i));
+                    MOVE PROPERTY(importTextKA(i));
+                }
+                MOVE BOX(d);
+                MOVE BOX(item);
+            }
+            NEW rightContainer {
+                fill = 1;
+                NEW rightContainerActions {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(scanLot(d));
+                    MOVE PROPERTY(importTextLot(d));
+                }
+                MOVE BOX(l);
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeBarcodeLotInitDetail(LotInit i) + {
+    INPUT s = STRING DO {
+        scanKA(i) <- s;
+
+        IF NOT aggregated(lot(scanKA(i))) THEN {
+            MESSAGE 'Введите код агрегации';
+            RETURN;
+        }
+
+        selectAggregate(Lot ll) <- NULL;
+        selectAggregate(Lot l) <- TRUE WHERE l == lot(scanKA(i));
+        addSelectedKA(i);        
+
+        SEEK createAggregationLotInit.d = lotInitDetail(i, lot(scanKA(i)));
+        scanKA(i) <- NULL;        
+        formRefresh();
+    }
+}
+
+changeBarcodeLot(LotInitDetail d) + {
+    INPUT s = STRING DO {
+        scanLot(d) <- s;
+
+        IF lot(scanLot(d)) AND NOT aggregated(lot(barcodeToId(scanLot(d)))) THEN {
+            MESSAGE 'Введите код марки';
+            RETURN;
+        }
+
+        IF NOT type(lotInit(d)) == lotType(sku(lot(barcodeToId(scanLot(d))))) THEN {
+            MESSAGE 'Марка не соответствует типу маркировки отчета';
+            RETURN;
+        }
+
+        IF parent(lot(barcodeToId(scanLot(d)))) AND NOT parent(lot(barcodeToId(scanLot(d)))) == aggregateLot(d) THEN {
+            MESSAGE 'Марка привязана к другому КА';
+            RETURN; 
+        }
+
+        IF scanLot(d) THEN {
+            aggregateLot(d, Lot l) <- aggregateLot(d) WHERE l == lot(barcodeToId(scanLot(d)));
+        }
+
+        scanLot(d) <- NULL;        
+        formRefresh();
+    }
+}
+
+createAggregationLotInit() + {
+    NEWSESSION {
+        NEW i = LotInit {
+            kind(i) <- LotInitKind.aggregate;
+            mode(i) <- LotInitMode.IMPORT_;
+            method(i) <- LotInitMarkingMethod.NO_PROTECT;
+            
+            SHOW createAggregationLotInit OBJECTS i = i;
+        }
+    }
+}
+
+editAggregationLotInit(LotInit i) + {
+    NEWSESSION {
+        SHOW createAggregationLotInit OBJECTS i = i;
+    }
+}

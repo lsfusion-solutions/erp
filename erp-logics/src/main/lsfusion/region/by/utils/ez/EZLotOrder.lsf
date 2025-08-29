@@ -26,8 +26,10 @@ codeGroup 'Код группы' (LotType g) = CASE
     MATERIALIZED;
 
 CLASS IdentificationMeansType 'Вид средства идентификации' {
+    sscc 'Код агрегации (SSCC)',
     eaeuGeneral 'Код стран ЕАЭС идентификации товара',
     milk 'Код РБ идентификации молочной продукции',
+    import 'Код агрегации (импорт)',
     shoesTiresClothes 'Код РБ идентификации товара (обувь, шины, легкая промышленность)'
 }
 
@@ -41,8 +43,10 @@ FORM dialogIdentificationMeansType 'Выбор вида средства иде�
 ;
 
 id (IdentificationMeansType t) = CASE
+    WHEN t == IdentificationMeansType.sscc THEN '6'
     WHEN t == IdentificationMeansType.eaeuGeneral THEN '7'
     WHEN t == IdentificationMeansType.milk THEN '12'
+    WHEN t == IdentificationMeansType.import THEN '13'
     WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20';
 
 quantityLotLimit 'Лимит количества заказываемых марок по строке' = DATA INTEGER ();
@@ -384,7 +388,7 @@ EXTEND FORM lotOrder
     PROPERTIES(d) idOrderEZ AFTER gtin(d)
 ;
 
-skipChangedCheckLotOrderDetail 'Пропустить проверку строки на редактирование' = ABSTRACT BOOLEAN (LotOrderDetail);
+skipChangedCheckLotOrderDetail 'Пропустить проверку строки на редактирование' = ABSTRACT VALUE BOOLEAN (LotOrderDetail);
 
 availableCodes 'Доступно марок' = DATA INTEGER (LotOrderDetail);
 availableCodes 'Доступно марок' (LotOrder o) = GROUP SUM availableCodes(LotOrderDetail d) IF lotOrder(d) = o MATERIALIZED;

@@ -1,0 +1,81 @@
+MODULE EZKituAggregateOrderExchange;
+
+REQUIRE EZLotAggregateOrder, EZLotAggregateKituOrder;
+
+NAMESPACE EZ;
+
+FORM addAggregate
+    OBJECTS o = LotOrder EXTID 'value'
+
+    OBJECTS aggregate = LotOrderDetail
+    PROPERTIES(aggregate) idAggregateLot EXTID 'value'
+    FILTERS lotOrder(aggregate) == o
+;
+
+GROUP aggrCount EXTID 'count';
+aggrSuccess = DATA LOCAL INTEGER();
+aggrFailed = DATA LOCAL INTEGER();
+aggrError = DATA LOCAL STRING(INTEGER);
+
+FORM importAddAggregate
+    PROPERTIES() IN aggrCount
+        aggrSuccess EXTID 'success',
+        aggrFailed EXTID 'failed'
+
+    OBJECTS error = INTEGER 
+    PROPERTIES(error) aggrError EXTID 'value'
+    FILTERS imported(error)
+;
+
+addAggregateLot 'Добавление собственных кодов агрегации' (LotOrder o) {
+    LOCAL result = FILE();
+
+    EXPORT addAggregate OBJECTS o = o JSON;    
+    fileToString(exportFile());
+
+    exception(o) <- NULL;
+    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/v2/labels/addAggregate' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        fileToString(result());
+        IMPORT importAddAggregate JSON FROM result();
+
+        error(LotOrderDetail d) <- [GROUP MIN TRUE IF aggrError(INTEGER i) BY getWord(aggrError(i),' ',1)](idAggregateLot(d)) WHERE lotOrder(d) == o;
+        
+        IF aggrSuccess() > 0 THEN {
+            FOR idAggregateLot(LotOrderDetail d) AND lotOrder(d) == o AND NOT error(d) NOINLINE DO NEW l = Lot {
+                aggregateLot(d) <- l;
+                aggregated(l) <- TRUE;
+                id(l) <- idAggregateLot(d);
+                infoId(l) <- infoIdAggregateLot(d);
+                sku(l) <- sku(d);
+                quantity(d, l) <- 1;
+            }            
+        }
+        
+        createdTime(o) <- currentDateTime();
+        MESSAGE CONCAT '\n', 'Количество успешно добавленных КА ' + aggrSuccess(), 'Количество ошибочных (отклоненных) КА' + aggrFailed() NOWAIT;
+        isProcess(o) <- TRUE;
+        APPLY;
+    } CATCH {
+        logToFile('ez', messageCaughtException());
+        logToFile('ez', result());
+        fileToString(result());
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        RETURN;
+    }
+}
+
+exchangeAggregationLotOrder (LotOrder o) + {
+    IF kind(o) == LotOrderKind.kitu THEN {           
+        IF aggregateLotOrderStatus(o) == AggregateLotOrderStatus.new THEN {
+            addAggregateLot(o);
+        }
+    }
+}
+
+
+//checkStatus
+//importLotCodes

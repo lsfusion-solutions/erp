@@ -1,0 +1,110 @@
+MODULE EZLotAggregateOrder;
+
+REQUIRE LotAggregate, EZLotOrder, AggregateLot;
+
+NAMESPACE EZ;
+
+CLASS LotOrderKind 'Вид заказа' {
+    default 'По умолчанию'
+};
+
+in 'Отм.' = DATA LOCAL BOOLEAN (LotOrder);
+countIn() = GROUP SUM 1 IF in(LotOrder o);
+
+in(LotOrderDetail d) = in(lotOrder(d));
+
+name 'Наименование' (LotOrderKind t) = staticCaption(t) IF t IS LotOrderKind CHARWIDTH 20;
+
+dataKind 'Вид' = DATA LotOrderKind (LotOrder);
+kind 'Вид' (LotOrder o)= OVERRIDE dataKind(o), LotOrderKind.default IF o IS LotOrder;
+nameKind 'Вид' (LotOrder o) = name(kind(o));
+
+EXTEND FORM lotOrders
+    FILTERS kind(o) = LotOrderKind.default
+;
+
+//aggregate = DATA LOCAL STRING(INTEGER);
+
+aggregate 'Агрегация' = ABSTRACT VALUE BOOLEAN (LotOrder);
+aggregate(LotOrderDetail d) = aggregate(lotOrder(d));
+aggregateLot = DATA Lot (LotOrderDetail);
+overIdAggregateLot = ABSTRACT VALUE STRING[200] (LotOrderDetail);
+idAggregateLot 'Код агрегации' (LotOrderDetail d) = OVERRIDE id(aggregateLot(d)), overIdAggregateLot(d);
+infoIdAggregateLot 'Код агрегации (инфо)' = ABSTRACT VALUE STRING[200] (LotOrderDetail);
+
+error = DATA BOOLEAN (LotOrderDetail);
+
+WHEN SETCHANGED(aggregateLot(LotOrderDetail d)) DO {
+    quantity(d, Lot l) <- NULL;
+    quantity(d, aggregateLot(d)) <- 1 IF d IS LotOrderDetail;
+}
+
+WHEN DROPPED(aggregateLot(LotOrderDetail d)) DO {
+    quantity(d, Lot l) <- NULL;
+}
+
+CLASS AggregateLotOrderStatus {
+    new 'Новый',
+    process 'Обрабатывается',
+    done  'Выполнено'
+}
+
+aggregateLotOrderStatus 'Статус' = ABSTRACT CASE AggregateLotOrderStatus (LotOrder);
+nameAggregateLotOrderStatus 'Статус' (LotOrder lotOrder) = staticCaption(aggregateLotOrderStatus(lotOrder)) CHARWIDTH 15;
+
+isProcess  = DATA BOOLEAN (LotOrder);
+
+countAggrCodes (LotOrder o) = GROUP SUM 1 IF idAggregateLot(LotOrderDetail d) AND lotOrder(d) == o;
+countAggrLot (LotOrder o) = GROUP SUM 1 IF (aggregateLot(LotOrderDetail d) OR error(d)) AND lotOrder(d) == o;
+isDone (LotOrder o) = countAggrCodes(o) == countAggrLot(o);
+
+aggregateLotOrderStatus (LotOrder l) += WHEN NOT isProcess (l) THEN AggregateLotOrderStatus.new;
+aggregateLotOrderStatus (LotOrder l) += WHEN isProcess(l) AND NOT isDone(l) THEN AggregateLotOrderStatus.process;
+aggregateLotOrderStatus (LotOrder l) += WHEN isDone(l) THEN AggregateLotOrderStatus.done;
+
+createAggregationLotOrder  'Создать заказ' ABSTRACT LIST ();
+exchangeAggregationLotOrder 'Обмен данными' ABSTRACT LIST (LotOrder);
+exportTxtAggregationLotOrder  'Сохранить (txt)' (LotOrder o) {
+    EXPORT CSV '|' NOHEADER CHARSET 'CP1251' FROM idAggregateLot(LotOrderDetail d) WHERE lotOrder(d) = o;
+    WRITE CLIENT DIALOG TEXTFILE(exportFile()) TO 'exportAggrLot';
+}
+
+FORM aggregationLotRegistration 'Регистрация кодов агрегации'
+    OBJECTS o = LotOrder
+    PROPERTIES(o) in
+    PROPERTIES(o) READONLY number, series, date, time, nameKind,
+        nameStock, note, countLotOrderDetail, quantityLotOrderDetail, nameAggregateLotOrderStatus
+    PROPERTIES(o) NEWSESSION DELETE SHOWIF NOT isPosted(o)
+    FILTERS aggregate(o) 
+
+    OBJECTS d = LotOrderDetail
+    PROPERTIES(d) READONLY index, idAggregateLot, idBarcodeSku, idSku, nameSku, shortNameUOMSku, gtin
+    FILTERS lotOrder(d) = o
+    
+    PROPERTIES () createAggregationLotOrder DRAW o TOOLBAR
+    PROPERTIES (o) exchangeAggregationLotOrder TOOLBAR
+    PROPERTIES (o) exportTxtAggregationLotOrder TOOLBAR
+;
+
+DESIGN aggregationLotRegistration {
+    OBJECTS {
+        NEW tabbedPane {
+            tabbed = TRUE;
+            fill = 1;
+            MOVE BOX(d) { caption = ''; }
+            TOOLBARLEFT(o) { MOVE PROPERTY(exchangeAggregationLotOrder(o));}
+            TOOLBARLEFT(o) { MOVE PROPERTY(exportTxtAggregationLotOrder(o));}
+        }
+    }
+}
+
+NAVIGATOR {
+    lotNavigator {
+        NEW aggregationLotRegistration;
+        lotOrders SHOWIF NULL;
+    }
+}
+
+//EXTEND FORM selectAggregateLots 
+//    PROPERTIES (l) READONLY number
+//;

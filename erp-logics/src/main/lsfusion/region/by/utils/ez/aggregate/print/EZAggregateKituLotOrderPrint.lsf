@@ -1,0 +1,48 @@
+MODULE EZAggregateKituLotOrderPrint;
+
+REQUIRE EZAggregateLotOrderPrint, EZLotAggregateKituOrder;
+
+NAMESPACE AggregateLot;
+
+lotOrderDetail = DATA LOCAL LotOrderDetail(Lot);
+stock(Lot l) = stock(lotOrderDetail(l));
+legalEntityName (Lot l) = nameLegalEntity(stock(l));
+legalEntityAddress (Lot l) = address(legalEntity(stock(l)));
+lastManufactureDate 'Дата изготовления' (Lot l) = valueAI10(lotOrderDetail(l));
+countUnit 'Количество упаковочных единиц' (Lot l) = valueAI37(lotOrderDetail(l));
+numberBatch 'Номер партии' (Lot l) = valueAI11(lotOrderDetail(l));
+
+select = DATA LOCAL BOOLEAN (Lot); 
+countSelect () = GROUP SUM 1 IF select(Lot l);
+
+FORM printKituReport 'Печать'
+    OBJECTS l = Lot
+    PROPERTIES(l) id, legalEntityName, legalEntityAddress, infoId, gtin, nameSku, lastManufactureDate, numberBatch, 
+    countUnit
+    ORDERS nameSku(l)
+    FILTERS select(l)
+;
+
+printKitu 'Печать ВАК' () {
+    IF countSelect() THEN {        
+        PRINT printKituReport;
+    }
+}
+
+printKitu 'Печать ВАК' (Lot l) {
+    IF NOT countSelect() THEN {
+        select(l) <- TRUE;
+    }
+
+    printKitu();
+}
+
+countKituIn() = GROUP SUM 1 IF in(LotOrder o) AND kind(o) == LotOrderKind.kitu;
+
+printAK (LotOrder o) +{
+    IF countKituIn() THEN {
+        lotOrderDetail(Lot l) <- [GROUP MIN LotOrderDetail d IF in(lotOrder(d)) AND kind(lotOrder(d)) == LotOrderKind.kitu BY lot(idAggregateLot(d))](l) ;
+        select(Lot l) <- in(lotOrderDetail(l));
+        printKitu();
+    } 
+}

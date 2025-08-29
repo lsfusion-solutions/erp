@@ -1,0 +1,87 @@
+MODULE EZAggregateLotInitExchange;
+
+REQUIRE EZAggregateLotInit, EZLotOrderInit;
+
+NAMESPACE EZ;
+
+FORM addAggregateLot
+    OBJECTS aggregate = LotInitDetail PANEL 
+    PROPERTIES(aggregate) idAggregateLot EXTID 'aggregate'
+
+    OBJECTS labels = Lot
+    PROPERTIES(labels) code EXTID 'value'
+    FILTERS aggregateLot(aggregate, labels)
+;
+
+reportId = DATA STRING (LotInitDetail);
+
+reportId = DATA LOCAL STRING();
+
+FORM importaAdAggregateAnswer
+    PROPERTIES() reportId EXTID 'report_id';
+
+addAggregateLot 'Отчёт об агрегировании' (LotInit i) {
+    LOCAL result = FILE();
+
+    FOR lotInit(LotInitDetail d) == i AND NOT reportId(d) DO {
+        EXPORT addAggregateLot OBJECTS aggregate = d JSON;
+        fileToString(exportFile());
+
+        exception(i) <- NULL;
+        ezToken() <- token(legalEntityStock(i));
+
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/v2/reports/addAggregate' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            fileToString(result());
+            IMPORT importaAdAggregateAnswer JSON FROM result();
+            reportId(d) <- reportId();
+            isDone(d) <- TRUE;
+            parent(Lot ll) <- aggregateLot(d) WHERE aggregateLot(d, ll);
+            APPLY;
+        } CATCH {
+            logToFile('ez', messageCaughtException());
+            logToFile('ez', result());
+            fileToString(result());
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ для ', idAggregateLot(d), messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+exchangeAggregationLotInit (LotInit i) + {
+    IF NOT reversal(i) THEN {
+        addAggregateLot(i);
+    }
+}
+
+aggregateDeleteLot 'Удаление кодов из агрегации' (LotInit i) {
+    LOCAL result = FILE();
+
+    FOR lotInit(LotInitDetail d) == i AND NOT reportId(d) DO {
+        EXPORT addAggregateLot OBJECTS aggregate = d JSON;
+        fileToString(exportFile());
+
+        exception(i) <- NULL;
+        ezToken() <- token(legalEntityStock(i));
+
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/labels/aggregateDelete' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+            fileToString(result());
+            isDone(d) <- TRUE;
+            parent(Lot ll) <- NULL WHERE aggregateLot(d, ll);
+            APPLY;
+        } CATCH {
+            logToFile('ez', messageCaughtException());
+            logToFile('ez', result());
+            fileToString(result());
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ для ', idAggregateLot(d), messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+exchangeAggregationLotInit (LotInit i) + {
+    IF reversal(i) THEN {
+        aggregateDeleteLot(i);
+    }
+}

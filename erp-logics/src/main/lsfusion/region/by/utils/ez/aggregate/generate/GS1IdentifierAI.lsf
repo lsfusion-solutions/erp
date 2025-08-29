@@ -1,0 +1,165 @@
+MODULE GS1IdentifierAI;
+
+REQUIRE Utils, SystemEvents;
+
+NAMESPACE EZ;
+
+useDefaultIdentifier 'По умолчанию' = DATA LOCAL BOOLEAN ();
+
+CLASS IdentifierAIParam 'Параметры дентификатора применения GS1 (AI)';
+
+ai 'AI' = DATA STRING (IdentifierAIParam);
+characterCount 'Количество символов' = DATA INTEGER (IdentifierAIParam);
+decimalCharacterCount 'Количество знаков после запятой' = DATA INTEGER (IdentifierAIParam);
+variableLength 'Данные переменной длины' = DATA BOOLEAN (IdentifierAIParam);
+gsSeparator 'Разделитель' = DATA BOOLEAN (IdentifierAIParam);
+
+dataPriority 'Приоритет' = DATA INTEGER (IdentifierAIParam);
+dataInclude 'Включить' = DATA BOOLEAN (IdentifierAIParam);
+defaultPriority 'Приоритет (по умолчанию)' = DATA INTEGER (IdentifierAIParam);
+defaultInclude 'Включить (по умолчанию)' = DATA BOOLEAN (IdentifierAIParam);
+priority 'Приоритет' (IdentifierAIParam p) = IF useDefaultIdentifier() THEN defaultPriority(p) ELSE dataPriority(p);
+include 'Включить' (IdentifierAIParam p) = IF useDefaultIdentifier() THEN defaultInclude(p) ELSE dataInclude(p);
+
+CLASS ABSTRACT GS1IdentifierAI 'Идентификатор применения GS1 (AI)';
+
+params = ABSTRACT IdentifierAIParam(GS1IdentifierAI);
+
+name 'Наименование' (GS1IdentifierAI i) = staticCaption(i) IF i IS GS1IdentifierAI CHARWIDTH 30;
+
+value 'Значение' = ABSTRACT ISTRING[500] (GS1IdentifierAI) CHARWIDTH 25;
+processedValue 'Значение' = ABSTRACT ISTRING[500] (GS1IdentifierAI) CHARWIDTH 25;
+
+code(GS1IdentifierAI i) = CONCAT '', ai(params(i)), decimalCharacterCount(params(i)), processedValue(i), '' IF gsSeparator(params(i));
+code 'Код агрегации' () = GROUP CONCAT code(GS1IdentifierAI i) IF include(params(i)), '' ORDER DESC priority(params(i)), i;
+
+infoCode(GS1IdentifierAI i) = CONCAT '', '(', ai(params(i)), ')', decimalCharacterCount(params(i)), processedValue(i);
+infoCode 'Код агрегации' () = GROUP CONCAT infoCode(GS1IdentifierAI i) IF include(params(i)), '' ORDER DESC priority(params(i)), i;
+
+valueAI37() = GROUP MIN processedValue(GS1IdentifierAI i) IF ai(params(i)) == '37';
+valueAI10() = GROUP MIN processedValue(GS1IdentifierAI i) IF ai(params(i)) == '10';
+valueAI11() = GROUP MIN processedValue(GS1IdentifierAI i) IF ai(params(i)) == '11';
+
+ai 'AI' (GS1IdentifierAI i) = ai(params(i));
+characterCount 'Количество символов' (GS1IdentifierAI i) = characterCount(params(i));
+decimalCharacterCount 'Количество знаков после запятой' (GS1IdentifierAI i) = decimalCharacterCount(params(i));
+variableLength 'Данные переменной длины' (GS1IdentifierAI i) = variableLength(params(i));
+gsSeparator 'Разделитель' (GS1IdentifierAI i) = gsSeparator(params(i));
+priority 'Приоритет' (GS1IdentifierAI i) = priority(params(i));
+include 'Включить' (GS1IdentifierAI i) = include(params(i));
+defaultPriority 'Приоритет (по умолчанию)' (GS1IdentifierAI i) = defaultPriority(params(i));
+defaultInclude 'Включить (по умолчанию)' (GS1IdentifierAI i) = defaultInclude(params(i));
+
+// Целое число
+CLASS IntegerGS1IdentifierAI 'Целочисленный идентификатор' : GS1IdentifierAI;
+params = DATA IdentifierAIParam(IntegerGS1IdentifierAI);
+params (IntegerGS1IdentifierAI i) += params(i);
+
+value = DATA LOCAL INTEGER (IntegerGS1IdentifierAI);
+value(IntegerGS1IdentifierAI identifier) += ISTRING[500](value(identifier));
+
+processedValue (IntegerGS1IdentifierAI identifier) = OVERRIDE
+    value(identifier) * power(10, decimalCharacterCount(params(identifier))) IF decimalCharacterCount(params(identifier)),
+    value(identifier);
+string(IntegerGS1IdentifierAI identifier) = STRING[255](OVERRIDE STRING(processedValue(identifier)) IF variableLength(params(identifier)), lpad(STRING(processedValue(identifier)), characterCount(params(identifier)), '0'));
+processedValue(IntegerGS1IdentifierAI identifier) += string(identifier);
+
+fill(IntegerGS1IdentifierAI i, STRING ai, INTEGER characterCount, INTEGER decimalCharacterCount, BOOLEAN variableLength, BOOLEAN gsSeparator) {
+    IF NOT params(i) AND i IS IntegerGS1IdentifierAI THEN {
+        NEW p = IdentifierAIParam  {
+            params(i) <- p;
+        }
+    }
+        
+    ai(params(i)) <- ai;
+    characterCount(params(i)) <- characterCount;
+    decimalCharacterCount(params(i)) <- decimalCharacterCount;
+    variableLength(params(i)) <- variableLength;
+    gsSeparator(params(i)) <- gsSeparator;
+}
+
+// Строка
+CLASS StringGS1IdentifierAI 'Строковый идентификатор' : GS1IdentifierAI;
+
+params = DATA IdentifierAIParam(StringGS1IdentifierAI);
+params (StringGS1IdentifierAI i) += params(i);
+
+overValue = ABSTRACT ISTRING[500] (StringGS1IdentifierAI);
+dataValue = DATA LOCAL ISTRING[500] (StringGS1IdentifierAI);
+value (StringGS1IdentifierAI i) = OVERRIDE dataValue(i), overValue(i);
+value(StringGS1IdentifierAI identifier) += value(identifier);
+
+processedValue(StringGS1IdentifierAI identifier) = STRING[255](OVERRIDE value(identifier) IF variableLength(params(identifier)), lpad(value(identifier), characterCount(params(identifier)), '0'));
+processedValue(StringGS1IdentifierAI identifier) += processedValue(identifier);
+
+fill(StringGS1IdentifierAI i, STRING ai, INTEGER characterCount, INTEGER decimalCharacterCount, BOOLEAN variableLength, BOOLEAN gsSeparator) {
+    IF NOT params(i) AND i IS StringGS1IdentifierAI THEN {
+        NEW p = IdentifierAIParam  {
+            params(i) <- p;
+        }
+    }
+    
+    ai(params(i)) <- ai;
+    characterCount(params(i)) <- characterCount;
+    decimalCharacterCount(params(i)) <- decimalCharacterCount;
+    variableLength(params(i)) <- variableLength;
+    gsSeparator(params(i)) <- gsSeparator;
+}
+
+// Дата
+dateToDDMMYY = FORMULA STRING[10] 'to_char(($1),\'DDMMYY\')';
+dateToDDpMMpYY = FORMULA STRING[10] 'to_char(($1),\'DD.MM.YY\')';
+
+CLASS DateGS1IdentifierAI 'Идентификатор даты' : GS1IdentifierAI;
+params = DATA IdentifierAIParam(DateGS1IdentifierAI);
+params (DateGS1IdentifierAI i) += params(i);
+
+value = DATA LOCAL DATE (DateGS1IdentifierAI);
+value(DateGS1IdentifierAI identifier) += dateToDDpMMpYY(value(identifier));
+
+processedValue (DateGS1IdentifierAI identifier) = dateToDDMMYY(value(identifier));
+string(DateGS1IdentifierAI identifier) = STRING[255](OVERRIDE STRING(processedValue(identifier)) IF variableLength(params(identifier)), lpad(STRING(processedValue(identifier)), characterCount(params(identifier)), '0'));
+processedValue(DateGS1IdentifierAI identifier) += string(identifier);
+
+fill(DateGS1IdentifierAI i, STRING ai, INTEGER characterCount, INTEGER decimalCharacterCount, BOOLEAN variableLength, BOOLEAN gsSeparator) {
+    IF NOT params(i) AND i IS DateGS1IdentifierAI THEN {
+        NEW p = IdentifierAIParam  {
+            params(i) <- p;
+        }
+    }
+
+    ai(params(i)) <- ai;
+    characterCount(params(i)) <- characterCount;
+    decimalCharacterCount(params(i)) <- decimalCharacterCount;
+    variableLength(params(i)) <- variableLength;
+    gsSeparator(params(i)) <- gsSeparator;
+}
+
+FORM identifierAI 'Идентификатор применения GS1'
+    OBJECTS i = GS1IdentifierAI PANEL 
+        PROPERTIES (i) READONLY name
+        PROPERTIES (i) ai, characterCount, decimalCharacterCount, variableLength, gsSeparator, priority, include
+    EDIT GS1IdentifierAI OBJECT i
+;
+
+FORM identifierAIs 'Идентификаторы применения GS1'
+    OBJECTS i = GS1IdentifierAI
+    PROPERTIES (i) READONLYIF isReadonly() name, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator, priority, include
+    LIST GS1IdentifierAI OBJECT i
+;
+
+@extendFormEditable(identifierAIs);
+
+
+META implementGS1IdentifierAI(caption, identifierType, identifierClass, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator)
+    EXTEND CLASS ###identifierType##GS1IdentifierAI { identifierClass caption }
+
+    create###identifierClass##GS1IdentifierAI = DATA BOOLEAN ();
+    onStarted() + {
+        IF NOT create###identifierClass##GS1IdentifierAI() THEN NEWSESSION {
+            fill(###identifierType##GS1IdentifierAI.identifierClass, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator);
+            create###identifierClass##GS1IdentifierAI() <- TRUE;
+            APPLY;
+        }
+    }
+END
