@@ -158,6 +158,8 @@ nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на п�
 changedLevel (RangeRev v, Sku s) = (level(v, s) OR level(prevRangeRev(v), s)) AND NOT level(v, s) == level(prevRangeRev(v), s);
 backgroundLevel (RangeRev v, Sku s) = IF changedLevel(v, s) THEN RGB(192,192,255) ELSE RGB(232,232,255);
 
+extraFilter = ABSTRACT BOOLEAN (Sku);
+
 EXTEND FORM rangeRev
     OBJECTS rl = RangeLevel AFTER dates  
     FILTERS in(v, rl)     
@@ -166,7 +168,7 @@ EXTEND FORM rangeRev
     PROPERTIES (v) READONLY dateTimePrevRangeRev
     
     FILTERGROUP filters
-        FILTER 'Включен' level(v, s) DEFAULT
+        FILTER 'Включен' level(v, s) OR extraFilter(s) DEFAULT
         FILTER 'Без поставщиков' level(v, s) AND NOT priceA(pt, s, d, dateTime(v))  
         FILTER 'Новинка' [GROUP SUM 1 IF (date(UserPriceListDetail pd) >= DATE df) AND price(pd, pt) BY sku(pd), df](s, dFrom) AND NOT level(prevRangeRev(v), s)
         FILTER 'Изменившиеся' changedLevel(v, s)

@@ -125,15 +125,15 @@ EXTEND FORM rangeRev
     PROPERTIES (v) DRAW s import TOOLBAR
 ;
 
-counInclude 'Кол-во товаров' (RangeRev v) = GROUP SUM 1 IF dataIn(v, Sku s);
-counInclude 'Кол-во товаров' (RangeRev v, Stock st) = counInclude(v) IF in(range(v), st);
-counInclude 'Кол-во товаров' (Range r, DATE dt) = counInclude(rangeRev(r,dt));
+countInclude 'Кол-во товаров' (RangeRev v) = GROUP SUM 1 IF dataIn(v, Sku s);
+countInclude 'Кол-во товаров' (RangeRev v, Stock st) = countInclude(v) IF in(range(v), st);
+countInclude 'Кол-во товаров' (Range r, DATE dt) = countInclude(rangeRev(r,dt));
 
 EXTEND FORM range
-    PROPERTIES (v) READONLY counInclude
+    PROPERTIES (v) READONLY countInclude
     OBJECTS stock = Stock
-    PROPERTIES  READONLY name(stock), counInclude(v, stock)
-    FILTERS counInclude(v, stock)
+    PROPERTIES  READONLY name(stock), countInclude(v, stock)
+    FILTERS countInclude(v, stock)
 ;
 
 DESIGN range {
@@ -148,7 +148,7 @@ DESIGN range {
 }
 
 EXTEND FORM ranges
-    PROPERTIES (r,d) READONLY counInclude BEFORE nameGroup(r)
+    PROPERTIES (r,d) READONLY countInclude BEFORE nameGroup(r)
 ;
 
 include (Range r, Stock st, Sku s, DATE dt) = dataIn(rangeRev(r,dt), s) AND in(r, st);
@@ -156,7 +156,8 @@ include (Range r, Sku s, DATE dt) = dataIn(rangeRev(r, dt), s);
 
 EXTEND FORM ranges
     ORDERS name(s)
-    FILTERS include(r,s,d)
+    FILTERGROUP filterSkuSimple
+        FILTER 'По матрице' include(r,s,d) DEFAULT
 
     OBJECTS stock = Stock
     PROPERTIES(stock) READONLY name
