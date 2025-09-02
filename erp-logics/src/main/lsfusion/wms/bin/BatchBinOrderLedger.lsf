@@ -8,7 +8,9 @@ skipBinSkuOrderLedger() += TRUE ;
 
 CLASS BinBatchOrderLedger 'Запрет продажи' : OrderLedger;
 TABLE binBatchOrderLedger (BinBatchOrderLedger);
-binOrderLedger = AGGR BinBatchOrderLedger WHERE currentBalance(Batch batch, Bin bin) AND orderLedger(bin) MATERIALIZED INDEXED;
+
+skipBinBatchOrderLedger = ABSTRACT BOOLEAN (Batch, Bin);
+binOrderLedger = AGGR BinBatchOrderLedger WHERE currentBalance(Batch batch, Bin bin) AND orderLedger(bin) AND NOT skipBinBatchOrderLedger(batch, bin) MATERIALIZED INDEXED;
 
 stock[OrderLedger] (BinBatchOrderLedger ledger) += stock(bin(ledger));
 dateTime (BinBatchOrderLedger ledger) += dateTimeLastMoved(sku(ledger), bin(ledger));
