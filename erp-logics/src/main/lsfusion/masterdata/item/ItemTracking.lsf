@@ -31,6 +31,12 @@ WHEN LOCAL (DROPPED(isTracking(ExtraCode ec))) AND NOT countECTracking(customsGr
     isTrackingData(customsGroup(ec)) <- NULL ;
 }
 
+countDroppEC  = GROUP SUM 1 IF DROPPED(ExtraCode ec IS ExtraCode) BY PREV(customsGroup(ec));
+
+WHEN countDroppEC(CustomsGroup g) AND NOT countECTracking(g) DO {
+    isTrackingData(g) <- NULL ;
+}
+
 isTracking 'Подлежит прослеживанию' = DATA BOOLEAN (Item) IN itemBase;
 
 dataExtraCode = DATA ExtraCode (SkuGroup);
