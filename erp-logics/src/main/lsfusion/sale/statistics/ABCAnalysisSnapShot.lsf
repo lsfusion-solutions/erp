@@ -402,7 +402,7 @@ backgroundStatusSum(Sku sku, SnapshotABC s) = CASE
 ;
 
 averageSold 'Средняя продажа за день' = DATA NUMERIC[16,5] (Sku, SnapshotABC);
-dispersionSold 'Дисперсия однодневных продаж' = DATA NUMERIC[16,5] (Sku, SnapshotABC);
+dispersionSold 'Среднеквадратичное отклонение однодневных продаж' = DATA NUMERIC[16,5] (Sku, SnapshotABC);
 percKoeffVar 'Коэффициент вариации' = DATA NUMERIC[14,4] (Sku, SnapshotABC);
 
 statusQuantity 'Рейтинг XYZ' = DATA ISTRING[1] (Sku, SnapshotABC) CHARWIDTH 7;
@@ -647,7 +647,7 @@ takeFromTo(SnapshotABC snapshot)   {
         WHERE include(snapshot, sku) AND date >= fromDate(snapshot) AND date <= toDate(snapshot);
 
     averageSold(Sku sku, snapshot) <- round3( (GROUP SUM quantitySoldTotal (sku, DATE date)) / daysInclBetweenDates(fromDate(snapshot),toDate(snapshot))) WHERE include(snapshot, sku);
-    //  Дисперсия однодневных продаж 
+    //  Среднеквадратичное отклонение однодневных продаж (корень из дисперсии) 
     dispersionSold(Sku sku, snapshot) <- round3( sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, DATE date), 0.0 IF sku IS Sku )
         -  averageSold(sku, snapshot))
         IF iterate(date, fromDate(snapshot), toDate(snapshot))) / 
