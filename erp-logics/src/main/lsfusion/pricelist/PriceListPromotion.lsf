@@ -109,8 +109,9 @@ prevToDatePromotion 'Дата окончания предыдущей акции
 
 regularPeriodBeforePromotion 'Кол-во дней между акциями' (PriceListDetail d, Stock st) = daysBetweenDates(fromDate(d, st), prevToDatePromotion(d, st)) - 1;
 
+countAfterPromotion = ABSTRACT INTEGER (PriceListDetail);
 lastRegularPromotionDetail = GROUP LAST PriceListDetail d
                                                       ORDER fromDateTime(d, Stock s), d
-                                                      WHERE NOT regularPeriodBeforePromotion(d, s) < 2 AND fromDateTime(d, s) < currentDateTime()
+                                                      WHERE NOT regularPeriodBeforePromotion(d, s) <= (OVERRIDE countAfterPromotion(d), 1) AND fromDateTime(d, s) < currentDateTime()
                                                       BY sku(d, s), s;                                                      
                                                            
