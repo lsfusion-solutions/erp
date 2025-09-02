@@ -4,11 +4,16 @@ REQUIRE Range, Warehouse;
 
 NAMESPACE Range;
 
+rangeSimpleStore = ABSTRACT BOOLEAN ();
+rangeSimpleWarehouse = ABSTRACT BOOLEAN ();
+
 dataIn = DATA BOOLEAN (Range, StockGroup);
 in 'Вкл.' (Range r, StockGroup st) = OVERRIDE dataIn(r, st), TRUE IF (GROUP SUM 1 IF dataIn(r,StockGroup g) AND level(st, g));
 
+inRangeSimple(Stock st) =  isCompany(st) AND ((st IS DepartmentStore AND rangeSimpleStore()) OR (st IS Warehouse AND rangeSimpleWarehouse()))  MATERIALIZED;
+
 dataIn = DATA BOOLEAN (Range, Stock);
-in 'Вкл.' (Range r, Stock st) = OVERRIDE dataIn(r, st), in(r,stockGroup(st));
+in 'Вкл.' (Range r, Stock st) = (OVERRIDE dataIn(r, st), in(r,stockGroup(st))) AND inRangeSimple(st);
 
 dataIn 'Вкл' = DATA BOOLEAN (RangeRev, Sku);
 
@@ -49,7 +54,7 @@ EXTEND FORM range
     PROPERTIES READONLY  name(ts), nameLegalEntity(ts)
     PROPERTIES(r, ts) in ON CHANGE changeInRangeStock(r, ts)
     FILTERS ts IS Stock AND NOT stg IS StockGroup OR isParent(stg, ts),
-            isCompany(ts)
+            inRangeSimple(ts)
     
     FILTERGROUP filters2
         FILTER 'Выбранные склады' in(r, ts) 'F10'
