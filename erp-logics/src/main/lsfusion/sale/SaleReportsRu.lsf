@@ -1,7 +1,8 @@
 MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
-        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek;
+        SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek,
+        Inventory;
 
 NAMESPACE SaleReports;
 
@@ -1207,7 +1208,7 @@ sumSold 'Продано за неделю (сумма)' (DepartmentStore st, INT
     sum(ReceiptDetail l) IF date(l) >= dateFrom AND date(l) <= dateTo AND departmentStore(l) = st
         BY extractWeek(date(l));
 sumSoldPrice 'Продано за неделю (сумма)' (DepartmentStore st, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
-    round2(quantity(ReceiptDetail l)*priceSku(sku(l),st)) IF date(l) >= dateFrom AND date(l) <= dateTo AND departmentStore(l) = st AND filterSaleLeger(l)
+    round2(quantity(ReceiptDetail l)*priceSku(sku(l),st)) IF date(l) >= dateFrom AND date(l) <= dateTo AND departmentStore(l) = st
         BY extractWeek(date(l));
 valProfit 'Валовый доход' (DepartmentStore st, INTEGER w, DATE df, DATE dt) =
     sumSoldPrice(st,w,df,dt) (-) sumSold(st,w,df,dt);
@@ -1256,18 +1257,154 @@ printSaleReportWeek 'Динамика продаж по неделям(опт+р
     filterSaleLeger(SaleLedger l) <- NULL;
 }   IMAGE 'print.png' IN print;
 
+quantitySkuSold 'Продано за неделю по товару (кол-во)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    quantity(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(stock(l)) AND inSessionSku(sku(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+
+sumSold 'Продано за неделю (сумма)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    sum(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(stock(l)) AND inSessionSku(sku(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumSoldPrice 'Продано за неделю (сумма)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    round2(quantity(SaleLedger l)*priceSku(sku(l),stock(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(stock(l)) AND inSessionSku(sku(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+
+quantitySkuSold 'Продано за неделю по товару (кол-во)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    quantity(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(stock(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumSold 'Продано за неделю (сумма)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    sum(SaleLedger l) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(stock(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumSoldPrice 'Продано за неделю (сумма)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    round2(quantity(SaleLedger l)*priceSku(sku(l),stock(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(stock(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumBalanceA(Sku s, DATE dt) =
+    GROUP SUM (balanceA(s,Stock st, dt)) IF inSessionSku(s) AND inSaleReportDialog(st);
+
+inExport 'Отм.' = DATA LOCAL BOOLEAN (Operation.Operation);
+nameInExportOperations 'Операции' = GROUP CONCAT name(Operation.Operation o) IF inExport(o), ', ' ORDER name(o), o;
+
+FORM selectOperation 'Выберите операции'
+    OBJECTS o = Operation.Operation
+    PROPERTIES (o) inExport, id READONLY, name READONLY, nameReturn READONLY
+    ORDERS name(o)
+;
+
+FORM saleReportSkuWeek 'Статистика продаж'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        namePrint(), year()
+
+    PROPERTIES countWeek(df,dt)
+    
+    OBJECTS s = Sku
+    PROPERTIES(s) id, name, nameUOM, nameSupplierLastOrderBatch, nameSupplierSku
+
+    OBJECTS w = INTEGER GRID
+    PROPERTIES toString4(w)
+    PROPERTIES quantitySkuSold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Кол-во единиц',
+               sumSold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма в баз.валюте в ценах документа',
+               sumSku = sumSold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма в баз.валюте в ценах документа',
+               sumSoldPrice(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма по учетной цене',
+               quantitySkuSold(w,df,dt) COLUMNS 'w' (w),
+               sumSold(w,df,dt) COLUMNS 'w' (w),
+               sum = sumSold(w,df,dt) COLUMNS 'w' (w),
+               sumSoldPrice(w,df,dt) COLUMNS 'w' (w) 
+    PROPERTIES sk = GROUP SUM 1 IF sumSold(s,w,df,dt) COLUMNS 'w' (w) HEADER (dateFromYearWeekDay(year(), w, 1) + ' - ' + dateFromYearWeekDay(year(), w, 7))
+    PROPERTIES(s,df) sumBalanceA
+    
+    FILTERS quantitySkuSold(w,df,dt) AND quantitySkuSold(s,w,df,dt)
+;
+
+printSaleReportInvoiceAllWeek 'Статистика по неделям(опт)' (DATE dateFrom, DATE dateTo) {
+    year() <- extractYear(dateFrom);
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS Sale.InvoiceDetail; 
+    PRINT saleReportSkuWeek OBJECTS df = dateFrom, dt = dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+printSaleReportAllWeek 'Статистика по неделям(все продажи)' (DATE dateFrom, DATE dateTo) {
+    year() <- extractYear(dateFrom);
+    filterSaleLeger(SaleLedger l) <- TRUE WHERE l IS SaleLedger;
+    PRINT saleReportSkuWeek OBJECTS df = dateFrom, dt = dateTo XLSX;
+    filterSaleLeger(SaleLedger l) <- NULL;
+}   IMAGE 'print.png' IN print;
+
+
+quantitySold 'Продано за неделю по товару (кол-во)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    quantity(ReceiptDetail l) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(departmentStore(l)) AND inSessionSku(sku(l))
+        BY extractWeek(date(l));
+sumSkuSold 'Продано за неделю (сумма)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    sum(ReceiptDetail l) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(departmentStore(l)) AND inSessionSku(sku(l)) AND filterSaleLeger(l)
+        BY extractWeek(date(l));
+sumPrice 'Продано за неделю (сумма)' (Sku s, INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    round2(quantity(ReceiptDetail l)*priceSku(sku(l),departmentStore(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND sku(l) = s AND inSaleReportDialog(departmentStore(l)) AND inSessionSku(sku(l))
+        BY extractWeek(date(l));
+
+quantitySold 'Продано за неделю по товару (кол-во)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    quantity(ReceiptDetail l) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(departmentStore(l))
+        BY extractWeek(date(l));
+sumSkuSold 'Продано за неделю (сумма)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    sum(ReceiptDetail l) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(departmentStore(l))
+        BY extractWeek(date(l));
+sumPrice 'Продано за неделю (сумма)' (INTEGER week, DATE dateFrom, DATE dateTo) = GROUP SUM
+    round2(quantity(ReceiptDetail l)*priceSku(sku(l),departmentStore(l))) IF date(l) >= dateFrom AND date(l) <= dateTo AND inSessionSku(sku(l)) AND inSaleReportDialog(departmentStore(l))
+        BY extractWeek(date(l));
+sumBalance(Sku s, DATE dt) =
+    GROUP SUM (balanceA(s,DepartmentStore st, dt)) IF inSessionSku(s) AND inSaleReportDialog(st);
+
+FORM saleReportSkuReceiptWeek 'Статистика продаж'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        namePrint(), year()
+
+    PROPERTIES countWeek(df,dt)
+
+    OBJECTS s = Sku
+    PROPERTIES(s) id, name, nameUOM, nameSupplierLastOrderBatch, nameSupplierSku
+
+    OBJECTS w = INTEGER GRID
+    PROPERTIES toString4(w)
+    PROPERTIES quantitySold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Кол-во единиц',
+        sumSkuSold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма в баз.валюте в ценах документа',
+        sumSku = sumSold(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма в баз.валюте в ценах документа',
+        sumPrice(s,w,df,dt) COLUMNS 'w' (w) HEADER 'Сумма по учетной цене',
+        quantitySold(w,df,dt) COLUMNS 'w' (w),
+        sumSkuSold(w,df,dt) COLUMNS 'w' (w),
+        sum = sumSold(w,df,dt) COLUMNS 'w' (w),
+        sumPrice(w,df,dt) COLUMNS 'w' (w)
+    PROPERTIES sk = GROUP SUM 1 IF sumSkuSold(s,w,df,dt) COLUMNS 'w' (w) HEADER (dateFromYearWeekDay(year(), w, 1) + ' - ' + dateFromYearWeekDay(year(), w, 7))
+    PROPERTIES(s,df) sumBalance
+
+    FILTERS quantitySold(w,df,dt) AND quantitySold(s,w,df,dt)
+;
+
+printSaleReportReceiptAllWeek 'Статистика по неделям(чеки)' (DATE dateFrom, DATE dateTo) {
+    year() <- extractYear(dateFrom);
+    PRINT saleReportSkuReceiptWeek OBJECTS df = dateFrom, dt = dateTo XLSX;
+}   IMAGE 'print.png' IN print;
+
 EXTEND FORM salesReport
-    PROPERTIES(df,dt) printSaleReportReceiptWeek, printSaleReportInvoiceWeek, printSaleReportWeek
+    PROPERTIES(df,dt) printSaleReportReceiptWeek, printSaleReportInvoiceWeek, printSaleReportWeek, printSaleReportAllWeek, 
+        printSaleReportInvoiceAllWeek, printSaleReportReceiptAllWeek
+//    PROPERTIES nameInExportOperations() ON CHANGE {DIALOG selectOperation;}
 ;
 
 DESIGN salesReport {
     salesContainer {
-        NEW weelSale {
+        NEW weekSale {
             caption = 'Продажи по неделям';
             lines = 2;
             MOVE PROPERTY(printSaleReportReceiptWeek(df,dt));
             MOVE PROPERTY(printSaleReportInvoiceWeek(df,dt));
             MOVE PROPERTY(printSaleReportWeek(df,dt));
+        }
+        NEW weekAllSale {
+            caption = 'Статистика продаж по неделям';
+            lines = 2;
+//            MOVE PROPERTY(nameInExportOperations());
+            MOVE PROPERTY(printSaleReportAllWeek(df,dt));
+            MOVE PROPERTY(printSaleReportInvoiceAllWeek(df,dt));
+            MOVE PROPERTY(printSaleReportReceiptAllWeek(df,dt));
         }
     }
 }
