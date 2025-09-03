@@ -116,10 +116,11 @@ WHEN LOCAL CHANGED(sku(UserOrderDetail detail)) DO {
     idPickingGroup(detail) <- idPickingGroup(sku(detail));
 }
 
-idPickingGroup 'Группа комплектации' = GROUP MAX idPickingGroup(PickingOrderDetail d) BY pickingOrder(d) MATERIALIZED INDEXED;
+idPickingGroup 'Код группы комплектации' = GROUP MAX idPickingGroup(PickingOrderDetail d) BY pickingOrder(d) MATERIALIZED INDEXED;
+namePickingGroup 'Группа комплектации' (PickingOrder po) = OVERRIDE name(pickingGroup(idPickingGroup(po))), 'Не задана' CHARWIDTH 20;
 
 EXTEND FORM pickingOrders
-    PROPERTIES READONLY idPickingGroup(o)
+    PROPERTIES READONLY idPickingGroup(o), namePickingGroup(o)
 ;
 
 countPickingGroup = GROUP SUM 1 BY idPickingGroup(PickingOrderDetail d), pickingOrder(d);
