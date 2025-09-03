@@ -65,8 +65,10 @@ EXTEND FORM zReport
     PROPERTIES idKindOperation(p)
 ;
 
-dateStartlistFilesberlio = DATA DATE();
-cashRegister = GROUP MAX CashRegister c BY npp(c);
+dateStartlistFilesberlio 'Дата начиная с которой читать файлы в каталоге (YYMM)' = DATA BPISTRING[4]();
+timeShiftOpenBerlio 'Время после которого переносить смену на следующий день' = DATA TIME ();
+EXTEND FORM cashRegisterModel 
+    PROPERTIES () SHOWIF sid(c) == 'berlio' dateStartlistFilesberlio, timeShiftOpenBerlio;
 
 overImportPayment ABSTRACT LIST (Receipt, NUMERIC, NUMERIC, NUMERIC);
 overImport ABSTRACT LIST (ZReport);
@@ -91,7 +93,7 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
                 cardNum = CARDNUM, receipt = CHECKNUM, npp = KKM, dep = DEPNO, user = username, skno = SKNO, item = NOMNUM, mixCash = MIXCASH,
                 mixBank = MIXBANK, mixOther = MIXOTHER;
 
-        FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegister(npp) ORDER npp DO NEW c = CashRegister {
+        FOR [GROUP SUM 1 IF npp(INTEGER rr) > 0 BY npp(rr)](INTEGER npp) AND NOT cashRegisterNppGroupCashRegister(npp(gcr), npp) ORDER npp DO NEW c = CashRegister {
             groupCashRegister(c) <- gcr;
             npp(c) <- npp;
         }
@@ -99,8 +101,8 @@ receiveFromBerlio (GroupCashRegister gcr, STRING fn) {
         date(INTEGER r) <- toDateFormat(lDate(r), 'DD.MM.YYYY');
         index(INTEGER r) <- (PARTITION SUM 1 ORDER r BY npp(r), receipt(r)) WHERE imported(r) AND skno(r) > 0;
         FOR INTEGER open == (GROUP MIN INTEGER r IF code(r) == 'OPEN') DO {
-            shiftDate(INTEGER r) <- date(open) WHERE imported(r);
-            shiftIime() <- time(open);
+            shiftDate(INTEGER r) <- IF time(open) >= timeShiftOpenBerlio() THEN sum(date(open), 1) ELSE date(open) WHERE imported(r);
+            shiftIime() <- IF time(open) >= timeShiftOpenBerlio() THEN 00:00 ELSE time(open);
         }
         FOR INTEGER close == (GROUP MIN INTEGER r IF code(r) == 'CLOSE') DO {
             closeIime() <- dateTimeToDateTime(date(close), time(close));
@@ -273,7 +275,7 @@ receiveFromBerlio (GroupCashRegister gcr) {
     listFiles(directory(gcr)+'/S');
     FOR ISTRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) 
         AND right(fileName(i), 3) == 'dbf' AND INTEGER(substr(fileName(i), 2, 2)) == npp(gcr) 
-        AND substr(fileName(i), 4, 4) >= (OVERRIDE toChar(dateStartlistFilesberlio(), 'YYMM'), '2409')
+        AND substr(fileName(i), 4, 4) >= (OVERRIDE dateStartlistFilesberlio(), '2508')
         AND NOT (GROUP SUM 1 IF fn == berlioFile(ZReport z)) ORDER fn DO {
             receiveFromBerlio (gcr, fn);
     }
