@@ -21,6 +21,7 @@ import lsfusion.interop.form.property.Compare;
 import lsfusion.server.base.controller.lifecycle.LifecycleEvent;
 import lsfusion.server.base.controller.remote.RmiManager;
 import lsfusion.server.base.controller.remote.manager.RmiServer;
+import lsfusion.server.base.controller.stack.StackMessage;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.base.controller.thread.ThreadLocalContext;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -480,7 +481,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer, directory);
     }
 
-
+    @StackMessage("send.sales")
     public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, String directory) {
         try {
 
