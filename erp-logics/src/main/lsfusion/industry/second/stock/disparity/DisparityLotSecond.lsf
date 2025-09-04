@@ -92,6 +92,9 @@ DESIGN disparity {
 lastLotSecondDisparity = GROUP LAST Disparity d IF lotSecond(operation(d)) ORDER dateTime(d), d BY stock(d) ;
 prevLastLotSecondDisparity = GROUP LAST Disparity d IF lotSecond(operation(d)) ORDER PREV(dateTime(d)), d BY stock(d) ;
 
+returnConditionChangeSkuLot(UserDisparity d) += lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity();
+returnMessageChangeSkuLot() += 'Запрещён перенос марок в непоследнем Изменении сортности по месту хранения';
+
 changeSkuLotBack 'Перенести марки (назад)' (UserDisparity d) {
     IF lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity() THEN {
         MESSAGE 'Запрещён перенос марок назад в непоследнем Изменении сортности по месту хранения';
@@ -127,7 +130,7 @@ CONSTRAINT (SETCHANGED(inputSku(UserDisparityDetail d)) OR CHANGED(sku(d)) OR SE
 CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(quantity(d))) AND lotSecond(d) AND NOT isSecond(inputSku(d))
     MESSAGE 'Товар (приход) должен быть заполнен и быть секонд-товаром';
 
-CONSTRAINT SETCHANGED(quantity(UserDisparityDetail d, Lot l)) AND countInputLot(userDisparity(d))
+CONSTRAINT (CHANGED(quantity(UserDisparityDetail d, Lot l)) OR CHANGED(sku(d)) OR CHANGED(inputSku(d))) AND countInputLot(userDisparity(d))
     MESSAGE 'Запрещено изменение в документе с перенесенными марками. Отмените изменения и выполните перенос назад';
 
 CONSTRAINT DROPPED(quantity(UserDisparityDetail d, Lot l)) AND PREV(countInputLot(userDisparity(d)))
@@ -136,7 +139,7 @@ CONSTRAINT DROPPED(quantity(UserDisparityDetail d, Lot l)) AND PREV(countInputLo
 CONSTRAINT DROPPED(isPosted(UserDisparity d)) AND lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
     MESSAGE 'Запрещено изменение признака Проведен в непоследнем Изменении сортности по месту хранения';
 
-CONSTRAINT CHANGED(quantity(UserDisparityDetail d, Lot l)) AND lotSecond(d) AND userDisparity(d) != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
+CONSTRAINT (CHANGED(quantity(UserDisparityDetail d, Lot l)) OR CHANGED(sku(d)) OR CHANGED(inputSku(d))) AND lotSecond(d) AND userDisparity(d) != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
     MESSAGE 'Запрещено изменение в непоследнем Изменении сортности по месту хранения';
 
 CONSTRAINT CHANGED(dateTime(UserDisparity d)) AND PREV(dateTime(d)) AND lotSecond(d) AND d != prevLastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
