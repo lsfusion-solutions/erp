@@ -13,24 +13,11 @@ overManufacturingPrice (PurchaseReturn.InvoiceDetail d) = IF d IS PurchaseReturn
 overManufacturingMarkup (PurchaseReturn.InvoiceDetail d) = round4([(X-Y)/Y*100](price(d),overManufacturingPrice(d))) IF overManufacturingPrice(d);
 
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
-    IF isNewFormat(eInvoice(eid)) AND overManufacturingPrice(cd) THEN {
+    IF overManufacturingPrice(cd) THEN {
         lineItemManufacturerOutputPrice(eid) <- overManufacturingPrice(cd) ;
         outputPriceIncludingShippingCoast(eid) <- 'ФСН';
         cutRate(eid) <- 'Отсутствует';
         additionalInformationPrice(eid) <- 'Отсутствует';
         additionalInformationNote(eid) <- dataNote(cd);
-    } ELSE {
-        IF overManufacturingPrice[InvoiceDetail](cd) THEN NEW ief = ItemExtraField {
-            name(ief) <- 'Отпускная цена';
-            code(ief) <- 'PT0022';
-            value(ief) <- trim(toChar(overManufacturingPrice[InvoiceDetail](cd), 'FM999990.0099'));
-            eInvoiceDetail(ief) <- eid;
-        }
-        IF overManufacturingMarkup[InvoiceDetail](cd) THEN NEW ief = ItemExtraField {
-            name(ief) <- 'Оптовая надбавка';
-            code(ief) <- 'PT0023';
-            value(ief) <- trim(toChar(overManufacturingMarkup[InvoiceDetail](cd), 'FM990.9999'));
-            eInvoiceDetail(ief) <- eid;
-        }
     }
 }

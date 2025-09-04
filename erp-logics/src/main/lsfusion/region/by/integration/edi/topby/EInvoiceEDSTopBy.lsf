@@ -20,7 +20,7 @@ getActdif(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<Actdif>.*</Actdif>).*
 getDeliveryNote(STRING Xml) = FORMULA '(regexp_matches($1, \'.*(<DeliveryNote>.*</DeliveryNote>).*\'))[1]';
 insertSignature(STRING e, STRING s) = FORMULA '(regexp_matches($1, \'(.*)(</.*)$\'))[1] || $2 || (regexp_matches($1, \'(.*)(</.*)$\'))[2]';
 
-sign(FILE contentSubXML, EDSService e, BOOLEAN isNew, INTEGER subjectSide) {
+sign(FILE contentSubXML, EDSService e, INTEGER subjectSide) {
     signError() <- NULL;
     signResult() <- NULL;
     
@@ -57,8 +57,7 @@ sign(FILE contentSubXML, EDSService e, BOOLEAN isNew, INTEGER subjectSide) {
                 + (OVERRIDE '<CertificateSubjectSide>'+subjectSide+'</CertificateSubjectSide>','')
                 +'<SecurityPartyID>'+issuerSerial()+'</SecurityPartyID>'
                 +'<SecurityPartyName>'+getCN(issuerName())+'</SecurityPartyName>'
-                +( IF isNew THEN '<SigningTime>'+toChar(signDateTimeISO8601(),'YYYYMMDDHH24MISS')+'</SigningTime>'
-                            ELSE '<SignatureDateTime>'+toChar(signDateTimeISO8601(),'YYYYMMDDHH24MISS')+'</SignatureDateTime>')
+                +('<SigningTime>'+toChar(signDateTimeISO8601(),'YYYYMMDDHH24MISS')+'</SigningTime>')
                 +'<SignatureValue>'+replace(resultB64(),'\\/','/')+'</SignatureValue>'
             +'</Signature></SpecialPart>');
         IF NOT baseXml() THEN {
@@ -86,7 +85,7 @@ getSignedDocumentSupplier(STRING[100] provider, EInvoice e, FILE contentSubXML, 
         IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
             keyID() <- IF isAutoApn() THEN aliasEDSService(supplier(e)) ELSE  aliasEDSServiceSupplier(e);
             password() <-  IF isAutoApn() THEN passwordEDSService(supplier(e)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
-            sign(contentSubXML, EDSServiceSupplier(provider,e), isNewFormat(e), NULL);
+            sign(contentSubXML, EDSServiceSupplier(provider,e), NULL);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -111,7 +110,7 @@ getSignedDocumentCustomer(STRING[100] provider, EInvoice e, FILE contentSubXML, 
         IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
             keyID() <- IF isAutoApn() THEN aliasEDSService(customer(e)) ELSE  aliasEDSServiceCustomer(e);
             password() <- IF isAutoApn() THEN passwordEDSService(customer(e)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(contentSubXML, EDSService(), isNewFormat(e), NULL);
+            sign(contentSubXML, EDSService(), NULL);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + deliveryNoteNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -139,7 +138,7 @@ getSignedDocumentCustomer(STRING[100] provider, ECreditNote e, FILE contentSubXM
         IF aliasEDSServiceCustomer(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e)) THEN {
             keyID() <- aliasEDSServiceCustomer(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceCustomer(e));
-            sign(contentSubXML, EDSServiceCustomer(provider,e), TRUE, IF documentType() == 'BLRAPN' THEN NULL ELSE 0);
+            sign(contentSubXML, EDSServiceCustomer(provider,e), IF documentType() == 'BLRAPN' THEN NULL ELSE 0);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + actDifNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
@@ -155,7 +154,7 @@ getSignedDocumentSupplier(STRING[100] provider, ECreditNote e, FILE contentSubXM
         IF aliasEDSServiceSupplier(e) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e)) THEN {
             keyID() <- aliasEDSServiceSupplier(e);
             password() <- (OVERRIDE passwordEDSService(), passwordEDSServiceSupplier(e));
-            sign(contentSubXML, EDSServiceSupplier(provider,e), TRUE, IF documentType() == 'BLRAPN' THEN NULL ELSE 1);
+            sign(contentSubXML, EDSServiceSupplier(provider,e), IF documentType() == 'BLRAPN' THEN NULL ELSE 1);
         } ELSE {
             IF interactive THEN {
                 MESSAGE provider + ' Документ ' + actDifNumber(e) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;

@@ -108,9 +108,12 @@ sendRequestEDIResponse = DATA LOCAL FILE();
 sendRequestEDIStatus = DATA LOCAL INTEGER();
 
 basic = DATA LOCAL TEXT ();
+token = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';
-httpHeadersEDI(TEXT name) = CASE WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic();
+httpHeadersEDI(TEXT name) = CASE 
+    WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic()
+    WHEN token() AND name = 'Authorization' THEN token();
 
 sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE request, BOOLEAN basicAuthorization, BOOLEAN client) {
     logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
@@ -125,6 +128,9 @@ sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE r
 }
 sendRequestEDI 'Отправить' (TEXT url, XMLFILE request) {
     sendRequestEDI(NULL, NULL, url, FILE(request), NULL, NULL);
+}
+sendRequestEDI 'Отправить' (TEXT url, FILE request) {
+    sendRequestEDI(NULL, NULL, url, request, NULL, NULL);
 }
 
 //----------------------- importRequestResult ---------------------------//
@@ -327,30 +333,6 @@ FORM importBlrapn
 ;
 
 hideMessageHeaderBlrapn = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrapn FORMEXTID 'BLRAPN'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrapn() EXTID 'version'
-    PROPERTIES IN messageHeader
-        messageId = resultMilliseconds() IF NOT hideMessageHeaderBlrapn() EXTID 'MessageID',
-        msgDateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') IF NOT hideMessageHeaderBlrapn() EXTID 'MsgDateTime',
-        messageType = 'BLRAPN' IF NOT hideMessageHeaderBlrapn() EXTID 'MessageType',
-        msgSenderID = blrapnMsgSender() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgSenderID',
-        msgReceiverID = blrapnMsgReceiver() IF NOT hideMessageHeaderBlrapn() EXTID 'MsgReceiverID',
-        userID = blrapnUserID() IF NOT hideMessageHeaderBlrapn() EXTID 'UserID'
-    PROPERTIES IN acknowledgement
-        documentId = resultMilliseconds() EXTID 'DocumentID',
-        functionCode = '6' EXTID 'FunctionCode',
-        creationdateTime = toChar(blrapnDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        blrapnDeliveryNoteId() EXTID 'DeliveryNoteID',
-        deliveryNoteDate = toChar(blrapnDeliveryNoteDate(),'YYYYMMDD') EXTID 'DeliveryNoteDate',
-        blrapnReferenceDocumentType() EXTID 'Type' IN blrapnReferenceDocument,
-        blrapnReferenceDocumentId() EXTID 'ID' IN blrapnReferenceDocument,
-        date = toChar(blrapnReferenceDocumentDate(),'YYYYMMDDHH24MISS') EXTID 'Date' IN blrapnReferenceDocument,
-        blrapnShipper() EXTID 'GLN' IN blrapnShipper,
-        blrapnReceiver() EXTID 'GLN' IN blrapnReceiver,
-        blrapnCode() EXTID 'Code' IN blrapnErrorOrAcknowledgement,
-        blrapnDescription() EXTID 'Description' IN blrapnErrorOrAcknowledgement
-;
 
 FORM exportBlrapnNew FORMEXTID 'BLRAPN'
     PROPERTIES ATTR ='2.0' IF hideMessageHeaderBlrapn() EXTID 'version'

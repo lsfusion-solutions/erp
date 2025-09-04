@@ -544,54 +544,6 @@ GROUP report EXTID 'Report';
 
 hideMessageHeaderBlrwbr = DATA LOCAL BOOLEAN ();
 
-FORM exportBlrwbr FORMEXTID 'BLRWBR'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrwbr() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrwbr()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih 
-        messageId = resultMilliseconds() EXTID 'MessageID',
-        msgDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-        messageType = 'BLRWBR' EXTID 'MessageType',
-        glnCustomer(eih) EXTID 'MsgSenderID',
-        glnSupplier(eih) EXTID 'MsgReceiverID',
-        userIDSupplierStock(eih) EXTID 'UserID',
-        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein 
-        deliveryNoteType = '700' EXTID 'DeliveryNoteType',
-        documentID = resultMilliseconds() EXTID 'DocumentID',
-        creationDateTime = toChar(exportBlrwbrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        functionCode = IF eCreditNote(ei) THEN '21' ELSE '11' EXTID 'FunctionCode',
-        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
-        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
-        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-        deliveryNoteDate = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ein IN report 
-        reportId(ein) EXTID 'ReportID',
-        reportDate = toChar(reportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
-        reportName(ein) EXTID 'ReportName'
-    PROPERTIES DRAW ein IN shipper 
-        glnSupplier(ein) EXTID 'GLN',
-        nameSupplier(ein) EXTID 'Name',
-        addressSupplier(ein) EXTID 'Address',
-        unpSupplier(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN receiver 
-        glnCustomer(ein) EXTID 'GLN',
-        nameCustomer(ein) EXTID 'Name',
-        addressCustomer(ein) EXTID 'Address',
-        unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipTo 
-        glnCustomerStock(ein) EXTID 'GLN',
-        addressCustomerStock(ein) EXTID 'Address',
-        contactCustomerStock(ein) EXTID 'Contact'
-    PROPERTIES DRAW ein 
-        sealIDReceiver(ein) EXTID 'SealIDReceiver'
-;
-
 FORM exportBlrwbrNew FORMEXTID 'BLRWBR'
     PROPERTIES ATTR ='2.0' IF hideMessageHeaderBlrwbr() EXTID 'version'
     OBJECTS ei = EInvoice PANEL
@@ -644,50 +596,6 @@ FORM exportBlrwbrNew FORMEXTID 'BLRWBR'
 exportBlrdnrDateTime = DATA LOCAL NESTED DATETIME();
 
 hideMessageHeaderBlrdnr = DATA LOCAL BOOLEAN ();
-
-FORM exportBlrdnr FORMEXTID 'BLRDNR'
-    PROPERTIES ATTR ='0.1' IF NOT hideMessageHeaderBlrdnr() EXTID 'version'
-    OBJECTS ei = EInvoice PANEL
-
-    OBJECTS eih = EInvoice EXTID 'MessageHeader'
-    FILTERS (eih == ei AND NOT hideMessageHeaderBlrdnr()) OR NOT eih IS EInvoice
-    PROPERTIES DRAW eih 
-        messageId = resultMilliseconds() EXTID 'MessageID',
-        msgDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'MsgDateTime',
-        messageType = 'BLRDNR' EXTID 'MessageType',
-        glnCustomer(eih) EXTID 'MsgSenderID',
-        glnSupplier(eih) EXTID 'MsgReceiverID',
-        userIDSupplierStock(eih) EXTID 'UserID',
-        testIndicator = IF isTestDocument(eih) THEN '1' EXTID 'TestIndicator'
-
-    OBJECTS ein = EInvoice EXTID 'DeliveryNote'
-    FILTERS ein == ei
-    PROPERTIES DRAW ein 
-        deliveryNoteType = '270' EXTID 'DeliveryNoteType',
-        documentID = resultMilliseconds() EXTID 'DocumentID',
-        creationDateTime = toChar(exportBlrdnrDateTime(),'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        functionCode = IF eCreditNote(ei) THEN '21' ELSE '11' EXTID 'FunctionCode',
-        referenceDocument = numberSupplier(ein) EXTID 'ID' IN referenceDocument,
-        date = toChar(dateSupplier(ein),'YYYYMMDDHH24MISS') EXTID 'Date' IN referenceDocument,
-        deliveryNoteNumber(ein) EXTID 'DeliveryNoteID',
-        deliveryNoteDate = toChar(deliveryNoteDate(ein),'YYYYMMDD') EXTID 'DeliveryNoteDate'
-    PROPERTIES DRAW ein IN report
-        reportId(ein) EXTID 'ReportID',
-        reportDate = toChar(reportDate(ein),'YYYYMMDD') EXTID 'ReportDate',
-        reportName(ein) EXTID 'ReportName'
-    PROPERTIES DRAW ein IN shipper 
-        glnSupplier(ein) EXTID 'GLN',
-        nameSupplier(ein) EXTID 'Name',
-        addressSupplier(ein) EXTID 'Address',
-        unpSupplier(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN receiver 
-        glnCustomer(ein) EXTID 'GLN',
-        nameCustomer(ein) EXTID 'Name',
-        addressCustomer(ein) EXTID 'Address',
-        unpCustomer(ein) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ein IN shipTo 
-        contactCustomerStock(ein) EXTID 'Contact'
-;
 
 FORM exportBlrdnrNew FORMEXTID 'BLRDNR'
     PROPERTIES ATTR ='2.0' IF hideMessageHeaderBlrdnr() EXTID 'version'

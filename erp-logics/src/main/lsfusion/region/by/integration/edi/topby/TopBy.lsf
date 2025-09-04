@@ -14,12 +14,7 @@ loginTopBy 'Имя пользователя TopBy' = DATA STRING[100] (LegalEnti
 passwordTopBy 'Пароль TopBy' = DATA STRING[100] (LegalEntity) ECHO;
 hostTopBy 'Хост' = DATA STRING[100] (LegalEntity);
 portTopBy 'Порт' = DATA INTEGER (LegalEntity);
-useNewFormat 'Новый формат WS' (LegalEntity l)  = useNewFormat(loginTopBy(l));
-changeNewFormat (LegalEntity l) { 
-    INPUT b =BOOLEAN DO {
-        useNewFormat(loginTopBy(l)) <- b;
-    } 
-}
+
 archiveDirTopBy 'Папка принятых сообщений' = DATA STRING[100] ();
 outputDirTopBy 'Папка отправленных сообщений' = DATA STRING[100] ();
 disableConfirmationTopBy 'Отключить подтверждение сообщений' = DATA BOOLEAN ();
@@ -63,7 +58,7 @@ receiveMessagesTopBy () {
             lockTopBy(login);
             IF lockResultTopBy() THEN {
                 TRY {
-                    newNS() <- useNewFormat(login);
+                    newNS() <- TRUE;
                     receiveMessages(login, passwordTopBy(le), ('http://' +  hostTopBy(le) + ':' + portTopBy(le) + '/DmcService'), archiveDirTopBy(), disableConfirmationTopBy(), NULL, 'TopBy');
                 } FINALLY {
                     unlockTopBy(login);
@@ -89,13 +84,13 @@ EXTEND FORM integrationData
     
     OBJECTS let = LegalEntity
     FILTERS isCompany(let)
-    PROPERTIES(let) name READONLY, loginTopBy, passwordTopBy, hostTopBy, portTopBy, useNewFormat ON CHANGE changeNewFormat(let), listMessagesTopBy
+    PROPERTIES(let) name READONLY, loginTopBy, passwordTopBy, hostTopBy, portTopBy, listMessagesTopBy
 ;
     
 DESIGN integrationData {
     edi {
         NEW vs {
-            caption = 'TopBy';
+            caption = 'СТТ';
             horizontal = TRUE;
             NEW col1TopBy {
                 NEW params {
