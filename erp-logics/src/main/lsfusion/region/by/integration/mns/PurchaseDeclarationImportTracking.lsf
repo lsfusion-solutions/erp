@@ -1,0 +1,32 @@
+MODULE PurchaseDeclarationImportTracking;
+
+REQUIRE  PurchaseInvoiceTracking, PurchaseShipmentLot, PurchaseDeclarationDetailBy;
+
+NAMESPACE Purchase;
+
+importThirdCountriesTracking 'Импорт из третьих стран' (UserInvoice i) = showSPT(i) AND notImportEAEU(i);
+numberDeclarationTracking 'Декларация на товары' (UserInvoice i) =  OVERRIDE overNumber(declaration(i)), number(declaration(i));
+declarationTracking  (UserInvoiceDetail d) =  IF importThirdCountriesTracking(invoice(d)) THEN declarationDeclarationInvoiceDetail(d);
+numberDeclarationTracking 'Декларация на товары' (UserInvoiceDetail d) =  OVERRIDE overNumber(declarationTracking(d)), number(declarationTracking(d));
+
+declarationDetailMax = GROUP MAX DeclarationDetail dd BY declarationInvoiceDetail(dd);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) READONLY SHOWIF (showSPT(i) AND importThirdCountriesTracking(i)) importThirdCountriesTracking, numberDeclarationTracking
+;
+
+DESIGN userInvoice {
+    trackingParam {
+        NEW importThird  {
+            horizontal = TRUE;
+            caption = 'Импорт из третьих стран';
+            MOVE PROPERTY (importThirdCountriesTracking(i));
+            MOVE PROPERTY (numberDeclarationTracking(i));
+        }
+    }
+}
+
+deliveryTypePrev (UserInvoiceDetail d) += IF declarationTracking(d) THEN 7;
+deliveryNotePrev (UserInvoiceDetail d) += IF declarationTracking(d) THEN STRING[70](numberDeclarationTracking(d));
+deliveryNoteDate (UserInvoiceDetail d) += IF declarationTracking(d) THEN date(declarationTracking(d));
+deliveryNotePrevLineID(UserInvoiceDetail d) += IF declarationTracking(d) THEN number(declarationDetailMax(declarationInvoiceDetail(d)));

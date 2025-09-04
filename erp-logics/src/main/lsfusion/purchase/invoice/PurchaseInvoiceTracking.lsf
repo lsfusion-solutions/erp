@@ -39,8 +39,8 @@ EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
     PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
-    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument
-    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) isImportEAEU, countrySupplier READONLY, idCountrySupplier READONLY
+    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument, isImportEAEU
+    PROPERTIES (i) SHOWIF showSPT(i) READONLY countrySupplier, idCountrySupplier 
     FILTERS userInvoice(d6) == i, isTracking(d6)
 
 ;
@@ -49,16 +49,26 @@ DESIGN userInvoice{
     specificationBox {
         NEW sptContainer {
             caption = 'Прослеживание';
-            NEW headerCertificateContainer {
+            NEW trackingParam {
                 horizontal = TRUE;
-                caption = 'Сопроводительный документ';
-                MOVE PROPERTY(idShippingDocument(i)) { caption='Код';}
-                MOVE PROPERTY(nameShippingDocument(i)) { caption='Наименование';}
-                MOVE PROPERTY(numberShippingDocument(i)) { caption='Рег.№';}
-                MOVE PROPERTY(dateShippingDocument(i)) { caption='Дата';}
-                MOVE PROPERTY(isImportEAEU(i)) ;
-                MOVE PROPERTY(countrySupplier(i)) ;
-                MOVE PROPERTY(idCountrySupplier(i)) ;
+                NEW supplierParam {
+                    horizontal = TRUE;
+                    caption = 'Страна поставщика';
+                    MOVE PROPERTY(countrySupplier(i)) ;
+                    MOVE PROPERTY(idCountrySupplier(i)) ;
+                }
+                NEW importEAEU {
+                    caption = 'Импорт из ЕАЭС';
+                    // showIf = isImportEAEU(i);
+                    NEW headerAccompanyingContainer {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(idShippingDocument(i)) { caption = 'Код';}
+                        MOVE PROPERTY(nameShippingDocument(i)) { caption = 'Наименование';}
+                        MOVE PROPERTY(numberShippingDocument(i)) { caption = 'Рег.№';}
+                        MOVE PROPERTY(dateShippingDocument(i)) { caption = 'Дата';}
+                        MOVE PROPERTY(isImportEAEU(i)) ;
+                    }
+                }
             }
             MOVE BOX(d6);
         }
