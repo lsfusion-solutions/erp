@@ -392,11 +392,8 @@ putaway 'Разместить' (CustomUser u) {
             RETURN;
         }
 
-        LOCAL defOperationLoc = Bin.Operation();
-        defOperationLoc() <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
-
         FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- defOperationLoc();
+            operation(o) <- putawayExternalOperation();
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
@@ -404,7 +401,7 @@ putaway 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- receivingBin(u);
-                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
+                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), putawayExternalOperation(), u);
                 quantity(d) <- currentBalance(sku, receivingBin(u));
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -429,11 +426,8 @@ putawayReserve 'Разместить' (CustomUser u) {
             RETURN;
         }
 
-        LOCAL defOperationLoc = Bin.Operation();
-        defOperationLoc() <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
-
         FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- defOperationLoc();
+            operation(o) <- putawayExternalOperation();
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
@@ -441,7 +435,7 @@ putawayReserve 'Разместить' (CustomUser u) {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku;
                 outBin(d) <- bin;
-                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), defOperationLoc(), u);
+                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), putawayExternalOperation(), u);
                 quantity(d) <- currentBalance(sku, bin);
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
@@ -466,7 +460,7 @@ writeOffReserve 'Списать' (CustomUser u) {
             RETURN;
         }
         FOR (GROUP MAX select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
-            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, defaultBinOperation());
+            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, putawayWriteOffOperation());
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
