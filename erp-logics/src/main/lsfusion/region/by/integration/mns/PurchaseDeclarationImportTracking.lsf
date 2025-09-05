@@ -4,7 +4,7 @@ REQUIRE  PurchaseInvoiceTracking, PurchaseShipmentLot, PurchaseDeclarationDetail
 
 NAMESPACE Purchase;
 
-importThirdCountriesTracking 'Импорт из третьих стран' (UserInvoice i) = showSPT(i) AND notImportEAEU(i);
+importThirdCountriesTracking 'Импорт из третьих стран' (UserInvoice i) = isTracking(i) AND notImportEAEU(i);
 numberDeclarationTracking 'Декларация на товары' (UserInvoice i) =  OVERRIDE overNumber(declaration(i)), number(declaration(i));
 declarationTracking  (UserInvoiceDetail d) =  IF importThirdCountriesTracking(invoice(d)) THEN declarationDeclarationInvoiceDetail(d);
 numberDeclarationTracking 'Декларация на товары' (UserInvoiceDetail d) =  OVERRIDE overNumber(declarationTracking(d)), number(declarationTracking(d));
@@ -12,7 +12,7 @@ numberDeclarationTracking 'Декларация на товары' (UserInvoiceD
 declarationDetailMax = GROUP MAX DeclarationDetail dd BY declarationInvoiceDetail(dd);
 
 EXTEND FORM userInvoice
-    PROPERTIES (i) READONLY SHOWIF (showSPT(i) AND importThirdCountriesTracking(i)) importThirdCountriesTracking, numberDeclarationTracking
+    PROPERTIES (i) READONLY SHOWIF (isTracking(i) AND importThirdCountriesTracking(i)) importThirdCountriesTracking, numberDeclarationTracking
 ;
 
 DESIGN userInvoice {

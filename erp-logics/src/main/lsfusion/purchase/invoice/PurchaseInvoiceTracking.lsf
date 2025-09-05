@@ -5,26 +5,24 @@ REQUIRE PurchaseInvoice, ItemTracking, PurchaseShipment;
 NAMESPACE Purchase;
 
 isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Purchase.InvoiceDetail);
-isTracking 'Подлежит прослеживанию' = ABSTRACT VALUE BOOLEAN (Purchase.InvoiceDetail);
-dateStartSPT 'Дата начала прослеживания' (UserInvoiceDetail d)=dateStartSPT(sku(d));
-isTracking (UserInvoiceDetail d) += (OVERRIDE isTrackingData(d), isTrackingOver(sku(d))) IF date(d) >= dateStartSPT(d);
+dateStartSPT 'Дата начала прослеживания' (InvoiceDetail d)=dateStartSPT(sku(d));
+isTracking (InvoiceDetail d) = (OVERRIDE isTrackingData(d), isTrackingOver(sku(d))) IF date(d) >= dateStartSPT(d);
 
-isTracking(Invoice i) = GROUP SUM 1 IF isTrackingOver(sku(UserInvoiceDetail d)) AND date(d) >= dateStartSPT(d) AND invoice(d)==i;
-showSPT (Invoice i)= TRUE IF isTracking(i);
+isTracking(Invoice i) = GROUP SUM 1 IF isTracking(InvoiceDetail d) AND invoice(d)==i;
 
-itemCustomCode'Код ТНВЭД' = ABSTRACT VALUE STRING[10] (UserInvoiceDetail);
-itemCustomCodeOther 'Дополнительный таможенный код' = ABSTRACT VALUE STRING[4] (UserInvoiceDetail);
-deliveryTypePrev 'Тип приходного документа' = ABSTRACT VALUE INTEGER (UserInvoiceDetail);
-deliveryNotePrev 'Номер приходного документа' = ABSTRACT VALUE STRING[70] (UserInvoiceDetail);
-deliveryNoteDate 'Дата создания приходного документа' = ABSTRACT VALUE DATE (UserInvoiceDetail);
-deliveryNotePrevLineID 'Номер строки в приходном документе' = ABSTRACT VALUE INTEGER (UserInvoiceDetail);
-lineItemQuantitySPT 'Единица измерения прослеживаемости' = ABSTRACT VALUE STRING[3](UserInvoiceDetail);
-quantityDespatchedSPT 'Количество в единицах прослеживаемости' = ABSTRACT VALUE NUMERIC[12,5] (UserInvoiceDetail);
-lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = ABSTRACT VALUE NUMERIC[12,2] (UserInvoiceDetail);
-idShippingDocument 'Код сопроводительного документа' = DATA STRING[20](UserInvoice);
-nameShippingDocument 'Наименование сопроводительного документа' = DATA STRING[40](UserInvoice);
-dateShippingDocument 'Дата сопроводительного документа' = DATA DATE (UserInvoice);
-numberShippingDocument 'Регистрационный номер сопроводительного документа' = DATA STRING[40](UserInvoice);
+itemCustomCode'Код ТНВЭД' = ABSTRACT VALUE STRING[10] (InvoiceDetail);
+itemCustomCodeOther 'Дополнительный таможенный код' = ABSTRACT VALUE STRING[4] (InvoiceDetail);
+deliveryTypePrev 'Тип приходного документа' = ABSTRACT VALUE INTEGER (InvoiceDetail);
+deliveryNotePrev 'Номер приходного документа' = ABSTRACT VALUE STRING[70] (InvoiceDetail);
+deliveryNoteDate 'Дата создания приходного документа' = ABSTRACT VALUE DATE (InvoiceDetail);
+deliveryNotePrevLineID 'Номер строки в приходном документе' = ABSTRACT VALUE INTEGER (InvoiceDetail);
+lineItemQuantitySPT 'Единица измерения прослеживаемости' = ABSTRACT VALUE STRING[3](InvoiceDetail);
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' = ABSTRACT VALUE NUMERIC[12,5] (InvoiceDetail);
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' = ABSTRACT VALUE NUMERIC[12,2] (InvoiceDetail);
+idShippingDocument 'Код сопроводительного документа' = DATA STRING[20](Invoice);
+nameShippingDocument 'Наименование сопроводительного документа' = DATA STRING[40](Invoice);
+dateShippingDocument 'Дата сопроводительного документа' = DATA DATE (Invoice);
+numberShippingDocument 'Регистрационный номер сопроводительного документа' = DATA STRING[40](Invoice);
 
 @defineOperationProperty(importEAEU, 'Импорт из ЕАЭС', showContainer);
 
@@ -37,10 +35,10 @@ notImportEAEU (Invoice i) = TRUE IF i IS Invoice AND NOT isImportEAEU(i);
 
 EXTEND FORM userInvoice
     OBJECTS d6 = UserInvoiceDetail GRID
-    PROPERTIES (d6) SHOWIF showSPT(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
+    PROPERTIES (d6) SHOWIF isTracking(i) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d6))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
         deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
-    PROPERTIES (i) SHOWIF (showSPT(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument, isImportEAEU
-    PROPERTIES (i) SHOWIF showSPT(i) READONLY countrySupplier, idCountrySupplier 
+    PROPERTIES (i) SHOWIF (isTracking(i) AND showImportEAEU(i)) idShippingDocument, nameShippingDocument, numberShippingDocument, dateShippingDocument, isImportEAEU
+    PROPERTIES (i) SHOWIF isTracking(i) READONLY countrySupplier, idCountrySupplier 
     FILTERS userInvoice(d6) == i, isTracking(d6)
 
 ;
