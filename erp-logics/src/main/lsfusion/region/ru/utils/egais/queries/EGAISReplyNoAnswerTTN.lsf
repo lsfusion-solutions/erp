@@ -1,6 +1,6 @@
 MODULE EGAISReplyNoAnswerTTN;
 
-REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket, EGAISQueryResendDoc, EGAISWayBill;
+REQUIRE EGAISClient, EGAISOutDoc, EGAISInDoc, EGAISTicket, EGAISQueryResendDoc, EGAISWayBill, EGAISStock, EGAISQueryNATTN;
 
 NAMESPACE EGAIS;
 
@@ -76,5 +76,73 @@ process (InDoc d) + {
 process (Ticket t) + {
     IF (docType(t) =='ReplyNoAnswerTTN' OR  docType(t) =='ReplyNATTN') THEN {
         processed() <- TRUE;
+    }
+}
+
+queryNATTN 'Запросить необработанные ТТН' (Stock st) {
+    IF utm(client(st)) THEN NEWSESSION {
+        NEW r = QueryNATTN {
+            client(r) <- client(st);
+            utm(r) <- utm(client(st));
+            queryNATTN(r);
+            APPLY;
+        }
+    } ELSE {
+        MESSAGE 'Не задана "Организация ЕГАИС" для склада';
+    }
+}
+queryNATTNStocks 'Запросить необработанные ТТН' () {
+    FOR utm(client(Stock st)) DO {
+        queryNATTN(st);
+    }
+}
+
+processReplyNoAnswerTTN (ReplyNATTN d) {
+    NEWSESSION {
+        NEW r = QueryResendDoc {
+            utm(r) <- utm(d);
+            client(r) <- firstClient(utm(d));
+            WBRegID(r) <-  wbRegID(d);
+            queryResendDoc(r);
+        }
+        processed(d) <- currentDateTime();
+        APPLY;
+    }
+}
+replyNoAnswerTTN 'Повторный запрос ТТН' (UTM u) {
+    LOCAL NESTED reply = ReplyNATTN ();
+    reply() <- [GROUP LAST ReplyNATTN r
+    ORDER DESC ttnDate(r), r
+    WHERE toProcess(r) AND ttnDate(r) >= sum(currentDate(),-countDaysReplyNoAnswerTTN()) AND NOT wayBill(wbRegID(r))
+    BY utm(r)](u);
+    IF reply() THEN {
+        processReplyNoAnswerTTN(reply());
+        MESSAGE (CONCAT ' ', 'Запрос отправлен для УТМ: ', name(u), 'wbRegID '+wbRegID(reply())) NOWAIT;
+    }
+}
+
+toProcessReplyNATTN 'Закрыть' () {
+    NEWSESSION {
+        // Закрываем по времени или если уже создана ТТН
+        closed(ReplyNATTN r) <- currentDateTime() WHERE toProcess(r) AND (wayBill(wbRegID(r)) OR ttnDate(r) < sum(currentDate(),-countDaysReplyNoAnswerTTN()));
+        APPLY;
+    }
+}
+replyNoAnswerTTN 'Повторный запрос ТТН' () {
+    toProcessReplyNATTN();
+    FOR utm(client(Stock st))== UTM u DO {
+        replyNoAnswerTTN(u);
+    }
+}
+
+FORM replyNATTNs 'Необработанные ТТН'
+    OBJECTS r = ReplyNATTN
+    PROPERTIES (r) READONLY dateTime, wbRegID, ttnNumber, ttnDate, nameUtm, processed, closed
+    FILTERGROUP base
+        FILTER 'Необработанные' toProcess(r) 'F9' DEFAULT
+;
+NAVIGATOR {
+    EGAISDocuments {
+        NEW replyNATTNs;
     }
 }
