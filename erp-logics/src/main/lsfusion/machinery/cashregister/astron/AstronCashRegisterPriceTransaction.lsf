@@ -39,19 +39,20 @@ astronInfo2(MachineryPriceTransaction mpt, Barcode b) = (JSON FROM
                     WHEN numberId == 103 THEN 1 
                     WHEN numberId == 104 THEN 2 
                     WHEN numberId == 105 THEN 3 
+                    WHEN numberId == 106 THEN 4 
                     ELSE 0,
             'numberName' = CASE 
-                    WHEN numberId == 103 
-                    THEN 'подлежит маркировке СИ' 
+                    WHEN numberId == 103 THEN 'подлежит маркировке СИ' 
                     WHEN numberId == 104 THEN 'подлежит УКЗ' 
-                    WHEN numberId == 105 THEN 'подлежит маркировке и СИ и УКЗ'     
-                ELSE 'не подлежит маркировке'
-            WHERE iterate (numberId, 102, 105),
+                    WHEN numberId == 105 THEN 'подлежит маркировке и СИ и УКЗ' 
+                    WHEN numberId == 106 THEN 'подлежит маркировке СИ или УКЗ'     
+                    ELSE 'не подлежит маркировке'
+            WHERE iterate (numberId, 102, 106),
         'numProperty' = JSON FROM
             'numPropertyKey' = INTEGER numPropertyKey,
             'propertyGrpId' = value(b),
             'numberId' = CASE
-                    WHEN idLotType(sku(b)) != 'ukz' AND (UKZ(sku(b))==TTRUE ) THEN 105
+                    WHEN idLotType(sku(b)) != 'ukz' AND (UKZ(sku(b))==TTRUE ) THEN 106
                     WHEN idLotType(sku(b)) == 'ukz' OR (UKZ(sku(b))==TTRUE) THEN 104
                     WHEN idLotType(sku(b)) THEN 103
                     ELSE 102
