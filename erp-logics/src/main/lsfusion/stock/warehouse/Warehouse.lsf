@@ -323,3 +323,36 @@ NAVIGATOR {
         NEW warehouses;
     }
 }
+
+META defineWarehouseGroupValue(property, caption, type)
+    data###property caption = DATA type (WarehouseGroup);
+
+    levelParent###property(WarehouseGroup child) = GROUP MIN level(child, WarehouseGroup parent) IF data###property(parent) MATERIALIZED;
+    nearestParent###property (WarehouseGroup warehouseGroup) = warehouseGroup(warehouseGroup, levelParent###property(warehouseGroup));
+    nearest###property (WarehouseGroup warehouseGroup) = data###property(nearestParent###property (warehouseGroup));
+    property caption (WarehouseGroup warehouseGroup) = OVERRIDE data###property(warehouseGroup), nearest###property (warehouseGroup) MATERIALIZED;
+
+    EXTEND FORM warehouseGroup PROPERTIES(w) property;
+END
+
+META defineWarehouseGroupValueGrid(property, caption, type)
+    @defineWarehouseGroupValue(property, caption, type);
+
+    quantityChildWith###property(WarehouseGroup warehouseGroup) = GROUP SUM 1 IF data###property(WarehouseGroup childWarehouseGroup) AND isParent(childWarehouseGroup, warehouseGroup) MATERIALIZED;
+    quantityParentWith###property(WarehouseGroup warehouseGroup) = GROUP SUM 1 IF data###property(WarehouseGroup parentWarehouseGroup) AND isParent(warehouseGroup, parentWarehouseGroup) MATERIALIZED;
+
+    backgroundShow###property (WarehouseGroup warehouseGroup) =
+        IF data###property(warehouseGroup) THEN
+            RGB(0,0,0) IF warehouseGroup IS WarehouseGroup
+        ELSE
+            RGB(203,203,206) IF quantityChildWith###property (warehouseGroup) != descendantNumber(warehouseGroup)
+                AND NOT quantityParentWith###property (warehouseGroup);
+
+    setNull###property 'Снять признак для всех потомков'(WarehouseGroup warehouseGroup)  {
+        FOR isParent (WarehouseGroup childGroup, warehouseGroup) DO {
+            data###property(childGroup) <- NULL;
+        }
+    } ASON CONTEXTMENU property[WarehouseGroup] CONFIRM;
+
+    EXTEND FORM warehouses PROPERTIES(wg) READONLYIF isReadonly() property BACKGROUND backgroundShow###property(wg);
+END

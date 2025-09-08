@@ -1,0 +1,22 @@
+MODULE RangePurchaseOrderWarehouse;
+
+REQUIRE RangePurchaseOrderStock, Warehouse;
+
+NAMESPACE Range;
+
+@defineWarehouseGroupValueGrid(useRange, 'Использовать ассортиментную матрицу', BOOLEAN);
+
+dataUseRange 'Использовать ассортиментную матрицу' = DATA BOOLEAN (Warehouse);
+useRange 'Использовать ассортиментную матрицу' (Warehouse w) = (OVERRIDE dataUseRange(w), useRange(warehouseGroup(w))) AND isCompany(w) MATERIALIZED;
+
+EXTEND FORM warehouse
+    PROPERTIES(w) useRange SHOWIF isCompany(w)
+;
+
+DESIGN warehouse {
+    headerMainParams {
+        MOVE PROPERTY(useRange(w));
+    }
+}
+
+useRange(Warehouse w) += useRange(w);
