@@ -126,20 +126,26 @@ META defineOrderInvoicePickingOrder (sign)
     }
 
     afterCreatePickingUserInvoicePosted ABSTRACT LIST (UserInvoice, Order.Order);
+    useOverCreatePickingUserInvoicePosted = ABSTRACT BOOLEAN ();
+    overCreatePickingUserInvoicePosted ABSTRACT (Order);
     createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации'(Order order)  { 
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
+            userInvoice(Order o) <- NULL WHERE inCreatePickingUserInvoicePosted(o);
             IF countInCreatePickingUserInvoicePostedOrder() THEN {
                 IF countParamsInCreatePickingUserInvoicePostedOrder() > 1 THEN {
                     MESSAGE 'По выбранным заказам не может быть создана одна накладная';
                 } ELSE {
                     NEW i = UserInvoice {
                         isPosted(i) <- TRUE;
+                        fillHeader(i, (GROUP MAX Order.Order o IF inCreatePickingUserInvoicePosted(o)));                        
                         FOR inCreatePickingUserInvoicePosted(Order.Order o) DO {
-                            fillPicking(i, o);                        
+                            createPickingDetail(i, o);
+                            fillPrice(i, o);                       
                             createdUser(i, o) <- TRUE;
                             include[Order,UserInvoice](o,i) <- TRUE;
                         }
+                        extraPickingDetail(i);
                         packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
                         executeLocalEvents('Sale.userInvoice');
                         afterCreatePickingUserInvoicePosted(i, order);
@@ -165,7 +171,7 @@ META defineOrderInvoicePickingOrder (sign)
             }
         }
     }
-    createPickingUserInvoicePosted(Order o) + {  createPickingUserInvoicePosted(o); } 
+    createPickingUserInvoicePosted(Order o) + { IF useOverCreatePickingUserInvoicePosted() THEN {overCreatePickingUserInvoicePosted(o);} ELSE {createPickingUserInvoicePosted(o);} } 
 
     addPickingUserInvoice 'Накладная по комплектации'###sign(Order order)   { 
 	    NEWSESSION {

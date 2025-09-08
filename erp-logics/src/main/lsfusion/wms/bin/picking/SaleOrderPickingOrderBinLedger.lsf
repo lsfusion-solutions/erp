@@ -108,8 +108,10 @@ idPickingGroup 'Группа комплектации' = DATA INTEGER (UserOrder
 idPickingGroup(UserOrderDetail detail) += idPickingGroup(detail);
 idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup[Sale.OrderDetail](orderDetail(detail));
 
+namePickingGroup 'Группа комплектации' (OrderDetail d) = OVERRIDE name(pickingGroup(idPickingGroup(d))), 'Не задана' IF d IS OrderDetail CHARWIDTH 20;
+
 EXTEND FORM orders
-    PROPERTIES(d) READONLY idPickingGroup
+    PROPERTIES(d) READONLY idPickingGroup, namePickingGroup
 ;
 
 WHEN LOCAL CHANGED(sku(UserOrderDetail detail)) DO {
@@ -117,7 +119,7 @@ WHEN LOCAL CHANGED(sku(UserOrderDetail detail)) DO {
 }
 
 idPickingGroup 'Код группы комплектации' = GROUP MAX idPickingGroup(PickingOrderDetail d) BY pickingOrder(d) MATERIALIZED INDEXED;
-namePickingGroup 'Группа комплектации' (PickingOrder po) = OVERRIDE name(pickingGroup(idPickingGroup(po))), 'Не задана' CHARWIDTH 20;
+namePickingGroup 'Группа комплектации' (PickingOrder po) = OVERRIDE name(pickingGroup(idPickingGroup(po))), 'Не задана' IF po IS PickingOrder CHARWIDTH 20;
 
 EXTEND FORM pickingOrders
     PROPERTIES READONLY idPickingGroup(o), namePickingGroup(o)
@@ -219,3 +221,129 @@ EXTEND FORM orders
 ;
 
 @defineOrderInvoicePickingOrder (' (продажа)');
+
+countPickedOrderDetail = GROUP SUM 1 IF overPickingQuantity(OrderDetail d) BY order(d), idPickingGroup(d);
+countPickedOrderDetail = GROUP SUM 1 IF overPickingQuantity(OrderDetail d) AND inCreatePickingUserInvoicePosted(order(d)) BY idPickingGroup(d);
+
+createPickingDetail(Invoice userInvoice, Order order, INTEGER pickingGroup) {
+    IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
+        FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail) AND idPickingGroup(orderDetail)==pickingGroup
+            ORDER orderCreateUserInvoice(orderDetail)
+            NEW d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            orderDetail(d) <- orderDetail;
+            sku(d) <- sku(orderDetail);
+            IF NOT skipFillBatch(d) THEN {
+                batch(d) <- batch;
+            }
+            quantity (d) <- picking(batch, orderDetail);
+
+            fill(d, orderDetail);
+            overFill(d, orderDetail);
+        }
+        FOR order(OrderDetail orderDetail) == order AND PREV(overPickingQuantity(orderDetail)) AND batch(orderDetail) AND idPickingGroup(orderDetail)==pickingGroup
+            ORDER orderCreateUserInvoice(orderDetail)
+            NEW d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            orderDetail(d) <- orderDetail;
+            sku(d) <- sku(orderDetail);
+            IF NOT skipFillBatch(d) THEN {
+                batch(d) <- batch(orderDetail);
+            }
+            quantity (d) <- PREV(overPickingQuantity(orderDetail));
+
+            fill(d, orderDetail);
+            overFill(d, orderDetail);
+        }
+    } ELSE {
+        FOR order(OrderDetail orderDetail) == order AND pickingQuantity(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+            AND in(orderDetail, userInvoice) AND idPickingGroup(orderDetail)==pickingGroup
+            ORDER orderCreateUserInvoice(orderDetail)
+            NEW d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            orderDetail(d) <- orderDetail;
+            sku(d) <- sku(orderDetail);
+            IF NOT skipFillBatch(d) THEN {
+                batch(d) <- batch(orderDetail);
+            }
+            quantity (d) <- pickingQuantity(orderDetail);
+
+            fill(d, orderDetail);
+            overFill(d, orderDetail);
+        }
+    }
+
+    IF explicitBatchLedger(fromStock(order)) THEN {
+        FOR NUMERIC[16,5] q==excessQuantityPickingPickingDetail(order, Batch batch) AND idPickingGroup(sku(batch))==pickingGroup NEW d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            sku(d) <- sku(batch);
+            quantity(d) <- q;
+            batch(d) <- batch;
+        }
+    } ELSE {
+        FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 AND idPickingGroup(sku)==pickingGroup NEW d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            sku(d) <- sku;
+            quantity(d) <- excessQuantityPickingPickingDetail(order, sku);
+        }
+    }
+}
+
+createPickingUserInvoicePostedByPickingGroup 'Создать проведенные накладные по комплектации'(Order order) {
+    IF order IS Order THEN {
+        userInvoice(order) <- NULL;
+        IF countInCreatePickingUserInvoicePostedOrder() THEN {
+            IF countParamsInCreatePickingUserInvoicePostedOrder() > 1 THEN {
+                MESSAGE 'По выбранным заказам не может быть создана одна накладная';
+            } ELSE {
+                FOR countPickedOrderDetail(INTEGER pickingGroup) ORDER pickingGroup NEW i = UserInvoice DO {
+                    isPosted(i) <- TRUE;
+                    fillHeader(i, order);
+                    fillHeader(i, (GROUP MAX Order.Order o IF inCreatePickingUserInvoicePosted(o)));
+                    FOR inCreatePickingUserInvoicePosted(Order.Order o) AND countPickedOrderDetail(o, pickingGroup) DO {
+                        createPickingDetail(i, o, pickingGroup);
+                        fillPrice(i, o);
+                        createdUser(i, o) <- TRUE;
+                        include[Order,UserInvoice](o,i) <- TRUE;
+                    }
+                    extraPickingDetail(i);
+                    packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
+                    executeLocalEvents('Sale.userInvoice');
+                    afterCreatePickingUserInvoicePosted(i, order);
+                    IF showPickingUserInvoicePosted() THEN {
+                        SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+                    }
+                }
+            }
+        } ELSE {
+            NEW i = UserInvoice {
+                isPosted(i) <- TRUE;
+                fillPicking(i, order);
+                packQuantity(i) <- packQuantity(order);
+                createdUser(i, order) <- TRUE;
+                userInvoice(order) <- i;
+                include(order,i) <- TRUE;
+                executeLocalEvents('Sale.userInvoice');
+                afterCreatePickingUserInvoicePosted(i, order);
+                IF showPickingUserInvoicePosted() THEN {
+                    SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
+                }
+            }
+        }
+    }
+}
+
+createInvoicesByPickingGroup 'Создавать накладные по группам комплектации' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES createInvoicesByPickingGroup()
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(createInvoicesByPickingGroup());
+    }
+}
+
+useOverCreatePickingUserInvoicePosted() += createInvoicesByPickingGroup();
+overCreatePickingUserInvoicePosted(Order o) + {createPickingUserInvoicePostedByPickingGroup(o);}
