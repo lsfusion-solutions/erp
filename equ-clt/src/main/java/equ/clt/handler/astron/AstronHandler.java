@@ -2430,19 +2430,22 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         checkExtraColumns(conn, params);
         createFusionProcessedIndex(conn, params);
         createSalesIndex(conn, params);
+        if (newReadSalesQuery) {
+            createSalesExtIndex(conn, params);
+        }
         conn.setAutoCommit(false);
 
         try (Statement statement = conn.createStatement()) {
             String query = newReadSalesQuery ?
-                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+                    ( (params.pgsql ? "SET parallel_tuple_cost = 10; " : "") + //Астрон использует postgresql 9.6 который неадекватно переоценивает Parallel Seq Scan. Выставляем заградительный cost если он включен
+                    "SELECT sales.SALESATTRS, sales.SYSTEMID, COALESCE(CAST(ext.SALESEXTVALUE AS Integer), sales.SESSID) AS SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
-                    "LEFT JOIN (SELECT se.SESSID, se.SYSTEMID, se.SAREAID, max(SESSSTART) AS SESSSTART FROM SESS se " +
-                    "JOIN SALES s ON s.SESSID=se.SESSID AND s.SYSTEMID=se.SYSTEMID AND s.SAREAID=se.SAREAID " +
-                    "WHERE s.SALESTIME > SESSSTART AND FUSION_PROCESSED IS NULL AND SALESCANC = 0 GROUP BY se.SESSID, se.SYSTEMID, se.SAREAID) sess " +
+                    "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
+                    "LEFT JOIN SALESEXT ext ON sales.SAREAID=ext.SAREAID AND sales.SYSTEMID=ext.SYSTEMID AND sales.SESSID=ext.SESSID AND sales.SALESNUM=ext.SALESNUM AND SALESEXTKEY = 38 " +
                     "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM")
                     :
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
@@ -2793,7 +2796,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
     private void createFusionProcessedIndex(Connection conn, AstronConnectionString params) {
         try (Statement statement = conn.createStatement()) {
             String query = params.pgsql ?
-                    String.format("CREATE INDEX CONCURRENTLY IF NOT EXISTS %s ON sales(salescanc, fusion_processed)", getFusionProcessedIndexName()) :
+                    String.format("CREATE INDEX CONCURRENTLY IF NOT EXISTS %s ON sales(salescanc, fusion_processed) WHERE fusion_processed IS NULL", getFusionProcessedIndexName()) :
                     String.format("IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), '%s', 'IndexId') > 0) BEGIN CREATE INDEX %s ON SALES (SALESCANC, FUSION_PROCESSED) END",
                     getFusionProcessedIndexName(), getFusionProcessedIndexName());
             statement.execute(query);
@@ -2823,6 +2826,17 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
             String query = params.pgsql ?
                     "CREATE INDEX CONCURRENTLY IF NOT EXISTS salestime ON sales(SALESTIME, SYSTEMID)" :
                     "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALES'), 'salestime', 'IndexId') > 0) BEGIN CREATE INDEX salestime ON SALES (SALESTIME, SYSTEMID) END";
+            statement.execute(query);
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    protected void createSalesExtIndex(Connection conn, AstronConnectionString params) {
+        try (Statement statement = conn.createStatement()) {
+            String query = params.pgsql ?
+                    "CREATE INDEX CONCURRENTLY IF NOT EXISTS salesextid ON salesext(SAREAID, SYSTEMID, SESSID, SALESNUM, SALESEXTKEY)" :
+                    "IF NOT EXISTS (SELECT 1 WHERE IndexProperty(Object_Id('SALESEXT'), 'salesextid', 'IndexId') > 0) BEGIN CREATE INDEX salesextid ON SALESEXT (SAREAID, SYSTEMID, SESSID, SALESNUM, SALESEXTKEY) END";
             statement.execute(query);
         } catch (SQLException e) {
             throw Throwables.propagate(e);
