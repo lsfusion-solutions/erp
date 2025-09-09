@@ -1,19 +1,19 @@
 MODULE RangeSimple;
 
-REQUIRE Range, Warehouse;
+REQUIRE Range;
 
 NAMESPACE Range;
 
-rangeSimpleStore = ABSTRACT BOOLEAN ();
-rangeSimpleWarehouse = ABSTRACT BOOLEAN ();
+inRangeSimpleStore = ABSTRACT BOOLEAN (Stock);
+inRangeSimpleWarehouse = ABSTRACT BOOLEAN (Stock);
 
 dataIn = DATA BOOLEAN (Range, StockGroup);
-in 'Вкл.' (Range r, StockGroup st) = OVERRIDE dataIn(r, st), TRUE IF (GROUP SUM 1 IF dataIn(r,StockGroup g) AND level(st, g));
+in 'Вкл.' (Range r, StockGroup st) = OVERRIDE dataIn(r, st), TRUE IF (GROUP SUM 1 IF dataIn(r, StockGroup g) AND level(st, g));
 
-inRangeSimple(Stock st) =  isCompany(st) AND ((st IS DepartmentStore AND rangeSimpleStore()) OR (st IS Warehouse AND rangeSimpleWarehouse()))  MATERIALIZED;
+inRangeSimple(Stock st) = isCompany(st) AND (inRangeSimpleStore(st) OR inRangeSimpleWarehouse(st));
 
 dataIn = DATA BOOLEAN (Range, Stock);
-in 'Вкл.' (Range r, Stock st) = (OVERRIDE dataIn(r, st), in(r,stockGroup(st))) AND inRangeSimple(st);
+in 'Вкл.' (Range r, Stock st) = (OVERRIDE dataIn(r, st), in(r, stockGroup(st))) AND inRangeSimple(st);
 
 dataIn 'Вкл' = DATA BOOLEAN (RangeRev, Sku);
 
@@ -35,10 +35,10 @@ onStarted() + {
 
 changeInRangeStock(Range r, Stock ts) {
     INPUT b = BOOLEAN DO {
-        IF ts IS Warehouse THEN
-            dataIn(r, ts) <- b;
         IF ts IS DepartmentStore THEN
             dataIn(r, store(ts)) <- b;
+        ELSE
+            dataIn(r, ts) <- b;
     }
 }
 
