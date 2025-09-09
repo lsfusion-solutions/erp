@@ -4,15 +4,11 @@ REQUIRE CustomerEOrderTopByApi, EDN;
 
 NAMESPACE EDI;
 
-EXTEND FORM integrationData
-    PROPERTIES confirmNotFoundOrdersEDN = confirmNotFoundOrders();
-
 DESIGN integrationData {
     col1EDN {
         NEW ovsEDN {
             caption = 'Заказы';
             MOVE PROPERTY(useDocuway());
-            MOVE PROPERTY(confirmNotFoundOrdersEDN);
         }
     }
 }
@@ -123,7 +119,7 @@ sendPurchaseOrderEDN (EOrder o, STRING[100] login, STRING[100] password, TEXT ur
             MESSAGE provider + ' (' + login + ') Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт'+(OVERRIDE ' № '+number(o),'') NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') SendEOrder ' + number(o) + 'error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') SendEOrder ' + number(o) + 'error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         MESSAGE 'Заказ не выгружен. Обратитесь к администратору'+(OVERRIDE ' № '+number(o),'') NOWAIT;
 
         CANCEL;
@@ -145,7 +141,7 @@ sendPurchaseOrderEDN (EOrder o) {
 send(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND NOT isCancel(o) THEN IF NOT toSend(o) THEN MESSAGE ('Заказ уже отправлен ' + (OVERRIDE number(o), '')); ELSE {sendPurchaseOrderEDN(o); } }
 cancel(EOrder o) + { IF EDIProvider(supplier(o)) == EDIProvider.edn AND isCancel(o) THEN IF exportedCanceled(o) THEN MESSAGE 'Заказ уже отменен'; ELSE {sendPurchaseOrderEDN(o);} }
 
-overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType() == 'ORDER' THEN {
         NEWSESSION NESTED LOCAL {
             IF eOrder(documentNumber()) THEN {
@@ -229,7 +225,7 @@ FORM document_OrderResponse FORMEXTID 'Document-OrderResponse'
         ordrspPriceNoNDS EXTID 'NetAmount', 
         ordrspPriceNDS EXTID 'TaxAmount';
     
-overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'ORDRSP' THEN {
         TRY {
             
@@ -319,7 +315,7 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
                 responsesFailed() <- responsesFailed() + 1;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте ответа по заказу ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             responsesFailed() <- responsesFailed() + 1;
         }
@@ -365,7 +361,7 @@ FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
         desadvLineItemAmount EXTID 'GrossAmount'
 ;
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'DESADV'  THEN {
         TRY {
             IMPORT desadv XML FROM data(i);
@@ -442,38 +438,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         }
                         messagesConfirmed() <- messagesConfirmed() + 1;
                     }
-                } ELSE {
-                    IF NOT disableConfirmation AND sendReplies THEN {
-                        LOCAL contentSubXML = FILE();
-                        EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = desadvDocumentNumber(), code = '1450', description = ( provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE desadvOrderNumber(), 'NULL') + ' not found') XML TO contentSubXML;
-                        fileToString(contentSubXML());
-                        encodeBase64(resultString());
-                        LOCAL xml = XMLFILE();
-                        envelopeLogin() <- login;
-                        envelopePassword() <- password;
-                        envelopeDocumentDate() <- currentDateTime();
-                        envelopeDocumentNumber() <- id(i);
-                        envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                        envelopeContent() <- encodedBase64();
-                        EXPORT envelope XML TO xml;
-                        //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                        sendRequestEDI(url, xml());
-                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                        IF requestError() THEN {
-                            sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                            MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                        } ELSE {
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                        }
-                    }
-                }
+                } 
                 logToFile('edi', provider + ' (' + login + ') Import EOrderDespatchAdvice ' + id(i) + ' failed: ' + 'EOrder ' + (OVERRIDE desadvOrderNumber(), 'NULL') + ' not found');
                 despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте уведомления об отгрузке ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
         }

@@ -10,7 +10,7 @@ NAMESPACE EDI;
 //    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
 //}
 
-overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' THEN {
         TRY {
             skipBlrwbl() <- NULL;
@@ -141,20 +141,6 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                     }
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                            TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                            TRY {
-                                WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                            } CATCH {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                            }
-                        }
                         logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
                         eInvoicesFailed() <- eInvoicesFailed() + 1;
                     } ELSE {
@@ -232,21 +218,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                 }
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                TRY {
-                    WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                } CATCH {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             eInvoicesFailed() <- eInvoicesFailed() + 1;
         }
@@ -258,7 +230,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
 //    replaceNumber(ei) <- STRING[70](GROUP MAX blrwblFieldValue(INTEGER e) IF blrwblFieldCode(e) == 'PW0014') WHERE NOT replaceNumber(ei);
 //}
 
-overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' THEN {
         TRY {
             skipBlrdln() <- NULL;
@@ -379,20 +351,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                     }
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                            TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                            TRY {
-                                WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                            } CATCH {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                                MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                            }
-                        }
+                        
                         logToFile('edi', provider + ' Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
                         eInvoicesFailed() <- eInvoicesFailed() + 1;
                     } ELSE {
@@ -470,21 +429,7 @@ overReceiveMessagesDocuDrive(INTEGER i, STRING[255] importDir, STRING[255] expor
                 }
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                logToFile('edi', provider + ' RecipientError ' + id(i) +' request sent');
-                TRY{ mkdir(exportDir + 'SYSTEMMESSAGE'); }
-                TRY {
-                    WRITE data(i) TO exportDir + 'SYSTEMMESSAGE/' + id(i);
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ' request succeeded');
-                } CATCH {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' RecipientError ' + id(i) + ': ' + messageCaughtException());
-                    MESSAGE provider + ' Сообщение об ошибке ' + id(i) + ' не выгружено: ' + messageCaughtException() NOWAIT;
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             eInvoicesFailed() <- eInvoicesFailed() + 1;
         }
@@ -543,7 +488,7 @@ signAndSendBlrapnCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                 MESSAGE provider + ' Извещение о прочтении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -604,7 +549,7 @@ signAndSendBlrapnCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider
                 MESSAGE provider + ' Извещение о прочтении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -689,7 +634,7 @@ signAndSendCustomerEInvoiceDocuDrive (EInvoice ei, STRING[100] provider) {
                 MESSAGE provider + ' Накладная не выгружена: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -760,7 +705,7 @@ signAndSendCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[100] provider) {
                 MESSAGE provider + ' Накладная не выгружена: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -836,7 +781,7 @@ signAndSendNoticeCustomerEInvoiceDocuDrive (EInvoice ei, STRING[1000] d, STRING[
                 MESSAGE provider + ' Уведомление об изменении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Уведомление об изменении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -899,7 +844,7 @@ signAndSendNoticeCustomerEInvoiceTN2DocuDrive (EInvoice ei, STRING[1000] d, STRI
                 MESSAGE provider + ' Уведомление об изменении не выгружено: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Уведомление об изменении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {

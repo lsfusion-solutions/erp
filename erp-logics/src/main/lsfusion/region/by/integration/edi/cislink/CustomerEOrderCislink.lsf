@@ -53,7 +53,7 @@ sendPurchaseOrder (EOrder o, STRING url, STRING[100] outputDir, STRING[100] prov
             MESSAGE provider + ' Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт'+(OVERRIDE ' № '+number(o),'') NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         MESSAGE 'Заказ не выгружен. Обратитесь к администратору'+(OVERRIDE ' № '+number(o),'') NOWAIT;
         
         CANCEL;
@@ -162,7 +162,7 @@ overReceiveMessagesCislink (INTEGER  i, STRING url, STRING[100] archiveDir, BOOL
                 responsesFailed() <- responsesFailed() + 1;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderResponse ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте ответа по заказу ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             responsesFailed() <- responsesFailed() + 1;
         }
@@ -233,7 +233,7 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
                 despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderDespatchAdvice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте уведомления об отгрузке ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
         }
@@ -274,7 +274,7 @@ overReceiveMessagesCislink(INTEGER  i, STRING url, STRING[100] archiveDir, BOOLE
                     }
                 }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             orderMessagesFailed() <- orderMessagesFailed() + 1;
         }
@@ -287,7 +287,7 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
     TRY {
         listFiles(url);        
     } CATCH {                
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         MESSAGE  'Сообщения не получены. Ошибка чтения списка каталогов. Обратитесь к администратору' NOWAIT;
         RETURN; 
     }
@@ -304,7 +304,7 @@ importAnswer (STRING url, STRING[100] archiveDir, STRING[100] provider){
             }
         } CATCH {
             MESSAGE 'Ошибка при чтении сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
-            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         }
         overReceiveMessagesCislink(i, url,archiveDir, TRUE, provider);
     }

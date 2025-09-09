@@ -4,6 +4,7 @@ REQUIRE EDI;
 
 NAMESPACE EDI;
 
+//Старый soap api используемый в том числе для ЭДиН
 
 GROUP body EXTID 'soapenv:Body';
 GROUP sendDocument EXTID 'top:SendDocument' : body;
@@ -17,13 +18,12 @@ FORM receiveMessagesRequest
     FORMEXTID 'soapenv=http://schemas.xmlsoap.org/soap/envelope/:Envelope'
 ;
 
-useNewFormat = DATA BOOLEAN(STRING[100]) TABLE stringEDI;
 skipImportOrders = DATA LOCAL NESTED BOOLEAN ();
 
 beforeOverReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100]);
-overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessages ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
 
-receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
             LOCAL xml = XMLFILE();
@@ -53,7 +53,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                     }
                     logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
                     beforeOverReceiveMessages(i, login, archiveDir);
-                    overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+                    overReceiveMessages(i, login, password, url, archiveDir, disableConfirmation, provider);
                 }
 
                 fillEndParams();                
@@ -67,7 +67,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
             MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
         MESSAGE provider + '(' + login + ') Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
@@ -124,7 +124,7 @@ FORM queryDocumentsStatus 'Очередь документов'
 ;
 
 
-listMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+listMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     IF login AND password THEN {
         newNS() <- TRUE; // пока только CTT. для работы с EDN нужно queryDocumentsResponse с другим NS
         LOCAL xml = XMLFILE();
@@ -199,50 +199,25 @@ FORM envelope
 ;
 
 //----------- systemmessage -----------//
-overReceiveSystemMessage ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100] );
-overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveSystemMessage ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
+overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
 }
 
 overImportSystemmessage ABSTRACT ();
 skipSystemmessage = DATA LOCAL NESTED BOOLEAN();
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             skipSystemmessage() <- NULL;
             overImportSystemmessage();
             IF NOT skipSystemmessage() THEN {
-                overReceiveSystemMessage(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+                overReceiveSystemMessage(i, login, password, url, archiveDir, disableConfirmation, provider);
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                fileToString(contentSubXML());
-                encodeBase64(resultString());
-                LOCAL xml = XMLFILE();
-                envelopeLogin() <- login;
-                envelopePassword() <- password;
-                envelopeDocumentDate() <- currentDateTime();
-                envelopeDocumentNumber() <- id(i);
-                envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                envelopeContent() <- encodedBase64();
-                EXPORT envelope XML TO xml;
-                //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                IF requestError() THEN {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                } ELSE {
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             orderMessagesFailed() <- orderMessagesFailed() + 1;
         }
@@ -251,8 +226,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 
 
 //----------- blrapn -----------//
-overReceiveBlrapn ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100] );
-overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveBlrapn ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
+overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported Reference documentType ' + (OVERRIDE blrapnReferenceDocumentType(), 'NULL'));
 }
 
@@ -262,7 +237,7 @@ overImportBlrapn ABSTRACT ();
 overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], INTEGER, STRING[100]);
 skipBlrapn = DATA LOCAL NESTED STRING ();
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrapn' THEN {
         TRY {
             IMPORT importBlrapn XML FROM data(i);
@@ -270,36 +245,12 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportBlrapn();
             overImportBlrapn(i, login, password, url, archiveDir, IF disableConfirmation THEN 1 ELSE 0, provider);
             IF NOT skipBlrapn() THEN {
-                overReceiveBlrapn(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+                overReceiveBlrapn(i, login, password, url, archiveDir, disableConfirmation, provider);
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' skipped: ' + skipBlrapn());
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                fileToString(contentSubXML());
-                encodeBase64(resultString());
-                LOCAL xml = XMLFILE();
-                envelopeLogin() <- login;
-                envelopePassword() <- password;
-                envelopeDocumentDate() <- currentDateTime();
-                envelopeDocumentNumber() <- id(i);
-                envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                envelopeContent() <- encodedBase64();
-                EXPORT envelope XML TO xml;
-                sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                IF requestError() THEN {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                } ELSE {
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoiceMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
         }

@@ -9,7 +9,7 @@ skipBlrwbl = DATA LOCAL NESTED STRING ();
 overCreateEInvoiceBlrwbl ABSTRACT LIST (EInvoice);
 overCreateEInvoiceDetailBlrwbl ABSTRACT LIST (EInvoiceDetail,INTEGER);
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrwbl' THEN {
         TRY {
             skipBlrwbl() <- NULL;
@@ -188,30 +188,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     }
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            fileToString(contentSubXML());
-                            encodeBase64(resultString());
-                            LOCAL xml = XMLFILE();
-                            envelopeLogin() <- login;
-                            envelopePassword() <- password;
-                            envelopeDocumentDate() <- currentDateTime();
-                            envelopeDocumentNumber() <- id(i);
-                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                            envelopeContent() <- encodedBase64();
-                            EXPORT envelope XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                            IF requestError() THEN {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                                MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                            }
-                        }
                         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
                         eInvoicesFailed() <- eInvoicesFailed() + 1;
                     } ELSE {
@@ -322,31 +298,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrwbl());
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                fileToString(contentSubXML());
-                encodeBase64(resultString());
-                LOCAL xml = XMLFILE();
-                envelopeLogin() <- login;
-                envelopePassword() <- password;
-                envelopeDocumentDate() <- currentDateTime();
-                envelopeDocumentNumber() <- id(i);
-                envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                envelopeContent() <- encodedBase64();
-                EXPORT envelope XML TO xml;
-                sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                IF requestError() THEN {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                } ELSE {
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             eInvoicesFailed() <- eInvoicesFailed() + 1;
         }
@@ -358,7 +310,7 @@ skipBlrdln = DATA LOCAL NESTED STRING();
 overCreateEInvoiceBlrdln ABSTRACT LIST (EInvoice);
 overCreateEInvoiceDetailBlrdln ABSTRACT LIST (EInvoiceDetail,INTEGER);
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blrdln' THEN {
         TRY {
             skipBlrdln() <- NULL;
@@ -527,30 +479,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                     }
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            fileToString(contentSubXML());
-                            encodeBase64(resultString());
-                            LOCAL xml = XMLFILE();
-                            envelopeLogin() <- login;
-                            envelopePassword() <- password;
-                            envelopeDocumentDate() <- currentDateTime();
-                            envelopeDocumentNumber() <- id(i);
-                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                            envelopeContent() <- encodedBase64();
-                            EXPORT envelope XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                            IF requestError() THEN {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                                MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                            }
-                        }
                         logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' failed: ' + applyMessage());
                         eInvoicesFailed() <- eInvoicesFailed() + 1;
                     } ELSE {
@@ -662,31 +590,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                 logToFile('edi', provider + ' (' + login + ') Import EInvoice ' + id(i) + ' skipped: ' + skipBlrdln());
             }
         } CATCH {
-            IF NOT disableConfirmation AND sendReplies THEN {
-                LOCAL contentSubXML = FILE();
-                EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = (CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) XML TO contentSubXML;
-                fileToString(contentSubXML());
-                encodeBase64(resultString());
-                LOCAL xml = XMLFILE();
-                envelopeLogin() <- login;
-                envelopePassword() <- password;
-                envelopeDocumentDate() <- currentDateTime();
-                envelopeDocumentNumber() <- id(i);
-                envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                envelopeContent() <- encodedBase64();
-                EXPORT envelope XML TO xml;
-                sendRequestEDI(url, xml());
-                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                IF requestError() THEN {
-                    sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                    MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                } ELSE {
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                }
-            }
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EInvoice ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Ошибка при импорте накладной ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             eInvoicesFailed() <- eInvoicesFailed() + 1;
         }
@@ -770,7 +674,7 @@ signAndSendBlrapnCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
                 MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -856,7 +760,7 @@ signAndSendBlrapnCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100
                 MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -954,7 +858,7 @@ signAndSendCustomerEInvoice (EInvoice ei, STRING[100] login, STRING[100] passwor
                 MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -1050,7 +954,7 @@ signAndSendCustomerEInvoiceTN2 (EInvoice ei, STRING[100] login, STRING[100] pass
                 MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -1138,7 +1042,7 @@ signAndSendNoticeCustomerEInvoice (EInvoice ei, STRING[1000] d, STRING[100] logi
                 MESSAGE provider + ' (' + login + ') Уведомление об изменении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Уведомление об изменении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -1226,7 +1130,7 @@ signAndSendNoticeCustomerEInvoiceTN2 (EInvoice ei, STRING[1000] d, STRING[100] l
                 MESSAGE provider + ' (' + login + ') Уведомление об изменении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Уведомление об изменении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -1329,7 +1233,7 @@ signAndSendCustomerECreditNote(ECreditNote c, STRING[100] login, STRING[100] pas
                 MESSAGE provider + ' Акт приемки не выгружен: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Акт приемки не выгружен. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {
@@ -1338,7 +1242,7 @@ signAndSendCustomerECreditNote(ECreditNote c, STRING[100] login, STRING[100] pas
     }
 }
 
-overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'blradf' THEN {
         TRY {
             IMPORT blradf XML FROM data(i);
@@ -1483,7 +1387,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' Parse Message ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
         }
     }
@@ -1568,7 +1472,7 @@ signAndSendBlrapnCustomerECreditNote(ECreditNote ec, STRING[100] login, STRING[1
                 MESSAGE provider + ' (' + login + ') Извещение о прочтении не выгружено: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Извещение о прочтении не выгружено. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {

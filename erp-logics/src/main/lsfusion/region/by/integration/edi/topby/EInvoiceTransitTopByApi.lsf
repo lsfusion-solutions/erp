@@ -4,7 +4,7 @@ REQUIRE EInvoiceTopByApi, EInvoiceTransit, SupplierEInvoiceTopByApi;
 
 NAMESPACE EDI;
 
-overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(blrapnReferenceDocumentType()) == 'blrspt' THEN {
         LOCAL eInvoice = EInvoice();
         eInvoice() <- eInvoiceDeliveryNoteNumber(blrapnDeliveryNoteId());
@@ -24,30 +24,6 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                     XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            fileToString(contentSubXML());
-                            encodeBase64(resultString());
-                            LOCAL xml = XMLFILE();
-                            envelopeLogin() <- login;
-                            envelopePassword() <- password;
-                            envelopeDocumentDate() <- currentDateTime();
-                            envelopeDocumentNumber() <- id(i);
-                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                            envelopeContent() <- encodedBase64();
-                            EXPORT envelope XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                            IF requestError() THEN {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                                MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                            }
-                        }
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     } ELSE {
@@ -86,31 +62,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                     messagesConfirmed() <- messagesConfirmed() + 1;
                 }
             } ELSE {
-                IF NOT disableConfirmation AND sendReplies THEN {
-                    LOCAL contentSubXML = FILE();
-                    EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                    fileToString(contentSubXML());
-                    encodeBase64(resultString());
-                    LOCAL xml = XMLFILE();
-                    envelopeLogin() <- login;
-                    envelopePassword() <- password;
-                    envelopeDocumentDate() <- currentDateTime();
-                    envelopeDocumentNumber() <- id(i);
-                    envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                    envelopeContent() <- encodedBase64();
-                    EXPORT envelope XML TO xml;
-                    //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                    sendRequestEDI(url, xml());
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                    IF requestError() THEN {
-                        sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                        MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                    } ELSE {
-                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                    }
-                }
+                
             }
             logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE blrapnDeliveryNoteId(), 'NULL') + ' not found');
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
@@ -119,7 +71,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
     }
 }
 
-overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType() == 'BLRSPT' THEN {
         LOCAL eInvoice = EInvoice();
         eInvoice() <- eInvoiceM(documentNumber());
@@ -139,31 +91,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
                     XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
-                        IF NOT disableConfirmation AND sendReplies THEN {
-                            LOCAL contentSubXML = FILE();
-                            EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                            fileToString(contentSubXML());
-                            encodeBase64(resultString());
-                            LOCAL xml = XMLFILE();
-                            envelopeLogin() <- login;
-                            envelopePassword() <- password;
-                            envelopeDocumentDate() <- currentDateTime();
-                            envelopeDocumentNumber() <- id(i);
-                            envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                            envelopeContent() <- encodedBase64();
-                            EXPORT envelope XML TO xml;
-                            //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                            IF requestError() THEN {
-                                sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                                MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                            }
-                        }
+                        
                         logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
                         invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
                     } ELSE {
@@ -202,31 +130,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
                     messagesConfirmed() <- messagesConfirmed() + 1;
                 }
             } ELSE {
-                IF NOT disableConfirmation AND sendReplies THEN {
-                    LOCAL contentSubXML = FILE();
-                    EXPORT exportSystemMessage OBJECTS documentId = id(i), documentNumber = messageDocumentNumber(), code = '1450', description = applyMessage() XML TO contentSubXML;
-                    fileToString(contentSubXML());
-                    encodeBase64(resultString());
-                    LOCAL xml = XMLFILE();
-                    envelopeLogin() <- login;
-                    envelopePassword() <- password;
-                    envelopeDocumentDate() <- currentDateTime();
-                    envelopeDocumentNumber() <- id(i);
-                    envelopeDocumentType() <- 'SYSTEMMESSAGE';
-                    envelopeContent() <- encodedBase64();
-                    EXPORT envelope XML TO xml;
-                    //EXPORT envelopeMessage OBJECTS login = login, password = password, date = currentDateTime(), number = id(i), innerXML = encodedBase64() XML TO xml;
-                    sendRequestEDI(url, xml());
-                    logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) +' request sent');
-                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'SendDocumentResponse');
-                    IF requestError() THEN {
-                        sendRecipientErrorFailed() <- sendRecipientErrorFailed() + 1;
-                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ': ' + requestError());
-                        MESSAGE provider + ' (' + login + ') Сообщение об ошибке ' + id(i) + ' не выгружено: ' + requestError() NOWAIT;
-                    } ELSE {
-                        logToFile('edi', provider + ' (' + login + ') RecipientError ' + id(i) + ' request succeeded');
-                    }
-                }
+                
             }
             logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
             invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
@@ -357,7 +261,7 @@ signAndSendSupplierEInvoiceTransit (EInvoice ei, STRING[100] login, STRING[100] 
                 MESSAGE provider + ' (' + login + ') Накладная не выгружена: не заданы имя пользователя / пароль / хост / порт' NOWAIT;
             }
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
             MESSAGE 'Накладная не выгружена. Обратитесь к администратору' NOWAIT;
         }
     } ELSE {

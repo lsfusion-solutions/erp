@@ -5,7 +5,7 @@ REQUIRE EDI, TopByApi;
 NAMESPACE EDI;
 
 EXTEND CLASS EDIProvider {
-    edn 'EDN'
+    edn 'ЭДиН'
 }
 prefix(EDIProvider e) += WHEN e == EDIProvider.edn THEN '002-';
 name(EDIProvider e) += WHEN e == EDIProvider.edn THEN 'ООО "Электронные документы и накладные"';
@@ -85,7 +85,7 @@ receiveMessagesEDN () {
             IF lockResultEDN() THEN {
                 TRY {
                     overReceiveMessagesEDN(le);
-                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + (IF portEDN(le) THEN ':' + portEDN(le) ELSE '') + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                    receiveMessages(login, passwordEDN(le), ('https://' + hostEDN(le) + (IF portEDN(le) THEN ':' + portEDN(le) ELSE '') + '/topby/DmcService?wsdl'), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
                 } FINALLY {
                     unlockEDN(login);
                 }
@@ -99,12 +99,12 @@ receiveMessagesEDN () {
 exportDirectoryDocuDrive 'Каталог выгрузки для DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
 importDirectoryDocuDrive 'Каталог загрузки от DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
 
-overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, STRING[100]);
 
 getFileName(TEXT txt) = getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/'));
 getDocumentType(TEXT txt) = getWord(getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/')), '_', 1);
 
-receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF importDir THEN {
             IF exportDir THEN {
@@ -125,7 +125,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd')); }
                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
                     }
-                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, sendReplies, provider);
+                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, provider);
                 }
 
                 fillEndParams();
@@ -141,7 +141,7 @@ receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[1
             MESSAGE provider + ' Сообщения не получены: не задан каталог загрузки сообщений от DocuDrive' NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
         MESSAGE 'Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
@@ -181,7 +181,7 @@ receiveMessagesDocuDrive () {
         lockDocuDrive();
         IF lockResultDocuDrive() THEN {
             TRY {
-                receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
             } FINALLY {
                 unlockDocuDrive();
             }
@@ -219,9 +219,9 @@ FORM getDocumentsEDN
     PROPERTIES(data) IN headers
         id EXTID 'documentId', downloadFileName, documentType EXTID 'type', processedDateTime;
 
-overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100]);
+overReceiveMessagesEDN ABSTRACT LIST (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100]);
 
-receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) {
+receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     TRY {
         IF login AND password THEN {
 
@@ -244,7 +244,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
 
                 FOR documentType(INTEGER i) ORDER processedDateTime(i) DO {
                     logToFile('edi', provider + ' (' + login + ') Check Message type:' + documentType(i) + ' id:' + id(i));
-                    overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+                    overReceiveMessagesEDN(i, login, password, url, archiveDir, disableConfirmation, provider);
                 }
 
                 fillEndParams();
@@ -258,7 +258,7 @@ receiveMessagesEDN (STRING[100] login, STRING[100] password, TEXT url, STRING[10
             MESSAGE  provider + ' (' + login + ') Сообщения не получены: не заданы имя пользователя / пароль / хост' NOWAIT;
         }
     } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+        logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
         MESSAGE provider + '(' + login + ') Сообщения не получены. Обратитесь к администратору' NOWAIT;
     }
 }
@@ -269,7 +269,7 @@ receiveMessagesEDNApi () {
             lockEDN(login);
             IF lockResultEDN() THEN {
                 TRY {
-                    receiveMessagesEDN(login, passwordEDN(le), 'https://' + urlApiEDN(le), archiveDirEDN(), disableConfirmationEDN(), TRUE, 'EDN');
+                    receiveMessagesEDN(login, passwordEDN(le), 'https://' + urlApiEDN(le), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
                 } FINALLY {
                     unlockEDN(login);
                 }
@@ -295,12 +295,12 @@ FORM aperack FORMEXTID 'Document-ApplicationMessage'
         description EXTID 'SystemMessageText'
 ;
 
-overImportAperak ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, BOOLEAN, STRING[100] );
-overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overImportAperak ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
+overImportAperak(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     logToFile('edi', provider + ' (' + login + ') Parse Aperack ' + id(i) + ' warning: unsupported Reference documentType ' + (OVERRIDE documentType(), 'NULL'));
 }
 
-overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, BOOLEAN sendReplies, STRING[100] provider) + {
+overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'APERAK' THEN {
         TRY {
             
@@ -313,10 +313,10 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
             
             IMPORT aperack XML FROM xmlFile();
             
-            overImportAperak(i, login, password, url, archiveDir, disableConfirmation, sendReplies, provider);
+            overImportAperak(i, login, password, url, archiveDir, disableConfirmation, provider);
             
         } CATCH {
-            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Aperack ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse Aperack ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
             MESSAGE  'Ошибка при импорте сообщения ' + id(i) +'. Обратитесь к администратору' NOWAIT;
             responsesFailed() <- responsesFailed() + 1;
         }
@@ -363,7 +363,7 @@ EXTEND FORM integrationData
 DESIGN integrationData {
     edi {
         NEW vsEDN {
-            caption = 'EDN';
+            caption = 'ЭДиН';
             horizontal = TRUE;
             NEW col1EDN {
                 NEW params {
