@@ -2437,8 +2437,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
         try (Statement statement = conn.createStatement()) {
             String query = newReadSalesQuery ?
-                    ( (params.pgsql ? "SET parallel_tuple_cost = 10; " : "") + //Астрон использует postgresql 9.6 который неадекватно переоценивает Parallel Seq Scan. Выставляем заградительный cost если он включен
-                    "SELECT sales.SALESATTRS, sales.SYSTEMID, COALESCE(CAST(ext.SALESEXTVALUE AS Integer), sales.SESSID) AS SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, COALESCE(CAST(ext.SALESEXTVALUE AS Integer), sales.SESSID) AS SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
                     "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
@@ -2456,6 +2455,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
                     "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM");
+            if (params.pgsql && newReadSalesQuery) {
+                //Астрон использует postgresql 9.6 который неадекватно переоценивает Parallel Seq Scan. Выставляем заградительный cost если он включен
+                statement.execute("SET parallel_tuple_cost = 10;");
+            }
             ResultSet rs = statement.executeQuery(query);
 
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
