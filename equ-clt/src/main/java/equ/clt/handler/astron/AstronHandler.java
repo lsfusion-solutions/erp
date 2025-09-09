@@ -2437,10 +2437,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
 
         try (Statement statement = conn.createStatement()) {
             String query = newReadSalesQuery ?
-                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, COALESCE(CAST(ext.SALESEXTVALUE AS Integer), sales.SESSID) AS SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
+                    ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
-                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART FROM SALES sales " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTAR, ext.SALESEXTVALUE AS idZReport FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
@@ -2508,10 +2508,14 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 int priceLevelId = rs.getInt("PRCLEVELID");
                 long salesAttri = rs.getLong("SALESATTRI");
                 String sessStart = rs.getString("SESSSTART");
+                String idZReport = null;
+                if (newReadSalesQuery) {
+                    idZReport = rs.getString("idZReport");
+                }
 
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                String numberZReport = String.valueOf(sessionId);
+                String numberZReport = idZReport != null ? idZReport : String.valueOf(sessionId);
 
                 LocalDateTime salesDateTime = LocalDateTime.parse(salesTime, dateTimeFormatter);
                 LocalDate dateReceipt = salesDateTime.toLocalDate();
