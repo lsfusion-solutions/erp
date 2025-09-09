@@ -2440,7 +2440,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
-                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTAR, ext.SALESEXTVALUE AS idZReport FROM SALES sales " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART, ext.SALESEXTVALUE AS idZReport FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
