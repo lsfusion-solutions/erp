@@ -2508,14 +2508,10 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                 int priceLevelId = rs.getInt("PRCLEVELID");
                 long salesAttri = rs.getLong("SALESATTRI");
                 String sessStart = rs.getString("SESSSTART");
-                String idZReport = null;
-                if (newReadSalesQuery) {
-                    idZReport = rs.getString("idZReport");
-                }
 
                 CashRegisterInfo cashRegister = machineryMap.get(nppCashRegister);
                 Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                String numberZReport = idZReport != null ? idZReport : String.valueOf(sessionId);
+                String numberZReport = String.valueOf(sessionId);
 
                 LocalDateTime salesDateTime = LocalDateTime.parse(salesTime, dateTimeFormatter);
                 LocalDate dateReceipt = salesDateTime.toLocalDate();
@@ -2659,10 +2655,20 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                     }
                                 }
 
-                                curSalesInfoList.add(getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                                SalesInfo salesInfo = getSalesInfo(false, false, nppGroupMachinery, nppCashRegister, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
                                         idEmployee, nameEmployee, null, sumGiftCardMap, payments, idBarcode, idItem, null,
                                         idSaleReceiptReceiptReturnDetail, totalQuantity, price, sumReceiptDetail, null, discountSumReceiptDetail,
-                                        null, idDiscountCard, null, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister));
+                                        null, idDiscountCard, null, salesNum, null, null, false, null, receiptDetailExtraFields, cashRegister);
+
+                                if (newReadSalesQuery) {
+                                    String idZReport = rs.getString("idZReport");
+                                    if (idZReport != null) {
+                                        Map<String, Object> zReportExtraFields = new HashMap<>();
+                                        zReportExtraFields.put("number", idZReport);
+                                        salesInfo.zReportExtraFields = zReportExtraFields;
+                                    }
+                                }
+                                curSalesInfoList.add(salesInfo);
                                 curRecordList.add(new AstronRecord(salesNum, sessionId, nppCashRegister, sAreaId));
                                 prologSum = safeSubtract(prologSum, salesSum);
                                 break;
