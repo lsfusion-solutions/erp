@@ -42,10 +42,11 @@ DESIGN item {
     itemDetail {
         MOVE BOX(ip) { 
             caption = 'Состав';
-            PROPERTY (quantity(ip)) {notNull = TRUE;}
         }
     }
 }
 
-CONSTRAINT item(Part p) AND NOT quantity(p) > 0
-    MESSAGE 'Количество в состовной части комплекта должно быть больше 0';
+skipCheckPartQuantity = ABSTRACT BOOLEAN ();
+
+CONSTRAINT (SETCHANGED(item(Part p)) OR CHANGED(quantity(p))) AND item(p) AND NOT quantity(p) > 0 AND NOT skipCheckPartQuantity()
+    MESSAGE 'Количество в составной части комплекта должно быть больше 0';
