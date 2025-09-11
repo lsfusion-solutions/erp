@@ -7,6 +7,15 @@ NAMESPACE Sale;
 
 //------------------------------------------------------------------------------------------------------------//
 
+orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), sku(d), outBin(d);
+orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), batch(d), outBin(d);
+
+pickingQuantity = GROUP SUM quantity(PickingDetail d) BY order(pickingOrder(d)), sku(d), outBin(d);
+pickingQuantity = GROUP SUM quantity(PickingDetail d) BY order(pickingOrder(d)), batch(d), outBin(d);
+
+diffPickingQuantity(Order order, Sku sku, Bin bin) = orderedQuantity(order, sku, bin) (-) pickingQuantity(order, sku, bin);
+diffPickingQuantity(Order order, Batch batch, Bin bin) = orderedQuantity(order, batch, bin) (-) pickingQuantity(order, batch, bin);
+
 namePlannedStatus 'Статус планирования комплектаций' = ABSTRACT VALUE OVERRIDE FIRST STRING (Order) CHARWIDTH 20;
 namePlannedStatus(Order order) +=
     (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
@@ -100,6 +109,14 @@ idPickingGroup(UserPickingOrderDetail detail) += idPickingGroup(detail);
 
 WHEN LOCAL CHANGED(sku(UserPickingOrderDetail detail)) DO {
     idPickingGroup(detail) <- idPickingGroup(sku(detail));           
+}
+
+idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (PickingDetail) MATERIALIZED INDEXED;
+idPickingGroup 'Группа комплектации' = DATA INTEGER (UserPickingDetail);
+idPickingGroup(UserPickingDetail detail) += idPickingGroup(detail);
+
+WHEN LOCAL CHANGED(sku(UserPickingDetail detail)) DO {
+    idPickingGroup(detail) <- idPickingGroup(sku(detail));
 }
 
 idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (OrderDetail) MATERIALIZED INDEXED;
@@ -221,8 +238,18 @@ EXTEND FORM orders
 
 @defineOrderInvoicePickingOrder (' (продажа)');
 
+orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), sku(d), outBin(d), idPickingGroup(d);
+orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), batch(d), outBin(d), idPickingGroup(d);
+
+pickingQuantity = GROUP SUM quantity(PickingDetail d) BY order(pickingOrder(d)), sku(d), outBin(d), idPickingGroup(d);
+pickingQuantity = GROUP SUM quantity(PickingDetail d) BY order(pickingOrder(d)), batch(d), outBin(d), idPickingGroup(d);
+
+diffPickingQuantity(Order order, Sku sku, Bin bin, INTEGER pickingGroup) = orderedQuantity(order, sku, bin, pickingGroup) (-) pickingQuantity(order, sku, bin, pickingGroup);
+diffPickingQuantity(Order order, Batch batch, Bin bin, INTEGER pickingGroup) = orderedQuantity(order, batch, bin, pickingGroup) (-) pickingQuantity(order, batch, bin, pickingGroup);
+
 countPickedOrderDetail = GROUP SUM 1 IF overPickingQuantity(OrderDetail d) BY order(d), idPickingGroup(d);
 countPickedOrderDetail = GROUP SUM 1 IF overPickingQuantity(OrderDetail d) AND inCreatePickingUserInvoicePosted(order(d)) BY idPickingGroup(d);
+afterCreatePickingUserInvoicePosted ABSTRACT LIST (UserInvoice, Order.Order, INTEGER); 
 
 createPickingDetail(Invoice userInvoice, Order order, INTEGER pickingGroup) {
     IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
@@ -297,7 +324,6 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
             } ELSE {
                 FOR countPickedOrderDetail(INTEGER pickingGroup) ORDER pickingGroup NEW i = UserInvoice DO {
                     isPosted(i) <- TRUE;
-                    fillHeader(i, order);
                     fillHeader(i, (GROUP MAX Order.Order o IF inCreatePickingUserInvoicePosted(o)));
                     FOR inCreatePickingUserInvoicePosted(Order.Order o) AND countPickedOrderDetail(o, pickingGroup) DO {
                         createPickingDetail(i, o, pickingGroup);
@@ -308,22 +334,24 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
                     extraPickingDetail(i);
                     packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
                     executeLocalEvents('Sale.userInvoice');
-                    afterCreatePickingUserInvoicePosted(i, order);
+                    afterCreatePickingUserInvoicePosted(i, order, pickingGroup);
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
                 }
             }
         } ELSE {
-            NEW i = UserInvoice {
+            FOR countPickedOrderDetail(order, INTEGER pickingGroup) ORDER pickingGroup NEW i = UserInvoice DO {
                 isPosted(i) <- TRUE;
-                fillPicking(i, order);
+                fillHeader(i, order);
+                createPickingDetail(i, order, pickingGroup);
+                fillPrice(i, order);
                 packQuantity(i) <- packQuantity(order);
                 createdUser(i, order) <- TRUE;
                 userInvoice(order) <- i;
-                include(order,i) <- TRUE;
+                include[Order,UserInvoice](order,i) <- TRUE;
                 executeLocalEvents('Sale.userInvoice');
-                afterCreatePickingUserInvoicePosted(i, order);
+                afterCreatePickingUserInvoicePosted(i, order, pickingGroup);
                 IF showPickingUserInvoicePosted() THEN {
                     SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                 }
