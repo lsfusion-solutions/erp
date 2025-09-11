@@ -52,6 +52,7 @@ fillDetail(UserInvoiceDetail id, UpdDocumentDetail ed) {
     valueVAT(id) <- NUMERIC[10,5](replace(nameVATStatus(ed), '%',''));
     quantity(id) <- NUMERIC[16,5](quantity(ed));
     price(id) <- NUMERIC[16,4](price(ed));
+    sum(id) <- NUMERIC[18,4](sum(ed));
     invoiceSum(id) <- NUMERIC[18,4](invoiceSum(ed));
     VATSum(id) <- NUMERIC[18,4](VATSum(ed));
     invoicePrice(id) <- round4(invoiceSum(ed)/quantity(ed));
@@ -74,7 +75,7 @@ createInvoice 'Создать приходную накладную'(UpdDocument
                 updDocument(invoice) <- d;
                 date(invoice) <- currentDate();
                 supplier(invoice) <- OVERRIDE legalEntityEdi(idConsignor(d)), legalEntityInn(innSupplier(d));
-                customer(invoice) <- OVERRIDE legalEntityEdi(idConsignee(d)), legalEntityInn(innCustomer(d));
+                customer(invoice) <- OVERRIDE legalEntityEdi(idConsignee(d)), legalEntityInn(innCustomer(d)), legalEntity(stockCustomer());
                 operation(invoice) <- operation();
                 supplierStock(invoice) <- [GROUP LAST Stock s ORDER s BY legalEntity(s)] (supplier(invoice));
                 customerStock(invoice) <- stockCustomer();
