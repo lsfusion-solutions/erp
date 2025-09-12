@@ -75,9 +75,11 @@ incomeManufacturingPrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(deta
 incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(InvoiceDetail detail) * quantity(detail) BY invoice(detail);
 
 dataIncomeManufacturingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
-incomeManufacturingPrice (UserInvoiceDetail detail) = 
-    OVERRIDE dataIncomeManufacturingPrice(detail),
-            (IF isHomeCurrency(userInvoice(detail)) THEN homeManufacturingPrice(detail) ELSE price(detail));
+extaraIncomeManufacturingPrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
+incomeManufacturingPrice (UserInvoiceDetail detail) =
+    (OVERRIDE dataIncomeManufacturingPrice(detail),
+            (IF isHomeCurrency(userInvoice(detail)) THEN homeManufacturingPrice(detail) ELSE price(detail))
+    (+) extaraIncomeManufacturingPrice(detail));
         
 incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
