@@ -4,16 +4,18 @@ REQUIRE SaleEInvoice, SaleShipmentLot, LotAggregate;
 
 NAMESPACE Sale;
 
+skipCreateLot = ABSTRACT BOOLEAN (InvoiceDetail);
+
 //для одной марки одна строка + кол-во этих марок
 overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
     LOCAL parentDetail = EInvoiceLotDetail (STRING);
-    FOR [GROUP SUM 1 IF quantity[Sale.InvoiceDetail, Lot](cd, Lot l) BY parent(l)](Lot parrent) NEW eld = EInvoiceLotDetail DO {
+    FOR [GROUP SUM 1 IF quantity[Sale.InvoiceDetail, Lot](cd, Lot l) AND NOT skipCreateLot(cd) BY parent(l)](Lot parrent) NEW eld = EInvoiceLotDetail DO {
         eInvoiceDetail(eld) <- eid;
         id(eld) <- code(parrent);
         parentDetail(id(parrent)) <- eld;
     }
     
-    FOR INTEGER qty == quantity[Sale.InvoiceDetail, Lot](cd, Lot l) AND NOT aggregated(l) DO NEW eld = EInvoiceLotDetail {
+    FOR INTEGER qty == quantity[Sale.InvoiceDetail, Lot](cd, Lot l) AND NOT aggregated(l) AND NOT skipCreateLot(cd) DO NEW eld = EInvoiceLotDetail {
         eInvoiceDetail(eld) <- eid;
         id(eld) <- code(l);
         quantity(eld) <- qty;
