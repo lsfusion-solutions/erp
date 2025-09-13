@@ -4,7 +4,7 @@ REQUIRE Tools, Reflection, SQLUtils, LogTools;
 
 NAMESPACE Tools;
 
-@defineLogRotate(databaseTools, 5, weekly,'database-tools');
+@defineLogRotate(databaseTools, 5, weekly, 'database-tools');
 
 CLASS ABSTRACT DatabaseTable 'Tаблица';
 EXTEND CLASS Table: DatabaseTable;
@@ -438,45 +438,150 @@ loadCurRows 'Заполнить количество записей'(){
 
 setSkipStatistic 'Исключить из пересчета статистики'() {
     loadCurRows();
-    notRecalculateStats(Table t) <-  min(curRows(t), rows(t)) > 100000000 OR curRows(t) == rows(t) OR max(curRows(t), rows(t))/min(curRows(t), rows(t)) < 2;
+    notRecalculateStats(Table t) <- min(curRows(t), rows(t)) > 100000000 OR curRows(t) == rows(t) OR max(curRows(t), rows(t)) / min(curRows(t), rows(t)) < 2;
 }
 
-needStats(Table t) = max(curRows(t), rows(t))/(OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
+needStats(Table t) = max(curRows(t), rows(t)) / (OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
 backgroundRows(Table t) = IF needStats(t) THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
 
+lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (Table);
+lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (TableKey);
+lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (TableColumn);
+
+maxInt() = 2147483647;
+safeInt(NUMERIC n) = INTEGER(max(min(n, maxInt()), 1));
+
+//Через PARAMS не работает. Имена таблиц и колонок должны быть не строками а PARAMS подставляет их как строки с кавычками
+//в 6 версии можно будет переделать на интерполяцию. 
+notNullQuery() = 'SELECT COUNT(*) FROM $2 WHERE $1 IS NOT NULL';
+distinctQuery() = 'SELECT COUNT(DISTINCT $1) FROM $2';
+distinctTopQuery() ='WITH group_counts AS (SELECT $1 AS group_value, COUNT(*) AS count_per_group FROM $2 WHERE $1 IS NOT NULL GROUP BY $1), ranked_groups AS (SELECT group_value, count_per_group, SUM(count_per_group) OVER (ORDER BY count_per_group DESC, group_value ASC) AS cumulative_count FROM group_counts), filtered_groups AS (SELECT group_value FROM ranked_groups WHERE cumulative_count <= $3) SELECT COUNT(*) AS top_group_count FROM filtered_groups;';
+
+qty = DATA LOCAL LONG ();
+importQuantity(STRING command) {
+    INTERNAL DB command TO file;
+    IMPORT TABLE FROM file() TO () qty;
+}
+
+importQuantityAndLog(STRING command) {
+    logToFile('database-tools', 'start - ' + command);
+    IF skipExceptions() THEN {
+        TRY {
+            importQuantity(command);
+        } CATCH {
+            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
+        }
+    } ELSE
+        importQuantity(command);
+    logToFile('database-tools', 'end - ' + command);
+}
+
+//подгоняем результат под сохраненное число строк чтобы не превысить 100%
+coeff(Table t) = OVERRIDE NUMERIC(rows(t)) / curRows(t), 1.0;
+
+recalculateStats 'Пересчет статистики' (TableColumn c) {
+    NEWSESSION {
+        logToFile('database-tools', 'start recalculateStats ' + sid(c));
+
+        IF NOT curRows(table(c)) THEN {
+            curRows(table(c)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(c))));
+        }
+
+        LOCAL quantity, quantityTop, notNullQuantity = LONG();
+
+        importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(c)), '$2', sid(table(c))));
+        notNullQuantity() <- qty();
+
+        IF NOT return(c) == 'BOOLEAN' AND NOT return(c) LIKE '%FILE' THEN {
+            importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(c)), '$2', sid(table(c))));
+            quantity() <- qty();
+
+            importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(INTEGER(0.8 * notNullQuantity()))));
+            quantityTop() <- min(notNullQuantity(), qty() / 0.8);
+        }
+
+        FOR c = tableColumn(Property pt) DO {
+            quantity(pt) <- safeInt(coeff(table(c)) * quantity());
+            quantityTop(pt) <- safeInt(coeff(table(c)) * quantityTop());
+            notNullQuantity(pt) <- safeInt(coeff(table(c)) * notNullQuantity());
+        }
+
+        lastRecalculateStats(c) <- currentDateTime();
+
+        APPLY;
+        logToFile('database-tools', 'end recalculateStats ' + sid(c));
+    }
+}
+
+singleKey(Table t) = (GROUP SUM 1 IF table(TableKey k) == t) == 1;
+
+recalculateStats 'Пересчет статистики' (TableKey k) {
+    NEWSESSION {
+        logToFile('database-tools', 'start recalculateStats ' + sid(k));
+
+        IF NOT curRows(table(k)) THEN {
+            curRows(table(k)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(k))));
+        }
+
+        LOCAL quantity, quantityTop = LONG();
+
+        IF singleKey(table(k)) THEN {
+            importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(k)), '$2', sid(table(k))));
+            quantity() <- qty();
+            quantityTop() <- qty();
+        } ELSE {
+            importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(k)), '$2', sid(table(k))));
+            quantity() <- qty();
+
+            importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(k)), '$2', sid(table(k))), '$3', STRING(INTEGER(0.8 * curRows(table(k))))));
+            quantityTop() <- min(curRows(table(k)), qty() / 0.8);
+        }
+
+        quantity(k) <- safeInt(coeff(table(k)) * quantity());
+        quantityTop(k) <- safeInt(coeff(table(k)) * quantityTop());
+        
+        lastRecalculateStats(k) <- currentDateTime();
+
+        APPLY;
+        logToFile('database-tools', 'end recalculateStats ' + sid(k));
+    }
+}
+
 EXTEND FORM tools
-    OBJECTS t =  DatabaseTable
+    OBJECTS t = DatabaseTable
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
-    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE 
-    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE
+    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE
+    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE, lastRecalculateStats
     PROPERTIES (t) getIndexes TOOLBAR
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
         FILTER 'REINDEX' needReindex(t)
         FILTER 'Пересчет статистики' needStats(t)
         FILTER 'Любые' needVacuum(t) OR needReindex(t) OR needStats(t)
-    
-    FILTERGROUP system 
-        FILTER 'Системные' t IS PgTable
-        
-    OBJECTS tk=TableKey
-    PROPERTIES(tk) READONLY class, classSID, name, nameStatisticGrowType CHANGEABLE, quantity, quantityTop
-    FILTERS table(tk)==t
 
-    OBJECTS tc=TableColumn
-    PROPERTIES(tc) READONLY sid, caption, return, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, notNullQuantity , percentNotNull
-    FILTERS table(tc)==t
-    
-    OBJECTS i=Index
-    PROPERTIES(i)  READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable
-    PROPERTIES(i)  TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i) , reindex
+    FILTERGROUP system
+        FILTER 'Системные' t IS PgTable
+
+    OBJECTS tk = TableKey
+    PROPERTIES(tk) READONLY class, classSID, name, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, lastRecalculateStats
+    PROPERTIES (tk) recalculateStats GRID
+    FILTERS table(tk) == t
+
+    OBJECTS tc = TableColumn
+    PROPERTIES(tc) READONLY sid, caption, return, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, notNullQuantity, percentNotNull, lastRecalculateStats
+    PROPERTIES (tc) recalculateStats GRID
+    FILTERS table(tc) == t
+
+    OBJECTS i = Index
+    PROPERTIES(i) READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable
+    PROPERTIES(i) TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i), reindex
     FILTERGROUP index
         FILTER 'По таблице' table(i) = t DEFAULT
-    
+
     PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
-                  loadCurRows, setSkipStatistic,  reindexConcurrentlySize, skipExceptions, stopAfter
+        loadCurRows, setSkipStatistic, reindexConcurrentlySize, skipExceptions, stopAfter
 ;
 
 DESIGN tools{
@@ -485,6 +590,11 @@ DESIGN tools{
             caption = 'Таблицы';
             horizontal = TRUE;
             NEW dbLeft{
+                NEW common {
+                    caption = 'Общие';
+                    MOVE PROPERTY (skipExceptions());
+                    MOVE PROPERTY (stopAfter());
+                }
                 NEW vacuum {
                     caption = 'Упаковка';
                     MOVE PROPERTY (loadCurSize());
@@ -494,8 +604,6 @@ DESIGN tools{
                     MOVE PROPERTY (nameVacuumOrderType());
                     MOVE PROPERTY (countTreads());
                     MOVE PROPERTY (reindexConcurrentlySize());
-                    MOVE PROPERTY (skipExceptions());
-                    MOVE PROPERTY (stopAfter());
                     MOVE PROPERTY (smartVacuum());
                 }
                 NEW stats{
@@ -525,11 +633,11 @@ WHEN LOCAL SET(ACTIVE TAB tools.dbMain) DO {
     loadCurRows();
 }
 
-onStarted() +{
+onStarted() + {
     // Автоматически VACUUM системных таблиц на запуске сервера
     IF NOT inDevMode() THEN {
-        logToFile('database-tools','Started vacuuming system tables on start');
+        logToFile('database-tools', 'Started vacuuming system tables on start');
         smartVacuum(TRUE);
-        logToFile('database-tools','Ended vacuuming system tables on start');
+        logToFile('database-tools', 'Ended vacuuming system tables on start');
     }
 }
