@@ -449,7 +449,7 @@ lastRecalculateStats 'Последний пересчет статистики' 
 lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (TableColumn);
 
 maxInt() = 2147483647;
-safeInt(NUMERIC n) = INTEGER(max(min(n, maxInt()), 1));
+safeInt(NUMERIC n) = INTEGER(max(min(n, maxInt()), 0));
 
 //Через PARAMS не работает. Имена таблиц и колонок должны быть не строками а PARAMS подставляет их как строки с кавычками
 //в 6 версии можно будет переделать на интерполяцию. 
@@ -491,13 +491,20 @@ recalculateStats 'Пересчет статистики' (TableColumn c) {
 
         importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(c)), '$2', sid(table(c))));
         notNullQuantity() <- qty();
+        
+        IF notNullQuantity() == 0 THEN {
+            quantity() <- 0;
+            quantityTop() <- 0;
+        } ELSE {
+            IF NOT return(c) == 'BOOLEAN' AND NOT return(c) LIKE '%FILE' THEN {
+                importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(c)), '$2', sid(table(c))));
+                quantity() <- qty();
 
-        IF NOT return(c) == 'BOOLEAN' AND NOT return(c) LIKE '%FILE' THEN {
-            importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(c)), '$2', sid(table(c))));
-            quantity() <- qty();
-
-            importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(INTEGER(0.8 * notNullQuantity()))));
-            quantityTop() <- min(notNullQuantity(), qty() / 0.8);
+                importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(INTEGER(0.8 * notNullQuantity()))));
+                //нормализуем обратно к 100% 
+                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно ффчто есть группы если quantity() != 0, не нужно уложнять запрос
+                quantityTop() <- min(notNullQuantity(), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8); 
+            }
         }
 
         FOR c = tableColumn(Property pt) DO {
@@ -534,7 +541,9 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
             quantity() <- qty();
 
             importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(k)), '$2', sid(table(k))), '$3', STRING(INTEGER(0.8 * curRows(table(k))))));
-            quantityTop() <- min(curRows(table(k)), qty() / 0.8);
+            //нормализуем обратно к 100% 
+            //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
+            quantityTop() <- min(curRows(table(k)), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
         }
 
         quantity(k) <- safeInt(coeff(table(k)) * quantity());
@@ -547,13 +556,52 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
     }
 }
 
+recalculateStats 'Пересчет статистики' (Table t) {
+    NEWSESSION {
+        logToFile('database-tools', 'start recalculateStats ' + sid(t));
+
+        INTERNAL DB 'ANALYZE ' + lower(sid(t));
+        curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
+
+        importQuantityAndLog(replace(replace(notNullQuery(), '$1', 'key0'), '$2', sid(t)));
+        rows(t) <- qty();
+        lastRecalculateStats(t) <- currentDateTime();
+        
+        IF singleKey(t) THEN {
+            quantity(TableKey k) <- qty() WHERE table(k) == t;
+            quantityTop(TableKey k) <- qty() WHERE table(k) == t;
+            lastRecalculateStats(TableKey k) <- currentDateTime() WHERE table(k) == t;
+            APPLY;
+        } ELSE {
+            APPLY;
+            NEWEXECUTOR
+                FOR table(TableKey k) == t DO
+                    NEWTHREAD NEWSESSION NEWSQL {
+                        recalculateStats(k);
+                    }
+                THREADS countTreads();
+        }
+
+        NEWEXECUTOR
+            FOR table(TableColumn c) == t DO
+                NEWTHREAD NEWSESSION NEWSQL {
+                    recalculateStats(c);
+                }
+            THREADS countTreads();
+        
+        logToFile('database-tools', 'end recalculateStats ' + sid(t));
+    }
+}
+
+
 EXTEND FORM tools
     OBJECTS t = DatabaseTable
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
     PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE
-    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, targetStatistic CHANGEABLE, lastRecalculateStats
+    PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, lastRecalculateStats
+    PROPERTIES (t) recalculateStats GRID
     PROPERTIES (t) getIndexes TOOLBAR
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
@@ -565,12 +613,12 @@ EXTEND FORM tools
         FILTER 'Системные' t IS PgTable
 
     OBJECTS tk = TableKey
-    PROPERTIES(tk) READONLY class, classSID, name, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, lastRecalculateStats
+    PROPERTIES(tk) READONLY class, classSID, name, quantity, quantityTop, lastRecalculateStats
     PROPERTIES (tk) recalculateStats GRID
     FILTERS table(tk) == t
 
     OBJECTS tc = TableColumn
-    PROPERTIES(tc) READONLY sid, caption, return, nameStatisticGrowType CHANGEABLE, quantity, quantityTop, notNullQuantity, percentNotNull, lastRecalculateStats
+    PROPERTIES(tc) READONLY sid, caption, return, quantity, quantityTop, notNullQuantity, percentNotNull, lastRecalculateStats
     PROPERTIES (tc) recalculateStats GRID
     FILTERS table(tc) == t
 
