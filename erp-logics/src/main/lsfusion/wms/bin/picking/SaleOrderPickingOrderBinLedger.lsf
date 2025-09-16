@@ -179,6 +179,18 @@ createUserPickingOrder 'Отправить в комплектацию' (Order o
     overCreateUserPickingOrder(o);
 } TOOLBAR;
 
+WHEN DROPPED(Order o IS Order) AND PREV(countPickingOrder(o)) DO {
+    IF (GROUP SUM 1 IF PREV(order(PickingOrder po))==o AND NOT statusPicking(po)==StatusPicking.wait) THEN {
+        MESSAGE 'По заказу есть задания на комплектацию в работе или уже выполненные(' + 
+            (GROUP CONCAT seriesNumber(PickingOrder po) IF (PREV(order(po))==o AND NOT statusPicking(po)==StatusPicking.wait), ', ' ORDER seriesNumber(po), po) +
+            '), необходимо удалить их перед удалением самого заказа' NOWAIT;
+        CANCEL;
+    } ELSE {
+        DELETE PickingOrder po WHERE PREV(order(po))==o;
+        APPLY;        
+    }
+}
+
 overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
     NEWSESSION {
         IF defaultPickingOrderBinOrderOperation() THEN {
