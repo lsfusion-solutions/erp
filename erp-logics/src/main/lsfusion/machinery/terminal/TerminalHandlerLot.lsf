@@ -1,6 +1,6 @@
 MODULE TerminalHandlerLot;
 
-REQUIRE TerminalHandler, TerminalLot;
+REQUIRE TerminalHandler, TerminalLot, ItemTracking;
 
 NAMESPACE TerminalHandler;
 
@@ -24,6 +24,7 @@ process (TerminalDocument document) + {
 }
 
 in(Sku s, Stock st, TerminalBarcodeFlags f) += WHEN id(lotType(s)) != 'none' AND st IS Stock AND f == TerminalBarcodeFlags.goodMarking THEN TRUE;
+in(Sku s, Stock st, TerminalBarcodeFlags f) += WHEN isTrackingOver(s) AND st IS Stock AND f == TerminalBarcodeFlags.isTracking THEN TRUE;
 
 lotInfo = ABSTRACT CASE ISTRING (STRING, INTEGER );
 lotInfo(STRING str, INTEGER order) += WHEN order == 100 AND lot(str) THEN 'Марка найдена: ' + idBarcodeSku(lot(str)) + ' ' + nameSku(lot(str));
