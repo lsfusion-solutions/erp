@@ -5,7 +5,34 @@ REQUIRE LegalEntity;
 NAMESPACE LegalEntity;
 
 UNPForeign 'УНП (иностр.)' = DATA STRING[50] (LegalEntity) IN doc CHARWIDTH 15;
-CONSTRAINT country(LegalEntity l) != defaultCountry() AND NOT toShowIndividual(l) AND NOT UNPForeign(l) MESSAGE 'Для организации должен быть задан УНП';
+
+requiredUNPForeign 'УНП (иностр.) обязательный к заполнению' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES requiredUNPForeign()
+;
+
+DESIGN options {
+    legalEntity {
+        MOVE PROPERTY(requiredUNPForeign());
+    }
+}
+
+//todo: временно для обратной совместимости, удалить через пол года
+setRequiredUNPForeign = DATA BOOLEAN ();
+
+onStarted() + {
+    NEWSESSION {
+        IF NOT setRequiredUNPForeign() THEN {
+            requiredUNPForeign() <- TRUE;
+            setRequiredUNPForeign() <- TRUE;
+            APPLY;
+        }    
+    }
+}
+
+CONSTRAINT country(LegalEntity l) != defaultCountry() AND NOT toShowIndividual(l) AND NOT UNPForeign(l) AND requiredUNPForeign() 
+    MESSAGE 'Для организации должен быть задан УНП (иностр.)';
 
 toShowForeign(LegalEntity l) += l IS LegalEntity AND defaultCountry() != country(l) AND NOT toShowIndividual(l);
 
