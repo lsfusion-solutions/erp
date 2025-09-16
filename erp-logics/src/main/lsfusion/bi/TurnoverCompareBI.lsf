@@ -206,6 +206,9 @@ FORM printTurnoverCompareReport 'Оборачиваемость'
     ORDERS nameGroup1Turnover(i), nameGroup2Turnover(i), nameGroup3Turnover(i), nameGroup4Turnover(i), nameGroup5Turnover(i), barcodeSku(i)
 ;
 
+overFillTurnoverReportCompare  ABSTRACT LIST ( DATE, DATE);
+overFillTurnoverReportCompare = DATA LOCAL BOOLEAN ();
+
 fillTurnoverReportCompare (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC)  {
     nameGroup1Turnover(INTEGER i) <- NULL;
     nameGroup2Turnover(INTEGER i) <- NULL;
@@ -287,257 +290,258 @@ fillTurnoverReportCompare (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE date
     VATSupplierACompare(INTEGER i) <- NULL;
     costVATBalanceACompare(INTEGER i) <- NULL;
     sumBalanceACompare(INTEGER i) <- NULL;
-
-    query(replace('SELECT ' + values()
-        + nameGroupsTurnover() + ', ' + groupsTurnover()
-        + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-        + ' WHERE (__time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-        + ' OR __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))'
-        + filter()
-        + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
-
-    IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2,
-            nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4, nameGroup5Turnover = nameGroup5,
-            group1Turnover = group1, group2Turnover = group2,
-            group3Turnover = group3, group4Turnover = group4, group5Turnover = group5, barcodeSku = barcodeSku;
-
-    query(replace('SELECT ' + values()
-        + nameGroupsTurnover() + ', ' + groupsTurnover()
-        + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
-        + filter()
-        + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
-
-    IMPORT JSON FROM queryResult() TO group1TurnoverEx = group1, group2TurnoverEx = group2,
-            group3TurnoverEx = group3, group4TurnoverEx = group4, group5TurnoverEx = group5,
-            quantitySoldEx = quantitySold, costSumSoldEx = costSumSold, costSumVATSoldEx = costSumVATSold,
-            markupSumSoldEx = markupSumSold, percMarkupSumSoldEx = percMarkupSumSold,
-            sumVATSoldEx = sumVATSold, sumSoldEx = sumSold, sumPriceSoldEx = sumPriceSold,
-            quantityPurchaseEx = quantityPurchase, sumMinusVATPurchaseEx = sumMinusVATPurchase,
-            sumVATPurchaseEx = sumVATPurchase, sumPurchaseEx = sumPurchase, sumPricePurchaseEx = sumPricePurchase,
-            turnoverEx = turnover, costBalanceEx = costBalance, daysOnStockEx = daysOnStock, barcodeSkuEx = barcodeSku;
-
-    FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](group1TurnoverEx(i), group2TurnoverEx(i), group3TurnoverEx(i), group4TurnoverEx(i), group5TurnoverEx(i), barcodeSkuEx(i)) DO {
-        quantitySold(number) <- quantitySoldEx(i);
-        quantitySold(number) <- quantitySoldEx(i);
-        costSumSold(number) <- costSumSoldEx(i);
-        costSumVATSold(number) <- costSumVATSoldEx(i);
-        markupSumSold(number) <- markupSumSoldEx(i);
-        percMarkupSumSold(number) <- percMarkupSumSoldEx(i);
-        sumVATSold(number) <- sumVATSoldEx(i);
-        sumSold(number) <- sumSoldEx(i);
-        sumPriceSold(number) <- sumPriceSoldEx(i);
-        quantityPurchase(number) <- quantityPurchaseEx(i);
-        sumMinusVATPurchase(number) <- sumMinusVATPurchaseEx(i);
-        sumVATPurchase(number) <- sumVATPurchaseEx(i);
-        sumPurchase(number) <- sumPurchaseEx(i);
-        sumPricePurchase(number) <- sumPricePurchaseEx(i);
-        turnover(number) <- turnoverEx(i);
-        costBalance(number) <- costBalanceEx(i);
-        daysOnStock(number) <- daysOnStockEx(i);
-    }
-
-    query(replace('SELECT ' + values()
-        + nameGroupsTurnover() + ', ' + groupsTurnover()
-        + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-        + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')'
-        + filter()
-        + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-        + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
-
-    IMPORT JSON FROM queryResult() TO group1TurnoverCompare = group1, group2TurnoverCompare = group2,
-            group3TurnoverCompare = group3, group4TurnoverCompare = group4, group5TurnoverCompare = group5,
-            quantitySoldCompareEx = quantitySold, costSumSoldCompareEx = costSumSold, costSumVATSoldCompareEx = costSumVATSold,
-            markupSumSoldCompareEx = markupSumSold, percMarkupSumSoldCompareEx = percMarkupSumSold,
-            sumVATSoldCompareEx = sumVATSold, sumSoldCompareEx = sumSold, sumPriceSoldCompareEx = sumPriceSold,
-            quantityPurchaseCompareEx = quantityPurchase, sumMinusVATPurchaseCompareEx = sumMinusVATPurchase,
-            sumVATPurchaseCompareEx = sumVATPurchase, sumPurchaseCompareEx = sumPurchase, sumPricePurchaseCompareEx = sumPricePurchase,
-            turnoverCompareEx = turnover, costBalanceCompareEx = costBalance, daysOnStockCompareEx = daysOnStock, barcodeSkuCompare = barcodeSku;
-
-    FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](group1TurnoverCompare(i), group2TurnoverCompare(i), group3TurnoverCompare(i), group4TurnoverCompare(i), group5TurnoverCompare(i), barcodeSkuCompare(i)) DO {
-        quantitySoldCompare(number) <- quantitySoldCompareEx(i);
-        quantitySoldCompare(number) <- quantitySoldCompareEx(i);
-        costSumSoldCompare(number) <- costSumSoldCompareEx(i);
-        costSumVATSoldCompare(number) <- costSumVATSoldCompareEx(i);
-        markupSumSoldCompare(number) <- markupSumSoldCompareEx(i);
-        percMarkupSumSoldCompare(number) <- percMarkupSumSoldCompareEx(i);
-        sumVATSoldCompare(number) <- sumVATSoldCompareEx(i);
-        sumSoldCompare(number) <- sumSoldCompareEx(i);
-        sumPriceSoldCompare(number) <- sumPriceSoldCompareEx(i);
-        quantityPurchaseCompare(number) <- quantityPurchaseCompareEx(i);
-        sumMinusVATPurchaseCompare(number) <- sumMinusVATPurchaseCompareEx(i);
-        sumVATPurchaseCompare(number) <- sumVATPurchaseCompareEx(i);
-        sumPurchaseCompare(number) <- sumPurchaseCompareEx(i);
-        sumPricePurchaseCompare(number) <- sumPricePurchaseCompareEx(i);
-        turnoverCompare(number) <- turnoverCompareEx(i);
-        costBalanceCompare(number) <- costBalanceCompareEx(i);
-        daysOnStockCompare(number) <- daysOnStockCompareEx(i);
-    }
-
-    LOCAL localNameGroup1 = STRING[255] (INTEGER);
-    LOCAL localNameGroup2 = STRING[255] (INTEGER);
-    LOCAL localNameGroup3 = STRING[255] (INTEGER);
-    LOCAL localNameGroup4 = STRING[255] (INTEGER);
-    LOCAL localNameGroup5 = STRING[255] (INTEGER);
-    LOCAL localGroup1 = STRING[255] (INTEGER);
-    LOCAL localGroup2 = STRING[255] (INTEGER);
-    LOCAL localGroup3 = STRING[255] (INTEGER);
-    LOCAL localGroup4 = STRING[255] (INTEGER);
-    LOCAL localGroup5 = STRING[255] (INTEGER);
-    LOCAL localBarcodeSku = STRING[15] (INTEGER);
-    LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
-    LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
-    LOCAL localVATSupplierB = NUMERIC[18,4] (INTEGER);
-    LOCAL localCostVATBalanceB = NUMERIC[18,4] (INTEGER);
-    LOCAL localSumBalanceB = NUMERIC[18,4] (INTEGER);
-    LOCAL localBalanceA = NUMERIC[16,5] (INTEGER);
-    LOCAL localCostBalanceA = NUMERIC[18,4] (INTEGER);
-    LOCAL localVATSupplierA = NUMERIC[18,4] (INTEGER);
-    LOCAL localCostVATBalanceA = NUMERIC[18,4] (INTEGER);
-    LOCAL localSumBalanceA = NUMERIC[18,4] (INTEGER);
-    LOCAL localStatisticUOMBalanceB = NUMERIC[16,5] (INTEGER);
-    LOCAL localStatisticUOMBalanceA = NUMERIC[16,5] (INTEGER);
-
-    IF isBalanceB() AND NOT isTimeGroup() THEN {
-        query(replace('SELECT '
-            + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
-            + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
-            + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
-            + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
-            + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceB, ' ELSE '')
+    overFillTurnoverReportCompare(dateFrom,dateTo);
+    IF NOT overFillTurnoverReportCompare() THEN {
+        query(replace('SELECT ' + values()
             + nameGroupsTurnover() + ', ' + groupsTurnover()
             + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-            + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom,-1) + '\',\'yyyy-MM-dd\')'
+            + ' WHERE (__time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
+            + ' OR __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))'
             + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
 
-        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4, localNameGroup5 = nameGroup5,
-                localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localGroup5 = group5,
-                localBalanceB = balanceB, localStatisticUOMBalanceB = statisticUOMBalanceB, localCostBalanceB = costBalanceB,
-                localVATSupplierB = VATSupplierB, localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+        IMPORT JSON FROM queryResult() TO nameGroup1Turnover = nameGroup1, nameGroup2Turnover = nameGroup2,
+                nameGroup3Turnover = nameGroup3, nameGroup4Turnover = nameGroup4, nameGroup5Turnover = nameGroup5,
+                group1Turnover = group1, group2Turnover = group2,
+                group3Turnover = group3, group4Turnover = group4, group5Turnover = group5, barcodeSku = barcodeSku;
 
-        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
-            balanceB(number) <- localBalanceB(i);
-            costBalanceB(number) <- localCostBalanceB(i);
-            VATSupplierB(number) <- localVATSupplierB(i);
-            costVATBalanceB(number) <- localCostVATBalanceB(i);
-            sumBalanceB(number) <- localSumBalanceB(i);
-        }
-    }
-
-    IF overIsBalanceA() THEN {
-        query(replace('SELECT '
-            + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
-            + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+        query(replace('SELECT ' + values()
             + nameGroupsTurnover() + ', ' + groupsTurnover()
             + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-            + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
-            + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE
-                    IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE '')
+            + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')'
             + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
 
-        IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4, localNameGroup5 = nameGroup5,
-                localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localGroup5 = group5,
-                localBalanceA = balanceA, localStatisticUOMBalanceA = statisticUOMBalanceA, localCostBalanceA = costBalanceA,
-                localVATSupplierA = VATSupplierA, localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
+        IMPORT JSON FROM queryResult() TO group1TurnoverEx = group1, group2TurnoverEx = group2,
+                group3TurnoverEx = group3, group4TurnoverEx = group4, group5TurnoverEx = group5,
+                quantitySoldEx = quantitySold, costSumSoldEx = costSumSold, costSumVATSoldEx = costSumVATSold,
+                markupSumSoldEx = markupSumSold, percMarkupSumSoldEx = percMarkupSumSold,
+                sumVATSoldEx = sumVATSold, sumSoldEx = sumSold, sumPriceSoldEx = sumPriceSold,
+                quantityPurchaseEx = quantityPurchase, sumMinusVATPurchaseEx = sumMinusVATPurchase,
+                sumVATPurchaseEx = sumVATPurchase, sumPurchaseEx = sumPurchase, sumPricePurchaseEx = sumPricePurchase,
+                turnoverEx = turnover, costBalanceEx = costBalance, daysOnStockEx = daysOnStock, barcodeSkuEx = barcodeSku;
 
-        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
-            balanceA(number) <- localBalanceA(i);
-            costBalanceA(number) <- localCostBalanceA(i);
-            VATSupplierA(number) <- localVATSupplierA(i);
-            costVATBalanceA(number) <- localCostVATBalanceA(i);
-            sumBalanceA(number) <- localSumBalanceA(i);
+        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](group1TurnoverEx(i), group2TurnoverEx(i), group3TurnoverEx(i), group4TurnoverEx(i), group5TurnoverEx(i), barcodeSkuEx(i)) DO {
+            quantitySold(number) <- quantitySoldEx(i);
+            quantitySold(number) <- quantitySoldEx(i);
+            costSumSold(number) <- costSumSoldEx(i);
+            costSumVATSold(number) <- costSumVATSoldEx(i);
+            markupSumSold(number) <- markupSumSoldEx(i);
+            percMarkupSumSold(number) <- percMarkupSumSoldEx(i);
+            sumVATSold(number) <- sumVATSoldEx(i);
+            sumSold(number) <- sumSoldEx(i);
+            sumPriceSold(number) <- sumPriceSoldEx(i);
+            quantityPurchase(number) <- quantityPurchaseEx(i);
+            sumMinusVATPurchase(number) <- sumMinusVATPurchaseEx(i);
+            sumVATPurchase(number) <- sumVATPurchaseEx(i);
+            sumPurchase(number) <- sumPurchaseEx(i);
+            sumPricePurchase(number) <- sumPricePurchaseEx(i);
+            turnover(number) <- turnoverEx(i);
+            costBalance(number) <- costBalanceEx(i);
+            daysOnStock(number) <- daysOnStockEx(i);
         }
-    }
-    LOCAL localNameGroup1Compare = STRING[255] (INTEGER);
-    LOCAL localNameGroup2Compare = STRING[255] (INTEGER);
-    LOCAL localNameGroup3Compare = STRING[255] (INTEGER);
-    LOCAL localNameGroup4Compare = STRING[255] (INTEGER);
-    LOCAL localNameGroup5Compare = STRING[255] (INTEGER);
-    LOCAL localGroup1Compare = STRING[255] (INTEGER);
-    LOCAL localGroup2Compare = STRING[255] (INTEGER);
-    LOCAL localGroup3Compare = STRING[255] (INTEGER);
-    LOCAL localGroup4Compare = STRING[255] (INTEGER);
-    LOCAL localGroup5Compare = STRING[255] (INTEGER);
-    LOCAL localBarcodeSkuCompare = STRING[15] (INTEGER);
-    LOCAL localBalanceBCompare = NUMERIC[16,5] (INTEGER);
-    LOCAL localCostBalanceBCompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localVATSupplierBCompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localCostVATBalanceBCompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localSumBalanceBCompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localBalanceACompare = NUMERIC[16,5] (INTEGER);
-    LOCAL localCostBalanceACompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localVATSupplierACompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localCostVATBalanceACompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localSumBalanceACompare = NUMERIC[18,4] (INTEGER);
-    LOCAL localStatisticUOMBalanceBCompare = NUMERIC[16,5] (INTEGER);
-    LOCAL localStatisticUOMBalanceACompare = NUMERIC[16,5] (INTEGER);
-    IF isBalanceB() AND NOT isTimeGroup() THEN {
-        query(replace('SELECT '
-            + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
-            + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
-            + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
-            + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
-            + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceB, ' ELSE '')
+
+        query(replace('SELECT ' + values()
             + nameGroupsTurnover() + ', ' + groupsTurnover()
             + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-            + ' WHERE __time = TIME_PARSE(\'' + sum(dateFromC,-1) + '\',\'yyyy-MM-dd\')'
+            + ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')'
             + filter()
             + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
+            + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
 
-        IMPORT JSON FROM queryResult() TO localNameGroup1Compare = nameGroup1, localNameGroup2Compare = nameGroup2, localNameGroup3Compare = nameGroup3, localNameGroup4Compare = nameGroup4, localNameGroup5Compare = nameGroup5,
-                localGroup1Compare = group1, localGroup2Compare = group2, localGroup3Compare = group3, localGroup4Compare = group4, localGroup5Compare = group5,
-                localBalanceBCompare = balanceB, localStatisticUOMBalanceBCompare = statisticUOMBalanceB, localCostBalanceBCompare = costBalanceB,
-                localVATSupplierBCompare = VATSupplierB, localCostVATBalanceBCompare = costVATBalanceB, localSumBalanceBCompare = sumBalanceB, localBarcodeSkuCompare = barcodeSku;
+        IMPORT JSON FROM queryResult() TO group1TurnoverCompare = group1, group2TurnoverCompare = group2,
+                group3TurnoverCompare = group3, group4TurnoverCompare = group4, group5TurnoverCompare = group5,
+                quantitySoldCompareEx = quantitySold, costSumSoldCompareEx = costSumSold, costSumVATSoldCompareEx = costSumVATSold,
+                markupSumSoldCompareEx = markupSumSold, percMarkupSumSoldCompareEx = percMarkupSumSold,
+                sumVATSoldCompareEx = sumVATSold, sumSoldCompareEx = sumSold, sumPriceSoldCompareEx = sumPriceSold,
+                quantityPurchaseCompareEx = quantityPurchase, sumMinusVATPurchaseCompareEx = sumMinusVATPurchase,
+                sumVATPurchaseCompareEx = sumVATPurchase, sumPurchaseCompareEx = sumPurchase, sumPricePurchaseCompareEx = sumPricePurchase,
+                turnoverCompareEx = turnover, costBalanceCompareEx = costBalance, daysOnStockCompareEx = daysOnStock, barcodeSkuCompare = barcodeSku;
 
-        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
-            balanceBCompare(number) <- localBalanceBCompare(i);
-            costBalanceBCompare(number) <- localCostBalanceBCompare(i);
-            VATSupplierBCompare(number) <- localVATSupplierBCompare(i);
-            costVATBalanceBCompare(number) <- localCostVATBalanceBCompare(i);
-            sumBalanceBCompare(number) <- localSumBalanceBCompare(i);
+        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](group1TurnoverCompare(i), group2TurnoverCompare(i), group3TurnoverCompare(i), group4TurnoverCompare(i), group5TurnoverCompare(i), barcodeSkuCompare(i)) DO {
+            quantitySoldCompare(number) <- quantitySoldCompareEx(i);
+            quantitySoldCompare(number) <- quantitySoldCompareEx(i);
+            costSumSoldCompare(number) <- costSumSoldCompareEx(i);
+            costSumVATSoldCompare(number) <- costSumVATSoldCompareEx(i);
+            markupSumSoldCompare(number) <- markupSumSoldCompareEx(i);
+            percMarkupSumSoldCompare(number) <- percMarkupSumSoldCompareEx(i);
+            sumVATSoldCompare(number) <- sumVATSoldCompareEx(i);
+            sumSoldCompare(number) <- sumSoldCompareEx(i);
+            sumPriceSoldCompare(number) <- sumPriceSoldCompareEx(i);
+            quantityPurchaseCompare(number) <- quantityPurchaseCompareEx(i);
+            sumMinusVATPurchaseCompare(number) <- sumMinusVATPurchaseCompareEx(i);
+            sumVATPurchaseCompare(number) <- sumVATPurchaseCompareEx(i);
+            sumPurchaseCompare(number) <- sumPurchaseCompareEx(i);
+            sumPricePurchaseCompare(number) <- sumPricePurchaseCompareEx(i);
+            turnoverCompare(number) <- turnoverCompareEx(i);
+            costBalanceCompare(number) <- costBalanceCompareEx(i);
+            daysOnStockCompare(number) <- daysOnStockCompareEx(i);
+        }
+
+        LOCAL localNameGroup1 = STRING[255] (INTEGER);
+        LOCAL localNameGroup2 = STRING[255] (INTEGER);
+        LOCAL localNameGroup3 = STRING[255] (INTEGER);
+        LOCAL localNameGroup4 = STRING[255] (INTEGER);
+        LOCAL localNameGroup5 = STRING[255] (INTEGER);
+        LOCAL localGroup1 = STRING[255] (INTEGER);
+        LOCAL localGroup2 = STRING[255] (INTEGER);
+        LOCAL localGroup3 = STRING[255] (INTEGER);
+        LOCAL localGroup4 = STRING[255] (INTEGER);
+        LOCAL localGroup5 = STRING[255] (INTEGER);
+        LOCAL localBarcodeSku = STRING[15] (INTEGER);
+        LOCAL localBalanceB = NUMERIC[16,5] (INTEGER);
+        LOCAL localCostBalanceB = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierB = NUMERIC[18,4] (INTEGER);
+        LOCAL localCostVATBalanceB = NUMERIC[18,4] (INTEGER);
+        LOCAL localSumBalanceB = NUMERIC[18,4] (INTEGER);
+        LOCAL localBalanceA = NUMERIC[16,5] (INTEGER);
+        LOCAL localCostBalanceA = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierA = NUMERIC[18,4] (INTEGER);
+        LOCAL localCostVATBalanceA = NUMERIC[18,4] (INTEGER);
+        LOCAL localSumBalanceA = NUMERIC[18,4] (INTEGER);
+        LOCAL localStatisticUOMBalanceB = NUMERIC[16,5] (INTEGER);
+        LOCAL localStatisticUOMBalanceA = NUMERIC[16,5] (INTEGER);
+
+        IF isBalanceB() AND NOT isTimeGroup() THEN {
+            query(replace('SELECT '
+                + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
+                + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
+                + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
+                + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
+                + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceB, ' ELSE '')
+                + nameGroupsTurnover() + ', ' + groupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                + ' WHERE __time = TIME_PARSE(\'' + sum(dateFrom, -1) + '\',\'yyyy-MM-dd\')'
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
+
+            IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4, localNameGroup5 = nameGroup5,
+                    localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localGroup5 = group5,
+                    localBalanceB = balanceB, localStatisticUOMBalanceB = statisticUOMBalanceB, localCostBalanceB = costBalanceB,
+                    localVATSupplierB = VATSupplierB, localCostVATBalanceB = costVATBalanceB, localSumBalanceB = sumBalanceB, localBarcodeSku = barcodeSku;
+
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
+                balanceB(number) <- localBalanceB(i);
+                costBalanceB(number) <- localCostBalanceB(i);
+                VATSupplierB(number) <- localVATSupplierB(i);
+                costVATBalanceB(number) <- localCostVATBalanceB(i);
+                sumBalanceB(number) <- localSumBalanceB(i);
+            }
+        }
+
+        IF overIsBalanceA() THEN {
+            query(replace('SELECT '
+                + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
+                + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                + nameGroupsTurnover() + ', ' + groupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFrom + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\')')
+                + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE
+                        IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateTo + '\',\'yyyy-MM-dd\'))' ELSE '')
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
+
+            IMPORT JSON FROM queryResult() TO localNameGroup1 = nameGroup1, localNameGroup2 = nameGroup2, localNameGroup3 = nameGroup3, localNameGroup4 = nameGroup4, localNameGroup5 = nameGroup5,
+                    localGroup1 = group1, localGroup2 = group2, localGroup3 = group3, localGroup4 = group4, localGroup5 = group5,
+                    localBalanceA = balanceA, localStatisticUOMBalanceA = statisticUOMBalanceA, localCostBalanceA = costBalanceA,
+                    localVATSupplierA = VATSupplierA, localCostVATBalanceA = costVATBalanceA, localSumBalanceA = sumBalanceA, localBarcodeSku = barcodeSku;
+
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
+                balanceA(number) <- localBalanceA(i);
+                costBalanceA(number) <- localCostBalanceA(i);
+                VATSupplierA(number) <- localVATSupplierA(i);
+                costVATBalanceA(number) <- localCostVATBalanceA(i);
+                sumBalanceA(number) <- localSumBalanceA(i);
+            }
+        }
+        LOCAL localNameGroup1Compare = STRING[255] (INTEGER);
+        LOCAL localNameGroup2Compare = STRING[255] (INTEGER);
+        LOCAL localNameGroup3Compare = STRING[255] (INTEGER);
+        LOCAL localNameGroup4Compare = STRING[255] (INTEGER);
+        LOCAL localNameGroup5Compare = STRING[255] (INTEGER);
+        LOCAL localGroup1Compare = STRING[255] (INTEGER);
+        LOCAL localGroup2Compare = STRING[255] (INTEGER);
+        LOCAL localGroup3Compare = STRING[255] (INTEGER);
+        LOCAL localGroup4Compare = STRING[255] (INTEGER);
+        LOCAL localGroup5Compare = STRING[255] (INTEGER);
+        LOCAL localBarcodeSkuCompare = STRING[15] (INTEGER);
+        LOCAL localBalanceBCompare = NUMERIC[16,5] (INTEGER);
+        LOCAL localCostBalanceBCompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierBCompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localCostVATBalanceBCompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localSumBalanceBCompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localBalanceACompare = NUMERIC[16,5] (INTEGER);
+        LOCAL localCostBalanceACompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localVATSupplierACompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localCostVATBalanceACompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localSumBalanceACompare = NUMERIC[18,4] (INTEGER);
+        LOCAL localStatisticUOMBalanceBCompare = NUMERIC[16,5] (INTEGER);
+        LOCAL localStatisticUOMBalanceACompare = NUMERIC[16,5] (INTEGER);
+        IF isBalanceB() AND NOT isTimeGroup() THEN {
+            query(replace('SELECT '
+                + (IF isBalanceB() AND overIsQuantity() THEN 'SUM(balance) AS balanceB, ' ELSE '')
+                + (IF isBalanceB() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceB, ' ELSE '')
+                + (IF isBalanceB() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierB, ' ELSE '')
+                + (IF isBalanceB() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceB, ' ELSE '')
+                + (IF isBalanceB() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceB, ' ELSE '')
+                + nameGroupsTurnover() + ', ' + groupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                + ' WHERE __time = TIME_PARSE(\'' + sum(dateFromC, -1) + '\',\'yyyy-MM-dd\')'
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
+
+            IMPORT JSON FROM queryResult() TO localNameGroup1Compare = nameGroup1, localNameGroup2Compare = nameGroup2, localNameGroup3Compare = nameGroup3, localNameGroup4Compare = nameGroup4, localNameGroup5Compare = nameGroup5,
+                    localGroup1Compare = group1, localGroup2Compare = group2, localGroup3Compare = group3, localGroup4Compare = group4, localGroup5Compare = group5,
+                    localBalanceBCompare = balanceB, localStatisticUOMBalanceBCompare = statisticUOMBalanceB, localCostBalanceBCompare = costBalanceB,
+                    localVATSupplierBCompare = VATSupplierB, localCostVATBalanceBCompare = costVATBalanceB, localSumBalanceBCompare = sumBalanceB, localBarcodeSkuCompare = barcodeSku;
+
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
+                balanceBCompare(number) <- localBalanceBCompare(i);
+                costBalanceBCompare(number) <- localCostBalanceBCompare(i);
+                VATSupplierBCompare(number) <- localVATSupplierBCompare(i);
+                costVATBalanceBCompare(number) <- localCostVATBalanceBCompare(i);
+                sumBalanceBCompare(number) <- localSumBalanceBCompare(i);
+            }
+        }
+
+        IF overIsBalanceA() THEN {
+            query(replace('SELECT '
+                + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
+                + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
+                + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
+                + nameGroupsTurnover() + ', ' + groupsTurnover()
+                + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
+                + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')')
+                + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))' ELSE
+                        IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))' ELSE '')
+                + filter()
+                + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
+                + (OVERRIDE ' LIMIT ' + maxRowCount(), ''), '"', '\\"'));
+
+            IMPORT JSON FROM queryResult() TO localNameGroup1Compare = nameGroup1, localNameGroup2Compare = nameGroup2, localNameGroup3Compare = nameGroup3, localNameGroup4Compare = nameGroup4, localNameGroup5Compare = nameGroup5,
+                    localGroup1Compare = group1, localGroup2Compare = group2, localGroup3Compare = group3, localGroup4Compare = group4, localGroup5Compare = group5,
+                    localBalanceACompare = balanceA, localStatisticUOMBalanceACompare = statisticUOMBalanceA, localCostBalanceACompare = costBalanceA,
+                    localVATSupplierACompare = VATSupplierA, localCostVATBalanceACompare = costVATBalanceA, localSumBalanceACompare = sumBalanceA, localBarcodeSkuCompare = barcodeSku;
+
+            FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
+                balanceACompare(number) <- localBalanceACompare(i);
+                costBalanceACompare(number) <- localCostBalanceACompare(i);
+                VATSupplierACompare(number) <- localVATSupplierACompare(i);
+                costVATBalanceACompare(number) <- localCostVATBalanceACompare(i);
+                sumBalanceACompare(number) <- localSumBalanceACompare(i);
+            }
         }
     }
-
-    IF overIsBalanceA() THEN {
-        query(replace('SELECT '
-            + (IF overIsBalanceA() AND overIsQuantity() THEN 'SUM(balance) AS balanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND overIsCost() THEN 'SUM(costBalance) AS costBalanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND isVATSupplier() THEN 'SUM(costVATBalance)-SUM(costBalance) AS VATSupplierA, ' ELSE '')
-            + (IF overIsBalanceA() AND isCostVAT() THEN 'SUM(costVATBalance) AS costVATBalanceA, ' ELSE '')
-            + (IF overIsBalanceA() AND isSum() THEN 'SUM(sumBalance) AS sumBalanceA, ' ELSE '')
-            + nameGroupsTurnover() + ', ' + groupsTurnover()
-            + (IF useTurnoverSkuBI() AND NOT isSupplierGroup() AND NOT nameIncludeLegalEntities() THEN ' FROM turnoverSku' ELSE ' FROM turnover')
-            + (IF isTimeGroup() THEN ' WHERE __time BETWEEN TIME_PARSE(\'' + dateFromC + '\',\'yyyy-MM-dd\') AND TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')' ELSE ' WHERE __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\')')
-            + (IF gWeekTurnover() THEN ' AND (EXTRACT(WEEK FROM __time) <> EXTRACT(WEEK FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))' ELSE
-                    IF gMonthTurnover() THEN ' AND (EXTRACT(MONTH FROM __time) <> EXTRACT(MONTH FROM TIMESTAMPADD(DAY, 1, __time)) OR __time = TIME_PARSE(\'' + dateToC + '\',\'yyyy-MM-dd\'))' ELSE '')
-            + filter()
-            + ' GROUP BY ' + (CONCAT ', ', nameGroup1Turnover(), nameGroup2Turnover(), nameGroup3Turnover(), nameGroup4Turnover(), nameGroup5Turnover())
-            + (OVERRIDE ' LIMIT ' + maxRowCount(),''),'"','\\"'));
-
-        IMPORT JSON FROM queryResult() TO localNameGroup1Compare = nameGroup1, localNameGroup2Compare = nameGroup2, localNameGroup3Compare = nameGroup3, localNameGroup4Compare = nameGroup4, localNameGroup5Compare = nameGroup5,
-                localGroup1Compare = group1, localGroup2Compare = group2, localGroup3Compare = group3, localGroup4Compare = group4, localGroup5Compare = group5,
-                localBalanceACompare = balanceA, localStatisticUOMBalanceACompare = statisticUOMBalanceA, localCostBalanceACompare = costBalanceA,
-                localVATSupplierACompare = VATSupplierA, localCostVATBalanceACompare = costVATBalanceA, localSumBalanceACompare = sumBalanceA, localBarcodeSkuCompare = barcodeSku;
-
-        FOR imported(INTEGER i) AND INTEGER number = [ GROUP LAST INTEGER n ORDER n BY group1Turnover(n), group2Turnover(n), group3Turnover(n), group4Turnover(n), group5Turnover(n), barcodeSku(n)](localGroup1(i), localGroup2(i), localGroup3(i), localGroup4(i), localGroup5(i), localBarcodeSku(i)) DO {
-            balanceACompare(number) <- localBalanceACompare(i);
-            costBalanceACompare(number) <- localCostBalanceACompare(i);
-            VATSupplierACompare(number) <- localVATSupplierACompare(i);
-            costVATBalanceACompare(number) <- localCostVATBalanceACompare(i);
-            sumBalanceACompare(number) <- localSumBalanceACompare(i);
-        }
-    }
-
 }
 
 printTurnoverReportCompareXLSX 'Сравнение с группировкой (XLSX)' (DATE dateFrom, DATE dateTo, DATE dateFromC, DATE dateToC )  {
