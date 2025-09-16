@@ -135,16 +135,30 @@ fill(DateGS1IdentifierAI i, STRING ai, INTEGER characterCount, INTEGER decimalCh
     gsSeparator(params(i)) <- gsSeparator;
 }
 
+changePriority (GS1IdentifierAI i) {
+    INPUT p = INTEGER DO {
+        dataPriority(params(i)) <- p;
+    }
+}
+
+changeInclude (GS1IdentifierAI i) {
+    INPUT b = BOOLEAN DO {
+        dataInclude(params(i)) <- b;
+    }
+}
+
 FORM identifierAI 'Идентификатор применения GS1'
     OBJECTS i = GS1IdentifierAI PANEL 
         PROPERTIES (i) READONLY name
-        PROPERTIES (i) ai, characterCount, decimalCharacterCount, variableLength, gsSeparator, priority, include
+        PROPERTIES (i) ai, characterCount, decimalCharacterCount, variableLength, gsSeparator, 
+            priority ON CHANGE changePriority(i), include ON CHANGE changeInclude(i)
     EDIT GS1IdentifierAI OBJECT i
 ;
 
 FORM identifierAIs 'Идентификаторы применения GS1'
     OBJECTS i = GS1IdentifierAI
-    PROPERTIES (i) READONLYIF isReadonly() name, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator, priority, include
+    PROPERTIES (i) READONLY name, ai, characterCount, decimalCharacterCount, variableLength, gsSeparator
+    PROPERTIES (i) priority ON CHANGE changePriority(i), include ON CHANGE changeInclude(i)
     LIST GS1IdentifierAI OBJECT i
 ;
 

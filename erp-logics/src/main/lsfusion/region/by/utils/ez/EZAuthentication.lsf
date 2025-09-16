@@ -4,14 +4,16 @@ REQUIRE Utils, LotBy, LegalEntity;
 
 NAMESPACE EZ;
 
-urlEZ 'Url к Web-сервису ГИС "Электронный знак"' = DATA STRING ();
-testWebService 'Тестовый Web-сервис' = DATA BOOLEAN ();
-usernameEZ 'Пользователь' = DATA STRING();
-passwordEZ 'Пароль для API' = DATA STRING() ECHO;
-hostEZ 'Host' = DATA STRING ();
-token 'Токен' = DATA STRING () ECHO;
+TABLE authentication() NODEFAULT;
 
-ezToken = DATA LOCAL STRING ();
+urlEZ 'Url к Web-сервису ГИС "Электронный знак"' = DATA STRING () TABLE authentication;
+testWebService 'Тестовый Web-сервис' = DATA BOOLEAN () TABLE authentication;
+usernameEZ 'Пользователь' = DATA STRING() TABLE authentication;
+passwordEZ 'Пароль для API' = DATA STRING() ECHO TABLE authentication;
+hostEZ 'Host' = DATA STRING () TABLE authentication;
+token 'Токен' = DATA STRING () ECHO TABLE authentication;
+
+ezToken = DATA LOCAL STRING () TABLE authentication;
 
 // при всех использованиях сначала заполнять ezToken
 ezHeadersLotOrder (TEXT name) = CASE
@@ -120,3 +122,12 @@ authorization 'Авторизация в ЭЗ' (LegalEntity l) {
 EXTEND FORM integrationData
     PROPERTIES(lez) authorization GRID
 ;
+
+getToken() {
+    IF usernameEZ() THEN authorization();
+}
+
+getToken(LegalEntity l) {
+    IF usernameEZ(l) THEN authorization(l);
+    IF usernameEZ() THEN authorization();
+}

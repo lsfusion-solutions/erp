@@ -118,6 +118,7 @@ getIdEZ (LegalEntity company, LegalEntity le) {
     EXPORT JSON FROM unp = (OVERRIDE overUNPGetIdEZ(le), UNP(le));
 
     fileToString(exportFile());
+    getToken(company);
     ezToken() <- token(company);
 
     TRY {
@@ -144,6 +145,7 @@ getCurrencyEZ (LegalEntity company) {
     IF GROUP MIN currencyCode(INTEGER i) THEN RETURN;
 
     LOCAL result = FILE ();
+    getToken(company);
     ezToken() <- token(company);
 
     TRY {
@@ -220,7 +222,8 @@ shipsAddAPIEZ 'Отгрузка марок в ЭЗ' (Invoice i) {
             strResult() <- replace(replace(STRING(resultString()),'\{',''),'\}','');
             strResult() <- CONCAT '', '\{', strResult(), ', ' + addInfoShipsAdd(i, lt), '\}';
             stringToFile(strResult());
-
+            
+            getToken(supplier(i));
             ezToken() <- token(supplier(i));
 
             TRY {
