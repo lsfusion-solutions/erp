@@ -748,16 +748,21 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                         String idItem = readStringXMLAttribute(positionEntryNode, "goodsCode");
                         String barcode = transformUPCBarcode(readStringXMLAttribute(positionEntryNode, "barCode"), transformUPCBarcode);
 
-                        //обнаруживаем продажу сертификатов
                         boolean isGiftCard = false;
+                        String idLot = null;
                         pluginProperties = positionEntryNode.getChildren("plugin-property");
                         for (Element pluginProperty : pluginProperties) {
                             String keyPluginProperty = pluginProperty.getAttributeValue("key");
                             String valuePluginProperty = pluginProperty.getAttributeValue("value");
                             if (notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
                                 if (keyPluginProperty.equals("gift.card.number")) {
+                                    //обнаруживаем продажу сертификатов
                                     barcode = valuePluginProperty;
                                     isGiftCard = true;
+                                }
+
+                                if (keyPluginProperty.equals("excise-token")) {
+                                    idLot = valuePluginProperty;
                                 }
                             }
                         }
@@ -816,11 +821,18 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                             if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
                                 sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
-                            currentSalesInfoList.add(getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
+                            SalesInfo salesInfo = getSalesInfo(isGiftCard, false, nppGroupMachinery, numberCashRegister, numberZReport, dateZReport, timeReceipt,
                                     numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumGiftCardMap,
                                     null, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountPercentReceiptDetail,
                                     discountSumReceiptDetail, discountSumReceipt, discountCard, null, numberReceiptDetail, null,
-                                    useSectionAsDepartNumber ? positionDepartNumber : null, skipReceipt, receiptExtraFields, null, cashRegisterByKey));
+                                    useSectionAsDepartNumber ? positionDepartNumber : null, skipReceipt, receiptExtraFields, null, cashRegisterByKey);
+
+                            salesInfo.detailExtraFields = new HashMap<>();
+                            if (idLot!=null) {
+                                salesInfo.detailExtraFields.put("idLot", idLot);
+                            }
+
+                            currentSalesInfoList.add(salesInfo);
                         }
                     }
                     count++;
