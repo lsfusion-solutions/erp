@@ -1,0 +1,49 @@
+MODULE PurchaseOrderGestori;
+
+REQUIRE PurchaseOrder, Store, Warehouse;
+
+NAMESPACE Purchase;
+
+dataDelayDaysOrder 'Задержка поставок в днях' = DATA INTEGER (LegalEntity);
+delayDaysOrder 'Задержка поставок в днях' (LegalEntity l) = OVERRIDE dataDelayDaysOrder(l), 0 IF isSupplier(l);
+
+EXTEND FORM legalEntity
+    PROPERTIES(l) SHOWIF isSupplier(l) delayDaysOrder
+;
+
+DESIGN legalEntity {
+    row11 {
+        MOVE PROPERTY(delayDaysOrder(l));
+    }
+}
+
+dataDelayDaysOrder 'Задержка поставок в днях' = ABSTRACT INTEGER (Stock);
+delayDaysOrder 'Задержка поставок в днях' (Stock st) = OVERRIDE dataDelayDaysOrder(st), delayDaysOrder(legalEntity(st)), 0 IF isCompany(st);
+
+dataDelayDaysOrder 'Задержка поставок в днях' = DATA INTEGER (DepartmentStore);
+dataDelayDaysOrder (DepartmentStore ds) += dataDelayDaysOrder(ds);
+
+EXTEND FORM departmentStore
+    PROPERTIES(d) SHOWIF isCompany(d) delayDaysOrder
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(delayDaysOrder(d));
+    }
+}
+
+dataDelayDaysOrder 'Задержка поставок в днях' = DATA INTEGER (Warehouse);
+dataDelayDaysOrder (Warehouse ds) += dataDelayDaysOrder(ds);
+
+EXTEND FORM warehouse
+    PROPERTIES(w) SHOWIF isCompany(w) delayDaysOrder
+;
+
+DESIGN warehouse {
+    headerExtraParams {
+        MOVE PROPERTY(delayDaysOrder(w));
+    }
+}
+
+overCloseDate (Order o) += sum(shipmentDate(o), delayDaysOrder(supplierStock(o)) + 1);  
