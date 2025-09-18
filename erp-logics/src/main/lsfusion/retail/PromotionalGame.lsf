@@ -9,8 +9,8 @@ TABLE sessionPromotionalGame (Session, PromotionalGame);
 id 'Код' = DATA STRING[100] (PromotionalGame) NONULL;
 promotionalGame = GROUP AGGR PromotionalGame g BY id(g);
 name 'Название' = DATA ISTRING[150] (PromotionalGame);
-fromDate 'Дата с' = DATA DATE (PromotionalGame) INDEXED;
-toDate 'Дата по' = DATA DATE (PromotionalGame);
+fromDate 'Дата с' = DATA DATETIME (PromotionalGame) INDEXED;
+toDate 'Дата по' = DATA DATETIME (PromotionalGame);
 
 checkingPeriod 'Проверять чеки за (минут)' = DATA INTEGER (PromotionalGame);
 numerator 'Нумератор для генерации кодов' = DATA Numerator (PromotionalGame);
@@ -313,7 +313,7 @@ EXTEND FORM discountCards
     FILTERS gr == receipt(gc)
     
     EVENTS ON INIT {
-        filterPromotionalGame() <- GROUP MAX PromotionalGame g IF currentDate() >= fromDate(g) AND currentDate() <= toDate(g);
+        filterPromotionalGame() <- GROUP MAX PromotionalGame g IF currentDate() >= DATE(fromDate(g)) AND currentDate() <= DATE(toDate(g));
         promotionalGameDateTimeFrom() <- toDateTime(2000_01_01);
     }
 ;
@@ -371,7 +371,7 @@ FORM prizeRaffleDashboard 'Заполнение призов по рекламн
     
     EVENTS ON INIT {
         SEEK prizeRaffleDashboard.g = OVERRIDE 
-            (GROUP MAX PromotionalGame pg IF currentDate() >= fromDate(pg) AND currentDate() <= toDate(pg)),
+            (GROUP MAX PromotionalGame pg IF currentDate() >= DATE(fromDate(pg)) AND currentDate() <= DATE(toDate(pg))),
             (GROUP LAST PromotionalGame pg ORDER fromDate(pg));
     }
 ;
