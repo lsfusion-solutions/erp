@@ -86,9 +86,31 @@ sendImageGroupToFtp(CustomGroup c){
 
 //задание для планировщика
 sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
+    LOCAL errorsImagesItems = BOOLEAN (Item);
+    LOCAL errorsImagesGroups = BOOLEAN (CustomGroup);
     FOR customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) 
-        AND dataImage(i) DO sendImageItemToFtp(i);
-    FOR hasImage(CustomGroup c) IF pickListGroup(c) DO sendImageGroupToFtp(c);
+        AND dataImage(i) DO {
+        TRY {
+            sendImageItemToFtp(i);
+        }
+        CATCH {
+            errorsImagesItems(i) <- TRUE;
+        }
+    }
+    FOR hasImage(CustomGroup c) IF pickListGroup(c) DO
+        TRY {
+            sendImageGroupToFtp(c);
+        }
+            CATCH {
+            errorsImagesGroups(c) <- TRUE;
+        }
+    
+    IF (GROUP SUM 1 IF errorsImagesGroups(CustomGroup c) OR errorsImagesItems(Item i)) THEN {
+        MESSAGE 'Изображения не выгружены для:\n ' + CONCAT '\n\n', 
+            'ТОВАРОВ\n' + (GROUP CONCAT name(Item i) IF errorsImagesItems(i), '\n' ORDER i),
+            'ТОВАРНЫХ ГРУПП\n' + (GROUP CONCAT name(CustomGroup c) IF errorsImagesGroups(c), '\n' ORDER c)
+    NOWAIT;
+    }
 }
 
 EXTEND FORM integrationData
