@@ -1,6 +1,6 @@
 MODULE AuthorizationSkko;
 
-REQUIRE Utils;
+REQUIRE Utils, LegalEntity;
 
 NAMESPACE Skko;
 
@@ -22,9 +22,10 @@ DESIGN integrationData {
 skkoToken 'Токен' = DATA STRING() ECHO;
 apiKey 'Ключ авторизации' = DATA STRING();
 
+
 FORM authorization
+    OBJECTS apiKey = STRING EXTID 'value'
     PROPERTIES() apiKey EXTID 'api_key'
-//    PROPERTIES() IN eds certificate, type, value
 ;
 
 // импорт
@@ -53,21 +54,26 @@ setHttpSkkoHeaders 'Задать заголовки' (STRING token){
     }
 }
 
-getSkkoToken 'Авторизация' () {    
-    EXPORT authorization JSON;
+getSkkoToken 'Авторизация' (STRING apiKey) {    
+    EXPORT authorization OBJECTS apiKey = apiKey JSON;
     fileToString(exportFile());
     
     LOCAL response = FILE();
     TRY {
+        access_token() <- NULL;
         insecureSSL() <- TRUE;
         EXTERNAL HTTP POST skkoUrl() + '/login' PARAMS exportFile() TO response;
         IMPORT importToken JSON FROM response();
-        skkoToken() <- access_token();
-        APPLY;
     } CATCH {
         IMPORT importToken JSON FROM response();
         MESSAGE 'Ошибка получения токена: ' + CONCAT '\n', error_description(), messageCaughtException() NOWAIT;
     }
+}
+
+getSkkoToken 'Авторизация' () {
+    getSkkoToken(apiKey());
+    skkoToken() <- access_token();
+    APPLY;
 }
 
 EXTEND FORM integrationData
@@ -85,3 +91,39 @@ DESIGN integrationData {
         }
     }
 }
+
+useSkkoLegalEntity 'Использовать организации' = DATA BOOLEAN ();
+
+dataSkkoApiKey 'Ключ авторизации' = DATA STRING(LegalEntity);
+dataSkkoToken 'Токен' = DATA STRING (LegalEntity) ECHO;
+
+EXTEND FORM integrationData
+    PROPERTIES useSkkoLegalEntity()
+
+    OBJECTS skkol = LegalEntity
+    PROPERTIES(skkol) READONLY id, name
+    PROPERTIES(skkol) dataSkkoApiKey, dataSkkoToken READONLY
+    FILTERS isCompany(skkol)
+;
+
+DESIGN integrationData {
+    mnsSKKO {
+        MOVE PROPERTY(useSkkoLegalEntity());
+        MOVE BOX(skkol) { showIf = useSkkoLegalEntity(); }
+    }
+}
+
+apiKey(LegalEntity l) = OVERRIDE dataSkkoApiKey(l), (apiKey() IF l IS LegalEntity);
+skkoToken(LegalEntity l) = OVERRIDE dataSkkoToken(l), (skkoToken() IF l IS LegalEntity);
+
+getSkkoToken 'Авторизация' (LegalEntity l) {
+    IF apiKey(l) THEN {
+        getSkkoToken(apiKey(l));
+        dataSkkoToken(l) <- access_token();
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(skkol) getSkkoToken GRID
+;

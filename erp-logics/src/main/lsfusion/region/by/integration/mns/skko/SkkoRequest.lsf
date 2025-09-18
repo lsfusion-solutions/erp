@@ -76,3 +76,48 @@ getCurrentMessageNumber() {
         MESSAGE CONCAT '\n', 'Ошибка получения номера сообщения: ', error_description(), messageCaughtException() NOWAIT;
     }
 }
+
+autoAuthorizationSkko(LegalEntity l) {
+    NEWSESSION {
+        setHttpSkkoHeaders(skkoToken(l));
+
+        resultString() <- '\{\}';
+        stringToFile(resultString());
+
+        LOCAL response = FILE();
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST skkoUrl() + '/message' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+
+            fileToString(response());
+            IMPORT importMessageNumer JSON FROM response();
+        } CATCH {
+            IMPORT importMessageNumer JSON FROM response();
+        }
+
+        IF message_error_code() = 4 THEN {
+            getSkkoToken(l);
+        }
+    }
+}
+
+getCurrentMessageNumber(LegalEntity l) {
+    autoAuthorizationSkko(l);
+
+    setHttpSkkoHeaders(skkoToken(l));
+
+    resultString() <- '\{\}';
+    stringToFile(resultString());
+
+    LOCAL response = FILE();
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST skkoUrl() + '/message' HEADERS httpSkkoHeaders PARAMS resultFile() TO response;
+
+        fileToString(response());
+        IMPORT importMessageNumer JSON FROM response();
+    } CATCH {
+        IMPORT importMessageNumer JSON FROM response();
+        MESSAGE CONCAT '\n', 'Ошибка получения номера сообщения: ', error_description(), messageCaughtException() NOWAIT;
+    }
+}

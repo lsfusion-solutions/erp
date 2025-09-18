@@ -24,7 +24,12 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.I
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
 
-        getCurrentMessageNumber();
+        IF useSkkoLegalEntity() THEN {
+            getCurrentMessageNumber(supplier(invoice));
+        } ELSE {
+            getCurrentMessageNumber();
+        }
+
         IF NOT message_status() THEN {
             MESSAGE 'Ошибка получения номера' NOWAIT;
             RETURN;
@@ -115,8 +120,13 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Sale
       
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
-
-        getCurrentMessageNumber();
+        
+        IF useSkkoLegalEntity() THEN {
+            getCurrentMessageNumber(supplier(invoice));
+        } ELSE {
+            getCurrentMessageNumber();
+        }
+        
         IF NOT message_status() THEN {
             MESSAGE 'Ошибка получения номера' NOWAIT;
             RETURN;
@@ -206,7 +216,12 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
 
-        getCurrentMessageNumber();
+        IF useSkkoLegalEntity() THEN {
+            getCurrentMessageNumber(supplier(invoice));
+        } ELSE {
+            getCurrentMessageNumber();
+        }
+        
         IF NOT message_status()  THEN {
             MESSAGE 'Ошибка получения номера' NOWAIT;
             RETURN;
