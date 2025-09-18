@@ -25,11 +25,6 @@ async function initZXing(){
     script.src = 'https://zxing-cpp.github.io/zxing-cpp/zxing_reader.js';
     script.type = 'text/javascript';
     document.getElementsByTagName('head')[0].appendChild(script);
-
-    var scriptZxing = document.createElement('script');
-    scriptZxing.src = 'https://zxing-cpp.github.io/zxing-cpp/base64.js';
-    scriptZxing.type = 'text/javascript';
-    document.getElementsByTagName('head')[0].appendChild(scriptZxing);
   
 }
 
