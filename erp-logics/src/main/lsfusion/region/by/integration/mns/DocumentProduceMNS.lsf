@@ -1,0 +1,539 @@
+MODULE DocumentProduceMNS;
+
+REQUIRE ProductionOutput, LegalEntityMNS, LegalEntityBy, Lot, ItemTracking, DocumentMNS;
+
+NAMESPACE Production;
+
+//общая информация
+CLASS ProduceMNS 'Документ выгрузки в МНС (подача сведений о производстве)';
+
+dateTime 'Дата отправки' = DATA DATETIME (ProduceMNS);
+correctionNumber 'Номер корректировки' = DATA INTEGER (ProduceMNS);
+order = DATA Order (ProduceMNS) NONULL DELETE;
+legalEntity = DATA LegalEntity (ProduceMNS);
+prevProduceMNS = DATA LOCAL ProduceMNS (ProduceMNS);
+prevDocNumber 'Регистрационный номер представляемых сведений' = DATA STRING(ProduceMNS);
+refRecordId 'Уникальный идентификатор исходного документа' = DATA INTEGER (ProduceMNS);
+
+version = DATA LOCAL INTEGER ();
+type = DATA LOCAL STRING ();
+rectification = DATA LOCAL BOOLEAN ();
+kodIMNS = DATA LOCAL STRING ();
+UNP = DATA LOCAL STRING ();
+UNP 'Учетный номер плательщика, представившего сведения' = DATA STRING (ProduceMNS); //????
+year = DATA LOCAL INTEGER();
+
+id = STRING[50] (ProduceMNS p);
+district 'Наименование района, города, района в городе' = DATA STRING (ProduceMNS);
+district2 'Наименование района' = DATA STRING(ProduceMNS);
+dateFrom 'Период, дата с' = DATA STRING (ProduceMNS);
+dateTo 'Период, дата по' = DATA STRING (ProduceMNS);
+registerNumber 'Регистрационный номер' = DATA STRING (ProduceMNS);
+dateTimeSignOver 'Дата передаваемых сведений' = DATA DATETIME (ProduceMNS);
+dateTimeSign 'Дата передаваемых сведений' = DATA STRING (ProduceMNS);
+nameLegalEntity 'Организация' (ProduceMNS p) = name(legalEntity(p));
+nameShipperChief 'ФИО руководителя' (ProduceMNS p) = nameChief(legalEntity(p));
+
+//информация о товаре
+CLASS ProduceMNSDetail 'Строка документа выгрузки в МНС (подача сведений о ввозе)';
+TABLE produceMNS (ProductDetail);
+
+produceMNS = DATA ProduceMNS (ProduceMNSDetail) NONULL DELETE INDEXED;
+produceMNSDetail = DATA ProductDetail (ProduceMNSDetail) INDEXED;
+
+index 'Номер строки' = DATA INTEGER (ProduceMNSDetail);
+sku 'Код товара' = DATA Sku (ProduceMNSDetail);
+codeSku 'Код товара' = DATA STRING (ProduceMNSDetail);
+extraCodeSku 'Дополнительный четырехзначный код' = DATA STRING[4] (ProduceMNSDetail);
+gtin 'GTIN' = DATA STRING (ProduceMNSDetail);
+nameSku 'Наименование товара' = DATA STRING (ProduceMNSDetail);
+uomSku 'Единица измерения' = DATA STRING (ProduceMNSDetail);
+quantityUomSku 'Количество товара' = DATA NUMERIC[16,3] (ProduceMNSDetail);
+trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3] (ProduceMNSDetail);
+quantityInvoiceDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA NUMERIC[16,3] (ProduceMNSDetail);
+priceInvoiceDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,2] (ProduceMNSDetail);
+sumInvoiceDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,2] (ProduceMNSDetail);
+
+quantityUomSku0 (ProduceMNSDetail d) = INTEGER((round0(quantityUomSku(d)))) IF NUMERIC[16,3](round0(quantityUomSku(d))) == quantityUomSku(d);
+quantityUomSku1 (ProduceMNSDetail d) = NUMERIC[16,1](round1(quantityUomSku(d))) IF NUMERIC[16,3](round1(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d);
+quantityUomSku2 (ProduceMNSDetail d) = NUMERIC[16,2](round2(quantityUomSku(d))) IF NUMERIC[16,3](round2(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d);
+quantityUomSku3 (ProduceMNSDetail d) = NUMERIC[16,3](round3(quantityUomSku(d))) IF NUMERIC[16,3](round3(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d) AND NOT quantityUomSku2(d);
+
+quantityInvoiceDetail0 (ProduceMNSDetail d) = INTEGER(round0(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round0(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d);
+quantityInvoiceDetail1 (ProduceMNSDetail d) = NUMERIC[16,1](round1(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round1(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d);
+quantityInvoiceDetail2 (ProduceMNSDetail d) = NUMERIC[16,2](round2(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round2(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d);
+quantityInvoiceDetail3 (ProduceMNSDetail d) = NUMERIC[16,3](round3(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round3(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d) AND NOT quantityInvoiceDetail2(d);
+
+//todo информация о СИ
+CLASS ProduceMNSDetailLot 'Строка марки документа выгрузки в МНС';
+
+produceMNSDetail = DATA ProduceMNSDetail (ProduceMNSDetailLot) NONULL DELETE;
+lot = DATA Lot (ProduceMNSDetailLot);
+encodeBase64Code 'Код маркировки единицы товара' = DATA STRING(ProduceMNSDetailLot);
+
+// Ответ
+statusCode 'Статус документа (ответ)' = DATA STRING (ProduceMNS);
+recordId 'Идентификатор записи (ответ)' = DATA INTEGER (ProduceMNS);
+documentReplyDateTime 'Дата и время подтверждения портала о приёме документа (ответ)' = DATA DATETIME (ProduceMNS);
+reply 'XML-документ квитанция подтверждение портала о приёме документа' = DATA STRING (ProduceMNS);
+message 'Текст квитанции' = DATA STRING (ProduceMNS);
+
+resultCode 'Код результата обработки (ответ)' = DATA INTEGER(ProduceMNS);
+resultDescription 'Поясняющий текст к результату обработки (ответ)' = DATA STRING(ProduceMNS);
+SPTInternalDateTime 'Дата и время создания документа в системе прослеживаемости (ответ)' = DATA DATETIME(ProduceMNS);
+
+lastProduceMNS (Order i) = GROUP LAST ProduceMNS d ORDER dateTime(d) BY order(d);
+lastProduceMNSDetail (ProductDetail pd) = GROUP LAST ProduceMNSDetail pmd
+    IF lastProduceMNS(order(pd)) == produceMNS(pmd) AND produceMNSDetail(pmd) == pd ORDER dateTime(produceMNS(pmd)) MATERIALIZED TABLE produceMNS;
+
+GROUP district EXTID 'LetterTraceabilityProduce_v1_f001';
+GROUP district2 EXTID 'LetterTraceabilityProduce_v1_f001A';
+GROUP groupProduceDoc EXTID 'LetterTraceabilityProduce_v1_f002';
+GROUP groupDetail EXTID 'LetterTraceabilityProduce_v1_t001';
+
+FORM originalDocument FORMEXTID '=http://mns/edeclaration/xml/letters/traceabilityproduce/ver1:LetterTraceabilityProduce'
+    PROPERTIES()
+    version ATTR, // required
+        type ATTR, // required
+        kodIMNS ATTR, // required
+        UNP ATTR, // required
+        year ATTR // required
+
+    PROPERTIES = IF rectification() THEN TTRUE ELSE TFALSE EXTID 'rectification' ATTR // required
+
+    OBJECTS p = ProduceMNS EXTID ''
+    PROPERTIES(p) IN district district EXTID 'value' // required
+    PROPERTIES(p) IN district2 district2 EXTID 'value' // required
+
+    PROPERTIES(p) IN groupProduceDoc
+    dateFrom EXTID 'LetterTraceabilityProduce_v1_f002_s1', // required
+        dateTo EXTID 'LetterTraceabilityProduce_v1_f002_s2', // required
+        registerNumber EXTID 'LetterTraceabilityProduce_v1_f002_s3', // required
+        dateTimeSign EXTID 'LetterTraceabilityProduce_v1_f002_s4', // required
+        nameLegalEntity EXTID 'LetterTraceabilityProduce_v1_f002_s5', // required
+        nameShipperChief EXTID 'LetterTraceabilityProduce_v1_f002_s6' // required
+
+    OBJECTS dd = ProduceMNSDetail IN groupDetail EXTID 'LetterTraceabilityProduce_v1_t001_ri'
+    PROPERTIES(dd)
+    index EXTID 'LetterTraceabilityProduce_v1_t001_ric1', // required
+        codeSku EXTID 'LetterTraceabilityProduce_v1_t001_ric2', // required
+        extraCodeSku EXTID 'LetterTraceabilityProduce_v1_t001_ric2a', // required
+        gtin EXTID 'LetterTraceabilityProduce_v1_t001_ric2b', // required
+        nameSku EXTID 'LetterTraceabilityProduce_v1_t001_ric3', // required
+        uomSku EXTID 'LetterTraceabilityProduce_v1_t001_ric4', // required
+        quantityUomSku0 EXTID 'LetterTraceabilityProduce_v1_t001_ric5', // required
+        quantityUomSku1 EXTID 'LetterTraceabilityProduce_v1_t001_ric5', // required
+        quantityUomSku2 EXTID 'LetterTraceabilityProduce_v1_t001_ric5', // required
+        quantityUomSku3 EXTID 'LetterTraceabilityProduce_v1_t001_ric5', // required
+        trackingUOMCustomsGroup EXTID 'LetterTraceabilityProduce_v1_t001_ric6', // required
+        priceInvoiceDetail EXTID 'LetterTraceabilityProduce_v1_t001_ric7', // required
+        sumInvoiceDetail EXTID 'LetterTraceabilityProduce_v1_t001_ric8', // required
+        quantityInvoiceDetail0 EXTID 'LetterTraceabilityProduce_v1_t001_ric9', // required
+        quantityInvoiceDetail1 EXTID 'LetterTraceabilityProduce_v1_t001_ric9', // required
+        quantityInvoiceDetail2 EXTID 'LetterTraceabilityProduce_v1_t001_ric9', // required
+        quantityInvoiceDetail3 EXTID 'LetterTraceabilityProduce_v1_t001_ric9' // required
+
+    FILTERS produceMNS(dd) == p
+
+    OBJECTS l = ProduceMNSDetailLot EXTID 'LetterTraceabilityProduce_v1_t001_ric10'
+    PROPERTIES (l) encodeBase64Code EXTID 'LetterTraceabilityProduce_v1_t001_ric10a' // not required
+    FILTERS produceMNSDetail(l) == dd
+;
+
+exportXMLFile = DATA LOCAL FILE ();
+createdProduceMNS = DATA LOCAL ProduceMNS ();
+countDetail 'Кол-во позиций' (ProduceMNS p) = GROUP SUM 1 IF produceMNS(ProduceMNSDetail dd) == p;
+
+allXMLRequiredFields 'Все обязательные поля' (ProduceMNSDetail pd) =
+    index(pd) AND codeSku(pd) AND extraCodeSku(pd) AND gtin(pd) AND nameSku(pd) AND uomSku(pd) AND quantityUomSku(pd) AND
+        trackingUOMCustomsGroup(pd) AND quantityInvoiceDetail(pd) AND priceInvoiceDetail(pd) AND sumInvoiceDetail(pd);
+
+missedDetailFields (ProduceMNS p) = GROUP MIN TRUE IF produceMNS(ProduceMNSDetail dd) == p AND NOT allXMLRequiredFields(dd);
+
+allXMLRequiredFields 'Все обязательные поля' (ProduceMNS d) = d IS ProduceMNS
+    AND version() AND type() AND kodIMNS() AND UNP() AND year()
+    AND district(d) AND district2(d) AND dateFrom(d) AND dateTo(d) AND registerNumber(d) AND dateTimeSign(d) AND nameLegalEntity(d)
+    AND nameShipperChief(d) AND countDetail(d) AND NOT missedDetailFields(d);
+
+missedFieldsDescription (ProduceMNSDetail pd) =
+    ((CONCAT ' ', '- для позиции документа с', 'номером строки ' + index(pd), 'товар ' + nameSku(pd), 'ш/к ' + idBarcodeSku(produceMNSDetail(pd)),
+        'отсутствует следующая инофрмация: \n') +
+        CONCAT ', ',
+            'номер строки' IF NOT index(pd),
+            'код ТН ВЭД' IF NOT codeSku(pd),
+            'дополнительный четырехзначный код' IF NOT extraCodeSku(pd),
+            'GTIN' IF NOT gtin(pd),
+            'наименование товара' IF NOT nameSku(pd),
+            'единица измерения' IF NOT uomSku(pd),
+            'количество товара' IF NOT quantityUomSku(pd),
+            'единица измерения (электронных накладных)' IF NOT trackingUOMCustomsGroup(pd),
+            'количество товара (ед. изм. в эл. накладных)' IF NOT quantityInvoiceDetail(pd),
+            'учетная цена (ед. изм. в эл. накладных)' IF NOT priceInvoiceDetail(pd),
+            'учетная стоимость товаров' IF NOT sumInvoiceDetail(pd)) IF pd IS ProduceMNSDetail AND NOT allXMLRequiredFields(pd);
+
+missedFieldsDescription (ProduceMNS p) =
+    ((CONCAT ' ', 'Для документа ' + seriesNumber(order(p)), 'от ' + date(order(p)), 'отсутствует следующая информация: \n') +
+        CONCAT '\n ',
+            '- версия' IF NOT version(),
+            '- тип' IF NOT type(),
+            '- код МНС' IF NOT kodIMNS(),
+            '- УНП' IF NOT UNP(),
+            '- год' IF NOT year(),
+            '- наименование района, города, района в городе' IF NOT district(p),
+            '- наименование района' IF NOT district2(p),
+            '- период, за который представляются сведения дата с' IF NOT dateFrom(p),
+            '- период, за который представляются сведения дата по' IF NOT dateTo(p),
+            '- регистрационный номер ' IF NOT registerNumber(p),
+            '- дата представляемых сведений' IF NOT dateTimeSign(p),
+            '- наименование юридического лица или фамилия, имя, отчество индивидуального предпринимателя' IF NOT nameLegalEntity(p),
+            '- руководитель организации или уполномоченное им лицо' IF NOT nameShipperChief(p),
+
+            GROUP CONCAT missedFieldsDescription(ProduceMNSDetail pd) IF produceMNS(pd) == p AND NOT allXMLRequiredFields(pd), '\n' ORDER pd
+
+        ) IF p IS ProduceMNS AND NOT allXMLRequiredFields(p);
+;
+
+createProduceMNS (Order o) {
+    createdProduceMNS() <- NULL;
+
+    NEW doc = ProduceMNS {
+        createdProduceMNS() <- doc;
+        order(doc) <- o;
+
+        dateTime(doc) <- currentDateTime();
+        legalEntity(doc) <- company(o);
+        prevProduceMNS(doc) <- PREV(lastProduceMNS(o));
+        refRecordId (doc) <- recordId(prevProduceMNS(doc));
+
+        district(doc) <- district(legalEntity(doc));
+        district2(doc) <- district(legalEntity(doc));
+        dateFrom(doc) <- toChar(dateTime(o), 'yyyy-MM-dd+03:00');
+        dateTo(doc) <- toChar(dateTime(o), 'yyyy-MM-dd+03:00');
+        registerNumber(doc) <- seriesNumber(order(doc));
+        dateTimeSignOver(doc) <- currentDateTime();
+        dateTimeSign(doc) <- OVERRIDE dateTimeSign(prevProduceMNS(doc)), toChar(dateTimeSignOver(doc), 'yyyy-MM-dd+03:00');
+
+        prevProduceMNS(doc) <- PREV(lastProduceMNS(o));
+        correctionNumber(doc) <- correctionNumber(prevProduceMNS(doc)) (+) 1 IF prevProduceMNS(doc);
+        prevDocNumber(doc) <- OVERRIDE registerNumber(prevProduceMNS(doc)), seriesNumber(o) IF doc IS ProduceMNS;
+
+        // переносим корректируемые документы
+        FOR produceMNS(ProduceMNSDetail d) == prevProduceMNS(doc) DO NEW pd = ProduceMNSDetail {
+            produceMNS(pd) <- doc;
+            produceMNSDetail(pd) <- produceMNSDetail(d);
+            index(pd) <- index(d);
+            sku(pd) <- sku(d);
+            codeSku(pd) <- codeSku(d);
+            extraCodeSku(pd) <- extraCodeSku(d);
+            gtin(pd) <- gtin(d);
+            nameSku(pd) <- name(sku(pd));
+            uomSku(pd) <- trackingUOMCustomsGroup(sku(pd));
+            trackingUOMCustomsGroup(pd) <- trackingUOMCustomsGroup(d);
+            quantityUomSku(pd) <- OVERRIDE round3(quantity(produceMNSDetail(pd))) IF codeSku(pd) == codeCustomsGroupDefaultCountry(sku(pd)) AND extraCodeSku(pd) == id(extraCode(sku(pd))), 0.0;
+            priceInvoiceDetail(pd) <- OVERRIDE round2(costPrice(produceMNSDetail(pd)) / trackingUOMRatio(sku(pd))), 0.0;
+            quantityInvoiceDetail(pd) <- round3(quantityUomSku(pd) * trackingUOMRatio(sku(pd)));
+            sumInvoiceDetail(pd) <- OVERRIDE round2(quantityInvoiceDetail(pd) * priceInvoiceDetail(pd)), 0.0;
+        }
+
+        LOCAL needNewDetail = BOOLEAN (ProductDetail);
+        needNewDetail(ProductDetail d) <- isTrackingOver(sku(d)) AND order(d) == o AND quantity(d) AND
+            (NOT GROUP MIN ProduceMNSDetail dd IF produceMNS(dd) == doc AND produceMNSDetail(dd) == d AND
+                codeSku(dd) == codeCustomsGroupDefaultCountry(sku((dd))) AND extraCodeSku(dd) == id(extraCode(sku(dd))));
+
+        // создаем новые
+        FOR needNewDetail(ProductDetail d) DO NEW nd = ProduceMNSDetail {
+            produceMNS(nd) <- doc;
+            produceMNSDetail(nd) <- d;
+            sku(nd) <- sku(d);
+            codeSku(nd) <- codeCustomsGroupDefaultCountry(sku(d));
+            extraCodeSku(nd) <- id(extraCode(sku(d)));
+            gtin(nd) <- gtin(sku(d));
+            nameSku(nd) <- name(sku(d));
+            uomSku(nd) <- trackingUOMCustomsGroup(sku(d));
+            quantityUomSku(nd) <- OVERRIDE round3(quantity(d)), 0.0;
+            trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(d));
+            priceInvoiceDetail(nd) <- OVERRIDE round2(costPrice(produceMNSDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
+            quantityInvoiceDetail(nd) <- OVERRIDE round3(quantityUomSku(nd) * trackingUOMRatio(sku(nd))), 0.0;
+            sumInvoiceDetail(nd) <- OVERRIDE round2(quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+        }
+
+        index(ProduceMNSDetail d) <- PARTITION SUM 1 ORDER d BY produceMNS(d) WHERE doc == produceMNS(d);
+    }
+}
+
+exportToXML(ProduceMNS doc) {
+    version() <- 1;
+    type() <- 'LETTERTRACEABILITYPRODUCE';
+    rectification() <- TRUE IF prevProduceMNS(doc);
+    kodIMNS() <- codeMNS(legalEntity(doc));
+    UNP() <- UNP(legalEntity(doc));
+    year() <- extractYear(DATE(createdTime(order(doc))));
+
+    EXPORT originalDocument OBJECTS p = doc XML TO exportXMLFile;
+}
+
+// Основной JSON
+originalDocument = DATA LOCAL STRING();
+documentId = DATA LOCAL STRING();
+documentNumber1 = DATA LOCAL STRING();
+VATRegistrationNumber = DATA LOCAL STRING();
+IMNS = DATA LOCAL STRING();
+documentDate = DATA LOCAL STRING ();
+documentName = DATA LOCAL STRING();
+refRecordId = DATA LOCAL INTEGER ();
+correctionDate = DATA LOCAL STRING();
+originalDocumentSign = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL STRING();
+
+documentNumber(ProduceMNSDetail d) = OVERRIDE registerNumber(prevProduceMNS(produceMNS(d))), registerNumber(produceMNS(d));
+
+FORM exportJSON
+    PROPERTIES()
+    originalDocument,
+        documentId EXTID 'DocumentId',
+        documentNumber1 EXTID 'DocumentNumber',
+        VATRegistrationNumber,
+        IMNS,
+        documentDate EXTID 'DocumentDate',
+        documentName EXTID 'DocumentName',
+
+        refRecordId EXTID 'RefRecordId',
+        correctionDate EXTID 'CorrectionDate',
+
+        originalDocumentSign,
+        creationDateTime EXTID 'CreationDateTime'
+
+    OBJECTS d = ProduceMNSDetail EXTID 'Items'
+    PROPERTIES
+    index = STRING (index(d)) EXTID 'lineItemNumber',
+        codeSku(d) EXTID 'itemCustomCode',
+        extraCodeSku(d) EXTID 'itemAdditionalCode',
+        gtin(d) EXTID 'gtinCode',
+        trackingUOMCustomsGroup(d) EXTID 'lineItemQuantitySPT',
+        quantityInvoiceDetail(d) EXTID 'quantityDespatchedSPT',
+        documentNumber(d) EXTID 'documentNumber'
+
+    FILTERS produceMNS(d) == createdProduceMNS()
+    ORDERS index
+;
+
+sign 'Подписать' ABSTRACT LIST (ProduceMNS, STRING, BOOLEAN);
+
+sign(ProduceMNS e, STRING contentSubXML, BOOLEAN interactive) + {
+    IF NOT signatureApp() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
+sendedMNS 'Отправлена в МНС' (Order o) = GROUP MIN TRUE BY order(ProduceMNS p);
+
+exportJSONFile = DATA LOCAL FILE ();
+generateJSON (Order o) {
+    createProduceMNS(o);
+    exportToXML(createdProduceMNS());
+
+    fileToString(exportXMLFile());
+    resultString() <- replace(replace(replace(replace(replace(resultString(),
+        '<LetterTraceabilityProduce_v1_f001>', '<LetterTraceabilityProduce_v1_f001 xmlns="">'),
+        '<LetterTraceabilityProduce_v1_f001A>', '<LetterTraceabilityProduce_v1_f001A xmlns="">'),
+        '<LetterTraceabilityProduce_v1_f002>', '<LetterTraceabilityProduce_v1_f002 xmlns="">'),
+        '<LetterTraceabilityProduce_v1_t001>', '<LetterTraceabilityProduce_v1_t001 xmlns="">'),
+        '<LetterTraceabilityProduce_v1_t001_ric10>', '<LetterTraceabilityProduce_v1_t001_ric10 xmlns="">');
+
+    resultFile() <- NULL;
+
+    originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
+    sign(createdProduceMNS(), originalDocument(), TRUE);
+    originalDocumentSign() <- base64Signature();
+
+    IF NOT originalDocumentSign() THEN RETURN;
+
+    documentId() <- id(createdProduceMNS());
+    documentNumber1() <- OVERRIDE registerNumber(prevProduceMNS(createdProduceMNS())), registerNumber(createdProduceMNS());
+    VATRegistrationNumber() <- UNP(legalEntity(createdProduceMNS()));
+    IMNS() <- codeMNS(legalEntity(createdProduceMNS()));
+    documentDate() <- toChar((OVERRIDE dateTime(prevProduceMNS(createdProduceMNS())), dateTime(createdProduceMNS())), 'YYYYMMDD');
+    documentName() <- 'Сведения о производстве';
+    refRecordId() <- refRecordId(createdProduceMNS());
+    correctionDate() <- toChar(dateTime(createdProduceMNS()), 'YYYYMMDD') IF PREV(sendedMNS(o));
+    creationDateTime() <- toChar(dateTimeSignOver(createdProduceMNS()), 'yyyy-MM-dd HH:mm:ss');;
+
+    IF NOT allXMLRequiredFields(createdProduceMNS()) THEN {
+        MESSAGE missedFieldsDescription(createdProduceMNS()) NOWAIT;
+        RETURN;
+    }
+
+    EXPORT exportJSON JSON TO exportJSONFile;
+}
+
+// Ответ JSON
+GROUP documentReply EXTID 'DocumentReply';
+GROUP result EXTID 'Result';
+
+recordId = DATA LOCAL NUMERIC();
+statusCode = DATA LOCAL STRING();
+documentReplyDateTime = DATA LOCAL DATETIME();
+reply = DATA LOCAL STRING();
+SPTInternalDateTime = DATA LOCAL DATETIME();
+resultDescription = DATA LOCAL STRING();
+resultCode = DATA LOCAL NUMERIC();
+
+FORM responseJSON
+    PROPERTIES() statusCode EXTID 'StatusCode', recordId EXTID 'RecordId'
+    PROPERTIES() IN documentReply documentReplyDateTime EXTID 'DocumentReplyDateTime', reply EXTID 'Reply'
+    PROPERTIES() IN result SPTInternalDateTime, resultCode EXTID 'ResultCode', resultDescription EXTID 'ResultDescription';
+;
+
+isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (ProductDetail);
+dateStartSPT 'Дата начала прослеживания' (ProductDetail d) = dateStartSPT(sku(d));
+isTracking 'Подлежит прослеживанию' (ProductDetail d) = OVERRIDE isTrackingData(d), isTrackingOver(sku(d));
+isTracking 'Подлежит прослеживанию' (Order i) = GROUP SUM 1 IF isTracking(ProductDetail d) AND order(d) == i;
+
+fillTrackingInvoice ABSTRACT LIST (Order);
+
+fillTrackingInvoice(Order o) + {
+    FOR lastProduceMNS(o) == ProduceMNS im AND order(im) = o DO {
+        LOCAL correct = INTEGER (ProductDetail);
+        correct(ProductDetail pid ) <- 1 WHERE order(pid) == o;
+        isTrackingData(ProductDetail pd) <- NULL WHERE correct(pd);
+        FOR produceMNSDetail(ProduceMNSDetail td) == ProductDetail ipd AND produceMNS(td) == im AND order(ipd) == o AND quantityUomSku(td) > 0 DO {
+            isTrackingData(ipd) <- TRUE;
+        }
+    }
+}
+
+sendProduceMNS 'Отправить в МНС' (Order o) {
+    IF NOT isTracking(o) THEN {
+        MESSAGE 'В производственном заказе присутствует товар, не подлежащий прослеживаемости \n' +
+            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(ProductDetail d),
+                'ш/к ' + idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND order(d) == o, '\n' ORDER d) NOWAIT;
+        RETURN;
+    }
+
+    NEWSESSION {
+        generateJSON(o);
+
+        IF NOT exportJSONFile() THEN {
+            MESSAGE 'Заказ не был отправлен' NOWAIT;
+            RETURN;
+        }
+
+        fileToString(exportJSONFile());
+
+        LOCAL response = FILE();
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST mnsService() + '/document/produce' PARAMS exportJSONFile() TO response;
+            fileToString(response());
+            fileToString(response());
+
+            IMPORT responseJSON JSON FROM response();
+
+            IF NOT recordId() THEN {
+                MESSAGE resultDescription();
+                RETURN;
+            }
+
+            recordId(createdProduceMNS()) <- recordId();
+            statusCode(createdProduceMNS()) <- statusCode();
+            documentReplyDateTime(createdProduceMNS()) <- documentReplyDateTime();
+            reply(createdProduceMNS()) <- reply();
+            SPTInternalDateTime(createdProduceMNS()) <- SPTInternalDateTime();
+            resultDescription(createdProduceMNS()) <- resultDescription();
+            resultCode(createdProduceMNS()) <- resultCode();
+            fillTrackingInvoice(o);
+
+            APPLY;
+        } CATCH {
+            fileToString(response());
+            printToLog(CONCAT '||', 'ExportProduceMNS', currentDateTime(), '\n',
+                resultString(), '\n');
+            MESSAGE 'Ошибка отправки: ' + messageCaughtException() NOWAIT;
+        }
+    }
+}
+
+@defineOperationProperty(sendToMNS, 'Отправлять в МНС', showContainer);
+
+showProduceMNS(Order o) = isPosted(o) AND sendToMNS(operation(o)) AND NOT sendedMNS(o);
+
+correctProduceMNS 'Отправить корректировку в МНС' (Order o) {
+    sendProduceMNS(o);
+}
+
+showCorrectingProduceMNS(Order o) = isPosted(o) AND sendToMNS(operation(o)) AND sendedMNS(o);
+
+//tracking
+itemCustomCode 'Код ТНВЭД' (ProductDetail pd) = STRING[10] (codeSku(lastProduceMNSDetail(pd)));
+itemCustomCodeOther 'Дополнительный таможенный код' (ProductDetail pd) = extraCodeSku(lastProduceMNSDetail(pd));
+deliveryTypePrev 'Тип приходного документа' (ProductDetail pd) = 4 IF pd IS ProductDetail;
+deliveryNotePrev 'Номер приходного документа' (ProductDetail pd) = STRING[70] (registerNumber(produceMNS(lastProduceMNSDetail(pd))));
+deliveryNoteDate 'Дата создания приходного документа' (ProductDetail pd) = DATE(dateTimeSign(produceMNS(lastProduceMNSDetail(pd))));
+deliveryNotePrevLineID 'Номер строки в приходном документе' (ProductDetail pd) = index(lastProduceMNSDetail(pd));
+lineItemQuantitySPT 'Единица измерения прослеживаемости' (ProductDetail pd) = trackingUOMCustomsGroup(lastProduceMNSDetail(pd));
+quantityDespatchedSPT 'Количество в единицах прослеживаемости' (ProductDetail pd) = NUMERIC[12,5](quantityInvoiceDetail(lastProduceMNSDetail(pd)));
+lineItemPriceSPT 'Цена за единицу товара для прослеживаемости' (ProductDetail pd) = NUMERIC[12,2](priceInvoiceDetail(lastProduceMNSDetail(pd)));
+
+deliveryTypePrev(OrderOutputDetail batch) += deliveryTypePrev(productDetail(batch));
+deliveryNotePrev(OrderOutputDetail batch) += deliveryNotePrev(productDetail(batch));
+deliveryNoteDate(OrderOutputDetail batch) += deliveryNoteDate(productDetail(batch));
+deliveryNotePrevLineID(OrderOutputDetail batch) += deliveryNotePrevLineID(productDetail(batch));
+
+@defineOperationProperty(showTracking, 'Прослеживаемость', showContainer);
+
+EXTEND FORM order
+    PROPERTIES (pd) isTracking
+
+    OBJECTS d = ProductDetail GRID
+    PROPERTIES (d) SHOWIF isTracking(o) READONLY index, idBarcodeSku, nameSku, isTracking BACKGROUND backgroundEC(extraCode(sku(d))), itemCustomCode, itemCustomCodeOther, dateStartSPT,
+        deliveryTypePrev, deliveryNotePrev, deliveryNoteDate, deliveryNotePrevLineID, lineItemQuantitySPT, quantityDespatchedSPT, lineItemPriceSPT
+    FILTERS order(d) == o, isTracking(d)
+;
+
+DESIGN order {
+    specificationBox {
+        NEW sptContainer {
+            caption = 'Прослеживание';
+            showIf = showTracking(operation(o)) AND isTracking(o);
+            MOVE BOX(d);
+        }
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES (pd) READONLYIF isReadonly() isTracking
+
+    PROPERTIES(o) READONLY sendedMNS
+    PROPERTIES(o) PANEL sendProduceMNS SHOWIF showProduceMNS(o), correctProduceMNS SHOWIF showCorrectingProduceMNS(o)
+
+    OBJECTS pm = ProduceMNS
+    PROPERTIES(pm) READONLY id, dateTime, nameLegalEntity, district, district2, dateFrom, dateTo, registerNumber, dateTimeSign,
+        nameShipperChief, prevDocNumber, refRecordId,
+        //Данные ответа
+        recordId, statusCode, documentReplyDateTime, reply, SPTInternalDateTime, resultDescription, resultCode
+    FILTERS order(pm) == o
+    ORDERS dateTime(pm)
+
+    OBJECTS pmd = ProduceMNSDetail
+    PROPERTIES(pmd) READONLY index, codeSku, extraCodeSku, gtin, nameSku, uomSku,
+        quantityUomSku, trackingUOMCustomsGroup, priceInvoiceDetail, sumInvoiceDetail, quantityInvoiceDetail
+    FILTERS produceMNS(pmd) == pm
+;
+
+DESIGN orders {
+    documentDetail {
+        NEW MNS {
+            caption = 'Отправка в МНС';
+            showIf = sendToMNS(operation(o));
+            horizontal = TRUE;
+            MOVE BOX(pm);
+            NEW produceMNSDetail {
+                fill = 1;
+                MOVE BOX(pmd);
+            }
+            TOOLBARRIGHT(o) {
+                MOVE PROPERTY(correctProduceMNS(o)) FIRST;
+                MOVE PROPERTY(sendProduceMNS(o)) FIRST;
+            }
+        }
+    }
+}
