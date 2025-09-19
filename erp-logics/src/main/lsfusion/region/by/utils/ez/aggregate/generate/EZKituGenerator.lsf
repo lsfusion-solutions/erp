@@ -123,7 +123,10 @@ itemListName 'Товар' () = GROUP CONCAT name(Item item) IF in(item), '; ' OR
 purchaseInvoiceDetail = DATA LOCAL Purchase.InvoiceDetail ();
 dataPurchaseInvoice = DATA LOCAL Purchase.Invoice ();
 purchaseInvoice () = OVERRIDE dataPurchaseInvoice(), Purchase.invoice(purchaseInvoiceDetail()); 
-seriesNumberPurchaseInvoice 'Основание Накладная(закупка)' () = seriesNumber(purchaseInvoice()) + '(' + index(purchaseInvoiceDetail()) + '|' + nameSku(purchaseInvoiceDetail()) + ')';
+seriesNumberPurchaseInvoice 'Основание Накладная(закупка)' () = 
+    CONCAT ',', seriesNumber(purchaseInvoice()), '№ строки.:' + 
+        index(purchaseInvoiceDetail()), 
+        'товар: ' + nameSku(purchaseInvoiceDetail());
 
 serialPackageNumber 'Серийный или поорядковый номер упаковки' = DATA LOCAL STRING[31](INTEGER) CHARWIDTH 10;
 
@@ -243,6 +246,14 @@ changeItems() {
     }
 }
 
+in 'Отм.' = DATA LOCAL BOOLEAN (Purchase.InvoiceDetail);
+changeIn(Purchase.InvoiceDetail d) {
+    INPUT in = BOOLEAN  DO {
+        in(Purchase.InvoiceDetail dd) <- NULL;
+        in(d) <- in;
+    }
+}
+
 FORM invoiceDetailsDialog 'Выбор позиции накладной'
 
     PROPERTIES() filterInvoiceDateFrom, filterInvoiceDateTo, nameFilterInvoiceSupplier, nameFilterInvoiceSupplierStock,
@@ -263,6 +274,7 @@ FORM invoiceDetailsDialog 'Выбор позиции накладной'
         postedNameUser, postedTime, postedHostnameComputer 
 
     OBJECTS d = Purchase.InvoiceDetail
+    PROPERTIES (d) in ON CHANGE changeIn(d)
     PROPERTIES (d) READONLY index
     PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku
     PROPERTIES (d) READONLY BACKGROUND backgroundId(d) idSku SHOWIF showIDs()
@@ -368,15 +380,39 @@ DESIGN invoiceDetailsDialog 'Выбор позиции накладной (за�
     }
 }
 
+filterInvoiceOperation  = DATA LOCAL NESTED Purchase.Operation ();
+nameFilterInvoiceOperation 'Операция' = name(filterInvoiceOperation()) CHARWIDTH 15;          
+filterOperation (Purchase.Invoice i) = operation(i) == filterInvoiceOperation() OR (i IS Purchase.Invoice AND NOT filterInvoiceOperation());   
+
+
+EXTEND FORM invoiceDetailsDialog
+    PROPERTIES() nameFilterInvoiceOperation
+    
+    FILTERS filterOperation(i)
+;
+DESIGN invoiceDetailsDialog {
+    topFilters1 {
+        MOVE PROPERTY(nameFilterInvoiceOperation()) BEFORE PROPERTY(nameFilterInvoiceCustomUser()) { fill = 1; };
+    }
+}
+
+invoiceDetailCountIn() = GROUP SUM 1 IF in(Purchase.InvoiceDetail d);
+
+selectedPurchaseInvoiceDetail () = GROUP MIN Purchase.InvoiceDetail d IF in(d);
+    
 changePurchaseInvoice() {
     DIALOG invoiceDetailsDialog OBJECTS d INPUT NULL DO {
-        IF NOT purchaseInvoiceDetail() == d THEN {
+        IF NOT invoiceDetailCountIn() THEN {
+            in(d) <- TRUE;
+        }
+             
+        IF NOT purchaseInvoiceDetail() == selectedPurchaseInvoiceDetail() THEN {
             in(Item item) <- NULL;
 
-            itemLotType() <- lotType(sku(d));
-            in(Item item) <- TRUE WHERE item = sku(d);
-            purchaseInvoiceDetail() <- d;
-            purchaseInvoice() <- Purchase.invoice(d);
+            itemLotType() <- lotType(sku(selectedPurchaseInvoiceDetail()));
+            in(Item item) <- TRUE WHERE item = sku(selectedPurchaseInvoiceDetail());
+            purchaseInvoiceDetail() <- selectedPurchaseInvoiceDetail();
+            purchaseInvoice() <- Purchase.invoice(selectedPurchaseInvoiceDetail());
             kituStock() <- customerStock(purchaseInvoice());
         }
 
