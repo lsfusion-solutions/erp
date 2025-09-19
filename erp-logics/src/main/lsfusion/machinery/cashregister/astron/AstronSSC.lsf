@@ -111,8 +111,12 @@ overAstronInfo1(MachineryPriceTransaction mpt, Barcode b) +=
     )
 ;
 
+skipLoadImages 'Не выыгружать изображдения' = DATA BOOLEAN (CashRegisterModel);
+EXTEND FORM cashRegisterModel
+    PROPERTIES (c) SHOWIF sid(c) LIKE 'Astron%' skipLoadImages;
+
 beforeCreateAstronPriceTransaction(MachineryPriceTransaction mpt) + {
-    IF dataCustomGroupTypeAstron(groupMachinery(mpt)) THEN {
+    IF dataCustomGroupTypeAstron(groupMachinery(mpt)) AND NOT skipLoadImages(model(groupMachinery(mpt)))THEN {
 
         LOCAL needResize = BOOLEAN(Barcode);
         needResize(Barcode b) <- TRUE IF GROUP SUM 1 IF in(mpt, b) AND customGroup(dataCustomGroupTypeAstron(groupMachinery(mpt)), sku(b))
