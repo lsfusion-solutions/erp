@@ -45,6 +45,10 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
     nearestInCompany(employee, stockGroup(stock)),
     dataAccessCompany(employee) AND isCompany(stock),
     employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
+
+CONSTRAINT SET(accessCompany(Employee e, Stock st)) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e)
+    MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';
+
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (Employee employee) =
     GROUP
           SUM 1 IF accessCompany(employee, Stock stock) AND active(stock);
