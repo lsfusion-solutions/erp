@@ -99,7 +99,7 @@ function barcodeRender() {
         },
 
         update: function (element, controller) {
-            if(!zxing){ 
+            if(!zxing){
                 ZXing().then(function(value) {
                     zxing = value;
                 });
