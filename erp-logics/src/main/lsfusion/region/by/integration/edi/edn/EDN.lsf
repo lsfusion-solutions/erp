@@ -26,9 +26,6 @@ document = DATA LOCAL RAWFILE();
 FORM edocument
     PROPERTIES() document;
 
-//-----------------------------------------------------------Docudrive------------------------------------------------//
-useDocuDrive 'Использовать DocuDrive' = DATA BOOLEAN();
-
 legalEntityLogin(STRING login) = GROUP MIN LegalEntity l BY loginEDN(l);
 beforeOverReceiveMessages(INTEGER i, STRING[100] login, STRING[100] archiveDir) + {
     IF extractEDN(legalEntityLogin(login)) AND NOT skipUnzip(legalEntityLogin(login)) THEN {
@@ -95,102 +92,6 @@ receiveMessagesEDN () {
         }
     }
 }
-
-exportDirectoryDocuDrive 'Каталог выгрузки для DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
-importDirectoryDocuDrive 'Каталог загрузки от DocuDrive (c /)' = DATA STRING[255]() CHARWIDTH 50;
-
-overReceiveMessagesDocuDrive ABSTRACT LIST (INTEGER, STRING[255], STRING[255], STRING[100], BOOLEAN, STRING[100]);
-
-getFileName(TEXT txt) = getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/'));
-getDocumentType(TEXT txt) = getWord(getWord(getWord(txt, '\\', wordCount(txt, '\\')), '/', wordCount(txt, '/')), '_', 1);
-
-receiveMessagesDocuDrive (STRING[255] importDir, STRING[255] exportDir, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
-    TRY {
-        IF importDir THEN {
-            IF exportDir THEN {
-                listFiles(importDir, TRUE);
-
-                fillStartParams();
-
-                logToFile('edi', provider + ' ReceiveMessages count: ' + (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml'));
-
-                FOR STRING[255] fileName = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND lower(right(fileName, 4)) = '.xml'
-                    ORDER getWord(fileName, '_', 2), fileName, i DO {
-                    LOCAL file = XMLFILE();
-                    READ 'file://' + importDir + fileName TO file;
-                    data(i) <- file();
-                    documentType(i) <- getDocumentType(fileName);
-                    id(i) <- getFileName(fileName);
-                    IF archiveDir THEN {
-                        TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd')); }
-                        WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(), 'yyyyMMdd') + '/' + id(i);
-                    }
-                    overReceiveMessagesDocuDrive(i, importDir, exportDir, archiveDir, disableConfirmation, provider);
-                }
-
-                fillEndParams();
-                IF NOT (GROUP SUM 1 IF fileName(INTEGER j) AND NOT fileIsDirectory(j) AND lower(right(fileName(j), 4)) = '.xml') THEN {
-                    MESSAGE (OVERRIDE textMessage(), 'Не найдено новых сообщений') NOWAIT;
-                }
-            } ELSE {
-                logToFile('edi', provider + ' ReceiveMessages: не задан каталог выгрузки сообщений для DocuDrive');
-                MESSAGE provider + ' Сообщения не получены: не задан каталог выгрузки сообщений для DocuDrive' NOWAIT;
-            }
-        } ELSE {
-            logToFile('edi', provider + ' ReceiveMessages: не задан каталог загрузки сообщений от DocuDrive');
-            MESSAGE provider + ' Сообщения не получены: не задан каталог загрузки сообщений от DocuDrive' NOWAIT;
-        }
-    } CATCH {
-        logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException() IF enableJavaStackEDN(), lsfStackTraceCaughtException());
-        MESSAGE 'Сообщения не получены. Обратитесь к администратору' NOWAIT;
-    }
-}
-
-lockedDocuDrive = DATA User ();
-lockResultDocuDrive = DATA LOCAL NESTED BOOLEAN ();
-
-lockDocuDrive() {
-    NEWSESSION {
-        lockResultDocuDrive() <- NULL;
-        APPLY SERIALIZABLE {
-            IF lockedDocuDrive() THEN {
-                cancel();
-            } ELSE {
-                lockedDocuDrive() <- currentUser();
-                lockResultDocuDrive() <- TRUE;
-            }
-        }
-    }
-}
-
-unlockDocuDrive() {
-    NEWSESSION {
-        APPLY lockedDocuDrive() <- NULL;
-    }
-}
-
-onStarted() + {
-    NEWSESSION {
-        lockedDocuDrive() <- NULL WHERE lockedDocuDrive();
-        APPLY;
-    }
-}
-
-receiveMessagesDocuDrive () {
-    NEWSESSION {
-        lockDocuDrive();
-        IF lockResultDocuDrive() THEN {
-            TRY {
-                receiveMessagesDocuDrive(importDirectoryDocuDrive(), exportDirectoryDocuDrive(), archiveDirEDN(), disableConfirmationEDN(), 'EDN');
-            } FINALLY {
-                unlockDocuDrive();
-            }
-        } ELSE {
-            MESSAGE 'Уже выполняется получение сообщений DocuDrive. Подождите...' NOWAIT;
-        }
-    }
-}
-//-----------------------------------------------------------Docudrive------------------------------------------------//
 
 //-----------------------------------------------------------REST API-------------------------------------------------//
 useDocuway 'Не использовать формат СТТ для заказов' = DATA BOOLEAN();
@@ -348,7 +249,6 @@ receiveEDN 'Получить сообщения' () {
             skipImportOrders() <- TRUE;
         }
         receiveMessagesEDN();
-        IF useDocuDrive() THEN {receiveMessagesDocuDrive();}
     }
 }
 

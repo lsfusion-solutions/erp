@@ -5,7 +5,12 @@ REQUIRE EInvoice, EDS, XMLUtils;
 NAMESPACE EDI;
 
 importedCustomer 'Импортирован (покупатель)' = DATA BOOLEAN (EInvoice);
+imported2560Customer 'Получено подтверждение об отправке накладной (2560)' (EInvoice ei)= 
+    TRUE IF GROUP SUM 1 IF eInvoice(EInvoiceMessage m) == ei AND isSupplier(m) AND code(m) == '2560';
 exportedBlrapnCustomer 'Экспортировано извещение о прочтении (покупатель)' = DATA BOOLEAN (EInvoice);
+//такое же извещение получает поставщик на свое подтвержлдение, по хорошему нужно смотреть на родительский APN чтобы понимать к какому относится, ссылка пока не обрабатывается
+imported2551Customer 'Получено подтверждение о получении извещения (2551)' (EInvoice ei)=
+    TRUE IF GROUP SUM 1 IF eInvoice(EInvoiceMessage m) == ei AND type(m) == EInvoiceMessageType.blrapn_blrapn AND code(m) == '2551';
 exportedCustomer 'Экспортирован (покупатель)' = DATA BOOLEAN (EInvoice);
 exportedNoticeCustomer 'Экспортировано уведомление об изменении (покупатель)' = DATA BOOLEAN (EInvoice);
 
@@ -19,10 +24,15 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN
-                signAndSendBlrapnCustomer(i);
-            ELSE
+            IF EDIProviderInvoice(signSupplier(i), customer(i)) THEN {
+                IF imported2560Customer(i) THEN {
+                    signAndSendBlrapnCustomer(i);
+                } ELSE {
+                    MESSAGE 'Не получено подтверждение об отправке накладной (2560): ' + deliveryNoteNumber(i);
+                }
+            } ELSE {
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+            }
         } ELSE
             MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
         in(i) <- NULL;
@@ -31,6 +41,7 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
         MESSAGE 'Не выбрано ни одной накладной';
 }
 
+skipCheck2551 = ABSTRACT BOOLEAN (EInvoice); //у кого уже сделано отправка извещения и подпаисание вместе не проверяем
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST ( EInvoice);
 signAndSendCustomerEDI 'Подписать и отправить (покупатель)'() {
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
@@ -38,10 +49,15 @@ signAndSendCustomerEDI 'Подписать и отправить (покупат
     }
     FOR in(EInvoice i) DO {
         IF isEDI(i) THEN {
-            IF EDIProviderInvoice(signSupplier(i),customer(i)) THEN
-                signAndSendCustomer(i);
-            ELSE
+            IF EDIProviderInvoice(signSupplier(i),customer(i)) THEN {
+                IF exportedBlrapnCustomer(i) AND imported2551Customer(i) OR skipCheck2551(i) THEN {
+                    signAndSendCustomer(i);
+                } ELSE {
+                    MESSAGE 'Не получено подтверждение о получении извещения (2551): ' + deliveryNoteNumber(i);
+                }
+            } ELSE {
                 MESSAGE 'Не выбран EDI провайдер для накладной: ' + deliveryNoteNumber(i);
+            }
         } ELSE
             MESSAGE 'Запрещен обмен через провайдера для не EDI накладной: ' + deliveryNoteNumber(i);
         in(i) <- NULL;
@@ -815,4 +831,75 @@ FORM exportBlradf FORMEXTID 'BLRADF'
         totalSumReceived(ecnt) EXTID 'TotalAmountReceivedWithoutCharges',
         totalVATSumReceived(ecnt) EXTID 'TotalLineItemAmountChargesReceived',
         totalInvoiceSumReceived(ecnt) EXTID 'TotalAmountReceived'
+;
+
+GROUP actDif EXTID 'Actdif';
+blradfMsgDateTime = DATA LOCAL NESTED DATETIME();
+blradfID = DATA LOCAL NESTED STRING[35]();
+blradfFunctionCode = DATA LOCAL NESTED STRING[3]();
+blradfActDifNumber = DATA LOCAL NESTED STRING[35]();
+GROUP blradfReferenceDocument EXTID 'ReferenceDocument' : actDif;
+blradfDeliveryNoteType = DATA LOCAL NESTED NUMERIC[3,0]();
+blradfDeliveryNoteNumber = DATA LOCAL NESTED STRING[70]();
+blradfDeliveryNoteDate = DATA LOCAL NESTED DATE();
+GROUP blradfShipper EXTID 'Shipper' : actDif;
+blradfSupplierGLN = DATA LOCAL NESTED STRING[13]();
+GROUP blradfReceiver EXTID 'Receiver' : actDif;
+blradfCustomerGLN = DATA LOCAL NESTED STRING[13]();
+GROUP blradfShipTo EXTID 'ShipTo' : actDif;
+blradfCustomerStockGLN = DATA LOCAL NESTED STRING[13]();
+GROUP actDifLineItemActDif EXTID 'ActDifLineItem' : actDif;
+blradfLineItemNumber = DATA LOCAL NESTED INTEGER(INTEGER);
+blradfLineItemID = DATA LOCAL NESTED STRING[14](INTEGER);
+blradfLineItemBuyerID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemSupplierID = DATA LOCAL NESTED STRING[35](INTEGER);
+blradfLineItemName = DATA LOCAL NESTED STRING[500](INTEGER);
+blradfQuantityOrdered = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfQuantityReceived = DATA LOCAL NESTED NUMERIC[16,5](INTEGER);
+blradfValueVAT = DATA LOCAL NESTED STRING[7](INTEGER);
+blradfLineItemPrice = DATA LOCAL NESTED NUMERIC[16,4](INTEGER);
+blradfAmountOrdered = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+blradfAmountReceived = DATA LOCAL NESTED NUMERIC[18,4](INTEGER);
+blradfAdditionalInformation = DATA LOCAL NESTED STRING[512](INTEGER);
+
+FORM blradf
+    PROPERTIES IN messageHeader
+    blradfMsgDateTime() EXTID 'MsgDateTime',
+        blradfMsgSenderID() EXTID 'MsgSenderID',
+        blradfMsgReceiverID() EXTID 'MsgReceiverID'
+    PROPERTIES IN securityBuyer
+    blradfSecurityID() EXTID 'SecurityID',
+        blradfCertificateID() EXTID 'CertificateID',
+        blradfSecurityPartyID() EXTID 'SecurityPartyID',
+        blradfCreationSignatureDate() EXTID 'CreationSignatureDate',
+        blradfCreationSignatureTime() EXTID 'CreationSignatureTime',
+        blradfSignatureValue() EXTID 'SignatureValue'
+    PROPERTIES IN actDif
+    blradfID() EXTID 'ID',
+        blradfCreationDateTime() EXTID 'CreationDateTime',
+        blradfFunctionCode() EXTID 'FunctionCode',
+        blradfActDifNumber() EXTID 'ActDifNumber',
+        blradfDate() EXTID 'ActDifDate'
+    PROPERTIES IN blradfReferenceDocument
+    blradfDeliveryNoteNumber() EXTID 'ID'
+    PROPERTIES IN blradfShipper
+    blradfSupplierGLN() EXTID 'GLN'
+    PROPERTIES IN blradfReceiver
+    blradfCustomerGLN() EXTID 'GLN'
+    PROPERTIES IN blradfShipTo
+    blradfCustomerStockGLN() EXTID 'GLN'
+
+    OBJECTS i = INTEGER EXTID 'LineItem' IN actDifLineItemActDif
+    PROPERTIES(i) blradfLineItemNumber EXTID 'LineItemNumber',
+        blradfLineItemID EXTID 'LineItemID',
+        blradfLineItemBuyerID EXTID 'LineItemBuyerID',
+        blradfLineItemSupplierID EXTID 'LineItemSupplierID',
+        blradfLineItemName EXTID 'LineItemName',
+        blradfQuantityOrdered EXTID 'QuantityOrdered',
+        blradfQuantityReceived EXTID 'QuantityReceived',
+        blradfValueVAT EXTID 'TaxRate',
+        blradfLineItemPrice EXTID 'LineItemPrice',
+        blradfAmountOrdered EXTID 'AmountOrdered',
+        blradfAmountReceived EXTID 'AmountReceived',
+        blradfAdditionalInformation EXTID 'AdditionalInformation'
 ;

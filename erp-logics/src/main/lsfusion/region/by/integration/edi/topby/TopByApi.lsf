@@ -201,14 +201,32 @@ FORM envelope
 //----------- systemmessage -----------//
 overReceiveSystemMessage ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
-    logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
+    IF documentType() == 'SYSTEMMESSAGE' THEN { //системное сообщение на системное сообщение пока игнорируем.
+        logToFile('edi', provider + ' (' + login + ') System Message ' + id(i) + ' skipped for documentType ' + documentType());
+        IF NOT disableConfirmation THEN {
+            LOCAL xml = XMLFILE();
+            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+            sendRequestEDI(url, xml());
+            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+            IF requestError() THEN {
+                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                MESSAGE provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+            }
+            messagesConfirmed() <- messagesConfirmed() + 1;
+        }
+    } ELSE {
+        logToFile('edi', provider + ' (' + login + ') System Message ' + id(i) + ' warning: unsupported documentType ' + (OVERRIDE documentType(), 'NULL'));
+    }
 }
 
 overImportSystemmessage ABSTRACT ();
 skipSystemmessage = DATA LOCAL NESTED BOOLEAN();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
-    IF lower(documentType(i)) == 'systemmessage' THEN {
+    IF lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak' THEN {
         TRY {
             IMPORT systemMessage XML FROM data(i);
             skipSystemmessage() <- NULL;
@@ -229,6 +247,20 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
 overReceiveBlrapn ABSTRACT LIST FIRST(INTEGER, STRING[100], STRING[100], TEXT, STRING[100], BOOLEAN, STRING[100] );
 overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     logToFile('edi', provider + ' (' + login + ') Parse System Message ' + id(i) + ' warning: unsupported Reference documentType ' + (OVERRIDE blrapnReferenceDocumentType(), 'NULL'));
+    IF NOT disableConfirmation THEN {
+        LOCAL xml = XMLFILE();
+        EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+        sendRequestEDI(url, xml());
+        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived unsupported document ' + id(i) + ': request sent');
+        importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+        IF requestError() THEN {
+            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived unsupported document ' + id(i) + ': ' + requestError());
+        } ELSE {
+            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived unsupported document ' + id(i) + ': request succeeded');
+        }
+        messagesConfirmed() <- messagesConfirmed() + 1;
+    
+    }
 }
 
 disableAutoBlrapn 'Отключить автоматическую отправку извещений о прочтении' = DATA BOOLEAN () PREREAD;

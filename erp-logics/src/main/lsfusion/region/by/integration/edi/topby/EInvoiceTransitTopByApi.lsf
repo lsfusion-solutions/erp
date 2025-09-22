@@ -20,7 +20,7 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
                     code(m) <- blrapnCode();
                     description(m) <- OVERRIDE blrapnDescription(), description(blrapnCode());
                     type(m) <- EInvoiceMessageType.blrapn_blrspt;
-                    overReceiveBlrapn(m);
+                    overReceiveBlrapn(m, login, password, url, archiveDir, provider);
                     XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     APPLY NESTED LOCAL;
                     IF canceled() THEN {
@@ -73,67 +73,19 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
 
 overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType() == 'BLRSPT' THEN {
-        LOCAL eInvoice = EInvoice();
-        eInvoice() <- eInvoiceM(documentNumber());
-        IF eInvoice() THEN {
-            NEWSESSION NESTED LOCAL {
-                IF NOT eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) THEN NEW m = EInvoiceMessage {
-                    number(m) <- 'm' + messageDocumentNumber();
-                    eInvoice(m) <- eInvoice();
-                    kind(m) <- EInvoiceMessageKind.in;
-                }
-                FOR EInvoiceMessage m == eInvoiceMessage(eInvoice(), 'm' + messageDocumentNumber(), EInvoiceMessageKind.in) DO {
-                    dateTime(m) <- messageDocumentDate();
-                    code(m) <- code();
-                    description(m) <- OVERRIDE description(), description(code());
-                    type(m) <- EInvoiceMessageType.systemmessage_blrspt;
-                    overReceiveSystemMessage(m);
-                    XMLPath(m) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
-                    APPLY NESTED LOCAL;
-                    IF canceled() THEN {
-                        
-                        logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + applyMessage());
-                        invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
-                    } ELSE {
-                        IF NOT disableConfirmation THEN {
-                            LOCAL xml = XMLFILE();
-                            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                            sendRequestEDI(url, xml());
-                            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                            IF requestError() THEN {
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                                MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                            } ELSE {
-                                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                            }
-                        }
-                        logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' succeeded');
-                        invoiceMessagesSucceeded() <- invoiceMessagesSucceeded() + 1;
-                    }
-                }
-            }
-        } ELSE {
-            IF confirmNotFoundInvoices() THEN {
-                IF NOT disableConfirmation THEN {
-                    LOCAL xml = XMLFILE();
-                    EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
-                    sendRequestEDI(url, xml());
-                    logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
-                    importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
-                    IF requestError() THEN {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
-                        MESSAGE  provider + ' (' + login + ') Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
-                    } ELSE {
-                        logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
-                    }
-                    messagesConfirmed() <- messagesConfirmed() + 1;
-                }
+        logToFile('edi', provider + ' (' + login + ') System Message Message ' + id(i) + ' skipped for documentType ' + documentType());
+        IF NOT disableConfirmation THEN {
+            LOCAL xml = XMLFILE();
+            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO xml;
+            sendRequestEDI(url, xml());
+            logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request sent');
+            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+            IF requestError() THEN {
+                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
             } ELSE {
-                
+                logToFile('edi', provider + ' (' + login + ') ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
             }
-            logToFile('edi', provider + ' (' + login + ') Import EInvoiceMessage ' + id(i) + ' failed: ' + 'EInvoice ' + (OVERRIDE documentNumber(), 'NULL') + ' not found');
-            invoiceMessagesFailed() <- invoiceMessagesFailed() + 1;
+            messagesConfirmed() <- messagesConfirmed() + 1;
         }
         RETURN;
     }

@@ -21,10 +21,8 @@ signAndSendBlrapnSupplier(EInvoice e) + {
         newNS() <- TRUE;
         IF exportedBlrapnSupplier(e) THEN 
             MESSAGE 'Извещение о прочтении (поставщик) уже отправлено';
-        ELSE IF isTN2(e) THEN {
-            signAndSendBlrapnSupplierEInvoiceTN2(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), outputDirTopBy(), overInvoiceOutputDirTopBy(e), 'TopBy');
-        } ELSE {
-            signAndSendBlrapnSupplierEInvoice(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), outputDirTopBy(), overInvoiceOutputDirTopBy(e), 'TopBy');
+        ELSE {
+            signAndSendBlrapnSupplierEInvoice(e, loginTopBy(supplier(e)), passwordTopBy(supplier(e)), ('http://' + hostTopBy(supplier(e)) +':' + portTopBy(supplier(e)) + '/DmcService'), (OVERRIDE overInvoiceOutputDirTopBy(e), outputDirTopBy()), 'TopBy', TRUE);
         }
     }
 }
@@ -34,7 +32,8 @@ signAndSendSupplier(ECreditNote c) + {
     IF EDIProvider(customer(c)) == EDIProvider.topBy THEN {
         newNS() <- TRUE;
         IF exportedSupplier(c) THEN MESSAGE 'Акт приемки (поставщик) уже отправлен';
-        ELSE signAndSendSupplierECreditNote(c,loginTopBy(supplier(c)), passwordTopBy(supplier(c)), ('http://' + hostTopBy(supplier(c)) +':' + portTopBy(supplier(c)) + '/DmcService'), outputDirTopBy(), 'TopBy');
+        ELSE MESSAGE 'Отправка ответа на акт приемки не поддерживается'; 
+            //signAndSendSupplierECreditNote(c,loginTopBy(supplier(c)), passwordTopBy(supplier(c)), ('http://' + hostTopBy(supplier(c)) +':' + portTopBy(supplier(c)) + '/DmcService'), outputDirTopBy(), 'TopBy');
     }
 }
 
