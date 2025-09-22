@@ -46,8 +46,10 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
     dataAccessCompany(employee) AND isCompany(stock),
     employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
 
-CONSTRAINT SET(accessCompany(Employee e, Stock st)) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e)
-    MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';
+WHEN LOCAL FORMS employee SET(accessCompany(Employee e, Stock st) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e)) DO {
+    MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';    
+    CANCEL; 
+}
 
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (Employee employee) =
     GROUP
