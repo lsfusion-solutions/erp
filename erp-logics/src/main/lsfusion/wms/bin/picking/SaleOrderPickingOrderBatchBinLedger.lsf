@@ -22,17 +22,17 @@ overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
             LOCAL NESTED countPickingOrders = INTEGER ();
             LOCAL NESTED countPickingOrder = INTEGER (INTEGER);
             LOCAL NESTED message = STRING ();
-            LOCAL quantityLoc = NUMERIC[16,5](Batch);
+            LOCAL quantityLoc = NUMERIC[16,5](Batch, Order);
 
-            quantityLoc(Batch bt) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
+            quantityLoc(Batch bt, order) <- diffPlannedPickingQuantity(order, bt) WHERE diffPlannedPickingQuantity(order, bt)>0;
             plannedPickingQuantity(order, Batch bt, Bin bin) <- 
-                PARTITION UNGROUP quantityLoc[Batch] LIMIT availableQuantity(bt, bin) IF availableQuantity(bt, bin)>0 ORDER canonicalId(bin), bin BY bt
+                PARTITION UNGROUP quantityLoc[Batch, Order] LIMIT availableQuantity(bt, bin) IF picking(bin) AND availableQuantity(bt, bin)>0 ORDER canonicalId(bin), bin BY bt, order
                 WHERE picking(bin) AND availableQuantity(bt, bin)>0;
             countPickingOrder(INTEGER pickingGroup) <- (GROUP MAX pickingOrderNumber(order, Batch batch, Bin bin, pickingGroup));
             countPickingOrders() <- (GROUP SUM (countPickingOrder(INTEGER pickingGroup)(+)1) IF plannedPickingQuantityBatch(order, pickingGroup)); //Добавляем 1, т.к. нумерация идёт с 0
             
             CASE 
-                WHEN NOT (GROUP SUM quantityLoc(Batch bt)) THEN {
+                WHEN NOT (GROUP SUM quantityLoc(Batch bt, order)) THEN {
                     message() <- 'Нечего отправлять в комплектацию';
                 }
                 WHEN countPickingOrders() THEN {

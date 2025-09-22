@@ -197,17 +197,17 @@ overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
             LOCAL NESTED countPickingOrders = INTEGER ();
             LOCAL NESTED countPickingOrder = INTEGER (INTEGER);
             LOCAL NESTED message = STRING ();
-            LOCAL quantityLoc = NUMERIC[16,5](Sku);
+            LOCAL quantityLoc = NUMERIC[16,5](Sku, Order);
 
-            quantityLoc(Sku sku) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
+            quantityLoc(Sku sku, order) <- diffPlannedPickingQuantity(order, sku) WHERE diffPlannedPickingQuantity(order, sku) > 0;
             plannedPickingQuantity(order, Sku sku, Bin bin) <- 
-                PARTITION UNGROUP quantityLoc[Sku] LIMIT availableQuantity(sku, bin) IF availableQuantity(sku, bin)>0 ORDER canonicalId(bin), bin BY sku
+                PARTITION UNGROUP quantityLoc[Sku, Order] LIMIT availableQuantity(sku, bin) IF picking(bin) AND availableQuantity(sku, bin)>0 ORDER canonicalId(bin), bin BY sku, order
                 WHERE picking(bin) AND availableQuantity(sku, bin)>0;
             countPickingOrder(INTEGER pickingGroup) <- (GROUP MAX pickingOrderNumber(order, Sku sku, Bin bin, pickingGroup));
             countPickingOrders() <- (GROUP SUM (countPickingOrder(INTEGER pickingGroup)(+)1) IF plannedPickingQuantity(order, pickingGroup)); //Добавляем 1, т.к. нумерация идёт с 0
 
             CASE
-                WHEN NOT (GROUP SUM quantityLoc(Sku sku)) THEN {
+                WHEN NOT (GROUP SUM quantityLoc(Sku sku, order)) THEN {
                     message() <- 'Нечего отправлять в комплектацию';
                 }
                 WHEN countPickingOrders() THEN {
@@ -246,6 +246,7 @@ showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF d
 
 EXTEND FORM orders 
     PROPERTIES(o) createUserPickingOrder SHOWIF showCreateUserPickingOrder(o) HEADER headerCreateUserPickingOrder(o)
+    PROPERTIES a=(GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait)
 ;
 
 @defineOrderInvoicePickingOrder (' (продажа)');
