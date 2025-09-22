@@ -45,16 +45,16 @@ gtin 'GTIN' = DATA STRING(StocktakeDetail);
 nameSku 'Наименование товара' = DATA STRING(StocktakeDetail);
 sidOrigin2Country 'Код страны' = DATA STRING(StocktakeDetail);
 uomSku 'Единица измерения' = DATA STRING(StocktakeDetail);
-quantityUomSku 'Количество товара' =  DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (StocktakeDetail);
+quantityUomSku 'Количество товара' =  DATA NUMERIC[16,3] (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4] (StocktakeDetail);
 quantityUomSku0(StocktakeDetail d) = INTEGER((round0(quantityUomSku(d)))) IF NUMERIC[16,3](round0(quantityUomSku(d))) == quantityUomSku(d);
 quantityUomSku1(StocktakeDetail d) = NUMERIC[16,1](round1(quantityUomSku(d))) IF NUMERIC[16,3](round1(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d);
 quantityUomSku2(StocktakeDetail d) = NUMERIC[16,2](round2(quantityUomSku(d))) IF NUMERIC[16,3](round2(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d);
 quantityUomSku3(StocktakeDetail d) = NUMERIC[16,3](round3(quantityUomSku(d))) IF NUMERIC[16,3](round3(quantityUomSku(d))) == quantityUomSku(d) AND NOT quantityUomSku0(d) AND NOT quantityUomSku1(d) AND NOT quantityUomSku2(d);
 
 trackingUOMCustomsGroup 'Единица измерения (электронных накладных)' = DATA STRING[3](StocktakeDetail);
-pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,4](StocktakeDetail);
-sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,4](StocktakeDetail);
-quantityPageInventoryDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA INTEGER (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
+pricePageInventoryDetail 'Учетная цена (ед. изм. в эл. накладных)' = DATA NUMERIC[16,2](StocktakeDetail);
+sumPageInventoryDetail 'Учетная стоимость товаров' = DATA NUMERIC[16,2](StocktakeDetail);
+quantityPageInventoryDetail 'Количество товара (ед. изм. в эл. накладных)' = DATA NUMERIC[16,3] (StocktakeDetail); // TODO вернуть после теста на DATA NUMERIC[16,4](StocktakeDetail); 
 quantityPageInventoryDetail0 (StocktakeDetail d) = INTEGER(round0(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round0(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d);
 quantityPageInventoryDetail1 (StocktakeDetail d) = NUMERIC[16,1](round1(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round1(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d) AND NOT quantityPageInventoryDetail0(d);
 quantityPageInventoryDetail2 (StocktakeDetail d) = NUMERIC[16,2](round2(quantityPageInventoryDetail(d))) IF NUMERIC[16,3](round2(quantityPageInventoryDetail(d))) == quantityPageInventoryDetail(d) AND NOT quantityPageInventoryDetail0(d) AND NOT quantityPageInventoryDetail1(d);
@@ -273,8 +273,8 @@ createStocktake (Inventory inv) {
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(d);
             quantityUomSku(nd) <- OVERRIDE ((GROUP SUM quantityPageInventoryDetail(CollationSheet cs, batch(nd)) 
                 IF inventory(cs) == inv) IF codeSku(nd) == codeCustomsGroupDefaultCountry(sku(batch(nd))) AND extraCodeSku(nd) == id(extraCode(sku(batch(nd))))), 0.0;
-            pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, batch(nd)) / trackingUOMRatio(sku(batch(nd))) IF inventory(cs) == inv), 0.0;
-            sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0;
+            pricePageInventoryDetail(nd) <- NUMERIC[16,2](round2(OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, batch(nd)) / trackingUOMRatio(sku(batch(nd))) IF inventory(cs) == inv), 0.0));
+            sumPageInventoryDetail(nd) <- NUMERIC[16,2](round2(OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, batch(nd)) IF inventory(cs) == inv), 0.0));
             quantityPageInventoryDetail(nd) <- quantityUomSku(nd) * trackingUOMRatio(sku(batch(nd)));
 
             FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
@@ -301,8 +301,8 @@ createStocktake (Inventory inv) {
             uomSku(nd) <- trackingUOMCustomsGroup(sku(b));
             quantityUomSku(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
             trackingUOMCustomsGroup(nd) <- trackingUOMCustomsGroup(sku(b));
-            pricePageInventoryDetail(nd) <- OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, b) / trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
-            sumPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0;
+            pricePageInventoryDetail(nd) <- NUMERIC[16,2](round2(OVERRIDE (GROUP MIN pricePageInventoryDetail(CollationSheet cs, b) / trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0));
+            sumPageInventoryDetail(nd) <- NUMERIC[16,2](round2(OVERRIDE (GROUP SUM sumPageInventoryDetail(CollationSheet cs, b) IF inventory(cs) == inv), 0.0));
             quantityPageInventoryDetail(nd) <- OVERRIDE (GROUP SUM quantityPageInventoryDetail(CollationSheet cs, b) * trackingUOMRatio(sku(b)) IF inventory(cs) == inv), 0.0;
             FOR batch(Lot l, inv) = batch(nd)  AND (GROUP MIN inventory(CollationSheet cs) == inv IF include(cs, l) AND quantityPageInventoryDetail(cs, l)) DO NEW ld = LotStocktakeDetail{
                 stocktakeDetail(ld) <- nd;
