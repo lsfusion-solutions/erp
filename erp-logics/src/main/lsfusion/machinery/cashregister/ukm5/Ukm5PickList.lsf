@@ -32,7 +32,7 @@ FORM pickList FORMEXTID 'null'
     
     OBJECTS d = DepartmentStore PANEL EXTID ''
     
-    PROPERTIES idPickList(elements, d) EXTID 'id', name(elements) EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
+    PROPERTIES idPickList(elements) EXTID 'id', name(elements) EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
         = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, d) EXTID 'items'
     FILTERS pickListGroup(elements) AND level(elements) > 1
     
@@ -75,13 +75,21 @@ GROUP images;
 ftpConnectionStringUkm 'Строка подключения (ftp://username:password@host:port/path/)' = DATA STRING[250]();
 
 sendImageItemToFtp(Item i){
-    convertImage(dataImage(i), 'png');
-    WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'items/', idBarcode(i);
+    IF extension(FILE(dataImage(i))) != 'png' THEN {
+        convertImage(dataImage(i), 'png');
+        WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'items/', idBarcode(i);
+    } ELSE {
+        WRITE dataImage(i) TO CONCAT '', ftpConnectionStringUkm(), 'items/', idBarcode(i);
+    }
 }
 
 sendImageGroupToFtp(CustomGroup c){
-    convertImage(image(c), 'png');
-    WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c);
+    IF extension(FILE(image(c))) != 'png' THEN {
+        convertImage(image(c), 'png');
+        WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c);
+    } ELSE {
+        WRITE image(c) TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c);
+    }
 }
 
 //задание для планировщика
@@ -89,28 +97,30 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
     LOCAL errorsImagesItems = BOOLEAN (Item);
     LOCAL errorsImagesGroups = BOOLEAN (CustomGroup);
     FOR customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) 
-        AND dataImage(i) DO {
+        AND dataImage(i) AND active(i) AND (changedImage(i) OR NOT loadOnlyChangedImages())  DO {
         TRY {
             sendImageItemToFtp(i);
+            changedImage(i) <- NULL;
         }
         CATCH {
             errorsImagesItems(i) <- TRUE;
         }
     }
-    FOR hasImage(CustomGroup c) IF pickListGroup(c) DO
+    FOR hasImage(CustomGroup c) IF pickListGroup(c) AND active(c) AND (changedImage(c) OR NOT loadOnlyChangedImages())  DO
         TRY {
             sendImageGroupToFtp(c);
+            changedImage(c) <- NULL;
         }
             CATCH {
             errorsImagesGroups(c) <- TRUE;
         }
-    
     IF (GROUP SUM 1 IF errorsImagesGroups(CustomGroup c) OR errorsImagesItems(Item i)) THEN {
         MESSAGE 'Изображения не выгружены для:\n ' + CONCAT '\n\n', 
             'ТОВАРОВ\n' + (GROUP CONCAT name(Item i) IF errorsImagesItems(i), '\n' ORDER i),
             'ТОВАРНЫХ ГРУПП\n' + (GROUP CONCAT name(CustomGroup c) IF errorsImagesGroups(c), '\n' ORDER c)
     NOWAIT;
     }
+    APPLY;
 }
 
 EXTEND FORM integrationData
