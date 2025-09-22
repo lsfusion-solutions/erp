@@ -79,7 +79,10 @@ sendRequestGoodsWithoutTI(FILE f, STRING type, MachineryPriceTransaction t){
         IMPORT answerWithoutTi XML FROM answer();
         fileToString(answer());
         IF useOutSetESBLog() THEN logToFile('setESB', (CONCAT ' ', 'Send Request Goods Without TI', 'Response', resultString()));
-        IF returnWithoutTi() = 'true' THEN succeeded(t) <- TRUE;
+        IF returnWithoutTi() = 'true' THEN {
+            succeeded(t) <- TRUE;
+            dateTimeSucceeded(t) <- currentDateTime();
+        }
     } CATCH {
         fileToString(answer());
         addMachineryError(t, 'Ошибка загрузки ' + type, (CONCAT '\n', messageCaughtException(), resultString()));
