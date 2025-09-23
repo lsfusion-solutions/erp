@@ -172,6 +172,17 @@ createdStocktake = DATA LOCAL Stocktake();
 
 countDetail 'Кол-во позиций' (Stocktake d) = GROUP SUM 1 IF stocktake(StocktakeDetail dd) == d;
 
+// Проверки инвентаризаци
+includeWithBatch 'Товары с партиями' (Inventory inv, Sku sku) =
+    GROUP MIN TRUE IF sku(Batch b) == sku AND inventory(CollationSheet cs) == inv AND include(cs, b);
+
+includeWithBatch 'Товары с партиями' (Inventory inv) = 
+    GROUP MIN TRUE IF inventory(CollationSheet cs) == inv AND includeWithBatch(inv, Sku sku);
+
+isConsistNoBatchSku 'Товары без партий' (Inventory inv) =
+    GROUP MIN TRUE IF inventory(CollationSheet cs) == inv AND include(cs, Sku sku) AND NOT includeWithBatch(inv, sku);
+
+// Проверка обязательных полей для XML
 allXMLRequiredFields 'Все обязательные поля' (StocktakeDetail dd) =
     index(dd) AND codeSku(dd) AND extraCodeSku(dd) AND gtin(dd) AND nameSku(dd) AND sidOrigin2Country(dd) AND uomSku(dd) AND 
     quantityUomSku(dd) AND trackingUOMCustomsGroup(dd) AND pricePageInventoryDetail(dd) AND sumPageInventoryDetail(dd) AND quantityPageInventoryDetail(dd);
@@ -228,11 +239,6 @@ missedFieldsDescription (Stocktake d) =
 batch(Lot l, Inventory inv) = OVERRIDE (batch(l) IF inv IS Inventory), (GROUP MIN batch(PageInventoryDetail d) IF quantity(d, l) AND inventory(d) == inv);
 
 createStocktake (Inventory inv) {
-    IF countLegalEntity(inv) > 1 THEN {
-        MESSAGE 'Инвентаризация включает склады нескольких организаций';        
-        RETURN;
-    }
-
     LOCAL legalEntity = LegalEntity();
     legalEntity() <- GROUP MIN legalEntity(Stock s) IF include(s, inv);
     
@@ -389,7 +395,8 @@ generateJSON (Inventory inv) {
     exportToXML(createdStocktake());
 
     fileToString(exportXMLFile());
-    resultString() <- replace(replace(replace(replace(replace(resultString(), '<LetterTraceabilityLeftovers_v1_f001>', '<LetterTraceabilityLeftovers_v1_f001 xmlns="">'),
+    resultString() <- replace(replace(replace(replace(replace(resultString(), 
+        '<LetterTraceabilityLeftovers_v1_f001>', '<LetterTraceabilityLeftovers_v1_f001 xmlns="">'),
         '<LetterTraceabilityLeftovers_v1_f001A>', '<LetterTraceabilityLeftovers_v1_f001A xmlns="">'),
         '<LetterTraceabilityLeftovers_v1_f002>', '<LetterTraceabilityLeftovers_v1_f002 xmlns="">'),
         '<LetterTraceabilityLeftovers_v1_t001>', '<LetterTraceabilityLeftovers_v1_t001 xmlns="">'),
@@ -447,6 +454,21 @@ stocktakeMNS 'Отправить в МНС' (Inventory inv) {
     IF notTracking(inv) THEN {
         MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
             (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
+        RETURN;
+    }
+
+    IF countLegalEntity(inv) > 1 THEN {
+        MESSAGE 'Инвентаризация включает склады нескольких организаций';
+        RETURN;
+    }
+
+    IF includeWithBatch(inv) THEN {
+        MESSAGE 'В инвентаризации отсутствуют товары с партиями';
+        RETURN;
+    }
+    
+    IF isConsistNoBatchSku(inv) THEN {
+        MESSAGE 'Инвентаризация включает товары без партий';
         RETURN;
     }
     
