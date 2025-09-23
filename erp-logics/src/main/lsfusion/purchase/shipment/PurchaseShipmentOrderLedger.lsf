@@ -4,7 +4,6 @@ REQUIRE OrderLedger, PurchaseShipment;
 
 NAMESPACE Purchase;
 
-
 @defineDocumentInterfaceProperty (invoice, createOrderLedger, 'Создать резерв');
 
 forbidUseReserve = ABSTRACT BOOLEAN (UserInvoice);
@@ -58,6 +57,8 @@ quantityOrderLedger = ABSTRACT NUMERIC[16,5] (ShipmentDetail);
 dataQuantityOrderLedger = DATA NUMERIC[16,5] (ShipmentDetail);
 
 quantity (ShipmentOrderLedger l) = OVERRIDE dataQuantityOrderLedger(shipmentDetail(l)), quantityOrderLedger(shipmentDetail(l)), quantity(shipmentDetail(l)) MATERIALIZED;
+shipped = ABSTRACT NUMERIC[16,5] (ShipmentOrderLedger) CHARWIDTH 7 MATERIALIZED;
+toShip (ShipmentOrderLedger l) = MAX (quantity(l) - (OVERRIDE shipped(l), 0.0)), 0.0;
 
 managementReserve (ShipmentOrderLedger l) = quantity(invoiceDetail(shipmentDetail(l))) (-) quantity(shipmentDetail(l)) (+) quantity(l);
 
@@ -74,7 +75,7 @@ note (ShipmentOrderLedger ledger) += note(shipment(shipmentDetail(ledger)));
 quantity (ShipmentOrderLedger ledger) += quantity(ledger);
 contact (ShipmentOrderLedger ledger) += customer(shipmentDetail(ledger));
 contactStock (ShipmentOrderLedger ledger) += customerStock(shipmentDetail(ledger));
-toShipQuantity (ShipmentOrderLedger ledger) += quantity(ledger);
+toShipQuantity (ShipmentOrderLedger ledger) += toShip(ledger);
 edit (ShipmentOrderLedger ledger) + {  edit(shipmentDetail(ledger)); }    
 operation[OrderLedger](ShipmentOrderLedger ledger) += operation(shipmentDetail(ledger));
 show[OrderLedger](ShipmentOrderLedger ledger) + { show(shipmentDetail(ledger));};
