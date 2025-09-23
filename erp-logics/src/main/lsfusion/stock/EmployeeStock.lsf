@@ -46,7 +46,17 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
     dataAccessCompany(employee) AND isCompany(stock),
     employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
 
-skipCheckAccessLegalEntity = ABSTRACT BOOLEAN ();
+skipCheckAccessLegalEntity = ABSTRACT VALUE BOOLEAN ();
+skipCheckAccessLegalEntityData 'Отключить проверку "Для предоставления доступа к складу необходимо предоставить доступ к его организации"' = DATA BOOLEAN () PREREAD;
+skipCheckAccessLegalEntity()+= skipCheckAccessLegalEntityData();
+EXTEND FORM options
+    PROPERTIES () skipCheckAccessLegalEntityData
+;
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY(skipCheckAccessLegalEntityData());
+    }
+}
 
 WHEN LOCAL FORMS employee SET(accessCompany(Employee e, Stock st) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e)) AND NOT skipCheckAccessLegalEntity() DO {
     MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';    
