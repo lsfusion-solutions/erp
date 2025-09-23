@@ -42,13 +42,13 @@ accessCompany 'Доступ разрешен (компания)' (Employee emplo
 
 accessCompany 'Доступ разрешен (компания)' (Employee employee, Stock stock) = OVERRIDE
     dataAccessCompany(stock, employee),
-    nearestInCompany(employee, stockGroup(stock)),
+    nearestInCompany(employee, stockGroup(stock)) AND isCompany(stock),
     dataAccessCompany(employee) AND isCompany(stock),
     employee IS Employee AND isCompany(stock) AND NOT limitAccess(employee) MATERIALIZED;
 
 skipCheckAccessLegalEntity = ABSTRACT VALUE BOOLEAN ();
 skipCheckAccessLegalEntityData 'Отключить проверку "Для предоставления доступа к складу необходимо предоставить доступ к его организации"' = DATA BOOLEAN () PREREAD;
-skipCheckAccessLegalEntity()+= skipCheckAccessLegalEntityData();
+skipCheckAccessLegalEntity() += skipCheckAccessLegalEntityData();
 EXTEND FORM options
     PROPERTIES () skipCheckAccessLegalEntityData
 ;
@@ -58,10 +58,8 @@ DESIGN options {
     }
 }
 
-WHEN LOCAL FORMS employee SET(accessCompany(Employee e, Stock st) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e)) AND NOT skipCheckAccessLegalEntity() DO {
-    MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';    
-    CANCEL; 
-}
+CONSTRAINT SET(accessCompany(Employee e, Stock st)) AND NOT accessCompany(e, legalEntity(st)) AND limitAccess(e) AND NOT skipCheckAccessLegalEntity()
+    MESSAGE 'Для предоставления доступа к складу необходимо предоставить доступ к его организации';
 
 countAccessCompanyStock 'Кол-во доступных подразделений (компания)' (Employee employee) =
     GROUP
