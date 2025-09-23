@@ -70,7 +70,6 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
     private static final String ENDL = "\r\n";
     private static final String TAB = "\t";
     
-    private TCPPort port;
     private DataPrintWaspSettings settings;
     protected FileSystemXmlApplicationContext springContext;
     
@@ -86,7 +85,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         return "DP Wasp: ";
     }
     
-    private Result sendData(Data data) {
+    private Result sendData(TCPPort port, Data data) {
         
         String line = "";
         if (data.segments != null) {
@@ -118,7 +117,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         return new Result.Success();
     }
     
-    private Result readData(Data data) {
+    private Result readData(TCPPort port, Data data) {
         
         if (data.segments != null)
             data.segments.clear();
@@ -181,7 +180,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         }
     }
     
-    private Result sendPLU(ScalesInfo scales, ScalesItem item) {
+    private Result sendPLU(TCPPort port, ScalesInfo scales, ScalesItem item) {
     
         Data data = new Data();
         //data.segments.add("DWL");
@@ -283,7 +282,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             data.segments.add("0"); //67 PLU Flag Value 0 Number type
             data.segments.add("0"); //68 Bitmap
             
-            return sendData(data);
+            return sendData(port, data);
         
 //            data.clear();
 //            data.segments.add("END");
@@ -294,7 +293,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         //return result;
     }
     
-    private Result clearPLU() {
+    private Result clearPLU(TCPPort port) {
         
         Result result;
         
@@ -303,13 +302,13 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         data.segments.add("PLU");
         data.segments.add("-1");
         
-        if ((result = sendData(data)).success()) {
+        if ((result = sendData(port, data)).success()) {
             
             data.clear();
             data.segments.add("CLR");
             data.segments.add("END");
             
-            result = sendData(data);
+            result = sendData(port, data);
         }
         
         return result;
@@ -348,7 +347,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
         protected SendTransactionResult run() {
             
             String[] hostPort = scales.port.split(":");
-            port = hostPort.length == 1 ? new TCPPort(scales.port, 33581) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+            TCPPort port = hostPort.length == 1 ? new TCPPort(scales.port, 33581) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
     
             String error = null;
             boolean cleared = false;
@@ -362,7 +361,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                 
                 boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
                 if (needToClear) {
-                    result = clearPLU();
+                    result = clearPLU(port);
                     cleared = result.success();
                 }
     
@@ -375,7 +374,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                         data.segments.add("DWL");
                         data.segments.add("PLU");
     
-                        if ((result = sendData(data)).success()) {
+                        if ((result = sendData(port, data)).success()) {
     
                             int count = 0;
     
@@ -384,7 +383,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                                 if (notInterruptedTransaction(transaction.id)) {
                                     logger.info(String.format(getLogPrefix() + "IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
             
-                                    result = sendPLU(scales, item);
+                                    result = sendPLU(port, scales, item);
             
                                     if (!result.success()) {
                                         error = result.errorMessage;
@@ -399,7 +398,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                             data.segments.add("END");
                             data.segments.add("PLU");
     
-                            if (!(result = sendData(data)).success()) {
+                            if (!(result = sendData(port, data)).success()) {
                                 error = result.errorMessage;
                                 logger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                             }
@@ -411,6 +410,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                     }
                 }
     
+                logger.info(getLogPrefix() + "Completed ip: " + scales.port);
                 logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                 port.close();
                 
@@ -423,10 +423,12 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
                 try {
                     logger.info(getLogPrefix() + String.format("Disconnect, ip %s, transaction %s", scales.port, transaction.id));
                     port.close();
-                } catch (CommunicationException ignored) {}
+                } catch (CommunicationException e) {
+                    error = String.format("Bizerba: IP %s close port error: %s", scales.port, e.getMessage());
+                    logger.error(error);
+                }
             }
-    
-            logger.info(getLogPrefix() + "Completed ip: " + scales.port);
+            
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), interrupted, cleared);
         }
     

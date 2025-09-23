@@ -235,7 +235,6 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     private static final byte[] removeFile = new byte[] {(byte)0xFF, (byte)0x35}; // Удалить файл или папку
     private static final byte[] createFolder = new byte[] {(byte)0xFF, (byte)0x36}; // Создать папку
     
-    private TCPPort port;
     private MertechSettings mertechSettings;
     
     protected FileSystemXmlApplicationContext springContext;
@@ -397,7 +396,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         return "1234".getBytes();
     }
     
-    private Result sendPacket(Packet packet) {
+    private Result sendPacket(TCPPort port, Packet packet) {
         
         //04000000 02 02 ff17
         
@@ -427,10 +426,10 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return new Result.Error(packet.resultCode, e.getMessage());
         }
         
-        return readPacket(packet);
+        return readPacket(port, packet);
     }
     
-    private Result readPacket(Packet packet) {
+    private Result readPacket(TCPPort port, Packet packet) {
         
         packet.commandBytes = null;
         
@@ -499,17 +498,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendProductFile(ScalesInfo scales, String jsonProductFile, /*TransactionScalesInfo transaction,*/ boolean needToClear) {
+    public Result sendProductFile(TCPPort port, ScalesInfo scales, String jsonProductFile, /*TransactionScalesInfo transaction,*/ boolean needToClear) {
         
         File tmpFile = null;
         
         try {
-    
-            port.open();
             
             Result result;
     
-            if (!(result = sendBarcodePrefixes(scales)).success()) {
+            if (!(result = sendBarcodePrefixes(port, scales)).success()) {
                 return result;
             }
             
@@ -524,14 +521,14 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             
             byte[] fileBytes = FileUtils.readFileToByteArray(tmpFile);
             
-            if ((result = sendHashFile(productFile, fileBytes, needToClear)).success()) {
+            if ((result = sendHashFile(port, productFile, fileBytes, needToClear)).success()) {
                 
                 try (FileInputStream fis = new FileInputStream(tmpFile)) {
                     byte[] buffer = new byte[6000];
                     int read;
                     int offset = 0;
                     while ((read = fis.read(buffer, 0, buffer.length)) > 0) {
-                        if (!(result = sendPartFile(productFile, fis.available() == 0, offset, read, buffer)).success()) {
+                        if (!(result = sendPartFile(port, productFile, fis.available() == 0, offset, read, buffer)).success()) {
                             fis.close();
                             if (tmpFile.exists())
                                 tmpFile.delete();
@@ -546,7 +543,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                         tmpFile.delete();
                     
                     while (true) {
-                        result = checkFile(productFile);
+                        result = checkFile(port, productFile);
                         if (result.success()) {
                             if (result instanceof Result.Status) {
                                 Result.Status status = (Result.Status) result;
@@ -573,35 +570,25 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             return result;
             
         } catch (Exception e) {
-    
             if (tmpFile != null && tmpFile.exists())
                 tmpFile.delete();
-            
             return new Result.Error(-1, e.getMessage());
-            
-        } finally {
-            
-            try {
-                port.close();
-            } catch (CommunicationException ignored) {}
         }
     }
     
-    public Result sendImageFile(byte[] fileData, String filePath/*, ScalesInfo scales*/) {
+    public Result sendImageFile(TCPPort port, byte[] fileData, String filePath/*, ScalesInfo scales*/) {
         
         try {
-            
-            port.open();
             
             Result result;
             
             //if (!(result = sendFilePath(String.format("Products/%s.jpg", getPluNumber(scalesItem)))).success())
-            if (!(result = sendFilePath(filePath)).success())
+            if (!(result = sendFilePath(port, filePath)).success())
                 return  result;
     
             //byte[] fileData = scalesItem.itemImage.getBytes();
             
-            if ((result = sendHashFile(regularFile, fileData, false)).success()) {
+            if ((result = sendHashFile(port, regularFile, fileData, false)).success()) {
     
                 ByteArrayInputStream bais = new ByteArrayInputStream(fileData);
                 
@@ -609,13 +596,13 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 int read;
                 int offset = 0;
                 while ((read = bais.read(buffer, 0, buffer.length)) > 0) {
-                    if (!(result = sendPartFile(regularFile, bais.available() == 0, offset, read, buffer)).success())
+                    if (!(result = sendPartFile(port, regularFile, bais.available() == 0, offset, read, buffer)).success())
                         return  result;
                     offset += read;
                 }
                 
                 while (true) {
-                    result = checkFile(regularFile);
+                    result = checkFile(port, regularFile);
                     if (result.success()) {
                         if (result instanceof Result.Status) {
                             Result.Status status = (Result.Status) result;
@@ -638,23 +625,19 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             
         } catch (Exception e) {
             return new Result.Error(-1, e.getMessage());
-        } finally {
-            try {
-                port.close();
-            } catch (CommunicationException ignored) {}
         }
     }
     
-    public Result sendBarcodePrefixes(ScalesInfo scales) {
+    public Result sendBarcodePrefixes(TCPPort port, ScalesInfo scales) {
         
         Result result = new Result.Success();
         // Шлем префикс для весового штрихкода
         if (!StringUtils.isBlank(scales.weightCodeGroupScales)) {
             int weightCodeGroupScales = Integer.parseInt(scales.weightCodeGroupScales);
-            if ((result = sendBarcodePrefix((byte)0x00, (byte)weightCodeGroupScales)).success()) {
+            if ((result = sendBarcodePrefix(port, (byte)0x00, (byte)weightCodeGroupScales)).success()) {
                 if (!StringUtils.isBlank(scales.pieceCodeGroupScales)) {
                     int pieceCodeGroupScales = Integer.parseInt(scales.pieceCodeGroupScales);
-                    result = sendBarcodePrefix((byte)0x01, (byte)pieceCodeGroupScales);
+                    result = sendBarcodePrefix(port, (byte)0x01, (byte)pieceCodeGroupScales);
                 }
             }
         }
@@ -662,7 +645,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         return result;
     }
     
-    public Result sendFilePath(String filePath) {
+    public Result sendFilePath(TCPPort port, String filePath) {
         
         try {
             
@@ -682,7 +665,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -690,7 +673,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendHashFile(byte[] commandId, byte[] data, boolean needToClear) {
+    public Result sendHashFile(TCPPort port, byte[] commandId, byte[] data, boolean needToClear) {
         
         try {
             
@@ -719,7 +702,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -727,7 +710,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result sendPartFile(byte[] commandId, boolean lastPart, int offset, int size, byte[] data) {
+    public Result sendPartFile(TCPPort port, byte[] commandId, boolean lastPart, int offset, int size, byte[] data) {
         
         try {
             
@@ -754,7 +737,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -762,7 +745,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    public Result checkFile(byte[] commandId) {
+    public Result checkFile(TCPPort port, byte[] commandId) {
         
         try {
             
@@ -781,7 +764,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            Result result = sendPacket(packet);
+            Result result = sendPacket(port, packet);
             if (packet.commandBytes != null && packet.commandBytes.remaining() > 0) {
                 LittleEndianDataInputStream fis = new LittleEndianDataInputStream(new ByteArrayInputStream(packet.commandBytes.array()));
                 byte status = fis.readByte();
@@ -805,7 +788,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    private Result sendBarcodePrefix(byte type, byte value) {
+    private Result sendBarcodePrefix(TCPPort port, byte type, byte value) {
         
         try {
             
@@ -823,7 +806,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -831,7 +814,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    private Result removeFile(String path) {
+    private Result removeFile(TCPPort port, String path) {
         
         try {
             
@@ -849,7 +832,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -857,7 +840,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         }
     }
     
-    private Result createFolder(String path) {
+    private Result createFolder(TCPPort port, String path) {
         
         try {
             
@@ -875,7 +858,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             packet.commandBytes = ByteBuffer.allocate(baos.size());
             packet.commandBytes.put(baos.toByteArray());
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -884,7 +867,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
     }
     
     
-    private Result clear(byte[] commandId) {
+    private Result clear(TCPPort port, byte[] commandId) {
         
         try {
             
@@ -897,7 +880,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
             outputStream.write(getPassword()); // пароль
             outputStream.flush();
             
-            return sendPacket(packet);
+            return sendPacket(port, packet);
             
         } catch (Exception e) {
             System.out.println(String.format("error: %s", e));
@@ -1064,12 +1047,14 @@ public class MertechPMHandler extends MultithreadScalesHandler {
         protected SendTransactionResult run() {
             
             String[] hostPort = scales.port.split(":");
-            port = hostPort.length == 1 ? new TCPPort(scales.port, 1111) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
-    
+            TCPPort port = hostPort.length == 1 ? new TCPPort(scales.port, 1111) : new TCPPort(hostPort[0], Integer.parseInt(hostPort[1]));
+            
             String error = null;
             boolean cleared = false;
             
             try {
+    
+                port.open();
                 
                 Result result;
                 
@@ -1087,37 +1072,15 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                 
                 String jsonProductFile = objectMapper.writeValueAsString(productFileClass);
                 
-                result = sendProductFile(scales, jsonProductFile, needToClear);
+                result = sendProductFile(port, scales, jsonProductFile, needToClear);
                 
                 if (!result.success()) {
                     error = result.errorMessage;
                     mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
                 } else {
                     
-/*
-                    mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending itemGroup images...", transaction.id, scales.port));
-    
-                    if (productFileClass.categories != null) {
-                        for (Category category : productFileClass.categories) {
-                            //String categoryFilePath = String.format("Categories/mertech_category%d.jpg", category.idCategory);
-                            if (item.itemImage != null && notInterruptedTransaction(transaction.id)) {
-                                mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
-                                String filePath = String.format("Products/%s.jpg", getPluNumber(item));
-                                result = sendImageFile(item.itemImage.getBytes(), filePath);
-                                if (!result.success()) {
-                                    error = result.errorMessage;
-                                    mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
-                                    break;
-                                }
-                            } else
-                                break;
-                        }
-                    }
-*/
-                    
                     mertechLogger.info(getLogPrefix() + String.format("transaction %s, ip %s, sending item images...", transaction.id, scales.port));
-    
-    
+                    
                     Set<String> categoriesSet = new HashSet<>();
                     
                     for (ScalesItem item : transaction.itemsList) {
@@ -1125,7 +1088,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                             if (item.itemImage != null) {
                                 mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending image (pluNumber %s)", transaction.id, scales.port, getPluNumber(item)));
                                 String filePath = String.format("Products/%s.jpg", getPluNumber(item));
-                                result = sendImageFile(item.itemImage.getBytes(), filePath);
+                                result = sendImageFile(port, item.itemImage.getBytes(), filePath);
                                 if (!result.success()) {
                                     error = result.errorMessage;
                                     mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
@@ -1139,7 +1102,7 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                                     categoriesSet.add(item.idItemGroup);
                                     mertechLogger.info(String.format(getLogPrefix() + "transaction %s, ip: %s, sending group image (idItemGroup %s)", transaction.id, scales.port, item.idItemGroup));
                                     String filePath = String.format("Categories/mertech_category%s.jpg", item.idItemGroup);
-                                    result = sendImageFile(item.groupImage.getBytes(), filePath);
+                                    result = sendImageFile(port, item.groupImage.getBytes(), filePath);
                                     if (!result.success()) {
                                         error = result.errorMessage;
                                         mertechLogger.error(getLogPrefix() + String.format("ip %s, error: %s", scales.port, error));
@@ -1150,13 +1113,22 @@ public class MertechPMHandler extends MultithreadScalesHandler {
                         } else
                             break;
                     }
+                    mertechLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
                 }
             } catch (Throwable t) {
                 interrupted = t instanceof InterruptedException;
                 error = String.format(getLogPrefix() + "ip %s error, transaction %s: %s", scales.port, transaction.id, ExceptionUtils.getStackTraceString(t));
                 mertechLogger.error(error, t);
             }
-            mertechLogger.info(getLogPrefix() + "Completed ip: " + scales.port);
+            finally {
+                try {
+                    port.close();
+                } catch (CommunicationException e) {
+                    error = String.format("Bizerba: IP %s close port error: %s", scales.port, e.getMessage());
+                    mertechLogger.error(error);
+                }
+            }
+            
             return new SendTransactionResult(scales, error != null ? Collections.singletonList(error) : new ArrayList<>(), interrupted, cleared);
         }
     
