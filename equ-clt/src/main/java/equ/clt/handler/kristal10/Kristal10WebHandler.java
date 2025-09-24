@@ -829,9 +829,9 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
 
                             if (idLot!=null) {
                                 salesInfo.detailExtraFields = new HashMap<>();
-                                salesInfo.detailExtraFields.put("idLot", idLot);
+                                salesInfo.detailExtraFields.put("idLot", idLot.split("\u001D",1)[0]); //в рб марки приходят с хвостом
 
-                                //временно пишем в оба
+                                //временно пишем в оба пока передают с хвостом но без gs
                                 salesInfo.receiptDetailExtraFields = new HashMap<>();
                                 salesInfo.receiptDetailExtraFields.put("idLot", idLot);
                             }
