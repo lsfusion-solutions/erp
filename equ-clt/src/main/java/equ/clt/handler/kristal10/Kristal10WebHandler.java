@@ -827,9 +827,13 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                                     discountSumReceiptDetail, discountSumReceipt, discountCard, null, numberReceiptDetail, null,
                                     useSectionAsDepartNumber ? positionDepartNumber : null, skipReceipt, receiptExtraFields, null, cashRegisterByKey);
 
-                            salesInfo.detailExtraFields = new HashMap<>();
                             if (idLot!=null) {
+                                salesInfo.detailExtraFields = new HashMap<>();
                                 salesInfo.detailExtraFields.put("idLot", idLot);
+
+                                //временно пишем в оба
+                                salesInfo.receiptDetailExtraFields = new HashMap<>();
+                                salesInfo.receiptDetailExtraFields.put("idLot", idLot);
                             }
 
                             currentSalesInfoList.add(salesInfo);
