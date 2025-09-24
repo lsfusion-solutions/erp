@@ -238,10 +238,12 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
     cancel();
 } IMAGE 'print.png';
 
-EXTEND FORM consignmentDashboard
-    PROPERTIES (i) printDoubleSidedConsignmentsVertical , printStepsConsignmentsVertical 
+skipShowTTN = ABSTRACT CASE BOOLEAN (Consignment);
 
-    PROPERTIES (i)  READONLYIF banPrint(i) printVerticalA, printVerticalAB, printVerticalABAttach, printHorizontalA, printHorizontalAB,
+EXTEND FORM consignmentDashboard
+    PROPERTIES (i) SHOWIF NOT skipShowTTN(i) printDoubleSidedConsignmentsVertical , printStepsConsignmentsVertical
+
+    PROPERTIES (i) READONLYIF banPrint(i) SHOWIF NOT skipShowTTN(i) printVerticalA, printVerticalAB, printVerticalABAttach, printHorizontalA, printHorizontalAB,
                                 printVerticalB, printHorizontalB, printVerticalAttach,
                                 printAttach, printAttachXLS, printSimpleAttachXLS, printSimpleHorizontal, editAttributes SHOWIF isOpened(i),
                                 printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach                     
@@ -387,7 +389,7 @@ printDoubleSidedConsignmentsSimpleVertical 'Печать ТН-2' (Consignment co
 } IMAGE 'print.png';
 
 EXTEND FORM consignmentDashboard
-    PROPERTIES (i) printDoubleSidedConsignmentsSimpleVertical 
+    PROPERTIES (i) SHOWIF NOT skipShowTTN(i) printDoubleSidedConsignmentsSimpleVertical 
 ;
 
 DESIGN consignmentDashboard {
