@@ -357,8 +357,9 @@ completeReceiving 'Завершить приемку товара' (Sku sku, STR
 createDetails 'Создать строки по документу основания' ABSTRACT CASE (Receiving);
 
 putawayBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
-putawayBin  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
-putawayBinIgnoreBinBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBin (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBinIgnoreBinBalance (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBinIgnoreBinBalance (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
 
 ignoreBinBalanceDuringPutaway 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
 
@@ -375,7 +376,8 @@ DESIGN options {
 putawayBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) = 
     OVERRIDE putawayBin(sku, stock, o, u), 
              putawayBinIgnoreBinBalance(sku, stock, o, u) IF ignoreBinBalanceDuringPutaway(),
-             putawayBin(stock, o, u) IF sku IS Sku;
+             putawayBin(stock, o, u) IF sku IS Sku,
+             putawayBinIgnoreBinBalance(stock, o, u) IF sku IS Sku AND ignoreBinBalanceDuringPutaway();
 
 putaway 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {

@@ -160,11 +160,13 @@ putawayBatch 'Разместить' (CustomUser u) {
 putawayBin (Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1, bg1](st, o, u, bg);
 putawayBin  (Sku s, Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1, bg1](s, st, o, u, bg);
 putawayBinIgnoreBinBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1, bg1](s, st, o, u, bg);
+putawayBinIgnoreBinBalance  (Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1, bg1](st, o, u, bg);
 
 putawayBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u, BinGroup bg) =
     OVERRIDE putawayBin(sku, stock, o, u, bg),
         putawayBinIgnoreBinBalance(sku, stock, o, u, bg) IF ignoreBinBalanceDuringPutaway(),
-        putawayBin(stock, o, u, bg) IF sku IS Sku;
+        putawayBin(stock, o, u, bg) IF sku IS Sku,
+        putawayBinIgnoreBinBalance(stock, o, u, bg) IF sku IS Sku AND ignoreBinBalanceDuringPutaway();
 
 overInternalBatchPutaway ABSTRACT LIST (CustomUser, UserBinTransfer);
 internalBatchPutaway 'Разместить внутри группы ячеек' (CustomUser u) {

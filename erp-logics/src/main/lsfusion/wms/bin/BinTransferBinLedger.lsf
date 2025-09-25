@@ -644,10 +644,30 @@ extraBinFilter (Bin b, UserBinTransfer t) =
     levelBinGroup(operation(t)) AND outBin(t) AND binGroupRoot(binGroup(b), levelBinGroup(operation(t))) == binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) OR 
     t IS UserBinTransfer AND b IS Bin AND (NOT levelBinGroup(operation(t)) OR (NOT inBin(t) AND NOT outBin(t))));
 
+overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransfer);
+needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransfer);
+extraInBinFilter (Bin b, UserBinTransfer t) =
+    needExtraInBinFilter(b, t) AND overExtraInBinFilter(b, t) OR t IS UserBinTransfer AND b IS Bin AND NOT needExtraInBinFilter(b, t);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransfer);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransfer);
+extraOutBinFilter (Bin b, UserBinTransfer t) =
+    needExtraOutBinFilter(b, t) OR overExtraOutBinFilter(b, t) OR t IS UserBinTransfer AND b IS Bin AND NOT needExtraOutBinFilter(b, t);
+
 extraBinFilter (Bin b, UserBinTransferDetail d) = 
     (levelBinGroup(operation(d)) AND inBin(d) AND binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(b), levelBinGroup(operation(d))) OR
     levelBinGroup(operation(d)) AND outBin(d) AND binGroupRoot(binGroup(b), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) OR
     d IS UserBinTransferDetail AND b IS Bin AND (NOT levelBinGroup(operation(d)) OR (NOT inBin(d) AND NOT outBin(d))));
+
+overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransferDetail);
+needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransferDetail);
+extraInBinFilter (Bin b, UserBinTransferDetail d) =
+    needExtraInBinFilter(b, d) AND overExtraInBinFilter(b, d) OR d IS UserBinTransferDetail AND b IS Bin AND NOT needExtraInBinFilter(b, d);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransferDetail);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinTransferDetail);
+extraOutBinFilter (Bin b, UserBinTransferDetail d) =
+    needExtraOutBinFilter(b, d) AND overExtraOutBinFilter(b, d) OR d IS UserBinTransferDetail AND b IS Bin AND NOT needExtraOutBinFilter(b, d);
 
 @setBinDocumentWithfilter(UserBinTransfer, stock);
 
