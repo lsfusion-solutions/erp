@@ -29,8 +29,14 @@ changeQuantityLot (PageInventoryDetail d) {
     }
 }
 
+dropLotBatch 'Сбросить все марки' (PageInventory p) {
+    quantity(PageInventoryDetail d, Lot l) <- NULL
+        WHERE pageInventory(d) = p AND [FILTER listInventory.dp](d);
+}
+
 EXTEND FORM listInventory
-    PROPERTIES(dp) quantityLot AFTER quantityGrid ON CHANGE changeQuantityLot(dp) 
+    PROPERTIES(dp) quantityLot AFTER quantityGrid ON CHANGE changeQuantityLot(dp)
+                  ON CONTEXTMENU dropLotBatch(pl)
                   BACKGROUND backgroundQuantityLot(dp) 
                   SHOWIF useLot(dp)
                   READONLYIF NOT lotType(sku(dp))
