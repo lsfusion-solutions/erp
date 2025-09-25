@@ -19,6 +19,15 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) +  {
     }
 }
 
+WHEN SETCHANGED(deliveryNoteNumber(Consignment.eInvoice(Invoice i))) AND changeNumberInvoice() DO {
+    number(i) <- deliveryNoteNumber(Consignment.eInvoice(i));
+    series(i) <- NULL;
+}
+
+skipShowEdit(Invoice i) += (exportedSupplier(eInvoice(i)) OR eInvoice(i) AND skipEditEInvoiceStrictMode())
+    AND NOT allowChangeSignedEDIInvoice(currentUser()) AND NOT allowEditCreatedEInvoice();
+
+//акты
 creditNote = DATA CreditNote(ECreditNote) INDEXED;
 creditNoteDetail = DATA CreditNoteDetail(ECreditNoteDetail);
 eCreditNote = GROUP LAST ECreditNote ec IF NOT isCancel(ec) ORDER dateTime(ec), ec BY creditNote(ec);
@@ -95,8 +104,3 @@ overSupplierStock = ABSTRACT Stock(ECreditNote);
 
 numberECreditNote 'Номер электронного акта приемки'(CreditNote c) = actDifNumber(eCreditNote(c));
 isECreditNote 'Электронный акт приемки' (CreditNote c) = TRUE IF eCreditNote(c);
-
-WHEN SETCHANGED(deliveryNoteNumber(Consignment.eInvoice(Invoice i))) AND changeNumberInvoice() DO {
-    number(i) <- deliveryNoteNumber(Consignment.eInvoice(i));
-    series(i) <- NULL;
-}
