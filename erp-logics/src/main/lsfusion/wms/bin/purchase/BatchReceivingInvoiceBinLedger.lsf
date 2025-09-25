@@ -11,7 +11,7 @@ overCompleteReceiving (Receiving r) + {
     status(r) <- PREV(status(r)); //возвращаем статус, что бы понимать какие строки уже обработаны
     
     FOR quantity(ReceivingDetail d) AND NOT batch(d) AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
-        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==consolidationKey(d) AND receiving(invoice(invoiceDetail(bt)))==r AND (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
+        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND receiving(invoice(invoiceDetail(bt)))==r AND (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
         inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
     }
@@ -23,23 +23,23 @@ overCompleteReceiving (Receiving r) + {
 
     receiving(Batch bt) <- r WHERE receiving(invoice(invoiceDetail(bt)))==r;
     rQuantity(Sku s, STRING consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
-        IF sku(detail)==s AND consolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
+        IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
 
     bQuantity(Batch bt) <-
         (PARTITION UNGROUP rQuantity
             LIMIT quantity(bt)(-)receivingQuantity(bt)
             ORDER bt
-            BY sku(bt), consolidationKey(bt), receiving(bt))
+            BY sku(bt), overConsolidationKey(bt), receiving(bt))
         WHERE receiving(bt)==r;
 
-    bQuantity(Sku s, STRING consolidationKey, r) <- GROUP SUM bQuantity(Batch bt) IF sku(bt)==s AND consolidationKey(bt)==consolidationKey AND receiving(bt)==r;
+    bQuantity(Sku s, STRING consolidationKey, r) <- GROUP SUM bQuantity(Batch bt) IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
 
     FOR bQuantity(Sku s, STRING consolidationKey, r) AND bQuantity(s, consolidationKey, r)==rQuantity(s, consolidationKey, r) DO {
-        DELETE ReceivingDetail detail WHERE detail IS ReceivingDetail AND receiving(detail)==r AND NOT batch(detail) AND sku(detail)==s AND consolidationKey(detail)==consolidationKey AND NOT completeStatus(detail);   
+        DELETE ReceivingDetail detail WHERE detail IS ReceivingDetail AND receiving(detail)==r AND NOT batch(detail) AND sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND NOT completeStatus(detail);   
     }
 
     FOR bQuantity(Sku s, STRING consolidationKey, r) AND NOT bQuantity(s, consolidationKey, r)==rQuantity(s, consolidationKey, r) DO {
-        bQuantity(Batch bt) <- NULL WHERE bQuantity(bt) AND sku(bt)==s AND consolidationKey(bt)==consolidationKey AND receiving(bt)==r;
+        bQuantity(Batch bt) <- NULL WHERE bQuantity(bt) AND sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
         dataStatus(ReceivingDetail d) <- NULL WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
         MESSAGE 'В партии приходной накладной не хватает кол-ва для распределения строк приёмки по товару: ' + name(s) + ' и строке группировки: ' + consolidationKey +'\n' NOWAIT;
         CANCEL;
@@ -67,7 +67,7 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     //возвращаем статус, что бы понимать какие строки уже обработаны
     dataStatus(ReceivingDetail d) <- PREV(dataStatus(d)) WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
     
-    FOR quantity(ReceivingDetail d) AND NOT batch(d) AND sku(d)==s AND consolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
+    FOR quantity(ReceivingDetail d) AND NOT batch(d) AND sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
         batch(d) <- GROUP LAST Batch bt IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(invoice(invoiceDetail(bt)))==r AND (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
         inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
@@ -80,23 +80,23 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     
     receiving(Batch bt) <- r WHERE receiving(invoice(invoiceDetail(bt)))==r;
     rQuantity(s, consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
-        IF sku(detail)==s AND consolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
+        IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
     
     bQuantity(Batch bt) <- 
         (PARTITION UNGROUP rQuantity
             LIMIT quantity(bt)(-)receivingQuantity(bt)
             ORDER bt
-        BY sku(bt), consolidationKey(bt), receiving(bt)) 
-    WHERE sku(bt)==s AND consolidationKey(bt)==consolidationKey AND receiving(bt)==r;
+        BY sku(bt), overConsolidationKey(bt), receiving(bt)) 
+    WHERE sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
 
-    bQuantity(s, consolidationKey, r) <- GROUP SUM bQuantity(Batch bt) IF sku(bt)==s AND consolidationKey(bt)==consolidationKey AND receiving(bt)==r;
+    bQuantity(s, consolidationKey, r) <- GROUP SUM bQuantity(Batch bt) IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
 
     IF bQuantity(s, consolidationKey, r) AND bQuantity(s, consolidationKey, r)==rQuantity(s, consolidationKey, r) THEN {
-        DELETE ReceivingDetail detail WHERE detail IS ReceivingDetail AND receiving(detail)==r AND NOT batch(detail) AND sku(detail)==s AND consolidationKey(detail)==consolidationKey AND NOT completeStatus(detail);
+        DELETE ReceivingDetail detail WHERE detail IS ReceivingDetail AND receiving(detail)==r AND NOT batch(detail) AND sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND NOT completeStatus(detail);
     }
 
     IF bQuantity(s, consolidationKey, r) AND NOT bQuantity(s, consolidationKey, r)==rQuantity(s, consolidationKey, r) THEN {
-        bQuantity(Batch bt) <- NULL WHERE bQuantity(bt) AND sku(bt)==s AND consolidationKey(bt)==consolidationKey AND receiving(bt)==r;
+        bQuantity(Batch bt) <- NULL WHERE bQuantity(bt) AND sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
         dataStatus(ReceivingDetail d) <- NULL WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
         MESSAGE 'В партии приходной накладной не хватает кол-ва для распределения строк приёмки по товару: ' + name(s) + ' и строке группировки: ' + consolidationKey +'\n' NOWAIT;
         CANCEL;
