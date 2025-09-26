@@ -41,7 +41,13 @@ signAndSendBlrapnCustomerEDI 'Подписать и отправить изве�
         MESSAGE 'Не выбрано ни одной накладной';
 }
 
-skipCheck2551 = ABSTRACT BOOLEAN (EInvoice); //у кого уже сделано отправка извещения и подпаисание вместе не проверяем
+skipCheck2551 = ABSTRACT VALUE BOOLEAN (EInvoice); //у кого уже сделано отправка извещения и подпаисание вместе не проверяем
+dataSkipCheck2551 'Разрешить подписание накладных без получения подтверждения (2551)' = DATA BOOLEAN ();
+skipCheck2551(EInvoice i) += dataSkipCheck2551() AND i IS EInvoice;
+EXTEND FORM integrationData 
+    PROPERTIES dataSkipCheck2551();
+DESIGN integrationData { commonEdi {MOVE PROPERTY (dataSkipCheck2551());}}
+
 signAndSendCustomer 'Подписать и отправить (покупатель)'  ABSTRACT LIST ( EInvoice);
 signAndSendCustomerEDI 'Подписать и отправить (покупатель)'() {
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {

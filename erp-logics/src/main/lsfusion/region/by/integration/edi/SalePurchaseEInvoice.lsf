@@ -1,6 +1,6 @@
 MODULE SalePurchaseEInvoice;
 
-REQUIRE SalePurchaseInvoice, ConsignmentEInvoice, PurchaseEInvoice;
+REQUIRE SalePurchaseInvoiceShipment, ConsignmentEInvoice, PurchaseEInvoice;
 
 NAMESPACE SalePurchaseInvoice;
 
@@ -24,8 +24,16 @@ changeReceiver (PurchaseInvoice i) {
     }
 }
 
+createShipmentEInvoice 'Создать поставку' (Purchase.Invoice i){
+    NEWSESSION {
+        createPurchaseShipment(Sale.UserInvoice si) <- TRUE WHERE i == purchaseInvoice(si);
+        APPLY;
+    }
+}
+
 EXTEND FORM Purchase.invoices
     PROPERTIES nameReceiver(i) PANEL ON CHANGE changeReceiver(i) SHOWIF (i IS PurchaseInvoice AND EDI.eInvoice(i) AND importedCustomer(EDI.eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i))
+    PROPERTIES createShipmentEInvoice(i) PANEL SHOWIF (i IS PurchaseInvoice AND EDI.eInvoice(i) AND importedCustomer(EDI.eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i)) AND NOT createPurchaseShipment(invoice(i))
 ;
 
 DESIGN Purchase.invoices {
