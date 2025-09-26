@@ -294,8 +294,10 @@ NAVIGATOR {
 }
 
 @defineOperationProperty(allowRepeatSku, 'Разрешить повтор SKU', constraintContainer);
+skipContraintEqualItems = ABSTRACT BOOLEAN (PriceListDetail);
+contraintEqualItems(PriceListDetail d1, PriceListDetail d2) = (CHANGED(sku(d1)) OR SET(isPosted(d1))) AND isPosted(d1) AND sku(d1) == sku(d2) 
+    AND priceList(d1) == priceList(d2) AND NOT d1 == d2 AND NOT allowRepeatSku(operation(d1)) AND NOT skipContraintEqualItems(d1);
 
-contraintEqualItems(PriceListDetail d1, PriceListDetail d2) = (CHANGED(sku(d1)) OR SET(isPosted(d1))) AND isPosted(d1) AND sku(d1) == sku(d2) AND priceList(d1) == priceList(d2) AND NOT d1 == d2 AND NOT allowRepeatSku(operation(d1));
 WHEN (GROUP SUM 1 IF contraintEqualItems(PriceListDetail d1, PriceListDetail d2)) DO {
     FOR ISTRING[255] message == (GROUP CONCAT ('Строка номер ' + index(PriceListDetail d) + ' : ' + idSku(d) + ' ' + nameSku(d) + ' ' + 'Прайс №' + number(d)) IF contraintEqualItems(d, PriceListDetail d2), '\n' ORDER d) DO {
         cancel();
