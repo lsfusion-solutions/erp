@@ -1,0 +1,122 @@
+MODULE PurchaseDemandGestori;
+
+REQUIRE PurchaseDemand, StockReserve;
+
+NAMESPACE Purchase;
+
+TABLE skuStockExtra(Sku, Stock);
+
+promoDateFrom 'Дата начала промоакции' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
+promoDateTo 'Дата окончания промоакции' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
+promoCoeff 'Коэффициент промоакции' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+
+dowCoeff 'Коэффициент дня недели' = DATA NUMERIC[10,6] (Sku, Stock, DOW);
+extraCoeff 'Коэффициент сверхзаказа' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+dataMaxQuantityOrder 'Максимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
+dataMinQuantityOrder 'Минимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
+
+@defineGroupDefaultValue(supplierStockInner, 'Способ поставки', Stock, skuGroup);
+
+CONSTRAINT SETCHANGED(dataSupplierStockInner(SkuGroup sg)) AND NOT isCompany(dataSupplierStockInner(sg))
+    CHECKED BY dataSupplierStockInner[SkuGroup]
+    MESSAGE 'Выбирать можно только собственный склад';
+
+nameSupplierStockInner 'Способ поставки' (SkuGroup sg) = name(supplierStockInner(sg)) CHARWIDTH 20;
+
+dataSupplierStockInner = DATA Stock (Stock, SkuGroup);
+
+levelParentSupplierStockInner (Stock stock, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataSupplierStockInner(stock, parent) MATERIALIZED;
+nearestParentSupplierStockInner (Stock stock, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentSupplierStockInner(stock, skuGroup));
+nearestSupplierStockInner (Stock stock, SkuGroup skuGroup) =
+    dataSupplierStockInner(stock, nearestParentSupplierStockInner(stock, skuGroup));
+
+supplierStockInner (Stock stock, SkuGroup skuGroup) = OVERRIDE
+    dataSupplierStockInner(stock, skuGroup),
+    nearestSupplierStockInner (stock, skuGroup) MATERIALIZED;
+nameSupplierStockInner 'Способ доставки' (Stock stock, SkuGroup skuGroup) = name(supplierStockInner(stock, skuGroup)) CHARWIDTH 20;
+
+CONSTRAINT SETCHANGED(dataSupplierStockInner(Stock st, SkuGroup sg)) AND NOT isCompany(dataSupplierStockInner(st, sg))
+    CHECKED BY dataSupplierStockInner[Stock, SkuGroup]
+    MESSAGE 'Выбирать можно только собственный склад';
+
+dataSupplierStockInner = DATA Stock (Sku, Stock) TABLE skuStockExtra;
+
+CONSTRAINT SETCHANGED(dataSupplierStockInner(Sku sk, Stock st)) AND NOT isCompany(dataSupplierStockInner(sk, st))
+    CHECKED BY dataSupplierStockInner[Sku, Stock]
+    MESSAGE 'Выбирать можно только собственный склад';
+
+supplierStockInner (Sku sku, Stock stock) = OVERRIDE
+    dataSupplierStockInner(sku, stock),
+    supplierStockInner(stock, skuGroup(sku)),
+    supplierStockInner(skuGroup(sku)) IF isCompany(stock) MATERIALIZED TABLE skuStockExtra;
+nameSupplierStockInner 'Способ доставки' (Sku sk, Stock st) = name(supplierStockInner(sk, st)) CHARWIDTH 20;
+
+numberGestori '{time.number.dow}' (DOW d) = CASE EXCLUSIVE
+    WHEN d == DOW.monday THEN 1
+    WHEN d == DOW.tuesday THEN 2
+    WHEN d == DOW.wednesday THEN 3
+    WHEN d == DOW.thursday THEN 4
+    WHEN d == DOW.friday THEN 5
+    WHEN d == DOW.saturday THEN 6
+    WHEN d == DOW.sunday THEN 7
+    MATERIALIZED;
+
+extraDaysInner 'Дополнительное число дней в пути от склада' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
+expiryDaysRemain 'Остаточный срок годности в днях' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
+
+dataQuantityPacksNull = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
+
+@defineGroupDefaultValue(quantityPacksNull, 'Количество к заказу при нулевых среднедневных продажах, уп.', INTEGER, skuGroup);
+
+quantityPacksNull 'Количество к заказу при нулевых среднедневных продажах, уп.' (Sku sku, Stock stock) = OVERRIDE
+    dataQuantityPacksNull(sku, stock),
+    quantityPacksNull(skuGroup(sku)) IF isCompany(stock) MATERIALIZED TABLE skuStockExtra;
+
+@defineGroupDefaultValue(demandLogic, 'Алгоритм расчёта', INTEGER, skuGroup);
+
+dataDemandLogic = DATA INTEGER (Stock, SkuGroup);
+
+levelParentDemandLogic (Stock stock, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataDemandLogic(stock, parent) MATERIALIZED;
+nearestParentDemandLogic (Stock stock, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentDemandLogic(stock, skuGroup));
+nearestDemandLogic (Stock stock, SkuGroup skuGroup) =
+    dataDemandLogic(stock, nearestParentDemandLogic(stock, skuGroup));
+
+demandLogic 'Алгоритм расчёта' (Stock stock, SkuGroup skuGroup) = OVERRIDE
+    dataDemandLogic(stock, skuGroup),
+    nearestDemandLogic (stock, skuGroup) MATERIALIZED;
+
+dataDemandLogic = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
+
+demandLogic 'Алгоритм расчёта' (Sku sku, Stock stock) = OVERRIDE
+    dataDemandLogic(sku, stock),
+    demandLogic(stock, skuGroup(sku)),
+    demandLogic(skuGroup(sku)) IF isCompany(stock) MATERIALIZED TABLE skuStockExtra;
+
+EXTEND FORM stockReserve
+    PROPERTIES (ss, sk) SHOWIF singleStoreNested() nameSupplierStockInner, demandLogic
+
+    PROPERTIES (s,st) AFTER overStockReserve(st, s, dt) promoDateFrom, promoDateTo, promoCoeff, extraCoeff, dataMaxQuantityOrder, dataMinQuantityOrder,
+        nameSupplierStockInner, extraDaysInner, expiryDaysRemain, quantityPacksNull, demandLogic
+
+    OBJECTS dow = DOW
+    PROPERTIES (dow) READONLY staticCaption, numberGestori
+    PROPERTIES dowCoeff(s, st, dow)
+    ORDERS numberGestori(dow)
+;
+
+DESIGN stockReserve {
+    tabContainer{
+        NEW items {
+            caption = 'Товары';
+            MOVE BOX(sts) {
+                caption = 'Товары';
+                fill = 3;
+            }
+            MOVE BOX(dow) {
+                PROPERTY (staticCaption(dow)) { caption = 'День недели'; }
+            }
+        }
+    }
+}
