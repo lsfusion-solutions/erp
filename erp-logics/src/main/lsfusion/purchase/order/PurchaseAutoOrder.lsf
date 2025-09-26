@@ -122,8 +122,11 @@ calcQuantityPromotionSoldIntervalNew 'Рассчитать однодневны�
     dateFromRegular(Sku s, Stock st) <- IF dateToPromotion(s, st) < subtract(currentDate(), (OVERRIDE countAfterPromotion(skuGroup(s)),1)) THEN sum(dateToPromotion(s, st), 1) ELSE (MAX sum(prevToDatePromotion(regularPromotionDetail(s, st), st), 1), subtract(dateToRegular(s, st), countSoldDays(skuGroup(s)))) WHERE regularPromotionDetail(s, st) AND in(st);
     
     APPLY;
-    
-    averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromRegular(sku, stock), dateToRegular(sku, stock))) 
+
+    IF useDaysChange() THEN
+        averageSold(Sku sku, Stock stock) <- averageSoldOnStock(sku, stock, dateFromRegular(sku, stock), dateToRegular(sku, stock)) WHERE dateToRegular(sku, stock) AND in(stock);
+    ELSE
+        averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](averageSold (sku, stock, dateFromRegular(sku, stock), dateToRegular(sku, stock))) 
                                                                 WHERE dateToRegular(sku, stock) AND in(stock);
 
     averageSoldPromotion(Sku sku, Stock stock) <- NULL WHERE in(stock);
