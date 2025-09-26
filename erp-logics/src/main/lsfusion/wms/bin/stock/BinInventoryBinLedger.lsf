@@ -79,6 +79,13 @@ stock = DATA Stock (BinInventory);
 nameStock 'Склад' (BinInventory b) = name(stock(b));
 idStock  'Код склада' (BinInventory b) = id(stock(b));
 
+changeStockCompanyOver ABSTRACT (BinInventory);
+changeStockCompany(BinInventory b)  {
+    DIALOG companyStocks OBJECTS l = legalEntity(stock(b)) NULL, s = stock(b) CHANGE LIST name(s) DO {
+        changeStockCompanyOver(b);
+    }
+}
+
 //
 //ячейки в инвентаризации
 TABLE binInventoryBinGroup (BinInventory, BinGroup);
@@ -184,7 +191,7 @@ isReadonlyQuantity = ABSTRACT BOOLEAN (BinInventory);
 
 FORM binInventory 'Инвентаризация по ячейкам'
     OBJECTS i = BinInventory PANEL 
-    PROPERTIES(i) nameTypeOfAddition, date, number, series, time, isPosted, nameStock, note,
+    PROPERTIES(i) nameTypeOfAddition, date, number, series, time, isPosted, nameStock ON CHANGE changeStockCompany(i), note,
         fillBinInventories
     OBJECTS t = DATETIME 
     FILTERS t = dateTime(i)
