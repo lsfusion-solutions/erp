@@ -481,11 +481,16 @@ createAutoOrdersMultithread 'Создание автозаказов (много
 }
 
 EXTEND FORM options
-    PROPERTIES () createAutoOrders, createAutoOrdersMultithread, skipDeleteEmptyAutoOrders
+    PROPERTIES () createAutoOrders, createAutoOrdersMultithread, skipDeleteEmptyAutoOrders, calcQuantitySoldInterval, calcQuantityPromotionSoldIntervalNew
 ;
 
 DESIGN options {
     purchase {
+        NEW calcQiantitySold {
+            horizontal = TRUE;
+            MOVE PROPERTY (calcQuantitySoldInterval());
+            MOVE PROPERTY (calcQuantityPromotionSoldIntervalNew());
+        }
         MOVE PROPERTY (createAutoOrders());
         MOVE PROPERTY (countThreadsAutoOrder());
         MOVE PROPERTY (createAutoOrdersMultithread());        
@@ -502,3 +507,21 @@ DESIGN options {
 //EXTEND FORM scheduleOrder
 //    PROPERTIES (sd)createAutoOrders TOOLBAR 
 //;
+
+calculateDaysChange 'Рассчитать изменение остатка по дням' () {
+    calculateDaysChange (subtract(currentDate(), [GROUP MAX dataCountSoldDays(SkuGroup sk)]()), currentDate());
+}
+
+EXTEND FORM options
+    PROPERTIES calculateDaysChange()
+;
+
+DESIGN options {
+    stock {
+        NEW daysChange {
+            horizontal = TRUE;
+            MOVE PROPERTY(useDaysChange());
+            MOVE PROPERTY(calculateDaysChange());
+        }
+    }
+}
