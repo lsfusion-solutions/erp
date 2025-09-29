@@ -1,0 +1,61 @@
+MODULE SignSkko;
+
+REQUIRE AuthorizationSkko, Authentication, NTClientSoftware, AvCmUt4Sign;
+
+CLASS SignatureAppSkko 'Приложение для подписи СККО' : StaticObject;
+
+verify = DATA BOOLEAN ();
+
+dataSignatureAppSkko = DATA SignatureAppSkko();
+defaultAppSKK = ABSTRACT SignatureAppSkko();
+signatureAppSkko () = OVERRIDE dataSignatureAppSkko(), defaultAppSKK();
+nameSignatureAppSkko 'Приложение для подписи СККО' () = staticCaption(signatureAppSkko());
+
+signSkko 'Подписать' ABSTRACT LIST (LegalEntity, JSONFILE);
+
+signSkko(LegalEntity le, JSONFILE f) + {
+    IF NOT signatureAppSkko() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
+
+signSkko(LegalEntity le, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.ntClientSoftware THEN {
+        canonicalizeJSON(f, NULL);
+        canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
+        sign(canonicalizedJSON());
+    }
+}
+
+EXTEND CLASS SignatureAppSkko {
+    ntClientSoftware 'NTClientSoftware',
+    avCmUt4 'AvCmUt4'
+}
+
+EXTEND FORM integrationData PROPERTIES () nameSignatureAppSkko;
+
+DESIGN integrationData {
+    mnsSKKO {
+        MOVE PROPERTY (nameSignatureAppSkko());
+    }
+}
+
+defaultAppSKK() += SignatureAppSkko.avCmUt4;
+
+@defineOptionsAvestDefault (skko, mnsSKKO);
+
+mnsService 'URL' = DATA STRING();
+
+avCmUt4SignSkko(STRING base64) {
+    avCmUt4Sign(pathSkkoAvCmUt4(), pathSkkoExchangeFileAvest(), passwordSkkoAvest(), idSkkoAvest(), base64);
+    RETURN;
+}
+
+signSkko(LegalEntity le, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.avCmUt4 THEN {
+        canonicalizeJSON(f, NULL);
+        avCmUt4SignSkko(canonicalizedJSON());
+    }
+}
+
+showMnsSkkoComp() += signatureAppSkko() == SignatureAppSkko.avCmUt4;

@@ -1,0 +1,15 @@
+MODULE AvCmUt4Sign;
+
+REQUIRE Utils, Authentication, SignAvest;
+
+avCmUt4Sign (STRING pathAvCmUt4, STRING pathExchangeFileAvest, STRING passwordAvest, STRING idAvest, STRING data) {
+    LOCAL result = FILE ();
+    stringToFile(data);
+
+    WRITE CLIENT resultFile() TO pathExchangeFileAvest;
+    cmdClient(CONCAT ' ', '"' + pathAvCmUt4 + '/AvCmUt4.exe" -s',  '"' + pathExchangeFileAvest + '" -l "' + idAvest + '" -p "' + passwordAvest + '" -m1 -M -R');
+    READ CLIENT pathExchangeFileAvest + '.p7s' TO result;
+    LOCAL s = STRING();
+    base64Signature() <- replace(replace(encodeBase64(RAWFILE(result())), '\n', ''), '\r', '');
+    signatureType() <- 'cms-detached-sign/json';
+}

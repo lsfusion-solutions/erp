@@ -382,13 +382,6 @@ FORM exportJSON
 
 sendedMNS 'Отправлена в МНС' (Inventory i) = GROUP MIN TRUE BY inventory(Stocktake s);
 
-sign 'Подписать' ABSTRACT LIST (Stocktake, STRING, BOOLEAN);
-
-sign(Stocktake e, STRING contentSubXML, BOOLEAN interactive) + {
-    IF NOT signatureApp() THEN {
-        MESSAGE 'Не задано приложение для подписи' NOWAIT;
-    }
-}
 exportJSONFile = DATA LOCAL FILE ();
 generateJSON (Inventory inv) {
     createStocktake(inv);
@@ -406,7 +399,7 @@ generateJSON (Inventory inv) {
     
     originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
     
-    sign(createdStocktake(), originalDocument(), TRUE);
+    sign(legalEntity(createdStocktake()), originalDocument(), TRUE);
     originalDocumentSign() <- base64Signature();
     
     IF NOT originalDocumentSign() THEN RETURN;
@@ -430,7 +423,6 @@ generateJSON (Inventory inv) {
     EXPORT exportJSON JSON TO exportJSONFile;
 }
 
-
 // Ответ JSON
 GROUP documentReply EXTID 'DocumentReply';
 GROUP result EXTID 'Result';
@@ -451,18 +443,18 @@ FORM importJSON
 
 stocktakeMNS 'Отправить в МНС' (Inventory inv) {
 
-    IF notTracking(inv) THEN {
-        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
-            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
-        RETURN;
-    }
+//    IF notTracking(inv) THEN {
+//        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
+//            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
+//        RETURN;
+//    }
 
     IF countLegalEntity(inv) > 1 THEN {
         MESSAGE 'Инвентаризация включает склады нескольких организаций';
         RETURN;
     }
 
-    IF includeWithBatch(inv) THEN {
+    IF NOT includeWithBatch(inv) THEN {
         MESSAGE 'В инвентаризации отсутствуют товары с партиями';
         RETURN;
     }

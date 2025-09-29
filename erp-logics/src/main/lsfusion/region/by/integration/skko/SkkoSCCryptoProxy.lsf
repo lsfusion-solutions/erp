@@ -60,3 +60,21 @@ changeAlias 'Получить список ключей' (LegalEntity l) {
 EXTEND FORM integrationData
     PROPERTIES(skkole) changeAlias SHOWIF edsApplication(EDSServiceSkko(skkole)) == EDSApplication.sccp
 ;
+
+signSkko(LegalEntity le, JSONFILE f) + {
+    IF signatureAppSkko() == SignatureAppSkko.scCryptoProxy THEN {
+        IF edsApplication(EDSServiceSkko(le)) == EDSApplication.sccp THEN {
+            IF aliasEDSService(le) AND (OVERRIDE passwordEDSService(), passwordEDSService(le)) THEN {
+                keyID() <- aliasEDSService(le);
+                password() <- (OVERRIDE passwordEDSService(), passwordEDSService(le));
+
+                canonicalizeJSON(f, NULL);
+                canonicalizedJSON() <- replace(replace(Utils.encodeText(canonicalizedJSON(), 'base64'), '\n', ''), '\r', '');
+                sign(canonicalizedJSON(), EDSServiceSkko(le));
+            } ELSE {
+                MESSAGE ' Документ не подписан: Alias или Пароль ключа не задан' NOWAIT;
+            }
+            RETURN;
+        }
+    }
+}

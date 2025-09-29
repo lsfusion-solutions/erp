@@ -318,13 +318,6 @@ FORM exportJSON
     ORDERS index
 ;
 
-sign 'Подписать' ABSTRACT LIST (ProduceMNS, STRING, BOOLEAN);
-
-sign(ProduceMNS e, STRING contentSubXML, BOOLEAN interactive) + {
-    IF NOT signatureApp() THEN {
-        MESSAGE 'Не задано приложение для подписи' NOWAIT;
-    }
-}
 sendedMNS 'Отправлена в МНС' (Order o) = GROUP MIN TRUE BY order(ProduceMNS p);
 
 exportJSONFile = DATA LOCAL FILE ();
@@ -343,7 +336,7 @@ generateJSON (Order o) {
     resultFile() <- NULL;
 
     originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
-    sign(createdProduceMNS(), originalDocument(), TRUE);
+    sign(legalEntity(createdProduceMNS()), originalDocument(), TRUE);
     originalDocumentSign() <- base64Signature();
 
     IF NOT originalDocumentSign() THEN RETURN;

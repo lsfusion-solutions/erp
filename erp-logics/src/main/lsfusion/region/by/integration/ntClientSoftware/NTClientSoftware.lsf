@@ -1,12 +1,8 @@
 MODULE NTClientSoftware;
 
-REQUIRE Utils, Integration, SignMNS;
+REQUIRE Utils, Integration, SignAvest;
 
 //4.4. Выработка ЭЦП через идентификационную карту (КТА) (URL): http://127.0.0.1:8084/sign.
-
-EXTEND CLASS SignatureApp {
-    ntClientSoftware 'NTClientSoftware'
-}
 
 urlNTClientSoftware'Url' = DATA STRING[255] ();
 
@@ -52,7 +48,8 @@ sign (STRING base64Data) {
 
         IMPORT importSignedData JSON FROM response();
 
-        base64Signature() <- cms();        
+        base64Signature() <- cms();
+        signatureType() <- 'cms-detached-sign/json';
     } CATCH {
         MESSAGE CONCAT '\n', 'Документ не подписан', messageCaughtException() NOWAIT;
         logToFile('MNS', (CONCAT ':',' Ошибка при получении подписи от NTClientSoftware', messageCaughtException()));

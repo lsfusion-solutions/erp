@@ -1,11 +1,6 @@
 MODULE DocumentMNS;
 
-REQUIRE LegalEntity, ItemTracking, SignMNS;
-
-trackingUOMRatio(Sku s) = CASE
-    WHEN trackingUOMCustomsGroup(s)=='112' THEN volume(s)
-    WHEN trackingUOMCustomsGroup(s)=='166' THEN netWeight(s)
-    ELSE 1 IF s IS Sku;
+REQUIRE LegalEntity, ItemTracking, SignAvest, NTClientSoftware, AvCmUt4Sign;
 
 signatureApp () = DATA SignatureApp();
 nameSignatureApp 'Приложение для подписи' () = staticCaption(signatureApp());
@@ -20,5 +15,41 @@ DESIGN integrationData {
             MOVE PROPERTY (mnsService());
             MOVE PROPERTY (nameSignatureApp());
         }
+    }
+}
+
+CLASS SignatureApp 'Приложение для подписи' : StaticObject;
+
+trackingUOMRatio(Sku s) = CASE
+    WHEN trackingUOMCustomsGroup(s)=='112' THEN volume(s)
+    WHEN trackingUOMCustomsGroup(s)=='166' THEN netWeight(s)
+    ELSE 1 IF s IS Sku;
+
+EXTEND CLASS SignatureApp {
+    ntClientSoftware 'NTClientSoftware',
+    avCmUt4 'AvCmUt4'
+}
+
+@defineOptionsAvestDefault (mns, mnsService);
+
+showMnsMnsComp() += signatureApp() == SignatureApp.avCmUt4;
+
+sign 'Подписать' ABSTRACT LIST (LegalEntity, STRING, BOOLEAN);
+
+sign(LegalEntity le, STRING contentSubXML, BOOLEAN interactive) + {
+    IF NOT signatureApp() THEN {
+        MESSAGE 'Не задано приложение для подписи' NOWAIT;
+    }
+}
+
+sign(LegalEntity le, STRING contentSubXML, BOOLEAN interactive) + {
+    IF signatureApp() == SignatureApp.ntClientSoftware THEN {
+        sign(contentSubXML);
+    }
+}
+
+sign(LegalEntity le, STRING contentSubXML, BOOLEAN interactive) + {
+    IF signatureApp() == SignatureApp.avCmUt4 THEN {
+        avCmUt4Sign(pathMnsAvCmUt4(), pathMnsExchangeFileAvest(), passwordMnsAvest(), idMnsAvest(), STRING(DocumentMNS.decodeText(contentSubXML, 'base64')));
     }
 }

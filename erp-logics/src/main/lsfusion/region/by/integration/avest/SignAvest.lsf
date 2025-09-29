@@ -1,0 +1,40 @@
+MODULE SignAvest;
+
+REQUIRE LegalEntity, ItemTracking;
+
+NAMESPACE DocumentMNS;
+
+basic = DATA LOCAL TEXT ();
+encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
+decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';
+
+base64Signature = DATA LOCAL STRING ();
+signatureType = DATA LOCAL STRING ();
+
+META defineOptionsAvestDefault (type, container)
+showMns###type##Comp = ABSTRACT BOOLEAN ();
+dataPath###type##AvCmUt4 'Путь к AvCmUt4)' = DATA STRING (Computer);
+path###type##AvCmUt4 'Путь к AvCmUt4)' (Computer c) = OVERRIDE dataPath###type##AvCmUt4(c), 'c:\\Program Files (x86)\\Avest\\AvPCM_nces' IF c IS Computer;
+path###type##AvCmUt4 'Путь к AvCmUt4)' () = path###type##AvCmUt4(currentComputer());
+
+path###type##ExchangeFileAvest 'Путь к файлу обмена' = DATA STRING (Computer);
+path###type##ExchangeFileAvest 'Путь к файлу обмена' () = path###type##ExchangeFileAvest(currentComputer());
+
+password###type##Avest 'Пароль контейнера (Avest)' = DATA STRING (Computer) ECHO;
+password###type##Avest 'Пароль контейнера (Avest)' () = password###type##Avest(currentComputer());
+
+id###type##Avest 'Имя ключа (Avest)' = DATA STRING (Computer);
+id###type##Avest 'Имя ключа (Avest)' () = id###type##Avest(currentComputer());
+
+EXTEND FORM integrationData
+    OBJECTS mns###type##Comp = Computer
+    PROPERTIES(mns###type##Comp) READONLY hostname
+    PROPERTIES(mns###type##Comp) path###type##AvCmUt4, path###type##ExchangeFileAvest, password###type##Avest, id###type##Avest
+;
+
+DESIGN integrationData {
+    container {
+        MOVE BOX(mns###type##Comp) {showIf = showMns###type##Comp();};
+    }
+}
+END
