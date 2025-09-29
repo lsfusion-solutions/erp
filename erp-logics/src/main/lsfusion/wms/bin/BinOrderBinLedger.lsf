@@ -25,7 +25,10 @@ selected 'Отм.' = DATA LOCAL BOOLEAN (BinOrder);
 
 @defineDocumentInterfaceNumber(binOrder, BPSTRING[2]);
 
-@defineDocumentInterfacePosted(binOrder);
+@defineDocumentAbstractHeaderPosted(BinOrder);
+@defineDocumentDetailPosted(binOrder, BinOrderDetail);
+
+isPosted[BinOrder](UserBinOrder o) += o IS UserBinOrder; //Пользовательский документ всегда считаем проведеным
 
 @defineDocumentInterfaceClosed(binOrder);
 
@@ -61,7 +64,7 @@ INDEX outBin(BinOrderDetail d), sku(d);
 //@implementDocument(userBinOrder);
 
 isClosed[Document](UserBinOrder userBinOrder) += isClosed(userBinOrder);
-isPosted[Document](UserBinOrder userBinOrder) += isPosted(userBinOrder);
+isPosted[Document](UserBinOrder userBinOrder) += userBinOrder IS UserBinOrder;
 number[Document](UserBinOrder userBinOrder) += number(userBinOrder);
 series[Document](UserBinOrder userBinOrder) += series(userBinOrder);
 date[Document](UserBinOrder userBinOrder) += date(userBinOrder);
@@ -97,13 +100,6 @@ supplierStock[Document](UserBinOrder binOrder) += stock(binOrder);
 @defineExternalizable(userBinOrderDetail, STRING[100]);
 
 @defineNumeratedDefault(UserBinOrder, 'Заказы на перемещение по ячейкам ', 'ЗП');
-
-disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserBinOrder);
-overPrePost 'Провести' (UserBinOrder o)  { 
-    IF NOT disablePosted(o) THEN {
-        isPosted(o) <- TRUE;
-    } 
-}
 
 //вес заказа
 sumGrossWeight 'Вес брутто, кг' = ABSTRACT NUMERIC[14,3] (BinOrderDetail);        
@@ -165,7 +161,7 @@ autoCloseBinOrder 'Автоматическое закрытие заказов'
             
 FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinOrder PANEL
-    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
+    PROPERTIES (o) nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
                    nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
     PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail, sumGrossWeightUserBinOrderDetail
     PROPERTIES (o) closeDateTime
@@ -178,9 +174,6 @@ FORM userBinOrder 'Заказ на перемещение по ячейкам (�
     FILTERS binOrder(d)==o
     ORDERS index(d)
     EDIT UserBinOrder OBJECT o
-    
-    EVENTS
-        ON OK overPrePost(o)
 ;
 
 DESIGN userBinOrder {
@@ -203,7 +196,6 @@ DESIGN userBinOrder {
                             lines = 1;
                             NEW first {
                                 horizontal = TRUE;
-                                MOVE PROPERTY(isPosted(o));
                             }
                             NEW second { 
                                 horizontal = TRUE;
@@ -345,8 +337,7 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     OBJECTS d = BinOrderDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameOutBin, nameInBin, quantity, grossWeight, balanceB
     
-    PROPERTIES (o) READONLY PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer, 
-                                        postedNameUser, postedTime, postedHostnameComputer
+    PROPERTIES (o) READONLY PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer
 
     PROPERTIES (o) NEWSESSION addUserBinOrder = NEW[UserBinOrder], EDIT SHOWIF overShowEdit(o) 
     PROPERTIES (o) copy
@@ -395,7 +386,6 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
             NEW documentHistory {
                 caption = 'История';
                 MOVE GROUP(created,o);
-                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';

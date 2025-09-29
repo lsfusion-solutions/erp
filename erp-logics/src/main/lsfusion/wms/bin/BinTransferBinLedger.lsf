@@ -23,7 +23,10 @@ GROUP binTransfer 'Информация о перемещении' : base;
 
 @defineDocumentInterfaceNumber(binTransfer, BPSTRING[2]);
 
-@defineDocumentInterfacePosted(binTransfer);
+@defineDocumentAbstractHeaderPosted(BinTransfer);
+@defineDocumentDetailPosted(binTransfer, BinTransferDetail);
+
+isPosted[BinTransfer](UserBinTransfer o) += o IS UserBinTransfer; //Пользовательский документ всегда считаем проведеным
 
 @defineDocumentInterfaceClosed(binTransfer);
 
@@ -51,7 +54,7 @@ useBins(UserBinTransfer transfer) <- TRUE WHEN SET(transfer IS UserBinTransfer);
 //@implementDocumentPrefix(userBinTransfer);
 
 isClosed[Document](UserBinTransfer userBinTransfer) += isClosed(userBinTransfer);
-isPosted[Document](UserBinTransfer userBinTransfer) += isPosted(userBinTransfer);
+isPosted[Document](UserBinTransfer userBinTransfer) += userBinTransfer IS UserBinTransfer;
 number[Document](UserBinTransfer userBinTransfer) += number(userBinTransfer);
 series[Document](UserBinTransfer userBinTransfer) += series(userBinTransfer);
 date[Document](UserBinTransfer userBinTransfer) += date(userBinTransfer);
@@ -89,13 +92,6 @@ supplierStock[Document](UserBinTransfer binTransfer) += stock(binTransfer);
 
 @defineNumeratedDefault(UserBinTransfer, 'Перемещения по ячейкам ', 'ПП');
 
-disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserBinTransfer);
-overPrePost 'Провести' (UserBinTransfer o)  { 
-    IF NOT disablePosted(o) THEN {
-        isPosted(o) <- TRUE;
-    } 
-}
-
 //вес трансфера
 sumGrossWeight 'Вес брутто, кг' = ABSTRACT NUMERIC[14,3] (BinTransferDetail);        
 sumGrossWeight 'Вес брутто, кг' = DATA NUMERIC[14,3] (UserBinTransferDetail);
@@ -111,7 +107,7 @@ sumGrossWeight(UserBinTransferDetail d) <- grossWeight(sku(d)) * quantity(d)
 
 FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinTransfer PANEL
-    PROPERTIES (o) isPosted, nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note
+    PROPERTIES (o) nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note
     PROPERTIES (o) READONLY countUserBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail 
     
     OBJECTS d = UserBinTransferDetail
@@ -122,9 +118,6 @@ FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
     FILTERS binTransfer(d)==o
     ORDERS index(d)
     EDIT UserBinTransfer OBJECT o
-    
-    EVENTS
-        ON OK overPrePost(o)
 ;
 
 DESIGN userBinTransfer {
@@ -146,7 +139,6 @@ DESIGN userBinTransfer {
                             lines = 1;
                             NEW first {
                                 horizontal = TRUE;
-                                MOVE PROPERTY(isPosted(o));
                             }
                             NEW second { 
                                 horizontal = TRUE;
@@ -290,8 +282,7 @@ FORM binTransfers 'Перемещения по ячейкам'
     OBJECTS d = BinTransferDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameOutBin, nameInBin, quantity, sumGrossWeight
     
-    PROPERTIES (o) READONLY PANEL createdNameUser[UserBinTransfer], createdTime, createdHostnameComputer, 
-                                        postedNameUser, postedTime, postedHostnameComputer
+    PROPERTIES (o) READONLY PANEL createdNameUser[UserBinTransfer], createdTime, createdHostnameComputer
 
     PROPERTIES (o) NEWSESSION addUserBinTransfer = NEW[UserBinTransfer], EDIT SHOWIF overShowEdit(o) 
     PROPERTIES (o) copy
@@ -336,7 +327,6 @@ DESIGN binTransfers 'Перемещения по ячейкам' {
             NEW documentHistory {
                 caption = 'История';
                 MOVE GROUP(created,o);
-                MOVE GROUP(posted,o);
             }
             NEW printTab {
                 caption = 'Печатные формы';
