@@ -8,12 +8,21 @@ TABLE skuStockExtra(Sku, Stock);
 
 promoDateFrom 'Дата начала промоакции' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
 promoDateTo 'Дата окончания промоакции' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
-promoCoeff 'Коэффициент промоакции' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+dataPromoCoeff 'Коэффициент промоакции' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+promoCoeff 'Коэффициент промоакции' (Sku sk, Stock st) = OVERRIDE dataPromoCoeff(sk, st), 1.0 IF sk IS Sku AND st IS Stock;
+promoCoeff (Sku sk, Stock st, DATE dt) = IF dt >= promoDateFrom(sk, st) AND dt <= promoDateTo(sk, st) THEN promoCoeff(sk, st);
 
-dowCoeff 'Коэффициент дня недели' = DATA NUMERIC[10,6] (Sku, Stock, DOW);
-extraCoeff 'Коэффициент сверхзаказа' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+dataDowCoeff 'Коэффициент дня недели' = DATA NUMERIC[10,6] (Sku, Stock, DOW);
+dowCoeff 'Коэффициент дня недели' (Sku sk, Stock st, DOW dow) = OVERRIDE dataDowCoeff(sk, st, dow), 1.0 IF sk IS Sku AND st IS Stock AND dow IS DOW;
+
+dataExtraCoeff 'Коэффициент сверхзапаса' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
+extraCoeff 'Коэффициент сверхзапаса' (Sku sk, Stock st) = OVERRIDE dataExtraCoeff(sk, st), 1.0 IF sk IS Sku AND st IS Stock;
+
 dataMaxQuantityOrder 'Максимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
 dataMinQuantityOrder 'Минимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
+
+extraDaysInner 'Дополнительное число дней в пути от склада' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
+expiryDaysRemain 'Остаточный срок годности в днях' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
 
 @defineGroupDefaultValue(supplierStockInner, 'Способ поставки', Stock, skuGroup);
 
@@ -61,9 +70,6 @@ numberGestori '{time.number.dow}' (DOW d) = CASE EXCLUSIVE
     WHEN d == DOW.saturday THEN 6
     WHEN d == DOW.sunday THEN 7
     MATERIALIZED;
-
-extraDaysInner 'Дополнительное число дней в пути от склада' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
-expiryDaysRemain 'Остаточный срок годности в днях' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
 
 dataQuantityPacksNull = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
 
