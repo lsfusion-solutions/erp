@@ -50,14 +50,18 @@ indisvalid 'Активный' = DATA BOOLEAN (Index);
 
 efficiency 'Эффективность' (Index i) = 100.0 * indexReads(i) / indexScans(i) / curRows(table(i));
 
+//Секционированная таблица
+//CLASS Partition 'Секция' : DatabaseTable;
+//TABLE partition(Partition);
+
 getIndexes 'Получить список индексов'(Table t) {
     NEWSESSION {
         LOCAL is = BOOLEAN (Index);
-        
-        INTERNAL DB 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1' 
+
+        INTERNAL DB 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1'
             PARAMS lower(sid(t))
             TO file;
-            
+
         IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL, STRING definition, STRING constraint, LONG indexSize, LONG indexScans, LONG indexReads, LONG relid, BOOLEAN indisvalid NULL DO {
             IF NOT index(indexName) THEN NEW i = Index {
                 name(i) <- indexName;
@@ -75,17 +79,17 @@ getIndexes 'Получить список индексов'(Table t) {
                 is(i) <- TRUE;
             }
         }
-        
+
         DELETE Index i WHERE table(i) == t AND NOT is(i);
-        
+
         APPLY;
-        
+
     }
 }
 
 invalidate 'Отключить' (Index i) {
     IF relid(i) > 0 THEN {
-        INTERNAL DB 'UPDATE pg_index SET indisvalid = false WHERE indexrelid = $1' 
+        INTERNAL DB 'UPDATE pg_index SET indisvalid = false WHERE indexrelid = $1'
             PARAMS relid(i);
         getIndexes(table(i));
     }
@@ -93,7 +97,7 @@ invalidate 'Отключить' (Index i) {
 
 validate 'Включить' (Index i) {
     IF relid(i) > 0 THEN {
-        INTERNAL DB 'UPDATE pg_index SET indisvalid = true WHERE indexrelid = $1' 
+        INTERNAL DB 'UPDATE pg_index SET indisvalid = true WHERE indexrelid = $1'
             PARAMS relid(i);
         getIndexes(table(i));
     }
@@ -107,34 +111,33 @@ dropIndexes 'Удалить индексы' (Table t) {
     );
 }
 
-
 dataCountTreads = DATA INTEGER ();
 countTreads 'Количество потоков'() = OVERRIDE dataCountTreads(), 4;
 
 createIndexes 'Создать индексы' (Table t) {
-    NEWEXECUTOR 
-        FOR table(Index i) == t DO 
+    NEWEXECUTOR
+        FOR table(Index i) == t DO
             NEWTHREAD NEWSESSION NEWSQL {
                 TRY {
                     logToFile('database-tools', 'start - ' + definition(i));
-                    runSQL(definition(i)); 
+                    runSQL(definition(i));
                 } CATCH {
                     logToFile('database-tools', (CONCAT '', 'error - ' + definition(i) + ': \n', messageCaughtException() ));
                 }
                 logToFile('database-tools', 'end - ' + definition(i) );
-            } 
-	THREADS countTreads();
-    
+            }
+        THREADS countTreads();
+
     FOR isConstraint(Index i) AND table(i) == t DO {
         TRY {
-            logToFile('database-tools', 'start - ADD CONSTRAINT  '+ name(i) );
+            logToFile('database-tools', 'start - ADD CONSTRAINT  ' + name(i) );
             //пока полагаемся что у нас только PRIMARY KEY иначе нужно будет проверять что pg_get_constraintdef
-            runSQL('ALTER TABLE ' + lower(sid(t)) + ' ADD CONSTRAINT ' + name(i) + ' PRIMARY KEY USING INDEX ' + name(i)); 
+            runSQL('ALTER TABLE ' + lower(sid(t)) + ' ADD CONSTRAINT ' + name(i) + ' PRIMARY KEY USING INDEX ' + name(i));
         } CATCH {
             logToFile('database-tools', (CONCAT '', 'error - ADD CONSTRAINT ' + name(i) + ': \n', messageCaughtException() ));
         }
-        logToFile('database-tools', 'end - ADD CONSTRAINT  '+ name(i));
-    } 
+        logToFile('database-tools', 'end - ADD CONSTRAINT  ' + name(i));
+    }
 }
 
 //REINDEX CONCURRENTLY вешает Lock virtualxid и ждет пока завершатся ВСЕ запросы в базе запущенные раньше этого момента
@@ -154,13 +157,13 @@ runAndLogSQL(STRING command) {
         } CATCH {
             logToFile('database-tools', (CONCAT '\n', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()));
         }
-    } ELSE 
+    } ELSE
         runSQL(command);
     logToFile('database-tools', 'end - ' + command);
 }
 
 reindex 'REINDEX' (Index i) {
-    runAndLogSQL('REINDEX INDEX ' + (IF indexSize(i)/1024/1024.0 > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + name(i));
+    runAndLogSQL('REINDEX INDEX ' + (IF indexSize(i) / 1024 / 1024.0 > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + name(i));
 }
 
 reindex 'REINDEX' (Table t) {
@@ -182,7 +185,7 @@ reindex 'REINDEX' (Table t) {
     }
 } ASON CONTEXTMENU sid[DatabaseTable];
 
-vacuumSysTab  ABSTRACT (INTEGER, STRING);
+vacuumSysTab ABSTRACT (INTEGER, STRING);
 vacuumSysTab (INTEGER count, STRING table) + {
     TRY {
         runSQL('VACUUM FULL ' + table);
@@ -193,7 +196,7 @@ vacuumSysTab (INTEGER count, STRING table) + {
             RETURN;
         } ELSE {
             vacuumSysTab(count + 1, table);
-        }  
+        }
     }
 }
 
@@ -211,7 +214,7 @@ vacuum 'VACUUM FULL' (DatabaseTable t) {
     }
     IF deleteIndexes(t) THEN {
         createIndexes(t);
-    }    
+    }
     NEWSESSION {
         dataSize(t) <- [FORMULA NUMERIC[15,3] 'pg_table_size($1) /1024/1024.0'](lower(sid(t)));
         indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
@@ -221,9 +224,9 @@ vacuum 'VACUUM FULL' (DatabaseTable t) {
 
 loadCurSize 'Заполнить размеры таблиц'(){
     INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
-             'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
+        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
         TO file;
-    
+
     IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
         curDataSize(Table t) <- t_size WHERE lower(sid(t)) == table;
         curIndexSize(Table t) <- i_size WHERE lower(sid(t)) == table;
@@ -235,7 +238,7 @@ loadSystemCurSize 'Заполнить размеры системных табл
     IF NOT (GROUP SUM 1 IF PgTable t IS PgTable) THEN NEWSESSION {
         INTERNAL DB 'SELECT tablename FROM pg_tables WHERE schemaname = \'pg_catalog\''
             TO file;
-            
+
         IMPORT TABLE FROM file() FIELDS STRING[100] table DO {
             IF NOT table(table) THEN {
                 NEW t = PgTable {
@@ -249,16 +252,16 @@ loadSystemCurSize 'Заполнить размеры системных табл
     }
 
     INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
-             'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
+        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
         TO file;
-    
+
     IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
         curDataSize(PgTable t) <- t_size WHERE lower(sid(t)) == table;
         curIndexSize(PgTable t) <- i_size WHERE lower(sid(t)) == table;
     }
 }
 
-grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001)-(OVERRIDE B, 0.001))/(MAX B, 0.001)), 0.0)](a,b);
+grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001) - (OVERRIDE B, 0.001)) / (MAX B, 0.001)), 0.0)](a, b);
 dataVacuumCoeff = DATA NUMERIC[5,2]();
 vacuumCoeff 'Коэффициент роста' () = OVERRIDE dataVacuumCoeff(), 0.1;
 dataVacuumSize = DATA NUMERIC[5,2]();
@@ -283,28 +286,28 @@ name 'Наименование' (VacuumOrderType o) = staticCaption(o) IF o IS V
 FORM dialogVacuumOrderTypes 'Сортировка'
     OBJECTS o = VacuumOrderType
     PROPERTIES(o) READONLY name
-    
+
     LIST VacuumOrderType OBJECT o
 ;
 dataVacuumOrderType = DATA VacuumOrderType();
 vacuumOrderType() = OVERRIDE dataVacuumOrderType(), VacuumOrderType.totalSize;
 nameVacuumOrderType 'Сортировка'() = name(vacuumOrderType());
 
-vacuumOrder(DatabaseTable t) = CASE 
+vacuumOrder(DatabaseTable t) = CASE
     WHEN vacuumOrderType() == VacuumOrderType.totalSize THEN curDataSize(t) (+) curIndexSize(t)
     WHEN vacuumOrderType() == VacuumOrderType.growSizeDesc THEN (dataSize(t) (-) curDataSize(t)) (+) (indexSize(t) (-) curIndexSize(t))
-    ;
+;
 
 smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
     logToFile('database-tools', 'Smart VACUUM - starting');
-    
+
     IF NOT pgOnly THEN loadCurSize();
     loadSystemCurSize();
 
-    EXPORT CSV '|' HEADER 
+    EXPORT CSV '|' HEADER
         FROM sid(DatabaseTable t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
-        WHERE  (curDataSize(t) AND NOT curDataSize(t) >= dataSize(t)) OR (curIndexSize(t) AND NOT curIndexSize(t) >= indexSize(t)) TO file;
-            
+        WHERE (curDataSize(t) AND NOT curDataSize(t) >= dataSize(t)) OR (curIndexSize(t) AND NOT curIndexSize(t) >= indexSize(t)) TO file;
+
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - new stat for externaly shrinked tables:');
         logToFile('database-tools', file());
@@ -314,16 +317,16 @@ smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
             APPLY NESTED LOCAL;
         }
     }
-    
-    EXPORT CSV '|' HEADER 
+
+    EXPORT CSV '|' HEADER
         FROM sid(DatabaseTable t), vacuumOrder(t), skipVacuum(t), dataSize(t), curDataSize(t), dataGrow(t), indexSize(t), curIndexSize(t), indexGrow(t)
         WHERE curDataSize(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t TO file;
     IF file() THEN {
         logToFile('database-tools', 'Smart VACUUM - plan for today:');
         logToFile('database-tools', file());
     }
-    
-    FOR curDataSize(DatabaseTable t)  AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
+
+    FOR curDataSize(DatabaseTable t) AND NOT skipVacuum(t) AND (needVacuum(t) OR needReindex(t)) ORDER vacuumOrder(t), t DO {
         IF needVacuum(t) OR t IS PgTable THEN {
             vacuum(t);
         } ELSE {
@@ -334,12 +337,12 @@ smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
             BREAK;
         }
     }
-    
+
     logToFile('database-tools', 'Smart VACUUM - ended');
 }
 smartVacuum 'Smart VACUUM'(){
-    smartVacuum(NULL); 
-} 
+    smartVacuum(NULL);
+}
 
 //статистика
 CLASS StatisticGrowType 'Вид роста статистики'{
@@ -358,28 +361,28 @@ nameStatisticGrowType 'Вид роста статистики' (TableColumn tc) 
 
 recalculateStatsQ 'Пересчет статистики (быстрый)' (Table t) {
     NEWSESSION {
-        
-        LOCAL quantityTopNew  = INTEGER (TableKey);
+
+        LOCAL quantityTopNew = INTEGER (TableKey);
         LOCAL quantityNew = INTEGER (TableKey);
         LOCAL quantityTopNew = INTEGER (TableColumn);
         LOCAL quantityNew = INTEGER (TableColumn);
-        
+
         IF targetStatistic(t) THEN {
             curRows(t) <- targetStatistic(t);
         } ELSE {
             INTERNAL DB 'ANALYZE ' + lower(sid(t));
-            
+
             curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
-            
+
             INTERNAL DB 'SELECT attname, CAST (1.0-null_frac::numeric(11,10) AS numeric(11,10)) AS noNull, n_distinct::numeric(21,10),' +
-                     'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
+                'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
                 TO file;
-            
+
             IMPORT TABLE FROM file() FIELDS STRING[100] attname, NUMERIC[11,10] noNull, NUMERIC[21,10] n_distinct, TEXT most_common_freqs, INTEGER unique DO {
-                
+
                 LOCAL freq = NUMERIC[11,10](INTEGER );
                 freq(INTEGER i) <- NUMERIC[11,10](getWord(most_common_freqs, '|', i)) IF count(i, wordCount(most_common_freqs, '|'));
-                
+
                 FOR table(TableKey tk) == t AND lower(name(tk)) == attname DO {
                     quantityNew(tk) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
                     quantityTopNew(tk) <- CASE WHEN (GROUP SUM 1 IF table(TableKey tkk) == t) == 1 OR unique == 1 //количество разновидностей значений == количеству строк
@@ -387,42 +390,42 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
                                                WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
                                                     THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) / 0.8  ;
                 }
-                
-                FOR table(TableColumn  tc) == t AND lower(sid(tc)) == attname AND NOT return(tc) == 'BOOLEAN' DO {
+
+                FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname AND NOT return(tc) == 'BOOLEAN' DO {
                     quantityNew(tc) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
                     quantityTopNew(tc) <- CASE WHEN unique == 1 //количество разновидностей значений == количеству строк
                                                     THEN curRows(t) * noNull 
                                                WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
                                                     THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) /0.8  ;
                 }
-                
+
                 notNullQuantity(Property pt) <- curRows(t) * noNull WHERE tableSID(pt) == sid(t) AND lower(dbName(pt)) == attname;
             }
         }
-            
+
         quantityNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantity(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tk)
-            WHERE table(tk) == t AND NOT quantityTopNew(tk);    
+            WHERE table(tk) == t AND NOT quantityTopNew(tk);
         quantityTopNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantityTop(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tk)
             WHERE table(tk) == t AND NOT quantityTopNew(tk);
-            
+
         quantityNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantity(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tc)
-            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
+            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN';
         quantityTopNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantityTop(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tc)
-            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN'; 
-        
+            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN';
+
         quantity(TableKey tk) <- quantityNew(tk) WHERE table(tk) == t;
         quantityTop(TableKey tk) <- quantityTopNew(tk) WHERE table(tk) == t;
-        
+
         FOR TableColumn tc = tableColumn(Property pt) AND table(tc) == t DO {
             quantity(pt) <- quantityNew(tc);
             quantityTop(pt) <- quantityTopNew(tc);
         }
-            
-        notNullQuantity(Property pt) <-  NUMERIC[21,10](curRows(t)) / rows(t) * notNullQuantity(pt)
-             WHERE tableSID(pt) == sid(t) AND targetStatistic(t);
-        
+
+        notNullQuantity(Property pt) <- NUMERIC[21,10](curRows(t)) / rows(t) * notNullQuantity(pt)
+            WHERE tableSID(pt) == sid(t) AND targetStatistic(t);
+
         rows(t) <- curRows(t);
-        
+
         APPLY;
     }
 } ASON CONTEXTMENU sid[DatabaseTable];
@@ -430,15 +433,17 @@ recalculateStatsQ 'Пересчет статистики (быстрый)' (Tabl
 loadCurRows 'Заполнить количество записей'(){
     INTERNAL DB 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
         TO file;
-    
+
     IMPORT TABLE FROM file() FIELDS STRING[100] table, LONG size DO {
         curRows(Table t) <- size WHERE lower(sid(t)) == table;
     }
 }
 
+changedCoeff(NUMERIC cur, NUMERIC new) = max(cur, new) / min(cur, new);
+
 setSkipStatistic 'Исключить из пересчета статистики'() {
     loadCurRows();
-    notRecalculateStats(Table t) <- min(curRows(t), rows(t)) > 100000000 OR curRows(t) == rows(t) OR max(curRows(t), rows(t)) / min(curRows(t), rows(t)) < 2;
+    notRecalculateStats(Table t) <- min(curRows(t), rows(t)) > 100000000 OR curRows(t) == rows(t) OR changedCoeff(curRows(t), rows(t)) < 2;
 }
 
 needStats(Table t) = max(curRows(t), rows(t)) / (OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
@@ -477,21 +482,17 @@ importQuantityAndLog(STRING command) {
 }
 
 //подгоняем результат под сохраненное число строк чтобы не превысить 100%
-coeff(Table t) = OVERRIDE NUMERIC(rows(t)) / curRows(t), 1.0;
+coeff(Table t) = NUMERIC(rows(t)) / curRows(t);
 
 recalculateStats 'Пересчет статистики' (TableColumn c) {
     NEWSESSION {
         logToFile('database-tools', 'start recalculateStats ' + sid(c));
 
-        IF NOT curRows(table(c)) THEN {
-            curRows(table(c)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(c))));
-        }
-
         LOCAL quantity, quantityTop, notNullQuantity = LONG();
 
         importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(c)), '$2', sid(table(c))));
         notNullQuantity() <- qty();
-        
+
         IF notNullQuantity() == 0 THEN {
             quantity() <- 0;
             quantityTop() <- 0;
@@ -502,15 +503,18 @@ recalculateStats 'Пересчет статистики' (TableColumn c) {
 
                 importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(INTEGER(0.8 * notNullQuantity()))));
                 //нормализуем обратно к 100% 
-                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно ффчто есть группы если quantity() != 0, не нужно уложнять запрос
-                quantityTop() <- min(notNullQuantity(), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8); 
+                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
+                quantityTop() <- min(notNullQuantity(), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
             }
         }
 
+        IF NOT curRows(table(c)) THEN {
+            curRows(table(c)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(c))));
+        }
         FOR c = tableColumn(Property pt) DO {
-            quantity(pt) <- safeInt(coeff(table(c)) * quantity());
-            quantityTop(pt) <- safeInt(coeff(table(c)) * quantityTop());
-            notNullQuantity(pt) <- safeInt(coeff(table(c)) * notNullQuantity());
+            quantity(pt) <- MIN safeInt(coeff(table(c)) * quantity()), rows(table(c));
+            quantityTop(pt) <- MIN safeInt(coeff(table(c)) * quantityTop()), rows(table(c));
+            notNullQuantity(pt) <- MIN safeInt(coeff(table(c)) * notNullQuantity()), rows(table(c));
         }
 
         lastRecalculateStats(c) <- currentDateTime();
@@ -546,9 +550,9 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
             quantityTop() <- min(curRows(table(k)), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
         }
 
-        quantity(k) <- safeInt(coeff(table(k)) * quantity());
-        quantityTop(k) <- safeInt(coeff(table(k)) * quantityTop());
-        
+        quantity(k) <- MIN safeInt(coeff(table(k)) * quantity()), rows(table(k));
+        quantityTop(k) <- MIN safeInt(coeff(table(k)) * quantityTop()), rows(table(k));
+
         lastRecalculateStats(k) <- currentDateTime();
 
         APPLY;
@@ -556,7 +560,7 @@ recalculateStats 'Пересчет статистики' (TableKey k) {
     }
 }
 
-recalculateStats 'Пересчет статистики' (Table t) {
+recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipTime) {
     NEWSESSION {
         logToFile('database-tools', 'start recalculateStats ' + sid(t));
 
@@ -566,7 +570,7 @@ recalculateStats 'Пересчет статистики' (Table t) {
         importQuantityAndLog(replace(replace(notNullQuery(), '$1', 'key0'), '$2', sid(t)));
         rows(t) <- qty();
         lastRecalculateStats(t) <- currentDateTime();
-        
+
         IF singleKey(t) THEN {
             quantity(TableKey k) <- qty() WHERE table(k) == t;
             quantityTop(TableKey k) <- qty() WHERE table(k) == t;
@@ -577,6 +581,10 @@ recalculateStats 'Пересчет статистики' (Table t) {
             NEWEXECUTOR
                 FOR table(TableKey k) == t DO
                     NEWTHREAD NEWSESSION NEWSQL {
+                        IF currentTime() > stopAfter() AND currentTime() < 20:00 AND skipTime THEN {
+                            logToFile('database-tools', 'Stopped after deadline');
+                            BREAK;
+                        }
                         recalculateStats(k);
                     }
                 THREADS countTreads();
@@ -585,14 +593,84 @@ recalculateStats 'Пересчет статистики' (Table t) {
         NEWEXECUTOR
             FOR table(TableColumn c) == t DO
                 NEWTHREAD NEWSESSION NEWSQL {
+                    IF currentTime() > stopAfter() AND currentTime() < 20:00 AND skipTime THEN {
+                        logToFile('database-tools', 'Stopped after deadline');
+                        BREAK;
+                    }
                     recalculateStats(c);
                 }
             THREADS countTreads();
-        
+
         logToFile('database-tools', 'end recalculateStats ' + sid(t));
     }
 }
+recalculateStats 'Пересчет статистики' (Table t) {
+    recalculateStats(t, NULL);
+}
 
+smartStats 'Smart Stats'() {
+    //Resuming incomplete column recalculation
+    NEWEXECUTOR
+        FOR lastRecalculateStats(table(TableKey k)) AND NOT lastRecalculateStats(k) >= lastRecalculateStats(table(k)) DO
+            NEWTHREAD NEWSESSION NEWSQL {
+                IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
+                    logToFile('database-tools', 'Stopped after deadline');
+                    BREAK;
+                }
+                logToFile('database-tools', 'Smart Stats incomplete TableKey: ' + sid(table(k)) + '.' + sid(k));
+                recalculateStats(k);
+            }
+        THREADS countTreads();
+
+    NEWEXECUTOR
+        FOR lastRecalculateStats(table(TableColumn c)) AND NOT lastRecalculateStats(c) >= lastRecalculateStats(table(c)) DO
+            NEWTHREAD NEWSESSION NEWSQL {
+                IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
+                    logToFile('database-tools', 'Stopped after deadline');
+                    BREAK;
+                }
+                logToFile('database-tools', 'Smart Stats incomplete TableColumn: ' + sid(table(c)) + '.' + sid(c));
+                recalculateStats(c);
+            }
+        THREADS countTreads();
+
+    //Significant non-null changes
+    INTERNAL DB 'SELECT tablename, attname, CAST((1.0 - null_frac) * 100 AS numeric(11,8)) AS noNull FROM pg_stats WHERE schemaname = \'public\';' TO file;
+
+    LOCAL tablename, attname = STRING (INTEGER);
+    LOCAL noNull = NUMERIC (INTEGER);
+
+    IMPORT TABLE FROM file() TO tablename, attname, noNull;
+
+    NEWEXECUTOR
+        FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND changedCoeff( noNull(r), percentNotNull(c)) > 1.5 ORDER DESC changedCoeff(noNull(r), percentNotNull(c)) DO {
+            IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
+                logToFile('database-tools', 'Stopped after deadline');
+                BREAK;
+            }
+            logToFile('database-tools', 'Smart Stats significantly changed column ' + sid(table(c)) + '.' + sid(c) + ' coeff ' + changedCoeff(noNull(r), percentNotNull(c)) + '(' + noNull(r) + '/' + percentNotNull(c) + ')');
+            NEWTHREAD NEWSESSION NEWSQL {
+                recalculateStats(c);
+            }
+        }
+        THREADS countTreads();
+
+    //tables with significant rows changes
+    loadCurRows();
+    NEWEXECUTOR
+        FOR changedCoeff(curRows(Table t), rows(t)) > 2 ORDER DESC changedCoeff(curRows(t), rows(t)) DO {
+            IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
+                logToFile('database-tools', 'Stopped after deadline');
+                BREAK;
+            }
+            logToFile('database-tools', 'Smart Stats significantly changed table ' + sid(t) + ' coeff ' + changedCoeff(curRows(t), rows(t)) + '(' + curRows(t) + '/' + rows(t) + ')');
+            NEWTHREAD NEWSESSION NEWSQL {
+                recalculateStats(t, TRUE);
+            }
+        }
+        THREADS countTreads();
+
+}
 
 EXTEND FORM tools
     OBJECTS t = DatabaseTable
@@ -629,7 +707,7 @@ EXTEND FORM tools
         FILTER 'По таблице' table(i) = t DEFAULT
 
     PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
-        loadCurRows, setSkipStatistic, reindexConcurrentlySize, skipExceptions, stopAfter
+        loadCurRows, setSkipStatistic, reindexConcurrentlySize, skipExceptions, stopAfter, smartStats
 ;
 
 DESIGN tools{
@@ -658,6 +736,7 @@ DESIGN tools{
                     caption = 'Статистика';
                     MOVE PROPERTY (loadCurRows());
                     MOVE PROPERTY (setSkipStatistic());
+                    MOVE PROPERTY (smartStats());
                 }
             }
             NEW dbRight{
@@ -666,7 +745,9 @@ DESIGN tools{
                 NEW dbColumns{
                     fill = 0.4;
                     tabbed = TRUE;
-                    MOVE BOX (tc);
+                    MOVE BOX (tc) {
+                        PROPERTY (percentNotNull(tc)) {pattern = '#,##0.##';};
+                    };
                     MOVE BOX (tk);
                     MOVE BOX (i);
                 }
