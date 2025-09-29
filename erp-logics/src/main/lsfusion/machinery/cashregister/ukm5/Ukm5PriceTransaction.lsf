@@ -1,6 +1,6 @@
 MODULE Ukm5PriceTransaction;
 
-REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools;
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy, ItemSosedi;
 
 NAMESPACE Ukm5;
 
@@ -15,6 +15,7 @@ accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
 
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
+uploadedUkm5Properties 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 
 EXTEND FORM groupCashRegister 
     PROPERTIES (grc) SHOWIF isUkm5(grc) idStore, urlServerUkm5, directoryExchange;
@@ -28,7 +29,20 @@ DESIGN groupCashRegister{
 }
 
 //атрибуты
-@defineStaticObject(Attribut, );
+@defineStaticObject(Attribut, ){
+    CLASS Attribut ;
+    TABLE Attribut (Attribut);
+    
+    name '{master.data.name}' (Attribut o) = staticCaption(o) IF o IS Attribut CHARWIDTH 15;
+    
+    FORM dialogAttributs 
+        OBJECTS o = Attribut
+        PROPERTIES(o) READONLY name
+        
+        LIST Attribut OBJECT o
+    ;
+
+};
 
 EXTEND CLASS Attribut{
     alcohol 'alcohol', 
@@ -120,6 +134,32 @@ FORM itemPrices 'Импорт цен на товары'
     FILTERS skuTransaction(elements, t)
 ;
 
+valueProp (STRING s, Item i) = CASE
+    WHEN s = 'GTIN' AND i IS Item THEN GTIN(i)
+    WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND checkMark(i) THEN 'RB_MARK'
+;
+
+FORM itemProperties 'Дополнительные свойства товаров'
+    OBJECTS t = MachineryPriceTransaction
+
+    OBJECTS elements = Item
+    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
+        = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'deleted'
+    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Properties(elements)
+
+    OBJECTS s = STRING EXTID 'properties'
+    PROPERTIES = s IF valueProp(s, elements) EXTID 'name',
+        = valueProp(s, elements) EXTID 'id',
+        = TFALSE IF valueProp(s, elements) EXTID 'showToCashier',
+        = TFALSE IF valueProp(s, elements) EXTID 'printOnReceipt'
+    FILTERS valueProp(s, elements)
+
+    OBJECTS v = STRING EXTID 'values'
+    PROPERTIES = 'default' IF valueProp(v, elements) EXTID 'name'
+    PROPERTIES = valueProp(v, elements) EXTID 'id'
+    FILTERS v = s
+;
+
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Group g) AND skuGroupTransaction(g, t)) THEN {
@@ -130,6 +170,8 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
              addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
              'Ошибка при импорте товаров', resultString()));
+             logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+             APPLY;
              RETURN;
         }
     }
@@ -141,6 +183,21 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
                 'Ошибка при импорте товаров', resultString()));
+            logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+            APPLY;
+            RETURN;
+        }
+    }
+    IF (GROUP SUM 1 IF NOT uploadedUkm5Properties(Item i) AND skuTransaction(i, t)) THEN {
+        EXPORT itemProperties OBJECTS t = t JSON;
+        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
+        fileToString(answer());
+        IF statusHttp() = 200 THEN uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
+        ELSE {
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
+                'Ошибка при импорте свойств товаров', resultString()));
+            logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+            APPLY ;
             RETURN;
         }
     }
@@ -152,6 +209,12 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         succeeded(t) <- TRUE;
         dateTimeSucceeded(t) <- currentDateTime();
         APPLY;
+    } ELSE {
+        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
+            'Ошибка при импорте прайса', resultString()));
+        logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте прайса', resultString());
+        APPLY ;
+        RETURN;
     }
 }
     
