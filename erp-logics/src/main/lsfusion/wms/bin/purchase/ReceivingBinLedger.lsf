@@ -503,8 +503,8 @@ FORM receiving 'Приемка'
                                                     date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, createDetails SHOWIF status(r)==ReceivingStatus.inProgress,
                                 completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
+    FILTERGROUP isOpened FILTER 'Открыт' isOpened(r) DEFAULT
     FILTERS stock(receivingBin(u)) == customerStock(r),
-            isOpened(r),
             isPosted(r)
     
     OBJECTS d=ReceivingDetail
@@ -679,11 +679,8 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
 
     countToUserReceiving###primObject() = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) AND NOT userReceiving(primObject);
         
-    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject)
+    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject) AND supplierStock(primObject)
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
-
-    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject)
-        MESSAGE 'Несовпадение склада получателя в '##captionObject + ' и документе приемки';
 
     @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
         
