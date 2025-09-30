@@ -1,19 +1,25 @@
 MODULE BatchReceivingInvoiceBinLedger;
 
-REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, PurchaseShipmentBinLedger;
+REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger;
 
-NAMESPACE Purchase;
+NAMESPACE Invoice;
+
+quantityUserInvoiceDetail 'Кол-во товара в документе'  = 
+    GROUP SUM quantity(InvoiceDetail ivoiceDetail) BY batch(ivoiceDetail), receiving(invoice(ivoiceDetail));
 
 consolidationKey 'Ключ группировки' = ABSTRACT STRING (Batch) CHARWIDTH 7;
 overConsolidationKey(Batch bt) = OVERRIDE consolidationKey(bt), ('Не указан' IF bt IS Batch) MATERIALIZED;
 
+clearInBin ABSTRACT (Receiving); //Очищаем ячейки в накладной    inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
 overCompleteReceiving (Receiving r) + {
+    clearInBin(r);
+    
     status(r) <- PREV(status(r)); //возвращаем статус, что бы понимать какие строки уже обработаны
     
     FOR quantity(ReceivingDetail d) AND NOT batch(d) AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
-        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND receiving(invoice(invoiceDetail(bt)))==r AND (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
+        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND quantityUserInvoiceDetail(bt, r) AND 
+            (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
-        inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
     }
 
     LOCAL rQuantity = NUMERIC[16,5] (Sku, STRING, Receiving);
@@ -21,7 +27,7 @@ overCompleteReceiving (Receiving r) + {
     LOCAL bQuantity = NUMERIC[16,5] (Batch);
     LOCAL receiving = Receiving (Batch);
 
-    receiving(Batch bt) <- r WHERE receiving(invoice(invoiceDetail(bt)))==r;
+    receiving(Batch bt) <- r WHERE quantityUserInvoiceDetail(bt, r);
     rQuantity(Sku s, STRING consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
         IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
 
@@ -53,7 +59,6 @@ overCompleteReceiving (Receiving r) + {
         batch(d) <- bt;
         quantity(d) <- bQuantity(bt);
         dataStatus(d) <- ReceivingStatus.fullyReceived;
-        inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(bt));
     }
 
     IF (GROUP SUM 1 IF expectedQuantity(Sku sku, STRING key, r) == receivingQuantity(sku, key, r)) THEN {
@@ -68,9 +73,9 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     dataStatus(ReceivingDetail d) <- PREV(dataStatus(d)) WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
     
     FOR quantity(ReceivingDetail d) AND NOT batch(d) AND sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
-        batch(d) <- GROUP LAST Batch bt IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(invoice(invoiceDetail(bt)))==r AND (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
+        batch(d) <- GROUP LAST Batch bt IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND quantityUserInvoiceDetail(bt, r) AND 
+            (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
-        inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
     }
 
     LOCAL rQuantity = NUMERIC[16,5] (Sku, STRING, Receiving);
@@ -78,7 +83,7 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     LOCAL bQuantity = NUMERIC[16,5] (Batch);
     LOCAL receiving = Receiving (Batch);
     
-    receiving(Batch bt) <- r WHERE receiving(invoice(invoiceDetail(bt)))==r;
+    receiving(Batch bt) <- r WHERE quantityUserInvoiceDetail(bt, r);
     rQuantity(s, consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
         IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
     
@@ -110,7 +115,6 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
         batch(d) <- bt;
         quantity(d) <- bQuantity(bt);
         dataStatus(d) <- ReceivingStatus.fullyReceived;
-        inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(bt));
     }
 }
 
@@ -246,16 +250,6 @@ putawayReserveBatch 'Разместить' (CustomUser u) {
     }
 }
 
-overCreateDetail(ReceivingDetail d, InvoiceDetail detail) + {
-    expiryDate(d) <- expiryDate(detail);
-    consolidationKey(d) <- consolidationKey(detail);
-}
-
-skipReceiving(Invoice r) += NOT createShipment(r);
-
-useWriteOffReserveQuantity() += TRUE;
-writeOffReserveQuantity(Sku sku, Bin bin) += WHEN sku IS Sku AND bin IS Bin AND useWriteOffReserveQuantity() THEN currentBalanceWithoutBatch(sku, bin);
-
 writeOffReserveBatch 'Списать' (CustomUser u) {
     NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
         select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
@@ -344,10 +338,6 @@ DESIGN receiving {
     }
 }
 
-EXTEND FORM receiving
-    FILTERS createShipment(invoice)
-;
-
 FORM internalPutaway 'Размещение по группе ячеек'
     OBJECTS u=CustomUser PANEL
     PROPERTIES(u) READONLY name
@@ -411,179 +401,3 @@ NAVIGATOR {
         NEW internalPutaway;
     }
 }
-
-CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
-    MESSAGE 'Для накладной приемки не задана поставка';
-
-diffCompleted 'Разница между обработанным количеством и количеством в документе прихода'(Sku s, STRING str, Receiving r) =
-    expectedQuantity(s, str, r) (-) quantityCompleted(s, str, r);
-
-countInvoiceDetail(Receiving r, CreditNote c) = [GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d)](r, c);
-
-quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
-    [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r);
-
-diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
-    diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
-
-createCreditNote 'Создать акт расхождения' (Receiving r) {
-    IF (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF diffInvoiceCreditNoteCompleted(s, str, r) IS NUMERIC[16,5] AND NOT expectedQuantity(s, str, r)) THEN {
-        MESSAGE 'Для товаров с расхождением \n' +
-            [GROUP CONCAT (CONCAT '; ', 'Наименование: ' + name(Sku s), 'Код: ' + id(s), 'Штрихкод: ' + idBarcode(s), 'Серия лекарственного средства: ' + STRING str)
-                IF diffInvoiceCreditNoteCompleted(s, str, Receiving r1) AND NOT expectedQuantity(s, str, r1), '\n' ORDER s, str BY r1](r)
-            + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе';
-    }
-    IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
-        FOR receiving(Invoice i) = r
-            AND [GROUP MAX diffInvoiceCreditNoteCompleted(sku(InvoiceDetail d), overConsolidationKey(d), receiving(invoice(d))) IF expectedQuantity(sku(d), overConsolidationKey(d), receiving(invoice(d))) BY invoice(d)](i)
-            AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i))
-            DO NEW c = UserCreditNote {
-            id(c) <- CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i);
-            operation(c) <- operation(i);
-            executeLocalEvents('Purchase.userCreditNote');
-            supplier(c) <- supplier(r);
-            supplierStock(c) <- supplierStock(r);
-            customer(c) <- customer(r);
-            customerStock(c) <- customerStock(r);
-            date(c) <- currentDate();
-            time(c) <- currentTime();
-            isPosted(c) <- TRUE;
-        }
-
-        FOR diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) AND expectedQuantity(s, str, r)
-            AND InvoiceDetail d = [GROUP MAX InvoiceDetail d1 BY sku(d1), overConsolidationKey(d1), receiving(invoice(d1))](s, str, r)
-            AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), idSupplierStock(invoice(d)), idCustomerStock(invoice(d)))
-            AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
-            DO NEW dc = UserCreditNoteDetail {
-            userCreditNote(dc) <- c;
-            invoiceDetail(dc) <- d;
-            batch(dc) <- overBatch(d);
-            sku(dc) <- s;
-            quantity (dc) <- diffInvoiceCreditNoteCompleted(s, str, r);
-            VAT (dc) <- OVERRIDE VAT(d);
-            valueVAT(dc) <- OVERRIDE valueVAT(d);
-            price (dc) <- price(d);
-            invoicePrice (dc) <- invoicePrice(d);
-        }
-        executeLocalEvents('Purchase.userCreditNote');
-        APPLY;
-    }
-} TOOLBAR;
-
-writeOffCreditNote 'Списать с добавлением (в) акт расхождения' (CustomUser u) {
-    NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
-        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            MESSAGE 'Ничего не выбрано';
-            RETURN;
-        }
-        IF NOT putawayWriteOffOperation() THEN {
-            MESSAGE 'Не задана \'Операция списания при размещении\' в настройках';
-            RETURN;
-        }
-        FOR [GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u))
-            AND orderLedger(bin) BY invoice(invoiceDetail(batch))](Invoice i)
-            AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i)) DO NEW c = UserCreditNote {
-            id(c) <- STRING[100](CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i));
-            operation(c) <- operation(i);
-            supplier(c) <- supplier(i);
-            supplierStock(c) <- supplierStock(i);
-            customer(c) <- customer(i);
-            customerStock(c) <- customerStock(i);
-            date(c) <- currentDate();
-            time(c) <- currentTime();
-            isPosted(c) <- TRUE;
-        }
-
-        FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-            AND InvoiceDetail d = invoiceDetail(batch)
-            AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), id(supplierStock((d))), id(customerStock(d)))
-            AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
-            DO {
-            NEW dc = UserCreditNoteDetail {
-                userCreditNote(dc) <- c;
-                invoiceDetail(dc) <- d;
-                batch(dc) <- batch;
-                sku(dc) <- sku(d);
-                quantity (dc) <- currentBalance(batch, bin);
-                VAT (dc) <- OVERRIDE VAT(d);
-                valueVAT(dc) <- OVERRIDE valueVAT(d);
-                price (dc) <- price(d);
-                invoicePrice (dc) <- invoicePrice(d);
-            }
-
-
-        }
-        executeLocalEvents('Purchase.userCreditNote');
-
-        FOR (GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-            AND userCreditNote(CONCAT '_', 'I', seriesNumber(invoiceDetail(batch)), date(invoiceDetail(batch)), id(supplierStock((invoiceDetail(batch)))), id(customerStock(invoiceDetail(batch)))))
-            NEW o = UserBinTransfer DO {
-            operation(o) <- putawayWriteOffOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-                AND userCreditNote(CONCAT '_', 'I', seriesNumber(invoiceDetail(batch)), date(invoiceDetail(batch)), id(supplierStock((invoiceDetail(batch)))), id(customerStock(invoiceDetail(batch))))
-                NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- bin;
-                inBin(d) <- NULL;
-                quantity(d) <- currentBalance(batch, bin);
-            }
-        }
-        APPLY;
-        select(Batch batch, Bin bin) <- NULL;
-    }
-} TOOLBAR;
-
-
-quantityCreditNote 'Кол-во в актах расхождений' =
-    GROUP SUM quantity(CreditNoteDetail d) BY sku(d), receiving(invoice(invoiceDetail(d)));
-
-hasReceiving = GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d);
-
-descriptionCreditNotes 'Акты расхождения' =
-    GROUP CONCAT seriesNumber(CreditNote creditNote) IF hasReceiving(Receiving receiving, creditNote), '; ' ORDER dateTime(creditNote), creditNote BY receiving;
-
-EXTEND FORM receiving
-    PROPERTIES READONLY descriptionCreditNotes(r) AFTER descriptionInvoices(r)
-    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
-    PROPERTIES writeOffCreditNote(u) DRAW reserveB SHOWIF in(u, putawayWriteOffOperation())
-    PROPERTIES READONLY quantityCreditNote(sr1, str1, r)
-    PROPERTIES READONLY quantityCreditNote(sr, r)
-
-    OBJECTS c = CreditNote LAST
-    PROPERTIES(c) READONLY BACKGROUND background(c) isClosed, isPosted, number, series, date, time, nameSupplier,
-        nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency, seriesNumberContractSku, isCommission
-    PROPERTIES(c) READONLY BACKGROUND background(c) countCreditNoteDetail, quantityCreditNoteDetail, sumCreditNoteDetail,
-        VATSumCreditNoteDetail, invoiceSumCreditNoteDetail
-    PROPERTIES(c) READONLY note
-    PROPERTIES(c) EDIT
-
-    PROPERTIES print(c)
-;
-
-DESIGN receiving {
-    tabContainer {
-        NEW creditNote {
-            caption = 'Акты расхождений';
-            MOVE BOX(c);
-            NEW printContainer {
-                caption = 'Печать';
-                MOVE PROPERTY(print(c));
-            }
-        }
-    }
-}
-
-hasInvoice = GROUP SUM 1 BY invoice(invoiceDetail(CreditNoteDetail d)), creditNote(d);
-
-descriptionCreditNotes 'Акты расхождения' =
-    GROUP CONCAT seriesNumber(CreditNote creditNote) IF hasInvoice(Invoice invoice, creditNote), '; ' ORDER dateTime(creditNote), creditNote BY invoice;
-
-EXTEND FORM invoices
-    PROPERTIES READONLY BACKGROUND RGB(255, 224, 255) descriptionCreditNotes(i) AFTER nameStatus(i)
-;

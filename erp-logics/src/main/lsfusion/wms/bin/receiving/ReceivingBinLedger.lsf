@@ -1,8 +1,8 @@
 MODULE ReceivingBinLedger;
 
-REQUIRE EmployeeBin, PurchaseBinLedger, BinTransferBinLedger, SkuBinOrderLedger, WMSDashboard;
+REQUIRE EmployeeBin, BinLedger, BinTransferBinLedger, SkuBinOrderLedger, WMSDashboard;
 
-NAMESPACE Purchase;
+NAMESPACE Receiving;
 
 CLASS ABSTRACT Receiving 'Приемка';
 
@@ -17,11 +17,11 @@ seriesNumber '{numerator.series.number.numerator}' (Receiving o) = CONCAT '', se
 date '{document.date.of} {document.of.document}' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED INDEXED;
 time '{document.time.of} {document.of.document}' = ABSTRACT TIME (Receiving) IN documentHeader MATERIALIZED;
 dateTime '{document.date.time.of} {document.of.document}' (Receiving o) = dateTimeToDateTime(date(o), time(o)) MATERIALIZED;
-supplier (invoice) = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
+supplier = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
 nameSupplier 'Поставщик' (Receiving receiving)= name(supplier(receiving)) IN documentPrm CHARWIDTH 20;
 supplierStock = ABSTRACT Stock (Receiving) MATERIALIZED INDEXED;
 nameSupplierStock 'Склад поставщика' (Receiving receiving) = name(supplierStock(receiving)) IN documentHeader CHARWIDTH 20;
-customer (invoice) = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
+customer = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
 nameCustomer 'Покупатель' (Receiving receiving)= name(customer(receiving)) IN documentPrm CHARWIDTH 20;
 customerStock = ABSTRACT Stock (Receiving) MATERIALIZED INDEXED;
 nameCustomerStock 'Склад покупателя' (Receiving receiving) = name(customerStock(receiving)) IN documentHeader CHARWIDTH 20;
@@ -667,79 +667,17 @@ customerStock(UserReceiving receiving) += customerStock(receiving);
 
 META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
     userReceiving = DATA UserReceiving(###primObject);
-
-    expectedQuantity 'Кол-во документе прихода' = GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(##primObject(detail));
-    expectedQuantity(Sku sku, UserReceiving receiving) += expectedQuantity(sku, receiving);
-    
-    count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
-    
-    selectedUserReceiving 'Отм' = DATA LOCAL BOOLEAN (###primObject);
-
-    in(UserReceiving o, ###primObject primObject) = userReceiving(primObject) == o;
-
-    countToUserReceiving###primObject() = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) AND NOT userReceiving(primObject);
-        
+    userReceiving[###primObject.###primObject](###primObject primObject) += userReceiving(primObject);
+            
     CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject) AND supplierStock(primObject)
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
-
-    @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
         
-    createUserReceivingFor###primObject 'Создать документ приемки' () {
-        LOCAL newReceiving = UserReceiving();
-        NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
-            IF countToUserReceiving###primObject() THEN NEW r = UserReceiving {
-                supplier(r) <- GROUP MAX supplier(###primObject primObject) IF selectedUserReceiving(primObject);
-                supplierStock(r) <- GROUP MAX supplierStock(###primObject primObject) IF selectedUserReceiving(primObject);
-                customer(r) <- GROUP MAX customer(###primObject primObject) IF selectedUserReceiving(primObject);
-                customerStock(r) <- GROUP MAX customerStock(###primObject primObject) IF selectedUserReceiving(primObject);
-                userReceiving(###primObject primObject) <- r WHERE selectedUserReceiving(primObject) AND NOT userReceiving(primObject);
-                APPLY;
-                newReceiving() <- r;
-            }
-        }
-        IF newReceiving() IS UserReceiving THEN {
-            ACTIVATE TAB receiving.receiving;
-            SEEK receiving.r = newReceiving();
-            ACTIVATE PROPERTY receiving.number(r);
-            newReceiving() <- NULL;
-        }
-    } TOOLBAR;
-    
-    EXTEND FORM receiving
-        OBJECTS primObject = ###primObject
-        PROPERTIES(primObject) selectedUserReceiving
-        PROPERTIES(primObject) READONLY isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
-        PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
-        ORDERS dateTime(primObject), nameSupplierStock(primObject)
-        FILTERS isPosted(primObject),
-                useBins(customerStock(primObject)),
-            stock(receivingBin(u)) == customerStock(primObject),
-                use###primObject##Receiving(operation(primObject))
-    ;
-    
-    DESIGN receiving {
-        tabContainer {
-            MOVE BOX(primObject) FIRST;
-        }
-    }
+    @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
+    filterReceiving(###primObject primObject) += primObject IS ###primObject;   
+    use###primObject##Receiving[Operation.Operation](Operation operation) += use###primObject##Receiving(operation);
 
-    overCreateDetail(ReceivingDetail d, ###primObject##Detail detail) ABSTRACT LIST;
-    
-    createDetails(Receiving receiving) + WHEN count###primObject(receiving AS UserReceiving) THEN {
-        NEWSESSION {
-            IF PREV(countReceivingDetail(receiving)) THEN {
-                ASK 'Данный документ содержит строки, удалить их?' DO {
-                    DELETE ReceivingDetail d WHERE d IS ReceivingDetail AND receiving(d)==receiving;
-                }
-            }
-            FOR userReceiving(primObject(###primObject##Detail detail)) == receiving NEW d=ReceivingDetail DO {
-                receiving(d) <- receiving;
-                idBarcode(d) <- idBarcodeSku(detail);
-                sku(d) <- sku(detail);
-                overCreateDetail(d, detail);
-            }
-            APPLY;
-        }
+    overCreateUserReceivingFor###primObject(UserReceiving r) + {
+        userReceiving(###primObject primObject) <- r WHERE selectedUserReceiving(primObject) AND NOT userReceiving(primObject) AND primObject IS ###primObject;    
     }
 END    
 
@@ -779,18 +717,9 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     }
 
     receiving(###primObject primObject) = OVERRIDE userReceiving(primObject), primObject##Receiving(primObject);
-    description###primObject##s ###captionObjects (Receiving receiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY receiving(primObject)](receiving);
+    receiving[###primObject.###primObject](###primObject primObject) += receiving(primObject);
 
     nameStatus 'Cтатус приёмки' (###primObject primObject) = nameStatus(receiving(primObject)) CHARWIDTH 15;
-
-    EXTEND FORM receiving
-        PROPERTIES(r) description###primObject##s
-        
-        PROPERTIES(primObject) READONLY BACKGROUND RGB(255, 224, 255) nameStatus AFTER selectedUserReceiving(primObject)
-        
-        FILTERGROUP withoutReceiving
-            FILTER 'Без приёмки' primObject IS ###primObject AND NOT receiving(primObject) DEFAULT 
-    ;   
         
     EXTEND FORM primObject##s
         PROPERTIES(formObject) READONLY BACKGROUND RGB(255, 224, 255) nameStatus BEFORE time(formObject)
@@ -822,6 +751,109 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
             APPLY;
         }   
     }
+
+    expectedQuantity[Sku, STRING, Receiving](Sku sku, STRING consolidationKey, ###primObject##Receiving receiving) +=
+        [GROUP SUM quantity(###primObject##Detail detail) IF primObject(detail)==primObject(###primObject##Receiving r) AND r IS ###primObject##Receiving BY sku(detail), overConsolidationKey(detail), r](sku, consolidationKey, receiving);
+
+    consolidationKey 'Ключ группировки' = ABSTRACT STRING (CreditNoteDetail) CHARWIDTH 7;
+    overConsolidationKey(CreditNoteDetail d) = OVERRIDE consolidationKey(d), ('Не указан' IF d IS CreditNoteDetail) MATERIALIZED;
+END
+
+META defineUserReceiving (primObject)
+    receiving = ABSTRACT Receiving (###primObject);
+    userReceiving = ABSTRACT UserReceiving (###primObject);
+    filterReceiving = ABSTRACT BOOLEAN (###primObject);
+    use###primObject##Receiving = ABSTRACT BOOLEAN (Operation.Operation);
+
+    expectedQuantity 'Кол-во в документе прихода' =
+        GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), userReceiving(primObject(detail));
+    expectedQuantity(Sku sku, UserReceiving receiving) += expectedQuantity(sku, receiving);
+
+    count###primObject(UserReceiving userReceiving) = GROUP SUM 1 IF userReceiving(###primObject primObject) = userReceiving;
+
+    selectedUserReceiving 'Отм' = DATA LOCAL BOOLEAN (###primObject);
+
+    in(UserReceiving o, ###primObject primObject) = userReceiving(primObject) == o;
+
+    countToUserReceiving###primObject() = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) AND NOT userReceiving(primObject);
+
+    overCreateUserReceivingFor###primObject ABSTRACT LIST (UserReceiving);
+    createUserReceivingFor###primObject 'Создать документ приемки' () {
+        LOCAL newReceiving = UserReceiving();
+        NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
+            IF countToUserReceiving###primObject() THEN NEW r = UserReceiving {
+                supplier(r) <- GROUP MAX supplier(###primObject primObject) IF selectedUserReceiving(primObject);
+                supplierStock(r) <- GROUP MAX supplierStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                customer(r) <- GROUP MAX customer(###primObject primObject) IF selectedUserReceiving(primObject);
+                customerStock(r) <- GROUP MAX customerStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                overCreateUserReceivingFor###primObject(r);
+                APPLY;
+                newReceiving() <- r;
+            }
+        }
+        IF newReceiving() IS UserReceiving THEN {
+            ACTIVATE TAB receiving.receiving;
+            SEEK receiving.r = newReceiving();
+            ACTIVATE PROPERTY receiving.number(r);
+            newReceiving() <- NULL;
+        }
+    } TOOLBAR;
+        
+    EXTEND FORM receiving
+        OBJECTS primObject = ###primObject
+        PROPERTIES(primObject) selectedUserReceiving
+        PROPERTIES(primObject) READONLY objectClassName, isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+        PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
+        ORDERS dateTime(primObject), nameSupplierStock(primObject)
+        FILTERS isPosted(primObject),
+            useBins(customerStock(primObject)),
+            stock(receivingBin(u)) == customerStock(primObject),
+            use###primObject##Receiving(operation(primObject)),
+            filterReceiving(primObject)
+    ;
+
+    DESIGN receiving {
+        tabContainer {
+            MOVE BOX(primObject) FIRST;
+            PROPERTY(objectClassName(primObject)) {charWidth = 15;}
+        }
+    }
+
+    description###primObject##s ###captionObjects (Receiving receiving) = [GROUP CONCAT seriesNumber(###primObject primObject), '; ' ORDER dateTime(primObject), primObject BY receiving(primObject)](receiving);
+    nameStatus 'Cтатус приёмки' (###primObject primObject) = nameStatus(receiving(primObject)) CHARWIDTH 15;
+        
+    EXTEND FORM receiving
+        PROPERTIES(r) description###primObject##s
+
+        PROPERTIES(primObject) READONLY BACKGROUND RGB(255, 224, 255) nameStatus AFTER selectedUserReceiving(primObject)
+
+        FILTERGROUP withoutReceiving
+            FILTER 'Без приёмки' primObject IS ###primObject AND NOT receiving(primObject) DEFAULT
+    ;
+
+    overCreateDetail(ReceivingDetail d, ###primObject##Detail detail) ABSTRACT LIST;
+    createDetails(Receiving receiving) + WHEN count###primObject(receiving AS UserReceiving) THEN {
+        NEWSESSION {
+            IF PREV(countReceivingDetail(receiving)) THEN {
+                ASK 'Данный документ содержит строки, удалить их?' DO {
+                    DELETE ReceivingDetail d WHERE d IS ReceivingDetail AND receiving(d)==receiving;
+                }
+            }
+            FOR userReceiving(primObject(###primObject##Detail detail)) == receiving NEW d=ReceivingDetail DO {
+                receiving(d) <- receiving;
+                idBarcode(d) <- idBarcodeSku(detail);
+                sku(d) <- sku(detail);
+                overCreateDetail(d, detail);
+            }
+            APPLY;
+        }
+    }
+
+    consolidationKey 'Ключ группировки' = ABSTRACT STRING (###primObject##Detail) CHARWIDTH 7;
+    overConsolidationKey(###primObject##Detail d) = OVERRIDE consolidationKey(d), ('Не указан' IF d IS ###primObject##Detail) MATERIALIZED;
+
+    expectedQuantity(Sku sku, STRING consolidationKey, UserReceiving receiving) +=
+        [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), overConsolidationKey(detail), userReceiving(primObject(detail))](sku, consolidationKey, receiving);
 END
 
 @implementAggregationBinLedger(receivingDetail, receiving, Receiving, sku, quantity, customerStock);
