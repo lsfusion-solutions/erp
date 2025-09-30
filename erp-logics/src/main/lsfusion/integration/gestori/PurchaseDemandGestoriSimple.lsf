@@ -19,18 +19,18 @@ recQuantity 'Кол-во к заказу' (Sku s, UserOrder o) =  plan(s, o) * c
 // Формула 2 и 12
 planGestori 'Планируемые продажи' (Sku s, UserOrder o) = (GROUP SUM averageSold(s, customerStock(o)) *
     promoCoeff(s, customerStock(o), DATE dt) *
-    dowCoeff(s, customerStock(o), extractDOW(dt)) IF dt >= shipmentDate(o) AND dt <= nextShipmentDate(o)) * extraCoeff(s, customerStock(o));
+    dowCoeff(s, customerStock(o), extractDOW(dt)) IF iterate(dt, shipmentDate(o), nextShipmentDate(o))) * extraCoeff(s, customerStock(o));
 
 recQuantityGestoriGross 'Кол-во к заказу' (Sku s, UserOrder o) =  planGestori(s, o)
     (-) currentBalance(s, customerStock(o))
-    (+) totalReserve(customerStock(o), s, date(o))
+    (+) stockReserve(customerStock(o), s, date(o))
     (-) prevCurrentReservePurchase(s, customerStock(o));
 
 recQuantityGestoriMax (Sku s, UserOrder o) = IF recQuantityGestoriGross(s, o) > dataMaxQuantityOrder(s, customerStock(o)) THEN dataMaxQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriGross(s, o);
 recQuantityGestoriMin (Sku s, UserOrder o) = IF recQuantityGestoriMax(s, o) > 0 AND recQuantityGestoriMax(s, o) < dataMinQuantityOrder(s, customerStock(o)) THEN dataMinQuantityOrder(s, customerStock(o)) ELSE recQuantityGestoriMax(s, o);
-recQuantityGestoriMin2 (Sku s, UserOrder o) = IF recQuantityGestoriMin(s, o) == 0 AND averageSold(s, o) == 0 THEN quantityPacksNull(s, customerStock(o)) * Purchase.amountPack(s);
+recQuantityGestoriMin2 (Sku s, UserOrder o) = IF (recQuantityGestoriMin(s, o) == 0 OR NOT recQuantityGestoriMin(s, o)) AND (averageSold(s, o) == 0 OR NOT averageSold(s, o)) THEN quantityPacksNull(s, customerStock(o)) * Purchase.amountPack(s);
 
 recommendedQuantity (Sku s, UserOrder o) +=
     CASE WHEN (demandLogic(s, customerStock(o)) == 2 OR demandLogic(s, customerStock(o)) == 12) THEN NUMERIC[16,5](ceil(recQuantityGestoriMin2(s, o), Purchase.amountPack(s)))
-         WHEN demandLogic(s, customerStock(o)) == 1 THEN NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0
-         ELSE NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0;
+         WHEN demandLogic(s, customerStock(o)) == 1 THEN (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0)
+         ELSE (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0);

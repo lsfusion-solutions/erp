@@ -8,5 +8,55 @@ EXTEND FORM soldParams
     PROPERTIES(sk) nameSupplierStockInner, quantityPacksNull, demandLogic
 ;
 
+operationInnerCompany 'Операция для автозаказов от подразделений своей компании' = DATA Operation () COMPLEX;
+nameOperationInnerCompany 'Операция для автозаказов от подразделений своей компании' = name(operationInnerCompany());
+
+operationInnerNotCompany 'Операция для автозаказов от подразделений другой компании' = DATA Operation () COMPLEX;
+nameOperationInnerNotCompany 'Операция для автозаказов от подразделений другой компании' = name(operationInnerNotCompany());
+
+EXTEND FORM options 
+    PROPERTIES() nameOperationInnerCompany,  nameOperationInnerNotCompany
+;
+
+DESIGN options { 
+    purchase { 
+        MOVE PROPERTY(nameOperationInnerCompany());
+        MOVE PROPERTY(nameOperationInnerNotCompany());
+    } 
+}
+
+overCreateAuto (UserOrder o) + {
+    LOCAL inSupplier = BOOLEAN (Stock);
+    inSupplier(Stock st) <- TRUE IF [GROUP SUM 1 IF userOrder(UserOrderDetail d) == o AND supplierStockInner(sku(d), customerStock(d)) == st]();
+    
+    FOR inSupplier(Stock st) AND isCompany(st) DO {
+        NEW oo = UserOrder {
+            scheduleOrderDetail(oo) <- scheduleOrderDetail(o);
+            numerator(oo) <- OVERRIDE autoOrderNumerator(), defaultNumeratorUserOrder();
+            date(oo) <- date(o);
+            time(oo) <- time(o);
+            shipmentDate(oo) <- shipmentDate(o);
+            shipmentTime(oo) <- shipmentTime(o);
+            nextShipmentDate(oo) <- nextShipmentDate(o);
+            supplier(oo) <- legalEntity(st);
+            customer(oo) <- customer(o);
+            supplierStock(oo) <- st;
+            customerStock(oo) <- customerStock(o);
+            isAuto(oo) <- TRUE;
+            generateNumber(oo);
+
+            IF legalEntity(customerStock(o)) == legalEntity(st) THEN {
+                operation(oo) <- OVERRIDE operationInnerCompany(), operation(o);
+            }
+            ELSE {
+                operation(oo) <- OVERRIDE operationInnerNotCompany(), operation(o);
+            }
+
+            userOrder(UserOrderDetail dd) <- oo WHERE userOrder(dd) == o AND supplierStockInner(sku(dd), customerStock(dd)) == st;
+
+            logToFile('autoOrder', (CONCAT ' ', 'Автозаказ (внутр.):', currentDate(), name(st), nameCustomerStock(o), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](oo))));
+        }
+    }
+}
 
 
