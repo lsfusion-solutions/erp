@@ -1,6 +1,6 @@
 MODULE Ukm5PriceTransaction;
 
-REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy, ItemSosedi;
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy;
 
 NAMESPACE Ukm5;
 
@@ -121,10 +121,11 @@ FORM itemPrices 'Импорт цен на товары'
     FILTERS skuTransaction(elements, t)
 ;
 
-valueProp (STRING s, Item i) = CASE
-    WHEN s = 'GTIN' AND i IS Item THEN GTIN(i)
-    WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND checkMark(i) THEN 'RB_MARK'
-;
+skipUkz = ABSTRACT BOOLEAN (Item);
+valueProp = ABSTRACT CASE STRING (STRING, Item);
+
+valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN GTIN(i);
+valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
 
 FORM itemProperties 'Дополнительные свойства товаров'
     OBJECTS t = MachineryPriceTransaction
