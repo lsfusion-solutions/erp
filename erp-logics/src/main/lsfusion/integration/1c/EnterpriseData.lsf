@@ -857,10 +857,26 @@ META extReference(reftype, capt)
 END
 
 // static types
+//META defStaticType (id, caption)
+//    @defineStaticObject(###id, caption);
+//    id (STRING s) = GROUP AGGR ###id id BY name(id);
+//END
+
 META defStaticType (id, caption)
-    @defineStaticObject(###id, caption);
+    CLASS ###id caption;
+    TABLE ###id (###id);
+    dataName '{master.data.name}' = DATA BPISTRING[100](###id);
+    name '{master.data.name}' (###id o) = (OVERRIDE dataName(o), staticCaption(o) IF o IS ###id) CHARWIDTH 15;
+
+    FORM dialog###id##s caption
+        OBJECTS o = ###id
+        PROPERTIES(o) READONLY name
+
+        LIST ###id OBJECT o
+    ;
     id (STRING s) = GROUP AGGR ###id id BY name(id);
 END
+
 
 META defStaticTypeValue (class, id, caption)
     EXTEND CLASS ###class { id caption };
