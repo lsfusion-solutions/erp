@@ -1,0 +1,15 @@
+MODULE BatchReceivingSaleReturnInvoiceBinLedger;
+
+REQUIRE ReceivingSaleReturnInvoiceBinLedger, BatchReceivingInvoiceBinLedger;
+
+NAMESPACE SaleReturn;
+
+overCreateDetail(ReceivingDetail d, InvoiceDetail detail) + {
+    expiryDate(d) <- expiryDate(detail);
+    consolidationKey(d) <- consolidationKey(detail);
+}
+
+skipReceiving(Invoice r) += NOT createShipment(r);
+
+CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
+    MESSAGE 'Для накладной приемки не задана поставка';

@@ -1,6 +1,6 @@
 MODULE BatchReceivingInvoiceBinLedger;
 
-REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger;
+REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger, InvoiceShipment;
 
 NAMESPACE Invoice;
 
@@ -120,6 +120,13 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
 
 currentBalanceWithoutBatch 'Остаток в ячейке баз партий' (Sku sku, Bin bin) =
     currentBalance(sku, bin) (-) (GROUP SUM currentBalance(Batch batch, bin) IF sku(batch)==sku);
+
+useWriteOffReserveQuantity() += TRUE;
+writeOffReserveQuantity(Sku sku, Bin bin) += WHEN sku IS Sku AND bin IS Bin AND useWriteOffReserveQuantity() THEN currentBalanceWithoutBatch(sku, bin);
+
+EXTEND FORM receiving
+    FILTERS createShipment(invoice)
+;
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Batch);
 

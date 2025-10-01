@@ -504,7 +504,7 @@ FORM receiving 'Приемка'
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, createDetails SHOWIF status(r)==ReceivingStatus.inProgress,
                                 completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
     FILTERGROUP isOpened FILTER 'Открыт' isOpened(r) DEFAULT
-    FILTERS stock(receivingBin(u)) == customerStock(r),
+    FILTERS stock(receivingBin(u)) == customerStock(r) OR stock(receivingBin(u)) == supplierStock(r),
             isPosted(r)
     
     OBJECTS d=ReceivingDetail
@@ -665,7 +665,7 @@ supplierStock(UserReceiving receiving) += supplierStock(receiving);
 customer(UserReceiving receiving) += customer(receiving);
 customerStock(UserReceiving receiving) += customerStock(receiving);
 
-META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
+META defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp)
     userReceiving = DATA UserReceiving(###primObject);
     userReceiving[###primObject.###primObject](###primObject primObject) += userReceiving(primObject);
             
@@ -673,7 +673,11 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
         
     @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
-    filterReceiving(###primObject primObject) += primObject IS ###primObject;   
+        
+    filterReceiving(###primObject primObject) += primObject IS ###primObject AND isPosted(primObject) AND
+        useBins(stockProp(primObject)) AND use###primObject##Receiving(operation(primObject));
+    filterReceiving(###primObject primObject, CustomUser u) += stock(receivingBin(u)) == stockProp(primObject);
+    
     use###primObject##Receiving[Operation.Operation](Operation operation) += use###primObject##Receiving(operation);
 
     overCreateUserReceivingFor###primObject(UserReceiving r) + {
@@ -682,8 +686,8 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject)
 END    
 
 
-META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject)
-    @defineUserReceiving(primObject, captionObject, captionObjects, formObject);
+META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp)
+    @defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp);
         
     CLASS ###primObject##Receiving : Receiving;
 
@@ -759,10 +763,11 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     overConsolidationKey(CreditNoteDetail d) = OVERRIDE consolidationKey(d), ('Не указан' IF d IS CreditNoteDetail) MATERIALIZED;
 END
 
-META defineUserReceiving (primObject)
+META defineUserReceiving (primObject, captionObjects)
     receiving = ABSTRACT Receiving (###primObject);
     userReceiving = ABSTRACT UserReceiving (###primObject);
     filterReceiving = ABSTRACT BOOLEAN (###primObject);
+    filterReceiving = ABSTRACT BOOLEAN (###primObject, CustomUser);
     use###primObject##Receiving = ABSTRACT BOOLEAN (Operation.Operation);
 
     expectedQuantity 'Кол-во в документе прихода' =
@@ -805,11 +810,8 @@ META defineUserReceiving (primObject)
         PROPERTIES(primObject) READONLY objectClassName, isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
         PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
         ORDERS dateTime(primObject), nameSupplierStock(primObject)
-        FILTERS isPosted(primObject),
-            useBins(customerStock(primObject)),
-            stock(receivingBin(u)) == customerStock(primObject),
-            use###primObject##Receiving(operation(primObject)),
-            filterReceiving(primObject)
+        FILTERS filterReceiving(primObject),
+            filterReceiving(primObject, u)
     ;
 
     DESIGN receiving {
