@@ -4,8 +4,11 @@ REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger, InvoiceSh
 
 NAMESPACE Invoice;
 
-quantityUserInvoiceDetail 'Кол-во товара в документе'  = 
+quantityInvoiceDetail 'Кол-во товара в документе'  = 
     GROUP SUM quantity(InvoiceDetail ivoiceDetail) BY batch(ivoiceDetail), receiving(invoice(ivoiceDetail));
+
+CONSTRAINT receivingQuantity(Batch batch, Receiving receiving)>quantityInvoiceDetail(batch, receiving)
+    MESSAGE 'Нельзя принять по партии больше, чем кол-во в накладной';
 
 consolidationKey 'Ключ группировки' = ABSTRACT STRING (Batch) CHARWIDTH 7;
 overConsolidationKey(Batch bt) = OVERRIDE consolidationKey(bt), ('Не указан' IF bt IS Batch) MATERIALIZED;
@@ -17,8 +20,8 @@ overCompleteReceiving (Receiving r) + {
     status(r) <- PREV(status(r)); //возвращаем статус, что бы понимать какие строки уже обработаны
     
     FOR quantity(ReceivingDetail d) AND NOT batch(d) AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
-        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND quantityUserInvoiceDetail(bt, r) AND 
-            (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
+        batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND quantityInvoiceDetail(bt, r) AND 
+            (quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r)) >= quantity(d) ORDER DESC (quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
     }
 
@@ -27,13 +30,13 @@ overCompleteReceiving (Receiving r) + {
     LOCAL bQuantity = NUMERIC[16,5] (Batch);
     LOCAL receiving = Receiving (Batch);
 
-    receiving(Batch bt) <- r WHERE quantityUserInvoiceDetail(bt, r);
+    receiving(Batch bt) <- r WHERE quantityInvoiceDetail(bt, r);
     rQuantity(Sku s, STRING consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
         IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
 
     bQuantity(Batch bt) <-
         (PARTITION UNGROUP rQuantity
-            LIMIT quantity(bt)(-)receivingQuantity(bt)
+            LIMIT quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r)
             ORDER bt
             BY sku(bt), overConsolidationKey(bt), receiving(bt))
         WHERE receiving(bt)==r;
@@ -73,8 +76,8 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     dataStatus(ReceivingDetail d) <- PREV(dataStatus(d)) WHERE sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r;
     
     FOR quantity(ReceivingDetail d) AND NOT batch(d) AND sku(d)==s AND overConsolidationKey(d)==consolidationKey AND receiving(d)==r AND NOT completeStatus(d) ORDER quantity(d) NOINLINE DO {
-        batch(d) <- GROUP LAST Batch bt IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND quantityUserInvoiceDetail(bt, r) AND 
-            (quantity(bt)(-)receivingQuantity(bt)) >= quantity(d) ORDER DESC (quantity(bt)(-)receivingQuantity(bt));
+        batch(d) <- GROUP LAST Batch bt IF sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND quantityInvoiceDetail(bt, r) AND 
+            (quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r)) >= quantity(d) ORDER DESC (quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r));
         dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
     }
 
@@ -83,13 +86,13 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     LOCAL bQuantity = NUMERIC[16,5] (Batch);
     LOCAL receiving = Receiving (Batch);
     
-    receiving(Batch bt) <- r WHERE quantityUserInvoiceDetail(bt, r);
+    receiving(Batch bt) <- r WHERE quantityInvoiceDetail(bt, r);
     rQuantity(s, consolidationKey, r) <- GROUP SUM quantity(ReceivingDetail detail) 
         IF sku(detail)==s AND overConsolidationKey(detail)==consolidationKey AND receiving(detail)==r AND NOT batch(detail) AND NOT completeStatus(detail);
     
     bQuantity(Batch bt) <- 
         (PARTITION UNGROUP rQuantity
-            LIMIT quantity(bt)(-)receivingQuantity(bt)
+            LIMIT quantityInvoiceDetail(bt, r)(-)receivingQuantity(bt, r)
             ORDER bt
         BY sku(bt), overConsolidationKey(bt), receiving(bt)) 
     WHERE sku(bt)==s AND overConsolidationKey(bt)==consolidationKey AND receiving(bt)==r;
@@ -292,7 +295,7 @@ writeOffReserveBatch 'Списать' (CustomUser u) {
 }
 
 EXTEND FORM receiving
-    PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) idBatch, nameBatch 
+    PROPERTIES(d) BACKGROUND RGB(255, 224, 255) idBatch, nameBatch 
 
     OBJECTS bt = Batch
     PROPERTIES(bt) select
