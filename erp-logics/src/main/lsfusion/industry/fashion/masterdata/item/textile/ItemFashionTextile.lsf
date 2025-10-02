@@ -86,7 +86,9 @@ CONSTRAINT DROPPED(Article a IS Article) AND [GROUP SUM 1 IF NOT article(Item io
 
 @defineOption(allowDoubleParamItem, 'Разрешить дублирование товара по модели + размеру + сорту + цвету', items);
 
-CONSTRAINT SET([GROUP SUM 1 BY article(Sku sk), size(sk), sort(sk), color(sk)](Article a, Size sz, Sort s, Color c) > 1) AND NOT allowDoubleParamItem()
+allowDoubleParamItem 'Разрешить дублирование товара по модели + размеру + сорту + цвету' = ABSTRACT BOOLEAN (Item);
+
+CONSTRAINT SET([GROUP SUM 1 IF NOT allowDoubleParamItem(Sku sk) BY article(sk), size(sk), sort(sk), color(sk)](Article a, Size sz, Sort s, Color c) > 1) AND NOT allowDoubleParamItem()
     MESSAGE 'Запрещено дублировать товары по модели + размеру + сорту + цвету';
 
 @defineOption(allowNullIdArticle, 'Разрешить пустой код модели', items);
