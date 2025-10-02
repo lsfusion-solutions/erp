@@ -64,7 +64,6 @@ quantityInvoiceDetail1 (ProduceMNSDetail d) = NUMERIC[16,1](round1(quantityInvoi
 quantityInvoiceDetail2 (ProduceMNSDetail d) = NUMERIC[16,2](round2(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round2(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d);
 quantityInvoiceDetail3 (ProduceMNSDetail d) = NUMERIC[16,3](round3(quantityInvoiceDetail(d))) IF NUMERIC[16,3](round3(quantityInvoiceDetail(d))) == quantityInvoiceDetail(d) AND NOT quantityInvoiceDetail0(d) AND NOT quantityInvoiceDetail1(d) AND NOT quantityInvoiceDetail2(d);
 
-//todo информация о СИ
 CLASS ProduceMNSDetailLot 'Строка марки документа выгрузки в МНС';
 
 produceMNSDetail = DATA ProduceMNSDetail (ProduceMNSDetailLot) NONULL DELETE;
@@ -194,6 +193,8 @@ missedFieldsDescription (ProduceMNS p) =
         ) IF p IS ProduceMNS AND NOT allXMLRequiredFields(p);
 ;
 
+overCreateDetail ABSTRACT LIST (ProduceMNSDetail);
+
 createProduceMNS (Order o) {
     createdProduceMNS() <- NULL;
 
@@ -234,6 +235,8 @@ createProduceMNS (Order o) {
             priceInvoiceDetail(pd) <- OVERRIDE round2(costPrice(produceMNSDetail(pd)) / trackingUOMRatio(sku(pd))), 0.0;
             quantityInvoiceDetail(pd) <- round3(quantityUomSku(pd) * trackingUOMRatio(sku(pd)));
             sumInvoiceDetail(pd) <- OVERRIDE round2(quantityInvoiceDetail(pd) * priceInvoiceDetail(pd)), 0.0;
+
+            overCreateDetail(pd);
         }
 
         LOCAL needNewDetail = BOOLEAN (ProductDetail);
@@ -256,6 +259,8 @@ createProduceMNS (Order o) {
             priceInvoiceDetail(nd) <- OVERRIDE round2(costPrice(produceMNSDetail(nd)) / trackingUOMRatio(sku(nd))), 0.0;
             quantityInvoiceDetail(nd) <- OVERRIDE round3(quantityUomSku(nd) * trackingUOMRatio(sku(nd))), 0.0;
             sumInvoiceDetail(nd) <- OVERRIDE round2(quantityInvoiceDetail(nd) * priceInvoiceDetail(nd)), 0.0;
+
+            overCreateDetail(nd);
         }
 
         index(ProduceMNSDetail d) <- PARTITION SUM 1 ORDER d BY produceMNS(d) WHERE doc == produceMNS(d);
@@ -381,6 +386,7 @@ isTrackingData 'Подлежит прослеживанию' = DATA BOOLEAN (Pro
 dateStartSPT 'Дата начала прослеживания' (ProductDetail d) = dateStartSPT(sku(d));
 isTracking 'Подлежит прослеживанию' (ProductDetail d) = OVERRIDE isTrackingData(d), isTrackingOver(sku(d));
 isTracking 'Подлежит прослеживанию' (Order i) = GROUP SUM 1 IF isTracking(ProductDetail d) AND order(d) == i;
+checkIsTracking (Order i) = GROUP SUM 1 IF NOT isTracking(ProductDetail d) AND order(d) == i;
 
 fillTrackingInvoice ABSTRACT LIST (Order);
 
@@ -396,12 +402,12 @@ fillTrackingInvoice(Order o) + {
 }
 
 sendProduceMNS 'Отправить в МНС' (Order o) {
-    IF NOT isTracking(o) THEN {
-        MESSAGE 'В производственном заказе присутствует товар, не подлежащий прослеживаемости \n' +
-            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(ProductDetail d),
-                'ш/к ' + idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND order(d) == o, '\n' ORDER d) NOWAIT;
-        RETURN;
-    }
+//    IF checkIsTracking(o) THEN {
+//        MESSAGE 'В производственном заказе присутствует товар, не подлежащий прослеживаемости \n' +
+//            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(ProductDetail d),
+//                'ш/к ' + idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND order(d) == o, '\n' ORDER d) NOWAIT;
+//        RETURN;
+//    }
 
     NEWSESSION {
         generateJSON(o);
@@ -511,6 +517,10 @@ EXTEND FORM orders
     PROPERTIES(pmd) READONLY index, codeSku, extraCodeSku, gtin, nameSku, uomSku,
         quantityUomSku, trackingUOMCustomsGroup, priceInvoiceDetail, sumInvoiceDetail, quantityInvoiceDetail
     FILTERS produceMNS(pmd) == pm
+
+    OBJECTS pmdl = ProduceMNSDetailLot
+    PROPERTIES 'Марка' = STRING(DocumentMNS.decodeText(encodeBase64Code(pmdl), 'base64'))
+    FILTERS produceMNSDetail(pmdl) == pmd
 ;
 
 DESIGN orders {
@@ -523,6 +533,7 @@ DESIGN orders {
             NEW produceMNSDetail {
                 fill = 1;
                 MOVE BOX(pmd);
+                MOVE BOX(pmdl);
             }
             TOOLBARRIGHT(o) {
                 MOVE PROPERTY(correctProduceMNS(o)) FIRST;
