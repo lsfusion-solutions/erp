@@ -262,7 +262,7 @@ overReceiveMessagesEDN(INTEGER i, STRING[100] login, STRING[100] password, TEXT 
                         customer(r) <- customer(eOrder(ordrspOrderNumber()));
                         customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
                         deliveryDateTime(r) <- dateTimeToDateTime(ordrspDeliveryDateTimeFirst(),ordrspDeliveryDateTimeSecond());
-                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        XMLPath(r) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
 
                         LOCAL indexSku = INTEGER (INTEGER);
                         LOCAL sku = Sku (INTEGER);
@@ -364,6 +364,11 @@ FORM document_DespatchAdvice FORMEXTID 'Document-DespatchAdvice'
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF documentType(i) == 'DESADV'  THEN {
         TRY {
+            IF archiveDir THEN {
+                TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
+                WRITE xmlFile() TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
+            }
+            
             IMPORT desadv XML FROM data(i);
             desadvOrderNumber() <- trim(desadvOrderNumber());
             overReceiveMessageDesadv();
@@ -387,7 +392,7 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         customer(a) <- OVERRIDE customer(eOrder(desadvOrderNumber())), legalEntityGLN(desadvBuyerGLN());
                         customerStock(a) <- OVERRIDE customerStock(eOrder(desadvOrderNumber())), stockGLN(desadvDestinationGLN());
                         deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
-                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                        XMLPath(a) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + downloadFileName(i);
                         FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
                             sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
                             dataGTIN(d) <- desadvGTIN(l);
