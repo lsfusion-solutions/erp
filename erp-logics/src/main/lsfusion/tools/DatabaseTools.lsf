@@ -297,6 +297,7 @@ vacuumOrder(DatabaseTable t) = CASE
     WHEN vacuumOrderType() == VacuumOrderType.totalSize THEN curDataSize(t) (+) curIndexSize(t)
     WHEN vacuumOrderType() == VacuumOrderType.growSizeDesc THEN (dataSize(t) (-) curDataSize(t)) (+) (indexSize(t) (-) curIndexSize(t))
 ;
+isStopTime() = currentTime() > stopAfter() AND currentTime() < 20:00;
 
 smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
     logToFile('database-tools', 'Smart VACUUM - starting');
@@ -332,7 +333,7 @@ smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
         } ELSE {
             reindex(t);
         }
-        IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
+        IF isStopTime() THEN {
             logToFile('database-tools', 'Stopped after deadline');
             BREAK;
         }
@@ -581,8 +582,7 @@ recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipT
             NEWEXECUTOR
                 FOR table(TableKey k) == t DO
                     NEWTHREAD NEWSESSION NEWSQL {
-                        IF currentTime() > stopAfter() AND currentTime() < 20:00 AND skipTime THEN {
-                            logToFile('database-tools', 'Stopped after deadline');
+                        IF isStopTime() AND skipTime THEN {
                             BREAK;
                         }
                         recalculateStats(k);
@@ -593,8 +593,7 @@ recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipT
         NEWEXECUTOR
             FOR table(TableColumn c) == t DO
                 NEWTHREAD NEWSESSION NEWSQL {
-                    IF currentTime() > stopAfter() AND currentTime() < 20:00 AND skipTime THEN {
-                        logToFile('database-tools', 'Stopped after deadline');
+                    IF isStopTime() AND skipTime THEN {
                         BREAK;
                     }
                     recalculateStats(c);
@@ -613,8 +612,7 @@ smartStats 'Smart Stats'() {
     NEWEXECUTOR
         FOR lastRecalculateStats(table(TableKey k)) AND NOT lastRecalculateStats(k) >= lastRecalculateStats(table(k)) DO
             NEWTHREAD NEWSESSION NEWSQL {
-                IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
-                    logToFile('database-tools', 'Stopped after deadline');
+                IF isStopTime() THEN {
                     BREAK;
                 }
                 logToFile('database-tools', 'Smart Stats incomplete TableKey: ' + sid(table(k)) + '.' + sid(k));
@@ -622,17 +620,26 @@ smartStats 'Smart Stats'() {
             }
         THREADS countTreads();
 
+    IF isStopTime() THEN {
+        logToFile('database-tools', 'Stopped after deadline ');
+        RETURN;
+    }
+
     NEWEXECUTOR
         FOR lastRecalculateStats(table(TableColumn c)) AND NOT lastRecalculateStats(c) >= lastRecalculateStats(table(c)) DO
             NEWTHREAD NEWSESSION NEWSQL {
-                IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
-                    logToFile('database-tools', 'Stopped after deadline');
+                IF isStopTime() THEN {
                     BREAK;
                 }
                 logToFile('database-tools', 'Smart Stats incomplete TableColumn: ' + sid(table(c)) + '.' + sid(c));
                 recalculateStats(c);
             }
         THREADS countTreads();
+
+    IF isStopTime() THEN {
+        logToFile('database-tools', 'Stopped after deadline ');
+        RETURN;
+    }
 
     //Significant non-null changes
     INTERNAL DB 'SELECT tablename, attname, CAST((1.0 - null_frac) * 100 AS numeric(11,8)) AS noNull FROM pg_stats WHERE schemaname = \'public\';' TO file;
@@ -643,33 +650,33 @@ smartStats 'Smart Stats'() {
     IMPORT TABLE FROM file() TO tablename, attname, noNull;
 
     NEWEXECUTOR
-        FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND changedCoeff( noNull(r), percentNotNull(c)) > 1.5 ORDER DESC changedCoeff(noNull(r), percentNotNull(c)) DO {
-            IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
-                logToFile('database-tools', 'Stopped after deadline');
-                BREAK;
-            }
-            logToFile('database-tools', 'Smart Stats significantly changed column ' + sid(table(c)) + '.' + sid(c) + ' coeff ' + changedCoeff(noNull(r), percentNotNull(c)) + '(' + noNull(r) + '/' + percentNotNull(c) + ')');
+        FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND NUMERIC nonull = noNull(r) AND 
+            NUMERIC coeff = changedCoeff(nonull, percentNotNull(c)) AND coeff> 1.5 ORDER DESC coeff DO {
             NEWTHREAD NEWSESSION NEWSQL {
+                IF isStopTime() THEN {
+                    BREAK;
+                }
+                logToFile('database-tools', 'Smart Stats significantly changed column ' + sid(table(c)) + '.' + sid(c) + ' coeff ' + coeff + '(' + nonull + '/' + percentNotNull(c) + ')');
                 recalculateStats(c);
             }
         }
         THREADS countTreads();
 
+    IF isStopTime() THEN {
+        logToFile('database-tools', 'Stopped after deadline ');
+        RETURN;
+    }
+
     //tables with significant rows changes
     loadCurRows();
-    NEWEXECUTOR
-        FOR changedCoeff(curRows(Table t), rows(t)) > 2 ORDER DESC changedCoeff(curRows(t), rows(t)) DO {
-            IF currentTime() > stopAfter() AND currentTime() < 20:00 THEN {
-                logToFile('database-tools', 'Stopped after deadline');
-                BREAK;
-            }
-            logToFile('database-tools', 'Smart Stats significantly changed table ' + sid(t) + ' coeff ' + changedCoeff(curRows(t), rows(t)) + '(' + curRows(t) + '/' + rows(t) + ')');
-            NEWTHREAD NEWSESSION NEWSQL {
-                recalculateStats(t, TRUE);
-            }
+    FOR changedCoeff(curRows(Table t), rows(t)) > 2 ORDER DESC changedCoeff(curRows(t), rows(t)) DO {
+        IF isStopTime() THEN {
+            logToFile('database-tools', 'Stopped after deadline');
+            BREAK;
         }
-        THREADS countTreads();
-
+        logToFile('database-tools', 'Smart Stats significantly changed table ' + sid(t) + ' coeff ' + changedCoeff(curRows(t), rows(t)) + '(' + curRows(t) + '/' + rows(t) + ')');
+        recalculateStats(t, TRUE);
+    }
 }
 
 EXTEND FORM tools
