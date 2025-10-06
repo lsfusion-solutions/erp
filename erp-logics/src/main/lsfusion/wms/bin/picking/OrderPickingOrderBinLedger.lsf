@@ -1,0 +1,117 @@
+MODULE OrderPickingOrderBinLedger;
+
+REQUIRE PickingOrder, BinOrderBinLedger, Picking, OrderPickingOrder;
+
+NAMESPACE PickingOrder;
+
+dataMaxLinesPick = DATA INTEGER ();
+maxLinesPick 'Максимальное количество строк в заказе на комплектацию' = OVERRIDE dataMaxLinesPick(), 60;
+
+EXTEND FORM options
+    PROPERTIES() maxLinesPick
+;
+
+DESIGN options{
+    WMS {
+        MOVE PROPERTY(maxLinesPick());
+    }
+}
+
+CLASS PickingGroup 'Группа комплектации';
+
+@defineExternalizable(pickingGroup, INTEGER);
+
+name 'Наименование' = DATA STRING (PickingGroup) CHARWIDTH 20;
+
+FORM pickingGroup 'Группа комплектации'
+    OBJECTS g=PickingGroup PANEL
+    PROPERTIES(g) id, name
+
+    EDIT PickingGroup OBJECT g
+;
+
+FORM dialogPickingGroup 'Группы комплектации'
+    OBJECTS g=PickingGroup
+    PROPERTIES(g) READONLY id, name
+
+    LIST PickingGroup OBJECT g
+;
+
+FORM pickingGroups 'Группы комплектации'
+    OBJECTS g=PickingGroup
+    PROPERTIES(g) READONLY id, name
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE
+;
+
+NAVIGATOR {
+    WMSNavigator {
+        WMSMasterData {
+            NEW pickingGroups;
+        }
+    }
+}
+
+pickingGroup = DATA PickingGroup (Item);
+namePickingGroup 'Группа комплектации' (Item i) = name(pickingGroup(i)) CHARWIDTH 20 IN itemWMS;
+idPickingGroup 'Код группы комплектации' (Item i) = OVERRIDE id(pickingGroup(i)), 0 IF i IS Item MATERIALIZED INDEXED IN itemWMS;
+
+pickingGroup(Batch bt) = pickingGroup(sku(bt));
+namePickingGroup 'Группа комплектации' (Batch i) = name(pickingGroup(i)) CHARWIDTH 20 IN itemWMS;
+
+
+EXTEND FORM item
+    PROPERTIES(i) namePickingGroup, idPickingGroup   
+;    
+
+EXTEND FORM items
+    PROPERTIES(i) READONLY idPickingGroup, namePickingGroup
+;
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES namePickingGroup(bt)
+;
+
+idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (PickingOrderDetail) MATERIALIZED INDEXED;
+idPickingGroup 'Группа комплектации' = DATA INTEGER (UserPickingOrderDetail);
+idPickingGroup(UserPickingOrderDetail detail) += idPickingGroup(detail);
+
+WHEN LOCAL CHANGED(sku(UserPickingOrderDetail detail)) DO {
+    idPickingGroup(detail) <- idPickingGroup(sku(detail));
+}
+
+idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (PickingDetail) MATERIALIZED INDEXED;
+idPickingGroup 'Группа комплектации' = DATA INTEGER (UserPickingDetail);
+idPickingGroup(UserPickingDetail detail) += idPickingGroup(detail);
+
+WHEN LOCAL CHANGED(sku(UserPickingDetail detail)) DO {
+    idPickingGroup(detail) <- idPickingGroup(sku(detail));
+}
+
+idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (OrderDetail) MATERIALIZED INDEXED;
+idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup(orderDetail(detail));
+
+idPickingGroup 'Код группы комплектации' = GROUP MAX idPickingGroup(PickingOrderDetail d) BY pickingOrder(d) MATERIALIZED INDEXED;
+namePickingGroup 'Группа комплектации' (PickingOrder po) = OVERRIDE name(pickingGroup(idPickingGroup(po))), 'Не задана' IF po IS PickingOrder CHARWIDTH 20;
+
+EXTEND FORM pickingOrders
+    PROPERTIES READONLY idPickingGroup(o), namePickingGroup(o)
+;
+
+countPickingGroup = GROUP SUM 1 BY idPickingGroup(PickingOrderDetail d), pickingOrder(d);
+countPickingGroup = GROUP SUM 1 IF countPickingGroup(INTEGER pickongGroup, PickingOrder po) BY po;
+
+CONSTRAINT countPickingGroup(PickingOrder po) > 1
+    MESSAGE 'В одном заказе на комплектацию не может быть несколько групп комплектации';
+
+
+createInvoicesByPickingGroup 'Создавать накладные по группам комплектации' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES createInvoicesByPickingGroup()
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(createInvoicesByPickingGroup());
+    }
+}

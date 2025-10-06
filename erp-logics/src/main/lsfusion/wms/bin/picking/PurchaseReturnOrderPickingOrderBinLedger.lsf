@@ -1,9 +1,9 @@
-MODULE SaleOrderPickingOrderBinLedger;
+MODULE PurchaseReturnOrderPickingOrderBinLedger;
 
-REQUIRE SaleOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, OrderInvoicePickingOrder, 
-        SaleInvoice, ReservedBinLedger, OrderPickingOrderBinLedger;
+REQUIRE PurchaseReturnOrder, PickingOrder, OrderPickingOrder, PickingOrderBinLedger, BinSkuLedger, OrderInvoicePickingOrder, 
+        PurchaseReturnInvoice, ReservedBinLedger, OrderPickingOrderBinLedger;
 
-NAMESPACE Sale;
+NAMESPACE PurchaseReturn;
 
 //------------------------------------------------------------------------------------------------------------//
 
@@ -48,6 +48,7 @@ idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (Order
 idPickingGroup[Order.OrderDetail](OrderDetail detail) += idPickingGroup(detail);
 idPickingGroup 'Группа комплектации' = DATA INTEGER (UserOrderDetail);
 idPickingGroup(UserOrderDetail detail) += idPickingGroup(detail);
+//idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup[PurchaseReturn.OrderDetail](orderDetail(detail));
 
 namePickingGroup 'Группа комплектации' (OrderDetail d) = OVERRIDE name(pickingGroup(idPickingGroup(d))), 'Не задана' IF d IS OrderDetail CHARWIDTH 20;
 
@@ -129,7 +130,7 @@ overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
             FOR iterate(INTEGER i, 0, countPickingOrder(INTEGER pickingGroup)) ORDER pickingGroup INLINE NEW p = UserPickingOrder DO {
                 isPosted(p) <- TRUE;
                 order(p) <- order;
-                stock(p) <- supplierStock(order);
+                stock(p) <- customerStock(order);
 
                 FOR plannedPickingQuantity(order, Sku sku, Bin bin) AND pickingOrderNumber(order, sku, bin, pickingGroup)==i INLINE DO NEW pd = UserPickingOrderDetail {
                     userPickingOrder(pd) <- p;
@@ -161,7 +162,7 @@ EXTEND FORM orders
     PROPERTIES a=(GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait)
 ;
 
-@defineOrderInvoicePickingOrder (' (продажа)');
+@defineOrderInvoicePickingOrder (' (возврат)');
 
 orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), sku(d), outBin(d), idPickingGroup(d);
 orderedQuantity = GROUP SUM quantity(PickingOrderDetail d) BY order(pickingOrder(d)), batch(d), outBin(d), idPickingGroup(d);
@@ -258,7 +259,7 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
                     }
                     extraPickingDetail(i);
                     packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
-                    executeLocalEvents('Sale.userInvoice');
+                    executeLocalEvents('PurchaseReturn.userInvoice');
                     afterCreatePickingUserInvoicePosted(i, order, pickingGroup);
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
@@ -275,7 +276,7 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
                 createdUser(i, order) <- TRUE;
                 userInvoice(order) <- i;
                 include[Order,UserInvoice](order,i) <- TRUE;
-                executeLocalEvents('Sale.userInvoice');
+                executeLocalEvents('PurchaseReturn.userInvoice');
                 afterCreatePickingUserInvoicePosted(i, order, pickingGroup);
                 IF showPickingUserInvoicePosted() THEN {
                     SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
@@ -287,6 +288,3 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
 
 useOverCreatePickingUserInvoicePosted() += createInvoicesByPickingGroup();
 overCreatePickingUserInvoicePosted(Order o) + {createPickingUserInvoicePostedByPickingGroup(o);}
-namePickingGroupSku(InvoiceDetail d) = namePickingGroup(sku(d));
-EXTEND FORM invoices 
-PROPERTIES namePickingGroupSku(d);
