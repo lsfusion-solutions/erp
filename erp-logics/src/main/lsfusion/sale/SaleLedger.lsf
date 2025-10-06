@@ -99,14 +99,17 @@ quantitySold (sku, stock, date) = GROUP SUM quantity(SaleLedger ledger) IF activ
 costSumSold (sku, stock, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
-markupSumSold (sku, stock, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
+//markupSumSold (sku, stock, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
+//    BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 sumVATSold (sku, stock, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
 
 sumSold (sku, stock, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), date(ledger) MATERIALIZED TABLE soldSkuStockDate;
+
+markupSumSold (Sku sku, Stock stock, DATE date) = 
+    sumSold(sku, stock, date) (-) sumVATSold(sku, stock, date) (-) costSumSold(sku, stock, date) MATERIALIZED TABLE soldSkuStockDate;
 
 //по складу, покупателю и SKU
 quantitySold (sku, stock, customer, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
@@ -115,8 +118,8 @@ quantitySold (sku, stock, customer, date) = GROUP SUM quantity(SaleLedger ledger
 costSumSold (sku, stock, customer, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
 
-markupSumSold (sku, stock, customer, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
+//markupSumSold (sku, stock, customer, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
+//    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
     
 discountSumSold (sku, stock, customer, date) = GROUP SUM discountSum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), customer(ledger), date(ledger);    
@@ -126,6 +129,9 @@ sumVATSold (sku, stock, customer, date) = GROUP SUM sumVAT(SaleLedger ledger) IF
 
 sumSold (sku, stock, customer, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
     BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// MATERIALIZED;
+
+markupSumSold (Sku sku, Stock stock, LegalEntity customer, DATE date) =
+    sumSold(sku, stock, customer, date) (-) sumVATSold(sku, stock, customer, date) (-) costSumSold(sku, stock, customer, date);// MATERIALIZED;
 
 extraQuantitySold = ABSTRACT NUMERIC[16,5](Sku,Stock,DATE);
 extraSumSold = ABSTRACT NUMERIC[18,4](Sku,Stock,DATE);
@@ -205,14 +211,17 @@ quantitySold (Batch batch, stock, date) = GROUP SUM cost(SaleLedger ledger, batc
 costSumSold (Batch batch, stock, date) = GROUP SUM costSum(SaleLedger ledger, batch) 
     IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;
 
-markupSumSold (Batch batch, stock, date) = GROUP SUM markupSum(SaleLedger ledger, batch) 
-    IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;
+//markupSumSold (Batch batch, stock, date) = GROUP SUM markupSum(SaleLedger ledger, batch) 
+//    IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;
 
 sumVATSold (Batch batch, stock, date) = GROUP SUM sumVAT(SaleLedger ledger, batch)  
     IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;
 
 sumSold (Batch batch, stock, date) = GROUP SUM sum(SaleLedger ledger, batch)  
-    IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;       
+    IF active(ledger) BY stock(ledger), date(ledger) MATERIALIZED;
+
+markupSumSold (Batch batch, Stock stock, DATE date) =
+    sumSold(batch, stock, date) (-) sumVATSold(batch, stock, date) (-) costSumSold(batch, stock, date) MATERIALIZED;
     
 //по складу и Batch за интервал
     
