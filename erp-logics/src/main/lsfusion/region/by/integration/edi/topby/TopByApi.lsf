@@ -36,9 +36,9 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 MESSAGE  provider + ' (' + login + ') Сообщения не получены: ' + requestError() NOWAIT;
             } ELSE {
                 IF newNS() THEN {
-                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id',documentType = '=DocumentDataSis:DocumentType';
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = '=DocumentDataSis:Data', id = '=DocumentDataSis:Id',documentType = '=DocumentDataSis:DocumentType', documentDate = '=DocumentDataSis:DocumentDate';
                 } ELSE {
-                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id',documentType = 'DocumentType';
+                    IMPORT XML ROOT 'Data' FROM sendRequestEDIResponse() TO data = 'Data', id = 'Id', documentType = 'DocumentType', documentDate = 'DocumentDate';
                 }
 
                 fillStartParams();
@@ -46,7 +46,7 @@ receiveMessages (STRING[100] login, STRING[100] password, TEXT url, STRING[100] 
                 IF (GROUP SUM 1 IF documentType(INTEGER i)) > 0 THEN textMessage() <- CONCAT '\n', textMessage(), provider + '(' + login + ') Сообщений в очереди: ' + (GROUP SUM 1 IF documentType(INTEGER i));
                 logToFile('edi', provider + ' (' + login + ') ReceiveMessages count: ' + (GROUP SUM 1 IF documentType(INTEGER i)));
                 
-                FOR documentType(INTEGER i) ORDER getWord(id(i), '_', 2), id(i), i DO {
+                FOR documentType(INTEGER i) ORDER documentDate(i), i DO {
                     IF archiveDir THEN {
                         TRY{ mkdir(archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd')); }
                         WRITE data(i) TO archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
@@ -96,8 +96,6 @@ FORM  queryDocumentsResponse FORMEXTID 'http://schemas.xmlsoap.org/soap/envelope
     OBJECTS data = INTEGER EXTID '=ResponseOfArraySis:Data' IN queryDocumentsResult
     PROPERTIES(data) id EXTID 'value'
 ;
-
-documentDate = DATA LOCAL NESTED DATETIME (INTEGER);
 
 status '' = DATA LOCAL STRING () CHARWIDTH 500;
 
