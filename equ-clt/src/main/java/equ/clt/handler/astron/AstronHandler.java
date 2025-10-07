@@ -2440,11 +2440,12 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
                     "sales.SALESTAG, sales.SALESBARC, sales.SALESCODE, sales.SALESCOUNT, sales.SALESPRICE, sales.SALESSUM, sales.SALESDISC, sales.SALESBONUS, " +
                     "sales.SALESTYPE, sales.SALESNUM, sales.SAREAID, sales.SALESREFUND, sales.PRCLEVELID, sales.SALESATTRI, " +
-                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART, ext.SALESEXTVALUE AS idZReport FROM SALES sales " +
+                    "COALESCE(sess.SESSSTART,sales.SALESTIME) AS SESSSTART, ext.SALESEXTVALUE AS idZReport, l.SALESEXTVALUE AS lot FROM SALES sales " +
                     "LEFT JOIN (SELECT SESSID, SYSTEMID, SAREAID, max(SESSSTART) AS SESSSTART FROM SESS GROUP BY SESSID, SYSTEMID, SAREAID) sess " +
                     "ON sales.SESSID=sess.SESSID AND sales.SYSTEMID=sess.SYSTEMID AND sales.SAREAID=sess.SAREAID " +
                     "LEFT JOIN CASHIER cashier ON sales.CASHIERID=cashier.CASHIERID " +
-                    "LEFT JOIN SALESEXT ext ON sales.SAREAID=ext.SAREAID AND sales.SYSTEMID=ext.SYSTEMID AND sales.SESSID=ext.SESSID AND sales.SALESNUM=ext.SALESNUM AND SALESEXTKEY = 38 " +
+                    "LEFT JOIN SALESEXT ext ON sales.SAREAID=ext.SAREAID AND sales.SYSTEMID=ext.SYSTEMID AND sales.SESSID=ext.SESSID AND sales.SALESNUM=ext.SALESNUM AND ext.SALESEXTKEY = 38 " +
+                    "LEFT JOIN SALESEXT l ON sales.SAREAID=l.SAREAID AND sales.SYSTEMID=l.SYSTEMID AND sales.SESSID=l.SESSID AND sales.SALESNUM=l.SALESNUM AND l.SALESEXTKEY = 65 " +
                     "WHERE FUSION_PROCESSED IS NULL AND SALESCANC = 0 ORDER BY SAREAID, SYSTEMID, SESSID, sales.FRECNUM, SALESTAG DESC, sales.SALESNUM")
                     :
                     ("SELECT sales.SALESATTRS, sales.SYSTEMID, sales.SESSID, sales.SALESTIME, sales.FRECNUM, sales.CASHIERID, cashier.CASHIERNAME, " +
@@ -2666,6 +2667,11 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                         Map<String, Object> zReportExtraFields = new HashMap<>();
                                         zReportExtraFields.put("number", idZReport);
                                         salesInfo.zReportExtraFields = zReportExtraFields;
+                                    }
+                                    String idLot = rs.getString("lot");
+                                    if (idLot!=null) {
+                                        salesInfo.detailExtraFields = new HashMap<>();
+                                        salesInfo.detailExtraFields.put("idLot", idLot.split("\\\\x1D",2)[0]); // марки приходят с хвостом, разделитель в виде строки x1D
                                     }
                                 }
                                 curSalesInfoList.add(salesInfo);
