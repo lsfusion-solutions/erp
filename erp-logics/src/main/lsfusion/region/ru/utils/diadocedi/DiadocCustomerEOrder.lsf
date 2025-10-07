@@ -5,13 +5,15 @@ REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrga
 NAMESPACE DiadocEDI;
 
 dateStartEDI 'Дата начала работы EDI' = DATA DATE(LegalEntity);
+sendInvoicePrice 'Выгружать цены с НДС' = DATA BOOLEAN(LegalEntity); 
 
 EXTEND FORM legalEntity 
-    PROPERTIES dateStartEDI(l);
+    PROPERTIES dateStartEDI(l), sendInvoicePrice(l);
 
 DESIGN legalEntity {
     EDIComm {
         MOVE PROPERTY (dateStartEDI(l));
+        MOVE PROPERTY (sendInvoicePrice(l));
     }
 }
 
@@ -170,7 +172,7 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             internalSupplierCode = idSku(i),   
             externalProductId = idBarcode(i), 
             description = nameSku(i),
-            netPrice = price(i),
+            netPrice = (OVERRIDE invoicePrice[UserOrderDetail](i) IF sendInvoicePrice(supplier(exportOrderDocument())), price(i)),
             vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))), ''),
             amount = invoiceSum(i)
         PROPERTIES IN requestedQuantity 
