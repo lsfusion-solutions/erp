@@ -121,12 +121,38 @@ changeSkuLotBack 'Перенести марки (назад)' (UserDisparity d) 
     }
 }
 
+changeSkuLotPost 'Перенести марки и провести' (UserDisparity d) {
+    IF returnConditionChangeSkuLot(d) THEN {
+        MESSAGE returnMessageChangeSkuLot();
+        RETURN;
+    }
+    IF [GROUP MIN Lot l IF quantity(d, l) AND NOT currentBalance(l, stock(d)) > 0]() THEN {
+        MESSAGE 'Все оценённые товары в документе должны быть с текущим остатком';
+        RETURN;
+    }
+
+    APPLY;
+    IF canceled() THEN RETURN;
+
+    ASK 'Вы уверены, что хотите перенести марки и провести? Отмена операции будет невозможна.' DO {
+        NEWSESSION {
+            FOR disparity(UserDisparityDetail dd) = d AND inputSku(dd) AND quantity(dd, Lot l) AND sku(dd) = sku(l) DO {
+                note(l) <- 'Изменение сортности ' + number(dd) + '. Замена товара с ' + idSku(l) + ' на ' + id(inputSku(dd));
+                sku(l) <- inputSku(dd);
+            }
+            isPosted(d) <- TRUE;
+            setNoCancelInTransaction();
+            APPLY;
+        }
+    }
+}
+
 EXTEND FORM disparity
-    PROPERTIES(dis) DRAW d TOOLBAR changeSkuLotBack SHOWIF countInputLot(dis)
+    PROPERTIES(dis) DRAW d TOOLBAR changeSkuLotPost SHOWIF (isDraft(dis) AND NOT countInputLot(dis) AND countLot(dis))
 ;
 
 DESIGN disparity {
-    PROPERTY (changeSkuLot(dis)) { showIf = countLot(dis); } 
+    REMOVE PROPERTY (changeSkuLot(dis)); 
 }
 
 CONSTRAINT (SETCHANGED(inputSku(UserDisparityDetail d)) OR CHANGED(sku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(quantity(d))) AND lotSecond(d) AND NOT isSecond(sku(d))
@@ -135,14 +161,14 @@ CONSTRAINT (SETCHANGED(inputSku(UserDisparityDetail d)) OR CHANGED(sku(d)) OR SE
 CONSTRAINT (SETCHANGED(sku(UserDisparityDetail d)) OR CHANGED(inputSku(d)) OR SETCHANGED(operation(d)) OR SETCHANGED(quantity(d))) AND lotSecond(d) AND NOT isSecond(inputSku(d))
     MESSAGE 'Товар (приход) должен быть заполнен и быть секонд-товаром';
 
-CONSTRAINT (CHANGED(quantity(UserDisparityDetail d, Lot l)) OR CHANGED(sku(d)) OR CHANGED(inputSku(d))) AND l IS Lot AND countInputLot(userDisparity(d))
-    MESSAGE 'Запрещено изменение в документе с перенесенными марками. Отмените изменения и выполните перенос назад';
+CONSTRAINT (CHANGED(quantity(UserDisparityDetail d, Lot l)) OR CHANGED(sku(d)) OR CHANGED(inputSku(d)) OR CHANGED(stock(d))) AND l IS Lot AND countInputLot(userDisparity(d))
+    MESSAGE 'Запрещено изменение в документе с перенесенными марками';
 
 CONSTRAINT DROPPED(quantity(UserDisparityDetail d, Lot l)) AND PREV(countInputLot(userDisparity(d)))
-    MESSAGE 'Запрещено удаление в документе с перенесенными марками. Отмените изменения и выполните перенос назад';
+    MESSAGE 'Запрещено удаление в документе с перенесенными марками';
 
-CONSTRAINT DROPPED(isPosted(UserDisparity d)) AND lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
-    MESSAGE 'Запрещено изменение признака Проведен в непоследнем Изменении сортности по месту хранения';
+CONSTRAINT DROPPED(isPosted(UserDisparity d)) AND lotSecond(d) AND NOT skipAdditionalCheckDisparity()
+    MESSAGE 'Запрещено изменение признака Проведен в Изменении сортности';
 
 CONSTRAINT (CHANGED(quantity(UserDisparityDetail d, Lot l)) OR CHANGED(sku(d)) OR CHANGED(inputSku(d))) AND l IS Lot AND lotSecond(d) AND userDisparity(d) != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity()
     MESSAGE 'Запрещено изменение в непоследнем Изменении сортности по месту хранения';
