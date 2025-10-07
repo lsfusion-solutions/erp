@@ -514,6 +514,31 @@ reImportReceipt(STRING purchases, STRING shopId){
 }
 
 //запрос обмена данными
+CLASS RequestFile 'Файл запроса';
+dateTime 'Дата' = DATA DATETIME (RequestFile);
+date 'Дата в запросе' = DATA DATE (RequestFile);
+file 'Файл' = DATA FILE (RequestFile);
+stock = DATA DepartmentStore (RequestFile);
+nameStock 'Склад' (RequestFile f) = name(stock(f));
+type = DATA RequestExchangeType (RequestFile);
+nameType 'Тип' (RequestFile f) = name(type(f));
+request = DATA RequestExchange(RequestFile);
+
+open 'Открыть'(RequestFile f){
+    open(file(f));
+}
+
+saveRequestFiles 'Сохранять файлы запроса' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES () saveRequestFiles
+;
+
+DESIGN integrationData{
+    set10{
+        MOVE PROPERTY (saveRequestFiles());
+    }
+}
 
 monthCaption (INTEGER i) = CASE
     WHEN i = 1 THEN 'JANUARY'
@@ -561,7 +586,6 @@ senRequestExchange(DATE d, GroupCashRegister g){
     EXTERNAL HTTP POST urlServerSet10() + 'SET-ERPIntegration/FiscalInfoExport' HEADERS headersSet PARAMS exportFile() TO answer;
     IMPORT requestExchangeAnswer XML FROM answer();
     fileToString(answer());
-    logToFile('set10', (CONCAT ' ', 'purchases request', d,  resultString()));
     IF return() THEN {
         decodeBase64(return());
         importReceipts(decodedBase64());
@@ -570,7 +594,8 @@ senRequestExchange(DATE d, GroupCashRegister g){
 
 EXTEND CLASS RequestExchangeType{
     salesInfoSet10 'Перезагрузить продажи Set10',
-    salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)'
+    salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)',
+    salesInfoSet10ByStores'Перезагрузить продажи Set10(по магазинам)'
 }
 
 setGroup (Stock c) = GROUP MIN GroupCashRegister g IF active(g) AND isSet10(g) BY stock(g);
@@ -594,6 +619,7 @@ FORM requestExchangeParamsAnswer FORMEXTID 'soap=http://schemas.xmlsoap.org/soap
     PROPERTIES() IN getPurchasesByParamsDataResponse return
 ;
 
+requestFile = DATA LOCAL NESTED FILE ();
 senRequestExchangeByStore(DATE d, STRING id){
     operDay() <- d;
     shopNumber() <- id;
@@ -606,12 +632,23 @@ senRequestExchangeByStore(DATE d, STRING id){
     IF return() THEN {
         decodeBase64(return());
         importReceipt(decodedBase64());
+        stringToFile(decodedBase64());
+        requestFile() <- resultFile();
     }
 }
 
 salesInfoSet10ByStore 'Перезагрузить продажи Set10(по магазинам)' (RequestExchange r){
     TRY {
-        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchangeByStore(d, idStoreSet(setGroup(stock(r))));
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO {
+            senRequestExchangeByStore(d, idStoreSet(setGroup(stock(r))));
+            IF saveRequestFiles() AND requestFile() THEN NEW f = RequestFile{
+                request(f) <- r;
+                file(f) <- requestFile();
+                dateTime(f) <- currentDateTime();
+                stock(f) <- stock(r);
+                type(f) <- requestExchangeType(r);
+            }
+        }
         succeededNative(r) <- TRUE;
         dateTimeSucceededNative(r) <- currentDateTime();
     }
@@ -657,13 +694,23 @@ senRequestExchangeWithDoscount (DATE d, STRING id){
     }
 }
 
-salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(по магазинам)' (RequestExchange r){
+salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)' (RequestExchange r){
     TRY {
-        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchangeWithDoscount(d, idStoreSet(setGroup(stock(r))));
+        FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO {
+            senRequestExchangeWithDoscount(d, idStoreSet(setGroup(stock(r))));
+            IF saveRequestFiles() AND requestFile() THEN NEW f = RequestFile{
+                request(f) <- r;
+                file(f) <- requestFile();
+                date(f) <- d;
+                dateTime(f) <- currentDateTime();
+                stock(f) <- stock(r);
+                type(f) <- requestExchangeType(r);
+            }
+        }
         succeededNative(r) <- TRUE;
         dateTimeSucceededNative(r) <- currentDateTime();
     }
-        CATCH {
+    CATCH {
         NEW er = RequestExchangeError{
             requestExchange(er) <- r;
             date(er) <- currentDateTime();
@@ -696,12 +743,27 @@ salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchang
 
 EXTEND FORM requestExchange
     PROPERTIES (r) salesInfoSet10 SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10
-    PROPERTIES (r) salesInfoSet10WithDiscountCalc SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10WithDiscountCalc;
+    PROPERTIES (r) salesInfoSet10WithDiscountCalc SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10WithDiscountCalc
+    PROPERTIES (r) salesInfoSet10ByStore SHOWIF requestExchangeType(r) == RequestExchangeType.salesInfoSet10ByStores
+    
+    OBJECTS rf = RequestFile
+    PROPERTIES (rf) READONLY dateTime, date, nameStock, nameType, open CHANGEABLE 
+    FILTERS request(rf) = r
+;
 
 DESIGN requestExchange{
     secondRow{
         MOVE PROPERTY (salesInfoSet10(r));
         MOVE PROPERTY (salesInfoSet10WithDiscountCalc(r));
+        MOVE PROPERTY (salesInfoSet10ByStore(r));
+    }
+    tabbedPanel{
+        MOVE BOX (rf){
+            showIf = requestExchangeType(r) == RequestExchangeType.salesInfoSet10 
+                OR requestExchangeType(r) == RequestExchangeType.salesInfoSet10WithDiscountCalc
+                OR requestExchangeType(r) == RequestExchangeType.salesInfoSet10ByStores
+            ;
+        }
     }
 }   
 EXTEND FORM integrationData
