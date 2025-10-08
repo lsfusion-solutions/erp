@@ -4,6 +4,10 @@ REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrga
 
 NAMESPACE DiadocEDI;
 
+EXTEND CLASS EDIProvider {
+    diadoc 'Diadoc'
+}
+
 dateStartEDI 'Дата начала работы EDI' = DATA DATE(LegalEntity);
 sendInvoicePrice 'Выгружать цену с НДС вместо цены без НДС(EDI)' = DATA BOOLEAN(LegalEntity); 
 
@@ -118,6 +122,7 @@ vATAmount = DATA LOCAL STRING();
 amount = DATA LOCAL STRING();
 requestedQuantity = DATA LOCAL STRING();
 unitOfMeasure = DATA LOCAL STRING();
+overRequestedDeliveryDateTime = ABSTRACT DATE(EOrder);
 
 exportOrderDocument = DATA LOCAL EOrder();
 nameMessage = DATA LOCAL STRING();
@@ -159,7 +164,7 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             gln2 = GLNCustomer(exportOrderDocument()) EXTID 'gln'
 
         PROPERTIES IN deliveryInfo_
-            requestedDeliveryDateTime = toChar(shipmentDateTime(exportOrderDocument()), 'yyyy-MM-ddThh24:mi:ss') EXTID 'requestedDeliveryDateTime'
+            requestedDeliveryDateTime = (OVERRIDE toChar(overRequestedDeliveryDateTime(exportOrderDocument()), 'yyyy-MM-dd'), toChar(shipmentDateTime(exportOrderDocument()), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'requestedDeliveryDateTime'
         PROPERTIES IN shipTo    
             gln_ = GLNCustomerStock(exportOrderDocument()) EXTID 'gln'
    
