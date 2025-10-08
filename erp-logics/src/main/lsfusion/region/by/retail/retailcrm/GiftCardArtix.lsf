@@ -1,0 +1,177 @@
+MODULE GiftCardArtix;
+
+REQUIRE GiftCard, LogTools;
+
+NAMESPACE GiftCard;
+
+artixSumGiftCardSalePath 'Адрес отправки данных по балансам сертификатов http://' = DATA STRING[255]();
+artixStatusGiftCardSalePath 'Адрес отправки данных по статусам сертификатов http://' = DATA STRING[255]();
+
+artixGiftCardUserName 'Логин' = DATA STRING[255]();
+artixGiftCardPassword 'Пароль' = DATA STRING[255]();
+
+EXTEND FORM integrationData PROPERTIES artixStatusGiftCardSalePath(), artixSumGiftCardSalePath(), artixGiftCardUserName(), artixGiftCardPassword();
+
+DESIGN integrationData {
+    pane {
+        NEW exportArtixO {
+            caption = 'Экспорт в Artix';
+            MOVE PROPERTY (artixStatusGiftCardSalePath());
+            MOVE PROPERTY (artixSumGiftCardSalePath());
+            MOVE PROPERTY (artixGiftCardUserName());
+            MOVE PROPERTY (artixGiftCardPassword());            
+        }
+    }    
+}
+
+@defineLogRotate(giftCard, 5, weekly);
+
+//экспорт в Artix
+dataExportedArtix 'Экспортирован в Artix' = DATA BOOLEAN (GiftCard);
+exportedArtixActive 'Экспортирован в Artix (активация)' = DATA BOOLEAN (GiftCard);
+//exportedArtixBlocked 'Экспортирован в Artix (заблокирован)' = DATA BOOLEAN (GiftCard);
+overExportedArtix = ABSTRACT VALUE BOOLEAN (GiftCard);
+exportedArtix'Экспортирован в Artix' (GiftCard g) = OVERRIDE dataExportedArtix(g), exportedArtixActive(g), overExportedArtix(g);//, exportedArtixBlocked(g);
+
+isArtixSold = ABSTRACT BOOLEAN (GiftCard) MATERIALIZED;
+isArtix = ABSTRACT BOOLEAN (PaymentGiftCard) MATERIALIZED;
+
+//При различиях вынести из базового модуля
+isArtixSold(GiftCard g) += sidCashRegisterModel(sold(g)) = 'Artix';
+isArtix(PaymentGiftCard c) += sidCashRegisterModel(receiptPayment(c)) = 'Artix';
+//
+
+dataExportedArtix = DATA BOOLEAN (PaymentGiftCard);
+exportedArtix 'Загружен в Artix'(PaymentGiftCard c) = OVERRIDE dataExportedArtix(c), (isArtix(c) AND NOT dataExportedArtix(c));
+
+needActiveArtix(GiftCard g) = sold(g) AND NOT isArtixSold(g);;
+needExportActiveArtix(GiftCard g) = needActiveArtix(g) AND NOT exportedArtixActive(g);
+overNeedExportArtix = ABSTRACT VALUE BOOLEAN (GiftCard);
+
+overStatus = ABSTRACT CASE STRING[100] (GiftCard);
+status(GiftCard g) = CASE  WHEN overStatus(g) THEN overStatus(g)    
+                                        WHEN needActiveArtix(g) THEN 'PAY_ONLY'
+                                        ELSE 'EARN_ONLY'
+;
+
+sessionId = DATA LOCAL STRING[255](GiftCard);;
+
+FORM exportGiftCardStatus1
+    OBJECTS detail = GiftCard PANEL
+    PROPERTIES number = seriesNumber(detail),  accountNumber = seriesNumber(detail), status = status(detail)
+;
+
+FORM exportGiftCardSale1
+    OBJECTS detail = GiftCard PANEL
+    PROPERTIES type = 'ADD', sessionId(detail), amount = currentBalance(detail) * 100, cardNumber = seriesNumber(detail),
+        timeFromCash = NULL, acceptWeight = NULL, timeBeginAccept = toChar(date(detail),'yyyy-MM-ddThh24:mi:ss.msZ'),
+        timeEndAccept = toChar(sumSeconds(DATETIME(sum(sum(date(detail), expiryDays(detail)),1)),-1),'yyyy-MM-ddThh24:mi:ss.msZ'),
+        acceptId = sessionId(detail)
+;
+
+overAfterExportArtix  ABSTRACT LIST (GiftCard);
+exportArtix (GiftCard g, TEXT t) {
+    NEWSESSION {
+        LOCAL result = FILE();
+        LOCAL httpHeadersLoc = TEXT(TEXT);
+        LOCAL expInvoice = JSONFILE ();
+
+        httpHeadersLoc('Authorization') <- 'Basic ' + t;
+        EXPORT exportGiftCardStatus1 OBJECTS detail = g JSON TO expInvoice;
+        EXTERNAL HTTP PUT 'http://' + artixStatusGiftCardSalePath() + '/' + seriesNumber(g) HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
+        dataExportedArtix(g) <- TRUE;
+        exportedArtixActive(g) <- isSold(g);
+        overAfterExportArtix(g);
+        APPLY;
+    }
+}
+
+exportArtixSelected 'Экспорт в Артикс' (){
+    inExportGiftCards(GiftCard g) <- NULL WHERE dataExportedArtix(g) AND NOT needExportActiveArtix(g) AND NOT overNeedExportArtix(g);
+    
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+    FOR inExportGiftCards(GiftCard g) DO {
+        exportArtix(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
+}
+
+exportArtixAll 'Экспорт в Артикс' (){
+    inExportGiftCards(GiftCard g) <- NULL;
+    inExportGiftCards(GiftCard g) <- TRUE WHERE g IS GiftCard AND NOT dataExportedArtix(g) OR needExportActiveArtix(g) OR overNeedExportArtix(g);
+
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+    FOR inExportGiftCards(GiftCard g) DO {
+        exportArtix(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
+}
+
+sendArtixPayments 'Экспорт баланса сертификата' (GiftCard g, TEXT t) {
+    NEWSESSION {
+        LOCAL result = FILE();
+        LOCAL expInvoice = JSONFILE ();
+        LOCAL httpHeadersLoc = TEXT(TEXT);
+        httpHeadersLoc('Authorization') <- 'Basic ' + t;
+        
+        sessionId(g) <- CONCAT ':', TEXT(g), TEXT(currentDateTimeMillis());
+        EXPORT exportGiftCardSale1 OBJECTS detail = g JSON TO expInvoice;
+        EXTERNAL HTTP POST 'http://' + artixSumGiftCardSalePath() + '?cancelOthers=true' HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
+        dataExportedArtix(PaymentGiftCard pg) <- TRUE WHERE giftCard(pg) = g AND NOT exportedArtix(pg);
+        APPLY;
+    }
+}
+
+sendArtixBalanceSelected 'Экспорт баланса сертификатов Artix выбранные' (){
+    inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g)
+        AND NOT [GROUP MAX PaymentGiftCard c IF NOT isArtix(c) BY giftCard(c)](g);
+    LOCAL result = FILE();
+    LOCAL expInvoice = JSONFILE ();
+    LOCAL httpHeadersLoc = TEXT(TEXT);
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+
+    FOR inExportGiftCards(GiftCard g)  DO {
+        sendArtixPayments(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
+}
+
+sendArtixBalanceAll 'Экспорт баланса сертификатов Artix все' (){
+    inExportGiftCards(GiftCard g) <- NULL;
+
+    inExportGiftCards(GiftCard g) <- TRUE WHERE inExportGiftCards(g)
+        AND [GROUP MAX PaymentGiftCard c IF NOT isArtix(c) BY giftCard(c)](g);
+    
+    LOCAL result = FILE();
+    LOCAL expInvoice = JSONFILE ();
+    LOCAL httpHeadersLoc = TEXT(TEXT);
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+
+    FOR inExportGiftCards(GiftCard g)  DO {
+        sendArtixPayments(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
+}
+
+
+EXTEND FORM giftCards
+    PROPERTIES exportedArtix(g), exportedArtixActive(g)
+    PROPERTIES TOOLBAR exportArtixSelected() BEFORE generateGiftCards() DRAW g
+
+    PROPERTIES DRAW l TOOLBAR sendArtixBalanceSelected(), sendArtixBalanceAll()
+    PROPERTIES READONLYIF isReadonly() exportedArtix[PaymentGiftCard](l)
+;
+
+DESIGN giftCards {
+    BOX(l) {
+        NEW buttonsGift {
+            horizontal = TRUE;
+            NEW ArtixToolCont{
+                caption = 'Artix';
+                MOVE PROPERTY(sendArtixBalanceSelected());
+                MOVE PROPERTY(sendArtixBalanceAll());
+
+            }
+        }
+    }
+}

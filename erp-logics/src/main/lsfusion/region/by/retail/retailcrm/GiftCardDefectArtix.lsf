@@ -1,0 +1,32 @@
+MODULE GiftCardDefectArtix;
+
+REQUIRE GiftCardArtix, GiftCardDefect;
+
+NAMESPACE GiftCard;
+
+exportedDefectArtix 'Порча экспортирована в Artix' = DATA BOOLEAN (GiftCard);
+overExportedArtix(GiftCard g) += exportedDefectArtix(g);
+
+EXTEND FORM giftCards PROPERTIES READONLY exportedDefectArtix(g) BEFORE dateDefect(g);
+
+overNeedExportArtix(GiftCard g) += defectGiftCardDetail(g) IS DefectGiftCardDetail AND NOT exportedDefectArtix(g);
+overStatus(GiftCard g) += WHEN defectGiftCardDetail(g) IS DefectGiftCardDetail THEN 'NO_OPERATION ';
+overAfterExportArtix(g) + {
+    exportedDefectArtix(g) <- defectGiftCardDetail(g) IS DefectGiftCardDetail;
+}
+
+exportGiftCardsArtix 'Экспорт в Artix' (DefectGiftCard i)  {
+        NEWSESSION {
+            inExportGiftCards(GiftCard c) <- TRUE WHERE defectGiftCard(defectGiftCardDetail(c)) == i;
+            MESSAGE (OVERRIDE (GROUP SUM 1 IF inExportGiftCards(GiftCard c)), 0) + ' Принято к загрузке в Артикс' NOWAIT;
+            exportArtixSelected();
+    }
+} TOOLBAR ;
+
+overExportGiftCards(DefectGiftCard i) + {
+    exportGiftCardsArtix(i);
+}
+
+EXTEND FORM defectGiftCards
+    PROPERTIES(r) exportGiftCardsArtix
+;
