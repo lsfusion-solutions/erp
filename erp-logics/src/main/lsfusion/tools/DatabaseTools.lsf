@@ -440,7 +440,7 @@ loadCurRows 'Заполнить количество записей'(){
     }
 }
 
-changedCoeff(NUMERIC cur, NUMERIC new) = max(cur, new) / min(cur, new);
+changedCoeff(NUMERIC cur, NUMERIC new) = max(cur, new) / NUMERIC(IF min(cur, new) == 0 THEN 0.0001 ELSE min(cur, new));
 
 setSkipStatistic 'Исключить из пересчета статистики'() {
     loadCurRows();
@@ -651,7 +651,7 @@ smartStats 'Smart Stats'() {
 
     NEWEXECUTOR
         FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND NUMERIC nonull = noNull(r) AND 
-            NUMERIC coeff = changedCoeff(nonull, percentNotNull(c)) AND coeff> 1.5 ORDER DESC coeff DO {
+            NUMERIC coeff = changedCoeff(nonull, percentNotNull(c)) AND coeff> 1.5 AND rows(t) > 100 ORDER DESC coeff DO {
             NEWTHREAD NEWSESSION NEWSQL {
                 IF isStopTime() THEN {
                     BREAK;
