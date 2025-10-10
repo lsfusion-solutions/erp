@@ -112,10 +112,9 @@ DESIGN options {
     }
 }
 
-overFill ABSTRACT LIST (PurchaseDemandLog);
-overFill ABSTRACT LIST (PurchaseDemandLog, Sku,UserOrder);
+overFill ABSTRACT LIST (PurchaseDemandLog, Sku, UserOrder);
 
-overFill(PurchaseDemandLog l, Sku sku, UserOrder userOrder )+{
+overFill(PurchaseDemandLog l, Sku sku, UserOrder userOrder) + {
     dateTime(l) <- currentDateTime();
     userOrder(l) <- userOrder;
     supplier(l) <- supplier(userOrder);
@@ -133,7 +132,6 @@ overFillRecommended (UserOrder userOrder) + {
     IF enablePurchaseDemandLog() AND (GROUP SUM 1 IF in(Sku sku)) <= limitPurchaseDemandLog() THEN {
         FOR in(Sku sku) INLINE NEW l = PurchaseDemandLog DO {
             overFill(l, sku, userOrder);            
-            overFill(l);
         }
     }
 }
