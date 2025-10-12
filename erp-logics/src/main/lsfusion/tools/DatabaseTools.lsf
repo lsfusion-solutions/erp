@@ -50,6 +50,21 @@ indisvalid 'Активный' = DATA BOOLEAN (Index);
 
 efficiency 'Эффективность' (Index i) = 100.0 * indexReads(i) / indexScans(i) / curRows(table(i));
 
+stopAfter 'Не запускать после' = DATA TIME();
+
+//utils
+isStopTime() = currentTime() > stopAfter() AND currentTime() < 20:00;
+
+coeff(Table t) = NUMERIC(rows(t)) / curRows(t);
+
+maxInt() = 2147483647;
+safeInt(NUMERIC n) = INTEGER(max(min(n, maxInt()), 0));
+
+changedCoeff(NUMERIC cur, NUMERIC new) = max(cur, new) / NUMERIC(IF min(cur, new) == 0 THEN 0.0001 ELSE min(cur, new));
+grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001) - (OVERRIDE B, 0.001)) / (MAX B, 0.001)), 0.0)](a, b);
+
+////
+
 //Секционированная таблица
 //CLASS Partition 'Секция' : DatabaseTable;
 //TABLE partition(Partition);
@@ -147,7 +162,6 @@ createIndexes 'Создать индексы' (Table t) {
 reindexConcurrentlySize 'REINDEX CONCURRENTLY свыше (МБ)' = DATA NUMERIC[15,3] ();
 
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
-stopAfter 'Не запускать после' = DATA TIME();
 
 runAndLogSQL(STRING command) {
     logToFile('database-tools', 'start - ' + command);
@@ -261,7 +275,6 @@ loadSystemCurSize 'Заполнить размеры системных табл
     }
 }
 
-grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001) - (OVERRIDE B, 0.001)) / (MAX B, 0.001)), 0.0)](a, b);
 dataVacuumCoeff = DATA NUMERIC[5,2]();
 vacuumCoeff 'Коэффициент роста' () = OVERRIDE dataVacuumCoeff(), 0.1;
 dataVacuumSize = DATA NUMERIC[5,2]();
@@ -297,7 +310,6 @@ vacuumOrder(DatabaseTable t) = CASE
     WHEN vacuumOrderType() == VacuumOrderType.totalSize THEN curDataSize(t) (+) curIndexSize(t)
     WHEN vacuumOrderType() == VacuumOrderType.growSizeDesc THEN (dataSize(t) (-) curDataSize(t)) (+) (indexSize(t) (-) curIndexSize(t))
 ;
-isStopTime() = currentTime() > stopAfter() AND currentTime() < 20:00;
 
 smartVacuum 'Smart VACUUM'(BOOLEAN pgOnly) {
     logToFile('database-tools', 'Smart VACUUM - starting');
@@ -346,90 +358,83 @@ smartVacuum 'Smart VACUUM'(){
 }
 
 //статистика
-CLASS StatisticGrowType 'Вид роста статистики'{
-    proportional 'Пропорционально',
-    fixed 'Не изменяется'
-}
-targetStatistic 'Фикс. количество записей' = DATA INTEGER (Table);
 
-dataStatisticGrowType = DATA StatisticGrowType (TableKey);
-statisticGrowType(TableKey tk) = OVERRIDE dataStatisticGrowType (tk), StatisticGrowType.proportional;
-nameStatisticGrowType 'Вид роста статистики' (TableKey tk) = staticCaption(statisticGrowType(tk)) CHARWIDTH 20;
-
-dataStatisticGrowType = DATA StatisticGrowType (TableColumn);
-statisticGrowType(TableColumn tc) = OVERRIDE dataStatisticGrowType (tc), StatisticGrowType.proportional;
-nameStatisticGrowType 'Вид роста статистики' (TableColumn tc) = staticCaption(statisticGrowType(tc)) CHARWIDTH 20;
-
-recalculateStatsQ 'Пересчет статистики (быстрый)' (Table t) {
-    NEWSESSION {
-
-        LOCAL quantityTopNew = INTEGER (TableKey);
-        LOCAL quantityNew = INTEGER (TableKey);
-        LOCAL quantityTopNew = INTEGER (TableColumn);
-        LOCAL quantityNew = INTEGER (TableColumn);
-
-        IF targetStatistic(t) THEN {
-            curRows(t) <- targetStatistic(t);
-        } ELSE {
-            INTERNAL DB 'ANALYZE ' + lower(sid(t));
-
-            curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
-
-            INTERNAL DB 'SELECT attname, CAST (1.0-null_frac::numeric(11,10) AS numeric(11,10)) AS noNull, n_distinct::numeric(21,10),' +
-                'array_to_string(most_common_freqs, E\'|\') AS most_common_freqs, CASE WHEN n_distinct = null_frac - 1.0 THEN 1 END AS unique FROM pg_stats WHERE tablename =$1' PARAMS lower(sid(t))
-                TO file;
-
-            IMPORT TABLE FROM file() FIELDS STRING[100] attname, NUMERIC[11,10] noNull, NUMERIC[21,10] n_distinct, TEXT most_common_freqs, INTEGER unique DO {
-
-                LOCAL freq = NUMERIC[11,10](INTEGER );
-                freq(INTEGER i) <- NUMERIC[11,10](getWord(most_common_freqs, '|', i)) IF count(i, wordCount(most_common_freqs, '|'));
-
-                FOR table(TableKey tk) == t AND lower(name(tk)) == attname DO {
-                    quantityNew(tk) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
-                    quantityTopNew(tk) <- CASE WHEN (GROUP SUM 1 IF table(TableKey tkk) == t) == 1 OR unique == 1 //количество разновидностей значений == количеству строк
-                                                    THEN curRows(t) * noNull 
-                                               WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
-                                                    THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) / 0.8  ;
-                }
-
-                FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname AND NOT return(tc) == 'BOOLEAN' DO {
-                    quantityNew(tc) <- IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct;
-                    quantityTopNew(tc) <- CASE WHEN unique == 1 //количество разновидностей значений == количеству строк
-                                                    THEN curRows(t) * noNull 
-                                               WHEN (GROUP SUM freq(INTEGER i)) >= noNull * 0.8 
-                                                    THEN ((GROUP SUM 1 IF (PARTITION SUM freq( INTEGER i) ORDER i) < noNull * 0.8) (+) 1) /0.8  ;
-                }
-
-                notNullQuantity(Property pt) <- curRows(t) * noNull WHERE tableSID(pt) == sid(t) AND lower(dbName(pt)) == attname;
-            }
-        }
-
-        quantityNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantity(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tk)
-            WHERE table(tk) == t AND NOT quantityTopNew(tk);
-        quantityTopNew(TableKey tk) <- IF statisticGrowType(tk) == StatisticGrowType.fixed THEN quantityTop(tk) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tk)
-            WHERE table(tk) == t AND NOT quantityTopNew(tk);
-
-        quantityNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantity(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantity(tc)
-            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN';
-        quantityTopNew(TableColumn tc) <- IF statisticGrowType(tc) == StatisticGrowType.fixed THEN quantityTop(tc) ELSE NUMERIC[21,10](curRows(t)) / rows(t) * quantityTop(tc)
-            WHERE table(tc) == t AND NOT quantityTopNew(tc) AND NOT return(tc) == 'BOOLEAN';
-
-        quantity(TableKey tk) <- quantityNew(tk) WHERE table(tk) == t;
-        quantityTop(TableKey tk) <- quantityTopNew(tk) WHERE table(tk) == t;
-
-        FOR TableColumn tc = tableColumn(Property pt) AND table(tc) == t DO {
-            quantity(pt) <- quantityNew(tc);
-            quantityTop(pt) <- quantityTopNew(tc);
-        }
-
-        notNullQuantity(Property pt) <- NUMERIC[21,10](curRows(t)) / rows(t) * notNullQuantity(pt)
-            WHERE tableSID(pt) == sid(t) AND targetStatistic(t);
-
-        rows(t) <- curRows(t);
-
-        APPLY;
-    }
+analyze 'ANALYZE' (Table t) {
+    INTERNAL DB 'ANALYZE ' + lower(sid(t));
 } ASON CONTEXTMENU sid[DatabaseTable];
+
+percentNotNullStat 'Не null, % (стат)' = DATA LOCAL NESTED NUMERIC(TableColumn);
+backgroundStatNotNull(TableColumn c) = IF changedCoeff(percentNotNullStat(c), percentNotNull(c)) >= 1.5 THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
+quantityStat 'Количество разновидностей (стат)' = DATA LOCAL NESTED LONG (TableColumn);
+statisticTarget 'statistics_target' = DATA LOCAL NESTED INTEGER (TableColumn);
+backgroundStat(TableColumn c) = IF changedCoeff(quantityStat(c), quantity(c)) >= 5 AND changedCoeff(quantityStat(c), quantityTop(c)) >= 5 THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
+quantityStat 'Количество разновидностей (стат)' = DATA LOCAL NESTED LONG (TableKey);
+backgroundStat(TableKey c) = IF changedCoeff(quantityStat(c), quantity(c)) >= 5 AND changedCoeff(quantityStat(c), quantityTop(c)) >= 5 THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
+statisticTarget 'statistics_target' = DATA LOCAL NESTED INTEGER (TableKey);
+
+loadCurRows 'Заполнить количество записей' (Table t) {
+    curRows(t) <- [FORMULA LONG 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
+}
+
+fillStats 'Получить статистику таблицы' (Table t) {
+
+    loadCurRows(t);
+
+    INTERNAL DB 'SELECT attname, CAST((1.0 - null_frac) * 100 AS numeric(11,8)) AS noNull, n_distinct::numeric(21,10) FROM pg_stats WHERE tablename = $1'
+        PARAMS lower(sid(t))
+        TO file;
+
+    IMPORT TABLE FROM file() FIELDS STRING[100] attname, NUMERIC[11,8] noNull, NUMERIC[21,10] n_distinct DO {
+        FOR table(TableKey tk) == t AND lower(name(tk)) == attname AND NUMERIC q == IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct DO {
+            quantityStat(tk) <- safeInt(min(coeff(t) * q, rows(t))); //число разновидностей не всегда зависит от числа строк, но для упрощения считаем линейно
+        }
+        FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname AND NUMERIC q == IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct DO {
+            quantityStat(tc) <- safeInt(min(coeff(t) * q, rows(t)));
+            percentNotNullStat(tc) <- noNull;
+        }
+    }
+
+    LOCAL defStatTarget = INTEGER ();
+    defStatTarget() <- [FORMULA INTEGER 'SELECT setting FROM pg_settings WHERE name = \'default_statistics_target\'']();
+
+    INTERNAL DB 'SELECT attname, attstattarget FROM pg_attribute WHERE attrelid = $1::regclass AND attnum > 0  AND NOT attisdropped;'
+        PARAMS lower(sid(t))
+        TO file;
+    
+    LOCAL attname = STRING[100](INTEGER);
+    LOCAL attstattarget = NUMERIC(INTEGER);
+    
+    
+    IMPORT TABLE FROM file() TO attname, attstattarget;
+
+    FOR table(TableKey tk) == t AND lower(name(tk)) == attname(INTEGER r) DO {
+        statisticTarget(tk) <- IF attstattarget(r) == -1 THEN defStatTarget() ELSE attstattarget(r);
+    }
+
+    FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname(INTEGER r) DO {
+        statisticTarget(tc) <- IF attstattarget(r) == -1 THEN defStatTarget() ELSE attstattarget(r);
+    }
+}
+stat = DATA LOCAL INTEGER ();
+FORM statInput
+    PROPERTIES stat();
+
+setStat 'Set statistics_target' (TableKey k) {
+    stat() <- OVERRIDE statisticTarget(k), 100;
+    SHOW statInput ;
+    INTERNAL DB 'ALTER TABLE '+lower(sid(table(k)))+' ALTER COLUMN '+lower(name(k))+' SET STATISTICS '+stat()+';' ;
+    
+    analyze(table(k));
+    fillStats(table(k));
+}
+setStat 'Set statistics_target' (TableColumn c) {
+    stat() <- OVERRIDE statisticTarget(c), 100;
+    SHOW statInput ;
+    INTERNAL DB 'ALTER TABLE '+lower(sid(table(c)))+' ALTER COLUMN '+lower(sid(c))+' SET STATISTICS '+stat()+';' ;
+    
+    analyze(table(c));
+    fillStats(table(c));
+}
 
 loadCurRows 'Заполнить количество записей'(){
     INTERNAL DB 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
@@ -440,22 +445,17 @@ loadCurRows 'Заполнить количество записей'(){
     }
 }
 
-changedCoeff(NUMERIC cur, NUMERIC new) = max(cur, new) / NUMERIC(IF min(cur, new) == 0 THEN 0.0001 ELSE min(cur, new));
-
 setSkipStatistic 'Исключить из пересчета статистики'() {
     loadCurRows();
     notRecalculateStats(Table t) <- min(curRows(t), rows(t)) > 100000000 OR curRows(t) == rows(t) OR changedCoeff(curRows(t), rows(t)) < 2;
 }
 
-needStats(Table t) = max(curRows(t), rows(t)) / (OVERRIDE min(curRows(t), rows(t)), 1) >= 5;
+needStats(Table t) = changedCoeff(curRows(t), rows(t)) >= 5;
 backgroundRows(Table t) = IF needStats(t) THEN RGB (51, 153, 51) ELSE RGB (198, 236, 198);
 
 lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (Table);
 lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (TableKey);
 lastRecalculateStats 'Последний пересчет статистики' = DATA DATETIME (TableColumn);
-
-maxInt() = 2147483647;
-safeInt(NUMERIC n) = INTEGER(max(min(n, maxInt()), 0));
 
 //Через PARAMS не работает. Имена таблиц и колонок должны быть не строками а PARAMS подставляет их как строки с кавычками
 //в 6 версии можно будет переделать на интерполяцию. 
@@ -482,46 +482,48 @@ importQuantityAndLog(STRING command) {
     logToFile('database-tools', 'end - ' + command);
 }
 
-//подгоняем результат под сохраненное число строк чтобы не превысить 100%
-coeff(Table t) = NUMERIC(rows(t)) / curRows(t);
-
 recalculateStats 'Пересчет статистики' (TableColumn c) {
     NEWSESSION {
-        logToFile('database-tools', 'start recalculateStats ' + sid(c));
+        TRY { 
+            logToFile('database-tools', 'start recalculateStats ' + sid(c));
 
-        LOCAL quantity, quantityTop, notNullQuantity = LONG();
+            LOCAL quantity, quantityTop, notNullQuantity = LONG();
 
-        importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(c)), '$2', sid(table(c))));
-        notNullQuantity() <- qty();
+            importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(c)), '$2', sid(table(c))));
+            notNullQuantity() <- qty();
 
-        IF notNullQuantity() == 0 THEN {
-            quantity() <- 0;
-            quantityTop() <- 0;
-        } ELSE {
-            IF NOT return(c) == 'BOOLEAN' AND NOT return(c) LIKE '%FILE' THEN {
-                importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(c)), '$2', sid(table(c))));
-                quantity() <- qty();
+            IF notNullQuantity() == 0 THEN {
+                quantity() <- 0;
+                quantityTop() <- 0;
+            } ELSE {
+                IF NOT return(c) == 'BOOLEAN' AND NOT return(c) LIKE '%FILE' THEN {
+                    importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(c)), '$2', sid(table(c))));
+                    quantity() <- qty();
 
-                importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(INTEGER(0.8 * notNullQuantity()))));
-                //нормализуем обратно к 100% 
-                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
-                quantityTop() <- min(notNullQuantity(), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
+                    importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(c)), '$2', sid(table(c))), '$3', STRING(LONG(0.8 * notNullQuantity()))));
+                    //нормализуем обратно к 100% 
+                    //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
+                    quantityTop() <- min(notNullQuantity(), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
+                }
             }
-        }
 
-        IF NOT curRows(table(c)) THEN {
-            curRows(table(c)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(c))));
-        }
-        FOR c = tableColumn(Property pt) DO {
-            quantity(pt) <- min(safeInt(coeff(table(c)) * quantity()), rows(table(c)));
-            quantityTop(pt) <- min(safeInt(coeff(table(c)) * quantityTop()), rows(table(c)));
-            notNullQuantity(pt) <- min(safeInt(coeff(table(c)) * notNullQuantity()), rows(table(c)));
-        }
+            IF NOT curRows(table(c)) THEN {
+                loadCurRows(table(c));
+            }
+            FOR c = tableColumn(Property pt) DO {
+                quantity(pt) <- safeInt(min(coeff(table(c)) * quantity(), rows(table(c))));
+                quantityTop(pt) <- safeInt(min(coeff(table(c)) * quantityTop(), rows(table(c))));
+                notNullQuantity(pt) <- safeInt(min(coeff(table(c)) * notNullQuantity(), rows(table(c))));
+            }
 
-        lastRecalculateStats(c) <- currentDateTime();
+            lastRecalculateStats(c) <- currentDateTime();
 
-        APPLY;
-        logToFile('database-tools', 'end recalculateStats ' + sid(c));
+            APPLY;
+            logToFile('database-tools', 'end recalculateStats ' + sid(c));
+        } CATCH {
+            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), lsfStackTraceCaughtException()));
+            MESSAGE 'Ошибка пересчета статистики ' + messageCaughtException() NOWAIT;
+        }
     }
 }
 
@@ -529,36 +531,42 @@ singleKey(Table t) = (GROUP SUM 1 IF table(TableKey k) == t) == 1;
 
 recalculateStats 'Пересчет статистики' (TableKey k) {
     NEWSESSION {
-        logToFile('database-tools', 'start recalculateStats ' + sid(k));
+        TRY {
+            logToFile('database-tools', 'start recalculateStats ' + sid(k));
 
-        IF NOT curRows(table(k)) THEN {
-            curRows(table(k)) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(table(k))));
+            IF NOT curRows(table(k)) THEN {
+                loadCurRows(table(k));
+            }
+
+            LOCAL quantity, quantityTop = LONG();
+
+            IF singleKey(table(k)) THEN {
+                importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(k)), '$2', sid(table(k))));
+                quantity() <- safeInt(qty());
+                quantityTop() <- safeInt(qty());
+            } ELSE {
+                importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(k)), '$2', sid(table(k))));
+                quantity() <- qty();
+
+                importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(k)), '$2', sid(table(k))), '$3', STRING(LONG(0.8 * curRows(table(k))))));
+                //нормализуем обратно к 100% 
+                //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
+                quantityTop() <- min(curRows(table(k)), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
+            }
+
+            quantity(k) <- safeInt(min(coeff(table(k)) * quantity(), rows(table(k))));
+            quantityTop(k) <- safeInt(min(coeff(table(k)) * quantityTop(), rows(table(k))));
+
+            lastRecalculateStats(k) <- currentDateTime();
+
+            APPLY;
+            logToFile('database-tools', 'end recalculateStats ' + sid(k));
+        } CATCH {
+            logToFile('database-tools', (CONCAT '\n', messageCaughtException(), lsfStackTraceCaughtException()));
+            MESSAGE 'Ошибка пересчета статистики ' + messageCaughtException() NOWAIT;
         }
-
-        LOCAL quantity, quantityTop = LONG();
-
-        IF singleKey(table(k)) THEN {
-            importQuantityAndLog(replace(replace(notNullQuery(), '$1', sid(k)), '$2', sid(table(k))));
-            quantity() <- qty();
-            quantityTop() <- qty();
-        } ELSE {
-            importQuantityAndLog(replace(replace(distinctQuery(), '$1', sid(k)), '$2', sid(table(k))));
-            quantity() <- qty();
-
-            importQuantityAndLog(replace(replace(replace(distinctTopQuery(), '$1', sid(k)), '$2', sid(table(k))), '$3', STRING(INTEGER(0.8 * curRows(table(k))))));
-            //нормализуем обратно к 100% 
-            //(qty() == 0 AND quantity() != 0) нужно на случай если одна группа больше 80%.текущий запрос возвращает 0. Известно что есть группы если quantity() != 0, не нужно уложнять запрос
-            quantityTop() <- min(curRows(table(k)), (IF qty() == 0 AND quantity() != 0 THEN 1 ELSE qty()) / 0.8);
-        }
-
-        quantity(k) <- min(safeInt(coeff(table(k)) * quantity()), rows(table(k)));
-        quantityTop(k) <- min(safeInt(coeff(table(k)) * quantityTop()), rows(table(k)));
-
-        lastRecalculateStats(k) <- currentDateTime();
-
-        APPLY;
-        logToFile('database-tools', 'end recalculateStats ' + sid(k));
     }
+
 }
 
 recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipTime) {
@@ -566,15 +574,15 @@ recalculateStats 'Пересчет статистики' (Table t, BOOLEAN skipT
         logToFile('database-tools', 'start recalculateStats ' + sid(t));
 
         INTERNAL DB 'ANALYZE ' + lower(sid(t));
-        curRows(t) <- [FORMULA INTEGER 'SELECT reltuples::BIGINT FROM pg_class WHERE relname =$1'](lower(sid(t)));
+        loadCurRows(t);
 
         importQuantityAndLog(replace(replace(notNullQuery(), '$1', 'key0'), '$2', sid(t)));
-        rows(t) <- qty();
+        rows(t) <- safeInt(qty());
         lastRecalculateStats(t) <- currentDateTime();
 
         IF singleKey(t) THEN {
-            quantity(TableKey k) <- qty() WHERE table(k) == t;
-            quantityTop(TableKey k) <- qty() WHERE table(k) == t;
+            quantity(TableKey k) <- safeInt(qty()) WHERE table(k) == t;
+            quantityTop(TableKey k) <- safeInt(qty()) WHERE table(k) == t;
             lastRecalculateStats(TableKey k) <- currentDateTime() WHERE table(k) == t;
             APPLY;
         } ELSE {
@@ -650,8 +658,8 @@ smartStats 'Smart Stats'() {
     IMPORT TABLE FROM file() TO tablename, attname, noNull;
 
     NEWEXECUTOR
-        FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND NUMERIC nonull = noNull(r) AND 
-            NUMERIC coeff = changedCoeff(nonull, percentNotNull(c)) AND coeff> 1.5 AND rows(t) > 100 ORDER DESC coeff DO {
+        FOR tablename(INTEGER r) == lower(sid(Table t)) AND attname(r) == lower(sid(TableColumn c)) AND NUMERIC nonull = noNull(r) AND
+            NUMERIC coeff = changedCoeff(nonull, percentNotNull(c)) AND coeff > 1.5 AND rows(t) > 100 ORDER DESC coeff DO {
             NEWTHREAD NEWSESSION NEWSQL {
                 IF isStopTime() THEN {
                     BREAK;
@@ -669,7 +677,7 @@ smartStats 'Smart Stats'() {
 
     //tables with significant rows changes
     loadCurRows();
-    FOR changedCoeff(curRows(Table t), rows(t)) > 2 ORDER DESC changedCoeff(curRows(t), rows(t)) DO {
+    FOR changedCoeff(curRows(Table t), rows(t)) > 2 AND NOT notRecalculateStats(t) ORDER DESC changedCoeff(curRows(t), rows(t)) DO {
         IF isStopTime() THEN {
             logToFile('database-tools', 'Stopped after deadline');
             BREAK;
@@ -687,7 +695,7 @@ EXTEND FORM tools
     PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE
     PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, lastRecalculateStats
     PROPERTIES (t) recalculateStats GRID
-    PROPERTIES (t) getIndexes TOOLBAR
+    PROPERTIES (t) TOOLBAR getIndexes, fillStats
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
         FILTER 'REINDEX' needReindex(t)
@@ -698,13 +706,14 @@ EXTEND FORM tools
         FILTER 'Системные' t IS PgTable
 
     OBJECTS tk = TableKey
-    PROPERTIES(tk) READONLY class, classSID, name, quantity, quantityTop, lastRecalculateStats
-    PROPERTIES (tk) recalculateStats GRID
+    PROPERTIES(tk) READONLY class, classSID, name, quantity, quantityStat BACKGROUND backgroundStat(tk), quantityTop, statisticTarget, lastRecalculateStats
+    PROPERTIES (tk) recalculateStats GRID, setStat TOOLBAR
     FILTERS table(tk) == t
 
     OBJECTS tc = TableColumn
-    PROPERTIES(tc) READONLY sid, caption, return, quantity, quantityTop, notNullQuantity, percentNotNull, lastRecalculateStats
-    PROPERTIES (tc) recalculateStats GRID
+    PROPERTIES(tc) READONLY sid, caption, return, quantity, quantityStat BACKGROUND backgroundStat(tc), quantityTop,
+        notNullQuantity, percentNotNull, percentNotNullStat BACKGROUND backgroundStatNotNull(tc), statisticTarget, lastRecalculateStats
+    PROPERTIES (tc) recalculateStats GRID, setStat TOOLBAR 
     FILTERS table(tc) == t
 
     OBJECTS i = Index
@@ -753,7 +762,10 @@ DESIGN tools{
                     fill = 0.4;
                     tabbed = TRUE;
                     MOVE BOX (tc) {
+                        PROPERTY (caption(tc)) {charWidth = 50;};
+                        PROPERTY (return (tc)) {charWidth = 20;};
                         PROPERTY (percentNotNull(tc)) {pattern = '#,##0.##';};
+                        PROPERTY (percentNotNullStat(tc)) {pattern = '#,##0.##';};
                     };
                     MOVE BOX (tk);
                     MOVE BOX (i);
