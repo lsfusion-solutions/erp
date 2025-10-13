@@ -126,8 +126,20 @@ changeSkuLotPost 'Перенести марки и провести' (UserDispar
         MESSAGE returnMessageChangeSkuLot();
         RETURN;
     }
-    IF [GROUP MIN Lot l IF quantity(d, l) AND NOT currentBalance(l, stock(d)) > 0]() THEN {
-        MESSAGE 'Все оценённые товары в документе должны быть с текущим остатком';
+    IF lotSecond(d) AND [GROUP MIN Lot l IF quantity(d, l) AND NOT prevCurrentBalance(l, stock(d)) = 1]() THEN {
+        MESSAGE 'Все оценённые товары в документе должны быть с текущим остатком равным 1 \nОшибку вызывают:\n' +
+            [GROUP CONCAT (id(Lot l) + ' ' + nameSku(l)) IF quantity(d, l) AND NOT prevCurrentBalance(l, stock(d)) = 1, '\n' ORDER nameSku(l), l]();
+        RETURN;
+    }
+    IF lotSecond(d) AND [GROUP MIN Lot l IF quantity(d, l) AND prevCurrentBalance(l, Stock st) AND st != stock(d)]() THEN {
+        MESSAGE 'У оценённых товаров из документа не должно быть остатка на других местах хранения \nОшибку вызывают:\n' +
+            [GROUP CONCAT (id(Lot l) + ' ' + nameSku(l)) IF quantity(d, l) AND prevCurrentBalance(l, Stock st) AND st != stock(d), '\n' ORDER nameSku(l), l](); 
+        RETURN;
+    }
+    
+    IF [GROUP SUM 1 IF (quantity(UserDisparityDetail dd) OR quantityLot(dd)) AND NOT quantity(dd) = (OVERRIDE quantityLot(dd), 0.0)
+    AND explicitLot(sku(dd)) AND NOT skipCheckDocumentLot() AND NOT skipCheckDocumentLot(dd) BY userDisparity(dd)](d) THEN {
+        MESSAGE 'Есть строки документа с неправильно заданными марками';
         RETURN;
     }
 
