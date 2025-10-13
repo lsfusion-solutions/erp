@@ -310,7 +310,16 @@ receiptPackage(STRING id, STRING date){
         EXTERNAL HTTP GET urlUkm5Server() + '/api/v1/export/receiptPackage' TO f;
     }
     IMPORT receiveDocs FROM f();
+    LOCAL group = GroupCashRegister(INTEGER);
+    group(INTEGER  i) <- (GROUP MAX GroupCashRegister gc IF idStore(gc) = storeId(i) AND isUkm5(gc));
+    
     FOR shiftId(INTEGER i) DO{
+        IF NOT cashRegisterUkm5(posId(i)) AND group(i) THEN NEW c = CashRegister {
+            idUkm5(c) <- STRING[100](posId(i));
+            groupCashRegister(c) <- group(i);
+            npp(c) <- (GROUP MAX npp(CashRegister cc) IF groupCashRegister(cc) = groupCashRegister(c)) (+) 1;
+            description(c) <- STRING[200](CONCAT '/', posName(i), INTEGER(posNumber(i)));
+        }
         IF NOT zReport(idZReport(i)) THEN NEW z = ZReport{
             id(z) <- STRING[100](idZReport(i)); 
             cashRegister(z) <- cashRegisterUkm5(posId(i));
@@ -361,7 +370,6 @@ receiptPackage(STRING id, STRING date){
     }
 }
 
-
 receiveReceipts 'Приём реализации УКМ5 (Native)'(){
     TRY{
         receiptPackage(NULL, NULL);
@@ -369,5 +377,34 @@ receiveReceipts 'Приём реализации УКМ5 (Native)'(){
     CATCH {
         MESSAGE messageCaughtException();
         IF statusHttp() = 423 THEN skipBlockPackage();
+    }
+}
+
+receiveGroupMachinery(GroupMachinery g) + {
+    IF isUkm5(g) AND NOT inactive(g) THEN {
+        receiveReceipts();
+    }
+}
+
+sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchangeType(re) = RequestExchangeType.salesInfo AND cr IS CashRegister THEN {
+    NEWSESSION {
+        TRY {
+            FOR iterate(DATE d, dateFrom(re), dateTo(re)) AND GroupCashRegister gcr IS GroupCashRegister AND gcr = groupCashRegister(cr) AND isUkm5(gcr) DO {
+                receiptPackage(idStore(groupCashRegister(cr)), STRING(d));
+                succeededNative(re) <- TRUE;
+                dateTimeSucceededNative(re) <- currentDateTime();
+            }
+        } CATCH {
+            addMachineryError(re, System.messageCaughtException());
+            MESSAGE messageCaughtException() NOWAIT;
+        } FINALLY {
+            APPLY;
+            IF canceled() THEN NEWSESSION {
+                CANCEL;
+                addMachineryError(re, applyMessage());
+                MESSAGE applyMessage();
+                APPLY;
+            }
+        }
     }
 }

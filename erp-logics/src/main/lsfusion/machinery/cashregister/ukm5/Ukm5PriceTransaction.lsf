@@ -1,6 +1,6 @@
 MODULE Ukm5PriceTransaction;
 
-REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy;
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy, StopList;
 
 NAMESPACE Ukm5;
 
@@ -205,7 +205,59 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         RETURN;
     }
 }
-    
+
+hasUkm5GroupMachinery (Stock s) = GROUP  SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
+isPromo = ABSTRACT TBOOLEAN (Stock, Item);
+minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
+    minPrice(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
+
+minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, stock) =
+    GROUP LAST minTransactionPrice(barcode, GroupMachinery g)
+    ORDER dateTimeIn(lastTransaction(barcode, g), barcode), lastTransaction(barcode, g)
+    WHERE lastTransaction(barcode, g)
+    BY stock(g)
+;
+
+skuTransaction(Sku s, Stock st) = GROUP SUM 1 IF sku(st, StopListDetail d) = s AND NOT succeeded(st, stopList(d)) 
+    AND stock(GroupMachinery g) = st AND handlerModel(g) = 'lsf.ukm5' AND in(g, stopList(d)) AND active(g);
+include(Sku s, Stock st) = GROUP SUM 1 IF include(st, StopListDetail d) AND sku(st, d) = s;
+
+FORM stopListImport 'Импорт стоп-листа'
+    OBJECTS s = Stock
+
+    OBJECTS elements = Item
+    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
+        = OVERRIDE isPromo(s, elements), TFALSE IF elements IS Item EXTID 'isPromoPrice',
+        = minTransactionPrice(barcode(elements), s) EXTID 'minprice', = transactionPrice(barcode(elements), s) EXTID 'price',
+        = IF NOT active(elements) OR include(elements, s) THEN TTRUE ELSE TFALSE EXTID 'delete',
+        = IF elements IS Item THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
+        = IF elements IS Item THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
+
+    FILTERS skuTransaction(elements, s)
+;
+
+stopListImport(Stock s) {
+    LOCAL answer = FILE ();
+    EXPORT stopListImport OBJECTS s = s JSON;
+    EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(s)) + '/api/v1/import/store/',
+        idStore(groupCashRegister(s)), '/itemPrices' PARAMS exportFile() TO answer;
+    fileToString(answer());
+    IF statusHttp() = 200 THEN {
+        succeeded(s, StopList sl) <- TRUE;
+        APPLY;
+    } ELSE {
+        logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте стоп-листа', resultString());
+        APPLY ;
+        RETURN;
+    }
+}
+
+stopListImport () {
+    FOR hasUkm5GroupMachinery(Stock s) DO {
+        stopListImport(s);
+    }
+}
+
 DESIGN integrationData{
     pane{
         NEW ukm5{
