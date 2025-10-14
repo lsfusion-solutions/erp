@@ -1,0 +1,174 @@
+MODULE StockDocumentGestori;
+
+REQUIRE StockDocument, AccountDocument, Range, PurchaseInvoiceRu, SaleInvoiceRu, PurchaseReturnInvoiceVATRu,
+        EmployeeGestori, ZReport, Disparity;
+
+NAMESPACE StockDocument;
+
+DESIGN options {
+    commons {
+        documents {
+            MOVE PROPERTY(documentsClosedDate()) {showIf = NULL;};
+            MOVE PROPERTY(dialogCloseDocumentsDate()){showIf = NULL;};
+        }
+    }
+}
+
+documentsClosedDate 'Дата закрытия документов' = DATA DATE(LegalEntity);
+isSelect 'Вкл.'= DATA LOCAL BOOLEAN (LegalEntity);
+
+DESIGN closingDocuments{
+    REMOVE BOX (TREE stockTree);
+    REMOVE BOX (s);
+    REMOVE TOOLBARBOX;
+    REMOVE OBJECTS;
+    REMOVE PANEL;
+}
+
+calculateClosedAndCreateDocument 'Закрытие отчетного периода' (LegalEntity l) {
+    IF NOT [GROUP SUM 1 IF isSelect(LegalEntity le)]() THEN isSelect(l) <- TRUE;
+    FOR isSelect(LegalEntity le) DO {
+        ASK 'Закрытие отчетного периода ' + name(extractMonth(documentsClosedDate(le))) +' ' + extractYear(documentsClosedDate(le)) DO {
+            IF (GROUP SUM 1 IF date(StockDocumentLedger sl) <= lastDayOfMonth(documentsClosedDate(le)) AND date(sl) >= documentsClosedDate(le) AND legalEntity(stock(sl)) = le AND NOT isPosted(sl)) THEN {
+                MESSAGE 'Есть не проведенные документа в закрываемом месяце';
+                RETURN;
+            }
+            calculateClosedAndCreateDocument(firstDayOfMonth(documentsClosedDate(le)), le);
+            documentsClosedDate(le) <- sum(lastDayOfMonth(documentsClosedDate(le)), 1);
+            isSelect(Stock s) <- TRUE IF legalEntity(s) = le;
+            closeDocumentsStocks();
+            APPLY;
+            MESSAGE 'Период закрыт ' + name(extractMonth(sum(documentsClosedDate(le), -1))) +' ' + extractYear(sum(documentsClosedDate(le), -1)) + ' отчетный период ' + name(extractMonth(documentsClosedDate(le))) +' ' + extractYear(documentsClosedDate(le));
+        }
+    }
+}
+
+calculateAndCreateDocument 'Пересчитать учетные цены' (LegalEntity l) {
+    IF NOT [GROUP SUM 1 IF isSelect(LegalEntity le)]() THEN isSelect(l) <- TRUE;
+    FOR isSelect(LegalEntity le) DO {
+        ASK 'Пересчитать учетные цены' DO {
+            DIALOG dialogDate OBJECTS d = (MIN currentDate(), lastDayOfMonth(documentsClosedDate(le))) INPUT dd DO {
+                IF dd < documentsClosedDate(le) THEN {
+                    MESSAGE 'Дата не может быть меньше даты отчетного периода';
+                    RETURN;
+                }
+                IF dd > lastDayOfMonth(documentsClosedDate(le)) THEN {
+                    MESSAGE 'Дата не может быть больше чем на месяц даты отчетного периода';
+                    RETURN;
+                }
+                calculateAndCreateDocument(firstDayOfMonth(dd), le);
+            }
+            APPLY;
+            MESSAGE 'Пересчитан месяц ' + name(extractMonth(documentsClosedDate(le))) + ' ' + extractYear(documentsClosedDate(le));
+        }
+    }
+}
+
+FORM  noPostedDocument
+    OBJECTS date = (df = DATE, dt = DATE) PANEL
+    OBJECTS le = LegalEntity PANEL
+    //    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE (dt)
+
+    OBJECTS sl = StockDocumentLedger
+    PROPERTIES (sl) READONLY isPosted, number, date, series, nameStock, nameOperation, nameLegalEntity
+    FILTERS iterate(date(sl), df, dt) AND legalEntity(stock(sl)) = le AND NOT isPosted(sl)
+;
+
+noPostedDocument 'Не проведенные документы' (LegalEntity le) {
+    SHOW noPostedDocument OBJECTS df = documentsClosedDate(le), dt = lastDayOfMonth(documentsClosedDate(le)), le = le;
+}
+
+openDocumentsStocks 'Открыть отчетный период ' (LegalEntity le) {
+    ASK 'Открытие отчетного периода ' + name(extractMonth(sum(documentsClosedDate(le), -1))) +' ' + extractYear(sum(documentsClosedDate(le), -1)) DO {
+        isSelect(Stock s) <- TRUE IF legalEntity(s) = le;
+        documentsClosedDate(le) <- firstDayOfMonth(sum(documentsClosedDate(le), -1));
+        documentsClosedDate(Stock s) <- documentsClosedDate(legalEntity(s)) WHERE legalEntity(s) = le;
+        FOR AccountDocument a AND isSelect(stock(a)) AND date(a) >= documentsClosedDate(le) AND isClosed(a) DO {
+            isClosed(a) <- NULL;
+        }
+        apply();
+    }
+};
+
+FORM closingDocumentsGestori 'Закрытие периода по организациям'
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) READONLY isSelect CHANGEABLE, id, name, documentsClosedDate
+    PROPERTIES(l) TOOLBAR openDocumentsStocks, noPostedDocument, calculateClosedAndCreateDocument, calculateAndCreateDocument
+    ORDERS name(l)
+    FILTERS isCompany(l)
+    FILTERGROUP active FILTER 'Активные' active(l) DEFAULT
+;
+
+NAVIGATOR {
+    application {
+        NEW closingDocumentsGestori;
+    }
+}
+
+DESIGN accountDocuments{
+    REMOVE BOX(df);
+    REMOVE PROPERTY (number(m));
+    REMOVE PROPERTY (series(m));
+    REMOVE PROPERTY (note(m));
+    REMOVE TOOLBAR(m) ;
+}
+
+overCloseDocumentsStocks() + {
+    FOR AccountDocument a AND isSelect(stock(a))
+        AND date(a) < documentsClosedDate(stock(a)) AND isOpened(a) DO {
+        isClosed(a) <- TRUE;
+    }
+}
+
+denyNotInRange 'Запрет использование товаров не из ассортимента' = DATA BOOLEAN ();
+
+EXTEND FORM options PROPERTIES denyNotInRange();
+
+DESIGN options {
+    invoices {
+        topInvoicesContainer{
+            horizontal = FALSE;
+            MOVE PROPERTY(denyNotInRange());
+        }
+    }
+}
+
+useRangeGestori 'Использовать ограничения ассортиментной матрицы' = DATA  BOOLEAN (Store);
+
+EXTEND FORM store PROPERTIES (s) useRangeGestori;
+
+DESIGN store {
+    row2 {
+        MOVE PROPERTY(useRangeGestori(s));
+    }
+}
+useRangeGestori 'Использовать ограничения ассортиментной матрицы' (DepartmentStore s) = useRangeGestori(store(s));
+
+CONSTRAINT (SETCHANGED(sku(SkuLedger d)) OR SETCHANGED(stock(d)) OR SETCHANGED(date(d)) OR SETCHANGED(isPosted(d))) AND isPosted(d)
+    AND useRangeGestori(stock(d)) AND NOT (d IS SaleZReportSkuLedger OR d IS ReturnZReportSkuLedger)
+    AND NOT disableRangeControl(currentUser()) AND denyNotInRange() AND sku(d) IS Item AND NOT countRange(sku(d), stock(d), date(d))
+    AND NOT disparityItem(sku(d))
+    MESSAGE 'Запрещено использовать товары не включенные в ассортимент';
+
+CONSTRAINT (SET(isPosted(Purchase.OrderDetail d)) OR SETCHANGED(sku(d)) OR SETCHANGED(customerStock(d))) AND isPosted(d) AND useRangeGestori(customerStock(d))
+    AND NOT disableRangeControl(currentUser()) AND denyNotInRange() AND sku(d) IS Item AND NOT countRange(sku(d), stock(d), date(d))
+    AND NOT disparityItem(sku(d))
+    MESSAGE 'В заказ включены товары не включенные в ассортимент';
+
+skipOpen(Purchase.UserInvoice i) += postedTime(i) AND date(i) < documentsClosedDate(customer(i));
+skipOpen(PurchaseReturn.UserInvoice i) += postedTime(i) AND date(i) < documentsClosedDate(customer(i));
+skipOpen(Sale.UserInvoice i) += postedTime(i) AND date(i) < documentsClosedDate(supplier(i));
+
+
+skipEditBeforeClosingDate = DATA BOOLEAN();
+
+CONSTRAINT (CHANGED(date(StockDocumentLedger d)) AND active(d) OR CHANGED(active(d)))
+    AND documentsClosedDate(stock(d)) AND PREV(date(d)) < documentsClosedDate(stock(d))
+    AND NOT skipEditBeforeClosingDate()
+    MESSAGE 'Запрещено редактировать документы до даты закрытия';
+
+CONSTRAINT (SETCHANGED(sku(SkuLedger d)) OR SETCHANGED(stock(d)) OR SETCHANGED(date(d)) OR SETCHANGED(quantity(d)) OR SETCHANGED(sum(d))  OR CHANGED(active(d)))
+    AND documentsClosedDate(stock(d)) AND PREV(date(d)) < documentsClosedDate(stock(d))
+    AND skipEditBeforeClosingDate()
+    MESSAGE 'Запрещено редактировать документы до даты закрытия';
+
