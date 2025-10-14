@@ -50,8 +50,8 @@ overNeedExportArtix = ABSTRACT VALUE BOOLEAN (GiftCard);
 
 overStatus = ABSTRACT CASE STRING[100] (GiftCard);
 status(GiftCard g) = CASE  WHEN overStatus(g) THEN overStatus(g)    
-                                        WHEN needActiveArtix(g) THEN 'PAY_ONLY'
-                                        ELSE 'EARN_ONLY'
+                                            WHEN sold(g) THEN 'PAY_ONLY'
+                                            ELSE 'EARN_ONLY'
 ;
 
 sessionId = DATA LOCAL STRING[255](GiftCard);;
@@ -87,8 +87,7 @@ exportArtix (GiftCard g, TEXT t) {
 }
 
 exportArtixSelected 'Экспорт в Артикс' (){
-    inExportGiftCards(GiftCard g) <- NULL WHERE dataExportedArtix(g) AND NOT needExportActiveArtix(g) AND NOT overNeedExportArtix(g);
-    
+    inExportGiftCards(GiftCard g) <- NULL WHERE (dataExportedArtix(g) OR isArtixSold(g)) AND NOT needExportActiveArtix(g) AND NOT overNeedExportArtix(g);    
     encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
     FOR inExportGiftCards(GiftCard g) DO {
         exportArtix(g, encodedBase64());
@@ -98,7 +97,7 @@ exportArtixSelected 'Экспорт в Артикс' (){
 
 exportArtixAll 'Экспорт в Артикс' (){
     inExportGiftCards(GiftCard g) <- NULL;
-    inExportGiftCards(GiftCard g) <- TRUE WHERE g IS GiftCard AND NOT dataExportedArtix(g) OR needExportActiveArtix(g) OR overNeedExportArtix(g);
+    inExportGiftCards(GiftCard g) <- TRUE WHERE g IS GiftCard AND NOT dataExportedArtix(g) AND NOT isArtixSold(g) OR needExportActiveArtix(g) OR overNeedExportArtix(g);
 
     encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
     FOR inExportGiftCards(GiftCard g) DO {
@@ -122,9 +121,11 @@ sendArtixPayments 'Экспорт баланса сертификата' (GiftCa
     }
 }
 
-sendArtixBalanceSelected 'Экспорт баланса сертификатов Artix выбранные' (){
+sendArtixBalanceSelected 'Экспорт баланса сертификатов Artix выбранные' (){     
     inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g)
         AND NOT [GROUP MAX PaymentGiftCard c IF NOT isArtix(c) BY giftCard(c)](g);
+    inExportGiftCards(GiftCard g) <- NULL WHERE inExportGiftCards(g)
+        AND needExportActiveArtix(g);
     LOCAL result = FILE();
     LOCAL expInvoice = JSONFILE ();
     LOCAL httpHeadersLoc = TEXT(TEXT);
@@ -138,8 +139,7 @@ sendArtixBalanceSelected 'Экспорт баланса сертификатов
 
 sendArtixBalanceAll 'Экспорт баланса сертификатов Artix все' (){
     inExportGiftCards(GiftCard g) <- NULL;
-
-    inExportGiftCards(GiftCard g) <- TRUE WHERE inExportGiftCards(g)
+    inExportGiftCards(GiftCard g) <- TRUE WHERE NOT inExportGiftCards(g) AND NOT needExportActiveArtix(g)
         AND [GROUP MAX PaymentGiftCard c IF NOT isArtix(c) BY giftCard(c)](g);
     
     LOCAL result = FILE();
