@@ -1,0 +1,595 @@
+MODULE InventoryTextile;
+
+REQUIRE Inventory, BinPacketLedger, WarehouseTextile;
+
+NAMESPACE Inventory;
+
+packets 'Пакеты' = DATA BOOLEAN (Operation);
+EXTEND FORM operation PROPERTIES(o) packets;
+DESIGN operation { paramsContainer { MOVE PROPERTY(packets(o)); } }
+
+packets 'Пакеты' (Inventory i) = packets(operation(i));
+packets 'Пакеты' (ListInventory d) = packets(inventory(d));
+
+dataUseDefaultBin 'Использовать ячейку по умолчанию' = DATA BOOLEAN (Operation);
+overUseDefaultBin 'Использовать ячейку по умолчанию' = ABSTRACT BOOLEAN (Operation);
+useDefaultBin 'Использовать ячейку по умолчанию' (Operation o) = OVERRIDE dataUseDefaultBin(o), overUseDefaultBin(o);
+
+EXTEND FORM operation PROPERTIES(o) useDefaultBin SHOWIF packets(o);
+DESIGN operation { paramsContainer { MOVE PROPERTY(useDefaultBin(o)); } }
+
+useDefaultBin 'Использовать ячейку по умолчанию' (Inventory i) = useDefaultBin(operation(i));
+useDefaultBin 'Использовать ячейку по умолчанию' (ListInventory d) = useDefaultBin(inventory(d));
+
+inventory 'Инвентаризация' (PageInventory p) = inventory(listInventory(p)) MATERIALIZED INDEXED;
+packets 'Пакеты' (PageInventory d) = packets(inventory(d));
+packets 'Пакеты' (PageInventoryDetail d) = packets(inventory(d));
+useDefaultBin 'Использовать ячейку по умолчанию' (PageInventory d) = useDefaultBin(inventory(d));
+useDefaultBin 'Использовать ячейку по умолчанию' (PageInventoryDetail d) = useDefaultBin(inventory(d));
+
+CLASS PageInventoryPacketDetail 'Cтрока (пакеты)' : BinPacketLedger;
+TABLE pageInventoryPacketDetail (PageInventoryPacketDetail);
+
+pageInventory 'Страница описи' = DATA PageInventory (PageInventoryPacketDetail) NONULL DELETE INDEXED;
+
+listInventory 'Опись' (PageInventoryPacketDetail d) = listInventory(pageInventory(d)) MATERIALIZED INDEXED;
+inventory 'Инвентаризация' (PageInventoryPacketDetail d) = inventory(listInventory(d)) MATERIALIZED INDEXED;
+
+dateTime 'Дата/время'(PageInventoryPacketDetail d) = dateTime(inventory(d)) MATERIALIZED INDEXED;
+
+@defineDocumentHeaderPosted(PageInventory);
+
+isPosted 'Проведен'(PageInventoryDetail d) = isPosted(pageInventory(d));
+isPosted 'Проведен'(PageInventoryPacketDetail d) = isPosted(pageInventory(d)) MATERIALIZED;
+
+bin 'Ячейка' = DATA Bin (PageInventoryPacketDetail) INDEXED;
+packet 'Пакет' = DATA Packet (PageInventoryPacketDetail) INDEXED;
+
+INDEX inventory(PageInventoryPacketDetail d), packet(d), bin(d);
+
+note 'Примечание' = DATA STRING[200](PageInventoryPacketDetail) CHARWIDTH 30;
+
+countPageInventoryPacketDetailAll 'Кол-во пакетов' (o) =
+    GROUP SUM 1 BY pageInventory(PageInventoryPacketDetail d) IN documentSum;
+countPageInventoryPacketDetail 'Кол-во пакетов' (o) =
+    GROUP SUM 1 IF isPosted(PageInventoryPacketDetail  d) BY pageInventory(d) IN documentSum;
+countPageInventoryPacketDetail 'Пакетов (в описи)' (o) =
+    GROUP SUM countPageInventoryPacketDetail(PageInventory p) BY listInventory(p) IN documentSum;
+
+quantityPageInventoryDetail 'Кол-во в описи' =
+    GROUP SUM quantity(PageInventoryDetail d) IF isPosted(d) BY listInventory(d), article(sku(d));
+quantityPageInventoryDetail 'Кол-во (товары)' =
+    GROUP SUM quantity(PageInventoryDetail d) BY pageInventory(d), article(sku(d));
+quantityPackets 'Кол-во пакетов' =
+    GROUP SUM 1 IF quantityB(Article a, packet(PageInventoryPacketDetail d), dateTime(d)) BY pageInventory(d), a;
+
+quantityInventory 'Кол-во в инвентаризации' =
+    GROUP SUM quantity(PageInventoryDetail d) IF isPosted(d) BY inventory(d), article(sku(d));
+quantityInventory 'Кол-во в инвентаризации' =
+    GROUP SUM quantityB(Article a, packet(PageInventoryPacketDetail d),dateTime(d)) IF isPosted(d) BY inventory(d), a, bin(d);
+
+countPageInventoryPacketDetail 'Пакетов (в описи)' =
+    GROUP SUM countPageInventoryPacketDetail(ListInventory l) BY stock(l), inventory(l) IN documentSum;
+
+TABLE inventoryArticleBin(Inventory, Article, Bin);
+quantityB 'Кол-во на складе' = DATA NUMERIC[16,5](Inventory, Article, Bin);
+
+TABLE inventoryPacket(Inventory, Packet);
+quantityB 'Кол-во в пакете (до)' = DATA NUMERIC[16,5](Inventory, Packet);
+binB 'Ячейка (до)' = DATA Bin(Inventory, Packet);
+skuListB 'Товары в пакете (до)' = DATA STRING(Inventory, Packet);
+
+afterRecalculatePackets ABSTRACT LIST (Inventory);
+
+recalculatePackets 'Пересчитать' (Inventory i) {
+    LOCAL binB = Bin(Packet);
+    binB(Packet p) <- binB(p, dateTime(i)) WHERE [GROUP MIN Stock st IF include(st, i) AND st==stock(binB(p, dateTime(i)))]();
+
+    quantityB(i, Article a, Bin b) <- NULL;
+    quantityB(i, Article a, Bin b) <- [GROUP SUM currentQuantity(a, Packet p) IF binB(p) == b]() WHERE include(stock(b), i);
+
+    quantityB(i, Packet p) <- NULL;
+    quantityB(i, Packet p) <- currentQuantity(p) WHERE binB(p);
+    binB(i, Packet p) <- NULL;
+    binB(i, Packet p) <- binB(p) WHERE binB(p);
+    skuListB(i, Packet p) <- NULL;
+    skuListB(i, Packet p) <- currentSkuList(p) WHERE binB(p);
+
+    afterRecalculatePackets(i);
+}
+
+quantityB 'Кол-во на складе' (Inventory i, Article a)= GROUP SUM quantityB(i, a, Bin b);
+quantityB 'Кол-во на складе' (Inventory i, Bin b)= GROUP SUM quantityB(i, Article a, b);
+
+packetSkuList 'Товары в пакете'(PageInventoryPacketDetail d) = OVERRIDE skuListB(inventory(d), packet(d)), 'излишек, действий не требуется' IF d IS PageInventoryPacketDetail;
+packetQuantity 'Кол-во в пакете'(PageInventoryPacketDetail d) = quantityB(inventory(d), packet(d));
+
+idBinB 'Ячейка на дату/время' (Inventory i, Packet packet) = id(binB(i, packet));
+
+quantityInventory 'Кол-во в инвентаризации' = GROUP SUM quantityB(inventory(PageInventoryPacketDetail d), packet(d)) IF isPosted(d) BY inventory(d), bin(d);
+
+@defineDocumentDetailIndex(pageInventory, PageInventoryPacketDetail);
+
+stock 'Склад' (PageInventory p) = stock(listInventory(p));
+stock 'Склад' (PageInventoryPacketDetail d) = stock(listInventory(d));
+packets 'Пакеты' (PageInventoryPacketDetail d) = packets(inventory(d));
+useDefaultBin 'Использовать ячейку по умолчанию' (PageInventoryPacketDetail d) = useDefaultBin(inventory(d));
+
+CONSTRAINT SETCHANGED(bin(PageInventoryPacketDetail d)) AND NOT stock(d)==stock(bin(d))
+    CHECKED BY bin
+    MESSAGE 'Такой ячейки нет на складе';
+
+CONSTRAINT (SET(isPosted(PageInventoryPacketDetail d)) OR CHANGED(bin(d))) AND isPosted(d) AND NOT bin(d) AND packets(d)
+    MESSAGE 'Ячейка в строке не может быть пустой';
+
+CONSTRAINT (SET(isPosted(PageInventory p)) OR DROPPED(countPageInventoryDetail(p))) AND isPosted(p) AND NOT countPageInventoryDetail(p) AND packets(p)
+    MESSAGE 'Запрещено проводить пустую страницу';
+
+@defineConstraintDoublePacketDetail(pageInventory, 'Запрещено добавлять пакет в страницу описи несколько раз');
+
+CONSTRAINT SETCHANGED(packet(PageInventoryPacketDetail d)) AND [ GROUP SUM 1 BY packet(PageInventoryPacketDetail ud), inventory(ud)](packet(d), inventory(d)) > 1
+    MESSAGE 'Запрещено добавлять пакет в инвентаризацию несколько раз';
+
+@defineConstraintEmptyPacketDetail(pageInventory);
+
+// по BinPacketLedger
+dateTime (PageInventoryPacketDetail ledger) += dateTime(ledger) IF packets(ledger);
+bin (PageInventoryPacketDetail ledger) += bin(ledger) IF packets(ledger);
+packet (PageInventoryPacketDetail ledger) += packet(ledger) IF packets(ledger);
+isPosted (PageInventoryPacketDetail ledger) += isPosted(inventory(ledger)) IF packets(ledger);
+numberDocument(PageInventoryPacketDetail ledger) += number(inventory(ledger)) IF packets(ledger);
+seriesDocument(PageInventoryPacketDetail ledger) += series(inventory(ledger)) IF packets(ledger);
+overLedgerDescription = ABSTRACT STRING[250] (PageInventoryPacketDetail);
+description(PageInventoryPacketDetail ledger) += (OVERRIDE overLedgerDescription(ledger),
+    ('Инвентаризация № ' +  number(inventory(ledger)) + ', опись ' + name(listInventory(ledger))  + ', страница '+ index(pageInventory(ledger))  + ', строка №' + index(ledger))) IF packets(ledger);
+createdUser(PageInventoryPacketDetail ledger) += createdUser(inventory(ledger)) IF packets(ledger);
+
+quantitySkuInPackets = DATA LOCAL NUMERIC[16,5](PageInventory,Sku);
+
+updatePageInventoryDetails 'Обновить спецификацию из пакетов' (PageInventory i) {
+    IF (GROUP SUM 1 IF [GROUP SUM 1 BY pageInventory(PageInventoryDetail d), sku(d)](i, Sku s) > 1) THEN {
+        MESSAGE 'В странице есть повторяющиеся строки по товару, спецификация не обновлена';
+        RETURN;
+    }
+
+    quantitySkuInPackets(i, Sku sku) <- NULL;
+
+    FOR [GROUP MIN Sku s IF quantityB(s, packet(PageInventoryPacketDetail pd), dateTime(pd)) BY s, pageInventory(pd)](Sku sku, i) DO {
+        quantitySkuInPackets(i,sku) <- [GROUP SUM quantityB(sku, packet(PageInventoryPacketDetail d), dateTime(d)) BY pageInventory(d)](i);
+
+        IF NOT [GROUP SUM 1 BY pageInventory(PageInventoryDetail d), sku(d)](i,sku) AND quantitySkuInPackets(i,sku) THEN {
+            NEW d = PageInventoryDetail {
+                pageInventory(d) <- i;
+                sku(d) <- sku;
+                quantity(d) <- quantitySkuInPackets(i,sku);
+            }
+        } ELSE { //есть только одна строка по товару    
+            IF quantitySkuInPackets(i,sku) THEN {
+                FOR PageInventoryDetail d == [GROUP MAX PageInventoryDetail ud BY pageInventory(ud), sku(ud)](i,sku) DO {
+                    quantity(d) <- quantitySkuInPackets(i,sku);
+                }
+            }
+        }
+    }
+
+    DELETE PageInventoryDetail d WHERE d IS PageInventoryDetail AND pageInventory(d) == i AND skuType(sku(d))== SkuType.skuTypeItem AND NOT quantitySkuInPackets(i,sku(d));
+} TOOLBAR;
+
+denyUpdatePageInventory 'Запрет обновления спецификации' = ABSTRACT BOOLEAN (ListInventory);
+
+updatePageInventoryDetails 'Обновить спецификации непроведенных страниц' (ListInventory l) {
+    IF packets(l) AND NOT denyUpdatePageInventory(l) THEN {
+        FOR listInventory(PageInventory p) == l AND NOT isPosted(p) DO {
+            updatePageInventoryDetails(p);
+        }
+    }
+}
+
+updatePageInventoryDetailsAll 'Обновить спецификации всех страниц' (ListInventory l) {
+    IF packets(l) AND NOT denyUpdatePageInventory(l) THEN NEWSESSION {
+        FOR listInventory(PageInventory p) == l DO {
+            updatePageInventoryDetails(p);
+        }
+        APPLY;
+    }
+} TOOLBAR;
+
+updatePageInventoryDetailsAll 'Обновить спецификации всех страниц' (Inventory i) {
+    FOR inventory(PageInventory p) == i DO {
+        updatePageInventoryDetails(p);
+    }
+}
+
+denyUpdatePageInventory 'Запрет автоматического обновления спецификации' = ABSTRACT BOOLEAN (Inventory);
+
+WHEN SETCHANGED (dateTime(Inventory i)) AND packets(i) DO {
+    recalculatePackets(i);
+    IF NOT denyUpdatePageInventory(i) THEN {
+        updatePageInventoryDetailsAll(i);
+    }
+}
+
+denyPostUpdatePageInventory 'Запрет обновления спецификации при проведении' = ABSTRACT BOOLEAN (PageInventory);
+
+postWithPackets 'Провести' (PageInventory o) {
+    IF packets(o) AND NOT denyPostUpdatePageInventory(o) THEN {
+        updatePageInventoryDetails(o);
+    }
+    APPLY {
+        isPosted(o) <- TRUE;
+    }
+} TOOLBAR CONFIRM;
+
+nameListInventory 'Опись' (PageInventory d) = name(listInventory(d));
+nameListInventory 'Опись' (PageInventoryDetail d) = name(listInventory(d));
+
+inPackets (Inventory inventory, Stock stock, ListInventory listInventory, PageInventory pageInventory, PageInventoryDetail pageInventoryDetail) = OVERRIDE
+    stock(pageInventoryDetail) == stock AND isPosted(pageInventoryDetail) AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory,
+    listInventory(pageInventoryDetail) == listInventory AND isPosted(pageInventoryDetail) AND stock IS Stock AND NOT pageInventory AND inventory IS Inventory,
+    pageInventory(pageInventoryDetail) == pageInventory AND isPosted(pageInventoryDetail) AND listInventory IS ListInventory AND stock IS Stock AND inventory IS Inventory;
+
+add 'Отм.' = DATA LOCAL BOOLEAN(Packet);
+
+allowedBin 'Ячейка разрешена для инвентаризации' (Inventory i, Bin b) = TRUE IF (GROUP SUM 1 IF include(Stock s, i) AND s==stock(b));
+
+FORM selectBin 'Выберите ячейку в'
+    OBJECTS i = Inventory PANEL
+
+    OBJECTS b = Bin PANEL
+    PROPERTIES(b) id SELECTOR
+    FILTERS allowedBin(i, b) OR NOT i
+;
+
+overListInventory = ABSTRACT ListInventory (Inventory, PageInventory, Bin);
+afterAddPackets ABSTRACT LIST (Inventory, PageInventory);
+disableAddPacketsCreateListInventory = ABSTRACT BOOLEAN (Inventory);
+overAddPacketsSuccessMessage = ABSTRACT STRING (PageInventory);
+
+addPackets 'Создать страницу описи' (Inventory i){
+    DIALOG selectBin OBJECTS i = i, b INPUT DO {
+        LOCAL createdPageInventory = PageInventory();
+        NEW pl = PageInventory {
+            createdPageInventory() <- pl;
+
+            listInventory(pl) <- OVERRIDE overListInventory(i, pl, b), [GROUP MIN ListInventory li BY inventory(li)](i);
+
+            IF NOT disableAddPacketsCreateListInventory(i) AND NOT listInventory(pl) THEN
+                ASK 'Не найдена опись для выбранных пакетов, создать новую?' DO NEW l = ListInventory {
+                inventory(l) <- i;
+                stock(l) <- GROUP MIN Stock st IF include(st, i);
+                listInventory(pl) <- l;
+            }
+            
+            IF NOT listInventory(pl) THEN {
+                MESSAGE('Не найдена опись для выбранных пакетов');
+                RETURN;
+            }
+
+            FOR add(Packet p) NEW pd = PageInventoryPacketDetail DO {
+                pageInventory(pd) <- pl;
+                packet(pd) <- p;
+                bin(pd) <- b;
+            }
+            updatePageInventoryDetails(pl);
+            afterAddPackets(i, pl);
+        }
+        APPLY NESTED(createdPageInventory[]);
+        IF canceled() THEN
+            MESSAGE 'Ошибка создания страницы описи';
+        ELSE
+            MESSAGE OVERRIDE overAddPacketsSuccessMessage(createdPageInventory()),
+                ('Создана новая ' + name(createdPageInventory()) + ' в описи ' + name(listInventory(createdPageInventory())));
+    }
+}
+
+showPost (PageInventory i) = isDraft(i) AND isDraft(inventory(i));
+showUnpost (PageInventory i) = isPosted(i) AND isDraft(inventory(i));
+
+diffQuantity 'Отклонение' (Inventory i, Article a) = quantityB(i,a) (-) quantityInventory(i,a);
+
+hideArticleInventoryTab = ABSTRACT BOOLEAN (Inventory);
+
+EXTEND FORM inventory
+    PROPERTIES(ds, in) READONLY AFTER name(ds) countPageInventoryPacketDetail SHOWIF packets(in)
+    PROPERTIES(li) READONLY AFTER name(li) countPageInventoryPacketDetail SHOWIF packets(in)
+    PROPERTIES(pl) READONLY AFTER name(pl) countPageInventoryPacketDetail SHOWIF packets(in), isPosted
+
+    PROPERTIES(li) updatePageInventoryDetailsAll SHOWIF (isDraft(in) AND isOpened(in) AND packets(in) AND NOT denyUpdatePageInventory(in))
+
+    PROPERTIES (dp) READONLY BEFORE index(dp) nameListInventory
+    ORDERS nameListInventory(dp), nameSku(dp)
+    FILTERS (inPackets(in, ds, li, pl, dp) AND packets(in)) OR NOT packets(in)
+
+    OBJECTS ar = Article
+    PROPERTIES (ar) READONLY id, caption
+    PROPERTIES (li,ar) READONLY quantityPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(li,ar)
+    ORDERS caption(ar), id(ar)
+
+    OBJECTS p = Packet
+    PROPERTIES (p) SHOWIF packets(in) add
+    PROPERTIES (p) READONLY SHOWIF packets(in) id
+    PROPERTIES (in, p) READONLY  SHOWIF packets(in) skuListB, quantityB, idBinB
+    FILTERS binB(in, p),
+        NOT [GROUP MIN PageInventoryPacketDetail pd BY packet(pd), inventory(pd)](p,in)
+
+    PROPERTIES (in) SHOWIF packets(in) addPackets DRAW p TOOLBAR SHOWIF [GROUP MIN Packet pp IF add(pp)]()
+
+    //закладки для сверки
+    TREE groupTree ig = ItemGroup PARENT parent(ig)
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT hideArticleInventoryTab(in) name(ig)
+    ORDERS name(ig)
+    FILTERGROUP inactiveGroup FILTER 'Активные' active(ig) 'F6' DEFAULT
+
+    OBJECTS a = Article
+    PROPERTIES (a) READONLY SHOWIF packets(in) AND NOT hideArticleInventoryTab(in) id, caption
+    PROPERTIES (in,a) READONLY SHOWIF packets(in) AND NOT hideArticleInventoryTab(in) quantityInventory, quantityB, diffQuantity
+    ORDERS caption(a), id(a)
+    FILTERS quantityInventory(in,a) OR quantityB(in,a),
+        isParent(ig,a)
+
+    FILTERGROUP diff FILTER 'Несоответствие' NOT quantityInventory(in,a) == quantityB(in,a) DEFAULT
+    FILTERGROUP inInventory FILTER 'В инвентаризации' quantityInventory(in,a)
+
+    TREE abinTree abg = BinGroup PARENT parent(abg)
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) name(abg)
+    FILTERS include(stock(abg), in)
+
+    OBJECTS ab = Bin
+    PROPERTIES(ab) READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) id, canonicalName
+    PROPERTIES (in,a,ab) READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) quantityInventory, quantityB
+    FILTERS isParent(abg, ab),
+        quantityInventory(in,a,ab) OR quantityB(in,a,ab)
+    ORDERS id(ab)
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) name(bg)
+    FILTERS include(stock(bg), in)
+
+    OBJECTS bin = Bin
+    PROPERTIES(bin) READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) id, canonicalName
+    PROPERTIES (in,bin) READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) quantityInventory, quantityB
+    FILTERS isParent(bg, bin),
+        quantityInventory(in,bin) OR quantityB(in,bin)
+    ORDERS id(bin)
+
+    FILTERGROUP inInventory2 FILTER 'В инвентаризации' quantityInventory(in,bin) DEFAULT
+
+    OBJECTS p1 = Packet
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) id(p1), skuListB(in, p1), dateTimeLastMoved(p1)
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) quantityB1 'Кол-во в пакете' = quantityB(in, p1)
+    ORDERS id(p1)
+    FILTERS quantityB(in, p1),
+        bin == bin([GROUP MIN PageInventoryPacketDetail d BY inventory(d), packet(d)](in,p1))
+
+    OBJECTS p2 = Packet
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) id(p2), skuListB(in, p2), dateTimeLastMoved(p2), idBinB(in, p2)
+    PROPERTIES READONLY SHOWIF packets(in) AND NOT useDefaultBin(in) quantityB2 'Кол-во в пакете' = quantityB(in, p2)
+    ORDERS id(p2)
+    FILTERS quantityB(in, p2),
+        bin == binB(in, p2)
+;
+
+DESIGN inventory {
+    topContainer {
+        headerBox {
+            caption = 'Параметры инвентаризации';
+            PROPERTY(nameStock(in)) { charWidth = 40; }
+        }
+        NEW articles {
+            caption = 'Модели';
+            NEW articleBox {
+                fill = 2;
+                horizontal = TRUE;
+                MOVE BOX(TREE groupTree) {
+                    caption = 'Группы товаров';
+                }
+                MOVE BOX(a){
+                    fill = 3;
+                    caption = 'Модель';
+                }
+            }
+            NEW articleBins {
+                fill = 1;
+                horizontal = TRUE;
+                MOVE BOX(TREE abinTree) {
+                    caption = 'Группы ячеек';
+                }
+                MOVE BOX(ab) {
+                    fill = 3;
+                    caption = 'Ячейки по модели';
+                }
+            }
+        }
+
+        NEW bins {
+            caption = 'Ячейки';
+            horizontal = TRUE;
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+            }
+            NEW binsMain {
+                fill = 3;
+                MOVE BOX(bin) { caption = 'Ячейка по инвентаризации'; }
+                NEW binsBottom {
+                    tabbed = TRUE;
+                    fill = 1;
+                    MOVE BOX(p1) { caption = 'Пакеты в инвентаризации'; }
+                    MOVE BOX(p2) {
+                        caption = 'Пакеты на складе';
+                        PROPERTY(idBinB(in, p2)) { caption = 'Ячейка по учёту'; }
+                    }
+                }
+            }
+        }
+        MOVE BOX(p) {
+            caption = 'Пакеты для добавления';
+        }
+    }
+
+    BOX(TREE treeStock) {
+        PROPERTY(countPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
+        PROPERTY(quantityPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
+        PROPERTY(sumPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
+
+        PROPERTY(countPageInventoryDetail(li)) { showIf = NOT packets(li); }
+        PROPERTY(quantityPageInventoryDetail(li)) { showIf = NOT packets(li); }
+        PROPERTY(sumPageInventoryDetail(li)) { showIf = NOT packets(li); }
+
+        PROPERTY(countPageInventoryDetail(pl)) { showIf = NOT packets(li); }
+        PROPERTY(quantityPageInventoryDetail(pl)) { showIf = NOT packets(li); }
+        PROPERTY(sumPageInventoryDetail(pl)) { showIf = NOT packets(li); }
+        PROPERTY(name(pl)) { showIf = NOT packets(li); }
+    }
+
+    case1 {
+        fill = 1.5;
+        MOVE BOX(ar) FIRST {
+            caption = 'Модели в описи';
+        }
+        BOX(it) {
+            caption = 'Товары в описи';
+            PROPERTY(quantityPageInventoryDetail(li,it)) { showIf = NOT packets(li); }
+            PROPERTY(pricePageInventoryDetail(li,it)) { showIf = NOT packets(li); }
+            PROPERTY(sumPageInventoryDetail(li,it)) { showIf = NOT packets(li); }
+        }
+        MOVE BOX(dp) AFTER BOX(it) {
+            caption = 'Строки страниц';
+            PROPERTY(nameSkuTypeSku(dp)) { showIf = NOT packets(li); }
+            PROPERTY(idSku(dp)) { showIf = NOT packets(li); }
+        }
+    }
+    PROPERTY (viewChange(in)) { showIf = NOT packets(li); }
+}
+
+FORM dialogListInventoryPacket 'Выбор пакета'
+    OBJECTS in = Inventory PANEL
+    
+    OBJECTS p = Packet
+    PROPERTIES(p) id, currentSkuList, idCurrentBin
+    FILTERS binB(in, p),
+        NOT [GROUP MIN PageInventoryPacketDetail pd BY packet(pd), inventory(pd)](p,in)
+;
+
+selectListInventoryPacket 'Выбор пакета' (PageInventoryPacketDetail d) {
+    DIALOG dialogListInventoryPacket OBJECTS in = inventory(d), p INPUT DO {
+        packet(d) <- p;
+    }
+}
+
+numberInventory 'Номер инвентаризации'(ListInventory li) = number(inventory(li));
+
+EXTEND FORM listInventory
+    PROPERTIES (li) READONLY countPageInventoryPacketDetail SHOWIF packets(li)
+
+    OBJECTS a = Article
+    PROPERTIES (a) READONLY id, caption
+    PROPERTIES (pl,a) READONLY quantityPackets SHOWIF packets(li), quantityPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(pl,a)
+    ORDERS caption(a), id(a)
+
+    PROPERTIES(pl) isPosted BEFORE name(pl)
+    PROPERTIES(pl) READONLY BEFORE quantityPageInventoryDetail(pl) countPageInventoryPacketDetailAll  SHOWIF packets(li)
+
+    PROPERTIES (pl) SHOWIF packets(pl) updatePageInventoryDetails DRAW dp
+
+    FILTERGROUP isDraft FILTER 'Непроведенные' isDraft(pl)
+
+    OBJECTS d = PageInventoryPacketDetail
+    PROPERTIES (d) SHOWIF packets(li) READONLY index, note
+    PROPERTIES (d) SHOWIF packets(li) ON CHANGE selectListInventoryPacket(d) AFTER index(d) idPacket, packetSkuList, packetQuantity
+    PROPERTIES (d) idBin AFTER packetQuantity(d)
+    PROPERTIES (d) SHOWIF packets(li) NEW, DELETE GRID
+    FILTERS pageInventory(d) == pl
+
+    EVENTS
+        ON APPLY BEFORE updatePageInventoryDetails(li),
+        ON OK BEFORE postWithPackets(pl)
+;
+
+DESIGN listInventory {
+    PROPERTY(formOk()) { caption = 'Провести'; }
+    PROPERTY(addDetailInputBarcode(pl)) { showIf = NOT packets(li); }
+    PROPERTY(addDetailInput(pl)) { showIf = NOT packets(li); }
+    PROPERTY(countPageInventoryDetail(pl)) { showIf = NOT packets(li); }
+    PROPERTY(quantityPageInventoryDetail(pl)) { caption = 'Кол-во товаров'; }
+    
+    GROUP(documentHeader,li) {
+        PROPERTY(nameInventory(li)) { showIf = NOT packets(li); }
+        PROPERTY(nameInventory(li)) { charWidth = 15; }
+        PROPERTY(name(li)) { charWidth = 30; }
+    }
+    
+    GROUP(documentSum,li) {
+        lines = 1;
+        PROPERTY(countPageInventory(li)) { showIf = NOT packets(li); }
+        PROPERTY(countPageInventoryDetail(li)) { showIf = NOT packets(li); }
+        PROPERTY(quantityPageInventoryDetail(li)) { showIf = NOT packets(li); }
+        PROPERTY(sumPageInventoryDetail(li)) { showIf = NOT packets(li); }
+    }
+    
+    case1 {
+        BOX(TREE skuTree) { showIf = NOT packets(li); }
+    }
+    
+    detailPageBox {
+        fill = 2;
+        MOVE BOX(d) FIRST {
+            caption = 'Пакеты в странице';
+        }
+        MOVE BOX(a){
+            caption = 'Модели в странице';
+        }
+        MOVE BOX(dp) AFTER BOX(a){
+            caption = 'Строки страницы (товары)';
+            PROPERTY(nameSkuTypeSku(dp)) { showIf = NOT packets(li); }
+            PROPERTY(idSku(dp)){showIf = NOT packets(li);}
+        }
+        PROPERTY(name(pl)) { showIf = NOT packets(li); }
+
+        MOVE BOX(i) AFTER BOX(dp) {
+            caption = 'Товары в описи';
+            PROPERTY(index(li,i)) { showIf = NOT packets(li); }
+            PROPERTY(id(i)) { showIf = NOT packets(li); }
+        }   
+    }
+
+    TOOLBARRIGHT (pl) {
+        horizontal = FALSE;
+        FILTERGROUPS(pl) {
+            alignment = STRETCH;
+        }
+        TOOLBAR (pl) {
+            alignment = STRETCH;
+            childrenAlignment = END;
+        }
+    }
+}
+
+CONSTRAINT SET(isPosted(Inventory i)) AND [GROUP MIN PageInventory pd IF NOT isPosted(pd) BY inventory(pd)](i) AND packets(i)
+    MESSAGE 'Запрещено проводить инвентаризацию при наличии непроведенных страниц';
+
+CONSTRAINT SET(isClosed(Inventory i)) AND NOT isPosted(i)
+    MESSAGE 'Запрещено закрывать инвентаризацию до проведенния';
+
+WHEN (SET(PageInventoryPacketDetail d IS PageInventoryPacketDetail) OR SETCHANGED(operation(inventory((d)))))
+    AND useDefaultBin(d) DO {
+    bin(d) <- defaultBin(GROUP MIN Stock s IF include(s, inventory(d)) AND s IS Warehouse);
+}
+
+CONSTRAINT SETCHANGED(include(Stock s, Inventory i)) AND (GROUP SUM 1 IF include(Stock st, i)) > 1 AND useDefaultBin(i)
+    MESSAGE ('Запрещено выбирать более одного склада для инвентаризации с необязательным учетом по пакетам');
+
+EXTEND FORM inventory
+    OBJECTS ipd = PageInventoryPacketDetail
+    PROPERTIES (ipd) READONLY SHOWIF useDefaultBin(in) index, idPacket, packetSkuList, packetQuantity, idBin, note
+    FILTERS listInventory(ipd) == li
+;
+
+DESIGN inventory {
+    case1 {
+        MOVE BOX(ipd) FIRST {
+            caption = 'Пакеты в описи';
+        }
+    }
+}
