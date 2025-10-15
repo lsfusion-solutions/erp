@@ -47,7 +47,7 @@ note 'Примечание' = DATA STRING[200](PageInventoryPacketDetail) CHARWI
 countPageInventoryPacketDetailAll 'Кол-во пакетов' (o) =
     GROUP SUM 1 BY pageInventory(PageInventoryPacketDetail d) IN documentSum;
 countPageInventoryPacketDetail 'Кол-во пакетов' (o) =
-    GROUP SUM 1 IF isPosted(PageInventoryPacketDetail  d) BY pageInventory(d) IN documentSum;
+    GROUP SUM 1 BY pageInventory(PageInventoryPacketDetail d) IN documentSum;
 countPageInventoryPacketDetail 'Пакетов (в описи)' (o) =
     GROUP SUM countPageInventoryPacketDetail(PageInventory p) BY listInventory(p) IN documentSum;
 
@@ -61,7 +61,7 @@ quantityPackets 'Кол-во пакетов' =
 quantityInventory 'Кол-во в инвентаризации' =
     GROUP SUM quantity(PageInventoryDetail d) BY inventory(d), article(sku(d));
 quantityInventory 'Кол-во в инвентаризации' =
-    GROUP SUM quantityB(Article a, packet(PageInventoryPacketDetail d),dateTime(d)) IF isPosted(d) BY inventory(d), a, bin(d);
+    GROUP SUM quantityB(Article a, packet(PageInventoryPacketDetail d),dateTime(d)) BY inventory(d), a, bin(d);
 
 countPageInventoryPacketDetail 'Пакетов (в описи)' =
     GROUP SUM countPageInventoryPacketDetail(ListInventory l) BY stock(l), inventory(l) IN documentSum;
@@ -103,7 +103,8 @@ packetQuantity 'Кол-во в пакете'(PageInventoryPacketDetail d) = quan
 
 idBinB 'Ячейка на дату/время' (Inventory i, Packet packet) = id(binB(i, packet));
 
-quantityInventory 'Кол-во в инвентаризации' = GROUP SUM quantityB(inventory(PageInventoryPacketDetail d), packet(d)) IF isPosted(d) BY inventory(d), bin(d);
+quantityInventory 'Кол-во в инвентаризации' =
+    GROUP SUM quantityB(inventory(PageInventoryPacketDetail d), packet(d)) BY inventory(d), bin(d);
 
 @defineDocumentDetailIndex(pageInventory, PageInventoryPacketDetail);
 
@@ -530,9 +531,6 @@ DESIGN listInventory {
         }
     }
 }
-
-CONSTRAINT SET(isClosed(Inventory i)) AND NOT isPosted(i)
-    MESSAGE 'Запрещено закрывать инвентаризацию до проведенния';
 
 WHEN (SET(PageInventoryPacketDetail d IS PageInventoryPacketDetail) OR SETCHANGED(operation(inventory((d)))))
     AND useDefaultBin(d) DO {
