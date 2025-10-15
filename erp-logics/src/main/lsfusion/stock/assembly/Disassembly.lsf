@@ -387,6 +387,8 @@ show(DisassemblyOutSkuLedger l) + { show(disassembly(l)); }
 CLASS DisassemblyInSkuLedger 'Разборка товара (приход)';
 TABLE disassemblyInSkuLedger(DisassemblyInSkuLedger);
 
+overPrice = ABSTRACT NUMERIC[16,4] (DisassemblyDetail);
+
 disassemblyInSkuLedger = AGGR DisassemblyInSkuLedger WHERE isPosted(DisassemblyDetail disassemblyDetail) MATERIALIZED INDEXED;
 
 dateTime(DisassemblyInSkuLedger l) = dateTime(disassemblyDetail(l));
@@ -397,7 +399,7 @@ sku(DisassemblyInSkuLedger l) = sku(disassemblyDetail(l));
 stock(DisassemblyInSkuLedger l) = stock(disassemblyDetail(l));
 description(DisassemblyInSkuLedger l) = description(disassemblyDetail(l));
 quantity(DisassemblyInSkuLedger l) = quantity(disassemblyDetail(l));
-price(DisassemblyInSkuLedger l) = price(disassemblyDetail(l));
+price(DisassemblyInSkuLedger l) = OVERRIDE overPrice(disassemblyDetail(l)), price(disassemblyDetail(l));
 sum(DisassemblyInSkuLedger l) = sum(disassemblyDetail(l));
 
 @implementBatch(DisassemblyInSkuLedger, sku, stock, price);
