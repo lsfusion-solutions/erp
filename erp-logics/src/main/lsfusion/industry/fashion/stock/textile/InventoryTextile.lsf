@@ -37,11 +37,6 @@ inventory 'Инвентаризация' (PageInventoryPacketDetail d) = invento
 
 dateTime 'Дата/время'(PageInventoryPacketDetail d) = dateTime(inventory(d)) MATERIALIZED INDEXED;
 
-@defineDocumentHeaderPosted(PageInventory);
-
-isPosted 'Проведен'(PageInventoryDetail d) = isPosted(pageInventory(d));
-isPosted 'Проведен'(PageInventoryPacketDetail d) = isPosted(pageInventory(d)) MATERIALIZED;
-
 bin 'Ячейка' = DATA Bin (PageInventoryPacketDetail) INDEXED;
 packet 'Пакет' = DATA Packet (PageInventoryPacketDetail) INDEXED;
 
@@ -57,14 +52,14 @@ countPageInventoryPacketDetail 'Пакетов (в описи)' (o) =
     GROUP SUM countPageInventoryPacketDetail(PageInventory p) BY listInventory(p) IN documentSum;
 
 quantityPageInventoryDetail 'Кол-во в описи' =
-    GROUP SUM quantity(PageInventoryDetail d) IF isPosted(d) BY listInventory(d), article(sku(d));
+    GROUP SUM quantity(PageInventoryDetail d) BY listInventory(d), article(sku(d));
 quantityPageInventoryDetail 'Кол-во (товары)' =
     GROUP SUM quantity(PageInventoryDetail d) BY pageInventory(d), article(sku(d));
 quantityPackets 'Кол-во пакетов' =
     GROUP SUM 1 IF quantityB(Article a, packet(PageInventoryPacketDetail d), dateTime(d)) BY pageInventory(d), a;
 
 quantityInventory 'Кол-во в инвентаризации' =
-    GROUP SUM quantity(PageInventoryDetail d) IF isPosted(d) BY inventory(d), article(sku(d));
+    GROUP SUM quantity(PageInventoryDetail d) BY inventory(d), article(sku(d));
 quantityInventory 'Кол-во в инвентаризации' =
     GROUP SUM quantityB(Article a, packet(PageInventoryPacketDetail d),dateTime(d)) IF isPosted(d) BY inventory(d), a, bin(d);
 
@@ -101,7 +96,9 @@ recalculatePackets 'Пересчитать' (Inventory i) {
 quantityB 'Кол-во на складе' (Inventory i, Article a)= GROUP SUM quantityB(i, a, Bin b);
 quantityB 'Кол-во на складе' (Inventory i, Bin b)= GROUP SUM quantityB(i, Article a, b);
 
-packetSkuList 'Товары в пакете'(PageInventoryPacketDetail d) = OVERRIDE skuListB(inventory(d), packet(d)), 'излишек, действий не требуется' IF d IS PageInventoryPacketDetail;
+overPacketSkuList = ABSTRACT STRING (PageInventoryPacketDetail);
+packetSkuList 'Товары в пакете'(PageInventoryPacketDetail d) =
+    OVERRIDE skuListB(inventory(d), packet(d)), overPacketSkuList(d) IF d IS PageInventoryPacketDetail;
 packetQuantity 'Кол-во в пакете'(PageInventoryPacketDetail d) = quantityB(inventory(d), packet(d));
 
 idBinB 'Ячейка на дату/время' (Inventory i, Packet packet) = id(binB(i, packet));
@@ -122,12 +119,10 @@ CONSTRAINT SETCHANGED(bin(PageInventoryPacketDetail d)) AND NOT stock(d)==stock(
 CONSTRAINT (SET(isPosted(PageInventoryPacketDetail d)) OR CHANGED(bin(d))) AND isPosted(d) AND NOT bin(d) AND packets(d)
     MESSAGE 'Ячейка в строке не может быть пустой';
 
-CONSTRAINT (SET(isPosted(PageInventory p)) OR DROPPED(countPageInventoryDetail(p))) AND isPosted(p) AND NOT countPageInventoryDetail(p) AND packets(p)
-    MESSAGE 'Запрещено проводить пустую страницу';
-
 @defineConstraintDoublePacketDetail(pageInventory, 'Запрещено добавлять пакет в страницу описи несколько раз');
 
-CONSTRAINT SETCHANGED(packet(PageInventoryPacketDetail d)) AND [ GROUP SUM 1 BY packet(PageInventoryPacketDetail ud), inventory(ud)](packet(d), inventory(d)) > 1
+CONSTRAINT SETCHANGED(packet(PageInventoryPacketDetail d))
+    AND [GROUP SUM 1 BY packet(PageInventoryPacketDetail ud), inventory(ud)](packet(d), inventory(d)) > 1
     MESSAGE 'Запрещено добавлять пакет в инвентаризацию несколько раз';
 
 @defineConstraintEmptyPacketDetail(pageInventory);
@@ -176,10 +171,11 @@ updatePageInventoryDetails 'Обновить спецификацию из па�
 } TOOLBAR;
 
 denyUpdatePageInventory 'Запрет обновления спецификации' = ABSTRACT BOOLEAN (ListInventory);
+excludeUpdatePageInventory 'Исключить из обновления спецификации' = ABSTRACT BOOLEAN (PageInventory);
 
 updatePageInventoryDetails 'Обновить спецификации непроведенных страниц' (ListInventory l) {
     IF packets(l) AND NOT denyUpdatePageInventory(l) THEN {
-        FOR listInventory(PageInventory p) == l AND NOT isPosted(p) DO {
+        FOR listInventory(PageInventory p) == l AND NOT excludeUpdatePageInventory(p) DO {
             updatePageInventoryDetails(p);
         }
     }
@@ -200,7 +196,7 @@ updatePageInventoryDetailsAll 'Обновить спецификации все�
     }
 }
 
-denyUpdatePageInventory 'Запрет автоматического обновления спецификации' = ABSTRACT BOOLEAN (Inventory);
+denyUpdatePageInventory 'Запрет обновления спецификации' = ABSTRACT BOOLEAN (Inventory);
 
 WHEN SETCHANGED (dateTime(Inventory i)) AND packets(i) DO {
     recalculatePackets(i);
@@ -209,24 +205,15 @@ WHEN SETCHANGED (dateTime(Inventory i)) AND packets(i) DO {
     }
 }
 
-denyPostUpdatePageInventory 'Запрет обновления спецификации при проведении' = ABSTRACT BOOLEAN (PageInventory);
-
-postWithPackets 'Провести' (PageInventory o) {
-    IF packets(o) AND NOT denyPostUpdatePageInventory(o) THEN {
-        updatePageInventoryDetails(o);
-    }
-    APPLY {
-        isPosted(o) <- TRUE;
-    }
-} TOOLBAR CONFIRM;
-
 nameListInventory 'Опись' (PageInventory d) = name(listInventory(d));
 nameListInventory 'Опись' (PageInventoryDetail d) = name(listInventory(d));
 
+skipInPackets = ABSTRACT BOOLEAN (PageInventoryDetail);
+
 inPackets (Inventory inventory, Stock stock, ListInventory listInventory, PageInventory pageInventory, PageInventoryDetail pageInventoryDetail) = OVERRIDE
-    stock(pageInventoryDetail) == stock AND isPosted(pageInventoryDetail) AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory,
-    listInventory(pageInventoryDetail) == listInventory AND isPosted(pageInventoryDetail) AND stock IS Stock AND NOT pageInventory AND inventory IS Inventory,
-    pageInventory(pageInventoryDetail) == pageInventory AND isPosted(pageInventoryDetail) AND listInventory IS ListInventory AND stock IS Stock AND inventory IS Inventory;
+    stock(pageInventoryDetail) == stock AND NOT skipInPackets(pageInventoryDetail) AND inventory == inventory(pageInventoryDetail) AND NOT pageInventory AND NOT listInventory,
+    listInventory(pageInventoryDetail) == listInventory AND NOT skipInPackets(pageInventoryDetail) AND stock IS Stock AND NOT pageInventory AND inventory IS Inventory,
+    pageInventory(pageInventoryDetail) == pageInventory AND NOT skipInPackets(pageInventoryDetail) AND listInventory IS ListInventory AND stock IS Stock AND inventory IS Inventory;
 
 add 'Отм.' = DATA LOCAL BOOLEAN(Packet);
 
@@ -282,9 +269,6 @@ addPackets 'Создать страницу описи' (Inventory i){
     }
 }
 
-showPost (PageInventory i) = isDraft(i) AND isDraft(inventory(i));
-showUnpost (PageInventory i) = isPosted(i) AND isDraft(inventory(i));
-
 diffQuantity 'Отклонение' (Inventory i, Article a) = quantityB(i,a) (-) quantityInventory(i,a);
 
 hideArticleInventoryTab = ABSTRACT BOOLEAN (Inventory);
@@ -292,7 +276,7 @@ hideArticleInventoryTab = ABSTRACT BOOLEAN (Inventory);
 EXTEND FORM inventory
     PROPERTIES(ds, in) READONLY AFTER name(ds) countPageInventoryPacketDetail SHOWIF packets(in)
     PROPERTIES(li) READONLY AFTER name(li) countPageInventoryPacketDetail SHOWIF packets(in)
-    PROPERTIES(pl) READONLY AFTER name(pl) countPageInventoryPacketDetail SHOWIF packets(in), isPosted
+    PROPERTIES(pl) READONLY AFTER name(pl) countPageInventoryPacketDetail SHOWIF packets(in)
 
     PROPERTIES(li) updatePageInventoryDetailsAll SHOWIF (isDraft(in) AND isOpened(in) AND packets(in) AND NOT denyUpdatePageInventory(in))
 
@@ -427,21 +411,6 @@ DESIGN inventory {
         }
     }
 
-    BOX(TREE treeStock) {
-        PROPERTY(countPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
-        PROPERTY(quantityPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
-        PROPERTY(sumPageInventoryDetail(ds,in)) { showIf = NOT packets(li); }
-
-        PROPERTY(countPageInventoryDetail(li)) { showIf = NOT packets(li); }
-        PROPERTY(quantityPageInventoryDetail(li)) { showIf = NOT packets(li); }
-        PROPERTY(sumPageInventoryDetail(li)) { showIf = NOT packets(li); }
-
-        PROPERTY(countPageInventoryDetail(pl)) { showIf = NOT packets(li); }
-        PROPERTY(quantityPageInventoryDetail(pl)) { showIf = NOT packets(li); }
-        PROPERTY(sumPageInventoryDetail(pl)) { showIf = NOT packets(li); }
-        PROPERTY(name(pl)) { showIf = NOT packets(li); }
-    }
-
     case1 {
         fill = 1.5;
         MOVE BOX(ar) FIRST {
@@ -487,24 +456,20 @@ EXTEND FORM listInventory
     PROPERTIES (pl,a) READONLY quantityPackets SHOWIF packets(li), quantityPageInventoryDetail
     FILTERS quantityPageInventoryDetail(pl,a)
     ORDERS caption(a), id(a)
-
-    PROPERTIES(pl) isPosted BEFORE name(pl)
+    
     PROPERTIES(pl) READONLY BEFORE quantityPageInventoryDetail(pl) countPageInventoryPacketDetailAll  SHOWIF packets(li)
 
     PROPERTIES (pl) SHOWIF packets(pl) updatePageInventoryDetails DRAW dp
 
-    FILTERGROUP isDraft FILTER 'Непроведенные' isDraft(pl)
-
     OBJECTS d = PageInventoryPacketDetail
     PROPERTIES (d) SHOWIF packets(li) READONLY index, note
     PROPERTIES (d) SHOWIF packets(li) ON CHANGE selectListInventoryPacket(d) AFTER index(d) idPacket, packetSkuList, packetQuantity
-    PROPERTIES (d) idBin AFTER packetQuantity(d)
+    PROPERTIES (d) SHOWIF packets(li) idBin AFTER packetQuantity(d)
     PROPERTIES (d) SHOWIF packets(li) NEW, DELETE GRID
     FILTERS pageInventory(d) == pl
 
     EVENTS
-        ON APPLY BEFORE updatePageInventoryDetails(li),
-        ON OK BEFORE postWithPackets(pl)
+        ON APPLY BEFORE updatePageInventoryDetails(li)
 ;
 
 DESIGN listInventory {
@@ -566,9 +531,6 @@ DESIGN listInventory {
     }
 }
 
-CONSTRAINT SET(isPosted(Inventory i)) AND [GROUP MIN PageInventory pd IF NOT isPosted(pd) BY inventory(pd)](i) AND packets(i)
-    MESSAGE 'Запрещено проводить инвентаризацию при наличии непроведенных страниц';
-
 CONSTRAINT SET(isClosed(Inventory i)) AND NOT isPosted(i)
     MESSAGE 'Запрещено закрывать инвентаризацию до проведенния';
 
@@ -578,7 +540,7 @@ WHEN (SET(PageInventoryPacketDetail d IS PageInventoryPacketDetail) OR SETCHANGE
 }
 
 CONSTRAINT SETCHANGED(include(Stock s, Inventory i)) AND (GROUP SUM 1 IF include(Stock st, i)) > 1 AND useDefaultBin(i)
-    MESSAGE ('Запрещено выбирать более одного склада для инвентаризации с необязательным учетом по пакетам');
+    MESSAGE ('Запрещено выбирать более одного склада для инвентаризации с ячейкой по умолчанию');
 
 EXTEND FORM inventory
     OBJECTS ipd = PageInventoryPacketDetail
