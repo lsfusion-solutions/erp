@@ -388,22 +388,28 @@ receiveGroupMachinery(GroupMachinery g) + {
 
 sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchangeType(re) = RequestExchangeType.salesInfo AND cr IS CashRegister THEN {
     NEWSESSION {
-        TRY {
-            FOR iterate(DATE d, dateFrom(re), dateTo(re)) AND GroupCashRegister gcr IS GroupCashRegister AND gcr = groupCashRegister(cr) AND isUkm5(gcr) DO {
+        FOR iterate(DATE d, dateFrom(re), dateTo(re)) AND GroupCashRegister gcr IS GroupCashRegister AND gcr = groupCashRegister(cr) AND isUkm5(gcr) DO {
+            TRY {
                 receiptPackage(idStore(groupCashRegister(cr)), STRING(d));
                 succeededNative(re) <- TRUE;
                 dateTimeSucceededNative(re) <- currentDateTime();
-            }
-        } CATCH {
-            addMachineryError(re, System.messageCaughtException());
-            MESSAGE messageCaughtException() NOWAIT;
-        } FINALLY {
-            APPLY;
-            IF canceled() THEN NEWSESSION {
-                CANCEL;
-                addMachineryError(re, applyMessage());
-                MESSAGE applyMessage();
+            } CATCH {
+                IF statusHttp() = 404 THEN {
+                    MESSAGE 'За дату ' + STRING(d) + ' чеки не найдены' NOWAIT;
+                } ELSE {
+                    succeededNative(re) <- NULL;
+                    dateTimeSucceededNative(re) <- NULL;
+                    addMachineryError(re, System.messageCaughtException());
+                    MESSAGE messageCaughtException() NOWAIT;
+                    RETURN;
+                }
+            } FINALLY {
                 APPLY;
+                IF canceled() THEN {
+                    CANCEL NESTED (applyMessage[]);
+                    addMachineryError(re, applyMessage());
+                    APPLY;
+                }
             }
         }
     }
