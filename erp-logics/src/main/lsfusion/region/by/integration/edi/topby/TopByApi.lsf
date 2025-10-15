@@ -221,7 +221,7 @@ overReceiveSystemMessage(INTEGER i, STRING[100] login, STRING[100] password, TEX
 }
 
 overImportSystemmessage ABSTRACT ();
-skipSystemmessage = DATA LOCAL NESTED BOOLEAN();
+skipSystemmessage = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'systemmessage' OR lower(documentType(i)) == 'aperak' THEN {
@@ -231,6 +231,8 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             overImportSystemmessage();
             IF NOT skipSystemmessage() THEN {
                 overReceiveSystemMessage(i, login, password, url, archiveDir, disableConfirmation, provider);
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') Import systemmessage ' + id(i) + ' skipped: ' + skipSystemmessage());
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' (' + login + ') Parse EOrderMessage ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
@@ -264,7 +266,6 @@ overReceiveBlrapn(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, 
 disableAutoBlrapn 'Отключить автоматическую отправку извещений о прочтении' = DATA BOOLEAN () PREREAD;
 
 overImportBlrapn ABSTRACT ();
-overImportBlrapn ABSTRACT (INTEGER, STRING[100], STRING[100], TEXT, STRING[100], INTEGER, STRING[100]);
 skipBlrapn = DATA LOCAL NESTED STRING ();
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
@@ -273,7 +274,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
             IMPORT importBlrapn XML FROM data(i);
             skipBlrapn() <- NULL;
             overImportBlrapn();
-            overImportBlrapn(i, login, password, url, archiveDir, IF disableConfirmation THEN 1 ELSE 0, provider);
             IF NOT skipBlrapn() THEN {
                 overReceiveBlrapn(i, login, password, url, archiveDir, disableConfirmation, provider);
             } ELSE {
