@@ -40,6 +40,9 @@ dateTime 'Дата/время'(PageInventoryPacketDetail d) = dateTime(inventory
 bin 'Ячейка' = DATA Bin (PageInventoryPacketDetail) INDEXED;
 packet 'Пакет' = DATA Packet (PageInventoryPacketDetail) INDEXED;
 
+inInventory 'В инвентаризации' (Packet p, Inventory i) =
+    [GROUP MIN PageInventoryPacketDetail pd BY packet(pd), inventory(pd)](p,i);
+
 INDEX inventory(PageInventoryPacketDetail d), packet(d), bin(d);
 
 note 'Примечание' = DATA STRING[200](PageInventoryPacketDetail) CHARWIDTH 30;
@@ -296,7 +299,7 @@ EXTEND FORM inventory
     PROPERTIES (p) READONLY SHOWIF packets(in) id
     PROPERTIES (in, p) READONLY  SHOWIF packets(in) skuListB, quantityB, idBinB
     FILTERS binB(in, p),
-        NOT [GROUP MIN PageInventoryPacketDetail pd BY packet(pd), inventory(pd)](p,in)
+        NOT inInventory(p,in)
 
     PROPERTIES (in) SHOWIF packets(in) addPackets DRAW p TOOLBAR SHOWIF [GROUP MIN Packet pp IF add(pp)]()
 
@@ -438,7 +441,7 @@ FORM dialogListInventoryPacket 'Выбор пакета'
     OBJECTS p = Packet
     PROPERTIES(p) id, currentSkuList, idCurrentBin
     FILTERS binB(in, p),
-        NOT [GROUP MIN PageInventoryPacketDetail pd BY packet(pd), inventory(pd)](p,in)
+        NOT inInventory(p,in)
 ;
 
 selectListInventoryPacket 'Выбор пакета' (PageInventoryPacketDetail d) {
@@ -550,6 +553,48 @@ DESIGN inventory {
     case1 {
         MOVE BOX(ipd) FIRST {
             caption = 'Пакеты в описи';
+        }
+    }
+}
+
+// Списание пакетов
+skipCreateOutInventoryPacketLedger 'Не создавать списание пакетов' = ABSTRACT BOOLEAN (Inventory);
+createOutInventoryPacketLedger 'Создавать списание пакетов' (Inventory i) =
+    packets(i) AND NOT skipCreateOutInventoryPacketLedger(i);
+
+CLASS OutInventoryPacketLedger 'Списание пакета по инвентаризации' : BinPacketLedger;
+TABLE outInventoryPacketDetail (OutInventoryPacketLedger);
+
+needToOutLedger 'К списанию' (Inventory i, Packet p) = binB(i, p) AND NOT inInventory(p,i);
+
+outInventoryPacketLedger = AGGR OutInventoryPacketLedger
+    WHERE needToOutLedger(Inventory inventory, Packet packet) AND createOutInventoryPacketLedger(inventory) MATERIALIZED INDEXED;
+
+packets 'Пакеты' (OutInventoryPacketLedger l) = packets(inventory(l));
+
+idPacket 'Код' (OutInventoryPacketLedger l) = id(packet(l));
+currentSkuList 'Товары в пакете' (OutInventoryPacketLedger l) = currentSkuList(packet(l));
+
+// списание по BinPacketLedger
+dateTime (OutInventoryPacketLedger ledger) += dateTime(inventory(ledger)) IF packets(ledger);
+packet (OutInventoryPacketLedger ledger) += packet(ledger) IF packets(ledger);
+isPosted (OutInventoryPacketLedger ledger) += isPosted(inventory(ledger)) IF packets(ledger);
+numberDocument(OutInventoryPacketLedger ledger) += number(inventory(ledger)) IF packets(ledger);
+seriesDocument(OutInventoryPacketLedger ledger) += series(inventory(ledger)) IF packets(ledger);
+description(OutInventoryPacketLedger ledger) += ('Списание по инвентаризации № ' +  number(inventory(ledger))) IF packets(ledger);
+createdUser(OutInventoryPacketLedger ledger) += createdUser(inventory(ledger)) IF packets(ledger);
+
+EXTEND FORM inventories
+    OBJECTS opl = OutInventoryPacketLedger
+    PROPERTIES(opl) idPacket, currentSkuList
+    FILTERS inventory(opl) == in
+;
+
+DESIGN inventories {
+    wor31 {
+        MOVE BOX(opl) {
+            caption = 'Пакеты к списанию';
+            showIf = createOutInventoryPacketLedger(in);
         }
     }
 }
