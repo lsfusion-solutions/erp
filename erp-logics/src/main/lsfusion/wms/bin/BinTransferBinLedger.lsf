@@ -671,3 +671,78 @@ EXTEND FORM userBinTransfer
     PROPERTIES(o) AFTER note(o) nameInBin ON CHANGE setInBin(o), nameOutBin ON CHANGE setOutBin(o)
     PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
 ;
+
+backgroundUserBinSkuTransfer = ABSTRACT CASE COLOR (Bin);
+
+userBinTransferDetail (sku, userBinTransfer, bin, stock) =
+    GROUP MAX UserBinTransferDetail detail BY sku(detail), userBinTransfer(detail), outBin(detail), stock(detail);
+
+userBinTransferDetail (sku, userBinTransfer, bin) =
+    GROUP MAX UserBinTransferDetail detail BY sku(detail), userBinTransfer(detail), outBin(detail);
+
+quantity 'Кол-во товара в документе' (sku, userBinTransfer, bin, stock) =
+    GROUP SUM quantity(UserBinTransferDetail detail) BY sku(detail), userBinTransfer(detail), outBin(detail), stock(detail);
+
+backgroundQuantity 'Цвет' (sku, userBinTransfer, bin, stock) = ABSTRACT CASE COLOR (Sku, UserBinTransfer, Bin, Stock);
+
+overChangeQuantityValueSkuBin  ABSTRACT LIST (UserBinTransferDetail);
+
+changeQuantityValue(Sku sku, UserBinTransfer userBinTransfer, Bin bin, Stock stock, NUMERIC[16,5] n)  {
+    IF userBinTransferDetail(sku, userBinTransfer, bin, stock) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantity(UserBinTransferDetail userBinTransferDetail) <- n WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, bin, stock);
+            overChangeQuantityValueSkuBin(userBinTransferDetail(sku, userBinTransfer, bin, stock));
+        } ELSE {
+            FOR userBinTransferDetail(sku, userBinTransfer, bin, stock) == UserBinTransferDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = UserBinTransferDetail {
+                userBinTransfer(d) <- userBinTransfer;
+                sku(d) <- sku;
+                outBin(d) <- bin;
+                quantity(d) <- n;
+                overChangeQuantityValueSkuBin(d);
+            }
+        }
+    }
+}
+
+changeQuantity(Sku sku, UserBinTransfer userBinTransfer, Bin bin, Stock stock)  {
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantityValue(sku, userBinTransfer, bin, stock, n);
+}
+
+allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, UserBinTransfer, Bin, Stock);
+changeAllQuantity(Sku sku, UserBinTransfer userBinTransfer, Bin bin, Stock stock) {
+    INPUT b = BOOLEAN DO {
+        allQuantity (sku, userBinTransfer, bin, stock) <- b;
+        changeQuantityValue(sku, userBinTransfer, bin, stock, prevCurrentBalance(sku, bin) IF b);
+    }
+}
+
+EXTEND FORM userBinTransfer
+    OBJECTS sbin = Bin GRID
+    PROPERTIES(sbin) BACKGROUND backgroundUserBinSkuTransfer(sbin) order, canonicalId
+    PROPERTIES quantity(ks, o, sbin, st) ON CHANGE changeQuantity(ks, o, sbin, st) BACKGROUND backgroundQuantity(ks, o, sbin, st)
+    PROPERTIES prevCurrentBalance(ks, sbin)
+    ORDERS order(sbin), canonicalId(sbin)
+
+    FILTERS prevCurrentBalance(ks, sbin),
+        stock(sbin) == st
+;
+
+DESIGN userBinTransfer {
+    BOX(sts) {
+        GRID(sts) {
+            fill = 3;
+        }
+        MOVE BOX(sbin) {
+            fill = 1;
+            caption = 'Ячейки';
+            PROPERTY(prevCurrentBalance(ks, sbin)) { background = #FFEEEE; }
+            PROPERTY(quantity(ks, o, sbin, st)) { background = #D4FFD4; }
+        }
+    }
+}
