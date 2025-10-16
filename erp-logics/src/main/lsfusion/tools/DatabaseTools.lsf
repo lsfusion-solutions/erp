@@ -11,21 +11,23 @@ EXTEND CLASS Table: DatabaseTable;
 
 CLASS PgTable 'Системная таблица' : DatabaseTable;
 TABLE pgTable(PgTable);
+sid '{reflection.sid.table}' = ABSTRACT ISTRING[100] (DatabaseTable);
+sid(Table t) += Reflection.sid(t);
 sid '{reflection.sid.table}' = DATA ISTRING[100] (PgTable);
-sid '{reflection.sid.table}' (DatabaseTable t) = MULTI sid[Table](t), sid[PgTable](t);
-table '{reflection.table}' = GROUP MAX DatabaseTable table BY sid (table);
+sid(PgTable t) += sid(t);
+table '{reflection.table}' = GROUP MAX DatabaseTable table BY lower(sid(table));
 
-dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](Table);
-dataSize 'Размер данных (МБ)' = DATA NUMERIC[15,3](PgTable);
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[13,1](Table);
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[13,1](PgTable);
 dataSize 'Размер данных (МБ)' (DatabaseTable t) = MULTI dataSize[Table](t), dataSize[PgTable](t);
 
-indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](Table);
-indexSize 'Размер индексов (МБ)' = DATA NUMERIC[15,3](PgTable);
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[13,1](Table);
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[13,1](PgTable);
 indexSize 'Размер индексов (МБ)' (DatabaseTable t) = MULTI indexSize[Table](t), indexSize[PgTable](t);
 
-curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](DatabaseTable);
-curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[15,3](DatabaseTable);
-curRows 'Тек. количество записей' = DATA LOCAL NESTED LONG (Table);
+curDataSize 'Тек. размер данных (МБ)' = DATA LOCAL NESTED NUMERIC[13,1](DatabaseTable) PATTERN '#,##0.0';
+curIndexSize 'Тек. размер индексов (МБ)' = DATA LOCAL NESTED NUMERIC[13,1](DatabaseTable) PATTERN '#,##0.0';
+curRows 'Тек. количество записей' = DATA LOCAL NESTED LONG (DatabaseTable);
 
 deleteIndexes 'Удалять индексы при упаковке' = DATA BOOLEAN (Table);
 large 'Большая таблица' = DATA BOOLEAN (Table);
@@ -33,15 +35,15 @@ large 'Большая таблица' = DATA BOOLEAN (Table);
 CLASS Index 'Индекс';
 
 table 'Таблица' = DATA Table (Index) NONULL DELETE INDEXED;
-sidTable 'Таблица' (Index i) = sid(table(i)) CHARWIDTH 10;
+sidTable 'Таблица' (Index i) = sid(table(i)) CHARWIDTH 20;
 
-name 'Наименование' = DATA STRING (Index);
+name 'Наименование' = DATA STRING (Index) CHARWIDTH 30;
 index = GROUP AGGR Index x BY name(x);
 
-tablespace 'Tablespace' = DATA STRING (Index);
-definition 'Скрипт' = DATA STRING (Index);
+tablespace 'Tablespace' = DATA STRING (Index) CHARWIDTH 10;
+definition 'Скрипт' = DATA STRING (Index) CHARWIDTH 30;
 isConstraint 'Constraint' = DATA BOOLEAN (Index);
-indexSize 'Размер' = DATA LONG (Index);
+indexSize 'Размер (МБ)' = DATA NUMERIC[13,1] (Index) PATTERN '#,##0.0';
 indexScans 'Сканирований' = DATA LONG (Index);
 indexReads 'Считано' = DATA LONG (Index);
 
@@ -66,26 +68,62 @@ grow = [NUMERIC[12,3](OVERRIDE (((OVERRIDE A, 0.001) - (OVERRIDE B, 0.001)) / (M
 ////
 
 //Секционированная таблица
-//CLASS Partition 'Секция' : DatabaseTable;
-//TABLE partition(Partition);
+isPartitioned 'Секционирована' = DATA BOOLEAN (Table);
+
+CLASS Partition 'Секция' : DatabaseTable;
+TABLE partition(Partition);
+
+table = DATA Table (Partition) NONULL DELETE INDEXED AGGR ;
+sid '{reflection.sid.table}' = DATA ISTRING[100] (Partition) CHARWIDTH 10;
+sid(Partition p) += sid(p);
+
+dataSize 'Размер данных (МБ)' = DATA NUMERIC[13,1](Partition) PATTERN '#,##0.0';
+indexSize 'Размер индексов (МБ)' = DATA NUMERIC[13,1](Partition) PATTERN '#,##0.0';
+dataRows 'Количество записей' = DATA LONG (Partition);
+
+getParts 'Получить секции' () {
+    NEWSESSION {
+        INTERNAL DB 'SELECT c.relname AS part, p.relname AS parent FROM pg_inherits i JOIN pg_class c ON i.inhrelid = c.oid JOIN pg_class p ON i.inhparent = p.oid WHERE c.relkind = \'r\';'
+            TO file;
+
+        IMPORT TABLE FROM file() FIELDS STRING part, STRING parent DO {
+            IF NOT table(part) THEN NEW p = Partition {
+                sid(p) <- part;
+                table(p) <- table(parent);
+                isPartitioned(table(parent)) <- TRUE;
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+////
+
+//Индексы
+partition 'Секция' = DATA Partition (Index) NONULL DELETE INDEXED;
+sidPartition 'Секция' (Index i) = sid(partition(i)) CHARWIDTH 20;
 
 getIndexes 'Получить список индексов'(Table t) {
     NEWSESSION {
         LOCAL is = BOOLEAN (Index);
 
-        INTERNAL DB 'SELECT indexname, tablespace, indexdef, pg_get_constraintdef(c.oid), pg_relation_size(psai.indexrelid), psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid from pg_indexes i left join pg_constraint c ON i.indexname = c.conname left join pg_stat_all_indexes psai on i.indexname = psai.indexrelname left join pg_index ind on ind.indexrelid = psai.indexrelid WHERE tablename = $1'
+        INTERNAL DB 'WITH partition_tables AS ( SELECT inhrelid::regclass::text AS tablename FROM pg_inherits WHERE inhparent = $1::regclass UNION ALL SELECT $1::text )' +
+                    'SELECT i.indexname, i.tablespace, i.indexdef, pg_get_constraintdef(c.oid) AS constraintdef, round(pg_relation_size(psai.indexrelid) /1024/1024.0, 1) AS index_size, '+
+                    'psai.idx_scan, psai.idx_tup_read, ind.indexrelid, ind.indisvalid, i.tablename FROM partition_tables pt JOIN pg_indexes i ON i.tablename = pt.tablename ' +
+                    'LEFT JOIN pg_constraint c ON i.indexname = c.conname LEFT JOIN pg_stat_all_indexes psai ON i.indexname = psai.indexrelname AND i.tablename = psai.relname LEFT JOIN pg_index ind ON ind.indexrelid = psai.indexrelid;'
             PARAMS lower(sid(t))
             TO file;
 
-        IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL, STRING definition, STRING constraint, LONG indexSize, LONG indexScans, LONG indexReads, LONG relid, BOOLEAN indisvalid NULL DO {
+        IMPORT TABLE FROM file() FIELDS STRING indexName, STRING tablespace NULL, STRING definition, STRING constraintdef, NUMERIC[13,1] indexSize, LONG indexScans, LONG indexReads, LONG relid, BOOLEAN indisvalid NULL, STRING tablename DO {
             IF NOT index(indexName) THEN NEW i = Index {
                 name(i) <- indexName;
             }
             FOR name(Index i) == indexName DO {
                 table(i) <- t;
+                partition(i) <- table(tablename); 
                 tablespace(i) <- tablespace;
                 definition(i) <- definition;
-                isConstraint(i) <- TRUE IF constraint != '';
+                isConstraint(i) <- TRUE IF constraintdef != '';
                 indexSize(i) <- indexSize;
                 indexScans(i) <- indexScans;
                 indexReads(i) <- indexReads;
@@ -159,7 +197,7 @@ createIndexes 'Создать индексы' (Table t) {
 //https://www.postgresql.org/message-id/1878.1481823217%40sss.pgh.pa.us
 //что может приводить к большому времени ожидания завершения опраци если есть длинные запросы
 //поэтому на небольших индексах лучше на несколько секунд заблокировать все запросы к таблице чем REINDEX на долгое время
-reindexConcurrentlySize 'REINDEX CONCURRENTLY свыше (МБ)' = DATA NUMERIC[15,3] ();
+reindexConcurrentlySize 'REINDEX CONCURRENTLY свыше (МБ)' = DATA NUMERIC[13,1] ();
 
 skipExceptions 'Пропускать ошибки' = DATA BOOLEAN ();
 
@@ -194,10 +232,11 @@ reindex 'REINDEX' (Table t) {
         runAndLogSQL('REINDEX TABLE ' + (IF indexSize(t) > reindexConcurrentlySize() THEN 'CONCURRENTLY ' ELSE '') + sid(t));
     }
     NEWSESSION {
-        indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
+        indexSize(t) <- [FORMULA NUMERIC[13,1] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
         APPLY;
     }
 } ASON CONTEXTMENU sid[DatabaseTable];
+////
 
 vacuumSysTab ABSTRACT (INTEGER, STRING);
 vacuumSysTab (INTEGER count, STRING table) + {
@@ -230,21 +269,29 @@ vacuum 'VACUUM FULL' (DatabaseTable t) {
         createIndexes(t);
     }
     NEWSESSION {
-        dataSize(t) <- [FORMULA NUMERIC[15,3] 'pg_table_size($1) /1024/1024.0'](lower(sid(t)));
-        indexSize(t) <- [FORMULA NUMERIC[15,3] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
+        dataSize(t) <- [FORMULA NUMERIC[13,1] 'pg_table_size($1) /1024/1024.0'](lower(sid(t)));
+        indexSize(t) <- [FORMULA NUMERIC[13,1] 'pg_indexes_size($1) /1024/1024.0'](lower(sid(t)));
         APPLY;
     }
 } ASON CONTEXTMENU sid[DatabaseTable];
 
-loadCurSize 'Заполнить размеры таблиц'(){
-    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
-        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
+loadCurSize 'Заполнить размеры таблиц'() {
+    getParts();
+    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(13,1)) AS t_size, ' +
+        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(13,1)) AS i_size FROM pg_tables WHERE schemaname = \'public\''
         TO file;
 
-    IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
-        curDataSize(Table t) <- t_size WHERE lower(sid(t)) == table;
-        curIndexSize(Table t) <- i_size WHERE lower(sid(t)) == table;
+    LOCAL tablename = STRING[100](INTEGER);
+    LOCAL t_size, i_size = NUMERIC[13,1](INTEGER);
+
+    IMPORT TABLE FROM file() TO tablename, t_size, i_size;
+    FOR lower(sid(DatabaseTable t)) == tablename(INTEGER r) DO {
+        curDataSize(t) <- t_size(r);
+        curIndexSize(t) <- i_size(r);
     }
+    
+    curDataSize(DatabaseTable t) <- (GROUP SUM curDataSize(Partition p) IF table(p) == t) WHERE isPartitioned(t);
+    curIndexSize(DatabaseTable t) <- (GROUP SUM curIndexSize(Partition p) IF table(p) == t) WHERE isPartitioned(t);
 }
 
 loadSystemCurSize 'Заполнить размеры системных таблиц'(){
@@ -265,11 +312,11 @@ loadSystemCurSize 'Заполнить размеры системных табл
         APPLY;
     }
 
-    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(15,3)) AS t_size, ' +
-        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(15,3)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
+    INTERNAL DB 'SELECT tablename, CAST(pg_table_size(tablename::regclass)/1024/1024.0 AS numeric(13,1)) AS t_size, ' +
+        'CAST(pg_indexes_size(tablename::regclass) /1024/1024.0 AS numeric(13,1)) AS i_size FROM pg_tables WHERE schemaname = \'pg_catalog\''
         TO file;
 
-    IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[15,3] t_size, NUMERIC[15,3] i_size DO {
+    IMPORT TABLE FROM file() FIELDS STRING[100] table, NUMERIC[13,1] t_size, NUMERIC[13,1] i_size DO {
         curDataSize(PgTable t) <- t_size WHERE lower(sid(t)) == table;
         curIndexSize(PgTable t) <- i_size WHERE lower(sid(t)) == table;
     }
@@ -390,6 +437,8 @@ fillStats 'Получить статистику таблицы' (Table t) {
         }
         FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname AND NUMERIC q == IF n_distinct >= 0 THEN n_distinct ELSE curRows(t) * -n_distinct DO {
             quantityStat(tc) <- safeInt(min(coeff(t) * q, rows(t)));
+        }
+        FOR table(TableColumn tc) == t AND lower(sid(tc)) == attname DO {
             percentNotNullStat(tc) <- noNull;
         }
     }
@@ -439,9 +488,13 @@ setStat 'Set statistics_target' (TableColumn c) {
 loadCurRows 'Заполнить количество записей'(){
     INTERNAL DB 'SELECT pc.relname, reltuples::BIGINT FROM pg_class pc JOIN pg_tables pt ON pc.relname=pt.tablename AND pt.schemaname = \'public\''
         TO file;
-
-    IMPORT TABLE FROM file() FIELDS STRING[100] table, LONG size DO {
-        curRows(Table t) <- size WHERE lower(sid(t)) == table;
+    
+    LOCAL table = STRING[100] (INTEGER);
+    LOCAL size = LONG (INTEGER);
+    
+    IMPORT TABLE FROM file() TO table, size;
+    FOR lower(sid(DatabaseTable t)) == table(INTEGER r) DO {
+        curRows(t) <- size(r);
     }
 }
 
@@ -692,10 +745,11 @@ EXTEND FORM tools
     PROPERTIES (t) READONLY sid
     PROPERTIES (t) skipVacuum
     PROPERTIES (t) READONLY BACKGROUND backgroundData(t) dataSize, curDataSize
-    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE
+    PROPERTIES (t) READONLY BACKGROUND backgroundIndex(t) indexSize, curIndexSize, deleteIndexes CHANGEABLE, large CHANGEABLE, isPartitioned
     PROPERTIES (t) READONLY BACKGROUND backgroundRows(t) notRecalculateStats CHANGEABLE, rows, curRows, lastRecalculateStats
     PROPERTIES (t) recalculateStats GRID
     PROPERTIES (t) TOOLBAR getIndexes, fillStats
+    FILTERS NOT t IS Partition
     FILTERGROUP grow
         FILTER 'VACUUM' needVacuum(t)
         FILTER 'REINDEX' needReindex(t)
@@ -717,10 +771,14 @@ EXTEND FORM tools
     FILTERS table(tc) == t
 
     OBJECTS i = Index
-    PROPERTIES(i) READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable
+    PROPERTIES(i) READONLY name, definition, tablespace, isConstraint, indexSize, indexScans, indexReads, efficiency, relid, indisvalid, sidTable, sidPartition
     PROPERTIES(i) TOOLBAR invalidate SHOWIF indisvalid(i), validate SHOWIF NOT indisvalid(i), reindex
     FILTERGROUP index
         FILTER 'По таблице' table(i) = t DEFAULT
+
+    OBJECTS p = Partition
+    PROPERTIES(p) READONLY sid[DatabaseTable], dataSize, curDataSize, indexSize, curIndexSize, dataRows, curRows
+    FILTERS table(p) = t
 
     PROPERTIES () loadCurSize, loadSystemCurSize, vacuumSize, vacuumCoeff, nameVacuumOrderType, smartVacuum, countTreads,
         loadCurRows, setSkipStatistic, reindexConcurrentlySize, skipExceptions, stopAfter, smartStats
@@ -769,6 +827,7 @@ DESIGN tools{
                     };
                     MOVE BOX (tk);
                     MOVE BOX (i);
+                    MOVE BOX (p) {showIf = isPartitioned(t);};
                 }
             }
         }
