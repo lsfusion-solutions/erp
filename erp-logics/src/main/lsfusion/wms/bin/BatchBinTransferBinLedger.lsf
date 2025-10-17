@@ -65,8 +65,6 @@ EXTEND FORM userBinTransfer
 skipSetInBin(UserBinTransferDetail d) += TRUE IF inBin(d);
 skipSetOutBin(UserBinTransferDetail d) += TRUE IF outBin(d);
 
-backgroundUserBinTransfer = ABSTRACT CASE COLOR (Bin);
-
 userBinTransferDetail (batch, userBinTransfer, bin, stock) =  
     GROUP MAX UserBinTransferDetail detail BY batch(detail), userBinTransfer(detail), outBin(detail), stock(detail);
 
@@ -78,13 +76,11 @@ quantity 'Кол-во товара в документе' (batch, userBinTransfe
 
 backgroundQuantity 'Цвет' (batch, userBinTransfer, bin, stock) = ABSTRACT CASE COLOR (Batch, UserBinTransfer, Bin, Stock);
 
-overChangeQuantityValueBatchBin  ABSTRACT LIST (UserBinTransferDetail);
-
 changeQuantityValue(Batch batch, UserBinTransfer userBinTransfer, Bin bin, Stock stock, NUMERIC[16,5] n)  {
     IF userBinTransferDetail(batch, userBinTransfer, bin, stock) THEN {
         IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
             quantity(UserBinTransferDetail userBinTransferDetail) <- n WHERE userBinTransferDetail == userBinTransferDetail(batch, userBinTransfer, bin, stock);
-            overChangeQuantityValueBatchBin(userBinTransferDetail(batch, userBinTransfer, bin, stock));
+            overChangeQuantityValueBatch(userBinTransferDetail(batch, userBinTransfer, bin, stock));
         } ELSE {
             FOR userBinTransferDetail(batch, userBinTransfer, bin, stock) == UserBinTransferDetail d DO
                 DELETE d;
@@ -97,7 +93,7 @@ changeQuantityValue(Batch batch, UserBinTransfer userBinTransfer, Bin bin, Stock
                 batch(d) <- batch;
                 outBin(d) <- bin;
                 quantity(d) <- n;
-                overChangeQuantityValueBatchBin(d);
+                overChangeQuantityValueBatch(d);
             }
         }
     }
@@ -118,7 +114,7 @@ changeAllQuantity(Batch batch, UserBinTransfer userBinTransfer, Bin bin, Stock s
 
 EXTEND FORM userBinTransfer
     OBJECTS bin = Bin GRID
-    PROPERTIES(bin) BACKGROUND backgroundUserBinTransfer(bin) order, canonicalId
+    PROPERTIES(bin) order, canonicalId
     PROPERTIES quantity(b, o, bin, sto) ON CHANGE changeQuantity(b, o, bin, sto) BACKGROUND backgroundQuantity(b, o, bin, sto)
     PROPERTIES prevCurrentBalance(b, bin)
     ORDERS order(bin), canonicalId(bin)
