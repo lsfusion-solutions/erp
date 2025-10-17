@@ -313,9 +313,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
 
         boolean consumedGtin = false;
         if (extraInfoJSON != null) {
-            Boolean ukz = getUKZ(extraInfoJSON);
-            if (ukz != null) {
-                setAttribute(barcodeElement, "marked", !ukz);
+            if (extraInfoJSON.has("lottype")) {
+                String lotType = extraInfoJSON.getString("lottype");
+                if (lotType != null && !lotType.equals("ukz")) {
+                    boolean softControlLot = extraInfoJSON.has("softControlLot");
+                    setAttribute(barcodeElement, "marked", !softControlLot);
+                }
             }
             if(extraInfoJSON.has("gtin")) {
                 String gtin = extraInfoJSON.getString("gtin");
