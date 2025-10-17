@@ -271,20 +271,10 @@ cashRegisterUkm5 (id) = GROUP AGGR CashRegister cashRegister BY idUkm5 (cashRegi
 
 EXTEND FORM groupCashRegister
     PROPERTIES (c) idUkm5 SHOWIF isUkm5(grc);
-urlUkm5Server 'Url сервера' = DATA STRING ();
-
-EXTEND FORM integrationData
-    PROPERTIES urlUkm5Server();
-
-DESIGN integrationData{
-    ukm5{
-        MOVE PROPERTY (urlUkm5Server());
-    }
-}
 
 skipBlockPackage(){
     TRY {
-        EXTERNAL HTTP DELETE urlUkm5Server() + '/api/v1/export/receiptPackage';
+        EXTERNAL HTTP DELETE urlUkm5ServerExport() + '/api/v1/export/receiptPackage';
         MESSAGE 'Сброс блокировки';
     }
     CATCH {
@@ -294,7 +284,7 @@ skipBlockPackage(){
 
 confirmAcceptedPackage(){
     TRY {
-        EXTERNAL HTTP PUT urlUkm5Server() + '/api/v1/export/receiptPackage';
+        EXTERNAL HTTP PUT urlUkm5ServerExport() + '/api/v1/export/receiptPackage';
     }
     CATCH {
         MESSAGE 'Ошибка при подтверждении приёма чеков : ' + messageCaughtException();
@@ -304,10 +294,10 @@ confirmAcceptedPackage(){
 receiptPackage(STRING id, STRING date){
     LOCAL f = FILE();
     IF id AND date THEN{
-        EXTERNAL HTTP GET CONCAT '', urlUkm5Server() + '/api/v1/export/receipt/', id, '/', date TO f;
+        EXTERNAL HTTP GET CONCAT '', urlUkm5ServerExport() + '/api/v1/export/receipt/', id, '/', date TO f;
     }
     ELSE {
-        EXTERNAL HTTP GET urlUkm5Server() + '/api/v1/export/receiptPackage' TO f;
+        EXTERNAL HTTP GET urlUkm5ServerExport() + '/api/v1/export/receiptPackage' TO f;
     }
     IMPORT receiveDocs FROM f();
     LOCAL group = GroupCashRegister(INTEGER);

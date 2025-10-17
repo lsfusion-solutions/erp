@@ -13,6 +13,8 @@ urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister
 directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
 accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
 hasUkm5GroupMachinery (Stock s) = GROUP  SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
+urlUkm5ServerImport 'Url сервера(импорт)' = DATA STRING ();
+urlUkm5ServerExport 'Url сервера(экспорт)' = DATA STRING ();
 
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
@@ -153,7 +155,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Group g) AND skuGroupTransaction(g, t)) THEN {
         EXPORT groupItems OBJECTS t = t JSON ;
-        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
+        EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/groupItems' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF statusHttp() = 200 THEN uploadedUkm5(Group g) <- TRUE IF skuGroupTransaction(g, t) AND NOT uploadedUkm5(g);
         ELSE {
@@ -166,7 +168,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     }
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Item i) AND skuTransaction(i, t)) THEN {
         EXPORT importItems OBJECTS t = t JSON;
-        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/items' PARAMS exportFile() TO answer;
+        EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/items' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF statusHttp() = 200 THEN uploadedUkm5(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5(i);
         ELSE {
@@ -179,7 +181,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     }
     IF (GROUP SUM 1 IF NOT uploadedUkm5Properties(Item i) AND skuTransaction(i, t)) THEN {
         EXPORT itemProperties OBJECTS t = t JSON;
-        EXTERNAL HTTP POST urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
+        EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF statusHttp() = 200 THEN uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
         ELSE {
@@ -191,7 +193,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         }
     }
     EXPORT itemPrices OBJECTS t = t JSON;
-    EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(t)) + '/api/v1/import/store/',
+    EXTERNAL HTTP POST CONCAT '' , urlUkm5ServerImport() + '/api/v1/import/store/',
         idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF statusHttp() = 200 THEN {
@@ -245,7 +247,7 @@ FORM stopListImport 'Импорт стоп-листа'
 stopListImport  'Импорт стоп-листа (склад)' (Stock s){
     LOCAL answer = FILE ();
     EXPORT stopListImport OBJECTS s = s JSON;
-    EXTERNAL HTTP POST CONCAT '' , urlServerUkm5(groupCashRegister(s)) + '/api/v1/import/store/',
+    EXTERNAL HTTP POST CONCAT '' , urlUkm5ServerImport()+ '/api/v1/import/store/',
         idStore(groupCashRegister(s)), '/itemPrices' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF statusHttp() = 200 THEN {
@@ -259,15 +261,20 @@ stopListImport  'Импорт стоп-листа (склад)' (Stock s){
 }
 
 stopListImport  'Импорт стоп-листа' () {
-    FOR hasUkm5GroupMachinery(Stock s) DO {
-        stopListImport(s);
+    FOR hasUkm5GroupMachinery(Stock st) AND skuTransaction(Sku s, st) DO {
+        stopListImport(st);
     }
 }
+
+EXTEND FORM integrationData
+    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport();
 
 DESIGN integrationData{
     pane{
         NEW ukm5{
             caption = 'УКМ5';
+            MOVE PROPERTY (urlUkm5ServerImport());
+            MOVE PROPERTY (urlUkm5ServerExport());
         }
     }
 }
