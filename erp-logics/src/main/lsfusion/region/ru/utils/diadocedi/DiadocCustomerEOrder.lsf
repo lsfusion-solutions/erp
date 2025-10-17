@@ -1,6 +1,6 @@
 MODULE DiadocCustomerEOrder;
 
-REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization, PurchaseShipment;
+REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization, PurchaseShipment, PurchaseReturnInvoice;
 
 NAMESPACE DiadocEDI;
 
@@ -129,6 +129,7 @@ nameMessage = DATA LOCAL STRING();
 sendingCancelled = DATA LOCAL BOOLEAN ();
 
 GLNSupplierStockDiadoc 'GLN поставщика' (EOrder e) = IF notUseStockGLN(supplier(e)) THEN GLNSupplier(e) ELSE (OVERRIDE GLN(supplierStock(e)), GLNSupplier(e));
+GLNSupplierStockDiadoc 'GLN поставщика' (PurchaseReturn.UserInvoice e) = IF notUseStockGLN(supplier(e)) THEN GLN(supplier(e)) ELSE (OVERRIDE GLN(supplierStock(e)), GLN(supplier(e)));
 
 FORM ordersDiadoc FORMEXTID 'eDIMessage'
         PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime_ = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime' ATTR
@@ -177,8 +178,8 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
             internalSupplierCode = idSku(i),   
             externalProductId = idBarcode(i), 
             description = nameSku(i),
-            netPrice = (OVERRIDE invoicePrice[UserOrderDetail](i) IF sendInvoicePrice(supplier(exportOrderDocument())), price(i)), 
-            netPriceWithVAT = invoicePrice[UserOrderDetail](i),
+            netPrice = (OVERRIDE invoicePrice[Purchase.UserOrderDetail](i) IF sendInvoicePrice(supplier(exportOrderDocument())), price(i)), 
+            netPriceWithVAT = invoicePrice[Purchase.UserOrderDetail](i),
             vATRate = (OVERRIDE 'NOT_APPLICABLE' IF valueVAT(i) = 0 OR NOT valueVAT(i), (CONCAT '', round0(valueVAT(i))), ''),
             amount = invoiceSum(i)   // сумма с НДС
         PROPERTIES IN requestedQuantity 
@@ -336,7 +337,7 @@ unitOfMeasure2 = DATA LOCAL STRING();
 unitOfMeasure3 = DATA LOCAL STRING();
 
 exportDocument = DATA LOCAL EOrder();
-invoiceEDI = GROUP MAX Purchase.UserInvoice ii IF include[Purchase.UserOrder,UserInvoice](exportDocument(), ii);
+invoiceEDI = GROUP MAX Purchase.UserInvoice ii IF include[Purchase.UserOrder,Purchase.UserInvoice](exportDocument(), ii);
 
 FORM recadv FORMEXTID 'eDIMessage'
     PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime1 = (toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'creationDateTime' ATTR
@@ -398,3 +399,139 @@ FORM recadv FORMEXTID 'eDIMessage'
     FILTERS order(i) == exportDocument()
 ;
 
+
+////----- RETANN -----
+
+exportDocumentReturn() = DATA PurchaseReturn.Invoice();
+returnOrderEDI = GROUP MAX Purchase.UserOrder oo IF include[Purchase.UserOrder,Purchase.UserInvoice](oo, exportDocumentReturn());
+
+GROUP interchangeHeaderRetann EXTID 'interchangeHeader';
+GROUP announcementForReturns;
+GROUP sellerRetann : announcementForReturns;
+GROUP organizationRetann : sellerRetann;
+GROUP russianAddressRetann : sellerRetann;
+GROUP buyerRetann : announcementForReturns;
+GROUP organization1Retann EXTID 'organization' : buyerRetann;
+GROUP russianAddress1Retann EXTID 'russianAddress' : buyerRetann;
+GROUP deliveryInfoRetann : announcementForReturns;
+GROUP shipFromRetann : deliveryInfoRetann;
+GROUP organization2Retann EXTID 'organization' : shipFromRetann;
+GROUP russianAddress2Retann EXTID 'russianAddress' : shipFromRetann;
+GROUP shipToRetann : deliveryInfoRetann;
+GROUP organization3Retann EXTID 'organization' : shipToRetann;
+GROUP russianAddress3Retann EXTID 'russianAddress' : shipToRetann;
+GROUP lineItemsRetann EXTID 'lineItems': announcementForReturns;
+
+GROUP returnQuantity;
+GROUP contractIdentificator;
+GROUP despatchIdentificator;
+GROUP deliveryNoteIdentificator;
+
+senderRetann = DATA LOCAL STRING();
+recipientRetann = DATA LOCAL STRING();
+documentTypeRetann = DATA LOCAL STRING();
+creationDateTimeRetann = DATA LOCAL ZDATETIME();
+creationDateTimeBySenderRetann = DATA LOCAL ZDATETIME();
+glnRetann = DATA LOCAL STRING();
+nameRetann = DATA LOCAL STRING();
+innRetann = DATA LOCAL STRING();
+kppRetann = DATA LOCAL STRING();
+OKPOCodeRetann = DATA LOCAL STRING();
+regionISOCodeRetann = DATA LOCAL STRING();
+cityRetann = DATA LOCAL STRING();
+streetRetann = DATA LOCAL STRING();
+houseRetann = DATA LOCAL STRING();
+flatRetann = DATA LOCAL STRING();
+postalCodeRetann = DATA LOCAL STRING();
+gln1Retann = DATA LOCAL STRING();
+name1Retann = DATA LOCAL STRING();
+inn1Retann = DATA LOCAL STRING();
+kpp1Retann = DATA LOCAL STRING();
+regionISOCode1Retann = DATA LOCAL STRING();
+city1Retann = DATA LOCAL STRING();
+street1Retann = DATA LOCAL STRING();
+house1Retann = DATA LOCAL STRING();
+postalCode1Retann = DATA LOCAL STRING();
+availabilityDate = DATA LOCAL ZDATETIME();
+gln2Retann = DATA LOCAL STRING();
+name2Retann = DATA LOCAL STRING();
+inn2Retann = DATA LOCAL STRING();
+kpp2Retann = DATA LOCAL STRING();
+regionISOCode2 = DATA LOCAL STRING();
+city2Retann = DATA LOCAL STRING();
+street2Retann = DATA LOCAL STRING();
+house2Retann = DATA LOCAL STRING();
+postalCode2Retann = DATA LOCAL STRING();
+gln3Retann = DATA LOCAL STRING();
+name3Retann = DATA LOCAL STRING();
+inn3Retann = DATA LOCAL STRING();
+kpp3Retann = DATA LOCAL STRING();
+OKPOCode1 = DATA LOCAL STRING();
+regionISOCode3 = DATA LOCAL STRING();
+city3 = DATA LOCAL STRING();
+street3 = DATA LOCAL STRING();
+house3 = DATA LOCAL STRING();
+postalCode3 = DATA LOCAL STRING();
+currencyISOCodeRetann = DATA LOCAL STRING();
+gtinRetann = DATA LOCAL STRING(INTEGER);
+internalBuyerCodeRetann = DATA LOCAL STRING(INTEGER);
+descriptionRetann = DATA LOCAL STRING(INTEGER);
+unitOfMeasureRetann = DATA LOCAL STRING(INTEGER);
+netPriceRetann = DATA LOCAL STRING(INTEGER);
+netPriceWithVATRetann = DATA LOCAL STRING(INTEGER);
+netAmountRetann = DATA LOCAL STRING(INTEGER);
+vATAmountRetann = DATA LOCAL STRING(INTEGER);
+amountRetann = DATA LOCAL STRING(INTEGER);
+numberRetann = DATA LOCAL STRING(INTEGER);
+dateRetann = DATA LOCAL DATE(INTEGER);
+number1Retann = DATA LOCAL STRING(INTEGER);
+date1Retann = DATA LOCAL DATE(INTEGER);
+number2Retann = DATA LOCAL STRING(INTEGER);
+date2Retann = DATA LOCAL DATE(INTEGER);
+number3Retann = DATA LOCAL STRING();
+date3Retann = DATA LOCAL DATE();
+idRetann = DATA LOCAL STRING();
+
+FORM retann FORMEXTID 'eDIMessage'
+    PROPERTIES nameMessage() EXTID 'id' ATTR, currentDateTime1 = (toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss')) EXTID 'creationDateTime' ATTR
+    PROPERTIES IN interchangeHeaderRetann 
+        senderRetann = GLN(customer(exportDocumentReturn())) EXTID 'sender',
+        recipientRetann = GLNSupplierStockDiadoc(exportDocumentReturn()) EXTID 'recipient', 
+        documentTypeRetann = 'RETANN' EXTID 'documentType', 
+        creationDateTimeRetann = toChar(currentDateTime(), 'yyyy-MM-ddThh24:mi:ss') EXTID 'creationDateTime'
+    PROPERTIES IN announcementForReturns
+        numberRetann = number(exportDocumentReturn()) EXTID 'number',
+        dateRetann= toChar(currentDateTime(), 'yyyy-MM-dd') EXTID 'date'
+    PROPERTIES IN sellerRetann
+        glnRetann = GLNSupplierStockDiadoc(exportDocumentReturn()) EXTID 'gln'
+    PROPERTIES IN organizationRetann
+        name1Retann = fullName(supplier(exportDocumentReturn())) EXTID 'name',
+        inn1Retann = inn[Organization](supplier(exportDocumentReturn())) EXTID 'inn',
+        kpp1Retann = kpp[Organization](supplier(exportDocumentReturn())) EXTID 'kpp'
+    PROPERTIES IN buyerRetann
+        gln1Retann =  GLN(customer(exportDocumentReturn())) EXTID 'gln'
+    PROPERTIES IN organization1Retann
+        name2Retann = fullName(customer(exportDocumentReturn())) EXTID 'name',
+        inn2Retann = inn[Organization](customer(exportDocumentReturn())) EXTID 'inn',
+        kpp3Retann = kpp[Organization](customer(exportDocumentReturn())) EXTID 'kpp'     
+    PROPERTIES IN deliveryInfoRetann
+        availabilityDateRetann = toChar(currentDate(), 'yyyy-MM-dd') EXTID 'availabilityDate'
+    PROPERTIES IN shipFromRetann 
+        gln2Retann = GLN(customerStock(exportDocumentReturn())) EXTID 'gln'
+    PROPERTIES IN shipToRetann 
+        gln3Retann = GLN(supplierStock(exportDocumentReturn())) EXTID 'gln'
+    
+    OBJECTS i = PurchaseReturn.InvoiceDetail EXTID 'lineItem' IN lineItemsRetann
+    PROPERTIES gtinB = GTIN(sku(i)) EXTID 'gtin',
+        idBarcodeSku(i) EXTID 'internalBuyerCode',
+        internalSupplierCode = idBarcodeSku(i),
+        externalProductId = idBarcodeSku(i),
+        description = nameSku(i),
+        netPrice = price(i),
+        amount = invoiceSum(i)
+    PROPERTIES IN returnQuantity
+        quantity(i),
+        unitOfMeasure1 = extraCodeUOM(UOM(sku(i))) EXTID 'unitOfMeasure' IN returnQuantity ATTR
+
+    FILTERS invoice(i) == exportDocumentReturn()
+;
