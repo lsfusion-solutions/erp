@@ -63,3 +63,75 @@ EXTEND FORM userBinOrder
 
 skipSetInBin(UserBinOrderDetail d) += TRUE IF inBin(d);
 skipSetOutBin(UserBinOrderDetail d) += TRUE IF outBin(d);
+
+userBinOrderDetail (batch, userBinOrder, bin, stock) =  GROUP MAX UserBinOrderDetail detail
+    BY batch(detail), userBinOrder(detail),  outBin(detail), stock(detail);
+
+userBinOrderDetail (batch, userBinOrder, bin) =  GROUP MAX UserBinOrderDetail detail
+    BY batch(detail), userBinOrder(detail), outBin(detail);
+
+quantity 'Кол-во товара в документе' (batch, userBinOrder, bin, stock) = GROUP SUM quantity(UserBinOrderDetail detail)
+    BY batch(detail), userBinOrder(detail), outBin(detail), stock(detail);
+
+backgroundQuantity 'Цвет' (batch, userBinOrder, bin, stock) = ABSTRACT CASE COLOR (Batch, UserBinOrder, Bin, Stock);
+
+changeQuantityValue(Batch batch, UserBinOrder userBinOrder, Bin bin, Stock stock, NUMERIC[16,5] n)  {
+    IF userBinOrderDetail(batch, userBinOrder, bin, stock) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantity(UserBinOrderDetail detail) <- n WHERE detail == userBinOrderDetail(batch, userBinOrder, bin, stock);
+            overChangeQuantityValueBatch(userBinOrderDetail(batch, userBinOrder, bin, stock));
+        } ELSE {
+            FOR userBinOrderDetail(batch, userBinOrder, bin, stock) == UserBinOrderDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = UserBinOrderDetail {
+                userBinOrder(d) <- userBinOrder;
+                sku(d) <- sku(batch);
+                batch(d) <- batch;
+                quantity (d) <- n;
+                outBin(d) <- bin;
+                overChangeQuantityValueBatch(d);
+            }
+        }
+    }
+}
+
+changeQuantity(Batch batch, UserBinOrder userBinOrder, Bin bin, Stock stock)  {
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantityValue(batch, userBinOrder, bin, stock, n);
+}
+
+allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, UserBinOrder, Bin, Stock);
+changeAllQuantity(Batch batch, UserBinOrder userBinOrder, Bin bin, Stock stock)  {
+    INPUT b = BOOLEAN DO {
+        allQuantity (batch, userBinOrder, bin, stock) <- b;
+        changeQuantityValue(batch, userBinOrder, bin, stock, prevCurrentBalance(batch, stock) IF b);
+    }
+}
+
+EXTEND FORM userBinOrder
+    OBJECTS bin = Bin GRID
+    PROPERTIES(bin) order, canonicalId
+    PROPERTIES quantity(b, o, bin, sto) ON CHANGE changeQuantity(b, o, bin, sto) BACKGROUND backgroundQuantity(b, o, bin, sto)
+    PROPERTIES prevCurrentBalance(b, bin)
+    ORDERS order(bin), canonicalId(bin)
+
+    FILTERS prevCurrentBalance(b, bin),
+        stock(bin) == sto
+;
+
+DESIGN userBinOrder {
+    BOX(stb) {
+        GRID(stb) {
+            fill = 3;
+        }
+        MOVE BOX(bin) {
+            fill = 1;
+            caption = 'Ячейки';
+            PROPERTY(prevCurrentBalance(b, bin)) { background = #FFEEEE; }
+            PROPERTY(quantity(b, o, bin, sto)) { background = #D4FFD4; }
+        }
+    }
+}

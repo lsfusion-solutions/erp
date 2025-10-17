@@ -608,6 +608,74 @@ NAVIGATOR {
     }
 }
 
+userBinOrderDetail (sku, userBinOrder, bin, stock) =  GROUP MAX UserBinOrderDetail detail
+    BY sku(detail), userBinOrder(detail), outBin(detail), stock(detail);
+
+quantity 'Кол-во товара в документе' (sku, userBinOrder, bin, stock) = GROUP SUM quantity(UserBinOrderDetail detail)
+    BY sku(detail), userBinOrder(detail), outBin(detail), stock(detail) CHARWIDTH 7;
+
+backgroundQuantity 'Цвет' (sku, userBinOrder, bin, stock) = ABSTRACT CASE COLOR (Sku, UserBinOrder, Bin, Stock);
+
+changeQuantityValue(Sku sku, UserBinOrder userBinOrder, Bin bin, Stock stock, NUMERIC[14,3] n)  {
+    IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            quantity(UserBinOrderDetail detail) <- n WHERE detail == userBinOrderDetail(sku, userBinOrder, bin, stock);
+            overChangeQuantityValueSku(userBinOrderDetail(sku, userBinOrder, bin, stock));
+        } ELSE {
+            FOR userBinOrderDetail(sku, userBinOrder, bin, stock) == UserBinOrderDetail d DO
+                DELETE d;
+        }
+
+    } ELSE {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            NEW d = UserBinOrderDetail {
+                userBinOrder(d) <- userBinOrder;
+                sku(d) <- sku;
+                quantity (d) <- n;
+                outBin(d) <- bin;
+                overChangeQuantityValueSku(d);
+            }
+        }
+    }
+}
+changeQuantity(Sku sku, UserBinOrder userBinOrder, Bin bin, Stock stock)  {
+    INPUT n = NUMERIC[16,5] DO
+        changeQuantityValue(sku, userBinOrder, bin, stock, n);
+}
+
+allQuantityUserBinOrder 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Bin, Stock);
+changeAllQuantity(Sku sku, UserBinOrder userBinOrder, Bin bin, Stock stock)  {
+    INPUT b = BOOLEAN DO {
+        allQuantityUserBinOrder (sku, bin, stock) <- b;
+        changeQuantityValue(sku, userBinOrder, bin, stock, prevCurrentBalance(sku,stock) IF b);
+    }
+}
+
+EXTEND FORM userBinOrder
+    OBJECTS sbin = Bin GRID
+    PROPERTIES(sbin) order, canonicalId
+    PROPERTIES quantity(ks, o, sbin, st) ON CHANGE changeQuantity(ks, o, sbin, st) BACKGROUND backgroundQuantity(ks, o, sbin, st)
+    PROPERTIES prevCurrentBalance(ks, sbin)
+    ORDERS order(sbin), canonicalId(sbin)
+
+    FILTERS prevCurrentBalance(ks, sbin),
+        stock(sbin) == st
+;
+
+DESIGN userBinOrder {
+    BOX(sts) {
+        GRID(sts) {
+            fill = 3;
+        }
+        MOVE BOX(sbin) {
+            fill = 1;
+            caption = 'Ячейки';
+            PROPERTY(prevCurrentBalance(ks, sbin)) { background = #FFEEEE; }
+            PROPERTY(quantity(ks, o, sbin, st)) { background = #D4FFD4; }
+        }
+    }
+}
+
 // ------------------------------------- Печать заказа на перемещение ---------------------------------------
 
 FORM printBinOrder 'Заказ на перемещение'
