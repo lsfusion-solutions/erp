@@ -339,3 +339,40 @@ onStarted() +{
         migratePharmRateExchange() <- TRUE; 
     }
 }
+
+//Делаем через общий метакод, что бы методики рассчёта надбавок была схожей в опте и рознице
+//Менять сразу во всех метакодах
+//Полагаем, что в фарме будут включать глобальный skipCalcPricingManufacturingPrice(), т.к. в этом нет смысла
+
+META defineNotUseManufacturingPrice (class, basePrice)
+    //поставщие предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки
+    notUseManufacturingPrice(###class o) = maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o);
+END
+
+META defineBasePriceMarkupPharmacy(class)
+    basePrice(###class o) = prevCost(batch(o));
+    @defineNotUseManufacturingPrice(class, basePrice);
+    //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки
+    basePriceMarkupPharmacy(###class o) = OVERRIDE manufacturingPrice(o) IF NOT notUseManufacturingPrice(o), basePrice(o);
+END
+
+META defineBaseVATPriceMarkupPharmacy(class)
+    @defineBasePriceMarkupPharmacy(class);
+    baseMVATPrice(###class o) = basePriceMarkupPharmacy(o);
+    basePVATPrice(###class o) = NUMERIC[16,4](basePriceMarkupPharmacy(o) * (100.0 + calcValueVAT(o)) / 100.0);
+END
+
+META defineNotUseManufacturingPrice (class, stock, basePrice)
+    //пока что полагаем, что РОЦ поставщика меняется только через возврат, поэтому берем себестоимость
+    notUseManufacturingPrice(###class o, ###stock st) = maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<currentManufacturingPrice(o, st);
+END
+
+META defineBasePriceMarkupPharmacy(class, stock)
+    basePrice(###class o) = cost(o);
+    @defineNotUseManufacturingPrice(class, stock, basePrice);
+    //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки    
+    basePriceMarkupPharmacy(###class o, ###stock st) = 
+        OVERRIDE currentManufacturingPrice(o, st) IF isCompany(st) AND NOT notUseManufacturingPrice(o, st), basePrice(o) IF isCompany(st);
+END
+
+//--------------------------------------------------------------------------------------------------------
