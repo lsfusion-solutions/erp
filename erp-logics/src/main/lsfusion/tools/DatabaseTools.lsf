@@ -15,7 +15,7 @@ sid '{reflection.sid.table}' = ABSTRACT ISTRING[100] (DatabaseTable);
 sid(Table t) += Reflection.sid(t);
 sid '{reflection.sid.table}' = DATA ISTRING[100] (PgTable);
 sid(PgTable t) += sid(t);
-table '{reflection.table}' = GROUP MAX DatabaseTable table BY lower(sid(table));
+databaseTable '{reflection.table}' = GROUP MAX DatabaseTable table BY lower(sid(table));
 
 dataSize 'Размер данных (МБ)' = DATA NUMERIC[13,1](Table);
 dataSize 'Размер данных (МБ)' = DATA NUMERIC[13,1](PgTable);
@@ -87,10 +87,10 @@ getParts 'Получить секции' () {
             TO file;
 
         IMPORT TABLE FROM file() FIELDS STRING part, STRING parent DO {
-            IF NOT table(part) THEN NEW p = Partition {
+            IF NOT databaseTable(part) THEN NEW p = Partition {
                 sid(p) <- part;
-                table(p) <- table(parent);
-                isPartitioned(table(parent)) <- TRUE;
+                table(p) <- databaseTable(parent);
+                isPartitioned(databaseTable(parent)) <- TRUE;
                 APPLY NESTED LOCAL;
             }
         }
@@ -120,7 +120,7 @@ getIndexes 'Получить список индексов'(Table t) {
             }
             FOR name(Index i) == indexName DO {
                 table(i) <- t;
-                partition(i) <- table(tablename); 
+                partition(i) <- databaseTable(tablename); 
                 tablespace(i) <- tablespace;
                 definition(i) <- definition;
                 isConstraint(i) <- TRUE IF constraintdef != '';
@@ -301,7 +301,7 @@ loadSystemCurSize 'Заполнить размеры системных табл
             TO file;
 
         IMPORT TABLE FROM file() FIELDS STRING[100] table DO {
-            IF NOT table(table) THEN {
+            IF NOT databaseTable(table) THEN {
                 NEW t = PgTable {
                     sid(t) <- table;
                     curDataSize(t) <- 5000;
