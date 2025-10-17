@@ -386,11 +386,12 @@ receiveGroupMachinery(GroupMachinery g) + {
     }
 }
 
-sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchangeType(re) = RequestExchangeType.salesInfo AND cr IS CashRegister THEN {
+sendRequestExchangeUkm5 'Перезагрузить продажи УКМ5' (RequestExchange re) {
     NEWSESSION {
-        FOR iterate(DATE d, dateFrom(re), dateTo(re)) AND GroupCashRegister gcr IS GroupCashRegister AND gcr = groupCashRegister(cr) AND isUkm5(gcr) DO {
+        FOR iterate(DATE d, dateFrom(re), dateTo(re)) AND (in(Stock s, re) OR stock(re) = s) AND hasUkm5GroupMachinery(s)
+            AND requestExchangeType(re) == RequestExchangeType.salesInfo DO {
             TRY {
-                receiptPackage(idStore(groupCashRegister(cr)), STRING(d));
+                receiptPackage(idStore(s), STRING(d));
                 succeededNative(re) <- TRUE;
                 dateTimeSucceededNative(re) <- currentDateTime();
             } CATCH {
@@ -412,5 +413,11 @@ sendRequestExchange (CashRegister cr, RequestExchange re) + WHEN requestExchange
                 }
             }
         }
+    }
+}
+
+sendRequestExchangeUkm5 'Перезагрузить продажи УКМ5' () {
+    FOR RequestExchange re IS RequestExchange AND NOT succeededNative(re) DO {
+        sendRequestExchangeUkm5(re);
     }
 }

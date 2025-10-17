@@ -11,7 +11,8 @@ idStore 'ID магазина UKM5' = ABSTRACT STRING (DepartmentStore);
 idStore 'ID магазина UKM5' (GroupCashRegister g) = idStore(stock(g));
 urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister);
 directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
-accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';   
+accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
+hasUkm5GroupMachinery (Stock s) = GROUP  SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
 
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
@@ -158,7 +159,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
              addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
              'Ошибка при импорте товаров', resultString()));
-             logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+             logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
              APPLY;
              RETURN;
         }
@@ -171,7 +172,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
                 'Ошибка при импорте товаров', resultString()));
-            logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
             APPLY;
             RETURN;
         }
@@ -184,7 +185,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
                 'Ошибка при импорте свойств товаров', resultString()));
-            logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
             APPLY ;
             RETURN;
         }
@@ -200,13 +201,12 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     } ELSE {
         addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
             'Ошибка при импорте прайса', resultString()));
-        logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте прайса', resultString());
+        logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте прайса', resultString());
         APPLY ;
         RETURN;
     }
 }
 
-hasUkm5GroupMachinery (Stock s) = GROUP  SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
 isPromo = ABSTRACT TBOOLEAN (Stock, Item);
 minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
     minPrice(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
@@ -218,9 +218,14 @@ minTransactionPrice 'Текущая минимальня цена в обору�
     BY stock(g)
 ;
 
-skuTransaction(Sku s, Stock st) = GROUP SUM 1 IF sku(st, StopListDetail d) = s AND NOT succeeded(st, stopList(d)) 
-    AND stock(GroupMachinery g) = st AND handlerModel(g) = 'lsf.ukm5' AND in(g, stopList(d)) AND active(g);
-include(Sku s, Stock st) = GROUP SUM 1 IF include(st, StopListDetail d) AND sku(st, d) = s;
+succeededNative 'Загружен в оборудование (Native)' = DATA BOOLEAN (Stock, StopList);
+skuTransaction(Sku s, Stock st) = GROUP SUM 1 IF sku(st, StopListDetail d) = s AND NOT succeededNative(st, stopList(d)) 
+    AND stock(GroupMachinery g) = st AND handlerModel(g) = 'lsf.ukm5' AND active(g) AND date(stopList(d)) > startDate(g);
+include(Sku s, Stock st) = GROUP SUM 1 IF include(st, StopListDetail d) AND sku(st, d) = s AND NOT succeededNative(st, stopList(d));
+
+EXTEND FORM stopList
+    PROPERTIES(ts, sl) succeededNative LAST
+;    
 
 FORM stopListImport 'Импорт стоп-листа'
     OBJECTS s = Stock
@@ -228,7 +233,8 @@ FORM stopListImport 'Импорт стоп-листа'
     OBJECTS elements = Item
     PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
         = OVERRIDE isPromo(s, elements), TFALSE IF elements IS Item EXTID 'isPromoPrice',
-        = minTransactionPrice(barcode(elements), s) EXTID 'minprice', = transactionPrice(barcode(elements), s) EXTID 'price',
+        = IF NULL THEN minTransactionPrice(Barcode.barcode(elements), s) ELSE 0 EXTID 'minprice',
+        = IF NULL THEN transactionPrice(Barcode.barcode(elements), s) ELSE 0 EXTID 'price',
         = IF NOT active(elements) OR include(elements, s) THEN TTRUE ELSE TFALSE EXTID 'delete',
         = IF elements IS Item THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
         = IF elements IS Item THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
@@ -243,11 +249,11 @@ stopListImport  'Импорт стоп-листа (склад)' (Stock s){
         idStore(groupCashRegister(s)), '/itemPrices' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF statusHttp() = 200 THEN {
-        succeeded(s, StopList sl) <- TRUE;
+        succeededNative(s, StopList sl) <- TRUE;
         APPLY;
     } ELSE {
-        logToFile('Ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте стоп-листа', resultString());
-        APPLY ;
+        logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте стоп-листа', resultString());
+        APPLY;
         RETURN;
     }
 }
