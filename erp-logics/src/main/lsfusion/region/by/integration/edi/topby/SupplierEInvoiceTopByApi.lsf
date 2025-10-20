@@ -347,6 +347,7 @@ signAndSendSupplierEInvoiceTN2(EInvoice ei, STRING[100] login, STRING[100] passw
 }
 
 signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider, BOOLEAN interactive) {
+    sendBlrapnFault() <- NULL;
     checkIsServer();
     IF isServer() THEN {
         TRY {
@@ -443,7 +444,7 @@ signAndSendBlrapnSupplierEInvoice (EInvoice ei, STRING[100] login, STRING[100] p
 
 overReceiveBlrapn (EInvoiceMessage m, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, STRING[100] provider) + {
 
-    IF code(m) == '2560' AND isCustomer(m) THEN {
+    IF code(m) == '2560' AND isCustomer(m) AND NOT exportedBlrapnSupplier(eInvoice(m)) THEN {
         IF NOT disableAutoBlrapn() THEN {
             signAndSendBlrapnSupplierEInvoice(eInvoice(m), login, password, url, archiveDir, provider, NULL);
             IF sendBlrapnFault() THEN disableConfirmation(m) <- TRUE;
