@@ -1,8 +1,8 @@
-MODULE SaleOrderImporterMarkup;
+MODULE PurchaseReturnOrderImporterMarkup;
 
-REQUIRE SaleImporterMarkup;
+REQUIRE PurchaseReturnOrder, PurchaseImporterMarkup;
 
-NAMESPACE Sale;
+NAMESPACE PurchaseReturn;
 
 showImporterMarkup 'Надбавка импортера' (order) = ABSTRACT BOOLEAN(Order) IN documentPrm;
 showImporterMarkup 'Надбавка импортера' (userOrder) = DATA BOOLEAN(UserOrder) IN documentPrm;
@@ -32,36 +32,35 @@ importerMarkup '{document.markup} импортера' = DATA NUMERIC[8,4] (UserO
 importerMarkup (UserOrderDetail orderDetail) += importerMarkup(orderDetail);
 
 EXTEND FORM userOrder
-    PROPERTIES (d) importerMarkup AFTER price(d) SHOWIF showImporterMarkup(d)//?????READONLY
+    PROPERTIES(d) importerMarkup AFTER price(d) SHOWIF showImporterMarkup(d)//?????READONLY
 ;
 
 EXTEND FORM orders
-    PROPERTIES (d) READONLY importerMarkup AFTER price(d)  SHOWIF showImporterMarkup(d)
+    PROPERTIES(d) READONLY importerMarkup AFTER price(d)  SHOWIF showImporterMarkup(d)
 ;
 
 disableUpdateImporterMarkup= ABSTRACT VALUE BOOLEAN (UserOrderDetail);
 overImporterMarkupBatch = ABSTRACT NUMERIC[8,4] (UserOrderDetail);
 
-WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
+WHEN LOCAL (CHANGED(customerStock(UserOrderDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     CHANGED(batch(detail))  OR SET(showImporterMarkup(detail)))
     AND batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
     importerMarkup (detail) <- OVERRIDE overImporterMarkupBatch(detail),
-                                        prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
-                                                                                batch(detail),
-                                                                                supplierStock(detail),
-                                                                                dateTime(detail)));
+        prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+            batch(detail),
+            customerStock(detail),
+            dateTime(detail)));
 }
 
 overImporterMarkupSku = ABSTRACT NUMERIC[8,4] (UserOrderDetail);
-
-WHEN LOCAL (CHANGED(supplierStock(UserOrderDetail detail)) OR
+WHEN LOCAL (CHANGED(customerStock(UserOrderDetail detail)) OR
     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
     DROPPED(batch(detail)) OR CHANGED(sku(detail)) OR SET(showImporterMarkup(detail)))
     AND NOT batch(detail) AND NOT CHANGED(importerMarkup(detail)) AND NOT disableUpdateImporterMarkup(detail) DO {
-    importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail), 
-                                        prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
-                                                                                sku(detail),
-                                                                                supplierStock(detail),
-                                                                                dateTime(detail)));
+    importerMarkup (detail) <- OVERRIDE overImporterMarkupSku(detail),
+        prevImporterMarkup[Purchase.InvoiceDetail](prevActivePriceListLedgerB(SystemLedgerPriceListType.purchaseInvoiceStockPriceListType,
+            sku(detail),
+            customerStock(detail),
+            dateTime(detail)));
 }
