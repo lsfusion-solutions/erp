@@ -262,6 +262,8 @@ createDetailSale ABSTRACT (MarketingInvoice, ContractMarketing, DATE, DATE);
 customCreateMarketingInvoice 'Создать акт на оплату' ABSTRACT LIST (ContractMarketing, DATE,  DATE);
 useCustomCreateMarketingInvoice = ABSTRACT BOOLEAN ();
 
+extraIn = DATA LOCAL NESTED BOOLEAN (Purchase.UserInvoiceDetail);
+
 createMarketingInvoice 'Создать акт на оплату' (ContractMarketing c, DATE df, DATE dt)  { 
     NEWSESSION NEW i = MarketingInvoice {
     
@@ -291,6 +293,8 @@ createMarketingInvoice 'Создать акт на оплату' (ContractMarket
         ELSE {
             LOCAL in = BOOLEAN (Purchase.UserInvoiceDetail);
             in(Purchase.UserInvoiceDetail d) <- TRUE WHERE supplier(d) == supplier(c) AND date(d) >= df AND date(d) <= dt AND isPosted(d) AND NOT skipMarketing(d);
+            extraIn(Purchase.UserInvoiceDetail d) <- NULL;
+            extraIn(Purchase.UserInvoiceDetail d) <- TRUE WHERE in(d);
     
             LOCAL marketingCondition = MarketingCondition (Purchase.UserInvoiceDetail, ConditionType);
             marketingCondition (Purchase.InvoiceDetail d, ConditionType t) <- marketingCondition(c, t, customerStock(d), sku(d), date(d), price(d)) WHERE in(d);
