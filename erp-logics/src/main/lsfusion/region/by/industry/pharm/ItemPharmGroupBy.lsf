@@ -79,33 +79,33 @@ toDatePharmacy 'Дата действия по' = DATA DATE (PharmacyPriceInterv
 
 TABLE pharmacyPriceGroupPharmacyPriceInterval(PharmacyPriceGroup, PharmacyPriceInterval);
 
-wholesaleMarkup 'Оптовая надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
-retailMarkup 'Розничная надбавка' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
+wholesaleMarkup '% оптовой надбавки' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
+retailMarkup '% розничной надбавки' = DATA NUMERIC[8,3] (PharmacyPriceInterval);
 pharmacyExchange (price, DATE date) = price / rateOn(pharmacyTypeExchange(), currencyShortName('БВ'), date);
 
-wholesaleMarkupPharmacy 'Оптовая надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
+wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (priceGroup, NUMERIC[16,4] price, DATE date) =
     GROUP LAST wholesaleMarkup(PharmacyPriceInterval interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval)
           BY pharmacyGroupPharmacy(interval) COMPLEX;
-prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(wholesaleMarkupPharmacy(priceGroup, price, date)) COMPLEX;
+prevWholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(wholesaleLimitMarkupPharmacy(priceGroup, price, date)) COMPLEX;
 
-retailMarkupPharmacy 'Розничная надбавка' (priceGroup, NUMERIC[16,4] price, DATE date) =
+retailLimitMarkupPharmacy 'Предельный % розничной надбавки' (priceGroup, NUMERIC[16,4] price, DATE date) =
     GROUP LAST retailMarkup(PharmacyPriceInterval interval)
           ORDER pricePharmacy(interval), interval
           WHERE pharmacyExchange(price AS NUMERIC[16,4], date) > pricePharmacy(interval) AND
                 date >= fromDatePharmacy(interval) AND NOT date > toDatePharmacy(interval)
           BY pharmacyGroupPharmacy(interval) COMPLEX;
-prevRetailMarkupPharmacy 'Розничная надбавка (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(retailMarkupPharmacy(priceGroup, price, date)) COMPLEX;
+prevRetailLimitMarkupPharmacy 'Предельный % розничной надбавки (пред.)' (PharmacyPriceGroup priceGroup, NUMERIC[16,4] price, DATE date) = PREV(retailLimitMarkupPharmacy(priceGroup, price, date)) COMPLEX;
 
-wholesaleMarkupPharmacy 'Оптовая надбавка' (Sku sku, NUMERIC[16,4] price, DATE date) =  wholesaleMarkupPharmacy(pharmacyPriceGroup(sku), price, date) COMPLEX;
-prevWholesaleMarkupPharmacy 'Оптовая надбавка (пред.)' (Sku sku, NUMERIC[16,4] price, DATE date) =  prevWholesaleMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
-wholesaleMarkupPharmacy 'Оптовая надбавка' (Batch batch, NUMERIC[16,4] price, DATE date) =  wholesaleMarkupPharmacy(sku(batch), price, date);
+wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (Sku sku, NUMERIC[16,4] price, DATE date) =  wholesaleLimitMarkupPharmacy(pharmacyPriceGroup(sku), price, date) COMPLEX;
+prevWholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки (пред.)' (Sku sku, NUMERIC[16,4] price, DATE date) =  prevWholesaleLimitMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
+wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (Batch batch, NUMERIC[16,4] price, DATE date) =  wholesaleLimitMarkupPharmacy(sku(batch), price, date);
 
-retailMarkupPharmacy 'Розничная надбавка' (Sku sku, NUMERIC[16,4] price, DATE date) =  retailMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
-prevRetailMarkupPharmacy 'Розничная надбавка (пред.)' (Sku sku, NUMERIC[16,4] price, DATE date) =  prevRetailMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
-retailMarkupPharmacy 'Розничная надбавка' (Batch batch, NUMERIC[16,4] price, DATE date) =  retailMarkupPharmacy(sku(batch), price, date);
+retailLimitMarkupPharmacy 'Предельный % розничной надбавки' (Sku sku, NUMERIC[16,4] price, DATE date) =  retailLimitMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
+prevRetailLimitMarkupPharmacy 'ППредельный % розничной надбавки (пред.)' (Sku sku, NUMERIC[16,4] price, DATE date) =  prevRetailLimitMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
+retailLimitMarkupPharmacy 'Предельный % розничной надбавки' (Batch batch, NUMERIC[16,4] price, DATE date) =  retailLimitMarkupPharmacy(sku(batch), price, date);
 
 isActive 'Действующий' (PharmacyPriceInterval interval) = 
     (toDatePharmacy(interval) >= currentDate() OR NOT toDatePharmacy(interval)) AND fromDatePharmacy(interval) <= currentDate();
@@ -137,7 +137,7 @@ FORM pharmacyMarkups 'Ценовые группы'
 
     OBJECTS t=DATE PANEL
     PROPERTIES value = VALUE(t)
-    PROPERTIES(g, nu, t) READONLY wholesaleMarkupPharmacy,retailMarkupPharmacy
+    PROPERTIES(g, nu, t) READONLY wholesaleLimitMarkupPharmacy, retailLimitMarkupPharmacy
 
 ;
 
@@ -159,12 +159,12 @@ DESIGN pharmacyMarkups {
                 font = 'bold 24';
             }
 
-            MOVE PROPERTY (wholesaleMarkupPharmacy(g, nu, t)) {
+            MOVE PROPERTY (wholesaleLimitMarkupPharmacy(g, nu, t)) {
                 caption = 'Результат (оптовая надбавка)';
                 panelCaptionVertical = TRUE;
                 font = 'bold 24';
             }
-            MOVE PROPERTY (retailMarkupPharmacy(g, nu, t)) {
+            MOVE PROPERTY (retailLimitMarkupPharmacy(g, nu, t)) {
                 caption = 'Результат (розничная надбавка)';
                 panelCaptionVertical = TRUE;
                 font = 'bold 24';
@@ -230,7 +230,7 @@ EXTEND FORM attributesItem
 
     OBJECTS date=DATE PANEL
     PROPERTIES value = VALUE(date)
-    PROPERTIES(pharmacyPriceGroup, numeric, date) READONLY wholesaleMarkupPharmacy,retailMarkupPharmacy
+    PROPERTIES(pharmacyPriceGroup, numeric, date) READONLY wholesaleLimitMarkupPharmacy,retailLimitMarkupPharmacy
 ;
 
 DESIGN attributesItem{
@@ -253,12 +253,12 @@ DESIGN attributesItem{
                     font = 'bold 24';
                 }
     
-                MOVE PROPERTY (wholesaleMarkupPharmacy(pharmacyPriceGroup, numeric, date)) {
+                MOVE PROPERTY (wholesaleLimitMarkupPharmacy(pharmacyPriceGroup, numeric, date)) {
                     caption = 'Результат (оптовая надбавка)';
                     panelCaptionVertical = TRUE;
                     font = 'bold 24';
                 }
-                MOVE PROPERTY (retailMarkupPharmacy(pharmacyPriceGroup, numeric, date)) {
+                MOVE PROPERTY (retailLimitMarkupPharmacy(pharmacyPriceGroup, numeric, date)) {
                     caption = 'Результат (розничная надбавка)';
                     panelCaptionVertical = TRUE;
                     font = 'bold 24';
@@ -345,15 +345,18 @@ onStarted() +{
 //Полагаем, что в фарме будут включать глобальный skipCalcPricingManufacturingPrice(), т.к. в этом нет смысла
 
 META defineNotUseManufacturingPrice (class, basePrice)
-    //поставщие предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки
-    notUseManufacturingPrice(###class o) = maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o);
+    //оставляем возможность задать свои условия не использования цены изготовителя как базы для рассчёта надбавки
+    extraNotUseManufacturingPrice = ABSTRACT BOOLEAN (###class);
+    notUseManufacturingPrice(###class o) =
+    //поставщик предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки, а не изготовителя
+        (maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o)) OR extraNotUseManufacturingPrice(o);
 END
 
 META defineBasePriceMarkupPharmacy(class)
     basePrice(###class o) = prevCost(batch(o));
     @defineNotUseManufacturingPrice(class, basePrice);
     //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки
-    basePriceMarkupPharmacy(###class o) = OVERRIDE manufacturingPrice(o) IF NOT notUseManufacturingPrice(o), basePrice(o);
+    basePriceMarkupPharmacy 'База наценки' (###class o) = OVERRIDE manufacturingPrice(o) IF NOT notUseManufacturingPrice(o), basePrice(o);
 END
 
 META defineBaseVATPriceMarkupPharmacy(class)
@@ -371,7 +374,7 @@ META defineBasePriceMarkupPharmacy(class, stock)
     basePrice(###class o) = cost(o);
     @defineNotUseManufacturingPrice(class, stock, basePrice);
     //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки    
-    basePriceMarkupPharmacy(###class o, ###stock st) = 
+    basePriceMarkupPharmacy 'База наценки' (###class o, ###stock st) = 
         OVERRIDE currentManufacturingPrice(o, st) IF isCompany(st) AND NOT notUseManufacturingPrice(o, st), basePrice(o) IF isCompany(st);
 END
 
@@ -381,13 +384,16 @@ META defineWholesaleMarkupPharm(class)
     wholesaleMarkupPharm 'Оптовая надбавка(общая), %' (User###class o) =
         NUMERIC[17,5](round2([((X*100.0)/Y-100.0)](price(o), baseMVATPrice(o) IF baseMVATPrice(o) != 0.0)));
 
-    wholesaleMarkupPharm(###class o) += wholesaleMarkupPharm(o);
-
     //если Цена опт. надб. опускается ниже себестоимости или мы сами импортёры, то надбавка поставщика(стороннего) равна 0%
+    supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (###class o) =
+        IF (round2(min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999) < 0.0) OR import(batch(o)))
+        THEN 0.0 ELSE round2(min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999));
+    wholesaleMarkupPharmacy 'Оптовая надбавка(собственная), %' (###class o) =
+        NUMERIC[8,3](round2(min(round2(((price(o)/baseMVATPrice(o))-1)*100)(-)supplierMarkupPharmacy(o),99999)));    
     supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (User###class o) =
         IF (round2(min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999) < 0.0) OR import(batch(o)))
         THEN 0.0 ELSE round2(min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999));
-    wholesaleMarkupPharmacy 'Оптовая  надбавка(собственная), %' (User###class o) =
+    wholesaleMarkupPharmacy 'Оптовая надбавка(собственная), %' (User###class o) =
         NUMERIC[8,3](round2(min(round2(((price(o)/baseMVATPrice(o))-1)*100)(-)supplierMarkupPharmacy(o),99999)));
 
     changeWholesaleMarkupPharmacy ABSTRACT LIST (User###class);
@@ -398,6 +404,24 @@ META defineWholesaleMarkupPharm(class)
             invoicePrice(o) <- trunc(basePVATPrice(o) * (100 + n) / 100, 2);
         }
     }
+END
+
+META implementWholesaleMarkupPharm(class)
+    wholesaleMarkupPharm(###class o) += wholesaleMarkupPharm(o);
+END    
+
+META defineLimitMarkupPharm(class)
+    wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (###class o) = wholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
+    prevWholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (###class o) = prevWholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
+
+    calcMaxTotalLimitMarkup 'Максимальная общая надбавка, %' (###class o) = NUMERIC[8,4](calcMaxTotalLimitMarkup(sku(o), OVERRIDE importerMarkup(o), 0.0));
+    wholesaleLimitPharmacyMarkup (###class o) = MIN prevWholesaleLimitMarkupPharmacy(o), calcMaxTotalLimitMarkup(o);//минимальная между предельной оптовой и общей
+
+    wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (User###class o) = wholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
+    prevWholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (User###class o) = prevWholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
+
+    calcMaxTotalLimitMarkup 'Максимальная общая надбавка, %' (User###class o) = NUMERIC[8,4](calcMaxTotalLimitMarkup(sku(o), OVERRIDE importerMarkup(o), 0.0));
+    wholesaleLimitPharmacyMarkup (User###class o) = MIN prevWholesaleLimitMarkupPharmacy(o), calcMaxTotalLimitMarkup(o);//минимальная между предельной оптовой и общей    
 END
 
 //--------------------------------------------------------------------------------------------------------
