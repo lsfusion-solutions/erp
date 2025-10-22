@@ -23,7 +23,7 @@ idExt (Item i) = '"' + idBarcode(i) +'"';
 productsByGroup = ABSTRACT STRING (Group, DepartmentStore);
 
 idPickList = ABSTRACT INTEGER (CustomGroup, DepartmentStore);
-idPickList = ABSTRACT STRING (CustomGroup);
+idPickList = ABSTRACT INTEGER (CustomGroup);
 
 GROUP stores;
 
@@ -32,7 +32,7 @@ FORM pickList FORMEXTID 'null'
     
     OBJECTS d = DepartmentStore PANEL EXTID ''
     
-    PROPERTIES idPickList(elements) EXTID 'id', name(elements) EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
+    PROPERTIES idPickList(elements) EXTID 'id', = regexpReplace(name(elements), '^\\s*\\d+\\s*', '', '') EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
         = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, d) EXTID 'items'
     FILTERS pickListGroup(elements) AND level(elements) > 1
     
@@ -42,7 +42,7 @@ FORM pickList FORMEXTID 'null'
     FILTERS Stock.in(stores)
 ; 
 
-exportPickList 'Экспорт пик-лсиста УКМ5'(DepartmentStore d){
+exportPickList 'Экспорт пик-листа УКМ5'(DepartmentStore d){
     NEWSESSION {
         LOCAL answer = FILE ();
         Stock.in(d) <- TRUE;
@@ -52,7 +52,7 @@ exportPickList 'Экспорт пик-лсиста УКМ5'(DepartmentStore d){
         logToFile('ukm5', resultString());
         group() <- GROUP MAX GroupCashRegister g IF stock(g) = d AND isUkm5(g);
         TRY{
-            EXTERNAL HTTP POST urlServerUkm5(group()) + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
+            EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
             fileToString(answer());
             IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена\nСклад: ' + name(d);
         }
