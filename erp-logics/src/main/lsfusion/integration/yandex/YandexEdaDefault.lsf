@@ -48,12 +48,14 @@ inOnlineYandex(Item i, DepartmentStore d) +=
     THEN TRUE;
 onlineCategory(Group g) += WHEN g IS CustomGroup AND customGroupType(g) = yandexGroupType() THEN TRUE;
 
+skipFilter = ABSTRACT BOOLEAN (Item);
+
 EXTEND FORM nomenclature
     PROPERTIES IN measure =  IF NOT netWeight(i) THEN 1000 EXTID 'value', = IF NOT netWeight(i) THEN 'GRM' EXTID 'unit'
-    FILTERS urlHttpAccess(i) AND hashImage(i) AND currentPrice(i, s);
+    FILTERS ((urlHttpAccess(i) AND hashImage(i)) OR skipFilter(i))  AND currentPrice(i, s);
 
 EXTEND FORM availability
-    FILTERS urlHttpAccess(i) AND hashImage(i) AND currentPrice(i, s);
+    FILTERS ((urlHttpAccess(i) AND hashImage(i)) OR skipFilter(i)) AND currentPrice(i, s);
 
 beforeExportData(YandexEdaAuth auth) +{
     headersTo('Content-Type') <- 'application/vnd.eda.picker.nomenclature.v1+json';
