@@ -109,6 +109,7 @@ quantityToOrder 'Создать заказы (продажа)'(Sku sku, Warehous
 numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = GROUP SUM 1 IF quantityToOrder(Sku sk, Warehouse st, Stock ds, DATE df, DATE dt) > 0 AND inDemand(sk) BY st, ds, df, dt;
 numberSkuCurrentBalance 'Свободный остаток (кол-во товаров)' = GROUP SUM 1 IF currentBalanceFree(Sku sk, Warehouse st) AND inDemand(sk) AND quantityToOrder(sk, st, Stock ds, DATE df, DATE dt) > 0 BY st, ds, df, dt;
 
+overCreateIntraDemandUserOrders ABSTRACT LIST (Order);
 createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df, DATE dt) {
     NEWSESSION NESTED LOCAL {
         LOCAL NESTED count = INTEGER();
@@ -175,6 +176,7 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
             }
             price(UserOrderDetail od) <- prevPriceB[LedgerPriceListType, Sku, Stock, DATETIME](priceListType(o), sku(od), supplierStock(od), dateTime(od)) WHERE od IS UserOrderDetail AND userOrder(od) == o;
             executeLocalEvents(); // без 'Sale.userOrder'
+            overCreateIntraDemandUserOrders(o);
         }
 
         APPLY;
@@ -196,9 +198,12 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, Stock d
 numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = DATA LOCAL INTEGER (Stock);
 numberSkuCurrentBalance 'Свободный остаток (кол-во товаров)' = DATA LOCAL INTEGER (Stock);
 
+overRecalulateNumberSkuToOrderBefore ABSTRACT LIST (Warehouse);
 recalculateNumberSkuToOrder 'Обновить' (Warehouse st, DATE df, DATE dt) {
     numberSkuToOrder(Stock ds) <- NULL;
     numberSkuCurrentBalance(Stock ds) <- NULL;
+    
+    overRecalulateNumberSkuToOrderBefore(st);
     numberSkuToOrder(Stock ds) <- numberSkuToOrder(st, ds, df, dt) WHERE inDemand(ds);
     numberSkuCurrentBalance(Stock ds) <- numberSkuCurrentBalance(st, ds, df, dt) WHERE inDemand(ds);
 }
