@@ -60,6 +60,16 @@ WHEN LOCAL CHANGED(sku(UserOrderDetail detail)) DO {
     idPickingGroup(detail) <- idPickingGroup(sku(detail));
 }
 
+idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (InvoiceDetail) MATERIALIZED INDEXED;
+idPickingGroup 'Группа комплектации' = DATA INTEGER (UserInvoiceDetail);
+idPickingGroup(UserInvoiceDetail detail) += idPickingGroup(detail);
+
+namePickingGroup 'Группа комплектации' (InvoiceDetail d) = OVERRIDE name(pickingGroup(idPickingGroup(d))), 'Не задана' IF d IS InvoiceDetail CHARWIDTH 20;
+
+EXTEND FORM invoices
+    PROPERTIES(d) READONLY idPickingGroup, namePickingGroup
+;
+
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Sku, Bin);
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = GROUP SUM plannedPickingQuantity(Order order, Sku sku, Bin bin) BY order, idPickingGroup(sku);
 orderPlannedPickingQuantity (Order order, Sku sku, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, sku, bin) ORDER sku, bin BY order, idPickingGroup(sku); 
@@ -286,5 +296,9 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
     }
 }
 
-useOverCreatePickingUserInvoicePosted() += createInvoicesByPickingGroup();
+overFill(UserInvoiceDetail i, OrderDetail o) + {
+    idPickingGroup(i) <- idPickingGroup(o);
+}
+
+    useOverCreatePickingUserInvoicePosted() += createInvoicesByPickingGroup();
 overCreatePickingUserInvoicePosted(Order o) + {createPickingUserInvoicePostedByPickingGroup(o);}

@@ -57,7 +57,7 @@ idPickingGroup 'Код группы комплектации' (Item i) = OVERRID
 
 pickingGroup(Batch bt) = pickingGroup(sku(bt));
 idPickingGroup(Batch bt) = id(pickingGroup(sku(bt)));
-namePickingGroup 'Группа комплектации' (Batch i) = name(pickingGroup(i)) CHARWIDTH 20 IN itemWMS;
+namePickingGroup 'Группа комплектации' (Batch bt) = name(pickingGroup(bt)) CHARWIDTH 20 IN itemWMS;
 
 
 EXTEND FORM item
@@ -89,6 +89,8 @@ WHEN LOCAL CHANGED(sku(UserPickingDetail detail)) DO {
 }
 
 idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (OrderDetail) MATERIALIZED INDEXED;
+namePickingGroup 'Группа комплектации' (OrderDetail d) = OVERRIDE name(pickingGroup(idPickingGroup(d))), 'Не задана' IF d IS OrderDetail CHARWIDTH 20;
+
 idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup(orderDetail(detail));
 
 idPickingGroup 'Код группы комплектации' = GROUP MAX idPickingGroup(PickingOrderDetail d) BY pickingOrder(d) MATERIALIZED INDEXED;
