@@ -22,13 +22,13 @@ nameUser 'Пользователь' (DisassemblyLot r) = name(user(r));
 user(DisassemblyLot r) <- currentUser() WHEN SET(r IS DisassemblyLot);
 
 lot 'Марка' = DATA Lot (DisassemblyLot) INDEXED NONULL;
-id 'Код' (DisassemblyLot l) = id(lot(l)); 
+id 'Код' (DisassemblyLot l) = id(lot(l)) IN id; 
 
 sku (DisassemblyLot l) = sku(lot(l)) MATERIALIZED INDEXED; 
 nameSku 'Наименование товара' (DisassemblyLot l) = name(sku(l)); 
 
 stock(DisassemblyLot l) = stock(disassembly(l)) MATERIALIZED;
-nameStock 'Склад' (DisassemblyLot l) = name(stock(l));
+nameStock 'Склад' (DisassemblyLot l) = name(stock(l)) IN id;
 
 INDEX stock(DisassemblyLot l), date(l);
 
@@ -150,7 +150,7 @@ mix 'Микс' (DisassemblyLot l) = mix(lot(l));
 captionMix 'Микс' (DisassemblyLot l) = captionMix(lot(l));
 
 EXTEND FORM disassembly
-    PROPERTIES(dl) READONLYIF sid(mainRole(currentUser())) != 'admin' AFTER id(dl) descriptionCycle
+    PROPERTIES(dl) READONLYIF (sid(mainRole(currentUser())) != 'admin' OR isPosted(dl)) AFTER id(dl) descriptionCycle
     PROPERTIES(dl) READONLY AFTER nameSku(dl) setAside, nameAsideCategory
     PROPERTIES(dl) NEW, DELETE GRID
 ;
@@ -534,3 +534,9 @@ closeDisassemblies 'Закрыть разборки товаров' () {
     isClosed(Disassembly d) <- TRUE WHERE isOpened(d) AND date(d) < subtract(currentDate(), defaultCycleDays() * 3);
     APPLY;
 }
+
+CONSTRAINT DROPPED(DisassemblyLot l IS DisassemblyLot) AND isPosted(PREV(disassembly(l))) AND isSecond(PREV(lot(l)))
+    MESSAGE 'Запрещено удалять из проведенной Разборки строку с оценённым товаром';
+
+CONSTRAINT SETCHANGED(lot(DisassemblyLot l)) AND PREV(isPosted(l)) AND isSecond(PREV(lot(l)))
+    MESSAGE 'Запрещено изменять оценённый товар в проведенной ранее Разборке'; 
