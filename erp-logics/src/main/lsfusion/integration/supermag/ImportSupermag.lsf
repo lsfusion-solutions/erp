@@ -105,7 +105,7 @@ importLegalEntity 'Импорт организаций' () {
     
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт организаций', sqlString());
             
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
     
     IMPORT TABLE FROM file() TO idOrg, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass, status, paymentDelay;
     
@@ -362,9 +362,9 @@ importRange 'Импорт ассортиментных матриц' () {
     LOCAL rangeRev = RangeRev(INTEGER);
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT sa.id, sa.name FROM Supermag.SACardMatrix sa' TO SupermagSettings.file;
+        EXEC 'SELECT sa.id, sa.name FROM Supermag.SACardMatrix sa' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO id, name;    
+    IMPORT TABLE FROM file() TO id, name;    
    
     FOR id(INTEGER i) AND NOT range(STRING[100] (id(i))) DO NEW r =  Range.Range {
         id(r) <- STRING[100] (id(i));
@@ -381,9 +381,9 @@ importRange 'Импорт ассортиментных матриц' () {
     }
         
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO SupermagSettings.file;
+        EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
                                                           
-    IMPORT TABLE FROM SupermagSettings.file() TO itemId, id, name;
+    IMPORT TABLE FROM file() TO itemId, id, name;
 
     store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
 
@@ -437,7 +437,7 @@ deleteInvoiceDetails 'Удалять строки, которых нет в им
 
 importInit 'Импорт остатков' ()  {
         
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO SupermagSettings.file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO file;
         
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
@@ -520,7 +520,7 @@ EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, impor
 
 importInitTest 'Импорт остатков' ()  {
         
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO SupermagSettings.file;
+    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO file;
         
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;      
 
@@ -611,16 +611,16 @@ overImportFillRateAps ABSTRACT LIST();
 importFillRate 'Импорт заполненности' () {
         
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showlevel\'' TO SupermagSettings.file;
+        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showlevel\'' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idStock, value;
+    IMPORT TABLE FROM file() TO idStock, value;
     
     overImportFillRateShelf();
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showrequest\'' TO SupermagSettings.file;
+        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showrequest\'' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idStock, value;
+    IMPORT TABLE FROM file() TO idStock, value;
     
     overImportFillRateAps();
     
@@ -631,9 +631,9 @@ overImportBufferAps ABSTRACT LIST();
 
 importBufferAps 'Импорт ДМП' () {
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ARTICLE, STORELOC, SHOWREQUEST FROM Supermag.smstocklevels WHERE SHOWREQUEST > 0' TO SupermagSettings.file;
+        EXEC 'SELECT ARTICLE, STORELOC, SHOWREQUEST FROM Supermag.smstocklevels WHERE SHOWREQUEST > 0' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idItem, idStock, numeric;
+    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
     
     overImportBufferAps();
     
@@ -646,9 +646,9 @@ idItemGroup = DATA LOCAL INTEGER (INTEGER);
     
 importPlanTurnover 'Импорт плановой оборачиваемости' () {
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT CLASSID, TURNOVER FROM Supermag.AMCLASSTURNOVER' TO SupermagSettings.file;
+        EXEC 'SELECT CLASSID, TURNOVER FROM Supermag.AMCLASSTURNOVER' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idItemGroup, numeric;
+    IMPORT TABLE FROM file() TO idItemGroup, numeric;
     
     overImportPlanTurnover();
     
@@ -662,23 +662,23 @@ overImportBufferApsAdQuantity ABSTRACT LIST();
 importBufferApsAd 'Импорт рекламных кампаний' () {
         
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ID, STARTDATE, ENDDATE FROM SuperMag.SVDocNoPricePA' TO SupermagSettings.file;
+        EXEC 'SELECT ID, STARTDATE, ENDDATE FROM SuperMag.SVDocNoPricePA' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, dateFrom, dateTo;
+    IMPORT TABLE FROM file() TO idDoc, dateFrom, dateTo;
     
     overImportBufferApsAdDocs();
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ID, LOCATIONID FROM Supermag.SMPromoLocations' TO SupermagSettings.file;
+        EXEC 'SELECT ID, LOCATIONID FROM Supermag.SMPromoLocations' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, idStock;
+    IMPORT TABLE FROM file() TO idDoc, idStock;
     
     overImportBufferApsAdStocks();
     
     EXTERNAL SQL connectionString() 
-        EXEC 'select DOCID, ARTICLE, QUANTITY from Supermag.SVItemsPA' TO SupermagSettings.file;
+        EXEC 'select DOCID, ARTICLE, QUANTITY from Supermag.SVItemsPA' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idDoc, idItem, numeric;
+    IMPORT TABLE FROM file() TO idDoc, idItem, numeric;
     
     overImportBufferApsAdQuantity();
     

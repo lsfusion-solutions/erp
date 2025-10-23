@@ -15,9 +15,9 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
     LOCAL formatid = INTEGER (INTEGER); 
     
 //    EXTERNAL SQL connectionString()
-//        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO SupermagSettings.file;
+//        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1 AND NOT FORMATID IS NULL' TO file;
 //
-//    IMPORT TABLE FROM SupermagSettings.file() TO id, name, formatid;
+//    IMPORT TABLE FROM file() TO id, name, formatid;
 //    
 //    FOR id(INTEGER i) AND NOT dataPriceListType('D' + TEXT (id(i))) DO NEW s = DataPriceListType {
 //        id(s) <- 'D' + ISTRING[100] (id(i));
@@ -35,9 +35,9 @@ importCalcPriceListType 'Импорт расчетных видов цен' () {
 //    }   
        
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO SupermagSettings.file;
+        EXEC 'SELECT ID, NAME, FORMATID FROM Supermag.SMPriceTypes WHERE WITHDUE = 1' TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO id, name;
+    IMPORT TABLE FROM file() TO id, name;
     
     FOR id(INTEGER i) AND NOT calcPriceListType(TEXT (id(i))) DO NEW s = CalcPriceListType {
         id(s) <- ISTRING[100] (id(i));
@@ -73,9 +73,9 @@ importPriceRoundMode 'Импорт правил округления' () {
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт правил округления', sqlString());
             
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO idClass, priceType, ruleid;
+    IMPORT TABLE FROM file() TO idClass, priceType, ruleid;
     
     FOR ItemGroup g = itemGroup(TEXT (idClass(INTEGER i))) AND roundCondition(STRING(ruleid(i))) DO {
         dataRoundCondition(priceListType(STRING(priceType(i))),g) <- roundCondition(STRING(ruleid(i)));  ; 
@@ -186,9 +186,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     filterSql() <- 'TRUNC(nvl(a.EXECTIME,a.EXECDATE)) >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\') AND d.docState IN (0,2,3)';  
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'd.id = \'' + numberImportDocument() + '\'';
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT d.ID, d.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, d.DOCSTATE, REASON, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id(+) = d.id AND a.doctype(+) = d.doctype AND ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT d.ID, d.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), nvl(a.EXECTIME,a.EXECDATE) AS EXECDATE, d.DOCSTATE, REASON, d.COMMENTARY, a.pricetype FROM Supermag.SMDocuments d , Supermag.SMActs a WHERE d.DocType = \'AB\' AND a.id(+) = d.id AND a.doctype(+) = d.doctype AND ' + filterSql() TO file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, bornIn, dateFrom, docState, reason, comment, idPricetype;
+    IMPORT TABLE FROM file() TO docNumber, docType, bornIn, dateFrom, docState, reason, comment, idPricetype;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(dateFrom(i)), STRING(docState(i)), STRING(reason(i)), STRING(comment(i)), STRING(idPricetype(i)) ) IF idDoc(i);                 
@@ -225,9 +225,9 @@ importPriceListRetail 'Импорт розничных прайсов' () {
     LOCAL skip = BOOLEAN (INTEGER);
 
     EXTERNAL SQL connectionString() 
-            EXEC 'SELECT d.ID, d.DOCTYPE, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND dd.DocType = \'AB\' AND ad.docid = dd.docid AND ad.DocType = \'AB\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() + ' ORDER BY dd.doctype, dd.docid, dd.specitem' TO SupermagSettings.file;
+            EXEC 'SELECT d.ID, d.DOCTYPE, dd.SPECITEM, dd.ITEMPRICE, dd.ARTICLE, a.REASON, a.pricetype FROM Supermag.SMDocuments d, Supermag.SMActs a, Supermag.SMSpec dd, Supermag.SMSpecActs ad WHERE d.DocType = \'AB\' AND d.id = a.id AND dd.docid = d.id AND dd.DocType = \'AB\' AND ad.docid = dd.docid AND ad.DocType = \'AB\' AND ad.SpecItem = dd.SpecItem AND ' + filterSql() + ' ORDER BY dd.doctype, dd.docid, dd.specitem' TO file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, itemPrice, idItem, aReason, idPricetype;
+    IMPORT TABLE FROM file() TO docNumber, docType, specItem, itemPrice, idItem, aReason, idPricetype;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
@@ -267,9 +267,9 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     IF length(numberImportDocument()) > 0 THEN filterSql() <- 'ma.id = \'' + numberImportDocument() + '\'';      
       
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ma.ID, ma.DOCTYPE, ma.CREATEDAT, ma.DATEBEGIN, ma.DATEEND, ma.DOCSTATE, NAME FROM Supermag.SVDocumentsMA ma WHERE ' + filterSql() TO SupermagSettings.file;
+        EXEC 'SELECT ma.ID, ma.DOCTYPE, ma.CREATEDAT, ma.DATEBEGIN, ma.DATEEND, ma.DOCSTATE, NAME FROM Supermag.SVDocumentsMA ma WHERE ' + filterSql() TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, docDate, dateFrom, dateTo, docState, name;
+    IMPORT TABLE FROM file() TO docNumber, docType, docDate, dateFrom, dateTo, docState, name;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(dateFrom(i)), STRING(dateTo(i)), STRING(comment(i)) ) IF idDoc(i);                 
@@ -300,9 +300,9 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) DO imported(doc) <- TRUE;
        
     EXTERNAL SQL connectionString() 
-            EXEC 'SELECT ma.ID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO SupermagSettings.file;
+            EXEC 'SELECT ma.ID, ma.DOCTYPE, d.SPECITEM, d.ARTICLE, d.ITEMPRICE FROM Supermag.SVSpecMA d, Supermag.SVDocumentsMA ma WHERE d.DOCID = ma.id AND ' + filterSql() TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, specItem, idItem, itemPrice;
+    IMPORT TABLE FROM file() TO docNumber, docType, specItem, idItem, itemPrice;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
@@ -331,9 +331,9 @@ importPriceListPromotion 'Импорт акционных прайсов' () {
     LOCAL idStock = INTEGER (INTEGER);
     
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ma.DOCTYPE, ma.id, a.LOCID FROM Supermag.SVDocumentsMA ma, Supermag.SVAuctionAtoms a WHERE a.AUCID = ma.id AND ' + filterSql()  TO SupermagSettings.file;
+        EXEC 'SELECT ma.DOCTYPE, ma.id, a.LOCID FROM Supermag.SVDocumentsMA ma, Supermag.SVAuctionAtoms a WHERE a.AUCID = ma.id AND ' + filterSql()  TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docType,  docNumber, idStock;
+    IMPORT TABLE FROM file() TO docType,  docNumber, idStock;
        
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     

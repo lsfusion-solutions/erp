@@ -204,10 +204,10 @@ importInternalWayStatus 'Импорт накладные (перемещение
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (перемещение)', sqlString());
     
     TRY
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
     CATCH MESSAGE sqlString();
        
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docState;
+    IMPORT TABLE FROM file() TO docNumber, docType, operCode, userOp, bornIn, docState;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
@@ -251,9 +251,9 @@ importInternalWayFull 'Импорт накладные (перемещение)'
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (перемещение)', sqlString());
     
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
        
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, locationTo, locationFrom, comment;
+    IMPORT TABLE FROM file() TO docNumber, docType, operCode, userOp, bornIn, docDate, docState, locationTo, locationFrom, comment;
     
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
@@ -303,9 +303,9 @@ importInternalWayFull 'Импорт накладные (перемещение)'
 
     sqlString() <- 'SELECT DOCID, DOCTYPE, PARAMNAME, PARAMVALUE FROM Supermag.SMDOCPROPS WHERE DOCTYPE = \'' + getWord(indexDoc,'~',1) + '\' AND DOCID = \'' + getWord(indexDoc,'~',2) + '\'';    
 
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
     
-    IMPORT TABLE FROM SupermagSettings.file() TO propDocNumber, propDocType, property, value;
+    IMPORT TABLE FROM file() TO propDocNumber, propDocType, property, value;
 
     propIdDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(propDocType(i)), STRING(propDocNumber(i)));
         
@@ -320,9 +320,9 @@ importInternalWayFull 'Импорт накладные (перемещение)'
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные (перемещение)', sqlString());
 
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
 
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, operCode, userOp, baseNumber, baseDoctype ;
+    IMPORT TABLE FROM file() TO docNumber, docType, operCode, userOp, baseNumber, baseDoctype ;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     idBase(INTEGER i) <- STRING[50](CONCAT '', STRING(baseDoctype(i)), STRING(baseNumber(i)));
@@ -343,11 +343,11 @@ importInternalWayFull 'Импорт накладные (перемещение)'
     'dmis.DocId(+) = ds.DOCID AND dmis.DOCTYPE(+) = ds.DOCTYPE AND dmis.SPECITEM(+) = ds.SPECITEM AND ' + 
     filterSql() + ' ORDER BY ds.DOCTYPE, ds.DOCID, ds.SPECITEM';
     //импорт спецификаций
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
 
     IF enableLogImport() THEN logToFile('supermag', CONCAT '\n', 'Импорт накладные перемещение', sqlString());
     
-    IMPORT TABLE FROM SupermagSettings.file() TO docNumber, docType, locationFrom, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, causeType, causeId, causeSpecItem, taxRate, taxSum, priceManufacturer, blankquantity;
+    IMPORT TABLE FROM file() TO docNumber, docType, locationFrom, specItem, idItem, quantity, itemPrice, itemPriceNoTax, totalPrice, totalPriceNoTax, causeType, causeId, causeSpecItem, taxRate, taxSum, priceManufacturer, blankquantity;
 
     idDoc(INTEGER i) <- STRING[50](CONCAT '', docType(i), docNumber(i)) WHERE docNumber(i) AND docType(i);
     idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);

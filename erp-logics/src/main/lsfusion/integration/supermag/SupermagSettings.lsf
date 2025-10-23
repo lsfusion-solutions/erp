@@ -2,25 +2,50 @@ MODULE SupermagSettings;
 
 REQUIRE StockDocument, StockSkuDocument, LogTools, Store, PaymentCondition, PurchaseOperation, Time, CashRegister;
 
-host 'Хост' = DATA ISTRING[30]();
-base 'База' = DATA ISTRING[30]();
-login 'Логин' = DATA ISTRING[30]();
-password 'Пароль' = DATA ISTRING[30]();
+NAMESPACE Supermag;
 
-connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base();
-exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[50] ();
-importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[50] ();
-directorySupermag 'Путь для обмена с супермаг' = DATA STRING[50] ();
-baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[50] ();
-idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER ();
-enableLogImport 'Логирование импорта' = DATA BOOLEAN ();
-pauseBetweenInvoiceFI 'Пауза перед выгрузкой фин.обязательств' = DATA INTEGER ();
+TABLE settings() NODEFAULT;
+
+host 'Хост' = DATA ISTRING[30]() TABLE settings;
+base 'База' = DATA ISTRING[30]() TABLE settings;
+login 'Логин' = DATA ISTRING[30]() TABLE settings;
+password 'Пароль' = DATA ISTRING[30]() TABLE settings;
+
+connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + login() + '/' + password() + '@//' + host() + '/' + base();
+exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[50] () TABLE settings;
+importDirectorySupermag 'Путь для входящих файлов из супермаг' = DATA STRING[50] () TABLE settings;
+directorySupermag 'Путь для обмена с супермаг' = DATA STRING[50] () TABLE settings;
+baseIDSupermag 'ID нашей базы в Супермаг' = DATA STRING[50] () TABLE settings;
+idGroupWarehouseInSuperMag 'ид группы складов (вне магазинов)' = DATA INTEGER () TABLE settings;
+enableLogImport 'Логирование импорта' = DATA BOOLEAN () TABLE settings;
+pauseBetweenInvoiceFI 'Пауза перед выгрузкой фин.обязательств' = DATA INTEGER () TABLE settings;
 
 fromDateToFormat = FORMULA STRING[10] 'to_char($1,$2)';
 toSupermagDateTime = FORMULA TEXT 'to_char($1,\'YYYYMMDD HH24:MI:SS\')';
 fromSupermagDateTime = FORMULA DATETIME PG 'to_timestamp(CAST($1 as char(17)), \'YYYYMMDD HH24:MI:SS\')';
 
-EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), directorySupermag(), exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
+EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), directorySupermag(),
+    exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
+
+DESIGN integrationData {
+    pane {
+        NEW supermag {
+            fill = 1;
+            height = 1;
+            caption = 'Supermag';
+            MOVE PROPERTY (smhost);
+            MOVE PROPERTY (base());
+            MOVE PROPERTY (login());
+            MOVE PROPERTY (password());
+            MOVE PROPERTY (directorySupermag());
+            MOVE PROPERTY (exportDirectorySupermag());
+            MOVE PROPERTY (importDirectorySupermag());
+            MOVE PROPERTY (baseIDSupermag());
+            MOVE PROPERTY (enableLogImport());
+            MOVE PROPERTY (pauseBetweenInvoiceFI());
+        }
+    }
+}
 
 startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
 endDate 'Окончание работы магазина с Fusion' = DATA DATETIME (Stock);
@@ -29,7 +54,7 @@ idSupermagPriceType 'Ид вида цен в Супермаг' = DATA STRING[10]
 
 FORM dialogDepartmentStoresImport 'Склады'
     OBJECTS d = Stock
-    PROPERTIES (d) READONLY id, name, nameStore    
+    PROPERTIES (d) READONLY id, name, nameStore
     PROPERTIES (d) startDate, endDate, idSupermagPriceType
     FILTERS d IS DepartmentStore OR isCompany(legalEntity(d))
     FILTERGROUP active FILTER 'Активные' active(d) DEFAULT
@@ -40,13 +65,17 @@ DESIGN dialogDepartmentStoresImport {
     size = (600, 600);
 }
 
-EXTEND FORM integrationData 
+EXTEND FORM integrationData
     PROPERTIES() stocksImport ON CHANGE { SHOW dialogDepartmentStoresImport; }
 ;
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (stocksImport());
+    }
+}
 
 inExport 'Отм.' = DATA BOOLEAN (Stock);
 stocksExport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inExport(st), ',' ORDER id(st) CHARWIDTH 50;
-
 
 FORM dialogDepartmentStoresExport 'Склады'
     OBJECTS d = Stock
@@ -62,97 +91,111 @@ DESIGN dialogDepartmentStoresExport {
     size = (600, 600);
 }
 
-EXTEND FORM integrationData 
+EXTEND FORM integrationData
     PROPERTIES() stocksExport ON CHANGE { SHOW dialogDepartmentStoresExport; }
 ;
-
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (stocksExport());
+    }
+}
 
 dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
 bornin 'ИД базы создателя' = ABSTRACT STRING[100] (StockDocumentLedger);
 //exportSupermag 'Экспорт в супермаг' ABSTRACT (StockDocumentLedger);
-exportTime (DATETIME dt)=  [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
-formulaDateT =  [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
+exportTime (DATETIME dt)= [FORMULA STRING[20] 'to_char(($1),\'YYYY-MM-DD\') || \'T\' || to_char(($1),\'HH24:MI:SS\')'](dt);
+formulaDateT = [FORMULA STRING[20] 'to_char(($1),\'YYYYMMDDHH24MISSMS\')']( DATETIME dt);
 exportSupermagAll 'Экспорт в супермаг' ABSTRACT LIST ();
-EXTEND FORM integrationData 
-    PROPERTIES()  exportSupermagAll
+EXTEND FORM integrationData
+    PROPERTIES() exportSupermagAll
 ;
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (exportSupermagAll());
+    }
+}
 
 META settingIntegration(docMain, docDetail)
     dateTimeChange = DATA DATETIME (docMain);
     bornin = DATA STRING[100] (docMain);
-   
+
     lastVersion = DATA STRING (docMain);
     lastVersion = DATA STRING (docDetail);
     lastStatusSupermag 'Статус в СМ' = DATA INTEGER (docMain);
-    
-    imported = DATA LOCAL BOOLEAN (docMain);         
-    imported = DATA LOCAL BOOLEAN (docDetail);         
+
+    imported = DATA LOCAL BOOLEAN (docMain);
+    imported = DATA LOCAL BOOLEAN (docDetail);
 END
 
 daysImportDocument 'дней синхронизации документов' = DATA INTEGER ();
 dateFromImportDocument () = sum(currentDate(), -daysImportDocument());
 numberImportDocument ' или номер документа' = DATA STRING ();
 EXTEND FORM integrationData PROPERTIES daysImportDocument(), numberImportDocument();
-
-docTypeSupermag 'Вид документа в супермаг' = DATA STRING[12] (Operation.Operation);
-opcodeSupermag 'Код в супермаг' = DATA STRING[12] (Operation.Operation); 
-useropSupermag 'Доп код в супермаг' = DATA STRING[12] (Operation.Operation); 
-nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operation.Operation);  
-createFinobligation 'Фин.обязательство' = DATA BOOLEAN (Operation.Operation);  
-importOnlyStatus 'Загружать из СМ только статус документа' = DATA BOOLEAN (Operation.Operation);
-importSpecification 'Загружать из СМ только количества в спецификации' = DATA BOOLEAN (Operation.Operation);
-
-code1Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Operation.Operation](op),';',1), getWord(opcodeSupermag[Operation.Operation](op),';',1), getWord(useropSupermag[Operation.Operation](op),';',1)), id[Operation.Operation](op));  
-code2Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[Operation.Operation](op),';',2), getWord(opcodeSupermag[Operation.Operation](op),';',2), getWord(useropSupermag[Operation.Operation](op),';',2)), id[Operation.Operation](op));  
-operation1Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code1Supermag[Operation.Operation](op);
-operation2Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code2Supermag[Operation.Operation](op);
-
-
-META settingOperationSupermag(docMain)
-EXTEND FORM operation
-    PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation, importOnlyStatus, importSpecification
-;
-DESIGN operation{
-    headContainer {        
-        NEW supermag {   
-            caption = 'Параметры Супермаг';
-            NEW supermag1 {
-                horizontal = TRUE;
-                MOVE PROPERTY(docTypeSupermag(o));
-                MOVE PROPERTY(opcodeSupermag(o));
-                MOVE PROPERTY(useropSupermag(o));
-                MOVE PROPERTY(nameSuperMag(o));
-            }    
-            NEW supermag2 {
-                horizontal = TRUE;
-                MOVE PROPERTY(createFinobligation(o));
-                MOVE PROPERTY(importOnlyStatus(o));
-                MOVE PROPERTY(importSpecification(o));
-            }    
-        }
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (daysImportDocument());
+        MOVE PROPERTY (numberImportDocument());
     }
 }
 
-EXTEND FORM operations
-    PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, importSpecification
-;
+docTypeSupermag 'Вид документа в супермаг' = DATA STRING[12] (Operation.Operation);
+opcodeSupermag 'Код в супермаг' = DATA STRING[12] (Operation.Operation);
+useropSupermag 'Доп код в супермаг' = DATA STRING[12] (Operation.Operation);
+nameSuperMag 'Название в супермаг' = DATA STRING[200] (Operation.Operation);
+createFinobligation 'Фин.обязательство' = DATA BOOLEAN (Operation.Operation);
+importOnlyStatus 'Загружать из СМ только статус документа' = DATA BOOLEAN (Operation.Operation);
+importSpecification 'Загружать из СМ только количества в спецификации' = DATA BOOLEAN (Operation.Operation);
 
-code1Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[docMain.Operation](op),';',1), getWord(opcodeSupermag[docMain.Operation](op),';',1), getWord(useropSupermag[docMain.Operation](op),';',1)), id[docMain.Operation](op));  
-code2Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~',getWord(docTypeSupermag[docMain.Operation](op),';',2), getWord(opcodeSupermag[docMain.Operation](op),';',2), getWord(useropSupermag[docMain.Operation](op),';',2)), id[docMain.Operation](op));  
-operation1Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code1Supermag[docMain.Operation](op);
-operation2Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code2Supermag[docMain.Operation](op);
+code1Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~', getWord(docTypeSupermag[Operation.Operation](op), ';', 1), getWord(opcodeSupermag[Operation.Operation](op), ';', 1), getWord(useropSupermag[Operation.Operation](op), ';', 1)), id[Operation.Operation](op));
+code2Supermag (Operation.Operation op) = (OVERRIDE (CONCAT '~', getWord(docTypeSupermag[Operation.Operation](op), ';', 2), getWord(opcodeSupermag[Operation.Operation](op), ';', 2), getWord(useropSupermag[Operation.Operation](op), ';', 2)), id[Operation.Operation](op));
+operation1Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code1Supermag[Operation.Operation](op);
+operation2Supermag (STRING code) = GROUP MAX Operation.Operation op IF op IS Operation.Operation BY code2Supermag[Operation.Operation](op);
+
+META settingOperationSupermag(docMain)
+    EXTEND FORM operation
+        PROPERTIES (o) docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, createFinobligation, importOnlyStatus, importSpecification
+    ;
+    DESIGN operation{
+        headContainer {
+            NEW supermag {
+                caption = 'Параметры Супермаг';
+                NEW supermag1 {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(docTypeSupermag(o));
+                    MOVE PROPERTY(opcodeSupermag(o));
+                    MOVE PROPERTY(useropSupermag(o));
+                    MOVE PROPERTY(nameSuperMag(o));
+                }
+                NEW supermag2 {
+                    horizontal = TRUE;
+                    MOVE PROPERTY(createFinobligation(o));
+                    MOVE PROPERTY(importOnlyStatus(o));
+                    MOVE PROPERTY(importSpecification(o));
+                }
+            }
+        }
+    }
+
+    EXTEND FORM operations
+        PROPERTIES (o) READONLY docTypeSupermag, opcodeSupermag, useropSupermag, nameSuperMag, importSpecification
+    ;
+
+    code1Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~', getWord(docTypeSupermag[docMain.Operation](op), ';', 1), getWord(opcodeSupermag[docMain.Operation](op), ';', 1), getWord(useropSupermag[docMain.Operation](op), ';', 1)), id[docMain.Operation](op));
+    code2Supermag (docMain.Operation op) = (OVERRIDE (CONCAT '~', getWord(docTypeSupermag[docMain.Operation](op), ';', 2), getWord(opcodeSupermag[docMain.Operation](op), ';', 2), getWord(useropSupermag[docMain.Operation](op), ';', 2)), id[docMain.Operation](op));
+    operation1Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code1Supermag[docMain.Operation](op);
+    operation2Supermag (STRING code) = GROUP MAX docMain.Operation op IF op IS docMain.Operation BY code2Supermag[docMain.Operation](op);
 END
 
 contragentSupermag 'Контрагент для инвентаризаций с супермаг' = DATA LegalEntity (StockGroup);
 nameContragentSupermag 'Контрагент для инвентаризаций с супермаг' (StockGroup sg) = name(contragentSupermag(sg));
 
-EXTEND FORM stores  PROPERTIES nameContragentSupermag(s) READONLY;
-EXTEND FORM store   PROPERTIES nameContragentSupermag(s);
-DESIGN store {  headerExtraParams{
-        MOVE PROPERTY (nameContragentSupermag(s));
+EXTEND FORM stores PROPERTIES nameContragentSupermag(s) READONLY;
+EXTEND FORM store PROPERTIES nameContragentSupermag(s);
+DESIGN store { headerExtraParams{
+    MOVE PROPERTY (nameContragentSupermag(s));
 }}
 
-iterateDown(INTEGER i, INTEGER from, INTEGER to) = RECURSION i==from AND from IS INTEGER AND to IS INTEGER STEP i==$i-1 AND i>=to CYCLES IMPOSSIBLE;
+iterateDown(INTEGER i, INTEGER from, INTEGER to) = RECURSION i == from AND from IS INTEGER AND to IS INTEGER STEP i == $i - 1 AND i >= to CYCLES IMPOSSIBLE;
 
 //hashing (TEXT text, TEXT type2, TEXT type3) = FORMULA TEXT PG 'encode(digest($1,$2),$3)';
 //hashing (TEXT text, TEXT key, TEXT type1, TEXT type2) = FORMULA TEXT PG 'encode(hmac($1,$2,$3),$4)';
@@ -161,8 +204,8 @@ CLASS SupermagLog 'История' ;
 TABLE supermagLog (SupermagLog);
 id 'Код' = DATA STRING[100] (SupermagLog);
 dateTime 'Дата/время' = DATA DATETIME (SupermagLog);
-userLogin 'Логин пользователя' = DATA STRING[100] (SupermagLog) CHARWIDTH 15; 
-nameContact 'Имя пользователя' =  DATA STRING[100] (SupermagLog) IN id CHARWIDTH 15;
+userLogin 'Логин пользователя' = DATA STRING[100] (SupermagLog) CHARWIDTH 15;
+nameContact 'Имя пользователя' = DATA STRING[100] (SupermagLog) IN id CHARWIDTH 15;
 stockDocumentLedger 'Документ' = DATA StockDocumentLedger (SupermagLog);
 action 'Действие' = DATA STRING[20] (SupermagLog);
 dateTimeAnswer 'Дата/время ответа' = DATA DATETIME (SupermagLog);
@@ -173,43 +216,43 @@ textError 'Текст ошибки' = DATA TEXT (SupermagLog);
 supermagLog = GROUP MAX SupermagLog log BY ISTRING[100](id(log));
 
 lastSupermagLog (StockDocumentLedger l) = GROUP LAST SupermagLog d ORDER dateTime(d), d BY stockDocumentLedger(d);
-lastDateTimeSupermagLog 'Последняя выгрузка' = dateTime(lastSupermagLog (StockDocumentLedger l));     
-dateTimeAnswerSupermagLog 'Дата/время ответа' = dateTimeAnswer(lastSupermagLog (StockDocumentLedger l));     
-errorAnswerFileSupermagLog 'Ошибка файла' = errorAnswerFile(lastSupermagLog (StockDocumentLedger l));     
-errorAnswerSupermagLog 'Ошибка обработки' = errorAnswer(lastSupermagLog (StockDocumentLedger l));   
-    
+lastDateTimeSupermagLog 'Последняя выгрузка' = dateTime(lastSupermagLog (StockDocumentLedger l));
+dateTimeAnswerSupermagLog 'Дата/время ответа' = dateTimeAnswer(lastSupermagLog (StockDocumentLedger l));
+errorAnswerFileSupermagLog 'Ошибка файла' = errorAnswerFile(lastSupermagLog (StockDocumentLedger l));
+errorAnswerSupermagLog 'Ошибка обработки' = errorAnswer(lastSupermagLog (StockDocumentLedger l));
+
 isExport 'Загружен' (StockDocumentLedger d)= lastDateTimeSupermagLog(d) AND dateTimeAnswerSupermagLog(d) AND NOT (errorAnswerFileSupermagLog(d) OR errorAnswerSupermagLog(d));
 banDroppedExport 'Запрещено удалять документы, которые экспортированы в супермаг' = DATA BOOLEAN ();
-prevExportPosted (StockDocumentLedger l) = PREV(active(l) AND isExport(l)); 
+prevExportPosted (StockDocumentLedger l) = PREV(active(l) AND isExport(l));
 //CONSTRAINT DROPPED (StockDocumentLedger l IS StockDocumentLedger) AND PREV(isExport(l)) AND banDroppedExport()
 //    MESSAGE 'Запрещено удалять документы, которые экспортированы в супермаг';
 CONSTRAINT DROPPED (isExport(StockDocumentLedger l)) AND PREV(isExport(l)) AND banDroppedExport()
-    MESSAGE 'Запрещено удалять документы, которые экспортированы в супермаг';    
-   
+    MESSAGE 'Запрещено удалять документы, которые экспортированы в супермаг';
+
 //форма документов обмена с Супермагом
-FORM exportSupermag 'Экспорт в супермаг' 
+FORM exportSupermag 'Экспорт в супермаг'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
-    
+
     OBJECTS ol = StockDocumentLedger
     PROPERTIES(ol) READONLY isClosed, isPosted, date, nameStock,
-                   oObjName = objectClassName, description,
-                   nameOperation, nameLegalEntity, nameLegalEntityStock, 
-                   sumItem, sumContainer, sum, dateTimeChange, lastDateTimeSupermagLog,
-                   dateTimeAnswerSupermagLog,errorAnswerFileSupermagLog,errorAnswerSupermagLog, isExport
-                   
+        oObjName = objectClassName, description,
+        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        sumItem, sumContainer, sum, dateTimeChange, lastDateTimeSupermagLog,
+        dateTimeAnswerSupermagLog, errorAnswerFileSupermagLog, errorAnswerSupermagLog, isExport
+
     FILTERS date(ol) >= dFrom,
-            date(ol) <= dTo
-    ORDERS date(ol), nameStock(ol)    
-    FILTERGROUP open FILTER 'Открыт' isOpened(ol) 'F6'   
-    FILTERGROUP post FILTER 'Проведен' active(ol) 'F7' DEFAULT 
-         
+        date(ol) <= dTo
+    ORDERS date(ol), nameStock(ol)
+    FILTERGROUP open FILTER 'Открыт' isOpened(ol) 'F6'
+    FILTERGROUP post FILTER 'Проведен' active(ol) 'F7' DEFAULT
+
     OBJECTS l = SupermagLog
     PROPERTIES (l) READONLY id, dateTime, userLogin, nameContact, dateTimeAnswer, errorAnswerFile, errorAnswer, textError
-    FILTERS stockDocumentLedger(l)==ol
+    FILTERS stockDocumentLedger(l) == ol
 ;
 DESIGN exportSupermag {
-    BOX {        
+    BOX {
         OBJECTS {
             MOVE BOX (dates);
             NEW body {
@@ -228,12 +271,12 @@ DESIGN exportSupermag {
 //-- В планировщик
 forExport = DATA LOCAL NESTED BOOLEAN (StockDocumentLedger);
 
-exportSupermag 'Экспорт в супермаг' () {   
-    IF exportDirectorySupermag() THEN {        
-        forExport(StockDocumentLedger d) <- NULL;   
-        forExport(StockDocumentLedger d) <- TRUE WHERE dateTimeChange(d) >= currentDateTime();   
+exportSupermag 'Экспорт в супермаг' () {
+    IF exportDirectorySupermag() THEN {
+        forExport(StockDocumentLedger d) <- NULL;
+        forExport(StockDocumentLedger d) <- TRUE WHERE dateTimeChange(d) >= currentDateTime();
         FOR forExport(StockDocumentLedger d) DO {
-     //       exportSupermag(d);
+            //       exportSupermag(d);
         }
     } ELSE {
         MESSAGE 'Не задан путь для экспорта файлов в супермаг' NOWAIT;
@@ -252,7 +295,7 @@ exportSupermagFilter 'Экспорт в супермаг (фильтр)'() {
 }
 
 EXTEND FORM exportSupermag
-//    PROPERTIES (ol) exportSupermag TOOLBAR 
+    //    PROPERTIES (ol) exportSupermag TOOLBAR 
     PROPERTIES () exportSupermagFilter TOOLBAR DRAW ol
 ;
 
@@ -262,7 +305,7 @@ NAVIGATOR {
     }
 }
 
-paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100 
+paymentPeriod (INTEGER days, INTEGER bank) = GROUP MAX PaymentPeriod p IF percent(p) == 100
     AND type(paymentCondition(p)) == AgreementPaymentType.prepayment AND bank == (OVERRIDE 1 IF bankingDays(p), 0) BY countDays(p);
 
 idDoc = DATA LOCAL ISTRING[50] (INTEGER);
@@ -275,8 +318,8 @@ userOp = DATA LOCAL INTEGER (INTEGER);
 bornIn = DATA LOCAL STRING[100] (INTEGER);
 docDate = DATA LOCAL DATETIME (INTEGER);
 createDat = DATA LOCAL DATETIME (INTEGER);
-dateFrom  = DATA LOCAL DATETIME (INTEGER);
-dateTo  = DATA LOCAL DATETIME (INTEGER);
+dateFrom = DATA LOCAL DATETIME (INTEGER);
+dateTo = DATA LOCAL DATETIME (INTEGER);
 docState = DATA LOCAL INTEGER (INTEGER);
 clientIndex = DATA LOCAL INTEGER (INTEGER);
 ourSelfClient = DATA LOCAL INTEGER (INTEGER);
@@ -300,7 +343,7 @@ baseNumber = DATA LOCAL STRING[50] (INTEGER);
 baseDoctype = DATA LOCAL STRING (INTEGER);
 
 property = DATA LOCAL ISTRING[50] (INTEGER);
-value = DATA LOCAL TEXT (INTEGER); 
+value = DATA LOCAL TEXT (INTEGER);
 
 specItem = DATA LOCAL INTEGER (INTEGER);
 itemPrice = DATA LOCAL NUMERIC[19,4](INTEGER);
@@ -313,7 +356,7 @@ quantity = DATA LOCAL NUMERIC[14,3](INTEGER);
 idItem = DATA LOCAL ISTRING[50](INTEGER);
 priceManufacturer = DATA LOCAL NUMERIC[16,4] (INTEGER);
 extracharge = DATA LOCAL NUMERIC[8,3] (INTEGER);
-retailPrice = DATA LOCAL NUMERIC[16,4] (INTEGER); 
+retailPrice = DATA LOCAL NUMERIC[16,4] (INTEGER);
 blankquantity = DATA LOCAL NUMERIC[16,4] (INTEGER);
 causeType = DATA LOCAL ISTRING[10](INTEGER);
 causeId = DATA LOCAL ISTRING (INTEGER);
@@ -322,7 +365,6 @@ flags = DATA LOCAL INTEGER (INTEGER);
 
 filterSql = DATA LOCAL TEXT ();
 sqlString() = DATA LOCAL TEXT ();
-file = DATA LOCAL FILE ();
 
 GROUP POSTOBJECT;
 GROUP TOTALPACKAGE;
@@ -357,90 +399,103 @@ importPurchaseReturnInvoices ABSTRACT LIST();
 onImportPurchaseReturnInvoices = DATA BOOLEAN ();
 
 importDocumentsSupermag 'Импорт документов из СМ'()
-{    
+{
     LOCAL recid = NUMERIC[16,0] (INTEGER);
 
-    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE (d.locationto IN ('+ stocksImport() + ') OR d.locationfrom IN ('+ stocksImport() + ') OR d.location IN ('+ stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
+    sqlString() <- 'SELECT log.recid, d.ID, d.doctype, d.opcode, d.userop, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(d.bornin)), d.locationto, d.locationfrom, d.location FROM Supermag.SMDocuments d, Supermag.SMDocLog log WHERE (d.locationto IN (' + stocksImport() + ') OR d.locationfrom IN (' + stocksImport() + ') OR d.location IN (' + stocksImport() + ') )  AND log.recid > ' + STRING(lastDoclogId()) + ' AND d.DocType = log.DocType AND d.id = log.id';
 
-    EXTERNAL SQL connectionString() EXEC sqlString() TO SupermagSettings.file;
-       
-    IMPORT TABLE FROM SupermagSettings.file() TO recid, docNumber, docType, operCode, userOp, bornIn, locationTo, locationFrom, location;   
-    
-    indexDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));    
+    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
+
+    IMPORT TABLE FROM file() TO recid, docNumber, docType, operCode, userOp, bornIn, locationTo, locationFrom, location;
+
+    indexDoc(INTEGER i) <- STRING[50](CONCAT '~', STRING(docType(i)), STRING(docNumber(i)));
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
     codeOperation (INTEGER i) <- CONCAT '~', STRING(docType(i)), STRING(operCode(i)), STRING(userOp(i)) IF idDoc(i);
     FOR codeOperation (INTEGER i) DO {
         codeOperation(indexDoc(i)) <- codeOperation (i);
     }
-                              
-    IF onImportPurchaseInvoices() THEN importPurchaseInvoices();   
+
+    IF onImportPurchaseInvoices() THEN importPurchaseInvoices();
     IF onImportPurchaseReturnInvoices() THEN importPurchaseReturnInvoices();
     IF onImportSaleInvoices() THEN importSaleInvoices();
     IF onImportAdjustments() THEN importAdjustments();
     IF onImportDisparities() THEN importDisparities();
     IF onImportWriteOffs() THEN importWriteOffs();
     IF onImportInventories() THEN importInventories();
-    
+
     lastDoclogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastDoclogId();
-   // MESSAGE lastDoclogId();
-    
-    APPLY;      
+    // MESSAGE lastDoclogId();
+
+    APPLY;
 }
 
 EXTEND FORM integrationData
-PROPERTIES importDocumentsSupermag(), lastDoclogId(),  onImportPurchaseInvoices(), onImportPurchaseReturnInvoices(), onImportSaleInvoices(), onImportAdjustments(),  onImportDisparities(),  onImportWriteOffs(), onImportInventories()
+    PROPERTIES importDocumentsSupermag(), lastDoclogId(), onImportPurchaseInvoices(), onImportPurchaseReturnInvoices(), 
+                onImportSaleInvoices(), onImportAdjustments(), onImportDisparities(), onImportWriteOffs(), onImportInventories()
 ;
-
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importDocumentsSupermag());
+        MOVE PROPERTY (lastDoclogId());
+        MOVE PROPERTY (onImportPurchaseInvoices());
+        MOVE PROPERTY (onImportPurchaseReturnInvoices());
+        MOVE PROPERTY (onImportSaleInvoices());
+        MOVE PROPERTY (onImportAdjustments());
+        MOVE PROPERTY (onImportDisparities());
+        MOVE PROPERTY (onImportWriteOffs());
+        MOVE PROPERTY (onImportInventories());
+    }
+}
 
 FORM REPLY
-PROPERTIES() nameDoc ATTR, packageType ATTR
-PROPERTIES() IN POSTOBJECT idDoc EXTID 'Id'
+    PROPERTIES() nameDoc ATTR, packageType ATTR
+    PROPERTIES() IN POSTOBJECT idDoc EXTID 'Id'
 
-OBJECTS error = INTEGER EXTID 'ERROR' IN POSTOBJECT
-PROPERTIES(error) error EXTID 'value'
+    OBJECTS error = INTEGER EXTID 'ERROR' IN POSTOBJECT
+    PROPERTIES(error) error EXTID 'value'
 
-OBJECTS ERROR1 = INTEGER EXTID 'ERROR' IN TOTALPACKAGE
-PROPERTIES(ERROR1) ERROR1 EXTID 'value';
+    OBJECTS ERROR1 = INTEGER EXTID 'ERROR' IN TOTALPACKAGE
+    PROPERTIES(ERROR1) ERROR1 EXTID 'value';
 
-importAnswer 'Импорт ответов из супермаг'()  { 
-    IF   importDirectorySupermag() THEN {  
-        LOCAL importName = ISTRING[100] (INTEGER ); 
-        
-        fileName(INTEGER i)<- NULL;    
+importAnswer 'Импорт ответов из супермаг'() {
+    IF importDirectorySupermag() THEN {
+        LOCAL importName = ISTRING[100] (INTEGER );
+
+        fileName(INTEGER i) <- NULL;
         listFiles('file://' + importDirectorySupermag());
-        
-        fileName(INTEGER i)<- NULL WHERE fileName(i) AND NOT isISubstring(fileName(i),'.Reply');    
-        importName(INTEGER i)<- ISTRING[100](replace(replace(upper(fileName(i)),'.REPLY',''), '.XML','')) WHERE fileName(i) ;    
-            
-        FOR importName(INTEGER j) AND NOT fileIsDirectory(j) AND supermagLog(importName(j)) == SupermagLog log  DO NEWSESSION NESTED (fileName[INTEGER], importName[INTEGER]) {
+
+        fileName(INTEGER i) <- NULL WHERE fileName(i) AND NOT isISubstring(fileName(i), '.Reply');
+        importName(INTEGER i) <- ISTRING[100](replace(replace(upper(fileName(i)), '.REPLY', ''), '.XML', '')) WHERE fileName(i) ;
+
+        FOR importName(INTEGER j) AND NOT fileIsDirectory(j) AND supermagLog(importName(j)) == SupermagLog log DO NEWSESSION NESTED (fileName[INTEGER], importName[INTEGER]) {
             dateTimeAnswer(log) <- NULL;
             errorAnswerFile(log) <- NULL;
             errorAnswer(log) <- NULL;
             textError(log) <- NULL;
-            LOCAL importFile = XMLFILE (); 
-            
+            LOCAL importFile = XMLFILE ();
+
             TRY {
                 READ 'file://' + importDirectorySupermag() + '/' + fileName(j) TO importFile;
                 IMPORT REPLY XML FROM importFile();
             } CATCH {
-                dateTimeAnswer(log)<- currentDateTime();
+                dateTimeAnswer(log) <- currentDateTime();
                 errorAnswerFile(log) <- TRUE;
                 logToFile('supermagAnswer', CONCAT '\n', 'file://' + fileName(j) + ' ParseMessage error:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException());
                 APPLY;
-                RETURN;    
+                RETURN;
             }
-            dateTimeAnswer(log)<- currentDateTime();
-            IF (GROUP SUM 1 IF error(INTEGER ii)) OR (GROUP SUM 1 IF ERROR1(INTEGER ii)) THEN {            
-                errorAnswer(log)<- TRUE;                      
-                textError(log) <- CONCAT '\n', (GROUP CONCAT error(INTEGER ii) IF error(ii), '\n' ORDER ii), 
-                                                (GROUP CONCAT ERROR1(INTEGER ii) IF ERROR1(ii), '\n' ORDER ii);
-            } 
-            APPLY NESTED (fileName[INTEGER], importName[INTEGER]); 
-          
+            dateTimeAnswer(log) <- currentDateTime();
+            IF (GROUP SUM 1 IF error(INTEGER ii)) OR (GROUP SUM 1 IF ERROR1(INTEGER ii)) THEN {
+                errorAnswer(log) <- TRUE;
+                textError(log) <- CONCAT '\n', (GROUP CONCAT error(INTEGER ii) IF error(ii), '\n' ORDER ii),
+                    (GROUP CONCAT ERROR1(INTEGER ii) IF ERROR1(ii), '\n' ORDER ii);
+            }
+            APPLY NESTED (fileName[INTEGER], importName[INTEGER]);
+
             delete('file://' + importDirectorySupermag() + '/' + fileName(j));
             fileName(j) <- NULL;
-            importName(j) <- NULL;                
-            
+            importName(j) <- NULL;
+
         }
     } ELSE {
         MESSAGE 'Не задан путь для загрузки из супермаг' NOWAIT ;
@@ -450,8 +505,14 @@ EXTEND FORM exportSupermag
     PROPERTIES () importAnswer TOOLBAR DRAW l
 ;
 
-EXTEND FORM integrationData 
+EXTEND FORM integrationData
     PROPERTIES() importAnswer, banDroppedExport
 ;
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importAnswer());
+        MOVE PROPERTY (banDroppedExport());
+    }
+}
 
 @defineLogRotate(supermag, 5, weekly);
