@@ -16,7 +16,7 @@ EXTEND FORM options
     PROPERTIES() showPickingUserInvoicePosted
 ;
 DESIGN options {
-    invoices {
+    WMS {
         MOVE PROPERTY (showPickingUserInvoicePosted());
     }
 }
@@ -148,7 +148,9 @@ META defineOrderInvoicePickingOrder (sign)
                         extraPickingDetail(i);
                         packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
                         executeLocalEvents('Sale.userInvoice');
-                        afterCreatePickingUserInvoicePosted(i, order);
+                        FOR inCreatePickingUserInvoicePosted(Order.Order o) DO {
+                            afterCreatePickingUserInvoicePosted(i, o);
+                        }    
                         IF showPickingUserInvoicePosted() THEN {
                             SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                         }
