@@ -208,11 +208,21 @@ recalculateNumberSkuToOrder 'Обновить' (Warehouse st, DATE df, DATE dt) 
     numberSkuCurrentBalance(Stock ds) <- numberSkuCurrentBalance(st, ds, df, dt) WHERE inDemand(ds);
 }
 
+filterWarehouse = DATA LOCAL Warehouse ();
+nameFilterWarehouse 'Наименование' = name(filterWarehouse());
+
+CONSTRAINT filterWarehouse() IS Warehouse
+    AND NOT isCompany(filterWarehouse())
+    CHECKED BY filterWarehouse[] MESSAGE 'Для фильтра выбран склад, который не принадлежит компании';
+
+CONSTRAINT filterWarehouse() IS Warehouse
+    AND NOT (isDistributive(filterWarehouse()) OR NOT countIsDistributiveWarehouse())
+    CHECKED BY filterWarehouse[] MESSAGE 'Для фильтра выбран склад, который не принадлежит компании';
+
 FORM saleDemandIntraDashboard 'Распределение со склада'
-    OBJECTS st = Warehouse PANEL
-    PROPERTIES (st) SELECTOR name
-    FILTERS isCompany(st),
-            isDistributive(st) OR NOT countIsDistributiveWarehouse()
+    OBJECTS st = Warehouse
+    PROPERTIES () nameFilterWarehouse
+    FILTERS st = filterWarehouse()
 
     OBJECTS dateFrom = DATE PANEL
     PROPERTIES valDateFrom = VALUE(dateFrom)
@@ -308,13 +318,11 @@ DESIGN saleDemandIntraDashboard {
             NEW header {
                 fill = 1;
                 horizontal = TRUE;
-
                 NEW left {
                     fill = 1;
-                    MOVE BOX(st) {
-                        MOVE PROPERTY(name(st)) {
-                            alignment = STRETCH;
-                        }
+                    NEW stock {
+                        caption = 'Склад';
+                        MOVE PROPERTY(nameFilterWarehouse());
                     }
                     NEW dates {
                         caption = 'Даты поставки на магазин';
