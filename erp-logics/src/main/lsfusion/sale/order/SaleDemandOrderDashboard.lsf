@@ -1,6 +1,6 @@
 MODULE SaleDemandOrderDashboard;
 
-REQUIRE PurchaseOrderIntra, Store;
+REQUIRE PurchaseOrderIntra, Store, SaleInvoiceOrderAggregation, SaleShipment;
 
 NAMESPACE Sale;
 
@@ -109,7 +109,16 @@ quantityToOrder 'Создать заказы (продажа)'(Sku sku, Warehous
 numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = GROUP SUM 1 IF quantityToOrder(Sku sk, Warehouse st, Stock ds, DATE df, DATE dt) > 0 AND inDemand(sk) BY st, ds, df, dt;
 numberSkuCurrentBalance 'Свободный остаток (кол-во товаров)' = GROUP SUM 1 IF currentBalanceFree(Sku sk, Warehouse st) AND inDemand(sk) AND quantityToOrder(sk, st, Stock ds, DATE df, DATE dt) > 0 BY st, ds, df, dt;
 
-overCreateIntraDemandUserOrders ABSTRACT LIST (Order);
+createDistributionInvoices 'По распределению создавать Накладные (продажа)' = DATA BOOLEAN () PREREAD;
+EXTEND FORM options PROPERTIES () createDistributionInvoices;
+DESIGN options {
+    intra {
+        MOVE PROPERTY(createDistributionInvoices());
+    }
+}
+
+invoicesCreationDate 'Дата создаваемых накладных' = DATA LOCAL NESTED DATE ();
+
 createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df, DATE dt) {
     NEWSESSION NESTED LOCAL {
         LOCAL NESTED count = INTEGER();
@@ -176,7 +185,13 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
             }
             price(UserOrderDetail od) <- prevPriceB[LedgerPriceListType, Sku, Stock, DATETIME](priceListType(o), sku(od), supplierStock(od), dateTime(od)) WHERE od IS UserOrderDetail AND userOrder(od) == o;
             executeLocalEvents(); // без 'Sale.userOrder'
-            overCreateIntraDemandUserOrders(o);
+
+            IF createDistributionInvoices() THEN {
+                userInvoice(o) <- NULL;
+                createUserInvoice(o);
+                date(userInvoice(o)) <- invoicesCreationDate();
+                time(userInvoice(o)) <- 00:00;
+            }
         }
 
         APPLY;
@@ -193,6 +208,15 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, Stock d
         inDemand(d) <- TRUE;
 
     createIntraDemandUserOrders(st, df, dt);
+}
+
+createIntraDemandUserInvoices 'Создать накладные' (Warehouse st, Stock d, DATE df, DATE dt) {
+    IF invoicesCreationDate() THEN {
+        IF NOT countInDemandStock() THEN
+            inDemand(d) <- TRUE;
+
+        createIntraDemandUserOrders(st, df, dt);
+    } ELSE MESSAGE 'Необходимо заполнить дату создаваемых накладных';
 }
 
 numberSkuToOrder 'Cоздать заказы (кол-во товаров)' = DATA LOCAL INTEGER (Stock);
@@ -273,7 +297,7 @@ FORM saleDemandIntraDashboard 'Распределение со склада'
     FILTERS supplierStock(o) == st        
 
     FILTERGROUP opened FILTER 'Открытые' isOpened(o) DEFAULT
-    FILTERGROUP dateFilter FILTER 'Заказы на дату' date(o) == currentDate()
+    FILTERGROUP dateFilter FILTER 'Заказы на дату' date(o) == currentDate() DEFAULT
     FILTERGROUP customerFilter
         FILTER 'По отмеченным' inDemand(customerStock(o)) DEFAULT
         FILTER 'По выбранному магазину' customerStock(o) == ds
@@ -296,11 +320,36 @@ FORM saleDemandIntraDashboard 'Распределение со склада'
         FILTER 'По отмеченным' inDemand(customerStock(od)) DEFAULT
         FILTER 'По выбранному магазину' customerStock(od) == ds
 
+    PROPERTIES SHOWIF createDistributionInvoices() invoicesCreationDate(), createIntraDemandUserInvoices(st, ds, dateFrom, dateTo) DRAW ds TOOLBAR
+
+    OBJECTS i = UserInvoice
+    PROPERTIES (i) SHOWIF createDistributionInvoices() READONLY isClosed, isPosted, number, series, date, time
+    PROPERTIES (i) SHOWIF createDistributionInvoices() READONLY nameSupplierStock, nameCustomerStock, nameOperation, countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+        VATSumInvoiceDetail, invoiceSumInvoiceDetail, shipmentDate, shipmentTime, note
+    PROPERTIES (i) SHOWIF createDistributionInvoices() open SHOWIF isClosed(i)
+    PROPERTIES (i) SHOWIF createDistributionInvoices() post SHOWIF isOpened(i) AND isDraft(i), unpost SHOWIF isOpened(i) AND isPosted(i)
+    PROPERTIES (i) SHOWIF createDistributionInvoices() NEWSESSION EDIT SHOWIF overShowEdit(i), delete = DELETE SHOWIF overShowDelete(i)
+    FILTERS supplierStock(i) == st, countIncludeOrders(i)
+
+    FILTERGROUP openedI FILTER 'Открытые' isOpened(i) DEFAULT
+    FILTERGROUP dateFilterI FILTER 'Накладные на дату' date(i) == invoicesCreationDate() DEFAULT
+    FILTERGROUP customerFilterI
+        FILTER 'По отмеченным' inDemand(customerStock(i)) DEFAULT
+        FILTER 'По выбранному магазину' customerStock(i) == ds
+
+    OBJECTS id = UserInvoiceDetail
+    PROPERTIES (id) SHOWIF createDistributionInvoices() READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, amountPack, packQuantity, quantity, price, sum, invoiceSum
+    PROPERTIES SHOWIF createDistributionInvoices() quantityToPick 'Распределено по заказам (закупка)' = quantityToPick(orderDetail(id)),
+        seriesNumbersPurchaseOrders 'Заказы (закупка)' = seriesNumbersPurchaseOrders(orderDetail(id))
+    ORDERS index(id)
+    FILTERS userInvoice(id) == i
+
     EVENTS ON INIT {
         SEEK saleDemandIntraDashboard.dateFrom = sum(currentDate(), 1);
         SEEK saleDemandIntraDashboard.dateTo = sum(currentDate(), 1);
         inDemand(Stock dts) <- TRUE WHERE filterDemand(dts);
         inDemand(SkuGroup g) <- TRUE WHERE active(g) AND level(g) == 1;
+        invoicesCreationDate() <- sum(currentDate(), 1);
     }
 ;
 
@@ -311,7 +360,12 @@ DESIGN saleDemandIntraDashboard {
     PROPERTY(createIntraDemandUserOrders(st, ds, dateFrom, dateTo)) {font = 'bold 12';}
     PROPERTY(quantityToPick(d)) { background = RGB(255,209,153); }
     PROPERTY(seriesNumbersPurchaseOrders(d)) { background = RGB(255,209,153); }
-
+    PROPERTY(createIntraDemandUserInvoices(st, ds, dateFrom, dateTo)) {font = 'bold 12';}
+    PROPERTY(quantityToPick) { background = RGB(255, 209, 153); }
+    PROPERTY(seriesNumbersPurchaseOrders) { background = RGB(255, 209, 153); }
+    PROPERTY (createIntraDemandUserOrders(st, ds, dateFrom, dateTo)) {
+        showIf = NOT createDistributionInvoices();
+    }
     BOX {
         NEW mainPane {
             fill = 1;
@@ -330,6 +384,7 @@ DESIGN saleDemandIntraDashboard {
                         MOVE PROPERTY(valDateFrom) { caption = 'c'; }
                         MOVE PROPERTY(valDateTo) { caption = 'по'; }
                     }
+                    MOVE PROPERTY (invoicesCreationDate());
                 }
                 NEW right {
                     fill = 2.5;
@@ -370,6 +425,19 @@ DESIGN saleDemandIntraDashboard {
                         tabbed = TRUE;
                         MOVE BOX(d) {
                             caption = 'Строка заказа (продажа)';
+                        }
+                    }
+                }
+                NEW invoices {
+                    caption = 'Накладные (продажа)';
+                    MOVE BOX(i){
+                        PROPERTY (nameCustomerStock(i)){charWidth = 30;}
+                    }
+                    NEW invoicesTab {
+                        fill = 1;
+                        tabbed = TRUE;
+                        MOVE BOX(id) {
+                            caption = 'Строка накладной (продажа)';
                         }
                     }
                 }
