@@ -1,16 +1,13 @@
 MODULE ImportSupermag;
 
-REQUIRE Item, ItemSize, LegalEntityBy, EDI, RangeCheck,
+REQUIRE Item, ItemSize, LegalEntityBy, EDI, 
         Document, SupermagSettings,
-        PriceListOperation, PriceListBefore, Repricing, PriceListContract, PriceList,
+        PriceListOperation, PriceListBefore, PriceListContract, PriceList,
         PurchaseOrder, PurchasePack, PurchaseInvoice, PurchaseShipment, PricingPurchase, PurchaseScheduleOrder, PurchaseScheduleOrderSeparation, PurchaseDemandItem, 
-        PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract,
-        SupermagPurchaseInvoice,
-        SaleOrder, SaleOrderStatus,
-        ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract,
-        SupermagSettings;
+        PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract, PurchaseManufacturingPrice,
+        ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
-PRIORITY SupermagSettings;
+PRIORITY Supermag;
 
 idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
 
@@ -21,7 +18,7 @@ importSupplierGroup 'Импорт групп поставщиков' () {
     LOCAL name = ISTRING[100] (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SASUPPLIERCLASS' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SASUPPLIERCLASS' TO file;
     
     IMPORT TABLE FROM file() TO id, tree, name;
     
@@ -45,6 +42,11 @@ importSupplierGroup 'Импорт групп поставщиков' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSupplierGroup();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importSupplierGroup());
+    }
+}
 
 importCustomerGroup 'Импорт групп покупателей' () {
     
@@ -53,7 +55,7 @@ importCustomerGroup 'Импорт групп покупателей' () {
     LOCAL name = ISTRING[100] (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACLIENTCLASS' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TREE, NAME FROM Supermag.SACLIENTCLASS' TO file;
     
     IMPORT TABLE FROM file() TO id, tree, name;
     
@@ -77,6 +79,11 @@ importCustomerGroup 'Импорт групп покупателей' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importCustomerGroup();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importCustomerGroup());
+    }
+}
 
 overImportLegalEntity ABSTRACT LIST ();
 
@@ -154,6 +161,11 @@ importLegalEntity 'Импорт организаций' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importLegalEntity();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importLegalEntity());
+    }
+}
 
 importStore 'Импорт магазинов' () {
     
@@ -161,7 +173,7 @@ importStore 'Импорт магазинов' () {
     LOCAL name = TEXT (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, NAME FROM Supermag.SASTORECLASS' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, NAME FROM Supermag.SASTORECLASS' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
     
@@ -177,6 +189,11 @@ importStore 'Импорт магазинов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importStore();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importStore());
+    }
+}
 
 storeTypeInSupermag = DATA INTEGER (StoreType);
 
@@ -186,7 +203,7 @@ importStoreType 'Импорт форматов магазинов' () {
     LOCAL id = INTEGER (INTEGER);
     LOCAL name = TEXT (INTEGER);   
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE FROM Supermag.SASTOREFORMATS' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TITLE FROM Supermag.SASTOREFORMATS' TO file;
     
     IMPORT TABLE FROM file() TO id, name;
     
@@ -209,6 +226,11 @@ importStoreType 'Импорт форматов магазинов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importStoreType();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importStoreType());
+    }
+}
 
 overImportDepartmentStore ABSTRACT LIST ();
 
@@ -226,7 +248,7 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
  //   LOCAL idParentStock = INTEGER (INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() 
+    EXTERNAL SQL connectionString() 
         EXEC 'SELECT ID, NAME, IDCLASS, ADDRESS, FORMATID, l.CLIENTID AS COMPANYID, PARENTLOC FROM Supermag.SVGRANTEDLOCS g, Supermag.SMOWNCLIENTLOCS l WHERE g.ID = l.LOCID' TO file;
     
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idParentStock;
@@ -266,6 +288,12 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
 }
 
 EXTEND FORM integrationData PROPERTIES importDepartmentStore(), idGroupWarehouseInSuperMag();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importDepartmentStore());
+        MOVE PROPERTY (idGroupWarehouseInSuperMag());
+    }
+}
 
 
 defaultCompany = DATA LegalEntity();
@@ -287,7 +315,7 @@ importBank 'Импорт банков' () {
     LOCAL bic = STRING[40](INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ID, TITLE, ADDRESS, BIC FROM Supermag.SABanks' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT ID, TITLE, ADDRESS, BIC FROM Supermag.SABanks' TO file;
     
     IMPORT TABLE FROM file() TO id, name, address, bic;
     
@@ -315,7 +343,7 @@ importAccount 'Импорт счетов' () {
     LOCAL active = STRING[1](INTEGER);
     
     LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT IDCLIENT, BANKID, ACCOUNT, ISACTUAL FROM Supermag.SMClientBanks' TO file;
+    EXTERNAL SQL connectionString() EXEC 'SELECT IDCLIENT, BANKID, ACCOUNT, ISACTUAL FROM Supermag.SMClientBanks' TO file;
     
     IMPORT TABLE FROM file() TO idLegalEntity, idBank, account, active;
     
@@ -337,74 +365,80 @@ importAccount 'Импорт счетов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
-
-id = DATA STRING[100](Range.Range);
-range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
-
-nameImport 'Наименование для импорта' = DATA STRING[50](Store);
-
-EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
-EXTEND FORM store PROPERTIES nameImport(s);
-
-DESIGN store {
-    headerExtraParams {
-        MOVE PROPERTY (nameImport(s));
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importBank());
+        MOVE PROPERTY (importAccount());
     }
 }
 
-//---------------------------------------------------------------------------------------------------------------матрицы
-importRange 'Импорт ассортиментных матриц' () {
-    
-    LOCAL itemId = STRING[50] (INTEGER);
-    LOCAL id = INTEGER (INTEGER);
-    LOCAL name = ISTRING[50] (INTEGER);
-    LOCAL store = Store(INTEGER);
-    LOCAL rangeRev = RangeRev(INTEGER);
-    
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT sa.id, sa.name FROM Supermag.SACardMatrix sa' TO file;
-    
-    IMPORT TABLE FROM file() TO id, name;    
-   
-    FOR id(INTEGER i) AND NOT range(STRING[100] (id(i))) DO NEW r =  Range.Range {
-        id(r) <- STRING[100] (id(i));
-        name(r) <- name(i);      
-        inData(r, ItemGroup g) <- TRUE IF itemGroupRoot(g, 2) == g; 
-        NEW rr = RangeRev {
-            range(rr) <- r;
-            dateTime(rr) <- 2001_01_01_00:00;
-        }     
-    }
-    
-    FOR Range.RangeRev rv AND rv IS RangeRev DO {
-        include(rv, Store st, Item s) <- NULL;    
-    }
-        
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
-                                                          
-    IMPORT TABLE FROM file() TO itemId, id, name;
+//id = DATA STRING[100](Range.Range);
+//range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
+//
+//nameImport 'Наименование для импорта' = DATA STRING[50](Store);
+//
+//EXTEND FORM stores PROPERTIES READONLYIF isReadonly() nameImport(s);
+//EXTEND FORM store PROPERTIES nameImport(s);
+//
+//DESIGN store {
+//    headerExtraParams {
+//        MOVE PROPERTY (nameImport(s));
+//    }
+//}
 
-    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
-
-//    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(itemId(i))) AND level(g, itemGroup(id(range(rr))));
-    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF id(range(rr)) = STRING[100] (id(i));
-
-    FOR [GROUP SUM 1 BY rangeRev(INTEGER i)](RangeRev r) DO {
-        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(itemId(i))](r, st, s);
-    }
-
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES importRange();
-
-rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
-
-WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
-    include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
-    include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
-}
+////---------------------------------------------------------------------------------------------------------------матрицы
+//importRange 'Импорт ассортиментных матриц' () {
+//    
+//    LOCAL itemId = STRING[50] (INTEGER);
+//    LOCAL id = INTEGER (INTEGER);
+//    LOCAL name = ISTRING[50] (INTEGER);
+//    LOCAL store = Store(INTEGER);
+//    LOCAL rangeRev = RangeRev(INTEGER);
+//    
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT sa.id, sa.name FROM Supermag.SACardMatrix sa' TO file;
+//    
+//    IMPORT TABLE FROM file() TO id, name;    
+//   
+//    FOR id(INTEGER i) AND NOT range(STRING[100] (id(i))) DO NEW r =  Range.Range {
+//        id(r) <- STRING[100] (id(i));
+//        name(r) <- name(i);      
+//        inData(r, ItemGroup g) <- TRUE IF itemGroupRoot(g, 2) == g; 
+//        NEW rr = RangeRev {
+//            range(rr) <- r;
+//            dateTime(rr) <- 2001_01_01_00:00;
+//        }     
+//    }
+//    
+//    FOR Range.RangeRev rv AND rv IS RangeRev DO {
+//        include(rv, Store st, Item s) <- NULL;    
+//    }
+//        
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT sm.article, sa.id, sa.name FROM Supermag.SMCardMatrix sm, Supermag.SACardMatrix sa WHERE sm.idMatrix = sa.id' TO file;
+//                                                          
+//    IMPORT TABLE FROM file() TO itemId, id, name;
+//
+//    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
+//
+////    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(itemId(i))) AND level(g, itemGroup(id(range(rr))));
+//    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF id(range(rr)) = STRING[100] (id(i));
+//
+//    FOR [GROUP SUM 1 BY rangeRev(INTEGER i)](RangeRev r) DO {
+//        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(itemId(i))](r, st, s);
+//    }
+//
+//    APPLY;
+//}
+//
+//EXTEND FORM integrationData PROPERTIES importRange();
+//
+//rangeRev (SkuGroup g) = GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF inData(range(rr), g);
+//
+//WHEN CHANGED (skuGroup2(Item i)) AND rangeRev(PREV (skuGroup2(i))) DO {
+//    include(RangeRev rr, Store st, i) <- TRUE IF include(rangeRev(PREV (skuGroup2(i))), st, i) AND rr == rangeRev(skuGroup2(i));
+//    include(RangeRev rr, Store st, i) <- NULL WHERE rr IS RangeRev AND NOT rr == rangeRev(skuGroup2(i));
+//}
 
 //---------------------------------------------------------------------------------------импорт остатков
 scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
@@ -437,7 +471,7 @@ deleteInvoiceDetails 'Удалять строки, которых нет в им
 
 importInit 'Импорт остатков' ()  {
         
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO file;
+    EXTERNAL SQL connectionString() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocksImport()) TO file;
         
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
@@ -516,11 +550,19 @@ importInit 'Импорт остатков' ()  {
 } 
 
 EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, deleteInvoiceDetails;
-
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (scriptImportInit());
+        MOVE PROPERTY (useConstraint());
+        MOVE PROPERTY (importInit());
+        MOVE PROPERTY (disableDocumentLog());
+        MOVE PROPERTY (deleteInvoiceDetails());
+    }
+}
 
 importInitTest 'Импорт остатков' ()  {
         
-    EXTERNAL SQL 'jdbc:oracle:thin:' + SupermagSettings.login() + '/' + SupermagSettings.password() + '@//'+ SupermagSettings.host() + '/' + SupermagSettings.base() EXEC replace(scriptImportInit(), 'STOCK_LIST', SupermagSettings.stocksImport()) TO file;
+    EXTERNAL SQL connectionString() EXEC replace(scriptImportInit(), 'STOCK_LIST', stocksImport()) TO file;
         
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;      
 
@@ -587,105 +629,113 @@ checkBalance 'Сверить остатки' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () dateCheckBalance, synchronizeBalance, checkBalance;
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (dateCheckBalance());
+        MOVE PROPERTY (synchronizeBalance());
+        MOVE PROPERTY (checkBalance());
+    }
+}
+
 
 idStock = DATA LOCAL INTEGER (INTEGER);
 numeric = DATA LOCAL NUMERIC[14,3] (INTEGER);
 
 overImportShelfReserve ABSTRACT LIST();
 
-importShelfReserve 'Импорт полки' () {
-        
-    LOCAL file = FILE ();
-    EXTERNAL SQL 'jdbc:oracle:thin:' + login() + '/' + password() + '@//'+ host() + '/' + base() EXEC 'SELECT ARTICLE, STORELOC, SHOWLEVEL FROM Supermag.smstocklevels' TO file;
-    
-    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
-    
-    overImportShelfReserve();
-    
-    APPLY;
-}
-
-overImportFillRateShelf ABSTRACT LIST();
-overImportFillRateAps ABSTRACT LIST();
-
-importFillRate 'Импорт заполненности' () {
-        
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showlevel\'' TO file;
-    
-    IMPORT TABLE FROM file() TO idStock, value;
-    
-    overImportFillRateShelf();
-    
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showrequest\'' TO file;
-    
-    IMPORT TABLE FROM file() TO idStock, value;
-    
-    overImportFillRateAps();
-    
-    APPLY;
-}
-
-overImportBufferAps ABSTRACT LIST();
-
-importBufferAps 'Импорт ДМП' () {
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ARTICLE, STORELOC, SHOWREQUEST FROM Supermag.smstocklevels WHERE SHOWREQUEST > 0' TO file;
-    
-    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
-    
-    overImportBufferAps();
-    
-    APPLY;
-}
-
-overImportPlanTurnover ABSTRACT LIST();
-
-idItemGroup = DATA LOCAL INTEGER (INTEGER);
-    
-importPlanTurnover 'Импорт плановой оборачиваемости' () {
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT CLASSID, TURNOVER FROM Supermag.AMCLASSTURNOVER' TO file;
-    
-    IMPORT TABLE FROM file() TO idItemGroup, numeric;
-    
-    overImportPlanTurnover();
-    
-    APPLY;
-}
-
-overImportBufferApsAdDocs ABSTRACT LIST();
-overImportBufferApsAdStocks ABSTRACT LIST();
-overImportBufferApsAdQuantity ABSTRACT LIST();
-
-importBufferApsAd 'Импорт рекламных кампаний' () {
-        
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ID, STARTDATE, ENDDATE FROM SuperMag.SVDocNoPricePA' TO file;
-    
-    IMPORT TABLE FROM file() TO idDoc, dateFrom, dateTo;
-    
-    overImportBufferApsAdDocs();
-    
-    EXTERNAL SQL connectionString() 
-        EXEC 'SELECT ID, LOCATIONID FROM Supermag.SMPromoLocations' TO file;
-    
-    IMPORT TABLE FROM file() TO idDoc, idStock;
-    
-    overImportBufferApsAdStocks();
-    
-    EXTERNAL SQL connectionString() 
-        EXEC 'select DOCID, ARTICLE, QUANTITY from Supermag.SVItemsPA' TO file;
-    
-    IMPORT TABLE FROM file() TO idDoc, idItem, numeric;
-    
-    overImportBufferApsAdQuantity();
-    
-    APPLY;
-}
-
-EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover, importBufferApsAd;
+//importShelfReserve 'Импорт полки' () {
+//        
+//    LOCAL file = FILE ();
+//    EXTERNAL SQL connectionString() EXEC 'SELECT ARTICLE, STORELOC, SHOWLEVEL FROM Supermag.smstocklevels' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
+//    
+//    overImportShelfReserve();
+//    
+//    APPLY;
+//}
+//
+//overImportFillRateShelf ABSTRACT LIST();
+//overImportFillRateAps ABSTRACT LIST();
+//
+//importFillRate 'Импорт заполненности' () {
+//        
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showlevel\'' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idStock, value;
+//    
+//    overImportFillRateShelf();
+//    
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT STORELOC, PROPVAL FROM Supermag.smstoreproperties  WHERE PROPID = \'k_showrequest\'' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idStock, value;
+//    
+//    overImportFillRateAps();
+//    
+//    APPLY;
+//}
+//
+//overImportBufferAps ABSTRACT LIST();
+//
+//importBufferAps 'Импорт ДМП' () {
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT ARTICLE, STORELOC, SHOWREQUEST FROM Supermag.smstocklevels WHERE SHOWREQUEST > 0' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idItem, idStock, numeric;
+//    
+//    overImportBufferAps();
+//    
+//    APPLY;
+//}
+//
+//overImportPlanTurnover ABSTRACT LIST();
+//
+//idItemGroup = DATA LOCAL INTEGER (INTEGER);
+//    
+//importPlanTurnover 'Импорт плановой оборачиваемости' () {
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT CLASSID, TURNOVER FROM Supermag.AMCLASSTURNOVER' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idItemGroup, numeric;
+//    
+//    overImportPlanTurnover();
+//    
+//    APPLY;
+//}
+//
+//overImportBufferApsAdDocs ABSTRACT LIST();
+//overImportBufferApsAdStocks ABSTRACT LIST();
+//overImportBufferApsAdQuantity ABSTRACT LIST();
+//
+//importBufferApsAd 'Импорт рекламных кампаний' () {
+//        
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT ID, STARTDATE, ENDDATE FROM SuperMag.SVDocNoPricePA' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idDoc, dateFrom, dateTo;
+//    
+//    overImportBufferApsAdDocs();
+//    
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'SELECT ID, LOCATIONID FROM Supermag.SMPromoLocations' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idDoc, idStock;
+//    
+//    overImportBufferApsAdStocks();
+//    
+//    EXTERNAL SQL connectionString() 
+//        EXEC 'select DOCID, ARTICLE, QUANTITY from Supermag.SVItemsPA' TO file;
+//    
+//    IMPORT TABLE FROM file() TO idDoc, idItem, numeric;
+//    
+//    overImportBufferApsAdQuantity();
+//    
+//    APPLY;
+//}
+//
+//EXTEND FORM integrationData PROPERTIES () importShelfReserve, importFillRate, importBufferAps, importPlanTurnover, importBufferApsAd;
 
 userShipment (Stock st) = GROUP MAX Purchase.UserShipment s IF id(s) == ('init_' + id(customerStock(s))) BY customerStock(s);
 userShipmentDetail (Stock st, Sku sk) = GROUP MAX Purchase.UserShipmentDetail d IF userShipment(d) == userShipment(st) BY sku(d);
@@ -728,6 +778,12 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importBalanceShipment();
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importBalanceShipment());
+    }
+}
+
 
 importReserveDays 'Импорт страхового запаса в днях' () {   
     LOCAL file = FILE ();
@@ -743,17 +799,22 @@ importReserveDays 'Импорт страхового запаса в днях' (
 }
 
 EXTEND FORM integrationData PROPERTIES importReserveDays();
-
-dateFromPurchase 'Дата перемещения' = DATA DATE (Store);
-
-EXTEND FORM stores PROPERTIES READONLYIF isReadonly() dateFromPurchase(s);
-EXTEND FORM store PROPERTIES dateFromPurchase(s);
-
-DESIGN store {
-    headerExtraParams {
-        MOVE PROPERTY (dateFromPurchase(s));
+DESIGN integrationData {
+    supermag {
+        MOVE PROPERTY (importReserveDays());
     }
 }
+
+//dateFromPurchase 'Дата перемещения' = DATA DATE (Store);
+//
+//EXTEND FORM stores PROPERTIES READONLYIF isReadonly() dateFromPurchase(s);
+//EXTEND FORM store PROPERTIES dateFromPurchase(s);
+//
+//DESIGN store {
+//    headerExtraParams {
+//        MOVE PROPERTY (dateFromPurchase(s));
+//    }
+//}
 
 @defineLogRotate(checkBalance, 5, weekly);
 @defineLogRotate(importSupermag, 5, weekly);
