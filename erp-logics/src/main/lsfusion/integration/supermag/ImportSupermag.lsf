@@ -167,6 +167,18 @@ DESIGN integrationData {
     }
 }
 
+
+defaultCompany = DATA LegalEntity();
+nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
+
+EXTEND FORM options PROPERTIES nameDefaultCompany();
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY (nameDefaultCompany());
+    }
+}
+
 importStore 'Импорт магазинов' () {
     
     LOCAL id = INTEGER (INTEGER);
@@ -179,7 +191,7 @@ importStore 'Импорт магазинов' () {
     
     FOR id(INTEGER i) AND id(i) != 0 AND NOT stockGroup(TEXT (id(i))) DO NEW g = Store {
         id(g) <- ISTRING[100] (id(i));
-        legalEntity(g) <- legalEntity('534');
+        legalEntity(g) <- defaultCompany();
     }
     
     FOR Store g = store(TEXT (id(INTEGER i))) DO {
@@ -295,17 +307,6 @@ DESIGN integrationData {
     }
 }
 
-
-defaultCompany = DATA LegalEntity();
-nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
-
-EXTEND FORM options PROPERTIES nameDefaultCompany();
-
-DESIGN options {
-    commons {
-        MOVE PROPERTY (nameDefaultCompany());
-    }
-}
 
 importBank 'Импорт банков' () {
     

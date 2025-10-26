@@ -116,7 +116,7 @@ importBarcodeItem 'Импорт штрихкодов товара' () {
 
         name(INTEGER i) <- left(name(i), 15);
         //весовой товар 
-        name(INTEGER i) <- substrFrom(name(i), 3) WHERE substr(name(i), 1, 2) = '22' AND length(name(i)) = 7;
+        name(INTEGER i) <- substrFrom(name(i), 3) WHERE substr(name(i), 1, 2) = '21' AND length(name(i)) = 7;
 
         FOR imported(INTEGER i) AND item(id(i)) AND NOT barcode(name(i)) DO NEW b = Barcode {
             id(b) <- ISTRING[15] (name(i));
@@ -352,7 +352,7 @@ importItem 'Импорт товаров' () {
     IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
 
     EXTERNAL SQL connectionString()
-        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)' TO file;
+        EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article)' TO file;
 
     IMPORT TABLE FROM file() TO taxArticle, vat;
 
