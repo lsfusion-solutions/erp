@@ -31,6 +31,6 @@ recQuantityGestoriMin (Sku s, UserOrder o) = IF recQuantityGestoriMax(s, o) > 0 
 recQuantityGestoriMin2 (Sku s, UserOrder o) = IF (recQuantityGestoriMin(s, o) == 0 OR NOT recQuantityGestoriMin(s, o)) AND (averageSold(s, o) == 0 OR NOT averageSold(s, o)) THEN quantityPacksNull(s, customerStock(o)) * Purchase.amountPack(s) ELSE recQuantityGestoriMin(s,o);
 
 recommendedQuantity (Sku s, UserOrder o) +=
-    CASE WHEN (demandLogic(s, customerStock(o)) == 2 OR demandLogic(s, customerStock(o)) == 12) THEN NUMERIC[16,5](ceil(recQuantityGestoriMin2(s, o), Purchase.amountPack(s)))
+    CASE WHEN (demandLogic(s, customerStock(o)) == 2 OR demandLogic(s, customerStock(o)) == 12) AND recQuantityGestoriMin2(s, o) > 0 THEN NUMERIC[16,5](ceil(recQuantityGestoriMin2(s, o), Purchase.amountPack(s)))
          WHEN demandLogic(s, customerStock(o)) == 1 THEN (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0)
          ELSE (NUMERIC[16,5](recQuantity(s, o)) IF recQuantity(s, o) > 0);
