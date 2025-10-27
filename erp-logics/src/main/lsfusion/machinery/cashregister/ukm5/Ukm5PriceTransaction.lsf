@@ -127,7 +127,7 @@ FORM itemPrices 'Импорт цен на товары'
 skipUkz = ABSTRACT BOOLEAN (Item);
 valueProp = ABSTRACT CASE STRING (STRING, Item);
 
-valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN dataGTIN(barcode(i));
+valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN (OVERRIDE dataGTIN(barcode(i)), GTIN(barcode(i))) ;
 valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
 
 FORM itemProperties 'Дополнительные свойства товаров'
@@ -264,6 +264,20 @@ stopListImport  'Импорт стоп-листа' () {
     FOR hasUkm5GroupMachinery(Stock st) AND skuTransaction(Sku s, st) DO {
         stopListImport(st);
     }
+}
+
+WHEN ([GROUP SUM 1 IF CHANGED(name(Sku s)) OR CHANGED(itemGroup(s)) OR CHANGED(shortNameUOM(s)) OR CHANGED(idBarcode(s)) 
+    OR CHANGED(active(s)) OR CHANGED(filterAttribut(s, Attribut a))
+    OR ((CHANGED(id(Barcode b) OR CHANGED(amount(b))) AND sku(b) = s)) BY s](Sku sku)) AND uploadedUkm5(sku) DO {
+    uploadedUkm5(sku) <- NULL;
+}
+
+WHEN ([GROUP SUM 1 IF CHANGED(name(ItemGroup g)) OR CHANGED(parent(g)) OR CHANGED(id(g)) OR CHANGED(active(g)) BY g](ItemGroup group))  AND uploadedUkm5(group) DO {
+    uploadedUkm5(group) <- NULL;
+}
+
+WHEN ([GROUP SUM 1 IF CHANGED(valueProp(STRING ss, Sku s)) BY s](Sku sku)) AND uploadedUkm5Properties(sku) DO {
+    uploadedUkm5Properties(sku) <- NULL;
 }
 
 EXTEND FORM integrationData
