@@ -522,6 +522,9 @@ CLASS ABSTRACT ItemAttribute 'Атрибут товара';
 TABLE itemAttribute(ItemAttribute);
 TABLE itemItemAttribute(Item, ItemAttribute);
 
+dataName = ABSTRACT BPISTRING[100] (ItemAttribute);
+name(ItemAttribute a) = OVERRIDE dataName(a), staticCaption(a) IF a IS ItemAttribute;
+
 // Отображение
 META defineItemAttribute (attribute, caption, group)
     userShow###attribute caption (itemGroup) = DATA BOOLEAN (ItemGroup) IN group;
@@ -576,7 +579,7 @@ END
 // Форма настройки артибутов
 FORM itemOptions 'Настройка атрибутов'
     OBJECTS ia = ItemAttribute
-    PROPERTIES staticIA= staticCaption(ia)
+    PROPERTIES staticIA= name(ia) READONLY 
 
     TREE groups g=ItemGroup PARENT parent(g)
     PROPERTIES (g) READONLY order, id SHOWIF showIDs(), name
@@ -588,9 +591,9 @@ FORM itemOptions 'Настройка атрибутов'
     ORDERS order(tg), name(tg)    
     
     OBJECTS ia1 = ItemAttribute
-    PROPERTIES staticIA1= staticCaption(ia1)   
+    PROPERTIES staticIA1= name(ia1) READONLY  
     FILTERGROUP filterA1
-        FILTER 'Все' staticCaption(ia1) 
+        FILTER 'Все' name(ia1) 
 ;
 
 DESIGN itemOptions {

@@ -1,0 +1,345 @@
+MODULE ItemAttribute;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+// Стили для панели атрибутов
+onWebClientInit() + {
+    onWebClientInit('attributes.css') <- 30;
+}
+
+CLASS ABSTRACT Attribute 'Атрибут' : ItemAttribute;
+TABLE attribute (Attribute) FULL;
+
+CLASS AttributeClass 'Тип атрибута';
+TABLE attributeClass (AttributeClass);
+
+name '{master.data.name}' (AttributeClass o) = staticCaption(o) IF o IS AttributeClass CHARWIDTH 15;
+order = ABSTRACT CASE INTEGER (AttributeClass);
+
+FORM dialogAttributeClasss 'Тип атрибута'
+    OBJECTS o = AttributeClass
+    PROPERTIES(o) READONLY name, order SHOWIF NULL
+    ORDERS order(o)
+
+    LIST AttributeClass OBJECT o
+;
+
+newAttribute 'Новый' ABSTRACT CASE (AttributeClass);
+newAttribute 'Новый' () {
+    DIALOG dialogAttributeClasss OBJECTS o INPUT DO {
+        newAttribute(o);
+    }
+} TOOLBAR IMAGE 'add.png';
+
+nameClass 'Тип атрибута' (Attribute a) = objectClassName(a) CHARWIDTH 20;
+
+id 'Код' = ABSTRACT STRING[50] (Attribute) MATERIALIZED NONULL INDEXED CHARWIDTH 15 IN id;
+attribute 'Атрибут' (STRING[10] id) = GROUP AGGR Attribute a BY id(a);
+
+active 'Вкл.' = ABSTRACT BOOLEAN (Attribute);
+isObject 'Объектный' = ABSTRACT BOOLEAN (Attribute);
+
+name 'Наименование атрибута' = ABSTRACT BPISTRING[100] (Attribute) NONULL IN id;
+dataName(Attribute a) += name(a);
+
+userShow 'Вкл.' = DATA BOOLEAN (ItemGroup, Attribute);
+
+quantityChild(ItemGroup itemGroup, Attribute a)  = GROUP SUM 1 IF userShow(ItemGroup childItemGroup, a) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParent(ItemGroup itemGroup, Attribute a)  = GROUP SUM 1 IF userShow(ItemGroup parentItemGroup, a) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+show 'Вкл.' (ItemGroup itemGroup, Attribute a) = TRUE IF (quantityChild(itemGroup, a) (+) quantityParent(itemGroup, a)) > 0 MATERIALIZED;
+showEdit 'Вкл.' (ItemGroup ig, Attribute a) = OVERRIDE userShow(ig, a), show(ig, a); 
+showAny 'Вкл.' (ItemGroup itemGroup, Attribute a) = show(itemGroup, a) OR NOT itemGroup IS ItemGroup;
+
+show 'Вкл.' (Item item, Attribute a) = TRUE IF quantityParent(itemGroup(item), a);
+
+backgroundShow (ItemGroup itemGroup, Attribute a) =
+    IF userShow(itemGroup, a) THEN
+        RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChild(itemGroup, a) != descendantNumber(itemGroup)
+                         AND NOT quantityParent (itemGroup, a);
+
+
+value 'Значение' = ABSTRACT STRING (Item, Attribute);
+idValue 'id значения' = ABSTRACT STRING (Item, Attribute);
+objectValue 'Объект значения' = ABSTRACT Object (Item, Attribute);
+value(Item i, Attribute a) += ISTRING[500](value(i, a));
+
+edit 'Редактировать' ABSTRACT (Item, Attribute);
+set 'Установить' ABSTRACT (Item, Attribute, STRING);
+
+EXTEND FORM itemOptions 
+    OBJECTS attr = Attribute
+    PROPERTIES (attr) READONLY id, name, nameClass
+    PROPERTIES (attr) NEWSESSION EDIT, DELETE
+    PROPERTIES NEWSESSION newAttribute() DRAW attr
+
+    FILTERGROUP active
+        FILTER 'Активные' active(attr) DEFAULT
+    
+    PROPERTIES showEdit(tg, ia1) BEFORE required(ia1, tg) BACKGROUND backgroundShow(tg, ia1)
+;
+
+DESIGN itemOptions {
+    itemTab {
+        MOVE BOX(attr) FIRST { caption = 'Пользовательские'; }
+    }
+}
+
+EXTEND FORM item
+    OBJECTS attr = Attribute
+    PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF show(i, attr) COLUMNS (attr) HEADER name(attr)
+    PROPERTIES READONLY notNull=required(attr, itemGroup(i)) SHOWIF NULL, name(attr) SHOWIF NULL
+    ORDERS notNull DESC, name(attr)
+;
+
+DESIGN item {
+    itemDetail {
+        NEW userArrtibute {
+            caption = 'Дополнительные характеристики';
+            fill = 1;
+            MOVE PROPERTY(value(i, attr)) {
+                class = 'attribute-property';
+                valueClass = 'not-null' IF required(attr, itemGroup(i)) AND NOT value(i, attr);
+            }
+        }
+    }
+}
+
+//------------------------------------ String ----------------------------------------------------------------------//
+
+CLASS AttributeString 'Строковый атрибут' : Attribute;
+EXTEND CLASS AttributeClass { string 'Строка' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.string THEN {
+    NEW a = AttributeString {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.string THEN 1;
+id 'Код' = DATA STRING[50] (AttributeString) NONULL CHARWIDTH 15 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeString);
+name 'Наименование' = DATA BPISTRING[100] (AttributeString) NONULL IN id;
+id (AttributeString a) += id(a);
+active (AttributeString a) += a IS AttributeString AND NOT inactive(a);
+name (AttributeString a) += name(a);
+value 'Значение' = DATA STRING (Item, AttributeString);
+value (Item o, AttributeString a) += value(o, a);
+edit (Item o, AttributeString a) + {
+    INPUT s = STRING DO {
+        value(o, a) <- s;
+    }
+}
+set (Item o, AttributeString a, STRING v) + {
+    value(o, a) <- v;
+}
+
+// Дополнительные ограничения
+regex 'Шаблон (regex)' = DATA STRING (AttributeString) IN id;
+CONSTRAINT SETCHANGED(value(Item o, AttributeString i)) AND regex(i) AND NOT regexPatternMatch(value(o, i), regex(i))
+    MESSAGE CONCAT ' ','Значение атрибута не соответствует шаблону';
+
+FORM attributeString 'Атрибут (строка)'
+    OBJECTS attr = AttributeString PANEL
+    PROPERTIES(attr) id, name, inactive, regex
+
+    EDIT AttributeString OBJECT attr
+;
+DESIGN attributeString {
+    caption = CONCAT ' - ', 'Атрибут (строка)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            fill = 1;
+            MOVE PROPERTY(regex(attr)){align = START;};
+        }
+    }
+}
+
+//------------------------------------ Integer ----------------------------------------------------------------------//
+
+CLASS AttributeInteger 'Целочисленный атрибут' : Attribute;
+EXTEND CLASS AttributeClass { integer 'Целое число' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.integer THEN {
+    NEW a = AttributeInteger {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.integer THEN 2;
+id 'Код' = DATA STRING[10] (AttributeInteger) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeInteger);
+name 'Наименование' = DATA BPISTRING[100] (AttributeInteger) NONULL IN id;
+id (AttributeInteger a) += id(a);
+active (AttributeInteger a) += a IS AttributeInteger AND NOT inactive(a);
+name (AttributeInteger a) += name(a);
+value 'Значение' = DATA INTEGER (Item, AttributeInteger);
+value (Item o, AttributeInteger a) += STRING(value(o, a));
+
+// Дополнительные ограничения
+notMore 'Не больше' = DATA INTEGER (AttributeInteger);
+CONSTRAINT SETCHANGED(value(Item o, AttributeInteger i)) AND value(o, i) > notMore(i)
+    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+
+notLess 'Не меньше' = DATA INTEGER (AttributeInteger);
+CONSTRAINT SETCHANGED(value(Item o, AttributeInteger i)) AND value(o, i) < notLess(i)
+    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+edit (Item o, AttributeInteger a) + {
+    INPUT i = INTEGER DO {
+        value(o, a) <- i;
+    }
+}
+set (Item o, AttributeInteger a, STRING v) + {
+    value(o, a) <- INTEGER(v);
+}
+FORM attributeInteger 'Атрибут (целое)'
+    OBJECTS attr = AttributeInteger PANEL
+    PROPERTIES(attr) id, name, inactive, notMore, notLess
+
+    EDIT AttributeInteger OBJECT attr
+;
+DESIGN attributeInteger {
+    caption = CONCAT ' - ', 'Атрибут (целое)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            MOVE PROPERTY(notLess(attr)) { align = START; }
+            MOVE PROPERTY(notMore(attr)) { align = START; }
+        }
+    }
+}
+
+//------------------------------------ NUMERIC ---------------------------------------------------------------------//
+
+CLASS AttributeNumeric 'Числовой атрибут' : Attribute;
+EXTEND CLASS AttributeClass { numeric 'Число' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.numeric THEN {
+    NEW a = AttributeNumeric {
+        edit(a);
+    }
+};
+order(AttributeClass c) += WHEN c == AttributeClass.numeric THEN 3;
+id 'Код' = DATA STRING[10] (AttributeNumeric) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeNumeric);
+name 'Наименование' = DATA BPISTRING[100] (AttributeNumeric) NONULL IN id;
+id (AttributeNumeric a) += id(a);
+active (AttributeNumeric a) += a IS AttributeNumeric AND NOT inactive(a);
+name (AttributeNumeric a) += name(a);
+value 'Значение' = DATA NUMERIC (Item, AttributeNumeric);
+value (Item o, AttributeNumeric a) += STRING(value(o, a));
+// Дополнительные ограничения
+notMore 'Не больше' = DATA NUMERIC (AttributeNumeric);
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric i)) AND value(o, i) > notMore(i)
+    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+
+notLess 'Не меньше' = DATA NUMERIC (AttributeNumeric);
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric i)) AND value(o, i) < notLess(i)
+    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+
+precision 'Точность' = DATA INTEGER (AttributeNumeric);
+scale 'Масштаб' = DATA INTEGER (AttributeNumeric);
+CONSTRAINT SET(scale(AttributeNumeric a) >= precision(a))
+    MESSAGE 'Масштаб атрибута должен быть меньше точности';
+
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric n)) AND abs(value(o, n)) * power(10, scale(n)) >= NUMERIC(power(10, precision(n)))
+    MESSAGE CONCAT ' ','Точность атрибута больше чем минимально допустимая точность';
+CONSTRAINT SETCHANGED(value(Item o, AttributeNumeric n)) AND floor(abs(value(o, n)) * power(10, scale(n))) != abs(value(o, n)) * power(10, scale(n))
+    MESSAGE CONCAT ' ','Масштаб атрибута выше чем максимальный масштаб';
+
+edit (Item o, AttributeNumeric a) + {
+    INPUT i = NUMERIC DO {
+        value(o, a) <- i;
+    }
+}
+set (Item o, AttributeNumeric a, STRING v) + {
+    value(o, a) <- NUMERIC(v);
+}
+FORM attributeNumeric 'Атрибут (число)'
+    OBJECTS attr = AttributeNumeric PANEL
+    PROPERTIES(attr) id, name, inactive, precision, scale, notMore, notLess
+
+    EDIT AttributeNumeric OBJECT attr
+;
+DESIGN attributeNumeric {
+    caption = CONCAT ' - ', 'Атрибут (число)', name(attr);
+    OBJECTS {
+        NEW constaraints {
+            caption = 'Ограничения';
+            horizontal = TRUE;
+            MOVE PROPERTY(precision(attr)) { align = START; }
+            MOVE PROPERTY(scale(attr)) { align = START; }
+            MOVE PROPERTY(notLess(attr)) { align = START; }
+            MOVE PROPERTY(notMore(attr)) { align = START; }
+        }
+    }
+}
+
+//------------------------------------ Object ---------------------------------------------------------------------//
+CLASS Detail 'Элемент';
+data = DATA STRING (Detail);
+
+CLASS AttributeList 'Список' : Attribute;
+EXTEND CLASS AttributeClass { list 'Список' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.list THEN {
+    NEW a = AttributeList {
+        edit(a);
+    }
+};
+
+attributeList = DATA AttributeList(Detail) NONULL DELETE INDEXED AGGR; 
+
+order(AttributeClass c) += WHEN c == AttributeClass.list THEN 5;
+id 'Код' = DATA STRING[10] (AttributeList) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeList);
+name 'Наименование' = DATA BPISTRING[100] (AttributeList) NONULL IN id;
+id (AttributeList a) += id(a);
+active (AttributeList a) += a IS AttributeList AND NOT inactive(a);
+isObject (AttributeList a) += a IS AttributeList;
+name (AttributeList a) += name(a);
+
+FORM dialogAttributeListValue 'Значение атрибута'
+    OBJECTS attr = AttributeList PANEL, val = Detail
+    PROPERTIES(val) READONLY data
+    FILTERS attributeList(val) == attr
+    ORDERS data(val)
+;
+
+DESIGN dialogAttributeListValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Detail (Item, AttributeList);
+value (Item o, AttributeList a) += STRING(OVERRIDE data(value(o, a)), 'Без наименования' IF value(o, a));
+objectValue (Item o, AttributeList a) += value(o, a);
+detailAttribute (STRING id, AttributeList l) = GROUP MAX Detail k AS Detail BY [FORMULA STRING '$1::text'](k), attributeList(k);
+
+edit (Item o, AttributeList a) + {
+    IF required(a, itemGroup(o)) THEN {
+        DIALOG dialogAttributeListValue OBJECTS attr = a, val INPUT DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeListValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeList a, STRING v) + {
+    value(o, a) <- detailAttribute(v, a);
+}
+
+FORM attributeList 'Атрибут (список)'
+    OBJECTS attr = AttributeList PANEL
+    PROPERTIES (attr) id, name, inactive
+    
+    OBJECTS d = Detail
+    PROPERTIES (d) data, NEW, DELETE 
+    FILTERS attributeList(d) == attr
+
+    EDIT AttributeList OBJECT attr
+;
+DESIGN attributeList {
+    caption = CONCAT ' - ', 'Атрибут (список)', name(attr);
+}
