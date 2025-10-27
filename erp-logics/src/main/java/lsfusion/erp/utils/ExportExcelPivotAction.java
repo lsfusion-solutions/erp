@@ -2,6 +2,7 @@ package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
+import lsfusion.interop.form.print.FormPrintType;
 import lsfusion.interop.form.print.ReportGenerationData;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.ValueClass;
@@ -84,9 +85,8 @@ public abstract class ExportExcelPivotAction extends InternalAction {
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
 
 
-                ReportGenerationData reportData = new InteractiveFormReportManager(formInstance).getReportData(
-                        formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
-
+                ReportGenerationData reportData = new InteractiveFormReportManager(formInstance, formEntity.getGroupObject(idGroupObject).getID(),
+                        formInstance.loadUserPreferences()).getReportData(FormPrintType.XLS);
                 context.requestUserInteraction(new ExportExcelPivotClientAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
                         readFieldCaptions(properties, rows), readFieldCaptions(properties, columns), readFieldCaptions(properties, filters), readFieldCaptions(properties, cells)));
             }
