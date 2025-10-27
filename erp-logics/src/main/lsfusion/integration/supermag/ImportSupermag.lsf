@@ -7,7 +7,7 @@ REQUIRE Item, ItemSize, LegalEntityBy, EDI,
         PurchaseOrderStatus, PurchaseSaleOrder, PurchaseAutoOrder, PurchaseScheduleOrderContract, PurchaseManufacturingPrice,
         ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize, StockContract;
 
-PRIORITY Supermag;
+NAMESPACE Supermag;
 
 idOrder (LegalEntityGroup g) = GROUP CONCAT TEXT (order(LegalEntityGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg); 
 
@@ -87,9 +87,9 @@ DESIGN integrationData {
 
 overImportLegalEntity ABSTRACT LIST ();
 
-idOrg = DATA LOCAL INTEGER (INTEGER);
-
+lpadId 'Дополнять код нулями слева (кол-во симовлов)' = DATA INTEGER () TABLE settings;
 importLegalEntity 'Импорт организаций' () {    
+    LOCAL idOrg = INTEGER (INTEGER);
     LOCAL name = ISTRING[255] (INTEGER);
     LOCAL juname = ISTRING[255] (INTEGER);
     LOCAL shortName = ISTRING[255] (INTEGER);
@@ -116,31 +116,33 @@ importLegalEntity 'Импорт организаций' () {
     
     IMPORT TABLE FROM file() TO idOrg, name, shortName, inn, address, faddress, tel, fax, email, okpo, kpp, commentary, gln, own, clientClass, supplierClass, status, paymentDelay;
     
-    FOR idOrg(INTEGER i) AND NOT legalEntity(TEXT (idOrg(i))) DO NEW s = LegalEntity {
-        id(s) <- ISTRING[100] (idOrg(i));
-        
+    LOCAL idLE = STRING (INTEGER);
+    idLE(INTEGER r) <- IF lpadId() THEN lpad(STRING(idOrg(r)), lpadId(), '0') ELSE STRING(idOrg(r));
+    
+    FOR idLE(INTEGER i) AND NOT legalEntity(idLE(i)) DO NEW s = LegalEntity {
+        id(s) <- idLE(i);
     }
 
-    FOR idOrg(INTEGER i) AND NOT warehouse(TEXT (idOrg(i))) DO NEW w = Warehouse {
-            id(w) <- ISTRING[100](idOrg(i));
-            legalEntity(w) <- legalEntity(TEXT (idOrg(i)));
+    FOR idLE(INTEGER i) AND NOT warehouse(idLE(i)) DO NEW w = Warehouse {
+            id(w) <- idLE(i);
+            legalEntity(w) <- legalEntity(idLE(i));
             stockGroup(w) <- warehouseGroup('external');
     }
     
-    FOR LegalEntity s = legalEntity(TEXT (idOrg(INTEGER i))) DO {
-        fullName(s) <- ISTRING[200] (OVERRIDE shortName(i), name(i));
-        name(s) <- ISTRING[150] (name(i));
+    FOR LegalEntity s = legalEntity(TEXT (idLE(INTEGER i))) DO {
+        fullName(s) <- ISTRING[200](OVERRIDE shortName(i), name(i));
+        name(s) <- ISTRING[150](name(i));
         UNP(s) <- STRING[9](left(inn(i), 9));
         
         IF NOT address(s, currentDate()) == address(i) THEN {
-            dataAddress(s, DATE d) <- ISTRING[150] (address(i)) WHERE d == currentDate();
+            dataAddress(s, DATE d) <- ISTRING[150](address(i)) WHERE d == currentDate();
         }
         IF NOT postAddress(s, currentDate()) == faddress(i) THEN {
-            dataPostAddress(s, DATE d) <- ISTRING[150] (faddress(i)) WHERE d == currentDate();
+            dataPostAddress(s, DATE d) <- ISTRING[150](faddress(i)) WHERE d == currentDate();
         }
         dataPhone(s, DATE d) <- CONCAT ', ', tel(i), fax(i) WHERE d == currentDate();
         email(s) <- email(i);
-        OKPO(s) <- ISTRING[20] (okpo(i));
+        OKPO(s) <- ISTRING[20](okpo(i));
         note(s) <- commentary(i);
         GLN(s) <- gln(i);
         isCompany(s) <- own(i) == '1';
@@ -150,7 +152,7 @@ importLegalEntity 'Импорт организаций' () {
         inactive(s) <- status(i) == 2;
     }
     
-    FOR Warehouse s = warehouse(TEXT (idOrg(INTEGER i))) DO {   
+    FOR Warehouse s = warehouse(TEXT (idLE(INTEGER i))) DO {   
                 name(s) <- ISTRING[150](shortName(i));
                 address(s) <- ISTRING[150](faddress(i));
     }
@@ -160,15 +162,16 @@ importLegalEntity 'Импорт организаций' () {
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importLegalEntity();
+EXTEND FORM integrationData PROPERTIES importLegalEntity(), lpadId();
 DESIGN integrationData {
     supermag {
+        MOVE PROPERTY (lpadId());
         MOVE PROPERTY (importLegalEntity());
     }
 }
 
 
-defaultCompany = DATA LegalEntity();
+defaultCompany = DATA LegalEntity() TABLE settings;
 nameDefaultCompany 'Компания по умолчанию' () = name(defaultCompany());
 
 EXTEND FORM options PROPERTIES nameDefaultCompany();
@@ -190,7 +193,7 @@ importStore 'Импорт магазинов' () {
     IMPORT TABLE FROM file() TO id, name;
     
     FOR id(INTEGER i) AND id(i) != 0 AND NOT stockGroup(TEXT (id(i))) DO NEW g = Store {
-        id(g) <- ISTRING[100] (id(i));
+        id(g) <- STRING[100](id(i));
         legalEntity(g) <- defaultCompany();
     }
     
@@ -206,8 +209,6 @@ DESIGN integrationData {
         MOVE PROPERTY (importStore());
     }
 }
-
-storeTypeInSupermag = DATA INTEGER (StoreType);
 
 overImportStoreType ABSTRACT LIST ();
 
@@ -266,7 +267,7 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
     IMPORT TABLE FROM file() TO id, name, idClass, address, idFormat, idCompany, idParentStock;
         
     FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND NOT idClass(i) = idGroupWarehouseInSuperMag() DO NEW s = DepartmentStore {
-        id(s) <- ISTRING[100] (id(i));
+        id(s) <- STRING[100](id(i));
     }
     
     FOR DepartmentStore s = stock(TEXT (id(INTEGER i))) AND NOT idClass(i) = idGroupWarehouseInSuperMag() DO {        
@@ -282,7 +283,7 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
     
     // это склады распределительного центра
     FOR id(INTEGER i) AND NOT stock(TEXT (id(i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO NEW s = Warehouse {
-        id(s) <- ISTRING[100] (id(i));
+        id(s) <- STRING[100](id(i));
     }
     
     FOR Warehouse s = stock(TEXT (id(INTEGER i))) AND idClass(i) = idGroupWarehouseInSuperMag() DO {     
@@ -321,7 +322,7 @@ importBank 'Импорт банков' () {
     IMPORT TABLE FROM file() TO id, name, address, bic;
     
     FOR id(INTEGER i) AND NOT bank(TEXT (id(i))) DO NEW b = Bank {
-        id(b) <- STRING[100] (id(i));
+        id(b) <- STRING[100](id(i));
     }
     
     FOR Bank b = bank(TEXT (id(INTEGER i))) DO {
@@ -401,8 +402,8 @@ DESIGN integrationData {
 //    
 //    IMPORT TABLE FROM file() TO id, name;    
 //   
-//    FOR id(INTEGER i) AND NOT range(STRING[100] (id(i))) DO NEW r =  Range.Range {
-//        id(r) <- STRING[100] (id(i));
+//    FOR id(INTEGER i) AND NOT range(STRING[100](id(i))) DO NEW r =  Range.Range {
+//        id(r) <- STRING[100](id(i));
 //        name(r) <- name(i);      
 //        inData(r, ItemGroup g) <- TRUE IF itemGroupRoot(g, 2) == g; 
 //        NEW rr = RangeRev {
@@ -423,7 +424,7 @@ DESIGN integrationData {
 //    store (INTEGER i) <- GROUP MAX Store s IF isISubstring(nameImport(s), replace(name(i), ' nS', ''));
 //
 ////    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF isParent(ItemGroup g, item(itemId(i))) AND level(g, itemGroup(id(range(rr))));
-//    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF id(range(rr)) = STRING[100] (id(i));
+//    rangeRev(INTEGER i) <- GROUP LAST RangeRev rr ORDER dateTime(rr), rr IF id(range(rr)) = STRING[100](id(i));
 //
 //    FOR [GROUP SUM 1 BY rangeRev(INTEGER i)](RangeRev r) DO {
 //        include(r, Store st, Item s) <- TRUE IF [GROUP SUM 1 BY rangeRev(INTEGER i), store(i), item(itemId(i))](r, st, s);
@@ -442,8 +443,8 @@ DESIGN integrationData {
 //}
 
 //---------------------------------------------------------------------------------------импорт остатков
-scriptImportInit 'Скрипт импорта остатков' = DATA TEXT ();
-useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN ();
+scriptImportInit 'Скрипт импорта остатков' = DATA TEXT () TABLE settings;
+useConstraint 'Сохранять, даже если есть ограничения' = DATA BOOLEAN () TABLE settings;
 
 date 'Дата ТТН' = DATA LOCAL DATETIME (INTEGER);
 num 'Номер ТТН' = DATA LOCAL STRING[48](INTEGER);
@@ -451,24 +452,22 @@ series 'Серия ТТН' = DATA LOCAL STRING[2](INTEGER);
 spec 'Код для импорта' = DATA LOCAL INTEGER (INTEGER);
 
 idSupplierInt 'Код поставщика'= DATA LOCAL INTEGER (INTEGER);
-idSupplier 'Код поставщика'= DATA LOCAL ISTRING[100] (INTEGER);
+idSupplier 'Код поставщика'= DATA LOCAL STRING[100] (INTEGER);
 idCustomerStockInt 'Код склада покупателя'= DATA LOCAL INTEGER (INTEGER);
-idCustomerStock 'Код склада покупателя'= DATA LOCAL ISTRING[100] (INTEGER);
+idCustomerStock 'Код склада покупателя'= DATA LOCAL STRING[100] (INTEGER);
 
 idBal 'Код накладной'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock(i), series(i), num(i)), 'nodoc' IF imported(i);
 idDetail 'Код строки'(INTEGER i) = OVERRIDE (CONCAT '', idCustomerStock(i), series(i), num(i), spec(i)), 'nodoc' IF imported(i);
 
 idSku 'Код товара'= DATA LOCAL STRING[100](INTEGER);
 
-quantity 'Количество' = DATA LOCAL NUMERIC[16,5](INTEGER);
 price 'Цена' = DATA LOCAL NUMERIC[16,4](INTEGER);
 sum 'Цена' = DATA LOCAL NUMERIC[18,4](INTEGER);
-retailPrice 'Цена' = DATA LOCAL NUMERIC[19,4](INTEGER);
 vat 'Ставка НДС поставщика' = DATA LOCAL NUMERIC[10,5](INTEGER);
 
 skipSetContractSku(Purchase.UserInvoice i) += idOperation(i) == 'initial';
 
-deleteInvoiceDetails 'Удалять строки, которых нет в импорте' = DATA BOOLEAN ();
+deleteInvoiceDetails 'Удалять строки, которых нет в импорте' = DATA BOOLEAN () TABLE settings;
 
 importInit 'Импорт остатков' ()  {
         
@@ -477,10 +476,10 @@ importInit 'Импорт остатков' ()  {
     IMPORT TABLE FROM file() TO idCustomerStockInt, idSku, num, series, spec, idSupplierInt, vat, price, quantity, retailPrice, date;
        
     
-    idSupplier(INTEGER r) <- OVERRIDE ISTRING[100] (idSupplierInt(r)), 'nosup' WHERE imported(r);
-    idCustomerStock(INTEGER r) <- ISTRING[100] (idCustomerStockInt(r)) WHERE imported(r);
+    idSupplier(INTEGER r) <- OVERRIDE STRING[100](idSupplierInt(r)), 'nosup' WHERE imported(r);
+    idCustomerStock(INTEGER r) <- STRING[100](idCustomerStockInt(r)) WHERE imported(r);
     date(INTEGER r) <- DATETIME (2018_01_01) WHERE imported(r) AND NOT date(r);
-    retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(ISTRING[100] (idCustomerStockInt(r))) IS Warehouse;
+    retailPrice(INTEGER r) <- NULL WHERE imported(r) AND stock(STRING[100](idCustomerStockInt(r))) IS Warehouse;
     
     LOCAL supplier = LegalEntity(INTEGER);
     supplier(INTEGER r) <- legalEntity(idSupplier(r)) WHERE imported(r); 
@@ -488,10 +487,10 @@ importInit 'Импорт остатков' ()  {
     LOCAL incl =  BOOLEAN (Purchase.UserInvoiceDetail);
     
     //шапки
-    FOR [GROUP SUM 1 BY  idBal(INTEGER r)](ISTRING[100] id) AND NOT Purchase.userInvoice(id) DO NEW i = Purchase.UserInvoice {
+    FOR [GROUP SUM 1 BY  idBal(INTEGER r)](STRING[100] id) AND NOT Purchase.userInvoice(id) DO NEW i = Purchase.UserInvoice {
         id(i) <- id;
     }
-    FOR INTEGER r == [GROUP MIN INTEGER ir BY idBal(ir)](ISTRING[100] id) AND Purchase.UserInvoice i == Purchase.userInvoice(id) DO {
+    FOR INTEGER r == [GROUP MIN INTEGER ir BY idBal(ir)](STRING[100] id) AND Purchase.UserInvoice i == Purchase.userInvoice(id) DO {
         
         supplier(i) <- OVERRIDE supplier(r), legalEntity(stock(idCustomerStock(r)));
         supplierStock(i) <- IF supplier(r) THEN minStock(supplier(r)) ELSE stock(idCustomerStock(r));
@@ -576,8 +575,8 @@ importInitTest 'Импорт остатков' ()  {
 
 
 //-------------------------------------------------------------------------------------------------------------------сверка остатков
-dateCheckBalance 'Дата сверки' = DATA DATE ();
-synchronizeBalance 'Привести остатки к данным Супермага' = DATA BOOLEAN ();
+dateCheckBalance 'Дата сверки' = DATA DATE () TABLE settings;
+synchronizeBalance 'Привести остатки к данным Супермага' = DATA BOOLEAN () TABLE settings;
 
 hostBalance 'Хост для сверки остатков' = DATA LOCAL ISTRING[100]();
     
