@@ -92,10 +92,11 @@ abstract class ExportSQLAction extends InternalAction {
                             if (instance.toDraw != null && instance.toDraw.getSID() != null && instance.toDraw.getSID().equals(idGroupObject)) {
                                 Object value = formRow.values.get(instance);
                                 row.add(value);
+                                String sid = instance.getSID();
                                 if (first)
-                                    columnNames.add(instance.getsID());
-                                if (keyColumns.contains(instance.getsID()))
-                                    keysRow.put(instance.getsID(), value);
+                                    columnNames.add(sid);
+                                if (keyColumns.contains(sid))
+                                    keysRow.put(sid, value);
                             }
                         }
                     }
