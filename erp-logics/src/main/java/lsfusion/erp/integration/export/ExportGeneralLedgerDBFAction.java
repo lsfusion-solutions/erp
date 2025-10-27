@@ -50,6 +50,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
+                //todo: refactor RawFileData> -> NamedFileData after upgrading erp to 6.1
                 context.delayUserInterfaction(new WriteClientAction(new RawFileData(file), "export", "dbf", false, true));
                 safeFileDelete(file);
             }

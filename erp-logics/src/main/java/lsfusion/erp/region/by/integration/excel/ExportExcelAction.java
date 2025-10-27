@@ -55,6 +55,7 @@ public abstract class ExportExcelAction extends DefaultIntegrationAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
+            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> fileEntry = createFile(context);
             context.delayUserInterfaction(new WriteClientAction(fileEntry.second, fileEntry.first, "xls", false, true));
         } catch (IOException | WriteException e) {

@@ -29,15 +29,19 @@ public class ExportExcelAllAction extends InternalAction {
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
         try {
 
+            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> generalLedgerEntry = new ExportExcelGeneralLedgerAction(LM, dateFromInterface, dateToInterface).createFile(context);
             context.delayUserInteraction(new WriteClientAction(generalLedgerEntry.second, generalLedgerEntry.first, "xls", false, true));
 
+            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> legalEntityEntry = new ExportExcelLegalEntitiesAction(LM).createFile(context);
             context.delayUserInteraction(new WriteClientAction(legalEntityEntry.second, legalEntityEntry.first, "xls", false, true));
 
+            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> itemEntry = new ExportExcelItemsAction(LM).createFile(context);
             context.delayUserInteraction(new WriteClientAction(itemEntry.second, itemEntry.first, "xls", false, true));
 
+            //todo: refactor Pair<String, RawFileData> -> Pair<String, NamedFileData> after upgrading erp to 6.1
             Pair<String, RawFileData> userInvoiceEntry = new ExportExcelUserInvoicesAction(LM, dateFromInterface, dateToInterface).createFile(context);
             context.delayUserInteraction(new WriteClientAction(userInvoiceEntry.second, userInvoiceEntry.first, "xls", false, true));
 
