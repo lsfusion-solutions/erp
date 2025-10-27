@@ -34,6 +34,7 @@ public class CL7000Handler extends CL5000JHandler {
         String imageName = pluNumber + ".jpg";
 
         if(itemImage != null) {
+            //todo: refactor RawFileData> -> NamedFileData after upgrading equ to 6.1
             WriteUtils.storeFileToFTP("cas:cascl7200@" + socket.ip + "/image/" + imageName, itemImage, null);
         }
 

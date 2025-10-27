@@ -149,6 +149,7 @@ public class Kristal10Handler extends Kristal10DefaultHandler {
                                     File copyFile = makeExportFile(sftpPath, "catalog-goods");
                                     FileUtils.copyFile(tempFile, copyFile);
                                 } else {
+                                    //todo: refactor RawFileData> -> NamedFileData after upgrading equ to 6.1
                                     WriteUtils.storeFileToSFTP(sftpPath + "/" + file.getName(), new RawFileData(tempFile), null);
                                 }
                             } catch (Exception e) {
