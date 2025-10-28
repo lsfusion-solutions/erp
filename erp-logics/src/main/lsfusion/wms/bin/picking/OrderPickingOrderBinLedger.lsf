@@ -90,6 +90,8 @@ WHEN LOCAL CHANGED(sku(UserPickingDetail detail)) DO {
 
 idPickingGroup 'Группа комплектации' = ABSTRACT INTEGER (OrderDetail) MATERIALIZED INDEXED;
 namePickingGroup 'Группа комплектации' (OrderDetail d) = OVERRIDE name(pickingGroup(idPickingGroup(d))), 'Не задана' IF d IS OrderDetail CHARWIDTH 20;
+countPickingGroups(Order o, STRING g) = [GROUP SUM 1 BY order(OrderDetail d), namePickingGroup(d)](o, g);
+descriptionPickingGroups 'Группы комплектации' (Order o) = [GROUP CONCAT STRING namePickingGroup, ', ' IF countPickingGroups(Order o0, namePickingGroup) ORDER namePickingGroup BY o0](o);
 
 idPickingGroup(OrderPickingOrderDetail detail) += idPickingGroup(orderDetail(detail));
 
