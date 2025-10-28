@@ -72,6 +72,8 @@ note 'Описание' = DATA ISTRING[200] (Lot) IN id;
 batch = ABSTRACT Batch (Lot) MATERIALIZED INDEXED;
 currentBalance 'Текущий остаток' = ABSTRACT NUMERIC[16,5](Lot) MATERIALIZED;
 
+backgroundLot 'Цвет' = ABSTRACT CASE COLOR (Lot);
+
 overPreprocessedBarcode(STRING[200] s) += WHEN lotType(sku(lot(barcodeToId(s)))) THEN idBarcode(sku(lot(barcodeToId(s))));
 
 changeSku 'Заменить товар' (Lot l) {
@@ -169,7 +171,7 @@ showQuantity (Lot lot) = lot IS Lot AND NOT skipShowQuantity(lot);
 
 FORM dialogInLots 'Список марок'
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id
+    PROPERTIES(l) READONLY id BACKGROUND backgroundLot(l)
     PROPERTIES(l) count
     PROPERTIES(l) READONLY quantity SHOWIF showQuantity(l)
     PROPERTIES(l) delete = DELETE
@@ -182,7 +184,7 @@ removeLot 'Убрать' (Lot l) {
 
 FORM dialogOutLots 'Список марок'
     OBJECTS l = Lot
-    PROPERTIES(l) READONLY id, count
+    PROPERTIES(l) READONLY  id BACKGROUND backgroundLot(l), count
     PROPERTIES(l) quantity SHOWIF showQuantity(l),removeLot
     FILTERS quantity(l)
 ;
@@ -306,7 +308,7 @@ META defineDocumentLotIn(doc, quantityProp, obj, formList, postedProp)
                       SHOWIF useLot(obj)
                       READONLYIF NOT lotType(sku(d))
     ;
-    
+
     @defineDocumentLotBarcodeIn(doc, quantityProp);
 END
 
@@ -405,7 +407,7 @@ META defineDocumentLotOut(doc, form, stock, quantityProp, obj, postedProp)
                       SHOWIF useLot(obj)
         READONLYIF NOT lotType(sku(d))
     ;
-    
+
     @defineDocumentLotBarcodeOut(doc, form, stock);
 END
 META defineDocumentLotOut(doc, stock, quantityProp, obj, postedProp)
