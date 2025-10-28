@@ -1,6 +1,6 @@
 MODULE PricingPurchasePackagingCost;
 
-REQUIRE PricingPurchase, PricingPackagingCost, PriceListPackagingCost, PurchasePriceLimit;
+REQUIRE PricingPurchase, PricingPackagingCost, PriceListPackagingCost, PurchasePriceLimit, PurchaseEInvoice;
 
 PRIORITY Purchase;
 
@@ -68,3 +68,8 @@ useRetailExtraPackagingCost(UserInvoiceDetail d) <- markup(priceLimitPriceListTy
         WHEN CHANGED(customerStock(d)) OR CHANGED(operation(d)) OR CHANGED(sku(d));
 
 useRetailExtraPackagingCost(InvoicePricingDetail d) += useRetailExtraPackagingCost(invoiceDetail(d));
+
+overCopy(EInvoiceDetail ei, UserInvoiceDetail i) + {
+    packagePrice1(i) <- outputPriceShippingCoast(ei);
+    packagePrice2(i) <- outputPricePackingCoast(ei);
+}
