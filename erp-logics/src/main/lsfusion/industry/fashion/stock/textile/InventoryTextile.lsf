@@ -202,7 +202,7 @@ updatePageInventoryDetailsAll 'Обновить спецификации все�
 
 denyUpdatePageInventory 'Запрет обновления спецификации' = ABSTRACT BOOLEAN (Inventory);
 
-WHEN SETCHANGED (dateTime(Inventory i)) AND packets(i) DO {
+WHEN ([GROUP SUM 1 IF CHANGED (include(Stock st, Inventory ii)) BY ii](Inventory i) OR SETCHANGED (dateTime(i))) AND packets(i) DO {
     recalculatePackets(i);
     IF NOT denyUpdatePageInventory(i) THEN {
         updatePageInventoryDetailsAll(i);
