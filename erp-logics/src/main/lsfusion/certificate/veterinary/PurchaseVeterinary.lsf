@@ -5,7 +5,18 @@ REQUIRE Veterinary, PurchaseCertificate;
 NAMESPACE Purchase;
 
 @defineDocumentCertificate(veterinary, invoice, i, 'Ветеринарное свидетельство');
-@deriveDocumentPurchaseCertificate(veterinary, invoice, customerStock, data);
+
+skipAutoSetVeterinaryPurchase 'Не заполнять ветеринарное свидетельство автоматически' = DATA BOOLEAN ();
+
+dataVeterinary(UserInvoiceDetail detail)  <- IF batch(detail)
+        THEN prevVeterinary(batch(detail))
+        ELSE prevVeterinary(prevLastOrderBatch(sku(detail), supplierStock(detail)))
+    WHEN (CHANGED (batch(detail)) OR
+        CHANGED (sku(detail)) OR
+        CHANGED (supplierStock(detail))) AND NOT skipAutoSetVeterinaryPurchase();
+
+EXTEND FORM options PROPERTIES() skipAutoSetVeterinaryPurchase;
+DESIGN options { invoicePurchase { MOVE PROPERTY(skipAutoSetVeterinaryPurchase()); } }
 
 @defineDocumentCertificate(veterinary, shipment, s, 'Ветеринарное свидетельство');
 

@@ -6,7 +6,18 @@ NAMESPACE Sale;
 
 @defineDocumentCertificate(veterinary, invoice, i, 'Ветеринарное свидетельство');
 @defineDocumentCertificateConstraint(veterinary, invoice, 'ветеринарное свидетельство');
-@deriveDocumentSaleCertificate(veterinary, invoice, supplierStock, data);
+
+skipAutoSetVeterinarySale 'Не заполнять ветеринарное свидетельство автоматически' = DATA BOOLEAN ();
+
+dataVeterinary(UserInvoiceDetail detail)  <- IF batch(detail)
+        THEN prevVeterinary(batch(detail))
+        ELSE prevVeterinary(prevLastOrderBatch(sku(detail), supplierStock(detail)))
+    WHEN (CHANGED (batch(detail)) OR
+        CHANGED (sku(detail)) OR
+        CHANGED (supplierStock(detail))) AND NOT skipAutoSetVeterinarySale();
+
+EXTEND FORM options PROPERTIES() skipAutoSetVeterinarySale;
+DESIGN options { invoiceSale { MOVE PROPERTY(skipAutoSetVeterinarySale()); } }
 
 @defineDocumentCertificate(veterinary, shipment, s, 'Ветеринарное свидетельство');
 veterinary(InvoiceShipmentDetail detail) += veterinary(invoiceDetail(detail));
