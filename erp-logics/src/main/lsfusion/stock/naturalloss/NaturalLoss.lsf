@@ -1,6 +1,6 @@
 MODULE NaturalLoss;
 
-REQUIRE NaturalLossDefault;
+REQUIRE NaturalLossDefault, CountryDefault;
 
 CLASS Type 'Тип отчета'{
     eu 'Естественная убыль',
@@ -98,54 +98,22 @@ FORM subNaturalLossGroupDetail 'Строка группы естественно
 
 
 EXTEND FORM naturalLossGroups    
-    PROPERTIES(sg) READONLY  nameCountry AFTER name(sg)
-    OBJECTS d=SubNaturalLossGroupDetail
-
-    OBJECTS t = NaturalLossStockType
-    PROPERTIES(d)  dayFrom, nameMonthFrom,
-        dayTo, nameMonthTo,
-        percent
-    PROPERTIES percent(d,t) COLUMNS (t) HEADER name(t)
-    PROPERTIES(d)  NEW, DELETE GRID
-    FILTERS in(sg, d)
-
+    PROPERTIES(sg) READONLY nameCountry AFTER name(sg)
     
+    OBJECTS d = SubNaturalLossGroupDetail
+    OBJECTS t = NaturalLossStockType
+    PROPERTIES(d) dayFrom, nameMonthFrom, dayTo, nameMonthTo, percent
+    PROPERTIES percent(d,t) COLUMNS (t) HEADER name(t)
+    PROPERTIES(d) NEW, DELETE GRID
+    FILTERS in(sg, d)
 ;
-
-//FORM naturalLossGroups 'Справочник норм естественной убыли'
-//    OBJECTS c=Country PANEL
-//    PROPERTIES(c) name
-//    
-//    PROPERTIES showAllContries()
-//
-//    TREE treeNaturalLoss a =BPSTRING[3], n=NaturalLossGroup
-//    PROPERTIES READONLY VALUE(a)
-//    PROPERTIES READONLY name(n), nameCountry(n)
-//    PROPERTIES NEWSESSION NEW(n), deleten=DELETE(n) 
-//    ORDERS name(n)
-//
-//    OBJECTS sg=SubNaturalLossGroup, d=SubNaturalLossGroupDetail
-//    PROPERTIES(sg) READONLY name, nameCountry, nameParent,
-//                   code
-//    PROPERTIES(sg) NEWSESSION EDIT, NEW DRAW sg, deletesg=DELETE
-//    OBJECTS t = NaturalLossStockType
-//    PROPERTIES(d)  dayFrom, nameMonthFrom,
-//                   dayTo, nameMonthTo,
-//                   percent
-//    PROPERTIES percent(d,t) COLUMNS (t) HEADER name(t)
-//    PROPERTIES(d)  NEW, DELETE GRID 
-//    FILTERS stringEqualsAll(a), inParentNull(n, sg),  in(sg, d)
-//    ORDERS name(sg)
-//    
-//    FILTERS country(n) == c OR n IS NaturalLossGroup AND (NOT c OR showAllContries()), 
-//            country(sg) == c OR sg IS SubNaturalLossGroup AND (NOT c OR showAllContries())
-//;
 
 seekDefaultCountryNaturalLoss()  { 
     IF defaultCountry() THEN {
         SEEK naturalLossGroups.c = defaultCountry(); 
     }
 }
+
 EXTEND FORM naturalLossGroups
     EVENTS ON INIT seekDefaultCountryNaturalLoss()
 ;
