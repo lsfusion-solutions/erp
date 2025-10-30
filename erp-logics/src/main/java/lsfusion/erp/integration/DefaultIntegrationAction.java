@@ -9,6 +9,7 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
+import lsfusion.server.logics.classes.data.file.TXTClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.Settings;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
@@ -268,6 +269,10 @@ public class DefaultIntegrationAction extends InternalAction {
     public ObjectValue requestUserData(ExecutionContext context, String description, String extensions) {
         CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, description, SetFact.toExclSet(extensions.split(" ")));
         return context.requestUserData(valueClass, null);
+    }
+
+    public ObjectValue requestUserDataText(ExecutionContext context) {
+        return context.requestUserData(TXTClass.get(), null);
     }
 
 }
