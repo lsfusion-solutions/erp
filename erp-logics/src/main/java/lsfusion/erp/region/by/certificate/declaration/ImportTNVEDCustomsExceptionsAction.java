@@ -14,7 +14,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -39,15 +38,11 @@ public class ImportTNVEDCustomsExceptionsAction extends DefaultIntegrationAction
 
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-
         try {
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
-            ObjectValue objectValue = context.requestUserData(valueClass, null);
-
+            ObjectValue objectValue = requestUserData(context, "Файлы DBF", "dbf");
             if (objectValue != null) {
                 importVATException(context, (RawFileData) objectValue.getValue());
             }
-
         } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }

@@ -9,7 +9,6 @@ import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.dev.integration.service.*;
@@ -35,11 +34,8 @@ public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) {
-
         try {
-
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы XML", "xml");
-            ObjectValue objectValue = context.requestUserData(valueClass, null);
+            ObjectValue objectValue = requestUserData(context, "Файлы XML", "xml");
             if (objectValue != null) {
                 DataObject declarationObject = context.getDataKeyValue(declarationInterface);
                 RawFileData file = (RawFileData) objectValue.getValue();

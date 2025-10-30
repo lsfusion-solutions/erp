@@ -5,7 +5,6 @@ import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportDBFAction;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -36,12 +35,8 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
-
         try {
-
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файл G47.DBF", "dbf");
-            ObjectValue objectValue = context.requestUserData(valueClass, null);
-
+            ObjectValue objectValue = requestUserData(context, "Файл G47.DBF", "dbf");
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
 
             if (objectValue != null) {

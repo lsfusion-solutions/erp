@@ -9,7 +9,6 @@ import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.data.StringClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -42,8 +41,7 @@ public class ImportTNVEDClassifierAction extends DefaultIntegrationAction {
                 context.apply();
             }
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы DBF", "dbf");
-            ObjectValue objectValue = context.requestUserData(valueClass, null);
+            ObjectValue objectValue = requestUserData(context, "Файлы DBF", "dbf");
             if (objectValue != null) {
                 importGroups(context, (RawFileData) objectValue.getValue());
                 importParents(context, (RawFileData) objectValue.getValue());

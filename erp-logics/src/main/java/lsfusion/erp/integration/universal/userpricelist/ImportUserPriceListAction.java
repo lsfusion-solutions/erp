@@ -26,7 +26,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.data.LogicalClass;
 import lsfusion.server.logics.classes.data.ParseException;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
 import lsfusion.server.logics.classes.data.time.DateClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -91,8 +90,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
                 String fileExtension = priceListSettings.getFileExtension();
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
-                    ObjectValue objectValue = context.requestUserData(valueClass, null);
+                    ObjectValue objectValue = requestUserData(context, fileExtension + " Files", fileExtension);
                     if (objectValue != null) {
                         importData(context, userPriceListObject, priceListSettings, priceColumns, importColumns.get(0), importColumns.get(1), (RawFileData) objectValue.getValue(), false);
                     }

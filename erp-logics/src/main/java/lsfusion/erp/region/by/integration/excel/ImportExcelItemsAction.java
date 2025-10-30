@@ -13,7 +13,6 @@ import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 
 import java.io.IOException;
@@ -33,9 +32,7 @@ public class ImportExcelItemsAction extends ImportExcelAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get("Файлы таблиц", "xls");
-            ObjectValue objectValue = context.requestUserData(valueClass, null);
+            ObjectValue objectValue = requestUserData(context, "Файлы таблиц", "xls");
             if (objectValue != null) {
                 ImportData importData = new ImportData();
 

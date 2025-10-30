@@ -10,7 +10,6 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.server.logics.classes.data.file.DynamicFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -55,8 +54,7 @@ public class ImportPurchaseInvoicesAction extends ImportDocumentAction {
             
             if (fileExtension != null) {
 
-                CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
-                ObjectValue objectValue = context.requestUserData(valueClass, null);
+                ObjectValue objectValue = requestUserData(context, fileExtension + " Files", fileExtension);
                 if (objectValue != null) {
                     RawFileData file = (RawFileData) objectValue.getValue();
                     if(file != null) {

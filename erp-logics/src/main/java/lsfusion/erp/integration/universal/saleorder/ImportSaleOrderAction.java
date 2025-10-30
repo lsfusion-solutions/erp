@@ -22,7 +22,6 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.user.CustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
@@ -82,8 +81,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
-                    ObjectValue objectValue = context.requestUserData(valueClass, null);
+                    ObjectValue objectValue = requestUserData(context, fileExtension + " Files", fileExtension);
                     if (objectValue != null) {
                         try {
                             makeImport(context, orderObject, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension,

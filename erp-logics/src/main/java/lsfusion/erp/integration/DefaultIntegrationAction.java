@@ -1,11 +1,14 @@
 package lsfusion.erp.integration;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.col.SetFact;
 import lsfusion.server.data.sql.exception.SQLHandledException;
+import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.action.session.DataSession;
 import lsfusion.server.logics.classes.ValueClass;
+import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.Settings;
 import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
@@ -260,6 +263,11 @@ public class DefaultIntegrationAction extends InternalAction {
     public void integrationServiceSynchronize(DataSession session, List<ImportField> fields, List<List<Object>> data, Collection<? extends ImportKey<?>> keys,
                                               Collection<ImportProperty<?>> properties) throws SQLException, SQLHandledException {
         new IntegrationService(session, new ImportTable(fields, data), keys, properties).synchronize(true, false);
+    }
+
+    public ObjectValue requestUserData(ExecutionContext context, String description, String extensions) {
+        CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, description, SetFact.toExclSet(extensions.split(" ")));
+        return context.requestUserData(valueClass, null);
     }
 
 }

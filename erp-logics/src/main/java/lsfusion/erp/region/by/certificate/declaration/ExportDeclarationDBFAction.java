@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.certificate.declaration;
 
 import com.hexiong.jdbf.DBFWriter;
 import com.hexiong.jdbf.JDBFException;
+import lsfusion.base.col.SetFact;
 import lsfusion.base.file.IOUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.col.MapFact;
@@ -52,10 +53,8 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
     }
 
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException {
-
         try {
-
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", "dbf");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", SetFact.singleton("dbf"));
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             if (objectValue != null) {

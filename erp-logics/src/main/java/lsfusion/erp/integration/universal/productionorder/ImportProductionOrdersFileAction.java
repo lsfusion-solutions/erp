@@ -12,7 +12,6 @@ import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import org.xBaseJ.xBaseJException;
 
@@ -44,8 +43,7 @@ public class ImportProductionOrdersFileAction extends ImportDocumentAction {
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(fileExtension + " Files", fileExtension);
-                    ObjectValue objectValue = context.requestUserData(valueClass, null);
+                    ObjectValue objectValue = requestUserData(context, fileExtension + " Files", fileExtension);
                     if (objectValue != null) {
                         new ImportProductionOrderAction(LM).makeImport(context, null, importColumns, (RawFileData) objectValue.getValue(), settings, fileExtension, operationObject);
 
