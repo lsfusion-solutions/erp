@@ -6,6 +6,7 @@ import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
 import com.jacob.com.SafeArray;
 import com.jacob.com.Variant;
+import lsfusion.interop.form.print.FormPrintType;
 import lsfusion.interop.form.print.ReportGenerator;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
@@ -69,7 +70,7 @@ public class ExportExcelPivotClientAction implements ClientAction {
 
         ActiveXComponent excelComponent = new ActiveXComponent("Excel.Application");
 
-        File reportFile = ReportGenerator.exportToXlsx(reportData);
+        File reportFile = ReportGenerator.exportToFile(reportData, FormPrintType.XLSX, null, null, false, null);
         Dispatch workbooks = excelComponent.getProperty("Workbooks").toDispatch();
         Dispatch workbook = Dispatch.call(workbooks, "Open", reportFile.getAbsolutePath()).toDispatch();
 
