@@ -78,11 +78,15 @@ exportArtix (GiftCard g, TEXT t) {
 
         httpHeadersLoc('Authorization') <- 'Basic ' + t;
         EXPORT exportGiftCardStatus1 OBJECTS detail = g JSON TO expInvoice;
-        EXTERNAL HTTP PUT 'http://' + artixStatusGiftCardSalePath() + '/' + seriesNumber(g) HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
-        dataExportedArtix(g) <- TRUE;
-        exportedArtixActive(g) <- isSold(g);
-        overAfterExportArtix(g);
-        APPLY;
+        TRY {
+            EXTERNAL HTTP PUT 'http://' + artixStatusGiftCardSalePath() + '/' + seriesNumber(g) HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
+            dataExportedArtix(g) <- TRUE;
+            exportedArtixActive(g) <- isSold(g);
+            overAfterExportArtix(g);
+            APPLY;
+        } CATCH {
+            MESSAGE CONCAT '\n', 'Ошибка выгрузки сертификатов. Сертификат №' + seriesNumber(g) +  '. Ошибка: ' + (CONCAT '\n', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException ())  NOWAIT;
+        }
     }
 }
 
@@ -115,9 +119,13 @@ sendArtixPayments 'Экспорт баланса сертификата' (GiftCa
         
         sessionId(g) <- CONCAT ':', TEXT(g), TEXT(currentDateTimeMillis());
         EXPORT exportGiftCardSale1 OBJECTS detail = g JSON TO expInvoice;
-        EXTERNAL HTTP POST 'http://' + artixSumGiftCardSalePath() + '?cancelOthers=true' HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
-        dataExportedArtix(PaymentGiftCard pg) <- TRUE WHERE giftCard(pg) = g AND NOT exportedArtix(pg);
-        APPLY;
+        TRY {
+            EXTERNAL HTTP POST 'http://' + artixSumGiftCardSalePath() + '?cancelOthers=true' HEADERS httpHeadersLoc PARAMS expInvoice() TO result;
+            dataExportedArtix(PaymentGiftCard pg) <- TRUE WHERE giftCard(pg) = g AND NOT exportedArtix(pg);
+            APPLY;
+        } CATCH {
+            MESSAGE CONCAT '\n', 'Ошибка выгрузки баланса. Сертификат №' + seriesNumber(g) +  '. Ошибка: ' + (CONCAT '\n', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException ())  NOWAIT;
+        }    
     }
 }
 
@@ -155,7 +163,7 @@ sendArtixBalanceAll 'Экспорт баланса сертификатов Arti
 
 
 EXTEND FORM giftCards
-    PROPERTIES exportedArtix(g), exportedArtixActive(g)
+    PROPERTIES READONLYIF isReadonly() exportedArtix(g), exportedArtixActive(g)
     PROPERTIES TOOLBAR exportArtixSelected() BEFORE generateGiftCards() DRAW g
 
     PROPERTIES DRAW l TOOLBAR sendArtixBalanceSelected(), sendArtixBalanceAll()
