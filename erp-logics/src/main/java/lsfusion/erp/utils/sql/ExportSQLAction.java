@@ -74,6 +74,7 @@ abstract class ExportSQLAction extends InternalAction {
                 String url = (String) findProperty(connectionStringProperty).read(context);
 
                 FormEntity formEntity = findForm(idForm);
+                //todo: replace deprecated createFormInstance after upgrading erp to 6.1
                 FormInstance formInstance = context.createFormInstance(formEntity);
                 FormData formData = formInstance.getFormData(0);
 

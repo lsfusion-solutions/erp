@@ -77,6 +77,7 @@ public abstract class ExportExcelPivotAction extends InternalAction {
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
+                //todo: replace deprecated createFormInstance after upgrading erp to 6.1
                 FormInstance formInstance = context.createFormInstance(formEntity);
                 ImOrderSet<PropertyDrawView> properties = formEntity.getRichDesign().getPropertiesList();
 
