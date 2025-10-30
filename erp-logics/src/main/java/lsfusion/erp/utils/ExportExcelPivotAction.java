@@ -82,7 +82,7 @@ public abstract class ExportExcelPivotAction extends InternalAction {
 
                 if (valuesMap != null)
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())
-                        formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
+                        formInstance.seekObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
 
 
                 ReportGenerationData reportData = new InteractiveFormReportManager(formInstance, formEntity.getGroupObject(idGroupObject).getID(),
