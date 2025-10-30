@@ -84,17 +84,49 @@ FORM document_Invoice FORMEXTID 'Document-Invoice'
     PROPERTIES() IN document_File invoiceFileName EXTID 'File-Name', invoiceContent EXTID 'Content'
 ;
 
-overImportPdf ABSTRACT ();
-skipPdf = DATA LOCAL NESTED BOOLEAN();
-overCreateEDocumentPdf ABSTRACT LIST (EDocument);
+//blrdoc
+GROUP documentAttributes EXTID 'DocumentAttributes';
+GROUP eDocumentType : documentAttributes;
+GROUP senderDoc EXTID 'Sender' : documentAttributes;
+GROUP legalPerson EXTID 'LegalPerson' : senderDoc;
+GROUP receiverDoc EXTID 'Receiver' : documentAttributes;
+GROUP legalPerson1 EXTID 'LegalPerson' : receiverDoc;
+GROUP document EXTID 'Document';
+
+documentID = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL DATETIME();
+functionCode = DATA LOCAL STRING();
+eDocumentRoute = DATA LOCAL STRING();
+eDocumentNumber = DATA LOCAL STRING();
+eDocumentDate = DATA LOCAL DATE();
+typeCode = DATA LOCAL STRING();
+senderGLN = DATA LOCAL STRING();
+receiverGLN = DATA LOCAL STRING();
+
+eDocumentFile = DATA LOCAL RAWFILE ();
+eDocumentFileType = DATA LOCAL STRING();
+eDocumentFileName = DATA LOCAL STRING();
+
+FORM BLRDOC
+    PROPERTIES() IN documentAttributes 
+        documentID EXTID 'DocumentID', 
+        creationDateTime EXTID 'CreationDateTime', 
+        functionCode EXTID 'FunctionCode', 
+        eDocumentRoute, 
+        eDocumentNumber, 
+        eDocumentDate
+    PROPERTIES() IN eDocumentType 
+        typeCode EXTID 'TypeCode'
+    PROPERTIES() IN legalPerson senderGLN EXTID 'GLN'
+    PROPERTIES() IN legalPerson1 receiverGLN EXTID 'GLN'
+
+    PROPERTIES() IN document eDocumentFile, eDocumentFileType, eDocumentFileName;
 
 overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) + {
     IF lower(documentType(i)) == 'pdf' THEN {
         TRY {
             IMPORT envelopePDF XML FROM data(i);
-            skipPdf() <- NULL;
-            overImportPdf();
-            IF NOT skipPdf() AND NOT pdfReferenceDocumentID() THEN {
+            IF NOT pdfReferenceDocumentID() THEN {
                 NEWSESSION NESTED LOCAL {
                     FOR EDocument ed = eDocument(pdfSenderILN() + '/' + pdfDocumentID()) DO {
                         importedReceiver(ed) <- TRUE;
@@ -113,7 +145,6 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         //route(ed) <- OVERRIDE (GROUP MAX EDocumentRoute r IF id(r) == blrdocDocumentRoute()), EDocumentRoute.route0;
                         sender(ed) <- legalEntityGLN(pdfSenderILN());
                         receiver(ed) <- legalEntityGLN(pdfReceiverILN());
-                        overCreateEDocumentPdf(ed);
                         XMLPath(ed) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
                     }
                     APPLY NESTED LOCAL;
@@ -207,6 +238,68 @@ overReceiveMessages(INTEGER i, STRING[100] login, STRING[100] password, TEXT url
                         eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
                     }
                 }  
+            }
+        } CATCH {
+            logToFile('edi', CONCAT '\n', provider + ' Parse EDocument ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+            MESSAGE  'Ошибка при импорте документа ' + id(i) +'. Обратитесь к администратору' NOWAIT;
+            eDocumentsFailed() <- eDocumentsFailed() + 1;
+        }
+    }
+    IF lower(documentType(i)) == 'blrdoc' AND provider == 'EDN' THEN {
+        TRY {
+            IMPORT BLRDOC XML FROM data(i);
+            NEWSESSION NESTED LOCAL {
+                LOCAL isCancel = BOOLEAN();
+                isCancel() <- TRUE IF functionCode() == '1';
+                FOR EDocument ed = eDocument(senderGLN() + '/' + documentID()) DO {
+                    importedReceiver(ed) <- TRUE;
+                    IF isCancel() THEN {
+                        isCancel(ed) <- TRUE;
+                    } ELSE {
+                        xmlFile(ed) <- data(i);
+                    }
+                } ELSE NEW ed = EDocument {
+                    importedReceiver(ed) <- TRUE;
+                    id(ed) <- senderGLN() + '/' + documentID();
+                    xmlFile(ed) <- data(i) IF NOT isCancel();
+                    numberSender(ed) <- documentID() IF NOT isCancel();
+                    dateSender(ed) <- creationDateTime() IF NOT isCancel();
+                    documentID(ed) <- documentID();
+                    creationDateTime(ed) <- creationDateTime();
+                    number(ed) <- eDocumentNumber();
+                    date(ed) <- eDocumentDate();
+                    type(ed) <- typeCode();
+                    file(ed) <- eDocumentFile();
+                    name(ed) <- CONCAT '.', eDocumentFileName(), eDocumentFileType();
+                    route(ed) <- OVERRIDE (GROUP MAX EDocumentRoute r IF id(r) == eDocumentRoute()), EDocumentRoute.route0;
+                    isCancel(ed) <- isCancel();
+                    sender(ed) <- legalEntityGLN(senderGLN());
+                    receiver(ed) <- legalEntityGLN(receiverGLN());
+                    XMLPath(ed) <- archiveDir + '/received/' + toChar(currentDate(),'yyyyMMdd') + '/' + id(i);
+                }
+                APPLY NESTED LOCAL;
+                IF canceled() THEN {
+                    logToFile('edi', provider + ' Import EDocument ' + id(i) + ' failed: ' + applyMessage());
+                    eDocumentsFailed() <- eDocumentsFailed() + 1;
+                } ELSE {
+                    FOR EDocument ed = eDocument(senderGLN() + '/' + documentID()) DO {
+                        IF NOT disableConfirmation THEN {
+                            LOCAL cxml = XMLFILE();
+                            EXPORT confirmDocument OBJECTS login = login, password = password, documentId = id(i) XML TO cxml;
+                            sendRequestEDI(url, cxml());
+                            logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request sent');
+                            importRequestResult(sendRequestEDIResponse(), sendRequestEDIStatus(), 'ConfirmDocumentReceivedResponse');
+                            IF requestError() THEN {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': ' + requestError());
+                                MESSAGE  provider + ' Документ ' + id(i) + ' не помечен как обработанный: ' + requestError() NOWAIT;
+                            } ELSE {
+                                logToFile('edi', provider + ' ConfirmDocumentReceived document ' + id(i) + ': request succeeded');
+                            }
+                        }
+                        logToFile('edi', provider + ' Import EDocument ' + id(i) + ' succeeded');
+                        eDocumentsSucceeded() <- eDocumentsSucceeded() + 1;
+                    }
+                }
             }
         } CATCH {
             logToFile('edi', CONCAT '\n', provider + ' Parse EDocument ' + id(i) + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
