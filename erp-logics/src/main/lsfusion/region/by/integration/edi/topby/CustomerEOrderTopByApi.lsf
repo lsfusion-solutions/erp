@@ -18,6 +18,7 @@ DESIGN integrationData {
 }
 
 beforeSendPurchaseOrder ABSTRACT LIST (EOrder, STRING[100]);
+skipMessageSend = DATA LOCAL BOOLEAN (EOrder);
 
 sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, STRING[100] outputDir, STRING[100] provider) {
     sendingCancelled() <- NULL;
@@ -62,7 +63,7 @@ sendPurchaseOrder (EOrder o, STRING[100] login, STRING[100] password, TEXT url, 
                 } ELSE {
                     IF isCancel(o) THEN exportedCanceled(o) <- TRUE; ELSE exported(o) <- TRUE;
                     logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ' request succeeded');
-                    MESSAGE provider + ' (' + login + ') Заказ ' + number(o) + ' выгружен' NOWAIT;
+                    IF NOT skipMessageSend(o) THEN MESSAGE provider + ' (' + login + ') Заказ ' + number(o) + ' выгружен' NOWAIT;
                 }
             } ELSE {
                 logToFile('edi', provider + ' (' + login + ') SendEOrder ' + number(o) + ': Не все поля заполнены. ' + error());
