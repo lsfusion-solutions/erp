@@ -452,13 +452,24 @@ NAVIGATOR {
     }
 }
 
+changeSupplier (EInvoice e) {
+    DIALOG dialogLegalEntities OBJECTS l INPUT FILTERS isSupplier(l) DO {
+        supplier(e) <- l;
+    }
+}
+changeCustomer (EInvoice e) {
+    DIALOG dialogLegalEntities OBJECTS l INPUT FILTERS isCustomer(l) DO {
+        customer(e) <- l;
+    }
+}
+
 FORM eInvoice 'Электронная накладная'
     OBJECTS e = EInvoice PANEL
     PROPERTIES(e) dateSupplier, numberSupplier,
         deliveryNoteNumber, deliveryNoteDate, dateTimeCreated,
         contractName, contractId, contractDate, waybillId SHOWIF NOT isTN2(e),
-        nameSupplier, addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, addressSupplierStock, contactSupplierStock,
-        nameCustomer, addressCustomer, unpCustomer, nameCustomerStock, addressCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
+        nameSupplier ON CHANGE changeSupplier(e), addressSupplier, unpSupplier, nameSupplierStock, contactSupplier, addressSupplierStock, contactSupplierStock,
+        nameCustomer ON CHANGE changeCustomer(e), addressCustomer, unpCustomer, nameCustomerStock, addressCustomerStock, contactCustomerStock ON CHANGE changeContactCustomerStock(e),
         nameFreightPayer SHOWIF NOT isTN2(e), addressFreightPayer SHOWIF NOT isTN2(e), unpFreightPayer SHOWIF NOT isTN2(e),
         nameTransporter SHOWIF NOT isTN2(e), unpTransporter SHOWIF NOT isTN2(e), transportContact SHOWIF NOT isTN2(e), 
         deliveryContact HEADER 'Товар к ' + (IF isTN2(e) THEN 'доставке' ELSE 'перевозке') + ' принял (должность и ФИО)', proxyID, proxyDate, partyIssuingProxyName,
