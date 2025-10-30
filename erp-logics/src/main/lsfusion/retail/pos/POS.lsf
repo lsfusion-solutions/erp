@@ -1,6 +1,6 @@
 MODULE POS;
 
-REQUIRE ZReportRetailCRM, ZReportRetailBonus, Dashboard, PaymentTerminal, CashOperationZReport, CashOperationCashRegister, ZReportBatch;
+REQUIRE ZReportRetailCRM, ZReportRetailBonus, Dashboard, PaymentTerminal, CashOperationZReport, CashOperationCashRegister, ZReportBatch, ZReportPOS;
 
 // ----------------------------- Расширяем форму отдела магазина нужными нам параметрами --------------------- //
 
@@ -1187,6 +1187,7 @@ openCurrentZReport 'Открыть Z-отчет'()  {
         zReport(CashRegister cashRegister) <- z WHERE cashRegister == currentCashRegister();
         fiscalCheckOpenZReport(z);
         overOpen(z);
+        shiftStart(z) <- currentDateTime();
         apply();
     }
     fiscalOpenZReport();
@@ -1213,6 +1214,7 @@ closeCurrentZReport 'Закрыть Z-отчет'()  {
     IF fiscalNumber(currentZReport()) THEN
         number(ZReport z) <- fiscalNumber(z) WHERE z == currentZReport();
     overClose(currentZReport());
+    shiftEnd(ZReport z) <- currentDateTime() WHERE z == currentZReport();
     zReport(CashRegister cashRegister) <- NULL WHERE cashRegister == currentCashRegister();
     apply();
 } CONFIRM IN receiptZReport;
