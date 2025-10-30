@@ -1,0 +1,176 @@
+MODULE InventoryDisparity;
+
+REQUIRE DisparityOperation, Inventory;
+
+NAMESPACE Inventory;
+
+createDisparity 'Изменение сортности' = DATA BOOLEAN (Inventory) IN documentPrm;
+
+@defineDocumentOperationHeaderPrefix(inventory, disparity, Disparity, ' (изменение сортности)');
+
+EXTEND FORM inventory
+    PROPERTIES(in) createDisparity
+    PROPERTIES(in) SHOWIF createDisparity(in) nameDisparityOperation
+;
+DESIGN inventory {
+    GROUP(documentPrm,in) {
+        MOVE PROPERTY(nameDisparityOperation(in)) AFTER PROPERTY(createDisparity(in));
+    }
+}
+
+CLASS InventoryDisparity 'Изменение сортности на основе инвентаризации' : Disparity;
+CLASS InventoryDisparityDetail 'Строка изменения сортности на основе инвентаризации' : DisparityDetail;
+
+@defineDocumentTables(inventoryDisparity);
+
+collationSheet = DATA CollationSheet (InventoryDisparityDetail) NONULL DELETE INDEXED AGGR;
+currency (InventoryDisparityDetail idetail) = currency(stock(collationSheet(idetail))) MATERIALIZED;
+
+@defineDocumentDetailIndex(collationSheet, InventoryDisparityDetail);
+
+@defineDocumentDetailSkuCustomPrefix(inventoryDisparityDetail, sku, , ' (расход)');
+
+@defineDocumentDetailSkuCustomPrefix(inventoryDisparityDetail, sku, input, ' (приход)');
+
+@defineDocumentDetailQuantityCustomPrefix (inventoryDisparityDetail, , ' (расход)');
+@defineDocumentDetailQuantityCustomPrefix (inventoryDisparityDetail, input, ' (приход)');
+
+@defineDocumentDetailPriceCustomPrefix(inventoryDisparityDetail, , ' учетная (расход)');
+@defineDocumentDetailPriceCustomPrefix(inventoryDisparityDetail, input, ' учетная (приход)');
+
+@defineDocumentDetailDataSumCustomPrefix(inventoryDisparityDetail, , ' учетная (расход)');
+@deriveDocumentDetailSum(inventoryDisparity, quantity);
+
+@defineDocumentDetailDataSumCustomPrefix(inventoryDisparityDetail, input, ' учетная (приход)');
+@deriveDocumentDetailSumPrefix(inventoryDisparity, input, currency, inputQuantity);
+
+quantityDisparityDetail (CollationSheet cs, Sku sk) = GROUP SUM quantity(InventoryDisparityDetail d) IF createDisparity(inventory(collationSheet(d))) BY collationSheet(d), sku(d);
+sumDisparityDetail (CollationSheet cs, Sku sk) = GROUP SUM sum(InventoryDisparityDetail d) IF createDisparity(inventory(collationSheet(d))) BY collationSheet(d), sku(d);
+inputQuantityDisparityDetail (CollationSheet cs, Sku sk) = GROUP SUM inputQuantity(InventoryDisparityDetail d) IF createDisparity(inventory(collationSheet(d))) BY collationSheet(d), inputSku(d);
+inputSumDisparityDetail (CollationSheet cs, Sku sk) = GROUP SUM inputSum(InventoryDisparityDetail d) IF createDisparity(inventory(collationSheet(d))) BY collationSheet(d), inputSku(d);
+
+CONSTRAINT quantityDisparityDetail(CollationSheet cs, Sku sk) AND (quantityDisparityDetail(cs,sk) > quantityShortage(cs,sk) OR NOT quantityShortage(cs,sk) > 0)
+    MESSAGE 'Количество товара в расходе превышает кол-во недостачи';
+CONSTRAINT inputQuantityDisparityDetail(CollationSheet cs, Sku sk) AND (inputQuantityDisparityDetail(cs,sk) > abs(quantityShortage(cs,sk)) OR NOT quantityShortage(cs,sk) < 0)
+    MESSAGE 'Количество товара в приходе превышает кол-во излишка';
+
+useOnlyOverData(CollationSheet cs, Sku sk) += TRUE IF createDisparity(inventory(cs)) AND sk IS Sku;
+overQuantity(CollationSheet cs, Sku sk) += quantityShortage(cs,sk) (-) quantityDisparityDetail(cs,sk) (+) inputQuantityDisparityDetail(cs,sk);
+overSum(CollationSheet cs, Sku sk) += sumShortage(cs,sk) (-) sumDisparityDetail(cs,sk) (+) inputSumDisparityDetail(cs,sk);
+
+FORM dialogPositiveSku 'Выбрать недостачу'
+    OBJECTS cs = CollationSheet PANEL
+    OBJECTS sk = Sku
+    PROPERTIES READONLY idBarcode(sk), id(sk), name(sk), quantityShortage(cs,sk), priceBalance(cs,sk), sumShortage(cs,sk)
+    FILTERS quantityShortage(cs,sk) > 0 AND include(cs,sk)
+;
+
+changeSku (InventoryDisparityDetail d) {
+    DIALOG dialogPositiveSku OBJECTS cs = collationSheet(d), sk = sku(d) INPUT NULL DO {
+        sku(d) <- sk;
+        price(d) <- priceBalance(collationSheet(d),sk);
+        quantity(d) <- quantityShortage(collationSheet(d),sk);
+    }
+}
+
+FORM dialogNegativeSku 'Выбрать излишек'
+    OBJECTS cs = CollationSheet PANEL
+    OBJECTS sk = Sku
+    PROPERTIES READONLY idBarcode(sk), id(sk), name(sk), quantityShortage(cs,sk), priceBalance(cs,sk), sumShortage(cs,sk)
+    FILTERS quantityShortage(cs,sk) < 0 AND include(cs,sk)
+;
+
+changeInputSku (InventoryDisparityDetail d) {
+    DIALOG dialogNegativeSku OBJECTS cs = collationSheet(d), sk = inputSku(d) INPUT NULL DO {
+        inputSku(d) <- sk;
+        inputPrice(d) <- priceBalance(collationSheet(d),sk);
+        inputQuantity(d) <- - quantityShortage(collationSheet(d),sk);
+    }
+}
+
+deleteInventoryDisparityDetail 'Удалить строки без прихода' (CollationSheet cs) {
+    DELETE InventoryDisparityDetail detail WHERE collationSheet(detail) == cs AND NOT inputSku(detail);
+}
+
+fillInventoryDisparityDetail 'Заполнить по недостаче' (CollationSheet cs) {
+    ASK 'В документе есть созданные строки. Хотите их удалить?' IF (GROUP SUM 1 IF collationSheet(InventoryDisparityDetail d) == cs) DO {
+        DELETE InventoryDisparityDetail detail WHERE collationSheet(detail) == cs;
+    }
+    FOR quantityShortage(cs, Sku sk) > 0 AND include(cs,sk) ORDER name(sk), sk DO NEW d = InventoryDisparityDetail {
+        collationSheet(d) <- cs;
+        sku(d) <- sk;
+        quantity(d) <- quantityShortage(cs,sk);
+        price(d) <- priceBalance(cs,sk);
+    }
+}
+
+EXTEND FORM inventory
+    OBJECTS dd = InventoryDisparityDetail
+    PROPERTIES(dd) SHOWIF createDisparity(in) index
+    PROPERTIES(dd) SHOWIF createDisparity(in) ON CHANGE changeSku(dd) idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES(dd) SHOWIF createDisparity(in) quantity, price, sum
+    PROPERTIES(dd) SHOWIF createDisparity(in) ON CHANGE changeInputSku(dd) inputIdBarcodeSku, inputIdSku, inputNameSku, inputShortNameUOMSku
+    PROPERTIES(dd) SHOWIF createDisparity(in) inputQuantity, inputPrice, inputSum
+    PROPERTIES(cs) SHOWIF createDisparity(in) TOOLBAR DRAW dd deleteInventoryDisparityDetail, fillInventoryDisparityDetail
+    PROPERTIES(dd) SHOWIF createDisparity(in) NEW, deletedd=DELETE GRID
+    ORDERS index(dd)
+    FILTERS collationSheet(dd) == cs
+    FILTERGROUP input FILTER 'С приходом' inputSku(dd)
+;
+
+DESIGN inventory {
+    wor11 {
+        MOVE BOX(dd) {caption = 'Изменение сортности';}
+    }
+}
+
+needToDisparity (CollationSheet cs) = GROUP SUM 1 BY collationSheet(InventoryDisparityDetail d) MATERIALIZED;
+
+inventoryDisparity = AGGR InventoryDisparity WHERE needToDisparity(CollationSheet collationSheet) MATERIALIZED INDEXED;
+
+description (InventoryDisparity o) = STRING[200]('Изменение сортности на основе инвентаризации ' + name(collationSheet(o)) + ' от ' + date(collationSheet(o)));
+
+date(InventoryDisparity o) += date(collationSheet(o));
+time(InventoryDisparity o) += time(collationSheet(o));
+//note(InventoryDisparity o) += note(collationSheet(o));
+number(InventoryDisparity o) += STRING[48](number(collationSheet(o)) + '-' + index(collationSheet(o)));
+series(InventoryDisparity o) += series(collationSheet(o));
+stock (InventoryDisparity o) += stock(collationSheet(o));
+isPosted(InventoryDisparity o) += isPosted(collationSheet(o)) AND createDisparity(inventory(collationSheet(o)));
+isClosed(InventoryDisparity o) += isClosed(collationSheet(o));
+description(InventoryDisparity o) += description(o);
+currency(InventoryDisparity o) += currency(stock(collationSheet(o)));
+operation(InventoryDisparity o) += disparityOperation(inventory(collationSheet(o)));
+
+disparity(InventoryDisparityDetail d) += inventoryDisparity(collationSheet(d));
+index(InventoryDisparityDetail d) += index(d);
+sku(InventoryDisparityDetail d) += sku(d);
+inputSku(InventoryDisparityDetail d) += inputSku(d);
+quantity(InventoryDisparityDetail d) += quantity(d);
+inputQuantity(InventoryDisparityDetail d) += inputQuantity(d);
+price(InventoryDisparityDetail d) += price(d);
+inputPrice(InventoryDisparityDetail d) += inputPrice(d);
+sum(InventoryDisparityDetail d) += sum(d);
+inputSum(InventoryDisparityDetail d) += inputSum(d);
+
+edit (InventoryDisparity d) + {  DIALOG inventory OBJECTS in = inventory(collationSheet(d)) DOCKED; }
+
+@defineOperationProperty(createDisparity, 'Изменение сортности', createContainer);
+
+@deriveDocumentOperationProperty(inventory, createDisparity);
+
+disparityOperation  = DATA Disparity.Operation (Operation);
+nameDisparityOperation 'Операция (изменение сортности)' (Operation operation)= name(disparityOperation(operation));
+
+EXTEND FORM operation
+    PROPERTIES(o) nameDisparityOperation
+;
+
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(nameDisparityOperation(o)) AFTER PROPERTY(createDisparity(o));
+    }
+}
+
+disparityOperation (Inventory o) <- disparityOperation(operation(o))
+    WHEN CHANGED(operation(o));
