@@ -908,8 +908,20 @@ END
 META defineItemGroupDefaultObject(property, caption, type, typeIdentity)
     @defineItemGroupObject(property, caption, type, typeIdentity, defaultItemGroup);
 
-    WHEN LOCAL CHANGED(itemGroup(Item i)) AND NOT property(i) DO
+    WHEN LOCAL CHANGED(itemGroup(Item.Item i)) AND NOT property(i) DO
         property(i) <- property(itemGroup(i));
+    
+    fill###property##Item 'Заполнить признак товарам из группы' (ItemGroup itemGroup) {
+        LOCAL ok = INTEGER ();
+        ASK 'ДА - Для всех товаров. НЕТ - только для товаров, у которых не задан признак. ЗАКРЫТЬ - ничего не делать.' ask = YESNO DO {
+            IF ask THEN {
+                property(Item.Item i) <- property(itemGroup(i)) WHERE isParent(itemGroup, i);
+            } ELSE {
+                property(Item.Item i) <- property(itemGroup(i)) WHERE isParent(itemGroup, i) AND NOT property(i);
+            }        
+        }
+    } ASON CONTEXTMENU prev###typeIdentity[Item.ItemGroup];
+    
 END
 
 //META defineItemGroupValue(property, caption, type, typeIdentity)  
@@ -1399,7 +1411,7 @@ extractStringCaption 'Заменить в названии'(Item i)  {
 shortNameUOM 'Единица измерения' (Item item) = shortName(UOM(item)) IN itemBase;
 UOM(Item item) += UOM(item);
 
-@defineItemGroupDefaultObject(UOM, 'Ед. изм.', UOM, nameUOM); 
+@defineItemGroupDefaultObject(UOM, 'Ед. изм.', UOM, nameUOM);
 @defineItemFilterValue(UOM, 'Ед. изм.', u);
 
 //@implementObjectShortItemAttribute(UOM, 'Единица измерения (сокр.)');
