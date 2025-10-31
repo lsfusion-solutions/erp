@@ -7,7 +7,6 @@ import lsfusion.server.base.controller.manager.MonitorServer;
 import lsfusion.server.base.controller.thread.ExecutorFactory;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
-import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.LogicsInstance;
@@ -31,7 +30,6 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -90,6 +88,7 @@ public class TerminalServer extends MonitorServer {
     public static final byte SET_STOCK = 14;
     public static final byte GET_MOVES = 15;
     public static final byte GET_LOT_INFO = 16;
+    public static final byte CHECK_UNITLOAD = 17;
 
     private static final Logger logger = ERPLoggers.terminalLogger;
     private static final Logger priceCheckerLogger = ERPLoggers.priceCheckerLogger;
@@ -335,7 +334,13 @@ public class TerminalServer extends MonitorServer {
             return terminalHandler.changeStatusOrder(session, getStack(), vop, status, numberOrder);
         }
     }
-
+    
+    protected String checkUnitLoad(String data) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+        try (DataSession session = createSession()) {
+            return terminalHandler.checkUnitLoad(session, getStack(), data);
+        }
+    }
+    
     public RawFileData teamWorkDocument(int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException {
         try (DataSession session = createSession()) {
             return terminalHandler.teamWorkDocument(session, getStack(), idCommand, json, userInfo);
@@ -844,6 +849,34 @@ public class TerminalServer extends MonitorServer {
                             errorText = getUnknownErrorText(e);
                         }
                         break;
+                    case CHECK_UNITLOAD:
+                        try {
+                            logger.info(getLogPrefix(socket) + "requested CheckUnitLoad");
+                            String[] params = readParams(inFromClient);
+                            if (params.length >= 2) {
+                                sessionId = params[0];
+                                String data = params[1];
+                                UserInfo userInfo = userMap.get(sessionId);
+                                if (userInfo == null || userInfo.user == null) {
+                                    errorCode = AUTHORISATION_REQUIRED;
+                                    errorText = AUTHORISATION_REQUIRED_TEXT;
+                                } else {
+                                    result = checkUnitLoad(data);
+                                    if (result == null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = UNKNOWN_ERROR_TEXT;
+                                    }
+                                }
+                            } else {
+                                errorCode = WRONG_PARAMETER_COUNT;
+                                errorText = WRONG_PARAMETER_COUNT_TEXT;
+                            }
+                        } catch (Exception e) {
+                            logger.error(getLogPrefix(socket) + "CheckUnitLoad Unknown error", e);
+                            errorCode = UNKNOWN_ERROR;
+                            errorText = getUnknownErrorText(e);
+                        }
+                        break;
                     case GET_PREFERENCES:
                         try {
                             logger.info(getLogPrefix(socket) + "GetPreferences");
@@ -994,6 +1027,7 @@ public class TerminalServer extends MonitorServer {
                         case GET_LOT_INFO:
 //                        case SAVE_PALLET:
                         case CHECK_ORDER:
+                        case CHECK_UNITLOAD:
                         case CHANGE_ORDER_STATUS:
                         case SET_STOCK:
                             if (result != null) {

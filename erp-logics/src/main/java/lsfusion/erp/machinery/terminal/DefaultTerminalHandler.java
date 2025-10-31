@@ -469,7 +469,17 @@ public class DefaultTerminalHandler {
         }
         return null;
     }
-
+    
+    public String checkUnitLoad(DataSession session, ExecutionStack stack, String data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        if(terminalHandlerLM != null) {
+            FileData file = null;
+            if (!BaseUtils.isEmpty(data))
+                file = new FileData(new RawFileData(data.getBytes()), "json");
+            terminalHandlerLM.findAction("checkUnitLoad[FILE]").execute(session, stack, new DataObject(file, DynamicFormatFileClass.get()));
+        }
+        return null;
+    }
+    
     public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         if(terminalTeamWorkLM != null) {
             FileData jsonFile = null;
@@ -774,6 +784,7 @@ public class DefaultTerminalHandler {
                 " labelcount INTEGER DEFAULT NULL," +
                 " categories TEXT DEFAULT NULL," +
                 " promo INTEGER DEFAULT NULL," +
+                " trust_accept_percent REAL DEFAULT NULL, " +
                 " PRIMARY KEY (num, barcode))";
         statement.executeUpdate(sql);
         statement.close();
@@ -784,7 +795,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
@@ -816,6 +827,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(++i, order.labelCount);
                         statement.setObject(++i, order.categories);
                         statement.setObject(++i, order.promo);
+                        statement.setObject(++i, order.trustAcceptPercent);
                         statement.addBatch();
                     }
                 }
