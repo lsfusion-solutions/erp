@@ -4,8 +4,6 @@ import java.io.Serializable;
 
 //actually is BizerbaSettings
 public class ScalesSettings implements Serializable{
-    
-    private boolean allowParallel; //todo: not used, remove
 
     //если true, то каждое слово наименования - с большой буквы
     private boolean capitalLetters;
@@ -26,15 +24,6 @@ public class ScalesSettings implements Serializable{
     private boolean loadStaticTextScalesNumber;
 
     public ScalesSettings() {}
-
-    @Deprecated
-    public boolean isAllowParallel() {
-        return allowParallel;
-    }
-
-    public void setAllowParallel(boolean allowParallel) {
-        this.allowParallel = allowParallel;
-    }
 
     public boolean isCapitalLetters() {
         return capitalLetters;
