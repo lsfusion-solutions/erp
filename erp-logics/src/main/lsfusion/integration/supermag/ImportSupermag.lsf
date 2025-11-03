@@ -42,11 +42,6 @@ importSupplierGroup 'Импорт групп поставщиков' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSupplierGroup();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importSupplierGroup());
-    }
-}
 
 importCustomerGroup 'Импорт групп покупателей' () {
     
@@ -79,11 +74,6 @@ importCustomerGroup 'Импорт групп покупателей' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importCustomerGroup();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importCustomerGroup());
-    }
-}
 
 overImportLegalEntity ABSTRACT LIST ();
 
@@ -163,12 +153,6 @@ importLegalEntity 'Импорт организаций' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importLegalEntity(), lpadId();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (lpadId());
-        MOVE PROPERTY (importLegalEntity());
-    }
-}
 
 
 defaultCompany = DATA LegalEntity() TABLE settings;
@@ -204,11 +188,6 @@ importStore 'Импорт магазинов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importStore();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importStore());
-    }
-}
 
 overImportStoreType ABSTRACT LIST ();
 
@@ -239,11 +218,6 @@ importStoreType 'Импорт форматов магазинов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importStoreType();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importStoreType());
-    }
-}
 
 overImportDepartmentStore ABSTRACT LIST ();
 
@@ -301,12 +275,6 @@ importDepartmentStore 'Импорт отделов магазинов и скл�
 }
 
 EXTEND FORM integrationData PROPERTIES importDepartmentStore(), idGroupWarehouseInSuperMag();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importDepartmentStore());
-        MOVE PROPERTY (idGroupWarehouseInSuperMag());
-    }
-}
 
 
 importBank 'Импорт банков' () {
@@ -367,12 +335,7 @@ importAccount 'Импорт счетов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () importBank, importAccount;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importBank());
-        MOVE PROPERTY (importAccount());
-    }
-}
+
 
 //id = DATA STRING[100](Range.Range);
 //range = GROUP AGGR Range.Range r WHERE r IS Range.Range BY id(r);
@@ -550,15 +513,7 @@ importInit 'Импорт остатков' ()  {
 } 
 
 EXTEND FORM integrationData PROPERTIES () scriptImportInit, useConstraint, importInit, disableDocumentLog, deleteInvoiceDetails;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (scriptImportInit());
-        MOVE PROPERTY (useConstraint());
-        MOVE PROPERTY (importInit());
-        MOVE PROPERTY (disableDocumentLog());
-        MOVE PROPERTY (deleteInvoiceDetails());
-    }
-}
+
 
 importInitTest 'Импорт остатков' ()  {
         
@@ -629,13 +584,6 @@ checkBalance 'Сверить остатки' () {
 }
 
 EXTEND FORM integrationData PROPERTIES () dateCheckBalance, synchronizeBalance, checkBalance;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (dateCheckBalance());
-        MOVE PROPERTY (synchronizeBalance());
-        MOVE PROPERTY (checkBalance());
-    }
-}
 
 
 idStock = DATA LOCAL INTEGER (INTEGER);
@@ -778,11 +726,6 @@ importBalanceShipment 'Импорт остатков (поставки)' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importBalanceShipment();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importBalanceShipment());
-    }
-}
 
 
 importReserveDays 'Импорт страхового запаса в днях' () {   
@@ -799,11 +742,6 @@ importReserveDays 'Импорт страхового запаса в днях' (
 }
 
 EXTEND FORM integrationData PROPERTIES importReserveDays();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importReserveDays());
-    }
-}
 
 //dateFromPurchase 'Дата перемещения' = DATA DATE (Store);
 //
@@ -818,3 +756,67 @@ DESIGN integrationData {
 
 @defineLogRotate(checkBalance, 5, weekly);
 @defineLogRotate(importSupermag, 5, weekly);
+
+DESIGN integrationData {
+    supermagLeft {
+        supermagImportButtons {
+            NEW location1 {
+                horizontal = TRUE;
+                MOVE PROPERTY (importSupplierGroup());
+                MOVE PROPERTY (importCustomerGroup());
+                MOVE PROPERTY (lpadId());
+                MOVE PROPERTY (importLegalEntity());
+            }
+            NEW location2 {
+                horizontal = TRUE;
+                MOVE PROPERTY (importStoreType());
+                MOVE PROPERTY (importStore());
+                MOVE PROPERTY (importDepartmentStore());
+            }
+            MOVE PROPERTY (idGroupWarehouseInSuperMag());
+            NEW accounts {
+                horizontal = TRUE;
+                MOVE PROPERTY (importBank());
+                MOVE PROPERTY (importAccount());
+            }
+            MOVE PROPERTY (importBalanceShipment());
+            MOVE PROPERTY (importReserveDays());
+
+        }
+    }
+    supermagRight {
+        NEW importBalance {
+            caption = 'Импорт остатков';
+            fill = 1;
+            NEW supermagTopRight {
+                horizontal = TRUE;
+                MOVE PROPERTY (disableDocumentLog()) { alignment = CENTER; }
+                MOVE PROPERTY (useConstraint()) { alignment = CENTER; }
+                MOVE PROPERTY (deleteInvoiceDetails()) { alignment = CENTER; }
+                MOVE PROPERTY (importInit());
+            }
+            NEW supermagScript {
+                fill = 1;
+                caption = 'Скрипт для импорта остатков';
+                MOVE PROPERTY (scriptImportInit()) {
+                    caption = '';
+                    fill = 1;
+                    charWidth = 100;
+                }
+            }
+        }
+        NEW check {
+            caption = 'Сверка остатков';
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY (checkBalance());
+            MOVE PROPERTY (dateCheckBalance()) { alignment = CENTER; }
+            MOVE PROPERTY (synchronizeBalance()) { alignment = CENTER; }
+        }
+    }
+}
+
+
+
+
+         

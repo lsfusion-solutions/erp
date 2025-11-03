@@ -43,8 +43,8 @@ importContract 'Импорт из контрактов с поставщикам
     LOCAL title = ISTRING[255] (INTEGER);
     LOCAL contractType = INTEGER (INTEGER);
           
-    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument()) > 0 THEN filterSql() <- 'cc.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
+    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'cc.id = \'' + numberImportDocument[]() + '\''; 
                
     EXTERNAL SQL connectionString() 
         EXEC 'SELECT cc.ID, cc.DOCTYPE, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
@@ -67,7 +67,7 @@ importContract 'Импорт из контрактов с поставщикам
     }
 
     
-    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN {
+    IF length(numberImportDocument[]()) > 0 THEN {
         MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), isCalendarDelay(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
     }
     
@@ -184,8 +184,8 @@ importSeparation 'Импорт признаков разделения' () {
     LOCAL name = STRING[50] (INTEGER);
     
     //фильтр на отбор
-    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'cc.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
+    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberImportDocument[]()) > 0 THEN filterSql() <- 'cc.id = \'' + numberImportDocument[]() + '\''; 
     
     // загружаем признаки разделения из свойства "товар" контракта с поставщиком
     EXTERNAL SQL connectionString() 
@@ -247,8 +247,8 @@ importScheduleOrder 'Импорт графиков заказов' () {
     LOCAL file = FILE ();
     LOCAL filterSql = TEXT ();
     //фильтр на отбор
-    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'cc.id = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
+    filterSql() <- 'cc.CONTRACTTYPE = 0 AND cc.DOCSTATE > 0 AND cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberImportDocument[]()) > 0 THEN filterSql() <- 'cc.id = \'' + numberImportDocument[]() + '\''; 
     
     EXTERNAL SQL connectionString() 
         EXEC 'SELECT d.ID, d.DOCTYPE, d.DOCTID, q.docco, cc.CLIENTINDEX, ao.client, ao.weekday, q.deliverydays, q.BEGINSAT, q.ENDSAT, ao.dayinterval, dl.valstr ' + 

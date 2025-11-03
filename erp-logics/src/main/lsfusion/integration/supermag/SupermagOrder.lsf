@@ -229,8 +229,8 @@ importInternalOrder 'Импорт заказов (складских требо�
     imported(Purchase.UserOrder doc)  <- NULL IF doc IS Purchase.UserOrder;
     imported(Purchase.UserOrderDetail det)  <- NULL IF det IS Purchase.UserOrderDetail;
     
-    filterSql() <- 'doc.DocType = \'SO\' AND ord.DocType(+)= doc.DocType AND ord.ID(+)= doc.ID AND doc.docstate IN (0, 1, 2, 3) AND (doc.location IN ('+ stocksImport() + ') OR ord.location IN ('+ stocksImport() + ') ) AND ord.DeliveryDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument()) > 0 THEN filterSql() <- 'doc.id = \'' + SupermagSettings.numberImportDocument() + '\' AND doc.DocType = \'SO\' AND ord.DocType(+)= doc.DocType AND ord.ID(+)= doc.ID'; 
+    filterSql() <- 'doc.DocType = \'SO\' AND ord.DocType(+)= doc.DocType AND ord.ID(+)= doc.ID AND doc.docstate IN (0, 1, 2, 3) AND (doc.location IN ('+ stocksImport() + ') OR ord.location IN ('+ stocksImport() + ') ) AND ord.DeliveryDate >= TO_DATE(\'' + toDateISO(dateFromImportDocument()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'doc.id = \'' + numberImportDocument() + '\' AND doc.DocType = \'SO\' AND ord.DocType(+)= doc.DocType AND ord.ID(+)= doc.ID'; 
  
     sqlString() <- 'Select doc.ID, doc.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.DocState, doc.createdat, doc.Location, doc.Commentary, ord.DeliveryDate, ord.DeliveryTime, ord.location AS supplierStock from Supermag.SMDocuments doc, Supermag.SMStoreOrders ord WHERE ' + filterSql();    
 
@@ -244,7 +244,7 @@ importInternalOrder 'Импорт заказов (складских требо�
     currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(bornIn(i)), STRING(docDate(i)), STRING(docState(i)), STRING(comment(i)),
                                                 STRING(locationTo(i)), STRING(locationFrom(i)),  STRING(deliveryDate(i)), STRING(deliveryTime(i))) IF idDoc(i);                 
 
-    IF length(SupermagSettings.numberImportDocument()) > 0 THEN { 
+    IF length(numberImportDocument()) > 0 THEN { 
         MESSAGE sqlString(); 
         MESSAGE currentVersion(0);
     }
@@ -419,8 +419,8 @@ importCustomerOrder 'Импорт заказов (продажа)' () {
     imported(Sale.UserOrder doc)  <- NULL IF doc IS Sale.UserOrder;
     imported(Sale.UserOrderDetail det)  <- NULL IF det IS Sale.UserOrderDetail;
 
-    filterSql() <- 'doc.DOCTYPE = \'OC\' and ord.DOCTYPE = doc.DOCTYPE and ord.ID = doc.ID AND doc.DOCSTATE IN (0, 2, 3) AND doc.LOCATION IN ('+ stocksImport() + ') and ord.SupplyDate >= TO_DATE(\'' + toDateISO(SupermagSettings.dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(SupermagSettings.numberImportDocument[]()) > 0 THEN filterSql() <- 'doc.DOCTYPE = \'OC\' and ord.DOCTYPE = doc.DOCTYPE and ord.ID = doc.ID AND doc.ID = \'' + SupermagSettings.numberImportDocument[]() + '\''; 
+    filterSql() <- 'doc.DOCTYPE = \'OC\' and ord.DOCTYPE = doc.DOCTYPE and ord.ID = doc.ID AND doc.DOCSTATE IN (0, 2, 3) AND doc.LOCATION IN ('+ stocksImport() + ') and ord.SupplyDate >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
+    IF length(numberImportDocument[]()) > 0 THEN filterSql() <- 'doc.DOCTYPE = \'OC\' and ord.DOCTYPE = doc.DOCTYPE and ord.ID = doc.ID AND doc.ID = \'' + numberImportDocument[]() + '\''; 
 
     sqlString() <- 'Select doc.ID, doc.DOCTYPE, UTL_RAW.CAST_TO_VARCHAR2(UTL_ENCODE.BASE64_ENCODE(doc.bornin)), doc.DOCSTATE, doc.ClientIndex, doc.Location, doc.Commentary, ord.OrderDate, ord.SupplyDate, ord.SupplyTime from Supermag.SMDocuments doc, Supermag.SMDocOc ord where ' + filterSql();    
 

@@ -46,12 +46,6 @@ importItemGroup 'Импорт товарных групп' () {
 
 EXTEND FORM integrationData PROPERTIES importItemGroup();
 
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importItemGroup());
-    }
-}
-
 importUOM 'Импорт единиц измерений' () {
 
     LOCAL id = INTEGER (INTEGER);
@@ -92,12 +86,6 @@ importCountries 'Импорт стран' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importUOM(), importCountries();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importUOM());
-        MOVE PROPERTY (importCountries());
-    }
-}
 
 shortName 'Краткое наименование' = DATA ISTRING[250](Item) IN itemBase;
 
@@ -141,11 +129,6 @@ importBarcodeItem 'Импорт штрихкодов товара' () {
 
 EXTEND FORM integrationData
     PROPERTIES importBarcodeItem();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importBarcodeItem());
-    }
-}
 
 lastBarcodelogId = DATA LONG ();
 
@@ -313,11 +296,6 @@ importItemAttribute 'Импорт доп. свойств товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemAttribute();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importItemAttribute());
-    }
-}
 
 statusInSuperMag 'Статус в Супермаге' = DATA INTEGER (Item);
 
@@ -401,11 +379,6 @@ importItem 'Импорт товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItem();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importItem());
-    }
-}
 
 importItem 'Импорт товаров' (STRING itemlist) {
 
@@ -480,11 +453,7 @@ lastItemlogId = DATA LONG ();
 
 EXTEND FORM integrationData
     PROPERTIES lastItemlogId();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (lastItemlogId());
-    }
-}
+
 
 importItems 'Импорт товаров' () {
 
@@ -577,11 +546,6 @@ importSkuLists 'Импорт списков товаров' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importSkuLists();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importSkuLists());
-    }
-}
 
 part (Item set, Item item) = GROUP MAX Part p BY set(p), item(p);
 
@@ -611,8 +575,30 @@ importItemPart 'Импорт комплектов' () {
 }
 
 EXTEND FORM integrationData PROPERTIES importItemPart();
+
 DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importItemPart());
+    supermagImportButtons {
+        NEW importItem1 {
+            horizontal = TRUE;
+            MOVE PROPERTY (importItemGroup());
+            MOVE PROPERTY (importUOM());
+            MOVE PROPERTY (importCountries());
+            MOVE PROPERTY (importItem());
+        }
+        NEW importItem2 {
+            horizontal = TRUE;
+            MOVE PROPERTY (importItemAttribute());
+            MOVE PROPERTY (importSkuLists());
+            MOVE PROPERTY (importItemPart());
+            MOVE PROPERTY (importBarcodeItem());
+        }
+
+        importDocument {
+            importDocument2 {
+                MOVE PROPERTY (lastItemlogId());
+            }
+        }
     }
 }
+
+

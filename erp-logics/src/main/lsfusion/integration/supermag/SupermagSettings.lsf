@@ -9,7 +9,7 @@ TABLE settings() NODEFAULT;
 host 'Хост' = DATA ISTRING[30]() TABLE settings;
 base 'База' = DATA ISTRING[30]() TABLE settings;
 login 'Логин' = DATA ISTRING[30]() TABLE settings;
-password 'Пароль' = DATA ISTRING[30]() TABLE settings;
+password 'Пароль' = DATA ISTRING[30]() ECHO TABLE settings;
 
 connectionString 'строка подключения' () = 'jdbc:oracle:thin:' + login() + '/' + password() + '@//' + host() + '/' + base();
 exportDirectorySupermag 'Путь для исходящих файлов в супермаг' = DATA STRING[50] () TABLE settings;
@@ -27,25 +27,6 @@ fromSupermagDateTime = FORMULA DATETIME PG 'to_timestamp(CAST($1 as char(17)), \
 EXTEND FORM integrationData PROPERTIES smhost = host(), base(), login(), password(), directorySupermag(),
     exportDirectorySupermag(), importDirectorySupermag(), baseIDSupermag(), enableLogImport(), pauseBetweenInvoiceFI();
 
-DESIGN integrationData {
-    pane {
-        NEW supermag {
-            fill = 1;
-            height = 1;
-            caption = 'Supermag';
-            MOVE PROPERTY (smhost);
-            MOVE PROPERTY (base());
-            MOVE PROPERTY (login());
-            MOVE PROPERTY (password());
-            MOVE PROPERTY (directorySupermag());
-            MOVE PROPERTY (exportDirectorySupermag());
-            MOVE PROPERTY (importDirectorySupermag());
-            MOVE PROPERTY (baseIDSupermag());
-            MOVE PROPERTY (enableLogImport());
-            MOVE PROPERTY (pauseBetweenInvoiceFI());
-        }
-    }
-}
 
 startDate 'Начало работы магазина с Fusion' = DATA DATETIME (Stock);
 endDate 'Окончание работы магазина с Fusion' = DATA DATETIME (Stock);
@@ -68,11 +49,7 @@ DESIGN dialogDepartmentStoresImport {
 EXTEND FORM integrationData
     PROPERTIES() stocksImport ON CHANGE { SHOW dialogDepartmentStoresImport; }
 ;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (stocksImport());
-    }
-}
+
 
 inExport 'Отм.' = DATA BOOLEAN (Stock);
 stocksExport 'Склады для импорта' () = GROUP CONCAT id(Stock st) IF inExport(st), ',' ORDER id(st) CHARWIDTH 50;
@@ -94,11 +71,7 @@ DESIGN dialogDepartmentStoresExport {
 EXTEND FORM integrationData
     PROPERTIES() stocksExport ON CHANGE { SHOW dialogDepartmentStoresExport; }
 ;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (stocksExport());
-    }
-}
+
 
 dateTimeChange 'Дата/время изменения' = ABSTRACT DATETIME (StockDocumentLedger);
 bornin 'ИД базы создателя' = ABSTRACT STRING[100] (StockDocumentLedger);
@@ -109,11 +82,6 @@ exportSupermagAll 'Экспорт в супермаг' ABSTRACT LIST ();
 EXTEND FORM integrationData
     PROPERTIES() exportSupermagAll
 ;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (exportSupermagAll());
-    }
-}
 
 META settingIntegration(docMain, docDetail)
     dateTimeChange = DATA DATETIME (docMain);
@@ -131,12 +99,7 @@ daysImportDocument 'дней синхронизации документов' = 
 dateFromImportDocument () = sum(currentDate(), -daysImportDocument());
 numberImportDocument ' или номер документа' = DATA STRING ();
 EXTEND FORM integrationData PROPERTIES daysImportDocument(), numberImportDocument();
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (daysImportDocument());
-        MOVE PROPERTY (numberImportDocument());
-    }
-}
+
 
 docTypeSupermag 'Вид документа в супермаг' = DATA STRING[12] (Operation.Operation);
 opcodeSupermag 'Код в супермаг' = DATA STRING[12] (Operation.Operation);
@@ -433,19 +396,6 @@ EXTEND FORM integrationData
     PROPERTIES importDocumentsSupermag(), lastDoclogId(), onImportPurchaseInvoices(), onImportPurchaseReturnInvoices(), 
                 onImportSaleInvoices(), onImportAdjustments(), onImportDisparities(), onImportWriteOffs(), onImportInventories()
 ;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importDocumentsSupermag());
-        MOVE PROPERTY (lastDoclogId());
-        MOVE PROPERTY (onImportPurchaseInvoices());
-        MOVE PROPERTY (onImportPurchaseReturnInvoices());
-        MOVE PROPERTY (onImportSaleInvoices());
-        MOVE PROPERTY (onImportAdjustments());
-        MOVE PROPERTY (onImportDisparities());
-        MOVE PROPERTY (onImportWriteOffs());
-        MOVE PROPERTY (onImportInventories());
-    }
-}
 
 FORM REPLY
     PROPERTIES() nameDoc ATTR, packageType ATTR
@@ -508,11 +458,78 @@ EXTEND FORM exportSupermag
 EXTEND FORM integrationData
     PROPERTIES() importAnswer, banDroppedExport
 ;
-DESIGN integrationData {
-    supermag {
-        MOVE PROPERTY (importAnswer());
-        MOVE PROPERTY (banDroppedExport());
-    }
-}
+
 
 @defineLogRotate(supermag, 5, weekly);
+
+DESIGN integrationData {
+    pane {
+        NEW supermagScroll FIRST {
+            caption = 'Супермаг';
+            NEW supermag {
+                fill = 1;
+                horizontal = TRUE;
+                NEW supermag1 {
+                    horizontal = TRUE;
+                    fill = 1;
+                    NEW supermagLeft {
+                        fill = 1;
+                        NEW supermagParams {
+                            caption = 'Параметры подключения';
+                            MOVE PROPERTY (smhost);
+                            MOVE PROPERTY (base());
+                            MOVE PROPERTY (login());
+                            MOVE PROPERTY (password());
+                            MOVE PROPERTY (directorySupermag());
+                            MOVE PROPERTY (exportDirectorySupermag());
+                            MOVE PROPERTY (importDirectorySupermag());
+                            MOVE PROPERTY (baseIDSupermag());
+                        }
+                        NEW integrationSettings {
+                            caption = 'Настройки интеграции';
+                            MOVE PROPERTY (stocksImport()) { caption = ''; alignment = STRETCH; }
+                            MOVE PROPERTY (stocksExport()) { caption = ''; alignment = STRETCH; }
+                            MOVE PROPERTY (enableLogImport());
+                            MOVE PROPERTY (pauseBetweenInvoiceFI());
+                        }
+                        NEW supermagExportButtons {
+                            fill = 1; caption = 'Экспорт';
+                            horizontal = TRUE;
+                            MOVE PROPERTY (exportSupermagAll());
+                            MOVE PROPERTY (importAnswer());
+                            MOVE PROPERTY (banDroppedExport());
+                        }
+                        NEW supermagImportButtons {
+                            fill = 1; caption = 'Импорт';
+                            NEW importDocument {
+                                caption = 'Импорт документов';
+                                horizontal = TRUE;
+                                NEW importDocument1 {
+                                    NEW importDocumentSetting {horizontal = TRUE; MOVE PROPERTY (daysImportDocument()); MOVE PROPERTY (numberImportDocument());}
+                                    
+                                }
+                                NEW importDocument2 {
+                                    MOVE PROPERTY (lastDoclogId());
+                                    MOVE PROPERTY (importDocumentsSupermag());
+                                    MOVE PROPERTY (onImportPurchaseInvoices());
+                                    MOVE PROPERTY (onImportPurchaseReturnInvoices());
+                                    MOVE PROPERTY (onImportSaleInvoices());
+                                    MOVE PROPERTY (onImportAdjustments());
+                                    MOVE PROPERTY (onImportDisparities());
+                                    MOVE PROPERTY (onImportWriteOffs());
+                                    MOVE PROPERTY (onImportInventories());
+                                }
+
+                            }
+                        }
+                    }
+                    NEW supermagRight {
+                        fill = 1;
+                        
+                    }
+                }   
+            }   
+        }   
+    }   
+}   
+         
