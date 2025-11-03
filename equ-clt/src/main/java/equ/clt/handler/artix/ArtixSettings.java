@@ -45,11 +45,6 @@ public class ArtixSettings implements Serializable{
     //Если true, прочитанные непустые файлы без реализации и cashierTime не удаляются
     private boolean notDeleteEmptyFiles;
 
-    //todo: deprecated
-    //Если задано, считаем указанное количество первых папок, пришедших с сервера, приоритетными, файлы из них берём
-    //в первую очередь. На сервере папки сортируются по priority 'Приоритет' = DATA INTEGER (GroupCashRegister); )
-    private int priorityDirectoriesCount;
-
     //Если true, отключается работа с мягкими чеками
     private boolean disableSoftCheck;
 
@@ -206,16 +201,6 @@ public class ArtixSettings implements Serializable{
     @SuppressWarnings("unused")
     public void setNotDeleteEmptyFiles(boolean notDeleteEmptyFiles) {
         this.notDeleteEmptyFiles = notDeleteEmptyFiles;
-    }
-
-    @Deprecated
-    public int getPriorityDirectoriesCount() {
-        return priorityDirectoriesCount;
-    }
-
-    @Deprecated
-    public void setPriorityDirectoriesCount(int priorityDirectoriesCount) {
-        this.priorityDirectoriesCount = priorityDirectoriesCount;
     }
 
     public boolean isDisableSoftCheck() {
