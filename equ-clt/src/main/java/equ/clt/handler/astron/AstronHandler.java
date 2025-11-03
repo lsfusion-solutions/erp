@@ -2671,7 +2671,7 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                                     String idLot = rs.getString("lot");
                                     if (idLot!=null) {
                                         salesInfo.detailExtraFields = new HashMap<>();
-                                        salesInfo.detailExtraFields.put("idLot", idLot.split("\\\\x1D",2)[0]); // марки приходят с хвостом, разделитель в виде строки x1D
+                                        salesInfo.detailExtraFields.put("idLot", idLot.split("\u001D",2)[0]); // марки приходят с хвостом
                                     }
                                 }
                                 curSalesInfoList.add(salesInfo);
