@@ -12,9 +12,6 @@ public class AclasLS2Settings {
     //имена файлов библиотек, через запятую
     private String libraryNames;
 
-    //папка для логов
-    private String logDir;
-
     //в ID использовать pluNumber (если он есть) вместо idBarcode
     private boolean pluNumberAsPluId;
 
@@ -26,9 +23,6 @@ public class AclasLS2Settings {
 
     //не загружать горячие клавиши
     private boolean skipLoadHotKey;
-
-    //после очистки добавлять товар "список товаров"
-    private boolean loadDefaultPLU;
 
     //BarcodeType для штучных товаров. По умолчанию barcodeType определяется так же, как и для весовых товаров
     private String overBarcodeTypeForPieceItems;
@@ -53,16 +47,6 @@ public class AclasLS2Settings {
 
     public void setLibraryNames(String libraryNames) {
         this.libraryNames = libraryNames;
-    }
-
-    @Deprecated
-    public String getLogDir() {
-        return logDir;
-    }
-
-    @Deprecated
-    public void setLogDir(String logDir) {
-        this.logDir = logDir;
     }
 
     public boolean isPluNumberAsPluId() {
@@ -95,16 +79,6 @@ public class AclasLS2Settings {
 
     public void setSkipLoadHotKey(boolean skipLoadHotKey) {
         this.skipLoadHotKey = skipLoadHotKey;
-    }
-
-    @Deprecated
-    public boolean isLoadDefaultPLU() {
-        return loadDefaultPLU;
-    }
-
-    @Deprecated
-    public void setLoadDefaultPLU(boolean loadDefaultPLU) {
-        this.loadDefaultPLU = loadDefaultPLU;
     }
 
     public String getOverBarcodeTypeForPieceItems() {
