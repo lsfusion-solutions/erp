@@ -509,8 +509,9 @@ index 'Номер строки' (ListInventory listInventory, Sku sku) = PARTITI
 countIndex 'Количество наименований товара'(ListInventory listInventory) = GROUP
     SUM 1 IF quantityPageInventoryDetail(listInventory, Sku sku) > 0 IN documentSum;  
 skipCheckPrice = ABSTRACT BOOLEAN (CollationSheet);
+skipCheckPrice = ABSTRACT BOOLEAN (Sku);
 CONSTRAINT (SETCHANGED(pricePageInventoryDetail(CollationSheet collationSheet, Sku sku)) OR SETCHANGED(priceMinPageInventoryDetail(collationSheet, sku)) OR CHANGED(isBatch(collationSheet)))
-    AND pricePageInventoryDetail(collationSheet, sku) != priceMinPageInventoryDetail(collationSheet, sku) AND NOT isBatch(collationSheet) AND NOT skipCheckPrice(collationSheet)
+    AND pricePageInventoryDetail(collationSheet, sku) != priceMinPageInventoryDetail(collationSheet, sku) AND NOT isBatch(collationSheet) AND NOT skipCheckPrice(collationSheet) AND NOT skipCheckPrice(sku)
     MESSAGE 'В описях присутствует одинаковый товар с разными ценами';
 //---------------------------- Итоги по описям (Batch) ----------------------------//
 notBatchQuantityPageInventoryDetail (CollationSheet cs, Sku sku) = GROUP SUM quantity(PageInventoryDetail d) IF NOT batch(d) BY collationSheet(d), sku(d);
@@ -615,6 +616,7 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory)  {
     startTimeRecalculateBalance(inventory) <- currentDateTime();
     quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+    priceBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     quantityBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     sumBalance(CollationSheet cs, Batch batch) <- NULL WHERE inventory(cs) == inventory;
     
@@ -1541,6 +1543,8 @@ changeWYSNameBatch(PageInventoryDetail d)  {
         batch(d) <- GROUP LAST Batch b ORDER b WHERE sku(b) = sku(d) AND name(b) = s; 
     } 
 }
+showIsBatch = ABSTRACT VALUE BOOLEAN (ListInventory);
+showIsBatch(ListInventory l) += isBatch(l);
 
 FORM listInventory 'Опись'
     OBJECTS         li=ListInventory PANEL
@@ -1559,9 +1563,9 @@ FORM listInventory 'Опись'
     FILTERS         listInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
-    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF isBatch(li), nameBatch SHOWIF isBatch(li) ON CHANGE changeBatch(dp) ON CHANGEWYS changeWYSNameBatch(dp), 
+    PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, idBatch SHOWIF showIsBatch(li), nameBatch SHOWIF showIsBatch(li) ON CHANGE changeBatch(dp) ON CHANGEWYS changeWYSNameBatch(dp), 
                     quantityGrid = quantity, price,
-                    sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE GRID
+                    sum, costBatch SHOWIF showIsBatch(li), costSumBatch SHOWIF showIsBatch(li), NEW SHOWIF countPageInventory(li), DELETE GRID
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
     FILTERGROUP page
     FILTER 'На странице' pageInventory(dp) == pl DEFAULT 
