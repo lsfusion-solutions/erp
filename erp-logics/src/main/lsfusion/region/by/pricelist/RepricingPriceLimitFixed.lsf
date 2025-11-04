@@ -1,6 +1,6 @@
 MODULE RepricingPriceLimitFixed;
 
-REQUIRE PurchasePriceLimitFixed, RepricingPriceListPriceLimit; 
+REQUIRE PurchasePriceLimitFixed, PricingPriceListPriceLimit; 
 
 NAMESPACE Repricing;
 
@@ -13,11 +13,11 @@ minLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(minLimitPriceListT
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + { 
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
     limitPrice(Sku sku) <- maxLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
-    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipPricingPriceLimit(sku); 
 
     limitPrice(Sku sku) <- NULL;
     limitPrice(Sku sku) <- minLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
-    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipPricingPriceLimit(sku); 
 }
 
 calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {

@@ -1,11 +1,11 @@
-MODULE RepricingPriceListPriceLimit;
+MODULE PricingPriceListPriceLimit;
 
-REQUIRE RepricingPriceList, PriceLimit; 
+REQUIRE PricingPriceList, PricingPriceLimit; 
 
-NAMESPACE Repricing;
+NAMESPACE Pricing;
 
-skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
-skipRepricingPriceMarkupLimit = ABSTRACT BOOLEAN (Sku);
+skipPricingPriceLimit = ABSTRACT BOOLEAN (Sku);
+skipPricingPriceMarkupLimit = ABSTRACT BOOLEAN (Sku);
 useCustomCalcLimitPrice = DATA BOOLEAN ();
 overLimitBasePrice = ABSTRACT VALUE NUMERIC[16,4] (Sku, DepartmentStore, DATETIME);
 limitBasePrice(Sku s, DepartmentStore d, DATETIME  dt) = OVERRIDE overLimitBasePrice(s,d,dt), 
@@ -17,13 +17,7 @@ useLimitMarkupValue = ABSTRACT VALUE BOOLEAN (Sku, DepartmentStore);
 
 extraRetailPrice 'Цена посуды' = ABSTRACT NUMERIC[16,4] (Sku, DATE );
 
-//skipSetManagementRetailPrice = ABSTRACT BOOLEAN ();
-
 limitPackagePrice = ABSTRACT NUMERIC[16,4](Sku, DepartmentStore, DATETIME);
-
-overSetManagementRetailPriceCalc ABSTRACT (CalcPriceListType, DepartmentStore, DATETIME);
-
-markupCorrect = DATA LOCAL NUMERIC[8,3](Sku);
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
     LOCAL limitPrice = NUMERIC[16,4] (Sku);        
@@ -32,12 +26,15 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
         calculateLimitBasePrice(d, dt);
 
         LOCAL lpPrice = NUMERIC[16,5](Sku);
+
+        LOCAL markupCorrect, importerMarkup = NUMERIC[8,3](Sku);
         markupCorrect(Sku sku) <- NULL;
         markupCorrect(Sku sku) <- markup(ct, sku) WHERE managementRetailPrice(sku);
 
-        lpPrice (Sku sku) <- limitPackagePrice(sku, d, dt) WHERE managementRetailPrice(sku);            
-        overSetManagementRetailPriceCalc(ct,d,dt);
-        
+        lpPrice (Sku sku) <- limitPackagePrice(sku, d, dt) WHERE managementRetailPrice(sku);
+        importerMarkup(Sku sku) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) WHERE managementRetailPrice(sku);
+        markupCorrect(Sku sku) <-  floor(((100.0 + markupCorrect(sku))/(100 + importerMarkup(sku))-1.0)*100.0, 0.01) WHERE markupCorrect(sku) AND importerMarkup(sku);
+
         limitPrice(Sku sku) <- round([ ((X * (Y + 100.0)/100.0)(+) W) * (Z + 100.0) / 100.0](
                 limitBasePrice(sku, d, dt),
                 markupCorrect(sku),
@@ -46,17 +43,17 @@ overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) + {
 
         limitPrice(Sku sku) <- limitPrice(sku) (+) extraRetailPrice(sku, DATE(dt)) WHERE limitPrice(sku);
 
-        managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku) AND NOT skipRepricingPriceMarkupLimit(sku);
+        managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipPricingPriceLimit(sku) AND NOT skipPricingPriceMarkupLimit(sku);
     }
 }
 
-calculateDescriptionPricingExtra ABSTRACT  (CalcPriceListType, Sku, DepartmentStore, DATETIME);
-markupCorrect = DATA LOCAL NUMERIC[8,3]();
 calculateDescriptionPricing (Sku sku, DepartmentStore d, DATETIME dt) + {
     FOR CalcPriceListType ct = priceLimitPriceListType(d) NOINLINE DO {
 
+        LOCAL markupCorrect, importerMarkup = NUMERIC[8,4]();
         markupCorrect() <- markup(ct, sku);
-        calculateDescriptionPricingExtra(ct,sku,d,dt);
+        importerMarkup() <- prevImporterMarkup(prevRetailPricingPriceListLedgerB( sku, d, dt)) ;
+        markupCorrect() <-  floor(((100.0 + markupCorrect())/(100 + importerMarkup())-1.0)*100.0, 0.01) WHERE markupCorrect() AND importerMarkup();
 
         descriptionPricing (sku, 'Предельные надбавки') <- STRING(
             round([ ((X * (Y + 100.0)/100.0)(+) W) * (Z + 100.0) / 100.0](
