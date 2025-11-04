@@ -1079,8 +1079,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
     PROPERTIES        BACKGROUND backgroundBalance(s,st) READONLY name(s) FOREGROUND foregroundBalance(s,st) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), nameCountry(s), 
                       stockName 'Склад' = name(st) SHOWIF multipleStores(), stockId 'Код склада' = id(st) SHOWIF multipleStores() AND showIDs() , nameUOM(s)  //  idBarcodeSku
     PROPERTIES BACKGROUND backgroundBalanceId(s, st) READONLY id(s) SHOWIF showIDs() BEFORE nameCountry(s)
-    FILTERS           isParent(sk, s) OR overFilterGroup(s),
-                      IF multipleStores() THEN 
+    FILTERS           IF multipleStores() THEN 
                         st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts OR overFilterStock(st)
                       ELSE 
                         st == ss,
@@ -1093,7 +1092,7 @@ FORM currentBalanceSkuStock 'Текущие остатки'
         FILTER 'Товар' isItem(s) 
         FILTER 'Тара' isContainer(s)
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParent(sk, s) DEFAULT
+        FILTER 'С группами' isParent(sk, s) OR overFilterGroup(s) DEFAULT
         FILTER 'Без групп' NOT skuGroup(s)
 
 
@@ -1210,8 +1209,7 @@ FORM balanceSkuStock 'Остатки на дату'
     OBJECTS           sts=(st=Stock, s=Sku)
     PROPERTIES        select(s,st)
     PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), stockName = name(st) SHOWIF multipleStores(), nameUOM(s)  //  idBarcodeSku
-    FILTERS           isParent(sk, s),
-                      IF multipleStores() THEN 
+    FILTERS           IF multipleStores() THEN 
                           st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
                         ELSE 
                             st == ss,
@@ -1228,8 +1226,9 @@ FORM balanceSkuStock 'Остатки на дату'
     FILTERGROUP container 
         FILTER 'Товар' isItem(s) 
         FILTER 'Тара' isContainer(s)
+                          
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParent(sk, s) DEFAULT
+        FILTER 'С группами' isParent(sk, s) OR overFilterGroup(s) DEFAULT
         FILTER 'Без групп' NOT skuGroup(s)        
     
     FILTERGROUP filters
@@ -1328,8 +1327,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     PROPERTIES        READONLY BACKGROUND backgroundBatch(st, bt) nameSku(bt), stockName = name(st) SHOWIF multipleStores(), documentNameSku(bt) SHOWIF useDocumentNameSku()
     PROPERTIES        READONLY currentBalance(bt, st) BACKGROUND negativeBalance(bt, st)
     PROPERTIES(bt)    READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
-    FILTERS           isParent(sk, bt),
-                      IF multipleStores() THEN 
+    FILTERS           IF multipleStores() THEN 
                           st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
                         ELSE 
                             st == ss,    
@@ -1349,7 +1347,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
         FILTER 'Тара' isContainer(bt)
 
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParent(sk, bt) DEFAULT
+        FILTER 'С группами' isParent(sk, bt) OR overFilterGroup(sku(bt)) DEFAULT
         FILTER 'Без групп' NOT skuGroup(sku(bt))
     
     FILTERGROUP filterBalance
@@ -1441,8 +1439,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     PROPERTIES        READONLY BACKGROUND backgroundBatch(st, bt) stockName = name(st) SHOWIF multipleStores(), nameSku(bt)
     PROPERTIES        READONLY  balanceB(bt, st, t)
     PROPERTIES(bt)    READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
-    FILTERS           isParent(sk, bt),
-                      IF multipleStores() THEN 
+    FILTERS           IF multipleStores() THEN 
                           st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts
                         ELSE 
                             st == ss,    
@@ -1462,7 +1459,7 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
         FILTER 'Тара' isContainer(bt)
 
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParent(sk, bt) DEFAULT
+        FILTER 'С группами' isParent(sk, bt) OR overFilterGroup(sku(bt)) DEFAULT
         FILTER 'Без групп' NOT skuGroup(sku(bt))
     
     FILTERGROUP filterBalance
