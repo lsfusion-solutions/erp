@@ -19,6 +19,12 @@ importerMarkup(PricingDetail ledger) += importerMarkup(ledger);
 
 priceLimitPriceListType(UserPricingDetail detail) = priceLimitPriceListType(departmentStore(detail));
 
+WHEN LOCAL  (CHANGED(sku(UserPricingDetail detail)) OR
+    CHANGED(departmentStore(detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) AND NOT CHANGED(importerMarkup(detail)) DO {
+    importerMarkup (detail) <- prevImporterMarkup(prevRetailPricingPriceListLedgerB(sku(detail), departmentStore(detail), dateTime(detail)));
+}
+
 WHEN LOCAL FORMS userPricing
     (CHANGED(departmentStore(UserPricingDetail detail)) OR CHANGED(sku(detail)) OR CHANGED(importerMarkup(detail)) OR
         SET(showLimitPrice(detail)))
