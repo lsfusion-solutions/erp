@@ -118,7 +118,7 @@ newAttribute(AttributeClass c) + WHEN c = AttributeClass.string THEN {
     }
 };
 order(AttributeClass c) += WHEN c == AttributeClass.string THEN 1;
-id 'Код' = DATA STRING[50] (AttributeString) NONULL CHARWIDTH 15 IN id;
+id 'Код' = DATA STRING[10] (AttributeString) NONULL CHARWIDTH 15 IN id;
 inactive 'Выкл.' = DATA BOOLEAN (AttributeString);
 name 'Наименование' = DATA BPISTRING[100] (AttributeString) NONULL IN id;
 id (AttributeString a) += id(a);
@@ -278,7 +278,7 @@ DESIGN attributeNumeric {
 
 //------------------------------------ Object ---------------------------------------------------------------------//
 CLASS Detail 'Элемент';
-data = DATA STRING (Detail);
+label 'Наименование' = DATA STRING (Detail);
 
 CLASS AttributeList 'Список' : Attribute;
 EXTEND CLASS AttributeClass { list 'Список' }
@@ -301,9 +301,8 @@ name (AttributeList a) += name(a);
 
 FORM dialogAttributeListValue 'Значение атрибута'
     OBJECTS attr = AttributeList PANEL, val = Detail
-    PROPERTIES(val) READONLY data
+    PROPERTIES(val) READONLY label
     FILTERS attributeList(val) == attr
-    ORDERS data(val)
 ;
 
 DESIGN dialogAttributeListValue {
@@ -311,7 +310,7 @@ DESIGN dialogAttributeListValue {
 }
 
 value 'Значение' = DATA Detail (Item, AttributeList);
-value (Item o, AttributeList a) += STRING(OVERRIDE data(value(o, a)), 'Без наименования' IF value(o, a));
+value (Item o, AttributeList a) += STRING(OVERRIDE label(value(o, a)), 'Без наименования' IF value(o, a));
 objectValue (Item o, AttributeList a) += value(o, a);
 detailAttribute (STRING id, AttributeList l) = GROUP MAX Detail k AS Detail BY [FORMULA STRING '$1::text'](k), attributeList(k);
 
@@ -335,7 +334,7 @@ FORM attributeList 'Атрибут (список)'
     PROPERTIES (attr) id, name, inactive
     
     OBJECTS d = Detail
-    PROPERTIES (d) data, NEW, DELETE 
+    PROPERTIES (d) label, NEW, DELETE 
     FILTERS attributeList(d) == attr
 
     EDIT AttributeList OBJECT attr
