@@ -14,10 +14,10 @@ sign(Receipt receipt) {
 }
 
 exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Receipt receipt) {
-    IF NOT skkoToken() THEN RETURN;
+    IF NOT skkoToken(legalEntityDepartmentStore(receipt)) THEN RETURN;
     
     NEWSESSION {
-        setHttpSkkoHeaders(skkoToken());
+        setHttpSkkoHeaders(skkoToken(legalEntityDepartmentStore(receipt)));
 
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(receipt);
@@ -58,8 +58,8 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Receip
         EXPORT exportEDS JSON;
         fileToString(exportFile());
         edsJSON() <- resultString();
-        
-        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');        
+
+        resultString() <- CONCAT '', rtrim(rtrim(baseJSON(), '\n'), '\}'), ',', ltrim(edsJSON(), '\{');
         stringToFile(resultString());
         
         LOCAL response = FILE();
@@ -105,10 +105,10 @@ refundSign(Receipt receipt) {
 }
 
 exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Receipt receipt) {
-    IF NOT skkoToken() THEN RETURN;
+    IF NOT skkoToken(legalEntityDepartmentStore(receipt)) THEN RETURN;
 
     NEWSESSION {
-        setHttpSkkoHeaders(skkoToken());
+        setHttpSkkoHeaders(skkoToken(legalEntityDepartmentStore(receipt)));
         
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(receipt);
@@ -150,7 +150,7 @@ exportRefundLotsWithoutKSA 'Передать в СККО (возврат)' (Rece
         fileToString(exportFile());
         edsJSON() <- resultString();
 
-        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        resultString() <- CONCAT '', rtrim(rtrim(baseJSON(), '\n'), '\}'), ',', ltrim(edsJSON(), '\{');
         stringToFile(resultString());
         
         LOCAL response = FILE();
@@ -193,10 +193,10 @@ cancelSign(Receipt receipt) {
 }
 
 exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Receipt receipt) {
-    IF NOT skkoToken() THEN RETURN;
+    IF NOT skkoToken(legalEntityDepartmentStore(receipt)) THEN RETURN;
 
     NEWSESSION {
-        setHttpSkkoHeaders(skkoToken());
+        setHttpSkkoHeaders(skkoToken(legalEntityDepartmentStore(receipt)));
        
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(receipt);
@@ -238,7 +238,7 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Receipt recei
         fileToString(exportFile());
         edsJSON() <- resultString();
 
-        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        resultString() <- CONCAT '', rtrim(rtrim(baseJSON(), '\n'), '\}'), ',', ltrim(edsJSON(), '\{');
         stringToFile(resultString());
 
         LOCAL response = FILE();

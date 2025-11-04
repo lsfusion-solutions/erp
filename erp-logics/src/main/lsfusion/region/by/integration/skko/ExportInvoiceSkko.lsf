@@ -16,10 +16,10 @@ sign(Sale.Invoice invoice) {
 }
 
 exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.Invoice invoice) {
-    IF NOT skkoToken() THEN RETURN;
+    IF NOT skkoToken(supplier(invoice)) THEN RETURN;
     
     NEWSESSION {
-        setHttpSkkoHeaders(skkoToken());
+        setHttpSkkoHeaders(skkoToken(supplier(invoice)));
         
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
@@ -67,7 +67,7 @@ exportSoldLotsWithoutKSA 'Передать в СККО (продажа)' (Sale.I
         fileToString(exportFile());
         edsJSON() <- resultString();
 
-        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        resultString() <- CONCAT '', rtrim(rtrim(baseJSON(), '\n'), '\}'), ',', ltrim(edsJSON(), '\{');
         stringToFile(resultString());
         
         LOCAL response = FILE();
@@ -110,10 +110,10 @@ cancelSign(Sale.Invoice invoice) {
 }
 
 exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice invoice) {
-    IF NOT skkoToken() THEN RETURN;
+    IF NOT skkoToken(supplier(invoice)) THEN RETURN;
 
     NEWSESSION {
-        setHttpSkkoHeaders(skkoToken());
+        setHttpSkkoHeaders(skkoToken(supplier(invoice)));
        
         LOCAL request = SkkoRequest();
         request() <- lastSkkoRequest(invoice);
@@ -161,7 +161,7 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
         fileToString(exportFile());
         edsJSON() <- resultString();
 
-        resultString() <- CONCAT '', rtrim(baseJSON(), '\}'), ',', ltrim(edsJSON(), '\{');
+        resultString() <- CONCAT '', rtrim(rtrim(baseJSON(), '\n'), '\}'), ',', ltrim(edsJSON(), '\{');
         stringToFile(resultString());
         
         LOCAL response = FILE();
