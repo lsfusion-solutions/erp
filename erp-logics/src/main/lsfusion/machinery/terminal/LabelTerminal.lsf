@@ -43,23 +43,23 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
             priceTransactionDocument(t) <- terminalDocument;
             labelType(t) <- labelType;
 
-            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND
-                quantity(dd) > 0 AND
-                select(sku(dd), labelType, stock(terminalDocument)) AND
-                PriceListType pt == overPriceListType(t) ORDER dateTimeScan(dd), dd NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
-                
-                labelTransaction(d) <- t;
-                sku(d) <- sku(dd);
-
-                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
-                createAttribute(d);
-
-                quantity(d) <- INTEGER(quantity(dd));
-
-                price(d) <- calcPrice(pt, d);
-                retailPrice(d) <- overRetailPrice(d);
-                createAttribute(dd, d);
-            }
+            FOR PriceList.PriceListType pt == overPriceListType(t) NOINLINE DO
+                FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND
+                    quantity(dd) > 0 AND select(sku(dd), labelType, stock(terminalDocument)) 
+                    ORDER dateTimeScan(dd), dd INLINE NEW d = LabelTransactionDetail DO {
+                    
+                    labelTransaction(d) <- t;
+                    sku(d) <- sku(dd);
+    
+                    name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+                    createAttribute(d);
+    
+                    quantity(d) <- INTEGER(quantity(dd));
+    
+                    price(d) <- calcPrice(pt, d);
+                    retailPrice(d) <- overRetailPrice(d);
+                    createAttribute(dd, d);
+                }
             DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
 
             IF notCheckEqualRetailPrice() THEN
@@ -89,29 +89,24 @@ createSnapshotTerminalDocumentLabel(TerminalDocument terminalDocument, LabelType
         priceTransactionDocument(t) <- terminalDocument;
         labelType(t) <- type;
 
-        FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND quantity(dd) > 0
-            AND in(Sku sku) AND sku == sku(dd) AND NOT exclude(type, sku)
-            AND PriceListType pt == overPriceListType(t) ORDER dateTimeScan(dd), dd NOINLINE (pt)
-            NEW d = LabelTransactionDetail DO {
-                labelTransaction(d) <- t;
-                sku(d) <- sku;
-
-                name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
-                documentQuantity(d) <- quantity(dd); 
-                
-                price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
-                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
-                                                           
-                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
-                                                         THEN INTEGER(documentQuantity(d))
-                                                         ELSE countLabel(departmentStore(d));                                              
-                                                           
-                                                           
-                
-                
-                createAttribute(d);
-                createAttribute(dd, d);
-        }
+        FOR PriceList.PriceListType pt == overPriceListType(t) NOINLINE DO
+            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND quantity(dd) > 0
+                AND in(Sku sku) AND sku == sku(dd) AND NOT exclude(type, sku)
+                ORDER dateTimeScan(dd), dd INLINE NEW d = LabelTransactionDetail DO {
+                    labelTransaction(d) <- t;
+                    sku(d) <- sku;
+    
+                    name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+                    documentQuantity(d) <- quantity(dd); 
+                    
+                    price(d) <- OVERRIDE documentPrice(d), calcPrice(pt, d);
+                    retailPrice(d) <- overRetailPrice(d);                       
+                                                               
+                    quantity(d) <- OVERRIDE countLabel(departmentStore(d)),  INTEGER(documentQuantity(d));                                              
+                                                               
+                    createAttribute(d);
+                    createAttribute(dd, d);
+            }
         overCreate(t);
         
         IF change(stock(terminalDocument)) THEN {
