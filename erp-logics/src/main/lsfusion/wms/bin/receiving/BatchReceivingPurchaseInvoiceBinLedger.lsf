@@ -26,6 +26,9 @@ quantityCreditNote 'Кол-во в актах расхождений' (Sku s, ST
 diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
     diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
 
+beforeCreateCreditNote ABSTRACT LIST (Receiving);
+afterCreateCreditNoteReceiving ABSTRACT LIST (UserCreditNoteDetail, InvoiceDetail, Receiving);
+
 createCreditNote 'Создать акт расхождения' (Receiving r) {
     IF (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF diffInvoiceCreditNoteCompleted(s, str, r) IS NUMERIC[16,5] AND NOT expectedQuantity(s, str, r)) THEN {
         MESSAGE 'Для товаров с расхождением \n' +
@@ -34,6 +37,7 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
             + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе';
     }
     IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
+        beforeCreateCreditNote(r);
         FOR receiving(Invoice i) = r
             AND [GROUP MAX diffInvoiceCreditNoteCompleted(sku(InvoiceDetail d), overConsolidationKey(d), receiving(invoice(d))) IF expectedQuantity(sku(d), overConsolidationKey(d), receiving(invoice(d))) BY invoice(d)](i)
             AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i))
@@ -64,6 +68,7 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
             valueVAT(dc) <- OVERRIDE valueVAT(d);
             price (dc) <- price(d);
             invoicePrice (dc) <- invoicePrice(d);
+            afterCreateCreditNoteReceiving(dc, d, r);
         }
         executeLocalEvents('Purchase.userCreditNote');
         APPLY;
