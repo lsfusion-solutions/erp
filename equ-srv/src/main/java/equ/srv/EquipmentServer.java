@@ -585,6 +585,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return null;
     }
 
+    @StackMessage("import.sales.info")
     private String importSalesInfo(ExecutionStack stack, String sidEquipmentServer, List<SalesInfo> salesInfoList, int start, int finish, int left,
                                    int taskIndex, int taskSize, String directory, EquipmentServerOptions options, List<Integer> allowReceiptsAfterDocumentsClosedDateCashRegisterList)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
