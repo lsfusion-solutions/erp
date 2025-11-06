@@ -55,8 +55,28 @@ overCreateAuto (UserOrder o) + {
             userOrder(UserOrderDetail dd) <- oo WHERE userOrder(dd) == o AND supplierStockInner(sku(dd), customerStock(dd)) == st;
 
             logToFile('autoOrder', (CONCAT ' ', 'Автозаказ (внутр.):', currentDate(), name(st), nameCustomerStock(o), 'количество строк - ' + STRING[10]([GROUP SUM 1 BY order(Purchase.OrderDetail d)](oo))));
+
+            NEWSESSION NESTED LOCAL{
+                typeProcess(scheduleOrderDetail(o)) <- TypeProcess.end;
+                noteProcess(scheduleOrderDetail(o)) <- (CONCAT '\n',
+                    noteProcess(scheduleOrderDetail(o)),
+                    (CONCAT ' ', currentDateTime(), 'Количество строк -',countUserOrderDetail(o)),
+                    (CONCAT ' ', currentDateTime(), 'Номер заказа -', seriesNumber(o)),
+                    applyMessage());
+                APPLY NESTED LOCAL;
+            }
+            NEWSESSION NESTED LOCAL{
+                typeProcess(scheduleOrderDetail(o)) <- TypeProcess.start;
+                noteProcess(scheduleOrderDetail(o)) <- (CONCAT '\n',
+                    noteProcess(scheduleOrderDetail(o)),
+                    (CONCAT ' ', currentDateTime(),'Старт обработки'));
+                APPLY NESTED LOCAL;
+            }
         }
     }
 }
 
 
+EXTEND FORM scheduleOrder
+    PROPERTIES (sd) nameSupplierStock 'Склад покупателя (ред.)' = nameCustomerStock AFTER nameCustomerStock(sd)
+;
