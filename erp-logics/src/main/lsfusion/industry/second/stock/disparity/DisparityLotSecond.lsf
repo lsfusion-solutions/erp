@@ -104,27 +104,6 @@ prevLastLotSecondDisparity = GROUP LAST Disparity d IF lotSecond(operation(d)) O
 returnConditionChangeSkuLot(UserDisparity d) += lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity();
 returnMessageChangeSkuLot() += 'Запрещён перенос марок в непоследнем Изменении сортности по месту хранения';
 
-changeSkuLotBack 'Перенести марки (назад)' (UserDisparity d) {
-    IF lotSecond(d) AND d != lastLotSecondDisparity(stock(d)) AND NOT skipAdditionalCheckDisparity() THEN {
-        MESSAGE 'Запрещён перенос марок назад в непоследнем Изменении сортности по месту хранения';
-        RETURN;
-    }
-
-    APPLY;
-    IF canceled() THEN RETURN;
-
-    ASK 'Вы уверены, что хотите перенести марки на старый товар?' DO {
-        NEWSESSION {
-            FOR disparity(UserDisparityDetail dd) = d AND sku(dd) AND quantity(dd, Lot l) AND inputSku(dd) = sku(l) DO {
-                note(l) <- 'Изменение сортности ' + number(dd) + '. Обратная замена товара с ' + idSku(l) + ' на ' + id(sku(dd));
-                sku(l) <- sku(dd);
-            }
-            setNoCancelInTransaction();
-            APPLY;
-        }
-    }
-}
-
 changeSkuLotPost 'Перенести марки и провести' (UserDisparity d) {
     IF returnConditionChangeSkuLot(d) THEN {
         MESSAGE returnMessageChangeSkuLot();
@@ -210,5 +189,3 @@ DESIGN lots {
         }
     }
 }
-
-skipCheckDocumentLot(UserDisparityDetail d) += isPosted(d);
