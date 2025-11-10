@@ -323,8 +323,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 //    @defineDocumentDetailGrossWeight(invoice, sku);
 
-    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED;
-    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7;
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) CHARWIDTH 7 MATERIALIZED PATTERN '#,##0.00##';
+    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail) CHARWIDTH 7 PATTERN '#,##0.00##';
     price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
     
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
@@ -371,8 +371,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VAT[Invoice.InvoiceDetail](InvoiceDetail detail) += VAT(detail);
     valueVAT[Invoice.InvoiceDetail](InvoiceDetail detail) += valueVAT(detail);
 
-    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED;
-    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) MATERIALIZED PATTERN '#,##0.00##';
+    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail) PATTERN '#,##0.00##';
     invoicePrice (UserInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail);
 
     invoicePrice[Invoice.InvoiceDetail](InvoiceDetail detail) += invoicePrice(detail);
@@ -402,8 +402,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
     // объявляем сумму без НДС
-    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED;
-    sum 'Сумма' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9;
+    sum 'Сумма' = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED PATTERN '#,##0.00##';
+    sum 'Сумма' = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
     sum (UserInvoiceDetail detail) += sum(detail);
         
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, , currency, quantity, priceRound);
@@ -411,8 +411,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 
     // объявляем свойства суммы НДС и суммы с НДС
-    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 8 MATERIALIZED;
-    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED;
+    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 8 MATERIALIZED PATTERN '#,##0.00##';
+    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[18,4] (InvoiceDetail) CHARWIDTH 9 MATERIALIZED PATTERN '#,##0.00##';
     
     VATSum 'Сумма НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 8;
     invoiceSum 'Сумма с НДС' (userInvoiceDetail) = DATA NUMERIC[18,4] (UserInvoiceDetail) CHARWIDTH 9;
@@ -426,11 +426,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VATSum[Invoice.InvoiceDetail](InvoiceDetail detail) += VATSum(detail);
     invoiceSum[Invoice.InvoiceDetail](InvoiceDetail detail) += invoiceSum(detail);
 
-    VATSumInvoiceDetail 'Сумма НДС' (invoice) = GROUP SUM VATSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 9 IN documentSum;
-    invoiceSumInvoiceDetail 'Сумма с НДС' (invoice) = GROUP SUM invoiceSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED;
+    VATSumInvoiceDetail 'Сумма НДС' (invoice) = GROUP SUM VATSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 9 IN documentSum PATTERN '#,##0.00##';
+    invoiceSumInvoiceDetail 'Сумма с НДС' (invoice) = GROUP SUM invoiceSum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED PATTERN '#,##0.00##';
 
-    VATSumUserInvoiceDetail 'Сумма НДС' (userInvoice) = GROUP SUM VATSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 9 IN documentSum;
-    invoiceSumUserInvoiceDetail 'Сумма с НДС' (userInvoice) = GROUP SUM invoiceSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
+    VATSumUserInvoiceDetail 'Сумма НДС' (userInvoice) = GROUP SUM VATSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 9 IN documentSum PATTERN '#,##0.00##';
+    invoiceSumUserInvoiceDetail 'Сумма с НДС' (userInvoice) = GROUP SUM invoiceSum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
 
     @defineDocumentInterfaceHeaderQuantity(invoice);
     @defineDocumentInterfaceHeaderItemQuantity(invoice);
@@ -438,8 +438,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentHeaderSkuQuantity(invoice, sku);
     @defineDocumentHeaderSkuQuantity(userInvoice, sku);
 
-    sumInvoiceDetail '{document.sum.of}' = GROUP SUM sum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED;
-    sumUserInvoiceDetail '{document.sum.of}' = GROUP SUM sum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum;
+    sumInvoiceDetail '{document.sum.of}' = GROUP SUM sum(InvoiceDetail idetail) BY invoice(idetail) CHARWIDTH 10 IN documentSum MATERIALIZED PATTERN '#,##0.00##';
+    sumUserInvoiceDetail '{document.sum.of}' = GROUP SUM sum(UserInvoiceDetail idetail) BY userInvoice(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
 
     @defineDocumentInterfaceHeaderItemSum (invoice, VAT, VAT); //-- сумма НДС поставщика (с разбивкой по таре, товару...)
     @defineDocumentInterfaceHeaderItemSum (invoice, , ); //-- сумма поставщика (с разбивкой по таре, товару...)
