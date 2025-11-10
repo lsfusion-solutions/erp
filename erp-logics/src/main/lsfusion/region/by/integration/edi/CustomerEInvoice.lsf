@@ -402,6 +402,201 @@ FORM importEInvoice
     FILTERS eLineItemLineItemExtraField(f) == i
 ;
 
+overImportEInvoice ABSTRACT (INTEGER);
+skipInvoice = DATA LOCAL NESTED STRING ();
+overCreateEInvoice ABSTRACT LIST (EInvoice);
+overCreateEInvoiceDetail ABSTRACT LIST (EInvoiceDetail, INTEGER);
+
+getEInvoiceMessageType = GROUP MAX EInvoiceMessageType t BY upper(rtrim(getWord(staticName(t), '.', 2), '_'));
+
+currentDocumentType = DATA LOCAL NESTED STRING[6] ();
+
+createEInvoice() {
+    LOCAL isCancel = BOOLEAN();
+    isCancel() <- TRUE IF eFunctionCode() == '1';
+    FOR EInvoice ei = eInvoiceDeliveryNoteNumber(eDeliveryNoteNumber()) DO {
+        importedCustomer(ei) <- TRUE ;
+        IF isCancel() THEN {
+            isCancel(ei) <- TRUE ;
+            numberSupplierCancel(ei) <- eDocumentID();
+            dateSupplierCancel(ei) <- eDateTime();
+            exportedCustomer(ei) <- NULL;
+            exportedNoticeCustomer(ei) <- NULL;
+            exportedBlrapnCustomer(ei) <- NULL;
+        } ELSE {
+            numberSupplier(ei) <- eDocumentID();
+            dateSupplier(ei) <- eDateTime();
+        }
+    } ELSE NEW ei = EInvoice {
+        isNewFormat(ei) <- TRUE;
+        importedCustomer(ei) <- TRUE;
+        isTestDocument(ei) <- TRUE IF eTestIndicator() == '1';
+        isTN2(ei) <- TRUE IF currentDocumentType() == 'BLRDLN';
+        id(ei) <- eSupplierGLN() + '/' + eDeliveryNoteNumber() + (IF isCancel() THEN '_cancel' ELSE '');
+        numberSupplier(ei) <- eDocumentID() IF NOT isCancel();
+        dateSupplier(ei) <- eDateTime() IF NOT isCancel();
+        numberSupplierCancel(ei) <- eDocumentID() IF isCancel();
+        dateSupplierCancel(ei) <- eDateTime() IF isCancel();
+        deliveryNoteDate(ei) <- eDeliveryNoteDate();
+        deliveryNoteNumber(ei) <- eDeliveryNoteNumber();
+        contractName(ei) <- eContractName();
+        contractId(ei) <- eContractID();
+        contractDate(ei) <- eContractDate();
+        waybillId(ei) <- eWaybillID();
+        isCancel(ei) <- isCancel();
+        supplier(ei) <- legalEntityGLNeInvoice(eSupplierGLN());
+        dataGLNSupplier(ei) <- eSupplierGLN();
+        contactSupplier(ei) <- eContactSupplier();
+        supplierStock(ei) <- stockGLNUserID(eSupplierGLN(), eSupplierStockGLN(), (OVERRIDE getWord(eUserID(), '-', 2), ''));
+        dataGLNSupplierStock(ei) <- eSupplierStockGLN();
+        contactSupplierStock(ei) <- eContactSupplierStock();
+        customer(ei) <- legalEntityGLN(eCustomerGLN());
+        customerStock(ei) <- companyStockGLN(eCustomerStockGLN());
+        freightPayer(ei) <- legalEntityGLN(eFreightPayerGLN());
+        transportContact(ei) <- eTransportContact();
+        deliveryContact(ei) <- eDeliveryContact();
+        proxyID(ei) <- eProxyID();
+        proxyDate(ei) <- eProxyDate();
+        partyIssuingProxyName(ei) <- ePartyIssuingProxyName();
+        quantityTrip(ei) <- OVERRIDE eQuantityTrip(), eQuantityTripNew();
+        transportOwnerName(ei) <- OVERRIDE eTransportOwnerName(), eTransportOwnerNameNew();
+        transportID(ei) <- OVERRIDE eTransportID(), eTransportIDNew();
+        trailerID(ei) <- OVERRIDE eTrailerID(), eTrailerIDNew();
+        sealIDReceiver(ei) <- eSealIDReceiver();
+        orderID(ei) <- eOrderID();
+        cancelDeliveryNoteId(ei) <- eCancelDeliveryNoteId() WHERE eCancelDeliveryNoteId() != eDeliveryNoteNumber();
+        currency(ei) <- eCurrency();
+        FOR eFieldName(INTEGER e) OR eFieldValue(e) DO NEW ef = ExtraField {
+            name(ef) <- eFieldName(e);
+            code(ef) <- eFieldCode(e);
+            value(ef) <- eFieldValue(e);
+            eInvoice(ef) <- ei;
+        }
+        overCreateEInvoice(ei);
+
+        upperLevelCodeMark(INTEGER r) <- STRING[200](decodeText(upperLevelCodeMark(r), 'base64'));
+        groupPackingCodeMark(INTEGER r) <- STRING[200](decodeText(groupPackingCodeMark(r), 'base64'));
+        fieldCodeMark(INTEGER r) <- STRING[200](decodeText(fieldCodeMark(r), 'base64'));
+
+        FOR eLineItemID(INTEGER l) OR eLineItemBuyerID(l) OR eLineItemSupplierID(l) ORDER eLineItemNumber(l) DO NEW ed = EInvoiceDetail {
+            eInvoice(ed) <- ei;
+            id(ed) <- id(ei) + '/' + eLineItemNumber(l);
+            dataIndex(ed) <- eLineItemNumber(l);
+            lineItemSign(ed) <- eLineItemSign(l);
+            lineItemID(ed) <- eLineItemID(l);
+            lineItemBuyerID(ed) <- eLineItemBuyerID(l);
+            itemCustomCode(ed) <- eItemCustomCode(l);
+            itemCustomCodeOther(ed) <- eItemCustomCodeOther(l);
+            deliveryTypePrev(ed) <- eDeliveryTypePrev(l);
+            deliveryNotePrev(ed) <- eDeliveryNotePrev(l);
+            deliveryNoteDatePrev(ed) <- eDeliveryNoteDatePrev(l);
+            deliveryNotePrevLineID(ed) <- INTEGER(eDeliveryNotePrevLineID(l));
+            lineItemSupplierID(ed) <- eLineItemSupplierID(l);
+            lineItemName(ed) <- eLineItemName(l);
+            grossWeightValue(ed) <- eGrossWeightValue(l);
+            quantityDespatched(ed) <- eQuantityDespatched(l);
+            lineItemQuantityUOM(ed) <- eLineItemQuantityUOM(l);
+            despatchUnitQuantityDespatched(ed) <- eDespatchUnitQuantityDespatched(l);
+            expiryDate(ed) <- eExpiryDate(l);
+            lineItemQuantitySPT(ed) <- eLineItemQuantitySPT(l);
+            quantityDespatchedSPT(ed) <- eQuantityDespatchedSPT(l);
+            valueVAT(ed) <- eValueVAT(l);
+            additionalInformation(ed) <- eAdditionalInformation(l);
+            manufactureDate(ed) <- eLineItemProductDate(l);
+            lineItemPrice(ed) <- eLineItemPrice(l);
+            lineItemPriceSPT(ed) <- eLineItemPriceSPT(l);
+            lineItemManufacturerPrice(ed) <- eLineItemManufacturerPrice(l);
+            lineItemAmountWithoutCharges(ed) <- eLineItemAmountWithoutCharges(l);
+            lineItemAmount(ed) <- eLineItemAmount(l);
+            lineItemAmountCharges(ed) <- eLineItemAmountCharges(l);
+            lineItemAmountExcise(ed) <- eLineItemAmountExcise(l);
+            lineItemManufacturerOutputPrice(ed) <- lineItemManufacturerOutputPrice(l);
+            typeDiscount(ed) <- typeDiscount(l);
+            bulkDiscountRate(ed) <- bulkDiscountRate(l);
+            outputPriceIncludingShippingCoast(ed) <- outputPriceIncludingShippingCoast(l);
+            outputPriceShippingCoast(ed) <- outputPriceShippingCoast(l);
+            outputPricePackingCoast(ed) <- outputPricePackingCoast(l);
+            bulkMarginRate(ed) <- bulkMarginRate(l);
+            cutRate(ed) <- cutRate(l);
+            additionalInformationPrice(ed) <- additionalInformationPrice(l);
+            additionalInformationNote(ed) <- additionalInformationNote(l);
+            FOR eLineItemFieldName(INTEGER e) AND eLineItemFieldValue(e) AND eLineItemLineItemExtraField(e) == l DO NEW ief = ItemExtraField {
+                name(ief) <- eLineItemFieldName(e);
+                code(ief) <- eLineItemFieldCode(e);
+                value(ief) <- eLineItemFieldValue(e);
+                eInvoiceDetail(ief) <- ed;
+            }
+
+            //верхние уровни
+            FOR lineItemLineItemIdentification(INTEGER lineItemIdentification) == l
+                AND upperLevelCodeMark(lineItemIdentification)
+                AND NOT eInvoiceLotDetail(upperLevelCodeMark(lineItemIdentification), ed) INLINE NEW ld = EInvoiceLotDetail DO {
+
+                id(ld) <- upperLevelCodeMark(lineItemIdentification);
+                eInvoiceDetail(ld) <- ed;
+            }
+
+            //групповые упаковки
+            FOR lineItemLineItemIdentification(INTEGER lineItemIdentification) == l AND groupPackingHeaderGroupPackingCodeMark(INTEGER groupPackingCodeMark) == lineItemIdentification
+                AND groupPackingCodeMark(groupPackingCodeMark)
+                AND NOT eInvoiceLotDetail(groupPackingCodeMark(groupPackingCodeMark), ed) INLINE NEW ld = EInvoiceLotDetail DO {
+
+                id(ld) <- groupPackingCodeMark(groupPackingCodeMark);
+                eInvoiceDetail(ld) <- ed;
+            }
+            //parent отдельно 
+            FOR lineItemLineItemIdentification(INTEGER lineItemIdentification) == l AND groupPackingHeaderGroupPackingCodeMark(INTEGER groupPackingCodeMark) == lineItemIdentification
+                AND groupPackingCodeMark(groupPackingCodeMark)
+                AND EInvoiceLotDetail ld == eInvoiceLotDetail(groupPackingCodeMark(groupPackingCodeMark), ed) INLINE DO {
+
+                parent(ld) <- eInvoiceLotDetail(upperLevelCodeMark(lineItemIdentification), ed);
+            }
+
+            //марки
+            FOR lineItemLineItemIdentification(INTEGER lineItemIdentification) == l AND fieldCodeMarkHeaderFieldCodeMark(INTEGER fieldCodeMark) == lineItemIdentification
+                AND fieldCodeMark(fieldCodeMark)
+                AND NOT eInvoiceLotDetail(fieldCodeMark(fieldCodeMark), ed) INLINE NEW ld = EInvoiceLotDetail DO {
+
+                id(ld) <- fieldCodeMark(fieldCodeMark);
+                eInvoiceDetail(ld) <- ed;
+                quantity(ld) <- 1;
+                parent(ld) <- eInvoiceLotDetail(upperLevelCodeMark(lineItemIdentification), ed);
+            }
+
+            overCreateEInvoiceDetail(ed, l);
+        }
+        afterImportEInvoice(ei);
+    }
+}
+
+importEInvoiceFromXML 'Импорт из XML' () {
+    INPUT f = XMLFILE DO {
+        data(0) <- f;
+        skipInvoice() <- NULL;
+        overImportEInvoice(0);
+        IF NOT skipInvoice() THEN {
+            IMPORT importEInvoice XML FROM data(0);
+            validate(eMessageType(), FILE(data(0)));
+            currentDocumentType() <- eMessageType();
+            NEWSESSION NESTED LOCAL {
+                createEInvoice();
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+    APPLY;
+}
+
+EXTEND FORM eInvoices PROPERTIES () importEInvoiceFromXML;
+DESIGN eInvoices {
+    actionContainer {
+        NEW import {
+            caption = 'Импорт';
+            MOVE PROPERTY (importEInvoiceFromXML());
+        }
+    }
+}
+
 exportBlrwbrDateTime = DATA LOCAL NESTED DATETIME();
 
 GROUP report EXTID 'Report';
