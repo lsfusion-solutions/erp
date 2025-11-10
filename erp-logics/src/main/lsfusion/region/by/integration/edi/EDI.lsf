@@ -116,12 +116,13 @@ EXTEND CLASS EInvoiceMessageType {
 sendRequestEDIResponse = DATA LOCAL FILE();
 sendRequestEDIStatus = DATA LOCAL INTEGER();
 
+isXml = DATA LOCAL BOOLEAN ();
 basic = DATA LOCAL TEXT ();
 token = DATA LOCAL TEXT ();
 encodeText = FORMULA TEXT 'encode(convert_to(($1),\'UTF8\'),($2))';
 decodeText = FORMULA TEXT 'convert_from(decode(($1),($2)), \'UTF8\')';
 httpHeadersEDI(TEXT name) = CASE 
-    WHEN name = 'Content-Type' THEN 'text/xml'
+    WHEN isXml() AND name = 'Content-Type' THEN 'text/xml'
     WHEN basic() AND name = 'Authorization' THEN 'Basic ' + basic()
     WHEN token() AND name = 'Authorization' THEN token();
 
@@ -129,6 +130,7 @@ sendRequestEDI 'Отправить' (TEXT login, TEXT password, TEXT url, FILE r
     logToFile('edi', CONCAT ' ', 'SendRequestEDI ' + url, '(client)' IF client);
     basic() <- encodeText(login + ':' + password, 'base64') IF basicAuthorization;
     timeoutHttp() <- 300000;
+    isXml() <- extension(request) == 'xml';
     IF client THEN {
         EXTERNAL HTTP CLIENT url HEADERS httpHeadersEDI PARAMS request TO sendRequestEDIResponse;
     } ELSE {
