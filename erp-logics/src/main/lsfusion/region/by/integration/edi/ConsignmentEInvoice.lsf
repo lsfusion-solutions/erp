@@ -188,48 +188,58 @@ despatchUnitQuantityDespatched = ABSTRACT NUMERIC[12,5] (ConsignmentDetail);
 beforeCreateEInvoice ABSTRACT (Consignment);
 skipCreateEInvoice = DATA LOCAL BOOLEAN ();
 
+fillEInvoiceData(EInvoice ei, Consignment invoice) {
+    isNewFormat(ei) <- TRUE;
+    invoice(ei) <- invoice;
+    numberSupplier(ei) <- number(invoice);
+    dateSupplier(ei) <- dateTime[Invoice](invoice);
+    deliveryNoteDate(ei) <- date[Invoice](invoice);
+    supplier(ei) <- supplier(invoice);
+    supplierStock(ei) <- supplierStock(invoice);
+    customer(ei) <- customer(invoice);
+    customerStock(ei) <- customerStock(invoice);
+    IF supplier(invoice) == customer(invoice) AND NOT contractSku(invoice) THEN {
+        contractName(ei) <- 'Внутреннее перемещение';
+        contractId(ei) <- 'Внутреннее перемещение';
+        contractDate(ei) <-  date[Invoice](invoice);
+    } ELSE {
+        contractName(ei) <- 'Договор поставки';
+        contractId(ei) <- seriesNumberContractSku(invoice);
+        contractDate(ei) <- dateFromContractSku(invoice);
+    }
+    currency(ei) <- shortNameCurrency(invoice);
+    isTestDocument(ei) <- isTestEInvoice(invoice);
+}
+
+fillEInvoiceDetailData(EInvoiceDetail ed, ConsignmentDetail detail) {
+    invoiceDetail(ed) <- detail;
+    lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
+    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) > 7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
+    lineItemSupplierID(ed) <- id(sku(detail));
+    lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
+    quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
+    valueVAT(ed) <- STRING[7](NUMERIC[6,2](vat(detail)));
+    lineItemPrice(ed) <- NUMERIC[12,2](price(detail));
+    lineItemAmount(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail));
+    lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
+    lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
+    lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+}
+
 createEInvoice 'Создать ЭТТН-1' (Consignment invoice) {
     IF NOT eInvoice(invoice) THEN NEWSESSION {
         beforeCreateEInvoice(invoice);
         IF NOT skipCreateEInvoice() THEN {
             NEW ei = EInvoice {
-                isNewFormat(ei) <- TRUE;
-                invoice(ei) <- invoice;
-                numberSupplier(ei) <- number(invoice);
-                dateSupplier(ei) <- dateTime[Invoice](invoice);
-                deliveryNoteDate(ei) <- date[Invoice](invoice);
-                supplier(ei) <- supplier(invoice);
-                supplierStock(ei) <- supplierStock(invoice);
-                customer(ei) <- customer(invoice);
-                customerStock(ei) <- customerStock(invoice);
-                IF supplier(invoice) == customer(invoice) AND NOT contractSku(invoice) THEN {
-                    contractName(ei) <- 'Внутреннее перемещение';
-                    contractId(ei) <- 'Внутреннее перемещение';
-                    contractDate(ei) <-  date[Invoice](invoice);
-                } ELSE {
-                    contractName(ei) <- 'Договор поставки';
-                    contractId(ei) <- seriesNumberContractSku(invoice);
-                    contractDate(ei) <- dateFromContractSku(invoice);
-                }
-                currency(ei) <- shortNameCurrency(invoice);
-                isTestDocument(ei) <- isTestEInvoice(invoice);
+                fillEInvoiceData(ei, invoice);
 
                 FOR consignment(ConsignmentDetail detail) == invoice ORDER index(detail) INLINE NEW ed = EInvoiceDetail DO {
                     eInvoice(ed) <- ei;
-                    invoiceDetail(ed) <- detail;
-                    lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
-                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) > 7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
-                    lineItemSupplierID(ed) <- id(sku(detail));
-                    lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
-                    quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
-                    valueVAT(ed) <- STRING[7](NUMERIC[6,2](vat(detail)));
-                    lineItemPrice(ed) <- NUMERIC[12,2](price(detail));
-                    lineItemAmount(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail));
-                    lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
-                    lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
+                    fillEInvoiceDetailData(ed, detail);
+                    
                     grossWeightValue(ed) <- OVERRIDE grossWeightValue(detail), NUMERIC[12,6](grossWeightTon(detail));
-                    lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
                     despatchUnitQuantityDespatched(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail)), 1.0;
+                    
                     overCreate(ed, detail);
                 }
 
@@ -247,42 +257,13 @@ createEInvoiceTN2 'Создать ЭТН-2' (Consignment invoice) {
         beforeCreateEInvoice(invoice);
         IF NOT skipCreateEInvoice() THEN {
             NEW ei = EInvoice {
-                isNewFormat(ei) <- TRUE;
                 isTN2(ei) <- TRUE;
-                invoice(ei) <- invoice;
-                numberSupplier(ei) <- number(invoice);
-                dateSupplier(ei) <- dateTime[Invoice](invoice);
-                deliveryNoteDate(ei) <- date[Invoice](invoice);
-                supplier(ei) <- supplier(invoice);
-                supplierStock(ei) <- supplierStock(invoice);
-                customer(ei) <- customer(invoice);
-                customerStock(ei) <- customerStock(invoice);
-                IF supplier(invoice) == customer(invoice) AND NOT contractSku(invoice) THEN {
-                    contractName(ei) <- 'Внутреннее перемещение';
-                    contractId(ei) <- 'Внутреннее перемещение';
-                    contractDate(ei) <-  date[Invoice](invoice);
-                } ELSE {
-                    contractName(ei) <- 'Договор поставки';
-                    contractId(ei) <- seriesNumberContractSku(invoice);
-                    contractDate(ei) <- dateFromContractSku(invoice);
-                }
-                currency(ei) <- shortNameCurrency(invoice);
-                isTestDocument(ei) <- isTestEInvoice(invoice);
+                fillEInvoiceData(ei, invoice);
 
                 FOR consignment(ConsignmentDetail detail) == invoice ORDER index(detail) NEW ed = EInvoiceDetail DO {
                     eInvoice(ed) <- ei;
-                    invoiceDetail(ed) <- detail;
-                    lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
-                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)), (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
-                    lineItemSupplierID(ed) <- id(sku(detail));
-                    lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
-                    quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
-                    valueVAT(ed) <- STRING[7](NUMERIC[6,2](vat(detail)));
-                    lineItemPrice(ed) <- NUMERIC[12,2](price(detail));
-                    lineItemAmount(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail));
-                    lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
-                    lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
-                    lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+                    fillEInvoiceDetailData(ed, detail);
+                    
                     overCreate(ed, detail);
                 }
 

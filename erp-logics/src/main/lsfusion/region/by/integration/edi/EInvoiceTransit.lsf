@@ -32,38 +32,15 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
         beforeCreateEInvoiceTransit(invoice);
         IF NOT skipCreateEInvoiceTransit() THEN {
             NEW ei = EInvoice {
-                isNewFormat(ei) <- TRUE;
-                Consignment.invoice(ei) <- invoice;
-                numberSupplier(ei) <- number(invoice);
-                dateSupplier(ei) <- dateTime[Invoice.Invoice](invoice);
-                deliveryNoteDate(ei) <- date[Invoice.Invoice](invoice);
-                supplier(ei) <- supplier(invoice);
-                supplierStock(ei) <- supplierStock(invoice);
-                customer(ei) <- customer(invoice);
-                customerStock(ei) <- customerStock(invoice);
-                contractName(ei) <- 'Договор поставки';
-                contractId(ei) <- seriesNumberContractSku[Invoice.Invoice](invoice);
-                contractDate(ei) <- dateFromContractSku[Invoice.Invoice](invoice);
-                currency(ei) <- shortNameCurrency(invoice);
-                isTestDocument(ei) <- isTestEInvoice(invoice);
+                fillEInvoiceData(ei, invoice);
                 invoiceSeries(ei) <- series[Invoice.Invoice](invoice);
                 invoiceNumber(ei) <- number[Invoice.Invoice](invoice);
                 isTransit(ei) <- TRUE;
                 
                 FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail  DO {
                     eInvoice(ed) <- ei;
-                    invoiceDetail(ed) <- detail;
-                    lineItemSign(ed) <- IF isContainer(sku(detail)) THEN 'CONT' ELSE 'PROD';
-                    lineItemID(ed) <- OVERRIDE GTIN(sku(detail)) IF length(GTIN(sku(detail))) >7, (id(barcode(sku(detail))) IF length(id(barcode(sku(detail)))) > 7);
-                    lineItemSupplierID(ed) <- id(sku(detail));
-                    lineItemName(ed) <- STRING[500](replace(replace(nameSku(detail), '\n', ''), '\r', ''));
-                    quantityDespatched(ed) <- OVERRIDE quantityDespatched(detail), quantity(detail);
-                    valueVAT(ed) <- STRING[7](NUMERIC[6,2](vat(detail)));
-                    lineItemPrice(ed) <- NUMERIC[12,2](price(detail));
-                    lineItemAmount(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail));
-                    lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
-                    lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
-                    lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+                    fillEInvoiceDetailData(ed, detail);
+                    
                     itemCustomCode(ed) <- codeCustomsGroupDefaultCountry(sku(detail));
                     deliveryTypePrev(ed) <- (OVERRIDE (IF isTN2(eInvoice(eInvoiceDetail(invoiceDetail(batch(detail))))) THEN 2 ELSE IF eInvoice(eInvoiceDetail(invoiceDetail(batch(detail)))) THEN 1), 
                                             (IF isTN2(invoice(invoiceDetail(batch(detail)))) THEN 2 ELSE IF invoice(invoiceDetail(batch(detail))) THEN 1),
@@ -85,22 +62,45 @@ createEInvoiceTransit 'Создать сообщение о транзите' (C
     }
 }
 
+createEInvoiceExport 'Создать экспортный документ' (Consignment invoice)  {
+    IF NOT eInvoice(invoice) THEN NEWSESSION {
+        NEW ei = EInvoice {
+            fillEInvoiceData(ei, invoice);
+            dataUnpCustomerFirst(ei) <- UNPForeign(customer(invoice));
+            formType(ei) <- 4;
+            isTN2(ei) <- TRUE;
+
+            FOR consignment(ConsignmentDetail detail) == invoice NEW ed = EInvoiceDetail DO {
+                eInvoice(ed) <- ei;
+                fillEInvoiceDetailData(ed, detail);
+                overCreate(ed, detail);
+            }
+            overCreate(ei, invoice);
+            generateNumber(ei);
+        }
+        APPLY;
+
+    }
+}
+
 EXTEND FORM Sale.invoices
-    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))
+    PROPERTIES(i) SHOWIF (country(customer(i)) != defaultCountry() AND (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))) createEInvoiceTransit, createEInvoiceExport
 ;
 
 DESIGN Sale.invoices {
     createEI {
+        MOVE PROPERTY(createEInvoiceExport(i)) AFTER PROPERTY(createEInvoiceTN2(i));
         MOVE PROPERTY(createEInvoiceTransit(i)) AFTER PROPERTY(createEInvoiceTN2(i));
     }
 }
 
 EXTEND FORM PurchaseReturn.invoices
-    PROPERTIES(i) createEInvoiceTransit SHOWIF (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))
+    PROPERTIES(i) SHOWIF (country(supplier(i)) != defaultCountry() AND (NOT Consignment.eInvoice(i) AND NOT hideCreateEInvoice(i))) createEInvoiceTransit, createEInvoiceExport
 ;
 
 DESIGN PurchaseReturn.invoices {
     createEI {
+        MOVE PROPERTY(createEInvoiceExport(i)) AFTER PROPERTY(createEInvoiceTN2(i));
         MOVE PROPERTY(createEInvoiceTransit(i)) AFTER PROPERTY(createEInvoiceTN2(i));
     }
 }
