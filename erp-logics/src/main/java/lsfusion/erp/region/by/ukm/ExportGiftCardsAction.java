@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static lsfusion.base.BaseUtils.nvl;
+
 public class ExportGiftCardsAction extends DefaultExportAction {
 
     public ExportGiftCardsAction(ScriptingLogicsModule LM) {
@@ -34,18 +36,14 @@ public class ExportGiftCardsAction extends DefaultExportAction {
     @Override
     public void executeInternal(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            List<GiftCard> giftCards = getGiftCards(context);
+            boolean useIdSku = findProperty("useIdSkuExportGiftCards[]").read(context) != null;
+            List<GiftCard> giftCards = getGiftCards(context, useIdSku);
             if(giftCards != null && !giftCards.isEmpty()) {
                 String connectionString = (String) findProperty("connectionStringExportGiftCards[]").read(context);
                 String user = (String) findProperty("userExportGiftCards[]").read(context);
                 String password = (String) findProperty("passwordExportGiftCards[]").read(context);
-                Integer checkUnderpay = (Integer) findProperty("checkUnderpayExportGiftCards[]").read(context);
-                if(checkUnderpay == null)
-                    checkUnderpay = 0;
-
-                Integer monoAccount = (Integer) findProperty("monoAccountExportGiftCards[]").read(context);
-                if(monoAccount == null)
-                    monoAccount = 1;
+                Integer checkUnderpay = nvl((Integer) findProperty("checkUnderpayExportGiftCards[]").read(context), 0);
+                Integer monoAccount = nvl((Integer) findProperty("monoAccountExportGiftCards[]").read(context), 1);
 
 
                 if (connectionString != null) {
@@ -166,7 +164,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         }
     }
 
-    private List<GiftCard> getGiftCards(ExecutionContext<ClassPropertyInterface> context) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
+    private List<GiftCard> getGiftCards(ExecutionContext<ClassPropertyInterface> context, boolean useIdSku) throws SQLHandledException, ScriptingErrorLog.SemanticErrorException, SQLException {
         List<GiftCard> giftCards = new ArrayList<>();
 
         KeyExpr giftCardExpr = new KeyExpr("giftCard");
@@ -174,17 +172,18 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
         QueryBuilder<Object, Object> giftCardQuery = new QueryBuilder<>(giftCardKeys);
 
-        String[] articleNames = new String[]{"number", "price", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
+        String[] articleNames = new String[]{"number", "price", "idSku", "idBarcode", "nameSku", "idDepartmentStore", "expiryDays",
                 "isSoldInvoice", "isDefect", "useGiftCardDates", "dateSold", "expireDate", "allowReturn", "allowReturnPayment"};
-        LP<?>[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idBarcode[GiftCard]", "nameSku[GiftCard]",
-                "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]", "isDefect[GiftCard]", "useGiftCardDates[GiftCard]",
-                "dateSold[GiftCard]", "expireDate[GiftCard]", "allowReturn[GiftCard]", "allowReturnPayment[GiftCard]");
+        LP<?>[] articleProperties = findProperties("number[GiftCard]", "price[GiftCard]", "idSku[GiftCard]", "idBarcode[GiftCard]",
+                "nameSku[GiftCard]", "idDepartmentStore[GiftCard]", "expiryDays[GiftCard]", "isSoldInvoice[GiftCard]",
+                "isDefect[GiftCard]", "useGiftCardDates[GiftCard]", "dateSold[GiftCard]", "expireDate[GiftCard]", "allowReturn[GiftCard]",
+                "allowReturnPayment[GiftCard]");
         for (int j = 0; j < articleProperties.length; j++) {
             giftCardQuery.addProperty(articleNames[j], articleProperties[j].getExpr(giftCardExpr));
         }
         giftCardQuery.and(findProperty("inExportGiftCards[GiftCard]").getExpr(context.getModifier(), giftCardExpr).getWhere());
 //        giftCardQuery.and(findProperty("exportedExportGiftCards[GiftCard]").getExpr(context.getModifier(), giftCardExpr).getWhere().not());
-        giftCardQuery.and(findProperty("idBarcode[GiftCard]").getExpr(context.getModifier(), giftCardExpr).getWhere());
+        giftCardQuery.and(findProperty(useIdSku ? "idSku[GiftCard]" : "idBarcode[GiftCard]").getExpr(context.getModifier(), giftCardExpr).getWhere());
 
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> articleResult = giftCardQuery.execute(context);
 
@@ -193,7 +192,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
             String number = (String) resultValues.get("number");
             BigDecimal price = (BigDecimal) resultValues.get("price");
-            String idBarcode = (String) resultValues.get("idBarcode");
+            String idSkuOrBarcode =  (String) resultValues.get(useIdSku ? "idSku" : "idBarcode");
             String nameSku = (String) resultValues.get("nameSku");
             String departmentStore = (String) resultValues.get("idDepartmentStore");
             Integer expiryDays = (Integer) resultValues.get("expiryDays");
@@ -217,12 +216,12 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 else if (expiryDays != null)
                     dateTo = dateTo.plusDays(expiryDays);
             }
-            Integer id = getId(idBarcode);
+            Integer id = getId(idSkuOrBarcode);
             if (id != null) {
-                giftCards.add(new GiftCard(id, number, price, idBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
+                giftCards.add(new GiftCard(id, number, price, idSkuOrBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
-                context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idBarcode), "Ошибка"));
+                context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idSkuOrBarcode), "Ошибка"));
                 return null;
             }
         }
@@ -262,9 +261,9 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         }
     }
 
-    private Integer getId(String idBarcode) {
+    private Integer getId(String idSkuOrBarcode) {
         try {
-            return Integer.parseInt("11" + idBarcode);
+            return Integer.parseInt("11" + idSkuOrBarcode);
         } catch (Exception e) {
             return null;
         }
@@ -282,7 +281,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         return version;
     }
 
-    private class GiftCard {
+    private static class GiftCard {
         Integer id;
         String number;
         BigDecimal price;
