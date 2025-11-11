@@ -118,21 +118,6 @@ is713 '713-е постановление' = DATA BOOLEAN (PharmacyPriceGroup);
 is713PharmacyPriceGroup (Sku s) = is713(pharmacyPriceGroup(s));
 isNot713PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is713(pharmacyPriceGroup(s));
 
-setIs713 = DATA BOOLEAN ();
-
-onStarted() + {
-    NEWSESSION {
-        IF NOT setIs713() THEN {
-            setIs713() <- TRUE;
-            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
-                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
-            }
-            APPLY;
-            
-        }
-    }
-}
-
 FORM pharmacyMarkups 'Ценовые группы'
 
     OBJECTS g=PharmacyPriceGroup
