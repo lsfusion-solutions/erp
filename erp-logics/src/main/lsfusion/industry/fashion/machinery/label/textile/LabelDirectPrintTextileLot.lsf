@@ -27,6 +27,7 @@ EXTEND FORM lots
 @defineOption(testDatamatrix, 'Тестовый datamatrix для печати', STRING, items);
 @defineOption(printTestDatamartix, 'Печатать тестовый datamatrix', BOOLEAN, items);
 @defineOption(datamartixTag, 'Тег datamatrix в шаблонах этикеток (с префиксом и постфиксом)', STRING, items);
+@defineOption(enableSinglePrintLotSendToPrinter, 'Печать этикетки с datamatrix одним файлом', BOOLEAN, items);
 @defineOption(logPrintDatamartix, 'Записывать в лог переданные на печать datamatrix', BOOLEAN, items);
 
 DESIGN options {
@@ -36,18 +37,20 @@ DESIGN options {
             MOVE PROPERTY(testDatamatrix());
             MOVE PROPERTY(printTestDatamartix());
             MOVE PROPERTY(datamartixTag());
+            MOVE PROPERTY(enableSinglePrintLotSendToPrinter());
             MOVE PROPERTY(logPrintDatamartix());
         }
     }
 }
 
 countLots 'Кол-во марок' (StickerTransaction stickerTransaction) = GROUP SUM 1 BY stickerTransaction(Lot l);
+stickerIndex 'Номер этикетки' (Lot l) = PARTITION SUM 1 IF NOT skipReports(stickerTransaction(l)) ORDER l BY stickerTransaction(l);
 
 EXTEND FORM stickerTransactions
     PROPERTIES(l) READONLY countLots AFTER quantity(l)
 
     OBJECTS lot = Lot
-    PROPERTIES (lot) READONLY id, idSku, nameSku
+    PROPERTIES (lot) READONLY stickerIndex, id, idSku, nameSku
     FILTERS stickerTransaction(lot) == l
 ;
 
@@ -57,36 +60,65 @@ DESIGN stickerTransactions {
     }
 }
 
-// пока усложнять резервированием марок через APPLY не будем, поэтому на 2х рабочих местах на 1 товар лучше не печатать
-preparePrintLot(StickerTransaction stickerTrans) {
+lotReserveIndex 'Порядок резерва' (Lot l) = PARTITION SUM 1 IF notPrinted(l) AND NOT skipPrint(l) ORDER l BY sku(l);
+
+reservedLots 'Зарезервировать марки' (StickerTransaction stickerTrans, INTEGER quantity) {
+    IF countNotPrintedLot(item(stickerTrans)) < quantity THEN {
+        MESSAGE 'Количество этикеток для печати не может первышать доступное количество марок';
+        RETURN;
+    }
+    NEWSESSION {
+        FOR sku(Lot lot) == item(stickerTrans) AND iterate(INTEGER q, 1, quantity) AND lotReserveIndex(lot) == q DO {
+            stickerTransaction(lot) <- stickerTrans;
+            
+            IF logPrintDatamartix() THEN {
+                logToFile('labelDirectPrint', '[Reserve datamatrix] ' + id(lot)
+                    + ' , computer: ' + hostname(currentComputer()) + ', user: ' + login(currentUser()));
+            }
+        }
+        APPLY;
+    }
+}
+
+extraPreparePrintLotText = ABSTRACT TEXT (StickerTransaction, TEXT, Lot);
+preparePrintLotText (StickerTransaction stickerTrans, TEXT text, Lot lot) =
+    replace((OVERRIDE extraPreparePrintLotText(stickerTrans, text, lot), text), datamartixTag(), code(lot));
+
+preparePrintLot 'Подготовка этикетки к печати марки (множество файлов)' (StickerTransaction stickerTrans, Lot lot) {
     IF NOT datamartixTag() THEN {
         MESSAGE 'Для печати этикеток с марками должен быть задан тег Datamatrix';
         RETURN;
     }
     
-    LOCAL lotToPrint = Lot();
-    lotToPrint() <- GROUP MIN Lot l IF notPrinted(l) AND NOT skipPrint(l) AND sku(l) = item(stickerTrans);
-    stickerTransaction(lotToPrint()) <- stickerTrans;
-
-    IF logPrintDatamartix() THEN {
-        logToFile('labelDirectPrint', '[Select datamatrix] ' + id(lotToPrint())
-            + ' , computer: ' + hostname(currentComputer()) + ', user: ' + login(currentUser()));
+    IF NOT stickerTransaction(lot) == stickerTrans THEN {
+        MESSAGE 'Марка должна быть зарезервирована в заданном реестре';
+        RETURN;
     }
-    
-    IF code(lotToPrint()) THEN
-        fullFormattedText() <- replace(formattedText(), datamartixTag(), code(lotToPrint()));
-    ELSE
-        fullFormattedText() <- replace(formattedText(), datamartixTag(), '');
+
+    fullFormattedText() <- preparePrintLotText(stickerTrans, formattedText(), lot);
+}
+
+prepareSinglePrintLot 'Подготовка этикетки к печати марки (один файл)' (StickerTransaction stickerTrans) {
+    IF NOT datamartixTag() THEN {
+        MESSAGE 'Для печати этикеток с марками должен быть задан тег Datamatrix';
+        RETURN;
+    }
+
+    LOCAL formattedTextUnit = TEXT ();
+    formattedTextUnit() <- fullFormattedText() + '\n';
+    fullFormattedText() <- '';
+
+    reservedLots(stickerTrans, quantity(stickerTrans));
+
+    LOCAL formattedTextUnit = TEXT (Lot);
+    formattedTextUnit(Lot l) <- preparePrintLotText(stickerTrans, formattedTextUnit(), l) WHERE stickerTransaction(l) == stickerTrans;
+
+    fullFormattedText() <- GROUP CONCAT formattedTextUnit(Lot l), '\n' ORDER l;
 }
 
 dropDatamartixTag 'Очистить тег Datamartix' () {
     fullFormattedText() <- replace(fullFormattedText(), datamartixTag(), '') WHERE datamartixTag();
 }
-
-singlePrintLotSendToPrinter ABSTRACT LIST (StickerTransaction); // Для печати этикеток с марками без цикла
-useSinglePrintLotSendToPrinter = ABSTRACT BOOLEAN ();
-
-extraPreparePrintLot ABSTRACT LIST (StickerTransaction, INTEGER);
 
 useCustomSendToPrinter () += TRUE;
 customSendToPrinter (StickerTransaction stickerTrans) + {
@@ -101,14 +133,14 @@ customSendToPrinter (StickerTransaction stickerTrans) + {
 
         CASE WHEN networkPrinterType(printer()) == NetworkPrinterType.clientComPort THEN {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                IF NOT useSinglePrintLotSendToPrinter() THEN {
-                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                        preparePrintLot(stickerTrans);
-                        extraPreparePrintLot(stickerTrans, i);
+                IF NOT enableSinglePrintLotSendToPrinter() THEN {
+                    reservedLots(stickerTrans, quantity(stickerTrans));
+                    FOR stickerTransaction(Lot lot) == stickerTrans NOINLINE DO {
+                        preparePrintLot(stickerTrans, lot);
                         sendToPrinterClientComPort(stickerTrans); // внутри цикла, т.к. если хоть одна отправилась - уже считаем транзакцию напечатанной
                     }
                 } ELSE {
-                    singlePrintLotSendToPrinter(stickerTrans);
+                    prepareSinglePrintLot(stickerTrans);
                     sendToPrinterClientComPort(stickerTrans);
                 }
             }
@@ -120,14 +152,14 @@ customSendToPrinter (StickerTransaction stickerTrans) + {
 
         WHEN networkPrinterType(printer()) == NetworkPrinterType.clientFile THEN {
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                IF NOT useSinglePrintLotSendToPrinter() THEN {
-                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                        preparePrintLot(stickerTrans);
-                        extraPreparePrintLot(stickerTrans, i);
+                IF NOT enableSinglePrintLotSendToPrinter() THEN {
+                    reservedLots(stickerTrans, quantity(stickerTrans));
+                    FOR stickerTransaction(Lot lot) == stickerTrans NOINLINE DO {
+                        preparePrintLot(stickerTrans, lot);
                         sendToPrinterClientFile(stickerTrans);
                     }
                 } ELSE {
-                    singlePrintLotSendToPrinter(stickerTrans);
+                    prepareSinglePrintLot(stickerTrans);
                     sendToPrinterClientFile(stickerTrans);
                 }
             }
@@ -138,14 +170,14 @@ customSendToPrinter (StickerTransaction stickerTrans) + {
         }
         ELSE {  // в том числе, для NetworkPrinterType.clientPrintService
             IF NOT printTestDatamartix() AND lotPrint(labelType(stickerTrans)) AND item(stickerTrans) THEN {
-                IF NOT useSinglePrintLotSendToPrinter() THEN {
-                    FOR iterate(INTEGER i, 1, quantity(stickerTrans)) NOINLINE DO {
-                        preparePrintLot(stickerTrans);
-                        extraPreparePrintLot(stickerTrans, i);
+                IF NOT enableSinglePrintLotSendToPrinter() THEN {
+                    reservedLots(stickerTrans, quantity(stickerTrans));
+                    FOR stickerTransaction(Lot lot) == stickerTrans NOINLINE DO {
+                        preparePrintLot(stickerTrans, lot);
                         sendToPrinterDefault(stickerTrans);
                     }
                 } ELSE {
-                    singlePrintLotSendToPrinter(stickerTrans);
+                    prepareSinglePrintLot(stickerTrans);
                     sendToPrinterDefault(stickerTrans);
                 }
             }
