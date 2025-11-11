@@ -118,6 +118,21 @@ is713 '713-е постановление' = DATA BOOLEAN (PharmacyPriceGroup);
 is713PharmacyPriceGroup (Sku s) = is713(pharmacyPriceGroup(s));
 isNot713PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is713(pharmacyPriceGroup(s));
 
+//setIs713 = DATA BOOLEAN ();
+//
+//onStarted() + {
+//    NEWSESSION {
+//        IF NOT setIs713() THEN {
+//            applyOnlyData();
+//            setIs713() <- TRUE;
+//            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
+//                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
+//            }
+//            APPLY;
+//        }
+//    }
+//}
+
 FORM pharmacyMarkups 'Ценовые группы'
 
     OBJECTS g=PharmacyPriceGroup
@@ -356,7 +371,7 @@ META defineNotUseManufacturingPrice (class, basePrice)
     extraNotUseManufacturingPrice = ABSTRACT BOOLEAN (###class);
     notUseManufacturingPrice(###class o) =
     //поставщик предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки, а не изготовителя
-        (maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o) AND NOT import(batch(o)) AND is713PharmacyPriceGroup(sku(o))) OR extraNotUseManufacturingPrice(o);
+        (maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o) AND NOT import(batch(o))) OR extraNotUseManufacturingPrice(o);
 END
 
 META defineBasePriceMarkupPharmacy(class)
@@ -375,7 +390,7 @@ END
 META defineNotUseManufacturingPrice (class, stock, basePrice)
     //пока что полагаем, что РОЦ поставщика меняется только через возврат, поэтому берем себестоимость
     notUseManufacturingPrice(###class o, ###stock st) = 
-        maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<currentManufacturingPrice(o, st) AND NOT import(o) AND is713PharmacyPriceGroup(sku(o));
+        maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<currentManufacturingPrice(o, st) AND NOT import(o);
 END
 
 META defineBasePriceMarkupPharmacy(class, stock)
