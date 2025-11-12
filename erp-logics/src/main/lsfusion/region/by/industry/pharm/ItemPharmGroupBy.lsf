@@ -118,20 +118,20 @@ is713 '713-е постановление' = DATA BOOLEAN (PharmacyPriceGroup);
 is713PharmacyPriceGroup (Sku s) = is713(pharmacyPriceGroup(s));
 isNot713PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is713(pharmacyPriceGroup(s));
 
-//setIs713 = DATA BOOLEAN ();
-//
-//onStarted() + {
-//    NEWSESSION {
-//        IF NOT setIs713() THEN {
-//            applyOnlyData();
-//            setIs713() <- TRUE;
-//            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
-//                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
-//            }
-//            APPLY;
-//        }
-//    }
-//}
+setIs713 = DATA BOOLEAN ();
+
+onStarted() + {
+    NEWSESSION {
+        IF NOT setIs713() THEN {
+            applyOnlyData();
+            setIs713() <- TRUE;
+            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
+                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
+            }
+            APPLY;
+        }
+    }
+}
 
 FORM pharmacyMarkups 'Ценовые группы'
 
@@ -361,44 +361,65 @@ onStarted() +{
 
 //Делаем через общий метакод, что бы методики рассчёта надбавок была схожей в опте и рознице
 //Менять сразу во всех метакодах
-//Полагаем, что в фарме будут включать глобальный skipCalcPricingManufacturingPrice(), т.к. в этом нет смысла
+//Полагаем, что в фарме НЕ будут включать глобальный skipCalcPricingManufacturingPrice(), т.к. в этом нет смысла
 
-//todo: возможно стоит использовать только РОЦ прихода (manufacturingPrice 'РОЦ (закупка)' (Batch batch)), а не текущую 
-//для определения notUseManufacturingPrice
-
-META defineNotUseManufacturingPrice (class, basePrice)
+META defineNotUseManufacturingPrice (class, basePrice, batchProp)
     //оставляем возможность задать свои условия не использования цены изготовителя как базы для рассчёта надбавки
     extraNotUseManufacturingPrice = ABSTRACT BOOLEAN (###class);
-    notUseManufacturingPrice(###class o) =
-    //поставщик предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки, а не изготовителя
-        (maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<manufacturingPrice(o) AND NOT import(batch(o))) OR extraNotUseManufacturingPrice(o);
+    //вынес в отдельное свойство, что бы все свойтсва не фиксирующиеся в документе собрать в одном месте и зафиксировать в отдельной переменной
+    //иначе при изменении свойтсв задним числом параметров из calc свойства будут запущены события для "старых" документов
+    //поставщик предоставил скидку на товар с предельной надбавкой по 713, поэтому берем цену поставки, а не изготовителя    
+    calcNotUseManufacturingPrice(###class o) = basePrice(o)<manufacturingPrice(o) AND maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND is713PharmacyPriceGroup(sku(o));
+    notUseManufacturingPrice(###class o) = calcNotUseManufacturingPrice(o) OR extraNotUseManufacturingPrice(o);
 END
 
-META defineBasePriceMarkupPharmacy(class)
-    basePrice(###class o) = prevCost(batch(o));
-    @defineNotUseManufacturingPrice(class, basePrice);
+META defineBasePriceMarkupPharmacy(class, batchProp)
+    basePrice(###class o) = prevCost(batchProp(o));
+    @defineNotUseManufacturingPrice(class, basePrice, batchProp);
     //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки
-    basePriceMarkupPharmacy 'База наценки' (###class o) = OVERRIDE manufacturingPrice(o) IF NOT notUseManufacturingPrice(o), basePrice(o);
+    calcBasePriceMarkupPharmacy 'База наценки' (###class o) = OVERRIDE manufacturingPrice(o) IF NOT notUseManufacturingPrice(o), basePrice(o);
 END
 
-META defineBaseVATPriceMarkupPharmacy(class)
-    @defineBasePriceMarkupPharmacy(class);
+META defineBaseVATPriceMarkupPharmacy(class, batchProp)
+    @defineBasePriceMarkupPharmacy(user###class, batchProp);
+    basePriceMarkupPharmacy 'База наценки' = DATA NUMERIC[16,4] (###user###class) CHARWIDTH 7 PATTERN '#,##0.00##';    
+    baseMVATPrice(###user###class o) = basePriceMarkupPharmacy(o);
+    basePVATPrice(###user###class o) = NUMERIC[16,4](basePriceMarkupPharmacy(o) * (100.0 + calcValueVAT(o)) / 100.0);
+
+    WHEN LOCAL GOAFTER manufacturingPrice[###user###class] (CHANGED(supplierStock(###user###class o)) OR
+        (CHANGED(dateTime(o)) AND NOT isPosted(o)) OR
+        CHANGED(batch(o)) OR CHANGED(manufacturingPrice(o))) AND batch(o) DO {
+        basePriceMarkupPharmacy(o) <- calcBasePriceMarkupPharmacy(o);
+    }
+        
+    setBasePriceMarkupPharmacy###class = DATA BOOLEAN ();
+        
+    onStarted() + {
+        NEWSESSION {
+            IF NOT setBasePriceMarkupPharmacy###class() THEN {
+                applyOnlyData();
+                setNoEventsInTransaction();
+                setBasePriceMarkupPharmacy###class() <- TRUE;
+                basePriceMarkupPharmacy(###user###class o) <- calcBasePriceMarkupPharmacy(o) WHERE NOT basePriceMarkupPharmacy(o);
+                APPLY;
+            }
+        }
+    }   
+        
+    @defineBasePriceMarkupPharmacy(class, batchProp);
+    basePriceMarkupPharmacy 'База наценки' = ABSTRACT NUMERIC[16,4] (###class) CHARWIDTH 7 PATTERN '#,##0.00##';
+    basePriceMarkupPharmacy(###user###class o) += basePriceMarkupPharmacy(o);
     baseMVATPrice(###class o) = basePriceMarkupPharmacy(o);
     basePVATPrice(###class o) = NUMERIC[16,4](basePriceMarkupPharmacy(o) * (100.0 + calcValueVAT(o)) / 100.0);
 END
 
-META defineNotUseManufacturingPrice (class, stock, basePrice)
-    //пока что полагаем, что РОЦ поставщика меняется только через возврат, поэтому берем себестоимость
-    notUseManufacturingPrice(###class o, ###stock st) = 
-        maxTotalLimitMarkup(pharmacyPriceGroup(sku(o))) AND basePrice(o)<currentManufacturingPrice(o, st) AND NOT import(o);
-END
-
-META defineBasePriceMarkupPharmacy(class, stock)
-    basePrice(###class o) = cost(o);
-    @defineNotUseManufacturingPrice(class, stock, basePrice);
+META defineBasePriceMarkupPharmacyBatch(prop)
+    basePrice(Batch o) = cost(o);
+    notUseManufacturingPrice = ABSTRACT BOOLEAN (Batch);
+    prevNotUseManufacturingPrice (Batch batch) = PREV(notUseManufacturingPrice(batch));
     //алгоритм рассчёта должен быть максимально приближен к pricingPrice из расценки    
-    basePriceMarkupPharmacy 'База наценки' (###class o, ###stock st) = 
-        OVERRIDE currentManufacturingPrice(o, st) IF isCompany(st) AND NOT notUseManufacturingPrice(o, st), basePrice(o) IF isCompany(st);
+    basePriceMarkupPharmacy 'База наценки' (Batch o) = 
+        OVERRIDE manufacturingPrice(o) IF notUseManufacturingPrice(o), basePrice(o);
 END
 
 META defineWholesaleMarkupPharm(class)
