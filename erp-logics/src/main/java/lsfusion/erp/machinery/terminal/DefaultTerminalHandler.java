@@ -61,7 +61,6 @@ public class DefaultTerminalHandler {
     static ScriptingLogicsModule terminalLotLM;
     static ScriptingLogicsModule ediGtinLM;
     static ScriptingLogicsModule terminalTeamWorkLM;
-    static ScriptingLogicsModule itemInternetLM;
     static ScriptingLogicsModule machineryPriceTransactionLM;
 
     static String ID_APPLICATION_TSD = "1";
@@ -88,13 +87,8 @@ public class DefaultTerminalHandler {
         terminalHandlerLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerLot");
         terminalHandlerLotByLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandlerLotBy");
         terminalLotLM = getLogicsInstance().getBusinessLogics().getModule("TerminalLot");
-
         ediGtinLM = getLogicsInstance().getBusinessLogics().getModule("EDIGTIN");
-
         terminalTeamWorkLM = getLogicsInstance().getBusinessLogics().getModule("TerminalTeamWork");
-
-        itemInternetLM = getLogicsInstance().getBusinessLogics().getModule("ItemInternet");
-
         machineryPriceTransactionLM = getLogicsInstance().getBusinessLogics().getModule("MachineryPriceTransaction");
     }
 
@@ -395,7 +389,7 @@ public class DefaultTerminalHandler {
                             for (TerminalBarcode barcode : barcodeList) {
                                 if (barcode.image != null && !usedImages.contains(barcode.idBarcode)) {
                                     try (InputStream is = barcode.image.getInputStream()) {
-                                        writeInputStreamToZip(is, zos, "images/" + barcode.idBarcode + ".jpg");
+                                        writeInputStreamToZip(is, zos, "images/" + barcode.fileNameImage);
                                         usedImages.add(barcode.idBarcode);
                                     }
                                 }
@@ -563,14 +557,11 @@ public class DefaultTerminalHandler {
                 barcodeQuery.addProperty("amount", terminalHandlerLM.findProperty("amount[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 barcodeQuery.addProperty("nameSkuGroup", terminalHandlerLM.findProperty("nameSkuGroup[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 barcodeQuery.addProperty("idSkuGroup", terminalHandlerLM.findProperty("idSkuGroup[Barcode]").getExpr(session.getModifier(), barcodeExpr));
-
+                barcodeQuery.addProperty("fileNameImage", terminalHandlerLM.findProperty("fileNameImage[Barcode]").getExpr(session.getModifier(), barcodeExpr));
+                
                 if (ediGtinLM != null)
                     barcodeQuery.addProperty("GTIN", ediGtinLM.findProperty("GTIN[Barcode]").getExpr(session.getModifier(), barcodeExpr));
-
-                if (itemInternetLM != null) {
-                    barcodeQuery.addProperty("fileNameImage", itemInternetLM.findProperty("fileNameImage[Barcode]").getExpr(session.getModifier(), barcodeExpr));
-                }
-    
+                
                 if (terminalHandlerLotLM != null)
                     barcodeQuery.addProperty("lotType", terminalHandlerLotLM.findProperty("lotType[Barcode]").getExpr(session.getModifier(), barcodeExpr));
                 
@@ -613,9 +604,7 @@ public class DefaultTerminalHandler {
                     
                     Boolean hasImage = (Boolean) entry.get("hasImage");
                     RawFileData image = (RawFileData) entry.get("image"); // small image
-                    String fileNameImage = null;
-                    if (itemInternetLM != null)
-                        fileNameImage = (String) entry.get("fileNameImage");
+                    String fileNameImage = (String) entry.get("fileNameImage");
 
                     BigDecimal amount = (BigDecimal) entry.get("amount");
                     BigDecimal capacity = (BigDecimal) entry.get("capacity");
@@ -919,7 +908,7 @@ public class DefaultTerminalHandler {
 
                 for (TerminalOrder order : orderList) {
                     if (order.barcode != null) {
-                        String image = imagesInReadBase && orderImages.containsKey(order.barcode) ? (order.barcode + ".jpg") : null;
+                        String image = imagesInReadBase && orderImages.containsKey(order.fileNameImage) ? order.fileNameImage : null;
                         List<String> orderExtraBarcodeList = order.extraBarcodeList;
                         if (orderExtraBarcodeList != null) {
                             for (String extraBarcode : orderExtraBarcodeList) {
@@ -1706,14 +1695,15 @@ public class DefaultTerminalHandler {
                 }
                 orderQuery.addProperty("flags", terminalOrderLM.findProperty("flagsSku[TerminalOrderDetail,Stock]").getExpr(session.getModifier(), orderDetailExpr, customerStockObject.getExpr()));
                 orderQuery.addProperty("vop", terminalOrderLM.findProperty("vop[TerminalOrderDetail,Stock]").getExpr(session.getModifier(), orderDetailExpr, customerStockObject.getExpr()));
-    
                 orderQuery.addProperty("trustAcceptPercent", terminalOrderLM.findProperty("trustAcceptPercent[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
     
                 if (terminalOrderLotLM != null)
                     orderQuery.addProperty("lotType", terminalOrderLotLM.findProperty("lotType[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
-                if (terminalOrderLM != null)
-                    orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+//                if (terminalOrderLM != null)
+                orderQuery.addProperty("GTIN", terminalOrderLM.findProperty("GTIN[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                
+                orderQuery.addProperty("fileNameImage", terminalOrderLM.findProperty("fileNameImage[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 
                 orderQuery.and(terminalOrderLM.findProperty("filterTerminal[TerminalOrder, TerminalOrderDetail, Stock, Employee]").getExpr(
                         session.getModifier(), orderExpr, orderDetailExpr, customerStockObject.getExpr(), userInfo.user.getExpr()).getWhere());
@@ -1762,10 +1752,10 @@ public class DefaultTerminalHandler {
                     String lotType = terminalOrderLotLM == null ? null : (String) entry.get("lotType");
 
                     String GTIN = null;
-                    if (terminalOrderLM != null)
-                        GTIN = trim((String) entry.get("GTIN"));
-    
+//                    if (terminalOrderLM != null)
+                    GTIN = trim((String) entry.get("GTIN"));
                     String unitLoad = (String) entry.get("unitLoad");
+                    String fileNameImage = (String) entry.get("fileNameImage");
 
                     String key = numberOrder + "/" + barcode;
                     TerminalOrder terminalOrder = terminalOrderMap.get(key);
@@ -1778,7 +1768,7 @@ public class DefaultTerminalHandler {
                                 barcode, idItem, name, category, price,
                                 quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight, split, color,
                                 headField1, headField2, headField3, posField1, posField2, posField3, minDeviationDate, maxDeviationDate, vop,
-                                extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null));
+                                extraBarcodeList, flags, GTIN, trustAcceptPercent, unitLoad, background_color, lotType, null, null, fileNameImage));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -1796,8 +1786,9 @@ public class DefaultTerminalHandler {
                 KeyExpr orderDetailExpr = new KeyExpr("terminalOrderDetail");
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap("TerminalOrder", orderExpr, "TerminalOrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
-
-                orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+    
+                orderQuery.addProperty("fileName", terminalOrderLM.findProperty("fileNameImage[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
+                //orderQuery.addProperty("barcode", terminalOrderLM.findProperty("idBarcodeSku[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
                 orderQuery.addProperty("image", terminalOrderLM.findProperty("image[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr));
 
                 orderQuery.and(terminalOrderLM.findProperty("hasImage[TerminalOrderDetail]").getExpr(session.getModifier(), orderDetailExpr).getWhere());
@@ -1806,10 +1797,12 @@ public class DefaultTerminalHandler {
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
-                    String barcode = StringUtils.trim((String) entry.get("barcode"));
+                    //String barcode = StringUtils.trim((String) entry.get("barcode"));
+                    String fileName = StringUtils.trim((String) entry.get("fileName"));
                     RawFileData image = (RawFileData) entry.get("image");
 
-                    terminalOrderImages.put(barcode, image);
+                    //terminalOrderImages.put(barcode, image);
+                    terminalOrderImages.put(fileName, image);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -2054,7 +2047,7 @@ public class DefaultTerminalHandler {
                             null, null, null, null, null,
                             null, extraField, null, null,  null, null,
                             null, null, null, vop, null, null, null,
-                            null, null, null, null, null, null));
+                            null, null, null, null, null, null, null));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2359,6 +2352,7 @@ public class DefaultTerminalHandler {
         public String lotType;
         public Boolean ukz;
         public String nameUkzType;
+        public String fileNameImage;
         
         public TerminalOrder(LocalDate date, LocalDate dateShipment, String number, String supplier,
                              Integer labelCount, String categories, Boolean promo,
@@ -2367,7 +2361,7 @@ public class DefaultTerminalHandler {
                              BigDecimal minPrice, BigDecimal maxPrice, String manufacturer, String weight, Integer split, String color,
                              String headField1, String headField2, String headField3, String posField1, String posField2, String posField3,
                              String minDate1, String maxDate1, String vop, List<String> extraBarcodeList, Long flags, String GTIN, BigDecimal trustAcceptPercent,
-                             String unitLoad, String background_color, String lotType, Boolean ukz, String nameUkzType) {
+                             String unitLoad, String background_color, String lotType, Boolean ukz, String nameUkzType, String fileNameImage) {
             this.date = date;
             this.dateShipment = dateShipment;
             this.number = number;
@@ -2407,6 +2401,7 @@ public class DefaultTerminalHandler {
             this.lotType = lotType;
             this.ukz = ukz;
             this.nameUkzType = nameUkzType;
+            this.fileNameImage = fileNameImage;
         }
     }
 
