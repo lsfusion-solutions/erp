@@ -59,11 +59,13 @@ fillLeftBonuses 'Заполнить оставшиеся бонусы' () {
     extraSum(DiscountCard d) <- leftSum(d) (-) availableBonuses(d);
     
     extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT leftSum(i) IF leftSum(i) AND NOT skip(i) ORDER burnDate(i), date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
-    leftSum(BonusIncome i) <- (leftSum(i) (-) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
+    leftSum[ReceiptSaleDetail](BonusIncome i) <- (leftSum(i) (-) extraSum(i)) WHERE extraSum(discountCard(i)) > 0 AND i IS ReceiptSaleDetail;
+    leftSum[BonusLedger](BonusIncome i) <- (leftSum(i) (-) extraSum(i)) WHERE extraSum(discountCard(i)) > 0 AND i IS BonusLedger;
     
     extraSum(DiscountCard d) <- - extraSum(d);
     extraSum(BonusIncome i) <- (PARTITION UNGROUP extraSum LIMIT sum(i) (-) leftSum(i) IF NOT skip(i) ORDER DESC burnDate(i), date(i), i BY discountCard(i)) WHERE extraSum(discountCard(i)) > 0;
-    leftSum(BonusIncome i) <- (leftSum(i) (+) extraSum(i)) WHERE extraSum(discountCard(i)) > 0;
+    leftSum[ReceiptSaleDetail](BonusIncome i) <- (leftSum(i) (+) extraSum(i)) WHERE extraSum(discountCard(i)) > 0 AND i IS ReceiptSaleDetail;
+    leftSum[BonusLedger](BonusIncome i) <- (leftSum(i) (+) extraSum(i)) WHERE extraSum(discountCard(i)) > 0 AND i IS BonusLedger;
     
     overFillLeftBonuses();
     APPLY;
