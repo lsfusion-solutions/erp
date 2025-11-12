@@ -62,7 +62,6 @@ stockYandexOrder (STRING id) = ABSTRACT DepartmentStore;
 restarauntId (DepartmentStore s) = ABSTRACT STRING;
 carrierOrder (YandexEdaAuth a) = ABSTRACT Carrier;
 
-
 yandexCarrier = GROUP MAX Carrier r IF id(r) = 'yandex';
 paymentTypeOrder = ABSTRACT CASE PaymentTypeInternetOrder (STRING);
 paymentTypeOrder(STRING type) += WHEN type = 'CASH' THEN PaymentTypeInternetOrder.inFact;
@@ -70,11 +69,11 @@ paymentTypeOrder(STRING type) += WHEN type = 'CARD' THEN PaymentTypeInternetOrde
 
 //paymentTypeOrder (STRING type) = CASE 
 //    WHEN type = 'CASH' THEN PaymentTypeInternetOrder.
- 
+
 //статусы заказа
 useCustomOrderStatus = ABSTRACT BOOLEAN ();
 yandexEdaOrderStatusCustom = ABSTRACT STRING (InternetOrder);
-yandexEdaOrderStatusDefault (InternetOrder o) = CASE 
+yandexEdaOrderStatusDefault (InternetOrder o) = CASE
     WHEN status(o) = StatusInternetOrder.new THEN 'ACCEPTED_BY_RESTAURANT'
     WHEN status(o) = StatusInternetOrder.isPicking THEN 'COOKING'
     WHEN status(o) = StatusInternetOrder.picked THEN 'READY'
@@ -90,10 +89,10 @@ courierArrivementDateText = DATA STRING (InternetOrder);
 courierArrivementDate (InternetOrder o) += WHEN carrier(o) == yandexCarrier() THEN DATETIME (courierArrivementDateText(o));
 
 afterCreateOrder ABSTRACT LIST (InternetOrder);
-priceAggrRound(NUMERIC[16,4] price, Item s)  = IF mod(price*quantum(s)*1000, 10) > 0 AND isCatchWeight(s) 
+priceAggrRound(NUMERIC[16,4] price, Item s) = IF mod(price * quantum(s) * 1000, 10) > 0 AND isCatchWeight(s)
     THEN price + 0.01 ELSE price;
-priceQuantum(NUMERIC[18,4] price, Item i) = IF quantum(i) THEN (price/quantum(i)) ELSE price;
-qtyQuantum(NUMERIC[18,4] qty, Item i) = IF quantum(i) THEN qty*quantum(i) ELSE qty;
+priceQuantum(NUMERIC[18,4] price, Item i) = IF quantum(i) THEN (price / quantum(i)) ELSE price;
+qtyQuantum(NUMERIC[18,4] qty, Item i) = IF quantum(i) THEN qty * quantum(i) ELSE qty;
 
 priceYandex 'Цена Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
 qtyYandex 'Кол-во Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
@@ -142,7 +141,7 @@ createOrder(FILE f){
                 qtyYandex(detail) <- NUMERIC[18,4](quantity(items));
                 sku(detail) <- itemById(id(items));
                 quantity(detail) <- NUMERIC[16,5](quantity(items));
-                price(detail) <- IF notUseRoundPrice(carrier(order)) THEN NUMERIC[16,4](price(items)) 
+                price(detail) <- IF notUseRoundPrice(carrier(order)) THEN NUMERIC[16,4](price(items))
                     ELSE priceAggrRound(NUMERIC[16,4](price(items)), sku(detail));
                 internetOrder(detail) <- order;
                 afterCreateDetails(items, detail);
@@ -160,11 +159,11 @@ createOrder(FILE f){
             }
             EXPORT JSON FROM result = 'OK', orderId = uuid(order);
         }
-    } 
-}@@noauth;  
+    }
+}@@noauth;
 
-internetOrderByUuid (STRING id) = GROUP LAST InternetOrder order ORDER order 
-    WHERE uuid(order) == id;
+internetOrderByUuid (STRING id) = GROUP LAST InternetOrder order ORDER order
+WHERE uuid(order) == id;
 
 orderNotFound(){
     statusHttpTo() <- 404;
@@ -208,22 +207,27 @@ updateOrder(FILE f){
                 overCancelOrder(internetOrderByUuid(orderLoc()));
                 RETURN;
             } ELSE {
-                IF statusUpdate() = 'DELIVERED' THEN{
-                    status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
-                } ELSE {
+                CASE
+                    WHEN statusUpdate() = 'DELIVERED' THEN {
+                        status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
+                    }
+                    WHEN statusUpdate() = 'TAKEN_BY_COURIER' THEN {
+                        status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivery;
+                    }
+                    ELSE {
                     status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeleteOrderStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.closed;
                 }
-                APPLY ;
+                APPLY;
                 IF canceled() THEN {
                     statusHttpTo() <- 500;
                     EXPORT JSON FROM result = 'error', description = applyMessage();
                 }
-                EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = 'Отменён';
+                EXPORT JSON FROM order = uuid(internetOrderByUuid(order())), status = nameStatus(internetOrderByUuid(order()));
                 RETURN;
             }
         }
         IMPORT yandexorder FROM JSONFILE(f);
-        FOR InternetOrder io =  internetOrderByUuid(order()) DO{
+        FOR InternetOrder io = internetOrderByUuid(order()) DO{
             carrier(io) <- carrierOrder(aggr());
             customerComment(io) <- comment();
             extraUpdateOrder(io);
@@ -238,7 +242,7 @@ updateOrder(FILE f){
                 afterUpdateDetails(items, detail);
             }
 
-            FOR id(INTEGER items) AND NOT detailLoc(items)  NEW change = InternetOrderDetail DO {
+            FOR id(INTEGER items) AND NOT detailLoc(items) NEW change = InternetOrderDetail DO {
 
                 internetOrder(change) <- io;
                 sku(change) <- sku(id(items));
@@ -297,29 +301,31 @@ WHEN SETCHANGED (status(InternetOrder o)) DO updatedAt(o) <- currentZDateTime();
 
 //форма для экспорта статуса заказа
 FORM statusYandex FORMEXTID 'null'
+
     OBJECTS o = InternetOrder PANEL
     PROPERTIES (o) yandexEdaOrderStatus EXTID 'status'
     PROPERTIES = toChar(updatedAt(o), 'YYYY-MM-DD"T"HH24:MI:SS.USOF:00') EXTID 'updatedAt'
-; 
+;
 
-quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new 
-    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN quantity(d) 
-        ELSE pickingQuantity(d);
-sumItemCost 'Итоговая стоимость' (InternetOrder o) = IF status(o) = StatusInternetOrder.new 
+quantityOrderDetail (InternetOrderDetail d) = IF status(internetOrder(d)) = StatusInternetOrder.new
+    OR status(internetOrder(d)) = StatusInternetOrder.isPicking THEN quantity(d)
+    ELSE pickingQuantity(d);
+sumItemCost 'Итоговая стоимость' (InternetOrder o) = IF status(o) = StatusInternetOrder.new
     OR status(o) = StatusInternetOrder.isPicking THEN paymentCardSumInternetOrder(o)
-    ELSE pickingSumInternetOrderDetail(o); 
-    
+    ELSE pickingSumInternetOrderDetail(o);
+
 // форма информации о заказе
 FORM getOrder FORMEXTID 'null'
-    OBJECTS o = InternetOrder PANEL 
-    PROPERTIES idAggregator(o) EXTID 'eatsId', = 1 EXTID 'persons', = OVERRIDE customerComment(o), '' EXTID 'comment', 
-       = IF supplierStock(o) IS DepartmentStore THEN restarauntId(supplierStock(o)) EXTID 'restaurantId', 
-       = 'yandex' EXTID 'discriminator', = '[]' EXTID 'promos'
-    PROPERTIES IN deliveryInfo phoneInternetCustomer(o) EXTID 'phoneNumber', 
+
+    OBJECTS o = InternetOrder PANEL
+    PROPERTIES idAggregator(o) EXTID 'eatsId', = 1 EXTID 'persons', = OVERRIDE customerComment(o), '' EXTID 'comment',
+        = IF supplierStock(o) IS DepartmentStore THEN restarauntId(supplierStock(o)) EXTID 'restaurantId',
+        = 'yandex' EXTID 'discriminator', = '[]' EXTID 'promos'
+    PROPERTIES IN deliveryInfo phoneInternetCustomer(o) EXTID 'phoneNumber',
         nameInternetCustomer(o) EXTID 'clientName', = toChar(courierArrivementDate(o), 'YYYY-MM-DD"T"HH24:MI:SS.US+03:00') EXTID 'courierArrivementDate'
-    PROPERTIES IN paymentInfo = OVERRIDE sumItemCost(o), paymentCardSumInternetOrder(o)  EXTID 'itemsCost',
+    PROPERTIES IN paymentInfo = OVERRIDE sumItemCost(o), paymentCardSumInternetOrder(o) EXTID 'itemsCost',
         = IF paymentTypeInternetOrder(o) = PaymentTypeInternetOrder.inFact THEN 'CASH' ELSE 'CARD' EXTID 'paymentType'
- 
+
     OBJECTS items = InternetOrderDetail
     PROPERTIES quantityOrderDetail(items) EXTID 'quantity', price(items) EXTID 'price', nameSku(items) EXTID 'name', idSku(items) EXTID 'id',
         = OVERRIDE '[]', idSku(items) EXTID 'modifications', = OVERRIDE '[]', idSku(items) EXTID 'promos'
@@ -347,20 +353,20 @@ getOrder (FILE f) {
         LOCAL order = InternetOrder();
         order() <- internetOrderByUuid(orderNumber());
         IF NOT order() THEN { orderNotFound(); RETURN; }
-        IF (param() = 'status') THEN 
-        {
-            EXPORT statusYandex OBJECTS o = order() JSON;
-            headersTo('Content-Type') <- 'application/json';
-        }
-        ELSE 
-        {
-            headersTo(TEXT h) <- httpHeadersYandex(h);
-            EXPORT getOrder OBJECTS o = order() JSON;
-            IF logInfoOrder() THEN {
-                fileToString(exportFile());
-                logToFile('yandex', CONCAT ' : ', 'INFO order', orderNumber(), resultString());
+        IF (param() = 'status') THEN
+            {
+                EXPORT statusYandex OBJECTS o = order() JSON;
+                headersTo('Content-Type') <- 'application/json';
             }
-        }
+        ELSE
+            {
+                headersTo(TEXT h) <- httpHeadersYandex(h);
+                EXPORT getOrder OBJECTS o = order() JSON;
+                IF logInfoOrder() THEN {
+                    fileToString(exportFile());
+                    logToFile('yandex', CONCAT ' : ', 'INFO order', orderNumber(), resultString());
+                }
+            }
     }
 }
 
@@ -371,7 +377,7 @@ order (FILE f) {
     beforeOrderExport();
     fileToString(f);
     logToFile('yandex', (CONCAT ' : ', 'IN order method', method(), resultString()));
-    CASE 
+    CASE
         WHEN method() = 'POST' THEN createOrder(f);
         WHEN method() = 'PUT' THEN updateOrder(f);
         WHEN method() = 'DELETE' THEN deleteOrder(f);
