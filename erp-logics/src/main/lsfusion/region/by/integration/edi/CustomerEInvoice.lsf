@@ -283,11 +283,11 @@ eQuantityDespatchedSPT = DATA LOCAL NESTED NUMERIC[12,5] (INTEGER);
 
 FORM importEInvoice
     PROPERTIES IN messageHeader
-    eMessageType() EXTID 'MessageType',
+        eMessageType() EXTID 'MessageType',
         eTestIndicator() EXTID 'TestIndicator',
         eUserID() EXTID 'UserID'
     PROPERTIES IN deliveryNote
-    eDocumentID() EXTID 'DocumentID',
+        eDocumentID() EXTID 'DocumentID',
         eDeliveryNoteNumber() EXTID 'DeliveryNoteID',
         eDeliveryNoteDate() EXTID 'DeliveryNoteDate',
         eDateTime() EXTID 'CreationDateTime',
@@ -306,27 +306,27 @@ FORM importEInvoice
         eCurrency() EXTID 'Currency'
 
     PROPERTIES IN eShipper
-    eSupplierGLN() EXTID 'GLN',
+        eSupplierGLN() EXTID 'GLN',
         eSupplierName() EXTID 'Name',
         eSupplierAddress() EXTID 'Address',
         eSupplierVATRegistrationNumber() EXTID 'VATRegistrationNumber',
         eContactSupplier() EXTID 'Contact'
     PROPERTIES IN eReceiver
-    eCustomerGLN() EXTID 'GLN',
+        eCustomerGLN() EXTID 'GLN',
         eCustomerName() EXTID 'Name'
 
     PROPERTIES IN eFreightPayer
-    eFreightPayerGLN() EXTID 'GLN'
+        eFreightPayerGLN() EXTID 'GLN'
     
     PROPERTIES IN eShipFrom
-    eSupplierStockGLN() EXTID 'GLN',
+        eSupplierStockGLN() EXTID 'GLN',
         eSupplierStockAddress() EXTID 'Address',
         eContactSupplierStock() EXTID 'Contact'
     PROPERTIES IN eShipTo
-    eCustomerStockGLN() EXTID 'GLN',
+        eCustomerStockGLN() EXTID 'GLN',
         eCustomerStockAddress() EXTID 'Address'
     PROPERTIES IN eCarrier
-    eTransportContact() EXTID 'TransportContact',
+        eTransportContact() EXTID 'TransportContact',
         eDeliveryContact() EXTID 'DeliveryContact',
         eProxyID() EXTID 'ProxyID',
         eProxyDate() EXTID 'ProxyDate',
@@ -569,6 +569,23 @@ createEInvoice() {
     }
 }
 
+setTTN 'ЭТТН-1' () {
+    currentDocumentType() <- 'BLRWBL';
+    formClose();
+}
+setTN 'ЭТН-2' () {
+    currentDocumentType() <- 'BLRDLN';
+    formClose();
+}
+
+FORM selectType 'Выберите тип накладной'
+    PROPERTIES () setTTN, setTN
+    EVENTS ON QUERYCLOSE {}
+; 
+DESIGN selectType{
+    REMOVE TOOLBARBOX;
+}
+
 importEInvoiceFromXML 'Импорт из XML' () {
     INPUT f = XMLFILE DO {
         data(0) <- f;
@@ -576,8 +593,13 @@ importEInvoiceFromXML 'Импорт из XML' () {
         overImportEInvoice(0);
         IF NOT skipInvoice() THEN {
             IMPORT importEInvoice XML FROM data(0);
-            validate(eMessageType(), FILE(data(0)));
-            currentDocumentType() <- eMessageType();
+            IF NOT eMessageType() THEN {
+                SHOW selectType;
+            } ELSE {
+                currentDocumentType() <- eMessageType();
+            }
+            validate(currentDocumentType(), FILE(data(0)));
+            
             NEWSESSION NESTED LOCAL {
                 createEInvoice();
                 APPLY NESTED LOCAL;
