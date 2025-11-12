@@ -207,3 +207,11 @@ EXTEND FORM userInvoice
 
 disableShowBatch(Invoice i) += createComponent(i);
 batch(ComponentShipmentDetail ledger) += componentBatch(invoiceDetail(ledger));
+
+WHEN LOCAL SET(createComponent(UserInvoice i)) DO {
+    createShipment(i) <- NULL;
+}
+
+CONSTRAINT (SET(isPosted(UserInvoice i)) OR SET(createComponent(i)) OR SET(createShipment(i))) AND
+    isPosted(i) AND createComponent(i) AND createShipment(i)
+    MESSAGE 'Одновременно два признака не могут быть заданы "Создать перевод ТМЦ" и "Создать поставку"';
