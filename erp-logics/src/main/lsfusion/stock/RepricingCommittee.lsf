@@ -27,30 +27,30 @@ FORM repricingCommittee 'Комиссия для переоценки'
     OBJECTS c=RepricingCommittee PANEL
     PROPERTIES(c)      name, nameChairman
 
-    TREE stockTree sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY sgTreeName = name(sg)
+    TREE stockTree b = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(b), id(sg) SHOWIF showIDs(), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(b)
 
-    OBJECTS ts=Stock
-    PROPERTIES    READONLY tsTreeName = name(ts)
-    PROPERTIES(c, ts) in , is
-    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
-    
-    FILTERS isParent(sg, ts)
+    OBJECTS ts = Stock
+    PROPERTIES READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in
+    FILTERGROUP inFilter
+        FILTER 'Отмеченные' in(c, ts)
+    FILTERGROUP inactiveStock
+        FILTER 'Активный' active(ts) DEFAULT
+    FILTERS isParent(sg, ts) OR (ts IS Stock AND sg IS StockGroup AND NOT stockGroup(ts)) OR (ts IS Stock AND NOT sg)
     ORDERS tsTreeName
 
-
-    OBJECTS e=Employee
-    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-//    PROPERTIES(e)      NEWEDIT, EDIT, DELETE GRID
-
-    PROPERTIES(c, e)   in
-    FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
-    FILTERGROUP filters6
-        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
-
-    FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
-    FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT 
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY name[Contact], firstName, lastName, namePosition
+    PROPERTIES(c, e) in
+    FILTERS (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    FILTERGROUP employeeFilters
+        FILTER 'Показывать только членов комиссии' in(c, e)
+    FILTERGROUP active
+        FILTER 'Активные' active(e) DEFAULT
+    
     EDIT RepricingCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(ts, repricingCommittee);
@@ -69,7 +69,7 @@ DESIGN repricingCommittee {
                 fill = 1;
                 horizontal = TRUE;
     
-                MOVE BOX(TREE stockTree);
+                MOVE BOX(TREE stockTree) {caption = 'Группы складов';}
                 MOVE BOX(ts) {
                     fill = 3;
                 }

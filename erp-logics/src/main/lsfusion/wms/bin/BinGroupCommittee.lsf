@@ -31,30 +31,33 @@ shortNameApprover 'Утверждающий' (BinGroup g) = shortNameApprover(bi
 namePositionApprover 'Должность' (BinGroup g) = namePositionApprover(binGroupCommittee(g));
 
 FORM binGroupCommittee 'Комиссия для Зон'
-    OBJECTS c=BinGroupCommittee PANEL
+    OBJECTS c = BinGroupCommittee PANEL
     PROPERTIES(c) name, nameChairman, nameApprover
 
-    TREE stockTree sg = StockGroup PARENT parent(sg)
-    PROPERTIES READONLY sgTreeName = name(sg)
+    TREE stockTree b = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(b), id(sg) SHOWIF showIDs(), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(b)    
 
-    OBJECTS ts=Stock
-    PROPERTIES    READONLY tsTreeName = name(ts)
+    OBJECTS ts = Stock
+    PROPERTIES READONLY tsTreeName = name(ts)
     PROPERTIES(c, ts) in 
-    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
-
-    FILTERS isParent(sg, ts)
+    FILTERGROUP inFilter
+        FILTER 'Отмеченные' in(c, ts)
+    FILTERGROUP inactiveStock 
+        FILTER 'Активный' active(ts) DEFAULT
+    FILTERS isParent(sg, ts) OR (ts IS Stock AND sg IS StockGroup AND NOT stockGroup(ts)) OR (ts IS Stock AND NOT sg)
     ORDERS tsTreeName
     
-    OBJECTS e=Employee
-    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-    //    PROPERTIES(e)      NEWEDIT, EDIT, DELETE GRID
-
-    PROPERTIES(c, e)   in
-    FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
-    FILTERGROUP filters6
-        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY name[Contact], firstName, lastName, namePosition
+    PROPERTIES(c, e) in
+    FILTERS (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    FILTERGROUP employeeFilters
+        FILTER 'Показывать только членов комиссии' in(c, e)
+    FILTERGROUP active 
+        FILTER 'Активные' active(e) DEFAULT
     
-    FILTERGROUP active FILTER 'Активные' active(e) 'F6'  DEFAULT
     EDIT BinGroupCommittee OBJECT c
 ;
 @extendFormFilterStockAccess(ts, binGroupCommittee);
@@ -75,7 +78,7 @@ DESIGN binGroupCommittee {
                 fill = 1;
                 horizontal = TRUE;
 
-                MOVE BOX(TREE stockTree);
+                MOVE BOX (TREE stockTree) {caption = 'Группы складов';}
                 MOVE BOX(ts) {
                     fill = 3;
                 }
