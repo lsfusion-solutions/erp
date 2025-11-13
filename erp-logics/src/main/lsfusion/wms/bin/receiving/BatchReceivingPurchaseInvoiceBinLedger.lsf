@@ -67,8 +67,8 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
             price (dc) <- price(d);
             invoicePrice (dc) <- invoicePrice(d);
         }
-        FOR CreditNote d IS CreditNote AND NOT PREV(d IS CreditNote) DO {
-            afterCreateCreditNoteReceiving(d);
+        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
+            afterCreateCreditNoteReceiving(i);
         }
         executeLocalEvents('Purchase.userCreditNote');
         APPLY;
@@ -117,8 +117,8 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
                 invoicePrice (dc) <- invoicePrice(d);
             }
         }
-        FOR CreditNote d IS CreditNote AND NOT PREV(d IS CreditNote) DO {
-            afterCreateCreditNoteReceiving(d);
+        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
+            afterCreateCreditNoteReceiving(i);
         }
         executeLocalEvents('Purchase.userCreditNote');
 
