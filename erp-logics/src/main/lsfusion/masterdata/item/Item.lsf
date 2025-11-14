@@ -534,6 +534,7 @@ META defineItemAttribute (attribute, caption, group)
 
     show###attribute caption (ItemGroup itemGroup) = TRUE IF (quantityChildWith###attribute (itemGroup) (+) quantityParentWith###attribute (itemGroup)) > 0 MATERIALIZED;
     showAny###attribute caption (ItemGroup itemGroup) = show###attribute(itemGroup) OR NOT itemGroup IS ItemGroup;
+    showEdit###attribute caption (ItemGroup itemGroup) = OVERRIDE userShow###attribute(itemGroup), TRUE IF quantityParentWith###attribute(itemGroup);
 
     show###attribute caption (Item item) = TRUE IF quantityParentWith###attribute(itemGroup(item));
 
@@ -558,7 +559,7 @@ META defineItemAttribute(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
 
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute;
-    EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() show###attribute BACKGROUND backgroundShow###attribute(g);
+    EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() showEdit###attribute BACKGROUND backgroundShow###attribute(g);
     
     background###attribute = ABSTRACT COLOR (Item);
     EXTEND FORM item PROPERTIES(i) formProperty###attribute SHOWIF show###attribute(i) BACKGROUND background###attribute(i);
@@ -1030,7 +1031,7 @@ META defineItemAttributeForm(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
     
     EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute;
-    EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showAny###attribute BACKGROUND backgroundShow###attribute(g);
+    EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() showEdit###attribute BACKGROUND backgroundShow###attribute(g);
     
     background###attribute = ABSTRACT COLOR (Item);
 END
@@ -1916,7 +1917,7 @@ expiry 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
 @defineItemAttribute(expiry, 'Срок годности', itemExpiry);
 
 EXTEND FORM itemGroup PROPERTIES(g) userShowExpiry;
-EXTEND FORM itemOptions PROPERTIES(g) READONLYIF  isReadonly() showExpiry BACKGROUND backgroundShowExpiry(g);
+EXTEND FORM itemOptions PROPERTIES(g) READONLYIF isReadonly() showEditExpiry BACKGROUND backgroundShowExpiry(g);
 EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) hoursExpiryPack ON CHANGE changeHoursExpiryPack(i), expiryDays ON CHANGE changeExpiryDays(i), expiryMonth ON CHANGE changeExpiryMonth(i);
 EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) hoursExpiryPack, expiryDays, expiryMonth;
 DESIGN item {
