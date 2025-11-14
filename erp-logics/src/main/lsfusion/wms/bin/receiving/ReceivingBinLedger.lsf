@@ -66,8 +66,10 @@ dataStatus = DATA ReceivingStatus (ReceivingDetail);
 status (ReceivingDetail d) = OVERRIDE dataStatus(d), status(receiving(d)) MATERIALIZED;
 
 completeStatus (ReceivingDetail d) = status(d) == ReceivingStatus.partiallyReceived OR status(d) == ReceivingStatus.fullyReceived MATERIALIZED;
-
 nameStatus 'Статус' (ReceivingDetail d) = IF completeStatus(d) THEN 'Завершена' ELSE 'В работе' IN documentPrm CHARWIDTH 8;
+
+hasCompleteReceivingDetail = GROUP SUM 1 IF completeStatus(ReceivingDetail d) BY receiving(d);
+hasNotCompleteReceivingDetail = GROUP SUM 1 IF NOT completeStatus(ReceivingDetail d) BY receiving(d);
 
 @defineDocumentDetailPosted(receiving);
 
@@ -350,6 +352,15 @@ completeReceiving 'Завершить приемку товара' (Sku sku, STR
         //Строкам приёмки проставляем статус принят, т.к. достаточно зафиксировать, что работа со строкой завершена
         dataStatus(ReceivingDetail d) <- ReceivingStatus.fullyReceived WHERE sku(d)==sku AND overConsolidationKey(d)==consolidationKey AND receiving(d)==receiving;
         overCompleteReceiving(sku, consolidationKey, receiving);
+        IF receiving IS Receiving AND hasCompleteReceivingDetail(receiving) AND NOT hasNotCompleteReceivingDetail(receiving) THEN {
+            ASK 'По всем строкам приёмки работа завершена. Завершить работу по всему документу приёмки?' DO {
+                IF (GROUP SUM 1 IF expectedQuantity(Sku s, STRING key, receiving) == receivingQuantity(s, key, receiving)) THEN {
+                    status(receiving) <- ReceivingStatus.fullyReceived;
+                } ELSE {
+                    status(receiving) <- ReceivingStatus.partiallyReceived;
+                }                
+            }
+        }
         APPLY;
     }
 }
@@ -481,7 +492,7 @@ writeOffReserve 'Списать' (CustomUser u) {
 }
 
 changeDataInBin(ReceivingDetail d, CustomUser u) {
-    NEWSESSION {
+    NEWSESSION NESTED(receivingBin[CustomUser]) {
         DIALOG dialogBins OBJECTS b = inBin(d) INPUT LIST canonicalId(b) 
             FILTERS isParent(bg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), bg), isParent(binGroup2(receivingBin(u)), b) DO {
             dataInBin(d) <- b;
@@ -501,7 +512,8 @@ FORM receiving 'Приемка'
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
                                                     date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
-    PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, createDetails SHOWIF status(r)==ReceivingStatus.inProgress,
+    PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
+                                createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  
                                 completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
     FILTERGROUP isOpened FILTER 'Открыт' isOpened(r) DEFAULT
     FILTERS stock(receivingBin(u)) == customerStock(r) OR stock(receivingBin(u)) == supplierStock(r),
