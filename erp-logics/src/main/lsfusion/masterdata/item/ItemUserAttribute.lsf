@@ -48,9 +48,8 @@ userShow 'Вкл. (польз.)' = DATA BOOLEAN (ItemGroup, UserAttribute);
 
 quantityChild(ItemGroup itemGroup, UserAttribute a)  = GROUP SUM 1 IF userShow(ItemGroup childItemGroup, a) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
 quantityParent(ItemGroup itemGroup, UserAttribute a)  = GROUP SUM 1 IF userShow(ItemGroup parentItemGroup, a) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
-show 'Вкл. (польз.)' (ItemGroup itemGroup, UserAttribute a) = TRUE IF (quantityChild(itemGroup, a) (+) quantityParent(itemGroup, a)) > 0 MATERIALIZED;
-showEdit 'Вкл. (польз.)' (ItemGroup ig, UserAttribute a) = OVERRIDE userShow(ig, a), show(ig, a); 
-showAny 'Вкл. (польз.)' (ItemGroup itemGroup, UserAttribute a) = show(itemGroup, a) OR NOT itemGroup IS ItemGroup;
+
+showEdit 'Вкл. (польз.)' (ItemGroup itemGroup, UserAttribute a) = OVERRIDE userShow(itemGroup, a), TRUE IF quantityParent(itemGroup, a) MATERIALIZED;
 
 show 'Вкл. (польз.)' (Item item, UserAttribute a) = TRUE IF quantityParent(itemGroup(item), a);
 
@@ -77,10 +76,11 @@ EXTEND FORM itemOptions
 
     FILTERGROUP active
         FILTER 'Активные' active(attr) DEFAULT
-    
-    PROPERTIES showEdit(tg, ia1) BEFORE required(ia1, tg) BACKGROUND backgroundShow(tg, ia1)
 
     PROPERTIES (ia) nameClass AFTER staticIA
+    FILTERGROUP notUser FILTER 'Без пользовательских' ia IS ItemAttribute AND NOT (ia IS UserAttribute) DEFAULT
+    
+    PROPERTIES showEdit(tg, ia1) BEFORE required(ia1, tg) BACKGROUND backgroundShow(tg, ia1)
     PROPERTIES (ia1) nameClass AFTER staticIA1
 ;
 
@@ -88,6 +88,10 @@ DESIGN itemOptions {
     itemTab {
         MOVE BOX(attr) FIRST { caption = 'Пользовательские'; }
     }
+
+    BOX(ia) {caption = 'Все атрибуты'; }
+
+    show {caption = 'Отображение (сист.)'; }
 }
 
 EXTEND FORM item
@@ -103,7 +107,7 @@ DESIGN item {
             caption = 'Дополнительные характеристики';
             fill = 1;
             MOVE PROPERTY(value(i, attr)) {
-                class = 'userAttribute-property';
+                class = 'attribute-property';
                 valueClass = 'not-null' IF required(attr, itemGroup(i)) AND NOT value(i, attr);
             }
         }
