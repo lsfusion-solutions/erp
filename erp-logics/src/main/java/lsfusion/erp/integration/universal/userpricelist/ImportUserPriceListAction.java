@@ -12,7 +12,6 @@ import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportUniversalAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -100,7 +99,7 @@ public class ImportUserPriceListAction extends ImportUniversalAction {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
-            context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
+            messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }
 

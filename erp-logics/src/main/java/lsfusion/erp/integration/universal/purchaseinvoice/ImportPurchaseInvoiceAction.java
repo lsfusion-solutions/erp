@@ -16,7 +16,6 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.ImportPreviewClientAction;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -172,7 +171,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
-            context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
+            messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }
 
@@ -929,7 +928,7 @@ public class ImportPurchaseInvoiceAction extends ImportDefaultPurchaseInvoiceAct
             wb = Workbook.getWorkbook(importFile.getInputStream(), ws);
         } catch (Exception e) {
             String error = "Файл неизвестного либо устаревшего формата";
-            context.requestUserInteraction(new MessageClientAction(error, "Ошибка при открытии файла"));
+            messageClientAction(context, error, "Ошибка при открытии файла");
             throw new RuntimeException(error, e);
         }
         Sheet sheet = wb.getSheet(0);

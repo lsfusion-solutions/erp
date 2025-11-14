@@ -2,6 +2,7 @@ package lsfusion.erp.integration;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.col.SetFact;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -275,4 +276,7 @@ public class DefaultIntegrationAction extends InternalAction {
         return context.requestUserData(TXTClass.get(), null);
     }
 
+    public void messageClientAction(ExecutionContext context, String message, String caption) {
+        context.requestUserInteraction(new MessageClientAction(message, caption));
+    }
 }

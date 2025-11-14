@@ -5,7 +5,6 @@ import lsfusion.erp.integration.universal.ImportColumnDetail;
 import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.NullValue;
 import lsfusion.server.data.value.ObjectValue;
@@ -57,7 +56,7 @@ public class ImportProductionOrdersFileAction extends ImportDocumentAction {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
-            context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
+            messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }
 }

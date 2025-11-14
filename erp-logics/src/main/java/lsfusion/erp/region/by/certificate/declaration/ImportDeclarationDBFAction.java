@@ -8,7 +8,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultImportDBFAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -93,7 +92,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
             fields.add(homeSumDeclarationDetailField);
 
             integrationServiceSynchronize(context, fields, data, keys, props);
-            context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
+            messageClientAction(context, "Импорт успешно завершён", "Импорт из декларанта");
         }
     }
 
@@ -194,7 +193,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
             i++;
         }
         if (declarationMap.isEmpty())
-            context.requestUserInteraction(new MessageClientAction("Не найдено ни одной декларации во входном файле G47", "Ошибка"));
+            messageClientAction(context,"Не найдено ни одной декларации во входном файле G47", "Ошибка");
         else {
             Integer index = (Integer) (declarationMap.size() == 1 ? 0 :
                     context.requestUserInteraction(new ChooseObjectClientAction("Выберите декларацию", new String[]{"Номер декларации"}, variants)));
@@ -204,8 +203,7 @@ public class ImportDeclarationDBFAction extends DefaultImportDBFAction {
 
                 data = declarationMap.get(variants[index][0]);
                 if (data.size() != size) {
-                    context.requestUserInteraction(new MessageClientAction(
-                            String.format("Разное количество строк во входном файле G47 (%s) и в базе (%s)", data.size(), size), "Ошибка"));
+                    messageClientAction(context, String.format("Разное количество строк во входном файле G47 (%s) и в базе (%s)", data.size(), size), "Ошибка");
                     data = null;
                 }
             }

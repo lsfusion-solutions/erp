@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.certificate.declaration;
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportDBFAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -87,7 +86,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
             fields.add(homeSumDeclarationAdjustmentField);
 
             integrationServiceSynchronize(context, fields, data, keys, props);
-            context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт КТС"));
+            messageClientAction(context,"Импорт успешно завершён", "Импорт КТС");
         }
     }
 
@@ -178,7 +177,7 @@ public class ImportDeclarationAdjustmentDBFAction extends DefaultImportDBFAction
             i++;
         }
         if (declarationMap.isEmpty())
-            context.requestUserInteraction(new MessageClientAction("Не найдено ни одной декларации во входном файле G47", "Ошибка"));
+            messageClientAction(context,"Не найдено ни одной декларации во входном файле G47", "Ошибка");
         else {
             Integer index = (Integer) (declarationMap.size() == 1 ? 0 :
                     context.requestUserInteraction(new ChooseObjectClientAction("Выберите декларацию", new String[]{"Номер декларации"}, variants)));

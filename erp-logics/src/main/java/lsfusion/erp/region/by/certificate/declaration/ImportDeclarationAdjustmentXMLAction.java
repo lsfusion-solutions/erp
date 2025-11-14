@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.certificate.declaration;
 import com.google.common.base.Throwables;
 import lsfusion.base.file.RawFileData;
 import lsfusion.erp.integration.DefaultImportAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -109,7 +108,7 @@ public class ImportDeclarationAdjustmentXMLAction extends DefaultImportAction {
                 fields.add(homeSumDeclarationAdjustmentField);
 
                 integrationServiceSynchronize(context, fields, data, keys, properties);
-                context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт КТС"));
+                messageClientAction(context,"Импорт успешно завершён", "Импорт КТС");
             }
         } catch (Exception e) {
             throw Throwables.propagate(e);

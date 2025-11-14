@@ -12,7 +12,6 @@ import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.NullValue;
@@ -99,7 +98,7 @@ public class ImportSaleOrderAction extends ImportDocumentAction {
             throw Throwables.propagate(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
-            context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
+            messageClientAction(context, e.getMessage(), e.getTitle());
         }
     }
 

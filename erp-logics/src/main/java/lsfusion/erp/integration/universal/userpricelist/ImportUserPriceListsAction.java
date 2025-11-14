@@ -7,7 +7,6 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.DefaultImportAction;
 import lsfusion.erp.integration.universal.ImportColumnDetail;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -109,7 +108,7 @@ public class ImportUserPriceListsAction extends DefaultImportAction {
                 i += 1;
             }
             if (renamedFile == null || !importedFile.renameTo(renamedFile))
-                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
+                messageClientAction(context,"Ошибка при переименовании импортированного файла " + oldPath, "Ошибка");
         }
     }
 }

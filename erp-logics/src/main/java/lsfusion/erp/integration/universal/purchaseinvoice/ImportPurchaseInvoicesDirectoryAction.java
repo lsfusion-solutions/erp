@@ -12,7 +12,6 @@ import lsfusion.erp.ERPLoggers;
 import lsfusion.erp.integration.universal.ImportDocumentAction;
 import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -207,7 +206,7 @@ public class ImportPurchaseInvoicesDirectoryAction extends ImportDocumentAction 
 
             if (ftpPath.remoteFile == null || ftpPath.remoteFile.isEmpty() || ftpClient.changeWorkingDirectory(ftpPath.remoteFile)) {
                 if (!ftpClient.rename(name, renamed)) {
-                    context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + name, "Ошибка"));
+                    messageClientAction(context, "Ошибка при переименовании импортированного файла " + name, "Ошибка");
                 }
             } else {
                 throw new RuntimeException(String.format("Path '%s' not found for %s", ftpPath.remoteFile, directory));

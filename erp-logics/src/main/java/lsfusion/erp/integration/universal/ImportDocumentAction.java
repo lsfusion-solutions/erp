@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.data.LogicalClass;
 import lsfusion.server.logics.classes.ValueClass;
@@ -217,7 +216,7 @@ public abstract class ImportDocumentAction extends ImportUniversalAction {
                 i += 1;
             }
             if (renamedFile == null || !importedFile.renameTo(renamedFile))
-                context.requestUserInteraction(new MessageClientAction("Ошибка при переименовании импортированного файла " + oldPath, "Ошибка"));
+                messageClientAction(context,"Ошибка при переименовании импортированного файла " + oldPath, "Ошибка");
         }
     }
 
