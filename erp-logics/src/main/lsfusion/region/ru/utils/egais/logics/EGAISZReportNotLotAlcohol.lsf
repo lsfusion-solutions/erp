@@ -22,13 +22,26 @@ EXTEND FORM actWriteOff
 skipCreateActLot  (ActWriteOff w) += notLot(w);
 actWriteOffNotLot = GROUP MAX ActWriteOff a IF skipCreateActLot(a) BY client(a), date(a), type(a);
 
-createActWriteOffNotLot 'Создать списание на основе реализации' (Client c, DATE d) {
+soldQNotLot 'Продано за день' = DATA LOCAL NUMERIC[16,5](Client, Sku, DATE);
+soldSNotLot 'Продано за день' = DATA LOCAL NUMERIC[18,4](Client, Sku, DATE);
+
+createActWriteOffNotLotOver ABSTRACT CASE (Client, DATE);
+
+createActWriteOffNotLotOver(Client c, DATE d)+ WHEN c IS Client AND d IS DATE THEN {
+    soldQNotLot (c, Sku s, d) <- NULL;
+    soldSNotLot (c, Sku s, d) <- NULL;
+    soldQNotLot (c, Sku s, d) <- soldNotLot(c,s,d);
+    soldSNotLot (c, Sku s, d) <- sumSoldNotLot(c,s,d);
+}
+createActWriteOffNotLot 'Создать списание на основе реализации' (Client c, DATE d) {    
     NEWSESSION {
+        createActWriteOffNotLotOver(c,d);
+        
         LOCAL q = NUMERIC[16,5](Sku);
         LOCAL to = NUMERIC[16,5](F2Reg);
-        q(Sku s) <- soldNotLot(c, s, d) IF soldNotLot(c, s, d) > 0;
+        q(Sku s) <- soldQNotLot(c, s, d) IF soldQNotLot(c, s, d) > 0;
         LOCAL price = NUMERIC[16,4](Sku);
-        price(Sku s) <-  round0(NUMERIC[16,4](sumSoldNotLot(c,s,d)/q(s))) WHERE q(s);
+        price(Sku s) <-  round0(NUMERIC[16,4](soldSNotLot(c,s,d)/q(s))) WHERE q(s);
 
         LOCAL q = NUMERIC[16,5](Sku, F2Reg);
         LOCAL balance = NUMERIC[16,5](F2Reg);

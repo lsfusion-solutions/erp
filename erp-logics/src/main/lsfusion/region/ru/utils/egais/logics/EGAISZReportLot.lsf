@@ -1,6 +1,6 @@
 MODULE EGAISZReportLot;
 
-REQUIRE EGAISClient, EGAISActWriteOffExchange, DateSkuLedgerLot, EGAISStock;
+REQUIRE EGAISClient, EGAISActWriteOffExchange, ZReportLot, EGAISStock;
 
 NAMESPACE EGAIS;
 
@@ -13,10 +13,16 @@ skipCreateActLot 'Без марок' = ABSTRACT VALUE BOOLEAN (ActWriteOff);
 
 actWriteOff = GROUP MAX ActWriteOff a IF a IS ActWriteOff AND NOT skipCreateActLot(a) BY client(a), date(a), type(a);
 
-createActWriteOff 'Создать списание на основе реализации' (Client c, DATE d) {
-    NEWSESSION {
-        quantity(Lot l) <- sold(c, l, d) IF sold(c, l, d) > 0 AND f2Reg(markCode(id(l)));
+createActWriteOffOver ABSTRACT CASE (Client, DATE);
 
+createActWriteOffOver(Client c, DATE d) + WHEN c IS Client AND d IS DATE  THEN {
+    quantity(Lot l) <- NULL;
+    quantity(Lot l) <- sold(c, l, d) IF sold(c, l, d) > 0 AND f2Reg(markCode(id(l)));
+}
+createActWriteOff 'Создать списание на основе реализации' (Client c, DATE d) {
+    NEWSESSION {        
+        createActWriteOffOver(c,d);
+        
         IF (GROUP SUM 1 IF quantity(Lot l)) THEN NEW a = ActWriteOff {
             posted(a) <- TRUE;
 

@@ -1,0 +1,47 @@
+MODULE DateSkuLedgerLotReceipt;
+
+REQUIRE DateSkuLedger, ZReportLot, SkuLedgerLot;
+
+NAMESPACE ZReport;
+
+TABLE receiptSaleDetailLot(ReceiptSaleDetail,Lot);
+TABLE receiptReturnDetailLot(ReceiptReturnDetail,Lot);
+
+dataIn 'Продажа' = DATA BOOLEAN (ReceiptSaleDetail,Lot);
+dataIn 'Возврат' = DATA BOOLEAN (ReceiptReturnDetail,Lot);
+
+in (ReceiptSaleDetail d,Lot l) =  dataIn(d,l) OR lot(d)==l;
+in (ReceiptReturnDetail d,Lot l) = dataIn(d,l) OR lot(d)==l;
+
+quantityReceiptSaleDetail 'Кол-во' = 
+    GROUP SUM 1.0 IF in(ReceiptSaleDetail d, Lot l) IF isPosted(d) AND d IS ReceiptSaleDetail
+        BY departmentStore(d), sku(d), date(d), l;
+quantity(DateSaleSkuLedger d, Lot l) += quantityReceiptSaleDetail(departmentStore(d), sku(d), date(d), l);
+
+quantityReceiptReturnDetail 'Кол-во' (department, sku, date, lot) = 
+    GROUP SUM 1.0 IF in(ReceiptReturnDetail d, Lot l) IF isPosted(d) AND d IS ReceiptReturnDetail
+        BY departmentStore(d), sku(d), date(d), l;
+quantity(DateReturnSkuLedger d, Lot l) += quantityReceiptReturnDetail(departmentStore(d), sku(d), date(d), l);
+
+in (ReceiptDetail d,Lot l) = MULTI in[ReceiptSaleDetail,Lot](d,l), in[ReceiptReturnDetail,Lot](d,l);
+
+quantityLot 'Кол-во марок' = GROUP SUM 1.0 IF in (ReceiptDetail d,Lot l) BY d;
+
+FORM receiptDetailInLots 'Список марок'
+    OBJECTS l = Lot
+    PROPERTIES(l) READONLY id BACKGROUND backgroundLot(l)
+    PROPERTIES(l) READONLY count
+    PROPERTIES(l) READONLY quantity
+    FILTERS quantity(l)
+;
+DESIGN receiptDetailInLots{
+    size = (800, 600);
+}
+changeQuantityLot(ReceiptDetail d) {
+    quantity(Lot l) <- 1.0 IF in(d,l);
+    SHOW receiptDetailInLots;
+}
+
+EXTEND FORM zReports
+    PROPERTIES (d) quantityLot ON CHANGE changeQuantityLot(d)
+;

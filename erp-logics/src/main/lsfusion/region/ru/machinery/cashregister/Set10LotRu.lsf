@@ -68,17 +68,19 @@ EXTEND FORM purchasesImport
     FILTERS purchaseBottle(bottle) == purchase
     PROPERTIES(bottle) barcode ATTR, exciseBarcode ATTR, volume ATTR, price ATTR
 ;
-
-lotLoc = DATA LOCAL Lot (INTEGER);
-receiptDetailLot = DATA LOCAL ReceiptDetail (INTEGER);
-
+skipSet10Lot = ABSTRACT BOOLEAN ();
 importReceiptExtra(STRING purchases)+{
-    lotLoc(INTEGER i) <- lot(exciseBarcode(i));
-    receiptDetailLot(INTEGER ii) <- GROUP MAX ReceiptDetail d IF sku(lotLoc(ii)) = sku(d)
-        AND idBarcode(d) = barcode(ii) AND receipt(d) = receipt(idReceipt(purchaseBottle(ii)));
-    
-    FOR Lot l = lotLoc(INTEGER ii) AND ReceiptDetail rd = receiptDetailLot(ii) DO{
-        lot(rd) <- l;
+    IF NOT skipSet10Lot() THEN {
+        LOCAL lotLoc = Lot (INTEGER);
+        LOCAL receiptDetailLot = ReceiptDetail (INTEGER);
+
+        lotLoc(INTEGER i) <- lot(exciseBarcode(i));
+        receiptDetailLot(INTEGER ii) <- GROUP MAX ReceiptDetail d IF sku(lotLoc(ii)) = sku(d)
+            AND idBarcode(d) = barcode(ii) AND receipt(d) = receipt(idReceipt(purchaseBottle(ii)));
+
+        FOR Lot l = lotLoc(INTEGER ii) AND ReceiptDetail rd = receiptDetailLot(ii) DO{
+            lot(rd) <- l;
+        }
     }
 }
 
