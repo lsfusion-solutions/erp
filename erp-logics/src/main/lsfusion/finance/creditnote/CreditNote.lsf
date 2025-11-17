@@ -12,10 +12,244 @@ DESIGN options {
     }
 }
 
+CLASS ABSTRACT CreditNote 'Акт расхождения';
+CLASS ABSTRACT CreditNoteDetail 'Строка акта расхождения';
+
+creditNote = ABSTRACT CreditNote (CreditNoteDetail);
+in(CreditNote o, CreditNoteDetail d) = creditNote(d) == o;
+countCreditNoteDetail '{document.count.detail.of}' (o) =
+    GROUP SUM 1 BY creditNote(CreditNoteDetail d) IN documentSum;
+index '{document.index.detail.class}' (d) = ABSTRACT INTEGER (CreditNoteDetail) IN base;
+date '{document.date.of} {document.of.document}' = ABSTRACT DATE (CreditNote) IN documentHeader;
+time '{document.time.of} {document.of.document}' = ABSTRACT TIME (CreditNote) IN documentHeader;
+dateTime '{document.date.time.of} {document.of.document}' (CreditNote o) = dateTimeToDateTime(date(o), time(o));
+dateTime '{document.date.time.of} {document.of.document}' (CreditNoteDetail d) = dateTime(creditNote(d)) CHARWIDTH 10;
+date '{document.date.of} {document.of.document}' (CreditNoteDetail d) = date(creditNote(d));
+time '{document.time.of} {document.of.document}' (CreditNoteDetail d) = time(creditNote(d));
+note '{document.note}' = ABSTRACT ISTRING[500] (CreditNote) CHARWIDTH 30 IN documentPrm;
+is (CreditNote o) = o IS CreditNote;
+is (CreditNoteDetail i) = i IS CreditNoteDetail;
+number '{numerator.number.numerator}' = ABSTRACT STRING[48] (CreditNote) IN numbered CHARWIDTH 8;
+series '{numerator.series.numerator}' = ABSTRACT BPSTRING[2] (CreditNote) IN numbered CHARWIDTH 3 NOFLEX;
+
+seriesNumber '{numerator.series.number.numerator}' (CreditNote o) =
+    CONCAT '', series(o), number(o)
+    CHARWIDTH 8;
+
+number '{document.number.detail.class}' (CreditNoteDetail d) = number(creditNote(d)) IN id CHARWIDTH 7;
+series '{document.series.detail.class}' (CreditNoteDetail d) = series(creditNote(d)) IN id CHARWIDTH 3 NOFLEX;
+seriesNumber '{document.series.number.detail.class}' (CreditNoteDetail d) = seriesNumber(creditNote(d));
+
+supplier (creditNote) = ABSTRACT LegalEntity (CreditNote);
+nameSupplier 'Поставщик' (CreditNote creditNote)= name(supplier(creditNote)) IN documentPrm CHARWIDTH 20;
+fullNameSupplier 'Поставщик (полное наименование)' (CreditNote creditNote)= fullName(supplier(creditNote)) IN documentPrm CHARWIDTH 20;
+addressSupplier 'Поставщик (адрес)' (CreditNote creditNote)= address(supplier(creditNote)) IN documentPrm CHARWIDTH 20;
+phoneSupplier 'Поставщик (телефон)' (CreditNote creditNote)= phone(supplier(creditNote)) IN documentPrm CHARWIDTH 20;
+supplier (CreditNoteDetail idetail) = supplier(creditNote(idetail));
+nameSupplier 'Поставщик' (CreditNoteDetail idetail) = name(supplier(idetail));
+fullNameSupplier 'Поставщик (полное наименование)' (CreditNoteDetail idetail) = fullName(supplier(idetail));
+addressSupplier 'Поставщик (адрес)' (CreditNoteDetail idetail)= address(supplier(idetail));
+
+customer (creditNote) = ABSTRACT LegalEntity (CreditNote);
+nameCustomer 'Покупатель' (CreditNote creditNote)= name(customer(creditNote)) IN documentPrm CHARWIDTH 20;
+fullNameCustomer 'Покупатель (полное наименование)' (CreditNote creditNote)= fullName(customer(creditNote)) IN documentPrm CHARWIDTH 20;
+addressCustomer 'Покупатель (адрес)' (CreditNote creditNote)= address(customer(creditNote)) IN documentPrm CHARWIDTH 20;
+phoneCustomer 'Покупатель (телефон)' (CreditNote creditNote)= phone(customer(creditNote)) IN documentPrm CHARWIDTH 20;
+customer (CreditNoteDetail idetail) = customer(creditNote(idetail));
+nameCustomer 'Покупатель' (CreditNoteDetail idetail) = name(customer(idetail));
+fullNameCustomer 'Покупатель (полное наименование)' (CreditNoteDetail idetail) = fullName(customer(idetail));
+addressCustomer 'Покупатель (адрес)' (CreditNoteDetail idetail)= address(customer(idetail));
+
+supplierStock = ABSTRACT Stock(CreditNote);
+nameSupplierStock 'Склад поставщика' (CreditNote creditNote) = name(supplierStock(creditNote)) IN documentHeader
+    CHARWIDTH 20;
+fullNameSupplierStock 'Склад поставщика' (CreditNote creditNote) = fullName(supplierStock(creditNote)) IN documentHeader
+    CHARWIDTH 20;
+
+supplierLegalEntityStock (CreditNote creditNote) = legalEntity(supplierStock(creditNote));
+nameSupplierLegalEntityStock 'Компания (Склад поставщика)' (CreditNote creditNote) = name(supplierLegalEntityStock (creditNote));
+fullNameSupplierLegalEntityStock 'Компания (Склад поставщика) полное наим-ие' (CreditNote creditNote) = fullName(supplierLegalEntityStock (creditNote));
+addressSupplierLegalEntityStock 'Адрес компании (Склад поставщика)' (CreditNote creditNote) = address(supplierLegalEntityStock (creditNote));
+addressSupplierStock 'Адрес (Склад поставщика)' (CreditNote creditNote) = address(supplierStock(creditNote));
+
+supplierCountry (CreditNote creditNote) = country(supplierStock(creditNote));
+
+supplierStock (CreditNoteDetail idetail) = supplierStock(creditNote(idetail));
+nameSupplierStock 'Склад поставщика' (CreditNoteDetail idetail) = name(supplierStock(idetail)) CHARWIDTH 10;
+fullNameSupplierStock 'Склад поставщика' (CreditNoteDetail idetail) = fullName(supplierStock(idetail)) CHARWIDTH 10;
+countrySupplierStock (CreditNoteDetail idetail) = country(supplierStock(idetail));
+legalEntitySupplierStock (CreditNoteDetail idetail) = legalEntity(supplierStock(idetail));
+nameLegalEntitySupplierStock 'Компания (Склад поставщика)' (CreditNoteDetail idetail) = name(legalEntitySupplierStock (idetail));
+fullNameLegalEntitySupplierStock 'Компания (Склад поставщика)' (CreditNoteDetail idetail) = fullName(legalEntitySupplierStock (idetail));
+
+customerStock = ABSTRACT Stock(CreditNote);
+nameCustomerStock 'Склад покупателя' (CreditNote creditNote) = name(customerStock(creditNote)) IN documentHeader
+    CHARWIDTH 20;
+fullNameCustomerStock 'Склад покупателя' (CreditNote creditNote) = fullName(customerStock(creditNote)) IN documentHeader
+    CHARWIDTH 20;
+customerLegalEntityStock (CreditNote creditNote) = legalEntity(customerStock(creditNote));
+nameCustomerLegalEntityStock 'Компания (Склад покупателя)' (CreditNote creditNote) = name(customerLegalEntityStock (creditNote));
+fullNameCustomerLegalEntityStock 'Компания (Склад покупателя) полное наим-ие' (CreditNote creditNote) = fullName(customerLegalEntityStock (creditNote));
+addressCustomerLegalEntityStock 'Адрес компании (Склад покупателя)' (CreditNote creditNote) = address(customerLegalEntityStock (creditNote));
+addressCustomerStock 'Адрес (Склад покупателя)' (CreditNote creditNote) = address(customerStock(creditNote));
+
+customerCountry (CreditNote creditNote) = country(customerStock(creditNote));
+
+customerStock (CreditNoteDetail idetail) = customerStock(creditNote(idetail));
+nameCustomerStock 'Склад покупателя' (CreditNoteDetail idetail) = name(customerStock(idetail)) CHARWIDTH 10;
+fullNameCustomerStock 'Склад покупателя' (CreditNoteDetail idetail) = fullName(customerStock(idetail)) CHARWIDTH 10;
+countryCustomerStock (CreditNoteDetail idetail) = country(customerStock(idetail));
+legalEntityCustomerStock (CreditNoteDetail idetail) = legalEntity(customerStock(idetail));
+nameLegalEntityCustomerStock 'Компания (Склад покупателя)' (CreditNoteDetail idetail) = name(legalEntityCustomerStock (idetail));
+fullNameLegalEntityCustomerStock 'Компания (Склад покупателя)' (CreditNoteDetail idetail) = fullName(legalEntityCustomerStock (idetail));
+
+isPosted '{document.posted}' (o) = ABSTRACT BOOLEAN(CreditNote);
+isDraft '{document.draft}' (CreditNote o) = o IS CreditNote AND NOT isPosted(o);
+
+isPosted '{document.posted}' (CreditNoteDetail d) = isPosted(creditNote(d));
+isNotPosted '{document.draft}' (CreditNoteDetail d) = d IS CreditNoteDetail AND NOT isPosted(d);
+
+isClosed '{documents.is.closed}' = ABSTRACT BOOLEAN(CreditNote);
+isOpened '{documents.is.opened}' (CreditNote o) = o IS CreditNote AND NOT isClosed(o);
+close '{documents.close}' (o)  ABSTRACT LIST ( CreditNote);
+
+isClosed '{documents.is.closed}' (CreditNoteDetail d) = isClosed(creditNote(d));
+isOpened '{documents.is.opened}' (CreditNoteDetail d) = isPosted(d) AND isOpened(creditNote(d));
+
+description '{document.description.object}' = ABSTRACT STRING[200] (CreditNote) CHARWIDTH 3;
+description '{document.description.object}' (CreditNoteDetail d) = description(creditNote(d)) CHARWIDTH 30;
+descriptionIndex '{document.description.object}' (CreditNoteDetail d) = STRING[200](description(d) + ', {document.description.position} ' + index(d)) CHARWIDTH 30 IN base;
+
+currency (creditNote) = ABSTRACT Currency (CreditNote);
+nameCurrency 'Валюта' (CreditNote creditNote)= name(currency(creditNote)) IN documentPrm CHARWIDTH 10;
+shortNameCurrency 'Валюта (сокр.)' (CreditNote creditNote) = shortName(currency(creditNote));
+
+
+currency (CreditNoteDetail idetail) = currency(creditNote(idetail));
+nameCurrency 'Валюта' (CreditNoteDetail idetail) = nameCurrency(creditNote(idetail));
+shortNameCurrency 'Валюта (сокр.)' (CreditNoteDetail idetail) = shortName(currency(idetail));
+
+contractSku = ABSTRACT ContractSku (CreditNote);
+seriesNumberContractSku 'Номер договора' (CreditNote o) = seriesNumber[Contract](contractSku(o)) IN documentPrm;
+dateFromContractSku 'Дата договора' (CreditNote o) = dateFrom(contractSku(o)) IN documentPrm;
+
+descriptionContractSku 'Описание договора' (CreditNote o)= CONCAT ' ', seriesNumberContractSku(o), ' от ' + toDateDDMMYYYY(dateFromContractSku(o));
+
+isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (CreditNote) IN documentPrm;
+
+sku = ABSTRACT Sku (CreditNoteDetail);
+prevSku (CreditNoteDetail creditNoteDetail) = PREV(sku(creditNoteDetail));
+idSku 'Код' (CreditNoteDetail creditNoteDetail) = id(sku(creditNoteDetail));
+nameSku 'Наименование' (CreditNoteDetail creditNoteDetail) = name(sku(creditNoteDetail));
+prevNameSku 'Наименование' (CreditNoteDetail creditNoteDetail) = prevName(sku(creditNoteDetail)) IN id;
+shortNameUOMSku 'Ед. изм.' = shortNameUOM(sku(CreditNoteDetail creditNoteDetail)) IN base;
+idBarcodeSku 'Штрихкод' (CreditNoteDetail creditNoteDetail) = idBarcode(sku(creditNoteDetail)) IN id;
+allBarcodesSku 'Все штрихкоды' (CreditNoteDetail creditNoteDetail) = allBarcodes(sku(creditNoteDetail));
+nameCountrySku 'Страна' (CreditNoteDetail creditNoteDetail) = nameCountry(sku(creditNoteDetail));
+
+quantity '{document.quantity.of}' = ABSTRACT NUMERIC[16,5] (CreditNoteDetail) CHARWIDTH 7;
+
+price 'Цена' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail);
+
+sum '{document.sum.of}' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+VAT(creditNoteDetail) = ABSTRACT Range (CreditNoteDetail);
+numberVAT 'НДС, номер' (CreditNoteDetail creditNoteDetail) = number(VAT(creditNoteDetail));
+valueVAT 'НДС, %' (creditNoteDetail) = ABSTRACT NUMERIC[10,5] (CreditNoteDetail) CHARWIDTH 7;
+calcValueVAT 'НДС (перегруженный), %' (creditNoteDetail) = ABSTRACT NUMERIC[10,5] (CreditNoteDetail);
+
+invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail);
+
+VATSum 'Сумма НДС' (creditNoteDetail) = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 8 PATTERN '#,##0.00##';
+invoiceSum 'Сумма с НДС' (creditNoteDetail) = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+quantityCreditNoteDetail '{document.quantity.total.of}' (creditNote) = GROUP SUM quantity(CreditNoteDetail idetail) BY creditNote(idetail) IN documentSum CHARWIDTH 8;
+
+@defineDocumentHeaderSkuQuantity(creditNote, creditNoteDetail, sku);
+
+@defineDocumentHeaderSum(creditNote);
+
+@defineDocumentHeaderVATSum(creditNote, creditNoteDetail, invoice);
+
+@defineDocumentHeaderItemSum (creditNote, VAT, VAT);
+
+@defineDocumentHeaderItemSum (creditNote, , );
+
+@defineDocumentHeaderItemSum (creditNote, invoice, invoice);
+
+@defineDocumentHeaderItemSumDouble (creditNote, range, VAT, VAT, , VAT);
+
+@defineDocumentHeaderItemSumDouble (creditNote, range, , , , VAT);
+
+@defineDocumentHeaderItemSumDouble (creditNote, range, invoice, invoice, , VAT);
+
+
+documentQuantity '{document.quantity.of} по накладной' = ABSTRACT NUMERIC[16,5] (CreditNoteDetail) CHARWIDTH 7;
+
+documentSum '{document.sum.of} по накладной' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+
+documentVATSum '{document.sum.of} НДС по накладной' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+documentInvoiceSum '{document.sum.of} с НДС по накладной' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentQuantity '{document.quantity.of} по факту' = ABSTRACT NUMERIC[16,5] (CreditNoteDetail) CHARWIDTH 7;
+
+shipmentSum '{document.sum.of} по факту' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentVATSum '{document.sum.of} НДС по факту' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+shipmentInvoiceSum '{document.sum.of} с НДС по факту' = ABSTRACT NUMERIC[18,4] (CreditNoteDetail) CHARWIDTH 9 PATTERN '#,##0.00##';
+
+
+invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail);
+descriptionIndexInvoiceInvoice 'Накладная' (CreditNoteDetail creditNoteDetail) =  descriptionIndex(invoiceDetail(creditNoteDetail));
+quantity (invoice, creditNote) = GROUP SUM quantity(CreditNoteDetail creditNoteDetail) BY invoice(invoiceDetail(creditNoteDetail)), creditNote(creditNoteDetail);
+invoices 'Накладные'(CreditNote creditNote)  = GROUP
+    CONCAT STRING[255](description(Invoice invoice)) IF quantity(invoice, creditNote) , ', '
+    ORDER invoice CHARWIDTH 30;
+
+disableShowBatch = ABSTRACT BOOLEAN (CreditNote);
+batch = ABSTRACT Batch (CreditNoteDetail);
+nameBatch 'Партия' (CreditNoteDetail creditNoteDetail) = name(batch(creditNoteDetail)) CHARWIDTH 20;
+documentNameBatch 'Наименование (для документов)' (CreditNoteDetail creditNoteDetail) = documentNameSku(batch(creditNoteDetail)) CHARWIDTH 20;
+
+paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (CreditNote);
+
+operation = ABSTRACT Operation.Operation(CreditNote);
+nameOperation 'Операция' (CreditNote creditNote) = name(operation(creditNote));
+nameReturnOperation 'Операция' (CreditNote creditNote) = nameReturn(operation(creditNote));
+
+operation (CreditNoteDetail idetail) = operation(creditNote(idetail));
+nameOperation 'Склад покупателя' (CreditNoteDetail idetail) = name(operation(idetail)) CHARWIDTH 10;
+nameReturnOperation 'Склад покупателя' (CreditNoteDetail idetail) = nameReturn(operation(idetail)) CHARWIDTH 10;
+
+background 'Цвет' = ABSTRACT COLOR (CreditNote);
+
+FORM creditNotePrintBase 'Акт расхождений'
+    OBJECTS c = CreditNote PANEL SUBREPORT
+    PROPERTIES (c) READONLY seriesNumber, date, fullNameSupplier, nameSupplierStock,
+        fullNameCustomer, addressCustomer, nameCustomerStock, addressCustomerStock,
+        seriesNumberContractSku, quantityCreditNoteDetail, sumCreditNoteDetail,
+        VATSumCreditNoteDetail, invoiceSumCreditNoteDetail, note
+
+    OBJECTS d = CreditNoteDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+        quantity, price, sum, numberVAT,
+        valueVAT, VATSum, invoiceSum,
+        documentQuantity, documentVATSum, documentInvoiceSum,
+        shipmentQuantity, shipmentVATSum, shipmentInvoiceSum
+    ORDERS index(d)
+    FILTERS creditNote(d) == c
+;
+
+print 'Акт расхождения' ABSTRACT CASE OVERRIDE FIRST (CreditNote) TOOLBAR IMAGE 'print.png';
+print(CreditNote c) + WHEN c IS CreditNote THEN { PRINT creditNotePrintBase OBJECTS c = c; }
+
 META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customerFilter, NS)//contact, contactCaption)
 
-    CLASS ABSTRACT CreditNote 'Акт расхождения'###sign ;
-    CLASS ABSTRACT CreditNoteDetail 'Строка акта расхождения'###sign ;
+    CLASS ABSTRACT CreditNote 'Акт расхождения'###sign : CreditNote.CreditNote;
+    CLASS ABSTRACT CreditNoteDetail 'Строка акта расхождения'###sign : CreditNote.CreditNoteDetail;
 
     CLASS UserCreditNote 'Акт расхождения (польз.)'###sign : CreditNote;
     CLASS UserCreditNoteDetail 'Строка акта расхождения (польз.)'###sign : CreditNoteDetail;
@@ -26,18 +260,38 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineExternalizable(userCreditNoteDetail, STRING[100]);
 
     @defineDocumentInterface(creditNote);
+
+    creditNote[CreditNote.CreditNoteDetail](CreditNoteDetail creditNoteDetail) += creditNote(creditNoteDetail);
+    index[CreditNote.CreditNoteDetail](CreditNoteDetail creditNoteDetail) += index(creditNoteDetail);
+    
+    date[CreditNote.CreditNote] (CreditNote creditNote) += date(creditNote);
+    time[CreditNote.CreditNote] (CreditNote creditNote) += time(creditNote);
+    note[CreditNote.CreditNote] (CreditNote creditNote) += note(creditNote);
+        
     @deriveDocumentHeaderTimePrefix(UserCreditNote, );
 
     @defineDocumentInterfaceNumber(creditNote, BPSTRING[2]);
 
+    number[CreditNote.CreditNote] (CreditNote creditNote) += number(creditNote);
+    series[CreditNote.CreditNote] (CreditNote creditNote) += series(creditNote);
+
     @defineNumeratedDefault(UserCreditNote, 'Акты расхождений'###sign, 'АР', NS);
 
     @defineDocumentInterfaceLegalEntity (creditNote, supplier, 'Поставщик');
+
+    supplier[CreditNote.CreditNote] (CreditNote creditNote) += supplier(creditNote);
+        
     @defineDocumentInterfaceLegalEntity (creditNote, customer, 'Покупатель');
 
+    customer[CreditNote.CreditNote] (CreditNote creditNote) += customer(creditNote);
+        
     @defineDocumentInterfaceDataStock(creditNote, stock, 'Склад поставщика', supplier);
+    supplierStock[CreditNote.CreditNote] (CreditNote creditNote) += supplierStock(creditNote);
+        
     @defineDocumentInterfaceDataStock(creditNote, stock, 'Склад покупателя', customer);
 
+    customerStock[CreditNote.CreditNote] (CreditNote creditNote) += customerStock(creditNote);
+     
     CONSTRAINT supplier(UserCreditNote userCreditNote) AND supplierStock(userCreditNote) AND NOT
                in(supplier(userCreditNote), supplierStock(userCreditNote))
         CHECKED BY supplierStock[UserCreditNote]
@@ -48,11 +302,22 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
             MESSAGE 'Покупатель и склад покупателя для акта расхождений не имеют связи';
 
     @defineDocumentInterfacePosted(creditNote);
+
+    isPosted[CreditNote.CreditNote] (CreditNote creditNote) += isPosted(creditNote);
+
     @defineDocumentInterfaceClosed(creditNote);
+
+    isClosed[CreditNote.CreditNote] (CreditNote creditNote) += isClosed(creditNote);     
+        
     @defineDocumentClosedConstraint(UserCreditNote);
     @defineDocumentInterfaceDescription(creditNote, 'Акт расхождения'###sign);
 
+    description[CreditNote.CreditNote] (CreditNote creditNote) += description(creditNote);
+
     @defineDocumentInterfaceCurrency(creditNote);
+
+    currency[CreditNote.CreditNote] (CreditNote creditNote) += currency(creditNote);
+        
     @deriveDocumentCurrency(userCreditNote, stockProp###stock);
 
     @defineDocumentInterfaceContract(CreditNote, contractSku, supplier, customer,
@@ -60,25 +325,46 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
                                      'Организация (покупатель) договора акта расхождений не соответствует организация (покупатель) акта расхождений',
                                      'акт расхождения'###sign, NS);
 
+    contractSku[CreditNote.CreditNote] (CreditNote creditNote) += contractSku(creditNote);
+    isCommission[CreditNote.CreditNote] (CreditNote creditNote) += isCommission(creditNote);
+        
     @defineDocumentInterfaceDetailSku(creditNote, sku);
+
+    sku[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += sku(creditNoteDetail);
+        
     INDEX sku(CreditNoteDetail d), customerStock(d);
 
     @defineDocumentInterfaceDetailQuantity(creditNote);
 
+    quantity[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += quantity(creditNoteDetail);
+        
     price 'Цена' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
     price 'Цена' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
     price (UserCreditNoteDetail creditNoteDetail) += price(creditNoteDetail);
-
+    price[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += price(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailDataSum(creditNote);
+
+    sum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += sum(creditNoteDetail);
+        
     @deriveDocumentDetailSum(userCreditNote, quantity);
 
     @defineDocumentInterfaceDetailVAT(creditNote, country###stockProp###stock);
+
+    VAT[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += VAT(creditNoteDetail);
+    valueVAT[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail);
+    calcValueVAT[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += calcValueVAT(creditNoteDetail);
+        
     invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (CreditNoteDetail) MATERIALIZED;
     invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserCreditNoteDetail);
     invoicePrice (UserCreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteDetail);
+    invoicePrice[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += invoicePrice(creditNoteDetail);
     
     //  derive см. ниже в "Связь акта и накладной"
     @defineDocumentInterfaceDetailVATDataSumCustom(creditNoteDetail, invoice);
+
+    VATSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail);
+    invoiceSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail);
 
     @defineDocumentInterfaceHeaderQuantity(creditNote);
     @defineDocumentHeaderSkuQuantity(creditNote, sku);
@@ -108,14 +394,37 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineDocumentDialogSupplierCustomerLegalEntity(userCreditNote, supplierFilter, customerFilter);       
     
     @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, document, ' по накладной');
+
+    documentQuantity[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += documentQuantity(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailDataSumPrefix(creditNote, document, ' по накладной');
+
+    documentSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += documentSum(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentVAT, ' НДС по накладной');
-    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentInvoice, ' с НДС по накладной');    
-    
+
+    documentVATSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += documentVATSum(creditNoteDetail);
+
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentInvoice, ' с НДС по накладной');
+
+    documentInvoiceSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += documentInvoiceSum(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, shipment, ' по факту');
+
+    shipmentQuantity[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += shipmentQuantity(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipment, ' по факту');
+
+    shipmentSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += shipmentSum(creditNoteDetail);
+        
     @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentVAT, ' НДС по факту');
-    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentInvoice, ' с НДС по факту');    
+
+    shipmentVATSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += shipmentVATSum(creditNoteDetail);
+        
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentInvoice, ' с НДС по факту');
+
+    shipmentInvoiceSum[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += shipmentInvoiceSum(creditNoteDetail);
+        
 // --------------------------- Формы --------------------------------- //
     
     background = ABSTRACT CASE COLOR (CreditNoteDetail);
@@ -229,7 +538,8 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     isUserOpened(UserCreditNote c)=  isOpened[CreditNote](c) AND is(c);
 
     background 'Цвет' = ABSTRACT CASE COLOR (CreditNote);
-        
+    background[CreditNote.CreditNote] (CreditNote creditNote) += background(creditNote);
+
     FORM creditNotes 'Акты расхождений' 
         OBJECTS c = CreditNote LAST
         PROPERTIES (c) READONLYIF isReadonly() BACKGROUND background(c) isClosed, isPosted, number, series, date, time,
@@ -243,6 +553,8 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
 
         PROPERTIES (c) NEWSESSION NEW[UserCreditNote], editC = EDIT SHOWIF isOpened(c), deletec=DELETE SHOWIF isUserOpened(c)
         PROPERTIES (c) close[UserCreditNote] SHOWIF isOpened[UserCreditNote](c), open SHOWIF isClosed[UserCreditNote](c)
+
+        PROPERTIES(c) print
 
         OBJECTS d = CreditNoteDetail
         PROPERTIES (d) READONLY BACKGROUND background(d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
@@ -277,6 +589,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
                     caption = 'Печатные формы';
                     NEW printContainer {
                         caption = 'Печать';
+                        MOVE PROPERTY(print(c));
                     }
                 }
                 NEW actionContainer {
@@ -321,6 +634,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) MATERIALIZED INDEXED;
     invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail) INDEXED;
     invoiceDetail(UserCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
+    invoiceDetail[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
 
     CONSTRAINT invoiceDetail(UserCreditNoteDetail d) AND NOT sku(invoiceDetail(d)) = sku(d) CHECKED BY invoiceDetail[UserCreditNoteDetail]
         MESSAGE 'SKU строки накладной должен соответствовать SKU строки акта расхождений';
@@ -609,14 +923,20 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
             }
         }
     }
-   
+    
 END
 
 META defineCreditNoteBatch(legalEntityProp, stockProp)
     @showDocumentInterfaceDetailBatch(creditNote);
+
+    disableShowBatch[CreditNote.CreditNote] (CreditNote creditNote) += disableShowBatch(creditNote);
+
     @defineDocumentInterfaceDetailBatch(creditNote, batch);
 
-//    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch AFTER shortNameUOMSku(d);
+    batch[CreditNote.CreditNoteDetail] (CreditNoteDetail creditNoteDetail) += batch(creditNoteDetail);
+
+
+    //    EXTEND FORM userCreditNote PROPERTIES (d) nameBatch AFTER shortNameUOMSku(d);
 //    EXTEND FORM creditNotes PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
 
 
@@ -669,7 +989,8 @@ META defineCreditNotePaymentCondition (sign)
     paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (CreditNote) MATERIALIZED;
     paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserCreditNote);
     paymentCondition(UserCreditNote prop) += paymentCondition(prop);
-
+    paymentCondition[CreditNote.CreditNote] (CreditNote creditNote) += paymentCondition(creditNote);
+    
     descriptionPaymentCondition 'Условия оплаты' (CreditNote prop) = description(paymentCondition(prop)) IN base CHARWIDTH 10;
     descriptionPaymentCondition 'Условия оплаты' (UserCreditNote prop) = description(paymentCondition(prop)) CHARWIDTH 10;
 

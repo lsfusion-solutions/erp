@@ -94,15 +94,9 @@ FORM creditNotePrint 'Акт расхождений'
     FILTERS creditNote(d) == c
 ;        
 
-print 'Акт расхождения' (CreditNote creditNote)  { PRINT creditNotePrint OBJECTS c = creditNote; }  IMAGE 'print.png';
-EXTEND FORM creditNotes 
-    PROPERTIES(c) print  
-;
-DESIGN creditNotes {
-    printContainer{
-        MOVE PROPERTY(print(c));
-    }    
-}
+skipPurchaseCreditNote = ABSTRACT BOOLEAN ();
+
+print(CreditNote creditNote) + WHEN creditNote IS Purchase.CreditNote AND NOT skipPurchaseCreditNote() THEN { PRINT creditNotePrint OBJECTS c = creditNote; }
 
 printCreditNote 'Акт расхождения' (Invoice invoice)  { print(invoiceCreditNote(invoice)); } IMAGE 'print.png' IN print; 
 
@@ -177,3 +171,5 @@ DESIGN creditNotes {
         }
     }
 }
+
+operation[CreditNote.CreditNote] (CreditNote creditNote) += operation(creditNote);

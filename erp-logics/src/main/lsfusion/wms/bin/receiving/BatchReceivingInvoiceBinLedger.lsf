@@ -1,6 +1,6 @@
 MODULE BatchReceivingInvoiceBinLedger;
 
-REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger, InvoiceShipment;
+REQUIRE ReceivingInvoiceBinLedger, BatchReceivingBinLedger, SkuLedger, InvoiceShipment, CreditNote;
 
 NAMESPACE Invoice;
 
@@ -409,5 +409,79 @@ DESIGN internalPutaway {
 NAVIGATOR {
     WMSDashboardNavigator {
         NEW internalPutaway;
+    }
+}
+
+afterCreateCreditNoteReceiving ABSTRACT (CreditNote);
+
+diffCompleted 'Разница между обработанным количеством и количеством в документе прихода'(Sku s, STRING str, Receiving r) =
+    expectedQuantity(s, str, r) (-) quantityCompleted(s, str, r);
+
+countInvoiceDetail(Receiving r, CreditNote c) = [GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d)](r, c);
+
+quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
+    [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r);
+
+diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
+    diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
+
+createCreditNoteDiffInvoice ABSTRACT (Invoice);
+
+createCreditNote 'Создать акт расхождения' (Receiving r) {
+    IF (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF diffInvoiceCreditNoteCompleted(s, str, r) IS NUMERIC[16,5] AND NOT expectedQuantity(s, str, r)) THEN {
+        MESSAGE 'Для товаров с расхождением \n' +
+            [GROUP CONCAT (CONCAT '; ', 'Наименование: ' + name(Sku s), 'Код: ' + id(s), 'Штрихкод: ' + idBarcode(s), 'Серия лекарственного средства: ' + STRING str)
+                IF diffInvoiceCreditNoteCompleted(s, str, Receiving r1) AND NOT expectedQuantity(s, str, r1), '\n' ORDER s, str BY r1](r)
+            + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе';
+    }
+    IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
+        FOR receiving(Invoice i) = r
+            AND [GROUP MAX diffInvoiceCreditNoteCompleted(sku(InvoiceDetail d), overConsolidationKey(d), receiving(invoice(d))) IF expectedQuantity(sku(d), overConsolidationKey(d), receiving(invoice(d))) BY invoice(d)](i)
+            DO {
+            createCreditNoteDiffInvoice(i);
+        }
+        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
+            afterCreateCreditNoteReceiving(i);
+        }
+        APPLY;
+    }
+} TOOLBAR;
+
+quantityCreditNote 'Кол-во в актах расхождений' =
+    GROUP SUM quantity(CreditNoteDetail d) BY sku(d), receiving(invoice(invoiceDetail(d)));
+
+hasReceiving = GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d);
+
+descriptionCreditNotes 'Акты расхождения' =
+    GROUP CONCAT seriesNumber(CreditNote creditNote) IF hasReceiving(Receiving receiving, creditNote), '; ' ORDER dateTime(creditNote), creditNote BY receiving;
+
+EXTEND FORM receiving
+    PROPERTIES READONLY descriptionCreditNotes(r) AFTER descriptionInvoices(r)
+    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
+    PROPERTIES READONLY quantityCreditNote(sr1, str1, r)
+    PROPERTIES READONLY quantityCreditNote(sr, r)
+
+    OBJECTS c = CreditNote LAST
+    PROPERTIES(c) READONLY BACKGROUND background(c) isClosed, isPosted, number, series, date, time, nameSupplier,
+        nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency, seriesNumberContractSku, isCommission
+    PROPERTIES(c) READONLY BACKGROUND background(c) countCreditNoteDetail, quantityCreditNoteDetail, sumCreditNoteDetail,
+        VATSumCreditNoteDetail, invoiceSumCreditNoteDetail
+    PROPERTIES(c) READONLY note
+    PROPERTIES(c) EDIT
+
+    PROPERTIES print(c)
+;
+
+
+DESIGN receiving {
+    tabContainer {
+        NEW creditNote {
+            caption = 'Акты расхождений';
+            MOVE BOX(c);
+            NEW printContainer {
+                caption = 'Печать';
+                MOVE PROPERTY(print(c));
+            }
+        }
     }
 }

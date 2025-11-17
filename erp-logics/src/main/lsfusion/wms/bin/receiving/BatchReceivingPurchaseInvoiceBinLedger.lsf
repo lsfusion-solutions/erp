@@ -14,66 +14,8 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
 
-
-diffCompleted 'Разница между обработанным количеством и количеством в документе прихода'(Sku s, STRING str, Receiving r) =
-    expectedQuantity(s, str, r) (-) quantityCompleted(s, str, r);
-
-countInvoiceDetail(Receiving r, CreditNote c) = [GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d)](r, c);
-
 quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
     [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r);
-
-diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
-    diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
-
-afterCreateCreditNoteReceiving ABSTRACT LIST (UserCreditNote);
-
-createCreditNote 'Создать акт расхождения' (Receiving r) {
-    IF (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF diffInvoiceCreditNoteCompleted(s, str, r) IS NUMERIC[16,5] AND NOT expectedQuantity(s, str, r)) THEN {
-        MESSAGE 'Для товаров с расхождением \n' +
-            [GROUP CONCAT (CONCAT '; ', 'Наименование: ' + name(Sku s), 'Код: ' + id(s), 'Штрихкод: ' + idBarcode(s), 'Серия лекарственного средства: ' + STRING str)
-                IF diffInvoiceCreditNoteCompleted(s, str, Receiving r1) AND NOT expectedQuantity(s, str, r1), '\n' ORDER s, str BY r1](r)
-            + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе';
-    }
-    IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
-        FOR receiving(Invoice i) = r
-            AND [GROUP MAX diffInvoiceCreditNoteCompleted(sku(InvoiceDetail d), overConsolidationKey(d), receiving(invoice(d))) IF expectedQuantity(sku(d), overConsolidationKey(d), receiving(invoice(d))) BY invoice(d)](i)
-            AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i))
-            DO NEW c = UserCreditNote {
-            id(c) <- CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i);
-            operation(c) <- operation(i);
-            executeLocalEvents('Purchase.userCreditNote');
-            supplier(c) <- supplier(r);
-            supplierStock(c) <- supplierStock(r);
-            customer(c) <- customer(r);
-            customerStock(c) <- customerStock(r);
-            date(c) <- currentDate();
-            time(c) <- currentTime();
-            isPosted(c) <- TRUE;
-        }
-
-        FOR diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) AND expectedQuantity(s, str, r)
-            AND InvoiceDetail d = [GROUP MAX InvoiceDetail d1 BY sku(d1), overConsolidationKey(d1), receiving(invoice(d1))](s, str, r)
-            AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), idSupplierStock(invoice(d)), idCustomerStock(invoice(d)))
-            AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
-            DO NEW dc = UserCreditNoteDetail {
-            userCreditNote(dc) <- c;
-            invoiceDetail(dc) <- d;
-            batch(dc) <- overBatch(d);
-            sku(dc) <- s;
-            quantity (dc) <- diffInvoiceCreditNoteCompleted(s, str, r);
-            VAT (dc) <- OVERRIDE VAT(d);
-            valueVAT(dc) <- OVERRIDE valueVAT(d);
-            price (dc) <- price(d);
-            invoicePrice (dc) <- invoicePrice(d);
-        }
-        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
-            afterCreateCreditNoteReceiving(i);
-        }
-        executeLocalEvents('Purchase.userCreditNote');
-        APPLY;
-    }
-} TOOLBAR;
 
 writeOffCreditNote 'Списать с добавлением (в) акт расхождения' (CustomUser u) {
     NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
@@ -146,44 +88,41 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
 } TOOLBAR;
 
 
-quantityCreditNote 'Кол-во в актах расхождений' =
-    GROUP SUM quantity(CreditNoteDetail d) BY sku(d), receiving(invoice(invoiceDetail(d)));
+createCreditNoteDiffInvoice(Invoice i) + {
+    IF NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i)) THEN NEW c = UserCreditNote {
+        id(c) <- CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i);
+        operation(c) <- operation(i);
+        executeLocalEvents('Purchase.userCreditNote');
+        supplier(c) <- supplier(i);
+        supplierStock(c) <- supplierStock(i);
+        customer(c) <- customer(i);
+        customerStock(c) <- customerStock(i);
+        date(c) <- currentDate();
+        time(c) <- currentTime();
+        isPosted(c) <- TRUE;
+    }
 
-hasReceiving = GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d);
-
-descriptionCreditNotes 'Акты расхождения' =
-    GROUP CONCAT seriesNumber(CreditNote creditNote) IF hasReceiving(Receiving receiving, creditNote), '; ' ORDER dateTime(creditNote), creditNote BY receiving;
+    FOR Receiving r =  receiving(i) AND diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) AND expectedQuantity(s, str, r)
+        AND InvoiceDetail d = [GROUP MAX InvoiceDetail d1 BY sku(d1), overConsolidationKey(d1), receiving(invoice(d1)), invoice(d1)](s, str, r, i)
+        AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), idSupplierStock(invoice(d)), idCustomerStock(invoice(d)))
+        AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
+        DO NEW dc = UserCreditNoteDetail {
+        userCreditNote(dc) <- c;
+        invoiceDetail(dc) <- d;
+        batch(dc) <- overBatch(d);
+        sku(dc) <- s;
+        quantity (dc) <- diffInvoiceCreditNoteCompleted(s, str, r);
+        VAT (dc) <- OVERRIDE VAT(d);
+        valueVAT(dc) <- OVERRIDE valueVAT(d);
+        price (dc) <- price(d);
+        invoicePrice (dc) <- invoicePrice(d);
+    }
+    executeLocalEvents('Purchase.userCreditNote');
+}
 
 EXTEND FORM receiving
-    PROPERTIES READONLY descriptionCreditNotes(r) AFTER descriptionInvoices(r)
-    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
     PROPERTIES writeOffCreditNote(u) DRAW reserveB SHOWIF in(u, putawayWriteOffOperation())
-    PROPERTIES READONLY quantityCreditNote(sr1, str1, r)
-    PROPERTIES READONLY quantityCreditNote(sr, r)
-
-    OBJECTS c = CreditNote LAST
-    PROPERTIES(c) READONLY BACKGROUND background(c) isClosed, isPosted, number, series, date, time, nameSupplier,
-        nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency, seriesNumberContractSku, isCommission
-    PROPERTIES(c) READONLY BACKGROUND background(c) countCreditNoteDetail, quantityCreditNoteDetail, sumCreditNoteDetail,
-        VATSumCreditNoteDetail, invoiceSumCreditNoteDetail
-    PROPERTIES(c) READONLY note
-    PROPERTIES(c) EDIT
-
-    PROPERTIES print(c)
 ;
-
-DESIGN receiving {
-    tabContainer {
-        NEW creditNote {
-            caption = 'Акты расхождений';
-            MOVE BOX(c);
-            NEW printContainer {
-                caption = 'Печать';
-                MOVE PROPERTY(print(c));
-            }
-        }
-    }
-}
 
 hasInvoice = GROUP SUM 1 BY invoice(invoiceDetail(CreditNoteDetail d)), creditNote(d);
 
