@@ -123,10 +123,12 @@ nearestParentCountLabel (LabelType labelType, Group group) = group(group, levelP
 nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
     dataCount(labelType, nearestParentCountLabel (labelType, group)) MATERIALIZED;
 
-count 'Множитель' (LabelType labelType, Group group) = OVERRIDE
+overCount 'Множитель' (LabelType labelType, Group group) = OVERRIDE
     dataCount(labelType, group),
-    nearestCountLabel(labelType, group),
-    1 IF group IS Group IF labelType IS LabelType MATERIALIZED;
+    nearestCountLabel(labelType, group) MATERIALIZED;
+count 'Множитель' (LabelType labelType, Group group) = OVERRIDE
+    overCount(labelType, group),
+    1 IF group IS Group AND labelType IS LabelType;
 
 count 'Множитель' (LabelType labelType, Sku sku) =
     OVERRIDE dataCount(labelType, sku), count(labelType, group(groupType(labelType), sku));
