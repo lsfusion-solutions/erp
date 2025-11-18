@@ -13,6 +13,15 @@ DESIGN integrationData {
     }
 }
 
+beforeSendPurchaseOrder(EOrder o, STRING[100] provider) + {
+    IF provider == 'TopBy' THEN {
+        lCodeUOM(EOrderDetail d) <- CASE 
+            WHEN upper(extraCodeUOM(UOM(sku(d)))) == 'BO' THEN '868'
+            WHEN upper(extraCodeUOM(UOM(sku(d)))) == 'H87' THEN 'PCE'
+            WHERE order(d) ==o;
+    }
+}
+
 sendPurchaseOrderTopBy (EOrder o) {
     checkIsServer();
     IF isServer() THEN {
