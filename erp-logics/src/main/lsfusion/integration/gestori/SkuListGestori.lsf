@@ -1,0 +1,143 @@
+MODULE SkuListGestori;
+
+REQUIRE SkuList;
+
+NAMESPACE Sku;
+
+doOutLog 'Вывод в лог' (STRING argLog, STRING argData) {
+    IF argLog AND argData THEN {
+        appendToFile('logs/' + argLog, argData + '\n');
+    }
+}
+strOutLogDate = toChar(currentDateTimeMillis(), 'YYYYMMDDHH24MISSMS');
+
+valSku (STRING s) = GROUP MAX Sku sk BY id(sk);
+
+doImportSkuList '' (List argList, FILE argFile, BOOLEAN argHeader) {
+    LOCAL idSku = STRING[15](INTEGER);
+    LOCAL NESTED tmpRecCount = INTEGER();
+    LOCAL NESTED tmpErrCount = INTEGER();
+    LOCAL NESTED tmpErrFlg = BOOLEAN(INTEGER);
+    LOCAL NESTED tmpErrMsg = STRING(INTEGER);
+    LOCAL NESTED tmpLog = STRING();
+
+    IF argFile THEN {
+        idSku(INTEGER i) <- NULL;
+        tmpErrFlg(INTEGER i) <- NULL;
+        tmpErrMsg(INTEGER i) <- NULL;
+        tmpErrCount() <- 0;
+        tmpRecCount() <- 0;
+        tmpLog() <- CONCAT '', 'ImportList', strOutLogDate(), '.log';
+
+        TRY {
+            IF argHeader
+            THEN {
+                IMPORT XLS HEADER FROM argFile TO
+                        idSku = 'Код SKU';
+            }
+            ELSE {
+                IMPORT XLS NOHEADER FROM argFile TO
+                        idSku = A;
+            }
+        } CATCH {
+            MESSAGE 'Ошибка обработки файла:\n' + messageCaughtException() ERROR;
+            RETURN;
+        }
+
+        FOR imported(INTEGER idx) ORDER idx DO {
+            // Проверка на корректность ссылок на справочники 
+            IF NOT valSku(idSku(idx))
+            THEN {
+                // Чтобы пропустить ошибочную запись при импорте и вывести в лог ссылку на строку в файле импорта
+                tmpErrCount() <- tmpErrCount() + 1;
+                tmpErrFlg(idx) <- TRUE;
+                tmpErrMsg(idx) <- CONCAT ' ',
+                    'Строка: ' + STRING(idx + 1),
+                    'Код SKU не найден: ' + idSku(idx) IF NOT valSku(idSku(idx));
+                ;
+            }
+        }
+        ASK 'При обработке файла обнаружены ошибки: ' + STRING(tmpErrCount()) +
+            '\nВыполнить импорт?' IF tmpErrCount() > 0
+        DO {
+            TRY {
+                // По всем импортируемым записям кроме записей с ошибками
+                FOR imported(INTEGER i) AND NOT tmpErrFlg(i) ORDER i DO {
+                    // Создать или обновить записи и вывеси в лог ошибки импорта
+                    NEW ld = ListDetail {
+                        sku(ld) <- valSku(idSku(i));
+                        list(ld) <- argList;
+                    }
+                    tmpRecCount() <- tmpRecCount() + 1;
+                }
+                APPLY;
+            } CATCH {
+                doOutLog(tmpLog(), 'Ошибка в процессе импорта файла:' + messageCaughtException());
+                MESSAGE 'Ошибка в процессе импорта файла:\n' + messageCaughtException() ERROR;
+                RETURN;
+            }
+        }
+
+        // Объединение в один блок для корректной работы сообщений с NOWAIT
+        IF TRUE THEN {
+            MESSAGE (IF tmpRecCount() > 0
+                THEN 'Импорт выполнен ' ELSE 'Импорт не выполнен ') +
+                (IF tmpErrCount() > 0
+                    THEN 'с ошибками.\nЛог ошибок импорта: ' + tmpLog() + '\n'
+                    ELSE 'без ошибок.') NOWAIT;
+
+            // Вывод ошибок импорта в лог и на экран (если их немного)
+            FOR tmpErrFlg(INTEGER i) ORDER i DO {
+                doOutLog(tmpLog(), tmpErrMsg(i));
+                IF tmpErrCount() <= 20 THEN MESSAGE tmpErrMsg(i) NOWAIT;
+            }
+        }
+    }
+    ELSE {
+        MESSAGE 'Файл не содержит данных' ERROR;
+        RETURN;
+    }
+}
+
+FORM importParameters 'Параметры импорта'
+    PROPERTIES descHeader '' = TEXT('Описание формата файла импорта XLSX:\nКод SKU')
+
+    OBJECTS parHeader = BOOLEAN PANEL NULL
+    PROPERTIES parHeader 'Первая строка содержит заголовки' = VALUE(parHeader)
+;
+
+DESIGN importParameters {
+    OBJECTS {
+        NEW dataContainer {
+            MOVE PROPERTY (descHeader) { charWidth = 50; charHeight = 2;}
+            MOVE PROPERTY (parHeader);
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+doImportSkuList 'Импорт списка SKU' (List argList) {
+    IF NOT argList THEN {
+        MESSAGE 'Заголовок списка SKU не найден';
+        RETURN;
+    }
+    DIALOG importParameters OBJECTS parHeader INPUT DO {
+        INPUT parFile = FILE DO {
+            IF upper(extension(parFile)) = 'XLSX'
+            THEN doImportSkuList(argList, parFile, parHeader);
+            ELSE MESSAGE 'Выполняется только импорт файлов формата XLSX' ERROR;
+        }
+    }
+}
+
+EXTEND FORM lists
+    PROPERTIES doImportSkuList(o)
+;
+
+DESIGN lists {
+    BOX(o) {
+        TOOLBARLEFT {
+            MOVE PROPERTY (doImportSkuList(o)) LAST;
+        }
+    }
+}
