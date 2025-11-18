@@ -8,3 +8,13 @@ NAMESPACE Invoice;
 
 consolidationKey 'Ключ группировки' = ABSTRACT STRING (CreditNoteDetail) CHARWIDTH 7;
 overConsolidationKey(CreditNoteDetail d) = OVERRIDE consolidationKey(d), ('Не указан' IF d IS CreditNoteDetail);
+
+overCurrencyReceivingKey 'Валюта' (Invoice invoice) = STRING(OVERRIDE shortNameCurrency(invoice), 'Не задана'  IF invoice IS Invoice);
+countInvoiceCurrencyReceivingKey (Receiving r) = GROUP SUM 1 IF Invoice i = [GROUP MAX Invoice i1 BY overCurrencyReceivingKey(i1), userReceiving(i1)](STRING str, r);
+CONSTRAINT (SETCHANGED(userReceiving(Invoice i)) OR CHANGED(currency(i))) AND countInvoiceCurrencyReceivingKey(receiving(i)) > 1
+    MESSAGE 'Нельзя создать приемку для накладных с разными валютами';
+
+overContractSkuReceivingKey 'Договор' (Invoice invoice) = STRING(OVERRIDE description(contractSku(invoice)), 'Не задан' IF invoice IS Invoice);
+countInvoiceContractSkuReceivingKey (Receiving r) = GROUP SUM 1 IF Invoice i = [GROUP MAX Invoice i1 BY overContractSkuReceivingKey(i1), userReceiving(i1)](STRING str, r);
+CONSTRAINT (SETCHANGED(userReceiving(Invoice i)) OR CHANGED(contractSku(i))) AND countInvoiceContractSkuReceivingKey(receiving(i)) > 1
+    MESSAGE 'Нельзя создать приемку для накладных с разными договорами';
