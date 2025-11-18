@@ -465,13 +465,15 @@ public class DefaultTerminalHandler {
     }
     
     public String checkUnitLoad(DataSession session, ExecutionStack stack, String data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String result = null;
         if(terminalHandlerLM != null) {
             FileData file = null;
             if (!BaseUtils.isEmpty(data))
                 file = new FileData(new RawFileData(data.getBytes()), "json");
             terminalHandlerLM.findAction("checkUnitLoad[FILE]").execute(session, stack, new DataObject(file, DynamicFormatFileClass.get()));
+            result = (String) terminalHandlerLM.findProperty("checkUnitLoadResult[]").read(session);
         }
-        return null;
+        return result;
     }
     
     public RawFileData teamWorkDocument(DataSession session, ExecutionStack stack, int idCommand, String json, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

@@ -861,7 +861,11 @@ public class TerminalServer extends MonitorServer {
                                     errorCode = AUTHORISATION_REQUIRED;
                                     errorText = AUTHORISATION_REQUIRED_TEXT;
                                 } else {
-                                    checkUnitLoad(data);
+                                    result = checkUnitLoad(data);
+                                    if (result != null) {
+                                        errorCode = UNKNOWN_ERROR;
+                                        errorText = result;
+                                    }
                                 }
                             } else {
                                 errorCode = WRONG_PARAMETER_COUNT;
