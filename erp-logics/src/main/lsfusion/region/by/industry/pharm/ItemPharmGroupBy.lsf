@@ -425,8 +425,20 @@ END
 dataWholesaleMarkupPrecision = DATA INTEGER ();
 wholesaleMarkupPrecision 'Точность окру uления оптовых надбавок' = OVERRIDE dataWholesaleMarkupPrecision(), 2 MATERIALIZED;
 
+changeWholesaleMarkupPrecision() {
+    NEWSESSION {
+        INPUT n = INTEGER DO {
+            applyOnlyData(); //исключаем пересчёт старых данных
+            setNoEventsInTransaction(); 
+            dataWholesaleMarkupPrecision() <- n;
+            APPLY;
+            recalculateMaterializations(tableColumnLong('_auto.Item_wholesaleMarkupPrecision'));
+        }
+    }
+}
+
 EXTEND FORM options
-    PROPERTIES wholesaleMarkupPrecision()
+    PROPERTIES wholesaleMarkupPrecision() ON CHANGE changeWholesaleMarkupPrecision()
 ;
 
 DESIGN options {
