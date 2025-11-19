@@ -193,6 +193,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
             String number = (String) resultValues.get("number");
             BigDecimal price = (BigDecimal) resultValues.get("price");
             String idSkuOrBarcode =  (String) resultValues.get(useIdSku ? "idSku" : "idBarcode");
+            String idBarcode =  (String) resultValues.get("idBarcode");
             String nameSku = (String) resultValues.get("nameSku");
             String departmentStore = (String) resultValues.get("idDepartmentStore");
             Integer expiryDays = (Integer) resultValues.get("expiryDays");
@@ -216,7 +217,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 else if (expiryDays != null)
                     dateTo = dateTo.plusDays(expiryDays);
             }
-            Integer id = getId(idSkuOrBarcode);
+            Integer id = getId(idBarcode);
             if (id != null) {
                 giftCards.add(new GiftCard(id, number, price, idSkuOrBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
@@ -261,9 +262,9 @@ public class ExportGiftCardsAction extends DefaultExportAction {
         }
     }
 
-    private Integer getId(String idSkuOrBarcode) {
+    private Integer getId(String idBarcode) {
         try {
-            return Integer.parseInt("11" + idSkuOrBarcode);
+            return Integer.parseInt("11" + idBarcode);
         } catch (Exception e) {
             return null;
         }
