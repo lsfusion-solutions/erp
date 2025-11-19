@@ -7,7 +7,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -25,8 +24,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-
-import static org.apache.commons.lang.StringUtils.trim;
 
 public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
     private final ClassPropertyInterface itemInterface;
@@ -116,6 +113,6 @@ public class SynchronizeItemLoyaAction extends SynchronizeLoyaAction {
     }
 
     private void showError(ExecutionContext context, String error) {
-        context.delayUserInteraction(new MessageClientAction(error, failCaption));
+        messageClientAction(context, error, failCaption);
     }
 }

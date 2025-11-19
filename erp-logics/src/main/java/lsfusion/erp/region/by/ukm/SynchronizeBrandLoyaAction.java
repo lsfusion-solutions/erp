@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.ukm;
 
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
@@ -38,10 +37,10 @@ public class SynchronizeBrandLoyaAction extends SynchronizeLoyaAction {
                         uploadBrand(context, brand, true);
                     }
                 }
-            } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+            } else messageClientAction(context, settings.error, failCaption);
         } catch (Exception e) {
             ERPLoggers.importLogger.error(failCaption, e);
-            context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            messageClientAction(context, e.getMessage(), failCaption);
         }
     }
 }

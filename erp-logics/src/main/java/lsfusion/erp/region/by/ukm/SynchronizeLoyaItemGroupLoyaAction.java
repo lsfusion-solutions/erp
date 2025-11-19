@@ -5,7 +5,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -57,7 +56,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
 
                 SynchronizeData data = readItems(context, deleteInactiveItemGroups, useBarcodeAsId, itemGroupLoyaObject);
                 if (uploadItemGroup(context, data.goodGroup, data.deleteItemGroup, itemGroupLoyaObject) && uploadItemItemGroups(context, data.goodGroup.id, data.itemsList))
-                    context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
+                    messageClientAction(context, "Синхронизация успешно завершена", "Loya");
 
             } else
                 showError(context, settings.error, failCaption, settings.error);
@@ -332,7 +331,7 @@ public class SynchronizeLoyaItemGroupLoyaAction extends LoyaAction {
         } else {
             ERPLoggers.importLogger.error(log);
         }
-        context.delayUserInteraction(new MessageClientAction(message, caption));
+        messageClientAction(context, message, caption);
     }
 
     private class SynchronizeData {

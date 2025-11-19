@@ -10,7 +10,6 @@ import lsfusion.base.file.FileData;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportXMLAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -108,7 +107,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 }
             }
         } else {
-            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
+            messageClientAction(context, "Не выбрано ни одного ЭСЧФ", "Ошибка");
         }
         return files;
     }
@@ -209,7 +208,7 @@ public class GenerateXMLEVATAction extends DefaultExportXMLAction {
                 return Arrays.asList(fileData, documentNumber);
 
             } else {
-                context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
+                messageClientAction(context, error, "Не все поля заполнены");
                 return null;
             }
 

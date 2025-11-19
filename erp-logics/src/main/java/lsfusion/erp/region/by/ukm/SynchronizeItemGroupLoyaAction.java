@@ -2,7 +2,6 @@ package lsfusion.erp.region.by.ukm;
 
 import com.google.common.base.Throwables;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -57,7 +56,7 @@ public class SynchronizeItemGroupLoyaAction extends SynchronizeLoyaAction {
                 findProperty("synchronizeItemResult[]").change(result, context);
             } else {
                 findProperty("synchronizeItemResult[]").change(settings.error, context);
-                context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+                messageClientAction(context, settings.error, failCaption);
             }
         } catch (Exception e) {
             ERPLoggers.importLogger.error(failCaption, e);
@@ -65,7 +64,7 @@ public class SynchronizeItemGroupLoyaAction extends SynchronizeLoyaAction {
                 findProperty("synchronizeItemResult[]").change(String.valueOf(e), context);
             } catch (ScriptingErrorLog.SemanticErrorException e1) {
                 throw Throwables.propagate(e);
-            } context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            } messageClientAction(context, e.getMessage(), failCaption);
         }
     }
 }

@@ -3,7 +3,6 @@ package lsfusion.erp.utils;
 import com.google.common.base.Throwables;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.integration.DefaultExportAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.form.struct.FormEntity;
@@ -102,7 +101,7 @@ public abstract class ExportCSVAction extends DefaultExportAction {
                     }
                 } else {
                     if (filePath.startsWith("ftp://"))
-                        context.delayUserInteraction(new MessageClientAction("Неверный формат ftp connection string. Правильный формат: ftp://username:password@host:port/path_to_file", "Ошибка"));
+                        messageClientAction(context, "Неверный формат ftp connection string. Правильный формат: ftp://username:password@host:port/path_to_file", "Ошибка");
                     else
                         exportFile(formEntity, formInstance, filePath, separator, charset, printHeader);
                 }

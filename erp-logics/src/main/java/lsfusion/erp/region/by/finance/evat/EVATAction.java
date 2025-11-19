@@ -2,7 +2,6 @@ package lsfusion.erp.region.by.finance.evat;
 
 import lsfusion.base.ExceptionUtils;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -65,10 +64,10 @@ public class EVATAction extends GenerateXMLEVATAction {
                                 break;
                         }
                     } else {
-                        context.delayUserInteraction(new MessageClientAction("Не указан пароль", "Ошибка"));
+                        messageClientAction(context, "Не указан пароль", "Ошибка");
                     }
                 } else {
-                    context.delayUserInteraction(new MessageClientAction("Не указан путь к jar и xsd", "Ошибка"));
+                    messageClientAction(context, "Не указан путь к jar и xsd", "Ошибка");
                 }
             }
         } catch (Exception e) {
@@ -107,9 +106,9 @@ public class EVATAction extends GenerateXMLEVATAction {
                 error = (String) evatResult;
             }
             if (error.isEmpty())
-                context.delayUserInteraction(new MessageClientAction("Выгрузка завершена успешно", "EVAT"));
+                messageClientAction(context, "Выгрузка завершена успешно", "EVAT");
             else
-                context.delayUserInteraction(new MessageClientAction(error, "Ошибка"));
+                messageClientAction(context, error, "Ошибка");
         }
     }
 
@@ -140,12 +139,12 @@ public class EVATAction extends GenerateXMLEVATAction {
                         ERPLoggers.importLogger.info(String.format("EVAT %s: settings status finished", number));
                     }
                 }
-                context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
+                messageClientAction(context, resultMessage, "EVAT");
             } else {
-                context.delayUserInteraction(new MessageClientAction((String) evatResult, "Ошибка"));
+                messageClientAction(context, (String) evatResult, "Ошибка");
             }
         } else {
-            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
+            messageClientAction(context, "Не выбрано ни одного ЭСЧФ", "Ошибка");
         }
     }
 

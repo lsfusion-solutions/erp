@@ -4,13 +4,13 @@ import lsfusion.base.Pair;
 import lsfusion.base.Result;
 import lsfusion.base.file.IOUtils;
 import lsfusion.erp.ERPLoggers;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
@@ -33,7 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-public class LoyaAction extends InternalAction {
+public class LoyaAction extends DefaultIntegrationAction {
 
     protected SettingsLoya settings = null;
 

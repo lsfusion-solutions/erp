@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -60,10 +59,10 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
                     finishExport(context, giftCards);
 
-                    context.delayUserInteraction(new MessageClientAction("Экспорт успешно завершён", "Экспорт"));
+                    messageClientAction(context, "Экспорт успешно завершён", "Экспорт");
 
                 } else {
-                    context.delayUserInteraction(new MessageClientAction("Не задана строка подключения", "Ошибка"));
+                    messageClientAction(context, "Не задана строка подключения", "Ошибка");
                 }
             }
             context.apply();
@@ -222,7 +221,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 giftCards.add(new GiftCard(id, number, price, idSkuOrBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
-                context.delayUserInteraction(new MessageClientAction(String.format("Невозможно сконвертировать штрихкод %s в integer id", idSkuOrBarcode), "Ошибка"));
+                messageClientAction(context, String.format("Невозможно сконвертировать штрихкод %s в integer id", idSkuOrBarcode), "Ошибка");
                 return null;
             }
         }

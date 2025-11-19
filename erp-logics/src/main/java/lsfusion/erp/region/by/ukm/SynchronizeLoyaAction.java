@@ -72,14 +72,14 @@ public class SynchronizeLoyaAction extends LoyaAction {
                             (disableSynchronizeItems || uploadItems(context, data.itemsList, discountLimits, data.minPriceLimitsMap)) &&
                             uploadItemGroups(context, data.itemItemGroupsMap, data.itemGroupsMap, data.deleteItemGroupsList) &&
                             uploadItemItemGroups(context, data.itemItemGroupsMap))
-                        context.delayUserInteraction(new MessageClientAction("Синхронизация успешно завершена", "Loya"));
+                        messageClientAction(context, "Синхронизация успешно завершена", "Loya");
 
                 }
             } else
-                context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+                messageClientAction(context, settings.error, failCaption);
         } catch (Exception e) {
             ERPLoggers.importLogger.error(failCaption, e);
-            context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            messageClientAction(context, e.getMessage(), failCaption);
         }
     }
 
@@ -371,7 +371,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             }
         } else {
             result = response.message;
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Modify ItemGroup Error"));
+            messageClientAction(context, result, "Loya: Modify ItemGroup Error");
         }
         return result;
     }
@@ -387,7 +387,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
         if (response.succeeded)
             setIdLoyaItemGroup(context, itemGroupObject, new JSONObject(response.message).getLong("id"));
         else
-            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Create ItemGroup Error"));
+            messageClientAction(context, response.message, "Loya: Create ItemGroup Error");
         return response.succeeded ? new JSONObject(response.message).getLong("id") : response.message;
     }
 
@@ -416,7 +416,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             }
         } else {
             result = response.message;
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Delete ItemGroup Error"));
+            messageClientAction(context, result, "Loya: Delete ItemGroup Error");
         }
         return result;
     }
@@ -449,7 +449,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             result = createBrand(context, brand.brandObject, settings.url, requestBody);
         }
         if(result != null && messageErrors) {
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Synchronize Brand Error"));
+            messageClientAction(context, result, "Loya: Synchronize Brand Error");
         }
         return result;
     }
@@ -528,7 +528,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             result = createCategory(context, settings.url, requestBody);
         }
         if(result != null && messageErrors) {
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Synchronize Category Error"));
+            messageClientAction(context, result, "Loya: Synchronize Category Error");
         }
         return result;
     }

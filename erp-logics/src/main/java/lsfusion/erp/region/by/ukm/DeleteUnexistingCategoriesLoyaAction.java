@@ -5,7 +5,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.ERPLoggers;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -39,12 +38,12 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
 
                 Set<Long> existingCategories = readExistingCategories(context);
                 if ((deleteUnexistingCategories(context, existingCategories)))
-                    context.delayUserInteraction(new MessageClientAction("Удаление несуществующих категорий завершено", "Loya"));
+                    messageClientAction(context, "Удаление несуществующих категорий завершено", "Loya");
 
-            } else context.delayUserInteraction(new MessageClientAction(settings.error, failCaption));
+            } else messageClientAction(context, settings.error, failCaption);
         } catch (Exception e) {
             ERPLoggers.importLogger.error(failCaption, e);
-            context.delayUserInteraction(new MessageClientAction(e.getMessage(), failCaption));
+            messageClientAction(context, e.getMessage(), failCaption);
         }
     }
 
@@ -97,7 +96,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
                 }
             }
         } else {
-            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Get Categories Error"));
+            messageClientAction(context, response.message, "Loya: Get Categories Error");
         }
         return categories;
     }
@@ -113,7 +112,7 @@ public class DeleteUnexistingCategoriesLoyaAction extends LoyaAction {
         request.setEntity(new StringEntity(requestBody));
         LoyaResponse response = executeRequestWithRelogin(context, request);
         if (!response.succeeded)
-            context.delayUserInteraction(new MessageClientAction(response.message, "Loya: Delete Category Error"));
+            messageClientAction(context, response.message, "Loya: Delete Category Error");
         return response.succeeded;
     }
 }
