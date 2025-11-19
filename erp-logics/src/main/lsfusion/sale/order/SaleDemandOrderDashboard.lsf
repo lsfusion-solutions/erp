@@ -7,9 +7,10 @@ NAMESPACE Sale;
 notProportionIntraDemand 'Не использовать пропорциональное распределение при дефицитах' = DATA BOOLEAN () PREREAD;
 useReservePurchase 'Учитывать резерв (закупка) по текущий день' = DATA BOOLEAN () PREREAD;
 skipAmountPack 'Не округлять до упаковок' = DATA BOOLEAN () PREREAD;
+showWarehouseFilterDemand 'Отображать оптовые склады среди получателей'= DATA BOOLEAN () PREREAD;
 
 EXTEND FORM options 
-    PROPERTIES() notProportionIntraDemand, useReservePurchase, skipAmountPack
+    PROPERTIES() notProportionIntraDemand, useReservePurchase, skipAmountPack, showWarehouseFilterDemand
 ;
 
 DESIGN options { 
@@ -17,6 +18,7 @@ DESIGN options {
         MOVE PROPERTY(notProportionIntraDemand());
         MOVE PROPERTY(useReservePurchase());
         MOVE PROPERTY(skipAmountPack());
+        MOVE PROPERTY(showWarehouseFilterDemand());
     } 
 }
 
@@ -60,9 +62,8 @@ DESIGN warehouse {
         MOVE PROPERTY (isDistributive(w));
     }
 }
-useCustomDemand = ABSTRACT BOOLEAN ();
-overCustomFilterDemand = ABSTRACT BOOLEAN (Stock);
-filterDemand(Stock ds) = IF useCustomDemand() THEN overCustomFilterDemand(ds) ELSE (active(ds) AND ds IS DepartmentStore);
+
+filterDemand(Stock ds) = active(ds) AND isCompany(ds) AND (ds IS DepartmentStore OR (ds IS Warehouse AND showWarehouseFilterDemand()));
 
 inDemand 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
 countInDemandStock = GROUP SUM 1 IF inDemand(Stock ds);
@@ -390,7 +391,7 @@ DESIGN saleDemandIntraDashboard {
                 NEW right {
                     fill = 2.5;
                     MOVE BOX(ds) {
-                        caption = 'Отделы магазинов';
+                        caption = 'Склады-получатели';
                     }
                 }
             }
