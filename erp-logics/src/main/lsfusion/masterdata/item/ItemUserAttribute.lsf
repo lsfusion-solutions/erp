@@ -337,6 +337,43 @@ set (Item o, UserAttributeList a, STRING v) + {
     value(o, a) <- detailUserAttribute(v, a);
 }
 
+// Доступность элемента списка для товарных групп
+dataIn 'Вкл' = DATA BOOLEAN (UserAttributeListDetail, ItemGroup);
+
+quantityChild (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
+    dataIn(detail, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParent (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
+    dataIn(detail, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+
+backgroundWith (UserAttributeListDetail detail, ItemGroup itemGroup) =
+    IF dataIn(detail, itemGroup) THEN
+        RGB(0,0,0) //IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChild (detail, itemGroup) != descendantNumber(itemGroup)
+            AND NOT quantityParent (detail, itemGroup);
+
+in 'Вкл' (UserAttributeListDetail detail, ItemGroup itemGroup) =
+    OVERRIDE dataIn(detail, itemGroup), TRUE IF quantityParent(detail, itemGroup) MATERIALIZED;
+
+in 'Вкл.' (UserAttributeListDetail detail, Item item) = TRUE IF quantityParent(detail, itemGroup(item));
+
+countDataItemGroup 'Кол-во групп' (UserAttributeListDetail detail) = GROUP SUM 1 IF dataIn(detail, ItemGroup itemGroup) MATERIALIZED;
+
+WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (SETCHANGED(value(Item item, UserAttributeList a)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item) 
+    AND countDataItemGroup(value(item, a)) AND NOT in(value(item, a), item) DO {
+    dataIn(UserAttributeListDetail t, ItemGroup g) <- TRUE WHERE t == value(item, a) AND g == itemGroup(item);
+}
+
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        dataIn(UserAttributeListDetail t, parent)<- TRUE WHERE in(t, gg) AND NOT in(t,parent);
+    }
+}
+
+CONSTRAINT (SETCHANGED(value(Item item, UserAttributeList a)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item) AND countDataItemGroup(value(item, a)) AND NOT in(value(item, a), item)
+    CHECKED BY value[Item, UserAttributeList]
+    MESSAGE 'Элемент списка (польз.) должен быть доступен для товарной группы (товар)';
+
 FORM userAttributeList 'Атрибут (список)'
     OBJECTS attr = UserAttributeList PANEL
     PROPERTIES (attr) id, name, inactive
@@ -345,11 +382,32 @@ FORM userAttributeList 'Атрибут (список)'
     PROPERTIES (d) label, NEW, DELETE 
     FILTERS userAttributeList(d) == attr
 
+    TREE groupTree g = ItemGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    PROPERTIES in(d,g) BACKGROUND backgroundWith(d,g)
+    ORDERS order(g), name(g)
+    FILTERS active(g)
+
     EDIT UserAttributeList OBJECT attr
 ;
 
 DESIGN userAttributeList {
     caption = CONCAT ' - ', 'Атрибут (список)', name(attr);
+    BOX {
+        MOVE BOX(attr);
+        NEW mainBox {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(d) {
+                fill = 2;
+            }
+            MOVE BOX(TREE groupTree) {
+                fill = 1;
+                caption = 'Доступность элемента для товарных групп';
+            }
+        }
+        MOVE TOOLBARBOX;    
+    }
 }
 
 CONSTRAINT SETCHANGED(dataRequired(ItemAttribute a, ItemGroup g)) AND a IS UserAttribute AND NOT showEdit(g, a)
