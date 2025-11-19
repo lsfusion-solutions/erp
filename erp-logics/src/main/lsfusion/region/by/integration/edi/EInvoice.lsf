@@ -1,6 +1,6 @@
 MODULE EInvoice;
 
-REQUIRE EDI, LegalEntityBy;
+REQUIRE EDI, LegalEntity;
 
 NAMESPACE EDI;
 
@@ -61,7 +61,7 @@ dataAddressSupplier = DATA STRING[150] (EInvoice);
 addressSupplier 'Адрес поставщика' (EInvoice i) = OVERRIDE dataAddressSupplierFirst(i), address(supplier(i)), dataAddressSupplier(i);
 dataUnpSupplierFirst = DATA STRING[19] (EInvoice);
 dataUnpSupplier = DATA STRING[19] (EInvoice);
-unpSupplier 'УНП поставщика' (EInvoice i) = OVERRIDE dataUnpSupplierFirst(i), UNP(supplier(i)), dataUnpSupplier(i);
+unpSupplier 'УНП поставщика' (EInvoice i) = OVERRIDE dataUnpSupplierFirst(i), taxpayerId(supplier(i)), dataUnpSupplier(i);
 contactSupplier 'Отпуск разрешил (должность и ФИО)' = DATA STRING[150] (EInvoice);
 
 supplierStock 'Пункт погрузки' = DATA Stock (EInvoice) INDEXED;
@@ -84,7 +84,7 @@ freightPayer 'Заказчик автомобильной перевозки (п
 glnFreightPayer 'GLN заказчика автомобильной перевозки' (EInvoice i) = OVERRIDE GLNeInvoice(freightPayer(i)), extraGLN(freightPayer(i));
 nameFreightPayer 'Заказчик автомобильной перевозки' (EInvoice i) = fullName(freightPayer(i));
 addressFreightPayer 'Адрес заказчика автомобильной перевозки' (EInvoice i) = address(freightPayer(i));
-unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = UNP(freightPayer(i));
+unpFreightPayer 'УНП заказчика автомобильной перевозки' (EInvoice i) = taxpayerId(freightPayer(i));
 
 customer 'Покупатель' = DATA LegalEntity (EInvoice) INDEXED;
 dataNameCustomerFirst = DATA STRING[200] (EInvoice);
@@ -94,7 +94,7 @@ glnCustomer 'GLN покупателя' (EInvoice i) = OVERRIDE dataGLNCustomerFi
 dataAddressCustomerFirst = DATA STRING[150] (EInvoice);
 addressCustomer 'Адрес покупателя' (EInvoice i) = OVERRIDE dataAddressCustomerFirst(i), address(customer(i));
 dataUnpCustomerFirst = DATA STRING[19] (EInvoice);
-unpCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE dataUnpCustomerFirst(i), UNP(customer(i));
+unpCustomer 'УНП покупателя' (EInvoice i) = OVERRIDE dataUnpCustomerFirst(i), taxpayerId(customer(i));
 
 customerStock 'Склад покупателя' = DATA Stock (EInvoice) INDEXED;
 dataGLNCustomerStockFirst = DATA STRING[13] (EInvoice);
@@ -123,7 +123,7 @@ changeContactCustomerStock (EInvoice consignment) {
 transporter 'Автомобильный перевозчик' = DATA LegalEntity (EInvoice);
 glnTransporter 'GLN автомобильного перевозчика' (EInvoice i) = OVERRIDE GLNeInvoice(transporter(i)), extraGLN(transporter(i));
 nameTransporter 'Автомобильный перевозчик' (EInvoice i) = fullName(transporter(i));
-unpTransporter 'УНП автомобильного перевозчика' (EInvoice i) = UNP(transporter(i));
+unpTransporter 'УНП автомобильного перевозчика' (EInvoice i) = taxpayerId(transporter(i));
 
 transportContact 'Водитель' = DATA STRING[150] (EInvoice) INDEXED MATCH;
 deliveryContact 'Товар к перевозке принял (должность и ФИО)' = DATA STRING[150] (EInvoice) INDEXED MATCH;
@@ -680,7 +680,7 @@ EDIProviderInvoice 'EDI-провайдер для накладных' (LegalEnti
 nameEDIProviderInvoice 'EDI-провайдер для накладных' (LegalEntity legalEntity, LegalEntity company) = staticCaption(EDIProviderInvoice(legalEntity, company));
 
 EXTEND FORM legalEntity
-    PROPERTIES (eCom) READONLY UNP
+    PROPERTIES (eCom) READONLY taxpayerId
     PROPERTIES nameEDIProviderInvoice(l, eCom), GLNeInvoice(l) DRAW eCom;
 
 DESIGN legalEntity {
@@ -744,14 +744,14 @@ numberEInvoice 'Номер документа, к которому относи�
 dateEInvoice 'Дата документа, к которому относится акт' = DATA DATE (ECreditNote);
 
 supplier 'Поставщик' = DATA LegalEntity (ECreditNote);
-unpSupplier 'УНП поставщика' (ECreditNote c) = UNP(supplier(c));
+unpSupplier 'УНП поставщика' (ECreditNote c) = taxpayerId(supplier(c));
 nameSupplier 'Поставщик' (ECreditNote c) = name(supplier(c));
 addressSupplier 'Адрес поставщика' (ECreditNote c) = address(supplier(c));
 dataGLNSupplier = DATA STRING[13] (ECreditNote);
 glnSupplier 'GLN поставщика' (ECreditNote c) = OVERRIDE dataGLNSupplier(c), GLNeInvoice(supplier(c));
 
 customer 'Покупатель' = DATA LegalEntity (ECreditNote);
-unpCustomer 'УНП покупателя' (ECreditNote c) = UNP(customer(c));
+unpCustomer 'УНП покупателя' (ECreditNote c) = taxpayerId(customer(c));
 nameCustomer 'Покупатель' (ECreditNote c) = name(customer(c));
 addressCustomer 'Адрес покупателя' (ECreditNote c) = address(customer(c));
 glnCustomer 'GLN покупателя' (ECreditNote c) = GLN(customer(c));
