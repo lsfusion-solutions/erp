@@ -13,7 +13,7 @@ namePlannedStatus(Order order) +=
 
 plannedPickingQuantity 'Планируемое к комплектации кол-во' = DATA LOCAL NUMERIC[16,5] (Order, Batch, Bin);
 plannedPickingQuantityBatch 'Планируемое к комплектации кол-во' = GROUP SUM plannedPickingQuantity(Order order, Batch batch, Bin bin) BY order, idPickingGroup(sku(batch));
-orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER batch, bin BY order, idPickingGroup(sku(batch));
+orderPlannedPickingQuantity (Order order, Batch batch, Bin bin) = PARTITION SUM 1 IF plannedPickingQuantity(order, batch, bin) ORDER order(bin), bin, batch BY order, idPickingGroup(sku(batch));
 pickingOrderNumber(Order order, Batch batch, Bin bin, INTEGER pickingGroup) = ceil((orderPlannedPickingQuantity(order, batch, bin)-1)/maxLinesPick()) IF idPickingGroup(sku(batch))==pickingGroup;
 
 overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
