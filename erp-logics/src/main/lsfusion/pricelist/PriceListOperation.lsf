@@ -305,6 +305,23 @@ WHEN (GROUP SUM 1 IF contraintEqualItems(PriceListDetail d1, PriceListDetail d2)
     }
 }
 
+@defineOperationProperty(forbidNegativePrice, 'Запретить отрицательные цены', constraintContainer);
+
+CONSTRAINT (SET(isPosted(UserPriceListDetail d)) OR SETCHANGED(operation(d)) OR SETCHANGED(price(d, DataPriceListType pt))) AND isPosted(d) AND forbidNegativePrice(operation(d)) AND price(d, pt) < 0
+    MESSAGE 'В прайсе с такой операцией не может быть отрицательной цены';
+
+@defineOperationProperty(isPrice, 'Должна быть задана цена', constraintContainer);
+
+CONSTRAINT (SET(isPosted(UserPriceListDetail d)) OR SETCHANGED(operation(d)) OR DROPPED(price(d, DataPriceListType t))) 
+    AND NOT price(d, t) AND in(d, t) AND isPosted(d) AND isPrice(operation(d)) 
+    MESSAGE 'В прайсе с такой операцией должна быть задана цена';
+
+@defineOperationProperty(banNotToDate, 'Запрещено создавать прайс без указания параметра "Дата/время по"', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(isPosted(UserPriceList p)) OR SETCHANGED(operation(p)) OR CHANGED(toDateTime(p)))
+    AND isPosted(p) AND banNotToDate(operation(p)) AND NOT toDateTime(p)
+    MESSAGE 'Запрещено создавать прайс без указания параметра "Дата/время по"';
+
 @defineOperationProperty(showNameCompany, 'Организация', showContainer);
 @defineOperationProperty(showContract, 'Договор', showContainer);
 @defineOperationProperty(showLabelType, 'Тип ценника', paramsContainer);
