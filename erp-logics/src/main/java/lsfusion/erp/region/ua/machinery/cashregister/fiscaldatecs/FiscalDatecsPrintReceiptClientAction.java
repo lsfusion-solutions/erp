@@ -2,7 +2,6 @@ package lsfusion.erp.region.ua.machinery.cashregister.fiscaldatecs;
 
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.action.MessageClientAction;
 
 import java.util.List;
 
@@ -27,8 +26,8 @@ public class FiscalDatecsPrintReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
 
-        if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0)
-            new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
+        if (!receipt.receiptSaleList.isEmpty() && !receipt.receiptReturnList.isEmpty())
+            return "В одном чеке обнаружены продажи и возврат одновременно";
         else {
             try {
                 FiscalDatecs.init();
@@ -49,10 +48,10 @@ public class FiscalDatecsPrintReceiptClientAction implements ClientAction {
                     iCode++;
                 }
 
-                if (receipt.receiptSaleList.size() != 0)
+                if (!receipt.receiptSaleList.isEmpty())
                     if (!printReceipt(receipt.receiptSaleList, true))
                         return FiscalDatecs.getError();
-                if (receipt.receiptReturnList.size() != 0)
+                if (!receipt.receiptReturnList.isEmpty())
                     if (!printReceipt(receipt.receiptReturnList, false))
                         return FiscalDatecs.getError();
 
@@ -70,7 +69,7 @@ public class FiscalDatecsPrintReceiptClientAction implements ClientAction {
 
         if(FiscalDatecs.getFiscalClosureStatus()==1)
             if(FiscalDatecs.cancelReceipt()!=0)
-            return false;
+                return false;
         if(FiscalDatecs.openReceipt(operatorNumber, placeNumber, sale)!=0)
             return false;
 

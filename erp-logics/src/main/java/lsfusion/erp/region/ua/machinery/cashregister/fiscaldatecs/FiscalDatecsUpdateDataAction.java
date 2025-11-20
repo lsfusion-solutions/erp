@@ -4,8 +4,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.expr.key.KeyExpr;
@@ -14,7 +14,6 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -22,7 +21,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class FiscalDatecsUpdateDataAction extends InternalAction {
+public class FiscalDatecsUpdateDataAction extends DefaultIntegrationAction {
 
     public FiscalDatecsUpdateDataAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -84,7 +83,7 @@ public class FiscalDatecsUpdateDataAction extends InternalAction {
                 if (result == null)
                     context.apply();
                 else
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
