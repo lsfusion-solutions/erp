@@ -2,7 +2,7 @@ MODULE SaleReportsRu;
 
 REQUIRE SaleReports, SaleInvoice, SaleReturnInvoice, SaleOperation, PricingSum, SaleFullPrice, 
         SaleShipment, TaxItem, ZReport, Warehouse, PurchaseOrder, WriteOff, SaleLedgerWeek,
-        Inventory;
+        Inventory, LegalEntityList, SkuList, StockList;
 
 NAMESPACE SaleReports;
 
@@ -65,16 +65,32 @@ inSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
 inSaleReportSupplier 'Поставщики' () =
     GROUP CONCAT name(LegalEntity le) IF inSupplier(le) ,', ' ORDER le CHARWIDTH 30;
 
+legalEntityList = DATA LegalEntityList();
+nameLegalEntityList 'Список контрагентов' () = name(legalEntityList());
+
+changeLegalEntity 'Список контрагентов'() {
+    DIALOG legalEntityLists OBJECTS o INPUT DO {
+        legalEntityList() <- o;
+        inSupplier(LegalEntity s) <- in(s, o);
+    }
+}
+
+deleteIncludeLegalEntities 'Сбросить список'()  {
+    legalEntityList() <- NULL;
+    inSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameLegalEntityList;
+
 FORM dialogLegalEntitiesSupplier 'Выбор поставщика'
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
     PROPERTIES READONLY lgTreeName = name(lg)
 
     OBJECTS l = LegalEntity
-    PROPERTIES(l) inSupplier
+    PROPERTIES(l) inSupplier READONLYIF legalEntityList()
     PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, nameLegalEntityGroup
+    PROPERTIES changeLegalEntity() TOOLBAR
     ORDERS name(l)
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
-    FILTERGROUP include FILTER 'Отмеченные' in(l) 'F9'
+    FILTERGROUP inSupplier FILTER 'Отмеченные' in(l) 'F9'
     FILTERS isParent(legalEntityGroup(l), lg) OR
         l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
         l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
@@ -108,6 +124,101 @@ FORM selectOperations 'Выберите операции'
     PROPERTIES (o) inSaleOperation, name READONLY
     ORDERS name(o)
 ;
+
+stockList = DATA StockList();
+nameStockList 'Список подразделений' () = name(stockList());
+
+changeStockList 'Список подразделений'() {
+    DIALOG stockLists OBJECTS o INPUT DO {
+        stockList() <- o;
+        inSaleReportDialog(Stock s) <- in(o, s);
+    }
+}
+
+deleteIncludeStockLists 'Сбросить список'()  {
+    stockList() <- NULL;
+    inSaleReportDialog(Stock s) <- NULL;
+} ASON CONTEXTMENU nameStockList;
+
+FORM dialogStocksSaleReportRu 'Выбор складов'
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES (s) inSaleReportDialog READONLYIF stockList()
+    PROPERTIES changeStockList() TOOLBAR
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inSaleReportDialog(s) 'F9'
+
+    EVENTS
+        ON INIT {
+            inSaleReportDialog(Stock st) <- inSaleReport(st);
+        },
+        ON OK {
+            inSaleReport(Stock st) <- inSaleReportDialog(st);
+        }
+;
+
+DESIGN dialogStocksSaleReportRu {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE stockTree) {
+                caption = 'Склады';
+            }
+
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    charWidth = 35;
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeStocksSalesReportRu(GroupType gt, DATE df, DATE dt, DATE dfc, DATE dtc)  {
+    DIALOG dialogStocksSaleReportRu DO {
+        fillSaleReportFromTo(gt, df, dt);
+        fillSaleReportFromToCompare(gt, dfc, dtc);
+    }
+}
+
+skuList = DATA List();
+nameSkuList 'Список товаров' () = name(skuList());
+
+changeSkuList 'Список товаров'() {
+    DIALOG lists OBJECTS o INPUT DO {
+        skuList() <- o;
+        in(Sku s) <- NULL;
+        in(SkuGroup sg) <- NULL;
+        FOR list(ListDetail ld) = o DO
+        in(Sku s) <- TRUE WHERE s = sku(ld);
+    }
+}
+
+deleteIncludeSkuLists 'Сбросить список'()  {
+    skuList() <- NULL;
+} ASON CONTEXTMENU nameSkuList;
+
 
 quantitySold(Stock sk, DATE df, DATE dt) = GROUP SUM quantity[Sale.InvoiceDetail](SaleLedger d)
     IF stock(d) = sk  AND date(d) >= df AND date(d) <= dt AND inSessionSku(sku(d)) AND (inSaleOperation(operation(d)) OR NOT nameInOperations());
@@ -207,7 +318,7 @@ shortNameUOM(STRING[100] n, Stock sk, LegalEntity l, DATE df, DATE dt) = GROUP M
 FORM skuSaleReport 'Отчет по реализации'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
-        inSaleReportLegalEntities(), nameInOperations()
+        inSaleReportLegalEntities(), nameInOperations(), nameSkuList(), nameStockList(), nameLegalEntityList() 
     
     OBJECTS st = Stock
     PROPERTIES name(st)
@@ -246,7 +357,10 @@ printSkuSaleReportXLS 'Отчет по реализации (XLS)' (DATE df, DAT
 
 EXTEND FORM salesReport
     PROPERTIES inSaleReportLegalEntities() ON CHANGE {DIALOG dialogLegalEntitiesSaleReport; }
-    PROPERTIES inSaleReportSupplier() ON CHANGE {DIALOG dialogLegalEntitiesSupplier; }
+//    PROPERTIES inSaleReportStocks() ON CHANGE changeStocksSalesReport(gt, df, dt, dfc, dtc)
+    PROPERTIES DRAW sku changeSkuList() TOOLBAR, nameSkuList() PANEL READONLY
+    PROPERTIES nameStockList() READONLY SHOWIF stockList(), inSaleReportStocks 'Склады' = inSaleReportStocks() ON CHANGE changeStocksSalesReportRu(gt, df, dt, dfc, dtc) READONLYIF stockList()
+    PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList(), inSaleReportSupplier() ON CHANGE {DIALOG dialogLegalEntitiesSupplier;} READONLYIF legalEntityList()
     PROPERTIES nameInOperations() ON CHANGE {DIALOG selectOperations; }
     
     PROPERTIES(df,dt) printSkuSaleReport, printSkuSaleReportXLS
@@ -259,9 +373,17 @@ DESIGN salesReport {
             horizontal = TRUE;
             MOVE PROPERTY(inSaleReportLegalEntities());
         }
+        
+        stocks {
+            caption = 'Склады';
+            horizontal = FALSE;
+            REMOVE PROPERTY(inSaleReportStocks());
+            MOVE PROPERTY(nameStockList());
+            MOVE PROPERTY(inSaleReportStocks);
+        }
         NEW supplier {
             caption = 'Поставщики';
-            horizontal = TRUE;
+            MOVE PROPERTY(nameLegalEntityList());
             MOVE PROPERTY(inSaleReportSupplier());
         }
         NEW operation {
