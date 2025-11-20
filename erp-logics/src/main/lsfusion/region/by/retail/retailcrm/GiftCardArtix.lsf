@@ -90,26 +90,6 @@ exportArtix (GiftCard g, TEXT t) {
     }
 }
 
-exportArtixSelected 'Экспорт в Артикс' (){
-    inExportGiftCards(GiftCard g) <- NULL WHERE (dataExportedArtix(g) OR isArtixSold(g)) AND NOT needExportActiveArtix(g) AND NOT overNeedExportArtix(g);    
-    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
-    FOR inExportGiftCards(GiftCard g) DO {
-        exportArtix(g, encodedBase64());
-    }
-    inExportGiftCards(GiftCard g) <- NULL;
-}
-
-exportArtixAll 'Экспорт в Артикс' (){
-    inExportGiftCards(GiftCard g) <- NULL;
-    inExportGiftCards(GiftCard g) <- TRUE WHERE g IS GiftCard AND NOT dataExportedArtix(g) AND NOT isArtixSold(g) OR needExportActiveArtix(g) OR overNeedExportArtix(g);
-
-    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
-    FOR inExportGiftCards(GiftCard g) DO {
-        exportArtix(g, encodedBase64());
-    }
-    inExportGiftCards(GiftCard g) <- NULL;
-}
-
 sendArtixPayments 'Экспорт баланса сертификата' (GiftCard g, TEXT t) {
     NEWSESSION {
         LOCAL result = FILE();
@@ -127,6 +107,28 @@ sendArtixPayments 'Экспорт баланса сертификата' (GiftCa
             MESSAGE CONCAT '\n', 'Ошибка выгрузки баланса. Сертификат №' + seriesNumber(g) +  '. Ошибка: ' + (CONCAT '\n', messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException ())  NOWAIT;
         }    
     }
+}
+
+exportArtixSelected 'Экспорт в Артикс' (){
+    inExportGiftCards(GiftCard g) <- NULL WHERE (dataExportedArtix(g) OR isArtixSold(g)) AND NOT needExportActiveArtix(g) AND NOT overNeedExportArtix(g);
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+    FOR inExportGiftCards(GiftCard g) DO {
+        exportArtix(g, encodedBase64());
+        IF exportedArtixActive(g) THEN sendArtixPayments(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
+}
+
+exportArtixAll 'Экспорт в Артикс' (){
+    inExportGiftCards(GiftCard g) <- NULL;
+    inExportGiftCards(GiftCard g) <- TRUE WHERE g IS GiftCard AND NOT dataExportedArtix(g) AND NOT isArtixSold(g) OR needExportActiveArtix(g) OR overNeedExportArtix(g);
+
+    encodeBase64(CONCAT '', artixGiftCardUserName(), ':', artixGiftCardPassword());
+    FOR inExportGiftCards(GiftCard g) DO {
+        exportArtix(g, encodedBase64());
+        IF exportedArtixActive(g) THEN sendArtixPayments(g, encodedBase64());
+    }
+    inExportGiftCards(GiftCard g) <- NULL;
 }
 
 sendArtixBalanceSelected 'Экспорт баланса сертификатов Artix выбранные' (){     
