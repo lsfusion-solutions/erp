@@ -11,7 +11,6 @@ import lsfusion.base.file.IOUtils;
 import lsfusion.base.file.RawFileData;
 import lsfusion.base.file.WriteClientAction;
 import lsfusion.erp.integration.DefaultExportAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -55,7 +54,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
                 safeFileDelete(file);
             }
             else
-                context.delayUserInterfaction(new MessageClientAction("По заданным параметрам не найдено ни одной проводки", "Ошибка"));
+                messageClientAction(context, "По заданным параметрам не найдено ни одной проводки", "Ошибка");
             
         } catch (IOException | SQLException | JDBFException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

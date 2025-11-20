@@ -1,17 +1,17 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 
-public abstract class FiscalBoardAction extends InternalAction {
+public abstract class FiscalBoardAction extends DefaultIntegrationAction {
     protected int lineLength = 20;
 
     public FiscalBoardAction(ScriptingLogicsModule LM, ValueClass... classes) {

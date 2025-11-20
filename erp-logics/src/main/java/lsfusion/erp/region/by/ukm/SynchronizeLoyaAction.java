@@ -612,7 +612,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             result = createItem(context, settings.url, requestBody);
         }
         if(result != null && messageErrors) {
-            context.delayUserInteraction(new MessageClientAction(result, "Loya: Synchronize Item Error"));
+            messageClientAction(context, result, "Loya: Synchronize Item Error");
         }
         return result;
     }
@@ -691,7 +691,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
                 if (!response.succeeded) {
                     String error = String.format("Loya: delete GoodGroupLinks (%s) error", deleteList);
                     ERPLoggers.importLogger.error(error + ": " + response.message);
-                    context.delayUserInteraction(new MessageClientAction(error, failCaption));
+                    messageClientAction(context, error, failCaption);
                     succeeded = false;
                 }
             }
@@ -733,7 +733,7 @@ public class SynchronizeLoyaAction extends LoyaAction {
             result = response.message;
             String error = String.format("Loya: create GoodGroupLink Error: group %s, item %s, %s", idItemGroup, goodGroupLink.sku, result);
             ERPLoggers.importLogger.error(error);
-            context.delayUserInteraction(new MessageClientAction(error, "Loya: create GoodGroupLink Error"));
+            messageClientAction(context, error, "Loya: create GoodGroupLink Error");
         }
         return result;
     }

@@ -10,7 +10,6 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.data.file.CustomStaticFormatFileClass;
@@ -105,7 +104,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
                         outputFiles.put(entry.getKey(), new RawFileData(exportG316(dbfFields)));
 
                 }
-                if(outputFiles.size() > 0)
+                if(!outputFiles.isEmpty())
                     context.delayUserInterfaction(new ExportFileClientAction(outputFiles));
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException | JDBFException | IOException | xBaseJException | ParseException e) {
@@ -153,7 +152,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
         query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder("numberDeclarationDetail", false));
 
-        if (result.size() == 0)
+        if (result.isEmpty())
             return null;
         List<DeclarationDetail> declarationDetailList = new ArrayList<>();
         for (int i = 0, size = result.size(); i < size; i++) {
@@ -277,7 +276,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
             String KD = seriesCompliance.equals("С") ? "01401" : seriesCompliance.equals("Д") ? "01402" : null;
             if(KD == null) {
-                context.delayUserInterfaction(new MessageClientAction("Invalid series: '" + seriesCompliance + "'", "ExportDeclaration error"));
+                messageClientAction(context, "Invalid series: '" + seriesCompliance + "'", "ExportDeclaration error");
             } else {
                 complianceDetailList.add(new G44Detail(numberDeclarationDetail, 100000000L, KD, seriesNumberCompliance,
                         dateCompliance, fromDateCompliance, toDateCompliance, "BY", "", "", "", numberDeclarationCompliance, dateDeclarationCompliance));

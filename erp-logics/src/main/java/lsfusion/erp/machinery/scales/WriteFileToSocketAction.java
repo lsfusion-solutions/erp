@@ -2,7 +2,7 @@ package lsfusion.erp.machinery.scales;
 
 import com.google.common.base.Throwables;
 import lsfusion.base.file.FileData;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
@@ -10,7 +10,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import org.bouncycastle.util.encoders.Hex;
 
 import java.io.DataInputStream;
@@ -24,7 +23,7 @@ import java.nio.ByteOrder;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class WriteFileToSocketAction extends InternalAction {
+public class WriteFileToSocketAction extends DefaultIntegrationAction {
     private static short cmdWrite = 0xF1;
     private final ClassPropertyInterface fileInterface;
     private final ClassPropertyInterface typeInterface;
@@ -55,7 +54,7 @@ public class WriteFileToSocketAction extends InternalAction {
                     socket.open();
                     int result = sendRecord(socket, cmdWrite, type.shortValue(), Hex.decode(new String(fileData.getRawFile().getBytes())));
                     if(result != 0) {
-                        context.delayUserInteraction(new MessageClientAction("Файл не загружен. Ошибка: " + result, "Ошибка"));
+                        messageClientAction(context, "Файл не загружен. Ошибка: " + result, "Ошибка");
                     }
                 } finally {
                     socket.close();
@@ -69,7 +68,7 @@ public class WriteFileToSocketAction extends InternalAction {
                 } catch (ScriptingErrorLog.SemanticErrorException ignored) {
                 }
                 if (e instanceof ConnectException) {
-                    context.delayUserInteraction(new MessageClientAction(String.format("Сокет %s недоступен. \n%s", ip, e.getMessage()), "Ошибка"));
+                    messageClientAction(context, String.format("Сокет %s недоступен. \n%s", ip, e.getMessage()), "Ошибка");
                 } else {
                     throw Throwables.propagate(e);
                 }

@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -46,7 +45,7 @@ public class FiscalBoardDisplayTextAction extends FiscalBoardAction {
 
             String firstLine = " " + toStr(nvl(quantity, BigDecimal.ZERO)) + "x" + toStr(price);
             if(firstLine.length() > lineLength) {
-                context.requestUserInteraction(new MessageClientAction("Проверьте цену и количество: " + firstLine, "Ошибка"));
+                messageClientAction(context, "Проверьте цену и количество: " + firstLine, "Ошибка");
             } else {
                 firstLine = fillSpaces(name, lineLength - firstLine.length(), true) + firstLine;
                 String secondLine = "ИТОГ:" + fillSpaces(toStr(sum), lineLength - 5);
