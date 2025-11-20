@@ -11,6 +11,7 @@ onWebClientInit() + {
 
 CLASS ABSTRACT UserAttribute 'Атрибут (польз.)' : ItemAttribute;
 TABLE userAttribute (UserAttribute) FULL;
+TABLE itemUserAttribute(Item, UserAttribute);
 
 CLASS UserAttributeClass 'Тип атрибута (польз.)';
 TABLE userAttributeClass (UserAttributeClass);
@@ -62,7 +63,6 @@ backgroundShow (ItemGroup itemGroup, UserAttribute a) =
 
 value 'Значение' = ABSTRACT STRING (Item, UserAttribute);
 idValue 'id значения' = ABSTRACT STRING (Item, UserAttribute);
-objectValue 'Объект значения' = ABSTRACT Object (Item, UserAttribute);
 value(Item i, UserAttribute a) += ISTRING[500](value(i, a));
 
 edit 'Редактировать' ABSTRACT (Item, UserAttribute);
@@ -285,98 +285,117 @@ DESIGN userAttributeNumeric {
 }
 
 //------------------------------------ Object ---------------------------------------------------------------------//
-CLASS UserAttributeListDetail 'Элемент списка (польз.)';
-label 'Наименование' = DATA STRING (UserAttributeListDetail);
-
 CLASS UserAttributeList 'Список (польз.)' : UserAttribute;
 EXTEND CLASS UserAttributeClass { list 'Список' }
+
 newUserAttribute(UserAttributeClass c) + WHEN c = UserAttributeClass.list THEN {
     NEW a = UserAttributeList {
         edit(a);
     }
 };
 
-userAttributeList = DATA UserAttributeList(UserAttributeListDetail) NONULL DELETE INDEXED AGGR; 
-
 order(UserAttributeClass c) += WHEN c == UserAttributeClass.list THEN 5;
 id 'Код' = DATA STRING[10] (UserAttributeList) NONULL CHARWIDTH 10 IN id;
-inactive 'Выкл.' = DATA BOOLEAN (UserAttributeList);
+multi 'Несколько значений' = DATA BOOLEAN (UserAttributeList);
+inactive 'Неактивный' = DATA BOOLEAN (UserAttributeList);
 name 'Наименование' = DATA BPISTRING[100] (UserAttributeList) NONULL IN id;
+
 id (UserAttributeList a) += id(a);
 active (UserAttributeList a) += a IS UserAttributeList AND NOT inactive(a);
 isObject (UserAttributeList a) += a IS UserAttributeList;
 name (UserAttributeList a) += name(a);
 
+CLASS UserAttributeListDetail 'Элемент списка (польз.)';
+TABLE userAttributeListDetail(UserAttributeListDetail);
+TABLE itemUserAttributeListDetail(Item, UserAttributeListDetail);
+
+userAttributeList = DATA UserAttributeList(UserAttributeListDetail) NONULL DELETE INDEXED AGGR;
+label 'Наименование' = DATA STRING (UserAttributeListDetail) IN id;
+prevNameUserAttributeList 'Атрибут' (UserAttributeListDetail d) = PREV(name(userAttributeList(d))) IN id; ///для constraint
+
+in 'Вкл' = DATA BOOLEAN (Item, UserAttributeListDetail);
+
+dataValue = DATA STRING (Item, UserAttributeList);
+WHEN LOCAL [GROUP SUM 1 IF CHANGED(in(Item i, UserAttributeListDetail d)) BY i, userAttributeList(d)](Item i, UserAttributeList a) DO {
+    dataValue(i, a) <- GROUP CONCAT (OVERRIDE label(UserAttributeListDetail d), 'Без наименования') IF in(i, d) AND userAttributeList(d) == a, ', ' ORDER label(d), d;
+}
+value (Item i, UserAttributeList a) += dataValue(i, a);
+
+detailUserAttribute (STRING id, UserAttributeList l) = GROUP MAX UserAttributeListDetail k AS UserAttributeListDetail BY [FORMULA STRING '$1::text'](k), userAttributeList(k);
+
+// Доступность элемента списка для товарных групп
+dataAccess 'Вкл' = DATA BOOLEAN (UserAttributeListDetail, ItemGroup);
+
+quantityChild (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
+    dataAccess(detail, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
+quantityParent (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
+    dataAccess(detail, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
+
+backgroundWith (UserAttributeListDetail detail, ItemGroup itemGroup) =
+    IF dataAccess(detail, itemGroup) THEN
+        RGB(0,0,0) //IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChild (detail, itemGroup) != descendantNumber(itemGroup)
+            AND NOT quantityParent (detail, itemGroup);
+
+access 'Вкл' (UserAttributeListDetail detail, ItemGroup itemGroup) =
+    OVERRIDE dataAccess(detail, itemGroup), TRUE IF quantityParent(detail, itemGroup) MATERIALIZED;
+
+access 'Вкл.' (UserAttributeListDetail detail, Item item) = TRUE IF quantityParent(detail, itemGroup(item));
+
+countDataItemGroup 'Кол-во групп' (UserAttributeListDetail detail) = GROUP SUM 1 IF dataAccess(detail, ItemGroup itemGroup) MATERIALIZED;
+
+WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (SETCHANGED(in(Item item, UserAttributeListDetail t)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item)
+    AND countDataItemGroup(t) AND NOT access(t, item) DO {
+    dataAccess(t, ItemGroup g) <- TRUE WHERE g == itemGroup(item);
+}
+
+moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
+    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
+        dataAccess(UserAttributeListDetail t, parent)<- TRUE WHERE access(t, gg) AND NOT access(t,parent);
+    }
+}
+
+CONSTRAINT (SETCHANGED(in(Item item, UserAttributeListDetail d)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item) AND countDataItemGroup(d) AND NOT access(d, item)
+    MESSAGE 'Элемент списка (польз.) должен быть доступен для товарной группы (товар)';
+
+
 FORM dialogUserAttributeListValue 'Значение атрибута'
-    OBJECTS attr = UserAttributeList PANEL, val = UserAttributeListDetail
-    PROPERTIES(val) READONLY label
+    OBJECTS attr = UserAttributeList PANEL
+    OBJECTS it = Item PANEL NULL
+
+    OBJECTS val = UserAttributeListDetail
+    PROPERTIES in(it, val) SHOWIF multi(attr), label (val) READONLY
     FILTERS userAttributeList(val) == attr
+    FILTERS access(val, it) OR NOT countDataItemGroup(val)
 ;
 
 DESIGN dialogUserAttributeListValue {
     caption = CONCAT ' - ', 'Значение атрибута', name(attr);
 }
 
-value 'Значение' = DATA UserAttributeListDetail (Item, UserAttributeList);
-value (Item o, UserAttributeList a) += STRING(OVERRIDE label(value(o, a)), 'Без наименования' IF value(o, a));
-objectValue (Item o, UserAttributeList a) += value(o, a);
-detailUserAttribute (STRING id, UserAttributeList l) = GROUP MAX UserAttributeListDetail k AS UserAttributeListDetail BY [FORMULA STRING '$1::text'](k), userAttributeList(k);
-
 edit (Item o, UserAttributeList a) + {
-    IF required(a, itemGroup(o)) THEN {
-        DIALOG dialogUserAttributeListValue OBJECTS attr = a, val INPUT LIST label(val) DO {
-            value(o, a) <- val;
-        }
+    IF multi(a) THEN {
+        SHOW dialogUserAttributeListValue OBJECTS attr = a, it = o;
     } ELSE {
-        DIALOG dialogUserAttributeListValue OBJECTS attr = a, val INPUT NULL LIST label(val) DO {
-            value(o, a) <- val;
+        IF required(a, itemGroup(o)) THEN {
+            DIALOG dialogUserAttributeListValue OBJECTS attr = a, it = o, val INPUT LIST label(val) DO {
+                in(o, UserAttributeListDetail d) <- d == val WHERE userAttributeList(d) == a;
+            }
+        } ELSE {
+            DIALOG dialogUserAttributeListValue OBJECTS attr = a, it = o, val INPUT NULL LIST label(val) DO {
+                in(o, UserAttributeListDetail d) <- d == val WHERE userAttributeList(d) == a;
+            }
         }
     }
 }
 set (Item o, UserAttributeList a, STRING v) + {
-    value(o, a) <- detailUserAttribute(v, a);
+    in(o, UserAttributeListDetail d) <- d == detailUserAttribute(v, a) WHERE userAttributeList(d) == a;
 }
-
-// Доступность элемента списка для товарных групп
-dataIn 'Вкл' = DATA BOOLEAN (UserAttributeListDetail, ItemGroup);
-
-quantityChild (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
-    dataIn(detail, ItemGroup childItemGroup) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
-quantityParent (UserAttributeListDetail detail, ItemGroup itemGroup) = GROUP SUM 1 IF
-    dataIn(detail, ItemGroup parentItemGroup) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
-
-backgroundWith (UserAttributeListDetail detail, ItemGroup itemGroup) =
-    IF dataIn(detail, itemGroup) THEN
-        RGB(0,0,0) //IF itemGroup IS ItemGroup
-    ELSE
-        RGB(203,203,206) IF quantityChild (detail, itemGroup) != descendantNumber(itemGroup)
-            AND NOT quantityParent (detail, itemGroup);
-
-in 'Вкл' (UserAttributeListDetail detail, ItemGroup itemGroup) =
-    OVERRIDE dataIn(detail, itemGroup), TRUE IF quantityParent(detail, itemGroup) MATERIALIZED;
-
-in 'Вкл.' (UserAttributeListDetail detail, Item item) = TRUE IF quantityParent(detail, itemGroup(item));
-
-countDataItemGroup 'Кол-во групп' (UserAttributeListDetail detail) = GROUP SUM 1 IF dataIn(detail, ItemGroup itemGroup) MATERIALIZED;
-
-WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND (SETCHANGED(value(Item item, UserAttributeList a)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item) 
-    AND countDataItemGroup(value(item, a)) AND NOT in(value(item, a), item) DO {
-    dataIn(UserAttributeListDetail t, ItemGroup g) <- TRUE WHERE t == value(item, a) AND g == itemGroup(item);
-}
-
-moveItemGroupOver(ItemGroup parent, ItemGroup gg) + {
-    IF autoSetGroupAttribute(mainRole[CustomUser](currentUser())) THEN {
-        dataIn(UserAttributeListDetail t, parent)<- TRUE WHERE in(t, gg) AND NOT in(t,parent);
-    }
-}
-
-CONSTRAINT (SETCHANGED(value(Item item, UserAttributeList a)) OR SETCHANGED(itemGroup(item))) AND itemGroup(item) AND countDataItemGroup(value(item, a)) AND NOT in(value(item, a), item)
-    CHECKED BY value[Item, UserAttributeList]
-    MESSAGE 'Элемент списка (польз.) должен быть доступен для товарной группы (товар)';
 
 FORM userAttributeList 'Атрибут (список)'
     OBJECTS attr = UserAttributeList PANEL
-    PROPERTIES (attr) id, name, inactive
+    PROPERTIES (attr) id, name, multi, inactive
     
     OBJECTS d = UserAttributeListDetail
     PROPERTIES (d) label, NEW, DELETE 
@@ -384,7 +403,7 @@ FORM userAttributeList 'Атрибут (список)'
 
     TREE groupTree g = ItemGroup PARENT parent(g)
     PROPERTIES READONLY order(g), name(g)
-    PROPERTIES in(d,g) BACKGROUND backgroundWith(d,g)
+    PROPERTIES access(d,g) BACKGROUND backgroundWith(d,g)
     ORDERS order(g), name(g)
     FILTERS active(g)
 
