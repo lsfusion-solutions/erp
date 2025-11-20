@@ -14,28 +14,56 @@ name(PharmacyPriceGroup group) += name(group);
 inactive 'Неактивный' = DATA BOOLEAN (PharmacyPriceGroup) IN itemBase;
 active 'Активный' (PharmacyPriceGroup group) = group IS PharmacyPriceGroup AND NOT inactive(group);
 
-sumMarkups 'Суммировать надбавки' = DATA BOOLEAN (PharmacyPriceGroup) IN itemBase;
+is366 '366-й указ' = DATA BOOLEAN (PharmacyPriceGroup);
+is713 '713-е постановление' = DATA BOOLEAN (PharmacyPriceGroup);
 
-maxTotalLimitMarkup 'Максимальная общая надбавка' =  DATA NUMERIC[8,3] (PharmacyPriceGroup) IN itemBase;
+sumMarkups 'Суммировать надбавки опта и розницы по 366 указу для расценки' = DATA BOOLEAN (PharmacyPriceGroup) IN itemBase;
 
-CLASS PharmacyGroupType 'Классификатор ценовых групп': GroupType;
-TABLE pharmacyGroupType (PharmacyGroupType);
+CONSTRAINT SET(sumMarkups(PharmacyPriceGroup pg)) AND NOT is366(pg) 
+    MESSAGE 'Нельзя выставлять данные признак для ценовых групп не относящихся к 366 указу';
 
-name 'Наименование' = DATA ISTRING[100](PharmacyGroupType) IN id CHARWIDTH 25;
-name(PharmacyGroupType group)+=name(group);
+maxTotalLimitMarkup 'Максимальная общая надбавка опта и розницы' =  DATA NUMERIC[8,3] (PharmacyPriceGroup) IN itemBase;
 
-pharmacyTypeGroup = DATA PharmacyGroupType(PharmacyPriceGroup);
-namePharmacyTypeGroup 'Наименование классификатора' = name(pharmacyTypeGroup(PharmacyPriceGroup group));
+setIs713 = DATA BOOLEAN ();
 
-groupType(PharmacyPriceGroup group) += pharmacyTypeGroup(group);
+onStarted() + {
+    NEWSESSION {
+        IF NOT setIs713() THEN {
+            applyOnlyData();
+            setIs713() <- TRUE;
+            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
+                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
+            }
+            APPLY;
+        }
+    }
+}
+
+//отключил классификатор за его ненадобностью
+//CLASS PharmacyGroupType 'Классификатор ценовых групп': GroupType;
+//TABLE pharmacyGroupType (PharmacyGroupType);
+
+//name 'Наименование' = DATA ISTRING[100](PharmacyGroupType) IN id CHARWIDTH 25;
+//name(PharmacyGroupType group)+=name(group);
+
+//pharmacyTypeGroup = DATA PharmacyGroupType(PharmacyPriceGroup);
+//namePharmacyTypeGroup 'Наименование классификатора' = name(pharmacyTypeGroup(PharmacyPriceGroup group));
+
+//groupType(PharmacyPriceGroup group) += pharmacyTypeGroup(group);
 
 pharmacyPriceGroup = ABSTRACT PharmacyPriceGroup (Sku) MATERIALIZED;
 namePharmacyPriceGroup 'Ценовая группа' (Sku sku) = name(pharmacyPriceGroup(sku));
 
+is366PharmacyPriceGroup (Sku s) = is366(pharmacyPriceGroup(s));
+isNot366PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is366(pharmacyPriceGroup(s));
+
+is713PharmacyPriceGroup (Sku s) = is713(pharmacyPriceGroup(s));
+isNot713PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is713(pharmacyPriceGroup(s));
+
 calcMaxTotalLimitMarkup(Sku s, NUMERIC[8,4] baseMarkup) = trunc(((100.0 + maxTotalLimitMarkup(pharmacyPriceGroup(s)))
     /(100.0 + baseMarkup)-1)*100, 2);
 
-group(PharmacyGroupType type, Sku sku) += WHEN type IS PharmacyGroupType AND sku IS Sku THEN pharmacyPriceGroup(sku);
+//group(PharmacyGroupType type, Sku sku) += WHEN type IS PharmacyGroupType AND sku IS Sku THEN pharmacyPriceGroup(sku);
 
 @defineObjectItemAttribute(pharmacyPriceGroup, PharmacyPriceGroup, name, 'Ценовая группа', itemPharmacy);
 
@@ -110,34 +138,11 @@ retailLimitMarkupPharmacy 'Предельный % розничной надба�
 isActive 'Действующий' (PharmacyPriceInterval interval) = 
     (toDatePharmacy(interval) >= currentDate() OR NOT toDatePharmacy(interval)) AND fromDatePharmacy(interval) <= currentDate();
 
-is366 '366-й указ' = DATA BOOLEAN (PharmacyPriceGroup);
-is366PharmacyPriceGroup (Sku s) = is366(pharmacyPriceGroup(s));
-isNot366PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is366(pharmacyPriceGroup(s));
-
-is713 '713-е постановление' = DATA BOOLEAN (PharmacyPriceGroup);
-is713PharmacyPriceGroup (Sku s) = is713(pharmacyPriceGroup(s));
-isNot713PharmacyPriceGroup (Sku s) = id(pharmacyPriceGroup(s)) AND NOT is713(pharmacyPriceGroup(s));
-
-setIs713 = DATA BOOLEAN ();
-
-onStarted() + {
-    NEWSESSION {
-        IF NOT setIs713() THEN {
-            applyOnlyData();
-            setIs713() <- TRUE;
-            IF NOT (GROUP SUM 1 IF is713(PharmacyPriceGroup pg)) THEN {
-                is713(PharmacyPriceGroup g) <- TRUE WHERE maxTotalLimitMarkup(g);
-            }
-            APPLY;
-        }
-    }
-}
-
 FORM pharmacyMarkups 'Ценовые группы'
 
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) name, id SHOWIF showIDs(), sumMarkups, maxTotalLimitMarkup, namePharmacyTypeGroup, inactive, is366, is713
-    PROPERTIES (g) NEW, DELETE GRID
+    PROPERTIES(g) inactive, name, id SHOWIF showIDs(), maxTotalLimitMarkup, is366, sumMarkups, is713
+    PROPERTIES(g) NEW, DELETE GRID
     ORDERS id(g)
     FILTERGROUP active
         FILTER 'Активные' active(g) DEFAULT
@@ -201,7 +206,7 @@ NAVIGATOR {
 
 FORM pharmacyPriceGroups 'Ценовые группы'
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) READONLY name, id SHOWIF showIDs(), sumMarkups, maxTotalLimitMarkup, inactive
+    PROPERTIES(g) READONLY inactive, name, id SHOWIF showIDs(), maxTotalLimitMarkup, is366, sumMarkups, is713
     ORDERS id(g)
     FILTERGROUP active
         FILTER 'Активные' active(g) DEFAULT
@@ -228,7 +233,7 @@ DESIGN pharmacyPriceGroups {
 EXTEND FORM attributesItem
     OBJECTS pharmacyPriceGroup=PharmacyPriceGroup
     PROPERTIES in(pharmacyPriceGroup)       
-    PROPERTIES (pharmacyPriceGroup) name, id SHOWIF showIDs(), sumMarkups, maxTotalLimitMarkup, namePharmacyTypeGroup, inactive
+    PROPERTIES(pharmacyPriceGroup) inactive, name, id SHOWIF showIDs(), maxTotalLimitMarkup, is366, sumMarkups, is713
     PROPERTIES(pharmacyPriceGroup) NEW, DELETE         
     PROPERTIES replace(pharmacyPriceGroup) TOOLBAR        
     ORDERS id(pharmacyPriceGroup)
@@ -423,7 +428,7 @@ META defineBasePriceMarkupPharmacyBatch(prop)
 END
 
 dataWholesaleMarkupPrecision = DATA INTEGER ();
-wholesaleMarkupPrecision 'Точность окру uления оптовых надбавок' = OVERRIDE dataWholesaleMarkupPrecision(), 2 MATERIALIZED;
+wholesaleMarkupPrecision 'Точность округления оптовых надбавок(макс. 3)' = OVERRIDE dataWholesaleMarkupPrecision(), 2 MATERIALIZED;
 
 changeWholesaleMarkupPrecision() {
     NEWSESSION {
