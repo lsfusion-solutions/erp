@@ -1,16 +1,15 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalShtrihXReportAction extends InternalAction {
+public class FiscalShtrihXReportAction extends DefaultIntegrationAction {
 
     public FiscalShtrihXReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -28,7 +27,7 @@ public class FiscalShtrihXReportAction extends InternalAction {
                 context.apply();
             }
             else
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                messageClientAction(context, result, "Ошибка");
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }

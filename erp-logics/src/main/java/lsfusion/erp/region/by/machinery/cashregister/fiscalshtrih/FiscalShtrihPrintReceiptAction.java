@@ -4,8 +4,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -15,7 +15,6 @@ import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -25,7 +24,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalShtrihPrintReceiptAction extends InternalAction {
+public class FiscalShtrihPrintReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalShtrihPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -142,7 +141,7 @@ public class FiscalShtrihPrintReceiptAction extends InternalAction {
                 }
 
                 if (!receiptSaleItemList.isEmpty() && !receiptReturnItemList.isEmpty())
-                    context.requestUserInteraction(new MessageClientAction("В чеке обнаружены одновременно продажа и возврат", "Ошибка"));
+                    messageClientAction(context, "В чеке обнаружены одновременно продажа и возврат", "Ошибка");
                 else {
                     if (context.checkApply()) {
                         Boolean isReturn = receiptReturnItemList.size() > 0;
@@ -157,7 +156,7 @@ public class FiscalShtrihPrintReceiptAction extends InternalAction {
                             context.apply();
                             findAction("createCurrentReceipt[]").execute(context);
                         } else
-                            context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                            messageClientAction(context, result, "Ошибка");
                     }
                 }
             }

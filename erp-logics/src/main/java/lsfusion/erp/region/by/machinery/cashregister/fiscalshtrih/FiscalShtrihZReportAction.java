@@ -1,16 +1,15 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalshtrih;
 
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalShtrihZReportAction extends InternalAction {
+public class FiscalShtrihZReportAction extends DefaultIntegrationAction {
 
     public FiscalShtrihZReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -26,7 +25,7 @@ public class FiscalShtrihZReportAction extends InternalAction {
             if (context.checkApply()) {
                String result = (String)context.requestUserInteraction(new FiscalShtrihCustomOperationClientAction(2, password, comPort, baudRate));
                 if (result != null)
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }
             findAction("closeCurrentZReport[]").execute(context);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
