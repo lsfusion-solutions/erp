@@ -1,12 +1,11 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalmercury;
 
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingLogicsModule;
 
-public class FiscalMercuryAdvancePaperAction extends InternalAction {
+public class FiscalMercuryAdvancePaperAction extends DefaultIntegrationAction {
 
     public FiscalMercuryAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -16,6 +15,6 @@ public class FiscalMercuryAdvancePaperAction extends InternalAction {
 
         String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(3));
         if (result != null)
-            context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            messageClientAction(context, result, "Ошибка");
     }
 }
