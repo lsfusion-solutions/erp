@@ -1,0 +1,63 @@
+MODULE SaleReportsGestory;
+
+REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment;
+
+NAMESPACE SaleReports;
+
+//articleRu(Sku s) += article(s);
+priceSku(Sku s, Stock st) += GROUP MAX price(SaleLedger l) IF sku(l) = s AND stock(l) = st;
+//supplierSku(Sku s) += supplier(s);
+
+retailSumEnd = DATA LOCAL NUMERIC[18,4] (SaleLedger);
+batch = ABSTRACT Batch (SaleLedger) MATERIALIZED;
+nameBatch 'Партия' = name(batch(SaleLedger l));
+dateBatch 'Партия' = date(batch(SaleLedger l));
+batch(Sale.InvoiceDetail l) += Sale.batch(l);
+batch(SaleReturn.InvoiceDetail l) += SaleReturn.batch(l);
+numberInvoiceBatch (SaleLedger l) = seriesNumber(Purchase.invoice(invoiceDetail(batch(l))));
+
+FORM expenseStatementsReport 'Ведомость отгрузок'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inSaleReportStocks(),
+        inSaleReportSupplier(), nameInOperations(), nameSkuList(), nameStockList(), nameLegalEntityList()
+
+    OBJECTS l = SaleLedger
+    PROPERTIES(l) nameOperation, numberDocument, date, idStock, nameStock,
+        numberInvoiceBatch, dateBatch, nameCustomer, idSku, nameSku, quantity, retailSumEnd
+
+    PROPERTIES idCustomer = id(customer(l)), manufacturerSku = nameManufacturer(sku(l)),
+        volume = volume(sku(l)) * quantity(l), weight = netWeight(sku(l)) * quantity(l),
+        sumWtVat = sum(l) (-) sumVAT(l)
+    PROPERTIES skuGroup2 = CONCAT ' ', idSkuGroup2(sku(l)), nameSkuGroup2(sku(l))
+    PROPERTIES skuGroup3 = CONCAT ' ', idSkuGroup3(sku(l)), nameSkuGroup3(sku(l))
+    PROPERTIES skuGroup4 = CONCAT ' ', idSkuGroup4(sku(l)), nameSkuGroup4(sku(l))
+
+    ORDERS nameSku(l)
+    FILTERS active(l),
+        inSessionSku(sku(l)),
+        date(l) >= df, date(l) <= dt,
+        in(customer(l)) OR NOT countInLegalEntity(),
+        inSupplier(supplierSku(sku(l))) OR NOT inSaleReportSupplier(),
+        inSaleReport(stock(l)) OR NOT inSaleReportStocks(),
+        inSaleOperation(operation(l)) OR NOT nameInOperations(),
+        NOT skipSaleReport(sku(l), stock(l))
+;
+
+printIncomeStatementsReport 'Ведомость отгрузок' (DATE df, DATE dt) {
+    retailSumEnd(SaleLedger l) <- NULL;
+    retailSumEnd(SaleLedger l) <- NUMERIC[18,2](prevPriceA(dataPriceListType('retail'), sku(l), stock(l), dateTime(l)) * quantity(l));
+    PRINT expenseStatementsReport OBJECTS df = df, dt = dt XLSX;
+} IMAGE 'print.png';
+
+EXTEND FORM salesReport
+    PROPERTIES (df, dt) printIncomeStatementsReport
+;
+
+DESIGN salesReport {
+    salesContainer {
+        NEW saleStatementsReports {
+            caption = 'Собственные отчеты';
+            MOVE PROPERTY(printIncomeStatementsReport(df, dt));
+        }
+    }
+}
