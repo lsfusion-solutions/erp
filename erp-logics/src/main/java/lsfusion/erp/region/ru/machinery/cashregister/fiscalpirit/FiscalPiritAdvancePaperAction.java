@@ -1,19 +1,19 @@
 package lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+
 import static lsfusion.base.BaseUtils.nvl;
 
 import java.sql.SQLException;
 
-public class FiscalPiritAdvancePaperAction extends InternalAction {
+public class FiscalPiritAdvancePaperAction extends DefaultIntegrationAction {
 
     public FiscalPiritAdvancePaperAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -30,7 +30,7 @@ public class FiscalPiritAdvancePaperAction extends InternalAction {
             String result = (String) context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 3, versionPirit));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalPiritAdvancePaper Error: " + result);
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                messageClientAction(context, result, "Ошибка");
             }
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

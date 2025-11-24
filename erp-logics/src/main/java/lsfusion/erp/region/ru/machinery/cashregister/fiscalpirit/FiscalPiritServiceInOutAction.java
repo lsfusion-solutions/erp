@@ -1,7 +1,7 @@
 package lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -10,7 +10,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -18,7 +17,7 @@ import java.util.Iterator;
 
 import static lsfusion.base.BaseUtils.nvl;
 
-public class FiscalPiritServiceInOutAction extends InternalAction {
+public class FiscalPiritServiceInOutAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalPiritServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -46,7 +45,7 @@ public class FiscalPiritServiceInOutAction extends InternalAction {
                     findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else {
                     ServerLoggers.systemLogger.error("FiscalVMKServiceInOut Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
 

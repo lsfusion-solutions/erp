@@ -1,20 +1,19 @@
 package lsfusion.erp.region.ru.machinery.cashregister.fiscalpirit;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
 import static lsfusion.base.BaseUtils.nvl;
 
-public class FiscalPiritZReportAction extends InternalAction {
+public class FiscalPiritZReportAction extends DefaultIntegrationAction {
 
     public FiscalPiritZReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -34,7 +33,7 @@ public class FiscalPiritZReportAction extends InternalAction {
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalPiritCustomOperationClientAction(isUnix, comPort, baudRate, cashier, 2, versionPirit));
                 if (result instanceof String) {
-                    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    messageClientAction(context, (String) result, "Ошибка");
                 } else if(result instanceof Integer) {
                     findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
                 }

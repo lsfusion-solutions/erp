@@ -5,7 +5,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -19,7 +19,6 @@ import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -29,7 +28,7 @@ import java.util.List;
 
 import static lsfusion.base.BaseUtils.nvl;
 
-public class FiscalPiritPrintReceiptAction extends InternalAction {
+public class FiscalPiritPrintReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalPiritPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -67,7 +66,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
 
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
-                    context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
+                    messageClientAction(context,"Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!");
                     return;
                 }
 
@@ -179,7 +178,7 @@ public class FiscalPiritPrintReceiptAction extends InternalAction {
                             ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error");
                     } else {
                         ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Error: " + result);
-                        context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        messageClientAction(context, (String) result, "Ошибка");
                     }
                 }
             }
