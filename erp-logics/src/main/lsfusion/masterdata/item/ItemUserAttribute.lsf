@@ -45,12 +45,16 @@ isObject 'Объектный' = ABSTRACT BOOLEAN (UserAttribute);
 name 'Наименование атрибута' = ABSTRACT BPISTRING[100] (UserAttribute) NONULL IN id;
 dataName(UserAttribute a) += name(a);
 
+showOnItems 'Отображать на форме Товары' = DATA BOOLEAN (UserAttribute) INDEXED;
+
 userShow 'Вкл. (польз.)' = DATA BOOLEAN (ItemGroup, UserAttribute);
 
 quantityChild(ItemGroup itemGroup, UserAttribute a)  = GROUP SUM 1 IF userShow(ItemGroup childItemGroup, a) AND isParent(childItemGroup, itemGroup) MATERIALIZED;
 quantityParent(ItemGroup itemGroup, UserAttribute a)  = GROUP SUM 1 IF userShow(ItemGroup parentItemGroup, a) AND isParent(itemGroup, parentItemGroup) MATERIALIZED;
 
 showEdit 'Вкл. (польз.)' (ItemGroup itemGroup, UserAttribute a) = OVERRIDE userShow(itemGroup, a), TRUE IF quantityParent(itemGroup, a) MATERIALIZED;
+show (ItemGroup itemGroup, UserAttribute a) = TRUE IF (quantityChild(itemGroup, a) (+) quantityParent(itemGroup, a)) > 0 MATERIALIZED;
+showAny (ItemGroup itemGroup, UserAttribute a) = show(itemGroup, a) OR NOT itemGroup IS ItemGroup;
 
 show 'Вкл. (польз.)' (Item item, UserAttribute a) = TRUE IF quantityParent(itemGroup(item), a);
 
@@ -61,8 +65,7 @@ backgroundShow (ItemGroup itemGroup, UserAttribute a) =
         RGB(203,203,206) IF quantityChild(itemGroup, a) != descendantNumber(itemGroup)
                          AND NOT quantityParent (itemGroup, a);
 
-value 'Значение' = ABSTRACT STRING (Item, UserAttribute);
-idValue 'id значения' = ABSTRACT STRING (Item, UserAttribute);
+value 'Значение атрибута' = ABSTRACT STRING (Item, UserAttribute);
 value(Item i, UserAttribute a) += ISTRING[500](value(i, a));
 
 edit 'Редактировать' ABSTRACT (Item, UserAttribute);
@@ -71,6 +74,7 @@ set 'Установить' ABSTRACT (Item, UserAttribute, STRING);
 EXTEND FORM itemOptions 
     OBJECTS attr = UserAttribute
     PROPERTIES (attr) READONLY id, name, nameClass
+    PROPERTIES (attr) READONLYIF isReadonly() showOnItems
     PROPERTIES (attr) NEWSESSION EDIT, DELETE
     PROPERTIES NEWSESSION newUserAttribute() DRAW attr
 
@@ -97,7 +101,7 @@ DESIGN itemOptions {
 
 EXTEND FORM item
     OBJECTS attr = UserAttribute
-    PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } COLUMNS (attr) HEADER name(attr)
+    PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } COLUMNS (attr) HEADER name(attr) NOSELECT
     PROPERTIES READONLY name(attr) SHOWIF NULL
     ORDERS name(attr)
     FILTERS show(i, attr)
@@ -115,6 +119,14 @@ DESIGN item {
         }
     }
 }
+
+EXTEND FORM items
+    OBJECTS attr = UserAttribute
+    PROPERTIES (i, attr) READONLY value COLUMNS (attr) HEADER name(attr) SHOWIF showAny(g, attr)
+    PROPERTIES READONLY name(attr) SHOWIF NULL
+    ORDERS name(attr)
+    FILTERS showOnItems(attr)
+;
 
 //------------------------------------ String ----------------------------------------------------------------------//
 
@@ -150,7 +162,7 @@ CONSTRAINT SETCHANGED(value(Item o, UserAttributeString i)) AND regex(i) AND NOT
 
 FORM userAttributeString 'Атрибут (строка)'
     OBJECTS attr = UserAttributeString PANEL
-    PROPERTIES(attr) id, name, inactive, regex
+    PROPERTIES(attr) id, name, inactive, regex, showOnItems
 
     EDIT UserAttributeString OBJECT attr
 ;
@@ -203,7 +215,7 @@ set (Item o, UserAttributeInteger a, STRING v) + {
 }
 FORM userAttributeInteger 'Атрибут (целое)'
     OBJECTS attr = UserAttributeInteger PANEL
-    PROPERTIES(attr) id, name, inactive, notMore, notLess
+    PROPERTIES(attr) id, name, inactive, notMore, notLess, showOnItems
 
     EDIT UserAttributeInteger OBJECT attr
 ;
@@ -266,7 +278,7 @@ set (Item o, UserAttributeNumeric a, STRING v) + {
 }
 FORM userAttributeNumeric 'Атрибут (число)'
     OBJECTS attr = UserAttributeNumeric PANEL
-    PROPERTIES(attr) id, name, inactive, precision, scale, notMore, notLess
+    PROPERTIES(attr) id, name, inactive, precision, scale, notMore, notLess, showOnItems
 
     EDIT UserAttributeNumeric OBJECT attr
 ;
@@ -395,7 +407,7 @@ set (Item o, UserAttributeList a, STRING v) + {
 
 FORM userAttributeList 'Атрибут (список)'
     OBJECTS attr = UserAttributeList PANEL
-    PROPERTIES (attr) id, name, multi, inactive
+    PROPERTIES (attr) id, name, multi, inactive, showOnItems
     
     OBJECTS d = UserAttributeListDetail
     PROPERTIES (d) label, NEW, DELETE 
@@ -430,4 +442,4 @@ DESIGN userAttributeList {
 }
 
 CONSTRAINT SETCHANGED(dataRequired(ItemAttribute a, ItemGroup g)) AND a IS UserAttribute AND NOT showEdit(g, a)
-    MESSAGE 'Атрибут (польз.) должен быть включен для установки обязательности для заполнения';
+    MESSAGE 'Атрибут (польз.) должен быть включен для установки обязательности его заполнения';
