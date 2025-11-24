@@ -4,9 +4,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -24,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalCasbiPrintReceiptAction extends InternalAction {
+public class FiscalCasbiPrintReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalCasbiPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -120,7 +119,7 @@ public class FiscalCasbiPrintReceiptAction extends InternalAction {
                     findAction("createCurrentReceipt[]").execute(context);
                 }
                 else
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }   }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

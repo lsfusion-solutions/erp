@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -15,7 +14,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalCasbiDisplayTextAction extends InternalAction {
+public class FiscalCasbiDisplayTextAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalCasbiDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -49,7 +48,7 @@ public class FiscalCasbiDisplayTextAction extends InternalAction {
                 if (sum == null) sum = BigDecimal.ZERO;
                 String result = (String) context.requestUserInteraction(new FiscalCasbiDisplayTextClientAction(comPort, baudRate, new ReceiptItem(isGiftCard, price, quantity, barcode, name, sum, articleDisc)));
                 if (result != null)
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);

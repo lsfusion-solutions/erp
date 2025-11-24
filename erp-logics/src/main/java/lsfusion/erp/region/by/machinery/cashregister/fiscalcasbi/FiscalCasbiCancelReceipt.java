@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalcasbi;
 
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -13,7 +12,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalCasbiCancelReceipt extends InternalAction {
+public class FiscalCasbiCancelReceipt extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
     
     public FiscalCasbiCancelReceipt(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -34,7 +33,7 @@ public class FiscalCasbiCancelReceipt extends InternalAction {
 
                 String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(4, comPort, baudRate));
                 if (result != null)
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
