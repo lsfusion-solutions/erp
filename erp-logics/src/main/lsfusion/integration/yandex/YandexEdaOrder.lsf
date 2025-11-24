@@ -96,6 +96,7 @@ qtyQuantum(NUMERIC[18,4] qty, Item i) = IF quantum(i) THEN qty * quantum(i) ELSE
 
 priceYandex 'Цена Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
 qtyYandex 'Кол-во Яндекс' = DATA NUMERIC[18,4] (InternetOrderDetail);
+skipPosted = ABSTRACT BOOLEAN(InternetOrder); 
 
 EXTEND FORM internetOrder
     PROPERTIES (d) priceYandex, qtyYandex SHOWIF carrier(o) = yandexCarrier()
@@ -133,7 +134,7 @@ createOrder(FILE f){
             nameInternetCustomer(order) <- STRING[255](OVERRIDE defaultNameCustomer(), clientName());
             phoneInternetCustomer(order) <- STRING[100](phoneNumber());
             courierArrivementDateText(order) <- courierArrivementDate();
-            isPosted(order) <- TRUE;
+            isPosted(order) <- TRUE IF NOT skipPosted(order);
             deliveryDate(order) <- currentDate();
             uuid(order) <- STRING(LONG(order));
             FOR id(INTEGER items) NEW detail = InternetOrderDetail DO{
