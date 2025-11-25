@@ -158,7 +158,7 @@ set (Item o, UserAttributeString a, STRING v) + {
 // Дополнительные ограничения
 regex 'Шаблон (regex)' = DATA STRING (UserAttributeString) IN id;
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeString i)) AND regex(i) AND NOT regexPatternMatch(value(o, i), regex(i))
-    MESSAGE CONCAT ' ','Значение атрибута не соответствует шаблону';
+    MESSAGE CONCAT ' ', 'Значение атрибута не соответствует шаблону';
 
 FORM userAttributeString 'Атрибут (строка)'
     OBJECTS attr = UserAttributeString PANEL
@@ -200,11 +200,11 @@ value (Item o, UserAttributeInteger a) += STRING(value(o, a));
 // Дополнительные ограничения
 notMore 'Не больше' = DATA INTEGER (UserAttributeInteger);
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeInteger i)) AND value(o, i) > notMore(i)
-    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+    MESSAGE CONCAT ' ', 'Значение атрибута больше, чем максимально допустимое';
 
 notLess 'Не меньше' = DATA INTEGER (UserAttributeInteger);
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeInteger i)) AND value(o, i) < notLess(i)
-    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+    MESSAGE CONCAT ' ', 'Значение атрибута меньше, чем минимально допустимое';
 edit (Item o, UserAttributeInteger a) + {
     INPUT i = INTEGER DO {
         value(o, a) <- i;
@@ -252,21 +252,21 @@ value (Item o, UserAttributeNumeric a) += STRING(value(o, a));
 // Дополнительные ограничения
 notMore 'Не больше' = DATA NUMERIC (UserAttributeNumeric);
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeNumeric i)) AND value(o, i) > notMore(i)
-    MESSAGE CONCAT ' ','Значение атрибута больше чем максимально допустимое';
+    MESSAGE CONCAT ' ', 'Значение атрибута больше, чем максимально допустимое';
 
 notLess 'Не меньше' = DATA NUMERIC (UserAttributeNumeric);
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeNumeric i)) AND value(o, i) < notLess(i)
-    MESSAGE CONCAT ' ','Значение атрибута меньше чем минимально допустимое';
+    MESSAGE CONCAT ' ', 'Значение атрибута меньше, чем минимально допустимое';
 
-precision 'Точность' = DATA INTEGER (UserAttributeNumeric);
-scale 'Масштаб' = DATA INTEGER (UserAttributeNumeric);
+precision 'Точность (кол-во знаков)' = DATA INTEGER (UserAttributeNumeric);
+scale 'Масштаб (кол-во знаков после запятой)' = DATA INTEGER (UserAttributeNumeric);
 CONSTRAINT SET(scale(UserAttributeNumeric a) >= precision(a))
     MESSAGE 'Масштаб атрибута должен быть меньше точности';
 
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeNumeric n)) AND abs(value(o, n)) * power(10, scale(n)) >= NUMERIC(power(10, precision(n)))
-    MESSAGE CONCAT ' ','Точность атрибута больше чем минимально допустимая точность';
+    MESSAGE CONCAT ' ', 'Точность (кол-во знаков) атрибута больше, чем максимально допустимая';
 CONSTRAINT SETCHANGED(value(Item o, UserAttributeNumeric n)) AND floor(abs(value(o, n)) * power(10, scale(n))) != abs(value(o, n)) * power(10, scale(n))
-    MESSAGE CONCAT ' ','Масштаб атрибута выше чем максимальный масштаб';
+    MESSAGE CONCAT ' ', 'Масштаб (кол-во знаков после запятой) атрибута выше, чем максимальный';
 
 edit (Item o, UserAttributeNumeric a) + {
     INPUT i = NUMERIC DO {
