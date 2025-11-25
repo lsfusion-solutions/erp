@@ -107,6 +107,7 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
     }
     
     dataMarkup(CalcPriceListType t, ItemGroup g) <- NULL WHERE NOT [GROUP SUM 1 BY calcPriceListType(TEXT (idType(INTEGER i))), itemGroup(idItemGroup(i))](t, g);
+    APPLY;
     
     LOCAL idItem = STRING[15] (INTEGER);
     
@@ -115,7 +116,7 @@ importCalcExrtaCharge 'Импорт надбавок по расчетным в�
     
     IMPORT TABLE FROM file() TO idType, idItem, markup;
     
-    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) DO {
+    FOR Item s = item(idItem(INTEGER i)) AND CalcPriceListType t == calcPriceListType(TEXT (idType(i))) AND NOT markup(t, s) == markup(i) DO {
         dataMarkup(t, s) <- NUMERIC[8,2](markup(i));
     }
     
