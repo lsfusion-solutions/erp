@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -10,13 +10,12 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalSentoServiceInOutAction extends InternalAction {
+public class FiscalSentoServiceInOutAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalSentoServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -43,7 +42,7 @@ public class FiscalSentoServiceInOutAction extends InternalAction {
                 }
                 else {
                     ServerLoggers.systemLogger.error("FiscalVMKServiceInOut Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
 

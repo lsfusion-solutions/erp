@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -8,12 +8,11 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalSentoResetReceiptAction extends InternalAction {
+public class FiscalSentoResetReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalSentoResetReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -39,9 +38,9 @@ public class FiscalSentoResetReceiptAction extends InternalAction {
                     findProperty("resetted[Receipt]").change(true, context, receiptObject);
                     findProperty("dataSkip[Receipt]").change(true, context, receiptObject);
                     if (!context.apply())
-                        context.requestUserInteraction(new MessageClientAction("Ошибка при аннулировании чека", "Ошибка"));
+                        messageClientAction(context, "Ошибка при аннулировании чека", "Ошибка");
                 } else {
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

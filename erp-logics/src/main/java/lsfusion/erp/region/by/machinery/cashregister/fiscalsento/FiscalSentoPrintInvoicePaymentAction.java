@@ -5,7 +5,7 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
@@ -19,7 +19,6 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -27,7 +26,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalSentoPrintInvoicePaymentAction extends InternalAction {
+public class FiscalSentoPrintInvoicePaymentAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface invoiceInterface;
     private final ClassPropertyInterface paymentInterface;
     private final ClassPropertyInterface detailInterface;
@@ -85,7 +84,7 @@ public class FiscalSentoPrintInvoicePaymentAction extends InternalAction {
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
-                    context.requestUserInteraction(new MessageClientAction("Сумма платежа превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
+                    messageClientAction(context, "Сумма платежа превышает " + maxSum.intValue() + " рублей", "Ошибка!");
                     return;
                 }
             }

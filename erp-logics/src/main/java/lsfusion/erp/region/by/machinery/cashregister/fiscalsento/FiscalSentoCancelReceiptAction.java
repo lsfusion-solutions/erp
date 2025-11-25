@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -10,12 +10,11 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalSentoCancelReceiptAction extends InternalAction {
+public class FiscalSentoCancelReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalSentoCancelReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -38,7 +37,7 @@ public class FiscalSentoCancelReceiptAction extends InternalAction {
                 String result = (String) context.requestUserInteraction(new FiscalSentoCustomOperationClientAction(false, logPath, comPort, baudRate, 3));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalSentoCancelReceipt Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

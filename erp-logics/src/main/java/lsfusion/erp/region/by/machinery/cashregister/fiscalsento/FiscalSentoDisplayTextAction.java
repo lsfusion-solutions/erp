@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -11,15 +11,12 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-import static org.apache.commons.lang3.StringUtils.trim;
-
-public class FiscalSentoDisplayTextAction extends InternalAction {
+public class FiscalSentoDisplayTextAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalSentoDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -57,7 +54,7 @@ public class FiscalSentoDisplayTextAction extends InternalAction {
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, null, null, null, null, null)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalSentoDisplayText Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

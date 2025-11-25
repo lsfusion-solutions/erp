@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.action.MessageClientAction;
 
 import java.util.List;
 
@@ -29,14 +28,12 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
 
-        if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
-            new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
+        if (!receipt.receiptSaleList.isEmpty() && !receipt.receiptReturnList.isEmpty()) {
             return "В одном чеке обнаружены продажи и возврат одновременно";
         }
 
         //защита от случая, когда сумма сертификата + сумма карточкой больше общей суммы.
         else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
-            new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
             try {
@@ -45,11 +42,11 @@ public class FiscalSentoPrintReceiptClientAction extends FiscalSentoClientAction
 
                 Integer numberReceipt = null;
 
-                if (receipt.receiptSaleList.size() != 0) {
+                if (!receipt.receiptSaleList.isEmpty()) {
                     numberReceipt = printReceipt(receipt.receiptSaleList, true);
                 }
 
-                if (receipt.receiptReturnList.size() != 0) {
+                if (!receipt.receiptReturnList.isEmpty()) {
                     numberReceipt = printReceipt(receipt.receiptReturnList, false);
                 }
 

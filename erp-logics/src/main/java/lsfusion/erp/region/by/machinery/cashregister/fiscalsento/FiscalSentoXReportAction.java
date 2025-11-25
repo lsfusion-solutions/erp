@@ -1,18 +1,17 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalsento;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.sql.SQLException;
 
-public class FiscalSentoXReportAction extends InternalAction {
+public class FiscalSentoXReportAction extends DefaultIntegrationAction {
 
     public FiscalSentoXReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -32,7 +31,7 @@ public class FiscalSentoXReportAction extends InternalAction {
             }
             else {
                 ServerLoggers.systemLogger.error("FiscalSentoXReport Error: " + result);
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                messageClientAction(context, result, "Ошибка");
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
