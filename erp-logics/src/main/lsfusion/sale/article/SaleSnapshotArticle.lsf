@@ -1,0 +1,73 @@
+MODULE SaleSnapshotArticle;
+
+REQUIRE SaleSnapshot, StockSnapshotArticle;
+
+NAMESPACE Sale;
+
+//-- Article
+saleQuantity 'Кол-во продажа' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+saleNetWeight 'Вес продажа' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+saleSum 'Сумма продажа' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+//-- Article на дату
+saleQuantity 'Кол-во продажа' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+saleNetWeight 'Вес продажа' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+saleSum 'Сумма продажа' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+extraFilterMove(Article a, Stock st, Snapshot r) += WHEN saleQuantity(a, st, r) OR saleSum(a, st, r) THEN TRUE;
+extraFilterMove(Article a, Stock st, Snapshot r, DATE d) += WHEN saleQuantity(a, st, r, d) OR saleSum(a, st, r, d) THEN TRUE;
+
+//-- Расширяем ACTION
+totalReset(Snapshot snapshot) + {
+    saleQuantity(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    saleNetWeight(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    saleSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    saleQuantity(Article article, Stock stock, snapshot) <- NULL;
+    saleSum(Article article, Stock stock, snapshot) <- NULL;
+    saleNetWeight(Article article, Stock stock, snapshot) <- NULL;
+}
+
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
+    IF isSale(snapshot) THEN {
+        IF isDate(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                saleQuantity(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM saleQuantity(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isSum(snapshot) THEN {
+                saleSum(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM saleSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isNetWeight(snapshot) THEN {
+                saleNetWeight(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM saleNetWeight(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+        IF isQuantity(snapshot) THEN {
+            saleQuantity(Article article, Stock stock, snapshot) <-
+                GROUP SUM saleQuantity(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isSum(snapshot) THEN {
+            saleSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM saleSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isNetWeight(snapshot) THEN {
+            saleNetWeight(Article article, Stock stock, snapshot) <-
+                GROUP SUM saleNetWeight(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+};
+
+EXTEND FORM snapshot
+    //-- article
+    PROPERTIES(art, sta, r) BEFORE inQuantity(art, sta, r) BACKGROUND hintSaleBackground()
+        saleQuantity SHOWIF isQuantitySale(r),
+        saleSum SHOWIF isSumSale(r),
+        saleNetWeight SHOWIF isNetWeightSale(r)
+    
+    //-- article на дату
+    PROPERTIES(art2, sta2, r, da2) BEFORE inQuantity(art2, sta2, r, da2) BACKGROUND hintSaleBackground()
+        saleQuantity SHOWIF isQuantitySaleDate(r),
+        saleSum SHOWIF isSumSaleDate(r),
+        saleNetWeight SHOWIF isNetWeightSaleDate(r)  
+;

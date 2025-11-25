@@ -1,0 +1,42 @@
+MODULE ZReportSnapshotArticle;
+
+REQUIRE ZReportSnapshot, StockSnapshotArticle;
+
+NAMESPACE Stock;
+
+//-- Article
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+//-- Article на дату
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+//-- Расширяем ACTION
+totalReset(Snapshot snapshot) + {
+    discountSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    discountSum(Article article, Stock stock, snapshot) <- NULL;
+}
+
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
+    IF isDiscount(snapshot) THEN {
+        IF isDate(snapshot) THEN {
+            IF isSum(snapshot) THEN {
+                discountSum(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM discountSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+        IF isSum(snapshot) THEN {
+            discountSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM discountSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+};
+
+EXTEND FORM snapshot
+    //-- article
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(art, sta, r)
+        discountSum SHOWIF isSumDiscount(r)
+
+    //-- article на дату
+    PROPERTIES(art2, sta2, r, da2) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(art2, sta2, r, da2)
+        discountSum SHOWIF isSumDiscountDate(r)
+;

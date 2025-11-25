@@ -1,0 +1,319 @@
+MODULE StockSnapshotArticle;
+
+REQUIRE StockSnapshot, ItemArticle;
+
+NAMESPACE Stock;
+
+//-- Article на дату
+
+TABLE articleStockSnapshotDate (Sku, Stock, Snapshot, DATE);
+
+balanceB 'Кол-во начало' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+netWeightB 'Вес начало' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+sumB 'Сумма начало' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+inQuantity 'Кол-во приход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+inNetWeight 'Вес приход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+inSum 'Сумма приход' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+outQuantity 'Кол-во расход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+outNetWeight 'Вес расход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+outSum 'Сумма расход' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+balanceA 'Кол-во конец' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+netWeightA 'Вес конец' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+sumA 'Сумма конец' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+//------------------------------ Article -------------------------------//
+
+TABLE articleStockSnapshot (Article, Stock, Snapshot);
+
+balanceB 'Кол-во начало' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+netWeightB 'Вес начало' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+sumB 'Сумма начало' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+inQuantity 'Кол-во приход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+inNetWeight 'Вес приход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+inSum 'Сумма приход' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+outQuantity 'Кол-во расход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+outNetWeight 'Вес расход' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+outSum 'Сумма расход' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+balanceA 'Кол-во конец' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+netWeightA 'Вес конец' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+sumA 'Сумма конец' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+totalReset(Snapshot snapshot) + {
+    balanceA(Article article, Stock stock, snapshot) <- NULL;
+    inQuantity(Article article, Stock stock, snapshot) <- NULL;
+    outQuantity(Article article, Stock stock, snapshot) <- NULL;
+    balanceB(Article article, Stock stock, snapshot) <- NULL;
+    sumA(Article article, Stock stock, snapshot) <- NULL;
+    inSum(Article article, Stock stock, snapshot) <- NULL;
+    outSum(Article article, Stock stock, snapshot) <- NULL;
+    sumB(Article article, Stock stock, snapshot) <- NULL;
+    netWeightA(Article article, Stock stock, snapshot) <- NULL;
+    inNetWeight(Article article, Stock stock, snapshot) <- NULL;
+    outNetWeight(Article article, Stock stock, snapshot) <- NULL;
+    netWeightB(Article article, Stock stock, snapshot) <- NULL;
+    inQuantity(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    outQuantity(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    inSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    outSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    inNetWeight(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    outNetWeight(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    balanceB(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    sumB(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    balanceA(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    sumA(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    netWeightB(Article article, Stock stock, snapshot, DATE date)  <- NULL;
+    netWeightA(Article article, Stock stock, snapshot, DATE date) <- NULL;
+}
+
+//-- Выбор артикулов
+TABLE snapshotArticle (Snapshot, Article);
+
+dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Article);
+dataExclude 'Искл.' = ABSTRACT BOOLEAN (Snapshot, Article);
+includeSkuGroup (Snapshot snapshot, Article article) = (GROUP MAX 1 IF include(snapshot, SkuGroup g) AND isParent(g, article));
+include 'Вкл' (Snapshot snapshot, Article article) =
+    (includeSkuGroup(snapshot, article) OR dataInclude(snapshot, article)) AND NOT dataExclude(snapshot, article);
+
+includeArticle (Snapshot snapshot, Sku sku) = include(snapshot, article(sku)) OR NOT countIncludeBrands(snapshot);
+overInclude(Snapshot snapshot, Sku sku) += includeArticle(snapshot, sku);
+
+deleteIncludeArticles 'Сбросить отмеченные' (Snapshot r)  {
+    dataInclude(r, Article a) <- NULL;
+};
+
+takeFromSkuFilter (Article article, Sku sku, Stock stock, Snapshot snapshot) =
+    article(sku) == article AND (include(snapshot,supplierLastOrderBatch(sku, stock)) OR NOT countIncludeLegalEntities(snapshot));
+
+overTakeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) +  {
+    IF isQuantity(snapshot) THEN {
+        IF isBalanceA(snapshot) THEN {
+            balanceA(Article article, Stock stock, snapshot) <-
+                GROUP SUM balanceA(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isIn(snapshot) THEN {
+            inQuantity(Article article, Stock stock, snapshot) <-
+                GROUP SUM inQuantity(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+
+        IF isOut(snapshot) THEN {
+            outQuantity(Article article, Stock stock, snapshot) <-
+                GROUP SUM outQuantity(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isBalanceB(snapshot) THEN {
+            balanceB(Article article, Stock stock, snapshot) <-
+                GROUP SUM balanceB(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+    IF isSum(snapshot) THEN {
+        IF isBalanceA(snapshot) THEN {
+            sumA(Article article, Stock stock, snapshot) <-
+                GROUP SUM sumA(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isIn(snapshot) THEN {
+            inSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM inSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isOut(snapshot) THEN {
+            outSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM outSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isBalanceB(snapshot) THEN {
+            sumB(Article article, Stock stock, snapshot) <-
+                GROUP SUM sumB(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+    IF isNetWeight(snapshot) THEN {
+        IF isBalanceA(snapshot) THEN {
+            netWeightA(Article article, Stock stock, snapshot) <-
+                GROUP SUM netWeightA(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isIn(snapshot) THEN {
+            inNetWeight(Article article, Stock stock, snapshot) <-
+                GROUP SUM inNetWeight(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isOut(snapshot) THEN {
+            outNetWeight(Article article, Stock stock, snapshot) <-
+                GROUP SUM outNetWeight(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isBalanceB(snapshot) THEN {
+            netWeightB(Article article, Stock stock, snapshot) <-
+                GROUP SUM netWeightB(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+    IF isDate(snapshot) THEN {
+        IF isQuantity(snapshot) THEN {
+            inQuantity(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM inQuantity(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            outQuantity(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM outQuantity(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isSum(snapshot) THEN {
+            inSum(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM inSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            outSum(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM outSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isNetWeight(snapshot) THEN {
+            inNetWeight(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM inNetWeight(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            outNetWeight(Article article, Stock stock, snapshot, DATE date) <-
+                GROUP SUM outNetWeight(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isBalanceA(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                balanceA(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM balanceA(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isSum(snapshot) THEN {
+                sumA(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM sumA(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isNetWeight(snapshot) THEN {
+                netWeightA(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM netWeightA(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+        IF isBalanceB(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                balanceB(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM balanceB(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isSum(snapshot) THEN {
+                sumB(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM sumB(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isNetWeight(snapshot) THEN {
+                netWeightB(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM netWeightB(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+    }
+}
+
+extraFilterMove = ABSTRACT CASE BOOLEAN (Article, Stock, Snapshot);
+filterMove (Article a, Stock st, Snapshot r) = balanceB(a, st, r) OR balanceA(a, st, r) OR
+    inQuantity(a, st, r) OR outQuantity(a, st, r) OR
+    sumB(a, st, r) OR sumA(a, st, r) OR
+    inSum(a, st, r) OR outSum(a, st, r)
+    OR extraFilterMove(a, st, r) MATERIALIZED;
+
+extraFilterMove = ABSTRACT CASE BOOLEAN (Article, Stock, Snapshot, DATE);
+filterMove (Article a, Stock st, Snapshot r, DATE d) = balanceB(a, st, r, d) OR balanceA(a, st, r, d) OR
+    inQuantity(a, st, r, d) OR outQuantity(a, st, r, d) OR
+    sumB(a, st, r, d) OR sumA(a, st, r, d) OR
+    inSum(a, st, r, d) OR outSum(a, st, r, d)
+    OR extraFilterMove(a, st, r, d) MATERIALIZED;
+
+EXTEND FORM snapshot
+    //-- выбор артикулов
+    OBJECTS article = Article
+    PROPERTIES dataInclude(r, article)
+    PROPERTIES(article) READONLY caption, originalCaption, id SHOWIF showIDs()
+    ORDERS caption(article)
+    FILTERGROUP inArticle FILTER 'Отмеченные' dataInclude(r, article)
+    PROPERTIES deleteIncludeArticles(r) TOOLBAR
+
+    //-- По Article итоги
+    OBJECTS staart = (sta = Stock, art = Article)
+    PROPERTIES READONLY id(art) SHOWIF showIDs(), caption(art), nameLegalEntity(sta), idStockGroupArticle = id(stockGroup(sta)), name(sta)
+    FILTERGROUP inactiveStockSta FILTER 'Активный' active(sta) 'ctrl F10' DEFAULT
+    ORDERS caption(art)
+    
+    FILTERS isParent(sk, art),
+        sta == ts AND sg IS StockGroup OR isParent(sg, sta) AND NOT ts OR sta IS Stock AND NOT sg AND NOT ts,
+        isCompany(sta),
+        include(r, sta)
+
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintBalanceBBackground() balanceB SHOWIF isQuantityBalanceB(r),
+        sumB SHOWIF isSumBalanceB(r),
+        netWeightB SHOWIF isNetWeightBalanceB(r)
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintInBackground() inQuantity SHOWIF isQuantityIn(r),
+        inSum SHOWIF isSumIn(r),
+        inNetWeight SHOWIF isNetWeightIn(r)
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintOutBackground() outQuantity SHOWIF isQuantityOut(r),
+        outSum SHOWIF isSumOut(r),
+        outNetWeight SHOWIF isNetWeightOut(r)
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintBalanceABackground() balanceA SHOWIF isQuantityBalanceA(r),
+        sumA SHOWIF isSumBalanceA(r),
+        netWeightA SHOWIF isNetWeightBalanceA(r)
+    PROPERTIES READONLY nameSkuGroup1(art), nameSkuGroup2(art),nameSkuGroup3(art), nameSkuGroup4(art), nameSkuGroup5(art)
+
+    FILTERGROUP filtersSoldArticle
+        FILTER 'С остатком' balanceB(art, sta, r) OR balanceA(art, sta, r) OR sumB(art, sta, r) OR sumA(art, sta, r) 'F10'
+        FILTER 'С приходом' inQuantity(art, sta, r) OR inSum(art, sta, r) 'F9'
+        FILTER 'С расходом' outQuantity(art, sta, r) OR outSum(art, sta, r) 'F8'
+
+    FILTERS filterMove(art, sta, r)
+    
+    //-- По Article на дату
+
+    OBJECTS staart2 = (sta2 = Stock, art2 = Article, da2 = DATE) GRID
+    PROPERTIES READONLY SHOWIF isDate(r) valDa2 = VALUE(da2), id(art2) SHOWIF showIDs(), caption(art2), nameLegalEntity(sta2), idStockGroupArticle2 = id(stockGroup(sta2)), name(sta2)
+
+    ORDERS valDa2
+    FILTERS filterMove(r, da2)
+
+    FILTERGROUP inactiveStockSta2 FILTER 'Активный' active(sta2) 'ctrl F10' DEFAULT
+
+    FILTERS isParent(sk, art2),
+        sta2 == ts AND sg IS StockGroup OR isParent(sg, sta2) AND NOT ts OR sta2 IS Stock AND NOT sg AND NOT ts,
+        isCompany(sta2),
+        include(r, sta2)
+
+    PROPERTIES(art2, sta2, r, da2) BACKGROUND hintBalanceBBackground() balanceB SHOWIF isQuantityBalanceBDate(r),
+        sumB SHOWIF isSumBalanceBDate(r),
+        netWeightB SHOWIF isNetWeightBalanceBDate(r)
+    PROPERTIES(art2, sta2, r, da2) BACKGROUND hintInBackground() inQuantity SHOWIF isQuantityInDate(r),
+        inSum SHOWIF isSumInDate(r),
+        inNetWeight SHOWIF isNetWeightInDate(r)
+    PROPERTIES(art2, sta2, r, da2) BACKGROUND hintOutBackground() outQuantity SHOWIF isQuantityOutDate(r),
+        outSum SHOWIF isSumOutDate(r),
+        outNetWeight SHOWIF isNetWeightOutDate(r)
+    PROPERTIES(art2, sta2, r, da2) BACKGROUND hintBalanceABackground() balanceA SHOWIF isQuantityBalanceADate(r),
+        sumA SHOWIF isSumBalanceADate(r),
+        netWeightA SHOWIF isNetWeightBalanceADate(r)
+
+    PROPERTIES        READONLY SHOWIF isDate(r) nameSkuGroup1(art2), nameSkuGroup2(art2), nameSkuGroup3(art2),
+        nameSkuGroup4(art2), nameSkuGroup5(art2)
+
+    FILTERGROUP filtersSoldArticle2
+        FILTER 'С остатком' balanceB(art2, sta2, r, da2) OR balanceA(art2, sta2, r, da2) OR sumB(art2, sta2, r, da2) OR sumA(art2, sta2, r, da2) 'F10'
+        FILTER 'С приходом' inQuantity(art2, sta2, r, da2) OR inSum(art2, sta2, r, da2) 'F9'
+        FILTER 'С расходом' outQuantity(art2, sta2, r, da2) OR outSum(art2, sta2, r, da2) 'F8'
+
+    FILTERS filterMove(art2,sta2,r,da2)
+;
+
+DESIGN snapshot {
+    rightI {
+        MOVE BOX(article) BEFORE addBarcode {
+            fill = 1; caption = 'Выбор артикулов';
+            TOOLBARBOX(article) {
+                MOVE PROPERTY (deleteIncludeArticles(r));
+            }
+        }
+    }
+    secondCase {
+        NEW articleContainer {
+            fill = 1;
+            caption = 'Артикулы';
+            tabbed = TRUE;
+            MOVE BOX(staart) {
+                caption = 'Итоги';
+                PROPERTY (idStockGroupArticle) { caption = 'Код Склада'; }
+                PROPERTY (name(sta)) { caption = 'Наименование Склада'; }
+            }
+            MOVE BOX(staart2) {
+                caption = 'В динамике';
+                PROPERTY (idStockGroupArticle2) { caption = 'Код Склада'; }
+                PROPERTY (name(sta2)) { caption = 'Наименование Склада'; }
+            }
+        }
+    }
+}

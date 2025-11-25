@@ -696,19 +696,12 @@ includeSkuGroup (Snapshot snapshot, Sku sku) = (GROUP MAX 1 IF include(snapshot,
 includeBrand (Snapshot snapshot, Sku sku) = include(snapshot, brand(sku)) OR NOT countIncludeBrands(snapshot);
 includeLegalEntity (Snapshot snapshot, Sku sku) = include(snapshot, supplierLastOrderBatch(sku)) OR NOT countIncludeLegalEntities(snapshot);
 
-//skip = ABSTRACT BOOLEAN (Snapshot, Sku);
-
 filterLocal = DATA LOCAL BOOLEAN ();
 includeLocal = DATA LOCAL BOOLEAN (Sku);
-
-//include 'Вкл' (Snapshot snapshot, Sku sku) =
-//    (includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku);
+overInclude = ABSTRACT BOOLEAN (Snapshot, Sku);
 
 include 'Вкл' (Snapshot snapshot, Sku sku) =
-    ((includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku)) AND NOT dataExclude(snapshot,sku);
-    
-    //OVERRIDE dataInclude(snapshot, sku),
-             //(includeSkuGroup(snapshot, sku) AND includeBrand(snapshot, sku)) AND NOT skip(snapshot, sku);
+    ((overInclude(snapshot, sku)) OR (includeSkuGroup(snapshot, sku) AND (NOT filterLocal() OR includeLocal(sku))) OR dataInclude(snapshot, sku)) AND NOT dataExclude(snapshot,sku);
              
 countIncludeSku 'Вкл' (Snapshot snapshot) = GROUP SUM 1 IF include(snapshot, Sku sku);
 

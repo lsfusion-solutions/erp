@@ -1,0 +1,59 @@
+MODULE WriteOffSnapshotArticle;
+
+REQUIRE WriteOffSnapshot, StockSnapshotArticle;
+
+NAMESPACE WriteOff;
+
+//-- Article
+writeOffQuantity 'Кол-во списание' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+//-- Article на дату
+writeOffQuantity 'Кол-во списание' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+writeOffSum 'Сумма списание' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+extraFilterMove(Article a, Stock st, Snapshot r) += WHEN writeOffQuantity(a, st, r) OR writeOffSum(a, st, r) THEN TRUE;
+extraFilterMove(Article a, Stock st, Snapshot r, DATE d) += WHEN writeOffQuantity(a, st, r, d) OR writeOffSum(a, st, r, d) THEN TRUE;
+
+//-- Расширяем ACTION
+totalReset(Snapshot snapshot) + {
+    writeOffQuantity(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    writeOffSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    writeOffQuantity(Article article, Stock stock, snapshot) <- NULL;
+    writeOffSum(Article article, Stock stock, snapshot) <- NULL;
+}
+
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
+    IF isWriteOff(snapshot) THEN {
+        IF isDate(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                writeOffQuantity(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM writeOffQuantity(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isSum(snapshot) THEN {
+                writeOffSum(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM writeOffSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+        IF isQuantity(snapshot) THEN {
+            writeOffQuantity(Article article, Stock stock, snapshot) <-
+                GROUP SUM writeOffQuantity(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isSum(snapshot) THEN {
+            writeOffSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM writeOffSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+};
+
+EXTEND FORM snapshot
+    //-- article
+    PROPERTIES(art, sta, r) READONLY BACKGROUND hintWriteOffBackground() BEFORE inQuantity(art, sta, r)
+        writeOffQuantity SHOWIF isQuantityWriteOff(r),
+        writeOffSum SHOWIF isSumWriteOff(r)
+
+    //-- article на дату
+    PROPERTIES(art2, sta2, r, da2) READONLY BACKGROUND hintWriteOffBackground() BEFORE inQuantity(art2, sta2, r, da2)
+        writeOffQuantity SHOWIF isQuantityWriteOffDate(r),
+        writeOffSum SHOWIF isSumWriteOffDate(r)
+;

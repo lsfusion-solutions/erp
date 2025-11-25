@@ -1,0 +1,74 @@
+MODULE PurchaseSnapshotArticle;
+
+REQUIRE PurchaseSnapshot, StockSnapshotArticle;
+
+NAMESPACE Purchase;
+
+//-- Article
+purchaseQuantity 'Кол-во закупка' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+purchaseNetWeight 'Вес закупка' = DATA NUMERIC[14,3] (Article, Stock, Snapshot);
+purchaseSum 'Сумма закупка' = DATA NUMERIC[16,2] (Article, Stock, Snapshot);
+
+//-- Article на дату
+purchaseQuantity 'Кол-во закупка' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+purchaseNetWeight 'Вес закупка' = DATA NUMERIC[14,3] (Article, Stock, Snapshot, DATE);
+purchaseSum 'Сумма закупка' = DATA NUMERIC[16,2] (Article, Stock, Snapshot, DATE);
+
+extraFilterMove(Article a, Stock st, Snapshot r) += WHEN purchaseQuantity(a, st, r) OR purchaseSum(a, st, r) THEN TRUE;
+extraFilterMove(Article a, Stock st, Snapshot r, DATE d) += WHEN purchaseQuantity(a, st, r, d) OR purchaseSum(a, st, r, d) THEN TRUE;
+
+//-- Расширяем ACTION
+totalReset(Snapshot snapshot) + {
+    purchaseQuantity(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    purchaseNetWeight(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    purchaseSum(Article article, Stock stock, snapshot, DATE date) <- NULL;
+    purchaseQuantity(Article article, Stock stock, snapshot) <- NULL;
+    purchaseNetWeight(Article article, Stock stock, snapshot) <- NULL;
+    purchaseSum(Article article, Stock stock, snapshot) <- NULL;
+}
+
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) + {
+    IF isPurchase(snapshot) THEN {
+        IF isDate(snapshot) THEN {
+            IF isQuantity(snapshot) THEN {
+                purchaseQuantity(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM purchaseQuantity(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+            IF isNetWeight(snapshot) THEN {
+                purchaseNetWeight(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM purchaseNetWeight(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+
+            IF isSum(snapshot) THEN {
+                purchaseSum(Article article, Stock stock, snapshot, DATE date) <-
+                    GROUP SUM purchaseSum(Sku sku, stock, snapshot, date) IF takeFromSkuFilter(article, sku, stock, snapshot);
+            }
+        }
+        IF isQuantity(snapshot) THEN {
+            purchaseQuantity(Article article, Stock stock, snapshot) <-
+                GROUP SUM purchaseQuantity(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isNetWeight(snapshot) THEN {
+            purchaseNetWeight(Article article, Stock stock, snapshot) <-
+                GROUP SUM purchaseNetWeight(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+        IF isSum(snapshot) THEN {
+            purchaseSum(Article article, Stock stock, snapshot) <-
+                GROUP SUM purchaseSum(Sku sku, stock, snapshot) IF takeFromSkuFilter(article, sku, stock, snapshot);
+        }
+    }
+};
+
+EXTEND FORM snapshot
+    //-- article
+    PROPERTIES(art, sta, r) AFTER netWeightB(art, sta, r) BACKGROUND hintPurchaseBackground()
+        purchaseQuantity SHOWIF isQuantityPurchase(r),
+        purchaseSum SHOWIF isSumPurchase(r),
+        purchaseNetWeight SHOWIF isNetWeightPurchase(r)
+
+    //-- article на дату
+    PROPERTIES(art2, sta2, r, da2) AFTER netWeightB(art2, sta2, r, da2) BACKGROUND hintPurchaseBackground()
+        purchaseQuantity SHOWIF isQuantityPurchaseDate(r),
+        purchaseSum SHOWIF isSumPurchaseDate(r),
+        purchaseNetWeight SHOWIF isNetWeightPurchaseDate(r)
+;
