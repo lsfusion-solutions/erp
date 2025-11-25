@@ -1,17 +1,16 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalAbsolutOpenZReportAction extends InternalAction {
+public class FiscalAbsolutOpenZReportAction extends DefaultIntegrationAction {
 
     public FiscalAbsolutOpenZReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -29,7 +28,7 @@ public class FiscalAbsolutOpenZReportAction extends InternalAction {
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 9, saveCommentOnFiscalTape, useSKNO));
                 if (result != null) {
-                    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    messageClientAction(context, (String) result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

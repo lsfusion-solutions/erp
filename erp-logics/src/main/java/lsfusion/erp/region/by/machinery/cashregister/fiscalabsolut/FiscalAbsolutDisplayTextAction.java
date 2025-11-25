@@ -1,7 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.data.value.ObjectValue;
@@ -11,15 +11,12 @@ import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-import static org.apache.commons.lang3.StringUtils.trim;
-
-public class FiscalAbsolutDisplayTextAction extends InternalAction {
+public class FiscalAbsolutDisplayTextAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptDetailInterface;
 
     public FiscalAbsolutDisplayTextAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -63,7 +60,7 @@ public class FiscalAbsolutDisplayTextAction extends InternalAction {
                                 articleDiscSum, bonusSum, bonusPaid, valueVAT)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalAbsolutDisplayText Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

@@ -1,10 +1,9 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -12,7 +11,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalAbsolutPrintCopyReceiptAction extends InternalAction {
+public class FiscalAbsolutPrintCopyReceiptAction extends DefaultIntegrationAction {
 
     public FiscalAbsolutPrintCopyReceiptAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -29,7 +28,7 @@ public class FiscalAbsolutPrintCopyReceiptAction extends InternalAction {
             String result = (String) context.requestUserInteraction(new FiscalAbsolutPrintCopyReceiptClientAction(logPath, comPort, baudRate));
             if (result != null) {
                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintCopyReceipt Error: " + result);
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                messageClientAction(context, result, "Ошибка");
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

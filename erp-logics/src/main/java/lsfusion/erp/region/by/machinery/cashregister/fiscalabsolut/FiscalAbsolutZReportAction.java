@@ -1,11 +1,10 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.action.ConfirmClientAction;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.base.controller.thread.ThreadLocalContext;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -14,7 +13,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import javax.swing.*;
 import java.sql.SQLException;
 
-public class FiscalAbsolutZReportAction extends InternalAction {
+public class FiscalAbsolutZReportAction extends DefaultIntegrationAction {
 
     public FiscalAbsolutZReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -36,7 +35,7 @@ public class FiscalAbsolutZReportAction extends InternalAction {
                 Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 2,
                         fiscalAbsolutReportTop, saveCommentOnFiscalTape, useSKNO));
                 if (result != null) {
-                    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    messageClientAction(context, (String) result, "Ошибка");
                 } else {
                     Integer dialogResult = (Integer) ThreadLocalContext.requestUserInteraction(new ConfirmClientAction(
                             "Печать Z-отчёта", "Нажмите 'Да', если печать Z-отчёта завершилась успешно " +
@@ -45,7 +44,7 @@ public class FiscalAbsolutZReportAction extends InternalAction {
                         result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(logPath, comPort, baudRate, 3,
                                 fiscalAbsolutReportTop, saveCommentOnFiscalTape, useSKNO));
                         if (result != null) {
-                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                            messageClientAction(context, (String) result, "Ошибка");
                         }
                     } else {
                         close = false;

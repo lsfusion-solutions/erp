@@ -1,14 +1,13 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -16,7 +15,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalAbsolutServiceInOutAction extends InternalAction {
+public class FiscalAbsolutServiceInOutAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalAbsolutServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -42,7 +41,7 @@ public class FiscalAbsolutServiceInOutAction extends InternalAction {
                     findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else {
                     ServerLoggers.systemLogger.error("FiscalAbsolutServiceInOut Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
 

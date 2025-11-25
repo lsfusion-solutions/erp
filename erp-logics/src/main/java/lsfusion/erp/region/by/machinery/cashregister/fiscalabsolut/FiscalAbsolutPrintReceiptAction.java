@@ -5,8 +5,8 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.language.property.LP;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
@@ -17,7 +17,6 @@ import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
@@ -27,7 +26,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-public class FiscalAbsolutPrintReceiptAction extends InternalAction {
+public class FiscalAbsolutPrintReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalAbsolutPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -67,7 +66,7 @@ public class FiscalAbsolutPrintReceiptAction extends InternalAction {
                 Integer maxLinesAbsolut = (Integer) findProperty("maxLinesAbsolut[]").read(context);
                 boolean printSumWithDiscount = findProperty("printSumWithDiscountAbsolut[]").read(context) != null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
-                    context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
+                    messageClientAction(context, "Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!");
                     return;
                 }
 
@@ -181,7 +180,7 @@ public class FiscalAbsolutPrintReceiptAction extends InternalAction {
                                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Apply Error");
                         } else {
                             ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
-                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                            messageClientAction(context, (String) result, "Ошибка");
                         }
                     } else {
                         if (context.apply())

@@ -2,9 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.action.MessageClientAction;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -63,14 +61,12 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
 
-        if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
-            new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
+        if (!receipt.receiptSaleList.isEmpty() && !receipt.receiptReturnList.isEmpty()) {
             return "В одном чеке обнаружены продажи и возврат одновременно";
         }
 
         //защита от случая, когда сумма сертификата + сумма карточкой больше общей суммы.
         else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
-            new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
             boolean opened = false;
@@ -80,7 +76,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                 FiscalAbsolut.smenBegin();
 
 
-                if (receipt.receiptSaleList.size() != 0) {
+                if (!receipt.receiptSaleList.isEmpty()) {
                     opened = FiscalAbsolut.openReceipt(true);
                     if (opened) {
                         if (!printReceipt(receipt.receiptSaleList, useSKNO)) {
@@ -93,7 +89,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                         return FiscalAbsolut.getError(false);
                 }
 
-                if (receipt.receiptReturnList.size() != 0) {
+                if (!receipt.receiptReturnList.isEmpty()) {
                     opened = FiscalAbsolut.openReceipt(false);
                     if (opened) {
                         if (!printReceipt(receipt.receiptReturnList, useSKNO)) {
