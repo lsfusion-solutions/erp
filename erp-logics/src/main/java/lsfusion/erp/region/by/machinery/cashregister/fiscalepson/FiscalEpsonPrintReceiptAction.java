@@ -4,10 +4,9 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
-import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.user.ConcreteCustomClass;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
@@ -29,9 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.TreeMap;
 
-import static lsfusion.base.BaseUtils.trim;
-
-public class FiscalEpsonPrintReceiptAction extends InternalAction {
+public class FiscalEpsonPrintReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalEpsonPrintReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -179,7 +176,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                 }
 
                 if (!receiptSaleItemList.isEmpty() && !receiptReturnItemList.isEmpty())
-                    context.requestUserInteraction(new MessageClientAction("В чеке обнаружены одновременно продажа и возврат", "Ошибка"));
+                    messageClientAction(context,"В чеке обнаружены одновременно продажа и возврат", "Ошибка");
                 else {
                     if (context.checkApply()) {
                         Boolean isReturn = !receiptReturnItemList.isEmpty();
@@ -202,7 +199,7 @@ public class FiscalEpsonPrintReceiptAction extends InternalAction {
                                 ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Apply Error");
                         } else {
                             ServerLoggers.systemLogger.error("FiscalEpsonPrintReceipt Error: " + result.error);
-                            context.requestUserInteraction(new MessageClientAction(result.error, "Ошибка"));
+                            messageClientAction(context, result.error, "Ошибка");
                         }
                     }
                 }

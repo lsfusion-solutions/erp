@@ -4,12 +4,11 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.interop.form.property.Compare;
 import lsfusion.server.data.expr.key.KeyExpr;
 import lsfusion.server.data.query.build.QueryBuilder;
 import lsfusion.server.language.property.LP;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -25,9 +24,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import static lsfusion.base.BaseUtils.trim;
-
-public class FiscalEpsonResetReceiptAction extends InternalAction {
+public class FiscalEpsonResetReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalEpsonResetReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -136,9 +133,9 @@ public class FiscalEpsonResetReceiptAction extends InternalAction {
                     findProperty("resetted[Receipt]").change(true, context, receiptObject);
                     findProperty("dataSkip[Receipt]").change(true, context, receiptObject);
                     if (!context.apply())
-                        context.requestUserInteraction(new MessageClientAction("Ошибка при аннулировании чека", "Ошибка"));
+                        messageClientAction(context,"Ошибка при аннулировании чека", "Ошибка");
                 } else {
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

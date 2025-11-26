@@ -1,18 +1,17 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonPrintCopyReceiptAction extends InternalAction {
+public class FiscalEpsonPrintCopyReceiptAction extends DefaultIntegrationAction {
 
     public FiscalEpsonPrintCopyReceiptAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -33,10 +32,10 @@ public class FiscalEpsonPrintCopyReceiptAction extends InternalAction {
                         electronicJournalReadOffset, electronicJournalReadSize, sessionNumber));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalEpsonPrintCopyReceipt Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             } else {
-                context.requestUserInteraction(new MessageClientAction("Ошибка! Не удалось получить данные о последнем чеке", "Копия чека"));
+                messageClientAction(context,"Ошибка! Не удалось получить данные о последнем чеке", "Копия чека");
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

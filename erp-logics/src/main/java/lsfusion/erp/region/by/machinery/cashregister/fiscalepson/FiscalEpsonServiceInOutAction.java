@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -14,9 +13,7 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-import static lsfusion.base.BaseUtils.trim;
-
-public class FiscalEpsonServiceInOutAction extends InternalAction {
+public class FiscalEpsonServiceInOutAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface cashOperationInterface;
 
     public FiscalEpsonServiceInOutAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -42,7 +39,7 @@ public class FiscalEpsonServiceInOutAction extends InternalAction {
                 if (result == null) {
                     findProperty("isComplete[CashOperation]").change(true, context, cashOperationObject);
                 } else
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

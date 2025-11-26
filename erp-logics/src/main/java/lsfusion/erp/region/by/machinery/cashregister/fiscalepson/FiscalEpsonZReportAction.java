@@ -1,17 +1,16 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalepson;
 
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.language.ScriptingErrorLog;
 import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalEpsonZReportAction extends InternalAction {
+public class FiscalEpsonZReportAction extends DefaultIntegrationAction {
 
     public FiscalEpsonZReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -28,7 +27,7 @@ public class FiscalEpsonZReportAction extends InternalAction {
             if (context.checkApply()) {
                 Object result = context.requestUserInteraction(new FiscalEpsonCustomOperationClientAction(2, comPort, baudRate));
                 if (result instanceof String) {
-                    context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    messageClientAction(context, (String) result, "Ошибка");
                 } else if (result instanceof Integer) {
                     findProperty("fiscalNumber[ZReport]").change(String.valueOf(result), context, zReportObject);
                 }
