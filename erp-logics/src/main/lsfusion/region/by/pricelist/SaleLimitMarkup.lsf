@@ -30,7 +30,9 @@ DESIGN operation {
 
 limitCalcPriceListType (Operation operation) = OVERRIDE dataLimitCalcPriceListType(operation), limitSaleCalcPriceListType();
 
+markupLimit = ABSTRACT CASE NUMERIC[8,2] (UserOrderDetail);
 markupLimitCalcPriceListType 'Предельная надбавка, %' (UserOrderDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
+overMarkupLimit 'Предельная надбавка, %' (UserOrderDetail d) = OVERRIDE markupLimit(d), markupLimitCalcPriceListType(d);
 
 limitSaleMarkupPrice = ABSTRACT CASE NUMERIC[16,4] (OrderDetail);
 limitSaleMarkupPrice(UserOrderDetail d) += WHEN d IS UserOrderDetail THEN round([ X*(Y+100)/100](
@@ -47,10 +49,12 @@ WHEN LOCAL FORMS userOrder GOAFTER price[UserOrderDetail]
 }
 
 EXTEND FORM userOrder
-    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) markupLimitCalcPriceListType
+    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) overMarkupLimit
 ;
 
+markupLimit = ABSTRACT CASE NUMERIC[8,2] (UserInvoiceDetail);
 markupLimitCalcPriceListType 'Предельная надбавка, %' (UserInvoiceDetail d) = markup(limitCalcPriceListType(operation(d)), sku(d));
+overMarkupLimit 'Предельная надбавка, %' (UserInvoiceDetail d) = OVERRIDE markupLimit(d), markupLimitCalcPriceListType(d);
 
 limitSaleMarkupPrice = ABSTRACT CASE NUMERIC[16,4] (InvoiceDetail);
 limitSaleMarkupPrice(UserInvoiceDetail d) += WHEN d IS UserInvoiceDetail THEN round([ X*(Y+100)/100](
@@ -67,5 +71,5 @@ WHEN LOCAL FORMS userInvoice GOAFTER price[UserInvoiceDetail]
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) markupLimitCalcPriceListType
+    PROPERTIES(d) READONLY SHOWIF (limitCalcPriceListType(operation(d)) AND showManufacturingPrice(d)) overMarkupLimit
 ;
