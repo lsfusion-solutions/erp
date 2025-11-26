@@ -1,6 +1,6 @@
 MODULE Ukm5PriceTransaction;
 
-REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy, StopList;
+REQUIRE Item, CashRegisterPriceTransaction, NativeMachinery, LogTools, MachineryPriceTransactionLotBy, StopList, ItemSSC;
 
 NAMESPACE Ukm5;
 
@@ -12,15 +12,16 @@ idStore 'ID магазина UKM5' (GroupCashRegister g) = idStore(stock(g));
 urlServerUkm5 'URL сервера УКМ5' = DATA STRING[300] (GroupCashRegister);
 directoryExchange 'Директория обмена УКМ5' = DATA STRING[300] (GroupCashRegister);
 accepted(STRING result) = TRUE IF result = 'Accepted to processing\r\n';
-hasUkm5GroupMachinery (Stock s) = GROUP  SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
+hasUkm5GroupMachinery (Stock s) = GROUP SUM 1 IF stock(GroupMachinery g) = s AND handlerModel(g) = 'lsf.ukm5';
 urlUkm5ServerImport 'Url сервера(импорт)' = DATA STRING ();
 urlUkm5ServerExport 'Url сервера(экспорт)' = DATA STRING ();
 
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 uploadedUkm5 'Загружен в УКМ5' = DATA BOOLEAN (Group);
 uploadedUkm5Properties 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
+uploadedUkm5Scale 'Загружен в УКМ5' = DATA BOOLEAN (Sku);
 
-EXTEND FORM groupCashRegister 
+EXTEND FORM groupCashRegister
     PROPERTIES (grc) SHOWIF isUkm5(grc) idStore, urlServerUkm5, directoryExchange;
 
 DESIGN groupCashRegister{
@@ -126,9 +127,15 @@ FORM itemPrices 'Импорт цен на товары'
 
 skipUkz = ABSTRACT BOOLEAN (Item);
 valueProp = ABSTRACT CASE STRING (STRING, Item);
+nameProp = ABSTRACT CASE STRING (STRING, Item);
 
 valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN (OVERRIDE dataGTIN(barcode(i)), GTIN(barcode(i))) ;
 valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
+valueProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'quantity_by_hand';
+
+nameProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN 'GTIN';
+nameProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
+nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'Ручной ввод кол-ва';
 
 FORM itemProperties 'Дополнительные свойства товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -139,7 +146,7 @@ FORM itemProperties 'Дополнительные свойства товаро�
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Properties(elements)
 
     OBJECTS s = STRING EXTID 'properties'
-    PROPERTIES = s IF valueProp(s, elements) EXTID 'name',
+    PROPERTIES nameProp(s, elements) EXTID 'name',
         = valueProp(s, elements) EXTID 'id',
         = TFALSE IF valueProp(s, elements) EXTID 'showToCashier',
         = TFALSE IF valueProp(s, elements) EXTID 'printOnReceipt'
@@ -151,6 +158,21 @@ FORM itemProperties 'Дополнительные свойства товаро�
     FILTERS v = s
 ;
 
+GROUP attributes;
+weightSize (Sku i) = IF lowWeight(i) THEN 2;
+
+FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
+    OBJECTS t = MachineryPriceTransaction
+
+    OBJECTS elements = Item
+    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'item_id',
+        = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
+        = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'deleted',
+        = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
+    PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
+    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements)    
+;
+
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Group g) AND skuGroupTransaction(g, t)) THEN {
@@ -159,11 +181,11 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         fileToString(answer());
         IF statusHttp() = 200 THEN uploadedUkm5(Group g) <- TRUE IF skuGroupTransaction(g, t) AND NOT uploadedUkm5(g);
         ELSE {
-             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 
-             'Ошибка при импорте товаров', resultString()));
-             logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
-             APPLY;
-             RETURN;
+            addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t),
+                'Ошибка при импорте групп товаров', resultString()));
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте групп товаров', resultString());
+            APPLY;
+            RETURN;
         }
     }
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Item i) AND skuTransaction(i, t)) THEN {
@@ -187,13 +209,27 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
                 'Ошибка при импорте свойств товаров', resultString()));
-            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте товаров', resultString());
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте свойств товаров', resultString());
+            APPLY ;
+            RETURN;
+        }
+    }
+    IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Item i) AND skuTransaction(i, t)) THEN {
+        EXPORT importSecurityScale OBJECTS t = t JSON;
+        EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
+            idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
+        fileToString(answer());
+        IF statusHttp() = 200 THEN uploadedUkm5Scale(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Scale(i);
+        ELSE {
+            addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t),
+                'Ошибка при импорте эталонных весов КВП', resultString()));
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте эталонных весов КВП', resultString());
             APPLY ;
             RETURN;
         }
     }
     EXPORT itemPrices OBJECTS t = t JSON;
-    EXTERNAL HTTP POST CONCAT '' , urlUkm5ServerImport() + '/api/v1/import/store/',
+    EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
         idStore(groupCashRegister(t)), '/itemPrices' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF statusHttp() = 200 THEN {
@@ -201,7 +237,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         dateTimeSucceeded(t) <- currentDateTime();
         APPLY;
     } ELSE {
-        addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
+        addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t),
             'Ошибка при импорте прайса', resultString()));
         logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте прайса', resultString());
         APPLY ;
@@ -210,7 +246,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
 }
 
 isPromo = ABSTRACT TBOOLEAN (Stock, Item);
-minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
+minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery) =
     minPrice(lastTransaction(barcode, groupMachinery), barcode) MATERIALIZED;
 
 minTransactionPrice 'Текущая минимальня цена в оборудовании' (Barcode barcode, stock) =
@@ -221,13 +257,13 @@ minTransactionPrice 'Текущая минимальня цена в обору�
 ;
 
 succeededNative 'Загружен в оборудование (Native)' = DATA BOOLEAN (Stock, StopList);
-skuTransaction(Sku s, Stock st) = GROUP SUM 1 IF sku(st, StopListDetail d) = s AND NOT succeededNative(st, stopList(d)) 
+skuTransaction(Sku s, Stock st) = GROUP SUM 1 IF sku(st, StopListDetail d) = s AND NOT succeededNative(st, stopList(d))
     AND stock(GroupMachinery g) = st AND handlerModel(g) = 'lsf.ukm5' AND active(g) AND date(stopList(d)) > startDate(g);
 include(Sku s, Stock st) = GROUP SUM 1 IF include(st, StopListDetail d) AND sku(st, d) = s AND NOT succeededNative(st, stopList(d));
 
 EXTEND FORM stopList
     PROPERTIES(ts, sl) succeededNative LAST
-;    
+;
 
 FORM stopListImport 'Импорт стоп-листа'
     OBJECTS s = Stock
@@ -235,8 +271,8 @@ FORM stopListImport 'Импорт стоп-листа'
     OBJECTS elements = Item
     PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
         = OVERRIDE isPromo(s, elements), TFALSE IF elements IS Item EXTID 'isPromoPrice',
-        = IF NOT active(elements) OR include(elements, s)  THEN 0 ELSE minTransactionPrice(Barcode.barcode(elements), s) EXTID 'minprice',
-        = IF NOT active(elements) OR include(elements, s)  THEN 0 ELSE transactionPrice(Barcode.barcode(elements), s) EXTID 'price',
+        = IF NOT active(elements) OR include(elements, s) THEN 0 ELSE minTransactionPrice(Barcode.barcode(elements), s) EXTID 'minprice',
+        = IF NOT active(elements) OR include(elements, s) THEN 0 ELSE transactionPrice(Barcode.barcode(elements), s) EXTID 'price',
         = IF NOT active(elements) OR include(elements, s) THEN TTRUE ELSE TFALSE EXTID 'delete',
         = IF elements IS Item THEN toChar(DATETIME('2020-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateFrom',
         = IF elements IS Item THEN toChar(DATETIME('2099-01-01'), 'yyyy-MM-ddThh24:mi:ss') EXTID 'dateTo'
@@ -244,10 +280,10 @@ FORM stopListImport 'Импорт стоп-листа'
     FILTERS skuTransaction(elements, s)
 ;
 
-stopListImport  'Импорт стоп-листа (склад)' (Stock s){
+stopListImport 'Импорт стоп-листа (склад)' (Stock s){
     LOCAL answer = FILE ();
     EXPORT stopListImport OBJECTS s = s JSON;
-    EXTERNAL HTTP POST CONCAT '' , urlUkm5ServerImport()+ '/api/v1/import/store/',
+    EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
         idStore(groupCashRegister(s)), '/itemPrices' PARAMS exportFile() TO answer;
     fileToString(answer());
     IF statusHttp() = 200 THEN {
@@ -260,12 +296,11 @@ stopListImport  'Импорт стоп-листа (склад)' (Stock s){
     }
 }
 
-stopListImport  'Импорт стоп-листа' () {
+stopListImport 'Импорт стоп-листа' () {
     FOR hasUkm5GroupMachinery(Stock st) AND skuTransaction(Sku s, st) DO {
         stopListImport(st);
     }
 }
-
 
 EXTEND FORM integrationData
     PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport();
@@ -281,11 +316,11 @@ DESIGN integrationData{
 }
 
 sendMachineryPriceTransaction(MachineryPriceTransaction t) + {
-    IF handlerModel(groupMachinery(t)) = 'lsf.ukm5' AND t IS CashRegisterPriceTransaction AND notSucceeded(t) 
-        THEN NEWSESSION {
+    IF handlerModel(groupMachinery(t)) = 'lsf.ukm5' AND t IS CashRegisterPriceTransaction AND notSucceeded(t)
+    THEN NEWSESSION {
         NEWSESSION { dateTimeProcessing(t) <- currentDateTime(); APPLY; }
         TRY sendPriceTransactionAPI(t);
-        CATCH addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t), 'Ошибка при отправке прайса', 
-              messageCaughtException()), messageCaughtException());
+            CATCH addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t), 'Ошибка при отправке прайса',
+            messageCaughtException()), messageCaughtException());
     }
 }
