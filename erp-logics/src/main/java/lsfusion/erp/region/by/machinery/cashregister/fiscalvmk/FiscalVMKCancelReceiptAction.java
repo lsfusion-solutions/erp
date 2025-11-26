@@ -1,9 +1,8 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.classes.ValueClass;
 import lsfusion.server.data.sql.exception.SQLHandledException;
 import lsfusion.server.data.value.DataObject;
@@ -15,7 +14,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.sql.SQLException;
 import java.util.Iterator;
 
-public class FiscalVMKCancelReceiptAction extends InternalAction {
+public class FiscalVMKCancelReceiptAction extends DefaultIntegrationAction {
     private final ClassPropertyInterface receiptInterface;
 
     public FiscalVMKCancelReceiptAction(ScriptingLogicsModule LM, ValueClass... classes) {
@@ -40,7 +39,7 @@ public class FiscalVMKCancelReceiptAction extends InternalAction {
                 String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 4));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalVMKCancelReceipt Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                    messageClientAction(context, result, "Ошибка");
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

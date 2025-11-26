@@ -1,10 +1,9 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -12,7 +11,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 
 import java.sql.SQLException;
 
-public class FiscalVMKXReportAction extends InternalAction {
+public class FiscalVMKXReportAction extends DefaultIntegrationAction {
 
     public FiscalVMKXReportAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -34,7 +33,7 @@ public class FiscalVMKXReportAction extends InternalAction {
             }
             else {
                 ServerLoggers.systemLogger.error("FiscalVMKXReport Error: " + result);
-                context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                messageClientAction(context, result, "Ошибка");
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

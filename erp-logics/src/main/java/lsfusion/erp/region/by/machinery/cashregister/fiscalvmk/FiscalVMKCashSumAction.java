@@ -1,10 +1,9 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
+import lsfusion.erp.integration.DefaultIntegrationAction;
 import lsfusion.server.physics.admin.log.ServerLoggers;
 import lsfusion.server.data.sql.exception.SQLHandledException;
-import lsfusion.server.physics.dev.integration.internal.to.InternalAction;
 import lsfusion.server.logics.property.classes.ClassPropertyInterface;
 import lsfusion.server.logics.action.controller.context.ExecutionContext;
 import lsfusion.server.language.ScriptingErrorLog;
@@ -13,7 +12,7 @@ import lsfusion.server.language.ScriptingLogicsModule;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 
-public class FiscalVMKCashSumAction extends InternalAction {
+public class FiscalVMKCashSumAction extends DefaultIntegrationAction {
 
     public FiscalVMKCashSumAction(ScriptingLogicsModule LM) {
         super(LM);
@@ -30,10 +29,10 @@ public class FiscalVMKCashSumAction extends InternalAction {
 
             Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(isUnix, logPath, ip, comPort, baudRate, 5));
             if (result instanceof BigDecimal) {
-                context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
+                messageClientAction(context, FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе");
             } else if (result instanceof String) {
                 ServerLoggers.systemLogger.error("FiscalVMKCashSum Error: " + result);
-                context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                messageClientAction(context, (String) result, "Ошибка");
             }
 
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

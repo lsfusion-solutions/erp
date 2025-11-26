@@ -1,9 +1,7 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.interop.action.MessageClientAction;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -50,14 +48,12 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) {
 
-        if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
-            new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
+        if (!receipt.receiptSaleList.isEmpty() && !receipt.receiptReturnList.isEmpty()) {
             return "В одном чеке обнаружены продажи и возврат одновременно";
         }
 
         //защита от случая, когда сумма сертификата + сумма карточкой больше общей суммы.
         else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
-            new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
             try {
@@ -66,7 +62,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
                 
                 Integer numberReceipt = null;
                 
-                if (receipt.receiptSaleList.size() != 0) {
+                if (!receipt.receiptSaleList.isEmpty()) {
                     numberReceipt = printReceipt(receipt.receiptSaleList, true);
                     if (numberReceipt == null) {
                         String error = FiscalVMK.getError(false);
@@ -75,7 +71,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
                     }
                 }
                     
-                if (receipt.receiptReturnList.size() != 0) {
+                if (!receipt.receiptReturnList.isEmpty()) {
                     numberReceipt = printReceipt(receipt.receiptReturnList, false);
                     if (numberReceipt == null) {
                         String error = FiscalVMK.getError(false);
@@ -148,7 +144,7 @@ public class FiscalVMKPrintReceiptClientAction extends FiscalVMKClientAction {
             if(UNP != null)
                 FiscalVMK.printFiscalText(getFiscalString("УНП", UNP));
             if(regNumber != null)
-            FiscalVMK.printFiscalText(getFiscalString("РЕГ N", regNumber));
+                FiscalVMK.printFiscalText(getFiscalString("РЕГ N", regNumber));
             if(machineryNumber != null)
                 FiscalVMK.printFiscalText(getFiscalString("N КСА", machineryNumber));
 
