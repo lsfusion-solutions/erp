@@ -1,0 +1,161 @@
+MODULE DiadocEInvoice;
+
+REQUIRE DiadocMessage, CryptoPro, DiadocDocument, EInvoice, CustomerEInvoice;
+
+NAMESPACE Diadoc;
+
+eInvoice = DATA EInvoice(Document);
+
+GROUP shipper EXTID 'Shipper';
+GROUP receiver EXTID 'Receiver';
+GROUP shipFrom EXTID 'ShipFrom';
+GROUP carrier EXTID 'Carrier';
+GROUP despatchAdviceLogisticUnitLineItem EXTID 'DespatchAdviceLogisticUnitLineItem';
+GROUP lineItem EXTID 'LineItem' : despatchAdviceLogisticUnitLineItem;
+GROUP lineItemIdentification EXTID 'LineItemIdentification' : lineItem;
+GROUP fieldCodeMarkHeader EXTID 'FieldCodeMarkHeader' : lineItemIdentification;
+GROUP total EXTID 'Total';
+
+deliveryNoteType = DATA LOCAL STRING();
+documentID = DATA LOCAL STRING();
+creationDateTime = DATA LOCAL DATETIME();
+functionCode = DATA LOCAL STRING();
+deliveryNoteID = DATA LOCAL STRING();
+deliveryNoteDate = DATA LOCAL DATE();
+contractName = DATA LOCAL STRING();
+contractID = DATA LOCAL STRING();
+contractDate = DATA LOCAL DATE();
+GLN = DATA LOCAL STRING();
+name = DATA LOCAL STRING();
+country = DATA LOCAL STRING();
+nameCountry = DATA LOCAL STRING();
+address = DATA LOCAL STRING();
+VATRegistrationNumber = DATA LOCAL STRING();
+contact = DATA LOCAL STRING();
+GLN1 = DATA LOCAL STRING();
+name1 = DATA LOCAL STRING();
+address1 = DATA LOCAL STRING();
+VATRegistrationNumber1 = DATA LOCAL STRING();
+country1 = DATA LOCAL STRING();
+nameCountry1 = DATA LOCAL STRING();
+contact1 = DATA LOCAL STRING();
+deliveryContact = DATA LOCAL STRING();
+currency = DATA LOCAL STRING();
+lineItemNumber = DATA LOCAL STRING();
+lineItemSign = DATA LOCAL STRING();
+lineItemID = DATA LOCAL STRING();
+itemCustomCode = DATA LOCAL STRING();
+lineItemName = DATA LOCAL STRING();
+quantityDespatched = DATA LOCAL STRING();
+lineItemQuantityUOM = DATA LOCAL STRING();
+taxRate = DATA LOCAL STRING();
+lineItemAmountWithoutCharges = DATA LOCAL STRING();
+lineItemAmountCharges = DATA LOCAL STRING();
+lineItemAmount = DATA LOCAL STRING();
+lineItemPrice = DATA LOCAL STRING();
+lineItemNumber = DATA LOCAL STRING(INTEGER );
+lineItemSign = DATA LOCAL STRING(INTEGER);
+lineItemID = DATA LOCAL STRING(INTEGER);
+itemCustomCode = DATA LOCAL STRING(INTEGER);
+lineItemName = DATA LOCAL STRING(INTEGER);
+quantityDespatched = DATA LOCAL STRING(INTEGER);
+lineItemQuantityUOM = DATA LOCAL STRING(INTEGER);
+taxRate = DATA LOCAL STRING(INTEGER);
+lineItemAmountWithoutCharges = DATA LOCAL STRING(INTEGER);
+lineItemAmountCharges = DATA LOCAL STRING(INTEGER);
+lineItemAmount = DATA LOCAL STRING(INTEGER);
+lineItemPrice = DATA LOCAL STRING(INTEGER);
+fieldCodeMark = DATA LOCAL STRING();
+totalAmountWithoutCharges = DATA LOCAL STRING();
+totalAmountCharges = DATA LOCAL STRING();
+totalAmount = DATA LOCAL STRING();
+totalLineItem = DATA LOCAL STRING();
+totalLineItemQuantity = DATA LOCAL STRING();
+totalAmountExcise = DATA LOCAL STRING();
+
+FORM importEInvoice FORMEXTID 'DeliveryNote'
+    PROPERTIES() deliveryNoteType EXTID 'DeliveryNoteType', documentID EXTID 'DocumentID', creationDateTime EXTID 'CreationDateTime', 
+        functionCode EXTID 'FunctionCode', deliveryNoteID EXTID 'DeliveryNoteID', deliveryNoteDate EXTID 'DeliveryNoteDate', 
+        contractName EXTID 'ContractName', contractID EXTID 'ContractID', contractDate EXTID 'ContractDate', currency EXTID 'Currency'
+    PROPERTIES() IN shipper GLN, name EXTID 'Name', country EXTID 'Country', nameCountry EXTID 'NameCountry', address EXTID 'Address', 
+        VATRegistrationNumber, contact EXTID 'Contact'
+    PROPERTIES() IN receiver GLN1 EXTID 'GLN', name1 EXTID 'Name', address1 EXTID 'Address', VATRegistrationNumber1 EXTID 'VATRegistrationNumber', 
+        country1 EXTID 'Country', nameCountry1 EXTID 'NameCountry'
+    PROPERTIES() IN shipFrom contact1 EXTID 'Contact'
+    PROPERTIES() IN carrier deliveryContact EXTID 'DeliveryContact'
+    PROPERTIES() IN lineItem lineItemNumber EXTID 'LineItemNumber', lineItemSign EXTID 'LineItemSign', lineItemID EXTID 'LineItemID',
+        itemCustomCode EXTID 'ItemCustomCode', lineItemName EXTID 'LineItemName', quantityDespatched EXTID 'QuantityDespatched',
+        lineItemQuantityUOM EXTID 'LineItemQuantityUOM', taxRate EXTID 'TaxRate', lineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges',
+        lineItemAmountCharges EXTID 'LineItemAmountCharges', lineItemAmount EXTID 'LineItemAmount', lineItemPrice EXTID 'LineItemPrice'
+
+    OBJECTS i = INTEGER EXTID 'LineItem'
+    PROPERTIES(i) IN lineItem lineItemNumber EXTID 'LineItemNumber', lineItemSign EXTID 'LineItemSign', lineItemID EXTID 'LineItemID', 
+        itemCustomCode EXTID 'ItemCustomCode', lineItemName EXTID 'LineItemName', quantityDespatched EXTID 'QuantityDespatched', 
+        lineItemQuantityUOM EXTID 'LineItemQuantityUOM', taxRate EXTID 'TaxRate', lineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges', 
+        lineItemAmountCharges EXTID 'LineItemAmountCharges', lineItemAmount EXTID 'LineItemAmount', lineItemPrice EXTID 'LineItemPrice'
+    PROPERTIES() IN fieldCodeMarkHeader fieldCodeMark EXTID 'FieldCodeMark'
+    PROPERTIES() IN total totalAmountWithoutCharges EXTID 'TotalAmountWithoutCharges', totalAmountCharges EXTID 'TotalAmountCharges', 
+        totalAmount EXTID 'TotalAmount', totalLineItem EXTID 'TotalLineItem', totalLineItemQuantity EXTID 'TotalLineItemQuantity', 
+        totalAmountExcise EXTID 'TotalAmountExcise'
+;
+
+showCreateDocument(Document d) += WHEN typeNamedId(d) == 'XmlTorgBlr' AND NOT eInvoice(d) THEN TRUE;
+
+createDocument(Document d) + {
+    IF (typeNamedId(d) == 'XmlTorgBlr') AND NOT eInvoice(d) THEN NEWSESSION {
+        IMPORT importEInvoice FROM data(entity(d));
+        NEW ei = EInvoice {
+            importedCustomer(ei) <- TRUE;
+            isNewFormat(ei) <- TRUE;
+            eInvoice(d) <- ei;
+            numberSupplier(ei) <- documentID();
+            deliveryNoteNumber(ei) <- documentID();
+            dateSupplier(ei) <- DATETIME(deliveryNoteDate());
+            deliveryNoteDate(ei) <- deliveryNoteDate();
+            glnSupplier(ei) <- GLN();
+            supplier(ei) <- legalEntityGLN(GLN());
+            unpSupplier(ei) <- VATRegistrationNumber();
+            supplierStock(ei) <- defaultStock(legalEntityGLN(GLN()));
+            glnCustomer(ei) <- GLN1();
+            unpCustomer(ei) <- VATRegistrationNumber1();
+            customer(ei) <- legalEntityGLN(GLN1());
+            currency(ei) <- currency();
+            FOR lineItemNumber() NEW ed = EInvoiceDetail DO {
+                eInvoice(ed) <- ei;
+                lineItemSign(ed) <- lineItemSign();
+                lineItemID(ed) <- lineItemID();
+                lineItemSupplierID(ed) <- itemCustomCode();
+                lineItemName(ed) <- lineItemName();
+                quantityDespatched(ed) <- NUMERIC[16,5](quantityDespatched());
+                valueVAT(ed) <- STRING[7](taxRate());
+                lineItemPrice(ed) <- NUMERIC[12,2](lineItemPrice());
+                lineItemAmount(ed) <- NUMERIC[18,2](lineItemAmount());
+                lineItemAmountCharges(ed) <- NUMERIC[18,2](lineItemAmountCharges());
+                lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](lineItemAmountWithoutCharges());
+                lineItemQuantityUOM(ed) <- lineItemQuantityUOM();
+            }
+
+            FOR lineItemNumber(INTEGER i) NEW ed = EInvoiceDetail DO {
+                eInvoice(ed) <- ei;
+                lineItemSign(ed) <- lineItemSign(i);
+                lineItemID(ed) <- lineItemID(i);
+                lineItemSupplierID(ed) <- itemCustomCode(i);
+                lineItemName(ed) <- lineItemName(i);
+                quantityDespatched(ed) <- NUMERIC[16,5](quantityDespatched(i));
+                valueVAT(ed) <- STRING[7](taxRate(i));
+                lineItemPrice(ed) <- NUMERIC[12,2](lineItemPrice(i));
+                lineItemAmount(ed) <- NUMERIC[18,2](lineItemAmount(i));
+                lineItemAmountCharges(ed) <- NUMERIC[18,2](lineItemAmountCharges(i));
+                lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](lineItemAmountWithoutCharges(i));
+                lineItemQuantityUOM(ed) <- lineItemQuantityUOM(i);
+            }
+        }
+        APPLY;
+    }
+}
+
+DESIGN eInvoices{
+    REMOVE PROPERTY (signAndSendBlrapnCustomerEDI());
+    REMOVE PROPERTY (signAndSendCustomerEDI());
+    REMOVE PROPERTY (signAndSendNoticeCustomerEDI());
+}
