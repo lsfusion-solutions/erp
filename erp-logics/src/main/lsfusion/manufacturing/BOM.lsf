@@ -552,8 +552,8 @@ FORM productsChange 'Изделия'
     PROPERTIES(p) id SHOWIF showIDs()
     PROPERTIES(p) READONLY inactive, description, index, nameSku, shortNameUOM, quantity
     PROPERTIES(p) READONLY fromDate, toDate
-    FILTERGROUP active
-        FILTER 'Активные' NOT inactive(p) DEFAULT
+//    FILTERGROUP active
+//        FILTER 'Активные' NOT inactive(p) DEFAULT
     FILTERS in(BOM(p),st) OR (p IS Product AND NOT countStocks(BOM(p)) ),
             productSku()==sku(p) OR (p IS Product AND NOT productSku())
     
@@ -798,7 +798,7 @@ isActive(BOM BOM, DATE date) = BOM IS BOM AND date IS DATE
 isActive(BOM BOM) = isActive(BOM, currentDate());
 
 background 'Цвет' (BOM BOM) = CASE WHEN fromDate(BOM) > currentDate() THEN RGB(224,255,224)
-                                  WHEN toDate(BOM) < currentDate() THEN RGB(255,224,224);     
+                                  WHEN toDate(BOM) < currentDate() THEN RGB(255,224,224);
 
 addBOM 'Добавить'(Sku sku)  { 
 	NEWSESSION {
@@ -819,6 +819,14 @@ isActiveCurrent (Material m) = active(m) AND (IF m IS Product THEN isActiveCurre
 EXTEND FORM materials
     FILTERGROUP inactiveM FILTER 'Активные' isActiveCurrent(m) 'F6' DEFAULT
 ;
+
+EXTEND FORM productsChange
+    FILTERGROUP inactiveBOM
+        FILTER 'Текущие' isActive(BOM(p)) 'F11'
+        FILTER 'Активные' isActiveCurrent(BOM(p)) 'F10' DEFAULT
+;
+
+
 useCustomFilterBOMs = ABSTRACT BOOLEAN ();
 relationComponentsCustom (sku,BOM)= GROUP SUM 1 BY sku(material(Component c)), BOM(c);
 

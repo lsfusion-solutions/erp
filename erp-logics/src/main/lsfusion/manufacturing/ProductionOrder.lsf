@@ -1557,7 +1557,9 @@ isActiveBOM (sku) = GROUP SUM 1 IF isActive(BOM(Product p)) BY sku(p);
 countProducts (sku, Stock stock, DATE date) = GROUP SUM 1 IF isActive(BOM(Product p), date) AND in(BOM(p), stock) BY sku(p);
 defaultProduct (sku, Stock stock, DATE date)= GROUP MIN Product p IF isActive(BOM(p), date) AND in(BOM(p), stock) BY sku(p);
 
-WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
+skipSetDefaultProduct = DATA BOOLEAN () PREREAD;
+
+WHEN LOCAL FORMS order CHANGED(sku(ProductDetail d)) AND NOT CHANGED(product(d)) AND countProducts(sku(d), componentsStock(d), date(d)) == 1 AND NOT skipSetDefaultProduct() NOINLINE DO {
     product(d) <- defaultProduct(sku(d), componentsStock(d), date(d));
 }     
                                                                      

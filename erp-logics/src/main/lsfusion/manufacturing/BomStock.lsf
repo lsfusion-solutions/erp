@@ -1,0 +1,30 @@
+MODULE BomStock;
+
+REQUIRE BOM;
+
+NAMESPACE BOM;
+
+fromDateData 'Дата с' = DATA DATE (BOM,Stock);
+toDateData 'Дата по' = DATA DATE (BOM,Stock);
+
+fromDate 'Дата с' (BOM b, Stock st) = OVERRIDE fromDateData(b,st), fromDate(b) IF st IS Stock;
+toDate 'Дата по' (BOM b, Stock st) = OVERRIDE toDateData(b,st), toDate(b) IF st IS Stock;
+
+WHEN DROPPED(in(BOM b, Stock st)) AND b IS BOM AND st IS Stock DO {
+    fromDateData(b,st) <- NULL;
+    toDateData(b,st) <- NULL;    
+}
+
+EXTEND FORM BOM
+    PROPERTIES (b,ts) fromDate, toDate
+;
+
+
+isActive(BOM BOM, Stock st, DATE date) = BOM IS BOM AND date IS DATE
+    AND NOT inactive(BOM)
+    AND NOT fromDate(BOM,st) > date
+    AND NOT toDate(BOM,st) < date
+    AND in(BOM,st);
+
+isActive(BOM BOM, Stock st) = isActive(BOM, st, currentDate());
+
