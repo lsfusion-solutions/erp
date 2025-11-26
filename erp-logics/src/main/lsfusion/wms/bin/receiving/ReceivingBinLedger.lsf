@@ -491,14 +491,58 @@ writeOffReserve 'Списать' (CustomUser u) {
     }
 }
 
-changeDataInBin(ReceivingDetail d, CustomUser u) {
-    NEWSESSION NESTED(dataReceivingBin[CustomUser]) {
-        DIALOG dialogBins OBJECTS b = inBin(d) INPUT LIST canonicalId(b) 
-            FILTERS isParent(bg, binGroup2(receivingBin(u))) OR isParent(binGroup2(receivingBin(u)), bg), isParent(binGroup2(receivingBin(u)), b) DO {
-            dataInBin(d) <- b;
-            APPLY;
+//делается через отдельную форму, что бы работал выпадающий список
+FORM receivingDialogBins 'Ячейки'
+    OBJECTS bg2 = BinGroup PANEL //будет передаваться при  вызове
+    
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
+    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
+    FILTERS isParent(bg, bg2) OR isParent(bg2, bg)
+    ORDERS order(bg), canonicalId(bg), name(bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
+    FILTERS isParent(bg, b),
+        isParent(bg2, b)
+    ORDERS order(b), canonicalId(b), name(b)
+;
+
+DESIGN receivingDialogBins {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE binTree) {
+                caption = 'Группы ячеек';
+            }
+
+            MOVE BOX(b) {
+                fill = 2;
+                GRID(b) {
+                    defaultComponent = TRUE;
+                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
+                }
+            }
         }
+
+        MOVE TOOLBARBOX;
     }
+}
+
+changeDataInBin(ReceivingDetail d, CustomUser u) {
+    FOR BinGroup bg2 == binGroup2(receivingBin(u)) DO {
+        //делаем через FOR, что бы работал выпадающий список в новой сессии
+        NEWSESSION {
+            DIALOG receivingDialogBins OBJECTS bg2 = bg2, b = inBin(d) INPUT LIST canonicalId(b) DO {
+                dataInBin(d) <- b;
+                APPLY;
+            }
+        }
+    }    
 }
 
 FORM receiving 'Приемка'
