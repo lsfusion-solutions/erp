@@ -102,6 +102,11 @@ FORM importBodyFile
     PROPERTIES() messageBody EXTID 'MessageBody'
 ;
 
+overProcessGetEventsEdiError  ABSTRACT LIST ( STRING );
+overProcessGetEventsEdiError(STRING message) +{
+    MESSAGE message;
+}
+
 getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, Box b) {
     NEWSESSION {
         getTokenUser(u);
@@ -111,7 +116,7 @@ getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, B
             IMPORT importEvents JSON FROM result();
         } CATCH {
             fileToString(result(), 'UTF-8');
-            MESSAGE 'Ошибка получения событий ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            overProcessGetEventsEdiError('Ошибка получения событий ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException()));
         }
         FOR messageId(INTEGER i) AND NOT message(messageId(i)) NEW m = Message DO {
             messageId(m) <- messageId(i);
