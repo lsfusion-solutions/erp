@@ -26,16 +26,18 @@ contractTypeInSuperMag = DATA INTEGER (UserPriceList);
 delayPaymentInSuperMag = DATA INTEGER (UserPriceList);
 isBankDaysInSuperMag = DATA INTEGER (UserPriceList);
 
-    dateTimeChange = DATA DATETIME (UserContractSku);
-    bornin = DATA STRING[100] (UserContractSku);
-   
-    lastVersion = DATA STRING (UserContractSku);
-    lastStatusSupermag 'Статус в СМ' = DATA INTEGER (UserContractSku);
-    
-    imported = DATA LOCAL BOOLEAN (UserContractSku);         
+dateTimeChange = DATA DATETIME (UserContractSku);
+bornin = DATA STRING[100] (UserContractSku);
+
+lastVersion = DATA STRING (UserContractSku);
+lastStatusSupermag 'Статус в СМ' = DATA INTEGER (UserContractSku);
+
+imported = DATA LOCAL BOOLEAN (UserContractSku);         
 
 overImportSupplierPrice ABSTRACT LIST ();
 overImportSupplierPrice2 ABSTRACT LIST ();
+
+skipCreateContract 'Не создавать договоры для каждого контракта' = DATA BOOLEAN () TABLE settings;
 
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
@@ -70,31 +72,32 @@ importContract 'Импорт из контрактов с поставщикам
         }
     }
 
-    
-    IF length(numberImportDocument[]()) > 0 THEN {
-        MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), isCalendarDelay(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
-    }
-    
-    // создаем новые договоры
-    FOR idDoc(INTEGER i) AND NOT userContractSku(idDoc(i)) DO NEW doc = UserContractSku { id(doc) <- idDoc(i); }
-    
-    // обновляем договоры    
-    FOR UserContractSku doc == userContractSku(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {
-        contractTypeInSuperMag(doc) <- contractType(i);
-        stateInSuperMag(doc) <- docState(i); 
-        delayPaymentInSuperMag(doc) <- paymentDelay(i);
-        isBankDaysInSuperMag(doc) <- isBankDays(i);       
-        type(doc) <- ContractSkuType.sale;
-        number(doc) <- ISTRING[28] (docNumber(i));
-        dateFrom(doc) <- DATE (dateFrom(i));
-        dateTo(doc) <- DATE (dateTo(i));       
-        supplier(doc) <- legalEntity(idLE(i));
-        customer(doc) <- legalEntity(idCo(i));//defaultCompany();        
-        note(doc) <- STRING[100] (title(i));
-        paymentCondition(doc) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;      
-        currency(doc) <- OVERRIDE currency(supplier(doc)), defaultCurrency();  
-        imported(doc) <- TRUE;     
-        lastVersion(doc) <- currentVersion(i);         
+    IF NOT skipCreateContract() THEN {
+        IF length(numberImportDocument[]()) > 0 THEN {
+            MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), isCalendarDelay(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
+        }
+
+        // создаем новые договоры
+        FOR idDoc(INTEGER i) AND NOT userContractSku(idDoc(i)) DO NEW doc = UserContractSku { id(doc) <- idDoc(i); }
+
+        // обновляем договоры    
+        FOR UserContractSku doc == userContractSku(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {
+            contractTypeInSuperMag(doc) <- contractType(i);
+            stateInSuperMag(doc) <- docState(i);
+            delayPaymentInSuperMag(doc) <- paymentDelay(i);
+            isBankDaysInSuperMag(doc) <- isBankDays(i);
+            type(doc) <- ContractSkuType.sale;
+            number(doc) <- ISTRING[28] (docNumber(i));
+            dateFrom(doc) <- DATE (dateFrom(i));
+            dateTo(doc) <- DATE (dateTo(i));
+            supplier(doc) <- legalEntity(idLE(i));
+            customer(doc) <- legalEntity(idCo(i));//defaultCompany();        
+            note(doc) <- STRING[100] (title(i));
+            paymentCondition(doc) <- paymentCondition(paymentPeriod(paymentDelay(i), isBankDays(i))) WHERE paymentDelay(i) > 0;
+            currency(doc) <- OVERRIDE currency(supplier(doc)), defaultCurrency();
+            imported(doc) <- TRUE;
+            lastVersion(doc) <- currentVersion(i);
+        }
     }
 
     SupermagPricelist.imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
@@ -114,9 +117,9 @@ importContract 'Импорт из контрактов с поставщикам
         fromTime(doc) <- 00:00;
         toDate(doc) <- DATE(dateTo(i));
         contractSku(doc) <- userContractSku(TEXT (idDoc(i)));
-        company(doc) <- supplier(contractSku(doc));
+        company(doc) <- legalEntity(idLE(i));
         note(doc) <- title(i);
-        fromDate(doc) <- MAX DATE(dateFrom(i)), dateFrom(contractSku(doc)) ;
+        fromDate(doc) <- DATE(dateFrom(i));//, dateFrom(contractSku(doc)) ;
         delayPaymentInSuperMag(doc) <- paymentDelay(i);
         isBankDaysInSuperMag(doc) <- isBankDays(i);
         allStocks(doc) <- NULL;
@@ -177,7 +180,7 @@ importContract 'Импорт из контрактов с поставщикам
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importContract();
+EXTEND FORM integrationData PROPERTIES importContract(), skipCreateContract();
 
 DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
 
@@ -394,6 +397,7 @@ DESIGN integrationData {
     importDocument {
         NEW importContract1 {
             horizontal = TRUE;
+            MOVE PROPERTY (skipCreateContract());
             MOVE PROPERTY (importContract());
         }
         NEW importContract2 {
