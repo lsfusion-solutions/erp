@@ -73,25 +73,10 @@ limitPrice (UserInvoiceDetail detail) += WHEN detail IS UserInvoiceDetail THEN r
                                                     retailExtraPackagingCost(detail),
                                                     valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(detail), sku(detail)));
 
-//WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-//            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-//             showLimitPrice(d) AND limitMarkup(d) > 0.3 AND limitMarkup(d) <= 1 AND limitMarkup(d) < retailPrice(d) NOINLINE DO {
-//    retailPrice(d) <- limitMarkup(d);
-//    retailMarkup(d) <- calcRetailMarkup(d);
-//}
-//
-//WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-//            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) 
-//            AND showLimitPrice(d) AND limitMarkup(d) <= 0.3 NOINLINE DO {
-//    IF limitMarkupPrice(d) < retailPrice(d) THEN {
-//        retailPrice(d) <- limitMarkupPrice(d);
-//        retailMarkup(d) <- calcRetailMarkup(d);
-//    }
-//}
 skipLocalLimitPrice = ABSTRACT VALUE BOOLEAN (UserInvoiceDetail);
 WHEN LOCAL FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail], limitPrice[UserInvoiceDetail]
-            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND NOT skipLocalLimitPrice(d)  NOINLINE DO { // AND limitMarkup(d) > 1
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d)) OR CHANGED(valueRetailVAT(d))) AND 
+             showLimitPrice(d) AND NOT skipLocalLimitPrice(d)  NOINLINE DO { 
     IF limitPrice(d) < retailPrice(d) THEN {
         retailPrice(d) <- limitPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
