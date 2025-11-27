@@ -1,0 +1,65 @@
+MODULE Set10SaleDeniedRestrictionStopList;
+
+REQUIRE Set10SaleDeniedRestriction, StopList;
+
+NAMESPACE Set10;
+
+stopListDetail = DATA StopListDetail(SaleDeniedRestriction);
+seriesNumberStopList 'Стоп-лист' (SaleDeniedRestriction d) = seriesNumber(stopListDetail(d));
+excludeStopList 'Исключить из запрета (стоп-лист)' (SaleDeniedRestriction d) = exclude(stopListDetail(d));
+EXTEND FORM saleDeniedRestrictions
+    PROPERTIES (r) READONLY seriesNumberStopList, excludeStopList
+;
+
+needGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d);
+prevNeedGreate(StopListDetail d, Stock st)= PREV(needGreate(d,st));
+
+saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d),sku(d),stock(d);
+saleDeniedRestriction(StopListDetail d, Stock st) = saleDeniedRestriction(d,sku(d),st);
+saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d);
+prevSaleDeniedRestriction(StopListDetail d) = PREV(saleDeniedRestriction(d));
+
+WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) DO {
+//    LOCAL restriction = SaleDeniedRestriction (Sku);
+//    restriction(Sku s) <- GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = stock;
+    NEW detail = SaleDeniedRestriction{
+        stopListDetail(detail) <- d;
+        sku(detail) <- sku(d);
+        stock(detail) <- st;
+        balance(detail) <- OVERRIDE currentBalanceRestriction(sku(d), st), 0;
+    }
+}
+
+skipCheckSku = DATA BOOLEAN () PREREAD;
+
+CONSTRAINT DROPPED(needGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevNeedGreate(d,st) AND NOT skipCheckSku()
+    MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
+
+skipUseSaleDeniedRestrictionsMigrate() {
+    skipUseSaleDeniedRestrictions() <- TRUE;
+}
+@defOnStartMigrate(skipUseSaleDeniedRestrictionsMigrate);
+
+afterExportTransaction(MachineryPriceTransaction t) +{
+    IF skipUseSaleDeniedRestrictions() THEN {
+        IF useSaleDeniedRestrictions() THEN{
+            LOCAL NESTED  in = BOOLEAN (Sku);
+            in(Sku s)  <- in(t,barcode(s));
+            
+            LOCAL stop = BOOLEAN (Sku);
+            stop(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s AND stopListDetail(r) AND NOT excludeStopList(r));
+
+            LOCAL exclude = BOOLEAN (Sku);
+            exclude(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s AND excludeStopList(r));
+
+            LOCAL NESTED  to = BOOLEAN (Sku);
+            to(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s)
+                                    AND currentBalanceRestriction(s, stock(t)) > 0 AND NOT stop(s);
+            to(Sku s) <- TRUE WHERE exclude(s) AND NOT stop(s);            
+            
+            FOR in(t, SaleDeniedRestriction r) AND to(sku(r)) DO{
+                deleteSaleRestriction(r);
+            }
+        }
+    }
+}

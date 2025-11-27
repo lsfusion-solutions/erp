@@ -13,9 +13,9 @@ sinceDate(SaleDeniedRestriction r) = toChar(createdTime(r), 'YYYY-MM-DD"T"HH24:M
 is (SaleDeniedRestriction r) = r IS SaleDeniedRestriction;
 
 sku = DATA Sku(SaleDeniedRestriction);
-nameSku 'Товар' (SaleDeniedRestriction r) = name(sku(r));
-idSku 'Код товара' (SaleDeniedRestriction r) = id(sku(r));
-idBarcodeSku 'Штрихкод товара' (SaleDeniedRestriction r) = idBarcode(sku(r));
+nameSku 'Товар' (SaleDeniedRestriction r) = name(sku(r)) IN id;
+idSku 'Код товара' (SaleDeniedRestriction r) = id(sku(r)) IN id;
+idBarcodeSku 'Штрихкод товара' (SaleDeniedRestriction r) = idBarcode(sku(r)) IN id;
 
 stock = DATA Stock (SaleDeniedRestriction);
 nameStock 'Склад' (SaleDeniedRestriction r) = name(stock(r));
@@ -310,11 +310,14 @@ EXTEND FORM saleDeniedRestrictions
 in (MachineryPriceTransaction t, SaleDeniedRestriction r) = stock(t) = stock(r) AND in(t, barcode(sku(r))) AND active(r);
 saleDeniedRestrictions (MachineryPriceTransaction t) = GROUP SUM 1 IF in(t, SaleDeniedRestriction r);
 
+skipUseSaleDeniedRestrictions = DATA BOOLEAN ();
 
 afterExportTransaction(MachineryPriceTransaction t) +{
-    IF useSaleDeniedRestrictions() AND saleDeniedRestrictions(t) THEN{
-        FOR in(t, SaleDeniedRestriction r) AND currentBalanceRestriction(sku(r), stock(r)) > 0 DO{
-            deleteSaleRestriction(r);
+    IF NOT skipUseSaleDeniedRestrictions() THEN {
+        IF useSaleDeniedRestrictions() AND saleDeniedRestrictions(t) THEN{
+            FOR in(t, SaleDeniedRestriction r) AND currentBalanceRestriction(sku(r), stock(r)) > 0 DO{
+                deleteSaleRestriction(r);
+            }
         }
     }
 }
