@@ -20,7 +20,8 @@ overCurrentBalanceSize (Size s, Warehouse w) = OVERRIDE
 updateBalanceItems 'Обновить(загрузить) остатки товаров на WB' (Warehouse w) {
     NEWSESSION {
         IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {
-            FOR Item i IS Item AND NOT exportBalance(i, w) == currentBalanceItemWB(i, w) DO {
+            FOR Item i IS Item AND NOT exportBalance(i, w) == currentBalanceItemWB(i, w) AND
+                (isUnloadItemERPWB() AND NOT (GROUP SUM 1 IF Size s IS Size AND NOT item(s) AND itemWB(s) == i) OR i IS Item AND NOT isUnloadItemERPWB()) DO {
                 setHttpHeadersIS();
                 LOCAL messageStock = STRING ();
                 LOCAL response = FILE();
@@ -31,6 +32,12 @@ updateBalanceItems 'Обновить(загрузить) остатки това
                 error(w) <- NULL WHERE error(w);
     
                 logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
+
+                IF (GROUP SUM 1 IF Size s IS Size AND NOT item(s) AND itemWB(s) == i) THEN {
+                    MESSAGE 'Не все размеры связаны с товарами из ERP: \n'+
+                        (GROUP CONCAT chrtID(Size s) + ' - ' + name(itemWB(s)) IF itemWB(s) == i AND NOT item(s), '\n' ORDER s) NOWAIT;
+                }
+
                 EXPORT JSON FROM 'sku' = barcodePrimary(Size s), 'amount' = overCurrentBalanceSize(s, w) WHERE itemWB(s) == i;
     
                 fileToString(exportFile());
