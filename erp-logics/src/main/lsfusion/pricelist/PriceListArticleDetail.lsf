@@ -29,6 +29,16 @@ countPriceListDetails = GROUP SUM 1 BY article(UserAPriceListDetail detail), use
 
 // Действующие цены
 
+priceB 'Цена' (DataPriceListType type, Article article, Stock stock, DATETIME dateTime) =
+    GROUP LAST price(UserAPriceListDetail detail, type)
+    ORDER fromDateTime(detail), detail
+    WHERE isPosted(detail) AND in(userPriceList(detail), type) AND in(userPriceList(detail), stock) AND
+        fromDateTime(detail) < dateTime AND NOT toDateTime(detail) < dateTime
+    BY article(detail) COMPLEX;
+
+prevPriceB 'Цена' (DataPriceListType type, Article article, Stock stock, DATETIME dateTime) =
+    PREV(priceB(type, article,stock, dateTime));
+
 priceB 'Цена' (DataPriceListType type, Article article, DATETIME dateTime) =
     GROUP LAST price(UserAPriceListDetail detail, type)
           ORDER fromDateTime(detail), detail
