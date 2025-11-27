@@ -126,6 +126,7 @@ DESIGN userOrder {
     }
 }
 //-- Действие
+overMoveUserOrder (Purchase.Order order, Sale.UserOrder o) ABSTRACT LIST;
 overMoveUserOrderDetail(Purchase.OrderDetail detail, Sale.UserOrderDetail d) ABSTRACT LIST;
 
 moveUserOrder 'Заказ (продажа)'(Order order)   { 
@@ -147,8 +148,9 @@ moveUserOrder 'Заказ (продажа)'(Order order)   {
 	        showPack(o) <- showPack(order);
 	        closeDate(o) <- closeDate(order);
 	        operation(o) <- saleOperation(operation(order));
-	
-	        FOR order(OrderDetail detail)==order NEW d = Sale.UserOrderDetail DO {
+			overMoveUserOrder(order, o);
+
+			FOR order(OrderDetail detail) == order NEW d = Sale.UserOrderDetail DO {
 	
 	            userOrder(d) <- o;
 	            shipmentDataDate(d) <- shipmentDataDate(detail);
