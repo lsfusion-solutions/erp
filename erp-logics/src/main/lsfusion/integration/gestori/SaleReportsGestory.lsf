@@ -1,11 +1,12 @@
 MODULE SaleReportsGestory;
 
-REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment;
+REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument;
 
 NAMESPACE SaleReports;
 
 //articleRu(Sku s) += article(s);
-priceSku(Sku s, Stock st) += GROUP MAX price(SaleLedger l) IF sku(l) = s AND stock(l) = st;
+priceSku(Sku s, Stock st, DATE d) += OVERRIDE accountPrice(s, st, d), accountPriceB(s, st, dateTimeToDateTime(d, 23:59));
+costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d)*100/(100+valueVAT(s))));
 //supplierSku(Sku s) += supplier(s);
 
 retailSumEnd = DATA LOCAL NUMERIC[18,4] (SaleLedger);
