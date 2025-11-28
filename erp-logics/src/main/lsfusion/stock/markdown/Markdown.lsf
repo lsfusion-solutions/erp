@@ -712,12 +712,15 @@ activateDate 'Дата активации' = DATA DATE (StickerBarcode);
 printed 'Распечатан' = DATA BOOLEAN (StickerBarcode);
 inactive(StickerBarcode sb) = sb IS StickerBarcode AND NOT markdownDetail(sb) AND NOT printed(sb);
 
+skipCheckLength = ABSTRACT BOOLEAN ();
+
 importStickerBarcodes(FILE s){
     NEWSESSION {
         LOCAL idLoc = STRING[21](INTEGER);
         LOCAL dateLoc = DATE (INTEGER);
-        IMPORT XLS FROM s TO idLoc = A, dateLoc = B;
-        FOR idLoc(INTEGER i) AND length(trim(idLoc(i))) = 21 AND NOT stickerBarcode(idLoc(i)) DO NEW sb = StickerBarcode {
+        IMPORT XLS FROM s TO idLoc = A, dateLoc = B;        
+        
+        FOR idLoc(INTEGER i) AND ((length(trim(idLoc(i))) = 21 IF NOT skipCheckLength()) OR (skipCheckLength() AND i IS INTEGER)) AND NOT stickerBarcode(idLoc(i)) DO NEW sb = StickerBarcode {
             id(sb) <- idLoc(i);
             createdDate(sb) <- dateLoc(i);
         }
