@@ -1,34 +1,34 @@
 MODULE InventoryDelta;
 
 REQUIRE Inventory, StockDocumentSkuLedgerSkuDelta;
+
 NAMESPACE Inventory;
 
 showAccountDelta 'Показывать "Отклонение от фактического"' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-     PROPERTIES(o) showAccountDelta
- ;
+    PROPERTIES(o) showAccountDelta
+;
 DESIGN operation {
     paramsContainer {
         MOVE PROPERTY(showAccountDelta(o));
     }
 }
 
-
-accountDeltaQuantity 'Отклонение от фактического, количество' = DATA NUMERIC[16,5](Sku,CollationSheet);
-accountDeltaSum 'Отклонение от фактического, сумма' = DATA NUMERIC[18,4](Sku,CollationSheet);
+accountDeltaQuantity 'Отклонение от фактического, количество' = DATA NUMERIC[16,5](Sku, CollationSheet);
+accountDeltaSum 'Отклонение от фактического, сумма' = DATA NUMERIC[18,4](Sku, CollationSheet);
 
 EXTEND FORM inventory
-    PROPERTIES (i,cs) READONLY accountDeltaQuantity, accountDeltaSum  SHOWIF showAccountDelta(operation(in))
+    PROPERTIES (i, cs) READONLY accountDeltaQuantity, accountDeltaSum SHOWIF showAccountDelta(operation(in))
 ;
 
-overRecalculateBalance(Inventory in) + {    
-    FOR inventory(CollationSheet cs) == in  AND NOT skipRecalculateBalance(in) DO { 
-        accountDeltaQuantity(Sku s,cs) <- NULL;    
-        accountDeltaSum(Sku s,cs) <- NULL;    
+overRecalculateBalance(Inventory in) + {
+    FOR inventory(CollationSheet cs) == in AND NOT skipRecalculateBalance(in) DO {
+        accountDeltaQuantity(Sku s, cs) <- NULL;
+        accountDeltaSum(Sku s, cs) <- NULL;
         IF showAccountDelta(operation(in)) AND NOT isBatch(cs) THEN {// AND NOT isPartly(in)
-            accountDeltaQuantity(Sku s,cs) <- accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaQuantity(s,stock(cs),prevDate(cs),date(in));          
-            accountDeltaSum(Sku s,cs) <- accountDeltaSum(s,stock(cs),prevDate(cs),date(in)) WHERE include(cs, s) AND accountDeltaSum(s,stock(cs),prevDate(cs),date(in));          
-        }                                 
-    }    
+            accountDeltaQuantity(Sku s, cs) <- accountDeltaQuantity(s, stock(cs), prevDate(cs), date(in)) WHERE include(cs, s) AND accountDeltaQuantity(s, stock(cs), prevDate(cs), date(in));
+            accountDeltaSum(Sku s, cs) <- accountDeltaSum(s, stock(cs), prevDate(cs), date(in)) WHERE include(cs, s) AND accountDeltaSum(s, stock(cs), prevDate(cs), date(in));
+        }
+    }
 }
