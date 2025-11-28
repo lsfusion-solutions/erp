@@ -107,7 +107,7 @@ priceB 'Цена' =
 prevPriceB 'Цена' (DataPriceListType type, Sort sort, Article article, DATETIME dateTime) = PREV(priceB(type, sort, article, dateTime));
 
 priceInclude (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
-    price(detail, type, sort) IF isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND NOT company(userPriceList(detail)) MATERIALIZED;
+    price(detail, type, sort) IF isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND NOT company(detail) MATERIALIZED;
 
 fromDateTime (UserAPriceListDetail detail, DataPriceListType type, Sort sort) =
     fromDateTime(detail) IF priceInclude(detail, type, sort) MATERIALIZED;
@@ -132,7 +132,7 @@ priceA 'Цена' =
     GROUP LAST price(UserAPriceListDetail detail, DataPriceListType type, Sort sort)
     ORDER fromDateTime(detail), detail
     WHERE isPosted(detail) AND in(userPriceList(detail), type) AND NOT exclude(detail) AND
-        company(userPriceList(detail)) AND in(detail,Stock stock) AND
+        company(detail) AND in(detail,Stock stock) AND
         fromDateTime(detail) <= DATETIME dateTimeIn AND NOT toDateTime(detail) < dateTimeIn
     BY type, sort, article(detail), stock, dateTimeIn COMPLEX;
 
