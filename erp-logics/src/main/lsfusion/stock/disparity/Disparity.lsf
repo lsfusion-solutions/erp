@@ -1,17 +1,7 @@
 MODULE Disparity;
 
-REQUIRE System,
-        Stock,
-        StockSkuDocument,
-        Currency,
-        Numerator,
-        Barcode,
-        Document,
-        Employee,
-        StockDocumentSkuLedger,
-        Utils,
-        Item,
-        OrderLedger;
+REQUIRE System, Stock, StockSkuDocument, Currency, Numerator, Barcode, Document, Employee, StockDocumentSkuLedger,
+        Utils, Item, DisparityOperation, OrderLedger;
 
 NAMESPACE Disparity;
 
@@ -53,6 +43,17 @@ disparityDetail (id, disparity) = GROUP AGGR UserDisparityDetail disparityDetail
 
 @defineDocumentInterfacePosted(disparity);
 @defineDocumentInterfaceClosed(disparity);
+
+@defineOperationStock(, stc, 'Склады');
+
+CONSTRAINT (SETCHANGED(operation(UserDisparity userDisparity)) OR SETCHANGED(stock(userDisparity))) AND operation(userDisparity) AND stock(userDisparity)
+    AND NOT in(stock(userDisparity), operation(userDisparity))
+    CHECKED BY stock[UserDisparity]
+    MESSAGE 'Склад должен совпадать с отмеченными в операции';
+CONSTRAINT (SETCHANGED(operation(UserDisparity userDisparity)) OR SET(isPosted(userDisparity)) OR DROPPED(stock(userDisparity))) AND operation(userDisparity) AND isPosted(userDisparity)
+    AND NOT stock(userDisparity) AND needStock(operation(userDisparity))
+    MESSAGE 'Склад должен быть задан для документа';
+
 @defineDocumentClosedConstraint(UserDisparity);
 @defineDocumentInterfaceDescription (disparity, 'Изменение сортности');
 @defineDocumentInterfaceCurrency (disparity);
@@ -438,21 +439,62 @@ DESIGN disparities {
 @defineDocumentLogForm(disparities, dis);
 @defineDocumentLogForm(disparity, dis, specificationBox);
 
-DESIGN disparity { historyTabs { caption = 'История'; } }
+DESIGN disparity { 
+    historyTabs { 
+        caption = 'История'; 
+    } 
+}
+
 NAVIGATOR {
-    stockNavigator {
-        NEW FOLDER disparityNavigator 'Изменение сортности' BEFORE balanceSku {
-            NEW disparities;
-        }
+    disparityNavigator {
+        NEW disparities;
     }
 }
+
+//------------------------------------------ Опеределение операции для disparity ------------------------------------//
+@defineDocumentInterfaceOperation (disparity, Disparity, );
+
+@defineDocumentOperationRolePrefix(userDisparity, );
+
+EXTEND FORM disparity
+    PROPERTIES(dis) nameOperation
+;
+
+DESIGN disparity{
+    GROUP(documentPrm,dis){
+        MOVE PROPERTY(nameOperation(dis)) BEFORE PROPERTY(note(dis));
+    }
+}
+EXTEND FORM disparities
+    PROPERTIES(dis) READONLYIF isReadonly() nameOperation AFTER nameStock(dis)
+;
+
+@defineDocumentOperationConstraint(disparity, 'изменение сортности', Disparity);
+@extendFormFilterRoleAccess(disparity, dis, disparities);
+operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
 
 disparityItem 'Уцениваемый товар' = DATA Item (Item) INDEXED;
 nameSkuDisparityItem 'Уцениваемый товар' = name(disparityItem(Item item));
 restricted(Item s) += TRUE IF disparityItem(s);
 
 countItemDisparity (Item disparityItem) = GROUP SUM 1 IF disparityItem(Item item) == disparityItem; 
-countDisparityItem (Item item) = GROUP SUM 1 IF disparityItem(item) == Item disparityItem; 
+countDisparityItem (Item item) = GROUP SUM 1 IF disparityItem(item) == Item disparityItem;
+
+useDisparityItemDisparity (Disparity d) = useDisparityItemDisparity(operation(d));
+useDisparityItemDisparity (DisparityDetail d) = useDisparityItemDisparity(operation(d));
+
+CONSTRAINT useDisparityItemDisparity(operation(UserDisparityDetail detail))
+    AND inputSku(detail) AND sku(detail)
+    AND (countItemDisparity(sku(detail)) AND NOT disparityItem(inputSku(detail))==sku(detail))
+    CHECKED BY inputSku[DisparityDetail] MESSAGE 'Выбран не уцененный товар';
+
+childItem = GROUP MAX Item i IF active(i) BY disparityItem(i);
+countActiveItemDisparity (Item disparityItem) = GROUP SUM 1 IF disparityItem(Item item) == disparityItem AND active(item);
+
+WHEN LOCAL FORMS disparity SETCHANGED (sku(UserDisparityDetail d)) AND NOT CHANGED(inputSku(d)) AND useDisparityItemDisparity(operation(d))
+    AND childItem(sku(d)) AND countActiveItemDisparity(sku(d)) == 1 DO {
+    inputSku(d) <- childItem(sku(d));
+}
 
 skipGenerateBarcode = DATA LOCAL BOOLEAN () ;
 
@@ -543,6 +585,37 @@ EXTEND FORM disparity
     PROPERTIES  copyDisparity(ks)
 ;
 
+//кратность
+rate 'Кратность'  = DATA NUMERIC[15,4] (UserDisparityDetail);
+
+EXTEND FORM disparity
+    PROPERTIES(d) rate SHOWIF showRate(operation(d)) BEFORE inputIdBarcodeSku(d)
+;
+
+WHEN LOCAL (CHANGED(rate(UserDisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
+    inputQuantity(d) <- quantity(d)*rate(d);
+    inputPrice(d) <- round2(price(d)/rate(d));
+}
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(disparity, Disparity, preventChangesDocument, created);
+
+overShowEditDelete(Disparity p) += showEditDeleteUser(p);
+
+notConduct 'Не проводить по товарному отчету' = DATA BOOLEAN (Disparity) IN documentPrm;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) notConduct
+;
+
+EXTEND FORM disparity
+    PROPERTIES(dis) notConduct
+;
+
+@deriveDocumentOperationProperty(Disparity, notConduct);
+
+skip[StockDocumentLedger](Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
+
 // copy
 copy 'Копировать'(Disparity s)  {
     NEWSESSION {
@@ -586,4 +659,4 @@ CONSTRAINT noFractQuantity() AND (CHANGED (sku(UserDisparityDetail d)) OR CHANGE
 
 CONSTRAINT noFractQuantity() AND (CHANGED (inputSku(UserDisparityDetail d)) OR CHANGED (inputQuantity(d)))
     AND noDivisibleUOM(UOM(inputSku(d))) AND INTEGER(inputQuantity(d)) != inputQuantity(d)
-    MESSAGE 'Количество должно быть целым';;
+    MESSAGE 'Количество должно быть целым';
