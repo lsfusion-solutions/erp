@@ -19,7 +19,9 @@ saleDeniedRestriction(StopListDetail d, Stock st) = saleDeniedRestriction(d,sku(
 saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d);
 prevSaleDeniedRestriction(StopListDetail d) = PREV(saleDeniedRestriction(d));
 
-WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) DO {
+skipGreateStopList = DATA BOOLEAN ();
+
+WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) AND NOT skipGreateStopList() DO {
 //    LOCAL restriction = SaleDeniedRestriction (Sku);
 //    restriction(Sku s) <- GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = stock;
     NEW detail = SaleDeniedRestriction{
@@ -40,11 +42,47 @@ skipUseSaleDeniedRestrictionsMigrate() {
 }
 @defOnStartMigrate(skipUseSaleDeniedRestrictionsMigrate);
 
+inactiveItem 'Товар неактивный' = DATA BOOLEAN (SaleDeniedRestriction);
+
+EXTEND FORM saleDeniedRestrictions
+    PROPERTIES (r) READONLY inactiveItem
+;
+
+greateInactiveItem 'Надо создать "Запрет продажи Set10" для неактивного товара' = DATA BOOLEAN (Item);
+WHEN SET(inactive(Item s)) AND NOT greateInactiveItem(s) DO {
+    greateInactiveItem(s) <- TRUE;
+}
+
+greateInactiveItem 'Создать "Запрет продажи Set10" для неактивного товара' (){
+    NEWSESSION {
+        LOCAL  to = INTEGER (DepartmentStore);
+        to(DepartmentStore ds) <- countCashRegister(ds);
+
+        LOCAL  to = BOOLEAN (Item);
+        to(Item s) <- greateInactiveItem(s) WHERE greateInactiveItem(s);
+
+        LOCAL restriction = SaleDeniedRestriction (DepartmentStore, Item);
+        restriction(DepartmentStore ds, Item s) <- (GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = ds AND to(ds) AND to(s));
+                    
+        FOR to(DepartmentStore ds) AND to(Item s) AND NOT restriction(ds, s) ORDER s DO {                
+            NEW detail = SaleDeniedRestriction{
+                inactiveItem(detail) <- TRUE;
+                sku(detail) <- s;
+                stock(detail) <- ds;
+                balance(detail) <- OVERRIDE currentBalanceRestriction(s, ds), 0;
+            }
+        }
+        greateInactiveItem(Item s) <- NULL WHERE to(s);
+
+        APPLY;
+    }
+}
+
 afterExportTransaction(MachineryPriceTransaction t) +{
     IF skipUseSaleDeniedRestrictions() THEN {
         IF useSaleDeniedRestrictions() THEN{
             LOCAL NESTED  in = BOOLEAN (Sku);
-            in(Sku s)  <- in(t,barcode(s));
+            in(Sku s)  <- in(t,barcode(s)) AND active(s);
             
             LOCAL stop = BOOLEAN (Sku);
             stop(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s AND stopListDetail(r) AND NOT excludeStopList(r));
