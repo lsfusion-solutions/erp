@@ -32,7 +32,22 @@ CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
 @defineDocumentInterfacePosted(revaluation);
 @defineDocumentInterfaceClosed(revaluation);
 
+//----------------------------------------------- Операции -----------------------------------------------------//
+
+@defineDocumentInterfaceOperation (revaluation, Revaluation, );
+
+@defineDocumentOperationRolePrefix(userRevaluation, );
+
 @defineOperationStock(, stc, 'Склады');
+
+onStarted() + {
+    NEWSESSION {
+        FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
+            allStocks(o) <- TRUE;
+        }
+        APPLY;
+    }
+}
 
 CONSTRAINT (SETCHANGED(operation(UserRevaluation userRevaluation)) OR SETCHANGED(stock(userRevaluation))) AND 
     operation(userRevaluation) AND stock(userRevaluation) AND NOT in(stock(userRevaluation), operation(userRevaluation))
@@ -308,7 +323,6 @@ isUserOpened(UserRevaluation r)=  isOpened[Revaluation](r) AND is(r);
 
 showDeleteUser (Revaluation i) =  isUserOpened(i) AND overShowEditDelete(i) AND NOT skipShowDelete(i);
 
-
 FORM revaluations 'Переоценки' 
     OBJECTS p = Revaluation    
 
@@ -378,12 +392,8 @@ DESIGN revaluations {
 }
 @extendFormEditable(revaluations);
 @defineFilterIsOpened (revaluation, revaluations, p);
-//----------------------------------------------- Операции -----------------------------------------------------//
 
-@defineDocumentInterfaceOperation (revaluation, Revaluation, );
 @extendFormFilterRoleAccess(revaluation, p, revaluations);
-
-@defineDocumentOperationRolePrefix(userRevaluation, );
 
 EXTEND FORM userRevaluation
     PROPERTIES(p) nameOperation

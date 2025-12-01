@@ -44,7 +44,22 @@ disparityDetail (id, disparity) = GROUP AGGR UserDisparityDetail disparityDetail
 @defineDocumentInterfacePosted(disparity);
 @defineDocumentInterfaceClosed(disparity);
 
+//------------------------------------------ Опеределение операции для disparity ------------------------------------//
+@defineDocumentInterfaceOperation (disparity, Disparity, );
+
+@defineDocumentOperationRolePrefix(userDisparity, );
+operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
+
 @defineOperationStock(, stc, 'Склады');
+
+onStarted() + {
+    NEWSESSION {
+        FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
+            allStocks(o) <- TRUE;
+        }  
+        APPLY;
+    }
+}
 
 CONSTRAINT (SETCHANGED(operation(UserDisparity userDisparity)) OR SETCHANGED(stock(userDisparity))) AND operation(userDisparity) AND stock(userDisparity)
     AND NOT in(stock(userDisparity), operation(userDisparity))
@@ -451,11 +466,6 @@ NAVIGATOR {
     }
 }
 
-//------------------------------------------ Опеределение операции для disparity ------------------------------------//
-@defineDocumentInterfaceOperation (disparity, Disparity, );
-
-@defineDocumentOperationRolePrefix(userDisparity, );
-
 EXTEND FORM disparity
     PROPERTIES(dis) nameOperation
 ;
@@ -471,7 +481,6 @@ EXTEND FORM disparities
 
 @defineDocumentOperationConstraint(disparity, 'изменение сортности', Disparity);
 @extendFormFilterRoleAccess(disparity, dis, disparities);
-operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
 
 disparityItem 'Уцениваемый товар' = DATA Item (Item) INDEXED;
 nameSkuDisparityItem 'Уцениваемый товар' = name(disparityItem(Item item));
