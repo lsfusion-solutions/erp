@@ -1,6 +1,7 @@
 MODULE Revaluation;
 
-REQUIRE RepricingCommittee, StockDocumentSkuLedger, PriceListCalc, PriceListLedgerAccount, RevaluationOperation, StockSkuDocument;
+REQUIRE RepricingCommittee, StockDocumentSkuLedger, PriceListCalc, PriceListLedgerAccount, RevaluationOperation, 
+        StockSkuDocument;
 
 NAMESPACE Revaluation;
 
@@ -30,6 +31,17 @@ CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
     
 @defineDocumentInterfacePosted(revaluation);
 @defineDocumentInterfaceClosed(revaluation);
+
+@defineOperationStock(, stc, 'Склады');
+
+CONSTRAINT (SETCHANGED(operation(UserRevaluation userRevaluation)) OR SETCHANGED(stock(userRevaluation))) AND 
+    operation(userRevaluation) AND stock(userRevaluation) AND NOT in(stock(userRevaluation), operation(userRevaluation))
+    CHECKED BY stock[UserRevaluation]
+    MESSAGE 'Склад должен совпадать с отмеченными в операции';
+CONSTRAINT (SETCHANGED(operation(UserRevaluation userRevaluation)) OR SET(isPosted(userRevaluation)) OR 
+    DROPPED(stock(userRevaluation))) AND operation(userRevaluation) AND isPosted(userRevaluation) AND 
+    NOT stock(userRevaluation) AND needStock(operation(userRevaluation))
+    MESSAGE 'Склад должен быть задан для документа';
 
 @defineDocumentInterfaceDescription(revaluation, 'Переоценка');
 
