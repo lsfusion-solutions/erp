@@ -327,10 +327,14 @@ changeDataIn (Sku sku, Bin bin) {
 }
 
 bins 'Ячейки' (SkuGroup group) = 
-    GROUP CONCAT name(Bin bin) IF in(group, bin) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+    GROUP CONCAT canonicalId(Bin bin) IF in(group, bin) , ', ' ORDER canonicalId(bin), bin CHARWIDTH 20 MATERIALIZED;
 
-bins 'Ячейки(по складу)' (BinGroup binGroup, SkuGroup group) =
-    GROUP CONCAT name(Bin bin) IF in(group, bin) AND stock(bin)==stock(binGroup) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+calcBins 'Ячейки(по складу)' (Stock stock,  SkuGroup group) =
+    GROUP CONCAT canonicalId(Bin bin) IF in(group, bin) AND stock(bin)==stock, ', ' ORDER canonicalId(bin), bin;
+bins 'Ячейки(по складу)' = ABSTRACT ISTRING (Stock, SkuGroup) CHARWIDTH 20 MATERIALIZED;
+bins(Stock stock, SkuGroup group) += calcBins(stock, group) IF useBins(stock) AND isCompany(stock);
+
+bins 'Ячейки(по складу)' (BinGroup binGroup, SkuGroup group) = bins(stock(binGroup), group) CHARWIDTH 20;
 
 FORM changeBinsSkuGroup 'Выбор ячеек'
     OBJECTS g=SkuGroup PANEL 
@@ -375,10 +379,13 @@ changeBins (SkuGroup group) {
 GROUP itemWMS 'WMS' : base;
 
 bins 'Ячейки' (Sku sku) =
-    GROUP CONCAT canonicalId(Bin bin) IF in(sku, bin) , ', ' ORDER bin IN itemWMS CHARWIDTH 20 MATERIALIZED;
+    GROUP CONCAT canonicalId(Bin bin) IF in(sku, bin) , ', ' ORDER canonicalId(bin), bin IN itemWMS CHARWIDTH 20 MATERIALIZED;
 
-bins 'Ячейки(по складу)' (BinGroup binGroup, Sku sku) =
-    GROUP CONCAT canonicalId(Bin bin) IF in(sku, bin) AND stock(bin)==stock(binGroup) , ', ' ORDER bin CHARWIDTH 20 MATERIALIZED;
+calcBins 'Ячейки(по складу)' (Stock stock, Sku sku) = 
+    GROUP CONCAT canonicalId(Bin bin) IF in(sku, bin) AND stock(bin)==stock, ', ' ORDER canonicalId(bin), bin;
+bins 'Ячейки(по складу)' = ABSTRACT ISTRING (Stock, Sku) CHARWIDTH 20 MATERIALIZED;
+bins(Stock stock, Sku sku) += calcBins(stock, sku) IF useBins(stock) AND isCompany(stock);
+bins 'Ячейки(по складу)' (BinGroup binGroup, Sku sku) = bins(stock(binGroup), sku) CHARWIDTH 20;
 
 FORM changeBinsSku 'Выбор ячеек'
     OBJECTS s=Sku PANEL
