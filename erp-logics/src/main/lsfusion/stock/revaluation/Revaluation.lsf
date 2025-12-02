@@ -40,12 +40,16 @@ CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
 
 @defineOperationStock(, stc, 'Склады');
 
+setDefaultStock = DATA BOOLEAN () TABLE migrate;
 onStarted() + {
     NEWSESSION {
-        FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
-            allStocks(o) <- TRUE;
-        }
-        APPLY;
+        IF NOT setDefaultStock() THEN {
+            FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
+                allStocks(o) <- TRUE;
+            }
+            setDefaultStock() <- TRUE;
+            APPLY;
+        }    
     }
 }
 

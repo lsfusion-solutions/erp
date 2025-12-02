@@ -52,12 +52,16 @@ operation[StockDocumentLedger] (Disparity ledger) += operation(ledger);
 
 @defineOperationStock(, stc, 'Склады');
 
+setDefaultStock = DATA BOOLEAN () TABLE migrate;
 onStarted() + {
     NEWSESSION {
-        FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
-            allStocks(o) <- TRUE;
-        }  
-        APPLY;
+        IF NOT setDefaultStock() THEN {
+            FOR Operation o IS Operation AND NOT (GROUP SUM 1 IF in(Stock stock, o)) NOINLINE DO {
+                allStocks(o) <- TRUE;
+            }
+            setDefaultStock() <- TRUE;
+            APPLY;            
+        }
     }
 }
 
@@ -603,7 +607,7 @@ EXTEND FORM disparity
 
 WHEN LOCAL (CHANGED(rate(UserDisparityDetail d)) OR CHANGED (quantity(d)) OR CHANGED(price(d))) AND rate(d) DO {
     inputQuantity(d) <- quantity(d)*rate(d);
-    inputPrice(d) <- round2(price(d)/rate(d));
+    inputPrice(d) <- round2(price(d)/ rate(d));
 }
 
 //-- Запрет на изменение документа другим пользователем
