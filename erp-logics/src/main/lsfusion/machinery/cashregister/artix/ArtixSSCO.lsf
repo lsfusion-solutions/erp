@@ -1,0 +1,35 @@
+MODULE ArtixSSCO;
+
+REQUIRE ZReport, CashRegisterPriceTransaction;
+
+NAMESPACE ZReport;
+
+isSSCO 'КСО' = DATA BOOLEAN (Receipt);
+sumSSCO 'Сумма по КСО' (Receipt r) = sumReceiptDetail(r) IF isSSCO(r);
+sumNotSSCO 'Сумма по ЛК' (Receipt r) = sumReceiptDetail(r) IF NOT isSSCO(r);
+
+sumSSCO 'Сумма по КСО' (ZReport z) = GROUP SUM sumSSCO(Receipt receipt) IF NOT skip(receipt) BY zReport(receipt) MATERIALIZED IN documentSum;
+sumNotSSCO 'Сумма по ЛК' (ZReport z) = sumReceiptDetail(z) (-) sumSSCO(z);
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY sumSSCO, sumNotSSCO
+    PROPERTIES (b) READONLY sumSSCO, sumNotSSCO
+;
+
+//импорт
+idCashType = DATA LOCAL STRING(INTEGER);
+valueCashType = DATA LOCAL STRING (INTEGER);
+
+FORM import
+    OBJECTS cashtype = INTEGER
+    PROPERTIES(cashtype) idCashType EXTID 'id', valueCashType EXTID 'value'
+;
+
+processReceiptExtraFields(STRING json) + {
+    stringToFile(json,'UTF-8','json');
+    IMPORT import JSON FROM resultFile();
+    FOR id(Receipt r) == idCashType(INTEGER i) AND valueCashType(i) DO {
+        isSSCO(r) <- TRUE IF valueCashType(i) == 'SSCO';
+    }
+}
+executeProcessReceiptExtraFields() += TRUE;
