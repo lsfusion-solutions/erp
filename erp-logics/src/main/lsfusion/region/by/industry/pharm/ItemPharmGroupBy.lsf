@@ -461,22 +461,22 @@ META defineWholesaleMarkupPharm(class)
         NUMERIC[17,5](round(([((X*100.0)/Y-100.0)](price(o), baseMVATPrice(o) IF baseMVATPrice(o) != 0.0)), wholesaleMarkupPrecision()));
 
     //если Цена опт. надб. опускается ниже себестоимости или мы сами импортёры, то надбавка поставщика(стороннего) равна 0%
-    supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (###class o) =
-        IF (round((min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999) < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
-        THEN 0.0 ELSE round((min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999)), wholesaleMarkupPrecision());
+    costSupplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (###class o) = //часть сторонних поставщиков из общей надбавки, используется при рассчёте собственной
+        IF (round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100 < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
+        THEN 0.0 ELSE round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision());
     wholesaleMarkupPharmacy 'Оптовая надбавка(собственная), %' (###class o) =
-        NUMERIC[8,3](round((min(round((((price(o)/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision())(-)supplierMarkupPharmacy(o), 99999)), wholesaleMarkupPrecision()));    
-    supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (User###class o) =
-        IF (round((min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999) < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
-        THEN 0.0 ELSE round((min(((prevCost(batch(o))/baseMVATPrice(o))-1)*100,99999)), wholesaleMarkupPrecision());
+        NUMERIC[8,3](round((round((((price(o)/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision())(-)costSupplierMarkupPharmacy(o)), wholesaleMarkupPrecision()));
+    costSupplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (User###class o) = //часть сторонних поставщиков из общей надбавки, используется при рассчёте собственной
+        IF (round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100 < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
+        THEN 0.0 ELSE round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision());
     wholesaleMarkupPharmacy 'Оптовая надбавка(собственная), %' (User###class o) =
-        NUMERIC[8,3](round((min(round((((price(o)/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision())(-)supplierMarkupPharmacy(o), 99999)), wholesaleMarkupPrecision()));
+        NUMERIC[8,3](round((round((((price(o)/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision())(-)costSupplierMarkupPharmacy(o)), wholesaleMarkupPrecision()));
 
     changeWholesaleMarkupPharmacy ABSTRACT LIST (User###class);
     changeWholesaleMarkupPharmacy(User###class o) + {
         INPUT n = NUMERIC[16,4] DO {
             //действие запускается для собственной надбавки, поэтому полагаем, что при включении данного мехнизма ВСЕГДА надо добавлять надбавку поставщика
-            price(o) <- trunc(baseMVATPrice(o) * (100 + (n (+) supplierMarkupPharmacy(o))) / 100, 2);
+            price(o) <- trunc(baseMVATPrice(o) * (100 + (n (+) costSupplierMarkupPharmacy(o))) / 100, 2);
             invoicePrice(o) <- trunc(basePVATPrice(o) * (100 + n) / 100, 2);
         }
     }
