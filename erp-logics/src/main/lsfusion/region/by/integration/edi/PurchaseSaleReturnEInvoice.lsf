@@ -1,0 +1,77 @@
+MODULE PurchaseSaleReturnEInvoice;
+
+REQUIRE PurchaseSaleReturnInvoiceShipment, ConsignmentEInvoice, SaleReturnEInvoice;
+
+NAMESPACE PurchaseSaleReturnInvoice;
+
+WHEN CHANGED(saleReturnInvoice(Consignment.invoice(EInvoice ei))) DO {
+    EDI.invoice(ei) <- saleReturnInvoice(Consignment.invoice(ei));
+}
+
+WHEN CHANGED(SaleReturn.InvoiceDetail d == saleReturnInvoiceDetail(Consignment.invoiceDetail(EInvoiceDetail ei))) DO {
+    eInvoiceDetail(d) <- ei;
+}
+
+skipReceiver(SaleReturnInvoice i) += i IS SaleReturnInvoice;
+
+receiver = DATA Employee (SaleReturnInvoice);
+receiver(SaleReturnInvoice i) += receiver(i);
+
+changeReceiver (SaleReturnInvoice i) {
+    NEWSESSION {
+        DIALOG dialogEmployees OBJECTS e = receiver(i) CHANGE LIST shortName(e);
+        APPLY;
+    }
+}
+
+createShipmentEInvoice 'Создать поставку' (SaleReturn.Invoice i){
+    NEWSESSION {
+        createSaleReturnShipment(PurchaseReturn.UserInvoice si) <- TRUE WHERE i == saleReturnInvoice(si);
+        APPLY;
+    }
+}
+
+EXTEND FORM SaleReturn.invoices
+    PROPERTIES nameReceiver(i) PANEL ON CHANGE changeReceiver(i) SHOWIF (i IS SaleReturnInvoice AND EDI.eInvoice(i) AND importedCustomer(EDI.eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i))
+    PROPERTIES createShipmentEInvoice(i) PANEL SHOWIF (i IS SaleReturnInvoice AND EDI.eInvoice(i) AND importedCustomer(EDI.eInvoice(i)) AND NOT hideSignAndSendCustomerEDI(i)) AND NOT createSaleReturnShipment(invoice(i))
+;
+
+DESIGN SaleReturn.invoices {
+    createEI {
+        horizontal = TRUE;
+        MOVE PROPERTY(nameReceiver(i)) BEFORE PROPERTY (signAndSendBlrapnCustomerEDI(i));
+        MOVE PROPERTY(createShipmentEInvoice(i));
+    }
+}
+
+//накладная на основе наклданой
+overFillInvoice (SaleReturn.UserInvoice sd, PurchaseReturn.Invoice id) + {
+    FOR Consignment.invoice(EInvoice ei) = id DO {
+        EDI.invoice(ei) <- sd;
+        number(sd) <- STRING[48](deliveryNoteNumber(ei));
+    }
+}
+
+overFillInvoice(SaleReturn.UserInvoiceDetail d, PurchaseReturn.InvoiceDetail invoiceDetail) + {
+    FOR Consignment.invoiceDetail(EInvoiceDetail ei) = invoiceDetail DO {
+        eInvoiceDetail(d) <- ei;
+    }
+}
+
+setPropertiesPurchaseReturnSaleReturn(SaleReturn.UserInvoice sd, PurchaseReturn.Invoice id) + {
+    FOR Consignment.invoice(EInvoice ei) = id DO {
+        EDI.invoice(ei) <- sd;
+        number(sd) <- STRING[48](deliveryNoteNumber(ei));
+    }
+}
+
+setPropertiesPurchaseReturnSaleReturn(SaleReturn.UserInvoiceDetail d, PurchaseReturn.InvoiceDetail invoiceDetail) + {
+    FOR Consignment.invoiceDetail(EInvoiceDetail ei) = invoiceDetail DO {
+        eInvoiceDetail(d) <- ei;
+    }
+}
+
+//Накладная на основе ЭТТН
+overCopy(EInvoiceDetail eid, SaleReturn.UserInvoiceDetail id) + {
+    invoiceDetail(id) <- invoiceDetail(eid);
+}
