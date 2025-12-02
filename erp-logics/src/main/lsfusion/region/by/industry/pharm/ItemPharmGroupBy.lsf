@@ -460,12 +460,16 @@ META defineWholesaleMarkupPharm(class)
     wholesaleMarkupPharm 'Оптовая надбавка(общая), %' (User###class o) =
         NUMERIC[17,5](round(([((X*100.0)/Y-100.0)](price(o), baseMVATPrice(o) IF baseMVATPrice(o) != 0.0)), wholesaleMarkupPrecision()));
 
+    supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (###class o) = //фактическая надбавка поставщика, используется при печати
+        round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision()) IF NOT import(batch(o)); 
     //если Цена опт. надб. опускается ниже себестоимости или мы сами импортёры, то надбавка поставщика(стороннего) равна 0%
     costSupplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (###class o) = //часть сторонних поставщиков из общей надбавки, используется при рассчёте собственной
         IF (round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100 < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
         THEN 0.0 ELSE round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision());
     wholesaleMarkupPharmacy 'Оптовая надбавка(собственная), %' (###class o) =
         NUMERIC[8,3](round((round((((price(o)/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision())(-)costSupplierMarkupPharmacy(o)), wholesaleMarkupPrecision()));
+    supplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (User###class o) = //фактическая надбавка поставщика, используется при печати
+        round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision()) IF NOT import(batch(o));
     costSupplierMarkupPharmacy 'Надбавка поставщика(стороннего), %' (User###class o) = //часть сторонних поставщиков из общей надбавки, используется при рассчёте собственной
         IF (round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100 < 0.0), wholesaleMarkupPrecision()) OR import(batch(o)))
         THEN 0.0 ELSE round((((prevCost(batch(o))/baseMVATPrice(o))-1)*100), wholesaleMarkupPrecision());
@@ -487,6 +491,7 @@ META implementWholesaleMarkupPharm(class)
 END    
 
 META defineLimitMarkupPharm(class)
+    //todo: переделать на хранимые свойства CHANHED(sku(o), manufacturingPrice(o), date(o), importerMarkup(o))
     wholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (###class o) = wholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
     prevWholesaleLimitMarkupPharmacy 'Предельный % оптовой надбавки' (###class o) = prevWholesaleLimitMarkupPharmacy(sku(o), manufacturingPrice(o), date(o));
 
