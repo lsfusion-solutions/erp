@@ -72,8 +72,9 @@ changeBatch(UserPickingDetail detail)  {
 
 packQuantity 'Кол-во собранных мест' = ABSTRACT NUMERIC[8,2] (Picking);
 overPackQuantity = ABSTRACT NUMERIC[8,2] (UserPicking);
-packQuantity 'Кол-во собранных мест' = DATA NUMERIC[8,2] (UserPicking);
-packQuantity(UserPicking picking) += OVERRIDE overPackQuantity(picking), packQuantity(picking);
+dataPackQuantity 'Кол-во собранных мест' = DATA NUMERIC[8,2] (UserPicking);
+packQuantity 'Кол-во собранных мест' (UserPicking picking) = OVERRIDE overPackQuantity(picking), dataPackQuantity(picking);
+packQuantity(UserPicking picking) += packQuantity(picking);
 
 // --------------------------- Формы Заказа ---------------------------------
 
@@ -107,34 +108,31 @@ DESIGN userPicking {
             NEW documentBox {
                 fill = 1;
                 caption = 'Комплектация';
-                
                 NEW headerBox {
-                                     horizontal = TRUE;
-                         
-                                     NEW headerRow1 {
-                                         fill = 1;
-                         
-                                         MOVE GROUP(documentHeader,o) {
-                                             lines = 1;
-                                             horizontal = TRUE;
-                                             MOVE PROPERTY(nameStock(o));
-                                             MOVE PROPERTY(nameNumerator(o));
-                                             MOVE PROPERTY(number(o));
-                                             MOVE PROPERTY(series(o));
-                                             MOVE PROPERTY(date(o));
-                                             MOVE PROPERTY(time(o));
-                                         }
-                                         MOVE GROUP(documentPrm,o);
-                                     }
-                                         NEW sumContainer {
-                                             MOVE GROUP(documentSum,o) {
-                                                 lines = 1;
-                                             }
-                                             NEW seatContainer {
-                                                 MOVE PROPERTY(packQuantity(o));
-                                             }
-                                         }
-                                 }
+                     horizontal = TRUE;
+                     NEW headerRow1 {
+                         fill = 1;
+                         MOVE GROUP(documentHeader,o) {
+                             lines = 1;
+                             horizontal = TRUE;
+                             MOVE PROPERTY(nameStock(o));
+                             MOVE PROPERTY(nameNumerator(o));
+                             MOVE PROPERTY(number(o));
+                             MOVE PROPERTY(series(o));
+                             MOVE PROPERTY(date(o));
+                             MOVE PROPERTY(time(o));
+                         }
+                         MOVE GROUP(documentPrm,o);
+                     }
+                     NEW sumContainer {
+                         MOVE GROUP(documentSum,o) {
+                             lines = 1;
+                         }
+                         NEW seatContainer {
+                             MOVE PROPERTY(packQuantity(o));
+                         }
+                     }
+                }
                 NEW specificationBox {
                     fill = 1;
                     MOVE BOX(d) {
@@ -290,7 +288,7 @@ pickings 'Комплектации' (pickingOrder) =
     BY pickingOrder(picking) CHARWIDTH 30 MATERIALIZED;
 
 overFillUserPicking ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
-overFillUserPicking ABSTRACT LIST (UserPicking);
+overFillUserPicking ABSTRACT LIST (UserPicking, PickingOrder);
 
 skipCreateOrderPickingDetails = ABSTRACT BOOLEAN (UserPicking);
 
@@ -306,7 +304,7 @@ moveUserPicking 'Комплектация'(PickingOrder pickingOrder)  {
 	            batch(d) <- batch(detail);
 	            overFillUserPicking(d, detail);
 	        }
-	        overFillUserPicking(p);
+	        overFillUserPicking(p, pickingOrder);
 	        SHOW userPicking OBJECTS o=p DOCKED;
 	    }
 	}
@@ -527,7 +525,7 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder)  {
 	        NEW p = UserPicking {
 	            pickingOrder(p) <- pickingOrder;
 	            stock(p) <- stock(pickingOrder);
-	            packQuantity(p) <- n;
+	            dataPackQuantity(p) <- n;
 	            number(p) <- overNumber(p);
 	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
 	                userPicking(d) <- p;
@@ -536,6 +534,7 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder)  {
 	                batch(d) <- batch(detail);
 	                overFillUserPicking(d, detail);
 	            }
+                overFillUserPicking(p, pickingOrder);
 	        }
 	    }
 	    apply();
@@ -550,7 +549,7 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  {
 	        NEW p = UserPicking {
 	            pickingOrder(p) <- pickingOrder;
 	            stock(p) <- stock(pickingOrder);
-	            packQuantity(p) <- n;
+	            dataPackQuantity(p) <- n;
 	            number(p) <- overNumber(p);
 	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
 	                userPicking(d) <- p;
@@ -559,6 +558,7 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  {
 	                batch(d) <- batch(detail);
 	                overFillUserPicking(d, detail);
 	            }
+                overFillUserPicking(p, pickingOrder);
 	            SHOW userPicking OBJECTS o=p DOCKED;
 	        }
 	    }
