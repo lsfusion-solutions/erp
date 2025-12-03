@@ -166,6 +166,16 @@ WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED(valu
 WHEN LOCAL (CHANGED(invoiceSumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND withVATPrice(invoiceDetail(detail)) DO
     sumA(detail) <- NUMERIC[18,4](invoiceSumA(detail) (-) VATSumA(detail));
 
+
+WHEN LOCAL (CHANGED(quantityA(InvoiceCorrectionDetail detail)) OR CHANGED(priceA(detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+    sumA (detail) <- NUMERIC[18,4](round(quantityA(detail) * priceA(detail), currency(detail)));
+
+WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED(valueVAT (detail)) OR CHANGED(currency (detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+    VATSumA (detail)  <- NUMERIC[18,4](round(sumA(detail) * valueVAT(detail) / 100, currency(detail)));
+
+WHEN LOCAL (CHANGED(sumA(InvoiceCorrectionDetail detail)) OR CHANGED (VATSumA(detail))) AND NOT withVATPrice(invoiceDetail(detail)) DO
+    invoiceSumA(detail) <- NUMERIC[18,4](sumA(detail) (+) VATSumA(detail));
+
 WHEN LOCAL CHANGED(invoiceDetail(InvoiceCorrectionDetail invoiceCorrectionDetail)) DO {
     sku(invoiceCorrectionDetail) <- sku(invoiceDetail(invoiceCorrectionDetail));
     priceB(invoiceCorrectionDetail) <- price(invoiceDetail(invoiceCorrectionDetail));
