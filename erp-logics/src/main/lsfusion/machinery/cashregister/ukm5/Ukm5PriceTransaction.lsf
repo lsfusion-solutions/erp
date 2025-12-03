@@ -133,9 +133,9 @@ valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN (OVERRIDE dat
 valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
 valueProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'quantity_by_hand';
 
-nameProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN 'GTIN';
-nameProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
-nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'Ручной ввод кол-ва';
+nameProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN '';
+nameProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN '';
+nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN '';
 
 FORM itemProperties 'Дополнительные свойства товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -147,14 +147,14 @@ FORM itemProperties 'Дополнительные свойства товаро�
 
     OBJECTS s = STRING EXTID 'properties'
     PROPERTIES nameProp(s, elements) EXTID 'name',
-        = valueProp(s, elements) EXTID 'id',
+        = s EXTID 'id',
         = TFALSE IF valueProp(s, elements) EXTID 'showToCashier',
         = TFALSE IF valueProp(s, elements) EXTID 'printOnReceipt'
     FILTERS valueProp(s, elements)
 
     OBJECTS v = STRING EXTID 'values'
-    PROPERTIES = valueProp(v, elements) EXTID 'name'
-    PROPERTIES = v EXTID 'id'
+    PROPERTIES = nameProp(v, elements) EXTID 'name'
+    PROPERTIES = valueProp(v, elements) EXTID 'id'
     FILTERS v = s
 ;
 
