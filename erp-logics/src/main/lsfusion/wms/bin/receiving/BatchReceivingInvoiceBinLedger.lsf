@@ -432,7 +432,7 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
         MESSAGE 'Для товаров с расхождением \n' +
             [GROUP CONCAT (CONCAT '; ', 'Наименование: ' + name(Sku s), 'Код: ' + id(s), 'Штрихкод: ' + idBarcode(s), 'Серия лекарственного средства: ' + STRING str)
                 IF diffInvoiceCreditNoteCompleted(s, str, Receiving r1) AND NOT expectedQuantity(s, str, r1), '\n' ORDER s, str BY r1](r)
-            + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе';
+            + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе' NOWAIT;
     }
     IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
         FOR receiving(Invoice i) = r
