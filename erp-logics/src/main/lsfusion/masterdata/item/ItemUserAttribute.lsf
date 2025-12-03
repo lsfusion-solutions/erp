@@ -39,7 +39,8 @@ nameClass 'Тип атрибута' (UserAttribute a) = objectClassName(a) CHARW
 id 'Код' = ABSTRACT STRING[50] (UserAttribute) MATERIALIZED NONULL INDEXED CHARWIDTH 10 IN id;
 userAttribute 'Атрибут' = GROUP AGGR UserAttribute a BY id(a);
 
-active 'Вкл.' = ABSTRACT BOOLEAN (UserAttribute);
+inactive 'Неактивный' = ABSTRACT BOOLEAN (UserAttribute);
+active 'Активный' (UserAttribute a) = a IS UserAttribute AND NOT inactive(a);
 isObject 'Объектный' = ABSTRACT BOOLEAN (UserAttribute);
 
 name 'Наименование атрибута' = ABSTRACT BPISTRING[100] (UserAttribute) NONULL IN id;
@@ -74,7 +75,7 @@ set 'Установить' ABSTRACT (Item, UserAttribute, STRING);
 EXTEND FORM itemOptions 
     OBJECTS attr = UserAttribute
     PROPERTIES (attr) READONLY id, name, nameClass
-    PROPERTIES (attr) READONLYIF isReadonly() showOnItems
+    PROPERTIES (attr) READONLYIF isReadonly() showOnItems, inactive
     PROPERTIES (attr) NEWSESSION EDIT, DELETE
     PROPERTIES NEWSESSION newUserAttribute() DRAW attr
 
@@ -104,7 +105,7 @@ EXTEND FORM item
     PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } COLUMNS (attr) HEADER name(attr) NOSELECT
     PROPERTIES READONLY name(attr) SHOWIF NULL
     ORDERS name(attr)
-    FILTERS show(i, attr)
+    FILTERS show(i, attr), active(attr)
 ;
 
 DESIGN item {
@@ -125,7 +126,7 @@ EXTEND FORM items
     PROPERTIES (i, attr) READONLY value COLUMNS (attr) HEADER name(attr) SHOWIF showAny(g, attr)
     PROPERTIES READONLY name(attr) SHOWIF NULL
     ORDERS name(attr)
-    FILTERS showOnItems(attr)
+    FILTERS showOnItems(attr), active(attr)
 ;
 
 //------------------------------------ String ----------------------------------------------------------------------//
@@ -139,10 +140,10 @@ newUserAttribute(UserAttributeClass c) + WHEN c = UserAttributeClass.string THEN
 };
 order(UserAttributeClass c) += WHEN c == UserAttributeClass.string THEN 1;
 id 'Код' = DATA STRING[10] (UserAttributeString) NONULL CHARWIDTH 15 IN id;
-inactive 'Выкл.' = DATA BOOLEAN (UserAttributeString);
+inactive 'Неактивный' = DATA BOOLEAN (UserAttributeString);
 name 'Наименование' = DATA BPISTRING[100] (UserAttributeString) NONULL IN id;
 id (UserAttributeString a) += id(a);
-active (UserAttributeString a) += a IS UserAttributeString AND NOT inactive(a);
+inactive (UserAttributeString a) += inactive(a);
 name (UserAttributeString a) += name(a);
 value 'Значение' = DATA STRING (Item, UserAttributeString);
 value (Item o, UserAttributeString a) += value(o, a);
@@ -189,10 +190,10 @@ newUserAttribute(UserAttributeClass c) + WHEN c = UserAttributeClass.integer THE
 };
 order(UserAttributeClass c) += WHEN c == UserAttributeClass.integer THEN 2;
 id 'Код' = DATA STRING[10] (UserAttributeInteger) NONULL CHARWIDTH 10 IN id;
-inactive 'Выкл.' = DATA BOOLEAN (UserAttributeInteger);
+inactive 'Неактивный' = DATA BOOLEAN (UserAttributeInteger);
 name 'Наименование' = DATA BPISTRING[100] (UserAttributeInteger) NONULL IN id;
 id (UserAttributeInteger a) += id(a);
-active (UserAttributeInteger a) += a IS UserAttributeInteger AND NOT inactive(a);
+inactive (UserAttributeInteger a) += inactive(a);
 name (UserAttributeInteger a) += name(a);
 value 'Значение' = DATA INTEGER (Item, UserAttributeInteger);
 value (Item o, UserAttributeInteger a) += STRING(value(o, a));
@@ -242,10 +243,10 @@ newUserAttribute(UserAttributeClass c) + WHEN c = UserAttributeClass.numeric THE
 };
 order(UserAttributeClass c) += WHEN c == UserAttributeClass.numeric THEN 3;
 id 'Код' = DATA STRING[10] (UserAttributeNumeric) NONULL CHARWIDTH 10 IN id;
-inactive 'Выкл.' = DATA BOOLEAN (UserAttributeNumeric);
+inactive 'Неактивный' = DATA BOOLEAN (UserAttributeNumeric);
 name 'Наименование' = DATA BPISTRING[100] (UserAttributeNumeric) NONULL IN id;
 id (UserAttributeNumeric a) += id(a);
-active (UserAttributeNumeric a) += a IS UserAttributeNumeric AND NOT inactive(a);
+inactive (UserAttributeNumeric a) += inactive(a);
 name (UserAttributeNumeric a) += name(a);
 value 'Значение' = DATA NUMERIC (Item, UserAttributeNumeric);
 value (Item o, UserAttributeNumeric a) += STRING(value(o, a));
@@ -313,7 +314,7 @@ inactive 'Неактивный' = DATA BOOLEAN (UserAttributeList);
 name 'Наименование' = DATA BPISTRING[100] (UserAttributeList) NONULL IN id;
 
 id (UserAttributeList a) += id(a);
-active (UserAttributeList a) += a IS UserAttributeList AND NOT inactive(a);
+inactive (UserAttributeList a) += inactive(a);
 isObject (UserAttributeList a) += a IS UserAttributeList;
 name (UserAttributeList a) += name(a);
 
