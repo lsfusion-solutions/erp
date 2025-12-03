@@ -14,7 +14,7 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
 
-createCreditNoteDiffInvoice(Invoice i) + {
+createCreditNoteQuantityVariance(Invoice i) + {
     IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
         invoice(c) <- i;
         operation(c) <- operation(i);
@@ -27,16 +27,44 @@ createCreditNoteDiffInvoice(Invoice i) + {
         time(c) <- currentTime();
         isPosted(c) <- TRUE;
     }
-    FOR diffInvoiceCreditNoteCompleted(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+    FOR quantityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- batch(d);
         sku(dc) <- sku(d);
-        quantity (dc) <- diffInvoiceCreditNoteCompleted(d);
+        quantity (dc) <- quantityVariance(d);
         VAT(dc) <- VAT(d);
         valueVAT(dc) <- valueVAT(d);
         price(dc) <- price(d);
         invoicePrice(dc) <- invoicePrice(d);
     }
     executeLocalEvents('SaleReturn.userCreditNote');
+}
+
+createCreditNoteQualityVariance(Invoice i) + {
+    IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
+        invoice(c) <- i;
+        operation(c) <- operation(i);
+        executeLocalEvents('Purchase.userCreditNote');
+        supplier(c) <- supplier(i);
+        supplierStock(c) <- supplierStock(i);
+        customer(c) <- customer(i);
+        customerStock(c) <- customerStock(i);
+        date(c) <- currentDate();
+        time(c) <- currentTime();
+        isPosted(c) <- TRUE;
+    }
+
+    FOR qualityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+        userCreditNote(dc) <- userCreditNote(invoice(d));
+        invoiceDetail(dc) <- d;
+        batch(dc) <- batch(d);
+        sku(dc) <- sku(d);
+        quantity (dc) <- qualityVariance(d);
+        VAT(dc) <- VAT(d);
+        valueVAT(dc) <- valueVAT(d);
+        price(dc) <- price(d);
+        invoicePrice(dc) <- invoicePrice(d);
+    }
+    executeLocalEvents('Purchase.userCreditNote');
 }

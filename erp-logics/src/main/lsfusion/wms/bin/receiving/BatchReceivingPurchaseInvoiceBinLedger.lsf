@@ -17,73 +17,7 @@ CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipme
 quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
     [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r);
 
-writeOffCreditNote 'Списать с добавлением (в) акт расхождения' (CustomUser u) {
-    NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
-        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin));
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            MESSAGE 'Ничего не выбрано';
-            RETURN;
-        }
-        IF NOT putawayWriteOffOperation() THEN {
-            MESSAGE 'Не задана \'Операция списания при размещении\' в настройках';
-            RETURN;
-        }
-        FOR [GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u))
-            AND orderLedger(bin) AND receiving(bin) BY invoice(invoiceDetail(batch))](Invoice i)
-            AND NOT userCreditNote(i) DO NEW c = UserCreditNote {
-            invoice(c) <- i;
-            operation(c) <- operation(i);
-            supplier(c) <- supplier(i);
-            supplierStock(c) <- supplierStock(i);
-            customer(c) <- customer(i);
-            customerStock(c) <- customerStock(i);
-            date(c) <- currentDate();
-            time(c) <- currentTime();
-            isPosted(c) <- TRUE;
-        }
-
-        FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)
-            AND InvoiceDetail d = invoiceDetail(batch) DO {
-            NEW dc = UserCreditNoteDetail {
-                userCreditNote(dc) <- userCreditNote(invoice(d));
-                invoiceDetail(dc) <- d;
-                batch(dc) <- batch;
-                sku(dc) <- sku(d);
-                quantity (dc) <- currentBalance(batch, bin);
-                VAT (dc) <- VAT(d);
-                valueVAT(dc) <- valueVAT(d);
-                price (dc) <- price(d);
-                invoicePrice (dc) <- invoicePrice(d);
-            }
-        }
-        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
-            afterCreateCreditNoteReceiving(i);
-        }
-        executeLocalEvents('Purchase.userCreditNote');
-
-        //todo: надо переделать на ячейки в строке акта расхождения
-        FOR (GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)) 
-            NEW o = UserBinTransfer DO {
-            operation(o) <- putawayWriteOffOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)
-                NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- bin;
-                inBin(d) <- NULL;
-                quantity(d) <- currentBalance(batch, bin);
-            }
-        }
-        APPLY;
-        select(Batch batch, Bin bin) <- NULL;
-    }
-} TOOLBAR;
-
-createCreditNoteDiffInvoice(Invoice i) + {
+createCreditNoteQuantityVariance(Invoice i) + {
     IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
         invoice(c) <- i;
         operation(c) <- operation(i);
@@ -97,12 +31,12 @@ createCreditNoteDiffInvoice(Invoice i) + {
         isPosted(c) <- TRUE;
     }
 
-    FOR diffInvoiceCreditNoteCompleted(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+    FOR quantityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- overBatch(d);
         sku(dc) <- sku(d);
-        quantity (dc) <- diffInvoiceCreditNoteCompleted(d);
+        quantity (dc) <- quantityVariance(d);
         VAT(dc) <- VAT(d);
         valueVAT(dc) <- valueVAT(d);
         price(dc) <- price(d);
@@ -111,9 +45,33 @@ createCreditNoteDiffInvoice(Invoice i) + {
     executeLocalEvents('Purchase.userCreditNote');
 }
 
-EXTEND FORM receiving
-    PROPERTIES writeOffCreditNote(u) DRAW reserveB SHOWIF in(u, putawayWriteOffOperation())
-;
+createCreditNoteQualityVariance(Invoice i) + {
+    IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
+        invoice(c) <- i;
+        operation(c) <- operation(i);
+        executeLocalEvents('Purchase.userCreditNote');
+        supplier(c) <- supplier(i);
+        supplierStock(c) <- supplierStock(i);
+        customer(c) <- customer(i);
+        customerStock(c) <- customerStock(i);
+        date(c) <- currentDate();
+        time(c) <- currentTime();
+        isPosted(c) <- TRUE;
+    }
+
+    FOR qualityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+        userCreditNote(dc) <- userCreditNote(invoice(d));
+        invoiceDetail(dc) <- d;
+        batch(dc) <- overBatch(d);
+        sku(dc) <- sku(d);
+        quantity (dc) <- qualityVariance(d);
+        VAT(dc) <- VAT(d);
+        valueVAT(dc) <- valueVAT(d);
+        price(dc) <- price(d);
+        invoicePrice(dc) <- invoicePrice(d);
+    }
+    executeLocalEvents('Purchase.userCreditNote');
+}
 
 hasInvoice = GROUP SUM 1 BY invoice(invoiceDetail(CreditNoteDetail d)), creditNote(d);
 

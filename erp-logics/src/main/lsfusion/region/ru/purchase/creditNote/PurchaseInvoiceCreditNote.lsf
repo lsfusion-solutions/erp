@@ -48,7 +48,8 @@ WHEN LOCAL CHANGED(invoice(UserCreditNote creditNote)) DO {
 }
 
 //аля Подбор
-creditNoteDetail = GROUP AGGR CreditNoteDetail detail BY invoiceDetail(detail), creditNote(detail);
+//заменил на MAX, т.к. невозможно создать для одной строки прихода(партии) несколько строк расхождений с разными причинами
+creditNoteDetail = GROUP MAX CreditNoteDetail detail BY invoiceDetail(detail), creditNote(detail);
 in = GROUP SUM 1 IF invoiceDetail(CreditNoteDetail detail) BY invoiceDetail(detail), creditNote(detail);
 
 quantityA 'Кол-во (после)' (InvoiceDetail detail, CreditNote creditNote) = quantity(detail) (-) quantity(creditNoteDetail(detail, creditNote));
