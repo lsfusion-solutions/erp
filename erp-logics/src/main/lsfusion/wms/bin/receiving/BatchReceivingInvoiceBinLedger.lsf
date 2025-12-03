@@ -337,12 +337,8 @@ DESIGN receiving {
             REMOVE BOX(putawaySku);
             MOVE BOX(putawayBatch);
         }
-        BOX(reserve) {
-            caption = 'Брак/резерв (БЕЗ партии)';
-            REMOVE PROPERTY(putawayReserve(u));
-            PROPERTY(currentBalance(rs, rb)){hide=TRUE;}
-        }
-        MOVE BOX(reserveB) BEFORE BOX(reserve){
+        REMOVE BOX(reserve); //удаляем, т.к. расписывание по партиям НЕ предполагает товара на приёмке, которого нет в накладной
+        MOVE BOX(reserveB){
             caption = 'Брак/резерв (партии)';
         }
     }
@@ -420,28 +416,39 @@ diffCompleted 'Разница между обработанным количес
 countInvoiceDetail(Receiving r, CreditNote c) = [GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d)](r, c);
 
 quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
-    [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r);
+    [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r) MATERIALIZED;
 
 diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
     diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
 
+diffInvoicedToPartition = DATA LOCAL NUMERIC[16,5] (Sku, STRING, Receiving);
+diffInvoiceCreditNoteCompleted(InvoiceDetail detail) = 
+    PARTITION UNGROUP diffInvoicedToPartition LIMIT quantity(detail) ORDER detail BY sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
+
+showCreateCreditNote (Sku s, STRING str, Receiving r) =
+    GROUP SUM 1 IF completeStatus(r) AND diffInvoiceCreditNoteCompleted(s, str, r); 
+createCreditNote 'Необходимость создание переоценки' (Sku s, STRING str, Receiving r) = 
+    GROUP SUM 1 IF completeStatus(r) AND diffInvoiceCreditNoteCompleted(s, str, r) AND expectedQuantity(s, str, r);
+cannotCreateCreditNote 'Невозможность создание переоценки' (Sku s, STRING str, Receiving r) = 
+    GROUP SUM 1 IF completeStatus(r) AND diffInvoiceCreditNoteCompleted(s, str, r) AND NOT expectedQuantity(s, str, r);
+
 createCreditNoteDiffInvoice ABSTRACT (Invoice);
 
 createCreditNote 'Создать акт расхождения' (Receiving r) {
-    IF (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF diffInvoiceCreditNoteCompleted(s, str, r) IS NUMERIC[16,5] AND NOT expectedQuantity(s, str, r)) THEN {
+    IF (GROUP SUM cannotCreateCreditNote(Sku s, STRING str, r)) THEN {
         MESSAGE 'Для товаров с расхождением \n' +
             [GROUP CONCAT (CONCAT '; ', 'Наименование: ' + name(Sku s), 'Код: ' + id(s), 'Штрихкод: ' + idBarcode(s), 'Серия лекарственного средства: ' + STRING str)
-                IF diffInvoiceCreditNoteCompleted(s, str, Receiving r1) AND NOT expectedQuantity(s, str, r1), '\n' ORDER s, str BY r1](r)
+                IF cannotCreateCreditNote(s, str, Receiving r1), '\n' ORDER s, str BY r1](r)
             + '\n не будут созданы строки акта расхождения, тк. данных товаров-серия нет в приходном документе' NOWAIT;
     }
-    IF  (GROUP MAX diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) IF expectedQuantity(s, str, r)) THEN NEWSESSION {
-        FOR receiving(Invoice i) = r
-            AND [GROUP MAX diffInvoiceCreditNoteCompleted(sku(InvoiceDetail d), overConsolidationKey(d), receiving(invoice(d))) IF expectedQuantity(sku(d), overConsolidationKey(d), receiving(invoice(d))) BY invoice(d)](i)
-            DO {
+    
+    diffInvoicedToPartition(Sku s, STRING str, r) <- diffInvoiceCreditNoteCompleted(s, str, r) WHERE expectedQuantity(s, str, r);
+    IF  (GROUP SUM diffInvoicedToPartition(Sku s, STRING str, r)) THEN {
+        FOR receiving(Invoice i) = r AND [GROUP SUM diffInvoiceCreditNoteCompleted(InvoiceDetail d) BY invoice(d)](i) DO {
             createCreditNoteDiffInvoice(i);
         }
-        FOR [GROUP MAX CreditNoteDetail d1 IF NOT PREV(d1 IS CreditNoteDetail) BY creditNote(d1)](CreditNote i) DO {
-            afterCreateCreditNoteReceiving(i);
+        FOR CreditNote c == userCreditNote(Invoice invoice) AND receiving(invoice) == r DO {
+            afterCreateCreditNoteReceiving(c);
         }
         APPLY;
     }
@@ -457,7 +464,7 @@ descriptionCreditNotes 'Акты расхождения' =
 
 EXTEND FORM receiving
     PROPERTIES READONLY descriptionCreditNotes(r) AFTER descriptionInvoices(r)
-    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP MAX diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW srstr
+    PROPERTIES createCreditNote(r) SHOWIF (completeStatus(r) AND GROUP SUM diffInvoiceCreditNoteCompleted(Sku s1, STRING str, r)) DRAW r
     PROPERTIES READONLY quantityCreditNote(sr1, str1, r)
     PROPERTIES READONLY quantityCreditNote(sr, r)
 

@@ -77,3 +77,47 @@ NAVIGATOR {
 }
 
 operation[CreditNote.CreditNote] (CreditNote creditNote) += operation(creditNote);
+
+invoice 'Накладная' = DATA Invoice (UserCreditNote);
+descriptionInvoice 'Накладная' (UserCreditNote c) = description(invoice(c));
+
+invoice (CreditNote creditNote) = MULTI invoice[UserCreditNote](creditNote), invoice[InvoiceCreditNote](creditNote);
+numberInvoice 'Накладная' (CreditNote creditNote) = number(invoice(creditNote));
+
+countUserCreditNote = GROUP SUM 1 BY invoice(UserCreditNote ic);
+
+userCreditNote = GROUP MAX UserCreditNote userCreditNote BY invoice(userCreditNote);
+userCreditNote[Invoice.Invoice](SaleReturn.Invoice invoice) += userCreditNote(invoice);
+
+@defineOperationProperty(allowNotOnlyCreditNote, 'Разрешить несколько актов расхождения для накладной', constraintContainer);
+
+CONSTRAINT countUserCreditNote(Invoice invoice) > 1.0 AND NOT allowNotOnlyCreditNote(operation(invoice))
+    CHECKED BY invoice[UserCreditNote]
+    MESSAGE 'Для накладной уже создан акт расхождения';
+
+CONSTRAINT invoice(userCreditNote(UserCreditNoteDetail detail)) AND invoiceDetail(detail)
+    AND NOT invoice(userCreditNote(detail))=invoice(invoiceDetail(detail))
+    CHECKED BY invoiceDetail[UserCreditNoteDetail]
+    MESSAGE 'Накладная строки акта расхождения отличается от накладной акта расхождения';
+
+CONSTRAINT invoice(UserCreditNote i) AND NOT operation(i)=operation(invoice(i))
+    CHECKED BY invoice[UserCreditNote]
+    MESSAGE 'Операция акта расхождения отличается от операции накладной';
+
+EXTEND FORM userCreditNote
+    PROPERTIES (c) descriptionInvoice AFTER nameOperation(c)
+;
+
+EXTEND FORM creditNotes
+    PROPERTIES (c) READONLY numberInvoice AFTER series(c)
+;
+
+WHEN LOCAL CHANGED(invoice(UserCreditNote creditNote)) DO {
+    supplier(creditNote) <- supplier(invoice(creditNote));
+    supplierStock(creditNote) <- supplierStock(invoice(creditNote));
+    customer(creditNote) <- customer(invoice(creditNote));
+    customerStock(creditNote) <- customerStock(invoice(creditNote));
+    contractSku(creditNote) <- contractSku(invoice(creditNote));
+    currency(creditNote) <- currency(invoice(creditNote));
+}
+

@@ -19,7 +19,7 @@ quantityCreditNote 'Кол-во в актах расхождений' (Sku s, ST
 
 writeOffCreditNote 'Списать с добавлением (в) акт расхождения' (CustomUser u) {
     NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
-        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
+        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin));
         IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
             MESSAGE 'Ничего не выбрано';
             RETURN;
@@ -29,9 +29,9 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
             RETURN;
         }
         FOR [GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u))
-            AND orderLedger(bin) BY invoice(invoiceDetail(batch))](Invoice i)
-            AND NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i)) DO NEW c = UserCreditNote {
-            id(c) <- STRING[100](CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i));
+            AND orderLedger(bin) AND receiving(bin) BY invoice(invoiceDetail(batch))](Invoice i)
+            AND NOT userCreditNote(i) DO NEW c = UserCreditNote {
+            invoice(c) <- i;
             operation(c) <- operation(i);
             supplier(c) <- supplier(i);
             supplierStock(c) <- supplierStock(i);
@@ -42,19 +42,16 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
             isPosted(c) <- TRUE;
         }
 
-        FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-            AND InvoiceDetail d = invoiceDetail(batch)
-            AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), id(supplierStock((d))), id(customerStock(d)))
-            AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
-            DO {
+        FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)
+            AND InvoiceDetail d = invoiceDetail(batch) DO {
             NEW dc = UserCreditNoteDetail {
-                userCreditNote(dc) <- c;
+                userCreditNote(dc) <- userCreditNote(invoice(d));
                 invoiceDetail(dc) <- d;
                 batch(dc) <- batch;
                 sku(dc) <- sku(d);
                 quantity (dc) <- currentBalance(batch, bin);
-                VAT (dc) <- OVERRIDE VAT(d);
-                valueVAT(dc) <- OVERRIDE valueVAT(d);
+                VAT (dc) <- VAT(d);
+                valueVAT(dc) <- valueVAT(d);
                 price (dc) <- price(d);
                 invoicePrice (dc) <- invoicePrice(d);
             }
@@ -64,15 +61,14 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
         }
         executeLocalEvents('Purchase.userCreditNote');
 
-        FOR (GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-            AND userCreditNote(CONCAT '_', 'I', seriesNumber(invoiceDetail(batch)), date(invoiceDetail(batch)), id(supplierStock((invoiceDetail(batch)))), id(customerStock(invoiceDetail(batch)))))
+        //todo: надо переделать на ячейки в строке акта расхождения
+        FOR (GROUP MAX select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)) 
             NEW o = UserBinTransfer DO {
             operation(o) <- putawayWriteOffOperation();
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
-            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)
-                AND userCreditNote(CONCAT '_', 'I', seriesNumber(invoiceDetail(batch)), date(invoiceDetail(batch)), id(supplierStock((invoiceDetail(batch)))), id(customerStock(invoiceDetail(batch))))
+            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) AND receiving(bin)
                 NEW d = UserBinTransferDetail DO {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku(batch);
@@ -87,10 +83,9 @@ writeOffCreditNote 'Списать с добавлением (в) акт рас�
     }
 } TOOLBAR;
 
-
 createCreditNoteDiffInvoice(Invoice i) + {
-    IF NOT userCreditNote(CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i)) THEN NEW c = UserCreditNote {
-        id(c) <- CONCAT '_', 'I', seriesNumber(i), date(i), idSupplierStock(i), idCustomerStock(i);
+    IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
+        invoice(c) <- i;
         operation(c) <- operation(i);
         executeLocalEvents('Purchase.userCreditNote');
         supplier(c) <- supplier(i);
@@ -102,20 +97,16 @@ createCreditNoteDiffInvoice(Invoice i) + {
         isPosted(c) <- TRUE;
     }
 
-    FOR Receiving r =  receiving(i) AND diffInvoiceCreditNoteCompleted(Sku s, STRING str, r) AND expectedQuantity(s, str, r)
-        AND InvoiceDetail d = [GROUP MAX InvoiceDetail d1 BY sku(d1), overConsolidationKey(d1), receiving(invoice(d1)), invoice(d1)](s, str, r, i)
-        AND UserCreditNote c = userCreditNote(CONCAT '_', 'I', seriesNumber(d), date(d), idSupplierStock(invoice(d)), idCustomerStock(invoice(d)))
-        AND NOT [GROUP MAX UserCreditNoteDetail dc1 BY creditNote(dc1), invoiceDetail(dc1)](c, d)
-        DO NEW dc = UserCreditNoteDetail {
-        userCreditNote(dc) <- c;
+    FOR diffInvoiceCreditNoteCompleted(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+        userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- overBatch(d);
-        sku(dc) <- s;
-        quantity (dc) <- diffInvoiceCreditNoteCompleted(s, str, r);
-        VAT (dc) <- OVERRIDE VAT(d);
-        valueVAT(dc) <- OVERRIDE valueVAT(d);
-        price (dc) <- price(d);
-        invoicePrice (dc) <- invoicePrice(d);
+        sku(dc) <- sku(d);
+        quantity (dc) <- diffInvoiceCreditNoteCompleted(d);
+        VAT(dc) <- VAT(d);
+        valueVAT(dc) <- valueVAT(d);
+        price(dc) <- price(d);
+        invoicePrice(dc) <- invoicePrice(d);
     }
     executeLocalEvents('Purchase.userCreditNote');
 }
