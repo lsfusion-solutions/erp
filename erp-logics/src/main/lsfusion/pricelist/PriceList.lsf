@@ -132,16 +132,11 @@ toDateTime 'Дата/время по'(UserPriceList userPriceList) = dateTimeToD
 
 toDate(UserPriceList userPriceList) += toDate(userPriceList);
 toTime(UserPriceList userPriceList) += toTime(userPriceList);
-skipChangeToTime = ABSTRACT  BOOLEAN (UserPriceList);
-WHEN LOCAL CHANGED(toDate(UserPriceList o)) AND NOT toTime(o) AND NOT skipChangeToTime(o)  DO {
+
+skipChangeToTime = ABSTRACT BOOLEAN (UserPriceList);
+WHEN LOCAL CHANGED(toDate(UserPriceList o)) AND NOT toTime(o) AND NOT skipChangeToTime(o) DO {
     toTime(o) <- 23:59;
 } 
-//
-//@deriveDocumentHeaderTimeBeforePrefix(UserPriceList, to){
-//    WHEN LOCAL CHANGED(toDate(UserPriceList o)) AND NOT toTime(o) DO {
-//        toTime(o) <- 23:59;
-//    } 
-//};
 
 @defineDocumentInterfaceNumber(priceList, BPSTRING[2]);
 @defineNumeratedDefault(UserPriceList, 'Прайсы', 'ПЛ');
@@ -167,6 +162,10 @@ nameGroupType 'Тип классификатора' = name(groupType(UserPriceLi
 // Строки
 
 @defineDocumentInterfaceDetailDataTimePrefix(priceList, to, ' по');
+
+WHEN LOCAL CHANGED(toDataDate(UserPriceListDetail d)) AND NOT toDataTime(d) AND NOT skipChangeToTime(userPriceList(d)) DO {
+    toDataTime(d) <- 23:59;
+}
 
 sku = ABSTRACT Sku (PriceListDetail) MATERIALIZED;
 INDEX sku(PriceListDetail d), fromDateTime(d), d;
