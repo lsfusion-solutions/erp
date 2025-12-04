@@ -159,7 +159,21 @@ FORM itemProperties 'Дополнительные свойства товаро�
 ;
 
 GROUP attributes;
-weightSize (Sku i) = IF lowWeight(i) THEN 2;
+GROUP weight;
+
+referenceWeight 'Эталонный вес товара' = DATA NUMERIC[12,3] ();
+overReferenceWeight(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE referenceWeight(), 0;
+
+minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
+overMinDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
+
+maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] ();
+overmaxDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE maxDelta(), 0.01;
+
+weightSize (Sku s) = CASE 
+    WHEN lowWeight(s) THEN 2
+    ELSE 0
+;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -169,7 +183,14 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
         = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
         = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete',
         = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
+    
     PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
+    
+    PROPERTIES(elements) IN weight
+        overReferenceWeight EXTID 'reference_weight',
+        overMinDelta EXTID 'min_delta',
+        overmaxDelta EXTID 'max_delta'
+
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements)    
 ;
 
@@ -303,7 +324,7 @@ stopListImport 'Импорт стоп-листа' () {
 }
 
 EXTEND FORM integrationData
-    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport();
+    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport(), referenceWeight(), minDelta(), maxDelta();
 
 DESIGN integrationData{
     pane{
@@ -311,6 +332,12 @@ DESIGN integrationData{
             caption = 'УКМ5';
             MOVE PROPERTY (urlUkm5ServerImport());
             MOVE PROPERTY (urlUkm5ServerExport());
+            NEW scale {
+                caption = 'Импорт эталонных весов КВП';
+                MOVE PROPERTY (referenceWeight());
+                MOVE PROPERTY (minDelta());
+                MOVE PROPERTY (maxDelta());
+            }
         }
     }
 }
