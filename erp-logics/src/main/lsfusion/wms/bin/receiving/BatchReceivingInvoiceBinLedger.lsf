@@ -441,7 +441,7 @@ extraCreateCreditNote ABSTRACT LIST (Receiving, Invoice);
 createCreditNote 'Создать акт расхождения' (Receiving r) {
     quantityVarianceToPartition(Sku s, STRING str, r) <- diffInvoiceCreditNoteCompleted(s, str, r) WHERE expectedQuantity(s, str, r);
     qualityVarianceToPartition(Sku s, STRING str, r) <- 
-        GROUP SUM quantity(ReceivingDetail rd) IF sku(rd)==s AND overConsolidationKey(rd)==str AND receiving(rd)==r AND orderLedger(inBin(rd)) AND receiving(inBin(rd));
+        GROUP SUM quantity(ReceivingDetail rd) IF sku(rd)==s AND overConsolidationKey(rd)==str AND receiving(rd)==r AND orderLedger(inBin(rd)) AND NOT storage(inBin(rd));
     IF (GROUP SUM quantityVarianceToPartition(Sku s, STRING str, r)) THEN {
         FOR receiving(Invoice i) = r AND [GROUP SUM quantityVariance(InvoiceDetail d) BY invoice(d)](i) DO {
             createCreditNoteQuantityVariance(i);
@@ -458,7 +458,7 @@ createCreditNote 'Создать акт расхождения' (Receiving r) {
         }
         
         LOCAL qualityVariance = NUMERIC[16,5] (Batch, Bin);
-        qualityVariance(Batch batch, Bin bin) <- GROUP SUM quantity(ReceivingDetail rd) IF batch(rd)==batch AND inBin(rd)==bin AND receiving(rd)==r AND orderLedger(inBin(rd)) AND receiving(inBin(rd));
+        qualityVariance(Batch batch, Bin bin) <- GROUP SUM quantity(ReceivingDetail rd) IF batch(rd)==batch AND inBin(rd)==bin AND receiving(rd)==r AND orderLedger(inBin(rd)) AND NOT storage(inBin(rd));
         
         //todo: надо переделать на ячейки в строке акта расхождения
         FOR (GROUP SUM qualityVariance(Batch batch, Bin bin)) NEW o = UserBinTransfer DO {
