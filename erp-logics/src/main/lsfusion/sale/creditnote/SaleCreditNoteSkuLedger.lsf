@@ -1,0 +1,34 @@
+MODULE SaleCreditNoteSkuLedger;
+
+REQUIRE SaleCreditNote, SkuLedger;
+
+NAMESPACE Sale;
+
+isClosed (UserCreditNoteDetail d) = isClosed(userCreditNote(d));
+
+@implementSkuLedgerInLIFO(UserCreditNoteDetail, sku, customerStock);
+
+quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
+batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
+@implementSkuLedgerInLIFOBatchBalance(userCreditNoteDetail, supplierStock);
+
+overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
+sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
+
+// ------------ Проведение по товарному отчету ----------------- //
+@implementStockDocumentLedgerInc(UserCreditNote, customerStock);
+type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
+sumItem (UserCreditNote ledger) += sumItemUserCreditNoteDetail(ledger);
+sumContainer (UserCreditNote ledger) += sumContainerUserCreditNoteDetail(ledger);
+
+legalEntity(UserCreditNote ledger) += supplier(ledger);
+legalEntityStock(UserCreditNote ledger) += supplierStock(ledger);
+
+operation[StockDocumentLedger](UserCreditNote ledger) += operation(ledger);
+close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
+
+stockDocumentLedger(UserCreditNoteDetail ledger) += userCreditNote(ledger);
+
+//cost(CreditNoteDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS UserCreditNoteDetail;
+
+show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
