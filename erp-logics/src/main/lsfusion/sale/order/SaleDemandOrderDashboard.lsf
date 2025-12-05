@@ -24,6 +24,10 @@ DESIGN options {
 
 amountPackIntra 'Кол-во в упаковке' (Sku sk) = OVERRIDE Purchase.amountPack(sk) IF NOT skipAmountPack(), 1.0 IF sk IS Sku; // для отгрузки со склада
 
+overAmountPackIntra = ABSTRACT NUMERIC[14,3](Sku, Stock); // для округления у складов-получателей до меньших упаковок
+amountPackIntra 'Кол-во в упаковке' (Sku sku, Stock stock) = OVERRIDE overAmountPackIntra(sku, stock) IF overAmountPackIntra(sku, stock) < amountPackIntra(sku), 
+                                                                                       amountPackIntra(sku) IF stock IS Stock; // stock - склады-получатели
+
 dataPriorityIntraDemand 'Приоритет при распределении дефицитов' = DATA INTEGER (StockGroup);
 levelParentPriorityIntraDemand(StockGroup child)  = GROUP MIN level(child, StockGroup parent) IF dataPriorityIntraDemand(parent);
 nearestParentPriorityIntraDemand (StockGroup stockGroup) = stockGroup(stockGroup, levelParentPriorityIntraDemand(stockGroup));
@@ -134,13 +138,13 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
         currentBalanceFreeLocal(Sku sk) <- currentBalanceFree(sk, st) WHERE inDemand(sk);
 
         FOR [GROUP SUM quantityToOrderDate(Sku sku, Stock ds) BY sku](Sku sk) > 0 AND currentBalanceFreeLocal(sk) DO {
-            IF [GROUP SUM ceil(quantityToOrderDate(sk, Stock ds), amountPackIntra(sk))]() <= currentBalanceFreeLocal(sk) THEN {
-                quantityToOrder(sk, Stock ds) <- ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk)) WHERE quantityToOrderDate(sk, ds);
+            IF [GROUP SUM ceil(quantityToOrderDate(sk, Stock ds), amountPackIntra(sk, ds))]() <= currentBalanceFreeLocal(sk) THEN {
+                quantityToOrder(sk, Stock ds) <- ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk, ds)) WHERE quantityToOrderDate(sk, ds);
             }
             ELSE {  // распределение дефицита
                 IF notProportionIntraDemand() THEN { // тогда закрываем потребность по приоритету магазинов и времени заказов
                     quantityToOrder(sk, Stock ds) <- PARTITION UNGROUP currentBalanceFreeLocal
-                        LIMIT ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk))
+                        LIMIT ceil(quantityToOrderDate(sk, ds), amountPackIntra(sk, ds))
                         ORDER priorityIntraDemand(ds), dateTimeFirstOrderIntra(sk, st, ds), ds
                         BY sk;
                 }
@@ -149,17 +153,17 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
                         PROPORTION ROUND(2) quantityToOrderDate(sk, ds)
                         BY sk;
 
-                    quantityToOrder(sk, Stock ds) <- floor(quantityToOrder(sk, ds), amountPackIntra(sk));
-                    quantityToOrder(sk, Stock ds) <- NULL WHERE quantityToOrder(sk,ds) == 0.0;
+                    quantityToOrder(sk, Stock ds) <- floor(quantityToOrder(sk, ds), amountPackIntra(sk, ds));
+                    quantityToOrder(sk, Stock ds) <- NULL WHERE quantityToOrder(sk, ds) == 0.0;
 
-                    currentBalanceNotOrdered(sk) <- currentBalanceFreeLocal(sk) (-) [GROUP SUM quantityToOrder(sk,Stock ds)]();
+                    currentBalanceNotOrdered(sk) <- currentBalanceFreeLocal(sk) (-) [GROUP SUM quantityToOrder(sk, Stock ds)]();
 
                     quantityToOrderAdd(sk, Stock ds) <- PARTITION UNGROUP currentBalanceNotOrdered  // добавляем по 1 упаковке по приоритету
-                        LIMIT amountPackIntra(sk) IF quantityToOrderDate(sk, ds)
+                        LIMIT amountPackIntra(sk, ds) IF quantityToOrderDate(sk, ds)
                         ORDER priorityIntraDemand(ds), dateTimeFirstOrderIntra(sk, st, ds), ds
                         BY sk;
 
-                    quantityToOrder(sk, Stock ds) <- quantityToOrder(sk, ds) (+) quantityToOrderAdd(sk, ds);
+                    quantityToOrder(sk, Stock ds) <- quantityToOrder(sk, ds) (+) floor(quantityToOrderAdd(sk, ds), amountPackIntra(sk, ds));
                 }
             }
         }
@@ -182,7 +186,7 @@ createIntraDemandUserOrders 'Создать заказы' (Warehouse st, DATE df
             FOR quantityToOrder(Sku sku, ds) INLINE NEW od = UserOrderDetail DO {
                 userOrder(od) <- o;
                 sku(od) <- sku;
-                amountPack(od) <- amountPackIntra(sku);
+                amountPack(od) <- amountPackIntra(sku, ds);
                 quantity(od) <- quantityToOrder(sku, ds);
             }
             price(UserOrderDetail od) <- prevPriceB[LedgerPriceListType, Sku, Stock, DATETIME](priceListType(o), sku(od), supplierStock(od), dateTime(od)) WHERE od IS UserOrderDetail AND userOrder(od) == o;
