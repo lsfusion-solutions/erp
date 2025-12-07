@@ -512,7 +512,7 @@ GROUP vsviedTov EXTID 'СведТов';
 GROUP vsvTD EXTID 'СвТД';
 GROUP vsvTD503 EXTID 'СвДТ';
 GROUP vdopSviedTov EXTID 'ДопСведТов';
-//GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
+GROUP vnomSriedIdientTov EXTID 'НомСредИдентТов' : vdopSviedTov;
 GROUP vvsieghoOpl EXTID 'ВсегоОпл' : vtablSchFakt;
 GROUP vsumNalVsiegho EXTID 'СумНалВсего' : vvsieghoOpl;
 GROUP vsvProdPier EXTID 'СвПродПер' : vdokumient;
@@ -629,6 +629,7 @@ videntTransUpak = DATA LOCAL STRING(INTEGER);
 vkolVedMark = DATA LOCAL INTEGER(INTEGER);
 vnomSriedIdientTovVsviedTov = DATA LOCAL INTEGER(INTEGER);
 vKIZ = DATA LOCAL STRING(INTEGER);
+vnomSriedIdientTovVKIZ = DATA LOCAL INTEGER(INTEGER);
 vnomUpak = DATA LOCAL STRING(INTEGER);
 vkodProish = DATA LOCAL STRING(INTEGER);
 vnomerTD = DATA LOCAL STRING(INTEGER);
@@ -757,9 +758,13 @@ FORM importUPD FORMEXTID 'Файл'
     PROPERTIES(vsviedTov) IN vdopSviedTov vnaimIedIzm EXTID 'НаимЕдИзм' ATTR, vkrNaimStrPr EXTID 'КрНаимСтрПр' ATTR, vkodTov EXTID 'КодТов' ATTR, vGTIN EXTID 'ГТИН' ATTR
     
     OBJECTS vnomSriedIdientTov = INTEGER EXTID 'НомСредИдентТов' IN vdopSviedTov
-    PROPERTIES(vnomSriedIdientTov) videntTransUpak EXTID 'ИдентТрансУпак' ATTR, vkolVedMark EXTID 'КолВедМарк' ATTR, vKIZ EXTID 'КИЗ', vnomUpak EXTID 'НомУпак'
+    PROPERTIES(vnomSriedIdientTov) videntTransUpak EXTID 'ИдентТрансУпак' ATTR, vkolVedMark EXTID 'КолВедМарк' ATTR, vnomUpak EXTID 'НомУпак'
     FILTERS vnomSriedIdientTovVsviedTov(vnomSriedIdientTov) == vsviedTov
-    
+
+    OBJECTS vKIZ = INTEGER EXTID 'КИЗ' 
+    PROPERTIES(vKIZ) vKIZ EXTID 'value'
+    FILTERS vnomSriedIdientTovVKIZ(vKIZ) == vnomSriedIdientTov
+
     OBJECTS vinfPolFKhZh2 = INTEGER EXTID 'ИнфПолФХЖ2'
     FILTERS vsviedTovVinfPolFKhZh2(vinfPolFKhZh2) == vsviedTov
     PROPERTIES(vinfPolFKhZh2) identif EXTID 'Идентиф' ATTR , vinfPolFKhZh3 EXTID 'Значен' ATTR
@@ -891,9 +896,11 @@ createDocument(Document d) + {
                     id(pd) <- STRING[255](vnomUpak(j));
                 }
                 
-                FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i AND vKIZ(j) NEW ld = UpdLotDetail DO {
-                    updDocumentDetail(ld) <- dd;
-                    id(ld) <- STRING[255](vKIZ(j));
+                FOR vnomSriedIdientTovVsviedTov(INTEGER j) == i DO {
+                    FOR vnomSriedIdientTovVKIZ(INTEGER K) == j NEW pd = UpdLotDetail DO {
+                        updDocumentDetail(pd) <- dd;
+                        id(pd) <- STRING[255](vKIZ(K));
+                    }
                 }
             }
             sum(upd) <- NUMERIC[19,2](vstTovBiezNDSVsiegho());
