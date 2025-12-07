@@ -1,0 +1,116 @@
+MODULE FitGiftCard;
+
+REQUIRE GiftCardItem, FitCashRegister;
+
+PRIORITY GiftCard;
+
+NAMESPACE Fit;
+
+quantityFit (GiftCard c) = CASE
+    WHEN used(c) THEN -1000
+    WHEN dateSold(c) THEN 0
+    WHEN c IS GiftCard THEN 1000;
+
+nameVT (GiftCard c) = CONCAT ' ', 'Подарочный сертификат', NUMERIC[6,0](price(c));
+
+isSent = DATA LOCAL BOOLEAN (GiftCard);
+
+sendGiftCards (LegalEntity l) {
+    NEWSESSION {
+        FOR isFit(CashRegister cr) AND legalEntity(stock(cr))=l AND NOT inactive(cr) DO {
+
+            exportFile() <- NULL;
+            EXPORT CSV '' NOHEADER NOESCAPE CHARSET 'CP866' FROM
+                codeSku = charSpace(number(GiftCard c), 16),           // 1. Код товара
+                codeGroup = '001',                                     // 2. Код группы
+                codeVAT = '03',                                        // 3. Код налоговой ставки    
+                nameSku = alpha((OVERRIDE nameSku(c), nameVT(c)), 20), // 4. Наименование товара
+                price = numeric(INTEGER(price(c) * 100), 12),          // 5. Цена товара
+                timeBegHappyHour = '00',                               // 6.1 Время начала "Счастливого часа"
+                timeEndHappyHour = '00',                               // 6.2 Время окончания "Счастливого часа"
+                priceMultiplier = '00000',                             // 6.3 Множитель цены
+                additionalFeature = '0',                               // 6.4 Дополнительный признак
+                dateTimeCreate = currentTimeText(),                    // 6.5 Дата время формирования
+                codeMovement =  'A',                                   // 7. Код движения
+                signWeightedProduct = '0',                             // 8. Признак весового товара
+                quantity = numeric(quantityFit(c), 11),                // 9. Количество
+                codeCurrecy = '0',                                     // 10. Код валюты
+                section = '099',                                       // 11. Секция
+                codeVAT1 = '00',                                       // 12. Код налога 1
+                codeVAT2 = '00',                                       // 13. Код налога 2
+                codeVAT3 = '00',                                       // 14. Код налога 3
+                codeVAT4 = '00',                                       // 15. Код налога 4
+                codeVAT5 = '00',                                       // 16. Код налога 5
+                price1 = numeric(INTEGER(price(c) * 100), 12),         // 17. Цена 1
+                price2 = numeric(INTEGER(price(c) * 100), 12),         // 18. Цена 2
+                price3 = numeric(INTEGER(price(c) * 100), 12),         // 19. Цена 3
+                price4 = numeric(INTEGER(price(c) * 100), 12),         // 20. Цена 4
+                price5 = numeric(INTEGER(price(c) * 100), 12),         // 21. Цена 5
+                absoluteDiscount = '000000000',                        // 22. Абсолютная скидка
+                percentageDiscount = '000000',                         // 23. Процентная скидки
+                quantitativeThreshold = '000000000',                   // 24. Количественный порог
+                typeDiscount = '0',                                    // 25. Тип скидки
+                signProductFlyer = '1',                                // 26. Признак флаерса товара
+                weightTare = '00000',                                  // 27. Вес тары
+                nameSku2 = alpha((OVERRIDE nameSku(c), nameVT(c)), 60),// 28. Наименование товара
+                timeBegInterval = '0000',                              // 29. Время начала интервала
+                timeEndInterval = '0000',                              // 30. Время окончания интервала
+                selfVerificationAge = '0',                             // 31. Самостоятельное подтверждение возраста
+                minAge = '00',                                         // 32. Минимальный возраст
+                requiredWeight = '0',                                  // 33. Необходим вес
+                requiredQuantity = '0',                                // 34. Необходимо количество
+                requiredPrice = '0',                                   // 35. Необходима цена
+                visualConfirmation = '0',                              // 36. Визуальное подтверждение
+                signEGAIS = '0',                                       // 37. Признак ЕГАИС
+                banManualQuantityEntry = '0',                          // 38. Запрет ручного ввода количества
+                codeAlcoholic = alpha('', 3),                          // 39. Код вида алкогольной продукции
+                nameCommodityItem = alpha('', 64),                     // 40. Наименование товарной позиции
+                strength = alpha('', 7),                               // 41. Крепость
+                volumeTare = alpha('', 8),                             // 42. Объем тары
+                quantityPackage = numeric(0, 3),                       // 43. Количество товара в упаковке
+                codeDiscount = numeric(0, 3),                          // 44. Код скидки скидочного штрихкода
+                codeAgent = alpha('', 12),                             // 45. Код агента
+                minPrice = numeric(0, 12),                             // 46. Минимальная цена
+                TNVED = alpha('', 22),                                 // 47. ТН ВЭД
+                mark = '0',                                            // 48. Признак маркированной продукции
+                typeMark = '    ',                                     // 49. Тип маркированной продукции
+                codeCountry = numeric(INTEGER(trim(sid(defaultCountry()))), 3), // 50. Код страны происхождения
+                excise = numeric(0, 9) ,                               // 51. Акциз
+                numberDeclaration = numeric(0, 32),                    // 52. Номер таможенной декларации
+                subjectCalculation = '10' ,                            // 53. Признак предмета расчета
+                calculationMethod = '03',                              // 54. Признак способа расчета
+                localItemCode = charSpace(trim(number(c)), 16),        // 55. Локальный код товара
+                nameGraphicFileImage = alpha('', 32),                  // 56. Имя графического файла с изображением товара
+                nameSoundFile = alpha('', 32),                         // 57. Имя звукового файла с изображением товара
+                measureQOC = alpha('796', 3),                          // 58. Мера количества предмета расчета
+                alternativeClassifierLevelCode = numeric(0, 6),         // 59. Код уровня альтернативого классификатора 
+                append0D = '\r' IF append0D()
+                WHERE NOT isSent(c) ORDER c;
+            put(cr, 'plu', exportFile());
+            //            IF returnExchange(cr) THEN {
+            //                addMachineryError(t);
+            //            } ELSE {
+            //                dateTimeProcessing(t) <- currentDateTime();
+            //            }
+        }
+        //        APPLY;
+    }
+}
+
+sendGiftCards 'Выгрузить ПС в ФИТ' () {
+    isSent(GiftCard g) <- TRUE;
+    DIALOG dialogLegalEntities OBJECTS l INPUT DO {
+        sendGiftCards(l);
+        MESSAGE 'Выгрузка выполнена';
+    }
+}
+
+EXTEND FORM options
+    PROPERTIES () sendGiftCards
+;
+
+DESIGN options {
+    giftCards {
+        MOVE PROPERTY(sendGiftCards());
+    }
+}
