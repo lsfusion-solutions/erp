@@ -6,7 +6,7 @@ NAMESPACE SaleReturn;
 
 isClosed (UserCreditNoteDetail d) = isClosed(userCreditNote(d));
 
-@implementSkuLedgerOutFIFO(UserCreditNoteDetail, sku, customerStock);
+@implementSkuLedgerOutFIFO(UserCreditNoteDetail, sku, supplierStock);
 
 quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
@@ -16,13 +16,13 @@ overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
 sum[OutSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
 
 // ------------ Проведение по товарному отчету ----------------- //
-@implementStockDocumentLedgerOut(UserCreditNote, customerStock);
+@implementStockDocumentLedgerOut(UserCreditNote, supplierStock);
 type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
 sumItem (UserCreditNote ledger) += sumItemUserCreditNoteDetail(ledger);
 sumContainer (UserCreditNote ledger) += sumContainerUserCreditNoteDetail(ledger);
 
-legalEntity(UserCreditNote ledger) += supplier(ledger);
-legalEntityStock(UserCreditNote ledger) += supplierStock(ledger);
+legalEntity(UserCreditNote ledger) += customer(ledger);
+legalEntityStock(UserCreditNote ledger) += customerStock(ledger);
 
 operation[StockDocumentLedger](UserCreditNote ledger) += operation(ledger);
 close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
