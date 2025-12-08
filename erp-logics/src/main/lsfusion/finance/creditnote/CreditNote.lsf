@@ -468,45 +468,62 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
                     caption = 'Акт расхождений';
                     NEW headerBox {
                         horizontal = TRUE;
+                        alignment = STRETCH;
         
-                        NEW headerRow1 {
+                        NEW headerParams {
+                            fill = 1;
         
                             MOVE GROUP(documentHeader,c) {
                                 lines = 1;
+                                alignment = STRETCH;
                                 NEW first {
+                                    alignment = STRETCH;
                                     horizontal = TRUE;
                                     MOVE PROPERTY(isPosted(c));
                                 }
-                                NEW second { 
+                                NEW second {
+                                    alignment = STRETCH;
                                     horizontal = TRUE;
                                     MOVE PROPERTY(nameNumerator(c));
-                                    MOVE PROPERTY(number(c));
+                                    MOVE PROPERTY(number(c)) { flex = 200; };
                                     MOVE PROPERTY(series(c));
                                     MOVE PROPERTY(date(c));
                                     MOVE PROPERTY(time(c));
                                 }                    
                             }
-                            NEW headerRow11 {
+                            NEW headerLegalEntity {
                                 horizontal = TRUE;
-                                NEW headerRow111 {
+                                alignment = STRETCH;
+                                NEW headerSupplier {
                                     caption = 'Поставщик';
                                     horizontal = TRUE;
-                                    MOVE PROPERTY(nameSupplier(c));
-                                    MOVE PROPERTY(nameSupplierStock(c));
+                                    fill = 1;
+                                    MOVE PROPERTY(nameSupplier(c)) { caption = ''; };
+                                    MOVE PROPERTY(nameSupplierStock(c)) { caption = 'Склад'; };
         
                                 }
-                                NEW headerRow112 {
+                                NEW headerCustomer {
                                     caption = 'Покупатель';
                                     horizontal = TRUE;
-                                    MOVE PROPERTY(nameCustomer(c));
-                                    MOVE PROPERTY(nameCustomerStock(c));
+                                    fill = 1;
+                                    MOVE PROPERTY(nameCustomer(c)) { caption = ''; };
+                                    MOVE PROPERTY(nameCustomerStock(c)) { caption = 'Склад'; };
                                 }
         
                             }
-                            MOVE GROUP(documentPrm,c);
-                            NEW headerRow12 {
-                                horizontal = TRUE;
-                            }
+                            NEW headerTabbedPane {
+                                fill = 1;
+                                tabbed = TRUE;
+                                NEW headerMainParams {
+                                    caption = 'Основные параметры';
+                                    fill = 1;
+                                    MOVE GROUP(documentPrm, c);
+                                }
+                                NEW headerExtraParams {
+                                    caption = 'Дополнительные параметры';
+                                    lines = 4;
+                                }
+                            }    
                         }
         
                         MOVE GROUP(documentSum,c) {
@@ -652,9 +669,9 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     quantityUserCreditNote (InvoiceDetail d) = GROUP SUM quantity(UserCreditNoteDetail cd) BY invoiceDetail(cd);
     
     quantity (invoice, creditNote) = GROUP SUM quantity(CreditNoteDetail creditNoteDetail) BY invoice(invoiceDetail(creditNoteDetail)), creditNote(creditNoteDetail);
-    invoices 'Накладные'(CreditNote creditNote)  = GROUP
+    invoices 'Накладные(из строк)'(CreditNote creditNote)  = GROUP
                                                     CONCAT STRING[255](description(Invoice invoice)) IF quantity(invoice, creditNote) , ', '
-                                                    ORDER invoice IN invoice CHARWIDTH 30;
+                                                    ORDER invoice IN invoice CHARWIDTH 60;
 
     FORM baseCreditNoteDetails 'Строки накладной'
         OBJECTS st = Stock PANEL
@@ -684,7 +701,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         PROPERTIES(c) READONLY invoices
         PROPERTIES(d) descriptionIndexInvoice ON CHANGE changeInvoiceDetail(d) BEFORE deletecd
     ;
-    DESIGN userCreditNote { headerRow12 { MOVE GROUP(invoice,c) { lines = 1; horizontal = TRUE; } } }
+    DESIGN userCreditNote { headerExtraParams { MOVE GROUP(invoice,c) { lines = 1; horizontal = TRUE; } } }
 
 
     EXTEND FORM creditNotes

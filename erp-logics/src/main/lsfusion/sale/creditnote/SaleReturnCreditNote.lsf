@@ -105,11 +105,18 @@ CONSTRAINT invoice(UserCreditNote i) AND NOT operation(i)=operation(invoice(i))
     MESSAGE 'Операция акта расхождения отличается от операции накладной';
 
 EXTEND FORM userCreditNote
-    PROPERTIES (c) descriptionInvoice AFTER nameOperation(c)
+    PROPERTIES(c) descriptionInvoice AFTER nameOperation(c)
 ;
 
+DESIGN userCreditNote {
+    first {
+        MOVE PROPERTY(nameOperation(c));
+        MOVE PROPERTY(descriptionInvoice(c));
+    }
+}    
+
 EXTEND FORM creditNotes
-    PROPERTIES (c) READONLY numberInvoice AFTER series(c)
+    PROPERTIES(c) READONLY numberInvoice AFTER series(c)
 ;
 
 WHEN LOCAL CHANGED(invoice(UserCreditNote creditNote)) DO {
