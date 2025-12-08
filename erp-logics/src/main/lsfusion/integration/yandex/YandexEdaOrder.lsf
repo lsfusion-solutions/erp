@@ -181,6 +181,7 @@ FORM closeOrder
     PROPERTIES() statusUpdate EXTID 'status', eatsId, comment;
 
 customDeleteOrderStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
+customDeliveredStatus = ABSTRACT CASE StatusInternetOrder (InternetOrder);
 
 customCancelOrder = ABSTRACT BOOLEAN ();
 overCancelOrder ABSTRACT LIST (InternetOrder);
@@ -210,7 +211,7 @@ updateOrder(FILE f){
             } ELSE {
                 CASE
                     WHEN statusUpdate() = 'DELIVERED' THEN {
-                        status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivered;
+                        status(internetOrderByUuid(orderLoc())) <- OVERRIDE customDeliveredStatus(internetOrderByUuid(orderLoc())), StatusInternetOrder.delivered;
                     }
                     WHEN statusUpdate() = 'TAKEN_BY_COURIER' THEN {
                         status(internetOrderByUuid(orderLoc())) <- StatusInternetOrder.delivery;
