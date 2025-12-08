@@ -528,9 +528,9 @@ META extendObjectFormsBins(form, forms, obj, binType)
     ;
 END
 
-META defineInvoiceShipmentBins(stockProp, binType, caption)
+META defineInvoiceShipmentBins(stockProp, binType, binCaption)
 
-    @defineDocumentBins(invoice, binType, caption);
+    @defineDocumentBins(invoice, binType, binCaption);
     binType##Bin [ShipmentDetail] (InvoiceShipmentDetail detail) += binType##Bin(invoiceDetail(detail));
     
     @setBinDocument(UserInvoice, stockProp, binType);
@@ -552,6 +552,32 @@ META defineInvoiceShipmentBins(stockProp, binType, caption)
     }
     
 END
+
+META defineCreditNoteBins(stockProp, binType, binCaption)
+    @defineDocumentBins(creditNote, binType, binCaption);
+
+    @implementAggregationBinLedger(creditNoteDetail, creditNote, CreditNote, sku, quantity, stockProp);
+
+    @implementBinLedger(creditNoteBinLedger, creditNoteDetail, sku, quantity, stockProp, binType###Bin);
+    needToCreateCreditNoteBinLedger(CreditNoteDetail detail) += binType###Bin(detail) IS Bin;
+
+    @setBinDocument(UserCreditNote, stockProp, binType);
+    @defineBinDocumentConstraintsType(userCreditNote, stockProp, binType);
+
+    backgroundBins 'Цвет' (CreditNote creditNote) = RGB(255, 224, 255) IF creditNote IS CreditNote;
+    backgroundBins (CreditNoteDetail detail) = backgroundBins(creditNote(detail));
+
+    @extendObjectFormsBins(userCreditNote, creditNotes, c, stockProp, background, binType);
+
+    @deriveDocumentOperationProperty(UserCreditNote, useBins);
+
+    @deriveDocumentBinsProperty(UserCreditNote, binType###Bin, binType###Bin, stockProp);
+
+    //ограничиваем только пользовательским классом, т.к. перемещение между ячейками может создавать списание через агрегацию, что приводи к задвоению перемещения между ячейками
+    CONSTRAINT (CHANGED(operation(UserCreditNoteDetail d)) OR DROPPED(binType###Bin(d)) OR SET(d IS UserCreditNoteDetail)) AND 
+        NOT binType###Bin(d) AND needOut(operation(d)) AND d IS UserCreditNoteDetail
+        MESSAGE '"Ячейка (из)" обязательна для заданной операции списания';
+END    
 
 META deriveDocumentBinsProperty(object, readBin, writeBin, stockProp)
     over###readBin = ABSTRACT Bin (###object);

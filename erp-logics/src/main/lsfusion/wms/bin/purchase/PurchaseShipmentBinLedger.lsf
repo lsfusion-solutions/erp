@@ -9,6 +9,15 @@ NAMESPACE Purchase;
 
 @deriveInvoiceBins(inBin, inBin, customerStock);
 
+//ограничиваем только пользовательским классом, т.к. перемещение между ячейками может создавать отгрузку через агрегацию, что приводи к задвоению перемещения между ячейками
+CONSTRAINT (CHANGED(operation(UserInvoiceDetail d)) OR DROPPED(inBin(d)) OR SET(d IS UserInvoiceDetail)) AND NOT inBin(d) AND needOut(operation(d)) AND d IS UserInvoiceDetail
+    MESSAGE '"Ячейка (в)" обязательна для заданной операции продажи';
+
+//ограничиваем только пользовательским классом, т.к. перемещение между ячейками может создавать отгрузку через агрегацию, что приводи к задвоению перемещения между ячейками
+CONSTRAINT (CHANGED(operation(UserShipmentDetail d)) OR DROPPED(inBin(d)) OR SET(d IS UserShipmentDetail)) AND NOT inBin(d) AND needOut(operation(d)) AND d IS UserShipmentDetail
+    MESSAGE '"Ячейка (в)" обязательна для заданной операции продажи';
+
+
 @implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, customerStock);
 @implementBinLedger(shipmentBinLedger, shipmentDetail, sku, quantity, customerStock, inBin);
 needToCreateShipmentBinLedger(ShipmentDetail detail) += TRUE IF inBin(detail);
