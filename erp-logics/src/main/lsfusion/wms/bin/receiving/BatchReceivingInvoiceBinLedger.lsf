@@ -410,6 +410,8 @@ NAVIGATOR {
 
 afterCreateCreditNoteReceiving ABSTRACT (CreditNote);
 
+hasBin = ABSTRACT BOOLEAN (CreditNoteDetail) MATERIALIZED;
+
 diffCompleted 'Разница между обработанным количеством и количеством в документе прихода'(Sku s, STRING str, Receiving r) =
     expectedQuantity(s, str, r) (-) quantityCompleted(s, str, r);
 
@@ -418,18 +420,21 @@ countInvoiceDetail(Receiving r, CreditNote c) = [GROUP SUM 1 BY receiving(invoic
 quantityCreditNote 'Кол-во в актах расхождений' (Sku s, STRING str, Receiving r) =
     [GROUP SUM quantity(CreditNoteDetail d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r) MATERIALIZED;
 
+quantityCreditNoteQuantityVariance 'Кол-во в актах расхождений(по количеству)' (Sku s, STRING str, Receiving r) =
+    [GROUP SUM quantity(CreditNoteDetail d) IF NOT hasBin(d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r) MATERIALIZED;
+
+quantityCreditNoteQualityVariance 'Кол-во в актах расхождений(по качеству)' (Sku s, STRING str, Receiving r) =
+    [GROUP SUM quantity(CreditNoteDetail d) IF hasBin(d) BY sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](s, str, r) MATERIALIZED;
+
 diffInvoiceCreditNoteCompleted 'Разница между обработанным количеством и количеством в документе прихода с учетом актов расхождений'(Sku s, STRING str, Receiving r) =
-    diffCompleted(s, str, r) (-) quantityCreditNote(s, str, r);
+    diffCompleted(s, str, r) (-) quantityCreditNoteQuantityVariance(s, str, r) (+)
+    quantityVariance(s, str, r) (-) quantityCreditNoteQualityVariance(s, str, r);
 
 //расхождение по кол-ву
 quantityVarianceToPartition = DATA LOCAL NUMERIC[16,5] (Sku, STRING, Receiving);
-quantityVariance(InvoiceDetail detail) = 
-    PARTITION UNGROUP quantityVarianceToPartition LIMIT quantity(detail) ORDER detail BY sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
 
 //расхождение по качеству
 qualityVarianceToPartition = DATA LOCAL NUMERIC[16,5] (Sku, STRING, Receiving);
-qualityVariance(InvoiceDetail detail) =
-    PARTITION UNGROUP qualityVarianceToPartition LIMIT quantity(detail) ORDER detail BY sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
 
 showCreateCreditNote (Sku s, STRING str, Receiving r) =
     GROUP SUM 1 IF completeStatus(r) AND diffInvoiceCreditNoteCompleted(s, str, r); 
@@ -439,41 +444,24 @@ createCreditNoteQualityVariance ABSTRACT (Invoice);
 
 extraCreateCreditNote ABSTRACT LIST (Receiving, Invoice);
 createCreditNote 'Создать акт расхождения' (Receiving r) {
-    quantityVarianceToPartition(Sku s, STRING str, r) <- diffInvoiceCreditNoteCompleted(s, str, r) WHERE expectedQuantity(s, str, r);
-    qualityVarianceToPartition(Sku s, STRING str, r) <- 
-        GROUP SUM quantity(ReceivingDetail rd) IF sku(rd)==s AND overConsolidationKey(rd)==str AND receiving(rd)==r AND orderLedger(inBin(rd)) AND NOT storage(inBin(rd));
+    quantityVarianceToPartition(Sku s, STRING str, r) <-
+        (diffCompleted(s, str, r) (-) quantityCreditNoteQuantityVariance(s, str, r)) WHERE expectedQuantity(s, str, r);
+    qualityVarianceToPartition(Sku s, STRING str, r) <-
+        (quantityVariance(s, str, r) (-) quantityCreditNoteQualityVariance(s, str, r)) WHERE expectedQuantity(s, str, r);
+    
     IF (GROUP SUM quantityVarianceToPartition(Sku s, STRING str, r)) THEN {
-        FOR receiving(Invoice i) = r AND [GROUP SUM quantityVariance(InvoiceDetail d) BY invoice(d)](i) DO {
+        FOR receiving(Invoice i) = r DO {
             createCreditNoteQuantityVariance(i);
         }
     }
     IF (GROUP SUM qualityVarianceToPartition(Sku s, STRING str, r)) THEN {
-        FOR receiving(Invoice i) = r AND [GROUP SUM qualityVariance(InvoiceDetail d) BY invoice(d)](i) DO {
+        FOR receiving(Invoice i) = r DO {
             createCreditNoteQualityVariance(i);
         }
     }
     IF (GROUP SUM quantityVarianceToPartition(Sku s, STRING str, r)) OR (GROUP SUM qualityVarianceToPartition(Sku s, STRING str, r)) THEN {
         FOR CreditNote c == userCreditNote(Invoice invoice) AND receiving(invoice) == r DO {
             afterCreateCreditNoteReceiving(c);
-        }
-        
-        LOCAL qualityVariance = NUMERIC[16,5] (Batch, Bin);
-        qualityVariance(Batch batch, Bin bin) <- GROUP SUM quantity(ReceivingDetail rd) IF batch(rd)==batch AND inBin(rd)==bin AND receiving(rd)==r AND orderLedger(inBin(rd)) AND NOT storage(inBin(rd));
-        
-        //todo: надо переделать на ячейки в строке акта расхождения
-        FOR (GROUP SUM qualityVariance(Batch batch, Bin bin)) NEW o = UserBinTransfer DO {
-            operation(o) <- putawayWriteOffOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(GROUP MAX Bin bin IF qualityVariance(Batch batch, bin));
-            FOR qualityVariance(Batch batch, Bin bin) NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- bin;
-                inBin(d) <- NULL;
-                quantity(d) <- qualityVariance(batch, bin);
-            }
         }
         APPLY;
     }

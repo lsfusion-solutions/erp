@@ -182,6 +182,9 @@ receivingQuantity 'Принятое кол-во' =
 quantityCompleted 'Обработанное кол-во' =
     GROUP SUM quantity(ReceivingDetail detail) IF completeStatus(detail) BY sku(detail), overConsolidationKey(detail), receiving(detail);
 
+quantityVariance 'Кол-во ненадлежащего качества' =
+    GROUP SUM quantity(ReceivingDetail rd) IF orderLedger(inBin(rd)) AND NOT storage(inBin(rd)) BY sku(rd), overConsolidationKey(rd), receiving(rd);
+
 nameStatus 'Статус' (Sku s, STRING consolidationKey, Receiving receiving) =
     CASE WHEN quantityCompleted(s, consolidationKey, receiving)==expectedQuantity(s, consolidationKey, receiving) THEN 'Принят'
         WHEN completeStatus(receiving) AND NOT quantityCompleted(s, consolidationKey, receiving)==expectedQuantity(s, consolidationKey, receiving) THEN 'Принят с расхождением'

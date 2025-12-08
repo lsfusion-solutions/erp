@@ -1,6 +1,7 @@
 MODULE BatchReceivingSaleReturnInvoiceBinLedger;
 
-REQUIRE ReceivingSaleReturnInvoiceBinLedger, BatchReceivingInvoiceBinLedger, SaleReturnCreditNoteSkuLedger;
+REQUIRE ReceivingSaleReturnInvoiceBinLedger, BatchReceivingInvoiceBinLedger, SaleReturnCreditNoteSkuLedger,
+        SaleReturnCreditNoteBinLedger;
 
 NAMESPACE SaleReturn;
 
@@ -13,6 +14,12 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
+
+limitPartitionCreditNote = DATA LOCAL NUMERIC[16,5] (InvoiceDetail);
+
+quantityVariance(InvoiceDetail detail) =
+    PARTITION UNGROUP quantityVarianceToPartition LIMIT limitPartitionCreditNote(detail) ORDER detail 
+        BY sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
 
 createCreditNoteQuantityVariance(Invoice i) + {
     IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
@@ -27,6 +34,8 @@ createCreditNoteQuantityVariance(Invoice i) + {
         time(c) <- currentTime();
         isPosted(c) <- TRUE;
     }
+
+    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d));    
     FOR quantityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
@@ -41,6 +50,19 @@ createCreditNoteQuantityVariance(Invoice i) + {
     executeLocalEvents('SaleReturn.userCreditNote');
 }
 
+hasBin[CreditNote.CreditNoteDetail](CreditNoteDetail d) += outBin(d) IS Bin;
+
+quantityCreditNoteQualityVariance 'Кол-во в актах расхождений(по качеству)' (Bin bin, Sku s, STRING str, Receiving r) =
+    [GROUP SUM quantity(CreditNoteDetail d) IF hasBin(d) BY outBin(d), sku(d), overConsolidationKey(d), receiving(invoice(invoiceDetail(d)))](bin, s, str, r);
+
+qualityVarianceToPartition = DATA LOCAL NUMERIC[16,5] (Bin, Sku, STRING, Receiving);
+limitPartitionCreditNote(InvoiceDetail detail, Bin bin) =
+    PARTITION UNGROUP qualityVarianceToPartition LIMIT limitPartitionCreditNote(detail)
+        BY bin, sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
+qualityVariance(InvoiceDetail detail, Bin bin) =
+    PARTITION UNGROUP qualityVarianceToPartition LIMIT limitPartitionCreditNote(detail, bin) ORDER detail
+        BY sku(detail), overConsolidationKey(detail), receiving(invoice(detail));
+
 createCreditNoteQualityVariance(Invoice i) + {
     IF NOT userCreditNote(i) THEN NEW c = UserCreditNote {
         invoice(c) <- i;
@@ -52,19 +74,26 @@ createCreditNoteQualityVariance(Invoice i) + {
         customerStock(c) <- customerStock(i);
         date(c) <- currentDate();
         time(c) <- currentTime();
+        useBins(c) <- TRUE;        
         isPosted(c) <- TRUE;
     }
 
-    FOR qualityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+    qualityVarianceToPartition(Bin bin, Sku s, STRING str, Receiving r) <-
+        ((GROUP SUM quantity(ReceivingDetail rd) IF sku(rd)==s AND overConsolidationKey(rd)==str AND receiving(rd)==r AND
+            orderLedger(inBin(rd)) AND NOT storage(inBin(rd)) AND inBin(rd)==bin) (-)
+            quantityCreditNoteQualityVariance(bin, s, str, r)) WHERE qualityVarianceToPartition(s, str, r) AND r=receiving(i);
+    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d));
+    FOR qualityVariance(InvoiceDetail d, Bin bin) DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- batch(d);
         sku(dc) <- sku(d);
-        quantity (dc) <- qualityVariance(d);
+        quantity (dc) <- qualityVariance(d, bin);
         VAT(dc) <- VAT(d);
         valueVAT(dc) <- valueVAT(d);
         price(dc) <- price(d);
         invoicePrice(dc) <- invoicePrice(d);
+        outBin(dc) <- bin;
     }
     executeLocalEvents('Purchase.userCreditNote');
 }
