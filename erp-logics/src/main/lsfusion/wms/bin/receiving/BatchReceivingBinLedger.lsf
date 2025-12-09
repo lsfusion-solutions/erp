@@ -13,3 +13,7 @@ CONSTRAINT DROPPED(Batch b IS Batch) AND [GROUP MAX ReceivingDetail d BY PREV(ba
     MESSAGE 'Запрещено удалять партии по которым создана приемка!';
 
 receivingQuantity 'Принятое кол-во' = GROUP SUM quantity(ReceivingDetail detail) BY batch(detail), receiving(detail);
+
+//Нет смысла в строке приёмки без партиями ERP, если остаток в WMS мы ведем относительно этих самых партий 
+CONSTRAINT SET(quantity(ReceivingDetail detail) AND completeStatus(detail) AND NOT batch(detail))
+    MESSAGE 'Нельзя принять товар без партии';
