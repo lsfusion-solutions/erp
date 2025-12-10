@@ -25,7 +25,7 @@ index  = DATA LOCAL INTEGER (Sale.InvoiceDetail, Lot) CHARWIDTH 4;
 lot(Sale.InvoiceDetail d, INTEGER i) = GROUP MIN Lot l IF index(d, l) == i;
 
 markingType (Sale.InvoiceDetail d, INTEGER i) = CASE
-    WHEN lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 1 IF d IS Sale.InvoiceDetail
+    WHEN lot(d, i) AND NOT ukz(d) AND NOT GTIN(sku(d)) THEN 1 IF d IS Sale.InvoiceDetail
     WHEN NOT lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 2 IF d IS Sale.InvoiceDetail
     WHEN lot(d, i) AND ukz(d) AND NOT GTIN(sku(d)) THEN 3 IF d IS Sale.InvoiceDetail
     WHEN NOT lot(d, i) AND NOT ukz(d) AND GTIN(sku(d)) THEN 16 IF d IS Sale.InvoiceDetail
@@ -77,7 +77,7 @@ FORM exportSaleWithoutKSA
         productCount = quantity(d, i) EXTID 'product_count',
         surcharge = 0 IF d IS Sale.InvoiceDetail EXTID 'surcharge',
         ukzCode = ukz(d) EXTNULL EXTID 'ukz_code'
-    FILTERS invoice(d), lotType(sku(d)) OR UKZ(sku(d)) OR ukz(d) OR lot(d, i), quantity(d,i), iterate(i, 1, indexWithoutLot(d))
+    FILTERS invoice(d) == invoice, lotType(sku(d)) OR UKZ(sku(d)) OR ukz(d) OR lot(d, i), quantity(d,i), iterate(i, 1, indexWithoutLot(d))
 ;
 
 ui = DATA LOCAL STRING();
