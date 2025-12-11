@@ -594,13 +594,19 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                 Element internalCard = new Element("internal-card");
                 Double percent = d.percentDiscountCard == null ? 0 : d.percentDiscountCard.doubleValue();
                 String guid = discountCardPercentTypeMap.get(percent);
+
+                JSONObject infoJSON = getExtInfo(d.extInfo);
+                String cardTypeGuid ="";
+                if(infoJSON != null) {
+                    cardTypeGuid = infoJSON.optString("cardTypeGuid");
+                }
                 if (d.numberDiscountCard != null) {
                     setAttribute(internalCard, "number", d.numberDiscountCard);
                     if (d.initialSumDiscountCard != null) setAttribute(internalCard, "amount", d.initialSumDiscountCard);
                     if (d.dateToDiscountCard != null) setAttribute(internalCard, "expiration-date", d.dateToDiscountCard);
                     setAttribute(internalCard, "status", d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) >= 0 ? "ACTIVE" : "BLOCKED");
                     setAttribute(internalCard, "deleted", "false");
-                    setAttribute(internalCard, "card-type-guid", d.idDiscountCardType != null ? d.idDiscountCardType : (guid != null ? guid : "0"));
+                    setAttribute(internalCard, "card-type-guid", !cardTypeGuid.isEmpty() ? cardTypeGuid : (d.idDiscountCardType != null ? d.idDiscountCardType : (guid != null ? guid : "0")));
 
                     Element client = new Element("client");
                     setAttribute(client, "guid", d.numberDiscountCard);
@@ -613,7 +619,6 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                     }
                     setAttribute(client, "isCompleted", d.isCompleted);
 
-                    JSONObject infoJSON = getExtInfo(d.extInfo);
                     if(infoJSON != null && infoJSON.optBoolean("sendchecktoemail")) {
                         setAttribute(client, "receipt-feedback", "BY_EMAIL");
                     }
