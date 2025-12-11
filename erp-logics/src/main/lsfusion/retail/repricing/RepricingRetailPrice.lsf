@@ -1,10 +1,19 @@
 MODULE RepricingRetailPrice;
 
-REQUIRE Repricing;
+REQUIRE Repricing, StockDocumentSkuLedger;
 
 NAMESPACE Repricing;
 
 in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
 price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPrice(ledger);
+
+
+// Проведение по регистру
+EXTEND CLASS RepricingDetail : InLIFOSkuLedger;
+@implementSkuLedger(repricingDetail, sku, departmentStore);
+
+show[SkuLedger](RepricingDetail ledger) + {  show(ledger); }
+
+batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
 sum[InSkuLedger] (RepricingDetail ledger) += diffRetailSum(ledger); 

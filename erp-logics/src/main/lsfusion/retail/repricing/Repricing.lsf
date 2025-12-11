@@ -1,6 +1,6 @@
 MODULE Repricing;
 
-REQUIRE RepricingCommittee, Store, PricingSum, StockDocumentSkuLedger, PriceListCalc, RepricingOperation, PriceListLedgerAccount, 
+REQUIRE RepricingCommittee, Store, PricingSum, PriceListCalc, RepricingOperation, PriceListLedgerAccount, 
         PriceListStore, OrderLedger, Item;
 
 NAMESPACE Repricing;
@@ -8,7 +8,7 @@ NAMESPACE Repricing;
 //----------------------------------------------- Переоценка (розница) ---------------------------------------------------//
 
 CLASS ABSTRACT Repricing 'Акт переоценки' : Document;
-CLASS ABSTRACT RepricingDetail 'Строка акта переоценки': InLIFOSkuLedger, DocumentDetail;
+CLASS ABSTRACT RepricingDetail 'Строка акта переоценки': DocumentDetail;
 
 CLASS UserRepricing 'Акт переоценки (польз.)' : Repricing;
 CLASS UserRepricingDetail 'Строка акта переоценки (польз.)' : RepricingDetail;
@@ -899,8 +899,7 @@ show(UserRepricingDetail d)  {
 	}
 }
 
-show(UserRepricingDetail d) + {  show(d); }    
-show[SkuLedger](RepricingDetail ledger) + {  show(ledger); }
+show(UserRepricingDetail d) + {  show(d); }
 
 //-- SKU
 stock(UserRepricingDetail detail) = departmentStore(detail);
@@ -949,10 +948,6 @@ DESIGN options {
 CONSTRAINT isPosted(UserRepricing i) AND NOT isStockRepricings() AND NOT  departmentStore(i) 
     MESSAGE 'Для акта переоценки должен быть задан склад'; 
 
-// Проведение по регистру
-@implementSkuLedger(repricingDetail, sku, departmentStore);
-
-batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
 skipShowEdit = ABSTRACT BOOLEAN (Repricing);
 skipShowDelete = ABSTRACT BOOLEAN (Repricing);
