@@ -84,7 +84,8 @@ DESIGN creditNoteCreditNotes {
     }
 }
 
-overFillCreditNoteDetail ABSTRACT LIST (Sale.UserCreditNoteDetail, CreditNoteDetail);
+overFillCreditNote  ABSTRACT LIST (Sale.UserCreditNote, CreditNote);
+overFillCreditNote  ABSTRACT LIST (Sale.UserCreditNoteDetail, CreditNoteDetail);
 
 fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote)   { 
     DIALOG creditNoteCreditNotes OBJECTS s = supplier(userCreditNote), c = customer(userCreditNote),
@@ -99,7 +100,7 @@ fillCreditNote 'Заполнить на основе акта расхожден
             valueVAT(d) <- valueVAT(creditNoteDetail);
             price(d) <- price(creditNoteDetail);
             invoicePrice(d) <- invoicePrice(creditNoteDetail);
-            EXEC overFillCreditNoteDetail(d,creditNoteDetail);
+            EXEC overFillCreditNote(d,creditNoteDetail);
         }
     }
 } IN creditNote; // 
@@ -251,8 +252,11 @@ isPosted[Sale.CreditNote](SaleCreditNote creditNote) += isPosted(creditNote);
 @defineDocumentAggregationClosed(creditNote, saleCreditNote);
 isClosed[Sale.CreditNote](SaleCreditNote creditNote) += isClosed(creditNote);
 
-number[Sale.CreditNote](SaleCreditNote creditNote) += number(creditNote(creditNote));
-series[Sale.CreditNote](SaleCreditNote creditNote) += series(creditNote(creditNote));
+number(SaleCreditNote creditNote) = number(creditNote(creditNote));
+series(SaleCreditNote creditNote) = series(creditNote(creditNote));
+
+number[Sale.CreditNote](SaleCreditNote creditNote) += number(creditNote);
+series[Sale.CreditNote](SaleCreditNote creditNote) += series(creditNote);
 seriesNumber 'Серия/номер документа' (SaleCreditNote saleCreditNote) = seriesNumber(creditNote(saleCreditNote));
 
 noteCreditNote 'Примечание' (SaleCreditNote saleCreditNote) = note(creditNote(saleCreditNote));
@@ -277,11 +281,14 @@ sku[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) +=  sku(credit
 @defineDocumentAggregationDetailBatch(creditNote, saleCreditNote);
 batch[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += batch(creditNoteDetail);
 
-quantity[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += quantity(creditNoteDetail(creditNoteDetail));
+quantity(SaleCreditNoteDetail creditNoteDetail) = quantity(creditNoteDetail(creditNoteDetail));
+quantity[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += quantity(creditNoteDetail);
 //Sale.priceListTypeCreditNoteDetail(creditNoteDetail) += priceListTypeCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
 
 price(SaleCreditNoteDetail creditNoteDetail) += price(creditNoteDetail(creditNoteDetail));
-sum[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail(creditNoteDetail));
+sum(SaleCreditNoteDetail creditNoteDetail) = sum(creditNoteDetail(creditNoteDetail));
+sum[Sale.CreditNoteDetail](SaleCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail);
+
 VAT(SaleCreditNoteDetail creditNoteDetail) += VAT(creditNoteDetail(creditNoteDetail));
 valueVAT(SaleCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail(creditNoteDetail));
 VATSum(SaleCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail(creditNoteDetail));
@@ -293,7 +300,8 @@ creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(cred
 
 @defineDocumentInterfaceOperationPrefix (creditNote, sale, Sale, ' (продажа)');
 
-operation[Sale.CreditNote](SaleCreditNote creditNote) += saleOperation(creditNote(creditNote));
+operation(SaleCreditNote creditNote) = saleOperation(creditNote(creditNote));
+operation[Sale.CreditNote](SaleCreditNote creditNote) += operation(creditNote);
 
 EXTEND FORM userCreditNote
     PROPERTIES(c) BACKGROUND backgroundSale(c) SHOWIF createSaleCreditNote(c) nameSaleOperation
@@ -307,9 +315,6 @@ DESIGN userCreditNote {
 }
 
 //-- Действие
-
-overFillCreditNote  ABSTRACT LIST ( Sale.UserCreditNote, CreditNote);
-overFillCreditNote  ABSTRACT LIST ( Sale.UserCreditNoteDetail, CreditNoteDetail);
 
 moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote creditNote)   { 
 	NEWSESSION{

@@ -1,0 +1,32 @@
+MODULE PurchaseSaleCreditNoteSkuLedger;
+
+REQUIRE PurchaseSaleCreditNote;
+
+NAMESPACE Purchase;
+
+@implementSkuLedgerInLIFO(SaleCreditNoteDetail, sku, supplierStock);
+
+quantity[InLIFOSkuLedger] (SaleCreditNoteDetail ledger) += quantity(ledger);
+batch[SkuLedger](SaleCreditNoteDetail ledger) += batch(ledger);
+@implementSkuLedgerInLIFOBatchBalance(saleCreditNoteDetail, supplierStock);
+
+overSum = ABSTRACT NUMERIC[18,4] (SaleCreditNoteDetail);
+sum[InSkuLedger](SaleCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
+
+// ------------ Проведение по товарному отчету ----------------- //
+@implementStockDocumentLedgerInc(SaleCreditNote, supplierStock);
+
+stockDocumentLedger(SaleCreditNoteDetail ledger) += saleCreditNote(ledger);
+type(SaleCreditNote l) += STRING[50]('Акт расхождения (продажа на основе закупки)') IF l IS SaleCreditNote;
+
+overSumItem = ABSTRACT NUMERIC[18,4](SaleCreditNote);
+sumItem (SaleCreditNote ledger) += OVERRIDE overSumItem(ledger), sumItemCreditNoteDetail(ledger);
+
+overSumContainer = ABSTRACT NUMERIC[18,4](SaleCreditNote);
+sumContainer (SaleCreditNote ledger) += OVERRIDE overSumContainer(ledger), sumContainerCreditNoteDetail(ledger);
+
+legalEntity(SaleCreditNote ledger) += customer(ledger);
+legalEntityStock(SaleCreditNote ledger) += customerStock(ledger);
+
+operation[StockDocumentLedger](SaleCreditNote ledger) += operation(ledger);
+//isReturn(SaleCreditNote ledger) += ledger IS SaleCreditNote;
