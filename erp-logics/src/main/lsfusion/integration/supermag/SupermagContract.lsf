@@ -39,18 +39,24 @@ overImportSupplierPrice2 ABSTRACT LIST ();
 
 skipCreateContract 'Не создавать договоры для каждого контракта' = DATA BOOLEAN () TABLE settings;
 
+customContractFilter 'Фильтр для контрактов' = DATA STRING () TABLE settings;
+
 //надо грузить все одним действием в договоры и псц потому, что если делать разными действиями срабатывают CONSTRAINTы на соответствие
 importContract 'Импорт из контрактов с поставщиками (в договоры и ПСЦ)' () { 
     LOCAL idCompany = INTEGER (INTEGER);
     LOCAL title = ISTRING[255] (INTEGER);
     LOCAL contractType = INTEGER (INTEGER);
     LOCAL idLE, idCo = STRING[100](INTEGER );
-          
-    filterSql() <- 'cc.ENDSAT >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')'; 
-    IF length(numberImportDocument()) > 0 THEN filterSql() <- 'cc.id = \'' + numberImportDocument[]() + '\''; 
+    
+    IF customContractFilter() THEN {
+        filterSql() <- customContractFilter();
+    } ELSE {
+        filterSql() <- 'cc.CREATEDAT >= TO_DATE(\'' + toDateISO(dateFromImportDocument[]()) + '\',\'YYYY-MM-DD\')';
+        IF length(numberImportDocument()) > 0 THEN filterSql() <- 'cc.id = \'' + numberImportDocument[]() + '\'';
+    }
                
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT cc.ID, cc.DOCTYPE, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc WHERE '+filterSql() TO file;
+        EXEC CONCAT '', 'SELECT cc.ID, cc.DOCTYPE, cc.CREATEDAT, cc.DOCSTATE, cc.BEGINSAT, cc.ENDSAT, cc.CLIENTINDEX, cc.OURSELFCLIENT, cc.TITLE, cc.PAYMENTDELAY, cc.ISCALENDARDELAY, cc.CONTRACTTYPE FROM Supermag.SVDocumentsCO cc ', 'WHERE '+filterSql() TO file;
     
     IMPORT TABLE FROM file() TO docNumber, docType, docDate, docState, dateFrom, dateTo, clientIndex, idCompany, title, paymentDelay, isCalendarDelay, contractType;
 
@@ -73,9 +79,6 @@ importContract 'Импорт из контрактов с поставщикам
     }
 
     IF NOT skipCreateContract() THEN {
-        IF length(numberImportDocument[]()) > 0 THEN {
-            MESSAGE CONCAT ',', 'условия оплаты', paymentDelay(0), isBankDays(0), isCalendarDelay(0), paymentPeriod(paymentDelay(0), isBankDays(0)), paymentCondition(paymentPeriod(paymentDelay(0), isBankDays(0)));
-        }
 
         // создаем новые договоры
         FOR idDoc(INTEGER i) AND NOT userContractSku(idDoc(i)) DO NEW doc = UserContractSku { id(doc) <- idDoc(i); }
@@ -131,7 +134,7 @@ importContract 'Импорт из контрактов с поставщикам
      
      // указываем какие магазины входят в ПСЦ            
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT cc.ID, cc.DOCTYPE, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id AND ' + filterSql() TO file;
+        EXEC CONCAT '', 'SELECT cc.ID, cc.DOCTYPE, cl.locationid FROM  Supermag.SVDocumentsCO cc, Supermag.SvDocNoPriceCQ q, Supermag.SMContractLocations cl WHERE cc.doctype=\'CO\' AND q.docco = cc.id AND cl.id = q.id', ' AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO docNumber, docType, location;
 
@@ -140,18 +143,14 @@ importContract 'Импорт из контрактов с поставщикам
     FOR [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i))](UserPriceList doc) DO {
         dataIn(doc, Stock s) <- TRUE IF [GROUP SUM 1 BY userPriceList(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
     }
-         
-//   постоянно лезут ошибки особенно из-за тестового магазина, всю информацию можно брать из пройс-листов выше, она идентична   
-//    FOR [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i))](UserContractSku doc) DO {
-//        inCustomer(Stock s, doc) <- TRUE IF [GROUP SUM 1 BY userContractSku(idDoc(INTEGER i)), stock(TEXT (location(i)))](doc, s);
-//    }     
+
     overImportSupplierPrice2();
 
     //загружаем спецификаци    
     LOCAL packSize = NUMERIC[14,3](INTEGER);
 
     EXTERNAL SQL connectionString() 
-        EXEC 'SELECT cc.DOCTYPE, cc.ID, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPriceNoTax FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cc.doctype=\'CO\' AND cd.docid=cc.id AND cd.doctype=cc.doctype AND ' + filterSql() TO file;
+        EXEC CONCAT '', 'SELECT cc.DOCTYPE, cc.ID, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.itemPriceNoTax FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cc.doctype=\'CO\' AND cd.docid=cc.id AND cd.doctype=cc.doctype', ' AND ' + filterSql() TO file;
 
     IMPORT TABLE FROM file() TO docType, docNumber, specItem, idItem, packSize, itemPrice;
 
@@ -164,23 +163,28 @@ importContract 'Импорт из контрактов с поставщикам
         userPriceList(det) <- userPriceList(idDoc(i));
     }
     
-    LOCAL dataPriceListType = LedgerPriceListType(INTEGER);
-    dataPriceListType(INTEGER i) <- dataPriceListType(id(operation(userPriceList(idDoc(i)))));
-    
-   // MESSAGE id(operation(userPriceList(idDoc(0))));
-    
     FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) DO {
         sku(det) <- item(idItem(i));  
-        price(det, LedgerPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE t == dataPriceListType(i);// dataPriceListType(id(operation(userPriceList(det))));
+        price(det, DataPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE in(userPriceList(det), t);
         SupermagPricelist.imported(det) <- TRUE;
         dataIndex(det) <- specItem(i);
         lastVersion(det) <- currentVersion(i);
     }
     
+    FOR NUMERIC[14,3] amount = [GROUP MAX packSize(INTEGER r) IF packSize(r) > 0 BY item(idItem(r))](Item i) AND NOT packBarcode(i) DO NEW b = Barcode {
+        sku(b) <- i;
+        dataUOM(b) <- UOMShortName('упак');
+        packBarcode(i) <- b;
+    }
+
+    FOR NUMERIC[14,3] amount = [GROUP MAX packSize(INTEGER r) IF packSize(r) > 0 BY item(idItem(r))](Item i) AND Barcode b = packBarcode(i) DO {
+        amount(b) <- amount;
+    }
+    
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importContract(), skipCreateContract();
+EXTEND FORM integrationData PROPERTIES importContract(), skipCreateContract(), customContractFilter();
 
 DOWM (INTEGER n) = GROUP MAX DOW d IF (numberM(d) + 1) == n;
 
@@ -398,6 +402,7 @@ DESIGN integrationData {
         NEW importContract1 {
             horizontal = TRUE;
             MOVE PROPERTY (skipCreateContract());
+            MOVE PROPERTY (customContractFilter());
             MOVE PROPERTY (importContract());
         }
         NEW importContract2 {
