@@ -1,68 +1,37 @@
 MODULE SaleCreditNoteStockDocument;
 
-REQUIRE SaleCreditNote;
+REQUIRE SaleCreditNoteAccountPrice;
 
 NAMESPACE Sale;
 
-accountPrice 'Цена (учетная)' = DATA NUMERIC[16,4] (UserCreditNoteDetail) CHARWIDTH 7;
-
-CONSTRAINT accountPrice(UserCreditNoteDetail detail) < 0.0
-    MESSAGE 'Учетная цена для строки акта расхождения (продажа) должна быть больше нуля';
-
-@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, account, sku, supplierStock);
-
-EXTEND FORM userCreditNote
-    PROPERTIES(d) accountPrice, shipmentSum
-;
-
-calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (UserCreditNoteDetail);
-calcShipmentSum(UserCreditNoteDetail userCreditNoteDetail) += NUMERIC[18,4](Utils.round(quantity(userCreditNoteDetail) * accountPrice(userCreditNoteDetail), defaultRound(currency(userCreditNoteDetail)))); 
-shipmentSum (UserCreditNoteDetail userCreditNoteDetail) <- calcShipmentSum(userCreditNoteDetail)
-                WHEN DO CHANGED(quantity(userCreditNoteDetail)) OR CHANGED (accountPrice(userCreditNoteDetail)) OR CHANGED(currency(userCreditNoteDetail));
-
 // ------------------------------- Проведение по товарному отчету ------------------------ //
-EXTEND CLASS UserCreditNote : IncStockDocumentLedger;
+@implementStockDocumentLedgerInc(UserCreditNote, supplierStock);
 
-series[StockDocumentLedger] (UserCreditNote ledger) += series[UserCreditNote](ledger);
-number[StockDocumentLedger] (UserCreditNote ledger) += number[UserCreditNote](ledger);
-dateTime[StockDocumentLedger] (UserCreditNote ledger) += dateTime(ledger);
-isPosted[StockDocumentLedger] (UserCreditNote ledger) += isPosted(ledger);
-isClosed[StockDocumentLedger] (UserCreditNote ledger) += isClosed(ledger);
-stock[StockDocumentLedger] (UserCreditNote ledger) += supplierStock(ledger);
-description[StockDocumentLedger] (UserCreditNote ledger) += STRING[200](description(ledger));
+stockDocumentLedger(UserCreditNoteDetail ledger) += userCreditNote(ledger);
+type(UserCreditNote l) += STRING[50]('Акт расхождения (продажа)') IF l IS UserCreditNote;
 
-type(UserCreditNote l) += STRING[50]('Акт расхождения') IF l IS UserCreditNote;
+overSumItem = ABSTRACT NUMERIC[18,4](UserCreditNote);
+sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), sumItemUserCreditNoteDetail(ledger);
 
-overSumItem = ABSTRACT NUMERIC[18,4](IncStockDocumentLedger);
-sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), sumItemCreditNoteDetail(ledger);
-
-overSumContainer = ABSTRACT NUMERIC[18,4](IncStockDocumentLedger);
-sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), sumContainerCreditNoteDetail(ledger);
+overSumContainer = ABSTRACT NUMERIC[18,4](UserCreditNote);
+sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), sumContainerUserCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += customer(ledger);
 legalEntityStock(UserCreditNote ledger) += customerStock(ledger); 
 
-operation[StockDocumentLedger](UserCreditNote ledger) += operation[UserCreditNote](ledger);
+operation[StockDocumentLedger](UserCreditNote ledger) += operation(ledger);
 isReturn(UserCreditNote ledger) += ledger IS UserCreditNote;
-close[StockDocumentLedger](UserCreditNote l) + {  close[Sale.CreditNote](l); }
+close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
-EXTEND CLASS UserCreditNoteDetail : InLIFOSkuLedger;
-dateTime[DataSkuLedger] (UserCreditNoteDetail ledger) += dateTime(ledger);
-isPosted[DataSkuLedger] (UserCreditNoteDetail ledger) += isPosted(ledger);
-isClosed[DataSkuLedger] (UserCreditNoteDetail ledger) += isClosed(ledger);
-sku[DataSkuLedger] (UserCreditNoteDetail ledger) += sku(ledger);
-stock[DataSkuLedger] (UserCreditNoteDetail ledger) += supplierStock(ledger);
-description[DataSkuLedger] (UserCreditNoteDetail ledger) += description(userCreditNote(ledger));
-    
+@implementSkuLedgerInLIFO(UserCreditNoteDetail, sku, supplierStock);
+
 quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity(ledger);
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
-changed(UserCreditNoteDetail ledger) += CHANGED(batch(ledger));
+@implementSkuLedgerInLIFOBatchBalance(userCreditNoteDetail, supplierStock);
 
-accountSum (Sale.UserCreditNoteDetail detail) = 
-    NUMERIC[18,4](round(quantity(detail)*accountPrice(detail), defaultRound(currency(supplier(detail)))));
-    
-overAccountSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
-sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overAccountSum(ledger), accountSum(ledger);
-stockDocumentLedger[SkuLedger](UserCreditNoteDetail ledger) += userCreditNote(ledger);
+overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
+extraSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail); // для сохранения обратной совместимости
+sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), extraSum(ledger), shipmentSum(ledger);
+
 show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
