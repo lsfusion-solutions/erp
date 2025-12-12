@@ -16,6 +16,7 @@ series '{numerator.series.numerator}' = ABSTRACT BPSTRING[2] (Receiving) IN numb
 seriesNumber '{numerator.series.number.numerator}' (Receiving o) = CONCAT '', series(o), number(o) CHARWIDTH 7 INDEXED MATERIALIZED;
 date '{document.date.of} {document.of.document}' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED INDEXED;
 time '{document.time.of} {document.of.document}' = ABSTRACT TIME (Receiving) IN documentHeader MATERIALIZED;
+GRDate 'Дата завершения' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED; //Goods Receipt Date
 dateTime '{document.date.time.of} {document.of.document}' (Receiving o) = dateTimeToDateTime(date(o), time(o)) MATERIALIZED;
 supplier = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
 nameSupplier 'Поставщик' (Receiving receiving)= name(supplier(receiving)) IN documentPrm CHARWIDTH 20;
@@ -342,6 +343,7 @@ completeReceiving 'Завершить приёмку' (Receiving receiving) {
             } ELSE {
                 status(receiving) <- ReceivingStatus.partiallyReceived;
             }
+            GRDate(receiving) <- currentDate() IF receiving IS UserReceiving;
             overCompleteReceiving(receiving);
             APPLY;
             IF canceled() THEN {
@@ -569,7 +571,8 @@ FORM receiving 'Приемка'
     PROPERTIES(r) selected
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
-                                                    date, time, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+                                                    date, time, GRDate BACKGROUND RGB(255, 224, 255), 
+                                                    nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
                                 createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  
                                 completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
@@ -710,6 +713,8 @@ TABLE userReceiving (UserReceiving);
 
 @deriveDocumentHeaderTimePrefix(UserReceiving, );
 
+GRDdate 'Дата завершения' = DATA DATE (UserReceiving) IN documentHeader INDEXED;
+
 @defineDocumentHeaderNumber(UserReceiving, BPSTRING[2]);
 
 @defineNumeratedDefault(UserReceiving, 'Приемка', 'ПР');
@@ -730,6 +735,7 @@ number(UserReceiving receiving) += number(receiving);
 series(UserReceiving receiving) += series(receiving);
 date(UserReceiving receiving) += date(receiving);
 time(UserReceiving receiving) += time(receiving);
+GRDate(UserReceiving receiving) += GRDdate(receiving);
 supplier(UserReceiving receiving) += supplier(receiving);
 supplierStock(UserReceiving receiving) += supplierStock(receiving);
 customer(UserReceiving receiving) += customer(receiving);
@@ -756,7 +762,7 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject, 
 END    
 
 
-META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp)
+META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp, shipmentDate)
     @defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp);
         
     CLASS ###primObject##Receiving : Receiving;
@@ -770,6 +776,7 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     series(###primObject##Receiving receiving) += series(primObject(receiving));
     date(###primObject##Receiving receiving) += date(primObject(receiving));
     time(###primObject##Receiving receiving) += time(primObject(receiving));
+    GRDate(###primObject##Receiving receiving) += shipmentDate(primObject(receiving));
     supplier(###primObject##Receiving receiving) += supplier(primObject(receiving));
     supplierStock(###primObject##Receiving receiving) += supplierStock(primObject(receiving));
     customer(###primObject##Receiving receiving) += customer(primObject(receiving));
