@@ -21,6 +21,47 @@ extraCoeff 'Коэффициент сверхзапаса' (Sku sk, Stock st) = 
 dataMaxQuantityOrder 'Максимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
 dataMinQuantityOrder 'Минимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
 
+dataMaxQuantityOrderDays 'Максимальный заказ (дн.)' = DATA NUMERIC[14,3] (Stock, SkuGroup);
+dataMaxQuantityOrderDays 'Максимальный заказ (дн.)' = DATA NUMERIC[14,3] (Stock, Sku) TABLE extraSkuStock;
+extraMaxQuantityOrderDays 'Максимальный заказ (дн.)' = ABSTRACT NUMERIC[14,3] (Stock, Sku);
+
+levelParent (Stock stock, SkuGroup skuGroup) = GROUP
+    MIN level(skuGroup, SkuGroup parent) IF dataMaxQuantityOrderDays(stock, parent) MATERIALIZED;
+
+nearestParent (Stock stock, SkuGroup skuGroup) = skuGroup(skuGroup, levelParent(stock, skuGroup));
+
+nearestMaxQuantityOrderDays (Stock stock, SkuGroup skuGroup) =
+    dataMaxQuantityOrderDays(stock, nearestParent(stock, skuGroup));
+
+maxQuantityOrderDays 'Максимальный заказ (дн.)' (Stock stock, SkuGroup skuGroup) = OVERRIDE
+    dataMaxQuantityOrderDays(stock, skuGroup),
+    nearestMaxQuantityOrderDays (stock, skuGroup);
+
+maxQuantityOrderDays 'Максимальный заказ (дн.)' (Stock stock, Sku sku) = OVERRIDE
+    dataMaxQuantityOrderDays(stock, sku),
+    extraMaxQuantityOrderDays(stock, sku),
+    maxQuantityOrderDays(stock, skuGroup(sku));
+
+fillMaxQuantityOrderFromTo 'Проставить максимальный заказ исходя из продаж в день и запаса(дн.) '(Stock stock, DATE date)  {
+    FOR maxQuantityOrderDays(stock, Sku sku) AND averageSold(sku,stock) DO {
+        dataMaxQuantityOrder(sku, stock) <- averageSold(sku,stock)*maxQuantityOrderDays(stock,sku);
+    }
+} TOOLBAR CONFIRM;
+
+fillMaxQuantityOrderFromTo 'Проставить максимальный заказ исходя из продаж в день и запаса(дн.) '(StockGroup sg, DATE date)  {
+    FOR maxQuantityOrderDays(Stock stock, Sku s) AND averageSold(s,stock) AND isParent(sg, stock) DO {
+        dataMaxQuantityOrder(s, stock) <- averageSold(s,stock)*maxQuantityOrderDays(stock,s);
+    }
+} TOOLBAR CONFIRM;
+
+EXTEND FORM stockReserve
+    PROPERTIES maxQuantityOrderDays(ss,sk) SHOWIF singleStoreNested()
+    PROPERTIES maxQuantityOrderDays(st,s)
+    PROPERTIES fillMaxQuantityOrderFromTo(st,dt) DRAW sts SHOWIF singleStoreNested() OR st = ts AND sg IS StockGroup
+    PROPERTIES fillMaxQuantityOrderFromTo(sg,dt) DRAW sts SHOWIF multipleStoresNested() AND sg IS StockGroup AND NOT ts
+;
+
+
 extraDaysInner 'Дополнительное число дней в пути от склада' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
 expiryDaysRemain 'Остаточный срок годности в днях' = DATA INTEGER (Sku, Stock) TABLE skuStockExtra;
 

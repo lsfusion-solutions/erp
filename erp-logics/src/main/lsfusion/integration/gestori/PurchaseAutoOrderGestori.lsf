@@ -63,3 +63,26 @@ overCreateAuto (UserOrder o) + {
 EXTEND FORM scheduleOrder
     PROPERTIES (sd) nameSupplierStock 'Склад покупателя (ред.)' = nameCustomerStock AFTER nameCustomerStock(sd)
 ;
+
+CLASS RoundPurchaseAutoOrder 'Способ округления количества к заказу' {
+    ceil 'В большую сторону',
+    rule45 'По правилу 4/5',
+    floor 'В меньшую сторону'
+}
+
+roundPurchaseAutoOrder = DATA RoundPurchaseAutoOrder (Item);
+
+nameRoundPurchaseAutoOrder 'Способ округления количества к заказу'(Item item) = staticCaption(roundPurchaseAutoOrder(item));
+
+@defineGroupDefaultValue(roundPurchaseAutoOrder, 'Способ округления количества к заказу', RoundPurchaseAutoOrder, skuGroup);
+
+nameRoundPurchaseAutoOrder 'Способ округления количества к заказу'(ItemGroup ig) = staticCaption(roundPurchaseAutoOrder(ig));
+overNameRoundPurchaseAutoOrder 'Способ округления количества к заказу'(Item item) = OVERRIDE nameRoundPurchaseAutoOrder(item), nameRoundPurchaseAutoOrder(itemGroup(item));
+
+EXTEND FORM soldParams
+    PROPERTIES (sk) nameRoundPurchaseAutoOrder
+;
+
+EXTEND FORM stockReserve
+    PROPERTIES (s) overNameRoundPurchaseAutoOrder
+;
