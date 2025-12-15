@@ -59,10 +59,10 @@ public class ExportGiftCardsAction extends DefaultExportAction {
 
                     finishExport(context, giftCards);
 
-                    messageClientAction(context, "Экспорт успешно завершён", "Экспорт");
+                    messageClientAction(context, "Экспорт успешно завершён", "Экспорт", true);
 
                 } else {
-                    messageClientAction(context, "Не задана строка подключения", "Ошибка");
+                    messageClientAction(context, "Не задана строка подключения", "Ошибка", true);
                 }
             }
             context.apply();
@@ -221,7 +221,7 @@ public class ExportGiftCardsAction extends DefaultExportAction {
                 giftCards.add(new GiftCard(id, number, price, idSkuOrBarcode, departmentStore, active ? dateFrom : null, active || defect ? dateTo : null,
                         expiryDays, active, defect, nameSku, shortNameUOM, overIdSkuGroup, allowReturn, allowReturnPayment));
             } else {
-                messageClientAction(context, String.format("Невозможно сконвертировать штрихкод %s в integer id", idSkuOrBarcode), "Ошибка");
+                messageClientAction(context, String.format("Невозможно сконвертировать штрихкод %s в integer id", idSkuOrBarcode), "Ошибка", true);
                 return null;
             }
         }

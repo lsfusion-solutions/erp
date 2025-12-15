@@ -276,7 +276,10 @@ public class DefaultIntegrationAction extends InternalAction {
         return context.requestUserData(TXTClass.get(), null);
     }
 
-    public void messageClientAction(ExecutionContext context, String message, String caption) {
-        context.requestUserInteraction(new MessageClientAction(message, caption));
+    public void messageClientAction(ExecutionContext context, String message, String caption, boolean delay) {
+        if(delay)
+            context.delayUserInteraction(new MessageClientAction(message, caption));
+        else
+            context.requestUserInteraction(new MessageClientAction(message, caption));
     }
 }
