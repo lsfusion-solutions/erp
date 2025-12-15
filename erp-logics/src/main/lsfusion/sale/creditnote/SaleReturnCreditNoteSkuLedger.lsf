@@ -4,6 +4,51 @@ REQUIRE SaleReturnCreditNote, SkuLedger;
 
 NAMESPACE SaleReturn;
 
+skipChangedShipmentQuantity = ABSTRACT BOOLEAN (UserCreditNoteDetail);
+shipmentQuantity(UserCreditNoteDetail detail) <- quantity(detail) 
+    WHEN CHANGED(quantity(detail)) AND NOT skipChangedShipmentQuantity(detail);
+
+@defineDocumentInterfaceHeaderQuantityCustomPrefix (creditNote, creditNoteDetail, shipment, ' по факту');
+
+@defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
+
+@defineDocumentInterfaceHeaderSumPrefix (creditNote, shipment, ' по факту');
+
+// ------------------------------- Расчет учетной цены ---------------------------------------------- //
+
+disableUpdateShipmentPrice = ABSTRACT VALUE BOOLEAN (UserCreditNoteDetail);
+saleReturnShipmentPriceBatch  = ABSTRACT NUMERIC[16,4] (UserCreditNoteDetail); //использовать цены от склада партии, если нет цены для склада поставщика
+
+WHEN LOCAL (CHANGED(supplierStock(UserCreditNoteDetail detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    SETCHANGED(batch(detail))) AND batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) AND NOT skipUpdatePriceAccount() DO
+    shipmentPrice (detail) <- OVERRIDE saleReturnShipmentPriceBatch(detail), prevAccountPriceB(batch(detail), supplierStock(detail), dateTime(detail));
+
+WHEN LOCAL (CHANGED(sku(UserCreditNoteDetail detail)) OR
+    CHANGED(supplierStock(detail)) OR
+    (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+    DROPPED(batch(detail))) AND NOT batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) AND NOT skipUpdatePriceAccount() DO
+    shipmentPrice (detail) <- prevAccountPriceB(sku(detail), supplierStock(detail), dateTime(detail));
+
+homePriceRound = ABSTRACT CASE INTEGER (CreditNoteDetail);
+homePriceRound (CreditNoteDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
+
+@deriveDocumentDetailSumCustomRoundPrefix(userCreditNoteDetail, shipment, currency, shipmentQuantity, homePriceRound);
+
+backgroundShipped 'Цвет' (CreditNote creditNote) = RGB(255, 224, 255) IF creditNote IS CreditNote;
+backgroundShipped (CreditNoteDetail detail) = backgroundShipped(creditNote(detail));
+
+EXTEND FORM userCreditNote
+    PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityCreditNoteDetail, shipmentSumCreditNoteDetail
+    PROPERTIES(d) BACKGROUND backgroundShipped(d) shipmentQuantity, shipmentPrice, shipmentSum
+;
+
+EXTEND FORM creditNotes
+    PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityCreditNoteDetail, shipmentSumCreditNoteDetail
+    PROPERTIES(d) BACKGROUND backgroundShipped(d) READONLY shipmentQuantity, shipmentPrice, shipmentSum
+;
+
+
 @implementSkuLedgerOutFIFO(UserCreditNoteDetail, sku, supplierStock);
 
 quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
@@ -11,7 +56,7 @@ batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(userCreditNoteDetail, supplierStock);
 
 overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
-sum[OutSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
+sum[OutSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), shipmentSum(ledger);
 
 show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
 
