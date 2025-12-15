@@ -1,4 +1,4 @@
-MODULE SaleInvoiceEvat;
+MODULE SaleInvoiceEVAT;
 
 REQUIRE SaleInvoiceConsignmentBy, EVAT, CustomsGroup, SaleBlankCodeEVAT;
 
@@ -13,7 +13,7 @@ dateTime[EVATDocument](Invoice document) += dateTime(document);
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
-skipCreateEVAT = ABSTRACT BOOLEAN (Invoice);
+skipCreateEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 skipCreateEVAT = ABSTRACT BOOLEAN (InvoiceDetail);
 
@@ -79,8 +79,10 @@ overEVATQuantity (Sale.InvoiceDetail d) = quantity(d) (+) overExtraEVATQuantity(
 
 createEVATSaleInvoice(EVAT e, Sale.Invoice i) {
     createEVATSaleInvoiceHeader(e,i);
-    
-    FOR invoice(InvoiceDetail id) == i AND overEVATQuantity(id) > 0 AND NOT skipCreateEVAT(id) INLINE NEW ed = EVATDetail DO {
+
+    //исключаем возвратную тару без цены    
+    FOR invoice(InvoiceDetail id) == i AND overEVATQuantity(id) > 0 AND NOT (isContainer(sku(id)) AND NOT sum(id)) AND 
+        NOT skipCreateEVAT(id) INLINE NEW ed = EVATDetail DO {
         evat(ed) <- e;
 
         name(ed) <- nameSku(id);
