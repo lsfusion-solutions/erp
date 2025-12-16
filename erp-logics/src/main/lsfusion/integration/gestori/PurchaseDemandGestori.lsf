@@ -1,6 +1,6 @@
 MODULE PurchaseDemandGestori;
 
-REQUIRE PurchaseDemand, StockReserve;
+REQUIRE PurchaseDemand, StockReserve, SaleLedger;
 
 NAMESPACE Purchase;
 
@@ -17,6 +17,10 @@ dowCoeff 'Коэффициент дня недели' (Sku sk, Stock st, DOW dow
 
 dataExtraCoeff 'Коэффициент сверхзапаса' = DATA NUMERIC[10,6] (Sku, Stock) TABLE skuStockExtra;
 extraCoeff 'Коэффициент сверхзапаса' (Sku sk, Stock st) = OVERRIDE dataExtraCoeff(sk, st), 1.0 IF sk IS Sku AND st IS Stock;
+
+dateFromSkipAverageSold 'Дата начала неучета дней' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
+dateToSkipAverageSold 'Дата окончания неучета дней' = DATA DATE (Sku, Stock) TABLE skuStockExtra;
+
 
 dataMaxQuantityOrder 'Максимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
 dataMinQuantityOrder 'Минимальный заказ, шт' = DATA NUMERIC[14,3] (Sku, Stock) TABLE skuStockExtra;
@@ -143,8 +147,7 @@ demandLogic 'Алгоритм расчёта' (Sku sku, Stock stock) = OVERRIDE
 
 EXTEND FORM stockReserve
     PROPERTIES (ss, sk) SHOWIF singleStoreNested() nameSupplierStockInner, demandLogic
-
-    PROPERTIES (s,st) AFTER overStockReserve(st, s, dt) promoDateFrom, promoDateTo, promoCoeff, extraCoeff, dataMaxQuantityOrder, dataMinQuantityOrder,
+    PROPERTIES (s,st) AFTER overStockReserve(st, s, dt) dateFromSkipAverageSold, dateToSkipAverageSold, promoDateFrom, promoDateTo, promoCoeff, extraCoeff, dataMaxQuantityOrder, dataMinQuantityOrder,
         nameSupplierStockInner, extraDaysInner, expiryDaysRemain, quantityPacksNull, demandLogic
 
     OBJECTS dow = DOW
@@ -165,5 +168,44 @@ DESIGN stockReserve {
                 PROPERTY (staticCaption(dow)) { caption = 'День недели'; }
             }
         }
+    }
+}
+
+quantitySold 'Продано за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = GROUP
+    SUM
+        quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND
+        NOT (date >= dateFromSkipAverageSold(sku, stock) AND date <= dateToSkipAverageSold(sku, stock)) CHARWIDTH 7;
+
+calcQuantitySoldInterval(DATE dateFrom, DATE dateTo)  {
+    LOCAL balance = NUMERIC[14,3] (Sku, Stock);
+    LOCAL days = INTEGER (Sku, Stock);
+    LOCAL dateCur = DATE();
+
+    dateCur() <- dateFrom;
+    balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
+
+    WHILE dateCur() <= dateTo DO {
+        days(Sku sku, Stock stock) <- days(sku, stock) (+)
+            (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0) OR (quantitySold(sku, stock, dateCur()) > 0)) AND NOT (dateCur() >= dateFromSkipAverageSold(sku, stock) AND dateCur() <= dateToSkipAverageSold(sku, stock)));
+        balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
+            signedQuantity(sku, stock, dateCur());
+        dateCur() <- sum(dateCur(), 1);
+    }
+
+    averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
+}
+calcCurrentQuantitySoldIntervalGestori 'Пересчитать однодневные продажи Gestori'()  {
+    NEWSESSION {
+        EXEC calcQuantitySoldInterval(subtract(currentDate(), skuStockAverageInterval()), subtract(currentDate(), 1));
+        apply();
+    }
+}
+
+EXTEND FORM options
+    PROPERTIES() calcCurrentQuantitySoldIntervalGestori
+;
+DESIGN options {
+    sale {
+        MOVE PROPERTY(calcCurrentQuantitySoldIntervalGestori());
     }
 }
