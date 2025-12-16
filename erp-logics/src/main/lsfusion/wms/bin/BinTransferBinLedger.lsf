@@ -48,6 +48,21 @@ isPosted[BinTransfer](UserBinTransfer o) += o IS UserBinTransfer; //Пользо
 
 @defineDocumentBins(binTransfer);
 
+disallowSameInOutBins 'Запрет на совпадение ячеек "из" и "в" в одной строке перемещения' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options
+    PROPERTIES disallowSameInOutBins()
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(disallowSameInOutBins());
+    }
+}
+
+CONSTRAINT SET(outBin(BinTransferDetail detail)==inBin(detail)) AND disallowSameInOutBins()
+    MESSAGE 'Ячейки "из" и "в" не могут совпадать в строке перемещения';
+
 useBins(UserBinTransfer transfer) <- TRUE WHEN SET(transfer IS UserBinTransfer);
 
 //todo: вернуть метакод, когда починят баг с тремя ###
