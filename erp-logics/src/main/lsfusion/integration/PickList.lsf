@@ -7,6 +7,7 @@ NAMESPACE PickList;
 //Сервис-плюс
 exportPickListPath 'Каталог экспорта КСО (Пик лист)' = DATA STRING[255] (Store) CHARWIDTH 30;
 exportPickListPath 'Каталог экспорта КСО (Пик лист)' (DepartmentStore ds)= exportPickListPath(store(ds)) IF id(store(ds))==id(ds) CHARWIDTH 30;
+dataFileName 'Имя файла' = DATA STRING[50](Store);
 
 useIdPickList 'Использовать Код товара для выгрузки в КСО (Пик лист)' = DATA BOOLEAN ();
 
@@ -20,11 +21,12 @@ DESIGN integrationData {
 }
 
 EXTEND FORM store
-    PROPERTIES (s) exportPickListPath
+    PROPERTIES (s) exportPickListPath, dataFileName
 ;
 DESIGN store{
     headerExtraParams{
         MOVE PROPERTY (exportPickListPath(s));     
+        MOVE PROPERTY (dataFileName(s));     
     }
 }
 EXTEND FORM stores
@@ -40,6 +42,7 @@ GROUP Items;
 
 step 'Смещение номеров групп' = DATA INTEGER (DepartmentStore );
 overFileName 'Имя файла' = DATA STRING[50](DepartmentStore);
+fileName 'Имя файла' (DepartmentStore ds) = OVERRIDE overFileName(ds), dataFileName(store(ds));
 
 extraId (CustomGroup g, DepartmentStore ds) = IF isLeaf(g) THEN 9 (+) step(ds) (+) (PARTITION SUM 1 IF isLeaf(g) ORDER id(g), g BY customGroupType(g));
 
@@ -153,7 +156,7 @@ exportDataPickList(DepartmentStore ds) {
     TRY {
         EXPORT exportPickList OBJECTS ds = ds XML CHARSET 'UTF-16';
         mkdir(exportPickListPath(ds) + '/report/data');
-        WRITE exportFile() TO 'file://' + exportPickListPath(ds) + '/report/data/' + (OVERRIDE overFileName(ds), 'PickList');
+        WRITE exportFile() TO 'file://' + exportPickListPath(ds) + '/report/data/' + (OVERRIDE fileName(ds), 'PickList');
         MESSAGE (CONCAT  '', 'Категории и товары выгружены: ', name(ds)) NOWAIT;
     } CATCH {
         MESSAGE CONCAT '\n', (CONCAT  '', 'Ошибка выгрузки категорий и товаров: ', name(ds)), messageCaughtException(), lsfStackTraceCaughtException(), javaStackTraceCaughtException() NOWAIT;
