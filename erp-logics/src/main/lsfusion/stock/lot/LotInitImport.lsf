@@ -1,0 +1,64 @@
+MODULE LotInitImport;
+
+REQUIRE LotInit;
+
+NAMESPACE Lot;
+
+importLots 'Импорт марок' (LotInit i) {
+    LOCAL lotId = STRING[200] (INTEGER);
+    LOCAL barcodeId = STRING[15](INTEGER);
+
+    INPUT f = EXCELFILE DO {
+        IMPORT XLS NOHEADER FROM f AS EXCELFILE TO lotId = A, barcodeId = B;
+
+        LOCAL lot = Lot (INTEGER);
+        lot(INTEGER r) <- lot(lotId(r));
+        
+        LOCAL break = BOOLEAN ();
+        
+        IF GROUP SUM 1 IF imported(INTEGER r) AND NOT lot(r) AND NOT barcodeId(r) THEN {
+            ASK ('Найдены новые марки без штрихкодов. Импортировать остальные?\n' +
+                GROUP CONCAT lotId(INTEGER r) IF imported(r) AND NOT lot(r) AND NOT barcodeId(r), '\n' ORDER r) ask = YESNO DO {
+                IF NOT ask THEN break() <- TRUE;
+            }
+        }
+        IF break() THEN RETURN;
+        
+        LOCAL sku = Sku (INTEGER);
+        sku(INTEGER r) <- skuBarcode(barcodeId(r)) WHERE barcodeId(r) AND NOT lot(r);
+        
+        IF GROUP SUM 1 IF imported(INTEGER r) AND NOT lot(r) AND NOT sku(r) THEN {
+            ASK ('Не найдены товары для штрихкодов. Импортировать остальные?\n' + GROUP CONCAT barcodeId(INTEGER r) IF NOT lot(r) AND NOT sku(r), '\n' ORDER r) ask = YESNO DO {
+                IF NOT ask THEN break() <- TRUE;
+            }
+        }
+        IF break() THEN RETURN;
+
+        FOR imported(INTEGER r) AND sku(r) DO NEW l = Lot {
+            id(l) <- lotId(r);
+            sku(l) <- sku(r);
+            lot(r) <- l;
+        }
+
+        FOR Sku s = [GROUP MIN sku(lot(INTEGER r)) BY sku(lot(r))](s) AND NOT lotInitDetail(s, i) NEW d = LotInitDetail DO {
+            lotInit(d) <- i;
+            sku(d) <- s;
+        }
+
+        FOR Lot l = [GROUP MIN lot(INTEGER r) BY lot(r)](l) AND LotInitDetail d = lotInitDetail(sku(l), i) DO {
+            quantity(d, l) <- 1.0;
+        }
+    }
+}
+
+EXTEND FORM lotInit PROPERTIES(i) importLots;
+
+DESIGN lotInit {
+    header {
+        NEW headerImport {
+            caption = 'Импорт';
+            horizontal = TRUE;
+            MOVE PROPERTY(importLots(i));
+        }
+    }
+}
