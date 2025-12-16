@@ -717,7 +717,8 @@ TABLE userReceiving (UserReceiving);
 
 @deriveDocumentHeaderTimePrefix(UserReceiving, );
 
-GRDdate 'Дата завершения' = DATA DATE (UserReceiving) IN documentHeader INDEXED;
+GRDate 'Дата завершения' = DATA DATE (UserReceiving) IN documentHeader INDEXED;
+GRTime 'Дата завершения' = DATA TIME (UserReceiving) IN documentHeader INDEXED;
 
 @defineDocumentHeaderNumber(UserReceiving, BPSTRING[2]);
 
@@ -739,7 +740,8 @@ number(UserReceiving receiving) += number(receiving);
 series(UserReceiving receiving) += series(receiving);
 date(UserReceiving receiving) += date(receiving);
 time(UserReceiving receiving) += time(receiving);
-GRDate(UserReceiving receiving) += GRDdate(receiving);
+GRDate(UserReceiving receiving) += GRDate(receiving);
+GRTime(UserReceiving receiving) += GRTime(receiving);
 supplier(UserReceiving receiving) += supplier(receiving);
 supplierStock(UserReceiving receiving) += supplierStock(receiving);
 customer(UserReceiving receiving) += customer(receiving);
@@ -766,7 +768,7 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject, 
 END    
 
 
-META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp, shipmentDate)
+META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp, shipmentPrefix)
     @defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp);
         
     CLASS ###primObject##Receiving : Receiving;
@@ -780,7 +782,8 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
     series(###primObject##Receiving receiving) += series(primObject(receiving));
     date(###primObject##Receiving receiving) += date(primObject(receiving));
     time(###primObject##Receiving receiving) += time(primObject(receiving));
-    GRDate(###primObject##Receiving receiving) += shipmentDate(primObject(receiving));
+    GRDate(###primObject##Receiving receiving) += shipmentPrefix###date(primObject(receiving));
+    GRTime(###primObject##Receiving receiving) += shipmentPrefix###time(primObject(receiving));
     supplier(###primObject##Receiving receiving) += supplier(primObject(receiving));
     supplierStock(###primObject##Receiving receiving) += supplierStock(primObject(receiving));
     customer(###primObject##Receiving receiving) += customer(primObject(receiving));
