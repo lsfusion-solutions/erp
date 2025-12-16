@@ -16,8 +16,10 @@ series '{numerator.series.numerator}' = ABSTRACT BPSTRING[2] (Receiving) IN numb
 seriesNumber '{numerator.series.number.numerator}' (Receiving o) = CONCAT '', series(o), number(o) CHARWIDTH 7 INDEXED MATERIALIZED;
 date '{document.date.of} {document.of.document}' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED INDEXED;
 time '{document.time.of} {document.of.document}' = ABSTRACT TIME (Receiving) IN documentHeader MATERIALIZED;
-GRDate 'Дата завершения' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED; //Goods Receipt Date
 dateTime '{document.date.time.of} {document.of.document}' (Receiving o) = dateTimeToDateTime(date(o), time(o)) MATERIALIZED;
+GRDate 'Дата завершения' = ABSTRACT DATE (Receiving) IN documentHeader MATERIALIZED; //Goods Receipt Date
+GRTime 'Время завершения' = ABSTRACT TIME (Receiving) IN documentHeader MATERIALIZED; //Goods Receipt Time
+GRDateTime 'Дата/время завершения' (Receiving o) = dateTimeToDateTime(GRDate(o), GRTime(o)) MATERIALIZED; //Goods Receipt DateTime
 supplier = ABSTRACT LegalEntity (Receiving) MATERIALIZED INDEXED;
 nameSupplier 'Поставщик' (Receiving receiving)= name(supplier(receiving)) IN documentPrm CHARWIDTH 20;
 supplierStock = ABSTRACT Stock (Receiving) MATERIALIZED INDEXED;
@@ -344,6 +346,8 @@ completeReceiving 'Завершить приёмку' (Receiving receiving) {
                 status(receiving) <- ReceivingStatus.partiallyReceived;
             }
             GRDate(receiving) <- currentDate() IF receiving IS UserReceiving;
+            GRTime(receiving) <- currentTime() IF receiving IS UserReceiving;
+            //Обязательно! во всех реализациях overCompleteReceiving дату поставки записывать из GRDate
             overCompleteReceiving(receiving);
             APPLY;
             IF canceled() THEN {
@@ -571,7 +575,7 @@ FORM receiving 'Приемка'
     PROPERTIES(r) selected
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
-                                                    date, time, GRDate BACKGROUND RGB(255, 224, 255), 
+                                                    date, time, GRDate BACKGROUND RGB(255, 224, 255),  GRTime BACKGROUND RGB(255, 224, 255),
                                                     nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
                                 createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  

@@ -15,6 +15,13 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
 
+extraSetShipmentDateTime ABSTRACT (UserInvoice);
+setShipmentDateTime(UserInvoice i) + {
+    shipmentDate(i) <- GRDate(receiving(i));
+    shipmentTime(i) <- GRTime(receiving(i));
+    extraSetShipmentDateTime(i);
+}
+
 limitPartitionCreditNote = DATA LOCAL NUMERIC[16,5] (InvoiceDetail);
 
 quantityVariance(InvoiceDetail detail) =
@@ -30,8 +37,8 @@ createCreditNoteQuantityVariance(Invoice i) + {
         supplierStock(c) <- supplierStock(i);
         customer(c) <- customer(i);
         customerStock(c) <- customerStock(i);
-        date(c) <- currentDate();
-        time(c) <- currentTime();
+        date(c) <- DATE(MAX currentDateTime(), GRDateTime(receiving(i)));
+        time(c) <- TIME(MAX currentDateTime(), GRDateTime(receiving(i)));
         isPosted(c) <- TRUE;
     }
 

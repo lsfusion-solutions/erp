@@ -19,9 +19,11 @@ consolidationKey() = OVERRIDE dataConsolidationKey(), 'ключ группиро
 dataConsolidationKeyMessage = ABSTRACT STRING ();
 consolidationKeyMessage() = OVERRIDE dataConsolidationKeyMessage(), 'ключом группировки, которого'; 
 
+setShipmentDateTime ABSTRACT (Invoice); //Дата/время завершения приёмки должно стать датой/временем поставки накладной на склад 
+
 clearInBin ABSTRACT (Receiving); //Очищаем ячейки в накладной    inBin(Purchase.InvoiceDetail detail) <- NULL WHERE detail = invoiceDetail(shipmentDetail(batch(d)));
 overCompleteReceiving (Receiving r) + {
-    //нет смысла расписывать по партиям, если нет изначально недосточно кол-ва для расписывания по ним
+    //нет смысла расписывать по партиям, если изначально недосточно кол-ва для расписывания по ним
     IF (GROUP SUM 1 IF receivingQuantity(Sku sku, STRING consolidationKey, r) AND NOT expectedQuantity(sku, consolidationKey, r)>=receivingQuantity(sku, consolidationKey, r)) THEN {
         MESSAGE 'В документе приёмки есть товар с ' + consolidationKeyMessage() + ' нет в документе основания или с недостаточным кол-вом. \nПартии не могут быть назначены. Измените документ(-ы) основания.' NOWAIT;  
         MESSAGE (GROUP CONCAT (CONCAT '', name(Sku sku), ', '+consolidationKey()+' ', STRING consolidationKey) 
@@ -84,6 +86,10 @@ overCompleteReceiving (Receiving r) + {
         status(r) <- ReceivingStatus.fullyReceived;
     } ELSE {
         status(r) <- ReceivingStatus.partiallyReceived;
+    }
+    
+    FOR receiving(Invoice i )==r DO {
+        setShipmentDateTime(i);    
     }
 }
 
