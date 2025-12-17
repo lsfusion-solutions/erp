@@ -2725,11 +2725,16 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
                     astronSalesLogger.info("connecting to " + params.connectionString);
                     try (Connection conn = getConnection(params)) {
 
-                        conn.setAutoCommit(true); // autoCommit = false начинает транзакцию при первом запросе а reindex concurrently нельзя выполнять в транзакции
-                        checkExtraColumns(conn, params);
-                        createFusionProcessedIndex(conn, params);
-                        createSalestimeIndex(conn, params);
-                        conn.setAutoCommit(false);
+                        AstronSettings astronSettings = getSettings();
+                        boolean skipCheckSalesIndex = astronSettings.isSkipCheckSalesIndex();
+
+                        if(!skipCheckSalesIndex) {
+                            conn.setAutoCommit(true); // autoCommit = false начинает транзакцию при первом запросе а reindex concurrently нельзя выполнять в транзакции
+                            checkExtraColumns(conn, params);
+                            createFusionProcessedIndex(conn, params);
+                            createSalestimeIndex(conn, params);
+                            conn.setAutoCommit(false);
+                        }
 
                         Statement statement = null;
                         try {
