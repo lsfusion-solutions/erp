@@ -15,6 +15,9 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
 
+//Не провподим по ТО поставки, если по ним не завершена приёмка
+overSkipStockDocumentLedger(Shipment s) += s IS Shipment AND NOT GRDate(invoice(s));
+
 extraSetShipmentDateTime ABSTRACT (UserInvoice);
 setShipmentDateTime(UserInvoice i) + {
     shipmentDate(i) <- GRDate(receiving(i));

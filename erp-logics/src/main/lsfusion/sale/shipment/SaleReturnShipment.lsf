@@ -6,7 +6,6 @@ PRIORITY Sale, Operation;
 
 NAMESPACE SaleReturn;
 
-
 //----------------------------------------------- Поставка ---------------------------------------------------//
 
 @defineShipment('Возвраты', ' (продажа-возврат)', supplier, company, customer, company, SaleReturn, sr);
@@ -181,6 +180,9 @@ legalEntityStock(Shipment ledger) += customerStock(ledger);
 operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 isReturn(Shipment ledger) += ledger IS Shipment;
 close[StockDocumentLedger](Shipment l) + {  close(l); }
+
+overSkipStockDocumentLedger = ABSTRACT VALUE BOOLEAN (Shipment);
+skip(Shipment l) += (isCommission(invoice(l)) IF excludeCommission()) OR overSkipStockDocumentLedger(l);
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerInLIFO(ShipmentDetail, sku, supplierStock);
