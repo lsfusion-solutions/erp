@@ -12,8 +12,6 @@ shipmentQuantity(UserCreditNoteDetail detail) <- quantity(detail)
 
 @defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
 
-@defineDocumentInterfaceHeaderSumPrefix (creditNote, shipment, ' по факту');
-
 // ------------------------------- Расчет учетной цены ---------------------------------------------- //
 
 disableUpdateShipmentPrice = ABSTRACT VALUE BOOLEAN (UserCreditNoteDetail);
@@ -48,10 +46,9 @@ EXTEND FORM creditNotes
     PROPERTIES(d) BACKGROUND backgroundShipped(d) READONLY shipmentQuantity, shipmentPrice, shipmentSum
 ;
 
-
 @implementSkuLedgerOutFIFO(UserCreditNoteDetail, sku, supplierStock);
 
-quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
+quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += shipmentQuantity(ledger);
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(userCreditNoteDetail, supplierStock);
 
@@ -65,8 +62,8 @@ show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
 
 stockDocumentLedger(UserCreditNoteDetail ledger) += userCreditNote(ledger);
 type(UserCreditNote l) += STRING[50]('Акт расхождения (продажа-возврат)') IF l IS UserCreditNote;
-sumItem (UserCreditNote ledger) += sumItemUserCreditNoteDetail(ledger);
-sumContainer (UserCreditNote ledger) += sumContainerUserCreditNoteDetail(ledger);
+sumItem (UserCreditNote ledger) += shipmentSumItemUserCreditNoteDetail(ledger);
+sumContainer (UserCreditNote ledger) += shipmentSumContainerUserCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += customer(ledger);
 legalEntityStock(UserCreditNote ledger) += customerStock(ledger);
