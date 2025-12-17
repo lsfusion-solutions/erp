@@ -76,6 +76,12 @@ dataPackQuantity 'Кол-во собранных мест' = DATA NUMERIC[8,2] (
 packQuantity 'Кол-во собранных мест' (UserPicking picking) = OVERRIDE overPackQuantity(picking), dataPackQuantity(picking);
 packQuantity(UserPicking picking) += packQuantity(picking);
 
+changeDataPackQuantity(UserPicking picking) {
+    INPUT q = NUMERIC[8,2] DO {
+        dataPackQuantity(picking) <- q;    
+    }
+}
+
 // --------------------------- Формы Заказа ---------------------------------
 
 editSku 'Редактировать SKU' (UserPickingDetail d)  { NEWSESSION { edit(sku(d)); } }
@@ -84,7 +90,7 @@ FORM userPicking 'Комплектация'
     PROPERTIES (o) nameStock ON CHANGE changeStockCompany(o),// ON CHANGE changeCustomerStock###customerFilter###userPicking(o),
                    nameNumerator, number, series, date, time,
                    note, countUserPickingDetail, quantityUserPickingDetail,
-                   packQuantity
+                   packQuantity ON CHANGE changeDataPackQuantity(o)
 
     OBJECTS d = UserPickingDetail
     PROPERTIES (d) index
