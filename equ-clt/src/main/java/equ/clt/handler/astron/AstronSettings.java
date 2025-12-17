@@ -66,6 +66,9 @@ public class AstronSettings implements Serializable {
     //новый запрос для readSales, если он будет работать, то выполнять новый по умолчанию
     private boolean newReadSalesQuery;
 
+    //Не пытаться создать индексы в sales. если false т осоздаем
+    private boolean skipCheckSalesIndex;
+
     public AstronSettings() {
     }
 
@@ -228,5 +231,13 @@ public class AstronSettings implements Serializable {
 
     public void setNewReadSalesQuery(boolean newReadSalesQuery) {
         this.newReadSalesQuery = newReadSalesQuery;
+    }
+
+    public boolean isSkipCheckSalesIndex() {
+        return skipCheckSalesIndex;
+    }
+
+    public void setSkipCheckSalesIndex(boolean skipCheckSalesIndex) {
+        this.skipCheckSalesIndex = skipCheckSalesIndex;
     }
 }

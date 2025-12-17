@@ -2425,15 +2425,18 @@ public class AstronHandler extends DefaultCashRegisterHandler<AstronSalesBatch, 
         boolean bonusPaymentAsDiscount = astronSettings.isBonusPaymentAsDiscount();
         boolean enableSqlLog = astronSettings.isEnableSqlLog();
         boolean newReadSalesQuery = astronSettings.isNewReadSalesQuery();
+        boolean skipCheckSalesIndex = astronSettings.isSkipCheckSalesIndex();
 
-        conn.setAutoCommit(true); // autoCommit = false начинает транзакцию при первом запросе а reindex concurrently нельзя выполнять в транзакции
-        checkExtraColumns(conn, params);
-        createFusionProcessedIndex(conn, params);
-        createSalesIndex(conn, params);
-        if (newReadSalesQuery) {
-            createSalesExtIndex(conn, params);
+        if(!skipCheckSalesIndex) {
+            conn.setAutoCommit(true); // autoCommit = false начинает транзакцию при первом запросе а reindex concurrently нельзя выполнять в транзакции
+            checkExtraColumns(conn, params);
+            createFusionProcessedIndex(conn, params);
+            createSalesIndex(conn, params);
+            if (newReadSalesQuery) {
+                createSalesExtIndex(conn, params);
+            }
+            conn.setAutoCommit(false);
         }
-        conn.setAutoCommit(false);
 
         try (Statement statement = conn.createStatement()) {
             String query = newReadSalesQuery ?
