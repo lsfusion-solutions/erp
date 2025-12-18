@@ -362,7 +362,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 for (CashRegisterItem item : transaction.itemsList) {
                     ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //id
-                    ps.setString(2, trim(item.name, "", 40)); //name
+                    ps.setString(2, trim(item.name, "", 255)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, trim(item.shortNameUOM, "", 40)); //measure
                     ps.setInt(5, item.passScalesItem ? (isPieceUOM(item) ? 0 : 3) : (item.splitItem ? 3 : 0)); //measprec
