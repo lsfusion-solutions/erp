@@ -1,0 +1,58 @@
+MODULE SaleInvoiceCorrectionDocument;
+
+REQUIRE SaleInvoiceCorrection;
+
+NAMESPACE Sale;
+
+EXTEND CLASS InvoiceCorrection : Document;
+EXTEND CLASS InvoiceCorrectionDetail : DocumentDetail;
+
+isClosed[Document](InvoiceCorrection invoice) += isClosed(invoice);
+isPosted[Document](InvoiceCorrection invoice) += isPosted(invoice);
+number[Document](InvoiceCorrection invoice) += number(invoice);
+series[Document](InvoiceCorrection invoice) += series(invoice);
+date[Document](InvoiceCorrection invoice) += date(invoice);
+
+index[DocumentDetail](InvoiceCorrectionDetail detail) += index(detail);
+sku[DocumentDetail](InvoiceCorrectionDetail detail) += sku(detail);
+quantity[DocumentDetail](InvoiceCorrectionDetail detail) += quantityA(detail);
+price[DocumentDetail](InvoiceCorrectionDetail detail) += priceA(detail);
+
+document[DocumentDetail](InvoiceCorrectionDetail detail) += invoiceCorrection(detail);
+
+//batch[DocumentDetail](InvoiceCorrectionDetail detail) += batch(detail);
+
+EXTEND FORM documents
+    OBJECTS sic = Sale.InvoiceCorrection
+    PROPERTIES(sic) inSession
+    PROPERTIES(sic) READONLY number, series, date, nameSupplier, nameSupplierStock,
+        nameCustomer, nameCustomerStock, objectClassName
+
+    OBJECTS sicd = Sale.InvoiceCorrectionDetail
+    PROPERTIES(sicd) READONLY READONLY index, idBarcodeSku, nameSku, quantityA, priceA SHOWIF fillPriceDocuments()
+
+    FILTERS document(sicd)==sic
+;
+
+DESIGN documents {
+    tabs {
+        NEW SaleInvoiceCorrection {
+            caption = 'Корректировка накладной (продажа)';
+            MOVE BOX(sic);
+            MOVE BOX(sicd);
+        }
+    }
+}
+SaleInvoiceCorrectionActive() = ACTIVE TAB documents.SaleInvoiceCorrection;
+
+EXTEND FORM documents
+    EVENTS
+        ON OK {
+            IF SaleInvoiceCorrectionActive() AND NOT (GROUP SUM 1 IF inSession(Document d)) THEN {
+                inSession(sic) <- TRUE;
+            }
+        }
+;
+@defineDocumentLogForm(invoiceCorrections, i);
+@defineDocumentLogForm(invoiceCorrection, i, specificationBox) ;
+DESIGN invoiceCorrection { historyTabs { caption = 'История'; } }
