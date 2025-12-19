@@ -194,7 +194,7 @@ FORM preOrders 'Резервы'
     FILTERS preOrder(d) == o
     
     FILTERGROUP open
-        FILTER 'Открыт' NOT isClosed(o) DEFAULT
+        FILTER 'Открыт' isOpened(o) DEFAULT
                 
     LIST PreOrder OBJECT o
 ;
@@ -445,7 +445,7 @@ show[OrderLedger](PreOrderDetail ledger) + { show(ledger);};
 TABLE operationStockSku (Sale.Operation,Stock,Sku);
 
 quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
-    IF isPosted(d) AND NOT isClosed(d) AND (operation(d) == Sale.Operation op OR in(d,op)) 
+    IF isOpened(d) AND (operation(d) == Sale.Operation op OR in(d,op)) 
     BY op, sku(d), supplierStock(d) MATERIALIZED;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Sku s, Stock st) = PREV(quantityPreOrder(o, s, st));
     
@@ -454,7 +454,7 @@ prevQuantityPreOrder 'Резерв операции' (Sku s, Stock st, UserOrder
 TABLE operationStockBatch (Sale.Operation,Stock,Batch);
 
 quantityPreOrder 'Резерв операции' (o,st,s) = GROUP SUM calcQuantity(PreOrderDetail d) 
-    IF isPosted(d) AND NOT isClosed(d) AND (operation(d) == Sale.Operation op OR in(d,op))
+    IF isOpened(d) AND (operation(d) == Sale.Operation op OR in(d,op))
     BY op, batch(d), supplierStock(d) MATERIALIZED;
 prevQuantityPreOrder 'Резерв операции' (Sale.Operation o, Batch b, Stock st) = PREV(quantityPreOrder(o, b, st));
     
