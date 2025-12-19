@@ -1,0 +1,24 @@
+MODULE PurchaseReturnCreditNoteCost;
+
+REQUIRE PurchaseReturnCreditNoteSkuLedger, SkuLedgerCost;
+
+NAMESPACE PurchaseReturn;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в актах расхождения (закупка-возврат)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        shipmentPrice(UserCreditNoteDetail d) <- calculatedCost(sku(d), customerStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(customerStock(d)) AND
+            calculatedCost(sku(d), customerStock(d)) AND NOT calculatedCost(sku(d), customerStock(d)) = shipmentPrice(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в актах расхождения (закупка-возврат)');
+}
+
+recalculateCostAccount(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в актах расхождения (закупка-возврат)');
+    APPLY NESTED LOCAL {
+        shipmentPrice(UserCreditNoteDetail d) <- prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND prevAdjustedAccountPriceB(sku(d), customerStock(d), dateTime(d)) AND NOT date(d) < documentsClosedDate(customerStock(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в актах расхождения (закупка-возврат)');
+}

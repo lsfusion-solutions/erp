@@ -4,14 +4,24 @@ REQUIRE PurchaseCreditNote, SkuLedger;
 
 NAMESPACE Purchase;
 
+@fillCreditNoteShipmentQuantity ();
+
+@defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
+
+@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, shipment, sku, customerStock);
+
+@deriveDocumentDetailSumCustomRoundPrefix(userCreditNoteDetail, shipment, currency, shipmentQuantity, homePriceRound);
+
+@defineUserCreditNoteFormProperties ();
+
 @implementSkuLedgerOutFIFO(UserCreditNoteDetail, sku, customerStock);
 
-quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
+quantity[OutFIFOSkuLedger] (UserCreditNoteDetail ledger) += shipmentQuantity(ledger);
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(userCreditNoteDetail, customerStock);
 
 overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
-sum[OutSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
+sum[OutSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), shipmentSum(ledger);
 
 show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
 
@@ -22,13 +32,27 @@ stockDocumentLedger(UserCreditNoteDetail ledger) += userCreditNote(ledger);
 type(UserCreditNote l) += STRING[50]('Акт расхождения (закупка)') IF l IS UserCreditNote;
 
 overSumItem = ABSTRACT NUMERIC[18,4] (UserCreditNote);
-sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), sumItemUserCreditNoteDetail(ledger);
+sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), shipmentSumItemUserCreditNoteDetail(ledger);
 
 overSumContainer = ABSTRACT NUMERIC[18,4] (UserCreditNote);
-sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), sumContainerUserCreditNoteDetail(ledger);
+sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), shipmentSumContainerUserCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += supplier(ledger);
 legalEntityStock(UserCreditNote ledger) += supplierStock(ledger); 
 
 operation[StockDocumentLedger](UserCreditNote ledger) += operation(ledger);
 close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
+
+shipmentPurchaseCreditNoteMigrated = DATA BOOLEAN () TABLE migrate;
+onStarted() + {
+    IF NOT shipmentPurchaseCreditNoteMigrated() THEN NEWSESSION {
+        shipmentPurchaseCreditNoteMigrated() <- TRUE;
+
+        shipmentSum(UserCreditNoteDetail d) <- sum(d) WHERE sum(d) AND NOT shipmentSum(d);
+
+        shipmentQuantity(UserCreditNoteDetail d) <- quantity(d) WHERE quantity(d) AND NOT shipmentQuantity(d);
+        skipFractQuantity() <- TRUE;
+
+        APPLY;
+    }
+}

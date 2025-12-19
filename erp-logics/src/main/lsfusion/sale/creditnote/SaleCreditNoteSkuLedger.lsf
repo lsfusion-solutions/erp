@@ -1,10 +1,16 @@
 MODULE SaleCreditNoteSkuLedger;
 
-REQUIRE SaleCreditNoteAccountPrice;
+REQUIRE SaleCreditNote;
 
 NAMESPACE Sale;
 
 @fillCreditNoteShipmentQuantity ();
+
+@defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
+
+@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, shipment, sku, supplierStock);
+
+@deriveDocumentDetailSumCustomRoundPrefix(userCreditNoteDetail, shipment, currency, shipmentQuantity, homePriceRound);
 
 @defineUserCreditNoteFormProperties ();
 
@@ -15,10 +21,12 @@ stockDocumentLedger(UserCreditNoteDetail ledger) += userCreditNote(ledger);
 type(UserCreditNote l) += STRING[50]('Акт расхождения (продажа)') IF l IS UserCreditNote;
 
 overSumItem = ABSTRACT NUMERIC[18,4](UserCreditNote);
-sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), shipmentSumItemUserCreditNoteDetail(ledger);
+extraSumItem = ABSTRACT NUMERIC[18,4](UserCreditNote);
+sumItem (UserCreditNote ledger) += OVERRIDE overSumItem(ledger), extraSumItem(ledger), shipmentSumItemUserCreditNoteDetail(ledger);
 
 overSumContainer = ABSTRACT NUMERIC[18,4](UserCreditNote);
-sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), shipmentSumContainerUserCreditNoteDetail(ledger);
+extraSumContainer = ABSTRACT NUMERIC[18,4](UserCreditNote);
+sumContainer (UserCreditNote ledger) += OVERRIDE overSumContainer(ledger), extraSumContainer(ledger), shipmentSumContainerUserCreditNoteDetail(ledger);
 
 legalEntity(UserCreditNote ledger) += customer(ledger);
 legalEntityStock(UserCreditNote ledger) += customerStock(ledger); 
@@ -30,7 +38,9 @@ close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerInLIFO(UserCreditNoteDetail, sku, supplierStock);
 
-quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += shipmentQuantity(ledger);
+overQuantity = ABSTRACT NUMERIC[16,5] (UserCreditNoteDetail);
+quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += OVERRIDE overQuantity(ledger), shipmentQuantity(ledger);
+
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
 @implementSkuLedgerInLIFOBatchBalance(userCreditNoteDetail, supplierStock);
 

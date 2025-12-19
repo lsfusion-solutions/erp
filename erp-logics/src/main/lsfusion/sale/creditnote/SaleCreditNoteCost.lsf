@@ -1,0 +1,27 @@
+MODULE SaleCreditNoteCost;
+
+REQUIRE SaleCreditNoteSkuLedger, SkuLedgerCost;
+
+NAMESPACE Sale;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в актах расхождения (продажа)');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        shipmentPrice(UserCreditNoteDetail d) <- calculatedCost(sku(d), supplierStock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND
+            calculatedCost(sku(d), supplierStock(d)) AND NOT calculatedCost(sku(d), supplierStock(d)) = shipmentPrice(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в актах расхождения (продажа)');
+}
+
+skipRecalculateCost = ABSTRACT VALUE BOOLEAN (UserCreditNote);
+recalculateCostAccount(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в поставках (продажа)');
+    APPLY NESTED LOCAL {
+        shipmentPrice(UserCreditNoteDetail d) <- prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(supplierStock(d)) AND NOT skipRecalculateCost(userCreditNote(d))
+            AND prevAdjustedAccountPriceB(sku(d), supplierStock(d), dateTime(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в актах расхождения (продажа)');
+}
+
