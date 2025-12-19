@@ -4,19 +4,15 @@ REQUIRE SaleCreditNote;
 
 NAMESPACE Sale;
 
-accountPrice 'Цена (учетная)' = DATA NUMERIC[16,4] (UserCreditNoteDetail) CHARWIDTH 7;
+@defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
 
-CONSTRAINT accountPrice(UserCreditNoteDetail detail) < 0.0
+CONSTRAINT shipmentPrice(UserCreditNoteDetail detail) < 0.0
     MESSAGE 'Учетная цена для строки акта расхождения (продажа) должна быть больше нуля';
 
-@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, account, sku, supplierStock);
-
-EXTEND FORM userCreditNote
-    PROPERTIES(d) accountPrice, shipmentSum
-;
+@deriveDocumentDetailPriceAccountBatchDisable (userCreditNote, shipment, sku, supplierStock);
 
 calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (UserCreditNoteDetail);
-calcShipmentSum(UserCreditNoteDetail userCreditNoteDetail) += NUMERIC[18,4](Utils.round(quantity(userCreditNoteDetail) * accountPrice(userCreditNoteDetail), defaultRound(currency(userCreditNoteDetail))));
+calcShipmentSum(UserCreditNoteDetail userCreditNoteDetail) += NUMERIC[18,4](Utils.round(quantity(userCreditNoteDetail) * shipmentPrice(userCreditNoteDetail), defaultRound(currency(userCreditNoteDetail))));
 shipmentSum (UserCreditNoteDetail userCreditNoteDetail) <- calcShipmentSum(userCreditNoteDetail)
-    WHEN DO CHANGED(quantity(userCreditNoteDetail)) OR CHANGED (accountPrice(userCreditNoteDetail)) OR CHANGED(currency(userCreditNoteDetail));
+    WHEN DO CHANGED(quantity(userCreditNoteDetail)) OR CHANGED (shipmentPrice(userCreditNoteDetail)) OR CHANGED(currency(userCreditNoteDetail));
 

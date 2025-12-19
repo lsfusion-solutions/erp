@@ -1044,3 +1044,26 @@ META defineCreditNoteLog(NS, char, sign)
 
     @defineDocumentLogForm(creditNotes, c);
 END
+
+META fillCreditNoteShipmentQuantity (param)
+    skipChangedShipmentQuantity = ABSTRACT BOOLEAN (UserCreditNoteDetail);
+    shipmentQuantity(UserCreditNoteDetail detail) <- quantity(detail)
+        WHEN CHANGED(quantity(detail)) AND NOT skipChangedShipmentQuantity(detail);
+    
+    @defineDocumentInterfaceHeaderQuantityCustomPrefix (creditNote, creditNoteDetail, shipment, ' по факту');
+END
+
+META defineUserCreditNoteFormProperties (param)
+    backgroundShipped 'Цвет' (CreditNote creditNote) = RGB(255, 224, 255) IF creditNote IS CreditNote;
+    backgroundShipped (CreditNoteDetail detail) = backgroundShipped(creditNote(detail));
+    
+    EXTEND FORM userCreditNote
+        PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityUserCreditNoteDetail, shipmentSumUserCreditNoteDetail
+        PROPERTIES(d) BACKGROUND backgroundShipped(d) shipmentQuantity, shipmentPrice, shipmentSum
+    ;
+    
+    EXTEND FORM creditNotes
+        PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityCreditNoteDetail, shipmentSumCreditNoteDetail
+        PROPERTIES(d) BACKGROUND backgroundShipped(d) READONLY shipmentQuantity, shipmentPrice, shipmentSum
+    ;
+END

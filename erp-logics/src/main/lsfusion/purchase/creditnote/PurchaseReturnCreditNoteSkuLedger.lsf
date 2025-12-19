@@ -4,11 +4,7 @@ REQUIRE PurchaseReturnCreditNote, SkuLedger;
 
 NAMESPACE PurchaseReturn;
 
-skipChangedShipmentQuantity = ABSTRACT BOOLEAN (UserCreditNoteDetail);
-shipmentQuantity(UserCreditNoteDetail detail) <- quantity(detail)
-    WHEN CHANGED(quantity(detail)) AND NOT skipChangedShipmentQuantity(detail);
-
-@defineDocumentInterfaceHeaderQuantityCustomPrefix (creditNote, creditNoteDetail, shipment, ' по факту');
+@fillCreditNoteShipmentQuantity ();
 
 @defineDocumentDetailPriceCustomPrefix(userCreditNoteDetail, shipment, ' (учетная)');
 
@@ -16,27 +12,16 @@ shipmentQuantity(UserCreditNoteDetail detail) <- quantity(detail)
 
 @deriveDocumentDetailSumCustomRoundPrefix(userCreditNoteDetail, shipment, currency, shipmentQuantity, homePriceRound);
 
-backgroundShipped 'Цвет' (CreditNote creditNote) = RGB(255, 224, 255) IF creditNote IS CreditNote;
-backgroundShipped (CreditNoteDetail detail) = backgroundShipped(creditNote(detail));
-
-EXTEND FORM userCreditNote
-    PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityUserCreditNoteDetail, shipmentSumUserCreditNoteDetail
-    PROPERTIES(d) BACKGROUND backgroundShipped(d) shipmentQuantity, shipmentPrice, shipmentSum
-;
-
-EXTEND FORM creditNotes
-    PROPERTIES(c) BACKGROUND backgroundShipped(c) READONLY shipmentQuantityCreditNoteDetail, shipmentSumCreditNoteDetail
-    PROPERTIES(d) BACKGROUND backgroundShipped(d) READONLY shipmentQuantity, shipmentPrice, shipmentSum
-;
+@defineUserCreditNoteFormProperties ();
 
 @implementSkuLedgerInLIFO(UserCreditNoteDetail, sku, customerStock);
 
-quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += quantity (ledger);
+quantity[InLIFOSkuLedger] (UserCreditNoteDetail ledger) += shipmentQuantity(ledger);
 batch[SkuLedger](UserCreditNoteDetail ledger) += batch(ledger);
 @implementSkuLedgerInLIFOBatchBalance(userCreditNoteDetail, customerStock);
 
 overSum = ABSTRACT NUMERIC[18,4] (UserCreditNoteDetail);
-sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), sum(ledger);
+sum[InSkuLedger](UserCreditNoteDetail ledger) += OVERRIDE overSum(ledger), shipmentSum(ledger);
 
 show[SkuLedger](UserCreditNoteDetail d) + {  show(d); }
 
