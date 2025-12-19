@@ -1,0 +1,369 @@
+MODULE StockDocumentBinLedger;
+
+REQUIRE EmployeeBinZone, BinOrderBinLedger;
+
+NAMESPACE Bin;
+
+CLASS ABSTRACT StockDocumentBinLedger 'Учетный документ подразделений';
+TABLE stockDocumentBinLedger (StockDocumentBinLedger) FULL;
+
+CLASS ABSTRACT IncStockDocumentBinLedger 'Учетный документ подразделений (приход)' : StockDocumentBinLedger;
+CLASS ABSTRACT OutStockDocumentBinLedger 'Учетный документ подразделений (расход)' : StockDocumentBinLedger;
+
+close 'Закрыть'  ABSTRACT LIST ( StockDocumentBinLedger) TOOLBAR;
+
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (StockDocumentBinLedger) MATERIALIZED INDEXED;
+date 'Дата' (StockDocumentBinLedger ledger) = toDate(dateTime(ledger)) MATERIALIZED INDEXED IN id;
+
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (StockDocumentBinLedger) MATERIALIZED;
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (StockDocumentBinLedger) MATERIALIZED;
+isOpened 'Не закрыт' (StockDocumentBinLedger ledger) = ledger IS StockDocumentBinLedger AND NOT isClosed(ledger);
+
+number 'Номер документа' (ledger) = ABSTRACT STRING[48] (StockDocumentBinLedger) MATERIALIZED;
+series 'Серия документа' (ledger) = ABSTRACT BPSTRING[2] (StockDocumentBinLedger) MATERIALIZED;
+seriesNumber 'Серия/номер документа' (StockDocumentBinLedger ledger) = CONCAT '', series(ledger), number(ledger) CHARWIDTH 7;
+
+legalEntity 'Контрагент' (ledger) = ABSTRACT LegalEntity (StockDocumentBinLedger) MATERIALIZED;
+nameLegalEntity 'Контрагент' (StockDocumentBinLedger ledger) = name(legalEntity(ledger)) IN id;
+
+legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (StockDocumentBinLedger) MATERIALIZED;
+nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock(StockDocumentBinLedger ledger));
+
+operation 'Операция' (ledger) = ABSTRACT Operation.Operation (StockDocumentBinLedger) MATERIALIZED;
+nameOperation 'Операция' (StockDocumentBinLedger ledger) = name(operation(ledger));
+
+stock = ABSTRACT Stock(StockDocumentBinLedger) MATERIALIZED INDEXED;
+nameStock 'Склад' (StockDocumentBinLedger ledger) = name(stock(ledger)) CHARWIDTH 20;
+
+binGroup = ABSTRACT BinGroup (StockDocumentBinLedger) MATERIALIZED INDEXED;
+nameBinGroup 'Подразделение' (StockDocumentBinLedger ledger) = name(binGroup(ledger)) CHARWIDTH 15;
+
+description 'Название документа' (ledger) = ABSTRACT STRING[200] (StockDocumentBinLedger) MATERIALIZED;
+
+skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (StockDocumentBinLedger) MATERIALIZED;
+active (StockDocumentBinLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
+
+GROUP ledgerBinItem 'Суммы по товару' : public;
+sumItem 'Сумма прихода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentBinLedger) MATERIALIZED IN ledgerBinItem CHARWIDTH 15;
+sumItem 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentBinLedger) MATERIALIZED IN ledgerBinItem CHARWIDTH 15;
+sumItem 'Сумма, товар' (StockDocumentBinLedger ledger) = MULTI sumItem[IncStockDocumentBinLedger](ledger), -sumItem[OutStockDocumentBinLedger](ledger) MATERIALIZED;
+
+GROUP ledgerBinContainer 'Суммы по таре' : public;
+sumContainer 'Сумма прихода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (IncStockDocumentBinLedger) MATERIALIZED IN ledgerBinContainer;
+sumContainer 'Сумма расхода, тара' (ledger) = ABSTRACT NUMERIC[18,4] (OutStockDocumentBinLedger) MATERIALIZED IN ledgerBinContainer;
+sumContainer 'Сумма, тара' (StockDocumentBinLedger ledger) = MULTI sumContainer[IncStockDocumentBinLedger](ledger), -sumContainer[OutStockDocumentBinLedger](ledger) MATERIALIZED;
+
+GROUP ledgerBin 'Суммы (всего)' : public;
+sum 'Сумма прихода' (IncStockDocumentBinLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledgerBin CHARWIDTH 15;
+sum 'Сумма расхода' (OutStockDocumentBinLedger ledger) = sumItem(ledger)(+) sumContainer(ledger) MATERIALIZED IN ledgerBin CHARWIDTH 15;
+sum 'Сумма' (StockDocumentBinLedger ledger) = MULTI sum[IncStockDocumentBinLedger](ledger), -sum[OutStockDocumentBinLedger](ledger) MATERIALIZED;
+
+allowedEdit (StockDocumentBinLedger ledger) = NOT isClosed(ledger) OR allowedEditClosedDocuments(currentUser());
+
+// -------------------------------------- Агрегированные суммы за интервал --------------------------------------------- //
+
+countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger) IN ledgerBin;
+
+countOutStockDocumentBinInterval 'Количество расходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF OutStockDocumentBinLedger outStockDocumentLedger IS OutStockDocumentBinLedger AND active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger) IN ledgerBin;
+
+
+sumItemIncStockDocumentBinInterval 'Сумма прихода, товар' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumItem(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+sumItemOutStockDocumentBinInterval 'Сумма расхода, товар' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumItem(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+
+sumContainerIncStockDocumentBinInterval 'Сумма прихода, тара' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumContainer(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger) IN ledgerBinContainer;
+
+sumContainerOutStockDocumentBinInterval 'Сумма расхода, тара' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumContainer(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger) IN ledgerBinContainer;
+
+// -------------------------------------- Суммы по операциям за интервал --------------------------------------------- //
+
+countIncStockDocumentBinBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger), operation(incStockDocumentLedger) IN ledgerBin;
+
+countOutStockDocumentBinInterval 'Количество расходных док-ов' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM 1 IF OutStockDocumentBinLedger outStockDocumentLedger IS OutStockDocumentBinLedger AND active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger), operation(outStockDocumentLedger) IN ledgerBin;
+
+
+sumItemIncStockDocumentBinInterval 'Сумма прихода, товар' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM sumItem(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger), operation(incStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+sumItemOutStockDocumentBinInterval 'Сумма расхода, товар' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM sumItem(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger), operation(outStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+
+sumContainerIncStockDocumentBinInterval 'Сумма прихода, тара' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM sumContainer(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY stock(incStockDocumentLedger), operation(incStockDocumentLedger) IN ledgerBinContainer;
+
+sumContainerOutStockDocumentBinInterval 'Сумма расхода, тара' (stock, DATE dtFrom, DATE dtTo, operation)=
+    GROUP SUM sumContainer(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY stock(outStockDocumentLedger), operation(outStockDocumentLedger) IN ledgerBinContainer;
+
+//-- Без операции   
+
+countNotOperationIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+        AND NOT operation(incStockDocumentLedger)
+    BY stock(incStockDocumentLedger)  IN ledgerBin;
+
+countNotOperationOutStockDocumentBinInterval 'Количество расходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF OutStockDocumentBinLedger outStockDocumentLedger IS OutStockDocumentBinLedger AND active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+        AND NOT operation(outStockDocumentLedger)
+    BY stock(outStockDocumentLedger) IN ledgerBin;
+
+
+sumItemNotOperationIncStockDocumentBinInterval 'Сумма прихода, товар' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumItem(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+        AND NOT operation(incStockDocumentLedger)
+    BY stock(incStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+sumItemNotOperationOutStockDocumentBinInterval 'Сумма расхода, товар' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumItem(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+        AND NOT operation(outStockDocumentLedger)
+    BY stock(outStockDocumentLedger) IN ledgerBinItem CHARWIDTH 15;
+
+
+sumContainerNotOperationIncStockDocumentBinInterval 'Сумма прихода, тара' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumContainer(IncStockDocumentBinLedger incStockDocumentLedger) IF active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+        AND NOT operation(incStockDocumentLedger)
+    BY stock(incStockDocumentLedger) IN ledgerBinContainer;
+
+sumContainerNotOperationOutStockDocumentBinInterval 'Сумма расхода, тара' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM sumContainer(OutStockDocumentBinLedger outStockDocumentLedger) IF active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+        AND NOT operation(outStockDocumentLedger)
+    BY stock(outStockDocumentLedger) IN ledgerBinContainer;
+
+// -------------------------------------- Остатки по суммам --------------------------------------------- //
+
+currentSumDocumentBinLedger 'Текущий остаток по документам' (stock) = GROUP SUM sum (StockDocumentBinLedger ledger) IF active(ledger)
+    BY stock(ledger);
+
+sumAccountBDocumentBinLedger 'Остаток на начало' (Stock stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumAccountADocumentBinLedger 'Остаток на конец' (Stock stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumAccountBDocumentBinLedger 'Остаток на начало' (Stock stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBin CHARWIDTH 15;
+
+sumAccountADocumentBinLedger 'Остаток на конец' (Stock stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBin CHARWIDTH 15;
+
+// -------------------------------------- Остатки по суммам (товар) --------------------------------------------- //
+
+currentSumItemDocumentBinLedger 'Текущий остаток по документам, товар' (stock) = GROUP SUM sumItem (StockDocumentBinLedger ledger) IF active(ledger)
+    BY stock(ledger);
+
+sumItemAccountBDocumentBinLedger 'Остаток на начало, товар' (Stock stock, DATETIME dateTime) = (currentSumItemDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumItemAccountADocumentBinLedger 'Остаток на конец, товар' (Stock stock, DATETIME dateTime) = (currentSumItemDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumItemAccountBDocumentBinLedger 'Остаток на начало, товар' (Stock stock, DATE date) = (currentSumItemDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBinItem CHARWIDTH 15;
+
+sumItemAccountADocumentBinLedger 'Остаток на конец, товар' (Stock stock, DATE date) = (currentSumItemDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBinItem  CHARWIDTH 15;
+
+prevSumItemAccountBDocumentBinLedger 'Остаток на начало, товар' (Stock stock, DATETIME dateTime) = PREV(sumItemAccountBDocumentBinLedger(stock, dateTime));
+
+// -------------------------------------- Остатки по суммам (тара) --------------------------------------------- //
+
+currentSumContainerDocumentBinLedger 'Текущий остаток по документам, тара' (stock) = GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF active(ledger)
+    BY stock(ledger);
+sumContainerAccountBDocumentBinLedger 'Остаток на начало, тара' (Stock stock, DATETIME dateTime) = (currentSumContainerDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumContainerAccountADocumentBinLedger 'Остаток на конец, тара' (Stock stock, DATETIME dateTime) = (currentSumContainerDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger)
+        BY stock(ledger)](stock);
+
+sumContainerAccountBDocumentBinLedger 'Остаток на начало, тара' (Stock stock, DATE date) = (currentSumContainerDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBinContainer;
+
+sumContainerAccountADocumentBinLedger 'Остаток на конец, тара' (Stock stock, DATE date) = (currentSumContainerDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+        BY stock(ledger)](stock) IN ledgerBinContainer;
+
+prevSumContainerAccountBDocumentBinLedger (Stock stock, DATETIME dateTime) = PREV(sumContainerAccountBDocumentBinLedger(stock, dateTime));
+
+// -------------------------------------- Подитоги --------------------------------------------- //
+
+subtotalItemIncStockDocumentBinInterval 'Итого с остатком, товар' (Stock stock, DATE dtFrom, DATE dtTo) =
+    sumItemAccountBDocumentBinLedger(stock, dtFrom) (+)
+        sumItemIncStockDocumentBinInterval(stock, dtFrom, dtTo) IN ledgerBinItem  CHARWIDTH 15;
+
+subtotalContainerIncStockDocumentBinInterval 'Итого с остатком, тара' (Stock stock, DATE dtFrom, DATE dtTo) =
+    sumContainerAccountBDocumentBinLedger(stock, dtFrom) (+)
+        sumContainerIncStockDocumentBinInterval(stock, dtFrom, dtTo) IN ledgerBinContainer CHARWIDTH 15;
+
+// -------------------------------------- Формы --------------------------------------------- //
+
+reportBinGroup = DATA LOCAL BinGroup ();
+nameReportBinGroup () = name(reportBinGroup());
+
+changeReportBinGroup (Stock st) {
+    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock[BinGroup](g) == st DO {
+        reportBinGroup() <- g;
+    }
+}
+
+FORM sumStockDocumentBinLedger 'Товарный отчет по подразделениям'
+    OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL,
+        ds = Stock PANEL
+    PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
+    PROPERTIES(ds) SELECTOR name, nameLegalEntity
+    PROPERTIES() nameReportBinGroup ON CHANGE { changeReportBinGroup(ds); }
+
+    PROPERTIES sumAccountBDocumentBinLedger(ds, dtFrom), sumItemAccountBDocumentBinLedger(ds, dtFrom), sumContainerAccountBDocumentBinLedger(ds, dtFrom),
+        sumItemAccountADocumentBinLedger(ds, dtTo), sumContainerAccountADocumentBinLedger(ds, dtTo), sumAccountADocumentBinLedger(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentBinInterval, countOutStockDocumentBinInterval,
+        sumItemIncStockDocumentBinInterval, sumContainerIncStockDocumentBinInterval,
+        subtotalItemIncStockDocumentBinInterval, subtotalContainerIncStockDocumentBinInterval,
+        sumItemOutStockDocumentBinInterval, sumContainerOutStockDocumentBinInterval
+
+    OBJECTS il = IncStockDocumentBinLedger
+    PROPERTIES(il) READONLY isClosed, isPosted, date,
+        iObjName = objectClassName, iDescription = description, nameBinGroup,
+        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        sumItem, sumContainer, sum
+    PROPERTIES(il) EDIT SHOWIF allowedEdit(il) NEWSESSION, close SHOWIF isOpened(il)
+    FILTERS active(il),
+            stock(il) == ds,
+            date(il) >= dtFrom,
+            date(il) <= dtTo,
+            isCompany(ds),
+            binGroup(il) == reportBinGroup() OR NOT reportBinGroup()
+    ORDERS date(il)
+
+    OBJECTS ol = OutStockDocumentBinLedger
+    PROPERTIES(ol) READONLY isClosed, isPosted, date,
+        oObjName = objectClassName, oDescription = description, nameBinGroup,
+        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        sumItem, sumContainer, sum
+    PROPERTIES(ol) EDIT SHOWIF allowedEdit(ol) NEWSESSION, close SHOWIF isOpened(ol)
+    FILTERS active(ol),
+            stock(ol) == ds,
+            date(ol) >= dtFrom,
+            date(ol) <= dtTo,
+            binGroup(ol) == reportBinGroup() OR NOT reportBinGroup()
+    ORDERS date(ol)
+
+    FILTERS accessCompany(currentUser(), ds)
+;
+
+DESIGN sumStockDocumentBinLedger {
+    NEW header {
+        horizontal = TRUE;
+        NEW dates {
+            horizontal = TRUE;
+            caption = 'Даты';
+            MOVE PROPERTY(objFrom) {
+                caption = 'Дата (с)';
+            }
+            MOVE PROPERTY(objTo) {
+                caption = 'Дата (по)';
+            }
+        }
+        NEW department {
+            caption = 'Отдел';
+            MOVE PROPERTY (name(ds)) {
+                caption = 'Название';
+            }
+        }
+        NEW binGroup {
+            caption = 'Подразделение ';
+            MOVE PROPERTY (nameReportBinGroup()) {
+                caption = 'Название';
+            }
+        }
+        NEW legalEntity {
+            caption = 'Организация';
+            MOVE PROPERTY (nameLegalEntity(ds)) {
+                caption = 'Название';
+            }
+        }
+    }
+    NEW print {
+        horizontal = TRUE;
+        caption = 'Печать';
+    }
+
+    NEW sums {
+        caption = 'Суммы';
+        MOVE GROUP(ledgerBinItem,ds);
+        MOVE GROUP(ledgerBinContainer,ds);
+        MOVE GROUP(ledgerBin,ds);
+    }
+
+    NEW topContainer{
+        fill = 1;
+        MOVE BOX(il);
+        MOVE BOX(ol);
+    }
+
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    WMSReports {
+        NEW sumStockDocumentBinLedger;
+    }
+}
+
+// -------------------------------------- Агрегация --------------------------------------------- //
+
+createStockDocumentBinLedger 'Проводить по ТО подразделений' = DATA BOOLEAN (Operation);
+EXTEND FORM operation PROPERTIES createStockDocumentBinLedger(o);
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(createStockDocumentBinLedger(o));
+    }
+}

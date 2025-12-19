@@ -1,6 +1,6 @@
 MODULE PurchaseShipmentBinLedger;
 
-REQUIRE PurchaseShipment, Item, BinLedger, PurchaseBinLedger;
+REQUIRE PurchaseShipment, Item, BinLedger, PurchaseBinLedger, StockDocumentBinLedger;
 
 NAMESPACE Purchase;
 
@@ -25,3 +25,34 @@ EXTEND CLASS ReceivingType {
     inEmptyBin 'В свободную ячейку'
 }
 overInBin (UserInvoiceDetail detail) += (GROUP LAST Bin bin ORDER DESC in(sku(detail), bin), bin WHERE bin IS Bin AND NOT prevCurrentBalance(bin) AND stock(bin)==customerStock(detail)) IF defaultReceivingType()==ReceivingType.inEmptyBin;
+
+//StockDocumentBinLedger
+
+createStockDocumentBinLedger 'Проводить по ТО подразделений' = DATA BOOLEAN (Operation);
+EXTEND FORM operation PROPERTIES createStockDocumentBinLedger(o);
+DESIGN operation {
+    createContainer {
+        MOVE PROPERTY(createStockDocumentBinLedger(o));
+    }
+}
+
+CLASS IncStockDocumentShipmentBinLedger 'Поставка закупка (приход)' : IncStockDocumentBinLedger;
+
+needToCreateIncStockDocumentShipmentBinLedger (Shipment t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
+    (GROUP SUM quantity(ShipmentDetail d) IF shipment(d) == t AND binGroup2(inBin(d)) == g);
+incStockDocumentShipmentBinLedger = AGGR IncStockDocumentShipmentBinLedger WHERE needToCreateIncStockDocumentShipmentBinLedger(Shipment shipment, BinGroup binGroup) MATERIALIZED INDEXED;
+
+dateTime[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += dateTime(shipment(ledger));
+isPosted[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += isPosted(shipment(ledger));
+isClosed[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += isClosed(shipment(ledger));
+number[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += number(shipment(ledger));
+series[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += series(shipment(ledger));
+operation[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += operation(shipment(ledger));
+stock[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += stock(shipment(ledger));
+binGroup[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += binGroup(ledger);
+description[StockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) += description(shipment(ledger));
+
+sumItem[IncStockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(ShipmentDetail d) IF isItem(sku(d)) AND shipment(d) == shipment(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+sumContainer[IncStockDocumentBinLedger] (IncStockDocumentShipmentBinLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(ShipmentDetail d) IF isContainer(sku(d)) AND shipment(d) == shipment(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
