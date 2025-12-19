@@ -63,7 +63,7 @@ FORM exportSaleWithoutKSA
         markingCode = code(lot(positions)) EXTNULL EXTID 'marking_code',
         name = STRING[50](nameSku(positions)) EXTID 'name',
         discount = OVERRIDE discountSum(positions),  0.0 IF positions EXTID 'discount'
-    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) OR ukz(positions) OR lot(positions)
+    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) == TTRUE OR ukz(positions) OR lot(positions)
 ;
 
 ui = DATA LOCAL STRING();
@@ -94,14 +94,14 @@ FORM exportRefundWithoutKSA
 
     OBJECTS positions = ReceiptReturnDetail
     PROPERTIES
-        amount = OVERRIDE fullSum(positions),  0.0 IF positions IS ReceiptSaleDetail EXTID 'amount',
-        ean = OVERRIDE GTIN(sku(positions)), '0' IF positions IS ReceiptSaleDetail EXTID 'ean',
+        amount = OVERRIDE fullSum(positions),  0.0 IF positions IS ReceiptReturnDetail EXTID 'amount',
+        ean = OVERRIDE GTIN(sku(positions)), '0' IF positions IS ReceiptReturnDetail EXTID 'ean',
         markingType = markingType(positions) EXTID 'marking_type',
         ukzCode = ukz(positions) EXTNULL EXTID 'ukz_code',
         productCount = quantity(positions) EXTID 'product_count',
         markingCode = code(lot(positions)) EXTNULL EXTID 'marking_code',
         name = STRING[50](nameSku(positions)) EXTID 'name'
-    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) OR ukz(positions) OR lot(positions), NOT sentRefund(positions)
+    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) == TTRUE OR ukz(positions) OR lot(positions), NOT sentRefund(positions)
 ;
 
 //sentCancel 'Отменен в СККО' (Receipt r) = send(lastSkkoRequest(r, SkkoRequestType.cancel));
@@ -125,7 +125,7 @@ FORM exportCancelWithoutKSA
         productCount = quantity(positions) EXTID 'product_count',
         markingCode = code(lot(positions)) EXTNULL EXTID 'marking_code',
         name = STRING[50](nameSku(positions)) EXTID 'name'
-    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) OR ukz(positions) OR lot(positions)
+    FILTERS receipt(positions) == receipt, lotType(sku(positions)) OR UKZ(sku(positions)) == TTRUE OR ukz(positions) OR lot(positions)
 ;
 
 EXTEND FORM zReports
