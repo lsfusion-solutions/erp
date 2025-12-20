@@ -314,13 +314,16 @@ public class FiscalPirit {
         // для версии 2 - сумма акциза
         // значение признаков: см. описание в протоколе и manual_pirit2f.pdf
 
+        int valueVAT = item.valueVAT != null ? item.valueVAT.intValue() : 0;
+        String numberVAT = valueVAT == 22 ? "10" : valueVAT == 0 ? "3" : "0";
+
         if (versionPirit == 2) {
             sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
-                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
+                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), numberVAT, "0",
                     department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0","0"), true);
         } else {
             sendCommand(serialPort, "42", "Добавить товарную позицию", joinData(trim(item.name, 256), item.barcode,
-                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), "0", "0",
+                    formatBigDecimal(item.quantity), formatBigDecimal(safeAdd(item.price, safeDivide(item.articleDiscSum, item.quantity))), numberVAT, "0",
                     department, "0", "", formatBigDecimal(safeNegate(item.articleDiscSum)), "4", "1", "112", "0"), true);
         }
     }

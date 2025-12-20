@@ -11,8 +11,9 @@ public class ReceiptItem implements Serializable {
     public BigDecimal articleDiscSum;
     public String idLot;
     public String tailLot;
+    public BigDecimal valueVAT;
 
-    public ReceiptItem(BigDecimal price, BigDecimal quantity, String barcode, String name, BigDecimal articleDiscSum, String idLot, String tailLot) {
+    public ReceiptItem(BigDecimal price, BigDecimal quantity, String barcode, String name, BigDecimal articleDiscSum, String idLot, String tailLot, BigDecimal valueVAT) {
         this.price = price;
         this.quantity = quantity;
         this.barcode = barcode;
@@ -20,5 +21,6 @@ public class ReceiptItem implements Serializable {
         this.articleDiscSum = articleDiscSum;
         this.idLot = idLot;
         this.tailLot = tailLot;
+        this.valueVAT = valueVAT;
     }
 }

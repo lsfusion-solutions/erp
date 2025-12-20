@@ -119,11 +119,11 @@ public class FiscalPiritPrintReceiptAction extends DefaultIntegrationAction {
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] receiptDetailNames = new String[]{"nameSkuReceiptDetail", "quantityReceiptDetail", "quantityReceiptSaleDetail",
                         "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
-                        "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail", "typeReceiptDetail",
+                        "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "valueVATReceiptDetail", "typeReceiptDetail",
                         "skuReceiptDetail", "boardNameSkuReceiptDetail", "bonusSumReceiptDetail", "bonusPaidReceiptDetail"};
                 LP[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
                         "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
-                        "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]", "type[ReceiptDetail]",
+                        "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]", "type[ReceiptDetail]",
                         "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "bonusSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
@@ -158,12 +158,14 @@ public class FiscalPiritPrintReceiptAction extends DefaultIntegrationAction {
                     String idLot = (String) receiptDetailValues.get("idLot");
                     String tailLot = (String) receiptDetailValues.get("tailLot");
 
+                    BigDecimal valueVAT = (BigDecimal) receiptDetailValues.get("valueVATReceiptDetail");
+
                     if (quantitySale != null && quantitySale.compareTo(BigDecimal.ZERO) > 0 && !isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail, idLot, tailLot));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantitySale, barcode, name, discountSumReceiptDetail, idLot, tailLot, valueVAT));
                     if (quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0 && isGiftCard)
-                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail, idLot, tailLot));
+                        receiptSaleItemList.add(new ReceiptItem(price, quantity, barcode, "Подарочный сертификат", discountSumReceiptDetail, idLot, tailLot, valueVAT));
                     if (quantityReturn != null && quantityReturn.compareTo(BigDecimal.ZERO) > 0)
-                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail, idLot, tailLot));
+                        receiptReturnItemList.add(new ReceiptItem(price, quantityReturn, barcode, name, discountSumReceiptDetail, idLot, tailLot, valueVAT));
                 }
 
                 if (context.checkApply()) {
