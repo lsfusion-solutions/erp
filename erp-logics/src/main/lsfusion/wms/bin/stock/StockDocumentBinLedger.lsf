@@ -187,6 +187,38 @@ sumAccountADocumentBinLedger 'Остаток на конец' (Stock stock, DATE
     [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
         BY stock(ledger)](stock) IN ledgerBin CHARWIDTH 15;
 
+// -------------------------------------- Остатки по подразделению --------------------------------------------- //
+GROUP ledgerBinGroup 'По подразделению (всего)' : public;
+
+currentSumDocumentBinLedger 'Текущий остаток по документам' (stock) = GROUP SUM sum (StockDocumentBinLedger ledger) IF active(ledger)
+    BY binGroup(ledger);
+
+sumAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger)
+        BY binGroup(ledger)](stock);
+
+sumAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger)
+        BY binGroup(ledger)](stock);
+
+sumAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+        BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+
+sumAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+        BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+
+countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
+        AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
+    BY binGroup(incStockDocumentLedger) IN ledgerBinGroup;
+
+countOutStockDocumentBinInterval 'Количество расходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
+    GROUP SUM 1 IF OutStockDocumentBinLedger outStockDocumentLedger IS OutStockDocumentBinLedger AND active(outStockDocumentLedger)
+        AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
+    BY binGroup(outStockDocumentLedger) IN ledgerBinGroup;
+
 // -------------------------------------- Остатки по суммам (товар) --------------------------------------------- //
 
 currentSumItemDocumentBinLedger 'Текущий остаток по документам, товар' (stock) = GROUP SUM sumItem (StockDocumentBinLedger ledger) IF active(ledger)
@@ -255,10 +287,11 @@ changeReportBinGroup (Stock st) {
 
 FORM sumStockDocumentBinLedger 'Товарный отчет по подразделениям'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL,
-        ds = Stock PANEL
+        ds = Stock PANEL, gr = BinGroup PANEL
     PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
     PROPERTIES(ds) SELECTOR name, nameLegalEntity
     PROPERTIES() nameReportBinGroup ON CHANGE { changeReportBinGroup(ds); }
+    FILTERS gr == reportBinGroup()
 
     PROPERTIES sumAccountBDocumentBinLedger(ds, dtFrom), sumItemAccountBDocumentBinLedger(ds, dtFrom), sumContainerAccountBDocumentBinLedger(ds, dtFrom),
         sumItemAccountADocumentBinLedger(ds, dtTo), sumContainerAccountADocumentBinLedger(ds, dtTo), sumAccountADocumentBinLedger(ds, dtTo)
@@ -266,6 +299,9 @@ FORM sumStockDocumentBinLedger 'Товарный отчет по подразд�
         sumItemIncStockDocumentBinInterval, sumContainerIncStockDocumentBinInterval,
         subtotalItemIncStockDocumentBinInterval, subtotalContainerIncStockDocumentBinInterval,
         sumItemOutStockDocumentBinInterval, sumContainerOutStockDocumentBinInterval
+    PROPERTIES sumAccountBDocumentBinLedger(gr, dtFrom), sumAccountADocumentBinLedger(gr, dtTo)
+    PROPERTIES countIncStockDocumentBinInterval(gr, dtFrom, dtTo), countOutStockDocumentBinInterval(gr, dtFrom, dtTo)
+                
 
     OBJECTS il = IncStockDocumentBinLedger
     PROPERTIES(il) READONLY isClosed, isPosted, date,
@@ -343,6 +379,7 @@ DESIGN sumStockDocumentBinLedger {
         MOVE GROUP(ledgerBinItem,ds);
         MOVE GROUP(ledgerBinContainer,ds);
         MOVE GROUP(ledgerBin,ds);
+        MOVE GROUP(ledgerBinGroup,gr);
     }
 
     NEW topContainer{
