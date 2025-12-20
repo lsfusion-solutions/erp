@@ -128,21 +128,45 @@ FORM itemPrices 'Импорт цен на товары'
 skipUkz = ABSTRACT BOOLEAN (Item);
 valueProp = ABSTRACT CASE STRING (STRING, Item);
 nameProp = ABSTRACT CASE STRING (STRING, Item);
+dropProp = ABSTRACT CASE STRING (STRING, Item);
 
-valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN (OVERRIDE dataGTIN(barcode(i)), GTIN(barcode(i)));
-valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN 'RB_MARK';
+GTINUKM5(Item i) = OVERRIDE dataGTIN(barcode(i)), GTIN(barcode(i));
+RBMark(Item i) =  UKZ(i) == TTRUE AND NOT skipUkz(i);
+
+valueProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN GTINUKM5(i);
+valueProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND RBMark(i) THEN 'RB_MARK';
 valueProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN 'quantity_by_hand';
 
 nameProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item THEN '';
 nameProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND UKZ(i) == TTRUE AND NOT skipUkz(i) THEN '';
 nameProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND requireQuantityManual(i) THEN '';
 
+droppedLoadedGTIN = DATA TBOOLEAN (Item);
+droppedLoadedRBMark= DATA TBOOLEAN (Item);
+droppedLoadedQuantityByHand = DATA TBOOLEAN (Item);
+
+WHEN DROPPED(GTINUKM5(Item i)) AND droppedLoadedGTIN(i) == TFALSE DO {
+    droppedLoadedGTIN(i) <- TTRUE;
+}
+WHEN DROPPED(RBMark(Item i)) AND droppedLoadedRBMark(i) == TFALSE DO {
+    droppedLoadedRBMark(i) <- TTRUE;
+}
+WHEN DROPPED(requireQuantityManual(Item i)) AND droppedLoadedQuantityByHand(i) == TFALSE DO {
+    droppedLoadedQuantityByHand(i) <- TTRUE;
+}
+
+needDropPropertiest(Item i) = droppedLoadedGTIN(i) == TTRUE OR droppedLoadedRBMark(i) == TTRUE OR droppedLoadedQuantityByHand(i) == TTRUE;
+
+dropProp (STRING s, Item i) += WHEN s = 'GTIN' AND i IS Item AND droppedLoadedGTIN(i) == TTRUE THEN 'GTIN';
+dropProp (STRING s, Item i) += WHEN s = 'RB_MARK' AND i IS Item AND droppedLoadedRBMark(i) == TTRUE  THEN 'RB_MARK';
+dropProp (STRING s, Item i) += WHEN s = 'quantity_by_hand' AND i IS Item AND droppedLoadedQuantityByHand(i) == TTRUE  THEN 'quantity_by_hand';
+
 FORM itemProperties 'Дополнительные свойства товаров'
     OBJECTS t = MachineryPriceTransaction
 
     OBJECTS elements = Item
     PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
-        = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'deleted'
+               = IF active(elements) THEN TFALSE EXTID 'deleted'
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Properties(elements)
 
     OBJECTS s = STRING EXTID 'properties'
@@ -158,11 +182,29 @@ FORM itemProperties 'Дополнительные свойства товаро�
     FILTERS v = s
 ;
 
+FORM itemPropertiesDrop 'Дополнительные свойства товаров(удаление)'
+    OBJECTS t = MachineryPriceTransaction
+
+    OBJECTS elements = Item
+    PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'itemId',
+               = IF active(elements) THEN TTRUE EXTID 'deleted'
+    FILTERS skuTransaction(elements, t) AND needDropPropertiest(elements)
+
+    OBJECTS s = STRING EXTID 'properties'
+    PROPERTIES dropProp(s, elements) EXTID 'name',
+        = s EXTID 'id',
+        = TFALSE IF dropProp(s, elements) EXTID 'showToCashier',
+        = TFALSE IF dropProp(s, elements) EXTID 'printOnReceipt'
+    FILTERS dropProp(s, elements)
+
+    OBJECTS v = STRING EXTID 'values'
+    PROPERTIES = nameProp(v, elements) EXTID 'name'
+    PROPERTIES = valueProp(v, elements) EXTID 'id'
+    FILTERS v = s
+;
+
 GROUP attributes;
 GROUP weight;
-
-referenceWeight 'Эталонный вес товара' = DATA NUMERIC[12,3] ();
-overReferenceWeight(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE referenceWeight(), 0;
 
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 overMinDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
@@ -172,6 +214,7 @@ overmaxDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE maxDelta(), 
 
 weightSize (Sku s) = CASE 
     WHEN lowWeight(s) THEN 2
+    WHEN weightControlBypass(s) THEN 3
     ELSE 0
 ;
 
@@ -187,7 +230,6 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
     PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
     
     PROPERTIES(elements) IN weight
-        overReferenceWeight EXTID 'reference_weight',
         overMinDelta EXTID 'min_delta',
         overmaxDelta EXTID 'max_delta'
 
@@ -226,12 +268,33 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         EXPORT itemProperties OBJECTS t = t JSON;
         EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
         fileToString(answer());
-        IF statusHttp() = 200 THEN uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
-        ELSE {
+        IF statusHttp() = 200 THEN {
+            droppedLoadedGTIN(Item i) <- TFALSE IF GTINUKM5(i);
+            droppedLoadedRBMark(Item i) <- TFALSE IF RBMark(i);
+            droppedLoadedQuantityByHand(Item i) <- TFALSE IF requireQuantityManual(i);
+            uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
+        } ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
                 'Ошибка при импорте свойств товаров', resultString()));
             logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте свойств товаров', resultString());
-            APPLY ;
+            APPLY;
+            RETURN;
+        }
+    }
+    IF (GROUP SUM 1 IF needDropPropertiest(Item i) AND skuTransaction(i, t)) THEN {
+        EXPORT itemPropertiesDrop OBJECTS t = t JSON;
+        EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
+        fileToString(answer());
+        IF statusHttp() = 200 THEN {
+            droppedLoadedGTIN(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
+            droppedLoadedRBMark(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
+            droppedLoadedQuantityByHand(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
+            uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
+        } ELSE {
+            addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
+                'Ошибка при импорте удалённых свойств товаров', resultString()));
+            logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте удалённых свойств товаров', resultString());
+            APPLY;
             RETURN;
         }
     }
@@ -323,8 +386,32 @@ stopListImport 'Импорт стоп-листа' () {
     }
 }
 
+//WHEN ([GROUP SUM 1 IF CHANGED(name(Sku s)) OR CHANGED(itemGroup(s)) OR CHANGED(shortNameUOM(s)) OR CHANGED(idBarcode(s))
+//    OR CHANGED(active(s)) OR CHANGED(filterAttribut(s, Attribut a)) BY s](Sku sku)) AND uploadedUkm5(sku) DO {
+//    uploadedUkm5(sku) <- NULL;
+//}
+//
+//WHEN ([GROUP SUM 1 IF CHANGED(id(Barcode b) OR CHANGED(amount(b))) BY b](Barcode barcode)) AND uploadedUkm5(sku(barcode)) DO {
+//    uploadedUkm5(sku(barcode)) <- NULL;
+//}
+//
+//WHEN ([GROUP SUM 1 IF CHANGED(name(ItemGroup g)) OR CHANGED(parent(g)) OR CHANGED(id(g)) OR CHANGED(active(g)) BY g](ItemGroup group))  AND uploadedUkm5(group) DO {
+//    uploadedUkm5(group) <- NULL;
+//}
+//
+//WHEN ([GROUP SUM 1 IF CHANGED(UKZ(Sku s))  OR CHANGED(dataGTIN(barcode(s))) OR CHANGED(GTIN(barcode(s))) OR CHANGED(skipUkz(s))
+//    OR CHANGED(requireQuantityManual(s)) BY s](Sku sku)) AND uploadedUkm5Properties(sku) DO {
+//    uploadedUkm5Properties(sku) <- NULL;
+//}
+//
+//WHEN ([GROUP SUM 1 IF CHANGED(idBarcode(Sku s)) OR CHANGED(active(s)) OR CHANGED(split(s)) OR CHANGED(isCatchWeight(s))
+//    OR CHANGED(weightSize(s)) OR CHANGED(overmaxDelta(s))
+//    OR CHANGED(overMinDelta(s)) BY s](Sku sku)) AND uploadedUkm5Scale(sku) DO {
+//    uploadedUkm5Scale(sku) <- NULL;
+//}
+
 EXTEND FORM integrationData
-    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport(), referenceWeight(), minDelta(), maxDelta();
+    PROPERTIES urlUkm5ServerImport(), urlUkm5ServerExport(), minDelta(), maxDelta();
 
 DESIGN integrationData{
     pane{
@@ -334,7 +421,6 @@ DESIGN integrationData{
             MOVE PROPERTY (urlUkm5ServerExport());
             NEW scale {
                 caption = 'Импорт эталонных весов КВП';
-                MOVE PROPERTY (referenceWeight());
                 MOVE PROPERTY (minDelta());
                 MOVE PROPERTY (maxDelta());
             }
