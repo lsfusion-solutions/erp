@@ -1,0 +1,165 @@
+MODULE QuarantineDashboardBinLedger;
+
+REQUIRE WMSDashboard, BinOrderBinLedger, BinOrderTransferBinLedger, BatchBinLedger, DisparityBinLedger;
+
+NAMESPACE Bin;
+
+@defineBinAttribute(quarantine, 'Карантин');
+
+@defineOperationProperty(quarantine, 'Карантин', paramsContainer);
+
+disparityOperation = DATA Disparity.Operation ();
+nameDisparityOperation 'Операция изменения сортности в карантине' = name(disparityOperation());
+
+quarantineReturnOperation = DATA Bin.Operation ();
+nameQuarantineReturnOperation 'Операция возврата с карантина' = name(quarantineReturnOperation());
+
+EXTEND FORM options
+    PROPERTIES nameDisparityOperation(), nameQuarantineReturnOperation()
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(nameDisparityOperation());
+        MOVE PROPERTY(nameQuarantineReturnOperation());
+    }
+}
+
+in 'Отм.' = DATA LOCAL BOOLEAN (Batch, Bin);
+
+createDisparity 'Изменение сортности' () {
+    NEWSESSION NESTED(in[Batch, Bin]) {
+        IF NOT (GROUP SUM 1 IF in(Batch bt, Bin bin)) THEN {
+            MESSAGE 'Ничего не выбрано' NOWAIT;
+            RETURN;
+        }
+        FOR (GROUP SUM 1 IF in(Batch bt, Bin bin)) NEW dis = UserDisparity DO {
+            operation(dis) <- disparityOperation();
+            stock(dis) <- stock(GROUP MAX Bin bin IF in(Batch bt, bin));
+            date(dis) <- currentDate();
+            time(dis) <- currentTime();
+            FOR in(Batch bt, Bin bin) NEW d = UserDisparityDetail DO {
+                userDisparity(d) <- dis;
+                sku(d) <- sku(bt);
+                batch(d) <- bt;
+                quantity(d) <- currentBalance(bt, bin);
+                inputSku(d) <- sku(bt);
+                bin(d) <- bin;              
+            }
+            SHOW disparity OBJECTS dis=dis DOCKED MANAGESESSION;
+            in(Batch bt, Bin bin) <- NULL;
+        }
+    }
+}
+
+quarantineReturn 'Вернуть с карантина' () {
+    NEWSESSION NESTED(in[Batch, Bin]) {
+        IF NOT (GROUP SUM 1 IF in(Batch bt, Bin bin)) THEN {
+            MESSAGE 'Ничего не выбрано' NOWAIT;
+            RETURN;
+        }
+        FOR (GROUP SUM 1 IF in(Batch bt, Bin bin)) NEW o = UserBinOrder DO {
+            operation(o) <- quarantineReturnOperation();
+            stock(o) <- stock(GROUP MAX Bin bin IF in(Batch bt, bin));
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            FOR in(Batch bt, Bin bin) NEW d = UserBinOrderDetail DO {
+                userBinOrder(d) <- o;
+                sku(d) <- sku(bt);
+                batch(d) <- bt;
+                quantity(d) <- currentBalance(bt, bin);
+                outBin(d) <- bin;
+                inBin(d) <- GROUP LAST outBin(BinLedger l) IF storage(outBin(l)) AND inBin(l)==bin AND sku(l)==sku(bt) ORDER dateTime(l), l;
+            }
+            SHOW userBinOrder OBJECTS o=o DOCKED MANAGESESSION;
+            in(Batch bt, Bin bin) <- NULL;
+        }
+    }    
+}
+
+FORM quarantineDashboard 'Карантин'
+    PROPERTIES() filterBinOrderDateFrom, filterBinOrderDateTo, nameFilterBinOrderStock, nameFilterBinOrderCustomUser, nameFilterBinOrderComputer
+
+    OBJECTS o = BinOrder LAST
+    PROPERTIES (o) READONLYIF isReadonly() BACKGROUND background(o) isClosed, isPosted, number, series, date, time,
+        nameOperation BACKGROUND backgroundOperation(o), nameStock, nameOutBin, nameInBin, note, countBinOrderDetail, 
+        quantityBinOrderDetail, sumGrossWeightBinOrderDetail, quantityBinTransfers, binTransfers
+    PROPERTIES (o) READONLY PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer
+    PROPERTIES (o) NEWSESSION addUserBinOrder = NEW[UserBinOrder], EDIT SHOWIF overShowEdit(o)
+    PROPERTIES (o) PANEL moveUserBinTransfer, copy 
+    PROPERTIES (o) close[UserBinOrder] SHOWIF isOpened[UserBinOrder](o), open SHOWIF isClosed[UserBinOrder](o)
+    PROPERTIES NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o)
+    FILTERS quarantine(operation(o))
+    FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
+
+    OBJECTS t = BinTransfer LAST
+    PROPERTIES (t) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock, nameOutBin, 
+        nameInBin, note, countBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail GRID,
+        descriptionBinOrder, noteBinOrder
+    FILTERS quarantine(operation(t))
+    FILTERS filterDateFrom(t), filterDateTo(t), filterStock(t)
+
+    OBJECTS btb=(bt = Batch, b = Bin)
+    PROPERTIES in(bt, b)
+    PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name, id
+    PROPERTIES(b) READONLY canonicalId
+    PROPERTIES(bt, b) READONLY currentBalance
+    PROPERTIES DRAW btb PANEL TOOLBAR createDisparity(), quarantineReturn() 
+    ORDERS nameSku(bt), name(bt)
+    FILTERS quarantine(b),
+        currentBalance(bt, b)
+;
+
+DESIGN quarantineDashboard {
+    NEW documentContainer BEFORE TOOLBARBOX {
+        fill = 1;
+        tabbed = TRUE;
+        NEW documentsBox {
+            fill = 1;
+            caption = 'Документы';
+            NEW topFilters {
+                caption = 'Фильтры';
+                alignment = STRETCH;
+                NEW topFilters1 {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    MOVE PROPERTY(filterBinOrderDateFrom());
+                    MOVE PROPERTY(filterBinOrderDateTo());
+                    MOVE PROPERTY(nameFilterBinOrderStock());
+                    MOVE PROPERTY(nameFilterBinOrderCustomUser());
+                    MOVE PROPERTY(nameFilterBinOrderComputer()) {tag = '';}
+                }
+                NEW topFilters2 {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                }
+            }
+            MOVE BOX(o) {
+                fill = 1;
+                PROPERTY(moveUserBinTransfer(o)) {caption = 'Создать перемещение';}
+            }
+            NEW tabbedContainer {
+                fill = 2;
+                tabbed = TRUE;
+                MOVE BOX(t);
+                NEW documentHistory {
+                    caption = 'История';
+                    MOVE GROUP(created,o);
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+            }    
+        }
+        MOVE BOX(btb) {caption = 'Товар на карантине';}
+    }
+}    
+
+NAVIGATOR {
+    WMSDashboardNavigator {
+        NEW quarantineDashboard;
+    }
+}

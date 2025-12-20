@@ -30,11 +30,16 @@ noteBinOrder 'Примечание (заказ на перемещение)' (Bi
 
 binOrder(BinTransferDetail d) = binOrder(binTransfer(d)) MATERIALIZED;
 
+EXTEND FORM binTransfers
+    PROPERTIES (o) READONLYIF isReadonly() descriptionBinOrder, noteBinOrder
+;
+
 INDEX binOrder(BinTransferDetail d), sku(d);
 
 notCount 'Не учитывать' = ABSTRACT BOOLEAN (BinTransfer);
 
-quantityBinTransfers 'Перемещения по ячейкам' (binOrder) = GROUP SUM 1 IF isPosted(BinTransfer binTransfer) AND NOT notCount(binTransfer) BY binOrder(binTransfer) MATERIALIZED;
+quantityBinTransfers 'Кол-во перемещений по ячейкам' (binOrder) = 
+    GROUP SUM 1 IF isPosted(BinTransfer binTransfer) AND NOT notCount(binTransfer) BY binOrder(binTransfer) MATERIALIZED;
 
 quantityBinTranferDetail 'Кол-во в перемещениях' = 
     GROUP SUM quantity(BinTransferDetail d) IF isPosted(d) AND NOT notCount(binTransfer(d)) BY sku(d), binOrder(d);
@@ -85,9 +90,10 @@ overFillUserBinTransfer ABSTRACT LIST (UserBinTransfer);
 
 skipCreateUserBinTransferDetais = ABSTRACT BOOLEAN (UserBinTransfer);
 
-moveUserBinTransfer 'Комплектация' (BinOrder binOrder)  {
+moveUserBinTransfer 'Перемещение' (BinOrder binOrder)  {
     NEWSESSION {
         NEW p = UserBinTransfer {
+            operation(p) <- operation(binOrder);
             binOrder(p) <- binOrder;
             stock(p) <- stock(binOrder);
             FOR binOrder(BinOrderDetail detail) == binOrder AND NOT skipCreateUserBinTransferDetais(p) NEW d = UserBinTransferDetail DO {
