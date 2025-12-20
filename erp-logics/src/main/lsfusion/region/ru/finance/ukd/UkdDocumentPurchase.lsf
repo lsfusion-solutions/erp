@@ -18,8 +18,7 @@ overCreateInvoice ABSTRACT (InvoiceCorrection, UkdDocument);
 overCreateInvoice ABSTRACT (InvoiceCorrectionDetail, UkdDocumentDetail);
 
 createInvoice 'Создать корректировка накладной'(UkdDocument ukd){
-    NEWSESSION {
-        FOR numberInvoice(UpdDocument upd) = baseInvoiceNumber(ukd) DO
+        FOR numberInvoice(UpdDocument upd) = baseInvoiceNumber(ukd) AND NOT primaryStatusTextDocument(upd)=='Аннулирован' NOINLINE DO NEWSESSION
             NEW invoice = InvoiceCorrection {
                 ukdDocument(invoice) <- ukd;
                 invoice(invoice) <- invoice(upd);
@@ -50,7 +49,6 @@ createInvoice 'Создать корректировка накладной'(Ukd
                 }
                 SHOW invoiceCorrection OBJECTS i = invoice;
             }
-    }
 }
 
 skipShowCreateInvoice = ABSTRACT BOOLEAN (UkdDocument);
