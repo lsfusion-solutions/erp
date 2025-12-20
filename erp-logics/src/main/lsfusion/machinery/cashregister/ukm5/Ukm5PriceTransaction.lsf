@@ -198,8 +198,8 @@ FORM itemPropertiesDrop 'Дополнительные свойства това�
     FILTERS dropProp(s, elements)
 
     OBJECTS v = STRING EXTID 'values'
-    PROPERTIES = nameProp(v, elements) EXTID 'name'
-    PROPERTIES = valueProp(v, elements) EXTID 'id'
+    PROPERTIES = v EXTID 'name'
+    PROPERTIES = dropProp(v, elements) EXTID 'id'
     FILTERS v = s
 ;
 
@@ -269,9 +269,9 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/itemProperties' PARAMS exportFile() TO answer;
         fileToString(answer());
         IF statusHttp() = 200 THEN {
-            droppedLoadedGTIN(Item i) <- TFALSE IF GTINUKM5(i);
-            droppedLoadedRBMark(Item i) <- TFALSE IF RBMark(i);
-            droppedLoadedQuantityByHand(Item i) <- TFALSE IF requireQuantityManual(i);
+            droppedLoadedGTIN(Item i) <- TFALSE IF GTINUKM5(i) AND skuTransaction(i, t);
+            droppedLoadedRBMark(Item i) <- TFALSE IF RBMark(i) AND skuTransaction(i, t);
+            droppedLoadedQuantityByHand(Item i) <- TFALSE IF requireQuantityManual(i) AND skuTransaction(i, t);
             uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
         } ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
@@ -289,7 +289,6 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
             droppedLoadedGTIN(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
             droppedLoadedRBMark(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
             droppedLoadedQuantityByHand(Item i) <- NULL IF skuTransaction(i, t) AND droppedLoadedGTIN(i) == TTRUE;
-            uploadedUkm5Properties(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Properties(i);
         } ELSE {
             addMachineryError(t, (CONCAT ' : ' , nameGroupMachinery(t),
                 'Ошибка при импорте удалённых свойств товаров', resultString()));
