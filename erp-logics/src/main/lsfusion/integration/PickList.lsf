@@ -116,7 +116,8 @@ departmentItem (DepartmentStore ds) = right(id(ds),3);
 isQuantityItem (Item i) = IF (passScales(i) AND (shortNameUOM(i) == 'кг.' OR id(UOM(i)) == '166' OR id(UOM(i)) == 'Г')) OR split(i) THEN 'False' ELSE 'True';
 activeItem (Item i) = IF active(i) THEN 'True' ELSE 'False';
 
-filterCSOCustom = ABSTRACT BOOLEAN (DepartmentStore,Item);
+filterCSOCustom = ABSTRACT CASE OVERRIDE FIRST BOOLEAN(DepartmentStore,Item);
+filterCSOCustom(DepartmentStore ds, Item i) += WHEN ds IS DepartmentStore AND i IS Item AND (passScales(i) OR split(i)) AND currentBalance(i,ds) THEN TRUE; 
 
 idPickList (Item i) = IF useIdPickList() THEN id(i) ELSE idBarcode(i);
 
