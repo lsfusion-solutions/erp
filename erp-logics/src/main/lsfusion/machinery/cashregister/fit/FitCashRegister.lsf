@@ -227,6 +227,8 @@ receiptString(INTEGER i) = rpad(readedReceiptString(i), 512, ' ');
 fitOverImport ABSTRACT LIST (CashRegister);
 fitOverParse ABSTRACT LIST (CashRegister);
 
+skipCreateDiscountCard = DATA BOOLEAN ();
+
 receiveFromFit (CashRegister cr) {
     TRY {
         fileExists(CONCAT '', pathPut(cr), 'spool.adr');
@@ -239,7 +241,7 @@ receiveFromFit (CashRegister cr) {
                     READ pathGet(cr) + fn TO importFile;
                     IMPORT CSV ' ' NOHEADER NOESCAPE CHARSET 'cp866' FROM importFile() TO readedReceiptString;
                     fitOverImport(cr);
-                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 15, 12)](STRING card) AND NOT card = '000000000000' AND NOT discountNumber(STRING[48](card)) DO NEW c = DiscountCard {
+                    FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 15, 12)](STRING card) AND NOT card = '000000000000' AND NOT discountNumber(STRING[48](card)) AND NOT skipCreateDiscountCard() DO NEW c = DiscountCard {
                         number(c) <- STRING[48](card);
                     }
                     FOR INTEGER line = [GROUP MIN INTEGER k IF left(receiptString(k), 2) = '01' BY substr(receiptString(k), 92, 4)](STRING str) AND NOT zReport(STRING[100](str + substr(receiptString(line), 96, 8) +lpad(STRING(cr), 18, '0'))) DO NEW z = ZReport {
