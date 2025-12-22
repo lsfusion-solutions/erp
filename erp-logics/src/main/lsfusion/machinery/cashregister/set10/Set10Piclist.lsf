@@ -112,7 +112,7 @@ contentCalc (CustomGroupType gt, DepartmentStore ds) = '\{' + (CONCAT ',' ,
     '"sortType": "manual"',
     '"pages": [' + (GROUP CONCAT tilesGroup(gt, INTEGER i, ds) IF iterate(i, 0, maxIndexNULL() / 16), ', ' ORDER i) + ']'
     ) + '\}';
-content   = ABSTRACT  CASE STRING (CustomGroupType, DepartmentStore);
+content  = ABSTRACT  CASE STRING (CustomGroupType, DepartmentStore);
 content (CustomGroupType t, DepartmentStore ds) += WHEN t IS CustomGroupType AND ds IS DepartmentStore THEN STRING (contentCalc(t,ds));
 
 templateGuid 'GUID шаблона пиклиста' = DATA STRING ();
@@ -150,7 +150,10 @@ overSkipExport = ABSTRACT BOOLEAN (STRING, GroupCashRegister);
 extraMenuName = ABSTRACT STRING (CustomGroupType);
 extraFilter = ABSTRACT BOOLEAN (CustomGroupType);
 
-
+CLASS PiclistType{
+    csi 'CSI',
+    touch 'Touch'
+}
 
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT'
@@ -161,11 +164,11 @@ FORM exportCSIformAPI
     PROPERTIES VALUE(cashTemplates) EXTID 'cashTemplates'
 
     OBJECTS dd = (g = GroupCashRegister, type = CustomGroupType) EXTID 'menuTemplates'
-    PROPERTIES = IF isSet10(g) THEN 'CSI_K' EXTID 'cashType',
+    PROPERTIES = IF idStoreSet(g) THEN 'CSI_K' EXTID 'cashType',
         menuName = (CONCAT ' ', ('CSI-K ТО ' + idStoreSet(g)), extraMenuName(type)),
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
         content = content(type, stock(g)) EXTID 'content:escapeInnerJSON'
-    FILTERS isSet10(g), 
+    FILTERS idStoreSet(g) AND active(g), 
             type == customGroupPicListLocal() OR extraFilter(type),
             NOT overSkipExport(templateGuid, g)
 ;
@@ -353,10 +356,6 @@ levelExt (TouchElement child)  = GROUP SUM 1 IF level(child, TouchElement parent
 fillPicList ABSTRACT LIST (DepartmentStore);
 indexExport = DATA LOCAL INTEGER (TouchElement, TouchElement);
 
-CLASS PiclistType{
-    csi 'CSI',
-    touch 'Touch'
-}
 
 typePiclistSet10  = DATA PiclistType (GroupCashRegister);
 nameTypePiclistSet10 'Пиклист' (GroupCashRegister g) = staticCaption(typePiclistSet10(g));
@@ -482,7 +481,7 @@ exportTouchAPI 'Экспорт пиклиста Touch' (GroupCashRegister g){
     exportTouchAPI();
 }
 EXTEND FORM groupCashRegister
-    PROPERTIES exportTouchAPI(grc) SHOWIF isSet10(grc)
+    PROPERTIES exportTouchAPI(grc) SHOWIF isSet10(grc) AND typePiclistSet10(grc) = PiclistType.touch
 ;
 DESIGN groupCashRegister{
     topContainer{
