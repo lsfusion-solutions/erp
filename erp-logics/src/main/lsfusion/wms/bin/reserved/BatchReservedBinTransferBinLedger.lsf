@@ -6,7 +6,8 @@ NAMESPACE Bin;
 
 batch[ReservedBinLedger](BinTransferDetail ledger) += batch(ledger);
 
-CONSTRAINT CHANGED(outBin(UserBinTransferDetail detail)) AND detail IS UserBinTransferDetail AND NOT prevAvailableQuantity(batch(detail), outBin(detail))
+CONSTRAINT CHANGED(outBin(UserBinTransferDetail detail)) AND availableQuantity(batch(detail), outBin(detail)) < 0 AND
+    NOT availableQuantity(batch(detail), outBin(detail)) >= PREV(availableQuantity(batch(detail), outBin(detail))) AND detail IS UserBinTransferDetail
     CHECKED BY outBin[UserBinTransferDetail]
     MESSAGE 'Нет доступного кол-ва партии в ячейке';
 
