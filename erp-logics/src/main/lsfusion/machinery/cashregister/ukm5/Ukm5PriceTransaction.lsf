@@ -206,6 +206,9 @@ FORM itemPropertiesDrop 'Дополнительные свойства това�
 GROUP attributes;
 GROUP weight;
 
+referenceWeight = DATA NUMERIC[12,3] ();
+overReferenceWeight(Sku s) = referenceWeight();
+
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 overMinDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
 
@@ -230,8 +233,9 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
     PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
     
     PROPERTIES(elements) IN weight
-        overMinDelta EXTID 'min_delta',
-        overmaxDelta EXTID 'max_delta'
+        overMinDelta EXTID 'min_delta' EXTNULL,
+        overReferenceWeight EXTID 'reference_weight' EXTNULL, 
+        overmaxDelta EXTID 'max_delta' EXTNULL
 
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements)    
 ;
