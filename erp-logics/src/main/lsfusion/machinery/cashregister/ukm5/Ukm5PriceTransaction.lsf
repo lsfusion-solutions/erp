@@ -221,6 +221,15 @@ weightSize (Sku s) = CASE
     ELSE 0
 ;
 
+
+droppedScale = DATA TBOOLEAN (Item);
+
+WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(split(s)) OR DROPPED(isCatchWeight(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
+    droppedScale(sku) <- TTRUE;
+}
+
+needUpdateScale(Item i) = split(i) OR isCatchWeight(i) OR weightSize(i) > 0 OR droppedScale(i) == TTRUE;
+
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
 
@@ -237,7 +246,7 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
         overReferenceWeight EXTID 'reference_weight' EXTNULL, 
         overmaxDelta EXTID 'max_delta' EXTNULL
 
-    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements)    
+    FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements) AND needUpdateScale(elements)   
 ;
 
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
@@ -301,13 +310,15 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
             RETURN;
         }
     }
-    IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Item i) AND skuTransaction(i, t)) THEN {
+    IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Item i) AND skuTransaction(i, t) AND needUpdateScale(i)) THEN {
         EXPORT importSecurityScale OBJECTS t = t JSON;
         EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
             idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
         fileToString(answer());
-        IF statusHttp() = 200 THEN uploadedUkm5Scale(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Scale(i);
-        ELSE {
+        IF statusHttp() = 200 THEN {
+            uploadedUkm5Scale(Item i) <- TRUE IF skuTransaction(i, t) AND NOT uploadedUkm5Scale(i);
+            droppedScale(Item i) <- TFALSE IF skuTransaction(i, t);
+        } ELSE {
             addMachineryError(t, (CONCAT ' : ', nameGroupMachinery(t),
                 'Ошибка при импорте эталонных весов КВП', resultString()));
             logToFile('ukm5PriceTransaction', CONCAT ': ', 'Ошибка при импорте эталонных весов КВП', resultString());
