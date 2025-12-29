@@ -291,18 +291,11 @@ confirmAcceptedPackage(){
     }
 }
 
-receiptPackage(STRING id, STRING date){
-    LOCAL f = FILE();
-    IF id AND date THEN{
-        EXTERNAL HTTP GET CONCAT '', urlUkm5ServerExport() + '/api/v1/export/receipt/', id, '/', date TO f;
-    }
-    ELSE {
-        EXTERNAL HTTP GET urlUkm5ServerExport() + '/api/v1/export/receiptPackage' TO f;
-    }
-    IMPORT receiveDocs FROM f();
+zReportUkm5 (FILE f) {
+    IMPORT receiveDocs  FROM f;
     LOCAL group = GroupCashRegister(INTEGER);
     group(INTEGER  i) <- (GROUP MAX GroupCashRegister gc IF idStore(gc) = storeId(i) AND isUkm5(gc));
-    
+
     FOR shiftId(INTEGER i) DO{
         IF NOT cashRegisterUkm5(posId(i)) AND group(i) THEN NEW c = CashRegister {
             idUkm5(c) <- STRING[100](posId(i));
@@ -311,21 +304,21 @@ receiptPackage(STRING id, STRING date){
             description(c) <- STRING[200](CONCAT '/', posName(i), INTEGER(posNumber(i)));
         }
         IF NOT zReport(idZReport(i)) THEN NEW z = ZReport{
-            id(z) <- STRING[100](idZReport(i)); 
+            id(z) <- STRING[100](idZReport(i));
             cashRegister(z) <- cashRegisterUkm5(posId(i));
             date(z) <- DATE(dateClose(i));
             number(z) <- STRING[48](shiftNumber(i));
             isPosted(z) <- TRUE;
         }
     }
-    FOR id1(INTEGER i) AND NOT receipt(idReceipt(i)) AND result(i) = 'Completed' 
+    FOR id1(INTEGER i) AND NOT receipt(idReceipt(i)) AND result(i) = 'Completed'
         AND ZReport z = zReport(idZReport(i)) DO NEW r = Receipt{
         id(r) <- STRING[100](idReceipt(i));
         zReport(r) <- z;
         date(r) <- DATE(dateClose(i));
         time(r) <- toTime(dateClose(i));
         number(r) <- number(i);
-        FOR scu(INTEGER j) AND receiptType(i) = 'Sale' AND elementsItems(j) = i 
+        FOR scu(INTEGER j) AND receiptType(i) = 'Sale' AND elementsItems(j) = i
             NEW detail = ReceiptSaleDetail DO{
             receipt(detail) <- r;
             idBarcode(detail) <- STRING[15](OVERRIDE barcode(j), scu(j));
@@ -334,7 +327,7 @@ receiptPackage(STRING id, STRING date){
             price(detail) <- NUMERIC[16,4](amount15(j));
             discountSum(detail) <- NUMERIC[18,4](amount10(j));
         }
-        FOR scu(INTEGER j) AND receiptType(i) = 'RefundOnReceipt' AND elementsItems(j) = i 
+        FOR scu(INTEGER j) AND receiptType(i) = 'RefundOnReceipt' AND elementsItems(j) = i
             NEW detail = ReceiptReturnDetail DO{
             receipt(detail) <- r;
             idBarcode(detail) <- STRING[15](OVERRIDE barcode(j), scu(j));
@@ -345,20 +338,53 @@ receiptPackage(STRING id, STRING date){
         }
         FOR amount4(INTEGER j) AND pType(j) AND elementsPayments(j) = i NEW p = Payment DO{
             receipt(p) <- r;
-            sum(p) <- IF receiptType(i) = 'Sale' THEN NUMERIC[18,4](amount4(j)) 
+            sum(p) <- IF receiptType(i) = 'Sale' THEN NUMERIC[18,4](amount4(j))
                 ELSE -NUMERIC[18,4](amount4(j));
-            paymentType(p) <- CASE 
+            paymentType(p) <- CASE
                 WHEN pType(j) = 'Card' THEN typePaymentSID('card')
-                WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')      
+                WHEN pType(j) = 'Cash' THEN typePaymentSID('cash')
                 WHEN pType(j) = 'Certificate' THEN typePaymentSID('giftcard')
             ;
         }
-    }  
+    }
     APPLY;
     IF NOT canceled() THEN {
         confirmAcceptedPackage();
     }
 }
+
+receiptPackage(STRING id, STRING date){
+    LOCAL f = FILE();
+    IF id AND date THEN{
+        EXTERNAL HTTP GET CONCAT '', urlUkm5ServerExport() + '/api/v1/export/receipt/', id, '/', date TO f;
+    }
+    ELSE {
+        EXTERNAL HTTP GET urlUkm5ServerExport() + '/api/v1/export/receiptPackage' TO f;
+    }
+    zReportUkm5(f());
+}
+
+//-------------------- api/v1/export/receipt ------------------------//
+api_v1_export_receipt(FILE f) {
+    LOCAL elements = JSON (INTEGER);
+    LOCAL ff = FILE(); 
+    fileToString(f);
+    
+    elements(INTEGER i) <- JSON(resultString()) IF i = 1;
+    EXPORT JSON FROM elements = (JSON FROM value = elements(INTEGER i) WHERE i = 1) TO ff;
+    
+    zReportUkm5(ff());
+    APPLY NESTED LOCAL;
+    
+    IF NOT canceled() THEN {
+        statusHttpTo() <- 200;
+        EXPORT JSON FROM result = 'success';
+    } ELSE {
+        statusHttpTo() <- 500;
+        EXPORT JSON FROM result = 'error', descriprion = applyMessage();
+        logToFile('ukm5Receive', CONCAT ':', 'ERROR', applyMessage());
+    }
+}@@api;
 
 receiveReceipts 'Приём реализации УКМ5 (Native)'(){
     TRY{
