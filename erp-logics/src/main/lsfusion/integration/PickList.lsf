@@ -44,9 +44,10 @@ step 'Смещение номеров групп' = DATA INTEGER (DepartmentStor
 overFileName 'Имя файла' = DATA STRING[50](DepartmentStore);
 fileName 'Имя файла' (DepartmentStore ds) = OVERRIDE overFileName(ds), dataFileName(store(ds));
 
-extraId (CustomGroup g, DepartmentStore ds) = IF isLeaf(g) THEN 9 (+) step(ds) (+) (PARTITION SUM 1 IF isLeaf(g) ORDER id(g), g BY customGroupType(g));
+extraId (CustomGroup g, DepartmentStore ds) = IF level(g)>1 THEN 9 (+) step(ds) (+) (PARTITION SUM 1 IF level(g)>1 ORDER level(g), id(g), g BY customGroupType(g));
 
 customGroupExtraId (INTEGER i, DepartmentStore ds) = GROUP LAST CustomGroup g IF extraId(g, ds) == i AND customGroupType(g) == customGroupType(ds) ORDER g;
+parent (INTEGER i, DepartmentStore ds) = GROUP MAX INTEGER ip IF customGroupExtraId(ip, ds) == parent(customGroupExtraId(i, ds));
 
 extraNameEng = ABSTRACT ISTRING[250] (CustomGroup);
 extraNameBlr = ABSTRACT ISTRING[250] (CustomGroup);
@@ -99,7 +100,7 @@ Description (INTEGER g, INTEGER i, DepartmentStore ds) = CASE
     WHEN g == 9 (+) step(ds) AND i IS INTEGER AND ds IS DepartmentStore THEN DescriptionFavorites(i)
     WHEN g <  9 (+) step(ds) AND g > 1 AND i IS INTEGER AND ds IS DepartmentStore THEN STRING[10](g)
     WHEN g == 1 (+) step(ds) AND i IS INTEGER AND ds IS DepartmentStore THEN DescriptionAll(i);
-InCategories (INTEGER g, INTEGER i) = IF i IS INTEGER AND g > 9 THEN '1';
+InCategories (INTEGER g, INTEGER i, DepartmentStore ds) = IF i IS INTEGER AND g > 9 THEN OVERRIDE extraId(parent(g, ds), ds), '1';
 
 LCID (Item s, INTEGER i) = CASE
     WHEN i == 1 AND s IS Item THEN '0419'
@@ -139,7 +140,7 @@ FORM exportPickList FORMEXTID 'PickList'
     FILTERS iterate(gs,1,2)
     
     OBJECTS gl = INTEGER EXTID 'Language' IN Languages
-    PROPERTIES DRAW gl LCID(g,gl) ATTR, Description(g,gl,ds), gScreenTitle = '' EXTID 'ScreenTitle', gInstructions = '' EXTID 'Instructions', InCategories(g,gl)
+    PROPERTIES DRAW gl LCID(g,gl) ATTR, Description(g,gl,ds), gScreenTitle = '' EXTID 'ScreenTitle', gInstructions = '' EXTID 'Instructions', InCategories(g, gl, ds)
     FILTERS Description(g,gl,ds) AND LCID(g,gl)
     
     OBJECTS i = Item EXTID 'Item' IN Items
