@@ -1,6 +1,6 @@
 MODULE PurchaseDemandGestori;
 
-REQUIRE PurchaseDemand, StockReserve, SaleLedger;
+REQUIRE PurchaseDemand, StockReserve, PurchaseAutoOrder;
 
 NAMESPACE Purchase;
 
@@ -176,36 +176,37 @@ quantitySold 'Продано за интервал (кол-во)' (Sku sku, Stoc
         quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND
         NOT (date >= dateFromSkipAverageSold(sku, stock) AND date <= dateToSkipAverageSold(sku, stock)) CHARWIDTH 7;
 
-calcQuantitySoldInterval(DATE dateFrom, DATE dateTo)  {
-    LOCAL balance = NUMERIC[14,3] (Sku, Stock);
-    LOCAL days = INTEGER (Sku, Stock);
-    LOCAL dateCur = DATE();
+daysOnStockGestory(Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = (daysOnStock(sku, stock, dateFrom, dateFromSkipAverageSold(sku, stock)) IF dateFrom < dateFromSkipAverageSold(sku, stock) AND dateFromSkipAverageSold(sku, stock) < dateTo) (+)
+        (daysOnStock(sku, stock, dateToSkipAverageSold(sku, stock), dateTo) IF dateToSkipAverageSold(sku, stock) < dateTo AND dateToSkipAverageSold(sku, stock) > dateFrom);
 
-    dateCur() <- dateFrom;
-    balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
+averageSoldOnStock 'Продаж в день с учетом остатка' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =
+    NUMERIC[14,3](quantitySold(sku, stock, dateFrom, dateTo) / (OVERRIDE daysOnStockGestory(sku, stock, dateFrom, dateTo), daysOnStock(sku, stock, dateFrom, dateTo)));
 
-    WHILE dateCur() <= dateTo DO {
-        days(Sku sku, Stock stock) <- days(sku, stock) (+)
-            (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0) OR (quantitySold(sku, stock, dateCur()) > 0)) AND NOT (dateCur() >= dateFromSkipAverageSold(sku, stock) AND dateCur() <= dateToSkipAverageSold(sku, stock)));
-        balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
-            signedQuantity(sku, stock, dateCur());
-        dateCur() <- sum(dateCur(), 1);
-    }
+calcQuantitySoldIntervalGestori 'Рассчитать однодневные продажи Gestori'()  {
+    IF useDaysChange() THEN
+        averageSold(Sku sku, Stock stock) <- averageSoldOnStock(sku, stock, fromSoldDate(sku), toSoldDate(sku));
+    ELSE
+        averageSold(Sku sku, Stock stock) <- NUMERIC[14,3](quantitySold (sku, stock, fromSoldDate(sku), toSoldDate(sku)) / countSoldDays(skuGroup(sku)));
+    APPLY;
 
-    averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
-}
-calcCurrentQuantitySoldIntervalGestori 'Пересчитать однодневные продажи Gestori'()  {
-    NEWSESSION {
-        EXEC calcQuantitySoldInterval(subtract(currentDate(), skuStockAverageInterval()), subtract(currentDate(), 1));
-        apply();
-    }
+    fromSold() <- GROUP MIN subtract(lastYearCurrent(), countSeason(SkuGroup s));
+    toSold() <- GROUP MAX sum(lastYearCurrent(), countSeason(SkuGroup s)-1);
+
+    coeffSeason(SkuGroup sk) <- max (min([X/Y]([GROUP SUM sumSoldAuto(Sku s, Stock st, lastYearCurrent(), sum(lastYearCurrent(), countSeason(skuGroup(s))-1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk),
+        [GROUP SUM sumSoldAuto(Sku s, Stock st, subtract(lastYearCurrent(), countSeason(skuGroup(s))), subtract(lastYearCurrent(),1)) IF isCompany(st) AND NOT skipCoeffSeason(st) BY skuGroup(s)](sk)), 5), 0.2);
+
+    APPLY;
+
+    dispersionSold(Sku sku, Stock stock) <- sqrt((GROUP SUM sqr((OVERRIDE quantitySold(sku, stock, DATE date) (+) extraQuantitySold(sku, stock, date), 0.0 IF sku IS Sku AND stock IS Stock AND date IS DATE) -  averageSold(sku, stock))
+        IF iterate(date, fromSoldDate(sku), toSoldDate(sku))) / countSoldDays(skuGroup(sku)));
+    APPLY;
 }
 
 EXTEND FORM options
-    PROPERTIES() calcCurrentQuantitySoldIntervalGestori
+    PROPERTIES() calcQuantitySoldIntervalGestori
 ;
 DESIGN options {
-    sale {
-        MOVE PROPERTY(calcCurrentQuantitySoldIntervalGestori());
+    calcQiantitySold {
+        MOVE PROPERTY(calcQuantitySoldIntervalGestori());
     }
 }
