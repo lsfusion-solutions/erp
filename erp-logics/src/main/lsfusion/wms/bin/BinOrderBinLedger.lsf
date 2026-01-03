@@ -56,8 +56,6 @@ balanceB (UserBinOrderDetail binOrderDetail) += balanceB(binOrderDetail);
 
 INDEX outBin(BinOrderDetail d), sku(d);
 
-@setBinDocument(UserBinOrder, stock);
-
 @defineBinDocumentConstraints(userBinOrder);
 
 //todo: вернуть метакод, когда починят баг с тремя ###
@@ -161,13 +159,12 @@ autoCloseBinOrder 'Автоматическое закрытие заказов'
             
 FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinOrder PANEL
-    PROPERTIES (o) nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note, 
-                   nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
+    PROPERTIES (o) nameStock ON CHANGE changeStockCompany(o), nameNumerator, number, series, date, time, note
     PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail, sumGrossWeightUserBinOrderDetail
     PROPERTIES (o) closeDateTime
     
     OBJECTS d = UserBinOrderDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight, balanceB READONLY 
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, sumGrossWeight, balanceB READONLY 
     PROPERTIES (d) NEW, deleteod = DELETE GRID
     PROPERTIES(o) DRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
                            addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
@@ -414,14 +411,29 @@ DESIGN binOrders 'Заказы на перемещение по ячейкам' 
 
 @defineFilterIsOpened (binOrder, binOrders, o);
 
-@defineDocumentLogForm(binOrders, o);
- 
- 
+@defineDocumentLogForm(binOrders, o); 
  
 //Операция
 @defineOperation(' (перемещение по ячейкам)');
 
 @defineOperationRole();
+
+DESIGN operation {
+    tabContainer{
+        NEW showContainer {
+            caption = 'Отображение свойств';
+        }
+        NEW createContainer {
+            caption = 'Производные документы';
+        }
+        NEW constraintContainer {
+            caption = 'Ограничения';
+        }
+        NEW paramsContainer {
+            caption = 'Параметры';
+        }
+    }
+}
 
 defaultBinOperation = DATA Operation();
 nameDefaultBinOperation 'Операция (перемещение по ячейкам) по умолчанию' = name(defaultBinOperation());
@@ -484,10 +496,222 @@ CONSTRAINT operation(BinOrder binOrder) AND isPosted(binOrder)
            AND NOT stock(binOrder) AND needStock(operation(binOrder))
     MESSAGE 'Склад должен быть задан для документа';
 
-
-
 EXTEND FORM operation
     PROPERTIES(o, stc) nameInBin ON CHANGE setInBin(o, stc), nameOutBin ON CHANGE setOutBin(o, stc)
+;
+
+//ячейка в
+inUsageType = DATA UsageType (Operation);
+staticCaptionInUsageType 'Ограничение по типу использования использования (в)' (Operation o) = staticCaption(inUsageType(o));
+
+// Отметка для групп
+dataInBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
+levelParentInBin(Operation operation, BinGroup binGroup)  =
+    GROUP MIN level(binGroup, BinGroup parent) IF dataInBin(parent, operation) MATERIALIZED;
+nearestParentInBinGroup (Operation operation, BinGroup binGroup) = binGroup(binGroup, levelParentInBin(operation, binGroup));
+nearestInBin (BinGroup binGroup, Operation operation) =
+    dataInBin(nearestParentInBinGroup(operation, binGroup), operation) MATERIALIZED;
+
+inBin 'Отм' (BinGroup binGroup, Operation operation) =
+    OVERRIDE dataInBin(binGroup, operation),
+        nearestInBin(binGroup, operation) MATERIALIZED;
+
+// Отметка для ячеек
+dataInBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
+inBin 'Отм' (Bin bin, Operation operation) =
+    OVERRIDE in(bin, inUsageType(operation)),
+        dataInBin(bin, operation) IF NOT inUsageType(operation),
+        inBin(binGroup(bin), operation) IF NOT inUsageType(operation) MATERIALIZED ;
+
+changeInBin (Bin bin, Operation operation) {
+    INPUT b=BOOLEAN DO {
+        dataInBin(bin, operation) <- b;
+    }
+}
+
+CONSTRAINT inBin(Operation operation, Stock st) IS Bin AND NOT inBin(inBin(operation, st), operation)
+    CHECKED BY inBin[Operation, Stock]
+    MESSAGE '"Ячейка (в)" склада по умолчанию должна быть включена в операцию';
+
+quantityChildWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup childGroup, operation) AND isParent(childGroup, group) MATERIALIZED;
+quantityParentWithInBin(BinGroup group, Operation operation)  = GROUP SUM 1 IF dataInBin(BinGroup parentGroup, operation) AND isParent(group, parentGroup) MATERIALIZED;
+
+//ячейка из
+outUsageType = DATA UsageType (Operation);
+staticCaptionOutUsageType 'Ограничение по типу использования (из)' (Operation o) = staticCaption(outUsageType(o));
+
+// Отметка для групп
+dataOutBin 'Отм.' = DATA BOOLEAN (BinGroup, Operation);
+levelParentOutBin(Operation operation, BinGroup binGroup)  =
+    GROUP MIN level(binGroup, BinGroup parent) IF dataOutBin(parent, operation) MATERIALIZED;
+nearestParentOutBinGroup (Operation operation, BinGroup binGroup) = binGroup(binGroup, levelParentOutBin(operation, binGroup));
+nearestOutBin (BinGroup binGroup, Operation operation) =
+    dataOutBin(nearestParentOutBinGroup(operation, binGroup), operation) MATERIALIZED;
+
+outBin 'Отм' (BinGroup binGroup, Operation operation) =
+    OVERRIDE dataOutBin(binGroup, operation),
+        nearestOutBin(binGroup, operation) MATERIALIZED;
+
+// Отметка для ячеек
+dataOutBin 'Отм.' = DATA BOOLEAN (Bin, Operation);
+outBin 'Отм' (Bin bin, Operation operation) =
+    OVERRIDE in(bin, outUsageType(operation)),
+        dataOutBin(bin, operation) IF NOT outUsageType(operation),
+        outBin(binGroup(bin), operation) IF NOT outUsageType(operation) MATERIALIZED;
+
+changeOutBin (Bin bin, Operation operation) {
+    INPUT b=BOOLEAN DO {
+        dataOutBin(bin, operation) <- b;
+    }
+}
+
+CONSTRAINT outBin(Operation operation, Stock st) IS Bin AND NOT outBin(outBin(operation, st), operation)
+    CHECKED BY outBin[Operation, Stock]
+    MESSAGE '"Ячейка (из)" склада по умолчанию должна быть включена в операцию';
+
+levelBinGroup 'Общий родитель заданного уровня' = DATA INTEGER (Operation);
+needIn '"Ячейка (в)" обязательна' = DATA BOOLEAN (Operation);
+needOut '"Ячейка (из)" обязательна' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) levelBinGroup, staticCaptionOutUsageType, staticCaptionInUsageType, needIn, needOut
+
+    TREE inGroupTree inbing = BinGroup PARENT parent(inbing)
+    PROPERTIES READONLY inbingTreeName = name(inbing)
+    PROPERTIES inBin(inbing, o)
+    FILTERS in(stock(inbing), o)
+
+    OBJECTS inbin = Bin
+    PROPERTIES(inbin, o) READONLYIF inUsageType(o) inBin ON CHANGE changeInBin(inbin, o)
+    PROPERTIES(inbin) READONLY order, canonicalId, nameBinGroup, name, id SHOWIF showIDs()
+    ORDERS order(inbin), canonicalId(inbin), name(inbin)
+    FILTERS isParent(inbing, inbin)
+    FILTERGROUP inBinFilters3
+        FILTER 'Показывать отмеченные' inBin(inbin, o)
+
+    TREE outGroupTree outbing = BinGroup PARENT parent(outbing)
+    PROPERTIES READONLY outbingTreeName = name(outbing)
+    PROPERTIES outBin(outbing, o)
+    FILTERS in(stock(outbing), o)
+
+    OBJECTS outbin = Bin
+    PROPERTIES(outbin, o) READONLYIF outUsageType(o) outBin ON CHANGE changeOutBin(outbin, o)
+    PROPERTIES(outbin) READONLY order, canonicalId, nameBinGroup, name, id SHOWIF showIDs()
+    ORDERS order(outbin), canonicalId(outbin), name(outbin)
+    FILTERS isParent(outbing, outbin)
+    FILTERGROUP outBinFilters3
+        FILTER 'Показывать отмеченные' outBin(outbin, o)
+;
+
+DESIGN operation {
+    tabContainer {
+        NEW binContainer{
+            caption = 'Ячейки';
+            fill = 1;
+            NEW outBinContainer {
+                fill = 1;
+                caption = 'Ячейки (из)';
+                MOVE PROPERTY(staticCaptionOutUsageType(o));
+                NEW splitOutBinContainer{
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE BOX(TREE outGroupTree);
+                    MOVE BOX(outbin) {
+                        fill = 3;
+                    }
+                }
+            }
+            NEW inBinContainer {
+                caption = 'Ячейки (в)';
+                MOVE PROPERTY(staticCaptionInUsageType(o));
+                fill = 1;
+                NEW splitInBinContainer{
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE BOX(TREE inGroupTree);
+                    MOVE BOX(inbin) {
+                        fill = 3;
+                    }
+                }
+            }
+            constraintContainer {
+                NEW additionalContainer {
+                    MOVE PROPERTY(levelBinGroup(o));
+                    NEW additionalInOutContainer {
+                        horizontal = TRUE;
+                        MOVE PROPERTY(needOut(o));
+                        MOVE PROPERTY(needIn(o));
+                    }
+                }
+            }
+        }
+    }
+}
+
+CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(inBin(d)) OR CHANGED(outBin(d))) AND levelBinGroup(operation(d)) AND NOT
+    binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) AND
+    inBin(d) AND outBin(d)
+    MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
+
+CONSTRAINT (CHANGED(operation(BinOrder t)) OR CHANGED(inBin(t)) OR CHANGED(outBin(t))) AND levelBinGroup(operation(t)) AND NOT
+    binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) == binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) AND
+    inBin(t) AND outBin(t)
+    MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
+
+CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(inBin(d))) AND inBin(d) AND NOT inBin(inBin(d), operation(d))
+    MESSAGE '"Ячейка (в)" строки перемещения по ячейкам  должна совпадать с отмеченными в операции';
+
+CONSTRAINT (CHANGED(operation(BinOrder t)) OR CHANGED(inBin(t))) AND inBin(t) AND NOT inBin(inBin(t), operation(t))
+    MESSAGE '"Ячейка (в)" документа перемещение по ячейкам  должна совпадать с отмеченными в операции';
+
+CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(outBin(d))) AND outBin(d) AND NOT outBin(outBin(d), operation(d))
+    MESSAGE '"Ячейка (из)" строки перемещения по ячейкам должна совпадать с отмеченными в операции';
+
+CONSTRAINT (CHANGED(operation(BinOrder t)) OR CHANGED(outBin(t))) AND outBin(t) AND NOT outBin(outBin(t), operation(t))
+    MESSAGE '"Ячейка (из)" документа перемещения по ячейкам должна совпадать с отмеченными в операции';
+
+CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR DROPPED(outBin(d)) OR SET(d IS BinOrderDetail)) AND NOT outBin(d) AND needOut(operation(d))
+    MESSAGE '"Ячейка (из)" обязательна для заданной операции перемещения между ячейками';
+
+CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR DROPPED(inBin(d)) OR SET(d IS BinOrderDetail)) AND NOT inBin(d) AND needIn(operation(d))
+    MESSAGE '"Ячейка (в)" обязательна для заданной операции перемещения между ячейками';
+
+extraBinFilter (Bin b, UserBinOrder t) =
+    (levelBinGroup(operation(t)) AND inBin(t) AND binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) = binGroupRoot(binGroup(b), levelBinGroup(operation(t))) OR
+        levelBinGroup(operation(t)) AND outBin(t) AND binGroupRoot(binGroup(b), levelBinGroup(operation(t))) == binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) OR
+        t IS UserBinOrder AND b IS Bin AND (NOT levelBinGroup(operation(t)) OR (NOT inBin(t) AND NOT outBin(t))));
+
+overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
+needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
+extraInBinFilter (Bin b, UserBinOrder t) =
+    needExtraInBinFilter(b, t) AND overExtraInBinFilter(b, t) OR t IS UserBinOrder AND b IS Bin AND NOT needExtraInBinFilter(b, t);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
+extraOutBinFilter (Bin b, UserBinOrder t) =
+    needExtraOutBinFilter(b, t) OR overExtraOutBinFilter(b, t) OR t IS UserBinOrder AND b IS Bin AND NOT needExtraOutBinFilter(b, t);
+
+extraBinFilter (Bin b, UserBinOrderDetail d) =
+    (levelBinGroup(operation(d)) AND inBin(d) AND binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(b), levelBinGroup(operation(d))) OR
+        levelBinGroup(operation(d)) AND outBin(d) AND binGroupRoot(binGroup(b), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) OR
+        d IS UserBinOrderDetail AND b IS Bin AND (NOT levelBinGroup(operation(d)) OR (NOT inBin(d) AND NOT outBin(d))));
+
+overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);
+needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);
+extraInBinFilter (Bin b, UserBinOrderDetail d) =
+    needExtraInBinFilter(b, d) AND overExtraInBinFilter(b, d) OR d IS UserBinOrderDetail AND b IS Bin AND NOT needExtraInBinFilter(b, d);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);
+extraOutBinFilter (Bin b, UserBinOrderDetail d) =
+    needExtraOutBinFilter(b, d) AND overExtraOutBinFilter(b, d) OR d IS UserBinOrderDetail AND b IS Bin AND NOT needExtraOutBinFilter(b, d);
+
+
+@setBinDocumentWithfilter(UserBinOrder, stock);
+
+EXTEND FORM userBinOrder
+    PROPERTIES(o) AFTER note(o) nameInBin ON CHANGE setInBin(o), nameOutBin ON CHANGE setOutBin(o)
+    PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
 ;
 
 @deriveDocumentBins (userBinOrder, userBinOrder, inBin, inBin, outBin, outBin, stock);
@@ -578,23 +802,6 @@ changeAmountPack(Sku sku, UserBinOrder userBinOrder, Stock stock)  {
 }
 
 @extendFormDocumentPackSkuStock(userBinOrder, userBinOrder, o, );
-
-DESIGN operation {
-    tabContainer{
-        NEW showContainer {
-            caption = 'Отображение свойств';
-        }
-        NEW createContainer {
-            caption = 'Производные документы';
-        }       
-        NEW constraintContainer {
-            caption = 'Ограничения';
-        }
-        NEW paramsContainer {
-            caption = 'Параметры';
-        }
-    }
-}
 
 @defineOperationProperty(showPack, 'Упаковка', showContainer);
 

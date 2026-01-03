@@ -26,6 +26,7 @@ DESIGN options {
 }
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Batch, Bin);
+in = GROUP MAX in(Batch batch, Bin bin) BY binGroup2(bin);
 
 createDisparity 'Изменение сортности' () {
     NEWSESSION NESTED(in[Batch, Bin]) {
@@ -91,7 +92,12 @@ FORM quarantineDashboard 'Карантин'
     PROPERTIES NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o)
     FILTERS quarantine(operation(o))
     FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
-
+    
+    OBJECTS d = BinOrderDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameOutBin, nameInBin, quantity, grossWeight, balanceB
+    FILTERS binOrder(d)==o
+    ORDERS index(d)
+    
     OBJECTS t = BinTransfer LAST
     PROPERTIES (t) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock, nameOutBin, 
         nameInBin, note, countBinTransferDetail, quantityBinTransferDetail, sumGrossWeightUserBinTransferDetail GRID,
@@ -99,24 +105,45 @@ FORM quarantineDashboard 'Карантин'
     FILTERS quarantine(operation(t))
     FILTERS filterDateFrom(t), filterDateTo(t), filterStock(t)
 
+    OBJECTS td = BinTransferDetail
+    PROPERTIES (td) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameOutBin, nameInBin, quantity, sumGrossWeight
+    FILTERS binTransfer(td)==t
+    ORDERS index(td)
+
     OBJECTS btb=(bt = Batch, b = Bin)
     PROPERTIES in(bt, b)
     PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name, id
     PROPERTIES(b) READONLY canonicalId
+    PROPERTIES READONLY binZone 'Отдел' = nameBinGroup2(b)
     PROPERTIES(bt, b) READONLY currentBalance
     PROPERTIES DRAW btb PANEL TOOLBAR createDisparity(), quarantineReturn() 
     ORDERS nameSku(bt), name(bt)
     FILTERS quarantine(b),
         currentBalance(bt, b)
+
+    OBJECTS dis=Disparity LAST
+    PROPERTIES (dis) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock, nameOperation
+    PROPERTIES(dis)  READONLY countDisparityDetail, quantityDisparityDetail, sumDisparityDetail,
+        inputQuantityDisparityDetail, inputSumDisparityDetail
+    PROPERTIES (dis) READONLYIF isReadonly() note
+    PROPERTIES(dis)  READONLY PANEL createdNameUser, createdTime, createdHostnameComputer,
+        postedNameUser, postedTime, postedHostnameComputer
+    FILTERS operation(dis) == disparityOperation()
+    
+    OBJECTS ddis=DisparityDetail
+    PROPERTIES(ddis) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, nameBatch, quantity,
+        price, sum, inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku, expiryDateBatch,
+        costBatch, inputQuantity, inputPrice, inputSum
+    FILTERS disparity(ddis) == dis
 ;
 
 DESIGN quarantineDashboard {
     NEW documentContainer BEFORE TOOLBARBOX {
         fill = 1;
         tabbed = TRUE;
-        NEW documentsBox {
+        NEW WMSDocumentsBox {
             fill = 1;
-            caption = 'Документы';
+            caption = 'Документы WMS';
             NEW topFilters {
                 caption = 'Фильтры';
                 alignment = STRETCH;
@@ -142,8 +169,14 @@ DESIGN quarantineDashboard {
                 fill = 2;
                 tabbed = TRUE;
                 MOVE BOX(t);
+                MOVE BOX(d) {
+                    caption = 'Спецификация(заказ на перемещение)';
+                }
+                MOVE BOX(td) {
+                    caption = 'Спецификация(перемещение)';
+                }                
                 NEW documentHistory {
-                    caption = 'История';
+                    caption = 'История(заказ на перемещение)';
                     MOVE GROUP(created,o);
                 }
                 NEW printTab {
@@ -155,6 +188,33 @@ DESIGN quarantineDashboard {
             }    
         }
         MOVE BOX(btb) {caption = 'Товар на карантине';}
+        NEW disparities {
+            caption = 'Изменения сортности';
+            MOVE BOX(dis){
+                fill = 2;
+            }
+            NEW disDocumentDetail {
+                fill = 1;
+                tabbed = TRUE;
+
+                MOVE BOX(ddis) {
+                    caption = 'Спецификация';
+                }
+                NEW disDocumentHistory {
+                    caption = 'История';
+
+                    MOVE GROUP(created,dis);
+                    MOVE GROUP(posted,dis);
+                }
+                NEW disPrintTab {
+                    caption = 'Печатные формы';
+                }
+                NEW disActionContainer {
+                    caption = 'Действия';
+                    horizontal = TRUE;
+                }                
+            }            
+        }
     }
 }    
 
