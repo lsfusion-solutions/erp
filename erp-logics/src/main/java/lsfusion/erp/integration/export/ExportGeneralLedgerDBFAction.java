@@ -195,6 +195,7 @@ public class ExportGeneralLedgerDBFAction extends DefaultExportAction {
         }
 
         File dbfFile = File.createTempFile("export", ".dbf");
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), fields, charset);
 
         List<GeneralLedger> generalLedgerList = new ArrayList<>();

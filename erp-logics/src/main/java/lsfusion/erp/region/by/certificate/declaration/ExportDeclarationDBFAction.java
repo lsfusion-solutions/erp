@@ -296,6 +296,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("decl02", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         String GA = DOP_NOMER + (declaration.number == null ? "" : declaration.number);
@@ -350,6 +351,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("dobl", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         String GA = DOP_NOMER + (declaration.number == null ? "" : declaration.number);
@@ -406,6 +408,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g18", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -418,6 +421,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g20", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
 
         nameValueFieldMap.put("G20I", 1);
@@ -438,6 +442,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g21", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -449,6 +454,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g40", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -461,6 +467,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g44", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (G44Detail dd : g44.g44DetailList) {
 
@@ -497,6 +504,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g47", "dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (DeclarationDetail dd : declaration.declarationDetailList) {
             String percentDuty = dd.percentDuty == null ? null : String.valueOf(dd.percentDuty.intValue());
@@ -541,6 +549,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g313", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         for (DeclarationDetail dd : declaration.declarationDetailList) {
 
@@ -573,6 +582,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("exportGB", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
@@ -584,6 +594,7 @@ public class ExportDeclarationDBFAction extends DefaultExportAction {
 
         File dbfFile = File.createTempFile("g316", ".dbf");
         deleteOnExit(dbfFile);
+        //todo: replace for lsfusion.server.logics.form.stat.struct.export.plain.dbf.DBFWriter after upgrading erp to 6.2
         DBFWriter dbfwriter = new DBFWriter(dbfFile.getAbsolutePath(), dataFields, "CP866");
         dbfwriter.close();
         return dbfFile;
