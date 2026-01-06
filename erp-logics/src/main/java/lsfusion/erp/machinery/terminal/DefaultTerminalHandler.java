@@ -395,12 +395,13 @@ public class DefaultTerminalHandler {
                                 }
                             }
 
-                            for (TerminalOrder order : orderList) {
-                                RawFileData image = orderImages.get(order.barcode);
-                                if (image != null && !usedImages.contains(order.barcode)) {
+                            for (Map.Entry<String, RawFileData> entry : orderImages.entrySet()) {
+                                String fileName = entry.getKey();
+                                RawFileData image = entry.getValue();
+
+                                if (image != null) {
                                     try (InputStream is = image.getInputStream()) {
-                                        writeInputStreamToZip(is, zos, "images/" + order.barcode + ".jpg");
-                                        usedImages.add(order.barcode);
+                                        writeInputStreamToZip(is, zos, "images/" + fileName);
                                     }
                                 }
                             }
