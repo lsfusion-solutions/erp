@@ -118,150 +118,155 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                         processTransactionLogger.info(logPrefix + "creating pos file (Transaction " + transaction.id + ") - " + transaction.itemsList.size() + " items");
 
-                        File tmpFile = File.createTempFile("pos", ".aif");
+                        File tmpFile = File.createTempFile("posTransaction", ".aif");
+                        try {
 
-                        if (transaction.snapshot) {
-                            //items
-                            writeStringToFile(tmpFile, "{\"command\": \"clearInventory\"}\n---\n");
+                            if (transaction.snapshot) {
+                                //items
+                                writeStringToFile(tmpFile, "{\"command\": \"clearInventory\"}\n---\n");
 
-                            //item groups
-                            writeStringToFile(tmpFile, "{\"command\": \"clearInventGroup\"}\n---\n");
+                                //item groups
+                                writeStringToFile(tmpFile, "{\"command\": \"clearInventGroup\"}\n---\n");
 
-                            //UOMs
-                            writeStringToFile(tmpFile, "{\"command\": \"clearUnit\"}\n---\n");
+                                //UOMs
+                                writeStringToFile(tmpFile, "{\"command\": \"clearUnit\"}\n---\n");
 
-                            //scale items
-                            writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
+                                //scale items
+                                writeStringToFile(tmpFile, "{\"command\": \"clearTmcScale\"}\n---\n");
 
-                            //barcodes
-                            writeStringToFile(tmpFile, "{\"command\": \"clearBarcode\"}\n---\n");
+                                //barcodes
+                                writeStringToFile(tmpFile, "{\"command\": \"clearBarcode\"}\n---\n");
 
-                            if(isExportSoftCheckItem) {
-                                //искуственный товар для мягких чеков
-                                writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
+                                if (isExportSoftCheckItem) {
+                                    //искуственный товар для мягких чеков
+                                    writeStringToFile(tmpFile, getAddInventItemSoftJSON() + "\n---\n");
+                                }
+
+                                if (medicineMode) {
+                                    writeStringToFile(tmpFile, "{\"command\": \"clearMedicine\"}\n---\n");
+                                }
                             }
 
-                            if(medicineMode) {
-                                writeStringToFile(tmpFile, "{\"command\": \"clearMedicine\"}\n---\n");
-                            }
-                        }
-
-                        List<String> batchItems = new ArrayList<>();
-                        if(medicineMode) {
-                            for (CashRegisterItem item : transaction.itemsList) {
-                                if (item.batchList != null) {
-                                    for (CashRegisterItemBatch batch : item.batchList) {
-                                        String country = getAddCountryJSON(batch);
-                                        if (country != null) {
-                                            writeStringToFile(tmpFile, country + "\n---\n");
-                                        }
-                                        String medicine = getAddMedicineJSON(item, batch, appendBarcode, medicineModeNewScheme);
-                                        if (medicine != null) {
-                                            batchItems.add(item.mainBarcode);
-                                            writeStringToFile(tmpFile, medicine + "\n---\n");
+                            List<String> batchItems = new ArrayList<>();
+                            if (medicineMode) {
+                                for (CashRegisterItem item : transaction.itemsList) {
+                                    if (item.batchList != null) {
+                                        for (CashRegisterItemBatch batch : item.batchList) {
+                                            String country = getAddCountryJSON(batch);
+                                            if (country != null) {
+                                                writeStringToFile(tmpFile, country + "\n---\n");
+                                            }
+                                            String medicine = getAddMedicineJSON(item, batch, appendBarcode, medicineModeNewScheme);
+                                            if (medicine != null) {
+                                                batchItems.add(item.mainBarcode);
+                                                writeStringToFile(tmpFile, medicine + "\n---\n");
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        //items
-                        if(useBarcodeAsId && !useBarcodeAsIdSpecialMode) {
-                            for (CashRegisterItem item : transaction.itemsList) {
-                                if (!skipItem(item, medicineMode)) {
-                                    List<CashRegisterItem> items = new ArrayList<>();
-                                    items.add(item);
-                                    String inventItem = getAddInventItemJSON(transaction, batchItems, item.idBarcode, items, appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, item.idBarcode);
+                            //items
+                            if (useBarcodeAsId && !useBarcodeAsIdSpecialMode) {
+                                for (CashRegisterItem item : transaction.itemsList) {
+                                    if (!skipItem(item, medicineMode)) {
+                                        List<CashRegisterItem> items = new ArrayList<>();
+                                        items.add(item);
+                                        String inventItem = getAddInventItemJSON(transaction, batchItems, item.idBarcode, items, appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, item.idBarcode);
+                                        if (inventItem != null) {
+                                            writeStringToFile(tmpFile, inventItem + "\n---\n");
+                                        } else {
+                                            processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + item.idBarcode);
+                                        }
+                                    }
+                                }
+                            } else {
+                                Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
+                                for (CashRegisterItem item : transaction.itemsList) {
+                                    if (!skipItem(item, medicineMode)) {
+                                        List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
+                                        if (items == null)
+                                            items = new ArrayList<>();
+                                        items.add(item);
+                                        barcodeMap.put(item.mainBarcode, items);
+                                    }
+                                }
+
+                                for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
+                                    CashRegisterItem item = barcodeEntry.getValue().get(0);
+                                    String mainBarcode = barcodeEntry.getKey();
+                                    String idItem = useBarcodeAsId && useBarcodeAsIdSpecialMode ? mainBarcode : trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
+                                    String inventItem = getAddInventItemJSON(transaction, batchItems, mainBarcode, barcodeEntry.getValue(), appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, idItem);
                                     if (inventItem != null) {
                                         writeStringToFile(tmpFile, inventItem + "\n---\n");
                                     } else {
-                                        processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + item.idBarcode);
+                                        //сейчас inventItem == null только при отсутствии UOM
+                                        processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + mainBarcode);
                                     }
                                 }
                             }
-                        } else {
-                            Map<String, List<CashRegisterItem>> barcodeMap = new HashMap<>();
+
+                            //item groups
+                            Set<String> usedItemGroups = new HashSet<>();
                             for (CashRegisterItem item : transaction.itemsList) {
                                 if (!skipItem(item, medicineMode)) {
-                                    List<CashRegisterItem> items = barcodeMap.get(item.mainBarcode);
-                                    if (items == null)
-                                        items = new ArrayList<>();
-                                    items.add(item);
-                                    barcodeMap.put(item.mainBarcode, items);
-                                }
-                            }
-
-                            for (Map.Entry<String, List<CashRegisterItem>> barcodeEntry : barcodeMap.entrySet()) {
-                                CashRegisterItem item = barcodeEntry.getValue().get(0);
-                                String mainBarcode = barcodeEntry.getKey();
-                                String idItem = useBarcodeAsId && useBarcodeAsIdSpecialMode ? mainBarcode : trim(item.idItem != null ? item.idItem : item.idBarcode, 20);
-                                String inventItem = getAddInventItemJSON(transaction, batchItems, mainBarcode, barcodeEntry.getValue(), appendBarcode, doubleBarcodes, medicineMode, medicineModeNewScheme, russian, idItem);
-                                if (inventItem != null) {
-                                    writeStringToFile(tmpFile, inventItem + "\n---\n");
-                                } else {
-                                    //сейчас inventItem == null только при отсутствии UOM
-                                    processTransactionLogger.error(logPrefix + "NO UOM! inventItem record not created for barcode " + mainBarcode);
-                                }
-                            }
-                        }
-
-                        //item groups
-                        Set<String> usedItemGroups = new HashSet<>();
-                        for (CashRegisterItem item : transaction.itemsList) {
-                            if (!skipItem(item, medicineMode)) {
-                                List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
-                                if (hierarchyItemGroup != null) {
-                                    for (ItemGroup itemGroup : hierarchyItemGroup) {
-                                        if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
-                                            String inventGroup = getAddInventGroupJSON(itemGroup);
-                                            if (inventGroup != null)
-                                                writeStringToFile(tmpFile, inventGroup + "\n---\n");
-                                            usedItemGroups.add(itemGroup.extIdItemGroup);
+                                    List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.extIdItemGroup);
+                                    if (hierarchyItemGroup != null) {
+                                        for (ItemGroup itemGroup : hierarchyItemGroup) {
+                                            if (!usedItemGroups.contains(itemGroup.extIdItemGroup)) {
+                                                String inventGroup = getAddInventGroupJSON(itemGroup);
+                                                if (inventGroup != null)
+                                                    writeStringToFile(tmpFile, inventGroup + "\n---\n");
+                                                usedItemGroups.add(itemGroup.extIdItemGroup);
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        //Tax groups
-                        Set<BigDecimal> usedTaxGroups = new HashSet<>();
-                        for (CashRegisterItem item : transaction.itemsList) {
-                            if (!skipItem(item, medicineMode)) {
-                                if (item.vat != null && !usedTaxGroups.contains(item.vat)) {
-                                    String group = getAddTaxGroup(item);
-                                    if (group != null)
-                                        writeStringToFile(tmpFile, group + "\n---\n");
-                                    usedTaxGroups.add(item.vat);
+                            //Tax groups
+                            Set<BigDecimal> usedTaxGroups = new HashSet<>();
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if (!skipItem(item, medicineMode)) {
+                                    if (item.vat != null && !usedTaxGroups.contains(item.vat)) {
+                                        String group = getAddTaxGroup(item);
+                                        if (group != null)
+                                            writeStringToFile(tmpFile, group + "\n---\n");
+                                        usedTaxGroups.add(item.vat);
+                                    }
                                 }
                             }
-                        }
 
-                        //UOMs
-                        Set<String> usedUOMs = new HashSet<>();
-                        for (CashRegisterItem item : transaction.itemsList) {
-                            if (!skipItem(item, medicineMode)) {
-                                if (!usedUOMs.contains(item.idUOM)) {
-                                    String unit = getAddUnitJSON(item);
-                                    if (unit != null)
-                                        writeStringToFile(tmpFile, unit + "\n---\n");
-                                    usedUOMs.add(item.idUOM);
+                            //UOMs
+                            Set<String> usedUOMs = new HashSet<>();
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if (!skipItem(item, medicineMode)) {
+                                    if (!usedUOMs.contains(item.idUOM)) {
+                                        String unit = getAddUnitJSON(item);
+                                        if (unit != null)
+                                            writeStringToFile(tmpFile, unit + "\n---\n");
+                                        usedUOMs.add(item.idUOM);
+                                    }
                                 }
                             }
-                        }
 
-                        //scale items
-                        for (CashRegisterItem item : transaction.itemsList) {
-                            if (!skipItem(item, medicineMode) && item.passScalesItem) {
-                                String idBarcode = getIdBarcode(item);
-                                if(idBarcode != null) {
-                                    writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
+                            //scale items
+                            for (CashRegisterItem item : transaction.itemsList) {
+                                if (!skipItem(item, medicineMode) && item.passScalesItem) {
+                                    String idBarcode = getIdBarcode(item);
+                                    if (idBarcode != null) {
+                                        writeStringToFile(tmpFile, getAddTmcScaleJSON(transaction, item, idBarcode) + "\n---\n");
+                                    }
                                 }
                             }
+
+                            writeFileAndWait(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, timeout, processTransactionLogger);
+
+                            result.put(transaction.id, new SendTransactionBatch(null));
+                        } finally {
+                            if(tmpFile.exists())
+                                safeDelete(tmpFile);
                         }
-
-                        writeFileAndWait(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, timeout, processTransactionLogger);
-
-                        result.put(transaction.id, new SendTransactionBatch(null));
                     }
                 } catch (Exception e) {
                     processTransactionLogger.error(logPrefix, e);
@@ -299,17 +304,21 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             List<File> files = new ArrayList<>();
             for (String directory : directorySet) {
                 processStopListLogger.info(logPrefix + String.format("start sending %s items to %s", stopListInfo.stopListItemMap.size(), directory));
-                File tmpFile = File.createTempFile("pos", ".aif");
+                File tmpFile = File.createTempFile("posStopList", ".aif");
+                try {
+                    for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
+                        ItemInfo item = entry.getValue();
+                        String inventItem = getDeleteInventItemJSON(item, useBarcodeAsId);
+                        writeStringToFile(tmpFile, inventItem + "\n---\n");
+                    }
 
-                for (Map.Entry<String, StopListItem> entry : stopListInfo.stopListItemMap.entrySet()) {
-                    ItemInfo item = entry.getValue();
-                    String inventItem = getDeleteInventItemJSON(item, useBarcodeAsId);
-                    writeStringToFile(tmpFile, inventItem + "\n---\n");
+                    Pair<File, File> fileWithFlag = writeFileWithFlag(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, processStopListLogger);
+                    files.add(fileWithFlag.first);
+                    files.add(fileWithFlag.second);
+                } finally {
+                    if (tmpFile.exists())
+                        safeDelete(tmpFile);
                 }
-
-                Pair<File, File> fileWithFlag = writeFileWithFlag(directory, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, processStopListLogger);
-                files.add(fileWithFlag.first);
-                files.add(fileWithFlag.second);
             }
             Set<String> failedStockSet = new HashSet<>();
             String error = waitForDeletion(files, timeout, false);
@@ -1401,40 +1410,43 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
 
                         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
                         File file = new File(globalExchangeDirectory + "/pos" + currentTime + ".aif");
-                        File tmpFile = File.createTempFile("pos",".aif");
-                        machineryExchangeLogger.info(logPrefix + "creating discountCards file " + file.getAbsolutePath());
+                        File tmpFile = File.createTempFile("posDiscountCard",".aif");
+                        try {
+                            machineryExchangeLogger.info(logPrefix + "creating discountCards file " + file.getAbsolutePath());
 
-                        for (DiscountCard d : discountCardList) {
-                            if(d.idDiscountCardType != null) {
-                                boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
-                                writeStringToFile(tmpFile, getAddCardJSON(d, active) + "\n---\n");
-                            }
-                        }
-
-                        Set<String> usedGroups = new HashSet<>();
-                        for (DiscountCard d : discountCardList) {
-                            if (d.idDiscountCardType != null && !usedGroups.contains(d.idDiscountCardType)) {
-                                usedGroups.add(d.idDiscountCardType);
-                                writeStringToFile(tmpFile, getAddCardGroupJSON(d) + "\n---\n");
-                            }
-                            JSONObject infoJSON = getExtInfo(d.extInfo);
-                            if (infoJSON != null) {
-                                if(infoJSON.optBoolean("ChangeCardAccount")) {
-                                    writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
-                                }
-                            }
-                        }
-
-                        if(exportClients) {
                             for (DiscountCard d : discountCardList) {
-                                if (d.numberDiscountCard != null) {
-                                    writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
+                                if (d.idDiscountCardType != null) {
+                                    boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && !d.dateFromDiscountCard.isBefore(requestExchange.startDate));
+                                    writeStringToFile(tmpFile, getAddCardJSON(d, active) + "\n---\n");
                                 }
                             }
-                        }
 
-                        FileCopyUtils.copy(tmpFile, file);
-                        safeDelete(tmpFile);
+                            Set<String> usedGroups = new HashSet<>();
+                            for (DiscountCard d : discountCardList) {
+                                if (d.idDiscountCardType != null && !usedGroups.contains(d.idDiscountCardType)) {
+                                    usedGroups.add(d.idDiscountCardType);
+                                    writeStringToFile(tmpFile, getAddCardGroupJSON(d) + "\n---\n");
+                                }
+                                JSONObject infoJSON = getExtInfo(d.extInfo);
+                                if (infoJSON != null) {
+                                    if (infoJSON.optBoolean("ChangeCardAccount")) {
+                                        writeStringToFile(tmpFile, getAddChangeCardAccountJSON(d) + "\n---\n");
+                                    }
+                                }
+                            }
+
+                            if (exportClients) {
+                                for (DiscountCard d : discountCardList) {
+                                    if (d.numberDiscountCard != null) {
+                                        writeStringToFile(tmpFile, getAddClientJSON(d) + "\n---\n");
+                                    }
+                                }
+                            }
+
+                            FileCopyUtils.copy(tmpFile, file);
+                        } finally {
+                            safeDelete(tmpFile);
+                        }
 
                         File flagFile = new File(globalExchangeDirectory + "/pos" + currentTime + ".flz");
                         if (!flagFile.createNewFile())
@@ -1526,28 +1538,28 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             File directory = new File(globalExchangeDirectory);
             if (directory.exists() || directory.mkdirs()) {
                 try {
-
-                    File tmpFile = File.createTempFile("pos", ".aif");
-
                     String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-                    File file = new File(directory + "/pos" + currentTime + ".aif");
 
-                    machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
+                    File tmpFile = File.createTempFile("posCashierInfo", ".aif");
+                    try {
+                        File file = new File(directory + "/pos" + currentTime + ".aif");
+                        machineryExchangeLogger.info(logPrefix + "creating cashiers file " + file.getAbsolutePath());
+                        for (CashierInfo cashier : cashierInfoList) {
+                            writeStringToFile(tmpFile, getAddMCashUserJSON(cashier, useNamePositionInRankCashier) + "\n---\n");
+                        }
 
-                    for (CashierInfo cashier : cashierInfoList) {
-                        writeStringToFile(tmpFile, getAddMCashUserJSON(cashier, useNamePositionInRankCashier) + "\n---\n");
+                        FileCopyUtils.copy(tmpFile, file);
+
+
+                        File flagFile = new File(directory + "/pos" + currentTime + ".flz");
+                        if (!flagFile.createNewFile())
+                            processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
+
+                        machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
+                        waitForDeletion(file, flagFile, timeout);
+                    } finally {
+                        safeDelete(tmpFile);
                     }
-
-                    FileCopyUtils.copy(tmpFile, file);
-                    safeDelete(tmpFile);
-
-                    File flagFile = new File(directory + "/pos" + currentTime + ".flz");
-                    if (!flagFile.createNewFile())
-                        processTransactionLogger.info(String.format(logPrefix + "can't create flag file %s", flagFile.getAbsolutePath()));
-
-                    machineryExchangeLogger.info(logPrefix + "waiting for deletion of cashiers file " + file.getAbsolutePath());
-                    waitForDeletion(file, flagFile, timeout);
-
                 } catch (JSONException e) {
                     throw Throwables.propagate(e);
                 }
@@ -2179,20 +2191,26 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
             if (!scalesBarcodeList.isEmpty()) {
                 try {
                     deleteBarcodeLogger.info(logPrefix + String.format("start sending %s items to %s", scalesBarcodeList.size(), deleteBarcodeInfo.directoryGroupMachinery));
-                    File tmpFile = File.createTempFile("pos", ".aif");
+                    File tmpFile = File.createTempFile("posDeleteBarcode", ".aif");
+                    try {
 
-                    for (CashRegisterItem item : scalesBarcodeList) {
-                        String idBarcode = getIdBarcode(item);
-                        if(idBarcode != null) {
-                            writeStringToFile(tmpFile, getDeleteTmcScaleJSON(item, idBarcode) + "\n---\n");
+                        for (CashRegisterItem item : scalesBarcodeList) {
+                            String idBarcode = getIdBarcode(item);
+                            if (idBarcode != null) {
+                                writeStringToFile(tmpFile, getDeleteTmcScaleJSON(item, idBarcode) + "\n---\n");
+                            }
+                        }
+                        Pair<File, File> fileWithFlag = writeFileWithFlag(deleteBarcodeInfo.directoryGroupMachinery, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, deleteBarcodeLogger);
+                        List<File> files = new ArrayList<>();
+                        files.add(fileWithFlag.first);
+                        files.add(fileWithFlag.second);
+
+                        waitForDeletion(files, timeout, true);
+                    } finally {
+                        if(tmpFile.exists()) {
+                            safeDelete(tmpFile);
                         }
                     }
-                    Pair<File, File> fileWithFlag = writeFileWithFlag(deleteBarcodeInfo.directoryGroupMachinery, copyTransactionsToGlobalExchangeDirectory ? globalExchangeDirectory : null, tmpFile, deleteBarcodeLogger);
-                    List<File> files = new ArrayList<>();
-                    files.add(fileWithFlag.first);
-                    files.add(fileWithFlag.second);
-
-                    waitForDeletion(files, timeout, true);
                 } catch (Exception e) {
                     throw Throwables.propagate(e);
                 }
