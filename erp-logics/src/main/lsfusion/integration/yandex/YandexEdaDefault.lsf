@@ -39,12 +39,13 @@ currentPrice(Item i, DepartmentStore d) += customCurrentPrice(i, d);
 
 useCustomAvailable = ABSTRACT BOOLEAN ();
 customAvailable  = ABSTRACT CASE NUMERIC[16,5](Item, DepartmentStore);
+useMinBalance = ABSTRACT BOOLEAN (Item, DepartmentStore);
 
 available(Item i, DepartmentStore d) += IF useCustomAvailable() THEN (OVERRIDE customAvailable(i, d), 0) ELSE
         NUMERIC[16,5](OVERRIDE currentBalance(i, d), 0);
 
 inOnlineYandex(Item i, DepartmentStore d) +=
-    WHEN customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i) AND d IS DepartmentStore
+    WHEN customGroup[Stock.CustomGroupType,Item.Item](yandexGroupType(), i) AND d IS DepartmentStore AND NOT useMinBalance(i, d)
     THEN TRUE;
 onlineCategory(Group g) += WHEN g IS CustomGroup AND customGroupType(g) = yandexGroupType() THEN TRUE;
 
