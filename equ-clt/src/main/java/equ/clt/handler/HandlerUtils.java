@@ -109,10 +109,12 @@ public class HandlerUtils {
     }
 
     public static void copyWithTimeout(File sourceFile, File destinationFile) {
-        copyWithTimeout(sourceFile, destinationFile, 60000);
+        copyWithTimeout(sourceFile, destinationFile, false);
     }
-
-    public static void copyWithTimeout(File sourceFile, File destinationFile, long timeout) {
+    public static void copyWithTimeout(File sourceFile, File destinationFile, boolean deleteSourceFile) {
+        copyWithTimeout(sourceFile, destinationFile, 60000, deleteSourceFile);
+    }
+    public static void copyWithTimeout(File sourceFile, File destinationFile, long timeout, boolean deleteSourceFile) {
         final Future future = Executors.newSingleThreadExecutor().submit(() -> {
             try {
                 FileCopyUtils.copy(sourceFile, destinationFile);
@@ -126,6 +128,10 @@ public class HandlerUtils {
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
             future.cancel(true);
             throw new RuntimeException(String.format("Failed to copy file from %s to %s: %s", sourceFile.getAbsolutePath(), destinationFile.getAbsolutePath(), nvl(e.getMessage(), e.toString())), e);
+        } finally {
+            if (deleteSourceFile) {
+                safeDelete(sourceFile);
+            }
         }
     }
 

@@ -346,14 +346,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
     public Pair<File, File> writeFileWithFlag(String directory, String copyDirectory, File tmpFile, Logger logger) throws IOException {
         String currentTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         File file = new File(directory + "/pos" + currentTime + ".aif");
-
-        try {
-            copyWithTimeout(tmpFile, file);
-            if(copyDirectory != null) {
-                copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"));
-            }
-        } finally {
-            safeDelete(tmpFile);
+        copyWithTimeout(tmpFile, file, copyDirectory == null);
+        if(copyDirectory != null) {
+            copyWithTimeout(tmpFile, new File(copyDirectory + "/pos" + currentTime + ".aif"), true);
         }
 
         File flagFile = new File(directory + "/pos" + currentTime + ".flz");
