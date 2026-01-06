@@ -27,9 +27,9 @@ countAccessCompanyBinZones 'Кол-во доступных зон (компан�
 countAccessCompanyBinZones 'Кол-во доступных зон (компания)' (Employee employee, Stock st) =
     GROUP SUM 1 IF accessCompany(employee, BinGroup bg) IF level(bg) = 2 AND stock(bg) = st;
 defaultCompanyBinZone (Employee employee) =
-    GROUP MIN  BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2;
+    GROUP MIN BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2;
 defaultCompanyBinZone (Employee employee, Stock st) =
-    GROUP MIN  BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st;
+    GROUP MIN BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st;
 
 companyZones 'Зоны (компания)' (Employee employee) = ISTRING[2000](GROUP
     CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2, ', '
@@ -38,8 +38,33 @@ companyZones 'Зоны (компания)' (Employee employee, Stock st) = ISTRI
     CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st, ', '
     ORDER name(bg)) CHARWIDTH 20;
 
-filterBinZone (Sku s) = [GROUP SUM 1 IF currentBalance(Sku s1, Bin b) BY s1, binGroup(b)](s, filterBinZone()) 
-    OR (s IS Stock AND NOT filterBinZone());   
+dataBinZone = DATA BinGroup (Employee);
+binZone (Employee e) = OVERRIDE dataBinZone(e), defaultCompanyBinZone(e) IF countAccessCompanyBinZones(e) == 1 MATERIALIZED;
+idBinZone 'Основная зона' (Employee e) = canonicalId(binZone(e));
+nameBinZone 'Основная зона' (Employee e) = name(binZone(e));
+
+WHEN SETCHANGED(BinGroup bg = binZone(Employee e)) AND NOT accessCompany(e, bg) DO {
+    accessCompany(e, bg) <- TRUE;
+}
+
+CONSTRAINT BinGroup bg == dataBinZone(Employee e) AND NOT accessCompany(e, bg) 
+    CHECKED BY dataBinZone[Employee] MESSAGE 'Не разрешен доступ к зоне выбранной в качестве основной';
+
+EXTEND FORM employees 
+    PROPERTIES(e) READONLY nameBinZone
+;
+
+EXTEND FORM employee
+    PROPERTIES nameBinZone(e) ON CHANGE {DIALOG dialogBinZones OBJECTS g=binZone(e) INPUT NULL DO {dataBinZone(e) <- g;}}
+;
+
+DESIGN employee {
+    pane {
+        binContainer {
+            MOVE PROPERTY(nameBinZone(e)) BEFORE PROPERTY(limitAccessCompanyStocksBin(e));
+        }
+    }    
+}
 
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
@@ -66,7 +91,7 @@ EXTEND FORM currentBalanceSkuStock
 
     EVENTS ON CHANGE ss {
         IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);
+            filterBinZone() <- OVERRIDE binZone(currentUser()), defaultCompanyBinZone(currentUser(), ss);
         } ELSE {
             filterBinZone() <- NULL;
         }
