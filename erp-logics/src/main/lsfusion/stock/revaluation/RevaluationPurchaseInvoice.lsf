@@ -1,7 +1,7 @@
 MODULE RevaluationPurchaseInvoice;
 
 REQUIRE RevaluationManufacturingPrice, PurchaseInvoice, PurchaseShipment, PurchaseDeclarationDetail, 
-        PurchaseManufacturingPrice, RevaluationOperation;
+        PurchaseManufacturingPrice, RevaluationOperation, Revaluation;
 
 PRIORITY Purchase;
 
@@ -12,8 +12,6 @@ NAMESPACE Revaluation;
 invoiceDetail 'Строка накладной' = invoiceDetail(batch(RevaluationDetail detail));
 descriptionInvoiceDetail 'Строка накладной' = description(invoiceDetail(RevaluationDetail detail));
 
-contractPrice 'Контрактная цена (после)' = ABSTRACT NUMERIC[16,4] (RevaluationDetail); 
-
 priceInvoiceDetail 'Контрактная цена' (RevaluationDetail detail) = OVERRIDE contractPrice(detail), price(invoiceDetail(detail));
 currencyInvoiceDetail 'Валюта контрактной цены' (RevaluationDetail detail) = currency(invoiceDetail(detail));
 shortNameCurrencyInvoiceDetail 'Валюта контрактной цены' (RevaluationDetail detail) = shortName(currencyInvoiceDetail(detail));
@@ -23,9 +21,9 @@ priceDutyInvoiceDetail 'Пошлина (ед.)' = dutyPrice(invoiceDetail(Revalu
 priceRegistrationInvoiceDetail 'Таможенный сбор (ед.)' = registrationPrice(invoiceDetail(RevaluationDetail detail));
 manufacturingMarkupInvoiceDetail 'Надбавка, % (к цене изготовителя)' = manufacturingMarkup(invoiceDetail(RevaluationDetail detail));
 
-rateExchange 'Курс обмена (новый)' = ABSTRACT NUMERIC[15,8] (RevaluationDetail);
-rateExchange 'Курс обмена (новый)' = DATA NUMERIC[15,8] (UserRevaluationDetail);
-rateExchange(UserRevaluationDetail d) += rateExchange(d);
+rateExchange 'Курс после' = ABSTRACT NUMERIC[14,6] (RevaluationDetail) MATERIALIZED PATTERN '#,##0.00##';
+rateExchange 'Курс после' = DATA NUMERIC[14,6] (UserRevaluationDetail) PATTERN '#,##0.00##';
+rateExchange(UserRevaluationDetail revaluationDetail) += rateExchange(revaluationDetail);
 
 @defineDocumentInterfaceHeaderPriceListType (revaluation, calcPriceListType, manufacturing, ' (надбавка)');
 @defineDocumentDetailPriceListTypePrefix (revaluation, revaluationDetail, calcPriceListType, manufacturing, ' (надбавка)');
@@ -102,12 +100,12 @@ EXTEND FORM userRevaluation
                    shortNameCurrencyInvoiceDetail, rateExchangeInvoiceDetail,
                    priceDutyInvoiceDetail, priceRegistrationInvoiceDetail,
                    manufacturingMarkupInvoiceDetail
-    PROPERTIES (d) SHOWIF showInvoice(p) BEFORE manufacturingPrice(d) rateExchange, manufacturingMarkup
+    PROPERTIES (d) SHOWIF showInvoice(p) BEFORE manufacturingPrice(d) rateExchange BACKGROUND RGB(255, 224, 128), manufacturingMarkup
 ;
 
 DESIGN userRevaluation{
     PROPERTY(manufacturingMarkup(d)) { background = #FFFFCC; }
-    PROPERTY(rateExchange(d)) { background = #FFFFCC; }
+    PROPERTY(rateExchange(d));
     PROPERTY(manufacturingSum(d)) { background = #FFFFCC; }
     PROPERTY(manufacturingPrice(d)) { background = #FFFFCC; }
     PROPERTY(price(d)) { background = #FFFFCC; }
