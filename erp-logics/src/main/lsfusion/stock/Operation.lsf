@@ -679,3 +679,33 @@ END
 META defineOperationChangesDocument(object, concreteClass, property, createdUserProp)    
     @defineOperationChangesDocumentPrefix(object, ###object, concreteClass, property, createdUserProp, );      
 END
+
+META definePostedOperationRole(dumb)
+    preventPostedDocumentDefault 'Запретить проведение' = DATA BOOLEAN (Operation);
+
+    preventPostedDocument 'Запретить проведение' = DATA BOOLEAN (UserRole, Operation);
+    preventPostedDocument (User user, Operation operation) = preventPostedDocument(mainRole(user), operation);
+
+    EXTEND FORM operation
+        PROPERTIES(o) preventPostedDocumentDefault
+        PROPERTIES(r, o) preventPostedDocument
+    ;
+
+    DESIGN operation {
+        roleContainer12 {
+            MOVE PROPERTY(preventPostedDocumentDefault(o));
+        }
+    }
+    
+    copy (UserRole userRole, UserRole ur) + {
+        preventPostedDocument(ur, Operation o) <- preventPostedDocument(userRole, o) WHERE preventPostedDocument(userRole, o);
+    }
+    WHEN LOCAL SET(UserRole ur IS UserRole) AND NOT skipSetDefaultSettingRole() DO {
+        preventPostedDocument(ur, Operation o) <- preventPostedDocumentDefault(o);
+    }
+END
+
+META defineConstraintPostedOperationRole(objectClass)
+    CONSTRAINT (SET(isPosted(###objectClass o))) AND preventPostedDocument(currentUser(), operation(o))
+        MESSAGE 'Запрещено проводить документ';
+END
