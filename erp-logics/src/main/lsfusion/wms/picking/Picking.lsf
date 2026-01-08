@@ -297,12 +297,14 @@ overFillUserPicking ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
 overFillUserPicking ABSTRACT LIST (UserPicking, PickingOrder);
 
 skipCreateOrderPickingDetails = ABSTRACT BOOLEAN (UserPicking);
+beforeCreatePickingDetails ABSTRACT LIST (UserPicking);
 
 moveUserPicking 'Комплектация'(PickingOrder pickingOrder)  { 
 	NEWSESSION {
 	    NEW p = UserPicking {
 	        pickingOrder(p) <- pickingOrder;
 	        stock(p) <- stock(pickingOrder);
+            beforeCreatePickingDetails(p);
 	        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder AND NOT skipCreateOrderPickingDetails(p) NEW d = UserPickingDetail DO {
 	            userPicking(d) <- p;
 	            sku(d) <- sku(detail);
@@ -547,6 +549,8 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder)  {
 	}
 } TOOLBAR CHANGEKEY 'F10';
 
+skipCreatePickingPartiallyDetails = ABSTRACT BOOLEAN (UserPicking);
+
 partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  { 
 	NEWSESSION{
 	    DIALOG packQuantity OBJECTS n INPUT DO {
@@ -557,7 +561,8 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder)  {
 	            stock(p) <- stock(pickingOrder);
 	            dataPackQuantity(p) <- n;
 	            number(p) <- overNumber(p);
-	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
+                beforeCreatePickingDetails(p);
+	            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder AND NOT skipCreatePickingPartiallyDetails(p) NEW d = UserPickingDetail DO {
 	                userPicking(d) <- p;
 	                sku(d) <- sku(detail);
 	                quantity(d) <- quantity(detail);

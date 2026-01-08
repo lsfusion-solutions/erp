@@ -74,6 +74,15 @@ NAVIGATOR {
     }
 }
 
-@defineOperationProperty(skipCreateOrderPickingDetails, 'Не создавать строки Комплектации при создании из Заказа на комплектацию', paramsContainer);
+beforeCreatePickingDetails (UserPicking p) + {
+    IF NOT operation(p) AND countOperations(currentUser()) == 1 THEN
+        operation(p) <- defaultOperation(currentUser());
+}
+
+@defineOperationProperty(skipCreateOrderPickingDetails, 'Не создавать строки Комплектации по действию из Заказа на комплектацию', paramsContainer);
 
 skipCreateOrderPickingDetails(UserPicking p) += skipCreateOrderPickingDetails(operation(p));
+
+@defineOperationProperty(skipCreatePickingPartiallyDetails, 'Не создавать строки Комплектации по кнопке "Собран частично"', paramsContainer);
+
+skipCreatePickingPartiallyDetails(UserPicking p) += skipCreatePickingPartiallyDetails(operation(p));
