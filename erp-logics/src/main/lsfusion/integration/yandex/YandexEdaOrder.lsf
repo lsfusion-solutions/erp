@@ -334,6 +334,7 @@ FORM getOrder FORMEXTID 'null'
     FILTERS internetOrder(items) = o AND quantityOrderDetail(items)
 ;
 logInfoOrder = DATA BOOLEAN () TABLE settings;
+overLogInfoOrder ABSTRACT LIST (InternetOrder, STRING);
 
 getOrder (FILE f) {
     LOCAL tokenClient = STRING ();
@@ -364,8 +365,9 @@ getOrder (FILE f) {
             {
                 headersTo('Content-Type') <- 'application/json';
                 EXPORT getOrder OBJECTS o = order() JSON;
+                fileToString(exportFile());
+                overLogInfoOrder(order(), resultString());
                 IF logInfoOrder() THEN {
-                    fileToString(exportFile());
                     logToFile('yandex', CONCAT ' : ', 'INFO order', orderNumber(), resultString());
                 }
             }
