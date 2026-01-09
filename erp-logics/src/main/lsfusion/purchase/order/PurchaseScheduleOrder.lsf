@@ -177,8 +177,10 @@ DESIGN scheduleOrder {
 }
 
 WHEN (CHANGED(supplier(ScheduleOrder o)) OR CHANGED(supplierStock(o)) OR CHANGED(customer(o)) OR CHANGED(startDate(o)) OR CHANGED(endDate(o)) OR CHANGED(timeToOrder(o))
-    OR (GROUP SUM 1 IF CHANGED (in(o,Stock st))) OR (GROUP SUM 1 IF (CHANGED(orderDOW(ScheduleOrderTime t)) OR CHANGED(shipmentDOW(t)) OR CHANGED(timeToOrder(t))) AND scheduleOrder(t)==o))
-    AND type(o)==GenType.genDayMonth AND autoCreatedDayMonth() AND startDate(o) AND customer(o) AND supplier(o)  DO {
+    OR (GROUP SUM 1 IF CHANGED (in(o, Stock st))) 
+    OR (GROUP SUM 1 IF (CHANGED(orderDOW(ScheduleOrderTime t)) OR CHANGED(shipmentDOW(t)) OR CHANGED(timeToOrder(t))) AND scheduleOrder(t) == o)
+    OR (GROUP SUM 1 IF (DROPPED(ScheduleOrderTime t IS ScheduleOrderTime) AND PREV(scheduleOrder(t)) == o)))
+    AND type(o) == GenType.genDayMonth AND autoCreatedDayMonth() AND startDate(o) AND customer(o) AND supplier(o) DO {
     reCreate(o);    
 }
 
