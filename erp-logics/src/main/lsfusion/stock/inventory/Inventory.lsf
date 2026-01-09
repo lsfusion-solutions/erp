@@ -2106,7 +2106,7 @@ overShowDelete = ABSTRACT BOOLEAN (Inventory);
 skipShowEdit = ABSTRACT BOOLEAN (Inventory); 
 skipShowDelete = ABSTRACT BOOLEAN (Inventory); 
 
-skipOpen = ABSTRACT BOOLEAN (Inventory);
+skipOpen = ABSTRACT CASE BOOLEAN (Inventory);
 showClose (Inventory i) = isOpened(i) AND NOT skipClose(i);   
 showOpen (Inventory i) = isClosed(i) AND NOT skipOpen(i);   
 
@@ -2339,14 +2339,10 @@ NAVIGATOR {
      }
 }
 
-//-- Запрет на изменение документа другим пользователем
-@defineOperationChangesDocument(inventory, UserInventory, preventChangesDocument, created);
+@defineOperationRoleDocument(inventory, Inventory);
 
 overShowEdit (Inventory i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 overShowDelete (Inventory i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowDelete(i);
-
-skipClose (Inventory i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
-
 
 @defineMovementSku(pageInventoryDetail, stock); //-- показываем по нажатию правой клавиши движение товара
 @defineBalancesSku(pageInventoryDetail); //-- показываем по нажатию правой клавиши остатки товара

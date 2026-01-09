@@ -549,7 +549,7 @@ overShowDelete = ABSTRACT BOOLEAN (InvoiceCorrection);
 skipShowEdit = ABSTRACT BOOLEAN (InvoiceCorrection);
 skipShowDelete = ABSTRACT BOOLEAN (InvoiceCorrection);
 
-skipOpen = ABSTRACT BOOLEAN (InvoiceCorrection);
+skipOpen = ABSTRACT CASE BOOLEAN (InvoiceCorrection);
 showClose (InvoiceCorrection i) = isOpened(i) AND NOT skipClose(i);   
 showOpen (InvoiceCorrection i) = isClosed(i) AND NOT skipOpen(i);   
 background 'Цвет' (InvoiceCorrection i)= ABSTRACT CASE COLOR (InvoiceCorrection);
@@ -744,13 +744,10 @@ skip[SaleLedger] (InvoiceCorrectionDetail ledger) += WHEN ledger IS InvoiceCorre
 quantity[SaleLedger](InvoiceCorrectionDetail ledger) += quantity(ledger);
 numberDocument (InvoiceCorrectionDetail ledger) += number(ledger);
 
-//-- Запрет на изменение документа другим пользователем
-@defineOperationChangesDocument(invoiceCorrection, InvoiceCorrection, preventChangesDocument, created);
+@defineOperationRoleDocument(invoiceCorrection, InvoiceCorrection);
 
 overShowEdit (InvoiceCorrection i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 overShowDelete (InvoiceCorrection i) += showEditDeleteUser(i) AND isUserOpened(i)AND NOT skipShowDelete(i); 
-
-skipClose(InvoiceCorrection i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
 
 //отображение списка корректировок
 diffSumInvoiceCorrectionDetail 'Сумма (корректировка)' = GROUP SUM diffSumInvoiceCorrectionDetail(InvoiceCorrection ic) BY invoice(ic);

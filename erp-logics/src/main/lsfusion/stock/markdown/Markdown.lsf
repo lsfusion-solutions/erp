@@ -232,7 +232,7 @@ filterMarkdownStock (MarkdownDetail d) = filterMarkdownStock(markdown(d));
 skipShowEdit = ABSTRACT VALUE BOOLEAN (Markdown);
 skipShowDelete = ABSTRACT VALUE BOOLEAN (Markdown);
 
-skipOpen = ABSTRACT BOOLEAN (Markdown);
+skipOpen = ABSTRACT CASE BOOLEAN (Markdown);
 showClose (Markdown i) = isOpened(i) AND NOT skipClose(i);
 showOpen (Markdown i) = isClosed(i) AND NOT skipOpen(i);
 
@@ -243,8 +243,6 @@ show 'Просмотреть' (Markdown i)   {
         SHOW markdown OBJECTS w = i DOCKED READONLY;
     }
 }TOOLBAR;
-
-
 
 FORM markdowns 'Уценки'
     PROPERTIES () filterMarkdownDateFrom, filterMarkdownDateTo, nameFilterMarkdownStock
@@ -333,6 +331,7 @@ EXTEND FORM markdowns
 closeDate(Markdown m) = sum(date(m), quantityDaysCloseMarkdown(operation(m)));
 WHEN SET (closeDate(Markdown m) <= currentDate()) DO isClosed(m) <- TRUE;
 
+@defineOperationRoleDocument(markdown, Markdown);
 
 firstOrderBatchBalance (Sku sku, Stock stock, NUMERIC[16,5] q) = GROUP LAST Batch batch IF prevAvailableQuantity(batch, stock) >= q
 ORDER DESC dateTime(batch), batch

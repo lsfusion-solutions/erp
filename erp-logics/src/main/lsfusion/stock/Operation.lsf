@@ -670,14 +670,15 @@ META defineReturnOperationFilterProperty(object, concrete, form, befProp)
     @defineOperationFilterProperty(object, ###object, concrete, form, topFilters1, befProp, over);
 END
 
-
-META defineOperationChangesDocumentPrefix(object, objectClass, concreteClass, property, createdUserProp, prefix)
-    skipPreventShowEditDelete = ABSTRACT BOOLEAN(###object);
-    showEditDeleteUser (###object o) = (o IS objectClass AND NOT (property(currentUser(),operation(o)) AND NOT sum(date(o),countDaysDocument(currentUser(),operation(o))) >= currentDate())) OR skipPreventShowEditDelete(o);          
+META defineOperationChangesDocument(object, concreteClass, property, createdUserProp)    
+    skipPreventShowEditDelete = ABSTRACT BOOLEAN (###object);
+    showEditDeleteUser (###object o) = (o IS ###object AND NOT (preventChangesDocument(currentUser(), operation(o)) AND NOT sum(date(o), countDaysDocument(currentUser(), operation(o))) >= currentDate())) OR skipPreventShowEditDelete(o);          
 END
 
-META defineOperationChangesDocument(object, concreteClass, property, createdUserProp)    
-    @defineOperationChangesDocumentPrefix(object, ###object, concreteClass, property, createdUserProp, );      
+META defineOperationRoleDocument(object, concreteClass)
+    @defineOperationChangesDocument(object, concreteClass, property, createdUserProp);
+    skipClose (concreteClass o) += WHEN preventCloseDocument(currentUser(), operation(o)) THEN TRUE;
+    skipOpen (concreteClass o) += WHEN preventOpenDocument(currentUser(), operation(o)) THEN TRUE;
 END
 
 META definePostedOperationRole(dumb)

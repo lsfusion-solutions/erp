@@ -236,17 +236,10 @@ show[OrderLedger](OrderDetail ledger) + { show[UserOrderDetail](ledger);};
 
 note[OrderLedger](OrderDetail ledger) += note(order(ledger));
 
-//-- Запрет на изменение документа другим пользователем
-@defineOperationChangesDocument(order, UserOrder, preventChangesDocument, created);
-//skipToShowEdit = ABSTRACT BOOLEAN (Order);
-//skipToShowDelete = ABSTRACT BOOLEAN (Order);
-//overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipToShowEdit(i);
-//overShowDelete (UserOrder i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipToShowDelete(i); 
+@defineOperationRoleDocument(order, UserOrder);
+
 overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
 overShowDelete (UserOrder i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipShowEdit(i); 
-
-skipClose (UserOrder i) += WHEN preventCloseDocument(currentUser(), operation(i)) THEN TRUE;
-skipOpen (UserOrder i) += IF preventOpenDocument(currentUser(), operation(i)) THEN TRUE;
 
 NAVIGATOR {
     purchasePurchaseNavigator {
