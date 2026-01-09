@@ -34,9 +34,26 @@ acceptPrint 'Принять' (PickingOrder pickingOrder)  {
 
 isParent(SkuGroup sk, PickingOrderDetail detail) = isParent(sk, sku(detail));
 
+preventMultiPickingPerOrder 'Запретить несколько комплектация по одному заказу на комплектацию' = DATA BOOLEAN () PREREAD;
+
+EXTEND FORM options
+    PROPERTIES() preventMultiPickingPerOrder
+;
+
+DESIGN options{
+    WMS {
+        MOVE PROPERTY(preventMultiPickingPerOrder());
+    }
+}
+
+CONSTRAINT SET(quantityPickings(PickingOrder po) > 1) AND preventMultiPickingPerOrder() 
+    MESSAGE 'Запрещено создавать больше одной комплектации к одному заказу на комплектацию';
+
 notShowUnaccept = ABSTRACT BOOLEAN(PickingOrder);
 notShowEdit = ABSTRACT BOOLEAN(Picking);
 notShowDelete = ABSTRACT BOOLEAN(Picking);
+
+showAccepted (PickingOrder po) = accepted(po) AND NOT (preventMultiPickingPerOrder() AND quantityPickings(po));
 
 FORM pickingDashboard 'Комплектация'
 
@@ -50,8 +67,8 @@ FORM pickingDashboard 'Комплектация'
                     countPickingOrderDetail, quantityPickingOrderDetail, grossWeightPickingOrderDetail, note
 
     PROPERTIES (po) acceptPrint SHOWIF notAccepted(po),
-                    unaccept SHOWIF (accepted(po) AND NOT notShowUnaccept(po)), fully = fullyAssembled SHOWIF accepted(po),
-                    partially = partiallyAssembled SHOWIF accepted(po)
+                    unaccept SHOWIF (showAccepted(po) AND NOT notShowUnaccept(po)), fully = fullyAssembled SHOWIF showAccepted(po),
+                    partially = partiallyAssembled SHOWIF showAccepted(po)
                     
     FILTERS isPosted(po),
         isOpened(po)
