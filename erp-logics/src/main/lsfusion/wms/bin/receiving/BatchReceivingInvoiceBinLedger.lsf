@@ -26,7 +26,8 @@ overCompleteReceiving (Receiving r) + {
     //нет смысла расписывать по партиям, если изначально недосточно кол-ва для расписывания по ним
     IF (GROUP SUM 1 IF receivingQuantity(Sku sku, STRING consolidationKey, r) AND NOT expectedQuantity(sku, consolidationKey, r)>=receivingQuantity(sku, consolidationKey, r)) THEN {
         MESSAGE 'В документе приёмки есть товар с ' + consolidationKeyMessage() + ' нет в документе основания или с недостаточным кол-вом. \nПартии не могут быть назначены. Измените документ(-ы) основания.' NOWAIT;  
-        MESSAGE (GROUP CONCAT (CONCAT '', name(Sku sku), ', '+consolidationKey()+' ', STRING consolidationKey) 
+        MESSAGE (GROUP CONCAT (CONCAT '', name(Sku sku), ', '+consolidationKey()+' ', STRING consolidationKey, 
+            ' Кол-во в документе основания: '+toChar(expectedQuantity(sku, consolidationKey, r), 'FM999G999D99'), ', Принятое кол-во: '+toChar(receivingQuantity(sku, consolidationKey, r), 'FM999G999D99')) 
             IF receivingQuantity(sku, consolidationKey, r) AND NOT expectedQuantity(sku, consolidationKey, r)>=receivingQuantity(sku, consolidationKey, r), '\n' 
         ORDER consolidationKey) NOWAIT;
         CANCEL;
@@ -97,7 +98,8 @@ overCompleteReceiving(Sku s, STRING consolidationKey, Receiving r) + {
     //нет смысла расписывать по партиям, если нет изначально недосточно кол-ва для расписывания по ним    
     IF receivingQuantity(s, consolidationKey, r) AND NOT expectedQuantity(s, consolidationKey, r)>=receivingQuantity(s, consolidationKey, r) THEN {
         MESSAGE 'В документе приёмки есть товар с ' + consolidationKeyMessage() + ' нет в документе основания или с недостаточным кол-вом. \nПартии не могут быть назначены. Измените документ(-ы) основания.' NOWAIT;
-        MESSAGE (CONCAT '', name(s), ', '+consolidationKey()+' ', consolidationKey)  NOWAIT;
+        MESSAGE (CONCAT '', name(s), ', '+consolidationKey()+' ', consolidationKey, 
+            ' Кол-во в документе основания: '+toChar(expectedQuantity(s, consolidationKey, r), 'FM999G999D99'), ', Принятое кол-во: '+toChar(receivingQuantity(s, consolidationKey, r), 'FM999G999D99'))  NOWAIT;
         CANCEL;
         RETURN;
     }
