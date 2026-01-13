@@ -41,7 +41,7 @@ public class ExportFileClientAction extends ExecuteClientAction {
             File file = new File(chosenFile.getValue());
             if (chosenFiles.size() == 1 && file.exists()) {
                 int answer = showConfirmDialog(fileChooser, getString("layout.menu.file.already.exists.replace"),
-                        getString("layout.menu.file.already.exists"), JOptionPane.QUESTION_MESSAGE, false);
+                        getString("layout.menu.file.already.exists"));
                 if (answer != JOptionPane.YES_OPTION) {
                     break;
                 }
@@ -83,51 +83,29 @@ public class ExportFileClientAction extends ExecuteClientAction {
         return result;
     }
 
-    private int showConfirmDialog(Component parentComponent, Object message, String title, int messageType, boolean cancel) {
-        return showConfirmDialog(parentComponent, message, title, messageType, 0, cancel, 0);
-    }
-
-    private int showConfirmDialog(Component parentComponent, Object message, String title, int messageType, int initialValue,
-                                        boolean cancel, int timeout) {
+    private int showConfirmDialog(Component parentComponent, Object message, String title) {
 
         Object[] options = {UIManager.getString("OptionPane.yesButtonText"),
                 UIManager.getString("OptionPane.noButtonText")};
-        if (cancel) {
-            options = BaseUtils.add(options, UIManager.getString("OptionPane.cancelButtonText"));
-        }
 
         JOptionPane dialogPane = new JOptionPane(message,
-                messageType,
-                cancel ? JOptionPane.YES_NO_CANCEL_OPTION : JOptionPane.YES_NO_OPTION,
-                null, options, options[initialValue]);
+                JOptionPane.QUESTION_MESSAGE,
+                JOptionPane.YES_NO_OPTION,
+                null, options, options[0]);
 
         addFocusTraversalKey(dialogPane, KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, KeyStroke.getKeyStroke("RIGHT"));
         addFocusTraversalKey(dialogPane, KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, KeyStroke.getKeyStroke("UP"));
         addFocusTraversalKey(dialogPane, KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, KeyStroke.getKeyStroke("LEFT"));
         addFocusTraversalKey(dialogPane, KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, KeyStroke.getKeyStroke("DOWN"));
 
-        final JDialog dialog = dialogPane.createDialog(parentComponent, title);
-        if (timeout != 0) {
-            final java.util.Timer timer = new java.util.Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    timer.cancel();
-                    dialog.setVisible(false);
-                }
-            }, timeout);
-        }
-        dialog.setVisible(true);
+        dialogPane.createDialog(parentComponent, title).setVisible(true);
 
         if (dialogPane.getValue() == JOptionPane.UNINITIALIZED_VALUE)
-            return initialValue;
+            return 0;
         if (dialogPane.getValue() == options[0]) {
             return JOptionPane.YES_OPTION;
         } else {
-            if (!cancel || dialogPane.getValue() == options[1])
-                return JOptionPane.NO_OPTION;
-            else
-                return JOptionPane.CANCEL_OPTION;
+            return JOptionPane.NO_OPTION;
         }
     }
 
