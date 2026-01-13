@@ -479,15 +479,17 @@ EXTEND FORM options PROPERTIES countDaysClearStopList();
 DESIGN options { log { MOVE PROPERTY(countDaysClearStopList());} }    
         
 lastStopListDetail (StopListDetail d) = GROUP SUM 1 IF in(Stock s, stopList(d)) AND d == lastStopListDetail(sku(d), s, currentDateTime());
+skipDelete = ABSTRACT BOOLEAN (StopListDetail);
 
-clearApplicationLog () + { 
-	NEWSESSION {
-	    IF countDaysClearStopList() THEN {
-            DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d);
-	        apply();
-	        
-	        DELETE StopList s WHERE s IS StopList AND NOT [ GROUP SUM 1 BY stopList(StopListDetail d)](s);
-	        apply();
-	    }
-	}
+clearApplicationLog () + {
+    IF countDaysClearStopList() THEN {
+        NEWSESSION {    
+            DELETE StopListDetail d WHERE d IS StopListDetail AND date(d) <= subtract(currentDate(), countDaysClearStopList()) AND NOT lastStopListDetail(d) AND NOT skipDelete(d);
+            APPLY;
+        }
+        NEWSESSION {
+            DELETE StopList s WHERE s IS StopList AND NOT countStopListDetail(s);
+            APPLY;
+        }
+    }
 }    

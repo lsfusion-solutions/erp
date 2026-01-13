@@ -34,8 +34,16 @@ WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d
 
 skipCheckSku = DATA BOOLEAN () PREREAD;
 
-CONSTRAINT DROPPED(needGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevNeedGreate(d,st) AND NOT skipCheckSku()
+skipDelete(StopListDetail d) += TRUE IF saleDeniedRestriction(d);
+
+isGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND saleDeniedRestriction(d,st);
+prevIsGreate(StopListDetail d, Stock st)= PREV(isGreate(d,st));
+
+CONSTRAINT DROPPED(isGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevIsGreate(d,st) AND NOT skipCheckSku()
     MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
+
+//CONSTRAINT DROPPED(needGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevNeedGreate(d,st) AND NOT skipCheckSku()
+//    MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
 
 skipUseSaleDeniedRestrictionsMigrate() {
     skipUseSaleDeniedRestrictions() <- TRUE;
