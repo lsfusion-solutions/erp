@@ -16,6 +16,8 @@ pickingQuantity = GROUP SUM quantity(PickingDetail d) BY order(pickingOrder(d)),
 diffPickingQuantity(Order order, Sku sku, Bin bin) = orderedQuantity(order, sku, bin) (-) pickingQuantity(order, sku, bin);
 diffPickingQuantity(Order order, Batch batch, Bin bin) = orderedQuantity(order, batch, bin) (-) pickingQuantity(order, batch, bin);
 
+diffPickingQuantity(Order order, Batch batch) = GROUP SUM diffPickingQuantity(order, batch, Bin bin);
+
 namePlannedStatus 'Статус планирования комплектаций' = ABSTRACT VALUE OVERRIDE FIRST STRING (Order) CHARWIDTH 20;
 namePlannedStatus(Order order) +=
     (CASE WHEN order IS Order AND (GROUP SUM plannedPickingQuantity(order, Sku sku)) AND (GROUP SUM diffPlannedPickingQuantity(order, Sku sku)) 
