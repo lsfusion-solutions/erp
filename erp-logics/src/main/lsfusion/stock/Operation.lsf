@@ -498,6 +498,7 @@ META defineOperationRole(dumb)
     countDaysDocumentDefault 'Количество дней для запрета редактирования' = DATA INTEGER (Operation);
     preventCloseDocumentDefault 'Запретить закрытие' = DATA BOOLEAN (Operation);
     preventOpenDocumentDefault 'Запретить открытие' = DATA BOOLEAN (Operation);
+    preventPostedDocumentDefault 'Запретить проведение' = DATA BOOLEAN (Operation);
 
     TABLE userRoleOperation (UserRole, Operation);
     dataIn 'Отм.' = DATA BOOLEAN (UserRole, Operation);
@@ -527,12 +528,15 @@ META defineOperationRole(dumb)
     preventOpenDocument 'Запретить открытие' = DATA BOOLEAN (UserRole, Operation);
     preventOpenDocument (User user, Operation operation) = preventOpenDocument(mainRole(user), operation);
 
+    preventPostedDocument 'Запретить проведение' = DATA BOOLEAN (UserRole, Operation);
+    preventPostedDocument (User user, Operation operation) = preventPostedDocument(mainRole(user), operation);
+
     EXTEND FORM operation
-        PROPERTIES(o) allRoles, preventChangesDocumentDefault, countDaysDocumentDefault, preventCloseDocumentDefault, preventOpenDocumentDefault
+        PROPERTIES(o) allRoles, preventChangesDocumentDefault, countDaysDocumentDefault, preventCloseDocumentDefault, preventOpenDocumentDefault, preventPostedDocumentDefault
 
         OBJECTS r = UserRole
         PROPERTIES(r) READONLY name
-        PROPERTIES(r, o) in, preventChangesDocument, countDaysDocument, preventCloseDocument, preventOpenDocument
+        PROPERTIES(r, o) in, preventChangesDocument, countDaysDocument, preventCloseDocument, preventOpenDocument, preventPostedDocument
 
         FILTERGROUP filtersRole
                 FILTER 'Показывать отмеченные' in(r, o) 'F8'
@@ -550,31 +554,37 @@ META defineOperationRole(dumb)
                         }
                     NEW roleContainer12 {
                         horizontal = TRUE;
+                        caption = 'По умолчанию (для новых ролей)';
                         MOVE PROPERTY(preventChangesDocumentDefault(o));
                         MOVE PROPERTY(countDaysDocumentDefault(o));
                         MOVE PROPERTY(preventCloseDocumentDefault(o));
                         MOVE PROPERTY(preventOpenDocumentDefault(o));
-                        caption = 'По умолчанию (для новых ролей)';
+                        MOVE PROPERTY(preventPostedDocumentDefault(o));
                     }
                 }
                 MOVE BOX(r);
             }
         }
     }
+
     copy (UserRole userRole, UserRole ur) + { 
         dataIn(ur, Operation o) <- dataIn(userRole,o) WHERE dataIn(userRole,o);
         preventChangesDocument(ur, Operation o) <- preventChangesDocument(userRole,o) WHERE preventChangesDocument(userRole,o);
         
         countDaysDocument(ur, Operation o) <- countDaysDocument(userRole,o) WHERE countDaysDocument(userRole,o);
         preventCloseDocument(ur, Operation o) <- preventCloseDocument(userRole,o) WHERE preventCloseDocument(userRole,o);
-        preventOpenDocument(ur, Operation o) <- preventOpenDocument(userRole,o) WHERE preventOpenDocument(userRole,o);    
+        preventOpenDocument(ur, Operation o) <- preventOpenDocument(userRole,o) WHERE preventOpenDocument(userRole,o);
+        preventPostedDocument(ur, Operation o) <- preventPostedDocument(userRole, o) WHERE preventPostedDocument(userRole, o);
     }
-    WHEN LOCAL SET(UserRole ur IS UserRole) AND NOT skipSetDefaultSettingRole()  DO {
+
+    WHEN LOCAL SET(UserRole ur IS UserRole) AND NOT skipSetDefaultSettingRole() DO {
         preventChangesDocument(ur, Operation o) <- preventChangesDocumentDefault(o);
         countDaysDocument(ur, Operation o) <- countDaysDocumentDefault(o);
         preventCloseDocument(ur, Operation o) <- preventCloseDocumentDefault(o);
         preventOpenDocument(ur, Operation o) <- preventOpenDocumentDefault(o);
+        preventPostedDocument(ur, Operation o) <- preventPostedDocumentDefault(o);
     }
+        
     @extendFormFilterRole(o, dialogOperations);
 END
 
@@ -670,40 +680,20 @@ META defineReturnOperationFilterProperty(object, concrete, form, befProp)
     @defineOperationFilterProperty(object, ###object, concrete, form, topFilters1, befProp, over);
 END
 
-META defineOperationChangesDocument(object, concreteClass, property, createdUserProp)    
+META defineOperationChangesDocumentSimple(object)
     skipPreventShowEditDelete = ABSTRACT BOOLEAN (###object);
-    showEditDeleteUser (###object o) = (o IS ###object AND NOT (preventChangesDocument(currentUser(), operation(o)) AND NOT sum(date(o), countDaysDocument(currentUser(), operation(o))) >= currentDate())) OR skipPreventShowEditDelete(o);          
+    showEditDeleteUser (###object o) = (o IS ###object AND NOT (preventChangesDocument(currentUser(), operation(o)) AND NOT sum(date(o), countDaysDocument(currentUser(), operation(o))) >= currentDate())) OR skipPreventShowEditDelete(o);
+END 
+
+META defineOperationChangesDocument(object, concreteClass, property, createdUserProp)
+    @defineOperationChangesDocumentSimple(object);
+    @defineConstraintPostedOperationRole(concreteClass);
 END
 
 META defineOperationRoleDocument(object, concreteClass)
     @defineOperationChangesDocument(object, concreteClass, property, createdUserProp);
     skipClose (concreteClass o) += WHEN preventCloseDocument(currentUser(), operation(o)) THEN TRUE;
     skipOpen (concreteClass o) += WHEN preventOpenDocument(currentUser(), operation(o)) THEN TRUE;
-END
-
-META definePostedOperationRole(dumb)
-    preventPostedDocumentDefault 'Запретить проведение' = DATA BOOLEAN (Operation);
-
-    preventPostedDocument 'Запретить проведение' = DATA BOOLEAN (UserRole, Operation);
-    preventPostedDocument (User user, Operation operation) = preventPostedDocument(mainRole(user), operation);
-
-    EXTEND FORM operation
-        PROPERTIES(o) preventPostedDocumentDefault
-        PROPERTIES(r, o) preventPostedDocument
-    ;
-
-    DESIGN operation {
-        roleContainer12 {
-            MOVE PROPERTY(preventPostedDocumentDefault(o));
-        }
-    }
-    
-    copy (UserRole userRole, UserRole ur) + {
-        preventPostedDocument(ur, Operation o) <- preventPostedDocument(userRole, o) WHERE preventPostedDocument(userRole, o);
-    }
-    WHEN LOCAL SET(UserRole ur IS UserRole) AND NOT skipSetDefaultSettingRole() DO {
-        preventPostedDocument(ur, Operation o) <- preventPostedDocumentDefault(o);
-    }
 END
 
 META defineConstraintPostedOperationRole(objectClass)
