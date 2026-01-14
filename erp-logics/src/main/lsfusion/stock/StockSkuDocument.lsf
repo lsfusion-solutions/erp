@@ -320,12 +320,12 @@ META extendFormDocumentBatchPriceListTypeAgreement(eobj, detail, form, concrete,
 
     WHEN LOCAL FORMS form 
         ((SET([ VIEW form.b](###batchProp batch)) AND (###eobj concrete) == current###eobj###eobj()) OR
-         ((CHANGED(stockProp(concrete)) OR 
+         ((CHANGED(priceStockUser(concrete)) OR 
            CHANGED(dateTime(concrete)) OR
            CHANGED(priceListType(concrete)) OR
            CHANGED(agreement(concrete))) AND [ VIEW form.b](batch)))
          AND PriceListType pt == priceListType(concrete, batch) NOINLINE (pt) DO
-            viewPrice(batch) <- prevPriceB(pt, batch, stockProp(concrete), dateTime(concrete));
+            viewPrice(batch) <- prevPriceB(pt, batch, priceStockUser(concrete), dateTime(concrete));
 END
 
 META extendFormDocumentBatchPriceListTypeAgreement(object, form, concrete, stockProp)
@@ -335,7 +335,8 @@ END
 //задание цены для подбора
 
 META extendFormDocumentAccountPriceSku (object, stockProp, caption, form, char, showif)
-    priceAccountPriceListType 'Цена'##caption (Sku sku, ###form object) = prevAccountPriceB(sku, stockProp(object), dateTime(object));
+    priceAccountPriceListType 'Цена'##caption (Sku sku, ###form object) = 
+        prevAccountPriceB(sku, priceStockUser(object), dateTime(object));
 
     EXTEND FORM form
         PROPERTIES(ks, char) READONLY priceAccountPriceListType SHOWIF showif(char)
@@ -343,7 +344,8 @@ META extendFormDocumentAccountPriceSku (object, stockProp, caption, form, char, 
 END
 
 META extendFormDocumentAccountPriceBatch (object, stockProp, caption, form, char, showif)
-    priceAccountPriceListType 'Цена'##caption (Batch batch, ###form object) = prevAccountPriceB(batch, stockProp(object), dateTime(object));
+    priceAccountPriceListType 'Цена'##caption (Batch batch, ###form object) = 
+        prevAccountPriceB(batch, priceStockUser(object), dateTime(object));
 
     EXTEND FORM form
         PROPERTIES(b, char) READONLY priceAccountPriceListType SHOWIF showif(char)
@@ -351,7 +353,8 @@ META extendFormDocumentAccountPriceBatch (object, stockProp, caption, form, char
 END
 
 META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, form, char, showif)
-    price###priceListTypeProp 'Цена'##caption (Sku sku, ###form object) = prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp(object), dateTime(object));
+    price###priceListTypeProp 'Цена'##caption (Sku sku, ###form object) = 
+        prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, sku, priceStockUser(object), dateTime(object));
 
     EXTEND FORM form
         PROPERTIES(ks, char) READONLY price###priceListTypeProp SHOWIF showif(char)
@@ -359,7 +362,8 @@ META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, 
 END
 
 META extendFormDocumentPriceBatch (object, priceListTypeProp, stockProp, caption, form, char, showif)
-    price###priceListTypeProp 'Цена'##caption (Batch batch, ###form object) = prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp(object), dateTime(object));
+    price###priceListTypeProp 'Цена'##caption (Batch batch, ###form object) = 
+        prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, batch, priceStockUser(object), dateTime(object));
 
     EXTEND FORM form
         PROPERTIES(b, char) READONLY price###priceListTypeProp SHOWIF showif(char)
@@ -691,7 +695,7 @@ META extendFormDocumentBatchStockPriceListTypeAgreement(object, form, concrete, 
          ((CHANGED(dateTime[###form](concrete)) OR
            CHANGED(priceListType[###form](concrete)) OR
            CHANGED(agreement[###form](concrete)) OR 
-           CHANGED(stockProp##Stock(concrete))) AND [ VIEW form.stb](batch))) AND
+           CHANGED(priceStockUser(concrete))) AND [ VIEW form.stb](batch))) AND
             PriceListType pt = priceListType(concrete, batch) NOINLINE(pt) DO 
             viewPrice(batch) <- prevPriceB(pt, batch, priceStockUser(concrete), dateTime(concrete));
     ;

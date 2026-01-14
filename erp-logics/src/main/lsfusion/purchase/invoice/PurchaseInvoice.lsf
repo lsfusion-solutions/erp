@@ -124,10 +124,34 @@ DESIGN operation {
 prevList (PriceListType priceListType, UserInvoiceDetail userInvoiceDetail) += WHEN sku(userInvoiceDetail) AND differentOrganizations(priceListType) THEN  
                                                      prevPriceA(priceListType,
                                                                 sku(userInvoiceDetail),
-                                                                customerStock(userInvoiceDetail),
+                                                                priceStock(userInvoiceDetail),
                                                                 supplier(userInvoiceDetail),
                                                          dateTime(userInvoiceDetail));
 @defineOrderInvoice(' (закупка)', customer);
+
+//использовать цены склада поставщика
+usePriceSupplierStock 'Использовать цены для склада поставщика' = ABSTRACT BOOLEAN (Invoice);
+usePriceSupplierStock 'Использовать цены для склада поставщика' = DATA BOOLEAN (UserInvoice);
+usePriceSupplierStock(UserInvoice invoice) += usePriceSupplierStock(invoice);
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) usePriceSupplierStock
+;
+
+DESIGN userInvoice {
+    headerExtraParams{
+        NEW prices {
+            caption = 'Цены';
+            MOVE PROPERTY(usePriceSupplierStock(i));
+        }
+    }
+}
+
+//используем цены в накладной для склада поставщика только, если цена в накладной НЕ берется из заказа в явную 
+usePriceSupplierStock (UserInvoice i) <- usePriceSupplierStock(operation(i)) AND notFillPriceInvoiceOrder(operation(i))
+    WHEN CHANGED(operation(i));  
+
+overPriceStockUser(UserInvoice i) += WHEN usePriceSupplierStock(i) THEN supplierStock(i);
 
 // --------------------------- Себестоимость ---------------------------------- //
 

@@ -334,6 +334,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
     priceReadonlyIf = ABSTRACT VALUE BOOLEAN(UserInvoiceDetail);
 
+    overPriceStockUser = ABSTRACT CASE Stock (Invoice) MATERIALIZED;
+    priceStockUser(Invoice i) = OVERRIDE overPriceStockUser(i), stockProp##Stock(i);
+    priceStock(UserInvoiceDetail d) = priceStockUser(userInvoice(d));
+
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, , ); // объявляем шкалу
     
     // запись задана после объявления формы
@@ -1026,9 +1030,9 @@ END
 
 META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     @showDocumentInterfaceDetailBatch(invoice);
-    
-    @defineDocumentInterfaceDetailBatch(invoice, batch); 
-    
+
+    @defineDocumentInterfaceDetailBatch(invoice, batch);
+
     overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {       
         batch(d) <- batch(detail);
     }  
@@ -1037,7 +1041,7 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     }  
     
     // Пишем в цену инвойса из вида цен в зависимости от партии
-    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, stockProp###stock, userInvoice);
+    @deriveDocumentDetailPricePriceListTypeVATBatch(userInvoice, priceStock, userInvoice);
 
     // История по правой кнопке
     @defineBalancesBatch(invoiceDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -1048,12 +1052,12 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign, char)
     // Подбор по партиям
     @defineDocumentBatchPriceListTypeAgreement(userInvoice, stockProp, priceListTypePrefix);
     @extendFormDocumentBatchPriceListTypeAgreement(userInvoice, userInvoice, i, stockProp###stock);
-    
+
     // Подбор документа
     @implementDocumentBatch(invoice);
-    
+
     @implementDocumentBatchForm(char##i);
-   
+
     replace(Sku s, Batch b) + {  sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
     
 END
