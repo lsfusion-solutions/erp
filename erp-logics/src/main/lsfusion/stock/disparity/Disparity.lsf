@@ -107,8 +107,8 @@ costBatch (UserDisparityDetail detail) += costBatch(detail);
 WHEN LOCAL (CHANGED(batch(UserDisparityDetail detail)) OR CHANGED(sku(detail)) OR CHANGED(stock(detail))) DO
     costBatch(detail) <- prevCost(OVERRIDE batch(detail), prevLastOrderBatch(sku(detail), stock(detail)));
 
-expiryDateBatch 'Годен до' = ABSTRACT DATE (DisparityDetail) MATERIALIZED;
-expiryDateBatch 'Годен до' = DATA DATE (UserDisparityDetail);
+expiryDateBatch 'Годен до (приход)' = ABSTRACT DATE (DisparityDetail) MATERIALIZED;
+expiryDateBatch 'Годен до (приход)' = DATA DATE (UserDisparityDetail);
 expiryDateBatch (UserDisparityDetail detail) += expiryDateBatch(detail);
 expiryDateBatch(UserDisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
 
@@ -238,6 +238,8 @@ supplierStock(InputDisparityDetail batch) += supplierStock(batch);
 
 //quantityDisparityDetail 'Кол-во для закачки в оборудование (приход)' (sku, disparity) = GROUP SUM inputQuantity(DisparityDetail disparityDetail) BY inputSku(disparityDetail), disparity(disparityDetail);
 
+readOnlyPrice 'Ограничение изменения цен' = ABSTRACT BOOLEAN (Disparity);
+
 FORM disparity 'Изменение сортности'
 
     OBJECTS dis=UserDisparity PANEL
@@ -248,10 +250,11 @@ FORM disparity 'Изменение сортности'
 
     OBJECTS d = UserDisparityDetail
     PROPERTIES(d)   index,
-                    idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, idBatch, nameBatch ON CHANGE changeBatch(d),
-                    quantity, price, sum,
+                    idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, idBatch, nameBatch ON CHANGE changeBatch(d), quantity
+    PROPERTIES(d)   READONLYIF readOnlyPrice(dis) price, sum,
                     inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku, expiryDateBatch, costBatch,
-                    inputQuantity, inputPrice, inputSum
+                    inputQuantity
+    PROPERTIES(d)   READONLYIF readOnlyPrice(dis) inputPrice, inputSum
     PROPERTIES(d)   NEW, deletedd=DELETE GRID
 
     PROPERTIES(dis) DRAW d addDetailDialogSkuStockUserDisparityDetail,
