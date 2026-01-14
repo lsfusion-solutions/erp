@@ -26,8 +26,11 @@ toBox 'Ящик получателя сообщения' = DATA Box (Message);
 toBoxId 'Идентификатор ящика получателя сообщения' (Message message) = boxId(toBox(message)) CHARWIDTH 10;
 //toBoxTitle 'Наименование ящика получателя сообщения' (Message message) = title(toBox(message)) CHARWIDTH 20;
 
-openXML 'Открыть XML' (Message m) {
-    open(rawFile(m));
+extractExtension = FORMULA STRING[200] 'split_part(($1),\'.\',-1)';
+extensionFile 'Расширение файла' (Message m) = lower(extractExtension(nameFile(m)));
+
+openRawFile 'Открыть' (Message m) {
+    open(file(rawFile(m), extensionFile(m)));
 }
 
 
@@ -41,7 +44,7 @@ FORM messagesEDI 'Cообщения EDI'
 
     OBJECTS m = Message LAST
     PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile, numberEOrder
-    PROPERTIES(m) dateTimeProcessed, openXML GRID
+    PROPERTIES(m) dateTimeProcessed, openRawFile GRID
     ORDERS  timestamp(m), messageId(m)
 ;
 
@@ -150,7 +153,7 @@ EXTEND FORM messagesEDI
 EXTEND FORM eOrders
     OBJECTS mm = Message
     PROPERTIES(mm) READONLY numberEOrder, rawFile, nameFile
-    PROPERTIES(mm) READONLY dateTimeProcessed, openXML GRID
+    PROPERTIES(mm) READONLY dateTimeProcessed, openRawFile GRID
     FILTERS numberEOrder(mm) == number(o)
     ORDERS nameFile(mm);
 
