@@ -7,8 +7,11 @@ import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.MultithreadScalesHandler;
 import lsfusion.base.ExceptionUtils;
 import lsfusion.base.Pair;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.text.WordUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -16,6 +19,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -94,6 +98,9 @@ public class DigiHandler extends MultithreadScalesHandler {
                                 }
                             } else break;
                         }
+
+                        sendCustomFiles(socket, localErrors, getExtInfo(transaction.info, "digi"));
+
                     }
                     socket.close();
                 }
@@ -138,6 +145,30 @@ public class DigiHandler extends MultithreadScalesHandler {
 
         protected boolean sendKeyAssignment(DataSocket socket, List<String> localErrors, ScalesItem item, Integer plu) throws IOException {
             return true;
+        }
+
+        protected boolean sendCustomFiles(DataSocket socket, List<String> localErrors, JSONObject infoJSON) throws IOException {
+            if (infoJSON != null) {
+                JSONArray customFiles = infoJSON.optJSONArray("customFiles");
+                if (customFiles != null) {
+                    for (int i = 0; i < customFiles.length(); i++) {
+                        JSONObject customFile = customFiles.getJSONObject(i);
+                        int number = customFile.getInt("number");
+                        byte[] file = Base64.decodeBase64(customFile.getString("file"));
+                        if(!sendCustomFile(socket, localErrors, (short) number, file))
+                            return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        protected boolean sendCustomFile(DataSocket socket, List<String> localErrors, short file, byte[] record) throws IOException {
+            processTransactionLogger.info(String.format(getLogPrefix() + "Sending custom file %s to scales %s", file, scales.port));
+            int reply = sendRecord(socket, cmdWrite, file, record);
+            if (reply != 0)
+                logError(localErrors, String.format(getLogPrefix() + "Send custom file %s to scales %s failed. Error: %s", file, scales.port, reply));
+            return reply == 0;
         }
 
         protected Integer getMaxCompositionLinesCount() {
