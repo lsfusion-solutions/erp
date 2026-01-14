@@ -83,8 +83,10 @@ META defineDocumentOutBalance (doc, obj, supplierStock, quantityProp)
     
     calcQuantity(###doc##Detail d, F2Reg r) = 
         PARTITION UNGROUP quantityProp LIMIT prevCurrentBalance(r) IF matches(d, r) ORDER r BY d;
+
+    fillQuantity 'Заполнить' ABSTRACT CASE (###doc);
     
-    fillQuantity 'Заполнить' (###doc s) {
+    fillQuantity  (###doc s) + WHEN s IS ###doc THEN {
         quantity(###doc##Detail d, F2Reg r) <- NULL WHERE doc(d) = s;
         quantity(###doc##Detail d, F2Reg r) <- (GROUP SUM quantity(d, Lot l) IF f2Reg(markCode(id(l))) = r) WHERE doc(d) = s;
         quantity(###doc##Detail d, F2Reg r) <- calcQuantity(d, r) WHERE doc(d) = s AND NOT quantityF2Reg(d);
