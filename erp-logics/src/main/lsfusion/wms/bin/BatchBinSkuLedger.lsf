@@ -1,6 +1,6 @@
 MODULE BatchBinSkuLedger;
 
-REQUIRE BinSkuLedger, BatchBinLedger;
+REQUIRE BinSkuLedger, BatchBinLedger, PriceListLedgerAccount;
 
 NAMESPACE Bin;
 
@@ -21,9 +21,9 @@ diffBalanceBinA 'Расхождение по остаток в ячейках (�
 prevDiffBalanceBinA 'Расхождение по остаткам в ячейках (после)' (Batch batch, Stock st, DATETIME dateTime)=
     prevBalanceBinA(batch, st,dateTime) (-) prevBalanceB(batch, st,dateTime);
 
-currentDiffBalanceBin 'Текущий остаток в ячейках' (Batch batch, Stock st)=
+currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
     currentBalanceBin(batch, st) (-) currentBalance(batch, st);
-prevCurrentDiffBalanceBin 'Текущий остаток в ячейках' (Batch batch, Stock st)=
+prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
     prevCurrentBalanceBin(batch, st) (-) prevCurrentBalance(batch, st);
 diffBalanceBinB 'Расхождение по остаткам в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
     balanceBinB(batch, st,dateTime) (-) balanceB(batch, st,dateTime);
@@ -33,11 +33,8 @@ prevDiffBalanceBinB 'Остаток в ячейках (до)' (Batch batch, Stoc
 balanceBBatch 'Остаток в ячейке (до)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceB(Batch batch, bin, dateTime);
 balanceABatch 'Остаток в ячейке (после)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceA(Batch batch, bin, dateTime);
 
-FORM balanceBinBatchStock 'Сравнение остатков по ячейкам и складу по партиям'
+FORM currentBalanceBinBatchStock 'Сравнение остатков по ячейкам и складу по партиям'
 
-    OBJECTS t=DATETIME PANEL
-    PROPERTIES   valT = VALUE(t)
-    
     OBJECTS ss = Stock PANEL
     PROPERTIES(ss) name SELECTOR
     FILTERS isCompany(ss)
@@ -47,33 +44,33 @@ FORM balanceBinBatchStock 'Сравнение остатков по ячейка
     ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
 
-    OBJECTS           stb=(st=Stock, bt=Batch)
-    PROPERTIES        READONLY BACKGROUND backgroundBatch(st, bt) nameSku(bt)
-    PROPERTIES        READONLY balanceB(bt, st, t), balanceBinB(bt, st, t), diffBalanceBinB(bt, st, t)
-    PROPERTIES(bt)    READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
-    FILTERS           isParent(sk, bt),
+    OBJECTS stb=(st=Stock, bt=Batch)
+    PROPERTIES READONLY BACKGROUND backgroundBatch(st, bt) nameSku(bt)
+    PROPERTIES READONLY currentBalance(bt, st), currentBalanceBin(bt, st), currentDiffBalanceBin(bt, st), sumB(bt, st)
+    PROPERTIES(bt) READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
+    FILTERS isParent(sk, bt),
             st == ss
-    ORDERS          dateTime(bt)
+    ORDERS dateTime(bt)
 
     FILTERGROUP filterExpiry
-        FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < toDate(t) 'F7'
-        FILTER 'Партии со сроком годности, истекающим через 1 день' expires(bt, t, 1) 'F6'
-        FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, t, 7) 'F6'
-        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, t, 30) 'F4'
+        FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < currentDate() 'F7'
+        FILTER 'Партии со сроком годности, истекающим через 1 день' expires(bt, currentDate(), 1) 'F6'
+        FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, currentDate(), 7) 'F6'
+        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, currentDate(), 30) 'F4'
 
     FILTERGROUP filterBalance
-        FILTER 'Партии с остатком' balanceB(bt, st, t) 'F10'
-        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (balanceB(bt, st, t) OR balanceBinB(bt, st, t)) AND NOT balanceB(bt, st, t) = balanceBinB(bt, st, t)  'F11' DEFAULT 
+        FILTER 'Партии с остатком' currentBalance(bt, st) OR sumB(bt, st) OR currentBalanceBin(bt, st) 'F10'
+        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (currentBalance(bt, st) OR currentBalanceBin(bt, st)) AND NOT currentBalance(bt, st) = currentBalanceBin(bt, st)  'F11' DEFAULT 
         FILTER 'Партии с движением по складу' countLedger(bt, st)
-        FILTER 'Партии с остатком по ячейкам' balanceBinB(bt, st, t)        
+        FILTER 'Партии с остатком по ячейкам' currentBalanceBin(bt, st)        
         FILTER 'Партии пришедшие за последний 1 день' dateTime(bt) >= subtractSeconds(currentDateTime(), 1) 'F10'
         FILTER 'Партии пришедшие за последние 7 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 7) 'F9'
         FILTER 'Партии пришедшие за последние 30 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 30) 'F8'
     
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs()
-    PROPERTIES balanceB(bt, b, t)
-    FILTERS stock(b) = ss, balanceB(bt, b, t)
+    PROPERTIES(b) READONLY order, canonicalId, name
+    PROPERTIES currentBalance(bt, b)
+    FILTERS stock(b) = ss, currentBalance(bt, b)
     ORDERS order(b), canonicalId(b), name(b)
 
     OBJECTS bl = BinLedger
@@ -82,15 +79,14 @@ FORM balanceBinBatchStock 'Сравнение остатков по ячейка
     FILTERS isPosted(bl), batch(bl)==bt
 ;
 
-@extendFormFilterStockAccess(ss, balanceBinBatchStock);
+@extendFormFilterStockAccess(ss, currentBalanceBinBatchStock);
 
-DESIGN balanceBinBatchStock {
+DESIGN currentBalanceBinBatchStock {
     BOX {
         size = (1024, 768);
         NEW filter {
             alignment = STRETCH;
             horizontal = TRUE;
-            MOVE PROPERTY (valT);
             MOVE PROPERTY (name(ss));
         }
         NEW topContainer {
@@ -134,7 +130,7 @@ DESIGN balanceBinBatchStock {
 
 NAVIGATOR {
     WMSDocument {
-        NEW balanceBinBatchStock AFTER balanceBinSkuStock;
+        NEW currentBalanceBinBatchStock AFTER currentBalanceBinSkuStock;
     }
 }
 

@@ -17,9 +17,9 @@ balanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, 
 prevBalanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     [GROUP SUM prevBalanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
 
-currentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
     currentBalanceBin(sku, st) (-) currentBalance(sku, st);
-prevCurrentDiffBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
+prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
     prevCurrentBalanceBin(sku, st) (-) prevCurrentBalance(sku, st);
 diffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
     balanceBinB(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
@@ -30,11 +30,8 @@ diffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku
 prevDiffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
     prevBalanceBinA(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
 
-FORM balanceBinSkuStock 'Сравнение остатков по ячейкам и складу по товарам'
+FORM currentBalanceBinSkuStock 'Сравнение остатков по ячейкам и складу по товарам'
 
-    OBJECTS t=DATETIME PANEL
-    PROPERTIES valT = VALUE(t)
-    
     OBJECTS ss = Stock PANEL
     PROPERTIES(ss) name SELECTOR SHOWIF singleStore()
     FILTERS isCompany(ss)
@@ -44,16 +41,18 @@ FORM balanceBinSkuStock 'Сравнение остатков по ячейкам
     ORDERS order(sk), skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
 
-    OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY BACKGROUND backgroundBalance(s,st,t) name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), id(s) SHOWIF showIDs(), nameCountry(s), nameUOM(s)  //  idBarcodeSku
-    FILTERS           isParent(sk, s),
+    OBJECTS sts=(st=Stock, s=Sku)
+    PROPERTIES READONLY BACKGROUND backgroundBalance(s, st) 
+        name(s) ON CONTEXTMENU showBalanceMovementSku(s, st) ON CONTEXTMENU showBalancePriceSku(s, st) ON CONTEXTMENU showBalanceReserveSku(s,st), 
+        id(s) SHOWIF showIDs(), nameCountry(s), nameUOM(s)  //  idBarcodeSku
+    FILTERS isParent(sk, s),
             st == ss
 
     FILTERGROUP inactiveStock
         FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
         FILTER 'Неактивный' inactive(s) 'shift F10'
 
-    PROPERTIES(s, st, t) READONLY balanceB, balanceBinB, diffBalanceBinB, sumB
+    PROPERTIES(s, st) READONLY currentBalance, currentBalanceBin, currentDiffBalanceBin, currentSum
     PROPERTIES(s)     READONLY idSkuGroup, canonicalNameSkuGroup
 
     FILTERGROUP container
@@ -61,19 +60,19 @@ FORM balanceBinSkuStock 'Сравнение остатков по ячейкам
         FILTER 'Тара' isContainer(s)
 
     FILTERGROUP filters
-        FILTER 'Товары с остатком' balanceB(s, st, t) OR sumB(s, st, t) OR balanceBinB(s, st, t) 'F10' 
-        FILTER 'Товары с расхождением между по остаткам на складе и в ячейках ' (balanceB(s, st, t) OR balanceBinB(s, st, t)) AND NOT balanceB(s, st, t) = balanceBinB(s, st, t) 'F11' DEFAULT
-        FILTER 'Товары с остатком по складу' balanceB(s, st, t) 
-        FILTER 'Товары с остатком по ячейкам' balanceBinB(s, st, t) 
+        FILTER 'Товары с остатком' currentBalance(s, st) OR currentSum(s, st) OR currentBalanceBin(s, st) 'F10' 
+        FILTER 'Товары с расхождением между по остаткам на складе и в ячейках ' (currentBalance(s, st) OR currentBalanceBin(s, st)) AND NOT currentBalance(s, st) = currentBalanceBin(s, st) 'F11' DEFAULT
+        FILTER 'Товары с остатком по складу' currentBalance(s, st) 
+        FILTER 'Товары с остатком по ячейкам' currentBalanceBin(s, st) 
 
-        FILTER 'Товары с движением не позднее 1 дня' balance(s, st, t, 1) 'F9'
-        FILTER 'Товары с движением не позднее 7 дней' balance(s, st, t, 7) 'F8'
-        FILTER 'Товары с движением не позднее 30 дней' balance(s, st, t, 30) 'F7'
+        FILTER 'Товары с движением не позднее 1 дня' currentBalance(s, st, 1) 'F9'
+        FILTER 'Товары с движением не позднее 7 дней' currentBalance(s, st, 7) 'F8'
+        FILTER 'Товары с движением не позднее 30 дней' currentBalance(s, st, 30) 'F7'
     
     OBJECTS b = Bin 
-    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs()
-    PROPERTIES  balanceB(s, b, t)
-    FILTERS stock(b) = ss, balanceB(s, b, t)
+    PROPERTIES(b) READONLY order, canonicalId, name
+    PROPERTIES  currentBalance(s, b)
+    FILTERS stock(b) = ss, currentBalance(s, b)
     ORDERS order(b), canonicalId(b), name(b)
 
     OBJECTS bl = BinLedger
@@ -83,15 +82,14 @@ FORM balanceBinSkuStock 'Сравнение остатков по ячейкам
 
 ;
 
-@extendFormFilterStockAccess(ss, balanceBinSkuStock);
+@extendFormFilterStockAccess(ss, currentBalanceBinSkuStock);
 
-DESIGN balanceBinSkuStock {
+DESIGN currentBalanceBinSkuStock {
     BOX {
         size = (1024, 768);
         NEW filter {
             alignment = STRETCH;
             horizontal = TRUE;
-            MOVE PROPERTY (valT);
             MOVE PROPERTY (name(ss));
         }
         NEW topContainer {
@@ -132,7 +130,7 @@ DESIGN balanceBinSkuStock {
 
 NAVIGATOR {
     WMSDocument {
-        NEW balanceBinSkuStock;
+        NEW currentBalanceBinSkuStock;
     }
 }
 
