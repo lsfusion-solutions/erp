@@ -1,13 +1,24 @@
 MODULE AssemblyAccountPrice;
 
-REQUIRE Assembly, SkuLedgerCost, AssemblyAccountLedger;
+REQUIRE Assembly, SkuLedgerCost, AssemblyAccountLedger, PurchaseShipmentAccountPrice;
 
 NAMESPACE Assembly;
 
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (Assembly);
 accountLedgerPrice (Assembly d) += accountPrice(d);
 
-@defineCalcAveragePrice(Assembly, stock);
+
+calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
+calcAccountPriceBalance (Assembly d) = calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d));
+
+calcAccountPrice (Assembly d) =
+    NUMERIC[16,4](
+        (calcAccountPriceBalance(d) * accountPriceB(sku(d), stock(d), dateTime(d)) + quantity(d) * price(d))/
+            (quantity(d) + calcAccountPriceBalance(d)));
+
+WHEN (SETCHANGED(sku(Assembly d)) OR SETCHANGED(stock(d)) OR SETCHANGED(dateTime(d)) OR
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+    accountPrice(d) <- calcAccountPrice(d);
 
 recalculateCostAccountFirst(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в сборках (приход)');
