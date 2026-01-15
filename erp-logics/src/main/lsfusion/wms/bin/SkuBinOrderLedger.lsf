@@ -1,6 +1,6 @@
 MODULE SkuBinOrderLedger;
 
-REQUIRE BinSkuLedger, OrderLedger;
+REQUIRE BinSkuLedger, OrderLedger, SaleBinLedger;
 
 NAMESPACE Bin;
 
@@ -19,3 +19,7 @@ sku (BinSkuOrderLedger ledger) += sku(ledger);
 description (BinSkuOrderLedger ledger) += STRING[200]('Резерв ячейки: ' + canonicalId(bin(ledger)));
 quantity (BinSkuOrderLedger ledger) += currentBalance(sku(ledger), bin(ledger));
 toShipQuantity (BinSkuOrderLedger ledger) += currentBalance(sku(ledger), bin(ledger));
+
+//Делается для предотвращения попадания подготовленного к отгурзке товара в новые заказы
+CONSTRAINT SET(storage(Bin bin) AND shipping(bin) AND NOT orderLedger(bin))
+    MESSAGE 'Нельзя ставить признаки хранения и отгрузки для ячейки без признака резерва';
