@@ -387,10 +387,10 @@ public class DefaultTerminalHandler {
 
                             Set<String> usedImages = new HashSet<>();
                             for (TerminalBarcode barcode : barcodeList) {
-                                if (barcode.image != null && !usedImages.contains(barcode.idBarcode)) {
+                                if (barcode.image != null && !usedImages.contains(barcode.fileNameImage)) {
                                     try (InputStream is = barcode.image.getInputStream()) {
                                         writeInputStreamToZip(is, zos, "images/" + barcode.fileNameImage);
-                                        usedImages.add(barcode.idBarcode);
+                                        usedImages.add(barcode.fileNameImage);
                                     }
                                 }
                             }
@@ -399,9 +399,10 @@ public class DefaultTerminalHandler {
                                 String fileName = entry.getKey();
                                 RawFileData image = entry.getValue();
 
-                                if (image != null) {
+                                if (image != null && !usedImages.contains(fileName)) {
                                     try (InputStream is = image.getInputStream()) {
                                         writeInputStreamToZip(is, zos, "images/" + fileName);
+                                        usedImages.add(fileName);
                                     }
                                 }
                             }
