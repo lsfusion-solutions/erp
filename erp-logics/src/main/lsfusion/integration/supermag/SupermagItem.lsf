@@ -105,6 +105,8 @@ importBarcodeItem 'Импорт штрихкодов товара' () {
         name(INTEGER i) <- left(name(i), 15);
         //весовой товар 
         name(INTEGER i) <- substrFrom(name(i), 3) WHERE substr(name(i), 1, 2) = '21' AND length(name(i)) = 7;
+        
+        name(INTEGER i) <- replace(name(i), '¶', '');
 
         FOR imported(INTEGER i) AND item(id(i)) AND NOT barcode(name(i)) DO NEW b = Barcode {
             id(b) <- ISTRING[15] (name(i));
@@ -311,6 +313,8 @@ lastVersion = DATA STRING (Item);
 imported = DATA LOCAL BOOLEAN (Item);
 imported = DATA LOCAL BOOLEAN (Barcode);
 
+initcap = FORMULA STRING 'initcap($1)';
+
 importItem 'Импорт товаров' () {
 
     LOCAL id = TEXT (INTEGER);
@@ -341,13 +345,16 @@ importItem 'Импорт товаров' () {
     IMPORT TABLE FROM file() TO taxArticle, vat;
 
     FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
-
+    
+    country(INTEGER i) <- ISTRING[50](initcap(trim(country(i))));
+    
     currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i),
         TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i)));
     //   logToFile('importSupermag', 'importItem_2');
 
-    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
-        name(s) <- ISTRING[50](upper(trim(country(i))));
+    
+    FOR [GROUP SUM 1 BY country(INTEGER i)](STRING name) AND NOT countryName(name) DO NEW s = Country {
+        name(s) <- name;
     }
 
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
@@ -362,7 +369,7 @@ importItem 'Импорт товаров' () {
         skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
             WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge
             ELSE SkuType.skuTypeItem;
-        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
+        Item.country(s) <- countryName(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
@@ -408,9 +415,11 @@ importItem 'Импорт товаров' (STRING itemlist) {
     EXTERNAL SQL connectionString() EXEC sqlString() TO file;
 
     IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
+    
+    country(INTEGER i) <- ISTRING[50](initcap(trim(country(i))));
 
-    FOR country(INTEGER i) AND NOT [GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)))]() DO NEW s = Country {
-        name(s) <- ISTRING[50](upper(trim(country(i))));
+    FOR [GROUP SUM 1 BY country(INTEGER i)](STRING name) AND NOT countryName(name) DO NEW s = Country {
+        name(s) <- name;
     }
 
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
@@ -425,7 +434,7 @@ importItem 'Импорт товаров' (STRING itemlist) {
         skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
             WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge
             ELSE SkuType.skuTypeItem;
-        Item.country(s) <- GROUP MIN Country c IF upper(name(c)) == upper(trim(country(i)));
+        Item.country(s) <- countryName(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
         height(s) <- max(min(height(i), 99999), -99999);
