@@ -268,6 +268,7 @@ idZReport (INTEGER i) =  storeId(i) + '_' + shiftId(i) + '_' + posId(i);
 idReceipt (INTEGER i) =  storeId(i) + '_' + shiftId(i) + '_' + posId(i) + '_' + id1(i);
 idUkm5 '{integration.id}' = DATA STRING[100] (CashRegister) IN id INDEXED CHARWIDTH 10;
 cashRegisterUkm5 (id) = GROUP AGGR CashRegister cashRegister BY idUkm5 (cashRegister);
+idUkm5(INTEGER i) = storeId(i) + '_' + posId(i);
 
 EXTEND FORM groupCashRegister
     PROPERTIES (c) idUkm5 SHOWIF isUkm5(grc);
@@ -297,8 +298,8 @@ zReportUkm5 (FILE f) {
     group(INTEGER  i) <- (GROUP MAX GroupCashRegister gc IF idStore(gc) = storeId(i) AND isUkm5(gc));
 
     FOR shiftId(INTEGER i) DO{
-        IF NOT cashRegisterUkm5(posId(i)) AND group(i) THEN NEW c = CashRegister {
-            idUkm5(c) <- STRING[100](posId(i));
+        IF NOT cashRegisterUkm5(idUkm5(i)) AND group(i) THEN NEW c = CashRegister {
+            idUkm5(c) <- idUkm5(i);
             groupCashRegister(c) <- group(i);
             npp(c) <- (GROUP MAX npp(CashRegister cc) IF groupCashRegister(cc) = groupCashRegister(c)) (+) 1;
             description(c) <- STRING[200](CONCAT '/', posName(i), INTEGER(posNumber(i)));

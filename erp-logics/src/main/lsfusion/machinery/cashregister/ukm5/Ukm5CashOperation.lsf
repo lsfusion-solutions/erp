@@ -1,0 +1,71 @@
+MODULE Ukm5CashOperation;
+
+REQUIRE Ukm5PriceTransaction, CashDocument, CashOperation, Ukm5Receive;
+
+NAMESPACE Ukm5;
+
+opType = DATA LOCAL STRING(INTEGER);
+userName = DATA LOCAL STRING(INTEGER);
+userId = DATA LOCAL NUMERIC(INTEGER);
+localNumber = DATA LOCAL NUMERIC(INTEGER);
+amountBefore = DATA LOCAL NUMERIC(INTEGER);
+opDate = DATA LOCAL DATETIME(INTEGER);
+globalNumber = DATA LOCAL NUMERIC(INTEGER);
+
+FORM moneyOperations
+    OBJECTS elements = INTEGER
+    PROPERTIES(elements) shiftId, amount, shiftNumber, opType, storeId, userName, userId, localNumber,
+        posId, amountBefore, id, opDate, globalNumber, currencyId
+    FILTERS imported(elements)
+;
+
+idCashDocument(INTEGER i) = DATE(opDate(i)) + '_' + storeId(i) + '_' + posId(i) + '_' + shiftId(i) + '_' + localNumber(i);
+
+importMoneyOperations(FILE f){
+    IMPORT moneyOperations JSON FROM f;
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id)
+        AND NOT cashDocument(id) AND lower(opType(x)) = 'deposition' DO NEW o = IncomeCashOperation{
+        id(o) <- id;
+    }
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND IncomeCashOperation o = cashDocument(id) AND o IS IncomeCashOperation DO{
+        number(o) <- STRING[48](localNumber(x));
+        cashRegister(o) <- cashRegisterUkm5(idUkm5(x)) ;
+        date(o) <- DATE(opDate(x));
+        time(o) <- TIME(opDate(x));
+        sumCash (o) <- NUMERIC[18,4](amount(x));
+    }
+
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id)
+        AND NOT cashDocument(id) AND lower(opType(x)) = 'withdrawal' DO NEW o = OutcomeCashOperation{
+        id(o) <- id;
+    }
+    FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND OutcomeCashOperation o = cashDocument(id) AND o IS OutcomeCashOperation DO{
+        number(o) <- STRING[48](localNumber(x));
+        cashRegister(o) <- cashRegisterUkm5(idUkm5(x));
+        date(o) <- DATE(opDate(x));
+        time(o) <- TIME(opDate(x));
+        sumCash (o) <- NUMERIC[18,4](amount(x));
+    }
+
+    APPLY NESTED LOCAL;
+}
+
+//-------------------- api/v1/export/moneyOperation ------------------------//
+api_v1_export_moneyOperation (FILE file){
+    TRY {
+        importMoneyOperations(file);
+        IF NOT canceled() THEN {
+            statusHttpTo() <- 200;
+            EXPORT JSON FROM result = 'success';
+        } ELSE {
+            statusHttpTo() <- 500;
+            EXPORT JSON FROM result = 'error', descriprion = applyMessage();
+            logToFile('ukm5CashOperation', CONCAT ':', 'ERROR', applyMessage());
+        }
+    }
+        CATCH {
+        statusHttpTo() <- 500;
+        EXPORT JSON FROM result = 'error', descriprion = messageCaughtException();
+        logToFile('ukm5CashOperation', CONCAT ':', 'ERROR', messageCaughtException());
+    }
+}@@api;
