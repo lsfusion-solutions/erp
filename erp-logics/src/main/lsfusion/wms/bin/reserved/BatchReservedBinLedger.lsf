@@ -1,6 +1,6 @@
 MODULE BatchReservedBinLedger;
 
-REQUIRE ReservedBinLedger, BatchBinLedger;
+REQUIRE ReservedBinLedger, BatchBinLedger, SkuBinOrderLedger;
 
 NAMESPACE Bin;
 
@@ -54,14 +54,14 @@ prevAvailableQuantity 'Доступное кол-во в группе ячеек
     [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
 
 storagePickingCurrentReserved 'Текущий резерв (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) BY batch1, bg1](batch, bg);
+    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg);
 prevStoragePickingCurrentReserved 'Текущий резерв (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) BY batch1, bg1](batch, bg);
+    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg);
 
 storagePickingAvailableQuantity 'Доступное кол-во в группе ячеек (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND availableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
+    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND availableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
 prevStoragePickingAvailableQuantity 'Доступное кол-во в группе ячеек  (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND prevAvailableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
+    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND prevAvailableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
 
 createRemoveUserReservedBinLedgerBatch(Sku s, Bin b) {
     IF GROUP MAX currentReserved(Batch bt, b) > 0 AND sku(bt) = s THEN NEWSESSION {
