@@ -28,18 +28,27 @@ quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMate
 quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityOut(s,su,st)*value (s, em)) ;
 
 inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (LegalEntity);
-countInEcologeLegalEntity 'Отм.'  = GROUP SUM 1 IF inEcology(LegalEntity l);
-nameInEcologeLegalEntity 'Поставщик' = GROUP CONCAT name(LegalEntity l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+countInEcologyLegalEntity 'Отм.'  = GROUP SUM 1 IF inEcology(LegalEntity l);
+nameInEcologyLegalEntity 'Поставщик' = GROUP CONCAT name(LegalEntity l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+
+inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (Country);
+countInEcologyCountry 'Отм.'  = GROUP SUM 1 IF inEcology(Country l);
+nameInEcologyCountry 'Страна (поставщика)' = GROUP CONCAT name(Country l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
 
 inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (Stock);
-countInEcologeStock 'Отм.'   = GROUP SUM 1 IF inEcology(Stock l);
-nameInEcologeStock 'Склад' = GROUP CONCAT name(Stock l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+countInEcologyStock 'Отм.'   = GROUP SUM 1 IF inEcology(Stock l);
+nameInEcologyStock 'Склад' = GROUP CONCAT name(Stock l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
 
 inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (Region);
-countInEcologeRegion 'Отм.'   = GROUP SUM 1 IF inEcology(Region l);
-nameInEcologeRegion 'Регион' = GROUP CONCAT name(Region l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
+countInEcologyRegion 'Отм.'   = GROUP SUM 1 IF inEcology(Region l);
+nameInEcologyRegion 'Регион' = GROUP CONCAT name(Region l) IF inEcology(l) ,', ' ORDER l CHARWIDTH 30;
 
 FORM selectParamsEcology 'Параметры'
+    OBJECTS c = Country
+    PROPERTIES (c) inEcology
+    PROPERTIES (c) READONLY  name, sid
+    FILTERGROUP def0 FILTER 'Не РФ' NOT c == defaultCountry() 'F8' DEFAULT
+    
     OBJECTS su = LegalEntity
     PROPERTIES (su) inEcology
     PROPERTIES (su) READONLY  name, id
@@ -54,9 +63,10 @@ FORM selectParamsEcology 'Параметры'
     PROPERTIES (st) inEcology
     PROPERTIES (st) READONLY  name, id, nameRegion
     FILTERS isCompany(st)
-    PROPERTIES countInEcologeLegalEntity() TOOLBAR DRAW su
-    PROPERTIES countInEcologeStock() TOOLBAR DRAW st
-    PROPERTIES countInEcologeRegion() TOOLBAR DRAW r
+    PROPERTIES countInEcologyLegalEntity() TOOLBAR DRAW su
+    PROPERTIES countInEcologyStock() TOOLBAR DRAW st
+    PROPERTIES countInEcologyRegion() TOOLBAR DRAW r
+    PROPERTIES countInEcologyCountry() TOOLBAR DRAW c
     
     FILTERGROUP inactive1 FILTER 'Активные' active(su) 'F10' DEFAULT
     FILTERGROUP inactive2 FILTER 'Активные' active(st) 'F9' DEFAULT
@@ -67,8 +77,17 @@ DESIGN selectParamsEcology{
         NEW row1{
             fill=1;
             horizontal = TRUE;
-            MOVE BOX(su);
             NEW row11{
+                caption = 'ПОСТАВЩИК';
+                fill = 1;
+                horizontal = FALSE;
+                fill = 1;
+                MOVE BOX(c);
+                MOVE BOX(su);
+            }
+            
+            NEW row12{
+                caption = 'СКЛАД';
                 fill = 1;
                 horizontal = FALSE;
                 fill = 1;
@@ -88,6 +107,7 @@ resetEcologyReport(){
     formRefresh();
 }
 changeSelectForm() {
+    inEcology(Country l) <- NULL;
     inEcology(LegalEntity l) <- NULL;
     inEcology(Stock l) <- NULL;
     inEcology(Region l) <- NULL;
@@ -125,7 +145,12 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     to(Sku s) <- (GROUP SUM 1 IF value(s, EcologyPackType et, EcologyMaterial em));
     value (Sku s, EcologyMaterial em) <- (GROUP SUM value(s, EcologyPackType et,em) ) WHERE to(s);    
         
-    to(LegalEntity l) <- (inEcology(l)) OR (l IS LegalEntity AND NOT countInEcologeLegalEntity());
+    IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
+        to(LegalEntity l) <- (inEcology(l) OR inEcology(country(l)));
+    } ELSE {
+        to(LegalEntity l) <- (l IS LegalEntity);
+    }
+
     to(Stock l) <- isCompany(l) AND (inEcology(l) OR inEcology(region(l)));
     IF NOT (GROUP SUM 1 IF  to(Stock l)) THEN {
         to(Stock l) <- isCompany(l);
@@ -143,7 +168,7 @@ ecologyReportPrint = DATA LOCAL STRING ();
 FORM ecologyReportPrint 'Экологический отчет'
     OBJECTS dates = (df = DATE, dt = DATE, t = TypeReport) PANEL
     PROPERTIES from =VALUE (df), to = VALUE (dt), name(t)
-    PROPERTIES () TOOLBAR DRAW dates nameInEcologeLegalEntity, nameInEcologeRegion, nameInEcologeStock
+    PROPERTIES () TOOLBAR DRAW dates nameInEcologyCountry, nameInEcologyLegalEntity, nameInEcologyRegion, nameInEcologyStock
     OBJECTS em = EcologyMaterial
 
     OBJECTS dd = (s=Sku, su=LegalEntity, st=Stock) SUBREPORT 
@@ -174,7 +199,7 @@ FORM ecologyReport 'Экологический отчет'
     OBJECTS  t = TypeReport PANEL
     PROPERTIES name(t) SELECTOR
 
-    PROPERTIES () ON CHANGE changeSelectForm() nameInEcologeLegalEntity, nameInEcologeRegion, nameInEcologeStock
+    PROPERTIES () ON CHANGE changeSelectForm() nameInEcologyCountry, nameInEcologyLegalEntity, nameInEcologyRegion, nameInEcologyStock
 
     OBJECTS em = EcologyMaterial
 
@@ -198,15 +223,22 @@ DESIGN ecologyReport{
     OBJECTS {
         NEW filters{
             caption = 'Параметры';
-            horizontal = TRUE;
-            lines = 1;
-            MOVE PROPERTY (from){caption = 'Дата с';}
-            MOVE PROPERTY (to){caption = 'Дата по';}
-            MOVE PROPERTY (name(t));
-            MOVE PROPERTY (nameInEcologeLegalEntity());
-            MOVE PROPERTY (nameInEcologeRegion());
-            MOVE PROPERTY (nameInEcologeStock());
-            
+            horizontal = FALSE;
+            NEW filters1{
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (from){caption = 'Дата с';}
+                MOVE PROPERTY (to){caption = 'Дата по';}
+                MOVE PROPERTY (name(t));
+            }
+            NEW filters2{
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (nameInEcologyCountry());
+                MOVE PROPERTY (nameInEcologyLegalEntity());
+                MOVE PROPERTY (nameInEcologyRegion());
+                MOVE PROPERTY (nameInEcologyStock());
+            }
         }
         MOVE BOX(dd);
     }
