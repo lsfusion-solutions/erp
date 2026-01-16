@@ -82,6 +82,11 @@ changeDataPackQuantity(UserPicking picking) {
     }
 }
 
+idBatch 'Код партии' (PickingOrderDetail detail) = id(batch(detail));
+idBatch 'Код партии' (UserPickingOrderDetail detail) = id(batch(detail));
+idBatch 'Код партии' (PickingDetail detail) = id(batch(detail));
+idBatch 'Код партии' (UserPickingDetail detail) = id(batch(detail));
+
 // --------------------------- Формы Заказа ---------------------------------
 
 editSku 'Редактировать SKU' (UserPickingDetail d)  { NEWSESSION { edit(sku(d)); } }
@@ -95,7 +100,7 @@ FORM userPicking 'Комплектация'
     OBJECTS d = UserPickingDetail
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
-                   nameBatch ON CHANGE changeBatch(d)
+                   idBatch ON CHANGE changeBatch(d), nameBatch ON CHANGE changeBatch(d)
     PROPERTIES (d) quantity, NEW, DELETE GRID
 
     PROPERTIES(o) DRAW d addDetailDialogSkuStockUserPickingDetail,
@@ -199,7 +204,7 @@ FORM pickings 'Комплектации'
 
     OBJECTS d=PickingDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, quantity
+                   idBatch, nameBatch, quantity
     FILTERS picking(d) == o
     LIST Picking OBJECT o
 ;
@@ -343,7 +348,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
 
     OBJECTS d=PickingOrderDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, quantity
+                   idBatch, nameBatch, quantity
     FILTERS pickingOrder(d) == o,
             stock(o) == s
 ;
@@ -618,7 +623,7 @@ FORM printPickingOrder 'Заказ на комплектацию'
         nameStatusPicking, finishDate, finishTime
 
     OBJECTS d=PickingOrderDetail
-    PROPERTIES(d) READONLY index, nameSku, shortNameUOMSku, idSku, idBarcodeSku, nameBatch, dateBatch, expiryDateBatch, 
+    PROPERTIES(d) READONLY index, nameSku, shortNameUOMSku, idSku, idBarcodeSku, idBatch, nameBatch, dateBatch, expiryDateBatch, 
         quantity, printOrder
     ORDERS printOrder(d)
     FILTERS pickingOrder(d) == o
