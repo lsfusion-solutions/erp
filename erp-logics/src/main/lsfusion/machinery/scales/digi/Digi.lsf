@@ -6,6 +6,20 @@ writeFileToSocketResult = DATA LOCAL BOOLEAN ();
 //Для Digi необходимо прогрузить 2 файла: 0x34 = 52, 0x38 = 56
 writeFileToSocket (file, type, ip)  INTERNAL  'lsfusion.erp.machinery.scales.WriteFileToSocketAction' (FILE, INTEGER, STRING[30]);
 
+labelFormat 'Формат этикетки' = DATA LabelFormat(GroupScales);
+nameLabelFormat 'Формат этикетки' (GroupScales s) = name(labelFormat(s));
+
+EXTEND FORM groupScales 
+    PROPERTIES (grs) nameLabelFormat SHOWIF sidModel(grs) LIKE 'Digi%';
+
+createAttribute(MachineryPriceTransaction mpt) + {
+    IF labelFormat(groupMachinery(mpt)) AND createMachineryPriceTransactionAll() THEN {
+        LOCAL file = RAWFILE (INTEGER );
+        file(52) <- decode(STRING(file(labelFormat(groupMachinery(mpt)))), 'hex');
+        file(56) <- decode(STRING(fileMessage(labelFormat(groupMachinery(mpt)))), 'hex');
+        info(mpt) <- STRING (JSON FROM digi = JSON FROM customFiles = JSON FROM number = INTEGER num, file = file(num) WHERE num == 52 OR num == 56);
+    }
+}
 
 //DigiSM5300
 loadImages() + {
