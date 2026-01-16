@@ -88,8 +88,8 @@ FORM importEInvoice FORMEXTID 'DeliveryNote'
         lineItemQuantityUOM EXTID 'LineItemQuantityUOM', taxRate EXTID 'TaxRate', lineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges',
         lineItemAmountCharges EXTID 'LineItemAmountCharges', lineItemAmount EXTID 'LineItemAmount', lineItemPrice EXTID 'LineItemPrice'
 
-    OBJECTS i = INTEGER EXTID 'LineItem'
-    PROPERTIES(i) IN lineItem lineItemNumber EXTID 'LineItemNumber', lineItemSign EXTID 'LineItemSign', lineItemID EXTID 'LineItemID', 
+    OBJECTS i = INTEGER EXTID 'LineItem' IN despatchAdviceLogisticUnitLineItem
+    PROPERTIES(i) lineItemNumber EXTID 'LineItemNumber', lineItemSign EXTID 'LineItemSign', lineItemID EXTID 'LineItemID', 
         itemCustomCode EXTID 'ItemCustomCode', lineItemName EXTID 'LineItemName', quantityDespatched EXTID 'QuantityDespatched', 
         lineItemQuantityUOM EXTID 'LineItemQuantityUOM', taxRate EXTID 'TaxRate', lineItemAmountWithoutCharges EXTID 'LineItemAmountWithoutCharges', 
         lineItemAmountCharges EXTID 'LineItemAmountCharges', lineItemAmount EXTID 'LineItemAmount', lineItemPrice EXTID 'LineItemPrice'
@@ -120,7 +120,7 @@ createDocument(Document d) + {
             unpCustomer(ei) <- VATRegistrationNumber1();
             customer(ei) <- legalEntityGLN(GLN1());
             currency(ei) <- currency();
-            FOR lineItemNumber() NEW ed = EInvoiceDetail DO {
+            FOR lineItemNumber() AND NOT GROUP SUM 1 IF lineItemNumber(INTEGER i) NEW ed = EInvoiceDetail DO {
                 eInvoice(ed) <- ei;
                 lineItemSign(ed) <- lineItemSign();
                 lineItemID(ed) <- lineItemID();
