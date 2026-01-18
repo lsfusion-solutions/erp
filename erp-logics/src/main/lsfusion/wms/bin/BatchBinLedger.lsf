@@ -84,6 +84,8 @@ prevCurrentBalance 'Текущий остаток в ячейке' (Batch batch,
 
 prevCurrentBalanceBatch 'Текущий остаток в ячейке' = GROUP SUM prevCurrentBalance(Batch batch, Bin bin) BY bin;
 
+currentBalanceBatch 'Текущий остаток всех ячеек' = GROUP SUM currentBalance(Batch batch, Bin bin) BY batch, stock(bin);
+
 balanceA 'Остаток в ячейке на конец дня' (Batch batch, Bin bin, DATE date) = currentBalance(batch, bin) (-)
     inBinTotalA(batch, bin, date) (+) outBinTotalA(batch, bin, date);
 
@@ -229,10 +231,120 @@ DESIGN batchBinBalance {
     }
 }
 
+discrepancies 'Пересорт по ячейкам' = GROUP SUM 1 IF currentBalance(Batch batch, Bin bin) < 0 BY batch;
+
+FORM binBatchDiscrepancies 'Пересорт партий по ячейкам'
+    OBJECTS ts = Stock PANEL
+    PROPERTIES(ts) SELECTOR name
+    FILTERS isCompany(ts),
+        useBins(ts)
+
+    TREE treeGroup g=SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS bt = Batch
+    PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name, id
+    PROPERTIES READONLY currentBalance(bt, ts), currentBalanceBatch(bt, ts) 
+    FILTERGROUP discrepancies
+        FILTER 'Пересорт' discrepancies(bt) DEFAULT
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg)
+    FILTERS ts==stock(bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs(), statusBatch
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b), ts==stock(b)
+    ORDERS order(b), canonicalId(b), name(b)
+    PROPERTIES (bt, b) READONLY currentBalance
+    ORDERS nameSku(bt), name(bt)
+    FILTERS isParent(g, bt) OR bt IS Batch AND NOT g
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(bt, b) DEFAULT
+        FILTER 'С движением' countLedger(bt, b)    
+
+    OBJECTS bl = BinLedger
+    PROPERTIES (bl) READONLY dateTime, description, skip
+    PROPERTIES(b, bl) READONLY balanceBin, balanceQuantity
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl),
+        inBin(bl)==b OR outBin(bl)==b,
+        batch(bl)== bt
+;
+
+@extendFormFilterStockAccess(ts, binBatchDiscrepancies);
+
+DESIGN binBatchDiscrepancies {
+    BOX {
+        size = (1024, 768);
+
+        MOVE BOX(ts) {
+            alignment = STRETCH;
+            GROUP(,ts) {
+                alignment = STRETCH;
+                PROPERTY(name(ts)) {
+                    alignment = STRETCH;
+                }
+            }
+        }
+        NEW topContainer {
+            fill = 1;
+
+            NEW batchSkuGroup {
+                horizontal = TRUE;
+                fill = 3;
+
+                MOVE BOX(TREE treeGroup) {
+                    caption = 'Группы Sku';
+                }
+
+                NEW batches {
+                    fill = 2.5;
+                    MOVE BOX(bt) {
+                        fill = 2;
+                        GRID(bt) {
+                            defaultComponent = TRUE;
+                        }
+                    }
+                }
+            }
+            NEW binGroup {
+                horizontal = TRUE;
+                fill = 1;
+
+                MOVE BOX(TREE binTree) {
+                    caption = 'Группы ячеек';
+                }
+
+                NEW bins {
+                    fill = 2.5;
+                    MOVE BOX(b) {
+                        fill = 2;
+                        GRID(b) {
+                            defaultComponent = TRUE;
+                        }
+                        PROPERTY(canonicalId(b)) {defaultCompare = '=*';}
+                    }
+                    NEW batchesDetail {
+                        tabbed = TRUE;
+                        fill = 1;
+                        MOVE BOX(bl);
+                    }
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
 NAVIGATOR {
     WMSNavigator {
         WMSReports {
             NEW batchBinBalance AFTER binBalance;
+            NEW binBatchDiscrepancies AFTER binSkuDiscrepancies;
         }
     }
 }

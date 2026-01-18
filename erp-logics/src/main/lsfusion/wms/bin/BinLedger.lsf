@@ -106,6 +106,8 @@ prevCurrentBalance 'Текущий остаток в ячейке' (Sku sku, Bin
 
 prevCurrentBalance 'Текущий остаток в ячейке' = GROUP SUM prevCurrentBalance(Sku sku, Bin bin) BY bin;
 
+currentBalanceSku 'Текущий остаток всех ячеек' = GROUP SUM currentBalance(Sku sku, Bin bin) BY sku, stock(bin);
+
 balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, date) (+) outBinTotalA(sku, bin, date);
 
@@ -312,11 +314,121 @@ DESIGN binBalance {
     }
 }
 
+discrepancies 'Пересорт по ячейкам' = GROUP SUM 1 IF currentBalance(Sku sku, Bin bin) < 0 BY sku;
+
+FORM binSkuDiscrepancies 'Пересорт товаров по ячейкам'
+    OBJECTS ts = Stock PANEL
+    PROPERTIES(ts) SELECTOR name
+    FILTERS isCompany(ts),
+        useBins(ts)
+
+    TREE treeGroup g=SkuGroup PARENT parent(g)
+    PROPERTIES READONLY order(g), name(g)
+    ORDERS order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F6' DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY name, idBarcode
+    PROPERTIES READONLY currentBalance(s, ts), currentBalanceSku(s, ts)
+    FILTERGROUP discrepancies
+        FILTER 'Пересорт' discrepancies(s) DEFAULT 
+
+    TREE binTree bg = BinGroup PARENT parent(bg)
+    PROPERTIES READONLY name(bg)
+    FILTERS ts==stock(bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b), ts==stock(b)
+    ORDERS order(b), canonicalId(b), name(b)
+    PROPERTIES (s, b) READONLY currentBalance
+    ORDERS name(s)
+    FILTERS isParent(g, s) OR s IS Sku AND NOT g
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(s, b) DEFAULT
+        FILTER 'С движением' countLedger(s, b)    
+
+    OBJECTS l = BinLedger
+    PROPERTIES (l) READONLY dateTime, description, skip
+    PROPERTIES(b, l) READONLY balanceBin, balanceQuantity
+    ORDERS dateTime(l) DESC
+    FILTERS isPosted(l),
+        inBin(l)==b OR outBin(l)==b,
+        sku(l)==s
+;
+
+@extendFormFilterStockAccess(ts, binSkuDiscrepancies);
+
+DESIGN binSkuDiscrepancies {
+    BOX {
+        size = (1024, 768);
+
+        MOVE BOX(ts) {
+            alignment = STRETCH;
+            GROUP(,ts) {
+                alignment = STRETCH;
+                PROPERTY(name(ts)) {
+                    alignment = STRETCH;
+                }
+            }
+        }
+        NEW topContainer {
+            fill = 1;
+
+            NEW skuGroup {
+                horizontal = TRUE;
+                fill = 3;
+
+                MOVE BOX(TREE treeGroup) {
+                    caption = 'Группы Sku';
+                }
+
+                NEW skus {
+                    fill = 2.5;
+                    MOVE BOX(s) {
+                        fill = 2;
+                        GRID(s) {
+                            defaultComponent = TRUE;
+                        }
+                    }
+                }
+            }
+            NEW binGroup {
+                horizontal = TRUE;
+                fill = 1;
+
+                MOVE BOX(TREE binTree) {
+                    caption = 'Группы ячеек';
+                }
+
+                NEW bins {
+                    fill = 2.5;
+                    MOVE BOX(b) {
+                        fill = 2;
+                        GRID(b) {
+                            defaultComponent = TRUE;
+                        }
+                        PROPERTY(canonicalId(b)) {defaultCompare = '=*';}
+                    }
+                    NEW skusDetail {
+                        tabbed = TRUE;
+                        fill = 1;
+                        MOVE BOX(l);
+                    }                    
+                }
+            }            
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
 NAVIGATOR {
     WMSNavigator {
         WMSReports {
             NEW binLedger;
             NEW binBalance;
+            NEW binSkuDiscrepancies;
         }    
     }
 }
