@@ -1,0 +1,25 @@
+MODULE ProductionConsumptionCost;
+
+REQUIRE ProductionConsumption, SkuLedgerCost;
+
+NAMESPACE ProductionOrder;
+
+recalculateCostCalculated(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в cписание сырья');
+    APPLY NESTED (calculatedCost[Sku, Stock]) {
+        price(ConsumptionDetail d) <- calculatedCost(sku(d), stock(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND NOT date(d) < documentsClosedDate(stock(d)) AND
+            calculatedCost(sku(d), stock(d)) AND NOT calculatedCost(sku(d), stock(d)) = price(d);
+    }
+    logToFile('cost', 'Закончен пересчет цен в cписание сырья');
+}
+
+recalculateCostAccountBeforeFirst(DATE dFrom, DATE dTo) +{
+    logToFile('cost', 'Начат пересчет цен в cписание сырья');
+    APPLY NESTED LOCAL {
+        price(ConsumptionDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) AND
+            prevAccountPriceB(sku(d), stock(d), dateTime(d)) > 0;
+    }
+    logToFile('cost', 'Закончен пересчет цен в cписание сырья');
+}
