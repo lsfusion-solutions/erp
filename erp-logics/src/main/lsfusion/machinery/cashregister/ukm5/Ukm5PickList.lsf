@@ -104,11 +104,14 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
             CATCH {
             errorsImagesGroups(c) <- TRUE;
         }
-    IF (GROUP SUM 1 IF errorsImagesGroups(CustomGroup c) OR errorsImagesItems(Item i)) THEN {
-        MESSAGE 'Изображения не выгружены для:\n ' + CONCAT '\n\n', 
-            'ТОВАРОВ\n' + (GROUP CONCAT name(Item i) IF errorsImagesItems(i), '\n' ORDER i),
-            'ТОВАРНЫХ ГРУПП\n' + (GROUP CONCAT name(CustomGroup c) IF errorsImagesGroups(c), '\n' ORDER c)
-    NOWAIT;
+    IF (GROUP SUM 1 IF errorsImagesItems(Item i)) THEN {
+        MESSAGE 'Изображения не выгружены для ТОВАРОВ:\n' +
+            (GROUP CONCAT name(Item i) IF errorsImagesItems(i), '\n' ORDER i) NOWAIT;
+    }
+
+    IF (GROUP SUM 1 IF errorsImagesGroups(CustomGroup c)) THEN {
+        MESSAGE 'Изображения не выгружены для ТОВАРНЫХ ГРУПП:\n' +
+            (GROUP CONCAT name(CustomGroup c) IF errorsImagesGroups(c), '\n' ORDER c) NOWAIT;
     }
     APPLY;
 }
