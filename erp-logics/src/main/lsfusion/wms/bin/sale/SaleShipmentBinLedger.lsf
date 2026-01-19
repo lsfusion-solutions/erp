@@ -1,6 +1,6 @@
 MODULE SaleShipmentBinLedger;
 
-REQUIRE SaleShipment, Item, BinLedger, SaleBinLedger, StockDocumentBinLedger;
+REQUIRE SaleShipment, Item, BinLedger, SaleBinLedger;
 
 NAMESPACE Sale;
 
@@ -20,36 +20,3 @@ CONSTRAINT (CHANGED(operation(UserShipmentDetail d)) OR DROPPED(outBin(d)) OR SE
 @implementAggregationBinLedger(shipmentDetail, shipment, Shipment, sku, quantity, supplierStock);
 @implementBinLedger(shipmentBinLedger, shipmentDetail, sku, quantity, supplierStock, outBin);
 needToCreateShipmentBinLedger(ShipmentDetail detail) += TRUE IF outBin(detail);
-
-//StockDocumentBinLedger
-
-createStockDocumentBinLedger 'Проводить по ТО подразделений' = DATA BOOLEAN (Operation);
-EXTEND FORM operation PROPERTIES createStockDocumentBinLedger(o);
-DESIGN operation {
-    createContainer {
-        MOVE PROPERTY(createStockDocumentBinLedger(o));
-    }
-}
-
-CLASS OutStockDocumentShipmentBinLedger 'Поставка продажа (расход)' : OutStockDocumentBinLedger;
-
-needToCreateIncStockDocumentShipmentBinLedger (Shipment t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
-    (GROUP SUM quantity(ShipmentDetail d) IF shipment(d) == t AND binGroup2(outBin(d)) == g);
-incStockDocumentShipmentBinLedger = AGGR OutStockDocumentShipmentBinLedger WHERE needToCreateIncStockDocumentShipmentBinLedger(Shipment shipment, BinGroup binGroup) MATERIALIZED INDEXED;
-
-dateTime[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += dateTime(shipment(ledger));
-isPosted[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += isPosted(shipment(ledger));
-isClosed[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += isClosed(shipment(ledger));
-number[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += number(shipment(ledger));
-series[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += series(shipment(ledger));
-operation[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += operation(shipment(ledger));
-stock[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += stock(shipment(ledger));
-binGroup[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += binGroup(ledger);
-description[StockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) += description(shipment(ledger));
-
-sumItem[OutStockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM quantity(ShipmentDetail d) IF isItem(sku(d)) AND shipment(d) == shipment(ledger) AND binGroup2(outBin(d)) == binGroup(ledger));
-sumContainer[OutStockDocumentBinLedger] (OutStockDocumentShipmentBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM quantity(ShipmentDetail d) IF isContainer(sku(d)) AND shipment(d) == shipment(ledger) AND binGroup2(outBin(d)) == binGroup(ledger));
-
-edit(OutStockDocumentShipmentBinLedger ledger) +{edit[UserShipment](shipment(ledger));}

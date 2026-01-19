@@ -1,0 +1,51 @@
+MODULE BinTransferStockDocumentBinLedger;
+
+REQUIRE BinTransferBinLedger, StockDocumentBinLedger;
+
+NAMESPACE Bin;
+
+CLASS IncStockDocumentBinTransferLedger 'Перемещение по ячейкам (приход)' : IncStockDocumentBinLedger;
+
+needToCreateIncStockDocumentBinLedger (BinTransfer t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
+    (GROUP SUM quantity(BinTransferDetail d) IF binTransfer(d) == t AND binGroup2(inBin(d)) == g);
+incStockDocumentBinTransferLedger = AGGR IncStockDocumentBinTransferLedger WHERE needToCreateIncStockDocumentBinLedger(BinTransfer binTransfer, BinGroup binGroup) MATERIALIZED INDEXED;
+
+dateTime[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += dateTime(binTransfer(ledger));
+isPosted[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += isPosted(binTransfer(ledger));
+isClosed[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += isClosed(binTransfer(ledger));
+number[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += number(binTransfer(ledger));
+series[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += series(binTransfer(ledger));
+operation[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += operation(binTransfer(ledger));
+stock[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += stock(binTransfer(ledger));
+binGroup[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += binGroup(ledger);
+description[StockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) += description(binTransfer(ledger));
+
+sumItem[IncStockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+sumContainer[IncStockDocumentBinLedger] (IncStockDocumentBinTransferLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+
+edit(IncStockDocumentBinLedger ledger) + {edit[UserBinTransfer](binTransfer(ledger));}
+
+CLASS OutStockDocumentBinTransferLedger 'Перемещение по ячейкам (расход)' : OutStockDocumentBinLedger;
+
+needToCreateOutStockDocumentBinLedger (BinTransfer t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
+    (GROUP SUM quantity(BinTransferDetail d) IF binTransfer(d) == t AND binGroup2(outBin(d)) == g);
+outStockDocumentBinTransferLedger = AGGR OutStockDocumentBinTransferLedger WHERE needToCreateOutStockDocumentBinLedger(BinTransfer binTransfer, BinGroup binGroup) MATERIALIZED INDEXED;
+
+dateTime[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += dateTime(binTransfer(ledger));
+isPosted[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += isPosted(binTransfer(ledger));
+isClosed[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += isClosed(binTransfer(ledger));
+number[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += number(binTransfer(ledger));
+series[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += series(binTransfer(ledger));
+operation[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += operation(binTransfer(ledger));
+stock[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += stock(binTransfer(ledger));
+binGroup[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += binGroup(ledger);
+description[StockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) += description(binTransfer(ledger));
+
+sumItem[OutStockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(BinTransferDetail d) IF isItem(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND binGroup2(outBin(d)) == binGroup(ledger));
+sumContainer[OutStockDocumentBinLedger] (OutStockDocumentBinTransferLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM quantity(BinTransferDetail d) IF isContainer(sku(d)) AND binTransfer(d) == binTransfer(ledger) AND binGroup2(outBin(d)) == binGroup(ledger));
+
+edit(OutStockDocumentBinTransferLedger ledger) + {edit[UserBinTransfer](binTransfer(ledger));}
