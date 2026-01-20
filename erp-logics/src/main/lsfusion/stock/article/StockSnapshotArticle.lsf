@@ -80,8 +80,10 @@ includeSkuGroup (Snapshot snapshot, Article article) = (GROUP MAX 1 IF include(s
 include 'Вкл' (Snapshot snapshot, Article article) =
     (includeSkuGroup(snapshot, article) OR dataInclude(snapshot, article)) AND NOT dataExclude(snapshot, article);
 
-includeArticle (Snapshot snapshot, Sku sku) = include(snapshot, article(sku)) OR NOT countIncludeBrands(snapshot);
-overInclude(Snapshot snapshot, Sku sku) += includeArticle(snapshot, sku);
+countIncludeArticles (Snapshot s) = GROUP SUM 1 IF include(s, Article a);
+
+includeArticle (Snapshot snapshot, Sku sku) = include(snapshot, article(sku)) OR NOT countIncludeArticles(snapshot);
+dataExclude(Snapshot snapshot, Sku sku) += countIncludeArticles(snapshot) AND NOT include(snapshot, article(sku));
 
 deleteIncludeArticles 'Сбросить отмеченные' (Snapshot r)  {
     dataInclude(r, Article a) <- NULL;
