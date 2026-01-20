@@ -1,6 +1,6 @@
 MODULE PurchaseReturnInvoiceGestori;
 
-REQUIRE PurchaseReturnInvoice;
+REQUIRE PurchaseReturnInvoice, PurchaseInvoiceVATRu;
 
 NAMESPACE PurchaseReturn;
 
@@ -8,3 +8,8 @@ WHEN LOCAL FORMS userInvoice CHANGED(invoiceDetail(UserInvoiceDetail d)) AND sku
         valueVAT(d) <- valueVAT(invoiceDetail(d));
 }
 
+overCalcInvoiceSum (Purchase.UserInvoiceDetail d) += NUMERIC[18,4](invoicePrice(d) * quantity(d)) IF withVATPrice(d);
+
+overCopy(Purchase.UserInvoiceDetail d, Purchase.UserInvoiceDetail detail) + {
+        VAT(d) <- VAT(detail);
+}
