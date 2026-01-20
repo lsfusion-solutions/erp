@@ -4,6 +4,9 @@ REQUIRE Disassembly, SkuLedgerCost;
 
 NAMESPACE Disassembly;
 
+fixedCost(DisassemblyInSkuLedger l) += l IS DisassemblyInSkuLedger;
+fixedCostPrice(DisassemblyInSkuLedger l) += price(l);
+
 recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в разборках');
     APPLY NESTED (calculatedCost[Sku, Stock]) {
@@ -17,9 +20,8 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
 recalculateCostAccountBeforeFirst(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в разборках');
     APPLY NESTED LOCAL {
-        price(Disassembly d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) AND
-            prevAccountPriceB(sku(d), stock(d), dateTime(d)) > 0;
+        price(Disassembly d) <- prevAdjustedAccountPriceB(sku(d), stock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
     }
     
     // в Assembly это делают события, а здесь есть только пересчёт

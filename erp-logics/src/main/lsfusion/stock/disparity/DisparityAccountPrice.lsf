@@ -7,21 +7,4 @@ NAMESPACE Disparity;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (InputDisparityDetail);
 accountLedgerPrice (InputDisparityDetail d) += accountPrice(d);
 
-@defineCalcAveragePrice(InputDisparityDetail, stock);
-
-recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
-    logToFile('cost', 'Начат пересчет цен в изменении сортности (расход)');
-    APPLY NESTED LOCAL {
-        price(DisparityDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
-    }
-    logToFile('cost', 'Закончен пересчет цен в изменении сортности (расход)');
-
-    logToFile('cost', 'Начат пересчет цен в изменении сортности (приход)');
-    APPLY NESTED LOCAL {
-        accountPrice(InputDisparityDetail d) <- calcAccountPrice(d)
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
-    }
-    logToFile('cost', 'Закончен пересчет цен в изменении сортности (приход)');
-}
-
+@defineCalcAveragePriceBalance(InputDisparityDetail, stock, 'изменениях сортности (приход)');

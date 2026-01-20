@@ -7,14 +7,5 @@ NAMESPACE DisassemblyDetail;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (DisassemblyDetail);
 accountLedgerPrice (DisassemblyDetail d) += accountPrice(d);
 
-@defineCalcAveragePrice(DisassemblyDetail, stock);
-
-recalculateCostAccountFirst (DATE dFrom, DATE dTo) + {
-    logToFile('cost', 'Начат пересчет цен в разборках (приход)');
-    APPLY NESTED LOCAL {
-        accountPrice(DisassemblyDetail d) <- calcAccountPrice(d)
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
-    }
-    logToFile('cost', 'Закончен пересчет цен в разборках (приход)');
-}
+@defineCalcAveragePriceBalance(DisassemblyDetail, stock, 'разборках (приход)');
 

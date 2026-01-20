@@ -51,7 +51,19 @@ recalculateCost 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 recalculateAllStocks = DATA LOCAL BOOLEAN () PREREAD;
 calcRecalculateCost (Stock stock) = recalculateAllStocks() OR recalculateCost(stock);
 
-positiveBalance = ABSTRACT BOOLEAN ();
+useOnlyBalanceB 'Учитывать только положит.остатки при расчете учетной цены' = DATA BOOLEAN () PREREAD;
+
+balanceBPositiveChecked (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
+
+EXTEND FORM options
+    PROPERTIES () useOnlyBalanceB
+;
+
+DESIGN options {
+    stock {
+        MOVE PROPERTY(useOnlyBalanceB());
+    }
+}
 
 recalculateCostGauss (DATE dFrom, DATE dTo) {
     NEWSESSION NESTED(recalculateCost[Sku], recalculateCost[Stock]) {
@@ -59,11 +71,11 @@ recalculateCostGauss (DATE dFrom, DATE dTo) {
         recalculateAllSkus() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Sku sku)); 
         recalculateAllStocks() <- TRUE IF NOT (GROUP SUM 1 IF recalculateCost(Stock stock)); 
     
-        calcCostQuantity (Sku sku, Stock stock) <- balanceB(sku, stock, dFrom) IF (NOT positiveBalance() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
+        calcCostQuantity (Sku sku, Stock stock) <- balanceB(sku, stock, dFrom) IF (NOT useOnlyBalanceB() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
         
         logToFile('cost', CONCAT '; ', 'Посчитаны начальные остатки по товарам', GROUP SUM 1 IF calcCostQuantity(Sku sku, Stock stock));
        
-        calcCostSum (Sku sku, Stock stock) <- sumB(sku, stock, dFrom) IF (NOT positiveBalance() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
+        calcCostSum (Sku sku, Stock stock) <- sumB(sku, stock, dFrom) IF (NOT useOnlyBalanceB() OR balanceB(sku, stock, dFrom) > 0) AND calcRecalculateCost(sku) AND calcRecalculateCost(stock);
     
         logToFile('cost', 'Посчитаны начальные суммы по товарам');
         
@@ -164,5 +176,27 @@ META defineCalcAveragePrice(obj, stockProp)
     WHEN (SETCHANGED(sku(obj d)) OR SETCHANGED(stockProp(d)) OR SETCHANGED(dateTime(d)) OR 
         SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
         accountPrice(d) <- calcAccountPrice(d);
+END
+
+META defineCalcAveragePriceBalance(obj, stockProp, caption)
+    calcAccountPriceBalance (obj d) = balanceBPositiveChecked(sku(d), stockProp(d), dateTime(d));
+
+    calcAccountPrice (obj d) =
+        NUMERIC[16,4](
+            (calcAccountPriceBalance(d) * accountPriceB(sku(d), stockProp(d), dateTime(d)) + quantity(d) * price(d))/
+                (quantity(d) + calcAccountPriceBalance(d)));
+
+    WHEN (SETCHANGED(sku(obj d)) OR SETCHANGED(stockProp(d)) OR SETCHANGED(dateTime(d)) OR
+        SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+        accountPrice(d) <- calcAccountPrice(d);
+
+    recalculateCostAccountFirst(DATE dFrom, DATE dTo) + {
+        logToFile('cost', 'Начат пересчет цен в '##caption);
+        APPLY NESTED LOCAL {
+            accountPrice(obj d) <- calcAccountPrice(d)
+                WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stockProp(d));
+        }
+        logToFile('cost', 'Закончен пересчет цен в '##caption);
+    }
 END
 

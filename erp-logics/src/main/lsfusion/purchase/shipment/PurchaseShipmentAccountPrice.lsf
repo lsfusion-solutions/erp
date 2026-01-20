@@ -7,32 +7,7 @@ NAMESPACE Purchase;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (ShipmentDetail);
 accountLedgerPrice (ShipmentDetail d) += accountPrice(d);
 
-//@defineCalcAveragePrice(ShipmentDetail, customerStock){
-//    calcAccountPrice (ShipmentDetail d) =
-//        NUMERIC[16,4]((balanceB(sku(d), customerStock(d), dateTime(d))*accountPriceB(sku(d), customerStock(d), dateTime(d)) +
-//            quantity(d) * price(d))/(quantity(d) + balanceB(sku(d), customerStock(d), dateTime(d))));
-//
-//    // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
-//    WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR 
-//        SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
-//        accountPrice(d) <- calcAccountPrice(d);
-//};
-
-useOnlyBalanceB 'Учитывать только положит.остатки при расчете учетной цены' = DATA BOOLEAN () PREREAD;
-positiveBalance() += useOnlyBalanceB();
-
-EXTEND FORM options 
-    PROPERTIES () useOnlyBalanceB
-;
-
-DESIGN options {
-    stock {
-        MOVE PROPERTY(useOnlyBalanceB());
-    }
-}
-
-calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
-calcAccountPriceBalance (ShipmentDetail d) = calcAccountPriceBalance(sku(d), customerStock(d), dateTime(d));
+calcAccountPriceBalance (ShipmentDetail d) = balanceBPositiveChecked(sku(d), customerStock(d), dateTime(d));
 
 calcAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4](

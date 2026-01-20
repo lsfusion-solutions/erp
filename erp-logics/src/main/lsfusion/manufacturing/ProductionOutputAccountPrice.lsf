@@ -1,29 +1,10 @@
 MODULE ProductionOutputAccountPrice;
 
-REQUIRE ProductionOutput, SkuLedgerCost, ProductionOutputAccountLedger, PurchaseShipmentAccountPrice;
+REQUIRE ProductionOutput, SkuLedgerCost, ProductionOutputAccountLedger;
 
-NAMESPACE ProductionOrder;
+NAMESPACE Production;
 
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (OutputDetail);
 accountLedgerPrice (OrderOutputDetail d) += accountPrice(d);
 
-calcAccountPriceBalance (Sku sk, Stock st, DATETIME dt) = balanceB(sk, st, dt) IF (NOT useOnlyBalanceB() OR balanceB(sk, st, dt) > 0);
-calcAccountPriceBalance (OutputDetail d) = calcAccountPriceBalance(sku(d), stock(d), dateTime(d));
-
-calcAccountPrice (OutputDetail d) =
-    NUMERIC[16,4](
-        (calcAccountPriceBalance(d) * accountPriceB(sku(d), stock(d), dateTime(d)) + quantity(d) * price(d))/
-            (quantity(d) + calcAccountPriceBalance(d)));
-
-WHEN (SETCHANGED(sku(OutputDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(dateTime(d)) OR
-    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
-    accountPrice(d) <- calcAccountPrice(d);
-
-recalculateCostAccountFirst(DATE dFrom, DATE dTo) +{
-    logToFile('cost', 'Начат пересчет цен в сборках (приход)');
-    APPLY NESTED LOCAL {
-        accountPrice(OutputDetail d) <- calcAccountPrice(d)
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
-    }
-    logToFile('cost', 'Закончен пересчет цен в сборках (приход)');
-}
+@defineCalcAveragePriceBalance(OutputDetail, stock, 'производстве');

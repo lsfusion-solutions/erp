@@ -4,6 +4,9 @@ REQUIRE Assembly, SkuLedgerCost;
 
 NAMESPACE Assembly;
 
+fixedCost(AssemblyInSkuLedger l) += l IS AssemblyInSkuLedger;
+fixedCostPrice(AssemblyInSkuLedger l) += price(l);
+
 recalculateCostCalculated(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в сборках');
     APPLY NESTED (calculatedCost[Sku, Stock]) {
@@ -17,9 +20,8 @@ recalculateCostCalculated(DATE dFrom, DATE dTo) +{
 recalculateCostAccountBeforeFirst(DATE dFrom, DATE dTo) +{
     logToFile('cost', 'Начат пересчет цен в сборках (расход)');
     APPLY NESTED LOCAL {
-        price(AssemblyDetail d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d))
-            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d)) AND 
-            prevAccountPriceB(sku(d), stock(d), dateTime(d)) > 0;
+        price(AssemblyDetail d) <- prevAdjustedAccountPriceB(sku(d), stock(d), dateTime(d))
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
     }
     logToFile('cost', 'Закончен пересчет цен в сборках (расход)');
 }
