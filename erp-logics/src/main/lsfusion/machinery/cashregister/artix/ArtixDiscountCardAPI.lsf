@@ -173,8 +173,8 @@ toExport 'К эспорту' (DiscountCard d) =
 overArtixOptions 'Опции клиента' = ABSTRACT INTEGER (DiscountCard);
 artixOptions 'Опции клиента' (DiscountCard d) = OVERRIDE overArtixOptions(d), 0;
 
-overArtixCardStatus 'Статус карты' = ABSTRACT STRING[12] (DiscountCard);
-artixCardStatus 'Статус карты' (DiscountCard d) = OVERRIDE overArtixCardStatus(d), 'EARN_PAY';
+overDefaultArtixCardStatus 'Статус карты' = ABSTRACT STRING[12] (DiscountCard);
+artixDefaultCardStatus 'Статус карты по умолчанию' (DiscountCard d) = OVERRIDE overDefaultArtixCardStatus(d), 'EARN_PAY';
 
 FORM createArtixAccount 'Создание бонусного счета'
     OBJECTS d = DiscountCard PANEL
@@ -192,7 +192,7 @@ FORM saveArtixClient 'Сохранение данных клиента'
 FORM createArtixCard 'Создание карты'
     OBJECTS d = DiscountCard PANEL
     PROPERTIES(d) accountNumber = seriesNumber EXTID 'accountNumber', number = seriesNumber EXTID 'number',
-        artixCardStatus EXTID 'status'
+        artixDefaultCardStatus EXTID 'status'
 ;
 
 FORM bindingArtixCard 'Привязка карты'
@@ -291,6 +291,41 @@ exportArtix 'Выгрузить в Artix' (DiscountCard d) {
             artixLMMessage() <- NULL;
         } ELSE {
             MESSAGE CONCAT ' ', 'Дисконтная карта', seriesNumber(d), 'успешно выгружена';
+        }
+        APPLY;
+    }
+}
+
+updateArtixCard 'Обновление карты в Artix' (DiscountCard d, STRING[12] s) {
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    EXPORT JSON FROM status = s, number = seriesNumber(d);
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-PUT] ' + urlArtixLM() + 'cards/' + seriesNumber(d));
+        EXTERNAL HTTP PUT urlArtixLM() + 'cards/' + seriesNumber(d) HEADERS headers PARAMS exportFile() TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            seriesNumber(d) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+afterDeactivateArtixCard ABSTRACT LIST (DiscountCard);
+deactivateArtixCard 'Заблокировать карту в Artix' (DiscountCard d) {
+    NEWSESSION {
+        updateArtixCard(d, 'NO_OPERATION');
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время блокировки карты Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Дисконтная карта', seriesNumber(d), 'заблокирована';
+            afterDeactivateArtixCard(d);
         }
         APPLY;
     }
