@@ -280,19 +280,23 @@ UNPfullNamePayer (EInvoice i) = CONCAT ', ', UNP(freightPayer(i)), fullName(frei
 UNPfullNameSupplier (EInvoice i) = CONCAT ', ', unpSupplier(i), nameSupplier(i);
 addAddressSupplier = ABSTRACT ISTRING[50] (EInvoice);
 addressSupplierAddressSupplierStock (EInvoice i) = CONCAT ', ', addressSupplier(i),('погрузка: ' + addressSupplierStock(i)), addAddressSupplier(i);
-overNumberDate = ABSTRACT STRING (EInvoice);
-numberDate (EInvoice i) = OVERRIDE overNumberDate(i), CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDate(i)), seriesNumber(invoice(i));
+numberDate (EInvoice i) = CONCAT ', ', deliveryNoteNumber(i), toDateDDMMYY(deliveryNoteDate(i));
 infoCustomerBase (EInvoice i) = CONCAT ', ', unpCustomer(i), nameCustomer(i), addressCustomer(i), (CONCAT ' ', contractId(i),contractDate(i)), ('разгрузка: ' + addressCustomerStock(i));
 
 include 'Вкл.' = DATA LOCAL BOOLEAN (EInvoice);
 multy  = DATA LOCAL BOOLEAN ();
 
 nameProvider (EInvoice e) = name(EDIProviderInvoice(customer(e), supplier(e)));
+glnProvider (EInvoice e) = gln(EDIProviderInvoice(customer(e), supplier(e)));
+
+qrMessage(EInvoice e) = GROUP MIN EInvoiceMessage m IF eInvoice(m) == e AND code(m) =='2550' AND left(description(m), 4) == 'http' AND isSupplier(m);
+qr(EInvoice e) = description(qrMessage(e));
 
 FORM EInvoiceConsignment 'РЕЕСТР'
     OBJECTS e = EInvoice  
-    PROPERTIES(e)  UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, deliveryNoteDate,deliveryNoteNumber,
-                   transportContact, waybillId, deliveryContact, transportID, trailerID, numberDate, infoCustomerBase, contactCustomerStock, nameProvider
+    PROPERTIES(e) UNPfullNamePayer, addressFreightPayer, UNPfullNameSupplier, addressSupplierAddressSupplierStock, 
+                  deliveryNoteDate,deliveryNoteNumber, transportContact, waybillId, deliveryContact, transportID, 
+                  trailerID, numberDate, infoCustomerBase, contactCustomerStock, nameProvider, glnProvider, qr
     PROPERTIES(e) totalAmountWithoutCharges,totalAmountCharges, totalAmount,totalLineItem, totalLineItemQuantity, totalGrossWeight, 
                 totalDespatchUnitQuantity, totalAmountExcise, sealIDReceiver
     PROPERTIES multy()
