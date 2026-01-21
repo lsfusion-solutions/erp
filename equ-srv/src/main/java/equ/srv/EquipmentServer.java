@@ -323,14 +323,18 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             String idParentItemGroup = (String) row.get("idParentItemGroup");
             itemGroupMap.put(overIdItemGroup, new ItemGroup(idItemGroup, overIdItemGroup, nameItemGroup, idParentItemGroup));
         }
-        
-        for(Map.Entry<String, ItemGroup> entry : itemGroupMap.entrySet()) {
+
+        for (Map.Entry<String, ItemGroup> entry : itemGroupMap.entrySet()) {
             List<ItemGroup> hierarchy = new ArrayList<>(Collections.singletonList(entry.getValue()));
             String idParent = entry.getValue().idParentItemGroup;
-            while(itemGroupMap.containsKey(idParent)) {
+            Set<String> usedIds = new HashSet<>(Collections.singletonList(idParent));
+            while (itemGroupMap.containsKey(idParent)) {
                 ItemGroup parentItemGroup = itemGroupMap.get(idParent);
                 hierarchy.add(parentItemGroup);
                 idParent = parentItemGroup.idParentItemGroup;
+                if (!usedIds.add(idParent)) {
+                    throw new RuntimeException(String.format("ReadItemGroupMap failed. Cycle parent found for %s: %s", entry.getKey(), idParent));
+                }
             }
             result.put(entry.getKey(), hierarchy);
         }
