@@ -432,6 +432,9 @@ END
 dataWholesaleMarkupPrecision = DATA INTEGER ();
 wholesaleMarkupPrecision 'Точность округления оптовых надбавок(макс. 3)' = OVERRIDE dataWholesaleMarkupPrecision(), 2 MATERIALIZED; //материализовал, что бы было меньше джоинов и свойство будет меняться крайней редко
 
+dataRetailMarkupPrecision = DATA INTEGER ();
+retailMarkupPrecision 'Точность округления розничных надбавок(макс. 3)' = OVERRIDE dataRetailMarkupPrecision(), 2 MATERIALIZED;
+
 changeWholesaleMarkupPrecision() {
     NEWSESSION {
         INPUT n = INTEGER DO {
@@ -448,11 +451,13 @@ changeWholesaleMarkupPrecision() {
 
 EXTEND FORM options
     PROPERTIES wholesaleMarkupPrecision() ON CHANGE changeWholesaleMarkupPrecision()
+    PROPERTIES retailMarkupPrecision()
 ;
 
 DESIGN options {
     pharmacy {
-        MOVE PROPERTY(wholesaleMarkupPrecision()); 
+        MOVE PROPERTY(wholesaleMarkupPrecision());
+        MOVE PROPERTY(retailMarkupPrecision());
     }
 }
 
