@@ -22,6 +22,28 @@ nameFromStock 'Склад (с)' (ShipmentDetail idetail) = name(fromStock(idetai
 toStock (ShipmentDetail idetail) = toStock(shipment(idetail));
 nameToStock 'Склад (на)' (ShipmentDetail idetail) = name(toStock(idetail)) CHARWIDTH 10;
 
+from (Shipment shipment) = legalEntity(fromStock(shipment));
+nameFrom 'Отправитель' (Shipment shipment)= name(from(shipment)) IN documentPrm CHARWIDTH 20;
+fullNameFrom 'Отправитель (полное наименование)' (Shipment shipment)= fullName(from(shipment)) IN documentPrm CHARWIDTH 20;
+addressFrom 'Отправитель (адрес)' (Shipment shipment)= address(from(shipment)) IN documentPrm CHARWIDTH 20;
+phoneFrom 'Отправитель (телефон)' (Shipment shipment)= phone(from(shipment)) IN documentPrm CHARWIDTH 20;
+
+from (ShipmentDetail idetail) = legalEntity(fromStock(idetail));
+nameFrom 'Отправитель' (ShipmentDetail idetail) = name(from(idetail));
+fullNameFrom 'Отправитель (полное наименование)' (ShipmentDetail idetail) = fullName(from(idetail));
+addressFrom 'Отправитель (адрес)' (ShipmentDetail idetail)= address(from(idetail));
+
+to (Shipment shipment) =  legalEntity(toStock(shipment));
+nameTo 'Получатель' (Shipment shipment)= name(to(shipment)) IN documentPrm CHARWIDTH 20;
+fullNameTo 'Получатель (полное наименование)' (Shipment shipment)= fullName(to(shipment)) IN documentPrm CHARWIDTH 20;
+addressTo 'Получатель (адрес)' (Shipment shipment)= address(to(shipment)) IN documentPrm CHARWIDTH 20;
+phoneTo 'Получатель (телефон)' (Shipment shipment)= phone(to(shipment)) IN documentPrm CHARWIDTH 20;
+
+to (ShipmentDetail idetail) =  legalEntity(toStock(idetail));
+nameTo 'Получатель' (ShipmentDetail idetail) = name(to(idetail));
+fullNameTo 'Получатель (полное наименование)' (ShipmentDetail idetail) = fullName(to(idetail));
+addressTo 'Получатель (адрес)' (ShipmentDetail idetail)= address(to(idetail));
+
 @defineDocumentAbstractPosted(shipment);
 @defineDocumentAbstractClosed(shipment);
 
@@ -47,8 +69,9 @@ overShowDelete = ABSTRACT BOOLEAN (Shipment);
         
 isUser = ABSTRACT BOOLEAN (Shipment);
 
-operation = ABSTRACT Operation.Operation(Shipment);
+operation = ABSTRACT Operation.Operation (Shipment);
 nameOperation 'Операция' (Shipment shipment) = name(operation(shipment));
+isReturn 'Возвратная' = ABSTRACT BOOLEAN (Shipment);
 
 in 'Приходная' = ABSTRACT BOOLEAN (Shipment);
 in 'Приходная' (ShipmentDetail d) = in(shipment(d)); 
@@ -705,6 +728,11 @@ META defineShipmentBatchDialog(dumb)
     EXTEND FORM userShipment PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d) SHOWIF showBatch(s);
     EXTEND FORM shipments PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
 
+END
+
+META defineShipmentDestination(fromLegalEntity, toLegalEntity)
+    from(Shipment shipment) += fromLegalEntity(shipment);
+    to(Shipment shipment) += toLegalEntity(shipment);
 END
 
 META defineShipmentStockDestination(fromStockProp, toStockProp)
