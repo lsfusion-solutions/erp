@@ -584,7 +584,7 @@ FORM receiving 'Приемка'
                                 createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  
                                 completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
     FILTERGROUP isOpened FILTER 'Открыт' isOpened(r) DEFAULT
-    FILTERS stock(receivingBin(u)) == customerStock(r) OR stock(receivingBin(u)) == supplierStock(r),
+    FILTERS stock(receivingBin(u)) == customerStock(r),
             isPosted(r)
     
     OBJECTS d=ReceivingDetail
@@ -754,7 +754,7 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject, 
     userReceiving = DATA UserReceiving(###primObject);
     userReceiving[###primObject.###primObject](###primObject primObject) += userReceiving(primObject);
             
-    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = supplierStock(primObject) AND supplierStock(primObject)
+    CONSTRAINT userReceiving(###primObject primObject) IS UserReceiving AND NOT supplierStock(userReceiving(primObject)) = fromStock(primObject) AND fromStock(primObject)
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
         
     @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
@@ -773,7 +773,7 @@ END
 
 META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp, shipmentPrefix)
     @defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp);
-        
+
     CLASS ###primObject##Receiving : Receiving;
 
     needToCreateReceiving = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (###primObject);
@@ -875,15 +875,22 @@ META defineUserReceiving (primObject, captionObjects)
 
     countToUserReceiving###primObject() = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) AND NOT userReceiving(primObject);
 
+    countToUserReceiving###primObject = GROUP SUM 1 IF selectedUserReceiving(###primObject primObject) BY from(primObject), to(primObject), fromStock(primObject), toStock(primObject);
+    countParamsToUserReceiving###primObject = GROUP SUM 1 IF countToUserReceiving###primObject(LegalEntity from, LegalEntity to, Stock fromStock, Stock toStock);
+
     overCreateUserReceivingFor###primObject ABSTRACT LIST (UserReceiving);
     createUserReceivingFor###primObject 'Создать документ приемки' () {
+        IF countParamsToUserReceiving###primObject() > 1 THEN {
+            MESSAGE 'Нельзя создать один документ приёмки по отмеченным документам' NOWAIT;
+            RETURN;
+        }
         LOCAL newReceiving = UserReceiving();
         NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
             IF countToUserReceiving###primObject() THEN NEW r = UserReceiving {
-                supplier(r) <- GROUP MAX supplier(###primObject primObject) IF selectedUserReceiving(primObject);
-                supplierStock(r) <- GROUP MAX supplierStock(###primObject primObject) IF selectedUserReceiving(primObject);
-                customer(r) <- GROUP MAX customer(###primObject primObject) IF selectedUserReceiving(primObject);
-                customerStock(r) <- GROUP MAX customerStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                supplier(r) <- GROUP MAX from(###primObject primObject) IF selectedUserReceiving(primObject);
+                supplierStock(r) <- GROUP MAX fromStock(###primObject primObject) IF selectedUserReceiving(primObject);
+                customer(r) <- GROUP MAX to(###primObject primObject) IF selectedUserReceiving(primObject);
+                customerStock(r) <- GROUP MAX toStock(###primObject primObject) IF selectedUserReceiving(primObject);
                 overCreateUserReceivingFor###primObject(r);
                 APPLY;
                 newReceiving() <- r;
@@ -900,9 +907,9 @@ META defineUserReceiving (primObject, captionObjects)
     EXTEND FORM receiving
         OBJECTS primObject = ###primObject
         PROPERTIES(primObject) selectedUserReceiving
-        PROPERTIES(primObject) READONLY objectClassName, isPosted, isClosed, number, series, dateTime, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+        PROPERTIES(primObject) READONLY objectClassName, isPosted, isReturn, isClosed, number, series, dateTime, nameFrom, nameFromStock, nameTo, nameToStock
         PROPERTIES createUserReceivingFor###primObject() SHOWIF countToUserReceiving###primObject() DRAW primObject
-        ORDERS dateTime(primObject), nameSupplierStock(primObject)
+        ORDERS dateTime(primObject), nameFromStock(primObject)
         FILTERS filterReceiving(primObject),
             filterReceiving(primObject, u)
     ;
