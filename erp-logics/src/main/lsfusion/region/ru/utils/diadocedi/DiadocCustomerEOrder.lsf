@@ -1,6 +1,7 @@
 MODULE DiadocCustomerEOrder;
 
-REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization, PurchaseShipment, PurchaseReturnInvoice;
+REQUIRE Bank, Item, EDI, LegalEntityRu, EOrder, CustomerEOrderEDI, DiadocEDIOrganization,
+        PurchaseShipment, PurchaseReturnInvoice, PurchaseOrderStatusEOrder, DiadocEDIMessage;
 
 NAMESPACE DiadocEDI;
 
@@ -18,6 +19,58 @@ DESIGN legalEntity {
     EDIComm {
         MOVE PROPERTY (dateStartEDI(l));
         MOVE PROPERTY (sendInvoicePrice(l));
+    }
+}
+
+EXTEND CLASS TypeChange{
+    edi 'Отправлен поставщику(EDI)'
+}
+
+logSendDocumentOrder (Purchase.Order o) {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.edi;
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- STRING[100](login(currentUser()));
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+
+fromBox = DATA LOCAL Box ();
+fromBoxId 'Идентификатор ящика отправителя сообщения' () = boxId(fromBox());
+tempPath 'Путь для выгрузки файла' = DATA STRING[500]();
+
+EXTEND FORM integrationData
+    PROPERTIES tempPath()
+;
+
+DESIGN integrationData {
+    diadocEDI {
+        MOVE PROPERTY(tempPath());
+    }
+}
+
+overReceiveMessages ABSTRACT LIST ();
+afterReceiveMessage ABSTRACT LIST (Message);
+
+importAnswersDiadoc 'Прием ответов' () {
+    overReceiveMessages();
+}
+
+EXTEND FORM integrationData
+    PROPERTIES () importAnswersDiadoc
+;
+
+DESIGN integrationData {
+    diadocEDI {
+        MOVE PROPERTY(importAnswersDiadoc());
     }
 }
 
@@ -188,7 +241,100 @@ FORM ordersDiadoc FORMEXTID 'eDIMessage'
 
 ;
 
-/////////------------------- ordrsp
+// -------------------- Заказ EDI -------------------- //
+
+sendPurchaseOrderDiadocEDI 'Отправить заказ EDI (Диадок)' (EOrder o, User r) {
+    IF url() THEN {
+        LOCAL error = TEXT();
+        error() <- '';
+        IF NOT GLNSupplier(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN поставщика\n';
+        IF NOT GLNCustomer(o) THEN error() <- error() + 'ORDERS ' + number(o) + ': Не задан GLN покупателя\n';
+        IF NOT GLNCustomerStock(o) THEN error() <- error() + 'EOrder ' + number(o) + ': Не задан GLN склада покупателя\n';
+
+        IF error() == '' THEN {
+            fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+            getTokenUser(r);
+            exportOrderDocument() <- o;
+            generatedUUID() <- NULL;
+            generateUUID();
+            nameMessage() <- CONCAT '', 'ORDERS_', generatedUUID();
+            EXPORT ordersDiadoc XML;
+            WRITE exportFile() TO tempPath() + nameMessage();
+            LOCAL result = FILE ();
+            TRY {
+                exported(o) <- TRUE;
+                isSent[Purchase.Order](o) <- TRUE;
+                isPosted[Purchase.Order](o) <- TRUE;
+                IF NOT disableDocumentLog() THEN logSendDocumentOrder[Purchase.Order](o);
+                sentDateTime[Purchase.Order](o) <- currentDateTime();
+                EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+            } CATCH {
+                fileToString(result(), 'UTF-8');
+                MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+            }
+        } ELSE {
+            logToFile('diadoc', ' SendOrder: Не все поля заполнены. ' + error());
+            MESSAGE ' Заказ не выгружен: Не все поля заполнены ' + error() NOWAIT;
+        }
+    }
+    APPLY;
+}
+
+sendPurchaseOrderDiadoc 'Отправить заказ EDI (Диадок)' (EOrder o) {
+    IF currentUser() IS SystemUser THEN {
+        FOR User u == (GROUP MIN User us IF us IS User) DO {
+            sendPurchaseOrderDiadocEDI(o, u);
+        }
+    } ELSE {
+        FOR User u == userDiadocEDI(currentUser()) DO {
+            sendPurchaseOrderDiadocEDI(o, u);
+        }
+    }
+}
+
+sendPurchase 'Отправить заказ EDI' (Purchase.Order o) {
+    IF exported(o) OR isSent(o) THEN {
+        MESSAGE 'Заказ уже отправлен ';
+    } ELSE {
+        sendPurchaseOrderDiadoc(o);
+    }
+}
+
+hideSendPurchase = ABSTRACT BOOLEAN (Purchase.Order);
+
+EXTEND FORM Purchase.orders
+    PROPERTIES sendPurchase(o) SHOWIF (isEOrder(o) AND invoiceSumOrderDetail(o) > 0) AND NOT hideSendPurchase(o)
+;
+
+DESIGN Purchase.orders {
+    emailContainer {
+        MOVE PROPERTY (sendPurchase(o)) BEFORE PROPERTY(cancel(o));
+    }
+}
+
+send(EOrder o) + {
+    IF EDIProvider(supplier(o)) == EDIProvider.diadoc AND NOT isCancel(o) THEN {
+        IF NOT toSend(o) THEN {
+            MESSAGE 'Заказ уже отправлен';
+        } ELSE {
+            sendPurchaseOrderDiadoc(o);
+        }
+    }
+}
+
+cancel(EOrder o) + {
+    IF EDIProvider(supplier(o)) == EDIProvider.diadoc AND isCancel(o) THEN {
+        IF exportedCanceled(o) THEN {
+            MESSAGE 'Заказ уже отменен';
+        } ELSE {
+            sendingCancelled() <- TRUE;
+            sendPurchaseOrderDiadoc(o);
+            sendingCancelled() <- NULL;
+        }
+    }
+}
+
+// -------------------- ORDRSP -------------------- //
 
 ordrspDocumentNumber = DATA LOCAL STRING[48]();
 ordrspDocumentDate = DATA LOCAL DATETIME();
@@ -244,7 +390,92 @@ FORM ordrspDiadoc FORMEXTID 'eDIMessage'
 
 indexEOrderResponseDetail (INTEGER i) = PARTITION SUM 1 ORDER i BY ordrspGTIN(i),ordrspOrderNumber();
 
-/////////------------------- desadv
+overReceiveMessageOrdrsp ABSTRACT (Message);
+canceledReceiveMessageOrdrsp ABSTRACT (Message);
+
+overReceiveMessages () + {
+    FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
+        IF nameFile(m) AND isISubstring(nameFile(m), 'ORDRSP_') AND NOT denyReceiveMessage(m) THEN {
+            TRY {
+                IMPORT ordrspDiadoc XML FROM rawFile(m);
+                ordrspOrderNumber() <- STRING[48](trim(ordrspOrderNumber()));
+                overReceiveMessageOrdrsp(m);
+                IF eOrder(ordrspOrderNumber()) THEN {
+                    NEWSESSION NESTED LOCAL {
+                        IF NOT eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) THEN NEW r = EOrderResponse {
+                            id(r) <- STRING[100](ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
+                        }
+                        LOCAL idDetail = STRING[100] (INTEGER);
+                        idDetail(INTEGER l) <- CONCAT '/', ordrspSupplierGLN(), ordrspDocumentNumber(), ordrspOrderNumber(), ordrspGTIN(l), (indexEOrderResponseDetail(l) IF indexEOrderResponseDetail(l) > 1) WHERE ordrspGTIN(l);
+                        FOR ordrspGTIN(INTEGER l) AND NOT eOrderResponseDetail(idDetail(l)) DO NEW d = EOrderResponseDetail {
+                            orderResponse(d) <- eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber());
+                            id(d) <- idDetail(l);
+                        }
+                        FOR EOrderResponse r == eOrderResponse(ordrspSupplierGLN() + '/' + ordrspDocumentNumber() + '/' + ordrspOrderNumber()) DO {number(r) <- ordrspDocumentNumber();
+                            dateTime(r) <- ordrspDocumentDate();
+                            responseType(r) <- CASE
+                                WHEN ordrspResponseType() == 'Changed' THEN EOrderResponseType.changed
+                                WHEN ordrspResponseType() == 'Cancelled' THEN EOrderResponseType.cancelled
+                                WHEN ordrspResponseType() == 'Accepted' THEN EOrderResponseType.accepted;
+                            note(r) <- STRING[100](ordrspComment());
+                            supplier(r) <- legalEntityStockGLN(ordrspSupplierGLN());
+                            customer(r) <- legalEntityGLN(ordrspBuyerGLN());
+                            eOrder(r) <- eOrder(ordrspOrderNumber());
+                            customerStock(r) <- customerStock(eOrder(ordrspOrderNumber()));
+                            deliveryDateTime(r) <- DATETIME(ordrspDeliveryDateTime());
+                            deliveryDateTimeSecond(r) <- DATETIME(ordrspDeliveryDateTimeSecond());
+
+                            LOCAL indexSku = INTEGER (INTEGER);
+                            LOCAL sku = Sku (INTEGER);
+
+                            sku(INTEGER l) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == ordrspGTIN(l) AND order(dd) == eOrder(r)), skuGTIN(ordrspGTIN(l));
+                            indexSku(INTEGER l) <- PARTITION SUM 1 ORDER ordrspQuantityOrdered(l), -ordrspQuantityAccepted(l), l BY sku(l); //сортировка по принятым откланенным, принятые первыми
+                            fillIndexSku(eOrder(r));
+
+                            FOR ordrspGTIN(INTEGER l) AND EOrderResponseDetail d == eOrderResponseDetail(idDetail(l)) DO {
+                                orderResponse(d) <- r;
+                                sku(d) <- sku(l);
+                                dataGTIN(d) <- ordrspGTIN(l);
+                                action(d) <- CASE
+                                    WHEN ordrspAction(l) == 'Added' THEN EOrderResponseDetailAction.added
+                                    WHEN ordrspAction(l) == 'Changed' THEN EOrderResponseDetailAction.changed
+                                    WHEN ordrspAction(l) == 'Accepted' THEN EOrderResponseDetailAction.accepted
+                                    WHEN ordrspAction(l) == 'Cancelled' THEN EOrderResponseDetailAction.cancelled;
+                                quantityOrdered(d) <- ordrspQuantityOrdered(l);
+                                quantityAccepted(d) <- ordrspQuantityAccepted(l);
+                                price(d) <- ordrspPriceElement(l);
+                                sumNoNDS(d) <- ordrspPriceNoNDS(l);
+                                sumNDS(d) <- ordrspPriceNDS(l);
+                            }
+                            FOR ordrspGTIN(INTEGER l) INLINE DO {
+                                responseDetail(EOrderDetail od) <- eOrderResponseDetail(idDetail(l)) WHERE eOrder(ordrspOrderNumber()) == order(od) AND sku(l) == sku(od) AND indexSku(l) == localIndexSku(od);
+                            }
+                            IF ordrspResponseType() != 'Cancelled' THEN {
+                                isConfirmed(Purchase.userOrder(ordrspOrderNumber())) <- TRUE;
+                                isPosted(Purchase.userOrder(ordrspOrderNumber())) <- TRUE;
+                            }
+                            APPLY NESTED LOCAL;
+                            IF canceled() THEN canceledReceiveMessageOrdrsp(m);
+                        }
+                    }
+                }
+                dateTimeProcessed(m) <- currentDateTime();
+                numberEOrder(m) <- ordrspOrderNumber();
+                afterReceiveMessage(m);
+                APPLY;
+            } CATCH {
+                MESSAGE  'Ошибка при импорте ответа по заказу ' + nameFile(m) +'. Обратитесь к администратору' NOWAIT;
+                responsesFailed() <- responsesFailed() + 1;
+                dateTimeProcessed(m) <- currentDateTime();
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+
+// -------------------- DESADV -------------------- //
+
 GROUP interchangeHeader2 EXTID 'interchangeHeader';
 GROUP despatchAdvice;
 GROUP originOrder2 EXTID 'originOrder' : despatchAdvice;
@@ -293,7 +524,67 @@ FORM desadvDiadoc FORMEXTID 'eDIMessage'
         desadvLineItemAmountCharges EXTID 'amount'
 ;
 
-////----- RECADV -----
+overReceiveMessageDesadv ABSTRACT (Message);
+canceledReceiveMessageDesadv ABSTRACT (Message);
+
+overReceiveMessages() + {
+    FOR nameFile(Message m) AND NOT dateTimeProcessed(m) AND NOT denyReceiveMessage(m) DO {
+        IF nameFile(m) AND isISubstring(nameFile(m), 'DESADV_') THEN {
+            TRY {
+                IMPORT desadvDiadoc XML FROM rawFile(m);
+                desadvOrderNumber() <- STRING[48](trim(desadvOrderNumber()));
+                overReceiveMessageDesadv(m);
+                IF eOrder(desadvOrderNumber()) THEN {
+                    NEWSESSION NESTED LOCAL {
+                        IF NOT eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) THEN NEW a = EOrderDespatchAdvice {
+                            id(a) <- STRING[100](desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
+                        }
+                        FOR desadvGTIN(INTEGER l) AND NOT eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO NEW d = EOrderDespatchAdviceDetail {
+                            orderDespatchAdvice(d) <- eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber());
+                            id(d) <- STRING[100](desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l);
+                        }
+                        FOR EOrderDespatchAdvice a == eOrderDespatchAdvice(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber()) DO {
+                            number(a) <- desadvDocumentNumber();
+                            dateTime(a) <- desadvDocumentDate();
+                            deliveryNoteNumber(a) <- desadvDeliveryNoteNumber();
+                            deliveryNoteDateTime(a) <- toDateTime(desadvDeliveryNoteDate());
+                            note(a) <- STRING[100](desadvComment());
+                            supplier(a) <- legalEntityStockGLN(desadvSupplierGLN());
+                            customer(a) <- legalEntityGLN(desadvBuyerGLN());
+                            eOrder(a) <- eOrder(desadvOrderNumber());
+                            customerStock(a) <- customerStock(eOrder(desadvOrderNumber()));
+                            deliveryDateTime(a) <- desadvDeliveryDateTimeFirst();
+                            FOR desadvGTIN(INTEGER l) AND EOrderDespatchAdviceDetail d == eOrderDespatchAdviceDetail(desadvSupplierGLN() + '/' + desadvDocumentNumber() + '/' + desadvOrderNumber() + '/' + l) DO {
+                                sku(d) <- OVERRIDE (GROUP MAX sku(EOrderDetail dd) IF GTINBarcode(dd) == desadvGTIN(l) AND order(dd) == eOrder(a)), skuGTIN(desadvGTIN(l));
+                                dataGTIN(d) <- desadvGTIN(l);
+                                quantityOrdered(d) <- desadvQuantityOrdered(l);
+                                quantityDespatch(d) <- desadvQuantityDespatch(l);
+                                valueVAT(d) <- desadvVAT(l);
+                                lineItemPrice(d) <- desadvLineItemPrice(l);
+                                lineItemAmountWithoutCharges(d) <- desadvLineItemAmountWithoutCharges(l);
+                                lineItemAmount(d) <- desadvLineItemAmount(l);
+                                lineItemAmountCharges(d) <- desadvLineItemAmountCharges(l);
+                            }
+                            APPLY NESTED LOCAL;
+                            IF canceled() THEN canceledReceiveMessageDesadv(m);
+                        }
+                    }
+                }
+                numberEOrder(m) <- desadvOrderNumber();
+                dateTimeProcessed(m) <- currentDateTime();
+                afterReceiveMessage(m);
+                APPLY;
+            } CATCH {
+                MESSAGE 'Ошибка при импорте уведомления об отгрузке ' + nameFile(m) + '. Обратитесь к администратору' NOWAIT;
+                despatchAdvicesFailed() <- despatchAdvicesFailed() + 1;
+                dateTimeProcessed(m) <- currentDateTime();
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+// -------------------- RECADV -------------------- //
 
 GROUP interchangeHeaderrecadv EXTID 'interchangeHeader';
 GROUP receivingAdvice;
@@ -399,8 +690,40 @@ FORM recadv FORMEXTID 'eDIMessage'
     FILTERS order(i) == exportDocument()
 ;
 
+sendRecadvDiadoc 'Отправить RECADV' (EOrder o) {
+    FOR User u == userDiadocEDI(currentUser()) DO NEWSESSION {
+        IF url() THEN {
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLNSupplier(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN поставщика\n';
+            IF NOT GLNCustomer(o) THEN error() <- error() + 'RECADV ' + number(o) + ': Не задан GLN покупателя\n';
 
-////----- RETANN -----
+            IF error() == '' THEN {
+                fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+                getTokenUser(u);
+                exportDocument() <- o;
+                generatedUUID() <- NULL;
+                generateUUID();
+                nameMessage() <- CONCAT '', 'RECADV_', generatedUUID();
+                EXPORT recadv XML;
+                WRITE exportFile() TO tempPath() + nameMessage();
+                LOCAL result = FILE ();
+                TRY {
+                    EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+                } CATCH {
+                    fileToString(result(), 'UTF-8');
+                    MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                }
+            } ELSE {
+                logToFile('diadoc', ' RECADV: Не все поля заполнены. ' + error());
+                MESSAGE 'RECADV не выгружен: Не все поля заполнены ' + error() NOWAIT;
+            }
+        }
+    }
+    APPLY;
+}
+
+// -------------------- RETANN -------------------- //
 
 exportDocumentReturn() = DATA PurchaseReturn.Invoice();
 returnOrderEDI = GROUP MAX Purchase.UserOrder oo IF include[Purchase.UserOrder,Purchase.UserInvoice](oo, exportDocumentReturn());
@@ -535,3 +858,56 @@ FORM retann FORMEXTID 'eDIMessage'
 
     FILTERS invoice(i) == exportDocumentReturn()
 ;
+
+sendRetann 'Отправить RETANN' (PurchaseReturn.Invoice o) {
+    FOR User u == userDiadocEDI(currentUser()) DO NEWSESSION {
+        IF url() THEN {
+            LOCAL error = TEXT();
+            error() <- '';
+            IF NOT GLN(supplier(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN поставщика\n';
+            IF NOT GLN(customer(o)) THEN error() <- error() + 'RETANN ' + number(o) + ': Не задан GLN покупателя\n';
+
+            IF error() == '' THEN {
+                fromBox() <- GROUP LAST Box b IF legalEntity(organization(b)) == customer(o) ORDER b;
+                getTokenUser(u);
+                exportDocumentReturn() <- o;
+                generatedUUID() <- NULL;
+                generateUUID();
+                nameMessage() <- CONCAT '', 'RETANN_', generatedUUID();
+                EXPORT retann XML;
+                WRITE exportFile() TO tempPath() + nameMessage();
+                LOCAL result = FILE ();
+                TRY {
+                    EXTERNAL HTTP POST url() + '/V1/Messages/SendMessage?boxId='+ boxId(fromBox()) +'&messageFileName=' + nameMessage() HEADERS httpHeadersTokenUser PARAMS exportFile() TO result;
+                } CATCH {
+                    fileToString(result(), 'UTF-8');
+                    MESSAGE 'Ошибка отправки ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
+                }
+            } ELSE {
+                logToFile('diadoc', ' RETANN: Не все поля заполнены. ' + error());
+                MESSAGE 'RETANN не выгружен: Не все поля заполнены ' + error() NOWAIT;
+            }
+        }
+    }
+    APPLY;
+}
+
+isEOrder(PurchaseReturn.Invoice o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplier(o))
+    AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+isEOrder(PurchaseReturn.UserInvoice o) = EDIProvider(supplier(o)) IS EDIProvider AND NOT skipEDI(supplier(o))
+    AND NOT skipEDI(supplierStock(o)) AND NOT skipEDI(customerStock(o)) AND NOT isCompany(supplier(o));
+
+hideSendRetann = ABSTRACT BOOLEAN (PurchaseReturn.Invoice);
+
+EXTEND FORM PurchaseReturn.invoices
+    PROPERTIES sendRetann(i) SHOWIF isEOrder(i) AND invoiceSumInvoiceDetail(i) > 0
+;
+
+DESIGN PurchaseReturn.invoices {
+    actionContainer {
+        NEW actionDiadocEDI {
+            caption = 'EDI (Diadoc)';
+            MOVE PROPERTY (sendRetann(i));
+        }
+    }
+}
