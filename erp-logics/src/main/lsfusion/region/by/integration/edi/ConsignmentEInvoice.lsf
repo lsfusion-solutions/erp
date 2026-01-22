@@ -169,6 +169,16 @@ WHEN LOCAL FORMS consignment CHANGED(grossWeightTon(invoiceDetail(EInvoiceDetail
     grossWeightValue(ed) <- NUMERIC[12,6](grossWeightTon(invoiceDetail(ed)));
 }
 
+ceilPackQuantity 'Округлять грузовые места' = DATA BOOLEAN (LegalEntity);
+EXTEND FORM legalEntity
+    PROPERTIES (l) ceilPackQuantity;
+
+DESIGN legalEntity {
+    EInvoice {
+        MOVE PROPERTY (ceilPackQuantity(l));
+    }
+}
+
 //transportOwnerName 'Владелец автомобиля' = DATA STRING[175] (EInvoice);
 overCreate ABSTRACT LIST(EInvoice, Consignment);
 overCreate ABSTRACT LIST(EInvoiceDetail, ConsignmentDetail);
@@ -239,6 +249,7 @@ createEInvoice 'Создать ЭТТН-1' (Consignment invoice) {
                     
                     grossWeightValue(ed) <- OVERRIDE grossWeightValue(detail), NUMERIC[12,6](grossWeightTon(detail));
                     despatchUnitQuantityDespatched(ed) <- OVERRIDE despatchUnitQuantityDespatched(detail), NUMERIC[12,5](packQuantity(detail)), 1.0;
+                    despatchUnitQuantityDespatched(ed) <- ceil(despatchUnitQuantityDespatched(ed)) WHERE ceilPackQuantity(customer(ei));
                     
                     overCreate(ed, detail);
                 }
