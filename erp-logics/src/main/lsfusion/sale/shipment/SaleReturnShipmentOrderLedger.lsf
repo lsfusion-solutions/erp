@@ -47,6 +47,14 @@ excludeOrderLedger 'Исключить' (d) = ABSTRACT CASE BOOLEAN (ShipmentDet
 dataCreateOrderLedger 'Создать резерв' = DATA BOOLEAN (ShipmentDetail);
 toCreateOrderLedger(ShipmentDetail d) = (OVERRIDE dataCreateOrderLedger(d), createOrderLedger(d)) AND NOT excludeOrderLedger(d);
 
+//из-за того что расписывание по партиям идёт позже(отдельное событие) создания агрегированного резерва необходимо пропустить проверку на отрицательный остаток по партии
+skipCheckNegativeAvailableBatch = DATA LOCAL BOOLEAN ();
+skipCheckNegativeAvailableBatch(Batch b, Stock st) += skipCheckNegativeAvailableBatch() IF b IS Batch AND st IS Stock;
+
+WHEN SET(isPosted(ShipmentDetail d) AND toCreateOrderLedger(d)) DO {
+    skipCheckNegativeAvailableBatch() <- TRUE;
+}
+
 //--Резерв
 
 CLASS ShipmentOrderLedger 'Резерв на основе поставки (закупка)' : OrderLedger;
