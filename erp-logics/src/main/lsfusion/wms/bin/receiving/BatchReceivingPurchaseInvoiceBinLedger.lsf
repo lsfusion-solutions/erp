@@ -15,7 +15,7 @@ skipReceiving(Invoice r) += NOT createShipment(r);
 CONSTRAINT userReceiving(Invoice invoice) IS UserReceiving AND (NOT createShipment(invoice))
     MESSAGE 'Для накладной приемки не задана поставка';
 
-//Не провподим по ТО поставки, если по ним не завершена приёмка
+//Не проводим по ТО поставки, если по ним не завершена приёмка
 overSkipStockDocumentLedger(Shipment s) += s IS Shipment AND receiving(invoice(s)) AND NOT GRDate(invoice(s));
 
 extraSetShipmentDateTime ABSTRACT (UserInvoice);
@@ -24,6 +24,9 @@ setShipmentDateTime(UserInvoice i) + {
     shipmentTime(i) <- GRTime(receiving(i));
     extraSetShipmentDateTime(i);
 }
+
+CONSTRAINT CHANGED(shipmentDateTime(Invoice i)) AND GRDateTime(receiving(i)) AND NOT shipmentDateTime(i)==GRDateTime(receiving(i))
+    MESSAGE 'Дата/время поставки должна равняться дате/времени завершения приёмки по нему';
 
 limitPartitionCreditNote = DATA LOCAL NUMERIC[16,5] (InvoiceDetail);
 
