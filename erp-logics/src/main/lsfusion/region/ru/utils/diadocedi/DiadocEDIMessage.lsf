@@ -29,10 +29,17 @@ toBoxId 'Идентификатор ящика получателя сообще
 extractExtension = FORMULA STRING[200] 'split_part(($1),\'.\',-1)';
 extensionFile 'Расширение файла' (Message m) = lower(extractExtension(nameFile(m)));
 
-openRawFile 'Открыть' (Message m) {
+openRawFile 'Открыть файл' (Message m) {
     open(file(rawFile(m), extensionFile(m)));
 }
 
+isXMLFile 'XML' (Message m) = extensionFile(m) == 'xml';
+uncorrectFile 'Некорректный файл' (Message m) = NOT rawFile(m) OR NOT isXMLFile(m);
+
+messageStatus 'Статус сообщения' (Message m) = CASE WHEN uncorrectFile(m) THEN 'Некорректный файл'
+    WHEN dateTimeProcessed(m) AND numberEOrder(m) THEN 'Обработан'
+    WHEN dateTimeProcessed(m) THEN 'Ошибка обработки'
+    ELSE 'Ожидает обработку';
 
 FORM messagesEDI 'Cообщения EDI'
     OBJECTS u = User PANEL
@@ -43,7 +50,7 @@ FORM messagesEDI 'Cообщения EDI'
     PROPERTIES(b) title IN base SELECTOR
 
     OBJECTS m = Message LAST
-    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile, numberEOrder
+    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile, messageStatus, numberEOrder
     PROPERTIES(m) dateTimeProcessed, openRawFile GRID
     ORDERS  timestamp(m), messageId(m)
 ;
