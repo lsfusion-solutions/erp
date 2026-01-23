@@ -1,0 +1,122 @@
+MODULE EGAISRepImportedProductExchange_v6;
+
+REQUIRE EGAISRepImportedProductExchange;
+
+NAMESPACE EGAISImport;
+
+EXTEND CLASS DocType { RepImportedProduct_v6 'ТТН Импорт (версия 6)' }
+
+docTypeData = DATA DocType (RepImportedProductOutDoc);
+docTypeOver(RepImportedProductOutDoc r) += docTypeData(r);
+
+GROUP owner_v6 EXTID 'ns:Owner';
+
+GROUP document_v6 EXTID 'ns:Document';
+GROUP repImportedProduct_v6 EXTID 'ns:RepImportedProduct_v6':  document_v6;
+GROUP header_v6 EXTID 'rpp:Header' : repImportedProduct_v6;
+GROUP importer_v6 EXTID 'rpp:Importer' : header_v6;
+GROUP UL_v6 EXTID 'oref:UL' : importer_v6;
+GROUP address_v6 EXTID 'oref:address' : UL_v6;
+GROUP supplier_v6 EXTID 'rpp:Supplier' : header_v6;
+GROUP FO_v6 EXTID 'oref:FO' : supplier_v6;
+GROUP address1_v6 EXTID 'oref:address' : FO_v6;
+GROUP content_v6 EXTID 'rpp:Content' : repImportedProduct_v6;
+
+GROUP markInfo_v6 EXTID 'rpp:MarkInfo';
+
+FORM repImportedProduct_v6 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01:Documents'
+
+    PROPERTIES ATTR
+                    ='http://fsrar.ru/WEGAIS/ClientRef_v2' EXTID 'xmlns:oref',
+                    ='http://fsrar.ru/WEGAIS/ProductRef_v2' EXTID 'xmlns:pref',
+                    ='http://fsrar.ru/WEGAIS/RepImportedProduct_v6' EXTID 'xmlns:rpp',
+                    ='http://www.w3.org/2001/XMLSchema-instance' EXTID 'xmlns:xsi',
+                    ='http://fsrar.ru/WEGAIS/CommonV3' EXTID 'xmlns:ce'
+    
+    OBJECTS w = RepImportedProductOutDoc PANEL
+    PROPERTIES IN owner_v6 idClient(w) EXTID 'ns:FSRAR_ID'
+    PROPERTIES  IN repImportedProduct_v6 = id(repImportedProduct(w)) EXTID 'rpp:Identity'
+    
+    PROPERTIES IN header_v6 = number(repImportedProduct(w)) EXTID 'rpp:NUMBER',
+        = toDateISO(date(repImportedProduct(w))) EXTID 'rpp:Date',
+        = toDateISO(importedDate(repImportedProduct(w))) EXTID 'rpp:ImportedDate',
+        = OVERRIDE declarationNumber(repImportedProduct(w)), number(repImportedProduct(w))  EXTID 'rpp:GTDNUMBER',
+        = OVERRIDE toDateISO(declarationDate(repImportedProduct(w))), toDateISO(importedDate(repImportedProduct(w))) EXTID 'rpp:GTDDate',                                
+        = contractNumber(repImportedProduct(w)) EXTID 'rpp:ContractNUMBER',
+        = toDateISO(contractDate(repImportedProduct(w))) EXTID 'rpp:ContractDate',
+        = sidCountrySupplier(repImportedProduct(w)) EXTID 'rpp:Country',
+        = note(repImportedProduct(w)) EXTID 'rpp:Note',
+        = TRUE IF w IS RepImportedProductOutDoc EXTID 'rpp:UNFSM_FLAG'
+    // 'rpp:IDInvoicePlannedImport' - Идентификатор связанной заявки о планируемом ввозе или перемещении продукции
+    // 'rpp:UNFSM_FLAG' - Признак маркировки алкогольной продукции федеральными специальными марками на территории Российской Федерации
+    // 'rpp:BONDEDWAREHOUSE' - Системный идентификатор владельца таможенного склада в ЕГАИС
+    
+    PROPERTIES IN UL_v6 = idImporter(repImportedProduct(w)) EXTID 'oref:ClientRegId',
+        = fullNameImporter(repImportedProduct(w)) EXTID 'oref:FullName',
+        = shortNameImporter(repImportedProduct(w)) EXTID 'oref:ShortName',
+        = innImporter(repImportedProduct(w)) EXTID 'oref:INN',
+        = kppImporter(repImportedProduct(w)) EXTID 'oref:KPP'
+    PROPERTIES IN address_v6 
+        = sidCountryImporter(repImportedProduct(w)) EXTID 'oref:Country',
+        = regionCodeImporter(repImportedProduct(w)) EXTID 'oref:RegionCode',
+        = descriptionImporter(repImportedProduct(w)) EXTID 'oref:description'
+    
+    PROPERTIES IN FO_v6 = idSupplier(repImportedProduct(w)) EXTID 'oref:ClientRegId',
+        = fullNameSupplier(repImportedProduct(w)) EXTID 'oref:FullName',
+        = shortNameSupplier(repImportedProduct(w)) EXTID 'oref:ShortName',
+        = tsNumSupplier(repImportedProduct(w)) EXTID 'oref:TSNUM'
+    PROPERTIES IN address1_v6  
+        = sidCountrySupplier(repImportedProduct(w)) EXTID 'oref:Country'    ,
+        = descriptionSupplier(repImportedProduct(w)) EXTID 'oref:description'
+
+    OBJECTS p = RepImportedProductPosition EXTID 'rpp:Position' IN content_v6
+
+    PROPERTIES(p) idProduct EXTID 'rpp:ProductCode',
+        quantity EXTID 'rpp:Quantity',
+        alcVolume EXTID 'rpp:alcPercent',
+        //                  nameBatch EXTID 'rpp:Party', 
+        identity EXTID 'rpp:Identity'
+    //                  descriptionImporter EXTID 'rpp:Comment1', 
+    //                  descriptionSupplier EXTID 'rpp:Comment2', 
+    //                  descriptionClient EXTID 'rpp:Comment3'
+    FILTERS repImportedProduct(p) = repImportedProduct(w)
+
+    OBJECTS amc = RepImportedProductMark EXTID 'ce:amc' IN markInfo_v6
+    PROPERTIES(amc) idMarkCode EXTID 'value'
+    FILTERS repImportedProductPosition(amc) = p
+;
+
+useRepImportedProduct_v6 'Использовать "RepImportedProduct_v6" ЕГАИС'  = DATA BOOLEAN ();
+EXTEND FORM integrationData
+     PROPERTIES () useRepImportedProduct_v6
+;
+DESIGN integrationData{
+    EGAIS{
+        MOVE PROPERTY (useRepImportedProduct_v6());
+    }
+}
+submitRepImportedProduct (RepImportedProductOutDoc w) + WHEN w IS RepImportedProductOutDoc AND useRepImportedProduct_v6() THEN {
+    docTypeData(w) <- DocType.RepImportedProduct_v6;
+    EXPORT repImportedProduct_v6 OBJECTS w = w XML;
+    submit(w, exportFile());
+}
+
+// ticket
+process (Ticket t) + {
+    IF docType(t) = 'RepImportedProduct_v6' THEN {
+        FOR RepImportedProduct r = repImportedProduct(outDoc(t)) DO {
+            IF conclusion(t) = 'Rejected' THEN
+                canceled(r) <- TRUE;
+            processed() <- TRUE;
+
+            IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
+                accepted(r) <- TRUE;
+                processed() <- TRUE;
+            }
+            IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+                canceled(r) <- TRUE;
+                processed() <- TRUE;
+            }
+        }
+    }
+}

@@ -33,7 +33,8 @@ DESIGN repImportedProducts {
 EXTEND CLASS DocType { RepImportedProduct_v4 'ТТН Импорт (версия 4)' }
 
 CLASS RepImportedProductOutDoc 'ТТН' : OutDoc;
-docType(RepImportedProductOutDoc r) += DocType.RepImportedProduct_v4 IF r IS RepImportedProductOutDoc;
+docTypeOver= ABSTRACT DocType(RepImportedProductOutDoc);
+docType(RepImportedProductOutDoc r) += (OVERRIDE docTypeOver(r), DocType.RepImportedProduct_v4) IF r IS RepImportedProductOutDoc;
 
 repImportedProductOutDoc = GROUP LAST RepImportedProductOutDoc a ORDER a WHERE a IS RepImportedProductOutDoc BY repImportedProduct(a);
 commentsRepImportedProductOutDoc 'Комментарий отправки' (RepImportedProduct t) = comments(repImportedProductOutDoc(t));
@@ -101,8 +102,9 @@ FORM repImportedProduct_v4 FORMEXTID 'ns=http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01
     PROPERTIES(amc) idMarkCode EXTID 'value'
     FILTERS repImportedProductPosition(amc) = p
 ;
+submitRepImportedProduct  ABSTRACT CASE (RepImportedProductOutDoc);
 
-submitRepImportedProduct (RepImportedProductOutDoc w) {
+submitRepImportedProduct (RepImportedProductOutDoc w) + WHEN w IS RepImportedProductOutDoc THEN {
     EXPORT repImportedProduct_v4 OBJECTS w = w XML;
     submit(w, exportFile());
 }
