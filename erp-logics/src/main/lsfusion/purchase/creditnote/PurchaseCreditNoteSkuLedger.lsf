@@ -42,17 +42,3 @@ legalEntityStock(UserCreditNote ledger) += supplierStock(ledger);
 
 operation[StockDocumentLedger](UserCreditNote ledger) += operation(ledger);
 close[StockDocumentLedger](UserCreditNote l) + {  close(l); }
-
-shipmentPurchaseCreditNoteMigrated = DATA BOOLEAN () TABLE migrate;
-onStarted() + {
-    IF NOT shipmentPurchaseCreditNoteMigrated() THEN NEWSESSION {
-        shipmentPurchaseCreditNoteMigrated() <- TRUE;
-
-        shipmentSum(UserCreditNoteDetail d) <- sum(d) WHERE sum(d) AND NOT shipmentSum(d);
-
-        shipmentQuantity(UserCreditNoteDetail d) <- quantity(d) WHERE quantity(d) AND NOT shipmentQuantity(d);
-        skipFractQuantity() <- TRUE;
-
-        APPLY;
-    }
-}
