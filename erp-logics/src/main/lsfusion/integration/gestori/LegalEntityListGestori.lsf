@@ -1,0 +1,140 @@
+MODULE LegalEntityListGestori;
+
+REQUIRE LegalEntityList;
+
+NAMESPACE LegalEntity;
+
+doOutLog 'Вывод в лог' (STRING argLog, STRING argData) {
+    IF argLog AND argData THEN {
+        appendToFile('logs/' + argLog, argData + '\n');
+    }
+}
+strOutLogDate = toChar(currentDateTimeMillis(), 'YYYYMMDDHH24MISSMS');
+
+valLegalEntity (STRING s) = GROUP MAX LegalEntity le BY id(le);
+
+doImportLegalEntityList '' (LegalEntityList argList, FILE argFile, BOOLEAN argHeader) {
+    LOCAL idLegalEntity = STRING[15](INTEGER);
+    LOCAL NESTED tmpRecCount = INTEGER();
+    LOCAL NESTED tmpErrCount = INTEGER();
+    LOCAL NESTED tmpErrFlg = BOOLEAN(INTEGER);
+    LOCAL NESTED tmpErrMsg = STRING(INTEGER);
+    LOCAL NESTED tmpLog = STRING();
+
+    IF argFile THEN {
+        idLegalEntity(INTEGER i) <- NULL;
+        tmpErrFlg(INTEGER i) <- NULL;
+        tmpErrMsg(INTEGER i) <- NULL;
+        tmpErrCount() <- 0;
+        tmpRecCount() <- 0;
+        tmpLog() <- CONCAT '', 'ImportLegalEntityList', strOutLogDate(), '.log';
+
+        TRY {
+            IF argHeader
+            THEN {
+                IMPORT XLS HEADER FROM argFile TO
+                        idLegalEntity = 'Код организации';
+            }
+            ELSE {
+                IMPORT XLS NOHEADER FROM argFile TO
+                        idLegalEntity = A;
+            }
+        } CATCH {
+            MESSAGE 'Ошибка обработки файла:\n' + messageCaughtException() ERROR;
+            RETURN;
+        }
+
+        FOR imported(INTEGER idx) ORDER idx DO {
+            // Проверка на корректность ссылок на справочники 
+            IF NOT valLegalEntity(idLegalEntity(idx))
+            THEN {
+                // Чтобы пропустить ошибочную запись при импорте и вывести в лог ссылку на строку в файле импорта
+                tmpErrCount() <- tmpErrCount() + 1;
+                tmpErrFlg(idx) <- TRUE;
+                tmpErrMsg(idx) <- CONCAT ' ',
+                    'Строка: ' + STRING(idx + 1),
+                    'Код организации не найден: ' + idLegalEntity(idx) IF NOT valLegalEntity(idLegalEntity(idx));
+                ;
+            }
+        }
+        ASK 'При обработке файла обнаружены ошибки: ' + STRING(tmpErrCount()) +
+            '\nВыполнить импорт?' IF tmpErrCount() > 0
+        DO {
+            TRY {
+                // По всем импортируемым записям кроме записей с ошибками
+                FOR imported(INTEGER i) AND NOT tmpErrFlg(i) ORDER i DO {
+                    // Создать или обновить записи и вывеси в лог ошибки импорта
+                    in(valLegalEntity(idLegalEntity(i)), argList) <- TRUE;
+                    tmpRecCount() <- tmpRecCount() + 1;
+                }
+                APPLY;
+            } CATCH {
+                doOutLog(tmpLog(), 'Ошибка в процессе импорта файла:' + messageCaughtException());
+                MESSAGE 'Ошибка в процессе импорта файла:\n' + messageCaughtException() ERROR;
+                RETURN;
+            }
+        }
+
+        // Объединение в один блок для корректной работы сообщений с NOWAIT
+        IF TRUE THEN {
+            MESSAGE (IF tmpRecCount() > 0
+                THEN 'Импорт выполнен ' ELSE 'Импорт не выполнен ') +
+                (IF tmpErrCount() > 0
+                    THEN 'с ошибками.\nЛог ошибок импорта: ' + tmpLog() + '\n'
+                    ELSE 'без ошибок.') NOWAIT;
+
+            // Вывод ошибок импорта в лог и на экран (если их немного)
+            FOR tmpErrFlg(INTEGER i) ORDER i DO {
+                doOutLog(tmpLog(), tmpErrMsg(i));
+                IF tmpErrCount() <= 20 THEN MESSAGE tmpErrMsg(i) NOWAIT;
+            }
+        }
+    }
+    ELSE {
+        MESSAGE 'Файл не содержит данных' ERROR;
+        RETURN;
+    }
+}
+
+FORM importParameters 'Параметры импорта'
+    PROPERTIES descHeader '' = TEXT('Описание формата файла импорта XLSX:\nКод организации')
+
+    OBJECTS parHeader = BOOLEAN PANEL NULL
+    PROPERTIES parHeader 'Первая строка содержит заголовки' = VALUE(parHeader)
+;
+
+DESIGN importParameters {
+    OBJECTS {
+        NEW dataContainer {
+            MOVE PROPERTY (descHeader) { charWidth = 50; charHeight = 2;}
+            MOVE PROPERTY (parHeader);
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+doImportLegalEntityList 'Импорт списка организаций' (LegalEntityList argList) {
+    IF NOT argList THEN {
+        MESSAGE 'Заголовок списка организаций не найден';
+        RETURN;
+    }
+    DIALOG importParameters OBJECTS parHeader INPUT DO {
+        INPUT parFile = FILE DO {
+            IF upper(extension(parFile)) = 'XLSX'
+            THEN doImportLegalEntityList(argList, parFile, parHeader);
+            ELSE MESSAGE 'Выполняется только импорт файлов формата XLSX' ERROR;
+        }
+    }
+}
+
+EXTEND FORM legalEntityLists
+    PROPERTIES doImportLegalEntityList(o)
+;
+
+DESIGN legalEntityLists {
+    BOX(o) {
+        TOOLBARLEFT {
+            MOVE PROPERTY (doImportLegalEntityList(o)) LAST;
+        }
+    }
+}
