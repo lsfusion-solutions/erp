@@ -359,16 +359,14 @@ importItem 'Импорт товаров' () {
 
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
         id(s) <- ISTRING[100] (id(i));
+        skuType(s) <- SkuType.skuTypeItem;
     }
 
     FOR Item s = item(id(INTEGER i)) AND NOT lastVersion(s) = currentVersion(i) DO {
         caption(s) <- STRING[255](replace(name(i), '\t', ' '));
         shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
-        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
-        skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
-            WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge
-            ELSE SkuType.skuTypeItem;
+        itemGroup(s) <- itemGroup(TEXT(idClass(i)));
         Item.country(s) <- countryName(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
@@ -424,6 +422,7 @@ importItem 'Импорт товаров' (STRING itemlist) {
 
     FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
         id(s) <- ISTRING[100] (id(i));
+        skuType(s) <- SkuType.skuTypeItem;
     }
 
     FOR Item s = item(id(INTEGER i)) DO {
@@ -431,9 +430,6 @@ importItem 'Импорт товаров' (STRING itemlist) {
         shortName(s) <- shortName(i);
         UOM(s) <- UOM(TEXT (idMeasurement(i)));
         itemGroup(s) <- itemGroup(TEXT (idClass(i)));
-        skuType(s) <- CASE WHEN id(itemGroup(s)) = '2279' OR id(itemGroup(s)) = '368' THEN SkuType.skuTypeContainer
-            WHEN id(itemGroup(s)) = '393' THEN SkuType.skuTypeCharge
-            ELSE SkuType.skuTypeItem;
         Item.country(s) <- countryName(country(i));
         width(s) <- max(min(width(i), 99999), -99999);
         length(s) <- max(min(length(i), 99999), -99999);
