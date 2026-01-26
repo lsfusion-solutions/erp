@@ -6,6 +6,17 @@ PRIORITY Purchase;
 
 NAMESPACE EGAISPurchase;
 
+unfsm 'Признак маркировки алкогольной продукции федеральными специальными марками на территории РФ' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES () unfsm
+;
+DESIGN integrationData{
+    EGAIS{
+        MOVE PROPERTY (unfsm());
+    }
+}
+
 repImportedProduct 'ТТН ЕГАИС Импорт' = DATA RepImportedProduct (UserInvoice) INDEXED;
 numberDateRepImportedProduct 'ТТН ЕГАИС Импорт' (UserInvoice i) = numberDate(repImportedProduct(i));
 seriesNumberUserInvoice 'Накладные (закупка)' (RepImportedProduct w) = GROUP CONCAT seriesNumber(UserInvoice d), ', ' ORDER d BY repImportedProduct(d);
@@ -36,6 +47,7 @@ processImport 'Отправить в ЕГАИС (Импорт)' (Invoice i) {
 
             declarationNumber(r) <- STRING[50](seriesNumber(declaration(i)));
             declarationDate(r) <- date(declaration(i));
+            unfsm(r) <- unfsm();
 
             FOR quantity(ShipmentDetail d, Lot l) IF invoice(invoiceDetail(d)) == i AND NOT markCode(id(l)) DO NEW m = MarkCode {
                 id(m) <- id(l);
