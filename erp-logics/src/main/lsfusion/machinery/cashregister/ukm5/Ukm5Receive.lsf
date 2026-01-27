@@ -364,6 +364,7 @@ receiptPackage(STRING id, STRING date){
     }
     zReportUkm5(f());
 }
+logApiUKM5 'Логировать запросы УКМ5' = DATA BOOLEAN () PREREAD;
 
 //-------------------- api/v1/export/receipt ------------------------//
 api_v1_export_receipt(FILE f) {
@@ -371,6 +372,9 @@ api_v1_export_receipt(FILE f) {
     LOCAL ff = FILE(); 
     fileToString(f);
     
+    IF logApiUKM5() THEN{
+        logToFile('ukm5Receive', (CONCAT ' : ', 'INFO', 'api/v1/export/receipt', resultString()));
+    }
     elements(INTEGER i) <- JSON(resultString()) IF i = 1;
     EXPORT JSON FROM elements = (JSON FROM value = elements(INTEGER i) WHERE i = 1) TO ff;
     
