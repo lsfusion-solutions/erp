@@ -306,7 +306,7 @@ zReportUkm5 (FILE f) {
         }
         IF NOT zReport(idZReport(i)) THEN NEW z = ZReport{
             id(z) <- STRING[100](idZReport(i));
-            cashRegister(z) <- cashRegisterUkm5(posId(i));
+            cashRegister(z) <- cashRegisterUkm5(idUkm5(i));
             date(z) <- DATE(dateClose(i));
             number(z) <- STRING[48](shiftNumber(i));
             isPosted(z) <- TRUE;
@@ -368,17 +368,11 @@ logApiUKM5 'Логировать запросы УКМ5' = DATA BOOLEAN () PRERE
 
 //-------------------- api/v1/export/receipt ------------------------//
 api_v1_export_receipt(FILE f) {
-    LOCAL elements = JSON (INTEGER);
-    LOCAL ff = FILE(); 
+    zReportUkm5(f);
     fileToString(f);
-    
     IF logApiUKM5() THEN{
         logToFile('ukm5Receive', (CONCAT ' : ', 'INFO', 'api/v1/export/receipt', resultString()));
     }
-    elements(INTEGER i) <- JSON(resultString()) IF i = 1;
-    EXPORT JSON FROM elements = (JSON FROM value = elements(INTEGER i) WHERE i = 1) TO ff;
-    
-    zReportUkm5(ff());
     APPLY NESTED LOCAL;
     
     IF NOT canceled() THEN {
