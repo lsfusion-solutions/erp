@@ -722,6 +722,7 @@ TABLE userReceiving (UserReceiving);
 
 GRDate 'Дата завершения' = DATA DATE (UserReceiving) IN documentHeader INDEXED;
 GRTime 'Дата завершения' = DATA TIME (UserReceiving) IN documentHeader INDEXED;
+GRDateTime 'Дата/время завершения' (UserReceiving receiving) = dateTimeToDateTime(GRDate(receiving), GRTime(receiving));
 
 @defineDocumentHeaderNumber(UserReceiving, BPSTRING[2]);
 
@@ -772,6 +773,27 @@ END
 
 
 META defineReceivingAggregation(primObject, captionObject, captionObjects, formObject, stockProp, shipmentPrefix)
+    receiptDate 'Дата получения' = ABSTRACT DATE (###primObject);
+    receiptDate 'Дата получения' = DATA DATE (User###primObject);
+    receiptDate(User###primObject primObject) += receiptDate(primObject);
+    receiptDate[###primObject.###primObject](###primObject primObject) += receiptDate(primObject);
+
+    receiptDate(User###primObject primObject) <- currentDate() WHEN SET(primObject IS User###primObject);
+        
+    EXTEND FORM user###primObject
+        PROPERTIES(formObject) receiptDate
+    ;
+    
+    DESIGN user###primObject {
+        second {
+            MOVE PROPERTY(receiptDate(formObject));
+        }
+    }
+
+    EXTEND FORM primObject##s
+        PROPERTIES(formObject) READONLY receiptDate AFTER date(formObject)
+    ;
+        
     @defineUserReceiving(primObject, captionObject, captionObjects, formObject, stockProp);
 
     CLASS ###primObject##Receiving : Receiving;
@@ -857,6 +879,8 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
 END
 
 META defineUserReceiving (primObject, captionObjects)
+    receiptDate 'Дата получения' = ABSTRACT DATE (###primObject);
+    
     receiving = ABSTRACT Receiving (###primObject);
     userReceiving = ABSTRACT UserReceiving (###primObject);
     filterReceiving = ABSTRACT BOOLEAN (###primObject);

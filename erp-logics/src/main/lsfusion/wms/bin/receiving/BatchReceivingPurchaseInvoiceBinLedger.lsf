@@ -28,6 +28,11 @@ setShipmentDateTime(UserInvoice i) + {
 CONSTRAINT CHANGED(shipmentDateTime(Invoice i)) AND GRDateTime(receiving(i)) AND NOT shipmentDateTime(i)==GRDateTime(receiving(i))
     MESSAGE 'Дата/время поставки должна равняться дате/времени завершения приёмки по нему';
 
+shipmentDate(UserInvoice i) <- date(i) WHEN CHANGED(date(i)) AND NOT GRDateTime[UserReceiving](userReceiving(i));
+shipmentTime(UserInvoice i) <- 
+    (IF shipmentDate(i) > date(i) THEN (IF shipmentDate(i) > currentDate() THEN 00:00 ELSE currentTime()) ELSE time(i)) 
+    WHEN (CHANGED(time(i)) OR CHANGED(shipmentDate(i))) AND NOT GRDateTime[UserReceiving](userReceiving(i));
+
 limitPartitionCreditNote = DATA LOCAL NUMERIC[16,5] (InvoiceDetail);
 
 quantityVariance(InvoiceDetail detail) =
