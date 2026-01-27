@@ -94,9 +94,7 @@ DESIGN operation {
 @deriveDocumentOperationProperty(userWriteOff, createPricing);
 @deriveDocumentOperationProperty(userWriteOff, pricingOperation);
 
-showCreatePricing (WriteOff writeOff) = stock(writeOff) IS DepartmentStore AND NOT costLedger(stock(writeOff));
-showPricing (WriteOff writeOff) = showCreatePricing (writeOff) AND NOT createPricing(writeOff);
-toShowPricing (WriteOff writeOff) = showCreatePricing (writeOff) AND createPricing(writeOff);
+showCreatePricing (UserWriteOff writeOff) = stock(writeOff) IS DepartmentStore AND NOT costLedger(stock(writeOff)) MATERIALIZED;
 
 backgroundRetail 'Цвет' (WriteOff writeOff) = RGB(224, 255, 255) IF writeOff IS WriteOff;
 overShowPricing = ABSTRACT BOOLEAN (WriteOff);
@@ -240,7 +238,7 @@ skipChangePrice (UserWriteOffDetail detail) += WHEN retailPrice(detail) AND allo
 WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) DO 
+     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) AND showCreatePricing(userWriteOff(detail)) DO 
     supplierPrice (detail)  <- IF batch(detail)
     
                                                     THEN prevPriceB(SystemLedgerPriceListType.supplierPricingPriceListType,
@@ -255,7 +253,7 @@ WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
 WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
      CHANGED(stock(detail)) OR
      (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) DO
+     CHANGED(batch(detail))) AND NOT skipChangePrice(detail) AND showCreatePricing(userWriteOff(detail)) DO
      retailPrice (detail)  <- IF batch(detail)
     
                                                      THEN prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType,
@@ -269,8 +267,8 @@ WHEN LOCAL (CHANGED(sku(UserWriteOffDetail detail)) OR
 
 // Автоматический расчет розничной надбавки
 WHEN LOCAL (CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
-              CHANGED (valueRetailVAT(userWriteOffDetail)) OR
-              CHANGED(supplierPrice(userWriteOffDetail))) AND NOT skipCalcRetailMarkup(userWriteOffDetail) DO
+    CHANGED (valueRetailVAT(userWriteOffDetail)) OR CHANGED(supplierPrice(userWriteOffDetail))) 
+    AND NOT skipCalcRetailMarkup(userWriteOffDetail) AND showCreatePricing(userWriteOff(userWriteOffDetail)) DO
     retailMarkup(userWriteOffDetail)  <- [ round2((((X - X*Y/(100+Y))/Z)-1)*100)](
         retailPrice(userWriteOffDetail),
         valueRetailVAT(userWriteOffDetail),
