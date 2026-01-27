@@ -38,6 +38,8 @@ address1 = DATA LOCAL STRING();
 VATRegistrationNumber1 = DATA LOCAL STRING();
 country1 = DATA LOCAL STRING();
 nameCountry1 = DATA LOCAL STRING();
+GLN2 = DATA LOCAL STRING();
+address2 = DATA LOCAL STRING();
 contact1 = DATA LOCAL STRING();
 deliveryContact = DATA LOCAL STRING();
 currency = DATA LOCAL STRING();
@@ -81,7 +83,7 @@ FORM importEInvoice FORMEXTID 'DeliveryNote'
         VATRegistrationNumber, contact EXTID 'Contact'
     PROPERTIES() IN receiver GLN1 EXTID 'GLN', name1 EXTID 'Name', address1 EXTID 'Address', VATRegistrationNumber1 EXTID 'VATRegistrationNumber', 
         country1 EXTID 'Country', nameCountry1 EXTID 'NameCountry'
-    PROPERTIES() IN shipFrom contact1 EXTID 'Contact'
+    PROPERTIES() IN shipFrom GLN2 EXTID 'GLN', address2 EXTID 'Address', contact1 EXTID 'Contact'
     PROPERTIES() IN carrier deliveryContact EXTID 'DeliveryContact'
     PROPERTIES() IN lineItem lineItemNumber EXTID 'LineItemNumber', lineItemSign EXTID 'LineItemSign', lineItemID EXTID 'LineItemID',
         itemCustomCode EXTID 'ItemCustomCode', lineItemName EXTID 'LineItemName', quantityDespatched EXTID 'QuantityDespatched',
@@ -101,6 +103,7 @@ FORM importEInvoice FORMEXTID 'DeliveryNote'
 
 showCreateDocument(Document d) += WHEN typeNamedId(d) == 'XmlTorgBlr' AND NOT eInvoice(d) THEN TRUE;
 
+overCreateDocument ABSTRACT LIST (EInvoice); 
 createDocument(Document d) + {
     IF (typeNamedId(d) == 'XmlTorgBlr') AND NOT eInvoice(d) THEN NEWSESSION {
         IMPORT importEInvoice FROM data(entity(d));
@@ -120,6 +123,7 @@ createDocument(Document d) + {
             unpCustomer(ei) <- VATRegistrationNumber1();
             customer(ei) <- legalEntityGLN(GLN1());
             currency(ei) <- currency();
+            overCreateDocument(ei);
             FOR lineItemNumber() AND NOT GROUP SUM 1 IF lineItemNumber(INTEGER i) NEW ed = EInvoiceDetail DO {
                 eInvoice(ed) <- ei;
                 lineItemSign(ed) <- lineItemSign();
