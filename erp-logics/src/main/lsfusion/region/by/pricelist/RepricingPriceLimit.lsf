@@ -84,11 +84,12 @@ limitPrice (UserRepricingDetail detail) += WHEN detail IS UserRepricingDetail TH
 
 calcMarkupLimitPrice = ABSTRACT CASE NUMERIC[8,3] (RepricingDetail);
 calcMarkupLimitPrice(UserRepricingDetail d) += WHEN d IS UserRepricingDetail THEN
-    NUMERIC[8,3]([ round2(min( (((X/(100+Y)*100 (-) W)/Z) -1)*100, 99999))](
+    NUMERIC[8,3]([ round2(min( (((X/(100+Y)*100 (-) W)/ (Z (-) Q)) -1)*100, 99999))](
             (retailPrice(d) - OVERRIDE extraRetailPrice(d), 0.0),
             valueVAT(d),
             retailExtraPackagingCost(d),
-            repricingPrice(d)));
+            repricingPrice(d),
+            retailExtraPackagingCost(d) IF NOT retailExtraPackagingCostSkip(d)));
 
 WHEN LOCAL FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
