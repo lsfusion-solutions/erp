@@ -265,6 +265,25 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5Scale(elements) AND needUpdateScale(elements)   
 ;
 
+FORM importSecurityScaleBarcode 'Импорт эталонных весов КВП и работа с типами товаров(штрихкоды)'
+    OBJECTS t = MachineryPriceTransaction
+
+    OBJECTS elements = Barcode
+    PROPERTIES = OVERRIDE idBarcode(sku(elements)), '' EXTID 'item_id',
+        = OVERRIDE id(elements), '' EXTID 'barcode_id',
+        = IF active(sku(elements)) THEN TFALSE ELSE TTRUE EXTID 'delete',
+        = IF split(sku(elements)) OR isCatchWeight(sku(elements)) THEN 3 ELSE 0 EXTID 'measprec'
+
+    PROPERTIES IN attributes = weightSize(sku(elements)) EXTID 'weight_size_item_type'
+
+    PROPERTIES IN weight
+        = overMinDelta(sku(elements)) EXTID 'min_delta' EXTNULL,
+        = overReferenceWeight(sku(elements)) EXTID 'reference_weight' EXTNULL,
+        = overmaxDelta(sku(elements)) EXTID 'max_delta' EXTNULL
+
+    FILTERS in(t,elements) AND skuTransaction(sku(elements), t) AND NOT uploadedUkm5Scale(sku(elements)) AND needUpdateScale(sku(elements))
+;
+
 sendPriceTransactionAPI(CashRegisterPriceTransaction t){
     LOCAL answer = FILE ();
     IF (GROUP SUM 1 IF NOT uploadedUkm5(Group g) AND skuGroupTransaction(g, t)) THEN {
@@ -327,7 +346,7 @@ sendPriceTransactionAPI(CashRegisterPriceTransaction t){
         }
     }
     IF (GROUP SUM 1 IF NOT uploadedUkm5Scale(Item i) AND skuTransaction(i, t) AND needUpdateScale(i)) THEN {
-        EXPORT importSecurityScale OBJECTS t = t JSON;
+        EXPORT importSecurityScaleBarcode OBJECTS t = t JSON;
         EXTERNAL HTTP POST CONCAT '', urlUkm5ServerImport() + '/api/v1/import/store/',
             idStore(groupCashRegister(t)), '/securityScale' PARAMS exportFile() TO answer;
         fileToString(answer());
