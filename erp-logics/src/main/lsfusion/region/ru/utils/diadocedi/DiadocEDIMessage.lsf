@@ -16,9 +16,7 @@ numberEOrder 'Номер заказа' = DATA STRING (Message);
 dateTimeProcessed 'Дата/время обработки' = DATA DATETIME (Message);
 denyReceiveMessage 'Запрет обработки файла' = ABSTRACT BOOLEAN (Message);
 
-timestampTicks 'Время создания' = DATA LONG (Message);
-timestamp 'Время создания' (Message m) = fromTicksToTimestamp(timestampTicks(m));
-
+dateTimeStamp 'Дата создания' = DATA DATETIME (Message);
 fromBox 'Ящик отправителя сообщения' = DATA Box (Message) ;
 fromBoxId 'Идентификатор ящика отправителя сообщения' (Message message) = boxId(fromBox(message)) CHARWIDTH 10;
 //fromBoxTitle 'Наименование ящика отправителя сообщения' (Message message) = title(fromBox(message)) CHARWIDTH 20;
@@ -51,9 +49,9 @@ FORM messagesEDI 'Cообщения EDI'
     PROPERTIES(b) title IN base SELECTOR
 
     OBJECTS m = Message LAST
-    PROPERTIES(m) READONLY messageId, timestamp, rawFile, nameFile, messageStatus, numberEOrder
+    PROPERTIES(m) READONLY messageId, dateTimeStamp, rawFile, nameFile, messageStatus, numberEOrder
     PROPERTIES(m) dateTimeProcessed, openRawFile GRID
-    ORDERS  timestamp(m), messageId(m)
+    ORDERS dateTimeStamp(m), messageId(m)
 ;
 
 DESIGN messagesEDI {
@@ -123,7 +121,7 @@ getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, B
         getTokenUser(u);
         LOCAL result = FILE ();
         TRY {
-            EXTERNAL HTTP GET url() + '/V1/Messages/GetEvents?boxId=' + boxId(b) + (OVERRIDE '&exclusiveEventId='+ lastEventId(b),'') HEADERS httpHeadersTokenUser TO result;             
+            EXTERNAL HTTP GET url() + '/V1/Messages/GetEvents?boxId=' + boxId(b) + (OVERRIDE '&exclusiveEventId='+ (OVERRIDE lastEventId(b), (GROUP LAST messageId(Message m) ORDER dateTimeStamp(m))), '') HEADERS httpHeadersTokenUser TO result;             
             IMPORT importEvents JSON FROM result();
         } CATCH {
             fileToString(result(), 'UTF-8');
@@ -133,8 +131,7 @@ getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, B
             messageId(m) <- messageId(i);
         }
         FOR Message m == message(messageId(INTEGER i)) DO {
-            timestampTicks(m) <- LONG(eventDateTime(i));
-           
+          
             IF messageId(m) THEN {
                 LOCAL data = FILE();
                 TRY {
@@ -144,6 +141,7 @@ getNewEventsEDI 'Получить новые сообщения(EDI)' (User u, B
                     fileToString(FILE(data()), 'UTF-8');
                     MESSAGE 'Ошибка получения сообщений ' + (OVERRIDE statusHttp() + ' ' + resultString(), messageCaughtException());
                 }
+                dateTimeStamp(m) <- DATETIME(eventDateTime(i));
                 rawFile(m) <- messageBody();
                 nameFile(m) <- nameFile();
             }
