@@ -210,14 +210,30 @@ referenceWeight = DATA NUMERIC[12,3] ();
 overReferenceWeight(Sku s) = referenceWeight();
 
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
-overMinDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
+minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (Sku);
+overMinDelta(Sku s) = OVERRIDE minDelta(s), IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
 
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] ();
-overmaxDelta(Sku s) = IF split(s) OR isCatchWeight(s) THEN OVERRIDE maxDelta(), 0.01;
+maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (Sku);
+overmaxDelta(Sku s) = OVERRIDE maxDelta(s), IF split(s) OR isCatchWeight(s) THEN OVERRIDE maxDelta(), 0.01;
+
+skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (Sku);
+
+EXTEND FORM item
+PROPERTIES(i) minDelta, maxDelta, skipKppControl
+;
+
+DESIGN item {
+    itemPrimaryColumn2{
+        MOVE PROPERTY (skipKppControl(i));
+        MOVE PROPERTY (minDelta(i));
+        MOVE PROPERTY (maxDelta(i));
+    };
+}
 
 weightSize (Sku s) = CASE 
     WHEN lowWeight(s) THEN 2
-    WHEN weightControlBypass(s) THEN 3
+    WHEN skipKppControl(s) THEN 3
     ELSE 0
 ;
 
@@ -228,7 +244,7 @@ WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s
     droppedScale(sku) <- TTRUE;
 }
 
-needUpdateScale(Item i) = split(i) OR isCatchWeight(i) OR weightSize(i) = 3 OR droppedScale(i) == TTRUE;
+needUpdateScale(Item i) = split(i) OR isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
