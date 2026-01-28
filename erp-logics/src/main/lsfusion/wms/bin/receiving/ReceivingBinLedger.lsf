@@ -339,9 +339,17 @@ extraCompleteReceiving ABSTRACT LIST (Receiving);
 completeReceiving 'Завершить приёмку' (Receiving receiving) {
     NEWSESSION {
         ASK 'Вы уверены, что хотите завершить приёмку всего документа?' DO {
+            IF receiving IS Receiving AND NOT countReceivingDetail(receiving) THEN {
+                ASK '<h2><font color=#FF3333>В приёмке нет ни одной строки. Вы уверены в завершении приёмки?! </font></h2>' DO {
+                } ELSE {
+                    CANCEL;
+                    RETURN;
+                }
+            }
             IF (GROUP SUM 1 IF receiving(ReceivingDetail d)==receiving AND NOT inBin(d)) THEN {
                 MESSAGE 'Нельзя завершить работу со строками приемки у которых не заполнены ячейки';
                 CANCEL;
+                RETURN;
             }
             IF (GROUP SUM 1 IF expectedQuantity(Sku sku, STRING key, receiving) == receivingQuantity(sku, key, receiving)) THEN {
                 status(receiving) <- ReceivingStatus.fullyReceived;
@@ -388,7 +396,46 @@ completeReceiving 'Завершить приемку товара' (Sku sku, STR
     }
 }
 
+canCancelCompleteReceiving = ABSTRACT BOOLEAN (Receiving); //Для каждого проекта отдельно определяем условия отмены завершения приёмки
+cancelCompleteReceiving 'Отменить приёмку' (Receiving receiving) {
+    NEWSESSION {
+        ASK '<h2><font color=#FF3333>Вы уверены, что хотите отменить завершение приёмки всего документа?! Дата/время завершения будет сброшена. Все строки вернуться в режим редактирования</font></h2>' DO {
+            GRDate(receiving) <- NULL IF receiving IS UserReceiving;
+            GRTime(receiving) <- NULL IF receiving IS UserReceiving;
+            status(receiving) <- ReceivingStatus.inProgress;
+            dataStatus(ReceivingDetail detail) <- NULL WHERE receiving(detail)==receiving;
+            APPLY;
+            IF canceled() THEN {
+                CANCEL;
+            }
+        }    
+    }
+}
+
 createDetails 'Создать строки по документу основания' ABSTRACT CASE (Receiving);
+
+extraQuantityCompleted = ABSTRACT NUMERIC[16,5] (Sku, STRING, Receiving);
+canCreateDetailsToExist = ABSTRACT BOOLEAN (Receiving); //Для каждого проекта отдельно определяем условия создания дополнительных строк в завершенной приёмке
+overCreateDetailsToExist ABSTRACT (ReceivingDetail);
+createDetailsToExist 'Принять ещё по документу основания' (Receiving receiving) {
+    NEWSESSION {
+        ASK 'Будут созданы строки приёмки на разницу между ожидаемым кол-вом в документах основания и результатами приёмки. Продолжить?' DO {
+            FOR NUMERIC[16,5] q==(expectedQuantity(Sku sku, STRING consolidationKey, receiving) (-) quantityCompleted(sku, consolidationKey, receiving) (-) extraQuantityCompleted(sku, consolidationKey, receiving)) 
+                AND q>0 NEW d=ReceivingDetail DO {
+                receiving(d) <- receiving;
+                idBarcode(d) <- idBarcode(sku);
+                sku(d) <- sku;
+                consolidationKey(d) <- consolidationKey;
+                quantity(d) <- q;
+                overCreateDetailsToExist(d);
+            }
+            APPLY;
+            IF canceled() THEN {
+                CANCEL;
+            }
+        }
+    }
+}
 
 putawayBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
 putawayBin (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
@@ -582,7 +629,9 @@ FORM receiving 'Приемка'
                                                     nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
                                 createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  
-                                completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress
+                                createDetailsToExist SHOWIF canCreateDetailsToExist(r),       
+                                completeReceiving SHOWIF status(r)==ReceivingStatus.inProgress,
+                                cancelCompleteReceiving SHOWIF canCancelCompleteReceiving(r)
     FILTERGROUP isOpened FILTER 'Открыт' isOpened(r) DEFAULT
     FILTERS stock(receivingBin(u)) == customerStock(r),
             isPosted(r)

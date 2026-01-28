@@ -514,6 +514,9 @@ extraCompleteReceiving(Receiving r) + {
 quantityCreditNote 'Кол-во в актах расхождений' =
     GROUP SUM quantity(CreditNoteDetail d) BY sku(d), receiving(invoice(invoiceDetail(d)));
 
+quantityCreditNote 'Кол-во в актах расхождений' =
+    GROUP SUM quantity(CreditNoteDetail d) BY batch(d), receiving(invoice(invoiceDetail(d)));
+
 hasReceiving = GROUP SUM 1 BY receiving(invoice(invoiceDetail(CreditNoteDetail d))), creditNote(d);
 
 descriptionCreditNotes 'Акты расхождения' =
@@ -548,4 +551,12 @@ DESIGN receiving {
             }
         }
     }
+}
+
+extraQuantityCompleted(Sku sku, STRING consolidationKey, Receiving receiving) += quantityCreditNote(sku, consolidationKey, receiving);
+overCreateDetailsToExist(ReceivingDetail d) + {
+    batch(d) <- GROUP LAST Batch bt IF sku(bt)==sku(d) AND overConsolidationKey(bt)==overConsolidationKey(d) AND quantityInvoiceDetail(bt, receiving(d)) AND
+        (quantityInvoiceDetail(bt, receiving(d))(-)receivingQuantity(bt, receiving(d))(-)quantityCreditNote(bt, receiving(d))) >= quantity(d) 
+        ORDER DESC (quantityInvoiceDetail(bt, receiving(d))(-)receivingQuantity(bt, receiving(d))(-)quantityCreditNote(bt, receiving(d)));
+    dataStatus(d) <- ReceivingStatus.fullyReceived WHERE batch(d);
 }

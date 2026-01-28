@@ -4,6 +4,9 @@ REQUIRE ReceivingBinLedger, BatchBinTransferBinLedger;
 
 NAMESPACE Receiving;
 
+//GRDateTime 'Дата/время завершения приёмки' = ABSTRACT DATETIME (Batch) MATERIALIZED INDEXED TABLE batch;
+//receiptDate 'Дата получения документа для приёмки' = ABSTRACT DATE (Batch) MATERIALIZED INDEXED TABLE batch;
+
 @defineDocumentDetailBatchCustom(receivingDetail, batch);
 idBatch 'Код партии' (ReceivingDetail detail) = id(batch(detail)) CHARWIDTH 10;
 
@@ -12,7 +15,8 @@ batch[BinLedger] (ReceivingBinLedger ledger) += batch(receivingDetail(ledger));
 CONSTRAINT DROPPED(Batch b IS Batch) AND [GROUP MAX ReceivingDetail d BY PREV(batch(d))](b)
     MESSAGE 'Запрещено удалять партии по которым создана приемка!';
 
-receivingQuantity 'Принятое кол-во' = GROUP SUM quantity(ReceivingDetail detail) BY batch(detail), receiving(detail);
+receivingQuantity 'Принятое кол-во' = 
+    GROUP SUM quantity(ReceivingDetail detail) BY batch(detail), receiving(detail);
 
 //Нет смысла в строке приёмки без партиями ERP, если остаток в WMS мы ведем относительно этих самых партий 
 CONSTRAINT SET(quantity(ReceivingDetail detail) AND completeStatus(detail) AND NOT batch(detail))
