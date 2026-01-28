@@ -7,7 +7,7 @@ NAMESPACE YandexEda;
 baseUrlVendor 'Base url' = DATA STRING () TABLE settings;
 clientIdVendor 'ClientId' = DATA STRING () TABLE settings;
 clientSecretVendor 'ClientSecret' = DATA STRING() TABLE settings;
-tokenVendor 'Токен' = DATA STRING() TABLE settings;
+tokenVendor 'Токен' = DATA LOCAL STRING();
 partnerName 'Имя партнера'= DATA STRING () TABLE settings;
 
 
@@ -33,41 +33,35 @@ headersAuthorization (TEXT name) = CASE
 ;
 
 getToken 'Получить токен'(){
-    NEWSESSION {
-        LOCAL f = FILE();
-        EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
-            HEADERS headersAuthorization PARAMS
-            CONCAT '&',
-                'client_id=' + clientIdVendor(),
-                'client_secret=' + clientSecretVendor()
-            TO f
-        ;
-        LOCAL access_token = STRING ();
-        IMPORT JSON FROM f() TO() access_token = access_token;
+    LOCAL f = FILE();
+    EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
+        HEADERS headersAuthorization PARAMS
+        CONCAT '&',
+            'client_id=' + clientIdVendor(),
+            'client_secret=' + clientSecretVendor()
+        TO f
+    ;
+    LOCAL access_token = STRING ();
+    IMPORT JSON FROM f() TO() access_token = access_token;
 
-        IF access_token() THEN {
-            tokenVendor() <- access_token();
-            APPLY;
-        }
+    IF access_token() THEN {
+        tokenVendor() <- access_token();
     }
 }
 
 getTokenJSON 'Поулчить токен (JSON)'(){
-    NEWSESSION {
-        LOCAL f = FILE();
-        EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
-            HEADERS headersAuthorization PARAMS 
-                JSON FROM client_id = clientIdVendor(),
-                          client_secret = clientSecretVendor()
-            TO f
-        ;
-        LOCAL access_token = STRING ();
-        IMPORT JSON FROM f() TO() access_token = access_token;
+    LOCAL f = FILE();
+    EXTERNAL HTTP POST baseUrlVendor() + '/oauth2/token'
+        HEADERS headersAuthorization PARAMS 
+            JSON FROM client_id = clientIdVendor(),
+                      client_secret = clientSecretVendor()
+        TO f
+    ;
+    LOCAL access_token = STRING ();
+    IMPORT JSON FROM f() TO() access_token = access_token;
 
-        IF access_token() THEN {
-            tokenVendor() <- access_token();
-            APPLY;
-        }
+    IF access_token() THEN {
+        tokenVendor() <- access_token();
     }
 }
 
