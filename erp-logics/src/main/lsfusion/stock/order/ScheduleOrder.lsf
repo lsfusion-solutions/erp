@@ -70,11 +70,15 @@ nameDefaultGenType 'Тип генерации (по умолчанию)' ()= sta
 
 allowNotCustomer 'Разрешить графики без покупателя' = DATA BOOLEAN ();
 
-EXTEND FORM options PROPERTIES() countDaysPreOrders, nameDefaultGenType, addScheduleOrderDetail, allowNotCustomer;
+useLastShipmenBeforeCurrentDateScheduleOrder 'Начинать генерацию с текущей даты каждый раз' = DATA BOOLEAN () PREREAD IN schedule;
+
+
+EXTEND FORM options PROPERTIES() countDaysPreOrders, nameDefaultGenType, useLastShipmenBeforeCurrentDateScheduleOrder, addScheduleOrderDetail, allowNotCustomer;
 DESIGN options {
     orders {
         MOVE PROPERTY(countDaysPreOrders());
         MOVE PROPERTY(nameDefaultGenType());
+        MOVE PROPERTY(useLastShipmenBeforeCurrentDateScheduleOrder());
         MOVE PROPERTY(addScheduleOrderDetail());
         MOVE PROPERTY(allowNotCustomer());
     }
@@ -291,6 +295,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     lastShipment = GROUP MAX dateSupply(ScheduleOrderDetail d) IF dateSupply(d) <= DATE date BY scheduleOrder(d), date;
     lastDateSupply = GROUP MAX dateSupply(ScheduleOrderDetail d) BY scheduleOrder(d), customerStock(d) MATERIALIZED;
 
+    lastShipment(ScheduleOrder o) = IF useLastShipmenBeforeCurrentDateScheduleOrder()
+        THEN lastShipment(o, currentDate())
+        //при изменении настроек вызывается recreate поэтому нет смысла каждый раз начинать с текущей даты 
+        //на всякий случай отставлена опция для старого поведения
+        ELSE GROUP MAX dateSupply(ScheduleOrderDetail d) IF scheduleOrder(d) == o AND isOpened(d); 
+    
     overCreateDetails  ABSTRACT LIST ( ScheduleOrder);
     
     create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder)  { 
@@ -366,7 +376,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         // генерация по дням и месяцам
         IF type(scheduleOrder) == GenType.genDayMonth THEN {
             //если в графике уже есть  точки то начинаем с последней из них, иначе генерация раз в 2 недели не всегда работает
-            tmpDate() <- MAX startDate(scheduleOrder), (OVERRIDE lastShipment(scheduleOrder, currentDate()), currentDate());
+            tmpDate() <- MAX startDate(scheduleOrder), (OVERRIDE lastShipment(scheduleOrder), currentDate());
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= toDate() DO {
                 tmpDateP() <- tmpDate();
