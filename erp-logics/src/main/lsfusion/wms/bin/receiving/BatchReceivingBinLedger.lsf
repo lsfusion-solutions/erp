@@ -23,3 +23,51 @@ CONSTRAINT SET(quantity(ReceivingDetail detail) AND completeStatus(detail) AND N
     MESSAGE 'Нельзя принять товар без партии';
 
 replace(Sku s, Batch b) + { sku(ReceivingDetail detail) <- s WHERE batch(detail) == b;}
+
+WHEN SET(ReceivingDetail d IS ReceivingDetail) AND NOT disableDocumentLog() DO NEW l = DocumentDetailLog{
+    documentId(l) <- LONG (receiving(d));
+    index(l) <- index(d);
+    numberDocument(l) <- number(receiving(d));
+    seriesDocument(l) <- series(receiving(d));
+    dateDocument(l) <- date(receiving(d));
+    typeDocument(l) <- objectClassName(receiving(d));
+    sku(l) <- sku(d);
+    batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + name(batch(d));
+    quantity(l) <- quantity(d);
+    //price(l) <- price(d);
+    nameUser(l) <- ISTRING[100](name(currentUser()));
+    dateTime(l) <- currentDateTime();
+    note(l) <- 'Добавление';
+}
+WHEN DROPPED(ReceivingDetail d IS ReceivingDetail) AND NOT disableDocumentLog() DO NEW l = DocumentDetailLog{
+    documentId(l) <- LONG(PREV(receiving(d)));
+    index(l) <- PREV(index(d));
+    numberDocument(l) <- PREV(number(receiving(d)));
+    seriesDocument(l) <- PREV(series(receiving(d)));
+    dateDocument(l) <- PREV(date(receiving(d)));
+    typeDocument(l) <- prevObjectClassName(PREV(receiving(d)));
+    sku(l) <- PREV(sku(d));
+    batch(l) <- CONCAT ', ', 'Код: ' + id(PREV(batch(d))), ' Наименование: ' + name(PREV(batch(d)));
+    quantity(l) <- PREV(quantity(d));
+    //price(l) <- PREV(price(d));
+    nameUser(l) <- ISTRING[100](name(currentUser()));
+    dateTime(l) <- currentDateTime();
+    note(l) <- 'Удаление';
+}
+WHEN (CHANGED(quantity(ReceivingDetail d)) OR CHANGED(batch(d)) OR CHANGED(sku(d))) AND NOT DROPPED(d IS ReceivingDetail) AND NOT SET(d IS ReceivingDetail) AND NOT disableDocumentLog() DO
+    NEW l = DocumentDetailLog{
+        documentId(l) <- LONG (receiving(d));
+        index(l) <- index(d);
+        numberDocument(l) <- number(receiving(d));
+        seriesDocument(l) <- series(receiving(d));
+        dateDocument(l) <- date(receiving(d));
+        typeDocument(l) <- objectClassName(receiving(d));
+        sku(l) <- sku(d);
+        batch(l) <- CONCAT ', ', 'Код: ' + id(batch(d)), ' Наименование: ' + name(batch(d));
+        prevQuantity(l) <- PREV(quantity(d));
+        quantity(l) <- quantity(d);
+        //price(l) <- price(d);
+        nameUser(l) <- ISTRING[100](name(currentUser()));
+        dateTime(l) <- currentDateTime();
+        note(l) <- 'Изменение';
+    }

@@ -1039,3 +1039,104 @@ needToCreateReceivingBinLedger(ReceivingDetail detail) += TRUE IF inBin(detail) 
 
 CONSTRAINT DROPPED(ReceivingDetail d IS ReceivingDetail) AND PREV(completeStatus(d)) 
     MESSAGE 'Запрещено удалять строки у завершённой приёмки';
+
+EXTEND CLASS TypeChange {
+    grDateTime 'Изменение даты завершения приемки'
+}
+
+WHEN SET(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.add;
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        note(d) <- STRING[255]('Добавлен документ');
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+WHEN DROPPED(Receiving o IS Receiving) IF NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(PREV(o AS Document));
+        typeDocument(d) <- prevObjectClassName(o);
+        numberDocument(d) <- PREV(number(o));
+        seriesDocument(d) <- PREV(series(o));
+        dateDocument(d) <- PREV(date(o));
+        typeChange(d) <- TypeChange.delete;
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        note(d) <- STRING[255]('Удален документ');
+        supplierStock(d) <- PREV (supplierStock(o));
+        customerStock(d) <- PREV (customerStock(o));
+    }
+}
+WHEN CHANGED(GRDateTime(Receiving o)) AND o IS Receiving AND NOT SET(o IS Receiving) AND NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.grDateTime;
+        note(d) <- STRING[255]('Предыдущее значение даты завершения приемки '+( PREV(GRDateTime(o))));
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+
+WHEN (INTEGER x== [GROUP SUM 1 IF SET(ReceivingDetail d IS ReceivingDetail) BY receiving(d)](Receiving o)) IF NOT disableDocumentLog() DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.addRow;
+        note(d) <- STRING[255]('Количество добавленных строк: '+x);
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+
+WHEN INTEGER x==[ GROUP SUM 1 IF DROPPED(ReceivingDetail d IS ReceivingDetail) BY PREV(receiving(d))](Receiving o) AND o IS Receiving AND NOT disableDocumentLog() NOINLINE DO {
+    NEW d = DocumentLog {
+        documentId(d) <- LONG(o);
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);
+        seriesDocument(d) <- series(o);
+        dateDocument(d) <- date(o);
+        typeChange(d) <- TypeChange.deleteRow;
+        note(d) <- STRING[255]('Количество удаленных строк: '+x);
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser());
+        nameContact(d) <- STRING[100](name(currentUser()));
+        dateTimeSession(d) <- currentDateTime();
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
+    }
+}
+
+DESIGN receiving {
+    tabReceivingContainer {
+        NEW documentHistory {
+            caption = 'История';
+        }
+    }
+}
+@defineDocumentLogForm(receiving, r);
