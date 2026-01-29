@@ -269,6 +269,7 @@ FORM item 'Товар'
     PROPERTIES value(i, attr) ON CHANGE { edit(i, attr); } SHOWIF in(itemSubGroup(i), attr) COLUMNS (attr) HEADER name(attr)
     PROPERTIES READONLY notNull=notNull(itemSubGroup(i), attr) SHOWIF NULL, name(attr) SHOWIF NULL
     ORDERS notNull DESC, name(attr)
+    FILTERS in(itemSubGroup(i), attr)
     
     OBJECTS size = Size
     PROPERTIES(size) chrtID READONLY, techSize, wbSize, skus READONLY, barcodePrimary
@@ -1639,15 +1640,11 @@ EXTEND FORM masterData
     FILTERGROUP active
         FILTER 'Активные' active(attr) DEFAULT
 
-    OBJECTS ownerClass = ItemSubGroup
-    PROPERTIES READONLY in(ownerClass, attr) COLUMNS (ownerClass) HEADER name(ownerClass)
-    PROPERTIES READONLY name(ownerClass) SHOWIF NULL
-    ORDERS name(ownerClass)
-
     OBJECTS extraProp = ItemSubGroup
     PROPERTIES name(extraProp) READONLY
-    PROPERTIES (extraProp, attr) notNull READONLY 
+    PROPERTIES(extraProp, attr) READONLY in, notNull
     ORDERS name(extraProp)
+    FILTERS in(extraProp, attr)
 ;
 
 DESIGN masterData {
@@ -1664,11 +1661,10 @@ DESIGN masterData {
             caption = 'Характеристики предмета';
             MOVE PROPERTY (getItemAttribute());
             MOVE BOX(attr);
-            MOVE BOX(ownerClass);
             NEW tabbedPane {
                 tabbed = TRUE;
                 fill = 1;
-                MOVE BOX(extraProp) { caption = 'Настройки'; }
+                MOVE BOX(extraProp) { caption = 'Предметы'; }
             }
         }
         NEW containerItem {
