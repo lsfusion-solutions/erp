@@ -19,7 +19,6 @@ CLASS DefectGiftCardDetail 'Строка списания испорченных
 
 @defineDocumentDescription (defectGiftCard, 'Списание испорченных ПС');
 
-
 fromDate 'Дата с' = DATA DATE (DefectGiftCard) IN documentHeader;
 fromDate 'Дата с' (DefectGiftCardDetail d)= fromDate(defectGiftCard(d));
 toDate 'Дата по' = DATA DATE (DefectGiftCard) IN documentHeader;
@@ -177,6 +176,12 @@ EXTEND FORM giftCards
         FILTER 'Не испорчен' sold(g) AND NOT defectGiftCardDetail(g) 'F4'     
 ;
 
+show(DefectGiftCardDetail d)  {
+    NEWSESSION {
+        SHOW defectGiftCard OBJECTS r = defectGiftCard(d), d = d DOCKED READONLY;
+    }
+}
+
 //имплемент в GiftCardLedger
 giftCard(DefectGiftCardDetail detail) += giftCard(detail);
 dateTime(DefectGiftCardDetail detail) += dateTime(detail);
@@ -184,6 +189,7 @@ sum(DefectGiftCardDetail detail) += 0.0 IF detail IS DefectGiftCardDetail;
 description(DefectGiftCardDetail detail) += STRING[100]('Испорчен') IF detail IS DefectGiftCardDetail;
 numberDocument(DefectGiftCardDetail detail) += STRING[50](seriesNumber(defectGiftCard(detail)));
 departmentStore(DefectGiftCardDetail detail) += departmentStore(detail);
+show(DefectGiftCardDetail detail) + { show(detail); }
 
 overExportGiftCards ABSTRACT LIST (DefectGiftCard);
 EXTEND FORM defectGiftCard
