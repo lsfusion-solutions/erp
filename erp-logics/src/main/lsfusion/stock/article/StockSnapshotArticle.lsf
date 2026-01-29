@@ -76,18 +76,27 @@ TABLE snapshotArticle (Snapshot, Article);
 
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Article);
 dataExclude 'Искл.' = ABSTRACT BOOLEAN (Snapshot, Article);
-includeSkuGroup (Snapshot snapshot, Article article) = (GROUP MAX 1 IF include(snapshot, SkuGroup g) AND isParent(g, article));
-include 'Вкл' (Snapshot snapshot, Article article) =
-    (includeSkuGroup(snapshot, article) OR dataInclude(snapshot, article)) AND NOT dataExclude(snapshot, article);
+include 'Вкл' (Snapshot snapshot, Article article) = dataInclude(snapshot, article) AND NOT dataExclude(snapshot, article);
 
 countIncludeArticles (Snapshot s) = GROUP SUM 1 IF include(s, Article a);
 
 includeArticle (Snapshot snapshot, Sku sku) = include(snapshot, article(sku)) OR NOT countIncludeArticles(snapshot);
-dataExclude(Snapshot snapshot, Sku sku) += countIncludeArticles(snapshot) AND NOT include(snapshot, article(sku));
+dataExclude(Snapshot snapshot, Sku sku) += NOT includeArticle(snapshot, sku);
 
 deleteIncludeArticles 'Сбросить отмеченные' (Snapshot r)  {
     dataInclude(r, Article a) <- NULL;
 };
+
+excludeSku(Snapshot snapshot) + {
+    IF countIncludeArticles(snapshot) THEN {
+        IF filterLocal() THEN {
+            includeLocal(Sku sku) <- TRUE WHERE includeLocal(sku) AND include(snapshot, article(sku));
+        } ELSE {
+            filterLocal() <- TRUE;
+            includeLocal(Sku sku) <- include(snapshot, article(sku)) WHERE include(snapshot, article(sku));
+        }
+    }
+}
 
 takeFromSkuFilter (Article article, Sku sku, Stock stock, Snapshot snapshot) =
     article(sku) == article AND (include(snapshot,supplierLastOrderBatch(sku, stock)) OR NOT countIncludeLegalEntities(snapshot));
