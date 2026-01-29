@@ -1,0 +1,459 @@
+MODULE StatisticalReportsGestori;
+
+REQUIRE ZReportReceiptTime, SaleReports, SkuList, ReportsFiltersGestori;
+
+NAMESPACE Reports;
+
+/// Report by intervals
+
+inSaleIntervalReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+intervalInHoursInput 'Интервал (в часах)' = DATA LOCAL INTEGER ();
+
+intervalInHours = CASE
+    WHEN intervalInHoursInput() THEN intervalInHoursInput()
+    WHEN intervalsCount() THEN daysBetweenDates(DATE(filterTo()), DATE(filterFrom())) * 24 / intervalsCount();
+
+iterateHours(DATETIME d) = RECURSION d = DATETIME(filterFrom()) AND filterFrom() IS DATE
+    AND DATETIME(filterTo()) IS DATETIME STEP d = sumMinutes($d, intervalInHours() * 60) AND d < DATETIME(filterTo()) CYCLES IMPOSSIBLE;
+
+endInterval(DATETIME d) = sumMinutes(d, intervalInHours() * 60);
+
+unitCountI 'Продано единиц' (DATETIME d, DepartmentStore s) = GROUP SUM signedQuantity(ReceiptDetail rd)
+    IF dateTime(rd) >= d AND dateTime(rd) <= endInterval(d) AND departmentStore(rd) = s;
+
+sumI 'Сумма продаж' (DATETIME d, DepartmentStore s) = GROUP SUM signedSum(ReceiptDetail rd)
+    IF dateTime(rd) >= d AND dateTime(rd) <= endInterval(d) AND departmentStore(rd) = s;
+
+avgI 'Средняя стоимость' (DATETIME d, DepartmentStore s) = sumI(d, s) / unitCountI(d, s);
+
+shortName(DOW d) = CASE
+    WHEN d == DOW.sunday THEN 'Вс'
+    WHEN d == DOW.monday THEN 'Пн'
+    WHEN d == DOW.tuesday THEN 'Вт'
+    WHEN d == DOW.wednesday THEN 'Ср'
+    WHEN d == DOW.thursday THEN 'Чт'
+    WHEN d == DOW.friday THEN 'Пт'
+    WHEN d == DOW.saturday THEN 'Сб'
+;
+
+FORM salesByIntervalsReportPrint 'Продажи по временным интервалам'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inReportStocks(), intervalInHours = intervalInHours()
+
+    OBJECTS s = DepartmentStore
+    PROPERTIES name(s)
+    FILTERS inSaleReport(s)
+
+    OBJECTS d = DATETIME
+    PROPERTIES READONLY date 'Дата' = STRING (toChar(d, 'dd.MM.yyyy')), dow 'День\nнедели' = shortName(extractDOW(DATE(d))),
+        time 'Время' = STRING (toChar(d, 'HH24:MI')),
+        unitCountI(d, s) COLUMNS 'склад' (s) HEADER name(s) + ': Продано\nединиц ',
+        sumI(d, s) COLUMNS 'склад' (s) HEADER 'Сумма\nпродаж',
+        avgI(d, s) COLUMNS 'склад' (s) HEADER 'Средняя\nстоимость'
+    FILTERS iterateHours(d) ;
+
+printSaleReportIntervals 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT salesByIntervalsReportPrint;
+}
+
+filterByDates(DATE d) = (NOT filterFrom() OR d >= filterFrom()) AND
+    (NOT filterTo() OR d <= filterTo());
+
+FORM salesByCashRegsReportPrint 'Продажи товара на кассах'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES (rd) READONLY date, time, idBarcode, nameSku, numberCashRegister, numberReceipt, signedQuantity, price
+    FILTERS filterByDates(receipt(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(departmentStore(rd)) AND filterBySku(rd)
+    ORDERS date(rd), time(rd)
+;
+
+printSaleByCashRegsReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT salesByCashRegsReportPrint ;
+}
+
+workWithReceipt 'Время работы с чеком, сек' (Receipt r) = secondsBetweenDates(dateTimeClosed(r), dateTimeOpen(r));
+
+workWithReceiptSubtotalByCashier(Employee e) = GROUP SUM workWithReceipt(Receipt r) IF filterForPerformanceReport(r) AND employee(r) = e;
+countReceiptDetailSubtotalByCashier(Employee e) = GROUP SUM countReceiptDetail(Receipt r) IF filterForPerformanceReport(r) AND employee(r) = e;
+sumReceiptDetailSubtotalByCashier(Employee e) = GROUP SUM sumReceiptDetail(Receipt r) IF filterForPerformanceReport(r) AND employee(r) = e;
+
+FORM cashierPerformanceReportPrint 'СКОРОСТЬ РАБОТЫ КАССИРА (подробно)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS e = Employee
+    PROPERTIES (e) shortName, workWithReceiptSubtotalByCashier, countReceiptDetailSubtotalByCashier, sumReceiptDetailSubtotalByCashier
+    FILTERS countReceiptDetailSubtotalByCashier(e)
+
+    OBJECTS r = Receipt
+    PROPERTIES (r) READONLY idDepartmentStore, numberCashRegister, nameEmployee, date, number,
+        dateTimeOpen, dateTimeClosed, workWithReceipt, countReceiptDetail, sumReceiptDetail
+
+    FILTERS nameEmployee(r) AND filterForPerformanceReport(r) AND employee(r) = e
+    ORDERS nameEmployee(r), numberCashRegister(r), date(r)
+;
+
+printCashierPerformanceReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierPerformanceReportPrint ;
+}
+
+receiptsCount 'Кол-во чеков за период' (Employee e, CashRegister c) = GROUP SUM 1 IF employee(Receipt r) = e AND filterByDates(r)
+    AND inSaleReport(departmentStore(r)) AND cashRegister(r) = c;
+receiptDetailsCount 'Кол-во товаров за период' (Employee e, CashRegister c) = GROUP SUM 1 IF employee(receipt(ReceiptDetail rd)) = e
+    AND filterByDates(receipt(rd)) AND inSaleReport(departmentStore(rd)) AND cashRegister(receipt(rd)) = c;
+workWithReceiptTotal 'Время работы с чеками, сек' (Employee e, CashRegister c) = GROUP SUM workWithReceipt(Receipt r) IF employee(r) = e AND filterByDates(r)
+    AND inSaleReport(departmentStore(r)) AND cashRegister(r) = c;
+workWithReceiptAvg 'Среднее время на чек, сек' (Employee e, CashRegister c) = workWithReceiptTotal(e, c) / receiptsCount(e, c);
+workWithItemAvg 'Среднее время на товар, сек' (Employee e, CashRegister c) = workWithReceiptTotal(e, c) / receiptDetailsCount(e, c);
+
+receiptsCountSubtotal (CashRegister c) = GROUP SUM 1 IF cashRegister(Receipt r) = c AND filterByDates(r)
+    AND inSaleReport(departmentStore(r)) AND employee(r);
+receiptDetailsCountSubtotal (CashRegister c) = GROUP SUM 1 IF cashRegister(receipt(ReceiptDetail rd)) = c
+    AND filterByDates(receipt(rd)) AND inSaleReport(departmentStore(rd)) AND employee(receipt(rd));
+workWithReceiptTotalSubtotal (CashRegister c) = GROUP SUM workWithReceipt(Receipt r) IF cashRegister(r) = c
+    AND filterByDates(r) AND inSaleReport(departmentStore(r)) AND employee(r);
+workWithReceiptAvgSubtotal (CashRegister c) = NUMERIC[13,3] (workWithReceiptTotalSubtotal(c)) / receiptsCountSubtotal(c);
+workWithItemAvgSubtotal (CashRegister c) = NUMERIC[13,3] (workWithReceiptTotalSubtotal(c)) / receiptDetailsCountSubtotal(c);
+
+filterForPerformanceReport(Employee e, CashRegister c) = inSaleReport(stock(c))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(c))
+    AND ((NOT GROUP SUM 1 IF in(Employee em)) OR in(e));
+
+FORM cashierPerformanceTotalReportPrint 'СКОРОСТЬ РАБОТЫ КАССИРА (итоги)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS c = CashRegister
+    PROPERTIES (c) nameStock, npp, receiptsCountSubtotal, receiptDetailsCountSubtotal, workWithReceiptTotalSubtotal,
+        workWithReceiptAvgSubtotal, workWithItemAvgSubtotal
+    FILTERS receiptsCountSubtotal(c)
+
+    OBJECTS e = Employee
+    PROPERTIES READONLY name(e), receiptsCount(e, c), receiptDetailsCount(e, c),
+        workWithReceiptTotal(e, c), workWithReceiptAvg(e, c), workWithItemAvg(e, c)
+    FILTERS filterForPerformanceReport(e, c) AND receiptsCount(e, c)
+    ORDERS npp(c)
+;
+
+printCashierPerformanceTotalReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierPerformanceTotalReportPrint ;
+}
+
+///// товар со скидками по кассам
+
+filterShiftFrom 'Смена от' = DATA LOCAL TIME ();
+filterShiftTo 'Смена до' = DATA LOCAL TIME ();
+
+filterShiftFromReceiptDiscount 'Смена от' = DATA LOCAL TIME ();
+filterShiftToReceiptDiscount 'Смена до' = DATA LOCAL TIME ();
+
+filterDiscountFrom 'Скидка с' = DATA LOCAL NUMERIC ();
+filterDiscountTo 'Скидка по' = DATA LOCAL NUMERIC ();
+
+filterByShift(ReceiptDetail rd) = (NOT filterShiftFrom() OR time(rd) >= filterShiftFrom()) AND
+    (NOT filterShiftTo() OR time(rd) <= filterShiftTo());
+
+filterForItemsWithDiscount(ReceiptDetail rd) = sku(rd) AND discountSum(rd)
+    AND filterByShift(rd)
+    AND filterByDates(receipt(rd))
+    AND inSaleReport(departmentStore(rd))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(cashRegister(receipt(rd))))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(employee(receipt(rd))));
+
+priceWithDiscount(ReceiptDetail rd) = round(signedSum(rd) / signedQuantity(rd), roundDiscountCondition(departmentStore(rd)));
+discountPercentCalc(ReceiptDetail rd) = round(1 - signedSum(rd) / fullSum(rd), roundDiscountCondition(departmentStore(rd))) * 100;
+
+fullSumByDay(DATE d) = GROUP SUM fullSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+signedSumByDay(DATE d) = GROUP SUM signedSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+discountSumByDay(DATE d) = GROUP SUM discountSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+discountAvgPercentByDay(DATE d) = (GROUP SUM discountPercentCalc(ReceiptDetail rd)
+    IF rd IS ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)) /
+    (GROUP SUM 1 IF date(ReceiptDetail rd2) = d AND rd IS ReceiptSaleDetail AND filterForItemsWithDiscount(rd2));
+
+FORM itemsWithDiscountReportPrint 'Товары со скидками по кассам'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportCashRegisters = inSaleReportCashRegs(),
+        inSaleReportCashiers = inReportCashiers()
+
+    OBJECTS d = DATE
+    PROPERTIES (d) fullSumByDay, discountSumByDay, discountAvgPercentByDay, signedSumByDay
+    FILTERS iterateDays(d)
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES (rd) READONLY date, numberCashRegister, nameEmployee, numberReceipt, idBarcode, nameSku, signedQuantity,
+        price, fullSum, discountSum, discountPercentCalc, priceWithDiscount, signedSum
+    FILTERS signedQuantity(rd) > 0 AND filterForItemsWithDiscount(rd) AND date(rd) = d
+;
+
+printItemsWithDiscountReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT itemsWithDiscountReportPrint ;
+}
+
+quantity(Item i, Stock s, DATE d) = GROUP SUM signedQuantity(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND departmentStore(rd) = s ;
+
+bruttoSum(Item i, Stock s, DATE d) = GROUP SUM fullSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND departmentStore(rd) = s ;
+
+discountSum(Item i, Stock s, DATE d) = GROUP SUM discountSum(ReceiptDetail rd)
+    IF rd IS ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)
+        AND sku(rd) = i AND departmentStore(rd) = s ;
+
+discountPercent(Item i, Stock s, DATE d) = round( (GROUP SUM discountPercentCalc(ReceiptDetail rd)
+    IF rd IS ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)
+        AND sku(rd) = i AND departmentStore(rd) = s) /
+    (GROUP SUM 1 IF filterForItemsWithDiscount(ReceiptDetail rd2) AND rd2 IS ReceiptSaleDetail AND date(rd2) = d
+        AND sku(rd2) = i AND departmentStore(rd2) = s), roundDiscountCondition(s));
+
+nettoSum(Item i, Stock s, DATE d) = GROUP SUM signedSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND departmentStore(rd) = s ;
+
+fullSumByDayAndStock(DATE d, Stock s) = GROUP SUM fullSum(ReceiptSaleDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND departmentStore(rd) = s;
+
+signedSumByDayAndStock(DATE d, Stock s) = GROUP SUM signedSum(ReceiptDetail rd)
+    IF rd IS ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd) AND departmentStore(rd) = s;
+
+discountSumByDayAndStock(DATE d, Stock s) = GROUP SUM discountSum(ReceiptDetail rd)
+    IF rd IS ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd) AND departmentStore(rd) = s;
+
+FORM itemsWithDiscountTotalReportPrint 'Товары со скидками (итого)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS d = DATE
+    PROPERTIES date = VALUE (d)
+    FILTERS filterByDates(d) AND iterateDays(d)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) name
+    FILTERS inSaleReport(s)
+
+    OBJECTS i = Item
+    PROPERTIES READONLY idBarcode(i), name(i), quantity(i, s, d), bruttoSum(i, s, d), discountSum(i, s, d),
+        discountPercent(i, s, d), nettoSum(i, s, d),
+        fullSumByDayAndStock(d, s), discountSumByDayAndStock(d, s), signedSumByDayAndStock(d, s)
+    FILTERS quantity(i, s, d) > 0 ;
+
+printItemsWithDiscountTotalReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT itemsWithDiscountTotalReportPrint ;
+}
+
+filterByDiscountSum(ReceiptDetail rd) = (NOT filterDiscountFrom() OR discountSum(rd) >= filterDiscountFrom()) AND
+    (NOT filterDiscountTo() OR discountSum(rd) <= filterDiscountTo());
+
+filterForReceiptsWithDiscount(ReceiptDetail rd) = sku(rd) AND discountSum(rd)
+    AND filterByDiscountSum(rd)
+    AND filterByShift(rd)
+    AND filterByDates(receipt(rd))
+    AND inSaleReport(departmentStore(rd))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(cashRegister(receipt(rd))))
+    AND filterBySku(rd);
+
+barcodeQuantity(ReceiptDetail rd) = signedQuantity(rd) * amountBarcode(sku(rd));
+barcodePrice(ReceiptDetail rd) = price(rd) * amountBarcode(sku(rd));
+barcodePriceWithDiscount(ReceiptDetail rd) = priceWithDiscount(rd) * amountBarcode(sku(rd));
+
+fullSumByDayReceiptDiscount(DATE d) = GROUP SUM fullSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+signedSumByDayReceiptDiscount(DATE d) = GROUP SUM signedSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+discountSumByDayReceiptDiscount(DATE d) = GROUP SUM discountSum(ReceiptDetail rd) IF rd IS ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+
+FORM receiptsWithDiscountReportPrint 'Товары со скидками по чекам'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        discountFrom = filterDiscountFrom(), discountTo = filterDiscountTo(),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportCashRegisters = inSaleReportCashRegs(),
+        inSaleReportSkus = inSaleReportSkus()
+
+    OBJECTS d = DATE
+    PROPERTIES (d) fullSumByDayReceiptDiscount, discountSumByDayReceiptDiscount, signedSumByDayReceiptDiscount
+    FILTERS iterateDays(d)
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES (rd) READONLY nameDepartmentStore, date, numberCashRegister, time, nameEmployee, numberReceipt, id, nameSku, idBarcode, barcodeQuantity,
+        barcodePrice, fullSum, discountSum, discountPercentCalc, barcodePriceWithDiscount, signedSum
+    FILTERS signedQuantity(rd) > 0 AND filterForReceiptsWithDiscount(rd) AND date(rd) = d
+;
+
+printReceiptsWithDiscountReport 'Печать' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT receiptsWithDiscountReportPrint ;
+}
+
+FORM statisticalReports
+    OBJECTS dateFromObj = DATETIME PANEL
+    PROPERTIES dateFromIntervals 'Дата от' = VALUE(dateFromObj),
+        dateFromCashReg 'Дата от' = VALUE(dateFromObj),
+        dateFromPerformance 'Дата от' = VALUE(dateFromObj),
+        dateFromDiscount 'Дата от' = VALUE(dateFromObj),
+        dateFromReceiptDiscount 'Дата от' = VALUE(dateFromObj)
+
+    OBJECTS dateToObj = DATETIME PANEL
+    PROPERTIES dateToIntervals 'Дата до' = VALUE(dateToObj),
+        dateToCashReg 'Дата до' = VALUE(dateToObj),
+        dateToPerformance 'Дата до' = VALUE(dateToObj),
+        dateToDiscount 'Дата до' = VALUE(dateToObj),
+        dateToReceiptDiscount 'Дата до' = VALUE(dateToObj)
+
+    PROPERTIES inReportStocksIntervals 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksCashRegs 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksPerformance 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksReceiptDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport()
+
+    PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsPerformance 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsReceiptDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
+
+    PROPERTIES intervalInHoursInput(), intervalsCount(),
+        printSaleReportIntervals(dateFromObj, dateToObj),
+        inReportCashiers() ON CHANGE selectCashiers(),
+        inReportCashiersDiscount 'Кассиры' = inReportCashiers() ON CHANGE selectCashiers()
+
+    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType(),
+        inSaleReportSkusReceiptDiscount 'Товары' = inSaleReportSkus() ON CHANGE askSkuFilterType()
+
+    PROPERTIES filterQuantityTypeName(), filterQuantity(),
+        filterShiftFrom(), filterShiftTo(),
+        filterShiftFromReceiptDiscount(), filterShiftToReceiptDiscount(),
+        filterDiscountFrom(), filterDiscountTo(),
+
+        printSaleByCashRegsReport(dateFromObj, dateToObj),
+        printCashierPerformanceReport(dateFromObj, dateToObj),
+        printCashierPerformanceTotalReport(dateFromObj, dateToObj),
+        printItemsWithDiscountReport(dateFromObj, dateToObj),
+        printItemsWithDiscountTotalReport(dateFromObj, dateToObj),
+        printReceiptsWithDiscountReport(dateFromObj, dateToObj)
+;
+
+DESIGN statisticalReports{
+    REMOVE TOOLBARBOX ;
+    caption = 'Статистические отчеты';
+    NEW main{
+
+        NEW saleReportIntervals{
+            caption = 'Продажи по временным интервалам';
+            NEW datesIntervals{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromIntervals);
+                MOVE PROPERTY (dateToIntervals);
+            }
+            MOVE PROPERTY (inReportStocksIntervals);
+            MOVE PROPERTY (intervalInHoursInput());
+            MOVE PROPERTY (intervalsCount());
+            MOVE PROPERTY (printSaleReportIntervals(dateFromObj, dateToObj));
+        }
+        NEW saleReportByCashRegs {
+            caption = 'Статистика продажи товара на кассах';
+            NEW cashFilters{
+                NEW dates{
+                    horizontal = TRUE ;
+                    MOVE PROPERTY (dateFromCashReg);
+                    MOVE PROPERTY (dateToCashReg);
+                }
+                NEW skuStock{
+                    MOVE PROPERTY (inReportStocksCashRegs);
+                    MOVE PROPERTY (inReportCashRegs);
+                    MOVE PROPERTY (inSaleReportSkus());
+                }
+                NEW quantity{
+                    caption = 'По количеству';
+                    MOVE PROPERTY (filterQuantityTypeName());
+                    MOVE PROPERTY (filterQuantity());
+                }
+            }
+            MOVE PROPERTY (printSaleByCashRegsReport(dateFromObj, dateToObj)) LAST ;
+        }
+
+        NEW saleReportByCashSpeed {
+            caption = 'Скорость работы кассира';
+            NEW cashSpeedFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromPerformance);
+                MOVE PROPERTY (dateToPerformance);
+            }
+            MOVE PROPERTY (inReportStocksPerformance);
+            MOVE PROPERTY (inReportCashRegsPerformance);
+            MOVE PROPERTY (inReportCashiers());
+            NEW buttons{
+                horizontal = TRUE ;
+                MOVE PROPERTY (printCashierPerformanceReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (подробно)';}
+                MOVE PROPERTY (printCashierPerformanceTotalReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (итоги)';}
+            }
+        }
+
+        NEW saleReportItemsWithDiscount {
+            caption = 'Товары со скидками по кассам';
+            NEW cashDiscountFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromDiscount);
+                MOVE PROPERTY (dateToDiscount);
+                MOVE PROPERTY (filterShiftFrom());
+                MOVE PROPERTY (filterShiftTo());
+            }
+            MOVE PROPERTY (inReportStocksDiscount);
+            MOVE PROPERTY (inReportCashRegsDiscount);
+            MOVE PROPERTY (inReportCashiersDiscount);
+
+            NEW buttonsDiscount{
+                horizontal = TRUE ;
+                MOVE PROPERTY (printItemsWithDiscountReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (по кассирам)';}
+                MOVE PROPERTY (printItemsWithDiscountTotalReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (итого)';}
+            }
+        }
+        NEW saleReportReceiptWithDiscount {
+            caption = 'Товары со скидками по чекам';
+            NEW receiptDiscountFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromReceiptDiscount);
+                MOVE PROPERTY (dateToReceiptDiscount);
+                MOVE PROPERTY (filterShiftFromReceiptDiscount());
+                MOVE PROPERTY (filterShiftToReceiptDiscount()){ caption = 'до'; }
+            }
+            NEW discountSumFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (filterDiscountFrom());
+                MOVE PROPERTY (filterDiscountTo()){caption = 'до';};
+            }
+            MOVE PROPERTY (inReportStocksReceiptDiscount);
+            MOVE PROPERTY (inReportCashRegsReceiptDiscount);
+            MOVE PROPERTY (inSaleReportSkusReceiptDiscount);
+
+            MOVE PROPERTY (printReceiptsWithDiscountReport(dateFromObj, dateToObj)) LAST {caption = 'Печать';}
+        }
+    }
+}
+
+NAVIGATOR {
+    salesReports {
+        NEW statisticalReports;
+    }
+}

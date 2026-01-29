@@ -1,0 +1,54 @@
+MODULE StockOperationGestori;
+
+REQUIRE InventoryRegisterGestori, SkuLedgerReportGestori;
+
+NAMESPACE Stock;
+
+inInterval (SkuLedger o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
+
+nameUOM 'Ед.изм.' (SkuLedger o) = nameUOM(sku(o));
+netWeight 'Вес ед. товара' (SkuLedger o) = netWeight(sku(o));
+idSt 'Код подр.' (SkuLedger o) = idStock(o);
+idS 'Код товара' (SkuLedger o) = idSku(o);
+nameS 'Наименование' (SkuLedger o) = nameSku(o);
+dateDocument 'Дата документа' (SkuLedger o) = date(stockDocumentLedger(o));
+accountPrice 'Учетная цена' (SkuLedger o) = signedPrice(o);
+sumByAccPrice 'Сумма по учетной цене' (SkuLedger o) = signedSum(o);
+
+supplier 'Поставщик' (SkuLedger o) = nameSupplier[Document](stockDocumentLedger(o));
+
+FORM operationReport 'Отчет по хозяйственной операции'
+    PROPERTIES () interval,
+        inStocks ON CHANGE selectStocks()
+
+    OBJECTS o = SkuLedger
+    PROPERTIES (o) READONLY idS, nameS, nameUOM, netWeight, idSt, nameOperationDocument, numberDocument, dateDocument, supplier,
+        signedQuantity, netTotalWeight, cost, sumCost, accountPrice, sumByAccPrice, valueVAT, sumVAT, retailPrice, sumRetail,
+        valueRetailVAT, sumRetailVAT, profit
+    FILTERS inInterval(o) AND (allStocks() OR inSaleReport(stock(o))) AND signedQuantity(o) > 0
+    PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
+    REPORT 'OperationReportKirovsky.jrxml'
+;
+
+printOperationReport 'Печать' () { PRINT operationReport PDF; } IMAGE 'print.png';
+
+EXTEND FORM operationReport
+    PROPERTIES () DISABLEIF NOT interval() printOperationReport
+;
+
+DESIGN operationReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        MOVE PROPERTY (interval());
+        MOVE PROPERTY (inStocks());
+        MOVE PROPERTY (printOperationReport());
+    }
+    REMOVE PROPERTY (title);
+    BOX (o) { caption = ''; }
+}
+
+NAVIGATOR {
+    stockReports {
+        NEW operationReport;
+    }
+}

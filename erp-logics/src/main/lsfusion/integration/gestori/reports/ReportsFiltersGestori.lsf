@@ -1,0 +1,125 @@
+MODULE ReportsFiltersGestori;
+
+REQUIRE SkuList, ZReport, SaleReports;
+
+NAMESPACE Reports;
+
+CLASS QuantityFilterType 'Тип фильтра по количеству' {
+    greater 'Больше',
+    less 'Меньше',
+    equal 'Равно'
+}
+
+CLASS SkuFilterType 'Тип фильтра по товарам'{
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+
+intervalsCount 'Количество интервалов' = DATA LOCAL INTEGER ();
+
+filterQuantityType = DATA LOCAL QuantityFilterType();
+filterQuantityTypeName 'Сравнение' = staticCaption(filterQuantityType());
+
+filterFrom 'Дата от' = DATA LOCAL DATE ();
+filterTo 'Дата до' = DATA LOCAL DATE ();
+in 'Отм.' = DATA LOCAL BOOLEAN (CashRegister);
+inSaleReportCashRegs 'Кассы' () =
+    GROUP CONCAT STRING(npp(CashRegister c)) IF in(c), ',' ORDER c CHARWIDTH 20;
+
+in 'Отм.' = DATA LOCAL BOOLEAN (Employee);
+inReportCashiers 'Кассиры' () =
+    GROUP CONCAT STRING(name(Employee e)) IF in(e), ',' ORDER e CHARWIDTH 20;
+
+addSkuLists 'Отметить по cписку Sku' () {
+    in(Sku s) <- NULL;
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) IF Sku s = sku(d) BY s](Sku s) DO {
+            in(s) <- TRUE;
+        }
+    }
+    in(List l) <- NULL;
+}
+
+filterQuantity 'Фильтр по количеству' = DATA LOCAL NUMERIC[10,3]();
+
+filterByDates(Receipt r) = (NOT filterFrom() OR  date(r) >= filterFrom()) AND
+    (NOT filterTo() OR date(r) <= filterTo());
+
+filterForPerformanceReport(Receipt r) = filterByDates(r) AND inSaleReport(departmentStore(r))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(cashRegister(r)))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(employee(r)));
+
+skuFilterType = DATA LOCAL SkuFilterType();
+nameSkuFilterType 'Выбор товаров' = staticCaption(skuFilterType());
+
+filterBySku(ReceiptDetail rd) = CASE
+    WHEN skuFilterType() = SkuFilterType.skuGroups THEN ((NOT GROUP SUM 1 IF inSession(SkuGroup g)) OR inSession(skuGroup(sku(rd))))
+    WHEN skuFilterType() = SkuFilterType.sku OR skuFilterType() = SkuFilterType.skuLists THEN (NOT GROUP SUM 1 IF in(Sku s)) OR in(sku(rd))
+    ELSE TRUE ;
+
+filterByQuantity(ReceiptDetail rd) = NOT filterQuantityType() OR NOT filterQuantity() OR
+    (filterQuantityType() = QuantityFilterType.greater AND signedQuantity(rd) > filterQuantity() ) OR
+    (filterQuantityType() = QuantityFilterType.less AND signedQuantity(rd) < filterQuantity() ) OR
+    (filterQuantityType() = QuantityFilterType.equal AND signedQuantity(rd) = filterQuantity() )
+;
+
+iterateDays(DATE d) = RECURSION d = DATE(filterFrom())
+    AND filterTo() IS DATETIME STEP d = DATE (sumDay(DATETIME ($d), 1)) AND d <= DATE (filterTo()) CYCLES IMPOSSIBLE;
+
+FORM dialogCashRegisters 'Выбор касс'
+    OBJECTS c = CashRegister
+    PROPERTIES(c) in
+    PROPERTIES(c) READONLY npp, shortDescription, description, nameStock, nameGroupMachinery, nppGroupMachinery
+    FILTERS inSaleReport(stock(c))
+;
+
+FORM dialogCashiers 'Выбор кассиров'
+    OBJECTS e = Employee
+    PROPERTIES(e) in
+    PROPERTIES(e) READONLY name
+    FILTERS GROUP SUM 1 IF employee(Receipt r) = e
+;
+
+FORM selectSku 'Выбор товара'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES (s) in
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM skuFilterType 'Тип фильтра по товарам'
+    OBJECTS t = SkuFilterType
+    PROPERTIES(t) READONLY '' = staticCaption
+    LIST SkuFilterType OBJECT t;
+
+askSkuFilterType 'Фильтр по товарам'() {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        skuFilterType() <- t;
+        IF t = SkuFilterType.sku THEN SHOW selectSku ;
+        ELSE IF t = SkuFilterType.skuGroups THEN SHOW filterGroupType;
+        ELSE IF t = SkuFilterType.skuLists THEN addSkuLists();
+    }
+}
+
+selectStocksForReport(){
+    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
+}
+
+inReportStocks 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inSaleReport(st), ',' ORDER st CHARWIDTH 30;
+
+selectCashRegisters() {DIALOG dialogCashRegisters;}
+selectCashiers() {DIALOG dialogCashiers;}
+
+selectedSkus = GROUP CONCAT STRING(name(Sku s)) IF in(s), ',' ORDER s CHARWIDTH 30;
+selectedSkuGroups = GROUP CONCAT STRING(name(SkuGroup g)) IF inSession(g), ',' ORDER g CHARWIDTH 30;
+
+inSaleReportSkus 'Товары' () = CONCAT ',', selectedSkus(), selectedSkuGroups();

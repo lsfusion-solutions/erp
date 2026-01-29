@@ -1,0 +1,57 @@
+MODULE SaleAnalyticsReportsGestori;
+
+REQUIRE SaleReports, DateSkuLedger, ReportsFiltersGestori;
+
+NAMESPACE Reports;
+
+
+//inReportStocks 'Склады' () =    GROUP CONCAT name(Stock st) IF inSaleReport(st), ',' ORDER st CHARWIDTH 30;
+
+CLASS ReportPeriod 'Период детализации' {
+    week 'Неделя',
+    month 'Месяц',
+    quarter 'Квартал',
+    year 'Год'
+}
+namePeriod 'Период детализации' (ReportPeriod p) = staticCaption(p) IF p IS ReportPeriod CHARWIDTH 10;
+
+periodType 'Период' = DATA LOCAL ReportPeriod ();
+namePeriodType 'Период' = name(periodType());
+selectedStock = DATA LOCAL DepartmentStore();
+nameSelectedStock 'Склад' = name(selectedStock());
+
+iterateWeeks(DATE d) = RECURSION d = DATE(filterFrom())
+    AND filterTo() IS DATE STEP d = DATE (sumDay(DATETIME ($d), 7)) AND d <= DATE (filterTo()) CYCLES IMPOSSIBLE;
+
+FORM saleDynamicsFilters 'Фильтры для отчета Динамика продаж суммовая'
+    PROPERTIES filterFrom(), filterTo(), nameSelectedStock(), periodType()
+;
+
+saleQuantity 'Кол-во продаж' (DATE date, Stock st) = GROUP SUM quantity(ReceiptDetail d) IF isPosted(d) AND NOT skip(receipt(d)) AND d IS ReceiptSaleDetail
+    AND departmentStore(d) = st
+    AND (NOT filterFrom() OR date(d) >= filterFrom())
+    AND (NOT filterTo() OR date(d) <= filterTo())
+;
+
+FORM saleDynamics 'Динамика продаж суммовая'
+    PROPERTIES filterFrom(), filterTo(), nameSelectedStock(), namePeriodType()
+    OBJECTS d = DATE
+    PROPERTIES saleQuantity = saleQuantity(d, selectedStock())
+    FILTERS iterateWeeks(d)
+;
+
+FORM saleStatistics 'Статистика продаж'
+;
+
+FORM periodsComparison 'Сравнение по периодам'
+;
+
+FORM analysisOfSalesAndReturns 'Анализ продаж и списаний-возвратов'
+;
+
+
+NAVIGATOR {
+    salesReports {
+        NEW saleDynamics;
+    }
+}

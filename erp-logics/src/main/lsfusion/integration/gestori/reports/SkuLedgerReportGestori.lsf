@@ -1,0 +1,26 @@
+MODULE SkuLedgerReportGestori;
+
+REQUIRE SkuLedger, TaxItem, PriceListStore;
+
+NAMESPACE Stock;
+
+netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
+cost 'Бух. себестоимость' = ABSTRACT NUMERIC[18,4] (SkuLedger); // todo
+sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = signedQuantity(o) * cost(o);
+valueVAT 'Ставка НДС (уч.ц.)' (SkuLedger o) = valueVAT(sku(o), date(o));
+sumVAT 'Сумма НДС (уч.ц.)' (SkuLedger o) = round2(signedSum(o) * valueVAT((o)) / 100);
+retailPrice 'Розничная цена' (SkuLedger o) = retailPriceB(sku(o), stock(o));
+sumRetail 'Сумма по розничной цене' (SkuLedger o) = retailPrice(o) * signedQuantity(o);
+valueRetailVAT 'Ставка НДС (розн.ц.)' (SkuLedger o) = valueVAT(o);
+sumRetailVAT 'Сумма НДС (розн.ц.)' (SkuLedger o) = round2(retailPrice(o) * signedQuantity(o) * valueRetailVAT((o)) / 100);
+
+profit 'Прибыль (%)' (SkuLedger o) = round2(sumRetail(o) * 100 / signedSum(o) - 100);
+
+EXTEND FORM skuLedger
+    PROPERTIES (s) netTotalWeight, cost, sumCost, valueVAT, sumVAT, retailPrice, sumRetail,
+        valueRetailVAT, sumRetailVAT, profit
+;
+
+DESIGN skuLedger {
+    PROPERTY (costSum(s)) { showIf = NULL; }
+}

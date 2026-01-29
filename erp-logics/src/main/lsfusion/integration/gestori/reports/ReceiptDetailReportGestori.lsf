@@ -1,0 +1,145 @@
+MODULE ReceiptDetailReportGestori;
+
+REQUIRE ReceiptDetailReport, SaleReports, SkuList, ReportsFiltersGestori;
+
+NAMESPACE Reports;
+
+dataSkip 'Аннулирован'(ReceiptDetail d) = dataSkip(receipt(d));
+
+EXTEND FORM receiptDetailReport
+    PROPERTIES (rd) dataSkip
+;
+
+FORM canceledSalesByCashRegsReportPrint 'Аннулированные продажи'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES (rd) READONLY date, time, idBarcode, idSku, nameSku, numberCashRegister, nameEmployee, numberReceipt, signedQuantity, price, signedSum
+    FILTERS filterByDates(receipt(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(departmentStore(rd)) AND filterBySku(rd) AND dataSkip(rd)
+    ORDERS date(rd), time(rd)
+;
+
+printCanceledSalesByCashRegsReportPrint 'Аннулированные продажи' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT canceledSalesByCashRegsReportPrint;
+}
+
+filterForPerformanceReportSkip(Receipt r) = filterByDates(r) AND inSaleReport(departmentStore(r))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(cashRegister(r)))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(employee(r))) AND dataSkip(r);
+
+countReceiptSubtotalByCashier(Employee e, DepartmentStore ds) = GROUP SUM 1 IF filterForPerformanceReport(Receipt r) AND employee(r) = e AND departmentStore(r) = ds;
+countReceiptDetailSubtotalByCashier(Employee e, DepartmentStore ds) = GROUP SUM countReceiptDetail(Receipt r) IF filterForPerformanceReport(r) AND employee(r) = e AND departmentStore(r) = ds;
+countReceiptSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM 1 IF filterForPerformanceReportSkip(Receipt r) AND employee(r) = e AND departmentStore(r) = ds;
+countQuantityReceiptDetailSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM quantityReceiptDetail(Receipt r) IF filterForPerformanceReportSkip(r) AND employee(r) = e AND departmentStore(r) = ds;
+sumReceiptDetailSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM sumReceiptDetail(Receipt r) IF filterForPerformanceReportSkip(r) AND employee(r) = e AND departmentStore(r) = ds;
+
+FORM cashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) name
+
+    OBJECTS e = Employee
+    PROPERTIES shortName(e)
+    PROPERTIES (e, ds) countReceiptSubtotalByCashier, countReceiptDetailSubtotalByCashier, countReceiptSubtotalByCashierSkip,
+        countQuantityReceiptDetailSubtotalByCashierSkip, sumReceiptDetailSubtotalByCashierSkip
+    FILTERS countReceiptSubtotalByCashierSkip(e, ds)
+
+;
+
+printCashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierCanceledSalesReportPrint ;
+}
+
+FORM canceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) name
+
+    OBJECTS rd = ReceiptDetail
+    PROPERTIES (rd) READONLY date, signedQuantity, signedSum
+    FILTERS filterByDates(receipt(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(departmentStore(rd)) AND filterBySku(rd) AND dataSkip(rd) AND departmentStore(rd) == ds
+    ORDERS date(rd)
+;
+
+printCanceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)' (DATETIME from, DATETIME to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT canceledSalesByCashRegsTotalReportPrint;
+}
+
+skuInReport 'Отм.' = DATA LOCAL BOOLEAN (List);
+
+FORM canceledSales
+
+    OBJECTS dateFromObj = DATETIME PANEL
+    PROPERTIES dateFromCashReg 'Дата от' = VALUE(dateFromObj)
+
+    OBJECTS dateToObj = DATETIME PANEL
+    PROPERTIES dateToCashReg 'Дата до' = VALUE(dateToObj)
+
+    PROPERTIES inReportStocksCashRegs 'Склады' = inReportStocks() ON CHANGE selectStocksForReport()
+
+    PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
+
+    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType()
+
+    PROPERTIES
+    filterQuantityTypeName(), filterQuantity(),
+        printCanceledSalesByCashRegsReportPrint(dateFromObj, dateToObj),
+        printCashierCanceledSalesReportPrint(dateFromObj, dateToObj),
+        printCanceledSalesByCashRegsTotalReportPrint(dateFromObj, dateToObj)
+
+;
+
+DESIGN canceledSales{
+    REMOVE TOOLBARBOX ;
+    caption = 'Аннулированные продажи';
+    NEW main{
+
+        NEW canceledSalesByCashRegsReportPrint {
+            caption = 'Аннулированные продажи';
+            NEW cashFilters{
+                NEW dates{
+                    horizontal = TRUE ;
+                    MOVE PROPERTY (dateFromCashReg);
+                    MOVE PROPERTY (dateToCashReg);
+                }
+                NEW skuStock{
+                    MOVE PROPERTY (inReportStocksCashRegs);
+                    MOVE PROPERTY (inReportCashRegs);
+                    MOVE PROPERTY (inSaleReportSkus());
+                }
+                NEW quantity{
+                    caption = 'По количеству';
+                    MOVE PROPERTY (filterQuantityTypeName());
+                    MOVE PROPERTY (filterQuantity());
+                }
+            }
+            MOVE PROPERTY (printCanceledSalesByCashRegsReportPrint(dateFromObj, dateToObj)) LAST ;
+            MOVE PROPERTY (printCashierCanceledSalesReportPrint(dateFromObj, dateToObj)) LAST ;
+            MOVE PROPERTY (printCanceledSalesByCashRegsTotalReportPrint(dateFromObj, dateToObj)) LAST ;
+        }
+
+    }
+}
+
+NAVIGATOR {
+    salesReports {
+        NEW canceledSales;
+    }
+}
+
+
+
+

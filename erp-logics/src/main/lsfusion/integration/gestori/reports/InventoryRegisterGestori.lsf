@@ -1,0 +1,137 @@
+MODULE InventoryRegisterGestori;
+
+REQUIRE Inventory, SaleReports, PriceListStore;
+
+NAMESPACE Inventory;
+
+interval 'Период дат' = DATA LOCAL INTERVAL[DATETIME] ();
+
+allStocks = NOT (GROUP MAX inSaleReport(Stock o));
+inStocks 'Склады' = IF allStocks() THEN 'ВСЕ' ELSE GROUP CONCAT name(Stock o) IF inSaleReport(o), '; ' ORDER o;
+
+selectStocks(){
+    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
+}
+
+name 'Подразделение' (Stock o) = CONCAT ' ', id(o), name(o);
+unit 'Подразделение' (CollationSheet o) = name(stock(o));
+unitID 'ID подразделения' (CollationSheet o) = id(stock(o));
+numDoc 'Номер акта' (CollationSheet o) = number(inventory(o));
+dateDoc 'Дата акта' (CollationSheet o) = date(inventory(o));
+basis 'Основание' (CollationSheet o) = name(inventory(o));
+
+inInterval (CollationSheet o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
+filter (CollationSheet o) = inInterval(o) AND (allStocks() OR inSaleReport(stock(o)));
+
+amountSurplus 'Сумма излишков (учетная цена)' (CollationSheet o) = GROUP SUM sumShortage(o, Sku s)
+    IF sumShortage(o, s) > 0 AND filter(o);
+amountShortage 'Сумма недостач (учетная цена)' (CollationSheet o) = GROUP SUM sumShortage(o, Sku s)
+    IF sumShortage(o, s) < 0 AND filter(o);
+amountVATSurplus 'Сумма НДС по излишкам (учетная цена)' (CollationSheet o) =
+    round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) > 0 AND filter(o));
+amountVATShortage 'Сумма НДС по недостачам (учетная цена)' (CollationSheet o) =
+    round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) < 0 AND filter(o));
+total 'Итоги (учетная цена)' (CollationSheet o) = amountSurplus(o) (+) amountShortage(o);
+sumRegrading 'Сумма пересорта (учетная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
+totalWithRegrading 'Итоги с учетом пересорта (учетная цена)' (CollationSheet o, Sku s) = total(o) + sumRegrading(o, s);
+
+sumShortageCost 'Сумма недостачи / излишка (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku); // todo
+
+amountSurplusCost 'Сумма излишков (бух. себестоимость)' (CollationSheet o) =
+    GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) > 0 AND filter(o);
+amountShortageCost 'Сумма недостач (бух. себестоимость)' (CollationSheet o) =
+    GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) < 0 AND filter(o);
+amountVATSurplusCost 'Сумма НДС по излишкам (бух. себестоимость)' (CollationSheet o) =
+    round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100 IF sumShortageCost(o, s) > 0 AND filter(o));
+amountVATShortageCost 'Сумма НДС по недостачам (бух. себестоимость)' (CollationSheet o) =
+    round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100 IF sumShortageCost(o, s) < 0 AND filter(o));
+totalCost 'Итоги (бух. себестоимость)' (CollationSheet o) = amountSurplusCost(o) (+) amountShortageCost(o);
+
+amountSurplusRetail 'Сумма излишков (отпускная цена)' (CollationSheet o) =
+    GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) IF sumShortage(o, s) > 0 AND filter(o);
+amountShortageRetail 'Сумма недостач (отпускная цена)' (CollationSheet o) =
+    GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) IF sumShortage(o, s) < 0 AND filter(o);
+amountVATSurplusRetail 'Сумма НДС по излишкам (отпускная цена)' (CollationSheet o) =
+    round2(GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) > 0 AND filter(o));
+amountVATShortageRetail 'Сумма НДС по недостачам (отпускная цена)' (CollationSheet o) =
+    round2(GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) < 0 AND filter(o));
+totalRetail 'Итоги (отпускная цена)' (CollationSheet o) = amountSurplusRetail(o) (+) amountShortageRetail(o);
+
+amountSurplusByStock 'Сумма излишков' = GROUP SUM amountSurplus(CollationSheet o) BY stock(o);
+amountShortageByStock 'Сумма недостач' = GROUP SUM amountShortage(CollationSheet o) BY stock(o);
+amountVATSurplusByStock 'Сумма НДС по излишкам' = GROUP SUM amountVATSurplus(CollationSheet o) BY stock(o);
+amountVATShortageByStock 'Сумма НДС по недостачам' = GROUP SUM amountVATShortage(CollationSheet o) BY stock(o);
+totalByStock 'Итоги' = GROUP SUM total(CollationSheet o) BY stock(o);
+
+formatDate = FORMULA DATE 'to_char($1,$2)';
+
+titleInterval = 'за период с ' + formatDate(from(interval()), 'DD.MM.YYYY HH24:MI:SS')
+    + ' по ' + formatDate(to(interval()), 'DD.MM.YYYY HH24:MI:SS');
+
+titleInvReg = 'Реестр инвентаризаций ' + titleInterval();
+
+FORM invRegPrint 'Реестр инвентаризаций'
+    OBJECTS i = CollationSheet
+    PROPERTIES (i) READONLY unit, unitID, numDoc, dateDoc, basis,
+        amountSurplus, amountVATSurplus, amountShortage, amountVATShortage, total,
+        amountSurplusCost, amountVATSurplusCost, amountShortageCost, amountVATShortageCost, totalCost,
+        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail
+    FILTERS amountSurplus(i)
+        OR amountVATSurplus(i)
+        OR amountShortage(i)
+        OR amountVATShortage(i)
+        OR total(i)
+    PROPERTIES () titleInvReg
+    REPORT 'InventoryRegisterKirovsky.jrxml'
+;
+
+invRegPrint 'Реестр инвентаризаций' () { PRINT invRegPrint PDF; } IMAGE 'print.png';
+
+FORM inventoryRegister 'Реестр инвентаризаций'
+    PROPERTIES () interval,
+        inStocks ON CHANGE selectStocks()
+
+    OBJECTS i = CollationSheet
+    PROPERTIES (i) READONLY unit, numDoc, dateDoc, basis,
+        amountSurplus, amountVATSurplus, amountShortage, amountVATShortage, total,
+        amountSurplusCost, amountVATSurplusCost, amountShortageCost, amountVATShortageCost, totalCost,
+        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail
+    FILTERS amountSurplus(i)
+        OR amountVATSurplus(i)
+        OR amountShortage(i)
+        OR amountVATShortage(i)
+        OR total(i)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) READONLY name,
+        amountSurplusByStock, amountVATSurplusByStock, amountShortageByStock, amountVATShortageByStock, totalByStock
+    FILTERS amountSurplusByStock(s)
+        OR amountVATSurplusByStock(s)
+        OR amountShortageByStock(s)
+        OR amountVATShortageByStock(s)
+        OR totalByStock(s)
+
+    PROPERTIES () DISABLEIF NOT interval() invRegPrint
+;
+
+DESIGN inventoryRegister {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW filterGroup {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY (interval());
+        }
+        MOVE PROPERTY (inStocks());
+    }
+}
+
+NAVIGATOR {
+    stockReports {
+        NEW inventoryRegister;
+    }
+}

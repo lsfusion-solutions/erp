@@ -1,0 +1,288 @@
+MODULE SaleBestWorstProductsGestori;
+
+REQUIRE SaleReports, Store, SkuList, DateSkuLedger, PriceListLedgerAccount, SaleInvoice, Range;
+
+NAMESPACE Sale;
+
+CLASS ProductCriteria 'Критерий отбора товара' {
+    quantity 'количество',
+    amount 'суммы',
+    profit 'прибыль',
+    stock 'запасы',
+    stockAmount 'сумма запаса',
+    stockDays 'запас в днях'
+}
+name 'Критерий отбора товара' (ProductCriteria o) = staticCaption(o) IF o IS ProductCriteria CHARWIDTH 10;
+
+CLASS SalesFilterType 'Тип отбора продаж' {
+    retail 'розница',
+    wholesale 'документы продажи (опт)',
+    both 'розница + опт'
+}
+name 'Тип отбора продаж' (SalesFilterType o) = staticCaption(o) IF o IS SalesFilterType CHARWIDTH 10;
+
+criteria = DATA LOCAL ProductCriteria ();
+criteriaDefault = OVERRIDE criteria(), ProductCriteria.quantity;
+nameCriteria 'Критерий отбора товара' = name(criteriaDefault());
+salesType = DATA LOCAL SalesFilterType ();
+salesTypeDefault = OVERRIDE salesType(), SalesFilterType.both;
+nameSalesType 'Тип отбора продаж' = name(salesTypeDefault()) NOSELECT;
+interval 'Период дат' = DATA LOCAL INTERVAL[DATETIME] ();
+productsLimit = DATA LOCAL INTEGER ();
+productsLimitDefault 'Количество отобранных товаров' = OVERRIDE productsLimit(), 50;
+withAssortment 'С учетом ассортимента' = DATA LOCAL BOOLEAN ();
+//withUnsoldProducts 'С учётом непродававшихся товаров' = DATA LOCAL BOOLEAN ();
+
+selectStocks(){
+    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
+}
+
+FORM dialogSuppliers 'Поставщики'
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) in
+    PROPERTIES(l) READONLY name, fullName
+    FILTERS isSupplier(l)
+    ORDERS name(l)
+
+    FILTERGROUP active FILTER 'Активный' active(l) DEFAULT
+    FILTERGROUP in FILTER 'Отм.' in(l)
+;
+
+selectSuppliers() {
+    DIALOG dialogSuppliers;
+}
+
+CLASS SkuFilterType 'Тип фильтра по товарам' {
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+
+FORM skuFilterType 'Типы фильтра по товарам'
+    OBJECTS t = SkuFilterType
+    PROPERTIES(t) READONLY '' = staticCaption
+    LIST SkuFilterType OBJECT t;
+
+FORM selectSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES (s) in
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+selectSkus 'Фильтр по товарам'() {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = SkuFilterType.sku THEN SHOW selectSku ;
+            WHEN t = SkuFilterType.skuGroups THEN SHOW filterGroupType;
+            WHEN t = SkuFilterType.skuLists THEN {
+                in(Sku s) <- NULL;
+                DIALOG dialogAddLists DO FOR [GROUP MAX in(list(ListDetail d)) IF Sku s = sku(d) BY s](Sku s) DO in(s) <- TRUE;
+                in(List l) <- NULL;
+            };
+    }
+}
+
+allStocks = NOT (GROUP MAX inSaleReport(Stock o));
+allSuppliers = NOT (GROUP MAX in(LegalEntity o) AND isSupplier(o));
+allSkus = NOT (GROUP MAX in(Sku o) OR GROUP MAX inSession(SkuGroup g));
+
+inStocks 'Склады' = IF allStocks() THEN 'ВСЕ' ELSE GROUP CONCAT name(Stock o) IF inSaleReport(o), '; ' ORDER o;
+inSuppliers 'Поставщики' = IF allSuppliers() THEN 'ВСЕ' ELSE GROUP CONCAT name(LegalEntity o) IF in(o), '; ' ORDER o;
+
+selectedSkus = GROUP CONCAT name(Sku o) IF in(o), '; ' ORDER o;
+selectedSkuGroups = GROUP CONCAT name(SkuGroup o) IF inSession(o) AND NOT inSession(parent(o)), '; ' ORDER o;
+inSkus 'Товары' = IF allSkus() THEN 'ВСЕ' ELSE CONCAT '; ', selectedSkus(), selectedSkuGroups();
+
+sessionConcatSkuGroups 'Группы' () = GROUP CONCAT name(SkuGroup group)
+    IF inSession(group) AND NOT inSession(parent(group)), '; ' ORDER group;
+
+dateTimeInInterval (SaleLedger o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
+
+supplier (SaleLedger o) = supplier(lastOrderBatch(sku(o), stock(o)));
+
+filterForSalesQty (SaleLedger o) = active(o) AND dateTimeInInterval (o) AND (allStocks() OR inSaleReport(stock(o)))
+    AND (allSuppliers() OR (in(supplier(o)))) AND (allSkus() OR in(sku(o)) OR inSession(skuGroup2(sku(o))))
+    AND (NOT withAssortment() OR (withAssortment() AND countRange(sku(o), stock(o), currentDate())));
+
+retailSalesQty 'Розница - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
+    IF o IS DateSaleSkuLedger AND filterForSalesQty(o) BY sku(o), stock(o);
+
+wholesaleSalesQty 'Опт - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
+    IF NOT (o IS DateSaleSkuLedger) AND filterForSalesQty(o) BY sku(o), stock(o);
+
+bothSalesQty 'Кол-во продаж' = GROUP SUM quantity(SaleLedger o)
+    IF filterForSalesQty(o) BY sku(o), stock(o);
+
+salesQty 'Кол-во продаж' (Sku s, Stock st) = CASE
+    WHEN salesTypeDefault() = SalesFilterType.retail THEN retailSalesQty(s, st)
+    WHEN salesTypeDefault() = SalesFilterType.wholesale THEN wholesaleSalesQty(s, st)
+    WHEN salesTypeDefault() = SalesFilterType.both THEN bothSalesQty(s, st);
+
+retailSalesSum 'Розница - сумма продаж' = GROUP SUM sum(SaleLedger o)
+    IF o IS DateSaleSkuLedger AND active(o) BY sku(o), stock(o);
+
+salesSum 'Сумма продаж' (Sku s, Stock st) = GROUP SUM sum(SaleLedger o) IF active(o) AND sku(o) = s AND stock(o) = st;
+
+salesDays 'Сумма дней' (Sku s, Stock st) = GROUP SUM 1 IF active(SaleLedger o) AND sku(o) = s AND stock(o) = st;
+
+averageDailySales 'Среднесуточные продажи' (Sku s, Stock st) = salesQty(s, st) / salesDays(s, st);
+daysOfSupply 'Запас в днях' (Sku s, Stock st) = round2(currentBalance(s, st) / averageDailySales(s, st));
+sumByAccPrice 'Сумма по учетной цене' (Sku s, Stock st) = salesQty(s, st) * accountPriceA(s, st);
+profit 'Доход' (Sku s, Stock st) = salesSum(s, st) - sumByAccPrice(s, st);
+
+order (Sku s, Stock st) = CASE
+    WHEN criteriaDefault() = ProductCriteria.quantity THEN salesQty(s, st)
+    WHEN criteriaDefault() = ProductCriteria.amount THEN salesSum(s, st)
+    WHEN criteriaDefault() = ProductCriteria.profit THEN profit(s, st)
+    WHEN criteriaDefault() = ProductCriteria.stock THEN currentBalance(s, st)
+    WHEN criteriaDefault() = ProductCriteria.stockAmount THEN currentSum(s, st)
+    WHEN criteriaDefault() = ProductCriteria.stockDays THEN daysOfSupply(s, st);
+
+index(Sku s, Stock st) = PARTITION SUM 1 ORDER DESC order(s, st), s, st IF salesQty(s, st);
+formFilter(Sku s, Stock st) = index(s, st) <= productsLimitDefault();
+
+indexW(Sku s, Stock st) = PARTITION SUM 1 ORDER order(s, st), s, st IF salesQty(s, st);;
+formFilterW(Sku s, Stock st) = indexW(s, st) <= productsLimitDefault();
+
+retailSalesTotalQty 'Розница - кол-во продаж (итог)' = GROUP SUM retailSalesQty(Sku s, Stock st) IF formFilter(s, st);
+totalSumByAccPrice 'Сумма по учетной цене (итог)' = GROUP SUM sumByAccPrice(Sku s, Stock st) IF formFilter(s, st);
+salesTotalSum 'Сумма продаж (итог)' = GROUP SUM salesSum(Sku s, Stock st) IF formFilter(s, st);
+totalProfit 'Доход (итог)' = GROUP SUM profit(Sku s, Stock st) IF formFilter(s, st);
+salesTotalQty 'Кол-во продаж (итог)' = GROUP SUM salesQty(Sku s, Stock st) IF formFilter(s, st);
+currentTotalBalance 'Текущий остаток (итог)' = GROUP SUM currentBalance(Sku s, Stock st) IF formFilter(s, st);
+currentTotalSum 'Сумма остатка (итог)' = GROUP SUM currentSum(Sku s, Stock st) IF formFilter(s, st);
+daysOfTotalSupply 'Запас в днях (итог)' = GROUP SUM daysOfSupply(Sku s, Stock st) IF formFilter(s, st);
+
+productContributionPct 'Вклад товара в %' (Sku s, Stock st) = round2(CASE
+    WHEN criteriaDefault() = ProductCriteria.quantity THEN salesQty(s, st) / salesTotalQty() * 100
+    WHEN criteriaDefault() = ProductCriteria.amount THEN salesSum(s, st) / salesTotalSum() * 100
+    WHEN criteriaDefault() = ProductCriteria.profit THEN profit(s, st) / totalProfit() * 100
+    WHEN criteriaDefault() = ProductCriteria.stock THEN currentBalance(s, st) / currentTotalBalance() * 100
+    WHEN criteriaDefault() = ProductCriteria.stockAmount THEN currentSum(s, st) / currentTotalSum() * 100
+    WHEN criteriaDefault() = ProductCriteria.stockDays THEN daysOfSupply(s, st) / daysOfTotalSupply() * 100);
+
+retailSalesTotalQtyW 'Розница - кол-во продаж (итог)' = GROUP SUM retailSalesQty(Sku s, Stock st) IF formFilterW(s, st);
+totalSumByAccPriceW 'Сумма по учетной цене (итог)' = GROUP SUM sumByAccPrice(Sku s, Stock st) IF formFilterW(s, st);
+salesTotalSumW 'Сумма продаж (итог)' = GROUP SUM salesSum(Sku s, Stock st) IF formFilterW(s, st);
+totalProfitW 'Доход (итог)' = GROUP SUM profit(Sku s, Stock st) IF formFilterW(s, st);
+salesTotalQtyW 'Кол-во продаж (итог)' = GROUP SUM salesQty(Sku s, Stock st) IF formFilterW(s, st);
+currentTotalBalanceW 'Текущий остаток (итог)' = GROUP SUM currentBalance(Sku s, Stock st) IF formFilterW(s, st);
+currentTotalSumW 'Сумма остатка (итог)' = GROUP SUM currentSum(Sku s, Stock st) IF formFilterW(s, st);
+daysOfTotalSupplyW 'Запас в днях (итог)' = GROUP SUM daysOfSupply(Sku s, Stock st) IF formFilterW(s, st);
+
+productContributionPctW 'Вклад товара в %' (Sku s, Stock st) = round2(CASE
+    WHEN criteriaDefault() = ProductCriteria.quantity THEN salesQty(s, st) / salesTotalQtyW() * 100
+    WHEN criteriaDefault() = ProductCriteria.amount THEN salesSum(s, st) / salesTotalSumW() * 100
+    WHEN criteriaDefault() = ProductCriteria.profit THEN profit(s, st) / totalProfitW() * 100
+    WHEN criteriaDefault() = ProductCriteria.stock THEN currentBalance(s, st) / currentTotalBalanceW() * 100
+    WHEN criteriaDefault() = ProductCriteria.stockAmount THEN currentSum(s, st) / currentTotalSumW() * 100
+    WHEN criteriaDefault() = ProductCriteria.stockDays THEN daysOfSupply(s, st) / daysOfTotalSupplyW() * 100);
+
+formatDate = FORMULA DATE 'to_char($1,$2)';
+
+title = CONCAT '\n',
+    'за период с ' + formatDate(from(interval()), 'DD.MM.YYYY HH24:MI:SS')
+        + ' по ' + formatDate(to(interval()), 'DD.MM.YYYY HH24:MI:SS'),
+    'Тип отбора продаж: ' + nameSalesType(),
+    'Критерий отбора товара: ' + nameCriteria();
+
+FORM bestProdPrint 'Лучшие товары по продажам'
+    OBJECTS report = (sku = Sku, stock = Stock)
+    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+        daysOfSupply, productContributionPct = productContributionPct, index SHOWIF 1 = 2
+    PROPERTIES () retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
+    PROPERTIES title = 'Лучшие товары по продажам ' + title()
+    FILTERS formFilter(sku, stock)
+    ORDERS index(sku, stock)
+    REPORT 'SaleBestWorstProductsKirovsky.jrxml'
+;
+
+FORM worstProdPrint 'Худшие товары по продажам'
+    OBJECTS report = (sku = Sku, stock = Stock)
+    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+        daysOfSupply, productContributionPct = productContributionPctW, indexW SHOWIF 1 = 2
+    PROPERTIES () retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
+    PROPERTIES title = 'Худшие товары по продажам ' + title()
+    FILTERS formFilterW(sku, stock)
+    ORDERS indexW(sku, stock)
+    REPORT 'SaleBestWorstProductsKirovsky.jrxml'
+;
+
+bestProdPrint 'Лучшие товары по продажам' () { PRINT bestProdPrint PDF; } IMAGE 'print.png';
+worstProdPrint 'Худшие товары по продажам' () { PRINT worstProdPrint PDF; } IMAGE 'print.png';
+
+FORM bestWorstProducts 'Лучшие и худшие товары по продажам'
+    PROPERTIES () nameSalesType, nameCriteria, productsLimitDefault, interval, withAssortment,
+        inStocks ON CHANGE selectStocks(),
+        inSuppliers ON CHANGE selectSuppliers(),
+        inSkus ON CHANGE selectSkus()
+
+    OBJECTS bestProducts = (sku = Sku, stock = Stock)
+    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
+    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+        daysOfSupply, productContributionPct, index SHOWIF NULL
+    FILTERS formFilter(sku, stock)
+    ORDERS index(sku, stock)
+
+    OBJECTS worstProducts = (skuW = Sku, stockW = Stock)
+    PROPERTIES (stockW) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES (skuW) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES 'Ассортиментные матрицы' = ranges(skuW, stockW, currentDate())
+    PROPERTIES (skuW, stockW) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+        daysOfSupply, productContributionPctW, indexW SHOWIF NULL
+    FILTERS formFilterW(skuW, stockW)
+    ORDERS indexW(skuW, stockW)
+
+    PROPERTIES () DISABLEIF NOT interval() bestProdPrint, worstProdPrint
+;
+
+DESIGN bestWorstProducts {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW filterGroup {
+            horizontal = TRUE;
+            alignment = STRETCH;
+            MOVE PROPERTY (interval());
+            MOVE PROPERTY (nameSalesType());
+            MOVE PROPERTY (nameCriteria());
+            MOVE PROPERTY (productsLimitDefault());
+            MOVE PROPERTY (withAssortment());
+        }
+        MOVE PROPERTY (inStocks());
+        MOVE PROPERTY (inSuppliers());
+        MOVE PROPERTY (inSkus());
+        NEW actionGroup {
+            horizontal = TRUE;
+            alignment = CENTER;
+            MOVE PROPERTY (bestProdPrint());
+            MOVE PROPERTY (worstProdPrint());
+        }
+    }
+    OBJECTS {
+        tabbed = TRUE;
+        MOVE BOX (bestProducts) { caption = 'Лучшие товары по продажам'; };
+        MOVE BOX (worstProducts) { caption = 'Худшие товары по продажам'; };
+    }
+}
+
+NAVIGATOR {
+    salesReports {
+        NEW bestWorstProducts;
+    }
+}

@@ -1,0 +1,34 @@
+MODULE StockDocumentReportGestori;
+
+REQUIRE StockDocument;
+
+NAMESPACE Stock;
+
+sumBaseAcc 'Сумма в баз.в. (уч.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+sumNatAcc 'Сумма в нац.в. (уч.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+sumBaseRel 'Сумма в баз.в. (отп.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+sumNatRel 'Сумма в нац.в. (отп.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+sumBaseCost 'Сумма в баз.в. (себест.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+sumNatCost 'Сумма в нац.в. (себест.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+
+printStockDocReport 'Отчет' (dtFrom, dtTo, ds) {
+    PRINT sumStockDocumentLedger OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds= ds; } IMAGE 'print.png';
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES printStockDocReport(dtFrom, dtTo, ds)
+    PROPERTIES (il) seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
+    PROPERTIES (ol) seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
+    REPORT 'StockDocReportKirovsky.jrxml'
+    REPORTFILES il 'StockDocReportKirovsky_il.jrxml'
+    REPORTFILES ol 'StockDocReportKirovsky_ol.jrxml'
+;
+
+DESIGN sumStockDocumentLedger {
+    REMOVE PROPERTY (sumItem(il));
+    REMOVE PROPERTY (sumContainer(il));
+    REMOVE PROPERTY (sum(il));
+    REMOVE PROPERTY (sumItem(ol));
+    REMOVE PROPERTY (sumContainer(ol));
+    REMOVE PROPERTY (sum(ol));
+    print { MOVE PROPERTY (printStockDocReport(dtFrom, dtTo, ds)); }
+}

@@ -1,0 +1,338 @@
+MODULE PurchaseReportsGestori;
+
+REQUIRE PurchaseLedgerItem, PurchaseReports, Item, PurchaseInvoice, PurchaseReturnInvoice, BOM, PriceList, ReportsFiltersGestori;
+
+PRIORITY Purchase;
+
+NAMESPACE Reports;
+
+inPurchaseReportLegalEntities 'Покупатели' () =
+    GROUP CONCAT name(LegalEntity le) IF in(le), ', ' ORDER le CHARWIDTH 30;
+
+FORM dialogLegalEntitiesPurchaseReport 'Выбор покупателя'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) in
+    PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, nameLegalEntityGroup
+    ORDERS name(l)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERGROUP include FILTER 'Отмеченные' in(l) 'F9'
+    FILTERS isParent(legalEntityGroup(l), lg) OR
+        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN dialogLegalEntitiesPurchaseReport {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE legalEntityGroupTree){
+                caption = 'Группы организаций';
+            }
+            MOVE BOX(l) {
+                fill = 3;
+                GRID(l) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+//changeStocksPurchasesReport(GroupType gt, DATE df, DATE dt) {
+//    DIALOG dialogStocksPurchaseReport DO {
+//        fillPurchaseReportFromTo(gt, df, dt);
+//    }
+//}
+
+inSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+inPurchaseReportSupplier 'Поставщики' () =
+    GROUP CONCAT name(LegalEntity le) IF inSupplier(le), ', ' ORDER le CHARWIDTH 30;
+
+FORM dialogLegalEntitiesSupplier 'Выбор поставщика'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) inSupplier
+    PROPERTIES(l) READONLY name, id SHOWIF showIDs(), fullName, nameLegalEntityGroup
+    ORDERS name(l)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERGROUP include FILTER 'Отмеченные' in(l) 'F9'
+    FILTERS isParent(legalEntityGroup(l), lg) OR
+        l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
+DESIGN dialogLegalEntitiesSupplier {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(TREE legalEntityGroupTree){
+                caption = 'Группы организаций';
+            }
+            MOVE BOX(l) {
+                fill = 3;
+                GRID(l) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+inPurchaseOperation 'Отм.' = DATA LOCAL BOOLEAN (Purchase.Operation);
+nameInOperations 'Операции' = GROUP CONCAT name(Purchase.Operation o) IF inPurchaseOperation(o), ', ' ORDER name(o), o;
+filterPurchaseOperation = inPurchaseOperation(operation(PurchaseLedger ledger)) OR (ledger IS PurchaseLedger AND NOT purchaseOperation());
+
+FORM selectOperations 'Выберите операции'
+    OBJECTS o = Purchase.Operation
+    PROPERTIES (o) inPurchaseOperation, name READONLY
+    ORDERS name(o)
+;
+
+contractSku 'Договор' = ABSTRACT ContractSku (PurchaseLedger);
+seriesNumberContractSku 'Номер договора' (PurchaseLedger ledger) = seriesNumber[Contract](contractSku[Purchase.UserInvoiceDetail](ledger));
+
+contractSku(Purchase.InvoiceDetail l) += contractSku(invoice(l));
+
+inSessionSku 'Отм.' (Sku s) = OVERRIDE in(s), TRUE IF (GROUP SUM 1 IF SaleReports.inSession(group(GroupType t, s)));
+includeReturns 'Вкл. возвраты' = DATA LOCAL BOOLEAN ();
+filterPurchaseLedger = DATA BOOLEAN (PurchaseLedger);
+
+quantityPurchase (PurchaseLedger l) = quantity(l) IF l IS Purchase.InvoiceDetail;
+sumWtVatPurchase (PurchaseLedger l) = (sum(l) (-) sumVAT(l)) IF l IS Purchase.InvoiceDetail;
+sumPurchase (PurchaseLedger l) = sum(l) IF l IS Purchase.InvoiceDetail;
+quantityReturn (PurchaseLedger l) = quantity(l) IF l IS PurchaseReturn.InvoiceDetail;
+sumWtVatReturn (PurchaseLedger l) = (sum(l) (-) sumVAT(l)) IF l IS PurchaseReturn.InvoiceDetail;
+sumReturn (PurchaseLedger l) = sum(l) IF l IS PurchaseReturn.InvoiceDetail;
+
+inPurchaseReportGroups 'Отделы' () =
+    GROUP CONCAT (CONCAT ' ', id(Group gr), name(gr)) IF SaleReports.inSession(gr) AND NOT SaleReports.inSession(parent(gr)), ', ' ORDER gr CHARWIDTH 30;
+
+currentPriceListSku (PurchaseLedger l) = GROUP LAST PriceList p
+    IF (sku(PriceListDetail dd) == sku(l) AND priceList(dd) == p) AND
+        in(p, stock(l)) //AND contractSku(dd) = contractSku(l)
+        AND isPosted(p) AND isActive(p)
+ORDER dateTime(p), p;
+
+nameCurrentPriceListSku (PurchaseLedger l) = nameOperation[PriceList](currentPriceListSku(l));
+numberCurrentPriceListSku (PurchaseLedger l) = number[PriceList](currentPriceListSku(l));
+
+FORM incomeStatementsReport 'Ведомость приходов'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES df 'Дата с' = VALUE(df), dt 'Дата по' = VALUE(dt), inPurchaseReportStocks(),
+        inPurchaseReportSupplier(), nameInOperations(), inPurchaseReportGroups()
+
+    OBJECTS i = (st = Stock, sku = Sku, l = LegalEntity, ledger = PurchaseLedger)
+
+    PROPERTIES (st) name
+    FILTERS inPurchaseReport(st)
+
+    PROPERTIES(sku) name, id
+    FILTERS inSessionSku(sku)
+
+    PROPERTIES (l) name
+    FILTERS inSupplier(l) OR NOT inPurchaseReportSupplier()
+
+    PROPERTIES (ledger) numberDocument, date, shipmentDate, seriesNumberDocument,
+        seriesNumberContractSku, idSku, nameSku, nameBrandItem, quantity, valueVAT, sum,
+        quantityPurchase, sumWtVatPurchase, sumPurchase,
+        quantityReturn, sumWtVatReturn, sumReturn
+
+    PROPERTIES codeNameSupplier = (CONCAT ' ', id(supplier(ledger)), name(supplier(ledger))),
+        idStock = id(stock(ledger)), nameManufacturer = nameManufacturer(sku(ledger)),
+        sumWtVat = sum(ledger) (-) sumVAT(ledger),
+        isReturnDetail = TRUE IF ledger IS PurchaseReturn.InvoiceDetail
+
+    PROPERTIES (ledger) nameCurrentPriceListSku, numberCurrentPriceListSku
+
+    FILTERS stock(ledger) = st, supplier(ledger) = l, sku(ledger) = sku
+    FILTERS active(ledger), filterPurchaseLedger(ledger), inPurchaseOperation(operation(ledger)) OR NOT nameInOperations()
+    FILTERS date(ledger) >= df AND date(ledger) <= dt
+    ORDERS date(ledger)
+;
+
+printIncomeStatementsReport 'Ведомость приходов' (DATE df, DATE dt) {
+    IF includeReturns() THEN {
+        filterPurchaseLedger(PurchaseLedger l) <- TRUE WHERE l IS Purchase.InvoiceDetail OR l IS PurchaseReturn.InvoiceDetail;
+    } ELSE {
+        filterPurchaseLedger(PurchaseLedger l) <- TRUE WHERE l IS Purchase.InvoiceDetail;
+    }
+    PRINT incomeStatementsReport OBJECTS df = df, dt = dt XLSX;
+} IMAGE 'print.png';
+
+EXTEND FORM purchasesReport
+    PROPERTIES inPurchaseReportLegalEntities() ON CHANGE { DIALOG dialogLegalEntitiesPurchaseReport; }
+    PROPERTIES inPurchaseReportSupplier() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; }
+    PROPERTIES nameInOperations() ON CHANGE { DIALOG selectOperations; }
+
+    PROPERTIES includeReturns()
+    PROPERTIES(df, dt) printIncomeStatementsReport
+;
+
+DESIGN purchasesReport {
+    topContainer {
+        NEW legalEntity {
+            caption = 'Покупатели';
+            horizontal = TRUE;
+            MOVE PROPERTY(inPurchaseReportLegalEntities());
+        }
+        NEW supplier {
+            caption = 'Поставщики';
+            horizontal = TRUE;
+            MOVE PROPERTY(inPurchaseReportSupplier());
+        }
+        NEW operation {
+            caption = 'Операции';
+            horizontal = TRUE;
+            MOVE PROPERTY(nameInOperations());
+        }
+        printPurchasesContainer {
+            NEW purchasesStatementsReport {
+                caption = 'Собственные отчеты';
+                lines = 2;
+                MOVE PROPERTY(includeReturns());
+                MOVE PROPERTY(printIncomeStatementsReport(df, dt));
+            }
+        }
+    }
+}
+
+nameCustomerStock 'Заказчик' (ShipmentDetail d) = nameCustomerStock(shipment(d));
+nameSupplier 'Поставщик' (ShipmentDetail d) = nameSupplier(shipment(d));
+
+nameOperation(InvoiceShipmentDetail d) = nameOperation(order(orderDetail(d)));
+
+diffQuantity 'Разница кол-ва'(InvoiceDetail d) = quantity(d) - shipmentQuantity(d);
+diffSum 'Разница сумм'(InvoiceDetail d) = sum(d) - shipmentSum(d);
+
+docNumber 'Номер документа'(InvoiceDetail d) = number(invoice(d)) + ' ' + series(invoice(d));
+//orderDocNumber(InvoiceDetail d) = number(GROUP MIN Order order IF countInvoiceDetail(order, invoice(d)));
+orderDocNumber(InvoiceDetail d) = number(order(orderDetail(d)));
+
+percentShipped 'Процент выполнения по количеству' (InvoiceDetail d) = (shipmentQuantity(d) / quantity(d)) * 100 PATTERN '###.##';
+
+CLASS PeriodFilterType 'Тип периода'{
+    orderDate 'По дате заказе',
+    shipmentType 'По дате поставки'
+}
+
+filterPeriodType = DATA LOCAL PeriodFilterType ();
+nameFilterPeriodType 'Тип периода' = staticCaption(filterPeriodType());
+
+filterByDate(InvoiceDetail d) = CASE WHEN filterPeriodType() = PeriodFilterType.shipmentType
+THEN (NOT filterFrom() OR shipmentDate(d) >= filterFrom()) AND (NOT filterTo() OR shipmentDate(d) <= filterTo())
+    ELSE (NOT filterFrom() OR date(d) >= filterFrom()) AND (NOT filterTo() OR date(d) <= filterTo());
+
+filterBySku(InvoiceDetail id) = CASE
+    WHEN skuFilterType() = SkuFilterType.skuGroups THEN (NOT GROUP SUM 1 IF inSession(SkuGroup g)) OR inSession(skuGroup(sku(id)))
+    WHEN skuFilterType() = SkuFilterType.sku OR skuFilterType() = SkuFilterType.skuLists THEN (NOT GROUP SUM 1 IF in(Sku s)) OR in(sku(id))
+    ELSE TRUE ;
+
+filterSupplier = DATA LOCAL LegalEntity ();
+nameFilterSupplier 'Поставщик' = name(filterSupplier());
+
+CONSTRAINT filterSupplier() IS LegalEntity AND NOT isSupplier(filterSupplier()) CHECKED BY filterSupplier[] MESSAGE 'Только поставщики';
+
+filterExtOrdersInDetail(InvoiceDetail d) = (NOT filterSupplier() OR supplier(d) = filterSupplier()) AND
+    ((NOT GROUP SUM 1 IF inSaleReport(Stock s)) OR inSaleReport(customerStock(d)) ) AND
+    filterBySku(d) AND filterByDate(d)
+;
+
+FORM externalOrdersInDetail 'Внутренние и внешние заказы (подробно)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        filterSupplier = nameFilterSupplier(),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportSkus = inSaleReportSkus()
+
+    OBJECTS d = InvoiceDetail
+    PROPERTIES (d) idSku, nameSku, nameCustomerStock, nameSupplier, nameOperation, number, date, shipmentDate
+    PROPERTIES (d) quantity, price, sum
+    PROPERTIES (d) shipmentQuantity, shipmentPrice, shipmentSum, docNumber, orderDocNumber
+    PROPERTIES (d) diffQuantity, diffSum, percentShipped
+    FILTERS filterExtOrdersInDetail(d)
+;
+
+orderedQuantity'Заказанное количество'(Item i) = GROUP SUM quantity(InvoiceDetail d) IF sku(d) = i AND filterExtOrdersInDetail(d);
+
+FORM externalOrdersTotal 'Внутренние и внешние заказы (итоги)'
+    PROPERTIES filterFrom = DATE(filterFrom()), filterTo = DATE(filterTo()),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportSkus = inSaleReportSkus()
+
+    OBJECTS i = Item
+    PROPERTIES (i) id, name, orderedQuantity
+
+    FILTERS orderedQuantity(i)
+;
+
+printExternalOrdersInDetail 'Печать (подробно)' (){
+    PRINT externalOrdersInDetail;
+}
+showExternalOrdersInDetail 'Предпросмтор' (){
+    SHOW externalOrdersInDetail DOCKED ;
+}
+
+printExternalOrdersTotal 'Печать (итоги)' (){
+    PRINT externalOrdersTotal;
+}
+showExternalOrdersTotal 'Предпросмотр (итоги)' (){
+    SHOW externalOrdersTotal DOCKED ;
+}
+
+FORM externalOrdersFilters 'Внутренние и внешние заказы'
+    PROPERTIES filterFrom(), filterTo(), nameFilterPeriodType(), nameFilterSupplier(),
+        inSaleReportSkus() ON CHANGE askSkuFilterType(), inReportStocks() ON CHANGE selectStocksForReport(),
+        printExternalOrdersInDetail(), showExternalOrdersInDetail(),
+        printExternalOrdersTotal(), showExternalOrdersTotal()
+    EVENTS ON INIT {
+        filterPeriodType() <- PeriodFilterType.orderDate;
+    }
+;
+DESIGN externalOrdersFilters{
+    NEW topContainer{
+        NEW dateContainer{
+            caption = 'Период';
+            horizontal = TRUE;
+            MOVE PROPERTY(nameFilterPeriodType()){caption = 'Тип периода';}
+            MOVE PROPERTY(filterFrom()){caption = 'Дата (с)';}
+            MOVE PROPERTY(filterTo()){caption = 'Дата (по)';}
+        }
+        NEW stocks {
+            caption = 'Контрагенты';
+            horizontal = TRUE;
+            MOVE PROPERTY(inReportStocks());
+            MOVE PROPERTY(nameFilterSupplier());
+        }
+        NEW items {
+            caption = 'Товары';
+            horizontal = TRUE;
+            MOVE PROPERTY(inSaleReportSkus());
+        }
+        NEW actions{
+            caption = 'Печать';
+            horizontal = TRUE;
+            MOVE PROPERTY(printExternalOrdersInDetail());
+            MOVE PROPERTY(showExternalOrdersInDetail());
+            MOVE PROPERTY(printExternalOrdersTotal());
+            MOVE PROPERTY(showExternalOrdersTotal());
+        }
+        REMOVE TOOLBARBOX ;
+    }
+}
+
+//NAVIGATOR {
+//    purchasesReports {
+//        NEW externalOrdersFilters;
+//    }
+//}
+    
