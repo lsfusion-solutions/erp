@@ -112,6 +112,11 @@ expiryDateBatch 'Годен до (приход)' = DATA DATE (UserDisparityDetai
 expiryDateBatch (UserDisparityDetail detail) += expiryDateBatch(detail);
 expiryDateBatch(UserDisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
 
+manufactureDateBatch 'Дата изготовления' = ABSTRACT DATE (DisparityDetail) MATERIALIZED;
+manufactureDateBatch 'Дата изготовления' = DATA DATE (UserDisparityDetail);
+manufactureDateBatch (UserDisparityDetail detail) += manufactureDateBatch(detail);
+manufactureDateBatch(UserDisparityDetail detail) <- prevManufactureDate(batch(detail)) WHEN CHANGED(batch(detail));
+
 disallowLineDisparities 'Запретить строки без партий в изменениях сортности' = DATA BOOLEAN ();
 
 EXTEND FORM options
@@ -206,11 +211,13 @@ sum(InputDisparityDetail inputDisparityDetail) = inputSum(disparityDetail(inputD
 description(InputDisparityDetail inputDisparityDetail) = description(disparityDetail(inputDisparityDetail));
 costBatch(InputDisparityDetail inputDisparityDetail) = costBatch(disparityDetail(inputDisparityDetail));
 expiryDateBatch (InputDisparityDetail inputDisparityDetail) = expiryDateBatch(disparityDetail(inputDisparityDetail));
-
+manufactureDateBatch (InputDisparityDetail inputDisparityDetail) = manufactureDateBatch(disparityDetail(inputDisparityDetail));
 
 @implementBatch(InputDisparityDetail, sku, stock, costBatch);
 quantity (InputDisparityDetail ledger) += quantity(ledger);
 expiryDate (InputDisparityDetail ledger) += expiryDateBatch(ledger);
+manufactureDate (InputDisparityDetail ledger) += manufactureDateBatch(ledger);
+
 sum (InputDisparityDetail ledger) += sum(ledger);
 series (InputDisparityDetail ledger) += series(disparity(disparityDetail(ledger)));
 number (InputDisparityDetail ledger) += number(disparity(disparityDetail(ledger)));
@@ -252,7 +259,7 @@ FORM disparity 'Изменение сортности'
     PROPERTIES(d)   index,
                     idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku, idBatch, nameBatch ON CHANGE changeBatch(d), quantity
     PROPERTIES(d)   READONLYIF readOnlyPrice(dis) price, sum,
-                    inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku, expiryDateBatch, costBatch,
+                    inputIdBarcodeSku, inputIdSku SHOWIF showIDs(), inputNameSku, inputShortNameUOMSku, expiryDateBatch, manufactureDateBatch, costBatch,
                     inputQuantity
     PROPERTIES(d)   READONLYIF readOnlyPrice(dis) inputPrice, inputSum
     PROPERTIES(d)   NEW, deletedd=DELETE GRID
