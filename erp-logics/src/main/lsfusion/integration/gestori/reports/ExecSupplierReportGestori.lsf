@@ -1,0 +1,52 @@
+MODULE ExecSupplierReportGestori;
+
+REQUIRE PurchaseShipmentGestori;
+
+NAMESPACE Reports;
+
+codeSupplier 'Код поставщика' (LegalEntity l) = id(l);
+
+quantityOrder 'Количество (заказ)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM quantityOrderDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+quantityShipped 'Количество (приход)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM shippedShipmentDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+sumOrder 'Сумма (заказ)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM sumOrderDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+sumShipped 'Сумма (приход)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM sumShippedOrderDetail(Purchase.Order order)
+        IF date(order) >= dateFrom AND date(order) <= dateTo AND isPosted(order)
+    BY supplier(order);
+
+FORM execSupplierReportPrint 'Отчет по исполнению заказов поставщиками'
+    OBJECTS dFrom = DATE, dTo = DATE
+    OBJECTS s = LegalEntity
+    PROPERTIES(s) READONLY codeSupplier, name
+    PROPERTIES(s, dFrom, dTo) READONLY
+    quantityOrder, quantityShipped, percentQuantityExecution,
+        sumOrder, sumShipped, percentSumExecution,
+        countDeliveryDateChanged
+
+    FILTERS isSupplier(s),
+        quantityOrder(s, dFrom, dTo) OR quantityShipped(s, dFrom, dTo)
+;
+
+execSupplierReportPrint 'Отчет' (DATE dFrom, DATE dTo) {
+    PRINT execSupplierReportPrint OBJECTS dFrom = dFrom, dTo = dTo;
+} IMAGE 'print.png';
+
+EXTEND FORM executionSupplierOrder
+    PROPERTIES execSupplierReportPrint(dFrom, dTo)
+;
+
+DESIGN executionSupplierOrder {
+    dates{ MOVE PROPERTY (execSupplierReportPrint(dFrom, dTo)); }
+}

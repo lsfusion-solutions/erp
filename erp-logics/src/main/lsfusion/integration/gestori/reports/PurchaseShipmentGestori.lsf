@@ -1,0 +1,18 @@
+MODULE PurchaseShipmentGestori;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+
+deliveryDateChanged (Order order) = shipmentDate(order) AND date(order) AND shipmentDate(order) != date(order);
+
+countDeliveryDateChanged 'Число изменений даты поставки' (LegalEntity supplier, DATE dateFrom, DATE dateTo) =
+    GROUP SUM 1 IF deliveryDateChanged(Order order)
+        AND date(order) >= dateFrom
+        AND date(order) <= dateTo
+        AND isPosted(order)
+    BY supplier(order);
+
+EXTEND FORM executionSupplierOrder
+    PROPERTIES READONLY countDeliveryDateChanged(s, dFrom, dTo)
+;

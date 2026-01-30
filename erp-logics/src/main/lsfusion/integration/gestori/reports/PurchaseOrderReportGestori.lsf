@@ -1,0 +1,67 @@
+MODULE PurchaseOrderReportGestori;
+
+REQUIRE PurchaseOrderStatus;
+
+NAMESPACE Reports;
+
+filterStatus = DATA LOCAL StatusOrder ();
+nameFilterStatus 'Статус' = name(filterStatus());
+filterStatus (Purchase.Order o) = status(o) == filterStatus() OR (o IS Purchase.Order AND NOT filterStatus());
+template = DATA LOCAL STRING[100] ();
+
+EXTEND FORM orders
+    PROPERTIES() nameFilterStatus
+    FILTERS filterStatus(o)
+;
+
+DESIGN orders {
+    topFilters1 {
+        MOVE PROPERTY(nameFilterStatus());
+    }
+}
+
+status (Purchase.OrderDetail d) = status(order(d));
+nameStatus (Purchase.OrderDetail d) = name(status(d));
+invoices (Purchase.OrderDetail d) = invoices(order(d));
+filterStatus (Purchase.OrderDetail d) = filterStatus(order(d));
+filterDateFrom (Purchase.OrderDetail d) = filterDateFrom(order(d));
+filterDateTo (Purchase.OrderDetail d) = filterDateTo(order(d));
+filterSupplier (Purchase.OrderDetail d) = filterSupplier(order(d));
+filterSupplierStock (Purchase.OrderDetail d) = filterSupplierStock(order(d));
+filterCustomer (Purchase.OrderDetail d) = filterCustomer(order(d));
+filterCustomerStock (Purchase.OrderDetail d) = filterCustomerStock(order(d));
+filterCustomUser (Purchase.OrderDetail d) = filterCustomUser(order(d));
+filterComputer (Purchase.OrderDetail d) = filterComputer(order(d));
+isConfirmed (Purchase.OrderDetail d) = isConfirmed(order(d));
+
+FORM printPurchaseOrderReport
+    OBJECTS d = Purchase.OrderDetail
+    PROPERTIES() filterOrderDateFrom, filterOrderDateTo
+    PROPERTIES (d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
+        idSku, nameSku, quantity, price, invoicePrice, invoices, shipped, invoiceSum, isConfirmed
+    ORDERS nameSupplier(d), nameCustomerStock(d), date(d)
+    FILTERS filterStatus(d),
+        filterDateFrom(d),
+        filterDateTo(d),
+        filterSupplier(d),
+        filterSupplierStock(d),
+        filterCustomer(d),
+        filterCustomerStock(d),
+        filterCustomUser(d),
+        filterComputer(d)
+    REPORT template()
+;
+
+purchaseOrderReport 'Отчет' () {
+    template() <- 'PurchaseOrderReportGestori.jrxml';
+    PRINT printPurchaseOrderReport;
+} IMAGE 'print.png';
+
+orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
+    template() <- 'OrderReceiptReconDetailedGestori.jrxml';
+    PRINT printPurchaseOrderReport;
+} IMAGE 'print.png';
+
+EXTEND FORM orders
+    PROPERTIES () TOOLBAR purchaseOrderReport, orderReceiptReconDetailed
+;
