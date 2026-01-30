@@ -49,13 +49,79 @@ FORM ecologyMaterials 'Материал (экология)'
 DESIGN ecologyMaterials { BOX { size = (600, 400); } }
 
 TABLE ItemEcologyPackTypeMaterial(Item, EcologyPackType, EcologyMaterial);
-
+//-- после миграции можно будет удалить
 value 'Содержание (кг. на единицу товара)' = DATA NUMERIC[16,6](Item, EcologyPackType, EcologyMaterial);
+
+TABLE ItemEcologyPackTypeMaterialDate(Item, EcologyPackType, EcologyMaterial,DATE);
+valueData 'Содержание (кг. на единицу товара)' = DATA NUMERIC[16,6](Item, EcologyPackType, EcologyMaterial,DATE);
+
+valueEcologyMigrate() {
+    FOR DATE dt == 2020_01_01 DO {
+        valueData (Item i, EcologyPackType p, EcologyMaterial m, dt) <- value(i,p,m);
+    }
+}
+@defOnStartMigrate(valueEcologyMigrate);
+
+value = GROUP LAST valueData(Item i, EcologyPackType p, EcologyMaterial m, DATE date)
+    ORDER  date
+    WHERE valueData( i,  p,  m, date) AND date <= (DATE dateIn AS DATE)
+    BY i,p,m,dateIn;
+currentValue 'Текущая ставка' (Item i, EcologyPackType p, EcologyMaterial m) = value(i,p,m, currentDate()); 
+
+dateFrom 'Дата с'  = GROUP LAST DATE date 
+    ORDER  date
+    WHERE valueData(Item i, EcologyPackType p, EcologyMaterial m, date) AND date <= (DATE dateIn AS DATE)
+        BY i,p,m,dateIn;
+dateTo'Дата по'  = GROUP LAST DATE date
+    ORDER  DESC date
+    WHERE valueData(Item i, EcologyPackType p, EcologyMaterial m, date) AND date > (DATE dateIn AS DATE)
+        BY i,p,m,dateIn;
+currentDateFrom  (Item i, EcologyPackType p, EcologyMaterial m) = dateFrom(i,p,m, currentDate());
+currentDateTo  (Item i, EcologyPackType p, EcologyMaterial m) = dateTo(i,p,m, currentDate());
+
+value 'Значение'  = DATA LOCAL NUMERIC[16,6] (DATE);
+
+FORM dialogEcologyParams 'Экология'
+    OBJECTS dd = (i=Item, p = EcologyPackType, m = EcologyMaterial) PANEL    
+    
+    OBJECTS d = DATE 
+    PROPERTIES READONLY val 'Дата' = VALUE(d)
+    PROPERTIES READONLY  DRAW d name(p) HEADER 'Упаковка', name(m) HEADER 'Материал'
+    PROPERTIES (d) value //BACKGROUND RGB(204,255,204)
+
+    FILTERS value(d) 
+    EVENTS ON OK {
+        valueData(i,p,m,DATE dt) <- value(dt);
+    }
+;
+add 'Добавить' (){
+    DIALOG dialogDate OBJECTS d INPUT DO {
+        value(d) <- 0.0;
+        SEEK dialogEcologyParams.d = d;
+    }
+} IMAGE 'add.png';
+EXTEND FORM dialogEcologyParams
+    PROPERTIES add() TOOLBAR DRAW d
+;
+
+DESIGN dialogEcologyParams {
+    size = (800, 600);
+    PROPERTY(name(p)) { focusable = FALSE; }
+    PROPERTY(name(m)) { focusable = FALSE; }
+    PROPERTY(val) { focusable = FALSE; }    
+}
+
+changeValue(Item i, EcologyPackType p,  EcologyMaterial m) {
+    value(DATE d) <- valueData(i,p,m,d);
+    SHOW dialogEcologyParams OBJECTS i=i, p=p, m=m NOCANCEL;
+}
 
 EXTEND FORM item
     OBJECTS ep = EcologyPackType
     OBJECTS em = EcologyMaterial
-    PROPERTIES name(em) READONLY, value(i,ep,em) COLUMNS (ep) HEADER (name(ep))
+    PROPERTIES  name(em) READONLY, currentValue(i,ep,em) COLUMNS 'a' (ep) HEADER (name(ep)) ON CHANGE changeValue(i,ep,em),
+                currentDateFrom(i,ep,em) COLUMNS 'a' (ep) HEADER (CONCAT ' ', 'Дата с', name(ep)),
+                currentDateTo(i,ep,em) COLUMNS 'a' (ep) HEADER (CONCAT ' ', 'Дата по', name(ep))
 ;
 
 DESIGN item{
@@ -74,9 +140,9 @@ NAVIGATOR {
     }
 }
 
-importMaterialMigrate 'Импорт экологических параметров' (){
+importMaterialMigrate 'Импорт экологических параметров (Дата)' (DATE date){
     ASK 'Хотите очистить все данные (упаковка, тип упаковки, содержание)?' DO NEWSESSION {
-        value (Item it, EcologyPackType ep, EcologyMaterial em) <- NULL;
+        valueData (Item it, EcologyPackType ep, EcologyMaterial em, DATE dt) <- NULL;
         DELETE EcologyPackType ep WHERE ep IS EcologyPackType;
         DELETE EcologyMaterial ep WHERE ep IS EcologyMaterial;
         APPLY;
@@ -103,7 +169,7 @@ importMaterialMigrate 'Импорт экологических параметр�
             }
 
             FOR imported(INTEGER c, INTEGER r) AND r >= 3 AND c >= 5 AND Item it == item(imported(1, r)) DO {
-                value (it, EcologyPackType ep, EcologyMaterial em) <- NUMERIC[16,6] (imported(c, r))
+                valueData (it, EcologyPackType ep, EcologyMaterial em, date) <- NUMERIC[16,6] (imported(c, r))
                     WHERE ep == ecologyPackTypeName(imported((GROUP MAX INTEGER cc IF cc <= c AND imported(cc, 1)), 1)) AND ecologyMaterialName(imported(c, 2)) == em
                             AND NUMERIC[16,6] (imported(c, r))!=0.0;
             }
@@ -123,11 +189,18 @@ importMaterialMigrate 'Импорт экологических параметр�
 }
 
 EXTEND FORM items
-    PROPERTIES () importMaterialMigrate TOOLBAR DRAW i
+    OBJECTS dtd = DATE PANEL 
+    PROPERTIES valDTD 'Дата' = VALUE(dtd)
+    PROPERTIES (dtd) importMaterialMigrate TOOLBAR DRAW i
 ;
 DESIGN  items{
     actionsImport{
-        MOVE PROPERTY (importMaterialMigrate());
+        NEW ecology{
+            caption = 'Экология';
+            MOVE PROPERTY (valDTD);
+            MOVE PROPERTY (importMaterialMigrate(dtd));
+        }
+        
     }
 }
 

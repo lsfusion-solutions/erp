@@ -24,8 +24,18 @@ quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity
 
 value 'Содержание (кг. на единицу товара)' = DATA LOCAL NUMERIC[16,6](Sku,EcologyMaterial);
 
-quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityIn(s,su,st)*value (s, em)) ;
-quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityOut(s,su,st)*value (s, em)) ;
+//quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityIn(s,su,st)*value (s, em)) ;
+//quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityOut(s,su,st)*value (s, em)) ;
+
+quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock,DATE);
+quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock,DATE);
+value 'Содержание (кг. на единицу товара)' = DATA LOCAL NUMERIC[16,6](Sku,EcologyMaterial,DATE);
+
+quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[20,6](Sku,LegalEntity,Stock,EcologyMaterial);
+quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[20,6](Sku,LegalEntity,Stock, EcologyMaterial);
+
+quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em, DATE date) = NUMERIC[20,6](quantityIn(s,su,st,date)*value (s, em, date)) ;
+quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em, DATE date) = NUMERIC[20,6](quantityOut(s,su,st,date)*value (s, em, date)) ;
 
 inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (LegalEntity);
 countInEcologyLegalEntity 'Отм.'  = GROUP SUM 1 IF inEcology(LegalEntity l);
@@ -104,6 +114,13 @@ resetEcologyReport(){
     quantityIn(Sku s, LegalEntity su, Stock st) <- NULL;
     quantityOut(Sku s, LegalEntity su, Stock st) <- NULL;
     value (Sku s, EcologyMaterial em) <- NULL;
+
+    quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- NULL;
+    quantityOut(Sku s, LegalEntity su, Stock st, DATE date) <- NULL;
+    value (Sku s, EcologyMaterial em, DATE date) <- NULL;
+    quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- NULL;
+    quantityOut(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- NULL;
+        
     formRefresh();
 }
 changeSelectForm() {
@@ -136,15 +153,44 @@ isEcologyMigarte(){
 quantityPurchaseEcology (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger d) IF active(d) AND isEcology(operation(d))
     BY sku(d), stock(d), supplier(d), date(d);
 
+//fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
+//    resetEcologyReport();
+//    
+//    LOCAL  to = BOOLEAN (Stock);
+//    LOCAL  to = INTEGER (Sku);
+//    LOCAL  to = BOOLEAN (LegalEntity);
+//    to(Sku s) <- (GROUP SUM 1 IF value(s, EcologyPackType et, EcologyMaterial em));
+//    value (Sku s, EcologyMaterial em) <- (GROUP SUM value(s, EcologyPackType et,em) ) WHERE to(s);    
+//        
+//    IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
+//        to(LegalEntity l) <- (inEcology(l) OR inEcology(country(l)));
+//    } ELSE {
+//        to(LegalEntity l) <- (l IS LegalEntity);
+//    }
+//
+//    to(Stock l) <- isCompany(l) AND (inEcology(l) OR inEcology(region(l)));
+//    IF NOT (GROUP SUM 1 IF  to(Stock l)) THEN {
+//        to(Stock l) <- isCompany(l);
+//    }
+//    IF t == TypeReport.in THEN {
+//        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchaseEcology (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
+//    }ELSE {
+//        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) 
+//            IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) BY sku(bt),supplier(bt)](s,su); 
+//    }    
+//}
+
 fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     resetEcologyReport();
-    
+
     LOCAL  to = BOOLEAN (Stock);
     LOCAL  to = INTEGER (Sku);
     LOCAL  to = BOOLEAN (LegalEntity);
-    to(Sku s) <- (GROUP SUM 1 IF value(s, EcologyPackType et, EcologyMaterial em));
-    value (Sku s, EcologyMaterial em) <- (GROUP SUM value(s, EcologyPackType et,em) ) WHERE to(s);    
-        
+    to(Sku s) <- (GROUP SUM 1 IF valueData(s, EcologyPackType et, EcologyMaterial em, DATE date) AND date <= dt);
+    FOR iterate(DATE date, df,dt) DO {
+        value (Sku s, EcologyMaterial em, date) <- (GROUP SUM value(s, EcologyPackType et, em, date)) WHERE to(s) ;
+    }    
+
     IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
         to(LegalEntity l) <- (inEcology(l) OR inEcology(country(l)));
     } ELSE {
@@ -156,11 +202,15 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
         to(Stock l) <- isCompany(l);
     }
     IF t == TypeReport.in THEN {
-        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchaseEcology (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
+        quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- quantityPurchaseEcology (s, st, su, date) WHERE date >= df AND date <= dt AND to(s) AND to(su) AND to(st);
+        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date);
+        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityIn (s, su,st, DATE date));
     }ELSE {
-        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) 
-            IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) BY sku(bt),supplier(bt)](s,su); 
-    }    
+        quantityOut(Sku s, LegalEntity su, Stock st, DATE date) <- (GROUP SUM quantitySold (Batch bt, st, date)
+            IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) AND sku(bt) == s AND supplier(bt)==su);
+        quantityOut(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityOut( s,  su,  st, em, DATE date);
+        quantityOut(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityOut (s, su,st, DATE date));
+    }
 }
 
 ecologyReportPrint = DATA LOCAL STRING ();
