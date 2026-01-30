@@ -161,8 +161,11 @@ lpad2Char 'Для 2 разрядов' = DATA INTEGER (LabelType);
 lpad3Char 'Для 3 разрядов' = DATA INTEGER (LabelType);
 lpad4Char 'Для 4 разрядов' = DATA INTEGER (LabelType);
 
+notLpad 'Не дополнять цену пробелами'  = DATA BOOLEAN (LabelType);
+
 EXTEND FORM labelType
-    PROPERTIES (l) lpad1Char, lpad2Char, lpad3Char, lpad4Char, skipComletBarcode
+    PROPERTIES (l) notLpad
+    PROPERTIES (l) READONLYIF notLpad(l) lpad1Char, lpad2Char, lpad3Char, lpad4Char, skipComletBarcode
 ;
 
 DESIGN labelType{
@@ -171,6 +174,7 @@ DESIGN labelType{
         NEW lpad{
             caption = 'Отступы слева для цены';
             horizontal = TRUE;
+            MOVE PROPERTY (notLpad(l));
             MOVE PROPERTY (lpad1Char(l));
             MOVE PROPERTY (lpad2Char(l));
             MOVE PROPERTY (lpad3Char(l));
@@ -186,7 +190,7 @@ caseLpad(TEXT t, LabelType lt) = CASE
     WHEN length(t) == 1 THEN OVERRIDE lpad1Char(lt), 13
     ELSE 10;
 
-dynamicLpad(INTEGER p, LabelType lt) = lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
+dynamicLpad(INTEGER p, LabelType lt) = IF notLpad(lt) THEN TEXT(p) ELSE lpad(TEXT(p), caseLpad(TEXT(p), lt),' ');
 
 beforeDirectPrint  ABSTRACT LIST (LabelTransaction);
 beforeDirectPrint  ABSTRACT LIST (LabelTransactionDetail);
