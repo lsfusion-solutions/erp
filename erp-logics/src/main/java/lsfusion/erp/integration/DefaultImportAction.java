@@ -23,7 +23,7 @@ public class DefaultImportAction extends DefaultIntegrationAction {
         super(LM, classes);
     }
 
-    private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 24.0);
+    private List<Double> allowedVAT = Arrays.asList(0.0, 9.09, 16.67, 10.0, 20.0, 22.0, 24.0);
     protected BigDecimal VATifAllowed(BigDecimal VAT) {
         return VAT == null || !allowedVAT.contains(VAT.doubleValue()) ? null : VAT;
     }
