@@ -660,3 +660,8 @@ document[DocumentDetail](PickingDetail detail) += picking(detail);
 
 supplier[Document](Picking picking) += legalEntity(stock(picking));
 supplierStock[Document](Picking picking) += stock(picking);
+
+@defineOption(allowDeletePickingOrders, 'Разрешить удаление заказа на комплектацию при наличии по нему комплектации', WMS);
+
+CONSTRAINT DROPPED(PickingOrder o IS PickingOrder) AND [GROUP MAX Picking p BY PREV(pickingOrder(p))](o) AND NOT allowDeletePickingOrders()
+    MESSAGE 'Запрещено удалять заказ на комплектацию при наличии по нему комплектации';
