@@ -1,0 +1,315 @@
+MODULE ArtixGiftCardAPI;
+
+REQUIRE ArtixLMAPI, GiftCardItem;
+
+NAMESPACE Artix;
+
+// -------------------- Операции с группами сертификатов -------------------- //
+
+overGroupCode 'Код группы сертификата' = ABSTRACT STRING[255] (GiftCard);
+groupCode 'Код группы сертификата' (GiftCard c) = OVERRIDE overGroupCode(c), id(c), number(c);
+
+overGroupRangeFrom 'Начало диапазона номеров' = ABSTRACT STRING[48] (GiftCard);
+groupRangeFrom 'Начало диапазона номеров' (GiftCard c) = OVERRIDE overGroupRangeFrom(c), number(c);
+
+overGroupRangeTo 'Конец диапазона номеров' = ABSTRACT STRING[48] (GiftCard);
+groupRangeTo 'Конец диапазона номеров' (GiftCard c) = OVERRIDE overGroupRangeTo(c), number(c);
+
+overGroupName 'Наименование группы' = ABSTRACT STRING[255] (GiftCard);
+groupName 'Наименование группы' (GiftCard c) = OVERRIDE overGroupName(c), nameSku(c);
+
+overGroupPrice 'Номинал' = ABSTRACT NUMERIC[16,2] (GiftCard);
+groupPrice 'Номинал' (GiftCard c) = OVERRIDE overGroupPrice(c), price(c);
+
+overGroupInputMask 'Маска способа сертификата' = ABSTRACT INTEGER (GiftCard);
+groupInputMask 'Маска способа сертификата' (GiftCard c) = OVERRIDE overGroupInputMask(c), 31;
+
+groupFullySpend 'Полное списание' = ABSTRACT BOOLEAN (GiftCard);
+
+overGroupDiscountCampaing 'Акция сертификата' = ABSTRACT STRING (GiftCard);
+defaultGroupDiscountCampaing 'Акция сертификата по умолчанию' (DATE dateFrom, INTEGER days) = STRING(CONCAT '\\r\\n',
+    ('!!python/object:artixds.domain.DiscountCampaign active: true'),
+    ('beginBonusesDateCalculate: null'),
+    ('beginBonusesIntervalCondition: !!python/unicode \'begin_current\' beginBonusesIntervalMetric: !!python/unicode \'day\' beginBonusesIntervalValue: 0 beginDate: null'),
+    ('beginDateWithBeginCurrentMetric: !!python/unicode \'day\' beginDateWithBeginNextMetric: !!python/unicode \'day\' beginRangeDate: '
+        + toDateISO(dateFrom) + ' beginTime: null checkedTags: null daysOfWeek: [] discounts: []'),
+    ('endBonusesDateCalculate: null'),
+    ('endBonusesIntervalCondition: !!python/unicode \'through\' endBonusesIntervalMetric: !!python/unicode \'day\' endBonusesIntervalValue: '
+        + days + ' endDate: null endRangeDate: '
+        + toDateISO(dateFrom) + ' endTime: null id: 282563697264015 interactionType: all labels: null manualActivate: null name: !!python/unicode \'\' parent: null'),
+    ('parentGroup: null priority: null qualifiers: !!set ' + '\{' + '\} tagsIsAllowed: false weight: 300'));
+groupDiscountCampaign 'Акция сертификата' (GiftCard c) = OVERRIDE overGroupDiscountCampaing(c),
+    defaultGroupDiscountCampaing(date(c), expiryDays(c)) IF date(c) AND expiryDays(c);
+
+FORM createArtixGiftCardGroup 'Создание группы сертификатов'
+    OBJECTS c = GiftCard PANEL
+    PROPERTIES IN base groupCode(c) EXTID 'code', groupRangeFrom(c) EXTID 'rangefrom', groupRangeTo(c) EXTID 'rangeto',
+        groupName(c) EXTID 'name', groupPrice(c) EXTID 'sum', groupInputMask(c) EXTID 'inputmask',
+        fullySpend = 1 IF groupFullySpend(c) EXTID 'fullyspend', paymentObject = 10 EXTID 'paymentobject',
+        groupDiscountCampaign(c) EXTID 'discountcampaign'
+;
+
+// -------------------- Операции со картами и счетами -------------------- //
+
+overArtixGiftCardStatus 'Статус карты' = ABSTRACT ArtixLMCardStatus (GiftCard);
+artixGiftCardStatus 'Статус карты' (GiftCard c) = OVERRIDE overArtixGiftCardStatus(c), ArtixLMCardStatus.earnPay;
+statusArtixGiftCardStatus 'Статус для выгрузки карты' (GiftCard c) = status(artixGiftCardStatus(c));
+
+FORM createArtixGiftCardAccount 'Создание счета сертификата'
+    OBJECTS c = GiftCard PANEL
+    PROPERTIES(c) IN base number EXTID 'number'
+;
+
+FORM createArtixGiftCard 'Создание сертификата'
+    OBJECTS c = GiftCard PANEL
+    PROPERTIES(c) IN base accountNumber = number EXTID 'accountNumber', number = number EXTID 'number',
+        statusArtixGiftCardStatus EXTID 'status'
+;
+
+CLASS ArtixGiftCardAssetType 'Тип операции сертификата Artix' {
+    add 'Начисление',
+    pay 'Списание'
+}
+type 'Тип' (ArtixGiftCardAssetType t) = upper(getWord(staticName(t),'.',2));
+name 'Наименование' (ArtixGiftCardAssetType t) = staticCaption(t);
+
+FORM artixGiftCardAssetTypes 'Операции сертификатов Artix'
+    OBJECTS t = ArtixGiftCardAssetType
+    PROPERTIES(t) READONLY type, name
+    LIST ArtixGiftCardAssetType OBJECT t
+;
+
+inExport 'В выгрузке' = DATA LOCAL NESTED BOOLEAN (GiftCard);
+skipArtixExport 'Исключить из экспорта Artix' = ABSTRACT BOOLEAN (GiftCard);
+useCustomToExport 'Импользовать пользовательские условия экспорта' = ABSTRACT BOOLEAN (GiftCard);
+customToExport 'Пользовательские условия экспорта' = ABSTRACT BOOLEAN (GiftCard);
+toExport 'К эспорту' (GiftCard c) = OVERRIDE customToExport(c) IF useCustomToExport(c),
+    (number(c) AND groupCode(c) AND groupName(c) AND groupPrice(c) AND date(c) AND expiryDays(c) AND NOT skipArtixExport(c)) IF NOT useCustomToExport(c);
+
+afterExportArtixGiftCard ABSTRACT LIST (GiftCard);
+
+exportRequestArtixGiftCards 'Отправить запрос выгрузки сертификатов' () {
+    inExport(GiftCard c) <- NULL WHERE skipArtixExport(c);
+
+    IF NOT (GROUP SUM 1 IF inExport(GiftCard c)) THEN {
+        MESSAGE 'Не найдено доступных сертификатов для выгрузки' NOWAIT;
+        RETURN;
+    }
+
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    FOR inExport(GiftCard c) DO {
+        LOCAL createGiftCardGroupExportFile = FILE ();
+        LOCAL createGiftCardAccountExportFile = FILE ();
+        LOCAL createGiftCardExportFile = FILE ();
+
+        TRY {
+            EXPORT createArtixGiftCardGroup OBJECTS c = c JSON TO createGiftCardGroupExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixCS() + 'dictionaries/certificates', '[ArtixLM-EXPORT] ' + createGiftCardGroupExportFile()));
+            EXTERNAL HTTP POST urlArtixCS() + 'dictionaries/certificates' HEADERS headers PARAMS createGiftCardGroupExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+
+            EXPORT createArtixGiftCardAccount OBJECTS c = c JSON TO createGiftCardAccountExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'accounts', '[ArtixLM-EXPORT] ' + createGiftCardAccountExportFile()));
+            EXTERNAL HTTP POST urlArtixLM() + 'accounts' HEADERS headers PARAMS createGiftCardAccountExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+
+            EXPORT createArtixGiftCard OBJECTS c = c JSON TO createGiftCardExportFile;
+            IF recordArtixLMLog() THEN logToFile('artix',
+                (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'cards', '[ArtixLM-EXPORT] ' + createGiftCardExportFile()));
+            EXTERNAL HTTP POST urlArtixLM() + 'cards' HEADERS headers PARAMS createGiftCardExportFile() TO result;
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+
+            afterExportArtixGiftCard(c);
+        } CATCH {
+            IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+            LOCAL message, code = STRING();
+            IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+            artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+                number(c) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+        }
+    }
+}
+
+exportArtix 'Выгрузить в Artix' (GiftCard c) {
+    IF NOT toExport(c) THEN {
+        MESSAGE (CONCAT ' ', 'Сертификат', number(c), 'недоступен для выгрузки');
+        RETURN;
+    }
+    NEWSESSION {
+        inExport(c) <- TRUE WHERE toExport(c);
+        exportRequestArtixGiftCards();
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время выгрузки сертификата Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Сертификат', number(c), 'успешно выгружен';
+        }
+        APPLY;
+    }
+}
+
+updateArtixGiftCard 'Обновление сертификата в Artix' (GiftCard c, ArtixLMCardStatus s) {
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+
+    EXPORT JSON FROM status = status(s), number = number(c);
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-PUT] ' + urlArtixLM() + 'cards/' + number(c));
+        EXTERNAL HTTP PUT urlArtixLM() + 'cards/' + number(c) HEADERS headers PARAMS exportFile() TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            number(c) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+afterDeactivateArtixGiftCard ABSTRACT LIST (GiftCard);
+deactivateArtixGiftCard 'Заблокировать сертификат в Artix' (GiftCard c) {
+    NEWSESSION {
+        updateArtixGiftCard(c, ArtixLMCardStatus.noOperation);
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время блокировки сертификата Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Серификат', number(c), 'заблокирован';
+            afterDeactivateArtixGiftCard(c);
+        }
+        APPLY;
+    }
+}
+
+// -------------------- Операции с балансом -------------------- //
+
+denyArtixRequest 'Запретить обращение к Artix' = ABSTRACT BOOLEAN (GiftCard);
+
+overAcceptId 'Идентификатор ограничений' = ABSTRACT STRING (GiftCard);
+acceptId 'Идентификатор ограничений' (GiftCard c) = OVERRIDE '0';
+
+FORM calculateArtixGiftCardAsset 'Проведение операции сертифката'
+    OBJECTS c = GiftCard PANEL
+    PROPERTIES IN base sessionId = toChar(currentDateTime(), 'YYYYMMDDhhmmss') EXTID 'sessionId',
+        type = type(ArtixGiftCardAssetType.add) EXTID 'type',
+        amount = sumToExport(price(c)) EXTID 'amount',
+        timeFromCash = timeToExport(currentDateTime()) EXTID 'timeFromCash',
+        number(c) EXTID 'cardNumber',
+        acceptId(c) EXTID 'acceptId'
+;
+
+calculateRequestArtixBalance 'Отправить запрос начисления баланса' (GiftCard c) {
+    IF denyArtixRequest(c) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    
+    LOCAL calculateGiftCardAssetExportFile = FILE ();
+
+    TRY {
+        EXPORT calculateArtixGiftCardAsset OBJECTS c = c JSON TO calculateGiftCardAssetExportFile;
+        IF recordArtixLMLog() THEN logToFile('artix',
+            (CONCAT'\n', '[ArtixLM-POST] ' + urlArtixLM() + 'assets', '[ArtixLM-EXPORT] ' + calculateGiftCardAssetExportFile()));
+        EXTERNAL HTTP POST urlArtixLM() + 'assets' HEADERS headers PARAMS calculateGiftCardAssetExportFile() TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            'Изменение баланса', number(c) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+calculateArtixBalance 'Начислить баланс Artix' (GiftCard c) {
+    IF denyArtixRequest(c) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+    NEWSESSION {
+        calculateRequestArtixBalance(c);
+        IF artixLMMessage() THEN {
+            MESSAGE 'Во время начисления бонусов сертификата Artix возникли ошибки:\n' + artixLMMessage();
+            artixLMMessage() <- NULL;
+        } ELSE {
+            MESSAGE CONCAT ' ', 'Бонусы успешно начислены', ' на сертификат ' + number(c);
+        }
+        APPLY;
+    }
+}
+
+notExportArtixGiftCardCalculateBalance 'Не начислять бонусы после выгрузки сертификата' = ABSTRACT BOOLEAN ();
+
+afterExportArtixGiftCard(GiftCard c) + {
+    IF NOT notExportArtixGiftCardCalculateBalance() THEN calculateArtixBalance(c);
+}
+
+artixBalance 'Баланс (локально)' = DATA LOCAL INTEGER (GiftCard);
+numericArtixBalance 'Баланс в рублях (локально)' (GiftCard d) = NUMERIC[16,2](artixBalance(d) / 100.0);
+
+getArtixBalance 'Получить баланс из Artix' (GiftCard c) {
+    IF denyArtixRequest(c) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранного сертификата';
+        RETURN;
+    }
+
+    LOCAL balance = INTEGER ();
+    LOCAL result = FILE ();
+    encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
+    headers('Authorization') <- 'Basic ' + encodedBase64();
+    TRY {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-GET] ' + urlArtixLM() + 'cards/' + number(c));
+        EXTERNAL HTTP GET urlArtixLM() + 'cards/' + number(c) HEADERS headers TO result;
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-RESULT] ' + result());
+
+        IMPORT JSON FROM result() TO() balance = balance;
+        artixBalance(c) <- balance();
+    } CATCH {
+        IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-CATCH] ' + result());
+
+        LOCAL message, code = STRING();
+        IMPORT JSON FROM result() TO() code = 'errorCode', message = 'message';
+        artixLMMessage() <- CONCAT '\n', artixLMMessage(),
+            number(c) + (OVERRIDE (' : [' + code() + '] ' + message()), ' : Неизвестная ошибка');
+    }
+}
+
+showArtixBalance 'Получить баланс (Artix)' (GiftCard c) {
+    IF denyArtixRequest(c) THEN {
+        MESSAGE 'Запрещено обращение к Artix для выбранной карты';
+        RETURN;
+    }
+    getArtixBalance(c);
+    IF artixBalance(c) THEN {
+        MESSAGE 'Баланс сертификата ' + number(c) + ' : ' + numericArtixBalance(c);
+    } ELSE {
+        MESSAGE 'Ошибка получения сертификата Artix:\n' + artixLMMessage();
+        artixLMMessage() <- NULL;
+    }
+}
+
+inRequest 'Включить в запрос' = DATA LOCAL BOOLEAN (GiftCard);
+countInRequestGiftCard 'Кол-во в запросе' = GROUP SUM 1 IF inRequest(GiftCard c);
+
+getGiftCardArtixBalances 'Получить баланс по картам из Artix' () {
+    FOR denyArtixRequest(GiftCard c) AND (inRequest(c) OR NOT countInRequestGiftCard()) DO {
+        getArtixBalance(c);
+    }
+    IF artixLMMessage() THEN {
+        MESSAGE 'Во время получения бонусов сертификатов Artix возникли ошибки:\n' + artixLMMessage();
+        artixLMMessage() <- NULL;
+    }
+}

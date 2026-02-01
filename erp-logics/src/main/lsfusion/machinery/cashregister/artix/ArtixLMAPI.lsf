@@ -1,0 +1,32 @@
+MODULE ArtixLMAPI; // Настройки API сервера Artix Loyality Managment
+
+REQUIRE ArtixAPI, Utils;
+
+NAMESPACE Artix;
+
+urlArtixLM 'URL Artix Loyality Managment' () = 'http://' + hostArtix() + ':' + portArtix() + '/ACC/rest/v1/';
+
+recordArtixLMLog 'Записывать логи Artix Loyality Managment' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData PROPERTIES() recordArtixLMLog;
+DESIGN integrationData {
+    artix {
+        NEW artixLoyalityManagment {
+            caption = 'Система лояльности Artix';
+            MOVE PROPERTY(recordArtixLMLog());
+        }
+    }
+}
+
+artixLMMessage 'Ответ сервера' = DATA LOCAL STRING ();
+
+CLASS ArtixLMCardStatus 'Статус карты' {
+    earnOnly 'EARN_ONLY', // доступно только начисление
+    earnPay 'EARN_PAY', // доступно начисление и списание
+    noOperation 'NO_OPERATION', // выполнение любых операций запрещено
+    payOnly 'PAY_ONLY' // возможна только оплата
+}
+status 'Статус карты' (ArtixLMCardStatus artixLMCardStatus) = staticCaption(artixLMCardStatus);
+
+sumToExport 'Преобразование суммы в формат Artix' (NUMERIC[14,2] s) = LONG(abs(s) * 100);
+timeToExport 'Преобразование времени в формат Artix' (DATETIME dt) = toChar(dt,'YYYY-MM-DD"T"HH24:MI:00.000+03:00');

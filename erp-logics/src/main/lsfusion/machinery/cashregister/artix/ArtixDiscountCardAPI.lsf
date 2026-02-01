@@ -1,22 +1,8 @@
 MODULE ArtixDiscountCardAPI; // Выгрузка дисконтных карт в Artix
 
-REQUIRE ArtixAPI, DiscountCard;
+REQUIRE ArtixLMAPI, DiscountCard;
 
 NAMESPACE Artix;
-
-recordArtixLMLog 'Записывать логи Artix Loyality Managment' = DATA BOOLEAN ();
-
-EXTEND FORM integrationData PROPERTIES() recordArtixLMLog;
-DESIGN integrationData {
-    artix {
-        NEW artixLoyalityManagment {
-            caption = 'Система лояльности Artix';
-            MOVE PROPERTY(recordArtixLMLog());
-        }
-    }
-}
-
-artixLMMessage 'Ответ сервера' = DATA LOCAL STRING ();
 
 // -------------------- Операции с группами карт -------------------- //
 
@@ -86,7 +72,7 @@ toExport 'К эспорту' (ArtixCardGroup g) = name(g) AND idArtixCardMode(g)
 
 FORM saveArtixCardGroup 'Сохранение группы карты'
     OBJECTS g = ArtixCardGroup PANEL
-    PROPERTIES(g) id EXTID 'idcardgroup', name EXTID 'name',
+    PROPERTIES(g) IN base id EXTID 'idcardgroup', name EXTID 'name',
         idArtixCardMode EXTID 'cardmode', regexpPattern EXTID 'regexpattern:escapeInnerJSON',
         inputMask EXTID 'inputmask'
 ;
@@ -150,6 +136,7 @@ DESIGN integrationData { artix { artixLoyalityManagment { MOVE PROPERTY(exportAr
 exportArtix 'Выгрузить группу карт' (ArtixCardGroup g) {
     IF NOT toExport(g) THEN {
         MESSAGE (CONCAT ' ', 'Группа', name(g), 'недоступна для выгрузки');
+        RETURN;
     }
     NEWSESSION {
         exportRequestArtixCardGroup(g);
@@ -173,17 +160,18 @@ toExport 'К эспорту' (DiscountCard d) =
 overArtixOptions 'Опции клиента' = ABSTRACT INTEGER (DiscountCard);
 artixOptions 'Опции клиента' (DiscountCard d) = OVERRIDE overArtixOptions(d), 0;
 
-overDefaultArtixCardStatus 'Статус карты' = ABSTRACT STRING[12] (DiscountCard);
-artixDefaultCardStatus 'Статус карты по умолчанию' (DiscountCard d) = OVERRIDE overDefaultArtixCardStatus(d), 'EARN_PAY';
+overArtixCardStatus 'Статус карты' = ABSTRACT ArtixLMCardStatus (DiscountCard);
+artixCardStatus 'Статус карты' (DiscountCard d) = OVERRIDE overArtixCardStatus(d), ArtixLMCardStatus.earnPay;
+statusArtixCardStatus 'Статус для выгрузки карты' (DiscountCard d) = status(artixCardStatus(d));
 
 FORM createArtixAccount 'Создание бонусного счета'
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) seriesNumber EXTID 'number'
+    PROPERTIES(d) IN base seriesNumber EXTID 'number'
 ;
 
 FORM saveArtixClient 'Сохранение данных клиента'
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) seriesNumber EXTID 'idclient', firstNameContact EXTID 'name',
+    PROPERTIES(d) IN base seriesNumber EXTID 'idclient', firstNameContact EXTID 'name',
         lastNameContact EXTID 'lastname', middleNameHttpServerContact EXTID 'patronymic',
         numberSexHttpServerContact EXTID 'sex', phoneLegalEntity EXTID 'phonenumber',
         artixOptions EXTID 'options', emailLegalEntity EXTID 'email'
@@ -191,13 +179,13 @@ FORM saveArtixClient 'Сохранение данных клиента'
 
 FORM createArtixCard 'Создание карты'
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) accountNumber = seriesNumber EXTID 'accountNumber', number = seriesNumber EXTID 'number',
-        artixDefaultCardStatus EXTID 'status'
+    PROPERTIES(d) IN base accountNumber = seriesNumber EXTID 'accountNumber', number = seriesNumber EXTID 'number',
+        statusArtixCardStatus EXTID 'status'
 ;
 
 FORM bindingArtixCard 'Привязка карты'
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) idCard = seriesNumber EXTID 'idcard', idArtixCardGroup EXTID 'idcardgroup',
+    PROPERTIES(d) IN base idCard = seriesNumber EXTID 'idcard', idArtixCardGroup EXTID 'idcardgroup',
         idclient = seriesNumber EXTID 'idclient', number = seriesNumber EXTID 'number'
 ;
 
@@ -282,6 +270,7 @@ DESIGN integrationData { artix { artixLoyalityManagment { MOVE PROPERTY(exportAr
 exportArtix 'Выгрузить в Artix' (DiscountCard d) {
     IF NOT toExport(d) THEN {
         MESSAGE (CONCAT ' ', 'Дисконтная карта', seriesNumber(d), 'недоступна для выгрузки');
+        RETURN;
     }
     NEWSESSION {
         inExport(d) <- TRUE WHERE toExport(d);
@@ -296,12 +285,12 @@ exportArtix 'Выгрузить в Artix' (DiscountCard d) {
     }
 }
 
-updateArtixCard 'Обновление карты в Artix' (DiscountCard d, STRING[12] s) {
+updateArtixCard 'Обновление карты в Artix' (DiscountCard d, ArtixLMCardStatus s) {
     LOCAL result = FILE ();
     encodeBase64(CONCAT '', userArtix(), ':', passwordArtix());
     headers('Authorization') <- 'Basic ' + encodedBase64();
 
-    EXPORT JSON FROM status = s, number = seriesNumber(d);
+    EXPORT JSON FROM status = status(s), number = seriesNumber(d);
     TRY {
         IF recordArtixLMLog() THEN logToFile('artix', '[ArtixLM-PUT] ' + urlArtixLM() + 'cards/' + seriesNumber(d));
         EXTERNAL HTTP PUT urlArtixLM() + 'cards/' + seriesNumber(d) HEADERS headers PARAMS exportFile() TO result;
@@ -319,7 +308,7 @@ updateArtixCard 'Обновление карты в Artix' (DiscountCard d, STRI
 afterDeactivateArtixCard ABSTRACT LIST (DiscountCard);
 deactivateArtixCard 'Заблокировать карту в Artix' (DiscountCard d) {
     NEWSESSION {
-        updateArtixCard(d, 'NO_OPERATION');
+        updateArtixCard(d, ArtixLMCardStatus.noOperation);
         IF artixLMMessage() THEN {
             MESSAGE 'Во время блокировки карты Artix возникли ошибки:\n' + artixLMMessage();
             artixLMMessage() <- NULL;
@@ -335,45 +324,42 @@ deactivateArtixCard 'Заблокировать карту в Artix' (DiscountCa
 
 denyArtixRequest 'Запретить обращение к Artix' = ABSTRACT BOOLEAN (DiscountCard);
 
-overAcceptId 'Идентификатор ограничений' (DiscountCard d) = ABSTRACT STRING (DiscountCard);
+overAcceptId 'Идентификатор ограничений' = ABSTRACT STRING (DiscountCard);
 acceptId 'Идентификатор ограничений' (DiscountCard d) = OVERRIDE '0';
 
-CLASS ArtixAssetType 'Тип операции Artix' {
+CLASS ArtixCardAssetType 'Тип операции Artix' {
     put 'Доведение',
     add 'Начисление',
     sub 'Списание'
 }
 
-type 'Тип' (ArtixAssetType t) = upper(getWord(staticName(t),'.',2));
-name 'Наименование' (ArtixAssetType t) = staticCaption(t);
+type 'Тип' (ArtixCardAssetType t) = upper(getWord(staticName(t),'.',2));
+name 'Наименование' (ArtixCardAssetType t) = staticCaption(t);
 
-FORM artixAssetTypes 'Типы карт Artix'
-    OBJECTS t = ArtixAssetType
+FORM artixCardAssetTypes 'Операцции карт Artix'
+    OBJECTS t = ArtixCardAssetType
     PROPERTIES(t) READONLY type, name
-    LIST ArtixAssetType OBJECT t
+    LIST ArtixCardAssetType OBJECT t
 ;
-
-sumToExport 'Преобразование суммы в формат Artix' (NUMERIC[14,2] s) = LONG(abs(s) * 100);
-timeToExport 'Преобразование времени в формат Artix' (DATETIME dt) = toChar(dt,'YYYY-MM-DD"T"HH24:MI:00.000+03:00');
 
 FORM calculateArtixBalance 'Начисление баланса'
     OBJECTS id = STRING PANEL
-    PROPERTIES(id) VALUE EXTID 'sessionId'
+    PROPERTIES(id) IN base VALUE EXTID 'sessionId'
 
-    OBJECTS type = ArtixAssetType PANEL
-    PROPERTIES(type) type EXTID 'type'
+    OBJECTS type = ArtixCardAssetType PANEL
+    PROPERTIES(type) IN base type EXTID 'type'
     
     OBJECTS sum = NUMERIC[14,2] PANEL
-    PROPERTIES(sum) sumToExport EXTID 'amount'
+    PROPERTIES(sum) IN base sumToExport EXTID 'amount'
     
     OBJECTS from = DATETIME PANEL, to = DATETIME PANEL
-    PROPERTIES timeToExport(from) EXTID 'timeBeginAccept', timeToExport(to) EXTID 'timeEndAccept'
+    PROPERTIES IN base timeToExport(from) EXTID 'timeBeginAccept', timeToExport(to) EXTID 'timeEndAccept'
     
     OBJECTS d = DiscountCard PANEL
-    PROPERTIES(d) seriesNumber EXTID 'cardNumber', acceptId EXTID 'acceptId'
+    PROPERTIES(d) IN base seriesNumber EXTID 'cardNumber', acceptId EXTID 'acceptId'
 ;
 
-calculateRequestArtixBalance 'Отправить запрос начисления баланса' (STRING i, ArtixAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
+calculateRequestArtixBalance 'Отправить запрос начисления баланса' (STRING i, ArtixCardAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
     IF denyArtixRequest(d) THEN {
         MESSAGE 'Запрещено обращение к Artix для выбранной карты';
         RETURN;
@@ -399,7 +385,7 @@ calculateRequestArtixBalance 'Отправить запрос начислени
     }
 }
 
-calculateArtixBalance 'Начислить баланс Artix' (STRING i, ArtixAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
+calculateArtixBalance 'Начислить баланс Artix' (STRING i, ArtixCardAssetType t, DiscountCard d, NUMERIC[14,2] s, DATETIME from, DATETIME to) {
     IF denyArtixRequest(d) THEN {
         MESSAGE 'Запрещено обращение к Artix для выбранной карты';
         RETURN;
@@ -420,7 +406,7 @@ overSessionId 'Идентификатор операции' (DiscountCard d) = A
 sessionId 'Идентификатор операции' (DiscountCard d) = OVERRIDE overSessionId(d), toChar(currentDateTime(), 'YYYYMMDDhhmmss');
 
 FORM customCalculateArtixBalance 'Пользовательское начисление бонусов Artix'
-    OBJECTS type = ArtixAssetType PANEL, sum = NUMERIC[14,2] PANEL,
+    OBJECTS type = ArtixCardAssetType PANEL, sum = NUMERIC[14,2] PANEL,
         from = DATETIME PANEL, to = DATETIME PANEL
     PROPERTIES name(type) SELECTOR,
         valSum 'Сумма начисления' = VALUE(sum),
@@ -431,7 +417,7 @@ FORM customCalculateArtixBalance 'Пользовательское начисл�
     PROPERTIES(d) SELECTOR id, seriesNumber, nameLegalEntity
     
     EVENTS ON INIT {
-        SEEK customCalculateArtixBalance.type = ArtixAssetType.add;
+        SEEK customCalculateArtixBalance.type = ArtixCardAssetType.add;
         SEEK customCalculateArtixBalance.from = dateTimeToDateTime(currentDate(), 00:00);
         SEEK customCalculateArtixBalance.to = dateTimeToDateTime(currentDate(), 23:59);
     }
