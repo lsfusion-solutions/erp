@@ -200,3 +200,23 @@ META defineCalcAveragePriceBalance(obj, stockProp, caption)
     }
 END
 
+META defineTabAccountPrice(type, formName, formObj, captionObj)
+    @defineOption(show###type##TabAccountPrice, 'Отображать данные в Текущих остатках на отдельной вкладке ('##captionObj##')', type);
+    balanceB 'Остаток (до)' (formObj d) = balanceB(sku(d), stock(d), dateTime(d));
+
+    EXTEND FORM currentBalanceSkuStock
+        OBJECTS formName = formObj
+        PROPERTIES (formName) READONLY dateTime, number, quantity, price, accountPrice, balanceB
+        ORDERS dateTime(formName) DESC
+        FILTERS sku(formName) = s, stock(formName) = st
+    ;
+    
+    DESIGN currentBalanceSkuStock {
+        ledgerBox {
+            MOVE BOX(formName) {
+                caption = captionObj;
+            }
+        }
+    }
+END
+
