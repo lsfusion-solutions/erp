@@ -762,6 +762,68 @@ NAVIGATOR {
     }
 }
 
+//----------------------------------Изменение даты/времени завершение приемки-----------------------------------------//
+
+filterDate 'Дата завершения' = DATA LOCAL DATE ();
+filterTime 'Время завершения' = DATA LOCAL TIME ();
+
+changeDate() {
+    INPUT date = DATE DO {
+        filterDate() <- date;
+    }
+}
+
+changeTime() {
+    INPUT time = TIME DO {
+        filterTime() <- time;
+    }
+}
+
+FORM changeDateTime 'Смена даты/времени завершения приемки'
+    PROPERTIES filterDate() ON CHANGE changeDate(), filterTime() ON CHANGE changeTime()
+  
+    EVENTS ON INIT {
+        filterDate() <- currentDate();
+        filterTime() <- currentTime();
+    }
+;
+
+DESIGN changeDateTime{
+    NEW mainContainer{
+        MOVE PROPERTY(filterDate()){caption='Дата завершения'; font = '24';}
+        MOVE PROPERTY(filterTime()){caption='Время завершения'; font = '24';}
+    }
+    MOVE TOOLBARBOX;
+}
+
+extraChangeDateTimeReceiving ABSTRACT (Receiving);
+changeDateTimeReceiving 'Изменить дату/время завершения приёмки' (Receiving receiving) {
+    NEWSESSION {
+        IF receiving IS Receiving THEN {
+            ASK '<h2><font color=#FF3333> Вы уверены, что хотите изменить дату/время завершения приёмки?</font></h2>' DO {
+            } ELSE {
+                CANCEL;
+                RETURN;
+            }
+        }
+
+        DIALOG changeDateTime  DO {
+            GRDate(receiving) <- filterDate();
+            GRTime(receiving) <- filterTime();
+            //Обязательно! во всех реализациях extraChangeDateTimeReceiving дату поставки записывать из GRDate
+            extraChangeDateTimeReceiving(receiving);
+            APPLY;
+        }
+        IF canceled() THEN {
+            CANCEL;
+        }
+    }
+}
+
+EXTEND FORM receiving
+    PROPERTIES TOOLBAR changeDateTimeReceiving(r) SHOWIF completeStatus(r)
+;
+
 CLASS UserReceiving : Receiving;
 TABLE userReceiving (UserReceiving);
 
