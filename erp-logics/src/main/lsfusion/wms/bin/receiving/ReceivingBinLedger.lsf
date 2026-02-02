@@ -820,8 +820,18 @@ changeDateTimeReceiving 'Изменить дату/время завершени
     }
 }
 
+deleteReceiving 'Удалить документ приёмки' (Receiving receiving) {
+    NEWSESSION {
+        ASK '<h2><font color=#FF3333>Вы уверены, что хотите удалить документ приемки?!</font></h2>' DO {
+            DELETE receiving WHERE receiving IS Receiving;
+            APPLY;
+        }
+    }
+}
+
 EXTEND FORM receiving
     PROPERTIES TOOLBAR changeDateTimeReceiving(r) SHOWIF completeStatus(r)
+    PROPERTIES TOOLBAR deleteReceiving(r) SHOWIF status(r) == ReceivingStatus.inProgress OR status(r) == ReceivingStatus.pending AND NOT countReceivingDetail(r)
 ;
 
 CLASS UserReceiving : Receiving;
