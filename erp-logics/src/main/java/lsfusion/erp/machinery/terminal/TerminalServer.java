@@ -409,6 +409,13 @@ public class TerminalServer extends MonitorServer {
                                 if (params.length > 6)
                                     deviceModel = params[6];
 
+                                switch (applicationVersion) {
+                                    case "1.5 rev.145":
+                                    case "1.5 rev.146":
+                                        idApplication = "";
+                                        break;
+                                }
+
                                 if (terminalHandler.isActiveTerminal(createSession(), getStack(), params[2])) {
                                     Object loginResult = terminalHandler.login(
                                             createSession(), getStack(), socket.getInetAddress().getHostAddress(), params[0], params[1], params[2], idApplication, applicationVersion, deviceModel);

@@ -358,7 +358,7 @@ public class DefaultTerminalHandler {
                     updateAssortTable(connection, assortmentList, prefix, userInfo);
 
                     if (terminalLotLM != null) {
-                        if (!StringUtils.isEmpty(userInfo.idApplication)) { // Костыль для WINCE (марки в WINCE не грузим)
+                        if (!isOldApplication(userInfo)) { // Костыль для WINCE (марки в WINCE не грузим)
                             createLotsTable(connection);
                             updateLotsTable(connection, readLotList(session, stockObject, userInfo));
                         }
@@ -825,7 +825,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.isEmpty()) {
+                if (isOldApplication(userInfo)) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX zayavki_post ON zayavki (post);");
                     }
@@ -955,7 +955,7 @@ public class DefaultTerminalHandler {
                 }
 
                 statement.executeBatch();
-                if (userInfo.idApplication.isEmpty()) {
+                if (isOldApplication(userInfo)) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX goods_naim ON goods (naim ASC);");
                     }
@@ -1044,7 +1044,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.isEmpty()) {
+                if (isOldApplication(userInfo)) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX assort_k ON assort (post,barcode);");
                     }
@@ -1124,7 +1124,7 @@ public class DefaultTerminalHandler {
                     }
                 }
                 statement.executeBatch();
-                if (userInfo.idApplication.isEmpty()) {
+                if (isOldApplication(userInfo)) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX ana_naim ON ana (naim ASC);");
                     }
@@ -1218,7 +1218,7 @@ public class DefaultTerminalHandler {
                 }
                 statement.executeBatch();
                 connection.commit();
-                if (userInfo.idApplication.isEmpty()) {
+                if (isOldApplication(userInfo)) {
                     try(Statement s = connection.createStatement()) {
                         s.executeUpdate("CREATE INDEX batch_k ON batch (idbatch,barcode);");
                     }
@@ -1747,7 +1747,7 @@ public class DefaultTerminalHandler {
                     String minDeviationDate = formatDate((LocalDate) entry.get("minDeviationDate"));
                     String maxDeviationDate = formatDate((LocalDate) entry.get("maxDeviationDate"));
                     String vop = (String) entry.get("vop");
-                    if (vop != null && vop.contains(",") && userInfo.idApplication.isEmpty() ) {
+                    if (vop != null && vop.contains(",") && isOldApplication(userInfo)) {
                         vop = vop.split(",", 2)[0]; //старые ТСД не поддерживают несколько vop. грузим только первый
                     }
                     String extraBarcodes = (String) entry.get("extraBarcodes");
@@ -1781,6 +1781,10 @@ public class DefaultTerminalHandler {
             }
         }
         return new ArrayList<>(terminalOrderMap.values());
+    }
+
+    private static boolean isOldApplication(UserInfo userInfo) {
+        return userInfo.idApplication.isEmpty();
     }
 
     public static Map<String, RawFileData> readTerminalOrderImages(DataSession session, ObjectValue customerStockObject, UserInfo userInfo) throws SQLException {
