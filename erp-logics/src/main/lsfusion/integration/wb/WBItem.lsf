@@ -1289,9 +1289,13 @@ postItems 'Получить список карточек товаров' () {
                     height(item) <- height(i);
                     weightBrutto(item) <- weightBrutto(i);
 
-                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO NEW s = Size {
-                        chrtID(s) <- INTEGER(chrtID);
-                    }                    
+                    FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND NOT size(INTEGER(chrtID)) INLINE DO {
+                        IF (GROUP MAX Size s IF itemWB(s)==item AND techSize(s) == techSize(ii) AND wbSize(s) == wbSize(ii)) THEN 
+                            chrtID(GROUP MAX Size s IF itemWB(s)==item AND techSize(s) == techSize(ii) AND wbSize(s) == wbSize(ii)) <- INTEGER(chrtID);
+                        ELSE NEW s = Size {
+                            chrtID(s) <- INTEGER(chrtID);
+                        }
+                    }
                     
                     FOR INTEGER ii = [GROUP MAX INTEGER i1 IF cardsSizes(i1) == i BY chrtID(i1)](STRING chrtID) AND Size s == size(INTEGER(chrtID)) INLINE DO {
                         itemWB(s) <- item;

@@ -17,14 +17,16 @@ changeArticle (Item item) {
             FOR itemWB(Size s) == item DO delete(s);
             article(item) <- a;
             
-            FOR article(Item.Item i) == a DO NEW s = Size {
-                itemWB(s) <- item;
-                item(s) <- i;
-                techSize(s) <- OVERRIDE nameOriginal(size(i)), 'A';
-                wbSize(s) <- OVERRIDE nameSize(i), '1';
-                FOR sku(Barcode.Barcode b) == i AND active(b) AND id(b) DO NEW bc = Barcode {
-                    size(bc) <- s;
-                    id(bc) <- id(b);
+            IF in(itemSubGroup(item), attribute('54337')) THEN {
+                FOR article(Item.Item i) == a DO NEW s = Size {
+                    itemWB(s) <- item;
+                    item(s) <- i;
+                    techSize(s) <- OVERRIDE nameOriginal(size(i)), 'A';
+                    wbSize(s) <- OVERRIDE nameSize(i), '1';
+                    FOR sku(Barcode.Barcode b) == i AND active(b) AND id(b) DO NEW bc = Barcode {
+                        size(bc) <- s;
+                        id(bc) <- id(b);
+                    }
                 }
             }
         }
