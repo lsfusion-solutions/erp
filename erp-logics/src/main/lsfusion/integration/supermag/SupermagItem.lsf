@@ -494,6 +494,24 @@ importAltUnit 'Импорт альтернативных едениц измер
     // пока не импортируем, так как там ерунда - \'packbarcode\',            
 }
 
+importItemImages () {
+    NEWSESSION {
+        LOCAL id = STRING (INTEGER);
+        LOCAL image = RAWFILE(INTEGER);
+
+        EXTERNAL SQL connectionString()
+            EXEC 'select article, drawingimage from supermag.smcardImage' TO file;
+
+        IMPORT TABLE FROM file() TO id, image;
+
+        FOR id(INTEGER r) == id(Item i) DO {
+            image(i) <- IMAGEFILE(image(r));
+        }
+
+        APPLY;
+    }
+}
+
 //---------------------------------------------------------------------------------------------------------------------импорт списков товаров
 importSkuLists 'Импорт списков товаров' () {
 
@@ -585,7 +603,7 @@ importItemPart 'Импорт комплектов' () {
     APPLY;
 }
 
-EXTEND FORM integrationData PROPERTIES importItemPart();
+EXTEND FORM integrationData PROPERTIES importItemPart(), importItemImages();
 
 DESIGN integrationData {
     supermagImportButtons {
@@ -602,6 +620,7 @@ DESIGN integrationData {
             MOVE PROPERTY (importSkuLists());
             MOVE PROPERTY (importItemPart());
             MOVE PROPERTY (importBarcodeItem());
+            MOVE PROPERTY (importItemImages());
         }
 
         importDocument {
