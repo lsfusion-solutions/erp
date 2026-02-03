@@ -314,7 +314,7 @@ public class TerminalServer extends MonitorServer {
     }
 
     protected RawFileData readBase(UserInfo userInfo, boolean readBatch) throws SQLException {
-        return terminalHandler.readBase(createSession(), userInfo, readBatch);
+        return terminalHandler.readBase(createSession(), getStack(), userInfo, readBatch);
     }
 
 //    protected String savePallet(UserInfo userInfo, String numberPallet, String nameBin) throws SQLException {

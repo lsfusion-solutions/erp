@@ -294,7 +294,7 @@ public class DefaultTerminalHandler {
     }
 
 
-    public RawFileData readBase(DataSession session, UserInfo userInfo, boolean readBatch) {
+    public RawFileData readBase(DataSession session, ExecutionStack stack, UserInfo userInfo, boolean readBatch) {
         File file = null;
         try {
 
@@ -325,7 +325,7 @@ public class DefaultTerminalHandler {
 
                 List<TerminalAssortment> assortmentList = readTerminalAssortmentList(session, stockObject, userInfo);
                 List<TerminalHandbookType> handbookTypeList = readTerminalHandbookTypeList(session);
-                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, stockObject, userInfo);
+                List<TerminalDocumentType> terminalDocumentTypeList = readTerminalDocumentTypeListServer(session, stack, stockObject, userInfo);
                 List<TerminalLegalEntity> customANAList = readCustomANAList(session, BL, userInfo);
                 List<SkuGroup> skuGroupList = readSkuGroupList(session);
     
@@ -1146,7 +1146,8 @@ public class DefaultTerminalHandler {
                 " van2 TEXT," +
                 " van3 TEXT," +
                 " detail_van1 TEXT," +
-                " flags INTEGER )";
+                " flags INTEGER," +
+                " preferences TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -1157,7 +1158,7 @@ public class DefaultTerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO vop VALUES(?, ?, ?, ?, ?, ?, ?, ?);";
+                String sql = "INSERT OR REPLACE INTO vop VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalDocumentType tdt : terminalDocumentTypeList) {
                     if (tdt.id != null) {
@@ -1169,6 +1170,7 @@ public class DefaultTerminalHandler {
                         statement.setObject(6, "");
                         statement.setObject(7, formatValue(tdt.detail_analytics1));
                         statement.setObject(8, formatValue(tdt.flag == null ? "0" : tdt.flag));
+                        statement.setObject(9, formatValue(tdt.preferences));
                         statement.addBatch();
                     }
                 }
@@ -1876,7 +1878,7 @@ public class DefaultTerminalHandler {
         return terminalHandbookTypeList;
     }
 
-    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, ObjectValue stockObject, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    public static List<TerminalDocumentType> readTerminalDocumentTypeListServer(DataSession session, ExecutionStack stack, ObjectValue stockObject, UserInfo userInfo) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
         if(terminalHandlerLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
@@ -1903,7 +1905,12 @@ public class DefaultTerminalHandler {
                 String analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1TerminalDocumentType"));
                 String analytics2 = StringUtils.trim((String) entry.get("idTerminalHandbookType2TerminalDocumentType"));
                 String detail_analytics1 = StringUtils.trim((String) entry.get("idTerminalHandbookType1DetailTerminalDocumentType"));
-                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, detail_analytics1, flag, backId));
+    
+                ObjectValue terminalDocumentTypeObject = terminalHandlerLM.findProperty("terminalDocumentType[STRING[100]]").readClasses(session, new DataObject(id));
+                terminalHandlerLM.findAction("getTerminalDocumentTypePreferences[TerminalDocumentType]").execute(session, stack, terminalDocumentTypeObject);
+                String terminalDocumentTypePreferences = (String) terminalHandlerLM.findProperty("terminalDocumentTypePreferences[]").read(session);
+                
+                terminalDocumentTypeList.add(new TerminalDocumentType(id, name, analytics1, analytics2, detail_analytics1, flag, backId, terminalDocumentTypePreferences));
             }
         }
         return terminalDocumentTypeList;
@@ -2272,8 +2279,9 @@ public class DefaultTerminalHandler {
 
         public String detail_analytics1;
         public Long flag;
+        public String preferences;
 
-        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, String detail_analytics1, Long flag, String backId) {
+        public TerminalDocumentType(String id, String name, String analytics1, String analytics2, String detail_analytics1, Long flag, String backId, String preferences) {
             this.id = id;
             this.name = name;
             this.analytics1 = analytics1;
@@ -2281,6 +2289,7 @@ public class DefaultTerminalHandler {
             this.detail_analytics1 = detail_analytics1;
             this.flag = flag;
             this.backId = backId;
+            this.preferences = preferences;
         }
     }
 
