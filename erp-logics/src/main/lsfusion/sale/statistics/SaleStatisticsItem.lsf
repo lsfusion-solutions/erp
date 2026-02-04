@@ -4,9 +4,9 @@ REQUIRE SaleStatistics, Item;
 
 NAMESPACE Sale;
 
-statistic 'Статистическая группа' = DATA StatisticGroup (StatisticGroupType, Item) INDEXED;
+statistic = DATA StatisticGroup (StatisticGroupType, Item) INDEXED;
 name 'Статистическая группа' = name(statistic(StatisticGroupType type, Item item));
-canonicalNumberName 'Код группы' = canonicalNumberName(statistic(StatisticGroupType type, Item item));
+canonicalNumberName 'Канонический код-название' = canonicalNumberName(statistic(StatisticGroupType type, Item item));
 sid 'Код группы' = sid(statistic(StatisticGroupType type, Item item));
 canonicalName 'Каноническое имя' = canonicalName(statistic(StatisticGroupType type, Item item));
 
@@ -27,7 +27,7 @@ EXTEND FORM item
     PROPERTIES(sgt) READONLY name, id
     FILTERS country(sgt) == c
 
-    PROPERTIES(sgt,i) canonicalName
+    PROPERTIES(sgt,i) canonicalName, sid, canonicalNumberName
 ;
 DESIGN item { regionalPrm { MOVE BOX(sgt);} }
 
@@ -135,8 +135,10 @@ EXTEND FORM statisticGroups
     PROPERTIES (i) READONLY name, idBarcode, id[Sku] SHOWIF showIDs()
     PROPERTIES canonicalNumberName (c,i) ON CHANGE change(c,i)
     PROPERTIES sid(c,i) ON CHANGE change(c,i)
+    PROPERTIES READONLY dateTimeLastMoved(i, st)
     FILTERS isParent(sk,i)
     FILTERGROUP inactive1 FILTER 'Активные' active(i) 'F6' DEFAULT
+    FILTERGROUP dateTimeLastMoved FILTER 'С движение по складу' dateTimeLastMoved(i, st)
     PROPERTIES(ss,c) TOOLBAR DRAW sk statisticGroupsPrint, statisticGroupsLeafPrint 
 ;
 DESIGN statisticGroups {
