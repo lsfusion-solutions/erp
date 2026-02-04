@@ -15,6 +15,8 @@ TABLE warehouseGroup (WarehouseGroup);
 @defineNumeratedID(WarehouseGroup, 'Группы складов(код)');
 
 name 'Наименование' = DATA ISTRING[100](WarehouseGroup);
+order 'Порядок' = DATA INTEGER (WarehouseGroup);
+customOrder 'Порядок' = ABSTRACT STRING (WarehouseGroup);
 
 id(WarehouseGroup g) += id(g);
 name(WarehouseGroup group) += name(group) IF group IS WarehouseGroup;
@@ -34,9 +36,9 @@ FORM warehouseGroup 'Группа складов'
 FORM warehouseGroups 'Группы складов'
 
     TREE warehouseGroupTree wg = WarehouseGroup PARENT parent(wg)
-    PROPERTIES READONLY id(wg) SHOWIF showIDs(), wgTreeName = name(wg)
+    PROPERTIES READONLY order(wg), customOrder(wg) SHOWIF NULL, id(wg) SHOWIF showIDs(), wgTreeName = name(wg)
     PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE 
-    ORDERS wgTreeName
+    ORDERS order(wg), customOrder(wg), wgTreeName
 
     LIST WarehouseGroup OBJECT wg
 ;
@@ -169,8 +171,8 @@ DESIGN warehouse {
 FORM warehousesCompany 'Собственные склады'
 
     TREE warehouseTree b=BPSTRING[3], wg = WarehouseGroup PARENT parent(wg)
-    PROPERTIES READONLY VALUE(b), wgTreeName = name(wg)
-    ORDERS wgTreeName
+    PROPERTIES READONLY VALUE(b), id(wg) SHOWIF showIDs(), wgTreeName = name(wg), order(wg), customOrder(wg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
+    ORDERS order(wg), customOrder(wg), wgTreeName
     FILTERS stringEqualsAll(b)
 
     OBJECTS w=Warehouse
@@ -203,8 +205,8 @@ DESIGN warehousesCompany {
 FORM dialogWarehouses 'Склады'
 
     TREE warehouseTree b=BPSTRING[3], wg = WarehouseGroup PARENT parent(wg)
-    PROPERTIES READONLY VALUE(b), wgTreeName = name(wg)
-    ORDERS wgTreeName
+    PROPERTIES READONLY VALUE(b), id(wg) SHOWIF showIDs(), wgTreeName = name(wg), order(wg), customOrder(wg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
+    ORDERS order(wg), customOrder(wg), wgTreeName
     FILTERS stringEqualsAll(b)
 
     OBJECTS w=Warehouse
@@ -238,9 +240,9 @@ DESIGN dialogWarehouses {
 FORM warehouses 'Склады'
 
     TREE warehouseTree b=BPSTRING[3], wg = WarehouseGroup PARENT parent(wg)
-    PROPERTIES READONLY VALUE(b), id(wg) SHOWIF showIDs(), wgTreeName = name(wg)
+    PROPERTIES READONLY VALUE(b), id(wg) SHOWIF showIDs(), wgTreeName = name(wg), order(wg), customOrder(wg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
     PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE 
-    ORDERS wgTreeName
+    ORDERS order(wg), customOrder(wg), wgTreeName
     FILTERS stringEqualsAll(b)
 
     OBJECTS w=Warehouse

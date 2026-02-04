@@ -128,6 +128,7 @@ name 'Наименование' = DATA ISTRING[100](LegalEntityGroup);
 legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) MATERIALIZED INDEXED AUTOSET;
 nameLegalEntityGroup 'Группа организаций' (LegalEntity legalEntity) = name(legalEntityGroup(legalEntity)) CHARWIDTH 20;
 order 'Порядок' = DATA INTEGER (LegalEntityGroup);
+customOrder 'Порядок' = ABSTRACT STRING (LegalEntityGroup);
 
 TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 @defineHierarchy(legalEntityGroup);
@@ -143,8 +144,8 @@ FORM legalEntityGroup 'Группа организаций'
 FORM legalEntityGroups 'Группы организаций'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
-    PROPERTIES READONLY order(lg), id(lg) SHOWIF showIDs(), lgTreeName = name(lg)
-    ORDERS lgTreeName
+    PROPERTIES READONLY order(lg), customOrder(lg) SHOWIF NULL, id(lg) SHOWIF showIDs(), lgTreeName = name(lg)
+    ORDERS order(lg), customOrder(lg), lgTreeName
 
     LIST LegalEntityGroup OBJECT lg
 
@@ -479,9 +480,9 @@ copy 'Копировать' (LegalEntity l)  {
 FORM legalEntities 'Организации'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
-    PROPERTIES READONLY order(lg), id(lg) SHOWIF showIDs(), lgTreeName = name(lg)
+    PROPERTIES READONLY order(lg), customOrder(lg) SHOWIF NULL, id(lg) SHOWIF showIDs(), lgTreeName = name(lg)
     PROPERTIES(lg) NEWSESSION NEW, EDIT, deletelg=DELETE 
-    ORDERS order(lg)
+    ORDERS order(lg), customOrder(lg), lgTreeName
 
     OBJECTS l=LegalEntity
     PROPERTIES(l) in
