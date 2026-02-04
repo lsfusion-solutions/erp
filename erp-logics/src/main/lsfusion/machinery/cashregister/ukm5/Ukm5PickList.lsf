@@ -14,29 +14,38 @@ productsByGroup = ABSTRACT STRING (Group, DepartmentStore);
 
 idPickList = ABSTRACT INTEGER (CustomGroup, DepartmentStore);
 idPickList = ABSTRACT INTEGER (CustomGroup);
+changedImage = DATA BOOLEAN (CustomGroup, DepartmentStore);
+
+WHEN SETCHANGED(changedImage(CustomGroup g)) AND g IS CustomGroup DO {
+    changedImage(g, DepartmentStore s) <- TRUE;
+}
 
 GROUP stores;
 
+inStore (Group g, DepartmentStore d) = GROUP SUM 1 IF
+    customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) = g AND
+        currentBalance(i, d) > 0 AND (passScales(i) OR split(i))
+;
+
 FORM pickList FORMEXTID 'null'
-    OBJECTS elements = CustomGroup
-    
-    OBJECTS d = DepartmentStore PANEL EXTID ''
-    
-    PROPERTIES idPickList(elements) EXTID 'id', = regexpReplace(name(elements), '^\\s*\\d+\\s*', '', '') EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
-        = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, d) EXTID 'items'
+    OBJECTS element = (elements = CustomGroup, stores = DepartmentStore) EXTID 'elements'
+
+    PROPERTIES idPickList(elements, stores) EXTID 'id', = regexpReplace(name(elements), '^\\s*\\d+\\s*', '', '') EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
+        = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, stores) EXTID 'items'
     FILTERS pickListGroup(elements) AND level(elements) > 1
     
-    OBJECTS stores = DepartmentStore
-    
-    PROPERTIES = idStore(stores) IF elements IS CustomGroup AND stores IS DepartmentStore EXTID 'id'
-    FILTERS Stock.in(stores)
-; 
+    OBJECTS s = DepartmentStore EXTID 'stores'
+    PROPERTIES = idStore(s) IF elements IS CustomGroup AND s IS DepartmentStore EXTID 'id'
+    FILTERS inStore(elements, stores)
+    FILTERS s = stores
+    FILTERS hasUkm5GroupMachinery(stores)
+;
 
 exportPickList 'Экспорт пик-листа УКМ5'(DepartmentStore d){
     NEWSESSION {
         LOCAL answer = FILE ();
         Stock.in(d) <- TRUE;
-        EXPORT pickList OBJECTS d = d JSON;
+        EXPORT pickList OBJECTS stores = d JSON;
         LOCAL group = GroupMachinery();
         fileToString(exportFile());
         logToFile('ukm5', resultString());
@@ -73,12 +82,12 @@ sendImageItemToFtp(Item i){
     }
 }
 
-sendImageGroupToFtp(CustomGroup c){
+sendImageGroupToFtp(CustomGroup c, DepartmentStore d){
     IF extension(FILE(image(c))) != 'png' THEN {
         convertImage(image(c), 'png');
-        WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c);
+        WRITE convertedImage() TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c, d);
     } ELSE {
-        WRITE image(c) TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c);
+        WRITE image(c) TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c, d);
     }
 }
 
@@ -96,10 +105,10 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
             errorsImagesItems(i) <- TRUE;
         }
     }
-    FOR hasImage(CustomGroup c) IF pickListGroup(c) AND active(c) AND (changedImage(c) OR NOT loadOnlyChangedImages())  DO
+    FOR idPickList(CustomGroup c, DepartmentStore d) AND hasImage(c) IF pickListGroup(c) AND active(c) AND hasUkm5GroupMachinery(d) AND (changedImage(c, d) OR NOT loadOnlyChangedImages()) DO
         TRY {
-            sendImageGroupToFtp(c);
-            changedImage(c) <- NULL;
+            sendImageGroupToFtp(c, d);
+            changedImage(c, d) <- NULL;
         }
             CATCH {
             errorsImagesGroups(c) <- TRUE;
