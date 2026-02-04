@@ -1717,9 +1717,9 @@ characteristicsValue1 = DATA LOCAL INTEGER(INTEGER);
 variantsSizes = DATA LOCAL INTEGER(INTEGER);
 
 FORM uploadItems
-    OBJECTS g = ItemSubGroup 
+    OBJECTS (g = ItemSubGroup, item = Item) 
     PROPERTIES subjectID = INTEGER(id(g))
-    FILTERS (GROUP SUM 1 IF in(Item ii) AND itemSubGroup(ii) == g)
+    FILTERS (GROUP SUM 1 IF in(Item ii) AND itemSubGroup(ii) == g), in(item)
     
     OBJECTS i = Item EXTID 'variants'
     PROPERTIES(i) id EXTID 'vendorCode', 
@@ -1729,7 +1729,7 @@ FORM uploadItems
                                  width EXTID 'width',
                                  height EXTID 'height',
                                  weightBrutto EXTID 'weightBrutto'
-    FILTERS itemSubGroup(i) == g
+    FILTERS itemSubGroup(i) == g AND i == item
     
     OBJECTS a = Attribute EXTID 'characteristics'
     PROPERTIES id = INTEGER(id(a)) EXTID 'id',
@@ -1776,7 +1776,7 @@ uploadItems 'Создание новых карточек' () {
                 in(Item i) <- NULL;
 
                 fileToString(exportFile());
-                resultString() <- replace(resultString(), '"g":', '');
+                resultString() <- replace(resultString(), '"g.item":', '');
 
                 FOR index(Item i) > exported() AND index(i) <= exported() + uploadItemsLimit() AND itemWB(Size s) == i AND skus(s) NOINLINE DO {
                     resultString() <- replace(resultString(), '"' + skus(s) + '"', '[' + (GROUP CONCAT '"' + id(Barcode b) + '"' IF size(b) == s, ',' ORDER b) + ']');
