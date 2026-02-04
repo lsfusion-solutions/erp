@@ -168,6 +168,29 @@ DESIGN options{
     }
 }
 
+dataSupplierEmail 'E-mail для заказов' = DATA STRING[400](LegalEntity);
+dataSupplierEmail 'E-mail для заказов' = DATA STRING[400](LegalEntity, Stock);
+supplierEmail 'E-mail для заказов (итог.)' (LegalEntity le, Stock ds) = OVERRIDE dataSupplierEmail(le, ds), dataSupplierEmail(le);
+
+EXTEND FORM legalEntity
+    PROPERTIES SHOWIF isSupplier(l) dataSupplierEmail(l)
+    OBJECTS dse = Stock GRID
+    PROPERTIES SHOWIF isSupplier(l) READONLY name(dse), id(dse), nameRegion(dse), nameStockGroup(dse)
+    PROPERTIES SHOWIF isSupplier(l) supplierEmail(l, dse)
+
+    FILTERS active(dse), legalEntity(dse) == c, isCompany(dse)
+;
+
+DESIGN legalEntity{
+    docSaleContainer {
+        NEW email {
+            caption = 'E-mail для заказов';
+            NEW supplE {horizontal = TRUE; alignment = STRETCH; MOVE PROPERTY (dataSupplierEmail(l));}
+            MOVE BOX(dse);
+        }
+    }
+}
+
 FORM messageOrders 'Сообщение'
     OBJECTS o = Order PANEL
     PROPERTIES(o) seriesNumber, date, fullNameCustomer
@@ -178,7 +201,9 @@ overEmailList = ABSTRACT STRING[800](Order);
 overEmailFrom = ABSTRACT STRING[800](Order);
 overEmailSubject = ABSTRACT STRING[800](Order);
 
-calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order)  { 
+calcEmaiSupplierl(Order order) = OVERRIDE overEmailList(order), supplierEmail(supplier(order), customerStock(order)), email(supplierStock(order)), email(supplier(order));
+
+calcEmailCustomer 'Отправить заказ поставщику' (Order order)  { 
     
     LOCAL file = FILE ();
     PRINT printOrderXLS OBJECTS o=order XLSX TO file;
@@ -189,7 +214,7 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
     EMAIL
     FROM OVERRIDE email(createdUser(order)) IF NOT notUseUserEmail(), overEmailFrom(order),fromEmailOrders()
     SUBJECT OVERRIDE overEmailSubject(order), 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
-    TO (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order)))
+    TO calcEmaiSupplierl(order)
     BODY bodyFile()
     ATTACH file() 
            NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
@@ -210,7 +235,7 @@ logSendDocumentOrder(Purchase.Order o)  {
 	    seriesDocument(d) <- series(o); 
 	    dateDocument(d) <- date(o);
 	    typeChange(d) <- TypeChange.email;
-	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));      
+	    note(d) <- IF notEmailSend(o) THEN notEmailSend(o) ELSE STRING[255](calcEmaiSupplierl(o));      
 	    hostnameComputer(d) <- hostnameCurrentComputer();
 	    userLogin(d) <- login(currentUser()); 
 	    nameContact(d) <- STRING[100](name(currentUser()));
@@ -234,7 +259,7 @@ emailCustomerSingle 'Отправить заказ поставщику' (Purcha
         consumedEmailCustomer(order) <- NULL;
         overEmailCustomer(order);
 	    IF NOT consumedEmailCustomer(order) THEN {
-	        IF (OVERRIDE overEmailList(order), email(supplierStock(order)), email(supplier(order))) THEN {
+	        IF calcEmaiSupplierl(order) THEN {
 	            isSent(order) <- TRUE;
 	            IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
 	            sentDateTime(order) <- currentDateTime();
@@ -259,7 +284,7 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
 }
 
 provider 'Доставка' = ABSTRACT CASE ISTRING[200] (Order) MATERIALIZED CHARWIDTH 20;
-provider(Order o) += WHEN (OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o))) THEN 'e-mail: ' + ISTRING[192](OVERRIDE overEmailList(o), email(supplierStock(o)), email(supplier(o)));
+provider(Order o) += WHEN calcEmaiSupplierl(o)  THEN 'e-mail: ' + ISTRING[192](calcEmaiSupplierl(o));
 
 skipShowEmailCustomer = ABSTRACT BOOLEAN (Purchase.Order);
 
