@@ -2059,6 +2059,7 @@ functionDocument 'Идентификатор функции документа' 
 versionDocument 'Идентификатор версии документа' = DATA LOCAL STRING (INTEGER);
 
 GROUP signedContent EXTID 'SignedContent';
+GROUP powerOf EXTID 'PowerOfAttorney' : signedContent;
 
 FORM exportMessageToPost
     PROPERTIES fromBoxId() EXTID 'FromBoxId',
@@ -2483,6 +2484,19 @@ isRevocationRequests 'Предложение об аннулировании' = 
 isXmlSignatureRejections 'Отказ от подписи/аннулировании' = DATA LOCAL BOOLEAN (INTEGER);
 isRecipientTitles 'Титул получателя' = DATA LOCAL BOOLEAN (INTEGER);
 
+isPowerOfAttorney 'Передовать МЧД' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES() isPowerOfAttorney
+;
+DESIGN integrationData {
+    diadocAPI {
+        MOVE PROPERTY (isPowerOfAttorney());
+    }
+}
+
+useDefault (INTEGER i) = IF i IS INTEGER AND isPowerOfAttorney() THEN 'true' ;
+
 FORM exportMessagePatchToPost
     PROPERTIES boxId() EXTID 'BoxId',
                messageId() EXTID 'MessageId'
@@ -2531,6 +2545,7 @@ FORM exportMessagePatchToPost
                    contentDocument EXTID 'Content',
                    signatureDocument EXTID 'Signature',
                    signWithTestSignature EXTID 'SignWithTestSignature'
+    PROPERTIES(rt) IN powerOf useDefault EXTID 'UseDefault'
     FILTERS contentDocument(rt) AND parentEntityId(rt) AND isRecipientTitles(rt)
 ;
 
