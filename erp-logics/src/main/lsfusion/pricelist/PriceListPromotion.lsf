@@ -92,12 +92,16 @@ toDatePromotionA (Sku sk, Stock st, DATETIME dt) = toDate(promotionPriceListDeta
 
 // Добавляем фильтр и подсветку на форму текущих остатков
 skipFilterPromotion = ABSTRACT BOOLEAN (Sku, Stock);
+overFilterPromotion = ABSTRACT BOOLEAN (Sku, Stock);
+filterPromotion(Sku s, Stock st) = (promotionPriceListDetailA(s, st) OR overFilterPromotion(s, st)) AND NOT skipFilterPromotion(s, st);
+
 EXTEND FORM currentBalanceSkuStock
     FILTERGROUP promotion
-        FILTER 'В акции' promotionPriceListDetailA(s, st) AND NOT skipFilterPromotion(s, st)
+        FILTER 'В акции' filterPromotion(s, st)
 ;
 skipPromotionColor = ABSTRACT BOOLEAN ();
-backgroundBalance(s,st) += WHEN promotionPriceListDetailA(s, st) AND NOT skipPromotionColor() THEN RGB(216,224,255);
+colorPromotion(Sku s, Stock st) = OVERRIDE colorPromotionA(s, st), RGB(216, 224, 255);
+backgroundBalance(s, st) += WHEN promotionPriceListDetailA(s, st) AND NOT skipPromotionColor() THEN colorPromotion(s, st);
 
 prevPromotionDetail (PriceListDetail d, Stock st) =  
     PARTITION PREV d 
