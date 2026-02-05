@@ -16,11 +16,13 @@ isWarehouseStoreIntra(UserOrder o) += operation(o) == purchaseIntraOperation();
 saleIntraOperation 'Операция (продажа) для внутренних заказов по умолчанию' = DATA Sale.Operation ();
 nameSaleIntraOperation 'Операция (продажа) для внутренних заказов по умолчанию' () = name(saleIntraOperation());
 
+useShipmentDateStrict 'Расписывать по заказам (закупка) строго по дате поставки' = DATA BOOLEAN () PREREAD;
+
 isWarehouseStoreIntra = ABSTRACT VALUE BOOLEAN (Sale.Operation) MATERIALIZED;
 isWarehouseStoreIntra(Sale.Operation o) += o == saleIntraOperation();
 
 EXTEND FORM options
-    PROPERTIES() namePurchaseIntraOperation, nameSaleIntraOperation
+    PROPERTIES() namePurchaseIntraOperation, nameSaleIntraOperation, useShipmentDateStrict
 ;
 
 DESIGN options {
@@ -29,6 +31,7 @@ DESIGN options {
             caption = 'Внутренние заказы';
             MOVE PROPERTY(namePurchaseIntraOperation());
             MOVE PROPERTY(nameSaleIntraOperation());
+            MOVE PROPERTY(useShipmentDateStrict());
         }
     }
 }
@@ -58,7 +61,7 @@ WHEN SET(isPosted(Sale.UserOrderDetail d)) AND isWarehouseStoreIntra(operation(d
     quantityToPick(Purchase.UserOrderDetail pd, d) <- PARTITION UNGROUP quantity LIMIT quantityToOrder(pd)
         IF isOpened[Purchase.Order](userOrder(pd)) AND isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
             AND sku(pd) == sku(d) AND customerStock(pd) == customerStock(d) AND supplierStock(pd) == supplierStock(d)
-            AND shipmentDate(pd) >= date(d) AND date(pd) <= date(d)
+            AND (shipmentDate(pd) == shipmentDate(d) OR (shipmentDate(pd) > shipmentDate(d) AND NOT useShipmentDateStrict())) AND date(pd) <= date(d)
         ORDER shipmentDate(pd), dateTime(pd), pd
         BY d;
 }
@@ -68,7 +71,7 @@ WHEN SETCHANGED(quantity(Sale.UserOrderDetail d)) AND isPosted(d) AND PREV(isPos
         IF (isOpened[Purchase.Order](userOrder(pd)) OR PREV(quantityToPick(pd, d))) AND
             isPosted(pd) AND isWarehouseStoreIntra(operation(pd))
             AND sku(pd) == sku(d) AND customerStock(pd) == customerStock(d) AND supplierStock(pd) == supplierStock(d)
-            AND shipmentDate(pd) >= date(d) AND date(pd) <= date(d)
+            AND (shipmentDate(pd) == shipmentDate(d) OR (shipmentDate(pd) > shipmentDate(d) AND NOT useShipmentDateStrict())) AND date(pd) <= date(d)
         ORDER shipmentDate(pd), dateTime(pd), pd
         BY d;
 }
