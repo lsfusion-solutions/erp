@@ -92,13 +92,19 @@ overCreateUserPickingOrder ABSTRACT CASE OVERRIDE FIRST (Order);
 
 createUserPickingOrder 'Отправить в комплектацию' (Order o) {
     NEWSESSION {
-        CASE WHEN countPickingOrder(o) AND NOT (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) THEN {
+        CASE WHEN isClosed(o) THEN { //Если не запретить, то высокая вероятность расхождения по остаткам(резервам)
+            MESSAGE 'Нельзя отправить в комплектацию закрытый заказ' NOWAIT;
+            RETURN;
+            CANCEL;
+        }
+        WHEN countPickingOrder(o) AND NOT (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) THEN {
             DELETE PickingOrder po WHERE order(po)==o;
             APPLY;
         }
         WHEN countPickingOrder(o) AND (GROUP SUM 1 IF order(PickingOrder po)==o AND NOT statusPicking(po)==StatusPicking.wait) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(o, Sku sku)<0) THEN {
             MESSAGE 'В заказе были изменения по товару, который находится в комплектации или уже скомплектован: '+ (GROUP CONCAT name(Sku sku) IF diffPlannedPickingQuantity(o, sku)<0, ',\n' ORDER name(sku)) NOWAIT;
             RETURN;
+            CANCEL;
         }
     }
     overCreateUserPickingOrder(o);
@@ -113,6 +119,16 @@ WHEN DROPPED(Order o IS Order) AND PREV(countPickingOrder(o)) DO {
     } ELSE {
         DELETE PickingOrder po WHERE PREV(order(po))==o;
         APPLY;        
+    }
+}
+
+//запрещаем, что бы резервы были синхронными
+WHEN SET(isClosed(Order o)) AND countPickingOrder(o) DO {
+    IF (GROUP SUM 1 IF order(PickingOrder po) == o AND NOT pickings(po)) THEN {
+        MESSAGE 'По заказу есть незавершенные задания на комплектацию (' +
+            (GROUP CONCAT seriesNumber(PickingOrder po) IF (order(po) == o AND NOT pickings(po)), ', ' ORDER seriesNumber(po), po) +
+            '), необходимо их завершить или удалить перед закрытием самого заказа' NOWAIT;
+        CANCEL;
     }
 }
 
@@ -167,7 +183,7 @@ overCreateUserPickingOrder(Order order) + WHEN order IS Order THEN {
 }
 
 showCreateUserPickingOrder = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (Order);
-showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku s));
+showCreateUserPickingOrder(Order order) += isPosted(order) AND (GROUP SUM 1 IF diffPlannedPickingQuantity(order, Sku s)) AND NOT isClosed(order);
 
 EXTEND FORM orders 
     PROPERTIES(o) createUserPickingOrder SHOWIF showCreateUserPickingOrder(o) HEADER headerCreateUserPickingOrder(o)
