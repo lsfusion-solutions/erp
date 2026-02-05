@@ -64,8 +64,7 @@ importContract 'Импорт из контрактов с поставщикам
     idCo(INTEGER r) <- IF lpadId() THEN lpad(STRING(idCompany(r)), lpadId(), '0') ELSE STRING(idCompany(r));
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    currentVersion (INTEGER i) <-  (CONCAT '~', STRING(idDoc(i)), STRING(docDate(i)), STRING(docState(i)), STRING(dateFrom(i)), STRING(dateTo(i)), STRING(clientIndex(i)), 
-                                                STRING(idCompany(i)), STRING(title(i)), STRING(paymentDelay(i)), STRING(isCalendarDelay(i)), STRING(contractType(i)) ) IF idDoc(i);                 
+    
     //  дополняем базу условиями отсрочки
     isBankDays(INTEGER i) <- (CASE WHEN isCalendarDelay(i) = '1' THEN 0 WHEN isCalendarDelay(i) = '0' THEN 0 ELSE NULL) WHERE idDoc(i);    
     FOR [GROUP SUM 1 IF imported(INTEGER i) BY paymentDelay(i), isBankDays(i)](INTEGER d, INTEGER b)  AND NOT paymentPeriod(d, b)  DO NEW p = PaymentCondition {
@@ -103,20 +102,16 @@ importContract 'Импорт из контрактов с поставщикам
         }
     }
 
-    SupermagPricelist.imported(UserPriceList doc) <- NULL IF doc IS UserPriceList;
-    SupermagPricelist.imported(UserPriceListDetail det) <- NULL IF det IS UserPriceListDetail;
-
     // создаем новые ПСЦ
     FOR idDoc(INTEGER i) AND NOT userPriceList(idDoc(i)) DO NEW doc = UserPriceList {  id[UserPriceList](doc) <- idDoc(i);  }
     // обновляем ПСЦ
-    FOR UserPriceList doc == userPriceList(idDoc(INTEGER i)) AND NOT lastVersion(doc) = currentVersion(i) DO {
+    FOR UserPriceList doc == userPriceList(idDoc(INTEGER i))  DO {
         contractTypeInSuperMag(doc) <- contractType(i);
         operation(doc) <- IF contractType(i) == 2 THEN PriceList.operation('supplierPromotion') ELSE PriceList.operation('supplier');
         number(doc) <- ISTRING[28] (docNumber(i));
         date(doc) <- DATE(docDate(i));
         time(doc) <- 00:00;
         isPosted(doc) <- docState(i) = 3; //OR docState(i) = 0;
-        lastStatusSupermag(doc) <- docState(i); 
         fromTime(doc) <- 00:00;
         toDate(doc) <- DATE(dateTo(i));
         contractSku(doc) <- userContractSku(TEXT (idDoc(i)));
@@ -126,8 +121,6 @@ importContract 'Импорт из контрактов с поставщикам
         delayPaymentInSuperMag(doc) <- paymentDelay(i);
         isBankDaysInSuperMag(doc) <- isBankDays(i);
         allStocks(doc) <- NULL;
-        SupermagPricelist.imported(doc) <- TRUE;        
-        lastVersion(doc) <- currentVersion(i);
     }   
 
     overImportSupplierPrice();
@@ -149,6 +142,7 @@ importContract 'Импорт из контрактов с поставщикам
     //загружаем спецификаци    
     LOCAL packSize, minQuantity = NUMERIC[14,3](INTEGER);
     docType(INTEGER i) <- NULL;
+    docNumber(INTEGER i) <- NULL;
 
     EXTERNAL SQL connectionString() 
         EXEC CONCAT '', 'SELECT cc.DOCTYPE, cc.ID, cd.SPECITEM, cd.ARTICLE, cd.packSize, cd.minQuantity, cd.itemPriceNoTax FROM Supermag.SVDocumentsCO cc, Supermag.SVSpecCO cd WHERE cc.doctype=\'CO\' AND cd.docid=cc.id AND cd.doctype=cc.doctype', ' AND ' + filterSql() TO file;
@@ -159,23 +153,25 @@ importContract 'Импорт из контрактов с поставщикам
     minQuantity(INTEGER i) <- NULL WHERE minQuantity(i) < 2;
     
     idDoc(INTEGER i) <- STRING[50](CONCAT '', STRING(docType(i)), STRING(docNumber(i)));
-    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);
-    currentVersion (INTEGER i) <- ( CONCAT '~', STRING(idDet(i)), STRING(idItem(i)), STRING(packSize(i)), STRING(itemPrice(i)), STRING(minQuantity(i)) ) IF idDet(i);                  
+    idDet(INTEGER i) <- STRING[50](CONCAT '~', idDoc(i), specItem(i)) WHERE idDoc(i) AND specItem(i);             
 
     FOR NOT userPriceListDetail(idDet(INTEGER i)) AND userPriceList(idDoc(i)) DO NEW det = UserPriceListDetail {
         SupermagPricelist.id(det) <- idDet(i);
         userPriceList(det) <- userPriceList(idDoc(i));
     }
     
-    FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) AND NOT lastVersion(det) = currentVersion(i) INLINE DO {
+    FOR UserPriceListDetail det = userPriceListDetail(idDet(INTEGER i)) INLINE DO {
         sku(det) <- item(idItem(i));  
         price(det, DataPriceListType t) <- NUMERIC[16,4](itemPrice(i)) WHERE in(userPriceList(det), t);
-        SupermagPricelist.imported(det) <- TRUE;
         dataIndex(det) <- specItem(i);
-        lastVersion(det) <- currentVersion(i);
         MOQ(sku(det)) <- minQuantity(i) WHERE minQuantity(i) AND packSize(i) ;
     }
     
+    FOR id(UserPriceListDetail d) AND (GROUP SUM 1 IF id(userPriceList(d)) == idDoc(INTEGER i)) AND NOT (GROUP SUM 1 IF id(d) == idDet(INTEGER i)) DO {
+        DELETE d;
+    }
+    
+    //
     FOR NUMERIC[14,3] amount = [GROUP MAX (OVERRIDE packSize(INTEGER r), minQuantity(r)) BY item(idItem(r))](Item i) AND NOT packBarcode(i) DO NEW b = Barcode {
         sku(b) <- i;
         dataUOM(b) <- UOMShortName('упак');
