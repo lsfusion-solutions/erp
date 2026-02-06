@@ -2151,6 +2151,10 @@ moveConnItems 'Объединить карточки товаров' (Item item)
                             MESSAGE '<h3>Объединение карточкек товаров</h3>' NOWAIT;
                             MESSAGE message() NOWAIT;
                             APPLY NESTED LOCAL;
+                            
+                            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                                updateItem();
+                            }
                         }
                     }
                
@@ -2165,29 +2169,27 @@ moveDisconnItems 'Разъединить карточки товаров' (Item 
     NEWSESSION NESTED(in[Item]) {
         IF nmID(item) AND imtID(item) THEN {
             DIALOG moveDisConnItems OBJECTS item = item DO {
-                    setHttpHeadersIS();
+                setHttpHeadersIS();
 
-                    LOCAL message = STRING ();
-                    LOCAL response = FILE();
-                    LOCAL error = STRING ();
-                    LOCAL errorText = STRING ();
-                    LOCAL status = STRING ();
-                    errorText(item) <- NULL WHERE error(item);
-                    error(item) <- NULL WHERE error(item);
+                LOCAL message = STRING ();
+                LOCAL response = FILE();
+                LOCAL error = STRING ();
+                LOCAL errorText = STRING ();
+                LOCAL status = STRING ();
+                errorText(item) <- NULL WHERE error(item);
+                error(item) <- NULL WHERE error(item);
 
-                    logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/moveNm');
-
-                    EXPORT JSON FROM 'value' = nmID(Item i) WHERE in(i);
-                    fileToString(exportFile(), 'UTF-8');
-                    stringToFile('\{"nmIDs":' + replace(resultString(), '\n', '') + '\}', 'UTF-8', 'json');
+                logToFile('WB', 'POST: ' + url(CategoryRequest.content) + '/content/v2/cards/moveNm');
+            
+                FOR in(Item i) AND NOT i == item DO {
+                    stringToFile('\{"nmIDs":[' + nmID(i) + ']\}', 'UTF-8', 'json');
 
                     TRY {
                         EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/moveNm' HEADERS httpHeaders PARAMS resultFile() TO response;
                         fileToString(response());
                         logToFile('WB', resultString());
                         IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                            imtID(Item i) <- NULL WHERE in(i);
-                            in(Item i) <- NULL WHERE in(i);
+                            in(i) <- NULL;
                             message() <- messageStatusHTTP(STRING(statusHttp()));
                         }
                     } CATCH {
@@ -2205,13 +2207,10 @@ moveDisconnItems 'Разъединить карточки товаров' (Item 
                         MESSAGE '<h3>Разъединение карточкек товаров</h3>' NOWAIT;
                         MESSAGE message() NOWAIT;
                         APPLY NESTED LOCAL;
-                        LOCAL NESTED status200 = BOOLEAN ();
-                        status200() <- TRUE IF statusHttp() >= 200 AND statusHttp() < 300;
-                        IF status200() THEN {
-                            postItems(); // получаем новые imtID для разъединенных карточек товаров
-                        }
-                        status200() <- NULL; 
                     }
+                }
+                in(item) <- NULL;
+                postItems(); // получаем новые imtID для разъединенных карточек товаров
             }
         } ELSE {
             MESSAGE 'У товара нет кода или артикула WB. Для разъединения получите их через \'Получить список карточек товаров\'' NOWAIT;
