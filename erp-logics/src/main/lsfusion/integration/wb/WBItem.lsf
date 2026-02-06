@@ -1255,6 +1255,9 @@ checkErrors 'Получение ошибок' () {
     }
 }
 
+toUpdateWB = DATA BOOLEAN (Item);
+skipUpdateWB = DATA LOCAL BOOLEAN (Item);
+
 postItems 'Получить список карточек товаров' () {
     NEWSESSION {
         setHttpHeadersIS();
@@ -1347,6 +1350,9 @@ postItems 'Получить список карточек товаров' () {
                             ELSE {
                             value[Item, AttributeString](item, as) <- value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                         }
+
+                    toUpdateWB(item) <- NULL;
+                    skipUpdateWB(item) <- TRUE;
                 }
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
@@ -1889,12 +1895,10 @@ DESIGN masterData {
     }
 }
 
-toUpdateWB = DATA BOOLEAN (Item);
-
 WHEN (CHANGED(imtID(Item i)) OR CHANGED(name(i)) OR CHANGED(description(i)) OR CHANGED(width(i)) OR 
     CHANGED(height(i)) OR CHANGED(length(i)) OR CHANGED(weightBrutto(i)) OR (GROUP SUM 1 IF CHANGED(value(i, Attribute a))) OR
     (GROUP SUM 1 IF itemWB(Size s) == i AND (CHANGED(chrtID(s)) OR CHANGED(techSize(s)) OR CHANGED(wbSize(s)) OR CHANGED(skus(s)))) OR
-    (GROUP SUM 1 IF SET(itemWB(Size s) == i))) AND PREV(imtID(i)) AND id(i) AND nmID(i) AND imtID(i) DO {
+    (GROUP SUM 1 IF SET(itemWB(Size s) == i))) AND PREV(imtID(i)) AND id(i) AND nmID(i) AND imtID(i) AND NOT skipUpdateWB(i) DO {
         toUpdateWB(i) <- TRUE;
 }
 
@@ -2136,6 +2140,7 @@ moveConnItems 'Объединить карточки товаров' (Item item)
                             logToFile('WB', resultString());
                             IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
                                 imtID(Item i) <- imtID(item) WHERE in(i);
+                                skipUpdateWB(Item i) <- TRUE WHERE in(i);
                                 in(Item i) <- NULL WHERE in(i);
                                 message() <- messageStatusHTTP(STRING(statusHttp()));
                             }
@@ -2154,9 +2159,9 @@ moveConnItems 'Объединить карточки товаров' (Item item)
                             MESSAGE message() NOWAIT;
                             APPLY NESTED LOCAL;
                             
-                            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                                updateItem();
-                            }
+//                            IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+//                                updateItem();
+//                            }
                         }
                     }
                
