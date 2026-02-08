@@ -1,0 +1,80 @@
+MODULE CTT;
+
+REQUIRE TopBy;
+
+CLASS Profile 'Профиль';
+TABLE profile(Profile);
+
+login 'Логин' = DATA STRING[100] (Profile);
+password 'Пароль СТТ' = DATA STRING[100] (Profile) ECHO;
+isTest 'Тестовый контур' = DATA BOOLEAN (Profile);
+newApiEOrder 'Использовать API для заказов' = DATA BOOLEAN (LegalEntity);
+
+url(Profile p) = IF isTest(p) THEN 'https://edi-pub.ctt.by/api/v1/' ELSE 'https://edi.ctt.by/api/v1/';
+
+authenticate 'Авторизация' (Profile p) {
+    TRY {
+        EXPORT JSON FROM username = login(p), password(p);
+        token() <- NULL;
+        sendRequestEDI(url(p) + 'authentication/authenticate', exportFile());
+
+        IMPORT JSON FROM sendRequestEDIResponse() TO () token = uuid;
+    } CATCH {
+        LOCAL error = STRING ();
+        IMPORT JSON FROM sendRequestEDIResponse() TO () error;
+
+        logToFile('edi', CONCAT '\n', 'CTT' + ' (' + login(p) + ') Authenticate error:', error(), messageCaughtException(), lsfStackTraceCaughtException());
+        MESSAGE 'Ошибка авторизации' + (OVERRIDE '(' + error() + ')', '') + '. Проверьте логин и пароль.'NOWAIT;
+    }
+}
+
+FORM profile 'Профиль пользователя СТТ'
+    OBJECTS p = Profile PANEL
+    PROPERTIES (p) login, password, isTest, url
+
+    EDIT Profile OBJECT p
+;
+
+DESIGN profile {
+    GROUP (, p) {
+        lines = 1;
+        horizontal = TRUE;
+    }
+}
+
+FORM profiles 'Профили пользователей СТТ'
+    OBJECTS p = Profile
+    PROPERTIES (p) READONLY login, url
+    PROPERTIES (p) NEWSESSION NEW, EDIT, DELETE
+
+    LIST Profile OBJECT p
+;
+
+profile = DATA Profile (LegalEntity);
+loginProfile 'Логин API СТТ'(LegalEntity l) = login(profile(l));
+roseuUrlStt 'URL для ROSEU' = DATA STRING ();
+blrdocUrlStt 'URL для BLRDOC' = DATA STRING ();
+
+EXTEND FORM integrationData
+    PROPERTIES (let) loginProfile
+    PROPERTIES () roseuUrlStt, blrdocUrlStt
+;
+
+DESIGN integrationData {
+    col1TopBy {
+        NEW urls {
+            caption = 'URL';
+            MOVE PROPERTY (roseuUrlStt());
+            MOVE PROPERTY (blrdocUrlStt());
+        }
+    }
+}
+
+importRequestResult (FILE json, INTEGER status) {
+    IF NOT status == 200 THEN {
+        IMPORT JSON FROM json TO() requestError = error;
+        IF status = 401 THEN requestError() <- 'Не пройдена авторизация';
+    } ELSE {
+        requestError() <- NULL;
+    }
+}

@@ -23,3 +23,59 @@ sendRequestEDSSender(STRING[100] provider, EDocument d, FILE file) {
 sendRequestEDSReceiver(STRING[100] provider, EDocument d, FILE file) {
     sendRequestEDI('eds', 'eds', ('http://' + host(EDSServiceReceiver(provider,d)) + ':' + port(EDSServiceReceiver(provider,d)) + '/eds/services/EDSService?wsdl'), file, TRUE, client(EDSServiceReceiver(provider,d)));
 }
+
+getSignedDocumentSender(STRING[100] provider, EDocument ed, FILE file, BOOLEAN interactive) + {
+    IF useV2(receiver(ed)) THEN {
+        LOCAL EDSService = EDSService ();
+        LOCAL isAutoApn = BOOLEAN ();
+        IF NOT disableAutoBlrapn() AND EDSServiceTopBy(sender(ed)) AND NOT interactive THEN {
+            //если включено авто подтверждение то подписываем ключом организации
+            EDSService() <- EDSServiceTopBy(sender(ed));
+            isAutoApn() <- TRUE;
+        } ELSE {
+            EDSService() <- EDSServiceSender(provider, ed);
+        }
+        IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
+            IF aliasEDSServiceSender(ed) AND (OVERRIDE passwordEDSService(), passwordEDSServiceSender(ed)) THEN {
+                keyID() <- IF isAutoApn() THEN aliasEDSService(sender(ed)) ELSE aliasEDSServiceSender(ed);
+                password() <- IF isAutoApn() THEN passwordEDSService(sender(ed)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceSender(ed));
+                fileToString(file);
+                sign(resultString(), EDSServiceSender(provider, ed));
+            } ELSE {
+                IF interactive THEN {
+                    MESSAGE provider + ' Документ ' + documentID(ed) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+                }
+                logToFile('edi', provider + ' error: Alias or Password for key not found');
+            }
+            RETURN;
+        }
+    }
+}
+
+getSignedDocumentReceiver(STRING[100] provider, EDocument ed, FILE file, BOOLEAN interactive) + {
+    IF useV2(sender(ed)) THEN {
+        LOCAL EDSService = EDSService ();
+        LOCAL isAutoApn = BOOLEAN ();
+        IF NOT disableAutoBlrapn() AND EDSServiceTopBy(receiver(ed)) AND NOT interactive THEN {
+            //если включено авто подтверждение то подписываем ключом организации
+            EDSService() <- EDSServiceTopBy(receiver(ed));
+            isAutoApn() <- TRUE;
+        } ELSE {
+            EDSService() <- EDSServiceReceiver(provider, ed);
+        }
+        IF edsApplication(EDSService()) == EDSApplication.sccp THEN {
+            IF aliasEDSServiceReceiver(ed) AND (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(ed)) THEN {
+                keyID() <- IF isAutoApn() THEN aliasEDSService(receiver(ed)) ELSE aliasEDSServiceReceiver(ed);
+                password() <- IF isAutoApn() THEN passwordEDSService(receiver(ed)) ELSE (OVERRIDE passwordEDSService(), passwordEDSServiceReceiver(ed));
+                fileToString(file);
+                sign(resultString(), EDSServiceReceiver(provider, ed));
+            } ELSE {
+                IF interactive THEN {
+                    MESSAGE provider + ' Документ ' + documentID(ed) + ' не подписан: Alias или Пароль ключа не задан' NOWAIT;
+                }
+                logToFile('edi', provider + ' error: Alias or Password for key not found');
+            }
+            RETURN;
+        }
+    }
+}

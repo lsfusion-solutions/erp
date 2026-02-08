@@ -88,6 +88,47 @@ id (EDocumentRoute r) = CASE
 route 'Маршрут документа' = DATA EDocumentRoute (EDocument);
 nameRoute 'Маршрут документа' (EDocument d) = staticCaption(route(d)) CHARWIDTH 30;
 idRoute 'Маршрут документа' (EDocument d) = id(route(d));
+eDocumentRoute (STRING s) = CASE
+    WHEN s == '0' THEN EDocumentRoute.route0
+    WHEN s == '1' THEN EDocumentRoute.route1
+    WHEN s == '2' THEN EDocumentRoute.route2;
+
+CLASS EDocumentFunctionCode {
+    code3 'Аннулирование',
+    code5 'Изменение',
+    code9 'Оригинал'
+}
+
+id (EDocumentFunctionCode c) = CASE
+    WHEN c == EDocumentFunctionCode.code3 THEN '3'
+    WHEN c == EDocumentFunctionCode.code5 THEN '5'
+    WHEN c == EDocumentFunctionCode.code9 THEN '9'
+;
+
+functionCode = DATA EDocumentFunctionCode (EDocument);
+nameFunctionCode 'Функциональный код' (EDocument d) = staticCaption(functionCode(d)) CHARWIDTH 30;
+idFunctionCode (EDocument d) = id(functionCode(d));
+eDocumentFunctionCode (STRING s) = CASE
+    WHEN s == '3' THEN EDocumentFunctionCode.code3
+    WHEN s == '5' THEN EDocumentFunctionCode.code5
+    WHEN s == '9' THEN EDocumentFunctionCode.code9;
+
+CLASS EDocumentType {
+    act 'Акт',
+    contract 'Договор',
+    add_contract 'Доп. соглашение',
+    change 'Изменение',
+    other 'Иной документ',
+    original 'Оригинал',
+    report 'Отчет',
+    notice 'Уведомление',
+    quality_certificate 'Удостоверение качества'
+}
+
+eDocumentType = DATA EDocumentType (EDocument);
+nameDocumentType 'Наименование типа документа' (EDocument d) = staticCaption(eDocumentType(d)) CHARWIDTH 30;
+codeDocumentType 'Код типа документа' (EDocument d) = STRING[100](upper(rtrim(getWord(staticName(eDocumentType(d)), '.', 2), '_')));
+eDocumentType = GROUP MAX EDocumentType edt BY STRING[100](upper(rtrim(getWord(staticName(edt), '.', 2), '_')));
 
 FORM dialogEDocument 'Выбор электронного документа'
     OBJECTS d = EDocument
@@ -95,6 +136,10 @@ FORM dialogEDocument 'Выбор электронного документа'
     
     LIST EDocument OBJECT d
 ;
+
+typeFile 'Тип файла' = DATA STRING[6] (EDocument);
+fileAddedToDraft 'Файл добавлен в черновик (отправитель)' = DATA BOOLEAN (EDocument);
+signedBySender 'Подписан отправителем' = DATA BOOLEAN (EDocument);
 //-----------------------------------------Электронный документ со строками------------------------------------//
 CLASS EDocumentDetail 'Строка электронного документа';
 TABLE eDocumentDetail(EDocumentDetail);
@@ -142,12 +187,15 @@ EXTEND CLASS EInvoiceMessageType {
 type 'Тип' = DATA EInvoiceMessageType (EDocumentMessage);
 nameType 'Тип' (EDocumentMessage m) = staticCaption(type(m));
 
+showV2 (EDocument d) = useV2(sender(d)) OR useV2(receiver(d));
+
 FORM eDocuments 'Электронные документы EDI'
     OBJECTS d = EDocument LAST
     PROPERTIES(d) in
     PROPERTIES(d) READONLYIF isReadonly() isCancel//, isTest
     PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, 
                   dateTimeCreated,documentID, creationDateTime, nameRoute, name, nameFileSender, nameFileReceiver
+    PROPERTIES (d) READONLY nameFunctionCode, nameDocumentType, typeFile
     FILTERGROUP notExported
 
     OBJECTS md = EDocumentDetail
@@ -191,9 +239,11 @@ NAVIGATOR {
 }
 
 FORM eDocument 'Электронный документ EDI'
-    OBJECTS d = EDocument PANEL 
-    PROPERTIES(d) BACKGROUND background(d) number, date, type, dateTimeCreated, glnSender, nameSender, glnReceiver, nameReceiver,
+    OBJECTS d = EDocument PANEL
+    PROPERTIES(d) BACKGROUND background(d) number, date, type SHOWIF NOT showV2(d), dateTimeCreated, glnSender, nameSender, glnReceiver, nameReceiver,
                   nameRoute, name, nameFileSender, nameFileReceiver
+    PROPERTIES (d) SHOWIF showV2(d) nameDocumentType AFTER type(d), nameFunctionCode AFTER type(d), typeFile 
+    
     OBJECTS md = EDocumentDetail
     PROPERTIES(md) READONLY lineNumber, senderItemCode, senderItemDescription, invoiceQuantity, lineItemUnitPriceWithoutTax,
                    senderUnitOfMeasure, taxRate, lineItemCostWithoutTax, lineItemCostWithTax
@@ -220,6 +270,7 @@ addEDocument 'Загрузить документ' () {
         INPUT f = FILE DO NEW d = EDocument {
             file(d) <- RAWFILE(f);
             name(d) <- STRING[255]('document.' + extension(f));
+            typeFile(d) <- STRING[6](extension(f));
             SHOW eDocument OBJECTS d = d DOCKED;
         }
     }
@@ -268,6 +319,7 @@ signAndSendSenderEDI 'Подписать и отправить (отправит
         MESSAGE 'Не выбрано ни одного документа';
 }
 
+signAndSendSenderCancel 'Подписать и отправить отмену (отправитель)' ABSTRACT LIST (EDocument);
 signAndSendSenderCancelEDI 'Подписать и отправить отмену (отправитель)'() {
     IF askPasswordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
@@ -276,7 +328,7 @@ signAndSendSenderCancelEDI 'Подписать и отправить отмен�
         IF EDIProviderDocument(receiver(d), sender(d)) THEN {
             exportedSender(d) <- NULL WHERE exportedSender(d) AND NOT isCancel(d); //если оригинал отправлялся а отмена нет то нужно разрешить отправить отмену
             isCancel(d) <- TRUE;
-            signAndSendSender(d);
+            signAndSendSenderCancel(d);
         } ELSE
             MESSAGE 'Не выбран EDI провайдер для документа: ' + (OVERRIDE documentID(d), number(d), '');
         in(d) <- NULL;
@@ -307,7 +359,7 @@ signAndSendReceiverEDI 'Подписать и отправить (получат
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
-    FOR in(EDocument d) AND xmlFile(d) DO {
+    FOR in(EDocument d) AND (xmlFile(d) OR useV2(receiver(d))) DO {
         IF EDIProviderDocument(sender(d), receiver(d)) THEN
             signAndSendReceiver(d);
         ELSE
