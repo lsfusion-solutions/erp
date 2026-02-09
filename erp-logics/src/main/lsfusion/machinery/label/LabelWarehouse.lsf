@@ -1,0 +1,585 @@
+MODULE LabelWarehouse;
+
+REQUIRE Label, Warehouse;
+
+NAMESPACE Label;
+
+// -------------------- Добавление складов в типы ценников -------------------- //
+
+TABLE labelTypeWarehouseGroup (LabelType, WarehouseGroup);
+TABLE labelTypeWarehouse (LabelType, Warehouse);
+
+inWarehouses 'Вкл.' = DATA BOOLEAN (LabelType);
+inWarehouses(LabelType labelType) <- TRUE WHEN SET(labelType IS LabelType);
+
+inData 'Вкл.' = DATA BOOLEAN (LabelType, WarehouseGroup);
+in 'Вкл.' (LabelType labelType, WarehouseGroup warehouseGroup) =
+    OVERRIDE inData(labelType, warehouseGroup), inData(labelType, parent(warehouseGroup)), inWarehouses(labelType) AND warehouseGroup IS WarehouseGroup;
+inData 'Вкл.' = DATA BOOLEAN (LabelType, Warehouse);
+in 'Вкл.' (LabelType labelType, Warehouse warehouse) = IF isCompany(warehouse) THEN
+    (OVERRIDE inData(labelType, warehouse), in(labelType, warehouseGroup(warehouse)));
+
+EXTEND FORM labelType
+    TREE warehouseTree b = BPSTRING[3], wg = WarehouseGroup PARENT parent(wg)
+    PROPERTIES READONLY VALUE(b), wgTreeName = name(wg)
+    ORDERS wgTreeName
+    FILTERS stringEqualsAll(b)
+
+    OBJECTS w = Warehouse
+    PROPERTIES(w) READONLY name
+    FILTERS isCompany(w)
+
+    PROPERTIES(l) DRAW b inWarehouses
+    PROPERTIES in(l,wg), in(l,w)
+;
+
+DESIGN labelType {
+    specification {
+        departmentCase { caption = 'Магазины'; }
+        NEW warehouseCase AFTER departmentCase {
+            caption = 'Склады';
+            horizontal = TRUE;
+            MOVE BOX(TREE warehouseTree);
+            MOVE BOX(w) { fill = 2; }
+        }
+    }
+}
+
+// -------------------- Добавление складов в печати ценников -------------------- //
+
+select = DATA LOCAL BOOLEAN (Sku, LabelType, Warehouse);
+warehouse 'Склад' = DATA Warehouse (LabelTransaction);
+nameWarehouse 'Склад' (LabelTransaction transaction) = name(warehouse(transaction)) IN id;
+warehouse 'Склад' (LabelTransactionDetail detail) = warehouse(labelTransaction(detail)) IN id;
+
+stock = ABSTRACT Stock (LabelTransaction);
+stock (LabelTransaction transaction) += OVERRIDE departmentStore(transaction), warehouse(transaction);
+nameStock 'Склад' (LabelTransaction transaction) = name(stock(transaction)) IN id;
+addressStock 'Адрес склада' (LabelTransaction transaction) = address(stock(transaction));
+
+changeStockLabelTransaction 'Выбор склада' (LabelTransaction transaction) {
+    DIALOG companysStock OBJECTS s INPUT DO {
+        IF s IS DepartmentStore THEN {
+            departmentStore(transaction) <- s;
+            warehouse(transaction) <- NULL WHERE warehouse(transaction);
+        }
+        IF s IS Warehouse THEN {
+            warehouse(transaction) <- s;
+            departmentStore(transaction) <- NULL WHERE departmentStore(transaction);
+        }
+    }
+} ASON CHANGE nameStock[LabelTransaction];
+
+currentBalanceStock 'Остаток' (Sku sku, LabelTransaction labelTransaction) =
+    currentBalance(sku, stock(labelTransaction));
+prevCurrentBalanceStock 'Остаток' (Sku sku, LabelTransaction labelTransaction) =
+    prevCurrentBalance(sku, stock(labelTransaction));
+allQuantityStock 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, LabelTransaction);
+changeAllQuantityStock(Sku sku, LabelTransaction labelTransaction)  {
+    INPUT b = BOOLEAN DO {
+        allQuantity (sku, labelTransaction) <- b;
+        changeQuantityValue(sku, labelTransaction, prevCurrentBalanceStock(sku, labelTransaction) IF b);
+    }
+}
+priceStock 'Цена' (Sku sku, LabelTransaction labelTransaction) =
+    prevPriceB(priceListType(labelType(labelTransaction)), sku, stock(labelTransaction), dateTime(labelTransaction));
+
+FORM labelTypesDialogStock 'Доступные типы ценников'
+    OBJECTS s = Stock  PANEL
+    FILTERS isCompany(s)
+
+    OBJECTS l = LabelType
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice, notPrintNetItem
+    FILTERS in[LabelType, Warehouse](l,s) AND s IS Warehouse OR in[LabelType, DepartmentStore](l,s) AND s IS DepartmentStore
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
+;
+
+changeLabelTypeStock(LabelTransaction t)   {
+    DIALOG labelTypesDialogStock OBJECTS s = stock(t), l = labelType(t) INPUT NULL DO
+        labelType(t) <- l;
+}
+
+EXTEND FORM customLabelTransaction
+    PROPERTIES(l) nameLabelTypeStock = nameLabelType ON CHANGE changeLabelTypeStock(l) FIRST
+    PROPERTIES(l) ON CHANGE changeStockLabelTransaction(l) nameStock, addressStock
+    
+    PROPERTIES(ks, l) prevCurrentBalanceStock,
+        allQuantityStock ON CHANGE changeAllQuantityStock(ks, l),
+        priceStock BACKGROUND backgroundViewPrice(ks, l)
+    FILTERGROUP filterStock
+        FILTER 'С остатком' currentBalanceStock(ks, l) 'F10' DEFAULT
+        FILTER 'В документе' quantityLabelTransactionDetail(ks, l) 'F9'
+;
+@extendFormFilterAccessStockNoNull(LabelType,l, customLabelTransaction, stock, company);
+
+DESIGN customLabelTransaction {
+    REMOVE FILTERGROUP(filter);
+    REMOVE PROPERTY(nameLabelType(l));
+    REMOVE PROPERTY(nameDepartmentStore(l));
+    REMOVE PROPERTY(addressStore(l));
+    REMOVE PROPERTY(prevCurrentBalance(ks, l));
+    REMOVE PROPERTY(allQuantity(ks, l));
+    REMOVE PROPERTY(price(ks, l));
+}
+
+labelTransactionsStock 'Склад' = DATA LOCAL Stock ();
+nameLabelTransactionsStock 'Наименование склада' = name(labelTransactionsStock());
+
+changeLabelTransactionsStock 'Выбор склада' () {
+    DIALOG companysStock OBJECTS s = labelTransactionsStock() INPUT DO {
+        labelTransactionsStock() <- s;
+    }
+} ASON CHANGE nameLabelTransactionsStock[];
+
+customFilterLabelTransactions(LabelTransaction transaction) += stock(transaction) == labelTransactionsStock();
+
+useCustomFilterLabelTransactions() += TRUE;
+
+addLabelTransactionStock 'Добавить' (Stock stock) {
+    NEWSESSION {
+        NEW l = LabelTransaction {
+            stock(l) <- stock;
+            DIALOG customLabelTransaction OBJECTS l = l DOCKED NOCANCEL DO {
+                print(l);
+            }
+        }
+    }
+} TOOLBAR IMAGE 'add.png';
+
+addLabelTransactionStock 'Добавить' () { addLabelTransactionStock(labelTransactionsStock()); } TOOLBAR IMAGE 'add.png';
+
+EXTEND FORM labelTransactions
+    PROPERTIES() nameLabelTransactionsStock ON CHANGE changeLabelTransactionsStock()
+    PROPERTIES addLabelTransactionStock() DRAW l FIRST
+;
+@extendFormFilterAccessStockNoNull(LabelType,l, customLabelTransaction, stock, company);
+
+DESIGN labelTransactions {
+    REMOVE BOX(d);
+    REMOVE PROPERTY(addLabelTransaction(d));
+    header {
+        NEW headerStock {
+            caption = 'Склад';
+            MOVE PROPERTY(nameLabelTransactionsStock());
+        }
+    }
+}
+
+// -------------------- Печать ценников на складе -------------------- //
+
+inPrint (LabelType labelType, Sku sku) = in(labelType, sku) AND NOT exclude(labelType, sku);
+
+calcPriceWarehouse (PriceListType pt, LabelTransactionDetail d) =
+    IF  batch(d) THEN
+        prevPriceA(pt, batch(d), warehouse(d), dateTime(d))
+    ELSE
+        prevPriceA(pt, sku(d), warehouse(d), dateTime(d));
+
+createWarehouseLabelTransaction 'Распечатать ценники (склад)' (Warehouse warehouse) {
+    // бежим по всем типам ценников из управленческих параметров
+    // для каждого создаем по операции печати ценников
+    FOR [ GROUP SUM 1 IF select(Sku s, LabelType l, warehouse) AND NOT exclude(l,s) AND in(l, warehouse) BY l](LabelType labelType) NEW t = LabelTransaction DO {
+        warehouse(t) <- warehouse;
+        labelType(t) <- labelType;
+        addedTransaction() <- t;
+        priceListType(t) <- localPriceListType() WHERE localPriceListType();
+
+        inLabel (Sku sku) <- select(sku, labelType, warehouse) AND NOT exclude(labelType,sku);
+        overCreateLabelTransaction(t);
+
+        FOR inLabel(sku(Batch b)) AND PriceListType pt == overPriceListType(t) AND currentBalance(b, warehouse) NOINLINE (pt) INLINE NEW d = LabelTransactionDetail DO {
+
+            labelTransaction(d) <- t;
+            sku(d) <- sku(b);
+            batch(d) <- b;
+
+            name(d) <- name(sku(d));
+            createAttribute(d);
+
+            quantity(d) <-  OVERRIDE overQuantityPrint(sku(d)),
+                (IF include(labelType, sku(d)) THEN INTEGER(currentBalance(b, warehouse))
+                    ELSE count(labelType, sku(d)));
+
+            price(d) <- OVERRIDE documentPrice(d), calcPriceWarehouse(pt, d);
+            retailPrice(d) <- overRetailPrice(d);
+        }
+        overCreate(t);
+        // вызываем печатную форму для каждого из них       
+
+        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+        IF notCheckEqualRetailPrice() THEN
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+        ELSE
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+
+        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+        print(t);
+    }
+} TOOLBAR;
+
+createSelectedSkuWarehouseLabelTransaction 'Распечатать ценники (склад)'()  {
+    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+        NEWSESSION NESTED (select[Sku,Stock]) {
+            FOR [GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Warehouse stock) AND stock IS Warehouse DO {
+                select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND inPrint(labelType, sku);
+                createWarehouseLabelTransaction(stock);
+            }
+            apply();
+        }
+        IF NOT notResetLabelSelectSku() THEN {
+            select(Sku sku, Stock stock) <- NULL;
+        }
+    }
+} TOOLBAR;
+
+changeWarehouse 'Изменить данные' = DATA LOCAL BOOLEAN (Warehouse);
+countLabel 'Количество ценников' = DATA LOCAL INTEGER (Warehouse);
+
+FORM selectWarehouseLabelTypes 'Доступные типы ценников (склад)'
+    OBJECTS w = Warehouse PANEL
+    PROPERTIES(w) changeWarehouse
+    FILTERS isCompany(w)
+
+    OBJECTS l = LabelType GRID
+    PROPERTIES(l) select
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate,
+        namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice, notPrintNetItem
+    FILTERS in(l, w)
+    FILTERGROUP inactive FILTER 'Активные' active(l) 'F10' DEFAULT
+;
+
+createSnapshotLabelTransactionWarehouse 'Перепечатать ценники (склад)' (Warehouse warehouse, LabelType labelType) {
+    NEW t = LabelTransaction {
+        warehouse(t) <- warehouse;
+        labelType(t) <- labelType;
+        addedTransaction() <- t;
+        priceListType(t) <- localPriceListType() WHERE localPriceListType();
+
+        inLabel (Sku sku) <- select(sku) AND NOT exclude(labelType,sku);
+        overCreateLabelTransaction(t);
+
+        FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+            FOR inLabel(sku(Batch b)) AND currentBalance(b, warehouse) ORDER nameSkuGroup2(sku(b)), nameSkuGroup3(sku(b)), nameSkuGroup4(sku(b)), name(sku(b)) INLINE NEW d = LabelTransactionDetail DO {
+                labelTransaction(d) <- t;
+                sku(d) <- sku(b);
+                batch(d) <- b;
+                name(d) <- name(sku(d));
+                documentQuantity(d) <- NUMERIC[14,3](currentBalance(b, warehouse));
+
+                createAttribute(d);
+
+
+                price(d) <- OVERRIDE documentPrice(d), calcPriceWarehouse(pt, d);
+                retailPrice(d) <- overRetailPrice(d);
+
+                quantity(d) <- IF NOT countLabel(warehouse)
+                    THEN (IF include(labelType(d), sku(d))
+                        THEN INTEGER(documentQuantity(d))
+                        ELSE count(labelType(d), sku(d)))
+                    ELSE countLabel(warehouse);
+            }
+        }
+        overCreate(t);
+        IF changeWarehouse(warehouse) THEN {
+            LOCAL printed = BOOLEAN();
+            printed() <- NULL;
+            DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {
+                print(t);
+                printed() <- TRUE;
+            }
+            IF NOT printed() THEN {
+                cancel();
+            }
+        } ELSE {
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+            IF notCheckEqualRetailPrice() THEN
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+            ELSE
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d)  AND NOT skipDelete(d);
+
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+            print(t);
+        }
+    }
+} TOOLBAR ;
+
+createSelectedSkuWarehouseSnapshotLabelTransaction 'Перепечатать ценники (склад)'()  {
+    IF (GROUP SUM 1 IF select(Sku sku, Stock stock)) THEN {
+        NEWSESSION NESTED (select[Sku,Stock]) {
+
+            FOR [ GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Warehouse stock) AND stock IS Warehouse DO {
+                DIALOG selectWarehouseLabelTypes OBJECTS l INPUT NOMANAGESESSION DO {
+                    select(Sku sku) <- select(sku, stock);
+                    IF NOT countSelectType() THEN {
+                        select(l) <- TRUE;
+                    }
+                    FOR select(LabelType type) DO {
+                        createSnapshotLabelTransactionWarehouse(stock, type);
+                    }
+                }
+            }
+            APPLY;
+        }
+        IF NOT notResetLabelSelectSku() THEN {
+            select(Sku sku, Stock stock) <- NULL;
+        }
+    }
+} TOOLBAR;
+
+EXTEND  FORM currentBalanceSkuStock
+    PROPERTIES() DRAW sts createSelectedSkuWarehouseLabelTransaction, createSelectedSkuWarehouseSnapshotLabelTransaction
+;
+
+DESIGN currentBalanceSkuStock{
+    labelContainer {
+        PROPERTY(createSelectedSkuStockLabelTransaction()) { showIf = st IS DepartmentStore; }
+        PROPERTY(createSelectedSkuStockSnapshotLabelTransaction()) { showIf = st IS DepartmentStore; }
+        MOVE PROPERTY(createSelectedSkuWarehouseLabelTransaction()) { showIf = st IS Warehouse; }
+        MOVE PROPERTY(createSelectedSkuWarehouseSnapshotLabelTransaction()) { showIf = st IS Warehouse; }
+    }
+}
+
+// -------------------- Подключение печати ценников склада в документ -------------------- //
+
+over = ABSTRACT VALUE BOOLEAN (LabelType, Sku, Warehouse);
+skip = ABSTRACT VALUE BOOLEAN (LabelType, Sku, Warehouse);
+in (LabelType labelType, Sku sku, Warehouse warehouse) = ((in(labelType, sku)
+    AND in(labelType, warehouse)) AND NOT skip(labelType, sku, warehouse)) OR over(labelType, sku, warehouse);
+inPrint(LabelType labelType, Sku sku, Warehouse warehouse)  = in(labelType, sku, warehouse) AND NOT exclude(labelType, sku);
+
+META defineDocumentWarehouseLabelTransaction (document, cls, detailProp, skuProp, batchProp, stockProp, prefix)
+    createWarehouseLabelTransactionParam (cls document)  {
+        // бежим по всем типам ценников из управленческих параметров
+        // для каждого создаем по операции печати ценников
+        FOR Warehouse warehouse == stockProp(document) NOINLINE DO {
+            select(###skuProp sku, LabelType labelType, warehouse) <- inLabel(sku) AND inPrint(labelType, sku, warehouse);
+        }
+
+        FOR [GROUP SUM 1 IF select[Sku, LabelType, Warehouse](Sku s, LabelType l, stockProp(document)) BY l](LabelType labelType) ORDER labelType
+            NEW t = LabelTransaction DO {
+            warehouse(t) <- stockProp(document);
+            priceTransactionDocument(t) <- document;
+            labelType(t) <- labelType;
+
+            overCreateLabelTransaction(t);
+
+            LOCAL lastPriceLabel = NUMERIC[16,4] (LabelTransactionDetail);
+
+            FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+                FOR document(###detailProp##Detail dd) == document AND
+                    select[Sku, LabelType, Warehouse](skuProp(dd), labelType, stockProp(document)) ORDER index(dd), dd INLINE
+                    NEW d = LabelTransactionDetail DO {
+
+                    IF notChangePrintPrice(t) THEN {
+                        lastPriceLabel(d) <- NUMERIC[16,4](prevPriceLabelTransactionDetail(skuProp(dd), departmentStore(t)));
+                    }
+                    labelTransaction(d) <- t;
+                    skuProp(d) <- skuProp(dd);
+                    batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+                    name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                    createAttribute(d);
+
+                    quantity(d) <- IF include(labelType, skuProp(d))
+                        THEN INTEGER(prefix###quantity(dd))
+                        ELSE count(labelType, skuProp(d));
+
+                    price(d) <- OVERRIDE documentPrice(d), calcPriceWarehouse(pt, d);
+                    IF notChangePrintPrice(t) THEN {
+                        DELETE d WHERE price(d) == lastPriceLabel(d) AND NOT skipNotChangePrintPrice(d);
+                    }
+                    retailPrice(d) <- overRetailPrice(d);
+                    createAttribute(dd, d);
+                }
+            }
+            overCreateDocumentLabelTransaction(t);
+
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+            IF notCheckEqualRetailPrice() THEN
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+            ELSE
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+
+            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+            IF [GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t) THEN {
+                Label.ok() <- TRUE;
+                print(t);
+            } ELSE {
+                DELETE t WHERE t IS LabelTransaction;
+            }
+        }
+    };
+
+    createWarehouseLabelTransaction 'Распечатать ценники (склад)'(cls document)  {
+        IF document IS cls THEN {
+            IF printExistingPrice(labelTransaction(document)) THEN {
+                FOR LabelTransaction t == labelTransaction(document, LabelType type) DO {
+                    print(t);
+                }
+                printed(document) <- TRUE WHERE isPosted(document);
+                APPLY;
+            } ELSE {
+                NEWSESSION {
+                    ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {
+                        Label.ok() <- NULL;
+                        inLabel(###skuProp sku) <- NULL;
+                        inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                        createWarehouseLabelTransactionParam(document);
+                        printed(document) <- TRUE WHERE isPosted(document);
+                        APPLY;
+                        IF NOT Label.ok() THEN {
+                            MESSAGE 'В данном документе нет подходящих товаров для печати ценников.';
+                        }
+                    }
+                }
+            }
+        }
+    } TOOLBAR CONFIRM;
+
+    createSnapshotWarehouseLabelTransactionParam (cls document)  {
+        DIALOG selectWarehouseLabelTypes OBJECTS w = stockProp(document), l INPUT NOMANAGESESSION DO {
+            IF NOT countSelectType() THEN {
+                select(l) <- TRUE;
+            }
+            FOR select(LabelType type) NEW t = LabelTransaction DO {
+                warehouse(t) <- stockProp(document);
+                priceTransactionDocument(t) <- document;
+                labelType(t) <- type;
+
+                overCreateLabelTransaction(t);
+
+                FOR PriceListType pt == overPriceListType(t) NOINLINE DO {
+                    FOR document(###detailProp##Detail dd) == document AND inLabel(skuProp(dd))
+                        AND NOT exclude(type, skuProp(dd)) ORDER overIndex(dd), index(dd), dd INLINE
+                        NEW d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        skuProp(d) <- skuProp(dd);
+                        batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
+
+                        name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                        documentQuantity(d) <- NUMERIC[14,3](prefix###quantity(dd));
+
+                        createAttribute(d);
+                        price(d) <- OVERRIDE documentPrice(d), calcPriceWarehouse(pt, d);
+                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);
+
+                        quantity(d) <- IF NOT countLabel(departmentStore(d))
+                            THEN (IF include(labelType(d), skuProp(d))
+                                THEN INTEGER(documentQuantity(d))
+                                ELSE count(labelType(d), skuProp(d)))
+                            ELSE countLabel(departmentStore(d));
+
+                        createAttribute(dd, d);
+                    }
+                }
+                overCreate(t);
+                IF changeWarehouse(stockProp(document)) THEN {
+                    LOCAL printed = BOOLEAN();
+                    printed() <- NULL;
+                    DIALOG customLabelTransaction OBJECTS l = t NOMANAGESESSION DO {
+                        print(t);
+                        printed() <- TRUE;
+                    }
+                    IF NOT printed() THEN {
+                        cancel();
+                    }
+                } ELSE {
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+
+                    IF notCheckEqualRetailPrice() THEN
+                        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+                    ELSE
+                        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT discountPercent(d) > 0 AND notPrintRetailPrice(d) AND NOT skipDelete(d);
+
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND passScales(sku(d)) AND notPrintNetItem(d);
+
+                    print(t);
+                }
+            }
+            APPLY;
+        }
+    } TOOLBAR;
+
+
+    createSnapshotWarehouseLabelTransaction 'Перепечатать ценники (склад)' (cls document)  {
+        NEWSESSION {
+            IF is(document) THEN {
+                ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO {
+                    inLabel(###skuProp sku) <- NULL;
+                    inLabel(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                    createSnapshotWarehouseLabelTransactionParam(document);
+                }
+            }
+        }
+    } TOOLBAR;
+END
+
+META defineDocumentWarehouseLabelTransaction (document, cls, skuProp, batchProp, stockProp, prefix)
+    @defineDocumentWarehouseLabelTransaction (document, cls, document, skuProp, batchProp, stockProp, prefix);
+END
+
+// -------------------- Инкрементная загрузка -------------------- //
+
+needLabelTransactionWarehouse (PriceListType type, Sku sku, Warehouse warehouse) =
+    needLabelTransactionDepartmentStore(type, sku, warehouse);
+
+createAllWarehouseLabelTransaction 'Все товары по складу' (Warehouse warehouse)  {
+    select(Sku sku, LabelType labelType, warehouse) <- needLabelTransactionWarehouse(priceListType(labelType), sku, warehouse)
+        AND inPrint(labelType, sku, warehouse);
+
+    createWarehouseLabelTransaction(warehouse);
+
+    apply();
+    IF canceled() THEN {
+        cancel();
+    }
+} IN incrementMachineryLabel;
+
+createBalanceWarehouseLabelTransaction 'Остатки' (Warehouse warehouse)  {
+    select(Sku sku, LabelType labelType, warehouse) <- needLabelTransactionWarehouse(priceListType(labelType), sku, warehouse)
+        AND inPrint(labelType, sku, warehouse) AND balanceA(sku, warehouse, currentDateTime());
+
+    createWarehouseLabelTransaction(warehouse);
+
+    apply();
+    IF canceled() THEN {
+        cancel();
+    }
+} IN incrementMachineryLabel;
+
+createAllLabelTransactionStock 'Все товары по складу' (Stock stock) {
+    IF stock IS DepartmentStore THEN {
+        createAllLabelTransaction(stock);
+    }
+    IF stock IS Warehouse THEN {
+        createAllWarehouseLabelTransaction(stock);
+    }
+} IN incrementMachineryLabel;
+
+createBalanceWarehouseLabelStock 'Остатки' (Stock stock) {
+    IF stock IS DepartmentStore THEN {
+        createBalanceLabelTransaction(stock);
+    }
+    IF stock IS Warehouse THEN {
+        createBalanceWarehouseLabelTransaction(stock);
+    }
+} IN incrementMachineryLabel;
+
+createAllLabelTransactionStock 'Все товары по складу' () { createAllLabelTransactionStock(labelTransactionsStock()); } IN incrementMachineryLabel;
+createBalanceWarehouseLabelStock 'Остатки' () { createBalanceWarehouseLabelStock(labelTransactionsStock()); } IN incrementMachineryLabel;
+
+EXTEND FORM labelTransactions
+    PROPERTIES() createBalanceWarehouseLabelStock, createAllLabelTransactionStock
+;
+
+DESIGN labelTransactions {
+    REMOVE GROUP(incrementMachineryLabel,d);
+    header {
+        MOVE GROUP(incrementMachineryLabel);
+    }
+}

@@ -1,0 +1,27 @@
+MODULE PurchaseShipmentLabelWarehouse;
+
+REQUIRE PurchaseShipmentLabel, LabelWarehouse;
+
+NAMESPACE Purchase;
+
+// ------------------------------------- Печать ценников (склад) ------------------------------ //
+
+@defineDocumentWarehouseLabelTransaction(invoice, Invoice, sku, overBatch, customerStock, shipment);
+
+showToPrintWarehouseLabelTransaction 'Показывать' (Invoice invoice) = isPosted(invoice) AND NOT
+    skip[PriceTransactionDocument](invoice) AND customerStock(invoice) IS Warehouse;
+
+EXTEND FORM invoices
+    PROPERTIES(i) createWarehouseLabelTransaction SHOWIF showToPrintWarehouseLabelTransaction(i),
+        createSnapshotWarehouseLabelTransaction SHOWIF isPosted(i) AND customerStock(i) IS Warehouse
+;
+
+DESIGN invoices {
+    PROPERTY(createSnapshotLabelTransaction(i)) { showIf = isPosted(i) AND customerStock(i) IS DepartmentStore; }
+    label {
+        labelFirst {
+            MOVE PROPERTY (createWarehouseLabelTransaction(i)) { alignment = STRETCH; }
+            MOVE PROPERTY (createSnapshotWarehouseLabelTransaction(i)) { alignment = STRETCH; }
+        }
+    }
+}
