@@ -82,10 +82,10 @@ TABLE refuseUserInvoiceDetail(UserInvoiceDetail);
 refuseWeight 'Масса (отчёт по ввозу упаковки), кг' = DATA NUMERIC[14,3](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
 refuseSum 'Сумма оплаты (отчёт по ввозу упаковки), руб.' = DATA NUMERIC[18,4](UserInvoiceDetail) TABLE refuseUserInvoiceDetail;
 
-WHEN LOCAL FORMS userInvoice CHANGED(sum(UserInvoiceDetail d)) OR CHANGED(customsGroup(d)) DO
+WHEN LOCAL FORMS userInvoice (CHANGED(sum(UserInvoiceDetail d)) OR CHANGED(customsGroup(d))) AND showDeclaration(userInvoice(d)) DO
     refuseSum(d) <- round2(NUMERIC[18,4](homeSum(d) * percentRefuseRate(customsGroup(d)) / 100));
     
-WHEN LOCAL FORMS userInvoice SETCHANGED (refuseWeight(UserInvoiceDetail d)) DO {   
+WHEN LOCAL FORMS userInvoice SETCHANGED (refuseWeight(UserInvoiceDetail d)) AND showDeclaration(userInvoice(d)) DO {   
     refuseSum(d) <- round2(NUMERIC[18,4](refuseWeight(d) / 1000 * weightRefuseRate(customsGroup(d))));    
 }
 
