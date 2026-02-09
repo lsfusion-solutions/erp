@@ -61,7 +61,7 @@ FORM importItems 'Импорт товаров'
     PROPERTIES = IF elements IS Item THEN 1 EXTID 'taxgroupId', = id(itemGroup(elements)) EXTID 'itemGroup',
          = OVERRIDE shortNameUOM(elements), '' EXTID 'measure', = OVERRIDE name(elements), '' EXTID 'name',
          = OVERRIDE idBarcode(elements), '' EXTID 'id', = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete', 
-         = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec', 
+         = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec', 
          = IF elements IS Item THEN ' ' EXTID 'descr'
     
     FILTERS skuTransaction(elements, t) AND NOT uploadedUkm5(elements)
@@ -211,11 +211,11 @@ overReferenceWeight(Sku s) = referenceWeight();
 
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] ();
 minDelta 'Дельта отклонения от эталонного веса в меньшую сторону' = DATA NUMERIC[12,3] (Sku);
-overMinDelta(Sku s) = OVERRIDE minDelta(s), IF split(s) OR isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
+overMinDelta(Sku s) = OVERRIDE minDelta(s), IF isCatchWeight(s) THEN OVERRIDE minDelta(), 0.01;
 
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] ();
 maxDelta 'Дельта отклонения от эталонного веса в большую сторону' = DATA NUMERIC[12,3] (Sku);
-overmaxDelta(Sku s) = OVERRIDE maxDelta(s), IF split(s) OR isCatchWeight(s) THEN OVERRIDE maxDelta(), 0.01;
+overmaxDelta(Sku s) = OVERRIDE maxDelta(s), IF isCatchWeight(s) THEN OVERRIDE maxDelta(), 0.01;
 
 skipKppControl 'Не контролировать на КВП' = DATA BOOLEAN (Sku);
 
@@ -240,11 +240,11 @@ weightSize (Sku s) = CASE
 
 droppedScale = DATA TBOOLEAN (Item);
 
-WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(split(s)) OR DROPPED(isCatchWeight(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
+WHEN ([GROUP SUM 1 IF DROPPED(lowWeight(Sku s)) OR DROPPED(weightControlBypass(s)) OR DROPPED(isCatchWeight(s)) BY s](Sku sku)) AND droppedScale(sku) = TFALSE DO {
     droppedScale(sku) <- TTRUE;
 }
 
-needUpdateScale(Item i) = split(i) OR isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
+needUpdateScale(Item i) = isCatchWeight(i) OR weightSize(i) = 3 OR minDelta(i) OR maxDelta(i) OR droppedScale(i) == TTRUE;
 
 FORM importSecurityScale 'Импорт эталонных весов КВП и работа с типами товаров'
     OBJECTS t = MachineryPriceTransaction
@@ -253,7 +253,7 @@ FORM importSecurityScale 'Импорт эталонных весов КВП и �
     PROPERTIES = OVERRIDE idBarcode(elements), '' EXTID 'item_id',
         = OVERRIDE idBarcode(elements), '' EXTID 'barcode_id',
         = IF active(elements) THEN TFALSE ELSE TTRUE EXTID 'delete',
-        = IF split(elements) OR isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
+        = IF isCatchWeight(elements) THEN 3 ELSE 0 EXTID 'measprec'
     
     PROPERTIES(elements) IN attributes weightSize EXTID 'weight_size_item_type'
     
@@ -272,7 +272,7 @@ FORM importSecurityScaleBarcode 'Импорт эталонных весов КВ
     PROPERTIES = OVERRIDE idBarcode(sku(elements)), '' EXTID 'item_id',
         = OVERRIDE id(elements), '' EXTID 'barcode_id',
         = IF active(sku(elements)) THEN TFALSE ELSE TTRUE EXTID 'delete',
-        = IF split(sku(elements)) OR isCatchWeight(sku(elements)) THEN 3 ELSE 0 EXTID 'measprec'
+        = IF isCatchWeight(sku(elements)) THEN 3 ELSE 0 EXTID 'measprec'
 
     PROPERTIES IN attributes = weightSize(sku(elements)) EXTID 'weight_size_item_type'
 
