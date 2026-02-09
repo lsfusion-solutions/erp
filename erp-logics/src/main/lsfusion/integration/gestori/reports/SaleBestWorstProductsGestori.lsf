@@ -1,6 +1,6 @@
 MODULE SaleBestWorstProductsGestori;
 
-REQUIRE SaleReports, Store, SkuList, DateSkuLedger, PriceListLedgerAccount, SaleInvoice, Range;
+REQUIRE SaleReports, Store, SkuList, DateSkuLedger, PriceListLedgerAccount, SaleInvoice, Range, StockList, LegalEntityList;
 
 NAMESPACE Sale;
 
@@ -24,32 +24,144 @@ name 'Тип отбора продаж' (SalesFilterType o) = staticCaption(o) I
 criteria = DATA LOCAL ProductCriteria ();
 criteriaDefault = OVERRIDE criteria(), ProductCriteria.quantity;
 nameCriteria 'Критерий отбора товара' = name(criteriaDefault());
+
 salesType = DATA LOCAL SalesFilterType ();
 salesTypeDefault = OVERRIDE salesType(), SalesFilterType.both;
 nameSalesType 'Тип отбора продаж' = name(salesTypeDefault()) NOSELECT;
+
 interval 'Период дат' = DATA LOCAL INTERVAL[DATETIME] ();
 productsLimit = DATA LOCAL INTEGER ();
 productsLimitDefault 'Количество отобранных товаров' = OVERRIDE productsLimit(), 50;
 withAssortment 'С учетом ассортимента' = DATA LOCAL BOOLEAN ();
-//withUnsoldProducts 'С учётом непродававшихся товаров' = DATA LOCAL BOOLEAN ();
 
-selectStocks(){
-    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
+inDialog 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+
+applyStockList 'Применить список' (StockList sl) {
+    inSaleReportDialog(Stock st) <- NULL;
+    inSaleReportDialog(Stock st) <- TRUE WHERE in(sl, st);
 }
 
-FORM dialogSuppliers 'Поставщики'
+addStockList 'Добавить из списка' (StockList sl) {
+    inSaleReportDialog(Stock st) <- TRUE WHERE in(sl, st);
+}
+
+clearStockSelection 'Сбросить' () {
+    inSaleReportDialog(Stock st) <- NULL;
+}
+
+FORM dialogStocksBestWorst 'Выбор складов'
+    OBJECTS sl = StockList
+    PROPERTIES(sl) READONLY name, order
+    PROPERTIES applyStockList(sl) TOOLBAR, addStockList(sl) TOOLBAR
+    PROPERTIES clearStockSelection() TOOLBAR DRAW sl
+    ORDERS order(sl), name(sl)
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name, address, nameRegion
+    PROPERTIES(s) inSaleReportDialog
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        isCompany(s),
+        countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inSaleReportDialog(s) 'F9'
+
+    EVENTS
+        ON INIT { inSaleReportDialog(Stock st) <- inSaleReport(st); },
+        ON OK { inSaleReport(Stock st) <- inSaleReportDialog(st); }
+;
+
+DESIGN dialogStocksBestWorst {
+    BOX {
+        size = (1124, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            NEW leftPanel {
+                fill = 1;
+                MOVE BOX(sl) {
+                    caption = 'Списки складов';
+                    PROPERTY(name(sl)) { charWidth = 25; }
+                }
+                MOVE BOX(TREE stockTree) { caption = 'Группы складов'; }
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) { defaultComponent = TRUE; }
+                PROPERTY(name(s)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+selectStocks() {
+    DIALOG dialogStocksBestWorst;
+}
+
+applySupplierList 'Применить список' (LegalEntityList ll) {
+    inDialog(LegalEntity l) <- NULL;
+    inDialog(LegalEntity l) <- TRUE WHERE in(l, ll);
+}
+
+addSupplierList 'Добавить из списка' (LegalEntityList ll) {
+    inDialog(LegalEntity l) <- TRUE WHERE in(l, ll);
+}
+
+clearSupplierSelection 'Сбросить' () {
+    inDialog(LegalEntity l) <- NULL;
+}
+
+FORM dialogSuppliersBestWorst 'Поставщики'
+    OBJECTS ll = LegalEntityList
+    PROPERTIES(ll) READONLY name, order
+    PROPERTIES applySupplierList(ll) TOOLBAR, addSupplierList(ll) TOOLBAR
+    PROPERTIES clearSupplierSelection() TOOLBAR DRAW ll
+    ORDERS order(ll), name(ll)
+
     OBJECTS l = LegalEntity
-    PROPERTIES(l) in
+    PROPERTIES(l) inDialog
     PROPERTIES(l) READONLY name, fullName
     FILTERS isSupplier(l)
     ORDERS name(l)
 
     FILTERGROUP active FILTER 'Активный' active(l) DEFAULT
-    FILTERGROUP in FILTER 'Отм.' in(l)
+    FILTERGROUP in FILTER 'Отм.' inDialog(l)
+
+    EVENTS
+        ON INIT { inDialog(LegalEntity le) <- in(le); },
+        ON OK { in(LegalEntity le) <- inDialog(le); }
 ;
 
+DESIGN dialogSuppliersBestWorst {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(ll) {
+                caption = 'Списки организаций';
+                fill = 1;
+                PROPERTY(name(ll)) { charWidth = 25; }
+            }
+            MOVE BOX(l) {
+                fill = 3;
+                GRID(l) { defaultComponent = TRUE; }
+                PROPERTY(name(l)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
 selectSuppliers() {
-    DIALOG dialogSuppliers;
+    DIALOG dialogSuppliersBestWorst;
 }
 
 CLASS SkuFilterType 'Тип фильтра по товарам' {
@@ -61,7 +173,8 @@ CLASS SkuFilterType 'Тип фильтра по товарам' {
 FORM skuFilterType 'Типы фильтра по товарам'
     OBJECTS t = SkuFilterType
     PROPERTIES(t) READONLY '' = staticCaption
-    LIST SkuFilterType OBJECT t;
+    LIST SkuFilterType OBJECT t
+;
 
 FORM selectSku 'Выбор товаров'
     TREE skuTree sg = SkuGroup PARENT parent(sg)
@@ -70,17 +183,17 @@ FORM selectSku 'Выбор товаров'
     ORDERS order(sg), skuGroupName
 
     OBJECTS s = Sku
-    PROPERTIES (s) in
+    PROPERTIES(s) in
     PROPERTIES(s) READONLY id SHOWIF showIDs()
     PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
     FILTERS isParent(sg, s), name(s)
     ORDERS name(s)
 ;
 
-selectSkus 'Фильтр по товарам'() {
+selectSkus 'Фильтр по товарам' () {
     DIALOG skuFilterType OBJECTS t INPUT DO {
         CASE
-            WHEN t = SkuFilterType.sku THEN SHOW selectSku ;
+            WHEN t = SkuFilterType.sku THEN SHOW selectSku;
             WHEN t = SkuFilterType.skuGroups THEN SHOW filterGroupType;
             WHEN t = SkuFilterType.skuLists THEN {
                 in(Sku s) <- NULL;
@@ -94,23 +207,32 @@ allStocks = NOT (GROUP MAX inSaleReport(Stock o));
 allSuppliers = NOT (GROUP MAX in(LegalEntity o) AND isSupplier(o));
 allSkus = NOT (GROUP MAX in(Sku o) OR GROUP MAX inSession(SkuGroup g));
 
-inStocks 'Склады' = IF allStocks() THEN 'ВСЕ' ELSE GROUP CONCAT name(Stock o) IF inSaleReport(o), '; ' ORDER o;
-inSuppliers 'Поставщики' = IF allSuppliers() THEN 'ВСЕ' ELSE GROUP CONCAT name(LegalEntity o) IF in(o), '; ' ORDER o;
+selectedStockList(StockList sl) = GROUP MAX TRUE IF inSaleReport(Stock st) AND in(sl, st);
+stockInAnyList(Stock st) = GROUP MAX TRUE IF in(StockList sl, st);
+selectedStockListNames = GROUP CONCAT name(StockList sl) IF selectedStockList(sl), '; ' ORDER name(sl), sl;
+selectedStockNoListNames = GROUP CONCAT name(Stock st) IF inSaleReport(st) AND NOT stockInAnyList(st), '; ' ORDER name(st), st;
+inStocks 'Склады' = IF allStocks() THEN 'ВСЕ' ELSE CONCAT '; ', selectedStockListNames(), selectedStockNoListNames();
 
-selectedSkus = GROUP CONCAT name(Sku o) IF in(o), '; ' ORDER o;
+selectedSupplierList(LegalEntityList ll) = GROUP MAX TRUE IF in(LegalEntity l) AND in(l, ll);
+supplierInAnyList(LegalEntity l) = GROUP MAX TRUE IF in(l, LegalEntityList ll);
+selectedSupplierListNames = GROUP CONCAT name(LegalEntityList ll) IF selectedSupplierList(ll), '; ' ORDER name(ll), ll;
+selectedSupplierNoListNames = GROUP CONCAT name(LegalEntity l) IF in(l) AND isSupplier(l) AND NOT supplierInAnyList(l), '; ' ORDER name(l), l;
+inSuppliers 'Поставщики' = IF allSuppliers() THEN 'ВСЕ' ELSE CONCAT '; ', selectedSupplierListNames(), selectedSupplierNoListNames();
+
+selectedSkuList(List ll) = GROUP MAX TRUE IF in(Sku s) AND in(ll, s);
+skuInAnyList(Sku s) = GROUP MAX TRUE IF in(List ll, s);
+selectedSkuListNames = GROUP CONCAT name(List ll) IF selectedSkuList(ll), '; ' ORDER name(ll), ll;
+selectedSkuNoListNames = GROUP CONCAT name(Sku s) IF in(s) AND NOT skuInAnyList(s), '; ' ORDER name(s), s;
 selectedSkuGroups = GROUP CONCAT name(SkuGroup o) IF inSession(o) AND NOT inSession(parent(o)), '; ' ORDER o;
-inSkus 'Товары' = IF allSkus() THEN 'ВСЕ' ELSE CONCAT '; ', selectedSkus(), selectedSkuGroups();
-
-sessionConcatSkuGroups 'Группы' () = GROUP CONCAT name(SkuGroup group)
-    IF inSession(group) AND NOT inSession(parent(group)), '; ' ORDER group;
+inSkus 'Товары' = IF allSkus() THEN 'ВСЕ' ELSE CONCAT '; ', selectedSkuListNames(), selectedSkuNoListNames(), selectedSkuGroups();
 
 dateTimeInInterval (SaleLedger o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
 
 supplier (SaleLedger o) = supplier(lastOrderBatch(sku(o), stock(o)));
 
-filterForSalesQty (SaleLedger o) = active(o) AND dateTimeInInterval (o) AND (allStocks() OR inSaleReport(stock(o)))
-    AND (allSuppliers() OR (in(supplier(o)))) AND (allSkus() OR in(sku(o)) OR inSession(skuGroup2(sku(o))))
-    AND (NOT withAssortment() OR (withAssortment() AND countRange(sku(o), stock(o), currentDate())));
+filterForSalesQty (SaleLedger o) = active(o) AND dateTimeInInterval(o) AND (allStocks() OR inSaleReport(stock(o)))
+    AND (allSuppliers() OR in(supplier(o))) AND (allSkus() OR in(sku(o)) OR inSession(skuGroup2(sku(o))))
+    AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()));
 
 retailSalesQty 'Розница - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
     IF o IS DateSaleSkuLedger AND filterForSalesQty(o) BY sku(o), stock(o);
@@ -126,12 +248,9 @@ salesQty 'Кол-во продаж' (Sku s, Stock st) = CASE
     WHEN salesTypeDefault() = SalesFilterType.wholesale THEN wholesaleSalesQty(s, st)
     WHEN salesTypeDefault() = SalesFilterType.both THEN bothSalesQty(s, st);
 
-retailSalesSum 'Розница - сумма продаж' = GROUP SUM sum(SaleLedger o)
-    IF o IS DateSaleSkuLedger AND active(o) BY sku(o), stock(o);
+salesSum 'Сумма продаж' (Sku s, Stock st) = GROUP SUM sum(SaleLedger o) IF filterForSalesQty(o) AND sku(o) = s AND stock(o) = st;
 
-salesSum 'Сумма продаж' (Sku s, Stock st) = GROUP SUM sum(SaleLedger o) IF active(o) AND sku(o) = s AND stock(o) = st;
-
-salesDays 'Сумма дней' (Sku s, Stock st) = GROUP SUM 1 IF active(SaleLedger o) AND sku(o) = s AND stock(o) = st;
+salesDays 'Сумма дней' (Sku s, Stock st) = GROUP SUM 1 IF filterForSalesQty(SaleLedger o) AND sku(o) = s AND stock(o) = st;
 
 averageDailySales 'Среднесуточные продажи' (Sku s, Stock st) = salesQty(s, st) / salesDays(s, st);
 daysOfSupply 'Запас в днях' (Sku s, Stock st) = round2(currentBalance(s, st) / averageDailySales(s, st));
@@ -149,7 +268,7 @@ order (Sku s, Stock st) = CASE
 index(Sku s, Stock st) = PARTITION SUM 1 ORDER DESC order(s, st), s, st IF salesQty(s, st);
 formFilter(Sku s, Stock st) = index(s, st) <= productsLimitDefault();
 
-indexW(Sku s, Stock st) = PARTITION SUM 1 ORDER order(s, st), s, st IF salesQty(s, st);;
+indexW(Sku s, Stock st) = PARTITION SUM 1 ORDER order(s, st), s, st IF salesQty(s, st);
 formFilterW(Sku s, Stock st) = indexW(s, st) <= productsLimitDefault();
 
 retailSalesTotalQty 'Розница - кол-во продаж (итог)' = GROUP SUM retailSalesQty(Sku s, Stock st) IF formFilter(s, st);
@@ -196,12 +315,12 @@ title = CONCAT '\n',
 
 FORM bestProdPrint 'Лучшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
-    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
-    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES(sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
     PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
-    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+    PROPERTIES(sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPct = productContributionPct, index SHOWIF 1 = 2
-    PROPERTIES () retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
+    PROPERTIES() retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
     PROPERTIES title = 'Лучшие товары по продажам ' + title()
     FILTERS formFilter(sku, stock)
     ORDERS index(sku, stock)
@@ -210,12 +329,12 @@ FORM bestProdPrint 'Лучшие товары по продажам'
 
 FORM worstProdPrint 'Худшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
-    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
-    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES(sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
     PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
-    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+    PROPERTIES(sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPct = productContributionPctW, indexW SHOWIF 1 = 2
-    PROPERTIES () retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
+    PROPERTIES() retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
     PROPERTIES title = 'Худшие товары по продажам ' + title()
     FILTERS formFilterW(sku, stock)
     ORDERS indexW(sku, stock)
@@ -226,30 +345,30 @@ bestProdPrint 'Лучшие товары по продажам' () { PRINT bestP
 worstProdPrint 'Худшие товары по продажам' () { PRINT worstProdPrint PDF; } IMAGE 'print.png';
 
 FORM bestWorstProducts 'Лучшие и худшие товары по продажам'
-    PROPERTIES () nameSalesType, nameCriteria, productsLimitDefault, interval, withAssortment,
+    PROPERTIES() nameSalesType, nameCriteria, productsLimitDefault, interval, withAssortment,
         inStocks ON CHANGE selectStocks(),
         inSuppliers ON CHANGE selectSuppliers(),
         inSkus ON CHANGE selectSkus()
 
     OBJECTS bestProducts = (sku = Sku, stock = Stock)
-    PROPERTIES (stock) 'Склад (код)' = id, 'Склад (наименование)' = name
-    PROPERTIES (sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stock) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES(sku) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
     PROPERTIES 'Ассортиментные матрицы' = ranges(sku, stock, currentDate())
-    PROPERTIES (sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+    PROPERTIES(sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPct, index SHOWIF NULL
     FILTERS formFilter(sku, stock)
     ORDERS index(sku, stock)
 
     OBJECTS worstProducts = (skuW = Sku, stockW = Stock)
-    PROPERTIES (stockW) 'Склад (код)' = id, 'Склад (наименование)' = name
-    PROPERTIES (skuW) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
+    PROPERTIES(stockW) 'Склад (код)' = id, 'Склад (наименование)' = name
+    PROPERTIES(skuW) idSkuGroup2, nameSkuGroup2, idSkuGroup3, nameSkuGroup3, idSkuGroup4, nameSkuGroup4, id, idBarcode, name
     PROPERTIES 'Ассортиментные матрицы' = ranges(skuW, stockW, currentDate())
-    PROPERTIES (skuW, stockW) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
+    PROPERTIES(skuW, stockW) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPctW, indexW SHOWIF NULL
     FILTERS formFilterW(skuW, stockW)
     ORDERS indexW(skuW, stockW)
 
-    PROPERTIES () DISABLEIF NOT interval() bestProdPrint, worstProdPrint
+    PROPERTIES() DISABLEIF NOT interval() bestProdPrint, worstProdPrint
 ;
 
 DESIGN bestWorstProducts {
@@ -258,26 +377,26 @@ DESIGN bestWorstProducts {
         NEW filterGroup {
             horizontal = TRUE;
             alignment = STRETCH;
-            MOVE PROPERTY (interval());
-            MOVE PROPERTY (nameSalesType());
-            MOVE PROPERTY (nameCriteria());
-            MOVE PROPERTY (productsLimitDefault());
-            MOVE PROPERTY (withAssortment());
+            MOVE PROPERTY(interval());
+            MOVE PROPERTY(nameSalesType());
+            MOVE PROPERTY(nameCriteria());
+            MOVE PROPERTY(productsLimitDefault());
+            MOVE PROPERTY(withAssortment());
         }
-        MOVE PROPERTY (inStocks());
-        MOVE PROPERTY (inSuppliers());
-        MOVE PROPERTY (inSkus());
+        MOVE PROPERTY(inStocks());
+        MOVE PROPERTY(inSuppliers());
+        MOVE PROPERTY(inSkus());
         NEW actionGroup {
             horizontal = TRUE;
             alignment = CENTER;
-            MOVE PROPERTY (bestProdPrint());
-            MOVE PROPERTY (worstProdPrint());
+            MOVE PROPERTY(bestProdPrint());
+            MOVE PROPERTY(worstProdPrint());
         }
     }
     OBJECTS {
         tabbed = TRUE;
-        MOVE BOX (bestProducts) { caption = 'Лучшие товары по продажам'; };
-        MOVE BOX (worstProducts) { caption = 'Худшие товары по продажам'; };
+        MOVE BOX(bestProducts) { caption = 'Лучшие товары по продажам'; };
+        MOVE BOX(worstProducts) { caption = 'Худшие товары по продажам'; };
     }
 }
 
