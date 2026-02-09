@@ -107,6 +107,9 @@ costBatch (UserDisparityDetail detail) += costBatch(detail);
 WHEN LOCAL (CHANGED(batch(UserDisparityDetail detail)) OR CHANGED(sku(detail)) OR CHANGED(stock(detail))) DO
     costBatch(detail) <- prevCost(OVERRIDE batch(detail), prevLastOrderBatch(sku(detail), stock(detail)));
 
+CONSTRAINT SET(isPosted(DisparityDetail detail) AND NOT costBatch(detail)) AND needCostBatch(operation(detail))
+    MESSAGE 'Необходимо задать себестоимость новой партии.';
+
 expiryDateBatch 'Годен до (приход)' = ABSTRACT DATE (DisparityDetail) MATERIALIZED;
 expiryDateBatch 'Годен до (приход)' = DATA DATE (UserDisparityDetail);
 expiryDateBatch (UserDisparityDetail detail) += expiryDateBatch(detail);
