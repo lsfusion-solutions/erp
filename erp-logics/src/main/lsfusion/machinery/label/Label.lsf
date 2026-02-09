@@ -574,6 +574,9 @@ printLabelTransactionDetail 'Печать ценника' (LabelTransactionDetai
     printLabelTransactionDetails();
 }
 
+useCustomFilterLabelTransactions = ABSTRACT BOOLEAN ();
+customFilterLabelTransactions (LabelTransaction) = ABSTRACT BOOLEAN (LabelTransaction);
+
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore PANEL
     PROPERTIES name(d) SELECTOR
@@ -584,7 +587,8 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(d) addLabelTransaction DRAW l  
     PROPERTIES(l) NEWSESSION EDIT , DELETE  
     PROPERTIES(l) printTo  
-    FILTERS departmentStore(l) == d
+    FILTERS (departmentStore(l) == d AND NOT useCustomFilterLabelTransactions()) OR
+        (useCustomFilterLabelTransactions() AND customFilterLabelTransactions(l))
     ORDERS date(l), time(l)
     FILTERGROUP inactive FILTER 'Активные' active(labelType(l)) 'F10' DEFAULT
 
