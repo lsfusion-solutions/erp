@@ -193,7 +193,7 @@ FORM eDocuments 'Электронные документы EDI'
     OBJECTS d = EDocument LAST
     PROPERTIES(d) in
     PROPERTIES(d) READONLYIF isReadonly() isCancel//, isTest
-    PROPERTIES(d) BACKGROUND background(d) READONLY number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, 
+    PROPERTIES(d) BACKGROUND background(d) READONLY id, number, date, type, glnSender, nameSender, glnReceiver, nameReceiver, 
                   dateTimeCreated,documentID, creationDateTime, nameRoute, name, nameFileSender, nameFileReceiver
     PROPERTIES (d) READONLY nameFunctionCode, nameDocumentType, typeFile
     FILTERGROUP notExported
@@ -343,7 +343,7 @@ signAndSendBlrapnReceiverEDI 'Подписать и отправить изве�
     IF askPasswordEDSService() AND NOT passwordEDSService() THEN {
         DIALOG passwordEDSService DO {} ELSE { BREAK; };
     }
-    FOR in(EDocument d) AND numberSenderCancel(d) DO {
+    FOR in(EDocument d) AND (numberSenderCancel(d) OR useV2(sender(d))) DO {
         IF EDIProviderDocument(sender(d), receiver(d)) THEN
             signAndSendBlrapnReceiver(d);
         ELSE
