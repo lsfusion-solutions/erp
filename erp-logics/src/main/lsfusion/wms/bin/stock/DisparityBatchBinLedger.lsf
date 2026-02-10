@@ -1,8 +1,14 @@
 MODULE DisparityBatchBinLedger;
 
-REQUIRE DisparityBinLedger, BatchBinSkuLedger;
+REQUIRE DisparityBinLedger, BatchBinSkuLedger, BatchReceivingBinLedger;
 
 NAMESPACE Disparity;
+
+GRDateTimeBatch 'Дата/время завершения приёмки' = ABSTRACT DATETIME (DisparityDetail) MATERIALIZED ;
+GRDateTimeBatch 'Дата/время завершения приёмки' = DATA DATETIME (UserDisparityDetail);
+GRDateTimeBatch(UserDisparityDetail detail) += GRDateTimeBatch(detail);
+GRDateTimeBatch(UserDisparityDetail detail) <- prevGRDateTime(batch(detail)) WHEN CHANGED(batch(detail));
+GRDateTime(InputDisparityDetail batch) += GRDateTimeBatch(disparityDetail(batch));
 
 batch[BinLedger] (OutDisparityBinLedger ledger) += batch(disparityDetail(ledger));
 batch[BinLedger] (InDisparityBinLedger ledger) += inputDisparityDetail(disparityDetail(ledger));

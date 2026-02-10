@@ -1,6 +1,6 @@
 MODULE ReceivingPurchaseShipmentBinLedger;
 
-REQUIRE ReceivingBinLedger, ReceivingShipmentBinLedger, PurchaseShipment, PurchaseCreditNote;
+REQUIRE ReceivingBinLedger, ReceivingShipmentBinLedger, PurchaseShipment, PurchaseCreditNote, BatchReceivingBinLedger;
 
 NAMESPACE Purchase;
 
@@ -10,3 +10,5 @@ overCurrencyReceivingKey (Shipment shipment) = STRING(OVERRIDE shortNameCurrency
 countShipmentCurrencyReceivingKey (Receiving r) = GROUP SUM 1 IF Shipment i = [GROUP MAX Shipment i1 BY overCurrencyReceivingKey(i1), userReceiving(i1)](STRING str, r);
 CONSTRAINT SETCHANGED(userReceiving(Shipment i)) OR CHANGED(currency(i)) AND countShipmentCurrencyReceivingKey(receiving(i)) > 1
     MESSAGE 'Нельзя создать приемку для накладных с разными валютами';
+
+GRDateTime(ShipmentBatch ledger) += GRDateTime(shipment(shipmentDetail(ledger)));
