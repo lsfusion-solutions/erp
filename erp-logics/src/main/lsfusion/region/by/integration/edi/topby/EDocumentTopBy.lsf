@@ -1236,22 +1236,26 @@ filterPageStatusName 'Статус документов' () = staticCaption(filt
 documentDateStart 'Дата с' = DATA LOCAL NESTED DATETIME ();
 documentDateEnd 'Дата по' = DATA LOCAL NESTED DATETIME ();
 
+GROUP processingStatus;
+
 last = DATA LOCAL BOOLEAN();
 totalPages = DATA LOCAL INTEGER();
 idContent = DATA LOCAL STRING(INTEGER);
 dateTime = DATA LOCAL STRING(INTEGER);
 documentNumber = DATA LOCAL STRING(INTEGER);
+name1 = DATA LOCAL STRING(INTEGER);
+id1 = DATA LOCAL STRING(INTEGER);
 
 FORM importBlrdocs
     PROPERTIES() last, totalPages
 
     OBJECTS content = INTEGER
     PROPERTIES(content) id, dateTime, documentNumber
+    PROPERTIES(content) IN processingStatus name1 EXTID 'name', id1 EXTID 'id'
     FILTERS imported(content)
 ;
 
 GROUP receiver1 EXTID 'receiver';
-GROUP processingStatus;
 GROUP sender1 EXTID 'sender';
 
 id3 = DATA LOCAL STRING();
@@ -1377,7 +1381,57 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
     }
 }
 
-receiveBlrdocDocuments 'Импорт документов' () {
+updateEDocuments 'Обновить документы' (LegalEntity le, STRING login, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
+    LOCAL response = FILE ();
+    LOCAL file = RAWFILE ();
+    TRY {
+        IF profile(le) THEN {
+            authenticate(profile(le));
+            IF token() THEN {
+                LOCAL NESTED page = INTEGER ();
+                LOCAL headers = STRING(STRING);
+                headers('Authorization') <- token();
+                EXPORT JSON FROM documentDateStart = ZDATETIME(documentDateStart()), documentDateEnd = ZDATETIME(documentDateEnd());
+                WHILE TRUE DO {
+                    timeoutHttp() <- 300000;
+                    page() <- page() (+) 1;
+
+                    logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent. POST /api/v1/BLRDOC/' + filterPageStatusName() + '/filteredPage?page=' + page());
+                    EXTERNAL HTTP POST url(profile(le)) + blrdocUrlStt() + id(filterPageStatus()) + '/filteredPage?page=' + page() HEADERS headers PARAMS exportFile() TO response;
+
+                    IMPORT importBlrdocs JSON FROM response();
+                    FOR id(INTEGER i) AND EDocument doc = eDocument(id(i)) OR (GROUP MIN EDocument dd IF documentID(dd) = documentNumber(i) AND dateTimeCreated(dd) = DATETIME(dateTime(i))) = doc DO {
+                        eDocumentStatus(doc) <- name1(i);
+                        IF id1(i) = 'CANCELED' THEN isCancel(doc) <- TRUE;
+                        IF receiver(doc) = le THEN {
+                            importedReceiver(doc) <- TRUE;
+                            IF id1(i) = 'TRANSFERRED' THEN exportedSender(doc) <- TRUE;
+                        }
+                    }
+                    IF totalPages() == page() OR last() THEN BREAK;
+                }
+                APPLY;
+            } ELSE {
+                logToFile('edi', provider + ' (' + login + ') ReceiveMessages: ошибка при аутентификации');
+                MESSAGE provider + ' (' + login + ') Сообщения не получены: ошибка при аутентификации' NOWAIT;
+            }
+        } ELSE {
+            logToFile('edi', provider + ' SendEDocument: не задан профиль организации отправителя');
+            MESSAGE provider + ' Документ не выгружен: не задан профиль организации отправителя' NOWAIT;
+        }
+    } CATCH {
+        importRequestResult(sendRequestEDIResponse(), statusHttp());
+        IF requestError() THEN {
+            logToFile('edi', CONCAT '\n', provider + ' (' + login + ') error:' + requestError());
+            MESSAGE provider + '(' + login + ') Документы не получены. Ошибка: ' + requestError() NOWAIT;
+        } ELSE {
+            logToFile('edi', CONCAT '\n', provider + ' error:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException());
+            MESSAGE CONCAT ' ', provider + ' Документы не получены:', messageCaughtException(), javaStackTraceCaughtException() IF logStackForException(), lsfStackTraceCaughtException();
+        }
+    }
+}
+
+receiveBlrdocDocuments (STRING s) {
     IF NOT documentDateStart() OR NOT documentDateEnd() OR NOT filterPageStatus() THEN {
         MESSAGE 'Не заполнены параметры для импорта';
     } ELSE {
@@ -1386,7 +1440,8 @@ receiveBlrdocDocuments 'Импорт документов' () {
                 lockTopBy(login);
                 IF lockResultTopBy() THEN {
                     TRY {
-                        getBlrdocFilteredPage(le, login, archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
+                        IF s = 'get' THEN getBlrdocFilteredPage(le, login, archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
+                        IF s = 'update' THEN updateEDocuments(le, login, archiveDirTopBy(), disableConfirmationTopBy(), 'TopBy');
                         APPLY;
                     } FINALLY {
                         unlockTopBy(login);
@@ -1399,9 +1454,17 @@ receiveBlrdocDocuments 'Импорт документов' () {
     }
 }
 
+getBlrdoc 'Импорт документов' () {
+    receiveBlrdocDocuments('get');
+}
+
+updateBlrdoc 'Обновление документов' () {
+    receiveBlrdocDocuments('update');
+}
+
 EXTEND FORM eDocuments
-    PROPERTIES (d) READONLY eDocumentStatus
-    PROPERTIES () documentDateStart, documentDateEnd, filterPageStatusName, receiveBlrdocDocuments
+    PROPERTIES (d) READONLY eDocumentStatus AFTER id(d)
+    PROPERTIES () documentDateStart, documentDateEnd, filterPageStatusName, getBlrdoc, updateBlrdoc
 ;
 
 DESIGN eDocuments {
@@ -1412,7 +1475,8 @@ DESIGN eDocuments {
             MOVE PROPERTY(documentDateStart());
             MOVE PROPERTY(documentDateEnd());
             MOVE PROPERTY(filterPageStatusName());
-            MOVE PROPERTY(receiveBlrdocDocuments());
+            MOVE PROPERTY(getBlrdoc());
+            MOVE PROPERTY(updateBlrdoc());
         }
     }
 }
