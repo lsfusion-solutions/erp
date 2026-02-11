@@ -4,6 +4,34 @@ REQUIRE BinTransferBinLedger, StockDocumentBinLedger;
 
 NAMESPACE Bin;
 
+shipmentPrice 'Учётная цена' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
+shipmentPrice 'Учётная цена' = DATA NUMERIC[16,4] (UserBinTransferDetail);
+shipmentPrice(UserBinTransferDetail userBinTransferDetail) += shipmentPrice(userBinTransferDetail);
+
+shipmentSum 'Учётная сумма' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
+shipmentSum 'Учётная сумма' = DATA NUMERIC[16,4] (UserBinTransferDetail);
+shipmentSum(UserBinTransferDetail userBinTransferDetail) += shipmentSum(userBinTransferDetail);
+
+WHEN LOCAL (CHANGED(stock(UserBinTransferDetail detail)) OR CHANGED(dateTime(detail)) OR SETCHANGED(batch(detail))) AND 
+    batch(detail) AND createStockDocumentBinLedger(operation(detail)) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
+    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
+}
+
+calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (UserBinTransferDetail);
+calcShipmentSum(UserBinTransferDetail detail) += NUMERIC[18,4](round2(quantity(detail) * shipmentPrice(detail))); //округление делаем до двух знаков, если надо, то переопределиться потом
+shipmentSum (UserBinTransferDetail detail) <- calcShipmentSum(detail)
+    WHEN DO (CHANGED(quantity(detail)) OR CHANGED (shipmentPrice(detail))) AND createStockDocumentBinLedger(operation(detail));
+
+EXTEND FORM userBinTransfer
+    PROPERTIES(d) BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
+        shipmentPrice, shipmentSum
+;
+
+EXTEND FORM binTransfers
+    PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
+        shipmentPrice, shipmentSum
+;
+
 CLASS IncStockDocumentBinTransferLedger 'Перемещение по ячейкам (приход)' : IncStockDocumentBinLedger;
 
 needToCreateIncStockDocumentBinLedger (BinTransfer t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
