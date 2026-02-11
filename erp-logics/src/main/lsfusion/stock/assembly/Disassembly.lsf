@@ -319,12 +319,15 @@ NAVIGATOR {
     }
 }
 
-// -- цены
+WHEN LOCAL (CHANGED(stock(Disassembly a)) OR
+            (CHANGED(dateTime(a)) AND NOT isPosted(a)) OR
+            SETCHANGED(batch(a))) AND batch(a) AND NOT CHANGED(price(a)) AND NOT skipUpdatePriceAccount() DO
+    price(a) <- prevAccountPriceB(batch(a), stock(a), dateTime(a));
 
 WHEN LOCAL (CHANGED(sku(Disassembly a)) OR
             CHANGED(stock(a)) OR
-            (CHANGED(dateTime(a)) AND NOT isPosted(a)))
-            AND NOT CHANGED(price(a)) DO
+            (CHANGED(dateTime(a)) AND NOT isPosted(a)) OR
+            DROPPED(batch(a))) AND NOT batch(a) AND NOT CHANGED(price(a)) AND NOT skipUpdatePriceAccount() DO
     price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
 
 dataPercent 'Процент цены' = DATA NUMERIC[16,2] (DisassemblyDetail);
@@ -336,9 +339,16 @@ calcPrice(DisassemblyDetail d) += WHEN (sum(d) AND quantity(d)) THEN NUMERIC[16,
 useOverSum = ABSTRACT BOOLEAN (DisassemblyDetail);
 overSum = ABSTRACT NUMERIC[18,4] (DisassemblyDetail);
 
+@defineOperationProperty(skipFillPriceHeader, 'Не изменять цену исходного товара по кнопке Рассчитать цены', paramsContainer);
+
 extraCalculatePrice ABSTRACT LIST (Disassembly);
 calculatePrice 'Рассчитать цены' (Disassembly a) {
-    price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
+    IF NOT (price(a) AND skipFillPriceHeader(operation(a))) THEN {
+        IF batch(a) THEN
+            price(a) <- prevAccountPriceB(batch(a), stock(a), dateTime(a));
+        ELSE
+            price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
+    }
     
     sum(DisassemblyDetail d) <- IF useOverSum(d) THEN overSum(d) ELSE (PARTITION UNGROUP sum
                                         PROPORTION STRICT ROUND(2) percent(d)
@@ -447,13 +457,18 @@ copy 'Копировать'(Disassembly s)  {
             operation(a) <- operation(s);
             stock(a) <- stock(s);
             sku(a) <- sku(s);
+            batch(a) <- batch(s);
             quantity(a) <- quantity(s);
+            price(a) <- price(s);
+            sum(a) <- sum(s);
 
             FOR disassembly(DisassemblyDetail sd) == s DO NEW d = DisassemblyDetail {
                 disassembly(d) <- a;
                 sku(d) <- sku(sd);
                 quantity(d) <- quantity(sd);
                 dataPercent(d) <- dataPercent(sd);
+                price(d) <- price(sd);
+                sum(d) <- sum(sd);
             }
 
             SHOW disassembly OBJECTS a = a DOCKED NOCANCEL;

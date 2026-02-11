@@ -313,13 +313,7 @@ NAVIGATOR {
     }
 }
 
-// -- цены
-
-WHEN LOCAL (CHANGED(sku(AssemblyDetail d)) OR
-            CHANGED(stock(d)) OR
-            (CHANGED(dateTime(d)) AND NOT isPosted(d)))
-            AND NOT CHANGED(price(d)) DO
-    price(d) <- prevAccountPriceB(sku(d), stock(d), dateTime(d));
+@deriveDocumentDetailPriceAccountBatch(assembly, sku, stock);
 
 calcSum = ABSTRACT CASE NUMERIC[18,4] (Assembly);
 calcSum(Assembly assembly) += WHEN sumAssemblyDetail(assembly) THEN sumAssemblyDetail(assembly);
@@ -424,11 +418,16 @@ copy 'Копировать'(Assembly s)  {
             stock(a) <- stock(s);
             sku(a) <- sku(s);
             quantity(a) <- quantity(s);
+            price(a) <- price(s);
+            sum(a) <- sum(s);
             
             FOR assembly(AssemblyDetail sd) == s DO NEW d = AssemblyDetail {
                 assembly(d) <- a;
                 sku(d) <- sku(sd);
+                batch(d) <- batch(sd);
                 quantity(d) <- quantity(sd);
+                price(d) <- price(sd);
+                sum(d) <- sum(sd);
             }
 
             SHOW assembly OBJECTS a = a DOCKED NOCANCEL;
