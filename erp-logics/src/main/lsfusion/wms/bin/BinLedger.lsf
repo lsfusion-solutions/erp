@@ -144,14 +144,18 @@ bins 'Ячейки' = GROUP CONCAT canonicalId(Bin bin), ',' IF prevCurrentBalan
 
 status 'Статус' (Bin bin) = IF prevCurrentBalance(bin) THEN 'Занята' ELSE 'Свободна';
 
-META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
-    dateTime[BinLedger] (###class ledger) += dateTime(object(ledger));
+META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp, dateTimeProp)
+    dateTime[BinLedger] (###class ledger) += dateTimeProp(object(ledger));
     isPosted[BinLedger] (###class ledger) += isPosted(object(ledger));
     isClosed[BinLedger] (###class ledger) += isClosed(object(ledger));
     skuProp[BinLedger] (###class ledger) += skuProp(object(ledger));
     quantity[BinLedger] (###class ledger) += quantityProp(object(ledger));
     stock[BinLedger] (###class ledger) += stockProp(object(ledger));
-    description[BinLedger] (###class ledger) += description(object(ledger));
+    description[BinLedger] (###class ledger) += description(object(ledger));    
+END    
+
+META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
+    @implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp, dateTime);
 END
 
 META implementBinLedger(class, object, skuProp, quantityProp, stockProp, binProp)
@@ -173,11 +177,11 @@ END
 META createClassBinLedger (classPref)
     CLASS classPref##BinLedger : BinLedger;
 END
-META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp)
+META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp, dateTimeProp)
     @createClassBinLedger(###classPrefix);
     needToCreate###classPrefix##BinLedger = ABSTRACT BOOLEAN (###object); 
     classPrefix##BinLedger = AGGR ###classPrefix##BinLedger WHERE needToCreate###classPrefix##BinLedger(###object object) MATERIALIZED INDEXED;
-    @implementBinLedger(classPrefix##BinLedger, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp);
+    @implementBinLedger(classPrefix##BinLedger, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp, dateTimeProp);
 END 
 
 FORM binLedger 'Регистр изменения остатков по ячейкам'
@@ -687,7 +691,7 @@ END
 META defineCreditNoteBins(stockProp, binType, binCaption)
     @defineDocumentBins(creditNote, binType, binCaption);
 
-    @implementAggregationBinLedger(creditNoteDetail, creditNote, CreditNote, sku, quantity, stockProp);
+    @implementAggregationBinLedger(creditNoteDetail, creditNote, CreditNote, sku, quantity, stockProp, dateTime);
 
     @implementBinLedger(creditNoteBinLedger, creditNoteDetail, sku, quantity, stockProp, binType###Bin);
     needToCreateCreditNoteBinLedger(CreditNoteDetail detail) += binType###Bin(detail) IS Bin;

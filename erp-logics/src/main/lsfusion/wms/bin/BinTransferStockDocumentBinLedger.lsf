@@ -19,7 +19,7 @@ shipmentSumUserBinTransferDetail '{document.sum.of} (учетная)' (userBinTr
 
 WHEN LOCAL (CHANGED(stock(UserBinTransferDetail detail)) OR CHANGED(dateTime(detail)) OR SETCHANGED(batch(detail))) AND 
     batch(detail) AND createStockDocumentBinLedger(operation(detail)) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
-    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), stock(detail), dateTime(detail));
+    shipmentPrice(detail) <- prevAccountPriceA(batch(detail), stock(detail), dateTime(detail));
 }
 
 calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (UserBinTransferDetail);
@@ -38,6 +38,15 @@ EXTEND FORM binTransfers
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
+
+needToRecalculateShipmentSum = ABSTRACT BOOLEAN (UserBinTransferDetail);
+recalculateShipmentSum() + {
+    NEWSESSION {
+        shipmentPrice(UserBinTransferDetail detail) <- prevAccountPriceA(batch(detail), stock(detail), dateTime(detail))
+            WHERE needToRecalculateShipmentSum(detail) AND batch(detail) AND sum(date(detail), countDaysToRecalculate())>=currentDate();
+        APPLY;
+    }
+}
 
 CLASS IncStockDocumentBinTransferLedger 'Перемещение по ячейкам (приход)' : IncStockDocumentBinLedger;
 

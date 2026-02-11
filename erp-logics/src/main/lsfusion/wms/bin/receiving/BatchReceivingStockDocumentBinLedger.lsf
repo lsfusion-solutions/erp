@@ -12,9 +12,9 @@ shipmentSum '{document.sum.of} (учетная)'  = DATA NUMERIC[16,4] (Receivin
 shipmentSumReceivingDetail '{document.sum.of} (учетная)' (receiving) =
     GROUP SUM shipmentSum(ReceivingDetail idetail) BY receiving(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
 
-WHEN LOCAL (CHANGED(GRDateTime(receiving(ReceivingDetail detail))) OR SETCHANGED(batch(detail))) AND
+WHEN LOCAL (CHANGED(GRDateTime(ReceivingDetail detail)) OR SETCHANGED(batch(detail))) AND
     batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
-    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), stock(inBin(detail)), GRDateTime(receiving(detail)));
+    shipmentPrice(detail) <- prevAccountPriceA(batch(detail), stock(inBin(detail)), GRDateTime(detail));
 }
 
 calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (ReceivingDetail);
@@ -26,3 +26,12 @@ EXTEND FORM receiving
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) shipmentSumReceivingDetail
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER nameBatch(d) shipmentPrice, shipmentSum
 ;
+
+needToRecalculateShipmentSum = ABSTRACT BOOLEAN (ReceivingDetail);
+recalculateShipmentSum() + {
+    NEWSESSION {
+        shipmentPrice(ReceivingDetail detail) <- prevAccountPriceA(batch(detail), stock(inBin(detail)), GRDateTime(detail))
+            WHERE needToRecalculateShipmentSum(detail) AND batch(detail) AND sum(GRDate(detail), countDaysToRecalculate())>=currentDate();
+        APPLY;
+    }
+}

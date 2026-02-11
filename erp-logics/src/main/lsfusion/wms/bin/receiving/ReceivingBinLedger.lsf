@@ -74,6 +74,9 @@ nameStatus 'Статус' (ReceivingDetail d) = IF completeStatus(d) THEN 'За�
 hasCompleteReceivingDetail = GROUP SUM 1 IF completeStatus(ReceivingDetail d) BY receiving(d);
 hasNotCompleteReceivingDetail = GROUP SUM 1 IF NOT completeStatus(ReceivingDetail d) BY receiving(d);
 
+//Goods Receipt DateTime
+@defineDocumentDetailTimePrefix(receiving, ReceivingDetail, GR, ' завершения');
+
 @defineDocumentDetailPosted(receiving);
 
 @defineDocumentDetailClosed(receiving);
@@ -135,8 +138,6 @@ WHEN CHANGED(quantity(ReceivingDetail detail)) DO {
 dataInBin = DATA Bin (ReceivingDetail);
 inBin(ReceivingDetail detail) = OVERRIDE dataInBin(detail), inBin(receiving(detail));
 nameInBin 'Ячейка' (ReceivingDetail detail) = canonicalId(inBin(detail));
-
-dateTime(ReceivingDetail detail) = createdDateTime(detail);
 
 idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (Receiving);
 skuLocal = DATA LOCAL Sku (Receiving);
@@ -1113,7 +1114,7 @@ META defineUserReceiving (primObject, captionObjects)
         [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), overConsolidationKey(detail), userReceiving(primObject(detail))](sku, consolidationKey, receiving);
 END
 
-@implementAggregationBinLedger(receivingDetail, receiving, Receiving, sku, quantity, customerStock);
+@implementAggregationBinLedger(receivingDetail, receiving, Receiving, sku, quantity, customerStock, GRDateTime);
 
 @implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBin);
 
