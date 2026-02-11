@@ -602,10 +602,14 @@ allowDeleteLot 'Разрешить удаление марки' = DATA BOOLEAN (
 allowNewLot 'Разрешить ввод новой марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 allowCreateBox 'Разрешить создание короба' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 onlineLotValidate 'Online валидация кодов маркировки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-checkItemLotsCount 'Проверка на соответствие количества маркировки с количеством товара' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-banUnloadDocumentWithLotCountDiff 'Запрет выгрузки документа с несоответствующим количеством марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+checkItemLotsCount 'Контроль количества марок' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 banInvalidLot 'Запрет невалидной марки' = DATA BOOLEAN (TerminalDocumentTypePreferences);
-//confirmNewItemOrder 'Подтверждение ввода товара вне заказа' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+
+//showGoodsField1 'Поле1' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+//showGoodsField2 'Поле2' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+//showGoodsField3 'Поле3' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+//showGoodsField4 'Поле4' = DATA BOOLEAN (TerminalDocumentTypePreferences);
+//howGoodsField5 'Поле5' = DATA BOOLEAN (TerminalDocumentTypePreferences);
 
 FORM terminalDocumentTypePreferences 'Настройки документа' FORMEXTID 'Preferences'
 
@@ -654,7 +658,6 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
 
         isOrder,
         banItemOutsideOrder,
-        //confirmNewItemOrder FOREGROUND RGB (0, 0, 255),
         controlOrderQuantity,
         quantityFromOrder,
         singleChoiceOrder,
@@ -670,7 +673,10 @@ FORM terminalDocumentTypePreferences 'Настройки документа' FOR
         allowNewLot,
         allowCreateBox,
         onlineLotValidate,
-        banInvalidLot
+        banInvalidLot,
+        checkItemLotsCount
+
+        //showGoodsField1, showGoodsField2, showGoodsField3, showGoodsField4, showGoodsField5
 ;
 
 caption = DATA LOCAL STRING();
@@ -747,6 +753,15 @@ DESIGN terminalDocumentTypePreferences {
                 MOVE PROPERTY(requestField3(o));
                 MOVE PROPERTY(requiredField3(o));
             }
+            NEW goodsFields {
+                caption = 'Отображение полей товара';
+                horizontal = TRUE;
+                //MOVE PROPERTY(showGoodsField1(o));
+                //MOVE PROPERTY(showGoodsField2(o));
+                //MOVE PROPERTY(showGoodsField3(o));
+                //MOVE PROPERTY(showGoodsField4(o));
+                //MOVE PROPERTY(showGoodsField5(o));
+            }
         }
 
         NEW order {
@@ -778,6 +793,7 @@ DESIGN terminalDocumentTypePreferences {
             MOVE PROPERTY(allowCreateBox(o));
             MOVE PROPERTY(onlineLotValidate(o));
             MOVE PROPERTY(banInvalidLot(o));
+            MOVE PROPERTY(checkItemLotsCount(o));
         }
     }
     MOVE TOOLBARBOX;
@@ -851,6 +867,7 @@ copyFlags(TerminalDocumentType t, TerminalDocumentTypePreferences p) {
     allowNewLot(p) <- flag(t, TerminalFlags.FLG_VOP_ALLOW_NEW_LOT);
     allowCreateBox(p) <- flag(t, TerminalFlags.FLG_VOP_ALLOW_CREATE_BOX);
     onlineLotValidate(p) <- flag(t, TerminalFlags.FLG_VOP_USE_LOT_VALIDATE_SERVICE);
+    checkItemLotsCount(p) <- flag(t, TerminalFlags.FLG_VOP_CHECK_LOTS_COUNT);
 }
 
 flagsFromPreferences(TerminalDocumentType t , TerminalDocumentTypePreferences p) {
@@ -917,6 +934,7 @@ flagsFromPreferences(TerminalDocumentType t , TerminalDocumentTypePreferences p)
     in(t, TerminalFlags.FLG_VOP_ALLOW_NEW_LOT) <- allowNewLot(p);
     in(t, TerminalFlags.FLG_VOP_ALLOW_CREATE_BOX) <- allowCreateBox(p);
     in(t, TerminalFlags.FLG_VOP_USE_LOT_VALIDATE_SERVICE) <- onlineLotValidate(p);
+    in(t, TerminalFlags.FLG_VOP_CHECK_LOTS_COUNT) <- checkItemLotsCount(p);
     
     flag(t) <- (GROUP SUM flag(TerminalFlags f) IF in(t, f));
 }
@@ -925,6 +943,11 @@ changePreferences 'Опции' (TerminalDocumentType t) {
     NEWSESSION {
         IF NOT preferences(t) THEN NEW p = TerminalDocumentTypePreferences {
             preferences(t) <- p;
+            //showGoodsField1(preferences(t)) <- TRUE;
+            //showGoodsField2(preferences(t)) <- TRUE;
+            //showGoodsField3(preferences(t)) <- TRUE;
+            //showGoodsField4(preferences(t)) <- TRUE;
+            //showGoodsField5(preferences(t)) <- TRUE;
         }
         copyFlags(t, preferences(t));
         DIALOG terminalDocumentTypePreferences OBJECTS o = preferences(t) CHANGE DO {
