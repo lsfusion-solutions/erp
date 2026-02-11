@@ -1,0 +1,28 @@
+MODULE BatchReceivingStockDocumentBinLedger;
+
+REQUIRE BatchReceivingBinLedger, StockDocumentBinLedger,
+        BatchReceivingInvoiceBinLedger //подключил для простоты вынесения на форму и как единственную реализацию назначения партий для строки приёмки
+    ;
+
+NAMESPACE Bin;
+
+shipmentPrice '{document.price} (учетная)' = DATA NUMERIC[16,4] (ReceivingDetail) PATTERN '#,##0.00##';
+shipmentSum '{document.sum.of} (учетная)'  = DATA NUMERIC[16,4] (ReceivingDetail)PATTERN '#,##0.00##';
+
+shipmentSumReceivingDetail '{document.sum.of} (учетная)' (receiving) =
+    GROUP SUM shipmentSum(ReceivingDetail idetail) BY receiving(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
+
+WHEN LOCAL (CHANGED(GRDateTime(receiving(ReceivingDetail detail))) OR SETCHANGED(batch(detail))) AND
+    batch(detail) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
+    shipmentPrice (detail) <- prevAccountPriceB(batch(detail), stock(inBin(detail)), GRDateTime(receiving(detail)));
+}
+
+calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (ReceivingDetail);
+calcShipmentSum(ReceivingDetail detail) += NUMERIC[18,4](round2(quantity(detail) * shipmentPrice(detail))); //округление делаем до двух знаков, если надо, то переопределиться потом
+shipmentSum (ReceivingDetail detail) <- calcShipmentSum(detail)
+    WHEN DO (CHANGED(quantity(detail)) OR CHANGED (shipmentPrice(detail)));
+
+EXTEND FORM receiving
+    PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) shipmentSumReceivingDetail
+    PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER nameBatch(d) shipmentPrice, shipmentSum
+;

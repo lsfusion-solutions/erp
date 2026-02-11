@@ -1,6 +1,6 @@
-MODULE BinTransferStockDocumentBinLedger;
+MODULE BatchBinTransferStockDocumentBinLedger;
 
-REQUIRE BinTransferBinLedger, StockDocumentBinLedger;
+REQUIRE BatchBinTransferBinLedger, StockDocumentBinLedger;
 
 NAMESPACE Bin;
 
@@ -12,9 +12,9 @@ shipmentSum '{document.sum.of} (учетная)'  = ABSTRACT NUMERIC[16,4] (BinT
 shipmentSum '{document.sum.of} (учетная)'  = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentSum(UserBinTransferDetail userBinTransferDetail) += shipmentSum(userBinTransferDetail);
 
-shipmentSumBinTransferDetail '{document.sum.of} (учетная)' (invoice) = 
+shipmentSumBinTransferDetail '{document.sum.of} (учетная)' (binTransfer) = 
     GROUP SUM shipmentSum(BinTransferDetail idetail) BY binTransfer(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
-shipmentSumUserBinTransferDetail '{document.sum.of} (учетная)' (userInvoice) = 
+shipmentSumUserBinTransferDetail '{document.sum.of} (учетная)' (userBinTransfer) = 
     GROUP SUM shipmentSum(UserBinTransferDetail idetail) BY userBinTransfer(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
 
 WHEN LOCAL (CHANGED(stock(UserBinTransferDetail detail)) OR CHANGED(dateTime(detail)) OR SETCHANGED(batch(detail))) AND 
@@ -28,13 +28,13 @@ shipmentSum (UserBinTransferDetail detail) <- calcShipmentSum(detail)
     WHEN DO (CHANGED(quantity(detail)) OR CHANGED (shipmentPrice(detail))) AND createStockDocumentBinLedger(operation(detail));
 
 EXTEND FORM userBinTransfer
-    PROPERTIES(o) READONLY shipmentSumBinTransferDetail
+    PROPERTIES(o) READONLY BACKGROUND RGB(255, 224, 255) shipmentSumUserBinTransferDetail
     PROPERTIES(d) BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
 
 EXTEND FORM binTransfers
-    PROPERTIES(o) READONLY AFTER quantityBinTransferDetail(o) shipmentSumUserBinTransferDetail  
+    PROPERTIES(o) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantityBinTransferDetail(o) shipmentSumBinTransferDetail  
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
