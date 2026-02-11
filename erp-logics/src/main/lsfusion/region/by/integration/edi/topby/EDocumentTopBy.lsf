@@ -533,41 +533,7 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
     }
 }
 
-GROUP documentAttributes EXTID 'DocumentAttributes';
-GROUP eDocumentType : documentAttributes;
-GROUP sender2 EXTID 'Sender' : documentAttributes;
-GROUP legalPerson EXTID 'LegalPerson' : sender2;
-GROUP receiver2 EXTID 'Receiver' : documentAttributes;
-GROUP legalPerson1 EXTID 'LegalPerson' : receiver2;
-
-responseIndicator = DATA LOCAL STRING ();
-
-FORM exportBlrdocV2 FORMEXTID 'BLRDOC'
-    PROPERTIES ATTR = '2.0' IF NOT hideMessageHeaderBlrdoc() EXTID 'version'
-    PROPERTIES ATTR = responseIndicator() EXTID 'responseIndicator'
-
-    OBJECTS ed = EDocument IN documentAttributes
-    PROPERTIES DRAW ed documentID = (OVERRIDE documentID(ed), STRING[35](resultMilliseconds())) EXTID 'DocumentID',
-        creationDateTime = toChar((OVERRIDE creationDateTime(ed) IF NOT isCancel(ed), exportBlrdocDateTime()), 'YYYYMMDDHH24MISS') EXTID 'CreationDateTime',
-        functionCode(ed) EXTID 'FunctionCode',
-        route = OVERRIDE idRoute(ed), '0' EXTID 'eDocumentRoute',
-        number(ed) EXTID 'eDocumentNumber',
-        date = toChar(date(ed), 'YYYYMMDD') EXTID 'eDocumentDate'
-    PROPERTIES (ed) IN eDocumentType nameDocumentType EXTID 'TypeName', codeDocumentType EXTID 'TypeCode'
-
-    PROPERTIES DRAW ed IN legalPerson glnSender(ed) EXTID 'GLN',
-        nameSender(ed) EXTID 'Name',
-        addressSender(ed) EXTID 'Address',
-        unpSender(ed) EXTID 'VATRegistrationNumber'
-    PROPERTIES DRAW ed IN legalPerson1 glnReceiver(ed) EXTID 'GLN',
-        nameReceiver(ed) EXTID 'Name',
-        addressReceiver(ed) EXTID 'Address',
-        unpReceiver(ed) EXTID 'VATRegistrationNumber'
-
-    PROPERTIES (ed) IN document file EXTID 'eDocumentFile', typeFile EXTID 'eDocumentFileType', name EXTID 'eDocumentName'
-;
-
-GROUP receiver3 EXTID 'receiver';
+GROUP receiver1 EXTID 'receiver';
 id = DATA LOCAL STRING ();
 documentID1 = DATA LOCAL STRING();
 creationDateTime1 = DATA LOCAL STRING ();
@@ -576,8 +542,8 @@ FORM exportBlrdocJSON
     OBJECTS d = EDocument PANEL
     PROPERTIES (d) number EXTID 'eDocumentNumber', date EXTID 'eDocumentDate', codeDocumentType EXTID 'eDocumentTypeCode', nameDocumentType EXTID 'eDocumentTypeName',
         idFunctionCode EXTID 'functionCode', idRoute EXTID 'route'
-    PROPERTIES IN receiver3 id = id(receiver(d), sender(d))
-    PROPERTIES (d) IN receiver3 nameReceiver EXTID 'name', glnReceiver EXTID 'gln', unpReceiver EXTID 'unp'
+    PROPERTIES IN receiver1 id = id(receiver(d), sender(d))
+    PROPERTIES (d) IN receiver1 nameReceiver EXTID 'name', glnReceiver EXTID 'gln', unpReceiver EXTID 'unp'
 ;
 
 xmlBody = DATA LOCAL STRING();
@@ -595,6 +561,32 @@ FORM importSignDoc
     PROPERTIES(xmlByteDate) xmlByteDate EXTID 'value'
     FILTERS imported(xmlByteDate)
 ;
+
+GROUP sender1 EXTID 'sender';
+GROUP processingStatus;
+
+fileName1 = DATA LOCAL STRING();
+gln = DATA LOCAL STRING();
+functionCode1 = DATA LOCAL STRING();
+id1 = DATA LOCAL STRING();
+name1 = DATA LOCAL STRING();
+route = DATA LOCAL STRING();
+edocumentDate = DATA LOCAL STRING();
+gln1 = DATA LOCAL STRING();
+edocumentNumber = DATA LOCAL STRING();
+edocumentTypeCode = DATA LOCAL STRING();
+
+FORM importBlrdoc
+    PROPERTIES() id, creationDateTime1, route, functionCode1 EXTID 'functionCode', documentID1 EXTID 'documentID',
+        edocumentNumber, edocumentDate, edocumentTypeCode, fileName1 EXTID 'fileName'
+
+    PROPERTIES() IN sender1 gln1 EXTID 'gln'
+    PROPERTIES() IN receiver1 gln
+
+    PROPERTIES() IN processingStatus id1 EXTID 'id', name1 EXTID 'name'
+;
+
+eDocumentStatus 'Статус документа' = DATA STRING (EDocument);
 
 signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir, STRING[100] provider) {
     LOCAL result = FILE ();
@@ -633,11 +625,14 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
 
                         EXPORT exportBlrdocJSON OBJECTS d = d JSON;
                         EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() HEADERS headers PARAMS exportFile() TO result;
-                        IMPORT JSON FROM result() TO() id = id, documentID1 = documentID;
+
+                        IMPORT importBlrdoc FROM result();
                         id(d) <- id();
                         documentID(d) <- documentID1();
                         creationDateTime(d) <- DATETIME(creationDateTime1());
                         dateTimeCreated(d) <- DATETIME(creationDateTime1());
+                        eDocumentStatus(d) <- name1();
+                        type(d) <- codeDocumentType(d);
 
                         exportBlrdocDateTime() <- currentDateTimeMillis();
                         toMilliseconds(exportBlrdocDateTime());
@@ -648,7 +643,7 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                             WRITE exportFile() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + name();
                         }
                         LOCAL base64File = STRING ();
-                        //base64File() <- encodeBase64(file(d));
+                        base64File() <- encode(file(d), 'base64');
 
                         EXPORT JSON FROM content = base64File(), fileName = name(d);
                         EXTERNAL HTTP PUT url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/file/base64' HEADERS headers PARAMS exportFile() TO result;
@@ -738,7 +733,7 @@ signAndSendSender(EDocument d) + {
     }
 }
 
-idBlrapn = DATA STRING (EDocument);
+idBlrapnSender = DATA STRING (EDocument);
 
 signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir, STRING[100] provider) {
     LOCAL result = FILE ();
@@ -764,14 +759,14 @@ signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outp
                             TRY{ mkdir(outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd')); }
                             WRITE result() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + 'blrapn-' + toChar(blrapnDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
                         }
-                        idBlrapn(d) <- id();
+                        idBlrapnSender(d) <- id();
                         stringToFile(xmlBase64());
                         getSignedDocumentSender(provider, d, resultFile(), TRUE);
                         IF signError() THEN {
-                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEDocument error: BLRAPN ' + (OVERRIDE number(d), idBlrapn(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
-                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: BLRAPN ' + (OVERRIDE number(d), idBlrapn(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
+                            logToFile('edi', provider + ' (' + loginProfile(le) + ') SendBlrapnEDocument error: BLRAPN ' + (OVERRIDE number(d), idBlrapnSender(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError());
+                            MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: BLRAPN ' + (OVERRIDE number(d), idBlrapnSender(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
-                        EXPORT JSON FROM id = idBlrapn(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                        EXPORT JSON FROM id = idBlrapnSender(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
                         EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + 'blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
 
                         numberSenderCancel(d) <- STRING[35](resultMilliseconds());
@@ -915,6 +910,8 @@ signAndSendBlrapnReceiverEDocument (EDocument ed, STRING[100] login, STRING[100]
     }
 }
 
+idBlrapnReceiver = DATA STRING (EDocument);
+
 signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir, STRING[100] provider) {
     LOCAL result = FILE ();
     TRY {
@@ -929,9 +926,11 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
                     EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/blrapn/denySignature?base64=true' HEADERS headers PARAMS exportFile() TO result;
 
                     IMPORT importSignDoc JSON FROM result();
+
                     IF errorDescription() != '' THEN {
                         MESSAGE errorDescription();
                     } ELSE {
+                        idBlrapnReceiver(d) <- id();
                         stringToFile(xmlBase64());
                         getSignedDocumentReceiver(provider, d, resultFile(), TRUE);
                         IF signError() THEN {
@@ -939,7 +938,7 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
                             MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: BLRDOC ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         IF base64Signature() THEN {
-                            EXPORT JSON FROM id = id(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
+                            EXPORT JSON FROM id = idBlrapnReceiver(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
                             EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + 'blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
 
                             exportBlrdocDateTime() <- currentDateTimeMillis();
@@ -964,10 +963,7 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
                             }
                         }
                     }
-
-                    EXPORT JSON FROM id = id(d);
-                    EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/saveSignedAndSend ' HEADERS headers PARAMS exportFile() TO result;
-
+                    APPLY;
                 } ELSE {
                     logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument: ошибка при аутентификации');
                     MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: ошибка при аутентификации' NOWAIT;
@@ -1236,8 +1232,6 @@ filterPageStatusName 'Статус документов' () = staticCaption(filt
 documentDateStart 'Дата с' = DATA LOCAL NESTED DATETIME ();
 documentDateEnd 'Дата по' = DATA LOCAL NESTED DATETIME ();
 
-GROUP processingStatus;
-
 last = DATA LOCAL BOOLEAN();
 totalPages = DATA LOCAL INTEGER();
 idContent = DATA LOCAL STRING(INTEGER);
@@ -1254,45 +1248,6 @@ FORM importBlrdocs
     PROPERTIES(content) IN processingStatus name1 EXTID 'name', id1 EXTID 'id'
     FILTERS imported(content)
 ;
-
-GROUP receiver1 EXTID 'receiver';
-GROUP sender1 EXTID 'sender';
-
-id3 = DATA LOCAL STRING();
-fileName1 = DATA LOCAL STRING();
-gln = DATA LOCAL STRING();
-functionCode1 = DATA LOCAL STRING();
-fieldName = DATA LOCAL STRING(INTEGER);
-fieldCode = DATA LOCAL STRING(INTEGER);
-fieldValue = DATA LOCAL STRING(INTEGER);
-referenceDocumentList = DATA LOCAL STRING(INTEGER);
-id1 = DATA LOCAL STRING();
-name1 = DATA LOCAL STRING();
-route = DATA LOCAL STRING();
-edocumentDate = DATA LOCAL STRING();
-gln1 = DATA LOCAL STRING();
-edocumentNumber = DATA LOCAL STRING();
-edocumentTypeCode = DATA LOCAL STRING();
-
-FORM importBlrdoc
-    PROPERTIES() id3 EXTID 'id', creationDateTime1, route, functionCode1 EXTID 'functionCode', documentID1 EXTID 'documentID',
-        edocumentNumber, edocumentDate, edocumentTypeCode, fileName1 EXTID 'fileName'
-
-    PROPERTIES() IN sender1 gln1 EXTID 'gln'
-    PROPERTIES() IN receiver1 gln
-
-    OBJECTS extraFieldList = INTEGER
-    PROPERTIES(extraFieldList) fieldName, fieldCode, fieldValue
-    FILTERS imported(extraFieldList)
-
-    PROPERTIES() IN processingStatus id1 EXTID 'id', name1 EXTID 'name'
-
-    OBJECTS referenceDocumentList = INTEGER
-    PROPERTIES(referenceDocumentList) referenceDocumentList EXTID 'value'
-    FILTERS imported(referenceDocumentList)
-;
-
-eDocumentStatus 'Статус документа' = DATA STRING (EDocument);
 
 getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOLEAN disableConfirmation, STRING[100] provider) {
     LOCAL response = FILE ();
@@ -1320,7 +1275,7 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
                         IMPORT importBlrdoc JSON FROM response();
 
                         NEW d = EDocument {
-                            id(d) <- id3();
+                            id(d) <- id();
                             route(d) <- eDocumentRoute(route());
                             functionCode(d) <- eDocumentFunctionCode(functionCode1());
                             documentID(d) <- documentID1();
@@ -1345,17 +1300,8 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
                                 EXTERNAL HTTP GET url(profile(le)) + blrdocUrlStt() + id(d) + '/file' HEADERS headers TO file;
                                 file(d) <- file();
                                 name(d) <- fileName1();
+                                typeFile(d) <- substr(fileName1(), strpos(fileName1(), '.') + 1, 5);
                             }
-
-                            //                            FOR fieldCode(INTEGER j) DO {
-                            //                                NEW dd = EDocumentDetail {
-                            //                                    senderItemDescription(dd) <- fieldName(j);
-                            //                                    senderItemCode(dd) <- fieldCode(j);
-                            //                                    invoiceQuantity(dd) <- fieldValue(j);
-                            //
-                            //                                    eDocument(dd) <- d;
-                            //                                }
-                            //                            }
                         }
                     }
                     IF totalPages() == page() OR last() THEN BREAK;
@@ -1406,6 +1352,12 @@ updateEDocuments 'Обновить документы' (LegalEntity le, STRING l
                         IF receiver(doc) = le THEN {
                             importedReceiver(doc) <- TRUE;
                             IF id1(i) = 'TRANSFERRED' THEN exportedSender(doc) <- TRUE;
+                        }
+
+                        IF NOT file(doc) THEN {
+                            logToFile('edi', provider + ' (' + login + ') Receive BLRDOC file request sent. GET /api/v1/BLRDOC/{id}/file');
+                            EXTERNAL HTTP GET url(profile(le)) + blrdocUrlStt() + id(doc) + '/file' HEADERS headers TO file;
+                            file(doc) <- file();
                         }
                     }
                     IF totalPages() == page() OR last() THEN BREAK;
