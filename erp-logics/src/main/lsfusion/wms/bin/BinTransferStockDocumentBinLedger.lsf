@@ -4,13 +4,18 @@ REQUIRE BinTransferBinLedger, StockDocumentBinLedger;
 
 NAMESPACE Bin;
 
-shipmentPrice 'Учётная цена' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
-shipmentPrice 'Учётная цена' = DATA NUMERIC[16,4] (UserBinTransferDetail);
+shipmentPrice '{document.price} (учетная)' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
+shipmentPrice '{document.price} (учетная)' = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentPrice(UserBinTransferDetail userBinTransferDetail) += shipmentPrice(userBinTransferDetail);
 
-shipmentSum 'Учётная сумма' = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
-shipmentSum 'Учётная сумма' = DATA NUMERIC[16,4] (UserBinTransferDetail);
+shipmentSum '{document.sum.of} (учетная)'  = ABSTRACT NUMERIC[16,4] (BinTransferDetail) MATERIALIZED PATTERN '#,##0.00##';
+shipmentSum '{document.sum.of} (учетная)'  = DATA NUMERIC[16,4] (UserBinTransferDetail);
 shipmentSum(UserBinTransferDetail userBinTransferDetail) += shipmentSum(userBinTransferDetail);
+
+shipmentSumBinTransferDetail '{document.sum.of} (учетная)' (invoice) = 
+    GROUP SUM shipmentSum(BinTransferDetail idetail) BY binTransfer(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
+shipmentSumUserBinTransferDetail '{document.sum.of} (учетная)' (userInvoice) = 
+    GROUP SUM shipmentSum(UserBinTransferDetail idetail) BY userBinTransfer(idetail) CHARWIDTH 10 IN documentSum PATTERN '#,##0.00##';
 
 WHEN LOCAL (CHANGED(stock(UserBinTransferDetail detail)) OR CHANGED(dateTime(detail)) OR SETCHANGED(batch(detail))) AND 
     batch(detail) AND createStockDocumentBinLedger(operation(detail)) AND NOT CHANGED(shipmentPrice(detail)) AND NOT skipUpdatePriceAccount() DO {
@@ -23,11 +28,13 @@ shipmentSum (UserBinTransferDetail detail) <- calcShipmentSum(detail)
     WHEN DO (CHANGED(quantity(detail)) OR CHANGED (shipmentPrice(detail))) AND createStockDocumentBinLedger(operation(detail));
 
 EXTEND FORM userBinTransfer
+    PROPERTIES(o) READONLY shipmentSumBinTransferDetail
     PROPERTIES(d) BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
 
 EXTEND FORM binTransfers
+    PROPERTIES(o) READONLY AFTER quantityBinTransferDetail(o) shipmentSumUserBinTransferDetail  
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER quantity(d) SHOWIF createStockDocumentBinLedger(operation(d))
         shipmentPrice, shipmentSum
 ;
