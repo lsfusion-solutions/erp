@@ -1,17 +1,10 @@
 MODULE InventoryRegisterGestori;
 
-REQUIRE Inventory, SaleReports, PriceListStore;
+REQUIRE Inventory, StocksGestori, PriceListStore;
 
 NAMESPACE Inventory;
 
 interval 'Период дат' = DATA LOCAL INTERVAL[DATETIME] ();
-
-allStocks = NOT (GROUP MAX inSaleReport(Stock o));
-inStocks 'Склады' = IF allStocks() THEN 'ВСЕ' ELSE GROUP CONCAT name(Stock o) IF inSaleReport(o), '; ' ORDER o;
-
-selectStocks(){
-    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
-}
 
 name 'Подразделение' (Stock o) = CONCAT ' ', id(o), name(o);
 unit 'Подразделение' (CollationSheet o) = name(stock(o));
@@ -21,7 +14,7 @@ dateDoc 'Дата акта' (CollationSheet o) = date(inventory(o));
 basis 'Основание' (CollationSheet o) = name(inventory(o));
 
 inInterval (CollationSheet o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
-filter (CollationSheet o) = inInterval(o) AND (allStocks() OR inSaleReport(stock(o)));
+filter (CollationSheet o) = isPosted(inventory(o)) AND inInterval(o) AND (allStocks() OR inSaleReport(stock(o)));
 
 amountSurplus 'Сумма излишков (учетная цена)' (CollationSheet o) = GROUP SUM sumShortage(o, Sku s)
     IF sumShortage(o, s) > 0 AND filter(o);
@@ -72,7 +65,7 @@ formatDate = FORMULA DATE 'to_char($1,$2)';
 titleInterval = 'за период с ' + formatDate(from(interval()), 'DD.MM.YYYY HH24:MI:SS')
     + ' по ' + formatDate(to(interval()), 'DD.MM.YYYY HH24:MI:SS');
 
-titleInvReg = 'Реестр инвентаризаций ' + titleInterval();
+title = 'Реестр инвентаризаций ' + titleInterval();
 
 FORM invRegPrint 'Реестр инвентаризаций'
     OBJECTS i = CollationSheet
@@ -85,8 +78,8 @@ FORM invRegPrint 'Реестр инвентаризаций'
         OR amountShortage(i)
         OR amountVATShortage(i)
         OR total(i)
-    PROPERTIES () titleInvReg
-    REPORT 'InventoryRegisterKirovsky.jrxml'
+    PROPERTIES () title
+    REPORT 'InventoryRegister.jrxml'
 ;
 
 invRegPrint 'Реестр инвентаризаций' () { PRINT invRegPrint PDF; } IMAGE 'print.png';

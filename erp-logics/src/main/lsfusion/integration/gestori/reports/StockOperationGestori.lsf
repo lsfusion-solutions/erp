@@ -14,37 +14,69 @@ nameS 'Наименование' (SkuLedger o) = nameSku(o);
 dateDocument 'Дата документа' (SkuLedger o) = date(stockDocumentLedger(o));
 accountPrice 'Учетная цена' (SkuLedger o) = signedPrice(o);
 sumByAccPrice 'Сумма по учетной цене' (SkuLedger o) = signedSum(o);
-
 supplier 'Поставщик' (SkuLedger o) = nameSupplier[Document](stockDocumentLedger(o));
 
+inOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
+cntSelectedOps() = GROUP SUM 1 IF inOperation(Operation.Operation op);
+allOperations() = NOT cntSelectedOps();
+inOpFilter (SkuLedger o) = allOperations() OR inOperation(operationDocument(o));
+
+hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
+    AND (allStocks() OR inSaleReport(stock(o)))
+    AND signedQuantity(o) > 0
+    AND operationDocument(o) = op;
+
+inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ'
+    ELSE GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
+
+FORM selectOperationsForm 'Выбор операций'
+    OBJECTS op = Operation.Operation
+    PROPERTIES(op) inOperation
+    PROPERTIES(op) READONLY name, nameReturn
+    FILTERS hasData(op)
+;
+
+DESIGN selectOperationsForm {
+    size = (600, 400);
+}
+
+selectOperations 'Выбрать операции' () { DIALOG selectOperationsForm; }
+
 FORM operationReport 'Отчет по хозяйственной операции'
-    PROPERTIES () interval,
-        inStocks ON CHANGE selectStocks()
+    PROPERTIES() interval,
+        inStocks ON CHANGE selectStocks(),
+        inOperations ON CHANGE selectOperations()
 
     OBJECTS o = SkuLedger
-    PROPERTIES (o) READONLY idS, nameS, nameUOM, netWeight, idSt, nameOperationDocument, numberDocument, dateDocument, supplier,
-        signedQuantity, netTotalWeight, cost, sumCost, accountPrice, sumByAccPrice, valueVAT, sumVAT, retailPrice, sumRetail,
+    PROPERTIES(o) READONLY idS, nameS, nameUOM, netWeight, idSt,
+        nameOperationDocument, numberDocument, dateDocument, supplier,
+        signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
+        sumByAccPrice, valueVAT, sumVAT, retailPrice, sumRetail,
         valueRetailVAT, sumRetailVAT, profit
-    FILTERS inInterval(o) AND (allStocks() OR inSaleReport(stock(o))) AND signedQuantity(o) > 0
+    FILTERS inInterval(o),
+        allStocks() OR inSaleReport(stock(o)),
+        signedQuantity(o) > 0,
+        inOpFilter(o)
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
-    REPORT 'OperationReportKirovsky.jrxml'
+    REPORT 'OperationReport.jrxml'
 ;
 
 printOperationReport 'Печать' () { PRINT operationReport PDF; } IMAGE 'print.png';
 
 EXTEND FORM operationReport
-    PROPERTIES () DISABLEIF NOT interval() printOperationReport
+    PROPERTIES() DISABLEIF NOT interval() printOperationReport
 ;
 
 DESIGN operationReport {
     NEW filters FIRST {
         alignment = STRETCH;
-        MOVE PROPERTY (interval());
-        MOVE PROPERTY (inStocks());
-        MOVE PROPERTY (printOperationReport());
+        MOVE PROPERTY(interval());
+        MOVE PROPERTY(inStocks());
+        MOVE PROPERTY(inOperations());
+        MOVE PROPERTY(printOperationReport());
     }
-    REMOVE PROPERTY (title);
-    BOX (o) { caption = ''; }
+    REMOVE PROPERTY(title);
+    BOX(o) { caption = ''; }
 }
 
 NAVIGATOR {

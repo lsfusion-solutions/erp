@@ -1,0 +1,104 @@
+MODULE StocksGestori;
+
+REQUIRE StockList, SaleReports;
+
+NAMESPACE Reports;
+
+allStocks = NOT (GROUP MAX inSaleReport(Stock o));
+
+stockInAnyList(Stock st) = GROUP MAX in(StockList sl, st);
+inReportNoList(Stock st) = inSaleReport(st) AND NOT stockInAnyList(st);
+
+selectedStockListNames = GROUP CONCAT name(StockList sl)
+    IF (GROUP MAX inSaleReport(Stock st) AND in(sl, st)), '; ' ORDER name(sl), sl;
+
+rootStockGroup(StockGroup sg) = GROUP LAST StockGroup p IF level(sg, p) ORDER level(sg, p);
+nameRootStockGroup(Stock st) = name(rootStockGroup(stockGroup(st)));
+
+inReportByRootName = GROUP MAX inReportNoList(Stock st) BY nameRootStockGroup(st);
+selectedStockGroupNames = GROUP CONCAT (ISTRING[100] s) IF inReportByRootName(s), '; ' ORDER s;
+
+selectedStockAloneNames = GROUP CONCAT name(Stock st)
+    IF inReportNoList(st) AND NOT stockGroup(st), '; ' ORDER name(st), st;
+
+inStocks 'Склады' = IF allStocks() THEN 'ВСЕ'
+    ELSE CONCAT '; ', selectedStockListNames(), selectedStockGroupNames(), selectedStockAloneNames();
+
+applyStockList 'Применить список' (StockList sl) {
+    inSaleReportDialog(Stock st) <- in(sl, st);
+}
+
+addStockList 'Добавить из списка' (StockList sl) {
+    inSaleReportDialog(Stock st) <- TRUE WHERE in(sl, st);
+}
+
+applyStockGroup 'Применить группу' (StockGroup sg) {
+    inSaleReportDialog(Stock st) <- isParent(sg, st) AND isCompany(st);
+}
+
+addStockGroup 'Добавить из группы' (StockGroup sg) {
+    inSaleReportDialog(Stock st) <- TRUE WHERE isParent(sg, st) AND isCompany(st);
+}
+
+clearStockSelection 'Сбросить' () {
+    inSaleReportDialog(Stock st) <- NULL;
+}
+
+FORM selectStocks 'Выбор складов'
+    TREE stockListTree la = BPSTRING[3], sl = StockList
+    PROPERTIES READONLY VALUE(la), name(sl), order(sl)
+    PROPERTIES applyStockList(sl) TOOLBAR, addStockList(sl) TOOLBAR
+    ORDERS order(sl), name(sl)
+    FILTERS stringEqualsAll(la)
+
+    TREE stockTree a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(a), name(sg)
+    PROPERTIES applyStockGroup(sg) TOOLBAR, addStockGroup(sg) TOOLBAR
+    ORDERS name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) inSaleReportDialog
+    PROPERTIES(s) READONLY id, name, address
+    PROPERTIES clearStockSelection() TOOLBAR DRAW s
+    ORDERS name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+        in(sl, s) OR (s IS Stock AND NOT sl),
+        isCompany(s),
+        countCompanyStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inSaleReportDialog(s) 'F9'
+
+    EVENTS
+        ON INIT { inSaleReportDialog(Stock st) <- inSaleReport(st); },
+        ON OK { inSaleReport(Stock st) <- inSaleReportDialog(st); }
+;
+
+DESIGN selectStocks {
+    BOX {
+        size = (1536, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            NEW leftPanel {
+                fill = 1;
+                MOVE BOX(TREE stockListTree) {
+                    caption = 'Списки складов';
+                    PROPERTY(order(sl)) { hide = TRUE; }
+                }
+                MOVE BOX(TREE stockTree) { caption = 'Группы складов'; }
+            }
+            MOVE BOX(s) {
+                fill = 3;
+                GRID(s) { defaultComponent = TRUE; }
+                PROPERTY(name(s)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+selectStocks() {
+    DIALOG selectStocks;
+}
