@@ -1,0 +1,106 @@
+MODULE ZReportDiscountUKM;
+
+REQUIRE ZReportDiscount, CashRegister, ZReportDiscountCard;
+
+NAMESPACE ZReport;
+
+checkIndex (STRING connectionString, STRING index, STRING table, STRING columns) {
+    LOCAL i = INTEGER ();
+    EXTERNAL SQL connectionString
+        EXEC 'SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name=\''+table+'\' AND index_name=\''+index+'\''
+        TO file;
+    IMPORT FROM file() TO () i;
+    
+    IF i() == 0 THEN {
+        NEWCONNECTION {
+            EXTERNAL SQL connectionString
+                EXEC 'SET sql_mode=\'\';';
+            EXTERNAL SQL connectionString
+                EXEC 'CREATE INDEX '+index+' ON '+table+'('+columns+');';
+        }
+    }
+}
+
+cashRegister = GROUP AGGR CashRegister r WHERE active(groupCashRegister(r)) AND sidModel(groupCashRegister(r)) == 'Ukm4-mysql' BY sectionGroupMachinery(r), npp(r);
+
+importDiscounts (STRING connectionString, DATE date) {
+
+    checkIndex (connectionString, 'date', 'receipt', 'date');
+    checkIndex (connectionString, 'receipt_item', 'receipt_item_discount', 'receipt_item, cash_id');
+    checkIndex (connectionString, 'receipt_discount', 'receipt_item_discount', 'receipt_discount, cash_id');
+
+    EXTERNAL SQL connectionString
+        EXEC 'SELECT
+                r.store,
+                r.cash_number,
+                s.number,
+                s.date,
+                r.local_number,
+                ri.item,
+                rid.increment, 
+                rd.card_number,
+                rd.discount_type,
+                rd.name
+              FROM receipt r
+              JOIN receipt_item ri 
+                    ON ri.receipt_header = r.id AND ri.cash_id = r.cash_id
+              JOIN receipt_item_discount rid 
+                    ON rid.receipt_item  = ri.id AND rid.cash_id = ri.cash_id
+              JOIN receipt_discounts rd 
+                    ON rd.id = rid.receipt_discount AND rd.cash_id = rid.cash_id
+              JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id
+            
+              WHERE r.date >= \''+date+'\' AND r.date < \''+sum(date,1)+'\' 
+              ORDER BY r.cash_id, r.id, ri.position'
+        TO file;
+    
+    LOCAL store, item, name, card_number, idReceipt, idDetail = STRING (INTEGER);
+    LOCAL cash_number, number, local_number, discount_type, index = INTEGER (INTEGER );
+    LOCAL date = DATETIME (INTEGER );
+    LOCAL increment = NUMERIC (INTEGER );
+    LOCAL index = INTEGER (ReceiptDetail);
+    LOCAL receipt = Receipt (INTEGER);     
+    
+    IMPORT FROM file() TO store, cash_number, number, date, local_number, item, increment, card_number, discount_type, name;
+
+    idReceipt(INTEGER r) <- CONCAT '_', npp(groupCashRegister(cashRegister(store(r), cash_number(r)))), cash_number(r), number(r), toChar(date(r), 'DDMMYYYY'), local_number(r);
+    index(INTEGER r)  <- PARTITION SUM 1 ORDER r BY idReceipt(r), item(r);
+    
+    // у нас нет номеров строк из кассового сервера
+    // там могут быть строки с ri.type != 0. При этом position сквозной. в id(ReceiptDetail) они пропущены и расходятся
+    // поэтому сопостовляем по товарам со скидками
+    // может быть медленно, возможно нужно будет ReceiptDetail или/и Receipt еще фильтровать по дате с индексом
+    receipt(INTEGER r) <- receipt(idReceipt(r));
+    FOR [GROUP SUM 1 IF INTEGER i BY receipt(i)] (Receipt r) DO {
+        index(ReceiptDetail d) <- PARTITION SUM 1 IF discountSum(d) > 0 ORDER d BY receipt(d), sku(d) WHERE receipt(d) == r;
+    }
+    
+    FOR [GROUP SUM 1 BY STRING(discount_type(INTEGER r)), name(r)](STRING type, STRING name) AND NOT discountMode(type) NEW d = Discount DO {
+        mode(d) <- type; 
+        name(d) <- name; 
+    }
+    
+    FOR receipt(ReceiptDetail d)  == receipt(INTEGER i) AND idSku(d) == item(i) AND index(d) == index(i) AND STRING(discount_type(i)) == mode(Discount dis) DO {
+        discountSum(d, dis) <- -increment(i);
+    }
+    
+    FOR [GROUP SUM 1 BY card_number(INTEGER r)] (STRING card_number)  AND NOT discountSeriesNumber(card_number) NEW d = DiscountCard DO {
+        id(d) <- card_number;
+        number(d) <- card_number;
+    }
+    
+    FOR [GROUP SUM 1 BY idReceipt(INTEGER r), card_number(r)] (STRING idReceipt, STRING card_number) AND idReceipt == id(Receipt rd) AND NOT discountCard(rd) DO {
+        discountCard(rd) <- discountSeriesNumber(card_number);
+    } 
+}
+
+importDiscountsUKM (DATE d) {
+    FOR [GROUP SUM 1 IF active(GroupCashRegister cr) AND sidModel(cr) == 'Ukm4-mysql' BY getWord(directory(cr), ';', 2)](STRING directory) DO {
+        importDiscounts (directory, d);
+        APPLY;
+    }
+}
+
+importDiscountsUKM 'Импорт скидок из УКМ за предыдущий день' () {
+    importDiscountsUKM(sum(currentDate(), -1));
+}
