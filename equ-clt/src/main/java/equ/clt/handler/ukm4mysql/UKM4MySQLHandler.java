@@ -1405,7 +1405,8 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
                     " LEFT JOIN receipt_item_properties AS rip ON i.cash_id = rip.cash_id AND i.id = rip.receipt_item AND rip.code = '$GiftCard_Number$' " +
                     " LEFT JOIN login AS l ON r.cash_id = l.cash_id AND r.login = l.id  "+
-                    " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
+                    " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0" +
+                    " ORDER BY r.cash_id, r.id, i.position";
             ResultSet rs = statement.executeQuery(query);
 
             Map<String, UKMPayment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments, customPayments, giftCardList, checkCardType);
@@ -1522,6 +1523,9 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList,
                                  Set<Long> succeededRequests, Map<Long, Throwable> failedRequests, Map<Long, Throwable> ignoredRequests) {
+        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
+        boolean useCashNumberInsteadOfCashId = ukm4MySQLSettings.isUseCashNumberInsteadOfCashId();
+
         for (RequestExchange requestExchange : requestExchangeList) {
             for (String directory : getDirectorySet(requestExchange)) {
                 Connection conn = null;
@@ -1536,11 +1540,30 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                         Set<CashRegisterInfo> cashRegisterSet = getCashRegisterSet(requestExchange, true);
                         StringBuilder cashIdWhere = null;
                         if (!cashRegisterSet.isEmpty()) {
-                            cashIdWhere = new StringBuilder("AND cash_id IN (");
-                            for (CashRegisterInfo cashRegister : cashRegisterSet) {
-                                cashIdWhere.append(cashRegister.number == null ? "" : (cashRegister.number + ","));
+                            if (useCashNumberInsteadOfCashId) {
+                                Set<String> storeSet = new HashSet<>();
+                                for (CashRegisterInfo cashRegister : cashRegisterSet) {
+                                    if (cashRegister.section != null) {
+                                        storeSet.add(cashRegister.section);
+                                    }
+                                    cashIdWhere = new StringBuilder("AND store IN (");
+                                    boolean first = true;
+                                    for (String s : storeSet) {
+                                        if (!first) {
+                                            cashIdWhere.append(",");
+                                        }
+                                        cashIdWhere.append("'").append(s).append("'");
+                                        first = false;
+                                    }
+                                    cashIdWhere.append(")");
+                                }
+                            } else {
+                                cashIdWhere = new StringBuilder("AND cash_id IN (");
+                                for (CashRegisterInfo cashRegister : cashRegisterSet) {
+                                    cashIdWhere.append(cashRegister.number == null ? "" : (cashRegister.number + ","));
+                                }
+                                cashIdWhere = new StringBuilder(cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")");
                             }
-                            cashIdWhere = new StringBuilder(cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")");
                         }
 
                         statement = conn.createStatement();

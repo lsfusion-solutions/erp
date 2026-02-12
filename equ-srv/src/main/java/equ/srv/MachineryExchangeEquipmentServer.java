@@ -133,9 +133,9 @@ public class MachineryExchangeEquipmentServer {
                             QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(MapFact.singletonRev("cashRegister", cashRegisterExpr));
 
                             String[] cashRegisterNames = new String[]{"overDirectoryCashRegister", "idStockCashRegister", "nppGroupMachinery",
-                                    "nppCashRegister", "handlerModelCashRegister"};
+                                    "nppCashRegister", "handlerModelCashRegister", "sectionGroupMachinery"};
                             LP[] cashRegisterProperties = equipmentCashRegisterLM.findProperties("overDirectory[CashRegister]", "idStock[CashRegister]",
-                                    "nppGroupMachinery[Machinery]", "npp[CashRegister]", "handlerModel[CashRegister]");
+                                    "nppGroupMachinery[Machinery]", "npp[CashRegister]", "handlerModel[CashRegister]", "sectionGroupMachinery[Machinery]");
                             for (int j = 0; j < cashRegisterProperties.length; j++) {
                                 cashRegisterQuery.addProperty(cashRegisterNames[j], cashRegisterProperties[j].getExpr(cashRegisterExpr));
                             }
@@ -148,8 +148,9 @@ public class MachineryExchangeEquipmentServer {
                                 Integer nppGroupMachinery = (Integer) result.getValue(j).get("nppGroupMachinery").getValue();
                                 Integer nppCashRegister = (Integer) result.getValue(j).get("nppCashRegister").getValue();
                                 String handlerModelCashRegister = trim((String) result.getValue(j).get("handlerModelCashRegister").getValue());
+                                String sectionGroupMachinery = trim((String) result.getValue(j).get("sectionGroupMachinery").getValue());
 
-                                cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, null, null, false));
+                                cashRegisterSet.add(new CashRegisterInfo(nppGroupMachinery, nppCashRegister, handlerModelCashRegister, null, directoryCashRegister, sectionGroupMachinery, null, false));
                             }
 
                             requestExchangeList.add(new RequestExchange((Long) requestExchangeObject.getValue(), cashRegisterSet, extraCashRegisterSet,
