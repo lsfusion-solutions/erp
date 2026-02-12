@@ -27,6 +27,19 @@ EXTEND FORM receiving
     PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) AFTER nameBatch(d) shipmentPrice, shipmentSum
 ;
 
+//делаем все перемещения по ячейкам позже первой даты/времени приёмки партии для заполнения учётных ценн и попадания в ТО верных сумм 
+extraCompleteReceiving(Receiving receiving) + {
+    NEWSESSION {
+        FOR [GROUP SUM 1 BY batch(ReceivingDetail detail), receiving(detail)](Batch batch, receiving) AND 
+            [GROUP SUM 1 BY batch(UserBinTransferDetail detail), userBinTransfer(detail)](batch, UserBinTransfer binTransfer) AND
+        GRDateTime(batch)>dateTime(binTransfer) DO {
+            date(binTransfer) <- toDate(GRDateTime(batch));
+            time(binTransfer) <- toTime(GRDateTime(batch));
+        }
+        APPLY;
+    }
+}
+
 needToRecalculateShipmentSum = ABSTRACT BOOLEAN (ReceivingDetail);
 recalculateShipmentSum() + {
     NEWSESSION {

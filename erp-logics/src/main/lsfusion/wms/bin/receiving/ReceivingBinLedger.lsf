@@ -139,6 +139,10 @@ dataInBin = DATA Bin (ReceivingDetail);
 inBin(ReceivingDetail detail) = OVERRIDE dataInBin(detail), inBin(receiving(detail));
 nameInBin 'Ячейка' (ReceivingDetail detail) = canonicalId(inBin(detail));
 
+countReceivingStocks = GROUP SUM 1 BY stock(inBin(ReceivingDetail detail));
+CONSTRAINT SET(countReceivingStocks(Stock stock) > 1)
+    MESSAGE 'Приёмку можно делать в ячейку одного склада';
+
 idBarcodeLocal 'Штрихкод' = DATA LOCAL STRING[15] (Receiving);
 skuLocal = DATA LOCAL Sku (Receiving);
 nameSkuLocal 'Товар' (Receiving r)= name(skuLocal(r));
@@ -386,7 +390,9 @@ completeReceiving 'Завершить приемку товара' (Sku sku, STR
                     status(receiving) <- ReceivingStatus.fullyReceived;
                 } ELSE {
                     status(receiving) <- ReceivingStatus.partiallyReceived;
-                }                
+                }
+                GRDate(receiving) <- currentDate() IF receiving IS UserReceiving;
+                GRTime(receiving) <- currentTime() IF receiving IS UserReceiving;
             }
             extraCompleteReceiving(receiving);
         }
@@ -1118,7 +1124,13 @@ END
 
 @implementBinLedger(receivingBinLedger, receivingDetail, sku, quantity, customerStock, inBin);
 
+//Не получится добавить GRDateTime в условие агрегации, т.к. он задаётся для всего документа, а строка может быть вывезена раньше
+//Так же GRDateTime идёт в дату/время поставки, что так же задаётся для всего документа, а не для строк
 needToCreateReceivingBinLedger(ReceivingDetail detail) += TRUE IF inBin(detail) AND completeStatus(detail);
+
+//делается, что бы не было расхождений по BonLedger и остальному учёту
+CONSTRAINT SET(completeStatus(Receiving r) AND NOT GRDateTime(r))
+    MESSAGE 'У завершенной приёмки должно быть задано дата/время завершения';
 
 CONSTRAINT DROPPED(ReceivingDetail d IS ReceivingDetail) AND PREV(completeStatus(d)) 
     MESSAGE 'Запрещено удалять строки у завершённой приёмки';
