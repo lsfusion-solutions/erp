@@ -11,6 +11,7 @@ pickListGroup(Group g) = IF groupType(g) = pickListGroupType() THEN TRUE;
 
 idExt (Item i) = '"' + idBarcode(i) +'"';
 productsByGroup = ABSTRACT STRING (Group, DepartmentStore);
+inStore = ABSTRACT BOOLEAN (Group, DepartmentStore);
 
 idPickList = ABSTRACT INTEGER (CustomGroup, DepartmentStore);
 idPickList = ABSTRACT INTEGER (CustomGroup);
@@ -22,21 +23,16 @@ WHEN SETCHANGED(changedImage(CustomGroup g)) AND g IS CustomGroup DO {
 
 GROUP stores;
 
-inStore (Group g, DepartmentStore d) = GROUP SUM 1 IF
-    customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) = g AND
-        currentBalance(i, d) > 0 AND (passScales(i) OR split(i))
-;
 
 FORM pickList FORMEXTID 'null'
     OBJECTS element = (elements = CustomGroup, stores = DepartmentStore) EXTID 'elements'
 
     PROPERTIES idPickList(elements, stores) EXTID 'id', = regexpReplace(name(elements), '^\\s*\\d+\\s*', '', '') EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
         = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, stores) EXTID 'items'
-    FILTERS pickListGroup(elements) AND level(elements) > 1
+    FILTERS inStore(elements, stores)
     
     OBJECTS s = DepartmentStore EXTID 'stores'
     PROPERTIES = idStore(s) IF elements IS CustomGroup AND s IS DepartmentStore EXTID 'id'
-    FILTERS inStore(elements, stores)
     FILTERS s = stores
     FILTERS hasUkm5GroupMachinery(stores)
 ;
