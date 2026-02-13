@@ -91,6 +91,9 @@ sendImageGroupToFtp(CustomGroup c, DepartmentStore d){
 sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
     LOCAL errorsImagesItems = BOOLEAN (Item);
     LOCAL errorsImagesGroups = BOOLEAN (CustomGroup);
+    LOCAL errorsImagesItemsMessage = STRING (Item);
+    LOCAL errorsImagesGroupsMessage = STRING (CustomGroup);
+    
     FOR customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) 
         AND dataImage(i) AND active(i) AND (changedImage(i) OR NOT loadOnlyChangedImages())  DO {
         TRY {
@@ -99,6 +102,7 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
         }
         CATCH {
             errorsImagesItems(i) <- TRUE;
+            errorsImagesItemsMessage(i) <- messageCaughtException(); 
         }
     }
     FOR idPickList(CustomGroup c, DepartmentStore d) AND hasImage(c) IF pickListGroup(c) AND active(c) AND hasUkm5GroupMachinery(d) AND (changedImage(c, d) OR NOT loadOnlyChangedImages()) DO
@@ -108,15 +112,16 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
         }
             CATCH {
             errorsImagesGroups(c) <- TRUE;
+            errorsImagesGroupsMessage(c) <- messageCaughtException();
         }
     IF (GROUP SUM 1 IF errorsImagesItems(Item i)) THEN {
         MESSAGE 'Изображения не выгружены для ТОВАРОВ:\n' +
-            (GROUP CONCAT name(Item i) IF errorsImagesItems(i), '\n' ORDER i) NOWAIT;
+            (GROUP CONCAT name(Item i) + '\n' + errorsImagesItemsMessage(i) IF errorsImagesItems(i), '\n' ORDER i) NOWAIT;
     }
 
     IF (GROUP SUM 1 IF errorsImagesGroups(CustomGroup c)) THEN {
         MESSAGE 'Изображения не выгружены для ТОВАРНЫХ ГРУПП:\n' +
-            (GROUP CONCAT name(CustomGroup c) IF errorsImagesGroups(c), '\n' ORDER c) NOWAIT;
+            (GROUP CONCAT name(CustomGroup c) + '\n' + errorsImagesGroupsMessage(c) IF errorsImagesGroups(c), '\n' ORDER c) NOWAIT;
     }
     APPLY;
 }
