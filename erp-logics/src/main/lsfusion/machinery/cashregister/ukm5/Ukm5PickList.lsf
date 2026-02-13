@@ -29,7 +29,7 @@ FORM pickList FORMEXTID 'null'
 
     PROPERTIES idPickList(elements, stores) EXTID 'id', = regexpReplace(name(elements), '^\\s*\\d+\\s*', '', '') EXTID 'name', = TFALSE IF elements IS CustomGroup EXTID 'isGlobal',
         = TFALSE IF elements IS CustomGroup EXTID 'delete', productsByGroup(elements, stores) EXTID 'items'
-    FILTERS inStore(elements, stores)
+    FILTERS pickListGroup(elements) AND level(elements) > 1 AND inStore(elements, stores)
     
     OBJECTS s = DepartmentStore EXTID 'stores'
     PROPERTIES = idStore(s) IF elements IS CustomGroup AND s IS DepartmentStore EXTID 'id'
@@ -37,30 +37,19 @@ FORM pickList FORMEXTID 'null'
     FILTERS hasUkm5GroupMachinery(stores)
 ;
 
-exportPickList 'Экспорт пик-листа УКМ5'(DepartmentStore d){
+exportPickList 'Экспорт пик-листа УКМ5'(){
     NEWSESSION {
         LOCAL answer = FILE ();
-        Stock.in(d) <- TRUE;
-        EXPORT pickList OBJECTS stores = d JSON;
+        EXPORT pickList JSON;
         LOCAL group = GroupMachinery();
         fileToString(exportFile());
         logToFile('ukm5', resultString());
-        group() <- GROUP MAX GroupCashRegister g IF stock(g) = d AND isUkm5(g);
         TRY{
             EXTERNAL HTTP POST urlUkm5ServerImport() + '/api/v1/import/picklists' PARAMS exportFile() TO answer;
             fileToString(answer());
-            IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена\nСклад: ' + name(d);
+            IF statusHttp() = 200 THEN MESSAGE 'Загрузка пик-листа успешно завершена.';
         }
         CATCH MESSAGE messageCaughtException();
-    }
-}
-
-EXTEND FORM integrationData
-     PROPERTIES exportPickList(cs);
-     
-DESIGN integrationData{
-    kso{
-        MOVE PROPERTY (exportPickList(cs));
     }
 }
 
@@ -85,7 +74,8 @@ sendImageGroupToFtp(CustomGroup c, DepartmentStore d){
     } ELSE {
         WRITE image(c) TO CONCAT '', ftpConnectionStringUkm(), 'groups/', idPickList(c, d);
     }
-}
+    
+}loadOnlyChangedImagesUkm5 'Выгрузить только изменившиеся изображения (Пик лист)' = DATA BOOLEAN () COMPLEX;
 
 //задание для планировщика
 sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
@@ -95,7 +85,7 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
     LOCAL errorsImagesGroupsMessage = STRING (CustomGroup);
     
     FOR customGroup[Stock.CustomGroupType,Item.Item](pickListGroupType(), Item i) 
-        AND dataImage(i) AND active(i) AND (changedImage(i) OR NOT loadOnlyChangedImages())  DO {
+        AND dataImage(i) AND active(i) AND (changedImage(i) OR NOT loadOnlyChangedImagesUkm5())  DO {
         TRY {
             sendImageItemToFtp(i);
             changedImage(i) <- NULL;
@@ -105,7 +95,8 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
             errorsImagesItemsMessage(i) <- messageCaughtException(); 
         }
     }
-    FOR idPickList(CustomGroup c, DepartmentStore d) AND hasImage(c) IF pickListGroup(c) AND active(c) AND hasUkm5GroupMachinery(d) AND (changedImage(c, d) OR NOT loadOnlyChangedImages()) DO
+    FOR idPickList(CustomGroup c, DepartmentStore d) AND hasImage(c) IF pickListGroup(c) AND active(c) 
+        AND hasUkm5GroupMachinery(d) AND (changedImage(c, d) OR NOT loadOnlyChangedImagesUkm5()) DO
         TRY {
             sendImageGroupToFtp(c, d);
             changedImage(c, d) <- NULL;
@@ -127,7 +118,7 @@ sendUkmImageToFTP 'Выгрузка изображений на FTP'(){
 }
 
 EXTEND FORM integrationData
-    PROPERTIES ftpConnectionStringUkm(), sendUkmImageToFTP(), namePickListGroupType();
+    PROPERTIES ftpConnectionStringUkm(), sendUkmImageToFTP(), namePickListGroupType(), exportPickList(), loadOnlyChangedImagesUkm5();
 
 DESIGN integrationData{
     ukm5{
@@ -136,6 +127,8 @@ DESIGN integrationData{
             MOVE PROPERTY (namePickListGroupType());
             MOVE PROPERTY (ftpConnectionStringUkm());
             MOVE PROPERTY (sendUkmImageToFTP());
+            MOVE PROPERTY (exportPickList());
+            MOVE PROPERTY (loadOnlyChangedImagesUkm5());
         }
     }
 }
