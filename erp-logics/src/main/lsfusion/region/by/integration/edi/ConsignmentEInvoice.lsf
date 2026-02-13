@@ -1,6 +1,6 @@
 MODULE ConsignmentEInvoice;
 
-REQUIRE SupplierEInvoice, Invoice, ConsignmentBy;
+REQUIRE SupplierEInvoice, Invoice, ConsignmentBy, CustomsGroupItem;
 
 NAMESPACE Consignment;
 
@@ -234,6 +234,7 @@ fillEInvoiceDetailData(EInvoiceDetail ed, ConsignmentDetail detail) {
     lineItemAmountCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
     lineItemAmountWithoutCharges(ed) <- NUMERIC[18,2](OVERRIDE lineItemAmount(detail), dataSumInvoice(detail)) (-) NUMERIC[18,2](OVERRIDE lineItemAmountCharges(detail), sumVATIaW(detail));
     lineItemQuantityUOM(ed) <- OVERRIDE extraCodeUOM(UOM(sku(detail))), 'PCE';
+    itemCustomCode(ed) <- codeCustomsGroupDefaultCountry(sku(detail));
 }
 
 createEInvoice 'Создать ЭТТН-1' (Consignment invoice) {
