@@ -4,21 +4,21 @@ REQUIRE StockList, SaleReports;
 
 NAMESPACE Stock;
 
-allStocks = NOT (GROUP MAX inSaleReport(Stock o));
+allStocks() = NOT (GROUP MAX inSaleReport(Stock o));
 
 stockInAnyList(Stock st) = GROUP MAX in(StockList sl, st);
 inReportNoList(Stock st) = inSaleReport(st) AND NOT stockInAnyList(st);
 
-selectedStockListNames = GROUP CONCAT name(StockList sl)
+selectedStockListNames() = GROUP CONCAT name(StockList sl)
     IF (GROUP MAX inSaleReport(Stock st) AND in(sl, st)), '; ' ORDER name(sl), sl;
 
 rootStockGroup(StockGroup sg) = GROUP LAST StockGroup p IF level(sg, p) ORDER level(sg, p);
 nameRootStockGroup(Stock st) = name(rootStockGroup(stockGroup(st)));
 
 inReportByRootName = GROUP MAX inReportNoList(Stock st) BY nameRootStockGroup(st);
-selectedStockGroupNames = GROUP CONCAT (ISTRING[100] s) IF inReportByRootName(s), '; ' ORDER s;
+selectedStockGroupNames() = GROUP CONCAT (ISTRING[100] s) IF inReportByRootName(s), '; ' ORDER s;
 
-selectedStockAloneNames = GROUP CONCAT name(Stock st)
+selectedStockAloneNames() = GROUP CONCAT name(Stock st)
     IF inReportNoList(st) AND NOT stockGroup(st), '; ' ORDER name(st), st;
 
 inStocks 'Склады' = IF allStocks() THEN 'ВСЕ'
@@ -97,6 +97,11 @@ DESIGN selectStocks {
         }
         MOVE TOOLBARBOX;
     }
+    PROPERTY(applyStockList(sl)) { valueClass = 'btn-warning'; }
+    PROPERTY(addStockList(sl)) { valueClass = 'btn-success'; }
+    PROPERTY(applyStockGroup(sg)) { valueClass = 'btn-warning'; }
+    PROPERTY(addStockGroup(sg)) { valueClass = 'btn-success'; }
+    PROPERTY(clearStockSelection()) { valueClass = 'btn-danger'; }
 }
 
 selectStocks() {

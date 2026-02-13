@@ -1,6 +1,6 @@
 MODULE SaleBestWorstProductsGestori;
 
-REQUIRE Store, SkuList, DateSkuLedger, PriceListLedgerAccount, SaleInvoice, Range, LegalEntityList, SelectStocksGestori;
+REQUIRE Store, SkuList, DateSkuLedger, PriceListLedgerAccount, SaleInvoice, Range, SelectStocksGestori, SelectSuppliersGestori;
 
 NAMESPACE Sale;
 
@@ -33,67 +33,6 @@ interval 'Период дат' = DATA LOCAL INTERVAL[DATETIME] ();
 productsLimit = DATA LOCAL INTEGER ();
 productsLimitDefault 'Количество отобранных товаров' = OVERRIDE productsLimit(), 50;
 withAssortment 'С учетом ассортимента' = DATA LOCAL BOOLEAN ();
-
-inDialog 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
-
-applySupplierList 'Применить список' (LegalEntityList ll) {
-    inDialog(LegalEntity l) <- NULL;
-    inDialog(LegalEntity l) <- TRUE WHERE in(l, ll);
-}
-
-addSupplierList 'Добавить из списка' (LegalEntityList ll) {
-    inDialog(LegalEntity l) <- TRUE WHERE in(l, ll);
-}
-
-clearSupplierSelection 'Сбросить' () {
-    inDialog(LegalEntity l) <- NULL;
-}
-
-FORM dialogSuppliersBestWorst 'Поставщики'
-    OBJECTS ll = LegalEntityList
-    PROPERTIES(ll) READONLY name, order
-    PROPERTIES applySupplierList(ll) TOOLBAR, addSupplierList(ll) TOOLBAR
-    PROPERTIES clearSupplierSelection() TOOLBAR DRAW ll
-    ORDERS order(ll), name(ll)
-
-    OBJECTS l = LegalEntity
-    PROPERTIES(l) inDialog
-    PROPERTIES(l) READONLY name, fullName
-    FILTERS isSupplier(l)
-    ORDERS name(l)
-
-    FILTERGROUP active FILTER 'Активный' active(l) DEFAULT
-    FILTERGROUP in FILTER 'Отм.' inDialog(l)
-
-    EVENTS
-        ON INIT { inDialog(LegalEntity le) <- in(le); },
-        ON OK { in(LegalEntity le) <- inDialog(le); }
-;
-
-DESIGN dialogSuppliersBestWorst {
-    BOX {
-        size = (1024, 768);
-        NEW topContainer {
-            horizontal = TRUE;
-            fill = 1;
-            MOVE BOX(ll) {
-                caption = 'Списки организаций';
-                fill = 1;
-                PROPERTY(name(ll)) { charWidth = 25; }
-            }
-            MOVE BOX(l) {
-                fill = 3;
-                GRID(l) { defaultComponent = TRUE; }
-                PROPERTY(name(l)) { charWidth = 35; }
-            }
-        }
-        MOVE TOOLBARBOX;
-    }
-}
-
-selectSuppliers() {
-    DIALOG dialogSuppliersBestWorst;
-}
 
 CLASS SkuFilterType 'Тип фильтра по товарам' {
     sku 'Товары',
@@ -134,14 +73,7 @@ selectSkus 'Фильтр по товарам' () {
     }
 }
 
-allSuppliers = NOT (GROUP MAX in(LegalEntity o) AND isSupplier(o));
 allSkus = NOT (GROUP MAX in(Sku o) OR GROUP MAX inSession(SkuGroup g));
-
-selectedSupplierList(LegalEntityList ll) = GROUP MAX in(LegalEntity l) AND in(l, ll);
-supplierInAnyList(LegalEntity l) = GROUP MAX in(l, LegalEntityList ll);
-selectedSupplierListNames = GROUP CONCAT name(LegalEntityList ll) IF selectedSupplierList(ll), '; ' ORDER name(ll), ll;
-selectedSupplierNoListNames = GROUP CONCAT name(LegalEntity l) IF in(l) AND isSupplier(l) AND NOT supplierInAnyList(l), '; ' ORDER name(l), l;
-inSuppliers 'Поставщики' = IF allSuppliers() THEN 'ВСЕ' ELSE CONCAT '; ', selectedSupplierListNames(), selectedSupplierNoListNames();
 
 selectedSkuList(List ll) = GROUP MAX in(Sku s) AND in(ll, s);
 skuInAnyList(Sku s) = GROUP MAX in(List ll, s);
@@ -155,7 +87,7 @@ dateTimeInInterval (SaleLedger o) = from(interval()) <= dateTime(o) AND to(inter
 supplier (SaleLedger o) = supplier(lastOrderBatch(sku(o), stock(o)));
 
 filterForSalesQty (SaleLedger o) = active(o) AND dateTimeInInterval(o) AND (allStocks() OR inSaleReport(stock(o)))
-    AND (allSuppliers() OR in(supplier(o))) AND (allSkus() OR in(sku(o)) OR inSession(skuGroup2(sku(o))))
+    AND (allSuppliers() OR inSupplierReport(supplier(o))) AND (allSkus() OR in(sku(o)) OR inSession(skuGroup2(sku(o))))
     AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()));
 
 retailSalesQty 'Розница - кол-во продаж' = GROUP SUM quantity(SaleLedger o)

@@ -1,0 +1,86 @@
+MODULE SelectSuppliersGestori;
+
+REQUIRE LegalEntityList;
+
+NAMESPACE LegalEntity;
+
+inSupplierReport = DATA LOCAL BOOLEAN (LegalEntity);
+inSupplierReportDialog 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+
+allSuppliers() = NOT (GROUP MAX inSupplierReport(LegalEntity o));
+
+supplierInAnyList(LegalEntity l) = GROUP MAX in(l, LegalEntityList ll) AND inSupplierReport(l);
+
+selectedSupplierListNames() = GROUP CONCAT name(LegalEntityList ll)
+    IF (GROUP MAX inSupplierReport(LegalEntity l) AND in(l, ll)), '; ' ORDER name(ll), ll;
+
+inReportNoList(LegalEntity l) = inSupplierReport(l) AND NOT supplierInAnyList(l);
+
+selectedSupplierNoListNames() = GROUP CONCAT name(LegalEntity l)
+    IF inReportNoList(l), '; ' ORDER name(l), l;
+
+inSuppliers 'Поставщики' = IF allSuppliers() THEN 'ВСЕ'
+    ELSE CONCAT '; ', selectedSupplierListNames(), selectedSupplierNoListNames();
+
+applySupplierList 'Применить список' (LegalEntityList ll) {
+    inSupplierReportDialog(LegalEntity l) <- in(l, ll);
+}
+
+addSupplierList 'Добавить из списка' (LegalEntityList ll) {
+    inSupplierReportDialog(LegalEntity l) <- TRUE WHERE in(l, ll);
+}
+
+clearSupplierSelection 'Сбросить' () {
+    inSupplierReportDialog(LegalEntity l) <- NULL;
+}
+
+FORM selectSuppliers 'Выбор поставщиков'
+    TREE supplierListTree la = BPSTRING[3], ll = LegalEntityList
+    PROPERTIES READONLY VALUE(la), name(ll), order(ll)
+    PROPERTIES applySupplierList(ll) TOOLBAR, addSupplierList(ll) TOOLBAR
+    ORDERS order(ll), name(ll)
+    FILTERS stringEqualsAll(la)
+
+    OBJECTS l = LegalEntity
+    PROPERTIES(l) inSupplierReportDialog
+    PROPERTIES(l) READONLY id, name, fullName
+    PROPERTIES clearSupplierSelection() TOOLBAR DRAW l
+    FILTERS isSupplier(l),
+        in(l, ll) OR (l IS LegalEntity AND NOT ll)
+    ORDERS name(l)
+
+    FILTERGROUP active FILTER 'Активный' active(l) DEFAULT
+    FILTERGROUP select FILTER 'Отм.' inSupplierReportDialog(l)
+
+    EVENTS
+        ON INIT { inSupplierReportDialog(LegalEntity le) <- inSupplierReport(le); },
+        ON OK { inSupplierReport(LegalEntity le) <- inSupplierReportDialog(le); }
+;
+
+DESIGN selectSuppliers {
+    BOX {
+        size = (1024, 768);
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE supplierListTree) {
+                caption = 'Списки организаций';
+                fill = 1;
+                PROPERTY(order(ll)) { hide = TRUE; }
+            }
+            MOVE BOX(l) {
+                fill = 3;
+                GRID(l) { defaultComponent = TRUE; }
+                PROPERTY(name(l)) { charWidth = 35; }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+    PROPERTY(applySupplierList(ll)) { valueClass = 'btn-warning'; }
+    PROPERTY(addSupplierList(ll)) { valueClass = 'btn-success'; }
+    PROPERTY(clearSupplierSelection()) { valueClass = 'btn-danger'; }
+}
+
+selectSuppliers() {
+    DIALOG selectSuppliers;
+}
