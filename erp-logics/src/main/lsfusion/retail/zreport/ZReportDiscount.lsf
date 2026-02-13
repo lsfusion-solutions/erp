@@ -17,9 +17,29 @@ discountSum 'Сумма скидки' = DATA NUMERIC[18,4] (ReceiptDetail, Disco
 
 skipQantitySold 'Исключить из проданного количества' = DATA BOOLEAN (Discount);
 
+skipQantitySold = DATA NUMERIC[16,5](Sku, Stock, DATE);
+extraQuantitySold(Sku s, Stock st, DATE date) += -skipQantitySold(s, st, date);
+
+overSkipQantitySold ABSTRACT LIST(DATE);
+fillSkipQantitySold(DATE date) {
+    NEWSESSION {
+        skipQantitySold(Sku s, Stock st, date) <- GROUP SUM signedQuantity(ReceiptDetail d)
+            IF discountSum(d, Discount dis) AND skipQantitySold(dis)
+                AND sku(d) == s AND departmentStore(d) == st AND date(d) == date;
+
+        overSkipQantitySold(date);
+
+        APPLY;
+    }
+}
+
+fillSkipQantitySold 'Заполнить "Исключить из проданного количества" за предыдущий день' () {
+    fillSkipQantitySold(sum(currentDate(), -1));
+}
+
 FORM discount 'Скидка'
     OBJECTS o = Discount PANEL
-    PROPERTIES(o) name, mode
+    PROPERTIES(o) name, mode, skipQantitySold
 
     EDIT Discount OBJECT o
 ;
@@ -29,7 +49,7 @@ FORM discounts 'Скидка'
     PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
 
     OBJECTS o = Discount
-    PROPERTIES(o) READONLY name, mode SHOWIF showIDs(), skipQantitySold CHANGEABLE
+    PROPERTIES(o) READONLY name, mode SHOWIF showIDs(), skipQantitySold
     PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE
 
     OBJECTS rds = ReceiptDetail
