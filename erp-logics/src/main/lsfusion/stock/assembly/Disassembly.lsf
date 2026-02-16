@@ -348,7 +348,7 @@ calculatePrice 'Рассчитать цены' (Disassembly a) {
             price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
     }
     
-    sum(DisassemblyDetail d) <- IF useOverSum(d) THEN overSum(d) ELSE (PARTITION UNGROUP sum
+    sum(DisassemblyDetail d) <- IF (useOverSum(d) AND overSum(d)) THEN overSum(d) ELSE (PARTITION UNGROUP sum
                                         PROPORTION STRICT ROUND(2) percent(d)
                                         ORDER d
                                         BY disassembly(d)) WHERE disassembly(d) = a;
@@ -395,7 +395,7 @@ show(DisassemblyOutSkuLedger l) + { show(disassembly(l)); }
 CLASS DisassemblyInSkuLedger 'Разборка товара (приход)';
 TABLE disassemblyInSkuLedger(DisassemblyInSkuLedger);
 
-overPrice = ABSTRACT NUMERIC[16,4] (DisassemblyDetail);
+ledgerPrice = ABSTRACT NUMERIC[16,4] (DisassemblyDetail);
 
 disassemblyInSkuLedger = AGGR DisassemblyInSkuLedger WHERE isPosted(DisassemblyDetail disassemblyDetail) MATERIALIZED INDEXED;
 
@@ -407,7 +407,7 @@ sku(DisassemblyInSkuLedger l) = sku(disassemblyDetail(l));
 stock(DisassemblyInSkuLedger l) = stock(disassemblyDetail(l));
 description(DisassemblyInSkuLedger l) = description(disassemblyDetail(l));
 quantity(DisassemblyInSkuLedger l) = quantity(disassemblyDetail(l));
-price(DisassemblyInSkuLedger l) = OVERRIDE overPrice(disassemblyDetail(l)), price(disassemblyDetail(l));
+price(DisassemblyInSkuLedger l) = OVERRIDE ledgerPrice(disassemblyDetail(l)), price(disassemblyDetail(l));
 sum(DisassemblyInSkuLedger l) = sum(disassemblyDetail(l));
 
 @implementBatch(DisassemblyInSkuLedger, sku, stock, price);

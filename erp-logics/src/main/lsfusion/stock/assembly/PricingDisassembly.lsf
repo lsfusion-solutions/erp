@@ -364,8 +364,12 @@ retailVATSum(DisassemblyPricingDetail pricingDetail) += retailVATSum(pricingDeta
 edit (DisassemblyPricingDetail d) + { edit(disassemblyDetail(d)); }
 edit (DisassemblyPricing p) + { edit(disassembly(p)); }
 
-calcPrice(DisassemblyDetail a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailPrice(a);
-calcSum(DisassemblyDetail a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailSum(a);
+retailLedger(DisassemblyDetail d) = createPricing(d) AND stock(d) IS DepartmentStore AND NOT costLedger(stock(d));
 
-useOverSum(DisassemblyDetail a) += stock(a) IS DepartmentStore AND NOT costLedger(stock(a));
+calcPrice(DisassemblyDetail d) += WHEN retailLedger(d) THEN retailPrice(d);
+calcSum(DisassemblyDetail d) += WHEN retailLedger(d) THEN retailSum(d);
+
+useOverSum(DisassemblyDetail a) += retailLedger(a);
 overSum(DisassemblyDetail a) += retailSum(a);
+
+ledgerPrice(DisassemblyDetail d) += supplierPrice(d) IF retailLedger(d); // Себестоимость партии
