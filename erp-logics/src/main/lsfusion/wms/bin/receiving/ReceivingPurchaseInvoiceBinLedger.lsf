@@ -1,9 +1,12 @@
 MODULE ReceivingPurchaseInvoiceBinLedger;
 
-REQUIRE ReceivingBinLedger, ReceivingInvoiceBinLedger, PurchaseInvoice, PurchaseInvoiceCreditNote;
+REQUIRE ReceivingBinLedger, ReceivingInvoiceBinLedger, PurchaseInvoice, PurchaseInvoiceCreditNote, PurchaseLedgerBinLedger;
 
 NAMESPACE Purchase;
 
 @defineReceivingAggregation(invoice, 'накладной', 'накладные', i, customerStock, shipment);
 
 consolidationKey[CreditNote.CreditNoteDetail](CreditNoteDetail detail) += consolidationKey(detail);
+
+skip[PurchaseLedger](InvoiceDetail ledger) += WHEN useInvoiceReceiving(operation(ledger)) AND NOT GRDateTime(ledger) THEN TRUE;
+GRDateTime[PurchaseLedger](InvoiceDetail ledger) += GRDateTime(ledger);  

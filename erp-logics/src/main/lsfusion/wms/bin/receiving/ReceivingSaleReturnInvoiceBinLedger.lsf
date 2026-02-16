@@ -1,6 +1,6 @@
 MODULE ReceivingSaleReturnInvoiceBinLedger;
 
-REQUIRE ReceivingBinLedger, ReceivingInvoiceBinLedger, SaleReturnInvoice, SaleReturnCreditNote;
+REQUIRE ReceivingBinLedger, ReceivingInvoiceBinLedger, SaleReturnInvoice, SaleReturnCreditNote, PurchaseLedgerBinLedger;
 
 PRIORITY Sale;
 
@@ -9,3 +9,5 @@ NAMESPACE SaleReturn;
 @defineReceivingAggregation(invoice, 'накладной', 'накладные', i, supplierStock, shipment);
 
 consolidationKey[CreditNote.CreditNoteDetail](CreditNoteDetail detail) += consolidationKey(detail);
+
+skip[SaleLedger](InvoiceDetail ledger) += WHEN useInvoiceReceiving(operation(ledger)) AND NOT GRDateTime(ledger) THEN TRUE;
