@@ -74,7 +74,7 @@ importReceiptExtra(STRING purchases)+{
         LOCAL lotLoc = Lot (INTEGER);
         LOCAL receiptDetailLot = ReceiptDetail (INTEGER);
 
-        lotLoc(INTEGER i) <- lot(exciseBarcode(i));
+        lotLoc(INTEGER i) <- lot(barcodeToId(exciseBarcode(i)));
         receiptDetailLot(INTEGER ii) <- GROUP MAX ReceiptDetail d IF sku(lotLoc(ii)) = sku(d)
             AND idBarcode(d) = barcode(ii) AND receipt(d) = receipt(idReceipt(purchaseBottle(ii)));
 
@@ -87,11 +87,12 @@ importReceiptExtra(STRING purchases)+{
 overCreateReceiptDetail(ReceiptDetail d, INTEGER i) + {    
     FOR INTEGER  r == [GROUP MAX INTEGER  rr IF key1(rr) = 'excise-token' BY positionPluginPosition(rr)](i) DO {
         LOCAL lotDetail = Lot();
-        lotDetail() <- lot(value1(r));
+        lotDetail() <- lot(barcodeToId(value1(r)));
         IF NOT lotDetail() AND value1(r) AND createLotZReport() THEN {
             NEW l = Lot {
                 sku(l) <- sku(d);
-                id(l) <- STRING[200](value1(r));
+                id(l) <- STRING[200](barcodeToId(value1(r)));
+                tail(l) <- STRING[200](barcodeToTail(value1(r)));
                 lotDetail() <- l;
             }
         }
