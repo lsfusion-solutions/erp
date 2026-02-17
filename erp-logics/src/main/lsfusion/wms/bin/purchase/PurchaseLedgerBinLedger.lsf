@@ -10,3 +10,107 @@ GRDate 'Дата завершения приёмки' (PurchaseLedger ledger) = 
 EXTEND FORM purchaseLedger
     PROPERTIES(s) READONLY AFTER shipmentDateTime(s) GRDate, GRDateTime
 ;
+
+//по складу и batch
+quantityPurchaseGR (Batch batch, stock, date) = 
+    GROUP SUM cost(PurchaseLedger ledger, batch) IF active(ledger) BY stock(ledger), GRDate(ledger);
+quantityPurchaseGR = 
+    GROUP SUM cost(PurchaseLedger ledger, Batch batch) IF active(ledger) AND GRDate(ledger) BY batch, stock(ledger);
+sumVATPurchaseGR (Batch batch, stock, date) = 
+        GROUP SUM sumVAT(PurchaseLedger ledger)*coeff(ledger,batch) IF active(ledger) BY stock(ledger), GRDate(ledger);
+sumPurchaseGR (Batch batch, stock, date) = 
+    GROUP SUM sum(PurchaseLedger ledger)*coeff(ledger,batch) IF active(ledger) BY stock(ledger), GRDate(ledger);
+costSumPurchaseGR (Batch batch, stock, date) = 
+    GROUP SUM costSum(PurchaseLedger ledger)*coeff(ledger,batch) IF active(ledger) BY stock(ledger), GRDate(ledger);
+
+//по складу и Batch
+quantityPurchaseGR 'Закуплено за интервал (кол-во)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM quantityPurchaseGR(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumVATPurchaseGR 'Сумма НДС закупленного за интервал' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumVATPurchaseGR(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumPurchaseGR 'Закуплено за интервал (сумма)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumPurchaseGR(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+costSumPurchaseGR 'Себестоимость закупленного за интервал' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM costSumPurchaseGR(batch, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+//по складу и SKU
+quantityPurchaseGR (sku, stock, date) = 
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), GRDate(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+
+sumVATPurchaseGR (sku, stock, date) = 
+    GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), GRDate(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+
+sumPurchaseGR (sku, stock, date) = 
+    GROUP SUM sum(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), GRDate(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+
+costSumPurchaseGR (sku, stock, date) = 
+    GROUP SUM costSum(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), GRDate(ledger) MATERIALIZED TABLE purchaseSkuStockDate;
+
+//по складу, поставщику и SKU
+quantityPurchaseGR (sku, stock, supplier, date) = 
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplier(ledger), GRDate(ledger);  // MATERIALIZED
+
+sumVATPurchaseGR (sku, stock, supplier, date) = 
+    GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplier(ledger), GRDate(ledger);  // MATERIALIZED
+
+sumPurchaseGR (sku, stock, supplier, date) = 
+    GROUP SUM sum(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplier(ledger), GRDate(ledger);   // MATERIALIZED
+
+quantityPurchaseGR 'Кол-во закуплено' (sku, stock, supplier) = 
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) AND GRDate(ledger) BY sku(ledger), stock(ledger), supplier(ledger);  // MATERIALIZED
+
+//по складу, складу поставщика  и SKU
+quantityPurchaseSupplierGR (sku, stock, supplierStock, date) = 
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplierStock(ledger), GRDate(ledger);  // MATERIALIZED
+
+sumVATPurchaseSupplierGR (sku, stock, supplierStock, date) = 
+    GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplierStock(ledger), GRDate(ledger);  // MATERIALIZED
+
+sumPurchaseSupplierGR (sku, stock, supplierStock, date) = 
+    GROUP SUM sum(PurchaseLedger ledger) IF active(ledger) BY sku(ledger), stock(ledger), supplierStock(ledger), GRDate(ledger);   // MATERIALIZED
+
+quantityPurchaseSupplierGR 'Кол-во закуплено' (stock, supplierStock, sku) = 
+    GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger) AND GRDate(ledger) BY stock(ledger), supplierStock(ledger), sku(ledger);
+
+//по складу и SKU
+
+quantityPurchaseGR 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM quantityPurchaseGR(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumVATPurchaseGR 'Сумма НДС закупленного за интервал' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumVATPurchaseGR(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumPurchaseGR 'Закуплено за интервал (сумма)' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumPurchaseGR(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+costSumPurchaseGR 'Себестоимость закупленного за интервал' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM costSumPurchaseGR(sku, stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+//по складу, поставщику и SKU
+quantityPurchaseGR 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM quantityPurchaseGR(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumVATPurchaseGR 'Сумма НДС закупленного за интервал' (Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumVATPurchaseGR(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumPurchaseGR 'Закуплено за интервал (сумма)' (Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumPurchaseGR(sku, stock, supplier, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+//по складу, складу поставщика и SKU
+quantityPurchaseSupplierGR 'Закуплено за интервал (кол-во)' (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM quantityPurchaseSupplierGR(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumVATPurchaseSupplierGR 'Сумма НДС закупленного за интервал' (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumVATPurchaseSupplierGR(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumPurchaseSupplierGR 'Закуплено за интервал (сумма)' (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumPurchaseSupplierGR(sku, stock, supplierStock, DATE date) IF date >= dateFrom AND date <= dateTo;
+//по SKU
+quantityPurchaseGR 'Закуплено за интервал (кол-во)' (Sku sku, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM quantityPurchaseGR(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo;
+
+sumPurchaseGR 'Закуплено за интервал (сумма)' (Sku sku, DATE dateFrom, DATE dateTo) = 
+    GROUP SUM sumPurchaseGR(sku, Stock stock, DATE date) IF date >= dateFrom AND date <= dateTo;
