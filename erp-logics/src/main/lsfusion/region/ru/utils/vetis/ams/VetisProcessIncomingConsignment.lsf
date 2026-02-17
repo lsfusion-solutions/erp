@@ -78,7 +78,7 @@ FORM processIncomingConsignmentRequest FORMEXTID 'merc=http://api.vetrf.ru/schem
     OBJECTS rd = VetReferenceDocument IN deliveryAccompanyingForms EXTID 'vd:waybill' 
     PROPERTIES issueSeries(rd) EXTID 'vd:issueSeries', issueNumber(rd) EXTID 'vd:issueNumber', =toDateISO(issueDate(rd)) EXTID 'vd:issueDate', 
                type(rd) EXTID 'vd:type'
-    FILTERS rd = (GROUP MIN VetReferenceDocument vrd IF relationshipType(vrd) = 1 AND vetDocument(vrd) = vetDocument(incomingConsignment(r)))
+    FILTERS rd = (GROUP LAST VetReferenceDocument vrd IF relationshipType(vrd) = 1 AND vetDocument(vrd) = vetDocument(incomingConsignment(r)) AND (type(vrd) = 1 OR type(vrd) = 5) ORDER DESC type(vrd))
 //    FILTERS vetDocument(rd) = vetDocument(incomingConsignment(r)),
 //            relationshipType(rd) = 1 AND type(rd) = 1
     
@@ -143,8 +143,9 @@ FORM processIncomingConsignmentRequestReturnedDelivery
     OBJECTS rd = VetReferenceDocument IN accompanyingForms EXTID 'vd:waybill' 
     PROPERTIES issueSeries(rd) EXTID 'vd:issueSeries', issueNumber(rd) EXTID 'vd:issueNumber', =toDateISO(issueDate(rd)) EXTID 'vd:issueDate', 
                type(rd) EXTID 'vd:type'
-    FILTERS vetDocument(rd) = vetDocument(c),
-            relationshipType(rd) = 1
+    FILTERS rd = (GROUP LAST VetReferenceDocument vrd IF relationshipType(vrd) = 1 AND vetDocument(vrd) = vetDocument(c) AND (type(vrd) = 1 OR type(vrd) = 5) ORDER DESC type(vrd))
+//    FILTERS vetDocument(rd) = vetDocument(c),
+//            relationshipType(rd) = 1
 
     PROPERTIES = authentication(vetDocument(c)) EXTID 'vd:authentication' IN vetCertificate
 
