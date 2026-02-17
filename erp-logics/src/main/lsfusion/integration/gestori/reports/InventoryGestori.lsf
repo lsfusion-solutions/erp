@@ -1,6 +1,6 @@
-MODULE InventoryRegisterGestori;
+MODULE InventoryGestori;
 
-REQUIRE Inventory, SelectStocksGestori, PriceListStore;
+REQUIRE Inventory, StockListGestori, PriceListStore;
 
 NAMESPACE Inventory;
 
@@ -126,5 +126,107 @@ DESIGN inventoryRegister {
 NAVIGATOR {
     stockReports {
         NEW inventoryRegister;
+    }
+}
+
+netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
+cost 'Бух. себестоимость' = ABSTRACT NUMERIC[18,4] (SkuLedger); // todo
+sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = signedQuantity(o) * cost(o);
+valueVAT 'Ставка НДС (уч.ц.)' (SkuLedger o) = valueVAT(sku(o), date(o));
+sumVAT 'Сумма НДС (уч.ц.)' (SkuLedger o) = round2(signedSum(o) * valueVAT((o)) / 100);
+retailPrice 'Розничная цена' (SkuLedger o) = retailPriceB(sku(o), stock(o));
+sumRetail 'Сумма по розничной цене' (SkuLedger o) = retailPrice(o) * signedQuantity(o);
+valueRetailVAT 'Ставка НДС (розн.ц.)' (SkuLedger o) = valueVAT(o);
+sumRetailVAT 'Сумма НДС (розн.ц.)' (SkuLedger o) = round2(retailPrice(o) * signedQuantity(o) * valueRetailVAT((o)) / 100);
+
+profit 'Прибыль (%)' (SkuLedger o) = round2(sumRetail(o) * 100 / signedSum(o) - 100);
+
+EXTEND FORM skuLedger
+    PROPERTIES (s) netTotalWeight, cost, sumCost, valueVAT, sumVAT, retailPrice, sumRetail,
+        valueRetailVAT, sumRetailVAT, profit
+;
+
+DESIGN skuLedger {
+    PROPERTY (costSum(s)) { showIf = NULL; }
+}
+
+inInterval (SkuLedger o) = from(interval()) <= dateTime(o) AND to(interval()) >= dateTime(o);
+
+nameUOM 'Ед.изм.' (SkuLedger o) = nameUOM(sku(o));
+netWeight 'Вес ед. товара' (SkuLedger o) = netWeight(sku(o));
+idSt 'Код подр.' (SkuLedger o) = idStock(o);
+idS 'Код товара' (SkuLedger o) = idSku(o);
+nameS 'Наименование' (SkuLedger o) = nameSku(o);
+dateDocument 'Дата документа' (SkuLedger o) = date(stockDocumentLedger(o));
+accountPrice 'Учетная цена' (SkuLedger o) = signedPrice(o);
+sumByAccPrice 'Сумма по учетной цене' (SkuLedger o) = signedSum(o);
+supplier 'Поставщик' (SkuLedger o) = nameSupplier[Document](stockDocumentLedger(o));
+
+inOperation 'Вкл.' = DATA LOCAL BOOLEAN (Operation.Operation);
+cntSelectedOps() = GROUP SUM 1 IF inOperation(Operation.Operation op);
+allOperations() = NOT cntSelectedOps();
+inOpFilter (SkuLedger o) = allOperations() OR inOperation(operationDocument(o));
+
+hasData (Operation.Operation op) = GROUP SUM 1 IF inInterval(SkuLedger o)
+    AND (allStocks() OR inSaleReport(stock(o)))
+    AND signedQuantity(o) > 0
+    AND operationDocument(o) = op;
+
+inOperations 'Операции' () = IF allOperations() THEN 'ВСЕ'
+    ELSE GROUP CONCAT name(Operation.Operation op) IF inOperation(op), ', ' ORDER name(op);
+
+FORM selectOperationsForm 'Выбор операций'
+    OBJECTS op = Operation.Operation
+    PROPERTIES(op) inOperation
+    PROPERTIES(op) READONLY name, nameReturn
+    FILTERS hasData(op)
+;
+
+DESIGN selectOperationsForm {
+    size = (600, 400);
+}
+
+selectOperations 'Выбрать операции' () { DIALOG selectOperationsForm; }
+
+FORM operationReport 'Отчет по хозяйственной операции'
+    PROPERTIES() interval,
+        inStocks ON CHANGE selectStocks(),
+        inOperations ON CHANGE selectOperations()
+
+    OBJECTS o = SkuLedger
+    PROPERTIES(o) READONLY idS, nameS, nameUOM, netWeight, idSt,
+        nameOperationDocument, numberDocument, dateDocument, supplier,
+        signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
+        sumByAccPrice, valueVAT, sumVAT, retailPrice, sumRetail,
+        valueRetailVAT, sumRetailVAT, profit
+    FILTERS inInterval(o),
+        allStocks() OR inSaleReport(stock(o)),
+        signedQuantity(o) > 0,
+        inOpFilter(o)
+    PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
+    REPORT 'OperationReport.jrxml'
+;
+
+printOperationReport 'Печать' () { PRINT operationReport PDF; } IMAGE 'print.png';
+
+EXTEND FORM operationReport
+    PROPERTIES() DISABLEIF NOT interval() printOperationReport
+;
+
+DESIGN operationReport {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        MOVE PROPERTY(interval());
+        MOVE PROPERTY(inStocks());
+        MOVE PROPERTY(inOperations());
+        MOVE PROPERTY(printOperationReport());
+    }
+    REMOVE PROPERTY(title);
+    BOX(o) { caption = ''; }
+}
+
+NAVIGATOR {
+    stockReports {
+        NEW operationReport;
     }
 }
