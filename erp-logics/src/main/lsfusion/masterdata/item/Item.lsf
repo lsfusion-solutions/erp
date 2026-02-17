@@ -1519,16 +1519,14 @@ TABLE manufacturerGroupManufacturerGroup(ManufacturerGroup, ManufacturerGroup);
 FORM manufacturerGroup 'Группа производителей'
 
     OBJECTS w = ManufacturerGroup PANEL
-    PROPERTIES(w) id SHOWIF showIDs(),name, nameParent
+    PROPERTIES(w) order, id SHOWIF showIDs(),name, nameParent
 
     EDIT ManufacturerGroup OBJECT w
 ;
 
 FORM warmanufacturerups 'Группы производителей'
-
     TREE manufacturerGroupTree wg = ManufacturerGroup PARENT parent(wg)
     PROPERTIES READONLY order(wg), customOrder(wg) SHOWIF NULL, id(wg) SHOWIF showIDs(), wgTreeName = name(wg)
-    PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE
     ORDERS order(wg), customOrder(wg), wgTreeName
 
     LIST ManufacturerGroup OBJECT wg
@@ -1575,9 +1573,8 @@ DESIGN manufacturer {
 
 FORM manufacturerDialog 'Производители товара'
     TREE manufacturerTree b=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg)
-    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
-    PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
-    ORDERS mgTreeName
+    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg), order(mg), customOrder(mg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
+    ORDERS order(mg), customOrder(mg), mgTreeName
     FILTERS stringEqualsAll(b)
     
     OBJECTS m=Manufacturer
@@ -1626,9 +1623,9 @@ EXTEND FORM batches PROPERTIES(bt) READONLY  nameManufacturer SHOWIF showAnyManu
 
 EXTEND FORM manufacturersSession
     TREE manufacturerTree b=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg) BEFORE t
-    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
+    PROPERTIES READONLY VALUE(b), id(mg) SHOWIF showIDs(), mgTreeName = name(mg), order(mg), customOrder(mg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
     PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
-    ORDERS mgTreeName
+    ORDERS order(mg), customOrder(mg), mgTreeName
     FILTERS stringEqualsAll(b)
     FILTERS isParent(mg, t) OR (t IS Manufacturer AND mg IS ManufacturerGroup AND NOT manufacturerGroup(t)) OR (t IS Manufacturer AND NOT mg)
 
@@ -1658,9 +1655,9 @@ DESIGN manufacturersSession {
 
 EXTEND FORM attributesItem
     TREE manufacturerTree mt=BPSTRING[3], mg = ManufacturerGroup PARENT parent(mg) BEFORE manufacturer
-    PROPERTIES READONLY VALUE(mt), id(mg) SHOWIF showIDs(), mgTreeName = name(mg)
+    PROPERTIES READONLY VALUE(mt), id(mg) SHOWIF showIDs(), mgTreeName = name(mg), order(mg), customOrder(mg) SHOWIF NULL //сортировка добавлена в конце, что бы значение b было в колонке код или наименование
     PROPERTIES(mg) NEWSESSION NEW, EDIT, DELETE
-    ORDERS mgTreeName
+    ORDERS order(mg), customOrder(mg), mgTreeName
     FILTERS stringEqualsAll(mt)
 
     FILTERS isParent(mg, manufacturer) OR (manufacturer IS Manufacturer AND mg IS ManufacturerGroup AND NOT manufacturerGroup(manufacturer)) OR (manufacturer IS Manufacturer AND NOT mg)
