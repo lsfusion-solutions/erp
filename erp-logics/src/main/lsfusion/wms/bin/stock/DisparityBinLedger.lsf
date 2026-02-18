@@ -10,17 +10,6 @@ NAMESPACE Disparity;
 
 @defineDocumentInterfaceProperty (disparity, useBins, 'Ячейки');
 
-hideBins 'Спрятать ячейки' (disparity) = ABSTRACT BOOLEAN(Disparity) IN documentPrm;
-hideBins 'Спрятать ячейки' (DisparityDetail disparityDetail) = hideBins(disparity(disparityDetail));
-hideBins 'Спрятать ячейки' (userDisparity) = ABSTRACT BOOLEAN(UserDisparity) IN documentPrm;
-hideBins 'Спрятать ячейки' (UserDisparityDetail userDisparityDetail) = hideBins(userDisparity(userDisparityDetail));
-hideBins(UserDisparity userDisparity) += hideBins(userDisparity);
-
-showBins 'Показать ячейки' (Disparity disparity) = useBins(disparity) AND NOT hideBins(disparity);
-showBins 'Показать ячейки' (DisparityDetail disparityDetail) = useBins(disparityDetail) AND NOT hideBins(disparityDetail);
-showBins 'Показать ячейки' (UserDisparity userDisparity) = useBins(userDisparity) AND NOT hideBins(userDisparity);
-showBins 'Показать ячейки' (UserDisparityDetail userDisparityDetail) = useBins(userDisparityDetail) AND NOT hideBins(userDisparityDetail);
-
 @deriveDocumentOperationProperty(UserDisparity, useBins);
 
 @defineInterfaceBin (disparityDetail,,);
@@ -39,8 +28,8 @@ backgroundBins 'Цвет' (Disparity disparity) = RGB(255, 224, 255) IF disparit
 backgroundBins (DisparityDetail detail) = backgroundBins(disparity(detail));
 
 EXTEND FORM disparity
-    PROPERTIES(dis) useBins, nameBin SHOWIF showBins(dis) ON CHANGE setBin(dis)
-    PROPERTIES(d) SHOWIF showBins(dis) BACKGROUND backgroundBins(d) nameBin ON CHANGE setBin(d)
+    PROPERTIES(dis) useBins, nameBin SHOWIF useBins(dis) ON CHANGE setBin(dis)
+    PROPERTIES(d) SHOWIF useBins(dis) BACKGROUND backgroundBins(d) nameBin ON CHANGE setBin(d)
 ;
 DESIGN disparity {
     headerExtraParams {
@@ -52,7 +41,7 @@ DESIGN disparity {
     }
 }
 EXTEND FORM disparities
-    PROPERTIES(d) READONLY SHOWIF showBins(dis) BACKGROUND backgroundBins(d) nameBin
+    PROPERTIES(d) READONLY SHOWIF useBins(dis) BACKGROUND backgroundBins(d) nameBin
 ;
 
 overBin = ABSTRACT Bin (UserDisparityDetail);
