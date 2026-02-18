@@ -48,8 +48,8 @@ retailCalcPriceListType (DisassemblyDetail d) = retailCalcPriceListType(disassem
 retailPriceListType = DATA PriceListType (Disassembly);
 nameRetailPriceListType 'Вид цен (управленческий)' (Disassembly o) = name(retailPriceListType(o)) CHARWIDTH 20;
 
-retailCalcPriceListType (Disassembly o) <- pricingCalcPriceListType(pricingOperation(operation(o))) WHEN CHANGED(operation(o));
-retailPriceListType (Disassembly o) <- pricingPriceListType(pricingOperation(operation(o))) WHEN CHANGED(operation(o));
+retailCalcPriceListType (Disassembly o) <- pricingCalcPriceListType(pricingOperation(o)) WHEN CHANGED(pricingOperation(o));
+retailPriceListType (Disassembly o) <- pricingPriceListType(pricingOperation(o)) WHEN CHANGED(pricingOperation(o)); 
 
 retailPriceListType = DATA PriceListType (DisassemblyDetail);
 nameRetailPriceListType 'Вид цен (розничная)' (DisassemblyDetail detail) = name(retailPriceListType(detail)) CHARWIDTH 10;
@@ -210,12 +210,19 @@ recalculateRetailPrice 'Пересчитать розн. цену' (Disassembly 
     }
 }
 
+useOverCalculateSupplierPrice = ABSTRACT BOOLEAN (Disassembly);
+overCalculateSupplierPrice ABSTRACT (Disassembly);
+
 extraCalculatePrice (Disassembly a) + {
-    supplierSum(DisassemblyDetail d) <- (PARTITION UNGROUP supplierSum
-        PROPORTION STRICT ROUND(2) percent(d)
-        ORDER d
-        BY disassembly(d)) WHERE disassembly(d) = a;
-    supplierPrice(DisassemblyDetail d) <- calcSupplierPrice(d) WHERE disassembly(d) = a;
+    IF useOverCalculateSupplierPrice(a) THEN
+        overCalculateSupplierPrice(a);
+    ELSE {
+        supplierSum(DisassemblyDetail d) <- (PARTITION UNGROUP supplierSum
+            PROPORTION STRICT ROUND(2) percent(d)
+            ORDER d
+            BY disassembly(d)) WHERE disassembly(d) = a;
+        supplierPrice(DisassemblyDetail d) <- calcSupplierPrice(d) WHERE disassembly(d) = a;
+    }
     recalculateRetailPrice(a);
 }
 

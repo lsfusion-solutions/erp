@@ -339,6 +339,9 @@ overSum = ABSTRACT NUMERIC[18,4] (DisassemblyDetail);
 
 @defineOperationProperty(skipFillPriceHeader, 'Не изменять цену исходного товара по кнопке Рассчитать цены', paramsContainer);
 
+useOverCalculatePrice = ABSTRACT BOOLEAN (Disassembly);
+overCalculatePrice ABSTRACT (Disassembly);
+
 extraCalculatePrice ABSTRACT LIST (Disassembly);
 calculatePrice 'Рассчитать цены' (Disassembly a) {
     IF NOT (price(a) AND skipFillPriceHeader(operation(a))) THEN {
@@ -348,12 +351,16 @@ calculatePrice 'Рассчитать цены' (Disassembly a) {
             price(a) <- prevAccountPriceB(sku(a), stock(a), dateTime(a));
     }
     
-    sum(DisassemblyDetail d) <- IF (useOverSum(d) AND overSum(d)) THEN overSum(d) ELSE (PARTITION UNGROUP sum
-                                        PROPORTION STRICT ROUND(2) percent(d)
-                                        ORDER d
-                                        BY disassembly(d)) WHERE disassembly(d) = a;
-    price(DisassemblyDetail d) <- calcPrice(d) WHERE disassembly(d) = a;
-
+    IF useOverCalculatePrice(a) THEN
+        overCalculatePrice(a);
+    ELSE {
+        sum(DisassemblyDetail d) <- IF (useOverSum(d) AND overSum(d)) THEN overSum(d) ELSE (PARTITION UNGROUP sum
+            PROPORTION STRICT ROUND(2) percent(d)
+            ORDER d
+            BY disassembly(d)) WHERE disassembly(d) = a;
+        price(DisassemblyDetail d) <- calcPrice(d) WHERE disassembly(d) = a;
+    }
+    
     extraCalculatePrice(a);
 }
 
