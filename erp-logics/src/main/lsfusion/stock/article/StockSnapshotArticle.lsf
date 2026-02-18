@@ -76,7 +76,9 @@ TABLE snapshotArticle (Snapshot, Article);
 
 dataInclude 'Вкл' = DATA BOOLEAN (Snapshot, Article);
 dataExclude 'Искл.' = ABSTRACT BOOLEAN (Snapshot, Article);
-include 'Вкл' (Snapshot snapshot, Article article) = dataInclude(snapshot, article) AND NOT dataExclude(snapshot, article);
+overInclude 'Вкл.' = ABSTRACT BOOLEAN (Snapshot, Article);
+include 'Вкл' (Snapshot snapshot, Article article) =
+    (OVERRIDE dataInclude(snapshot, article), overInclude(snapshot, article)) AND NOT dataExclude(snapshot, article);
 
 countIncludeArticles (Snapshot s) = GROUP SUM 1 IF include(s, Article a);
 
