@@ -48,3 +48,29 @@ recalculateShipmentSum() + {
         APPLY;
     }
 }
+
+CLASS IncSDReceivingBinLedger 'Приемка (приход)' : IncStockDocumentBinLedger;
+
+needToCreateIncSDReceivingBinLedger (Receiving t, BinGroup g) = GROUP SUM quantity(ReceivingDetail d) IF receiving(d) == t AND binGroup2(inBin(d)) == g;
+incSDReceivingBinLedger = AGGR IncSDReceivingBinLedger WHERE needToCreateIncSDReceivingBinLedger(Receiving receiving, BinGroup binGroup) AND GRDateTime(receiving) MATERIALIZED INDEXED;
+
+dateTime[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += GRDateTime(receiving(ledger));
+isPosted[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += isPosted(receiving(ledger));
+isClosed[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += isClosed(receiving(ledger));
+number[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += number(receiving(ledger));
+series[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += series(receiving(ledger));
+operation[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += operationInvoice(receiving(ledger));
+stock[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += customerStock(receiving(ledger));
+binGroup[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += binGroup(ledger);
+description[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += description(receiving(ledger));
+edit(IncSDReceivingBinLedger ledger) + {edit[UserReceiving](receiving(ledger));}
+
+shipmentSum(IncSDReceivingBinLedger ledger) =
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+sumItem[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isItem(sku(d)) AND receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+sumContainer[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isContainer(sku(d)) AND receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+
+legalEntity[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplier(receiving(ledger));
+legalEntityStock[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplierStock(receiving(ledger));

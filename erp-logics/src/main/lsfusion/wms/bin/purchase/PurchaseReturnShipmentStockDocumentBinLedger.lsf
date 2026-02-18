@@ -1,0 +1,13 @@
+MODULE PurchaseReturnShipmentStockDocumentBinLedger;
+
+REQUIRE PurchaseReturnShipmentBinLedger, StockDocumentBinLedger, PurchaseShipmentStockDocumentBinLedger;
+
+NAMESPACE PurchaseReturn;
+
+@defineStockDocumentBinLedger (out, shipment, 'Закупка-возврат (расход)', customerStock, binGroup2, outBin);
+
+legalEntity[StockDocumentBinLedger] (OutSDShipmentBinLedger ledger) += supplier(shipment(ledger));
+legalEntityStock[StockDocumentBinLedger] (OutSDShipmentBinLedger ledger) += supplierStock(shipment(ledger));
+isReturn[StockDocumentBinLedger] (OutSDShipmentBinLedger ledger) += shipment(ledger) IS PurchaseReturn.Shipment;
+
+skip(OutSDShipmentBinLedger l) += (isCommission(invoice(shipment(l))) IF excludeCommission()) OR overSkipStockDocumentLedger(shipment(l));

@@ -1,8 +1,8 @@
 MODULE StockDocumentBinLedger;
 
-REQUIRE EmployeeBinZone, BinOrderBinLedger;
+REQUIRE EmployeeBinZone, BinOrderBinLedger, StockDocument;
 
-NAMESPACE Bin;
+NAMESPACE StockDocument;
 
 CLASS ABSTRACT StockDocumentBinLedger 'Учетный документ подразделений';
 TABLE stockDocumentBinLedger (StockDocumentBinLedger) FULL;
@@ -28,7 +28,11 @@ legalEntityStock 'Склад контрагента' (ledger) = ABSTRACT Stock (
 nameLegalEntityStock 'Склад контрагента' = name(legalEntityStock(StockDocumentBinLedger ledger));
 
 operation 'Операция' (ledger) = ABSTRACT Operation.Operation (StockDocumentBinLedger) MATERIALIZED;
-nameOperation 'Операция' (StockDocumentBinLedger ledger) = name(operation(ledger));
+isReturn 'Возврат' (ledger) = ABSTRACT BOOLEAN (StockDocumentBinLedger) MATERIALIZED;
+
+nameOperation 'Операция' (StockDocumentBinLedger ledger) = IF isReturn(ledger)
+    THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
+    ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
 stock = ABSTRACT Stock(StockDocumentBinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (StockDocumentBinLedger ledger) = name(stock(ledger)) CHARWIDTH 20;
@@ -205,9 +209,24 @@ sumAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock,
     [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
         BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
 
+sumItemAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+
+sumContainerAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
+    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+
 sumAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
     [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
         BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+sumItemAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+sumContainerAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
+    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
+    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+
 
 countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
     GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
@@ -398,16 +417,6 @@ NAVIGATOR {
     }
 }
 
-// -------------------------------------- Агрегация --------------------------------------------- //
-
-createStockDocumentBinLedger 'Проводить по ТО подразделений' = DATA BOOLEAN (Operation);
-EXTEND FORM operation PROPERTIES createStockDocumentBinLedger(o);
-DESIGN operation {
-    createContainer {
-        MOVE PROPERTY(createStockDocumentBinLedger(o));
-    }
-}
-
 // ------------------------------------- Действие по пересчету учетных сумм ---------------------- //
 
 countDaysToRecalculate 'Кол-во дней для пересчита/дорасчита учётных сумм движения по ячейкам' = DATA INTEGER ();
@@ -422,3 +431,63 @@ DESIGN options {
         MOVE PROPERTY(countDaysToRecalculate());
     }
 }
+// -------------------------------------- Агрегация --------------------------------------------- //
+META defineStockDocumentBinLedgerOperationProperty (namespace, caption)
+    createStockDocumentBinLedger ###caption = DATA BOOLEAN (namespace.Operation);
+
+    EXTEND FORM namespace.operation PROPERTIES createStockDocumentBinLedger(o);
+
+    DESIGN namespace.operation {
+        createContainer {
+            MOVE PROPERTY(createStockDocumentBinLedger(o));
+        }
+    }
+END
+
+META defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, binGroupProp, binProp)
+    //SD - StockDocument SDBLBL - StockDocumentBinLedger
+    CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
+        (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND binGroupProp(binProp(d)) == g);
+    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, BinGroup binGroup) MATERIALIZED INDEXED;
+END
+
+META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, binGroupProp, binProp)
+    //SD - StockDocument SDBLBL - StockDocumentBinLedger
+    CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, BinGroup g) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND binGroupProp(binProp(d)) == g);
+    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, BinGroup binGroup) MATERIALIZED INDEXED;
+END
+
+META implementStockDocumentBinLedger(prefix, concrete, stockProp)
+    dateTime[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += dateTime(##concrete(ledger));
+    isPosted[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += isPosted(##concrete(ledger));
+    isClosed[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += isClosed(##concrete(ledger));
+    number[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += number(##concrete(ledger));
+    series[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += series(##concrete(ledger));
+    operation[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += operation(##concrete(ledger));
+    stock[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += stockProp(##concrete(ledger));
+    binGroup[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += binGroup(ledger);
+    description[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += description(##concrete(ledger));
+    edit(###prefix##SD###concrete##BinLedger ledger) + {edit[User###concrete](##concrete(ledger));}
+END 
+
+
+META implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp)
+    sumItem[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isItem(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND binGroupProp(binProp(d)) == binGroup(ledger));
+    sumContainer[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isContainer(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND binGroupProp(binProp(d)) == binGroup(ledger));
+
+END
+
+META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, binGroupProp, binProp)
+    @defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, binGroupProp, binProp);
+    @implementStockDocumentBinLedger(prefix, concrete, stockProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp);
+END
+META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, binGroupProp, binProp)
+    @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, binGroupProp, binProp);
+    @implementStockDocumentBinLedger(prefix, concrete, stockProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp);
+END
