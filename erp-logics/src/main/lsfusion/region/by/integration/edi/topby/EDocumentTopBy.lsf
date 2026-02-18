@@ -606,14 +606,13 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                 IF NOT length(unpReceiver(d)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(d), documentID(d), '') + ': Не заполнено поле \'УНП получателя\'\n';
                 IF NOT length(file(d)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(d), documentID(d), '') + ': Не заполнено поле \'Файл\'\n';
                 IF NOT length(name(d)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(d), documentID(d), '') + ': Не заполнено поле \'Имя файла\'\n';
-                IF NOT length(typeFile(d)) > 0 THEN error() <- error() + 'EDocument ' + (OVERRIDE number(d), documentID(d), '') + ': Не заполнено поле \'Тип файла\'\n';
 
                 IF error() == '' THEN {
-                    LOCAL headers = STRING(STRING);
                     authenticate(profile(le));
-                    headers('Authorization') <- token();
-
                     IF token() THEN {
+                        LOCAL headers = STRING(STRING);
+                        headers('Authorization') <- token();
+
                         //Получить id reciever'a
                         IF NOT id(receiver(d), sender(d)) THEN {
                             EXPORT JSON FROM unp = UNP(receiver(d)), status = 'ACTIVE';
@@ -624,7 +623,7 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                         }
 
                         EXPORT exportBlrdocJSON OBJECTS d = d JSON;
-                        EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() HEADERS headers PARAMS exportFile() TO result;
+                        EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC' HEADERS headers PARAMS exportFile() TO result;
 
                         IMPORT importBlrdoc FROM result();
                         id(d) <- id();
@@ -646,11 +645,11 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                         base64File() <- encode(file(d), 'base64');
 
                         EXPORT JSON FROM content = base64File(), fileName = name(d);
-                        EXTERNAL HTTP PUT url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/file/base64' HEADERS headers PARAMS exportFile() TO result;
+                        EXTERNAL HTTP PUT url(profile(sender(d))) + 'BLRDOC/' + id(d) + '/file/base64' HEADERS headers PARAMS exportFile() TO result;
                         IF statusHttp() = 200 THEN fileAddedToDraft(d) <- TRUE;
 
                         IF idRoute(d) = '0' OR idRoute(d) = '1' THEN {
-                            EXTERNAL HTTP GET url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/signed?base64=true' HEADERS headers TO result;
+                            EXTERNAL HTTP GET url(profile(sender(d))) + 'BLRDOC/' + id(d) + '/signed?base64=true' HEADERS headers TO result;
                             IMPORT importSignDoc JSON FROM result();
                             IF errorDescription() != '' THEN {
                                 MESSAGE errorDescription();
@@ -663,14 +662,14 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
                                 }
                                 IF base64Signature() THEN {
                                     EXPORT JSON FROM id = id(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
-                                    EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + 'saveSigned' HEADERS headers PARAMS exportFile() TO result;
+                                    EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/saveSigned' HEADERS headers PARAMS exportFile() TO result;
                                 }
                                 IF statusHttp() = 200 THEN signedBySender(d) <- TRUE;
                             }
                         }
 
                         EXPORT JSON FROM id = id(d);
-                        EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/send' HEADERS headers PARAMS exportFile() TO result;
+                        EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/' + id(d) + '/send' HEADERS headers PARAMS exportFile() TO result;
 
                         IF statusHttp() = 200 THEN {
                             logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocument ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ' request succeeded');
@@ -740,13 +739,13 @@ signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outp
     TRY {
         IF profile(le) THEN {
             IF EDSServiceSender(provider, d) THEN {
-                LOCAL headers = STRING(STRING);
                 authenticate(profile(le));
-                headers('Authorization') <- token();
-
                 IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
                     EXPORT JSON FROM id = id(d);
-                    EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/blrapn/cancel?base64=true' HEADERS headers PARAMS exportFile() TO result;
+                    EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/' + id(d) + '/blrapn/cancel?base64=true' HEADERS headers PARAMS exportFile() TO result;
 
                     IMPORT importSignDoc JSON FROM result();
 
@@ -767,7 +766,7 @@ signAndSendBlrapnSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outp
                             MESSAGE provider + ' (' + loginProfile(le) + ') Документ не выгружен: BLRAPN ' + (OVERRIDE number(d), idBlrapnSender(d), STRING[35](resultMilliseconds())) + ' не подписан. Ошибка: ' + signError() NOWAIT;
                         }
                         EXPORT JSON FROM id = idBlrapnSender(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
-                        EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + 'blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                        EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
 
                         numberSenderCancel(d) <- STRING[35](resultMilliseconds());
                         dateSenderCancel(d) <- blrapnDateTime();
@@ -917,13 +916,13 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
     TRY {
         IF profile(le) THEN {
             IF EDSServiceReceiver(provider, d) THEN {
-                LOCAL headers = STRING(STRING);
                 authenticate(profile(le));
-                headers('Authorization') <- token();
-
                 IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
                     EXPORT JSON FROM id = id(d);
-                    EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + id(d) + '/blrapn/denySignature?base64=true' HEADERS headers PARAMS exportFile() TO result;
+                    EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/' + id(d) + '/blrapn/denySignature?base64=true' HEADERS headers PARAMS exportFile() TO result;
 
                     IMPORT importSignDoc JSON FROM result();
 
@@ -939,7 +938,7 @@ signAndSendBlrapnReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] ou
                         }
                         IF base64Signature() THEN {
                             EXPORT JSON FROM id = idBlrapnReceiver(d), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
-                            EXTERNAL HTTP POST url(profile(sender(d))) + blrdocUrlStt() + 'blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
+                            EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC/blrapn/saveSignedAndSend' HEADERS headers PARAMS exportFile() TO result;
 
                             exportBlrdocDateTime() <- currentDateTimeMillis();
                             toMilliseconds(exportBlrdocDateTime());
@@ -1116,18 +1115,18 @@ signAndSendReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDi
             LOCAL responseId = STRING ();
             
             IF EDSServiceReceiver(provider, d) THEN {
-                LOCAL headers = STRING(STRING);
                 authenticate(profile(le));
-                headers('Authorization') <- token();
-
                 IF token() THEN {
+                    LOCAL headers = STRING(STRING);
+                    headers('Authorization') <- token();
+
                     EXPORT exportBlrdocJSON OBJECTS d = d JSON;
-                    EXTERNAL HTTP POST url(profile(receiver(d))) + blrdocUrlStt() + id(d) + '/response' HEADERS headers PARAMS exportFile() TO result;
+                    EXTERNAL HTTP POST url(profile(receiver(d))) + 'BLRDOC/' + id(d) + '/response' HEADERS headers PARAMS exportFile() TO result;
                     fileToString(result());
                     responseId() <- resultString();
                     
                     IF idRoute(d) = '0' OR idRoute(d) = '2' THEN {
-                        EXTERNAL HTTP GET url(profile(receiver(d))) + blrdocUrlStt() + responseId() + '/signed?base64=true' HEADERS headers TO result;
+                        EXTERNAL HTTP GET url(profile(receiver(d))) + 'BLRDOC/' + responseId() + '/signed?base64=true' HEADERS headers TO result;
                         IMPORT importSignDoc JSON FROM result();
                         IF errorDescription() != '' THEN {
                             MESSAGE errorDescription();
@@ -1140,7 +1139,7 @@ signAndSendReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDi
                             }
                             IF base64Signature() THEN {
                                 EXPORT JSON FROM id = responseId(), signatureBase64 = base64Signature(), xmlBody = xmlBase64();
-                                EXTERNAL HTTP POST url(profile(receiver(d))) + blrdocUrlStt() + 'saveSigned' HEADERS headers PARAMS exportFile() TO result;
+                                EXTERNAL HTTP POST url(profile(receiver(d))) + 'BLRDOC/saveSigned' HEADERS headers PARAMS exportFile() TO result;
 
                                 exportBlrdocDateTime() <- currentDateTimeMillis();
                                 toMilliseconds(exportBlrdocDateTime());
@@ -1153,7 +1152,7 @@ signAndSendReceiverEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDi
                     }
 
                     EXPORT JSON FROM id = responseId();
-                    EXTERNAL HTTP POST url(profile(receiver(d))) + blrdocUrlStt() + responseId() + '/send' HEADERS headers PARAMS exportFile() TO result;
+                    EXTERNAL HTTP POST url(profile(receiver(d))) + 'BLRDOC/' + responseId() + '/send' HEADERS headers PARAMS exportFile() TO result;
 
                     IF statusHttp() = 200 THEN {
                         logToFile('edi', provider + ' (' + loginProfile(le) + ') SendEDocumentResponse ' + (OVERRIDE number(d), id(d), STRING[35](resultMilliseconds())) + ' request succeeded');
@@ -1265,12 +1264,12 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
                     page() <- page() (+) 1;
 
                     logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent. POST /api/v1/BLRDOC/' + filterPageStatusName() + '/filteredPage?page=' + page());
-                    EXTERNAL HTTP POST url(profile(le)) + blrdocUrlStt() + id(filterPageStatus()) + '/filteredPage?page=' + page() HEADERS headers PARAMS exportFile() TO response;
+                    EXTERNAL HTTP POST url(profile(le)) + 'BLRDOC/' + id(filterPageStatus()) + '/filteredPage?page=' + page() HEADERS headers PARAMS exportFile() TO response;
 
                     IMPORT importBlrdocs JSON FROM response();
                     FOR id(INTEGER i) AND NOT eDocument(id(i)) AND NOT (GROUP MIN EDocument dd IF documentID(dd) = documentNumber(i) AND dateTimeCreated(dd) = DATETIME(dateTime(i))) DO {
                         logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent. GET /api/v1/BLRDOC/{id}');
-                        EXTERNAL HTTP GET url(profile(le)) + blrdocUrlStt() + id(i) HEADERS headers TO response;
+                        EXTERNAL HTTP GET url(profile(le)) + 'BLRDOC/' + id(i) HEADERS headers TO response;
 
                         IMPORT importBlrdoc JSON FROM response();
 
@@ -1288,8 +1287,8 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
                             sender(d) <- legalEntityGLN(gln1());
                             receiver(d) <- legalEntityGLN(gln());
                             eDocumentStatus(d) <- name1();
-                            
-                            IF id1() = 'CANCELED' THEN isCancel(d) <- TRUE;
+
+                            IF id1() = 'CANCELED' OR id1() = 'SIGNATURE_DENIED' THEN isCancel(d) <- TRUE;
                             IF receiver(d) = le THEN {
                                 importedReceiver(d) <- TRUE;
                                 IF id1() = 'TRANSFERRED' THEN exportedSender(d) <- TRUE;
@@ -1297,7 +1296,7 @@ getBlrdocFilteredPage(LegalEntity le, STRING login, STRING[100] archiveDir, BOOL
 
                             IF fileName1() THEN {
                                 logToFile('edi', provider + ' (' + login + ') Receive BLRDOC file request sent. GET /api/v1/BLRDOC/{id}/file');
-                                EXTERNAL HTTP GET url(profile(le)) + blrdocUrlStt() + id(d) + '/file' HEADERS headers TO file;
+                                EXTERNAL HTTP GET url(profile(le)) + 'BLRDOC/' + id(d) + '/file' HEADERS headers TO file;
                                 file(d) <- file();
                                 name(d) <- fileName1();
                                 typeFile(d) <- substr(fileName1(), strpos(fileName1(), '.') + 1, 5);
@@ -1343,12 +1342,12 @@ updateEDocuments 'Обновить документы' (LegalEntity le, STRING l
                     page() <- page() (+) 1;
 
                     logToFile('edi', provider + ' (' + login + ') ReceiveMessages request sent. POST /api/v1/BLRDOC/' + filterPageStatusName() + '/filteredPage?page=' + page());
-                    EXTERNAL HTTP POST url(profile(le)) + blrdocUrlStt() + id(filterPageStatus()) + '/filteredPage?page=' + page() HEADERS headers PARAMS exportFile() TO response;
+                    EXTERNAL HTTP POST url(profile(le)) + 'BLRDOC/' + id(filterPageStatus()) + '/filteredPage?page=' + page() HEADERS headers PARAMS exportFile() TO response;
 
                     IMPORT importBlrdocs JSON FROM response();
                     FOR id(INTEGER i) AND EDocument doc = eDocument(id(i)) OR (GROUP MIN EDocument dd IF documentID(dd) = documentNumber(i) AND dateTimeCreated(dd) = DATETIME(dateTime(i))) = doc DO {
                         eDocumentStatus(doc) <- name1(i);
-                        IF id1(i) = 'CANCELED' THEN isCancel(doc) <- TRUE;
+                        IF id1(i) = 'CANCELED' OR id1(i) = 'SIGNATURE_DENIED' THEN isCancel(doc) <- TRUE;
                         IF receiver(doc) = le THEN {
                             importedReceiver(doc) <- TRUE;
                             IF id1(i) = 'TRANSFERRED' THEN exportedSender(doc) <- TRUE;
@@ -1356,7 +1355,7 @@ updateEDocuments 'Обновить документы' (LegalEntity le, STRING l
 
                         IF NOT file(doc) THEN {
                             logToFile('edi', provider + ' (' + login + ') Receive BLRDOC file request sent. GET /api/v1/BLRDOC/{id}/file');
-                            EXTERNAL HTTP GET url(profile(le)) + blrdocUrlStt() + id(doc) + '/file' HEADERS headers TO file;
+                            EXTERNAL HTTP GET url(profile(le)) + 'BLRDOC/' + id(doc) + '/file' HEADERS headers TO file;
                             file(doc) <- file();
                         }
                     }
