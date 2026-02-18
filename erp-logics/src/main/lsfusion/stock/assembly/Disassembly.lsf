@@ -455,7 +455,9 @@ close[StockDocumentLedger](Disassembly l) + {  close(l); }
 
 stockDocumentLedger(DisassemblyInSkuLedger ledger) += disassembly(disassemblyDetail(ledger));
 
-// copy
+overCopy  ABSTRACT LIST (Disassembly, Disassembly);
+overCopy  ABSTRACT LIST (DisassemblyDetail, DisassemblyDetail);
+
 copy 'Копировать'(Disassembly s)  {
     NEWSESSION {
         NEW a = Disassembly {
@@ -466,6 +468,8 @@ copy 'Копировать'(Disassembly s)  {
             quantity(a) <- quantity(s);
             price(a) <- price(s);
             sum(a) <- sum(s);
+            
+            overCopy(a, s);
 
             FOR disassembly(DisassemblyDetail sd) == s DO NEW d = DisassemblyDetail {
                 disassembly(d) <- a;
@@ -474,6 +478,8 @@ copy 'Копировать'(Disassembly s)  {
                 dataPercent(d) <- dataPercent(sd);
                 price(d) <- price(sd);
                 sum(d) <- sum(sd);
+
+                overCopy(d, sd);
             }
 
             SHOW disassembly OBJECTS a = a DOCKED NOCANCEL;
