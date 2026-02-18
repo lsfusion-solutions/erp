@@ -501,7 +501,18 @@ META defineDocumentBins (object)
     @defineInterfaceBin (object, out, ' (из)');
 
     @defineDocumentInterfaceProperty (object, useBins, 'Ячейки');
-                   
+        
+    hideBins 'Спрятать ячейки' (object) = ABSTRACT BOOLEAN(###object) IN documentPrm;
+    hideBins 'Спрятать ячейки' (###object##Detail object##Detail) = hideBins(object(object##Detail));
+    hideBins 'Спрятать ячейки' (user###object) = ABSTRACT BOOLEAN(User###object) IN documentPrm;
+    hideBins 'Спрятать ячейки' (User###object##Detail user###object##Detail) = hideBins(user###object(user###object##Detail));
+    hideBins(User###object user###object) += hideBins(user###object);
+        
+    showBins 'Показать ячейки' (###object object) = useBins(object) AND NOT hideBins(object) IN documentPrm;
+    showBins 'Показать ячейки' (###object##Detail object##Detail) = useBins(object##Detail) AND NOT hideBins(object##Detail);
+    showBins 'Показать ячейки' (User###object user###object) = useBins(user###object) AND NOT hideBins(user###object) IN documentPrm;
+    showBins 'Показать ячейки' (User###object##Detail user###object##Detail) = useBins(user###object##Detail) AND NOT hideBins(user###object##Detail);
+
     @defineInterfaceBin (object###detail, in, ' (в)');
     @defineInterfaceBin (object###detail, out, ' (из)');
 END
@@ -510,6 +521,17 @@ META defineDocumentBins (object, binType, caption)
     @defineInterfaceBin (object, binType, caption);
 
     @defineDocumentInterfaceProperty (object, useBins, 'Ячейки');
+
+    hideBins 'Спрятать ячейки' (object) = ABSTRACT BOOLEAN(###object) IN documentPrm;
+    hideBins 'Спрятать ячейки' (###object##Detail object##Detail) = hideBins(object(object##Detail));
+    hideBins 'Спрятать ячейки' (user###object) = ABSTRACT BOOLEAN(User###object) IN documentPrm;
+    hideBins 'Спрятать ячейки' (User###object##Detail user###object##Detail) = hideBins(user###object(user###object##Detail));
+    hideBins(User###object user###object) += hideBins(user###object);
+    
+    showBins 'Показать ячейки' (###object object) = useBins(object) AND NOT hideBins(object);
+    showBins 'Показать ячейки' (###object##Detail object##Detail) = useBins(object##Detail) AND NOT hideBins(object##Detail);
+    showBins 'Показать ячейки' (User###object user###object) = useBins(user###object) AND NOT hideBins(user###object);
+    showBins 'Показать ячейки' (User###object##Detail user###object##Detail) = useBins(user###object##Detail) AND NOT hideBins(user###object##Detail);        
 
     @defineInterfaceBin (object###detail, binType, caption);
 
@@ -601,8 +623,8 @@ END
 
 META extendObjectFormsBins(form, forms, obj, stockProp, background) 
     EXTEND FORM form
-        PROPERTIES(obj) useBins, nameInBin SHOWIF useBins(obj) ON CHANGE setInBin(obj), nameOutBin SHOWIF useBins(obj) ON CHANGE setOutBin(obj)
-        PROPERTIES(d) SHOWIF useBins(obj) BACKGROUND background(obj)
+        PROPERTIES(obj) useBins, nameInBin SHOWIF showBins(obj) ON CHANGE setInBin(obj), nameOutBin SHOWIF showBins(obj) ON CHANGE setOutBin(obj)
+        PROPERTIES(d) SHOWIF showBins(obj) BACKGROUND background(obj)
                       nameInBin ON CHANGE setInBin(d), nameOutBin ON CHANGE setOutBin(d)
     ;
     DESIGN form {
@@ -618,15 +640,15 @@ META extendObjectFormsBins(form, forms, obj, stockProp, background)
     }
 
     EXTEND FORM forms
-        PROPERTIES(d) READONLY SHOWIF useBins(obj) BACKGROUND background(obj)
+        PROPERTIES(d) READONLY SHOWIF showBins(obj) BACKGROUND background(obj)
                       nameInBin, nameOutBin
     ;
 END
 
 META extendObjectFormsBins(form, forms, obj, stockProp, background, binType)
     EXTEND FORM form
-        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF useBins(obj) ON CHANGE set###binType##Bin(obj)
-        PROPERTIES(d) SHOWIF useBins(obj) BACKGROUND background(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
+        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF showBins(obj) ON CHANGE set###binType##Bin(obj)
+        PROPERTIES(d) SHOWIF showBins(obj) BACKGROUND background(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
     ;
     DESIGN form {
         headerExtraParams {
@@ -639,14 +661,14 @@ META extendObjectFormsBins(form, forms, obj, stockProp, background, binType)
     }
 
     EXTEND FORM forms
-        PROPERTIES(d) READONLY SHOWIF useBins(obj) BACKGROUND background(obj) name###binType##Bin
+        PROPERTIES(d) READONLY SHOWIF showBins(obj) BACKGROUND background(obj) name###binType##Bin
     ;
 END
 
 META extendObjectFormsBins(form, forms, obj, binType)
     EXTEND FORM form
-        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF useBins(obj) ON CHANGE set###binType##Bin(obj)
-        PROPERTIES(d) SHOWIF useBins(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
+        PROPERTIES(obj) useBins, name###binType##Bin SHOWIF showBins(obj) ON CHANGE set###binType##Bin(obj)
+        PROPERTIES(d) SHOWIF showBins(obj) name###binType##Bin ON CHANGE set###binType##Bin(d)
     ;
     DESIGN form {
         headerExtraParams {
@@ -659,7 +681,7 @@ META extendObjectFormsBins(form, forms, obj, binType)
     }
 
     EXTEND FORM forms
-        PROPERTIES(d) READONLY SHOWIF useBins(obj) name###binType##Bin
+        PROPERTIES(d) READONLY SHOWIF showBins(obj) name###binType##Bin
     ;
 END
 
@@ -679,7 +701,7 @@ META defineInvoiceShipmentBins(stockProp, binType, binCaption)
     @extendObjectFormsBins(userShipment, shipments, s, binType);
 
     EXTEND FORM invoiceDetails
-        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d) name###binType##Bin
+        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF showBins(d) BACKGROUND backgroundShipped(d) name###binType##Bin
     ;
     
     overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) + {

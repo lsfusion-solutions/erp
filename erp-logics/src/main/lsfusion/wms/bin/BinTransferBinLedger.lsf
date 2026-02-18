@@ -406,7 +406,7 @@ prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Sku s
 EXTEND FORM userBinTransfer
     PROPERTIES (ks, o) READONLY AFTER prevCurrentBalance(ks, st) bins, prevCurrentBalanceOutBin, prevCurrentBalanceInBin
     FILTERGROUP filter
-        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' 
+        FILTER 'С остатком ("ячейка из" шапки документа)' prevCurrentBalanceOutBin(ks, o) 'F7' 
         FILTER 'С остатком ' currentBalance(ks,st) 'F10' DEFAULT
         FILTER 'В документе ' quantity(ks, o, st) 'F9'
 ;
@@ -537,6 +537,19 @@ EXTEND FORM userBinTransfer
     PROPERTIES(o) AFTER note(o) nameInBin ON CHANGE setInBin(o), nameOutBin ON CHANGE setOutBin(o)
     PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
 ;
+
+DESIGN userBinTransfer {
+    headerMainParams {
+        horizontal = TRUE;
+        NEW binsContainer {
+            horizontal = TRUE;
+            lines = 1;
+            caption = 'Ячейки для подстановки в строки';
+            MOVE PROPERTY(nameOutBin(o));
+            MOVE PROPERTY(nameInBin(o));
+        }
+    }
+}
 
 userBinTransferDetail (sku, userBinTransfer, bin, stock) =
     GROUP MAX UserBinTransferDetail detail BY sku(detail), userBinTransfer(detail), outBin(detail), stock(detail);

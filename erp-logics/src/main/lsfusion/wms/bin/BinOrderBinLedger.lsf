@@ -714,6 +714,19 @@ EXTEND FORM userBinOrder
     PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
 ;
 
+DESIGN userBinOrder {
+    headerMainParams {
+        horizontal = TRUE;
+        NEW binsContainer {
+            horizontal = TRUE;
+            lines = 1;
+            caption = 'Ячейки для подстановки в строки';
+            MOVE PROPERTY(nameOutBin(o));
+            MOVE PROPERTY(nameInBin(o));
+        }
+    }
+}
+
 @deriveDocumentBins (userBinOrder, userBinOrder, inBin, inBin, outBin, outBin, stock);
 
 useBins(UserBinOrder order) <- TRUE WHEN SET(order IS UserBinOrder);
@@ -742,7 +755,7 @@ EXTEND FORM userBinOrder
                prevCurrentBalanceInBin (ks, o) BACKGROUND backgroundInBin(ks, o) READONLY
                
     FILTERGROUP filter
-        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' DEFAULT
+        FILTER 'С остатком ("ячейка из" шапки документа)' prevCurrentBalanceOutBin(ks, o) 'F7' DEFAULT
         FILTER 'С остатком ' currentBalance(ks,st) 'F10'
         FILTER 'В документе ' quantity(ks, o, st) 'F9'
 ;

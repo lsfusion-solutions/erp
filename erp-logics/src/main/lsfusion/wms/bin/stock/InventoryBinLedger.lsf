@@ -6,7 +6,9 @@ NAMESPACE Inventory;
 
 @defineOperationProperty(useBins, 'Ячейки', paramsContainer);
 
-useBins 'Ячейки' = DATA BOOLEAN(Inventory) IN documentPrm;
+useBins 'Ячейки' = DATA BOOLEAN (Inventory) IN documentPrm;
+hideBins 'Спрятать ячейки' = ABSTRACT BOOLEAN (Inventory) IN documentPrm;
+showBins 'Показать ячейки' (Inventory inventory) = useBins(inventory) AND NOT hideBins(inventory);
 
 @deriveDocumentOperationProperty(Inventory, useBins);
 
@@ -91,14 +93,22 @@ useBins (ListInventory listInventory) = useBins(inventory(listInventory));
 useBins (PageInventoryDetail detail) = useBins(inventory(detail));
 useBins (CollationSheet sheet) = useBins(inventory(sheet));
 
+hideBins (ListInventory listInventory) = hideBins(inventory(listInventory));
+hideBins (PageInventoryDetail detail) = hideBins(inventory(detail));
+hideBins (CollationSheet sheet) = hideBins(inventory(sheet));
+
+showBins (ListInventory listInventory) = showBins(inventory(listInventory));
+showBins (PageInventoryDetail detail) = showBins(inventory(detail));
+showBins (CollationSheet sheet) = showBins(inventory(sheet));
+
 EXTEND FORM listInventory
-    PROPERTIES(dp) SHOWIF useBins(dp) BACKGROUND backgroundBins(dp) nameBin ON CHANGE setBin(dp)
+    PROPERTIES(dp) SHOWIF showBins(dp) BACKGROUND backgroundBins(dp) nameBin ON CHANGE setBin(dp)
     
     OBJECTS bs = (b = Bin, s = Sku) GRID
-    PROPERTIES(li,b,s) READONLY SHOWIF useBins(li) index
-    PROPERTIES(b) READONLY SHOWIF useBins(li) name
-    PROPERTIES(s) READONLY SHOWIF useBins(li) idBarcode, name
-    PROPERTIES(li,b,s) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES(li,b,s) READONLY SHOWIF showBins(li) index
+    PROPERTIES(b) READONLY SHOWIF showBins(li) name
+    PROPERTIES(s) READONLY SHOWIF showBins(li) idBarcode, name
+    PROPERTIES(li,b,s) READONLY SHOWIF showBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS quantityPageInventoryDetail(li,b,s), //> 0
             isParent(g,s)
 ;
@@ -111,23 +121,23 @@ DESIGN listInventory {
 }
 
 EXTEND FORM inventory
-    PROPERTIES(dp) READONLY SHOWIF useBins(dp) BACKGROUND backgroundBins(dp) nameBin
+    PROPERTIES(dp) READONLY SHOWIF showBins(dp) BACKGROUND backgroundBins(dp) nameBin
     OBJECTS bst = (bn = Bin, st = Sku) GRID
-    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) index
-    PROPERTIES(bn) READONLY SHOWIF useBins(li) name
-    PROPERTIES(st) READONLY SHOWIF useBins(li) idBarcode, stNameSku = name
-    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES(li,bn,st) READONLY SHOWIF showBins(li) index
+    PROPERTIES(bn) READONLY SHOWIF showBins(li) name
+    PROPERTIES(st) READONLY SHOWIF showBins(li) idBarcode, stNameSku = name
+    PROPERTIES(li,bn,st) READONLY SHOWIF showBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS quantityPageInventoryDetail(li,bn,st)
     ORDERS stNameSku
     
     OBJECTS bs = (bi = Bin, sk = Sku) GRID
-    PROPERTIES(bi) READONLY SHOWIF useBins(cs) name
-    PROPERTIES(sk) READONLY SHOWIF useBins(cs) idBarcode, skNameSku = name
-    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
-    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
-    PROPERTIES(cs,sk) READONLY SHOWIF useBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
-    PROPERTIES(cs,bi,sk) SHOWIF useBins(cs) sumPageInventoryDetail, sumBalance, sumShortage
-    PROPERTIES(sk) READONLY SHOWIF useBins(cs) nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5 
+    PROPERTIES(bi) READONLY SHOWIF showBins(cs) name
+    PROPERTIES(sk) READONLY SHOWIF showBins(cs) idBarcode, skNameSku = name
+    PROPERTIES(cs,bi,sk) SHOWIF showBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,bi,sk) SHOWIF showBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,sk) READONLY SHOWIF showBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,bi,sk) SHOWIF showBins(cs) sumPageInventoryDetail, sumBalance, sumShortage
+    PROPERTIES(sk) READONLY SHOWIF showBins(cs) nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5 
     FILTERS include(cs,bi,sk) OR overInclude(cs,bi,sk),
             isParent(g,sk)
     
@@ -150,20 +160,20 @@ DESIGN inventory {
 
 EXTEND FORM inventories
     OBJECTS bst = (bn = Bin, st = Sku) GRID
-    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) index
-    PROPERTIES(bn) READONLY SHOWIF useBins(li) name
-    PROPERTIES(st) READONLY SHOWIF useBins(li) idBarcode, name, shortNameUOM
-    PROPERTIES(li,bn,st) READONLY SHOWIF useBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES(li,bn,st) READONLY SHOWIF showBins(li) index
+    PROPERTIES(bn) READONLY SHOWIF showBins(li) name
+    PROPERTIES(st) READONLY SHOWIF showBins(li) idBarcode, name, shortNameUOM
+    PROPERTIES(li,bn,st) READONLY SHOWIF showBins(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS quantityPageInventoryDetail(li,bn,st)
     ORDERS index(li,bn,st)
     
     OBJECTS bs = (bi = Bin, sk = Sku) GRID
-    PROPERTIES(bi) READONLY SHOWIF useBins(cs) name
-    PROPERTIES(sk) READONLY SHOWIF useBins(cs) skNameSku = name, idBarcode
-    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
-    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
-    PROPERTIES(cs,sk) READONLY SHOWIF useBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
-    PROPERTIES(cs,bi,sk) READONLY SHOWIF useBins(cs) sumPageInventoryDetail, sumBalance, sumShortage 
+    PROPERTIES(bi) READONLY SHOWIF showBins(cs) name
+    PROPERTIES(sk) READONLY SHOWIF showBins(cs) skNameSku = name, idBarcode
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF showBins(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF showBins(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,sk) READONLY SHOWIF showBins(cs) priceBalance BACKGROUND differentPrice(cs,bi,sk)
+    PROPERTIES(cs,bi,sk) READONLY SHOWIF showBins(cs) sumPageInventoryDetail, sumBalance, sumShortage 
     FILTERS include(cs,bi,sk) OR overInclude(cs,bi,sk)
     ORDERS skNameSku
 ;
