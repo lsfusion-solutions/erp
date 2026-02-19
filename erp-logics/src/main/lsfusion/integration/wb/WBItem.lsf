@@ -22,7 +22,7 @@ freeItemLimits 'Бесплатный лимит' = DATA STRING ();
 paidItemLimits 'Платный лимит' = DATA STRING ();
 isTrash 'В корзине' = DATA BOOLEAN (Item);
 error 'Ошибка при запросе' = DATA BOOLEAN (Item);
-errorText 'Текст ошибки' = DATA STRING (Item);
+errorText 'Текст ошибки' = DATA TEXT (Item);
 connected 'Объединенная' (Item i) = [GROUP SUM 1 BY imtID(Item item)](imtID(i)) > 1;
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Item);
@@ -1272,17 +1272,40 @@ dataErrors = DATA LOCAL INTEGER(INTEGER);
 objectID = DATA LOCAL NUMERIC(INTEGER);
 object = DATA LOCAL STRING(INTEGER);
 
+GROUP cursor1 : data;
+
+GROUP brands;
+GROUP items;
+GROUP subjects;
+
+GROUP errors;
+
+
+next = DATA LOCAL BOOLEAN();
+batchUUID = DATA LOCAL STRING();
+batchUUID1 = DATA LOCAL STRING(INTEGER);
+v0121 = DATA LOCAL STRING(INTEGER);
+errorsV0121 = DATA LOCAL INTEGER(INTEGER);
+v8525761 = DATA LOCAL STRING(INTEGER);
+errorsV8525761 = DATA LOCAL INTEGER(INTEGER);
+vendorCodes = DATA LOCAL STRING(INTEGER);
+itemsVendorCodes = DATA LOCAL INTEGER(INTEGER);
+
+
 FORM checkErrors
     PROPERTIES() errorText, additionalErrors, error
+    PROPERTIES() IN cursor1 next, batchUUID, updatedAt
 
-    OBJECTS data = INTEGER
-    PROPERTIES(data) updateAt, objectID, object, vendorCode
-    FILTERS imported(data)
+    OBJECTS items = INTEGER IN data
+    FILTERS imported(items)
+    
+    PROPERTIES(items) batchUUID1 EXTID 'batchUUID'
 
-    OBJECTS errors = INTEGER
-    PROPERTIES(errors) errors EXTID 'value'
-    FILTERS imported(errors)
-    FILTERS dataErrors(errors) == data;
+    OBJECTS vendorCodes = INTEGER
+    PROPERTIES(vendorCodes) vendorCodes EXTID 'value'
+    FILTERS imported(vendorCodes)
+    FILTERS itemsVendorCodes(vendorCodes) == items
+;
 
 checkErrors 'Получение ошибок' () {
     NEWSESSION {
@@ -1296,26 +1319,52 @@ checkErrors 'Получение ошибок' () {
         LOCAL response = FILE();
         LOCAL message = STRING ();
 
-        TRY {
-            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
+        error(Item i) <- NULL;
+        errorText(Item i) <- NULL;
 
-            IMPORT checkErrors JSON FROM response();
-            FOR imported(INTEGER i) AND Item item == item(vendorCode(i)) INLINE DO {
-                error(item) <- TRUE;
-                errorText(item) <- GROUP CONCAT errors(INTEGER j) IF imported(j) AND dataErrors(j) == i, ', ' ORDER j;
+        next() <- TRUE;
+        WHILE next() DO {
+            TRY {
+                stringToFile('\{"cursor": \{"limit": 100' + 
+                    (OVERRIDE (',"updatedAt": "' + updatedAt() + '"') IF updatedAt(), '') +
+                    (OVERRIDE (',"batchUUID": "' + batchUUID() + '"') IF batchUUID(), '') + 
+                    '\},"order": \{"ascending": true\}\}', 'UTF-8', 'json');
+
+                EXTERNAL HTTP POST url(CategoryRequest.content) + '/content/v2/cards/error/list' HEADERS httpHeaders PARAMS resultFile() TO response;
+                fileToString(response());
+                logToFile('WB', resultString());
+
+                IMPORT checkErrors JSON FROM response();
+
+                FOR imported(INTEGER i) AND batchUUID1(i) DO {
+                    LOCAL posI = INTEGER ();
+                    LOCAL substrI = TEXT ();
+                    posI() <- strpos(resultString(), '"batchUUID":"' + batchUUID1(i) + '"');
+                    substrI() <- substrFrom(resultString(), posI());
+                    substrI() <- replace(substrI(), '"batchUUID":"' + batchUUID1(i) + '"', '');
+
+                    FOR [GROUP SUM 1 IF imported(INTEGER j) AND vendorCodes(j) AND itemsVendorCodes(j) == i BY item(vendorCodes(j))](Item item) DO {
+                        error(item) <- TRUE;
+                        LOCAL substrJ = TEXT ();
+                        substrJ() <- substrFrom(substrI(), strpos(substrI(), '"errors":\{"' + id(item) + '":['));
+                        substrJ() <- substr(substrJ(), 0, strpos(substrJ(), ']\}\}'));
+
+                        substrJ() <- replace(substrJ(), '"errors":\{"' + id(item) + '":[', '');
+                        substrJ() <- replace(substrJ(), ']\}\}' + id(item) + '":[', '');
+                        errorText(item) <- CONCAT '\n', errorText(item), substrJ();
+                    }
+                }
+
+                message() <- messageStatusHTTP(STRING(statusHttp()));
+            } CATCH {
+                logToFile('WB', messageCaughtException());
+                message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+            } FINALLY {
+                afterSendRequestIS();
+                MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
+                MESSAGE message() NOWAIT;
+                APPLY NESTED LOCAL;
             }
-
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Получение ошибок</h3>' NOWAIT;
-            MESSAGE message() NOWAIT;
-            APPLY;
         }
     }
 }
