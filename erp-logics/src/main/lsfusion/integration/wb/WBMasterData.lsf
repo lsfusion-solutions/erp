@@ -25,6 +25,7 @@ data = DATA LOCAL STRING(INTEGER);
 fullName = DATA LOCAL STRING(INTEGER);
 tnved = DATA LOCAL STRING(INTEGER);
 isKiz = DATA LOCAL STRING(INTEGER);
+logoUrl = DATA LOCAL STRING(INTEGER);
 
 FORM importItemGroup
     PROPERTIES() errorText, additionalErrors, error
@@ -695,6 +696,99 @@ DESIGN dialogVAT {
     }
 }
 
+CLASS Brand 'Бренд';
+
+id 'Код' = DATA STRING (Brand);
+brand (id) = GROUP AGGR Brand b BY id(b);
+
+logoUrl 'URL логотипа' = DATA STRING (Brand);
+name 'Название' = DATA STRING (Brand);
+
+in 'Вкл.' = DATA BOOLEAN (ItemSubGroup, Brand);
+itemSubGroups 'Предметы' (Brand b) = GROUP CONCAT name(ItemSubGroup g) IF in(g, b), ', ' ORDER g;
+
+nextB = DATA LOCAL INTEGER ();
+totalB = DATA LOCAL INTEGER ();
+
+FORM importBrands
+    PROPERTIES() nextB EXTID 'next', totalB EXTID 'total'
+
+    OBJECTS brands = INTEGER
+    PROPERTIES(brands) id EXTID 'id', logoUrl EXTID 'logoUrl', name EXTID 'name'
+    FILTERS imported(brands)
+;
+
+getBrands 'Получить список брендов' () {
+    NEWSESSION {
+        setHttpHeadersIS();
+        LOCAL message = STRING ();
+        LOCAL response = FILE();
+
+        logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v1/brands');
+
+        FOR ItemSubGroup g IS ItemSubGroup NOINLINE DO {
+            LOCAL next = INTEGER ();
+            next() <- 0;
+            LOCAL total = INTEGER ();
+            total() <- 1;
+
+            WHILE next() < total() AND NOT messageCaughtException() DO {
+                TRY {
+                    EXTERNAL HTTP GET url(CategoryRequest.content) + '/api/content/v1/brands?subjectId=' + id(g) + '&next=' + next()
+                        HEADERS httpHeaders TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+                    IMPORT importBrands JSON FROM response();
+                    
+                    next() <- OVERRIDE nextB(), totalB();
+                    total() <- totalB();
+
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND NOT brand(id) INLINE DO NEW b = Brand {
+                        id(b) <- id(i);
+                    }
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY id(i1)](STRING id) AND Brand b == brand(id) INLINE DO {
+                        logoUrl(b) <- logoUrl(i);
+                        name(b) <- name(i);
+                        in(g, b) <- TRUE;
+                    }
+                    message() <- messageStatusHTTP(STRING(statusHttp()));
+                    sleep(1000);
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    //afterSendRequestIS();
+                    MESSAGE '<h3>Получить список брендов</h3>' NOWAIT;
+                    MESSAGE message() NOWAIT;
+                    APPLY NESTED LOCAL;
+                }
+            }
+        }
+    }
+}
+
+FORM dialogBrands 'Список брендов'
+    PROPERTIES getBrands()
+    OBJECTS b = Brand
+    PROPERTIES(b) READONLY id, logoUrl, name
+    PROPERTIES(b) NEWSESSION NEW, EDIT, DELETE
+    ORDERS id(b)
+
+    LIST Brand OBJECT b
+;
+
+DESIGN dialogBrands {
+    BOX {
+        size = (1280, 800);
+        NEW rootContainer BEFORE TOOLBARBOX {
+            fill = 1;
+            MOVE PROPERTY (getBrands());
+            MOVE BOX(b) {
+            }
+        }
+    }
+}
+
 FORM masterData 'Справочники'
     PROPERTIES getItemGroup()
     OBJECTS ig = ItemGroup
@@ -760,6 +854,12 @@ FORM masterData 'Справочники'
     PROPERTIES(sgtn) READONLYIF isReadonly() id, name, nameItemGroup, idItemGroup
     ORDERS name(sgtn)
     FILTERS in(sgtn, tn)
+
+    PROPERTIES getBrands()
+    OBJECTS brand = Brand
+    PROPERTIES(brand) READONLYIF isReadonly() id, logoUrl, name, itemSubGroups
+    ORDERS id(brand)
+    PROPERTIES(brand) NEWSESSION deleteBrand 'Удалить из ERP' = DELETE
 ;
 
 DESIGN masterData {
@@ -808,6 +908,11 @@ DESIGN masterData {
             MOVE PROPERTY (getTnved());
             MOVE BOX(tn){fill = 3;}
             MOVE BOX(sgtn);
+        }
+        NEW containerBrand {
+            caption = 'Бренды';
+            MOVE PROPERTY (getBrands());
+            MOVE BOX(brand);
         }
     }
     MOVE TOOLBARBOX;

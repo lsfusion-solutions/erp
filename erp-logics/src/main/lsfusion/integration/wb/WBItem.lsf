@@ -660,6 +660,65 @@ DESIGN attributeKind {
     caption = CONCAT ' - ', 'Атрибут (пол)', name(attr);
 }
 
+//Бренд
+CLASS AttributeBrand 'Бренд' : Attribute;
+EXTEND CLASS AttributeClass { brand 'Бренд' }
+newAttribute(AttributeClass c) + WHEN c = AttributeClass.brand THEN {
+    NEW a = AttributeBrand {
+        edit(a);
+    }
+};
+
+order(AttributeClass c) += WHEN c == AttributeClass.brand THEN 10;
+id 'Код' = DATA STRING[10] (AttributeBrand) NONULL CHARWIDTH 10 IN id;
+inactive 'Выкл.' = DATA BOOLEAN (AttributeBrand);
+name 'Наименование' = DATA STRING[50] (AttributeBrand) NONULL IN id;
+id (AttributeBrand a) += id(a);
+active (AttributeBrand a) += a IS AttributeBrand AND NOT inactive(a);
+isObject (AttributeBrand a) += a IS AttributeBrand;
+name (AttributeBrand a) += name(a);
+
+FORM dialogAttributeBrandValue 'Значение атрибута'
+    OBJECTS attr = AttributeBrand PANEL, val = Brand
+    PROPERTIES(val) READONLY id, logoUrl, name
+    ORDERS id(val)
+;
+
+DESIGN dialogAttributeBrandValue {
+    caption = CONCAT ' - ', 'Значение атрибута', name(attr);
+}
+
+value 'Значение' = DATA Brand (Item, AttributeBrand);
+value (Item o, AttributeBrand a) += STRING(OVERRIDE name(value(o, a)), 'Без наименования' IF value(o, a));
+idValue (Item o, AttributeBrand a) += id(value(o, a));
+objectValue (Item o, AttributeBrand a) += value(o, a);
+brandAttribute (STRING id) = GROUP MAX Brand k AS Brand BY [FORMULA STRING '$1::text'](k);
+
+edit (Item o, AttributeBrand a) + {
+    IF notNull(itemSubGroup(o), a) THEN {
+        DIALOG dialogAttributeBrandValue OBJECTS attr = a, val INPUT FILTERS in(itemSubGroup(o), val) DO {
+            value(o, a) <- val;
+        }
+    } ELSE {
+        DIALOG dialogAttributeBrandValue OBJECTS attr = a, val INPUT NULL DO {
+            value(o, a) <- val;
+        }
+    }
+}
+set (Item o, AttributeBrand a, STRING v) + {
+    value(o, a) <- brandAttribute(v);
+}
+
+FORM attributeBrand 'Атрибут (бренд)'
+    OBJECTS attr = AttributeBrand PANEL
+    PROPERTIES (attr) id, name, inactive
+
+    EDIT AttributeBrand OBJECT attr
+;
+DESIGN attributeBrand {
+    caption = CONCAT ' - ', 'Атрибут (бренд)', name(attr);
+}
+
 // Страна производства
 
 CLASS AttributeCountry 'Страна производства' : Attribute;
@@ -949,6 +1008,9 @@ getItemAttribute 'Получить характеристики предмета
                     WHEN lower(name(i))=='пол' THEN NEW as = AttributeKind {
                         id(as) <- charcID;
                     }
+                    WHEN lower(name(i)) == 'бренд' THEN NEW as = AttributeBrand {
+                        id(as) <- charcID;
+                    }
                     WHEN lower(name(i))=='страна производства' THEN NEW as = AttributeCountry {
                         id(as) <- charcID;
                     }
@@ -1015,6 +1077,9 @@ getItemAttribute 'Получить характеристики предмето
                             id(as) <- charcID;
                         }
                         WHEN lower(name(i)) == 'пол' THEN NEW as = AttributeKind {
+                            id(as) <- charcID;
+                        }
+                        WHEN lower(name(i)) == 'бренд' THEN NEW as = AttributeBrand {
                             id(as) <- charcID;
                         }
                         WHEN lower(name(i)) == 'страна производства' THEN NEW as = AttributeCountry {
@@ -1332,6 +1397,9 @@ postItems 'Получить список карточек товаров' () {
                             WHEN as IS AttributeKind THEN {
                                 value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                             }
+                            WHEN as IS AttributeBrand THEN {
+                                value[Item, AttributeBrand](item, as) <- GROUP MAX Brand brand IF id(brand) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
+                            }
                             WHEN as IS AttributeCountry THEN {
                                 value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                             }
@@ -1435,6 +1503,9 @@ postTrashItems 'Получить список карточек товаров в
                             }
                             WHEN as IS AttributeKind THEN {
                                 value[Item, AttributeKind](item, as) <- GROUP MAX Kind kind IF data(kind) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
+                            }
+                            WHEN as IS AttributeBrand THEN {
+                                value[Item, AttributeBrand](item, as) <- GROUP MAX Brand brand IF id(brand) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
                             }
                             WHEN as IS AttributeCountry THEN {
                                 value[Item, AttributeCountry](item, as) <- GROUP MAX Country country IF name(country) == value(GROUP MAX INTEGER j IF characteristicsValue(j) == ii);
@@ -1742,6 +1813,7 @@ FORM uploadItems
     PROPERTIES(i) id EXTID 'vendorCode', 
                   name EXTID 'title',
                   description EXTID 'description'
+    PROPERTIES nameBrand = idValue(i, GROUP MAX Attribute a IF a IS AttributeBrand) EXTID 'brand'
     PROPERTIES(i) IN dimensions1 length EXTID 'length',
                                  width EXTID 'width',
                                  height EXTID 'height',
@@ -1906,7 +1978,9 @@ FORM updateItem
     OBJECTS i = Item EXTID 'value'
     PROPERTIES(i)
         nmID EXTID 'nmID',
-        id EXTID 'vendorCode',
+        id EXTID 'vendorCode'
+    PROPERTIES nameBrand = idValue(i, GROUP MAX Attribute a IF a IS AttributeBrand) EXTID 'brand'
+    PROPERTIES(i)
         name EXTID 'title',
         description EXTID 'description'
     PROPERTIES(i) IN dimensions1 length EXTID 'length',
