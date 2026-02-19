@@ -360,12 +360,12 @@ WHEN LOCAL SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND is
 region = DATA Region (StatisticReport);
 nameRegion 'Регион' (StatisticReport r) = name(region(r));
 consolidateStocks 'Склады/Регионы' = DATA STRING[255](StatisticReport) CHARWIDTH 20;
-
-nameStockRegion 'Склад/Регион/' (StatisticReport r) = CASE 
-    WHEN isStock(r) THEN nameStock(r) 
-    WHEN isRegion(r) THEN nameRegion(r)
-    WHEN isLegalEntity(r) THEN nameCompany(r)
-    WHEN isConsolidate(r) THEN consolidateStocks(r);
+nameStockRegion 'Склад/Регион/' = ABSTRACT CASE STRING[255] (StatisticReport) CHARWIDTH 20; 
+nameStockRegion (StatisticReport r) += WHEN isStock(r) THEN STRING[255](nameStock(r));
+nameStockRegion (StatisticReport r) += WHEN isRegion(r) THEN STRING[255](nameRegion(r));
+nameStockRegion (StatisticReport r) += WHEN isLegalEntity(r) THEN STRING[255](nameCompany(r));
+nameStockRegion (StatisticReport r) += WHEN isConsolidate(r) THEN STRING[255](consolidateStocks(r));
+   
 //------------------------------ Строки -------------------------------//
 
 name 'Наименование' = DATA ISTRING[255] (StatisticReportDetail) CHARWIDTH 40;
@@ -589,6 +589,18 @@ fillLegalEntityData 'Заполнить данные'(StatisticReport report)  {
 
 overFillSumData  ABSTRACT LIST ( StatisticReport);
 overFillSumData1  ABSTRACT LIST ( StatisticReport);
+
+resetParams(StatisticReport report){
+    soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    prevYearSoldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumCorporate(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumInternet(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumCatering(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    prevYearSoldSumCatering(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+}
+
 fillSumData 'Заполнить данные'(StatisticReport report)  { 
     soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
