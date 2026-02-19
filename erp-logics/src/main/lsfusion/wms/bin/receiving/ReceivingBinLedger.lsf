@@ -892,7 +892,10 @@ META defineUserReceiving(primObject, captionObject, captionObjects, formObject, 
         MESSAGE 'Несовпадение склада поставщика в '##captionObject + ' и документе приемки';
         
     @defineOperationProperty(use###primObject##Receiving, 'Использовать механизм "Приемка"', paramsContainer);
-        
+    //исключаем двойное проведение по регистру BinLedger: через строку приёмки и через строку документа
+    skipSetUseBins(User###primObject primObject) += use###primObject##Receiving(operation(primObject));
+    @defineConstraintDuplicateInBinLedger(primObject);
+    
     filterReceiving(###primObject primObject) += primObject IS ###primObject AND isPosted(primObject) AND
         useBins(stockProp(primObject)) AND use###primObject##Receiving(operation(primObject));
     filterReceiving(###primObject primObject, CustomUser u) += stock(receivingBin(u)) == stockProp(primObject);
@@ -1241,3 +1244,20 @@ DESIGN receiving {
     }
 }
 @defineDocumentLogForm(receiving, r);
+
+META defineConstraintDuplicateBinLedger (primObject, useProp, binType)
+    CONSTRAINT SET(binType(User###primObject###Detail primObjectDetail)) AND use###useProp##Receiving(operation(primObjectDetail))
+        MESSAGE 'Нельзя задавать ячейки в строках документа, если для него используется мехнизм "Приёмка"';
+END
+
+META defineConstraintDuplicateBinLedger (primObject, binType)
+    @defineConstraintDuplicateBinLedger(primObject, primObject, binType);
+END
+
+META defineConstraintDuplicateInBinLedger (primObject)
+    @defineConstraintDuplicateBinLedger(primObject, inBin);
+END
+
+META defineConstraintDuplicateOutBinLedger (primObject)
+    @defineConstraintDuplicateBinLedger(primObject, outBin);
+END    
