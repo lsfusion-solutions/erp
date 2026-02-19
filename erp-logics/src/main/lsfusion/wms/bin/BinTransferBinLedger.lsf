@@ -204,7 +204,6 @@ DESIGN userBinTransfer {
     }
 }
 
-
 overShowEdit = ABSTRACT BOOLEAN (BinTransfer);
 overShowDelete = ABSTRACT BOOLEAN (BinTransfer); 
 
@@ -212,8 +211,18 @@ skipToShowEdit = ABSTRACT BOOLEAN (BinTransfer);
 skipToShowDelete = ABSTRACT BOOLEAN (BinTransfer);
 overShowEdit (BinTransfer o) += isOpened(o) AND NOT skipToShowEdit(o);
 
-isUserOpened(UserBinTransfer o)=  isOpened[BinTransfer](o) AND is(o);
-overShowDelete (UserBinTransfer o) += isUserOpened(o) AND NOT skipToShowDelete(o); 
+isUserOpened(UserBinTransfer o)= isOpened[BinTransfer](o) AND is(o);
+overShowDelete (UserBinTransfer o) += isUserOpened(o) AND NOT skipToShowDelete(o);
+
+edit(UserBinTransferDetail d) + {  DIALOG userBinTransfer OBJECTS o = userBinTransfer(d), d = d DOCKED; }
+
+show 'Просмотреть'  ABSTRACT LIST (BinTransferDetail) TOOLBAR;
+show(UserBinTransferDetail d)  {
+    NEWSESSION {
+        SHOW userBinTransfer OBJECTS o = userBinTransfer(d), d = d DOCKED READONLY;
+    }
+}
+show(UserBinTransferDetail d) + { show(d); }
 
 overCopy  ABSTRACT LIST ( UserBinTransferDetail, BinTransferDetail);
 overCopy  ABSTRACT LIST ( BinTransfer, UserBinTransfer);
@@ -464,6 +473,8 @@ changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock)  {
 EXTEND CLASS BinTransferDetail: BinLedger;
     
 @implementBinLedger(binTransferDetail, stock);
+
+show[BinLedger](BinTransferDetail ledger) + {show(ledger);}
 
 NAVIGATOR {
     WMSNavigator {

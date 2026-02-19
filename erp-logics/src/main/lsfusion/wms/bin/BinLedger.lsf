@@ -63,6 +63,18 @@ changed = ABSTRACT BOOLEAN (BinLedger);
 skip 'Не проводить по регистру' = ABSTRACT BOOLEAN (BinLedger) MATERIALIZED;
 active 'Активен' (BinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) MATERIALIZED;
 
+@addRoleApplicationSetting(allowedEditBinLedger, 'Разрешить редактировать регистр движения по ячейкам', BOOLEAN);
+
+allowedEditBinLedger 'Разрешить редактировать регистр движения по ячейкам' (User user) = 
+    GROUP MAX allowedEditBinLedger(UserRole role) IF has(user, role);
+
+skipShowEdit = ABSTRACT BOOLEAN (BinLedger);
+allowedEdit (BinLedger ledger) = 
+    (NOT isClosed(ledger) OR allowedEditClosedDocuments(currentUser())) AND allowedEditBinLedger(currentUser()) AND NOT skipShowEdit(ledger);
+allowedShow (BinLedger ledger) = ledger IS BinLedger AND NOT allowedEdit(ledger);
+
+show 'Просмотреть' ABSTRACT MULTI (BinLedger) TOOLBAR CHANGEMOUSE 'DBLCLK';
+
 countInLedger 'Кол-во приходов' = 
     GROUP SUM 1 IF active(BinLedger ledger) BY sku(ledger), inBin(ledger) MATERIALIZED;
 
@@ -151,7 +163,9 @@ META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinPr
     skuProp[BinLedger] (###class ledger) += skuProp(object(ledger));
     quantity[BinLedger] (###class ledger) += quantityProp(object(ledger));
     stock[BinLedger] (###class ledger) += stockProp(object(ledger));
-    description[BinLedger] (###class ledger) += description(object(ledger));    
+    description[BinLedger] (###class ledger) += description(object(ledger));
+    edit[BinLedger](###class ledger) + {edit(object(ledger));}
+    show[BinLedger](###class ledger) + {show(object(ledger));}
 END    
 
 META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
@@ -182,7 +196,7 @@ META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quan
     needToCreate###classPrefix##BinLedger = ABSTRACT BOOLEAN (###object); 
     classPrefix##BinLedger = AGGR ###classPrefix##BinLedger WHERE needToCreate###classPrefix##BinLedger(###object object) MATERIALIZED INDEXED;
     @implementBinLedger(classPrefix##BinLedger, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp, dateTimeProp);
-END 
+END
 
 FORM binLedger 'Регистр изменения остатков по ячейкам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -191,6 +205,7 @@ FORM binLedger 'Регистр изменения остатков по ячей
     OBJECTS b = BinLedger
     PROPERTIES(b) READONLY dateTime, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, canonicalIdInBin, 
         nameOutBin, canonicalIdOutBin, description, skip
+    PROPERTIES(b) EDIT SHOWIF allowedEdit(b) NEWSESSION, show SHOWIF allowedShow(b)
     FILTERS isPosted(b),     
             date(b) >= dFrom, date(b) <= dTo
 ;
@@ -253,10 +268,11 @@ FORM binBalance 'Остатки по ячейкам'
     OBJECTS l = BinLedger
     PROPERTIES (l) READONLY dateTime, description, skip
     PROPERTIES(b, l) READONLY balanceBin, balanceQuantity
+    PROPERTIES(l) EDIT SHOWIF allowedEdit(l) NEWSESSION, show SHOWIF allowedShow(l)
     ORDERS dateTime(l) DESC
     FILTERS isPosted(l), 
-            inBin(l)==b OR outBin(l)==b, 
-            sku(l)==s
+            inBin(l)==b OR outBin(l)==b,
+        sku(l)==s
 ;
 
 @extendFormFilterStockAccess(ts, binBalance);
@@ -359,13 +375,15 @@ FORM binSkuDiscrepancies 'Пересорт товаров по ячейкам'
     OBJECTS bl = BinLedger
     PROPERTIES (bl) READONLY dateTime, description, skip
     PROPERTIES(b, bl) READONLY balanceBin, balanceQuantity
+    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl),
         inBin(bl)==b OR outBin(bl)==b,
         sku(bl)==s
 
     OBJECTS bl2 = BinLedger
-    PROPERTIES (bl2) READONLY dateTime, description, skip, balanceQuantity
+    PROPERTIES(bl2) READONLY dateTime, description, skip, balanceQuantity
+    PROPERTIES(bl2) EDIT SHOWIF allowedEdit(bl2) NEWSESSION, show SHOWIF allowedShow(bl2)
     ORDERS dateTime(bl2) DESC
     FILTERS isPosted(bl2),
         sku(bl2)== s,

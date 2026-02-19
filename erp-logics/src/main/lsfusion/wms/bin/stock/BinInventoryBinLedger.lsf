@@ -447,6 +447,14 @@ NAVIGATOR {
     }
 }
 
+edit(BinInventory i) + { DIALOG binInventory OBJECTS i = i DOCKED; }
+show 'Просмотреть' (BinInventory i)  {
+    NEWSESSION {
+        SHOW binInventory OBJECTS i = i DOCKED READONLY;
+    }
+}
+
+
 CLASS BinInventoryBinLedger : BinLedger;
 needToCreate = ABSTRACT BOOLEAN (BinInventory, Sku, Bin); 
 binInventoryBinLedger = AGGR BinInventoryBinLedger WHERE needToCreate(BinInventory binInventory, Sku sku, Bin bin) MATERIALIZED INDEXED;
@@ -458,6 +466,8 @@ sku[BinLedger] (BinInventoryBinLedger ledger) += sku(ledger);
 quantity[BinLedger] (BinInventoryBinLedger ledger) += abs(diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger)));
 stock[BinLedger] (BinInventoryBinLedger ledger) += stock(binInventory(ledger));
 description[BinLedger] (BinInventoryBinLedger ledger) += description(binInventory(ledger));
+edit[BinLedger](BinInventoryBinLedger ledger) + {edit(binInventory(ledger));}
+show[BinLedger](BinInventoryBinLedger ledger) + {show(binInventory(ledger));}
 
 inBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger)) >0;    
 outBin[BinLedger] (BinInventoryBinLedger ledger) += bin(ledger) IF diffBinInventory(binInventory(ledger),sku(ledger),bin(ledger))<0;
