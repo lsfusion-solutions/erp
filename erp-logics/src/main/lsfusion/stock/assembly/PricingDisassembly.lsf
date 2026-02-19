@@ -74,13 +74,18 @@ supplierPrice(Disassembly d) <- (IF supplierPriceListType(d) THEN prevPriceA(sup
 
 @defineDocumentDetailDataSumCustomPrefix(disassembly, supplier, ' входная');
 
-@defineDocumentDetailDataSumCustomPrefix(disassemblyDetail, supplier, ' входная');
-
 calcSupplierSum(Disassembly disassembly) = NUMERIC[18,4](round(quantity(disassembly) * supplierPrice(disassembly), currency(disassembly)));
 supplierSum (Disassembly disassembly) <- calcSupplierSum(disassembly) WHEN CHANGED(calcSupplierSum(disassembly));
 
+@defineDocumentDetailDataSumCustomPrefix(disassemblyDetail, supplier, ' входная');
+
 calcSupplierPrice(DisassemblyDetail d) = NUMERIC[16,4](round(supplierSum(d) / quantity(d), currency(d)));
-supplierPrice (DisassemblyDetail d) <- calcSupplierPrice(d) WHEN CHANGED(calcSupplierPrice(d));
+
+WHEN LOCAL FORMS disassembly CHANGED(price(DisassemblyDetail d)) AND NOT supplierPriceListType(disassembly(d)) AND NOT CHANGED(supplierPrice(d)) DO
+    supplierPrice(d) <- price(d);
+
+calcSupplierSum(DisassemblyDetail d) = NUMERIC[18,4](round(quantity(d) * supplierPrice(d), currency(d)));
+supplierSum (DisassemblyDetail d) <- calcSupplierSum(d) WHEN CHANGED(calcSupplierSum(d));
 
 retailPrice '{document.price} розничная' = DATA NUMERIC[16,4] (DisassemblyDetail) CHARWIDTH 10 PATTERN '#,##0.00##';
 
