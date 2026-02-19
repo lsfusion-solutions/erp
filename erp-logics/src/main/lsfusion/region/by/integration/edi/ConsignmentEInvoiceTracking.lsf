@@ -35,15 +35,20 @@ overCreate(EInvoiceDetail eid, ConsignmentDetail cd) + {
         deliveryNoteDatePrev(eid) <- DATETIME(OVERRIDE deliveryNoteDate(batch(cd), supplierStock(consignment(cd))), deliveryNoteDate(trackingInvoiceDetail(cd)), deliveryNoteDate(batch(cd)));
         deliveryNotePrevLineID(eid) <- (OVERRIDE deliveryNotePrevLineID(batch(cd), supplierStock(consignment(cd))), deliveryNotePrevLineID(trackingInvoiceDetail(cd)), deliveryNotePrevLineID(batch(cd)));
         lineItemQuantitySPT(eid) <- (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd))), trackingUOM(cd));
-        quantityDespatchedSPT(eid) <- NUMERIC[12,5](CASE
-            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='112' OR trackingUOM(cd)=='112')
-                THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0)* volume(sku(cd))) 
-            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='166' OR trackingUOM(cd)=='166') 
-                THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0)* netWeight(sku(cd)))
-            ELSE (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0));
-        lineItemPriceSPT(eid) <- NUMERIC[12,2] (CASE
-            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='112' OR trackingUOM(cd)=='112') THEN (price(cd)/ volume(sku(cd))) 
-            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='166' OR trackingUOM(cd)=='166') THEN (price(cd)/ netWeight(sku(cd)))
-            ELSE price(cd));
+        quantityDespatchedSPT(eid) <- NUMERIC[12,5](OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0);
+            // на данный момент прослеживаемые только шт
+//            (CASE
+//            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='112' OR trackingUOM(cd)=='112')
+//                THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0)* volume(sku(cd))) 
+//            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='166' OR trackingUOM(cd)=='166') 
+//                THEN ((OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0)* netWeight(sku(cd)))
+//            ELSE (OVERRIDE despatchUnitQuantityDespatched(cd), NUMERIC[12,5](quantity(cd)), 1.0));
+
+        lineItemPriceSPT(eid) <- NUMERIC[12,2](price(cd));
+            // на данный момент прослеживаемые только шт
+//            (CASE
+//            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='112' OR trackingUOM(cd)=='112') THEN (price(cd)/ volume(sku(cd))) 
+//            WHEN (OVERRIDE lineItemQuantitySPT(batch(cd), supplierStock(consignment(cd)))=='166' OR trackingUOM(cd)=='166') THEN (price(cd)/ netWeight(sku(cd)))
+//            ELSE price(cd));
     }
 }

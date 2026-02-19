@@ -12,14 +12,15 @@ isTracking 'Подлежит прослеживанию' (UserInvoiceDetail d) =
 trackingInvoiceDetail = DATA Purchase.InvoiceDetail (UserInvoiceDetail) INDEXED;
 basisTracking 'Основание СПТ' (UserInvoiceDetail d) = description(trackingInvoiceDetail(d));
 
-quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[12,5] (CASE
-    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE quantity(d), 1.0)* volume(sku(d))
-    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE quantity(d), 1.0)* netWeight(sku(d))
-    ELSE (OVERRIDE quantity(d), 1.0));
-lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = NUMERIC[12,2] (CASE
-    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE price(d), 1.0)/ volume(sku(d))
-    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
-    ELSE (OVERRIDE price(d), 1.0));
+// на данный момент прослеживаемые только шт, не удаляю на случай если вернуться иные ед изм прослеживаемости
+//quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  NUMERIC[12,5] (CASE
+//    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE quantity(d), 1.0)* volume(sku(d))
+//    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE quantity(d), 1.0)* netWeight(sku(d))
+//    ELSE (OVERRIDE quantity(d), 1.0));
+//lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = NUMERIC[12,2] (CASE
+//    WHEN trackingUOMCustomsGroup(sku(d))=='112'  THEN (OVERRIDE price(d), 1.0)/ volume(sku(d))
+//    WHEN trackingUOMCustomsGroup(sku(d))=='166'  THEN (OVERRIDE price(d), 1.0)/ netWeight(sku(d))
+//    ELSE (OVERRIDE price(d), 1.0));
 
 itemCustomCode 'Код ТНВЭД' (UserInvoiceDetail d) = OVERRIDE itemCustomCode(batch(d), supplierStock(d)),  codeCustomsGroupDefaultCountry(sku(d));
 itemCustomCodeOther 'Дополнительный таможенный код'(UserInvoiceDetail d) = OVERRIDE itemCustomCodeOther(batch(d), supplierStock(d)),  idExtraCode(sku(d));
@@ -28,6 +29,8 @@ deliveryNotePrev 'Номер приходного документа' (UserInvoi
 deliveryNoteDate 'Дата создания приходного документа' (UserInvoiceDetail d) = OVERRIDE deliveryNoteDate(batch(d), supplierStock(d)), deliveryNoteDate(trackingInvoiceDetail(d)), deliveryNoteDate(batch(d));
 deliveryNotePrevLineID 'Номер строки в приходном документе' (UserInvoiceDetail d) = OVERRIDE deliveryNotePrevLineID(batch(d), supplierStock(d)),deliveryNotePrevLineID(trackingInvoiceDetail(d)), deliveryNotePrevLineID(batch(d));
 lineItemQuantitySPT 'Ед. изм.СПТ' (UserInvoiceDetail d) = OVERRIDE lineItemQuantitySPT(batch(d), supplierStock(d)),  trackingUOMCustomsGroup(sku(d));
+quantityDespatchedSPT 'Кол-во в ед.СПТ ' (UserInvoiceDetail d) =  quantity(d); // на данный момент прослеживаемые только шт
+lineItemPriceSPT'Цена за единицу товара для прослеживаемости' (UserInvoiceDetail d) = price(d); // на данный момент прослеживаемые только шт
 
 FORM basisInvoiceDetail 'Строка накладной'
     OBJECTS sk = Sku PANEL
