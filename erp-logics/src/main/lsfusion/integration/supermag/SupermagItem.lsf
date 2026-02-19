@@ -1,7 +1,7 @@
 MODULE SupermagItem;
 
 REQUIRE Item, ItemSize, PurchaseDemandItem, ItemFood, ItemDescription, ItemStorage, StockReserve, ItemPart, ItemSize,
-        SupermagSettings;
+        SupermagSettings, ItemNutrition;
 
 idOrder (ItemGroup g) = GROUP CONCAT TEXT (order(ItemGroup gg)) + '.' IF level(g, gg), '' ORDER DESC level(g, gg);
 
@@ -331,13 +331,14 @@ importItem 'Импорт товаров' () {
     LOCAL height = NUMERIC[14,3] (INTEGER);
     LOCAL vat = NUMERIC[8,4] (INTEGER);
     LOCAL taxItem = NUMERIC[8,4] (STRING);
+    LOCAL energy, fats, carbohydrates, proteins = NUMERIC[8,2] (INTEGER);
 
     EXTERNAL SQL connectionString()
-        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD card' TO file;
+        EXEC 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT, PROTEINS, FATS, CARBS, CALORIES FROM Supermag.SMCARD card' TO file;
 
     //    logToFile('importSupermag', 'importItem_1');
 
-    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
+    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height, proteins, fats, carbohydrates, energy;
 
     EXTERNAL SQL connectionString()
         EXEC 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article)' TO file;
@@ -349,7 +350,7 @@ importItem 'Импорт товаров' () {
     country(INTEGER i) <- ISTRING[50](initcap(trim(country(i))));
     
     currentVersion(INTEGER i) <- CONCAT '~', id(i), name(i), shortName(i), TEXT (idMeasurement(i)), TEXT (idClass(i)), country(i), TEXT (accepted(i)), scale(i),
-        TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i)));
+        TEXT (width(i)), TEXT (length(i)), TEXT (height(i)), TEXT (taxItem(id(i))), TEXT (proteins(i)), TEXT (fats(i)), TEXT (carbohydrates(i)), TEXT (energy(i));
     //   logToFile('importSupermag', 'importItem_2');
 
     
@@ -373,6 +374,10 @@ importItem 'Импорт товаров' () {
         height(s) <- max(min(height(i), 99999), -99999);
         inactive(s) <- accepted(i) != 1;
         passScales(s) <- scale(i) == '1';
+        energy(s) <- energy(i); 
+        fats(s) <- fats(i);
+        carbohydrates(s) <- carbohydrates(i);
+        proteins(s) <- proteins(i);
         imported(s) <- TRUE;
         statusInSuperMag(s) <- accepted(i);
         lastVersion(s) <- currentVersion(i);
@@ -391,108 +396,6 @@ importItem 'Импорт товаров' () {
 
 EXTEND FORM integrationData PROPERTIES importItem();
 
-importItem 'Импорт товаров' (STRING itemlist) {
-
-    LOCAL id = TEXT (INTEGER);
-    LOCAL taxArticle = TEXT (INTEGER);
-    LOCAL name = ISTRING[255] (INTEGER);
-    LOCAL shortName = ISTRING[250] (INTEGER);
-    LOCAL idMeasurement = INTEGER (INTEGER);
-    LOCAL idClass = INTEGER (INTEGER);
-    LOCAL country = TEXT (INTEGER);
-    LOCAL accepted = INTEGER (INTEGER);
-    LOCAL scale = STRING[1] (INTEGER);
-    LOCAL width = NUMERIC[14,3] (INTEGER);
-    LOCAL length = NUMERIC[14,3] (INTEGER);
-    LOCAL height = NUMERIC[14,3] (INTEGER);
-    LOCAL vat = NUMERIC[8,4] (INTEGER);
-    LOCAL taxItem = NUMERIC[8,4] (STRING);
-
-    sqlString() <- 'SELECT card.ARTICLE, NAME, SHORTNAME, IDMEASUREMENT, IDCLASS, COUNTRY, ACCEPTED, SCALELOAD, WIDTH, LENGTH, HEIGHT FROM Supermag.SMCARD card WHERE ARTICLE IN (' + itemlist + ')';
-    //  MESSAGE sqlString();
-    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
-
-    IMPORT TABLE FROM file() TO id, name, shortName, idMeasurement, idClass, country, accepted, scale, width, length, height;
-    
-    country(INTEGER i) <- ISTRING[50](initcap(trim(country(i))));
-
-    FOR [GROUP SUM 1 BY country(INTEGER i)](STRING name) AND NOT countryName(name) DO NEW s = Country {
-        name(s) <- name;
-    }
-
-    FOR id(INTEGER i) AND NOT item(id(i)) DO NEW s = Item {
-        id(s) <- ISTRING[100] (id(i));
-        skuType(s) <- SkuType.skuTypeItem;
-    }
-
-    FOR Item s = item(id(INTEGER i)) DO {
-        caption(s) <- STRING[255](replace(name(i), '\t', ' '));
-        shortName(s) <- shortName(i);
-        UOM(s) <- UOM(TEXT (idMeasurement(i)));
-        itemGroup(s) <- itemGroup(TEXT (idClass(i)));
-        Item.country(s) <- countryName(country(i));
-        width(s) <- max(min(width(i), 99999), -99999);
-        length(s) <- max(min(length(i), 99999), -99999);
-        height(s) <- max(min(height(i), 99999), -99999);
-        inactive(s) <- accepted(i) != 1;
-        passScales(s) <- scale(i) == '1';
-        imported(s) <- TRUE;
-        statusInSuperMag(s) <- accepted(i);
-    }
-
-    overImportItem();
-
-    sqlString() <- 'SELECT cardtax.article, taxrate.TAXPERCENT AS VAT FROM SUPERMAG.SMCARDTAX cardtax, SUPERMAG.SMTAXGROUP taxgr, SUPERMAG.SMTAXRATE taxrate WHERE cardtax.ARTICLE IN (' + itemlist + ') AND cardtax.rgnid = 3 AND taxgr.TAXGROUPID = cardtax.TAXGROUPID AND taxgr.TAXID = 0 AND taxrate.TAXID = 0 AND taxrate.RATEID = taxgr.RATEID AND cardtax.datefrom = (SELECT MAX(crdtax.datefrom) FROM SUPERMAG.SMCARDTAX crdtax WHERE crdtax.article = cardtax.article AND crdtax.rgnid = 3)';
-    //  MESSAGE sqlString();
-
-    EXTERNAL SQL connectionString() EXEC sqlString() TO file;
-
-    IMPORT TABLE FROM file() TO taxArticle, vat;
-
-    FOR taxArticle(INTEGER i) DO { taxItem (taxArticle(i)) <- vat(i); }
-
-    FOR Item s = item(id(INTEGER i)) AND imported(s) DO {
-        VAT(s, Country c) <- GROUP MAX Tax.Range r IF valueRate(r) == taxItem(id(i)) AND c = defaultCountry();
-    }
-
-    // importBarcodeItem(itemlist);
-
-    importItemAttribute(itemlist);
-}
-
-lastItemlogId = DATA LONG ();
-
-EXTEND FORM integrationData
-    PROPERTIES lastItemlogId();
-
-
-importItems 'Импорт товаров' () {
-
-    LOCAL recid = NUMERIC[16,0] (INTEGER);
-    LOCAL id = STRING (INTEGER);
-
-    EXTERNAL SQL connectionString()
-        EXEC 'SELECT * FROM (SELECT ARTICLE, MAX(RECID) FROM Supermag.SMCardSecurityLog log WHERE RECID > ' + STRING(lastItemlogId()) + ' GROUP BY ARTICLE ORDER BY MAX(RECID)) WHERE ROWNUM < 500' TO file;
-
-    IMPORT TABLE FROM file() TO id, recid;
-
-    LOCAL itemlist = STRING ();
-
-    itemlist() <- GROUP CONCAT ('\'' + id(INTEGER i) + '\''), ',' ORDER i;
-
-    IF itemlist() THEN importItem(itemlist());
-
-    MESSAGE lastItemlogId();
-    MESSAGE (GROUP MAX recid(INTEGER i));
-
-    lastItemlogId() <- OVERRIDE (GROUP MAX recid(INTEGER i)), lastItemlogId();
-
-    APPLY;
-}
-
-importAltUnit 'Импорт альтернативных едениц измерения' (STRING articleId) {
-    // пока не импортируем, так как там ерунда - \'packbarcode\',            
-}
 
 importItemImages () {
     NEWSESSION {
@@ -623,11 +526,6 @@ DESIGN integrationData {
             MOVE PROPERTY (importItemImages());
         }
 
-        importDocument {
-            importDocument2 {
-                MOVE PROPERTY (lastItemlogId());
-            }
-        }
     }
 }
 
