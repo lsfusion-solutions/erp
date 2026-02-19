@@ -23,18 +23,22 @@ idCashDocument(INTEGER i) = DATE(opDate(i)) + '_' + storeId(i) + '_' + posId(i) 
 
 importMoneyOperations(FILE f){
     IMPORT moneyOperations JSON FROM f;
+    
+    //внесения
     FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id)
         AND NOT cashDocument(id) AND lower(opType(x)) = 'deposition' DO NEW o = IncomeCashOperation{
         id(o) <- id;
     }
     FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id) AND IncomeCashOperation o = cashDocument(id) AND o IS IncomeCashOperation DO{
         number(o) <- STRING[48](INTEGER(globalNumber(x)));
-        cashRegister(o) <- cashRegisterUkm5(idUkm5(x)) ;
+        cashRegister(o) <- cashRegisterUkm5(idUkm5(x));
         date(o) <- DATE(opDate(x));
         time(o) <- TIME(opDate(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
+        zReport(o) <- zReport(idZReport(x));
     }
-
+    
+    //изъятия
     FOR INTEGER x = [GROUP MAX INTEGER i BY idCashDocument(i)](STRING id)
         AND NOT cashDocument(id) AND lower(opType(x)) = 'withdrawal' DO NEW o = OutcomeCashOperation{
         id(o) <- id;
@@ -45,8 +49,8 @@ importMoneyOperations(FILE f){
         date(o) <- DATE(opDate(x));
         time(o) <- TIME(opDate(x));
         sumCash (o) <- NUMERIC[18,4](amount(x));
+        zReport(o) <- zReport(idZReport(x));
     }
-
     APPLY NESTED LOCAL;
 }
 
