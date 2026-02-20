@@ -131,6 +131,7 @@ FORM importItemSubGroup
 
     OBJECTS data = INTEGER
     PROPERTIES(data) parentName, subjectID, parentID, subjectName
+    FILTERS imported(data)
 ;
 
 dataGetItemSubGroupLimit = DATA INTEGER ();
@@ -143,50 +144,15 @@ getItemSubGroup 'Получить список предметов родител
         LOCAL response = FILE();
         LOCAL error = STRING ();
         LOCAL status = STRING ();
+        LOCAL offset = INTEGER ();
 
         logToFile('WB', 'GET: '+ url(CategoryRequest.content) + '/content/v2/object/all');
+        offset() <- 0;
         
-        TRY {
-            EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all' HEADERS httpHeaders PARAMS 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig) TO response;
-            fileToString(response());
-            logToFile('WB', resultString());
-            IMPORT importItemSubGroup JSON FROM response();
-
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
-                AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
-                id(sg) <- subjectId;
-                name(sg) <- subjectName(i);
-            }
-            FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
-                AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
-                itemGroup(sg) <- ig;
-            }
-            message() <- messageStatusHTTP(STRING(statusHttp()));
-        } CATCH {
-            logToFile('WB', messageCaughtException());
-            message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-        } FINALLY {
-            afterSendRequestIS();
-            MESSAGE '<h3>Получить список предметов для выбранной родительской категории</h3>' NOWAIT;
-            MESSAGE message() NOWAIT;
-            APPLY;
-        }
-    }
-}
-
-getItemSubGroup 'Получить список предметов' () {
-    NEWSESSION {
-        MESSAGE '<h3>Предметы получаются только по существующим родительским категориям товаров.</h3>' NOWAIT;
-        FOR ItemGroup ig IS ItemGroup NOINLINE DO {
-            setHttpHeadersIS();
-            LOCAL message = STRING ();
-            LOCAL response = FILE();
-            LOCAL error = STRING ();
-            LOCAL status = STRING ();
-
-            logToFile('WB', 'GET: ' + url(CategoryRequest.content) + (CONCAT '?', '/content/v2/object/all', 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)));
+        WHILE (GROUP SUM 1 IF imported(INTEGER k) AND subjectID(k)) == getItemSubGroupLimit() OR NOT response() DO {
             TRY {
-                EXTERNAL HTTP GET url(CategoryRequest.content) + (CONCAT '?', '/content/v2/object/all', 'limit=' + getItemSubGroupLimit() + '&parentID=' + id(ig)) HEADERS httpHeaders TO response;
+                EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all?limit=' + getItemSubGroupLimit() +
+                    '&offset=' + offset() + '&parentID=' + id(ig) HEADERS httpHeaders TO response;
                 fileToString(response());
                 logToFile('WB', resultString());
                 IMPORT importItemSubGroup JSON FROM response();
@@ -200,15 +166,65 @@ getItemSubGroup 'Получить список предметов' () {
                     AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
                     itemGroup(sg) <- ig;
                 }
+                offset() <- offset() + getItemSubGroupLimit();
                 message() <- messageStatusHTTP(STRING(statusHttp()));
             } CATCH {
                 logToFile('WB', messageCaughtException());
                 message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
             } FINALLY {
                 afterSendRequestIS();
-                MESSAGE '<h3>Получить список предметов</h3>' NOWAIT;
+                MESSAGE '<h3>Получить список предметов для выбранной родительской категории</h3>' NOWAIT;
                 MESSAGE message() NOWAIT;
-                APPLY;
+                APPLY NESTED LOCAL;
+            }
+        }
+    }
+}
+
+getItemSubGroup 'Получить список предметов' () {
+    NEWSESSION {
+        MESSAGE '<h3>Предметы получаются только по существующим родительским категориям товаров.</h3>' NOWAIT;
+        FOR ItemGroup ig IS ItemGroup NOINLINE DO {
+            setHttpHeadersIS();
+            LOCAL message = STRING ();
+            LOCAL response = FILE();
+            LOCAL error = STRING ();
+            LOCAL status = STRING ();
+            LOCAL offset = INTEGER ();
+
+            offset() <- 0;
+
+            WHILE (GROUP SUM 1 IF imported(INTEGER k) AND subjectID(k)) == getItemSubGroupLimit() OR NOT response() DO {
+
+                logToFile('WB', 'GET: ' + url(CategoryRequest.content) + '/content/v2/object/all?limit=' + getItemSubGroupLimit() +
+                    '&offset=' + offset() + '&parentID=' + id(ig));
+                TRY {
+                    EXTERNAL HTTP GET url(CategoryRequest.content) + '/content/v2/object/all?limit=' + getItemSubGroupLimit() +
+                        '&offset=' + offset() + '&parentID=' + id(ig) HEADERS httpHeaders TO response;
+                    fileToString(response());
+                    logToFile('WB', resultString());
+                    IMPORT importItemSubGroup JSON FROM response();
+
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                        AND NOT itemSubGroup(subjectId) INLINE DO NEW sg = ItemSubGroup {
+                        id(sg) <- subjectId;
+                        name(sg) <- subjectName(i);
+                    }
+                    FOR INTEGER i = [GROUP MAX INTEGER i1 BY parentID(i1), subjectID(i1)](STRING parentId, STRING subjectId) AND itemGroup(parentId) == ig
+                        AND ItemSubGroup sg == itemSubGroup(subjectId) INLINE DO {
+                        itemGroup(sg) <- ig;
+                    }
+                    offset() <- offset() + getItemSubGroupLimit();
+                    message() <- messageStatusHTTP(STRING(statusHttp()));
+                } CATCH {
+                    logToFile('WB', messageCaughtException());
+                    message() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                } FINALLY {
+                    afterSendRequestIS();
+                    MESSAGE '<h3>Получить список предметов</h3>' NOWAIT;
+                    MESSAGE message() NOWAIT;
+                    APPLY NESTED LOCAL;
+                }
             }
         }    
     }
