@@ -633,7 +633,7 @@ FORM receiving 'Приемка'
     PROPERTIES(r) selected
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
     PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
-                                                    date, time, GRDate BACKGROUND RGB(255, 224, 255),  GRTime BACKGROUND RGB(255, 224, 255),
+                                                    date, time, GRDate BACKGROUND RGB(255, 224, 255), GRTime BACKGROUND RGB(255, 224, 255),
                                                     nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
                                 createDetails SHOWIF status(r)==ReceivingStatus.inProgress AND NOT hasCompleteReceivingDetail(r), //получается удаление уже завершенных строк приёмки без доп. условия  
@@ -1129,14 +1129,95 @@ META defineUserReceiving (primObject, captionObjects)
         [GROUP SUM quantity(###primObject##Detail detail) BY sku(detail), overConsolidationKey(detail), userReceiving(primObject(detail))](sku, consolidationKey, receiving);
 END
 
+FORM editReceiving 'Приёмка'
+    OBJECTS r=Receiving PANEL
+    PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
+    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series,
+        date, time, GRDate BACKGROUND RGB(255, 224, 255), GRTime BACKGROUND RGB(255, 224, 255),
+        nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+
+    OBJECTS d=ReceivingDetail
+    PROPERTIES(d) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
+    PROPERTIES(d) READONLY index, idSku SHOWIF showIDs(), idBarcode, nameSku, shortNameUOMSku,
+        overConsolidationKey, createdDateTime, nameCreatedUser
+    PROPERTIES(d) quantity BACKGROUND RGB(255, 224, 255) ON CHANGE changeQuantity(d),
+        nameInBin BACKGROUND RGB(255, 224, 255) READONLY
+    FILTERS receiving(d)==r
+;
+
+DESIGN editReceiving {
+    NEW headerBox {
+        horizontal = TRUE;
+        alignment = STRETCH;
+
+        NEW headerParams {
+            fill = 1;
+            MOVE GROUP(documentHeader,r) {
+                lines = 1;
+                alignment = STRETCH;
+                NEW first {
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(isPosted(r));
+                    MOVE PROPERTY(isClosed(r));
+                    MOVE PROPERTY(nameStatus(r));
+                    MOVE PROPERTY(nameCreatedUser(r));
+                }
+                NEW second {
+                    alignment = STRETCH;
+                    horizontal = TRUE;
+                    MOVE PROPERTY(number(r)) { flex = 200; };
+                    MOVE PROPERTY(series(r));
+                    MOVE PROPERTY(date(r));
+                    MOVE PROPERTY(time(r));
+                    MOVE PROPERTY(GRDate(r));
+                    MOVE PROPERTY(GRTime(r));
+                }
+            }
+            NEW headerLegalEntity {
+                horizontal = TRUE;
+                alignment = STRETCH;
+
+                NEW headerSupplier {
+                    caption = 'Поставщик';
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE PROPERTY(nameSupplier(r)) { caption = ''; };
+                    MOVE PROPERTY(nameSupplierStock(r)) { caption = 'Склад'; };
+                }
+                NEW headerCustomer {
+                    caption = 'Покупатель';
+                    horizontal = TRUE;
+                    fill = 1;
+                    MOVE PROPERTY(nameCustomer(r)) { caption = ''; };
+                    MOVE PROPERTY(nameCustomerStock(r)) { caption = 'Склад'; };
+                }
+            }
+            NEW headerTabbedPane {
+                fill = 1;
+                tabbed = TRUE;
+                NEW headerMainParams {
+                    caption = 'Основные параметры';
+                    fill = 1;
+                    MOVE GROUP(documentPrm,r) {
+                        lines = 3;
+                        alignment = STRETCH;
+                    }
+                }
+            }
+        }
+    }
+    MOVE BOX(d);
+    MOVE TOOLBARBOX;
+}
+
 edit(ReceivingDetail d) + {  
-    //todo: реализовать с ограничением прав
-//    DIALOG userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED; 
+    DIALOG editReceiving OBJECTS r = receiving(d), d = d DOCKED; 
 }
 
 show 'Просмотреть' (ReceivingDetail d)  {
     NEWSESSION {
-//        SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
+        SHOW editReceiving OBJECTS r = receiving(d), d = d DOCKED READONLY;
     }
 }
 
