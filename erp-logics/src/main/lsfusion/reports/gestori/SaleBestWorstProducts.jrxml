@@ -1,25 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Jaspersoft Studio version 6.20.0.final using JasperReports Library version 6.0.0  -->
-<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="Sale.bestProdPrint" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="555" leftMargin="20" rightMargin="20" topMargin="30" bottomMargin="30" uuid="ccfc4a4b-862c-4a17-91d6-bf3736676977">
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="SaleBestWorstProducts" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802" leftMargin="20" rightMargin="20" topMargin="30" bottomMargin="30" uuid="ccfc4a4b-862c-4a17-91d6-bf3736676977">
 	<property name="net.sf.jasperreports.export.xls.print.page.width" value="842"/>
 	<property name="net.sf.jasperreports.export.xls.print.page.height" value="595"/>
-	<style name="DefaultStyle" isDefault="true" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
+	<style name="DefaultStyle" isDefault="true" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="8">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
 		</box>
 		<paragraph leftIndent="2" rightIndent="2"/>
 	</style>
-	<style name="GroupCellStyle1" vAlign="Middle" fontSize="10">
+	<style name="HeaderStyle" mode="Opaque" backcolor="#D9D9D9" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="7" isBold="true">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
 		</box>
-		<paragraph leftIndent="2" rightIndent="2"/>
+		<paragraph leftIndent="1" rightIndent="1"/>
 	</style>
-	<style name="GroupCellStyle0" vAlign="Middle" fontSize="10">
+	<style name="GroupStyle" mode="Opaque" backcolor="#E1EEF4" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="9" isBold="true">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
 		</box>
-		<paragraph leftIndent="2" rightIndent="2"/>
+		<paragraph leftIndent="5" rightIndent="2"/>
+	</style>
+	<style name="FooterStockStyle" mode="Opaque" backcolor="#D6E4F0" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="8" isBold="true">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="3" rightIndent="2"/>
+	</style>
+	<style name="FooterTotalStyle" mode="Opaque" backcolor="#C5D9A4" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="8" isBold="true">
+		<box>
+			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
+		</box>
+		<paragraph leftIndent="3" rightIndent="2"/>
+	</style>
+	<style name="TitleStyle" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="14" isBold="true">
+		<box>
+			<pen lineWidth="0.0"/>
+		</box>
 	</style>
 	<field name="title" class="java.lang.String"/>
 	<field name="sku.object" class="java.lang.Long"/>
@@ -35,7 +52,7 @@
 	<field name="id(sku)" class="java.lang.String"/>
 	<field name="idBarcode(sku)" class="java.lang.String"/>
 	<field name="name(sku)" class="java.lang.String"/>
-	<field name="propertyDraw78721" class="java.lang.String"/>
+	<field name="ranges" class="java.lang.String"/>
 	<field name="retailSalesQty(sku,stock)" class="java.math.BigDecimal"/>
 	<field name="accountPriceA(sku,stock)" class="java.math.BigDecimal"/>
 	<field name="sumByAccPrice(sku,stock)" class="java.math.BigDecimal"/>
@@ -47,30 +64,87 @@
 	<field name="productContributionPct" class="java.math.BigDecimal"/>
 	<field name="index(sku,stock)" class="java.lang.Integer"/>
 	<field name="index(sku,stock).showif" class="java.lang.Boolean"/>
-	<variable name="SUMretailSalesQty" class="java.math.BigDecimal" calculation="Sum">
-		<variableExpression><![CDATA[$F{retailSalesQty(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></variableExpression>
+	<variable name="stockRetailQty" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{retailSalesQty(sku,stock)}]]></variableExpression>
 	</variable>
-	<variable name="SUMsumByAccPrice" class="java.math.BigDecimal" calculation="Sum">
-		<variableExpression><![CDATA[$F{sumByAccPrice(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></variableExpression>
+	<variable name="stockSumByAccPrice" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{sumByAccPrice(sku,stock)}]]></variableExpression>
 	</variable>
-	<variable name="SUMsalesSum" class="java.math.BigDecimal" calculation="Sum">
-		<variableExpression><![CDATA[$F{salesSum(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></variableExpression>
+	<variable name="stockSalesSum" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{salesSum(sku,stock)}]]></variableExpression>
 	</variable>
-	<variable name="SUMprofit" class="java.math.BigDecimal" calculation="Sum">
-		<variableExpression><![CDATA[$F{profit(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></variableExpression>
+	<variable name="stockProfit" class="java.math.BigDecimal" resetType="Group" resetGroup="StockGroup" calculation="Sum">
+		<variableExpression><![CDATA[$F{profit(sku,stock)}]]></variableExpression>
 	</variable>
+	<variable name="totalRetailQty" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{retailSalesQty(sku,stock)}]]></variableExpression>
+	</variable>
+	<variable name="totalSumByAccPrice" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{sumByAccPrice(sku,stock)}]]></variableExpression>
+	</variable>
+	<variable name="totalSalesSum" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{salesSum(sku,stock)}]]></variableExpression>
+	</variable>
+	<variable name="totalProfit" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{profit(sku,stock)}]]></variableExpression>
+	</variable>
+	<group name="StockGroup">
+		<groupExpression><![CDATA[$F{id(stock)}]]></groupExpression>
+		<groupHeader>
+			<band height="15">
+				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+					<reportElement style="GroupStyle" x="0" y="0" width="802" height="15" uuid="bb000001-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Left"/>
+					<textFieldExpression><![CDATA["Подразделение: " + ($F{name(stock)} != null ? $F{name(stock)} : "")]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupHeader>
+		<groupFooter>
+			<band height="15">
+				<textField isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="0" y="0" width="478" height="15" uuid="bb000002-0001-0001-0001-000000000001"/>
+					<textElement textAlignment="Left"/>
+					<textFieldExpression><![CDATA["Итого по подразделению: " + ($F{name(stock)} != null ? $F{name(stock)} : "")]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.###" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="478" y="0" width="38" height="15" uuid="bb000002-0001-0001-0001-000000000002"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$V{stockRetailQty}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="516" y="0" width="36" height="15" uuid="bb000002-0001-0001-0001-000000000003"/>
+					<textElement textAlignment="Center"/>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="552" y="0" width="42" height="15" uuid="bb000002-0001-0001-0001-000000000004"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$V{stockSumByAccPrice}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="594" y="0" width="42" height="15" uuid="bb000002-0001-0001-0001-000000000005"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$V{stockSalesSum}]]></textFieldExpression>
+				</textField>
+				<textField pattern="#,##0.00" isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="636" y="0" width="38" height="15" uuid="bb000002-0001-0001-0001-000000000006"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$V{stockProfit}]]></textFieldExpression>
+				</textField>
+				<textField isBlankWhenNull="true">
+					<reportElement style="FooterStockStyle" x="674" y="0" width="128" height="15" uuid="bb000002-0001-0001-0001-000000000007"/>
+					<textElement textAlignment="Center"/>
+					<textFieldExpression><![CDATA[""]]></textFieldExpression>
+				</textField>
+			</band>
+		</groupFooter>
+	</group>
 	<title>
-		<band height="36" splitType="Prevent">
+		<band height="50">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="0" y="0" width="802" height="18" uuid="7f66f4d7-b0cc-406d-8e88-434b27e244fc"/>
-				<box>
-					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-				</box>
-				<textElement textAlignment="Center">
-					<font size="10" isBold="true"/>
+				<reportElement style="TitleStyle" x="0" y="0" width="802" height="50" uuid="bb000003-0001-0001-0001-000000000001"/>
+				<textElement textAlignment="Center" verticalAlignment="Middle">
+					<font size="12" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{title}]]></textFieldExpression>
 			</textField>
@@ -78,340 +152,252 @@
 	</title>
 	<pageHeader>
 		<band height="18">
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="0" y="0" width="34" height="18" uuid="8467f52d-944b-4c2e-a82a-579a3aac474d"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Склад (код)"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="0" y="0" width="30" height="18" uuid="bb000004-0001-0001-0001-000000000001"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Напр. (код)"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="34" y="0" width="42" height="18" uuid="8838f7f6-584a-4e02-bd3d-a039f6754be0"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Склад (наименование)"]]></textFieldExpression>
-			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="76" y="0" width="34" height="18" uuid="f20722af-9b2c-4534-be91-6fc4ca93e7d1"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Направление (код)"]]></textFieldExpression>
-			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="110" y="0" width="42" height="18" uuid="c252eab2-3cc2-4e23-ba47-17bc4c5000d4"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="30" y="0" width="52" height="18" uuid="bb000004-0001-0001-0001-000000000002"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Направление"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="152" y="0" width="34" height="18" uuid="570eb29b-526d-468c-b5a9-7bda7a3e94c7"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Группа (код)"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="82" y="0" width="28" height="18" uuid="bb000004-0001-0001-0001-000000000003"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Гр. (код)"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="186" y="0" width="42" height="18" uuid="165f0406-d8ea-4e4a-89cd-b744e05bb108"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="110" y="0" width="44" height="18" uuid="bb000004-0001-0001-0001-000000000004"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Группа"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="228" y="0" width="34" height="18" uuid="e46db2df-3a12-42fd-a6d1-dadf757c0d11"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Подгруппа (код)"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="154" y="0" width="28" height="18" uuid="bb000004-0001-0001-0001-000000000005"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Пдгр. (код)"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="262" y="0" width="42" height="18" uuid="eba1b2d1-2098-4b2c-b051-385996cd65ee"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="182" y="0" width="44" height="18" uuid="bb000004-0001-0001-0001-000000000006"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Подгруппа"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="304" y="0" width="34" height="18" uuid="6fc40f87-45a4-4bfe-a3d8-2dda73ec8113"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="226" y="0" width="36" height="18" uuid="bb000004-0001-0001-0001-000000000007"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Код"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="338" y="0" width="38" height="18" uuid="8371ce63-d398-410a-af3a-7a3b8d950d0c"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="262" y="0" width="50" height="18" uuid="bb000004-0001-0001-0001-000000000008"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Штрихкод"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="376" y="0" width="96" height="18" uuid="fa6d916f-8374-4d8a-9969-fa8544c9e172"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="312" y="0" width="124" height="18" uuid="bb000004-0001-0001-0001-000000000009"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Наименование"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="472" y="0" width="38" height="18" uuid="51951a63-c8d9-4d82-bb04-65596c9e9cd6"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Ассортиментные матрицы"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="436" y="0" width="42" height="18" uuid="bb000004-0001-0001-0001-000000000010"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Асс. матр."]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="510" y="0" width="39" height="18" uuid="94fefbbd-96bf-4882-8cd7-3cd47d12c27c"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Розница - кол-во продаж"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="478" y="0" width="38" height="18" uuid="bb000004-0001-0001-0001-000000000011"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Кол-во"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="549" y="0" width="28" height="18" uuid="cca6bffb-d09f-4f65-b9d5-c9b0488226ce"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Учетная цена"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="516" y="0" width="36" height="18" uuid="bb000004-0001-0001-0001-000000000012"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Уч.цена"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="577" y="0" width="35" height="18" uuid="5f636e1d-73e8-4225-8adb-57b09fb30e02"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Сумма по учетной цене"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="552" y="0" width="42" height="18" uuid="bb000004-0001-0001-0001-000000000013"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["С.уч.ц."]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="612" y="0" width="38" height="18" uuid="bce9b977-a86d-4b16-bda7-22b0c7a695cd"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Сумма продаж"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="594" y="0" width="42" height="18" uuid="bb000004-0001-0001-0001-000000000014"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["С.прод."]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="650" y="0" width="37" height="18" uuid="5670e10e-8690-4081-8cfa-9e7cb2be7bd7"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="636" y="0" width="38" height="18" uuid="bb000004-0001-0001-0001-000000000015"/>
+				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA["Доход"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="687" y="0" width="26" height="18" uuid="544a2acb-26a5-4afe-b441-220d865969c2"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Текущий остаток"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="674" y="0" width="30" height="18" uuid="bb000004-0001-0001-0001-000000000016"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Ост."]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="713" y="0" width="35" height="18" uuid="e209ee39-36de-4275-ac9e-b987935e174e"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Сумма остатка"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="704" y="0" width="42" height="18" uuid="bb000004-0001-0001-0001-000000000017"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["С.ост."]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="748" y="0" width="27" height="18" uuid="be7193e7-e014-47b9-b1ac-d41e57ddefd0"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Запас в днях"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="746" y="0" width="28" height="18" uuid="bb000004-0001-0001-0001-000000000018"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Дни"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" x="775" y="0" width="27" height="18" uuid="3f39aa29-2c4b-4bcd-b8c9-e50bccd99e1e"/>
-				<textElement textAlignment="Center">
-					<font size="7" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Вклад товара в %"]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="HeaderStyle" x="774" y="0" width="28" height="18" uuid="bb000004-0001-0001-0001-000000000019"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA["Вклад%"]]></textFieldExpression>
 			</textField>
 		</band>
 	</pageHeader>
 	<detail>
-		<band height="18">
+		<band height="14">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="34" height="18" uuid="511d2fe8-4cfb-45aa-b83f-11be459fb366"/>
-				<textElement textAlignment="Center"/>
-				<textFieldExpression><![CDATA[$F{id(stock)}]]></textFieldExpression>
-			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="34" y="0" width="42" height="18" uuid="6a766e66-2e3f-4f31-bb0e-88139e8cbc85"/>
-				<textElement textAlignment="Center">
-					<font size="5"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{name(stock)}]]></textFieldExpression>
-			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="76" y="0" width="34" height="18" uuid="e50efab8-3f74-4489-8f16-3280492de308"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="30" height="14" uuid="bb000005-0001-0001-0001-000000000001"/>
 				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA[$F{idSkuGroup2(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="110" y="0" width="42" height="18" uuid="24dfde88-bccb-4ba5-ba97-8333ae81e93c"/>
-				<textElement textAlignment="Center">
-					<font size="5"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="30" y="0" width="52" height="14" uuid="bb000005-0001-0001-0001-000000000002"/>
+				<textElement textAlignment="Left">
+					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{nameSkuGroup2(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="152" y="0" width="34" height="18" uuid="8937bec0-bbcb-4c70-b01c-b7ccc1b2ccee"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="82" y="0" width="28" height="14" uuid="bb000005-0001-0001-0001-000000000003"/>
 				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA[$F{idSkuGroup3(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="186" y="0" width="42" height="18" uuid="4e92c85d-c162-49c6-ae71-e5fb23b17dd9"/>
-				<textElement textAlignment="Center">
-					<font size="5"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="110" y="0" width="44" height="14" uuid="bb000005-0001-0001-0001-000000000004"/>
+				<textElement textAlignment="Left">
+					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{nameSkuGroup3(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="228" y="0" width="34" height="18" uuid="ebc47c21-dd38-4643-b4ed-f19a1d226e7b"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="154" y="0" width="28" height="14" uuid="bb000005-0001-0001-0001-000000000005"/>
 				<textElement textAlignment="Center"/>
 				<textFieldExpression><![CDATA[$F{idSkuGroup4(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="262" y="0" width="42" height="18" uuid="1f408833-1c27-442d-8726-67bc12407a7b"/>
-				<textElement textAlignment="Center">
-					<font size="5"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="182" y="0" width="44" height="14" uuid="bb000005-0001-0001-0001-000000000006"/>
+				<textElement textAlignment="Left">
+					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{nameSkuGroup4(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="304" y="0" width="34" height="18" uuid="a0c6be3d-8466-4fd1-b332-88fd7d7e542f"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="226" y="0" width="36" height="14" uuid="bb000005-0001-0001-0001-000000000007"/>
 				<textElement textAlignment="Center">
 					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{id(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="338" y="0" width="38" height="18" uuid="910c8693-a4af-4bcc-ae3b-549e30b5af1a"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="262" y="0" width="50" height="14" uuid="bb000005-0001-0001-0001-000000000008"/>
 				<textElement textAlignment="Center">
-					<font size="5"/>
+					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{idBarcode(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="376" y="0" width="96" height="18" uuid="4983ba64-438f-4d5a-bca0-bb105845afcc"/>
-				<textElement textAlignment="Center">
-					<font size="5"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="312" y="0" width="124" height="14" uuid="bb000005-0001-0001-0001-000000000009"/>
+				<textElement textAlignment="Left">
+					<font size="6"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{name(sku)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="472" y="0" width="38" height="18" uuid="161c72b7-91e7-4864-bc71-95be9c422e38"/>
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="436" y="0" width="42" height="14" uuid="bb000005-0001-0001-0001-000000000010"/>
 				<textElement textAlignment="Center">
-					<font size="8"/>
+					<font size="6"/>
 				</textElement>
-				<textFieldExpression><![CDATA[$F{propertyDraw78721}]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{ranges}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="510" y="0" width="39" height="18" uuid="3456b769-2b83-48e9-a2d1-162ff15f52cf"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{retailSalesQty(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.###" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="478" y="0" width="38" height="14" uuid="bb000005-0001-0001-0001-000000000011"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{retailSalesQty(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="549" y="0" width="28" height="18" uuid="b92ba495-4423-4947-abfb-8825a4e7a640"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{accountPriceA(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="516" y="0" width="36" height="14" uuid="bb000005-0001-0001-0001-000000000012"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{accountPriceA(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="577" y="0" width="35" height="18" uuid="c26a3dc9-d297-4d0f-bce1-233e196d2232"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{sumByAccPrice(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="552" y="0" width="42" height="14" uuid="bb000005-0001-0001-0001-000000000013"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{sumByAccPrice(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="612" y="0" width="38" height="18" uuid="c1cf6b12-0557-4f4e-90c8-1a06384ba27f"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{salesSum(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="594" y="0" width="42" height="14" uuid="bb000005-0001-0001-0001-000000000014"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{salesSum(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="650" y="0" width="37" height="18" uuid="52fa31a8-573b-4225-b27b-aad39fdfb777"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{profit(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="636" y="0" width="38" height="14" uuid="bb000005-0001-0001-0001-000000000015"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{profit(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="687" y="0" width="26" height="18" uuid="1315d4ae-d184-437a-88bf-300de646ea92"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{currentBalance(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.###" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="674" y="0" width="30" height="14" uuid="bb000005-0001-0001-0001-000000000016"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{currentBalance(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="713" y="0" width="35" height="18" uuid="c7972fe7-1855-4fa6-83a8-ea6aef71e310"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{currentSum(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="704" y="0" width="42" height="14" uuid="bb000005-0001-0001-0001-000000000017"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{currentSum(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" pattern="#0.00" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="748" y="0" width="27" height="18" uuid="0375b187-80c0-4f6a-bce3-0fef7d0d6158"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{daysOfSupply(sku,stock)}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="746" y="0" width="28" height="14" uuid="bb000005-0001-0001-0001-000000000018"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{daysOfSupply(sku,stock)}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" pattern="#0.00" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="775" y="0" width="27" height="18" uuid="efb83a9d-3b9b-4804-9b76-88e1847c8fe4"/>
-				<textElement textAlignment="Center">
-					<font size="8"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$F{productContributionPct}.setScale(2, java.math.RoundingMode.HALF_UP)]]></textFieldExpression>
+			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="DefaultStyle" positionType="Float" stretchType="RelativeToBandHeight" x="774" y="0" width="28" height="14" uuid="bb000005-0001-0001-0001-000000000019"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$F{productContributionPct}]]></textFieldExpression>
 			</textField>
 		</band>
 	</detail>
 	<summary>
-		<band height="50">
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" x="510" y="0" width="39" height="18" uuid="5b430c80-7b74-4b00-9ad4-bafe14b0b066"/>
-				<textElement textAlignment="Center">
-					<font size="8" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$V{SUMretailSalesQty}]]></textFieldExpression>
+		<band height="15">
+			<textField isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="0" y="0" width="478" height="15" uuid="bb000006-0001-0001-0001-000000000001"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA["ИТОГО"]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" x="0" y="0" width="510" height="18" uuid="735c85fd-ea20-40f9-ba01-fcd08d37a17d"/>
-				<box>
-					<topPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<leftPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<bottomPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-					<rightPen lineWidth="0.0" lineStyle="Solid" lineColor="#000000"/>
-				</box>
-				<textElement textAlignment="Right">
-					<font isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA["Итого"]]></textFieldExpression>
+			<textField pattern="#,##0.###" isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="478" y="0" width="38" height="15" uuid="bb000006-0001-0001-0001-000000000002"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$V{totalRetailQty}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="577" y="0" width="35" height="18" uuid="6d212b93-6fd9-458c-88ed-9cbb32accd2b"/>
-				<textElement textAlignment="Center">
-					<font size="8" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$V{SUMsumByAccPrice}]]></textFieldExpression>
+			<textField isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="516" y="0" width="36" height="15" uuid="bb000006-0001-0001-0001-000000000003"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[""]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="612" y="0" width="38" height="18" uuid="9176e597-8268-4f7b-80e0-50dfdc3a4b25"/>
-				<textElement textAlignment="Center">
-					<font size="8" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$V{SUMsalesSum}]]></textFieldExpression>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="552" y="0" width="42" height="15" uuid="bb000006-0001-0001-0001-000000000004"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$V{totalSumByAccPrice}]]></textFieldExpression>
 			</textField>
-			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="650" y="0" width="37" height="18" uuid="b1ef57a0-742c-4b6e-887b-186fbafd0c60"/>
-				<textElement textAlignment="Center">
-					<font size="8" isBold="true"/>
-				</textElement>
-				<textFieldExpression><![CDATA[$V{SUMprofit}]]></textFieldExpression>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="594" y="0" width="42" height="15" uuid="bb000006-0001-0001-0001-000000000005"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$V{totalSalesSum}]]></textFieldExpression>
+			</textField>
+			<textField pattern="#,##0.00" isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="636" y="0" width="38" height="15" uuid="bb000006-0001-0001-0001-000000000006"/>
+				<textElement textAlignment="Right"/>
+				<textFieldExpression><![CDATA[$V{totalProfit}]]></textFieldExpression>
+			</textField>
+			<textField isBlankWhenNull="true">
+				<reportElement style="FooterTotalStyle" x="674" y="0" width="128" height="15" uuid="bb000006-0001-0001-0001-000000000007"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[""]]></textFieldExpression>
 			</textField>
 		</band>
 	</summary>
