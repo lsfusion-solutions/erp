@@ -1,20 +1,28 @@
 MODULE PurchaseInvoiceAgreementGestori;
 
-REQUIRE PurchaseInvoiceAgreement, StockListGestori, LegalEntityListGestori;
+REQUIRE PurchaseInvoiceAgreement, InventoryGestori;
 
 NAMESPACE Purchase;
 
+inInterval (InvoiceDetail d) = from(interval()) <= date(d) AND to(interval()) >= date(d);
+
 priceByAgreement 'Цена по соглашению' (InvoiceDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
+
+priceForComparison 'Цена из накладной' (InvoiceDetail d) =
+    IF includeVAT(priceListType(d)) THEN invoicePrice(d) ELSE price(d);
+
+sumForComparison 'Сумма из накладной' (InvoiceDetail d) =
+    IF includeVAT(priceListType(d)) THEN invoiceSum(d) ELSE sum(d);
 
 sumByAgreement 'Сумма по цене соглашения' (InvoiceDetail d) =
     NUMERIC[18,4](round2(quantity(d) * priceByAgreement(d)));
 
 priceDiff 'Расхождение цен' (InvoiceDetail d) =
-    NUMERIC[16,4](price(d) (-) priceByAgreement(d));
+    NUMERIC[16,4](priceForComparison(d) (-) priceByAgreement(d));
 
 sumDiff 'Расхождение сумм' (InvoiceDetail d) =
-    NUMERIC[18,4](sum(d) (-) sumByAgreement(d));
+    NUMERIC[18,4](sumForComparison(d) (-) sumByAgreement(d));
 
 priceDiffPercent '% расх. цен' (InvoiceDetail d) =
     NUMERIC[10,2](priceDiff(d) * 100.0 / priceByAgreement(d)) IF priceByAgreement(d) != 0;
@@ -28,25 +36,21 @@ maxAllowablePercent 'Допустимый % отклонения вверх' (In
 minAllowablePercent 'Допустимый % отклонения вниз' (InvoiceDetail d) =
     percDeviationDownPrice(agreement(invoice(d)), sku(d));
 
-exceedsAllowable 'Выход за пределы допустимого отклонения' (InvoiceDetail d) =
+exceedsAllowable 'Выход за пределы' (InvoiceDetail d) =
     TRUE IF priceDiffPercent(d) > maxAllowablePercent(d)
         OR (- priceDiffPercent(d)) > minAllowablePercent(d);
 
 backgroundExceeds (InvoiceDetail d) = RGB(255, 100, 100) IF exceedsAllowable(d);
 
 filterPriceMode = DATA LOCAL INTEGER ();
-filterPricePercent 'Процент отклонения' = DATA LOCAL NUMERIC[10,2] ();
+filterPricePercentInput '%' = DATA LOCAL NUMERIC[10,2] ();
+filterPricePercent () = OVERRIDE filterPricePercentInput(), 0.00;
 filterApprovedOrdersOnly 'Только согласованные заказы' = DATA LOCAL BOOLEAN ();
 
-bgFilterActive (INTEGER i) = RGB(187, 187, 187) IF filterPriceMode() == i;
-
-checkPercentAndSetMode (INTEGER mode) {
-    IF mode > 0 AND NOT filterPricePercent() THEN {
-        MESSAGE 'Укажите процент отклонения для применения фильтра';
-        RETURN;
-    }
-    filterPriceMode() <- mode;
-}
+setFilterNone 'Не используется' () { filterPriceMode() <- 0; }
+setFilterAbove 'Цена > соглашения' () { filterPriceMode() <- 1; }
+setFilterBelow 'Цена < соглашения' () { filterPriceMode() <- 2; }
+setFilterBoth 'Любое отклонение' () { filterPriceMode() <- 3; }
 
 filterPassesPriceCheck (InvoiceDetail d) =
     CASE
@@ -55,27 +59,23 @@ filterPassesPriceCheck (InvoiceDetail d) =
         WHEN filterPriceMode() == 3 THEN abs(priceDiffPercent(d)) > filterPricePercent()
         ELSE TRUE;
 
-filterPassesSupplier (InvoiceDetail d) = allSuppliers() OR inSupplierReport(supplier(d));
-filterPassesStock (InvoiceDetail d) = allStocks() OR inSaleReport(customerStock(d));
+filterPassesStock (InvoiceDetail d) = inSaleReport(customerStock(d));
+filterPassesSupplier (InvoiceDetail d) = inSupplier(supplier(d));
 filterPassesOrder (InvoiceDetail d) = NOT filterApprovedOrdersOnly() OR (orderDetail(d) AND isPosted(orderDetail(d)));
 
-setFilterNone 'Не используется' () { checkPercentAndSetMode(0); }
-setFilterAbove 'Цена прихода > цены соглашения' () { checkPercentAndSetMode(1); }
-setFilterBelow 'Цена прихода < цены соглашения' () { checkPercentAndSetMode(2); }
-setFilterBoth 'Цена прихода > или < цены соглашения' () { checkPercentAndSetMode(3); }
-
 FORM priceCheckGestori 'Сверка цен по приходным накладным и соглашениям'
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
-    PROPERTIES valFrom = VALUE(dFrom), valTo = VALUE(dTo)
-
-    PROPERTIES() inStocks ON CHANGE selectStocks()
-    PROPERTIES() inSuppliers ON CHANGE selectSuppliers()
-    PROPERTIES() setFilterNone BACKGROUND bgFilterActive(0),
-        setFilterAbove BACKGROUND bgFilterActive(1),
-        setFilterBelow BACKGROUND bgFilterActive(2),
-        setFilterBoth BACKGROUND bgFilterActive(3),
-        filterPricePercent
-    PROPERTIES() filterApprovedOrdersOnly
+    PROPERTIES() interval, titleInterval
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+    PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
+    PROPERTIES inSaleReportSupplier 'Поставщики' = inSaleReportSupplier() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; } READONLYIF legalEntityList()
+    PROPERTIES()
+    setFilterNone,
+        setFilterAbove,
+        setFilterBelow,
+        setFilterBoth,
+        filterPricePercentInput,
+        filterApprovedOrdersOnly
 
     OBJECTS d = InvoiceDetail
     PROPERTIES READONLY
@@ -83,15 +83,15 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
         nameSupplier(d),
         nameCustomerStock 'Подразделение' = nameCustomerStock(d),
         seriesNumberContract 'Номер договора' = seriesNumberContractSku(invoice(d)),
-        'Спецификация' = nameAgreement(invoice(d)),
-        'Номер приходной накладной' = seriesNumber(invoice(d)),
+        specName 'Спецификация' = nameAgreement(invoice(d)),
+        invoiceNumber 'Номер накладной' = seriesNumber(invoice(d)),
         dateInvoice = date(d),
         idSku(d),
         nameSku = nameSku(d),
         idBarcodeSku(d),
         quantity(d),
-        price(d),
-        sum(d),
+        priceForComparison(d),
+        sumForComparison(d),
         priceByAgreement(d),
         sumByAgreement(d),
         priceDiff(d),
@@ -104,55 +104,56 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
 
     FILTERS isPosted(d),
         agreement(invoice(d)),
-        date(d) >= dFrom,
-        date(d) <= dTo,
-        filterPassesSupplier(d),
+        inInterval(d),
         filterPassesStock(d),
+        filterPassesSupplier(d),
         filterPassesPriceCheck(d),
         filterPassesOrder(d)
 
-    
     ORDERS idSupplier, seriesNumberContract, dateInvoice, nameSku
 
-    EVENTS ON INIT { filterPriceMode() <- 0; }
+    EVENTS ON INIT { filterPriceMode() <- 0; initInterval(); }
 ;
 
-printPriceCheckGestori 'Печать' (DATE dFrom, DATE dTo) {
-    PRINT priceCheckGestori OBJECTS dFrom = dFrom, dTo = dTo;
-} IMAGE 'print.png';
+printPriceCheckGestori 'Отчет' () { PRINT priceCheckGestori PDF; } IMAGE 'print.png';
 
 EXTEND FORM priceCheckGestori
-    PROPERTIES printPriceCheckGestori(dFrom, dTo)
+    PROPERTIES() DISABLEIF NOT interval() printPriceCheckGestori
 ;
 
 DESIGN priceCheckGestori {
-    BOX {
+    NEW filters FIRST {
         alignment = STRETCH;
-        NEW topRow FIRST {
+        NEW topRow {
             horizontal = TRUE;
-            MOVE BOX(dates) { caption = 'Период'; horizontal = TRUE; }
+            MOVE PROPERTY(interval());
+            MOVE PROPERTY(printPriceCheckGestori());
         }
-        MOVE PROPERTY(inStocks());
-        MOVE PROPERTY(inSuppliers());
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameLegalEntityList()) { alignment = STRETCH; }
+        MOVE PROPERTY(inSaleReportSupplier) { alignment = STRETCH; }
         NEW filterPanel {
             horizontal = TRUE;
+            alignment = STRETCH;
             NEW priceFilter {
                 caption = 'Фильтр по цене';
                 horizontal = TRUE;
-                MOVE PROPERTY(setFilterNone());
-                MOVE PROPERTY(setFilterAbove());
-                MOVE PROPERTY(setFilterBelow());
-                MOVE PROPERTY(setFilterBoth());
-                MOVE PROPERTY(filterPricePercent()) { caption = '%'; }
+                MOVE PROPERTY(setFilterNone()) { valueClass = IF filterPriceMode() == 0 THEN 'btn-secondary' ELSE 'btn-outline-secondary'; }
+                MOVE PROPERTY(setFilterAbove()) { valueClass = IF filterPriceMode() == 1 THEN 'btn-warning' ELSE 'btn-outline-warning'; }
+                MOVE PROPERTY(setFilterBelow()) { valueClass = IF filterPriceMode() == 2 THEN 'btn-info' ELSE 'btn-outline-info'; }
+                MOVE PROPERTY(setFilterBoth()) { valueClass = IF filterPriceMode() == 3 THEN 'btn-danger' ELSE 'btn-outline-danger'; }
+                MOVE PROPERTY(filterPricePercentInput());
             }
             NEW orderFilter {
                 caption = 'Заказы';
                 MOVE PROPERTY(filterApprovedOrdersOnly());
             }
         }
-        MOVE BOX(d) { caption = 'Результат сверки'; }
-        MOVE TOOLBARBOX;
     }
+    BOX(d) { caption = 'Результат сверки'; }
+    PROPERTY(printPriceCheckGestori()) { valueClass = 'btn-primary'; }
+    REMOVE PROPERTY(titleInterval());
 }
 
 NAVIGATOR {
