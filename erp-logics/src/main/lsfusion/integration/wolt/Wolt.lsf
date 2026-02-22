@@ -73,7 +73,7 @@ updateItems 'Обновить товары' (DepartmentStore ds){
     }
 }
 
-dataInventory (Item i, DepartmentStore ds) = JSON FROM sku = id(i), inventory = currentBalance(i, ds);
+dataInventory (Item i, DepartmentStore ds) = JSON FROM external_id = id(i), inventory = currentBalance(i, ds);
 
 updateInventory 'Обновить остатки' (DepartmentStore ds){
     exportJSON() <- JSON FROM data = JSON FROM value = dataInventory(Item.Item ii, ds) WHERE Wolt.in(ii) AND currentBalance(ii, ds) > 0;
@@ -269,7 +269,7 @@ importOrder(FILE f){
             AND InternetOrder o = internetOrder(id1()) DO{
 
             rowNumber(d) <- row_number(x);
-            sku(d) <- sku(id2(x));
+            sku(d) <- sku(pos_id(x));
             weight(d) <- weight_in_grams(x) * 1000;
             count(d) <- count(x);
             quantity(d) <- IF weight_in_grams(x) THEN round3(weight_in_grams(x) / 1000) ELSE count(x);
