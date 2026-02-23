@@ -49,10 +49,13 @@ queryRestsv2ForScheduler 'Запросить остатки (для планир
             MESSAGE 'Ошибка при отправке запроса в ЕГАИС на получение остатков' + messageCaughtException();
         }
 }
-
+currentF2Reg = DATA LOCAL F2Reg();
 queryRestsv2 'Запросить остатки' () {
-    NEWSESSION {
+    NEWSESSION NESTED (currentF2Reg[]){
         NEW r = QueryRestsv2 {
+            IF currentF2Reg() THEN {
+                client(r) <- client(currentF2Reg());            
+            }
             DIALOG queryRestsv2Params OBJECTS r = r NOMANAGESESSION DO {
                 queryRestsv2(r);
                 APPLY;
@@ -63,6 +66,7 @@ queryRestsv2 'Запросить остатки' () {
 
 EXTEND FORM balanceReg
     PROPERTIES() queryRestsv2 DRAW r TOOLBAR
+    EVENTS ON CHANGE r  {currentF2Reg() <- r;}
 ;
 
 // response
