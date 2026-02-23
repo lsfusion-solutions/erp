@@ -86,7 +86,12 @@ prevCurrentBalanceBatch 'Текущий остаток в ячейке' = GROUP 
 
 currentBalanceBatch 'Текущий остаток всех ячеек' = 
     GROUP SUM currentBalance(Batch batch, Bin bin) BY batch, stock(bin);
-prevCurrentBalanceBatch 'Текущий остаток всех ячеек' (Batch batch, Stock stock) = PREV(currentBalanceBatch(batch, stock)); 
+prevCurrentBalanceBatch 'Текущий остаток всех ячеек' (Batch batch, Stock stock) = PREV(currentBalanceBatch(batch, stock));
+
+currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
+    currentBalanceBatch(batch, st) (-) currentBalance(batch, st);
+prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
+    prevCurrentBalanceBatch(batch, st) (-) prevCurrentBalance(batch, st);
 
 balanceA 'Остаток в ячейке на конец дня' (Batch batch, Bin bin, DATE date) = currentBalance(batch, bin) (-)
     inBinTotalA(batch, bin, date) (+) outBinTotalA(batch, bin, date);
@@ -260,6 +265,7 @@ FORM binBatchDiscrepancies 'Пересорт партий по ячейкам'
     PROPERTIES READONLY currentBalance(bt, ts), currentBalanceBatch(bt, ts) 
     FILTERGROUP discrepancies
         FILTER 'Пересорт' discrepancies(bt) DEFAULT
+        FILTER 'Расхождение по остаткам' currentDiffBalanceBin(bt, ts)
 
     TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg)

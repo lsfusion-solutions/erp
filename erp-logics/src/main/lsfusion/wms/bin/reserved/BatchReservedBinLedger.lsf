@@ -18,10 +18,18 @@ currentReserved 'Текущий резерв' (batch, bin) =
 prevCurrentReserved 'Текущий резерв' (Batch batch, Bin bin) = PREV(currentReserved(batch, bin)) CHARWIDTH 7;
 prevCurrentReserved 'Текущий резерв по ячейкам' (Batch batch)  = GROUP SUM prevCurrentReserved(batch, Bin bin) CHARWIDTH 7;
 
+currentReservedBatch 'Текущий резерв всех ячеек' =
+    GROUP SUM currentReserved(Batch batch, Bin bin) BY batch, stock(bin);
+prevCurrentReservedBatch 'Текущий резерв всех ячеек' (Batch batch, Stock stock) = PREV(currentReservedBatch(batch, stock));
+
 availableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
     currentBalance(batch, bin) (-) (currentReserved(batch, bin) IF currentReserved(batch, bin) > 0.0) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Bin bin) = 
     prevCurrentBalance(batch, bin) (-) (prevCurrentReserved(batch, bin) IF prevCurrentReserved(batch, bin) > 0.0) CHARWIDTH 7;
+
+availableQuantityBatch 'Доступное к-во (всего) всех ячеек' =
+    GROUP SUM availableQuantity(Batch batch, Bin bin) BY batch, stock(bin);
+prevAvailableQuantityBatch 'Доступное к-во (всего) всех ячеек' (Batch batch, Stock stock) = PREV(availableQuantityBatch(batch, stock));
 
 EXTEND FORM batchBinBalance
     PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity
@@ -40,6 +48,27 @@ EXTEND FORM batchBinBalance
 DESIGN batchBinBalance{
     batchesDetail {
         MOVE BOX(rlb);
+    }
+}
+
+EXTEND FORM binBatchDiscrepancies
+    PROPERTIES(bt, ts) READONLY AFTER currentBalanceBatch(bt, ts) currentReserve, currentReservedBatch, availableQuantity, availableQuantityBatch
+    PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity
+    EXTEND FILTERGROUP balance
+        FILTER 'С резервом' currentReserved(bt, b)
+        FILTER 'С доступным кол-вом' availableQuantity(bt, b)
+    
+    OBJECTS rbl=ReservedBinLedger
+    PROPERTIES(rbl) READONLY dateTime, description, skip, quantity
+    ORDERS dateTime(rbl) DESC
+    FILTERS active(rbl),
+        bin(rbl)==b,
+        batch(rbl)== bt
+;
+
+DESIGN binBatchDiscrepancies {
+    batchesDetail {
+        MOVE BOX(rbl);    
     }
 }
 

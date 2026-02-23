@@ -126,6 +126,11 @@ currentBalanceSku 'Текущий остаток всех ячеек' =
     GROUP SUM currentBalance(Sku sku, Bin bin) BY sku, stock(bin);
 prevCurrentBalanceSku 'Текущий остаток всех ячеек' (Sku sku, Stock stock) = PREV(currentBalanceSku(sku, stock));
 
+currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
+    currentBalanceSku(sku, st) (-) currentBalance(sku, st);
+prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
+    prevCurrentBalanceSku(sku, st) (-) prevCurrentBalance(sku, st);
+
 balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, date) (+) outBinTotalA(sku, bin, date);
 
@@ -366,6 +371,7 @@ FORM binSkuDiscrepancies 'Пересорт товаров по ячейкам'
     PROPERTIES READONLY currentBalance(s, ts), currentBalanceSku(s, ts)
     FILTERGROUP discrepancies
         FILTER 'Пересорт' discrepancies(s) DEFAULT 
+        FILTER 'Расхождение по остаткам' currentDiffBalanceBin(s, ts)  
 
     TREE binTree bg = BinGroup PARENT parent(bg)
     PROPERTIES READONLY name(bg)

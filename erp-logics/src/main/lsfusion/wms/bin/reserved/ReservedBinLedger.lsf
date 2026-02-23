@@ -1,6 +1,6 @@
 MODULE ReservedBinLedger;
 
-REQUIRE Bin, BinLedger;
+REQUIRE Bin, BinLedger, OrderLedger;
 
 NAMESPACE Bin;
 
@@ -62,7 +62,6 @@ description 'Название документа' = ABSTRACT ISTRING[200] (Reser
 description 'Название документа' = DATA ISTRING[200] (UserReservedBinLedger);
 description(UserReservedBinLedger ledger) += description(ledger);
 
-
 changed = ABSTRACT BOOLEAN (ReservedBinLedger);
 
 skip 'Не проводить по регистру' = ABSTRACT BOOLEAN (ReservedBinLedger) MATERIALIZED;
@@ -75,10 +74,18 @@ currentReserved 'Текущий резерв' (sku, bin) =
 prevCurrentReserved 'Текущий резерв' (Sku sku, Bin bin) = PREV(currentReserved(sku, bin)) CHARWIDTH 7;
 prevCurrentReserved 'Текущий резерв по ячейкам' (Sku sku)  = GROUP SUM prevCurrentReserved(sku, Bin bin) CHARWIDTH 7;
 
+currentReservedSku 'Текущий резерв всех ячеек' =
+    GROUP SUM currentReserved(Sku sku, Bin bin) BY sku, stock(bin);
+prevCurrentReservedSku 'Текущий резерв всех ячеек' (Sku sku, Stock stock) = PREV(currentReservedSku(sku, stock));
+
 availableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
     currentBalance(sku, bin) (-) (currentReserved(sku, bin) IF currentReserved(sku, bin) > 0.0) CHARWIDTH 7;
 prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Bin bin) = 
     prevCurrentBalance(sku, bin) (-) (prevCurrentReserved(sku, bin) IF prevCurrentReserved(sku, bin) > 0.0) CHARWIDTH 7;
+
+availableQuantitySku 'Доступное к-во (всего) всех ячеек' =
+    GROUP SUM availableQuantity(Sku sku, Bin bin) BY sku, stock(bin);
+prevAvailableQuantitySku 'Доступное к-во (всего) всех ячеек' (Sku sku, Stock stock) = PREV(availableQuantitySku(sku, stock));
 
 FORM reservedBinLedger 'Регистр изменения резервов по ячейкам'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) PANEL
@@ -128,6 +135,27 @@ EXTEND FORM binBalance
 DESIGN binBalance {
     skusDetail {
         MOVE BOX(rl);
+    }
+}
+
+EXTEND FORM binSkuDiscrepancies
+    PROPERTIES(s, ts) READONLY AFTER currentBalanceSku(s, ts) currentReserve, currentReservedSku, availableQuantity, availableQuantitySku
+    PROPERTIES(s, b) READONLY AFTER currentBalance(s, b) currentReserved, availableQuantity
+    EXTEND FILTERGROUP balance
+        FILTER 'С резервом' currentReserved(s, b)
+        FILTER 'С доступным кол-вом' availableQuantity(s, b)
+
+    OBJECTS rbl=ReservedBinLedger
+    PROPERTIES(rbl) READONLY dateTime, description, skip, quantity
+    ORDERS dateTime(rbl) DESC
+    FILTERS active(rbl),
+        bin(rbl)==b,
+        sku(rbl)== s
+;
+
+DESIGN binSkuDiscrepancies {
+    skusDetail {
+        MOVE BOX(rbl);
     }
 }
 
