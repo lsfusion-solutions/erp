@@ -11,7 +11,7 @@ EXTEND FORM saleDeniedRestrictions
     PROPERTIES (r) READONLY seriesNumberStopList, excludeStopList
 ;
 
-needGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d);
+needGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND NOT exclude(d);
 prevNeedGreate(StopListDetail d, Stock st)= PREV(needGreate(d,st));
 
 saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d),sku(d),stock(d);
@@ -21,9 +21,7 @@ prevSaleDeniedRestriction(StopListDetail d) = PREV(saleDeniedRestriction(d));
 
 skipGreateStopList = DATA BOOLEAN ();
 
-WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT exclude(d) AND NOT saleDeniedRestriction(d, st) AND NOT skipGreateStopList() DO {
-//    LOCAL restriction = SaleDeniedRestriction (Sku);
-//    restriction(Sku s) <- GROUP MAX SaleDeniedRestriction r IF createdTime(r) AND NOT deleted(r) AND sku(r) = s AND stock(r) = stock;
+WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) AND NOT skipGreateStopList() DO {
     NEW detail = SaleDeniedRestriction{
         stopListDetail(detail) <- d;
         sku(detail) <- sku(d);
@@ -41,9 +39,6 @@ prevIsGreate(StopListDetail d, Stock st)= PREV(isGreate(d,st));
 
 CONSTRAINT DROPPED(isGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevIsGreate(d,st) AND NOT skipCheckSku()
     MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
-
-//CONSTRAINT DROPPED(needGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevNeedGreate(d,st) AND NOT skipCheckSku()
-//    MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
 
 skipUseSaleDeniedRestrictionsMigrate() {
     skipUseSaleDeniedRestrictions() <- TRUE;
@@ -91,21 +86,26 @@ afterExportTransaction(MachineryPriceTransaction t) +{
         IF useSaleDeniedRestrictions() THEN{
             LOCAL NESTED  in = BOOLEAN (Sku);
             in(Sku s)  <- in(t,barcode(s)) AND active(s);
-            
-            LOCAL stop = BOOLEAN (Sku);
-            stop(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s AND stopListDetail(r) AND NOT excludeStopList(r));
-
-            LOCAL exclude = BOOLEAN (Sku);
-            exclude(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s AND excludeStopList(r));
 
             LOCAL NESTED  to = BOOLEAN (Sku);
             to(Sku s) <- TRUE WHERE (GROUP  SUM 1 IF active(SaleDeniedRestriction r) AND stock(t) = stock(r) AND in(sku(r)) AND sku(r)==s)
-                                    AND currentBalanceRestriction(s, stock(t)) > 0 AND NOT stop(s);
-            to(Sku s) <- TRUE WHERE exclude(s) AND NOT stop(s);            
+                                    AND currentBalanceRestriction(s, stock(t)) > 0 
+                                    AND NOT inStopList (s, stock(t), currentDateTime()) AND in(s);
+           
             
             FOR in(t, SaleDeniedRestriction r) AND to(sku(r)) DO{
                 deleteSaleRestriction(r);
             }
         }
+    }
+}
+
+WHEN [GROUP SUM 1 IF DROPPED(inStopList (Sku sku, Stock stock, currentDateTime())) AND active(sku) AND active(stock) BY stock](Stock stock) AND NOT skipGreateStopList() DO {
+    select(Sku sku) <- NULL;
+    select(Sku sku) <- TRUE WHERE DROPPED(inStopList (sku, stock, currentDateTime())) AND active(sku);
+    IF (GROUP SUM 1 IF select(Sku sku)) THEN {
+        createMachineryPriceTransactionSnapshot() <- TRUE;
+        createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku);
+        createMachineryPriceTransaction(stock);
     }
 }
