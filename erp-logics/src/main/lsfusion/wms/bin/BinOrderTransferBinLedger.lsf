@@ -49,12 +49,12 @@ diffQuantityBinTranferDetail 'Расхождение' (BinOrder binOrder) = GROU
 
 countBinOrderSku 'Кол-во наименований' (BinOrder binOrder) = GROUP SUM 1 IF quantityBinOrderDetail(Sku sku, binOrder) MATERIALIZED;
 
-quantityBinTransferDetail 'Кол-во в комплектациях' = 
+quantityBinTransferDetail 'Перемещенное кол-во' = 
     GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY sku(d), binOrder(d);
 countEqualBinOrderSku 'Кол-во наименований с равным кол-ом товара' (BinOrder binOrder) =
     GROUP SUM 1 IF quantityBinTransferDetail(Sku sku, binOrder) == quantityBinOrderDetail(sku, binOrder) MATERIALIZED;
 
-quantityBinTransferDetail 'Кол-во в комплектациях' = 
+quantityBinTransferDetail 'Перемещенное кол-во' = 
     GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY binOrder(d);
 
 calcFull 'Полностью собран' (BinOrder binOrder) = countBinOrderSku(binOrder) == countEqualBinOrderSku(binOrder) AND NOT diffQuantityBinTranferDetail(binOrder);
@@ -67,6 +67,46 @@ binTransfers 'Перемещения по ячейкам' (binOrder) =
 
 CONSTRAINT DROPPED(BinOrder binOrder IS BinOrder) AND PREV(binTransfers(binOrder))
     MESSAGE 'Нельзя удалять заказ на перемещение по которому создано перемещение по ячейкам.';
+
+CLASS StatusBinTransfer 'Статус'{
+    completely 'Полностью собран',
+    partly 'Частично собран',
+//    accepted 'В комплектации', //todo: надо в дальнейшем реализовать статусы комплектации
+    wait 'Ожидает перемещения',
+    notCreated 'Без перемещения',
+    closed 'Закрыт'
+}
+
+TABLE statusBinTransfer(StatusBinTransfer);
+name 'Наименование' (StatusBinTransfer t) = staticCaption(t) IF t IS StatusBinTransfer CHARWIDTH 15;
+
+statusBinTransfer= ABSTRACT CASE StatusBinTransfer (BinOrder) MATERIALIZED ;
+nameStatusBinTransfer 'Статус перемещения' (BinOrder o) = name(statusBinTransfer(o)) CHARWIDTH 22;
+
+calcStatusBinTransfer 'Статус перемещения' (BinOrder order) = CASE
+    WHEN calcPart(order) THEN StatusBinTransfer.partly
+    WHEN calcFull(order) THEN StatusBinTransfer.completely
+//    WHEN accepted(order) THEN StatusBinTransfer.accepted
+    WHEN isClosed(order) THEN StatusBinTransfer.closed
+    WHEN order IS BinOrder THEN StatusBinTransfer.wait;
+statusBinTransfer(BinOrder o) += WHEN o IS BinOrder THEN calcStatusBinTransfer(o);
+
+overBackground = ABSTRACT BOOLEAN(BinOrder) MATERIALIZED;
+overColor = ABSTRACT COLOR(BinOrder) MATERIALIZED;
+backgroundStatusBinTrasfer 'Цвет' (BinOrder order) =  CASE
+    WHEN overBackground(order) THEN overColor(order)
+    WHEN statusBinTransfer(order)==StatusBinTransfer.partly THEN RGB(255,238,165)
+    WHEN statusBinTransfer(order)==StatusBinTransfer.completely THEN RGB(212,255,212)
+//    WHEN statusBinTransfer(order)==StatusBinTransfer.accepted THEN RGB(255,238,165)
+    WHEN statusBinTransfer(order)==StatusBinTransfer.closed THEN RGB(255,255,255)
+    WHEN order IS BinOrder THEN RGB(255,200,216);
+
+nameStatus 'Статус' = nameStatusBinTransfer(binOrder(BinTransfer binTransfer));
+backgroundStatus = backgroundStatusBinTrasfer(binOrder(BinTransfer binTransfer));
+
+EXTEND FORM binOrders
+    PROPERTIES(o) READONLY nameStatusBinTransfer BACKGROUND backgroundStatusBinTrasfer(o)
+;    
 
 inAvailableQuantity 'Доступно (ячейка в)' (Sku sku, UserBinOrder order) = availableQuantity(sku, inBin(order));
 outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order));

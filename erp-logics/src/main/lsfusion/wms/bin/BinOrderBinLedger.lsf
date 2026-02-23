@@ -648,6 +648,11 @@ DESIGN operation {
     }
 }
 
+@defineOperationProperty(detailsFillCheck, 'Должны быть строки у документа', BOOLEAN, constraintContainer);
+
+CONSTRAINT (SET(UserBinOrder o IS UserBinOrder) OR DROPPED(countUserBinOrderDetail(o))) AND detailsFillCheck(operation(o)) AND NOT countUserBinOrderDetail(o)
+    MESSAGE 'Для текущей операции обязательно наличие строк в документе';
+
 CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(inBin(d)) OR CHANGED(outBin(d))) AND levelBinGroup(operation(d)) AND NOT
     binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) AND
     inBin(d) AND outBin(d)

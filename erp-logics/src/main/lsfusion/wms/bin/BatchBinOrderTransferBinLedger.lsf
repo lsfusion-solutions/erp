@@ -1,6 +1,6 @@
 MODULE BatchBinOrderTransferBinLedger;
 
-REQUIRE BinOrderTransferBinLedger, BatchBinTransferBinLedger;
+REQUIRE BinOrderTransferBinLedger, BatchBinTransferBinLedger, BatchBinOrderBinLedger;
 
 NAMESPACE Bin;
 
@@ -9,4 +9,24 @@ countOutBinOrderDetail 'Кол-во строк партии товара в до
 
 overFillUserBinTransfer(UserBinTransferDetail d, BinOrderDetail detail) + {
     batch(d) <- batch(detail);
+}
+
+quantityBinTransferDetail 'Перемещенное кол-во' =
+    GROUP SUM quantity(BinTransferDetail d) IF NOT notCount(binTransfer(d)) BY batch(d), binOrder(d);
+
+EXTEND FORM binOrders
+    OBJECTS pb=Batch
+    PROPERTIES(pb) READONLY idBarcodeSku, nameSku, name, id, expiryDate
+    PROPERTIES READONLY quantityOrder 'Заказанное кол-во' = quantityBinOrderDetail(pb, o),
+        quantityPicking 'Перемещенное кол-во' = quantityBinTransferDetail(pb, o)
+    FILTERS quantityBinOrderDetail(pb, o)
+;
+
+DESIGN binOrders {
+    documentDetail {
+        NEW ledgerBatch {
+            caption = 'Детализация(партии)';
+            MOVE BOX(pb);
+        }
+    }
 }
