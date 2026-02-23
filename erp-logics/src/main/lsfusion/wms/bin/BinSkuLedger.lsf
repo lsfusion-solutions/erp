@@ -4,31 +4,18 @@ REQUIRE SkuLedger, BinLedger;
 
 NAMESPACE Bin;
 
-currentBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
-    [GROUP SUM currentBalance(Sku sku1, Bin b) BY sku1, stock(b)](sku, st);
-prevCurrentBalanceBin 'Текущий остаток в ячейках' (Sku sku, Stock st)=
-    [GROUP SUM prevCurrentBalance(Sku sku1, Bin b) BY sku1, stock(b)](sku, st);
-balanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
-    [GROUP SUM balanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
-prevBalanceBinB 'Остаток в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
-    [GROUP SUM prevBalanceB(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
-balanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
-    [GROUP SUM balanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
-prevBalanceBinA 'Остаток в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
-    [GROUP SUM prevBalanceA(Sku sku1, Bin b, DATETIME dateTime1) BY sku1, stock(b), dateTime1](sku, st, dateTime);
-
 currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
-    currentBalanceBin(sku, st) (-) currentBalance(sku, st);
+    currentBalanceSku(sku, st) (-) currentBalance(sku, st);
 prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Sku sku, Stock st)=
-    prevCurrentBalanceBin(sku, st) (-) prevCurrentBalance(sku, st);
+    prevCurrentBalanceSku(sku, st) (-) prevCurrentBalance(sku, st);
 diffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
-    balanceBinB(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
+    balanceBSku(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
 prevDiffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
-    prevBalanceBinB(sku, st,dateTime) (-) prevBalanceB(sku, st,dateTime);
+    prevBalanceBSku(sku, st,dateTime) (-) prevBalanceB(sku, st,dateTime);
 diffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
-    balanceBinA(sku, st,dateTime) (-) balanceA(sku, st,dateTime);
+    balanceASku(sku, st,dateTime) (-) balanceA(sku, st,dateTime);
 prevDiffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
-    prevBalanceBinA(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
+    prevBalanceASku(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
 
 FORM currentBalanceBinSkuStock 'Сравнение остатков товаров по ячейкам и складу'
 
@@ -53,7 +40,7 @@ FORM currentBalanceBinSkuStock 'Сравнение остатков товаро
         FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
         FILTER 'Неактивный' inactive(s) 'shift F10'
 
-    PROPERTIES(s, st) READONLY currentBalance, currentBalanceBin, currentDiffBalanceBin, currentSum
+    PROPERTIES(s, st) READONLY currentBalance, currentBalanceSku, currentDiffBalanceBin, currentSum
     PROPERTIES(s)     READONLY idSkuGroup, canonicalNameSkuGroup
 
     FILTERGROUP container
@@ -61,10 +48,10 @@ FORM currentBalanceBinSkuStock 'Сравнение остатков товаро
         FILTER 'Тара' isContainer(s)
 
     FILTERGROUP filters
-        FILTER 'Товары с остатком' currentBalance(s, st) OR currentSum(s, st) OR currentBalanceBin(s, st) 'F10' 
-        FILTER 'Товары с расхождением между по остаткам на складе и в ячейках ' (currentBalance(s, st) OR currentBalanceBin(s, st)) AND NOT currentBalance(s, st) = currentBalanceBin(s, st) 'F11' DEFAULT
+        FILTER 'Товары с остатком' currentBalance(s, st) OR currentSum(s, st) OR currentBalanceSku(s, st) 'F10' 
+        FILTER 'Товары с расхождением между по остаткам на складе и в ячейках ' (currentBalance(s, st) OR currentBalanceSku(s, st)) AND NOT currentBalance(s, st) = currentBalanceSku(s, st) 'F11' DEFAULT
         FILTER 'Товары с остатком по складу' currentBalance(s, st) 
-        FILTER 'Товары с остатком по ячейкам' currentBalanceBin(s, st) 
+        FILTER 'Товары с остатком по ячейкам' currentBalanceSku(s, st) 
 
         FILTER 'Товары с движением не позднее 1 дня' currentBalance(s, st, 1) 'F9'
         FILTER 'Товары с движением не позднее 7 дней' currentBalance(s, st, 7) 'F8'

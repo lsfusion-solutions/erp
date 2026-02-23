@@ -122,7 +122,9 @@ prevCurrentBalance 'Текущий остаток в ячейке' (Sku sku, Bin
 
 prevCurrentBalance 'Текущий остаток в ячейке' = GROUP SUM prevCurrentBalance(Sku sku, Bin bin) BY bin;
 
-currentBalanceSku 'Текущий остаток всех ячеек' = GROUP SUM currentBalance(Sku sku, Bin bin) BY sku, stock(bin);
+currentBalanceSku 'Текущий остаток всех ячеек' = 
+    GROUP SUM currentBalance(Sku sku, Bin bin) BY sku, stock(bin);
+prevCurrentBalanceSku 'Текущий остаток всех ячеек' (Sku sku, Stock stock) = PREV(currentBalanceSku(sku, stock));
 
 balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, date) (+) outBinTotalA(sku, bin, date);
@@ -132,10 +134,18 @@ balanceB 'Остаток в ячейке (до)' (Sku sku, Bin bin, DATETIME dat
                                                                  inBinTotalB(sku, bin, dateTime) (+) outBinTotalB(sku, bin, dateTime);
 prevBalanceB 'Остаток (до)' (Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceB(sku, bin, dateTime) IF dateTime IS DATETIME);
 
+balanceBSku 'Остаток всех ячеек (до)' =
+    GROUP SUM balanceB(Sku sku, Bin bin, DATETIME dateTime) BY sku, stock(bin), dateTime;
+prevBalanceBSku 'Остаток всех ячеек (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceBSku(sku, stock, dateTime));
+
 // с учетом текущей даты/времени
 balanceA 'Остаток в ячейке (после)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
 prevBalanceA 'Остаток в ячейке (после)'(Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceA(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+balanceASku 'Остаток всех ячеек (после)' =
+    GROUP SUM balanceA(Sku sku, Bin bin, DATETIME dateTime) BY sku, stock(bin), dateTime;
+prevBalanceASku 'Остаток всех ячеек (после)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceASku(sku, stock, dateTime));
 
 currentBalance 'Текущий остаток в группе ячеек' (Sku sku, BinGroup bg)=
     [GROUP SUM currentBalance(Sku sku1, Bin b) IF isParent(BinGroup bg1, b) BY sku1, bg1](sku, bg);

@@ -84,7 +84,9 @@ prevCurrentBalance 'Текущий остаток в ячейке' (Batch batch,
 
 prevCurrentBalanceBatch 'Текущий остаток в ячейке' = GROUP SUM prevCurrentBalance(Batch batch, Bin bin) BY bin;
 
-currentBalanceBatch 'Текущий остаток всех ячеек' = GROUP SUM currentBalance(Batch batch, Bin bin) BY batch, stock(bin);
+currentBalanceBatch 'Текущий остаток всех ячеек' = 
+    GROUP SUM currentBalance(Batch batch, Bin bin) BY batch, stock(bin);
+prevCurrentBalanceBatch 'Текущий остаток всех ячеек' (Batch batch, Stock stock) = PREV(currentBalanceBatch(batch, stock)); 
 
 balanceA 'Остаток в ячейке на конец дня' (Batch batch, Bin bin, DATE date) = currentBalance(batch, bin) (-)
     inBinTotalA(batch, bin, date) (+) outBinTotalA(batch, bin, date);
@@ -94,10 +96,18 @@ balanceB 'Остаток в ячейке (до)' (Batch batch, Bin bin, DATETIME
     inBinTotalB(batch, bin, dateTime) (+) outBinTotalB(batch, bin, dateTime);
 prevBalanceB 'Остаток (до)' (Batch batch, Bin bin, DATETIME dateTime) = PREV(balanceB(batch, bin, dateTime) IF dateTime IS DATETIME);
 
+balanceBBatch 'Остаток всех ячеек (до)' =
+    GROUP SUM balanceB(Batch batch, Bin bin, DATETIME dateTime) BY batch, stock(bin), dateTime;
+prevBalanceBBatch 'Остаток всех ячеек (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(balanceBBatch(batch, stock, dateTime));
+
 // с учетом текущей даты/времени
 balanceA 'Остаток в ячейке (после)' (Batch batch, Bin bin, DATETIME dateTime) = currentBalance(batch, bin) (-)
     inBinTotalA(batch, bin, dateTime) (+) outBinTotalA(batch, bin, dateTime);
 prevBalanceA 'Остаток в ячейке (после)'(Batch batch, Bin bin, DATETIME dateTime) = PREV(balanceA(batch, bin, dateTime) IF dateTime IS DATETIME);
+
+balanceABatch 'Остаток всех ячеек (после)' =
+    GROUP SUM balanceA(Batch batch, Bin bin, DATETIME dateTime) BY batch, stock(bin), dateTime;
+prevBalanceABatch 'Остаток всех ячеек (после)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(balanceABatch(batch, stock, dateTime));
 
 currentBalance 'Текущий остаток в группе ячеек' (Batch batch, BinGroup bg)=
     [GROUP SUM currentBalance(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);

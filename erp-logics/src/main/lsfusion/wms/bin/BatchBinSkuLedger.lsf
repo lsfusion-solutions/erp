@@ -4,37 +4,21 @@ REQUIRE BinSkuLedger, BatchBinLedger, PriceListLedgerAccount;
 
 NAMESPACE Bin;
 
-currentBalanceBin 'Текущий остаток в ячейках' (Batch batch, Stock st)=
-    [GROUP SUM currentBalance(Batch batch1, Bin b) BY batch1, stock(b)](batch, st);
-prevCurrentBalanceBin 'Текущий остаток в ячейках' (Batch batch, Stock st)=
-    [GROUP SUM prevCurrentBalance(Batch batch1, Bin b) BY batch1, stock(b)](batch, st);
-balanceBinB 'Остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
-    [GROUP SUM balanceB(Batch batch1, Bin b, DATETIME dateTime1) BY batch1, stock(b), dateTime1](batch, st, dateTime);
-prevBalanceBinB 'Остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
-    [GROUP SUM prevBalanceB(Batch batch1, Bin b, DATETIME dateTime1) BY batch1, stock(b), dateTime1](batch, st, dateTime);
-balanceBinA 'Остаток в ячейках (после)' (Batch batch, Stock st, DATETIME dateTime)=
-    [GROUP SUM balanceA(Batch batch1, Bin b, DATETIME dateTime1) BY batch1, stock(b), dateTime1](batch, st, dateTime);
-prevBalanceBinA 'Остаток в ячейках (после)' (Batch batch, Stock st, DATETIME dateTime)=
-    [GROUP SUM prevBalanceA(Batch batch1, Bin b, DATETIME dateTime1) BY batch1, stock(b), dateTime1](batch, st, dateTime);
 diffBalanceBinA 'Расхождение по остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
-    balanceBinA(batch, st,dateTime) (-) balanceA(batch, st,dateTime);
+    balanceABatch(batch, st, dateTime) (-) balanceA(batch, st, dateTime);
 prevDiffBalanceBinA 'Расхождение по остаткам в ячейках (после)' (Batch batch, Stock st, DATETIME dateTime)=
-    prevBalanceBinA(batch, st,dateTime) (-) prevBalanceB(batch, st,dateTime);
+    prevBalanceABatch(batch, st, dateTime) (-) prevBalanceB(batch, st, dateTime);
 
 currentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
-    currentBalanceBin(batch, st) (-) currentBalance(batch, st);
+    currentBalanceBatch(batch, st) (-) currentBalance(batch, st);
 prevCurrentDiffBalanceBin 'Расхождение по остаткам в ячейках' (Batch batch, Stock st)=
-    prevCurrentBalanceBin(batch, st) (-) prevCurrentBalance(batch, st);
+    prevCurrentBalanceBatch(batch, st) (-) prevCurrentBalance(batch, st);
 diffBalanceBinB 'Расхождение по остаткам в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
-    balanceBinB(batch, st,dateTime) (-) balanceB(batch, st,dateTime);
+    balanceBBatch(batch, st, dateTime) (-) balanceB(batch, st, dateTime);
 prevDiffBalanceBinB 'Остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
-    prevBalanceBinB(batch, st,dateTime) (-) prevBalanceB(batch, st,dateTime);
-
-balanceBBatch 'Остаток в ячейке (до)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceB(Batch batch, bin, dateTime);
-balanceABatch 'Остаток в ячейке (после)' (Bin bin, DATETIME dateTime) = GROUP SUM balanceA(Batch batch, bin, dateTime);
+    prevBalanceBBatch(batch, st, dateTime) (-) prevBalanceB(batch, st, dateTime);
 
 FORM currentBalanceBinBatchStock 'Сравнение остатков партий по ячейкам и складу'
-
     OBJECTS ss = Stock PANEL
     PROPERTIES(ss) name SELECTOR
     FILTERS isCompany(ss),
@@ -47,7 +31,7 @@ FORM currentBalanceBinBatchStock 'Сравнение остатков парти
 
     OBJECTS stb=(st=Stock, bt=Batch)
     PROPERTIES READONLY BACKGROUND backgroundBatch(st, bt) nameSku(bt)
-    PROPERTIES READONLY currentBalance(bt, st), currentBalanceBin(bt, st), currentDiffBalanceBin(bt, st), sumB(bt, st)
+    PROPERTIES READONLY currentBalance(bt, st), currentBalanceBatch(bt, st), currentDiffBalanceBin(bt, st), sumB(bt, st)
     PROPERTIES(bt) READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
     FILTERS isParent(sk, bt),
             st == ss
@@ -60,10 +44,10 @@ FORM currentBalanceBinBatchStock 'Сравнение остатков парти
         FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, currentDate(), 30) 
 
     FILTERGROUP filterBalance
-        FILTER 'Партии с остатком' currentBalance(bt, st) OR sumB(bt, st) OR currentBalanceBin(bt, st) 'F10'
-        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (currentBalance(bt, st) OR currentBalanceBin(bt, st)) AND NOT currentBalance(bt, st) = currentBalanceBin(bt, st)  'F11' DEFAULT 
+        FILTER 'Партии с остатком' currentBalance(bt, st) OR sumB(bt, st) OR currentBalanceBatch(bt, st) 'F10'
+        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (currentBalance(bt, st) OR currentBalanceBatch(bt, st)) AND NOT currentBalance(bt, st) = currentBalanceBatch(bt, st)  'F11' DEFAULT 
         FILTER 'Партии с движением по складу' countLedger(bt, st)
-        FILTER 'Партии с остатком по ячейкам' currentBalanceBin(bt, st)        
+        FILTER 'Партии с остатком по ячейкам' currentBalanceBatch(bt, st)        
         FILTER 'Партии пришедшие за последний 1 день' dateTime(bt) >= subtractSeconds(currentDateTime(), 1) 'F10'
         FILTER 'Партии пришедшие за последние 7 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 7) 'F9'
         FILTER 'Партии пришедшие за последние 30 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 30) 'F8'
