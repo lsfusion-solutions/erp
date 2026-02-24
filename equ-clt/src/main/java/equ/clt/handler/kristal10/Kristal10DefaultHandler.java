@@ -340,13 +340,22 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
         }
 
         List<String> deleteBarcodeList = new ArrayList<>();
-        if(deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
-            for(Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
-                if(entry.getValue().equals(idItem)){
+        deleteBarcodeLogger.info("TMP: createBarcodeElement for item " + idItem);
+        if (deleteBarcodeMap != null && deleteBarcodeMap.containsValue(idItem)) {
+            deleteBarcodeLogger.info("TMP: item found in deleteBarcodeMap values");
+            for (Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
+                if (entry.getValue().equals(idItem)) {
                     deleteBarcodeList.add(entry.getKey());
+                    deleteBarcodeLogger.info("TMP: key is " + entry.getKey());
                 }
             }
+            deleteBarcodeLogger.info("TMP: adding to usedDeleteBarcodes " + item.idBarcode);
             usedDeleteBarcodes.barcodes.add(item.idBarcode);
+        } else if (deleteBarcodeMap != null) {
+            deleteBarcodeLogger.info("TMP: item NOT found in deleteBarcodeMap values");
+            for (Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
+                deleteBarcodeLogger.info("TMP: deleteBarcodeMap key " + entry.getKey() + "value " + entry.getValue());
+            }
         }
 
         for(String deleteBarcode : deleteBarcodeList) {
