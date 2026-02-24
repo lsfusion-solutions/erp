@@ -11,6 +11,9 @@ NAMESPACE Bin;
 disparityOperation = DATA Disparity.Operation ();
 nameDisparityOperation 'Операция изменения сортности в карантине' = name(disparityOperation());
 
+quarantineOperation = DATA Bin.Operation ();
+nameQuarantineOperation 'Операция помещения в карантин' = name(quarantineOperation());
+
 quarantineReturnOperation = DATA Bin.Operation ();
 nameQuarantineReturnOperation 'Операция возврата с карантина' = name(quarantineReturnOperation());
 
@@ -78,6 +81,10 @@ quarantineReturn 'Вернуть из карантина' () {
     }    
 }
 
+overFillUserBinTransfer(UserBinTransfer t) + {
+    isClosed(UserBinOrder o) <- TRUE WHERE binOrder(t)==o AND (operation(t)==quarantineOperation() OR operation(t)==quarantineReturnOperation());
+}
+
 FORM quarantineDashboard 'Карантин'
     PROPERTIES() filterBinOrderDateFrom, filterBinOrderDateTo, nameFilterBinOrderStock, nameFilterBinOrderCustomUser, nameFilterBinOrderComputer
 
@@ -90,8 +97,10 @@ FORM quarantineDashboard 'Карантин'
     PROPERTIES (o) PANEL moveUserBinTransfer SHOWIF NOT binTransfers(o), copy 
     PROPERTIES (o) close[UserBinOrder] SHOWIF isOpened[UserBinOrder](o), open SHOWIF isClosed[UserBinOrder](o)
     PROPERTIES NEWSESSION deleteo=DELETE(o) SHOWIF overShowDelete(o)
-    FILTERS quarantine(operation(o))
-    FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
+    FILTERS quarantine(operation(o)),
+        filterDateFrom(o), 
+        filterDateTo(o), 
+        filterStock(o)
     
     OBJECTS d = BinOrderDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameOutBin, nameInBin, quantity, grossWeight, balanceB
@@ -226,3 +235,9 @@ NAVIGATOR {
         NEW quarantineDashboard;
     }
 }
+
+@defineFilterIsOpened (binOrder, quarantineDashboard, o);
+
+EXTEND FORM quarantineDashboard
+    FILTERGROUP isOpenedBinTransfer FILTER 'Открыт' isOpened(t) DEFAULT
+;  
