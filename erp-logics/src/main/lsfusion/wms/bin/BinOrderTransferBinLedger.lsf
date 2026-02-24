@@ -148,6 +148,7 @@ moveUserBinTransfer 'Перемещение' (BinOrder binOrder)  {
                 overFillUserBinTransfer(d, detail);
             }
             overFillUserBinTransfer(p);
+            isClosed(binOrder) <- TRUE;
             SHOW userBinTransfer OBJECTS o=p DOCKED;
         }
     }
@@ -188,8 +189,7 @@ META  binOrderTransferAggregation(prefix, binType)
         WHERE cancelTransferBinOrderAuto(BinOrder binOrder)
             AND NOT skip###prefix###binType##BinOrderTransferAggregation()
             AND (quantityBinTransfers(binOrder)>0 OR isClosed(binOrder))
-            AND quantity###binType##BinOrderDetail(###prefix prefix, Bin bin, binOrder)
-            AND diffQuantity###binType##BinTranferDetail(prefix, bin, binOrder) 
+            AND diffQuantity###binType##BinTranferDetail(###prefix prefix, Bin bin, binOrder) 
         MATERIALIZED;
     
     dateTime(###prefix###binType##BinOrderTransferAggregation ledger) += OVERRIDE [GROUP MAX dateTime(BinTransfer td) BY binOrder(td)](binOrder(ledger)),
