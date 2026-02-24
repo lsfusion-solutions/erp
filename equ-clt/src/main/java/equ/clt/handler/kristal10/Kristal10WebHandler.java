@@ -205,12 +205,20 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     processTransactionLogger.error(getLogPrefix() + response);
                     result.put(usedTransaction.id, new SendTransactionBatch(new RuntimeException(response)));
                 } else {
+
+                    deleteBarcodeLogger.info("TMP: deleteBarcode for transaction " + usedTransaction.id);
+
                     DeleteBarcode deleteBarcodes = usedDeleteBarcodeTransactionMap.get(usedTransaction.id);
                     if (deleteBarcodes != null) {
                         for (String b : deleteBarcodes.barcodes) {
                             Map<String, String> deleteBarcodesEntry = deleteBarcodeDirectoryMap.get(deleteBarcodes.directory);
                             deleteBarcodesEntry.remove(b);
                             deleteBarcodeDirectoryMap.put(deleteBarcodes.directory, deleteBarcodesEntry);
+                        }
+
+                        deleteBarcodeLogger.info("TMP: group/directory " + deleteBarcodes.nppGroupMachinery + "/" + deleteBarcodes.directory);
+                        for(String b : deleteBarcodes.barcodes) {
+                            deleteBarcodeLogger.info("TMP: " + b);
                         }
                     }
                     result.put(usedTransaction.id, new SendTransactionBatch(null, null, deleteBarcodes == null ? null : deleteBarcodes.nppGroupMachinery, deleteBarcodes == null ? null : deleteBarcodes.barcodes, null));
@@ -489,8 +497,6 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
                         String idBarcode = transformBarcode(item.idBarcode, skipWeightPrefix);
                         deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);
-                        //todo: remove temp log
-                        deleteBarcodeLogger.info("TMP: " + item.idBarcode + " -> " + (idItemInMarkingOfTheGood ? item.idItem : idBarcode) + "(" + idItemInMarkingOfTheGood + ")");
                     }
                 }
                 if (!deleteBarcodeSet.isEmpty())
