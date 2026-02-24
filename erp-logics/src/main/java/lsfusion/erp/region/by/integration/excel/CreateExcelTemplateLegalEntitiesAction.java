@@ -17,7 +17,7 @@ public class CreateExcelTemplateLegalEntitiesAction extends CreateExcelTemplateA
     @Override
     public Pair<String, RawFileData> createFile() throws IOException, WriteException {
         return createFile("importLegalEntitiesTemplate",
-                Arrays.asList("Код организации", "Код группы организаций", "Название", "Адрес", "Телефон", "E-mail", "Рассчётный счёт",
+                Arrays.asList("Код организации", "Код группы организаций", "Название", "Адрес", "Телефон", "E-mail", "Расчётный счёт",
                         "Код банка", "Страна", "Является поставщиком", "Является компанией", "Является покупателем", "УНП", "ОКПО"),
                 Arrays.asList(
                         Arrays.asList("ПС0010325", "Поставщики", "Добрый день ООО", "ЛИДА,СОВЕТСКАЯ, 24,231300",
