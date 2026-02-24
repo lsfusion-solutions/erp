@@ -489,6 +489,8 @@ public class Kristal10WebHandler extends Kristal10DefaultHandler {
                     if (!deleteBarcodeSet.containsKey(item.idBarcode)) {
                         String idBarcode = transformBarcode(item.idBarcode, skipWeightPrefix);
                         deleteBarcodeSet.put(item.idBarcode, idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+                        //todo: remove temp log
+                        deleteBarcodeLogger.info("TMP: " + item.idBarcode + " -> " + (idItemInMarkingOfTheGood ? item.idItem : idBarcode) + "(" + idItemInMarkingOfTheGood + ")");
                     }
                 }
                 if (!deleteBarcodeSet.isEmpty())
