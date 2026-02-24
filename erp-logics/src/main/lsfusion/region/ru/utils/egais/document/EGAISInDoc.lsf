@@ -13,6 +13,7 @@ nameUtm 'УТМ' (InDoc d) = name(utm(d));
 outDoc = DATA OutDoc (InDoc) INDEXED;
 idOutDoc 'Исходящий документ' (InDoc d) = id(outDoc(d));
 countInDocs 'Входящие документы' (OutDoc d) = GROUP SUM 1 IF outDoc(InDoc i) = d MATERIALIZED;
+replyId 'replyId' = DATA STRING(InDoc) CHARWIDTH 15;
 
 docType = DATA DocType (InDoc) INDEXED;
 idDocType 'Код типа' (InDoc d) = id(docType(d));
@@ -40,7 +41,7 @@ DESIGN inDoc {
 
 FORM inDocs 'Входящие документы'
     OBJECTS d = InDoc
-    PROPERTIES(d) READONLYIF isReadonly() nameUtm, idOutDoc, idDocType, nameDocType, dateTime, url, document PANEL
+    PROPERTIES(d) READONLYIF isReadonly() nameUtm, idOutDoc, idDocType, nameDocType, dateTime, url, replyId, document PANEL
     PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
 ;
 
@@ -164,6 +165,7 @@ getInDocs 'Получить входящие документы' (UTM u) {
                 NEW d = InDoc {
                     utm(d) <- u;
                     outDoc(d) <- outDoc(replyId(i));
+                    replyId(d) <- replyId(i);
                     docType(d) <- docType(i);
                     url(d) <- url(i);
                     document(d) <- resultString();
