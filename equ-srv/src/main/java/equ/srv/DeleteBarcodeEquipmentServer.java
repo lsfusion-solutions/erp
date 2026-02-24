@@ -139,6 +139,7 @@ class DeleteBarcodeEquipmentServer {
         try (DataSession session = server.createSession()) {
             ServerLoggers.importLogger.info("succeedDeleteBarcode for nppGroupMachinery " + nppGroupMachinery);
             for (String barcode : deleteBarcodeSet) {
+                ServerLoggers.importLogger.info("barcode " + barcode);
                 deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER, STRING[28]]").execute(session, stack, new DataObject(nppGroupMachinery), new DataObject(barcode));
             }
             session.applyException(BL, stack);

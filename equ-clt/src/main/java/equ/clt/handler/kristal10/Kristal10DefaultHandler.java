@@ -348,14 +348,12 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
                     deleteBarcodeList.add(entry.getKey());
                     deleteBarcodeLogger.info("TMP: key is " + entry.getKey());
                 }
+                deleteBarcodeLogger.info("TMP: adding to usedDeleteBarcodes " + entry.getKey());
+                usedDeleteBarcodes.barcodes.add(entry.getKey());
             }
-            deleteBarcodeLogger.info("TMP: adding to usedDeleteBarcodes " + item.idBarcode);
-            usedDeleteBarcodes.barcodes.add(item.idBarcode);
         } else if (deleteBarcodeMap != null) {
             deleteBarcodeLogger.info("TMP: item NOT found in deleteBarcodeMap values");
-            for (Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
-                deleteBarcodeLogger.info("TMP: deleteBarcodeMap key " + entry.getKey() + "value " + entry.getValue());
-            }
+            deleteBarcodeLogger.info("TMP: deleteBarcodeMap " + deleteBarcodeMap);
         }
 
         for(String deleteBarcode : deleteBarcodeList) {
