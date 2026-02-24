@@ -51,9 +51,13 @@ process (Ticket t) + {
     IF docType(t) = 'ActWriteOff' OR docType(t) = 'ActWriteOff_v3' OR docType(t) = 'ActWriteOff_v4' THEN {
         IF operationName(t) = 'Confirm' AND operationResult(t) = 'Accepted' THEN {
             posted(actWriteOff(outDoc(t))) <- TRUE;
+            canceled(actWriteOff(outDoc(t))) <- NULL;
         }
-        IF operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected' THEN {
+        IF ((operationName(t) = 'Confirm' AND operationResult(t) = 'Rejected') OR conclusion(t)=='Rejected') THEN {
             canceled(actWriteOff(outDoc(t))) <- TRUE;
+        }
+        IF (conclusion(t)=='Accepted') THEN {
+            canceled(actWriteOff(outDoc(t))) <- NULL;
         }
         processed() <- TRUE;
     }
