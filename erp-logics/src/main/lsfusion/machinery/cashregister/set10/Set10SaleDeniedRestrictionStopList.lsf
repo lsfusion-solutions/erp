@@ -11,17 +11,17 @@ EXTEND FORM saleDeniedRestrictions
     PROPERTIES (r) READONLY seriesNumberStopList, excludeStopList
 ;
 
-needGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND NOT exclude(d);
-prevNeedGreate(StopListDetail d, Stock st)= PREV(needGreate(d,st));
+needCreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND NOT exclude(d);
+prevNeedCreate(StopListDetail d, Stock st)= PREV(needCreate(d,st));
 
 saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d),sku(d),stock(d);
 saleDeniedRestriction(StopListDetail d, Stock st) = saleDeniedRestriction(d,sku(d),st);
 saleDeniedRestriction = GROUP MAX SaleDeniedRestriction d BY stopListDetail(d);
 prevSaleDeniedRestriction(StopListDetail d) = PREV(saleDeniedRestriction(d));
 
-skipGreateStopList = DATA BOOLEAN ();
+skipCreateStopList = DATA BOOLEAN ();
 
-WHEN SET(needGreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) AND NOT skipGreateStopList() DO {
+WHEN SET(needCreate(StopListDetail d, Stock st)) AND NOT saleDeniedRestriction(d, st) AND NOT skipCreateStopList() DO {
     NEW detail = SaleDeniedRestriction{
         stopListDetail(detail) <- d;
         sku(detail) <- sku(d);
@@ -34,10 +34,10 @@ skipCheckSku = DATA BOOLEAN () PREREAD;
 
 skipDelete(StopListDetail d) += TRUE IF saleDeniedRestriction(d);
 
-isGreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND saleDeniedRestriction(d,st);
-prevIsGreate(StopListDetail d, Stock st)= PREV(isGreate(d,st));
+isCreate (StopListDetail d, Stock st) = in(st, stopList(d)) AND isPosted(d) AND sku(d) AND saleDeniedRestriction(d,st);
+prevIsCreate(StopListDetail d, Stock st)= PREV(isCreate(d,st));
 
-CONSTRAINT DROPPED(isGreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevIsGreate(d,st) AND NOT skipCheckSku()
+CONSTRAINT DROPPED(isCreate(StopListDetail d AS StopListDetail, Stock st)) AND st IS Stock AND prevIsCreate(d,st) AND NOT skipCheckSku()
     MESSAGE 'Запрещено изменять/удалять строки или склады в документе "Запрет продаж по кассе", так как он выгружен в СЕТ.';
 
 skipUseSaleDeniedRestrictionsMigrate() {
@@ -100,7 +100,7 @@ afterExportTransaction(MachineryPriceTransaction t) +{
     }
 }
 
-WHEN [GROUP SUM 1 IF DROPPED(inStopList (Sku sku, Stock stock, currentDateTime())) AND active(sku) AND active(stock) BY stock](Stock stock) AND NOT skipGreateStopList() DO {
+WHEN [GROUP SUM 1 IF DROPPED(inStopList (Sku sku, Stock stock, currentDateTime())) AND active(sku) AND active(stock) BY stock](Stock stock) AND NOT skipCreateStopList() DO {
     select(Sku sku) <- NULL;
     select(Sku sku) <- TRUE WHERE DROPPED(inStopList (sku, stock, currentDateTime())) AND active(sku);
     IF (GROUP SUM 1 IF select(Sku sku)) THEN {
