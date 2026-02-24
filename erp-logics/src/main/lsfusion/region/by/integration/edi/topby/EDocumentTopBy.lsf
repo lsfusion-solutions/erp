@@ -1,6 +1,6 @@
 MODULE EDocumentTopBy;
 
-REQUIRE EDocumentEDSTopBy, CTT;
+REQUIRE EDocumentEDSTopBy;
 
 NAMESPACE EDI;
 
@@ -534,7 +534,6 @@ signAndSendSenderEDocument (EDocument ed, STRING[100] login, STRING[100] passwor
 }
 
 GROUP receiver1 EXTID 'receiver';
-id = DATA LOCAL STRING ();
 documentID1 = DATA LOCAL STRING();
 creationDateTime1 = DATA LOCAL STRING ();
 
@@ -544,22 +543,6 @@ FORM exportBlrdocJSON
         idFunctionCode EXTID 'functionCode', idRoute EXTID 'route'
     PROPERTIES IN receiver1 id = id(receiver(d), sender(d))
     PROPERTIES (d) IN receiver1 nameReceiver EXTID 'name', glnReceiver EXTID 'gln', unpReceiver EXTID 'unp'
-;
-
-xmlBody = DATA LOCAL STRING();
-xmlByteDate = DATA LOCAL STRING(INTEGER);
-errorDescription = DATA LOCAL STRING();
-xmlBase64 = DATA LOCAL STRING();
-documentId = DATA LOCAL STRING();
-publicId = DATA LOCAL STRING();
-successful = DATA LOCAL BOOLEAN();
-
-FORM importSignDoc
-    PROPERTIES() xmlBody, errorDescription, documentType, xmlBase64, documentId, id, publicId, subjectName, successful
-
-    OBJECTS xmlByteDate = INTEGER
-    PROPERTIES(xmlByteDate) xmlByteDate EXTID 'value'
-    FILTERS imported(xmlByteDate)
 ;
 
 GROUP sender1 EXTID 'sender';
@@ -615,32 +598,35 @@ signAndSendSenderEDocumentV2(EDocument d, LegalEntity le, STRING[100] outputDir,
 
                         //Получить id reciever'a
                         IF NOT id(receiver(d), sender(d)) THEN {
-                            EXPORT JSON FROM unp = UNP(receiver(d)), status = 'ACTIVE';
+                            EXPORT JSON FROM gln = glnReceiver(d), unp = unpReceiver(d), status = 'ACTIVE';
                             EXTERNAL HTTP POST url(profile(sender(d))) + 'organization/partners/list' HEADERS headers PARAMS exportFile() TO result;
                             IMPORT JSON FROM result() TO id = id;
 
                             id(receiver(d), sender(d)) <- id(0);
                         }
 
-                        EXPORT exportBlrdocJSON OBJECTS d = d JSON;
-                        EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC' HEADERS headers PARAMS exportFile() TO result;
+                        IF NOT id(d) THEN {
+                            EXPORT exportBlrdocJSON OBJECTS d = d JSON;
+                            EXTERNAL HTTP POST url(profile(sender(d))) + 'BLRDOC' HEADERS headers PARAMS exportFile() TO result;
 
-                        IMPORT importBlrdoc FROM result();
-                        id(d) <- id();
-                        documentID(d) <- documentID1();
-                        creationDateTime(d) <- DATETIME(creationDateTime1());
-                        dateTimeCreated(d) <- DATETIME(creationDateTime1());
-                        eDocumentStatus(d) <- name1();
-                        type(d) <- codeDocumentType(d);
+                            IMPORT importBlrdoc FROM result();
+                            id(d) <- id();
+                            documentID(d) <- documentID1();
+                            creationDateTime(d) <- DATETIME(creationDateTime1());
+                            dateTimeCreated(d) <- DATETIME(creationDateTime1());
+                            eDocumentStatus(d) <- name1();
+                            type(d) <- codeDocumentType(d);
 
-                        exportBlrdocDateTime() <- currentDateTimeMillis();
-                        toMilliseconds(exportBlrdocDateTime());
-                        name() <- 'blrdoc-' + toChar(exportBlrdocDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
-                        documentType() <- 'BLRDOC';
-                        IF outputDir THEN {
-                            TRY { mkdir(outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd')); }
-                            WRITE exportFile() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + name();
+                            exportBlrdocDateTime() <- currentDateTimeMillis();
+                            toMilliseconds(exportBlrdocDateTime());
+                            name() <- 'blrdoc-' + toChar(exportBlrdocDateTime(), 'YYYY-MM-DD-HH24-MI-SS-MS');
+                            documentType() <- 'BLRDOC';
+                            IF outputDir THEN {
+                                TRY { mkdir(outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd')); }
+                                WRITE exportFile() TO outputDir + '/sent/documents/' + toChar(currentDate(), 'yyyyMMdd') + '/' + name();
+                            }
                         }
+
                         LOCAL base64File = STRING ();
                         base64File() <- encode(file(d), 'base64');
 

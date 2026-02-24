@@ -1,17 +1,17 @@
 MODULE EDocumentEDSTopBy;
 
-REQUIRE EDocumentEDS, EDSTopBy;
+REQUIRE EDocumentEDS, EDSTopBy, EDSCTT;
 
 NAMESPACE EDI;
 
-aliasEDSServiceSender (EDocument d) = OVERRIDE aliasEDSService(currentUser()), aliasEDSService(sender(d));
-passwordEDSServiceSender (EDocument d) = OVERRIDE passwordEDSService(currentUser()), passwordEDSService(sender(d));
+aliasEDSServiceSender (EDocument d) = OVERRIDE aliasEDSService(profile(sender(d))) IF useProfileKey(profile(sender(d))), aliasEDSService(currentUser()), aliasEDSService(sender(d));
+passwordEDSServiceSender (EDocument d) = OVERRIDE passwordEDSService(profile(sender(d))) IF useProfileKey(profile(sender(d))), passwordEDSService(currentUser()), passwordEDSService(sender(d));
 
-aliasEDSServiceReceiver (EDocument d) = OVERRIDE aliasEDSService(currentUser()), extraAliasEDSService(receiver(d)) IF useExtraAlias(receiver(d)), aliasEDSService(receiver(d));
-passwordEDSServiceReceiver (EDocument d) = OVERRIDE passwordEDSService(currentUser()), extraPasswordEDSService(receiver(d)) IF useExtraAlias(receiver(d)), passwordEDSService(receiver(d));
+aliasEDSServiceReceiver (EDocument d) = OVERRIDE aliasEDSService(profile(receiver(d))) IF useProfileKey(profile(receiver(d))), aliasEDSService(currentUser()), extraAliasEDSService(receiver(d)) IF useExtraAlias(receiver(d)), aliasEDSService(receiver(d));
+passwordEDSServiceReceiver (EDocument d) = OVERRIDE passwordEDSService(profile(receiver(d))) IF useProfileKey(profile(receiver(d))), passwordEDSService(currentUser()), extraPasswordEDSService(receiver(d)) IF useExtraAlias(receiver(d)), passwordEDSService(receiver(d));
 
-EDSServiceSenderTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(sender(d));
-EDSServiceReceiverTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(currentUser()), EDSServiceTopBy(receiver(d));
+EDSServiceSenderTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(profile(sender(d))) IF useProfileKey(profile(sender(d))), EDSServiceTopBy(currentUser()), EDSServiceTopBy(sender(d));
+EDSServiceReceiverTopBy (EDocument d) = OVERRIDE EDSServiceTopBy(profile(receiver(d))) IF useProfileKey(profile(receiver(d))), EDSServiceTopBy(currentUser()), EDSServiceTopBy(receiver(d));
 
 EDSServiceSender(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceSenderTopBy(d);
 EDSServiceReceiver(STRING[100] provider, EDocument d) += WHEN provider == 'TopBy' AND d IS EDocument THEN EDSServiceReceiverTopBy(d);

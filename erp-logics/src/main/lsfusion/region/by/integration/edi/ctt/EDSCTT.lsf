@@ -1,0 +1,45 @@
+MODULE EDSCTT;
+
+REQUIRE EDS, CTT, SCCryptoProxy;
+
+NAMESPACE EDI;
+
+GROUP key 'Ключ';
+aliasEDSService 'Контейнер ключа' = DATA STRING[150] (Profile) IN key;
+passwordEDSService 'Пароль ключа' = DATA STRING[100] (Profile) ECHO IN key;
+edsFrom 'Действителен с' = DATA DATETIME (Profile) IN key;
+edsTo 'Действителен по' = DATA DATETIME (Profile) IN key;
+
+EDSServiceTopBy 'Адрес службы ЭЦП' = DATA EDSService (Profile);
+descriptionEDSServiceTopBy 'Адрес службы ЭЦП' (Profile p) = description(EDSServiceTopBy(p)) IN key;
+CONSTRAINT EDSServiceTopBy(Profile o) AND NOT edsApplication(EDSServiceTopBy(o)) = EDSApplication.sccp
+    CHECKED BY EDSServiceTopBy[Profile]
+    MESSAGE 'Задан тип приложения ЭЦП недоступный для провайдера';
+
+changeAlias 'Получить список ключей' (Profile p) {
+    listAliases(EDSServiceTopBy(p));
+    IF selected() THEN {
+        aliasEDSService(p) <- alias(selected());
+        edsFrom(p) <- notBeforeISO8601(selected());
+        edsTo(p) <- notAfterISO8601(selected());
+    }
+} TOOLBAR;
+
+EXTEND FORM profile
+    PROPERTIES (p) descriptionEDSServiceTopBy, aliasEDSService, passwordEDSService, edsFrom, edsTo
+    PROPERTIES (p) changeAlias SHOWIF edsApplication(EDSServiceTopBy(p)) == EDSApplication.sccp
+;
+
+DESIGN profile {
+    OBJECTS {
+        NEW key {
+            fill = 1;
+            caption = '';
+            MOVE GROUP (key, p) {
+                lines = 1;
+                horizontal = FALSE;
+            };
+            MOVE PROPERTY(changeAlias(p));
+        }
+    }
+}
