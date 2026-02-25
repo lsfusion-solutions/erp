@@ -344,6 +344,7 @@ public abstract class Kristal10DefaultHandler extends DefaultCashRegisterHandler
             for (Map.Entry<String, String> entry : deleteBarcodeMap.entrySet()) {
                 if (entry.getValue().equals(idItem)) {
                     deleteBarcodeList.add(entry.getKey());
+                    deleteBarcodeLogger.info("adding to usedDeleteBarcodes " + entry.getKey());
                     usedDeleteBarcodes.barcodes.add(entry.getKey());
                 }
             }
