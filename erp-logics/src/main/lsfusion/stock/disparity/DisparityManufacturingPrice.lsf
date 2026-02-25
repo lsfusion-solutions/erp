@@ -3,15 +3,24 @@ MODULE DisparityManufacturingPrice;
 REQUIRE Disparity, PurchaseManufacturingPrice;
 
 @defineDocumentInterfaceDetailPricePrefix(disparity, curInputManufacturing, ' изготовителя до');
-//@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
+
+prevList (priceListType, userDisparityDetail) = ABSTRACT CASE NUMERIC[16,4] (PriceListType, UserDisparityDetail);
+prevList (PriceListType priceListType, UserDisparityDetail userDisparityDetail) += WHEN priceListType IS PriceListType AND sku(userDisparityDetail) THEN
+    prevPriceB(priceListType,
+        sku(userDisparityDetail),
+        stock(userDisparityDetail),
+        dateTime(userDisparityDetail));
+
+prevList (PriceListType priceListType, UserDisparityDetail userDisparityDetail) += WHEN priceListType IS PriceListType AND batch(userDisparityDetail) THEN
+    prevPriceB(priceListType,
+        batch(userDisparityDetail),
+        stock(userDisparityDetail),
+        dateTime(userDisparityDetail));
 
 overCurInputManufacturingPrice = ABSTRACT VALUE NUMERIC[16,4] (UserDisparityDetail);
 curInputManufacturingPrice (UserDisparityDetail detail) <- 
-    OVERRIDE overCurInputManufacturingPrice(detail), 
-             round2(prevPriceB(SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
-                               sku(detail),
-                               stock(detail),
-                               dateTime(detail)))
+    OVERRIDE overCurInputManufacturingPrice(detail),
+             prevList(SystemLedgerPriceListType.manufacturingPriceStockPriceListType, detail)
     WHEN DO CHANGED(sku(detail)) OR
          CHANGED(stock(detail)) OR
          CHANGED(dateTime(detail)) OR
