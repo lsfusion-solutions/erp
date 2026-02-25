@@ -1,0 +1,72 @@
+MODULE RevaluationStockDocumentBinLedger;
+
+REQUIRE Revaluation, BinLedger, StockDocumentBinLedger;
+
+NAMESPACE Revaluation;
+
+needBinZone 'Отдел обязателен' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needBinZone
+;
+
+DESIGN operation {
+    tabContainer{
+        NEW constraintContainer {
+            caption = 'Ограничения';
+            MOVE PROPERTY(needBinZone(o));
+        }
+    }
+}
+
+binZone = ABSTRACT BinGroup (Revaluation) MATERIALIZED INDEXED;
+binZone(RevaluationDetail d) = binZone(revaluation(d));
+nameBinZone 'Отдел' (Revaluation r) = name(binZone(r)) CHARWIDTH 10;
+
+binZone = DATA BinGroup (UserRevaluation);
+binZone(UserRevaluationDetail d) = binZone(userRevaluation(d));
+nameBinZone 'Отдел' (UserRevaluation r) = name(binZone(r)) CHARWIDTH 10;
+
+binZone(UserRevaluation r) += binZone(r);
+
+CONSTRAINT stock(UserRevaluation userRevaluation) AND binZone(userRevaluation) AND NOT
+    stock(userRevaluation) = stock(binZone(userRevaluation))
+    CHECKED BY binZone[UserRevaluation]
+    MESSAGE 'Cклад и отдел переоценки не имеют связи';
+
+CONSTRAINT (CHANGED(operation(Revaluation r)) OR CHANGED(binZone(r))) AND NOT binZone(r) AND needBinZone(operation(r))
+    MESSAGE 'Отдел обязателен для заданной операции переоценки';
+
+changeUserRevaluationZoneBinGroup(UserRevaluation r) {
+    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = stock(r) DO  {
+        binZone(r) <- g;
+    }
+}
+
+
+EXTEND FORM userRevaluation
+    PROPERTIES nameBinZone(p) ON CHANGE changeUserRevaluationZoneBinGroup(p) AFTER nameStock(p)
+;
+
+EXTEND FORM revaluations
+    PROPERTIES READONLY nameBinZone(p) AFTER nameStock(p)
+;
+
+EXTEND CLASS Revaluation : OutStockDocumentBinLedger;
+// Проведение по товарному отчету
+series[StockDocumentBinLedger] (Revaluation ledger) += series(ledger);
+number[StockDocumentBinLedger] (Revaluation ledger) += number(ledger);
+dateTime[StockDocumentBinLedger] (Revaluation ledger) += dateTime(ledger);
+isPosted[StockDocumentBinLedger] (Revaluation ledger) += isPosted(ledger);
+isClosed[StockDocumentBinLedger] (Revaluation ledger) += isClosed(ledger);
+stock[StockDocumentBinLedger] (Revaluation ledger) += stock(ledger);
+description[StockDocumentBinLedger] (Revaluation ledger) += STRING[200](description(ledger));
+
+sumItem[OutStockDocumentBinLedger](Revaluation ledger) += -diffSumRevaluationDetail(ledger);
+sumContainer[OutStockDocumentBinLedger] (Revaluation ledger) += 0.0 IF ledger IS Revaluation;
+
+operation[StockDocumentBinLedger](Revaluation ledger) += operation(ledger);
+
+binGroup[StockDocumentBinLedger] (Revaluation ledger) += binZone(ledger);
+
+skip[StockDocumentBinLedger] (Revaluation ledger) += ledger IS Revaluation AND NOT binZone(ledger);
