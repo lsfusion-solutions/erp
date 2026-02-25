@@ -602,9 +602,9 @@ senRequestExchange(DATE d, GroupCashRegister g){
 }
 
 EXTEND CLASS RequestExchangeType{
-    salesInfoSet10 'Перезагрузить продажи Set10',
-    salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)',
-    salesInfoSet10ByStores'Перезагрузить продажи Set10(по магазинам)'
+    salesInfoSet10 'Перезагрузить продажи Set10 (все магазины)',
+    salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10 (по магазину с расчетом скидок)',
+    salesInfoSet10ByStores 'Перезагрузить продажи Set10 (по магазину)'
 }
 
 setGroup (Stock c) = GROUP MIN GroupCashRegister g IF active(g) AND isSet10(g) BY stock(g);
@@ -646,7 +646,7 @@ senRequestExchangeByStore(DATE d, STRING id){
     }
 }
 
-salesInfoSet10ByStore 'Перезагрузить продажи Set10(по магазинам)' (RequestExchange r){
+salesInfoSet10ByStore 'Перезагрузить продажи Set10 (по магазину)' (RequestExchange r){
     TRY {
         FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO {
             senRequestExchangeByStore(d, idStoreSet(setGroup(stock(r))));
@@ -703,7 +703,7 @@ senRequestExchangeWithDoscount (DATE d, STRING id){
     }
 }
 
-salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(с расчетом скидок)' (RequestExchange r){
+salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10 (по магазину с расчетом скидок)' (RequestExchange r){
     TRY {
         FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO {
             senRequestExchangeWithDoscount(d, idStoreSet(setGroup(stock(r))));
@@ -732,7 +732,7 @@ salesInfoSet10WithDiscountCalc 'Перезагрузить продажи Set10(
 }
 
 //
-salesInfoSet10 'Перезагрузить продажи Set10' (RequestExchange r){
+salesInfoSet10 'Перезагрузить продажи Set10 (все магазины)' (RequestExchange r){
     TRY {
         FOR iterate(DATE d, dateFrom(r), dateTo(r)) DO senRequestExchange(d, setGroup(stock(r)));
         succeededNative(r) <- TRUE;
