@@ -1324,8 +1324,32 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                             try {
                                 sendSalesLogger.info(logPrefix + "reading cashDocument " + file.getName());
 
+                                String fileContent = readFile(file.getAbsolutePath(), encoding);
+
+                                List<ShiftInfo> shiftList = new ArrayList<>();
+                                Map<String, String> cashiersMap = new HashMap();
+                                Pattern shiftPattern = Pattern.compile("(?:.*)?### shift info begin ###(.*)### shift info end ###(?:.*)?");
+                                Matcher shiftMatcher = shiftPattern.matcher(fileContent);
+                                if (shiftMatcher.matches()) {
+                                    //добавляем }, поскольку внутри элемента тоже может быть ---
+                                    String[] documents = shiftMatcher.group(1).split("}---");
+                                    for (String document : documents) {
+                                        if (!document.isEmpty()) {
+                                            JSONObject documentObject = new JSONObject(document + "}");
+
+                                            Integer numberCashRegister = Integer.parseInt(documentObject.getString("cashCode"));
+                                            String numberZReport = String.valueOf(documentObject.getInt("shift"));
+                                            Long timeBeg = parseDateTime(documentObject.get("timeBeg"));
+                                            Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
+                                            if (timeBeg != null) {
+                                                   shiftList.add(new ShiftInfo(numberCashRegister, numberZReport, timeBeg, timeEnd));
+                                            }
+                                        }
+                                    }
+                                }
+
                                 Pattern p = Pattern.compile("(?:.*)?### sales data begin ###(.*)### sales data end ###(?:.*)?");
-                                Matcher m = p.matcher(readFile(file.getAbsolutePath(), encoding));
+                                Matcher m = p.matcher(fileContent);
                                 if (m.matches()) {
                                     int count = 0;
 
@@ -1344,7 +1368,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 if (appendCashierId) {
                                                     idEmployee = cashRegister.numberGroup + "_" + idEmployee;
                                                 }
-                                                int shift = documentObject.getInt("shift");
+                                                String shift =  String.valueOf(documentObject.getInt("shift"));
 
                                                 BigDecimal sumCashDocument = BigDecimal.valueOf(documentObject.getDouble("docSum"));
                                                 sumCashDocument = in ? sumCashDocument : safeNegate(sumCashDocument);
@@ -1354,6 +1378,9 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 Long timeEnd = parseDateTime(documentObject.get("timeEnd"));
                                                 LocalDate dateCashDocument = timeEnd != null ? sqlDateToLocalDate(new Date(timeEnd)) : null;
                                                 LocalTime timeCashDocument = timeEnd != null ? sqlTimeToLocalTime(new Time(timeEnd)) : null;
+
+                                                Long dateTimeShift = getDateTimeShiftByReceipt(shiftList, numberCashRegister, shift, timeEnd);
+                                                LocalDate dateZReport = dateTimeShift == null ? dateCashDocument : sqlDateToLocalDate(new Date(dateTimeShift));
 
                                                 Map<String, Object> extraFields = null;
                                                 String backReason = documentObject.optString("backReason", null);
@@ -1365,7 +1392,7 @@ public class ArtixHandler extends DefaultCashRegisterHandler<ArtixSalesBatch, Ca
                                                 if (cashRegister.number.equals(numberCashRegister)) {
                                                     if (cashRegister.startDate == null || (dateCashDocument != null && dateCashDocument.compareTo(cashRegister.startDate) >= 0)) {
                                                         String idCashDocument = cashRegister.numberGroup + "/" + numberCashRegister + "/" + numberCashDocument + "/" + shift + "/" + docType;
-                                                        cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateCashDocument, timeCashDocument,
+                                                        cashDocumentList.add(new CashDocument(idCashDocument, String.valueOf(numberCashDocument), dateZReport, timeCashDocument,
                                                                 cashRegister.numberGroup, numberCashRegister, String.valueOf(shift), sumCashDocument, idEmployee, extraFields));
                                                     }
                                                 }
