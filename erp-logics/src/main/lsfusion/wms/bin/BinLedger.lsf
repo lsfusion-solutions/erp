@@ -143,6 +143,11 @@ balanceBSku 'Остаток всех ячеек (до)' =
     GROUP SUM balanceB(Sku sku, Bin bin, DATETIME dateTime) BY sku, stock(bin), dateTime;
 prevBalanceBSku 'Остаток всех ячеек (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceBSku(sku, stock, dateTime));
 
+diffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    balanceBSku(sku, st,dateTime) (-) balanceB(sku, st,dateTime);
+prevDiffBalanceBinB 'Расхождение в ячейках (до)' (Sku sku, Stock st, DATETIME dateTime)=
+    prevBalanceBSku(sku, st,dateTime) (-) prevBalanceB(sku, st,dateTime);
+
 // с учетом текущей даты/времени
 balanceA 'Остаток в ячейке (после)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
@@ -151,6 +156,11 @@ prevBalanceA 'Остаток в ячейке (после)'(Sku sku, Bin bin, DAT
 balanceASku 'Остаток всех ячеек (после)' =
     GROUP SUM balanceA(Sku sku, Bin bin, DATETIME dateTime) BY sku, stock(bin), dateTime;
 prevBalanceASku 'Остаток всех ячеек (после)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(balanceASku(sku, stock, dateTime));
+
+diffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
+    balanceASku(sku, st,dateTime) (-) balanceA(sku, st,dateTime);
+prevDiffBalanceBinA 'Расхождение в ячейках (после)' (Sku sku, Stock st, DATETIME dateTime)=
+    prevBalanceASku(sku, st,dateTime) (-) prevBalanceA(sku, st,dateTime);
 
 currentBalance 'Текущий остаток в группе ячеек' (Sku sku, BinGroup bg)=
     [GROUP SUM currentBalance(Sku sku1, Bin b) IF isParent(BinGroup bg1, b) BY sku1, bg1](sku, bg);
@@ -404,6 +414,13 @@ FORM binSkuDiscrepancies 'Пересорт товаров по ячейкам'
     FILTERS isPosted(bl2),
         sku(bl2)== s,
         balanceQuantity(bl2)
+
+    OBJECTS bil=SkuLedger
+    PROPERTIES(bil) READONLY dateTime, description, nameBatch,
+        signedQuantity, signedPrice, signedSum, balanceA, priceA, sumA, skip
+
+    FILTERS isPosted(bil) AND sku(bil)==s AND stock(bil)==ts
+    ORDERS dateTime(bil) DESC
 ;
 
 @extendFormFilterStockAccess(ts, binSkuDiscrepancies);
@@ -464,6 +481,7 @@ DESIGN binSkuDiscrepancies {
                         fill = 1;
                         MOVE BOX(bl);
                         MOVE BOX(bl2){caption = 'Движение по товару и всем ячейкам вне склада';}
+                        MOVE BOX(bil);
                     }                    
                 }
             }            

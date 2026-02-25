@@ -105,6 +105,11 @@ balanceBBatch 'Остаток всех ячеек (до)' =
     GROUP SUM balanceB(Batch batch, Bin bin, DATETIME dateTime) BY batch, stock(bin), dateTime;
 prevBalanceBBatch 'Остаток всех ячеек (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(balanceBBatch(batch, stock, dateTime));
 
+diffBalanceBinB 'Расхождение по остаткам в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
+    balanceBBatch(batch, st, dateTime) (-) balanceB(batch, st, dateTime);
+prevDiffBalanceBinB 'Остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
+    prevBalanceBBatch(batch, st, dateTime) (-) prevBalanceB(batch, st, dateTime);
+
 // с учетом текущей даты/времени
 balanceA 'Остаток в ячейке (после)' (Batch batch, Bin bin, DATETIME dateTime) = currentBalance(batch, bin) (-)
     inBinTotalA(batch, bin, dateTime) (+) outBinTotalA(batch, bin, dateTime);
@@ -113,6 +118,11 @@ prevBalanceA 'Остаток в ячейке (после)'(Batch batch, Bin bin,
 balanceABatch 'Остаток всех ячеек (после)' =
     GROUP SUM balanceA(Batch batch, Bin bin, DATETIME dateTime) BY batch, stock(bin), dateTime;
 prevBalanceABatch 'Остаток всех ячеек (после)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(balanceABatch(batch, stock, dateTime));
+
+diffBalanceBinA 'Расхождение по остаток в ячейках (до)' (Batch batch, Stock st, DATETIME dateTime)=
+    balanceABatch(batch, st, dateTime) (-) balanceA(batch, st, dateTime);
+prevDiffBalanceBinA 'Расхождение по остаткам в ячейках (после)' (Batch batch, Stock st, DATETIME dateTime)=
+    prevBalanceABatch(batch, st, dateTime) (-) prevBalanceB(batch, st, dateTime);
 
 currentBalance 'Текущий остаток в группе ячеек' (Batch batch, BinGroup bg)=
     [GROUP SUM currentBalance(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
@@ -298,6 +308,13 @@ FORM binBatchDiscrepancies 'Пересорт партий по ячейкам'
     FILTERS isPosted(bl2),
         batch(bl2)== bt,
         balanceQuantity(bl2)
+
+    OBJECTS bil=SkuLedger
+    PROPERTIES(bil) READONLY BACKGROUND backgroundBatch(bil) dateTime, description,
+        signedQuantity, signedPrice, signedSum, skip
+    PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
+    FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==ts
+    ORDERS dateTime(bil) DESC
 ;
 
 @extendFormFilterStockAccess(ts, binBatchDiscrepancies);
@@ -358,6 +375,7 @@ DESIGN binBatchDiscrepancies {
                         fill = 1;
                         MOVE BOX(bl);
                         MOVE BOX(bl2){caption = 'Движение по партии и всем ячейкам вне склада';}
+                        MOVE BOX(bil);
                     }
                 }
             }

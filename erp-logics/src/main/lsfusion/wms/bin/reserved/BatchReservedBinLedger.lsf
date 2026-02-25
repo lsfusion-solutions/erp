@@ -31,8 +31,14 @@ availableQuantityBatch 'Доступное к-во (всего) всех яче�
     GROUP SUM availableQuantity(Batch batch, Bin bin) BY batch, stock(bin);
 prevAvailableQuantityBatch 'Доступное к-во (всего) всех ячеек' (Batch batch, Stock stock) = PREV(availableQuantityBatch(batch, stock));
 
+diffavailableQuantityBin 'Расхождение по доступному кол-ву в ячейках' (Batch batch, Stock st)=
+    availableQuantityBatch(batch, st) (-) availableQuantity(batch, st);
+prevDiffavailableQuantityBin 'Расхождение по доступному кол-ву в ячейках' (Batch batch, Stock st)=
+    prevAvailableQuantityBatch(batch, st) (-) prevAvailableQuantity(batch, st);
+
 EXTEND FORM batchBinBalance
     PROPERTIES(bt, b) READONLY AFTER currentBalance(bt, b) currentReserved, availableQuantity
+    
     EXTEND FILTERGROUP balance
         FILTER 'С резервом' currentReserved(bt, b)
         FILTER 'С доступным кол-вом' availableQuantity(bt, b)
