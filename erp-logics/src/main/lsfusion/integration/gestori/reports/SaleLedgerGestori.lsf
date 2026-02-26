@@ -110,19 +110,31 @@ selectedSkuNames = GROUP CONCAT name(Sku s) IF in(s), '; ' ORDER name(s), s;
 skuNamesFromGroups = GROUP CONCAT name(Sku s) IF inSession(skuGroup2(s)) AND name(s), '; ' ORDER name(s), s;
 inSkus 'Товары' = OVERRIDE selectedSkuNames(), skuNamesFromGroups();
 
-dateInInterval (SaleLedger o) = from(interval()) <= date(o) AND to(interval()) >= date(o);
+dateFrom 'Дата (с)' = DATA LOCAL DATE();
+dateTo 'Дата (по)' = DATA LOCAL DATE();
+
+includeReturns 'Учитывать возвраты' = DATA LOCAL BOOLEAN();
+
+initDates() {
+    dateFrom() <- sum(currentDate(), -6);
+    dateTo() <- currentDate();
+    includeReturns() <- TRUE;
+}
+
+dateInRange(SaleLedger o) = dateFrom() <= date(o) AND dateTo() >= date(o);
 
 supplier (SaleLedger o) = supplier(lastOrderBatch(sku(o), stock(o)));
 
-filterForSalesQty (SaleLedger o) = active(o) AND dateInInterval(o) AND inSaleReport(stock(o))
+filterForSalesQty (SaleLedger o) = active(o) AND dateInRange(o) AND inSaleReport(stock(o))
     AND inSupplier(supplier(o)) AND (in(sku(o)) OR inSession(skuGroup2(sku(o))))
-    AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()));
+    AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()))
+    AND (NOT (o IS DateReturnSkuLedger) OR includeReturns());
 
 retailSalesQty 'Розница - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
-    IF o IS DateSaleSkuLedger AND filterForSalesQty(o) BY sku(o), stock(o);
+    IF (o IS DateSaleSkuLedger OR o IS DateReturnSkuLedger) AND filterForSalesQty(o) BY sku(o), stock(o);
 
 wholesaleSalesQty 'Опт - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
-    IF NOT (o IS DateSaleSkuLedger) AND filterForSalesQty(o) BY sku(o), stock(o);
+    IF NOT (o IS DateSaleSkuLedger) AND NOT (o IS DateReturnSkuLedger) AND filterForSalesQty(o) BY sku(o), stock(o);
 
 bothSalesQty 'Кол-во продаж' = GROUP SUM quantity(SaleLedger o)
     IF filterForSalesQty(o) BY sku(o), stock(o);
@@ -168,11 +180,15 @@ productContributionPctW 'Вклад товара в %' (Sku s, Stock st) = round
 
 formatDate = FORMULA DATE 'to_char($1,$2)';
 
-title = CONCAT '\n',
-    'за период с ' + formatDate(from(interval()), 'DD.MM.YYYY')
-        + ' по ' + formatDate(to(interval()), 'DD.MM.YYYY'),
-    'Тип отбора продаж: ' + nameSalesType(),
-    'Критерий отбора товара: ' + nameCriteria();
+showIncludeReturnsBW() = salesTypeDefault() != SalesFilterType.wholesale;
+
+includeReturnsCaptionBW() = (IF includeReturns() THEN 'Да' ELSE 'Нет') IF salesTypeDefault() != SalesFilterType.wholesale;
+
+subtitleBW() = CONCAT '   |   ',
+    formatDate(dateFrom(), 'DD.MM.YYYY') + ' — ' + formatDate(dateTo(), 'DD.MM.YYYY'),
+    'Продажи: ' + nameSalesType(),
+    'Критерий: ' + nameCriteria(),
+    'Возвраты: ' + includeReturnsCaptionBW();
 
 FORM bestProdPrint 'Лучшие товары по продажам'
     OBJECTS report = (sku = Sku, stock = Stock)
@@ -182,7 +198,8 @@ FORM bestProdPrint 'Лучшие товары по продажам'
     PROPERTIES(sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPct = productContributionPct, index = index SHOWIF 1 = 2
     PROPERTIES() retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
-    PROPERTIES title = 'Лучшие товары по продажам ' + title()
+    PROPERTIES mainTitle = 'Лучшие товары по продажам'
+    PROPERTIES subtitle = subtitleBW()
     FILTERS formFilter(sku, stock)
     ORDERS index
     REPORT 'SaleBestWorstProducts.jrxml'
@@ -196,7 +213,8 @@ FORM worstProdPrint 'Худшие товары по продажам'
     PROPERTIES(sku, stock) retailSalesQty, accountPriceA, sumByAccPrice, salesSum, profit, currentBalance, currentSum,
         daysOfSupply, productContributionPct = productContributionPctW, index = indexW SHOWIF 1 = 2
     PROPERTIES() retailSalesTotalQty, totalSumByAccPrice, salesTotalSum, totalProfit
-    PROPERTIES title = 'Худшие товары по продажам ' + title()
+    PROPERTIES mainTitle = 'Худшие товары по продажам'
+    PROPERTIES subtitle = subtitleBW()
     FILTERS formFilterW(sku, stock)
     ORDERS index
     REPORT 'SaleBestWorstProducts.jrxml'
@@ -206,7 +224,8 @@ bestProdPrint 'Лучшие товары по продажам' () { PRINT bestP
 worstProdPrint 'Худшие товары по продажам' () { PRINT worstProdPrint PDF; } IMAGE 'print.png';
 
 FORM bestWorstProducts 'Лучшие и худшие товары по продажам'
-    PROPERTIES() interval, titleInterval, nameSalesType, nameCriteria, productsLimitDefault, withAssortment
+    PROPERTIES() dateFrom, dateTo, nameSalesType, nameCriteria, productsLimitDefault, withAssortment
+    PROPERTIES() includeReturns SHOWIF showIncludeReturnsBW()
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
@@ -233,9 +252,9 @@ FORM bestWorstProducts 'Лучшие и худшие товары по прод�
     FILTERS formFilterW(skuW, stockW)
     ORDERS indexW(skuW, stockW)
 
-    PROPERTIES() DISABLEIF NOT interval() bestProdPrint, worstProdPrint
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() bestProdPrint, worstProdPrint
 
-    EVENTS ON INIT { initInterval(); }
+    EVENTS ON INIT initDates()
 ;
 
 DESIGN bestWorstProducts {
@@ -244,11 +263,13 @@ DESIGN bestWorstProducts {
         NEW topRow {
             horizontal = TRUE;
             alignment = STRETCH;
-            MOVE PROPERTY(interval());
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
             MOVE PROPERTY(nameSalesType());
             MOVE PROPERTY(nameCriteria());
             MOVE PROPERTY(productsLimitDefault());
             MOVE PROPERTY(withAssortment());
+            MOVE PROPERTY(includeReturns());
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
@@ -269,11 +290,299 @@ DESIGN bestWorstProducts {
         MOVE BOX(bestProducts) { caption = 'Лучшие товары по продажам'; };
         MOVE BOX(worstProducts) { caption = 'Худшие товары по продажам'; };
     }
-    REMOVE PROPERTY(titleInterval());
+}
+
+CLASS PeriodType 'Детализация' {
+    week 'Неделя',
+    month 'Месяц',
+    quarter 'Квартал',
+    year 'Год'
+}
+
+FORM periodTypes 'Детализация'
+    OBJECTS pt = PeriodType
+    PROPERTIES(pt) READONLY staticCaption
+    LIST PeriodType OBJECT pt
+;
+
+CLASS SaleDocType 'Тип документов' {
+    all 'Розница + опт',
+    retail 'Розница',
+    wholesale 'Продажа по документам (опт)'
+}
+
+FORM saleDocTypes 'Тип документов'
+    OBJECTS sdt = SaleDocType
+    PROPERTIES(sdt) READONLY staticCaption
+    LIST SaleDocType OBJECT sdt
+;
+
+showIncludeReturns(SaleDocType sdt) = sdt != SaleDocType.wholesale;
+
+isRetailSale(SaleLedger sl) = sl IS DateSaleSkuLedger;
+isRetailReturn(SaleLedger sl) = sl IS DateReturnSkuLedger;
+isRetail(SaleLedger sl) = isRetailSale(sl) OR isRetailReturn(sl);
+
+inDocTypeFilter(SaleLedger sl, SaleDocType sdt) =
+    (sdt = SaleDocType.all AND (NOT isRetailReturn(sl) OR includeReturns()))
+        OR (sdt = SaleDocType.retail AND (isRetailSale(sl) OR (isRetailReturn(sl) AND includeReturns())))
+        OR (sdt = SaleDocType.wholesale AND NOT isRetail(sl));
+
+isoDOW(DATE d) = FORMULA INTEGER PG '(EXTRACT(ISODOW FROM ($1))::integer)';
+mondayOfWeek(DATE d) = sum(d, 1 - isoDOW(d));
+
+monthsIntoQuarter(DATE d) = (extractMonthNumber(d) - 1) - (extractMonthNumber(d) - 1) / 3 * 3;
+firstOfQuarter(DATE d) = sumMonth(firstDayOfMonth(d), -monthsIntoQuarter(d));
+firstOfYear(DATE d) = sumMonth(firstDayOfMonth(d), 1 - extractMonthNumber(d));
+
+periodsCount(PeriodType pt) = CASE
+    WHEN pt = PeriodType.week THEN
+    daysBetweenDates(mondayOfWeek(dateTo()), mondayOfWeek(dateFrom())) / 7 + 1
+    WHEN pt = PeriodType.month THEN
+    (extractYear(dateTo()) - extractYear(dateFrom())) * 12
+        + extractMonthNumber(dateTo()) - extractMonthNumber(dateFrom()) + 1
+    WHEN pt = PeriodType.quarter THEN
+    (extractYear(dateTo()) * 4 + (extractMonthNumber(dateTo()) - 1) / 3)
+        - (extractYear(dateFrom()) * 4 + (extractMonthNumber(dateFrom()) - 1) / 3) + 1
+    WHEN pt = PeriodType.year THEN
+    extractYear(dateTo()) - extractYear(dateFrom()) + 1;
+
+dateFromPeriodRaw(PeriodType pt, INTEGER n) = CASE
+    WHEN pt = PeriodType.week THEN sum(mondayOfWeek(dateFrom()), (n - 1) * 7)
+    WHEN pt = PeriodType.month THEN sumMonth(firstDayOfMonth(dateFrom()), n - 1)
+    WHEN pt = PeriodType.quarter THEN sumMonth(firstOfQuarter(dateFrom()), (n - 1) * 3)
+    WHEN pt = PeriodType.year THEN sumMonth(firstOfYear(dateFrom()), (n - 1) * 12);
+
+dateToPeriodRaw(PeriodType pt, INTEGER n) = CASE
+    WHEN pt = PeriodType.week THEN sum(mondayOfWeek(dateFrom()), n * 7 - 1)
+    WHEN pt = PeriodType.month THEN sum(sumMonth(firstDayOfMonth(dateFrom()), n), -1)
+    WHEN pt = PeriodType.quarter THEN sum(sumMonth(firstOfQuarter(dateFrom()), n * 3), -1)
+    WHEN pt = PeriodType.year THEN sum(sumMonth(firstOfYear(dateFrom()), n * 12), -1);
+
+dateFromPeriod(PeriodType pt, INTEGER n) =
+    IF dateFromPeriodRaw(pt, n) < dateFrom() THEN dateFrom() ELSE dateFromPeriodRaw(pt, n);
+
+dateToPeriod(PeriodType pt, INTEGER n) =
+    IF dateToPeriodRaw(pt, n) > dateTo() THEN dateTo() ELSE dateToPeriodRaw(pt, n);
+
+isPartial(PeriodType pt, INTEGER n) =
+    dateFromPeriod(pt, n) != dateFromPeriodRaw(pt, n) OR dateToPeriod(pt, n) != dateToPeriodRaw(pt, n);
+
+periodCaption(PeriodType pt, INTEGER n) =
+    toDateDDMMYYYY(dateFromPeriod(pt, n)) + ' - ' + toDateDDMMYYYY(dateToPeriod(pt, n));
+
+quantitySoldPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+    GROUP SUM quantity(SaleLedger sl) IF
+        isPosted(sl) AND stock(sl) = st AND
+            date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
+            inDocTypeFilter(sl, sdt);
+
+sumRetailPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+    GROUP SUM sum(SaleLedger sl) IF
+        isPosted(sl) AND stock(sl) = st AND
+            date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
+            inDocTypeFilter(sl, sdt);
+
+sumCostPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+    GROUP SUM costSum(SaleLedger sl) IF
+        isPosted(sl) AND stock(sl) = st AND
+            date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
+            inDocTypeFilter(sl, sdt);
+
+quantitySoldResult 'Кол-во продаж' = DATA LOCAL NUMERIC[16,3] (DepartmentStore, INTEGER);
+sumRetailResult 'Сумма (отпускные)' = DATA LOCAL NUMERIC[18,4] (DepartmentStore, INTEGER);
+sumCostResult 'Сумма (учётные)' = DATA LOCAL NUMERIC[18,4] (DepartmentStore, INTEGER);
+grossIncomeResult 'Валовый доход' = DATA LOCAL NUMERIC[18,4] (DepartmentStore, INTEGER);
+marginResult 'Маржа, %' = DATA LOCAL NUMERIC[5,2] (DepartmentStore, INTEGER);
+periodCaptionResult 'Период' = DATA LOCAL STRING[30] (INTEGER);
+isPartialResult = DATA LOCAL BOOLEAN (INTEGER);
+periodsCountResult = DATA LOCAL INTEGER ();
+
+selectedPeriodTypeCaption 'Детализация' = DATA LOCAL STRING[30] ();
+selectedSaleDocTypeCaption 'Тип документов' = DATA LOCAL STRING[50] ();
+selectedIncludeReturns 'Возвраты' = DATA LOCAL STRING[10] ();
+
+totalQuantityResult 'Всего кол-во' = DATA LOCAL NUMERIC[16,3] ();
+totalRetailResult 'Всего (отпускные)' = DATA LOCAL NUMERIC[18,4] ();
+totalCostResult 'Всего (учётные)' = DATA LOCAL NUMERIC[18,4] ();
+totalGrossIncomeResult 'Всего валовый доход' = DATA LOCAL NUMERIC[18,4] ();
+totalMarginResult 'Всего маржа, %' = DATA LOCAL NUMERIC[5,2] ();
+
+backgroundGrossIncome(DepartmentStore ds, INTEGER n) =
+    IF grossIncomeResult(ds, n) > 0 THEN RGB(212, 237, 218)
+    ELSE IF grossIncomeResult(ds, n) < 0 THEN RGB(248, 215, 218);
+
+backgroundMargin(DepartmentStore ds, INTEGER n) =
+    IF marginResult(ds, n) >= 0 THEN RGB(255, 243, 205)
+    ELSE IF marginResult(ds, n) < 0 THEN RGB(248, 215, 218);
+
+backgroundPeriod(INTEGER n) =
+    IF isPartialResult(n) THEN RGB(220, 235, 250);
+
+titleReport = 'Динамика продаж за ' + toDateDDMMYYYY(dateFrom()) + ' - ' + toDateDDMMYYYY(dateTo());
+
+fill 'Сформировать' (PeriodType pt, SaleDocType sdt) {
+    selectedPeriodTypeCaption() <- staticCaption(pt);
+    selectedSaleDocTypeCaption() <- staticCaption(sdt);
+    selectedIncludeReturns() <- (IF includeReturns() THEN 'Да' ELSE 'Нет') IF sdt != SaleDocType.wholesale;
+
+    quantitySoldResult(DepartmentStore ds, INTEGER n) <- NULL;
+    sumRetailResult(DepartmentStore ds, INTEGER n) <- NULL;
+    sumCostResult(DepartmentStore ds, INTEGER n) <- NULL;
+    grossIncomeResult(DepartmentStore ds, INTEGER n) <- NULL;
+    marginResult(DepartmentStore ds, INTEGER n) <- NULL;
+    periodCaptionResult(INTEGER n) <- NULL;
+    isPartialResult(INTEGER n) <- NULL;
+
+    periodsCountResult() <- periodsCount(pt);
+
+    FOR iterate(INTEGER n, 1, periodsCount(pt)) DO {
+        periodCaptionResult(n) <- periodCaption(pt, n);
+        isPartialResult(n) <- isPartial(pt, n);
+    }
+
+    FOR inSaleReport(DepartmentStore ds) AND iterate(INTEGER n, 1, periodsCount(pt)) DO {
+        quantitySoldResult(ds, n) <- quantitySoldPeriod(ds, pt, n, sdt);
+        sumRetailResult(ds, n) <- sumRetailPeriod(ds, pt, n, sdt);
+        sumCostResult(ds, n) <- sumCostPeriod(ds, pt, n, sdt);
+        grossIncomeResult(ds, n) <- sumRetailResult(ds, n) (-) sumCostResult(ds, n);
+        marginResult(ds, n) <- NUMERIC[5,2](round2(grossIncomeResult(ds, n) * 100.0 / sumRetailResult(ds, n)))
+            IF sumRetailResult(ds, n) != 0;
+    }
+
+    totalQuantityResult() <- GROUP SUM quantitySoldResult(DepartmentStore ds, INTEGER n);
+    totalRetailResult() <- GROUP SUM sumRetailResult(DepartmentStore ds, INTEGER n);
+    totalCostResult() <- GROUP SUM sumCostResult(DepartmentStore ds, INTEGER n);
+    totalGrossIncomeResult() <- totalRetailResult() (-) totalCostResult();
+    totalMarginResult() <- NUMERIC[5,2](round2(totalGrossIncomeResult() * 100.0 / totalRetailResult()))
+        IF totalRetailResult() != 0;
+}
+
+changeStocksDynamics() {
+    DIALOG dialogStocksSaleReportRu;
+}
+
+FORM salesDynamicsReport 'Динамика продаж'
+    PROPERTIES() titleReport, selectedPeriodTypeCaption, selectedSaleDocTypeCaption, selectedIncludeReturns
+    PROPERTIES() dateFrom, dateTo
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES changeStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksDynamics() READONLYIF stockList()
+
+    OBJECTS pt = PeriodType PANEL
+    PROPERTIES(pt) staticCaption SELECTOR
+
+    OBJECTS sdt = SaleDocType PANEL
+    PROPERTIES(sdt) staticCaption SELECTOR
+
+    PROPERTIES() includeReturns SHOWIF showIncludeReturns(sdt)
+
+    PROPERTIES(pt, sdt) fill
+
+    OBJECTS (ds = DepartmentStore, n = INTEGER)
+    PROPERTIES READONLY
+    idDs 'Код объекта учёта' = id(ds),
+        nameDs 'Наименование объекта учёта' = name(ds),
+        periodNumber '№ периода' = VALUE(n),
+        periodCaptionResult(n) BACKGROUND backgroundPeriod(n)
+    PROPERTIES(ds, n) READONLY
+    quantitySoldResult,
+        sumRetailResult,
+        sumCostResult,
+        grossIncomeResult BACKGROUND backgroundGrossIncome(ds, n),
+        marginResult BACKGROUND backgroundMargin(ds, n)
+    FILTERS inSaleReport(ds),
+        iterate(n, 1, periodsCountResult())
+    FILTERS quantitySoldResult(ds, n) OR sumRetailResult(ds, n)
+    ORDERS nameDs, periodNumber
+
+    PROPERTIES() READONLY PANEL
+    totalQuantityResult, totalRetailResult, totalCostResult, totalGrossIncomeResult, totalMarginResult
+
+    EVENTS ON INIT initDates()
+;
+
+FORM printSalesDynamicsReport 'Динамика продаж (печать)'
+    PROPERTIES() titleReport, selectedPeriodTypeCaption, selectedSaleDocTypeCaption, selectedIncludeReturns
+    PROPERTIES() totalQuantityResult, totalRetailResult, totalCostResult, totalGrossIncomeResult, totalMarginResult
+
+    OBJECTS (ds = DepartmentStore, n = INTEGER)
+    PROPERTIES READONLY
+    idDs 'Код' = id(ds),
+        nameDs 'Наименование' = name(ds),
+        periodNumber '№' = VALUE(n),
+        periodCaption 'Период' = periodCaptionResult(n) BACKGROUND backgroundPeriod(n),
+        quantity 'Количество' = quantitySoldResult(ds, n),
+        sumRetail 'Сумма отпускная' = sumRetailResult(ds, n),
+        sumCost 'Сумма учётная' = sumCostResult(ds, n),
+        grossIncome 'Валовой доход' = grossIncomeResult(ds, n) BACKGROUND backgroundGrossIncome(ds, n),
+        margin 'Маржа, %' = marginResult(ds, n) BACKGROUND backgroundMargin(ds, n)
+    FILTERS inSaleReport(ds),
+        iterate(n, 1, periodsCountResult())
+    FILTERS quantitySoldResult(ds, n) OR sumRetailResult(ds, n)
+    ORDERS nameDs, periodNumber
+;
+
+print 'Печать' (PeriodType pt, SaleDocType sdt) {
+    fill(pt, sdt);
+    PRINT printSalesDynamicsReport PDF;
+}
+
+EXTEND FORM salesDynamicsReport
+    PROPERTIES(pt, sdt) print
+;
+
+DESIGN salesDynamicsReport {
+    OBJECTS {
+        NEW params FIRST {
+            alignment = STRETCH;
+            NEW row1 {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE PROPERTY(dateFrom()) { valueClass = 'btn-outline-primary'; }
+                MOVE PROPERTY(dateTo()) { valueClass = 'btn-outline-primary'; }
+                MOVE PROPERTY(fill(pt, sdt)) { valueClass = 'btn-success'; }
+                MOVE PROPERTY(print(pt, sdt)) { valueClass = 'btn-warning'; }
+                NEW row1right {
+                    horizontal = TRUE;
+                    fill = 1;
+                    childrenAlignment = END;
+                    MOVE PROPERTY(includeReturns());
+                }
+            }
+            NEW row2 {
+                horizontal = TRUE;
+                caption = 'Параметры';
+                alignment = STRETCH;
+                MOVE PROPERTY(staticCaption(pt)) { caption = 'Детализация'; valueClass = 'btn-primary'; }
+                MOVE PROPERTY(staticCaption(sdt)) { caption = 'Документы'; valueClass = 'btn-info'; }
+            }
+            NEW row3 {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE PROPERTY(nameStockList()) { fill = 1; }
+                MOVE PROPERTY(changeStocks) { fill = 1; }
+            }
+        }
+        NEW totals LAST {
+            horizontal = TRUE;
+            caption = 'Итого за весь период';
+            alignment = STRETCH;
+            MOVE PROPERTY(totalQuantityResult());
+            MOVE PROPERTY(totalRetailResult());
+            MOVE PROPERTY(totalCostResult());
+            MOVE PROPERTY(totalGrossIncomeResult()) { valueClass = 'btn-success'; }
+            MOVE PROPERTY(totalMarginResult()) { valueClass = 'btn-warning'; }
+        }
+    }
+    REMOVE PROPERTY(titleReport());
+    REMOVE PROPERTY(selectedPeriodTypeCaption());
+    REMOVE PROPERTY(selectedSaleDocTypeCaption());
+    REMOVE PROPERTY(selectedIncludeReturns());
 }
 
 NAVIGATOR {
     salesReports {
         NEW bestWorstProducts;
+        NEW salesDynamicsReport;
     }
 }
