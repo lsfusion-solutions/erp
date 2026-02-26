@@ -201,10 +201,14 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Sale.Invoice 
     }
 } TOOLBAR;
 
+hideExportLotsWithoutKSA = ABSTRACT VALUE BOOLEAN (Sale.Invoice);
+
 EXTEND FORM Sale.invoices
-    PROPERTIES (i) exportSoldLotsWithoutKSA SHOWIF skkoUrl() AND i IS Sale.Invoice AND sendSKKO(i) AND NOT sentSale(i) PANEL
-    PROPERTIES (i) exportCancelLotsWithoutKSA SHOWIF skkoUrl() AND i IS Sale.Invoice AND sendSKKO(i) AND sentSale(i) PANEL
+    PROPERTIES (i) exportSoldLotsWithoutKSA SHOWIF skkoUrl() AND i IS Sale.Invoice  AND NOT sentSale(i) AND NOT hideExportLotsWithoutKSA(i) PANEL
+    PROPERTIES (i) exportCancelLotsWithoutKSA SHOWIF skkoUrl() AND i IS Sale.Invoice AND sentSale(i) AND NOT hideExportLotsWithoutKSA(i) PANEL
 ;
+
+hideExportLotsWithoutKSA(Sale.Invoice i) += i IS Sale.Invoice AND (NOT sendSKKO(i) OR (NOT [GROUP MIN Sale.InvoiceDetail d IF lotType(sku(d)) OR UKZ(sku(d)) == TTRUE OR ukz(d) OR quantityLot(d) BY invoice(d)](i)));
 
 DESIGN Sale.invoices {
     actions{
