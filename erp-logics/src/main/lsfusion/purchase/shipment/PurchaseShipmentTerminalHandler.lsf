@@ -1,73 +1,86 @@
 MODULE PurchaseShipmentTerminalHandler;
 
-REQUIRE PurchaseShipment, TerminalHandler;
+REQUIRE TerminalHandler, PurchaseInvoiceShipmentTerminal;
 
 NAMESPACE Purchase;
 
-useAutoPurchaseInvoiceTerminal 'Создавать накладные при импорте документов ТСД' = DATA BOOLEAN (Stock);
-purchaseInvoiceTerminalDocumentType =  DATA TerminalDocumentType();
-namePurchaseInvoiceTerminalDocumentType 'Тип документа ТСД для импорта накладных (закупка)' () =  name(purchaseInvoiceTerminalDocumentType());
+skipFillInvoiceTerminal = ABSTRACT BOOLEAN (Purchase.UserInvoice);
+overFillInvoiceTerminal ABSTRACT LIST (Purchase.UserInvoice, TerminalDocument);
 
-EXTEND FORM options
-    PROPERTIES useAutoPurchaseInvoiceTerminal(s)
-    PROPERTIES namePurchaseInvoiceTerminalDocumentType();
-    
-DESIGN options {
-    terminalServer{
-        MOVE PROPERTY (namePurchaseInvoiceTerminalDocumentType());
+fillInvoice 'Заполнить приходную накладную' (TerminalDocument t) {
+    FOR number(Purchase.UserInvoice i) = parentDocument(t) AND NOT isPosted(i) AND NOT skipFillInvoiceTerminal(i) DO {
+        lock(i);
+        IF lockResult() THEN {
+            TRY {
+                LOCAL quantity = NUMERIC[16,5] (Sku, Purchase.UserInvoice);
+                quantity(Sku sku, i) <- [GROUP SUM quantity(TerminalDocumentDetail tdd) IF terminalDocument(tdd) = t BY sku(tdd)](sku);
+
+                FOR invoice(Purchase.UserInvoiceDetail o) == i DO {
+                    shipmentQuantity(o) <- OVERRIDE (PARTITION UNGROUP quantity LIMIT STRICT quantity(o) IF invoice(o) == i ORDER index(o), o BY sku(o), invoice(o)), 0.0;
+                }
+
+                overFillInvoiceTerminal(i, t);
+                
+                used(t) <- TRUE;
+                APPLY;
+            } FINALLY {
+                unlock(i);
+            }
+        } ELSE {
+            throwException('Выполняется прием. Попробуйте еще раз позже.');
+        }
     }
 }
 
-nearestOrderDetail = GROUP MAX OrderDetail d 
-    IF shipmentDate(d) <= DATE dt AND isPosted(d) AND NOT isClosed(d) AND toInvoice(d)
-    BY sku(d), supplierStock(d), customerStock(d), dt;
-    
-supplierStock(TerminalDocument d) = IF skipPrefix(terminalHandbookType1(purchaseInvoiceTerminalDocumentType())) THEN stock(idTerminalHandbookType1(d))
-    ELSE stock(replace(idTerminalHandbookType1(d),idTerminalHandbookType1(purchaseInvoiceTerminalDocumentType()),''));
+createInvoiceOrder(TerminalDocument t) {
 
-overAutoPurchaseInvoiceTerminal  ABSTRACT LIST ( UserInvoice);
+    FOR number(Purchase.UserOrder order) = parentDocument(t) DO {
+        lock(order);
+        IF lockResult() THEN {
+            TRY {
+                APPLY;
+                NEWSESSION FORMS userInvoice {
+                    NEW i = UserInvoice {
+                        fillHeader(i, order);
+                        number(i) <- title(t);
 
-process(TerminalDocument document) + {        
+                        include(order,i) <- TRUE;
+                        overCreate (order, i);
+                        afterCreateInvoice(i);
 
-    
-    IF terminalDocumentType(document)== purchaseInvoiceTerminalDocumentType() AND useAutoPurchaseInvoiceTerminal(stock(document)) THEN {
-    
-        FOR NOT userInvoice(id(document)) NEW d = UserInvoice DO {
-            id(d) <- STRING[100](id(document));
+                        FOR terminalDocument(TerminalDocumentDetail tdd) == t ORDER number(tdd) NEW o = UserInvoiceDetail DO {
+                            userInvoice(o) <- i;
+                            sku(o) <- sku(tdd);
+                            shipmentQuantity(o) <- quantity(tdd);
+                            quantity(o) <- IF extraQuantity(tdd) != 0.0 THEN extraQuantity(tdd) ELSE quantity(tdd);
+                            overAddDetailDialogTerminalUserInvoiceDetail(o, tdd);
+                        }
+
+                        used(t) <- TRUE;
+                    }
+                    APPLY;
+                    IF canceled() THEN {
+                        throwException(applyMessage());
+                    }
+                }
+            } FINALLY {
+                unlock(order);
+            }
+        } ELSE {
+            throwException('Выполняется прием. Попробуйте еще раз позже.');
         }
-        
-        //приходы
-        FOR UserInvoice i == userInvoice(id(document)) DO {
-            customer(i) <- legalEntity(stock(document));
-            customerStock(i) <- stock(document);
-            supplier(i) <- legalEntity(supplierStock(document));
-            supplierStock(i) <- supplierStock(document);
-            operation(i) <- defaultPurchaseOperation();
-            number(i) <- STRING[48](title(document));
-            
-            date(i) <- currentDate();
-            time(i) <- currentTime();
-            createdUser(i) <- createdUser(document);
-            
-            priceListType(i) <- defaultPriceListType(operation(i));
-        }
-        
-        FOR terminalDocument(TerminalDocumentDetail tdd) == document AND NOT userInvoiceDetail(id(tdd)) ORDER number(tdd) NEW d = UserInvoiceDetail DO {
-            id(d) <- id(tdd);
-        }
-        
-        FOR terminalDocument(TerminalDocumentDetail tdd) == document AND UserInvoiceDetail d == userInvoiceDetail(id(tdd)) DO {
-            userInvoice(d) <- userInvoice(id(document));
-            sku(d) <- sku(tdd);
-            quantity(d) <- quantity(tdd);
-            orderDetail(d) <- nearestOrderDetail(sku(tdd), supplierStock(document), stock(document), currentDate() );
-            manufactureDate(d) <- extraDate1(tdd);
-        }
-      
-        executeLocalEvents('Purchase.userInvoice');
-        
-        overAutoPurchaseInvoiceTerminal(userInvoice(id(document)));
-        
-        used(document) <- TRUE;
     }
+}
+
+fillInvoice 'Заполнять накладную (зявка = накладная)' = DATA BOOLEAN (TerminalDocumentType);
+createInvoiceOrder 'Создавать накладную (зявка = заказ)' = DATA BOOLEAN (TerminalDocumentType);
+
+EXTEND FORM groupTerminalDocumentType
+    PROPERTIES (tdt) fillInvoice, createInvoiceOrder;
+EXTEND FORM groupTerminalDocumentTypes
+    PROPERTIES (tdt) READONLY fillInvoice, createInvoiceOrder;
+
+process(TerminalDocument document) + {
+    IF fillInvoice(terminalDocumentType(document)) AND NOT used(document) AND quantityTerminalDocumentDetail(document) AND sumTerminalDocumentDetail(document) THEN fillInvoice(document);
+    IF createInvoiceOrder(terminalDocumentType(document)) AND NOT used(document) AND quantityTerminalDocumentDetail(document) AND sumTerminalDocumentDetail(document) THEN createInvoiceOrder(document);
 }
