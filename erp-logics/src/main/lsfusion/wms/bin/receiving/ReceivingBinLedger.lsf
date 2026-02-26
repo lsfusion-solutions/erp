@@ -10,6 +10,7 @@ isClosed '{documents.is.closed}' = ABSTRACT BOOLEAN (Receiving) MATERIALIZED;
 isOpened '{documents.is.opened}' (Receiving o) = o IS Receiving AND NOT isClosed(o) MATERIALIZED;
 INDEX isOpened(Receiving o);
 
+isReturn 'Возвратная' = ABSTRACT BOOLEAN (Receiving) MATERIALIZED;
 isPosted '{document.posted}' (o) = ABSTRACT BOOLEAN (Receiving) MATERIALIZED;
 number '{numerator.number.numerator}' = ABSTRACT STRING[48] (Receiving) IN numbered MATERIALIZED CHARWIDTH 8;
 series '{numerator.series.numerator}' = ABSTRACT BPSTRING[2] (Receiving) IN numbered MATERIALIZED CHARWIDTH 3 NOFLEX;
@@ -632,7 +633,7 @@ FORM receiving 'Приемка'
     OBJECTS r=Receiving LAST
     PROPERTIES(r) selected
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
-    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series, 
+    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, isReturn, number, series, 
                                                     date, time, GRDate BACKGROUND RGB(255, 224, 255), GRTime BACKGROUND RGB(255, 224, 255),
                                                     nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
     PROPERTIES(r) PANEL TOOLBAR startReceiving SHOWIF status(r)==ReceivingStatus.pending, 
@@ -871,6 +872,9 @@ GRDateTime 'Дата/время завершения' (UserReceiving receiving) 
 
 @defineDocumentHeaderClosed(UserReceiving);
 
+isReturn 'Возвратная' = DATA BOOLEAN (UserReceiving);
+
+isReturn(UserReceiving receiving) += isReturn(receiving);
 isPosted(UserReceiving receiving) += receiving IS UserReceiving;
 isClosed(UserReceiving receiving) += isClosed(receiving);
 number(UserReceiving receiving) += number(receiving);
@@ -930,7 +934,8 @@ META defineReceivingAggregation(primObject, captionObject, captionObjects, formO
 
     needToCreateReceiving = ABSTRACT VALUE OVERRIDE FIRST BOOLEAN (###primObject);
     primObject##Receiving = AGGR ###primObject##Receiving WHERE needToCreateReceiving(###primObject primObject) MATERIALIZED INDEXED;
-
+    
+    isReturn(###primObject##Receiving receiving) += ###primObject.isReturn(primObject(receiving));
     isPosted(###primObject##Receiving receiving) += isPosted(primObject(receiving));
     isClosed(###primObject##Receiving receiving) += isClosed(primObject(receiving));
     number(###primObject##Receiving receiving) += number(primObject(receiving));
@@ -1055,6 +1060,7 @@ META defineUserReceiving (primObject, captionObjects)
         LOCAL newReceiving = UserReceiving();
         NEWSESSION NESTED (selectedUserReceiving[###primObject], newReceiving) {
             IF countToUserReceiving###primObject() THEN NEW r = UserReceiving {
+                isReturn(r) <- GROUP MAX isReturn(###primObject primObject) IF selectedUserReceiving(primObject);
                 supplier(r) <- GROUP MAX from(###primObject primObject) IF selectedUserReceiving(primObject);
                 supplierStock(r) <- GROUP MAX fromStock(###primObject primObject) IF selectedUserReceiving(primObject);
                 customer(r) <- GROUP MAX to(###primObject primObject) IF selectedUserReceiving(primObject);
@@ -1132,7 +1138,7 @@ END
 FORM editReceiving 'Приёмка'
     OBJECTS r=Receiving PANEL
     PROPERTIES(r) READONLY BACKGROUND RGB(255, 224, 255) nameStatus
-    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, number, series,
+    PROPERTIES(r) READONLY BACKGROUND background(r) nameCreatedUser, isClosed, isPosted, isReturn, number, series,
         date, time, GRDate BACKGROUND RGB(255, 224, 255), GRTime BACKGROUND RGB(255, 224, 255),
         nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
 
@@ -1160,6 +1166,7 @@ DESIGN editReceiving {
                     horizontal = TRUE;
                     MOVE PROPERTY(isPosted(r));
                     MOVE PROPERTY(isClosed(r));
+                    MOVE PROPERTY(isReturn(r));
                     MOVE PROPERTY(nameStatus(r));
                     MOVE PROPERTY(nameCreatedUser(r));
                 }
