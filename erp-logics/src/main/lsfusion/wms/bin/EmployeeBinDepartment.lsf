@@ -4,7 +4,7 @@ REQUIRE EmployeeBin, BinSkuLedger, ReservedBinLedger, BinDepartment;
 
 NAMESPACE Bin;
 
-FORM dialogBinZones 'Зоны'
+FORM dialogBinZones 'Зоны'  //todo: migrate to Department
     OBJECTS g = BinGroup
     PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
     ORDERS canonicalName(g)
@@ -13,12 +13,12 @@ FORM dialogBinZones 'Зоны'
     FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
 ;
 
-filterBinZone  = DATA LOCAL NESTED BinGroup ();
-nameFilterBinZone 'Зоны' = name(filterBinZone()) CHARWIDTH 15;
+filterDepartment  = DATA LOCAL NESTED BinGroup ();  //todo: migrate to Department
+nameFilterDepartment 'Отделы' = name(filterDepartment()) CHARWIDTH 15;
 
-changeFilterBinZone(Stock st) {
+changeFilterDepartment(Stock st) {
     DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
-        filterBinZone() <- g;
+        filterDepartment() <- g;
     }
 }
 
@@ -68,18 +68,18 @@ DESIGN employee {
 
 EXTEND FORM currentBalanceSkuStock
     PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
-    FILTERS (GROUP SUM 1 IF currentBalance(s, Bin bb) AND isParent(filterBinZone(), bb)) 
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS (GROUP SUM 1 IF currentBalance(s, Bin bb) AND isParent(filterDepartment(), bb)) 
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
     OBJECTS bg = BinGroup PANEL 
-    PROPERTIES currentBalance(s, bg) DRAW sts SHOWIF filterBinZone() AFTER currentBalance(s, st)
-    FILTERS bg = filterBinZone()
+    PROPERTIES currentBalance(s, bg) DRAW sts SHOWIF filterDepartment() AFTER currentBalance(s, st)
+    FILTERS bg = filterDepartment()
     
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
     PROPERTIES(s, bin) READONLY currentBalance, currentReserved, availableQuantity
-    FILTERS stock(bin) = st, currentBalance(s, bin), isParent(filterBinZone(), bin)
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    FILTERS stock(bin) = st, currentBalance(s, bin), isParent(filterDepartment(), bin)
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     ORDERS order(bin), canonicalId(bin), name(bin)
 
     OBJECTS bl = BinLedger
@@ -87,21 +87,21 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
 
     EVENTS ON CHANGE ss {
         IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterBinZone() <- OVERRIDE binZone(currentUser()), defaultCompanyBinZone(currentUser(), ss);
+            filterDepartment() <- OVERRIDE binZone(currentUser()), defaultCompanyBinZone(currentUser(), ss);
         } ELSE {
-            filterBinZone() <- NULL;
+            filterDepartment() <- NULL;
         }
     }
 ;
 
 DESIGN currentBalanceSkuStock {
     filter {
-        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss)) {tag='';}
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
     }
     ledgerBox {
         MOVE BOX(bin){
@@ -118,18 +118,18 @@ DESIGN currentBalanceSkuStock {
 
 EXTEND FORM balanceSkuStock
     PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore()
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
-    FILTERS (GROUP SUM 1 IF balanceB(s, Bin bb,t) AND isParent(filterBinZone(), bb))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS (GROUP SUM 1 IF balanceB(s, Bin bb,t) AND isParent(filterDepartment(), bb))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     OBJECTS bg = BinGroup PANEL
-    PROPERTIES balanceB(s, bg, t) DRAW sts SHOWIF filterBinZone() AFTER balanceB(s, st,t)
-    FILTERS bg = filterBinZone()
+    PROPERTIES balanceB(s, bg, t) DRAW sts SHOWIF filterDepartment() AFTER balanceB(s, st,t)
+    FILTERS bg = filterDepartment()
 
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
     PROPERTIES READONLY balanceB(s, bin, t)
-    FILTERS stock(bin) = st, balanceB(s, bin, t), isParent(filterBinZone(), bin)
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    FILTERS stock(bin) = st, balanceB(s, bin, t), isParent(filterDepartment(), bin)
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     ORDERS order(bin), canonicalId(bin), name(bin)
 
     OBJECTS bl = BinLedger
@@ -137,22 +137,22 @@ EXTEND FORM balanceSkuStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
 
 
     EVENTS ON CHANGE ss {
         IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);  
+            filterDepartment() <- defaultCompanyBinZone(currentUser(), ss);  
         } ELSE {
-            filterBinZone() <- NULL;
+            filterDepartment() <- NULL;
         }
     }
 ;
 
 DESIGN balanceSkuStock {
     filter {
-        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss)) {tag='';}
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
     }
     ledgerBox {
         MOVE BOX(bin);

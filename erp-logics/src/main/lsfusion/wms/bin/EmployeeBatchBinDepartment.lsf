@@ -4,23 +4,23 @@ REQUIRE EmployeeBinDepartment, BatchBinSkuLedger, BatchReservedBinLedger;
 
 NAMESPACE Bin;
 
-filterBinZone (Batch bt) = [GROUP SUM 1 IF currentBalance(Batch bt1, Bin b) BY bt1, binGroup(b)](bt, filterBinZone()) 
-    OR (bt IS Batch AND NOT filterBinZone());
+filterBinZone (Batch bt) = [GROUP SUM 1 IF currentBalance(Batch bt1, Bin b) BY bt1, binGroup(b)](bt, filterDepartment()) 
+    OR (bt IS Batch AND NOT filterDepartment());
 
 EXTEND FORM currentBalanceBatchStock
     PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
-    FILTERS (GROUP SUM 1 IF currentBalance(bt, Bin bb) AND isParent(filterBinZone(), bb)) 
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS (GROUP SUM 1 IF currentBalance(bt, Bin bb) AND isParent(filterDepartment(), bb)) 
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
     OBJECTS bg = BinGroup PANEL 
-    PROPERTIES currentBalance(bt, bg) DRAW stb SHOWIF filterBinZone() AFTER currentBalance(bt, st)
-    FILTERS bg = filterBinZone()
+    PROPERTIES currentBalance(bt, bg) DRAW stb SHOWIF filterDepartment() AFTER currentBalance(bt, st)
+    FILTERS bg = filterDepartment()
 
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), statusBatch
     PROPERTIES(bt, bin) READONLY currentBalance, currentReserved, availableQuantity
-    FILTERS stock(bin) = st, currentBalance(bt, bin), isParent(filterBinZone(), bin)
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    FILTERS stock(bin) = st, currentBalance(bt, bin), isParent(filterDepartment(), bin)
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     ORDERS order(bin), canonicalId(bin), name(bin)
     
     OBJECTS bl = BinLedger
@@ -28,21 +28,21 @@ EXTEND FORM currentBalanceBatchStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), batch(bl)==bt,
-        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
 
     EVENTS ON CHANGE ss {
         IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);
+            filterDepartment() <- defaultCompanyBinZone(currentUser(), ss);
         } ELSE {
-            filterBinZone() <- NULL;
+            filterDepartment() <- NULL;
         }
     }
 ;
 
 DESIGN currentBalanceBatchStock {
     filter {
-        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss)) {tag='';}
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
     }
     ledgerBox {
         MOVE BOX(bin){
@@ -57,18 +57,18 @@ DESIGN currentBalanceBatchStock {
 
 EXTEND FORM balanceBatchStock
     PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore()
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterBinZone() ON CHANGE changeFilterBinZone(ss)
-    FILTERS (GROUP SUM 1 IF balanceB(bt, Bin bb,t) AND isParent(filterBinZone(), bb))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS (GROUP SUM 1 IF balanceB(bt, Bin bb,t) AND isParent(filterDepartment(), bb))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     OBJECTS bg = BinGroup PANEL
-    PROPERTIES balanceB(bt, bg, t) DRAW stb SHOWIF filterBinZone() AFTER balanceB(bt, st,t)
-    FILTERS bg = filterBinZone()
+    PROPERTIES balanceB(bt, bg, t) DRAW stb SHOWIF filterDepartment() AFTER balanceB(bt, st,t)
+    FILTERS bg = filterDepartment()
 
     OBJECTS bin = Bin
     PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), statusBatch
     PROPERTIES READONLY balanceB(bt, bin, t)
-    FILTERS stock(bin) = st, balanceB(bt, bin, t), isParent(filterBinZone(), bin)
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+    FILTERS stock(bin) = st, balanceB(bt, bin, t), isParent(filterDepartment(), bin)
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     ORDERS order(bin), canonicalId(bin), name(bin)
     
     OBJECTS bl = BinLedger
@@ -76,21 +76,21 @@ EXTEND FORM balanceBatchStock
     PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
     ORDERS dateTime(bl) DESC
     FILTERS isPosted(bl), batch(bl)==bt,
-        stock(bl) = st, isParent(filterBinZone(), inBin(bl)) OR isParent(filterBinZone(), outBin(bl))
-        OR NOT filterBinZone() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
+        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
+        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
     
     EVENTS ON CHANGE ss {
         IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterBinZone() <- defaultCompanyBinZone(currentUser(), ss);  
+            filterDepartment() <- defaultCompanyBinZone(currentUser(), ss);  
         } ELSE {
-            filterBinZone() <- NULL;
+            filterDepartment() <- NULL;
         }
     }
 ;
 
 DESIGN balanceBatchStock {
     filter {
-        MOVE PROPERTY(nameFilterBinZone()) AFTER PROPERTY(name(ss)) {tag='';}
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
     }
     ledgerBox {
         MOVE BOX(bin);  

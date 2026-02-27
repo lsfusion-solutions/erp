@@ -4,56 +4,56 @@ REQUIRE Revaluation, BinLedger, StockDocumentBinLedger;
 
 NAMESPACE Revaluation;
 
-needBinZone 'Отдел обязателен' = DATA BOOLEAN (Operation);
+needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) needBinZone
+    PROPERTIES(o) needDepartment
 ;
 
 DESIGN operation {
      constraintContainer {
         caption = 'Ограничения';
-        MOVE PROPERTY(needBinZone(o));
+        MOVE PROPERTY(needDepartment(o));
     }
 }
 
-binZone = ABSTRACT BinGroup (Revaluation) MATERIALIZED INDEXED;
-binZone(RevaluationDetail d) = binZone(revaluation(d));
-nameBinZone 'Отдел' (Revaluation r) = name(binZone(r)) CHARWIDTH 10;
+department = ABSTRACT BinGroup (Revaluation) MATERIALIZED INDEXED;   //todo: migrate to Department
+department(RevaluationDetail d) = department(revaluation(d));
+nameDepartment 'Отдел' (Revaluation r) = name(department(r)) CHARWIDTH 10;
 
-binZone = DATA BinGroup (UserRevaluation);
-binZone(UserRevaluationDetail d) = binZone(userRevaluation(d));
-nameBinZone 'Отдел' (UserRevaluation r) = name(binZone(r)) CHARWIDTH 10;
+department = DATA BinGroup (UserRevaluation);   //todo: migrate to Department
+department(UserRevaluationDetail d) = department(userRevaluation(d));
+nameDepartment 'Отдел' (UserRevaluation r) = name(department(r)) CHARWIDTH 10;
 
-binZone(UserRevaluation r) += binZone(r);
+department(UserRevaluation r) += department(r);
 
-CONSTRAINT stock(UserRevaluation userRevaluation) AND binZone(userRevaluation) AND NOT
-    stock(userRevaluation) = stock(binZone(userRevaluation))
-    CHECKED BY binZone[UserRevaluation]
+CONSTRAINT stock(UserRevaluation userRevaluation) AND department(userRevaluation) AND NOT
+    stock(userRevaluation) = stock(department(userRevaluation))
+    CHECKED BY department[UserRevaluation]
     MESSAGE 'Cклад и отдел переоценки не имеют связи';
 
-CONSTRAINT (CHANGED(operation(Revaluation r)) OR CHANGED(binZone(r))) AND NOT binZone(r) AND needBinZone(operation(r))
+CONSTRAINT (CHANGED(operation(Revaluation r)) OR CHANGED(department(r))) AND NOT department(r) AND needDepartment(operation(r))
     MESSAGE 'Отдел обязателен для заданной операции переоценки';
 
-changeUserRevaluationZoneBinGroup(UserRevaluation r) {
+changeUserRevaluationDepartment(UserRevaluation r) {
     DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = stock(r) DO  {
-        binZone(r) <- g;
+        department(r) <- g;
     }
 }
 
 
 EXTEND FORM userRevaluation
-    PROPERTIES nameBinZone(p) ON CHANGE changeUserRevaluationZoneBinGroup(p) AFTER nameStock(p)
+    PROPERTIES nameDepartment(p) ON CHANGE changeUserRevaluationDepartment(p) AFTER nameStock(p)
 ;
 
 DESIGN userRevaluation {
     third {
-        MOVE PROPERTY(nameBinZone(p)) AFTER PROPERTY(nameStock(p)) {charWidth = 20;}
+        MOVE PROPERTY(nameDepartment(p)) AFTER PROPERTY(nameStock(p)) {charWidth = 20;}
     }
 }
 
 EXTEND FORM revaluations
-    PROPERTIES READONLY nameBinZone(p) AFTER nameStock(p)
+    PROPERTIES READONLY nameDepartment(p) AFTER nameStock(p)
 ;
 
 EXTEND CLASS Revaluation : OutStockDocumentBinLedger;
@@ -71,6 +71,6 @@ sumContainer[OutStockDocumentBinLedger] (Revaluation ledger) += 0.0 IF ledger IS
 
 operation[StockDocumentBinLedger](Revaluation ledger) += operation(ledger);
 
-binGroup[StockDocumentBinLedger] (Revaluation ledger) += binZone(ledger);
+binGroup[StockDocumentBinLedger] (Revaluation ledger) += department(ledger);
 
-skip[StockDocumentBinLedger] (Revaluation ledger) += ledger IS Revaluation AND NOT binZone(ledger);
+skip[StockDocumentBinLedger] (Revaluation ledger) += ledger IS Revaluation AND NOT department(ledger);
