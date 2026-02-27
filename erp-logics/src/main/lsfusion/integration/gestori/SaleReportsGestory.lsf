@@ -1,13 +1,132 @@
 MODULE SaleReportsGestory;
 
-REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument;
+REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument,
+        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport;
 
 NAMESPACE SaleReports;
 
-//articleRu(Sku s) += article(s);
+CLASS QuantityFilterType 'Тип фильтра по количеству' {
+    greater 'Больше',
+    less 'Меньше',
+    equal 'Равно'
+}
+
+CLASS SkuFilterType 'Тип фильтра по товарам'{
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+
+intervalsCount 'Количество интервалов' = DATA LOCAL INTEGER ();
+
+filterQuantityType = DATA LOCAL QuantityFilterType();
+filterQuantityTypeName 'Сравнение' = staticCaption(filterQuantityType());
+
+filterFrom 'Дата от' = DATA LOCAL DATE ();
+filterTo 'Дата до' = DATA LOCAL DATE ();
+in 'Отм.' = DATA LOCAL BOOLEAN (CashRegister);
+inSaleReportCashRegs 'Кассы' () =
+    GROUP CONCAT STRING(npp(CashRegister c)) IF in(c), ',' ORDER c CHARWIDTH 20;
+
+in 'Отм.' = DATA LOCAL BOOLEAN (Employee);
+inReportCashiers 'Кассиры' () =
+    GROUP CONCAT STRING(name(Employee e)) IF in(e), ',' ORDER e CHARWIDTH 20;
+
+addSkuLists 'Отметить по cписку Sku' () {
+    in(Sku s) <- NULL;
+    DIALOG dialogAddLists DO {
+        FOR [GROUP SUM 1 IF in(list(ListDetail d)) IF Sku s = sku(d) BY s](Sku s) DO {
+            in(s) <- TRUE;
+        }
+    }
+    in(List l) <- NULL;
+}
+
+filterQuantity 'Фильтр по количеству' = DATA LOCAL NUMERIC[10,3]();
+
+filterByDates(ZReport.Receipt r) = (NOT filterFrom() OR date(r) >= filterFrom()) AND
+    (NOT filterTo() OR date(r) <= filterTo());
+
+filterForPerformanceReport(ZReport.Receipt r) = filterByDates(r) AND inSaleReport(ZReport.departmentStore(r))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(ZReport.cashRegister(r)))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(ZReport.employee(r)));
+
+skuFilterType = DATA LOCAL SkuFilterType();
+nameSkuFilterType 'Выбор товаров' = staticCaption(skuFilterType());
+
+filterBySku(ZReport.ReceiptDetail rd) = CASE
+    WHEN skuFilterType() = SkuFilterType.skuGroups THEN ((NOT GROUP SUM 1 IF inSession(SkuGroup g)) OR inSession(skuGroup(sku(rd))))
+    WHEN skuFilterType() = SkuFilterType.sku OR skuFilterType() = SkuFilterType.skuLists THEN (NOT GROUP SUM 1 IF in(Sku s)) OR in(sku(rd))
+    ELSE TRUE ;
+
+filterByQuantity(ZReport.ReceiptDetail rd) = NOT filterQuantityType() OR NOT filterQuantity() OR
+    (filterQuantityType() = QuantityFilterType.greater AND ZReport.signedQuantity(rd) > filterQuantity() ) OR
+    (filterQuantityType() = QuantityFilterType.less AND ZReport.signedQuantity(rd) < filterQuantity() ) OR
+    (filterQuantityType() = QuantityFilterType.equal AND ZReport.signedQuantity(rd) = filterQuantity() )
+;
+
+iterateDays(DATE d) = RECURSION d = DATE(filterFrom())
+    AND filterTo() IS DATE STEP d = DATE (sumDay(DATETIME ($d), 1)) AND d <= DATE (filterTo()) CYCLES IMPOSSIBLE;
+
+FORM dialogCashRegisters 'Выбор касс'
+    OBJECTS c = CashRegister
+    PROPERTIES(c) in
+    PROPERTIES(c) READONLY npp, shortDescription, description, nameStock, nameGroupMachinery, nppGroupMachinery
+    FILTERS inSaleReport(stock(c))
+;
+
+FORM dialogCashiers 'Выбор кассиров'
+    OBJECTS e = Employee
+    PROPERTIES(e) in
+    PROPERTIES(e) READONLY name
+    FILTERS GROUP SUM 1 IF ZReport.employee(ZReport.Receipt r) = e
+;
+
+FORM selectSku 'Выбор товара'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES (s) in
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM skuFilterType 'Тип фильтра по товарам'
+    OBJECTS t = SkuFilterType
+    PROPERTIES(t) READONLY '' = staticCaption
+    LIST SkuFilterType OBJECT t;
+
+askSkuFilterType 'Фильтр по товарам'() {
+    DIALOG skuFilterType OBJECTS t INPUT DO {
+        skuFilterType() <- t;
+        IF t = SkuFilterType.sku THEN SHOW selectSku ;
+        ELSE IF t = SkuFilterType.skuGroups THEN SHOW filterGroupType;
+        ELSE IF t = SkuFilterType.skuLists THEN addSkuLists();
+    }
+}
+
+selectStocksForReport(){
+    DIALOG dialogStocksSaleReport FILTERS s IS DepartmentStore;
+}
+
+inReportStocks 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inSaleReport(st), ',' ORDER st CHARWIDTH 30;
+
+selectCashRegisters() {DIALOG dialogCashRegisters;}
+selectCashiers() {DIALOG dialogCashiers;}
+
+selectedSkus = GROUP CONCAT STRING(name(Sku s)) IF in(s), ',' ORDER s CHARWIDTH 30;
+selectedSkuGroups = GROUP CONCAT STRING(name(SkuGroup g)) IF inSession(g), ',' ORDER g CHARWIDTH 30;
+
+inSaleReportSkus 'Товары' () = CONCAT ',', selectedSkus(), selectedSkuGroups();
+
 priceSku(Sku s, Stock st, DATE d) += OVERRIDE accountPrice(s, st, d), accountPriceB(s, st, dateTimeToDateTime(d, 23:59));
 costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d)*100/(100+valueVAT(s))));
-//supplierSku(Sku s) += supplier(s);
 
 retailSumEnd = DATA LOCAL NUMERIC[18,4] (SaleLedger);
 batch = ABSTRACT Batch (SaleLedger) MATERIALIZED;
@@ -60,5 +179,583 @@ DESIGN salesReport {
             caption = 'Собственные отчеты';
             MOVE PROPERTY(printIncomeStatementsReport(df, dt));
         }
+    }
+}
+
+inSaleIntervalReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+intervalInHoursInput 'Интервал (в часах)' = DATA LOCAL INTEGER ();
+
+intervalInHours = CASE
+    WHEN intervalInHoursInput() THEN intervalInHoursInput()
+    WHEN intervalsCount() THEN daysBetweenDates(filterTo(), filterFrom()) * 24 / intervalsCount();
+
+iterateHours(DATETIME d) = RECURSION d = DATETIME(filterFrom()) AND filterFrom() IS DATE
+    AND DATETIME(filterTo()) IS DATETIME STEP d = sumMinutes($d, intervalInHours() * 60) AND d < DATETIME(filterTo()) CYCLES IMPOSSIBLE;
+
+endInterval(DATETIME d) = sumMinutes(d, intervalInHours() * 60);
+
+unitCountI 'Продано единиц' (DATETIME d, DepartmentStore s) = GROUP SUM ZReport.signedQuantity(ZReport.ReceiptDetail rd)
+    IF ZReport.dateTime(rd) >= d AND ZReport.dateTime(rd) <= endInterval(d) AND ZReport.departmentStore(rd) = s;
+
+sumI 'Сумма продаж' (DATETIME d, DepartmentStore s) = GROUP SUM ZReport.signedSum(ZReport.ReceiptDetail rd)
+    IF ZReport.dateTime(rd) >= d AND ZReport.dateTime(rd) <= endInterval(d) AND ZReport.departmentStore(rd) = s;
+
+avgI 'Средняя стоимость' (DATETIME d, DepartmentStore s) = sumI(d, s) / unitCountI(d, s);
+
+shortName(DOW d) = CASE
+    WHEN d == DOW.sunday THEN 'Вс'
+    WHEN d == DOW.monday THEN 'Пн'
+    WHEN d == DOW.tuesday THEN 'Вт'
+    WHEN d == DOW.wednesday THEN 'Ср'
+    WHEN d == DOW.thursday THEN 'Чт'
+    WHEN d == DOW.friday THEN 'Пт'
+    WHEN d == DOW.saturday THEN 'Сб'
+;
+
+FORM salesByIntervalsReportPrint 'Продажи по временным интервалам'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inReportStocks(), intervalInHours = intervalInHours()
+
+    OBJECTS s = DepartmentStore
+    PROPERTIES name(s)
+    FILTERS inSaleReport(s)
+
+    OBJECTS d = DATETIME
+    PROPERTIES READONLY date 'Дата' = STRING (toChar(d, 'dd.MM.yyyy')), dow 'День\nнедели' = shortName(extractDOW(DATE(d))),
+        time 'Время' = STRING (toChar(d, 'HH24:MI')),
+        unitCountI(d, s) COLUMNS 'склад' (s) HEADER name(s) + ': Продано\nединиц ',
+        sumI(d, s) COLUMNS 'склад' (s) HEADER 'Сумма\nпродаж',
+        avgI(d, s) COLUMNS 'склад' (s) HEADER 'Средняя\nстоимость'
+    FILTERS iterateHours(d) ;
+
+printSaleReportIntervals 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT salesByIntervalsReportPrint;
+}
+
+filterByDates(DATE d) = (NOT filterFrom() OR d >= filterFrom()) AND
+    (NOT filterTo() OR d <= filterTo());
+
+FORM salesByCashRegsReportPrint 'Продажи товара на кассах'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS rd = ZReport.ReceiptDetail
+    PROPERTIES (rd) READONLY date, time, idBarcode, nameSku, numberCashRegister, numberReceipt, ZReport.signedQuantity, price
+    FILTERS filterByDates(date(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(ZReport.departmentStore(rd)) AND filterBySku(rd)
+    ORDERS date(rd), time(rd)
+;
+
+printSaleByCashRegsReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT salesByCashRegsReportPrint ;
+}
+
+workWithReceipt 'Время работы с чеком, сек' (ZReport.Receipt r) = secondsBetweenDates(ZReport.dateTimeClosed(r), ZReport.dateTimeOpen(r));
+
+workWithReceiptSubtotalByCashier(Employee e) = GROUP SUM workWithReceipt(ZReport.Receipt r) IF filterForPerformanceReport(r) AND ZReport.employee(r) = e;
+countReceiptDetailSubtotalByCashier(Employee e) = GROUP SUM ZReport.countReceiptDetail(ZReport.Receipt r) IF filterForPerformanceReport(r) AND ZReport.employee(r) = e;
+sumReceiptDetailSubtotalByCashier(Employee e) = GROUP SUM ZReport.sumReceiptDetail(ZReport.Receipt r) IF filterForPerformanceReport(r) AND ZReport.employee(r) = e;
+
+FORM cashierPerformanceReportPrint 'СКОРОСТЬ РАБОТЫ КАССИРА (подробно)'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS e = Employee
+    PROPERTIES (e) shortName, workWithReceiptSubtotalByCashier, countReceiptDetailSubtotalByCashier, sumReceiptDetailSubtotalByCashier
+    FILTERS countReceiptDetailSubtotalByCashier(e)
+
+    OBJECTS r = ZReport.Receipt
+    PROPERTIES (r) READONLY idDepartmentStore, numberCashRegister, nameEmployee, date, number,
+        ZReport.dateTimeOpen, ZReport.dateTimeClosed, workWithReceipt, ZReport.countReceiptDetail, ZReport.sumReceiptDetail
+
+    FILTERS nameEmployee(r) AND filterForPerformanceReport(r) AND ZReport.employee(r) = e
+    ORDERS nameEmployee(r), numberCashRegister(r), date(r)
+;
+
+printCashierPerformanceReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierPerformanceReportPrint ;
+}
+
+receiptsCount 'Кол-во чеков за период' (Employee e, CashRegister c) = GROUP SUM 1 IF ZReport.employee(ZReport.Receipt r) = e AND filterByDates(date(r))
+    AND inSaleReport(ZReport.departmentStore(r)) AND ZReport.cashRegister(r) = c;
+receiptDetailsCount 'Кол-во товаров за период' (Employee e, CashRegister c) = GROUP SUM 1 IF ZReport.employee(ZReport.receipt(ZReport.ReceiptDetail rd)) = e
+    AND filterByDates(date(rd)) AND inSaleReport(ZReport.departmentStore(rd)) AND ZReport.cashRegister(ZReport.receipt(rd)) = c;
+workWithReceiptTotal 'Время работы с чеками, сек' (Employee e, CashRegister c) = GROUP SUM workWithReceipt(ZReport.Receipt r) IF ZReport.employee(r) = e AND filterByDates(date(r))
+    AND inSaleReport(ZReport.departmentStore(r)) AND ZReport.cashRegister(r) = c;
+workWithReceiptAvg 'Среднее время на чек, сек' (Employee e, CashRegister c) = workWithReceiptTotal(e, c) / receiptsCount(e, c);
+workWithItemAvg 'Среднее время на товар, сек' (Employee e, CashRegister c) = workWithReceiptTotal(e, c) / receiptDetailsCount(e, c);
+
+receiptsCountSubtotal (CashRegister c) = GROUP SUM 1 IF ZReport.cashRegister(ZReport.Receipt r) = c AND filterByDates(date(r))
+    AND inSaleReport(ZReport.departmentStore(r)) AND ZReport.employee(r);
+receiptDetailsCountSubtotal (CashRegister c) = GROUP SUM 1 IF ZReport.cashRegister(ZReport.receipt(ZReport.ReceiptDetail rd)) = c
+    AND filterByDates(date(rd)) AND inSaleReport(ZReport.departmentStore(rd)) AND ZReport.employee(ZReport.receipt(rd));
+workWithReceiptTotalSubtotal (CashRegister c) = GROUP SUM workWithReceipt(ZReport.Receipt r) IF ZReport.cashRegister(r) = c
+    AND filterByDates(date(r)) AND inSaleReport(ZReport.departmentStore(r)) AND ZReport.employee(r);
+workWithReceiptAvgSubtotal (CashRegister c) = NUMERIC[13,3] (workWithReceiptTotalSubtotal(c)) / receiptsCountSubtotal(c);
+workWithItemAvgSubtotal (CashRegister c) = NUMERIC[13,3] (workWithReceiptTotalSubtotal(c)) / receiptDetailsCountSubtotal(c);
+
+filterForPerformanceReport(Employee e, CashRegister c) = inSaleReport(stock(c))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(c))
+    AND ((NOT GROUP SUM 1 IF in(Employee em)) OR in(e));
+
+FORM cashierPerformanceTotalReportPrint 'СКОРОСТЬ РАБОТЫ КАССИРА (итоги)'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS c = CashRegister
+    PROPERTIES (c) nameStock, npp, receiptsCountSubtotal, receiptDetailsCountSubtotal, workWithReceiptTotalSubtotal,
+        workWithReceiptAvgSubtotal, workWithItemAvgSubtotal
+    FILTERS receiptsCountSubtotal(c)
+
+    OBJECTS e = Employee
+    PROPERTIES READONLY name(e), receiptsCount(e, c), receiptDetailsCount(e, c),
+        workWithReceiptTotal(e, c), workWithReceiptAvg(e, c), workWithItemAvg(e, c)
+    FILTERS filterForPerformanceReport(e, c) AND receiptsCount(e, c)
+    ORDERS npp(c)
+;
+
+printCashierPerformanceTotalReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierPerformanceTotalReportPrint ;
+}
+
+filterShiftFrom 'Смена от' = DATA LOCAL TIME ();
+filterShiftTo 'Смена до' = DATA LOCAL TIME ();
+
+filterShiftFromReceiptDiscount 'Смена от' = DATA LOCAL TIME ();
+filterShiftToReceiptDiscount 'Смена до' = DATA LOCAL TIME ();
+
+filterDiscountFrom 'Скидка с' = DATA LOCAL NUMERIC ();
+filterDiscountTo 'Скидка по' = DATA LOCAL NUMERIC ();
+
+filterByShift(ZReport.ReceiptDetail rd) = (NOT filterShiftFrom() OR time(rd) >= filterShiftFrom()) AND
+    (NOT filterShiftTo() OR time(rd) <= filterShiftTo());
+
+filterForItemsWithDiscount(ZReport.ReceiptDetail rd) = sku(rd) AND ZReport.discountSum(rd)
+    AND filterByShift(rd)
+    AND filterByDates(date(rd))
+    AND inSaleReport(ZReport.departmentStore(rd))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(ZReport.cashRegister(ZReport.receipt(rd))))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(ZReport.employee(ZReport.receipt(rd))));
+
+priceWithDiscount(ZReport.ReceiptDetail rd) = round(ZReport.signedSum(rd) / ZReport.signedQuantity(rd), roundDiscountCondition(ZReport.departmentStore(rd)));
+discountPercentCalc(ZReport.ReceiptDetail rd) = round(1 - ZReport.signedSum(rd) / ZReport.fullSum(rd), roundDiscountCondition(ZReport.departmentStore(rd))) * 100;
+
+fullSumByDay(DATE d) = GROUP SUM ZReport.fullSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+signedSumByDay(DATE d) = GROUP SUM ZReport.signedSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+discountSumByDay(DATE d) = GROUP SUM ZReport.discountSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd);
+discountAvgPercentByDay(DATE d) = (GROUP SUM discountPercentCalc(ZReport.ReceiptDetail rd)
+    IF rd IS ZReport.ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)) /
+    (GROUP SUM 1 IF date(ZReport.ReceiptDetail rd2) = d AND rd2 IS ZReport.ReceiptSaleDetail AND filterForItemsWithDiscount(rd2));
+
+FORM itemsWithDiscountReportPrint 'Товары со скидками по кассам'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportCashRegisters = inSaleReportCashRegs(),
+        inSaleReportCashiers = inReportCashiers()
+
+    OBJECTS d = DATE
+    PROPERTIES (d) fullSumByDay, discountSumByDay, discountAvgPercentByDay, signedSumByDay
+    FILTERS iterateDays(d)
+
+    OBJECTS rd = ZReport.ReceiptDetail
+    PROPERTIES (rd) READONLY date, numberCashRegister, nameEmployee, numberReceipt, idBarcode, nameSku, ZReport.signedQuantity,
+        price, ZReport.fullSum, ZReport.discountSum, discountPercentCalc, priceWithDiscount, ZReport.signedSum
+    FILTERS ZReport.signedQuantity(rd) > 0 AND filterForItemsWithDiscount(rd) AND date(rd) = d
+;
+
+printItemsWithDiscountReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT itemsWithDiscountReportPrint ;
+}
+
+quantity(Item i, Stock s, DATE d) = GROUP SUM ZReport.signedQuantity(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND ZReport.departmentStore(rd) = s ;
+
+bruttoSum(Item i, Stock s, DATE d) = GROUP SUM ZReport.fullSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND ZReport.departmentStore(rd) = s ;
+
+discountSum(Item i, Stock s, DATE d) = GROUP SUM ZReport.discountSum(ZReport.ReceiptDetail rd)
+    IF rd IS ZReport.ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)
+        AND sku(rd) = i AND ZReport.departmentStore(rd) = s ;
+
+discountPercent(Item i, Stock s, DATE d) = round( (GROUP SUM discountPercentCalc(ZReport.ReceiptDetail rd)
+    IF rd IS ZReport.ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd)
+        AND sku(rd) = i AND ZReport.departmentStore(rd) = s) /
+    (GROUP SUM 1 IF filterForItemsWithDiscount(ZReport.ReceiptDetail rd2) AND rd2 IS ZReport.ReceiptSaleDetail AND date(rd2) = d
+        AND sku(rd2) = i AND ZReport.departmentStore(rd2) = s), roundDiscountCondition(s));
+
+nettoSum(Item i, Stock s, DATE d) = GROUP SUM ZReport.signedSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND sku(rd) = i AND ZReport.departmentStore(rd) = s ;
+
+fullSumByDayAndStock(DATE d, Stock s) = GROUP SUM ZReport.fullSum(ZReport.ReceiptSaleDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForItemsWithDiscount(rd) AND ZReport.departmentStore(rd) = s;
+
+signedSumByDayAndStock(DATE d, Stock s) = GROUP SUM ZReport.signedSum(ZReport.ReceiptDetail rd)
+    IF rd IS ZReport.ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd) AND ZReport.departmentStore(rd) = s;
+
+discountSumByDayAndStock(DATE d, Stock s) = GROUP SUM ZReport.discountSum(ZReport.ReceiptDetail rd)
+    IF rd IS ZReport.ReceiptSaleDetail AND date(rd) = d AND filterForItemsWithDiscount(rd) AND ZReport.departmentStore(rd) = s;
+
+FORM itemsWithDiscountTotalReportPrint 'Товары со скидками (итого)'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        inSaleReportStocks = inSaleReportStocks()
+
+    OBJECTS d = DATE
+    PROPERTIES date = VALUE (d)
+    FILTERS filterByDates(d) AND iterateDays(d)
+
+    OBJECTS s = Stock
+    PROPERTIES (s) name
+    FILTERS inSaleReport(s)
+
+    OBJECTS i = Item
+    PROPERTIES READONLY idBarcode(i), name(i), quantity(i, s, d), bruttoSum(i, s, d), discountSum(i, s, d),
+        discountPercent(i, s, d), nettoSum(i, s, d),
+        fullSumByDayAndStock(d, s), discountSumByDayAndStock(d, s), signedSumByDayAndStock(d, s)
+    FILTERS quantity(i, s, d) > 0 ;
+
+printItemsWithDiscountTotalReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT itemsWithDiscountTotalReportPrint ;
+}
+
+filterByDiscountSum(ZReport.ReceiptDetail rd) = (NOT filterDiscountFrom() OR ZReport.discountSum(rd) >= filterDiscountFrom()) AND
+    (NOT filterDiscountTo() OR ZReport.discountSum(rd) <= filterDiscountTo());
+
+filterForReceiptsWithDiscount(ZReport.ReceiptDetail rd) = sku(rd) AND ZReport.discountSum(rd)
+    AND filterByDiscountSum(rd)
+    AND filterByShift(rd)
+    AND filterByDates(date(rd))
+    AND inSaleReport(ZReport.departmentStore(rd))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(ZReport.cashRegister(ZReport.receipt(rd))))
+    AND filterBySku(rd);
+
+barcodeQuantity(ZReport.ReceiptDetail rd) = ZReport.signedQuantity(rd) * amountBarcode(sku(rd));
+barcodePrice(ZReport.ReceiptDetail rd) = price(rd) * amountBarcode(sku(rd));
+barcodePriceWithDiscount(ZReport.ReceiptDetail rd) = priceWithDiscount(rd) * amountBarcode(sku(rd));
+
+fullSumByDayReceiptDiscount(DATE d) = GROUP SUM ZReport.fullSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+signedSumByDayReceiptDiscount(DATE d) = GROUP SUM ZReport.signedSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+discountSumByDayReceiptDiscount(DATE d) = GROUP SUM ZReport.discountSum(ZReport.ReceiptDetail rd) IF rd IS ZReport.ReceiptSaleDetail
+    AND date(rd) = d AND filterForReceiptsWithDiscount(rd);
+
+FORM receiptsWithDiscountReportPrint 'Товары со скидками по чекам'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        shiftFrom = filterShiftFrom(), shiftTo = filterShiftTo(),
+        discountFrom = filterDiscountFrom(), discountTo = filterDiscountTo(),
+        inSaleReportStocks = inSaleReportStocks(),
+        inSaleReportCashRegisters = inSaleReportCashRegs(),
+        inSaleReportSkus = inSaleReportSkus()
+
+    OBJECTS d = DATE
+    PROPERTIES (d) fullSumByDayReceiptDiscount, discountSumByDayReceiptDiscount, signedSumByDayReceiptDiscount
+    FILTERS iterateDays(d)
+
+    OBJECTS rd = ZReport.ReceiptDetail
+    PROPERTIES (rd) READONLY nameDepartmentStore, date, numberCashRegister, time, nameEmployee, numberReceipt, id, nameSku, idBarcode, barcodeQuantity,
+        barcodePrice, ZReport.fullSum, ZReport.discountSum, discountPercentCalc, barcodePriceWithDiscount, ZReport.signedSum
+    FILTERS ZReport.signedQuantity(rd) > 0 AND filterForReceiptsWithDiscount(rd) AND date(rd) = d
+;
+
+printReceiptsWithDiscountReport 'Печать' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT receiptsWithDiscountReportPrint ;
+}
+
+FORM statisticalReports
+    OBJECTS dateFromObj = DATE PANEL
+    PROPERTIES dateFromIntervals 'Дата от' = VALUE(dateFromObj),
+        dateFromCashReg 'Дата от' = VALUE(dateFromObj),
+        dateFromPerformance 'Дата от' = VALUE(dateFromObj),
+        dateFromDiscount 'Дата от' = VALUE(dateFromObj),
+        dateFromReceiptDiscount 'Дата от' = VALUE(dateFromObj)
+
+    OBJECTS dateToObj = DATE PANEL
+    PROPERTIES dateToIntervals 'Дата до' = VALUE(dateToObj),
+        dateToCashReg 'Дата до' = VALUE(dateToObj),
+        dateToPerformance 'Дата до' = VALUE(dateToObj),
+        dateToDiscount 'Дата до' = VALUE(dateToObj),
+        dateToReceiptDiscount 'Дата до' = VALUE(dateToObj)
+
+    PROPERTIES inReportStocksIntervals 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksCashRegs 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksPerformance 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
+        inReportStocksReceiptDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport()
+
+    PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsPerformance 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
+        inReportCashRegsReceiptDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
+
+    PROPERTIES intervalInHoursInput(), intervalsCount(),
+        printSaleReportIntervals(dateFromObj, dateToObj),
+        inReportCashiers() ON CHANGE selectCashiers(),
+        inReportCashiersDiscount 'Кассиры' = inReportCashiers() ON CHANGE selectCashiers()
+
+    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType(),
+        inSaleReportSkusReceiptDiscount 'Товары' = inSaleReportSkus() ON CHANGE askSkuFilterType()
+
+    PROPERTIES filterQuantityTypeName(), filterQuantity(),
+        filterShiftFrom(), filterShiftTo(),
+        filterShiftFromReceiptDiscount(), filterShiftToReceiptDiscount(),
+        filterDiscountFrom(), filterDiscountTo(),
+
+        printSaleByCashRegsReport(dateFromObj, dateToObj),
+        printCashierPerformanceReport(dateFromObj, dateToObj),
+        printCashierPerformanceTotalReport(dateFromObj, dateToObj),
+        printItemsWithDiscountReport(dateFromObj, dateToObj),
+        printItemsWithDiscountTotalReport(dateFromObj, dateToObj),
+        printReceiptsWithDiscountReport(dateFromObj, dateToObj)
+;
+
+DESIGN statisticalReports{
+    REMOVE TOOLBARBOX ;
+    caption = 'Статистические отчеты';
+    NEW main{
+
+        NEW saleReportIntervals{
+            caption = 'Продажи по временным интервалам';
+            NEW datesIntervals{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromIntervals);
+                MOVE PROPERTY (dateToIntervals);
+            }
+            MOVE PROPERTY (inReportStocksIntervals);
+            MOVE PROPERTY (intervalInHoursInput());
+            MOVE PROPERTY (intervalsCount());
+            MOVE PROPERTY (printSaleReportIntervals(dateFromObj, dateToObj));
+        }
+        NEW saleReportByCashRegs {
+            caption = 'Статистика продажи товара на кассах';
+            NEW cashFilters{
+                NEW dates{
+                    horizontal = TRUE ;
+                    MOVE PROPERTY (dateFromCashReg);
+                    MOVE PROPERTY (dateToCashReg);
+                }
+                NEW skuStock{
+                    MOVE PROPERTY (inReportStocksCashRegs);
+                    MOVE PROPERTY (inReportCashRegs);
+                    MOVE PROPERTY (inSaleReportSkus());
+                }
+                NEW quantity{
+                    caption = 'По количеству';
+                    MOVE PROPERTY (filterQuantityTypeName());
+                    MOVE PROPERTY (filterQuantity());
+                }
+            }
+            MOVE PROPERTY (printSaleByCashRegsReport(dateFromObj, dateToObj)) LAST ;
+        }
+
+        NEW saleReportByCashSpeed {
+            caption = 'Скорость работы кассира';
+            NEW cashSpeedFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromPerformance);
+                MOVE PROPERTY (dateToPerformance);
+            }
+            MOVE PROPERTY (inReportStocksPerformance);
+            MOVE PROPERTY (inReportCashRegsPerformance);
+            MOVE PROPERTY (inReportCashiers());
+            NEW buttons{
+                horizontal = TRUE ;
+                MOVE PROPERTY (printCashierPerformanceReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (подробно)';}
+                MOVE PROPERTY (printCashierPerformanceTotalReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (итоги)';}
+            }
+        }
+
+        NEW saleReportItemsWithDiscount {
+            caption = 'Товары со скидками по кассам';
+            NEW cashDiscountFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromDiscount);
+                MOVE PROPERTY (dateToDiscount);
+                MOVE PROPERTY (filterShiftFrom());
+                MOVE PROPERTY (filterShiftTo());
+            }
+            MOVE PROPERTY (inReportStocksDiscount);
+            MOVE PROPERTY (inReportCashRegsDiscount);
+            MOVE PROPERTY (inReportCashiersDiscount);
+
+            NEW buttonsDiscount{
+                horizontal = TRUE ;
+                MOVE PROPERTY (printItemsWithDiscountReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (по кассирам)';}
+                MOVE PROPERTY (printItemsWithDiscountTotalReport(dateFromObj, dateToObj)) LAST {caption = 'Печать (итого)';}
+            }
+        }
+        NEW saleReportReceiptWithDiscount {
+            caption = 'Товары со скидками по чекам';
+            NEW receiptDiscountFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (dateFromReceiptDiscount);
+                MOVE PROPERTY (dateToReceiptDiscount);
+                MOVE PROPERTY (filterShiftFromReceiptDiscount());
+                MOVE PROPERTY (filterShiftToReceiptDiscount()){ caption = 'до'; }
+            }
+            NEW discountSumFilters{
+                horizontal = TRUE ;
+                MOVE PROPERTY (filterDiscountFrom());
+                MOVE PROPERTY (filterDiscountTo()){caption = 'до';};
+            }
+            MOVE PROPERTY (inReportStocksReceiptDiscount);
+            MOVE PROPERTY (inReportCashRegsReceiptDiscount);
+            MOVE PROPERTY (inSaleReportSkusReceiptDiscount);
+
+            MOVE PROPERTY (printReceiptsWithDiscountReport(dateFromObj, dateToObj)) LAST {caption = 'Печать';}
+        }
+    }
+}
+
+dataSkip 'Аннулирован'(ZReport.ReceiptDetail d) = ZReport.dataSkip(ZReport.receipt(d));
+
+EXTEND FORM receiptDetailReport
+    PROPERTIES (rd) dataSkip
+;
+
+FORM canceledSalesByCashRegsReportPrint 'Аннулированные продажи'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS rd = ZReport.ReceiptDetail
+    PROPERTIES (rd) READONLY date, time, idBarcode, idSku, nameSku, numberCashRegister, nameEmployee, numberReceipt, ZReport.signedQuantity, price, ZReport.signedSum
+    FILTERS filterByDates(ZReport.receipt(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(ZReport.departmentStore(rd)) AND filterBySku(rd) AND dataSkip(rd)
+    ORDERS date(rd), time(rd)
+;
+
+printCanceledSalesByCashRegsReportPrint 'Аннулированные продажи' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT canceledSalesByCashRegsReportPrint;
+}
+
+filterForPerformanceReportSkip(ZReport.Receipt r) = filterByDates(r) AND inSaleReport(ZReport.departmentStore(r))
+    AND ((NOT GROUP SUM 1 IF in(CashRegister cr)) OR in(ZReport.cashRegister(r)))
+    AND ((NOT GROUP SUM 1 IF in(Employee e)) OR in(ZReport.employee(r))) AND ZReport.dataSkip(r);
+
+countReceiptSubtotalByCashier(Employee e, DepartmentStore ds) = GROUP SUM 1 IF filterForPerformanceReport(ZReport.Receipt r) AND ZReport.employee(r) = e AND ZReport.departmentStore(r) = ds;
+countReceiptDetailSubtotalByCashier(Employee e, DepartmentStore ds) = GROUP SUM ZReport.countReceiptDetail(ZReport.Receipt r) IF filterForPerformanceReport(r) AND ZReport.employee(r) = e AND ZReport.departmentStore(r) = ds;
+countReceiptSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM 1 IF filterForPerformanceReportSkip(ZReport.Receipt r) AND ZReport.employee(r) = e AND ZReport.departmentStore(r) = ds;
+countQuantityReceiptDetailSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM ZReport.quantityReceiptDetail(ZReport.Receipt r) IF filterForPerformanceReportSkip(r) AND ZReport.employee(r) = e AND ZReport.departmentStore(r) = ds;
+sumReceiptDetailSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SUM ZReport.sumReceiptDetail(ZReport.Receipt r) IF filterForPerformanceReportSkip(r) AND ZReport.employee(r) = e AND ZReport.departmentStore(r) = ds;
+
+FORM cashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) name
+
+    OBJECTS e = Employee
+    PROPERTIES shortName(e)
+    PROPERTIES (e, ds) countReceiptSubtotalByCashier, countReceiptDetailSubtotalByCashier, countReceiptSubtotalByCashierSkip,
+        countQuantityReceiptDetailSubtotalByCashierSkip, sumReceiptDetailSubtotalByCashierSkip
+    FILTERS countReceiptSubtotalByCashierSkip(e, ds)
+;
+
+printCashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT cashierCanceledSalesReportPrint ;
+}
+
+FORM canceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)'
+    PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+
+    OBJECTS ds = DepartmentStore
+    PROPERTIES (ds) name
+
+    OBJECTS rd = ZReport.ReceiptDetail
+    PROPERTIES (rd) READONLY date, ZReport.signedQuantity, ZReport.signedSum
+    FILTERS filterByDates(ZReport.receipt(rd)) AND filterByQuantity(rd)
+        AND inSaleReport(ZReport.departmentStore(rd)) AND filterBySku(rd) AND dataSkip(rd) AND ZReport.departmentStore(rd) == ds
+    ORDERS date(rd)
+;
+
+printCanceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)' (DATE from, DATE to){
+    filterFrom() <- from;
+    filterTo() <- to;
+    PRINT canceledSalesByCashRegsTotalReportPrint;
+}
+
+skuInReport 'Отм.' = DATA LOCAL BOOLEAN (List);
+
+FORM canceledSales
+
+    OBJECTS dateFromObj = DATE PANEL
+    PROPERTIES dateFromCashReg 'Дата от' = VALUE(dateFromObj)
+
+    OBJECTS dateToObj = DATE PANEL
+    PROPERTIES dateToCashReg 'Дата до' = VALUE(dateToObj)
+
+    PROPERTIES inReportStocksCashRegs 'Склады' = inReportStocks() ON CHANGE selectStocksForReport()
+
+    PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
+
+    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType()
+
+    PROPERTIES
+    filterQuantityTypeName(), filterQuantity(),
+        printCanceledSalesByCashRegsReportPrint(dateFromObj, dateToObj),
+        printCashierCanceledSalesReportPrint(dateFromObj, dateToObj),
+        printCanceledSalesByCashRegsTotalReportPrint(dateFromObj, dateToObj)
+;
+
+DESIGN canceledSales{
+    REMOVE TOOLBARBOX ;
+    caption = 'Аннулированные продажи';
+    NEW main{
+
+        NEW canceledSalesByCashRegsReportPrint {
+            caption = 'Аннулированные продажи';
+            NEW cashFilters{
+                NEW dates{
+                    horizontal = TRUE ;
+                    MOVE PROPERTY (dateFromCashReg);
+                    MOVE PROPERTY (dateToCashReg);
+                }
+                NEW skuStock{
+                    MOVE PROPERTY (inReportStocksCashRegs);
+                    MOVE PROPERTY (inReportCashRegs);
+                    MOVE PROPERTY (inSaleReportSkus());
+                }
+                NEW quantity{
+                    caption = 'По количеству';
+                    MOVE PROPERTY (filterQuantityTypeName());
+                    MOVE PROPERTY (filterQuantity());
+                }
+            }
+            MOVE PROPERTY (printCanceledSalesByCashRegsReportPrint(dateFromObj, dateToObj)) LAST ;
+            MOVE PROPERTY (printCashierCanceledSalesReportPrint(dateFromObj, dateToObj)) LAST ;
+            MOVE PROPERTY (printCanceledSalesByCashRegsTotalReportPrint(dateFromObj, dateToObj)) LAST ;
+        }
+    }
+}
+
+NAVIGATOR {
+    salesReports {
+        NEW statisticalReports;
+        NEW canceledSales;
     }
 }
