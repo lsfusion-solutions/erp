@@ -1,0 +1,105 @@
+MODULE BinDepartment;
+
+REQUIRE Bin, Warehouse, BinLedger;
+
+NAMESPACE Bin;
+
+CLASS Department 'Отдел';
+TABLE department (Department);
+
+id '{integration.id}' = ABSTRACT STRING[100] (Department) NONULL MATERIALIZED INDEXED CHARWIDTH 10;
+name 'Наименование' = ABSTRACT ISTRING[100](Department) MATERIALIZED INDEXED CHARWIDTH 20;
+order 'Порядок' = ABSTRACT ISTRING (Department) MATERIALIZED INDEXED CHARWIDTH 2;
+stock = ABSTRACT Stock (Department) MATERIALIZED INDEXED;
+nameStock 'Склад' (Department department) = name(department) CHARWIDTH 20;
+
+// Неактивный
+inactive 'Неактивный' = ABSTRACT BOOLEAN (Department);
+active 'Активный' (Department department) = department IS Department AND NOT inactive(department) MATERIALIZED INDEXED;
+
+createDepartment 'Является отделом' = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
+createDepartment 'Является отделом' = DATA BOOLEAN (DataBinGroup);
+createDepartment(DataBinGroup group) += createDepartment(group);
+//по умолчанию склад будет являться отделом сам для себя
+createDepartment(StockBinGroup group) += TRUE IF group IS StockBinGroup;
+
+department = AGGR Department WHERE createDepartment(BinGroup binGroup) MATERIALIZED INDEXED;
+
+id[Department](Department department) += id(binGroup(department));
+name[Department](Department department) += name(binGroup(department));
+order[Department](Department department) += order(binGroup(department));
+inactive[Department](Department department) += inactive(binGroup(department));
+stock[Department](Department department) += stock(binGroup(department));
+
+edit(Department department) + {};
+
+EXTEND FORM dataBinGroup
+    PROPERTIES(g) createDepartment
+;    
+
+DESIGN dataBinGroup {
+    mainContainer {
+        MOVE PROPERTY(createDepartment(g));
+    }
+}
+
+EXTEND FORM binGroups
+    PROPERTIES(g) READONLY createDepartment AFTER nameStock(g)
+;
+
+EXTEND FORM binStocks
+    PROPERTIES(bg) READONLY createDepartment AFTER nameStock(bg)
+;
+
+levelParentCreateDepartment (Bin bin) = GROUP MIN level(binGroup(bin), BinGroup parent) IF createDepartment(parent) MATERIALIZED;
+nearestParentCreateDepartment (Bin bin) = binGroup(binGroup(bin), levelParentCreateDepartment(bin));
+department (Bin bin) = department(nearestParentCreateDepartment(bin)) MATERIALIZED ;
+nameDepartment 'Отдел' (Bin bin) = name(department(bin)) CHARWIDTH 20;
+
+EXTEND FORM bin
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
+
+DESIGN bin {
+    mainContainer {
+        MOVE PROPERTY(nameDepartment(b));   
+    }
+}
+
+EXTEND FORM bins
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
+
+EXTEND FORM dialogBinStock
+    PROPERTIES(b) READONLY nameDepartment
+;
+
+EXTEND FORM binStocks
+    PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
+;
+
+FORM departments 'Отделы'
+    OBJECTS d=Department
+    PROPERTIES(d) id, order, name, nameStock
+    ORDERS order(d), name(d)
+    
+    LIST Department OBJECT d
+;
+
+NAVIGATOR {
+    binNavigator {
+        NEW departments;
+    }   
+}
+
+EXTEND FORM warehouse
+    OBJECTS d=Department
+    PROPERTIES(d) id, order, name, nameStock
+    ORDERS order(d), name(d)    
+;
+
+DESIGN warehouse {
+    OBJECTS {
+        MOVE BOX(d);
+    }
+}
