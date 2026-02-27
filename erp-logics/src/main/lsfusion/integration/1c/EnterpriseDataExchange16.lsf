@@ -329,6 +329,7 @@ type 'ЮридическоеФизическоеЛицо' = ABSTRACT TypePartner
 idType 'ЮридическоеФизическоеЛицо' (Partner p, Configuration c) = staticCaption(type(p, c));
 WHEN CHANGED(type(Partner d, Configuration c)) DO {
     packet(c, d) <- NULL;
+    needDropPacket(c, d) <- TRUE;
     in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
 }
 typePartner 'ЮридическоеФизическоеЛицо' = DATA LOCAL STRING (INTEGER);
@@ -358,6 +359,7 @@ EXTEND FORM receiveMessage PROPERTIES typePartner(partner) IN keyProperties EXTI
 unn 'НалоговыйНомерНерезидента' = ABSTRACT STRING (Partner, Configuration);
 WHEN CHANGED(unn(Partner d, Configuration c)) DO {
     packet(c, d) <- NULL;
+    needDropPacket(c, d) <- TRUE;
     in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
 }
 unnPartner 'НалоговыйНомерНерезидента' = DATA LOCAL STRING (INTEGER);
@@ -996,6 +998,7 @@ EXTEND FORM receiveMessage
 order 'Заказ' = ABSTRACT SaleOrder (SaleInvoice, Configuration);
 WHEN CHANGED(order(SaleInvoice d, Configuration c)) DO {
     packet(c, d) <- NULL;
+    needDropPacket(c, d) <- TRUE;
     in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
 }
 
@@ -1059,6 +1062,7 @@ EXTEND FORM receiveMessage
 declaration 'НомерГТД' = ABSTRACT STRING[30] (SaleInvoiceProduct, Configuration);
 WHEN CHANGED(declaration(SaleInvoiceProduct d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -1093,6 +1097,7 @@ EXTEND FORM receiveMessage
 item 'Номенклатура' = ABSTRACT Item (SaleInvoiceService, Configuration);
 WHEN CHANGED(item(SaleInvoiceService d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -1181,6 +1186,7 @@ EXTEND FORM receiveMessage
 saleInvoice 'ДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
 WHEN CHANGED(saleInvoice(SaleCreditNote d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -1200,6 +1206,7 @@ EXTEND FORM sendMessage
 correctedSaleInvoice 'ИсправляемыйДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
 WHEN CHANGED(correctedSaleInvoice(SaleCreditNote d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 

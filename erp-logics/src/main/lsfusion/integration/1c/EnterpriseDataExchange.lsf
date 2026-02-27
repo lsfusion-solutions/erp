@@ -737,6 +737,7 @@ EXTEND FORM receiveMessage
 order 'Заказ' = ABSTRACT SaleOrder (SaleInvoice, Configuration);
 WHEN CHANGED(order(SaleInvoice d, Configuration c)) DO {
     packet(c, d) <- NULL;
+    needDropPacket(c, d) <- TRUE;
     in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
 }
     
@@ -800,6 +801,7 @@ EXTEND FORM receiveMessage
 declaration 'НомерГТД' = ABSTRACT STRING[30] (SaleInvoiceProduct, Configuration);
 WHEN CHANGED(declaration(SaleInvoiceProduct d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -834,6 +836,7 @@ EXTEND FORM receiveMessage
 item 'Номенклатура' = ABSTRACT Item (SaleInvoiceService, Configuration);
 WHEN CHANGED(item(SaleInvoiceService d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -925,6 +928,7 @@ EXTEND FORM sendMessage
 saleInvoice 'ДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
 WHEN CHANGED(saleInvoice(SaleCreditNote d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -944,6 +948,7 @@ EXTEND FORM sendMessage
 correctedSaleInvoice 'ИсправляемыйДокументРеализации' = ABSTRACT SaleInvoice (SaleCreditNote, Configuration);
 WHEN CHANGED(correctedSaleInvoice(SaleCreditNote d, Configuration c)) DO {
     packet(c, saleInvoice(d, c)) <- NULL;
+    needDropPacket(c, saleInvoice(d, c)) <- TRUE;
     in(c, saleInvoice(d, c)) <- TRUE WHERE inSending(c, saleInvoice(d, c)) AND NOT date(saleInvoice(d, c), c) < dateStartExchange(c);
 }
 
@@ -1000,7 +1005,7 @@ EXTEND FORM receiveMessage
     PROPERTIES (orderShipment) uidOrderShipment EXTID 'Ссылка'
     FILTERS orderShipment(orderShipment) = shipment
 ;
-    
+
 @extTable(shipment, product); 
 @defPropObjectDetail(item, 'Номенклатура', Item, shipment, product, itemData);
 @defPropObjectDetail(uom, 'ЕдиницаИзмерения', UOM, shipment, product);

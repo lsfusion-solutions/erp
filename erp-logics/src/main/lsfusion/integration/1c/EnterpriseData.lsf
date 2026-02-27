@@ -92,8 +92,12 @@ desc 'Описание' = ABSTRACT MULTI OVERRIDE STRING (EnterpriseData, Config
 
 isDeleted 'Пометка удаления' = ABSTRACT BOOLEAN (EnterpriseData);
 
+needDropPacket 'Надо сбросить пакет' = DATA BOOLEAN (Configuration, EnterpriseData) INDEXED; //Для того, чтобы учесть изменения в документах во время транзакции по передаче пакета 
 packet 'Пакет' = DATA INTEGER (Configuration, EnterpriseData) INDEXED;
-WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO packet(Configuration c, ed) <- NULL;
+WHEN CHANGED (isDeleted(EnterpriseData ed)) AND ed IS EnterpriseData DO {
+    packet(Configuration c, ed) <- NULL;
+    needDropPacket(Configuration c, ed) <- TRUE;
+}
 
 CLASS ABSTRACT Reference : EnterpriseData;
 CLASS ABSTRACT Document 'Документ' : EnterpriseData;
@@ -109,7 +113,9 @@ prevMessageNumber = DATA LOCAL INTEGER (Configuration);
 
 skip = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
  
-WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO in(c, e) <- inSending(c, e);
+WHEN SET(inSending(Configuration c, EnterpriseData e) AND NOT packet(c, e) <= idTicket(c)) AND NOT date(e, c) < dateStartExchange(c) DO {
+    in(c, e) <- inSending(c, e);
+}
 
 notEmpty = ABSTRACT BOOLEAN (Configuration, EnterpriseData);
 in (Configuration c) = GROUP MAX in(c, EnterpriseData e) AND NOT skip(c, e) AND notEmpty(c, e);
@@ -331,7 +337,19 @@ deleteImage 'Удалить схему'(Configuration c)  {
 }
 hasScheme 'Схема задана' (Configuration c) = TRUE IF scheme(c) MATERIALIZED;
 
+sendMessageDrop(Configuration c){
+    NEWSESSION {
+        packet(c, EnterpriseData e) <- NULL WHERE needDropPacket(c, e);
+        needDropPacket(c, EnterpriseData e) <- NULL WHERE needDropPacket(c, e);
+        APPLY;
+    }
+}
+
 sendMessage 'Передать' (Configuration c) {
+    NEWSESSION{
+        needDropPacket(c, EnterpriseData e) <- NULL WHERE needDropPacket(c, e);
+        APPLY;
+    }   
     NEWSESSION {
         TRY {
             prevMessageNumber(c) <- messageNo(c);
@@ -373,6 +391,7 @@ sendMessage 'Передать' (Configuration c) {
             CANCEL;
         }
     }
+    sendMessageDrop(c);
 }
 
 repeatIn (Configuration c, EnterpriseData e) {
@@ -380,6 +399,7 @@ repeatIn (Configuration c, EnterpriseData e) {
         in(c, e) <- b;
         IF b THEN {
             packet(c,e) <- NULL;
+            needDropPacket(c, e) <- TRUE;
         }
     } 
 }
@@ -498,36 +518,6 @@ DESIGN integrationData {
     }
 }
 
-// todo - убрать после миграции
-packet 'Пакет' = DATA INTEGER (EnterpriseData) INDEXED;
-
-idSended 'Номер переданного сообщения' () = DATA INTEGER ();
-isSended 'Сообщение передано' () = DATA BOOLEAN ();
-
-idReceived 'Номер принятого сообщения' () = DATA INTEGER ();
-isReceived 'Сообщение принято' () = DATA BOOLEAN ();
-
-idTicket 'Получена квитанция' = DATA INTEGER ();
-
-dateStartExchange 'Дата начала обмена' () = DATA DATE ();
- 
-toBase 'Префикс внешней базы' = DATA STRING[2] () CHARWIDTH 4;
-
-onStarted() + {
-    IF NOT [GROUP MAX Configuration c IF c IS Configuration]() THEN NEWSESSION NEW conf = Configuration {
-        name(conf) <- 'Первая конфигурация';
-        idSended(conf) <- idSended();
-        isSended(conf) <- isSended();
-        idReceived(conf) <- idReceived();
-        isReceived(conf) <- isReceived();
-        
-        toBase(conf) <- toBase();
-        packet(conf, EnterpriseData ed) <- packet(ed);
-        idTicket(conf) <- idTicket();
-        APPLY;
-    } 
-}
-
 GROUP link EXTID 'СсылкаНаОбъект';
 GROUP linkInLink EXTID 'СсылкаНаОбъект' : link;
 
@@ -536,6 +526,7 @@ META defProp(name, caption, type, class)
     
     WHEN CHANGED(name(###class d, Configuration c)) DO {
         packet(c, d) <- NULL;
+        needDropPacket(c, d) <- TRUE;
         in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
     }
 END
@@ -544,6 +535,7 @@ META defPropNotDate(name, caption, type, class)
 
     WHEN CHANGED(name(###class d, Configuration c)) DO {
         packet(c, d) <- NULL;
+        needDropPacket(c, d) <- TRUE;
         in(c, d) <- inSending(c, d);
     }
 END
@@ -552,6 +544,7 @@ META defPropDetail(name, caption, type, class, table)
     name caption = ABSTRACT type (###class###table, Configuration);
     WHEN CHANGED(name(###class###table d, Configuration c)) DO {
         packet(c, class(d, c)) <- NULL;
+        needDropPacket(c, class(d, c)) <- TRUE;
         in(c, class(d, c)) <- inSending(c, class(d, c)) AND NOT date(class(d, c), c) < dateStartExchange(c);
     }
     
@@ -566,6 +559,7 @@ META defPropObject(name, caption, type, class)
     name caption = ABSTRACT type (###class, Configuration);
     WHEN CHANGED(name(###class d, Configuration c)) DO {
         packet(c, d) <- NULL;
+        needDropPacket(c, d) <- TRUE;
         in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);  
     }
     
@@ -582,6 +576,7 @@ META defPropObject(name, caption, type, class, group)
     name caption = ABSTRACT type (###class, Configuration);
     WHEN CHANGED(name(###class d, Configuration c)) DO {
         packet(c, d) <- NULL;
+        needDropPacket(c, d) <- TRUE;
         in(c, d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c);
     }
 
@@ -768,6 +763,7 @@ META extDocument(doctype, caption, ver, deleteCaption)
     
     WHEN DROPPED(###doctype##Detail detail IS ###doctype##Detail) DO {
         packet(Configuration c, ###doctype d) <- NULL WHERE c IS Configuration AND PREV(##doctype(detail, c))=d;
+        needDropPacket(Configuration c, ###doctype d) <- TRUE WHERE c IS Configuration AND PREV(##doctype(detail, c))=d;
         in(Configuration c, ###doctype d) <- inSending(c, d) AND NOT date(d, c) < dateStartExchange(c) WHERE c IS Configuration AND PREV(##doctype(detail, c))=d;
     }
         
