@@ -7,53 +7,45 @@ NAMESPACE Bin;
 CLASS Department 'Отдел';
 TABLE department (Department);
 
-id '{integration.id}' = ABSTRACT STRING[100] (Department) NONULL MATERIALIZED INDEXED CHARWIDTH 10;
-name 'Наименование' = ABSTRACT ISTRING[100](Department) MATERIALIZED INDEXED CHARWIDTH 20;
-order 'Порядок' = ABSTRACT ISTRING (Department) MATERIALIZED INDEXED CHARWIDTH 2;
-stock = ABSTRACT Stock (Department) MATERIALIZED INDEXED;
+id '{integration.id}' = DATA STRING[100] (Department) NONULL INDEXED CHARWIDTH 10;
+name 'Наименование' = DATA ISTRING[100](Department) INDEXED CHARWIDTH 20;
+order 'Порядок' = DATA ISTRING (Department) INDEXED CHARWIDTH 2;
+stock = DATA Stock (Department) NONULL INDEXED;
 nameStock 'Склад' (Department department) = name(department) CHARWIDTH 20;
 
+department(id) = GROUP AGGR Department department BY id(department);
+
 // Неактивный
-inactive 'Неактивный' = ABSTRACT BOOLEAN (Department);
+inactive 'Неактивный' = DATA BOOLEAN (Department);
 active 'Активный' (Department department) = department IS Department AND NOT inactive(department) MATERIALIZED INDEXED;
 
-createDepartment 'Является отделом' = ABSTRACT BOOLEAN (BinGroup) MATERIALIZED;
-createDepartment 'Является отделом' = DATA BOOLEAN (DataBinGroup);
-createDepartment(DataBinGroup group) += createDepartment(group);
-//по умолчанию склад будет являться отделом сам для себя
-createDepartment(StockBinGroup group) += TRUE IF group IS StockBinGroup;
+department = DATA Department (BinGroup);
+nameDepartment 'Отдел' (BinGroup binGroup) = name(department(binGroup)) CHARWIDTH 20;
 
-department = AGGR Department WHERE createDepartment(BinGroup binGroup) MATERIALIZED INDEXED;
-
-id[Department](Department department) += id(binGroup(department));
-name[Department](Department department) += name(binGroup(department));
-order[Department](Department department) += order(binGroup(department));
-inactive[Department](Department department) += inactive(binGroup(department));
-stock[Department](Department department) += stock(binGroup(department));
-
-edit(Department department) + {};
+CONSTRAINT department(BinGroup binGroup) AND NOT stock(binGroup)==stock(department(binGroup))
+    CHECKED BY department[BinGroup] MESSAGE 'Склад группы ячеек и отдела должен совпадать';
 
 EXTEND FORM dataBinGroup
-    PROPERTIES(g) createDepartment
+    PROPERTIES(g) nameDepartment
 ;    
 
 DESIGN dataBinGroup {
     mainContainer {
-        MOVE PROPERTY(createDepartment(g));
+        MOVE PROPERTY(nameDepartment(g));
     }
 }
 
 EXTEND FORM binGroups
-    PROPERTIES(g) READONLY createDepartment AFTER nameStock(g)
+    PROPERTIES(g) READONLY nameDepartment AFTER nameStock(g)
 ;
 
 EXTEND FORM binStocks
-    PROPERTIES(bg) READONLY createDepartment AFTER nameStock(bg)
+    PROPERTIES(bg) READONLY nameDepartment AFTER nameStock(bg)
 ;
 
-levelParentCreateDepartment (Bin bin) = GROUP MIN level(binGroup(bin), BinGroup parent) IF createDepartment(parent) MATERIALIZED;
-nearestParentCreateDepartment (Bin bin) = binGroup(binGroup(bin), levelParentCreateDepartment(bin));
-department (Bin bin) = department(nearestParentCreateDepartment(bin)) MATERIALIZED ;
+levelParentDepartment (Bin bin) = GROUP MIN level(binGroup(bin), BinGroup parent) IF department(parent) MATERIALIZED;
+nearestParentDepartment (Bin bin) = binGroup(binGroup(bin), levelParentDepartment(bin));
+department (Bin bin) = department(nearestParentDepartment(bin)) MATERIALIZED INDEXED;
 nameDepartment 'Отдел' (Bin bin) = name(department(bin)) CHARWIDTH 20;
 
 EXTEND FORM bin
@@ -78,9 +70,17 @@ EXTEND FORM binStocks
     PROPERTIES(b) READONLY nameDepartment AFTER nameStock(b)
 ;
 
+FORM department 'Отдел'
+    OBJECTS d=Department PANEL
+    PROPERTIES(d) inactive, id, order, name, nameStock
+
+    EDIT Department OBJECT d
+;
+
 FORM departments 'Отделы'
     OBJECTS d=Department
-    PROPERTIES(d) id, order, name, nameStock
+    PROPERTIES(d) READONLY id, order, name, nameStock
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     ORDERS order(d), name(d)
     FILTERGROUP inactiveDepartment
         FILTER 'Активный' active(d) DEFAULT
@@ -96,7 +96,8 @@ NAVIGATOR {
 
 EXTEND FORM warehouse
     OBJECTS d=Department
-    PROPERTIES(d) id, order, name, nameStock
+    PROPERTIES(d) READONLY id, order, name, nameStock
+    PROPERTIES(d) NEWSESSION NEW, EDIT, DELETE
     ORDERS order(d), name(d)
     FILTERGROUP inactiveDepartment 
         FILTER 'Активный' active(d) DEFAULT
