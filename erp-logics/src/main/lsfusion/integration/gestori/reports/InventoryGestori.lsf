@@ -12,8 +12,10 @@ initDates() {
     dateTo() <- currentDate();
 }
 
-name 'Подразделение' (Stock o) = CONCAT ' ', id(o), name(o);
-unit 'Подразделение' (CollationSheet o) = name(stock(o));
+titleInterval = 'за период с ' + toDateDDMMYYYY(dateFrom()) + ' по ' + toDateDDMMYYYY(dateTo());
+
+displayName 'Подразделение' (Stock o) = CONCAT ' ', id(o), name(o);
+unit 'Подразделение' (CollationSheet o) = displayName(stock(o));
 unitID 'ID подразделения' (CollationSheet o) = id(stock(o));
 numDoc 'Номер акта' (CollationSheet o) = number(inventory(o));
 dateDoc 'Дата акта' (CollationSheet o) = date(inventory(o));
@@ -23,67 +25,127 @@ inInterval (CollationSheet o) = dateFrom() <= toDate(dateTime(o)) AND dateTo() >
 filter (CollationSheet o) = isPosted(inventory(o)) AND inInterval(o) AND inSaleReport(stock(o));
 
 amountSurplus 'Сумма излишков (учетная цена)' (CollationSheet o) =
-    GROUP SUM sumShortage(o, Sku s) IF sumShortage(o, s) > 0 AND filter(o);
+    (GROUP SUM sumShortage(o, Sku s) IF sumShortage(o, s) > 0) IF filter(o);
 amountShortage 'Сумма недостач (учетная цена)' (CollationSheet o) =
-    GROUP SUM sumShortage(o, Sku s) IF sumShortage(o, s) < 0 AND filter(o);
+    (GROUP SUM sumShortage(o, Sku s) IF sumShortage(o, s) < 0) IF filter(o);
 amountVATSurplus 'Сумма НДС по излишкам (учетная цена)' (CollationSheet o) =
-    round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
-        IF sumShortage(o, s) > 0 AND filter(o));
+    (round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) > 0)) IF filter(o);
 amountVATShortage 'Сумма НДС по недостачам (учетная цена)' (CollationSheet o) =
-    round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
-        IF sumShortage(o, s) < 0 AND filter(o));
-total 'Итоги (учетная цена)' (CollationSheet o) = amountSurplus(o) (+) amountShortage(o);
+    (round2(GROUP SUM sumShortage(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortage(o, s) < 0)) IF filter(o);
+total 'Итоги (учетная цена)' (CollationSheet o) =
+    amountSurplus(o) (+) amountShortage(o);
 sumRegrading 'Сумма пересорта (учетная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
-totalWithRegrading 'Итоги с учетом пересорта (учетная цена)' (CollationSheet o, Sku s) = total(o) + sumRegrading(o, s);
+totalWithRegrading 'Итоги с учетом пересорта (учетная цена)' (CollationSheet o, Sku s) =
+    total(o) + sumRegrading(o, s);
+amountRegrading 'Сумма пересорта (учетная цена)' (CollationSheet o) =
+    (GROUP SUM sumRegrading(o, Sku s)) IF filter(o);
+totalRegrading 'Итоги с учетом пересорта (учетная цена)' (CollationSheet o) =
+    total(o) (+) amountRegrading(o);
+sumBeforeInventory 'Сумма до инвентаризации (учетная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet);
 
-sumShortageCost 'Сумма недостачи / излишка (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
+incomingCostSum (Sku s, Stock st, DATETIME dt) =
+    GROUP SUM costSum(SkuLedger l)
+        IF sku(l) = s AND stock(l) = st AND dateTime(l) < dt AND signedQuantity(l) > 0 AND costSum(l);
+
+incomingQuantity (Sku s, Stock st, DATETIME dt) =
+    GROUP SUM signedQuantity(SkuLedger l)
+        IF sku(l) = s AND stock(l) = st AND dateTime(l) < dt AND signedQuantity(l) > 0 AND costSum(l);
+
+avgCostPriceB (Sku s, Stock st, DATETIME dt) =
+    NUMERIC[18,4](incomingCostSum(s, st, dt) / incomingQuantity(s, st, dt)) IF incomingQuantity(s, st, dt);
+
+costPriceForInventory (CollationSheet o, Sku s) =
+    OVERRIDE avgCostPriceB(s, stock(o), dateTime(o)), pricePageInventoryDetail(o, s);
+
+sumShortageCost 'Сумма недостачи / излишка (бух. себестоимость)' (CollationSheet o, Sku s) =
+    NUMERIC[18,4](round2(quantityShortage(o, s) * costPriceForInventory(o, s)));
 
 amountSurplusCost 'Сумма излишков (бух. себестоимость)' (CollationSheet o) =
-    GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) > 0 AND filter(o);
+    (GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) > 0) IF filter(o);
 amountShortageCost 'Сумма недостач (бух. себестоимость)' (CollationSheet o) =
-    GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) < 0 AND filter(o);
+    (GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) < 0) IF filter(o);
 amountVATSurplusCost 'Сумма НДС по излишкам (бух. себестоимость)' (CollationSheet o) =
-    round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100
-        IF sumShortageCost(o, s) > 0 AND filter(o));
+    (round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortageCost(o, s) > 0)) IF filter(o);
 amountVATShortageCost 'Сумма НДС по недостачам (бух. себестоимость)' (CollationSheet o) =
-    round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100
-        IF sumShortageCost(o, s) < 0 AND filter(o));
-totalCost 'Итоги (бух. себестоимость)' (CollationSheet o) = amountSurplusCost(o) (+) amountShortageCost(o);
+    (round2(GROUP SUM sumShortageCost(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortageCost(o, s) < 0)) IF filter(o);
+totalCost 'Итоги (бух. себестоимость)' (CollationSheet o) =
+    amountSurplusCost(o) (+) amountShortageCost(o);
+sumRegradingCost 'Сумма пересорта (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
+amountRegradingCost 'Сумма пересорта (бух. себестоимость)' (CollationSheet o) =
+    (GROUP SUM sumRegradingCost(o, Sku s)) IF filter(o);
+totalRegradingCost 'Итоги с учетом пересорта (бух. себестоимость)' (CollationSheet o) =
+    totalCost(o) (+) amountRegradingCost(o);
+sumBeforeInventoryCost 'Сумма до инвентаризации (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet);
+
+sumShortageRetail (CollationSheet o, Sku s) =
+    round2(quantityShortage(o, s) * retailPriceB(s, stock(o)));
 
 amountSurplusRetail 'Сумма излишков (отпускная цена)' (CollationSheet o) =
-    GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s)
-        IF sumShortage(o, s) > 0 AND filter(o);
+    (GROUP SUM sumShortageRetail(o, Sku s) IF sumShortageRetail(o, s) > 0) IF filter(o);
 amountShortageRetail 'Сумма недостач (отпускная цена)' (CollationSheet o) =
-    GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s)
-        IF sumShortage(o, s) < 0 AND filter(o);
+    (GROUP SUM sumShortageRetail(o, Sku s) IF sumShortageRetail(o, s) < 0) IF filter(o);
 amountVATSurplusRetail 'Сумма НДС по излишкам (отпускная цена)' (CollationSheet o) =
-    round2(GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) * valueVAT(s, stock(o)) / 100
-        IF sumShortage(o, s) > 0 AND filter(o));
+    (round2(GROUP SUM sumShortageRetail(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortageRetail(o, s) > 0)) IF filter(o);
 amountVATShortageRetail 'Сумма НДС по недостачам (отпускная цена)' (CollationSheet o) =
-    round2(GROUP SUM retailPriceB(Sku s, stock(o)) * quantityPageInventoryDetail(o, s) * valueVAT(s, stock(o)) / 100
-        IF sumShortage(o, s) < 0 AND filter(o));
-totalRetail 'Итоги (отпускная цена)' (CollationSheet o) = amountSurplusRetail(o) (+) amountShortageRetail(o);
+    (round2(GROUP SUM sumShortageRetail(o, Sku s) * valueVAT(s, stock(o)) / 100
+        IF sumShortageRetail(o, s) < 0)) IF filter(o);
+totalRetail 'Итоги (отпускная цена)' (CollationSheet o) =
+    amountSurplusRetail(o) (+) amountShortageRetail(o);
+sumRegradingRetail 'Сумма пересорта (отпускная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
+amountRegradingRetail 'Сумма пересорта (отпускная цена)' (CollationSheet o) =
+    (GROUP SUM sumRegradingRetail(o, Sku s)) IF filter(o);
+totalRegradingRetail 'Итоги с учетом пересорта (отпускная цена)' (CollationSheet o) =
+    totalRetail(o) (+) amountRegradingRetail(o);
+sumBeforeInventoryRetail 'Сумма до инвентаризации (отпускная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet);
 
-amountSurplusByStock 'Сумма излишков' = GROUP SUM amountSurplus(CollationSheet o) BY stock(o);
-amountShortageByStock 'Сумма недостач' = GROUP SUM amountShortage(CollationSheet o) BY stock(o);
-amountVATSurplusByStock 'Сумма НДС по излишкам' = GROUP SUM amountVATSurplus(CollationSheet o) BY stock(o);
-amountVATShortageByStock 'Сумма НДС по недостачам' = GROUP SUM amountVATShortage(CollationSheet o) BY stock(o);
-totalByStock 'Итоги' = GROUP SUM total(CollationSheet o) BY stock(o);
+amountSurplusByStock 'Сумма излишков (учетная цена)' = GROUP SUM amountSurplus(CollationSheet o) BY stock(o);
+amountShortageByStock 'Сумма недостач (учетная цена)' = GROUP SUM amountShortage(CollationSheet o) BY stock(o);
+amountVATSurplusByStock 'Сумма НДС по излишкам (учетная цена)' = GROUP SUM amountVATSurplus(CollationSheet o) BY stock(o);
+amountVATShortageByStock 'Сумма НДС по недостачам (учетная цена)' = GROUP SUM amountVATShortage(CollationSheet o) BY stock(o);
+totalByStock 'Итоги (учетная цена)' = GROUP SUM total(CollationSheet o) BY stock(o);
+amountRegradingByStock 'Сумма пересорта (учетная цена)' = GROUP SUM amountRegrading(CollationSheet o) BY stock(o);
+totalRegradingByStock 'Итоги с учетом пересорта (учетная цена)' (Stock st) = totalByStock(st) (+) amountRegradingByStock(st);
+sumBeforeInventoryByStock 'Сумма до инвентаризации (учетная цена)' = GROUP SUM sumBeforeInventory(CollationSheet o) BY stock(o);
 
-titleInterval = 'за период с ' + toDateDDMMYYYY(dateFrom()) + ' по ' + toDateDDMMYYYY(dateTo());
+amountSurplusCostByStock 'Сумма излишков (бух. себестоимость)' = GROUP SUM amountSurplusCost(CollationSheet o) BY stock(o);
+amountShortageCostByStock 'Сумма недостач (бух. себестоимость)' = GROUP SUM amountShortageCost(CollationSheet o) BY stock(o);
+amountVATSurplusCostByStock 'Сумма НДС по излишкам (бух. себестоимость)' = GROUP SUM amountVATSurplusCost(CollationSheet o) BY stock(o);
+amountVATShortageCostByStock 'Сумма НДС по недостачам (бух. себестоимость)' = GROUP SUM amountVATShortageCost(CollationSheet o) BY stock(o);
+totalCostByStock 'Итоги (бух. себестоимость)' = GROUP SUM totalCost(CollationSheet o) BY stock(o);
+amountRegradingCostByStock 'Сумма пересорта (бух. себестоимость)' = GROUP SUM amountRegradingCost(CollationSheet o) BY stock(o);
+totalRegradingCostByStock 'Итоги с учетом пересорта (бух. себестоимость)' (Stock st) = totalCostByStock(st) (+) amountRegradingCostByStock(st);
+sumBeforeInventoryCostByStock 'Сумма до инвентаризации (бух. себестоимость)' = GROUP SUM sumBeforeInventoryCost(CollationSheet o) BY stock(o);
+
+amountSurplusRetailByStock 'Сумма излишков (отпускная цена)' = GROUP SUM amountSurplusRetail(CollationSheet o) BY stock(o);
+amountShortageRetailByStock 'Сумма недостач (отпускная цена)' = GROUP SUM amountShortageRetail(CollationSheet o) BY stock(o);
+amountVATSurplusRetailByStock 'Сумма НДС по излишкам (отпускная цена)' = GROUP SUM amountVATSurplusRetail(CollationSheet o) BY stock(o);
+amountVATShortageRetailByStock 'Сумма НДС по недостачам (отпускная цена)' = GROUP SUM amountVATShortageRetail(CollationSheet o) BY stock(o);
+totalRetailByStock 'Итоги (отпускная цена)' = GROUP SUM totalRetail(CollationSheet o) BY stock(o);
+amountRegradingRetailByStock 'Сумма пересорта (отпускная цена)' = GROUP SUM amountRegradingRetail(CollationSheet o) BY stock(o);
+totalRegradingRetailByStock 'Итоги с учетом пересорта (отпускная цена)' (Stock st) = totalRetailByStock(st) (+) amountRegradingRetailByStock(st);
+sumBeforeInventoryRetailByStock 'Сумма до инвентаризации (отпускная цена)' = GROUP SUM sumBeforeInventoryRetail(CollationSheet o) BY stock(o);
+
 title = 'Реестр инвентаризаций ' + titleInterval();
 
-changeStocksInventory() {
-    DIALOG dialogStocksSaleReportRu;
-}
+changeStocksInventory() { DIALOG dialogStocksSaleReportRu; }
 
 FORM invRegPrint 'Реестр инвентаризаций'
     OBJECTS i = CollationSheet
-    PROPERTIES(i) READONLY unit, unitID, numDoc, dateDoc, basis,
+    PROPERTIES(i) READONLY
+    unit, unitID, numDoc, dateDoc, basis,
         amountSurplus, amountVATSurplus, amountShortage, amountVATShortage, total,
+        amountRegrading, totalRegrading, sumBeforeInventory,
         amountSurplusCost, amountVATSurplusCost, amountShortageCost, amountVATShortageCost, totalCost,
-        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail
-    FILTERS amountSurplus(i) OR amountVATSurplus(i) OR amountShortage(i) OR amountVATShortage(i) OR total(i)
+        amountRegradingCost, totalRegradingCost, sumBeforeInventoryCost,
+        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail,
+        amountRegradingRetail, totalRegradingRetail, sumBeforeInventoryRetail
+    FILTERS amountSurplus(i) OR amountVATSurplus(i) OR amountShortage(i)
+        OR amountVATShortage(i) OR total(i)
     PROPERTIES() title
     REPORT 'InventoryRegister.jrxml'
 ;
@@ -93,20 +155,32 @@ invRegPrint 'Отчет' () { PRINT invRegPrint PDF; } IMAGE 'print.png';
 FORM inventoryRegister 'Реестр инвентаризаций'
     PROPERTIES() dateFrom, dateTo
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
-    PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+    PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks()
+    ON CHANGE changeStocksInventory() READONLYIF stockList()
 
     OBJECTS i = CollationSheet
-    PROPERTIES(i) READONLY unit, numDoc, dateDoc, basis,
+    PROPERTIES(i) READONLY
+    unit, numDoc, dateDoc, basis,
         amountSurplus, amountVATSurplus, amountShortage, amountVATShortage, total,
+        amountRegrading, totalRegrading, sumBeforeInventory,
         amountSurplusCost, amountVATSurplusCost, amountShortageCost, amountVATShortageCost, totalCost,
-        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail
-    FILTERS amountSurplus(i) OR amountVATSurplus(i) OR amountShortage(i) OR amountVATShortage(i) OR total(i)
+        amountRegradingCost, totalRegradingCost, sumBeforeInventoryCost,
+        amountSurplusRetail, amountVATSurplusRetail, amountShortageRetail, amountVATShortageRetail, totalRetail,
+        amountRegradingRetail, totalRegradingRetail, sumBeforeInventoryRetail
+    FILTERS amountSurplus(i) OR amountVATSurplus(i) OR amountShortage(i)
+        OR amountVATShortage(i) OR total(i)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY name,
-        amountSurplusByStock, amountVATSurplusByStock, amountShortageByStock, amountVATShortageByStock, totalByStock
-    FILTERS amountSurplusByStock(s) OR amountVATSurplusByStock(s) OR amountShortageByStock(s)
-        OR amountVATShortageByStock(s) OR totalByStock(s)
+    PROPERTIES(s) READONLY
+    displayName,
+        amountSurplusByStock, amountVATSurplusByStock, amountShortageByStock, amountVATShortageByStock,
+        totalByStock, amountRegradingByStock, totalRegradingByStock, sumBeforeInventoryByStock,
+        amountSurplusCostByStock, amountVATSurplusCostByStock, amountShortageCostByStock, amountVATShortageCostByStock,
+        totalCostByStock, amountRegradingCostByStock, totalRegradingCostByStock, sumBeforeInventoryCostByStock,
+        amountSurplusRetailByStock, amountVATSurplusRetailByStock, amountShortageRetailByStock, amountVATShortageRetailByStock,
+        totalRetailByStock, amountRegradingRetailByStock, totalRegradingRetailByStock, sumBeforeInventoryRetailByStock
+    FILTERS amountSurplusByStock(s) OR amountVATSurplusByStock(s)
+        OR amountShortageByStock(s) OR amountVATShortageByStock(s) OR totalByStock(s)
 
     PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() invRegPrint
 
@@ -128,18 +202,28 @@ DESIGN inventoryRegister {
 }
 
 netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
+
 cost 'Бух. себестоимость' (SkuLedger o) =
     NUMERIC[18,4](round2(costSum(o) / signedQuantity(o))) IF signedQuantity(o);
+
 sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = costSum(o);
+
 retailPrice 'Отпускная цена' (SkuLedger o) =
     prevPriceB(retailPriceListType(stock(o)), sku(o), stock(o), dateTime(o));
-sumRetail 'Сумма по отпускной цене' (SkuLedger o) = round2(retailPrice(o) * signedQuantity(o));
+
+sumRetail 'Сумма по отпускной цене' (SkuLedger o) =
+    round2(retailPrice(o) * signedQuantity(o));
+
 valueVAT 'Ставка НДС' (SkuLedger o) = valueVAT(sku(o), date(o));
+
 sumVAT 'Сумма НДС' (SkuLedger o) = round2(sumRetail(o) * valueVAT(o) / 100);
-profit 'Прибыль (%)' (SkuLedger o) = round2(sumRetail(o) * 100 / signedSum(o) - 100);
+
+profit 'Прибыль (%)' (SkuLedger o) =
+    round2(sumRetail(o) * 100 / signedSum(o) - 100) IF signedSum(o);
 
 EXTEND FORM skuLedger
-    PROPERTIES(s) netTotalWeight, cost, sumCost, retailPrice, sumRetail, valueVAT, sumVAT, profit
+    PROPERTIES(s) netTotalWeight, cost, sumCost, retailPrice,
+        sumRetail, valueVAT, sumVAT, profit
 ;
 
 DESIGN skuLedger {
@@ -187,7 +271,8 @@ selectOperations 'Выбрать операции' () { DIALOG selectOperationsF
 FORM operationReport 'Отчет по хозяйственной операции'
     PROPERTIES() dateFrom, dateTo
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
-    PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+    PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks()
+    ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES() inOperations ON CHANGE selectOperations()
 
     OBJECTS o = SkuLedger
