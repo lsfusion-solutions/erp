@@ -16,3 +16,35 @@ EXTEND FORM item PROPERTIES VATagent(i);
 DESIGN item { regionPrm { MOVE PROPERTY (VATagent(i)) LAST; } }
 
 @defineStringItemAttribute(receiptCaption, ISTRING[255], 'Название для чека', itemBase);
+CLASS Okpd2 'ОКПД2';
+TABLE okpd2(Okpd2);
+
+
+@defineExternalizable(okpd2, STRING[100]);
+
+name 'Наименование' = DATA STRING(Okpd2) IN id CHARWIDTH 20;
+
+FORM okpd2 'ОКПД2'
+    OBJECTS t=Okpd2 PANEL
+    PROPERTIES(t) id, name
+    EDIT Okpd2 OBJECT t
+;
+
+FORM okpd2s 'ОКПД2'
+    OBJECTS t=Okpd2
+    PROPERTIES(t) READONLY id, name
+    PROPERTIES(t) NEWSESSION NEW, EDIT, deleteb=DELETE
+    ORDERS id(t)
+    LIST Okpd2 OBJECT t
+;
+DESIGN okpd2s { BOX { size = (600, 400); } }
+
+okpd2 = DATA Okpd2(Item);
+idOkpd2 'ОКПД2' (Item i) = id(okpd2(i)) IN itemBase CHARWIDTH 10;
+
+EXTEND FORM item
+    PROPERTIES (i) idOkpd2
+;
+EXTEND FORM items
+    PROPERTIES (i) READONLYIF isReadonly() idOkpd2
+;
