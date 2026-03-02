@@ -574,6 +574,12 @@ exportInvToXML 'Выгрузка в xml' (Inventory inv) {
     NEWSESSION {
         createStocktake(inv);
         exportToXML(createdStocktake());
+        
+        IF NOT allXMLRequiredFields(createdStocktake()) THEN {
+            MESSAGE missedFieldsDescription(createdStocktake()) NOWAIT;
+            RETURN;
+        }
+        
         fileToString(exportXMLFile());
         resultString() <- replace(replace(replace(replace(replace(resultString(),
             '<LetterTraceabilityLeftovers_v1_f001>', '<LetterTraceabilityLeftovers_v1_f001 xmlns="">'),
@@ -593,5 +599,8 @@ exportInvToXML 'Выгрузка в xml' (Inventory inv) {
     }
 }
 
-EXTEND FORM inventories PROPERTIES(in) PANEL exportInvToXML SHOWIF showStocktakeMNS(in) OR showCorrectingStocktakeMNS(in);
-    
+correctingExportInvToXML 'Выгрузка корректировки в xml' (Inventory i) {
+    exportInvToXML(i);
+}
+
+EXTEND FORM inventories PROPERTIES(in) PANEL exportInvToXML SHOWIF showStocktakeMNS(in), correctingExportInvToXML SHOWIF showCorrectingStocktakeMNS(in);
