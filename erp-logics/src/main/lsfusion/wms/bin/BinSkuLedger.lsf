@@ -115,3 +115,19 @@ dateTimeLastMoved 'Время последнего прихода' (sku, bin) =
     ORDER dateTime(ledger), ledger
     WHERE active(ledger)
     BY sku(ledger), inBin(ledger);
+
+dateTimeLastMoved 'Время последнего движения' (Sku sku, BinGroup g) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger) AND (isParent(g, inBin(ledger)) OR isParent(g, outBin(ledger)))
+    BY sku(ledger);
+
+moved (Sku item, BinGroup g, DATE date, LONG period) =
+    dateTimeLastMoved(item, g) >= toDateTime(subtract(date, period));
+moved (Sku item, BinGroup g, DATETIME dateTime, LONG period) =
+    dateTimeLastMoved(item, g) >= toDateTime(subtract(toDate(dateTime), period));
+
+currentBalance (Sku item, BinGroup g, LONG period) =
+    moved (item, g, currentDate(), period) OR currentBalance(item, stock(g));
+balance (Sku item, BinGroup g, DATETIME dateTime, LONG period) =
+    moved (item, g, dateTime, period) OR balanceB(item, stock(g), dateTime);

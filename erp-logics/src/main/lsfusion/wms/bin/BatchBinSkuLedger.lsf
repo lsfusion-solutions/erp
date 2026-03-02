@@ -117,6 +117,21 @@ dateTimeLastMoved 'Время последнего прихода' (batch, binGr
     ORDER dateTime(ledger), ledger
     WHERE active(ledger)
     BY batch(ledger), binGroup(inBin(ledger));
+dateTimeLastMovedInOut 'Время последнего движения' (Batch b, BinGroup g) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger) AND (isParent(g, inBin(ledger)) OR isParent(g, outBin(ledger)))
+    BY batch(ledger);
+
+moved (Batch b, BinGroup g, DATE date, LONG period) =
+    dateTimeLastMovedInOut(b, g) >= toDateTime(subtract(date, period));
+moved (Batch b, BinGroup g, DATETIME dateTime, LONG period) =
+    dateTimeLastMovedInOut(b, g) >= toDateTime(subtract(toDate(dateTime), period));
+
+currentBalance (Batch b, BinGroup g, LONG period) =
+    moved (b, g, currentDate(), period) OR currentBalance(b, stock(g));
+balance (Batch b, BinGroup g, DATETIME dateTime, LONG period) =
+    moved (b, g, dateTime, period) OR balanceB(b, stock(g), dateTime);
 
 FORM dialogBinGroupBatch 'Партии'
     OBJECTS st = Stock PANEL
