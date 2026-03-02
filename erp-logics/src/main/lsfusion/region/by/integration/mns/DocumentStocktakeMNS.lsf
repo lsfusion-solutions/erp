@@ -443,11 +443,11 @@ FORM importJSON
 
 stocktakeMNS 'Отправить в МНС' (Inventory inv) {
 
-//    IF notTracking(inv) THEN {
-//        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
-//            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
-//        RETURN;
-//    }
+    IF notTracking(inv) THEN {
+        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' + 
+            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
+        RETURN;
+    }
 
     IF countLegalEntity(inv) > 1 THEN {
         MESSAGE 'Инвентаризация включает склады нескольких организаций';
@@ -568,6 +568,11 @@ exportInvToXML 'Выгрузка в xml' (Inventory inv) {
     }
     IF isConsistNoBatchSku(inv) THEN {
         MESSAGE 'Инвентаризация включает товары без партий';
+        RETURN;
+    }
+    IF notTracking(inv) THEN {
+        MESSAGE 'В инвентаризации присутствует товар не подлежащий прослеживаемости \n' +
+            (GROUP CONCAT (CONCAT ' ', 'строка ' + index(PageInventoryDetail d), 'ш/к '+idBarcodeSku(d), 'товар ' + nameSku(d)) IF NOT isTrackingOver(sku(d)) AND inventory(d)==inv, '\n' ORDER d) NOWAIT;
         RETURN;
     }
 
