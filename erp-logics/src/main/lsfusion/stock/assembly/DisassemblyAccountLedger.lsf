@@ -8,4 +8,10 @@ accountLedgerPrice = ABSTRACT VALUE NUMERIC[16,4] (DisassemblyDetail);
 accountLedgerPrice (DisassemblyDetail a) += price(a);
 
 @implementSystemLedgerPriceListType(account, DisassemblyDetail, legalEntityStock, stock, accountLedger);
+
 in(DisassemblyDetail a, Batch b) += disassemblyInSkuLedger(a) = b;
+
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN (DisassemblyDetail);
+skipChangeLedger(DisassemblyDetail d) += onlyPositivePriceLedger(operation(d)) AND NOT quantity(d) > 0;
+
+skip[PriceListLedger](DisassemblyDetail ledger) += skipChangeLedger(ledger);
