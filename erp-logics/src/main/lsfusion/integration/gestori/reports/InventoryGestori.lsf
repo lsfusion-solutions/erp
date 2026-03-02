@@ -4,10 +4,12 @@ REQUIRE SaleReportsRu;
 
 NAMESPACE Inventory;
 
-interval 'Период дат' = DATA LOCAL INTERVAL[DATE] ();
+dateFrom 'Дата (с)' = DATA LOCAL DATE ();
+dateTo 'Дата (по)' = DATA LOCAL DATE ();
 
-initInterval() {
-    interval() <- interval(currentDate(), currentDate());
+initDates() {
+    dateFrom() <- currentDate();
+    dateTo() <- currentDate();
 }
 
 name 'Подразделение' (Stock o) = CONCAT ' ', id(o), name(o);
@@ -17,7 +19,7 @@ numDoc 'Номер акта' (CollationSheet o) = number(inventory(o));
 dateDoc 'Дата акта' (CollationSheet o) = date(inventory(o));
 basis 'Основание' (CollationSheet o) = name(inventory(o));
 
-inInterval (CollationSheet o) = from(interval()) <= toDate(dateTime(o)) AND to(interval()) >= toDate(dateTime(o));
+inInterval (CollationSheet o) = dateFrom() <= toDate(dateTime(o)) AND dateTo() >= toDate(dateTime(o));
 filter (CollationSheet o) = isPosted(inventory(o)) AND inInterval(o) AND inSaleReport(stock(o));
 
 amountSurplus 'Сумма излишков (учетная цена)' (CollationSheet o) =
@@ -34,7 +36,7 @@ total 'Итоги (учетная цена)' (CollationSheet o) = amountSurplus(
 sumRegrading 'Сумма пересорта (учетная цена)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
 totalWithRegrading 'Итоги с учетом пересорта (учетная цена)' (CollationSheet o, Sku s) = total(o) + sumRegrading(o, s);
 
-sumShortageCost 'Сумма недостачи / излишка (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku); // todo
+sumShortageCost 'Сумма недостачи / излишка (бух. себестоимость)' = ABSTRACT NUMERIC[18,4] (CollationSheet, Sku);
 
 amountSurplusCost 'Сумма излишков (бух. себестоимость)' (CollationSheet o) =
     GROUP SUM sumShortageCost(o, Sku s) IF sumShortageCost(o, s) > 0 AND filter(o);
@@ -68,7 +70,7 @@ amountVATSurplusByStock 'Сумма НДС по излишкам' = GROUP SUM am
 amountVATShortageByStock 'Сумма НДС по недостачам' = GROUP SUM amountVATShortage(CollationSheet o) BY stock(o);
 totalByStock 'Итоги' = GROUP SUM total(CollationSheet o) BY stock(o);
 
-titleInterval = 'за период с ' + toDateDDMMYYYY(from(interval())) + ' по ' + toDateDDMMYYYY(to(interval()));
+titleInterval = 'за период с ' + toDateDDMMYYYY(dateFrom()) + ' по ' + toDateDDMMYYYY(dateTo());
 title = 'Реестр инвентаризаций ' + titleInterval();
 
 changeStocksInventory() {
@@ -89,7 +91,7 @@ FORM invRegPrint 'Реестр инвентаризаций'
 invRegPrint 'Отчет' () { PRINT invRegPrint PDF; } IMAGE 'print.png';
 
 FORM inventoryRegister 'Реестр инвентаризаций'
-    PROPERTIES() interval
+    PROPERTIES() dateFrom, dateTo
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
 
@@ -106,9 +108,9 @@ FORM inventoryRegister 'Реестр инвентаризаций'
     FILTERS amountSurplusByStock(s) OR amountVATSurplusByStock(s) OR amountShortageByStock(s)
         OR amountVATShortageByStock(s) OR totalByStock(s)
 
-    PROPERTIES() DISABLEIF NOT interval() invRegPrint
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() invRegPrint
 
-    EVENTS ON INIT initInterval()
+    EVENTS ON INIT initDates()
 ;
 
 DESIGN inventoryRegister {
@@ -116,36 +118,35 @@ DESIGN inventoryRegister {
         alignment = STRETCH;
         NEW topRow {
             horizontal = TRUE;
-            MOVE PROPERTY(interval());
-            MOVE PROPERTY(invRegPrint());
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(invRegPrint()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
     }
-    PROPERTY(invRegPrint()) { valueClass = 'btn-primary'; }
 }
 
 netTotalWeight 'Вес общий' (SkuLedger o) = signedQuantity(o) * netWeight(sku(o));
-cost 'Бух. себестоимость' = ABSTRACT NUMERIC[18,4] (SkuLedger); // todo
-sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = signedQuantity(o) * cost(o);
-valueVAT 'Ставка НДС (уч.ц.)' (SkuLedger o) = valueVAT(sku(o), date(o));
-sumVAT 'Сумма НДС (уч.ц.)' (SkuLedger o) = round2(signedSum(o) * valueVAT(o) / 100);
-retailPrice 'Розничная цена' (SkuLedger o) = retailPriceB(sku(o), stock(o));
-sumRetail 'Сумма по розничной цене' (SkuLedger o) = retailPrice(o) * signedQuantity(o);
-valueRetailVAT 'Ставка НДС (розн.ц.)' (SkuLedger o) = valueVAT(o);
-sumRetailVAT 'Сумма НДС (розн.ц.)' (SkuLedger o) = round2(sumRetail(o) * valueRetailVAT(o) / 100);
+cost 'Бух. себестоимость' (SkuLedger o) =
+    NUMERIC[18,4](round2(costSum(o) / signedQuantity(o))) IF signedQuantity(o);
+sumCost 'Сумма по бух. себест-ти' (SkuLedger o) = costSum(o);
+retailPrice 'Отпускная цена' (SkuLedger o) =
+    prevPriceB(retailPriceListType(stock(o)), sku(o), stock(o), dateTime(o));
+sumRetail 'Сумма по отпускной цене' (SkuLedger o) = round2(retailPrice(o) * signedQuantity(o));
+valueVAT 'Ставка НДС' (SkuLedger o) = valueVAT(sku(o), date(o));
+sumVAT 'Сумма НДС' (SkuLedger o) = round2(sumRetail(o) * valueVAT(o) / 100);
 profit 'Прибыль (%)' (SkuLedger o) = round2(sumRetail(o) * 100 / signedSum(o) - 100);
 
 EXTEND FORM skuLedger
-    PROPERTIES(s) netTotalWeight, cost, sumCost, valueVAT, sumVAT, retailPrice, sumRetail,
-        valueRetailVAT, sumRetailVAT, profit
+    PROPERTIES(s) netTotalWeight, cost, sumCost, retailPrice, sumRetail, valueVAT, sumVAT, profit
 ;
 
 DESIGN skuLedger {
     PROPERTY(costSum(s)) { showIf = NULL; }
 }
 
-inInterval (SkuLedger o) = from(interval()) <= date(o) AND to(interval()) >= date(o);
+inInterval (SkuLedger o) = dateFrom() <= date(o) AND dateTo() >= date(o);
 
 nameUOM 'Ед.изм.' (SkuLedger o) = nameUOM(sku(o));
 netWeight 'Вес ед. товара' (SkuLedger o) = netWeight(sku(o));
@@ -184,7 +185,7 @@ DESIGN selectOperationsForm {
 selectOperations 'Выбрать операции' () { DIALOG selectOperationsForm; }
 
 FORM operationReport 'Отчет по хозяйственной операции'
-    PROPERTIES() interval
+    PROPERTIES() dateFrom, dateTo
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES() inOperations ON CHANGE selectOperations()
@@ -193,8 +194,7 @@ FORM operationReport 'Отчет по хозяйственной операци�
     PROPERTIES(o) READONLY idS, nameS, nameUOM, netWeight, idSt,
         nameOperationDocument, numberDocument, dateDocument, supplier,
         signedQuantity, netTotalWeight, cost, sumCost, accountPrice,
-        sumByAccPrice, valueVAT, sumVAT, retailPrice, sumRetail,
-        valueRetailVAT, sumRetailVAT, profit
+        sumByAccPrice, retailPrice, sumRetail, valueVAT, sumVAT, profit
     FILTERS inInterval(o),
         inSaleReport(stock(o)),
         signedQuantity(o) > 0,
@@ -202,13 +202,13 @@ FORM operationReport 'Отчет по хозяйственной операци�
     PROPERTIES title = 'Отчет по хозяйственной операции ' + titleInterval()
     REPORT 'OperationReport.jrxml'
 
-    EVENTS ON INIT initInterval()
+    EVENTS ON INIT initDates()
 ;
 
 printOperationReport 'Отчет' () { PRINT operationReport PDF; } IMAGE 'print.png';
 
 EXTEND FORM operationReport
-    PROPERTIES() DISABLEIF NOT interval() printOperationReport
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printOperationReport
 ;
 
 DESIGN operationReport {
@@ -216,8 +216,9 @@ DESIGN operationReport {
         alignment = STRETCH;
         NEW topRow {
             horizontal = TRUE;
-            MOVE PROPERTY(interval());
-            MOVE PROPERTY(printOperationReport());
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(printOperationReport()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
@@ -225,7 +226,6 @@ DESIGN operationReport {
     }
     REMOVE PROPERTY(title);
     BOX(o) { caption = ''; }
-    PROPERTY(printOperationReport()) { valueClass = 'btn-primary'; }
 }
 
 NAVIGATOR {

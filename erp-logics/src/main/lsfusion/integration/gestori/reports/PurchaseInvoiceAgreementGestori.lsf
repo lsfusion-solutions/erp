@@ -4,7 +4,7 @@ REQUIRE PurchaseInvoiceAgreement, InventoryGestori;
 
 NAMESPACE Purchase;
 
-inInterval (InvoiceDetail d) = from(interval()) <= date(d) AND to(interval()) >= date(d);
+inInterval (InvoiceDetail d) = dateFrom() <= date(d) AND dateTo() >= date(d);
 
 priceByAgreement 'Цена по соглашению' (InvoiceDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
@@ -64,7 +64,7 @@ filterPassesSupplier (InvoiceDetail d) = inSupplier(supplier(d));
 filterPassesOrder (InvoiceDetail d) = NOT filterApprovedOrdersOnly() OR (orderDetail(d) AND isPosted(orderDetail(d)));
 
 FORM priceCheckGestori 'Сверка цен по приходным накладным и соглашениям'
-    PROPERTIES() interval, titleInterval
+    PROPERTIES() dateFrom, dateTo, titleInterval
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
     PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
@@ -112,13 +112,13 @@ FORM priceCheckGestori 'Сверка цен по приходным наклад
 
     ORDERS idSupplier, seriesNumberContract, dateInvoice, nameSku
 
-    EVENTS ON INIT { filterPriceMode() <- 0; initInterval(); }
+    EVENTS ON INIT { filterPriceMode() <- 0; initDates(); }
 ;
 
 printPriceCheckGestori 'Отчет' () { PRINT priceCheckGestori PDF; } IMAGE 'print.png';
 
 EXTEND FORM priceCheckGestori
-    PROPERTIES() DISABLEIF NOT interval() printPriceCheckGestori
+    PROPERTIES() DISABLEIF NOT dateFrom() OR NOT dateTo() printPriceCheckGestori
 ;
 
 DESIGN priceCheckGestori {
@@ -126,8 +126,9 @@ DESIGN priceCheckGestori {
         alignment = STRETCH;
         NEW topRow {
             horizontal = TRUE;
-            MOVE PROPERTY(interval());
-            MOVE PROPERTY(printPriceCheckGestori());
+            MOVE PROPERTY(dateFrom());
+            MOVE PROPERTY(dateTo());
+            MOVE PROPERTY(printPriceCheckGestori()) { valueClass = 'btn-primary'; }
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
@@ -152,7 +153,6 @@ DESIGN priceCheckGestori {
         }
     }
     BOX(d) { caption = 'Результат сверки'; }
-    PROPERTY(printPriceCheckGestori()) { valueClass = 'btn-primary'; }
     REMOVE PROPERTY(titleInterval());
 }
 
