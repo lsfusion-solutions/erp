@@ -67,7 +67,7 @@ encodeBase64Code 'Код маркировки единицы товара' = DAT
 
 version = DATA LOCAL INTEGER ();
 type = DATA LOCAL STRING();
-rectification = DATA LOCAL BOOLEAN ();
+rectification = DATA LOCAL TBOOLEAN ();
 kodIMNS = DATA LOCAL STRING();
 UNP = DATA LOCAL STRING();
 year = DATA LOCAL INTEGER();
@@ -327,7 +327,7 @@ createStocktake (Inventory inv) {
 exportToXML(Stocktake s) {
     version() <- 1;
     type() <- 'LETTERTRACEABILITYLEFTOVERS';
-    rectification() <- NULL;
+    rectification() <- TFALSE;
     kodIMNS() <- codeMNS(legalEntity(s));
     UNP() <- UNP(legalEntity(s));
     year() <- extractYear(DATE(createdTime(inventory(s))));
@@ -411,8 +411,8 @@ generateJSON (Inventory inv) {
     IMNS() <- codeMNS(legalEntity(createdStocktake()));;
     documentDate() <- toChar(dateTimeSign(createdStocktake()), 'YYYYMMDD');
     documentName() <- 'Сведения об остатках';
-    refRecordId() <- refRecordId(createdStocktake()); // TODO
-    correctionDate() <- toChar(dateTime(createdStocktake()) , 'YYYYMMDD') IF PREV(sendedMNS(inv)); // TODO     
+    refRecordId() <- refRecordId(createdStocktake()); // 
+    correctionDate() <- toChar(dateTime(createdStocktake()) , 'YYYYMMDD') IF PREV(sendedMNS(inv)); //      
     creationDateTime() <- toChar(dateTime(createdStocktake()), 'YYYY-MM-DD HH:mm:ss');
 
     IF NOT allXMLRequiredFields(createdStocktake()) THEN {
@@ -555,3 +555,43 @@ DESIGN inventories {
         }
     }
 }
+
+// выгрузка сведений по остаткам в xml
+exportInvToXML 'Выгрузка в xml' (Inventory inv) {
+    IF countLegalEntity(inv) > 1 THEN {
+        MESSAGE 'Инвентаризация включает склады нескольких организаций';
+        RETURN;
+    }
+    IF NOT includeWithBatch(inv) THEN {
+        MESSAGE 'В инвентаризации отсутствуют товары с партиями';
+        RETURN;
+    }
+    IF isConsistNoBatchSku(inv) THEN {
+        MESSAGE 'Инвентаризация включает товары без партий';
+        RETURN;
+    }
+
+    NEWSESSION {
+        createStocktake(inv);
+        exportToXML(createdStocktake());
+        fileToString(exportXMLFile());
+        resultString() <- replace(replace(replace(replace(replace(resultString(),
+            '<LetterTraceabilityLeftovers_v1_f001>', '<LetterTraceabilityLeftovers_v1_f001 xmlns="">'),
+            '<LetterTraceabilityLeftovers_v1_f001A>', '<LetterTraceabilityLeftovers_v1_f001A xmlns="">'),
+            '<LetterTraceabilityLeftovers_v1_f002>', '<LetterTraceabilityLeftovers_v1_f002 xmlns="">'),
+            '<LetterTraceabilityLeftovers_v1_t001>', '<LetterTraceabilityLeftovers_v1_t001 xmlns="">'),
+            '<LetterTraceabilityLeftovers_v1_t001_ric10>', '<LetterTraceabilityLeftovers_v1_t001_ric10 xmlns="">');
+        //        originalDocument() <- replace(replace(DocumentMNS.encodeText(resultString(), 'base64'), '\n', ''), '\r', '');
+        stringToFile(resultString());
+        WRITE CLIENT DIALOG resultFile() TO number(inv) + '.xml' ;
+
+        resultFile() <- NULL;
+        resultString() <- NULL;
+        //        originalDocument() <- NULL;
+        MESSAGE 'Инвентаризацию необходимо загрузить на портал!' NOWAIT;
+        APPLY;
+    }
+}
+
+EXTEND FORM inventories PROPERTIES(in) PANEL exportInvToXML SHOWIF showStocktakeMNS(in) OR showCorrectingStocktakeMNS(in);
+    
