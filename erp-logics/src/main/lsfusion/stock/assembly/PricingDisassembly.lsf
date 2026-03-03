@@ -54,6 +54,12 @@ retailPriceListType (Disassembly o) <- pricingPriceListType(pricingOperation(o))
 retailPriceListType = DATA PriceListType (DisassemblyDetail);
 nameRetailPriceListType 'Вид цен (розничная)' (DisassemblyDetail detail) = name(retailPriceListType(detail)) CHARWIDTH 10;
 
+overRoundCondition (DisassemblyDetail d) = IF retailPriceListType(d) IS CalcPriceListType
+    THEN roundCondition(retailPriceListType(d), sku(d))
+    ELSE roundCondition(retailPriceListType(d));
+
+roundCondition(DisassemblyDetail d) = OVERRIDE overRoundCondition(d), roundCondition(stock(d));
+
 skipSetRetailPriceListType = ABSTRACT BOOLEAN (DisassemblyDetail);
 WHEN LOCAL FORMS disassembly
     (CHANGED(retailPriceListType(disassembly(DisassemblyDetail detail))) OR CHANGED(retailCalcPriceListType(detail)) OR
@@ -121,19 +127,6 @@ recalcRetailPrice(DisassemblyDetail detail, RoundCondition roundCondition) = NUM
         retailMarkup(detail),
         valueRetailVAT(detail)), roundCondition));
 
-recalcRetailMarkup(DisassemblyDetail d) = NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-        retailPrice(d),
-        supplierPrice(d),
-        valueRetailVAT(d)));
-
-changeValueRetailVAT (DisassemblyDetail d)  {
-    INPUT n = NUMERIC[10,5] DO {
-        valueRetailVAT(d) <- n;
-        retailVAT(d) <- valueCurrentVAT(countryStock(d), n);
-        retailMarkup(d) <- recalcRetailMarkup(d);
-    }
-}
-
 VATMarkupSum 'НДС и надбавка' (DisassemblyDetail d) =  retailSum(d) (-) supplierSum(d);
 
 retailVATSum(DisassemblyDetail d) <- round([ X*Y/(100+Y)](retailSum(d), valueRetailVAT(d)), currency(d))
@@ -142,8 +135,17 @@ retailVATSum(DisassemblyDetail d) <- round([ X*Y/(100+Y)](retailSum(d), valueRet
 retailMarkupSum (DisassemblyDetail d) <- retailSum(d) (-) retailVATSum(d) (-) supplierSum(d)
     WHEN CHANGED(retailSum(d)) OR CHANGED(retailVATSum(d)) OR CHANGED(supplierSum(d));
 
-retailMarkup(DisassemblyDetail d) <-[ round2(X*100/Y)](retailMarkupSum(d), supplierSum(d))
-    WHEN CHANGED(retailMarkupSum(d)) OR CHANGED(supplierSum(d));
+@changeDocumentDetailMarkupCustomPrefix(disassemblyDetail, retail, supplier, retail, retail);
+
+@changeDocumentDetailPriceCustomPrefix(disassemblyDetail, retail, supplier, retail, retail);
+
+changeValueRetailVAT (DisassemblyDetail d)  {
+    INPUT n = NUMERIC[10,5] DO {
+        valueRetailVAT(d) <- n;
+        retailVAT(d) <- valueCurrentVAT(countryStock(d), n);
+        retailMarkup(d) <- calcRetailMarkup(d);
+    }
+}
 
 @deriveDocumentOperationProperty(Disassembly, createPricing);
 
@@ -157,25 +159,6 @@ retailPriceB 'Розничная цена (до)' (DisassemblyDetail d) = prevRe
 backgroundRetailPriceB (DisassemblyDetail d) = CASE
     WHEN retailPriceB(d) > retailPrice(d) THEN RGB(250,150,150)
     WHEN retailPriceB(d) < retailPrice(d) THEN RGB(150,250,200);
-
-calcRetailPrice(DisassemblyDetail d) = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
-        supplierPrice(d),
-        retailMarkup(d),
-        valueRetailVAT(d))), currency(d));
-
-changeRetailMarkup(DisassemblyDetail d)  {
-    INPUT n = NUMERIC[8,3] DO {
-        retailMarkup(d) <- n;
-        retailPrice(d) <- calcRetailPrice(d) WHERE calcRetailPrice(d);
-    }
-}
-
-changeRetailPrice(DisassemblyDetail d)  {
-    INPUT n = NUMERIC[16,4] DO {
-        retailPrice(d) <- n;
-        retailMarkup(d) <- recalcRetailMarkup(d) WHERE recalcRetailMarkup(d);
-    }
-}
 
 skipChangePrice = ABSTRACT CASE BOOLEAN (DisassemblyDetail);
 
@@ -196,7 +179,7 @@ WHEN LOCAL GOAFTER retailPriceListType[DisassemblyDetail]
     AND NOT CHANGED(retailPrice(detail)) AND NOT skipChangePrice(detail)
     AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
         retailPrice(detail) <- prevPriceA(priceListType, sku(detail), stock(detail), dateTime(detail)) WHERE retailPriceListType(detail) == priceListType;
-        retailMarkup(detail) <- recalcRetailMarkup(detail) WHERE retailPriceListType(detail) == priceListType;
+        retailMarkup(detail) <- calcRetailMarkup(detail) WHERE retailPriceListType(detail) == priceListType;
 }
 
 recalculateRetailPrice 'Пересчитать розн. цену' (Disassembly a) {
@@ -211,7 +194,7 @@ recalculateRetailPrice 'Пересчитать розн. цену' (Disassembly 
         AND NOT pricingDocument(priceListType) AND disassembly(detail) == a NOINLINE (priceListType) INLINE DO {
 
         retailPrice(detail) <- prevPriceA(priceListType, sku(detail), stock(detail), dateTime(detail)) WHERE retailPriceListType(detail) == priceListType;
-        retailMarkup(detail) <- recalcRetailMarkup(detail) WHERE retailPriceListType(detail) == priceListType;
+        retailMarkup(detail) <- calcRetailMarkup(detail) WHERE retailPriceListType(detail) == priceListType;
     }
 }
 
