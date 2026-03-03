@@ -208,7 +208,7 @@ public class DataPrintWaspHandler extends MultithreadScalesHandler {
             
             data.segments.add(String.valueOf(labelBill1));   // 9 Label in bill 1 0 Number type
             data.segments.add(String.valueOf(barcodeBill1)); //10 Barcode in bill 1 0 Number type
-            data.segments.add("22"); //11 PLU Flag in Barcode in bill 1 0 Number type
+            data.segments.add(scales.weightCodeGroupScales != null ? scales.weightCodeGroupScales : "22"); //11 PLU Flag in Barcode in bill 1 0 Number type
             data.segments.add(String.valueOf(labelBill2)); //12 Label in bill 2 0 Number type
             data.segments.add(String.valueOf(barcodeBill2)); //13 Barcode in bill 2 0 Number type
             data.segments.add("0"); //14 PLU Flag in Barcode in bill 2 0 Number type
