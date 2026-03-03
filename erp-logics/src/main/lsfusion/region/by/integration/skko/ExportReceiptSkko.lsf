@@ -276,15 +276,17 @@ exportCancelLotsWithoutKSA 'Аннулировать в СККО' (Receipt recei
 
 existDetail (Receipt r) = GROUP MAX TRUE IF r == receipt(ReceiptSaleDetail d) AND d IS ReceiptSaleDetail;
 
-hideExportLotsWithoutKSA = ABSTRACT VALUE BOOLEAN (Receipt);
+hideExportSoldLotsWithoutKSA = ABSTRACT VALUE BOOLEAN (Receipt);
+hideExportRefundLotsWithoutKSA = ABSTRACT VALUE BOOLEAN (Receipt);
 
 EXTEND FORM zReports
-    PROPERTIES (b) exportSoldLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentSale(b) AND existDetail(b) AND NOT hideExportLotsWithoutKSA(b) PANEL
-    PROPERTIES (b) exportRefundLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentRefund(b) AND NOT hideExportLotsWithoutKSA(b) PANEL
-    PROPERTIES (b) exportCancelLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND sentSale(b) AND existDetail(b) AND NOT hideExportLotsWithoutKSA(b) PANEL
+    PROPERTIES (b) exportSoldLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentSale(b) AND existDetail(b) AND NOT hideExportSoldLotsWithoutKSA(b) PANEL
+    PROPERTIES (b) exportRefundLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND NOT sentRefund(b) AND NOT hideExportRefundLotsWithoutKSA(b) PANEL
+    PROPERTIES (b) exportCancelLotsWithoutKSA SHOWIF skkoUrl() AND b IS Receipt AND sentSale(b) AND existDetail(b) AND NOT hideExportSoldLotsWithoutKSA(b) PANEL
 ;
 
-hideExportLotsWithoutKSA(Receipt r) += r IS Receipt AND ((NOT [GROUP MIN ReceiptSaleDetail d IF lotType(sku(d)) OR UKZ(sku(d)) == TTRUE OR ukz(d) OR lot(d) BY receipt(d)](r)));
+hideExportSoldLotsWithoutKSA(Receipt r) += r IS Receipt AND (NOT [GROUP MIN ReceiptSaleDetail d IF lotType(sku(d)) OR UKZ(sku(d)) == TTRUE OR ukz(d) OR lot(d) BY receipt(d)](r));
+hideExportRefundLotsWithoutKSA(Receipt r) += r IS Receipt AND (NOT [GROUP MIN ReceiptReturnDetail d IF lotType(sku(d)) OR UKZ(sku(d)) == TTRUE OR ukz(d) OR lot(d) BY receipt(d)](r));
 
 DESIGN zReports {
     actions{
