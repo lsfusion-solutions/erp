@@ -19,23 +19,25 @@ FORM typeReports 'Типы отчета'
 DESIGN typeReports { BOX { size = (600, 400); } }
 
 
-quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock);
-quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock);
+quantityIn 'К-во' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock);
+
 
 value 'Содержание (кг. на единицу товара)' = DATA LOCAL NUMERIC[16,6](Sku,EcologyMaterial);
 
-//quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityIn(s,su,st)*value (s, em)) ;
-//quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityOut(s,su,st)*value (s, em)) ;
+//quantityIn 'К-во'(Sku s, LegalEntity su, Stock st, EcologyMaterial em) = NUMERIC[20,6](quantityIn(s,su,st)*value (s, em)) ;
 
-quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock,DATE);
-quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock,DATE);
+
+quantityIn 'К-во' = DATA  LOCAL NUMERIC[16,5](Sku,LegalEntity,Stock,DATE);
 value 'Содержание (кг. на единицу товара)' = DATA LOCAL NUMERIC[16,6](Sku,EcologyMaterial,DATE);
 
-quantityIn 'К-во (приход)' = DATA  LOCAL NUMERIC[20,6](Sku,LegalEntity,Stock,EcologyMaterial);
-quantityOut 'К-во (расход)' = DATA  LOCAL NUMERIC[20,6](Sku,LegalEntity,Stock, EcologyMaterial);
+quantityIn 'К-во' = DATA  LOCAL NUMERIC[20,6](Sku,LegalEntity,Stock,EcologyMaterial);
 
-quantityIn 'К-во (приход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em, DATE date) = NUMERIC[20,6](quantityIn(s,su,st,date)*value (s, em, date)) ;
-quantityOut 'К-во (расход)'(Sku s, LegalEntity su, Stock st, EcologyMaterial em, DATE date) = NUMERIC[20,6](quantityOut(s,su,st,date)*value (s, em, date)) ;
+quantityInMaterial 'К-во' =  GROUP SUM quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial m) BY s,su,st;
+
+// Настройка для отчета
+exclude 'Исключить' = DATA BOOLEAN (EcologyMaterial);
+
+quantityIn 'К-во'(Sku s, LegalEntity su, Stock st, EcologyMaterial em, DATE date) = NUMERIC[20,6](quantityIn(s,su,st,date)*value (s, em, date)) ;
 
 inEcology 'Отм.' = DATA LOCAL NESTED BOOLEAN (LegalEntity);
 countInEcologyLegalEntity 'Отм.'  = GROUP SUM 1 IF inEcology(LegalEntity l);
@@ -112,14 +114,11 @@ DESIGN selectParamsEcology{
 
 resetEcologyReport(){
     quantityIn(Sku s, LegalEntity su, Stock st) <- NULL;
-    quantityOut(Sku s, LegalEntity su, Stock st) <- NULL;
     value (Sku s, EcologyMaterial em) <- NULL;
 
     quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- NULL;
-    quantityOut(Sku s, LegalEntity su, Stock st, DATE date) <- NULL;
     value (Sku s, EcologyMaterial em, DATE date) <- NULL;
     quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- NULL;
-    quantityOut(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- NULL;
         
     formRefresh();
 }
@@ -153,32 +152,6 @@ isEcologyMigarte(){
 quantityPurchaseEcology (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger d) IF active(d) AND isEcology(operation(d))
     BY sku(d), stock(d), supplier(d), date(d);
 
-//fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
-//    resetEcologyReport();
-//    
-//    LOCAL  to = BOOLEAN (Stock);
-//    LOCAL  to = INTEGER (Sku);
-//    LOCAL  to = BOOLEAN (LegalEntity);
-//    to(Sku s) <- (GROUP SUM 1 IF value(s, EcologyPackType et, EcologyMaterial em));
-//    value (Sku s, EcologyMaterial em) <- (GROUP SUM value(s, EcologyPackType et,em) ) WHERE to(s);    
-//        
-//    IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
-//        to(LegalEntity l) <- (inEcology(l) OR inEcology(country(l)));
-//    } ELSE {
-//        to(LegalEntity l) <- (l IS LegalEntity);
-//    }
-//
-//    to(Stock l) <- isCompany(l) AND (inEcology(l) OR inEcology(region(l)));
-//    IF NOT (GROUP SUM 1 IF  to(Stock l)) THEN {
-//        to(Stock l) <- isCompany(l);
-//    }
-//    IF t == TypeReport.in THEN {
-//        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityPurchaseEcology (s, st, su, DATE date) IF date >= df AND date <= dt AND to(s) AND to(su) AND to(st));
-//    }ELSE {
-//        quantityOut(Sku s, LegalEntity su, Stock st) <- [GROUP SUM quantitySold (Batch bt, st, DATE date) 
-//            IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) BY sku(bt),supplier(bt)](s,su); 
-//    }    
-//}
 
 fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     resetEcologyReport();
@@ -186,9 +159,9 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     LOCAL  to = BOOLEAN (Stock);
     LOCAL  to = INTEGER (Sku);
     LOCAL  to = BOOLEAN (LegalEntity);
-    to(Sku s) <- (GROUP SUM 1 IF valueData(s, EcologyPackType et, EcologyMaterial em, DATE date) AND date <= dt);
+    to(Sku s) <- (GROUP SUM 1 IF valueData(s, EcologyPackType et, EcologyMaterial em, DATE date) AND date <= dt AND NOT exclude(em));
     FOR iterate(DATE date, df,dt) DO {
-        value (Sku s, EcologyMaterial em, date) <- (GROUP SUM value(s, EcologyPackType et, em, date)) WHERE to(s) ;
+        value (Sku s, EcologyMaterial em, date) <- (GROUP SUM value(s, EcologyPackType et, em, date)) WHERE to(s) AND NOT exclude(em);
     }    
 
     IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
@@ -203,66 +176,88 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     }
     IF t == TypeReport.in THEN {
         quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- quantityPurchaseEcology (s, st, su, date) WHERE date >= df AND date <= dt AND to(s) AND to(su) AND to(st);
-        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date);
+        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT exclude(em);
         quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityIn (s, su,st, DATE date));
-    }ELSE {
-        quantityOut(Sku s, LegalEntity su, Stock st, DATE date) <- (GROUP SUM quantitySold (Batch bt, st, date)
+    } ELSE {
+        quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- (GROUP SUM quantitySold (Batch bt, st, date)
             IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) AND sku(bt) == s AND supplier(bt)==su);
-        quantityOut(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityOut( s,  su,  st, em, DATE date);
-        quantityOut(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityOut (s, su,st, DATE date));
+        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT exclude(em);
+        quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityIn (s, su,st, DATE date));
     }
 }
 
 ecologyReportPrint = DATA LOCAL STRING ();
 
+notNullDetail 'Без пустых строк' = DATA LOCAL NESTED BOOLEAN ();
+// Предполагаем, что период будет в пределах одного года, чтобы не усложнять
+sumIn(Sku s,LegalEntity su, Stock st,EcologyMaterial em, DATE dt) = round2(NUMERIC[18,4](quantityIn(s,su,st,em)*coeff(em)*norm(em,dt)*base(em,dt)/1000.0));
+
+sumIn 'Сумма' = GROUP SUM sumIn(Sku s,LegalEntity su, Stock st,EcologyMaterial em, DATE dt) BY s, su, st,dt;
+sumIn 'Сумма' = GROUP SUM sumIn(Sku s,LegalEntity su, Stock st,EcologyMaterial em, DATE dt) BY dt;
+
 FORM ecologyReportPrint 'Экологический отчет'
     OBJECTS dates = (df = DATE, dt = DATE, t = TypeReport) PANEL
     PROPERTIES from =VALUE (df), to = VALUE (dt), name(t)
+    PROPERTIES isInType = (t == TypeReport.in)
     PROPERTIES () TOOLBAR DRAW dates nameInEcologyCountry, nameInEcologyLegalEntity, nameInEcologyRegion, nameInEcologyStock
     OBJECTS em = EcologyMaterial
-
+    FILTERS  NOT exclude(em)
     OBJECTS dd = (s=Sku, su=LegalEntity, st=Stock) SUBREPORT 
     PROPERTIES READONLY idBarcode(s), id(s), name(s)
     PROPERTIES READONLY quantityIn(s,su,st) FOOTER (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst)), 
                         quantityIn(s,su,st,em) COLUMNS (em) HEADER name(em)  FOOTER  (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst,em))
-    PROPERTIES READONLY  quantityOut(s,su,st) FOOTER (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst)), 
-        quantityOut(s,su,st,em) COLUMNS (em) HEADER name(em) FOOTER  (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst,em))
+    PROPERTIES READONLY sumIn(s,su,st,dt) FOOTER sumIn(dt)
     PROPERTIES name(su) HEADER 'Поставщик', name(st) HEADER  'ТО', nameRegion(st)
     ORDERS nameRegion(st)
-    FILTERS (quantityIn(s,su,st) OR  quantityOut(s,su,st)) AND df IS DATE
+    FILTERS ((quantityIn(s,su,st)  AND NOT notNullDetail()) OR (quantityInMaterial(s,su,st) AND notNullDetail())) AND df IS DATE
     REPORTFILES  dd ecologyReportPrint()
 ;
 
 ecologyReportPrint 'Печать' (DATE df, DATE dt, TypeReport t){
-    ecologyReportPrint() <- OVERRIDE 'Item_ecologyReportPrintOut_dd.jrxml' IF t ==TypeReport.out, 'Item_ecologyReportPrint_dd.jrxml';
+    ecologyReportPrint() <- 'Item_ecologyReportPrint_dd.jrxml';
     PRINT ecologyReportPrint OBJECTS df=df,dt=dt,t=t;
 } IMAGE 'print.png' IN print;
 ecologyReportPrintXls 'Печать (xls)' (DATE df, DATE dt, TypeReport t){
-    ecologyReportPrint() <- OVERRIDE 'Item_ecologyReportPrintOut_dd.jrxml' IF t ==TypeReport.out, 'Item_ecologyReportPrint_dd.jrxml';
+    ecologyReportPrint() <- 'Item_ecologyReportPrint_dd.jrxml';
     PRINT ecologyReportPrint OBJECTS df=df,dt=dt,t=t XLSX;
 } IMAGE 'print.png' IN print;
+
+changeExclude(EcologyMaterial m) {
+    NEWSESSION {
+        INPUT b = exclude(m) DO {
+            exclude(m)<-b;
+        }        
+        APPLY;
+    }
+    resetEcologyReport();
+}
 
 FORM ecologyReport 'Экологический отчет'
     OBJECTS dates = (df = DATE, dt = DATE) PANEL
     PROPERTIES from =VALUE (df), to = VALUE (dt)
 
     OBJECTS  t = TypeReport PANEL
-    PROPERTIES name(t) SELECTOR
+    PROPERTIES name(t) SELECTOR    
 
+    OBJECTS  p = EcologyMaterial
+    PROPERTIES (p) READONLY name, id SHOWIF showIDs()
+    PROPERTIES (p) exclude ON CHANGE changeExclude(p)
+    
     PROPERTIES () ON CHANGE changeSelectForm() nameInEcologyCountry, nameInEcologyLegalEntity, nameInEcologyRegion, nameInEcologyStock
 
     OBJECTS em = EcologyMaterial
+    FILTERS NOT exclude(em)
 
     OBJECTS dd = (s=Sku, su=LegalEntity, st=Stock)
     PROPERTIES READONLY idBarcode(s), id(s), name(s)
     PROPERTIES READONLY SHOWIF (t==TypeReport.in) quantityIn(s,su,st) FOOTER (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst)),
         quantityIn(s,su,st,em) COLUMNS (em) HEADER name(em)  FOOTER  (GROUP SUM quantityIn(Sku ss,LegalEntity sus, Stock stst,em))
-    PROPERTIES READONLY SHOWIF (t==TypeReport.out) quantityOut(s,su,st) FOOTER (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst)),
-        quantityOut(s,su,st,em) COLUMNS (em) HEADER name(em) FOOTER  (GROUP SUM quantityOut(Sku ss,LegalEntity sus, Stock stst,em))
     PROPERTIES name(su) HEADER 'Поставщик', name(st) HEADER  'ТО', nameRegion(st)
     ORDERS nameRegion(st)
-    FILTERS (t==TypeReport.in AND quantityIn(s,su,st)) OR (t==TypeReport.out AND quantityOut(s,su,st))
-    PROPERTIES  TOOLBAR DRAW dd fillEcologyReport(df,dt,t), ecologyReportPrint(df,dt,t), ecologyReportPrintXls(df,dt,t)
+    FILTERS  ((quantityIn(s,su,st) AND NOT notNullDetail()) OR (quantityInMaterial(s,su,st) AND notNullDetail()))
+    PROPERTIES READONLY sumIn(s,su,st,dt) FOOTER sumIn(dt)
+    PROPERTIES () notNullDetail TOOLBAR DRAW dd
+    PROPERTIES  TOOLBAR DRAW dd fillEcologyReport(df,dt,t), ecologyReportPrint(df,dt,t), ecologyReportPrintXls(df,dt,t)    
 
     EVENTS ON CHANGE df resetEcologyReport()
     EVENTS ON CHANGE dt resetEcologyReport()
@@ -290,7 +285,14 @@ DESIGN ecologyReport{
                 MOVE PROPERTY (nameInEcologyStock());
             }
         }
-        MOVE BOX(dd);
+        NEW tab{
+            fill = 1;
+            tabbed = TRUE;
+            MOVE BOX(dd);
+            MOVE BOX(p){
+                caption ='Настройка параметров';
+            }
+        }
     }
 }
 NAVIGATOR {

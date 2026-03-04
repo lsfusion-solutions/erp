@@ -316,3 +316,106 @@ DESIGN customGroup {
         }
     }
 }
+
+coeff 'Коэффициент сложности извлечения отходов' = DATA NUMERIC[8,2](EcologyMaterial);
+
+TABLE ecologyMaterialDate(EcologyMaterial,DATE);
+
+META defParamsEcologyMaterial(prop, caption, type)
+
+    prop###Data caption = DATA type(EcologyMaterial,DATE);
+
+    prop = GROUP LAST prop###Data(EcologyMaterial m, DATE date)
+    ORDER  date
+    WHERE prop###Data(m, date) AND date <= (DATE dateIn AS DATE)
+    BY m,dateIn;
+    current###prop caption###' (текущее значение)'(EcologyMaterial m) = prop(m, currentDate());
+
+    dateFrom###prop 'Дата с'  = GROUP LAST DATE date
+    ORDER  date
+    WHERE prop###Data(EcologyMaterial m, date) AND date <= (DATE dateIn AS DATE)
+    BY m,dateIn;
+    dateTo###prop 'Дата по'  = GROUP LAST DATE date
+    ORDER  DESC date
+    WHERE prop###Data(EcologyMaterial m, date) AND date > (DATE dateIn AS DATE)
+    BY m,dateIn;
+    currentDateFrom###prop 'Дата с' (EcologyMaterial m) = dateFrom###prop(m, currentDate());
+    currentDateTo###prop 'Дата по' (EcologyMaterial m) = dateTo###prop (m, currentDate());
+
+    value###prop  'Значение'  = DATA LOCAL type (DATE);
+
+    FORM dialogEcology###prop caption
+        OBJECTS m = EcologyMaterial PANEL
+
+        OBJECTS d = DATE
+        PROPERTIES READONLY val 'Дата' = VALUE(d)
+        PROPERTIES READONLY  DRAW d name(m) HEADER 'Материал'
+        PROPERTIES (d) value###prop //BACKGROUND RGB(204,255,204)
+
+        FILTERS value###prop(d)
+        EVENTS ON OK {
+            prop###Data(m,DATE dt) <- value###prop(dt);
+        }
+    ;
+    add###prop 'Добавить' (){
+        DIALOG dialogDate OBJECTS d INPUT DO {
+            value###prop(d) <- 0.0;
+            SEEK dialogEcology###prop.d = d;
+        }
+    } IMAGE 'add.png';
+    EXTEND FORM dialogEcology###prop
+        PROPERTIES add###prop() TOOLBAR DRAW d
+    ;
+
+    DESIGN dialogEcology###prop {
+        size = (800, 600);
+        PROPERTY(name(m)) { focusable = FALSE; }
+        PROPERTY(val) { focusable = FALSE; }
+    }
+
+    change###prop (EcologyMaterial m) {
+        value###prop(DATE d) <- prop###Data(m,d);
+        SHOW dialogEcology###prop OBJECTS m=m NOCANCEL;}
+
+END
+
+@defParamsEcologyMaterial(norm, 'Норматив утилизации отходов, %', NUMERIC[8,2]);
+
+@defParamsEcologyMaterial(base, 'Базовая ставка экологического сбора (рублей/тонна)', NUMERIC[16,4]);
+
+EXTEND FORM ecologyMaterials
+    PROPERTIES(t) READONLY coeff, currentNorm, currentBase
+;
+EXTEND FORM ecologyMaterial
+    PROPERTIES(t) coeff
+    PROPERTIES  ON CHANGE changeNorm(t) currentNorm(t),
+                currentDateFromNorm(t),
+                currentDateToNorm(t) 
+    PROPERTIES  ON CHANGE changeBase(t) currentBase(t),
+                currentDateFromBase(t),
+                currentDateToBase(t)
+;
+DESIGN ecologyMaterial{
+    PANEL(t){
+        NEW coeff{
+            horizontal = FALSE;
+            caption = 'Коэффициент';
+            MOVE PROPERTY (coeff(t)){background = RGB(204,255,204);}
+        }
+        NEW norm{
+            horizontal = FALSE;            
+            caption = 'Норматив';
+            MOVE PROPERTY (currentNorm(t)){tag = ''; background = RGB(204,255,204);}
+            MOVE PROPERTY (currentDateFromNorm(t)){tag = '';}
+            MOVE PROPERTY (currentDateToNorm(t)){tag = '';}
+        }
+        NEW base{
+            horizontal = FALSE;
+            caption = 'Базовая ставка';
+            MOVE PROPERTY (currentBase(t)){tag = ''; background = RGB(204,255,204);}
+            MOVE PROPERTY (currentDateFromBase(t)){tag = '';}
+            MOVE PROPERTY (currentDateToBase(t)){tag = '';}
+        }        
+    }
+
+}
