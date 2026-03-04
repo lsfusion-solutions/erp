@@ -1,7 +1,7 @@
 MODULE StockDocumentGestori;
 
 REQUIRE StockDocument, AccountDocument, Range, PurchaseInvoiceRu, SaleInvoiceRu, PurchaseReturnInvoiceVATRu,
-        EmployeeGestori, ZReport, Disparity;
+        EmployeeGestori, ZReport, Disparity, SaleReportsRu;
 
 NAMESPACE StockDocument;
 
@@ -172,31 +172,147 @@ CONSTRAINT (SETCHANGED(sku(SkuLedger d)) OR SETCHANGED(stock(d)) OR SETCHANGED(d
     AND skipEditBeforeClosingDate()
     MESSAGE 'Запрещено редактировать документы до даты закрытия';
 
-sumBaseAcc 'Сумма в баз.в. (уч.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
-sumNatAcc 'Сумма в нац.в. (уч.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
-sumBaseRel 'Сумма в баз.в. (отп.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
-sumNatRel 'Сумма в нац.в. (отп.ц.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
-sumBaseCost 'Сумма в баз.в. (себест.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
-sumNatCost 'Сумма в нац.в. (себест.)' = ABSTRACT NUMERIC[18,4] (StockDocumentLedger); // todo
+typeExchangeGestori 'Тип обмена' = DATA LOCAL TypeExchange();
+nameTypeExchangeGestori 'Тип обмена' = name(typeExchangeGestori());
 
-printStockDocReport 'Отчет' (dtFrom, dtTo, ds) {
-    PRINT sumStockDocumentLedger OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds= ds; } IMAGE 'print.png';
+rateNat (DATE d) =
+    IF defaultCurrency() = currency(typeExchangeGestori())
+    THEN 1.0
+    ELSE rateOn(typeExchangeGestori(), defaultCurrency(), d);
+
+isInc 'Приход' (StockDocumentLedger l) = l IS IncStockDocumentLedger;
+
+sumBaseAcc 'Сумма в баз.в. (уч.ц.)' (StockDocumentLedger l) = sum(l);
+sumNatAcc 'Сумма в нац.в. (уч.ц.)' (StockDocumentLedger l) =
+    NUMERIC[18,4](round2(sum(l) * rateNat(date(l))));
+
+sumBaseRel 'Сумма в баз.в. (отп.ц.)' =
+    GROUP SUM round2(signedQuantity(SkuLedger sl) *
+        prevPriceB(retailPriceListType(stock(sl)), sku(sl), stock(sl), dateTime(sl)))
+    BY stockDocumentLedger(sl);
+sumNatRel 'Сумма в нац.в. (отп.ц.)' (StockDocumentLedger l) =
+    NUMERIC[18,4](round2(sumBaseRel(l) * rateNat(date(l))));
+
+sumBaseCost 'Сумма в баз.в. (себест.)' =
+    GROUP SUM costSum(SkuLedger sl) BY stockDocumentLedger(sl);
+sumNatCost 'Сумма в нац.в. (себест.)' (StockDocumentLedger l) =
+    NUMERIC[18,4](round2(sumBaseCost(l) * rateNat(date(l))));
+
+changeStocksSDL() { DIALOG dialogStocksSaleReportRu; }
+
+titleReport (DATE df, DATE dt) =
+    'Товарный отчет за период с ' + toDateDDMMYYYY(df) + ' по ' + toDateDDMMYYYY(dt);
+
+subtitleReport () =
+    CONCAT ' | ', 'Тип обмена: ' + nameTypeExchangeGestori();
+
+balBaseAccB 'Входящий остаток в баз.в.' (DATE dtFrom) =
+    GROUP SUM sumAccountBDocumentLedger(Stock s, dtFrom) IF inSaleReport(s);
+balNatAccB 'Входящий остаток в нац.в.' (DATE dtFrom) =
+    NUMERIC[18,4](round2(balBaseAccB(dtFrom) * rateNat(dtFrom)));
+
+balBaseAccA 'Исходящий остаток в баз.в.' (DATE dtTo) =
+    GROUP SUM sumAccountADocumentLedger(Stock s, dtTo) IF inSaleReport(s);
+balNatAccA 'Исходящий остаток в нац.в.' (DATE dtTo) =
+    NUMERIC[18,4](round2(balBaseAccA(dtTo) * rateNat(dtTo)));
+
+balBaseAccBStock (StockDocumentLedger l, DATE d) = sumAccountBDocumentLedger(stock(l), d);
+balNatAccBStock (StockDocumentLedger l, DATE d) = NUMERIC[18,4](round2(balBaseAccBStock(l, d) * rateNat(d)));
+balBaseAccAStock (StockDocumentLedger l, DATE d) = sumAccountADocumentLedger(stock(l), d);
+balNatAccAStock (StockDocumentLedger l, DATE d) = NUMERIC[18,4](round2(balBaseAccAStock(l, d) * rateNat(d)));
+
+FORM printStockDocGestori 'Отчет'
+    OBJECTS dtFrom = DATE PANEL, dtTo = DATE PANEL, ds = Stock PANEL
+
+    PROPERTIES titleReport = titleReport(dtFrom, dtTo)
+    PROPERTIES subtitleReport = subtitleReport()
+    PROPERTIES balBaseAccB = balBaseAccB(dtFrom), balNatAccB = balNatAccB(dtFrom),
+        balBaseAccA = balBaseAccA(dtTo), balNatAccA = balNatAccA(dtTo)
+
+    OBJECTS dl = StockDocumentLedger
+    PROPERTIES(dl) READONLY isInc, date, nameStock, objectClassName, description,
+        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
+    PROPERTIES(dl, dtFrom) READONLY balBaseAccBStock, balNatAccBStock
+    PROPERTIES(dl, dtTo) READONLY balBaseAccAStock, balNatAccAStock
+    FILTERS active(dl),
+        inSaleReport(stock(dl)),
+        date(dl) >= dtFrom,
+        date(dl) <= dtTo
+    ORDERS nameStock(dl), nameOperation(dl), isInc(dl), date(dl)
+;
+
+printStockDocReport 'Отчет' (DATE dtFrom, DATE dtTo, Stock ds) {
+    PRINT printStockDocGestori OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
+} IMAGE 'print.png';
 
 EXTEND FORM sumStockDocumentLedger
+    PROPERTIES nameStockListSDL 'Список подразделений' = nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES inSaleReportStocksSDL 'Подразделения' = inSaleReportStocks()
+    ON CHANGE changeStocksSDL() READONLYIF stockList()
+    PROPERTIES() nameTypeExchangeGestori
+
+    OBJECTS dl = StockDocumentLedger
+    PROPERTIES(dl) READONLY isClosed, isPosted, isInc, date, nameStock,
+        objectClassName, description,
+        nameOperation, nameLegalEntity, nameLegalEntityStock,
+        seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
+    PROPERTIES(dl) EDIT SHOWIF allowedEdit(dl) NEWSESSION, close SHOWIF isOpened(dl)
+    FILTERS active(dl),
+        inSaleReport(stock(dl)),
+        date(dl) >= dtFrom,
+        date(dl) <= dtTo
+    ORDERS date(dl)
+
+    FILTERGROUP directionFilter
+        FILTER 'Приход' isInc(dl) 'F7'
+        FILTER 'Расход' NOT isInc(dl) 'F8'
+
     PROPERTIES printStockDocReport(dtFrom, dtTo, ds)
-    PROPERTIES (il) seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
-    PROPERTIES (ol) seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
-    REPORT 'StockDocGestori.jrxml'
-    REPORTFILES il 'StockDocGestori_il.jrxml'
-    REPORTFILES ol 'StockDocGestori_ol.jrxml'
 ;
 
 DESIGN sumStockDocumentLedger {
-    REMOVE PROPERTY (sumItem(il));
-    REMOVE PROPERTY (sumContainer(il));
-    REMOVE PROPERTY (sum(il));
-    REMOVE PROPERTY (sumItem(ol));
-    REMOVE PROPERTY (sumContainer(ol));
-    REMOVE PROPERTY (sum(ol));
-    print { MOVE PROPERTY (printStockDocReport(dtFrom, dtTo, ds)); }
+    header {
+        MOVE print AFTER dates;
+    }
+
+    print {
+        MOVE PROPERTY(printStockDocReport(dtFrom, dtTo, ds)) { valueClass = 'btn-primary'; }
+    }
+
+    topContainer {
+        tabbed = TRUE;
+
+        NEW baseTab {
+            caption = 'Основной';
+            NEW baseHeader {
+                horizontal = TRUE;
+                alignment = STRETCH;
+                MOVE department;
+                MOVE legalEntity;
+                MOVE actionContainer;
+            }
+            NEW baseSums {
+                caption = 'Суммы';
+                MOVE GROUP(ledgerItem, ds);
+                MOVE GROUP(ledgerContainer, ds);
+                MOVE GROUP(ledger, ds);
+            }
+            MOVE BOX(il) { fill = 1; }
+            MOVE BOX(ol) { fill = 1; }
+        }
+
+        NEW gestoriTab {
+            caption = 'Отчет';
+            NEW gestoriHeader {
+                alignment = STRETCH;
+                MOVE PROPERTY(nameStockListSDL) { alignment = STRETCH; }
+                MOVE PROPERTY(inSaleReportStocksSDL) { alignment = STRETCH; }
+                MOVE PROPERTY(nameTypeExchangeGestori()) { alignment = STRETCH; }
+            }
+            MOVE BOX(dl) { fill = 1; }
+        }
+    }
+
+    REMOVE sums;
 }
