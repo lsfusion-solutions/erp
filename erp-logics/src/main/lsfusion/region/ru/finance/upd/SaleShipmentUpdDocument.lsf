@@ -1,0 +1,84 @@
+MODULE SaleShipmentUpdDocument;
+
+REQUIRE SaleShipmentConsignmentRu, ConsignmentUpdDocument;
+
+NAMESPACE Sale;
+
+shipment = DATA Shipment(UpdDocument);
+shipmentDetail = DATA ShipmentDetail(UpdDocumentDetail);
+updDocument =
+    GROUP LAST UpdDocument ei
+        IF ei IS UpdDocument AND NOT correctionNumber(ei)
+    ORDER dateInvoice(ei), ei
+    BY shipment(ei);
+
+updDocumentDetail = GROUP LAST UpdDocumentDetail detail AS UpdDocumentDetail IF detail IS UpdDocumentDetail
+ORDER dateInvoice(updDocument(detail)), detail BY shipmentDetail(detail);
+
+updInvoiceNumber 'Номер СЧФ' (Shipment i) = numberInvoice(updDocument(i)) CHARWIDTH 10;
+updInvoiceDate 'Дата СЧФ' (Shipment i) = dateInvoice(updDocument(i));
+
+showUpd 'Просмотреть УПД' (Shipment i) {
+    show(updDocument(i));
+}
+
+editUpd 'Редактировать УПД' (Shipment i) {
+    edit(updDocument(i));
+} IMAGE 'edit.png';
+
+createUpdDocuments 'Создать УПД (отм.)' () {
+    IF countIncl() THEN {
+        NEWSESSION NESTED(incl[Shipment]) {
+            LOCAL count = INTEGER ();
+            count() <- countIncl();
+            FOR incl(Shipment i) DO {
+                IF updDocument(i) THEN {
+                    recreateUpdDocument(i);
+                } ELSE {
+                    NEW ei = UpdDocument {
+                        fill(i, ei);
+                    }
+                }
+            }
+            APPLY NESTED(count);
+            IF NOT canceled() THEN MESSAGE CONCAT ' ', 'Обработано', count(), 'документов(-а).';
+        }
+    } ELSE {
+        MESSAGE 'Проставьте признак "Отм." для обрабатываемых документов.';
+    }
+}
+
+createUpdDocuments (Shipment invoice) {
+    IF countIncl() THEN {
+        createUpdDocuments();
+    } ELSE {
+        recreateUpd(invoice);
+    }
+}
+
+EXTEND FORM shipments
+    PROPERTIES (s) READONLY BACKGROUND background(s) updInvoiceNumber AFTER series(s)
+    PROPERTIES //createUpd(i) SHOWIF NOT updDocument(i),
+    createUpdDocuments(s) HEADER captionCreateUpd(s) SHOWIF NOT hideCreateUpdDocument(s),
+        updNumber = updInvoiceNumber(s) SHOWIF updDocument(s) PANEL READONLY,
+        editUpd(s) SHOWIF updDocument(s),
+        showUpd(s) SHOWIF updDocument(s)
+;
+
+DESIGN shipments {
+    documentDetail {
+        NEW updDocument {
+            caption = 'УПД';
+            NEW updNumber {
+                horizontal = TRUE;
+                caption = 'УПД';
+                MOVE PROPERTY(updNumber) {
+                    charWidth = 20;
+                };
+                MOVE PROPERTY(editUpd(s));
+                MOVE PROPERTY(showUpd(s));
+                MOVE PROPERTY(createUpdDocuments(s));
+            }
+        }
+    }
+}
