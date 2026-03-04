@@ -4,26 +4,32 @@ REQUIRE EZLotStatus, LotOrder, LotBy, CustomsGroupItem, EZTypography;
 
 NAMESPACE EZ;
 
-codeGroup 'Код группы' (LotType g) = CASE
-    WHEN g == LotType.clothes THEN 'clothes'
-    WHEN g == LotType.perfumery THEN 'perfum'
-    WHEN g == LotType.shoes THEN 'shoes'
-    WHEN g == LotType.milk THEN 'milk'
-    WHEN g == LotType.tires THEN 'tires'
-    WHEN g == LotType.photo THEN 'photo'
-    WHEN g == LotType.animalFeed THEN 'animal_feed'
-    WHEN g == LotType.antiseptics THEN 'antiseptics'
-    WHEN g == LotType.bike THEN 'bike'
-    WHEN g == LotType.caviar THEN 'caviar'
-    WHEN g == LotType.dietarySupplements THEN 'dietary_supplements'
-    WHEN g == LotType.juice THEN 'juice'
-    WHEN g == LotType.oilFat THEN 'oil_fat'
-    WHEN g == LotType.preserves THEN 'preserves'
-    WHEN g == LotType.veterinaryMedicines THEN 'veterinary_medicines'
-    WHEN g == LotType.water THEN 'water'
-    WHEN g == LotType.cosmetics THEN 'cosmetics'
-    WHEN g == LotType.grocery THEN 'grocery'
-    MATERIALIZED;
+
+
+
+overCodeGroup = ABSTRACT CASE STRING (LotType);
+codeGroup 'Код группы' (LotType g) =
+    OVERRIDE overCodeGroup(g),
+        CASE
+            WHEN g == LotType.clothes THEN 'clothes'
+            WHEN g == LotType.perfumery THEN 'perfum'
+            WHEN g == LotType.shoes THEN 'shoes'
+            WHEN g == LotType.milk THEN 'milk'
+            WHEN g == LotType.tires THEN 'tires'
+            WHEN g == LotType.photo THEN 'photo'
+            WHEN g == LotType.animalFeed THEN 'animal_feed'
+            WHEN g == LotType.antiseptics THEN 'antiseptics'
+            WHEN g == LotType.bike THEN 'bike'
+            WHEN g == LotType.caviar THEN 'caviar'
+            WHEN g == LotType.dietarySupplements THEN 'dietary_supplements'
+            WHEN g == LotType.juice THEN 'juice'
+            WHEN g == LotType.oilFat THEN 'oil_fat'
+            WHEN g == LotType.preserves THEN 'preserves'
+            WHEN g == LotType.veterinaryMedicines THEN 'veterinary_medicines'
+            WHEN g == LotType.water THEN 'water'
+            WHEN g == LotType.cosmetics THEN 'cosmetics'
+            WHEN g == LotType.grocery THEN 'grocery'
+            MATERIALIZED;
 
 CLASS IdentificationMeansType 'Вид средства идентификации' {
     sscc 'Код агрегации (SSCC)',
@@ -42,12 +48,16 @@ FORM dialogIdentificationMeansType 'Выбор вида средства иде�
     LIST IdentificationMeansType OBJECT t
 ;
 
-id (IdentificationMeansType t) = CASE
+overId = ABSTRACT CASE STRING (IdentificationMeansType);
+id (IdentificationMeansType t) = 
+    OVERRIDE overId(t), 
+    CASE
     WHEN t == IdentificationMeansType.sscc THEN '6'
     WHEN t == IdentificationMeansType.eaeuGeneral THEN '7'
     WHEN t == IdentificationMeansType.milk THEN '12'
     WHEN t == IdentificationMeansType.import THEN '13'
-    WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20';
+    WHEN t == IdentificationMeansType.shoesTiresClothes THEN '20'
+;
 
 quantityLotLimit 'Лимит количества заказываемых марок по строке' = DATA INTEGER ();
 CONSTRAINT quantity(LotOrderDetail d) > quantityLotLimit()
@@ -211,8 +221,7 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
     LOCAL notFound = BOOLEAN (STRING[14]);
     LOCAL notCheck = BOOLEAN (STRING[14]);
     
-    FOR count(o, INTEGER k) DO {  
-    
+    FOR count(o, INTEGER k) DO {
         LOCAL strResult = STRING ();
         
         FOR (STRING[14] gtin) AND (count100(o, gtin, k) > 0)  DO {
@@ -308,71 +317,76 @@ addGroupOrdersJSON100 (LotOrder o, INTEGER i) = CONCAT '', '\{ "group": "' + cod
 indexGtin(LotOrderDetail d) = indexGtin(lotOrder(d), gtin(d));
 indexGtin100(LotOrderDetail d) = indexGtin100(lotOrder(d), gtin(d));
 
-addGroupOrders 'Отослать в ЭЗ' (LotOrder o) {
-    exception(o) <- NULL;
-    APPLY;
-    checkGTINEZ(o);
-    
-    IF NOT (GROUP SUM 1 IF isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;    
-    IF (GROUP SUM 1 IF NOT isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;   
+addGroupOrders 'Отослать в ЭЗ' ABSTRACT LIST (LotOrder);
+skipDefaultAddGroupOrders =  ABSTRACT VALUE BOOLEAN (LotOrder);
 
-    IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
-        MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT;
-        CANCEL;
-        RETURN;
-    }
+addGroupOrders (LotOrder o) + {
+    IF NOT skipDefaultAddGroupOrders(o) THEN {
+        exception(o) <- NULL;
+        APPLY;
+        checkGTINEZ(o);
 
-    IF NOT identificationMeansType(o) THEN {
-        MESSAGE 'В документе не заполнен Вид средства идентификации' NOWAIT;
-        CANCEL;
-        RETURN;
-    }
+        IF NOT (GROUP SUM 1 IF isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;
+        IF (GROUP SUM 1 IF NOT isCheckGTINEZ(STRING[14] gtin) AND o == lotOrder(LotOrderDetail d) AND gtin == gtin(d)) THEN RETURN;
 
-    FOR listGTINJSON100(o, INTEGER k) DO {    
-        NEWSESSION {
-            stringToFile(addGroupOrdersJSON100(o, k));  
-            
-            LOCAL result = FILE();
-            fileToString(resultFile());
-//            MESSAGE resultString();
-//            exception(o) <- NULL;
-            getToken(legalEntityStock(o));
-            ezToken() <- token(legalEntityStock(o));
-        
-            TRY {
-                insecureSSL() <- TRUE;
-                EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
-            } CATCH {
-                handleException(o, result());
-                CANCEL;
-                RETURN;
-            }
-            
-            LOCAL strResult = STRING ();
-            
-            fileToString(result());
-//            MESSAGE resultString();
-          
-            FOR quantity(o, STRING[14] gtin) DO {
-                FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(),i) DO {
-                    LOCAL subJson = STRING (); 
-                    subJson() <- STRING(jsonAttributeValue(resultString(),i));
+        IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
+            MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT;
+            CANCEL;
+            RETURN;
+        }
 
-                    FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
-                        IF 'id' == jsonAttributeKey1(subJson(),j) THEN {
-                            idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(),j)),'"','') WHERE gtin(d) == gtin AND o == lotOrder(d);
-                        } ELSE IF 'created_at' == jsonAttributeKey1(subJson(),j) THEN {
-                            createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(),j)),'"',''), 'yyyy-MM-ddThh24:mi:ss');
-                        }
-                    }       
+        IF NOT identificationMeansType(o) THEN {
+            MESSAGE 'В документе не заполнен Вид средства идентификации' NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+
+        FOR listGTINJSON100(o, INTEGER k) DO {
+            NEWSESSION {
+                stringToFile(addGroupOrdersJSON100(o, k));
+
+                LOCAL result = FILE();
+                fileToString(resultFile());
+                //            MESSAGE resultString();
+                //            exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP POST urlEZ() + '/v2/orders/addGroupOrders' HEADERS ezHeadersLotOrder PARAMS resultFile() TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
                 }
+
+                LOCAL strResult = STRING ();
+
+                fileToString(result());
+                //            MESSAGE resultString();
+
+                FOR quantity(o, STRING[14] gtin) DO {
+                    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND gtin == jsonAttributeKey(resultString(), i) DO {
+                        LOCAL subJson = STRING ();
+                        subJson() <- STRING(jsonAttributeValue(resultString(), i));
+
+                        FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson())) DO {
+                            IF 'id' == jsonAttributeKey1(subJson(), j) THEN {
+                                idOrderEZ(LotOrderDetail d) <- replace(STRING(jsonAttributeValue1(subJson(), j)), '"', '') WHERE gtin(d) == gtin AND o == lotOrder(d);
+                            } ELSE IF 'created_at' == jsonAttributeKey1(subJson(), j) THEN {
+                                createdTime(o) <- toDateTimeFormat(replace(STRING(jsonAttributeValue1(subJson(), j)), '"', ''), 'yyyy-MM-ddThh24:mi:ss');
+                            }
+                        }
+                    }
+                }
+
+                APPLY;
             }
-            
-            APPLY;
-        }                   
-    } 
-    
-    MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
+        }
+
+        MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
+    }
 }
 
 isAllIdSet(LotOrder o) = (GROUP SUM 1 IF idOrderEZ (LotOrderDetail d) AND o == lotOrder(d)) == (GROUP SUM 1 IF o == lotOrder(LotOrderDetail d));
@@ -448,104 +462,109 @@ fileName  = DATA STRING (LotOrder, STRING[14]);
 idOrderEZ(LotOrder o, STRING[14] gtin) = GROUP MIN idOrderEZ(LotOrderDetail d) IF lotOrder(d) == o AND gtin(d) == gtin;
 
 //Информация о заказе
-checkStatus 'Проверить статус' (LotOrder o) {
+checkStatus 'Проверить статус' ABSTRACT LIST (LotOrder);
 
-    LOCAL NESTED statusMessage = STRING();
-    statusMessage() <- '';
+skipDefaultCheckStatus = ABSTRACT VALUE BOOLEAN (LotOrder);
 
-    NEWSESSION {
-        FOR quantity(o, STRING[14] gtin) DO {
+checkStatus  (LotOrder o) + {
+    IF NOT skipDefaultCheckStatus(o) THEN {
+        LOCAL NESTED statusMessage = STRING();
+        statusMessage() <- '';
 
-            EXPORT JSON FROM id = idOrderEZ(o, gtin);
+        NEWSESSION {
+            FOR quantity(o, STRING[14] gtin) DO {
 
-            LOCAL result = FILE();
-                        
-            exception(o) <- NULL;
-            getToken(legalEntityStock(o));
-            ezToken() <- token(legalEntityStock(o));
+                EXPORT JSON FROM id = idOrderEZ(o, gtin);
 
-            TRY {
-                insecureSSL() <- TRUE;
-                EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-            } CATCH {
-                handleException(o, result());
-                CANCEL;
-                RETURN;
-            }
-            
-            fileToString(result());
-            
-            LOCAL statusCode = INTEGER ();
-            LOCAL availableCodes = INTEGER ();  //count
-            LOCAL fileName = STRING ();
+                LOCAL result = FILE();
 
-            // разбор JSON
-            FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'order' == jsonAttributeKey(resultString(),i) DO {
-                LOCAL subJson1 = STRING (); 
-                subJson1() <- STRING(jsonAttributeValue(resultString(),i));
-                
-                // 1-й уровень вложенности
-                FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
-                    IF 'gtin' == jsonAttributeKey1(subJson1(),j) THEN {
-                        IF gtin != replace(STRING(jsonAttributeValue1(subJson1(),j)),'"','') THEN {
-                            statusCode() <- NULL;
-                            BREAK;                    
+                exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP POST urlEZ() + '/v2/orders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
+                }
+
+                fileToString(result());
+
+                LOCAL statusCode = INTEGER ();
+                LOCAL availableCodes = INTEGER (); //count
+                LOCAL fileName = STRING ();
+
+                // разбор JSON
+                FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'order' == jsonAttributeKey(resultString(), i) DO {
+                    LOCAL subJson1 = STRING ();
+                    subJson1() <- STRING(jsonAttributeValue(resultString(), i));
+
+                    // 1-й уровень вложенности
+                    FOR iterate(INTEGER j, 1, jsonAttributeCount1(subJson1())) DO {
+                        IF 'gtin' == jsonAttributeKey1(subJson1(), j) THEN {
+                            IF gtin != replace(STRING(jsonAttributeValue1(subJson1(), j)), '"', '') THEN {
+                                statusCode() <- NULL;
+                                BREAK;
+                            }
                         }
+
+                        //получение статуса
+                        IF 'status' == jsonAttributeKey1(subJson1(), j) THEN {
+                            LOCAL subJson2 = STRING ();
+                            subJson2() <- STRING(jsonAttributeValue1(subJson1(), j));
+
+                            FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) DO {
+                                IF 'code' == jsonAttributeKey2(subJson2(), k) THEN {
+                                    statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(), k)));
+                                }
+                            }
+                        };
+
+                        IF 'count' == jsonAttributeKey1(subJson1(), j) THEN {
+                            availableCodes() <- INTEGER(STRING(jsonAttributeValue1(subJson1(), j)));
+                        }
+
+                        //Путь к файлу
+                        IF 'file' == jsonAttributeKey1(subJson1(), j) THEN {
+                            LOCAL subJson2 = STRING ();
+                            subJson2() <- STRING(jsonAttributeValue1(subJson1(), j));
+
+                            FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) DO {
+                                IF 'filename' == jsonAttributeKey2(subJson2(), k) THEN {
+                                    fileName() <- STRING(jsonAttributeValue2(subJson2(), k));
+                                }
+                            }
+                        };
                     }
-                    
-                    //получение статуса
-                    IF 'status' == jsonAttributeKey1(subJson1(),j) THEN {
-                        LOCAL subJson2 = STRING ();
-                        subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
-                        
-                        FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) DO {
-                            IF 'code' == jsonAttributeKey2(subJson2(),k) THEN {
-                                statusCode() <- INTEGER(STRING(jsonAttributeValue2(subJson2(),k))); 
-                            } 
-                        }
-                    };
-                    
-                    IF 'count' == jsonAttributeKey1(subJson1(),j) THEN {
-                        availableCodes() <- INTEGER(STRING(jsonAttributeValue1(subJson1(),j)));                    
-                    }
-                    
-                    //Путь к файлу
-                    IF 'file' == jsonAttributeKey1(subJson1(),j) THEN {
-                        LOCAL subJson2 = STRING ();
-                        subJson2() <- STRING(jsonAttributeValue1(subJson1(),j));
-                        
-                        FOR iterate(INTEGER k, 1, jsonAttributeCount2(subJson2())) DO {
-                            IF 'filename' == jsonAttributeKey2(subJson2(),k) THEN {
-                                fileName() <- STRING(jsonAttributeValue2(subJson2(),k)); 
-                            } 
-                        }
-                    };
-                }                               
-            }            
+                }
 
-            IF statusCode() == 40 THEN {
-                canceled(o) <- TRUE;
-                APPLY;
-                RETURN;
-            }
+                IF statusCode() == 40 THEN {
+                    canceled(o) <- TRUE;
+                    APPLY;
+                    RETURN;
+                }
 
-            status(LotOrderDetail d) <- statusLotOrder(statusCode()) WHERE lotOrder(d) = o AND gtin(d) = gtin;
-            
-            IF statusCode() == 30 THEN {
-                LOCAL lotOrder = LotOrder ();
-                LOCAL gtin = STRING[14] ();
-                lotOrder() <- o;
-                gtin() <- gtin;
-                availableCodes(LotOrderDetail d) <- (PARTITION UNGROUP availableCodes
-                                                              LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND gtin(d) = gtin()
-                                                              ORDER d) WHERE lotOrder(d) = o AND gtin(d) = gtin;
-                fileName(o, gtin) <- fileName();                                           
+                status(LotOrderDetail d) <- statusLotOrder(statusCode()) WHERE lotOrder(d) = o AND gtin(d) = gtin;
+
+                IF statusCode() == 30 THEN {
+                    LOCAL lotOrder = LotOrder ();
+                    LOCAL gtin = STRING[14] ();
+                    lotOrder() <- o;
+                    gtin() <- gtin;
+                    availableCodes(LotOrderDetail d) <- (PARTITION UNGROUP availableCodes
+                        LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND gtin(d) = gtin()
+                        ORDER d) WHERE lotOrder(d) = o AND gtin(d) = gtin;
+                    fileName(o, gtin) <- fileName();
+                }
+                statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtin, ', статус :', name(statusLotOrder(statusCode())), '\n');
             }
-            statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', gtin, ', статус :', name(statusLotOrder(statusCode())), '\n');
+            APPLY;
         }
-        APPLY;
+        MESSAGE statusMessage();
     }
-    MESSAGE statusMessage();
 }
 
 overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
@@ -553,67 +572,72 @@ overNewLot ABSTRACT LIST (LotOrderDetail, Lot);
 temporarilySkipCheckLotCodes = DATA LOCAL BOOLEAN(LotOrderDetail);
 skipChangedCheckLotOrderDetail(LotOrderDetail d) += temporarilySkipCheckLotCodes(d);
 
-importLotCodes 'Получить марки' (LotOrder o) {
-    NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
-        initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
-        quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
-        
-        FOR initialDemand(o, STRING[14] gtin) DO {  
-            LOCAL fileName = STRING(); 
-            fileName() <- getWord(TEXT(fileName(o, gtin)), '/', wordCount(TEXT(fileName(o, gtin)), '/'));
-            fileName() <- replace(fileName() ,'"','');
-    
-            LOCAL result = FILE();
-            
-            exception(o) <- NULL;
-            getToken(legalEntityStock(o));
-            ezToken() <- token(legalEntityStock(o));
-            
-            TRY {
-                insecureSSL() <- TRUE;
-                EXTERNAL HTTP GET urlEZ() + '/downloads/' + fileName() HEADERS ezHeadersLotOrder TO result;
-            } CATCH {
-                handleException(o, result());
-                CANCEL;
-                RETURN;
-            }
-            LOCAL idLoc = STRING (INTEGER); 
+importLotCodes 'Получить марки' ABSTRACT LIST (LotOrder);
+skipDefaultImportLotCodes = ABSTRACT VALUE BOOLEAN (LotOrder);
 
-            fileToString(result());
-//            MESSAGE resultString();
-            
-            IMPORT CSV '|' NOESCAPE FROM result() TO idLoc;
-            in(Lot l) <- NULL;
-            
-            FOR idLoc(INTEGER i) NOINLINE DO NEW l = Lot {
-                FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
-                    id(l) <- barcodeToId(idLoc(i));
-                    tail(l) <- barcodeToTail(idLoc(i));
-                    sku(l) <- sku(d);
-                    quantity(d, l) <- 1;
-                    quantity(d) <- quantity(d) + 1;
-                    in(l) <- TRUE;
+importLotCodes  (LotOrder o) + {
+    IF NOT skipDefaultImportLotCodes(o) THEN {
+        NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
+            initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
+            quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
 
-                    overNewLot(d, l);
+            FOR initialDemand(o, STRING[14] gtin) DO {
+                LOCAL fileName = STRING();
+                fileName() <- getWord(TEXT(fileName(o, gtin)), '/', wordCount(TEXT(fileName(o, gtin)), '/'));
+                fileName() <- replace(fileName(), '"', '');
+
+                LOCAL result = FILE();
+
+                exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP GET urlEZ() + '/downloads/' + fileName() HEADERS ezHeadersLotOrder TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
                 }
+                LOCAL idLoc = STRING (INTEGER);
+
+                fileToString(result());
+                //            MESSAGE resultString();
+
+                IMPORT CSV '|' NOESCAPE FROM result() TO idLoc;
+                in(Lot l) <- NULL;
+
+                FOR idLoc(INTEGER i) NOINLINE DO NEW l = Lot {
+                    FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND gtin(dd) = gtin AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
+                        id(l) <- barcodeToId(idLoc(i));
+                        tail(l) <- barcodeToTail(idLoc(i));
+                        sku(l) <- sku(d);
+                        quantity(d, l) <- 1;
+                        quantity(d) <- quantity(d) + 1;
+                        in(l) <- TRUE;
+
+                        overNewLot(d, l);
+                    }
+                }
+
+                IF EZActive(legalEntityStock(o)) THEN
+                    getStatus(legalEntityStock(o));
+                ELSE
+                    getStatus();
             }
-            
-            IF EZActive(legalEntityStock(o)) THEN
-                getStatus(legalEntityStock(o));
-            ELSE
-                getStatus();
-        } 
-        
+
+            APPLY;
+        }
+
+        IF noPostedIncompleteOrders() AND (quantityLotOrderDetail(o) != quantityLot(o) OR NOT quantityLot(o)) THEN {
+            MESSAGE 'Получены не все марки. Заказ не проведен.' NOWAIT;
+        }ELSE{
+            MESSAGE 'Марки успешно получены' NOWAIT;
+            isPosted(o) <- TRUE;
+        }
         APPLY;
-    } 
-    
-    IF noPostedIncompleteOrders() AND (quantityLotOrderDetail(o) != quantityLot(o) OR NOT quantityLot(o)) THEN {
-        MESSAGE 'Получены не все марки. Заказ не проведен.' NOWAIT;    
-    }ELSE{
-        MESSAGE 'Марки успешно получены' NOWAIT;
-        isPosted(o) <- TRUE;        
     }
-    APPLY;
 }
 
 importLotCodesPartly 'Получить марки (по доступным строкам)' (LotOrder o) {

@@ -1,0 +1,371 @@
+MODULE EZJewerlyParametersLot;
+
+REQUIRE Lot, EZDirectoriesImport;
+
+NAMESPACE EZ;
+
+DESIGN lot {
+    tabbedPane {
+        NEW lotEZ {
+            caption = 'Данные ЭЗ';
+            NEW  jewelryParameters {
+                fill = 1;
+                NEW  jewelryAddParameters {
+                    caption = 'Дополнительные параметры';
+                    lines = 3;
+                }
+
+                NEW  jewelryParameterDetail LAST {
+                    fill = 1;
+                    tabbed = TRUE;
+                }
+            }
+        }
+    }
+}
+
+
+// Основной металл сплава
+CLASS JewelryAlloyLot 'Основной металл сплава';
+
+metalName 'Металл' = DATA STRING (JewelryAlloyLot);
+finenessAlloyCode 'Код пробы' = DATA STRING (JewelryAlloyLot);
+finenessName 'Проба' = DATA STRING (JewelryAlloyLot);
+
+weight 'Масса в чистоте, г' = DATA NUMERIC[14,5] (JewelryAlloyLot);
+
+lot = DATA Lot (JewelryAlloyLot);
+
+onChange (JewelryAlloyLot a) {
+    selectJewelryMetalFinenessEZ();
+    DIALOG dialogMetalList OBJECTS fineness INPUT NULL DO {
+        metalName(a) <- metalNameByFineness(fineness);
+        finenessAlloyCode(a) <- metalFinenessCode(fineness);
+        finenessName(a) <- metalFinenessName(fineness);
+    }
+}
+
+EXTEND FORM lot
+    OBJECTS alloy = JewelryAlloyLot
+    PROPERTIES (alloy) metalName ON CHANGE onChange(alloy), finenessAlloyCode ON CHANGE onChange(alloy), finenessName ON CHANGE onChange(alloy), weight
+    PROPERTIES (alloy) NEW, DELETE GRID
+    FILTERS lot(alloy) == l
+;
+
+DESIGN lot {
+    jewelryParameterDetail {
+        MOVE BOX(alloy) {
+            fill = 1;
+            caption = 'Основной металл сплава';
+        }
+    }
+}
+
+// Номер партии ГИПН
+jewelryGipnBatch 'Номер партии ГИПН' = DATA STRING(Lot);
+EXTEND FORM lot
+    PROPERTIES (l) jewelryGipnBatch
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (jewelryGipnBatch(l));
+    }
+}
+
+// Страна ввоза
+//countryImportationName 'Страна ввоза' = DATA STRING (Lot);
+//countryImportationCode 'Код страны ввоза' = DATA STRING (Lot);
+//
+//onChangeCountryImportation (Lot l) {
+//    selectJewelryCountryEZ();
+//    DIALOG dialogCountryEZ OBJECTS country INPUT NULL DO {
+//        countryImportationName(l) <- countryName(country);
+//        countryImportationCode(l) <- countryCode(country);
+//    }
+//}
+//
+//EXTEND FORM lot
+//    PROPERTIES (l) countryImportationName ON CHANGE onChangeCountryImportation(l)
+//;
+//
+//DESIGN lot {
+//    jewelryAddParameters {
+//        MOVE PROPERTY (countryImportationName(l));
+//    }
+//}
+
+// Покрытие 
+coverageName 'Покрытие' = DATA STRING (Lot);
+coverageCode 'Код покрытия' = DATA STRING (Lot);
+
+onChangeCoverage (Lot l) {
+    selectJewelryCoverageEZ();
+    DIALOG dialogCoverageEZ OBJECTS coverage INPUT NULL DO {
+        coverageName(l) <- countryName(coverage);
+        coverageCode(l) <- countryCode(coverage);
+    }
+}
+
+EXTEND FORM lot
+    PROPERTIES (l) coverageName ON CHANGE onChangeCoverage(l)
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (coverageName(l));
+    }
+}
+
+// Виды драгоценных камней
+CLASS JewelryGemstonesTypeLot 'Виды драгоценных камней';
+
+lot = DATA Lot (JewelryGemstonesTypeLot);
+
+gemstonesInsertCode 'Код вставки из драгоценных камней' = DATA STRING (JewelryGemstonesTypeLot);
+gemstonesCount 'Количество драгоценных камней' = DATA INTEGER (JewelryGemstonesTypeLot);
+gemstonesWeight 'Масса драгоценных камней, кар' = DATA NUMERIC[14,5] (JewelryGemstonesTypeLot);
+
+gemstonesTypeCode 'Код вида драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+gemstonesTypeName 'Вид драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+
+gemstonesTypeColorCode 'Код цвета драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+gemstonesTypeColorName 'Цвет драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+
+gemstonesTypeShapeCode 'Код формы огранки драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+gemstonesTypeShapeName 'Форма огранки драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+
+gemstonesTypeQualityCode 'Код качества драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+gemstonesTypeQualityName 'Качество драгоценного камня' = DATA STRING (JewelryGemstonesTypeLot);
+
+onChange (JewelryGemstonesTypeLot g) {
+    selectJewelryGemstoneEZ();
+    DIALOG dialogGemstoneType OBJECTS gemstoneType INPUT NULL DO {
+        gemstonesTypeCode(g) <- gemstonesTypeCode(gemstoneType);
+        gemstonesTypeName(g) <- gemstonesTypeName(gemstoneType);
+    }
+}
+
+onChangeColor (JewelryGemstonesTypeLot g) {
+    IF NOT gemstonesTypeCode(g) THEN {
+        MESSAGE 'Не выбран тип драгоценного камня';
+        RETURN;
+    }
+
+    selectJewelryGemstoneColorEZ(gemstonesTypeCode(g));
+    DIALOG dialogGemstoneTypeColor OBJECTS gemstoneColor INPUT NULL DO {
+        gemstonesTypeColorCode(g) <- gemstonePropertyColorCode(gemstoneColor);
+        gemstonesTypeColorName(g) <- gemstonePropertyColorName(gemstoneColor);
+    }
+}
+
+onChangeShape (JewelryGemstonesTypeLot g) {
+    IF NOT gemstonesTypeCode(g) THEN {
+        MESSAGE 'Не выбран тип драгоценного камня';
+        RETURN;
+    }
+
+    selectJewelryGemstoneShapeEZ(gemstonesTypeCode(g));
+    DIALOG dialogGemstoneTypeShape OBJECTS gemstoneShape INPUT NULL DO {
+        gemstonesTypeShapeCode(g) <- gemstonePropertyShapeCode(gemstoneShape);
+        gemstonesTypeShapeName(g) <- gemstonePropertyShapeName(gemstoneShape);
+    }
+}
+
+onChangeQuality (JewelryGemstonesTypeLot g) {
+    IF NOT gemstonesTypeCode(g) THEN {
+        MESSAGE 'Не выбран тип драгоценного камня';
+        RETURN;
+    }
+
+    selectJewelryGemstoneQualityEZ(gemstonesTypeCode(g));
+    DIALOG dialogGemstoneTypeQuality OBJECTS gemstoneQuality INPUT NULL DO {
+        gemstonesTypeQualityCode(g) <- gemstonePropertyQualityCode(gemstoneQuality);
+        gemstonesTypeQualityName(g) <- gemstonePropertyQualityName(gemstoneQuality);
+    }
+}
+
+EXTEND FORM lot
+    OBJECTS gemstone = JewelryGemstonesTypeLot
+    PROPERTIES (gemstone)
+    gemstonesInsertCode,
+        gemstonesTypeName ON CHANGE onChange(gemstone),
+        gemstonesTypeColorName ON CHANGE onChangeColor(gemstone),
+        gemstonesTypeShapeName ON CHANGE onChangeShape(gemstone),
+        gemstonesTypeQualityName ON CHANGE onChangeQuality(gemstone),
+        gemstonesCount, gemstonesWeight
+
+    PROPERTIES (gemstone) NEW, DELETE GRID
+    FILTERS lot(gemstone) == l
+;
+
+DESIGN lot {
+    jewelryParameterDetail {
+        MOVE BOX(gemstone) {
+            fill = 1;
+            caption = 'Драгоценный камень';
+        }
+    }
+}
+
+
+// Вставки из недрагоценных камней/материалов
+insertsBaseStones 'Вставки из недрагоценных камней/материалов' = DATA STRING (Lot);
+inserts_description 'Описание вставки' = DATA STRING (Lot);
+
+EXTEND FORM lot
+    PROPERTIES (l) insertsBaseStones, inserts_description
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (insertsBaseStones(l));
+        MOVE PROPERTY (inserts_description(l));
+    }
+}
+
+// Металл, проба вставки
+CLASS MetalInsertLot 'Металл, проба вставки';
+
+metalInsertName 'Металл' = DATA STRING (MetalInsertLot);
+finenessMetalInsertCode 'Код пробы' = DATA STRING (MetalInsertLot);
+finenessMetalInsertName 'Проба' = DATA STRING (MetalInsertLot);
+
+metalInsertWeight 'Масса вставки, г' = DATA NUMERIC[14,5] (MetalInsertLot);
+
+lot = DATA Lot (MetalInsertLot);
+
+onChange (MetalInsertLot i) {
+    selectJewelryMetalFinenessEZ();
+    DIALOG dialogMetalList OBJECTS fineness INPUT NULL DO {
+        metalInsertName(i) <- metalNameByFineness(fineness);
+        finenessMetalInsertCode(i) <- metalFinenessCode(fineness);
+        finenessMetalInsertName(i) <- metalFinenessName(fineness);
+    }
+}
+
+EXTEND FORM lot
+    OBJECTS metalInsert = MetalInsertLot
+    PROPERTIES (metalInsert) metalInsertName ON CHANGE onChange(metalInsert), finenessMetalInsertCode ON CHANGE onChange(metalInsert), finenessMetalInsertName ON CHANGE onChange(metalInsert), metalInsertWeight
+    PROPERTIES (metalInsert) NEW, DELETE GRID
+    FILTERS lot(metalInsert) == l
+;
+
+DESIGN lot {
+    jewelryParameterDetail {
+        MOVE BOX(metalInsert) {
+            fill = 1;
+            caption = 'Металл, проба вставки';
+        }
+    }
+}
+
+// Размер ЮИ 
+jewelrySizeName 'Размер ЮИ' = DATA STRING (Lot);
+jewelrySizeCode 'Код размер ЮИ' = DATA STRING (Lot);
+
+onChangeJewelrySize (Lot l) {
+    selectJewelryCoverageEZ();
+    DIALOG dialogJewelrySizeEZ OBJECTS jewelrySize INPUT NULL DO {
+        jewelrySizeCode(l) <- jewelrySizeCode(jewelrySize);
+        jewelrySizeName(l) <- jewelrySizeName(jewelrySize);
+    }
+}
+
+EXTEND FORM lot
+    PROPERTIES (l) jewelrySizeName ON CHANGE onChangeJewelrySize(l)
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (jewelrySizeName(l));
+    }
+}
+
+// Список кодов из комплекта
+CLASS LabelSetLot 'Код из комплекта';
+
+labelSetCode 'Код' = DATA STRING (LabelSetLot);
+
+lot = DATA Lot (LabelSetLot);
+
+EXTEND FORM lot
+    OBJECTS labelSet = LabelSetLot
+    PROPERTIES (labelSet) labelSetCode
+    PROPERTIES (labelSet) NEW, DELETE GRID
+    FILTERS lot(labelSet) == l
+;
+
+DESIGN lot {
+    jewelryParameterDetail {
+        MOVE BOX(labelSet) {
+            fill = 1;
+            caption = 'Список кодов из комплекта';
+        }
+    }
+}
+
+// Дата изготовления (производства) товара
+jewelryManufactureDate 'Дата изготовления (производства) товара' = DATA DATE(Lot);
+
+EXTEND FORM lot
+    PROPERTIES (l) jewelryManufactureDate
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (jewelryManufactureDate(l));
+    }
+}
+
+// Cамородки
+CLASS JewelryNuggetsLot 'Cамородки';
+
+metalNuggetsName 'Металл' = DATA STRING (JewelryNuggetsLot);
+metalNuggetsCode 'Код металла' = DATA STRING (JewelryNuggetsLot);
+finenessNuggetsCode 'Код пробы' = DATA STRING (JewelryNuggetsLot);
+finenessNuggetsName 'Проба' = DATA STRING (JewelryNuggetsLot);
+
+nuggetsWeight 'Масса в чистоте, г' = DATA NUMERIC[14,5] (JewelryNuggetsLot);
+
+lot = DATA Lot (JewelryNuggetsLot);
+
+onChange (JewelryNuggetsLot n) {
+    selectJewelryMetalFinenessEZ();
+    DIALOG dialogMetalList OBJECTS fineness INPUT NULL DO {
+        metalNuggetsName(n) <- metalNameByFineness(fineness);
+        metalNuggetsCode(n) <- metalCodeByFineness(fineness);
+        finenessNuggetsCode(n) <- metalFinenessCode(fineness);
+        finenessNuggetsName(n) <- metalFinenessName(fineness);
+    }
+}
+
+EXTEND FORM lot
+    OBJECTS nuggets = JewelryNuggetsLot
+    PROPERTIES (nuggets) metalNuggetsName ON CHANGE onChange(nuggets), metalNuggetsCode ON CHANGE onChange(nuggets), 
+        finenessNuggetsCode ON CHANGE onChange(nuggets), finenessNuggetsName ON CHANGE onChange(nuggets), 
+        nuggetsWeight
+    PROPERTIES (nuggets) NEW, DELETE GRID
+    FILTERS lot(nuggets) == l
+;
+
+DESIGN lot {
+    jewelryParameterDetail {
+        MOVE BOX(nuggets) {
+            fill = 1;
+            caption = 'Проба самородков';
+        }
+    }
+}
+
+jewelryWeight 'Масса, г' = DATA NUMERIC[14,5] (Lot);
+
+EXTEND FORM lot
+    PROPERTIES (l) jewelryWeight
+;
+
+DESIGN lot {
+    jewelryAddParameters {
+        MOVE PROPERTY (jewelryWeight(l));
+    }
+}

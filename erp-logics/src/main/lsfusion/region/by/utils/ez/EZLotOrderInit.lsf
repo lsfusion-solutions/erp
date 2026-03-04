@@ -44,39 +44,43 @@ DESIGN lotInits {
     }
 }
 
-getStatusReport 'Получить статус' (ReportEZ r) {
-    EXPORT JSON FROM report_id  = id(r);         
-              
-    LOCAL result = FILE();   
-    
-    exception(lotInit(r)) <- NULL;
-    getToken(legalEntityStock(lotInit(r)));
-    ezToken() <- token(legalEntityStock(lotInit(r)));
-    
-    TRY {
-        insecureSSL() <- TRUE;
-        EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
-    } CATCH {
+getStatusReport 'Получить статус' ABSTRACT LIST (ReportEZ);
+skipDefaultGetStatusReport = ABSTRACT VALUE BOOLEAN (ReportEZ);
+
+getStatusReport (ReportEZ r) +{
+    IF (NOT skipDefaultGetStatusReport(r)) THEN {
+        EXPORT JSON FROM report_id = id(r);
+
+        LOCAL result = FILE();
         
-        handleException(lotInit(r), result());
-        RETURN;
-    }       
-    fileToString(result());
-    //MESSAGE resultString();
-    
-    LOCAL statusCode = INTEGER ();
-    
-    FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'status' == jsonAttributeKey(resultString(),i) DO {
-        LOCAL subJson1 = STRING (); 
-        subJson1() <- STRING(jsonAttributeValue(resultString(),i));        
-                
-        FOR iterate(INTEGER k, 1, jsonAttributeCount1(subJson1())) AND 'code' == jsonAttributeKey1(subJson1(),k) DO {
-            statusCode() <- INTEGER(STRING(jsonAttributeValue1(subJson1(),k))); 
+        exception(lotInit(r)) <- NULL;
+        getToken(legalEntityStock(lotInit(r)));
+        ezToken() <- token(legalEntityStock(lotInit(r)));
+        
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ() + '/v2/reports' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        } CATCH {        
+            handleException(lotInit(r), result());
+            RETURN;
         }
-    };   
-    status(r) <- statusReport(statusCode());
-    
-    APPLY;
+        fileToString(result());
+        //MESSAGE resultString();
+        
+        LOCAL statusCode = INTEGER ();
+        
+        FOR iterate(INTEGER i, 1, jsonAttributeCount(resultString())) AND 'status' == jsonAttributeKey(resultString(), i) DO {
+            LOCAL subJson1 = STRING ();
+            subJson1() <- STRING(jsonAttributeValue(resultString(), i));
+            
+            FOR iterate(INTEGER k, 1, jsonAttributeCount1(subJson1())) AND 'code' == jsonAttributeKey1(subJson1(), k) DO {
+                statusCode() <- INTEGER(STRING(jsonAttributeValue1(subJson1(), k)));
+            }
+        };
+        status(r) <- statusReport(statusCode());
+        
+        APPLY;
+    }
 }    
 
 getStatusReport 'Получить статус по всем' (LotInit i) {
@@ -84,15 +88,16 @@ getStatusReport 'Получить статус по всем' (LotInit i) {
         getStatusReport(r);
     }
 }
-    
+
 FORM addMark 'Отчет о маркировке'
 
     PROPERTIES group = codeGroup(type(lotInit()))
 
     OBJECTS labels = Lot
-    PROPERTIES (labels) code 
+    PROPERTIES (labels) code
     FILTERS filterLot(labels)
-;    
+;
+
 
 nameSku(LotInit i) = nameSku(GROUP MAX LotInitDetail d IF lotInit(d) == i);
 
@@ -347,21 +352,26 @@ addMark 'Отправить отчет'(LotInit i, STRING[14] gtin) {
     APPLY;    
 }
 
-addMark 'Отправить отчет'(LotInit i) {
-    FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotInitDetail d) AND i == lotInit(d)) > 0) DO {
-        addMark(i, gtin);
-    }
+addMark 'Отправить отчет' ABSTRACT LIST (LotInit);
+skipDefaultAddMark = ABSTRACT VALUE BOOLEAN (LotInit);
 
-    in(Lot l) <- lotInit(l) == i AND NOT isSend(l) WHERE lotInit(l) == i;
-    
-    // получение статусов для марок
-    IF EZActive(legalEntityStock(i)) THEN {
-        getStatus(legalEntityStock(i));
-    } 
-    ELSE {
-        getStatus();
+addMark (LotInit i) + {
+    IF (NOT skipDefaultAddMark(i)) THEN {
+        FOR (STRING[14] gtin) AND ((GROUP SUM 1 IF gtin == gtin(LotInitDetail d) AND i == lotInit(d)) > 0) DO {
+            addMark(i, gtin);
+        }
+
+        in(Lot l) <- lotInit(l) == i AND NOT isSend(l) WHERE lotInit(l) == i;
+
+        // получение статусов для марок
+        IF EZActive(legalEntityStock(i)) THEN {
+            getStatus(legalEntityStock(i));
+        }
+        ELSE {
+            getStatus();
+        }
+        APPLY;
     }
-    APPLY;
 }
 
 EXTEND FORM lotInits 

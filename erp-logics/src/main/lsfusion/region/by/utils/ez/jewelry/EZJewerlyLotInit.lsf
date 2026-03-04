@@ -1,0 +1,36 @@
+MODULE EZJewerlyLotInit;
+
+REQUIRE JewelryLotType, EZLotInit, EZJewerlyParameters;
+
+//  Режим маркировки
+EXTEND CLASS LotInitMode{
+    JEWERLY_PRODUCTION 'Производство (ювелирные изделия)',
+    JEWERLY_IMPORT 'Импорт (ювелирные изделия)',
+    JEWERLY_SETS 'Маркировка комплектов (ювелирные изделия)',
+    JEWERLY_COMMISSION 'Комиссионная торговля (ювелирные изделия)',
+    JEWERLY_CONFISCATED 'Маркировка конфискованных товаров (ювелирные изделия)',
+    JEWERLY_CONFIRM_IMPORT'Подтверждение данных (импорт) (ювелирные изделия)',
+    JEWERLY_STOCK 'Маркировка остатков (ювелирные изделия)'
+}
+
+isJewelry(LotInitMode mode) = 
+    mode = LotInitMode.JEWERLY_PRODUCTION OR
+    mode = LotInitMode.JEWERLY_IMPORT OR
+    mode = LotInitMode.JEWERLY_SETS OR
+    mode = LotInitMode.JEWERLY_COMMISSION OR
+    mode = LotInitMode.JEWERLY_CONFISCATED OR
+    mode = LotInitMode.JEWERLY_CONFIRM_IMPORT OR
+    mode = LotInitMode.JEWERLY_STOCK;
+
+overForbiddenMode(LotInit i, LotInitMode m) += NOT
+    (isJewelry(m) AND type(i) == LotType.jewelry OR
+    NOT isJewelry(m) AND NOT type(i) == LotType.jewelry);
+
+jewelryCode (LotInitMode m) = CASE
+    WHEN m == LotInitMode.JEWERLY_PRODUCTION THEN 1
+    WHEN m == LotInitMode.JEWERLY_IMPORT THEN 2
+    WHEN m == LotInitMode.JEWERLY_SETS THEN 3
+    WHEN m == LotInitMode.JEWERLY_COMMISSION THEN 4
+    WHEN m == LotInitMode.JEWERLY_CONFISCATED THEN 5
+    WHEN m == LotInitMode.JEWERLY_CONFIRM_IMPORT THEN 6
+    WHEN m == LotInitMode.JEWERLY_STOCK THEN 7;

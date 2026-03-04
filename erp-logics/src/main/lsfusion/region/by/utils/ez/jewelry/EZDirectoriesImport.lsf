@@ -1,0 +1,352 @@
+MODULE EZDirectoriesImport;
+
+REQUIRE EZAuthentication;
+
+NAMESPACE EZ;
+
+// mealList
+mainCode = DATA LOCAL STRING();
+mainName = DATA LOCAL STRING();
+mainComment = DATA LOCAL STRING();
+
+metalCode 'Код металла' = DATA LOCAL STRING(INTEGER);
+metalName 'Наимнование металла' = DATA LOCAL STRING(INTEGER);
+metalComment 'Комментарий (металл)' = DATA LOCAL STRING(INTEGER);
+
+metalInner = DATA LOCAL INTEGER(INTEGER);
+metalFinenessCode 'Код пробы металла' = DATA LOCAL STRING(INTEGER);
+metalFinenessName 'Наимнование пробы металла' = DATA LOCAL STRING(INTEGER);
+metalFinenessComment 'Комментарий (проба металла)' = DATA LOCAL STRING(INTEGER);
+
+FORM importMetalList
+    PROPERTIES() mainCode EXTID 'code' , mainName EXTID 'name', mainComment EXTID 'comment'
+
+    OBJECTS metal = INTEGER EXTID 'inner'
+    PROPERTIES(metal) metalCode EXTID 'code', metalName EXTID 'name', metalComment EXTID 'comment'
+
+    OBJECTS fineness = INTEGER EXTID 'inner'
+    PROPERTIES(fineness) metalFinenessCode EXTID 'code', metalFinenessName EXTID 'name', metalFinenessComment EXTID 'comment'
+    FILTERS metalInner(fineness) == metal
+;
+
+metalNameByFineness 'Наимнование металла' (INTEGER fineness) = metalName(metalInner(fineness));
+metalCodeByFineness 'Код металла' (INTEGER fineness) = metalCode(metalInner(fineness));
+
+FORM dialogMetalList 'Выбор метталла (ЭЗ)'
+    OBJECTS fineness = INTEGER
+    PROPERTIES(fineness) READONLY metalNameByFineness, metalFinenessCode, metalFinenessName
+    FILTERS metalFinenessCode(fineness)
+;
+
+selectJewelryMetalFinenessEZ 'Выбор пробы металла ювелирного изделия' () {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o));
+    //    ezToken() <- token(legalEntityStock(o));
+        
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/metalList' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importMetalList JSON FROM result();
+}
+
+// country
+mainCountryCode = DATA LOCAL STRING();
+mainCountryName = DATA LOCAL STRING();
+mainCountryComment = DATA LOCAL STRING();
+countryCode 'Код страны ввоза ЭЗ' = DATA LOCAL STRING(INTEGER);
+countryName 'Страна ввоза ЭЗ' = DATA LOCAL STRING(INTEGER);
+countryComment = DATA LOCAL STRING(INTEGER);
+
+FORM importCountry
+    PROPERTIES() mainCountryCode, mainCountryName, mainCountryComment
+
+    OBJECTS inner = INTEGER
+    PROPERTIES(inner) countryCode EXTID 'code', countryName EXTID 'name', countryComment EXTID 'comment'
+    FILTERS imported(inner)
+;
+
+FORM dialogCountryEZ 'Выбор страны (ЭЗ)'
+    OBJECTS country = INTEGER
+    PROPERTIES(country) READONLY countryCode, countryName
+    FILTERS countryCode(country)
+;
+
+selectJewelryCountryEZ 'Выбор страны (ЭЗ)' () {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o));
+    //    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/country' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importCountry JSON FROM result();
+}
+
+// Покрытие
+mainCoverageCode = DATA LOCAL STRING();
+mainCoverageName = DATA LOCAL STRING();
+mainCoverageCcomment = DATA LOCAL STRING();
+coverageCode 'Код покрытия ЭЗ' = DATA LOCAL STRING(INTEGER);
+coverageName 'Наименовение покрытия ЭЗ' = DATA LOCAL STRING(INTEGER);
+coverageComment = DATA LOCAL STRING(INTEGER);
+
+FORM importCoverage
+    PROPERTIES() mainCoverageCode, mainCoverageName, mainCoverageCcomment
+
+    OBJECTS inner = INTEGER
+    PROPERTIES(inner) coverageCode EXTID 'code', coverageName EXTID 'name', coverageComment EXTID 'comment';
+
+FORM dialogCoverageEZ 'Выбор покрытия (ЭЗ)'
+    OBJECTS coverage = INTEGER
+    PROPERTIES(coverage) READONLY coverageCode, coverageName
+    FILTERS coverageCode(coverage)
+;
+
+selectJewelryCoverageEZ 'Выбор покрытия (ЭЗ)' () {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o));
+    //    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/coverage' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importCoverage JSON FROM result();
+}
+
+
+// gemstones_types
+mainGemstoneCode = DATA LOCAL STRING();
+mainGemstoneName = DATA LOCAL STRING();
+mainGemstoneComment = DATA LOCAL STRING();
+
+// Виды драгоценных камней
+gemstonesTypeCode 'Код' = DATA LOCAL STRING(INTEGER);
+gemstonesTypeName 'Вид драгоценного камня' = DATA LOCAL STRING(INTEGER);
+gemstonesTypeComment = DATA LOCAL STRING(INTEGER);
+
+// Тип свойства
+gemstone = DATA LOCAL INTEGER(INTEGER);
+gemstonePropertyCode = DATA LOCAL STRING(INTEGER);
+gemstonePropertyName = DATA LOCAL STRING(INTEGER);
+gemstonePropertyComment = DATA LOCAL STRING(INTEGER);
+
+// Значения свойства
+gemstoneProperty = DATA LOCAL INTEGER(INTEGER);
+gemstonePropertyValueCode = DATA LOCAL STRING(INTEGER);
+gemstonePropertyValueName = DATA LOCAL STRING(INTEGER);
+gemstonePropertyValueComment = DATA LOCAL STRING(INTEGER);
+
+FORM importGemstoneType
+    PROPERTIES() mainGemstoneCode EXTID 'code', mainGemstoneName EXTID 'name', mainGemstoneComment EXTID 'comment'
+
+    OBJECTS gemstoneType = INTEGER EXTID 'inner'
+    PROPERTIES(gemstoneType) gemstonesTypeCode EXTID 'code', gemstonesTypeName EXTID 'name', gemstonesTypeComment EXTID 'comment'
+    FILTERS imported(gemstoneType)
+    
+    OBJECTS gemstoneProperty = INTEGER EXTID 'inner'
+    PROPERTIES(gemstoneProperty) gemstonePropertyCode EXTID 'code', gemstonePropertyName EXTID 'name', gemstonePropertyComment EXTID 'comment'
+    FILTERS gemstone(gemstoneProperty) == gemstoneType
+    FILTERS imported(gemstoneProperty)
+
+    OBJECTS gemstonePropertyValue = INTEGER EXTID 'inner'
+    PROPERTIES(gemstonePropertyValue) gemstonePropertyValueCode EXTID 'code', gemstonePropertyValueName EXTID 'name', gemstonePropertyValueComment EXTID 'comment'
+    FILTERS gemstoneProperty(gemstonePropertyValue) == gemstoneProperty
+    FILTERS imported(gemstonePropertyValue)
+;
+
+gemstoneType(STRING code) = GROUP MIN INTEGER gemstoneType BY gemstonesTypeCode(gemstoneType);
+
+gemstoneCode = DATA STRING();
+gemstoneName = DATA STRING();
+
+FORM dialogGemstoneType 'Выбор типа драгоценного камня (ЭЗ)'
+    OBJECTS gemstoneType  = INTEGER
+    PROPERTIES(gemstoneType) READONLY gemstonesTypeCode, gemstonesTypeName
+
+    FILTERS gemstonesTypeCode(gemstoneType)
+;
+
+selectJewelryGemstoneEZ 'Выбор типа драгоценного камня' () {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o));
+    //    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/gemstones_types' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importGemstoneType JSON FROM result();
+}
+
+// Цвет
+gemstonePropertyColorCode 'Код' = DATA LOCAL STRING(INTEGER);
+gemstonePropertyColorName 'Цвет' = DATA LOCAL STRING(INTEGER);
+
+FORM dialogGemstoneTypeColor 'Выбор цвета драгоценного камня (ЭЗ)'
+    OBJECTS gemstoneColor  = INTEGER
+    PROPERTIES(gemstoneColor) READONLY gemstonePropertyColorCode, gemstonePropertyColorName
+
+    FILTERS gemstonePropertyColorCode(gemstoneColor)
+;
+
+selectJewelryGemstoneColorEZ 'Выбор цвета драгоценного камня' (STRING gemstoneTypeCode) {
+    selectJewelryGemstoneEZ();
+
+    LOCAL gemstoneType = INTEGER();
+    LOCAL gemstoneProperty = INTEGER();
+
+    gemstoneType() <- gemstoneType(gemstoneTypeCode);
+    gemstoneProperty() <- GROUP MIN INTEGER gemstoneProperty IF gemstone(gemstoneProperty) == gemstoneType() AND isISubstring(gemstonePropertyCode(gemstoneProperty), 'COLOR_') ;
+    
+    gemstonePropertyColorCode(INTEGER color) <- NULL;
+    gemstonePropertyColorName(INTEGER color) <- NULL;
+    
+    gemstonePropertyColorCode(INTEGER color) <- gemstonePropertyValueCode(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+    gemstonePropertyColorName(INTEGER color) <- gemstonePropertyValueName(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+}
+
+// Форма огранки
+gemstonePropertyShapeCode 'Код' = DATA LOCAL STRING(INTEGER);
+gemstonePropertyShapeName 'Форма огранки' = DATA LOCAL STRING(INTEGER);
+
+FORM dialogGemstoneTypeShape 'Выбор формы огранки драгоценного камня (ЭЗ)'
+    OBJECTS gemstoneShape  = INTEGER
+    PROPERTIES(gemstoneShape) READONLY gemstonePropertyShapeCode, gemstonePropertyShapeName
+
+    FILTERS gemstonePropertyShapeCode(gemstoneShape)
+;
+
+selectJewelryGemstoneShapeEZ 'Выбор формы огранки драгоценного камня' (STRING gemstoneTypeCode) {
+    selectJewelryGemstoneEZ();
+
+    LOCAL gemstoneType = INTEGER();
+    LOCAL gemstoneProperty = INTEGER();
+
+    gemstoneType() <- gemstoneType(gemstoneTypeCode);
+    gemstoneProperty() <- GROUP MIN INTEGER gemstoneProperty IF gemstone(gemstoneProperty) == gemstoneType() AND isISubstring(gemstonePropertyCode(gemstoneProperty), 'SHAPE_') ;
+
+    gemstonePropertyShapeCode(INTEGER color) <- NULL;
+    gemstonePropertyShapeName(INTEGER color) <- NULL;
+
+    gemstonePropertyShapeCode(INTEGER color) <- gemstonePropertyValueCode(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+    gemstonePropertyShapeName(INTEGER color) <- gemstonePropertyValueName(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+}
+
+// Качество драгоценного камня
+gemstonePropertyQualityCode 'Код' = DATA LOCAL STRING(INTEGER);
+gemstonePropertyQualityName 'Качество драгоценного камня' = DATA LOCAL STRING(INTEGER);
+
+FORM dialogGemstoneTypeQuality 'Выбор качества драгоценного камня (ЭЗ)'
+    OBJECTS gemstoneQuality  = INTEGER
+    PROPERTIES(gemstoneQuality) READONLY gemstonePropertyQualityCode, gemstonePropertyQualityName
+
+    FILTERS gemstonePropertyQualityCode(gemstoneQuality)
+;
+
+selectJewelryGemstoneQualityEZ 'Выбор качества драгоценного камня' (STRING gemstoneTypeCode) {
+    selectJewelryGemstoneEZ();
+
+    LOCAL gemstoneType = INTEGER();
+    LOCAL gemstoneProperty = INTEGER();
+
+    gemstoneType() <- gemstoneType(gemstoneTypeCode);
+    gemstoneProperty() <- GROUP MIN INTEGER gemstoneProperty IF gemstone(gemstoneProperty) == gemstoneType() AND isISubstring(gemstonePropertyCode(gemstoneProperty), 'QUALITY_') ;
+
+    gemstonePropertyQualityCode(INTEGER color) <- NULL;
+    gemstonePropertyQualityName(INTEGER color) <- NULL;
+
+    gemstonePropertyQualityCode(INTEGER color) <- gemstonePropertyValueCode(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+    gemstonePropertyQualityName(INTEGER color) <- gemstonePropertyValueName(color) WHERE gemstoneProperty(color) == gemstoneProperty();
+}
+
+
+
+// jewelry_sizes
+mainJewelrySizeCode = DATA LOCAL STRING();
+mainJewelrySizeName = DATA LOCAL STRING();
+mainJewelrySizeComment = DATA LOCAL STRING();
+
+jewelrySizeTypeCode = DATA LOCAL STRING(INTEGER);
+jewelrySizeTypeName = DATA LOCAL STRING(INTEGER);
+jewelrySizeTypeComment = DATA LOCAL STRING(INTEGER);
+
+jewelrySizeCode 'Код размера ЮИ' = DATA LOCAL STRING(INTEGER);
+jewelrySizeName 'Размер ЮИ' = DATA LOCAL STRING(INTEGER);
+jewelrySizeComment = DATA LOCAL STRING(INTEGER);
+jewelrySizeType = DATA LOCAL INTEGER(INTEGER);
+
+FORM importJewelrySize
+    PROPERTIES() mainJewelrySizeCode EXTID 'code', mainJewelrySizeName EXTID 'name', mainJewelrySizeComment EXTID 'comment'
+
+    OBJECTS jewelrySizeType = INTEGER EXTID 'inner'
+    PROPERTIES(jewelrySizeType) jewelrySizeTypeCode EXTID 'code', jewelrySizeTypeName EXTID 'name', jewelrySizeTypeComment EXTID 'comment'
+
+    OBJECTS jewelrySize = INTEGER EXTID 'inner'
+    PROPERTIES(jewelrySize) jewelrySizeCode EXTID 'code', jewelrySizeName EXTID 'name', jewelrySizeComment EXTID 'comment'
+    FILTERS jewelrySizeType(jewelrySize) == jewelrySizeType
+;
+
+jewelrySizeTypeNameBySize 'Категория ЮИ' (INTEGER jewelrySize) = jewelrySizeTypeName(jewelrySizeType(jewelrySize));
+
+FORM dialogJewelrySizeEZ 'Выбор размера ЮИ (ЭЗ)'
+    OBJECTS jewelrySize = INTEGER
+    PROPERTIES(jewelrySize) READONLY jewelrySizeCode, jewelrySizeName, jewelrySizeTypeNameBySize
+    FILTERS jewelrySizeCode(jewelrySize)
+;
+
+selectJewelrySizeEZ 'Выбор размера ЮИ (ЭЗ)' () {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o));
+    //    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/jewelry_sizes' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importJewelrySize JSON FROM result();
+}
+
+

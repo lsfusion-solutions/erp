@@ -11,7 +11,7 @@ CLASS LotInitMode 'Режим маркировки' {
     REMARK 'Перемаркировка (возврат товара)',
     IMPORTEAES 'Импорт из государств-членов ЕАЭС'
 }
-
+    
 code 'Код' (LotInitMode m) = CASE 
     WHEN m == LotInitMode.PRODUCTION THEN 1
     WHEN m == LotInitMode.IMPORT_ THEN 2
@@ -22,7 +22,7 @@ code 'Код' (LotInitMode m) = CASE
 lotInitMode (INTEGER code) = CASE
     WHEN code == 1 THEN LotInitMode.PRODUCTION
     WHEN code == 2 THEN LotInitMode.IMPORT_ 
-    WHEN code == 2 THEN LotInitMode.COMMISSION 
+    WHEN code == 3 THEN LotInitMode.COMMISSION 
     WHEN code == 4 THEN LotInitMode.REMARK
     WHEN code == 5 THEN LotInitMode.IMPORTEAES;
     
@@ -38,6 +38,13 @@ FORM dialogLotInitModes 'Режим маркировки'
 mode = DATA LotInitMode (LotInit) NONULL;
 codeMode (LotInit i) = code(mode(i));
 nameMode 'Режим' (LotInit i) = name(mode(i));
+
+overForbiddenMode = ABSTRACT VALUE BOOLEAN (LotInit, LotInitMode);
+onChangeMode (LotInit i) {
+    DIALOG dialogLotInitModes OBJECTS m = mode(i) INPUT FILTERS NOT overForbiddenMode(i, m) DO {
+        mode(i) <- m;
+    }
+}
 
 CLASS LotInitProductionType 'Тип производственного заказа' {
     OWN 'Собственное производство',
@@ -128,10 +135,10 @@ codeMethod (LotInit i) = code(method(i));
 nameMethod 'Способ маркировки' (LotInit i) = name(method(i));
 
 EXTEND FORM lotInit
-    PROPERTIES(i) nameMode, nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i)
+    PROPERTIES(i) nameMode ON CHANGE onChangeMode(i), nameProductionType SHOWIF LotInitMode.PRODUCTION == mode(i)
     PROPERTIES(i) SHOWIF LotInitMode.REMARK == mode(i) OR LotInitMode.COMMISSION == mode(i) contractDate, contractNumber, nameReasonMark
     PROPERTIES(i) SHOWIF LotInitMode.REMARK == mode(i) nameReasonRemark
-    PROPERTIES(i) nameMethod
+    PROPERTIES(i) nameMethod SELECT 'dropdown'
 ;
 DESIGN lotInit {
     header {

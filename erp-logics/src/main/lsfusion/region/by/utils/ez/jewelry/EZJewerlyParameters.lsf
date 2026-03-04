@@ -1,0 +1,84 @@
+MODULE EZJewerlyParameters;
+
+REQUIRE EZDirectoriesImport, EZJewerlyParametersItem, EZJewerlyParametersLot;
+
+NAMESPACE EZ;
+
+clearJewelryParameters(Lot l) {
+    jewelryGipnBatch(l) <- NULL;
+//    countryImportationName(l) <- NULL;
+//    countryImportationCode(l) <- NULL;
+    coverageName(l) <- NULL;
+    coverageCode(l) <- NULL;
+    insertsBaseStones(l) <- NULL;
+    inserts_description(l) <- NULL;
+    jewelrySizeName(l) <- NULL;
+    jewelrySizeCode(l) <- NULL;
+    jewelryManufactureDate(l) <- NULL;
+    jewelryWeight(l) <- NULL;
+
+    DELETE JewelryAlloyLot al WHERE finenessAlloyCode(al) AND lot(al) == l;
+    DELETE JewelryGemstonesTypeLot lt WHERE gemstonesInsertCode(lt) AND lot(lt) == l;
+    DELETE MetalInsertLot il WHERE finenessMetalInsertCode(il) AND lot(il) == l;
+    DELETE LabelSetLot sl WHERE labelSetCode(sl) AND lot(sl) == l;
+    DELETE JewelryNuggetsLot nl WHERE finenessNuggetsCode(nl) AND lot(nl) == l;
+}
+
+copyJewelryParameters(Item i, Lot l) {
+    jewelryGipnBatch(l) <- jewelryGipnBatch(i);
+//    countryImportationName(l) <- countryImportationName(i);
+//    countryImportationCode(l) <- countryImportationCode(i);
+    coverageName(l) <- coverageName(i);
+    coverageCode(l) <- coverageCode(i);
+    insertsBaseStones(l) <- insertsBaseStones(i);
+    inserts_description(l) <- inserts_description(i);
+    jewelrySizeName(l) <- jewelrySizeName(i);
+    jewelrySizeCode(l) <- jewelrySizeCode(i);
+    jewelryManufactureDate(l) <- jewelryManufactureDate(i);
+    jewelryWeight(l) <- jewelryWeight(i);
+    
+    FOR finenessCode(JewelryAlloy a) AND item(a) == i DO NEW al = JewelryAlloyLot {
+        metalName(al) <- metalName(a) ;
+        finenessAlloyCode(al) <- finenessCode(a);
+        finenessName(al) <- finenessName(a);
+        weight(al) <-  weight(a);
+        lot(al) <- l;
+    }
+
+    FOR gemstonesInsertCode(JewelryGemstonesType t) AND item(t) == i DO NEW tl = JewelryGemstonesTypeLot {
+        gemstonesInsertCode(tl) <- gemstonesInsertCode(t);
+        gemstonesCount(tl) <- gemstonesCount(t);
+        gemstonesWeight(tl) <- gemstonesWeight(t);
+        gemstonesTypeCode(tl) <- gemstonesTypeCode(t);
+        gemstonesTypeName(tl) <- gemstonesTypeName(t);
+        gemstonesTypeColorCode(tl) <- gemstonesTypeColorCode(t);
+        gemstonesTypeColorName(tl) <- gemstonesTypeColorName(t);
+        gemstonesTypeShapeCode(tl) <- gemstonesTypeShapeCode(t);
+        gemstonesTypeShapeName(tl) <- gemstonesTypeShapeName(t);
+        gemstonesTypeQualityCode(tl) <- gemstonesTypeQualityCode(t);
+        gemstonesTypeQualityName(tl) <- gemstonesTypeQualityName(t);    
+        lot(tl) <- l;
+    }
+    
+    FOR finenessCode(MetalInsert mi) AND item(mi) == i DO NEW il = MetalInsertLot {
+        metalInsertName(il) <- metalName(mi);
+        finenessMetalInsertCode(il) <- finenessCode(mi);
+        finenessMetalInsertName(il) <- finenessName(mi);
+        metalInsertWeight(il) <- weight(mi);
+        lot(il) <- l;
+    }
+    
+    FOR code(LabelSet s) AND item(s) == i DO NEW sl = LabelSetLot {
+        labelSetCode(sl) <- code(s);
+        lot(sl) <- l;
+    }
+
+    FOR finenessCode(JewelryNuggets n) AND item(n) == i DO NEW nl = JewelryNuggetsLot {
+        metalNuggetsName(nl) <- metalName(n);
+        metalNuggetsCode(nl) <- metalCode(n);
+        finenessNuggetsCode(nl) <- finenessCode(n);
+        finenessNuggetsName(nl) <- finenessName(n);
+        nuggetsWeight(nl) <- weight(n);
+        lot(nl) <- l;
+    }
+}

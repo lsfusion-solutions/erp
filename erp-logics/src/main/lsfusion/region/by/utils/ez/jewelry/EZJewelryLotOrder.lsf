@@ -1,0 +1,825 @@
+MODULE EZJewelryLotOrder;
+
+REQUIRE JewelryLotType, EZLotOrder, EZDirectoriesImport, EZJewerlyParameters;
+
+NAMESPACE EZ;
+
+overJewelryArticle 'Артикул товара' = ABSTRACT STRING[100] (Item);
+dataJewelryArticle 'Артикул товара' = DATA STRING[100] (Item);
+jewelryArticle 'Артикул товара' (Item i) = OVERRIDE dataJewelryArticle(i), overJewelryArticle(i);
+
+// Выбор каталога товаров ЭЗ
+
+//Верхний уровень
+GROUP catalogs;
+GROUP group;
+
+code = DATA LOCAL INTEGER(INTEGER);
+name = DATA LOCAL STRING(INTEGER);
+groupCode = DATA LOCAL STRING(INTEGER);
+groupName = DATA LOCAL STRING(INTEGER);
+is_show_articul = DATA LOCAL BOOLEAN(INTEGER);
+gtin_required = DATA LOCAL BOOLEAN(INTEGER);
+articul_required = DATA LOCAL BOOLEAN(INTEGER);
+is_gtin_add = DATA LOCAL BOOLEAN(INTEGER);
+is_manually_add = DATA LOCAL BOOLEAN(INTEGER);
+is_show_gtin = DATA LOCAL BOOLEAN(INTEGER);
+
+// Первый уровень вложенности
+GROUP inner1;
+GROUP inner1Group EXTID 'group';
+
+inner1Code = DATA LOCAL INTEGER(INTEGER);
+inner1Name = DATA LOCAL STRING(INTEGER);
+inner1Is_show_articul = DATA LOCAL BOOLEAN(INTEGER);
+inner1GroupCode = DATA LOCAL STRING(INTEGER);
+inner1Gtin_required = DATA LOCAL BOOLEAN(INTEGER);
+inner1GroupName = DATA LOCAL STRING(INTEGER);
+inner1Articul_required = DATA LOCAL BOOLEAN(INTEGER);
+inner1Is_gtin_add = DATA LOCAL BOOLEAN(INTEGER);
+inner1Is_manually_add = DATA LOCAL BOOLEAN(INTEGER);
+inner1Is_show_gtin = DATA LOCAL BOOLEAN(INTEGER);
+catalogsInner1 = DATA LOCAL INTEGER(INTEGER);
+
+// Второй уровень вложенности
+GROUP inner2 EXTID 'inner';
+GROUP inner2Group EXTID 'group';
+
+inner2Code = DATA LOCAL INTEGER(INTEGER);
+inner2Name = DATA LOCAL STRING(INTEGER);
+inner2Is_show_articul = DATA LOCAL BOOLEAN(INTEGER);
+inner2GroupCode = DATA LOCAL STRING(INTEGER);
+inner2Gtin_required = DATA LOCAL BOOLEAN(INTEGER);
+inner2GroupName = DATA LOCAL STRING(INTEGER);
+inner2Articul_required = DATA LOCAL BOOLEAN(INTEGER);
+inner2Is_gtin_add = DATA LOCAL BOOLEAN(INTEGER);
+inner2Is_manually_add = DATA LOCAL BOOLEAN(INTEGER);
+inner2Is_show_gtin = DATA LOCAL BOOLEAN(INTEGER);
+inner1Inner2 = DATA LOCAL INTEGER(INTEGER);
+
+// Третий уровень вложенности
+GROUP inner3 EXTID 'inner';
+GROUP inner3Group EXTID 'group';
+
+inner3Code = DATA LOCAL INTEGER(INTEGER);
+inner3Name = DATA LOCAL STRING(INTEGER);
+inner3Is_show_articul = DATA LOCAL BOOLEAN(INTEGER);
+inner3GroupCode = DATA LOCAL STRING(INTEGER);
+inner3Gtin_required = DATA LOCAL BOOLEAN(INTEGER);
+inner3GroupName = DATA LOCAL STRING(INTEGER);
+inner3Articul_required = DATA LOCAL BOOLEAN(INTEGER);
+inner3Is_gtin_add = DATA LOCAL BOOLEAN(INTEGER);
+inner3Is_manually_add = DATA LOCAL BOOLEAN(INTEGER);
+inner3Is_show_gtin = DATA LOCAL BOOLEAN(INTEGER);
+inner2Inner3 = DATA LOCAL INTEGER(INTEGER);
+
+// Четвертый уровень вложенности
+GROUP inner4 EXTID 'inner';
+GROUP inner4Group EXTID 'group';
+
+inner4Code = DATA LOCAL INTEGER(INTEGER);
+inner4Name = DATA LOCAL STRING(INTEGER);
+inner4Is_show_articul = DATA LOCAL BOOLEAN(INTEGER);
+inner4GroupCode = DATA LOCAL STRING(INTEGER);
+inner4Gtin_required = DATA LOCAL BOOLEAN(INTEGER);
+inner4GroupName = DATA LOCAL STRING(INTEGER);
+inner4Articul_required = DATA LOCAL BOOLEAN(INTEGER);
+inner4Is_gtin_add = DATA LOCAL BOOLEAN(INTEGER);
+inner4Is_manually_add = DATA LOCAL BOOLEAN(INTEGER);
+inner4Is_show_gtin = DATA LOCAL BOOLEAN(INTEGER);
+inner3Inner4 = DATA LOCAL INTEGER(INTEGER);
+
+FORM importCatalogs ''
+    //Верхний уровень
+    OBJECTS catalogs = INTEGER
+    PROPERTIES(catalogs) VALUE
+    PROPERTIES(catalogs) code, name
+    PROPERTIES(catalogs) IN group
+    groupCode EXTID 'code', groupName EXTID 'name', articul_required EXTID 'articul_required', gtin_required EXTID 'gtin_required',
+        is_manually_add EXTID 'is_manually_add', is_gtin_add EXTID 'is_gtin_add', is_show_gtin EXTID 'is_show_gtin', is_show_articul EXTID 'is_show_articul'
+    FILTERS imported(catalogs), code(catalogs) == 10001
+
+    OBJECTS inner1 = INTEGER EXTID 'inner'
+    PROPERTIES(inner1) inner1Code EXTID 'code', inner1Name EXTID 'name'
+    PROPERTIES(inner1) IN inner1Group
+    inner1GroupCode EXTID 'code', inner1GroupName EXTID 'name', inner1Articul_required EXTID 'articul_required',
+        inner1Gtin_required EXTID 'gtin_required', inner1Is_manually_add EXTID 'is_manually_add',
+        inner1Is_gtin_add EXTID 'is_gtin_add', inner1Is_show_gtin EXTID 'is_show_gtin', inner1Is_show_articul EXTID 'is_show_articul'
+    FILTERS catalogsInner1(inner1) == catalogs
+    FILTERS imported(inner1)
+
+    OBJECTS inner2 = INTEGER EXTID 'inner'
+    PROPERTIES(inner2) VALUE
+    PROPERTIES(inner2) inner2Code EXTID 'code', inner2Name EXTID 'name'
+    PROPERTIES(inner2) IN inner2Group
+    inner2GroupCode EXTID 'code', inner2GroupName EXTID 'name', inner2Articul_required EXTID 'articul_required',
+        inner2Gtin_required EXTID 'gtin_required', inner2Is_manually_add EXTID 'is_manually_add',
+        inner2Is_gtin_add EXTID 'is_gtin_add', inner2Is_show_gtin EXTID 'is_show_gtin', inner2Is_show_articul EXTID 'is_show_articul'
+    FILTERS inner1Inner2(inner2) == inner1
+    FILTERS imported(inner2)
+
+    OBJECTS inner3 = INTEGER EXTID 'inner'
+    PROPERTIES(inner3) VALUE
+    PROPERTIES(inner3) inner3Code EXTID 'code', inner3Name EXTID 'name'
+    PROPERTIES(inner3) IN inner3Group
+    inner3GroupCode EXTID 'code', inner3GroupName EXTID 'name', inner3Articul_required EXTID 'articul_required',
+        inner3Gtin_required EXTID 'gtin_required', inner3Is_manually_add EXTID 'is_manually_add',
+        inner3Is_gtin_add EXTID 'is_gtin_add', inner3Is_show_gtin EXTID 'is_show_gtin', inner3Is_show_articul EXTID 'is_show_articul'
+    FILTERS inner2Inner3(inner3) == inner2
+    FILTERS imported(inner3)
+
+    OBJECTS inner4 = INTEGER EXTID 'inner'
+    PROPERTIES(inner4) VALUE
+    PROPERTIES(inner4) inner4Code EXTID 'code', inner4Name EXTID 'name'
+    PROPERTIES(inner4) IN inner4Group
+    inner4GroupCode EXTID 'code', inner4GroupName EXTID 'name', inner4Articul_required EXTID 'articul_required',
+        inner4Gtin_required EXTID 'gtin_required', inner4Is_manually_add EXTID 'is_manually_add',
+        inner4Is_gtin_add EXTID 'is_gtin_add', inner4Is_show_gtin EXTID 'is_show_gtin', inner4Is_show_articul EXTID 'is_show_articul'
+    FILTERS inner3Inner4(inner4) == inner3
+    FILTERS imported(inner4)
+;
+
+catalogParent 'Родитель' (INTEGER i, INTEGER level) = CASE
+    WHEN level == 1 THEN catalogsInner1(i)
+    WHEN level == 2 THEN inner1Inner2(i)
+    WHEN level == 3 THEN inner2Inner3(i)
+    WHEN level == 4 THEN inner3Inner4(i);
+
+catalogCode 'Код' (INTEGER i, INTEGER level) = CASE
+    WHEN level == 0 THEN code(i)
+    WHEN level == 1 THEN inner1Code(i)
+    WHEN level == 2 THEN inner2Code(i)
+    WHEN level == 3 THEN inner3Code(i)
+    WHEN level == 4 THEN inner4Code(i);
+
+catalogName 'Наименование' (INTEGER i, INTEGER level) = CASE
+    WHEN level == 0 THEN name(i)
+    WHEN level == 1 THEN inner1Name(i)
+    WHEN level == 2 THEN inner2Name(i)
+    WHEN level == 3 THEN inner3Name(i)
+    WHEN level == 4 THEN inner4Name(i); 
+    
+catalogGroupCode 'Код Группы' (INTEGER i, INTEGER level) = CASE
+    WHEN level == 0 THEN groupCode(i)
+    WHEN level == 1 THEN inner1GroupCode(i)
+    WHEN level == 2 THEN inner2GroupCode(i)
+    WHEN level == 3 THEN inner3GroupCode(i)
+    WHEN level == 4 THEN inner4GroupCode(i);
+    
+catalogGroupName 'Наименование группы' (INTEGER i, INTEGER level) = CASE
+    WHEN level == 0 THEN groupName(i)
+    WHEN level == 1 THEN inner1GroupName(i)
+    WHEN level == 2 THEN inner2GroupName(i)
+    WHEN level == 3 THEN inner3GroupName(i)
+    WHEN level == 4 THEN inner4GroupName(i);
+
+FORM dialogCatalogsEZ 'Разделы каталога товаров ЭЗ'
+    OBJECTS cl = (c=INTEGER,l =INTEGER)
+//    TREE treeCatalog t=(c=INTEGER,l =INTEGER)  PARENT catalogParent(c, l)
+    PROPERTIES (c, l) READONLY catalogCode, catalogName, catalogGroupCode, catalogGroupName
+    ORDERS catalogCode(c, l), catalogName(c, l)
+    FILTERS catalogCode(c, l)
+;
+
+catalogCodeEZ 'Код раздела каталога ЭЗ' =  DATA STRING (Item);
+catalogNameEZ 'Наименовение раздела каталога ЭЗ' =  DATA STRING (Item);
+
+selectJewelryCatalogEZ 'Выбор католога ювелирного товара' (Item i) {
+    LOCAL result = FILE();
+    
+    ezToken() <- token();
+
+//    getToken(legalEntityStock(o));
+//    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/catalogs/' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IMPORT importCatalogs JSON FROM result();
+    DIALOG dialogCatalogsEZ OBJECTS c INPUT, l INPUT NULL DO {
+        catalogCodeEZ(i) <- STRING(catalogCode(c, l));
+        catalogNameEZ(i) <- catalogName(c, l);
+    }
+}
+
+
+// выбор производителя ювелирных изделий
+jewelryMakersCode = DATA LOCAL STRING();
+jewelryMakersName = DATA LOCAL STRING();
+jewelryMakersComment = DATA LOCAL STRING();
+
+jewelryMakersCountryCode = DATA LOCAL STRING(INTEGER);
+jewelryMakersCountryName = DATA LOCAL STRING(INTEGER);
+jewelryMakersCountryComment = DATA LOCAL STRING(INTEGER);
+
+jewelryMakersCountry = DATA LOCAL INTEGER(INTEGER);
+jewelryMakersCode 'Код производителя юв. изд.' = DATA LOCAL STRING(INTEGER);
+jewelryMakersName 'Наимнование Код производителя юв. изд.' = DATA LOCAL STRING(INTEGER);
+jewelryMakersComment = DATA LOCAL STRING(INTEGER);
+
+FORM importJewelryMaker
+    PROPERTIES() jewelryMakersCode EXTID 'code', jewelryMakersName EXTID 'name', jewelryMakersComment EXTID 'comment'
+
+    OBJECTS country = INTEGER EXTID 'inner'
+    PROPERTIES(country) jewelryMakersCountryCode EXTID 'code', jewelryMakersCountryName EXTID 'name', jewelryMakersCountryComment EXTID 'comment'
+
+    OBJECTS jewelryMaker = INTEGER EXTID 'inner'
+    PROPERTIES(jewelryMaker) jewelryMakersCode EXTID 'code', jewelryMakersName EXTID 'name', jewelryMakersComment EXTID 'comment'
+    FILTERS jewelryMakersCountry(jewelryMaker) == country
+;
+
+jewelryMakersCodeEZ 'Код производителя ЭЗ' =  DATA STRING (Item);
+jewelryMakersNameEZ 'Наименовение производителя ЭЗ' =  DATA STRING (Item);
+
+FORM dialogJewelryMaker
+    OBJECTS jewelryMaker = INTEGER
+    PROPERTIES(jewelryMaker) READONLY jewelryMakersCode, jewelryMakersName
+    FILTERS metalFinenessCode(jewelryMaker)
+;
+
+selectJewelryMakerFinenessEZ 'Выбор пробы производителя юв. изд.' (Item i) {
+    LOCAL result = FILE();
+
+    ezToken() <- token();
+
+    //    getToken(legalEntityStock(o)); // TODO 
+    //    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/directories/jewelry_makers' HEADERS ezHeadersLotOrder TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+    
+    IMPORT importJewelryMaker JSON FROM result();
+    DIALOG dialogJewelryMaker OBJECTS jewelryMaker INPUT NULL DO {
+        jewelryMakersCodeEZ(i) <- jewelryMakersCode(jewelryMaker);
+        jewelryMakersNameEZ(i) <- jewelryMakersName(jewelryMaker);
+    }
+}
+
+// поиск товара
+foundArticle = DATA LOCAL STRING (INTEGER);
+foundCode = DATA LOCAL STRING (INTEGER);
+
+isFindJewelryItemsEZ = DATA LOCAL BOOLEAN (Item);
+
+FORM findJewelryItemsEZ 'Поиск ювелирного товара'
+    OBJECTS items = INTEGER
+    PROPERTIES(items) foundArticle EXTID 'articul', foundCode EXTID 'code'
+;
+
+findJewelryItemsEZ 'Поиск ювелирного товара по артикулу' (Item item, LotOrder o) {
+    foundGtin(INTEGER i) <- NULL;
+
+    IF NOT jewelryArticle(item) THEN {
+        MESSAGE ('Невозможно найти товар ' + name(item) + ' в ЭЗ. Не задан артикул') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+    
+    EXPORT JSON FROM search = jewelryArticle(item);
+    fileToString(exportFile());
+
+    LOCAL result = FILE();
+
+    //    exception(o) <- NULL;
+    getToken(legalEntityStock(o));
+    ezToken() <- token(legalEntityStock(o));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(o, result(), jewelryArticle(item));
+        CANCEL;
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    IMPORT findJewelryItemsEZ JSON FROM result();
+    isFindJewelryItemsEZ(item) <- (GROUP SUM 1 IF foundArticle(INTEGER i) AND foundArticle(i) == jewelryArticle(item)) > 0;
+}
+
+// Добавление товара
+imageItem = DATA LOCAL STRING();
+codeItem = DATA LOCAL INTEGER();
+nameItem = DATA LOCAL STRING();
+descriptionItem = DATA LOCAL STRING();
+articulItem = DATA LOCAL STRING();
+paramCode = DATA LOCAL INTEGER(INTEGER);
+paramValue = DATA LOCAL STRING(INTEGER);
+
+FORM expordAddItem
+    PROPERTIES() 
+        imageItem EXTID 'image', codeItem EXTID 'code', nameItem EXTID 'name', descriptionItem EXTID 'description', 
+        articulItem EXTID 'articul'
+
+    OBJECTS params = INTEGER
+    PROPERTIES(params) paramCode EXTID 'code', paramValue EXTID 'value'
+    FILTERS paramValue(params)
+;
+
+//
+addedItemImage = DATA LOCAL STRING();
+addedItemGtin = DATA LOCAL STRING();
+addedItemCode = DATA LOCAL STRING();
+addedItemName = DATA LOCAL STRING();
+addedItemDescription = DATA LOCAL STRING();
+addedItemArticul = DATA LOCAL STRING();
+addedItemGtinCheck = DATA LOCAL NUMERIC();
+addedItemDocumentId = DATA LOCAL STRING();
+addedItemIsMy = DATA LOCAL BOOLEAN();
+addedItemTnved = DATA LOCAL STRING();
+addedItemGroup = DATA LOCAL STRING();
+
+addedItemParamSymbol = DATA LOCAL STRING(INTEGER);
+addedItemParamDisplayValue = DATA LOCAL STRING(INTEGER);
+addedItemParamCode = DATA LOCAL NUMERIC(INTEGER);
+addedItemParamName = DATA LOCAL STRING(INTEGER);
+addedItemParamUnits = DATA LOCAL STRING(INTEGER);
+addedItemParamValue = DATA LOCAL STRING(INTEGER);
+
+FORM importAddItem
+    PROPERTIES() 
+        addedItemImage EXTID 'image', addedItemGtin EXTID 'gtin', addedItemCode EXTID 'code', addedItemName EXTID 'name', 
+        addedItemDescription EXTID 'description', addedItemArticul EXTID 'articul', addedItemGtinCheck EXTID 'gtin_check',
+        addedItemDocumentId EXTID 'document_id', addedItemIsMy EXTID 'is_my', addedItemTnved EXTID 'tnved', 
+        addedItemGroup EXTID 'group'
+
+    OBJECTS params = INTEGER
+    PROPERTIES(params) 
+        addedItemParamSymbol EXTID 'symbol', addedItemParamDisplayValue EXTID 'display_value', addedItemParamCode EXTID 'code',
+        addedItemParamName EXTID 'name', addedItemParamUnits EXTID 'units', addedItemParamValue EXTID 'value'
+;
+
+finenessCodeEZ 'Код пробы металла ЭЗ' =  DATA STRING (Item);
+finenessNameEZ 'Наименовение пробы металла ЭЗ' =  DATA STRING (Item);
+metalNameEZ 'Наименовение металла ЭЗ' =  DATA STRING (Item);
+
+addJewelryItemsEZ 'Добавление ювелирного товара' (Item item, LotOrder o) {
+    IF NOT catalogCodeEZ(item) THEN {
+        MESSAGE ('Невозможно добавить товар ' + name(item) + ' в ЭЗ. Не задан раздел каталога ЭЗ') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IF NOT name(item) THEN {
+        MESSAGE ('Невозможно добавить товар ' + name(item) + ' в ЭЗ. Не задано наименование') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IF NOT jewelryArticle(item) THEN {
+        MESSAGE ('Невозможно добавить товар ' + name(item) + ' в ЭЗ. Не задан артикул товара') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    IF NOT finenessNameEZ(item) THEN {
+        MESSAGE ('Невозможно добавить товар ' + name(item) + ' в ЭЗ. Не задана проба металла') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+    
+//    imageItem() <- ;
+    codeItem() <- INTEGER(catalogCodeEZ(item));
+    nameItem() <- name(item);
+//    descriptionItem() <- ;
+    articulItem() <- jewelryArticle(item);
+
+    // страна
+    paramCode(5) <- 5; 
+    paramValue(5) <- sid(country(item));
+
+    // металл, проба
+    paramCode(7) <- 7;
+    paramValue(7) <- finenessCodeEZ(item);    
+    
+    // бренд
+    paramCode(22) <- 22;
+    paramValue(22) <- name(brand(item));
+    
+    // Производитель
+    paramCode(75) <- 75;
+    paramValue(75) <- jewelryMakersCodeEZ(item);
+    
+    addedGtin(INTEGER i) <- NULL;
+    
+    EXPORT expordAddItem JSON;
+    fileToString(exportFile());
+
+    LOCAL result = FILE();
+
+    //    exception(o) <- NULL;
+    getToken(legalEntityStock(o));
+    ezToken() <- token(legalEntityStock(o));
+//    canonicalizeJSON(JSONFILE(exportFile()), NULL);
+        
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/items/add' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(o, result(), jewelryArticle(item));
+        CANCEL;
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    IMPORT importAddItem JSON FROM result();
+
+    isFindJewelryItemsEZ(item) <- addedItemArticul() == jewelryArticle(item);
+
+    IF isFindJewelryItemsEZ(item) THEN MESSAGE 'Добавлен товар с GTIN ' + item NOWAIT;
+}
+
+selectJewelryMetalFinenessEZ 'Выбор пробы металла ювелирного изделия' (Item i) {
+    selectJewelryMetalFinenessEZ();
+    DIALOG dialogMetalList OBJECTS fineness INPUT NULL DO {
+        finenessCodeEZ(i) <- metalFinenessCode(fineness);
+        finenessNameEZ(i) <- metalFinenessName(fineness);
+        metalNameEZ(i) <- metalNameByFineness(fineness);
+    }
+}
+
+EXTEND FORM item    
+    PROPERTIES (i) 
+        jewelryArticle, 
+        jewelryMakersNameEZ  ON CHANGE selectJewelryMakerFinenessEZ(i),
+        catalogNameEZ ON CHANGE selectJewelryCatalogEZ(i),
+        finenessNameEZ ON CHANGE selectJewelryMetalFinenessEZ(i)
+;
+
+DESIGN item {
+    itemDetail {
+        itemEZ {
+            caption = 'Данные ЭЗ';
+            NEW mainJewelry FIRST {
+                MOVE PROPERTY(jewelryArticle(i));
+                jewelryParameters {
+                    MOVE PROPERTY (catalogNameEZ(i));
+                    MOVE PROPERTY (jewelryMakersNameEZ(i));
+                    MOVE PROPERTY (finenessNameEZ(i));
+                }
+            }
+        }
+    }
+}
+
+EXTEND CLASS IdentificationMeansType {
+    jewelry 'Код РБ маркировки ювелирных изделий'
+}
+
+overId (IdentificationMeansType t) += WHEN t == IdentificationMeansType.jewelry THEN '27';
+
+showJewelryParameters(Item i) += lotType(i) == LotType.jewelry;
+
+overCodeGroup (LotType g) += WHEN g == LotType.jewelry THEN 'jewelry';
+
+jewelryManufactureCountry = DATA LOCAL STRING();
+jewelryCount = DATA LOCAL NUMERIC();
+jewelryLabelType = DATA LOCAL NUMERIC();
+jewelryComment = DATA LOCAL STRING();
+
+FORM exportJewelryOrder
+    PROPERTIES() 
+        jewelryManufactureCountry EXTID 'manufacture_country', jewelryCount EXTID 'count', 
+        jewelryLabelType EXTID 'label_type', jewelryComment EXTID 'comment'
+;
+
+jewelryOrederCreatedAt = DATA LOCAL DATETIME();
+jewelryOrederId = DATA LOCAL NUMERIC();
+
+FORM importJewelryOrder
+    PROPERTIES() jewelryOrederCreatedAt EXTID 'created_at', jewelryOrederId EXTID 'id';
+
+quantity (LotOrder o, Country c) = GROUP SUM quantity(LotOrderDetail d) BY lotOrder(d), country(sku(d));
+quantity (LotOrder o, Item i) = GROUP SUM quantity(LotOrderDetail d) BY lotOrder(d), sku(d);
+
+skipDefaultAddGroupOrders(LotOrder o) += type(o) == LotType.jewelry;
+
+addGroupOrders (LotOrder o) + {
+    IF type(o) == LotType.jewelry THEN {
+        exception(o) <- NULL;
+        APPLY;
+
+        LOCAL notFound = BOOLEAN (Item);
+
+        FOR quantity(o, Item i) DO {
+            findJewelryItemsEZ(i, o);
+            IF NOT isFindJewelryItemsEZ(i) THEN
+                addJewelryItemsEZ(i, o);
+
+            notFound(i) <- NOT isFindJewelryItemsEZ(i);
+        }
+
+        IF (GROUP SUM 1 IF notFound(Item i)) THEN {
+            MESSAGE ('Не найдены товары: ' + GROUP CONCAT name(Item i) IF notFound(i), ', ' ORDER i) NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+
+        IF (GROUP SUM 1 IF lotOrder(LotOrderDetail d) = o AND NOT quantity(d) > 0) THEN {
+            MESSAGE 'В документе есть строки с неправильным количеством' NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+
+        IF NOT identificationMeansType(o) THEN {
+            MESSAGE 'В документе не заполнен Вид средства идентификации' NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+
+        NEWSESSION {
+            FOR quantity(o, Country country) DO {
+                LOCAL result = FILE();
+
+                jewelryManufactureCountry() <- sid(country);
+                jewelryCount() <- quantity(o, country);
+                jewelryLabelType() <- 27;
+//                jewelryComment() <- '';
+
+                EXPORT exportJewelryOrder JSON;
+                fileToString(exportFile());
+                //            MESSAGE resultString();
+                //            exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP POST urlEZ() + '/v3/orders/addJewelryOrders' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
+                }
+
+                LOCAL strResult = STRING ();
+
+                fileToString(result());
+                //            MESSAGE resultString();
+
+                IMPORT importJewelryOrder JSON FROM result();
+
+                idOrderEZ(LotOrderDetail d) <- STRING[100](jewelryOrederId()) WHERE country == country(sku(d)) AND o == lotOrder(d);
+                createdTime(o) <- toDateTimeFormat(replace(STRING(jewelryOrederCreatedAt()), '"', ''), 'yyyy-MM-ddThh24:mi:ss');
+
+                APPLY;
+            }
+
+            MESSAGE 'Документ успешно отослан. Присвоены коды: ' + listidOrderEZ(o);
+        }
+    }
+}
+
+fileName  = DATA STRING (LotOrder, Item);
+idOrderEZ(LotOrder o, Item i) = GROUP MIN idOrderEZ(LotOrderDetail d) IF lotOrder(d) == o AND sku(d) == i;
+
+GROUP manufactureCountryLotOrder EXTID 'manufacture_country';
+codeManufactureCountry = DATA LOCAL STRING(INTEGER);
+nameManufactureCountry = DATA LOCAL STRING(INTEGER);
+
+GROUP countLotOrder EXTID 'count';
+allCount = DATA LOCAL NUMERIC(INTEGER);
+successCount = DATA LOCAL NUMERIC(INTEGER);
+failedCount = DATA LOCAL NUMERIC(INTEGER);
+
+GROUP typeLotOrder EXTID 'type';
+nameType = DATA LOCAL STRING(INTEGER);
+idType = DATA LOCAL NUMERIC(INTEGER);
+
+GROUP userInfoLotOrder EXTID 'user_info';
+countryUserInfo = DATA LOCAL STRING(INTEGER);
+isRulesAgreeUserInfo = DATA LOCAL BOOLEAN(INTEGER);
+addressUserInfo = DATA LOCAL STRING(INTEGER);
+unpUserInfo = DATA LOCAL STRING(INTEGER);
+nameUserInfo = DATA LOCAL STRING(INTEGER);
+glnUserInfo = DATA LOCAL STRING(INTEGER);
+idUserInfo = DATA LOCAL NUMERIC(INTEGER);
+
+GROUP resultsLotOrder EXTID 'results';
+templateResults = DATA LOCAL STRING(INTEGER);
+typographyResults = DATA LOCAL STRING(INTEGER);
+gtinResults = DATA LOCAL STRING(INTEGER);
+itemResults = DATA LOCAL STRING(INTEGER);
+typographyDocResults = DATA LOCAL STRING(INTEGER);
+createdAtResults = DATA LOCAL STRING(INTEGER);
+isSubstitutedResults = DATA LOCAL BOOLEAN(INTEGER);
+completedAtResults = DATA LOCAL STRING(INTEGER);
+updatedAtResults = DATA LOCAL STRING(INTEGER);
+userIdResults = DATA LOCAL NUMERIC(INTEGER);
+hasSproviderResults = DATA LOCAL BOOLEAN(INTEGER);
+commentResults = DATA LOCAL STRING(INTEGER);
+idResults = DATA LOCAL NUMERIC(INTEGER);
+userInfoIdResults = DATA LOCAL NUMERIC(INTEGER);
+debugMessageResults = DATA LOCAL STRING(INTEGER);
+
+GROUP files;
+GROUP labels : files;
+filenameLabels = DATA LOCAL STRING(INTEGER);
+downloadsLabels = DATA LOCAL NUMERIC(INTEGER);
+
+GROUP userLotOrder EXTID 'user';
+nameUser = DATA LOCAL STRING(INTEGER);
+idUser = DATA LOCAL NUMERIC(INTEGER);
+emailUser = DATA LOCAL STRING(INTEGER);
+lastnameUser = DATA LOCAL STRING(INTEGER);
+
+GROUP statusLotOrder EXTID 'status';
+codeStatus = DATA LOCAL NUMERIC(INTEGER);
+messageStatus = DATA LOCAL STRING(INTEGER);
+
+GROUP groupLotOrder EXTID 'group';
+codeGroup = DATA LOCAL STRING(INTEGER);
+nameGroup = DATA LOCAL STRING(INTEGER);
+
+next = DATA LOCAL STRING();
+previous = DATA LOCAL STRING();
+
+FORM importOrder
+    PROPERTIES() next, previous
+
+    OBJECTS results = INTEGER
+
+    PROPERTIES (results) templateResults EXTID 'template', typographyResults EXTID 'typography', gtinResults EXTID 'gtin',
+        itemResults EXTID 'item', typographyDocResults EXTID 'typography_doc', createdAtResults EXTID 'created_at',
+        isSubstitutedResults EXTID 'is_substituted', completedAtResults EXTID 'completed_at', updatedAtResults EXTID 'updated_at',
+        userIdResults EXTID 'user_id', hasSproviderResults EXTID 'has_sprovider', commentResults EXTID 'comment',
+        idResults EXTID 'id', userInfoIdResults EXTID 'user_info_id', debugMessageResults EXTID 'debug_message'
+    
+    PROPERTIES(results) IN manufactureCountryLotOrder
+        codeManufactureCountry EXTID 'code', nameManufactureCountry EXTID 'name'
+    
+    PROPERTIES(results) IN countLotOrder 
+        allCount EXTID 'all', successCount EXTID 'success', failedCount EXTID 'failed'
+    
+    PROPERTIES(results) IN typeLotOrder
+        nameType EXTID 'name', idType EXTID 'id'
+    
+   
+    PROPERTIES(results) IN userInfoLotOrder
+    countryUserInfo EXTID 'country', isRulesAgreeUserInfo EXTID 'is_rules_agree', addressUserInfo EXTID 'address',
+        unpUserInfo EXTID 'unp', nameUserInfo EXTID 'name', glnUserInfo EXTID 'gln', idUserInfo EXTID 'id'
+    
+    PROPERTIES(results) IN labels
+        filenameLabels EXTID 'filename', downloadsLabels EXTID 'downloads'
+    
+    PROPERTIES(results) IN userLotOrder
+        nameUser EXTID 'name', idUser EXTID 'id', emailUser EXTID 'email', lastnameUser EXTID 'lastname'
+
+    PROPERTIES(results) IN statusLotOrder 
+        codeStatus EXTID 'code', messageStatus
+    
+    PROPERTIES(results) IN groupLotOrder 
+        codeGroup EXTID 'code', nameGroup EXTID 'name'
+
+    FILTERS imported(results)
+;
+
+skipDefaultCheckStatus(LotOrder o) += type(o) == LotType.jewelry;
+
+checkStatus (LotOrder o) + {
+    IF type(o) == LotType.jewelry THEN {
+        LOCAL NESTED statusMessage = STRING();
+        statusMessage() <- '';
+
+        NEWSESSION {
+            FOR quantity(o, Item item) DO {
+                LOCAL result = FILE();
+
+                exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP GET urlEZ() + '/v3/orders/list?search=' + idOrderEZ(o, item) HEADERS ezHeadersLotOrder TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
+                }
+
+                fileToString(result());
+
+                LOCAL statusCode = INTEGER ();
+                LOCAL availableCodes = INTEGER (); //count
+                LOCAL fileName = STRING ();
+
+                IMPORT importOrder JSON FROM result();
+
+                statusCode() <- GROUP MAX codeStatus(INTEGER i);
+                availableCodes() <- GROUP MAX successCount(INTEGER i) IF codeStatus(i) == statusCode();
+                fileName() <- GROUP MAX filenameLabels(INTEGER i) IF codeStatus(i) == statusCode();
+                
+                IF statusCode() == 40 THEN {
+                    canceled(o) <- TRUE;
+                    APPLY;
+                    RETURN;
+                }
+
+                status(LotOrderDetail d) <- statusLotOrder(statusCode()) WHERE lotOrder(d) = o AND sku(d) = item;
+
+                IF statusCode() == 30 THEN {
+                    LOCAL lotOrder = LotOrder ();
+                    lotOrder() <- o;
+                    availableCodes(LotOrderDetail d) <- (PARTITION UNGROUP availableCodes
+                        LIMIT quantity(d) IF lotOrder(d) = lotOrder() AND sku(d) = item
+                        ORDER d) WHERE lotOrder(d) = o AND sku(d) = item;
+                    fileName(o, item) <- fileName();
+                }
+                statusMessage() <- statusMessage() + (CONCAT ' ', 'Товар', name(item), ', статус :', name(statusLotOrder(statusCode())), '\n');
+            }
+            APPLY;
+        }
+        MESSAGE statusMessage();
+    }    
+}
+
+initialDemand (LotOrder o, Item item) = GROUP SUM initialDemand(LotOrderDetail d) IF lotOrder(d) = o AND item = sku(d);
+
+labels = DATA LOCAL STRING(INTEGER);
+
+FORM importLabels
+    OBJECTS labels = INTEGER
+    PROPERTIES(labels) labels EXTID 'value'
+;
+
+skipDefaultImportLotCodes(LotOrder o) += type(o) == LotType.jewelry;
+
+importLotCodes (LotOrder o) + {
+    IF type(o) == LotType.jewelry  THEN {
+        NEWSESSION NESTED(temporarilySkipCheckLotCodes[LotOrderDetail]) {
+            initialDemand(LotOrderDetail d) <- quantity(d) WHERE lotOrder(d) = o AND availableCodes(d) AND NOT initialDemand(d);
+            quantity(LotOrderDetail d) <- (OVERRIDE NUMERIC[16,5](quantityLot(d)), 0 IF d IS LotOrderDetail) WHERE lotOrder(d) = o;
+
+            FOR initialDemand(o, Item item) DO {
+                EXPORT JSON FROM filename = fileName(o, item);
+                fileToString(exportFile());
+                
+                LOCAL result = FILE();
+
+                exception(o) <- NULL;
+                getToken(legalEntityStock(o));
+                ezToken() <- token(legalEntityStock(o));
+
+                TRY {
+                    insecureSSL() <- TRUE;
+                    EXTERNAL HTTP POST urlEZ() + '/v3/orders/downloads' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+                } CATCH {
+                    handleException(o, result());
+                    CANCEL;
+                    RETURN;
+                }
+
+                fileToString(result());
+                //            MESSAGE resultString();
+
+                IMPORT importLabels JSON FROM result();
+                in(Lot l) <- NULL;
+
+                FOR labels(INTEGER i) NOINLINE DO NEW l = Lot {
+                    FOR LotOrderDetail d = (GROUP LAST LotOrderDetail dd IF lotOrder(dd) = o AND sku(dd) = item AND initialDemand(dd) > quantity(dd) AND availableCodes(dd) > quantity(dd) ORDER DESC dd) DO {
+                        id(l) <- barcodeToId(labels(i));
+                        tail(l) <- barcodeToTail(labels(i));
+                        sku(l) <- sku(d);
+                        quantity(d, l) <- 1;
+                        quantity(d) <- quantity(d) + 1;
+                        in(l) <- TRUE;
+                        status(l) <- LotStatus.VALIDATED; // getStatus() для ЮИ не используется
+
+                        overNewLot(d, l);
+                    }
+                }
+            }
+
+            APPLY;
+        }
+
+        IF noPostedIncompleteOrders() AND (quantityLotOrderDetail(o) != quantityLot(o) OR NOT quantityLot(o)) THEN {
+            MESSAGE 'Получены не все марки. Заказ не проведен.' NOWAIT;
+        }ELSE{
+            MESSAGE 'Марки успешно получены' NOWAIT;
+            isPosted(o) <- TRUE;
+        }
+        APPLY;
+    }
+}
+
+WHEN SETCHANGED(sku(Lot lot)) AND lotType(sku(lot)) == LotType.jewelry DO {
+    clearJewelryParameters(lot);
+    copyJewelryParameters(sku(lot), lot);
+} 

@@ -1,0 +1,767 @@
+MODULE EZJewelryLotOrderInit;
+
+REQUIRE EZLotOrderInit, EZJewelryLotOrder, EZJewerlyLotInit;
+
+NAMESPACE EZ;
+
+// Инвентаризационная опись
+jewelryDateInventory 'Дата инвентаризационной описи' = DATA DATE(LotInit);
+jewelryNumberInventory 'Номер инвентаризационной описи' = DATA STRING(LotInit);
+
+// Дата документа, подтверждающего приобретение товара
+jewelryDocumentDate 'Дата документа, подтверждающего приобретение товара' = DATA DATE(LotInit);
+
+jewelryShipper 'Грузоотправитель' = DATA STRING(LotInit);
+jewelryShippingDocument 'Товаросопроводительный документ' = DATA STRING(LotInit);
+
+EXTEND FORM lotInit
+    PROPERTIES (i) SHOWIF LotType.jewelry == type(i) 
+        jewelryDateInventory, jewelryNumberInventory, jewelryDocumentDate, jewelryShipper, jewelryShippingDocument
+;
+DESIGN lotInit {
+    documentBox {
+        NEW headerExtraParams AFTER header {
+            caption = 'Дополнительные параметры';
+            lines = 4;
+
+            MOVE PROPERTY(jewelryDateInventory(i)) { notNull = TRUE; }
+            MOVE PROPERTY(jewelryNumberInventory(i)) { notNull = TRUE; }
+            MOVE PROPERTY(jewelryDocumentDate(i));
+            MOVE PROPERTY(jewelryShipper(i));
+            MOVE PROPERTY(jewelryShippingDocument(i));
+        }
+    }
+}
+
+EXTEND FORM lotInits
+    PROPERTIES(i) READONLY SHOWIF LotType.jewelry == type(i) 
+        jewelryDateInventory, jewelryNumberInventory, jewelryDocumentDate, jewelryShipper, jewelryShippingDocument
+;
+
+inExport(STRING slugParam, LotInitMode mode) =
+    CASE
+    //Основной металл сплава
+    WHEN slugParam == 'alloy_metal' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'alloy_metal' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'alloy_metal' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Масса в чистоте, г                                    
+    WHEN slugParam == 'alloy_weight' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'alloy_weight' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'alloy_weight' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Номер партии ГИПН
+    WHEN slugParam == 'batch' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'batch' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'batch' AND mode == LotInitMode.JEWERLY_CONFIRM_IMPORT THEN TRUE
+
+    // Страна ввоза    
+    WHEN slugParam == 'country_importation' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+
+    // Покрытие
+    WHEN slugParam == 'coverage' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'coverage' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'coverage' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'coverage' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'coverage' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Дата инвентаризационной описи    
+    WHEN slugParam == 'date_inventory' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+ 
+    // Дата документа, подтверждающего приобретение товара
+    WHEN slugParam == 'document_date' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    
+    // Код вставки из драгоценных камней
+    WHEN slugParam == 'gemstones_code' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_code' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_code' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_code' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_code' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Цвет драгоценных камней
+    WHEN slugParam == 'gemstones_color' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_color' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_color' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_color' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_color' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Количество драгоценных камней
+    WHEN slugParam == 'gemstones_count' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_count' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_count' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_count' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_count' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Качество драгоценных камней
+    WHEN slugParam == 'gemstones_quality' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_quality' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_quality' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_quality' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_quality' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Формы огранки драгоценных камней
+    WHEN slugParam == 'gemstones_shape' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_shape' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_shape' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_shape' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_shape' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Виды драгоценных камней
+    WHEN slugParam == 'gemstones_types' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_types' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_types' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_types' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_types' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Масса драгоценных камней, кар
+    WHEN slugParam == 'gemstones_weight' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'gemstones_weight' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'gemstones_weight' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'gemstones_weight' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'gemstones_weight' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Вставки из недрагоценных камней/материалов
+    WHEN slugParam == 'inserts base stones' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'inserts base stones' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'inserts base stones' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'inserts base stones' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'inserts base stones' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Описание вставки
+    WHEN slugParam == 'inserts_description' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'inserts_description' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'inserts_description' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'inserts_description' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'inserts_description' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Металл, проба вставки
+    WHEN slugParam == 'inserts_metal' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'inserts_metal' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'inserts_metal' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'inserts_metal' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'inserts_metal' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Масса вставки, г
+    WHEN slugParam == 'inserts_weight' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'inserts_weight' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'inserts_weight' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'inserts_weight' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'inserts_weight' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Размер ЮИ
+    WHEN slugParam == 'jewelry_size' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'jewelry_size' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'jewelry_size' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'jewelry_size' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'jewelry_size' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Список кодов из комплекта
+    WHEN slugParam == 'labels_set' AND mode == LotInitMode.JEWERLY_SETS THEN TRUE
+
+    // Дата изготовления (производства) товара
+    WHEN slugParam == 'manufacture_date' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'manufacture_date' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+
+    // Цель маркировки
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_SETS THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_CONFIRM_IMPORT THEN TRUE
+    WHEN slugParam == 'mark_target_jewerly' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Номер инвентаризационной описи
+    WHEN slugParam == 'namber_inventory' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Проба самородков
+    WHEN slugParam == 'nuggets_assay' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'nuggets_assay' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'nuggets_assay' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Металл самородков
+    WHEN slugParam == 'nuggets_metal' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'nuggets_metal' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'nuggets_metal' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Масса самородков, г
+    WHEN slugParam == 'nuggets_weight' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'nuggets_weight' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'nuggets_weight' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+
+    // Грузоотправитель
+    WHEN slugParam == 'shipper' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE    
+        
+    // Товаросопроводительный документ
+    WHEN slugParam == 'Shipping document' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+
+    // Масса, г
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_PRODUCTION THEN TRUE
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_IMPORT THEN TRUE
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_SETS THEN TRUE
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_COMMISSION THEN TRUE
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_CONFISCATED THEN TRUE
+    WHEN slugParam == 'weight' AND mode == LotInitMode.JEWERLY_STOCK THEN TRUE
+;
+
+isGeneral(STRING slugParam) =
+    CASE        
+        WHEN slugParam == 'alloy_metal' THEN TRUE //Основной металл сплава      
+        WHEN slugParam == 'batch'  THEN TRUE // Номер партии ГИПН
+        WHEN slugParam == 'country_importation' THEN TRUE // Страна ввоза
+        WHEN slugParam == 'coverage' THEN TRUE // Покрытие
+        WHEN slugParam == 'date_inventory' THEN TRUE // Дата инвентаризационной описи
+        WHEN slugParam == 'document_date' THEN TRUE // Дата документа, подтверждающего приобретение товара
+        WHEN slugParam == 'gemstones_code' THEN TRUE // Код вставки из драгоценных камней
+        WHEN slugParam == 'gemstones_color' THEN TRUE // Цвет драгоценных камней
+        WHEN slugParam == 'gemstones_count' THEN TRUE // Количество драгоценных камней
+        WHEN slugParam == 'gemstones_quality' THEN TRUE // Качество драгоценных камней
+        WHEN slugParam == 'gemstones_shape' THEN TRUE // Формы огранки драгоценных камней
+        WHEN slugParam == 'gemstones_types' THEN TRUE // Виды драгоценных камней
+        WHEN slugParam == 'inserts base stones' THEN TRUE // Вставки из недрагоценных камней/материалов
+        WHEN slugParam == 'inserts_description' THEN TRUE // Описание вставки
+        WHEN slugParam == 'inserts_metal' THEN TRUE // Металл, проба вставки
+        WHEN slugParam == 'manufacture_date' THEN TRUE // Дата изготовления (производства) товара
+        WHEN slugParam == 'mark_target_jewerly' THEN TRUE // Цель маркировки
+        WHEN slugParam == 'namber_inventory' THEN TRUE // Номер инвентаризационной описи
+        WHEN slugParam == 'nuggets_assay' THEN TRUE // Проба самородков
+        WHEN slugParam == 'nuggets_metal' THEN TRUE // Металл самородков
+        WHEN slugParam == 'shipper' THEN TRUE // Грузоотправитель
+        WHEN slugParam == 'Shipping document' THEN TRUE // Товаросопроводительный документ
+;
+
+isSeparated(STRING slugParam) =
+    CASE
+        WHEN slugParam == 'alloy_metal' THEN TRUE //Основной металл сплава                                            
+        WHEN slugParam == 'alloy_weight' THEN TRUE // Масса в чистоте, г
+        WHEN slugParam == 'batch'  THEN TRUE // Номер партии ГИПН
+        WHEN slugParam == 'coverage' THEN TRUE // Покрытие
+        WHEN slugParam == 'gemstones_code' THEN TRUE // Код вставки из драгоценных камней
+        WHEN slugParam == 'gemstones_color' THEN TRUE // Цвет драгоценных камней
+        WHEN slugParam == 'gemstones_count' THEN TRUE // Количество драгоценных камней
+        WHEN slugParam == 'gemstones_quality' THEN TRUE // Качество драгоценных камней
+        WHEN slugParam == 'gemstones_shape' THEN TRUE // Формы огранки драгоценных камней
+        WHEN slugParam == 'gemstones_types' THEN TRUE // Виды драгоценных камней
+        WHEN slugParam == 'gemstones_weight' THEN TRUE // Масса драгоценных камней, кар
+        WHEN slugParam == 'inserts base stones' THEN TRUE // Вставки из недрагоценных камней/материалов
+        WHEN slugParam == 'inserts_description' THEN TRUE // Описание вставки
+        WHEN slugParam == 'inserts_metal' THEN TRUE // Металл, проба вставки
+        WHEN slugParam == 'inserts_weight' THEN TRUE // Масса вставки, г
+        WHEN slugParam == 'jewelry_size' THEN TRUE // Размер ЮИ
+        WHEN slugParam == 'labels_set' THEN TRUE // Список кодов из комплекта
+        WHEN slugParam == 'manufacture_date' THEN TRUE // Дата изготовления (производства) товара
+        WHEN slugParam == 'nuggets_assay' THEN TRUE // Проба самородков
+        WHEN slugParam == 'nuggets_metal' THEN TRUE // Металл самородков
+        WHEN slugParam == 'nuggets_weight' THEN TRUE // Масса самородков, г
+        WHEN slugParam == 'weight' THEN TRUE // Масса, г
+;
+
+// Поиск товара
+findJewelryItemsEZ 'Поиск ювелирного товара по артикулу' (Item item) {
+    foundGtin(INTEGER i) <- NULL;
+
+    IF NOT jewelryArticle(item) THEN {
+        MESSAGE ('Невозможно найти товар ' + name(item) + ' в ЭЗ. Не задан артикул') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+
+    EXPORT JSON FROM search = jewelryArticle(item);
+    fileToString(exportFile());
+
+    LOCAL result = FILE();
+    
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    IMPORT findJewelryItemsEZ JSON FROM result();
+    isFindJewelryItemsEZ(item) <- (GROUP SUM 1 IF foundArticle(INTEGER i) AND foundArticle(i) == jewelryArticle(item)) > 0;
+}
+
+// export
+GROUP params;
+GROUP label_params;
+
+overFillLotParams ABSTRACT LIST (LotInit, Sku);
+returnMessage() = DATA LOCAL STRING ();
+
+jewerlySku = DATA LOCAL Sku();
+
+filterJewerlyLot (Lot l) = (GROUP SUM quantity(LotInitDetail d, l) IF lotInit() == lotInit(d)) > 0 AND jewerlySku() == sku(l)
+    AND NOT isSend(l) AND (NOT (GROUP SUM 1 IF select(LotInitDetail d)) OR select(l));
+
+jewerlyCountLot() = GROUP SUM 1 IF filterJewerlyLot(Lot l);
+
+FORM exportJewelryMark
+    OBJECTS labels = Lot
+    PROPERTIES(labels) id EXTID 'label'
+    FILTERS filterJewerlyLot(labels)
+;
+
+processAddMarkJson ABSTRACT LIST ();
+
+META defineExportArrayParamJewelryMark(exportProperty, property, type, class, extid)
+exportProperty = DATA LOCAL type(type);
+exportProperty = DATA LOCAL type(Lot, class);
+
+exportProperty(Lot l, type value) = [GROUP MIN property(class c) IF filterJewerlyLot(l) BY lot(c), property(c)](l, value);
+common###exportProperty(type value) = value IF jewerlyCountLot() == GROUP SUM 1 IF exportProperty(Lot l, value);
+existNotCommon###exportProperty(Lot l) = GROUP MIN TRUE IF property(class c) IF NOT common###exportProperty(property(c)) AND lot(c) == l AND filterJewerlyLot(l);
+unique###exportProperty(Lot l, class c) = property(c) IF (existNotCommon###exportProperty(l) OR NOT isGeneral(''##extid)) AND lot(c) == l AND filterJewerlyLot(l);
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport(''##extid, mode(i)) THEN {
+        exportProperty(type value) <- value IF common###exportProperty(value) AND isGeneral(''##extid);
+        exportProperty(Lot l, class t) <- unique###exportProperty(l, t) IF unique###exportProperty(l, t) AND isSeparated(''##extid);
+    }
+}
+
+processAddMarkJson() + {
+    resultString() <- replace(replace(replace(resultString(), ',"'##extid + '":[]', ''), '\{"'##extid + '":[],', '\{'), '\{"'##extid + '":[]\}', '\{\}');
+}
+
+EXTEND FORM exportJewelryMark
+    // params
+    OBJECTS exportProperty = type EXTID ''##extid IN params
+    PROPERTIES(exportProperty) exportProperty EXTID 'value' 
+    FILTERS exportProperty(exportProperty)
+
+    // label_params
+    OBJECTS exportProperty##Lot = class EXTID ''##extid IN label_params
+    PROPERTIES (labels, exportProperty##Lot) exportProperty EXTID 'value'
+    FILTERS exportProperty(labels, exportProperty##Lot)
+;
+END
+
+META defineExportArrayParamJewelryMark(property, type, class, extid)
+    @defineExportArrayParamJewelryMark(property, property, type, class, extid);
+END
+
+META defineExportParamJewelryMark(exportProperty, property, type, extid)
+exportProperty##Loc = DATA LOCAL type();
+exportProperty##Loc = DATA LOCAL type(Lot);
+
+common###exportProperty(type property) = property IF jewerlyCountLot() == GROUP SUM 1 IF property(Lot ll)  == property AND filterJewerlyLot(ll);
+common###exportProperty(Lot l) = property(l) IF jewerlyCountLot() == GROUP SUM 1 IF property(Lot ll)  == property(l) AND filterJewerlyLot(ll) AND isGeneral(''##extid) ;
+unique###exportProperty(Lot l) = property(l) IF NOT common###exportProperty(l) AND filterJewerlyLot(l);
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport(''##extid, mode(i)) THEN {
+        exportProperty##Loc() <- GROUP MIN type property IF common###exportProperty(property) AND isGeneral(''##extid);
+        exportProperty##Loc(Lot l) <- unique###exportProperty(l) IF unique###exportProperty(l) AND isSeparated(''##extid);
+    }
+}
+
+EXTEND FORM exportJewelryMark
+    // params
+    PROPERTIES() IN params exportProperty##Loc EXTID ''##extid
+
+    // label_params
+    PROPERTIES(labels) IN label_params exportProperty##Loc EXTID ''##extid
+;
+END
+
+META defineExportParamJewelryMark(property, type, extid)
+    @defineExportParamJewelryMark(property, property, type, extid);
+END    
+
+
+// Код ЭЗ для товара
+jewelryItemCode = DATA LOCAL LONG();
+EXTEND FORM exportJewelryMark
+    PROPERTIES() jewelryItemCode EXTID 'item_code'
+;
+
+findJewelryItemsEZ 'Поиск ювелирного товара по артикулу' (LotInit li, Item item) {
+    foundGtin(INTEGER i) <- NULL;
+
+    IF NOT jewelryArticle(item) THEN {
+        MESSAGE ('Невозможно найти товар ' + name(item) + ' в ЭЗ. Не задан артикул') NOWAIT;
+        CANCEL;
+        RETURN;
+    }
+    EXPORT JSON FROM search = jewelryArticle(item);
+    fileToString(exportFile());
+
+    LOCAL result = FILE();
+
+    //    exception(o) <- NULL;
+    getToken(legalEntityStock(li));
+    ezToken() <- token(legalEntityStock(li));
+
+    TRY {
+        insecureSSL() <- TRUE;
+        EXTERNAL HTTP POST urlEZ() + '/items/findItems' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+    } CATCH {
+        handleException(li, result());
+        CANCEL;
+        RETURN;
+    }
+    fileToString(result());
+    //MESSAGE resultString();
+
+    IMPORT findJewelryItemsEZ JSON FROM result();
+    isFindJewelryItemsEZ(item) <- (GROUP SUM 1 IF foundArticle(INTEGER i) AND foundArticle(i) == jewelryArticle(item)) > 0;
+}
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+
+    jewelryItemCode() <- LONG(GROUP MIN foundCode(INTEGER l) IF foundCode(l)); // LONG(jewelryArticle(sku));
+
+    IF (NOT jewelryItemCode()) THEN {
+        returnMessage() <- 'Не задан код товара';
+    }
+}
+
+// Цель маркировки
+markTargetJewerly = DATA LOCAL STRING ();
+EXTEND FORM exportJewelryMark
+    PROPERTIES() IN params markTargetJewerly EXTID  'mark_target_jewerly'
+;
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport('mark_target_jewerly', mode(i)) THEN {
+        markTargetJewerly() <- STRING (jewelryCode(mode(i)));
+
+        IF (NOT markTargetJewerly()) THEN {
+            returnMessage() <- 'Не задан режим маркировки документа';
+        }
+    }
+}
+
+// Основной металл сплава
+@defineExportArrayParamJewelryMark(finenessAlloyCode, STRING, JewelryAlloyLot, alloy_metal);
+
+// Масса в чистоте, г (основной металл)
+@defineExportArrayParamJewelryMark(alloyMetalWeightLot, weight, NUMERIC[14,5], JewelryAlloyLot, alloy_weight);
+
+// Номер партии ГИПН
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport('batch', mode(i)) THEN {
+        IF (GROUP SUM 1 IF NOT jewelryGipnBatch(Lot l) AND filterJewerlyLot(l)) THEN {
+            returnMessage() <- 'Присутствуют марки, для которых не задана партия ГИПН';
+            RETURN;
+        }
+    }
+}
+@defineExportParamJewelryMark(jewelryGipnBatch, STRING, batch);
+
+// Страна ввоза
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport('country_importation', mode(i)) THEN {
+        IF (GROUP SUM 1 IF STRING code AND [GROUP MIN Lot l IF filterJewerlyLot(l) BY sid(country(sku(l)))](code)) > 1 THEN {
+            returnMessage() <- 'В документе присутствуют марки одного товара с различными странами ввоза';
+            RETURN;
+        }
+    }
+}
+
+countryImportationCode(Lot l) = sid(country(sku(l)));
+
+@defineExportParamJewelryMark(countryImportationCode, STRING, country_importation);
+
+// Покрытие
+@defineExportParamJewelryMark(coverageCode, STRING, coverage);
+
+// Инвентаризационная опись
+jewelryDateInventory = DATA LOCAL DATE();
+jewelryNumberInventory = DATA LOCAL STRING();
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    
+    IF inExport('date_inventory', mode(i)) THEN {
+        IF (NOT jewelryDateInventory(i)) THEN {
+            returnMessage() <- 'В документе не задана дата инвентаризационной описи';
+            RETURN;
+        }
+        jewelryDateInventory() <- jewelryDateInventory(i);
+    }
+
+    IF inExport('namber_inventory', mode(i)) THEN {
+        IF (NOT jewelryNumberInventory(i)) THEN {
+            returnMessage() <- 'В документе не задан номер инвентаризационной описи';
+            RETURN;
+        }
+        jewelryNumberInventory() <- jewelryNumberInventory(i);
+    }
+}
+
+EXTEND FORM exportJewelryMark
+    // params
+    PROPERTIES() IN params jewelryDateInventory EXTID 'date_inventory'
+    PROPERTIES() IN params jewelryNumberInventory EXTID 'namber_inventory'
+;
+
+// Дата документа, подтверждающего приобретение товара
+jewelryDocumentDate = DATA LOCAL DATE();
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport('document_date', mode(i)) THEN {
+        jewelryDocumentDate() <- jewelryDocumentDate(i);
+    }
+}
+
+EXTEND FORM exportJewelryMark
+    // params
+    PROPERTIES() IN params jewelryDocumentDate EXTID 'document_date'
+;
+
+// Драгоценные камни
+// Код вставки из драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesInsertCode, STRING, JewelryGemstonesTypeLot, gemstones_code);
+
+// Цвет драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesTypeColorCode, STRING, JewelryGemstonesTypeLot, gemstones_color);
+
+// Количество драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesCount, INTEGER, JewelryGemstonesTypeLot, gemstones_count);
+
+// Качество драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesTypeQualityCode, STRING, JewelryGemstonesTypeLot, gemstones_quality);
+
+// Формы огранки драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesTypeShapeCode, STRING, JewelryGemstonesTypeLot, gemstones_shape);
+
+// Виды драгоценных камней
+@defineExportArrayParamJewelryMark(gemstonesTypeCode, STRING, JewelryGemstonesTypeLot, gemstones_types);
+
+// Масса драгоценных камней, кар
+@defineExportArrayParamJewelryMark(gemstonesWeight, NUMERIC[14,5], JewelryGemstonesTypeLot, gemstones_weight);
+
+// Недрагоценные камни
+// Вставки из недрагоценных камней/материалов
+@defineExportParamJewelryMark(insertsBaseStones, STRING, 'inserts base stones');
+
+// Описание вставки
+@defineExportParamJewelryMark(inserts_description, STRING, inserts_description);
+
+// Металл. вставка
+// Металл, проба вставки
+@defineExportArrayParamJewelryMark(finenessMetalInsertCode, STRING, MetalInsertLot, inserts_metal);
+
+// Масса вставки, г
+@defineExportArrayParamJewelryMark(metalInsertWeight, NUMERIC[14,5], MetalInsertLot, inserts_weight);
+
+// Размер ЮИ
+locJewelrySizeCode = DATA LOCAL STRING (Lot);
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+    IF inExport('jewelry_size', mode(i)) THEN {
+        locJewelrySizeCode(Lot l) <- jewelrySizeCode(l) IF isSeparated('jewelry_size');
+    }
+}
+
+EXTEND FORM exportJewelryMark
+    PROPERTIES(labels) locJewelrySizeCode EXTID 'jewelry_size' IN label_params
+;
+
+// Список кодов из комплекта
+@defineExportArrayParamJewelryMark(labelSetCode, STRING, LabelSetLot, labels_set);
+
+// Дата изготовления (производства) товара
+@defineExportParamJewelryMark(jewelryManufactureDate, DATE, 'manufacture_date');
+
+// Самородки
+// Проба самородков
+@defineExportArrayParamJewelryMark(finenessNuggetsName, STRING, JewelryNuggetsLot, nuggets_assay);
+
+// Проба самородков
+@defineExportArrayParamJewelryMark(metalNuggetsCode, STRING, JewelryNuggetsLot, nuggets_metal);
+
+// Масса самородков, г
+@defineExportArrayParamJewelryMark(nuggetsWeight, NUMERIC[14,5], JewelryNuggetsLot, nuggets_weight);
+
+// Грузоотправитель
+jewelryShipper = DATA LOCAL STRING();
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+
+    IF inExport('shipper', mode(i)) THEN {
+        jewelryShipper() <- jewelryShipper(i);
+    }
+}
+
+EXTEND FORM exportJewelryMark
+    // params
+    PROPERTIES() IN params jewelryShipper EXTID 'shipper'
+;
+
+
+// Товаросопроводительный документ
+jewelryShippingDocument = DATA LOCAL STRING();
+
+overFillLotParams (LotInit i, Sku sku) + {
+    IF returnMessage() THEN RETURN;
+
+    IF inExport('Shipping document', mode(i)) THEN {
+        jewelryShippingDocument() <- jewelryShippingDocument(i);
+    }
+}
+EXTEND FORM exportJewelryMark
+    // params
+    PROPERTIES() IN params jewelryShippingDocument EXTID 'Shipping document'
+;
+
+// Масса, г
+@defineExportParamJewelryMark(jewelryWeight, NUMERIC[14,5], 'weight');
+
+
+fillLotParams (LotInit i, Sku sku) {
+    jewerlySku() <- sku;
+    lotInit() <- i;
+    
+    overFillLotParams(i, sku);
+
+    IF returnMessage() THEN {
+        MESSAGE returnMessage();
+        RETURN;
+    }    
+}
+
+addMarkReportId = DATA LOCAL LONG();
+addMarkReportUid = DATA LOCAL STRING();
+
+FORM importAddMarkReport
+    PROPERTIES() addMarkReportId EXTID 'report_id',  addMarkReportUid EXTID 'report_uid';
+
+addMark 'Отправить отчет'(LotInit i, Sku sku) {
+    // обновление статусов перед отправкой
+    in(Lot l) <- filterLot(l);
+
+    IF EZActive(legalEntityStock(i)) THEN
+        getStatus(legalEntityStock(i));
+    ELSE
+        getStatus();
+
+    findJewelryItemsEZ(i, sku);
+    
+    fillLotParams(i, sku);
+    
+    IF (NOT GROUP SUM 1 IF filterJewerlyLot(Lot l)) THEN {
+        RETURN;
+    }
+
+    IF returnMessage() THEN 
+        RETURN;
+    
+    EXPORT exportJewelryMark JSON;   
+    LOCAL result = FILE();
+
+    exception(i) <- NULL;
+    getToken(legalEntityStock(i));
+    ezToken() <- token(legalEntityStock(i));
+    
+    TRY {
+        insecureSSL() <- TRUE;
+        fileToString(exportFile());
+        processAddMarkJson();
+//        MESSAGE resultString();
+        
+        EXTERNAL HTTP POST urlEZ() + '/v3/reports/jewelryAddMark' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;        
+    } CATCH {
+        handleException(i, result());
+        RETURN;
+    }
+    fileToString(result());
+
+    in(Lot l) <- lotInit(l) == i AND NOT isSend(l) WHERE lotInit(l) == i;
+    status(Lot l) <- LotStatus.MARKED WHERE sku(l) AND NOT isSend(l) AND lotInit(l) == i; // getStatus() для ЮИ не используется
+    APPLY;
+
+    IMPORT importAddMarkReport JSON FROM result();
+// MESSAGE resultString();
+    
+// Получение id отчета    
+     IF addMarkReportId() THEN  NEW r = ReportEZ {
+            lotInit(r) <- i;
+            id(r) <- STRING(addMarkReportId());
+            getStatusReport(r);
+     }
+
+    APPLY;
+}
+
+skipDefaultAddMark(LotInit i) += type(i) == LotType.jewelry;
+addMark (LotInit i) + {
+    IF type(i) == LotType.jewelry THEN {
+        IF (GROUP MIN (Sku sku) AND ((GROUP SUM 1 IF sku == sku(LotInitDetail d) AND i == lotInit(d)) > 0)) THEN {
+            FOR (Sku sku) AND ((GROUP SUM 1 IF sku == sku(LotInitDetail d) AND i == lotInit(d)) > 0) DO {
+                addMark(i, sku);
+            }
+
+            in(Lot l) <- lotInit(l) == i AND NOT isSend(l) WHERE lotInit(l) == i;
+            APPLY;
+        }
+    }    
+}
+
+// Получить статус документа маркировки для ЮИ
+GROUP statusReportEZ EXTID 'status';
+
+nextReportEZ = DATA LOCAL STRING();
+previousReportEZ = DATA LOCAL STRING();
+
+gtinReportEZ = DATA LOCAL STRING(INTEGER);
+createdAtReportEZ = DATA LOCAL STRING(INTEGER);
+typeReportEZ = DATA LOCAL LONG(INTEGER);
+aggregateInReportEZ = DATA LOCAL NUMERIC(INTEGER);
+uidReportEZ = DATA LOCAL STRING(INTEGER);
+updatedAtReportEZ = DATA LOCAL STRING(INTEGER);
+idReportEZ = DATA LOCAL LONG(INTEGER);
+//status
+reasonStatusReportEZ = DATA LOCAL STRING(INTEGER);
+codeStatusReportEZ = DATA LOCAL LONG(INTEGER);
+messageStatusReportEZ = DATA LOCAL STRING(INTEGER);
+
+FORM importReportEZ
+    PROPERTIES() nextReportEZ, previousReportEZ
+
+    OBJECTS results = INTEGER
+
+    PROPERTIES(results) gtinReportEZ EXTID 'gtin', createdAtReportEZ EXTID 'created_at', typeReportEZ EXTID 'type', aggregateInReportEZ EXTID 'aggregate_in', uidReportEZ EXTID 'uid', updatedAtReportEZ EXTID 'updated_at', idReportEZ EXTID 'id'
+    
+    PROPERTIES(results) IN statusReportEZ reasonStatusReportEZ EXTID 'reason', codeStatusReportEZ EXTID 'code', messageStatusReportEZ EXTID 'message';
+
+skipDefaultGetStatusReport(ReportEZ r) += type(lotInit(r)) == LotType.jewelry;
+getStatusReport (ReportEZ r) +{
+    IF type(lotInit(r)) == LotType.jewelry THEN {
+        EXPORT JSON FROM search = id(r);
+        fileToString(exportFile());
+
+        LOCAL result = FILE();
+
+        TRY {
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP GET urlEZ() + '/v3/reports/list' HEADERS ezHeadersLotOrder PARAMS exportFile() TO result;
+        } CATCH {
+            MESSAGE CONCAT ' ', 'Ошибка при обращении к ЭЗ', messageCaughtException() NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+        
+        fileToString(result());
+        //MESSAGE resultString();
+        LOCAL statusCode = INTEGER ();
+        IMPORT importReportEZ JSON FROM result();
+        statusCode() <- GROUP MAX codeStatusReportEZ(INTEGER i) IF LONG(id(r)) == idReportEZ(i);
+        status(r) <- statusReport(statusCode());
+        APPLY;        
+    }    
+}
