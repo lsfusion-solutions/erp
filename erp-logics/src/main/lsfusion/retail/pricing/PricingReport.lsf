@@ -1,0 +1,78 @@
+MODULE PricingReport;
+
+REQUIRE PricingSum;
+
+NAMESPACE Pricing;
+
+inReport 'Вкл.' = DATA LOCAL BOOLEAN (DepartmentStore);
+
+filterSupplier = DATA LOCAL LegalEntity ();
+nameFilterSupplier 'Поставщик' = name(filterSupplier());
+filterSupplier(PricingDetail d) = supplier(d) == filterSupplier() OR NOT filterSupplier();
+
+CONSTRAINT SETCHANGED(filterSupplier()) AND NOT isSupplier(filterSupplier())
+    CHECKED BY filterSupplier[]
+    MESSAGE 'Для фильтра выбрана организация, не являющаяся поставщиком';
+
+filterOperation = DATA LOCAL Operation();
+nameFilterOperation 'Операция' = name(filterOperation());
+filterOperation(PricingDetail d) = operation(d) == filterOperation() OR NOT filterOperation();
+
+FORM pricingReport 'Реестр расценок'
+    OBJECTS dates = (df = DATE , dt = DATE) PANEL
+    PROPERTIES dateFrom = VALUE(df), dateTo = VALUE(dt)
+
+    PROPERTIES () nameFilterSupplier, nameFilterOperation   
+    
+    OBJECTS st = DepartmentStore
+    PROPERTIES (st) inReport
+    PROPERTIES (st) READONLY id, name
+    FILTERS isCompany(st)
+    ORDERS name(st)
+
+    FILTERGROUP active FILTER 'Активные' active(st) DEFAULT
+
+    OBJECTS d = PricingDetail
+    PROPERTIES (d) READONLY date, time, number, series, nameSupplier, nameDepartmentStore, nameOperation
+    PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, price, sum, nameRetailPriceListType
+    PROPERTIES (d) READONLY retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum, retailPrice, retailSum
+    ORDERS date(d), time(d)
+    FILTERS isPosted(d) AND NOT skipChangeLedger(d) 
+    FILTERS date(d) >= df AND date(d) <= dt,
+            inReport(departmentStore(d)),
+            filterSupplier(d),
+            filterOperation(d)
+;
+
+@extendFormFilterStockAccess(st, pricingReport);
+
+@extendFormFilterAccessStock(PricingDetail, d, pricingReport, departmentStore, company);
+
+DESIGN pricingReport {
+    NEW topFilters {
+        caption = 'Фильтры';
+        horizontal = TRUE;
+        MOVE PROPERTY(dateFrom) { caption = 'Дата с'; };
+        MOVE PROPERTY(dateTo) { caption = 'Дата по'; };
+        MOVE PROPERTY(nameFilterSupplier());
+        MOVE PROPERTY(nameFilterOperation());
+    }
+    NEW details {
+        horizontal = TRUE;
+        fill = 1;
+        MOVE BOX(st) {
+            fill = 1;
+            PROPERTY (id(st)) { charWidth = 5; }
+        }
+        MOVE BOX(d) {
+            fill = 5;
+        }
+    }
+    MOVE TOOLBARBOX;
+}
+
+NAVIGATOR {
+    retailDashboardNavigator{
+        NEW pricingReport;
+    }
+}
