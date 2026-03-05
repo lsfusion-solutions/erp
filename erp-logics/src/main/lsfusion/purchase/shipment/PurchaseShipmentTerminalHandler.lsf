@@ -34,7 +34,7 @@ fillInvoice 'Заполнить приходную накладную' (Terminal
 
 createInvoiceOrder(TerminalDocument t) {
 
-    FOR number(Purchase.UserOrder order) = parentDocument(t) DO {
+    FOR number(Purchase.UserOrder order) = getWord(parentDocument(t), ',', 1) DO {
         lock(order);
         IF lockResult() THEN {
             TRY {
@@ -44,7 +44,9 @@ createInvoiceOrder(TerminalDocument t) {
                         fillHeader(i, order);
                         number(i) <- title(t);
 
-                        include(order,i) <- TRUE;
+                        FOR iterate(INTEGER j, 1, wordCount(parentDocument(t), ',')) AND number(Purchase.UserOrder o) = getWord(parentDocument(t), ',', j) DO {
+                            include(o,i) <- TRUE;
+                        }
                         overCreate (order, i);
                         afterCreateInvoice(i);
 
