@@ -1,7 +1,7 @@
 MODULE SaleReportsGestory;
 
 REQUIRE SaleReportsRu, Item, SaleShipment, PurchaseShipment, AccountDocument,
-        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport;
+        ZReportReceiptTime, SaleReports, SkuList, ReceiptDetailReport, InventoryGestori;
 
 NAMESPACE SaleReports;
 
@@ -126,7 +126,7 @@ selectedSkuGroups = GROUP CONCAT STRING(name(SkuGroup g)) IF inSession(g), ',' O
 inSaleReportSkus 'Товары' () = CONCAT ',', selectedSkus(), selectedSkuGroups();
 
 priceSku(Sku s, Stock st, DATE d) += OVERRIDE accountPrice(s, st, d), accountPriceB(s, st, dateTimeToDateTime(d, 23:59));
-costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d)*100/(100+valueVAT(s))));
+costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d) * 100 / (100 + valueVAT(s))));
 
 retailSumEnd = DATA LOCAL NUMERIC[18,4] (SaleLedger);
 batch = ABSTRACT Batch (SaleLedger) MATERIALIZED;
@@ -496,11 +496,12 @@ FORM statisticalReports
         dateToDiscount 'Дата до' = VALUE(dateToObj),
         dateToReceiptDiscount 'Дата до' = VALUE(dateToObj)
 
-    PROPERTIES inReportStocksIntervals 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
-        inReportStocksCashRegs 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
-        inReportStocksPerformance 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
-        inReportStocksDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport(),
-        inReportStocksReceiptDiscount 'Склады' = inReportStocks() ON CHANGE selectStocksForReport()
+    PROPERTIES inReportStocksIntervals 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList(),
+        inReportStocksCashRegs 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList(),
+        inReportStocksPerformance 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList(),
+        inReportStocksDiscount 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList(),
+        inReportStocksReceiptDiscount 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
+
 
     PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
         inReportCashRegsPerformance 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
@@ -532,7 +533,6 @@ DESIGN statisticalReports{
     REMOVE TOOLBARBOX ;
     caption = 'Статистические отчеты';
     NEW main{
-
         NEW saleReportIntervals{
             caption = 'Продажи по временным интервалам';
             NEW datesIntervals{
