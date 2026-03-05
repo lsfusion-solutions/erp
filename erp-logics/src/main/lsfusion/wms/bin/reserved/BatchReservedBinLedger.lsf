@@ -79,25 +79,27 @@ DESIGN binBatchDiscrepancies {
     }
 }
 
+//todo: migrate to Department
+
 currentReserved 'Текущий резерв' (Batch batch, BinGroup bg)=
-    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
+    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg) @@deprecated;
 prevCurrentReserved 'Текущий резерв' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
+    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg) @@deprecated;
 
 availableQuantity 'Доступное кол-во в группе ячеек' (Batch batch, BinGroup bg)=
-    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
+    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg) @@deprecated;
 prevAvailableQuantity 'Доступное кол-во в группе ячеек' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg);
+    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) BY batch1, bg1](batch, bg) @@deprecated;
 
 storagePickingCurrentReserved 'Текущий резерв (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg);
+    [GROUP SUM currentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg) @@deprecated;
 prevStoragePickingCurrentReserved 'Текущий резерв (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg);
+    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, bg1](batch, bg) @@deprecated;
 
 storagePickingAvailableQuantity 'Доступное кол-во в группе ячеек (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND availableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
+    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND availableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg) @@deprecated;
 prevStoragePickingAvailableQuantity 'Доступное кол-во в группе ячеек  (хранение или комплектация)' (Batch batch, BinGroup bg)=
-    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND prevAvailableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg);
+    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF isParent(BinGroup bg1, b) AND (picking(b) OR storage(b)) AND NOT orderLedger(b) AND prevAvailableQuantity(batch1, b)>0.0 BY batch1, bg1](batch, bg) @@deprecated;
 
 createRemoveUserReservedBinLedgerBatch(Sku s, Bin b) {
     IF GROUP MAX currentReserved(Batch bt, b) > 0 AND sku(bt) = s THEN NEWSESSION {
@@ -115,6 +117,7 @@ createRemoveUserReservedBinLedgerBatch(Sku s, Bin b) {
 
 overCreateRemoveUserReservedBinLedger(Sku s, Bin b) + {createRemoveUserReservedBinLedgerBatch(s, b);}
 
+overCreateRemoveUserReservedBinLedgerBatch ABSTRACT (UserReservedBinLedger);
 createRemoveUserReservedBinLedgerBatch 'Снять резерв' (Batch bt, Bin b) {
     IF currentReserved(bt, b) > 0 THEN NEWSESSION NEW r = UserReservedBinLedger {
         stock(r) <- stock(b);
@@ -123,6 +126,7 @@ createRemoveUserReservedBinLedgerBatch 'Снять резерв' (Batch bt, Bin 
         bin(r) <- b;
         quantity(r) <- - currentReserved(bt, b);
         description(r) <- 'Снятие с резерва партии';
+        overCreateRemoveUserReservedBinLedgerBatch(r);
         APPLY;
     }
 } TOOLBAR;
@@ -136,6 +140,7 @@ createRemoveUserReservedBinLedgerBatch 'Снять резервы' (Bin b) {
             bin(r) <- b;
             quantity(r) <- - currentReserved(bt, b);
             description(r) <- 'Снятие с резерва партии';
+            overCreateRemoveUserReservedBinLedgerBatch(r);
         }
         APPLY;
     }

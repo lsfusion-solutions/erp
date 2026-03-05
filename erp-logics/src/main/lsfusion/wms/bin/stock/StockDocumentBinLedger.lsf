@@ -36,11 +36,11 @@ nameOperation 'Операция' (StockDocumentBinLedger ledger) = IF isReturn(l
     THEN OVERRIDE returnCaptionStockDocument(operation(ledger)), overName(operation(ledger))
     ELSE OVERRIDE captionStockDocument(operation(ledger)), name(operation(ledger));
 
-stock = ABSTRACT Stock(StockDocumentBinLedger) MATERIALIZED INDEXED;
+stock = ABSTRACT Stock (StockDocumentBinLedger) MATERIALIZED INDEXED;
 nameStock 'Склад' (StockDocumentBinLedger ledger) = name(stock(ledger)) CHARWIDTH 20;
 
-binGroup = ABSTRACT BinGroup (StockDocumentBinLedger) MATERIALIZED INDEXED;
-nameBinGroup 'Подразделение' (StockDocumentBinLedger ledger) = name(binGroup(ledger)) CHARWIDTH 15;
+department = ABSTRACT Department (StockDocumentBinLedger) MATERIALIZED INDEXED;
+nameDepartment 'Подразделение' (StockDocumentBinLedger ledger) = name(department(ledger)) CHARWIDTH 15;
 
 description 'Название документа' (ledger) = ABSTRACT STRING[200] (StockDocumentBinLedger) MATERIALIZED;
 
@@ -195,51 +195,50 @@ sumAccountADocumentBinLedger 'Остаток на конец' (Stock stock, DATE
         BY stock(ledger)](stock) IN ledgerBin CHARWIDTH 15;
 
 // -------------------------------------- Остатки по подразделению --------------------------------------------- //
-GROUP ledgerBinGroup 'По подразделению (всего)' : public;
+GROUP ledgerDepartment 'По подразделению (всего)' : public;
 
 currentSumDocumentBinLedger 'Текущий остаток по документам' (stock) = GROUP SUM sum (StockDocumentBinLedger ledger) IF active(ledger)
-    BY binGroup(ledger);
+    BY department(ledger);
 
-sumAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
-    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger)
-        BY binGroup(ledger)](stock);
+sumAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATETIME dateTime) = 
+    (currentSumDocumentBinLedger(department) IF dateTime IS DATETIME) (-)
+    [GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) >= dateTime AND active(ledger) BY department(ledger)](department);
 
-sumAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATETIME dateTime) = (currentSumDocumentBinLedger(stock) IF dateTime IS DATETIME) (-)
-    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger)
-        BY binGroup(ledger)](stock);
+sumAccountADocumentBinLedger 'Остаток на конец' (Department department, DATETIME dateTime) = 
+    (currentSumDocumentBinLedger(department) IF dateTime IS DATETIME) (-)
+    [GROUP SUM sum (StockDocumentBinLedger ledger) IF dateTime(ledger) > dateTime AND active(ledger) BY department(ledger)](department);
 
-sumAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
-        BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+sumAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-) 
+    [GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
-sumItemAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
-    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+sumItemAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+    [GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
-sumContainerAccountBDocumentBinLedger 'Остаток на начало' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger)
-    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
+sumContainerAccountBDocumentBinLedger 'Остаток на начало' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+    [GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) >= date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
-sumAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
-        BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
-sumItemAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
-    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
-sumContainerAccountADocumentBinLedger 'Остаток на конец' (BinGroup stock, DATE date) = (currentSumDocumentBinLedger(stock) IF date IS DATE) (-)
-    [ GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger)
-    BY binGroup(ledger)](stock) IN ledgerBinGroup CHARWIDTH 15;
-
+sumAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+    [GROUP SUM sum (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
+sumItemAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+    [GROUP SUM sumItem (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
+sumContainerAccountADocumentBinLedger 'Остаток на конец' (Department department, DATE date) = 
+    (currentSumDocumentBinLedger(department) IF date IS DATE) (-)
+    [GROUP SUM sumContainer (StockDocumentBinLedger ledger) IF date(ledger) > date AND active(ledger) BY department(ledger)](department) IN ledgerDepartment CHARWIDTH 15;
 
 countIncStockDocumentBinInterval 'Количество приходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
     GROUP SUM 1 IF IncStockDocumentBinLedger incStockDocumentLedger IS IncStockDocumentBinLedger AND active(incStockDocumentLedger)
         AND date(incStockDocumentLedger) >= dtFrom AND date(incStockDocumentLedger) <= dtTo
-    BY binGroup(incStockDocumentLedger) IN ledgerBinGroup;
+    BY department(incStockDocumentLedger) IN ledgerDepartment;
 
 countOutStockDocumentBinInterval 'Количество расходных док-ов' (stock, DATE dtFrom, DATE dtTo)=
     GROUP SUM 1 IF OutStockDocumentBinLedger outStockDocumentLedger IS OutStockDocumentBinLedger AND active(outStockDocumentLedger)
         AND date(outStockDocumentLedger) >= dtFrom AND date(outStockDocumentLedger) <= dtTo
-    BY binGroup(outStockDocumentLedger) IN ledgerBinGroup;
+    BY department(outStockDocumentLedger) IN ledgerDepartment;
 
 // -------------------------------------- Остатки по суммам (товар) --------------------------------------------- //
 
@@ -298,23 +297,23 @@ subtotalContainerIncStockDocumentBinInterval 'Итого с остатком, т
 
 // -------------------------------------- Формы --------------------------------------------- //
 
-reportBinGroup = DATA LOCAL BinGroup ();
-nameReportBinGroup () = name(reportBinGroup());
+reportDepartment = DATA LOCAL Department ();
+nameReportDepartment 'Отдел' () = name(reportDepartment());
 
-changeReportBinGroup (Stock st) {
-    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock[BinGroup](g) == st DO {
-        reportBinGroup() <- g;
+changeReportDepartment (Stock st) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock[Department](d) == st DO {
+        reportDepartment() <- d;
     }
 }
 
 FORM sumStockDocumentBinLedger 'Товарный отчет по подразделениям'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) PANEL,
-        ds = Stock PANEL, gr = BinGroup PANEL
+        ds = Stock PANEL, department = Department PANEL
     PROPERTIES objFrom = VALUE(dtFrom), objTo = VALUE(dtTo)
     PROPERTIES(ds) SELECTOR name, nameLegalEntity
     FILTERS useBins(ds)
-    PROPERTIES() nameReportBinGroup ON CHANGE { changeReportBinGroup(ds); }
-    FILTERS gr == reportBinGroup()
+    PROPERTIES() nameReportDepartment ON CHANGE { changeReportDepartment(ds); }
+    FILTERS department == reportDepartment()
 
     PROPERTIES sumAccountBDocumentBinLedger(ds, dtFrom), sumItemAccountBDocumentBinLedger(ds, dtFrom), sumContainerAccountBDocumentBinLedger(ds, dtFrom),
         sumItemAccountADocumentBinLedger(ds, dtTo), sumContainerAccountADocumentBinLedger(ds, dtTo), sumAccountADocumentBinLedger(ds, dtTo)
@@ -322,13 +321,13 @@ FORM sumStockDocumentBinLedger 'Товарный отчет по подразд�
         sumItemIncStockDocumentBinInterval, sumContainerIncStockDocumentBinInterval,
         subtotalItemIncStockDocumentBinInterval, subtotalContainerIncStockDocumentBinInterval,
         sumItemOutStockDocumentBinInterval, sumContainerOutStockDocumentBinInterval
-    PROPERTIES sumAccountBDocumentBinLedger(gr, dtFrom), sumAccountADocumentBinLedger(gr, dtTo)
-    PROPERTIES countIncStockDocumentBinInterval(gr, dtFrom, dtTo), countOutStockDocumentBinInterval(gr, dtFrom, dtTo)
+    PROPERTIES sumAccountBDocumentBinLedger(department, dtFrom), sumAccountADocumentBinLedger(department, dtTo)
+    PROPERTIES countIncStockDocumentBinInterval(department, dtFrom, dtTo), countOutStockDocumentBinInterval(department, dtFrom, dtTo)
                 
 
     OBJECTS il = IncStockDocumentBinLedger
     PROPERTIES(il) READONLY isClosed, isPosted, date,
-        iObjName = objectClassName, iDescription = description, nameBinGroup,
+        iObjName = objectClassName, iDescription = description, nameDepartment,
         nameOperation, nameLegalEntity, nameLegalEntityStock,
         sumItem, sumContainer, sum
     PROPERTIES(il) EDIT SHOWIF allowedEdit(il) NEWSESSION
@@ -337,12 +336,12 @@ FORM sumStockDocumentBinLedger 'Товарный отчет по подразд�
             date(il) >= dtFrom,
             date(il) <= dtTo,
             isCompany(ds),
-            binGroup(il) == reportBinGroup() OR NOT reportBinGroup()
+            department(il) == reportDepartment() OR NOT reportDepartment()
     ORDERS date(il)
 
     OBJECTS ol = OutStockDocumentBinLedger
     PROPERTIES(ol) READONLY isClosed, isPosted, date,
-        oObjName = objectClassName, oDescription = description, nameBinGroup,
+        oObjName = objectClassName, oDescription = description, nameDepartment,
         nameOperation, nameLegalEntity, nameLegalEntityStock,
         sumItem, sumContainer, sum
     PROPERTIES(ol) EDIT SHOWIF allowedEdit(ol) NEWSESSION
@@ -350,7 +349,7 @@ FORM sumStockDocumentBinLedger 'Товарный отчет по подразд�
             stock(ol) == ds,
             date(ol) >= dtFrom,
             date(ol) <= dtTo,
-            binGroup(ol) == reportBinGroup() OR NOT reportBinGroup()
+            department(ol) == reportDepartment() OR NOT reportDepartment()
     ORDERS date(ol)
 
     FILTERS accessCompany(currentUser(), ds)
@@ -370,15 +369,15 @@ DESIGN sumStockDocumentBinLedger {
                 caption = 'Дата (по)';
             }
         }
-        NEW department {
-            caption = 'Отдел';
+        NEW stock {
+            caption = 'Склад';
             MOVE PROPERTY (name(ds)) {
                 caption = 'Название';
             }
         }
-        NEW binGroup {
-            caption = 'Подразделение ';
-            MOVE PROPERTY (nameReportBinGroup()) {
+        NEW department {
+            caption = 'Отдел ';
+            MOVE PROPERTY (nameReportDepartment()) {
                 caption = 'Название';
                 charWidth = 30;
                 tag='';
@@ -402,7 +401,7 @@ DESIGN sumStockDocumentBinLedger {
         MOVE GROUP(ledgerBinItem,ds);
         MOVE GROUP(ledgerBinContainer,ds);
         MOVE GROUP(ledgerBin,ds);
-        MOVE GROUP(ledgerBinGroup,gr);
+        MOVE GROUP(ledgerDepartment,department);
     }
 
     NEW topContainer{
@@ -447,19 +446,19 @@ META defineStockDocumentBinLedgerOperationProperty (namespace, caption)
     }
 END
 
-META defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, binGroupProp, binProp)
+META defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp, binProp)
     //SD - StockDocument SDBLBL - StockDocumentBinLedger
     CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
-    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, BinGroup g) = createStockDocumentBinLedger(operation(t)) AND
-        (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND binGroupProp(binProp(d)) == g);
-    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, BinGroup binGroup) MATERIALIZED INDEXED;
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = createStockDocumentBinLedger(operation(t)) AND
+        (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(binProp(d)) == department);
+    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
 END
 
-META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, binGroupProp, binProp)
+META defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp, binProp)
     //SD - StockDocument SDBLBL - StockDocumentBinLedger
     CLASS ###prefix##SD###concrete##BinLedger ###caption : ###prefix##StockDocumentBinLedger;
-    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, BinGroup g) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND binGroupProp(binProp(d)) == g);
-    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, BinGroup binGroup) MATERIALIZED INDEXED;
+    needToCreate###prefix##SD###concrete##BinLedger (###concrete t, Department department) = (GROUP SUM quantity(###concrete##Detail d) IF concrete(d) == t AND departmentProp(binProp(d)) == department);
+    ##prefix##SD###concrete##BinLedger = AGGR ###prefix##SD###concrete##BinLedger WHERE needToCreate###prefix##SD###concrete##BinLedger(###concrete ##concrete, Department department) MATERIALIZED INDEXED;
 END
 
 META implementStockDocumentBinLedger(prefix, concrete, stockProp)
@@ -470,27 +469,27 @@ META implementStockDocumentBinLedger(prefix, concrete, stockProp)
     series[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += series(##concrete(ledger));
     operation[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += operation(##concrete(ledger));
     stock[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += stockProp(##concrete(ledger));
-    binGroup[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += binGroup(ledger);
+    department[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += department(ledger);
     description[StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) += description(##concrete(ledger));
     edit(###prefix##SD###concrete##BinLedger ledger) + {edit[User###concrete](##concrete(ledger));}
 END 
 
 
-META implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp)
+META implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp)
     sumItem[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
-        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isItem(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND binGroupProp(binProp(d)) == binGroup(ledger));
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isItem(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(binProp(d)) == department(ledger));
     sumContainer[###prefix##StockDocumentBinLedger] (###prefix##SD###concrete##BinLedger ledger) +=
-        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isContainer(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND binGroupProp(binProp(d)) == binGroup(ledger));
+        NUMERIC[18,4](GROUP SUM sum(###concrete##Detail d) IF isContainer(sku(d)) AND ##concrete(d) == ##concrete(ledger) AND departmentProp(binProp(d)) == department(ledger));
 
 END
 
-META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, binGroupProp, binProp)
-    @defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, binGroupProp, binProp);
+META defineStockDocumentBinLedgerOp (prefix, concrete, caption, stockProp, departmentProp, binProp)
+    @defineStockDocumentBinLedgerOperationAggregation (prefix, concrete, caption, departmentProp, binProp);
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
-    @implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp);
 END
-META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, binGroupProp, binProp)
-    @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, binGroupProp, binProp);
+META defineStockDocumentBinLedger (prefix, concrete, caption, stockProp, departmentProp, binProp)
+    @defineStockDocumentBinLedgerAggregation (prefix, concrete, caption, departmentProp, binProp);
     @implementStockDocumentBinLedger(prefix, concrete, stockProp);
-    @implementStockDocumentBinLedgerSum (prefix, concrete, binGroupProp, binProp);
+    @implementStockDocumentBinLedgerSum (prefix, concrete, departmentProp, binProp);
 END

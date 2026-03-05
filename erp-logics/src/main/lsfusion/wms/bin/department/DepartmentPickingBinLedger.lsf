@@ -1,0 +1,41 @@
+MODULE DepartmentPickingBinLedger;
+
+REQUIRE DepartmentBinLedger, PickingBinLedger, DepartmentBinTransferBinLedger, PickingDashboard, DepartmentPickingOrder;
+
+NAMESPACE Picking;
+
+@defineInterfaceDepartment (picking, , );
+
+@defineDetailDepartment(picking, , '');
+
+outDepartment[BinTransfer] (Picking picking) += department(picking);
+inDepartment[BinTransfer] (Picking picking) += department(picking);
+
+@defineConstraintDetailDepartment(picking, department, in, );
+
+@defineConstraintDetailDepartment(picking, department, out, );
+
+shortNameDepartment 'Отдел' (Picking o) = CONCAT '', 'Отдел ', ('№' IF INTEGER(id(department(o)))), id(department(o)) CHARWIDTH 15;
+shortNameDepartment 'Отдел' (UserPicking o) = CONCAT '', 'Отдел ', ('№' IF INTEGER(id(department(o)))), id(department(o)) CHARWIDTH 15;
+
+CONSTRAINT stock(UserPicking userPicking) AND department(userPicking) AND NOT
+    stock(userPicking) = stock(department(userPicking))
+    CHECKED BY department[UserPicking]
+    MESSAGE 'Cклад поставщика и отдел поставщика для комплектации не имеют связи';
+
+overFillUserPicking(UserPicking p, PickingOrder pickingOrder) + {
+    department(p) <- department(pickingOrder);
+}
+
+EXTEND FORM pickingDashboard
+    PROPERTIES(p) READONLY BACKGROUND backgroundStatus(p) nameDepartment AFTER nameStock(p)
+
+    PROPERTIES(po) READONLY BACKGROUND backgroundStatusPicking(po) nameDepartment AFTER nameStock(po)
+    FILTERS accessCompany(currentUser(), department(po)) OR po IS PickingOrder AND NOT department(po)
+    
+    FILTERS accessCompany(currentUser(), department(p)) OR p IS Picking AND NOT department(p)
+;
+
+EXTEND FORM pickings
+    PROPERTIES(o)  READONLY BACKGROUND backgroundStatus(o) nameDepartment AFTER nameStock(o)
+;

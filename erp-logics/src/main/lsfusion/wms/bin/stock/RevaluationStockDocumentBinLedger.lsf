@@ -1,60 +1,11 @@
 MODULE RevaluationStockDocumentBinLedger;
 
-REQUIRE Revaluation, BinLedger, StockDocumentBinLedger;
+REQUIRE Revaluation, BinLedger, StockDocumentBinLedger, DepartmentRevaluationBinLedger;
 
 NAMESPACE Revaluation;
 
-needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
-
-EXTEND FORM operation
-    PROPERTIES(o) needDepartment
-;
-
-DESIGN operation {
-     constraintContainer {
-        caption = 'Ограничения';
-        MOVE PROPERTY(needDepartment(o));
-    }
-}
-
-department = ABSTRACT BinGroup (Revaluation) MATERIALIZED INDEXED;   //todo: migrate to Department
-department(RevaluationDetail d) = department(revaluation(d));
-nameDepartment 'Отдел' (Revaluation r) = name(department(r)) CHARWIDTH 10;
-
-department = DATA BinGroup (UserRevaluation);   //todo: migrate to Department
-department(UserRevaluationDetail d) = department(userRevaluation(d));
-nameDepartment 'Отдел' (UserRevaluation r) = name(department(r)) CHARWIDTH 10;
-
-department(UserRevaluation r) += department(r);
-
-CONSTRAINT stock(UserRevaluation userRevaluation) AND department(userRevaluation) AND NOT
-    stock(userRevaluation) = stock(department(userRevaluation))
-    CHECKED BY department[UserRevaluation]
-    MESSAGE 'Cклад и отдел переоценки не имеют связи';
-
-CONSTRAINT (CHANGED(operation(Revaluation r)) OR CHANGED(department(r))) AND NOT department(r) AND needDepartment(operation(r))
-    MESSAGE 'Отдел обязателен для заданной операции переоценки';
-
-changeDepartment(UserRevaluation r) {
-    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = stock(r) DO  {
-        department(r) <- g;
-    }
-}
-
-
-EXTEND FORM userRevaluation
-    PROPERTIES nameDepartment(p) ON CHANGE changeDepartment(p) AFTER nameStock(p)
-;
-
-DESIGN userRevaluation {
-    third {
-        MOVE PROPERTY(nameDepartment(p)) AFTER PROPERTY(nameStock(p)) {charWidth = 20;}
-    }
-}
-
-EXTEND FORM revaluations
-    PROPERTIES READONLY nameDepartment(p) AFTER nameStock(p)
-;
+departmentOld = ABSTRACT BinGroup (Revaluation) MATERIALIZED INDEXED @@deprecated;   //todo: migrate to Department
+departmentOld = DATA BinGroup (UserRevaluation) @@deprecated;   //todo: migrate to Department
 
 EXTEND CLASS Revaluation : OutStockDocumentBinLedger;
 // Проведение по товарному отчету
@@ -71,6 +22,6 @@ sumContainer[OutStockDocumentBinLedger] (Revaluation ledger) += 0.0 IF ledger IS
 
 operation[StockDocumentBinLedger](Revaluation ledger) += operation(ledger);
 
-binGroup[StockDocumentBinLedger] (Revaluation ledger) += department(ledger);
+department[StockDocumentBinLedger] (Revaluation ledger) += department(ledger);
 
 skip[StockDocumentBinLedger] (Revaluation ledger) += ledger IS Revaluation AND NOT department(ledger);

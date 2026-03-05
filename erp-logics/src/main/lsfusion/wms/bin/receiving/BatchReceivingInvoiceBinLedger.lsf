@@ -171,6 +171,7 @@ EXTEND FORM receiving
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Batch);
 
+overPutawayBatch ABSTRACT LIST (UserBinTransfer);
 putawayBatch 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Batch], dataReceivingBin[CustomUser]) {
         select(Batch batch) <- NULL WHERE select(batch) AND NOT currentBalance(batch, receivingBin(u));
@@ -194,6 +195,7 @@ putawayBatch 'Разместить' (CustomUser u) {
             date(o) <- currentDate();
             time(o) <- currentTime();
             stock(o) <- stock(receivingBin(u));
+            overPutawayBatch(o);
             FOR select(Batch batch) AND currentBalance(batch, receivingBin(u)) INLINE NEW d = UserBinTransferDetail DO {
                 userBinTransfer(d) <- o;
                 sku(d) <- sku(batch);
@@ -204,130 +206,6 @@ putawayBatch 'Разместить' (CustomUser u) {
             }
             DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
                 select(Batch batch) <- NULL;
-            }
-        }
-    }
-}
-
-putawayBin (Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1, bg1](st, o, u, bg);
-putawayBin  (Sku s, Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1, bg1](s, st, o, u, bg);
-putawayBinIgnoreBinBalance  (Sku s, Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1, bg1](s, st, o, u, bg);
-putawayBinIgnoreBinBalance  (Stock st, Bin.Operation o, CustomUser u, BinGroup bg)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND binGroup2(bin)== BinGroup bg1 AND accessCompany(CustomUser u1, bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1, bg1](st, o, u, bg);
-
-putawayBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u, BinGroup bg) =
-    OVERRIDE putawayBin(sku, stock, o, u, bg),
-        putawayBinIgnoreBinBalance(sku, stock, o, u, bg) IF ignoreBinBalanceDuringPutaway(),
-        putawayBin(stock, o, u, bg) IF sku IS Sku,
-        putawayBinIgnoreBinBalance(stock, o, u, bg) IF sku IS Sku AND ignoreBinBalanceDuringPutaway();
-
-overInternalBatchPutaway ABSTRACT LIST (CustomUser, UserBinTransfer);
-internalBatchPutaway 'Разместить внутри группы ячеек' (CustomUser u) {
-    NEWSESSION NESTED(select[Batch], dataReceivingBin[CustomUser]) {
-        select(Batch batch) <- NULL WHERE select(batch) AND NOT currentBalance(batch, receivingBin(u));
-        IF NOT (GROUP MAX select(Batch batch)) THEN {
-            select(Batch batch) <- TRUE WHERE currentBalance(batch, receivingBin(u));
-        }
-        IF NOT (GROUP MAX select(Batch batch)) THEN {
-            MESSAGE 'Нечего размещать';
-            RETURN;
-        }
-        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
-            MESSAGE 'Для склада размещения нет ячеек хранения';
-            RETURN;
-        }
-        IF NOT putawayInternalOperation() THEN {
-            MESSAGE 'Не задана \'Операция размещения(внутри группы ячеек)\' в настройках';
-            RETURN;
-        }
-        FOR (GROUP MAX select(Batch batch) IF currentBalance(batch, receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- putawayInternalOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            overInternalBatchPutaway(u, o);
-            FOR select(Batch batch) AND currentBalance(batch, receivingBin(u)) INLINE NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- receivingBin(u);
-                skipSetInBinOver(d) <- noSetInBinPutawayInternal();
-                inBin(d) <- putawayBinOver(sku(batch), stock(receivingBin(u)), putawayInternalOperation(), u, binGroup2(receivingBin(u))) IF NOT noSetInBinPutawayInternal();
-                quantity(d) <- currentBalance(batch, receivingBin(u));
-            }
-            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Batch batch) <- NULL;
-            }
-        }
-    }
-}
-
-putawayReserveBatch 'Разместить' (CustomUser u) {
-    NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
-        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            select(Batch batch, Bin bin) <- TRUE WHERE currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin);
-        }
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            MESSAGE 'Нечего размещать';
-            RETURN;
-        }
-        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
-            MESSAGE 'Для склада размещения нет ячеек хранения';
-            RETURN;
-        }
-        IF NOT putawayExternalOperation() THEN {
-            MESSAGE 'Не задана \'Операция размещения\' в настройках';
-            RETURN;
-        }
-        FOR (GROUP MAX select(Batch batch, Bin bin) IF currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
-            operation(o) <- putawayExternalOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) INLINE NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- bin;
-                inBin(d) <- putawayBinOver(sku(batch), stock(receivingBin(u)), putawayExternalOperation(), u);
-                quantity(d) <- currentBalance(batch, bin);
-            }
-            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Batch batch, Bin bin) <- NULL;
-            }
-        }
-    }
-}
-
-writeOffReserveBatch 'Списать' (CustomUser u) {
-    NEWSESSION NESTED(select[Batch, Bin], dataReceivingBin[CustomUser]) {
-        select(Batch batch, Bin bin) <- NULL WHERE select(batch, bin) AND NOT (currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            select(Batch batch, Bin bin) <- TRUE WHERE currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin);
-        }
-        IF NOT (GROUP MAX select(Batch batch, Bin bin)) THEN {
-            MESSAGE 'Нечего размещать';
-            RETURN;
-        }
-        IF NOT putawayWriteOffOperation() THEN {
-            MESSAGE 'Не задана \'Операция списания при размещении\' в настройках';
-            RETURN;
-        }        
-        FOR (GROUP MAX select(Batch batch, Bin bin) IF currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
-            operation(o) <- putawayWriteOffOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Batch batch, Bin bin) AND currentBalance(batch, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                outBin(d) <- bin;
-                inBin(d) <- NULL;
-                quantity(d) <- currentBalance(batch, bin);
-            }
-            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Batch batch, Bin bin) <- NULL;
             }
         }
     }
@@ -356,10 +234,7 @@ EXTEND FORM receiving
         order(rbb), canonicalId(rbb), name(rbb), currentBalance(rsb, rbb)
     ORDERS nameSku(rsb), order(rbb)
     
-    PROPERTIES putawayReserveBatch(u) SHOWIF in(u, putawayExternalOperation()) DRAW reserveB PANEL TOOLBAR
-    PROPERTIES writeOffReserveBatch(u) SHOWIF in(u, putawayWriteOffOperation()) DRAW reserveB PANEL TOOLBAR
     FILTERS currentBalance(rsb, rbb),
-        binGroup2(rbb)==binGroup2(receivingBin(u)),
         orderLedger(rbb)
 
     OBJECTS putawayBatch = BinTransferDetail
@@ -384,70 +259,6 @@ DESIGN receiving {
         MOVE BOX(reserveB){
             caption = 'Брак/резерв (партии)';
         }
-    }
-}
-
-FORM internalPutaway 'Размещение по группе ячеек'
-    OBJECTS u=CustomUser PANEL
-    PROPERTIES(u) READONLY name
-    PROPERTIES(u) nameReceivingBin, nameBinGroup2ReceivingBin READONLY
-    FILTERS u=currentUser()
-
-    OBJECTS bt = Batch
-    PROPERTIES(bt) select
-    PROPERTIES(bt) READONLY nameSku, idBarcodeSku, name, expiryDate
-    PROPERTIES READONLY currentBalanceBatch 'Текущий остаток в ячейке' = currentBalance(bt, receivingBin(u))
-    PROPERTIES internalBatchPutaway(u) SHOWIF in(u, putawayInternalOperation()) DRAW bt PANEL TOOLBAR
-    FILTERS currentBalance(bt, receivingBin(u))
-
-    OBJECTS putawayBatch = BinTransferDetail
-    PROPERTIES(putawayBatch) READONLY dateTime, idBarcodeSku, nameSku, canonicalIdInBin, canonicalIdOutBin
-    PROPERTIES READONLY currentBalancePB 'Текущий остаток в ячейке' = currentBalance(batch(putawayBatch), inBin(putawayBatch))
-    FILTERS currentBalance(batch(putawayBatch),
-        inBin(putawayBatch)),
-        accessCompany(u, inBin(putawayBatch)),
-        outBin(putawayBatch) = receivingBin(u),
-        operation(putawayBatch) = putawayInternalOperation()
-;
-
-DESIGN internalPutaway {
-    MOVE BOX(u){
-        PROPERTY(name(u)) {
-            font = 'bold 24';
-            panelCaptionVertical = TRUE;
-            focusable = FALSE;
-            charWidth = 30;
-        }
-        PROPERTY(nameReceivingBin(u)) {
-            font = 'bold 24';
-            panelCaptionVertical = TRUE;
-            charWidth = 30;
-        }
-        PROPERTY(nameBinGroup2ReceivingBin(u)) {
-            font = 'bold 24';
-            panelCaptionVertical = TRUE;
-            charWidth = 30;
-        }
-    }
-    NEW tabContainer {
-        tabbed = TRUE;
-        fill = 1;
-        NEW putaway {
-            caption = 'Размещение';
-            MOVE BOX(bt);
-        }
-        NEW stocked {
-            caption = 'Размещенные';
-            MOVE BOX(putawayBatch);
-        }
-
-    }
-    MOVE TOOLBARBOX;
-}
-
-NAVIGATOR {
-    WMSDashboardNavigator {
-        NEW internalPutaway;
     }
 }
 

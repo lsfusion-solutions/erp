@@ -1,0 +1,61 @@
+MODULE DepartmentSaleOrder;
+
+REQUIRE DepartmentOrder, SaleOrder, DepartmentBinLedger;
+
+NAMESPACE Sale;
+
+department = ABSTRACT Department (Order) MATERIALIZED INDEXED;
+department (OrderDetail d) = department(order(d));
+nameDepartment 'Отдел' (Order o) = name(department(o)) CHARWIDTH 15;
+
+department = DATA Department (UserOrder);
+department (UserOrderDetail d) = department(userOrder(d));
+nameDepartment 'Отдел' (UserOrder o) = name(department(o)) CHARWIDTH 15;
+
+department[Order.Order](Order o) += department(o);
+department(UserOrder o) += department(o);
+
+CONSTRAINT supplierStock(UserOrder userOrder) AND department(userOrder) AND NOT
+    supplierStock(userOrder) = stock(department(userOrder))
+    CHECKED BY department[UserOrder]
+    MESSAGE 'Cклад поставщика и отдел поставщика для заказа не имеют связи';
+
+
+changeDepartment(UserOrder o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = supplierStock(o) DO {
+        department(o) <- d;
+        filterDepartment() <- d;
+        IF NOT supplierStock(o) THEN supplierStock(o) <- stock(d);
+    }
+}
+
+EXTEND FORM userOrder
+    PROPERTIES nameDepartment(o) ON CHANGE changeDepartment(o)
+    PROPERTIES SELECTOR name 'Отдел' = nameFilterDepartment() ON CHANGE {changeFilterDepartment(supplierStock(o)); department(o) <- filterDepartment();}
+    FILTERGROUP filterDepartment
+        FILTER 'Партии с остатком по выбранному отделу' currentBalance(b, filterDepartment()) DEFAULT
+
+    EVENTS ON INIT {
+        filterDepartment() <- department(o);
+    }
+;
+
+DESIGN userOrder{
+    headerRow111 {
+        MOVE PROPERTY(nameDepartment(o));
+    }
+    BOX(stb) {
+        NEW container FIRST{
+            horizontal = TRUE;
+            NEW filterDepartment {
+                caption = 'Отдел';
+                MOVE PROPERTY(name);
+            }
+        }
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES READONLYIF isReadonly() nameDepartment(o) ON CHANGE changeDepartment(o) AFTER nameSupplierStock(o)
+    FILTERS accessCompany(currentUser(), department(o)) OR o IS Order AND NOT department(o)
+;    

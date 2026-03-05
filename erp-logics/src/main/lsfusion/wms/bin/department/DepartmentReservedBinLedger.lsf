@@ -1,0 +1,43 @@
+MODULE DepartmentReservedBinLedger;
+
+REQUIRE DepartmentBin, ReservedBinLedger, BatchReservedBinLedger, DepartmentBinLedger;
+
+NAMESPACE Bin;
+
+department = ABSTRACT Department (ReservedBinLedger) MATERIALIZED INDEXED;
+nameDepartment 'Отдел' (ReservedBinLedger ledger)= name(department(ledger)) CHARWIDTH 20;
+
+EXTEND FORM reservedBinLedger
+    PROPERTIES(b) READONLY nameDepartment AFTER canonicalIdBin(b)
+;
+
+department = DATA Department (UserReservedBinLedger);
+department(UserReservedBinLedger ledger) += department(ledger);
+
+overCreateRemoveUserReservedBinLedgerBatch (UserReservedBinLedger r) + {
+    department(r) <- department(bin(r));
+}
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES(bt, bin) READONLY AFTER currentBalance(bt, bin) currentReserved, availableQuantity
+;
+
+currentReserved 'Текущий резерв в отеделе' (Batch batch, Department department)=
+    [GROUP SUM currentReserved(Batch batch1, Bin b) BY batch1, department(b)](batch, department);
+prevCurrentReserved 'Текущий резерв в отеделе' (Batch batch, Department department)=
+    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) BY batch1, department(b)](batch, department);
+
+availableQuantity 'Доступное кол-во в отеделе' (Batch batch, Department department)=
+    [GROUP SUM availableQuantity(Batch batch1, Bin b) BY batch1, department(b)](batch, department);
+prevAvailableQuantity 'Доступное кол-во в отеделе' (Batch batch, Department department)=
+    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) BY batch1, department(b)](batch, department);
+
+storagePickingCurrentReserved 'Текущий резерв в отеделе (хранение или комплектация)' (Batch batch, Department department)=
+    [GROUP SUM currentReserved(Batch batch1, Bin b) IF (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, department(b)](batch, department);
+prevStoragePickingCurrentReserved 'Текущий резерв в отеделе (хранение или комплектация)' (Batch batch, Department department)=
+    [GROUP SUM prevCurrentReserved(Batch batch1, Bin b) IF (picking(b) OR storage(b)) AND NOT orderLedger(b) BY batch1, department(b)](batch, department);
+
+storagePickingAvailableQuantity 'Доступное кол-во в отеделе (хранение или комплектация)' (Batch batch, Department department)=
+    [GROUP SUM availableQuantity(Batch batch1, Bin b) IF (picking(b) OR storage(b)) AND NOT orderLedger(b) AND availableQuantity(batch1, b)>0.0 BY batch1, department(b)](batch, department);
+prevStoragePickingAvailableQuantity 'Доступное кол-во в отеделе  (хранение или комплектация)' (Batch batch, Department department)=
+    [GROUP SUM prevAvailableQuantity(Batch batch1, Bin b) IF (picking(b) OR storage(b)) AND NOT orderLedger(b) AND prevAvailableQuantity(batch1, b)>0.0 BY batch1, department(b)](batch, department);

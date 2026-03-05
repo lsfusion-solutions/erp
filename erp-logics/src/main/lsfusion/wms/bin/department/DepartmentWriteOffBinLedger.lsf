@@ -1,0 +1,76 @@
+MODULE DepartmentWriteOffBinLedger;
+
+REQUIRE DepartmentBinLedger, WriteOffBinLedger;
+
+NAMESPACE WriteOff;
+
+@defineInterfaceDepartment(writeOff, , );
+
+@defineDetailDepartment(writeOff, , '');
+
+outDepartment[BinLedger] (WriteOffBinLedger ledger) += department(writeOffDetail(ledger)) IF outBin(writeOffDetail(ledger));
+inDepartment[BinLedger] (WriteOffBinLedger ledger) += department(writeOffDetail(ledger)) IF inBin(writeOffDetail(ledger));
+
+@defineConstraintDetailDepartment(writeOff, department, in, );
+
+@defineConstraintDetailDepartment(writeOff, department, out, );
+
+needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        caption = 'Ограничения';
+        MOVE PROPERTY(needDepartment(o));
+    }
+}
+
+CONSTRAINT (CHANGED(operation(WriteOff r)) OR CHANGED(department(r))) AND NOT department(r) AND needDepartment(operation(r))
+    MESSAGE 'Отдел обязателен для заданной операции списания';
+
+changeDepartment(UserWriteOff o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {
+        department(o) <- d;
+        filterDepartment() <- d;
+        IF NOT supplierStock(o) THEN supplierStock(o) <- stock(d);
+    }
+}
+
+CONSTRAINT stock(UserWriteOff userWriteOff) AND department(userWriteOff) AND NOT
+    stock(userWriteOff) = stock(department(userWriteOff))
+    CHECKED BY department[UserWriteOff]
+    MESSAGE 'Cклад и отдел для заказа не имеют связи';
+
+EXTEND FORM writeOffs
+    PROPERTIES READONLYIF isReadonly() nameDepartment(w) ON CHANGE changeDepartment(w) AFTER nameStock(w)
+    FILTERS accessCompany(currentUser(), department(w)) OR w IS WriteOff AND NOT department(w)
+;
+
+EXTEND FORM userWriteOff
+    PROPERTIES nameDepartment(w) ON CHANGE changeDepartment(w) AFTER nameStock(w)
+    PROPERTIES SELECTOR name 'Отдел' = nameFilterDepartment() ON CHANGE {changeFilterDepartment(stock(w)); department(w) <- filterDepartment();}
+    FILTERGROUP filterDepartment
+        FILTER 'Партии с остатком по выбранному отделу' currentBalance(b, filterDepartment()) DEFAULT
+
+    EVENTS ON INIT {
+        filterDepartment() <- department(w);
+    }
+;
+
+DESIGN userWriteOff{
+    first {
+        MOVE PROPERTY(nameDepartment(w)) AFTER PROPERTY(nameStock(w));
+    }
+    BOX(stb) {
+        NEW container FIRST{
+            horizontal = TRUE;
+            NEW filterDepartment {
+                caption = 'Отдел';
+                MOVE PROPERTY(name);
+            }
+        }
+    }
+}

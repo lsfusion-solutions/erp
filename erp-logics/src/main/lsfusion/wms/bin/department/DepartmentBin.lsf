@@ -1,4 +1,4 @@
-MODULE BinDepartment;
+MODULE DepartmentBin;
 
 REQUIRE Bin, Warehouse, BinLedger;
 
@@ -11,7 +11,12 @@ id '{integration.id}' = DATA STRING[100] (Department) NONULL INDEXED CHARWIDTH 1
 name 'Наименование' = DATA ISTRING[100](Department) INDEXED CHARWIDTH 20;
 order 'Порядок' = DATA ISTRING (Department) INDEXED CHARWIDTH 2;
 stock = DATA Stock (Department) NONULL INDEXED;
-nameStock 'Склад' (Department department) = name(department) CHARWIDTH 20;
+nameStock 'Склад' (Department department) = name(stock(department)) CHARWIDTH 20;
+fullNameStock 'Склад' (Department department) = fullName(stock(department)) CHARWIDTH 20;
+
+legalEntity(Department department) = legalEntity(stock(department));
+nameLegalEntity 'Организация' (Department department) = name(legalEntity(department));
+fullNameLegalEntity 'Организация' (Department department) = fullName(legalEntity(department));
 
 department(id) = GROUP AGGR Department department BY id(department);
 
@@ -77,6 +82,30 @@ FORM department 'Отдел'
     EDIT Department OBJECT d
 ;
 
+DESIGN department {
+    NEW mainContainer {
+        caption = 'Основные свойства';
+        alignment = STRETCH;
+        lines = 2;
+        MOVE PROPERTY(inactive(d));
+        MOVE PROPERTY(id(d));
+        MOVE PROPERTY(order(d));
+        MOVE PROPERTY(name(d));
+        MOVE PROPERTY(nameStock(d));
+    }
+    MOVE TOOLBARBOX;
+}
+
+FORM dialogDepartments 'Отделы'
+    OBJECTS d=Department
+    PROPERTIES(d) READONLY id, order, name, nameStock
+    ORDERS order(d), name(d)
+    FILTERGROUP inactiveDepartment
+        FILTER 'Активный' active(d) DEFAULT
+
+    LIST Department OBJECT d
+;
+
 FORM departments 'Отделы'
     OBJECTS d=Department
     PROPERTIES(d) READONLY id, order, name, nameStock
@@ -84,8 +113,6 @@ FORM departments 'Отделы'
     ORDERS order(d), name(d)
     FILTERGROUP inactiveDepartment
         FILTER 'Активный' active(d) DEFAULT
-    
-    LIST Department OBJECT d
 ;
 
 NAVIGATOR {

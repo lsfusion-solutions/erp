@@ -1,0 +1,35 @@
+MODULE DepartmentPickingOrder;
+
+REQUIRE DepartmentBinLedger, PickingOrder, DepartmentBinOrderBinLedger;
+
+NAMESPACE Picking;
+
+@defineInterfaceDepartment (pickingOrder, , );
+
+outDepartment[BinOrder](PickingOrder o) += department(o);
+inDepartment[BinOrder](PickingOrder o) += department(o);
+
+@defineDetailDepartment(pickingOrder, , '');
+
+CONSTRAINT stock(UserPickingOrder userPickingOrder) AND department(userPickingOrder) AND NOT
+    stock(userPickingOrder) = stock(department(userPickingOrder))
+    CHECKED BY department[UserPickingOrder]
+    MESSAGE 'Cклад поставщика и отдел поставщика для заказа на комплектацию не имеют связи';
+
+changeDepartment(UserPickingOrder o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {
+        department(o) <- d;
+        filterDepartment() <- d;
+        IF NOT stock(o) THEN stock(o) <- stock(d);
+    }
+}
+
+EXTEND FORM userPickingOrder
+    PROPERTIES(o) nameDepartment AFTER nameStock(o)
+    FILTERS accessCompany(currentUser(), department(o)) OR o IS PickingOrder AND NOT department(o)
+;
+
+EXTEND FORM pickingOrders
+    PROPERTIES(o) READONLY nameDepartment AFTER nameStock(o)
+    FILTERS accessCompany(currentUser(), department(o)) OR o IS PickingOrder AND NOT department(o)
+;    

@@ -1,0 +1,133 @@
+MODULE DepartmentReceivingBinLedger;
+
+REQUIRE DepartmentBinLedger, ReceivingBinLedger;
+
+NAMESPACE Receiving;
+
+@defineInterfaceDepartment(receiving, in, ' (в)');
+
+inDepartment(ReceivingDetail receivingDetail) = inDepartment(receiving(receivingDetail));
+nameInDepartment 'Отдел (в)' (ReceivingDetail receivingDetail) = name(inDepartment(receivingDetail)) IN documentPrm CHARWIDTH 12;
+
+inDepartment[BinLedger] (ReceivingBinLedger ledger) += inDepartment(receivingDetail(ledger));
+
+CONSTRAINT SET(ReceivingDetail receivingDetail AND inDepartment(receivingDetail) AND
+    NOT inDepartment(receivingDetail)==department(inBin(receivingDetail)))
+    MESSAGE 'Отдел ячейки (в)' + ' строки документа должен соотвествовать отделу (в)'+ 'шапки документа';
+
+EXTEND FORM receiving
+    PROPERTIES(r) READONLY AFTER nameCustomerStock(r) nameInDepartment
+;
+
+putawayReserve 'Разместить' (CustomUser u) {
+    NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
+        select(Sku sku) <- NULL WHERE select(sku) AND NOT (GROUP SUM currentBalance(sku, Bin bin) IF department(bin)==department(receivingBin(u)) AND orderLedger(bin));
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            select(Sku sku) <- TRUE WHERE (GROUP SUM currentBalance(sku, Bin bin) IF department(bin)==department(receivingBin(u)) AND orderLedger(bin));
+        }
+        IF NOT (GROUP MAX select(Sku sku)) THEN {
+            MESSAGE 'Нечего размещать';
+            RETURN;
+        }
+        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
+            MESSAGE 'Для склада размещения нет ячеек хранения';
+            RETURN;
+        }
+
+        FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, Bin bin) AND department(bin)==department(receivingBin(u))) NEW o = UserBinTransfer DO {
+            operation(o) <- putawayExternalOperation();
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            stock(o) <- stock(receivingBin(u));
+            FOR select(Sku sku) AND currentBalance(sku, Bin bin) AND department(bin)==department(receivingBin(u)) AND orderLedger(bin) INLINE NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- o;
+                sku(d) <- sku;
+                outBin(d) <- bin;
+                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), putawayExternalOperation(), u);
+                quantity(d) <- currentBalance(sku, bin);
+            }
+            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
+                select(Sku sku) <- NULL;
+            }
+        }
+    }
+}
+
+writeOffReserve 'Списать' (CustomUser u) {
+    NEWSESSION NESTED(select[Sku, Bin], dataReceivingBin[CustomUser]) {
+        select(Sku sku, Bin bin) <- NULL WHERE select(sku, bin) AND NOT (writeOffReserveQuantity(sku, bin) AND department(bin)==department(receivingBin(u)) AND orderLedger(bin));
+        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
+            select(Sku sku, Bin bin) <- TRUE WHERE writeOffReserveQuantity(sku, bin) AND department(bin)==department(receivingBin(u)) AND orderLedger(bin);
+        }
+        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
+            MESSAGE 'Нечего размещать';
+            RETURN;
+        }
+        FOR (GROUP MAX select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND department(bin)==department(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
+            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, putawayWriteOffOperation());
+            date(o) <- currentDate();
+            time(o) <- currentTime();
+            stock(o) <- stock(receivingBin(u));
+            FOR select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND department(bin)==department(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
+                userBinTransfer(d) <- o;
+                sku(d) <- sku;
+                outBin(d) <- bin;
+                inBin(d) <- NULL;
+                quantity(d) <- writeOffReserveQuantity(sku, bin);
+            }
+            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
+                select(Sku sku, Bin bin) <- NULL;
+            }
+        }
+    }
+}
+
+//делается через отдельную форму, что бы работал выпадающий список
+FORM receivingDialogDepartments 'Ячейки'
+    OBJECTS department = Department PANEL //будет передаваться при  вызове
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
+    FILTERS department(b)==department
+    ORDERS order(b), canonicalId(b), name(b)
+;
+
+DESIGN receivingDialogDepartments {
+    BOX {
+        size = (1024, 768);
+
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+
+            MOVE BOX(b) {
+                fill = 2;
+                GRID(b) {
+                    defaultComponent = TRUE;
+                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
+                }
+            }
+        }
+
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeDataInBin(ReceivingDetail d, CustomUser u) + {
+    FOR Department department == department(receivingBin(u)) DO {
+        //делаем через FOR, что бы работал выпадающий список в новой сессии
+        NEWSESSION {
+            DIALOG receivingDialogDepartments OBJECTS department = department, b = inBin(d) INPUT LIST canonicalId(b) DO {
+                dataInBin(d) <- b;
+                APPLY;
+            }
+        }
+    }
+}
+
+EXTEND FORM receiving
+    PROPERTIES putawayReserve(u) DRAW reserve PANEL TOOLBAR
+    PROPERTIES writeOffReserve(u) DRAW reserve PANEL TOOLBAR
+
+    FILTERS department(rb)==department(receivingBin(u))
+;

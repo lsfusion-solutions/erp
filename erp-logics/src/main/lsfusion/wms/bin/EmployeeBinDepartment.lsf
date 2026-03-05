@@ -1,163 +1,94 @@
 MODULE EmployeeBinDepartment;
 
-REQUIRE EmployeeBin, BinSkuLedger, ReservedBinLedger, BinDepartment;
+REQUIRE EmployeeBin, BinSkuLedger, ReservedBinLedger, DepartmentBin;
 
 NAMESPACE Bin;
 
-FORM dialogBinZones 'Зоны'  //todo: migrate to Department
-    OBJECTS g = BinGroup
-    PROPERTIES READONLY name(g), canonicalName(g), nameStock(g)
-    ORDERS canonicalName(g)
-    FILTERS level(g) = 2,
-        accessCompany(currentUser(), g)
-    FILTERGROUP active FILTER 'Активный' active(g) DEFAULT
-;
+limitAccessCompanyDepartments 'Ограничить доступ к отделам склада' = DATA BOOLEAN (Employee);
 
-filterDepartment  = DATA LOCAL NESTED BinGroup ();  //todo: migrate to Department
-nameFilterDepartment 'Отделы' = name(filterDepartment()) CHARWIDTH 15;
+dataAccessCompany 'Доступ разрешен (компания)' = DATA BOOLEAN (Employee, Department);
+accessCompany 'Доступ разрешен (компания)' (Employee e, Department department) =
+    OVERRIDE dataAccessCompany(e, department),
+        department IS Department AND e IS Employee AND NOT limitAccessCompanyDepartments(e) MATERIALIZED;
 
-changeFilterDepartment(Stock st) {
-    DIALOG dialogBinZones OBJECTS g INPUT NULL FILTERS stock(g) = st DO  {
-        filterDepartment() <- g;
-    }
+WHEN DROPPED(accessCompany(Employee e, stock(Department department))) DO {
+    dataAccessCompany(e, department) <- NULL;    
 }
 
-countAccessCompanyBinZones 'Кол-во доступных зон (компания)' (Employee employee) =
-    GROUP SUM 1 IF accessCompany(employee, BinGroup bg) IF level(bg) = 2;
-countAccessCompanyBinZones 'Кол-во доступных зон (компания)' (Employee employee, Stock st) =
-    GROUP SUM 1 IF accessCompany(employee, BinGroup bg) IF level(bg) = 2 AND stock(bg) = st;
-defaultCompanyBinZone (Employee employee) =
-    GROUP MIN BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2;
-defaultCompanyBinZone (Employee employee, Stock st) =
-    GROUP MIN BinGroup bg IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st;
-
-companyZones 'Зоны (компания)' (Employee employee) = ISTRING[2000](GROUP
-    CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2, ', '
-    ORDER name(bg)) CHARWIDTH 20;
-companyZones 'Зоны (компания)' (Employee employee, Stock st) = ISTRING[2000](GROUP
-    CONCAT name(BinGroup bg) IF accessCompany(employee, bg) AND level(bg) = 2 AND stock(bg) = st, ', '
-    ORDER name(bg)) CHARWIDTH 20;
-
-dataBinZone = DATA BinGroup (Employee);
-binZone (Employee e) = OVERRIDE dataBinZone(e), defaultCompanyBinZone(e) IF countAccessCompanyBinZones(e) == 1 MATERIALIZED;
-idBinZone 'Основная зона' (Employee e) = canonicalId(binZone(e));
-nameBinZone 'Основная зона' (Employee e) = name(binZone(e));
-
-WHEN SETCHANGED(BinGroup bg = binZone(Employee e)) AND NOT accessCompany(e, bg) DO {
-    accessCompany(e, bg) <- TRUE;
+WHEN SET(department(BinGroup binGroup)) DO {
+    dataAccessCompany(Employee e, Department department) <- TRUE WHERE accessCompany(e, binGroup) AND department(binGroup)==department; 
 }
-
-CONSTRAINT BinGroup bg == dataBinZone(Employee e) AND NOT accessCompany(e, bg) 
-    CHECKED BY dataBinZone[Employee] MESSAGE 'Не разрешен доступ к зоне выбранной в качестве основной';
-
-EXTEND FORM employees 
-    PROPERTIES(e) READONLY nameBinZone
-;
 
 EXTEND FORM employee
-    PROPERTIES nameBinZone(e) ON CHANGE {DIALOG dialogBinZones OBJECTS g=binZone(e) INPUT NULL DO {dataBinZone(e) <- g;}}
+    OBJECTS department=Department
+    PROPERTIES(e) limitAccessCompanyDepartments READONLYIF NOT limitAccess(e)
+    PROPERTIES(department) READONLY id, order, name, nameStock
+    PROPERTIES accessCompany(e, department) READONLYIF NOT accessCompany(e, stock(department))
+    ORDERS order(department), name(department)
 ;
 
 DESIGN employee {
     pane {
-        binContainer {
-            MOVE PROPERTY(nameBinZone(e)) BEFORE PROPERTY(limitAccessCompanyStocksBin(e));
+        NEW departmentContainer{
+            caption = 'Отделы';
+            MOVE PROPERTY(limitAccessCompanyDepartments(e));
+            MOVE BOX(department);    
+        }
+    }
+}    
+
+filterDepartment  = DATA LOCAL NESTED Department ();
+nameFilterDepartment 'Отдел' = name(filterDepartment()) CHARWIDTH 15;
+
+changeFilterDepartment(Stock st) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = st DO  {
+        filterDepartment() <- d;
+    }
+}
+
+countAccessCompanyDepartments 'Кол-во доступных отделов (компания)' (Employee employee) =
+    GROUP SUM 1 IF accessCompany(employee, Department department);
+countAccessCompanyDepartments 'Кол-во доступных отделов (компания)' (Employee employee, Stock st) =
+    GROUP SUM 1 IF accessCompany(employee, Department department) AND stock(department) = st;
+defaultCompanyDepartment (Employee employee) =
+    GROUP MIN Department department IF accessCompany(employee, department);
+defaultCompanyDepartment (Employee employee, Stock st) =
+    GROUP MIN Department department IF accessCompany(employee, department) AND stock(department) = st;
+
+companyDepartments 'Отделы (компания)' (Employee employee) = ISTRING[2000](GROUP
+    CONCAT name(Department department) IF accessCompany(employee, department), ', '
+    ORDER name(department), department) CHARWIDTH 20;
+companyDepartments 'Отделы (компания)' (Employee employee, Stock st) = ISTRING[2000](GROUP
+    CONCAT name(Department department) IF accessCompany(employee, department) AND stock(department) = st, ', '
+    ORDER name(department), department) CHARWIDTH 20;
+
+dataBinZoneOld = DATA BinGroup (Employee) @@deprecated;
+dataDepartment = DATA Department (Employee);
+department (Employee e) = OVERRIDE dataDepartment(e), defaultCompanyDepartment(e) IF countAccessCompanyDepartments(e) == 1 MATERIALIZED;
+idDepartment 'Основной отдел' (Employee e) = id(department(e));
+nameDepartment 'Основной отдел' (Employee e) = name(department(e));
+
+WHEN SETCHANGED(Department department = department(Employee e)) AND NOT accessCompany(e, department) DO {
+    dataAccessCompany(e, department) <- TRUE;
+}
+
+CONSTRAINT Department department == dataDepartment(Employee e) AND NOT accessCompany(e, department) 
+    CHECKED BY dataDepartment[Employee] MESSAGE 'Не разрешен доступ к отделу выбранного в качестве основного';
+
+EXTEND FORM employees 
+    PROPERTIES(e) READONLY nameDepartment
+;
+
+EXTEND FORM employee
+    PROPERTIES nameDepartment(e) ON CHANGE {DIALOG dialogDepartments OBJECTS d=department(e) INPUT NULL DO {dataDepartment(e) <- d;}}
+;
+
+DESIGN employee {
+    pane {
+        departmentContainer {
+            MOVE PROPERTY(nameDepartment(e)) BEFORE BOX(department);
         }
     }    
-}
-
-EXTEND FORM currentBalanceSkuStock
-    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore() 
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
-    FILTERS (GROUP SUM 1 IF currentBalance(s, Bin bb) AND isParent(filterDepartment(), bb)) 
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores() 
-    OBJECTS bg = BinGroup PANEL 
-    PROPERTIES currentBalance(s, bg) DRAW sts SHOWIF filterDepartment() AFTER currentBalance(s, st)
-    FILTERS bg = filterDepartment()
-    
-    OBJECTS bin = Bin
-    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
-    PROPERTIES(s, bin) READONLY currentBalance, currentReserved, availableQuantity
-    FILTERS stock(bin) = st, currentBalance(s, bin), isParent(filterDepartment(), bin)
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
-    ORDERS order(bin), canonicalId(bin), name(bin)
-
-    OBJECTS bl = BinLedger
-    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
-    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
-    ORDERS dateTime(bl) DESC
-    FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
-
-    EVENTS ON CHANGE ss {
-        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterDepartment() <- OVERRIDE binZone(currentUser()), defaultCompanyBinZone(currentUser(), ss);
-        } ELSE {
-            filterDepartment() <- NULL;
-        }
-    }
-;
-
-DESIGN currentBalanceSkuStock {
-    filter {
-        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
-    }
-    ledgerBox {
-        MOVE BOX(bin){
-            PROPERTY(canonicalId(bin)) {defaultCompare = '=*';}
-        }
-        MOVE BOX(bl){
-            PROPERTY(canonicalIdInBin(bl)) {defaultCompare = '=*';}
-            PROPERTY(canonicalIdOutBin(bl)) {defaultCompare = '=*';}
-            PROPERTY(nameInBin(bl)) {defaultCompare = '=*';}
-            PROPERTY(nameOutBin(bl)) {defaultCompare = '=*';}
-        }
-    }
-}
-
-EXTEND FORM balanceSkuStock
-    PROPERTIES SHOWIF countAccessCompanyBinZones(currentUser(), ss) AND singleStore()
-        READONLYIF countAccessCompanyBinZones(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
-    FILTERS (GROUP SUM 1 IF balanceB(s, Bin bb,t) AND isParent(filterDepartment(), bb))
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
-    OBJECTS bg = BinGroup PANEL
-    PROPERTIES balanceB(s, bg, t) DRAW sts SHOWIF filterDepartment() AFTER balanceB(s, st,t)
-    FILTERS bg = filterDepartment()
-
-    OBJECTS bin = Bin
-    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
-    PROPERTIES READONLY balanceB(s, bin, t)
-    FILTERS stock(bin) = st, balanceB(s, bin, t), isParent(filterDepartment(), bin)
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
-    ORDERS order(bin), canonicalId(bin), name(bin)
-
-    OBJECTS bl = BinLedger
-    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
-    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
-    ORDERS dateTime(bl) DESC
-    FILTERS isPosted(bl), sku(bl)==s,
-        stock(bl) = st, isParent(filterDepartment(), inBin(bl)) OR isParent(filterDepartment(), outBin(bl))
-        OR NOT filterDepartment() OR NOT countAccessCompanyBinZones(currentUser(), ss) OR multipleStores()
-
-
-    EVENTS ON CHANGE ss {
-        IF countAccessCompanyBinZones(currentUser(), ss) = 1 AND singleStore() THEN {
-            filterDepartment() <- defaultCompanyBinZone(currentUser(), ss);  
-        } ELSE {
-            filterDepartment() <- NULL;
-        }
-    }
-;
-
-DESIGN balanceSkuStock {
-    filter {
-        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
-    }
-    ledgerBox {
-        MOVE BOX(bin);
-        MOVE BOX(bl);
-    }
 }
 
 @extendFormFilterStockAccess(bg, dialogBinStock);

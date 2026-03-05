@@ -1,0 +1,334 @@
+MODULE DepartmentBinLedger;
+
+REQUIRE DepartmentBin, BinLedger, BatchBinLedger, EmployeeBinDepartment;
+
+NAMESPACE Bin;
+
+outDepartment = ABSTRACT Department (BinLedger) MATERIALIZED INDEXED;
+nameOutDepartment 'Отдел (из)' (BinLedger ledger)= name(outDepartment(ledger)) CHARWIDTH 20;
+
+inDepartment = ABSTRACT Department (BinLedger) MATERIALIZED INDEXED;
+nameInDepartment 'Отдел (в)' (BinLedger ledger)= name(inDepartment(ledger)) CHARWIDTH 20;
+
+EXTEND FORM binLedger
+    PROPERTIES(b) READONLY nameInDepartment AFTER canonicalIdInBin(b), nameOutDepartment AFTER canonicalIdOutBin(b)
+;
+
+currentBalance 'Текущий остаток в отделе'=
+    GROUP SUM currentBalance(Sku sku, Bin b) BY sku, department(b);
+prevCurrentBalance 'Текущий остаток в отделе' (Sku sku, Department department)=
+    PREV(currentBalance(sku, department));
+balanceB 'Остаток в отделе (до)' =
+    GROUP SUM balanceB(Sku sku, Bin b, DATETIME dateTime) BY sku, department(b), dateTime;
+prevBalanceB 'Остаток в отделе (до)' (Sku sku, Department department, DATETIME dateTime)=
+    PREV(balanceB(sku, department, dateTime));
+balanceA 'Остаток в отделе (после)' =
+    GROUP SUM balanceA(Sku sku, Bin b, DATETIME dateTime) BY sku, department(b), dateTime;
+prevBalanceA 'Остаток в отделе (после)' (Sku sku, Department department, DATETIME dateTime)=
+    PREV(balanceA(sku, department, dateTime));
+
+currentBalance 'Текущий остаток в отделе'= 
+    GROUP SUM currentBalance(Batch batch, Bin b) BY batch, department(b);
+prevCurrentBalance 'Текущий остаток в отделе' (Batch batch, Department department)= 
+    PREV(currentBalance(batch, department));
+balanceB 'Остаток в отделе (до)' =
+    GROUP SUM balanceB(Batch batch, Bin b, DATETIME dateTime) BY batch, department(b), dateTime;
+prevBalanceB 'Остаток в отделе (до)' (Batch batch, Department department, DATETIME dateTime)=
+    PREV(balanceB(batch, department, dateTime));
+balanceA 'Остаток в отделе (после)' =
+    GROUP SUM balanceA(Batch batch, Bin b, DATETIME dateTime) BY batch, department(b), dateTime;
+prevBalanceA 'Остаток в отделе (после)' (Batch batch, Department department, DATETIME dateTime)=
+    PREV(balanceA(batch, department, dateTime));
+
+countInLedgerA 'Кол-во приходов до' (Batch bt, Department department, DATE d) =
+    [GROUP SUM 1 IF active(BinLedger ledger) AND date(ledger) < DATE d1 BY batch(ledger), department(inBin(ledger)), d1](bt, department, sum(d,1));
+
+dateTimeLastMoved 'Время последнего движения' (Sku sku, Department department) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger) AND (department(inBin(ledger))==department OR department(outBin(ledger))==department)
+    BY sku(ledger);
+
+moved (Sku item, Department department, DATE date, LONG period) =
+    dateTimeLastMoved(item, department) >= toDateTime(subtract(date, period));
+moved (Sku item, Department department, DATETIME dateTime, LONG period) =
+    dateTimeLastMoved(item, department) >= toDateTime(subtract(toDate(dateTime), period));
+
+currentBalance (Sku item, Department department, LONG period) =
+    moved (item, department, currentDate(), period) OR currentBalance(item, stock(department));
+balance (Sku item, Department department, DATETIME dateTime, LONG period) =
+    moved (item, department, dateTime, period) OR balanceB(item, stock(department), dateTime);
+
+dateTimeLastMoved 'Время последнего прихода' (Batch b, Department department) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger)
+    BY batch(ledger), department(inBin(ledger));
+
+dateTimeLastMovedInOut 'Время последнего движения' (Batch b, Department department) =
+    GROUP LAST dateTime(BinLedger ledger)
+    ORDER dateTime(ledger), ledger
+    WHERE active(ledger) AND (department(inBin(ledger))==department OR department(outBin(ledger))==department)
+    BY batch(ledger);
+
+moved (Batch b, Department department, DATE date, LONG period) =
+    dateTimeLastMovedInOut(b, department) >= toDateTime(subtract(date, period));
+moved (Batch b, Department department, DATETIME dateTime, LONG period) =
+    dateTimeLastMovedInOut(b, department) >= toDateTime(subtract(toDate(dateTime), period));
+
+currentBalance (Batch b, Department department, LONG period) =
+    moved (b, department, currentDate(), period) OR currentBalance(b, stock(department));
+balance (Batch b, Department department, DATETIME dateTime, LONG period) =
+    moved (b, department, dateTime, period) OR balanceB(b, stock(department), dateTime);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES SHOWIF countAccessCompanyDepartments(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyDepartments(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS currentBalance(s, filterDepartment())
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    OBJECTS department = Department PANEL
+    PROPERTIES currentBalance(s, department) DRAW sts SHOWIF filterDepartment() AFTER currentBalance(s, st)
+    FILTERS department = filterDepartment()
+
+    OBJECTS bin = Bin
+    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
+    PROPERTIES(s, bin) READONLY currentBalance, currentReserved, availableQuantity
+    FILTERS stock(bin) = st, currentBalance(s, bin), filterDepartment()==department(bin)
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    ORDERS order(bin), canonicalId(bin), name(bin)
+    
+    OBJECTS bl = BinLedger
+    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInDepartment, 
+        canonicalIdOutBin, nameOutDepartment
+    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+    OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyDepartments(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterDepartment() <- OVERRIDE department(currentUser()), defaultCompanyDepartment(currentUser(), ss);
+        } ELSE {
+            filterDepartment() <- NULL;
+        }
+    }
+;
+
+DESIGN currentBalanceSkuStock {
+    filter {
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
+    }
+    ledgerBox {
+        MOVE BOX(bin){
+            PROPERTY(canonicalId(bin)) {defaultCompare = '=*';}
+        }
+        MOVE BOX(bl){
+            PROPERTY(canonicalIdInBin(bl)) {defaultCompare = '=*';}
+            PROPERTY(canonicalIdOutBin(bl)) {defaultCompare = '=*';}
+        }
+    }
+}
+
+EXTEND FORM balanceSkuStock
+    PROPERTIES SHOWIF countAccessCompanyDepartments(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyDepartments(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS balanceB(s, filterDepartment(), t)
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    OBJECTS department = Department PANEL
+    PROPERTIES balanceB(s, department, t) DRAW sts SHOWIF filterDepartment() AFTER balanceB(s, st,t)
+    FILTERS department = filterDepartment()
+
+    OBJECTS bin = Bin
+    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), status
+    PROPERTIES READONLY balanceB(s, bin, t)
+    FILTERS stock(bin) = st, balanceB(s, bin, t), department(bin)==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    ORDERS order(bin), canonicalId(bin), name(bin)
+
+    OBJECTS bl = BinLedger
+    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInDepartment, 
+        canonicalIdOutBin, nameOutDepartment
+    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), sku(bl)==s,
+        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyDepartments(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterDepartment() <- defaultCompanyDepartment(currentUser(), ss);
+        } ELSE {
+            filterDepartment() <- NULL;
+        }
+    }
+;
+
+DESIGN balanceSkuStock {
+    filter {
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyDepartments(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyDepartments(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS currentBalance(bt, filterDepartment())
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    OBJECTS department = Department PANEL
+    PROPERTIES currentBalance(bt, department) DRAW stb SHOWIF filterDepartment() AFTER currentBalance(bt, st)
+    FILTERS department = filterDepartment()
+
+    OBJECTS bin = Bin
+    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), statusBatch
+    PROPERTIES(bt, bin) READONLY currentBalance
+    FILTERS stock(bin) = st, currentBalance(bt, bin), department(bin)==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    ORDERS order(bin), canonicalId(bin), name(bin)
+
+    OBJECTS bl = BinLedger
+    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInDepartment, 
+        canonicalIdOutBin, nameOutDepartment
+    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyDepartments(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterDepartment() <- defaultCompanyDepartment(currentUser(), ss);
+        } ELSE {
+            filterDepartment() <- NULL;
+        }
+    }
+;
+
+DESIGN currentBalanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
+    }
+    ledgerBox {
+        MOVE BOX(bin){
+            PROPERTY(canonicalId(bin)) {defaultCompare = '=*';}
+        }
+        MOVE BOX(bl){
+            PROPERTY(canonicalIdInBin(bl)) {defaultCompare = '=*';}
+            PROPERTY(canonicalIdOutBin(bl)) {defaultCompare = '=*';}
+        }
+    }
+}
+
+EXTEND FORM balanceBatchStock
+    PROPERTIES SHOWIF countAccessCompanyDepartments(currentUser(), ss) AND singleStore()
+        READONLYIF countAccessCompanyDepartments(currentUser(), ss) = 1 nameFilterDepartment() ON CHANGE changeFilterDepartment(ss)
+    FILTERS balanceB(bt, filterDepartment(), t)
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    OBJECTS department = Department PANEL
+    PROPERTIES balanceB(bt, department, t) DRAW stb SHOWIF filterDepartment() AFTER balanceB(bt, st,t)
+    FILTERS department = filterDepartment()
+
+    OBJECTS bin = Bin
+    PROPERTIES(bin) READONLY order, canonicalId, name, id SHOWIF showIDs(), statusBatch
+    PROPERTIES READONLY balanceB(bt, bin, t)
+    FILTERS stock(bin) = st, balanceB(bt, bin, t), department(bin)==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+    ORDERS order(bin), canonicalId(bin), name(bin)
+
+    OBJECTS bl = BinLedger
+    PROPERTIES(bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInDepartment, 
+        canonicalIdOutBin, nameOutDepartment
+    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
+    ORDERS dateTime(bl) DESC
+    FILTERS isPosted(bl), batch(bl)==bt,
+        stock(bl) = st, department(inBin(bl))==filterDepartment() OR department(outBin(bl))==filterDepartment()
+        OR NOT filterDepartment() OR NOT countAccessCompanyDepartments(currentUser(), ss) OR multipleStores()
+
+    EVENTS ON CHANGE ss {
+        IF countAccessCompanyDepartments(currentUser(), ss) = 1 AND singleStore() THEN {
+            filterDepartment() <- defaultCompanyDepartment(currentUser(), ss);
+        } ELSE {
+            filterDepartment() <- NULL;
+        }
+    }
+;
+
+DESIGN balanceBatchStock {
+    filter {
+        MOVE PROPERTY(nameFilterDepartment()) AFTER PROPERTY(name(ss)) {tag='';}
+    }
+    ledgerBox {
+        MOVE BOX(bin);
+        MOVE BOX(bl);
+    }
+}
+
+META defineInterfaceDepartment (object, prefix, caption)
+    prefix###department = ABSTRACT Department (###object) MATERIALIZED;
+    prefix###department = DATA Department (###user###object);
+    prefix###department (User###object object) += prefix###department(object);
+
+    name###prefix###department 'Отдел'##caption (###object object) = name(prefix###department(object)) IN documentHeader CHARWIDTH 20;
+    name###prefix###department 'Отдел'##caption (User###object user###object) = name(prefix###department(user###object)) IN documentHeader CHARWIDTH 20;
+
+END
+
+META defineDetailDepartment (object, prefix, caption)
+    prefix###department(###object###detail object###Detail) = prefix###department(object(object###Detail));
+    prefix###department(User###object###detail user###object###detail) = prefix###department(user###object(user###object###detail));
+
+    name###prefix###department 'Отдел'##caption (###object###detail object###detail) = name(prefix###department(object###detail)) IN documentPrm CHARWIDTH 20;
+    name###prefix###department 'Отдел'##caption (User###object###detail user###object###detail) = name(prefix###department(user###object###detail)) IN documentPrm CHARWIDTH 20;
+    
+END
+
+META defineConstraintDetailDepartment(object, departmentProp, prefix, caption)
+    CONSTRAINT SET(prefix###bin(###object###detail object###Detail) AND departmentProp(object###Detail) AND
+        NOT departmentProp(object###Detail)==department(prefix###bin(object###Detail)))
+        MESSAGE 'Отдел ячейки'##caption + ' строки документа должен соотвествовать отделу'##caption+ 'шапки документа';
+
+END    
+
+META defineDocumentDepartments (object)
+    @defineInterfaceDepartment (object, in, ' (в)');
+    @defineInterfaceDepartment (object, out, ' (из)');
+END
+
+META defineDocumentWithdetailDepartments (object)
+    @defineInterfaceDepartment (object, in, ' (в)');
+    @defineDetailDepartment (object, in, ' (в)');
+
+    @defineInterfaceDepartment (object, out, ' (из)');
+    @defineDetailDepartment (object, out, ' (из)');
+END
+
+META implementDepartmentLedger(class, object, departmentProp)
+    departmentProp[BinLedger] (###class ledger) += departmentProp(object(ledger));
+END
+
+META defineInvoiceShipmentDepartment (object, prefix, caption)
+    @defineInterfaceDepartment(object, prefix, caption);
+    prefix##Department[ShipmentDetail] (InvoiceShipmentDetail detail) += prefix##Department(invoiceDetail(detail));
+    
+    EXTEND FORM userInvoice
+        PROPERTIES(d) READONLY SHOWIF useBins(i) BACKGROUND backgroundShipped(i) AFTER name###prefix##Bin(d) name###prefix##Department       
+    ;    
+    EXTEND FORM invoices
+        PROPERTIES(d) READONLY SHOWIF useBins(i) BACKGROUND backgroundShipped(i) AFTER name###prefix##Bin(d) name###prefix##Department
+    ;
+END
+
+META setDepartmentDetail (object, prefix, caption)
+   WHEN LOCAL CHANGED(prefix###bin(User###object###detail user###object###Detail)) DO {
+       prefix###department(user###object###Detail) <- department(prefix###bin(user###object###Detail));   
+   }
+
+   CONSTRAINT SET(prefix###bin(###object###detail object###Detail) AND prefix###department(object###Detail) AND
+       NOT prefix###department(object###Detail)==department(prefix###bin(object###Detail)))
+       MESSAGE 'Отдел ячейки'##caption + ' строки документа должен соотвествовать отделу'##caption;
+END    

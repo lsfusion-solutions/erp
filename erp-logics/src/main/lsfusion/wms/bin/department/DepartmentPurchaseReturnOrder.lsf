@@ -1,0 +1,60 @@
+MODULE DepartmentPurchaseReturnOrder;
+
+REQUIRE DepartmentOrder, PurchaseReturnOrder, DepartmentBinLedger;
+
+NAMESPACE PurchaseReturn;
+
+department = ABSTRACT Department (Order) MATERIALIZED INDEXED;
+department (OrderDetail d) = department(order(d));
+nameDepartment 'Отдел' (Order o) = name(department(o)) CHARWIDTH 15;
+
+department = DATA Department (UserOrder);
+department (UserOrderDetail d) = department(userOrder(d));
+nameDepartment 'Отдел' (UserOrder o) = name(department(o)) CHARWIDTH 15;
+
+department[Order.Order](Order o) += department(o);
+department(UserOrder o) += department(o);
+
+changeDepartment(UserOrder o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = customerStock(o) DO {
+        department(o) <- d;
+        filterDepartment() <- d;
+        IF NOT customerStock(o) THEN customerStock(o) <- stock(d);
+    }
+}
+
+CONSTRAINT customerStock(UserOrder userOrder) AND department(userOrder) AND NOT
+    customerStock(userOrder) = stock(department(userOrder))
+    CHECKED BY department[UserOrder]
+    MESSAGE 'Cклад покупателя и отдел покупателя для заказа не имеют связи';
+
+EXTEND FORM orders
+    PROPERTIES READONLYIF isReadonly() nameDepartment(o) ON CHANGE changeDepartment(o) AFTER nameCustomerStock(o)
+    FILTERS accessCompany(currentUser(), department(o)) OR o IS Order AND NOT department(o)
+;
+
+EXTEND FORM userOrder
+    PROPERTIES READONLY prevAvailableQuantity(b,sto) BEFORE prevCurrentBalance(b,sto)
+    PROPERTIES nameDepartment(o) ON CHANGE changeDepartment(o)
+    PROPERTIES SELECTOR name 'Отдел' = nameFilterDepartment() ON CHANGE {changeFilterDepartment(customerStock(o)); department(o) <- filterDepartment();}
+    FILTERGROUP filterDepartment
+        FILTER 'Партии с остатком по выбранному отделу (зоне)' currentBalance(b, filterDepartment()) DEFAULT
+    EVENTS ON INIT {
+        filterDepartment() <- department(o);
+    }
+;
+
+DESIGN userOrder {
+    headerRow112 {
+        MOVE PROPERTY(nameDepartment(o));
+    }
+    BOX(stb) {
+        NEW container FIRST{
+            horizontal = TRUE;
+            NEW filterDepartment {
+                caption = 'Отдел';
+                MOVE PROPERTY(name);
+            }
+        }
+    }
+}

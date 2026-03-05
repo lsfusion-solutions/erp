@@ -30,8 +30,6 @@ dataShippingBin = DATA LOCAL NESTED Bin (CustomUser);
 shippingBin (CustomUser u) = OVERRIDE dataShippingBin(u), (GROUP MAX defaultShippingBin(u, Stock stock));
 nameShippingBin 'Ячейка(отгрузка)' (CustomUser u) = canonicalId(shippingBin(u)) CHARWIDTH 10;
 
-nameBinGroup2ShippingBin 'Зона ячейки' (CustomUser u) = nameBinGroup2(shippingBin(u)) CHARWIDTH 10;
-
 CONSTRAINT LOCAL dataShippingBin(CustomUser u) AND NOT accessCompany(u, stock(dataShippingBin(u)))
     CHECKED BY dataShippingBin[CustomUser] MESSAGE 'Нет доступа к складу ячейки';
 
@@ -41,7 +39,7 @@ CONSTRAINT LOCAL dataShippingBin(CustomUser u) AND NOT shipping(dataShippingBin(
 FORM shipping 'Отгрузка'
     OBJECTS u=CustomUser PANEL
     PROPERTIES(u) READONLY name
-    PROPERTIES(u) nameShippingBin, nameBinGroup2ShippingBin READONLY
+    PROPERTIES(u) nameShippingBin
     FILTERS u=currentUser()
 
     OBJECTS s = Sku
@@ -61,11 +59,6 @@ DESIGN shipping {
                 charWidth = 30;
             }
             PROPERTY(nameShippingBin(u)) {
-                font = 'bold 24';
-                panelCaptionVertical = TRUE;
-                charWidth = 30;
-            }
-            PROPERTY(nameBinGroup2ShippingBin(u)) {
                 font = 'bold 24';
                 panelCaptionVertical = TRUE;
                 charWidth = 30;

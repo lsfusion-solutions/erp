@@ -1,0 +1,107 @@
+MODULE DepartmentBinOrderBinLedger;
+
+REQUIRE DepartmentBinLedger, BinOrderBinLedger, DepartmentReservedBinLedger, BatchBinOrderBinLedger;
+
+NAMESPACE Bin;
+
+@defineDocumentWithdetailDepartments(binOrder);
+
+@defineConstraintDetailDepartment(binOrder, inDepartment, in, ' (в)');
+@defineConstraintDetailDepartment(binOrder, outDepartment, out, ' (из)');
+
+department[ReservedBinLedger](BinOrderDetail ledger) += outDepartment(ledger);
+
+overCopy(BinOrder order, UserBinOrder o) + {
+    outDepartment(o) <- outDepartment(order);
+    inDepartment(o) <- inDepartment(order);
+}
+
+changeOutDepartment(UserBinOrder o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {
+        outDepartment(o) <- d;
+        filterDepartment() <- d;
+        IF NOT stock(o) THEN stock(o) <- stock(d);
+    }
+}
+
+CONSTRAINT supplierStock(UserBinOrder userBinOrder) AND outDepartment(userBinOrder) AND NOT
+    stock(userBinOrder) = stock(outDepartment(userBinOrder))
+    CHECKED BY outDepartment[UserBinOrder]
+    MESSAGE 'Cклад и отдел (из) для перемещения между ячейками не имеют связи';
+
+CONSTRAINT supplierStock(UserBinOrder userBinOrder) AND inDepartment(userBinOrder) AND NOT
+    stock(userBinOrder) = stock(inDepartment(userBinOrder))
+    CHECKED BY inDepartment[UserBinOrder]
+    MESSAGE 'Cклад и отдел (в) для перемещения между ячейками не имеют связи';
+
+needOutDepartment 'Отдел (из) обязателен' = DATA BOOLEAN (Operation);
+needInDepartment 'Отдел (в) обязателен' = DATA BOOLEAN (Operation);
+
+inDepartment '"Ячейка (в)" должна принадлежать отделу' = DATA BOOLEAN (Operation);
+outDepartment '"Ячейка (из)" должна принадлежать отделу' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needInDepartment, needOutDepartment, inDepartment, outDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        MOVE PROPERTY(needOutDepartment(o));
+        MOVE PROPERTY(needInDepartment(o));
+        NEW additionalInOutDepartmentContainer{
+            horizontal = TRUE;
+            MOVE PROPERTY(outDepartment(o));
+            MOVE PROPERTY(inDepartment(o));
+        }
+    }
+}
+
+CONSTRAINT (CHANGED(operation(BinOrder o)) OR CHANGED(outDepartment(o))) AND
+    NOT outDepartment(o) AND needOutDepartment(operation(o))
+    MESSAGE 'Отдел (из) обязателен для заданной операции заказа на перемещения';
+
+CONSTRAINT (CHANGED(operation(BinOrder o)) OR CHANGED(inDepartment(o))) AND 
+    NOT inDepartment(o) AND needInDepartment(operation(o))
+    MESSAGE 'Отдел (в) обязателен для заданной операции заказа на перемещения';
+
+overExtraInBinFilter(Bin b, UserBinOrderDetail d) += inDepartment(d)==department(b);
+needExtraInBinFilter(Bin b, UserBinOrderDetail d) += inDepartment(d) AND inDepartment(operation(d)) AND b IS Bin;
+overExtraOutBinFilter(Bin b, UserBinOrderDetail d) += outDepartment(d)==department(b);
+needExtraOutBinFilter(Bin b, UserBinOrderDetail d) += outDepartment(d) AND outDepartment(operation(d)) AND b IS Bin;
+
+overExtraInBinFilter(Bin b, UserBinOrder d) += inDepartment(d)==department(b);
+needExtraInBinFilter(Bin b, UserBinOrder d) += inDepartment(d) AND inDepartment(operation(d)) AND b IS Bin;
+overExtraOutBinFilter(Bin b, UserBinOrder d) += outDepartment(d)==department(b);
+needExtraOutBinFilter(Bin b, UserBinOrder d) += outDepartment(d) AND outDepartment(operation(d)) AND b IS Bin;
+
+EXTEND FORM binOrders
+    PROPERTIES READONLYIF isReadonly() AFTER nameStock(o) nameOutDepartment(o), nameInDepartment(o)
+    FILTERS accessCompany(currentUser(), outDepartment(o)) OR o IS BinOrder AND NOT outDepartment(o)
+;
+
+EXTEND FORM userBinOrder
+    PROPERTIES nameOutDepartment(o) ON CHANGE changeOutDepartment(o), nameInDepartment(o)
+    PROPERTIES SELECTOR name 'Отдел' = nameFilterDepartment() ON CHANGE {changeFilterDepartment(supplierStock(o)); outDepartment(o) <- filterDepartment();}
+    FILTERGROUP filterDepartment
+        FILTER 'Партии с остатком по выбранному отделу' currentBalance(b, filterDepartment()) DEFAULT
+
+    EVENTS ON INIT {
+        filterDepartment() <- outDepartment(o);
+    }
+;
+
+DESIGN userBinOrder {
+    second {
+        MOVE PROPERTY(nameOutDepartment(o)) {charWidth = 40;}
+        MOVE PROPERTY(nameInDepartment(o)) {charWidth = 40;}
+    }
+    BOX(stb) {
+        NEW container FIRST{
+            horizontal = TRUE;
+            NEW filterDepartment {
+                caption = 'Отдел';
+                MOVE PROPERTY(name);
+            }
+        }
+    }
+}

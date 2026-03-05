@@ -1,0 +1,93 @@
+MODULE DepartmentBinTransferBinLedger;
+
+REQUIRE DepartmentBinLedger, BatchBinTransferBinLedger, DepartmentBinOrderBinLedger, BinOrderTransferBinLedger,
+        DepartmentReservedBinLedger, BatchBinOrderTransferAggregation;
+
+NAMESPACE Bin;
+
+@defineDocumentWithdetailDepartments(binTransfer);
+
+outDepartment[BinLedger](BinTransferDetail ledger) += outDepartment(ledger) IF outBin(ledger);
+inDepartment[BinLedger](BinTransferDetail ledger) += inDepartment(ledger) IF inBin(ledger);
+
+department[ReservedBinLedger](BinTransferDetail ledger) += outDepartment(ledger);
+
+department[ReservedBinLedger](SkuOutBinOrderTransferAggregation ledger) += department(bin(ledger));
+department[ReservedBinLedger](BatchOutBinOrderTransferAggregation ledger) += department(bin(ledger));
+
+@defineConstraintDetailDepartment(binTransfer, inDepartment, in, ' (в)');
+@defineConstraintDetailDepartment(binTransfer, outDepartment, out, ' (из)');
+
+overCopy(BinTransfer order, UserBinTransfer o) + {
+    outDepartment(o) <- outDepartment(order);
+    inDepartment(o) <- inDepartment(order);
+}
+
+CONSTRAINT (CHANGED(operation(BinTransfer o)) OR CHANGED(outDepartment(o))) AND
+    NOT outDepartment(o) AND needOutDepartment(operation(o))
+    MESSAGE 'Отдел (из) обязателен для заданной операции перемещения по ячейкам';
+
+CONSTRAINT (CHANGED(operation(BinTransfer o)) OR CHANGED(inDepartment(o))) AND
+    NOT inDepartment(o) AND needInDepartment(operation(o))
+    MESSAGE 'Отдел (в) обязателен для заданной операции перемещения по ячейкам';
+
+
+changeOutDepartment(UserBinTransfer o) {
+    DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {
+        outDepartment(o) <- d;
+        filterDepartment() <- d;
+        IF NOT stock(o) THEN stock(o) <- stock(d);
+    }
+}
+
+CONSTRAINT supplierStock(UserBinTransfer userBinTransfer) AND outDepartment(userBinTransfer) AND NOT
+    stock(userBinTransfer) = stock(outDepartment(userBinTransfer))
+    CHECKED BY outDepartment[UserBinTransfer]
+    MESSAGE 'Cклад и отдел (из) для перемещения между ячейками не имеют связи';
+
+CONSTRAINT supplierStock(UserBinTransfer userBinTransfer) AND inDepartment(userBinTransfer) AND NOT
+    stock(userBinTransfer) = stock(inDepartment(userBinTransfer))
+    CHECKED BY inDepartment[UserBinTransfer]
+    MESSAGE 'Cклад и отдел (в) для перемещения между ячейками не имеют связи';
+
+
+EXTEND FORM binTransfers
+    PROPERTIES READONLYIF isReadonly() AFTER nameStock(o) nameOutDepartment(o), nameInDepartment(o)
+    FILTERS accessCompany(currentUser(), outDepartment(o)) OR o IS BinTransfer AND NOT outDepartment(o)
+;
+
+EXTEND FORM userBinTransfer
+    PROPERTIES nameOutDepartment(o) ON CHANGE changeOutDepartment(o), nameInDepartment(o)
+    PROPERTIES SELECTOR name 'Отдел' = nameFilterDepartment() ON CHANGE {changeFilterDepartment(supplierStock(o)); outDepartment(o) <- filterDepartment();}
+    FILTERGROUP filterDepartment
+        FILTER 'Партии с остатком по выбранному отделу' currentBalance(b, filterDepartment()) DEFAULT
+
+    EVENTS ON INIT {
+        filterDepartment() <- outDepartment(o);
+    }
+;
+
+DESIGN userBinTransfer{
+    second {
+        MOVE PROPERTY(nameOutDepartment(o)) {charWidth = 40;}
+    }
+    BOX(stb) {
+        NEW filterstb FIRST{
+            horizontal = TRUE;
+            NEW filterDepartment {
+                caption = 'Отдел';
+                MOVE PROPERTY(name);
+            }
+        }
+    }
+}
+
+overExtraInBinFilter(Bin b, UserBinTransferDetail d) += inDepartment(d)==department(b);
+needExtraInBinFilter(Bin b, UserBinTransferDetail d) += inDepartment(d) AND inDepartment(operation(d)) AND b IS Bin;
+overExtraOutBinFilter(Bin b, UserBinTransferDetail d) += outDepartment(d)==department(b);
+needExtraOutBinFilter(Bin b, UserBinTransferDetail d) += outDepartment(d) AND outDepartment(operation(d)) AND b IS Bin;
+
+overExtraInBinFilter(Bin b, UserBinTransfer d) += inDepartment(d)==department(b);
+needExtraInBinFilter(Bin b, UserBinTransfer d) += inDepartment(d) AND inDepartment(operation(d)) AND b IS Bin;
+overExtraOutBinFilter(Bin b, UserBinTransfer d) += outDepartment(d)==department(b);
+needExtraOutBinFilter(Bin b, UserBinTransfer d) += outDepartment(d) AND outDepartment(operation(d)) AND b IS Bin;

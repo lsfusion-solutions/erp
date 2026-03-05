@@ -1,0 +1,44 @@
+MODULE DepartmentRevaluationBinLedger;
+
+REQUIRE DepartmentBinLedger, Revaluation;
+
+NAMESPACE Revaluation;
+
+@defineInterfaceDepartment(revaluation, , );
+
+@defineDetailDepartment(revaluation, , '');
+
+CONSTRAINT stock(UserRevaluation userRevaluation) AND department(userRevaluation) AND NOT
+    stock(userRevaluation) = stock(department(userRevaluation))
+    CHECKED BY department[UserRevaluation]
+    MESSAGE 'Cклад и отдел переоценки не имеют связи';
+
+needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        caption = 'Ограничения';
+        MOVE PROPERTY(needDepartment(o));
+    }
+}
+
+CONSTRAINT (CHANGED(operation(Revaluation r)) OR CHANGED(department(r))) AND NOT department(r) AND needDepartment(operation(r))
+    MESSAGE 'Отдел обязателен для заданной операции переоценки';
+
+EXTEND FORM userRevaluation
+    PROPERTIES nameDepartment(p) 
+;
+
+DESIGN userRevaluation {
+    third {
+        MOVE PROPERTY(nameDepartment(p)) AFTER PROPERTY(nameStock(p)) {charWidth = 20;}
+    }
+}
+
+EXTEND FORM revaluations
+    PROPERTIES READONLY nameDepartment(p) AFTER nameStock(p)
+;

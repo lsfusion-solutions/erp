@@ -17,8 +17,11 @@ WHEN LOCAL (CHANGED(GRDateTime(ReceivingDetail detail)) OR SETCHANGED(batch(deta
     shipmentPrice(detail) <- prevAccountPriceA(batch(detail), stock(inBin(detail)), GRDateTime(detail));
 }
 
+priceRound = ABSTRACT CASE INTEGER (ReceivingDetail);
+priceRound (ReceivingDetail d) += WHEN d IS ReceivingDetail THEN 2;
+
 calcShipmentSum = ABSTRACT VALUE NUMERIC[18,4] (ReceivingDetail);
-calcShipmentSum(ReceivingDetail detail) += NUMERIC[18,4](round2(quantity(detail) * shipmentPrice(detail))); //округление делаем до двух знаков, если надо, то переопределиться потом
+calcShipmentSum(ReceivingDetail detail) += NUMERIC[18,4](Utils.round(quantity(detail) * shipmentPrice(detail), priceRound(detail)));
 shipmentSum (ReceivingDetail detail) <- calcShipmentSum(detail)
     WHEN DO (CHANGED(quantity(detail)) OR CHANGED (shipmentPrice(detail)));
 
@@ -64,8 +67,9 @@ recalculateShipmentSum() + {
 
 CLASS IncSDReceivingBinLedger 'Приемка (приход)' : IncStockDocumentBinLedger;
 
-needToCreateIncSDReceivingBinLedger (Receiving t, BinGroup g) = GROUP SUM quantity(ReceivingDetail d) IF receiving(d) == t AND binGroup2(inBin(d)) == g;
-incSDReceivingBinLedger = AGGR IncSDReceivingBinLedger WHERE needToCreateIncSDReceivingBinLedger(Receiving receiving, BinGroup binGroup) AND GRDateTime(receiving) MATERIALIZED INDEXED;
+needToCreateIncSDReceivingBinLedger (Receiving t, Department department) = 
+    GROUP SUM quantity(ReceivingDetail d) IF receiving(d) == t AND department(inBin(d)) == department;
+incSDReceivingBinLedger = AGGR IncSDReceivingBinLedger WHERE needToCreateIncSDReceivingBinLedger(Receiving receiving, Department department) AND GRDateTime(receiving) MATERIALIZED INDEXED;
 
 dateTime[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += GRDateTime(receiving(ledger));
 isPosted[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += isPosted(receiving(ledger));
@@ -75,16 +79,16 @@ series[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += series(receiv
 isReturn[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += isReturn(receiving(ledger));
 operation[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += operationInvoice(receiving(ledger));
 stock[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += customerStock(receiving(ledger));
-binGroup[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += binGroup(ledger);
+department[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += department(ledger);
 description[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += description(receiving(ledger));
 edit(IncSDReceivingBinLedger ledger) + {edit[UserReceiving](receiving(ledger));}
 
 shipmentSum(IncSDReceivingBinLedger ledger) =
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
 sumItem[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isItem(sku(d)) AND receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isItem(sku(d)) AND receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
 sumContainer[IncStockDocumentBinLedger] (IncSDReceivingBinLedger ledger) +=
-    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isContainer(sku(d)) AND receiving(d) == receiving(ledger) AND binGroup2(inBin(d)) == binGroup(ledger));
+    NUMERIC[18,4](GROUP SUM shipmentSum(ReceivingDetail d) IF isContainer(sku(d)) AND receiving(d) == receiving(ledger) AND department(inBin(d)) == department(ledger));
 
 legalEntity[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplier(receiving(ledger));
 legalEntityStock[StockDocumentBinLedger] (IncSDReceivingBinLedger ledger) += supplierStock(receiving(ledger));

@@ -1,0 +1,45 @@
+MODULE DepartmentDisparityBinLedger;
+
+REQUIRE DepartmentBinLedger, DisparityBinLedger;
+
+NAMESPACE Disparity;
+
+@defineInterfaceDepartment(disparity, , );
+
+@defineDetailDepartment(disparity, , '');
+
+outDepartment[BinLedger] (OutDisparityBinLedger ledger) += department(disparityDetail(ledger));
+inDepartment[BinLedger] (InDisparityBinLedger ledger) += department(disparityDetail(ledger));
+
+@defineConstraintDetailDepartment(disparity, department, , );
+
+needDepartment 'Отдел обязателен' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) needDepartment
+;
+
+DESIGN operation {
+    constraintContainer {
+        caption = 'Ограничения';
+        MOVE PROPERTY(needDepartment(o));
+    }
+}
+
+CONSTRAINT (CHANGED(operation(Disparity disparity)) OR CHANGED(department(disparity))) AND NOT department(disparity) AND needDepartment(operation(disparity))
+    MESSAGE 'Отдел обязателен для заданной операции изменения сортности';
+
+
+EXTEND FORM disparity
+    PROPERTIES(dis) nameDepartment AFTER nameStock(dis) 
+;
+
+DESIGN disparity {
+    GROUP(documentHeader,dis) {
+        MOVE PROPERTY(nameDepartment(dis)) AFTER PROPERTY(nameStock(dis));        
+    }
+}
+
+EXTEND FORM disparities
+    PROPERTIES(dis) READONLY nameDepartment AFTER nameStock(dis)
+;

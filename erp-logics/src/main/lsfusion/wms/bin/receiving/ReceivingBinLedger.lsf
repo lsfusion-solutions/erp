@@ -322,8 +322,6 @@ dataReceivingBin = DATA LOCAL NESTED Bin (CustomUser);
 receivingBin (CustomUser u) = OVERRIDE dataReceivingBin(u), (GROUP MAX defaultReceivingBin(u, Stock stock));
 nameReceivingBin 'Ячейка(приемка)' (CustomUser u) = canonicalId(receivingBin(u)) CHARWIDTH 10;
 
-nameBinGroup2ReceivingBin 'Зона ячейки' (CustomUser u) = nameBinGroup2(receivingBin(u)) CHARWIDTH 10;
-
 CONSTRAINT LOCAL dataReceivingBin(CustomUser u) AND NOT accessCompany(u, stock(dataReceivingBin(u)))
     CHECKED BY dataReceivingBin[CustomUser] MESSAGE 'Нет доступа к складу ячейки';
 
@@ -446,10 +444,18 @@ createDetailsToExist 'Принять ещё по документу основа
     }
 }
 
-putawayBin (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
-putawayBin (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
-putawayBinIgnoreBinBalance (Sku s, Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
-putawayBinIgnoreBinBalance (Stock st, Bin.Operation o, CustomUser u)  = [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
+putawayBin (Stock st, Bin.Operation o, CustomUser u)  = 
+    [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) 
+        ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
+putawayBin (Sku s, Stock st, Bin.Operation o, CustomUser u)  = 
+    [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND NOT prevCurrentBalance(bin) AND in(Sku sku, bin) 
+        ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBinIgnoreBinBalance (Sku s, Stock st, Bin.Operation o, CustomUser u)  = 
+    [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) AND in(Sku sku, bin) 
+        ORDER DESC order(bin), bin BY sku, stock(bin), o1, u1](s, st, o, u);
+putawayBinIgnoreBinBalance (Stock st, Bin.Operation o, CustomUser u)  = 
+    [GROUP LAST Bin bin IF inBin(bin, Bin.Operation o1) AND accessCompany(CustomUser u1, bin) 
+        ORDER DESC order(bin), bin BY stock(bin), o1, u1](st, o, u);
 
 ignoreBinBalanceDuringPutaway 'Не учитывать остаток ячейки при размещении' = DATA BOOLEAN ();
 
@@ -466,8 +472,9 @@ DESIGN options {
 putawayBinOver (Sku sku, Stock stock, Bin.Operation o, CustomUser u) = 
     OVERRIDE putawayBin(sku, stock, o, u), 
              putawayBinIgnoreBinBalance(sku, stock, o, u) IF ignoreBinBalanceDuringPutaway(),
-             putawayBin(stock, o, u) IF sku IS Sku,
-             putawayBinIgnoreBinBalance(stock, o, u) IF sku IS Sku AND ignoreBinBalanceDuringPutaway();
+             putawayBin(stock, o, u) IF sku IS Sku;
+//убрал, т.к. нет смысла размещать в первую попавшеюся ячейку. это скоррее мешает в работе
+//             putawayBinIgnoreBinBalance(stock, o, u) IF sku IS Sku AND ignoreBinBalanceDuringPutaway();
 
 putaway 'Разместить' (CustomUser u) {
     NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
@@ -503,131 +510,18 @@ putaway 'Разместить' (CustomUser u) {
     }    
 }
 
-putawayReserve 'Разместить' (CustomUser u) {
-    NEWSESSION NESTED(select[Sku], dataReceivingBin[CustomUser]) {
-        select(Sku sku) <- NULL WHERE select(sku) AND NOT (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        IF NOT (GROUP MAX select(Sku sku)) THEN {
-            select(Sku sku) <- TRUE WHERE (GROUP SUM currentBalance(sku, Bin bin) IF binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        }
-        IF NOT (GROUP MAX select(Sku sku)) THEN {
-            MESSAGE 'Нечего размещать';
-            RETURN;
-        }
-        IF NOT (GROUP MAX Bin bin IF storage(bin) AND stock(bin)==stock(receivingBin(u))) THEN {
-            MESSAGE 'Для склада размещения нет ячеек хранения';
-            RETURN;
-        }
 
-        FOR (GROUP MAX select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u))) NEW o = UserBinTransfer DO {
-            operation(o) <- putawayExternalOperation();
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Sku sku) AND currentBalance(sku, Bin bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) INLINE NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku;
-                outBin(d) <- bin;
-                inBin(d) <- putawayBinOver(sku, stock(receivingBin(u)), putawayExternalOperation(), u);
-                quantity(d) <- currentBalance(sku, bin);
-            }
-            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Sku sku) <- NULL;
-            }
-        }
-    }
-}
 
 useWriteOffReserveQuantity = ABSTRACT BOOLEAN ();
 writeOffReserveQuantity 'Кол-во к списанию' = ABSTRACT CASE NUMERIC[16,5] (Sku, Bin);
 writeOffReserveQuantity(Sku sku, Bin bin) += WHEN sku IS Sku AND bin IS Bin AND NOT useWriteOffReserveQuantity() THEN currentBalance(sku, bin);
 
-writeOffReserve 'Списать' (CustomUser u) {
-    NEWSESSION NESTED(select[Sku, Bin], dataReceivingBin[CustomUser]) {
-        select(Sku sku, Bin bin) <- NULL WHERE select(sku, bin) AND NOT (writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin));
-        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
-            select(Sku sku, Bin bin) <- TRUE WHERE writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin);
-        }
-        IF NOT (GROUP MAX select(Sku sku, Bin bin)) THEN {
-            MESSAGE 'Нечего размещать';
-            RETURN;
-        }
-        FOR (GROUP MAX select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin)) NEW o = UserBinTransfer DO {
-            operation(o) <- (OVERRIDE Bin.defaultOperation(u) IF Bin.countOperations(u) == 1, putawayWriteOffOperation());
-            date(o) <- currentDate();
-            time(o) <- currentTime();
-            stock(o) <- stock(receivingBin(u));
-            FOR select(Sku sku, Bin bin) AND writeOffReserveQuantity(sku, bin) AND binGroup2(bin)==binGroup2(receivingBin(u)) AND orderLedger(bin) NEW d = UserBinTransferDetail DO {
-                userBinTransfer(d) <- o;
-                sku(d) <- sku;
-                outBin(d) <- bin;
-                inBin(d) <- NULL;
-                quantity(d) <- writeOffReserveQuantity(sku, bin);
-            }
-            DIALOG userBinTransfer OBJECTS o=o MANAGESESSION DO {
-                select(Sku sku, Bin bin) <- NULL;
-            }
-        }
-    }
-}
-
-//делается через отдельную форму, что бы работал выпадающий список
-FORM receivingDialogBins 'Ячейки'
-    OBJECTS bg2 = BinGroup PANEL //будет передаваться при  вызове
-    
-    TREE binTree bg = BinGroup PARENT parent(bg)
-    PROPERTIES READONLY order(bg), canonicalId(bg), name(bg), canonicalName(bg), nameStock(bg)
-    FILTERGROUP active FILTER 'Активный' active(bg) DEFAULT
-    FILTERS isParent(bg, bg2) OR isParent(bg2, bg)
-    ORDERS order(bg), canonicalId(bg), name(bg)
-
-    OBJECTS b = Bin
-    PROPERTIES(b) READONLY order, canonicalId, id SHOWIF showIDs(), name, canonicalName, nameStock READONLY
-    FILTERS isParent(bg, b),
-        isParent(bg2, b)
-    ORDERS order(b), canonicalId(b), name(b)
-;
-
-DESIGN receivingDialogBins {
-    BOX {
-        size = (1024, 768);
-
-        NEW topContainer {
-            horizontal = TRUE;
-            fill = 1;
-
-            MOVE BOX(TREE binTree) {
-                caption = 'Группы ячеек';
-            }
-
-            MOVE BOX(b) {
-                fill = 2;
-                GRID(b) {
-                    defaultComponent = TRUE;
-                    PROPERTY(canonicalName(b)) {caption = 'Группа';}
-                }
-            }
-        }
-
-        MOVE TOOLBARBOX;
-    }
-}
-
-changeDataInBin(ReceivingDetail d, CustomUser u) {
-    FOR BinGroup bg2 == binGroup2(receivingBin(u)) DO {
-        //делаем через FOR, что бы работал выпадающий список в новой сессии
-        NEWSESSION {
-            DIALOG receivingDialogBins OBJECTS bg2 = bg2, b = inBin(d) INPUT LIST canonicalId(b) DO {
-                dataInBin(d) <- b;
-                APPLY;
-            }
-        }
-    }    
-}
+changeDataInBin ABSTRACT (ReceivingDetail, CustomUser);
 
 FORM receiving 'Приемка'
     OBJECTS u=CustomUser PANEL 
     PROPERTIES(u) READONLY name
-    PROPERTIES(u) nameReceivingBin, nameBinGroup2ReceivingBin READONLY
+    PROPERTIES(u) nameReceivingBin
     FILTERS u=currentUser()
     
     OBJECTS r=Receiving LAST
@@ -675,10 +569,7 @@ FORM receiving 'Приемка'
     PROPERTIES READONLY name(rs), idBarcode(rs), order(rb), canonicalId(rb), name(rb), currentBalance(rs, rb)
     ORDERS name(rs), order(rb)
     
-    PROPERTIES putawayReserve(u) DRAW reserve PANEL TOOLBAR
-    PROPERTIES writeOffReserve(u) DRAW reserve PANEL TOOLBAR
     FILTERS currentBalance(rs, rb),
-            binGroup2(rb)==binGroup2(receivingBin(u)),
             orderLedger(rb)
 
     OBJECTS dFrom = DATE PANEL, dTo = DATE PANEL
@@ -714,11 +605,6 @@ DESIGN receiving {
             charWidth = 30;
         }
         PROPERTY(nameReceivingBin(u)) {
-            font = 'bold 24';
-            panelCaptionVertical = TRUE;
-            charWidth = 30;
-        }
-        PROPERTY(nameBinGroup2ReceivingBin(u)) {
             font = 'bold 24';
             panelCaptionVertical = TRUE;
             charWidth = 30;

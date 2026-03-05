@@ -1,0 +1,33 @@
+MODULE DepartmentWriteOffReturnBinLedger;
+
+REQUIRE DepartmentBinLedger, WriteOffReturnBinLedger, DepartmentWriteOffBinLedger;
+
+NAMESPACE WriteOffReturn;
+
+@defineInterfaceDepartment(writeOff, , );
+
+@defineDetailDepartment(writeOff, , '');
+
+outDepartment[BinLedger] (WriteOffBinLedger ledger) += department(writeOffDetail(ledger)) IF outBin(writeOffDetail(ledger));
+inDepartment[BinLedger] (WriteOffBinLedger ledger) += department(writeOffDetail(ledger)) IF inBin(writeOffDetail(ledger));
+
+@defineConstraintDetailDepartment(writeOff, department, in, );
+
+@defineConstraintDetailDepartment(writeOff, department, out, );
+
+CONSTRAINT (CHANGED(operation(WriteOff r)) OR CHANGED(department(r))) AND NOT department(r) AND needDepartment(operation(r))
+    MESSAGE 'Отдел обязателен для заданной операции списания(возврат)';
+
+EXTEND FORM userWriteOff
+    PROPERTIES nameDepartment(w) AFTER nameStock(w)
+;
+
+DESIGN userWriteOff {
+    first {
+        MOVE PROPERTY(nameDepartment(w)) AFTER PROPERTY(nameStock(w));
+    }
+}
+
+EXTEND FORM writeOffs
+    PROPERTIES READONLY nameDepartment(w) AFTER nameStock(w)
+;    

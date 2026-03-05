@@ -1,0 +1,158 @@
+MODULE DepartmentCommittee;
+
+REQUIRE Bin, DepartmentBin, RepricingCommittee;
+
+NAMESPACE Bin;
+
+//--------------------------------Комиссия для расценки----------------------------------//
+CLASS BinGroupCommittee 'Комиссия отдела' : Committee; //todo: migrate to Department
+
+name 'Наименование' = DATA ISTRING[150](BinGroupCommittee) CHARWIDTH 20;
+
+name(BinGroupCommittee committee) += name(committee) IF committee IS BinGroupCommittee;
+
+binGroupCommitteeOld 'Комиссия для Зон' = DATA BinGroupCommittee (BinGroup) @@deprecated; //todo: migrate to Department
+
+departmentCommittee 'Комиссия отдела' = DATA BinGroupCommittee (Department);
+nameDepartmentCommittee 'Комиссия отдела' (Department department) = name(departmentCommittee(department)) IN committee;
+is 'По умолчанию' (BinGroupCommittee committee, Department department) = departmentCommittee(department) == committee;
+inCommittee (Department department, Employee employee) = in(departmentCommittee(department), employee);
+nameEmployeeCommittee 'Члены комиссии' (Department department) = namePositionEmployee(departmentCommittee(department));
+shortNameEmployeeCommittee 'Члены комиссии' (Department department) = shortNamePositionEmployee(departmentCommittee(department));
+nameChairman 'Председатель комиссии' (Department department) = nameChairman(departmentCommittee(department));
+shortNameChairman 'Председатель комиссии' (Department department) = shortNameChairman(departmentCommittee(department));
+namePositionChairman 'Должность' (Department department) = namePositionChairman(departmentCommittee(department));
+
+CONSTRAINT departmentCommittee(Department department) AND NOT in(departmentCommittee(department), stock(department))
+    CHECKED BY departmentCommittee[Department] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
+
+@defineCommitteeEmployee(committee, approver, 'Утверждающий');
+
+nameApprover 'Утверждающий' (Department department) = nameApprover(departmentCommittee(department));
+shortNameApprover 'Утверждающий' (Department department) = shortNameApprover(departmentCommittee(department));
+namePositionApprover 'Должность' (Department department) = namePositionApprover(departmentCommittee(department));
+
+FORM binGroupCommittee 'Комиссия для Зон'
+    OBJECTS c = BinGroupCommittee PANEL
+    PROPERTIES(c) name, nameChairman, nameApprover
+
+    TREE stockTree b = BPSTRING[3], sg = StockGroup PARENT parent(sg)
+    PROPERTIES READONLY VALUE(b), id(sg) SHOWIF showIDs(), sgTreeName = name(sg)
+    ORDERS sgTreeName
+    FILTERS stringEqualsAll(b)    
+
+    OBJECTS ts = Stock
+    PROPERTIES READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in 
+    FILTERGROUP inFilter
+        FILTER 'Отмеченные' in(c, ts)
+    FILTERGROUP inactiveStock 
+        FILTER 'Активный' active(ts) DEFAULT
+    FILTERS isParent(sg, ts) OR (ts IS Stock AND sg IS StockGroup AND NOT stockGroup(ts)) OR (ts IS Stock AND NOT sg)
+    ORDERS tsTreeName
+    
+    OBJECTS e = Employee
+    PROPERTIES(e) READONLY name[Contact], firstName, lastName, namePosition
+    PROPERTIES(c, e) in
+    FILTERS (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    FILTERGROUP employeeFilters
+        FILTER 'Показывать только членов комиссии' in(c, e)
+    FILTERGROUP active 
+        FILTER 'Активные' active(e) DEFAULT
+    
+    EDIT BinGroupCommittee OBJECT c
+;
+@extendFormFilterStockAccess(ts, binGroupCommittee);
+@extendFormFilterStockGroupAccess(sg, binGroupCommittee);
+
+DESIGN binGroupCommittee {
+    BOX {
+        size = (1024, 768);
+        OBJECTS {
+            NEW managers BEFORE BOX(e) {
+                caption = 'Состав комиссии';
+                horizontal = TRUE;
+                MOVE PROPERTY (nameChairman(c));
+                MOVE PROPERTY (nameApprover(c));
+            }
+
+            NEW stocks BEFORE managers {
+                fill = 1;
+                horizontal = TRUE;
+
+                MOVE BOX (TREE stockTree) {caption = 'Группы складов';}
+                MOVE BOX(ts) {
+                    fill = 3;
+                }
+            }
+        }
+    }
+}
+
+FORM binGroupCommitteeDialog 'Комиссии отделов'
+    OBJECTS w=BinGroupCommittee
+    PROPERTIES(w) READONLY name, nameStocks, nameEmployee, nameChairman, nameApprover
+    PROPERTIES(w) NEWSESSION NEW, EDIT, DELETE GRID
+
+    LIST BinGroupCommittee OBJECT w
+;
+
+NAVIGATOR {
+    stockNavigator {
+        revaluationNavigator {
+            NEW binGroupCommitteeDialog;
+        }
+    }
+}
+
+// ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
+
+META defineDocumentHeaderBinGroupCommittee(object, stockProp)
+    binGroupCommittee (object) = DATA BinGroupCommittee(###object);
+    nameBinGroupCommittee 'Комиссия для расценки' (###object object) = name(departmentCommittee(object)) IN documentPrm CHARWIDTH 20;
+    departmentCommittee (###object object) <- departmentCommittee(stockProp(object))
+        WHEN CHANGED(stockProp(object));
+
+    CONSTRAINT departmentCommittee (###object object) AND NOT in(departmentCommittee (object), stock(stockProp(object)))
+        CHECKED BY departmentCommittee[###object] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+
+    inBinGroupCommittee (###object object, Employee employee) = in(departmentCommittee (object), employee);
+    nameEmployeeBinGroupCommittee 'Члены комиссии' (###object object) = namePositionEmployee(departmentCommittee (object));
+    nameBinGroupChairman 'Председатель комиссии' (###object object) = nameChairman(departmentCommittee(object));
+    namePositionBinGroupChairman 'Должность' (###object object) = namePositionChairman(departmentCommittee(object));
+    nameApprover 'Утверждающий' (###object object) = Bin.nameApprover[BinGroupCommittee](departmentCommittee(object));
+    namePositionApprover 'Должность' (###object object) = Bin.namePositionApprover(departmentCommittee(object));
+END
+META defineDocumentHeaderAbstractBinGroupCommittee(object)
+    binGroupCommittee (object) = ABSTRACT BinGroupCommittee(###object);
+    nameBinGroupCommittee 'Комиссия для расценки' (###object object) = name(departmentCommittee(object)) IN documentPrm CHARWIDTH 20;
+
+    inBinGroupCommittee (###object object, Employee employee) = in(departmentCommittee (object), employee);
+    nameEmployeeBinGroupCommittee 'Члены комиссии' (###object object) = namePositionEmployee(departmentCommittee (object));
+    shortNameEmployeeBinGroupCommittee 'Члены комиссии' (###object object) = shortNameEmployee(departmentCommittee (object));
+    nameBinGroupChairman 'Председатель комиссии' (###object object) = nameChairman(departmentCommittee(object));
+    shortNameBinGroupChairman 'Председатель комиссии' (###object object) = shortNameChairman(departmentCommittee(object));
+    namePositionBinGroupChairman 'Должность' (###object object) = namePositionChairman(departmentCommittee(object));
+    nameApprover 'Утверждающий' (###object object) = Bin.nameApprover[BinGroupCommittee](departmentCommittee(object));
+    shortNameApprover 'Утверждающий' (###object object) = Bin.shortNameApprover[BinGroupCommittee](departmentCommittee(object));
+    namePositionApprover 'Должность' (###object object) = Bin.namePositionApprover[BinGroupCommittee](departmentCommittee(object));
+END
+
+META defineDocumentInterfaceHeaderBinGroupCommittee (object, stockProp)
+    @defineDocumentHeaderAbstractBinGroupCommittee (object);
+    @defineDocumentHeaderBinGroupCommittee (user###object, stockProp);
+
+    binGroupCommittee (User###object object) += departmentCommittee(object);
+END
+
+EXTEND FORM department 
+    PROPERTIES(d) nameDepartmentCommittee
+;
+
+DESIGN department {
+    MOVE GROUP(committee,d) AFTER mainContainer;
+}
+
+EXTEND FORM departments
+    PROPERTIES(d) READONLY nameDepartmentCommittee
+;
