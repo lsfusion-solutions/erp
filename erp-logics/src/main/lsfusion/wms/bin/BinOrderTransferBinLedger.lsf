@@ -129,6 +129,7 @@ EXTEND FORM userBinOrder
 // ------------------------------- Создание на основе заказа на перемещения ------------------------------------ //
 
 overFillUserBinTransfer ABSTRACT LIST (UserBinTransferDetail, BinOrderDetail);
+overFillUserBinTransfer ABSTRACT LIST (UserBinTransfer, BinOrder);
 overFillUserBinTransfer ABSTRACT LIST (UserBinTransfer);
 
 skipCreateUserBinTransferDetais = ABSTRACT BOOLEAN (UserBinTransfer);
@@ -139,6 +140,7 @@ moveUserBinTransfer 'Перемещение' (BinOrder binOrder)  {
             operation(p) <- operation(binOrder);
             binOrder(p) <- binOrder;
             stock(p) <- stock(binOrder);
+            overFillUserBinTransfer(p, binOrder);
             FOR binOrder(BinOrderDetail detail) == binOrder AND NOT skipCreateUserBinTransferDetais(p) NEW d = UserBinTransferDetail DO {
                 userBinTransfer(d) <- p;
                 sku(d) <- sku(detail);

@@ -36,18 +36,20 @@ CONSTRAINT supplierStock(UserBinOrder userBinOrder) AND inDepartment(userBinOrde
 
 needOutDepartment 'Отдел (из) обязателен' = DATA BOOLEAN (Operation);
 needInDepartment 'Отдел (в) обязателен' = DATA BOOLEAN (Operation);
+sameDepartment 'Одинаковый отдел' = DATA BOOLEAN (Operation);
 
 inDepartment '"Ячейка (в)" должна принадлежать отделу' = DATA BOOLEAN (Operation);
 outDepartment '"Ячейка (из)" должна принадлежать отделу' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) needInDepartment, needOutDepartment, inDepartment, outDepartment
+    PROPERTIES(o) needInDepartment, needOutDepartment, inDepartment, outDepartment, sameDepartment
 ;
 
 DESIGN operation {
     constraintContainer {
         MOVE PROPERTY(needOutDepartment(o));
         MOVE PROPERTY(needInDepartment(o));
+        MOVE PROPERTY(sameDepartment(o));
         NEW additionalInOutDepartmentContainer{
             horizontal = TRUE;
             MOVE PROPERTY(outDepartment(o));
@@ -58,11 +60,23 @@ DESIGN operation {
 
 CONSTRAINT (CHANGED(operation(BinOrder o)) OR CHANGED(outDepartment(o))) AND
     NOT outDepartment(o) AND needOutDepartment(operation(o))
-    MESSAGE 'Отдел (из) обязателен для заданной операции заказа на перемещения';
+    MESSAGE 'Отдел (из) необходимо задать для заказа на перемещения согласно настроек операции';
 
 CONSTRAINT (CHANGED(operation(BinOrder o)) OR CHANGED(inDepartment(o))) AND 
     NOT inDepartment(o) AND needInDepartment(operation(o))
-    MESSAGE 'Отдел (в) обязателен для заданной операции заказа на перемещения';
+    MESSAGE 'Отдел (в) необходимо задать для заказа на перемещения согласно настроек операции';
+
+CONSTRAINT (CHANGED(operation(BinOrder o)) OR CHANGED(inDepartment(o)) OR CHANGED(outDepartment(o))) AND
+    NOT inDepartment(o)==outDepartment(o) AND sameDepartment(operation(o))
+    MESSAGE 'Отделы должны совпадать для заказа на перемещения согласно настроек операции';
+
+WHEN LOCAL (CHANGED(inDepartment(UserBinOrder o))) AND NOT outDepartment(o) AND sameDepartment(operation(o)) DO {
+    outDepartment(o) <- inDepartment(o);
+}
+
+WHEN LOCAL (CHANGED(outDepartment(UserBinOrder o))) AND NOT inDepartment(o) AND sameDepartment(operation(o)) DO {
+    inDepartment(o) <- outDepartment(o);
+}
 
 overExtraInBinFilter(Bin b, UserBinOrderDetail d) += inDepartment(d)==department(b);
 needExtraInBinFilter(Bin b, UserBinOrderDetail d) += inDepartment(d) AND inDepartment(operation(d)) AND b IS Bin;

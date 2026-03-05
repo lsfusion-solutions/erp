@@ -1,6 +1,7 @@
 MODULE QuarantineDashboardBinLedger;
 
-REQUIRE WMSDashboard, DepartmentBin, BinOrderBinLedger, BinOrderTransferBinLedger, BatchBinLedger, DisparityBinLedger;
+REQUIRE WMSDashboard, DepartmentBin, BinOrderBinLedger, BinOrderTransferBinLedger, BatchBinLedger, DisparityBinLedger,
+    BatchReservedBinLedger;
 
 NAMESPACE Bin;
 
@@ -31,6 +32,7 @@ DESIGN options {
 
 in 'Отм.' = DATA LOCAL BOOLEAN (Batch, Bin);
 
+overCreateDisparity ABSTRACT LIST (UserDisparity);
 createDisparity 'Изменение сортности' () {
     NEWSESSION NESTED(in[Batch, Bin]) {
         IF NOT (GROUP SUM 1 IF in(Batch bt, Bin bin)) THEN {
@@ -42,6 +44,7 @@ createDisparity 'Изменение сортности' () {
             stock(dis) <- stock(GROUP MAX Bin bin IF in(Batch bt, bin));
             date(dis) <- currentDate();
             time(dis) <- currentTime();
+            overCreateDisparity(dis);
             FOR in(Batch bt, Bin bin) NEW d = UserDisparityDetail DO {
                 userDisparity(d) <- dis;
                 sku(d) <- sku(bt);
@@ -56,6 +59,7 @@ createDisparity 'Изменение сортности' () {
     }
 }
 
+overQuarantineReturn ABSTRACT LIST (UserBinOrder);
 quarantineReturn 'Вернуть из карантина' () {
     NEWSESSION NESTED(in[Batch, Bin]) {
         IF NOT (GROUP SUM 1 IF in(Batch bt, Bin bin)) THEN {
@@ -67,6 +71,7 @@ quarantineReturn 'Вернуть из карантина' () {
             stock(o) <- stock(GROUP MAX Bin bin IF in(Batch bt, bin));
             date(o) <- currentDate();
             time(o) <- currentTime();
+            overQuarantineReturn(o);
             FOR in(Batch bt, Bin bin) NEW d = UserBinOrderDetail DO {
                 userBinOrder(d) <- o;
                 sku(d) <- sku(bt);
@@ -128,7 +133,7 @@ FORM quarantineDashboard 'Карантин'
     PROPERTIES DRAW btb PANEL TOOLBAR createDisparity(), quarantineReturn() 
     ORDERS nameSku(bt), name(bt)
     FILTERS quarantine(b),
-        currentBalance(bt, b)
+        currentBalance(bt, b) AND availableQuantity(bt, b) //скрываем товар, который уже через резерв заказан на обратное перемещение
 
     OBJECTS dis=Disparity LAST
     PROPERTIES(dis) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock, nameOperation
