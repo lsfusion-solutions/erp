@@ -22,7 +22,7 @@ let barcode;
 
 async function initZXing(){
     var script = document.createElement('script');
-    script.src = 'https://zxing-cpp.github.io/zxing-cpp/zxing_reader.js';
+    script.src = 'zxing_reader.js';
     script.type = 'text/javascript';
     document.getElementsByTagName('head')[0].appendChild(script);
   
