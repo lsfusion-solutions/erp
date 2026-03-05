@@ -1,6 +1,6 @@
 MODULE SaleLedgerGestori;
 
-REQUIRE DateSkuLedger, Range, InventoryGestori;
+REQUIRE DateSkuLedger, Range, InventoryGestori, SaleOperation;
 
 NAMESPACE Sale;
 
@@ -15,11 +15,17 @@ CLASS ProductCriteria 'Критерий отбора товара' {
 name 'Критерий отбора товара' (ProductCriteria o) = staticCaption(o) IF o IS ProductCriteria CHARWIDTH 10;
 
 CLASS SalesFilterType 'Тип отбора продаж' {
-    retail 'розница',
-    wholesale 'документы продажи (опт)',
-    both 'розница + опт'
+    retail 'Розница',
+    wholesale 'Продажа по документам (опт)',
+    both 'Розница + опт'
 }
 name 'Тип отбора продаж' (SalesFilterType o) = staticCaption(o) IF o IS SalesFilterType CHARWIDTH 10;
+
+FORM salesFilterTypes 'Тип отбора продаж'
+    OBJECTS o = SalesFilterType
+    PROPERTIES(o) READONLY staticCaption
+    LIST SalesFilterType OBJECT o
+;
 
 criteria = DATA LOCAL ProductCriteria ();
 criteriaDefault = OVERRIDE criteria(), ProductCriteria.quantity;
@@ -115,20 +121,89 @@ dateTo 'Дата (по)' = DATA LOCAL DATE();
 
 includeReturns 'Учитывать возвраты' = DATA LOCAL BOOLEAN();
 
+inSaleOp 'Отм.' = DATA LOCAL BOOLEAN (Operation);
+showSaleOperations() = salesTypeDefault() != SalesFilterType.retail;
+nameSaleOperations 'Операции (продажа)' () = GROUP CONCAT name(Operation o) IF inSaleOp(o), ', ' ORDER name(o), o CHARWIDTH 30;
+
+FORM dialogSaleOperations 'Выбор операций (продажа)'
+    OBJECTS o = Operation
+    PROPERTIES(o) inSaleOp
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectAllSaleOps 'Выбрать все' () {
+    inSaleOp(Operation o) <- TRUE;
+} ASON CONTEXTMENU nameSaleOperations;
+
+deselectAllSaleOps 'Сбросить все' () {
+    inSaleOp(Operation o) <- NULL;
+} ASON CONTEXTMENU nameSaleOperations;
+
+inCustomer 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+anyCustomer() = GROUP MAX inCustomer(LegalEntity l);
+nameCustomers 'Покупатели' () = OVERRIDE
+    (GROUP CONCAT name(LegalEntity l) IF inCustomer(l), ', ' ORDER name(l), l),
+    'Все покупатели' CHARWIDTH 30;
+
+FORM dialogCustomers 'Выбор покупателей'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS o = LegalEntity
+    PROPERTIES(o) inCustomer
+    PROPERTIES(o) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+        nameLegalEntityGroup, address, phone
+    ORDERS name(o)
+    FILTERGROUP inactiveCustomer FILTER 'Активные' active(o) 'shift F10' DEFAULT
+    FILTERS isCustomer(o)
+    FILTERS isParent(legalEntityGroup(o), lg) OR
+        o IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        o IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(o)
+;
+
+DESIGN dialogCustomers {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE legalEntityGroupTree) {
+                caption = 'Группы организаций';
+            }
+            MOVE BOX(o) {
+                fill = 3;
+                GRID(o) {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+selectAllCustomers 'Выбрать всех' () {
+    inCustomer(LegalEntity l) <- TRUE WHERE isCustomer(l) AND active(l);
+} ASON CONTEXTMENU nameCustomers;
+
+deselectAllCustomers 'Сбросить всех' () {
+    inCustomer(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameCustomers;
+
 initDates() {
     dateFrom() <- sum(currentDate(), -6);
     dateTo() <- currentDate();
     includeReturns() <- TRUE;
+    inSaleOp(Operation o) <- TRUE;
 }
 
 dateInRange(SaleLedger o) = dateFrom() <= date(o) AND dateTo() >= date(o);
 
-supplier (SaleLedger o) = supplier(lastOrderBatch(sku(o), stock(o)));
-
 filterForSalesQty (SaleLedger o) = active(o) AND dateInRange(o) AND inSaleReport(stock(o))
-    AND inSupplier(supplier(o)) AND (in(sku(o)) OR inSession(skuGroup2(sku(o))))
+    AND (in(sku(o)) OR inSession(skuGroup2(sku(o))))
     AND (NOT withAssortment() OR countRange(sku(o), stock(o), currentDate()))
-    AND (NOT (o IS DateReturnSkuLedger) OR includeReturns());
+    AND (NOT (o IS DateReturnSkuLedger) OR includeReturns())
+    AND (o IS DateSaleSkuLedger OR o IS DateReturnSkuLedger OR inSaleOp(operation(o)))
+    AND (NOT anyCustomer() OR (o IS DateSaleSkuLedger) OR (o IS DateReturnSkuLedger) OR inCustomer(customer(o)));
 
 retailSalesQty 'Розница - кол-во продаж' = GROUP SUM quantity(SaleLedger o)
     IF (o IS DateSaleSkuLedger OR o IS DateReturnSkuLedger) AND filterForSalesQty(o) BY sku(o), stock(o);
@@ -220,16 +295,16 @@ FORM worstProdPrint 'Худшие товары по продажам'
     REPORT 'SaleBestWorstProducts.jrxml'
 ;
 
-bestProdPrint 'Лучшие товары по продажам' () { PRINT bestProdPrint PDF; } IMAGE 'print.png';
-worstProdPrint 'Худшие товары по продажам' () { PRINT worstProdPrint PDF; } IMAGE 'print.png';
+bestProdPrint 'Лучшие товары по продажам' () { PRINT bestProdPrint XLSX; } IMAGE 'print.png';
+worstProdPrint 'Худшие товары по продажам' () { PRINT worstProdPrint XLSX; } IMAGE 'print.png';
 
 FORM bestWorstProducts 'Лучшие и худшие товары по продажам'
     PROPERTIES() dateFrom, dateTo, nameSalesType, nameCriteria, productsLimitDefault, withAssortment
     PROPERTIES() includeReturns SHOWIF showIncludeReturnsBW()
     PROPERTIES nameStockList() READONLY SHOWIF stockList()
     PROPERTIES inSaleReportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeStocksInventory() READONLYIF stockList()
-    PROPERTIES nameLegalEntityList() READONLY SHOWIF legalEntityList()
-    PROPERTIES inSaleReportSupplier 'Поставщики' = inSaleReportSupplier() ON CHANGE { DIALOG dialogLegalEntitiesSupplier; } READONLYIF legalEntityList()
+    PROPERTIES inSaleReportOperations 'Операции (продажа)' = nameSaleOperations() ON CHANGE { DIALOG dialogSaleOperations; } SHOWIF showSaleOperations()
+    PROPERTIES inCustomers 'Покупатели' = nameCustomers() ON CHANGE { DIALOG dialogCustomers; } SHOWIF showSaleOperations()
     PROPERTIES nameSkuLists() READONLY SHOWIF anySkuList()
     PROPERTIES inSelectedSkuGroups 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
     PROPERTIES inSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
@@ -273,8 +348,8 @@ DESIGN bestWorstProducts {
         }
         MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
         MOVE PROPERTY(inSaleReportStocks) { alignment = STRETCH; }
-        MOVE PROPERTY(nameLegalEntityList()) { alignment = STRETCH; }
-        MOVE PROPERTY(inSaleReportSupplier) { alignment = STRETCH; }
+        MOVE PROPERTY(inSaleReportOperations) { alignment = STRETCH; }
+        MOVE PROPERTY(inCustomers) { alignment = STRETCH; }
         MOVE PROPERTY(nameSkuLists()) { alignment = STRETCH; }
         MOVE PROPERTY(inSelectedSkuGroups) { alignment = STRETCH; }
         MOVE PROPERTY(inSkus) { alignment = STRETCH; }
@@ -305,28 +380,16 @@ FORM periodTypes 'Детализация'
     LIST PeriodType OBJECT pt
 ;
 
-CLASS SaleDocType 'Тип документов' {
-    all 'Розница + опт',
-    retail 'Розница',
-    wholesale 'Продажа по документам (опт)'
-}
-
-FORM saleDocTypes 'Тип документов'
-    OBJECTS sdt = SaleDocType
-    PROPERTIES(sdt) READONLY staticCaption
-    LIST SaleDocType OBJECT sdt
-;
-
-showIncludeReturns(SaleDocType sdt) = sdt != SaleDocType.wholesale;
+showIncludeReturns(SalesFilterType sdt) = sdt != SalesFilterType.wholesale;
 
 isRetailSale(SaleLedger sl) = sl IS DateSaleSkuLedger;
 isRetailReturn(SaleLedger sl) = sl IS DateReturnSkuLedger;
 isRetail(SaleLedger sl) = isRetailSale(sl) OR isRetailReturn(sl);
 
-inDocTypeFilter(SaleLedger sl, SaleDocType sdt) =
-    (sdt = SaleDocType.all AND (NOT isRetailReturn(sl) OR includeReturns()))
-        OR (sdt = SaleDocType.retail AND (isRetailSale(sl) OR (isRetailReturn(sl) AND includeReturns())))
-        OR (sdt = SaleDocType.wholesale AND NOT isRetail(sl));
+inDocTypeFilter(SaleLedger sl, SalesFilterType sdt) =
+    (sdt = SalesFilterType.both AND (NOT isRetailReturn(sl) OR includeReturns()))
+        OR (sdt = SalesFilterType.retail AND (isRetailSale(sl) OR (isRetailReturn(sl) AND includeReturns())))
+        OR (sdt = SalesFilterType.wholesale AND NOT isRetail(sl));
 
 isoDOW(DATE d) = FORMULA INTEGER PG '(EXTRACT(ISODOW FROM ($1))::integer)';
 mondayOfWeek(DATE d) = sum(d, 1 - isoDOW(d));
@@ -371,19 +434,19 @@ isPartial(PeriodType pt, INTEGER n) =
 periodCaption(PeriodType pt, INTEGER n) =
     toDateDDMMYYYY(dateFromPeriod(pt, n)) + ' - ' + toDateDDMMYYYY(dateToPeriod(pt, n));
 
-quantitySoldPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+quantitySoldPeriod(Stock st, PeriodType pt, INTEGER n, SalesFilterType sdt) =
     GROUP SUM quantity(SaleLedger sl) IF
         isPosted(sl) AND stock(sl) = st AND
             date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
             inDocTypeFilter(sl, sdt);
 
-sumRetailPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+sumRetailPeriod(Stock st, PeriodType pt, INTEGER n, SalesFilterType sdt) =
     GROUP SUM sum(SaleLedger sl) IF
         isPosted(sl) AND stock(sl) = st AND
             date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
             inDocTypeFilter(sl, sdt);
 
-sumCostPeriod(Stock st, PeriodType pt, INTEGER n, SaleDocType sdt) =
+sumCostPeriod(Stock st, PeriodType pt, INTEGER n, SalesFilterType sdt) =
     GROUP SUM costSum(SaleLedger sl) IF
         isPosted(sl) AND stock(sl) = st AND
             date(sl) >= dateFromPeriod(pt, n) AND date(sl) <= dateToPeriod(pt, n) AND
@@ -421,10 +484,10 @@ backgroundPeriod(INTEGER n) =
 
 titleReport = 'Динамика продаж за ' + toDateDDMMYYYY(dateFrom()) + ' - ' + toDateDDMMYYYY(dateTo());
 
-fill 'Сформировать' (PeriodType pt, SaleDocType sdt) {
+fill 'Сформировать' (PeriodType pt, SalesFilterType sdt) {
     selectedPeriodTypeCaption() <- staticCaption(pt);
     selectedSaleDocTypeCaption() <- staticCaption(sdt);
-    selectedIncludeReturns() <- (IF includeReturns() THEN 'Да' ELSE 'Нет') IF sdt != SaleDocType.wholesale;
+    selectedIncludeReturns() <- (IF includeReturns() THEN 'Да' ELSE 'Нет') IF sdt != SalesFilterType.wholesale;
 
     quantitySoldResult(DepartmentStore ds, INTEGER n) <- NULL;
     sumRetailResult(DepartmentStore ds, INTEGER n) <- NULL;
@@ -471,7 +534,7 @@ FORM salesDynamicsReport 'Динамика продаж'
     OBJECTS pt = PeriodType PANEL
     PROPERTIES(pt) staticCaption SELECTOR
 
-    OBJECTS sdt = SaleDocType PANEL
+    OBJECTS sdt = SalesFilterType PANEL
     PROPERTIES(sdt) staticCaption SELECTOR
 
     PROPERTIES() includeReturns SHOWIF showIncludeReturns(sdt)
@@ -522,7 +585,7 @@ FORM printSalesDynamicsReport 'Динамика продаж (печать)'
     ORDERS nameDs, periodNumber
 ;
 
-print 'Печать' (PeriodType pt, SaleDocType sdt) {
+print 'Печать' (PeriodType pt, SalesFilterType sdt) {
     fill(pt, sdt);
     PRINT printSalesDynamicsReport PDF;
 }
