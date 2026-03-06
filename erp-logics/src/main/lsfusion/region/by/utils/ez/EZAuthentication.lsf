@@ -8,12 +8,12 @@ TABLE authentication() NODEFAULT;
 
 urlEZ 'Url к Web-сервису ГИС "Электронный знак"' = DATA STRING () TABLE authentication;
 testWebService 'Тестовый Web-сервис' = DATA BOOLEAN () TABLE authentication;
-usernameEZ 'Пользователь' = DATA STRING() TABLE authentication;
-passwordEZ 'Пароль для API' = DATA STRING() ECHO TABLE authentication;
+usernameEZ 'Пользователь для API ЭЗ' = DATA STRING() TABLE authentication;
+passwordEZ 'Пароль для API ЭЗ' = DATA STRING() ECHO TABLE authentication;
 hostEZ 'Host' = DATA STRING () TABLE authentication;
 token 'Токен' = DATA STRING () ECHO TABLE authentication;
 
-ezToken = DATA LOCAL STRING () TABLE authentication;
+ezToken() = DATA LOCAL STRING () TABLE authentication;
 
 // при всех использованиях сначала заполнять ezToken
 ezHeadersLotOrder (TEXT name) = CASE
@@ -69,19 +69,30 @@ DESIGN integrationData {
     }
 }
 
-dataUsernameEZ 'Пользователь' = DATA STRING(LegalEntity);
-dataPasswordEZ 'Пароль для API' = DATA STRING(LegalEntity) ECHO;
+dataUsernameEZ 'Пользователь для API ЭЗ' = DATA STRING(LegalEntity);
+dataPasswordEZ 'Пароль для API ЭЗ' = DATA STRING(LegalEntity) ECHO;
 
-dataToken 'Токен' = DATA STRING (LegalEntity);
+dataToken 'Токен' = DATA STRING (LegalEntity) ECHO;
 
 useEZLegalEntity 'Использовать организации' = DATA BOOLEAN ();
+defaultEZLegalEntity 'По умолчанию' = DATA BOOLEAN (LegalEntity);
+defaultEZLegalEntity() = GROUP MIN LegalEntity le IF defaultEZLegalEntity(le);
+
+changeDefaultEZLegalEntity(LegalEntity lez) {    
+    IF defaultEZLegalEntity() == lez THEN {
+        defaultEZLegalEntity(lez) <- NOT defaultEZLegalEntity(lez);
+    } ELSE {
+        defaultEZLegalEntity(LegalEntity le) <- NULL;
+        defaultEZLegalEntity(lez) <- TRUE;
+    }
+}
 
 EXTEND FORM integrationData
-    PROPERTIES useEZLegalEntity()
+    PROPERTIES useEZLegalEntity() 
 
     OBJECTS lez = LegalEntity
     PROPERTIES(lez) READONLY id, name
-    PROPERTIES(lez) dataUsernameEZ, dataPasswordEZ, dataToken READONLY
+    PROPERTIES(lez) dataUsernameEZ, dataPasswordEZ, dataToken READONLY, defaultEZLegalEntity ON CHANGE changeDefaultEZLegalEntity(lez)
     FILTERS isCompany(lez)
 ;
 
@@ -91,10 +102,6 @@ DESIGN integrationData {
         MOVE BOX(lez) { showIf = useEZLegalEntity(); }
     }
 }
-
-usernameEZ(LegalEntity l) = OVERRIDE dataUsernameEZ(l), (usernameEZ() IF l IS LegalEntity);
-passwordEZ(LegalEntity l) = OVERRIDE dataPasswordEZ(l), (passwordEZ() IF l IS LegalEntity);
-token(LegalEntity l) = OVERRIDE (dataToken(l) IF useEZLegalEntity()), (token() IF l IS LegalEntity);
 
 EZActive(LegalEntity l) = useEZLegalEntity() AND dataToken(l) MATERIALIZED;
 
@@ -107,7 +114,7 @@ authorization 'Авторизация в ЭЗ' (LegalEntity l) {
             headers('Host') <- hostEZ();
             headers('Content-Type') <- 'multipart/form-data; boundary=...';
             insecureSSL() <- TRUE;
-            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS usernameEZ(l), passwordEZ(l) TO result;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS dataUsernameEZ(l), dataPasswordEZ(l) TO result;
         } CATCH {
             MESSAGE messageCaughtException() NOWAIT;
         }
@@ -123,11 +130,82 @@ EXTEND FORM integrationData
     PROPERTIES(lez) authorization GRID
 ;
 
-getToken() {
+// Пользователь
+userNameEZ 'Пользователь для API ЭЗ' = DATA STRING(CustomUser);
+passwordEZ 'Пароль для API ЭЗ' = DATA STRING(CustomUser) ECHO;
+token 'Токен' = DATA STRING (CustomUser) ECHO;
+
+useEZCustomUser 'Использовать пользователей' = DATA BOOLEAN ();
+
+EXTEND FORM integrationData
+    PROPERTIES useEZCustomUser()
+
+    OBJECTS cez = CustomUser
+    PROPERTIES(cez) READONLY shortName, login
+    PROPERTIES(cez) userNameEZ, passwordEZ, token READONLY
+;
+
+DESIGN integrationData {
+    EZ {
+        MOVE PROPERTY(useEZCustomUser());
+        MOVE BOX(cez) { showIf = useEZCustomUser(); }
+    }
+}
+
+authorization 'Авторизация в ЭЗ' (CustomUser c) {
+    NEWSESSION {
+        LOCAL result = FILE();
+        LOCAL token = STRING();
+
+        TRY {
+            headers('Host') <- hostEZ();
+            headers('Content-Type') <- 'multipart/form-data; boundary=...';
+            insecureSSL() <- TRUE;
+            EXTERNAL HTTP POST urlEZ()  + '/auth'  BODYPARAMNAMES 'username', 'password' HEADERS headers PARAMS userNameEZ(c), passwordEZ(c) TO result;
+        } CATCH {
+            MESSAGE messageCaughtException() NOWAIT;
+        }
+        fileToString(result());
+        IMPORT JSON FROM result() TO() token;
+        token(c) <- token();
+
+        APPLY;
+    }
+}
+
+EXTEND FORM integrationData
+    PROPERTIES(cez) authorization GRID
+;
+
+getToken() {  
     IF usernameEZ() THEN authorization();
+}
+
+getToken(CustomUser u) {
+    IF userNameEZ(u) THEN authorization(u);
 }
 
 getToken(LegalEntity l) {
     IF dataUsernameEZ(l) THEN authorization(l);
-    IF usernameEZ() THEN authorization();
+}
+
+commonGetToken(LegalEntity l) {
+    IF useEZCustomUser() THEN {
+        getToken(currentUser());
+        ezToken() <- token(currentUser());
+        IF ezToken() THEN RETURN;
+    }
+    
+    IF useEZLegalEntity() THEN {
+        getToken(l);
+        ezToken() <- dataToken(l);
+        IF ezToken() THEN RETURN;
+    }
+
+    getToken();
+    ezToken() <- token();
+}
+
+commonGetToken() {
+    commonGetToken(defaultEZLegalEntity());
 }

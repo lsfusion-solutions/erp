@@ -51,15 +51,13 @@ consumedGetStatus = DATA LOCAL BOOLEAN ();
 overGetStatus ABSTRACT ();
 
 // ЭЗ принимает не больше 1000
-getStatus 'Получить статус' () {
+getStatusApi 'Получить статус' () {
     overGetStatus();
     IF consumedGetStatus() THEN RETURN ;
     
     LOCAL result = FILE();
     LOCAL exportIndex = INTEGER (Lot);
-
-    getToken();
-    ezToken() <- token() WHERE NOT ezToken();
+    
     timeoutHttp() <- 300000;
 
     WHILE (countInLot()) NOINLINE DO {
@@ -77,8 +75,12 @@ getStatus 'Получить статус' () {
             
 
             IMPORT importLotStatus JSON FROM result();
-            status(Lot l) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
-            isOwn(Lot l) <- [GROUP MIN isOwn(INTEGER i) BY label(i)](code(l)) WHERE inExport(l);
+
+            LOCAL importedStatus = LotStatus (Lot);
+            importedStatus(Lot l) <- (GROUP MIN statusLot(lotCode(INTEGER i)) IF code(l) == label(i)) WHERE inExport(l);
+            
+            status(Lot l) <- importedStatus(l) WHERE importedStatus(l);
+            isOwn(Lot l) <- [GROUP MIN isOwn(INTEGER i) BY label(i)](code(l)) WHERE importedStatus(l);
             inExport(Lot l) <- NULL;
         } CATCH {
             logToFile('ez', messageCaughtException());
@@ -95,6 +97,12 @@ getStatus 'Получить статус' () {
         }
     }
 }
+
+getStatus 'Получить статус' () {
+    commonGetToken();
+    getStatusApi();
+}
+
 getStatus 'Получить статус' (Lot lot) {
     IF NOT countInLot() THEN {
         in(lot) <- TRUE;
@@ -108,9 +116,8 @@ getStatusApply 'Получить статус' (Lot l) {
 }
 
 getStatus 'Получить статус' (LegalEntity le) {
-    getToken(le);
-    ezToken() <- token(le);
-    getStatus();
+    commonGetToken(le);
+    getStatusApi();
 }
 
 getStatus 'Получить статус' (Lot lot, LegalEntity le) {
@@ -118,9 +125,4 @@ getStatus 'Получить статус' (Lot lot, LegalEntity le) {
         in(lot) <- TRUE;
     }
     getStatus(le);
-}
-
-getStatusApply 'Получить статус' (Lot l, LegalEntity le) {
-    getStatus(l, le);
-    APPLY;
 }

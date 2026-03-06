@@ -150,8 +150,7 @@ findItemsEZ 'Поиск товара по GTIN' (STRING[14] gtin, LotOrder o) {
     LOCAL result = FILE();   
     
 //    exception(o) <- NULL;
-    getToken(legalEntityStock(o));
-    ezToken() <- token(legalEntityStock(o));
+    commonGetToken(legalEntityStock(o));
     
     TRY {
         insecureSSL() <- TRUE;
@@ -179,8 +178,7 @@ addItemsEZ 'Добавление товара по GTIN' (STRING[14] gtin, LotOr
     LOCAL result = FILE();   
     
 //    exception(o) <- NULL;
-    getToken(legalEntityStock(o));
-    ezToken() <- token(legalEntityStock(o));
+    commonGetToken(legalEntityStock(o));
     
     TRY {
         insecureSSL() <- TRUE;
@@ -249,8 +247,7 @@ checkGTINEZ 'Проверка GTIN' (LotOrder o) {
         LOCAL result = FILE();    
           
 //        exception(o) <- NULL;
-        getToken(legalEntityStock(o));
-        ezToken() <- token(legalEntityStock(o));
+        commonGetToken(legalEntityStock(o));
         
         TRY {
             insecureSSL() <- TRUE;
@@ -349,8 +346,7 @@ addGroupOrders (LotOrder o) + {
                 fileToString(resultFile());
                 //            MESSAGE resultString();
                 //            exception(o) <- NULL;
-                getToken(legalEntityStock(o));
-                ezToken() <- token(legalEntityStock(o));
+                commonGetToken(legalEntityStock(o));
 
                 TRY {
                     insecureSSL() <- TRUE;
@@ -479,8 +475,7 @@ checkStatus  (LotOrder o) + {
                 LOCAL result = FILE();
 
                 exception(o) <- NULL;
-                getToken(legalEntityStock(o));
-                ezToken() <- token(legalEntityStock(o));
+                commonGetToken(legalEntityStock(o));
 
                 TRY {
                     insecureSSL() <- TRUE;
@@ -589,8 +584,7 @@ importLotCodes  (LotOrder o) + {
                 LOCAL result = FILE();
 
                 exception(o) <- NULL;
-                getToken(legalEntityStock(o));
-                ezToken() <- token(legalEntityStock(o));
+                commonGetToken(legalEntityStock(o));
 
                 TRY {
                     insecureSSL() <- TRUE;
@@ -667,7 +661,17 @@ existDifferentGtin (LotOrderDetail d) = (GROUP SUM 1 IF lotOrder(LotOrderDetail 
     
 //CONSTRAINT (CHANGED(sku(LotOrderDetail d)) AND existDifferentGtin(d))
 //    MESSAGE 'Одному заказу могут соответствовать позиции только одного GTIN';    
-    
+
+getStatusApply 'Получить статус' (Lot lot, LegalEntity le) {
+    IF NOT countInLot() THEN {
+        in(lot) <- TRUE;
+    }
+
+    getToken(le);
+    getStatusApi();
+}
+
+
 EXTEND FORM lots 
     PROPERTIES (l) getStatusApply TOOLBAR SHOWIF NOT useEZLegalEntity()
     PROPERTIES (l, lez) getStatusApply TOOLBAR SHOWIF useEZLegalEntity()
@@ -687,7 +691,7 @@ EXTEND FORM lotOrders
 ;
 
 changeTypography(LotOrder o) {
-    importTypographyEZ(token(legalEntityStock(o)));
+    importTypographyEZ(dataToken(legalEntityStock(o)));
     
     DIALOG typographies OBJECTS t INPUT NULL DO {
         typography(o) <- t;
