@@ -2,6 +2,7 @@ MODULE ExportStockDocumentSkuLedger;
 
 REQUIRE StockDocumentSkuLedger, StockTax, Barcode, ZReport;
 
+NAMESPACE Stock;
 
 operation(StockDocumentLedger ledger) = OVERRIDE StockDocument.operation(ledger),
     ZReportOperation.zReportSale IF ledger IS ZReportStockDocumentledger;
@@ -32,6 +33,10 @@ inExport 'Отм.' = DATA BOOLEAN (Stock);
 
 dateFrom = DATA LOCAL DATE ();
 dateTo = DATA LOCAL DATE ();
+skipDetail = DATA LOCAL BOOLEAN ();
+documentType = DATA LOCAL STRING[50]();
+idStock = DATA LOCAL STRING[100]();
+idLegalEntity = DATA LOCAL STRING[100]();
 
 FORM exportDocument
     OBJECTS sl = StockDocumentLedger EXTID 'documents'
@@ -48,23 +53,46 @@ FORM exportDocument
         nameLegalEntity(sl),
         idLegalEntityStock = id(legalEntityStock(sl)),
         nameLegalEntityStock = name(legalEntityStock(sl)),
+        sumItem(sl),
+        sumContainer(sl),
         sum(sl)
     
-    FILTERS active(sl), inExport(operation(sl)), inExport(stock(sl)), date(sl) >= dateFrom(), date(sl) <= dateTo()
+    FILTERS active(sl), inExport(operation(sl)), inExport(stock(sl)), date(sl) >= dateFrom(), date(sl) <= dateTo(),
+        (documentType() == type(sl) OR NOT documentType()), 
+        (idStock() == id(stock(sl)) OR NOT idStock()), 
+        (idLegalEntity() == id(legalEntity(sl)) OR NOT idLegalEntity())
+        
     
     OBJECTS l = SkuLedger EXTID 'documentDetails'
     PROPERTIES READONLY IN base
         idBarcode = idBarcode(sku(l)),
         idSku(l),
         nameSku(l),
+        skuType = caption(skuType(sku(l))),
         measurement = shortNameUOM(sku(l)),
         valueVAT= valueVAT(sku(l)),
         signedQuantity(l),
         signedSum(l)
     
-    FILTERS stockDocumentLedger(l) == sl
-
+    FILTERS stockDocumentLedger(l) == sl AND NOT skipDetail()
 ;
+
+overExportDocuments ABSTRACT LIST();
+v1_stock_documents (FILE f) {
+    IMPORT JSON FROM f TO () dateFrom, dateTo, skipDetail, documentType, idStock, idLegalEntity
+
+    IF NOT (dateFrom() AND dateTo()) THEN {
+        EXPORT JSON FROM error = 'Не задан период для выгрузки.' ;
+        statusHttpTo() <- 400;
+        RETURN;
+    }
+
+    inExport(Operation.Operation o) <- TRUE;
+    inExport(Stock s) <- TRUE;
+
+    overExportDocuments();
+    EXPORT exportDocument JSON;
+} @@api;
 
 FORM exportPlain
     OBJECTS l = SkuLedger EXTID 'documentDetails'
