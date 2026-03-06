@@ -153,15 +153,19 @@ quantityPurchaseEcology (sku, stock, supplier, date) = GROUP SUM quantity(Purcha
     BY sku(d), stock(d), supplier(d), date(d);
 
 
-fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
+fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t, BOOLEAN declaration) {
     resetEcologyReport();
 
+    LOCAL toExclude = BOOLEAN (EcologyMaterial);
+    IF NOT declaration THEN {
+        toExclude(EcologyMaterial em) <- exclude(em);
+    }
     LOCAL  to = BOOLEAN (Stock);
     LOCAL  to = INTEGER (Sku);
     LOCAL  to = BOOLEAN (LegalEntity);
-    to(Sku s) <- (GROUP SUM 1 IF valueData(s, EcologyPackType et, EcologyMaterial em, DATE date) AND date <= dt AND NOT exclude(em));
+    to(Sku s) <- (GROUP SUM 1 IF valueData(s, EcologyPackType et, EcologyMaterial em, DATE date) AND date <= dt AND NOT toExclude(em));
     FOR iterate(DATE date, df,dt) DO {
-        value (Sku s, EcologyMaterial em, date) <- (GROUP SUM value(s, EcologyPackType et, em, date)) WHERE to(s) AND NOT exclude(em);
+        value (Sku s, EcologyMaterial em, date) <- (GROUP SUM value(s, EcologyPackType et, em, date)) WHERE to(s) AND NOT toExclude(em);
     }    
 
     IF (countInEcologyLegalEntity() OR countInEcologyCountry()) THEN {
@@ -176,14 +180,17 @@ fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
     }
     IF t == TypeReport.in THEN {
         quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- quantityPurchaseEcology (s, st, su, date) WHERE date >= df AND date <= dt AND to(s) AND to(su) AND to(st);
-        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT exclude(em);
+        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT toExclude(em);
         quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityIn (s, su,st, DATE date));
     } ELSE {
         quantityIn(Sku s, LegalEntity su, Stock st, DATE date) <- (GROUP SUM quantitySold (Batch bt, st, date)
             IF date>=df AND date<=dt AND to(sku(bt)) AND to(supplier(bt)) AND to(st) AND isEcology(operation(invoiceDetail(bt))) AND sku(bt) == s AND supplier(bt)==su);
-        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT exclude(em);
+        quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial em) <- GROUP SUM quantityIn( s,  su,  st, em, DATE date) IF NOT toExclude(em);
         quantityIn(Sku s, LegalEntity su, Stock st) <- (GROUP SUM quantityIn (s, su,st, DATE date));
     }
+}
+fillEcologyReport 'Заполнить' (DATE df, DATE dt, TypeReport t) {
+    fillEcologyReport(df,dt,t,NULL);
 }
 
 ecologyReportPrint = DATA LOCAL STRING ();
@@ -295,9 +302,62 @@ DESIGN ecologyReport{
         }
     }
 }
+
+quantityInMaterial 'К-во' =  GROUP SUM quantityIn(Sku s, LegalEntity su, Stock st, EcologyMaterial m) BY m;
+sumIn 'Сумма' = GROUP SUM sumIn(Sku s,LegalEntity su, Stock st,EcologyMaterial em, DATE dt) BY em,dt;
+fillEcologyReportDeclaration 'Заполнить' (DATE df, DATE dt, TypeReport t) {
+    fillEcologyReport(df,dt,t,TRUE);
+}
+FORM ecologyDeclaration 'Экологический отчет. Декларация'
+    OBJECTS dates = (df = DATE, dt = DATE) PANEL
+    PROPERTIES from =VALUE (df), to = VALUE (dt)
+
+    OBJECTS  t = TypeReport PANEL
+    PROPERTIES name(t) SELECTOR
+    
+    PROPERTIES () ON CHANGE changeSelectForm() nameInEcologyCountry, nameInEcologyLegalEntity, nameInEcologyRegion, nameInEcologyStock
+
+    OBJECTS em = EcologyMaterial
+    PROPERTIES (em) READONLY name, id, quantityInMaterial
+    PROPERTIES READONLY sumIn(em, dt)
+
+    PROPERTIES  TOOLBAR DRAW em fillEcologyReportDeclaration(df,dt,t)//, ecologyReportPrint(df,dt,t), ecologyReportPrintXls(df,dt,t)
+
+    EVENTS ON CHANGE df resetEcologyReport()
+    EVENTS ON CHANGE dt resetEcologyReport()
+    EVENTS ON CHANGE t resetEcologyReport()
+
+;
+DESIGN ecologyDeclaration{
+    OBJECTS {
+        NEW filters{
+            caption = 'Параметры';
+            horizontal = FALSE;
+            NEW filters1{
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (from){caption = 'Дата с';}
+                MOVE PROPERTY (to){caption = 'Дата по';}
+                MOVE PROPERTY (name(t));
+            }
+            NEW filters2{
+                horizontal = TRUE;
+                lines = 1;
+                MOVE PROPERTY (nameInEcologyCountry());
+                MOVE PROPERTY (nameInEcologyLegalEntity());
+                MOVE PROPERTY (nameInEcologyRegion());
+                MOVE PROPERTY (nameInEcologyStock());
+            }
+        }
+        MOVE BOX(em);
+    }
+}
+
+
 NAVIGATOR {
     stockReports {
         NEW ecologyReport;
+        NEW ecologyDeclaration;
     }    
 }
 
