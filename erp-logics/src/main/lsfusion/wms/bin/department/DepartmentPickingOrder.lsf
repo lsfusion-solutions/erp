@@ -1,6 +1,6 @@
 MODULE DepartmentPickingOrder;
 
-REQUIRE DepartmentBinLedger, PickingOrder, DepartmentBinOrderBinLedger;
+REQUIRE DepartmentBinLedger, PickingOrder, DepartmentBinOrderBinLedger, PickingOrderBinLedger;
 
 NAMESPACE Picking;
 
@@ -15,6 +15,9 @@ CONSTRAINT stock(UserPickingOrder userPickingOrder) AND department(userPickingOr
     stock(userPickingOrder) = stock(department(userPickingOrder))
     CHECKED BY department[UserPickingOrder]
     MESSAGE 'Cклад поставщика и отдел поставщика для заказа на комплектацию не имеют связи';
+
+overExtraOutBinFilter(Bin b, UserPickingOrderDetail d) += department(d)==department(b);
+needExtraOutBinFilter(Bin b, UserPickingOrderDetail d) += department(d) AND outDepartment(operation(d)) AND b IS Bin;
 
 changeDepartment(UserPickingOrder o) {
     DIALOG dialogDepartments OBJECTS d INPUT NULL FILTERS stock(d) = stock(o) DO {

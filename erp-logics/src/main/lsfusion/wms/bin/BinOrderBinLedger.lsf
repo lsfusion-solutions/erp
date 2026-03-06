@@ -569,12 +569,11 @@ CONSTRAINT outBin(Operation operation, Stock st) IS Bin AND NOT outBin(outBin(op
     CHECKED BY outBin[Operation, Stock]
     MESSAGE '"Ячейка (из)" склада по умолчанию должна быть включена в операцию';
 
-levelBinGroup 'Общий родитель заданного уровня' = DATA INTEGER (Operation);
 needIn '"Ячейка (в)" обязательна' = DATA BOOLEAN (Operation);
 needOut '"Ячейка (из)" обязательна' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) levelBinGroup, staticCaptionOutUsageType, staticCaptionInUsageType, needIn, needOut
+    PROPERTIES(o) staticCaptionOutUsageType, staticCaptionInUsageType, needIn, needOut
 
     TREE inGroupTree inbing = BinGroup PARENT parent(inbing)
     PROPERTIES READONLY inbingTreeName = name(inbing)
@@ -636,7 +635,6 @@ DESIGN operation {
             }
             constraintContainer {
                 NEW additionalContainer {
-                    MOVE PROPERTY(levelBinGroup(o));
                     NEW additionalInOutContainer {
                         horizontal = TRUE;
                         MOVE PROPERTY(needOut(o));
@@ -652,16 +650,6 @@ DESIGN operation {
 
 CONSTRAINT (SET(UserBinOrder o IS UserBinOrder) OR DROPPED(countUserBinOrderDetail(o))) AND detailsFillCheck(operation(o)) AND NOT countUserBinOrderDetail(o)
     MESSAGE 'Для текущей операции обязательно наличие строк в документе';
-
-CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(inBin(d)) OR CHANGED(outBin(d))) AND levelBinGroup(operation(d)) AND NOT
-    binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) AND
-    inBin(d) AND outBin(d)
-    MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
-
-CONSTRAINT (CHANGED(operation(BinOrder t)) OR CHANGED(inBin(t)) OR CHANGED(outBin(t))) AND levelBinGroup(operation(t)) AND NOT
-    binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) == binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) AND
-    inBin(t) AND outBin(t)
-    MESSAGE 'Несовпадение общего уровня группы ячеек заданного для операции';
 
 CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR CHANGED(inBin(d))) AND inBin(d) AND NOT inBin(inBin(d), operation(d))
     MESSAGE '"Ячейка (в)" строки перемещения по ячейкам  должна совпадать с отмеченными в операции';
@@ -681,11 +669,6 @@ CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR DROPPED(outBin(d)) OR SET(d 
 CONSTRAINT (CHANGED(operation(BinOrderDetail d)) OR DROPPED(inBin(d)) OR SET(d IS BinOrderDetail)) AND NOT inBin(d) AND needIn(operation(d))
     MESSAGE '"Ячейка (в)" обязательна для заданной операции заказа на перемещение между ячейками';
 
-extraBinFilter (Bin b, UserBinOrder t) =
-    (levelBinGroup(operation(t)) AND inBin(t) AND binGroupRoot(binGroup(inBin(t)), levelBinGroup(operation(t))) = binGroupRoot(binGroup(b), levelBinGroup(operation(t))) OR
-        levelBinGroup(operation(t)) AND outBin(t) AND binGroupRoot(binGroup(b), levelBinGroup(operation(t))) == binGroupRoot(binGroup(outBin(t)), levelBinGroup(operation(t))) OR
-        t IS UserBinOrder AND b IS Bin AND (NOT levelBinGroup(operation(t)) OR (NOT inBin(t) AND NOT outBin(t))));
-
 overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
 needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
 extraInBinFilter (Bin b, UserBinOrder t) =
@@ -694,12 +677,7 @@ extraInBinFilter (Bin b, UserBinOrder t) =
 overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
 needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrder);
 extraOutBinFilter (Bin b, UserBinOrder t) =
-    needExtraOutBinFilter(b, t) OR overExtraOutBinFilter(b, t) OR t IS UserBinOrder AND b IS Bin AND NOT needExtraOutBinFilter(b, t);
-
-extraBinFilter (Bin b, UserBinOrderDetail d) =
-    (levelBinGroup(operation(d)) AND inBin(d) AND binGroupRoot(binGroup(inBin(d)), levelBinGroup(operation(d))) = binGroupRoot(binGroup(b), levelBinGroup(operation(d))) OR
-        levelBinGroup(operation(d)) AND outBin(d) AND binGroupRoot(binGroup(b), levelBinGroup(operation(d))) == binGroupRoot(binGroup(outBin(d)), levelBinGroup(operation(d))) OR
-        d IS UserBinOrderDetail AND b IS Bin AND (NOT levelBinGroup(operation(d)) OR (NOT inBin(d) AND NOT outBin(d))));
+    needExtraOutBinFilter(b, t) AND overExtraOutBinFilter(b, t) OR t IS UserBinOrder AND b IS Bin AND NOT needExtraOutBinFilter(b, t);
 
 overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);
 needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserBinOrderDetail);

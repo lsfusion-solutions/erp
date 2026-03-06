@@ -6,8 +6,22 @@ NAMESPACE Picking;
 
 @defineDocumentBins(picking);
 
+overExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingDetail);
+needExtraInBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingDetail);
+extraInBinFilter (Bin b, UserPickingDetail d) =
+    needExtraInBinFilter(b, d) AND overExtraInBinFilter(b, d) OR d IS UserPickingDetail AND b IS Bin AND NOT needExtraInBinFilter(b, d);
+
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingDetail);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingDetail);
+extraOutBinFilter (Bin b, UserPickingDetail d) =
+    needExtraOutBinFilter(b, d) AND overExtraOutBinFilter(b, d) OR d IS UserPickingDetail AND b IS Bin AND NOT needExtraOutBinFilter(b, d);
+
+@setBinObjectWithfilter(UserPickingDetail, stock, out);
+
+@setBinObjectWithfilter(UserPickingDetail, stock, in);
+
 EXTEND FORM userPicking
-    PROPERTIES(d) nameOutBin, nameInBin
+    PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d)
     ORDERS nameOutBin(d)    
 ;
 

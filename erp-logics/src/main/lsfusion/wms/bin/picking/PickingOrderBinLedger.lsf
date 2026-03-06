@@ -8,12 +8,17 @@ NAMESPACE Picking;
 
 INDEX outBin(PickingOrderDetail d), sku(d);
 
-@setBinObject (UserPickingOrderDetail, stock, out);
+overExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingOrderDetail);
+needExtraOutBinFilter = ABSTRACT BOOLEAN (Bin, UserPickingOrderDetail);
+extraOutBinFilter (Bin b, UserPickingOrderDetail d) =
+    needExtraOutBinFilter(b, d) AND overExtraOutBinFilter(b, d) OR d IS UserPickingOrderDetail AND b IS Bin AND NOT needExtraOutBinFilter(b, d);
+
+@setBinObjectWithfilter (UserPickingOrderDetail, stock, out);
 
 @defineBinConstraintsType(UserPickingOrderDetail, stock, out);
 
 EXTEND FORM userPickingOrder
-    PROPERTIES(d) nameOutBin ON CHANGE setOutBin(d)
+    PROPERTIES(d) AFTER shortNameUOMSku(d) nameOutBin ON CHANGE setOutBin(d)
 ;
 
 EXTEND FORM pickingOrders
