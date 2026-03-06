@@ -1,6 +1,6 @@
 MODULE PurchaseOrderGestori;
 
-REQUIRE PurchaseOrder, Store, Warehouse, PurchaseOrderStatus;
+REQUIRE PurchaseOrder, Store, Warehouse, PurchaseOrderStatus, SaleReportsRu;
 
 NAMESPACE Purchase;
 
@@ -48,10 +48,10 @@ DESIGN warehouse {
 
 overCloseDate (Order o) += sum(shipmentDate(o), delayDaysOrder(supplierStock(o)) + 1);
 
-filterStatus = DATA LOCAL StatusOrder ();
+filterStatus = DATA LOCAL StatusOrder();
 nameFilterStatus 'Статус' = name(filterStatus());
-filterStatus (Purchase.Order o) = status(o) == filterStatus() OR (o IS Purchase.Order AND NOT filterStatus());
-template = DATA LOCAL STRING[100] ();
+filterStatus(Purchase.Order o) = status(o) == filterStatus() OR (o IS Purchase.Order AND NOT filterStatus());
+template = DATA LOCAL STRING[100]();
 
 EXTEND FORM orders
     PROPERTIES() nameFilterStatus
@@ -60,28 +60,40 @@ EXTEND FORM orders
 
 DESIGN orders {
     topFilters1 {
-        MOVE PROPERTY(nameFilterStatus());
+        MOVE PROPERTY(nameFilterStatus()) { charWidth = 15; flex = 0; }
     }
 }
 
-status (Purchase.OrderDetail d) = status(order(d));
-nameStatus (Purchase.OrderDetail d) = name(status(d));
-invoices (Purchase.OrderDetail d) = invoices(order(d));
-filterStatus (Purchase.OrderDetail d) = filterStatus(order(d));
-filterDateFrom (Purchase.OrderDetail d) = filterDateFrom(order(d));
-filterDateTo (Purchase.OrderDetail d) = filterDateTo(order(d));
-filterSupplier (Purchase.OrderDetail d) = filterSupplier(order(d));
-filterSupplierStock (Purchase.OrderDetail d) = filterSupplierStock(order(d));
-filterCustomer (Purchase.OrderDetail d) = filterCustomer(order(d));
-filterCustomerStock (Purchase.OrderDetail d) = filterCustomerStock(order(d));
-filterCustomUser (Purchase.OrderDetail d) = filterCustomUser(order(d));
-filterComputer (Purchase.OrderDetail d) = filterComputer(order(d));
+status(Purchase.OrderDetail d) = status(order(d));
+nameStatus 'Статус' (Purchase.OrderDetail d) = name(status(d));
+invoices 'Накладные' (Purchase.OrderDetail d) = invoices(order(d));
+filterStatus(Purchase.OrderDetail d) = filterStatus(order(d));
+filterDateFrom(Purchase.OrderDetail d) = filterDateFrom(order(d));
+filterDateTo(Purchase.OrderDetail d) = filterDateTo(order(d));
+filterSupplier(Purchase.OrderDetail d) = filterSupplier(order(d));
+filterSupplierStock(Purchase.OrderDetail d) = filterSupplierStock(order(d));
+filterCustomer(Purchase.OrderDetail d) = filterCustomer(order(d));
+filterCustomerStock(Purchase.OrderDetail d) = filterCustomerStock(order(d));
+filterCustomUser(Purchase.OrderDetail d) = filterCustomUser(order(d));
+filterComputer(Purchase.OrderDetail d) = filterComputer(order(d));
+
+receivedPrice 'Цена из приходной накладной' (Purchase.OrderDetail d) =
+    GROUP LAST price(Purchase.InvoiceDetail id) IF orderDetail(id) = d ORDER dateTime(id), id;
+
+specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
+    prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
+
+orderSum 'Сумма заказа' (Purchase.OrderDetail d) = sum(d);
 
 FORM printPurchaseOrderReport
     OBJECTS d = Purchase.OrderDetail
     PROPERTIES() filterOrderDateFrom, filterOrderDateTo
-    PROPERTIES (d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
-        idSku, nameSku, quantity, price, invoicePrice, invoices, shipped, invoiceSum, isConfirmed
+    PROPERTIES(d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
+        idSku, nameSku,
+        quantity, shipped,
+        price, specPrice, receivedPrice,
+        orderSum, invoiceSum,
+        invoices, isConfirmed
     ORDERS nameSupplier(d), nameCustomerStock(d), date(d)
     FILTERS filterStatus(d),
         filterDateFrom(d),
@@ -95,16 +107,246 @@ FORM printPurchaseOrderReport
     REPORT template()
 ;
 
-purchaseOrderReport 'Отчет' () {
-    template() <- 'PurchaseOrderReportGestori.jrxml';
-    PRINT printPurchaseOrderReport;
-} IMAGE 'print.png';
-
 orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
     template() <- 'OrderReceiptReconDetailedGestori.jrxml';
     PRINT printPurchaseOrderReport;
 } IMAGE 'print.png';
 
 EXTEND FORM orders
-    PROPERTIES () TOOLBAR purchaseOrderReport, orderReceiptReconDetailed
+    PROPERTIES() TOOLBAR orderReceiptReconDetailed
 ;
+
+reportDateFrom 'Дата с' = DATA LOCAL DATE();
+reportDateTo 'Дата по' = DATA LOCAL DATE();
+
+initReportDates() {
+    reportDateFrom() <- currentDate();
+    reportDateTo() <- currentDate();
+}
+
+reportStatus = DATA LOCAL StatusOrder();
+nameReportStatus 'Статус' = name(reportStatus());
+
+inReportSupplier 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+anyReportSupplier() = GROUP MAX inReportSupplier(LegalEntity l);
+nameReportSuppliers 'Поставщики' () = OVERRIDE
+    (GROUP CONCAT name(LegalEntity l) IF inReportSupplier(l), ', ' ORDER name(l), l),
+    'Все поставщики' CHARWIDTH 30;
+
+reportSupplierList = DATA LOCAL LegalEntityList();
+nameReportSupplierList 'Список организаций' () = name(reportSupplierList());
+
+changeReportSupplierList 'Список организаций'() {
+    DIALOG legalEntityLists OBJECTS o INPUT DO {
+        reportSupplierList() <- o;
+        inReportSupplier(LegalEntity s) <- in(s, o);
+    }
+}
+
+deleteReportSupplierList 'Сбросить список'() {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameReportSupplierList;
+
+selectAllReportSuppliers 'Выбрать всех' () {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- TRUE WHERE isSupplier(l) AND active(l);
+} ASON CONTEXTMENU nameReportSuppliers;
+
+deselectAllReportSuppliers 'Сбросить всех' () {
+    reportSupplierList() <- NULL;
+    inReportSupplier(LegalEntity l) <- NULL;
+} ASON CONTEXTMENU nameReportSuppliers;
+
+FORM dialogReportSuppliers 'Выбор поставщиков'
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent(lg)
+    PROPERTIES READONLY lgTreeName = name(lg)
+
+    OBJECTS o = LegalEntity
+    PROPERTIES(o) inReportSupplier READONLYIF reportSupplierList()
+    PROPERTIES(o) READONLY name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+        nameLegalEntityGroup, address, phone
+    PROPERTIES changeReportSupplierList() TOOLBAR
+    ORDERS name(o)
+    FILTERGROUP inactiveSupplier FILTER 'Активные' active(o) 'shift F10' DEFAULT
+    FILTERGROUP inReportSupplierFilter FILTER 'Отмеченные' inReportSupplier(o) 'F9'
+    FILTERS isSupplier(o)
+    FILTERS isParent(legalEntityGroup(o), lg) OR
+        o IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+        o IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(o)
+;
+
+DESIGN dialogReportSuppliers {
+    BOX {
+        NEW topContainer {
+            horizontal = TRUE;
+            fill = 1;
+            MOVE BOX(TREE legalEntityGroupTree) { caption = 'Группы организаций'; }
+            MOVE BOX(o) { fill = 3; GRID(o) { defaultComponent = TRUE; } }
+        }
+        MOVE TOOLBARBOX;
+    }
+}
+
+changeReportStocks() { DIALOG dialogStocksSaleReportRu; }
+
+CLASS ReportSkuFilterType 'Тип фильтра по товарам' {
+    sku 'Товары',
+    skuGroups 'Товарные группы',
+    skuLists 'Списки товаров'
+}
+
+FORM reportSkuFilterType 'Типы фильтра по товарам'
+    OBJECTS t = ReportSkuFilterType
+    PROPERTIES(t) READONLY '' = staticCaption
+    LIST ReportSkuFilterType OBJECT t
+;
+
+inReportSkuList 'Отм.' = DATA LOCAL BOOLEAN (List);
+anyReportSkuList() = GROUP MAX inReportSkuList(List l);
+nameReportSkuLists 'Списки товаров' () = GROUP CONCAT name(List l) IF inReportSkuList(l), ', ' ORDER name(l), l CHARWIDTH 30;
+
+inReportSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+
+deleteReportSkuLists 'Сбросить список' () {
+    inReportSkuList(List l) <- NULL;
+    inReportSku(Sku s) <- NULL;
+} ASON CONTEXTMENU nameReportSkuLists;
+
+inReportSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+anyReportSkuGroup() = GROUP MAX inReportSkuGroup(SkuGroup g);
+nameReportSkuGroups 'Товарные группы' () = GROUP CONCAT name(SkuGroup o) IF inReportSkuGroup(o) AND NOT inReportSkuGroup(parent(o)), '; ' ORDER o CHARWIDTH 30;
+
+deleteReportSkuGroups 'Сбросить группы' () {
+    inReportSkuGroup(SkuGroup g) <- NULL;
+} ASON CONTEXTMENU nameReportSkuGroups;
+
+FORM selectReportSku 'Выбор товаров'
+    TREE skuTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), skuGroupName
+
+    OBJECTS s = Sku
+    PROPERTIES(s) inReportSku
+    PROPERTIES(s) READONLY id SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, idBarcode, shortNameUOM
+    FILTERS isParent(sg, s), name(s)
+    ORDERS name(s)
+;
+
+FORM dialogReportSkuGroups 'Выбор товарных групп'
+    TREE skuGroupTree sg = SkuGroup PARENT parent(sg)
+    PROPERTIES(sg) inReportSkuGroup
+    PROPERTIES READONLY order(sg), sgName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F6' DEFAULT
+    ORDERS order(sg), sgName
+;
+
+FORM dialogReportSkuLists 'Выбор списков товаров'
+    OBJECTS o = List
+    PROPERTIES(o) inReportSkuList
+    PROPERTIES(o) READONLY name
+    ORDERS name(o)
+;
+
+selectReportSkus 'Фильтр по товарам' () {
+    DIALOG reportSkuFilterType OBJECTS t INPUT DO {
+        CASE
+            WHEN t = ReportSkuFilterType.sku THEN {
+                inReportSkuList(List l) <- NULL;
+                inReportSkuGroup(SkuGroup g) <- NULL;
+                SHOW selectReportSku;
+            }
+            WHEN t = ReportSkuFilterType.skuGroups THEN {
+                inReportSkuList(List l) <- NULL;
+                inReportSku(Sku s) <- NULL;
+                SHOW dialogReportSkuGroups;
+            }
+            WHEN t = ReportSkuFilterType.skuLists THEN {
+                inReportSkuGroup(SkuGroup g) <- NULL;
+                DIALOG dialogReportSkuLists DO {
+                    inReportSku(Sku s) <- NULL;
+                    FOR inReportSkuList(list(ListDetail ld)) AND Sku sk = sku(ld) DO
+                        inReportSku(sk) <- TRUE;
+                }
+            };
+    }
+}
+
+selectedReportSkuNames = GROUP CONCAT name(Sku s) IF inReportSku(s), '; ' ORDER name(s), s;
+skuNamesFromReportGroups = GROUP CONCAT name(Sku s) IF inReportSkuGroup(skuGroup2(s)) AND name(s), '; ' ORDER name(s), s;
+reportInSkus 'Товары' = OVERRIDE selectedReportSkuNames(), skuNamesFromReportGroups();
+
+anyReportSkuSelected() = (GROUP MAX inReportSku(Sku s)) OR anyReportSkuGroup();
+
+inReportDateFrom(Purchase.OrderDetail d) = date(order(d)) >= reportDateFrom() OR (d IS Purchase.OrderDetail AND NOT reportDateFrom());
+inReportDateTo(Purchase.OrderDetail d) = date(order(d)) <= reportDateTo() OR (d IS Purchase.OrderDetail AND NOT reportDateTo());
+inReportStatus(Purchase.OrderDetail d) = status(order(d)) == reportStatus() OR (d IS Purchase.OrderDetail AND NOT reportStatus());
+inReportSupplierFilter(Purchase.OrderDetail d) =
+    NOT anyReportSupplier() OR inReportSupplier(supplier(order(d)));
+inReportStockFilter(Purchase.OrderDetail d) = inSaleReport(customerStock(order(d)));
+inReportSkuFilter(Purchase.OrderDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuGroup(skuGroup2(sku(d)));
+
+FORM purchaseOrderReportForm 'Отчет по заказам поставщикам'
+    PROPERTIES() reportDateFrom, reportDateTo, nameReportStatus
+    PROPERTIES() nameReportSupplierList READONLY SHOWIF reportSupplierList()
+    PROPERTIES() nameReportSuppliers ON CHANGE { DIALOG dialogReportSuppliers; } READONLYIF reportSupplierList()
+    PROPERTIES nameStockList() READONLY SHOWIF stockList()
+    PROPERTIES reportStocks 'Подразделения' = inSaleReportStocks() ON CHANGE changeReportStocks() READONLYIF stockList()
+    PROPERTIES() nameReportSkuLists READONLY SHOWIF anyReportSkuList()
+    PROPERTIES reportSelectedSkuGroups 'Товарные группы' = nameReportSkuGroups() READONLY SHOWIF anyReportSkuGroup()
+    PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
+
+    OBJECTS d = Purchase.OrderDetail
+    PROPERTIES(d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
+        idSku, nameSku,
+        quantity, shipped,
+        price, specPrice, receivedPrice,
+        orderSum, invoiceSum,
+        invoices
+    ORDERS nameSupplier(d), nameCustomerStock(d), date(d)
+    FILTERS inReportDateFrom(d),
+        inReportDateTo(d),
+        inReportStatus(d),
+        inReportSupplierFilter(d),
+        inReportStockFilter(d),
+        inReportSkuFilter(d)
+
+    REPORT 'PurchaseOrderReportGestori.jrxml'
+
+    EVENTS ON INIT initReportDates()
+;
+
+printReport 'Отчет' () { PRINT purchaseOrderReportForm XLSX; } IMAGE 'print.png';
+
+EXTEND FORM purchaseOrderReportForm
+    PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport
+;
+
+DESIGN purchaseOrderReportForm {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            MOVE PROPERTY(reportDateFrom());
+            MOVE PROPERTY(reportDateTo());
+            MOVE PROPERTY(nameReportStatus()) { fill = 1; }
+            MOVE PROPERTY(printReport()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameReportSupplierList()) { alignment = STRETCH; }
+        MOVE PROPERTY(nameReportSuppliers()) { alignment = STRETCH; }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(reportStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameReportSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(reportSelectedSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
+    }
+    BOX(d) { caption = ''; }
+}
+
+NAVIGATOR {
+    purchasesReports {
+        NEW purchaseOrderReportForm;
+    }
+}
