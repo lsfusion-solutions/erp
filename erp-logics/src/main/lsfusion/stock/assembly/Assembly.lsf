@@ -354,7 +354,7 @@ show(AssemblyOutSkuLedger l) + { show(assemblyDetail(l)); }
 CLASS AssemblyInSkuLedger 'Сборка товара (приход)';
 TABLE assemblyInSkuLedger(AssemblyInSkuLedger);
 
-overPrice = ABSTRACT NUMERIC[16,4] (Assembly);
+ledgerPrice = ABSTRACT NUMERIC[16,4] (Assembly);
 
 assemblyInSkuLedger = AGGR AssemblyInSkuLedger WHERE isPosted(Assembly assembly) MATERIALIZED INDEXED;
 
@@ -365,12 +365,12 @@ sku(AssemblyInSkuLedger l) = sku(assembly(l));
 stock(AssemblyInSkuLedger l) = stock(assembly(l));
 description(AssemblyInSkuLedger l) = description(assembly(l));
 quantity(AssemblyInSkuLedger l) = quantity(assembly(l));
-price(AssemblyInSkuLedger l) = OVERRIDE overPrice(assembly(l)), price(assembly(l));
+costPrice(AssemblyInSkuLedger l) = OVERRIDE ledgerPrice(assembly(l)), price(assembly(l));
 sum(AssemblyInSkuLedger l) = sum(assembly(l));
 series(AssemblyInSkuLedger l) = series(assembly(l));
 number(AssemblyInSkuLedger l) = number(assembly(l));
 
-@implementBatch(AssemblyInSkuLedger, sku, stock, price);
+@implementBatch(AssemblyInSkuLedger, sku, stock, costPrice);
 
 quantity(AssemblyInSkuLedger l) += quantity(l);
 sum(AssemblyInSkuLedger l) += sum(l);
@@ -407,8 +407,6 @@ close[StockDocumentLedger](Assembly l) + {  close(l); }
 
 stockDocumentLedger(AssemblyOutSkuLedger ledger) += assembly(assemblyDetail(ledger));
 
-// copy
-
 copy 'Копировать'(Assembly s)  {
     NEWSESSION {
         NEW a = Assembly {
@@ -417,7 +415,6 @@ copy 'Копировать'(Assembly s)  {
             sku(a) <- sku(s);
             quantity(a) <- quantity(s);
             price(a) <- price(s);
-            sum(a) <- sum(s);
             
             FOR assembly(AssemblyDetail sd) == s DO NEW d = AssemblyDetail {
                 assembly(d) <- a;
@@ -425,7 +422,6 @@ copy 'Копировать'(Assembly s)  {
                 batch(d) <- batch(sd);
                 quantity(d) <- quantity(sd);
                 price(d) <- price(sd);
-                sum(d) <- sum(sd);
             }
 
             SHOW assembly OBJECTS a = a DOCKED NOCANCEL;

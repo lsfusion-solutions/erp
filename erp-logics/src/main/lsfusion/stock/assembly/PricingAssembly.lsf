@@ -48,8 +48,8 @@ nameRetailPriceListType 'Вид цен (розничная)' (Assembly o) = name
 
 @deriveDocumentOperationProperty(Assembly, retailPriceListType);
 
-supplierPrice(AssemblyDetail d) <- prevPriceA(supplierPriceListType(assembly(d)), sku(d), stock(d), dateTime(d))
-    WHEN CHANGED(sku(d)) OR CHANGED(stock(d)) OR CHANGED(dateTime(d));
+supplierPrice(AssemblyDetail d) <- (IF supplierPriceListType(assembly(d)) THEN prevPriceA(supplierPriceListType(assembly(d)), sku(d), stock(d), dateTime(d)) ELSE price(d))
+    WHEN CHANGED(supplierPriceListType(assembly(d))) OR CHANGED(sku(d)) OR CHANGED(stock(d)) OR CHANGED(dateTime(d)) OR CHANGED(price(d));
 
 @defineDocumentDetailDataSumCustomPrefix(assemblyDetail, supplier, ' входная');
 
@@ -316,5 +316,11 @@ retailVATSum(AssemblyPricingDetail pricingDetail) += retailVATSum(pricingDetail)
 edit (AssemblyPricingDetail d) + { edit(assembly(d)); }
 edit (AssemblyPricing p) + { edit(assembly(p)); }
 
-calcPrice(Assembly a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailPrice(a);
-calcSum(Assembly a) += WHEN stock(a) IS DepartmentStore AND NOT costLedger(stock(a)) THEN retailSum(a); 
+retailLedger(Assembly a) = createPricing(a) AND stock(a) IS DepartmentStore AND NOT costLedger(stock(a));
+
+calcPrice(Assembly a) += WHEN retailLedger(a) THEN retailPrice(a);
+calcSum(Assembly a) += WHEN retailLedger(a) THEN retailSum(a);
+
+ledgerPrice(Assembly a) += supplierPrice(a) IF retailLedger(a); // Себестоимость партии
+
+skipChangeLedger(AssemblyPricingDetail ledger) += onlyPositivePriceLedger(operation(assembly(ledger))) AND NOT quantity(assembly(ledger)) > 0;

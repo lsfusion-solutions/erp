@@ -8,4 +8,10 @@ accountLedgerPrice = ABSTRACT VALUE NUMERIC[16,4] (Assembly);
 accountLedgerPrice (Assembly a) += price(a);
 
 @implementSystemLedgerPriceListType(account, Assembly, legalEntityStock, stock, accountLedger);
+
 in(Assembly a, Batch b) += assemblyInSkuLedger(a) = b;
+
+skipChangeLedger 'Не изменять текущие цены' = ABSTRACT VALUE BOOLEAN (Assembly);
+skipChangeLedger(Assembly a) += onlyPositivePriceLedger(operation(a)) AND NOT quantity(a) > 0;
+
+skip[PriceListLedger](Assembly a) += skipChangeLedger(a);
