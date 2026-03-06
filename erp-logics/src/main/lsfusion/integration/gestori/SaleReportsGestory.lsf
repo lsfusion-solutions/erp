@@ -121,9 +121,10 @@ selectCashRegisters() {DIALOG dialogCashRegisters;}
 selectCashiers() {DIALOG dialogCashiers;}
 
 selectedSkus = GROUP CONCAT STRING(name(Sku s)) IF in(s), ',' ORDER s CHARWIDTH 30;
-selectedSkuGroups = GROUP CONCAT STRING(name(SkuGroup g)) IF inSession(g), ',' ORDER g CHARWIDTH 30;
+//selectedSkuGroups = GROUP CONCAT STRING(name(SkuGroup g)) IF inSession(g), ',' ORDER g CHARWIDTH 30;
+//selectedSkuGroups 'Товарные группы' = GROUP CONCAT name(SkuGroup o) IF inSession(o) AND NOT inSession(parent(o)), '; ' ORDER o CHARWIDTH 30;
 
-inSaleReportSkus 'Товары' () = CONCAT ',', selectedSkus(), selectedSkuGroups();
+//inSaleReportSkus 'Товары' () = CONCAT ',', selectedSkus(), selectedSkuGroups();
 
 priceSku(Sku s, Stock st, DATE d) += OVERRIDE accountPrice(s, st, d), accountPriceB(s, st, dateTimeToDateTime(d, 23:59));
 costPriceSku(Sku s, Stock st, DATE d) += OVERRIDE costPrice(s, st, d), NUMERIC[17,5](round5(priceSku(s, st, d) * 100 / (100 + valueVAT(s))));
@@ -463,7 +464,7 @@ FORM receiptsWithDiscountReportPrint 'Товары со скидками по ч
         discountFrom = filterDiscountFrom(), discountTo = filterDiscountTo(),
         inSaleReportStocks = inSaleReportStocks(),
         inSaleReportCashRegisters = inSaleReportCashRegs(),
-        inSaleReportSkus = inSaleReportSkus()
+        inSaleReportSkus = inSkus()
 
     OBJECTS d = DATE
     PROPERTIES (d) fullSumByDayReceiptDiscount, discountSumByDayReceiptDiscount, signedSumByDayReceiptDiscount
@@ -513,8 +514,12 @@ FORM statisticalReports
         inReportCashiers() ON CHANGE selectCashiers(),
         inReportCashiersDiscount 'Кассиры' = inReportCashiers() ON CHANGE selectCashiers()
 
-    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType(),
-        inSaleReportSkusReceiptDiscount 'Товары' = inSaleReportSkus() ON CHANGE askSkuFilterType()
+    PROPERTIES nameSkuLists() READONLY SHOWIF anySkuList()
+    PROPERTIES nameSkuLists2 = nameSkuLists() READONLY SHOWIF anySkuList()
+    PROPERTIES inSelectedSkuGroups 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
+    PROPERTIES inSelectedSkuGroups2 'Товарные группы' = selectedSkuGroups() READONLY SHOWIF anySkuGroup()
+    PROPERTIES inSkus 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
+       PROPERTIES inSaleReportSkusReceiptDiscount 'Товары' = inSkus() ON CHANGE selectSkus() READONLYIF anySkuList() OR anySkuGroup()
 
     PROPERTIES filterQuantityTypeName(), filterQuantity(),
         filterShiftFrom(), filterShiftTo(),
@@ -556,7 +561,10 @@ DESIGN statisticalReports{
                 NEW skuStock{
                     MOVE PROPERTY (inReportStocksCashRegs);
                     MOVE PROPERTY (inReportCashRegs);
-                    MOVE PROPERTY (inSaleReportSkus());
+                    //MOVE PROPERTY (inSaleReportSkus());
+                    MOVE PROPERTY(nameSkuLists()) { alignment = STRETCH; }
+                    MOVE PROPERTY(inSelectedSkuGroups) { alignment = STRETCH; }
+                    MOVE PROPERTY(inSkus) { alignment = STRETCH; }
                 }
                 NEW quantity{
                     caption = 'По количеству';
@@ -619,6 +627,8 @@ DESIGN statisticalReports{
             }
             MOVE PROPERTY (inReportStocksReceiptDiscount);
             MOVE PROPERTY (inReportCashRegsReceiptDiscount);
+            MOVE PROPERTY(nameSkuLists2) { alignment = STRETCH; }
+            MOVE PROPERTY(inSelectedSkuGroups2) { alignment = STRETCH; }
             MOVE PROPERTY (inSaleReportSkusReceiptDiscount);
 
             MOVE PROPERTY (printReceiptsWithDiscountReport(dateFromObj, dateToObj)) LAST {caption = 'Печать';}
@@ -634,7 +644,7 @@ EXTEND FORM receiptDetailReport
 
 FORM canceledSalesByCashRegsReportPrint 'Аннулированные продажи'
     PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
-        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSkus()
 
     OBJECTS rd = ZReport.ReceiptDetail
     PROPERTIES (rd) READONLY date, time, idBarcode, idSku, nameSku, numberCashRegister, nameEmployee, numberReceipt, ZReport.signedQuantity, price, ZReport.signedSum
@@ -661,7 +671,7 @@ sumReceiptDetailSubtotalByCashierSkip(Employee e, DepartmentStore ds) = GROUP SU
 
 FORM cashierCanceledSalesReportPrint 'Аннулированные продажи (по кассирам)'
     PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
-        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSkus()
 
     OBJECTS ds = DepartmentStore
     PROPERTIES (ds) name
@@ -681,7 +691,7 @@ printCashierCanceledSalesReportPrint 'Аннулированные продаж�
 
 FORM canceledSalesByCashRegsTotalReportPrint 'Аннулированные продажи (ИТОГИ)'
     PROPERTIES filterFrom = filterFrom(), filterTo = filterTo(),
-        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSaleReportSkus()
+        inSaleReportStocks = inSaleReportStocks(), inSaleReportCashRegs(), inSkus()
 
     OBJECTS ds = DepartmentStore
     PROPERTIES (ds) name
@@ -713,7 +723,7 @@ FORM canceledSales
 
     PROPERTIES inReportCashRegs 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
 
-    PROPERTIES inSaleReportSkus() ON CHANGE askSkuFilterType()
+    PROPERTIES inSkus() ON CHANGE askSkuFilterType()
 
     PROPERTIES
     filterQuantityTypeName(), filterQuantity(),
@@ -738,7 +748,7 @@ DESIGN canceledSales{
                 NEW skuStock{
                     MOVE PROPERTY (inReportStocksCashRegs);
                     MOVE PROPERTY (inReportCashRegs);
-                    MOVE PROPERTY (inSaleReportSkus());
+                    MOVE PROPERTY (inSkus());
                 }
                 NEW quantity{
                     caption = 'По количеству';
