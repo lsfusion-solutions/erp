@@ -171,7 +171,6 @@ CONSTRAINT (SETCHANGED(sku(SkuLedger d)) OR SETCHANGED(stock(d)) OR SETCHANGED(d
     AND documentsClosedDate(stock(d)) AND PREV(date(d)) < documentsClosedDate(stock(d))
     AND skipEditBeforeClosingDate()
     MESSAGE 'Запрещено редактировать документы до даты закрытия';
-
 typeExchangeGestori 'Тип обмена' = DATA LOCAL TypeExchange();
 nameTypeExchangeGestori 'Тип обмена' = name(typeExchangeGestori());
 
@@ -181,6 +180,8 @@ rateNat (DATE d) =
     ELSE rateOn(typeExchangeGestori(), defaultCurrency(), d);
 
 isInc 'Приход' (StockDocumentLedger l) = l IS IncStockDocumentLedger;
+
+idStock 'Код подразделения' (StockDocumentLedger l) = id(stock(l));
 
 sumBaseAcc 'Сумма в баз.в. (уч.ц.)' (StockDocumentLedger l) = sum(l);
 sumNatAcc 'Сумма в нац.в. (уч.ц.)' (StockDocumentLedger l) =
@@ -193,8 +194,13 @@ sumBaseRel 'Сумма в баз.в. (отп.ц.)' =
 sumNatRel 'Сумма в нац.в. (отп.ц.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sumBaseRel(l) * rateNat(date(l))));
 
+signedCostSum(SkuLedger sl) =
+    IF signedQuantity(sl) >= 0 THEN costSum(sl) ELSE -costSum(sl);
+
 sumBaseCost 'Сумма в баз.в. (себест.)' =
-    GROUP SUM costSum(SkuLedger sl) BY stockDocumentLedger(sl);
+    GROUP SUM round2(signedCostSum(SkuLedger sl) /
+        (1.0 + (OVERRIDE valueVAT(sku(sl), country(stock(sl)), date(sl)), 0.0) / 100.0))
+    BY stockDocumentLedger(sl);
 sumNatCost 'Сумма в нац.в. (себест.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sumBaseCost(l) * rateNat(date(l))));
 
@@ -230,7 +236,7 @@ FORM printStockDocGestori 'Отчет'
         balBaseAccA = balBaseAccA(dtTo), balNatAccA = balNatAccA(dtTo)
 
     OBJECTS dl = StockDocumentLedger
-    PROPERTIES(dl) READONLY isInc, date, nameStock, objectClassName, description,
+    PROPERTIES(dl) READONLY isInc, idStock, date, nameStock, objectClassName, description,
         nameOperation, nameLegalEntity, nameLegalEntityStock,
         seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
     PROPERTIES(dl, dtFrom) READONLY balBaseAccBStock, balNatAccBStock
@@ -253,7 +259,7 @@ EXTEND FORM sumStockDocumentLedger
     PROPERTIES() nameTypeExchangeGestori
 
     OBJECTS dl = StockDocumentLedger
-    PROPERTIES(dl) READONLY isClosed, isPosted, isInc, date, nameStock,
+    PROPERTIES(dl) READONLY isClosed, isPosted, isInc, idStock, date, nameStock,
         objectClassName, description,
         nameOperation, nameLegalEntity, nameLegalEntityStock,
         seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost

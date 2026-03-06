@@ -3,10 +3,15 @@
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="printStockDocGestori" pageWidth="1040" pageHeight="595" orientation="Landscape" columnWidth="1000" leftMargin="20" rightMargin="20" topMargin="30" bottomMargin="30" uuid="c1a3ed39-0fda-456f-beaa-7557e37ed2c7">
 	<property name="net.sf.jasperreports.export.xls.print.page.width" value="1040"/>
 	<property name="net.sf.jasperreports.export.xls.print.page.height" value="595"/>
-	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.rows" value="false"/>
-	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.columns" value="false"/>
+	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.rows" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.remove.empty.space.between.columns" value="true"/>
 	<property name="net.sf.jasperreports.export.xls.detect.cell.type" value="true"/>
 	<property name="net.sf.jasperreports.export.xls.white.page.background" value="false"/>
+	<property name="net.sf.jasperreports.export.xls.one.page.per.sheet" value="false"/>
+	<property name="net.sf.jasperreports.export.xls.freeze.row" value="5"/>
+	<property name="net.sf.jasperreports.export.xls.collapse.row.span" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.ignore.graphics" value="true"/>
+	<property name="net.sf.jasperreports.export.xls.ignore.page.margins" value="true"/>
 	<style name="DefaultStyle" isDefault="true" vAlign="Middle" fontName="lsf.TimesNewRoman" fontSize="10">
 		<box>
 			<pen lineWidth="0.5" lineStyle="Solid" lineColor="#000000"/>
@@ -20,6 +25,7 @@
 		<paragraph leftIndent="2" rightIndent="2"/>
 	</style>
 	<field name="dl.object" class="java.lang.Long"/>
+	<field name="idStock(dl)" class="java.lang.String"/>
 	<field name="nameStock(dl)" class="java.lang.String"/>
 	<field name="date(dl)" class="java.time.LocalDate"/>
 	<field name="seriesNumber(dl)" class="java.lang.String"/>
@@ -177,7 +183,7 @@
 					<textElement textAlignment="Center">
 						<font size="10" isBold="true"/>
 					</textElement>
-					<textFieldExpression><![CDATA["Подразделение: " + $F{nameStock(dl)}]]></textFieldExpression>
+					<textFieldExpression><![CDATA["Подразделение: " + ($F{idStock(dl)} != null ? $F{idStock(dl)} + " \u2014 " : "") + $F{nameStock(dl)}]]></textFieldExpression>
 				</textField>
 			</band>
 		</groupHeader>
@@ -188,7 +194,7 @@
 					<textElement textAlignment="Center">
 						<font size="9" isBold="true"/>
 					</textElement>
-					<textFieldExpression><![CDATA["Итоги по подразделению: " + $F{nameStock(dl)}]]></textFieldExpression>
+					<textFieldExpression><![CDATA["Итоги по подразделению: " + ($F{idStock(dl)} != null ? $F{idStock(dl)} + " \u2014 " : "") + $F{nameStock(dl)}]]></textFieldExpression>
 				</textField>
 				<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 					<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="14" width="670" height="14" backcolor="#D5DBDB" uuid="aa000019-0019-4019-8019-000000000019"/>
@@ -490,14 +496,21 @@
 	<pageHeader>
 		<band height="36">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="120" height="36" backcolor="#F0F0F0" uuid="aa000003-0003-4003-8003-000000000003"/>
+				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" mode="Opaque" x="0" y="0" width="40" height="36" backcolor="#F0F0F0" uuid="aa000100-0100-4100-8100-000000000100"/>
+				<textElement textAlignment="Center">
+					<font size="8" isBold="true"/>
+				</textElement>
+				<textFieldExpression><![CDATA["Код"]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" mode="Opaque" x="40" y="0" width="90" height="36" backcolor="#F0F0F0" uuid="aa000003-0003-4003-8003-000000000003"/>
 				<textElement textAlignment="Center">
 					<font size="9" isBold="true"/>
 				</textElement>
 				<textFieldExpression><![CDATA["Подразделение"]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" mode="Opaque" x="120" y="0" width="310" height="36" backcolor="#F0F0F0" uuid="aa000006-0006-4006-8006-000000000006"/>
+				<reportElement style="GroupCellStyle0" stretchType="RelativeToBandHeight" mode="Opaque" x="130" y="0" width="300" height="36" backcolor="#F0F0F0" uuid="aa000006-0006-4006-8006-000000000006"/>
 				<textElement textAlignment="Center">
 					<font size="9" isBold="true"/>
 				</textElement>
@@ -578,14 +591,21 @@
 	<detail>
 		<band height="14">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="120" height="14" uuid="aa000024-0024-4024-8024-000000000024"/>
+				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="40" height="14" uuid="aa000101-0101-4101-8101-000000000101"/>
 				<textElement textAlignment="Center">
-					<font size="8"/>
+					<font size="7"/>
+				</textElement>
+				<textFieldExpression><![CDATA[$F{idStock(dl)}]]></textFieldExpression>
+			</textField>
+			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
+				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="40" y="0" width="90" height="14" uuid="aa000024-0024-4024-8024-000000000024"/>
+				<textElement textAlignment="Center">
+					<font size="7"/>
 				</textElement>
 				<textFieldExpression><![CDATA[$F{nameStock(dl)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
-				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="120" y="0" width="310" height="14" uuid="aa000027-0027-4027-8027-000000000027"/>
+				<reportElement style="GroupCellStyle0" positionType="Float" stretchType="RelativeToBandHeight" x="130" y="0" width="300" height="14" uuid="aa000027-0027-4027-8027-000000000027"/>
 				<textElement>
 					<font size="8"/>
 				</textElement>
