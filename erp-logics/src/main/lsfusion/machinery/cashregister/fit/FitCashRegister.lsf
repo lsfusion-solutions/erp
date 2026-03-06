@@ -1,7 +1,7 @@
 MODULE FitCashRegister;
 
 REQUIRE NativeMachinery, CashRegister, Store, ZReportDiscountCard, SkuRu, MachineryPriceTransactionStockTax, LotType, 
-        GiftCard, MachineryPriceTransactionPromotion, PriceListPromotion, MachineryPriceTransactionBalance;
+        GiftCard, MachineryPriceTransactionPromotion, PriceListPromotion, MachineryPriceTransactionBalance, ZReportPOS;
 
 NAMESPACE Fit;
 
@@ -251,10 +251,12 @@ receiveFromFit (CashRegister cr) {
                         date(z) <- toDateFormat(substr(receiptString(line), 96, 8), 'DDMMYYYY');
                         time(z) <- TIME (toDateTimeFormat(substr(receiptString(line), 48, 5), 'HH24:MI'));
                         isPosted(z) <- TRUE;
+                        shiftStart(z) <- dateTimeToDateTime(toDateFormat(substr(receiptString(line), 96, 8), 'DDMMYYYY'),TIME (toDateTimeFormat(substr(receiptString(line), 48, 5), 'HH24:MI')));
                     }
                     FOR INTEGER report = [GROUP MIN INTEGER k IF left(receiptString(k), 4) = '0511' AND trim(substr(receiptString(k), 5, 20))='903' BY substr(receiptString(k), 33, 4)](STRING rep) AND
                         ZReport z = zReport(STRING[100](rep + substr(receiptString(report), 91, 2)+ substr(receiptString(report), 89, 2)+ substr(receiptString(report), 85, 4)+ lpad(STRING(cr), 18, '0'))) DO {
                         hasZReport(z) <- TRUE;
+                        shiftEnd(z) <- dateTimeToDateTime(toDateFormat(substr(receiptString(report), 85, 8), 'YYYYMMDD'),TIME (toDateTimeFormat(substr(receiptString(report), 99, 6), 'HH24MISS')));
                     }
                     FOR STRING str = receiptString(INTEGER j) AND isReceipt(str) AND 
                         NOT receipt(substr(str, 92, 4) + substr(str, 96, 8) + lpad(STRING(cr), 18, '0') + substr(str, 56, 12) + substr(str, 27, 6) + substr(str, 48, 5)) DO NEW r = Receipt {
@@ -394,7 +396,7 @@ receiveFromFit (CashRegister cr) {
 }
 
 receiveGroupMachinery(GroupMachinery g) + {
-    IF isFit(g) THEN {
+    IF isFit(g)  THEN {
         FOR groupCashRegister(CashRegister cr) = g AND NOT inactive(cr) AND NOT disableSales(cr) DO {
             receiveFromFit(cr);
         } 
