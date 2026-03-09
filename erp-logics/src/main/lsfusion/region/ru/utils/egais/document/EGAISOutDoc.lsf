@@ -193,3 +193,40 @@ META defineDocumentOutProcess(doc, container)
         }
     }
 END
+
+// Чтобы одна ошибка не тормозила весь процесс
+submit (OutDoc r, BOOLEAN skiptTrowException) {
+    EXPORT submitOutDoc OBJECTS r = r XML;
+
+    IF NOT utm(r) THEN utm(r) <- OVERRIDE utm(client(r)), defaultUtm();
+
+    LOCAL response = FILE();
+    TRY {
+        logToFile('egais', 'Submit document ' + (OVERRIDE urlUtm(r) + '/opt/in/' + idDocType(r), ''));
+        EXTERNAL HTTP POST urlUtm(r) + '/opt/in/' + idDocType(r) BODYPARAMNAMES 'xml_file' PARAMS exportFile() TO response;
+    } CATCH {
+        fileToString(response());
+        error(r) <- CONCAT '\n', 'Ошибка при формировании запроса к ЕГАИС :', messageCaughtException(), resultString();
+        logToFile('egais', error(r));
+        IF NOT skiptTrowException THEN {
+            throwException(error(r));
+        } ELSE {
+            MESSAGE  CONCAT '\n', 'Ошибка при формировании запроса к ЕГАИС :', messageCaughtException(), resultString() NOWAIT;
+            CANCEL;
+            RETURN;
+        }
+    }
+
+    IMPORT submitOutDocResponse XML FROM response();
+
+    id(r) <- id();
+    sign(r) <- sign();
+    ver(r) <- ver();
+}
+
+submit (OutDoc r, FILE f, BOOLEAN skiptTrowException) {
+    fileToString(f);
+    document(r) <- rtrim(ltrim(replace(resultString(), '<?xml version="1.0" encoding="UTF-8"?>', ''), '\n'), '\n');
+
+    submit(r, skiptTrowException);
+}
