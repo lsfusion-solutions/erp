@@ -232,6 +232,11 @@ skipCreateDiscountCard = DATA BOOLEAN ();
 receiveFromFit (CashRegister cr) {
     TRY {
         fileExists(CONCAT '', pathPut(cr), 'spool.adr');
+        } CATCH {
+            MESSAGE (CONCAT '\n', 'Ошибка!:', messageCaughtException(), javaStackTraceCaughtException(), lsfStackTraceCaughtException()) NOWAIT;
+            RETURN;
+        }
+    TRY {
         IF NOT fileExists() THEN {
             NEWSESSION {
                 listFiles(pathGet(cr));
@@ -372,17 +377,13 @@ receiveFromFit (CashRegister cr) {
                                                             
                     }
                     fitOverParse(cr);
-                }
-                APPLY NESTED LOCAL;
-                LOCAL succeessDir = STRING ();
-                IF NOT System.canceled() THEN {
-                    succeessDir() <- pathGet(cr) + 'success-' + currentTimeText(); 
-                    mkdir(succeessDir());    
-                    FOR STRING fn = fileName(INTEGER i) AND NOT fileIsDirectory(i) AND NOT System.canceled() AND 
-                    ([FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'ll[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn) OR 
-                     [FORMULA NULL BOOLEAN PG 'CASE WHEN $1 ~ \'fl[0-9]{6}\\.[0-9]{3}\' THEN 1 ELSE NULL END'](fn)) DO {
+                    APPLY NESTED LOCAL;
+                    LOCAL succeessDir = STRING ();
+                    IF NOT System.canceled() THEN {
+                        succeessDir() <- pathGet(cr) + 'success-' + toChar(currentDate(), 'YYYYmmdd');
+//                        mkdir(succeessDir());
                         move(pathGet(cr) + fn, succeessDir() + '/' + fn);
-                    }
+                    }                
                 }
             }
         }
