@@ -7,6 +7,25 @@ NAMESPACE Production;
 accountPrice 'Учетная цена (после)' = DATA NUMERIC[16,4] (OutputDetail);
 accountLedgerPrice (OrderOutputDetail d) += accountPrice(d);
 
-@defineCalcAveragePriceBalance(OutputDetail, stock, 'производстве');
+calcAccountPriceBalance (OutputDetail d) = balanceBPositiveChecked(sku(d), stock(d), dateTime(d));
+
+calcAccountPrice (OutputDetail d) =
+    NUMERIC[16,4](
+        (calcAccountPriceBalance(d) * accountPriceB(sku(d), stock(d), dateTime(d)) + quantity(d) * price(d) (+)
+        (GROUP SUM quantity(OutputDetail d1) * price(d1) IF output(d1) = output(d) AND sku(d1) = sku(d) AND d1 < d))/
+            (quantity(d) + calcAccountPriceBalance(d)) (+) (GROUP SUM quantity(OutputDetail d1) IF output(d1) = output(d) AND sku(d1) = sku(d) AND d1 < d));
+
+WHEN (SETCHANGED(sku(OutputDetail d)) OR SETCHANGED(stock(d)) OR SETCHANGED(dateTime(d)) OR
+    SETCHANGED(quantity(d)) OR SETCHANGED(price(d))) AND NOT disableCalcAccountPrice() DO
+    accountPrice(d) <- calcAccountPrice(d);
+
+recalculateCostAccountFirst(DATE dFrom, DATE dTo) + {
+    logToFile('cost', 'Начат пересчет цен в производстве');
+    APPLY NESTED LOCAL {
+        accountPrice(OutputDetail d) <- calcAccountPrice(d)
+            WHERE date(d) >= dFrom AND date(d) <= dTo AND calcRecalculateCost(sku(d)) AND NOT date(d) < documentsClosedDate(stock(d));
+    }
+    logToFile('cost', 'Закончен пересчет цен в производстве');
+}
 
 @defineTabAccountPrice(manufacturing, od, OutputDetail, 'Производство');

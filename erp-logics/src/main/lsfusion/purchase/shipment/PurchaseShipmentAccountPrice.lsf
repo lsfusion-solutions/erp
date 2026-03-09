@@ -11,8 +11,9 @@ calcAccountPriceBalance (ShipmentDetail d) = balanceBPositiveChecked(sku(d), cus
 
 calcAccountPrice (ShipmentDetail d) =
     NUMERIC[16,4](
-        (calcAccountPriceBalance(d) * accountPriceB(sku(d), customerStock(d), dateTime(d)) + quantity(d) * price(d))/
-        (quantity(d) + calcAccountPriceBalance(d)));
+        (calcAccountPriceBalance(d) * accountPriceB(sku(d), customerStock(d), dateTime(d)) + quantity(d) * price(d) (+) 
+        (GROUP SUM quantity(ShipmentDetail d1) * price(d1) IF shipment(d1) = shipment(d) AND sku(d1) = sku(d) AND d1 < d))/
+        (quantity(d) + calcAccountPriceBalance(d) (+) (GROUP SUM quantity(ShipmentDetail d1) IF shipment(d1) = shipment(d) AND sku(d1) = sku(d) AND d1 < d)));
 
 // пока без PREV, так как нужно хитро пересчитывать при изменении той же даты
 WHEN (SETCHANGED(sku(ShipmentDetail d)) OR SETCHANGED(customerStock(d)) OR SETCHANGED(dateTime(d)) OR
