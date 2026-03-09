@@ -18,11 +18,22 @@ filterOperation = DATA LOCAL Operation();
 nameFilterOperation 'Операция' = name(filterOperation());
 filterOperation(PricingDetail d) = operation(d) == filterOperation() OR NOT filterOperation();
 
+filterItemGroup = DATA LOCAL ItemGroup();
+nameFilterItemGroup 'Группа товара' = name(filterItemGroup());
+filterItemGroup(PricingDetail d) = isParent(filterItemGroup(), sku(d)) OR NOT filterItemGroup();
+
+filterSku = DATA LOCAL Sku();
+nameFilterSku 'Товар' = name(filterSku());
+filterSku(PricingDetail d) = sku(d) == filterSku() OR NOT filterSku();
+
+idItemGroup 'Код группы товара' (PricingDetail d) = idItemGroup(sku(d));
+nameItemGroup 'Группа товара' (PricingDetail d) = nameItemGroup(sku(d));
+
 FORM pricingReport 'Реестр расценок'
     OBJECTS dates = (df = DATE , dt = DATE) PANEL
     PROPERTIES dateFrom = VALUE(df), dateTo = VALUE(dt)
 
-    PROPERTIES () nameFilterSupplier, nameFilterOperation   
+    PROPERTIES () nameFilterSupplier, nameFilterOperation, nameFilterItemGroup, nameFilterSku   
     
     OBJECTS st = DepartmentStore
     PROPERTIES (st) inReport
@@ -33,7 +44,7 @@ FORM pricingReport 'Реестр расценок'
     FILTERGROUP active FILTER 'Активные' active(st) DEFAULT
 
     OBJECTS d = PricingDetail
-    PROPERTIES (d) READONLY date, time, number, series, nameSupplier, nameDepartmentStore, nameOperation
+    PROPERTIES (d) READONLY date, time, number, series, nameSupplier, nameDepartmentStore, nameOperation, idItemGroup, nameItemGroup
     PROPERTIES (d) READONLY idBarcodeSku, idSku, nameSku, shortNameUOMSku, quantity, price, sum, nameRetailPriceListType
     PROPERTIES (d) READONLY retailMarkup, retailMarkupSum, numberRetailVAT, valueRetailVAT, retailVATSum, retailPrice, retailSum
     ORDERS date(d), time(d)
@@ -41,7 +52,9 @@ FORM pricingReport 'Реестр расценок'
     FILTERS date(d) >= df AND date(d) <= dt,
             inReport(departmentStore(d)),
             filterSupplier(d),
-            filterOperation(d)
+            filterOperation(d),
+            filterItemGroup(d),
+            filterSku(d)
 ;
 
 @extendFormFilterStockAccess(st, pricingReport);
@@ -56,6 +69,8 @@ DESIGN pricingReport {
         MOVE PROPERTY(dateTo) { caption = 'Дата по'; };
         MOVE PROPERTY(nameFilterSupplier());
         MOVE PROPERTY(nameFilterOperation());
+        MOVE PROPERTY(nameFilterItemGroup());
+        MOVE PROPERTY(nameFilterSku());
     }
     NEW details {
         horizontal = TRUE;
@@ -66,6 +81,7 @@ DESIGN pricingReport {
         }
         MOVE BOX(d) {
             fill = 5;
+            PROPERTY (idSku(d)) { caption = 'Код товара'; }
         }
     }
     MOVE TOOLBARBOX;
