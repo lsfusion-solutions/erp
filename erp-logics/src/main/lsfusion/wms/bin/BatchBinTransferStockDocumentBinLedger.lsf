@@ -45,7 +45,8 @@ needToRecalculateShipmentSum = ABSTRACT BOOLEAN (UserBinTransferDetail);
 recalculateShipmentSum() + {
     NEWSESSION {
         shipmentPrice(UserBinTransferDetail detail) <- prevAccountPriceA(batch(detail), stock(detail), dateTime(detail))
-            WHERE needToRecalculateShipmentSum(detail) AND batch(detail) AND sum(date(detail), countDaysToRecalculate())>=currentDate();
+            WHERE needToRecalculateShipmentSum(detail) AND batch(detail) AND
+                date(detail) >= MAX documentsClosedDate(stock(detail)), sum(currentDate(), -countDaysToRecalculate());
         APPLY;
     }
 }
