@@ -1186,9 +1186,9 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
         UKM4MySQLSalesBatch salesBatch = null;
 
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : new UKM4MySQLSettings();
-        Set<Integer> cashPayments = parsePayments(ukm4MySQLSettings.getCashPayments());
-        Set<Integer> cardPayments = parsePayments(ukm4MySQLSettings.getCardPayments());
-        Set<Integer> giftCardPayments = parsePayments(ukm4MySQLSettings.getGiftCardPayments());
+        Set<String> cashPayments = parsePaymentsStr(ukm4MySQLSettings.getCashPayments());
+        Set<String> cardPayments = parsePaymentsStr(ukm4MySQLSettings.getCardPayments());
+        Set<String> giftCardPayments = parsePaymentsStr(ukm4MySQLSettings.getGiftCardPayments());
         Set<Integer> customPayments = parsePayments(ukm4MySQLSettings.getCustomPayments());
         List<String> giftCardList = ukm4MySQLSettings.getGiftCardList();
         boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
@@ -1246,8 +1246,8 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
         return salesBatch;
     }
 
-    private Map<String, UKMPayment> readPaymentMap(Connection conn, Set<Integer> cashPayments, Set<Integer> cardPayments,
-                                                   Set<Integer> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList,
+    private Map<String, UKMPayment> readPaymentMap(Connection conn, Set<String> cashPayments, Set<String> cardPayments,
+                                                   Set<String> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList,
                                                    boolean checkCardType) {
 
         Map<String, UKMPayment> paymentMap = new HashMap<>();
@@ -1256,11 +1256,11 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
             //sql_no_cache is workaround of the bug: https://bugs.mysql.com/bug.php?id=31353
             String query;
             if(checkCardType) {
-                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
+                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.payment_name, p.amount, r.type, IF(p.card_type!='', p.card_type,p.card_number), p.type "
                         + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
                         + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
             } else {
-                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number, p.type "
+                query = "select sql_no_cache p.id, p.cash_id, p.receipt_header, p.payment_id, p.payment_name, p.amount, r.type, p.card_number, p.type "
                         + "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id "
                         + "where r.ext_processed = 0 AND r.result = 0 AND (p.type = 0 OR p.type = 2)"; // type 3 это сдача, type 2 - аннулирование
             }
@@ -1271,14 +1271,15 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                 Integer cash_id = rs.getInt(2); //cash_id
                 Integer idReceipt = rs.getInt(3); //receipt_header
                 String key = cash_id + "/" + idReceipt;
-                Integer paymentType = rs.getInt(4);//payment_id
-                BigDecimal amount = rs.getBigDecimal(5);
-                Integer receiptType = rs.getInt(6); //r.type
+                Integer paymentTypeId = rs.getInt(4);//payment_id
+                String paymentTypeName = rs.getString(5);//payment_name
+                BigDecimal amount = rs.getBigDecimal(6);
+                Integer receiptType = rs.getInt(7); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                 amount = isReturn ? amount.negate() : amount;
 
                 //если пришёл payment с type = 2, то ищем такой же с type = 0 и удаляем (это аннуляция плате
-                Integer pType = rs.getInt(8); //p.type
+                Integer pType = rs.getInt(9); //p.type
                 if(pType == 2) {
                     paymentMap.remove(key);
                 } else {
@@ -1286,18 +1287,20 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     Map<String, Object> extraFields = new HashMap<>();
                     extraFields.put("externalId", cash_id + "_" + id);
 
-                    if (customPayments.contains(paymentType)) {
+                    if (customPayments.contains(paymentTypeId)) {
                         UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
-                        paymentEntry.payments.add(new Payment(String.valueOf(paymentType), amount, extraFields));
+                        paymentEntry.payments.add(new Payment(String.valueOf(paymentTypeId), amount, extraFields));
                         paymentMap.put(key, paymentEntry);
                     } else {
-                        if (cashPayments.contains(paymentType)) //нал
+                        Integer paymentType = null;
+                        String paymentTypeIdValue = String.valueOf(paymentTypeId);
+                        if (cashPayments.contains(paymentTypeIdValue) || cashPayments.contains(paymentTypeName)) //нал
                             paymentType = 0;
-                        else if (cardPayments.contains(paymentType)) //безнал
+                        else if (cardPayments.contains(paymentTypeIdValue) || cardPayments.contains(paymentTypeName)) //безнал
                             paymentType = 1;
-                        else if (giftCardPayments.contains(paymentType)) //сертификат
+                        else if (giftCardPayments.contains(paymentTypeIdValue) || giftCardPayments.contains(paymentTypeName)) //сертификат
                             paymentType = 2;
-                        String giftCard = rs.getString(7); //p.card_number
+                        String giftCard = rs.getString(8); //p.card_number
                         if (giftCard.isEmpty()) giftCard = null;
 
                         if (giftCard != null && giftCardList != null) {
@@ -1309,7 +1312,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                             }
                         }
                         //если тип оплаты не найден, считаем налом
-                        if (paymentType != 0 && paymentType != 1 && paymentType != 2)
+                        if (paymentType == null || (paymentType != 0 && paymentType != 1 && paymentType != 2))
                             paymentType = 0;
 
                         UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
@@ -1385,7 +1388,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
     }
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, boolean usePieceCode, Map<String, CashRegisterInfo> machineryMap,
-                                                     Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
+                                                     Set<String> cashPayments, Set<String> cardPayments, Set<String> giftCardPayments,
                                                      Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
                                                      boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee,
