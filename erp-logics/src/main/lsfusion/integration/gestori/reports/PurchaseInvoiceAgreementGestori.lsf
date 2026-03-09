@@ -161,3 +161,34 @@ NAVIGATOR {
         NEW priceCheckGestori;
     }
 }
+
+skipMaxDeviationPrice(InvoiceDetail d) += TRUE;
+
+maxDeviationPriceGestori 'Макс. цена' (OrderDetail d) = NUMERIC[28,9]((100.0 + percDeviationUpPriceAgreement(d)) *
+    invoicePrice(d) /
+    100.0);
+minDeviationPriceGestori 'Мин. цена' (OrderDetail d) = NUMERIC[28,9]((100.0 - percDeviationDownPriceAgreement(d)) *
+    invoicePrice(d) /
+    100.0);
+
+maxDeviationPriceOrderGestori 'Макс. цена заказ' (InvoiceDetail d) = maxDeviationPriceGestori(orderDetail(d));
+minDeviationPriceOrderGestori 'Мин. цена заказ' (InvoiceDetail d) = minDeviationPriceGestori(orderDetail(d));
+
+overMaxDeviationPriceGestori 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN maxDeviationPriceOrderGestori(d) ELSE maxDeviationPrice(d);
+overMinDeviationPriceGestori 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN minDeviationPriceOrderGestori(d) ELSE minDeviationPrice(d);
+
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND
+    isPosted(d) AND invoicePrice(d) > overMaxDeviationPriceGestori(d)
+    MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';
+
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND
+    isPosted(d) AND invoicePrice(d) < overMinDeviationPriceGestori(d)
+    MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';
+
+skipCheckDeviationPrice(Purchase.OrderDetail d) += TRUE IF d IS Purchase.OrderDetail;
+
+CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(agreement(d))) AND isPosted(d) AND (invoicePrice(d) < minDeviationPriceAgreement(d))
+    MESSAGE 'Для строки заказа превышен минимальный допустимый процент отклонения по цене';
+
+CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(agreement(d))) AND isPosted(d) AND (invoicePrice(d) > maxDeviationPriceAgreement(d))
+    MESSAGE 'Для строки заказа превышен максимальный допустимый процент отклонения по цене';    
