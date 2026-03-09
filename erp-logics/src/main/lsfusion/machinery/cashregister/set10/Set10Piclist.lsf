@@ -151,9 +151,23 @@ extraMenuName = ABSTRACT STRING (CustomGroupType);
 extraFilter = ABSTRACT BOOLEAN (CustomGroupType);
 
 CLASS PiclistType{
-    csi 'CSI',
-    touch 'Touch'
+    csi 'CSI_K',
+    touch 'Touch',
+    sco_3 'SCO_3'
 }
+
+typePiclistSet10  = DATA PiclistType (GroupCashRegister);
+nameTypePiclistSet10 'Пиклист' (GroupCashRegister g) = staticCaption(typePiclistSet10(g));
+
+EXTEND FORM groupCashRegister
+    PROPERTIES (grc) nameTypePiclistSet10 SHOWIF isSet10(grc)
+;
+DESIGN groupCashRegister{
+    topContainer{
+        MOVE PROPERTY (nameTypePiclistSet10(grc));
+    }
+}
+nameTypePiclistSet10Over 'Пиклист' (GroupCashRegister g) = OVERRIDE  nameTypePiclistSet10(g), 'CSI_K' IF g IS GroupCashRegister;
 
 FORM exportCSIformAPI
     PROPERTIES templateType = 'PERMANENT'
@@ -164,8 +178,8 @@ FORM exportCSIformAPI
     PROPERTIES VALUE(cashTemplates) EXTID 'cashTemplates'
 
     OBJECTS dd = (g = GroupCashRegister, type = CustomGroupType) EXTID 'menuTemplates'
-    PROPERTIES = IF idStoreSet(g) THEN 'CSI_K' EXTID 'cashType',
-        menuName = (CONCAT ' ', ('CSI-K ТО ' + idStoreSet(g)), extraMenuName(type)),
+    PROPERTIES = IF idStoreSet(g) THEN nameTypePiclistSet10Over(g) EXTID 'cashType',
+        menuName = (CONCAT ' ', (nameTypePiclistSet10Over(g)+' ТО ' + idStoreSet(g)), extraMenuName(type)),
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
         content = content(type, stock(g)) EXTID 'content:escapeInnerJSON'
     FILTERS idStoreSet(g) AND active(g), 
@@ -356,18 +370,6 @@ levelExt (TouchElement child)  = GROUP SUM 1 IF level(child, TouchElement parent
 fillPicList ABSTRACT LIST (DepartmentStore);
 indexExport = DATA LOCAL INTEGER (TouchElement, TouchElement);
 
-
-typePiclistSet10  = DATA PiclistType (GroupCashRegister);
-nameTypePiclistSet10 'Пиклист' (GroupCashRegister g) = staticCaption(typePiclistSet10(g));
-
-EXTEND FORM groupCashRegister
-    PROPERTIES (grc) nameTypePiclistSet10 SHOWIF isSet10(grc)
-;
-DESIGN groupCashRegister{
-    topContainer{
-        MOVE PROPERTY (nameTypePiclistSet10(grc));
-    }
-}
 
 exportTouchAPI 'Экспорт пиклиста Touch' () {
     NEWSESSION APPLY {
