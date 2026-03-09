@@ -1189,7 +1189,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
         Set<String> cashPayments = parsePaymentsStr(ukm4MySQLSettings.getCashPayments());
         Set<String> cardPayments = parsePaymentsStr(ukm4MySQLSettings.getCardPayments());
         Set<String> giftCardPayments = parsePaymentsStr(ukm4MySQLSettings.getGiftCardPayments());
-        Set<Integer> customPayments = parsePayments(ukm4MySQLSettings.getCustomPayments());
+        Set<String> customPayments = parsePaymentsStr(ukm4MySQLSettings.getCustomPayments());
         List<String> giftCardList = ukm4MySQLSettings.getGiftCardList();
         boolean useBarcodeAsId = ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
         boolean appendBarcode = ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
@@ -1247,7 +1247,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
     }
 
     private Map<String, UKMPayment> readPaymentMap(Connection conn, Set<String> cashPayments, Set<String> cardPayments,
-                                                   Set<String> giftCardPayments, Set<Integer> customPayments, List<String> giftCardList,
+                                                   Set<String> giftCardPayments, Set<String> customPayments, List<String> giftCardList,
                                                    boolean checkCardType) {
 
         Map<String, UKMPayment> paymentMap = new HashMap<>();
@@ -1287,13 +1287,13 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
                     Map<String, Object> extraFields = new HashMap<>();
                     extraFields.put("externalId", cash_id + "_" + id);
 
-                    if (customPayments.contains(paymentTypeId)) {
+                    String paymentTypeIdValue = String.valueOf(paymentTypeId);
+                    if (customPayments.contains(paymentTypeIdValue) || customPayments.contains(paymentTypeName)) {
                         UKMPayment paymentEntry = paymentMap.getOrDefault(key, new UKMPayment());
                         paymentEntry.payments.add(new Payment(String.valueOf(paymentTypeId), amount, extraFields));
                         paymentMap.put(key, paymentEntry);
                     } else {
                         Integer paymentType = null;
-                        String paymentTypeIdValue = String.valueOf(paymentTypeId);
                         if (cashPayments.contains(paymentTypeIdValue) || cashPayments.contains(paymentTypeName)) //нал
                             paymentType = 0;
                         else if (cardPayments.contains(paymentTypeIdValue) || cardPayments.contains(paymentTypeName)) //безнал
@@ -1389,7 +1389,7 @@ private void exportItemsGTIN(Connection conn, TransactionCashRegisterInfo transa
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, boolean usePieceCode, Map<String, CashRegisterInfo> machineryMap,
                                                      Set<String> cashPayments, Set<String> cardPayments, Set<String> giftCardPayments,
-                                                     Set<Integer> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
+                                                     Set<String> customPayments, List<String> giftCardList, boolean useBarcodeAsId, boolean appendBarcode,
                                                      boolean useShiftNumberAsNumberZReport, boolean zeroPaymentForZeroSumReceipt,
                                                      boolean cashRegisterByStoreAndNumber, boolean useLocalNumber, boolean useStoreInIdEmployee,
                                                      boolean useCashNumberInsteadOfCashId, boolean checkCardType, int maxReceiptCount, String directory) {

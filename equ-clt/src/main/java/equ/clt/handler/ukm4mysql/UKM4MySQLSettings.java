@@ -13,7 +13,7 @@ public class UKM4MySQLSettings implements Serializable{
     private String cardPayments;
     //Коды или имена признака оплаты подарочным сертификатом через запятую. По умолчанию используется код 2
     private String giftCardPayments;
-    //Коды признака оплаты кастомными типами платежей через запятую.
+    //Коды или имена признака оплаты кастомными типами платежей через запятую.
     private String customPayments;
 
     //Список подарочных сертификатов через запятую. Если receipt_payment.card_number содержится в списке,
