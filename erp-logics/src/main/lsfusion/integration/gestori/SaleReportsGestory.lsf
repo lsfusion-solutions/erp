@@ -187,9 +187,11 @@ inSaleIntervalReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 intervalInHoursInput 'Интервал (в часах)' = DATA LOCAL INTEGER ();
 
+filterShiftFromIntervals 'Смена от' = DATA LOCAL TIME ();
+filterShiftToIntervals 'Смена до' = DATA LOCAL TIME ();
+
 intervalInHours = CASE
-    WHEN intervalInHoursInput() THEN intervalInHoursInput()
-    WHEN intervalsCount() THEN daysBetweenDates(filterTo(), filterFrom()) * 24 / intervalsCount();
+    WHEN intervalInHoursInput() THEN intervalInHoursInput();
 
 iterateHours(DATETIME d) = RECURSION d = DATETIME(filterFrom()) AND filterFrom() IS DATE
     AND DATETIME(filterTo()) IS DATETIME STEP d = sumMinutes($d, intervalInHours() * 60) AND d < DATETIME(filterTo()) CYCLES IMPOSSIBLE;
@@ -228,7 +230,8 @@ FORM salesByIntervalsReportPrint 'Продажи по временным инт�
         unitCountI(d, s) COLUMNS 'склад' (s) HEADER name(s) + ': Продано\nединиц ',
         sumI(d, s) COLUMNS 'склад' (s) HEADER 'Сумма\nпродаж',
         avgI(d, s) COLUMNS 'склад' (s) HEADER 'Средняя\nстоимость'
-    FILTERS iterateHours(d) ;
+    FILTERS iterateHours(d), TIME (d) >= filterShiftFromIntervals(), TIME (d) <= filterShiftToIntervals()
+;
 
 printSaleReportIntervals 'Печать' (DATE from, DATE to){
     filterFrom() <- from;
@@ -509,7 +512,7 @@ FORM statisticalReports
         inReportCashRegsDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters(),
         inReportCashRegsReceiptDiscount 'Кассы' = inSaleReportCashRegs() ON CHANGE selectCashRegisters()
 
-    PROPERTIES intervalInHoursInput(), intervalsCount(),
+    PROPERTIES intervalInHoursInput(), filterShiftFromIntervals(), filterShiftToIntervals(),
         printSaleReportIntervals(dateFromObj, dateToObj),
         inReportCashiers() ON CHANGE selectCashiers(),
         inReportCashiersDiscount 'Кассиры' = inReportCashiers() ON CHANGE selectCashiers()
@@ -547,7 +550,8 @@ DESIGN statisticalReports{
             }
             MOVE PROPERTY (inReportStocksIntervals);
             MOVE PROPERTY (intervalInHoursInput());
-            MOVE PROPERTY (intervalsCount());
+            MOVE PROPERTY (filterShiftFromIntervals());
+            MOVE PROPERTY (filterShiftToIntervals());
             MOVE PROPERTY (printSaleReportIntervals(dateFromObj, dateToObj));
         }
         NEW saleReportByCashRegs {
