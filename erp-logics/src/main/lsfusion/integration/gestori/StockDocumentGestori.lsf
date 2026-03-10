@@ -187,10 +187,19 @@ sumBaseAcc 'Сумма в баз.в. (уч.ц.)' (StockDocumentLedger l) = sum(l
 sumNatAcc 'Сумма в нац.в. (уч.ц.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sum(l) * rateNat(date(l))));
 
-sumBaseRel 'Сумма в баз.в. (отп.ц.)' =
+isSaleReturnType(StockDocumentLedger l) =
+    (operation(l) IS Sale.Operation) OR isReturn(l) OR
+        (l IS SaleLedger AND NOT operation(l));
+
+sumBaseRelByPrice =
     GROUP SUM round2(signedQuantity(SkuLedger sl) *
         prevPriceB(retailPriceListType(stock(sl)), sku(sl), stock(sl), dateTime(sl)))
     BY stockDocumentLedger(sl);
+
+sumBaseRel 'Сумма в баз.в. (отп.ц.)' (StockDocumentLedger l) =
+    IF isSaleReturnType(l)
+    THEN sumItem(l)
+    ELSE sumBaseRelByPrice(l);
 sumNatRel 'Сумма в нац.в. (отп.ц.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sumBaseRel(l) * rateNat(date(l))));
 
@@ -212,20 +221,78 @@ titleReport (DATE df, DATE dt) =
 subtitleReport () =
     CONCAT ' | ', 'Тип обмена: ' + nameTypeExchangeGestori();
 
-balBaseAccB 'Входящий остаток в баз.в.' (DATE dtFrom) =
-    GROUP SUM sumAccountBDocumentLedger(Stock s, dtFrom) IF inSaleReport(s);
-balNatAccB 'Входящий остаток в нац.в.' (DATE dtFrom) =
-    NUMERIC[18,4](round2(balBaseAccB(dtFrom) * rateNat(dtFrom)));
+balBaseAccBStock (Stock st, DATE d) = sumAccountBDocumentLedger(st, d);
+balNatAccBStock (Stock st, DATE d) = NUMERIC[18,4](round2(balBaseAccBStock(st, d) * rateNat(d)));
+balBaseAccAStock (Stock st, DATE d) = sumAccountADocumentLedger(st, d);
+balNatAccAStock (Stock st, DATE d) = NUMERIC[18,4](round2(balBaseAccAStock(st, d) * rateNat(d)));
 
-balBaseAccA 'Исходящий остаток в баз.в.' (DATE dtTo) =
-    GROUP SUM sumAccountADocumentLedger(Stock s, dtTo) IF inSaleReport(s);
-balNatAccA 'Исходящий остаток в нац.в.' (DATE dtTo) =
+balBaseAccB 'Вх. остаток (баз.в., уч.ц.)' (DATE dtFrom) =
+    GROUP SUM balBaseAccBStock(Stock s, dtFrom) IF inSaleReport(s);
+balNatAccB 'Вх. остаток (нац.в., уч.ц.)' (DATE dtFrom) =
+    NUMERIC[18,4](round2(balBaseAccB(dtFrom) * rateNat(dtFrom)));
+balBaseAccA 'Исх. остаток (баз.в., уч.ц.)' (DATE dtTo) =
+    GROUP SUM balBaseAccAStock(Stock s, dtTo) IF inSaleReport(s);
+balNatAccA 'Исх. остаток (нац.в., уч.ц.)' (DATE dtTo) =
     NUMERIC[18,4](round2(balBaseAccA(dtTo) * rateNat(dtTo)));
 
-balBaseAccBStock (StockDocumentLedger l, DATE d) = sumAccountBDocumentLedger(stock(l), d);
-balNatAccBStock (StockDocumentLedger l, DATE d) = NUMERIC[18,4](round2(balBaseAccBStock(l, d) * rateNat(d)));
-balBaseAccAStock (StockDocumentLedger l, DATE d) = sumAccountADocumentLedger(stock(l), d);
-balNatAccAStock (StockDocumentLedger l, DATE d) = NUMERIC[18,4](round2(balBaseAccAStock(l, d) * rateNat(d)));
+balBaseRelBStock 'Вх. остаток (баз.в., отп.ц.)' (Stock st, DATE d) =
+    GROUP SUM round2(balanceB(Sku sk, st, d) *
+        prevPriceB(retailPriceListType(st), sk, st, toDateTime(d)));
+balNatRelBStock 'Вх. остаток (нац.в., отп.ц.)' (Stock st, DATE d) =
+    NUMERIC[18,4](round2(balBaseRelBStock(st, d) * rateNat(d)));
+balBaseRelAStock 'Исх. остаток (баз.в., отп.ц.)' (Stock st, DATE d) =
+    GROUP SUM round2(balanceA(Sku sk, st, d) *
+        prevPriceB(retailPriceListType(st), sk, st, toDateTime(sum(d, 1))));
+balNatRelAStock 'Исх. остаток (нац.в., отп.ц.)' (Stock st, DATE d) =
+    NUMERIC[18,4](round2(balBaseRelAStock(st, d) * rateNat(d)));
+
+balBaseRelB 'Вх. остаток (баз.в., отп.ц.)' (DATE d) =
+    GROUP SUM balBaseRelBStock(Stock s, d) IF inSaleReport(s);
+balNatRelB 'Вх. остаток (нац.в., отп.ц.)' (DATE d) =
+    NUMERIC[18,4](round2(balBaseRelB(d) * rateNat(d)));
+balBaseRelA 'Исх. остаток (баз.в., отп.ц.)' (DATE d) =
+    GROUP SUM balBaseRelAStock(Stock s, d) IF inSaleReport(s);
+balNatRelA 'Исх. остаток (нац.в., отп.ц.)' (DATE d) =
+    NUMERIC[18,4](round2(balBaseRelA(d) * rateNat(d)));
+
+balBaseCostBStock 'Вх. остаток (баз.в., себест.)' (Stock st, DATE d) =
+    GROUP SUM round2(costSumB(Sku sk, st, d) /
+        (1.0 + (OVERRIDE valueVAT(sk, country(st), d), 0.0) / 100.0));
+balNatCostBStock 'Вх. остаток (нац.в., себест.)' (Stock st, DATE d) =
+    NUMERIC[18,4](round2(balBaseCostBStock(st, d) * rateNat(d)));
+balBaseCostAStock 'Исх. остаток (баз.в., себест.)' (Stock st, DATE d) =
+    GROUP SUM round2(costSumA(Sku sk, st, d) /
+        (1.0 + (OVERRIDE valueVAT(sk, country(st), d), 0.0) / 100.0));
+balNatCostAStock 'Исх. остаток (нац.в., себест.)' (Stock st, DATE d) =
+    NUMERIC[18,4](round2(balBaseCostAStock(st, d) * rateNat(d)));
+
+balBaseCostB 'Вх. остаток (баз.в., себест.)' (DATE d) =
+    GROUP SUM balBaseCostBStock(Stock s, d) IF inSaleReport(s);
+balNatCostB 'Вх. остаток (нац.в., себест.)' (DATE d) =
+    NUMERIC[18,4](round2(balBaseCostB(d) * rateNat(d)));
+balBaseCostA 'Исх. остаток (баз.в., себест.)' (DATE d) =
+    GROUP SUM balBaseCostAStock(Stock s, d) IF inSaleReport(s);
+balNatCostA 'Исх. остаток (нац.в., себест.)' (DATE d) =
+    NUMERIC[18,4](round2(balBaseCostA(d) * rateNat(d)));
+
+balBaseAccBStock (StockDocumentLedger dl, DATE d) = balBaseAccBStock(stock(dl), d);
+balNatAccBStock (StockDocumentLedger dl, DATE d) = balNatAccBStock(stock(dl), d);
+balBaseAccAStock (StockDocumentLedger dl, DATE d) = balBaseAccAStock(stock(dl), d);
+balNatAccAStock (StockDocumentLedger dl, DATE d) = balNatAccAStock(stock(dl), d);
+
+balBaseRelBStock (StockDocumentLedger dl, DATE d) = balBaseRelBStock(stock(dl), d);
+balNatRelBStock (StockDocumentLedger dl, DATE d) = balNatRelBStock(stock(dl), d);
+balBaseRelAStock (StockDocumentLedger dl, DATE d) = balBaseRelAStock(stock(dl), d);
+balNatRelAStock (StockDocumentLedger dl, DATE d) = balNatRelAStock(stock(dl), d);
+
+balBaseCostBStock (StockDocumentLedger dl, DATE d) = balBaseCostBStock(stock(dl), d);
+balNatCostBStock (StockDocumentLedger dl, DATE d) = balNatCostBStock(stock(dl), d);
+balBaseCostAStock (StockDocumentLedger dl, DATE d) = balBaseCostAStock(stock(dl), d);
+balNatCostAStock (StockDocumentLedger dl, DATE d) = balNatCostAStock(stock(dl), d);
+
+hasMovements (DATE dtFrom, DATE dtTo) =
+    GROUP SUM 1 IF active(StockDocumentLedger dl) AND inSaleReport(stock(dl))
+        AND date(dl) >= dtFrom AND date(dl) <= dtTo;
 
 FORM printStockDocGestori 'Отчет'
     OBJECTS dtFrom = DATE PANEL, dtTo = DATE PANEL, ds = Stock PANEL
@@ -234,22 +301,80 @@ FORM printStockDocGestori 'Отчет'
     PROPERTIES subtitleReport = subtitleReport()
     PROPERTIES balBaseAccB = balBaseAccB(dtFrom), balNatAccB = balNatAccB(dtFrom),
         balBaseAccA = balBaseAccA(dtTo), balNatAccA = balNatAccA(dtTo)
+    PROPERTIES balBaseRelB = balBaseRelB(dtFrom), balNatRelB = balNatRelB(dtFrom),
+        balBaseRelA = balBaseRelA(dtTo), balNatRelA = balNatRelA(dtTo)
+    PROPERTIES balBaseCostB = balBaseCostB(dtFrom), balNatCostB = balNatCostB(dtFrom),
+        balBaseCostA = balBaseCostA(dtTo), balNatCostA = balNatCostA(dtTo)
+
+    OBJECTS st = Stock
+    PROPERTIES idSt = id(st), nameSt = name(st)
+    PROPERTIES balBaseAccBSt = balBaseAccBStock(st, dtFrom),
+        balNatAccBSt = balNatAccBStock(st, dtFrom),
+        balBaseAccASt = balBaseAccAStock(st, dtTo),
+        balNatAccASt = balNatAccAStock(st, dtTo)
+    PROPERTIES balBaseRelBSt = balBaseRelBStock(st, dtFrom),
+        balNatRelBSt = balNatRelBStock(st, dtFrom),
+        balBaseRelASt = balBaseRelAStock(st, dtTo),
+        balNatRelASt = balNatRelAStock(st, dtTo)
+    PROPERTIES balBaseCostBSt = balBaseCostBStock(st, dtFrom),
+        balNatCostBSt = balNatCostBStock(st, dtFrom),
+        balBaseCostASt = balBaseCostAStock(st, dtTo),
+        balNatCostASt = balNatCostAStock(st, dtTo)
+    FILTERS inSaleReport(st)
+    ORDERS nameSt
 
     OBJECTS dl = StockDocumentLedger
     PROPERTIES(dl) READONLY isInc, idStock, date, nameStock, objectClassName, description,
         nameOperation, nameLegalEntity, nameLegalEntityStock,
         seriesNumber, sumBaseAcc, sumNatAcc, sumBaseRel, sumNatRel, sumBaseCost, sumNatCost
-    PROPERTIES(dl, dtFrom) READONLY balBaseAccBStock, balNatAccBStock
-    PROPERTIES(dl, dtTo) READONLY balBaseAccAStock, balNatAccAStock
+    PROPERTIES balBaseAccBStock(dl, dtFrom), balNatAccBStock(dl, dtFrom),
+        balBaseAccAStock(dl, dtTo), balNatAccAStock(dl, dtTo),
+        balBaseRelBStock(dl, dtFrom), balNatRelBStock(dl, dtFrom),
+        balBaseRelAStock(dl, dtTo), balNatRelAStock(dl, dtTo),
+        balBaseCostBStock(dl, dtFrom), balNatCostBStock(dl, dtFrom),
+        balBaseCostAStock(dl, dtTo), balNatCostAStock(dl, dtTo)
     FILTERS active(dl),
-        inSaleReport(stock(dl)),
+        stock(dl) = st,
         date(dl) >= dtFrom,
         date(dl) <= dtTo
-    ORDERS nameStock(dl), nameOperation(dl), isInc(dl), date(dl)
+    ORDERS nameOperation(dl), isInc(dl), date(dl)
+;
+
+FORM printStockDocGestoriEmpty 'Отчет (без движений)'
+    OBJECTS dtFrom = DATE PANEL, dtTo = DATE PANEL, ds = Stock PANEL
+
+    PROPERTIES titleReport = titleReport(dtFrom, dtTo)
+    PROPERTIES subtitleReport = subtitleReport()
+    PROPERTIES balBaseAccB = balBaseAccB(dtFrom), balNatAccB = balNatAccB(dtFrom),
+        balBaseAccA = balBaseAccA(dtTo), balNatAccA = balNatAccA(dtTo)
+    PROPERTIES balBaseRelB = balBaseRelB(dtFrom), balNatRelB = balNatRelB(dtFrom),
+        balBaseRelA = balBaseRelA(dtTo), balNatRelA = balNatRelA(dtTo)
+    PROPERTIES balBaseCostB = balBaseCostB(dtFrom), balNatCostB = balNatCostB(dtFrom),
+        balBaseCostA = balBaseCostA(dtTo), balNatCostA = balNatCostA(dtTo)
+
+    OBJECTS st = Stock
+    PROPERTIES idSt = id(st), nameSt = name(st)
+    PROPERTIES balBaseAccBSt = balBaseAccBStock(st, dtFrom),
+        balNatAccBSt = balNatAccBStock(st, dtFrom),
+        balBaseAccASt = balBaseAccAStock(st, dtTo),
+        balNatAccASt = balNatAccAStock(st, dtTo)
+    PROPERTIES balBaseRelBSt = balBaseRelBStock(st, dtFrom),
+        balNatRelBSt = balNatRelBStock(st, dtFrom),
+        balBaseRelASt = balBaseRelAStock(st, dtTo),
+        balNatRelASt = balNatRelAStock(st, dtTo)
+    PROPERTIES balBaseCostBSt = balBaseCostBStock(st, dtFrom),
+        balNatCostBSt = balNatCostBStock(st, dtFrom),
+        balBaseCostASt = balBaseCostAStock(st, dtTo),
+        balNatCostASt = balNatCostAStock(st, dtTo)
+    FILTERS inSaleReport(st)
+    ORDERS nameSt
 ;
 
 printStockDocReport 'Отчет' (DATE dtFrom, DATE dtTo, Stock ds) {
-    PRINT printStockDocGestori OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
+    IF hasMovements(dtFrom, dtTo) THEN
+        PRINT printStockDocGestori OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
+    ELSE
+        PRINT printStockDocGestoriEmpty OBJECTS dtFrom = dtFrom, dtTo = dtTo, ds = ds XLSX;
 } IMAGE 'print.png';
 
 EXTEND FORM sumStockDocumentLedger
@@ -257,6 +382,21 @@ EXTEND FORM sumStockDocumentLedger
     PROPERTIES inSaleReportStocksSDL 'Подразделения' = inSaleReportStocks()
     ON CHANGE changeStocksSDL() READONLYIF stockList()
     PROPERTIES() nameTypeExchangeGestori
+
+    PROPERTIES balBaseAccBForm 'Вх. остаток (баз.в., уч.ц.)' = balBaseAccB(dtFrom) READONLY
+    PROPERTIES balNatAccBForm 'Вх. остаток (нац.в., уч.ц.)' = balNatAccB(dtFrom) READONLY
+    PROPERTIES balBaseAccAForm 'Исх. остаток (баз.в., уч.ц.)' = balBaseAccA(dtTo) READONLY
+    PROPERTIES balNatAccAForm 'Исх. остаток (нац.в., уч.ц.)' = balNatAccA(dtTo) READONLY
+
+    PROPERTIES balBaseRelBForm 'Вх. остаток (баз.в., отп.ц.)' = balBaseRelB(dtFrom) READONLY
+    PROPERTIES balNatRelBForm 'Вх. остаток (нац.в., отп.ц.)' = balNatRelB(dtFrom) READONLY
+    PROPERTIES balBaseRelAForm 'Исх. остаток (баз.в., отп.ц.)' = balBaseRelA(dtTo) READONLY
+    PROPERTIES balNatRelAForm 'Исх. остаток (нац.в., отп.ц.)' = balNatRelA(dtTo) READONLY
+
+    PROPERTIES balBaseCostBForm 'Вх. остаток (баз.в., себест.)' = balBaseCostB(dtFrom) READONLY
+    PROPERTIES balNatCostBForm 'Вх. остаток (нац.в., себест.)' = balNatCostB(dtFrom) READONLY
+    PROPERTIES balBaseCostAForm 'Исх. остаток (баз.в., себест.)' = balBaseCostA(dtTo) READONLY
+    PROPERTIES balNatCostAForm 'Исх. остаток (нац.в., себест.)' = balNatCostA(dtTo) READONLY
 
     OBJECTS dl = StockDocumentLedger
     PROPERTIES(dl) READONLY isClosed, isPosted, isInc, idStock, date, nameStock,
@@ -315,6 +455,63 @@ DESIGN sumStockDocumentLedger {
                 MOVE PROPERTY(nameStockListSDL) { alignment = STRETCH; }
                 MOVE PROPERTY(inSaleReportStocksSDL) { alignment = STRETCH; }
                 MOVE PROPERTY(nameTypeExchangeGestori()) { alignment = STRETCH; }
+            }
+            NEW gestoriBalances {
+                alignment = STRETCH;
+                NEW gestoriBalancesAcc {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    NEW gestoriBalancesAccIn {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseAccBForm);
+                        MOVE PROPERTY(balNatAccBForm);
+                    }
+                    NEW gestoriBalancesAccOut {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseAccAForm);
+                        MOVE PROPERTY(balNatAccAForm);
+                    }
+                }
+                NEW gestoriBalancesRel {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    NEW gestoriBalancesRelIn {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseRelBForm);
+                        MOVE PROPERTY(balNatRelBForm);
+                    }
+                    NEW gestoriBalancesRelOut {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseRelAForm);
+                        MOVE PROPERTY(balNatRelAForm);
+                    }
+                }
+                NEW gestoriBalancesCost {
+                    horizontal = TRUE;
+                    alignment = STRETCH;
+                    NEW gestoriBalancesCostIn {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseCostBForm);
+                        MOVE PROPERTY(balNatCostBForm);
+                    }
+                    NEW gestoriBalancesCostOut {
+                        fill = 1;
+                        horizontal = TRUE;
+                        alignment = CENTER;
+                        MOVE PROPERTY(balBaseCostAForm);
+                        MOVE PROPERTY(balNatCostAForm);
+                    }
+                }
             }
             MOVE BOX(dl) { fill = 1; }
         }
