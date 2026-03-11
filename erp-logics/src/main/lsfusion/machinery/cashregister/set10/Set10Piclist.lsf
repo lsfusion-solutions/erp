@@ -148,7 +148,7 @@ DESIGN integrationData {
 overSkipExport = ABSTRACT BOOLEAN (STRING, GroupCashRegister);
 
 extraMenuName = ABSTRACT STRING (CustomGroupType);
-extraFilter = ABSTRACT BOOLEAN (CustomGroupType);
+extraFilter = ABSTRACT BOOLEAN (CustomGroupType, GroupCashRegister);
 
 CLASS PiclistType{
     csi 'CSI_K',
@@ -183,7 +183,7 @@ FORM exportCSIformAPI
         shopNumbers = ('[' + INTEGER(idStoreSet(g)) + ']'),
         content = content(type, stock(g)) EXTID 'content:escapeInnerJSON'
     FILTERS idStoreSet(g) AND active(g), 
-            type == customGroupPicListLocal() OR extraFilter(type),
+            type == customGroupPicListLocal() OR extraFilter(type,g),
             NOT overSkipExport(templateGuid, g)
 ;
 
@@ -229,9 +229,9 @@ exportCSIAPI 'Экспорт пиклиста CSI' (STRING templateGuid) {
         ELSE {
             MESSAGE  'Нет данных для выгрузки' NOWAIT ;
         }
+    } ELSE {
+        MESSAGE 'Не указан адресc для API запросов CSI-K' NOWAIT;
     }
-    ELSE
-        MESSAGE 'Не указан адресc для API запросов CSI-K (Touch)' NOWAIT;
 }
 
 exportCSIAPI 'Экспорт пиклиста CSI' (){
