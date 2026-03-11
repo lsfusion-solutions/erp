@@ -186,7 +186,8 @@ kop 'Копейки (цена за базовую единицу до)' (NUMERIC
 product_cost (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePrice(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePrice(i, sku))), '00');
 product_tax (Invoice i, Sku sku) = CONCAT '.', (OVERRIDE STRING(rub(invoicePriceVAT(i, sku))), '0'), (OVERRIDE STRING(kop(invoicePriceVAT(i, sku))), '00');
 
-addInfoShipsAdd(Invoice i, Sku sku) = '"' + gtin14(sku) + '"' + ': \{' + '"product_cost":"' + product_cost(i, sku) + '",' +'"product_tax":"' + product_tax(i, sku) +'"\}';
+overAddInfoShipsAdd = ABSTRACT STRING (Invoice, Sku);
+addInfoShipsAdd(Invoice i, Sku sku) = '"' + gtin14(sku) + '"' + ': \{' + '"product_cost":"' + product_cost(i, sku) + '",' +'"product_tax":"' + product_tax(i, sku) +'"' + overAddInfoShipsAdd(i, sku) + '\}';
 
 addInfoShipsAdd (Invoice i, LotType lt) =
     '"eas_products": \{' +
