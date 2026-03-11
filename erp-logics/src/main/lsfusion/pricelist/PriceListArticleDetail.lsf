@@ -1,6 +1,6 @@
 MODULE PriceListArticleDetail;
 
-REQUIRE PriceListArticleDetailMain;
+REQUIRE PriceListArticleDetailMain, PriceListOperation;
 
 NAMESPACE PriceList;
 
@@ -56,3 +56,9 @@ EXTEND FORM userPriceList
     PROPERTIES(ad, tc) AFTER toTime(ad) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
     PROPERTIES(ad, to) AFTER price(ad, tc) READONLY prevPriceB COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) DRAW ad 
 ;
+
+operation 'Операция' (UserAPriceListDetail userAPriceListDetail) = operation(userPriceList(userAPriceListDetail));
+
+CONSTRAINT (SET(isPosted(UserAPriceListDetail d)) OR SETCHANGED(operation(d)) OR DROPPED(price(d, DataPriceListType t)))
+    AND NOT price(d, t) AND in(d, t) AND isPosted(d) AND isPrice(operation(d))
+    MESSAGE 'В прайсе с такой операцией должна быть задана цена для артикула';
