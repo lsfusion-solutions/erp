@@ -103,16 +103,7 @@ pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
 
 operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
 
-// Записываем тип цены по умолчанию из операции
-calcRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(pricingOperation(invoice)) 
-                THEN pricingPriceListType(pricingOperation(invoice))
-                ELSE (retailPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(pricingOperation(invoice)))
-                    WHEN (CHANGED(pricingOperation(invoice)) OR CHANGED(customerStock(invoice))) AND pricingOperation(invoice);
-
-calcRetailCalcPriceListType (UserInvoice invoice) <- IF pricingCalcPriceListType(pricingOperation(invoice)) 
-                THEN pricingCalcPriceListType(pricingOperation(invoice))
-                ELSE (retailCalcPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(pricingOperation(invoice)))
-                    WHEN (CHANGED(pricingOperation(invoice)) OR CHANGED(customerStock(invoice))) AND pricingOperation(invoice);
+@fillDocumentHeaderPriceListTypes(calcRetailPriceListType, calcRetailCalcPriceListType, userInvoice, invoice, customerStock, pricingOperation);
 
 EXTEND FORM operation
     PROPERTIES(o) namePricingOperation

@@ -214,6 +214,18 @@ META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD,
     }
 END
 
+META fillDocumentHeaderPriceListTypes(priceListType, calcPricelistType, class, obj, stockProp, operationProp)
+    priceListType (###class obj) <- IF pricingPriceListType(operationProp(obj))
+        THEN pricingPriceListType(operationProp(obj))
+        ELSE (retailPriceListType(stockProp(obj)) IF NOT skipSetPriceListTypesDepartmentStore(operationProp(obj)))
+            WHEN (CHANGED(operationProp(obj)) OR CHANGED(stockProp(obj))) AND operationProp(obj);
+
+    calcPricelistType (###class obj) <- IF pricingCalcPriceListType(operationProp(obj))
+        THEN pricingCalcPriceListType(operationProp(obj))
+        ELSE (retailCalcPriceListType(stockProp(obj)) IF NOT skipSetPriceListTypesDepartmentStore(operationProp(obj)))
+            WHEN (CHANGED(operationProp(obj)) OR CHANGED(stockProp(obj))) AND operationProp(obj);
+END
+
 //----------------------------------------------- Расценка ---------------------------------------------------//
 
 CLASS ABSTRACT Pricing 'Акт расценки';
@@ -667,22 +679,12 @@ DESIGN operation {
     }    
 }
 
-
-calcRetailPriceListType (UserPricing p) <- IF pricingPriceListType(operation(p)) 
-                THEN pricingPriceListType(operation(p))
-                ELSE (retailPriceListType(departmentStore(p)) IF NOT skipSetPriceListTypesDepartmentStore(operation(p)))
-                    WHEN (CHANGED(operation(p)) OR CHANGED(departmentStore(p))) AND operation(p);
-
-calcRetailCalcPriceListType (UserPricing p) <- IF pricingCalcPriceListType(operation(p)) 
-                THEN pricingCalcPriceListType(operation(p))
-                ELSE (retailCalcPriceListType(departmentStore(p)) IF NOT skipSetPriceListTypesDepartmentStore(operation(p)))
-                    WHEN (CHANGED(operation(p)) OR CHANGED(departmentStore(p))) AND operation(p);
-
+@fillDocumentHeaderPriceListTypes(calcRetailPriceListType, calcRetailCalcPriceListType, userPricing, p, departmentStore, operation);
 
 EXTEND FORM userPricing
     PROPERTIES(p) nameOperation
-//    PROPERTIES (d) overLimitPriceUserPricingDetail, overPricingPriceUserPricingDetail, pricingPriceUserPricingDetail, minRetailPriceUserPricingDetail
 ;
+
 DESIGN userPricing{
     first{
         MOVE PROPERTY (nameOperation(p)) {charWidth = 30;}

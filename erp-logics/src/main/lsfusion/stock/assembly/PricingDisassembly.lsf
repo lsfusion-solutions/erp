@@ -48,8 +48,7 @@ retailCalcPriceListType (DisassemblyDetail d) = retailCalcPriceListType(disassem
 retailPriceListType = DATA PriceListType (Disassembly);
 nameRetailPriceListType 'Вид цен (управленческий)' (Disassembly o) = name(retailPriceListType(o)) CHARWIDTH 20;
 
-retailCalcPriceListType (Disassembly o) <- pricingCalcPriceListType(pricingOperation(o)) WHEN CHANGED(pricingOperation(o));
-retailPriceListType (Disassembly o) <- pricingPriceListType(pricingOperation(o)) WHEN CHANGED(pricingOperation(o)); 
+@fillDocumentHeaderPriceListTypes(retailPriceListType, retailCalcPriceListType, disassembly, a, stock, pricingOperation);
 
 retailPriceListType = DATA PriceListType (DisassemblyDetail);
 nameRetailPriceListType 'Вид цен (розничная)' (DisassemblyDetail detail) = name(retailPriceListType(detail)) CHARWIDTH 10;
@@ -122,11 +121,6 @@ retailMarkup '{document.markup}' = DATA NUMERIC[8,3] (DisassemblyDetail);
 retailVATSum 'Сумма НДС розничная' = DATA NUMERIC[18,4] (DisassemblyDetail) CHARWIDTH 8;
 retailMarkupSum '{document.markup.sum}' = DATA NUMERIC[18,4] (DisassemblyDetail) CHARWIDTH 8;
 
-recalcRetailPrice(DisassemblyDetail detail, RoundCondition roundCondition) = NUMERIC[16,4](round([(X*(Y+100)/100)*(Z+100)/100](
-        supplierPrice(detail),
-        retailMarkup(detail),
-        valueRetailVAT(detail)), roundCondition));
-
 VATMarkupSum 'НДС и надбавка' (DisassemblyDetail d) =  retailSum(d) (-) supplierSum(d);
 
 retailVATSum(DisassemblyDetail d) <- round([ X*Y/(100+Y)](retailSum(d), valueRetailVAT(d)), currency(d))
@@ -159,6 +153,13 @@ retailPriceB 'Розничная цена (до)' (DisassemblyDetail d) = prevRe
 backgroundRetailPriceB (DisassemblyDetail d) = CASE
     WHEN retailPriceB(d) > retailPrice(d) THEN RGB(250,150,150)
     WHEN retailPriceB(d) < retailPrice(d) THEN RGB(150,250,200);
+
+recalcRetailPrice(DisassemblyDetail detail, RoundCondition roundCondition) = NUMERIC[16,4](round([((X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
+        supplierPrice(detail),
+        retailExtraPackagingCost(detail) IF NOT retailExtraPackagingCostSkip(detail),
+        retailMarkup(detail),
+        retailExtraPackagingCost(detail),
+        valueRetailVAT(detail)), roundCondition));
 
 skipChangePrice = ABSTRACT CASE BOOLEAN (DisassemblyDetail);
 
@@ -257,8 +258,8 @@ DESIGN disassembly {
             }
             NEW headerPricingRow2 {
                 horizontal = TRUE;
-                MOVE PROPERTY(nameRetailCalcPriceListType(a));
                 MOVE PROPERTY(nameRetailPriceListType(a));
+                MOVE PROPERTY(nameRetailCalcPriceListType(a));
             }
         }
     }

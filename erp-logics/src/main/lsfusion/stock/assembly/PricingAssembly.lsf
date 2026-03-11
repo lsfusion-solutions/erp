@@ -12,11 +12,8 @@ namePricingOperation 'Операция (расценка)' = name(pricingOperati
 supplierPriceListType = DATA PriceListType (Operation);
 nameSupplierPriceListType 'Вид цен (входная)' (Operation o) = name(supplierPriceListType(o)) CHARWIDTH 20;
 
-retailPriceListType = DATA PriceListType (Operation);
-nameRetailPriceListType 'Вид цен (розничная)' (Operation o) = name(retailPriceListType(o)) CHARWIDTH 20;
-
 EXTEND FORM operation
-    PROPERTIES(o) createPricing, namePricingOperation, nameSupplierPriceListType, nameRetailPriceListType
+    PROPERTIES(o) createPricing, namePricingOperation, nameSupplierPriceListType
 ;
 
 DESIGN operation {
@@ -24,7 +21,6 @@ DESIGN operation {
         MOVE PROPERTY(createPricing(o));
         MOVE PROPERTY(namePricingOperation(o));
         MOVE PROPERTY(nameSupplierPriceListType(o));
-        MOVE PROPERTY(nameRetailPriceListType(o));
     }
 }
 
@@ -43,10 +39,37 @@ nameSupplierPriceListType 'Вид цен (входная)' (Assembly o) = name(s
 
 @deriveDocumentOperationProperty(Assembly, supplierPriceListType);
 
+retailCalcPriceListTypeIn = DATA CalcPriceListType (Assembly);
+nameRetailCalcPriceListTypeIn 'Вид цен (надбавка)' (Assembly o) = name(retailCalcPriceListTypeIn(o)) CHARWIDTH 20;
+
+retailPriceListTypeIn = DATA PriceListType (Assembly);
+nameRetailPriceListTypeIn 'Вид цен (управленческий)' (Assembly o) = name(retailPriceListTypeIn(o)) CHARWIDTH 20;
+
+@fillDocumentHeaderPriceListTypes(retailPriceListTypeIn, retailCalcPriceListTypeIn, assembly, a, stock, pricingOperation);
+
 retailPriceListType = DATA PriceListType (Assembly);
 nameRetailPriceListType 'Вид цен (розничная)' (Assembly o) = name(retailPriceListType(o)) CHARWIDTH 20;
 
-@deriveDocumentOperationProperty(Assembly, retailPriceListType);
+overRoundCondition (Assembly a) = IF retailPriceListType(a) IS CalcPriceListType
+    THEN roundCondition(retailPriceListType(a), sku(a))
+    ELSE roundCondition(retailPriceListType(a));
+
+roundCondition(Assembly a) = OVERRIDE overRoundCondition(a), roundCondition(stock(a));
+
+skipSetRetailPriceListType = ABSTRACT BOOLEAN (Assembly);
+WHEN LOCAL FORMS assembly
+    (CHANGED(retailPriceListTypeIn(Assembly a)) OR CHANGED(retailCalcPriceListTypeIn(a)) OR
+        CHANGED(sku(a)) OR CHANGED(stock(a)) OR (CHANGED(dateTime(a)) AND NOT isPosted(a)))
+        AND PriceListType pt == retailPriceListTypeIn(a) AND NOT skipSetRetailPriceListType(a) NOINLINE (pt) DO
+    retailPriceListType(a) <- IF prevPriceA(pt, sku(a), stock(a), dateTime(a))
+        THEN pt
+        ELSE retailCalcPriceListTypeIn(a);
+
+WHEN LOCAL FORMS assembly
+    (CHANGED(retailPriceListTypeIn(Assembly a)) OR CHANGED(retailCalcPriceListTypeIn(a)) OR
+        CHANGED(sku(a)) OR CHANGED(stock(a)) OR (CHANGED(dateTime(a)) AND NOT isPosted(a)))
+        AND NOT retailPriceListTypeIn(a) AND NOT skipSetRetailPriceListType(a) DO
+    retailPriceListType(a) <- retailCalcPriceListTypeIn(a);
 
 supplierPrice(AssemblyDetail d) <- (IF supplierPriceListType(assembly(d)) THEN prevPriceA(supplierPriceListType(assembly(d)), sku(d), stock(d), dateTime(d)) ELSE price(d))
     WHEN CHANGED(supplierPriceListType(assembly(d))) OR CHANGED(sku(d)) OR CHANGED(stock(d)) OR CHANGED(dateTime(d)) OR CHANGED(price(d));
@@ -67,9 +90,6 @@ calcSupplierSum(Assembly assembly) = NUMERIC[18,4](round(supplierSumAssemblyDeta
 supplierSum (Assembly assembly) <- calcSupplierSum(assembly) WHEN CHANGED(calcSupplierSum(assembly));
 
 retailPrice '{document.price} розничная' = DATA NUMERIC[16,4] (Assembly) CHARWIDTH 10 PATTERN '#,##0.00##';
-
-retailPrice(Assembly assembly) <- prevPriceA(retailPriceListType(assembly), sku(assembly), stock(assembly), dateTime(assembly))
-    WHEN CHANGED(sku(assembly)) OR CHANGED(stock(assembly)) OR CHANGED(dateTime(assembly));
 
 retailSum '{document.sum.of} розничная' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 10 PATTERN '#,##0.00##';
 
@@ -96,19 +116,6 @@ retailMarkup '{document.markup}' = DATA NUMERIC[8,3] (Assembly);
 retailVATSum 'Сумма НДС розничная' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 8;
 retailMarkupSum '{document.markup.sum}' = DATA NUMERIC[18,4] (Assembly) CHARWIDTH 8;
 
-recalcRetailMarkup(Assembly a) = NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-            retailPrice(a),
-            supplierPrice(a),
-            valueRetailVAT(a)));
-
-changeValueRetailVAT (Assembly a)  {
-    INPUT n = NUMERIC[10,5] DO {
-        valueRetailVAT(a) <- n;
-        retailVAT(a) <- valueCurrentVAT(countryStock(a), n);
-        retailMarkup(a) <- recalcRetailMarkup(a);
-    }
-}
-
 VATMarkupSum 'НДС и надбавка' (Assembly assembly) =  retailSum(assembly) (-) supplierSum(assembly);
 
 retailVATSum(Assembly assembly) <- round([ X*Y/(100+Y)](retailSum(assembly), valueRetailVAT(assembly)), currency(assembly))
@@ -117,8 +124,17 @@ retailVATSum(Assembly assembly) <- round([ X*Y/(100+Y)](retailSum(assembly), val
 retailMarkupSum (Assembly assembly) <- retailSum(assembly) (-) retailVATSum(assembly) (-) supplierSum(assembly)
     WHEN CHANGED(retailSum(assembly)) OR CHANGED(retailVATSum(assembly)) OR CHANGED(supplierSum(assembly));
 
-retailMarkup(Assembly assembly) <-[ round2(X*100/Y)](retailMarkupSum(assembly), supplierSum(assembly))
-    WHEN CHANGED(retailMarkupSum(assembly)) OR CHANGED(supplierSum(assembly));
+@changeDocumentDetailMarkupCustomPrefix(assembly, retail, supplier, retail, retail);
+
+@changeDocumentDetailPriceCustomPrefix(assembly, retail, supplier, retail, retail);
+
+changeValueRetailVAT (Assembly a)  {
+    INPUT n = NUMERIC[10,5] DO {
+        valueRetailVAT(d) <- n;
+        retailVAT(a) <- valueCurrentVAT(countryStock(a), n);
+        retailMarkup(a) <- calcRetailMarkup(a);
+    }
+}
 
 @deriveDocumentOperationProperty(Assembly, createPricing);
 
@@ -129,53 +145,83 @@ backgroundRetail 'Цвет' (Assembly assembly) = RGB(224, 255, 255) IF assembly
 
 retailPriceB 'Розничная цена (до)' (Assembly a) = prevRetailPricingPriceB(sku(a), stock(a), dateTime(a));
 
-//componentsPrice 'Цена по спецификации' (Assembly a) = NUMERIC[16,4](round(sumAssemblyDetail(a) / quantity(a), currency(a)));
-//componentsSum 'Сумма по спецификации' (Assembly a) = sumAssemblyDetail(a);
-
 backgroundRetailPriceB (Assembly d) = CASE
     WHEN retailPriceB(d) > retailPrice(d) THEN RGB(250,150,150)
     WHEN retailPriceB(d) < retailPrice(d) THEN RGB(150,250,200);
 
-calcRetailPrice(Assembly assembly) = round(NUMERIC[16,4]([ X*(Y+100)*(Z+100)/10000](
-    supplierPrice(assembly),
-    retailMarkup(assembly),
-    valueRetailVAT(assembly))), currency(assembly));
-
-changeRetailMarkup(Assembly a)  {
-    INPUT n = NUMERIC[8,3] DO {
-        retailMarkup(a) <- n;
-        retailPrice(a) <- calcRetailPrice(a) WHERE calcRetailPrice(a);
-    }
-}
-
-calcRetailMarkup(Assembly assembly) = NUMERIC[8,3]([round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-        retailPrice(assembly),
+recalcRetailPrice(Assembly assembly, RoundCondition roundCondition) = NUMERIC[16,4](round([((X (-) Q)*(Y+100)/100 (+) W)*(Z+100)/100](
         supplierPrice(assembly),
-        valueRetailVAT(assembly)));
+        retailExtraPackagingCost(assembly) IF NOT retailExtraPackagingCostSkip(assembly),
+        retailMarkup(assembly),
+        retailExtraPackagingCost(assembly),
+        valueRetailVAT(assembly)), roundCondition));
 
-changeRetailPrice(Assembly assembly)  {
-    INPUT n = NUMERIC[16,4] DO {
-        retailPrice(assembly) <- n;
-        retailMarkup(assembly) <- calcRetailMarkup(assembly) WHERE calcRetailMarkup(assembly);
+skipChangePrice = ABSTRACT CASE BOOLEAN (Assembly);
+
+WHEN LOCAL GOAFTER retailPriceListType[Assembly]
+    (CHANGED(retailPriceListType(Assembly a)) OR CHANGED(supplierPrice(a)) OR CHANGED(sku(a)) OR
+        CHANGED(stock(a)) OR (CHANGED(dateTime(a)) AND NOT isPosted(a)) OR CHANGED(valueRetailVAT(a)))
+        AND sku(a) AND CalcPriceListType priceListType == retailPriceListType(a) AND RoundCondition roundCondition == roundCondition(retailPriceListType(a), sku(a))
+        AND NOT CHANGED(retailPrice(a)) AND NOT skipChangePrice(a)
+        AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
+    retailMarkup(a) <- markup(priceListType, sku(a)) WHERE retailPriceListType(a) == priceListType;
+    retailPrice(a) <- recalcRetailPrice(a, roundCondition) WHERE retailPriceListType(a) == priceListType;
+}
+
+WHEN LOCAL GOAFTER retailPriceListType[Assembly]
+    (CHANGED(retailPriceListType(Assembly a)) OR CHANGED(supplierPrice(a)) OR CHANGED(sku(a)) OR
+        CHANGED(stock(a)) OR (CHANGED(dateTime(a)) AND NOT isPosted(a)) OR CHANGED(valueRetailVAT(a)))
+        AND sku(a) AND PriceListType priceListType == retailPriceListType(a)
+        AND NOT CHANGED(retailPrice(a)) AND NOT skipChangePrice(a)
+        AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
+    retailPrice(a) <- prevPriceA(priceListType, sku(a), stock(a), dateTime(a)) WHERE retailPriceListType(a) == priceListType;
+    retailMarkup(a) <- calcRetailMarkup(a) WHERE retailPriceListType(a) == priceListType;
+}
+
+recalculateRetailPrice 'Пересчитать розн. цену' (Assembly a) {
+    FOR sku(a) AND CalcPriceListType priceListType == retailPriceListType(a)
+        AND RoundCondition roundCondition == roundCondition(retailPriceListType(a), sku(a))
+        AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
+
+        retailMarkup(a) <- markup(priceListType, sku(a)) WHERE retailPriceListType(a) == priceListType;
+        retailPrice(a) <- recalcRetailPrice(a, roundCondition) WHERE retailPriceListType(a) == priceListType;
+    }
+    FOR sku(a) AND PriceListType priceListType == retailPriceListType(a)
+        AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
+
+        retailPrice(a) <- prevPriceA(priceListType, sku(a), stock(a), dateTime(a)) WHERE retailPriceListType(a) == priceListType;
+        retailMarkup(a) <- calcRetailMarkup(a) WHERE retailPriceListType(a) == priceListType;
     }
 }
 
-recalculateRetailPrice 'Пересчитать розн. цену' () {
-    FOR sku(Assembly assembly) AND [FILTER assembly.a](assembly) INLINE DO {
-        retailPrice(assembly) <- prevPriceA(retailPriceListType(assembly), sku(assembly), stock(assembly), dateTime(assembly));
-        retailMarkup(assembly) <- recalcRetailMarkup(assembly);
+recalculateRetailPriceAndType 'Пересчитать вид цен и розничную цену' (Assembly a)  {
+    FOR sku(a) AND PriceListType pt == retailPriceListTypeIn(a)
+        AND NOT skipSetRetailPriceListType(a) NOINLINE (pt) INLINE DO {
+        retailPriceListType(a) <- IF prevPriceA(pt, sku(a), stock(a), dateTime(a))
+            THEN pt
+            ELSE retailCalcPriceListTypeIn(a);
     }
-} ASON CONTEXTMENU retailPrice[Assembly];
+
+    IF NOT retailPriceListTypeIn(a) AND NOT skipSetRetailPriceListType(a) THEN {
+        retailPriceListType(a) <- retailCalcPriceListTypeIn(a);
+    }
+
+    recalculateRetailPrice(a);
+}
+
+showPricingExtraData 'Показать параметры' = DATA LOCAL NESTED BOOLEAN (Assembly);
 
 EXTEND FORM assembly
     PROPERTIES(a) BACKGROUND backgroundRetail(a) createPricing
-    PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) namePricingOperation, namePricingCommittee, nameSupplierPriceListType, nameRetailPriceListType
+    PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) namePricingOperation, nameSupplierPriceListType, nameRetailPriceListType, showPricingExtraData
+    PROPERTIES(a) SHOWIF (createPricing(a) AND showPricingExtraData(a)) BACKGROUND backgroundRetail(a) namePricingCommittee, 
+                  nameRetailPriceListTypeIn, nameRetailCalcPriceListTypeIn    
 
     PROPERTIES(d) BEFORE deleted SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum
     PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetail(a) supplierPrice, supplierSum, retailMarkup ON CHANGE changeRetailMarkup(a), retailMarkupSum,
                   valueRetailVAT ON CHANGE changeValueRetailVAT(a), retailVATSum, retailPrice ON CHANGE changeRetailPrice(a), retailSum 
     PROPERTIES(a) SHOWIF createPricing(a) BACKGROUND backgroundRetailPriceB(a) READONLY retailPriceB
-//    PROPERTIES(a) SHOWIF createPricing(a) READONLY componentsPrice, componentsSum    
+    PROPERTIES(a) SHOWIF createPricing(a) recalculateRetailPriceAndType
 ;
 
 DESIGN assembly {
@@ -186,7 +232,10 @@ DESIGN assembly {
                 horizontal = TRUE;
                 MOVE PROPERTY(createPricing(a));
                 MOVE PROPERTY(namePricingOperation(a));
+                MOVE PROPERTY(showPricingExtraData(a));
                 MOVE PROPERTY(namePricingCommittee(a));
+                MOVE PROPERTY(nameRetailPriceListTypeIn(a));
+                MOVE PROPERTY(nameRetailCalcPriceListTypeIn(a));
                 MOVE PROPERTY(nameSupplierPriceListType(a));
                 MOVE PROPERTY(nameRetailPriceListType(a));
             }
@@ -204,8 +253,7 @@ DESIGN assembly {
                 MOVE PROPERTY(retailPrice(a));
                 MOVE PROPERTY(retailSum(a));
                 MOVE PROPERTY(retailPriceB(a));
-//                MOVE PROPERTY(componentsPrice(a));
-//                MOVE PROPERTY(componentsSum(a));
+                MOVE PROPERTY(recalculateRetailPriceAndType(a)); 
             }
         }
     }
@@ -266,7 +314,6 @@ number(AssemblyPricing pricing) += number(pricing);
 series 'Серия документа' (AssemblyPricing assemblyPricing) = series(assembly(assemblyPricing));
 series(AssemblyPricing pricing) += series(pricing);
 seriesNumber 'Серия/номер документа' (AssemblyPricing assemblyPricing) = seriesNumber(assembly(assemblyPricing));
-
 
 note(AssemblyPricing pricing) += note(assembly(pricing));
 currency (AssemblyPricing pricing) += currency(assembly(pricing));
