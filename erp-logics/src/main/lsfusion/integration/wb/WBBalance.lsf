@@ -36,7 +36,7 @@ updateBalanceItems 'Обновить(загрузить) остатки това
 
             LOCAL include = BOOLEAN (Size);
             include(Size s) <- TRUE WHERE itemWB(s) AND NOT exportBalance(itemWB(s), w) == currentBalanceItemWB(itemWB(s), w) AND
-                ((item(s) AND isUnloadItemERPWB()) OR NOT isUnloadItemERPWB());
+                ((item(s) AND isUnloadItemERPWB()) OR NOT isUnloadItemERPWB()) AND chrtID(s);
 
             IF (GROUP SUM 1 IF include(Size s) AND NOT item(s)) THEN {
                 MESSAGE 'Не все размеры связаны с товарами из ERP: \n'+
@@ -111,7 +111,7 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                 logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
 
                 LOCAL include = BOOLEAN (Size);
-                include(Size s) <- TRUE WHERE currentBalanceSizeWB(s, w);
+                include(Size s) <- TRUE WHERE currentBalanceSizeWB(s, w) AND chrtID(s);
 
                 LOCAL index = INTEGER (Size);
                 index(Size s) <- PARTITION SUM 1 IF include(s) ORDER s;
@@ -173,7 +173,7 @@ deleteBalanceItem 'Удалить остатки товара на WB' (Warehous
     
                 logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
                 stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
-                    itemWB(s) == i, ',' ORDER s) + ']\}', 'UTF-8', 'json');
+                    itemWB(s) == i AND chrtID(s), ',' ORDER s) + ']\}', 'UTF-8', 'json');
     
                 TRY {
                     EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -181,7 +181,7 @@ deleteBalanceItem 'Удалить остатки товара на WB' (Warehous
                     logToFile('WB', resultString());
                     IMPORT importError JSON FROM response();
                     IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                        currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i;
+                        currentBalanceSizeWB(Size s, w) <- NULL WHERE itemWB(s) == i AND chrtID(s);
                     }
                     messageStock() <- messageStatusHTTP(STRING(statusHttp()));
                 } CATCH {
@@ -220,7 +220,7 @@ FORM importBalanceItems
 postBalanceItems 'Получить остатки товаров с WB' (Warehouse w) {
     NEWSESSION {
         IF (GROUP SUM 1 IF in(w, Stock.Stock st)) THEN {
-            IF (GROUP SUM 1 IF Item i IS Item) THEN {
+            IF (GROUP SUM 1 IF itemWB(Size s) AND chrtID(s)) THEN {
                 setHttpHeadersIS();
                 LOCAL messageStock = STRING();
                 LOCAL response = FILE();
@@ -231,35 +231,48 @@ postBalanceItems 'Получить остатки товаров с WB' (Warehou
                 error(w) <- NULL WHERE error(w);
 
                 logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
-                stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
-                    itemWB(s), ',' ORDER s) + ']\}', 'UTF-8', 'json');
 
-                TRY {
-                    EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
-                    fileToString(response());
-                    logToFile('WB', resultString());
-                    IMPORT importError JSON FROM response();
-                    IMPORT importBalanceItems JSON FROM response();
-                    IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
-                        FOR imported(INTEGER j) AND Size s == size(chrtId(j)) INLINE DO {
-                            currentBalanceSizeWB(s, w) <- amount(j);
-                        }
-                    }
-                    messageStock() <- messageStatusHTTP(STRING(statusHttp()));
-                } CATCH {
-                    logToFile('WB', messageCaughtException());
-                    IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                LOCAL include = BOOLEAN (Size);
+                include(Size s) <- TRUE WHERE itemWB(s) AND chrtID(s);
+
+                LOCAL index = INTEGER (Size);
+                index(Size s) <- PARTITION SUM 1 IF include(s) ORDER s;
+
+                LOCAL exported = INTEGER ();
+                exported() <- 0;
+
+                WHILE exported() < (GROUP MAX index(Size s)) DO {
+                    stringToFile('\{"chrtIds":[' + (GROUP CONCAT STRING(chrtID(Size s)) IF
+                        index(s) > exported() AND index(s) <= exported() + postItemsBalanceLimit(), ',' ORDER s) + ']\}', 'UTF-8', 'json');
+
+                    TRY {
+                        EXTERNAL HTTP POST url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
+                        fileToString(response());
+                        logToFile('WB', resultString());
                         IMPORT importError JSON FROM response();
-                        extraDescriptionStatusHTTP() <- 'Остатки товаров не получены: ' + message();
-                        error(w) <- TRUE;
-                        errorText(w) <- OVERRIDE message(), statusText();
+                        IMPORT importBalanceItems JSON FROM response();
+                        IF statusHttp() >= 200 AND statusHttp() < 300 THEN {
+                            FOR imported(INTEGER j) AND Size s == size(chrtId(j)) INLINE DO {
+                                currentBalanceSizeWB(s, w) <- amount(j);
+                            }
+                        }
+                        messageStock() <- messageStatusHTTP(STRING(statusHttp()));
+                    } CATCH {
+                        logToFile('WB', messageCaughtException());
+                        IF statusHttp() == 400 OR statusHttp() == 403 OR statusHttp() == 404 OR statusHttp() == 409 THEN {
+                            IMPORT importError JSON FROM response();
+                            extraDescriptionStatusHTTP() <- 'Остатки товаров не получены: ' + message();
+                            error(w) <- TRUE;
+                            errorText(w) <- OVERRIDE message(), statusText();
+                        }
+                        messageStock() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
+                    } FINALLY {
+                        afterSendRequestIS();
+                        MESSAGE '<h3>Получение остатов товаров</h3>' NOWAIT;
+                        MESSAGE messageStock() NOWAIT;
+                        APPLY NESTED LOCAL;
+                        exported() <- exported() + postTransferItemsLimit();
                     }
-                    messageStock() <- CONCAT '\n', messageStatusHTTP(STRING(statusHttp())), messageCaughtException();
-                } FINALLY {
-                    afterSendRequestIS();
-                    MESSAGE '<h3>Получение остатов товаров</h3>' NOWAIT;
-                    MESSAGE messageStock() NOWAIT;
-                    APPLY;
                 }
             } ELSE {
                 MESSAGE 'Нет товаров для получения остатков';
