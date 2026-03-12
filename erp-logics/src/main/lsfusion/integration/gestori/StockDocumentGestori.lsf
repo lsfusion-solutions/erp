@@ -203,11 +203,8 @@ sumBaseRel 'Сумма в баз.в. (отп.ц.)' (StockDocumentLedger l) =
 sumNatRel 'Сумма в нац.в. (отп.ц.)' (StockDocumentLedger l) =
     NUMERIC[18,4](round2(sumBaseRel(l) * rateNat(date(l))));
 
-signedCostSum(SkuLedger sl) =
-    IF signedQuantity(sl) >= 0 THEN costSum(sl) ELSE -costSum(sl);
-
 sumBaseCost 'Сумма в баз.в. (себест.)' =
-    GROUP SUM round2(signedCostSum(SkuLedger sl) /
+    GROUP SUM round2(signedSum(SkuLedger sl) /
         (1.0 + (OVERRIDE valueVAT(sku(sl), country(stock(sl)), date(sl)), 0.0) / 100.0))
     BY stockDocumentLedger(sl);
 sumNatCost 'Сумма в нац.в. (себест.)' (StockDocumentLedger l) =
@@ -256,12 +253,12 @@ balNatRelA 'Исх. остаток (нац.в., отп.ц.)' (DATE d) =
     NUMERIC[18,4](round2(balBaseRelA(d) * rateNat(d)));
 
 balBaseCostBStock 'Вх. остаток (баз.в., себест.)' (Stock st, DATE d) =
-    GROUP SUM round2(costSumB(Sku sk, st, d) /
+    GROUP SUM round2(sumB(Sku sk, st, d) /
         (1.0 + (OVERRIDE valueVAT(sk, country(st), d), 0.0) / 100.0));
 balNatCostBStock 'Вх. остаток (нац.в., себест.)' (Stock st, DATE d) =
     NUMERIC[18,4](round2(balBaseCostBStock(st, d) * rateNat(d)));
 balBaseCostAStock 'Исх. остаток (баз.в., себест.)' (Stock st, DATE d) =
-    GROUP SUM round2(costSumA(Sku sk, st, d) /
+    GROUP SUM round2(sumA(Sku sk, st, d) /
         (1.0 + (OVERRIDE valueVAT(sk, country(st), d), 0.0) / 100.0));
 balNatCostAStock 'Исх. остаток (нац.в., себест.)' (Stock st, DATE d) =
     NUMERIC[18,4](round2(balBaseCostAStock(st, d) * rateNat(d)));
