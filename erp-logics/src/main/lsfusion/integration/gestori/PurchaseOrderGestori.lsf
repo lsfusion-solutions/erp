@@ -318,7 +318,7 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
     EVENTS ON INIT initReportDates()
 ;
 
-printReport 'Отчет' () { PRINT purchaseOrderReportForm XLSX; } IMAGE 'print.png';
+printReport 'Отчет' () { PRINT purchaseOrderReportForm ; } IMAGE 'print.png';
 
 EXTEND FORM purchaseOrderReportForm
     PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport
@@ -350,3 +350,73 @@ NAVIGATOR {
         NEW purchaseOrderReportForm;
     }
 }
+
+filterDateFromOrder (Purchase.InvoiceDetail d) = date(d) >= filterOrderDateFrom() OR (d IS InvoiceDetail AND NOT filterOrderDateFrom());
+filterDateToOrder (Purchase.InvoiceDetail d) = date(d) <= filterOrderDateTo() OR (d IS InvoiceDetail AND NOT filterOrderDateTo());
+filterSupplierOrder (Purchase.InvoiceDetail d) = supplier(d) == filterOrderSupplier() OR (d IS InvoiceDetail AND NOT filterOrderSupplier());
+filterSupplierStockOrder (Purchase.InvoiceDetail d) = supplierStock(d) == filterOrderSupplierStock() OR (d IS InvoiceDetail AND NOT filterOrderSupplierStock());
+filterCustomerOrder (Purchase.InvoiceDetail d) = customer(d) == filterOrderCustomer() OR (d IS InvoiceDetail AND NOT filterOrderCustomer());
+filterCustomerStockOrder (Purchase.InvoiceDetail d) = customerStock(d) == filterOrderCustomerStock() OR (d IS InvoiceDetail AND NOT filterOrderCustomerStock());
+
+quantityUnconfirmed 'Количество неподтвержд.' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
+quantityAgreed 'Количество согласованное' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
+quantityShipped 'Количество получено' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
+priceContract 'Цена по договору' = DATA LOCAL NUMERIC[16,4] (Sku, LegalEntity, Stock);
+sumPurchase 'Сумма прихода' = DATA LOCAL NUMERIC[16,4] (Sku, LegalEntity, Stock);
+
+FORM printPurchaseOrderReportSummary
+    OBJECTS s = (s = Sku, l = LegalEntity, st = Stock)
+    PROPERTIES(s) name, id
+    PROPERTIES(l) name
+    PROPERTIES(st) name
+    PROPERTIES() filterOrderDateFrom, filterOrderDateTo
+    PROPERTIES(s,l,st) quantityUnconfirmed, quantityAgreed, quantityShipped, priceContract, sumPurchase
+    ORDERS name(l), name(st), name(s)
+    FILTERS quantityUnconfirmed(s,l,st) OR quantityAgreed(s,l,st) OR quantityShipped(s,l,st) OR sumPurchase(s,l,st)
+    REPORT template()
+;
+
+orderReceiptReconSummary 'Акт сверки (сводная)' () {
+    
+    LOCAL orderDetail = OrderDetail ();
+    
+    quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- NULL;
+    quantityAgreed(Sku sk, LegalEntity l, Stock st) <- NULL;
+    quantityShipped(Sku sk, LegalEntity l, Stock st) <- NULL;
+    priceContract(Sku sk, LegalEntity l, Stock st) <- NULL;
+    sumPurchase(Sku sk, LegalEntity l, Stock st) <- NULL;
+    
+    quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF NOT isConfirmed(d) AND 
+        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND 
+        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+    
+    quantityAgreed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF isConfirmed(d) AND
+        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
+        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+    
+    quantityShipped(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipped(Purchase.OrderDetail d) IF 
+        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
+        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+    
+    orderDetail() <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE 
+        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
+        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+    
+    priceContract(Sku sk, LegalEntity l, Stock st) <- 
+        prevPriceA(priceListType(orderDetail()), sk, st, l, dateTime(orderDetail()));
+    
+    sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF 
+        sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
+        filterDateFromOrder(d) AND filterDateToOrder(d) AND filterSupplierOrder(d) AND filterSupplierStockOrder(d) AND
+        filterCustomerOrder(d) AND filterCustomerStockOrder(d);
+    
+    template() <- 'OrderReceiptReconSummaryGestori.jrxml';
+    PRINT printPurchaseOrderReportSummary XLSX ;
+} IMAGE 'print.png';
+
+EXTEND FORM orders
+    PROPERTIES() TOOLBAR orderReceiptReconSummary
+;
