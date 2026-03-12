@@ -63,9 +63,10 @@ extraRetailVAT 'НДС посуды'(PricingDetail d) = round0(extraRetailVATSum
 
 extraSupplierSum 'Сумма посуды без НДС'  (PricingDetail d) = extraRetailSum(d) (-) extraRetailVATSum(d);
 extraSupplierPrice 'Цена посуды без НДС'  (PricingDetail d) = round2(extraSupplierSum(d) / (quantity(d) IF quantity(d) != 0.0));          
+toPrint = DATA LOCAL BOOLEAN (Pricing);
 
 FORM pricingWare 'Реестр цен'
-    OBJECTS p=Pricing PANEL SUBREPORT
+    OBJECTS p=Pricing SUBREPORT
     PROPERTIES (p) SELECTOR isPosted
 
     PROPERTIES (p) nameStore, nameDepartmentStore, fullNameLegalEntityStock, seriesNumber, number, series, date, time,
@@ -87,12 +88,16 @@ FORM pricingWare 'Реестр цен'
                    
                    
     ORDERS index(d)
+    FILTERS toPrint(p)
     FILTERS pricing(d) == p,
             d IS PricingDetail AND NOT (sku(d) IS Ware),
             TRUE IF quantity(d)
 ;
 
-pricingWare 'Реестр цен' (Pricing pricing)  { PRINT pricingWare OBJECTS p = pricing; }  IMAGE 'print.png' IN print;
+pricingWare 'Реестр цен' (Pricing pricing)  {
+    toPrint(Pricing pp) <- pricing == pp;
+    PRINT pricingWare;  
+}  IMAGE 'print.png' IN print;
 
 EXTEND FORM pricings 
     PROPERTIES (p) pricingWare    
