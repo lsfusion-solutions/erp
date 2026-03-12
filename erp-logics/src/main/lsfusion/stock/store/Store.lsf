@@ -389,27 +389,12 @@ DESIGN departmentStore {
     }
 }
 
-//FORM departmentStores 'Отделы магазинов'
-//    TREE treeStore a=BPSTRING[3], t=ChainStores, st=StoreType, s=Store
-//    PROPERTIES READONLY VALUE(a), name(t), name(st), name(s)
-//    FILTERS stringEqualsAll(a), in (t, st), in(st, s)
-//    FILTERGROUP activeStore FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-//
-//    OBJECTS d=DepartmentStore
-//    PROPERTIES (d) in
-//    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
-//    FILTERS in(t, st, s, d)
-//    ORDERS depName
-//    FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
-//
-//    LIST DepartmentStore OBJECT d
-//;
-
+extraFilter = ABSTRACT BOOLEAN (StockGroup);
 FORM departmentStores 'Отдел магазина'
     TREE treeStore a = BPSTRING[3], sg = StockGroup PARENT parent(sg)
     PROPERTIES READONLY VALUE(a), sgTreeName = name(sg)
     ORDERS sgTreeName
-    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup OR sg IS Store)
+    FILTERS stringEqualsAll(a), (sg IS ChainStores OR sg IS StoreType OR sg IS StoreGroup OR sg IS Store OR extraFilter(sg))
     FILTERGROUP activeStore FILTER 'Активный' (active[Store](sg) OR NOT sg IS Store) 'ctrl F10' DEFAULT
 
     OBJECTS d=DepartmentStore
