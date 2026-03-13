@@ -35,7 +35,7 @@ updateBalanceItems 'Обновить(загрузить) остатки това
             logToFile('WB', 'PUT: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
 
             LOCAL include = BOOLEAN (Size);
-            include(Size s) <- TRUE WHERE itemWB(s) AND NOT exportBalance(itemWB(s), w) == currentBalanceItemWB(itemWB(s), w) AND
+            include(Size s) <- TRUE WHERE imtID(itemWB(s)) AND NOT exportBalance(itemWB(s), w) == currentBalanceItemWB(itemWB(s), w) AND
                 ((item(s) AND isUnloadItemERPWB()) OR NOT isUnloadItemERPWB()) AND chrtID(s);
 
             IF (GROUP SUM 1 IF include(Size s) AND NOT item(s)) THEN {
@@ -111,7 +111,7 @@ deleteBalanceItems 'Удалить остатки товаров на WB' (Wareh
                 logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
 
                 LOCAL include = BOOLEAN (Size);
-                include(Size s) <- TRUE WHERE currentBalanceSizeWB(s, w) AND chrtID(s);
+                include(Size s) <- TRUE WHERE currentBalanceSizeWB(s, w) AND chrtID(s) AND imtID(itemWB(s));
 
                 LOCAL index = INTEGER (Size);
                 index(Size s) <- PARTITION SUM 1 IF include(s) ORDER s;
@@ -173,7 +173,7 @@ deleteBalanceItem 'Удалить остатки товара на WB' (Warehous
     
                 logToFile('WB', 'DELETE: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
                 stringToFile('\{"chrtIds":[' +  (GROUP CONCAT STRING(chrtID(Size s)) IF
-                    itemWB(s) == i AND chrtID(s), ',' ORDER s) + ']\}', 'UTF-8', 'json');
+                    itemWB(s) == i AND chrtID(s) AND imtID(itemWB(s)), ',' ORDER s) + ']\}', 'UTF-8', 'json');
     
                 TRY {
                     EXTERNAL HTTP DELETE url(CategoryRequest.marketplace) + '/api/v3/stocks/' + id(w) HEADERS httpHeaders PARAMS resultFile() TO response;
@@ -233,7 +233,7 @@ postBalanceItems 'Получить остатки товаров с WB' (Warehou
                 logToFile('WB', 'POST: ' + url(CategoryRequest.marketplace) + '/api/v3/stocks');
 
                 LOCAL include = BOOLEAN (Size);
-                include(Size s) <- TRUE WHERE itemWB(s) AND chrtID(s);
+                include(Size s) <- TRUE WHERE imtID(itemWB(s)) AND chrtID(s);
 
                 LOCAL index = INTEGER (Size);
                 index(Size s) <- PARTITION SUM 1 IF include(s) ORDER s;
