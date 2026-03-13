@@ -49,6 +49,8 @@ DESIGN store {
 consultant = DATA Employee (Receipt);
 nameConsultant 'Продавец' (Receipt r) = name[Contact](consultant(r)) CHARWIDTH 20;
 
+skipCheckConsultant = DATA LOCAL BOOLEAN (Receipt);
+
 CONSTRAINT consultant(Receipt r) AND NOT in(departmentStore(r), consultant(r))
     CHECKED BY consultant[Receipt] MESSAGE 'В качестве продавца в чеке выбран сотрудник, которые не является работником данного отдела';
 CONSTRAINT consultant(Receipt r) AND NOT isConsultant(consultant(r))
@@ -65,9 +67,9 @@ WHEN LOCAL FORMS POS SET (ReceiptSaleDetail d IS ReceiptSaleDetail) AND NOT CHAN
 };
 
 CONSTRAINT consultant(ReceiptSaleDetail r) AND NOT in(departmentStore(r), consultant(r))
-    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чеке выбран сотрудник, которые не является работником данного отдела';
+    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чека продажи выбран сотрудник, который не является работником данного отдела';
 CONSTRAINT consultant(ReceiptSaleDetail r) AND NOT isConsultant(consultant(r))
-    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чека продажи выбран сотрудник, у которого не задан признак "Продавец".';  
         
 consultant = DATA Employee (ReceiptReturnDetail);
 
@@ -75,10 +77,10 @@ WHEN LOCAL FORMS POS CHANGED (receiptSaleDetail(ReceiptReturnDetail d)) AND NOT 
     consultant(d) <- consultant(receiptSaleDetail(d));
 };
 
-CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT in(departmentStore(r), consultant(r))
-    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, которые не является работником данного отдела';
-CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT isConsultant(consultant(r))
-    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT in(departmentStore(r), consultant(r)) AND NOT skipCheckConsultant(receipt(r))
+    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека возврата выбран сотрудник, который не является работником данного отдела';
+CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT isConsultant(consultant(r)) AND NOT skipCheckConsultant(receipt(r))
+    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека возврата выбран сотрудник, у которого не задан признак "Продавец".';  
     
 consultant[ReceiptDetail](ReceiptSaleDetail d) += consultant(d);
 consultant[ReceiptDetail](ReceiptReturnDetail d) += consultant(d);
