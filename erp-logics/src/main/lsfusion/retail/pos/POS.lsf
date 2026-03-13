@@ -123,6 +123,7 @@ inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AN
     AND NOT (noDiscountCard(promotion) AND discountCard(receipt)) COMPLEX;
 
 in (Receipt receipt, Promotion promotion) = inCalc(receipt, promotion) AND NOT skip(promotion);
+in (Receipt receipt, PromotionGroup promotionGroup) = GROUP SUM 1 IF in(receipt, Promotion promotion) AND promotionGroup(promotion)==promotionGroup;
 
 inReceiptSale (ReceiptDetail receiptDetail, PromotionCondition promotionCondition) =
     in(receipt(receiptDetail), promotion(promotionCondition))
@@ -154,7 +155,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt)  {
 
     beforeCalculatePromotions(receipt);
 
-    FOR PromotionGroup promotionGroup IS PromotionGroup AND active(promotionGroup) ORDER order (promotionGroup) DO {
+    FOR PromotionGroup promotionGroup IS PromotionGroup AND active(promotionGroup) AND in(receipt, promotionGroup) ORDER order (promotionGroup) DO {
         //        LOCAL leftSku = NUMERIC[14,3] (Sku);
         //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
         promotionSumReceipt() <- GROUP SUM promotionSum(ReceiptSaleDetail rd) IF receipt(rd) = receipt;
