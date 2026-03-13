@@ -283,12 +283,15 @@ createPickingUserInvoicePostedByPickingGroup 'Создать проведенн�
                         createPickingDetail(i, o, pickingGroup);
                         fillPrice(i, o);
                         createdUser(i, o) <- TRUE;
+                        userInvoice(o) <- i;
                         include[Order,UserInvoice](o,i) <- TRUE;
                     }
                     extraPickingDetail(i);
                     packQuantity(i) <- (GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o));
                     executeLocalEvents('PurchaseReturn.userInvoice');
-                    afterCreatePickingUserInvoicePosted(i, order, pickingGroup);
+                    FOR inCreatePickingUserInvoicePosted(Order.Order o) AND countPickedOrderDetail(o, pickingGroup) DO {
+                        afterCreatePickingUserInvoicePosted(i, o, pickingGroup);
+                    }
                     IF showPickingUserInvoicePosted() THEN {
                         SHOW userInvoice OBJECTS i = i DOCKED NOCANCEL;
                     }
