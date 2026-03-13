@@ -77,24 +77,26 @@ filterCustomerStock(Purchase.OrderDetail d) = filterCustomerStock(order(d));
 filterCustomUser(Purchase.OrderDetail d) = filterCustomUser(order(d));
 filterComputer(Purchase.OrderDetail d) = filterComputer(order(d));
 
-receivedPrice 'Цена из приходной накладной' (Purchase.OrderDetail d) =
-    GROUP LAST price(Purchase.InvoiceDetail id) IF orderDetail(id) = d ORDER dateTime(id), id;
+idNameCustomerStock 'Склад покупателя' (Purchase.OrderDetail d) = CONCAT ' — ', id(customerStock(order(d))), nameCustomerStock(d);
+
+receivedPrice 'Цена из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
+    GROUP LAST invoicePrice(Purchase.InvoiceDetail id) IF orderDetail(id) = d ORDER dateTime(id), id;
 
 specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
 
-orderSum 'Сумма заказа' (Purchase.OrderDetail d) = sum(d);
+orderSum 'Сумма заказа (с НДС)' (Purchase.OrderDetail d) = invoiceSum(d);
 
 FORM printPurchaseOrderReport
     OBJECTS d = Purchase.OrderDetail
     PROPERTIES() filterOrderDateFrom, filterOrderDateTo
-    PROPERTIES(d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
+    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
         idSku, nameSku,
         quantity, shipped,
-        price, specPrice, receivedPrice,
+        invoicePrice, specPrice, receivedPrice,
         orderSum, invoiceSum,
         invoices, isConfirmed
-    ORDERS nameSupplier(d), nameCustomerStock(d), date(d)
+    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
     FILTERS filterStatus(d),
         filterDateFrom(d),
         filterDateTo(d),
@@ -299,13 +301,13 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
     PROPERTIES reportSkus 'Товары' = reportInSkus() ON CHANGE selectReportSkus() READONLYIF anyReportSkuList() OR anyReportSkuGroup()
 
     OBJECTS d = Purchase.OrderDetail
-    PROPERTIES(d) READONLY nameSupplier, nameCustomerStock, number, date, shipmentDate, nameStatus,
+    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
         idSku, nameSku,
         quantity, shipped,
-        price, specPrice, receivedPrice,
+        invoicePrice, specPrice, receivedPrice,
         orderSum, invoiceSum,
         invoices
-    ORDERS nameSupplier(d), nameCustomerStock(d), date(d)
+    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
     FILTERS inReportDateFrom(d),
         inReportDateTo(d),
         inReportStatus(d),
@@ -318,7 +320,7 @@ FORM purchaseOrderReportForm 'Отчет по заказам поставщик�
     EVENTS ON INIT initReportDates()
 ;
 
-printReport 'Отчет' () { PRINT purchaseOrderReportForm ; } IMAGE 'print.png';
+printReport 'Отчет' () { PRINT purchaseOrderReportForm XLSX; } IMAGE 'print.png';
 
 EXTEND FORM purchaseOrderReportForm
     PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport
