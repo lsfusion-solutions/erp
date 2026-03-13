@@ -50,8 +50,8 @@ createCreditNoteQuantityVariance(Invoice i) + {
         isPosted(c) <- TRUE;
     }
 
-    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d));    
-    FOR quantityVariance(InvoiceDetail d) DO NEW dc = UserCreditNoteDetail {
+    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d)) WHERE invoice(d) = i;    
+    FOR quantityVariance(InvoiceDetail d) AND invoice(d) = i DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- batch(d);
@@ -97,8 +97,8 @@ createCreditNoteQualityVariance(Invoice i) + {
         ((GROUP SUM quantity(ReceivingDetail rd) IF sku(rd)==s AND overConsolidationKey(rd)==str AND receiving(rd)==r AND
             orderLedger(inBin(rd)) AND NOT storage(inBin(rd)) AND inBin(rd)==bin) (-)
             quantityCreditNoteQualityVariance(bin, s, str, r)) WHERE qualityVarianceToPartition(s, str, r) AND r=receiving(i);
-    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d));
-    FOR qualityVariance(InvoiceDetail d, Bin bin) DO NEW dc = UserCreditNoteDetail {
+    limitPartitionCreditNote(InvoiceDetail d) <- (quantity(d) (-) prevQuantityUserCreditNote(d)) WHERE invoice(d) = i;
+    FOR qualityVariance(InvoiceDetail d, Bin bin) AND invoice(d) = i DO NEW dc = UserCreditNoteDetail {
         userCreditNote(dc) <- userCreditNote(invoice(d));
         invoiceDetail(dc) <- d;
         batch(dc) <- batch(d);
