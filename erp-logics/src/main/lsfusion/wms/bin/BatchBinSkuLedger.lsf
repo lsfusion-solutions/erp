@@ -4,108 +4,6 @@ REQUIRE BinSkuLedger, BatchBinLedger, PriceListLedgerAccount;
 
 NAMESPACE Bin;
 
-FORM currentBalanceBinBatchStock 'Сравнение остатков партий по ячейкам и складу'
-    OBJECTS ss = Stock PANEL
-    PROPERTIES(ss) name SELECTOR
-    FILTERS isCompany(ss),
-        useBins(ss)
-    
-    TREE skuTree sk = SkuGroup PARENT parent(sk)
-    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    ORDERS order(sk), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F6' DEFAULT
-
-    OBJECTS stb=(st=Stock, bt=Batch)
-    PROPERTIES READONLY BACKGROUND backgroundBatch(st, bt) nameSku(bt)
-    PROPERTIES READONLY currentBalance(bt, st), currentBalanceBatch(bt, st), currentDiffBalanceBin(bt, st), sumB(bt, st)
-    PROPERTIES(bt) READONLY BACKGROUND backgroundBatch(st, bt) number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
-    FILTERS isParent(sk, bt),
-            st == ss
-    ORDERS dateTime(bt)
-
-    FILTERGROUP filterExpiry
-        FILTER 'Партии с истекшим сроком годности' expiryDate(bt) < currentDate() 
-        FILTER 'Партии со сроком годности, истекающим через 1 день' expires(bt, currentDate(), 1) 
-        FILTER 'Партии со сроком годности, истекающим через 7 дней' expires(bt, currentDate(), 7)
-        FILTER 'Партии со сроком годности, истекающим через 30 дней' expires(bt, currentDate(), 30) 
-
-    FILTERGROUP filterBalance
-        FILTER 'Партии с остатком' currentBalance(bt, st) OR sumB(bt, st) OR currentBalanceBatch(bt, st) 'F10'
-        FILTER 'Партии с расхождением между по остаткам на складе и в ячейках ' (currentBalance(bt, st) OR currentBalanceBatch(bt, st)) AND NOT currentBalance(bt, st) = currentBalanceBatch(bt, st)  'F11' DEFAULT 
-        FILTER 'Партии с движением по складу' countLedger(bt, st)
-        FILTER 'Партии с остатком по ячейкам' currentBalanceBatch(bt, st)        
-        FILTER 'Партии пришедшие за последний 1 день' dateTime(bt) >= subtractSeconds(currentDateTime(), 1) 'F10'
-        FILTER 'Партии пришедшие за последние 7 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 7) 'F9'
-        FILTER 'Партии пришедшие за последние 30 дней' dateTime(bt) >= subtractSeconds(currentDateTime(), 30) 'F8'
-    
-    OBJECTS b = Bin
-    PROPERTIES(b) READONLY order, canonicalId, name
-    PROPERTIES currentBalance(bt, b)
-    FILTERS stock(b) = ss, currentBalance(bt, b)
-    ORDERS order(b), canonicalId(b), name(b)
-
-    OBJECTS bl = BinLedger
-    PROPERTIES (bl) READONLY dateTime, description, skip, quantity, canonicalIdInBin, nameInBin, canonicalIdOutBin, nameOutBin
-    PROPERTIES(bl) EDIT SHOWIF allowedEdit(bl) NEWSESSION, show SHOWIF allowedShow(bl)
-    ORDERS dateTime(bl) DESC
-    FILTERS isPosted(bl), batch(bl)==bt
-;
-
-@extendFormFilterStockAccess(ss, currentBalanceBinBatchStock);
-
-DESIGN currentBalanceBinBatchStock {
-    BOX {
-        size = (1024, 768);
-        NEW filter {
-            alignment = STRETCH;
-            horizontal = TRUE;
-            MOVE PROPERTY (name(ss));
-        }
-        NEW topContainer {
-            fill = 1;
-            horizontal = TRUE;
-
-            NEW firstCaseTwo {
-                fill = 1;
-                MOVE BOX(TREE skuTree) { caption = 'Группы'; }
-            }
-            NEW secondCase {
-                fill = 3;
-                NEW skuBox {
-                    fill = 2;
-                    MOVE BOX(stb) {
-                        caption = 'Партии';
-                        fill = 2;
-                    }
-                }
-                NEW ledgerBox {
-                    fill = 1;
-                    tabbed = TRUE;
-                    MOVE BOX(b){
-                        PROPERTY(canonicalId(b)) {defaultCompare = '=*';}
-                    }
-                    MOVE BOX(bl){
-                        PROPERTY(canonicalIdInBin(bl)) {defaultCompare = '=*';}
-                        PROPERTY(canonicalIdOutBin(bl)) {defaultCompare = '=*';}
-                        PROPERTY(nameInBin(bl)) {defaultCompare = '=*';}
-                        PROPERTY(nameOutBin(bl)) {defaultCompare = '=*';}
-                    }
-                }
-            }
-
-
-        }
-
-        MOVE TOOLBARBOX;
-    }
-}
-
-NAVIGATOR {
-    WMSDocument {
-        NEW currentBalanceBinBatchStock AFTER currentBalanceBinSkuStock;
-    }
-}
-
 dateTimeLastMoved 'Время последнего прихода' (batch, bin) =
     GROUP LAST dateTime(BinLedger ledger)
     ORDER dateTime(ledger), ledger
@@ -117,6 +15,7 @@ dateTimeLastMoved 'Время последнего прихода' (batch, binGr
     ORDER dateTime(ledger), ledger
     WHERE active(ledger)
     BY batch(ledger), binGroup(inBin(ledger));
+
 dateTimeLastMovedInOut 'Время последнего движения' (Batch b, BinGroup g) =
     GROUP LAST dateTime(BinLedger ledger)
     ORDER dateTime(ledger), ledger
