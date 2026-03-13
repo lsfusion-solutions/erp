@@ -78,6 +78,7 @@ filterCustomUser(Purchase.OrderDetail d) = filterCustomUser(order(d));
 filterComputer(Purchase.OrderDetail d) = filterComputer(order(d));
 
 idNameCustomerStock 'Склад покупателя' (Purchase.OrderDetail d) = CONCAT ' — ', id(customerStock(order(d))), nameCustomerStock(d);
+idNameStock 'Склад' (Stock st) = CONCAT ' — ', id(st), name(st);
 
 receivedPrice 'Цена из приходной накладной (с НДС)' (Purchase.OrderDetail d) =
     GROUP LAST invoicePrice(Purchase.InvoiceDetail id) IF orderDetail(id) = d ORDER dateTime(id), id;
@@ -86,37 +87,6 @@ specPrice 'Цена из спецификации' (Purchase.OrderDetail d) =
     prevPriceA(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
 
 orderSum 'Сумма заказа (с НДС)' (Purchase.OrderDetail d) = invoiceSum(d);
-
-FORM printPurchaseOrderReport
-    OBJECTS d = Purchase.OrderDetail
-    PROPERTIES() filterOrderDateFrom, filterOrderDateTo
-    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
-        idSku, nameSku,
-        quantity, shipped,
-        invoicePrice, specPrice, receivedPrice,
-        orderSum, invoiceSum,
-        invoices, isConfirmed
-    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
-    FILTERS filterStatus(d),
-        filterDateFrom(d),
-        filterDateTo(d),
-        filterSupplier(d),
-        filterSupplierStock(d),
-        filterCustomer(d),
-        filterCustomerStock(d),
-        filterCustomUser(d),
-        filterComputer(d)
-    REPORT template()
-;
-
-orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
-    template() <- 'OrderReceiptReconDetailedGestori.jrxml';
-    PRINT printPurchaseOrderReport;
-} IMAGE 'print.png';
-
-EXTEND FORM orders
-    PROPERTIES() TOOLBAR orderReceiptReconDetailed
-;
 
 reportDateFrom 'Дата с' = DATA LOCAL DATE();
 reportDateTo 'Дата по' = DATA LOCAL DATE();
@@ -326,39 +296,17 @@ EXTEND FORM purchaseOrderReportForm
     PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() printReport
 ;
 
-DESIGN purchaseOrderReportForm {
-    NEW filters FIRST {
-        alignment = STRETCH;
-        NEW topRow {
-            horizontal = TRUE;
-            MOVE PROPERTY(reportDateFrom());
-            MOVE PROPERTY(reportDateTo());
-            MOVE PROPERTY(nameReportStatus()) { fill = 1; }
-            MOVE PROPERTY(printReport()) { valueClass = 'btn-primary'; }
-        }
-        MOVE PROPERTY(nameReportSupplierList()) { alignment = STRETCH; }
-        MOVE PROPERTY(nameReportSuppliers()) { alignment = STRETCH; }
-        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
-        MOVE PROPERTY(reportStocks) { alignment = STRETCH; }
-        MOVE PROPERTY(nameReportSkuLists()) { alignment = STRETCH; }
-        MOVE PROPERTY(reportSelectedSkuGroups) { alignment = STRETCH; }
-        MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
-    }
-    BOX(d) { caption = ''; }
-}
-
 NAVIGATOR {
     purchasesReports {
         NEW purchaseOrderReportForm;
     }
 }
 
-filterDateFromOrder (Purchase.InvoiceDetail d) = date(d) >= filterOrderDateFrom() OR (d IS InvoiceDetail AND NOT filterOrderDateFrom());
-filterDateToOrder (Purchase.InvoiceDetail d) = date(d) <= filterOrderDateTo() OR (d IS InvoiceDetail AND NOT filterOrderDateTo());
-filterSupplierOrder (Purchase.InvoiceDetail d) = supplier(d) == filterOrderSupplier() OR (d IS InvoiceDetail AND NOT filterOrderSupplier());
-filterSupplierStockOrder (Purchase.InvoiceDetail d) = supplierStock(d) == filterOrderSupplierStock() OR (d IS InvoiceDetail AND NOT filterOrderSupplierStock());
-filterCustomerOrder (Purchase.InvoiceDetail d) = customer(d) == filterOrderCustomer() OR (d IS InvoiceDetail AND NOT filterOrderCustomer());
-filterCustomerStockOrder (Purchase.InvoiceDetail d) = customerStock(d) == filterOrderCustomerStock() OR (d IS InvoiceDetail AND NOT filterOrderCustomerStock());
+inReportDateFromOrder(Purchase.InvoiceDetail d) = date(d) >= reportDateFrom() OR (d IS Purchase.InvoiceDetail AND NOT reportDateFrom());
+inReportDateToOrder(Purchase.InvoiceDetail d) = date(d) <= reportDateTo() OR (d IS Purchase.InvoiceDetail AND NOT reportDateTo());
+inReportSupplierFilterOrder(Purchase.InvoiceDetail d) = NOT anyReportSupplier() OR inReportSupplier(supplier(d));
+inReportStockFilterOrder(Purchase.InvoiceDetail d) = inSaleReport(customerStock(d));
+inReportSkuFilterOrder(Purchase.InvoiceDetail d) = NOT anyReportSkuSelected() OR inReportSku(sku(d)) OR inReportSkuGroup(skuGroup2(sku(d)));
 
 quantityUnconfirmed 'Количество неподтвержд.' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
 quantityAgreed 'Количество согласованное' = DATA LOCAL NUMERIC[16,5] (Sku, LegalEntity, Stock);
@@ -370,10 +318,10 @@ FORM printPurchaseOrderReportSummary
     OBJECTS s = (s = Sku, l = LegalEntity, st = Stock)
     PROPERTIES(s) name, id
     PROPERTIES(l) name
-    PROPERTIES(st) name
-    PROPERTIES() filterOrderDateFrom, filterOrderDateTo
+    PROPERTIES(st) idNameStock
+    PROPERTIES() reportDateFrom, reportDateTo
     PROPERTIES(s,l,st) quantityUnconfirmed, quantityAgreed, quantityShipped, priceContract, sumPurchase
-    ORDERS name(l), name(st), name(s)
+    ORDERS name(l), idNameStock(st), name(s)
     FILTERS quantityUnconfirmed(s,l,st) OR quantityAgreed(s,l,st) OR quantityShipped(s,l,st) OR sumPurchase(s,l,st)
     REPORT template()
 ;
@@ -390,35 +338,82 @@ orderReceiptReconSummary 'Акт сверки (сводная)' () {
     
     quantityUnconfirmed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF NOT isConfirmed(d) AND 
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
-        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND 
-        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
-    
+        inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
+        inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
+        
     quantityAgreed(Sku sk, LegalEntity l, Stock st) <- GROUP SUM quantity(Purchase.OrderDetail d) IF isConfirmed(d) AND
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
-        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
-        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+        inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
+        inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
     
     quantityShipped(Sku sk, LegalEntity l, Stock st) <- GROUP SUM shipped(Purchase.OrderDetail d) IF 
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
-        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
-        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+        inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
+        inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
     
-    orderDetail() <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE 
-        filterStatus(d) AND filterDateFrom(d) AND filterDateTo(d) AND filterSupplier(d) AND filterSupplierStock(d) AND
-        filterCustomer(d) AND filterCustomerStock(d) AND filterCustomUser(d) AND filterComputer(d);
+    orderDetail() <- GROUP LAST Purchase.OrderDetail d ORDER dateTime(d), d WHERE
+        inReportDateFrom(d) AND inReportDateTo(d) AND inReportStatus(d) AND
+        inReportSupplierFilter(d) AND inReportStockFilter(d) AND inReportSkuFilter(d);
     
     priceContract(Sku sk, LegalEntity l, Stock st) <- 
         prevPriceA(priceListType(orderDetail()), sk, st, l, dateTime(orderDetail()));
     
     sumPurchase(Sku sk, LegalEntity l, Stock st) <- GROUP SUM invoiceSum(Purchase.InvoiceDetail d) IF 
         sku(d)=sk AND supplier(d)=l AND customerStock(d)=st AND
-        filterDateFromOrder(d) AND filterDateToOrder(d) AND filterSupplierOrder(d) AND filterSupplierStockOrder(d) AND
-        filterCustomerOrder(d) AND filterCustomerStockOrder(d);
+        inReportDateFromOrder(d) AND inReportDateToOrder(d) AND 
+        inReportSupplierFilterOrder(d) AND inReportStockFilterOrder(d) AND inReportSkuFilterOrder(d);
     
     template() <- 'OrderReceiptReconSummaryGestori.jrxml';
     PRINT printPurchaseOrderReportSummary XLSX ;
 } IMAGE 'print.png';
 
-EXTEND FORM orders
-    PROPERTIES() TOOLBAR orderReceiptReconSummary
+FORM printPurchaseOrderReport
+    OBJECTS d = Purchase.OrderDetail
+    PROPERTIES() reportDateFrom, reportDateTo
+    PROPERTIES(d) READONLY nameSupplier, idNameCustomerStock, number, date, shipmentDate, nameStatus,
+        idSku, nameSku,
+        quantity, shipped,
+        invoicePrice, specPrice, receivedPrice,
+        orderSum, invoiceSum,
+        invoices, isConfirmed
+    ORDERS nameSupplier(d), idNameCustomerStock(d), date(d)
+    FILTERS inReportStatus(d),
+        inReportDateFrom(d),
+        inReportDateTo(d),
+        inReportSupplierFilter(d),
+        inReportStockFilter(d),
+        inReportSkuFilter(d)
+    REPORT template()
 ;
+
+orderReceiptReconDetailed 'Акт сверки (детальная по заказам)' () {
+    template() <- 'OrderReceiptReconDetailedGestori.jrxml';
+    PRINT printPurchaseOrderReport XLSX ;
+} IMAGE 'print.png';
+
+EXTEND FORM purchaseOrderReportForm
+    PROPERTIES() DISABLEIF NOT reportDateFrom() OR NOT reportDateTo() orderReceiptReconDetailed, orderReceiptReconSummary
+;
+
+DESIGN purchaseOrderReportForm {
+    NEW filters FIRST {
+        alignment = STRETCH;
+        NEW topRow {
+            horizontal = TRUE;
+            MOVE PROPERTY(reportDateFrom());
+            MOVE PROPERTY(reportDateTo());
+            MOVE PROPERTY(nameReportStatus()) { fill = 1; }
+            MOVE PROPERTY(printReport()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(orderReceiptReconDetailed()) { valueClass = 'btn-primary'; }
+            MOVE PROPERTY(orderReceiptReconSummary()) { valueClass = 'btn-primary'; }
+        }
+        MOVE PROPERTY(nameReportSupplierList()) { alignment = STRETCH; }
+        MOVE PROPERTY(nameReportSuppliers()) { alignment = STRETCH; }
+        MOVE PROPERTY(nameStockList()) { alignment = STRETCH; }
+        MOVE PROPERTY(reportStocks) { alignment = STRETCH; }
+        MOVE PROPERTY(nameReportSkuLists()) { alignment = STRETCH; }
+        MOVE PROPERTY(reportSelectedSkuGroups) { alignment = STRETCH; }
+        MOVE PROPERTY(reportSkus) { alignment = STRETCH; }
+    }
+    BOX(d) { caption = ''; }
+}
